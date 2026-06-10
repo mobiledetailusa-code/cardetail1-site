@@ -1187,7 +1187,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <span class="svc-ico">🛥️</span>
         <div class="svc-name">Boats & Marine</div>
         <div class="svc-desc">Runabouts, bowriders, center consoles, cruisers & jet skis. Priced by vessel length.</div>
-        <div class="svc-from" id="hfrom-boats">From $266 · Priced by boat size</div>
+        <div class="svc-from" id="hfrom-boats">From $199 · Priced by boat size</div>
         <div class="svc-tags">
           <span class="svc-tag">Marine Wash</span><span class="svc-tag">Essential</span><span class="svc-tag">Full Marine</span><span class="svc-tag">Premium</span>
         </div>
@@ -1198,7 +1198,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <span class="svc-ico">🏕️</span>
         <div class="svc-name">RVs & Trailers</div>
         <div class="svc-desc">Travel trailers, fifth wheels, Class C & Class A motorhomes. Interior, exterior, or both.</div>
-        <div class="svc-from" id="hfrom-rvs">From $466 · Priced by exact length</div>
+        <div class="svc-from" id="hfrom-rvs">From $349 · Priced by exact length</div>
         <div class="svc-tags">
           <span class="svc-tag">Exterior Wash</span><span class="svc-tag">Interior</span><span class="svc-tag">Full Detail</span><span class="svc-tag">Premium</span>
         </div>
@@ -1685,13 +1685,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <span class="svc-ico" style="font-size:36px">🛥️</span>
             <div class="svc-name" style="font-size:22px">Boats</div>
             <div class="svc-desc" style="font-size:12px">All vessels · Priced by length</div>
-            <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $266</div>
+            <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $199</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
             <span class="svc-ico" style="font-size:36px">🏕️</span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
-            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $466</div>
+            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $349</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
             <span class="svc-ico" style="font-size:36px">🏍️</span>
@@ -2404,19 +2404,19 @@ const LENGTH_PRICING = {
   boats: {
     min: 12, max: 60, defaultFt: 22, estimateOver: 36,
     packages: {
-      maint:     {perFt: 13, min: 266},
-      essential: {perFt: 19, min: 399},
-      full:      {perFt: 27, min: 599},
-      premium:   {perFt: 37, min: 933}
+      maint:     {perFt: 12, min: 199},
+      essential: {perFt: 21, min: 299},
+      full:      {perFt: 30, min: 449},
+      premium:   {perFt: 38, min: 699}
     }
   },
   rvs: {
     min: 12, max: 45, defaultFt: 24, estimateOver: 40,
     packages: {
-      exterior: {perFt: 21, min: 466},
-      interior: {perFt: 19, min: 399},
-      full:     {perFt: 29, min: 733},
-      premium:  {perFt: 48, min: 1133}
+      exterior: {perFt: 12, min: 349},
+      interior: {perFt: 21, min: 299},
+      full:     {perFt: 30, min: 549},
+      premium:  {perFt: 38, min: 849}
     }
   },
   fleet: {
@@ -3970,8 +3970,8 @@ const ZONE_POPULAR = {
 
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & Trucks',    desc:'Most requested in your area', from:'From $119' },
-  boats:      { ico:'🛥️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $266' },
-  rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $466' },
+  boats:      { ico:'🛥️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $199' },
+  rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $349' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $119' },
   fleet:      { ico:'🚚', name:'Fleet Services',   desc:'Multi-unit discounts apply',  from:'From $60/unit' },
 };
