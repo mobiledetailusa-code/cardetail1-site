@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "cardetail1",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "5500"],
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", "C:\\Users\\magno\\Desktop\\dz project\\.claude\\serve.ps1"],
       "port": 5500
     }
   ]

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Cardetail1 — Admin</title>
+<style>
+  :root{--bg:#0a0f16;--card:#0e1622;--line:rgba(255,255,255,.08);--fg:#d6dce5;--mu:#8a9bb0;--ac:#4da3ff;--err:#ef4444}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"DM Sans",system-ui,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#13202f,#0a0f16 60%);color:var(--fg);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .box{width:100%;max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px 26px;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+  .logo{font-weight:800;font-size:20px;letter-spacing:.3px}
+  .logo span{color:var(--ac)}
+  .sub{color:var(--mu);font-size:13px;margin:6px 0 22px}
+  label{display:block;font-size:12px;color:var(--mu);margin:0 0 7px}
+  input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#0c1520;color:var(--fg);font-size:15px;outline:none}
+  input:focus{border-color:var(--ac)}
+  button{width:100%;margin-top:18px;padding:13px;border:0;border-radius:12px;background:var(--ac);color:#06121f;font-weight:700;font-size:15px;cursor:pointer}
+  button:active{transform:translateY(1px)}
+  .err{color:var(--err);font-size:13px;margin-top:12px;display:none}
+  .err.show{display:block}
+  .links{margin-top:20px;display:flex;gap:14px;font-size:13px}
+  .links a{color:var(--mu);text-decoration:none}
+  .links a:hover{color:var(--fg)}
+</style>
+</head>
+<body>
+  <form class="box" onsubmit="return adminLogin(event)">
+    <div class="logo">Cardetail<span>1</span> · Admin</div>
+    <div class="sub">Restricted area — operators only.</div>
+    <label for="code">Access code</label>
+    <input id="code" type="password" autocomplete="off" autofocus placeholder="••••••••••">
+    <button type="submit">Enter dashboard</button>
+    <div class="err" id="err">Invalid access code.</div>
+    <div class="links">
+      <a href="technician.html">Technician portal →</a>
+      <a href="cardetail1-mobile-detailing-pro-v6-images-checkout.html">Main site →</a>
+    </div>
+  </form>
+<script>
+  // NOTE: validação client-side (mesmo modelo demo do technician.html).
+  // Para produção, mover a autenticação para o backend (ver BACKEND-SETUP.md).
+  const ADMIN_PASS = 'cd1admin2026';
+  function adminLogin(e){
+    e.preventDefault();
+    const code = (document.getElementById('code').value||'').trim();
+    if(code === ADMIN_PASS){
+      localStorage.setItem('cd1_session','admin');
+      location.href = 'technician.html';   // technician.html boota direto no painel admin
+      return false;
+    }
+    document.getElementById('err').classList.add('show');
+    return false;
+  }
+  // Se já estiver logado como admin, pula o login.
+  if(localStorage.getItem('cd1_session') === 'admin'){ location.replace('technician.html'); }
+</script>
+</body>
+</html>

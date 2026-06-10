@@ -96,59 +96,89 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 #radar-widget{position:fixed;bottom:24px;right:24px;z-index:890;display:flex;flex-direction:column;align-items:flex-end;gap:12px}
 
 /* Collapsed pill */
-#radar-pill{display:flex;align-items:center;gap:10px;background:#010e01;border:1.5px solid rgba(0,255,80,.35);border-radius:999px;padding:10px 18px 10px 10px;cursor:pointer;box-shadow:0 8px 32px rgba(0,255,80,.18),0 2px 8px rgba(0,0,0,.5);transition:all .25s;user-select:none}
-#radar-pill:hover{background:#021602;border-color:rgba(0,255,80,.6);box-shadow:0 12px 40px rgba(0,255,80,.28),0 2px 8px rgba(0,0,0,.5);transform:translateY(-2px)}
-.rpill-radar{width:36px;height:36px;border-radius:50%;background:#030f03;border:1px solid rgba(0,255,80,.25);position:relative;overflow:hidden;flex-shrink:0}
-.rpill-sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 310deg,rgba(0,255,80,.15) 330deg,rgba(0,255,80,.6) 355deg,rgba(0,255,80,.1) 360deg);animation:radarSpin 3s linear infinite}
-.rpill-dot{position:absolute;width:4px;height:4px;background:#00ff50;border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%);box-shadow:0 0 6px #00ff50}
+#radar-pill{display:flex;align-items:center;gap:10px;background:#020e1c;border:1.5px solid rgba(14,165,233,.4);border-radius:999px;padding:10px 18px 10px 10px;cursor:pointer;box-shadow:0 8px 32px rgba(14,165,233,.18),0 2px 8px rgba(0,0,0,.5);transition:all .25s;user-select:none}
+#radar-pill:hover{background:#041828;border-color:rgba(125,211,252,.7);box-shadow:0 12px 40px rgba(14,165,233,.3),0 2px 8px rgba(0,0,0,.5);transform:translateY(-2px)}
+/* Pill — mini water drop */
+.rpill-radar{width:36px;height:36px;border-radius:50%;background:#020e1c;border:1px solid rgba(14,165,233,.35);position:relative;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.rpill-sweep{display:none}
+.rpill-dot{display:none}
+.rpill-drop-mini{font-size:15px;line-height:1;z-index:3;position:relative;filter:drop-shadow(0 0 4px rgba(14,165,233,.9))}
+.rpill-ripple{position:absolute;border-radius:50%;border:1px solid rgba(14,165,233,.6);top:50%;left:50%;transform:translate(-50%,-50%) scale(0);animation:miniRipple 2s ease-out infinite}
+.rpill-ripple:nth-child(2){animation-delay:.7s}
+@keyframes miniRipple{0%{width:4px;height:4px;opacity:.9}100%{width:36px;height:36px;opacity:0}}
 .rpill-text{display:flex;flex-direction:column;gap:1px}
-.rpill-label{font-size:12px;font-weight:700;color:#00ff50;letter-spacing:.06em;text-transform:uppercase}
+.rpill-label{font-size:12px;font-weight:700;color:#7dd3fc;letter-spacing:.06em;text-transform:uppercase}
 .rpill-sub{font-size:10px;color:rgba(255,255,255,.4)}
 .rpill-live{margin-left:4px}
 
 /* Expanded panel */
-#radar-panel{display:none;background:#010e01;border:1.5px solid rgba(0,255,80,.25);border-radius:20px;width:min(440px,calc(100vw - 32px));box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 40px rgba(0,255,80,.1);overflow:hidden;animation:radarPanelIn .3s cubic-bezier(.34,1.56,.64,1)}
+#radar-panel{display:none;background:#020c18;border:1.5px solid rgba(14,165,233,.28);border-radius:20px;width:min(440px,calc(100vw - 32px));box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 40px rgba(14,165,233,.08);overflow:hidden;animation:radarPanelIn .3s cubic-bezier(.34,1.56,.64,1)}
 @keyframes radarPanelIn{from{opacity:0;transform:scale(.9) translateY(16px)}to{opacity:1;transform:scale(1) translateY(0)}}
 #radar-widget.open #radar-panel{display:block}
 #radar-widget.open #radar-pill{display:none}
 
-.rpanel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1px solid rgba(0,255,80,.1)}
-.rpanel-title{font-size:15px;font-weight:700;color:#00ff50;letter-spacing:.04em}
+.rpanel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1px solid rgba(14,165,233,.12)}
+.rpanel-title{font-size:15px;font-weight:700;color:#7dd3fc;letter-spacing:.04em}
 .rpanel-sub{font-size:10px;color:rgba(255,255,255,.35);margin-top:2px;text-transform:uppercase;letter-spacing:.1em}
 .rpanel-close{background:rgba(255,255,255,.06);border:none;color:rgba(255,255,255,.5);width:28px;height:28px;border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
 .rpanel-close:hover{background:rgba(255,80,80,.15);color:#ff6060}
 
-.rpanel-stats{display:flex;border-bottom:1px solid rgba(0,255,80,.08);padding:10px 0}
-.rpstat{flex:1;text-align:center;border-right:1px solid rgba(0,255,80,.08);padding:6px 0}
+.rpanel-stats{display:flex;border-bottom:1px solid rgba(14,165,233,.1);padding:10px 0}
+.rpstat{flex:1;text-align:center;border-right:1px solid rgba(14,165,233,.1);padding:6px 0}
 .rpstat:last-child{border-right:none}
-.rpstat-val{font-family:var(--fd);font-size:22px;color:#00ff50;line-height:1}
+.rpstat-val{font-family:var(--fd);font-size:22px;color:#0ea5e9;line-height:1}
 .rpstat-lbl{font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;margin-top:2px}
 
 .rpanel-body{display:flex;gap:12px;padding:14px;align-items:flex-start}
 .rpanel-ticker{flex:1;min-width:0}
-.rpanel-legend{display:flex;gap:10px;flex-wrap:wrap;padding:10px 14px 14px;border-top:1px solid rgba(0,255,80,.08)}
+.rpanel-legend{display:flex;gap:10px;flex-wrap:wrap;padding:10px 14px 14px;border-top:1px solid rgba(14,165,233,.1)}
 
-/* The circle */
+/* ── WATER DROP SONAR SCREEN ── */
 .radar-screen{width:160px;height:160px;border-radius:50%;position:relative;flex-shrink:0;
-  background:radial-gradient(circle at center,#071a07 0%,#030e03 60%,#010701 100%);
-  border:1.5px solid rgba(0,255,80,.2);
-  box-shadow:0 0 40px rgba(0,255,80,.12),inset 0 0 30px rgba(0,0,0,.6)}
-/* Grid rings */
-.radar-ring{position:absolute;border-radius:50%;border:1px solid rgba(0,255,80,.1);top:50%;left:50%;transform:translate(-50%,-50%)}
-.radar-ring:nth-child(1){width:33%;height:33%}
-.radar-ring:nth-child(2){width:66%;height:66%}
-.radar-ring:nth-child(3){width:100%;height:100%;border-color:rgba(0,255,80,.18)}
-/* Cross lines */
-.radar-cross{position:absolute;background:rgba(0,255,80,.1)}
-.radar-cross.h{height:1px;width:100%;top:50%;left:0}
-.radar-cross.v{width:1px;height:100%;left:50%;top:0}
-/* Sweep arm */
-.radar-sweep{position:absolute;inset:0;border-radius:50%;
-  background:conic-gradient(from 0deg,transparent 0deg,transparent 310deg,rgba(0,255,80,.03) 330deg,rgba(0,255,80,.18) 350deg,rgba(0,255,80,.55) 358deg,rgba(0,255,80,.1) 360deg);
-  animation:radarSpin 4s linear infinite}
-@keyframes radarSpin{to{transform:rotate(360deg)}}
-/* Center dot */
-.radar-center{position:absolute;width:6px;height:6px;background:#00ff50;border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%);box-shadow:0 0 8px #00ff50;z-index:4}
+  background:radial-gradient(circle at center,#061828 0%,#030e1a 55%,#020810 100%);
+  border:1.5px solid rgba(14,165,233,.22);
+  box-shadow:0 0 40px rgba(14,165,233,.1),inset 0 0 40px rgba(0,0,0,.7)}
+
+/* Static position rings (hold blips) */
+.radar-ring{position:absolute;border-radius:50%;border:1px solid rgba(14,165,233,.1);top:50%;left:50%;transform:translate(-50%,-50%)}
+.radar-ring:nth-child(1){width:34%;height:34%}
+.radar-ring:nth-child(2){width:67%;height:67%}
+.radar-ring:nth-child(3){width:100%;height:100%;border-color:rgba(14,165,233,.18)}
+
+/* Hide old sweep/cross */
+.radar-cross{display:none}
+.radar-sweep{display:none}
+
+/* Water drop center */
+.radar-center{display:none} /* replaced by .water-drop */
+.water-drop{position:absolute;top:50%;left:50%;transform:translate(-50%,-58%);z-index:6;
+  width:18px;height:24px;
+  background:radial-gradient(ellipse at 38% 32%,#bae6fd,#0ea5e9 50%,#0369a1 90%);
+  border-radius:50% 50% 50% 50% / 35% 35% 65% 65%;
+  box-shadow:0 0 14px rgba(14,165,233,.9),0 0 28px rgba(14,165,233,.4)}
+.water-drop::before{content:'';position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+  border-left:5px solid transparent;border-right:5px solid transparent;
+  border-bottom:10px solid #0ea5e9;filter:drop-shadow(0 -2px 4px rgba(14,165,233,.6))}
+/* Shine on drop */
+.water-drop::after{content:'';position:absolute;top:5px;left:4px;width:5px;height:7px;
+  border-radius:50%;background:rgba(255,255,255,.55);transform:rotate(-30deg)}
+
+/* Expanding ripple rings (animate outward like water ripples) */
+.water-ripple{position:absolute;border-radius:50%;border:1.5px solid rgba(14,165,233,.55);
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  animation:waterRipple 3s ease-out infinite;pointer-events:none;z-index:2}
+.water-ripple:nth-child(5){animation-delay:0s}
+.water-ripple:nth-child(6){animation-delay:1s}
+.water-ripple:nth-child(7){animation-delay:2s}
+@keyframes waterRipple{
+  0%{width:16px;height:16px;opacity:.85;border-color:rgba(14,165,233,.7)}
+  100%{width:160px;height:160px;opacity:0;border-color:rgba(14,165,233,0)}}
+
+/* Ambient glow from drop impact */
+.water-glow{position:absolute;border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:radial-gradient(circle,rgba(14,165,233,.08),transparent 70%);
+  width:80%;height:80%;animation:waterGlow 2s ease-in-out infinite alternate;z-index:1}
+@keyframes waterGlow{from{opacity:.4;transform:translate(-50%,-50%) scale(.9)}to{opacity:1;transform:translate(-50%,-50%) scale(1.05)}}
 /* Blip */
 .radar-blip{position:absolute;width:9px;height:9px;border-radius:50%;transform:translate(-50%,-50%);cursor:pointer;z-index:3}
 .radar-blip::before{content:'';position:absolute;inset:0;border-radius:50%;animation:blipPulse 3s ease-out infinite}
@@ -163,8 +193,8 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 
 /* Job ticker */
 .radar-ticker{flex:1;min-width:260px;max-width:340px}
-.ticker-head{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(0,255,80,.6);margin-bottom:16px;display:flex;align-items:center;gap:8px}
-.ticker-live-dot{width:7px;height:7px;border-radius:50%;background:#00ff50;box-shadow:0 0 6px #00ff50;animation:liveBlink .9s ease-in-out infinite}
+.ticker-head{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(14,165,233,.7);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.ticker-live-dot{width:7px;height:7px;border-radius:50%;background:#0ea5e9;box-shadow:0 0 6px #0284c7;animation:liveBlink .9s ease-in-out infinite}
 @keyframes liveBlink{0%,100%{opacity:1}50%{opacity:.3}}
 .ticker-list{display:flex;flex-direction:column;gap:0}
 .ticker-item{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05);animation:tickerFadeIn .4s ease}
@@ -203,7 +233,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .rstat-lbl{font-size:10px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.1em;margin-top:3px}
 
 /* New job toast */
-.radar-toast{position:fixed;bottom:90px;right:24px;transform:translateY(12px);background:#001a00;border:1px solid rgba(0,255,80,.4);border-radius:12px;padding:12px 18px;font-size:12px;color:#00ff50;font-weight:600;z-index:9999;opacity:0;transition:all .4s cubic-bezier(.34,1.56,.64,1);pointer-events:none;max-width:280px;box-shadow:0 8px 32px rgba(0,255,80,.2);line-height:1.4}
+.radar-toast{position:fixed;bottom:90px;right:24px;transform:translateY(12px);background:#020e1c;border:1px solid rgba(14,165,233,.45);border-radius:12px;padding:12px 18px;font-size:12px;color:#bae6fd;font-weight:600;z-index:9999;opacity:0;transition:all .4s cubic-bezier(.34,1.56,.64,1);pointer-events:none;max-width:280px;box-shadow:0 8px 32px rgba(14,165,233,.2);line-height:1.4}
 .radar-toast.show{opacity:1;transform:translateY(0)}
 
 /* Radar legend */
@@ -1104,59 +1134,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   </div>
 </div>
 
-<!-- DISPATCH RADAR WIDGET (floating) -->
-<div id="radar-widget">
-  <!-- Collapsed pill -->
-  <div id="radar-pill" onclick="toggleRadarWidget()">
-    <div class="rpill-radar">
-      <div class="rpill-sweep"></div>
-      <div class="rpill-dot"></div>
-    </div>
-    <div class="rpill-text">
-      <span class="rpill-label">Live Dispatch</span>
-      <span class="rpill-sub"><span id="rpill-count">0</span> active · NJ NY CT</span>
-    </div>
-    <div class="rpill-live"><div class="ticker-live-dot"></div></div>
-  </div>
-
-  <!-- Expanded panel -->
-  <div id="radar-panel">
-    <div class="rpanel-head">
-      <div>
-        <div class="rpanel-title">🛰 Live Dispatch</div>
-        <div class="rpanel-sub">Tri-State Area · NJ · NY · CT</div>
-      </div>
-      <button class="rpanel-close" onclick="toggleRadarWidget()">✕</button>
-    </div>
-    <div class="rpanel-stats">
-      <div class="rpstat"><div class="rpstat-val" id="rstat-active">0</div><div class="rpstat-lbl">Active</div></div>
-      <div class="rpstat"><div class="rpstat-val" id="rstat-today">0</div><div class="rpstat-lbl">Today</div></div>
-      <div class="rpstat"><div class="rpstat-val" id="rstat-done">0</div><div class="rpstat-lbl">Done</div></div>
-      <div class="rpstat"><div class="rpstat-val" id="rstat-rating">5.0</div><div class="rpstat-lbl">★ Avg</div></div>
-    </div>
-    <div class="rpanel-body">
-      <div class="radar-screen" id="radar-screen">
-        <div class="radar-ring"></div>
-        <div class="radar-ring"></div>
-        <div class="radar-ring"></div>
-        <div class="radar-cross h"></div>
-        <div class="radar-cross v"></div>
-        <div class="radar-sweep"></div>
-        <div class="radar-center"></div>
-      </div>
-      <div class="rpanel-ticker">
-        <div class="ticker-head"><div class="ticker-live-dot"></div>Live feed</div>
-        <div class="ticker-list" id="ticker-list"></div>
-      </div>
-    </div>
-    <div class="rpanel-legend">
-      <div class="rleg"><div class="rleg-dot" style="background:#00ff50"></div>Done</div>
-      <div class="rleg"><div class="rleg-dot" style="background:#fbbf24"></div>En route</div>
-      <div class="rleg"><div class="rleg-dot" style="background:#60a5fa"></div>Scheduled</div>
-      <div class="rleg"><div class="rleg-dot" style="background:#a78bfa"></div>Requested</div>
-    </div>
-  </div>
-</div>
+<!-- Radar widget removed — now lives in admin.html dispatch board -->
 
 <!-- VISUAL PROOF -->
 <section class="visual-proof">
@@ -1362,6 +1340,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     </div>
     <div class="foot-bot">
       <div class="foot-copy">© 2026 Cardetail1 · Detailing Zone LLC · All rights reserved.</div>
+      <div style="margin-top:14px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+        <a href="customer.html" style="font-size:12px;color:rgba(255,255,255,.35);text-decoration:none;transition:.2s" onmouseover="this.style.color='#4da3ff'" onmouseout="this.style.color='rgba(255,255,255,.35)'">👤 My Account</a>
+        <a href="technician.html" style="font-size:12px;color:rgba(255,255,255,.35);text-decoration:none;transition:.2s" onmouseover="this.style.color='#4da3ff'" onmouseout="this.style.color='rgba(255,255,255,.35)'">🧑‍🔧 Operator Portal</a>
+      </div>
       <div class="foot-areas">Serving Bergen County · Hudson County · Manhattan · Long Island · Fairfield CT · and surrounding areas</div>
     </div>
   </div>
@@ -1763,13 +1745,28 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           </div>
         </div>
 
-        <!-- Generic size+year (boats, rvs, powersports) -->
+        <!-- Generic size+year (boats, rvs, powersports) — catalog-powered -->
         <div id="generic-search-wrap" style="display:none">
           <div class="sel-row" style="grid-template-columns:1fr 1fr 1fr">
-            <div class="sel-g"><div class="sel-l">Make / Brand</div><input class="fi" id="g-make" type="text" placeholder="e.g. Sea Ray, Yamaha…"></div>
-            <div class="sel-g"><div class="sel-l">Model</div><input class="fi" id="g-model" type="text" placeholder="e.g. SPX 210…"></div>
+            <div class="sel-g">
+              <div class="sel-l">Make / Brand</div>
+              <div class="srch-wrap" style="margin:0">
+                <span class="srch-ico">🔍</span>
+                <input class="srch-in" id="g-make" type="text" placeholder="e.g. Sea Ray, Yamaha…" autocomplete="off">
+                <div class="srch-dd" id="g-make-dd"></div>
+              </div>
+            </div>
+            <div class="sel-g">
+              <div class="sel-l">Model</div>
+              <div class="srch-wrap" style="margin:0">
+                <span class="srch-ico">🔍</span>
+                <input class="srch-in" id="g-model" type="text" placeholder="Select make first…" autocomplete="off" disabled>
+                <div class="srch-dd" id="g-model-dd"></div>
+              </div>
+            </div>
             <div class="sel-g"><div class="sel-l">Year</div><select class="sel-s" id="g-year"><option value="">— year —</option></select></div>
           </div>
+          <div id="g-custom-note" style="display:none;font-size:11px;color:var(--accent);margin-top:7px;padding:6px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">✏️ Custom entry — not in catalog. That's OK, free-form is supported.</div>
         </div>
 
         <!-- Length selector for boats, RVs and travel trailers -->
@@ -2060,19 +2057,173 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 
 <script>
 // ═══════════════════════════════════════════════════════
-// CONFIG — replace with your production values
 // ═══════════════════════════════════════════════════════
-// Optional production endpoint. Use Formspree, Make/Zapier webhook, Supabase Edge Function, Vercel API route, etc.
-// Leave blank for local demo mode: requests save to the built-in Admin Panel only.
+// CONFIG — preencha com seus valores de produção
+// ═══════════════════════════════════════════════════════
+
+// ── GERAL ──────────────────────────────────────────────
+const ADMIN_EMAIL    = 'YOUR_EMAIL_HERE';   // seu email
+const ADMIN_SMS      = '5513132956';         // seu celular (SMS admin)
+
+// ── SQUARE WEB PAYMENTS ────────────────────────────────
+// Cole aqui o Application ID e o Location ID do Square.
+// Sandbox: começa com 'sandbox-sq0idb-...'  ·  Produção: 'sq0idp-...'
+// Pegue em: https://developer.squareup.com/apps  →  seu app  →  Credentials
+// Deixe '' para DESLIGAR o cartão (o booking continua via review manual).
+const SQUARE_APP_ID  = '';   // ex: 'sandbox-sq0idb-XXXXXXXXXXXXXXXXXXXX'
+const SQUARE_LOC_ID  = '';   // ex: 'LXXXXXXXXXXXXX'
+const SQUARE_READY   = !!(SQUARE_APP_ID && SQUARE_LOC_ID && window.Square);
+
+// ── MAKE.COM / ZAPIER WEBHOOK (booking → email/SMS) ────
+// Cole aqui o webhook URL gerado no Make.com ou Zapier.
+// Quando um cliente confirma booking, o site envia JSON para este URL.
+// Deixe '' para salvar somente localmente (modo demo).
 const BACKEND_URL    = '';
-const ADMIN_EMAIL    = 'YOUR_EMAIL_HERE';
-const ADMIN_SMS      = '5513132956';
-// Dispatch webhook — point to a Make.com / Zapier / n8n webhook that calls Twilio to SMS the tech
-// Leave blank to use manual SMS / WhatsApp fallback links only
+// Ex: 'https://hook.us1.make.com/xxxxxxxxxxxxxxxxxxxxxxxx'
+
+// ── MAKE.COM DISPATCH WEBHOOK (notifica técnico) ────────
+// Webhook separado para notificar o técnico via SMS/WhatsApp quando
+// um novo job é criado. Pode ser o mesmo webhook acima ou outro.
 const DISPATCH_WEBHOOK_URL = '';
-// Set to true to use WhatsApp links instead of SMS for tech notifications
+// Ex: 'https://hook.us1.make.com/yyyyyyyyyyyyyyyyyyyyyyyy'
+
+// Usar WhatsApp em vez de SMS para notificações ao técnico?
 const WHATSAPP_DISPATCH = false;
+
+// ── FIREBASE REALTIME DATABASE (radar ao vivo) ──────────
+// Para o radar mostrar jobs REAIS em tempo real:
+// 1. Crie um projeto em https://console.firebase.google.com
+// 2. Crie um Realtime Database (modo "test" para começar)
+// 3. Copie a URL do banco (ex: https://cardetail1-XXXXX-default-rtdb.firebaseio.com)
+// 4. (Opcional) Gere um token de acesso nas Regras do banco
+// Deixe '' para continuar com simulação.
+const FIREBASE_DB_URL     = '';
+// Ex: 'https://cardetail1-abc123-default-rtdb.firebaseio.com'
+
+const FIREBASE_AUTH_TOKEN = '';
+// Ex: token gerado em: Project Settings → Service Accounts → Database secrets
+// Ou deixe '' se as regras do banco forem públicas (modo test)
+
+// true  = radar mostra SOMENTE jobs reais do Firebase
+// false = radar mistura jobs reais + simulação de fundo
+const FIREBASE_LIVE_ONLY  = false;
+
 // ═══════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════
+// FIREBASE INTEGRATION
+// ═══════════════════════════════════════════════════════
+
+// ── Write a confirmed booking to Firebase ──────────────
+async function firebaseWriteJob(payload){
+  if(!FIREBASE_DB_URL) return;
+  const jobId = 'job_' + Date.now() + '_' + Math.floor(Math.random()*9999);
+  const authQ  = FIREBASE_AUTH_TOKEN ? `?auth=${FIREBASE_AUTH_TOKEN}` : '';
+  const url    = `${FIREBASE_DB_URL}/dispatch_jobs/${jobId}.json${authQ}`;
+  const jobData = {
+    name:      payload.name || 'Customer',
+    phone:     payload.phone || '',
+    zip:       payload.zip  || '',
+    city:      payload.zip_city || (payload.zone && payload.zone.label) || 'NJ',
+    service:   payload.package_name || payload.pkg_id || 'Detail Service',
+    vehicle:   payload.vehicle_label || '',
+    price:     payload.total_price   || 0,
+    date:      payload.preferred_date || '',
+    status:    'requested',
+    createdAt: Date.now(),
+    source:    'website'
+  };
+  try{
+    const res = await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(jobData)});
+    if(!res.ok) console.warn('[Firebase] write failed:',res.status);
+    else console.log('[Firebase] job written:',jobId);
+  }catch(e){ console.warn('[Firebase] write error:',e.message); }
+}
+
+// ── Listen to Firebase for real-time job updates ───────
+let _fbEventSource = null;
+const _fbLiveJobs  = {};   // jobId → job object (real jobs from Firebase)
+
+function firebaseStartListener(){
+  if(!FIREBASE_DB_URL || _fbEventSource) return;
+  const authQ = FIREBASE_AUTH_TOKEN ? `?auth=${FIREBASE_AUTH_TOKEN}` : '';
+  const url   = `${FIREBASE_DB_URL}/dispatch_jobs.json${authQ}`;
+  try{
+    _fbEventSource = new EventSource(url);
+    _fbEventSource.addEventListener('put', e=>{
+      try{
+        const msg = JSON.parse(e.data);
+        if(msg.path==='/' && msg.data){ Object.entries(msg.data).forEach(([id,d])=>_fbHandleJob(id,d)); }
+        else if(msg.path && msg.path.startsWith('/') && msg.data){ const id=msg.path.slice(1); _fbHandleJob(id,msg.data); }
+      }catch(err){ console.warn('[Firebase] parse err:',err); }
+    });
+    _fbEventSource.addEventListener('patch', e=>{
+      try{
+        const msg = JSON.parse(e.data);
+        if(msg.data) Object.entries(msg.data).forEach(([id,d])=>_fbHandleJob(id,d));
+      }catch(err){}
+    });
+    _fbEventSource.onerror = ()=>{ console.warn('[Firebase] SSE disconnected — retrying in 10s'); _fbEventSource.close(); _fbEventSource=null; setTimeout(firebaseStartListener,10000); };
+    console.log('[Firebase] Listening for real-time dispatch jobs…');
+  }catch(e){ console.warn('[Firebase] EventSource not supported:',e.message); }
+}
+
+function _fbHandleJob(id, data){
+  if(!data || !data.name) return;
+  const isNew = !_fbLiveJobs[id];
+  _fbLiveJobs[id] = data;
+
+  // Map Firebase status to radar status
+  const statusMap = { requested:'requested', confirmed:'scheduled', scheduled:'scheduled', enroute:'enroute', 'en-route':'enroute', done:'done', complete:'done', completed:'done', review:'review' };
+  const status = statusMap[data.status] || 'requested';
+
+  // Find or create blip for this job
+  let simJob = _simJobs.find(j=>j.id===id);
+  if(!simJob){
+    // Pick a free position on the radar
+    const usedPos = _simJobs.map(j=>`${j.cx},${j.cy}`);
+    const available = SIM_POSITIONS.filter(p=>!usedPos.includes(`${p[0]},${p[1]}`));
+    if(!available.length) return;
+    const [cx,cy] = available[Math.floor(Math.random()*available.length)];
+    simJob = { id, name:data.name, city:data.city||'NJ', service:data.service||'Detail', status, cx, cy, el:null, createdAt:data.createdAt||Date.now(), fromFirebase:true };
+    _simJobs.push(simJob);
+    _simJobsToday++;
+    addBlipToRadar(simJob);
+    if(isNew) showRadarToast(`📋 New booking — ${data.name} in ${(data.city||'').split(',')[0]||'NJ'}`);
+  } else {
+    // Update status if changed
+    if(simJob.status !== status){
+      simJob.status = status;
+      if(simJob.el){ simJob.el.className=`radar-blip ${status} blip-promo`; setTimeout(()=>{ if(simJob.el) simJob.el.className=`radar-blip ${status}`; },600); }
+      const msgs={ scheduled:`📅 ${data.name} — booking confirmed`, enroute:`🚗 Tech en route to ${data.name}`, done:`✅ Job complete — ${data.name}`, review:`⭐ ${data.name} left a review!` };
+      if(msgs[status]) showRadarToast(msgs[status]);
+      if(status==='done'||status==='review'){ _simDone++; setTimeout(()=>{ if(simJob.el) simJob.el.remove(); _simJobs=_simJobs.filter(j=>j.id!==id); renderTickerNow(); updateRadarStats(); },8000); }
+    }
+  }
+  renderTickerNow();
+  updateRadarStats();
+}
+
+// ═══════════════════════════════════════════════════════
+// MAKE.COM WEBHOOK — booking notification
+// ═══════════════════════════════════════════════════════
+async function makeWebhookSend(payload){
+  if(!BACKEND_URL) return;
+  // Same-origin Netlify Function (URL relativo "/...") → fetch real com confirmação.
+  const sameOrigin = /^\//.test(BACKEND_URL) || BACKEND_URL.startsWith(location.origin);
+  try{
+    if(sameOrigin){
+      const res = await fetch(BACKEND_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok || data.ok===false) throw new Error(data.error||('HTTP '+res.status));
+      console.log('[Backend] Booking confirmed:',data.id||payload.id);
+      return data;
+    }
+    // Webhook externo (Make.com/Zapier) → no-cors (resposta opaca, sem confirmação).
+    await fetch(BACKEND_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    console.log('[Webhook] Booking sent (opaque response)');
+  }catch(e){ console.warn('[Backend] send error:',e.message); throw e; }
+}
 
 // ── PRICING DATA ──────────────────────────────────────────────────────────────
 const PRICING = {
@@ -2382,6 +2533,103 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","RDX","RLX","TLX","NSX","ZDX"]
 "Volvo":{m:["C40","S60","S90","V60","V90","XC40","XC60","XC90"],t:{C40:"suv2",S60:"small",S90:"small",V60:"small",V90:"small",XC40:"suv2",XC60:"suv2",XC90:"suv3"}}
 };
 
+// ── SPECIALTY VEHICLE CATALOG ───────────────────────────────────────────────
+window.SPECIALTY_MODELS = {
+  powersports: {
+    "Aprilia":["RS 660","RSV4","Tuono 660","Tuono V4"],
+    "Arctic Cat":["Alterra 300","Alterra 600","Alterra 700","Prowler Pro","Wildcat XX"],
+    "BMW Motorrad":["C 400 GT","F 750 GS","F 850 GS","F 900 R","G 310 GS","K 1600","R 1250 GS","R 1300 GS","S 1000 R","S 1000 RR"],
+    "Can-Am":["Commander","Commander MAX","Defender","Defender MAX","Maverick R","Maverick X3","Outlander","Outlander MAX","Renegade","Ryker","Spyder F3","Spyder RT"],
+    "CFMOTO":["300NK","450SS","650NK","800MT","CForce 400","CForce 600","CForce 800","UForce 600","UForce 1000","ZForce 800","ZForce 950"],
+    "Ducati":["Diavel","DesertX","Monster","Multistrada V2","Multistrada V4","Panigale V2","Panigale V4","Scrambler","Streetfighter V2","Streetfighter V4"],
+    "Harley-Davidson":["Breakout","Fat Bob","Fat Boy","Heritage Classic","Iron 883","Low Rider S","Nightster","Pan America","Road Glide","Road King","Softail Standard","Sport Glide","Street Bob","Street Glide","Ultra Limited"],
+    "Honda":["Africa Twin","CB500F","CB650R","CBR500R","CBR600RR","CBR1000RR","CRF110F","CRF250F","CRF300L","CRF450R","FourTrax Foreman","FourTrax Rancher","Gold Wing","Pioneer 500","Pioneer 700","Pioneer 1000","Rebel 300","Rebel 500","Rebel 1100","Rincon","Talon 1000","TRX250X"],
+    "Husqvarna":["701 Enduro","701 Supermoto","FC 250","FC 450","FE 350","FE 501","Norden 901","Svartpilen","Vitpilen"],
+    "Indian Motorcycle":["Challenger","Chief","Chieftain","FTR","Pursuit","Roadmaster","Scout","Springfield"],
+    "Kawasaki":["Brute Force 300","Brute Force 750","Concours 14","Jet Ski STX 160","Jet Ski SX-R","Jet Ski Ultra 160","Jet Ski Ultra 310","KLR650","KX250","KX450","Mule Pro-DXT","Mule Pro-FXT","Ninja 400","Ninja 500","Ninja 650","Ninja ZX-6R","Ninja ZX-10R","Teryx","Teryx KRX 1000","Versys 650","Vulcan S","Z650","Z900"],
+    "KTM":["250 SX-F","300 XC-W","350 EXC-F","450 SX-F","690 Enduro R","790 Adventure","890 Adventure","1290 Super Adventure","Duke 390","Duke 790","Duke 890","RC 390"],
+    "Polaris":["ACE","General 1000","General XP 4","Ranger 500","Ranger 570","Ranger 1000","Ranger Crew","RZR 200","RZR Trail","RZR XP","RZR Pro R","RZR Turbo R","Scrambler 850","Slingshot","Sportsman 450","Sportsman 570","Sportsman 850","Sportsman XP 1000"],
+    "Sea-Doo":["Explorer Pro","FishPro Scout","FishPro Sport","FishPro Trophy","GTR","GTR-X","GTI","GTI SE","GTX","GTX Limited","RXP-X","RXT-X","Spark","Spark Trixx","Switch","Switch Cruise","Wake","Wake Pro"],
+    "Suzuki":["Boulevard C50","Boulevard M109R","DR-Z400","GSX-8R","GSX-R600","GSX-R750","GSX-R1000","Hayabusa","KingQuad 400","KingQuad 500","KingQuad 750","V-Strom 650","V-Strom 800","V-Strom 1050"],
+    "Triumph":["Bonneville","Daytona 660","Rocket 3","Scrambler 1200","Speed Triple","Street Triple","Tiger 660","Tiger 900","Tiger 1200","Trident 660"],
+    "Vespa":["GTS","GTV","Primavera","Sprint"],
+    "Yamaha":["Bolt","FJR1300","Grizzly 90","Grizzly EPS","Kodiak 450","Kodiak 700","MT-03","MT-07","MT-09","MT-10","Raptor 700R","Star Venture","Tenere 700","Viking","WaveRunner EX","WaveRunner FX","WaveRunner GP HO","WaveRunner GP SVHO","WaveRunner JetBlaster","WaveRunner VX","Wolverine","Wolverine RMAX","WR250F","YZ250F","YZ450F","YZF-R3","YZF-R6","YZF-R7","YZF-R1"],
+    "Zero Motorcycles":["DS","DSR/X","FX","FXE","S","SR/F","SR/S"]
+  },
+  boats: {
+    "Alumacraft":["Classic","Competitor","Escape","Voyageur"],
+    "Axopar":["22 Spyder","25 Cross Top","28 Cabin","29 XC Cross Cabin","37 XC Cross Cabin","45 XC Cross Cabin"],
+    "Barletta":["Aria","Cabrio","Corsa","Lusso"],
+    "Bass Cat":["Bobcat","Caracal","Cougar","Jaguar","Puma STS"],
+    "Bayliner":["Ciera 8","Element E16","Element E18","Element E21","M17","M19","M20","M22","VR4","VR5","VR6"],
+    "Bennington":["S Series","SV Series","L Series","LX Series","Q Series","R Series"],
+    "Boston Whaler":["130 Super Sport","160 Super Sport","170 Montauk","190 Montauk","210 Montauk","230 Outrage","250 Outrage","280 Outrage","330 Outrage","350 Realm","380 Outrage","420 Outrage"],
+    "Caymas":["CX 18","CX 19","CX 20","DV 19","DV 20","DV 22","HB 20","HB 22","HB 24","XO 26"],
+    "Chaparral":["19 SSi","21 SSi","23 SSi","250 OSX","267 SSX","287 SSX","307 SSX","347 SSX"],
+    "Chris-Craft":["Calypso 24","Calypso 30","Catalina 24","Catalina 28","Catalina 30","Launch 25 GT","Launch 27","Launch 28 GT","Launch 31 GT"],
+    "Cobalt":["CS22","CS23","R4","R6","R8","R33","R35"],
+    "Crestliner":["Discovery","Fish Hawk","Hawk","MX","Storm","XFC"],
+    "Formula":["240 Bowrider","270 Bowrider","290 Bowrider","310 Bowrider","330 Crossover Bowrider","350 Crossover Bowrider","380 Super Sport Crossover","430 Super Sport Crossover"],
+    "Grady-White":["Canyon 271","Canyon 306","Canyon 336","Canyon 456","Fisherman 180","Fisherman 216","Fisherman 236","Freedom 235","Freedom 255","Freedom 275"],
+    "Harris":["Breeze","Cruiser","Grand Mariner","Solstice"],
+    "Hurricane":["SunDeck","SunDeck Sport"],
+    "Jeanneau":["Cap Camarat","Leader","Merry Fisher","NC"],
+    "Lowe":["Fishing Machine","Roughneck","Skorpion","Stinger","Ultra"],
+    "MasterCraft":["NXT20","NXT21","NXT22","NXT23","XT20","XT22","XT23","X24","X26","XStar"],
+    "Monterey":["M-22","M-45","M-65","M-205","M-225","M-255","M-305","385 Super Express"],
+    "Nautique":["Ski Nautique","Super Air Nautique G21","Super Air Nautique G23","Super Air Nautique G25","Super Air Nautique Paragon"],
+    "Parker":["1801 Center Console","2100 Center Console","2120 Sport Cabin","2300 Center Console","2320 Sport Cabin","2501 Center Console","2520 Sport Cabin"],
+    "Princecraft":["Hudson","Sport","Vectra","Ventura","Xpedition"],
+    "Ranger Boats":["RT178","RT188","VX1788","VX1888","Z518","Z519","Z520R","Z521R"],
+    "Regal":["26 XO","33 XO","36 Grande Coupe","LS2","LS4","LS6","LX2","LX4","LX6"],
+    "Robalo":["R180","R200","R222","R230","R250","R272","R302","R317"],
+    "Sea Ray":["SPX 190","SPX 210","SDX 230","SDX 250","SDX 270","SLX 260","SLX 280","SLX 310","Sundancer 320","Sundancer 370"],
+    "Scout":["175 Sportfish","195 Sportfish","215 XSF","235 XSF","255 LXF","277 LXF","305 LXF","330 LXF","355 LXF","425 LXF"],
+    "Starcraft":["CX","EX","Freedom","GX","SVX"],
+    "Sun Tracker":["Bass Buggy","Fishin Barge","Party Barge"],
+    "Tracker":["Grizzly","Pro Guide V","Pro Team","Targa V"],
+    "Yamaha Boats":["195S","222S","222SD","252S","252SD","255XD","275SDX"]
+  },
+  rvs: {
+    "Airstream":["Basecamp","Bambi","Caravel","Classic","Flying Cloud","Globetrotter","Interstate","Pottery Barn","Rangeline","Trade Wind"],
+    "Alliance RV":["Avenue","Delta","Paradigm","Valor"],
+    "Big Tex Trailers":["Utility Trailer","Car Hauler","Dump Trailer","Equipment Trailer","Landscape Trailer"],
+    "Carry-On Trailer":["Utility Trailer","Enclosed Cargo","Car Hauler","Dump Trailer"],
+    "Coachmen":["Apex Nano","Catalina","Chaparral","Clipper","Encore","Freelander","Leprechaun","Mirada","Northern Spirit","Prism"],
+    "CrossRoads":["Cameo","Cruiser Aire","Hampton","Redwood","Sunset Trail","Volante","Zinger"],
+    "Dutchmen":["Aspen Trail","Astoria","Coleman","Colorado","Kodiak","Voltage","Yukon"],
+    "Entegra Coach":["Accolade","Anthem","Aspire","Cornerstone","Esteem","Ethos","Odyssey","Reatta"],
+    "Fleetwood RV":["Bounder","Discovery","Flair","Flex","Fortis","Frontier","Insight","Pace Arrow"],
+    "Forest River":["Berkshire","Cardinal","Cedar Creek","Cherokee","Flagstaff","Forester","Georgetown","Grey Wolf","No Boundaries","Rockwood","Salem","Sandstorm","Sunseeker","Vibe","Wildwood","Wolf Pack"],
+    "Featherlite":["Car Trailer","Cargo Trailer","Horse Trailer","Livestock Trailer","Recreational Trailer"],
+    "Grand Design":["Imagine","Momentum","Reflection","Solitude","Transcend"],
+    "Gulf Stream":["Ameri-Lite","BT Cruiser","Conquest","Friendship","Kingsport","Vintage Cruiser"],
+    "Heartland":["Big Country","Bighorn","Cyclone","Elkridge","Fuel","Mallard","Milestone","North Trail","Pioneer","Sundance","Torque"],
+    "Haulmark":["ALX","Edge","Grizzly","Passport","Transport","Ventura"],
+    "Jayco":["Alante","Eagle","Greyhawk","Jay Feather","Jay Flight","Melbourne","North Point","Pinnacle","Precept","Redhawk","Seneca","Seismic","White Hawk"],
+    "Keystone":["Alpine","Arcadia","Avalanche","Bullet","Cougar","Fuzion","Hideout","Montana","Outback","Passport","Raptor","Springdale"],
+    "KZ RV":["Connect","Durango","Escape","Sportsmen","Venom"],
+    "Lance":["1475","1575","1685","1985","2075","2185","825","850","855S","960","975","1062","1172"],
+    "LOOK Trailers":["Element","Everlite","ST DLX","Vision"],
+    "Newmar":["Bay Star","Canyon Star","Dutch Star","Essex","King Aire","Kountry Star","Mountain Aire","New Aire","Ventana"],
+    "Northwood":["Arctic Fox","Desert Fox","Nash","Wolf Creek"],
+    "Palomino":["Columbus","PaloMini","Puma","Real-Lite","River Ranch","SolAire"],
+    "PJ Trailers":["Car Hauler","Deckover","Dump Trailer","Equipment Trailer","Utility Trailer"],
+    "Pleasure-Way":["Ascent","Ontour","Plateau","Rekona","Tofino"],
+    "Prime Time":["Avenger","Crusader","LaCrosse","Sanibel","Tracer"],
+    "Renegade RV":["Classic","Explorer","Valencia","Verona","Vienna","Villagio"],
+    "Roadtrek":["Chase","Play","Pivot","Slumber"],
+    "Shasta":["Compact","i-5","Oasis"],
+    "Thor Motor Coach":["A.C.E.","Aria","Compass","Delano","Four Winds","Geneva","Magnitude","Miramar","Quantum","Sanctuary","Sequence","Tellaro","Tiburon","Tranquility","Vegas","Windsport"],
+    "Tiffin Motorhomes":["Allegro Breeze","Allegro Bus","Allegro Red","Open Road Allegro","Phaeton","Wayfarer","Zephyr"],
+    "Venture RV":["Sonic","SportTrek","Stratus"],
+    "Winnebago":["Adventurer","Boldt","Ekko","Forza","Hike","Journey","Micro Minnie","Minnie","Navion","Revel","Roam","Solis","Spirit","Travato","View","Vista"],
+    "Winnebago Towables":["Access","Minnie","Micro Minnie","Voyage"],
+    "Wells Cargo":["FastTrac","Road Force","SportTrac","Wagon"],
+    "nuCamp":["Barefoot","Cirrus","TAB 320","TAB 360","TAB 400","TAG"]
+  }
+};
+
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',
   // multi-vehicle cart
@@ -2518,12 +2766,128 @@ function renderTierChips(cat){
     ys.innerHTML='<option value="">— year —</option>';
     const cur=new Date().getFullYear();
     for(let y=cur;y>=1980;y--){const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o);}
+    // Reset fields and reinitialize specialty autocomplete for new category
     document.getElementById('g-make').value='';
+    document.getElementById('g-make').disabled=false;
     document.getElementById('g-model').value='';
-    document.getElementById('g-make').oninput=tryGenericConfirm;
-    document.getElementById('g-model').oninput=tryGenericConfirm;
+    document.getElementById('g-model').disabled=true;
+    document.getElementById('g-make-dd').classList.remove('open');
+    document.getElementById('g-model-dd').classList.remove('open');
+    document.getElementById('g-custom-note').style.display='none';
     document.getElementById('g-year').onchange=tryGenericConfirm;
+    initSpecialtySearch(cat);
   }
+}
+
+// ── SPECIALTY VEHICLE AUTOCOMPLETE ───────────────────────────────────────────
+function initSpecialtySearch(cat){
+  const catData = (window.SPECIALTY_MODELS||{})[cat] || null;
+  const makeIn  = document.getElementById('g-make');
+  const makeDd  = document.getElementById('g-make-dd');
+  const modelIn = document.getElementById('g-model');
+  const modelDd = document.getElementById('g-model-dd');
+  const note    = document.getElementById('g-custom-note');
+
+  // Clone to remove old listeners
+  const newMakeIn  = makeIn.cloneNode(true);
+  const newModelIn = modelIn.cloneNode(true);
+  makeIn.parentNode.replaceChild(newMakeIn, makeIn);
+  modelIn.parentNode.replaceChild(newModelIn, modelIn);
+  newMakeIn.value=''; newModelIn.value=''; newModelIn.disabled=true;
+
+  // Re-wire year change to new elements
+  document.getElementById('g-year').onchange = tryGenericConfirm;
+
+  function hl(str, q){
+    const safe = q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    return str.replace(new RegExp(`(${safe})`,'gi'),'<mark>$1</mark>');
+  }
+
+  function showMakeDD(q){
+    makeDd.innerHTML=''; makeDd.classList.remove('open');
+    if(!catData || !q) return;
+    const hits = Object.keys(catData).filter(m=>m.toLowerCase().includes(q.toLowerCase()));
+    if(!hits.length) return;
+    makeDd.innerHTML = hits.map(m=>`<div class="srch-item" data-val="${m}">${hl(m,q)}</div>`).join('');
+    makeDd.classList.add('open');
+    makeDd.querySelectorAll('.srch-item').forEach(el=>{
+      el.addEventListener('mousedown',e=>{
+        e.preventDefault();
+        selectSpecialtyMake(el.dataset.val, catData, newMakeIn, makeDd, newModelIn, modelDd, note);
+      });
+    });
+  }
+
+  newMakeIn.addEventListener('input', ()=>{
+    const q = newMakeIn.value.trim();
+    note.style.display='none';
+    newModelIn.value=''; newModelIn.disabled=true; modelDd.classList.remove('open');
+    tryGenericConfirm();
+    showMakeDD(q);
+    // Check if typed value matches a catalog make exactly (case-insensitive)
+    if(catData){
+      const exact = Object.keys(catData).find(m=>m.toLowerCase()===q.toLowerCase());
+      if(exact) selectSpecialtyMake(exact, catData, newMakeIn, makeDd, newModelIn, modelDd, note);
+    }
+  });
+
+  newMakeIn.addEventListener('blur', ()=>{
+    setTimeout(()=>makeDd.classList.remove('open'), 150);
+    // If typed value isn't in catalog, enable free-form model
+    if(newMakeIn.value.trim() && catData){
+      const inCat = Object.keys(catData).some(m=>m.toLowerCase()===newMakeIn.value.trim().toLowerCase());
+      if(!inCat){ newModelIn.disabled=false; note.style.display='block'; }
+    } else if(newMakeIn.value.trim()){ newModelIn.disabled=false; note.style.display='block'; }
+  });
+
+  newModelIn.addEventListener('input', ()=>{
+    const q = newModelIn.value.trim();
+    modelDd.innerHTML=''; modelDd.classList.remove('open');
+    const make = newMakeIn.value.trim();
+    const models = catData ? (catData[make]||catData[Object.keys(catData).find(m=>m.toLowerCase()===make.toLowerCase())]||[]) : [];
+    if(q && models.length){
+      const hits = models.filter(m=>m.toLowerCase().includes(q.toLowerCase()));
+      if(hits.length){
+        modelDd.innerHTML = hits.map(m=>`<div class="srch-item" data-val="${m}">${hl(m,q)}</div>`).join('');
+        modelDd.classList.add('open');
+        modelDd.querySelectorAll('.srch-item').forEach(el=>{
+          el.addEventListener('mousedown',e=>{e.preventDefault(); newModelIn.value=el.dataset.val; modelDd.classList.remove('open'); tryGenericConfirm();});
+        });
+      }
+    }
+    tryGenericConfirm();
+  });
+
+  newModelIn.addEventListener('blur', ()=>{ setTimeout(()=>modelDd.classList.remove('open'), 150); tryGenericConfirm(); });
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', e=>{
+    if(!e.target.closest('#g-make') && !e.target.closest('#g-make-dd')) makeDd.classList.remove('open');
+    if(!e.target.closest('#g-model') && !e.target.closest('#g-model-dd')) modelDd.classList.remove('open');
+  });
+}
+
+function selectSpecialtyMake(make, catData, makeIn, makeDd, modelIn, modelDd, note){
+  makeIn.value = make;
+  makeDd.classList.remove('open');
+  note.style.display = 'none';
+  modelIn.value = '';
+  modelIn.disabled = false;
+  modelIn.placeholder = `Search ${make} models…`;
+
+  // Populate model dropdown immediately on focus/input
+  const models = catData[make] || [];
+  modelIn.addEventListener('focus', function showAll(){
+    if(!modelIn.value.trim() && models.length){
+      modelDd.innerHTML = models.map(m=>`<div class="srch-item" data-val="${m}">${m}</div>`).join('');
+      modelDd.classList.add('open');
+      modelDd.querySelectorAll('.srch-item').forEach(el=>{
+        el.addEventListener('mousedown',e=>{e.preventDefault(); modelIn.value=el.dataset.val; modelDd.classList.remove('open'); tryGenericConfirm();});
+      });
+    }
+  },{once:true});
+
+  tryGenericConfirm();
 }
 
 function selectTier(key){
@@ -2740,6 +3104,11 @@ function goToPayment(){
 // ── STEP 6: SQUARE ────────────────────────────────────────────────────────────
 async function initSquare(){
   if(sqCard)return;
+  if(!SQUARE_READY){
+    const c=document.getElementById('card-container');
+    if(c)c.innerHTML='<div style="padding:14px;font-size:13px;color:#8a9bb0;line-height:1.5">Secure card capture is in review mode. Your booking is submitted as a request — our team confirms availability and sends a secure payment link before the appointment.</div>';
+    return;
+  }
   try{
     sqPayments=Square.payments(SQUARE_APP_ID,SQUARE_LOC_ID);
     sqCard=await sqPayments.card({
@@ -2761,6 +3130,7 @@ async function initSquare(){
 
 async function tokenizeCard(){
   const err=document.getElementById('pay-err'); err.classList.remove('show');
+  if(!SQUARE_READY){ ST.cardToken=''; ST.cardBrand='Review'; ST.cardLast4=''; bkGoTo(7); return; }
   if(!sqCard){err.textContent='Payment not ready. Please refresh.';err.classList.add('show');return;}
   try{
     const res=await sqCard.tokenize();
@@ -2815,10 +3185,21 @@ async function submitBooking(){
   const payload=buildBookingPayload();
   saveLocalBooking(payload);
   try{
-    if(BACKEND_URL && !BACKEND_URL.includes('your-backend')){
-      const res=await fetch(BACKEND_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      if(!res.ok) throw new Error('Webhook/backend returned an error');
+    // ── Make.com / Zapier webhook ──
+    if(BACKEND_URL){
+      await makeWebhookSend(payload);
       payload.remoteSent=true;
+    }
+    // ── Firebase Realtime Database ──
+    if(FIREBASE_DB_URL){
+      await firebaseWriteJob(payload);
+      payload.firebaseSent=true;
+    }
+    // ── Dispatch webhook (notifica técnico) ──
+    if(DISPATCH_WEBHOOK_URL){
+      try{
+        await fetch(DISPATCH_WEBHOOK_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'new_job',...payload})});
+      }catch(de){ console.warn('[Dispatch webhook]',de.message); }
     }
   }catch(e){
     console.warn('Remote notification failed; request saved locally:',e.message);
@@ -2875,6 +3256,14 @@ function buildBookingPayload(){
     richSurcharge:richMultiplier > 1 ? '5% premium area' : '',
     service: (pv.pkgName||'')+(vehicles.length>1?' + '+(vehicles.length-1)+' more':''),
     tip: 0,
+    // ── Firebase / radar friendly aliases ──
+    name: (document.getElementById('f-first').value.trim()+' '+document.getElementById('f-last').value.trim()).trim(),
+    zip: document.getElementById('bk-zip')?.value.trim()||'',
+    zip_city: getCityByZip(document.getElementById('bk-zip')?.value.trim()||'') || (activeZone?activeZone.label:'NJ'),
+    package_name: pv.pkgName || ST.pkg?.name || '',
+    vehicle_label: pv.vehicleLabel || ST.vehicleLabel || '',
+    total_price: totalPrice,
+    preferred_date: document.getElementById('f-date').value,
   };
   window.__lastBookingPayload=payload;
   return payload;
@@ -3483,6 +3872,71 @@ const ZIP_CITIES = {
   '06510':'New Haven, CT','06511':'New Haven, CT','06512':'East Haven, CT','06513':'New Haven, CT',
   '06514':'Hamden, CT','06515':'New Haven, CT','06516':'West Haven, CT','06517':'Hamden, CT',
   '06518':'Hamden, CT','06519':'New Haven, CT','06520':'New Haven, CT',
+  // ── PENNSYLVANIA ──
+  // Allentown / Lehigh Valley
+  '18001':'Allentown, PA','18010':'Alburtis, PA','18011':'Alburtis, PA','18013':'Bangor, PA','18014':'Bath, PA',
+  '18015':'Bethlehem, PA','18016':'Bethlehem, PA','18017':'Bethlehem, PA','18018':'Bethlehem, PA','18020':'Bethlehem, PA',
+  '18031':'Breinigsville, PA','18032':'Catasauqua, PA','18034':'Center Valley, PA','18036':'Coopersburg, PA',
+  '18037':'Coplay, PA','18040':'Easton, PA','18042':'Easton, PA','18045':'Easton, PA','18049':'Emmaus, PA',
+  '18052':'Whitehall, PA','18055':'Hellertown, PA','18062':'Macungie, PA','18064':'Nazareth, PA',
+  '18067':'Northampton, PA','18069':'Orefield, PA','18071':'Palmerton, PA','18073':'Pennsburg, PA',
+  '18080':'Slatington, PA','18087':'Trexlertown, PA','18088':'Walnutport, PA','18091':'Wind Gap, PA',
+  '18101':'Allentown, PA','18102':'Allentown, PA','18103':'Allentown, PA','18104':'Allentown, PA',
+  '18105':'Allentown, PA','18106':'Allentown, PA','18109':'Allentown, PA',
+  // Stroudsburg / Pocono
+  '18301':'East Stroudsburg, PA','18302':'East Stroudsburg, PA','18320':'Analomink, PA',
+  '18321':'Bartonsville, PA','18322':'Brodheadsville, PA','18325':'Canadensis, PA',
+  '18327':'Delaware Water Gap, PA','18328':'Dingmans Ferry, PA','18330':'Effort, PA',
+  '18334':'Long Pond, PA','18335':'Marshalls Creek, PA','18336':'Matamoras, PA',
+  '18337':'Milford, PA','18342':'Mountainhome, PA','18344':'Mount Pocono, PA',
+  '18346':'Pocono Summit, PA','18347':'Pocono Lake, PA','18349':'Pocono Manor, PA',
+  '18350':'Pocono Pines, PA','18353':'Saylorsburg, PA','18360':'Stroudsburg, PA',
+  '18370':'Swiftwater, PA','18372':'Tannersville, PA',
+  // Philadelphia
+  '19101':'Philadelphia, PA','19102':'Philadelphia, PA','19103':'Philadelphia, PA',
+  '19104':'Philadelphia, PA','19106':'Philadelphia, PA','19107':'Philadelphia, PA',
+  '19109':'Philadelphia, PA','19111':'Philadelphia, PA','19114':'Philadelphia, PA',
+  '19115':'Philadelphia, PA','19116':'Philadelphia, PA','19118':'Chestnut Hill, PA',
+  '19119':'Philadelphia, PA','19120':'Philadelphia, PA','19121':'Philadelphia, PA',
+  '19122':'Philadelphia, PA','19123':'Philadelphia, PA','19124':'Philadelphia, PA',
+  '19125':'Philadelphia, PA','19126':'Philadelphia, PA','19127':'Philadelphia, PA',
+  '19128':'Philadelphia, PA','19129':'Philadelphia, PA','19130':'Philadelphia, PA',
+  '19131':'Philadelphia, PA','19132':'Philadelphia, PA','19133':'Philadelphia, PA',
+  '19134':'Philadelphia, PA','19135':'Philadelphia, PA','19136':'Philadelphia, PA',
+  '19138':'Philadelphia, PA','19139':'Philadelphia, PA','19140':'Philadelphia, PA',
+  '19141':'Philadelphia, PA','19142':'Philadelphia, PA','19143':'Philadelphia, PA',
+  '19144':'Philadelphia, PA','19145':'Philadelphia, PA','19146':'Philadelphia, PA',
+  '19147':'Philadelphia, PA','19148':'Philadelphia, PA','19149':'Philadelphia, PA',
+  '19150':'Philadelphia, PA','19151':'Philadelphia, PA','19152':'Philadelphia, PA',
+  '19153':'Philadelphia, PA','19154':'Philadelphia, PA',
+  // Philadelphia Suburbs / Montgomery / Delaware / Chester / Bucks Counties
+  '19001':'Abington, PA','19002':'Ambler, PA','19003':'Ardmore, PA',
+  '19004':'Bala Cynwyd, PA','19006':'Huntingdon Valley, PA','19007':'Bristol, PA',
+  '19008':'Broomall, PA','19010':'Bryn Mawr, PA','19013':'Chester, PA',
+  '19014':'Aston, PA','19018':'Drexel Hill, PA','19020':'Bensalem, PA',
+  '19025':'Dresher, PA','19026':'Drexel Hill, PA','19027':'Elkins Park, PA',
+  '19030':'Fairless Hills, PA','19031':'Flourtown, PA','19034':'Fort Washington, PA',
+  '19035':'Gladwyne, PA','19036':'Glenolden, PA','19038':'Glenside, PA',
+  '19040':'Hatboro, PA','19041':'Haverford, PA','19044':'Horsham, PA',
+  '19046':'Jenkintown, PA','19047':'Langhorne, PA','19050':'Lansdowne, PA',
+  '19053':'Feasterville Trevose, PA','19054':'Levittown, PA','19055':'Levittown, PA',
+  '19056':'Levittown, PA','19057':'Levittown, PA','19060':'Garnet Valley, PA',
+  '19061':'Marcus Hook, PA','19063':'Media, PA','19064':'Springfield, PA',
+  '19066':'Merion Station, PA','19067':'Yardley, PA','19072':'Narberth, PA',
+  '19073':'Newtown Square, PA','19074':'Norwood, PA','19075':'Oreland, PA',
+  '19078':'Ridley Park, PA','19081':'Swarthmore, PA','19082':'Upper Darby, PA',
+  '19083':'Havertown, PA','19085':'Villanova, PA','19086':'Wallingford, PA',
+  '19087':'Wayne, PA','19090':'Willow Grove, PA','19095':'Wyncote, PA',
+  '19096':'Wynnewood, PA',
+  // Bucks County
+  '18901':'Doylestown, PA','18902':'Doylestown, PA','18910':'Bedminster, PA',
+  '18912':'Buckingham, PA','18914':'Chalfont, PA','18917':'Dublin, PA',
+  '18920':'Erwinna, PA','18925':'Furlong, PA','18927':'Hilltown, PA',
+  '18929':'Jamison, PA','18936':'Montgomeryville, PA','18938':'New Hope, PA',
+  '18940':'Newtown, PA','18944':'Perkasie, PA','18951':'Quakertown, PA',
+  '18954':'Richboro, PA','18960':'Sellersville, PA','18966':'Southampton, PA',
+  '18969':'Telford, PA','18974':'Warminster, PA','18976':'Warrington, PA',
+  '18977':'Washington Crossing, PA','18980':'Wycombe, PA',
 };
 
 function getCityByZip(zip){
@@ -3490,11 +3944,15 @@ function getCityByZip(zip){
 }
 
 const ZIP_ZONES = {
-  nj_a:{ label:'NJ — Bergen / Hudson / Essex', short:'NJ Core',  surcharge:0,  emoji:'📍', prefixes:['070','071','072','073','074','075','076','077'] },
-  nj_b:{ label:'NJ — Other Areas',             short:'NJ Other', surcharge:15, emoji:'📍', prefixes:['078','079','080','081','082','083','084','085','086','087','088','089'] },
-  nyc: { label:'New York City',                 short:'NYC',      surcharge:35, emoji:'🗽', prefixes:['100','101','102','103','104','111','112','113','114'] },
-  ny_s:{ label:'NY — Suburbs / Long Island',    short:'NY Suburbs',surcharge:25,emoji:'📍', prefixes:['105','106','107','108','109','115','116','117','118','119','120','121','122','123'] },
-  ct:  { label:'Connecticut',                   short:'CT',       surcharge:20, emoji:'📍', prefixes:['060','061','062','063','064','065','066','067','068','069'] },
+  nj_a:{ label:'NJ — Bergen / Hudson / Essex', short:'NJ Core',    surcharge:0,  emoji:'📍', prefixes:['070','071','072','073','074','075','076','077'] },
+  nj_b:{ label:'NJ — Other Areas',             short:'NJ Other',   surcharge:15, emoji:'📍', prefixes:['078','079','080','081','082','083','084','085','086','087','088','089'] },
+  nyc: { label:'New York City',                 short:'NYC',        surcharge:35, emoji:'🗽', prefixes:['100','101','102','103','104','111','112','113','114'] },
+  ny_s:{ label:'NY — Suburbs / Long Island',    short:'NY Suburbs', surcharge:25, emoji:'📍', prefixes:['105','106','107','108','109','115','116','117','118','119','120','121','122','123'] },
+  ct:  { label:'Connecticut',                   short:'CT',         surcharge:20, emoji:'📍', prefixes:['060','061','062','063','064','065','066','067','068','069'] },
+  pa_e:{ label:'PA — Eastern / Lehigh Valley',  short:'PA Lehigh',  surcharge:25, emoji:'🏔️', prefixes:['180','181'] },
+  pa_p:{ label:'PA — Pocono / Stroudsburg',     short:'PA Pocono',  surcharge:30, emoji:'🏔️', prefixes:['183'] },
+  pa_ph:{ label:'PA — Philadelphia Metro',      short:'PA Philly',  surcharge:35, emoji:'🏛️', prefixes:['190','191'] },
+  pa_b:{ label:'PA — Bucks County',             short:'PA Bucks',   surcharge:30, emoji:'📍', prefixes:['189'] },
 };
 
 const ZONE_POPULAR = {
@@ -3503,6 +3961,10 @@ const ZONE_POPULAR = {
   nyc:    ['cars','fleet','boats'],
   ny_s:   ['cars','boats','rvs'],
   ct:     ['boats','rvs','cars'],
+  pa_e:   ['cars','rvs','powersports'],
+  pa_p:   ['rvs','boats','cars'],
+  pa_ph:  ['cars','fleet','boats'],
+  pa_b:   ['cars','boats','rvs'],
   default:['cars','boats','rvs','powersports','fleet'],
 };
 
@@ -4830,11 +5292,18 @@ function renderDispatchRadar(){
   // Refresh ticker elapsed times every 30s
   setInterval(renderTickerNow, 30000);
 
-  // Kick off dynamic spawning after 5s
-  setTimeout(spawnNewJob, 5000);
+  // ── Firebase: conecta ao banco de dados ao vivo ──
+  if(FIREBASE_DB_URL){
+    firebaseStartListener();
+    // Se FIREBASE_LIVE_ONLY=true, não spawna simulação de fundo
+    if(!FIREBASE_LIVE_ONLY) setTimeout(spawnNewJob, 8000);
+  } else {
+    // Modo simulação puro (sem Firebase configurado)
+    setTimeout(spawnNewJob, 5000);
+  }
 }
 
-function renderActivityFeed(){ renderDispatchRadar(); }
+function renderActivityFeed(){ /* radar removed — lives in admin.html */ }
 
 // ═══════════════════════════════════════════════════════
 // HERO ZIP GATE

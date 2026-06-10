@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cardetail1 — My Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0f;--bg1:#111118;--bg2:#18181f;--bg3:#1f1f28;
+  --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.13);
+  --white:#f1f1f3;--mu:rgba(255,255,255,.45);--mu2:rgba(255,255,255,.25);
+  --blue:#4da3ff;--green:#00c853;--yellow:#fbbf24;--red:#f87171;--teal:#2dd4bf;
+  --r:14px;--fd:'DM Mono',monospace;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-height:100vh}
+
+/* ── LOOKUP ── */
+#s-lookup{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.lk-box{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:44px 38px;width:min(440px,100%);text-align:center}
+.lk-logo{font-size:26px;font-weight:800;letter-spacing:.04em;margin-bottom:6px}
+.lk-logo span{color:var(--blue)}
+.lk-sub{color:var(--mu);font-size:13px;margin-bottom:28px;line-height:1.6}
+.lk-tabs{display:flex;gap:0;background:var(--bg3);border-radius:10px;padding:4px;margin-bottom:20px}
+.lk-tab{flex:1;padding:9px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:transparent;color:var(--mu);transition:.2s}
+.lk-tab.active{background:var(--bg2);color:var(--white)}
+.lk-inp{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--white);font-size:14px;font-family:inherit;outline:none;transition:.2s;margin-bottom:10px}
+.lk-inp:focus{border-color:var(--blue)}
+.lk-btn{width:100%;background:var(--blue);border:none;border-radius:10px;padding:13px;color:#fff;font-weight:700;font-size:14px;cursor:pointer;transition:.2s}
+.lk-btn:hover{background:#3d94f0;transform:translateY(-1px)}
+.lk-err{color:var(--red);font-size:12px;margin-top:10px;display:none}
+.lk-err.show{display:block}
+.lk-note{margin-top:16px;font-size:12px;color:var(--mu);line-height:1.6}
+.lk-note a{color:var(--blue);text-decoration:none;font-weight:600}
+
+/* ── APP SHELL ── */
+#s-app{display:none}
+.topbar{height:58px;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:10px;position:sticky;top:0;z-index:100}
+.tb-logo{font-weight:800;font-size:15px;letter-spacing:.04em}
+.tb-logo span{color:var(--blue)}
+.tb-sp{flex:1}
+.tb-nm{font-size:13px;color:var(--mu)}
+.tb-out{background:none;border:1px solid var(--border);color:var(--mu);font-size:11px;padding:5px 11px;border-radius:7px;cursor:pointer;transition:.2s}
+.tb-out:hover{border-color:var(--red);color:var(--red)}
+.tab-bar{background:var(--bg1);border-bottom:1px solid var(--border);display:flex;padding:0 20px;overflow-x:auto}
+.tab{padding:14px 16px;font-size:13px;font-weight:600;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:.2s;white-space:nowrap}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.main{max-width:840px;margin:0 auto;padding:28px 18px}
+.page{display:none}
+.page.active{display:block}
+.pg-t{font-size:20px;font-weight:800;margin-bottom:4px}
+.pg-s{color:var(--mu);font-size:13px;margin-bottom:22px}
+
+/* ── BOOKING STATUS CARD ── */
+.status-hero{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:24px;margin-bottom:20px}
+.sh-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+.sh-id{font-family:var(--fd);font-size:11px;color:var(--blue);margin-bottom:4px}
+.sh-svc{font-size:18px;font-weight:800}
+.sh-veh{font-size:13px;color:var(--mu);margin-top:3px}
+.sh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;padding-top:16px;border-top:1px solid var(--border)}
+.sfl{font-size:10px;color:var(--mu2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.sfv{font-size:13px;font-weight:600}
+.sh-acts{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── PROGRESS TRACKER ── */
+.progress-track{display:flex;align-items:center;gap:0;margin-bottom:20px;overflow-x:auto;padding-bottom:4px}
+.pt-step{display:flex;flex-direction:column;align-items:center;flex:1;min-width:80px;position:relative}
+.pt-step:not(:last-child)::after{content:'';position:absolute;top:14px;left:calc(50% + 16px);right:calc(-50% + 16px);height:2px;background:var(--border2)}
+.pt-step.done::after{background:var(--green)}
+.pt-step.active::after{background:var(--blue)}
+.pt-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid var(--border2);background:var(--bg3);position:relative;z-index:1;margin-bottom:6px}
+.pt-step.done .pt-circle{background:var(--green);border-color:var(--green);color:#000}
+.pt-step.active .pt-circle{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 0 0 4px rgba(77,163,255,.2)}
+.pt-lbl{font-size:10px;color:var(--mu);text-align:center;white-space:nowrap}
+.pt-step.done .pt-lbl{color:var(--green)}
+.pt-step.active .pt-lbl{color:var(--blue);font-weight:700}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.badge::before{content:'';width:4px;height:4px;border-radius:50%;flex-shrink:0}
+.b-pen{background:rgba(251,191,36,.1);color:var(--yellow)}.b-pen::before{background:var(--yellow)}
+.b-con{background:rgba(96,165,250,.1);color:#60a5fa}.b-con::before{background:#60a5fa}
+.b-sch{background:rgba(167,139,250,.1);color:#a78bfa}.b-sch::before{background:#a78bfa}
+.b-inp{background:rgba(77,163,255,.1);color:var(--blue)}.b-inp::before{background:var(--blue)}
+.b-enr{background:rgba(251,146,60,.1);color:#fb923c}.b-enr::before{background:#fb923c}
+.b-don{background:rgba(0,200,83,.1);color:var(--green)}.b-don::before{background:var(--green)}
+.b-can{background:rgba(248,113,113,.1);color:var(--red)}.b-can::before{background:var(--red)}
+.b-res{background:rgba(45,212,191,.1);color:var(--teal)}.b-res::before{background:var(--teal)}
+.b-pay{background:rgba(251,191,36,.1);color:var(--yellow)}.b-pay::before{background:var(--yellow)}
+
+/* ── PLAN CARDS ── */
+.plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:16px}
+.plan{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:24px;position:relative;transition:.2s}
+.plan:hover{border-color:var(--border2);transform:translateY(-2px)}
+.plan.feat{border-color:rgba(77,163,255,.35);background:linear-gradient(135deg,rgba(77,163,255,.05),rgba(45,212,191,.03))}
+.plan-tag{position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--blue);color:#fff;font-size:10px;font-weight:800;padding:2px 10px;border-radius:99px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.plan-nm{font-size:15px;font-weight:800;margin-bottom:6px}
+.plan-pr{font-family:var(--fd);font-size:32px;line-height:1;margin-bottom:4px}
+.plan-pr span{font-size:13px;color:var(--mu)}
+.plan-sub{font-size:12px;color:var(--mu);margin-bottom:16px}
+.plan-feats{list-style:none;margin-bottom:20px}
+.plan-feats li{font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:7px}
+.plan-feats li:last-child{border-bottom:none}
+.plan-feats li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0}
+.plan-btn{width:100%;border:none;border-radius:9px;padding:12px;font-weight:700;font-size:13px;cursor:pointer;transition:.2s}
+.plan.feat .plan-btn{background:var(--blue);color:#fff}
+.plan.feat .plan-btn:hover{background:#3d94f0}
+.plan:not(.feat) .plan-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--white)}
+.plan:not(.feat) .plan-btn:hover{background:var(--bg2)}
+
+/* ── BTNS ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:9px 16px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:.2s;text-decoration:none}
+.btn:hover{transform:translateY(-1px)}
+.btn-p{background:var(--blue);color:#fff}.btn-p:hover{background:#3d94f0}
+.btn-g{background:transparent;border:1px solid var(--border2);color:var(--mu)}.btn-g:hover{color:var(--white)}
+.btn-tl{background:rgba(45,212,191,.1);color:var(--teal);border:1px solid rgba(45,212,191,.2)}
+.btn-yw{background:rgba(251,191,36,.1);color:var(--yellow);border:1px solid rgba(251,191,36,.18)}
+.btn-sm{padding:6px 11px;font-size:12px}
+
+/* ── MODAL ── */
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;align-items:center;justify-content:center;padding:20px}
+#modal.open{display:flex}
+.m-box{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:28px;width:min(420px,100%)}
+.m-title{font-size:17px;font-weight:800;margin-bottom:16px}
+.m-inp{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:10px 13px;color:var(--white);font-size:13px;font-family:inherit;outline:none;transition:.2s;margin-bottom:10px}
+.m-inp:focus{border-color:var(--blue)}
+.m-lbl{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;display:block}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:52px 16px;color:var(--mu)}
+.ei{font-size:40px;margin-bottom:12px}
+.et{font-size:14px;margin-bottom:20px}
+
+/* ── STAT ROW ── */
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:22px}
+.sc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px}
+.sv{font-family:var(--fd);font-size:24px;font-weight:500}
+.sl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-top:5px}
+
+/* ── REVIEW ── */
+.stars{display:flex;gap:4px;font-size:26px;cursor:pointer;margin-bottom:14px}
+.star{transition:.15s;filter:grayscale(1);opacity:.4}
+.star.lit{filter:none;opacity:1}
+
+@media(max-width:600px){
+  .lk-box{padding:32px 22px}
+  .main{padding:18px 12px}
+  .sh-grid{grid-template-columns:1fr 1fr}
+  .plan-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- LOOKUP -->
+<div id="s-lookup">
+  <div class="lk-box">
+    <div class="lk-logo">CAR<span>DETAIL</span>1</div>
+    <div class="lk-sub">Track your booking, pay deposit, reschedule, and more.</div>
+    <div class="lk-tabs">
+      <button class="lk-tab active" onclick="lkTab('phone')" id="lt-phone">📱 Phone</button>
+      <button class="lk-tab" onclick="lkTab('email')" id="lt-email">✉️ Email</button>
+      <button class="lk-tab" onclick="lkTab('id')" id="lt-id">🔢 Booking ID</button>
+    </div>
+    <div id="lk-phone-row"><input class="lk-inp" type="tel" id="lk-phone" placeholder="201-555-0000" onkeydown="if(event.key==='Enter')doLookup()"></div>
+    <div id="lk-email-row" style="display:none"><input class="lk-inp" type="email" id="lk-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLookup()"></div>
+    <div id="lk-id-row" style="display:none"><input class="lk-inp" id="lk-id" placeholder="Booking ID (e.g. CD1-ABC123)" onkeydown="if(event.key==='Enter')doLookup()"></div>
+    <button class="lk-btn" onclick="doLookup()">Find My Booking →</button>
+    <div class="lk-err" id="lk-err">No booking found. Check your info or <a href="cardetail1-mobile-detailing-pro-v6-images-checkout.html" style="color:var(--blue)">book now</a>.</div>
+    <div class="lk-note">First time? <a href="cardetail1-mobile-detailing-pro-v6-images-checkout.html">Book a service →</a></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="s-app">
+  <div class="topbar">
+    <div class="tb-logo">CAR<span>DETAIL</span>1</div>
+    <div class="tb-sp"></div>
+    <div class="tb-nm" id="tb-nm">My Account</div>
+    <button class="tb-out" onclick="logout()">Sign Out</button>
+  </div>
+  <div class="tab-bar">
+    <div class="tab active" onclick="showTab('status')" data-t="status">📋 My Booking</div>
+    <div class="tab" onclick="showTab('history')" data-t="history">History</div>
+    <div class="tab" onclick="showTab('plans')" data-t="plans">Membership Plans</div>
+  </div>
+  <div class="main">
+
+    <!-- STATUS -->
+    <div class="page active" id="page-status">
+      <div class="pg-t">Booking Status</div>
+      <div class="pg-s">Your most recent / active booking</div>
+      <div id="status-content"></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="page" id="page-history">
+      <div class="pg-t">Booking History</div>
+      <div class="pg-s">All your service requests</div>
+      <div class="sg" id="hist-stats"></div>
+      <div id="hist-list"></div>
+    </div>
+
+    <!-- PLANS -->
+    <div class="page" id="page-plans">
+      <div class="pg-t">Membership Plans</div>
+      <div class="pg-s">Save up to 20% with a monthly plan. Cancel anytime.</div>
+      <div id="plan-banner"></div>
+      <div class="plan-grid">
+        <div class="plan">
+          <div class="plan-nm">🧼 Maintenance</div>
+          <div class="plan-pr">$79<span>/mo</span></div>
+          <div class="plan-sub">1 maintenance wash/month · Cars</div>
+          <ul class="plan-feats"><li>Monthly exterior hand wash</li><li>Wheels & tires dressed</li><li>Interior vacuum & wipe</li><li>Priority scheduling</li><li>Save ~$10/visit</li></ul>
+          <button class="plan-btn" onclick="joinPlan('Maintenance','79')">Join — $79/mo</button>
+        </div>
+        <div class="plan feat">
+          <div class="plan-tag">Most Popular</div>
+          <div class="plan-nm">✨ Full Detail</div>
+          <div class="plan-pr">$149<span>/mo</span></div>
+          <div class="plan-sub">Full detail monthly · All vehicles</div>
+          <ul class="plan-feats"><li>Full exterior + interior</li><li>Clay bar treatment</li><li>Paint sealant</li><li>Leather/fabric conditioning</li><li>Priority scheduling</li><li>Save ~$30/visit</li></ul>
+          <button class="plan-btn" onclick="joinPlan('Full Detail','149')">Join — $149/mo</button>
+        </div>
+        <div class="plan">
+          <div class="plan-nm">👑 VIP Premium</div>
+          <div class="plan-pr">$229<span>/mo</span></div>
+          <div class="plan-sub">Premium detail biweekly</div>
+          <ul class="plan-feats"><li>Premium detail 2×/month</li><li>Machine polish included</li><li>Same-day availability</li><li>Dedicated technician</li><li>Save ~$110/month</li></ul>
+          <button class="plan-btn" onclick="joinPlan('VIP Premium','229')">Join — $229/mo</button>
+        </div>
+      </div>
+      <p style="margin-top:16px;font-size:12px;color:var(--mu);text-align:center">Cancel anytime. Call us to activate: <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></p>
+    </div>
+
+  </div>
+</div>
+
+<!-- RESCHEDULE / DEPOSIT / REVIEW MODAL -->
+<div id="modal">
+  <div class="m-box" id="modal-inner"></div>
+</div>
+
+<script>
+let CUSTOMER_BOOKINGS=[], CUSTOMER_KEY='', _lkMode='phone', _starRating=0;
+
+// ── LOOKUP TABS ──────────────────────────
+function lkTab(mode){
+  _lkMode=mode;
+  ['phone','email','id'].forEach(m=>{
+    document.getElementById('lk-'+m+'-row').style.display=m===mode?'block':'none';
+    document.getElementById('lt-'+m).classList.toggle('active',m===mode);
+  });
+  document.getElementById('lk-err').classList.remove('show');
+}
+
+// ── LOOKUP ──────────────────────────────
+function doLookup(){
+  const all=JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
+  let mine=[];
+  if(_lkMode==='phone'){
+    const ph=(document.getElementById('lk-phone').value||'').replace(/\D/g,'');
+    if(ph.length<7){ showErr(); return; }
+    mine=all.filter(b=>(b.phone||'').replace(/\D/g,'').includes(ph));
+  } else if(_lkMode==='email'){
+    const em=(document.getElementById('lk-email').value||'').trim().toLowerCase();
+    if(!em.includes('@')){ showErr(); return; }
+    mine=all.filter(b=>(b.email||'').toLowerCase()===em);
+  } else {
+    const id=(document.getElementById('lk-id').value||'').trim().toUpperCase();
+    mine=all.filter(b=>(b.id||'').toUpperCase().includes(id));
+  }
+  if(!mine.length){ showErr(); return; }
+  CUSTOMER_BOOKINGS=mine;
+  CUSTOMER_KEY=_lkMode+':'+(document.getElementById('lk-'+_lkMode).value);
+  localStorage.setItem('cd1_cust_key',CUSTOMER_KEY);
+  initApp();
+}
+function showErr(){ document.getElementById('lk-err').classList.add('show'); }
+
+// ── AUTO-LOGIN ───────────────────────────
+function tryAutoLogin(){
+  const key=localStorage.getItem('cd1_cust_key'); if(!key) return false;
+  const all=JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
+  const [mode,val]=key.split(':'); let mine=[];
+  if(mode==='phone'){const ph=(val||'').replace(/\D/g,'');mine=all.filter(b=>(b.phone||'').replace(/\D/g,'').includes(ph));}
+  else if(mode==='email'){mine=all.filter(b=>(b.email||'').toLowerCase()===val.toLowerCase());}
+  else{mine=all.filter(b=>(b.id||'').toUpperCase().includes(val.toUpperCase()));}
+  if(!mine.length) return false;
+  CUSTOMER_BOOKINGS=mine; CUSTOMER_KEY=key; return true;
+}
+
+function logout(){ localStorage.removeItem('cd1_cust_key'); location.reload(); }
+
+// ── APP ──────────────────────────────────
+function nm(b){ return (b.name||((b.firstName||'')+' '+(b.lastName||''))||'Customer').trim(); }
+function tot(b){ return b.totalPrice||b.total_price||b.packagePrice||0; }
+function svc(b){ return b.service||b.package||b.packageName||'Detail Service'; }
+
+const STATUS_MAP={
+  'Pending Review':'b-pen','Confirmed':'b-con','Scheduled':'b-sch',
+  'In Progress':'b-inp','En Route':'b-enr','Completed':'b-don',
+  'Cancelled':'b-can','Rescheduled':'b-res','No-Show':'b-can',
+  'Payment Pending':'b-pay','Paid':'b-don'
+};
+function badge(s){ return `<span class="badge ${STATUS_MAP[s]||'b-pen'}">${s||'Pending'}</span>`; }
+
+function initApp(){
+  CUSTOMER_BOOKINGS=[...JSON.parse(localStorage.getItem('cd1_bookings')||'[]')].filter(b=>{
+    const[mode,val]=CUSTOMER_KEY.split(':');
+    if(mode==='phone') return (b.phone||'').replace(/\D/g,'').includes((val||'').replace(/\D/g,''));
+    if(mode==='email') return (b.email||'').toLowerCase()===(val||'').toLowerCase();
+    return (b.id||'').toUpperCase().includes((val||'').toUpperCase());
+  });
+  const name=nm(CUSTOMER_BOOKINGS[0]||{});
+  document.getElementById('tb-nm').textContent=name.split(' ')[0]||'Customer';
+  document.getElementById('s-lookup').style.display='none';
+  document.getElementById('s-app').style.display='block';
+  renderStatus();
+}
+
+function showTab(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelector(`[data-t="${name}"]`)?.classList.add('active');
+  if(name==='status') renderStatus();
+  if(name==='history') renderHistory();
+  if(name==='plans') renderPlans();
+}
+
+// ── STATUS STEPS ──────────────────────────
+const STEPS=[
+  {key:'Pending Review',label:'Received'},
+  {key:'Confirmed',label:'Confirmed'},
+  {key:'Scheduled',label:'Scheduled'},
+  {key:'En Route',label:'En Route'},
+  {key:'In Progress',label:'In Progress'},
+  {key:'Completed',label:'Done'},
+];
+function progressTrack(currentStatus){
+  const idx=STEPS.findIndex(s=>s.key===currentStatus);
+  if(idx<0||currentStatus==='Cancelled'||currentStatus==='No-Show') return '';
+  return `<div class="progress-track">
+    ${STEPS.map((s,i)=>`<div class="pt-step ${i<idx?'done':i===idx?'active':''}">
+      <div class="pt-circle">${i<idx?'✓':i+1}</div>
+      <div class="pt-lbl">${s.label}</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+function renderStatus(){
+  const bk=[...CUSTOMER_BOOKINGS].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+  const active=bk.find(b=>!['Completed','Cancelled','No-Show','Paid'].includes(b.status))||bk[0];
+  const el=document.getElementById('status-content');
+  if(!bk.length){ el.innerHTML='<div class="empty"><div class="ei">📭</div><div class="et">No bookings found</div><a href="cardetail1-mobile-detailing-pro-v6-images-checkout.html" class="btn btn-p">Book a Service →</a></div>'; return; }
+  if(!active){ el.innerHTML='<div class="empty"><div class="ei">✅</div><div class="et">All your bookings are complete!</div><a href="cardetail1-mobile-detailing-pro-v6-images-checkout.html" class="btn btn-p">Book Again →</a></div>'; return; }
+
+  const addons=(active.addons||[]).map(a=>a.name||a).join(', ')||'None';
+  const total=tot(active);
+  const cfg=JSON.parse(localStorage.getItem('cd1_cfg')||'{}');
+  const deposit=cfg.deposit||50;
+  const squareUrl=cfg.squareUrl||'';
+
+  const isPending=active.status==='Payment Pending';
+  const canPay=!active.depositPaid&&total>0;
+  const canReschedule=!['Completed','Cancelled','In Progress','En Route'].includes(active.status);
+  const isDone=active.status==='Completed'||active.status==='Paid';
+
+  let acts=`<a href="cardetail1-mobile-detailing-pro-v6-images-checkout.html" class="btn btn-g btn-sm">+ Book Again</a>`;
+  if(canPay&&squareUrl){ acts+=`<button class="btn btn-tl btn-sm" onclick="openPayModal('${active.id}')">💳 Pay Deposit ($${deposit})</button>`; }
+  if(canReschedule){ acts+=`<button class="btn btn-yw btn-sm" onclick="openReschedule('${active.id}')">📅 Reschedule</button>`; }
+  if(isDone&&!active.reviewLeft){ acts+=`<button class="btn btn-p btn-sm" onclick="openReview('${active.id}')">⭐ Leave Review</button>`; }
+
+  el.innerHTML=`
+    ${progressTrack(active.status)}
+    <div class="status-hero">
+      <div class="sh-top">
+        <div>
+          <div class="sh-id">${active.id||'—'}</div>
+          <div class="sh-svc">${svc(active)}</div>
+          <div class="sh-veh">${active.vehicleLabel||active.vehicle||active.vehicleCategory||''}</div>
+        </div>
+        ${badge(active.status||'Pending Review')}
+      </div>
+      <div class="sh-grid">
+        <div><div class="sfl">Preferred Date</div><div class="sfv">${active.preferredDate||active.preferred_date||'TBD'}</div></div>
+        <div><div class="sfl">Time</div><div class="sfv">${active.preferredTime||'Any'}</div></div>
+        <div><div class="sfl">Total</div><div class="sfv" style="color:var(--green)">$${total}</div></div>
+        <div><div class="sfl">Deposit</div><div class="sfv">${active.depositPaid?'<span style="color:var(--green)">✓ Paid</span>':'Not yet paid'}</div></div>
+        <div><div class="sfl">Add-ons</div><div class="sfv">${addons}</div></div>
+        <div><div class="sfl">Zone</div><div class="sfv">${active.zone||active.zip_city||active.zipCode||'—'}</div></div>
+        ${active.assignedTechName?`<div><div class="sfl">Technician</div><div class="sfv" style="color:var(--green)">${active.assignedTechName}</div></div>`:''}
+      </div>
+      ${active.notes?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--mu)">Your notes: ${active.notes}</div>`:''}
+      <div class="sh-acts">${acts}</div>
+    </div>
+    ${active.photosBefore?.length||active.photosAfter?.length?`
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">📷 Job Photos</div>
+        ${active.photosBefore?.length?`<div style="font-size:11px;color:var(--mu);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">Before</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;margin-bottom:12px">${active.photosBefore.map(p=>`<img src="${p}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;border:1px solid var(--border)">`).join('')}</div>`:''}
+        ${active.photosAfter?.length?`<div style="font-size:11px;color:var(--mu);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">After</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px">${active.photosAfter.map(p=>`<img src="${p}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;border:1px solid var(--border)">`).join('')}</div>`:''}
+      </div>` : ''}
+  `;
+}
+
+// ── HISTORY ──────────────────────────────
+function renderHistory(){
+  const bk=[...CUSTOMER_BOOKINGS].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+  const done=bk.filter(b=>b.status==='Completed'||b.status==='Paid');
+  const spent=done.reduce((s,b)=>s+tot(b),0);
+  document.getElementById('hist-stats').innerHTML=`
+    <div class="sc"><div class="sv">${bk.length}</div><div class="sl">Bookings</div></div>
+    <div class="sc"><div class="sv" style="color:var(--green)">${done.length}</div><div class="sl">Completed</div></div>
+    <div class="sc"><div class="sv" style="color:var(--blue)">$${spent}</div><div class="sl">Total Spent</div></div>
+  `;
+  document.getElementById('hist-list').innerHTML=bk.length
+    ? bk.map(b=>`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:10px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px">
+          <div>
+            <div style="font-family:var(--fd);font-size:10px;color:var(--blue);margin-bottom:3px">${b.id||'—'}</div>
+            <div style="font-size:14px;font-weight:700">${svc(b)}</div>
+            <div style="font-size:12px;color:var(--mu)">${b.vehicleLabel||b.vehicle||''}</div>
+          </div>
+          ${badge(b.status||'Pending Review')}
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--mu)">
+          <span>📅 ${b.preferredDate||b.preferred_date||'—'}</span>
+          <span>💰 <strong style="color:var(--green)">$${tot(b)}</strong></span>
+          <span>📍 ${b.zone||b.zip_city||b.zipCode||'—'}</span>
+          ${b.createdAt?`<span>Submitted ${new Date(b.createdAt).toLocaleDateString()}</span>`:''}
+        </div>
+        ${(b.status==='Completed'||b.status==='Paid')&&!b.reviewLeft?`<div style="margin-top:10px"><button class="btn btn-p btn-sm" onclick="openReview('${b.id}')">⭐ Leave Review</button></div>`:''}
+      </div>`).join('')
+    : '<div class="empty"><div class="ei">📭</div><div class="et">No bookings yet</div></div>';
+}
+
+// ── PLANS ────────────────────────────────
+function renderPlans(){
+  const sub=JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]').find(s=>CUSTOMER_KEY.includes(s.email||'x'));
+  document.getElementById('plan-banner').innerHTML=sub
+    ?`<div style="background:rgba(0,200,83,.06);border:1px solid rgba(0,200,83,.18);border-radius:var(--r);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+        <span>✅</span><div><div style="font-weight:700">Active: ${sub.plan} Plan</div><div style="font-size:12px;color:var(--mu)">Joined ${new Date(sub.since).toLocaleDateString()}</div></div>
+        <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="cancelPlan()">Cancel</button>
+      </div>`:'' ;
+}
+function joinPlan(plan,price){
+  if(!confirm(`Join the ${plan} plan for $${price}/month?\n\nOur team will contact you to set up billing.`)) return;
+  const subs=JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]');
+  const em=(CUSTOMER_KEY.split(':')[1]||'').toLowerCase();
+  subs.push({email:em,name:nm(CUSTOMER_BOOKINGS[0]||{}),plan,price:Number(price),since:new Date().toISOString()});
+  localStorage.setItem('cd1_subscriptions',JSON.stringify(subs));
+  alert(`🎉 Joined ${plan} plan! We'll call to confirm billing.`);
+  renderPlans();
+}
+function cancelPlan(){
+  if(!confirm('Cancel your membership?')) return;
+  const em=(CUSTOMER_KEY.split(':')[1]||'').toLowerCase();
+  localStorage.setItem('cd1_subscriptions',JSON.stringify(JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]').filter(s=>s.email!==em)));
+  renderPlans();
+}
+
+// ── PAY DEPOSIT MODAL ────────────────────
+function openPayModal(id){
+  const cfg=JSON.parse(localStorage.getItem('cd1_cfg')||'{}');
+  const deposit=cfg.deposit||50;
+  const url=cfg.squareUrl||'';
+  document.getElementById('modal-inner').innerHTML=`
+    <div class="m-title">💳 Pay Deposit</div>
+    <p style="font-size:13px;color:var(--mu);margin-bottom:16px;line-height:1.6">
+      A $${deposit} deposit is required to confirm your appointment. Click below to pay securely via Square.
+    </p>
+    ${url?`<a href="${url}" target="_blank" class="btn btn-p" style="width:100%;justify-content:center;margin-bottom:10px">Pay $${deposit} via Square →</a>`:'<p style="color:var(--red);font-size:13px">Payment link not configured. Call us: 551-313-2956</p>'}
+    <button class="btn" style="width:100%;justify-content:center;background:var(--bg3);border:1px solid var(--border);color:var(--mu)" onclick="closeModal()">Close</button>
+  `;
+  document.getElementById('modal').classList.add('open');
+}
+
+// ── RESCHEDULE MODAL ─────────────────────
+function openReschedule(id){
+  document.getElementById('modal-inner').innerHTML=`
+    <div class="m-title">📅 Request Reschedule</div>
+    <p style="font-size:13px;color:var(--mu);margin-bottom:14px">Select a new preferred date and we'll confirm availability.</p>
+    <label class="m-lbl">New Preferred Date</label>
+    <input class="m-inp" type="date" id="rs-date" min="${new Date().toISOString().split('T')[0]}">
+    <label class="m-lbl">Preferred Time</label>
+    <select class="m-inp" id="rs-time">
+      <option>Morning (8am–12pm)</option><option>Afternoon (12pm–4pm)</option>
+      <option>Evening (4pm–7pm)</option><option>Flexible</option>
+    </select>
+    <label class="m-lbl">Notes (optional)</label>
+    <input class="m-inp" id="rs-note" placeholder="Any special instructions…">
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-p" style="flex:1" onclick="submitReschedule('${id}')">Submit Request</button>
+      <button class="btn btn-g" style="flex:1" onclick="closeModal()">Cancel</button>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('open');
+}
+function submitReschedule(id){
+  const d=document.getElementById('rs-date').value;
+  if(!d){ alert('Select a date'); return; }
+  const bks=JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
+  const i=bks.findIndex(b=>b.id===id);
+  if(i>-1){ bks[i].preferredDate=d; bks[i].preferredTime=document.getElementById('rs-time').value; bks[i].status='Rescheduled'; if(document.getElementById('rs-note').value) bks[i].notes=(bks[i].notes||'')+' | Reschedule note: '+document.getElementById('rs-note').value; localStorage.setItem('cd1_bookings',JSON.stringify(bks)); }
+  closeModal(); alert('✅ Reschedule request sent! We'll confirm your new date within 24 hours.'); initApp();
+}
+
+// ── REVIEW MODAL ─────────────────────────
+function openReview(id){
+  _starRating=0;
+  document.getElementById('modal-inner').innerHTML=`
+    <div class="m-title">⭐ Leave a Review</div>
+    <p style="font-size:13px;color:var(--mu);margin-bottom:14px">How was your experience?</p>
+    <div class="stars" id="stars-row">
+      ${[1,2,3,4,5].map(n=>`<span class="star" onclick="setStar(${n},this)" data-v="${n}">★</span>`).join('')}
+    </div>
+    <textarea class="m-inp" id="rv-comment" placeholder="Tell us about your experience…" style="resize:vertical;min-height:80px"></textarea>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn btn-p" style="flex:1" onclick="submitReview('${id}')">Submit Review</button>
+      <button class="btn btn-g" style="flex:1" onclick="closeModal()">Later</button>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('open');
+}
+function setStar(n){
+  _starRating=n;
+  document.querySelectorAll('#stars-row .star').forEach((s,i)=>s.classList.toggle('lit',i<n));
+}
+function submitReview(id){
+  if(!_starRating){ alert('Select a star rating'); return; }
+  const reviews=JSON.parse(localStorage.getItem('cd1_reviews_pending')||'[]');
+  reviews.push({bookingId:id,stars:_starRating,comment:document.getElementById('rv-comment').value.trim(),date:new Date().toISOString()});
+  localStorage.setItem('cd1_reviews_pending',JSON.stringify(reviews));
+  const bks=JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
+  const i=bks.findIndex(b=>b.id===id);if(i>-1){bks[i].reviewLeft=true;localStorage.setItem('cd1_bookings',JSON.stringify(bks));}
+  closeModal(); alert('🌟 Thank you for your review! It will appear on our site after approval.'); initApp();
+}
+
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click',function(e){ if(e.target===this) closeModal(); });
+
+// ── STARTUP ──────────────────────────────
+if(tryAutoLogin()) initApp();
+</script>
+</body>
+</html>

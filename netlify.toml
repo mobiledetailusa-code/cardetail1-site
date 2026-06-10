@@ -1,0 +1,36 @@
+# Netlify configuration — Cardetail1
+# Deploy: arraste a pasta do projeto em https://app.netlify.com/drop
+# ou conecte este repositório Git no painel da Netlify.
+
+[build]
+  # Site estático: nada para "buildar", só publicar a raiz.
+  publish = "."
+  functions = "netlify/functions"
+
+# A página principal do site (renomeie se preferir outro arquivo como home).
+[[redirects]]
+  from = "/"
+  to = "/cardetail1-mobile-detailing-pro-v6-images-checkout.html"
+  status = 200
+
+# Portais com URLs limpas (estilo nationaldetailpros).
+[[redirects]]
+  from = "/customer"
+  to = "/customer.html"
+  status = 200
+[[redirects]]
+  from = "/technician"
+  to = "/technician.html"
+  status = 200
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
+# Headers de segurança básicos.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
