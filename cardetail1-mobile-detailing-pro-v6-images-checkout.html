@@ -2062,7 +2062,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 // ═══════════════════════════════════════════════════════
 
 // ── GERAL ──────────────────────────────────────────────
-const ADMIN_EMAIL    = 'YOUR_EMAIL_HERE';   // seu email
+const ADMIN_EMAIL    = 'magnojuniorusa93@gmail.com';   // seu email
 const ADMIN_SMS      = '5513132956';         // seu celular (SMS admin)
 
 // ── SQUARE WEB PAYMENTS ────────────────────────────────
@@ -3300,7 +3300,7 @@ Notes: ${b.notes||'None'}`;
 }
 function mailtoForBooking(b){
   const to=(ADMIN_EMAIL&&ADMIN_EMAIL!=='YOUR_EMAIL_HERE')?ADMIN_EMAIL:'';
-  return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent('New Cardetail1 Booking Request '+b.id)}&body=${encodeURIComponent(formatBookingText(b))}`;
+  return `mailto:${to}?subject=${encodeURIComponent('New Cardetail1 Booking Request '+b.id)}&body=${encodeURIComponent(formatBookingText(b))}`;
 }
 function smsForBooking(b){
   return `sms:${ADMIN_SMS}?&body=${encodeURIComponent(formatBookingText(b))}`;
