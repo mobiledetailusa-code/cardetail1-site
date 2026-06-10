@@ -47,11 +47,45 @@ const SQUARE_LOC_ID = 'L...';                 // Location ID (público)
 
 Com `BACKEND_URL` apontando para `/.netlify/...` (mesma origem), o site faz um fetch **real** e mostra confirmação de verdade — diferente do webhook externo, que é "cego" (`no-cors`).
 
+## 3b. (Opção) Pagamento via Stripe — também no Netlify
+
+Funções **aditivas**, sem dependências npm: `create-payment-intent.js` e `stripe-webhook.js`.
+
+### Variáveis de ambiente (Netlify)
+| Variável | Onde fica | Valor |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | **só servidor** | `sk_test_…` (testes) → `sk_live_…` |
+| `STRIPE_WEBHOOK_SECRET` | **só servidor** | `whsec_…` (gerado ao criar o webhook) |
+| Publishable key | **pode no HTML** | `pk_test_…` / `pk_live_…` |
+
+### Registrar o webhook
+Stripe → *Developers → Webhooks → Add endpoint*:
+- **URL:** `https://SEU-SITE.netlify.app/.netlify/functions/stripe-webhook`
+- **Eventos:** `payment_intent.succeeded`, `payment_intent.amount_capturable_updated`, `payment_intent.payment_failed`
+- Copie o *Signing secret* (`whsec_…`) → variável `STRIPE_WEBHOOK_SECRET`.
+
+### Modelo de cobrança (preço por pé variável de barco/RV)
+`create-payment-intent` usa `capture_method: 'manual'` por padrão → **autoriza** (segura) o valor no cartão; depois do serviço você **captura o valor final** no painel do Stripe. Para cobrar na hora, mande `capture: 'auto'` no body.
+
+### Ligar no front-end (step 6 — substitui o Square)
+> ⚠️ Ainda **não** trocado no HTML. Quando confirmar, o step de cartão passa do `sqCard` (Square) para o Stripe Payment Element:
+```js
+const stripe = Stripe('pk_live_…');                         // chave pública
+const r = await fetch('/.netlify/functions/create-payment-intent', {
+  method:'POST', body: JSON.stringify({ amountCents: total*100, bookingId: b.id, email: b.email })
+});
+const { clientSecret } = await r.json();
+const elements = stripe.elements({ clientSecret });
+elements.create('payment').mount('#card-container');
+// no submit: await stripe.confirmPayment({ elements, confirmParams:{ return_url } })
+```
+
 ## 4. Testar
 
 1. Abra o site publicado, faça um booking de teste.
 2. Confira o e-mail em `ADMIN_EMAIL`.
-3. Logs das funções: Netlify → *Logs* → *Functions* → `submit-booking`.
+3. Logs das funções: Netlify → *Logs* → *Functions* → `submit-booking` (ou `stripe-webhook`).
+4. Stripe em modo teste: use o cartão `4242 4242 4242 4242`, qualquer data futura e CVC.
 
 ## ⚠️ Segurança — antes de produção
 - `squarespace_backup_codes_*.txt` está no repositório. **Remova do Git** (`git rm --cached`) e guarde offline.
