@@ -481,9 +481,16 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .pay-t{font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--blue);margin-bottom:4px}
 .pay-sub{font-size:12.5px;color:var(--mu);margin-bottom:14px;line-height:1.5}
 .pay-badge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--gr);background:var(--grdim);border:1px solid var(--grbr);border-radius:999px;padding:4px 13px;margin-bottom:14px}
-#card-container{min-height:80px}
+#card-container{min-height:80px;margin-top:6px}
 .pay-err{color:var(--rd);font-size:12px;margin-top:7px;display:none}
 .pay-err.show{display:block}
+.stripe-pay{margin-top:6px}
+.pay-choice-row{display:flex;gap:10px;flex-wrap:wrap}
+.pay-choice{flex:1;min-width:200px;padding:13px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0c1520;color:var(--white);font-size:13.5px;font-weight:600;cursor:pointer;transition:border-color .15s,background .15s}
+.pay-choice:hover{border-color:var(--blue)}
+.pay-choice.sel{border-color:var(--blue);background:rgba(77,163,255,.08)}
+.pay-status{margin-top:12px;font-size:13px;color:var(--mu);line-height:1.5}
+.pay-status a{color:var(--blue);font-weight:600}
 
 /* ORDER CONFIRM */
 .oc{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--r);padding:18px;margin-bottom:12px}
@@ -1886,24 +1893,28 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="bsec" id="bs6">
         <div class="beye">Step 06</div>
         <div class="btitle">BOOKING<br>TERMS</div>
-        <div class="bdesc"><strong style="color:var(--white)">No payment is collected in this request flow.</strong> We will review availability, location, access, vehicle condition, weather, and selected service before confirming your appointment by text or call.</div>
+        <div class="bdesc"><strong style="color:var(--white)">An optional refundable deposit secures your slot.</strong> You can authorize a card deposit now or have us send a secure payment link. We review availability, location, access, vehicle condition, and weather before confirming by text or call.</div>
         <div class="card-gate">
           <div class="card-gate-title">Card Requirement / Secure Checkout Setup</div>
           <div class="card-gate-copy">
-            To reduce no-shows and protect reserved mobile routes, a valid card on file, deposit, or secure payment link may be required before the appointment is finally confirmed. This preview shows the checkout space but does not collect card numbers. In production, this area should be connected to Stripe Payment Element or Square Web Payments.
+            To reduce no-shows and protect reserved mobile routes, a refundable deposit secures your appointment. Pay securely by card now (Stripe) or receive a secure payment link by text or email. Card data is handled directly by Stripe — never stored on this site.
           </div>
-          <div class="checkout-element-preview" aria-label="Secure card entry placeholder">
-            <div class="fl">Secure Card Entry Placeholder</div>
-            <div class="card-field-fake">Card number</div>
-            <div class="card-line-grid">
-              <div class="card-field-fake">Name on card</div>
-              <div class="card-field-fake">MM / YY</div>
-              <div class="card-field-fake">CVC</div>
+          <div class="stripe-pay" aria-label="Secure checkout">
+            <div class="pay-choice-row">
+              <button type="button" class="pay-choice" id="pc-card" onclick="payByCard()">💳 Pay deposit by card now</button>
+              <button type="button" class="pay-choice" id="pc-link" onclick="sendStripeLink()">🔗 Send me a secure payment link</button>
             </div>
+            <div id="stripe-card-wrap" style="display:none">
+              <div class="fl" id="stripe-deposit-lbl">Secure card · refundable hold</div>
+              <div id="card-container"></div>
+              <div class="pay-err" id="pay-err"></div>
+              <button type="button" class="btn-n" id="stripe-auth-btn" style="margin-top:12px;width:100%" onclick="authorizeStripe()">Authorize deposit</button>
+            </div>
+            <div id="stripe-link-result" class="pay-status" style="display:none"></div>
+            <div id="stripe-status" class="pay-status" style="display:none"></div>
             <div class="processor-pill-row">
-              <span class="processor-pill">Stripe-ready</span>
-              <span class="processor-pill">Square-ready</span>
-              <span class="processor-pill">No raw card data stored</span>
+              <span class="processor-pill">Powered by Stripe</span>
+              <span class="processor-pill">PCI-secure · no raw card stored</span>
             </div>
           </div>
           <div class="card-gate-row">
@@ -1968,7 +1979,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div class="oc">
           <div class="oc-t">Request / Payment</div>
           <div class="or"><span class="ol">Charged today</span><span class="ov" style="color:var(--gr)">$0.00 — booking request only</span></div>
-          <div class="or"><span class="ol">Card requirement</span><span class="ov">A valid card/deposit may be required through a secure Square link before final confirmation.</span></div>
+          <div class="or"><span class="ol">Card requirement</span><span class="ov">A valid card/deposit may be required through Cardetail1's secure Stripe checkout before final confirmation.</span></div>
           <div class="or"><span class="ol">Final payment</span><span class="ov">Collected after confirmation/service unless cancellation, no-show, unavailable vehicle, access issue, or booking terms apply.</span></div>
         </div>
 
@@ -2055,6 +2066,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 </div>
 
 
+<script src="https://js.stripe.com/v3/"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════
@@ -2065,14 +2077,16 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 const ADMIN_EMAIL    = 'magnojuniorusa93@gmail.com';   // seu email
 const ADMIN_SMS      = '5513132956';         // seu celular (SMS admin)
 
-// ── SQUARE WEB PAYMENTS ────────────────────────────────
-// Cole aqui o Application ID e o Location ID do Square.
-// Sandbox: começa com 'sandbox-sq0idb-...'  ·  Produção: 'sq0idp-...'
-// Pegue em: https://developer.squareup.com/apps  →  seu app  →  Credentials
+// ── STRIPE (Payment Element + Payment Link) ────────────
+// Publishable key — PÚBLICA, pode ficar aqui no HTML.
+// Pegue em: https://dashboard.stripe.com → Developers → API keys
 // Deixe '' para DESLIGAR o cartão (o booking continua via review manual).
-const SQUARE_APP_ID  = '';   // ex: 'sandbox-sq0idb-XXXXXXXXXXXXXXXXXXXX'
-const SQUARE_LOC_ID  = '';   // ex: 'LXXXXXXXXXXXXX'
-const SQUARE_READY   = !!(SQUARE_APP_ID && SQUARE_LOC_ID && window.Square);
+const STRIPE_PUBLISHABLE_KEY = '';   // 'pk_test_...' (teste) ou 'pk_live_...'
+// Depósito autorizado/cobrado para segurar o horário, em CENTAVOS (5000 = $50).
+const DEPOSIT_CENTS  = 5000;
+// Base das funções Netlify (deixe assim em produção no Netlify).
+const BACKEND_BASE   = '/.netlify/functions';
+const STRIPE_READY   = !!(STRIPE_PUBLISHABLE_KEY && window.Stripe);
 
 // ── MAKE.COM / ZAPIER WEBHOOK (booking → email/SMS) ────
 // Cole aqui o webhook URL gerado no Make.com ou Zapier.
@@ -2636,7 +2650,7 @@ let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePric
   vehicles:[],  // [{cat, pkgId, pkgName, vehicleLabel, basePrice, addons, addonTotal, subtotal}]
   zoneSurcharge:0
 };
-let sqCard=null,sqPayments=null;
+// (Stripe payment state declared in the STEP 6 section below)
 
 // ── NAV HELPERS ────────────────────────────────────────────────────────────────
 function toggleNav(){document.getElementById('nav-links').classList.toggle('open')}
@@ -3101,53 +3115,76 @@ function goToPayment(){
   bkGoTo(6);
 }
 
-// ── STEP 6: SQUARE ────────────────────────────────────────────────────────────
-async function initSquare(){
-  if(sqCard)return;
-  if(!SQUARE_READY){
-    const c=document.getElementById('card-container');
-    if(c)c.innerHTML='<div style="padding:14px;font-size:13px;color:#8a9bb0;line-height:1.5">Secure card capture is in review mode. Your booking is submitted as a request — our team confirms availability and sends a secure payment link before the appointment.</div>';
+// ── STEP 6: STRIPE (Payment Element + Payment Link) ───────────────────────────
+let stripe=null, stripeElements=null, stripePI=null;
+
+function depositDollars(){ return (DEPOSIT_CENTS/100).toFixed(2); }
+function ensureBookingId(){ if(!ST.bookingId) ST.bookingId='CD1-'+Date.now().toString(36).toUpperCase(); return ST.bookingId; }
+function stripeMsg(elId,msg,ok){ const el=document.getElementById(elId); if(!el)return; el.innerHTML=msg; el.style.display='block'; if(ok!==undefined)el.style.color=ok?'var(--gr,#34d399)':'var(--mu,#8a9bb0)'; }
+
+// ── Caminho 1: cartão inline (Payment Element) ──
+async function payByCard(){
+  ensureBookingId();
+  document.getElementById('pc-card').classList.add('sel'); document.getElementById('pc-link').classList.remove('sel');
+  const wrap=document.getElementById('stripe-card-wrap');
+  const err=document.getElementById('pay-err'); err.classList.remove('show');
+  document.getElementById('stripe-link-result').style.display='none';
+  wrap.style.display='block';
+  document.getElementById('stripe-deposit-lbl').textContent='Secure card · authorizes a $'+depositDollars()+' refundable hold';
+  if(stripeElements) return;                       // já montado
+  if(!STRIPE_READY){
+    document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#8a9bb0;line-height:1.5">Card payment is in review mode (Stripe key not set). Your booking is submitted as a request — we send a secure payment link before the appointment.</div>';
+    document.getElementById('stripe-auth-btn').style.display='none';
     return;
   }
   try{
-    sqPayments=Square.payments(SQUARE_APP_ID,SQUARE_LOC_ID);
-    sqCard=await sqPayments.card({
-      style:{
-        '.input-container':{borderColor:'rgba(255,255,255,0.10)',borderRadius:'12px',backgroundColor:'#0c1520'},
-        '.input-container.is-focus':{borderColor:'#4da3ff'},
-        '.input-container.is-error':{borderColor:'#ef4444'},
-        input:{color:'#d6dce5',fontFamily:'"DM Sans",sans-serif',fontSize:'14.5px'},
-        'input::placeholder':{color:'rgba(138,155,176,0.38)'},
-        '.message-text':{color:'#8a9bb0'},'.message-icon':{color:'#8a9bb0'}
-      }
-    });
-    await sqCard.attach('#card-container');
-  }catch(e){
-    document.getElementById('pay-err').textContent='Payment form failed to load. Please refresh.';
-    document.getElementById('pay-err').classList.add('show');
-  }
+    const res=await fetch(BACKEND_BASE+'/create-payment-intent',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({amountCents:DEPOSIT_CENTS, bookingId:ST.bookingId, email:(document.getElementById('f-email')?.value||'').trim()})});
+    const data=await res.json();
+    if(!data.ok) throw new Error(data.error||'Could not start payment');
+    stripePI=data.id;
+    stripe=stripe||Stripe(STRIPE_PUBLISHABLE_KEY);
+    stripeElements=stripe.elements({clientSecret:data.clientSecret, appearance:{theme:'night',variables:{colorPrimary:'#4da3ff',colorBackground:'#0c1520'}}});
+    stripeElements.create('payment').mount('#card-container');
+  }catch(e){ err.textContent=e.message; err.classList.add('show'); }
 }
 
-async function tokenizeCard(){
+async function authorizeStripe(){
   const err=document.getElementById('pay-err'); err.classList.remove('show');
-  if(!SQUARE_READY){ ST.cardToken=''; ST.cardBrand='Review'; ST.cardLast4=''; bkGoTo(7); return; }
-  if(!sqCard){err.textContent='Payment not ready. Please refresh.';err.classList.add('show');return;}
+  if(!STRIPE_READY || !stripe || !stripeElements){ stripeMsg('stripe-status','Card not ready. Please refresh.',false); return; }
+  const btn=document.getElementById('stripe-auth-btn'); btn.disabled=true; btn.textContent='Authorizing…';
   try{
-    const res=await sqCard.tokenize();
-    if(res.status==='OK'){
-      ST.cardToken=res.token; ST.cardBrand=res.details?.card?.brand||'Card'; ST.cardLast4=res.details?.card?.last4||'****';
-      bkGoTo(7);
-    }else{
-      err.textContent=(res.errors||[]).map(e=>e.message).join(', ')||'Card verification failed.';
-      err.classList.add('show');
-    }
-  }catch(e){err.textContent='An error occurred. Please try again.';err.classList.add('show');}
+    const {error}=await stripe.confirmPayment({elements:stripeElements, redirect:'if_required'});
+    if(error){ err.textContent=error.message; err.classList.add('show'); btn.disabled=false; btn.textContent='Authorize deposit'; return; }
+    ST.paymentIntentId=stripePI; ST.paymentStatus='authorized'; ST.depositCents=DEPOSIT_CENTS;
+    stripeMsg('stripe-status','✓ Deposit authorized — $'+depositDollars()+' held. Continue to review &amp; submit below.',true);
+    btn.textContent='✓ Deposit authorized'; document.getElementById('pc-card').textContent='✓ Card authorized';
+  }catch(e){ err.textContent='Payment error. Please try again.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Authorize deposit'; }
+}
+
+// ── Caminho 2: link de pagamento seguro ──
+async function sendStripeLink(){
+  ensureBookingId();
+  document.getElementById('pc-link').classList.add('sel'); document.getElementById('pc-card').classList.remove('sel');
+  const wrap=document.getElementById('stripe-card-wrap'); if(wrap) wrap.style.display='none';
+  const email=(document.getElementById('f-email')?.value||'').trim();
+  const pref=document.getElementById('card-pref')?.value||'';
+  if(!STRIPE_READY){ stripeMsg('stripe-link-result','Review mode: a secure payment link will be sent to you after we confirm availability.'); return; }
+  stripeMsg('stripe-link-result','Generating secure link…');
+  try{
+    const res=await fetch(BACKEND_BASE+'/create-payment-link',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({amountCents:DEPOSIT_CENTS, bookingId:ST.bookingId, email, sendPref:pref})});
+    const data=await res.json();
+    if(!data.ok) throw new Error(data.error||'Could not create link');
+    ST.paymentStatus='link_sent'; ST.paymentLink=data.url;
+    stripeMsg('stripe-link-result','🔗 Secure payment link ready: <a href="'+data.url+'" target="_blank" rel="noopener">Open secure checkout</a>'+(data.emailed?' · also sent to '+email:''),true);
+  }catch(e){ stripeMsg('stripe-link-result','Could not create link: '+e.message,false); }
 }
 
 function goToConfirmFromTerms(){
   const cardOk=document.getElementById('card-policy-ok');
   const cardHolder=document.getElementById('card-holder');
-  if(cardOk && !cardOk.checked){alert('Please acknowledge the secure card / Square link requirement.');return;}
+  if(cardOk && !cardOk.checked){alert('Please acknowledge the secure card / payment requirement.');return;}
   if(cardHolder && !cardHolder.value.trim()){alert('Please enter the cardholder / billing name.');return;}
   bkGoTo(7);
 }
@@ -3178,8 +3215,8 @@ async function submitBooking(){
   if(termsOk && !termsOk.checked){alert('Please agree to the Terms & Conditions before submitting your booking request.');return;}
   const cardOk=document.getElementById('card-policy-ok');
   const cardHolder=document.getElementById('card-holder');
-  if(cardOk && !cardOk.checked){alert('Please acknowledge the secure card / Square link requirement before submitting.');return;}
-  if(cardHolder && !cardHolder.value.trim()){alert('Please enter the cardholder / billing name for the secure Square link process.');return;}
+  if(cardOk && !cardOk.checked){alert('Please acknowledge the secure card / payment requirement before submitting.');return;}
+  if(cardHolder && !cardHolder.value.trim()){alert('Please enter the cardholder / billing name for the secure checkout process.');return;}
   const btn=document.getElementById('sub-btn');
   btn.classList.add('loading'); btn.disabled=true;
   const payload=buildBookingPayload();
@@ -3219,7 +3256,7 @@ function buildBookingPayload(){
   // Primary vehicle (first or current)
   const pv = vehicles[0] || {};
   const payload={
-    id:'CD1-'+Date.now().toString(36).toUpperCase(),
+    id: ST.bookingId || ('CD1-'+Date.now().toString(36).toUpperCase()),
     status:'Pending Review',
     createdAt:new Date().toISOString(),
     // Primary vehicle fields (backward compat)
@@ -3248,7 +3285,12 @@ function buildBookingPayload(){
     termsAccepted:true,
     cardPolicyAccepted:!!document.getElementById('card-policy-ok')?.checked,
     cardholderName:document.getElementById('card-holder')?.value.trim()||'',
-    squareLinkPreference:document.getElementById('card-pref')?.value||'',
+    linkPreference:document.getElementById('card-pref')?.value||'',
+    // ── Stripe payment ──
+    paymentStatus: ST.paymentStatus||'none',
+    paymentIntentId: ST.paymentIntentId||'',
+    paymentLink: ST.paymentLink||'',
+    depositCents: ST.depositCents||0,
     source:'Cardetail1 static booking flow',
     zipCode:document.getElementById('bk-zip')?.value.trim()||'',
     zone:activeZone?activeZone.label:'',
@@ -3295,7 +3337,7 @@ Units: ${b.units||1}
 Package: ${b.package}
 Add-ons: ${addons}
 Estimated total: $${b.totalPrice}
-Card/Square link: ${b.cardPolicyAccepted?'Required/Accepted':'Not accepted'} · ${b.squareLinkPreference||'N/A'} · ${b.cardholderName||'N/A'}
+Payment: ${b.paymentStatus==='authorized'?('Deposit authorized $'+((b.depositCents||0)/100).toFixed(2)):(b.paymentStatus==='link_sent'?'Payment link sent':'None yet')} · Cardholder: ${b.cardholderName||'N/A'} · Link pref: ${b.linkPreference||'N/A'}
 Notes: ${b.notes||'None'}`;
 }
 function mailtoForBooking(b){
@@ -3587,7 +3629,7 @@ function renderVehicleCart(){
 // ── RESTORE RESTART ─────────────────────────────────────────────────────────────
 function restartBooking(){
   ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0};
-  sqCard=null; sqPayments=null;
+  stripeElements=null; stripePI=null;
   const cc=document.getElementById('card-container'); if(cc)cc.innerHTML='';
   ['f-first','f-last','f-phone','f-email','f-addr','f-date','f-notes','card-holder'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
   ['terms-ok','card-policy-ok'].forEach(id=>{const el=document.getElementById(id); if(el)el.checked=false;});
