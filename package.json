@@ -1,9 +1,0 @@
-{
-  "name": "cardetail1-site",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Cardetail1 — mobile detailing site (static) + Netlify functions",
-  "dependencies": {
-    "@netlify/blobs": "^8.0.0"
-  }
-}
