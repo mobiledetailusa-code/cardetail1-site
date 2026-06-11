@@ -80,6 +80,26 @@ elements.create('payment').mount('#card-container');
 // no submit: await stripe.confirmPayment({ elements, confirmParams:{ return_url } })
 ```
 
+## 3c. Chat com IA + dúvidas do cliente (NOVO)
+
+Duas funções, sem deps npm: `ai-chat.js` (assistente) e `submit-inquiry.js` (handoff).
+
+**O chat já funciona SEM configurar nada** — sem chave de IA, ele usa um assistente local (base de conhecimento com os dados reais do site: preços, áreas NJ·NY·CT·PA, pacotes, add-ons, booking, pagamento, horários). Configure abaixo só para ativar a **IA de verdade** e o **envio das dúvidas** por e-mail/SMS.
+
+### Variáveis de ambiente (Netlify)
+| Variável | Para quê | Valor |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | liga a IA real (Claude) | `sk-ant-...` em https://console.anthropic.com → API Keys. Sem ela, cai no assistente local automaticamente. |
+| `CHAT_MODEL` | (opcional) modelo | padrão `claude-haiku-4-5` (rápido/barato p/ FAQ público). Use `claude-opus-4-8` p/ respostas mais ricas. |
+
+As **dúvidas** (botão "Talk to a human") já são salvas localmente e aparecem em **Admin → 💬 Inquiries**. Para também **receber por e-mail/SMS**, `submit-inquiry.js` reaproveita as MESMAS variáveis do booking: `ADMIN_EMAIL`, `RESEND_API_KEY`, `RESEND_FROM`, `TWILIO_*`, `ADMIN_SMS` (seção 2).
+
+### Testar
+1. No site, abra o chat (botão 💬 no canto) e pergunte "How much does a car detail cost?".
+2. Sem `ANTHROPIC_API_KEY` → resposta do assistente local. Com a chave → resposta da IA.
+3. Clique "Talk to a human", preencha e envie → aparece em Admin → Inquiries (e chega no seu e-mail/SMS se Resend/Twilio estiverem configurados).
+4. Logs: Netlify → *Logs → Functions → ai-chat* / *submit-inquiry*.
+
 ## 4. Testar
 
 1. Abra o site publicado, faça um booking de teste.
