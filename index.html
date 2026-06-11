@@ -1279,7 +1279,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="how-card">
         <div class="how-ico">🔒</div>
         <div class="how-title">Secure Your Spot</div>
-        <div class="how-desc">Save your card securely via Square. Booking request first. We review access, location, weather, and availability before confirmation.</div>
+        <div class="how-desc">Save your card securely via Stripe, or choose to pay by card on-site or cash. Booking request first — we review access, location, weather, and availability before confirmation.</div>
       </div>
       <div class="how-card">
         <div class="how-ico">🚐</div>
@@ -1389,21 +1389,19 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <button class="login-close" onclick="closeLogin()">✕</button>
     <div class="login-eye">Cardetail1 Portal</div>
     <div class="login-title">SIGN IN</div>
-    <div class="login-desc" id="login-desc">Choose your role to open the right dashboard.</div>
+    <div class="login-desc" id="login-desc">Staff sign-in, or look up your booking as a customer.</div>
     <div class="login-tabs">
       <button class="login-tab active" id="ltab-admin" onclick="setLoginRole('admin')">🔐 Admin</button>
-      <button class="login-tab" id="ltab-employee" onclick="setLoginRole('employee')">🔧 Operador</button>
       <button class="login-tab" id="ltab-customer" onclick="setLoginRole('customer')">👤 Cliente</button>
     </div>
 
-    <!-- Admin / Operador — password sign-in -->
+    <!-- Admin — password sign-in -->
     <div id="login-staff">
       <div class="fg">
-        <div class="fl">Password</div>
-        <input class="fi" id="login-pw" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
+        <div class="fl">Admin password</div>
+        <input class="fi" id="login-pw" type="password" placeholder="Enter password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
       <div class="login-err" id="login-err">Incorrect password. Try again.</div>
-      <div class="login-demo" id="login-demo"></div>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn-n" onclick="doLogin()">Enter →</button>
       </div>
@@ -1412,7 +1410,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <!-- Cliente — no password, opens the booking portal -->
     <div id="login-customer" style="display:none">
       <div class="login-demo">
-        <span class="lc-tag">Teste · Cliente</span><br>
         No password needed. Look up your booking by <b>phone number</b> or <b>booking ID</b>, then pay, reschedule or leave a review.
       </div>
       <div class="btn-row" style="margin-top:16px">
@@ -1613,7 +1610,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </select>
       </div>
       <div class="fg full"><div class="fl">Notes</div><textarea class="fta" id="nj-notes" rows="2" placeholder="Access code, special instructions…"></textarea></div>
-      <div class="fg full"><div class="fl">Payment Link (Square)</div><input class="fi" id="nj-paylink" type="url" placeholder="https://square.link/…"></div>
+      <div class="fg full"><div class="fl">Payment Link (Stripe — optional)</div><input class="fi" id="nj-paylink" type="url" placeholder="https://buy.stripe.com/… (or use “Pay Link” on a booking to auto-generate)"></div>
     </div>
     <button class="cp-btn" style="margin-top:8px" onclick="submitNewJob()">Create Job →</button>
     <div id="nj-result" style="display:none;margin-top:12px;font-size:13px"></div>
@@ -1938,6 +1935,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <div class="pay-choice-row">
               <button type="button" class="pay-choice" id="pc-card" onclick="payByCard()">💳 Pay deposit by card now</button>
               <button type="button" class="pay-choice" id="pc-link" onclick="sendStripeLink()">🔗 Send me a secure payment link</button>
+              <button type="button" class="pay-choice" id="pc-onsite" onclick="payOnSite('card')">🏠 Pay by card on-site</button>
+              <button type="button" class="pay-choice" id="pc-cash" onclick="payOnSite('cash')">💵 Pay cash on-site</button>
             </div>
             <div id="stripe-card-wrap" style="display:none">
               <div class="fl" id="stripe-deposit-lbl">Secure card · refundable hold</div>
@@ -2041,8 +2040,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div class="suc-wrap">
           <div class="suc-ico">✓</div>
           <div class="suc-title">REQUEST RECEIVED</div>
-          <p class="suc-sub">We received your booking request. Your appointment is not confirmed until we review availability, location, access, weather, and service details. We will text or call to confirm.</p>
+          <div style="display:inline-flex;align-items:center;gap:8px;background:var(--amdim);border:1px solid var(--ambr);color:var(--am);border-radius:999px;padding:6px 16px;font-size:12.5px;font-weight:700;margin-bottom:14px">⏳ Awaiting our confirmation — not booked yet</div>
+          <p class="suc-sub"><strong style="color:var(--white)">This is a request, not a confirmed appointment.</strong> We review availability, location, access, weather, and details, then <strong style="color:var(--white)">text or call you to confirm</strong>. Your slot is only secured once we confirm.</p>
           <div class="suc-card">
+            <div class="or"><span class="ol">Status</span><span class="ov" style="color:var(--am);font-weight:700">Pending confirmation</span></div>
             <div class="or"><span class="ol">Package</span><span class="ov" id="ok-pkg">—</span></div>
             <div class="or"><span class="ol">Vehicle</span><span class="ov" id="ok-veh">—</span></div>
             <div class="or"><span class="ol">Total</span><span class="ov" id="ok-total" style="color:var(--blue);font-weight:700">—</span></div>
@@ -2068,7 +2069,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <button class="admin-close" onclick="closeAdminPanel()">✕</button>
     </div>
     <div class="admin-body">
-      <div class="ops-note"><strong>Production note:</strong> this dashboard reads local demo requests from this browser. For real operations, connect BACKEND_URL to Supabase/Firebase/Airtable/Make so requests are saved centrally and SMS/email reminders can be sent automatically.</div>
+      <div class="ops-note" id="ops-note"><strong>Central storage:</strong> bookings from every device are saved to the cloud (Netlify Blobs). Click <strong>☁️ Load from cloud</strong> to pull them all in. Requires <code>ADMIN_DASH_PASSWORD</code> set on Netlify (same as your admin password).</div>
       <div class="admin-counts" id="admin-counts"></div>
       <div class="admin-tabs" id="admin-tabs">
         <button class="active" onclick="setAdminFilter('All')">All</button>
@@ -2083,6 +2084,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="admin-toolbar">
         <button onclick="openJobsBoard()" style="background:rgba(168,85,247,.2);color:#c084fc;border-color:rgba(168,85,247,.4)">⚡ Jobs Board</button>
         <button onclick="openNewJobForm()" style="background:var(--blue);color:#000;border-color:var(--blue)">＋ New Job</button>
+        <button onclick="loadCloudBookings()" id="cloud-load-btn" style="background:rgba(34,197,94,.18);color:var(--gr);border-color:var(--grbr)">☁️ Load from cloud</button>
         <button onclick="renderAdminBookings()">Refresh</button>
         <button onclick="showAdminTab('list')">📋 List</button>
         <button onclick="showAdminTab('calendar')">📅 Calendar</button>
@@ -3336,10 +3338,27 @@ function depositPctLabel(){ return Math.round(DEPOSIT_PCT*100)+'%'; }
 function ensureBookingId(){ if(!ST.bookingId) ST.bookingId='CD1-'+Date.now().toString(36).toUpperCase(); return ST.bookingId; }
 function stripeMsg(elId,msg,ok){ const el=document.getElementById(elId); if(!el)return; el.innerHTML=msg; el.style.display='block'; if(ok!==undefined)el.style.color=ok?'var(--gr,#34d399)':'var(--mu,#8a9bb0)'; }
 
+// Marca visualmente a opção de pagamento escolhida e limpa as demais.
+function selectPayChoice(activeId){
+  ['pc-card','pc-link','pc-onsite','pc-cash'].forEach(id=>{const el=document.getElementById(id); if(el) el.classList.toggle('sel', id===activeId);});
+}
+
+// ── Caminho 3: pagar no local (cartão presencial ou dinheiro) — sem depósito online ──
+function payOnSite(method){
+  ST.payMethod = (method==='cash') ? 'cash_onsite' : 'card_onsite';
+  selectPayChoice(method==='cash' ? 'pc-cash' : 'pc-onsite');
+  const wrap=document.getElementById('stripe-card-wrap'); if(wrap) wrap.style.display='none';
+  const lr=document.getElementById('stripe-link-result'); if(lr) lr.style.display='none';
+  stripeMsg('stripe-status', method==='cash'
+    ? '💵 Pay <b>cash on-site</b> when we arrive — no deposit now. Your booking stays a <b>request</b> until we confirm by text/call.'
+    : '🏠 Pay <b>by card on-site</b> (in person) when we arrive — no deposit now. Your booking stays a <b>request</b> until we confirm by text/call.', true);
+}
+
 // ── Caminho 1: cartão inline (Payment Element) ──
 async function payByCard(){
   ensureBookingId();
-  document.getElementById('pc-card').classList.add('sel'); document.getElementById('pc-link').classList.remove('sel');
+  ST.payMethod='deposit_card';
+  selectPayChoice('pc-card');
   const wrap=document.getElementById('stripe-card-wrap');
   const err=document.getElementById('pay-err'); err.classList.remove('show');
   document.getElementById('stripe-link-result').style.display='none';
@@ -3379,7 +3398,8 @@ async function authorizeStripe(){
 // ── Caminho 2: link de pagamento seguro ──
 async function sendStripeLink(){
   ensureBookingId();
-  document.getElementById('pc-link').classList.add('sel'); document.getElementById('pc-card').classList.remove('sel');
+  ST.payMethod='link';
+  selectPayChoice('pc-link');
   const wrap=document.getElementById('stripe-card-wrap'); if(wrap) wrap.style.display='none';
   const email=(document.getElementById('f-email')?.value||'').trim();
   const pref=document.getElementById('card-pref')?.value||'';
@@ -3396,10 +3416,14 @@ async function sendStripeLink(){
 }
 
 function goToConfirmFromTerms(){
-  const cardOk=document.getElementById('card-policy-ok');
-  const cardHolder=document.getElementById('card-holder');
-  if(cardOk && !cardOk.checked){alert('Please acknowledge the secure card / payment requirement.');return;}
-  if(cardHolder && !cardHolder.value.trim()){alert('Please enter the cardholder / billing name.');return;}
+  // Pay-on-site (cash or card in person) skips the card/deposit requirements.
+  const onsite = ST.payMethod==='cash_onsite' || ST.payMethod==='card_onsite';
+  if(!onsite){
+    const cardOk=document.getElementById('card-policy-ok');
+    const cardHolder=document.getElementById('card-holder');
+    if(cardOk && !cardOk.checked){alert('Please acknowledge the secure card / payment requirement.');return;}
+    if(cardHolder && !cardHolder.value.trim()){alert('Please enter the cardholder / billing name.');return;}
+  }
   bkGoTo(6);
 }
 
@@ -3427,15 +3451,25 @@ function fillConfirm(){
 async function submitBooking(){
   const termsOk=document.getElementById('terms-ok');
   if(termsOk && !termsOk.checked){alert('Please agree to the Terms & Conditions before submitting your booking request.');return;}
-  const cardOk=document.getElementById('card-policy-ok');
-  const cardHolder=document.getElementById('card-holder');
-  if(cardOk && !cardOk.checked){alert('Please acknowledge the secure card / payment requirement before submitting.');return;}
-  if(cardHolder && !cardHolder.value.trim()){alert('Please enter the cardholder / billing name for the secure checkout process.');return;}
+  const onsite = ST.payMethod==='cash_onsite' || ST.payMethod==='card_onsite';
+  if(!onsite){
+    const cardOk=document.getElementById('card-policy-ok');
+    const cardHolder=document.getElementById('card-holder');
+    if(cardOk && !cardOk.checked){alert('Please acknowledge the secure card / payment requirement before submitting.');return;}
+    if(cardHolder && !cardHolder.value.trim()){alert('Please enter the cardholder / billing name for the secure checkout process.');return;}
+  }
   const btn=document.getElementById('sub-btn');
   btn.classList.add('loading'); btn.disabled=true;
   const payload=buildBookingPayload();
   saveLocalBooking(payload);
   try{
+    // ── Netlify function: central storage (Netlify Blobs) + e-mail/SMS notify ──
+    // Fire to the same-origin function so EVERY booking is saved centrally and
+    // shows in the admin "Load from cloud". Degrades silently if not deployed yet.
+    try{
+      await fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      payload.cloudSaved=true;
+    }catch(ce){ console.warn('[Cloud save]',ce.message); }
     // ── Make.com / Zapier webhook ──
     if(BACKEND_URL){
       await makeWebhookSend(payload);
@@ -3497,6 +3531,7 @@ function buildBookingPayload(){
     preferredTime:document.getElementById('f-time').value||'Any available',
     notes:document.getElementById('f-notes').value.trim(),
     termsAccepted:true,
+    paymentMethod: ST.payMethod || 'pending',
     cardPolicyAccepted:!!document.getElementById('card-policy-ok')?.checked,
     cardholderName:document.getElementById('card-holder')?.value.trim()||'',
     linkPreference:document.getElementById('card-pref')?.value||'',
@@ -3551,6 +3586,7 @@ Units: ${b.units||1}
 Package: ${b.package}
 Add-ons: ${addons}
 Estimated total: $${b.totalPrice}
+Pay method: ${({deposit_card:'Card deposit (online)',link:'Secure payment link',card_onsite:'CARD ON-SITE (in person)',cash_onsite:'CASH ON-SITE',pending:'Not selected'})[b.paymentMethod]||b.paymentMethod||'Not selected'}
 Payment: ${b.paymentStatus==='authorized'?('Deposit authorized $'+((b.depositCents||0)/100).toFixed(2)):(b.paymentStatus==='link_sent'?'Payment link sent':'None yet')} · Cardholder: ${b.cardholderName||'N/A'} · Link pref: ${b.linkPreference||'N/A'}
 Notes: ${b.notes||'None'}`;
 }
@@ -3744,13 +3780,55 @@ function renderAdminCalendar(){
   }).join('');
 }
 
-function setPayLinkPrompt(id){
+// Pull ALL bookings stored centrally (Netlify Blobs) and merge into the local view.
+async function loadCloudBookings(){
+  const btn=document.getElementById('cloud-load-btn');
+  const key=window._adminKey||'';
+  if(btn){ btn.disabled=true; btn.textContent='☁️ Loading…'; }
+  try{
+    const res=await fetch(BACKEND_BASE+'/list-bookings',{headers:{'x-admin-key':key}});
+    const data=await res.json().catch(()=>({}));
+    if(res.status===503){ alert('Cloud storage not set up yet.\n\nSet ADMIN_DASH_PASSWORD on Netlify (same as your admin password) and redeploy.'); return; }
+    if(res.status===401){ alert('Cloud sync rejected the password. Make sure ADMIN_DASH_PASSWORD on Netlify equals your admin login password.'); return; }
+    if(!data.ok){ alert('Could not load from cloud: '+(data.error||('HTTP '+res.status))); return; }
+    // Merge: remote bookings win for matching ids; keep any local-only ones too.
+    const local=getStoredBookings();
+    const map=new Map();
+    local.forEach(b=>map.set(b.id,b));
+    (data.bookings||[]).forEach(b=>map.set(b.id,b));
+    const merged=[...map.values()].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    setStoredBookings(merged);
+    renderAdminBookings();
+    alert('Loaded '+(data.count||0)+' booking(s) from the cloud. Total now: '+merged.length+'.');
+  }catch(e){
+    alert('Cloud load failed (is the site deployed on Netlify?): '+e.message);
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='☁️ Load from cloud'; }
+  }
+}
+
+async function setPayLinkPrompt(id){
   const list=getStoredBookings();
   const b=list.find(x=>x.id===id); if(!b)return;
-  const link=prompt('Enter Square payment link for this booking:', b.payLink||'');
-  if(link===null)return;
-  const updated=list.map(x=>x.id===id?{...x,payLink:link.trim(),updatedAt:new Date().toISOString()}:x);
+  // Generate a real Stripe payment link (deposit = % of total) via the Netlify function.
+  const total=Number(b.totalPrice)||0;
+  const cents=Math.max(Math.round(total*100*DEPOSIT_PCT), DEPOSIT_MIN_CENTS);
+  let link='';
+  try{
+    const res=await fetch(BACKEND_BASE+'/create-payment-link',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({amountCents:cents, bookingId:b.id, email:b.email||''})});
+    const data=await res.json();
+    if(data.ok && data.url){ link=data.url; }
+    else { throw new Error(data.error||'Stripe not configured'); }
+  }catch(e){
+    alert('Could not generate the Stripe payment link:\n'+e.message+'\n\nCheck that STRIPE_SECRET_KEY is set on Netlify (then redeploy).');
+    return;
+  }
+  const updated=list.map(x=>x.id===id?{...x,payLink:link,updatedAt:new Date().toISOString()}:x);
   setStoredBookings(updated);renderAdminBookings();
+  const msg='Stripe deposit link ($'+(cents/100).toFixed(2)+') generated & copied:\n'+link;
+  if(navigator.clipboard){ navigator.clipboard.writeText(link).then(()=>alert(msg)).catch(()=>alert(msg)); }
+  else alert(msg);
 }
 function copyBookingById(id){
   const b=getStoredBookings().find(x=>x.id===id); if(!b)return;
@@ -3844,7 +3922,7 @@ function renderVehicleCart(){
 
 // ── RESTORE RESTART ─────────────────────────────────────────────────────────────
 function restartBooking(){
-  ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0};
+  ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0,payMethod:''};
   stripeElements=null; stripePI=null;
   const cc=document.getElementById('card-container'); if(cc)cc.innerHTML='';
   ['f-first','f-last','f-phone','f-email','f-addr','f-date','f-notes','card-holder'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
@@ -4412,7 +4490,11 @@ function rvMove(dir){ rvGoTo(rvIdx + dir); }
 // ═══════════════════════════════════════════════════════
 // AUTH / LOGIN
 // ═══════════════════════════════════════════════════════
-const PASSWORDS = { admin:'cd1admin2026', employee:'cd1staff2026' };
+// ╔══════════════════════════════════════════════════════════╗
+// ║  SENHA DO ADMIN — TROQUE A LINHA ABAIXO pela sua senha.   ║
+// ║  É a única senha de acesso ao painel administrativo.      ║
+// ╚══════════════════════════════════════════════════════════╝
+let ADMIN_PASSWORD = 'cd1admin2026';
 let loginRole = 'admin';
 
 function openLogin(){
@@ -4428,58 +4510,36 @@ function closeLogin(){
 
 function handleLoginOv(e){ if(e.target===document.getElementById('login-ov')) closeLogin(); }
 
-// Visible test credentials shown for each staff role (demo build — move to backend before prod)
-const DEMO_HINTS = {
-  admin:    'Full dispatch dashboard — bookings, calendar, technicians.',
-  employee: 'Operator view — today’s confirmed jobs and routes.'
-};
-
 function setLoginRole(role){
   loginRole = role;
   document.getElementById('ltab-admin').classList.toggle('active', role==='admin');
-  document.getElementById('ltab-employee').classList.toggle('active', role==='employee');
   document.getElementById('ltab-customer').classList.toggle('active', role==='customer');
   const isCustomer = role==='customer';
   document.getElementById('login-staff').style.display    = isCustomer ? 'none' : 'block';
   document.getElementById('login-customer').style.display = isCustomer ? 'block' : 'none';
   const err = document.getElementById('login-err'); if(err) err.classList.remove('show');
-  const pw = document.getElementById('login-pw'); if(pw) pw.value = '';
-  if(!isCustomer){
-    const roleLabel = role==='admin' ? 'Admin' : 'Operador';
-    document.getElementById('login-demo').innerHTML =
-      `<span class="lc-tag">Teste · ${roleLabel}</span><br>`+
-      `${DEMO_HINTS[role]}<br><br>Test password: `+
-      `<span class="lc-pw" onclick="useTestPw('${PASSWORDS[role]}')" title="Click to fill">${PASSWORDS[role]}</span>`;
-    setTimeout(()=>pw&&pw.focus(), 60);
-  }
+  const pw = document.getElementById('login-pw');
+  if(pw){ pw.value=''; if(!isCustomer) setTimeout(()=>pw.focus(), 60); }
 }
-
-// Click the visible password chip to auto-fill the field
-function useTestPw(pw){ const el=document.getElementById('login-pw'); if(el){ el.value=pw; el.focus(); } }
 
 function goCustomerPortal(){ closeLogin(); openPortal(); }
 
 function doLogin(){
   const pw  = document.getElementById('login-pw').value;
   const err = document.getElementById('login-err');
-  if(pw === PASSWORDS[loginRole]){
+  if(pw === ADMIN_PASSWORD){
     closeLogin();
-    if(loginRole === 'admin'){
-      window._adminSessionActive = true;
-      // If triggered from "Jobs" nav link, go straight to board
-      if(window._pendingAdminFn){
-        const fn = window._pendingAdminFn;
-        window._pendingAdminFn = null;
-        if(typeof window[fn]==='function'){ window[fn](); return; }
-      }
-      renderAdminBookings();
-      document.getElementById('admin-ov').classList.add('open');
-      document.body.style.overflow = 'hidden';
-    } else {
-      renderEmpPanel('today');
-      document.getElementById('emp-ov').classList.add('open');
-      document.body.style.overflow = 'hidden';
+    window._adminSessionActive = true;
+    window._adminKey = pw;   // used to authenticate the central "Load from cloud" fetch
+    // If triggered from a protected nav action, run it instead of opening the dashboard.
+    if(window._pendingAdminFn){
+      const fn = window._pendingAdminFn;
+      window._pendingAdminFn = null;
+      if(typeof window[fn]==='function'){ window[fn](); return; }
     }
+    renderAdminBookings();
+    document.getElementById('admin-ov').classList.add('open');
+    document.body.style.overflow = 'hidden';
   } else {
     err.classList.add('show');
     document.getElementById('login-pw').value = '';

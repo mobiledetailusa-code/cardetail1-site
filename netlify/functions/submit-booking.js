@@ -93,11 +93,23 @@ exports.handler = async (event) => {
   if (!b.firstName || !b.phone) return json(400, { ok: false, error: 'Missing customer name or phone' });
   if (!b.id) b.id = 'CD1-' + Date.now().toString(36).toUpperCase();
 
+  // Central storage (Netlify Blobs) so the admin sees EVERY booking, not just the
+  // ones made in its own browser. Degrades gracefully if Blobs is unavailable.
+  let stored = { saved: false };
+  try {
+    const { getStore } = await import('@netlify/blobs');
+    const store = getStore('cd1-bookings');
+    await store.setJSON(b.id, b);
+    stored = { saved: true };
+  } catch (e) {
+    stored = { saved: false, reason: e.message };
+  }
+
   const [email, sms] = await Promise.all([
     sendEmail(b).catch(e => ({ sent: false, reason: e.message })),
     sendSms(b).catch(e => ({ sent: false, reason: e.message })),
   ]);
 
-  // Mesmo se a notificação falhar, confirmamos o recebimento do request.
-  return json(200, { ok: true, id: b.id, status: b.status || 'Pending Review', email, sms });
+  // Mesmo se notificação/armazenamento falhar, confirmamos o recebimento do request.
+  return json(200, { ok: true, id: b.id, status: b.status || 'Pending Review', stored, email, sms });
 };
