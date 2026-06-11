@@ -100,6 +100,17 @@ As **dúvidas** (botão "Talk to a human") já são salvas localmente e aparecem
 3. Clique "Talk to a human", preencha e envie → aparece em Admin → Inquiries (e chega no seu e-mail/SMS se Resend/Twilio estiverem configurados).
 4. Logs: Netlify → *Logs → Functions → ai-chat* / *submit-inquiry*.
 
+## 3d. Painel Admin central (Netlify Blobs) — tira o "demo" (NOVO)
+
+Antes, o admin só via os agendamentos feitos **no mesmo navegador**. Agora **todo** booking é salvo na nuvem (Netlify Blobs) e o admin puxa todos com **☁️ Load from cloud**.
+
+- **Não precisa de conta externa.** O `package.json` declara `@netlify/blobs`; a Netlify instala no build automaticamente. O `submit-booking.js` grava cada booking; o `list-bookings.js` lista (protegido por senha).
+- **Variável de ambiente (Netlify):** `ADMIN_DASH_PASSWORD` = **a mesma senha do seu login de admin**. Sem ela, o "Load from cloud" responde "não configurado".
+- **Senha do admin:** agora é **uma só**, no topo do `<script>` do `index.html` — constante `ADMIN_PASSWORD` (troque pela sua). O portal de login mostra só **Admin** (senha) e **Cliente** (consulta sem senha); as senhas **não** aparecem mais na tela.
+
+### Opções de pagamento no checkout
+No fim do agendamento o cliente escolhe: **depósito no cartão agora** (Stripe), **link de pagamento**, **pagar com cartão no local** ou **dinheiro (cash)**. As duas últimas não exigem cartão e seguem como *request* até sua confirmação. O método aparece no admin e no e-mail/SMS.
+
 ## 4. Testar
 
 1. Abra o site publicado, faça um booking de teste.
