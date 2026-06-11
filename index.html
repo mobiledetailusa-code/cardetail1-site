@@ -1925,16 +1925,16 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="bsec" id="bs5">
         <div class="beye">Step 05</div>
         <div class="btitle">BOOKING<br>TERMS</div>
-        <div class="bdesc"><strong style="color:var(--white)">An optional refundable deposit secures your slot.</strong> You can authorize a card deposit now or have us send a secure payment link. We review availability, location, access, vehicle condition, and weather before confirming by text or call.</div>
+        <div class="bdesc"><strong style="color:var(--white)">Choose how you'd like to pay.</strong> A 25% card deposit secures your slot now, a secure link lets you pay in full, or you can pay by card/cash on-site. Your appointment is accepted on submit — we only reach out if weather, access, or timing needs adjusting.</div>
         <div class="card-gate">
           <div class="card-gate-title">Card Requirement / Secure Checkout Setup</div>
           <div class="card-gate-copy">
-            To reduce no-shows and protect reserved mobile routes, a refundable deposit secures your appointment. Pay securely by card now (Stripe) or receive a secure payment link by text or email. Card data is handled directly by Stripe — never stored on this site.
+            Choose how to pay: a <strong>25% deposit by card now</strong> (refundable hold), a <strong>secure link to pay in full</strong>, or <strong>card / cash on-site</strong> when we arrive. Card data is handled directly by Stripe — never stored on this site.
           </div>
           <div class="stripe-pay" aria-label="Secure checkout">
             <div class="pay-choice-row">
-              <button type="button" class="pay-choice" id="pc-card" onclick="payByCard()">💳 Pay deposit by card now</button>
-              <button type="button" class="pay-choice" id="pc-link" onclick="sendStripeLink()">🔗 Send me a secure payment link</button>
+              <button type="button" class="pay-choice" id="pc-card" onclick="payByCard()">💳 Pay deposit by card now (25%)</button>
+              <button type="button" class="pay-choice" id="pc-link" onclick="sendStripeLink()">🔗 Send me a link to pay in full</button>
               <button type="button" class="pay-choice" id="pc-onsite" onclick="payOnSite('card')">🏠 Pay by card on-site</button>
               <button type="button" class="pay-choice" id="pc-cash" onclick="payOnSite('cash')">💵 Pay cash on-site</button>
             </div>
@@ -2039,11 +2039,11 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="bsec" id="bs-ok">
         <div class="suc-wrap">
           <div class="suc-ico">✓</div>
-          <div class="suc-title">REQUEST RECEIVED</div>
-          <div style="display:inline-flex;align-items:center;gap:8px;background:var(--amdim);border:1px solid var(--ambr);color:var(--am);border-radius:999px;padding:6px 16px;font-size:12.5px;font-weight:700;margin-bottom:14px">⏳ Awaiting our confirmation — not booked yet</div>
-          <p class="suc-sub"><strong style="color:var(--white)">This is a request, not a confirmed appointment.</strong> We review availability, location, access, weather, and details, then <strong style="color:var(--white)">text or call you to confirm</strong>. Your slot is only secured once we confirm.</p>
+          <div class="suc-title">BOOKING ACCEPTED</div>
+          <div style="display:inline-flex;align-items:center;gap:8px;background:var(--grdim);border:1px solid var(--grbr);color:var(--gr);border-radius:999px;padding:6px 16px;font-size:12.5px;font-weight:700;margin-bottom:14px">✓ Your appointment is booked</div>
+          <p class="suc-sub">You're on the schedule! 🎉 We'll see you at the date & time below. We'll only reach out if something needs adjusting (weather, access, or timing). Final price is confirmed on-site based on size & condition.</p>
           <div class="suc-card">
-            <div class="or"><span class="ol">Status</span><span class="ov" style="color:var(--am);font-weight:700">Pending confirmation</span></div>
+            <div class="or"><span class="ol">Status</span><span class="ov" style="color:var(--gr);font-weight:700">Accepted</span></div>
             <div class="or"><span class="ol">Package</span><span class="ov" id="ok-pkg">—</span></div>
             <div class="or"><span class="ol">Vehicle</span><span class="ov" id="ok-veh">—</span></div>
             <div class="or"><span class="ol">Total</span><span class="ov" id="ok-total" style="color:var(--blue);font-weight:700">—</span></div>
@@ -3406,12 +3406,14 @@ async function sendStripeLink(){
   if(!STRIPE_READY){ stripeMsg('stripe-link-result','Review mode: a secure payment link will be sent to you after we confirm availability.'); return; }
   stripeMsg('stripe-link-result','Generating secure link…');
   try{
+    // Payment LINK = full amount (pay in full). Inline card = % deposit.
+    const fullCents=bookingTotalCents();
     const res=await fetch(BACKEND_BASE+'/create-payment-link',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({amountCents:depositCents(), bookingId:ST.bookingId, email, sendPref:pref})});
+      body:JSON.stringify({amountCents:fullCents, bookingId:ST.bookingId, email, sendPref:pref})});
     const data=await res.json();
     if(!data.ok) throw new Error(data.error||'Could not create link');
-    ST.paymentStatus='link_sent'; ST.paymentLink=data.url;
-    stripeMsg('stripe-link-result','🔗 Secure payment link ready: <a href="'+data.url+'" target="_blank" rel="noopener">Open secure checkout</a>'+(data.emailed?' · also sent to '+email:''),true);
+    ST.paymentStatus='link_sent'; ST.paymentLink=data.url; ST.linkAmountCents=fullCents;
+    stripeMsg('stripe-link-result','🔗 Secure link to pay in full ($'+(fullCents/100).toFixed(2)+'): <a href="'+data.url+'" target="_blank" rel="noopener">Open secure checkout</a>'+(data.emailed?' · also sent to '+email:''),true);
   }catch(e){ stripeMsg('stripe-link-result','Could not create link: '+e.message,false); }
 }
 
@@ -3505,7 +3507,7 @@ function buildBookingPayload(){
   const pv = vehicles[0] || {};
   const payload={
     id: ST.bookingId || ('CD1-'+Date.now().toString(36).toUpperCase()),
-    status:'Pending Review',
+    status:'Confirmed',
     createdAt:new Date().toISOString(),
     // Primary vehicle fields (backward compat)
     vehicle: pv.vehicleLabel || ST.vehicleLabel,
@@ -3810,9 +3812,9 @@ async function loadCloudBookings(){
 async function setPayLinkPrompt(id){
   const list=getStoredBookings();
   const b=list.find(x=>x.id===id); if(!b)return;
-  // Generate a real Stripe payment link (deposit = % of total) via the Netlify function.
+  // Generate a real Stripe payment link for the FULL amount (pay in full) via the Netlify function.
   const total=Number(b.totalPrice)||0;
-  const cents=Math.max(Math.round(total*100*DEPOSIT_PCT), DEPOSIT_MIN_CENTS);
+  const cents=Math.max(Math.round(total*100), 50);
   let link='';
   try{
     const res=await fetch(BACKEND_BASE+'/create-payment-link',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -3826,7 +3828,7 @@ async function setPayLinkPrompt(id){
   }
   const updated=list.map(x=>x.id===id?{...x,payLink:link,updatedAt:new Date().toISOString()}:x);
   setStoredBookings(updated);renderAdminBookings();
-  const msg='Stripe deposit link ($'+(cents/100).toFixed(2)+') generated & copied:\n'+link;
+  const msg='Stripe full-payment link ($'+(cents/100).toFixed(2)+') generated & copied:\n'+link;
   if(navigator.clipboard){ navigator.clipboard.writeText(link).then(()=>alert(msg)).catch(()=>alert(msg)); }
   else alert(msg);
 }
