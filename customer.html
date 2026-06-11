@@ -168,8 +168,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
     <div id="lk-email-row" style="display:none"><input class="lk-inp" type="email" id="lk-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLookup()"></div>
     <div id="lk-id-row" style="display:none"><input class="lk-inp" id="lk-id" placeholder="Booking ID (e.g. CD1-ABC123)" onkeydown="if(event.key==='Enter')doLookup()"></div>
     <button class="lk-btn" onclick="doLookup()">Find My Booking →</button>
-    <div class="lk-err" id="lk-err">No booking found. Check your info or <a href="cardetail1-mobile-detailing-pro-v6-images-checkout.html" style="color:var(--blue)">book now</a>.</div>
-    <div class="lk-note">First time? <a href="cardetail1-mobile-detailing-pro-v6-images-checkout.html">Book a service →</a></div>
+    <div class="lk-err" id="lk-err">No booking found. Check your info or <a href="index.html" style="color:var(--blue)">book now</a>.</div>
+    <div class="lk-note">First time? <a href="index.html">Book a service →</a></div>
   </div>
 </div>
 
@@ -355,8 +355,8 @@ function renderStatus(){
   const bk=[...CUSTOMER_BOOKINGS].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
   const active=bk.find(b=>!['Completed','Cancelled','No-Show','Paid'].includes(b.status))||bk[0];
   const el=document.getElementById('status-content');
-  if(!bk.length){ el.innerHTML='<div class="empty"><div class="ei">📭</div><div class="et">No bookings found</div><a href="cardetail1-mobile-detailing-pro-v6-images-checkout.html" class="btn btn-p">Book a Service →</a></div>'; return; }
-  if(!active){ el.innerHTML='<div class="empty"><div class="ei">✅</div><div class="et">All your bookings are complete!</div><a href="cardetail1-mobile-detailing-pro-v6-images-checkout.html" class="btn btn-p">Book Again →</a></div>'; return; }
+  if(!bk.length){ el.innerHTML='<div class="empty"><div class="ei">📭</div><div class="et">No bookings found</div><a href="index.html" class="btn btn-p">Book a Service →</a></div>'; return; }
+  if(!active){ el.innerHTML='<div class="empty"><div class="ei">✅</div><div class="et">All your bookings are complete!</div><a href="index.html" class="btn btn-p">Book Again →</a></div>'; return; }
 
   const addons=(active.addons||[]).map(a=>a.name||a).join(', ')||'None';
   const total=tot(active);
@@ -369,7 +369,7 @@ function renderStatus(){
   const canReschedule=!['Completed','Cancelled','In Progress','En Route'].includes(active.status);
   const isDone=active.status==='Completed'||active.status==='Paid';
 
-  let acts=`<a href="cardetail1-mobile-detailing-pro-v6-images-checkout.html" class="btn btn-g btn-sm">+ Book Again</a>`;
+  let acts=`<a href="index.html" class="btn btn-g btn-sm">+ Book Again</a>`;
   if(canPay&&squareUrl){ acts+=`<button class="btn btn-tl btn-sm" onclick="openPayModal('${active.id}')">💳 Pay Deposit ($${deposit})</button>`; }
   if(canReschedule){ acts+=`<button class="btn btn-yw btn-sm" onclick="openReschedule('${active.id}')">📅 Reschedule</button>`; }
   if(isDone&&!active.reviewLeft){ acts+=`<button class="btn btn-p btn-sm" onclick="openReview('${active.id}')">⭐ Leave Review</button>`; }

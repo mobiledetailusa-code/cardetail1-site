@@ -7,11 +7,7 @@
   publish = "."
   functions = "netlify/functions"
 
-# A página principal do site (renomeie se preferir outro arquivo como home).
-[[redirects]]
-  from = "/"
-  to = "/cardetail1-mobile-detailing-pro-v6-images-checkout.html"
-  status = 200
+# A página principal é o index.html (servido nativamente na raiz "/").
 
 # Portais com URLs limpas (estilo nationaldetailpros).
 [[redirects]]

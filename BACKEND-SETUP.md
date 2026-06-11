@@ -35,7 +35,7 @@ No painel: **Site settings → Environment variables**. Nenhuma fica no código 
 
 ## 3. Ligar o front-end ao backend
 
-No arquivo `cardetail1-mobile-detailing-pro-v6-images-checkout.html`, no bloco CONFIG (topo do `<script>`):
+No arquivo `index.html`, no bloco CONFIG (topo do `<script>`):
 
 ```js
 const BACKEND_URL   = '/.netlify/functions/submit-booking';  // ← liga o envio real

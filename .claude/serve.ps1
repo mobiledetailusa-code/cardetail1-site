@@ -6,7 +6,7 @@ $tcp.Start()
 Write-Host "Ready on http://localhost:5500"
 
 $root = 'C:\Users\magno\Desktop\dz project'
-$homePage = 'cardetail1-mobile-detailing-pro-v6-images-checkout.html'
+$homePage = 'index.html'
 
 $mime = @{
     '.html' = 'text/html; charset=utf-8'
