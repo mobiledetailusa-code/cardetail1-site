@@ -29,6 +29,7 @@ $clean = @{
     '/customer'   = 'customer.html'
     '/technician' = 'technician.html'
     '/admin'      = 'admin.html'
+    '/terms-conditions' = 'terms-conditions.html'
 }
 
 while ($true) {

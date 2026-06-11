@@ -22,6 +22,10 @@
   from = "/admin"
   to = "/admin.html"
   status = 200
+[[redirects]]
+  from = "/terms-conditions"
+  to = "/terms-conditions.html"
+  status = 200
 
 # Headers de segurança básicos.
 [[headers]]
