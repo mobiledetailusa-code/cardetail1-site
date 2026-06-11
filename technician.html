@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cardetail1 — Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0f;--bg1:#111118;--bg2:#18181f;--bg3:#1f1f28;
+  --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.13);
+  --white:#f1f1f3;--mu:rgba(255,255,255,.45);--mu2:rgba(255,255,255,.25);
+  --blue:#4da3ff;--green:#00c853;--yellow:#fbbf24;--red:#f87171;
+  --orange:#fb923c;--purple:#a78bfa;--teal:#2dd4bf;
+  --r:12px;--fd:'DM Mono',monospace;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-height:100vh}
+.screen{display:none!important}
+.screen.active{display:block!important}
+#s-land.active,#s-pend.active,#s-login.active,#s-admin.active{display:flex!important}
+
+/* ═══ LANDING ═══ */
+#s-land{flex-direction:column;min-height:100vh;align-items:center;justify-content:center;text-align:center;padding:60px 20px}
+.land-logo{font-size:18px;font-weight:800;letter-spacing:.06em;opacity:.5;margin-bottom:24px}
+.land-logo span{color:var(--blue)}
+.land-tag{display:inline-flex;align-items:center;gap:7px;background:rgba(77,163,255,.08);border:1px solid rgba(77,163,255,.15);color:var(--blue);font-size:11px;font-weight:700;padding:5px 14px;border-radius:99px;letter-spacing:.06em;margin-bottom:18px}
+.land-h{font-size:clamp(30px,6vw,58px);font-weight:800;line-height:1.05;margin-bottom:12px}
+.land-h span{color:var(--blue)}
+.land-p{font-size:14px;color:var(--mu);max-width:500px;margin:0 auto 32px;line-height:1.7}
+.land-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.bh{padding:12px 26px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:.2s}
+.bh-p{background:var(--blue);color:#fff}.bh-p:hover{background:#3d94f0;transform:translateY(-1px)}
+.bh-g{background:transparent;border:1.5px solid var(--border2);color:var(--white)}.bh-g:hover{background:var(--bg2)}
+.perks{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;max-width:740px;margin:48px auto 0;text-align:left}
+.pk{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.pk-i{font-size:24px;margin-bottom:7px}
+.pk-t{font-size:13px;font-weight:700;margin-bottom:4px}
+.pk-s{font-size:11px;color:var(--mu);line-height:1.5}
+
+/* ═══ APPLY ═══ */
+#s-apply{min-height:100vh}
+.aw{max-width:640px;margin:0 auto;padding:36px 18px}
+.back{display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--mu);font-size:13px;cursor:pointer;margin-bottom:24px;transition:.2s}
+.back:hover{color:var(--white)}
+.a-t{font-size:24px;font-weight:800;margin-bottom:4px}
+.a-s{color:var(--mu);font-size:13px;margin-bottom:28px}
+.fsec{margin-bottom:22px}
+.fst{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(77,163,255,.12)}
+.fg{margin-bottom:13px}
+.fl{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;display:block}
+.req{color:var(--red)}
+.fi{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 13px;color:var(--white);font-size:13px;font-family:inherit;outline:none;transition:.2s}
+.fi:focus{border-color:var(--blue)}
+select.fi,textarea.fi{cursor:auto}
+textarea.fi{resize:vertical;min-height:78px}
+.fr2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.chk-g{display:flex;flex-wrap:wrap;gap:7px}
+.chk-o{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 11px;transition:.2s;user-select:none}
+.chk-o:has(input:checked){border-color:var(--blue);background:rgba(77,163,255,.07);color:var(--blue)}
+.chk-o input{accent-color:var(--blue)}
+.rad-g{display:flex;gap:7px;flex-wrap:wrap}
+.rad-o{flex:1;min-width:100px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:9px 12px;cursor:pointer;transition:.2s;display:flex;align-items:center;gap:7px;font-size:12px;user-select:none}
+.rad-o.sel{border-color:var(--blue);background:rgba(77,163,255,.07);color:var(--blue)}
+.sub-btn{width:100%;background:var(--blue);border:none;border-radius:10px;padding:14px;color:#fff;font-weight:700;font-size:14px;cursor:pointer;transition:.2s;margin-top:4px}
+.sub-btn:hover{background:#3d94f0;transform:translateY(-1px)}
+
+/* ═══ PENDING ═══ */
+#s-pend{flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:40px 20px}
+.pi{font-size:60px;margin-bottom:18px}
+.pt2{font-size:24px;font-weight:800;margin-bottom:9px}
+.ps2{font-size:13px;color:var(--mu);max-width:420px;margin:0 auto 22px;line-height:1.7}
+.pid{font-family:var(--fd);font-size:11px;color:var(--blue);background:rgba(77,163,255,.07);border:1px solid rgba(77,163,255,.18);border-radius:7px;padding:6px 13px;display:inline-block;margin-bottom:24px}
+.pst-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;max-width:560px;margin:0 auto}
+.pst{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:13px}
+.psn{font-family:var(--fd);font-size:10px;color:var(--blue);margin-bottom:4px}
+.pst-t{font-size:12px;font-weight:700;margin-bottom:2px}
+.pst-s{font-size:11px;color:var(--mu)}
+
+/* ═══ LOGIN ═══ */
+#s-login{align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.lbox{background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:40px 36px;width:min(400px,100%);text-align:center}
+.ll{font-size:24px;font-weight:800;letter-spacing:.04em;margin-bottom:5px}
+.ll span{color:var(--blue)}
+
+/* login mode tabs */
+.ltabs{display:flex;gap:0;background:var(--bg3);border-radius:9px;padding:3px;margin-bottom:18px}
+.ltab{flex:1;padding:8px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:transparent;color:var(--mu);transition:.2s}
+.ltab.active{background:var(--bg2);color:var(--white)}
+
+.lsub{color:var(--mu);font-size:12px;margin-bottom:20px;line-height:1.5}
+.linp{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:11px 13px;color:var(--white);font-size:13px;font-family:inherit;outline:none;transition:.2s;margin-bottom:9px}
+.linp:focus{border-color:var(--blue)}
+.lbtn{width:100%;background:var(--blue);border:none;border-radius:9px;padding:12px;color:#fff;font-weight:700;font-size:13px;cursor:pointer;transition:.2s}
+.lbtn:hover{background:#3d94f0}
+.lerr{color:var(--red);font-size:12px;margin-top:9px;display:none;line-height:1.5}
+.lerr.show{display:block}
+.llinks{margin-top:16px;display:flex;flex-direction:column;gap:6px}
+.llinks a{color:var(--blue);font-size:12px;text-decoration:none;font-weight:600;cursor:pointer}
+
+/* ═══ TOPBAR (shared) ═══ */
+.topbar{height:56px;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:10px;position:sticky;top:0;z-index:200}
+.tb-logo{font-weight:800;font-size:14px;letter-spacing:.04em}
+.tb-logo span{color:var(--blue)}
+.tb-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;letter-spacing:.08em;text-transform:uppercase}
+.tb-badge.adm{background:rgba(248,113,113,.1);color:var(--red)}
+.tb-badge.tech{background:rgba(0,200,83,.1);color:var(--green)}
+.tb-sp{flex:1}
+.tb-nm{font-size:12px;color:var(--mu)}
+.tb-out{background:none;border:1px solid var(--border);color:var(--mu);font-size:11px;padding:5px 10px;border-radius:7px;cursor:pointer;transition:.2s}
+.tb-out:hover{border-color:var(--red);color:var(--red)}
+.tab-bar{background:var(--bg1);border-bottom:1px solid var(--border);display:flex;padding:0 18px;overflow-x:auto}
+.tab{padding:13px 15px;font-size:12px;font-weight:600;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:.2s;white-space:nowrap;user-select:none}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.tab:hover{color:var(--white)}
+.main{max-width:980px;margin:0 auto;padding:22px 16px;width:100%}
+.page{display:none}
+.page.active{display:block}
+.pg-t{font-size:19px;font-weight:800;margin-bottom:3px}
+.pg-s{color:var(--mu);font-size:12px;margin-bottom:19px}
+
+/* ═══ ADMIN SHELL ═══ */
+#s-admin{flex-direction:column;min-height:100vh}
+.adm-shell{display:grid;grid-template-columns:200px 1fr;min-height:calc(100vh - 112px)}
+.sidebar{background:var(--bg1);border-right:1px solid var(--border);padding:14px 9px;position:sticky;top:112px;height:calc(100vh - 112px);overflow-y:auto}
+.nl{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mu2);padding:0 8px;margin:16px 0 4px}
+.nl:first-child{margin-top:0}
+.ni{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:8px;cursor:pointer;transition:.14s;font-size:12px;font-weight:500;color:var(--mu);margin-bottom:1px;user-select:none}
+.ni:hover{background:var(--bg2);color:var(--white)}
+.ni.active{background:rgba(77,163,255,.1);color:var(--blue)}
+.ni .ico{font-size:14px;width:16px;text-align:center;flex-shrink:0}
+.ni-ct{margin-left:auto;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;min-width:16px;text-align:center}
+
+/* ═══ TECH DASHBOARD ═══ */
+#s-tech{display:flex;flex-direction:column;min-height:100vh}
+#s-tech.active{display:flex!important}
+
+/* ═══ CARDS / STATS ═══ */
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:18px}
+.sc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:15px 17px}
+.sv{font-family:var(--fd);font-size:24px;font-weight:500;line-height:1}
+.sl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+
+/* ═══ CARD ═══ */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:7px}
+.ct{font-size:13px;font-weight:700}
+.ca{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+
+/* ═══ TABLE ═══ */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:620px}
+thead th{text-align:left;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mu2);padding:9px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:.12s;cursor:pointer}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+td{padding:10px 12px;font-size:12px;vertical-align:middle}
+.td-nm{font-weight:600;font-size:13px}
+.td-mu{color:var(--mu);font-size:11px}
+.td-mo{font-family:var(--fd);font-size:10px;color:var(--blue)}
+.td-pr{font-weight:700;color:var(--green)}
+
+/* ═══ BADGES ═══ */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.badge::before{content:'';width:4px;height:4px;border-radius:50%;flex-shrink:0}
+.b-pen{background:rgba(251,191,36,.1);color:var(--yellow)}.b-pen::before{background:var(--yellow)}
+.b-con{background:rgba(96,165,250,.1);color:#60a5fa}.b-con::before{background:#60a5fa}
+.b-sch{background:rgba(167,139,250,.1);color:var(--purple)}.b-sch::before{background:var(--purple)}
+.b-inp{background:rgba(77,163,255,.1);color:var(--blue)}.b-inp::before{background:var(--blue)}
+.b-enr{background:rgba(251,146,60,.1);color:var(--orange)}.b-enr::before{background:var(--orange)}
+.b-don{background:rgba(0,200,83,.1);color:var(--green)}.b-don::before{background:var(--green)}
+.b-can{background:rgba(248,113,113,.1);color:var(--red)}.b-can::before{background:var(--red)}
+.b-res{background:rgba(45,212,191,.1);color:var(--teal)}.b-res::before{background:var(--teal)}
+.b-pay{background:rgba(251,191,36,.08);color:var(--yellow)}.b-pay::before{background:var(--yellow)}
+
+/* ═══ FILTERS ═══ */
+.filters{display:flex;gap:7px;flex-wrap:wrap;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg3)}
+.ff{background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:5px 9px;color:var(--white);font-size:11px;font-family:inherit;outline:none;cursor:pointer}
+.ff:focus{border-color:var(--blue)}
+
+/* ═══ BTNS ═══ */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:.2s;text-decoration:none;white-space:nowrap}
+.btn:hover{transform:translateY(-1px)}
+.btn-p{background:var(--blue);color:#fff}.btn-p:hover{background:#3d94f0}
+.btn-g{background:transparent;border:1px solid var(--border2);color:var(--mu)}.btn-g:hover{color:var(--white)}
+.btn-gr{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.18)}.btn-gr:hover{background:rgba(0,200,83,.2)}
+.btn-rd{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.18)}.btn-rd:hover{background:rgba(248,113,113,.2)}
+.btn-yw{background:rgba(251,191,36,.1);color:var(--yellow);border:1px solid rgba(251,191,36,.18)}.btn-yw:hover{background:rgba(251,191,36,.2)}
+.btn-or{background:rgba(251,146,60,.1);color:var(--orange);border:1px solid rgba(251,146,60,.18)}.btn-or:hover{background:rgba(251,146,60,.2)}
+.btn-tl{background:rgba(45,212,191,.1);color:var(--teal);border:1px solid rgba(45,212,191,.18)}.btn-tl:hover{background:rgba(45,212,191,.2)}
+.btn-sm{padding:4px 9px;font-size:11px}
+.btn-xs{padding:2px 7px;font-size:10px;border-radius:6px}
+
+/* ═══ DRAWER ═══ */
+#ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;backdrop-filter:blur(4px)}
+#ov.open{display:block}
+#drw{position:fixed;right:-520px;top:0;bottom:0;width:min(500px,100vw);background:var(--bg2);border-left:1px solid var(--border2);z-index:501;transition:.3s cubic-bezier(.4,0,.2,1);overflow-y:auto;padding:0}
+#drw.open{right:0}
+.dh{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 22px 14px;border-bottom:1px solid var(--border);gap:10px}
+.dt{font-size:17px;font-weight:800}
+.di{font-family:var(--fd);font-size:10px;color:var(--blue);margin-top:3px}
+.db{padding:18px 22px}
+.dr{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;gap:7px}
+.dr:last-child{border-bottom:none}
+.dk{color:var(--mu);font-weight:500;flex-shrink:0}
+.dv{font-weight:600;text-align:right;word-break:break-word;max-width:58%}
+.dsec{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin:16px 0 8px;padding-bottom:7px;border-bottom:1px solid rgba(77,163,255,.12)}
+.da{display:flex;flex-wrap:wrap;gap:6px;padding:14px 22px;border-top:1px solid var(--border);background:var(--bg3)}
+.ssel{background:var(--bg2);border:1px solid var(--border);color:var(--white);border-radius:7px;padding:6px 9px;font-size:11px;font-family:inherit;cursor:pointer;outline:none}
+.ssel:focus{border-color:var(--blue)}
+.pinp{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 11px;color:var(--white);font-size:12px;font-family:inherit;width:100%;outline:none;transition:.2s;margin-bottom:7px}
+.pinp:focus{border-color:var(--blue)}
+
+/* ═══ TECH JOB CARDS ═══ */
+.jc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:11px;transition:.18s}
+.jc:hover{border-color:var(--border2)}
+.jc.mine{border-left:3px solid var(--blue)}
+.jc.enr{border-left:3px solid var(--orange)}
+.jc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
+.jc-id{font-family:var(--fd);font-size:10px;color:var(--blue);margin-bottom:2px}
+.jc-sv{font-size:14px;font-weight:700}
+.jc-vh{font-size:12px;color:var(--mu);margin-top:1px}
+.jc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:7px;padding-top:11px;border-top:1px solid var(--border)}
+.jfl{font-size:9px;color:var(--mu2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px}
+.jfv{font-size:12px;font-weight:600}
+.jc-acts{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+
+/* ═══ ACCOUNTING ═══ */
+.am{background:var(--bg3);border-radius:9px;padding:12px;margin-bottom:9px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:center}
+.aml{font-weight:700;font-size:13px}
+.av{font-family:var(--fd);font-size:14px}
+.av.r{color:var(--green)}.av.e{color:var(--red)}.av.n{color:var(--blue)}
+.albl{font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
+
+/* ═══ TECH CARD ═══ */
+.tc{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:14px 16px;margin-bottom:9px}
+.tc-nm{font-size:14px;font-weight:700;margin-bottom:2px}
+.tc-mt{font-size:11px;color:var(--mu);margin-bottom:9px}
+.tc-gr{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;font-size:11px}
+.tcfl{font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em}
+
+/* ═══ FORM ═══ */
+.fg2{margin-bottom:13px}
+.fl2{font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;display:block}
+.fi2{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-size:12px;font-family:inherit;outline:none;transition:.2s}
+.fi2:focus{border-color:var(--blue)}
+
+/* ═══ PHOTO GRID ═══ */
+.photo-thumb{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;border:1px solid var(--border)}
+
+/* ═══ PROBLEM MODAL ═══ */
+#prob-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:700;align-items:center;justify-content:center;padding:18px}
+#prob-modal.open{display:flex}
+.pm{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:26px;width:min(420px,100%)}
+
+/* ═══ TOAST ═══ */
+#toast{position:fixed;bottom:18px;right:18px;background:var(--bg2);border:1px solid var(--border2);border-radius:9px;padding:10px 15px;font-size:12px;font-weight:600;z-index:9999;opacity:0;transition:.3s;pointer-events:none;max-width:260px}
+#toast.show{opacity:1}
+#toast.ok{border-color:rgba(0,200,83,.3);color:var(--green)}
+#toast.err{border-color:rgba(248,113,113,.3);color:var(--red)}
+
+/* ═══ EMPTY ═══ */
+.empty{text-align:center;padding:44px 14px;color:var(--mu)}
+.ei{font-size:34px;margin-bottom:9px}
+.et{font-size:13px}
+
+@media(max-width:820px){
+  .adm-shell{grid-template-columns:1fr}
+  .sidebar{display:none;position:fixed;left:0;top:0;height:100vh;z-index:400;width:210px}
+  .sidebar.open{display:block}
+  .fr2{grid-template-columns:1fr}
+  .am{grid-template-columns:1fr 1fr}
+  .main{padding:14px 12px}
+  .sg{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ LANDING ═══════════════ -->
+<div id="s-land" class="screen active">
+  <div class="land-logo">CAR<span>DETAIL</span>1</div>
+  <div class="land-tag">🧑‍🔧 Operator Portal</div>
+  <h1 class="land-h">Join <span>Cardetail1</span><br>as an Operator</h1>
+  <p class="land-p">Mobile detailing network covering NJ / NY / CT / PA. Flexible schedule, 65% per job, local jobs only.</p>
+  <div class="land-btns">
+    <button class="bh bh-p" onclick="ss('apply')">Apply Now →</button>
+    <button class="bh bh-g" onclick="ss('login')">Sign In</button>
+  </div>
+  <div class="perks">
+    <div class="pk"><div class="pk-i">💰</div><div class="pk-t">Earn 65% / Job</div><div class="pk-s">Weekly deposit. Tips 100% yours.</div></div>
+    <div class="pk"><div class="pk-i">📅</div><div class="pk-t">Flexible Hours</div><div class="pk-s">Accept only what fits your schedule.</div></div>
+    <div class="pk"><div class="pk-i">📍</div><div class="pk-t">Local ZIP Zones</div><div class="pk-s">Jobs near you only. No long drives.</div></div>
+    <div class="pk"><div class="pk-i">🚀</div><div class="pk-t">Fast Onboarding</div><div class="pk-s">Approved in 1–3 days.</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════ APPLY ═══════════════ -->
+<div id="s-apply" class="screen">
+  <div class="aw">
+    <button class="back" onclick="ss('land')">← Back</button>
+    <div class="a-t">Technician Application</div>
+    <div class="a-s">Reviewed within 1–3 business days. We'll contact you by phone.</div>
+
+    <div class="fsec">
+      <div class="fst">Personal Info</div>
+      <div class="fr2">
+        <div class="fg"><label class="fl">First Name <span class="req">*</span></label><input class="fi" id="a-first" placeholder="John"></div>
+        <div class="fg"><label class="fl">Last Name <span class="req">*</span></label><input class="fi" id="a-last" placeholder="Doe"></div>
+      </div>
+      <div class="fr2">
+        <div class="fg"><label class="fl">Email <span class="req">*</span></label><input class="fi" id="a-email" type="email" placeholder="john@email.com"></div>
+        <div class="fg"><label class="fl">Phone <span class="req">*</span></label><input class="fi" id="a-phone" type="tel" placeholder="201-555-0000"></div>
+      </div>
+      <div class="fr2">
+        <div class="fg"><label class="fl">City <span class="req">*</span></label><input class="fi" id="a-city" placeholder="Palisades Park"></div>
+        <div class="fg"><label class="fl">ZIP <span class="req">*</span></label><input class="fi" id="a-zip" maxlength="5" placeholder="07650"></div>
+      </div>
+    </div>
+
+    <div class="fsec">
+      <div class="fst">Experience & Services</div>
+      <div class="fg"><label class="fl">Years of Experience <span class="req">*</span></label>
+        <select class="fi" id="a-exp"><option value="">Select…</option><option>Less than 1 year</option><option>1–2 years</option><option>3–5 years</option><option>5–10 years</option><option>10+ years</option></select></div>
+      <div class="fg"><label class="fl">Services You Offer <span class="req">*</span></label>
+        <div class="chk-g">
+          <label class="chk-o"><input type="checkbox" value="Exterior Wash"> Exterior Wash</label>
+          <label class="chk-o"><input type="checkbox" value="Interior Detail"> Interior Detail</label>
+          <label class="chk-o"><input type="checkbox" value="Full Detail"> Full Detail</label>
+          <label class="chk-o"><input type="checkbox" value="Paint Correction"> Paint Correction</label>
+          <label class="chk-o"><input type="checkbox" value="Ceramic Coating"> Ceramic Coating</label>
+          <label class="chk-o"><input type="checkbox" value="Marine / Boats"> Marine / Boats</label>
+          <label class="chk-o"><input type="checkbox" value="RV / Trailer"> RV / Trailer</label>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Service ZIP Zones <span class="req">*</span></label><input class="fi" id="a-areas" placeholder="Bergen County NJ, 07650, 07601…"></div>
+    </div>
+
+    <div class="fsec">
+      <div class="fst">Equipment & Logistics</div>
+      <div class="fg"><label class="fl">Equipment <span class="req">*</span></label>
+        <div class="rad-g">
+          <div class="rad-o" onclick="selRad(this,'eq')"><input type="radio" name="eq" value="yes"> ✅ Full setup</div>
+          <div class="rad-o" onclick="selRad(this,'eq')"><input type="radio" name="eq" value="partial"> 🔧 Partial</div>
+          <div class="rad-o" onclick="selRad(this,'eq')"><input type="radio" name="eq" value="no"> ❌ None yet</div>
+        </div>
+      </div>
+      <div class="fr2">
+        <div class="fg"><label class="fl">Your Vehicle <span class="req">*</span></label><input class="fi" id="a-veh" placeholder="2020 Toyota Tacoma"></div>
+        <div class="fg"><label class="fl">Availability</label><select class="fi" id="a-avail"><option value="">Select…</option><option>Weekdays only</option><option>Weekends only</option><option>Weekdays + Weekends</option><option>Flexible</option></select></div>
+      </div>
+    </div>
+
+    <div class="fsec">
+      <div class="fst">About You</div>
+      <div class="fg"><label class="fl">Bio / Why you want to join</label><textarea class="fi" id="a-bio" placeholder="Tell us about your detailing background…"></textarea></div>
+      <div class="fg"><label class="fl">References (optional)</label><textarea class="fi" id="a-refs" placeholder="Previous employers, clients…" style="min-height:60px"></textarea></div>
+    </div>
+
+    <div style="background:rgba(77,163,255,.04);border:1px solid rgba(77,163,255,.1);border-radius:8px;padding:12px;margin-bottom:16px;font-size:11px;color:var(--mu);line-height:1.6">
+      By submitting, you authorize Cardetail1 to contact you by phone and email. A background check may be required before activation.
+    </div>
+    <button class="sub-btn" onclick="submitApp()">Submit Application →</button>
+  </div>
+</div>
+
+<!-- ═══════════════ PENDING ═══════════════ -->
+<div id="s-pend" class="screen">
+  <div class="pi">⏳</div>
+  <div class="pt2">Application Received!</div>
+  <p class="ps2">We review applications within 1–3 business days and will call + email you once approved.</p>
+  <div class="pid" id="p-appid">APP-——</div>
+  <div class="pst-g">
+    <div class="pst"><div class="psn">Step 1 ✓</div><div class="pst-t">Submitted</div><div class="pst-s">Received by team</div></div>
+    <div class="pst"><div class="psn">Step 2</div><div class="pst-t">Background Review</div><div class="pst-s">1–3 business days</div></div>
+    <div class="pst"><div class="psn">Step 3</div><div class="pst-t">Phone Interview</div><div class="pst-s">15-min call</div></div>
+    <div class="pst"><div class="psn">Step 4</div><div class="pst-t">Activation</div><div class="pst-s">Job board unlocked</div></div>
+  </div>
+  <div style="margin-top:24px;font-size:13px;color:var(--mu)">Questions? <a href="tel:5513132956" style="color:var(--blue);font-weight:700">📞 551-313-2956</a></div>
+</div>
+
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="s-login" class="screen">
+  <div class="lbox">
+    <div class="ll">CAR<span>DETAIL</span>1</div>
+
+    <!-- login mode tabs: Customer | Operator -->
+    <div style="font-size:11px;color:var(--mu);margin:8px 0 14px">Select your access type</div>
+    <div class="ltabs">
+      <button class="ltab active" onclick="lMode('tech')" id="lm-tech">🧑‍🔧 Operator</button>
+      <button class="ltab" onclick="lMode('cust')" id="lm-cust">👤 Customer</button>
+    </div>
+
+    <!-- OPERATOR LOGIN -->
+    <div id="l-tech-form">
+      <div class="lsub">Enter your registered email to access your dashboard</div>
+      <input class="linp" type="email" id="l-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()">
+      <input class="linp" type="password" id="l-pass" placeholder="Access code (operators only)" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off">
+      <button class="lbtn" onclick="doLogin()">Sign In →</button>
+      <div class="lerr" id="lerr">Not found or not yet approved. Check your approval email.</div>
+      <div class="llinks">
+        <a onclick="ss('land')">← Back to landing</a>
+        <a onclick="ss('apply')">Apply to become an operator →</a>
+      </div>
+    </div>
+
+    <!-- CUSTOMER (redirect) -->
+    <div id="l-cust-form" style="display:none">
+      <div class="lsub">Customers access their booking status separately</div>
+      <a href="customer.html" style="display:block;width:100%;text-align:center;background:var(--blue);color:#fff;font-weight:700;font-size:13px;border-radius:9px;padding:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='#3d94f0'" onmouseout="this.style.background='var(--blue)'">Go to Customer Portal →</a>
+      <div style="margin-top:14px;font-size:12px;color:var(--mu)">Track booking · Pay deposit · Reschedule · Leave review</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ ADMIN DASHBOARD ═══════════════ -->
+<div id="s-admin" class="screen">
+  <div class="topbar">
+    <div class="tb-logo">CAR<span>DETAIL</span>1</div>
+    <div class="tb-badge adm">ADMIN</div>
+    <div class="tb-sp"></div>
+    <div class="tb-nm" id="adm-clock"></div>
+    <button class="tb-out" onclick="doLogout()">Sign Out</button>
+  </div>
+  <div class="tab-bar" id="adm-tabbar">
+    <div class="tab active" onclick="admNav('dashboard')" data-ap="dashboard">📊 Dashboard</div>
+    <div class="tab" onclick="admNav('bookings')" data-ap="bookings">📋 Bookings<span id="b-ct" style="display:none;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;margin-left:5px">0</span></div>
+    <div class="tab" onclick="admNav('technicians')" data-ap="technicians">🧑‍🔧 Technicians<span id="t-ct" style="display:none;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;margin-left:5px">0</span></div>
+    <div class="tab" onclick="admNav('dispatch')" data-ap="dispatch">🗂️ Dispatch</div>
+    <div class="tab" onclick="admNav('accounting')" data-ap="accounting">💰 Accounting</div>
+    <div class="tab" onclick="admNav('subscriptions')" data-ap="subscriptions">🔁 Subs</div>
+    <div class="tab" onclick="admNav('settings')" data-ap="settings">⚙️ Settings</div>
+  </div>
+  <div class="main">
+    <div class="page active" id="ap-dashboard">
+      <div class="pg-t">Dashboard</div><div class="pg-s" id="dd-date"></div>
+      <div class="sg" id="dstats"></div>
+      <div class="card"><div class="ch"><div class="ct">Recent Bookings</div><button class="btn btn-g btn-sm" onclick="admNav('bookings')">View All →</button></div><div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Total</th><th>Status</th></tr></thead><tbody id="d-recent"></tbody></table></div></div>
+      <div class="card"><div class="ch"><div class="ct">Pending Tech Applications</div><button class="btn btn-g btn-sm" onclick="admNav('technicians')">Review →</button></div><div id="d-techs" style="padding:11px 14px"></div></div>
+    </div>
+    <div class="page" id="ap-bookings">
+      <div class="pg-t">Bookings</div><div class="pg-s">Click any row for full details & actions</div>
+      <div class="card">
+        <div class="filters">
+          <select class="ff" id="f-st" onchange="renderBk()"><option value="">All Status</option><option>Pending Review</option><option>Confirmed</option><option>Scheduled</option><option>In Progress</option><option>Completed</option><option>Cancelled</option><option>Rescheduled</option><option>No-Show</option><option>Payment Pending</option><option>Paid</option></select>
+          <input class="ff" type="date" id="f-fr" onchange="renderBk()">
+          <input class="ff" type="date" id="f-to" onchange="renderBk()">
+          <input class="ff" type="search" id="f-q" oninput="renderBk()" placeholder="Search…" style="min-width:150px">
+          <button class="btn btn-tl btn-sm" onclick="exportCSV()">⬇ CSV</button>
+          <button class="btn btn-rd btn-sm" onclick="clearAll()">🗑 Clear</button>
+        </div>
+        <div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Vehicle / Service</th><th>Preferred</th><th>Zone</th><th>Total</th><th>Status</th><th>Quick</th></tr></thead><tbody id="bk-body"></tbody></table></div>
+      </div>
+    </div>
+    <div class="page" id="ap-technicians"><div class="pg-t">Technicians</div><div class="pg-s">Applications & active operators</div><div class="card"><div class="ch"><div class="ct">Applications</div></div><div style="padding:12px 14px" id="tch-list"></div></div></div>
+    <div class="page" id="ap-dispatch"><div class="pg-t">Dispatch Board</div><div class="pg-s">Assign confirmed jobs to technicians</div><div id="disp-board"></div></div>
+    <div class="page" id="ap-accounting">
+      <div class="pg-t">Accounting</div><div class="pg-s">Revenue from completed / paid bookings</div>
+      <div class="sg" id="acct-stats"></div>
+      <div class="card"><div class="ch"><div class="ct">Monthly Breakdown</div><button class="btn btn-tl btn-sm" onclick="exportAcctCSV()">⬇ CSV</button></div><div style="padding:12px 14px" id="acct-months"></div></div>
+      <div class="card"><div class="ch"><div class="ct">Revenue Entries</div></div><div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Revenue</th><th>Cost 40%</th><th>Net</th></tr></thead><tbody id="acct-body"></tbody></table></div></div>
+    </div>
+    <div class="page" id="ap-subscriptions"><div class="pg-t">Subscriptions</div><div class="pg-s">Monthly plan members</div><div id="subs-wrap"></div></div>
+    <div class="page" id="ap-settings">
+      <div class="pg-t">Settings</div><div class="pg-s">Business configuration</div>
+      <div class="card" style="max-width:500px"><div class="ch"><div class="ct">Config</div></div>
+        <div style="padding:16px">
+          <div class="fr2">
+            <div class="fg2"><label class="fl2">Admin Email</label><input class="fi2" id="s-em" placeholder="your@email.com"></div>
+            <div class="fg2"><label class="fl2">Admin Phone</label><input class="fi2" id="s-ph" placeholder="551-313-2956"></div>
+          </div>
+          <div class="fr2">
+            <div class="fg2"><label class="fl2">Square Payment URL</label><input class="fi2" id="s-sq" placeholder="https://square.link/u/…"></div>
+            <div class="fg2"><label class="fl2">Deposit Amount ($)</label><input class="fi2" id="s-dep" type="number" value="50"></div>
+          </div>
+          <div class="fg2"><label class="fl2">Service Areas</label><input class="fi2" id="s-ar" value="NJ / NY / CT / PA"></div>
+          <button class="btn btn-p" onclick="saveSettings()">Save</button>
+          <span id="sv-ok" style="display:none;margin-left:9px;font-size:12px;color:var(--green)">✓ Saved</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ TECH DASHBOARD ═══════════════ -->
+<div id="s-tech" class="screen">
+  <div class="topbar">
+    <div class="tb-logo">CAR<span>DETAIL</span>1</div>
+    <div class="tb-badge tech">Operator</div>
+    <div class="tb-sp"></div>
+    <div class="tb-nm" id="tech-nm"></div>
+    <button class="tb-out" onclick="doLogout()">Sign Out</button>
+  </div>
+  <div class="tab-bar">
+    <div class="tab active" onclick="techTab('avail')" data-tt="avail">Available Jobs</div>
+    <div class="tab" onclick="techTab('mine')" data-tt="mine">My Jobs</div>
+    <div class="tab" onclick="techTab('earn')" data-tt="earn">Earnings</div>
+    <div class="tab" onclick="techTab('prof')" data-tt="prof">Profile</div>
+  </div>
+  <div class="main">
+    <div class="page active" id="tp-avail"><div class="pg-t">Available Jobs</div><div class="pg-s">Confirmed bookings open for assignment</div><div id="avail-list"></div></div>
+    <div class="page" id="tp-mine"><div class="pg-t">My Jobs</div><div class="pg-s">Jobs you have accepted</div><div id="mine-list"></div></div>
+    <div class="page" id="tp-earn"><div class="pg-t">Earnings</div><div class="pg-s">Your income from completed jobs (65% cut)</div><div class="sg" id="earn-stats"></div><div id="earn-tbl"></div></div>
+    <div class="page" id="tp-prof"><div class="pg-t">Profile</div><div class="pg-s">Your operator info on file</div><div id="prof-wrap"></div></div>
+  </div>
+</div>
+
+<!-- BOOKING DRAWER (admin) -->
+<div id="ov" onclick="closeDrw()"></div>
+<div id="drw">
+  <div class="dh"><div><div class="dt" id="drw-nm">Booking</div><div class="di" id="drw-id">—</div></div><button class="btn btn-g btn-sm" onclick="closeDrw()">✕</button></div>
+  <div class="db" id="drw-bd"></div>
+  <div class="da" id="drw-ac"></div>
+</div>
+
+<!-- PROBLEM MODAL (tech) -->
+<div id="prob-modal">
+  <div class="pm">
+    <div style="font-size:16px;font-weight:800;margin-bottom:14px">⚠️ Report a Problem</div>
+    <select class="fi" id="prob-type" style="margin-bottom:9px"><option value="">Problem type…</option><option>Customer not present</option><option>Wrong address</option><option>Vehicle different from booking</option><option>Water/power not available</option><option>Safety concern</option><option>Equipment issue</option><option>Customer conflict</option><option>Other</option></select>
+    <textarea class="fi" id="prob-desc" placeholder="Describe the problem…" style="min-height:90px;margin-bottom:10px"></textarea>
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-rd" style="flex:1" onclick="submitProblem()">Submit Report</button>
+      <button class="btn btn-g" style="flex:1" onclick="closeProbModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════
+const ADMIN_PASS = 'cd1admin2026';
+let TECH = null; // approved tech object
+let IS_ADMIN = false;
+let _drwId = '', _probJobId = '';
+
+// ═══════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════
+function ss(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById('s-'+id).classList.add('active'); }
+function selRad(el,n){ document.querySelectorAll(`input[name="${n}"]`).forEach(r=>r.closest('.rad-o').classList.remove('sel')); el.classList.add('sel'); el.querySelector('input').checked=true; }
+function toast(msg,type='ok'){ const el=document.getElementById('toast'); el.textContent=msg; el.className='show '+type; setTimeout(()=>el.className='',3000); }
+function bkGet(){ return JSON.parse(localStorage.getItem('cd1_bookings')||'[]'); }
+function bkSet(a){ localStorage.setItem('cd1_bookings',JSON.stringify(a)); }
+function tkGet(){ return JSON.parse(localStorage.getItem('cd1_technicians')||'[]'); }
+function tkSet(a){ localStorage.setItem('cd1_technicians',JSON.stringify(a)); }
+function cfgGet(){ return JSON.parse(localStorage.getItem('cd1_cfg')||'{}'); }
+function cfgSet(o){ localStorage.setItem('cd1_cfg',JSON.stringify(o)); }
+function bkNm(b){ return (b.name||((b.firstName||'')+' '+(b.lastName||''))||'Unknown').trim(); }
+function bkSvc(b){ return b.service||b.package||b.packageName||'Detail'; }
+function bkTot(b){ return b.totalPrice||b.total_price||b.packagePrice||0; }
+const SC={ 'Pending Review':'b-pen','Confirmed':'b-con','Scheduled':'b-sch','In Progress':'b-inp','En Route':'b-enr','Completed':'b-don','Cancelled':'b-can','Rescheduled':'b-res','No-Show':'b-can','Payment Pending':'b-pay','Paid':'b-don' };
+function badge(s){ return `<span class="badge ${SC[s]||'b-pen'}">${s||'Pending'}</span>`; }
+
+// ═══════════════════════════════════════
+// LOGIN MODES
+// ═══════════════════════════════════════
+function lMode(m){
+  document.getElementById('lm-tech').classList.toggle('active',m==='tech');
+  document.getElementById('lm-cust').classList.toggle('active',m==='cust');
+  document.getElementById('l-tech-form').style.display=m==='tech'?'block':'none';
+  document.getElementById('l-cust-form').style.display=m==='cust'?'block':'none';
+}
+
+function doLogin(){
+  const em = (document.getElementById('l-email').value||'').trim();
+  const pw = (document.getElementById('l-pass').value||'').trim();
+  const err = document.getElementById('lerr');
+  err.classList.remove('show');
+
+  // ADMIN: access code in password field (or typed in email field as fallback)
+  if(pw === ADMIN_PASS || em === ADMIN_PASS){
+    IS_ADMIN = true;
+    localStorage.setItem('cd1_session','admin');
+    initAdmin();
+    return;
+  }
+
+  // TECHNICIAN: look up by email
+  const tk = tkGet().find(t => t.email.toLowerCase() === em.toLowerCase());
+  if(!tk){ err.textContent='Email not found. Check spelling or apply first.'; err.classList.add('show'); return; }
+  if(tk.status==='pending'){ err.textContent='Still under review. We\'ll email you when approved.'; err.classList.add('show'); return; }
+  if(tk.status==='rejected'){ err.textContent='Application not approved. Call 551-313-2956.'; err.classList.add('show'); return; }
+
+  TECH = tk; IS_ADMIN = false;
+  localStorage.setItem('cd1_session','tech:'+em.toLowerCase());
+  initTech();
+}
+
+function doLogout(){
+  localStorage.removeItem('cd1_session');
+  TECH=null; IS_ADMIN=false;
+  document.getElementById('l-email').value='';
+  document.getElementById('l-pass').value='';
+  ss('land');
+}
+
+// ── AUTO-SESSION ──────────────────────
+(function(){
+  const sess = localStorage.getItem('cd1_session');
+  if(!sess) return;
+  if(sess==='admin'){ IS_ADMIN=true; }
+  else if(sess.startsWith('tech:')){
+    const em=sess.split(':')[1];
+    const tk=tkGet().find(t=>t.email.toLowerCase()===em&&t.status==='approved');
+    if(tk) TECH=tk; else { localStorage.removeItem('cd1_session'); return; }
+  }
+})();
+
+// ═══════════════════════════════════════
+// ADMIN INIT
+// ═══════════════════════════════════════
+function initAdmin(){
+  ss('admin');
+  // clock
+  setInterval(()=>{ const n=new Date(); document.getElementById('adm-clock').textContent=n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); },1000);
+  admRender('dashboard');
+  admBadges();
+}
+
+function admBadges(){
+  const bp=bkGet().filter(b=>b.status==='Pending Review').length;
+  const tp=tkGet().filter(t=>t.status==='pending').length;
+  const bc=document.getElementById('b-ct'); bc.textContent=bp; bc.style.display=bp?'inline':'none';
+  const tc=document.getElementById('t-ct'); tc.textContent=tp; tc.style.display=tp?'inline':'none';
+}
+
+function admNav(p){
+  document.querySelectorAll('#s-admin .page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('#adm-tabbar .tab').forEach(x=>x.classList.remove('active'));
+  document.getElementById('ap-'+p).classList.add('active');
+  document.querySelector(`[data-ap="${p}"]`)?.classList.add('active');
+  admRender(p);
+}
+
+function admRender(p){
+  if(p==='dashboard') renderDash();
+  if(p==='bookings') renderBk();
+  if(p==='technicians') renderTechs();
+  if(p==='dispatch') renderDispatch();
+  if(p==='accounting') renderAcct();
+  if(p==='subscriptions') renderSubs();
+  if(p==='settings') renderSettings();
+  admBadges();
+}
+
+// ═══════════════════════════════════════
+// ADMIN — DASHBOARD
+// ═══════════════════════════════════════
+function renderDash(){
+  const bk=bkGet(), tk=tkGet();
+  document.getElementById('dd-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const rev=bk.filter(b=>b.status==='Completed'||b.status==='Paid').reduce((s,b)=>s+bkTot(b),0);
+  const pend=bk.filter(b=>b.status==='Pending Review').length;
+  const act=bk.filter(b=>['Confirmed','Scheduled','In Progress','En Route'].includes(b.status)).length;
+  document.getElementById('dstats').innerHTML=`
+    <div class="sc"><div class="sv" style="color:var(--green)">$${rev.toLocaleString()}</div><div class="sl">Revenue</div></div>
+    <div class="sc"><div class="sv" style="color:var(--yellow)">${pend}</div><div class="sl">Pending</div></div>
+    <div class="sc"><div class="sv" style="color:var(--blue)">${act}</div><div class="sl">Active Jobs</div></div>
+    <div class="sc"><div class="sv" style="color:var(--purple)">${tk.filter(t=>t.status==='approved').length}</div><div class="sl">Active Techs</div></div>
+    <div class="sc"><div class="sv">${bk.length}</div><div class="sl">Total Bookings</div></div>
+    <div class="sc"><div class="sv" style="color:var(--green)">${bk.filter(b=>b.status==='Completed'||b.status==='Paid').length}</div><div class="sl">Completed</div></div>`;
+  const recent=[...bk].reverse().slice(0,6);
+  document.getElementById('d-recent').innerHTML=recent.length
+    ?recent.map(b=>`<tr onclick="openDrw('${b.id}')"><td class="td-mo">${(b.id||'').slice(-6)}</td><td class="td-nm">${bkNm(b)}</td><td class="td-mu">${bkSvc(b)}</td><td class="td-mu">${b.createdAt?new Date(b.createdAt).toLocaleDateString():'—'}</td><td class="td-pr">$${bkTot(b)}</td><td>${badge(b.status||'Pending Review')}</td></tr>`).join('')
+    :'<tr><td colspan="6" class="empty"><div class="ei">📭</div><div class="et">No bookings yet</div></td></tr>';
+  const ptkList=tk.filter(t=>t.status==='pending').slice(0,4);
+  document.getElementById('d-techs').innerHTML=ptkList.length
+    ?ptkList.map(t=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><div><div style="font-weight:600;font-size:12px">${t.name}</div><div style="font-size:10px;color:var(--mu)">${t.email} · ${t.experience||'?'}</div></div><div style="display:flex;gap:5px"><button class="btn btn-gr btn-xs" onclick="approveTk('${t.id}');event.stopPropagation()">Approve</button><button class="btn btn-rd btn-xs" onclick="rejectTk('${t.id}');event.stopPropagation()">Reject</button></div></div>`).join('')
+    :'<div class="empty" style="padding:16px"><div class="et">No pending applications</div></div>';
+}
+
+// ═══════════════════════════════════════
+// ADMIN — BOOKINGS
+// ═══════════════════════════════════════
+function filtBk(){
+  let bk=[...bkGet()].reverse();
+  const st=document.getElementById('f-st')?.value||'';
+  const fr=document.getElementById('f-fr')?.value||'';
+  const to=document.getElementById('f-to')?.value||'';
+  const q=(document.getElementById('f-q')?.value||'').toLowerCase();
+  if(st) bk=bk.filter(b=>(b.status||'Pending Review')===st);
+  if(fr) bk=bk.filter(b=>b.createdAt&&new Date(b.createdAt)>=new Date(fr));
+  if(to) bk=bk.filter(b=>b.createdAt&&new Date(b.createdAt)<=new Date(to+'T23:59:59'));
+  if(q) bk=bk.filter(b=>(bkNm(b)+bkSvc(b)+(b.email||'')+(b.zip||b.zipCode||'')+(b.phone||'')).toLowerCase().includes(q));
+  return bk;
+}
+
+function renderBk(){
+  const bk=filtBk();
+  document.getElementById('bk-body').innerHTML=bk.length
+    ?bk.map(b=>`<tr onclick="openDrw('${b.id}')">
+      <td class="td-mo">${(b.id||'').slice(-8)}</td>
+      <td><div class="td-nm">${bkNm(b)}</div><div class="td-mu">${b.email||b.phone||''}</div></td>
+      <td><div>${bkSvc(b)}</div><div class="td-mu">${b.vehicleLabel||b.vehicle||''}</div></td>
+      <td class="td-mu">${b.preferredDate||b.preferred_date||'—'}</td>
+      <td class="td-mu">${b.zone||b.zip_city||b.zipCode||'—'}</td>
+      <td class="td-pr">$${bkTot(b)}</td>
+      <td>${badge(b.status||'Pending Review')}</td>
+      <td onclick="event.stopPropagation()">
+        <select class="ff" style="font-size:10px;padding:3px 6px" onchange="setBkStatus('${b.id}',this.value)">
+          <option value="">—</option>
+          ${['Pending Review','Confirmed','Scheduled','In Progress','Completed','Cancelled','Rescheduled','No-Show','Payment Pending','Paid'].map(s=>`<option ${b.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>
+    </tr>`).join('')
+    :'<tr><td colspan="8" class="empty"><div class="ei">📭</div><div class="et">No bookings match</div></td></tr>';
+  admBadges();
+}
+
+function setBkStatus(id,s){ if(!s)return; const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){bk[i].status=s;bkSet(bk);}admBadges(); }
+function clearAll(){ if(confirm('Delete ALL bookings?')){localStorage.removeItem('cd1_bookings');renderBk();renderDash();toast('Cleared','err');} }
+
+function exportCSV(){
+  const bk=filtBk(); if(!bk.length){toast('Nothing to export','err');return;}
+  const cols=['ID','Name','Email','Phone','Address','ZIP','Zone','Vehicle','Service','Add-ons','Preferred Date','Time','Total','Status','Notes','Submitted'];
+  const rows=bk.map(b=>[b.id||'',bkNm(b),b.email||'',b.phone||'',b.address||'',b.zip||b.zipCode||'',b.zone||b.zip_city||'',b.vehicleLabel||b.vehicle||'',bkSvc(b),(b.addons||[]).map(a=>a.name||a).join(' | '),b.preferredDate||b.preferred_date||'',b.preferredTime||'',bkTot(b),b.status||'Pending Review',(b.notes||'').replace(/,/g,';'),b.createdAt?new Date(b.createdAt).toLocaleString():''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv=[cols.join(','),...rows].join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='bookings-'+new Date().toISOString().slice(0,10)+'.csv';a.click();toast(`Exported ${bk.length} rows`);
+}
+function exportAcctCSV(){
+  const bk=bkGet().filter(b=>b.status==='Completed'||b.status==='Paid');
+  if(!bk.length){toast('No completed bookings','err');return;}
+  const cols=['ID','Customer','Service','Date','Revenue','Cost 40%','Net 60%'];
+  const rows=bk.map(b=>{const r=bkTot(b);return [b.id||'',bkNm(b),bkSvc(b),b.createdAt?new Date(b.createdAt).toLocaleDateString():'',r,Math.round(r*.4),Math.round(r*.6)].map(v=>`"${v}"`).join(',');});
+  const csv=[cols.join(','),...rows].join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='accounting-'+new Date().toISOString().slice(0,10)+'.csv';a.click();toast('Accounting CSV exported');
+}
+
+// ═══════════════════════════════════════
+// ADMIN — DRAWER
+// ═══════════════════════════════════════
+function openDrw(id){
+  const b=bkGet().find(x=>x.id===id); if(!b) return;
+  _drwId=id;
+  document.getElementById('drw-nm').textContent=bkNm(b);
+  document.getElementById('drw-id').textContent=b.id||'—';
+  const addons=(b.addons||[]).map(a=>a.name||a).join(', ')||'None';
+  const tech=tkGet().find(t=>t.id===b.assignedTech);
+  const row=(k,v)=>`<div class="dr"><span class="dk">${k}</span><span class="dv">${v}</span></div>`;
+  document.getElementById('drw-bd').innerHTML=`
+    <div class="dsec">Booking</div>
+    ${row('Status',badge(b.status||'Pending Review'))}${row('ID',`<span style="font-family:var(--fd);color:var(--blue);font-size:11px">${b.id||'—'}</span>`)}${row('Submitted',b.createdAt?new Date(b.createdAt).toLocaleString():'—')}
+    <div class="dsec">Customer</div>
+    ${row('Name',bkNm(b))}${row('Phone',b.phone?`<a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a>`:'-')}${row('Email',b.email||'—')}${row('Address',b.address||'—')}${row('ZIP',b.zip||b.zipCode||'—')}${row('Zone',b.zone||b.zip_city||'—')}
+    <div class="dsec">Service</div>
+    ${row('Vehicle',b.vehicleLabel||b.vehicle||'—')}${row('Service',bkSvc(b))}${row('Add-ons',addons)}${row('Preferred Date',b.preferredDate||b.preferred_date||'—')}${row('Preferred Time',b.preferredTime||'Any')}${row('Total','<span style="color:var(--green);font-weight:800;font-size:14px">$'+bkTot(b)+'</span>')}
+    ${row('Technician',tech?`<span style="color:var(--green)">${tech.name}</span>`:'Unassigned')}
+    ${b.notes?`<div class="dsec">Notes</div><div style="font-size:12px;color:var(--mu);background:var(--bg3);border-radius:7px;padding:10px">${b.notes}</div>`:''}
+  `;
+  const tks=tkGet().filter(t=>t.status==='approved');
+  const cfg=cfgGet();
+  document.getElementById('drw-ac').innerHTML=`
+    <div style="width:100%;margin-bottom:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Change Status</div>
+      <select class="ssel" id="drw-st" style="width:100%;margin-bottom:6px">${['Pending Review','Confirmed','Scheduled','In Progress','Completed','Cancelled','Rescheduled','No-Show','Payment Pending','Paid'].map(s=>`<option ${(b.status||'Pending Review')===s?'selected':''}>${s}</option>`).join('')}</select>
+      <button class="btn btn-p btn-sm" style="width:100%" onclick="drwSetStatus()">Update Status</button>
+    </div>
+    <div style="width:100%;margin-bottom:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Assign Technician</div>
+      <select class="ssel" id="drw-tk" style="width:100%;margin-bottom:6px"><option value="">— Select Tech —</option>${tks.map(t=>`<option value="${t.id}" ${b.assignedTech===t.id?'selected':''}>${t.name}</option>`).join('')}</select>
+      <button class="btn btn-g btn-sm" style="width:100%" onclick="drwAssign()">Assign</button>
+    </div>
+    <div style="width:100%;margin-bottom:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Send Payment Link</div>
+      <input class="pinp" id="pay-url" placeholder="${cfg.squareUrl||'https://square.link/u/…'}">
+      <button class="btn btn-tl btn-sm" style="width:100%" onclick="drwSendPay()">📤 WhatsApp / SMS</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%">
+      <button class="btn btn-yw btn-sm" onclick="drwReschedule()">📅 Reschedule</button>
+      <button class="btn btn-or btn-sm" onclick="drwNoShow()">🚫 No-Show</button>
+      <button class="btn btn-rd btn-sm" onclick="drwCancel()">Cancel</button>
+    </div>`;
+  document.getElementById('ov').classList.add('open');
+  document.getElementById('drw').classList.add('open');
+}
+function closeDrw(){ document.getElementById('ov').classList.remove('open'); document.getElementById('drw').classList.remove('open'); }
+function drwUpd(fn){ const bk=bkGet();const i=bk.findIndex(b=>b.id===_drwId);if(i>-1){fn(bk[i]);bkSet(bk);}closeDrw();renderBk();renderDash();admBadges(); }
+function drwSetStatus(){ const s=document.getElementById('drw-st').value; drwUpd(b=>b.status=s); toast('Status → '+s); }
+function drwAssign(){ const tid=document.getElementById('drw-tk').value; if(!tid){toast('Select a tech','err');return;} const tk=tkGet().find(t=>t.id===tid); drwUpd(b=>{b.assignedTech=tid;b.assignedTechName=tk?.name||'';b.status='Confirmed';}); toast('Assigned to '+tk?.name); }
+function drwSendPay(){ const b=bkGet().find(x=>x.id===_drwId);if(!b)return; const url=document.getElementById('pay-url').value.trim()||(cfgGet().squareUrl||''); const ph=b.phone||''; const msg=encodeURIComponent(`Hi ${bkNm(b).split(' ')[0]}! Confirm your Cardetail1 appointment with a $${bkTot(b)} payment: ${url} 🚗✨`); window.open(`https://wa.me/${ph.replace(/\D/g,'')}?text=${msg}`,'_blank'); drwUpd(b=>b.payStatus='Payment Pending'); toast('WhatsApp opened'); }
+function drwReschedule(){ const d=prompt('New preferred date (YYYY-MM-DD):');if(!d)return; drwUpd(b=>{b.preferredDate=d;b.status='Rescheduled';}); toast('Rescheduled to '+d); }
+function drwNoShow(){ if(confirm('Mark as No-Show?')){drwUpd(b=>b.status='No-Show');toast('Marked No-Show','err');} }
+function drwCancel(){ if(confirm('Cancel this booking?')){drwUpd(b=>b.status='Cancelled');toast('Cancelled','err');} }
+
+// ═══════════════════════════════════════
+// ADMIN — TECHNICIANS
+// ═══════════════════════════════════════
+function renderTechs(){
+  const tks=tkGet();
+  const el=document.getElementById('tch-list');
+  if(!tks.length){el.innerHTML='<div class="empty"><div class="ei">🧑‍🔧</div><div class="et">No applications yet</div></div>';return;}
+  el.innerHTML=tks.map(t=>`<div class="tc">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:9px"><div><div class="tc-nm">${t.name}</div><div class="tc-mt">${t.email} · ${t.phone}</div></div>${badge(t.status==='approved'?'Confirmed':t.status==='rejected'?'Cancelled':'Pending Review')}</div>
+    <div class="tc-gr"><div class="tc-f"><div class="tcfl">Experience</div>${t.experience||'—'}</div><div class="tc-f"><div class="tcfl">Areas</div>${t.areas||'—'}</div><div class="tc-f"><div class="tcfl">Vehicle</div>${t.ownVehicle||'—'}</div><div class="tc-f"><div class="tcfl">Availability</div>${t.availability||'—'}</div><div class="tc-f"><div class="tcfl">Applied</div>${t.appliedAt?new Date(t.appliedAt).toLocaleDateString():'—'}</div><div class="tc-f"><div class="tcfl">Equipment</div>${t.hasEquipment==='yes'?'Full':t.hasEquipment==='partial'?'Partial':'None'}</div></div>
+    ${t.bio?`<div style="font-size:11px;color:var(--mu);background:var(--bg);padding:7px 9px;border-radius:7px;margin-bottom:9px">${t.bio}</div>`:''}
+    <div style="display:flex;gap:5px;flex-wrap:wrap">
+      ${t.status!=='approved'?`<button class="btn btn-gr btn-sm" onclick="approveTk('${t.id}')">✓ Approve</button>`:''}
+      ${t.status!=='rejected'?`<button class="btn btn-rd btn-sm" onclick="rejectTk('${t.id}')">✗ Reject</button>`:''}
+      <button class="btn btn-g btn-sm" onclick="delTk('${t.id}')">Delete</button>
+      ${t.phone?`<a class="btn btn-g btn-sm" href="tel:${t.phone}">📞 Call</a>`:''}
+      ${t.phone?`<a class="btn btn-g btn-sm" href="https://wa.me/${t.phone.replace(/\D/g,'')}" target="_blank">💬 WA</a>`:''}
+    </div></div>`).join('');
+  admBadges();
+}
+function approveTk(id){ const t=tkGet();const i=t.findIndex(x=>x.id===id);if(i>-1){t[i].status='approved';t[i].approvedAt=new Date().toISOString();tkSet(t);}renderTechs();admBadges();toast(t.find(x=>x.id===id)?.name+' approved'); }
+function rejectTk(id){ const t=tkGet();const i=t.findIndex(x=>x.id===id);if(i>-1){t[i].status='rejected';tkSet(t);}renderTechs();admBadges();toast('Rejected','err'); }
+function delTk(id){ if(!confirm('Remove?'))return;tkSet(tkGet().filter(t=>t.id!==id));renderTechs();admBadges(); }
+
+// ═══════════════════════════════════════
+// ADMIN — DISPATCH
+// ═══════════════════════════════════════
+function renderDispatch(){
+  const bk=bkGet().filter(b=>['Confirmed','Scheduled','In Progress','En Route'].includes(b.status));
+  const tks=tkGet().filter(t=>t.status==='approved');
+  const el=document.getElementById('disp-board');
+  if(!bk.length){el.innerHTML='<div class="empty"><div class="ei">🗂️</div><div class="et">No active jobs</div></div>';return;}
+  el.innerHTML=`<div class="card"><div class="ch"><div class="ct">Active Jobs (${bk.length})</div></div><div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Zone</th><th>Tech</th><th>Status</th><th>Update</th></tr></thead><tbody>${bk.map(b=>{
+    const tech=tks.find(t=>t.id===b.assignedTech);
+    return `<tr onclick="openDrw('${b.id}')"><td class="td-mo">${(b.id||'').slice(-6)}</td><td><div class="td-nm">${bkNm(b)}</div><div class="td-mu">${b.phone||''}</div></td><td class="td-mu">${bkSvc(b)}</td><td class="td-mu">${b.preferredDate||b.preferred_date||'—'}</td><td class="td-mu">${b.zone||b.zip_city||'—'}</td>
+      <td onclick="event.stopPropagation()">${tech?`<span style="color:var(--green);font-weight:600;font-size:12px">${tech.name}</span>`:`<select class="ff" onchange="quickAssign('${b.id}',this.value)"><option value="">— assign —</option>${tks.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select>`}</td>
+      <td>${badge(b.status)}</td>
+      <td onclick="event.stopPropagation()"><select class="ff" style="font-size:10px" onchange="setBkStatus('${b.id}',this.value);renderDispatch()">${['Confirmed','Scheduled','In Progress','En Route','Completed'].map(s=>`<option ${b.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
+    </tr>`;}).join('')}</tbody></table></div></div>`;
+}
+function quickAssign(bkId,tkId){ if(!tkId)return;const bk=bkGet();const i=bk.findIndex(b=>b.id===bkId);if(i>-1){bk[i].assignedTech=tkId;bk[i].status='Confirmed';bkSet(bk);}renderDispatch();toast('Tech assigned'); }
+
+// ═══════════════════════════════════════
+// ADMIN — ACCOUNTING
+// ═══════════════════════════════════════
+function renderAcct(){
+  const bk=bkGet().filter(b=>b.status==='Completed'||b.status==='Paid');
+  const rev=bk.reduce((s,b)=>s+bkTot(b),0);
+  document.getElementById('acct-stats').innerHTML=`
+    <div class="sc"><div class="sv" style="color:var(--green)">$${rev.toLocaleString()}</div><div class="sl">Revenue</div></div>
+    <div class="sc"><div class="sv" style="color:var(--red)">$${Math.round(rev*.4).toLocaleString()}</div><div class="sl">Est. Costs 40%</div></div>
+    <div class="sc"><div class="sv" style="color:var(--blue)">$${Math.round(rev*.6).toLocaleString()}</div><div class="sl">Net 60%</div></div>
+    <div class="sc"><div class="sv">${bk.length}</div><div class="sl">Jobs Done</div></div>
+    <div class="sc"><div class="sv" style="color:var(--teal)">$${bk.length?Math.round(rev/bk.length):0}</div><div class="sl">Avg / Job</div></div>`;
+  const months={};
+  bk.forEach(b=>{const d=b.createdAt?new Date(b.createdAt):new Date();const k=d.toLocaleDateString('en-US',{year:'numeric',month:'long'});if(!months[k])months[k]={rev:0,n:0};months[k].rev+=bkTot(b);months[k].n++;});
+  document.getElementById('acct-months').innerHTML=Object.entries(months).reverse().map(([m,v])=>`<div class="am"><div><div class="aml">${m}</div><div class="albl">${v.n} job${v.n!==1?'s':''}</div></div><div><div class="av r">$${v.rev.toLocaleString()}</div><div class="albl">Revenue</div></div><div><div class="av e">-$${Math.round(v.rev*.4).toLocaleString()}</div><div class="albl">Cost</div></div><div><div class="av n">$${Math.round(v.rev*.6).toLocaleString()}</div><div class="albl">Net</div></div></div>`).join('')||'<div class="empty"><div class="et">No completed bookings</div></div>';
+  document.getElementById('acct-body').innerHTML=bk.reverse().map(b=>{const r=bkTot(b);return `<tr onclick="openDrw('${b.id}')"><td class="td-mo">${(b.id||'').slice(-6)}</td><td class="td-nm">${bkNm(b)}</td><td class="td-mu">${bkSvc(b)}</td><td class="td-mu">${b.createdAt?new Date(b.createdAt).toLocaleDateString():'—'}</td><td class="td-pr">$${r}</td><td style="color:var(--red)">$${Math.round(r*.4)}</td><td style="color:var(--blue);font-weight:700">$${Math.round(r*.6)}</td></tr>`;}).join('')||'<tr><td colspan="7" class="empty"><div class="et">No entries</div></td></tr>';
+}
+
+// ═══════════════════════════════════════
+// ADMIN — SUBSCRIPTIONS & SETTINGS
+// ═══════════════════════════════════════
+function renderSubs(){
+  const subs=JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]');
+  document.getElementById('subs-wrap').innerHTML=subs.length
+    ?`<div class="card"><div class="ch"><div class="ct">Subscribers (${subs.length})</div></div><div class="tw"><table><thead><tr><th>Name</th><th>Email</th><th>Plan</th><th>Price/mo</th><th>Since</th></tr></thead><tbody>${subs.map(s=>`<tr><td class="td-nm">${s.name||'—'}</td><td class="td-mu">${s.email}</td><td>${badge('Confirmed')}</td><td class="td-pr">$${s.price||'—'}</td><td class="td-mu">${s.since?new Date(s.since).toLocaleDateString():'—'}</td></tr>`).join('')}</tbody></table></div></div>`
+    :'<div class="empty"><div class="ei">🔁</div><div class="et">No subscribers yet</div></div>';
+}
+function renderSettings(){const c=cfgGet();if(c.email)document.getElementById('s-em').value=c.email;if(c.phone)document.getElementById('s-ph').value=c.phone;if(c.area)document.getElementById('s-ar').value=c.area;if(c.squareUrl)document.getElementById('s-sq').value=c.squareUrl;if(c.deposit)document.getElementById('s-dep').value=c.deposit;}
+function saveSettings(){cfgSet({email:document.getElementById('s-em').value,phone:document.getElementById('s-ph').value,area:document.getElementById('s-ar').value,squareUrl:document.getElementById('s-sq').value,deposit:document.getElementById('s-dep').value});const ok=document.getElementById('sv-ok');ok.style.display='inline';setTimeout(()=>ok.style.display='none',2000);toast('Settings saved');}
+
+// ═══════════════════════════════════════
+// TECH INIT & TABS
+// ═══════════════════════════════════════
+function initTech(){
+  TECH=tkGet().find(t=>t.email.toLowerCase()===(TECH.email||'').toLowerCase())||TECH;
+  document.getElementById('tech-nm').textContent=TECH.name.split(' ')[0];
+  ss('tech');
+  renderAvail();
+}
+function techTab(name){
+  document.querySelectorAll('#s-tech .page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('#s-tech .tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tp-'+name).classList.add('active');
+  document.querySelector(`[data-tt="${name}"]`)?.classList.add('active');
+  if(name==='avail') renderAvail();
+  if(name==='mine') renderMine();
+  if(name==='earn') renderEarnings();
+  if(name==='prof') renderProfile();
+}
+
+// ═══════════════════════════════════════
+// TECH — JOBS
+// ═══════════════════════════════════════
+function renderAvail(){
+  const bk=bkGet().filter(b=>b.status==='Confirmed'&&!b.assignedTech);
+  document.getElementById('avail-list').innerHTML=bk.length?bk.map(b=>jobCard(b,false)).join(''):'<div class="empty"><div class="ei">🗂️</div><div class="et">No open jobs right now.</div></div>';
+}
+function renderMine(){
+  const bk=bkGet().filter(b=>b.assignedTech===TECH.id&&!['Completed','Cancelled'].includes(b.status));
+  document.getElementById('mine-list').innerHTML=bk.length?bk.map(b=>jobCard(b,true)).join(''):'<div class="empty"><div class="ei">📋</div><div class="et">No active jobs. Accept from Available Jobs.</div></div>';
+}
+
+function jobCard(b,mine){
+  const svc=bkSvc(b),veh=b.vehicleLabel||b.vehicle||b.vehicleCategory||'—';
+  const pref=b.preferredDate||b.preferred_date||'—',price=bkTot(b),earn=Math.round(price*.65);
+  const zone=b.zone||b.zip_city||b.zipCode||'—';
+  let acts='';
+  if(!mine){ acts=`<button class="btn btn-p btn-sm" onclick="acceptJob('${b.id}')">Accept →</button>`; }
+  else {
+    if(['Confirmed','Scheduled'].includes(b.status)) acts+=`<button class="btn btn-or btn-sm" onclick="techUpdBk('${b.id}','En Route')">🚗 En Route</button>`;
+    if(b.status==='En Route') acts+=`<button class="btn btn-p btn-sm" onclick="techUpdBk('${b.id}','In Progress')">▶ Start</button>`;
+    if(b.status==='In Progress') acts+=`<button class="btn btn-gr btn-sm" onclick="markComplete('${b.id}')">✓ Complete</button>`;
+    if(b.phone){
+      acts+=`<a class="btn btn-g btn-sm" href="tel:${b.phone}">📞</a>`;
+      acts+=`<a class="btn btn-g btn-sm" href="https://wa.me/${b.phone.replace(/\D/g,'')}?text=${encodeURIComponent('Hi '+bkNm(b).split(' ')[0]+'! Your Cardetail1 tech is on the way 🚗✨')}" target="_blank">💬</a>`;
+    }
+    acts+=`<button class="btn btn-yw btn-sm" onclick="openProbModal('${b.id}')">⚠️</button>`;
+  }
+  const photos=mine?`<div style="margin-top:11px;padding-top:11px;border-top:1px solid var(--border)">
+    <div style="display:flex;gap:8px;margin-bottom:7px;align-items:center">
+      <span style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;flex:1">Before (${(b.photosBefore||[]).length})</span>
+      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${b.id}','before',this)"></label>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px;margin-bottom:9px">${(b.photosBefore||[]).map(p=>`<img class="photo-thumb" src="${p}">`).join('')}</div>
+    <div style="display:flex;gap:8px;margin-bottom:7px;align-items:center">
+      <span style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;flex:1">After (${(b.photosAfter||[]).length})</span>
+      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${b.id}','after',this)"></label>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px">${(b.photosAfter||[]).map(p=>`<img class="photo-thumb" src="${p}">`).join('')}</div>
+  </div>`:'';
+  const cl=mine?(b.status==='En Route'?'jc mine enr':'jc mine'):'jc';
+  return `<div class="${cl}">
+    <div class="jc-top"><div><div class="jc-id">${(b.id||'').slice(-8)}</div><div class="jc-sv">${svc}</div><div class="jc-vh">${veh}</div></div>${badge(b.status||'Confirmed')}</div>
+    <div class="jc-grid">
+      <div><div class="jfl">Date</div><div class="jfv">${pref}</div></div>
+      <div><div class="jfl">Zone</div><div class="jfv">${zone}</div></div>
+      <div><div class="jfl">Job Total</div><div class="jfv">$${price}</div></div>
+      <div><div class="jfl">Your Cut</div><div class="jfv" style="color:var(--green)">$${earn}</div></div>
+      ${mine&&b.address?`<div style="grid-column:1/-1"><div class="jfl">Address</div><div class="jfv">${b.address}</div></div>`:''}
+      ${mine&&b.notes?`<div style="grid-column:1/-1"><div class="jfl">Notes</div><div class="jfv" style="color:var(--mu);font-weight:400">${b.notes}</div></div>`:''}
+    </div>
+    <div class="jc-acts">${acts}</div>
+    ${photos}
+  </div>`;
+}
+
+function techUpdBk(id,status){ const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){bk[i].status=status;if(status==='In Progress')bk[i].startedAt=new Date().toISOString();bkSet(bk);}toast('→ '+status);renderMine(); }
+function acceptJob(id){
+  const bk=bkGet();const b=bk.find(x=>x.id===id);
+  if(!b||b.assignedTech){toast('No longer available','err');renderAvail();return;}
+  const i=bk.findIndex(x=>x.id===id);bk[i].assignedTech=TECH.id;bk[i].assignedTechName=TECH.name;bkSet(bk);
+  toast('Job accepted ✓');techTab('mine');
+}
+function markComplete(id){
+  const b=bkGet().find(x=>x.id===id);
+  if(!(b?.photosAfter||[]).length&&!confirm('No after photos. Complete anyway?')) return;
+  techUpdBk(id,'Completed');
+  const price=bkTot(b||{});const earn=Math.round(price*.65);
+  const tks=tkGet();const ti=tks.findIndex(t=>t.id===TECH.id);
+  if(ti>-1){tks[ti].earnings=(tks[ti].earnings||0)+earn;tks[ti].jobsCompleted=(tks[ti].jobsCompleted||0)+1;tkSet(tks);TECH=tks[ti];}
+  toast(`🎉 Complete! +$${earn}`);
+}
+function addPhotos(id,type,input){
+  Array.from(input.files).forEach(f=>{const r=new FileReader();r.onload=e=>{const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){const k=type==='before'?'photosBefore':'photosAfter';bk[i][k]=[...(bk[i][k]||[]),e.target.result];bkSet(bk);}renderMine();};r.readAsDataURL(f);});
+}
+
+// ═══════════════════════════════════════
+// TECH — EARNINGS & PROFILE
+// ═══════════════════════════════════════
+function renderEarnings(){
+  const done=bkGet().filter(b=>b.assignedTech===TECH.id&&b.status==='Completed');
+  const earn=done.reduce((s,b)=>s+Math.round(bkTot(b)*.65),0);
+  document.getElementById('earn-stats').innerHTML=`<div class="sc"><div class="sv" style="color:var(--green)">$${earn}</div><div class="sl">Total Earned</div></div><div class="sc"><div class="sv">${done.length}</div><div class="sl">Jobs Done</div></div><div class="sc"><div class="sv" style="color:var(--blue)">$${done.length?Math.round(earn/done.length):0}</div><div class="sl">Avg / Job</div></div>`;
+  document.getElementById('earn-tbl').innerHTML=done.length
+    ?`<div class="card"><div class="tw"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Job Total</th><th>Your Cut</th></tr></thead><tbody>${done.map(b=>`<tr><td class="td-mo">${(b.id||'').slice(-8)}</td><td>${bkSvc(b)}</td><td class="td-mu">${b.completedAt?new Date(b.completedAt).toLocaleDateString():'—'}</td><td>$${bkTot(b)}</td><td style="color:var(--green);font-weight:700">$${Math.round(bkTot(b)*.65)}</td></tr>`).join('')}</tbody></table></div></div>`
+    :'<div class="empty"><div class="ei">💰</div><div class="et">No completed jobs yet</div></div>';
+}
+function renderProfile(){
+  document.getElementById('prof-wrap').innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;max-width:460px">
+    <div style="display:flex;align-items:center;gap:13px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+      <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--green));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0">${TECH.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
+      <div><div style="font-size:16px;font-weight:800">${TECH.name}</div><div style="font-size:10px;color:var(--mu);font-family:var(--fd)">ID: ${TECH.id}</div><div style="margin-top:5px">${badge('Confirmed')}</div></div>
+    </div>
+    ${[['Email',TECH.email],['Phone',TECH.phone],['City',TECH.city||'—'],['Experience',TECH.experience||'—'],['Services',TECH.services||'—'],['Service Zones',TECH.areas||'—'],['Availability',TECH.availability||'—'],['Vehicle',TECH.ownVehicle||'—'],['Jobs Completed',TECH.jobsCompleted||0],['Total Earned','$'+(TECH.earnings||0)],['Member Since',TECH.approvedAt?new Date(TECH.approvedAt).toLocaleDateString():'—']].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--mu)">${k}</span><span style="font-weight:600">${v}</span></div>`).join('')}
+  </div>`;
+}
+
+// ═══════════════════════════════════════
+// PROBLEM REPORT
+// ═══════════════════════════════════════
+function openProbModal(id){ _probJobId=id; document.getElementById('prob-type').value=''; document.getElementById('prob-desc').value=''; document.getElementById('prob-modal').classList.add('open'); }
+function closeProbModal(){ document.getElementById('prob-modal').classList.remove('open'); _probJobId=''; }
+function submitProblem(){
+  const type=document.getElementById('prob-type').value;
+  const desc=document.getElementById('prob-desc').value.trim();
+  if(!type){alert('Select a problem type');return;}
+  if(!desc){alert('Describe the problem');return;}
+  const probs=JSON.parse(localStorage.getItem('cd1_problems')||'[]');
+  probs.push({jobId:_probJobId,techId:TECH.id,techName:TECH.name,type,description:desc,reportedAt:new Date().toISOString(),resolved:false});
+  localStorage.setItem('cd1_problems',JSON.stringify(probs));
+  const bk=bkGet();const i=bk.findIndex(b=>b.id===_probJobId);if(i>-1){bk[i].hasProblem=true;bkSet(bk);}
+  closeProbModal(); toast('Problem reported ⚠️','err');
+}
+
+// ═══════════════════════════════════════
+// STARTUP
+// ═══════════════════════════════════════
+if(IS_ADMIN){ initAdmin(); }
+else if(TECH){ initTech(); }
+
+// auto-refresh admin every 20s
+setInterval(()=>{ if(IS_ADMIN){ const ap=document.querySelector('#s-admin .page.active')?.id?.replace('ap-',''); if(ap) admRender(ap); } },20000);
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# ── Segredos / NUNCA commitar ──────────────────────────
+# Códigos de backup da conta (mantenha offline, fora do Git)
+squarespace_backup_codes_*.txt
+*.secret
+.env
+.env.*
+
+# ── Build / deps ──────────────────────────────────────
+node_modules/
+.netlify/
+
+# ── Variantes antigas arquivadas ──────────────────────
+archive/
+
+# ── Lixo de SO / editor ───────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
