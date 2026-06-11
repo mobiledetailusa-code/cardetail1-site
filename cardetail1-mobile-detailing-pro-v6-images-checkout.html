@@ -2082,8 +2082,9 @@ const ADMIN_SMS      = '5513132956';         // seu celular (SMS admin)
 // Pegue em: https://dashboard.stripe.com → Developers → API keys
 // Deixe '' para DESLIGAR o cartão (o booking continua via review manual).
 const STRIPE_PUBLISHABLE_KEY = '';   // 'pk_test_...' (teste) ou 'pk_live_...'
-// Depósito autorizado/cobrado para segurar o horário, em CENTAVOS (5000 = $50).
-const DEPOSIT_CENTS  = 5000;
+// Depósito = % do total estimado (0.25 = 25%). Piso mínimo em centavos.
+const DEPOSIT_PCT      = 0.25;   // 25% do total
+const DEPOSIT_MIN_CENTS = 2500;  // piso $25 (Stripe exige ≥ $0.50)
 // Base das funções Netlify (deixe assim em produção no Netlify).
 const BACKEND_BASE   = '/.netlify/functions';
 const STRIPE_READY   = !!(STRIPE_PUBLISHABLE_KEY && window.Stripe);
@@ -3118,7 +3119,16 @@ function goToPayment(){
 // ── STEP 6: STRIPE (Payment Element + Payment Link) ───────────────────────────
 let stripe=null, stripeElements=null, stripePI=null;
 
-function depositDollars(){ return (DEPOSIT_CENTS/100).toFixed(2); }
+// Total atual do booking (espelha buildBookingPayload) → depósito = % do total.
+function bookingTotalCents(){
+  const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
+  const base = vehicles.reduce((s,v)=>s+(v.subtotal||0),0);
+  const fee  = activeZone ? activeZone.surcharge : 0;
+  return Math.round((base + fee) * 100);
+}
+function depositCents(){ return Math.max(Math.round(bookingTotalCents()*DEPOSIT_PCT), DEPOSIT_MIN_CENTS); }
+function depositDollars(){ return (depositCents()/100).toFixed(2); }
+function depositPctLabel(){ return Math.round(DEPOSIT_PCT*100)+'%'; }
 function ensureBookingId(){ if(!ST.bookingId) ST.bookingId='CD1-'+Date.now().toString(36).toUpperCase(); return ST.bookingId; }
 function stripeMsg(elId,msg,ok){ const el=document.getElementById(elId); if(!el)return; el.innerHTML=msg; el.style.display='block'; if(ok!==undefined)el.style.color=ok?'var(--gr,#34d399)':'var(--mu,#8a9bb0)'; }
 
@@ -3130,7 +3140,7 @@ async function payByCard(){
   const err=document.getElementById('pay-err'); err.classList.remove('show');
   document.getElementById('stripe-link-result').style.display='none';
   wrap.style.display='block';
-  document.getElementById('stripe-deposit-lbl').textContent='Secure card · authorizes a $'+depositDollars()+' refundable hold';
+  document.getElementById('stripe-deposit-lbl').textContent='Secure card · '+depositPctLabel()+' deposit ($'+depositDollars()+') · refundable hold';
   if(stripeElements) return;                       // já montado
   if(!STRIPE_READY){
     document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#8a9bb0;line-height:1.5">Card payment is in review mode (Stripe key not set). Your booking is submitted as a request — we send a secure payment link before the appointment.</div>';
@@ -3139,7 +3149,7 @@ async function payByCard(){
   }
   try{
     const res=await fetch(BACKEND_BASE+'/create-payment-intent',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({amountCents:DEPOSIT_CENTS, bookingId:ST.bookingId, email:(document.getElementById('f-email')?.value||'').trim()})});
+      body:JSON.stringify({amountCents:depositCents(), bookingId:ST.bookingId, email:(document.getElementById('f-email')?.value||'').trim()})});
     const data=await res.json();
     if(!data.ok) throw new Error(data.error||'Could not start payment');
     stripePI=data.id;
@@ -3156,7 +3166,7 @@ async function authorizeStripe(){
   try{
     const {error}=await stripe.confirmPayment({elements:stripeElements, redirect:'if_required'});
     if(error){ err.textContent=error.message; err.classList.add('show'); btn.disabled=false; btn.textContent='Authorize deposit'; return; }
-    ST.paymentIntentId=stripePI; ST.paymentStatus='authorized'; ST.depositCents=DEPOSIT_CENTS;
+    ST.paymentIntentId=stripePI; ST.paymentStatus='authorized'; ST.depositCents=depositCents();
     stripeMsg('stripe-status','✓ Deposit authorized — $'+depositDollars()+' held. Continue to review &amp; submit below.',true);
     btn.textContent='✓ Deposit authorized'; document.getElementById('pc-card').textContent='✓ Card authorized';
   }catch(e){ err.textContent='Payment error. Please try again.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Authorize deposit'; }
@@ -3173,7 +3183,7 @@ async function sendStripeLink(){
   stripeMsg('stripe-link-result','Generating secure link…');
   try{
     const res=await fetch(BACKEND_BASE+'/create-payment-link',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({amountCents:DEPOSIT_CENTS, bookingId:ST.bookingId, email, sendPref:pref})});
+      body:JSON.stringify({amountCents:depositCents(), bookingId:ST.bookingId, email, sendPref:pref})});
     const data=await res.json();
     if(!data.ok) throw new Error(data.error||'Could not create link');
     ST.paymentStatus='link_sent'; ST.paymentLink=data.url;
