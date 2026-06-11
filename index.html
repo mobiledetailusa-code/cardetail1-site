@@ -2088,6 +2088,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button onclick="openJobsBoard()" style="background:rgba(168,85,247,.2);color:#c084fc;border-color:rgba(168,85,247,.4)">⚡ Jobs Board</button>
         <button onclick="openNewJobForm()" style="background:var(--blue);color:#000;border-color:var(--blue)">＋ New Job</button>
         <button onclick="loadCloudBookings()" id="cloud-load-btn" style="background:rgba(34,197,94,.18);color:var(--gr);border-color:var(--grbr)">☁️ Load from cloud</button>
+        <button onclick="changeAdminPassword()">🔑 Password</button>
         <button onclick="renderAdminBookings()">Refresh</button>
         <button onclick="showAdminTab('list')">📋 List</button>
         <button onclick="showAdminTab('calendar')">📅 Calendar</button>
@@ -4496,11 +4497,28 @@ function rvMove(dir){ rvGoTo(rvIdx + dir); }
 // AUTH / LOGIN
 // ═══════════════════════════════════════════════════════
 // ╔══════════════════════════════════════════════════════════╗
-// ║  SENHA DO ADMIN — TROQUE A LINHA ABAIXO pela sua senha.   ║
-// ║  É a única senha de acesso ao painel administrativo.      ║
+// ║  SENHA DO ADMIN — senha padrão abaixo; pode ser trocada   ║
+// ║  pelo botão "🔑 Senha" no painel (salva neste navegador). ║
 // ╚══════════════════════════════════════════════════════════╝
-let ADMIN_PASSWORD = 'cd1admin2026';
+const ADMIN_PASSWORD_DEFAULT = 'cd1admin2026';
+let ADMIN_PASSWORD = localStorage.getItem('cd1_admin_pw') || ADMIN_PASSWORD_DEFAULT;
 let loginRole = 'admin';
+
+// Trocar a senha do admin (persiste neste navegador via localStorage).
+function changeAdminPassword(){
+  const cur = prompt('Current admin password:');
+  if(cur===null) return;
+  if(cur !== ADMIN_PASSWORD){ alert('Current password is incorrect.'); return; }
+  const nw = prompt('New admin password (min 6 characters):');
+  if(nw===null) return;
+  if(!nw || nw.trim().length < 6){ alert('Password must be at least 6 characters.'); return; }
+  const confirmPw = prompt('Confirm new password:');
+  if(confirmPw !== nw){ alert('Passwords do not match.'); return; }
+  ADMIN_PASSWORD = nw.trim();
+  localStorage.setItem('cd1_admin_pw', ADMIN_PASSWORD);
+  window._adminKey = ADMIN_PASSWORD;
+  alert('✓ Admin password updated on this device.\n\nNote: to also enable “Load from cloud”, set ADMIN_DASH_PASSWORD to the same value on Netlify.');
+}
 
 function openLogin(){
   document.getElementById('login-ov').classList.add('open');
@@ -4657,9 +4675,14 @@ function renderEmpPanel(filter){
         </label>
       </div>
 
-      <!-- PHOTOS -->
+      <!-- PHOTO REMINDER (no upload required — for the tech's own records & protection) -->
+      <div style="margin:0 16px 12px;padding:10px 13px;border-radius:10px;background:var(--amdim);border:1px solid var(--ambr);color:var(--am);font-size:12.5px;line-height:1.5;font-weight:600">
+        📸 <strong>Reminder:</strong> take <strong>before &amp; after</strong> photos and photos of <strong>any existing or new damage</strong> on this vehicle — for quality and the protection of both parties.
+      </div>
+
+      <!-- PHOTOS (optional local attachments) -->
       <div style="padding:0 16px 14px">
-        <div class="emp-photo-label">📸 Job Photos</div>
+        <div class="emp-photo-label">📸 Job Photos (optional)</div>
         <div class="emp-photo-grid" id="ephoto-${b.id}">${photoHtml}</div>
       </div>
 
@@ -4698,6 +4721,9 @@ function empViewPhoto(id, idx){
 }
 
 function empSetStatus(id, status){
+  // Photo reminder at the key moments (no upload required).
+  if(status==='In Progress'){ alert('📸 Before you start: take BEFORE photos of the vehicle and of any existing damage.'); }
+  if(status==='Completed'){ alert('📸 Job done? Make sure you took AFTER photos and photos of any damage before marking complete.'); }
   const list = getStoredBookings().map(b=>b.id===id?{...b,status,updatedAt:new Date().toISOString()}:b);
   setStoredBookings(list);
   renderEmpPanel(empFilter);
