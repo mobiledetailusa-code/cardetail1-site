@@ -371,6 +371,8 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .pkg-feats li::before{content:'✓';color:var(--blue);font-weight:700;font-size:10px;margin-top:2px;flex-shrink:0}
 .pkg-feats li.no{color:rgba(138,155,176,.4)}
 .pkg-feats li.no::before{content:'—';color:rgba(138,155,176,.3)}
+.pkg-feats li.grp{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin:8px 0 3px;padding-top:4px}
+.pkg-feats li.grp::before{content:'';margin:0}
 .pkg-btn{margin-top:12px;width:100%;padding:10px;border-radius:999px;border:1px solid rgba(77,163,255,.4);background:transparent;color:var(--blue);font-family:var(--fb);font-size:11.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s}
 .pkg-btn:hover,.pkg.sel .pkg-btn{background:var(--blue);color:#000;border-color:var(--blue)}
 .pkg.pop .pkg-btn{background:var(--blue);color:#000;border-color:var(--blue)}
@@ -2250,32 +2252,40 @@ const PRICING = {
       truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:172, interior:239, full:332, premium:493},
     },
     packages:[
-      {id:'maint',    name:'Maintenance Wash', icon:'🪣', tag:'Exterior + light interior upkeep',          dur:'~1.5–2h',   popular:false,
+      {id:'maint',    name:'Maintenance Wash', icon:'🪣', tag:'Exterior + light interior upkeep',          dur:'~1.5–2h',   popular:false, scope:'both',
+        ext:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
+        int:['Interior vacuum','Dashboard & console wipe','Air vents dusted'],
         feats:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Air vents dusted','UV protectant applied'],
         miss:['Clay bar','Carpet/seat shampoo','Machine polish','Wax or sealant']},
-      {id:'interior', name:'Interior Reset',   icon:'💺', tag:'Deep cabin — shampoo, steam & conditioning', dur:'~2.5–3.5h', popular:false,
+      {id:'interior', name:'Interior Reset',   icon:'💺', tag:'Deep cabin — shampoo, steam & conditioning', dur:'~2.5–3.5h', popular:false, scope:'int',
+        ext:[],
+        int:['Full interior vacuum — seats, floors, trunk','Carpet shampoo','Fabric/leather seat shampoo & conditioning','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail','Interior glass cleaned','Odor-neutral finish applied'],
         feats:['Full interior vacuum — seats, floors, trunk','Carpet shampoo','Fabric/leather seat shampoo & conditioning','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail','Interior glass cleaned','Odor-neutral finish applied'],
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant']},
-      {id:'full',     name:'Full Detail',       icon:'🧽', tag:'Complete interior + exterior — most popular', dur:'~3.5–5h',   popular:true,
+      {id:'full',     name:'Full Detail',       icon:'🧽', tag:'Complete interior + exterior — most popular', dur:'~3.5–5h',   popular:true, scope:'both',
+        ext:['Exterior hand wash & rinse','Clay bar treatment','Spray wax/sealant','Wheels & tires dressed','Exterior glass cleaned'],
+        int:['Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','UV protectant'],
         feats:['Maintenance Wash included','Clay bar treatment','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','Spray wax/sealant','Tire dressing','UV protectant'],
         miss:['Machine polish','1-step paint correction','Premium long-term sealant']},
-      {id:'premium',  name:'Premium Detail',    icon:'🏅', tag:'Paint correction + long-term protection',    dur:'~5–7h',     popular:false,
+      {id:'premium',  name:'Premium Detail',    icon:'🏅', tag:'Paint correction + long-term protection',    dur:'~5–7h',     popular:false, scope:'both',
+        ext:['1-step machine polish','Machine-applied wax/sealant','Rain-X windshield treatment','Chemical decontamination','Full wheel & lug detail','Trim restoration'],
+        int:['Full Detail interior included','Final quality inspection'],
         feats:['Full Detail included','1-step machine polish','Machine-applied wax/sealant','Rain-X windshield treatment','Chemical decontamination','Full wheel & lug detail','Trim restoration','Final quality inspection'],
         miss:[]}
     ],
     addons:[
-      {id:'pethair',    name:'Pet Hair Removal',          icon:'🐾',  desc:'Deep removal of embedded pet hair from seats, carpets, mats, and trunk. Heavy vehicles may require estimate', price:95},
-      {id:'superint',   name:'Super Interior Upgrade',    icon:'💎',  desc:'Upgrade any package with extra shampoo passes, hand-steam on every panel, door pockets & cargo area — add to any interior-included package', price:125},
-      {id:'odor',       name:'Odor Treatment & Sanitize', icon:'💨',  desc:'Interior odor neutralizer + high-touch surface sanitizing. Not biohazard or mold remediation', price:149},
-      {id:'biohazard',  name:'Biohazard Cleaning',        icon:'☣️',  desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Requires estimate confirmation before service', price:115},
-      {id:'engine',     name:'Engine Bay Top Clean',      icon:'🛠️',  desc:'Top-view engine bay cleaning — visible surfaces, cover, and accessible areas only. NOT a full engine detail or mechanical service', price:45},
-      {id:'undercarriage',name:'Undercarriage Wash',      icon:'⬇️',  desc:'High-pressure undercarriage rinse to remove road salt, mud, and grime from frame and underside', price:45},
-      {id:'floormats',  name:'Floor Mat Deep Clean',      icon:'🟫',  desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 per mat set (front or rear)', price:20},
-      {id:'rainx',      name:'Rain-X Glass Treatment',    icon:'💧',  desc:'Water-repellent Rain-X treatment on windshield and front glass for improved wet-weather visibility', price:25},
-      {id:'polymer',    name:'Polymer Paint Sealant',     icon:'🛡️',  desc:'Hand-applied polymer sealant for paint protection and enhanced gloss. Lasts 3–6 months', price:25},
-      {id:'wax1yr',     name:'1-Year Carnauba Wax',       icon:'🥇',  desc:'Premium long-lasting carnauba wax. Superior gloss and up to 12 months of paint protection', price:75},
-      {id:'claybar',    name:'Clay Bar Treatment',        icon:'🧲',  desc:'Removes embedded contaminants, industrial fallout, and rail dust for a smooth, clean paint surface', price:45},
-      {id:'trashcans',  name:'Trash Can Cleaning',        icon:'🗑️',  desc:'Residential trash can cleaning at same service location. $25 per can. Biohazard requires estimate', price:25},
+      {id:'pethair',    scope:'int', name:'Pet Hair Removal',          icon:'🐾',  desc:'Deep removal of embedded pet hair from seats, carpets, mats, and trunk. Heavy vehicles may require estimate', price:95},
+      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    icon:'💎',  desc:'Upgrade any package with extra shampoo passes, hand-steam on every panel, door pockets & cargo area — add to any interior-included package', price:125},
+      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', icon:'💨',  desc:'Interior odor neutralizer + high-touch surface sanitizing. Not biohazard or mold remediation', price:149},
+      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        icon:'☣️',  desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Requires estimate confirmation before service', price:115},
+      {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      icon:'🛠️',  desc:'Top-view engine bay cleaning — visible surfaces, cover, and accessible areas only. NOT a full engine detail or mechanical service', price:45},
+      {id:'undercarriage',scope:'ext', name:'Undercarriage Wash',      icon:'⬇️',  desc:'High-pressure undercarriage rinse to remove road salt, mud, and grime from frame and underside', price:45},
+      {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      icon:'🟫',  desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 per mat set (front or rear)', price:20},
+      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    icon:'💧',  desc:'Water-repellent Rain-X treatment on windshield and front glass for improved wet-weather visibility', price:25},
+      {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     icon:'🛡️',  desc:'Hand-applied polymer sealant for paint protection and enhanced gloss. Lasts 3–6 months', price:25},
+      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       icon:'🥇',  desc:'Premium long-lasting carnauba wax. Superior gloss and up to 12 months of paint protection', price:75},
+      {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        icon:'🧲',  desc:'Removes embedded contaminants, industrial fallout, and rail dust for a smooth, clean paint surface', price:45},
+      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        icon:'🗑️',  desc:'Residential trash can cleaning at same service location. $25 per can. Biohazard requires estimate', price:25},
     ],
   },
   boats: {
@@ -2317,31 +2327,31 @@ const PRICING = {
       classA:     {label:'Class A',        icon:'🚌', desc:'Class A motorhome 30–45 ft',          exterior:866, interior:733, full:1334, premium:1934},
     },
     packages:[
-      {id:'exterior', name:'Exterior Wash',    icon:'🪣', tag:'Full exterior + wheels, tires & glass',         dur:'~2–3h',  popular:false,
+      {id:'exterior', name:'Exterior Wash',    icon:'🪣', tag:'Full exterior + wheels, tires & glass',         dur:'~2–3h',  popular:false, scope:'ext',
         feats:['Full exterior body wash','Accessible body panels','Light black streak reduction','Exterior glass & mirrors','Wheels cleaned & dried','Tires dressed','Bug & debris removal'],
         miss:['Interior','Wax/sealant','Roof','Awning']},
-      {id:'interior', name:'Interior Detail',  icon:'🛋️', tag:'Deep living space — kitchen, bath & cabin',     dur:'~3–5h',  popular:false,
+      {id:'interior', name:'Interior Detail',  icon:'🛋️', tag:'Deep living space — kitchen, bath & cabin',     dur:'~3–5h',  popular:false, scope:'int',
         feats:['Full vacuum — floors, furniture, slideouts','Dashboard & cockpit detail','Living area & upholstery cleaned','Kitchen surfaces & appliance fronts','Bathroom cleaning','Cabinet exteriors','Interior windows & mirrors','High-touch surfaces'],
         miss:['Exterior wash','Wax/sealant','Roof','Awning']},
-      {id:'full',     name:'Full RV Detail',   icon:'🧽', tag:'Complete interior + exterior — most popular',   dur:'~5–8h',  popular:true,
+      {id:'full',     name:'Full RV Detail',   icon:'🧽', tag:'Complete interior + exterior — most popular',   dur:'~5–8h',  popular:true, scope:'both',
         feats:['Exterior hand wash & streak reduction','Exterior glass & mirrors','Wheels + tires dressed','Spray wax/sealant','Full interior vacuum','Living area & upholstery','Kitchen & bathroom detail','Interior windows','UV protectant'],
         miss:['Roof','Awning','Premium oxidation correction']},
-      {id:'premium',  name:'Premium Exterior', icon:'🏅', tag:'Gloss restoration + oxidation + protection',    dur:'~4–6h',  popular:false,
+      {id:'premium',  name:'Premium Exterior', icon:'🏅', tag:'Gloss restoration + oxidation + protection',    dur:'~4–6h',  popular:false, scope:'ext',
         feats:['Exterior wash & decontamination prep','Oxidation assessment & panel polishing','Gelcoat gloss enhancement','Light-to-moderate oxidation improvement','Machine-applied premium wax/sealant','Exterior trim & cap cleaning','Final inspection'],
         miss:['Roof requires separate estimate']}
     ],
     addons:[
-      {id:'polymer',    name:'Polymer Sealant Upgrade',     icon:'🛡️', desc:'Polymer sealant on RV exterior for added protection and gloss. Excellent for fiberglass', price:25},
-      {id:'wax1yr',     name:'1-Year Carnauba Wax',         icon:'🥇', desc:'Premium carnauba wax on RV exterior. Up to 12 months UV and weather protection', price:75},
-      {id:'rainx',      name:'Rain-X Windshield Treatment', icon:'💧', desc:'Water-repellent Rain-X on RV windshield and front glass', price:25},
-      {id:'biohazard',  name:'Biohazard Cleaning',          icon:'☣️', desc:'Bodily fluids, waste, or severe contamination. Requires estimate confirmation before service', price:115},
-      {id:'awning',     name:'Awning Cleaning',             icon:'⛺', desc:'Accessible awning fabric and arms cleaning. Light mildew and surface buildup only', price:129},
-      {id:'roof',       name:'Roof Surface Cleaning',       icon:'⬆️', desc:'Safe-access roof cleaning. No repairs, resealing, or coating included', price:149},
-      {id:'capfront',   name:'Front Cap Deep Clean',        icon:'🧼', desc:'Heavy bugs, road grime, black streaks, runoff staining, and front cap buildup', price:149},
-      {id:'undercarriage',name:'Undercarriage Rinse',       icon:'⬇️', desc:'High-pressure undercarriage rinse — frame, axles, and underbody of RV or trailer', price:55},
-      {id:'pethair',    name:'Pet Hair Removal',            icon:'🐾', desc:'Pet hair removal from RV seats, rugs, cushions, and living areas', price:95},
-      {id:'odor',       name:'Odor Treatment & Sanitize',   icon:'💨', desc:'Interior odor neutralizer + high-touch sanitizing. Not mold or biohazard', price:149},
-      {id:'trashcans',  name:'Trash Can Cleaning',          icon:'🗑️', desc:'$25 per can at RV park, campground, storage, or home', price:25},
+      {id:'polymer',    scope:'ext', name:'Polymer Sealant Upgrade',     icon:'🛡️', desc:'Polymer sealant on RV exterior for added protection and gloss. Excellent for fiberglass', price:25},
+      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',         icon:'🥇', desc:'Premium carnauba wax on RV exterior. Up to 12 months UV and weather protection', price:75},
+      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment', icon:'💧', desc:'Water-repellent Rain-X on RV windshield and front glass', price:25},
+      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',          icon:'☣️', desc:'Bodily fluids, waste, or severe contamination. Requires estimate confirmation before service', price:115},
+      {id:'awning',     scope:'ext', name:'Awning Cleaning',             icon:'⛺', desc:'Accessible awning fabric and arms cleaning. Light mildew and surface buildup only', price:129},
+      {id:'roof',       scope:'ext', name:'Roof Surface Cleaning',       icon:'⬆️', desc:'Safe-access roof cleaning. No repairs, resealing, or coating included', price:149},
+      {id:'capfront',   scope:'ext', name:'Front Cap Deep Clean',        icon:'🧼', desc:'Heavy bugs, road grime, black streaks, runoff staining, and front cap buildup', price:149},
+      {id:'undercarriage',scope:'ext', name:'Undercarriage Rinse',       icon:'⬇️', desc:'High-pressure undercarriage rinse — frame, axles, and underbody of RV or trailer', price:55},
+      {id:'pethair',    scope:'int', name:'Pet Hair Removal',            icon:'🐾', desc:'Pet hair removal from RV seats, rugs, cushions, and living areas', price:95},
+      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize',   icon:'💨', desc:'Interior odor neutralizer + high-touch sanitizing. Not mold or biohazard', price:149},
+      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',          icon:'🗑️', desc:'$25 per can at RV park, campground, storage, or home', price:25},
     ],
   },
   powersports: {
@@ -2723,8 +2733,11 @@ function renderPackages(cat){
       <div class="pkg-time">⏱ ${p.dur}</div>
       <div class="pkg-div"></div>
       <ul class="pkg-feats">
-        ${p.feats.map(f=>`<li>${f}</li>`).join('')}
-        ${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}
+        ${(p.ext||p.int)
+          ? `${(p.ext&&p.ext.length)?`<li class="grp">🚿 Exterior</li>`+p.ext.map(f=>`<li>${f}</li>`).join(''):''}`
+            +`${(p.int&&p.int.length)?`<li class="grp">🪑 Interior</li>`+p.int.map(f=>`<li>${f}</li>`).join(''):''}`
+            +`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`
+          : `${p.feats.map(f=>`<li>${f}</li>`).join('')}`+`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`}
       </ul>
       <button class="pkg-btn">Select Package</button>
     </div>`;
@@ -2911,9 +2924,9 @@ function selectTier(key){
   ST.tierKey=key; ST.tier=PRICING[ST.cat].tiers[key];
   setupLengthSelector(ST.cat);
   setupUnitSelector(ST.cat);
-  // update price if vehicle already set
-  if(ST.vehicleLabel){ setBasePrice(); setTimeout(()=>bkGoTo(4), 180); }
-  if(ST.cat!=='cars')tryGenericConfirm();
+  // refresh price/card if vehicle already entered (no auto-advance)
+  if(ST.vehicleLabel){ setBasePrice(); }
+  tryGenericConfirm();
 }
 
 function tryGenericConfirm(){
@@ -2937,7 +2950,7 @@ function tryGenericConfirm(){
     document.getElementById('vc-price').textContent='$'+ST.basePrice;
     document.getElementById('vc').classList.add('show');
     document.getElementById('next3').disabled=false;
-    setTimeout(()=>bkGoTo(4), 280);
+    // No auto-advance: user clicks "Choose Add-Ons →" (lets boats/RVs/trailers pick length first).
     return;
   }
 
@@ -2968,7 +2981,7 @@ function tryGenericConfirm(){
     }
     document.getElementById('vc').classList.add('show');
     document.getElementById('next3').disabled=false;
-    setTimeout(()=>bkGoTo(4), 280);
+    // No auto-advance: user clicks "Choose Add-Ons →" (lets boats/RVs/trailers pick length first).
     return;
   }
 
@@ -2983,7 +2996,7 @@ function tryGenericConfirm(){
   document.getElementById('vc-price').textContent='$'+ST.basePrice;
   document.getElementById('vc').classList.add('show');
   document.getElementById('next3').disabled=false;
-  setTimeout(()=>bkGoTo(4), 280);
+  // No auto-advance: user reviews the vehicle card, then clicks "Choose Add-Ons →".
 }
 
 function setBasePrice(){
@@ -3061,8 +3074,7 @@ document.getElementById('year-sel').addEventListener('change',function(){
   document.getElementById('vc-price').textContent='$'+ST.basePrice;
   document.getElementById('vc').classList.add('show');
   document.getElementById('next3').disabled=false;
-  // Auto-advance to add-ons
-  setTimeout(()=>bkGoTo(4), 280);
+  // No auto-advance: user clicks "Choose Add-Ons →" after reviewing the vehicle.
 });
 
 // ── STEP 4: ADD-ONS ───────────────────────────────────────────────────────────
@@ -3070,7 +3082,13 @@ function renderAddons(){
   document.getElementById('ah-pkg').textContent=ST.pkg?.name+' Package';
   document.getElementById('ah-car').textContent=ST.vehicleLabel+' · '+(ST.tier?.label||'');
   ST.addons=[]; ST.addonTotal=0; updateTotal();
-  const addons=PRICING[ST.cat]?.addons||[];
+  // Only show add-ons relevant to the selected package's scope.
+  // pkg scope: 'int' | 'ext' | 'both'  ·  addon scope: 'int' | 'ext' | 'any'
+  const pkgScope = ST.pkg?.scope || 'both';
+  const addons=(PRICING[ST.cat]?.addons||[]).filter(a=>{
+    const s=a.scope||'any';
+    return pkgScope==='both' || s==='any' || s===pkgScope;
+  });
   document.getElementById('addon-grid').innerHTML=addons.map(a=>`
     <div class="addon" data-price="${a.price}" data-id="${a.id}" onclick="toggleAddon(this)">
       <div class="addon-check">✓</div>
