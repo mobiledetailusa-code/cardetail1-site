@@ -11,11 +11,61 @@
 //   TWILIO_FROM       (opcional) número Twilio, ex: +1XXXXXXXXXX
 //   ADMIN_SMS         (opcional) número que recebe o SMS, ex: +1XXXXXXXXXX
 
+const crypto = require('crypto');
+
 const json = (status, body) => ({
   statusCode: status,
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(body),
 });
+
+function signBid(jobId, techId, secret) {
+  return crypto.createHmac('sha256', secret).update(String(jobId) + '|' + String(techId)).digest('hex');
+}
+
+// On a confirmed booking: create the auction in Blobs and SMS each tech a magic
+// bid link (lowest bid wins). Degrades gracefully if BID_SECRET/Twilio missing.
+async function postAuction(b) {
+  const secret = process.env.BID_SECRET;
+  if (!secret) return { posted: false, reason: 'BID_SECRET not set' };
+  const st = String(b.status || '').toLowerCase();
+  if (!['confirmed', 'accepted', 'scheduled'].includes(st)) return { posted: false, reason: 'status not auctionable' };
+  try {
+    const { getStore } = await import('@netlify/blobs');
+    const roster = (await getStore('cd1-techs').get('roster', { type: 'json' })) || [];
+    const job = {
+      customer: `${b.firstName || ''} ${b.lastName || ''}`.trim(),
+      vehicle: b.vehicle || b.vehicleCategory || '',
+      package: b.package || '',
+      date: b.preferredDate || '', time: b.preferredTime || '',
+      area: b.zone || b.zipCode || '', address: b.address || '',
+      total: b.totalPrice || 0,
+    };
+    await getStore('cd1-auctions').setJSON(b.id, {
+      jobId: b.id, status: 'open', job, bids: [], winner: null, createdAt: new Date().toISOString(),
+    });
+    const base = process.env.SITE_URL || '';
+    const { TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM } = process.env;
+    let notified = 0;
+    if (TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM && base && roster.length) {
+      const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
+      await Promise.all(roster.map(t => {
+        const sig = signBid(b.id, t.id, secret);
+        const link = `${base}/bid.html?job=${encodeURIComponent(b.id)}&tech=${encodeURIComponent(t.id)}&sig=${sig}`;
+        const body = new URLSearchParams({
+          To: t.phone, From: TWILIO_FROM,
+          Body: `New Cardetail1 job: ${job.package} · ${job.date} · ${job.area}. Place your bid (lowest wins): ${link}`,
+        });
+        return fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
+          method: 'POST', headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body,
+        }).then(r => { if (r.ok) notified++; }).catch(() => {});
+      }));
+    }
+    return { posted: true, techs: roster.length, notified };
+  } catch (e) {
+    return { posted: false, reason: e.message };
+  }
+}
 
 function bookingText(b) {
   const vehicles = (b.vehicles || [])
@@ -105,11 +155,12 @@ exports.handler = async (event) => {
     stored = { saved: false, reason: e.message };
   }
 
-  const [email, sms] = await Promise.all([
+  const [email, sms, auction] = await Promise.all([
     sendEmail(b).catch(e => ({ sent: false, reason: e.message })),
     sendSms(b).catch(e => ({ sent: false, reason: e.message })),
+    postAuction(b).catch(e => ({ posted: false, reason: e.message })),
   ]);
 
   // Mesmo se notificação/armazenamento falhar, confirmamos o recebimento do request.
-  return json(200, { ok: true, id: b.id, status: b.status || 'Pending Review', stored, email, sms });
+  return json(200, { ok: true, id: b.id, status: b.status || 'Pending Review', stored, email, sms, auction });
 };

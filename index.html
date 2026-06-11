@@ -2088,6 +2088,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button onclick="openJobsBoard()" style="background:rgba(168,85,247,.2);color:#c084fc;border-color:rgba(168,85,247,.4)">⚡ Jobs Board</button>
         <button onclick="openNewJobForm()" style="background:var(--blue);color:#000;border-color:var(--blue)">＋ New Job</button>
         <button onclick="loadCloudBookings()" id="cloud-load-btn" style="background:rgba(34,197,94,.18);color:var(--gr);border-color:var(--grbr)">☁️ Load from cloud</button>
+        <button onclick="showAdminTab('auctions')" id="cd-auc-tab-btn" style="background:rgba(168,85,247,.18);color:#c084fc;border-color:rgba(168,85,247,.4)">🏷️ Auctions</button>
+        <button onclick="syncTechsToCloud()">🧰 Sync Techs</button>
         <button onclick="changeAdminPassword()">🔑 Password</button>
         <button onclick="renderAdminBookings()">Refresh</button>
         <button onclick="showAdminTab('list')">📋 List</button>
@@ -2105,6 +2107,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       </div>
       <div id="admin-inq-view" style="display:none">
         <div id="cd-inq-list"></div>
+      </div>
+      <div id="admin-auc-view" style="display:none">
+        <div id="cd-auc-list"></div>
       </div>
     </div>
   </div>
@@ -3758,8 +3763,56 @@ function showAdminTab(tab){
   document.getElementById('admin-list-view').style.display = tab==='list' ? 'block' : 'none';
   document.getElementById('admin-cal-view').style.display  = tab==='calendar' ? 'block' : 'none';
   const inq = document.getElementById('admin-inq-view'); if(inq) inq.style.display = tab==='inquiries' ? 'block' : 'none';
+  const auc = document.getElementById('admin-auc-view'); if(auc) auc.style.display = tab==='auctions' ? 'block' : 'none';
   if(tab==='calendar') renderAdminCalendar();
   if(tab==='inquiries') renderAdminInquiries();
+  if(tab==='auctions') renderAuctions();
+}
+
+// ── Technician job auction (admin view) ──
+const AUCTION_URL = BACKEND_BASE + '/auction';
+
+function syncTechsToCloud(){
+  const techs = getTechs();
+  if(!techs.length){ alert('No technicians to sync. Add technicians first.'); return; }
+  fetch(BACKEND_BASE+'/techs',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':window._adminKey||''},
+    body:JSON.stringify({action:'save', techs:techs.map(t=>({id:t.id,name:t.name,phone:t.phone}))})})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok) alert('✓ Synced '+d.count+' technician(s) to the cloud. New confirmed jobs will text them a bid link.');
+      else if(d.error&&/ADMIN_DASH_PASSWORD/.test(d.error)) alert('Set ADMIN_DASH_PASSWORD on Netlify (same as your admin password), then redeploy.');
+      else alert('Could not sync techs: '+(d.error||'unknown'));
+    }).catch(e=>alert('Sync failed (is the site deployed?): '+e.message));
+}
+
+function renderAuctions(){
+  const wrap=document.getElementById('cd-auc-list'); if(!wrap) return;
+  wrap.innerHTML='<div class="ops-note">Loading auctions…</div>';
+  fetch(AUCTION_URL+'?action=list',{headers:{'x-admin-key':window._adminKey||''}})
+    .then(r=>r.json()).then(d=>{
+      if(d.error&&/BID_SECRET/.test(d.error)){ wrap.innerHTML='<div class="ops-note">Auctions not set up yet. Set <code>BID_SECRET</code> and <code>ADMIN_DASH_PASSWORD</code> on Netlify, sync techs, then confirmed jobs auto-post here.</div>'; return; }
+      if(!d.ok){ wrap.innerHTML='<div class="ops-note">Could not load auctions: '+(d.error||'unknown')+'</div>'; return; }
+      const list=d.auctions||[];
+      if(!list.length){ wrap.innerHTML='<div class="ops-note">No auctions yet. When a booking is confirmed (with techs synced + BID_SECRET set), it posts here and texts your techs a bid link.</div>'; return; }
+      wrap.innerHTML=list.map(a=>{
+        const j=a.job||{}; const bids=(a.bids||[]).slice().sort((x,y)=>x.amount-y.amount);
+        const win=a.winner;
+        const bidRows = bids.length ? bids.map((b,i)=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;color:${i===0?'var(--gr)':'var(--mu)'}"><span>${i===0?'🏆 ':''}${(b.techName||b.techId)}</span><span style="font-weight:700">$${b.amount}</span></div>`).join('') : '<div style="font-size:12.5px;color:var(--mu)">No bids yet</div>';
+        return `<div style="background:var(--bg2);border:1px solid var(--bbr);border-radius:14px;padding:14px 16px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+            <div style="font-weight:700;color:var(--white)">${a.jobId} · ${j.package||'Job'} · ${j.area||''}</div>
+            <div style="font-size:11px;color:var(--mu)">${j.date||''} ${j.time||''}</div></div>
+          <div style="font-size:12.5px;color:var(--mu);margin:4px 0 10px">${j.customer||''} · ${j.vehicle||''} · customer total $${j.total||0}</div>
+          <div style="border-top:1px solid var(--bbr);padding-top:8px">${bidRows}</div>
+          ${win?`<div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span style="color:var(--gr);font-weight:700;font-size:13px">Winner: ${win.techName||win.techId} · $${win.amount}</span><button onclick="assignAuctionWinner('${a.jobId}','${(win.techName||win.techId).replace(/'/g,'')}')" style="background:var(--blue);color:#001022;border:none;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">✓ Assign to ${win.techName||win.techId}</button></div>`:''}
+        </div>`;
+      }).join('');
+    }).catch(e=>{ wrap.innerHTML='<div class="ops-note">Auctions unavailable (is the site deployed on Netlify?): '+e.message+'</div>'; });
+}
+
+function assignAuctionWinner(jobId, techName){
+  const list=getStoredBookings().map(b=>b.id===jobId?{...b, assignedTech:techName, status:(b.status==='Completed'||b.status==='Cancelled')?b.status:'Scheduled', updatedAt:new Date().toISOString()}:b);
+  setStoredBookings(list); renderAdminBookings();
+  alert('✓ '+jobId+' assigned to '+techName+'.');
 }
 
 function renderAdminCalendar(){
