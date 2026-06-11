@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Place your bid — Cardetail1</title>
+<style>
+  :root{--bg:#0a0f16;--card:#0e1622;--line:rgba(255,255,255,.08);--fg:#d6dce5;--mu:#8a9bb0;--white:#fff;--blue:#4da3ff;--gr:#22c55e;--am:#f5a623;--rd:#ef4444}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(1000px 500px at 50% -10%,#13202f,#0a0f16 55%);color:var(--fg);line-height:1.55;min-height:100vh;padding:20px 16px 60px}
+  .wrap{max-width:460px;margin:0 auto}
+  .brand{font-family:"Bebas Neue",sans-serif;font-weight:800;font-size:22px;letter-spacing:1px;color:var(--white);margin-bottom:4px}
+  .brand span{color:var(--blue)}
+  .eye{font-size:11px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--blue);margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 18px;margin-bottom:14px}
+  h1{font-size:20px;color:var(--white);margin-bottom:12px}
+  .row{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .row:last-child{border:none}
+  .row .k{color:var(--mu)} .row .v{color:var(--white);font-weight:600;text-align:right}
+  .lead{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:var(--gr)}
+  .out{background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.3);color:var(--am)}
+  .pill{display:inline-block;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700;margin-bottom:10px}
+  label{display:block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mu);margin-bottom:8px}
+  .bidwrap{display:flex;align-items:center;gap:8px}
+  .dollar{font-size:26px;font-weight:800;color:var(--white)}
+  input{flex:1;background:#0a121c;border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--white);font-size:22px;font-weight:700;outline:none}
+  input:focus{border-color:var(--blue)}
+  button{width:100%;margin-top:14px;background:var(--blue);color:#001022;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:800;cursor:pointer}
+  button:disabled{opacity:.5}
+  .muted{font-size:12.5px;color:var(--mu);margin-top:12px;line-height:1.5}
+  .big{font-size:30px;font-weight:800}
+  .err{color:var(--rd)} .ok{color:var(--gr)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">CARDETAIL<span>1</span></div>
+  <div class="eye">Technician · Job Auction</div>
+  <div id="content"><div class="card">Loading job…</div></div>
+</div>
+<script>
+const AUCTION_URL = '/.netlify/functions/auction';
+const qs = new URLSearchParams(location.search);
+const JOB = qs.get('job'), TECH = qs.get('tech'), SIG = qs.get('sig');
+let pollTimer = null;
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function el(id){ return document.getElementById(id); }
+
+async function api(action, extra){
+  const res = await fetch(AUCTION_URL, {method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(Object.assign({action, job:JOB, tech:TECH, sig:SIG}, extra||{}))});
+  return res.json();
+}
+
+function render(a){
+  const job = a.job||{};
+  const lowest = a.lowest;
+  const youWin = a.youWin;
+  const yourBid = a.yourBid;
+  const closed = a.status && a.status!=='open';
+  let statusPill = '';
+  if(yourBid!=null){
+    statusPill = youWin
+      ? `<div class="pill lead">✅ You're the lowest bid — you're winning</div>`
+      : `<div class="pill out">⚠️ You've been outbid — lower your bid to win</div>`;
+  }
+  el('content').innerHTML = `
+    <div class="card">
+      <h1>${esc(job.package||'Detailing job')}</h1>
+      <div class="row"><span class="k">Date</span><span class="v">${esc(job.date||'—')} ${esc(job.time||'')}</span></div>
+      <div class="row"><span class="k">Vehicle</span><span class="v">${esc(job.vehicle||'—')}</span></div>
+      <div class="row"><span class="k">Area</span><span class="v">${esc(job.area||'—')}</span></div>
+      <div class="row"><span class="k">Customer total</span><span class="v">$${esc(job.total||0)}</span></div>
+      <div class="row"><span class="k">Bids so far</span><span class="v">${a.bidCount||0}</span></div>
+      <div class="row"><span class="k">Lowest bid</span><span class="v big" style="color:var(--blue)">${lowest!=null?('$'+lowest):'—'}</span></div>
+    </div>
+    <div class="card">
+      ${statusPill}
+      ${closed
+        ? `<div class="pill ${youWin?'lead':'out'}">${youWin?'🎉 You won this job!':'This auction is closed.'}</div>`
+        : `<label>Your bid (what you'll do it for)</label>
+           <div class="bidwrap"><span class="dollar">$</span><input id="amt" type="number" inputmode="decimal" min="1" step="1" placeholder="0" value="${yourBid!=null?yourBid:''}"></div>
+           <button id="send" onclick="placeBid()">${yourBid!=null?'Update my bid':'Place bid'}</button>
+           <div class="muted">Lowest bid wins automatically. You can lower your bid anytime while the auction is open.</div>`}
+      <div id="msg" class="muted"></div>
+    </div>`;
+}
+
+async function placeBid(){
+  const amt = parseFloat(el('amt').value);
+  const msg = el('msg');
+  if(!(amt>0)){ msg.innerHTML='<span class="err">Enter a valid amount.</span>'; return; }
+  el('send').disabled=true;
+  try{
+    const r = await api('bid', {amount:amt});
+    if(!r.ok){ msg.innerHTML='<span class="err">'+esc(r.error||'Could not place bid')+'</span>'; el('send').disabled=false; return; }
+    render(r);
+    el('msg').innerHTML = r.youWin ? '<span class="ok">✓ Bid placed — you\'re currently winning.</span>' : '<span class="err">✓ Bid placed, but someone is lower. Lower your bid to win.</span>';
+  }catch(e){ msg.innerHTML='<span class="err">Network error. Try again.</span>'; el('send').disabled=false; }
+}
+
+async function load(){
+  if(!JOB||!TECH||!SIG){ el('content').innerHTML='<div class="card err">Invalid link. Open the link from your text message.</div>'; return; }
+  try{
+    const r = await api('get');
+    if(!r.ok){ el('content').innerHTML='<div class="card err">'+esc(r.error||'Could not load')+'. If this is an old link, the job may be taken.</div>'; return; }
+    render(r.auction);
+  }catch(e){ el('content').innerHTML='<div class="card err">Could not reach server. Check your connection.</div>'; }
+}
+load();
+// Light polling so the tech sees if they get outbid.
+pollTimer = setInterval(load, 15000);
+</script>
+</body>
+</html>
