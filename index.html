@@ -1933,7 +1933,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           </div>
           <div class="stripe-pay" aria-label="Secure checkout">
             <div class="pay-choice-row">
-              <button type="button" class="pay-choice" id="pc-card" onclick="payByCard()">💳 Pay deposit by card now (25%)</button>
+              <button type="button" class="pay-choice" id="pc-card" onclick="payByCard('deposit')">💳 Pay deposit by card now (25%)</button>
+              <button type="button" class="pay-choice" id="pc-full" onclick="payByCard('full')">🔒 Authorize full amount (charged after service)</button>
               <button type="button" class="pay-choice" id="pc-link" onclick="sendStripeLink()">🔗 Send me a link to pay in full</button>
               <button type="button" class="pay-choice" id="pc-onsite" onclick="payOnSite('card')">🏠 Pay by card on-site</button>
               <button type="button" class="pay-choice" id="pc-cash" onclick="payOnSite('cash')">💵 Pay cash on-site</button>
@@ -3349,7 +3350,7 @@ function stripeMsg(elId,msg,ok){ const el=document.getElementById(elId); if(!el)
 
 // Marca visualmente a opção de pagamento escolhida e limpa as demais.
 function selectPayChoice(activeId){
-  ['pc-card','pc-link','pc-onsite','pc-cash'].forEach(id=>{const el=document.getElementById(id); if(el) el.classList.toggle('sel', id===activeId);});
+  ['pc-card','pc-full','pc-link','pc-onsite','pc-cash'].forEach(id=>{const el=document.getElementById(id); if(el) el.classList.toggle('sel', id===activeId);});
 }
 
 // ── Caminho 3: pagar no local (cartão presencial ou dinheiro) — sem depósito online ──
@@ -3364,16 +3365,24 @@ function payOnSite(method){
 }
 
 // ── Caminho 1: cartão inline (Payment Element) ──
-async function payByCard(){
+// mode 'deposit' = autoriza 25% (hold) · mode 'full' = autoriza o TOTAL (hold),
+// capturado só depois do serviço. Ambos usam capture_method:manual.
+async function payByCard(mode){
+  mode = (mode==='full') ? 'full' : 'deposit';
   ensureBookingId();
-  ST.payMethod='deposit_card';
-  selectPayChoice('pc-card');
+  ST.payMethod = (mode==='full') ? 'preauth_full' : 'deposit_card';
+  const amountCents = (mode==='full') ? bookingTotalCents() : depositCents();
+  ST.authAmountCents = amountCents;
+  selectPayChoice(mode==='full' ? 'pc-full' : 'pc-card');
   const wrap=document.getElementById('stripe-card-wrap');
   const err=document.getElementById('pay-err'); err.classList.remove('show');
   document.getElementById('stripe-link-result').style.display='none';
   wrap.style.display='block';
-  document.getElementById('stripe-deposit-lbl').textContent='Secure card · '+depositPctLabel()+' deposit ($'+depositDollars()+') · refundable hold';
-  if(stripeElements) return;                       // já montado
+  document.getElementById('stripe-deposit-lbl').textContent = (mode==='full')
+    ? 'Secure card · authorize full $'+(amountCents/100).toFixed(2)+' (hold now, charged after service)'
+    : 'Secure card · '+depositPctLabel()+' deposit ($'+depositDollars()+') · refundable hold';
+  // Re-mounting for a different amount: tear down a prior element first.
+  if(stripeElements){ try{ stripeElements=null; stripePI=null; document.getElementById('card-container').innerHTML=''; }catch(e){} }
   if(!STRIPE_READY){
     document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#8a9bb0;line-height:1.5">Card payment is in review mode (Stripe key not set). Your booking is submitted as a request — we send a secure payment link before the appointment.</div>';
     document.getElementById('stripe-auth-btn').style.display='none';
@@ -3381,7 +3390,7 @@ async function payByCard(){
   }
   try{
     const res=await fetch(BACKEND_BASE+'/create-payment-intent',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({amountCents:depositCents(), bookingId:ST.bookingId, email:(document.getElementById('f-email')?.value||'').trim()})});
+      body:JSON.stringify({amountCents:amountCents, bookingId:ST.bookingId, email:(document.getElementById('f-email')?.value||'').trim()})});
     const data=await res.json();
     if(!data.ok) throw new Error(data.error||'Could not start payment');
     stripePI=data.id;
@@ -3397,11 +3406,17 @@ async function authorizeStripe(){
   const btn=document.getElementById('stripe-auth-btn'); btn.disabled=true; btn.textContent='Authorizing…';
   try{
     const {error}=await stripe.confirmPayment({elements:stripeElements, redirect:'if_required'});
-    if(error){ err.textContent=error.message; err.classList.add('show'); btn.disabled=false; btn.textContent='Authorize deposit'; return; }
-    ST.paymentIntentId=stripePI; ST.paymentStatus='authorized'; ST.depositCents=depositCents();
-    stripeMsg('stripe-status','✓ Deposit authorized — $'+depositDollars()+' held. Continue to review &amp; submit below.',true);
-    btn.textContent='✓ Deposit authorized'; document.getElementById('pc-card').textContent='✓ Card authorized';
-  }catch(e){ err.textContent='Payment error. Please try again.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Authorize deposit'; }
+    if(error){ err.textContent=error.message; err.classList.add('show'); btn.disabled=false; btn.textContent='Authorize'; return; }
+    const full = ST.payMethod==='preauth_full';
+    ST.paymentIntentId=stripePI;
+    ST.paymentStatus = full ? 'authorized_full' : 'authorized';
+    ST.depositCents = full ? bookingTotalCents() : depositCents();
+    const held = ((ST.authAmountCents||ST.depositCents)/100).toFixed(2);
+    stripeMsg('stripe-status', full
+      ? '✓ Full amount authorized — $'+held+' held on the card. You\'re only <b>charged after the service is completed</b>. Continue to review &amp; submit below.'
+      : '✓ Deposit authorized — $'+held+' held. Continue to review &amp; submit below.', true);
+    btn.textContent='✓ Authorized'; const chip=document.getElementById(full?'pc-full':'pc-card'); if(chip) chip.textContent='✓ Card authorized';
+  }catch(e){ err.textContent='Payment error. Please try again.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Authorize'; }
 }
 
 // ── Caminho 2: link de pagamento seguro ──
@@ -3683,7 +3698,9 @@ function renderAdminBookings(){
       <div class="admin-actions">
         ${['Pending Review','Confirmed','Scheduled','Completed','Cancelled','No-Show','Rescheduled','Paid'].map(st=>`<button onclick="setBookingStatus('${b.id}','${st}')">${st}</button>`).join('')}
         <button onclick="scheduleBookingPrompt('${b.id}')">Set Date/Time</button>
-        <button onclick="setPayLinkPrompt('${b.id}')">💳 Set Pay Link</button>
+        <button onclick="setPayLinkPrompt('${b.id}')">💳 Pay Link (full)</button>
+        ${(b.paymentIntentId && (b.paymentStatus==='authorized'||b.paymentStatus==='authorized_full')) ? `<button onclick="captureBookingPayment('${b.id}')" style="border-color:var(--grbr);color:var(--gr)">💰 Capture $${((b.depositCents||0)/100).toFixed(2)}</button>` : ''}
+        <a href="/authorize.html?job=${encodeURIComponent(b.id)}&amount=${b.totalPrice||0}" target="_blank" rel="noopener">✍️ Auth Form</a>
         <a href="${mailtoForBooking(b)}">Email</a><a href="${smsForBooking(b)}">SMS</a><button onclick="copyBookingById('${b.id}')">Copy</button>
       </div>
     </div>`;
@@ -3888,6 +3905,24 @@ async function setPayLinkPrompt(id){
   const msg='Stripe full-payment link ($'+(cents/100).toFixed(2)+') generated & copied:\n'+link;
   if(navigator.clipboard){ navigator.clipboard.writeText(link).then(()=>alert(msg)).catch(()=>alert(msg)); }
   else alert(msg);
+}
+async function captureBookingPayment(id){
+  const b=getStoredBookings().find(x=>x.id===id); if(!b)return;
+  if(!b.paymentIntentId){ alert('No authorized card hold on this booking.'); return; }
+  const held=(b.depositCents||0)/100;
+  const amtStr=prompt('Capture amount for '+id+' (the card hold is $'+held.toFixed(2)+').\nLeave as-is to charge the full hold, or enter a LOWER amount:', held.toFixed(2));
+  if(amtStr===null) return;
+  const amountCents=Math.round(parseFloat(amtStr)*100);
+  if(!(amountCents>0)){ alert('Invalid amount.'); return; }
+  try{
+    const res=await fetch(BACKEND_BASE+'/capture-payment',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':window._adminKey||''},
+      body:JSON.stringify({paymentIntentId:b.paymentIntentId, amountCents})});
+    const data=await res.json();
+    if(!data.ok){ alert('Could not capture: '+(data.error||'unknown')); return; }
+    const list=getStoredBookings().map(x=>x.id===id?{...x, status:'Paid', paymentStatus:'captured', capturedCents:amountCents, updatedAt:new Date().toISOString()}:x);
+    setStoredBookings(list); renderAdminBookings();
+    alert('✓ Captured $'+(amountCents/100).toFixed(2)+' for '+id+'. Marked as Paid.');
+  }catch(e){ alert('Capture failed (site deployed?): '+e.message); }
 }
 function copyBookingById(id){
   const b=getStoredBookings().find(x=>x.id===id); if(!b)return;
