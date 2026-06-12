@@ -48,15 +48,20 @@ function award(auction) {
   return auction;
 }
 
-// Tech-facing projection (don't leak other techs' identities/amounts beyond the lowest).
+// Tech-facing projection. Techs NEVER see the customer's total — only the job
+// details and bid amounts (like nationaldetailpros). Also don't leak other
+// techs' identities beyond the current lowest bid.
 function techView(a, techId) {
   const mine = (a.bids || []).find(b => b.techId === techId);
+  const j = a.job || {};
   return {
-    jobId: a.jobId, status: a.status, job: a.job,
+    jobId: a.jobId, status: a.status,
+    job: { package: j.package, vehicle: j.vehicle, date: j.date, time: j.time, area: j.area }, // no `total`
     bidCount: (a.bids || []).length,
     lowest: a.winner ? a.winner.amount : null,
     youWin: !!(a.winner && a.winner.techId === techId),
     yourBid: mine ? mine.amount : null,
+    checkedIn: !!(mine && mine.checkedInAt),
   };
 }
 
@@ -107,6 +112,17 @@ exports.handler = async (event) => {
       if (existing) { existing.amount = amount; existing.at = new Date().toISOString(); }
       else { auction.bids.push({ techId: p.tech, techName: p.techName || p.tech, amount, at: new Date().toISOString() }); }
       award(auction);
+      await s.setJSON(jobId, auction);
+      return json(200, { ok: true, ...techView(auction, p.tech) });
+    }
+
+    if (action === 'checkin') {
+      if (!safeEq(p.sig, sign(jobId, p.tech, secret))) return json(401, { ok: false, error: 'invalid link' });
+      const mine = (auction.bids || []).find(b => b.techId === p.tech);
+      if (!mine) return json(409, { ok: false, error: 'no bid on this job' });
+      if (!auction.winner || auction.winner.techId !== p.tech) return json(409, { ok: false, error: 'only the winning tech can check in' });
+      mine.checkedInAt = new Date().toISOString();
+      if (p.lat && p.lng) mine.checkin = { lat: p.lat, lng: p.lng };
       await s.setJSON(jobId, auction);
       return json(200, { ok: true, ...techView(auction, p.tech) });
     }

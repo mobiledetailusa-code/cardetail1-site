@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Payment Authorization — Cardetail1</title>
+<style>
+  :root{--bg:#0a0f16;--card:#0e1622;--line:rgba(255,255,255,.1);--fg:#d6dce5;--mu:#8a9bb0;--white:#fff;--blue:#4da3ff;--gr:#22c55e;--rd:#ef4444}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);line-height:1.55;padding:18px 14px 60px}
+  .wrap{max-width:480px;margin:0 auto}
+  .brand{font-weight:800;font-size:20px;letter-spacing:1px;color:var(--white)}.brand span{color:var(--blue)}
+  .eye{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);margin:2px 0 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  h1{font-size:19px;color:var(--white);margin-bottom:6px}
+  .terms{font-size:12px;color:var(--mu);line-height:1.5;margin-bottom:8px}
+  label{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mu);margin:12px 0 6px}
+  input{width:100%;background:#0a121c;border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--white);font-size:16px;outline:none}
+  input:focus{border-color:var(--blue)}
+  .sigwrap{border:1.5px dashed var(--line);border-radius:10px;background:#0a121c;position:relative}
+  canvas{display:block;width:100%;height:180px;touch-action:none;border-radius:10px}
+  .sighint{position:absolute;left:14px;bottom:10px;color:var(--mu);font-size:12px;pointer-events:none}
+  .rowbtns{display:flex;gap:8px;margin-top:8px}
+  button{flex:1;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer}
+  .primary{background:var(--blue);color:#001022}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--mu);flex:0 0 auto;padding:13px 16px}
+  .muted{font-size:12px;color:var(--mu);margin-top:10px}
+  .ok{color:var(--gr)}.err{color:var(--rd)}
+  @media print{ body{background:#fff;color:#000} .card{border:1px solid #ccc;background:#fff} .noprint{display:none!important} .brand,h1,strong{color:#000} input{border:1px solid #ccc} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">CARDETAIL<span>1</span></div>
+  <div class="eye">Payment Authorization</div>
+  <div class="card">
+    <h1>Authorization to charge card</h1>
+    <div class="terms">I authorize <strong>Cardetail1 (Detailing Zone LLC)</strong> to charge my payment card the amount below for mobile detailing services. I confirm the vehicle condition was reviewed, that Cardetail1 is not responsible for pre-existing damage, and that service photos may be taken for the protection of both parties.</div>
+    <label>Customer name</label>
+    <input id="name" type="text" placeholder="Full name" autocomplete="name">
+    <label>Amount authorized (USD)</label>
+    <input id="amount" type="number" inputmode="decimal" min="1" step="1" placeholder="0.00">
+    <label>Signature</label>
+    <div class="sigwrap">
+      <canvas id="sig"></canvas>
+      <div class="sighint" id="sighint">✍️ Sign here with your finger</div>
+    </div>
+    <div class="rowbtns noprint">
+      <button class="ghost" type="button" onclick="clearSig()">Clear</button>
+      <button class="primary" type="button" onclick="submitAuth()">Authorize</button>
+    </div>
+    <div class="rowbtns noprint" style="margin-top:8px">
+      <button class="ghost" style="flex:1" type="button" onclick="window.print()">🖨️ Print / Save PDF</button>
+    </div>
+    <div id="msg" class="muted"></div>
+    <div class="muted">Date: <span id="today"></span> · Booking: <span id="jobid">—</span></div>
+  </div>
+</div>
+<script>
+const qs=new URLSearchParams(location.search);
+const JOB=qs.get('job')||''; const PRESET=qs.get('amount');
+document.getElementById('jobid').textContent=JOB||'—';
+document.getElementById('today').textContent=new Date().toLocaleDateString('en-US');
+if(PRESET) document.getElementById('amount').value=PRESET;
+
+const canvas=document.getElementById('sig'); const ctx=canvas.getContext('2d');
+let drawing=false, hasInk=false;
+function resize(){ const r=canvas.getBoundingClientRect(); const dpr=window.devicePixelRatio||1; canvas.width=r.width*dpr; canvas.height=r.height*dpr; ctx.scale(dpr,dpr); ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.strokeStyle='#ffffff'; }
+resize();
+function pos(e){ const r=canvas.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left, y:t.clientY-r.top}; }
+function start(e){ drawing=true; hasInk=true; document.getElementById('sighint').style.display='none'; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
+function move(e){ if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); }
+function end(){ drawing=false; }
+canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+canvas.addEventListener('touchstart',start,{passive:false}); canvas.addEventListener('touchmove',move,{passive:false}); canvas.addEventListener('touchend',end);
+function clearSig(){ ctx.clearRect(0,0,canvas.width,canvas.height); hasInk=false; document.getElementById('sighint').style.display='block'; }
+
+async function submitAuth(){
+  const name=document.getElementById('name').value.trim();
+  const amount=parseFloat(document.getElementById('amount').value);
+  const msg=document.getElementById('msg');
+  if(!name){ msg.innerHTML='<span class="err">Enter the customer name.</span>'; return; }
+  if(!(amount>0)){ msg.innerHTML='<span class="err">Enter the amount.</span>'; return; }
+  if(!hasInk){ msg.innerHTML='<span class="err">Please sign above.</span>'; return; }
+  const signature=canvas.toDataURL('image/png');
+  msg.innerHTML='Submitting…';
+  try{
+    const res=await fetch('/.netlify/functions/submit-authorization',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({job:JOB, name, amount, signature, date:new Date().toISOString()})});
+    const data=await res.json();
+    if(data.ok){ msg.innerHTML='<span class="ok">✓ Authorization recorded'+(data.emailed?' and sent to Cardetail1':'')+'. You can print this page for your records.</span>'; }
+    else { msg.innerHTML='<span class="err">'+(data.error||'Could not submit')+' — you can still Print/Save this signed page.</span>'; }
+  }catch(e){ msg.innerHTML='<span class="err">Offline — please Print/Save this signed page instead.</span>'; }
+}
+</script>
+</body>
+</html>

@@ -72,7 +72,6 @@ function render(a){
       <div class="row"><span class="k">Date</span><span class="v">${esc(job.date||'—')} ${esc(job.time||'')}</span></div>
       <div class="row"><span class="k">Vehicle</span><span class="v">${esc(job.vehicle||'—')}</span></div>
       <div class="row"><span class="k">Area</span><span class="v">${esc(job.area||'—')}</span></div>
-      <div class="row"><span class="k">Customer total</span><span class="v">$${esc(job.total||0)}</span></div>
       <div class="row"><span class="k">Bids so far</span><span class="v">${a.bidCount||0}</span></div>
       <div class="row"><span class="k">Lowest bid</span><span class="v big" style="color:var(--blue)">${lowest!=null?('$'+lowest):'—'}</span></div>
     </div>
@@ -85,7 +84,15 @@ function render(a){
            <button id="send" onclick="placeBid()">${yourBid!=null?'Update my bid':'Place bid'}</button>
            <div class="muted">Lowest bid wins automatically. You can lower your bid anytime while the auction is open.</div>`}
       <div id="msg" class="muted"></div>
-    </div>`;
+    </div>
+    ${youWin ? `<div class="card">
+      <label>On-site check-in</label>
+      ${a.checkedIn
+        ? `<div class="pill lead">✅ Checked in — reminder: take before/after + damage photos</div>`
+        : `<button id="checkin" onclick="checkIn()">📍 Check in (I'm on-site)</button>
+           <div class="muted">Tap when you arrive at the customer's location.</div>`}
+      <div id="cmsg" class="muted"></div>
+    </div>` : ''}`;
 }
 
 async function placeBid(){
@@ -99,6 +106,23 @@ async function placeBid(){
     render(r);
     el('msg').innerHTML = r.youWin ? '<span class="ok">✓ Bid placed — you\'re currently winning.</span>' : '<span class="err">✓ Bid placed, but someone is lower. Lower your bid to win.</span>';
   }catch(e){ msg.innerHTML='<span class="err">Network error. Try again.</span>'; el('send').disabled=false; }
+}
+
+async function checkIn(){
+  const btn=el('checkin'); if(btn) btn.disabled=true;
+  const cmsg=el('cmsg');
+  const send = async (coords)=>{
+    try{
+      const r = await api('checkin', coords||{});
+      if(r.ok){ render(r); el('cmsg') && (el('cmsg').innerHTML='<span class="ok">✓ Checked in. Don\'t forget before/after + damage photos.</span>'); }
+      else { cmsg.innerHTML='<span class="err">'+esc(r.error||'Could not check in')+'</span>'; if(btn) btn.disabled=false; }
+    }catch(e){ cmsg.innerHTML='<span class="err">Network error.</span>'; if(btn) btn.disabled=false; }
+  };
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      p=>send({lat:p.coords.latitude, lng:p.coords.longitude}),
+      ()=>send(null), {timeout:6000});
+  } else send(null);
 }
 
 async function load(){
