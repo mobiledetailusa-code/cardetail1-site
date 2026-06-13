@@ -1473,6 +1473,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <div class="cp-ov" id="cp-ov" onclick="handleCpOv(event)">
   <div class="cp-modal">
     <button class="cp-close" onclick="closePortal()">✕</button>
+    <a href="/" style="display:inline-block;font-size:12px;color:var(--mu);text-decoration:none;margin-bottom:12px;letter-spacing:.04em" onclick="closePortal();return false;">← Back to Home</a>
     <div class="cp-title">MY BOOKING</div>
     <p style="font-size:13px;color:var(--mu);margin-bottom:0">Access your booking, pay online, or leave a review.</p>
     <div class="cp-tabs">
@@ -1761,6 +1762,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <div class="svc-from" id="bkfrom-fleet" style="font-size:12px">From $60/unit</div>
           </div>
         </div>
+        <div class="btn-row" style="justify-content:flex-start;margin-top:16px">
+          <button class="btn-b" onclick="closeBooking()">← Back to Home</button>
+        </div>
       </div>
 
       <!-- STEP 2: PACKAGES -->
@@ -1771,7 +1775,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div class="pkg-grid" id="pkg-grid"></div>
         <p style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">* Starting prices. Final price confirmed on-site based on condition.</p>
         <div class="btn-row">
-          <button class="btn-b" onclick="bkGoTo(1)">← Back</button>
+          <button class="btn-b" onclick="bkGoTo(1)">← Back to Category</button>
           <button class="btn-n" id="next2" disabled onclick="bkGoTo(3)">Enter Vehicle →</button>
         </div>
       </div>
@@ -1892,7 +1896,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </div>
 
         <div class="btn-row">
-          <button class="btn-b" onclick="bkGoTo(2)">← Back</button>
+          <button class="btn-b" onclick="bkGoTo(2)">← Back to Packages</button>
           <button class="btn-n" id="next3" disabled onclick="addCurrentVehicleAndContinue()">Continue to Info →</button>
         </div>
       </div>
@@ -1924,7 +1928,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           <div class="fg full"><div class="fl">Notes (optional)</div><textarea class="fta" id="f-notes" placeholder="Specific stains, gate code, parking info, pet hair…"></textarea></div>
         </div>
         <div class="btn-row">
-          <button class="btn-b" onclick="bkGoTo(3)">← Back</button>
+          <button class="btn-b" onclick="bkGoTo(3)">← Back to Vehicle</button>
           <button class="btn-n" onclick="goToPayment()">Review Terms →</button>
         </div>
       </div>
@@ -1994,7 +1998,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           <div class="pay-sub" style="margin-bottom:0">After review, Cardetail1 may confirm the appointment, suggest a different time, request photos, apply travel/toll adjustments, send a secure payment link, or decline unsafe/out-of-scope conditions.</div>
         </div>
         <div class="btn-row">
-          <button class="btn-b" onclick="bkGoTo(4)">← Back</button>
+          <button class="btn-b" onclick="bkGoTo(4)">← Back to Details</button>
           <button class="btn-n" onclick="goToConfirmFromTerms()">Review & Submit →</button>
         </div>
       </div>
@@ -2040,7 +2044,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           </label>
         </div>
         <div class="btn-row">
-          <button class="btn-b" onclick="bkGoTo(5)">← Back</button>
+          <button class="btn-b" onclick="bkGoTo(5)">← Back to Terms</button>
           <button class="btn-sub" id="sub-btn" onclick="submitBooking()">
             <div class="spin"></div><span class="bl">Submit Booking Request ✓</span>
           </button>
@@ -2062,6 +2066,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <div class="or" style="border:none"><span class="ol">Date</span><span class="ov" id="ok-date">—</span></div>
           </div>
           <p style="font-size:12.5px;color:var(--mu);margin-bottom:16px">Questions? Call / text <strong style="color:var(--white)">551-313-2956</strong> · Mon–Fri 8AM–5PM</p>
+          <button class="btn-b" onclick="closeBooking()" style="margin-bottom:10px">← Back to Homepage</button>
           <button class="btn-restart" onclick="restartBooking()">Book Another Service</button>
         </div>
       </div>
