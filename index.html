@@ -4895,15 +4895,11 @@ async function cpLoadManage(){
       return;
     }
   } catch(_) {
-    // Network error — fall back to localStorage
-    const q = bkId.trim().toLowerCase().replace('#','');
-    const qPhone = phone.replace(/\D/g,'');
-    const bookings = JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
-    found = bookings.filter(b=>{
-      const bp = (b.phone||'').replace(/\D/g,'');
-      const id = (b.id||'').toLowerCase();
-      return id===q && (bp===qPhone || (qPhone.length===11&&qPhone.startsWith('1')&&bp===qPhone.slice(1)));
-    });
+    if(btn){ btn.disabled=false; btn.textContent='Load My Booking →'; }
+    res.style.display='block';
+    res.innerHTML='<span style="color:var(--mu)">We could not verify this booking right now. Please try again or contact support at 551-313-2956.</span>';
+    document.querySelectorAll('.cp-sub-panel').forEach(p=>p.classList.remove('open'));
+    return;
   }
   if(btn){ btn.disabled=false; btn.textContent='Load My Booking →'; }
   res.style.display='block';
@@ -5090,16 +5086,10 @@ async function cpFindBooking(){
       return;
     }
   } catch(_) {
-    // Network error — fall back to localStorage
-    const q      = bkId.trim().toLowerCase().replace('#','');
-    const qPhone = phone.replace(/\D/g,'');
-    const bookings = JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
-    const found = bookings.filter(bk=>{
-      const bp = (bk.phone||'').replace(/\D/g,'');
-      const id = (bk.id||'').toLowerCase();
-      return id===q && (bp===qPhone || (qPhone.length===11&&qPhone.startsWith('1')&&bp===qPhone.slice(1)));
-    });
-    b = found[0] || null;
+    if(btn){ btn.disabled=false; btn.textContent='Find My Booking →'; }
+    res.style.display='block';
+    res.innerHTML='<span style="color:var(--mu)">We could not verify this booking right now. Please try again or contact support at 551-313-2956.</span>';
+    return;
   }
   if(btn){ btn.disabled=false; btn.textContent='Find My Booking →'; }
   res.style.display='block';
@@ -5138,15 +5128,10 @@ async function cpGetPayLink(){
       return;
     }
   } catch(_) {
-    // Network error — fall back to localStorage
-    const q      = bkId.trim().toUpperCase().replace('#','');
-    const qPhone = phone.replace(/\D/g,'');
-    const bookings = JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
-    const found = bookings.find(b=>{
-      const bp = (b.phone||'').replace(/\D/g,'');
-      return (b.id||'').toUpperCase()===q && (bp===qPhone || (qPhone.length===11&&qPhone.startsWith('1')&&bp===qPhone.slice(1)));
-    });
-    bk = found || null;
+    if(btn){ btn.disabled=false; btn.textContent='Get Payment Link →'; }
+    res.style.display='block';
+    res.innerHTML='<span style="color:var(--mu)">We could not verify this booking right now. Please try again or contact support at 551-313-2956.</span>';
+    return;
   }
   if(btn){ btn.disabled=false; btn.textContent='Get Payment Link →'; }
   res.style.display='block';

@@ -396,7 +396,8 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
     <div id="l-tech-form">
       <div class="lsub">Enter your registered email to access your dashboard</div>
       <input class="linp" type="email" id="l-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()">
-      <input class="linp" type="password" id="l-pass" placeholder="Access code (operators only)" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off">
+      <!-- Admin access: go to /admin — this field is not used for admin login -->
+      <input class="linp" type="password" id="l-pass" placeholder="Not required for technicians" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off" style="display:none">
       <button class="lbtn" onclick="doLogin()">Sign In →</button>
       <div class="lerr" id="lerr">Not found or not yet approved. Check your approval email.</div>
       <div class="llinks">
@@ -565,44 +566,13 @@ function lMode(m){
   document.getElementById('l-cust-form').style.display=m==='cust'?'block':'none';
 }
 
-async function doLogin(){
+// Admin login is handled exclusively by admin.html → /.netlify/functions/admin-auth.
+// This form is for approved technicians only (email lookup, no password).
+function doLogin(){
   const em  = (document.getElementById('l-email').value||'').trim();
-  const pw  = (document.getElementById('l-pass').value||'').trim();
   const err = document.getElementById('lerr');
-  const btn = document.querySelector('#l-tech-form .lbtn');
   err.classList.remove('show');
 
-  // If a password was entered, validate against backend before tech lookup
-  if(pw){
-    if(btn){ btn.disabled=true; btn.textContent='Checking…'; }
-    try {
-      const res  = await fetch('/.netlify/functions/admin-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: pw }),
-      });
-      const data = await res.json();
-      if(data.ok){
-        IS_ADMIN = true;
-        localStorage.setItem('cd1_session','admin');
-        if(btn){ btn.disabled=false; btn.textContent='Sign In →'; }
-        initAdmin();
-        return;
-      }
-      if(data.error === 'missing_admin_password_config'){
-        err.textContent = 'Admin password not configured. Contact support.';
-        err.classList.add('show');
-        if(btn){ btn.disabled=false; btn.textContent='Sign In →'; }
-        return;
-      }
-      // invalid_password — fall through to tech lookup
-    } catch(_) {
-      // Network error — fall through to tech lookup
-    }
-    if(btn){ btn.disabled=false; btn.textContent='Sign In →'; }
-  }
-
-  // TECHNICIAN: look up by email
   const tk = tkGet().find(t => t.email.toLowerCase() === em.toLowerCase());
   if(!tk){ err.textContent='Email not found. Check spelling or apply first.'; err.classList.add('show'); return; }
   if(tk.status==='pending'){ err.textContent='Still under review. We\'ll email you when approved.'; err.classList.add('show'); return; }
