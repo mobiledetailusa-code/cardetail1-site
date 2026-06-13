@@ -27,12 +27,7 @@ async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
   const token = process.env.NETLIFY_AUTH_TOKEN;
-  if (siteID && token) return getStore({ name, siteID, token });
-  // Diagnostic: surface exactly which var is missing so we can fix the dashboard config.
-  if (!siteID && !token) throw new Error('DIAG: NETLIFY_SITE_ID and NETLIFY_AUTH_TOKEN both missing from Deploy Preview env');
-  if (!siteID) throw new Error('DIAG: NETLIFY_SITE_ID missing — set it in Netlify env vars with scope All');
-  if (!token) throw new Error('DIAG: NETLIFY_AUTH_TOKEN missing — set it in Netlify env vars with scope All');
-  return getStore(name);
+  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
 }
 
 const json = (status, body) => ({
