@@ -202,6 +202,64 @@ async function sendEmail(b) {
   return { sent: true };
 }
 
+async function sendCustomerEmail(b) {
+  const { RESEND_API_KEY, RESEND_FROM } = process.env;
+  if (!RESEND_API_KEY) return { sent: false, reason: 'email not configured' };
+  if (!b.email) return { sent: false, reason: 'no customer email' };
+
+  const name = [b.firstName, b.lastName].filter(Boolean).join(' ');
+  const service = b.package || b.service || 'Detailing Service';
+  const vehicle = b.vehicle || b.vehicleCategory || '—';
+  const dateTime = [b.preferredDate, b.preferredTime].filter(Boolean).join(' ') || '—';
+  const zip = b.zipCode || b.zone || '—';
+
+  const text = [
+    `Hi ${name},`,
+    ``,
+    `Thank you for choosing Cardetail1.`,
+    ``,
+    `We received your booking request for ${service}. Our team will review your location, vehicle details, service selection, and availability before final confirmation.`,
+    ``,
+    `If your appointment requires travel approval, quote review, payment authorization, or additional service details, we will contact you before confirming the job.`,
+    ``,
+    `Requested details:`,
+    ``,
+    `  * Service: ${service}`,
+    `  * Vehicle: ${vehicle}`,
+    `  * Date/time: ${dateTime}`,
+    `  * Location/ZIP: ${zip}`,
+    `  * Booking ID: ${b.id}`,
+    ``,
+    `Please make sure the vehicle will be accessible, legally parked, and has enough space around it for mobile detailing.`,
+    ``,
+    `Cardetail1 Mobile Detailing`,
+    `https://cardetail1.com`,
+  ].join('\n');
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: RESEND_FROM || 'Cardetail1 <onboarding@resend.dev>',
+        to: [b.email],
+        subject: 'Cardetail1 — Booking Request Received',
+        text,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      console.log('[submit-booking] customer email failed:', res.status, err.slice(0, 200));
+      return { sent: false, reason: `resend ${res.status}` };
+    }
+    console.log('[submit-booking] customer email sent to:', b.email);
+    return { sent: true };
+  } catch (e) {
+    console.log('[submit-booking] customer email error:', e.message);
+    return { sent: false, reason: e.message };
+  }
+}
+
 async function sendSms(b) {
   const { TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, ADMIN_SMS } = process.env;
   if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM || !ADMIN_SMS) return { sent: false, reason: 'sms not configured' };
@@ -249,8 +307,9 @@ exports.handler = async (event) => {
     stored = { saved: false, reason: e.message };
   }
 
-  const [email, sms, auction] = await Promise.all([
+  const [email, customerEmail, sms, auction] = await Promise.all([
     sendEmail(b).catch(e => ({ sent: false, reason: e.message })),
+    sendCustomerEmail(b).catch(e => ({ sent: false, reason: e.message })),
     sendSms(b).catch(e => ({ sent: false, reason: e.message })),
     postAuction(b).catch(e => ({ posted: false, reason: e.message })),
   ]);
@@ -262,6 +321,7 @@ exports.handler = async (event) => {
     paymentStatus: b.paymentStatus,
     stored,
     email,
+    customerEmail,
     sms,
     auction,
   });
