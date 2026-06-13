@@ -18,6 +18,13 @@
 
 const crypto = require('crypto');
 
+async function blobsStore(name) {
+  const { getStore } = await import('@netlify/blobs');
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token = process.env.NETLIFY_AUTH_TOKEN;
+  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
+}
+
 // ── Stripe signature verification (no SDK, HMAC-SHA256, 5-min replay window) ──
 function verifyStripeSignature(rawBody, sigHeader, secret) {
   if (!sigHeader || !secret) return false;
@@ -41,8 +48,7 @@ async function updateBookingPayment(bookingId, updates) {
     return { updated: false, reason: 'no booking_id in Stripe metadata' };
   }
   try {
-    const { getStore } = await import('@netlify/blobs');
-    const store = getStore('cd1-bookings');
+    const store = await blobsStore('cd1-bookings');
     const booking = await store.get(bookingId, { type: 'json' });
     if (!booking) return { updated: false, reason: 'booking not found: ' + bookingId };
     const updated = { ...booking, ...updates, updatedAt: new Date().toISOString() };
@@ -69,12 +75,11 @@ async function triggerAuction(b) {
   const secret = process.env.BID_SECRET;
   if (!secret) return { posted: false, reason: 'BID_SECRET not set' };
   try {
-    const { getStore } = await import('@netlify/blobs');
     // Idempotency guard: do not create a second auction for the same booking.
-    const existing = await getStore('cd1-auctions').get(b.id, { type: 'json' });
+    const existing = await (await blobsStore('cd1-auctions')).get(b.id, { type: 'json' });
     if (existing) return { posted: false, reason: 'auction already exists for ' + b.id };
 
-    const roster = (await getStore('cd1-techs').get('roster', { type: 'json' })) || [];
+    const roster = (await (await blobsStore('cd1-techs')).get('roster', { type: 'json' })) || [];
     // Job object stored in auction. 'total' is admin-visible; techView() in
     // auction.js strips it before returning data to technicians.
     const job = {
@@ -85,7 +90,7 @@ async function triggerAuction(b) {
       area: b.zone || b.zipCode || '',
       total: b.totalPrice || 0,
     };
-    await getStore('cd1-auctions').setJSON(b.id, {
+    await (await blobsStore('cd1-auctions')).setJSON(b.id, {
       jobId: b.id,
       status: 'open',
       job,

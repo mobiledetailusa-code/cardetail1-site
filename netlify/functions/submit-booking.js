@@ -20,6 +20,16 @@
 
 const crypto = require('crypto');
 
+// @netlify/blobs auto-configures in hosted Functions via NETLIFY_BLOBS_CONTEXT.
+// If that injection isn't available (older site infra), fall back to explicit
+// siteID + token from env vars (set NETLIFY_SITE_ID + NETLIFY_AUTH_TOKEN).
+async function blobsStore(name) {
+  const { getStore } = await import('@netlify/blobs');
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token = process.env.NETLIFY_AUTH_TOKEN;
+  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
+}
+
 const json = (status, body) => ({
   statusCode: status,
   headers: { 'Content-Type': 'application/json' },
@@ -73,13 +83,11 @@ async function postAuction(b) {
   }
 
   try {
-    const { getStore } = await import('@netlify/blobs');
-
     // Idempotency: do not create a second auction for the same booking.
-    const existing = await getStore('cd1-auctions').get(b.id, { type: 'json' });
+    const existing = await (await blobsStore('cd1-auctions')).get(b.id, { type: 'json' });
     if (existing) return { posted: false, reason: 'auction already exists for ' + b.id };
 
-    const roster = (await getStore('cd1-techs').get('roster', { type: 'json' })) || [];
+    const roster = (await (await blobsStore('cd1-techs')).get('roster', { type: 'json' })) || [];
     // 'total' is stored for admin visibility. auction.js techView() strips it
     // before returning data to technicians — customer payment info is never
     // exposed through the tech-facing API endpoint.
@@ -91,7 +99,7 @@ async function postAuction(b) {
       area: b.zone || b.zipCode || '',
       total: b.totalPrice || 0,
     };
-    await getStore('cd1-auctions').setJSON(b.id, {
+    await (await blobsStore('cd1-auctions')).setJSON(b.id, {
       jobId: b.id,
       status: 'open',
       job,
@@ -235,8 +243,7 @@ exports.handler = async (event) => {
   // Store centrally in Netlify Blobs. Degrades gracefully if unavailable.
   let stored = { saved: false };
   try {
-    const { getStore } = await import('@netlify/blobs');
-    await getStore('cd1-bookings').setJSON(b.id, b);
+    await (await blobsStore('cd1-bookings')).setJSON(b.id, b);
     stored = { saved: true };
   } catch (e) {
     stored = { saved: false, reason: e.message };
