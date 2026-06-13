@@ -33,7 +33,9 @@ exports.handler = async (event) => {
 
   try {
     const { getStore } = await import('@netlify/blobs');
-    const store = getStore('cd1-bookings');
+    const siteID = process.env.NETLIFY_SITE_ID;
+    const token = process.env.NETLIFY_AUTH_TOKEN;
+    const store = (siteID && token) ? getStore({ name: 'cd1-bookings', siteID, token }) : getStore('cd1-bookings');
     const listing = await store.list();
     const blobs = (listing && listing.blobs) || [];
     const bookings = (await Promise.all(

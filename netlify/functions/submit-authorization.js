@@ -30,7 +30,10 @@ exports.handler = async (event) => {
   // Store centrally (signature included) — best effort.
   try {
     const { getStore } = await import('@netlify/blobs');
-    await getStore('cd1-authorizations').setJSON(id, Object.assign({}, record, { signature: p.signature }));
+    const siteID = process.env.NETLIFY_SITE_ID;
+    const token = process.env.NETLIFY_AUTH_TOKEN;
+    const authStore = (siteID && token) ? getStore({ name: 'cd1-authorizations', siteID, token }) : getStore('cd1-authorizations');
+    await authStore.setJSON(id, Object.assign({}, record, { signature: p.signature }));
   } catch (e) { /* ignore */ }
 
   // Email to owner with the signature PNG attached.
