@@ -396,7 +396,8 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
     <div id="l-tech-form">
       <div class="lsub">Enter your registered email to access your dashboard</div>
       <input class="linp" type="email" id="l-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()">
-      <input class="linp" type="password" id="l-pass" placeholder="Access code (operators only)" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off">
+      <!-- Admin access: go to /admin — this field is not used for admin login -->
+      <input class="linp" type="password" id="l-pass" placeholder="Not required for technicians" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off" style="display:none">
       <button class="lbtn" onclick="doLogin()">Sign In →</button>
       <div class="lerr" id="lerr">Not found or not yet approved. Check your approval email.</div>
       <div class="llinks">
@@ -533,7 +534,6 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
 // ═══════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════
-const ADMIN_PASS = 'cd1admin2026';
 let TECH = null; // approved tech object
 let IS_ADMIN = false;
 let _drwId = '', _probJobId = '';
@@ -566,21 +566,13 @@ function lMode(m){
   document.getElementById('l-cust-form').style.display=m==='cust'?'block':'none';
 }
 
+// Admin login is handled exclusively by admin.html → /.netlify/functions/admin-auth.
+// This form is for approved technicians only (email lookup, no password).
 function doLogin(){
-  const em = (document.getElementById('l-email').value||'').trim();
-  const pw = (document.getElementById('l-pass').value||'').trim();
+  const em  = (document.getElementById('l-email').value||'').trim();
   const err = document.getElementById('lerr');
   err.classList.remove('show');
 
-  // ADMIN: access code in password field (or typed in email field as fallback)
-  if(pw === ADMIN_PASS || em === ADMIN_PASS){
-    IS_ADMIN = true;
-    localStorage.setItem('cd1_session','admin');
-    initAdmin();
-    return;
-  }
-
-  // TECHNICIAN: look up by email
   const tk = tkGet().find(t => t.email.toLowerCase() === em.toLowerCase());
   if(!tk){ err.textContent='Email not found. Check spelling or apply first.'; err.classList.add('show'); return; }
   if(tk.status==='pending'){ err.textContent='Still under review. We\'ll email you when approved.'; err.classList.add('show'); return; }
