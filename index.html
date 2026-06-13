@@ -3672,6 +3672,27 @@ function renderAdminCounts(list){
   const statuses=['Pending Review','Confirmed','Scheduled','Completed','Cancelled','Rescheduled','No-Show'];
   el.innerHTML=[`<div class="admin-count"><b>${list.length}</b><span>Total</span></div>`].concat(statuses.map(st=>`<div class="admin-count"><b>${list.filter(b=>(b.status||'Pending Review')===st).length}</b><span>${st}</span></div>`)).join('');
 }
+// Returns a colored inline badge for paymentStatus. Admin-only — never shown
+// to technicians.
+function adminPayBadge(b) {
+  const ps = b.paymentStatus || '';
+  const amtAuth = b.amountAuthorizedCents ? ' $'+(b.amountAuthorizedCents/100).toFixed(2) : (b.depositCents ? ' $'+(b.depositCents/100).toFixed(2) : '');
+  const amtCap  = b.amountCapturedCents  ? ' $'+(b.amountCapturedCents/100).toFixed(2)  : '';
+  const MAP = {
+    authorized:              ['var(--gr)',    'rgba(34,197,94,.15)',  '✓ Authorized'+amtAuth],
+    paid:                    ['var(--gr)',    'rgba(34,197,94,.25)',  '✓ Paid'+amtCap],
+    capture_pending:         ['var(--am)',    'rgba(245,166,35,.15)', '⏳ Capture pending'],
+    authorization_pending:   ['var(--am)',    'rgba(245,166,35,.12)', '⏳ Auth pending'],
+    authorization_failed:    ['var(--rd)',    'rgba(239,68,68,.15)',  '✗ Auth failed'],
+    no_payment_required_yet: ['var(--mu)',    'rgba(138,155,176,.12)','💵 Cash / on-site'],
+    canceled:                ['var(--rd)',    'rgba(239,68,68,.12)',  '✗ Canceled'],
+    refunded:                ['#c084fc',      'rgba(192,132,252,.12)','↩ Refunded'],
+    expired:                 ['var(--mu)',    'rgba(138,155,176,.12)','⚠ Expired'],
+  };
+  const [color, bg, label] = MAP[ps] || ['var(--mu)', 'rgba(138,155,176,.1)', ps || 'No payment'];
+  return `<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:${color};background:${bg};border:1px solid ${color};border-radius:999px;padding:3px 9px;white-space:nowrap">${label}</span>`;
+}
+
 function renderAdminBookings(){
   const grid=document.getElementById('admin-grid');
   if(!grid)return;
@@ -3691,8 +3712,9 @@ function renderAdminBookings(){
     const vehsHtml = vehs ? vehs.map(v=>`<div style="font-size:11.5px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">${v.pkgIcon||'🚗'} <strong>${v.pkgName||'—'}</strong> · ${v.vehicleLabel||'—'} · ${(v.addons||[]).map(a=>a.name+(a.qty>1?' ×'+a.qty:'')).join(', ')||'no add-ons'} · <strong style="color:var(--blue)">$${v.subtotal||0}</strong></div>`).join('') : '';
     const jobPhotos = JSON.parse(localStorage.getItem('cd1_job_photos')||'{}')[b.id];
     const photoCount = jobPhotos ? jobPhotos.length : 0;
+    const payBadge = adminPayBadge(b);
     return `<div class="admin-card">
-      <div class="admin-card-top"><div><div class="admin-id">${b.id} · ${new Date(b.createdAt).toLocaleString()}${b.source==='Admin — manual entry'?' · <span style="color:var(--am)">Manual</span>':''}</div><div class="admin-title">${b.firstName} ${b.lastName} · ${b.package||'—'} · $${b.totalPrice}</div></div><div class="status-pill">${b.status||'Pending Review'}</div></div>
+      <div class="admin-card-top"><div><div class="admin-id">${b.id} · ${new Date(b.createdAt).toLocaleString()}${b.source==='Admin — manual entry'?' · <span style="color:var(--am)">Manual</span>':''}</div><div class="admin-title">${b.firstName} ${b.lastName} · ${b.package||'—'} · $${b.totalPrice}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><div class="status-pill">${b.status||'Pending Review'}</div>${payBadge}</div></div>
       <div class="admin-meta">
         <div><b>Phone:</b> <a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a></div><div><b>Email:</b> ${b.email||'—'}</div><div><b>Date:</b> ${b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</div><div><b>Address:</b> <a href="${mapsUrl}" target="_blank" style="color:var(--blue)">${b.address}</a></div>
         ${vehs ? `<div style="grid-column:1/-1"><b>Vehicles (${vehs.length}):</b><div style="margin-top:4px">${vehsHtml}</div></div>` : `<div><b>Vehicle:</b> ${b.vehicle||'—'}</div><div><b>Category:</b> ${b.vehicleCategory||'—'}</div><div><b>Add-ons:</b><br>${addons}</div>`}
@@ -3707,7 +3729,7 @@ function renderAdminBookings(){
         ${['Pending Review','Confirmed','Scheduled','Completed','Cancelled','No-Show','Rescheduled','Paid'].map(st=>`<button onclick="setBookingStatus('${b.id}','${st}')">${st}</button>`).join('')}
         <button onclick="scheduleBookingPrompt('${b.id}')">Set Date/Time</button>
         <button onclick="setPayLinkPrompt('${b.id}')">💳 Pay Link (full)</button>
-        ${(b.paymentIntentId && (b.paymentStatus==='authorized'||b.paymentStatus==='authorized_full')) ? `<button onclick="captureBookingPayment('${b.id}')" style="border-color:var(--grbr);color:var(--gr)">💰 Capture $${((b.depositCents||0)/100).toFixed(2)}</button>` : ''}
+        ${(b.paymentIntentId && b.paymentStatus==='authorized') ? `<button onclick="captureBookingPayment('${b.id}')" style="border-color:var(--grbr);color:var(--gr)">💰 Capture $${((b.amountAuthorizedCents||b.depositCents||0)/100).toFixed(2)}</button>` : ''}
         <a href="/authorize.html?job=${encodeURIComponent(b.id)}&amount=${b.totalPrice||0}" target="_blank" rel="noopener">✍️ Auth Form</a>
         <a href="${mailtoForBooking(b)}">Email</a><a href="${smsForBooking(b)}">SMS</a><button onclick="copyBookingById('${b.id}')">Copy</button>
       </div>
@@ -3927,7 +3949,7 @@ async function captureBookingPayment(id){
       body:JSON.stringify({paymentIntentId:b.paymentIntentId, amountCents})});
     const data=await res.json();
     if(!data.ok){ alert('Could not capture: '+(data.error||'unknown')); return; }
-    const list=getStoredBookings().map(x=>x.id===id?{...x, status:'Paid', paymentStatus:'captured', capturedCents:amountCents, updatedAt:new Date().toISOString()}:x);
+    const list=getStoredBookings().map(x=>x.id===id?{...x, status:'Paid', paymentStatus:'paid', amountCapturedCents:amountCents, capturedAt:new Date().toISOString(), updatedAt:new Date().toISOString()}:x);
     setStoredBookings(list); renderAdminBookings();
     alert('✓ Captured $'+(amountCents/100).toFixed(2)+' for '+id+'. Marked as Paid.');
   }catch(e){ alert('Capture failed (site deployed?): '+e.message); }

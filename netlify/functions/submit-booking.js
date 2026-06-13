@@ -1,17 +1,34 @@
 // netlify/functions/submit-booking.js
-// Recebe um booking do site e dispara notificação por e-mail (Resend) e SMS (Twilio).
-// Não usa dependências npm — só fetch nativo do Node 18 da Netlify.
+// Accepts a booking, normalizes paymentStatus to the canonical enum,
+// stores it in Netlify Blobs, notifies admin by email + SMS, and
+// triggers technician dispatch ONLY when paymentStatus is 'authorized' or 'paid'.
 //
-// Variáveis de ambiente (Netlify → Site settings → Environment variables):
-//   ADMIN_EMAIL       e-mail que RECEBE os bookings (obrigatório p/ e-mail)
-//   RESEND_API_KEY    chave do https://resend.com (obrigatório p/ e-mail)
-//   RESEND_FROM       remetente verificado, ex: "Cardetail1 <bookings@seudominio.com>"
-//   TWILIO_SID        (opcional) p/ SMS
-//   TWILIO_TOKEN      (opcional)
-//   TWILIO_FROM       (opcional) número Twilio, ex: +1XXXXXXXXXX
-//   ADMIN_SMS         (opcional) número que recebe o SMS, ex: +1XXXXXXXXXX
+// Canonical paymentStatus enum:
+//   no_payment_required_yet | authorization_pending | authorized |
+//   authorization_failed | capture_pending | paid | canceled |
+//   refunded | expired
+//
+// Dispatch rule (enforced here AND in stripe-webhook.js):
+//   - 'authorized' or 'paid'  → post auction + SMS techs
+//   - anything else           → store booking, notify admin, do NOT dispatch
+//
+// Env (Netlify → Site settings → Environment variables):
+//   ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM  (email notifications)
+//   TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, ADMIN_SMS  (SMS, optional)
+//   BID_SECRET   (required for dispatch / auction magic links)
+//   SITE_URL     (required for bid magic links)
 
 const crypto = require('crypto');
+
+// @netlify/blobs auto-configures in hosted Functions via NETLIFY_BLOBS_CONTEXT.
+// If that injection isn't available (older site infra), fall back to explicit
+// siteID + token from env vars (set NETLIFY_SITE_ID + NETLIFY_AUTH_TOKEN).
+async function blobsStore(name) {
+  const { getStore } = await import('@netlify/blobs');
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token = process.env.NETLIFY_AUTH_TOKEN;
+  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
+}
 
 const json = (status, body) => ({
   statusCode: status,
@@ -19,34 +36,86 @@ const json = (status, body) => ({
   body: JSON.stringify(body),
 });
 
-function signBid(jobId, techId, secret) {
-  return crypto.createHmac('sha256', secret).update(String(jobId) + '|' + String(techId)).digest('hex');
+// ── Normalize whatever the front-end sends to the canonical enum ──
+// Front-end may send 'authorized', 'authorized_full', 'link_sent', 'none',
+// 'cash_onsite', 'card_onsite', or nothing.
+function resolvePaymentStatus(b) {
+  const raw = String(b.paymentStatus || '');
+  const method = String(b.paymentMethod || '');
+
+  // Front-end confirmed a Stripe hold (both deposit and full-amount pre-auth
+  // map to 'authorized' in the canonical enum).
+  if (raw === 'authorized' || raw === 'authorized_full') return 'authorized';
+
+  // Already captured (edge case — webhook normally handles this).
+  if (raw === 'paid' || raw === 'captured') return 'paid';
+
+  // Cash / pay-on-site: no card required at booking time.
+  if (method === 'cash_onsite' || method === 'card_onsite') return 'no_payment_required_yet';
+
+  // Payment link sent — customer has not paid yet.
+  if (method === 'link' || raw === 'link_sent') return 'authorization_pending';
+
+  // Stripe key not configured (STRIPE_READY=false on the front-end):
+  // card UI shown but no actual PI created.
+  if (method === 'deposit_card' || method === 'preauth_full') return 'authorization_pending';
+
+  // Default: no payment path selected or unknown.
+  return 'authorization_pending';
 }
 
-// On a confirmed booking: create the auction in Blobs and SMS each tech a magic
-// bid link (lowest bid wins). Degrades gracefully if BID_SECRET/Twilio missing.
+function signBid(jobId, techId, secret) {
+  return crypto.createHmac('sha256', secret)
+    .update(String(jobId) + '|' + String(techId))
+    .digest('hex');
+}
+
+// ── Post auction to Blobs and SMS techs (idempotent) ──
+// Dispatch is gated on paymentStatus === 'authorized' | 'paid'.
+// SMS is skipped unless all Twilio env vars are set — safe for test mode.
 async function postAuction(b) {
   const secret = process.env.BID_SECRET;
   if (!secret) return { posted: false, reason: 'BID_SECRET not set' };
-  const st = String(b.status || '').toLowerCase();
-  if (!['confirmed', 'accepted', 'scheduled'].includes(st)) return { posted: false, reason: 'status not auctionable' };
+
+  const payStatus = String(b.paymentStatus || '');
+  if (!['authorized', 'paid'].includes(payStatus)) {
+    return { posted: false, reason: 'dispatch blocked: paymentStatus=' + payStatus };
+  }
+
   try {
-    const { getStore } = await import('@netlify/blobs');
-    const roster = (await getStore('cd1-techs').get('roster', { type: 'json' })) || [];
+    // Idempotency: do not create a second auction for the same booking.
+    const existing = await (await blobsStore('cd1-auctions')).get(b.id, { type: 'json' });
+    if (existing) return { posted: false, reason: 'auction already exists for ' + b.id };
+
+    const roster = (await (await blobsStore('cd1-techs')).get('roster', { type: 'json' })) || [];
+    // 'total' is stored for admin visibility. auction.js techView() strips it
+    // before returning data to technicians — customer payment info is never
+    // exposed through the tech-facing API endpoint.
     const job = {
-      customer: `${b.firstName || ''} ${b.lastName || ''}`.trim(),
-      vehicle: b.vehicle || b.vehicleCategory || '',
       package: b.package || '',
-      date: b.preferredDate || '', time: b.preferredTime || '',
-      area: b.zone || b.zipCode || '', address: b.address || '',
+      vehicle: b.vehicle || b.vehicleCategory || '',
+      date: b.preferredDate || '',
+      time: b.preferredTime || '',
+      area: b.zone || b.zipCode || '',
       total: b.totalPrice || 0,
     };
-    await getStore('cd1-auctions').setJSON(b.id, {
-      jobId: b.id, status: 'open', job, bids: [], winner: null, createdAt: new Date().toISOString(),
+    await (await blobsStore('cd1-auctions')).setJSON(b.id, {
+      jobId: b.id,
+      status: 'open',
+      job,
+      bids: [],
+      winner: null,
+      createdAt: new Date().toISOString(),
+      paymentStatus: b.paymentStatus,
+      amountAuthorizedCents: b.amountAuthorizedCents || b.depositCents || 0,
     });
+
     const base = process.env.SITE_URL || '';
     const { TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM } = process.env;
     let notified = 0;
+    // NOTE: SMS dispatch requires TWILIO_* env vars. In test mode these are
+    // typically not set, so notified stays 0. The auction record is still
+    // created in Blobs and visible in the admin panel.
     if (TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM && base && roster.length) {
       const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
       await Promise.all(roster.map(t => {
@@ -57,7 +126,9 @@ async function postAuction(b) {
           Body: `New Cardetail1 job: ${job.package} · ${job.date} · ${job.area}. Place your bid (lowest wins): ${link}`,
         });
         return fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
-          method: 'POST', headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body,
+          method: 'POST',
+          headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
         }).then(r => { if (r.ok) notified++; }).catch(() => {});
       }));
     }
@@ -71,9 +142,28 @@ function bookingText(b) {
   const vehicles = (b.vehicles || [])
     .map(v => `  • ${v.vehicleLabel || v.vehicle || 'Vehicle'} — ${v.pkgName || ''} ($${v.subtotal || 0})`)
     .join('\n');
+
+  const PAY_STATUS_LABEL = {
+    authorized:              'Card authorized (hold) — dispatch allowed',
+    paid:                    'Captured / Paid',
+    authorization_pending:   'Card not yet authorized — awaiting payment',
+    authorization_failed:    'Authorization failed',
+    no_payment_required_yet: 'Cash / pay on-site',
+    capture_pending:         'Authorized — capture pending after service',
+    canceled:                'Canceled',
+    refunded:                'Refunded',
+    expired:                 'Authorization expired',
+  };
+  const payLabel = PAY_STATUS_LABEL[b.paymentStatus] || (b.paymentStatus || 'Unknown');
+  const authorizedAmt = b.amountAuthorizedCents
+    ? ' ($' + (b.amountAuthorizedCents / 100).toFixed(2) + ' held)'
+    : '';
+
   return [
     `NEW BOOKING — ${b.id}`,
     `Status: ${b.status || 'Pending Review'}`,
+    `Payment: ${payLabel}${authorizedAmt}`,
+    b.paymentIntentId ? `PaymentIntent: ${b.paymentIntentId}` : '',
     ``,
     `Customer: ${b.firstName || ''} ${b.lastName || ''}`,
     `Phone:    ${b.phone || ''}`,
@@ -88,7 +178,6 @@ function bookingText(b) {
     `TOTAL:    $${b.totalPrice || 0}`,
     ``,
     `Notes:    ${b.notes || '—'}`,
-    `Card:     ${b.cardPolicyAccepted ? 'Policy accepted' : 'Not accepted'} · ${b.cardholderName || 'N/A'}`,
   ].filter(Boolean).join('\n');
 }
 
@@ -102,7 +191,7 @@ async function sendEmail(b) {
       from: RESEND_FROM || 'Cardetail1 <onboarding@resend.dev>',
       to: [ADMIN_EMAIL],
       reply_to: b.email || undefined,
-      subject: `New Cardetail1 Booking ${b.id} — ${b.firstName || ''} ${b.lastName || ''} ($${b.totalPrice || 0})`,
+      subject: `New Cardetail1 Booking ${b.id} — ${b.firstName || ''} ${b.lastName || ''} ($${b.totalPrice || 0}) · ${b.paymentStatus || 'pending'}`,
       text: bookingText(b),
     }),
   });
@@ -119,7 +208,7 @@ async function sendSms(b) {
   const body = new URLSearchParams({
     To: ADMIN_SMS,
     From: TWILIO_FROM,
-    Body: `New booking ${b.id}: ${b.firstName || ''} ${b.lastName || ''} · ${b.package || b.service || ''} · $${b.totalPrice || 0} · ${b.preferredDate || ''} · ${b.phone || ''}`,
+    Body: `New booking ${b.id}: ${b.firstName || ''} ${b.lastName || ''} · ${b.package || b.service || ''} · $${b.totalPrice || 0} · ${b.preferredDate || ''} · pay:${b.paymentStatus || 'unknown'} · ${b.phone || ''}`,
   });
   const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
   const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
@@ -143,13 +232,18 @@ exports.handler = async (event) => {
   if (!b.firstName || !b.phone) return json(400, { ok: false, error: 'Missing customer name or phone' });
   if (!b.id) b.id = 'CD1-' + Date.now().toString(36).toUpperCase();
 
-  // Central storage (Netlify Blobs) so the admin sees EVERY booking, not just the
-  // ones made in its own browser. Degrades gracefully if Blobs is unavailable.
+  // Normalize paymentStatus to canonical enum before storing.
+  b.paymentStatus = resolvePaymentStatus(b);
+
+  // Preserve amountAuthorizedCents from front-end (depositCents / authAmountCents).
+  if (!b.amountAuthorizedCents && b.depositCents) {
+    b.amountAuthorizedCents = b.depositCents;
+  }
+
+  // Store centrally in Netlify Blobs. Degrades gracefully if unavailable.
   let stored = { saved: false };
   try {
-    const { getStore } = await import('@netlify/blobs');
-    const store = getStore('cd1-bookings');
-    await store.setJSON(b.id, b);
+    await (await blobsStore('cd1-bookings')).setJSON(b.id, b);
     stored = { saved: true };
   } catch (e) {
     stored = { saved: false, reason: e.message };
@@ -161,6 +255,14 @@ exports.handler = async (event) => {
     postAuction(b).catch(e => ({ posted: false, reason: e.message })),
   ]);
 
-  // Mesmo se notificação/armazenamento falhar, confirmamos o recebimento do request.
-  return json(200, { ok: true, id: b.id, status: b.status || 'Pending Review', stored, email, sms, auction });
+  return json(200, {
+    ok: true,
+    id: b.id,
+    status: b.status || 'Pending Review',
+    paymentStatus: b.paymentStatus,
+    stored,
+    email,
+    sms,
+    auction,
+  });
 };

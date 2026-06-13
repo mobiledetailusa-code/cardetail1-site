@@ -21,7 +21,9 @@ const json = (status, body) => ({
 
 async function rosterStore() {
   const { getStore } = await import('@netlify/blobs');
-  return getStore('cd1-techs');
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token = process.env.NETLIFY_AUTH_TOKEN;
+  return (siteID && token) ? getStore({ name: 'cd1-techs', siteID, token }) : getStore('cd1-techs');
 }
 
 exports.handler = async (event) => {

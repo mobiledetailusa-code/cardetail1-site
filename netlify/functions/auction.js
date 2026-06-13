@@ -37,7 +37,9 @@ function safeEq(a, b) {
 
 async function store() {
   const { getStore } = await import('@netlify/blobs');
-  return getStore('cd1-auctions');
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token = process.env.NETLIFY_AUTH_TOKEN;
+  return (siteID && token) ? getStore({ name: 'cd1-auctions', siteID, token }) : getStore('cd1-auctions');
 }
 
 // Recompute the winner = the lowest current bid.
