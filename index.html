@@ -5011,13 +5011,7 @@ async function cpLoadManage(){
       +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+(b.confirmedWindow||b.preferredDate||'—')+' · '+(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+(b.address||'—')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(b.totalPrice||0)+'</strong>'+(b.tip?' + Tip $'+b.tip:'')+'</div>'
       +'<div style="margin-top:10px">'+vehHtml+'</div>'
       +(b.payLink?'<div style="margin-top:10px"><a href="'+b.payLink+'" target="_blank" style="color:var(--blue);font-weight:600">&#x1F4B3; Pay Now &#x2192;</a></div>':'')
-      +'</div><div class="cp-action-bar">'
-      +(isEditable?'<button class="cp-action" onclick="cpOpenSub(\'reschedule\')">&#x1F4C5; Reschedule</button>':'')
-      +(isEditable?'<button class="cp-action" onclick="cpOpenSub(\'address\')">&#x1F4CD; Change Address</button>':'')
-      +(isEditable?'<button class="cp-action" onclick="cpOpenAddons()">&#x2795; Add Services</button>':'')
-      +(isCompleted?'<button class="cp-action success" onclick="cpOpenSub(\'tip\')">&#x1F4B0; Leave Tip</button>':'')
-      +(isEditable?'<button class="cp-action danger" onclick="cpOpenCancel(\''+b.id+'\',\''+canCancel+'\',\''+cancelWarn.replace(/'/g,'`')+'\')">✕ Cancel</button>':'')
-      +'</div>';
+      +'</div><div style="font-size:12px;color:var(--mu);margin-top:12px;line-height:1.6">To modify this booking, please contact Cardetail1 at <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</div>';
   } catch(_){
     if(btn){ btn.disabled=false; btn.textContent='Load My Booking →'; }
     res.style.display='block';
@@ -5056,62 +5050,12 @@ function cpToggleAddon(id, name, price, el){
   else cpSelectedAddons = cpSelectedAddons.filter(a=>a.id!==id);
 }
 
-function cpConfirmAddons(){
-  if(!cpActiveBookingId || !cpSelectedAddons.length){
-    const m = document.getElementById('cp-addon-msg'); if(m){m.style.display='block';m.innerHTML='<span style="color:var(--rd)">Select at least one add-on.</span>';} return;
-  }
-  const list = getStoredBookings().map(b=>{
-    if(b.id!==cpActiveBookingId) return b;
-    const newAddons = [...(b.addons||[]), ...cpSelectedAddons];
-    const newTotal  = (b.totalPrice||0) + cpSelectedAddons.reduce((s,a)=>s+a.price,0);
-    return {...b, addons:newAddons, totalPrice:newTotal, addonsRequested:true, updatedAt:new Date().toISOString()};
-  });
-  setStoredBookings(list);
-  const m = document.getElementById('cp-addon-msg'); if(m){m.style.display='block';m.innerHTML='<span style="color:var(--gr);font-weight:600">✓ Add-on request sent! We will confirm shortly.</span>';}
-}
-
-function cpConfirmReschedule(){
-  if(!cpActiveBookingId) return;
-  const newDate = document.getElementById('cp-new-date').value;
-  const newTime = document.getElementById('cp-new-time').value;
-  const msg     = document.getElementById('cp-reschedule-msg');
-  if(!newDate){ if(msg){msg.style.display='block';msg.innerHTML='<span style="color:var(--rd)">Please select a new date.</span>';} return; }
-  const list = getStoredBookings().map(b=>{
-    if(b.id!==cpActiveBookingId) return b;
-    return {...b, preferredDate:newDate, preferredTime:newTime||b.preferredTime, status:'Pending Review', rescheduledByClient:true, updatedAt:new Date().toISOString()};
-  });
-  setStoredBookings(list);
-  if(msg){msg.style.display='block';msg.innerHTML='<span style="color:var(--gr);font-weight:600">✓ Reschedule request sent for '+newDate+'. We will confirm shortly.</span>';}
-}
-
-function cpConfirmAddress(){
-  if(!cpActiveBookingId) return;
-  const newAddr = document.getElementById('cp-new-addr').value.trim();
-  const msg     = document.getElementById('cp-addr-msg');
-  if(!newAddr){ if(msg){msg.style.display='block';msg.innerHTML='<span style="color:var(--rd)">Please enter a new address.</span>';} return; }
-  const list = getStoredBookings().map(b=>{
-    if(b.id!==cpActiveBookingId) return b;
-    return {...b, address:newAddr, addressChangedByClient:true, updatedAt:new Date().toISOString()};
-  });
-  setStoredBookings(list);
-  if(msg){msg.style.display='block';msg.innerHTML='<span style="color:var(--gr);font-weight:600">✓ Address updated to: '+newAddr+'</span>';}
-  // Reload booking summary
-  cpLoadManage();
-}
-
-function cpConfirmCancel(){
-  if(!cpActiveBookingId) return;
-  const list = getStoredBookings().map(b=>{
-    if(b.id!==cpActiveBookingId) return b;
-    return {...b, status:'Cancelled', cancelledByClient:true, updatedAt:new Date().toISOString()};
-  });
-  setStoredBookings(list);
-  const msg = document.getElementById('cp-cancel-msg');
-  if(msg){msg.style.display='block';msg.innerHTML='<span style="color:var(--mu)">Booking cancelled. Call 551-313-2956 if you need help.</span>';}
-  cpActiveBookingId = null;
-  document.getElementById('cps-cancel').classList.remove('open');
-  // Reload manage result
-  setTimeout(()=>{ document.getElementById('cp-mgmt-result').style.display='none'; document.getElementById('cp-mgmt-id').value=''; document.getElementById('cp-mgmt-phone').value=''; }, 2000);
+function cpConfirmAddons(){ _cpContactOnly(); }
+function cpConfirmReschedule(){ _cpContactOnly(); }
+function cpConfirmAddress(){ _cpContactOnly(); }
+function cpConfirmCancel(){ _cpContactOnly(); }
+function _cpContactOnly(){
+  alert('To modify this booking, please contact Cardetail1 at 551-313-2956.');
 }
 
 function cpSelectTip(val){
@@ -5127,20 +5071,7 @@ function cpSelectTip(val){
   }
 }
 
-function cpConfirmTip(){
-  if(!cpActiveBookingId) return;
-  const customVal = parseFloat(document.getElementById('cp-custom-tip').value)||0;
-  const tip = cpSelectedTip || customVal;
-  const msg = document.getElementById('cp-tip-msg');
-  if(!tip || tip<1){ if(msg){msg.style.display='block';msg.innerHTML='<span style="color:var(--rd)">Select or enter a tip amount.</span>';} return; }
-  const list = getStoredBookings().map(b=>{
-    if(b.id!==cpActiveBookingId) return b;
-    return {...b, tip, updatedAt:new Date().toISOString()};
-  });
-  setStoredBookings(list);
-  if(msg){msg.style.display='block';msg.innerHTML='<span style="color:var(--gr);font-weight:600">💰 Thank you! $'+tip+' tip recorded. Cardetail1 will process it.</span>';}
-  cpSelectedTip = 0;
-}
+function cpConfirmTip(){ _cpContactOnly(); }
 
 async function cpFindBooking(){
   const bkId  = (document.getElementById('cp-find-id')   || {value:''}).value.trim();
