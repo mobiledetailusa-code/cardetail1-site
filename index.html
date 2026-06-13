@@ -301,6 +301,39 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .cp-tab.active{background:var(--blue);color:#000}
 .cp-panel{display:none}
 .cp-panel.active{display:block}
+/* â”€â”€ CUSTOMER GARAGE â”€â”€ */
+.cg-back{background:none;border:none;color:var(--mu);font-size:12px;cursor:pointer;padding:0;margin-bottom:12px;display:block;transition:.2s}
+.cg-back:hover{color:var(--white)}
+.cg-badge{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);background:var(--bdim);border:1px solid var(--bbr);border-radius:999px;padding:3px 12px;display:inline-block}
+.cg-section{background:var(--bg3);border:1px solid rgba(255,255,255,.07);border-radius:var(--rs);padding:14px 16px;margin-bottom:10px}
+.cg-sec-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);margin-bottom:10px}
+.cg-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.cg-lbl{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em}
+.cg-val{font-size:13px;font-weight:600;color:var(--white);text-align:right;max-width:260px}
+.cg-placeholder{font-size:12px;color:var(--mu);font-style:italic;margin-top:6px}
+.cg-vehicle{display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg2);border-radius:var(--rs);border:1px solid rgba(255,255,255,.06);margin-bottom:6px}
+.cg-vname{font-size:13px;font-weight:700;color:var(--white)}
+.cg-vpkg{font-size:11px;color:var(--mu)}
+.cg-hist{display:flex;justify-content:space-between;align-items:center;padding:8px 0}
+.cg-hpkg{font-size:13px;font-weight:600;color:var(--white)}
+.cg-hdate{font-size:11px;color:var(--mu)}
+.cg-hstat{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--bdim);color:var(--blue);border:1px solid var(--bbr)}
+.cg-plan{display:flex;justify-content:space-between;align-items:center;padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:var(--rs);margin-bottom:7px;cursor:pointer;transition:.2s}
+.cg-plan:hover{border-color:var(--blue);background:var(--bdim)}
+.cg-plan-name{font-size:13px;font-weight:600;color:var(--white)}
+.cg-plan-freq{font-size:11px;color:var(--mu)}
+.cg-plan-cta{font-size:12px;font-weight:700;color:var(--blue)}
+.cg-cta-p,.cg-cta-s{width:100%;padding:12px 16px;border-radius:var(--rs);font-family:var(--fb);font-size:13px;font-weight:700;cursor:pointer;transition:.2s;margin-bottom:7px;display:flex;align-items:center;gap:10px;box-sizing:border-box}
+.cg-cta-p{background:var(--blue);color:#000;border:none}
+.cg-cta-p:hover{background:#fff}
+.cg-cta-s{background:transparent;border:1px solid var(--bbr);color:var(--blue);text-decoration:none}
+.cg-cta-s:hover{background:var(--bdim)}
+.cg-pref-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+.cg-pref-row input[type=checkbox]{margin-top:3px;accent-color:var(--blue)}
+.cg-pref-lbl{font-size:13px;color:var(--white)}
+.cg-pref-sub{font-size:11px;color:var(--mu);margin-top:2px}
+.cg-pref-save{width:100%;padding:10px;border-radius:var(--rs);background:var(--blue);border:none;color:#000;font-weight:700;font-size:13px;font-family:var(--fb);cursor:pointer;margin-top:4px;transition:.2s}
+.cg-pref-save:hover{background:#fff}
 .cp-label{font-size:12px;font-weight:600;color:var(--mu);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;display:block}
 .cp-fi{width:100%;background:var(--bg3);border:1px solid rgba(255,255,255,.1);border-radius:var(--rs);padding:12px 14px;color:var(--white);font-family:var(--fb);font-size:14px;margin-bottom:14px;outline:none}
 .cp-fi:focus{border-color:var(--blue)}
@@ -1472,7 +1505,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   <div class="cp-modal">
     <button class="cp-close" onclick="closePortal()">✕</button>
     <div class="cp-title">MY BOOKING</div>
-    <p style="font-size:13px;color:var(--mu);margin-bottom:0">Access your booking, pay online, or leave a review.</p>
+    <p style="font-size:13px;color:var(--mu);margin-bottom:0">Access your booking and maintenance options.</p>
     <div class="cp-tabs">
       <button class="cp-tab active" onclick="cpTab(0)">🔍 Find</button>
       <button class="cp-tab" onclick="cpTab(1)">💳 Pay</button>
@@ -1484,9 +1517,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="cp-panel active" id="cp-p0">
       <label class="cp-label">Booking ID</label>
       <input class="cp-fi" id="cp-find-id" type="text" placeholder="e.g. CD1-XXXXX" autocomplete="off">
-      <label class="cp-label" style="margin-top:10px">Phone number on the booking</label>
+      <label class="cp-label" style="margin-top:8px">Phone number on the booking</label>
       <input class="cp-fi" id="cp-find-phone" type="tel" placeholder="e.g. 201-555-0100" autocomplete="tel">
-      <button class="cp-btn" onclick="cpFindBooking()">Find My Booking →</button>
+      <button class="cp-btn" onclick="cpFindBooking()">Access My Garage &rarr;</button>
       <div class="cp-result" id="cp-find-result"></div>
     </div>
 
@@ -1575,6 +1608,68 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <textarea class="cp-fi" id="cp-rv-text" rows="4" placeholder="Tell us about your experience…" style="resize:none"></textarea>
       <button class="cp-btn" onclick="cpSubmitReview()">Submit Review →</button>
       <div class="cp-result" id="cp-rv-result"></div>
+    </div>
+
+    <!-- CUSTOMER GARAGE â€” shown after successful booking lookup -->
+    <div id="cp-garage" style="display:none">
+      <button class="cg-back" onclick="cpGarageBack()">â† Search again</button>
+      <div style="margin-bottom:16px">
+        <span class="cg-badge">Customer Garage Preview</span>
+        <p style="font-size:12px;color:var(--mu);margin-top:6px">Access your booking and maintenance options.</p>
+      </div>
+
+      <!-- 1. Booking Summary -->
+      <div class="cg-section">
+        <div class="cg-sec-title">ðŸ“‹ Booking Summary</div>
+        <div id="cg-summary"></div>
+      </div>
+
+      <!-- 2. My Garage -->
+      <div class="cg-section">
+        <div class="cg-sec-title">ðŸš— My Garage</div>
+        <div id="cg-vehicles"></div>
+        <p class="cg-placeholder">Multi-vehicle garage available once your account is activated.</p>
+      </div>
+
+      <!-- 3. Service History -->
+      <div class="cg-section">
+        <div class="cg-sec-title">ðŸ“œ Service History</div>
+        <div id="cg-history"></div>
+        <p class="cg-placeholder">Previous services will appear here once your account is set up.</p>
+      </div>
+
+      <!-- 4. Maintenance Plans -->
+      <div class="cg-section">
+        <div class="cg-sec-title">ðŸ”§ Maintenance Plans</div>
+        <p style="font-size:12px;color:var(--mu);margin-bottom:12px">Request a plan â€” we'll follow up with pricing and scheduling.</p>
+        <div class="cg-plan" onclick="cpRequestPlan('weekly')"><div><div class="cg-plan-name">Weekly Maintenance</div><div class="cg-plan-freq">Every week Â· Best shine, best protection</div></div><span class="cg-plan-cta">Request â†’</span></div>
+        <div class="cg-plan" onclick="cpRequestPlan('biweekly')"><div><div class="cg-plan-name">Biweekly Maintenance</div><div class="cg-plan-freq">Every 2 weeks Â· Most popular</div></div><span class="cg-plan-cta">Request â†’</span></div>
+        <div class="cg-plan" onclick="cpRequestPlan('monthly')"><div><div class="cg-plan-name">Monthly Maintenance</div><div class="cg-plan-freq">Once a month Â· Essential care</div></div><span class="cg-plan-cta">Request â†’</span></div>
+        <div class="cg-plan" onclick="cpRequestPlan('multi-car')"><div><div class="cg-plan-name">Multi-Car Garage Plan</div><div class="cg-plan-freq">2+ vehicles Â· Custom pricing</div></div><span class="cg-plan-cta">Request â†’</span></div>
+      </div>
+
+      <!-- 5. Request Next Service -->
+      <div class="cg-section">
+        <div class="cg-sec-title">Request Next Service</div>
+        <button class="cg-cta-p" onclick="cpRequestPlan('custom')">ðŸ”§ Request a Maintenance Plan</button>
+        <button class="cg-cta-s" onclick="closePortal(); setTimeout(function(){ openBooking(null); }, 100)">ðŸš— Book Another Detail</button>
+        <a class="cg-cta-s" href="tel:5513132956">ðŸ“ž Contact Cardetail1</a>
+      </div>
+
+      <!-- 6. Communication Preferences -->
+      <div class="cg-section">
+        <div class="cg-sec-title">ðŸ’¬ Communication Preferences</div>
+        <div class="cg-pref-row">
+          <input type="checkbox" id="cg-pref-transact" checked disabled>
+          <div><div class="cg-pref-lbl">Appointment-related messages</div><div class="cg-pref-sub">Required â€” agreed to at booking.</div></div>
+        </div>
+        <div class="cg-pref-row">
+          <input type="checkbox" id="cg-pref-mkt">
+          <div><div class="cg-pref-lbl">Maintenance reminders, tips &amp; offers</div><div class="cg-pref-sub">Optional â€” uncheck anytime.</div></div>
+        </div>
+        <button class="cg-pref-save" onclick="cpSavePrefs()">Save Preferences</button>
+        <div id="cg-pref-msg" style="display:none;font-size:12px;color:var(--gr);margin-top:8px;text-align:center"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -5063,45 +5158,97 @@ function cpConfirmTip(){
 }
 
 async function cpFindBooking(){
-  const bkId  = document.getElementById('cp-find-id').value.trim();
-  const phone = document.getElementById('cp-find-phone').value.trim();
+  const bkId  = (document.getElementById('cp-find-id')   || {value:''}).value.trim();
+  const phone = (document.getElementById('cp-find-phone') || {value:''}).value.trim();
   const res   = document.getElementById('cp-find-result');
   const btn   = document.querySelector('#cp-p0 .cp-btn');
-  if(!bkId || !phone){ res.style.display='block'; res.innerHTML='<span style="color:var(--rd)">Enter both your booking ID and phone number.</span>'; return; }
-  if(btn){ btn.disabled=true; btn.textContent='Looking up…'; }
-  let b = null;
-  try {
-    const r    = await fetch('/.netlify/functions/lookup-booking', {
+  if(!bkId || !phone){
+    res.style.display='block';
+    res.innerHTML='<span style="color:var(--rd)">Enter your booking ID and phone number.</span>';
+    return;
+  }
+  if(btn){ btn.disabled=true; btn.textContent='Looking upâ€¦'; }
+  try{
+    const r = await fetch('/.netlify/functions/lookup-booking',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ bookingId: bkId, phone }),
     });
     const data = await r.json();
-    if(data.ok && data.booking){ b = data.booking; }
-    else {
-      if(btn){ btn.disabled=false; btn.textContent='Find My Booking →'; }
+    if(btn){ btn.disabled=false; btn.textContent='Access My Garage â†’'; }
+    if(data.ok && data.booking){
+      res.style.display='none';
+      cpShowGarage(data.booking);
+    } else {
       res.style.display='block';
-      res.innerHTML=`<span style="color:var(--mu)">${data.message||'No booking found. Contact us at 551-313-2956.'}</span>`;
-      return;
+      res.innerHTML='<span style="color:var(--mu)">'+(data.message||'No booking found. Contact us at 551-313-2956.')+'</span>';
     }
-  } catch(_) {
-    if(btn){ btn.disabled=false; btn.textContent='Find My Booking →'; }
+  } catch(_){
+    if(btn){ btn.disabled=false; btn.textContent='Access My Garage â†’'; }
     res.style.display='block';
-    res.innerHTML='<span style="color:var(--mu)">We could not verify this booking right now. Please try again or contact support at 551-313-2956.</span>';
-    return;
+    res.innerHTML='<span style="color:var(--mu)">Could not connect. Try again or call 551-313-2956.</span>';
   }
-  if(btn){ btn.disabled=false; btn.textContent='Find My Booking →'; }
-  res.style.display='block';
-  if(!b){
-    res.innerHTML='<span style="color:var(--mu)">No booking found. Contact us at 551-313-2956.</span>';
-  } else {
-    const vehs = b.vehicles && b.vehicles.length ? b.vehicles : [{pkgName:b.package,vehicleLabel:b.vehicle||b.vehicleCategory,pkgIcon:'🚗',addons:b.addons||[],subtotal:b.packagePrice||b.totalPrice}];
-    const vehStr = vehs.map(v=>`${v.pkgIcon||'🚗'} ${v.pkgName||'—'} · ${v.vehicleLabel||'—'}`).join('<br>');
-    res.innerHTML=`<div style="background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--rs);padding:14px;margin-bottom:10px">
-      <div style="font-weight:700;color:var(--white);margin-bottom:6px">#${b.id} <span style="font-size:11px;font-weight:600;padding:2px 10px;border-radius:999px;background:var(--bdim);color:var(--blue)">${b.status||'Pending'}</span></div>
-      <div style="color:var(--mu);font-size:12px;line-height:1.9">${vehStr}<br>📅 ${b.confirmedWindow||b.preferredDate||'—'} · 📍 ${b.address||'—'}<br>💰 Total: <strong style="color:var(--white)">$${b.totalPrice||0}</strong>${b.tip?' + Tip $'+b.tip:''}</div>
-      ${b.payLink?`<div style="margin-top:8px"><a href="${b.payLink}" target="_blank" style="color:var(--blue);font-weight:600">💳 Pay Now →</a></div>`:''}
-    </div>`;
-  }
+}
+
+// â”€â”€ CUSTOMER GARAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+let _cgBooking = null;
+
+function cpShowGarage(b){
+  _cgBooking = b;
+  const tabs = document.querySelector('#cp-ov .cp-tabs');
+  if(tabs) tabs.style.display = 'none';
+  document.querySelectorAll('#cp-ov .cp-panel').forEach(p => { p.style.display='none'; });
+  document.getElementById('cp-garage').style.display = 'block';
+  cpRenderGarage(b);
+  const mktEl = document.getElementById('cg-pref-mkt');
+  if(mktEl && localStorage.getItem('cd1_mkt_consent')==='1') mktEl.checked = true;
+}
+
+function cpGarageBack(){
+  _cgBooking = null;
+  document.getElementById('cp-garage').style.display = 'none';
+  const tabs = document.querySelector('#cp-ov .cp-tabs');
+  if(tabs) tabs.style.display = '';
+  document.querySelectorAll('#cp-ov .cp-tab').forEach((t,i)  => t.classList.toggle('active', i===0));
+  document.querySelectorAll('#cp-ov .cp-panel').forEach((p,i) => { p.style.display=''; p.classList.toggle('active', i===0); });
+}
+
+function cpRenderGarage(b){
+  const status = b.status || 'Pending Review';
+  const sc = {'Completed':'var(--gr)','Confirmed':'var(--blue)','Scheduled':'var(--blue)','In Progress':'var(--am)','Cancelled':'var(--rd)'}[status] || 'var(--mu)';
+  const date = b.confirmedWindow || b.preferredDate || 'â€”';
+  const time = b.preferredTime || '';
+  const addr = b.address || 'â€”';
+  const vehs = (b.vehicles && b.vehicles.length) ? b.vehicles : [{pkgName:b.package||'â€”', vehicleLabel:b.vehicle||'â€”', pkgIcon:'ðŸš—', addons:b.addons||[]}];
+  let sumHTML = '<div style="margin-bottom:10px"><span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:'+sc+'22;color:'+sc+';border:1px solid '+sc+'44">'+status+'</span></div>';
+  sumHTML += '<div class="cg-row"><span class="cg-lbl">Booking ID</span><span class="cg-val" style="font-family:var(--fd);color:var(--blue)">#'+b.id+'</span></div>';
+  vehs.forEach(v => {
+    sumHTML += '<div class="cg-row"><span class="cg-lbl">Package</span><span class="cg-val">'+v.pkgName+'</span></div>';
+    sumHTML += '<div class="cg-row"><span class="cg-lbl">Vehicle</span><span class="cg-val">'+v.pkgIcon+' '+v.vehicleLabel+'</span></div>';
+  });
+  sumHTML += '<div class="cg-row"><span class="cg-lbl">Date</span><span class="cg-val">'+date+'</span></div>';
+  if(time) sumHTML += '<div class="cg-row"><span class="cg-lbl">Time</span><span class="cg-val">'+time+'</span></div>';
+  sumHTML += '<div class="cg-row"><span class="cg-lbl">Location</span><span class="cg-val" style="max-width:200px;text-align:right">'+addr+'</span></div>';
+  if(b.payLink) sumHTML += '<div style="margin-top:12px"><a href="'+b.payLink+'" target="_blank" style="color:var(--blue);font-weight:700;font-size:13px">ðŸ’³ Pay Now â†’</a></div>';
+  document.getElementById('cg-summary').innerHTML = sumHTML;
+  let vehHTML = '';
+  vehs.forEach(v => {
+    vehHTML += '<div class="cg-vehicle"><span style="font-size:22px">'+v.pkgIcon+'</span><div><div class="cg-vname">'+v.vehicleLabel+'</div><div class="cg-vpkg">'+v.pkgName+'</div></div></div>';
+  });
+  document.getElementById('cg-vehicles').innerHTML = vehHTML;
+  document.getElementById('cg-history').innerHTML = '<div class="cg-hist"><div><div class="cg-hpkg">'+vehs[0].pkgName+'</div><div class="cg-hdate">'+date+'</div></div><span class="cg-hstat">'+status+'</span></div>';
+}
+
+function cpRequestPlan(type){
+  window.location.href = 'tel:5513132956';
+}
+
+function cpSavePrefs(){
+  const mkt = document.getElementById('cg-pref-mkt').checked;
+  localStorage.setItem('cd1_mkt_consent', mkt ? '1' : '0');
+  const msg = document.getElementById('cg-pref-msg');
+  msg.style.display = 'block';
+  msg.textContent = 'âœ“ Preferences saved.';
+  setTimeout(() => { msg.style.display='none'; }, 3000);
 }
 
 async function cpGetPayLink(){
