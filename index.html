@@ -548,6 +548,9 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .suc-card{background:var(--bg3);border:1px solid var(--grbr);border-radius:var(--rs);padding:16px;max-width:380px;margin:0 auto 20px;text-align:left}
 .btn-restart{background:transparent;border:1px solid var(--bbr);color:var(--blue);padding:11px 22px;border-radius:999px;font-family:var(--fb);font-size:12.5px;font-weight:600;cursor:pointer;transition:.2s}
 .btn-restart:hover{background:var(--blue);color:#000}
+.bk-sec-nav{display:flex;gap:18px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.bk-sec-nav a{font-size:11.5px;color:var(--mu);text-decoration:none;cursor:pointer;letter-spacing:.03em;transition:color .15s}
+.bk-sec-nav a:hover{color:var(--white)}
 
 /* FOOTER */
 footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:48px 24px 32px}
@@ -1473,6 +1476,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <div class="cp-ov" id="cp-ov" onclick="handleCpOv(event)">
   <div class="cp-modal">
     <button class="cp-close" onclick="closePortal()">✕</button>
+    <a onclick="closePortal()" style="display:inline-block;font-size:12px;color:var(--mu);text-decoration:none;cursor:pointer;margin-bottom:10px;letter-spacing:.04em">← Back to Home</a>
     <div class="cp-title">MY BOOKING</div>
     <p style="font-size:13px;color:var(--mu);margin-bottom:0">Access your booking, pay online, or leave a review.</p>
     <div class="cp-tabs">
@@ -1761,6 +1765,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <div class="svc-from" id="bkfrom-fleet" style="font-size:12px">From $60/unit</div>
           </div>
         </div>
+        <div class="btn-row" style="justify-content:flex-start;margin-top:16px">
+          <button class="btn-b" onclick="closeBooking()">← Back to Home</button>
+        </div>
       </div>
 
       <!-- STEP 2: PACKAGES -->
@@ -1771,9 +1778,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div class="pkg-grid" id="pkg-grid"></div>
         <p style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">* Starting prices. Final price confirmed on-site based on condition.</p>
         <div class="btn-row">
-          <button class="btn-b" onclick="bkGoTo(1)">← Back</button>
+          <button class="btn-b" onclick="bkGoTo(1)">← Back to Category</button>
           <button class="btn-n" id="next2" disabled onclick="bkGoTo(3)">Enter Vehicle →</button>
         </div>
+        <div class="bk-sec-nav"><a onclick="changeZip()">Change ZIP</a></div>
       </div>
 
       <!-- STEP 3: VEHICLE -->
@@ -1892,9 +1900,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </div>
 
         <div class="btn-row">
-          <button class="btn-b" onclick="bkGoTo(2)">← Back</button>
+          <button class="btn-b" onclick="bkGoTo(2)">← Back to Packages</button>
           <button class="btn-n" id="next3" disabled onclick="addCurrentVehicleAndContinue()">Continue to Info →</button>
         </div>
+        <div class="bk-sec-nav"><a onclick="changeZip()">Change ZIP</a><a onclick="changePackage()">Change Package</a></div>
       </div>
 
       <!-- STEP 4: INFO -->
@@ -1924,9 +1933,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           <div class="fg full"><div class="fl">Notes (optional)</div><textarea class="fta" id="f-notes" placeholder="Specific stains, gate code, parking info, pet hair…"></textarea></div>
         </div>
         <div class="btn-row">
-          <button class="btn-b" onclick="bkGoTo(3)">← Back</button>
+          <button class="btn-b" onclick="bkGoTo(3)">← Back to Vehicle</button>
           <button class="btn-n" onclick="goToPayment()">Review Terms →</button>
         </div>
+        <div class="bk-sec-nav"><a onclick="changeZip()">Change ZIP</a><a onclick="changePackage()">Change Package</a></div>
       </div>
 
       <!-- STEP 5: TERMS / NO PAYMENT TODAY -->
@@ -1994,9 +2004,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           <div class="pay-sub" style="margin-bottom:0">After review, Cardetail1 may confirm the appointment, suggest a different time, request photos, apply travel/toll adjustments, send a secure payment link, or decline unsafe/out-of-scope conditions.</div>
         </div>
         <div class="btn-row">
-          <button class="btn-b" onclick="bkGoTo(4)">← Back</button>
+          <button class="btn-b" onclick="bkGoTo(4)">← Back to Details</button>
           <button class="btn-n" onclick="goToConfirmFromTerms()">Review & Submit →</button>
         </div>
+        <div class="bk-sec-nav"><a onclick="editDetails()">Edit Booking</a></div>
       </div>
 
       <!-- STEP 6: CONFIRM -->
@@ -2040,11 +2051,12 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           </label>
         </div>
         <div class="btn-row">
-          <button class="btn-b" onclick="bkGoTo(5)">← Back</button>
+          <button class="btn-b" onclick="bkGoTo(5)">← Back to Terms</button>
           <button class="btn-sub" id="sub-btn" onclick="submitBooking()">
             <div class="spin"></div><span class="bl">Submit Booking Request ✓</span>
           </button>
         </div>
+        <div class="bk-sec-nav"><a onclick="editDetails()">Edit Booking</a><a onclick="changeService()">Change Service</a><a onclick="changeZip()">Change ZIP</a></div>
       </div>
 
       <!-- SUCCESS -->
@@ -2062,6 +2074,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <div class="or" style="border:none"><span class="ol">Date</span><span class="ov" id="ok-date">—</span></div>
           </div>
           <p style="font-size:12.5px;color:var(--mu);margin-bottom:16px">Questions? Call / text <strong style="color:var(--white)">551-313-2956</strong> · Mon–Fri 8AM–5PM</p>
+          <a onclick="closeBooking()" style="display:block;font-size:12px;color:var(--mu);text-decoration:none;cursor:pointer;margin-bottom:14px;letter-spacing:.04em">← Back to Homepage</a>
           <button class="btn-restart" onclick="restartBooking()">Book Another Service</button>
         </div>
       </div>
@@ -4054,6 +4067,11 @@ function restartBooking(){
   document.getElementById('f-time').selectedIndex=0;
   bkGoTo(1);
 }
+// ── STEP SHORTCUTS (back-nav helpers) ────────────────────────────────────────
+function changeZip(){bkGoTo(1);var z=document.getElementById('bk-zip');if(z){z.focus();try{z.setSelectionRange(0,z.value.length);}catch(e){}}}
+function changePackage(){bkGoTo(2);}
+function changeService(){bkGoTo(1);}
+function editDetails(){bkGoTo(4);}
 
 document.getElementById('f-date').min=new Date().toISOString().split('T')[0];
 if(location.hash==='#admin') setTimeout(openLogin,300);
