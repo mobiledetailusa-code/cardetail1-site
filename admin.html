@@ -39,21 +39,38 @@
     </div>
   </form>
 <script>
-  // NOTE: validação client-side (mesmo modelo demo do technician.html).
-  // Para produção, mover a autenticação para o backend (ver BACKEND-SETUP.md).
-  const ADMIN_PASS = 'cd1admin2026';
-  function adminLogin(e){
+  async function adminLogin(e){
     e.preventDefault();
     const code = (document.getElementById('code').value||'').trim();
-    if(code === ADMIN_PASS){
-      localStorage.setItem('cd1_session','admin');
-      location.href = 'technician.html';   // technician.html boota direto no painel admin
-      return false;
+    const btn  = document.querySelector('.box button[type="submit"]');
+    const err  = document.getElementById('err');
+    err.classList.remove('show');
+    if(!code) return;
+    btn.disabled = true;
+    btn.textContent = 'Verifying…';
+    try {
+      const res  = await fetch('/.netlify/functions/admin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: code }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        localStorage.setItem('cd1_session','admin');
+        location.href = 'technician.html';
+        return;
+      }
+      err.textContent = data.error === 'missing_admin_password_config'
+        ? 'Admin password not configured. Contact support.'
+        : 'Invalid access code.';
+      err.classList.add('show');
+    } catch(ex) {
+      err.textContent = 'Network error — try again.';
+      err.classList.add('show');
     }
-    document.getElementById('err').classList.add('show');
-    return false;
+    btn.disabled = false;
+    btn.textContent = 'Enter dashboard';
   }
-  // Se já estiver logado como admin, pula o login.
   if(localStorage.getItem('cd1_session') === 'admin'){ location.replace('technician.html'); }
 </script>
 </body>

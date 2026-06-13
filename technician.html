@@ -533,7 +533,6 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
 // ═══════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════
-const ADMIN_PASS = 'cd1admin2026';
 let TECH = null; // approved tech object
 let IS_ADMIN = false;
 let _drwId = '', _probJobId = '';
@@ -566,18 +565,41 @@ function lMode(m){
   document.getElementById('l-cust-form').style.display=m==='cust'?'block':'none';
 }
 
-function doLogin(){
-  const em = (document.getElementById('l-email').value||'').trim();
-  const pw = (document.getElementById('l-pass').value||'').trim();
+async function doLogin(){
+  const em  = (document.getElementById('l-email').value||'').trim();
+  const pw  = (document.getElementById('l-pass').value||'').trim();
   const err = document.getElementById('lerr');
+  const btn = document.querySelector('#l-tech-form .lbtn');
   err.classList.remove('show');
 
-  // ADMIN: access code in password field (or typed in email field as fallback)
-  if(pw === ADMIN_PASS || em === ADMIN_PASS){
-    IS_ADMIN = true;
-    localStorage.setItem('cd1_session','admin');
-    initAdmin();
-    return;
+  // If a password was entered, validate against backend before tech lookup
+  if(pw){
+    if(btn){ btn.disabled=true; btn.textContent='Checking…'; }
+    try {
+      const res  = await fetch('/.netlify/functions/admin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        IS_ADMIN = true;
+        localStorage.setItem('cd1_session','admin');
+        if(btn){ btn.disabled=false; btn.textContent='Sign In →'; }
+        initAdmin();
+        return;
+      }
+      if(data.error === 'missing_admin_password_config'){
+        err.textContent = 'Admin password not configured. Contact support.';
+        err.classList.add('show');
+        if(btn){ btn.disabled=false; btn.textContent='Sign In →'; }
+        return;
+      }
+      // invalid_password — fall through to tech lookup
+    } catch(_) {
+      // Network error — fall through to tech lookup
+    }
+    if(btn){ btn.disabled=false; btn.textContent='Sign In →'; }
   }
 
   // TECHNICIAN: look up by email
