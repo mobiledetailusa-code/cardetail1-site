@@ -57,6 +57,7 @@
       const data = await res.json();
       if(data.ok){
         localStorage.setItem('cd1_session','admin');
+        sessionStorage.setItem('cd1_admin_key', code);
         location.href = 'technician.html';
         return;
       }
