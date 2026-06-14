@@ -4626,7 +4626,7 @@ function onBkZipInput(val){
     surBadge.style.display = 'none';
     // Re-lock cards if ZIP not in service area
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.add('locked'));
-    if(gateMsg){ gateMsg.classList.remove('unlocked'); gateMsg.innerHTML='<span class="zg-ico">⚠️</span><span>ZIP not in service area (NJ · NY · CT · PA) — call 551-313-2956</span>'; }
+    if(gateMsg){ gateMsg.classList.remove('unlocked'); gateMsg.innerHTML='<span class="zg-ico">⚠️</span><span>ZIP not in our primary service area — call 551-313-2956</span>'; }
   }
   updateTotal();
 }
@@ -5919,7 +5919,7 @@ function onHeroZipInput(val){
       <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:16px 20px;max-width:420px;margin:0 auto;text-align:center">
         <div style="font-size:22px;margin-bottom:8px">📍</div>
         <div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:6px">Not in our area yet</div>
-        <div style="font-size:13px;color:var(--mu);line-height:1.6">Right now we serve <strong style="color:var(--white)">NJ · NY · CT · PA</strong>.<br>We're expanding fast — check back soon or <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">call us</a> and we'll let you know when we reach you.</div>
+        <div style="font-size:13px;color:var(--mu);line-height:1.6">Right now we primarily serve <strong style="color:var(--white)">Bergen County, NJ and nearby NJ/NY areas</strong>.<br>Extended service may be available by quote — <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">call us</a> and we'll confirm coverage.</div>
       </div>`;
     return;
   }
@@ -6034,7 +6034,7 @@ seedDefaultTechs();
 (function(){
   const $ = id => document.getElementById(id);
   const PHONE_TEL = '5513132956', PHONE = '551-313-2956';
-  const AREAS = 'NJ · NY · CT · PA';
+  const AREAS = 'Bergen County, NJ and nearby NJ/NY areas';
   let started = false;
 
   function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
