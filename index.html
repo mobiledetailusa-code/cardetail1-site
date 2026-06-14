@@ -1249,9 +1249,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <span class="svc-ico">🚗</span>
         <div class="svc-name">Cars & Trucks</div>
         <div class="svc-desc">Sedans, SUVs, crossovers, trucks, minivans. Maintenance to premium paint enhancement.</div>
-        <div class="svc-from" id="hfrom-cars">From $119 · Prices by vehicle size</div>
+        <div class="svc-from" id="hfrom-cars">From $175 · Prices by vehicle size</div>
         <div class="svc-tags">
-          <span class="svc-tag">Maintenance</span><span class="svc-tag">Interior Reset</span><span class="svc-tag">Full Detail</span><span class="svc-tag">Premium</span>
+          <span class="svc-tag">Maintenance Detail</span><span class="svc-tag">Interior Detail</span><span class="svc-tag">Premium Detail</span><span class="svc-tag">Paint Correction</span>
         </div>
         <button class="svc-btn">View Packages →</button>
       </div>
@@ -1868,7 +1868,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div class="btitle">CHOOSE YOUR<br>PACKAGE</div>
         <div class="bdesc">Select a package — price updates by vehicle type or exact length for boats, RVs and travel trailers.</div>
         <div class="pkg-grid" id="pkg-grid"></div>
-        <p style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">* Starting prices. Final price confirmed on-site based on condition.</p>
+        <p style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">Starting prices — final price depends on vehicle size, condition, location, and selected add-ons. Heavy pet hair, odor treatment, biohazard, excessive stains, and oversized vehicles may require additional charges.</p>
         <div class="btn-row">
           <button class="btn-b" onclick="bkGoTo(1)">← Back</button>
           <button class="btn-n" id="next2" disabled onclick="bkGoTo(3)">Enter Vehicle →</button>
@@ -2032,7 +2032,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="bsec" id="bs5">
         <div class="beye">Step 05</div>
         <div class="btitle">BOOKING<br>TERMS</div>
-        <div class="bdesc"><strong style="color:var(--white)">Choose how you'd like to pay.</strong> A 25% card deposit secures your slot now, a secure link lets you pay in full, or you can pay by card/cash on-site. Your appointment is accepted on submit — we only reach out if weather, access, or timing needs adjusting.</div>
+        <div class="bdesc"><strong style="color:var(--white)">Choose how you'd like to pay.</strong> A 25% card deposit secures your slot now, a secure link lets you pay in full, or you can pay by card/cash on-site. Your request is reviewed and confirmed by Cardetail1 — we'll reach out to confirm timing, access, and any condition-based adjustments before your appointment is scheduled.</div>
         <div class="card-gate">
           <div class="card-gate-title">Card Requirement / Secure Checkout Setup</div>
           <div class="card-gate-copy">
@@ -2503,32 +2503,32 @@ async function makeWebhookSend(payload){
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:119, interior:172, full:239, premium:359},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:146, interior:212, full:292, premium:439},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:172, interior:252, full:346, premium:506},
-      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:172, interior:239, full:332, premium:493},
+      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:300, premium:450},
+      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:215, interior:275, full:365, premium:550},
+      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:325, full:435, premium:635},
+      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:250, interior:315, full:415, premium:615},
     },
     packages:[
-      {id:'maint',    name:'Maintenance Wash', icon:'🪣', tag:'Exterior + light interior upkeep',          dur:'~1.5–2h',   popular:false, scope:'both',
+      {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
         ext:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
-        int:['Interior vacuum','Dashboard & console wipe','Air vents dusted'],
-        feats:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Air vents dusted','UV protectant applied'],
-        miss:['Clay bar','Carpet/seat shampoo','Machine polish','Wax or sealant']},
-      {id:'interior', name:'Interior Reset',   icon:'💺', tag:'Deep cabin — shampoo, steam & conditioning', dur:'~2.5–3.5h', popular:false, scope:'int',
+        int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
+        feats:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
+        miss:['Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
+      {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles — add-ons available for pet hair, odor & stains', dur:'~2.5–3.5h',            popular:false, scope:'int',
         ext:[],
-        int:['Full interior vacuum — seats, floors, trunk','Carpet shampoo','Fabric/leather seat shampoo & conditioning','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail','Interior glass cleaned','Odor-neutral finish applied'],
-        feats:['Full interior vacuum — seats, floors, trunk','Carpet shampoo','Fabric/leather seat shampoo & conditioning','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail','Interior glass cleaned','Odor-neutral finish applied'],
+        int:['Deep vacuum — seats, floors, trunk','Carpet shampoo where applicable','Fabric/leather seat cleaning & conditioning','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail','Interior glass cleaned','Odor-neutral finish applied'],
+        feats:['Deep vacuum — seats, floors, trunk','Carpet shampoo where applicable','Fabric/leather seat cleaning & conditioning','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail','Interior glass cleaned','Odor-neutral finish applied'],
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant']},
-      {id:'full',     name:'Full Detail',       icon:'🧽', tag:'Complete interior + exterior — most popular', dur:'~3.5–5h',   popular:true, scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar treatment','Spray wax/sealant','Wheels & tires dressed','Exterior glass cleaned'],
-        int:['Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','UV protectant'],
-        feats:['Maintenance Wash included','Clay bar treatment','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','Spray wax/sealant','Tire dressing','UV protectant'],
-        miss:['Machine polish','1-step paint correction','Premium long-term sealant']},
-      {id:'premium',  name:'Premium Detail',    icon:'🏅', tag:'Paint correction + long-term protection',    dur:'~5–7h',     popular:false, scope:'both',
-        ext:['1-step machine polish','Machine-applied wax/sealant','Rain-X windshield treatment','Chemical decontamination','Full wheel & lug detail','Trim restoration'],
-        int:['Full Detail interior included','Final quality inspection'],
-        feats:['Full Detail included','1-step machine polish','Machine-applied wax/sealant','Rain-X windshield treatment','Chemical decontamination','Full wheel & lug detail','Trim restoration','Final quality inspection'],
-        miss:[]}
+      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh — most popular',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'],
+        int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','UV protectant'],
+        feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','Spray sealant/protection','Tire dressing','UV protectant'],
+        miss:['Machine polish','Paint correction','Premium long-term sealant']},
+      {id:'premium',  name:'Paint Correction / Enhancement', icon:'🏅', tag:'Gloss improvement, swirls, oxidation & paint defects — price by vehicle size & condition', dur:'~4–7h', popular:false, scope:'ext', note:'Starting price — exact quote depends on vehicle size, paint condition, and correction level.',
+        ext:['1-step machine polish','Paint defect & swirl reduction','Oxidation assessment & treatment','Machine-applied wax/sealant','Chemical decontamination','Full wheel & lug detail','Exterior trim restoration','Rain-X windshield treatment'],
+        int:[],
+        feats:['1-step machine polish','Paint defect & swirl reduction','Oxidation assessment & treatment','Machine-applied wax/sealant','Chemical decontamination','Full wheel & lug detail','Exterior trim restoration','Rain-X windshield treatment','Final quality inspection'],
+        miss:['Interior shampoo (add Interior Detail if needed)']}
     ],
     addons:[
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',          icon:'🐾',  desc:'Deep removal of embedded pet hair from seats, carpets, mats, and trunk. Heavy vehicles may require estimate', price:95},
@@ -2993,7 +2993,7 @@ function renderPackages(cat){
       <div class="pkg-name">${p.name}</div>
       <div class="pkg-tag">${p.tag}</div>
       <div class="pkg-price">${p.id==='custom'?'Estimate':'from $'+startPrice}</div>
-      <div class="pkg-from">${p.id==='custom'?'quote required for mixed, large, or multi-location fleets':'price set by vehicle size/type'}</div>
+      <div class="pkg-from">${p.id==='custom'?'quote required for mixed, large, or multi-location fleets':p.note||'price set by vehicle size/type'}</div>
       <div class="pkg-time">⏱ ${p.dur}</div>
       <div class="pkg-div"></div>
       <ul class="pkg-feats">
@@ -4068,7 +4068,7 @@ function exportBookingsCsv(){
 }
 function clearDemoBookings(){if(confirm('Clear all local booking requests from this browser?')){localStorage.removeItem('cd1_bookings');renderAdminBookings();}}
 function seedDemoBooking(){
-  const demo={id:'CD1-DEMO',status:'Pending Review',createdAt:new Date().toISOString(),firstName:'Demo',lastName:'Customer',phone:'551-313-2956',email:'demo@example.com',address:'Bergen County, NJ',preferredDate:new Date().toISOString().slice(0,10),preferredTime:'Morning (8AM – 11AM)',vehicleCategory:'cars',vehicle:'2022 BMW X5',vehicleTier:'SUV 3-Row',lengthFt:'',package:'Full Detail',packagePrice:359,addons:[{name:'Pet Hair Removal',price:130}],addonTotal:130,totalPrice:489,notes:'Demo booking for admin preview.'};
+  const demo={id:'CD1-DEMO',status:'Pending Review',createdAt:new Date().toISOString(),firstName:'Demo',lastName:'Customer',phone:'551-313-2956',email:'demo@example.com',address:'Bergen County, NJ',preferredDate:new Date().toISOString().slice(0,10),preferredTime:'Morning (8AM – 11AM)',vehicleCategory:'cars',vehicle:'2022 BMW X5',vehicleTier:'SUV 3-Row',lengthFt:'',package:'Premium Detail',packagePrice:435,addons:[{name:'Pet Hair Removal',price:130}],addonTotal:130,totalPrice:565,notes:'Demo booking for admin preview.'};
   saveLocalBooking(demo);renderAdminBookings();
 }
 
@@ -5667,16 +5667,16 @@ function applyRichPrice(base){ return base ? Math.round(base * richMultiplier) :
 // Blip positions: cx/cy are % from center (0=center, radius=50)
 // Mapped roughly to NJ/NY/CT geography within the circle
 const RADAR_JOBS = [
-  { name:'Bruno M.',   city:'Cliffside Park, NJ', service:'Full Detail · Honda CR-V',        status:'done',      cx:-8,  cy:2,   delay:0.0, timeAgo:'12 min ago' },
-  { name:'Sarah K.',   city:'Fort Lee, NJ',        service:'Interior Reset · Toyota RAV4',   status:'scheduled', cx:-6,  cy:-4,  delay:0.6, timeAgo:'18 min ago' },
-  { name:'Carlos R.',  city:'Hoboken, NJ',         service:'Premium · BMW X5',               status:'enroute',   cx:4,   cy:5,   delay:1.1, timeAgo:'Just now'   },
-  { name:'Aisha T.',   city:'Teaneck, NJ',         service:'Maint Wash · Ford F-150',        status:'done',      cx:-12, cy:-8,  delay:1.8, timeAgo:'1 hr ago'   },
+  { name:'Bruno M.',   city:'Cliffside Park, NJ', service:'Premium Detail · Honda CR-V',     status:'done',      cx:-8,  cy:2,   delay:0.0, timeAgo:'12 min ago' },
+  { name:'Sarah K.',   city:'Fort Lee, NJ',        service:'Interior Detail · Toyota RAV4',  status:'scheduled', cx:-6,  cy:-4,  delay:0.6, timeAgo:'18 min ago' },
+  { name:'Carlos R.',  city:'Hoboken, NJ',         service:'Paint Correction · BMW X5',      status:'enroute',   cx:4,   cy:5,   delay:1.1, timeAgo:'Just now'   },
+  { name:'Aisha T.',   city:'Teaneck, NJ',         service:'Maintenance Detail · Ford F-150',status:'done',      cx:-12, cy:-8,  delay:1.8, timeAgo:'1 hr ago'   },
   { name:'Mike S.',    city:'Edgewater, NJ',       service:'Marine · 26ft Chaparral',        status:'enroute',   cx:-4,  cy:9,   delay:2.3, timeAgo:'5 min ago'  },
-  { name:'Priya L.',   city:'Short Hills, NJ',     service:'Premium · Mercedes GLE',         status:'review',    cx:-22, cy:6,   delay:0.3, timeAgo:'3 hrs ago'  },
-  { name:'Jason W.',   city:'White Plains, NY',    service:'Full Detail · Jeep Grand Ch.',   status:'scheduled', cx:18,  cy:-14, delay:2.8, timeAgo:'32 min ago' },
-  { name:'Diana C.',   city:'Greenwich, CT',       service:'Premium · Porsche Cayenne',      status:'done',      cx:28,  cy:-20, delay:1.5, timeAgo:'2 hrs ago'  },
+  { name:'Priya L.',   city:'Short Hills, NJ',     service:'Paint Correction · Mercedes GLE',status:'review',    cx:-22, cy:6,   delay:0.3, timeAgo:'3 hrs ago'  },
+  { name:'Jason W.',   city:'White Plains, NY',    service:'Premium Detail · Jeep Grand Ch.',status:'scheduled', cx:18,  cy:-14, delay:2.8, timeAgo:'32 min ago' },
+  { name:'Diana C.',   city:'Greenwich, CT',       service:'Paint Correction · Porsche Cay.',status:'done',      cx:28,  cy:-20, delay:1.5, timeAgo:'2 hrs ago'  },
   { name:'Omar H.',    city:'Ridgewood, NJ',       service:'RV Detail · Winnebago 34ft',     status:'requested', cx:-18, cy:-16, delay:3.2, timeAgo:'7 min ago'  },
-  { name:'Tanya B.',   city:'Scarsdale, NY',       service:'Interior Reset · Audi Q7',       status:'enroute',   cx:16,  cy:-8,  delay:0.9, timeAgo:'11 min ago' },
+  { name:'Tanya B.',   city:'Scarsdale, NY',       service:'Interior Detail · Audi Q7',      status:'enroute',   cx:16,  cy:-8,  delay:0.9, timeAgo:'11 min ago' },
   { name:'Luis P.',    city:'Hackensack, NJ',      service:'Fleet · 6 vehicles',             status:'done',      cx:-10, cy:-12, delay:2.1, timeAgo:'Yesterday'  },
   { name:'Nina F.',    city:'Westport, CT',        service:'Maint Wash · Volvo XC90',        status:'scheduled', cx:32,  cy:-12, delay:1.7, timeAgo:'45 min ago' },
   { name:'Derek A.',   city:'Great Neck, NY',      service:'Powersports · Harley',           status:'done',      cx:26,  cy:8,   delay:3.5, timeAgo:'4 hrs ago'  },
@@ -5708,11 +5708,11 @@ const SIM_CITIES = [
   'Bronxville, NY','Tarrytown, NY','Port Washington, NY','Garden City, NY','Manhasset, NY',
   'Greenwich, CT','Westport, CT','Darien, CT','Stamford, CT','New Canaan, CT','Wilton, CT'];
 const SIM_SERVICES = [
-  'Full Detail · BMW X5','Interior Reset · Tesla Model 3','Premium · Mercedes GLE',
-  'Maint Wash · Ford F-150','Marine Detail · 28ft Chaparral','RV Detail · Winnebago 32ft',
-  'Premium · Porsche Cayenne','Interior · Audi Q7','Fleet · 4 vehicles',
-  'Full Detail · Honda CR-V','Premium · Range Rover','Powersports · Harley Davidson',
-  'Interior Reset · Kia Telluride','Maint Wash · Toyota RAV4','Full Detail · Chevy Tahoe'];
+  'Premium Detail · BMW X5','Interior Detail · Tesla Model 3','Paint Correction · Mercedes GLE',
+  'Maintenance Detail · Ford F-150','Marine Detail · 28ft Chaparral','RV Detail · Winnebago 32ft',
+  'Paint Correction · Porsche Cayenne','Interior Detail · Audi Q7','Fleet · 4 vehicles',
+  'Premium Detail · Honda CR-V','Paint Correction · Range Rover','Powersports · Harley Davidson',
+  'Interior Detail · Kia Telluride','Maintenance Detail · Toyota RAV4','Premium Detail · Chevy Tahoe'];
 // Geographic positions within radar circle (cx/cy = offset % from center, max ±38)
 const SIM_POSITIONS = [
   [-8,2],[-6,-4],[4,5],[-12,-8],[-4,9],[-22,6],[18,-14],[28,-20],[-18,-16],[16,-8],
@@ -6143,7 +6143,7 @@ seedDefaultTechs();
       chips:[{label:'📅 See my area fee',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['package','packages','plan','plans','tier','what do you offer','full detail','interior','exterior'], fn:()=>{
-      const names=pkgNames('cars'); const list=names.length?names.map(n=>'• '+n).join('\n'):'• Maintenance Wash\n• Full Detail';
+      const names=pkgNames('cars'); const list=names.length?names.map(n=>'• '+n).join('\n'):'• Maintenance Detail\n• Premium Detail';
       return { reply:"For cars we offer:\n\n"+list+"\n\nBoats, RVs and trailers are priced by exact length, and fleet has volume pricing. Each package lists exactly what's included in the booking flow.",
         chips:[{label:'✨ Add-ons',q:'What add-ons do you have?'},{label:'📅 See packages',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
 
