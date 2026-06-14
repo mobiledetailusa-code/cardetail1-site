@@ -275,6 +275,58 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
   .main{padding:14px 12px}
   .sg{grid-template-columns:1fr 1fr}
 }
+
+/* ═══ ADMIN LEAD OPS: WORKFLOW TABS ═══ */
+.wf-tabs{display:flex;gap:0;overflow-x:auto;border-bottom:1px solid var(--border);background:var(--bg2);scrollbar-width:none}
+.wf-tabs::-webkit-scrollbar{display:none}
+.wf-tab{flex-shrink:0;padding:10px 14px;font-size:11px;font-weight:700;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:.15s;white-space:nowrap;display:flex;align-items:center;gap:5px;background:none;border-left:none;border-right:none;border-top:none;font-family:inherit}
+.wf-tab:hover{color:var(--white)}
+.wf-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.wf-ct{background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;min-width:14px;text-align:center;line-height:14px}
+.wf-ct.green{background:var(--green)}
+.wf-ct.blue{background:var(--blue);color:#000}
+.wf-ct.gray{background:rgba(255,255,255,.15)}
+
+/* ═══ PRIORITY CHIPS ═══ */
+.pri-chips{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px}
+.pri-chip{display:inline-flex;align-items:center;gap:2px;padding:1px 5px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+.pri-new{background:rgba(77,163,255,.12);color:var(--blue)}
+.pri-today{background:rgba(251,146,60,.12);color:var(--orange)}
+.pri-ext{background:rgba(45,212,191,.1);color:var(--teal)}
+.pri-hi{background:rgba(0,200,83,.1);color:var(--green)}
+.pri-flag{background:rgba(248,113,113,.1);color:var(--red)}
+
+/* ═══ PAYMENT STATUS PILL ═══ */
+.pay-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:5px;font-size:9px;font-weight:700;white-space:nowrap}
+.pp-auth{background:rgba(0,200,83,.1);color:var(--green)}
+.pp-paid{background:rgba(0,200,83,.2);color:var(--green)}
+.pp-pend{background:rgba(251,191,36,.1);color:var(--yellow)}
+.pp-fail{background:rgba(248,113,113,.1);color:var(--red)}
+.pp-cash{background:rgba(255,255,255,.06);color:var(--mu)}
+.pp-link{background:rgba(77,163,255,.1);color:var(--blue)}
+
+/* ═══ NEW BADGE TYPES ═══ */
+.b-auth{background:rgba(0,200,83,.1);color:var(--green)}.b-auth::before{background:var(--green)}
+.b-fail{background:rgba(248,113,113,.1);color:var(--red)}.b-fail::before{background:var(--red)}
+.b-test{background:rgba(251,191,36,.08);color:rgba(251,191,36,.7)}.b-test::before{background:rgba(251,191,36,.7)}
+
+/* ═══ QUICK ACTIONS ═══ */
+.qa-sect{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mu2);margin:14px 0 7px;width:100%}
+.qa-row{display:flex;gap:6px;flex-wrap:wrap;width:100%}
+.qa-btn{display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:none;transition:.2s;text-decoration:none;font-family:inherit}
+.qa-call{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.2)}
+.qa-call:hover{background:rgba(0,200,83,.2)}
+.qa-email{background:rgba(77,163,255,.1);color:var(--blue);border:1px solid rgba(77,163,255,.2)}
+.qa-email:hover{background:rgba(77,163,255,.18)}
+.qa-lookup{background:rgba(45,212,191,.08);color:var(--teal);border:1px solid rgba(45,212,191,.18)}
+.qa-lookup:hover{background:rgba(45,212,191,.15)}
+.qa-rev{background:rgba(167,139,250,.1);color:var(--purple);border:1px solid rgba(167,139,250,.2)}
+.qa-rev:hover{background:rgba(167,139,250,.18)}
+.qa-cont{background:rgba(251,146,60,.08);color:var(--orange);border:1px solid rgba(251,146,60,.18)}
+.qa-cont:hover{background:rgba(251,146,60,.15)}
+.qa-soon{background:transparent;color:var(--mu2);border:1px dashed var(--border);cursor:default;font-style:italic}
+.qa-soon:hover{transform:none}
+.local-note{font-size:10px;color:var(--mu2);line-height:1.5;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:7px;padding:8px 10px;margin-top:6px;width:100%}
 </style>
 </head>
 <body>
@@ -442,25 +494,36 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
       <div class="card"><div class="ch"><div class="ct">Pending Tech Applications</div><button class="btn btn-g btn-sm" onclick="admNav('technicians')">Review →</button></div><div id="d-techs" style="padding:11px 14px"></div></div>
     </div>
     <div class="page" id="ap-bookings">
-      <div class="pg-t">Bookings</div><div class="pg-s">Click any row for full details & actions</div>
-      <div class="card">
+      <div class="pg-t">Bookings</div><div class="pg-s">Click any row to open full details & quick actions</div>
+
+      <!-- ── DAILY WORKFLOW TABS ── -->
+      <div class="wf-tabs" id="wf-tabs">
+        <button class="wf-tab active" onclick="setWfTab('new')" id="wft-new">🆕 New Requests <span class="wf-ct" id="wfc-new">0</span></button>
+        <button class="wf-tab" onclick="setWfTab('reviewed')" id="wft-reviewed">✓ Reviewed <span class="wf-ct gray" id="wfc-reviewed">0</span></button>
+        <button class="wf-tab" onclick="setWfTab('scheduled')" id="wft-scheduled">📅 Scheduled <span class="wf-ct blue" id="wfc-scheduled">0</span></button>
+        <button class="wf-tab" onclick="setWfTab('completed')" id="wft-completed">✅ Completed <span class="wf-ct green" id="wfc-completed">0</span></button>
+        <button class="wf-tab" onclick="setWfTab('all')" id="wft-all">📋 All Active <span class="wf-ct gray" id="wfc-all">0</span></button>
+        <button class="wf-tab" onclick="setWfTab('test')" id="wft-test">🧪 Test / Archived <span class="wf-ct gray" id="wfc-test">0</span></button>
+      </div>
+
+      <div class="card" style="border-top-left-radius:0;border-top-right-radius:0">
         <div class="filters">
           <select class="ff" id="f-st" onchange="renderBk()"><option value="">All Status</option><option>Pending Review</option><option>Confirmed</option><option>Scheduled</option><option>In Progress</option><option>Completed</option><option>Cancelled</option><option>Rescheduled</option><option>No-Show</option><option>Payment Pending</option><option>Paid</option></select>
           <input class="ff" type="date" id="f-fr" onchange="renderBk()">
           <input class="ff" type="date" id="f-to" onchange="renderBk()">
           <input class="ff" type="search" id="f-q" oninput="renderBk()" placeholder="Search…" style="min-width:150px">
-          <button class="btn btn-g btn-sm" onclick="loadBkFromCloud()" id="bk-cloud-btn">☁️ Load from Cloud</button>
+          <button class="btn btn-p btn-sm" onclick="loadBkFromCloud()" id="bk-cloud-btn">☁️ Load from Cloud</button>
           <button class="btn btn-tl btn-sm" onclick="exportCSV()">⬇ CSV</button>
           <button class="btn btn-rd btn-sm" onclick="clearBkFilters()">✕ Clear</button>
           <div id="bk-admin-controls" style="display:none">
-            <select class="ff" id="f-bk-mode" onchange="renderBk()" title="Booking visibility">
+            <select class="ff" id="f-bk-mode" onchange="renderBk()" title="Booking visibility" style="display:none">
               <option value="active">Active</option>
               <option value="test">Test / Archived</option>
               <option value="all">All</option>
             </select>
           </div>
         </div>
-        <div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Vehicle / Service</th><th>Preferred</th><th>Zone</th><th>Total</th><th>Status</th><th>Quick</th></tr></thead><tbody id="bk-body"></tbody></table></div>
+        <div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Vehicle / Service</th><th>Date</th><th>Zone</th><th>Total</th><th>Status</th><th>Payment</th><th>Actions</th></tr></thead><tbody id="bk-body"></tbody></table></div>
       </div>
     </div>
     <div class="page" id="ap-technicians"><div class="pg-t">Technicians</div><div class="pg-s">Applications & active operators</div><div class="card"><div class="ch"><div class="ct">Applications</div></div><div style="padding:12px 14px" id="tch-list"></div></div></div>
@@ -585,8 +648,75 @@ function cfgSet(o){ localStorage.setItem('cd1_cfg',JSON.stringify(o)); }
 function bkNm(b){ return (b.name||((b.firstName||'')+' '+(b.lastName||''))||'Unknown').trim(); }
 function bkSvc(b){ return b.service||b.package||b.packageName||'Detail'; }
 function bkTot(b){ return b.totalPrice||b.total_price||b.packagePrice||0; }
-const SC={ 'Pending Review':'b-pen','Confirmed':'b-con','Scheduled':'b-sch','In Progress':'b-inp','En Route':'b-enr','Completed':'b-don','Cancelled':'b-can','Rescheduled':'b-res','No-Show':'b-can','Payment Pending':'b-pay','Paid':'b-don' };
+const SC={ 'Pending Review':'b-pen','Confirmed':'b-con','Scheduled':'b-sch','In Progress':'b-inp','En Route':'b-enr','Completed':'b-don','Cancelled':'b-can','Rescheduled':'b-res','No-Show':'b-can','Payment Pending':'b-pay','Paid':'b-don','Authorized':'b-auth','Failed':'b-fail','Test':'b-test','Archived':'b-test' };
 function badge(s){ return `<span class="badge ${SC[s]||'b-pen'}">${s||'Pending'}</span>`; }
+
+// ── PRIORITY CHIPS ──────────────────────────────────────────────────────────
+function bkPriChips(b){
+  const chips=[];
+  const now=Date.now();
+  const created=b.createdAt?new Date(b.createdAt).getTime():0;
+  const todayStr=new Date().toISOString().slice(0,10);
+  const tomorrowStr=new Date(now+864e5).toISOString().slice(0,10);
+  const prefDate=b.preferredDate||b.preferred_date||'';
+  const zone=(b.zone||b.zip_city||'').toLowerCase();
+  const total=bkTot(b);
+  // New — submitted within 24h
+  if(created && (now-created)<864e5) chips.push('<span class="pri-chip pri-new">🆕 New</span>');
+  // Today / Tomorrow
+  if(prefDate===todayStr) chips.push('<span class="pri-chip pri-today">📅 Today</span>');
+  else if(prefDate===tomorrowStr) chips.push('<span class="pri-chip pri-today">📅 Tomorrow</span>');
+  // Extended area — CT or zones that imply travel
+  if(/\bct\b|connecticut|fairfield|stamford|greenwich/i.test(zone)) chips.push('<span class="pri-chip pri-ext">📍 Extended</span>');
+  // High value
+  if(total>=300) chips.push('<span class="pri-chip pri-hi">💰 $'+total+'</span>');
+  // Contacted flag (local only)
+  if(b.adminContacted) chips.push('<span class="pri-chip" style="background:rgba(167,139,250,.12);color:var(--purple)">📞 Contacted</span>');
+  return chips.length?`<div class="pri-chips">${chips.join('')}</div>`:'';
+}
+
+// ── PAYMENT STATUS PILL ─────────────────────────────────────────────────────
+function payPill(b){
+  const ps=b.paymentStatus||'';
+  const MAP={
+    'authorized':         ['pp-auth','💳 Authorized'],
+    'paid':               ['pp-paid','✓ Paid'],
+    'authorization_pending':['pp-pend','⏳ Auth Pending'],
+    'capture_pending':    ['pp-pend','⏳ Capture Pending'],
+    'authorization_failed':['pp-fail','✗ Auth Failed'],
+    'no_payment_required_yet':['pp-cash','💵 Cash / On-Site'],
+    'link_sent':          ['pp-link','🔗 Link Sent'],
+  };
+  const [cls,label]=MAP[ps]||['pp-cash','—'];
+  return ps?`<span class="pay-pill ${cls}">${label}</span>`:'';
+}
+
+// ── WORKFLOW TABS ───────────────────────────────────────────────────────────
+let _wfTab='new';
+const WF_MAP={
+  new:      b=>!b.isTest&&!b.archived&&(b.status||'Pending Review')==='Pending Review',
+  reviewed: b=>!b.isTest&&!b.archived&&['Confirmed','Payment Pending','Rescheduled'].includes(b.status||''),
+  scheduled:b=>!b.isTest&&!b.archived&&['Scheduled','In Progress','En Route'].includes(b.status||''),
+  completed:b=>!b.isTest&&!b.archived&&['Completed','Paid','No-Show','Cancelled'].includes(b.status||''),
+  all:      b=>!b.isTest&&!b.archived,
+  test:     b=>!!(b.isTest||b.archived),
+};
+function setWfTab(t){
+  _wfTab=t;
+  document.querySelectorAll('.wf-tab').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('wft-'+t); if(el) el.classList.add('active');
+  // Sync the hidden f-bk-mode so filtBk() respects test/all correctly
+  const modeEl=document.getElementById('f-bk-mode');
+  if(modeEl) modeEl.value=(t==='test'?'test':(t==='all'?'all':'active'));
+  renderBk();
+}
+function updateWfCounts(){
+  const all=[...bkGet()];
+  Object.keys(WF_MAP).forEach(t=>{
+    const el=document.getElementById('wfc-'+t);
+    if(el) el.textContent=all.filter(WF_MAP[t]).length;
+  });
+}
 
 // ═══════════════════════════════════════
 // LOGIN MODES
@@ -653,6 +783,7 @@ function admBadges(){
   const bc=document.getElementById('b-ct'); bc.textContent=bp; bc.style.display=bp?'inline':'none';
   const tc=document.getElementById('t-ct'); tc.textContent=tp; tc.style.display=tp?'inline':'none';
   if(IS_ADMIN){ const bac=document.getElementById('bk-admin-controls'); if(bac) bac.style.display=''; }
+  updateWfCounts();
 }
 
 function admNav(p){
@@ -705,10 +836,14 @@ function renderDash(){
 // ═══════════════════════════════════════
 function filtBk(){
   let bk=[...bkGet()].reverse();
-  const mode=IS_ADMIN?(document.getElementById('f-bk-mode')?.value||'active'):'active';
-  if(mode==='active')      bk=bk.filter(b=>!b.isTest&&!b.archived);
-  else if(mode==='test')   bk=bk.filter(b=>b.isTest||b.archived);
-  // mode==='all': no additional filter
+  // Workflow tab takes precedence when in admin mode
+  if(IS_ADMIN && WF_MAP[_wfTab]){
+    bk=bk.filter(WF_MAP[_wfTab]);
+  } else {
+    const mode=IS_ADMIN?(document.getElementById('f-bk-mode')?.value||'active'):'active';
+    if(mode==='active') bk=bk.filter(b=>!b.isTest&&!b.archived);
+    else if(mode==='test') bk=bk.filter(b=>b.isTest||b.archived);
+  }
   const st=document.getElementById('f-st')?.value||'';
   const fr=document.getElementById('f-fr')?.value||'';
   const to=document.getElementById('f-to')?.value||'';
@@ -722,22 +857,25 @@ function filtBk(){
 
 function renderBk(){
   const bk=filtBk();
+  updateWfCounts();
   document.getElementById('bk-body').innerHTML=bk.length
     ?bk.map(b=>{
-      const testLabel=b.isTest?'<span class="badge" style="margin-left:5px;background:rgba(251,191,36,.12);color:var(--yellow)">TEST</span>':'';
-      const archLabel=(b.archived&&!b.isTest)?'<span class="badge" style="margin-left:5px;background:rgba(248,113,113,.1);color:var(--red)">ARCHIVED</span>':'';
+      const testLabel=b.isTest?'<span class="badge b-test" style="margin-left:5px">TEST</span>':'';
+      const archLabel=(b.archived&&!b.isTest)?'<span class="badge b-test" style="margin-left:5px">ARCHIVED</span>':'';
+      const chips=bkPriChips(b);
       const adminBtn=IS_ADMIN?(b.archived||b.isTest
         ?`<button onclick="restoreBk('${b.id}')" style="font-size:10px;padding:2px 6px;margin-top:3px;display:block;background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.3);border-radius:6px;cursor:pointer;white-space:nowrap">↩ Restore</button>`
         :`<button onclick="markBkArchive('${b.id}')" style="font-size:10px;padding:2px 6px;margin-top:3px;display:block;background:rgba(251,191,36,.08);color:var(--yellow);border:1px solid rgba(251,191,36,.3);border-radius:6px;cursor:pointer;white-space:nowrap">🧪 Archive</button>`
       ):'';
       return `<tr onclick="openDrw('${b.id}')" ${(b.isTest||b.archived)?'style="opacity:.6"':''}>
       <td class="td-mo">${(b.id||'').slice(-8)}</td>
-      <td><div class="td-nm">${bkNm(b)}${testLabel}${archLabel}</div><div class="td-mu">${b.email||b.phone||''}</div></td>
+      <td><div class="td-nm">${bkNm(b)}${testLabel}${archLabel}</div><div class="td-mu">${b.email||b.phone||''}</div>${chips}</td>
       <td><div>${bkSvc(b)}</div><div class="td-mu">${b.vehicleLabel||b.vehicle||''}</div></td>
       <td class="td-mu">${b.preferredDate||b.preferred_date||'—'}</td>
       <td class="td-mu">${b.zone||b.zip_city||b.zipCode||'—'}</td>
       <td class="td-pr">$${bkTot(b)}</td>
       <td>${badge(b.status||'Pending Review')}</td>
+      <td>${payPill(b)}</td>
       <td onclick="event.stopPropagation()">
         <select class="ff" style="font-size:10px;padding:3px 6px" onchange="setBkStatus('${b.id}',this.value)">
           <option value="">—</option>
@@ -746,7 +884,7 @@ function renderBk(){
         ${adminBtn}
       </td>
     </tr>`;}).join('')
-    :'<tr><td colspan="8" class="empty"><div class="ei">📭</div><div class="et">No bookings match</div></td></tr>';
+    :'<tr><td colspan="9" class="empty"><div class="ei">📭</div><div class="et">No bookings match</div></td></tr>';
   admBadges();
 }
 
@@ -874,7 +1012,27 @@ function openDrw(id){
   `;
   const tks=tkGet().filter(t=>t.status==='approved');
   const cfg=cfgGet();
+  const phone=b.phone||'';
+  const email=b.email||'';
+  const name1=bkNm(b).split(' ')[0]||bkNm(b);
+  const gaLink=`/technician.html#garage-${encodeURIComponent(b.id)}`;
+  const reviewedCls=b.adminReviewed?'qa-btn qa-soon':'qa-btn qa-rev';
+  const contactedCls=b.adminContacted?'qa-btn qa-soon':'qa-btn qa-cont';
   document.getElementById('drw-ac').innerHTML=`
+    <div class="qa-sect">Quick Actions</div>
+    <div class="qa-row">
+      ${phone?`<a class="qa-btn qa-call" href="tel:${phone}">📞 Call ${name1}</a>`:'<span class="qa-btn qa-soon">📞 No phone</span>'}
+      ${email?`<a class="qa-btn qa-email" href="mailto:${email}?subject=Cardetail1+Booking+${b.id}">✉️ Email</a>`:'<span class="qa-btn qa-soon">✉️ No email</span>'}
+    </div>
+    <div class="qa-row" style="margin-top:4px">
+      <button class="${reviewedCls}" onclick="${b.adminReviewed?'':'drwMarkReviewed()'}">${b.adminReviewed?'✓ Reviewed':'✓ Mark Reviewed'}</button>
+      <button class="${contactedCls}" onclick="${b.adminContacted?'':'drwMarkContacted()'}">${b.adminContacted?'📞 Contacted':'📞 Mark Contacted'}</button>
+    </div>
+    <div class="qa-row" style="margin-top:4px">
+      <span class="qa-btn qa-soon" style="font-size:10px">📝 Internal note — Coming soon</span>
+    </div>
+    <div class="local-note">Actions above are saved locally in this browser only. To contact the customer, call directly or use the phone/email links.</div>
+    <div class="qa-sect" style="margin-top:14px">Status & Assignment</div>
     <div style="width:100%;margin-bottom:7px">
       <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Change Status</div>
       <select class="ssel" id="drw-st" style="width:100%;margin-bottom:6px">${['Pending Review','Confirmed','Scheduled','In Progress','Completed','Cancelled','Rescheduled','No-Show','Payment Pending','Paid'].map(s=>`<option ${(b.status||'Pending Review')===s?'selected':''}>${s}</option>`).join('')}</select>
@@ -906,6 +1064,23 @@ function drwSendPay(){ const b=bkGet().find(x=>x.id===_drwId);if(!b)return; cons
 function drwReschedule(){ const d=prompt('New preferred date (YYYY-MM-DD):');if(!d)return; drwUpd(b=>{b.preferredDate=d;b.status='Rescheduled';}); toast('Rescheduled to '+d); }
 function drwNoShow(){ if(confirm('Mark as No-Show?')){drwUpd(b=>b.status='No-Show');toast('Marked No-Show','err');} }
 function drwCancel(){ if(confirm('Cancel this booking?')){drwUpd(b=>b.status='Cancelled');toast('Cancelled','err');} }
+
+function drwMarkReviewed(){
+  const bk=bkGet(); const i=bk.findIndex(b=>b.id===_drwId); if(i<0) return;
+  bk[i].adminReviewed=true; bk[i].adminReviewedAt=new Date().toISOString();
+  bkSet(bk);
+  toast('Marked as reviewed (saved locally)');
+  openDrw(_drwId);
+  renderBk();
+}
+function drwMarkContacted(){
+  const bk=bkGet(); const i=bk.findIndex(b=>b.id===_drwId); if(i<0) return;
+  bk[i].adminContacted=true; bk[i].adminContactedAt=new Date().toISOString();
+  bkSet(bk);
+  toast('Marked as contacted (saved locally)');
+  openDrw(_drwId);
+  renderBk();
+}
 
 // ═══════════════════════════════════════
 // ADMIN — TECHNICIANS
