@@ -929,6 +929,22 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .rv-honest-title{font-size:15px;font-weight:600;color:var(--white);margin-bottom:6px}
 .rv-honest-desc{font-size:13px;color:var(--mu);line-height:1.6;max-width:480px;margin:0 auto 16px}
 
+/* ── GALLERY CARDS ── */
+.gallery-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:.2s}
+.gallery-card:hover{border-color:var(--bbr);transform:translateY(-2px)}
+.gc-img-wrap{position:relative;width:100%;background:var(--bg3)}
+.gc-img{width:100%;height:200px;object-fit:cover;display:block}
+.gc-label{position:absolute;top:10px;left:10px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:999px;backdrop-filter:blur(4px)}
+.gc-label--recent{background:rgba(77,163,255,.18);color:var(--blue);border:1px solid rgba(77,163,255,.35)}
+.gc-label--ba{background:rgba(34,197,94,.18);color:var(--gr);border:1px solid rgba(34,197,94,.35)}
+.gc-ba{display:grid;grid-template-columns:1fr 1fr}
+.gc-ba-panel{position:relative;overflow:hidden}
+.gc-ba-tag{position:absolute;bottom:6px;left:6px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,.65);color:#fff}
+.gc-meta{padding:14px 16px 4px;flex:1}
+.gc-title{font-size:14px;font-weight:700;color:var(--white);margin-bottom:3px}
+.gc-service{font-size:11.5px;color:var(--mu)}
+.gallery-card .rc-btn{margin:0 16px 16px;align-self:flex-start}
+
 /* ── LOCATION CAROUSEL ── */
 .loc-section{background:var(--bg1);padding:48px 20px}
 .loc-inner{max-width:1100px;margin:0 auto}
@@ -1124,6 +1140,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   .cred-row{flex-direction:column;gap:12px;padding:16px}
   .results-cta{flex-direction:column;align-items:stretch}
   .results-cta .btn-primary,.results-cta .btn-outline{width:100%;text-align:center;padding:14px}
+  /* ── GALLERY CARDS ── */
+  .gc-img{height:180px}
+  .gc-ba{grid-template-columns:1fr 1fr}
+  .gallery-card .rc-btn{margin:0 12px 12px}
   /* ── VISUAL PROOF ── */
   .visual-proof{flex-direction:column}
   .visual-panel{width:100%!important}
@@ -1380,7 +1400,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="sec-eye">Recent Work</div>
     <div class="sec-title">REAL RESULTS FROM<br>MOBILE DETAILING JOBS.</div>
     <div class="sec-desc">Interior, exterior, and paint enhancement work performed at the customer's location.</div>
-    <div class="results-grid">
+    <div class="results-grid" id="gallery-grid">
       <div class="rc-card">
         <div class="rc-ico">🧹</div>
         <div class="rc-title">Interior Detail</div>
@@ -4735,10 +4755,95 @@ function updateBkFromPrices(){
 }
 
 
+// GALLERY
+// ═══════════════════════════════════════════════════════
+// HOW TO ADD REAL JOB PHOTOS — see assets/README.md for the full guide.
+//
+// Quick rules:
+//   • Only real photos taken during actual Cardetail1 jobs — no AI, no stock images
+//   • Blur or crop license plates and faces before uploading
+//   • Never include street addresses, customer names, or any private info
+//   • General location label only: "Bergen County, NJ" — never a street address
+//   • Compress each image to under 500 KB before uploading
+//   • Place files in: assets/results/<category>/   (interior | exterior |
+//     paint-enhancement | premium | rv-boat)
+//
+// Single photo (one result image):
+//   Set `img` to the file path, leave imgBefore/imgAfter null.
+//   Card will display the label "Recent Result."
+//
+// Before + after pair (both photos must be from the same job):
+//   Set imgBefore and imgAfter to the two file paths, leave img null.
+//   Card will display the label "Before & After."
+//   NEVER set imgBefore/imgAfter unless you have both photos from the same job.
+//
+// Example entry (remove the /* */ to activate):
+/*
+{
+  category: 'interior',
+  title: 'Interior Deep Clean',
+  service: 'Interior Detail',
+  img: 'assets/results/interior/leather-restore-01.jpg',
+  imgBefore: null,
+  imgAfter: null,
+  alt: 'Car interior after full steam cleaning and leather conditioning, Bergen County NJ',
+  location: 'Bergen County, NJ',
+},
+*/
+
+const GALLERY_ITEMS = [
+  // Add real job photo entries here — follow the guide above and in assets/README.md
+];
+
+function renderGallery() {
+  const grid = document.getElementById('gallery-grid');
+  if (!grid || !GALLERY_ITEMS.length) return; // keep honest placeholder when empty
+
+  grid.innerHTML = GALLERY_ITEMS.map(item => {
+    const hasBoth  = !!(item.imgBefore && item.imgAfter);
+    const label    = hasBoth ? 'Before &amp; After' : 'Recent Result';
+    const labelCls = hasBoth ? 'gc-label--ba' : 'gc-label--recent';
+
+    let imgHtml;
+    if (hasBoth) {
+      imgHtml = `<div class="gc-img-wrap gc-ba">
+        <div class="gc-ba-panel">
+          <img class="gc-img" src="${item.imgBefore}" alt="Before: ${item.alt}" loading="lazy">
+          <span class="gc-ba-tag">Before</span>
+        </div>
+        <div class="gc-ba-panel">
+          <img class="gc-img" src="${item.imgAfter}" alt="After: ${item.alt}" loading="lazy">
+          <span class="gc-ba-tag">After</span>
+        </div>
+        <div class="gc-label ${labelCls}">${label}</div>
+      </div>`;
+    } else {
+      imgHtml = `<div class="gc-img-wrap">
+        <img class="gc-img" src="${item.img}" alt="${item.alt}" loading="lazy">
+        <div class="gc-label ${labelCls}">${label}</div>
+      </div>`;
+    }
+
+    const svcLine = item.service + (item.location ? ' · ' + item.location : '');
+    return `<div class="gallery-card">
+      ${imgHtml}
+      <div class="gc-meta">
+        <div class="gc-title">${item.title}</div>
+        <div class="gc-service">${svcLine}</div>
+      </div>
+      <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
+    </div>`;
+  }).join('');
+
+  // Hide the photo-coming-soon note when real photos are showing
+  const note = document.querySelector('.photo-note');
+  if (note) note.style.display = 'none';
+}
+
 // ═══════════════════════════════════════════════════════
 // REVIEWS
 // ═══════════════════════════════════════════════════════
-const REVIEWS = [];  // populated when real verified reviews are available
+const REVIEWS = [];  // will be populated with real customer reviews when collected
 
 let rvIdx = 0;
 
@@ -6092,6 +6197,7 @@ function openBookingFromHome(cat){
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
+renderGallery();
 renderReviews();
 renderLocationCarousel('default');
 renderActivityFeed();
