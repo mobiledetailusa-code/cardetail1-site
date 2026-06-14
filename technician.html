@@ -465,20 +465,43 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
     </div>
     <div class="page" id="ap-subscriptions"><div class="pg-t">Subscriptions</div><div class="pg-s">Monthly plan members</div><div id="subs-wrap"></div></div>
     <div class="page" id="ap-settings">
-      <div class="pg-t">Settings</div><div class="pg-s">Business configuration</div>
+      <div class="pg-t">Settings</div><div class="pg-s">Local admin preferences</div>
       <div class="card" style="max-width:500px"><div class="ch"><div class="ct">Config</div></div>
         <div style="padding:16px">
-          <div class="fr2">
-            <div class="fg2"><label class="fl2">Admin Email</label><input class="fi2" id="s-em" placeholder="your@email.com"></div>
-            <div class="fg2"><label class="fl2">Admin Phone</label><input class="fi2" id="s-ph" placeholder="551-313-2956"></div>
+          <div style="background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.25);border-radius:8px;padding:10px 13px;margin-bottom:16px;font-size:12px;color:rgba(245,166,35,.9);line-height:1.55">
+            ⚠️ <strong>Local admin preferences only</strong> — these settings are saved on this device/browser and do not change backend booking, payment, email, or public website behavior yet.
           </div>
           <div class="fr2">
-            <div class="fg2"><label class="fl2">Square Payment URL</label><input class="fi2" id="s-sq" placeholder="https://square.link/u/…"></div>
-            <div class="fg2"><label class="fl2">Deposit Amount ($)</label><input class="fi2" id="s-dep" type="number" value="50"></div>
+            <div class="fg2">
+              <label class="fl2">Admin Email</label>
+              <input class="fi2" id="s-em" placeholder="your@email.com">
+              <div style="font-size:11px;color:var(--mu);margin-top:4px">Backend email is controlled by Netlify <code>ADMIN_EMAIL</code>.</div>
+            </div>
+            <div class="fg2">
+              <label class="fl2">Admin Phone</label>
+              <input class="fi2" id="s-ph" placeholder="551-313-2956">
+              <div style="font-size:11px;color:var(--mu);margin-top:4px">Display/local preference only for now.</div>
+            </div>
           </div>
-          <div class="fg2"><label class="fl2">Service Areas</label><input class="fi2" id="s-ar" value="NJ / NY / CT / PA"></div>
-          <button class="btn btn-p" onclick="saveSettings()">Save</button>
-          <span id="sv-ok" style="display:none;margin-left:9px;font-size:12px;color:var(--green)">✓ Saved</span>
+          <div class="fr2">
+            <div class="fg2">
+              <label class="fl2">Square Payment URL</label>
+              <input class="fi2" id="s-sq" placeholder="https://square.link/u/…">
+              <div style="font-size:11px;color:var(--mu);margin-top:4px">Does not change Stripe/card authorization flow.</div>
+            </div>
+            <div class="fg2">
+              <label class="fl2">Deposit Amount ($)</label>
+              <input class="fi2" id="s-dep" type="number" value="50">
+              <div style="font-size:11px;color:var(--mu);margin-top:4px">Does not change backend payment logic yet.</div>
+            </div>
+          </div>
+          <div class="fg2">
+            <label class="fl2">Service Areas</label>
+            <input class="fi2" id="s-ar" value="NJ / NY / CT / PA">
+            <div style="font-size:11px;color:var(--mu);margin-top:4px">Does not change public homepage or ZIP/range logic yet.</div>
+          </div>
+          <button class="btn btn-p" onclick="saveSettings()" style="margin-top:16px">Save local preferences</button>
+          <span id="sv-ok" style="display:none;margin-left:9px;font-size:12px;color:var(--green)">✓ Saved locally</span>
         </div>
       </div>
     </div>
