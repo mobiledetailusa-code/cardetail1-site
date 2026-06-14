@@ -31,6 +31,12 @@ exports.handler = async (event) => {
     (event.queryStringParameters && event.queryStringParameters.key) || '';
   if (provided !== expected) return json(401, { ok: false, error: 'unauthorized' });
 
+  // Pass x-show-test: 1 header (or ?showTest=1) to include test/archived bookings.
+  const showTest = !!(
+    (event.headers && (event.headers['x-show-test'] || event.headers['X-Show-Test'])) ||
+    (event.queryStringParameters && event.queryStringParameters.showTest)
+  );
+
   try {
     const { getStore } = await import('@netlify/blobs');
     const siteID = process.env.NETLIFY_SITE_ID;
@@ -38,9 +44,10 @@ exports.handler = async (event) => {
     const store = (siteID && token) ? getStore({ name: 'cd1-bookings', siteID, token }) : getStore('cd1-bookings');
     const listing = await store.list();
     const blobs = (listing && listing.blobs) || [];
-    const bookings = (await Promise.all(
+    const all = (await Promise.all(
       blobs.map(b => store.get(b.key, { type: 'json' }).catch(() => null))
     )).filter(Boolean);
+    const bookings = showTest ? all : all.filter(b => !b.isTest && !b.archived);
     // Newest first by createdAt.
     bookings.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
     return json(200, { ok: true, count: bookings.length, bookings });

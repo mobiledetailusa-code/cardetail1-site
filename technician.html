@@ -451,6 +451,13 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
           <button class="btn btn-g btn-sm" onclick="loadBkFromCloud()" id="bk-cloud-btn">☁️ Load from Cloud</button>
           <button class="btn btn-tl btn-sm" onclick="exportCSV()">⬇ CSV</button>
           <button class="btn btn-rd btn-sm" onclick="clearBkFilters()">✕ Clear</button>
+          <div id="bk-admin-controls" style="display:none">
+            <select class="ff" id="f-bk-mode" onchange="renderBk()" title="Booking visibility">
+              <option value="active">Active</option>
+              <option value="test">Test / Archived</option>
+              <option value="all">All</option>
+            </select>
+          </div>
         </div>
         <div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Vehicle / Service</th><th>Preferred</th><th>Zone</th><th>Total</th><th>Status</th><th>Quick</th></tr></thead><tbody id="bk-body"></tbody></table></div>
       </div>
@@ -640,10 +647,11 @@ function initAdmin(){
 }
 
 function admBadges(){
-  const bp=bkGet().filter(b=>b.status==='Pending Review').length;
+  const bp=bkGet().filter(b=>b.status==='Pending Review'&&!b.isTest&&!b.archived).length;
   const tp=tkGet().filter(t=>t.status==='pending').length;
   const bc=document.getElementById('b-ct'); bc.textContent=bp; bc.style.display=bp?'inline':'none';
   const tc=document.getElementById('t-ct'); tc.textContent=tp; tc.style.display=tp?'inline':'none';
+  if(IS_ADMIN){ const bac=document.getElementById('bk-admin-controls'); if(bac) bac.style.display=''; }
 }
 
 function admNav(p){
@@ -696,6 +704,10 @@ function renderDash(){
 // ═══════════════════════════════════════
 function filtBk(){
   let bk=[...bkGet()].reverse();
+  const mode=IS_ADMIN?(document.getElementById('f-bk-mode')?.value||'active'):'active';
+  if(mode==='active')      bk=bk.filter(b=>!b.isTest&&!b.archived);
+  else if(mode==='test')   bk=bk.filter(b=>b.isTest||b.archived);
+  // mode==='all': no additional filter
   const st=document.getElementById('f-st')?.value||'';
   const fr=document.getElementById('f-fr')?.value||'';
   const to=document.getElementById('f-to')?.value||'';
@@ -710,9 +722,16 @@ function filtBk(){
 function renderBk(){
   const bk=filtBk();
   document.getElementById('bk-body').innerHTML=bk.length
-    ?bk.map(b=>`<tr onclick="openDrw('${b.id}')">
+    ?bk.map(b=>{
+      const testLabel=b.isTest?'<span class="badge" style="margin-left:5px;background:rgba(251,191,36,.12);color:var(--yellow)">TEST</span>':'';
+      const archLabel=(b.archived&&!b.isTest)?'<span class="badge" style="margin-left:5px;background:rgba(248,113,113,.1);color:var(--red)">ARCHIVED</span>':'';
+      const adminBtn=IS_ADMIN?(b.archived||b.isTest
+        ?`<button onclick="restoreBk('${b.id}')" style="font-size:10px;padding:2px 6px;margin-top:3px;display:block;background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.3);border-radius:6px;cursor:pointer;white-space:nowrap">↩ Restore</button>`
+        :`<button onclick="markBkArchive('${b.id}')" style="font-size:10px;padding:2px 6px;margin-top:3px;display:block;background:rgba(251,191,36,.08);color:var(--yellow);border:1px solid rgba(251,191,36,.3);border-radius:6px;cursor:pointer;white-space:nowrap">🧪 Archive</button>`
+      ):'';
+      return `<tr onclick="openDrw('${b.id}')" ${(b.isTest||b.archived)?'style="opacity:.6"':''}>
       <td class="td-mo">${(b.id||'').slice(-8)}</td>
-      <td><div class="td-nm">${bkNm(b)}</div><div class="td-mu">${b.email||b.phone||''}</div></td>
+      <td><div class="td-nm">${bkNm(b)}${testLabel}${archLabel}</div><div class="td-mu">${b.email||b.phone||''}</div></td>
       <td><div>${bkSvc(b)}</div><div class="td-mu">${b.vehicleLabel||b.vehicle||''}</div></td>
       <td class="td-mu">${b.preferredDate||b.preferred_date||'—'}</td>
       <td class="td-mu">${b.zone||b.zip_city||b.zipCode||'—'}</td>
@@ -723,8 +742,9 @@ function renderBk(){
           <option value="">—</option>
           ${['Pending Review','Confirmed','Scheduled','In Progress','Completed','Cancelled','Rescheduled','No-Show','Payment Pending','Paid'].map(s=>`<option ${b.status===s?'selected':''}>${s}</option>`).join('')}
         </select>
+        ${adminBtn}
       </td>
-    </tr>`).join('')
+    </tr>`;}).join('')
     :'<tr><td colspan="8" class="empty"><div class="ei">📭</div><div class="et">No bookings match</div></td></tr>';
   admBadges();
 }
@@ -740,6 +760,42 @@ function clearBkFilters(){
   renderBk();
 }
 
+async function markBkArchive(id){
+  if(!IS_ADMIN){ toast('Admin only','err'); return; }
+  const key=sessionStorage.getItem('cd1_admin_key')||'';
+  if(!key){ toast('Admin session expired — reload the page','err'); return; }
+  try{
+    const res=await fetch('/.netlify/functions/tag-booking',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-admin-key':key},
+      body:JSON.stringify({bookingId:id,isTest:true,archived:true,archivedReason:'production testing',archivedAt:new Date().toISOString()}),
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok){ toast('Archive failed: '+(data.error||'HTTP '+res.status),'err'); return; }
+    const list=bkGet().map(b=>b.id===id?{...b,isTest:true,archived:true,archivedReason:'production testing'}:b);
+    bkSet(list); renderBk(); renderDash(); admBadges();
+    toast('Booking archived');
+  }catch(e){ toast('Archive error: '+e.message,'err'); }
+}
+
+async function restoreBk(id){
+  if(!IS_ADMIN){ toast('Admin only','err'); return; }
+  const key=sessionStorage.getItem('cd1_admin_key')||'';
+  if(!key){ toast('Admin session expired — reload the page','err'); return; }
+  try{
+    const res=await fetch('/.netlify/functions/tag-booking',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-admin-key':key},
+      body:JSON.stringify({bookingId:id,isTest:false,archived:false,archivedReason:'',archivedAt:''}),
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok){ toast('Restore failed: '+(data.error||'HTTP '+res.status),'err'); return; }
+    const list=bkGet().map(b=>b.id===id?{...b,isTest:false,archived:false,archivedReason:'',archivedAt:''}:b);
+    bkSet(list); renderBk(); renderDash(); admBadges();
+    toast('Booking restored');
+  }catch(e){ toast('Restore error: '+e.message,'err'); }
+}
+
 async function loadBkFromCloud(){
   const btn=document.getElementById('bk-cloud-btn');
   let key=sessionStorage.getItem('cd1_admin_key')||'';
@@ -749,8 +805,9 @@ async function loadBkFromCloud(){
   }
   if(btn){ btn.disabled=true; btn.textContent='☁️ Loading…'; }
   try{
+    const mode=document.getElementById('f-bk-mode')?.value||'active';
     const res=await fetch('/.netlify/functions/list-bookings',{
-      headers:{'x-admin-key':key,'Cache-Control':'no-store'},
+      headers:{'x-admin-key':key,'Cache-Control':'no-store',...(mode!=='active'?{'x-show-test':'1'}:{})},
     });
     const data=await res.json().catch(()=>({}));
     if(res.status===401||res.status===503||!data.ok){
@@ -877,7 +934,7 @@ function delTk(id){ if(!confirm('Remove?'))return;tkSet(tkGet().filter(t=>t.id!=
 // ADMIN — DISPATCH
 // ═══════════════════════════════════════
 function renderDispatch(){
-  const bk=bkGet().filter(b=>['Confirmed','Scheduled','In Progress','En Route'].includes(b.status));
+  const bk=bkGet().filter(b=>['Confirmed','Scheduled','In Progress','En Route'].includes(b.status)&&!b.isTest&&!b.archived);
   const tks=tkGet().filter(t=>t.status==='approved');
   const el=document.getElementById('disp-board');
   if(!bk.length){el.innerHTML='<div class="empty"><div class="ei">🗂️</div><div class="et">No active jobs</div></div>';return;}
