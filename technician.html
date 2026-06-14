@@ -448,8 +448,9 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
           <input class="ff" type="date" id="f-fr" onchange="renderBk()">
           <input class="ff" type="date" id="f-to" onchange="renderBk()">
           <input class="ff" type="search" id="f-q" oninput="renderBk()" placeholder="Search…" style="min-width:150px">
+          <button class="btn btn-g btn-sm" onclick="loadBkFromCloud()" id="bk-cloud-btn">☁️ Load from Cloud</button>
           <button class="btn btn-tl btn-sm" onclick="exportCSV()">⬇ CSV</button>
-          <button class="btn btn-rd btn-sm" onclick="clearAll()">🗑 Clear</button>
+          <button class="btn btn-rd btn-sm" onclick="clearBkFilters()">✕ Clear</button>
         </div>
         <div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Vehicle / Service</th><th>Preferred</th><th>Zone</th><th>Total</th><th>Status</th><th>Quick</th></tr></thead><tbody id="bk-body"></tbody></table></div>
       </div>
@@ -464,20 +465,43 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
     </div>
     <div class="page" id="ap-subscriptions"><div class="pg-t">Subscriptions</div><div class="pg-s">Monthly plan members</div><div id="subs-wrap"></div></div>
     <div class="page" id="ap-settings">
-      <div class="pg-t">Settings</div><div class="pg-s">Business configuration</div>
+      <div class="pg-t">Settings</div><div class="pg-s">Local admin preferences</div>
       <div class="card" style="max-width:500px"><div class="ch"><div class="ct">Config</div></div>
         <div style="padding:16px">
-          <div class="fr2">
-            <div class="fg2"><label class="fl2">Admin Email</label><input class="fi2" id="s-em" placeholder="your@email.com"></div>
-            <div class="fg2"><label class="fl2">Admin Phone</label><input class="fi2" id="s-ph" placeholder="551-313-2956"></div>
+          <div style="background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.25);border-radius:8px;padding:10px 13px;margin-bottom:16px;font-size:12px;color:rgba(245,166,35,.9);line-height:1.55">
+            ⚠️ <strong>Local admin preferences only</strong> — these settings are saved on this device/browser and do not change backend booking, payment, email, or public website behavior yet.
           </div>
           <div class="fr2">
-            <div class="fg2"><label class="fl2">Square Payment URL</label><input class="fi2" id="s-sq" placeholder="https://square.link/u/…"></div>
-            <div class="fg2"><label class="fl2">Deposit Amount ($)</label><input class="fi2" id="s-dep" type="number" value="50"></div>
+            <div class="fg2">
+              <label class="fl2">Admin Email</label>
+              <input class="fi2" id="s-em" placeholder="your@email.com">
+              <div style="font-size:11px;color:var(--mu);margin-top:4px">Backend email is controlled by Netlify <code>ADMIN_EMAIL</code>.</div>
+            </div>
+            <div class="fg2">
+              <label class="fl2">Admin Phone</label>
+              <input class="fi2" id="s-ph" placeholder="551-313-2956">
+              <div style="font-size:11px;color:var(--mu);margin-top:4px">Display/local preference only for now.</div>
+            </div>
           </div>
-          <div class="fg2"><label class="fl2">Service Areas</label><input class="fi2" id="s-ar" value="NJ / NY / CT / PA"></div>
-          <button class="btn btn-p" onclick="saveSettings()">Save</button>
-          <span id="sv-ok" style="display:none;margin-left:9px;font-size:12px;color:var(--green)">✓ Saved</span>
+          <div class="fr2">
+            <div class="fg2">
+              <label class="fl2">Square Payment URL</label>
+              <input class="fi2" id="s-sq" placeholder="https://square.link/u/…">
+              <div style="font-size:11px;color:var(--mu);margin-top:4px">Does not change Stripe/card authorization flow.</div>
+            </div>
+            <div class="fg2">
+              <label class="fl2">Deposit Amount ($)</label>
+              <input class="fi2" id="s-dep" type="number" value="50">
+              <div style="font-size:11px;color:var(--mu);margin-top:4px">Does not change backend payment logic yet.</div>
+            </div>
+          </div>
+          <div class="fg2">
+            <label class="fl2">Service Areas</label>
+            <input class="fi2" id="s-ar" value="NJ / NY / CT / PA">
+            <div style="font-size:11px;color:var(--mu);margin-top:4px">Does not change public homepage or ZIP/range logic yet.</div>
+          </div>
+          <button class="btn btn-p" onclick="saveSettings()" style="margin-top:16px">Save local preferences</button>
+          <span id="sv-ok" style="display:none;margin-left:9px;font-size:12px;color:var(--green)">✓ Saved locally</span>
         </div>
       </div>
     </div>
@@ -585,6 +609,7 @@ function doLogin(){
 
 function doLogout(){
   localStorage.removeItem('cd1_session');
+  sessionStorage.removeItem('cd1_admin_key');
   TECH=null; IS_ADMIN=false;
   document.getElementById('l-email').value='';
   document.getElementById('l-pass').value='';
@@ -706,6 +731,51 @@ function renderBk(){
 
 function setBkStatus(id,s){ if(!s)return; const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){bk[i].status=s;bkSet(bk);}admBadges(); }
 function clearAll(){ if(confirm('Delete ALL bookings?')){localStorage.removeItem('cd1_bookings');renderBk();renderDash();toast('Cleared','err');} }
+
+function clearBkFilters(){
+  const st=document.getElementById('f-st'); if(st) st.value='';
+  const fr=document.getElementById('f-fr'); if(fr) fr.value='';
+  const to=document.getElementById('f-to'); if(to) to.value='';
+  const q=document.getElementById('f-q');  if(q)  q.value='';
+  renderBk();
+}
+
+async function loadBkFromCloud(){
+  const btn=document.getElementById('bk-cloud-btn');
+  let key=sessionStorage.getItem('cd1_admin_key')||'';
+  if(!key){
+    key=(prompt('Enter admin password to load bookings from cloud:')||'').trim();
+    if(!key){ toast('Cloud load cancelled','err'); return; }
+  }
+  if(btn){ btn.disabled=true; btn.textContent='☁️ Loading…'; }
+  try{
+    const res=await fetch('/.netlify/functions/list-bookings',{
+      headers:{'x-admin-key':key,'Cache-Control':'no-store'},
+    });
+    const data=await res.json().catch(()=>({}));
+    if(res.status===401||res.status===503||!data.ok){
+      toast('Could not load bookings from cloud. Please check admin access and retry.','err');
+      return;
+    }
+    // On successful auth, persist key to sessionStorage for this tab session
+    sessionStorage.setItem('cd1_admin_key',key);
+    // Merge: Blobs records win for matching IDs; keep any local-only ones
+    const local=bkGet();
+    const map=new Map();
+    local.forEach(b=>map.set(b.id,b));
+    (data.bookings||[]).forEach(b=>map.set(b.id,b));
+    const merged=[...map.values()].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    bkSet(merged);
+    renderBk();
+    renderDash();
+    admBadges();
+    toast('Loaded '+(data.count||0)+' booking(s) from cloud');
+  }catch(e){
+    toast('Could not load bookings from cloud. Please check admin access and retry.','err');
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='☁️ Load from Cloud'; }
+  }
+}
 
 function exportCSV(){
   const bk=filtBk(); if(!bk.length){toast('Nothing to export','err');return;}
