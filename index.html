@@ -908,6 +908,27 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .rv-meta{font-size:11px;color:var(--mu)}
 .rv-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--bdim);border:1px solid var(--bbr);color:var(--blue);margin-top:3px}
 
+/* ── REAL RESULTS SECTION ── */
+.results-section{background:var(--bg0);padding:60px 20px}
+.results-inner{max-width:1100px;margin:0 auto}
+.results-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:28px}
+.rc-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:22px 20px;display:flex;flex-direction:column;gap:8px;transition:.2s}
+.rc-card:hover{border-color:var(--bbr);transform:translateY(-2px)}
+.rc-ico{font-size:32px}
+.rc-title{font-family:var(--fd);font-size:18px;color:var(--white);letter-spacing:.03em}
+.rc-benefit{font-size:13px;color:var(--tx);line-height:1.55;flex:1}
+.rc-btn{display:inline-flex;align-items:center;border:1px solid rgba(77,163,255,.4);background:transparent;color:var(--blue);border-radius:999px;padding:9px 16px;font:600 11.5px var(--fb);text-decoration:none;cursor:pointer;transition:.2s;width:fit-content;margin-top:4px}
+.rc-btn:hover{background:var(--blue);color:#000;border-color:var(--blue)}
+.cred-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px;padding:20px 24px;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--r)}
+.cred-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx);flex:1;min-width:170px}
+.cred-item b{color:var(--white)}
+.results-cta{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:28px}
+.photo-note{font-size:12px;color:var(--mu);text-align:center;margin-top:14px;line-height:1.6}
+.rv-honest{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--r);padding:28px;text-align:center}
+.rv-honest-ico{font-size:36px;margin-bottom:10px}
+.rv-honest-title{font-size:15px;font-weight:600;color:var(--white);margin-bottom:6px}
+.rv-honest-desc{font-size:13px;color:var(--mu);line-height:1.6;max-width:480px;margin:0 auto 16px}
+
 /* ── LOCATION CAROUSEL ── */
 .loc-section{background:var(--bg1);padding:48px 20px}
 .loc-inner{max-width:1100px;margin:0 auto}
@@ -1097,6 +1118,12 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   .cp-tabs{margin:14px 0 18px}
   .cp-tab{font-size:11px;padding:9px 6px}
 
+  /* ── REAL RESULTS ── */
+  .results-section{padding:44px 16px}
+  .results-grid{grid-template-columns:1fr}
+  .cred-row{flex-direction:column;gap:12px;padding:16px}
+  .results-cta{flex-direction:column;align-items:stretch}
+  .results-cta .btn-primary,.results-cta .btn-outline{width:100%;text-align:center;padding:14px}
   /* ── VISUAL PROOF ── */
   .visual-proof{flex-direction:column}
   .visual-panel{width:100%!important}
@@ -1347,11 +1374,58 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   </div>
 </div>
 
+<!-- REAL RESULTS -->
+<div class="results-section">
+  <div class="results-inner">
+    <div class="sec-eye">Recent Work</div>
+    <div class="sec-title">REAL RESULTS FROM<br>MOBILE DETAILING JOBS.</div>
+    <div class="sec-desc">Interior, exterior, and paint enhancement work performed at the customer's location.</div>
+    <div class="results-grid">
+      <div class="rc-card">
+        <div class="rc-ico">🧹</div>
+        <div class="rc-title">Interior Detail</div>
+        <div class="rc-benefit">Full cabin restoration — vacuuming, steam cleaning, fabric and leather treatment, window cleaning, and deodorizing. We bring the equipment; you stay home.</div>
+        <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
+      </div>
+      <div class="rc-card">
+        <div class="rc-ico">💧</div>
+        <div class="rc-title">Exterior Detail</div>
+        <div class="rc-benefit">Hand wash, clay bar, paint decontamination, tire shine, and window polish — done at your driveway, office parking, or marina slip.</div>
+        <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
+      </div>
+      <div class="rc-card">
+        <div class="rc-ico">✨</div>
+        <div class="rc-title">Premium Detail</div>
+        <div class="rc-benefit">Complete interior and exterior treatment with paint sealant or wax protection. Our most comprehensive single-visit package.</div>
+        <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
+      </div>
+      <div class="rc-card">
+        <div class="rc-ico">🚢</div>
+        <div class="rc-title">Marine &amp; RV</div>
+        <div class="rc-benefit">Boats, RVs, and powersports vehicles — oxidation removal, hull cleaning, vinyl and canvas treatment. Mobile at your marina, storage yard, or driveway.</div>
+        <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
+      </div>
+    </div>
+    <p class="photo-note">Customer photo gallery coming soon — ask about our recent work: <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a></p>
+    <div class="cred-row">
+      <div class="cred-item"><span>🚐</span><span><b>Mobile service</b> — we come to you</span></div>
+      <div class="cred-item"><span>🚿</span><span><b>Water &amp; power</b> available on every job</span></div>
+      <div class="cred-item"><span>🔧</span><span><b>Professional equipment</b></span></div>
+      <div class="cred-item"><span>📍</span><span><b>Bergen County</b> / North Jersey focus</span></div>
+      <div class="cred-item"><span>✓</span><span><b>Booking reviewed</b> before confirmation — no surprises</span></div>
+    </div>
+    <div class="results-cta">
+      <button class="btn-primary" onclick="openBooking(null)">Book Mobile Detailing →</button>
+      <button class="btn-outline" onclick="openBooking(null)">View Packages</button>
+    </div>
+  </div>
+</div>
+
 <!-- TRUST -->
 <div class="section-full" style="background:var(--bg1)">
   <div class="section">
     <div class="trust-row">
-      <div class="trust-item"><div class="trust-ico">⭐</div><div class="trust-val">5.0</div><div class="trust-lbl">Star Rating</div></div>
+      <div class="trust-item"><div class="trust-ico">🚿</div><div class="trust-val">OWN</div><div class="trust-lbl">Water &amp; Power</div></div>
       <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">NJ/NY</div><div class="trust-lbl">Primary Area</div></div>
       <div class="trust-item"><div class="trust-ico">✓</div><div class="trust-val">$0</div><div class="trust-lbl">Request First</div></div>
       <div class="trust-item"><div class="trust-ico">⚡</div><div class="trust-val">SAME</div><div class="trust-lbl">Day Available</div></div>
@@ -1363,19 +1437,17 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <!-- REVIEWS -->
 <div id="reviews" style="background:var(--bg0)">
   <div class="section">
-    <div class="sec-eye">Reviews</div>
-    <div class="sec-title">TRUSTED BY LOCAL<br>CUSTOMERS.</div>
-    <div class="sec-desc">Real feedback from real customers in Bergen County and surrounding areas.</div>
-    <div class="rv-carousel" id="rv-carousel">
-      <div class="rv-track" id="rv-track"></div>
+    <div class="sec-eye">Customer Reviews</div>
+    <div class="sec-title">SHARE YOUR<br>EXPERIENCE.</div>
+    <div class="sec-desc">Had a Cardetail1 service? Your honest review helps other customers in Bergen County find mobile detailing they can trust.</div>
+    <div class="rv-honest">
+      <div class="rv-honest-ico">⭐</div>
+      <div class="rv-honest-title">Be among our first reviewers</div>
+      <div class="rv-honest-desc">We're actively booking new customers in Bergen County and surrounding areas. Your feedback helps us grow and helps others find reliable mobile detailing.</div>
+      <button class="btn-primary" style="font-size:13px;padding:12px 26px" onclick="openPortal();setTimeout(()=>cpTab(3),300)">Leave a Review →</button>
     </div>
-    <div class="rv-nav" id="rv-nav">
-      <button class="rv-btn" onclick="rvMove(-1)">‹</button>
-      <div class="rv-dots" id="rv-dots"></div>
-      <button class="rv-btn" onclick="rvMove(1)">›</button>
-    </div>
-    <div style="text-align:center;margin-top:12px">
-      <span style="font-size:12px;color:var(--mu)">★★★★★ Customer reviews · Bergen County</span>
+    <div style="text-align:center;margin-top:14px">
+      <span style="font-size:12px;color:var(--mu)">📍 Bergen County &amp; North Jersey · Mobile Detailing Service</span>
     </div>
   </div>
 </div>
@@ -4666,20 +4738,7 @@ function updateBkFromPrices(){
 // ═══════════════════════════════════════════════════════
 // REVIEWS
 // ═══════════════════════════════════════════════════════
-const REVIEWS = [
-  { name:'Michael T.', location:'Hoboken, NJ',     rating:5, service:'Cars · Premium Detail',    date:'May 2026',
-    text:'Showed up on time with all equipment and left my BMW looking better than when I bought it. The Premium package is worth every penny.' },
-  { name:'Sandra R.',  location:'Jersey City, NJ',  rating:5, service:'Boats · Full Detail',       date:'Apr 2026',
-    text:'They detailed my 38 ft Sea Ray and it came out absolutely amazing. Will book every season without hesitation.' },
-  { name:'Carlos M.',  location:'Manhattan, NY',    rating:5, service:'Cars · Interior Detail',    date:'May 2026',
-    text:'Came straight to my parking garage. Full interior on my Escalade — spotless. Super convenient and professional.' },
-  { name:'Lisa W.',    location:'Stamford, CT',      rating:5, service:'RVs · Oxidation Removal',  date:'Mar 2026',
-    text:'Great communication, showed up exactly when they said. The oxidation removal on our 32 ft trailer was unbelievable.' },
-  { name:'James P.',   location:'Ridgewood, NJ',    rating:5, service:'Fleet · Maintenance Wash',  date:'Apr 2026',
-    text:'Knocked out 6 vans in one day. Every single one was spotless. Best mobile fleet detailer we\'ve ever used.' },
-  { name:'Priya K.',   location:'Fort Lee, NJ',      rating:5, service:'Powersports · Full Detail', date:'May 2026',
-    text:'My Harley came out showroom condition. Quick booking, fair price, incredible results. 5 stars easily.' },
-];
+const REVIEWS = [];  // populated when real verified reviews are available
 
 let rvIdx = 0;
 
