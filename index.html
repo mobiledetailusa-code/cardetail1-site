@@ -1163,7 +1163,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     </div>
 
     <div class="hero-stats">
-      <div class="hstat"><div class="hstat-val">★★★★★</div><div class="hstat-lbl">5-Star Rated</div></div>
+      <div class="hstat"><div class="hstat-val">Professional</div><div class="hstat-lbl">Mobile Detailing</div></div>
       <div class="hstat"><div class="hstat-val">Bergen Co.</div><div class="hstat-lbl">Home Base</div></div>
       <div class="hstat"><div class="hstat-val">On-Demand</div><div class="hstat-lbl">Availability</div></div>
       <div class="hstat"><div class="hstat-val">4+</div><div class="hstat-lbl">Vehicle Types</div></div>
@@ -1235,7 +1235,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   <div class="section">
     <div class="sec-eye">What We Detail</div>
     <div class="sec-title">EVERY VEHICLE.<br>ONE CALL.</div>
-    <div class="sec-desc">Cars &amp; trucks detailed at your home or office in Bergen County, NJ. Extended service for RVs, boats, powersports, and fleet — select NJ/NY/CT locations by quote.</div>
+    <div class="sec-desc">Serving Bergen County and nearby NJ/NY areas. Extended service available for RVs, boats, fleets, and select NJ/NY/CT locations by quote.</div>
 
     <!-- ZIP tip — hidden by default, only shown if user clicks a card without a ZIP -->
     <div class="svc-lock-gate" id="svc-lock-gate" style="display:none">
@@ -1833,7 +1833,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <span class="svc-ico" style="font-size:36px">🚗</span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
-            <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $119</div>
+            <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $175</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
             <span class="svc-ico" style="font-size:36px">🛥️</span>
@@ -2072,7 +2072,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div class="terms-panel">
           <h4>Suggested Booking Terms Summary</h4>
           <ul>
-            <li><strong>Booking:</strong> your appointment is accepted when you submit. Cardetail1 may reach out only to adjust scheduling if weather, access, or timing requires.</li>
+            <li><strong>Booking:</strong> Submitting this form sends a booking request. Cardetail1 reviews your service, location, access, weather, and availability before final confirmation.</li>
             <li><strong>Service photos:</strong> Cardetail1 may take before/after photos of the vehicle during service for quality improvement, training, and the documentation/security of both parties.</li>
             <li><strong>Pre-existing damage:</strong> Cardetail1 is <strong>not responsible for pre-existing damage</strong> (scratches, dents, chips, stains, mechanical or electrical issues, worn or aged components) present before service.</li>
             <li><strong>New damage from vehicle condition:</strong> due to the condition and nature in which some vehicles are found, new issues may occur during normal detailing — e.g. loose or brittle trim/clips, failing clearcoat or paint, cracked or aged plastics, worn seals or water intrusion, or peeling films. These are a result of the vehicle's existing condition and are not the responsibility of Cardetail1.</li>
@@ -2150,11 +2150,11 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="bsec" id="bs-ok">
         <div class="suc-wrap">
           <div class="suc-ico">✓</div>
-          <div class="suc-title">BOOKING ACCEPTED</div>
-          <div style="display:inline-flex;align-items:center;gap:8px;background:var(--grdim);border:1px solid var(--grbr);color:var(--gr);border-radius:999px;padding:6px 16px;font-size:12.5px;font-weight:700;margin-bottom:14px">✓ Your appointment is booked</div>
-          <p class="suc-sub">You're on the schedule! 🎉 We'll see you at the date & time below. We'll only reach out if something needs adjusting (weather, access, or timing). Final price is confirmed on-site based on size & condition.</p>
+          <div class="suc-title">BOOKING REQUEST RECEIVED</div>
+          <div style="display:inline-flex;align-items:center;gap:8px;background:var(--grdim);border:1px solid var(--grbr);color:var(--gr);border-radius:999px;padding:6px 16px;font-size:12.5px;font-weight:700;margin-bottom:14px">✓ Your request was submitted</div>
+          <p class="suc-sub">We'll review your request and confirm by text, call, or email.</p>
           <div class="suc-card">
-            <div class="or"><span class="ol">Status</span><span class="ov" style="color:var(--gr);font-weight:700">Accepted</span></div>
+            <div class="or"><span class="ol">Status</span><span class="ov" style="color:var(--gr);font-weight:700">Under Review</span></div>
             <div class="or"><span class="ol">Package</span><span class="ov" id="ok-pkg">—</span></div>
             <div class="or"><span class="ol">Vehicle</span><span class="ov" id="ok-veh">—</span></div>
             <div class="or"><span class="ol">Total</span><span class="ov" id="ok-total" style="color:var(--blue);font-weight:700">—</span></div>
@@ -4568,7 +4568,7 @@ function applyZip(){
     nameEl.textContent  = 'YOUR AREA';
     pillEl.style.display= 'none';
     surEl.style.display = 'none';
-    alert('ZIP not in our service area (NJ, NY, CT, PA). Call us at 551-313-2956.');
+    alert('ZIP not in our primary service area. Call us at 551-313-2956 — extended service may be available by quote.');
   }
   renderLocationCarousel(zone ? zone.key : 'default');
 }
