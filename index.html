@@ -2641,9 +2641,9 @@ const PRICING = {
   cars: {
     tiers: {
       small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:300, premium:450},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:215, interior:275, full:365, premium:550},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:325, full:435, premium:635},
-      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:250, interior:315, full:415, premium:615},
+      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:215, interior:250, full:325, premium:550},
+      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:275, full:325, premium:635},
+      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:250, interior:275, full:325, premium:615},
     },
     packages:[
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
@@ -4666,7 +4666,7 @@ const ZONE_POPULAR = {
 };
 
 const LOC_DISPLAY = {
-  cars:       { ico:'🚗', name:'Cars & Trucks',    desc:'Most requested in your area', from:'From $119' },
+  cars:       { ico:'🚗', name:'Cars & Trucks',    desc:'Most requested in your area', from:'From $175' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $199' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $349' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $119' },
@@ -6256,7 +6256,7 @@ seedDefaultTechs();
       reply:"Hey! 👋 How can I help? I can talk pricing, areas we serve, packages or booking.", chips:DEFAULT_CHIPS }) },
 
     { keys:['price','pricing','cost','how much','quote','expensive','rate','charge','dollar','$'], fn:()=>({
-      reply:"Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n🚗 Cars & Trucks — from <b>$119</b>\n🏍️ Powersports — from <b>$119</b>\n🛥️ Boats — from <b>$199</b>\n🏕️ RVs & Trailers — from <b>$349</b>\n🚚 Fleet — from <b>$60/unit</b>\n\nFor an exact quote, start a booking and enter your vehicle + ZIP — pricing updates live.",
+      reply:"Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n🚗 Cars & Trucks — from <b>$175</b>\n🏍️ Powersports — from <b>$119</b>\n🛥️ Boats — from <b>$199</b>\n🏕️ RVs & Trailers — from <b>$349</b>\n🚚 Fleet — from <b>$60/unit</b>\n\nFor an exact quote, start a booking and enter your vehicle + ZIP — pricing updates live.",
       chips:[{label:'📅 Get my exact price',act:'book'},{label:'📍 Travel fees?',q:'Is there a travel fee?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['area','areas','serve','service area','location','where','city','town','county','zip','near me','come to','pa','pennsylvania','new jersey','new york','connecticut',' nj',' ny',' ct'], fn:()=>({
