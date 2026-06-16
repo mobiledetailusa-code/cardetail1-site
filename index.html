@@ -1676,11 +1676,16 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 
     <!-- TAB 3: LEAVE A REVIEW -->
     <div class="cp-panel" id="cp-p3">
-      <label class="cp-label">Your name</label>
+      <p style="font-size:12px;color:var(--mu);margin-bottom:12px;padding:10px 14px;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs)">Submit your rating only after your service has been completed. This is customer-submitted feedback — not a verified Google review. Feedback is not shown publicly without admin approval.</p>
+      <label class="cp-label">Booking ID <span style="color:var(--rd)">*</span></label>
+      <input class="cp-fi" id="cp-rv-booking-id" type="text" placeholder="CD1-XXXXX">
+      <label class="cp-label">Phone number <span style="color:var(--rd)">*</span></label>
+      <input class="cp-fi" id="cp-rv-phone" type="tel" placeholder="(201) 555-0100">
+      <label class="cp-label">Your name (optional)</label>
       <input class="cp-fi" id="cp-rv-name" type="text" placeholder="First name + last initial">
-      <label class="cp-label">Service received</label>
+      <label class="cp-label">Service received (optional)</label>
       <input class="cp-fi" id="cp-rv-service" type="text" placeholder="e.g. Cars · Full Detail">
-      <label class="cp-label">Your rating</label>
+      <label class="cp-label">Your rating <span style="color:var(--rd)">*</span></label>
       <div class="cp-stars" id="cp-stars">
         <span class="cp-star" data-s="1" onclick="cpSetStar(1)">★</span>
         <span class="cp-star" data-s="2" onclick="cpSetStar(2)">★</span>
@@ -1688,7 +1693,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <span class="cp-star" data-s="4" onclick="cpSetStar(4)">★</span>
         <span class="cp-star" data-s="5" onclick="cpSetStar(5)">★</span>
       </div>
-      <label class="cp-label">Your review</label>
+      <label class="cp-label">Your review <span style="color:var(--rd)">*</span></label>
       <textarea class="cp-fi" id="cp-rv-text" rows="4" placeholder="Tell us about your experience…" style="resize:none"></textarea>
       <button class="cp-btn" onclick="cpSubmitReview()">Submit Review →</button>
       <div class="cp-result" id="cp-rv-result"></div>
@@ -1740,7 +1745,27 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <a class="cg-cta-s" href="tel:5513132956">&#x1F4DE; Contact Cardetail1</a>
       </div>
 
-      <!-- 6. Communication Preferences -->
+      <!-- 6. Leave a Review -->
+      <div class="cg-section">
+        <div class="cg-sec-title">&#x2B50; Leave a Review</div>
+        <p style="font-size:12px;color:var(--mu);margin-bottom:12px">Submit your rating after your service is completed. Customer-submitted feedback — not a verified Google review. Reviews are not shown publicly without admin approval.</p>
+        <label class="cp-label">Your rating <span style="color:var(--rd)">*</span></label>
+        <div class="cp-stars" id="cg-stars" style="margin-bottom:10px">
+          <span class="cp-star" data-s="1" onclick="cgSetStar(1)">★</span>
+          <span class="cp-star" data-s="2" onclick="cgSetStar(2)">★</span>
+          <span class="cp-star" data-s="3" onclick="cgSetStar(3)">★</span>
+          <span class="cp-star" data-s="4" onclick="cgSetStar(4)">★</span>
+          <span class="cp-star" data-s="5" onclick="cgSetStar(5)">★</span>
+        </div>
+        <label class="cp-label">Your review <span style="color:var(--rd)">*</span></label>
+        <textarea class="cp-fi" id="cg-rv-text" rows="4" placeholder="Tell us about your experience…" style="resize:none"></textarea>
+        <label class="cp-label">Display name (optional)</label>
+        <input class="cp-fi" id="cg-rv-name" type="text" placeholder="First name + last initial">
+        <button class="cp-btn" id="cg-rv-btn" onclick="cgSubmitReview()">Submit Feedback &#x2192;</button>
+        <div class="cp-result" id="cg-rv-result"></div>
+      </div>
+
+      <!-- 7. Communication Preferences -->
       <div class="cg-section">
         <div class="cg-sec-title">&#x1F4AC; Communication Preferences</div>
         <div class="cg-pref-row">
@@ -5164,6 +5189,7 @@ async function cpFindBooking(){
     if(btn){ btn.disabled=false; btn.textContent='Access My Garage →'; }
     if(data.ok && data.booking){
       res.style.display='none';
+      _cgPhone = phone;
       cpShowGarage(data.booking);
     } else {
       res.style.display='block';
@@ -5178,6 +5204,7 @@ async function cpFindBooking(){
 
 // â”€â”€ CUSTOMER GARAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let _cgBooking = null;
+let _cgPhone   = null;
 
 function cpShowGarage(b){
   _cgBooking = b;
@@ -5190,6 +5217,7 @@ function cpShowGarage(b){
 
 function cpGarageBack(){
   _cgBooking = null;
+  _cgPhone   = null;
   document.getElementById('cp-garage').style.display = 'none';
   const tabs = document.querySelector('#cp-ov .cp-tabs');
   if(tabs) tabs.style.display = '';
@@ -5265,25 +5293,75 @@ async function cpGetPayLink(){
 let cpStarVal = 0;
 function cpSetStar(n){
   cpStarVal = n;
-  document.querySelectorAll('.cp-star').forEach((s,i)=>s.classList.toggle('on', i<n));
+  document.querySelectorAll('#cp-stars .cp-star').forEach((s,i)=>s.classList.toggle('on', i<n));
 }
 
-function cpSubmitReview(){
+async function cpSubmitReview(){
+  const bkId    = (document.getElementById('cp-rv-booking-id')||{value:''}).value.trim();
+  const phone   = (document.getElementById('cp-rv-phone')||{value:''}).value.trim();
   const name    = document.getElementById('cp-rv-name').value.trim();
   const service = document.getElementById('cp-rv-service').value.trim();
   const text    = document.getElementById('cp-rv-text').value.trim();
   const res     = document.getElementById('cp-rv-result');
-  if(!name||!text||!cpStarVal){ res.style.display='block'; res.innerHTML='<span style="color:var(--rd)">Please fill in name, rating, and review.</span>'; return; }
-  // Save to localStorage pending reviews
-  const pending = JSON.parse(localStorage.getItem('cd1_reviews_pending')||'[]');
-  pending.push({ name, service, text, rating:cpStarVal, date: new Date().toLocaleDateString('en-US',{month:'short',year:'numeric'}), submitted: new Date().toISOString() });
-  localStorage.setItem('cd1_reviews_pending', JSON.stringify(pending));
   res.style.display='block';
-  res.innerHTML='<span style="color:var(--gr);font-weight:600">✓ Thank you! Your review has been submitted for approval.</span>';
-  document.getElementById('cp-rv-name').value='';
-  document.getElementById('cp-rv-service').value='';
-  document.getElementById('cp-rv-text').value='';
-  cpSetStar(0);
+  if(!cpStarVal||!text){ res.innerHTML='<span style="color:var(--rd)">Please add a rating and review text.</span>'; return; }
+  if(!bkId||!phone){ res.innerHTML='<span style="color:var(--mu)">Enter your Booking ID and phone number, or access the review form through <button style="background:none;border:none;color:var(--blue);cursor:pointer;text-decoration:underline;font-size:inherit;padding:0" onclick="cpTab(0)">My Booking</button>.</span>'; return; }
+  const btn = document.querySelector('#cp-p3 .cp-btn');
+  if(btn){ btn.disabled=true; btn.textContent='Submitting…'; }
+  try{
+    const r = await fetch(BACKEND_BASE+'/submit-review',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ bookingId:bkId, phone, rating:cpStarVal, text, displayName:name, service }),
+    });
+    const data = await r.json();
+    if(btn){ btn.disabled=false; btn.textContent='Submit Review →'; }
+    if(data.ok){
+      res.innerHTML='<span style="color:var(--gr);font-weight:600">✓ Thank you. Your feedback was received and may be reviewed before appearing publicly.</span>';
+      ['cp-rv-booking-id','cp-rv-phone','cp-rv-name','cp-rv-service','cp-rv-text'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+      cpSetStar(0);
+    } else {
+      res.innerHTML='<span style="color:var(--mu)">'+(data.message||'Could not submit. Try again or call 551-313-2956.')+'</span>';
+    }
+  } catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='Submit Review →'; }
+    res.innerHTML='<span style="color:var(--mu)">Could not connect. Try again or call 551-313-2956.</span>';
+  }
+}
+
+let cgStarVal = 0;
+function cgSetStar(n){
+  cgStarVal = n;
+  document.querySelectorAll('#cg-stars .cp-star').forEach((s,i)=>s.classList.toggle('on', i<n));
+}
+
+async function cgSubmitReview(){
+  const text        = (document.getElementById('cg-rv-text')||{value:''}).value.trim();
+  const displayName = (document.getElementById('cg-rv-name')||{value:''}).value.trim();
+  const res         = document.getElementById('cg-rv-result');
+  const btn         = document.getElementById('cg-rv-btn');
+  if(!cgStarVal||!text){ if(res){ res.style.display='block'; res.innerHTML='<span style="color:var(--rd)">Please add a rating and review text.</span>'; } return; }
+  if(!_cgBooking||!_cgPhone){ if(res){ res.style.display='block'; res.innerHTML='<span style="color:var(--mu)">Session expired. Please search your booking again.</span>'; } return; }
+  if(btn){ btn.disabled=true; btn.textContent='Submitting…'; }
+  try{
+    const r = await fetch(BACKEND_BASE+'/submit-review',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ bookingId:_cgBooking.id, phone:_cgPhone, rating:cgStarVal, text, displayName, service:_cgBooking.package||'' }),
+    });
+    const data = await r.json();
+    if(btn){ btn.disabled=false; btn.textContent='Submit Feedback →'; }
+    if(res) res.style.display='block';
+    if(data.ok){
+      if(res) res.innerHTML='<span style="color:var(--gr);font-weight:600">✓ Thank you. Your feedback was received and may be reviewed before appearing publicly.</span>';
+      const t=document.getElementById('cg-rv-text'); if(t) t.value='';
+      const n=document.getElementById('cg-rv-name'); if(n) n.value='';
+      cgSetStar(0);
+    } else {
+      if(res) res.innerHTML='<span style="color:var(--mu)">'+(data.message||'Could not submit. Try again or call 551-313-2956.')+'</span>';
+    }
+  } catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='Submit Feedback →'; }
+    if(res){ res.style.display='block'; res.innerHTML='<span style="color:var(--mu)">Could not connect. Try again or call 551-313-2956.</span>'; }
+  }
 }
 
 // ═══════════════════════════════════════════════════════
