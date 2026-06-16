@@ -17,6 +17,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- ── GOOGLE REVIEWS WIDGET SCRIPT ─────────────────────────────────────────
+     OWNER SETUP — STEP 1 OF 2
+     After setting GOOGLE_REVIEWS_WIDGET_EMBED in the JS config section below,
+     uncomment the <script> line here. This loads the Elfsight platform once,
+     globally. Do NOT paste the script tag inside the widget div — it must live here.
+     Elfsight: https://elfsight.com → Google Reviews widget → Publish → copy embed code.
+  <script src="https://static.elfsight.com/platform/platform.js" async></script>
+-->
 <style>
 /* ── RESET & VARS ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -928,6 +936,12 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .rv-honest-ico{font-size:36px;margin-bottom:10px}
 .rv-honest-title{font-size:15px;font-weight:600;color:var(--white);margin-bottom:6px}
 .rv-honest-desc{font-size:13px;color:var(--mu);line-height:1.6;max-width:480px;margin:0 auto 16px}
+/* ── GOOGLE REVIEWS WIDGET AREA ── */
+.gr-widget-area{margin-bottom:24px}
+.gr-widget-heading{font-family:var(--fd);font-size:26px;color:var(--white);letter-spacing:.02em;margin-bottom:12px;text-align:center}
+.gr-widget-embed{overflow:hidden;width:100%}
+.gr-widget-note{font-size:12px;color:var(--mu);text-align:center;margin-top:14px;line-height:1.55;max-width:520px;margin-left:auto;margin-right:auto}
+@media(max-width:600px){.gr-widget-heading{font-size:20px}}
 
 /* ── LOCATION CAROUSEL ── */
 .loc-section{background:var(--bg1);padding:48px 20px}
@@ -1440,6 +1454,12 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="sec-eye">Customer Reviews &amp; Recent Feedback</div>
     <div class="sec-title">SHARE YOUR<br>EXPERIENCE.</div>
     <div class="sec-desc">Had a Cardetail1 service? Your honest feedback helps other customers in Bergen County find mobile detailing they can trust.</div>
+    <!-- GOOGLE REVIEWS WIDGET AREA — shown when GOOGLE_REVIEWS_WIDGET_EMBED is set in the JS config -->
+    <div id="google-reviews-widget-area" class="gr-widget-area" style="display:none">
+      <div class="gr-widget-heading">Google Reviews</div>
+      <div id="gr-widget-embed" class="gr-widget-embed"></div>
+      <p class="gr-widget-note">Google reviews are displayed from our Google Business Profile when the widget is connected.</p>
+    </div>
     <div class="rv-honest">
       <div class="rv-honest-ico">⭐</div>
       <div class="rv-honest-title">We're collecting customer feedback</div>
@@ -2476,6 +2496,18 @@ const STRIPE_READY   = !!(STRIPE_PUBLISHABLE_KEY && window.Stripe);
 // Google Business Profile review link — real, owner-provided URL.
 // Opens in a new tab. Do not invent or modify this URL.
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CTJwfJerrQeCEAI/review';
+
+// ── GOOGLE REVIEWS WIDGET (Elfsight or compatible embed) ─────────────────
+// OWNER SETUP — STEP 2 OF 2
+//   1. Create a Google Reviews widget at https://elfsight.com (free plan available)
+//   2. Publish the widget — Elfsight gives you two snippets: a <script> and a <div>
+//   3. Paste ONLY the <div class="elfsight-app-..."> snippet below as a string
+//   4. Uncomment the <script> tag in the <head> section (search "GOOGLE REVIEWS WIDGET SCRIPT")
+//   5. Commit and deploy — the widget appears in the Reviews section automatically.
+// Leave '' to keep the honest placeholder ("We're actively collecting customer feedback.")
+const GOOGLE_REVIEWS_WIDGET_EMBED = '';
+// Example — replace with your own app ID from Elfsight:
+// const GOOGLE_REVIEWS_WIDGET_EMBED = '<div class="elfsight-app-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" data-elfsight-app-lazy></div>';
 
 // ── ASSISTENTE IA (chat flutuante) ─────────────────────
 // Endpoint da função Netlify que chama a IA (Claude). Se a IA não estiver
@@ -4835,6 +4867,18 @@ function rvGoTo(i){
 
 function rvMove(dir){ rvGoTo(rvIdx + dir); }
 
+function initGoogleReviewsWidget() {
+  if (!GOOGLE_REVIEWS_WIDGET_EMBED) return;
+  const area  = document.getElementById('google-reviews-widget-area');
+  const embed = document.getElementById('gr-widget-embed');
+  if (!area || !embed) return;
+  embed.innerHTML = GOOGLE_REVIEWS_WIDGET_EMBED;
+  area.style.display = '';
+  // Hide the honest placeholder when widget is active
+  const placeholder = document.querySelector('.rv-honest');
+  if (placeholder) placeholder.style.display = 'none';
+}
+
 // ═══════════════════════════════════════════════════════
 // AUTH / LOGIN
 // ═══════════════════════════════════════════════════════
@@ -6147,6 +6191,7 @@ function openBookingFromHome(cat){
 // INIT
 // ═══════════════════════════════════════════════════════
 renderReviews();
+initGoogleReviewsWidget();
 renderLocationCarousel('default');
 renderActivityFeed();
 seedDefaultTechs();
