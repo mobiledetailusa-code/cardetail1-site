@@ -1437,14 +1437,26 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <!-- REVIEWS -->
 <div id="reviews" style="background:var(--bg0)">
   <div class="section">
-    <div class="sec-eye">Customer Reviews</div>
+    <div class="sec-eye">Customer Reviews &amp; Recent Feedback</div>
     <div class="sec-title">SHARE YOUR<br>EXPERIENCE.</div>
-    <div class="sec-desc">Had a Cardetail1 service? Your honest review helps other customers in Bergen County find mobile detailing they can trust.</div>
+    <div class="sec-desc">Had a Cardetail1 service? Your honest feedback helps other customers in Bergen County find mobile detailing they can trust.</div>
     <div class="rv-honest">
       <div class="rv-honest-ico">⭐</div>
-      <div class="rv-honest-title">Be among our first reviewers</div>
-      <div class="rv-honest-desc">We're actively booking new customers in Bergen County and surrounding areas. Your feedback helps us grow and helps others find reliable mobile detailing.</div>
-      <button class="btn-primary" style="font-size:13px;padding:12px 26px" onclick="openPortal();setTimeout(()=>cpTab(3),300)">Leave a Review →</button>
+      <div class="rv-honest-title">We're collecting customer feedback</div>
+      <div class="rv-honest-desc">We're actively collecting customer feedback. After your service, you'll receive a review link so you can share your experience.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:16px">
+        <button class="btn-primary" style="font-size:13px;padding:12px 26px" onclick="openPortal();setTimeout(()=>cpTab(3),300)">Leave a Review →</button>
+        <button class="btn-n" style="font-size:13px;padding:12px 22px" onclick="openPortal()">View My Booking →</button>
+        <button class="btn-n" style="font-size:13px;padding:12px 22px" onclick="openBooking(null)">Book Mobile Detailing →</button>
+      </div>
+    </div>
+    <div class="cred-row" style="margin-top:20px">
+      <div class="cred-item"><span>🧽</span><span>Recent mobile detailing work</span></div>
+      <div class="cred-item"><span>📸</span><span>Before/after gallery coming soon</span></div>
+      <div class="cred-item"><span>📍</span><span>Serving Bergen County &amp; North Jersey</span></div>
+      <div class="cred-item"><span>🔧</span><span>Professional equipment</span></div>
+      <div class="cred-item"><span>🚿</span><span>Water &amp; power available</span></div>
+      <div class="cred-item"><span>✓</span><span>Booking reviewed before confirmation</span></div>
     </div>
     <div style="text-align:center;margin-top:14px">
       <span style="font-size:12px;color:var(--mu)">📍 Bergen County &amp; North Jersey · Mobile Detailing Service</span>
@@ -1676,6 +1688,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 
     <!-- TAB 3: LEAVE A REVIEW -->
     <div class="cp-panel" id="cp-p3">
+      <p style="font-size:12px;color:var(--mu);margin-bottom:12px;padding:10px 14px;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs)">Submit your rating only after your service has been completed. This is customer-submitted feedback — not a verified Google review. Feedback is not shown publicly without admin approval.</p>
       <label class="cp-label">Your name</label>
       <input class="cp-fi" id="cp-rv-name" type="text" placeholder="First name + last initial">
       <label class="cp-label">Service received</label>
@@ -2244,7 +2257,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <div class="or"><span class="ol">Total</span><span class="ov" id="ok-total" style="color:var(--blue);font-weight:700">—</span></div>
             <div class="or" style="border:none"><span class="ol">Date</span><span class="ov" id="ok-date">—</span></div>
           </div>
-          <p style="font-size:12.5px;color:var(--mu);margin-bottom:16px">Questions? Call / text <strong style="color:var(--white)">551-313-2956</strong> · Mon–Fri 8AM–5PM</p>
+          <p style="font-size:12.5px;color:var(--mu);margin-bottom:10px">Questions? Call / text <strong style="color:var(--white)">551-313-2956</strong> · Mon–Fri 8AM–5PM</p>
+          <p style="font-size:12px;color:var(--mu);background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs);padding:10px 14px;margin-bottom:16px">After your service is completed, you can leave a review through My Booking.</p>
           <button class="btn-restart" onclick="restartBooking()">Book Another Service</button>
         </div>
       </div>
@@ -2287,6 +2301,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button onclick="showAdminTab('list')">📋 List</button>
         <button onclick="showAdminTab('calendar')">📅 Calendar</button>
         <button onclick="showAdminTab('inquiries')" id="cd-inq-tab-btn">💬 Inquiries</button>
+        <button onclick="showAdminTab('reviews')">⭐ Reviews</button>
         <button onclick="exportBookingsCsv()">Export CSV</button>
         <button onclick="seedDemoBooking()">Demo</button>
         <button onclick="clearDemoBookings()">Clear</button>
@@ -2302,6 +2317,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       </div>
       <div id="admin-auc-view" style="display:none">
         <div id="cd-auc-list"></div>
+      </div>
+      <div id="admin-reviews-view" style="display:none">
+        <div style="padding:24px;text-align:center;color:var(--mu);font-size:13px">
+          <div style="font-size:28px;margin-bottom:10px">⭐</div>
+          <div style="font-weight:600;color:var(--white);margin-bottom:6px;font-size:15px">Review Moderation</div>
+          <div style="max-width:340px;margin:0 auto;line-height:1.6">Review moderation coming soon. Customer feedback is not published publicly until this feature is live.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -2423,6 +2445,10 @@ const DEPOSIT_MIN_CENTS = 2500;  // piso $25 (Stripe exige ≥ $0.50)
 // Base das funções Netlify (deixe assim em produção no Netlify).
 const BACKEND_BASE   = '/.netlify/functions';
 const STRIPE_READY   = !!(STRIPE_PUBLISHABLE_KEY && window.Stripe);
+// TODO: Set GOOGLE_REVIEW_URL once Google Business Profile is verified.
+// Example: 'https://g.page/r/XXXXXXXXXXXXXXXX/review'
+// Leave empty — do not invent a Google review URL.
+const GOOGLE_REVIEW_URL = '';
 
 // ── ASSISTENTE IA (chat flutuante) ─────────────────────
 // Endpoint da função Netlify que chama a IA (Claude). Se a IA não estiver
@@ -3994,6 +4020,7 @@ function showAdminTab(tab){
   document.getElementById('admin-cal-view').style.display  = tab==='calendar' ? 'block' : 'none';
   const inq = document.getElementById('admin-inq-view'); if(inq) inq.style.display = tab==='inquiries' ? 'block' : 'none';
   const auc = document.getElementById('admin-auc-view'); if(auc) auc.style.display = tab==='auctions' ? 'block' : 'none';
+  const rev = document.getElementById('admin-reviews-view'); if(rev) rev.style.display = tab==='reviews' ? 'block' : 'none';
   if(tab==='calendar') renderAdminCalendar();
   if(tab==='inquiries') renderAdminInquiries();
   if(tab==='auctions') renderAuctions();
@@ -5279,7 +5306,7 @@ function cpSubmitReview(){
   pending.push({ name, service, text, rating:cpStarVal, date: new Date().toLocaleDateString('en-US',{month:'short',year:'numeric'}), submitted: new Date().toISOString() });
   localStorage.setItem('cd1_reviews_pending', JSON.stringify(pending));
   res.style.display='block';
-  res.innerHTML='<span style="color:var(--gr);font-weight:600">✓ Thank you! Your review has been submitted for approval.</span>';
+  res.innerHTML='<span style="color:var(--gr);font-weight:600">✓ Thank you for your feedback. Customer-submitted reviews are not shown publicly without admin approval.</span>';
   document.getElementById('cp-rv-name').value='';
   document.getElementById('cp-rv-service').value='';
   document.getElementById('cp-rv-text').value='';
