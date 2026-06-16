@@ -1445,8 +1445,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="rv-honest-title">We're collecting customer feedback</div>
       <div class="rv-honest-desc">We're actively collecting customer feedback. After your service, you'll receive a review link so you can share your experience.</div>
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:16px">
-        <button class="btn-primary" style="font-size:13px;padding:12px 26px" onclick="openPortal();setTimeout(()=>cpTab(3),300)">Leave a Review →</button>
-        <button class="btn-n" style="font-size:13px;padding:12px 22px" onclick="openPortal()">View My Booking →</button>
+        <a class="btn-primary" style="font-size:13px;padding:12px 26px;text-decoration:none;display:inline-flex;align-items:center;gap:6px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">⭐ Leave a Google Review</a>
+        <button class="btn-n" style="font-size:13px;padding:12px 22px" onclick="openPortal();setTimeout(()=>cpTab(3),300)">Send Private Feedback →</button>
         <button class="btn-n" style="font-size:13px;padding:12px 22px" onclick="openBooking(null)">Book Mobile Detailing →</button>
       </div>
     </div>
@@ -1688,23 +1688,36 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 
     <!-- TAB 3: LEAVE A REVIEW -->
     <div class="cp-panel" id="cp-p3">
-      <p style="font-size:12px;color:var(--mu);margin-bottom:12px;padding:10px 14px;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs)">Submit your rating only after your service has been completed. This is customer-submitted feedback — not a verified Google review. Feedback is not shown publicly without admin approval.</p>
-      <label class="cp-label">Your name</label>
-      <input class="cp-fi" id="cp-rv-name" type="text" placeholder="First name + last initial">
-      <label class="cp-label">Service received</label>
-      <input class="cp-fi" id="cp-rv-service" type="text" placeholder="e.g. Cars · Full Detail">
-      <label class="cp-label">Your rating</label>
-      <div class="cp-stars" id="cp-stars">
-        <span class="cp-star" data-s="1" onclick="cpSetStar(1)">★</span>
-        <span class="cp-star" data-s="2" onclick="cpSetStar(2)">★</span>
-        <span class="cp-star" data-s="3" onclick="cpSetStar(3)">★</span>
-        <span class="cp-star" data-s="4" onclick="cpSetStar(4)">★</span>
-        <span class="cp-star" data-s="5" onclick="cpSetStar(5)">★</span>
+      <p style="font-size:12px;color:var(--mu);margin-bottom:14px">Submit your rating only after your service has been completed.</p>
+
+      <!-- Option A: Public Google Review -->
+      <div style="padding:14px;background:var(--bg2);border:1px solid rgba(77,163,255,.25);border-radius:var(--rs);margin-bottom:12px">
+        <div style="font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px">⭐ Public Google Review</div>
+        <div style="font-size:12px;color:var(--mu);margin-bottom:10px">Your review will appear publicly on Google and help others find us in Bergen County.</div>
+        <a class="cp-btn" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;text-align:center">Leave a Google Review →</a>
       </div>
-      <label class="cp-label">Your review</label>
-      <textarea class="cp-fi" id="cp-rv-text" rows="4" placeholder="Tell us about your experience…" style="resize:none"></textarea>
-      <button class="cp-btn" onclick="cpSubmitReview()">Submit Review →</button>
-      <div class="cp-result" id="cp-rv-result"></div>
+
+      <!-- Option B: Private feedback to Cardetail1 -->
+      <div style="padding:14px;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs)">
+        <div style="font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px">💬 Send Private Feedback</div>
+        <div style="font-size:12px;color:var(--mu);margin-bottom:12px">Customer-submitted feedback — not a verified Google review. Not shown publicly without admin approval.</div>
+        <label class="cp-label">Your name</label>
+        <input class="cp-fi" id="cp-rv-name" type="text" placeholder="First name + last initial">
+        <label class="cp-label">Service received</label>
+        <input class="cp-fi" id="cp-rv-service" type="text" placeholder="e.g. Cars · Full Detail">
+        <label class="cp-label">Your rating</label>
+        <div class="cp-stars" id="cp-stars">
+          <span class="cp-star" data-s="1" onclick="cpSetStar(1)">★</span>
+          <span class="cp-star" data-s="2" onclick="cpSetStar(2)">★</span>
+          <span class="cp-star" data-s="3" onclick="cpSetStar(3)">★</span>
+          <span class="cp-star" data-s="4" onclick="cpSetStar(4)">★</span>
+          <span class="cp-star" data-s="5" onclick="cpSetStar(5)">★</span>
+        </div>
+        <label class="cp-label">Your review</label>
+        <textarea class="cp-fi" id="cp-rv-text" rows="4" placeholder="Tell us about your experience…" style="resize:none"></textarea>
+        <button class="cp-btn" onclick="cpSubmitReview()">Submit Private Feedback →</button>
+        <div class="cp-result" id="cp-rv-result"></div>
+      </div>
     </div>
 
     <!-- CUSTOMER GARAGE &mdash; shown after successful booking lookup -->
@@ -2258,7 +2271,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <div class="or" style="border:none"><span class="ol">Date</span><span class="ov" id="ok-date">—</span></div>
           </div>
           <p style="font-size:12.5px;color:var(--mu);margin-bottom:10px">Questions? Call / text <strong style="color:var(--white)">551-313-2956</strong> · Mon–Fri 8AM–5PM</p>
-          <p style="font-size:12px;color:var(--mu);background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs);padding:10px 14px;margin-bottom:16px">After your service is completed, you can leave a review through My Booking.</p>
+          <div style="background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs);padding:12px 14px;margin-bottom:16px">
+            <p style="font-size:12px;color:var(--mu);margin-bottom:10px">After your service is completed, we'd appreciate your honest review.</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <button class="btn-n" style="font-size:12px;padding:8px 18px" onclick="closeBooking();openPortal()">Open My Booking →</button>
+              <a style="font-size:12px;padding:8px 18px;text-decoration:none;border:1px solid rgba(255,255,255,.18);border-radius:var(--rs);color:var(--white);background:transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">⭐ Leave a Google Review</a>
+            </div>
+          </div>
           <button class="btn-restart" onclick="restartBooking()">Book Another Service</button>
         </div>
       </div>
@@ -2319,10 +2338,19 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div id="cd-auc-list"></div>
       </div>
       <div id="admin-reviews-view" style="display:none">
-        <div style="padding:24px;text-align:center;color:var(--mu);font-size:13px">
-          <div style="font-size:28px;margin-bottom:10px">⭐</div>
-          <div style="font-weight:600;color:var(--white);margin-bottom:6px;font-size:15px">Review Moderation</div>
-          <div style="max-width:340px;margin:0 auto;line-height:1.6">Review moderation coming soon. Customer feedback is not published publicly until this feature is live.</div>
+        <div style="padding:20px;font-size:13px">
+          <div style="text-align:center;margin-bottom:18px">
+            <div style="font-size:26px;margin-bottom:8px">⭐</div>
+            <div style="font-weight:600;color:var(--white);font-size:15px">Review Moderation</div>
+          </div>
+          <div style="background:var(--bg2);border:1px solid rgba(77,163,255,.2);border-radius:var(--rs);padding:12px 14px;margin-bottom:10px;line-height:1.6">
+            <div style="font-weight:600;color:var(--white);margin-bottom:4px">Google Reviews</div>
+            <div style="color:var(--mu)">Google reviews are managed on Google. Visit your Google Business Profile to view, respond to, or flag public reviews. Do not copy or republish Google review text here.</div>
+          </div>
+          <div style="background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs);padding:12px 14px;line-height:1.6">
+            <div style="font-weight:600;color:var(--white);margin-bottom:4px">Private Feedback (Cardetail1)</div>
+            <div style="color:var(--mu)">Private feedback submitted through Cardetail1 appears here for moderation. Review moderation coming soon — customer feedback is not published publicly until approved.</div>
+          </div>
         </div>
       </div>
     </div>
@@ -2445,10 +2473,9 @@ const DEPOSIT_MIN_CENTS = 2500;  // piso $25 (Stripe exige ≥ $0.50)
 // Base das funções Netlify (deixe assim em produção no Netlify).
 const BACKEND_BASE   = '/.netlify/functions';
 const STRIPE_READY   = !!(STRIPE_PUBLISHABLE_KEY && window.Stripe);
-// TODO: Set GOOGLE_REVIEW_URL once Google Business Profile is verified.
-// Example: 'https://g.page/r/XXXXXXXXXXXXXXXX/review'
-// Leave empty — do not invent a Google review URL.
-const GOOGLE_REVIEW_URL = '';
+// Google Business Profile review link — real, owner-provided URL.
+// Opens in a new tab. Do not invent or modify this URL.
+const GOOGLE_REVIEW_URL = 'https://g.page/r/CTJwfJerrQeCEAI/review';
 
 // ── ASSISTENTE IA (chat flutuante) ─────────────────────
 // Endpoint da função Netlify que chama a IA (Claude). Se a IA não estiver
