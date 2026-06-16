@@ -2466,7 +2466,9 @@ const ADMIN_SMS      = '5513132956';         // seu celular (SMS admin)
 // Publishable key — PÚBLICA, pode ficar aqui no HTML.
 // Pegue em: https://dashboard.stripe.com → Developers → API keys
 // Deixe '' para DESLIGAR o cartão (o booking continua via review manual).
-const STRIPE_PUBLISHABLE_KEY = 'pk_live_51TgF1pLbeoH0J6bluRzSMjuW8xiadDmlC4dRHJSDSzOkldku6GV2mw3Ia57FQ4ImqO0R6tPUwNxZ8XUuor146oho00I2txpSME';   // 'pk_test_...' (teste) ou 'pk_live_...'
+// VALIDATION BRANCH — set to pk_test_... once owner updates STRIPE_SECRET_KEY to sk_test_ in Netlify.
+// Live key cleared to prevent accidental charges on Deploy Preview.
+const STRIPE_PUBLISHABLE_KEY = '';   // 'pk_test_...' (teste) ou 'pk_live_...'
 // Depósito = % do total estimado (0.25 = 25%). Piso mínimo em centavos.
 const DEPOSIT_PCT      = 0.25;   // 25% do total
 const DEPOSIT_MIN_CENTS = 2500;  // piso $25 (Stripe exige ≥ $0.50)

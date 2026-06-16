@@ -32,7 +32,13 @@ exports.handler = async (event) => {
   if (!secret) return json(503, { ok: false, error: 'Stripe not configured on server' });
   const mode = secret.startsWith('sk_test_') ? 'test' : 'live';
   if (mode === 'live') {
-    console.warn('[create-payment-intent] WARNING: using live Stripe key — no real charges should occur during validation');
+    // Hard block — this branch must not create live PaymentIntents.
+    // Switch STRIPE_SECRET_KEY to sk_test_... in Netlify env vars to proceed.
+    return json(403, {
+      ok: false,
+      error: 'Live Stripe key detected. Set STRIPE_SECRET_KEY to sk_test_... in Netlify before running validation.',
+      mode: 'live',
+    });
   }
 
   let p;
