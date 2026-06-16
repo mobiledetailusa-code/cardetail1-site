@@ -151,7 +151,12 @@ exports.handler = async (event) => {
     : (event.body || '');
   const sig = event.headers['stripe-signature'] || event.headers['Stripe-Signature'];
 
-  if (!verifyStripeSignature(raw, sig, process.env.STRIPE_WEBHOOK_SECRET)) {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error('[stripe-webhook] STRIPE_WEBHOOK_SECRET not set — rejecting all events');
+    return { statusCode: 503, body: 'Webhook secret not configured' };
+  }
+  if (!verifyStripeSignature(raw, sig, webhookSecret)) {
     return { statusCode: 400, body: 'Invalid signature' };
   }
 
@@ -217,7 +222,25 @@ exports.handler = async (event) => {
       break;
     }
 
+    case 'payment_intent.canceled': {
+      // Stripe canceled the PaymentIntent (card expired, customer canceled, etc.)
+      // Mark booking so admin is not left waiting on an authorization that will never come.
+      const cancelReason = pi.cancellation_reason || 'unknown';
+      results.update = await updateBookingPayment(bookingId, {
+        paymentStatus: 'canceled',
+        paymentIntentId: pi.id,
+        paymentCancelReason: cancelReason,
+      });
+      await notifyAdmin(
+        `Cardetail1 — payment CANCELED · ${bookingId}`,
+        `PaymentIntent canceled for booking ${bookingId}.\nReason: ${cancelReason}\nPaymentIntent: ${pi.id}`
+      );
+      break;
+    }
+
     default:
+      // Log unexpected event types to help with future debugging.
+      if (evt.type) console.log('[stripe-webhook] unhandled event type:', evt.type);
       break;
   }
 
