@@ -929,6 +929,44 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .rv-honest-title{font-size:15px;font-weight:600;color:var(--white);margin-bottom:6px}
 .rv-honest-desc{font-size:13px;color:var(--mu);line-height:1.6;max-width:480px;margin:0 auto 16px}
 
+/* ── GALLERY CARDS (public results) ── */
+.gl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:0}
+.gl-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:.2s}
+.gl-card:hover{border-color:var(--bbr);transform:translateY(-2px)}
+.gl-img-wrap{position:relative;background:var(--bg3);aspect-ratio:4/3;overflow:hidden}
+.gl-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.gl-ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--bg3);aspect-ratio:16/7}
+.gl-ba-pane{position:relative;overflow:hidden}
+.gl-ba-pane img{width:100%;height:100%;object-fit:cover;display:block}
+.gl-ba-label{position:absolute;bottom:5px;left:6px;font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;background:rgba(0,0,0,.72);color:#c8d5e0;letter-spacing:.07em;text-transform:uppercase}
+.gl-body{padding:13px 14px;display:flex;flex-direction:column;gap:5px;flex:1}
+.gl-title{font-size:13.5px;font-weight:600;color:var(--white);line-height:1.35}
+.gl-service{font-size:11px;color:var(--blue);font-weight:600}
+.gl-location{font-size:11px;color:var(--mu)}
+.gl-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid var(--bbr);background:var(--bdim);color:var(--blue);margin-top:3px;width:fit-content}
+/* ── GALLERY ADMIN ── */
+.gl-warn{background:rgba(245,166,35,.1);border:1px solid var(--ambr);border-radius:var(--rs);padding:11px 14px;font-size:12px;color:var(--am);margin-bottom:14px;line-height:1.55}
+.gl-form{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.gl-form-title{font-size:13px;font-weight:700;color:var(--white);margin-bottom:12px}
+.gl-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.gl-label{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.05em}
+.gl-input{background:var(--bg3);border:1px solid rgba(255,255,255,.1);border-radius:var(--rs);padding:8px 10px;color:var(--white);font-size:13px;width:100%}
+.gl-input:focus{outline:none;border-color:var(--bbr)}
+.gl-select{background:var(--bg3);border:1px solid rgba(255,255,255,.1);border-radius:var(--rs);padding:8px 10px;color:var(--white);font-size:13px;width:100%;cursor:pointer}
+.gl-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gl-item{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--rs);padding:12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px}
+.gl-item-thumb{width:52px;height:38px;border-radius:var(--rs);overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px}
+.gl-item-thumb img{width:100%;height:100%;object-fit:cover}
+.gl-item-body{flex:1;min-width:0}
+.gl-item-title{font-size:13px;font-weight:600;color:var(--white);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gl-item-meta{font-size:11px;color:var(--mu)}
+.gl-item-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.gl-pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid}
+.gl-pill.draft{color:var(--am);border-color:var(--ambr);background:var(--amdim)}
+.gl-pill.published{color:var(--gr);border-color:var(--grbr);background:var(--grdim)}
+.gl-pill.hidden{color:var(--mu);border-color:rgba(255,255,255,.12);background:var(--bg3)}
+@media(max-width:600px){.gl-2col{grid-template-columns:1fr}.gl-ba-grid{aspect-ratio:1/1}}
+
 /* ── LOCATION CAROUSEL ── */
 .loc-section{background:var(--bg1);padding:48px 20px}
 .loc-inner{max-width:1100px;margin:0 auto}
@@ -1380,7 +1418,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="sec-eye">Recent Work</div>
     <div class="sec-title">REAL RESULTS FROM<br>MOBILE DETAILING JOBS.</div>
     <div class="sec-desc">Interior, exterior, and paint enhancement work performed at the customer's location.</div>
-    <div class="results-grid">
+    <!-- Gallery photo cards — shown by loadPublicGallery() when published items exist -->
+    <div id="results-gallery-area" class="gl-grid" style="display:none"></div>
+    <!-- Service description cards — shown when no gallery items are published yet -->
+    <div id="results-service-grid" class="results-grid">
       <div class="rc-card">
         <div class="rc-ico">🧹</div>
         <div class="rc-title">Interior Detail</div>
@@ -1406,7 +1447,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
       </div>
     </div>
-    <p class="photo-note">Customer photo gallery coming soon — ask about our recent work: <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a></p>
+    <p id="results-photo-note" class="photo-note">Customer photo gallery coming soon — ask about our recent work: <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a></p>
     <div class="cred-row">
       <div class="cred-item"><span>🚐</span><span><b>Mobile service</b> — we come to you</span></div>
       <div class="cred-item"><span>🚿</span><span><b>Water &amp; power</b> available on every job</span></div>
@@ -2321,6 +2362,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button onclick="showAdminTab('calendar')">📅 Calendar</button>
         <button onclick="showAdminTab('inquiries')" id="cd-inq-tab-btn">💬 Inquiries</button>
         <button onclick="showAdminTab('reviews')">⭐ Reviews</button>
+        <button onclick="showAdminTab('gallery')">📷 Gallery</button>
         <button onclick="exportBookingsCsv()">Export CSV</button>
         <button onclick="seedDemoBooking()">Demo</button>
         <button onclick="clearDemoBookings()">Clear</button>
@@ -2352,6 +2394,71 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <div style="color:var(--mu)">Private feedback submitted through Cardetail1 appears here for moderation. Review moderation coming soon — customer feedback is not published publicly until approved.</div>
           </div>
         </div>
+      </div>
+      <div id="admin-gallery-view" style="display:none;padding:16px">
+        <div class="gl-warn">⚠️ <strong>Photo policy:</strong> Use only real Cardetail1 job photos. Blur or crop license plates before uploading. Do not include customer addresses. Do not use stock photos or AI-generated images as customer work.</div>
+        <div class="gl-form" id="gl-form-wrap">
+          <div class="gl-form-title">Add Gallery Item</div>
+          <div class="gl-field">
+            <label class="gl-label">Title <span style="color:var(--mu);font-weight:400;text-transform:none">(required)</span></label>
+            <input class="gl-input" id="gl-title" placeholder="e.g. Interior Detail · Ford F-150">
+          </div>
+          <div class="gl-2col">
+            <div class="gl-field">
+              <label class="gl-label">Service Category</label>
+              <select class="gl-select" id="gl-service">
+                <option value="">— select —</option>
+                <option>Interior Detail</option>
+                <option>Exterior Detail</option>
+                <option>Premium Detail</option>
+                <option>Paint Correction</option>
+                <option>Maintenance Wash</option>
+                <option>Marine Detail</option>
+                <option>RV Detail</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="gl-field">
+              <label class="gl-label">Location Label <span style="color:var(--mu);font-weight:400;text-transform:none">(city/area only — no street address)</span></label>
+              <input class="gl-input" id="gl-location" placeholder="e.g. Paramus, NJ">
+            </div>
+          </div>
+          <div class="gl-field">
+            <label class="gl-label">Main Image URL <span style="color:var(--mu);font-weight:400;text-transform:none">(if no before/after)</span></label>
+            <input class="gl-input" id="gl-imageUrl" placeholder="https://...">
+          </div>
+          <div class="gl-2col">
+            <div class="gl-field">
+              <label class="gl-label">Before Image URL</label>
+              <input class="gl-input" id="gl-beforeUrl" placeholder="https://...">
+            </div>
+            <div class="gl-field">
+              <label class="gl-label">After Image URL</label>
+              <input class="gl-input" id="gl-afterUrl" placeholder="https://...">
+            </div>
+          </div>
+          <div class="gl-2col">
+            <div class="gl-field">
+              <label class="gl-label">Status</label>
+              <select class="gl-select" id="gl-status">
+                <option value="draft">Draft — not public</option>
+                <option value="published">Published — visible on site</option>
+                <option value="hidden">Hidden — remove from site</option>
+              </select>
+            </div>
+            <div class="gl-field">
+              <label class="gl-label">Notes <span style="color:var(--mu);font-weight:400;text-transform:none">(internal only)</span></label>
+              <input class="gl-input" id="gl-notes" placeholder="e.g. Heavy pet hair, full restoration">
+            </div>
+          </div>
+          <input type="hidden" id="gl-editing-id">
+          <div style="display:flex;gap:8px;margin-top:4px;align-items:center;flex-wrap:wrap">
+            <button class="btn-primary" style="font-size:12px;padding:9px 18px" onclick="saveGalleryItem()">Save Item</button>
+            <button class="btn-n" style="font-size:12px;padding:9px 16px" onclick="clearGalleryForm()">Clear</button>
+            <span id="gl-save-msg" style="font-size:12px;display:none"></span>
+          </div>
+        </div>
+        <div id="gl-item-list"><div class="ops-note">Loading gallery items…</div></div>
       </div>
     </div>
   </div>
@@ -4048,9 +4155,11 @@ function showAdminTab(tab){
   const inq = document.getElementById('admin-inq-view'); if(inq) inq.style.display = tab==='inquiries' ? 'block' : 'none';
   const auc = document.getElementById('admin-auc-view'); if(auc) auc.style.display = tab==='auctions' ? 'block' : 'none';
   const rev = document.getElementById('admin-reviews-view'); if(rev) rev.style.display = tab==='reviews' ? 'block' : 'none';
+  const gal = document.getElementById('admin-gallery-view'); if(gal) gal.style.display = tab==='gallery' ? 'block' : 'none';
   if(tab==='calendar') renderAdminCalendar();
   if(tab==='inquiries') renderAdminInquiries();
   if(tab==='auctions') renderAuctions();
+  if(tab==='gallery') renderAdminGallery();
 }
 
 // ── Technician job auction (admin view) ──
@@ -4834,6 +4943,191 @@ function rvGoTo(i){
 }
 
 function rvMove(dir){ rvGoTo(rvIdx + dir); }
+
+// ═══════════════════════════════════════════════════════
+// GALLERY
+// ═══════════════════════════════════════════════════════
+function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+const GALLERY_URL = BACKEND_BASE + '/gallery';
+let _galleryItems = [];
+
+// ── Admin: load and render gallery item list ──
+function renderAdminGallery(){
+  const wrap = document.getElementById('gl-item-list');
+  if(!wrap) return;
+  wrap.innerHTML = '<div class="ops-note">Loading gallery items…</div>';
+  fetch(GALLERY_URL+'?action=list&all=1', { headers:{'x-admin-key': window._adminKey||''} })
+    .then(r=>r.json())
+    .then(d=>{
+      if(!d.ok){ wrap.innerHTML=`<div class="ops-note" style="color:var(--rd)">${escH(d.error||'Load failed')}</div>`; return; }
+      _galleryItems = d.items || [];
+      if(!_galleryItems.length){
+        wrap.innerHTML='<div class="ops-note">No gallery items yet — add the first one above.</div>';
+        return;
+      }
+      wrap.innerHTML = _galleryItems.map(item=>{
+        const thumb = item.beforeImageUrl || item.imageUrl || '';
+        const sc = item.status || 'draft';
+        return `<div class="gl-item">
+          <div class="gl-item-thumb">${thumb?`<img src="${escH(thumb)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '📷'}</div>
+          <div class="gl-item-body">
+            <div class="gl-item-title">${escH(item.title||'—')}</div>
+            <div class="gl-item-meta">${escH(item.service||'')}${item.locationLabel?' · '+escH(item.locationLabel):''} · ${escH(item.createdAt?item.createdAt.slice(0,10):'')}</div>
+            <div class="gl-item-actions">
+              <span class="gl-pill ${sc}">${sc}</span>
+              <button class="rc-btn" style="padding:4px 10px;font-size:10px" onclick="glEditItem('${escH(item.id)}')">Edit</button>
+              <button class="rc-btn" style="padding:4px 10px;font-size:10px;color:var(--rd);border-color:rgba(239,68,68,.4)" onclick="glDeleteItem('${escH(item.id)}')">Delete</button>
+              ${sc!=='published'?`<button class="rc-btn" style="padding:4px 10px;font-size:10px;color:var(--gr);border-color:var(--grbr)" onclick="glSetStatus('${escH(item.id)}','published')">Publish</button>`:''}
+              ${sc==='published'?`<button class="rc-btn" style="padding:4px 10px;font-size:10px" onclick="glSetStatus('${escH(item.id)}','hidden')">Hide</button>`:''}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    })
+    .catch(e=>{ wrap.innerHTML=`<div class="ops-note" style="color:var(--rd)">Error: ${escH(e.message)}</div>`; });
+}
+
+function clearGalleryForm(){
+  ['gl-title','gl-imageUrl','gl-beforeUrl','gl-afterUrl','gl-location','gl-notes'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  const sv=document.getElementById('gl-service'); if(sv) sv.value='';
+  const st=document.getElementById('gl-status'); if(st) st.value='draft';
+  const eid=document.getElementById('gl-editing-id'); if(eid) eid.value='';
+  const h=document.querySelector('#gl-form-wrap .gl-form-title'); if(h) h.textContent='Add Gallery Item';
+  const msg=document.getElementById('gl-save-msg'); if(msg) msg.style.display='none';
+}
+
+function glEditItem(id){
+  const item = _galleryItems.find(g=>g.id===id);
+  if(!item) return;
+  const setVal=(elId,val)=>{ const el=document.getElementById(elId); if(el) el.value=val||''; };
+  setVal('gl-title', item.title);
+  setVal('gl-service', item.service);
+  setVal('gl-location', item.locationLabel);
+  setVal('gl-imageUrl', item.imageUrl);
+  setVal('gl-beforeUrl', item.beforeImageUrl);
+  setVal('gl-afterUrl', item.afterImageUrl);
+  setVal('gl-notes', item.notes);
+  setVal('gl-status', item.status);
+  setVal('gl-editing-id', item.id);
+  const h=document.querySelector('#gl-form-wrap .gl-form-title'); if(h) h.textContent='Edit Gallery Item';
+  const fw=document.getElementById('gl-form-wrap'); if(fw) fw.scrollIntoView({behavior:'smooth'});
+}
+
+function saveGalleryItem(){
+  const getVal=id=>{ const el=document.getElementById(id); return el?el.value.trim():''; };
+  const title=getVal('gl-title');
+  if(!title){ alert('Title is required.'); return; }
+  const imageUrl=getVal('gl-imageUrl');
+  const beforeUrl=getVal('gl-beforeUrl');
+  const afterUrl=getVal('gl-afterUrl');
+  if(!imageUrl && !(beforeUrl && afterUrl)){
+    alert('Enter a Main Image URL, or both a Before URL and an After URL.');
+    return;
+  }
+  const editingId=getVal('gl-editing-id');
+  const item={
+    ...(editingId ? {id:editingId} : {}),
+    title,
+    service: getVal('gl-service'),
+    imageUrl,
+    beforeImageUrl: beforeUrl,
+    afterImageUrl: afterUrl,
+    locationLabel: getVal('gl-location'),
+    notes: getVal('gl-notes'),
+    status: getVal('gl-status') || 'draft',
+  };
+  const msg=document.getElementById('gl-save-msg');
+  if(msg){ msg.style.display=''; msg.style.color='var(--mu)'; msg.textContent='Saving…'; }
+  fetch(GALLERY_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-admin-key':window._adminKey||''},
+    body: JSON.stringify({action:'save', item}),
+  })
+    .then(r=>r.json())
+    .then(d=>{
+      if(!d.ok){ if(msg){ msg.style.color='var(--rd)'; msg.textContent='Error: '+(d.error||'save failed'); } return; }
+      if(msg){ msg.style.color='var(--gr)'; msg.textContent='✓ Saved'; setTimeout(()=>msg.style.display='none', 2500); }
+      clearGalleryForm();
+      renderAdminGallery();
+    })
+    .catch(e=>{ if(msg){ msg.style.color='var(--rd)'; msg.textContent='Error: '+e.message; } });
+}
+
+function glDeleteItem(id){
+  if(!confirm('Delete this gallery item? This cannot be undone.')) return;
+  fetch(GALLERY_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-admin-key':window._adminKey||''},
+    body: JSON.stringify({action:'delete', id}),
+  })
+    .then(r=>r.json())
+    .then(d=>{ if(d.ok) renderAdminGallery(); else alert('Delete failed: '+(d.error||'unknown')); })
+    .catch(e=>alert('Error: '+e.message));
+}
+
+function glSetStatus(id, status){
+  const item = _galleryItems.find(g=>g.id===id);
+  if(!item){ alert('Item not found — refresh and try again.'); return; }
+  fetch(GALLERY_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-admin-key':window._adminKey||''},
+    body: JSON.stringify({action:'save', item:{...item, status}}),
+  })
+    .then(r=>r.json())
+    .then(d=>{ if(d.ok) renderAdminGallery(); else alert('Update failed: '+(d.error||'unknown')); })
+    .catch(e=>alert('Error: '+e.message));
+}
+
+// ── Public: load and render published gallery items ──
+function loadPublicGallery(){
+  fetch(GALLERY_URL+'?action=list')
+    .then(r=>r.json())
+    .then(d=>{
+      if(!d.ok || !d.items || !d.items.length) return; // keep service placeholder
+      renderPublicGallery(d.items);
+    })
+    .catch(()=>{}); // silent on error — keep existing placeholder
+}
+
+function renderPublicGallery(items){
+  const area  = document.getElementById('results-gallery-area');
+  const grid  = document.getElementById('results-service-grid');
+  const note  = document.getElementById('results-photo-note');
+  if(!area) return;
+  area.innerHTML = items.map(item=>{
+    const hasBoth  = item.beforeImageUrl && item.afterImageUrl;
+    const singleSrc = item.imageUrl || item.beforeImageUrl || item.afterImageUrl || '';
+    return `<div class="gl-card">
+      ${hasBoth
+        ? `<div class="gl-ba-grid">
+            <div class="gl-ba-pane">
+              <img src="${escH(item.beforeImageUrl)}" alt="Before" loading="lazy" onerror="this.style.display='none'">
+              <span class="gl-ba-label">Before</span>
+            </div>
+            <div class="gl-ba-pane">
+              <img src="${escH(item.afterImageUrl)}" alt="After" loading="lazy" onerror="this.style.display='none'">
+              <span class="gl-ba-label">After</span>
+            </div>
+          </div>`
+        : singleSrc
+          ? `<div class="gl-img-wrap"><img src="${escH(singleSrc)}" alt="${escH(item.title)}" loading="lazy" onerror="this.style.display='none'"></div>`
+          : `<div class="gl-img-wrap" style="display:flex;align-items:center;justify-content:center;font-size:36px;min-height:160px">📷</div>`
+      }
+      <div class="gl-body">
+        <div class="gl-title">${escH(item.title)}</div>
+        ${item.service ? `<div class="gl-service">${escH(item.service)}</div>` : ''}
+        ${item.locationLabel ? `<div class="gl-location">📍 ${escH(item.locationLabel)}</div>` : ''}
+        <div class="gl-badge">${hasBoth ? '✦ Before &amp; After' : '✓ Recent Result'}</div>
+      </div>
+    </div>`;
+  }).join('');
+  area.style.display = '';
+  if(grid) grid.style.display = 'none';
+  if(note) note.style.display = 'none';
+}
 
 // ═══════════════════════════════════════════════════════
 // AUTH / LOGIN
@@ -6147,6 +6441,7 @@ function openBookingFromHome(cat){
 // INIT
 // ═══════════════════════════════════════════════════════
 renderReviews();
+loadPublicGallery();
 renderLocationCarousel('default');
 renderActivityFeed();
 seedDefaultTechs();
