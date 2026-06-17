@@ -349,7 +349,9 @@ const STEPS=[
   {key:'Completed',label:'Done'},
 ];
 function progressTrack(currentStatus){
-  const idx=STEPS.findIndex(s=>s.key===currentStatus);
+  // Closed is a terminal state after Completed — show stepper at the Completed step
+  const displayStatus = currentStatus==='Closed' ? 'Completed' : currentStatus;
+  const idx=STEPS.findIndex(s=>s.key===displayStatus);
   if(idx<0||currentStatus==='Cancelled'||currentStatus==='No-Show') return '';
   return `<div class="progress-track">
     ${STEPS.map((s,i)=>`<div class="pt-step ${i<idx?'done':i===idx?'active':''}">
@@ -435,7 +437,7 @@ function renderStatus(){
   let acts=`<a href="index.html" class="btn btn-g btn-sm">+ Book Again</a>`;
   if(canPay&&squareUrl){ acts+=`<button class="btn btn-tl btn-sm" onclick="openPayModal('${active.id}')">💳 Pay Deposit ($${deposit})</button>`; }
   if(canReschedule){ acts+=`<button class="btn btn-yw btn-sm" onclick="openReschedule('${active.id}')">📅 Reschedule</button>`; }
-  if(isDone&&!active.reviewLeft){ acts+=`<button class="btn btn-p btn-sm" onclick="openReview('${active.id}')">⭐ Leave Review</button>`; }
+  if((isDone||isCompleted||isClosed)&&!active.reviewLeft){ acts+=`<button class="btn btn-p btn-sm" onclick="openReview('${active.id}')">⭐ Leave Review</button>`; }
 
   el.innerHTML=`
     ${apptBanner}
@@ -581,7 +583,7 @@ function openReview(id){
     <div class="m-title">⭐ Leave a Review</div>
     <p style="font-size:13px;color:var(--mu);margin-bottom:14px">How was your experience?</p>
     <div class="stars" id="stars-row">
-      ${[1,2,3,4,5].map(n=>`<span class="star" onclick="setStar(${n},this)" data-v="${n}">★</span>`).join('')}
+      ${[1,2,3,4,5].map(n=>`<span class="star" onclick="setStar(${n})" data-v="${n}">★</span>`).join('')}
     </div>
     <textarea class="m-inp" id="rv-comment" placeholder="Tell us about your experience…" style="resize:vertical;min-height:80px"></textarea>
     <div style="display:flex;gap:8px;margin-top:6px">
@@ -602,7 +604,17 @@ function submitReview(id){
   localStorage.setItem('cd1_reviews_pending',JSON.stringify(reviews));
   const bks=JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
   const i=bks.findIndex(b=>b.id===id);if(i>-1){bks[i].reviewLeft=true;localStorage.setItem('cd1_bookings',JSON.stringify(bks));}
-  closeModal(); alert('🌟 Thank you for your review! It will appear on our site after approval.'); initApp();
+  // Show Google Review CTA inside the same modal instead of closing it immediately
+  // TODO: replace the href below with the actual Google Business Profile review link
+  const googleReviewUrl = 'https://g.page/r/YOUR_GOOGLE_PLACE_ID/review';
+  document.getElementById('modal-inner').innerHTML=`
+    <div class="m-title">🌟 Thank You!</div>
+    <p style="font-size:13px;color:var(--mu);margin-bottom:18px">Your review has been received and will appear on our site after approval.</p>
+    <p style="font-size:13px;margin-bottom:14px">Would you also leave us a quick Google review? It helps other customers find us!</p>
+    <a href="${googleReviewUrl}" target="_blank" rel="noopener" class="btn btn-p" style="display:block;text-align:center;margin-bottom:10px">⭐ Leave a Google Review</a>
+    <button class="btn btn-g" style="width:100%" onclick="closeModal()">Done</button>
+  `;
+  initApp();
 }
 
 function closeModal(){ document.getElementById('modal').classList.remove('open'); }

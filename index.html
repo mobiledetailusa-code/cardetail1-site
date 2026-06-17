@@ -2208,7 +2208,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div class="pay-box">
           <div class="pay-t">Request First · Confirmation Required</div>
           <div class="pay-sub">Prices shown are starting estimates. Final pricing may change based on condition, distance, tolls, parking, access, pet hair, heavy soil, odor, oxidation, add-ons, or unsafe service conditions.</div>
-          <div class="pay-badge">✓ No charge today in this preview · Card/deposit can be required before confirmation</div>
+          <div class="pay-badge">✓ No charge today · Card or deposit may be required before confirmation</div>
           <div class="pay-sub" style="margin-bottom:0">After review, Cardetail1 may confirm the appointment, suggest a different time, request photos, apply travel/toll adjustments, send a secure payment link, or decline unsafe/out-of-scope conditions.</div>
         </div>
         <div class="btn-row">
@@ -6085,10 +6085,6 @@ function onHeroZipInput(val){
   if(typeof updateBkFromPrices === 'function') updateBkFromPrices();
   // Update location carousel
   if(typeof renderLocationCarousel === 'function') renderLocationCarousel(zone.key);
-  // Open booking modal directly — ZIP done, now pick vehicle + package
-  setTimeout(()=>{
-    if(typeof openBooking === 'function') openBooking();
-  }, 350);
 }
 
 function onHeroZipSubmit(){
@@ -6103,8 +6099,9 @@ function onHeroZipSubmit(){
     return;
   }
   onHeroZipInput(inp.value);
-  // If already valid, scroll smoothly to services section
   if(inp.classList.contains('valid')){
+    if(typeof openBooking === 'function') openBooking();
+  } else {
     const sec = document.getElementById('services');
     if(sec) sec.scrollIntoView({behavior:'smooth', block:'start'});
   }
