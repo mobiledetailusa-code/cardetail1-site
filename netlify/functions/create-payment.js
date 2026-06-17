@@ -11,13 +11,17 @@
 //   { sourceId: "<card token>", amountCents: 5000, bookingId: "CD1-...",
 //     autocomplete: false }   // false = só pré-autoriza (segura o valor); true = captura já
 
-const json = (status, body) => ({
-  statusCode: status,
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
-});
+const CORS = {
+  'Content-Type': 'application/json',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Cache-Control': 'no-store',
+};
+const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.stringify(body) });
 
 exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
 
   const { SQUARE_ACCESS_TOKEN, SQUARE_LOCATION_ID, SQUARE_ENV } = process.env;

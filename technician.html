@@ -1090,7 +1090,7 @@ function openDrw(id){
     </div>
     <div style="width:100%;margin-bottom:7px">
       <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Send Payment Link</div>
-      <input class="pinp" id="pay-url" placeholder="${cfg.squareUrl||'https://square.link/u/…'}">
+      <input class="pinp" id="pay-url" placeholder="${cfg.stripePayUrl||cfg.squareUrl||'https://buy.stripe.com/…'}">
       <button class="btn btn-tl btn-sm" style="width:100%" onclick="drwSendPay()">📤 WhatsApp / SMS</button>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%">
