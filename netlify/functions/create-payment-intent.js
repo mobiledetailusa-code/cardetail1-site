@@ -39,8 +39,11 @@ exports.handler = async (event) => {
   const amount = Math.round(Number(p.amountCents) || 0);
   if (amount < 50) return json(400, { ok: false, error: 'Amount too low (min 50 cents)' });
 
-  // capture_method: manual = autoriza e segura o valor (ideal p/ preço final variável
-  // de barco/RV — captura o valor exato depois do serviço). auto = cobra na hora.
+  // Sanitize bookingId: only alphanumeric + dash, max 32 chars.
+  const bookingId = String(p.bookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 32);
+  // Sanitize email: basic format check.
+  const email = String(p.email || '').includes('@') ? String(p.email).slice(0, 120) : '';
+
   const captureMethod = p.capture === 'auto' ? 'automatic' : 'manual';
 
   const form = new URLSearchParams({
@@ -48,10 +51,10 @@ exports.handler = async (event) => {
     currency: 'usd',
     capture_method: captureMethod,
     'automatic_payment_methods[enabled]': 'true',
-    description: `Cardetail1 booking ${p.bookingId || ''}`.trim(),
+    description: bookingId ? `Cardetail1 booking ${bookingId}` : 'Cardetail1 booking',
   });
-  if (p.bookingId) form.append('metadata[booking_id]', p.bookingId);
-  if (p.email)     form.append('receipt_email', p.email);
+  if (bookingId) form.append('metadata[booking_id]', bookingId);
+  if (email)     form.append('receipt_email', email);
 
   const res = await fetch('https://api.stripe.com/v1/payment_intents', {
     method: 'POST',

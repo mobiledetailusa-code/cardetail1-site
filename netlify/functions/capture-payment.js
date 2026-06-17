@@ -11,6 +11,8 @@
 //     'capture_pending' in Blobs so admin sees progress; the webhook sets it
 //     to 'paid' once payment_intent.succeeded fires.
 
+const crypto = require('crypto');
+
 const json = (status, body) => ({
   statusCode: status,
   headers: {
@@ -37,8 +39,12 @@ exports.handler = async (event) => {
   if (!secret) return json(503, { ok: false, error: 'Stripe not configured on server' });
   const expected = process.env.ADMIN_DASH_PASSWORD || '';
   if (!expected) return json(503, { ok: false, error: 'ADMIN_DASH_PASSWORD not set on server' });
-  const key = (event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) || '';
-  if (key !== expected) return json(401, { ok: false, error: 'unauthorized' });
+  const key = ((event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) || '').trim();
+  if (!key) return json(401, { ok: false, error: 'unauthorized' });
+  const ka = Buffer.from(key);
+  const kb = Buffer.from(expected);
+  if (ka.length !== kb.length || !crypto.timingSafeEqual(ka, kb))
+    return json(401, { ok: false, error: 'unauthorized' });
 
   let p;
   try { p = JSON.parse(event.body || '{}'); } catch { return json(400, { ok: false, error: 'Invalid JSON' }); }

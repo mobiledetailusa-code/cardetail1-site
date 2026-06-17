@@ -30,11 +30,14 @@ async function blobsStore(name) {
   return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
 }
 
-const json = (status, body) => ({
-  statusCode: status,
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
-});
+const CORS = {
+  'Content-Type': 'application/json',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Cache-Control': 'no-store',
+};
+const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.stringify(body) });
 
 // ── Normalize whatever the front-end sends to the canonical enum ──
 // Front-end may send 'authorized', 'authorized_full', 'link_sent', 'none',
@@ -281,13 +284,36 @@ async function sendSms(b) {
   return { sent: true };
 }
 
+// Field length caps — prevents oversized payloads from being stored in Blobs.
+const FIELD_LIMITS = {
+  firstName: 60, lastName: 60, email: 120, phone: 20, address: 200,
+  zipCode: 10, zone: 60, notes: 1000, package: 80, vehicle: 80, vehicleCategory: 80,
+};
+
+function sanitizeBooking(b) {
+  const out = { ...b };
+  for (const [field, max] of Object.entries(FIELD_LIMITS)) {
+    if (typeof out[field] === 'string' && out[field].length > max) {
+      out[field] = out[field].slice(0, max);
+    }
+  }
+  return out;
+}
+
 exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+
+  // Reject oversized payloads (> 32 KB) before parsing.
+  const bodyLen = (event.body || '').length;
+  if (bodyLen > 32768) return json(413, { ok: false, error: 'payload_too_large' });
+
   let b;
   try { b = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
 
   if (!b.firstName || !b.phone) return json(400, { ok: false, error: 'Missing customer name or phone' });
+  b = sanitizeBooking(b);
   if (!b.id) b.id = 'CD1-' + Date.now().toString(36).toUpperCase();
 
   // Normalize paymentStatus to canonical enum before storing.

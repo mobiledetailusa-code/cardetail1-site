@@ -8,6 +8,8 @@
 //
 // The admin UI sends it in the `x-admin-key` header (or ?key= for convenience).
 
+const crypto = require('crypto');
+
 const json = (status, body) => ({
   statusCode: status,
   headers: {
@@ -26,10 +28,15 @@ exports.handler = async (event) => {
   const expected = process.env.ADMIN_DASH_PASSWORD || '';
   if (!expected) return json(503, { ok: false, error: 'ADMIN_DASH_PASSWORD not set on server' });
 
-  const provided =
+  const provided = (
     (event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) ||
-    (event.queryStringParameters && event.queryStringParameters.key) || '';
-  if (provided !== expected) return json(401, { ok: false, error: 'unauthorized' });
+    (event.queryStringParameters && event.queryStringParameters.key) || ''
+  ).trim();
+  if (!provided) return json(401, { ok: false, error: 'unauthorized' });
+  const ka = Buffer.from(provided);
+  const kb = Buffer.from(expected);
+  if (ka.length !== kb.length || !crypto.timingSafeEqual(ka, kb))
+    return json(401, { ok: false, error: 'unauthorized' });
 
   // Pass x-show-test: 1 header (or ?showTest=1) to include test/archived bookings.
   const showTest = !!(
