@@ -3764,6 +3764,27 @@ async function submitBooking(){
   }
 }
 
+function getRegionCode(zoneKey) {
+  if (!zoneKey) return 'OUT_OF_AREA_REVIEW';
+  if (zoneKey === 'ct') return 'CT_PARTNER';
+  if (zoneKey === 'ma') return 'MA_PARTNER';
+  if (zoneKey === 'nj_a' || zoneKey === 'nj_b') return 'NJ_LOCAL';
+  if (zoneKey === 'nyc' || zoneKey === 'ny_s') return 'NY_NEARBY';
+  return 'OUT_OF_AREA_REVIEW';
+}
+
+function getServiceAreaLabel(zoneKey) {
+  const LABELS = {
+    nj_a: 'Bergen / Hudson / Essex County NJ',
+    nj_b: 'New Jersey — Other Areas',
+    nyc:  'New York City',
+    ny_s: 'New York Suburbs / Long Island',
+    ct:   'Connecticut — Partner Area',
+    ma:   'Massachusetts — Partner Area',
+  };
+  return LABELS[zoneKey] || 'Outside Primary Route';
+}
+
 function buildBookingPayload(){
   // Use multi-vehicle cart if available
   const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
@@ -3816,6 +3837,9 @@ function buildBookingPayload(){
     zoneSurcharge:fee,
     richSurcharge:richMultiplier > 1 ? '5% premium area' : '',
     regionTag: (activeZone?.key === 'ct') ? 'CT' : (activeZone?.key === 'ma') ? 'MA' : '',
+    region: getRegionCode(activeZone?.key),
+    serviceAreaLabel: getServiceAreaLabel(activeZone?.key),
+    needsReview: (activeZone?.key === 'ct' || activeZone?.key === 'ma' || !activeZone) ? true : false,
     service: (pv.pkgName||'')+(vehicles.length>1?' + '+(vehicles.length-1)+' more':''),
     tip: 0,
     // ── Firebase / radar friendly aliases ──
@@ -3941,6 +3965,8 @@ function renderAdminBookings(){
   grid.innerHTML=list.map(b=>{
     const addons=(b.addons&&b.addons.length)?b.addons.map(a=>`${a.name}${a.qty>1?' ×'+a.qty:''} +$${a.price*(a.qty||1)}`).join('<br>'):'None';
     const zoneInfo = [b.zipCode?'📮 ZIP '+b.zipCode:'', b.zone?'📍 '+b.zone:'', b.zoneSurcharge?'+$'+b.zoneSurcharge+' area fee':'', b.richSurcharge?'✦ Premium area (+5%)':'', b.regionTag?'🗺 '+b.regionTag+' Regional':''].filter(Boolean).join(' · ');
+    const regionBadge = b.region === 'CT_PARTNER' ? '<span style="background:rgba(77,163,255,.15);border:1px solid rgba(77,163,255,.4);color:#4da3ff;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;margin-right:6px">🗺 CT Partner Area</span>' : b.region === 'MA_PARTNER' ? '<span style="background:rgba(77,163,255,.15);border:1px solid rgba(77,163,255,.4);color:#4da3ff;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;margin-right:6px">🗺 MA Partner Area</span>' : b.region === 'OUT_OF_AREA_REVIEW' ? '<span style="background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.35);color:#f5a623;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;margin-right:6px">📍 Outside Primary Route</span>' : '';
+    const needsReviewBadge = b.needsReview ? '<span style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:#f5c518;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px">⚠ Needs Review</span>' : '';
     const payLinkHtml = b.payLink ? `<div style="margin-top:6px"><a href="${b.payLink}" target="_blank" style="color:var(--blue);font-weight:600;font-size:12px">💳 Pay Link</a></div>` : '';
     const tipHtml = b.tip ? `<div style="color:var(--gold);font-weight:600;font-size:12px;margin-top:4px">💰 Tip: $${b.tip}</div>` : '';
     const mapsUrl = 'https://maps.google.com/?q='+encodeURIComponent(b.address||'');
@@ -3955,7 +3981,7 @@ function renderAdminBookings(){
       <div class="admin-meta">
         <div><b>Phone:</b> <a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a></div><div><b>Email:</b> ${b.email||'—'}</div><div><b>Date:</b> ${b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</div><div><b>Address:</b> <a href="${mapsUrl}" target="_blank" style="color:var(--blue)">${b.address}</a></div>
         ${vehs ? `<div style="grid-column:1/-1"><b>Vehicles (${vehs.length}):</b><div style="margin-top:4px">${vehsHtml}</div></div>` : `<div><b>Vehicle:</b> ${b.vehicle||'—'}</div><div><b>Category:</b> ${b.vehicleCategory||'—'}</div><div><b>Add-ons:</b><br>${addons}</div>`}
-        <div><b>Notes:</b> ${b.notes||'None'}</div>${zoneInfo?`<div style="grid-column:1/-1;margin-top:4px;font-size:11.5px;color:var(--am)">${zoneInfo}</div>`:''}
+        <div><b>Notes:</b> ${b.notes||'None'}</div>${zoneInfo?`<div style="grid-column:1/-1;margin-top:4px;font-size:11.5px;color:var(--am)">${zoneInfo}</div>`:''}${(regionBadge||needsReviewBadge)?`<div style="grid-column:1/-1;margin-top:6px">${regionBadge}${needsReviewBadge}</div>`:''}
         ${tipHtml}${payLinkHtml}
         ${photoCount?`<div style="font-size:11.5px;color:var(--mu)">📷 ${photoCount} photo(s) uploaded</div>`:''}
         ${b.rescheduledByClient?'<div style="font-size:11px;color:var(--am)">↺ Client requested reschedule</div>':''}
@@ -4819,7 +4845,7 @@ function onBkZipInput(val){
     surBadge.style.display = 'none';
     // Re-lock cards if ZIP not in service area
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.add('locked'));
-    if(gateMsg){ gateMsg.classList.remove('unlocked'); gateMsg.innerHTML='<span class="zg-ico">⚠️</span><span>ZIP not in our primary service area — call 551-313-2956</span>'; }
+    if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">⚠️</span><span>This area is outside our primary local route. You may submit a booking request for review. Minimum service amount, travel/toll fees, and partner availability may apply. <a href="tel:5513132956" style="color:var(--blue)">Call 551-313-2956</a></span>'; }
   }
   updateTotal();
 }
