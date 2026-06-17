@@ -1,28 +1,39 @@
 // netlify/functions/submit-booking.js
-// Accepts a booking, normalizes paymentStatus to the canonical enum,
-// stores it in Netlify Blobs, notifies admin by email + SMS, and
-// triggers technician dispatch ONLY when paymentStatus is 'authorized' or 'paid'.
+// Accepts a booking, assigns a server-side ID, stores to Netlify Blobs,
+// notifies admin, and optionally sends customer confirmation.
+//
+// Security model:
+//   C-1: paymentStatus can only be set by stripe-webhook.js (HMAC-verified).
+//        This endpoint never trusts client-submitted payment state.
+//   C-3: Booking ID is always generated server-side. Client-submitted id/bookingId
+//        are ignored. Collision-checked against Blobs before writing.
+//   Draft mode: payByCard() pre-registers a minimal draft so create-payment-intent
+//        can fetch the stored totalPrice (C-2). No emails sent for drafts.
+//   Finalization: submitBooking() passes draftBookingId to merge full details into
+//        an existing draft, preserving webhook-set payment fields.
 //
 // Canonical paymentStatus enum:
 //   no_payment_required_yet | authorization_pending | authorized |
 //   authorization_failed | capture_pending | paid | canceled |
 //   refunded | expired
 //
-// Dispatch rule (enforced here AND in stripe-webhook.js):
-//   - 'authorized' or 'paid'  → post auction + SMS techs
-//   - anything else           → store booking, notify admin, do NOT dispatch
-//
-// Env (Netlify → Site settings → Environment variables):
-//   ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM  (email notifications)
-//   TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, ADMIN_SMS  (SMS, optional)
-//   BID_SECRET   (required for dispatch / auction magic links)
-//   SITE_URL     (required for bid magic links)
+// Dispatch rule: only stripe-webhook.js triggers auction (via payment_intent.amount_capturable_updated).
+// This endpoint's postAuction() is retained for idempotency on finalization but
+// will always find 'dispatch blocked' or 'auction already exists'.
 
 const crypto = require('crypto');
 
-// @netlify/blobs auto-configures in hosted Functions via NETLIFY_BLOBS_CONTEXT.
-// If that injection isn't available (older site infra), fall back to explicit
-// siteID + token from env vars (set NETLIFY_SITE_ID + NETLIFY_AUTH_TOKEN).
+// Fields that must never come from the browser.
+// Payment state is owned exclusively by stripe-webhook.js (HMAC-verified).
+// Admin/assignment state is owned by admin-authenticated endpoints.
+const CLIENT_BLOCKED_FIELDS = [
+  'paymentStatus', 'paymentIntentId', 'amountAuthorizedCents', 'amountCapturedCents',
+  'capturedAt', 'captureInitiatedAt', 'stripeCustomerId', 'paymentMethodId',
+  'status', 'appointmentStatus', 'jobStatus', 'adminNotes', 'assignedTech',
+  'assignedTechName', 'confirmedDate', 'confirmedTimeWindow',
+  'adminReviewed', 'archived',
+];
+
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
@@ -36,32 +47,29 @@ const json = (status, body) => ({
   body: JSON.stringify(body),
 });
 
-// ── Normalize whatever the front-end sends to the canonical enum ──
-// Front-end may send 'authorized', 'authorized_full', 'link_sent', 'none',
-// 'cash_onsite', 'card_onsite', or nothing.
+// C-1: Never returns 'authorized' or 'paid'.
+// Those values are set exclusively by stripe-webhook.js after HMAC verification.
 function resolvePaymentStatus(b) {
-  const raw = String(b.paymentStatus || '');
   const method = String(b.paymentMethod || '');
-
-  // Front-end confirmed a Stripe hold (both deposit and full-amount pre-auth
-  // map to 'authorized' in the canonical enum).
-  if (raw === 'authorized' || raw === 'authorized_full') return 'authorized';
-
-  // Already captured (edge case — webhook normally handles this).
-  if (raw === 'paid' || raw === 'captured') return 'paid';
-
-  // Cash / pay-on-site: no card required at booking time.
   if (method === 'cash_onsite' || method === 'card_onsite') return 'no_payment_required_yet';
-
-  // Payment link sent — customer has not paid yet.
-  if (method === 'link' || raw === 'link_sent') return 'authorization_pending';
-
-  // Stripe key not configured (STRIPE_READY=false on the front-end):
-  // card UI shown but no actual PI created.
-  if (method === 'deposit_card' || method === 'preauth_full') return 'authorization_pending';
-
-  // Default: no payment path selected or unknown.
+  if (method === 'link') return 'authorization_pending';
+  // deposit_card | preauth_full | pending | unknown → awaiting Stripe webhook
   return 'authorization_pending';
+}
+
+// C-3: Generate a collision-resistant server-side booking ID.
+function generateId() {
+  return 'CD1-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+}
+
+// C-3: Ensure the generated ID doesn't already exist in Blobs.
+async function newUniqueId(store) {
+  for (let i = 0; i < 5; i++) {
+    const id = generateId();
+    const existing = await store.get(id, { type: 'json' }).catch(() => null);
+    if (!existing) return id;
+  }
+  return generateId(); // unlikely collision after 5 tries; proceed anyway
 }
 
 function signBid(jobId, techId, secret) {
@@ -70,9 +78,11 @@ function signBid(jobId, techId, secret) {
     .digest('hex');
 }
 
-// ── Post auction to Blobs and SMS techs (idempotent) ──
-// Dispatch is gated on paymentStatus === 'authorized' | 'paid'.
-// SMS is skipped unless all Twilio env vars are set — safe for test mode.
+// Dispatch is gated: only fires when paymentStatus is 'authorized' or 'paid'.
+// After C-1, this endpoint sets neither value — so postAuction() will always
+// return 'dispatch blocked' for new bookings. It remains here to handle the
+// rare case where finalization runs after the webhook has already set 'authorized'.
+// The idempotency guard ('auction already exists') prevents double-dispatch.
 async function postAuction(b) {
   const secret = process.env.BID_SECRET;
   if (!secret) return { posted: false, reason: 'BID_SECRET not set' };
@@ -83,14 +93,10 @@ async function postAuction(b) {
   }
 
   try {
-    // Idempotency: do not create a second auction for the same booking.
     const existing = await (await blobsStore('cd1-auctions')).get(b.id, { type: 'json' });
     if (existing) return { posted: false, reason: 'auction already exists for ' + b.id };
 
     const roster = (await (await blobsStore('cd1-techs')).get('roster', { type: 'json' })) || [];
-    // 'total' is stored for admin visibility. auction.js techView() strips it
-    // before returning data to technicians — customer payment info is never
-    // exposed through the tech-facing API endpoint.
     const job = {
       package: b.package || '',
       vehicle: b.vehicle || b.vehicleCategory || '',
@@ -107,15 +113,12 @@ async function postAuction(b) {
       winner: null,
       createdAt: new Date().toISOString(),
       paymentStatus: b.paymentStatus,
-      amountAuthorizedCents: b.amountAuthorizedCents || b.depositCents || 0,
+      amountAuthorizedCents: b.amountAuthorizedCents || 0,
     });
 
     const base = process.env.SITE_URL || '';
     const { TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM } = process.env;
     let notified = 0;
-    // NOTE: SMS dispatch requires TWILIO_* env vars. In test mode these are
-    // typically not set, so notified stays 0. The auction record is still
-    // created in Blobs and visible in the admin panel.
     if (TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM && base && roster.length) {
       const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
       await Promise.all(roster.map(t => {
@@ -287,21 +290,112 @@ exports.handler = async (event) => {
   try { b = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
 
+  // C-1: Strip all fields the browser must never control.
+  for (const f of CLIENT_BLOCKED_FIELDS) delete b[f];
+  // C-3: Ignore any client-submitted ID entirely.
+  delete b.id;
+  delete b.bookingId;
+
   if (!b.firstName || !b.phone) return json(400, { ok: false, error: 'Missing customer name or phone' });
-  if (!b.id) b.id = 'CD1-' + Date.now().toString(36).toUpperCase();
 
-  // Normalize paymentStatus to canonical enum before storing.
-  b.paymentStatus = resolvePaymentStatus(b);
+  const store = await blobsStore('cd1-bookings');
 
-  // Preserve amountAuthorizedCents from front-end (depositCents / authAmountCents).
-  if (!b.amountAuthorizedCents && b.depositCents) {
-    b.amountAuthorizedCents = b.depositCents;
+  // ── Draft pre-registration (supports C-2: create-payment-intent fetches amount from Blobs) ──
+  if (b.isDraft) {
+    const draftId = await newUniqueId(store);
+    const draft = {
+      id: draftId,
+      isDraft: true,
+      createdAt: new Date().toISOString(),
+      totalPrice: Number(b.totalPrice) || 0,
+      paymentMethod: b.paymentMethod || 'pending',
+      paymentStatus: 'authorization_pending',
+      firstName: b.firstName || '',
+      lastName: b.lastName || '',
+      phone: b.phone || '',
+      email: b.email || '',
+      address: b.address || '',
+      zipCode: b.zipCode || '',
+      zone: b.zone || '',
+      vehicle: b.vehicle || '',
+      vehicleLabel: b.vehicleLabel || '',
+      package: b.package || '',
+      addons: b.addons || [],
+      vehicles: b.vehicles || [],
+      preferredDate: b.preferredDate || '',
+      preferredTime: b.preferredTime || '',
+    };
+    try {
+      await store.setJSON(draftId, draft);
+    } catch (e) {
+      return json(500, { ok: false, error: 'Failed to pre-register booking' });
+    }
+    return json(200, { ok: true, id: draftId, isDraft: true });
   }
 
-  // Store centrally in Netlify Blobs. Degrades gracefully if unavailable.
+  // ── Draft finalization: merge full booking into an existing draft ──
+  // Preserves webhook-set payment fields (paymentStatus, paymentIntentId, amounts).
+  const rawDraftId = String(b.draftBookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
+  if (rawDraftId) {
+    delete b.draftBookingId;
+    const existing = await store.get(rawDraftId, { type: 'json' }).catch(() => null);
+    if (!existing) return json(404, { ok: false, error: 'Draft booking not found' });
+    if (!existing.isDraft) return json(409, { ok: false, error: 'Booking already finalized' });
+
+    // Preserve fields the webhook may have already set on the draft.
+    b = {
+      ...b,
+      id: rawDraftId,
+      status: 'Pending Review',
+      isDraft: false,
+      createdAt: existing.createdAt,
+      finalizedAt: new Date().toISOString(),
+      // Payment fields: trust Blobs, not the browser
+      paymentStatus: existing.paymentStatus,
+      paymentIntentId: existing.paymentIntentId,
+      amountAuthorizedCents: existing.amountAuthorizedCents,
+      amountCapturedCents: existing.amountCapturedCents,
+      capturedAt: existing.capturedAt,
+    };
+
+    let stored = { saved: false };
+    try {
+      await store.setJSON(rawDraftId, b);
+      stored = { saved: true };
+    } catch (e) {
+      stored = { saved: false, reason: e.message };
+    }
+
+    const [email, customerEmail, sms, auction] = await Promise.all([
+      sendEmail(b).catch(e => ({ sent: false, reason: e.message })),
+      sendCustomerEmail(b).catch(e => ({ sent: false, reason: e.message })),
+      sendSms(b).catch(e => ({ sent: false, reason: e.message })),
+      postAuction(b).catch(e => ({ posted: false, reason: e.message })),
+    ]);
+
+    return json(200, {
+      ok: true,
+      id: b.id,
+      status: b.status,
+      paymentStatus: b.paymentStatus,
+      stored,
+      email,
+      customerEmail,
+      sms,
+      auction,
+    });
+  }
+
+  // ── New booking (cash/on-site or any path that didn't pre-register a draft) ──
+  const newId = await newUniqueId(store);
+  b.id = newId;
+  b.status = 'Pending Review';
+  b.createdAt = new Date().toISOString();
+  b.paymentStatus = resolvePaymentStatus(b);
+
   let stored = { saved: false };
   try {
-    await (await blobsStore('cd1-bookings')).setJSON(b.id, b);
+    await store.setJSON(b.id, b);
     stored = { saved: true };
   } catch (e) {
     stored = { saved: false, reason: e.message };
@@ -317,7 +411,7 @@ exports.handler = async (event) => {
   return json(200, {
     ok: true,
     id: b.id,
-    status: b.status || 'Pending Review',
+    status: b.status,
     paymentStatus: b.paymentStatus,
     stored,
     email,

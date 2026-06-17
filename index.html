@@ -3622,7 +3622,7 @@ function payOnSite(method){
 // capturado só depois do serviço. Ambos usam capture_method:manual.
 async function payByCard(mode){
   mode = (mode==='full') ? 'full' : 'deposit';
-  ensureBookingId();
+  ST.draftRegistered = false;
   ST.payMethod = (mode==='full') ? 'preauth_full' : 'deposit_card';
   const amountCents = (mode==='full') ? bookingTotalCents() : depositCents();
   ST.authAmountCents = amountCents;
@@ -3642,8 +3642,18 @@ async function payByCard(mode){
     return;
   }
   try{
+    // C-2/C-3: Pre-register a draft booking server-side to get a server-assigned ID
+    // and store totalPrice so create-payment-intent can fetch it from Blobs.
+    const draftPayload = buildBookingPayload();
+    draftPayload.isDraft = true;
+    const draftRes = await fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(draftPayload)});
+    const draftData = await draftRes.json();
+    if(!draftData.ok) throw new Error(draftData.error||'Could not pre-register booking');
+    ST.bookingId = draftData.id;
+    ST.draftRegistered = true;
+    // Amount is derived server-side from the stored booking total — no amountCents sent.
     const res=await fetch(BACKEND_BASE+'/create-payment-intent',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({amountCents:amountCents, bookingId:ST.bookingId, email:(document.getElementById('f-email')?.value||'').trim()})});
+      body:JSON.stringify({bookingId:ST.bookingId})});
     const data=await res.json();
     if(!data.ok) throw new Error(data.error||'Could not start payment');
     stripePI=data.id;
@@ -3783,8 +3793,10 @@ function buildBookingPayload(){
   // Primary vehicle (first or current)
   const pv = vehicles[0] || {};
   const payload={
+    // id is for local display only; server always generates its own (C-3).
     id: ST.bookingId || ('CD1-'+Date.now().toString(36).toUpperCase()),
-    status:'Confirmed',
+    // Tell server to finalize the pre-registered draft (C-2/C-3).
+    ...(ST.draftRegistered ? {draftBookingId:ST.bookingId} : {}),
     createdAt:new Date().toISOString(),
     // Primary vehicle fields (backward compat)
     vehicle: pv.vehicleLabel || ST.vehicleLabel,
@@ -3814,9 +3826,7 @@ function buildBookingPayload(){
     cardPolicyAccepted:!!document.getElementById('card-policy-ok')?.checked,
     cardholderName:document.getElementById('card-holder')?.value.trim()||'',
     linkPreference:document.getElementById('card-pref')?.value||'',
-    // ── Stripe payment ──
-    paymentStatus: ST.paymentStatus||'none',
-    paymentIntentId: ST.paymentIntentId||'',
+    // ── Stripe payment (paymentStatus/paymentIntentId stripped server-side — C-1) ──
     paymentLink: ST.paymentLink||'',
     depositCents: ST.depositCents||0,
     source:'Cardetail1 static booking flow',
