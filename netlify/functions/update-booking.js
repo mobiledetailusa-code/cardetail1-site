@@ -15,6 +15,11 @@
 // Every successful write adds:
 //   updatedAt, updatedByRole:"admin", updatedBy:"admin", lastAction
 //
+// Email triggers (via Resend — requires RESEND_API_KEY env var):
+//   appointmentStatus → "confirmed"  OR  status → "Confirmed"
+//   → confirmation email to customer with date, time window, and optional
+//     customer-facing note. Never includes adminNotes or Stripe fields.
+//
 // Logging: bookingId + changed field NAMES only. Never logs values or secrets.
 //
 // Blocked fields (returns 400): payment, PII, price, tech assignment, flags.
@@ -71,6 +76,9 @@ const ALLOWED_FIELDS = new Set([
   'completedAt', 'closedAt', 'canceledAt',
   // Problem flags
   'hasProblem', 'lastProblem',
+  // Payment collection state — display-only, separate from paymentStatus.
+  // Used by admin when sending a payment link; never conflated with job lifecycle.
+  'paymentLifecycle',
 ]);
 
 // Explicitly blocked fields — produce a clear 400 instead of "unknown_field".
@@ -100,6 +108,86 @@ const TIME_FIELDS = new Set(['confirmedTime', 'preferredTime', 'confirmedTimeWin
 
 function sanitize(value) {
   return (typeof value === 'string' ? value : String(value)).slice(0, NOTE_MAX);
+}
+
+// ── Confirmation email ────────────────────────────────────────────────────────
+// Sent to customer when admin confirms the appointment.
+// Must not expose: adminNotes, paymentIntentId, amounts, or internal fields.
+
+async function sendConfirmationEmail(b) {
+  const { RESEND_API_KEY, RESEND_FROM } = process.env;
+  if (!RESEND_API_KEY) return { sent: false, reason: 'RESEND_API_KEY not configured' };
+  if (!b.email)        return { sent: false, reason: 'no customer email on booking' };
+
+  const name    = [b.firstName, b.lastName].filter(Boolean).join(' ') || 'Valued Customer';
+  const first   = name.split(' ')[0];
+  const service = b.package || b.service || 'Detailing Service';
+  const vehicle = b.vehicleLabel || b.vehicle || b.vehicleCategory || '—';
+  const date    = b.confirmedDate || '—';
+  const window  = b.confirmedTimeWindow || b.confirmedTime || '—';
+  const address = b.address || 'your specified location';
+
+  const lines = [
+    `Hi ${first},`,
+    ``,
+    `Your Cardetail1 appointment has been confirmed.`,
+    ``,
+    `  Booking ID:    ${b.id}`,
+    `  Service:       ${service}`,
+    `  Vehicle:       ${vehicle}`,
+    `  Date:          ${date}`,
+    `  Time window:   ${window}`,
+    `  Location:      ${address}`,
+  ];
+
+  if (b.customerNote) {
+    lines.push(``, `  Note:  ${b.customerNote}`);
+  }
+
+  lines.push(
+    ``,
+    `Payment:`,
+    `  Payment details are handled separately. If a card authorization, payment`,
+    `  link, or on-site payment is required, Cardetail1 will confirm those details`,
+    `  with you directly.`,
+    ``,
+    `Need to make changes?`,
+    `  Call or text: 551-313-2956`,
+    `  Or reply to this email.`,
+    ``,
+    `You can check your booking status at any time:`,
+    `  https://cardetail1.netlify.app/customer.html`,
+    ``,
+    `See you soon!`,
+    `Cardetail1 Mobile Detailing`,
+    `551-313-2956`,
+  );
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM || 'Cardetail1 <onboarding@resend.dev>',
+        to:   [b.email],
+        subject: `Your Cardetail1 appointment is confirmed — ${date}`,
+        text: lines.join('\n'),
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      console.log('[update-booking] confirmation email failed:', res.status);
+      return { sent: false, reason: `resend ${res.status}` };
+    }
+    console.log('[update-booking] confirmation email sent for', b.id);
+    return { sent: true };
+  } catch (e) {
+    console.log('[update-booking] confirmation email error:', e.message);
+    return { sent: false, reason: e.message };
+  }
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
@@ -211,12 +299,30 @@ exports.handler = async (event) => {
     // Log field names only — never values, never notes, never secrets.
     console.log('[update-booking] ok', bookingId, 'admin', JSON.stringify(Object.keys(validated)), lastAction);
 
+    // ── Confirmation email ────────────────────────────────────────────────
+    // Sent when admin transitions appointmentStatus → "confirmed" or
+    // legacy status → "Confirmed". Idempotent by prev-value check.
+    const emailResults = {};
+    const prevAppointmentStatus = booking.appointmentStatus || '';
+    const prevStatus            = booking.status || '';
+    const newAppointmentStatus  = validated.appointmentStatus || prevAppointmentStatus;
+    const newStatus             = validated.status || prevStatus;
+
+    const justConfirmed =
+      (newAppointmentStatus === 'confirmed' && prevAppointmentStatus !== 'confirmed') ||
+      (newStatus === 'Confirmed' && prevStatus !== 'Confirmed');
+
+    if (justConfirmed) {
+      emailResults.confirmationEmail = await sendConfirmationEmail(patched);
+    }
+
     return json(200, {
       ok: true,
       bookingId,
       updatedFields: Object.keys(validated),
       updatedAt: now,
       lastAction,
+      ...emailResults,
     });
   } catch (e) {
     console.error('[update-booking] error', bookingId, e.message);
