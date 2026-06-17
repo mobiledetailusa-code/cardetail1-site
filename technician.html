@@ -1041,6 +1041,22 @@ function openDrw(id){
       <span class="qa-btn qa-soon" style="font-size:10px">📝 Internal note — Coming soon</span>
     </div>
     <div class="local-note">Actions above are saved locally in this browser only. To contact the customer, call directly or use the phone/email links.</div>
+    <div class="qa-sect" style="margin-top:14px">Appointment Confirmation</div>
+    ${b.appointmentStatus==='confirmed'?`<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.28);border-radius:8px;padding:10px 12px;margin-bottom:9px;font-size:12px;color:var(--tx);width:100%">✓ Confirmed — ${b.confirmedDate||'—'} · ${b.confirmedTimeWindow||b.confirmedTime||'—'}${b.customerNote?`<div style="margin-top:5px;font-size:11px;color:var(--mu)">${b.customerNote}</div>`:''}</div>`:''}
+    <div style="width:100%;margin-bottom:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Confirmed Date <span style="color:var(--green);font-weight:400;font-style:italic;text-transform:none">(required)</span></div>
+      <input type="date" class="pinp" id="drw-conf-date" style="width:100%;margin-bottom:6px" value="${b.confirmedDate||''}">
+      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Time Window <span style="color:var(--green);font-weight:400;font-style:italic;text-transform:none">(required, e.g. 9AM–11AM)</span></div>
+      <input type="text" class="pinp" id="drw-conf-tw" placeholder="9AM–11AM" style="width:100%;margin-bottom:6px" value="${b.confirmedTimeWindow||b.confirmedTime||''}">
+      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Customer note <span style="color:var(--mu);font-weight:400;font-style:italic;text-transform:none">(optional — visible to customer)</span></div>
+      <textarea class="pinp" id="drw-cust-note" placeholder="Any message for the customer…" style="width:100%;min-height:50px;resize:vertical;margin-bottom:6px">${b.customerNote||''}</textarea>
+      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Internal admin note <span style="color:var(--mu);font-weight:400;font-style:italic;text-transform:none">(not shown to customer)</span></div>
+      <textarea class="pinp" id="drw-admin-note" placeholder="Internal notes…" style="width:100%;min-height:50px;resize:vertical;margin-bottom:6px">${b.adminNotes||''}</textarea>
+      <button class="btn ${b.appointmentStatus==='confirmed'?'btn-g':'btn-gr'} btn-sm" style="width:100%" onclick="drwConfirmAppointment()">
+        ${b.appointmentStatus==='confirmed'?'↻ Re-confirm Appointment':'✓ Confirm Appointment'}
+      </button>
+      <div style="font-size:10px;color:var(--mu);margin-top:5px;line-height:1.4">Saves confirmed date and time to the cloud. Sends a confirmation email to the customer. Customer-facing note is included in the email; internal note is not.</div>
+    </div>
     <div class="qa-sect" style="margin-top:14px">Status & Assignment</div>
     <div style="width:100%;margin-bottom:7px">
       <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Change Status</div>
@@ -1089,6 +1105,91 @@ function drwMarkContacted(){
   toast('Marked as contacted (saved locally)');
   openDrw(_drwId);
   renderBk();
+}
+
+// ── CLOUD MUTATION (admin-only) ─────────────────────────────────────────────
+// Calls update-booking.js with the x-admin-key from sessionStorage.
+// Updates localStorage on success so the UI stays in sync without a full
+// Load from Cloud round-trip.
+// Returns the server response object (always), or { ok: false } on error.
+async function adminBkUpdate(bookingId, updates, lastAction) {
+  const key = sessionStorage.getItem('cd1_admin_key') || '';
+  if (!key) { toast('Admin session required — reload the page', 'err'); return { ok: false }; }
+  try {
+    const res = await fetch('/.netlify/functions/update-booking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': key },
+      body: JSON.stringify({ bookingId, updates, lastAction }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!data.ok) {
+      console.warn('[admin-update] failed', data.error, 'for', bookingId);
+      toast('Cloud save failed: ' + (data.error || 'error'), 'err');
+      return data;
+    }
+    // Merge written fields into localStorage so next Load from Cloud finds
+    // them already correct rather than overwriting with the old value.
+    const bk = bkGet();
+    const i  = bk.findIndex(b => b.id === bookingId);
+    if (i > -1) {
+      Object.assign(bk[i], updates);
+      bk[i].updatedAt   = data.updatedAt;
+      bk[i].lastAction  = data.lastAction;
+      bkSet(bk);
+    }
+    return data;
+  } catch (e) {
+    console.warn('[admin-update] error', e.message);
+    toast('Cloud save error: ' + e.message, 'err');
+    return { ok: false };
+  }
+}
+
+// ── APPOINTMENT CONFIRMATION ────────────────────────────────────────────────
+async function drwConfirmAppointment() {
+  if (!IS_ADMIN) { toast('Admin access required', 'err'); return; }
+
+  const confirmedDate       = (document.getElementById('drw-conf-date')?.value   || '').trim();
+  const confirmedTimeWindow = (document.getElementById('drw-conf-tw')?.value     || '').trim();
+  const customerNote        = (document.getElementById('drw-cust-note')?.value   || '').trim();
+  const adminNotes          = (document.getElementById('drw-admin-note')?.value  || '').trim();
+
+  if (!confirmedDate)       { toast('Confirmed date is required', 'err'); return; }
+  if (!confirmedTimeWindow) { toast('Time window is required (e.g. 9AM–11AM)', 'err'); return; }
+
+  const b = bkGet().find(x => x.id === _drwId);
+  if (!b) { toast('Booking not found', 'err'); return; }
+
+  const customerName = bkNm(b).split(' ')[0] || bkNm(b);
+  if (!confirm(
+    `Confirm appointment for ${customerName}?\n\n` +
+    `Date: ${confirmedDate}\nTime: ${confirmedTimeWindow}\n\n` +
+    `A confirmation email will be sent to the customer.`
+  )) return;
+
+  const btn = document.querySelector('[onclick="drwConfirmAppointment()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Confirming…'; }
+
+  const updates = {
+    appointmentStatus: 'confirmed',
+    jobStatus:         'not_started',
+    status:            'Confirmed',
+    confirmedDate,
+    confirmedTimeWindow,
+    confirmedAt:       new Date().toISOString(),
+  };
+  if (customerNote) updates.customerNote = customerNote;
+  if (adminNotes)   updates.adminNotes   = adminNotes;
+
+  try {
+    const result = await adminBkUpdate(_drwId, updates, 'admin_confirm_appointment');
+    if (result.ok) {
+      closeDrw(); renderBk(); renderDash(); admBadges();
+      toast('✓ Appointment confirmed — confirmation email sent to customer');
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = btn.textContent === 'Confirming…' ? '✓ Confirm Appointment' : btn.textContent; }
+  }
 }
 
 // ═══════════════════════════════════════
