@@ -377,20 +377,60 @@ function renderStatus(){
   const canReschedule=!['Completed','Cancelled','In Progress','En Route'].includes(active.status);
   const isDone=active.status==='Completed'||active.status==='Paid';
 
-  // Appointment status — separate from payment status.
+  // Job lifecycle banner — separate from payment status.
   // Never expose adminNotes, paymentIntentId, or internal payment fields.
-  const isApptConfirmed = active.appointmentStatus==='confirmed' || active.status==='Confirmed';
+  const jobSt  = active.jobStatus || '';
+  const apptSt = active.appointmentStatus || '';
   const confirmedDate   = active.confirmedDate || '';
   const confirmedWindow = active.confirmedTimeWindow || active.confirmedTime || '';
-  const apptBanner = isApptConfirmed
-    ? `<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:14px 16px;margin-bottom:14px">
-        <div style="font-size:13px;font-weight:700;color:#22c55e;margin-bottom:4px">✓ Appointment Confirmed</div>
-        <div style="font-size:12px;color:var(--tx)">${confirmedDate?`<strong>${confirmedDate}</strong>${confirmedWindow?' · '+confirmedWindow:''}`:'Your appointment is confirmed — we will contact you with exact timing.'}</div>
-        ${active.customerNote?`<div style="font-size:11px;color:var(--mu);margin-top:8px;padding-top:8px;border-top:1px solid rgba(34,197,94,.2)">${active.customerNote}</div>`:''}
-      </div>`
-    : `<div style="background:rgba(100,116,139,.07);border:1px solid rgba(100,116,139,.18);border-radius:10px;padding:12px 16px;margin-bottom:14px">
-        <div style="font-size:12px;color:var(--mu)">🕐 <strong>Request received</strong> — We're reviewing your booking details and availability. You'll receive a confirmation with your exact date and time shortly.</div>
-      </div>`;
+
+  const isCanceled   = jobSt==='canceled'||apptSt==='canceled'||active.status==='Canceled'||active.status==='Cancelled';
+  const isClosed     = !isCanceled && jobSt==='closed';
+  const isCompleted  = !isCanceled && !isClosed && jobSt==='completed';
+  const isInProgress = !isCanceled && !isClosed && !isCompleted && jobSt==='in_progress';
+  const isEnRoute    = !isCanceled && !isClosed && !isCompleted && !isInProgress && jobSt==='en_route';
+  const isConfirmed  = !isCanceled && !isClosed && !isCompleted && !isInProgress && !isEnRoute
+                       && (apptSt==='confirmed'||active.status==='Confirmed');
+  // isApptConfirmed controls whether to show the confirmed date/time in the grid
+  const isApptConfirmed = isConfirmed||isEnRoute||isInProgress||isCompleted||isClosed;
+
+  let apptBanner;
+  if (isCanceled) {
+    apptBanner=`<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.28);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:#ef4444;margin-bottom:4px">✕ Booking Canceled</div>
+      <div style="font-size:12px;color:var(--mu)">This booking has been canceled. To book again, submit a new request.</div>
+    </div>`;
+  } else if (isClosed) {
+    apptBanner=`<div style="background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.28);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:var(--tx);margin-bottom:4px">✓ Job Closed</div>
+      <div style="font-size:12px;color:var(--mu)">Service is complete and your job has been closed. Thank you for choosing Cardetail1!</div>
+    </div>`;
+  } else if (isCompleted) {
+    apptBanner=`<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:#22c55e;margin-bottom:4px">✓ Service Completed</div>
+      <div style="font-size:12px;color:var(--tx)">Your vehicle has been detailed. Thank you for choosing Cardetail1!</div>
+    </div>`;
+  } else if (isInProgress) {
+    apptBanner=`<div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.28);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:#a855f7;margin-bottom:4px">✨ Service In Progress</div>
+      <div style="font-size:12px;color:var(--tx)">Your technician is currently detailing your vehicle.</div>
+    </div>`;
+  } else if (isEnRoute) {
+    apptBanner=`<div style="background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.28);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:#f97316;margin-bottom:4px">🚗 Technician En Route</div>
+      <div style="font-size:12px;color:var(--tx)">Your technician is on the way! Please make sure your vehicle is accessible.</div>
+    </div>`;
+  } else if (isConfirmed) {
+    apptBanner=`<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:#22c55e;margin-bottom:4px">✓ Appointment Confirmed</div>
+      <div style="font-size:12px;color:var(--tx)">${confirmedDate?`<strong>${confirmedDate}</strong>${confirmedWindow?' · '+confirmedWindow:''}`:'Your appointment is confirmed — we will contact you with exact timing.'}</div>
+      ${active.customerNote?`<div style="font-size:11px;color:var(--mu);margin-top:8px;padding-top:8px;border-top:1px solid rgba(34,197,94,.2)">${active.customerNote}</div>`:''}
+    </div>`;
+  } else {
+    apptBanner=`<div style="background:rgba(100,116,139,.07);border:1px solid rgba(100,116,139,.18);border-radius:10px;padding:12px 16px;margin-bottom:14px">
+      <div style="font-size:12px;color:var(--mu)">🕐 <strong>Request received</strong> — We're reviewing your booking details and availability. You'll receive a confirmation with your exact date and time shortly.</div>
+    </div>`;
+  }
 
   let acts=`<a href="index.html" class="btn btn-g btn-sm">+ Book Again</a>`;
   if(canPay&&squareUrl){ acts+=`<button class="btn btn-tl btn-sm" onclick="openPayModal('${active.id}')">💳 Pay Deposit ($${deposit})</button>`; }
