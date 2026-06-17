@@ -195,15 +195,29 @@ exports.handler = async (event) => {
 
     case 'payment_intent.succeeded': {
       // Payment captured (either via manual capture or automatic).
-      results.update = await updateBookingPayment(bookingId, {
+      // Also auto-advance job status to Completed if still in an active state —
+      // payment confirmed means the service is done and the job can close.
+      const captured = await updateBookingPayment(bookingId, {
         paymentStatus: 'paid',
         paymentIntentId: pi.id,
         amountCapturedCents: pi.amount_received != null ? pi.amount_received : pi.amount,
         capturedAt: new Date().toISOString(),
       });
+      results.update = captured;
+      if (captured.updated) {
+        const b = captured.booking;
+        const activeStatuses = ['Confirmed','Scheduled','In Progress','En Route','Payment Pending','Authorized'];
+        if (activeStatuses.includes(b.status || '')) {
+          results.autoComplete = await updateBookingPayment(bookingId, {
+            status: 'Completed',
+            completedAt: new Date().toISOString(),
+          });
+        }
+      }
       await notifyAdmin(
         `Cardetail1 — payment captured $${dollars} · ${bookingId}`,
-        `Payment of $${dollars} captured for booking ${bookingId}.\nPaymentIntent: ${pi.id}`
+        `Payment of $${dollars} captured for booking ${bookingId}.\nPaymentIntent: ${pi.id}\n` +
+        `Job auto-closed: ${results.autoComplete ? JSON.stringify(results.autoComplete) : 'skipped (already closed or not found)'}`
       );
       break;
     }
