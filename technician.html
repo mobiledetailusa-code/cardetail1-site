@@ -654,6 +654,48 @@ function tkGet(){ return JSON.parse(localStorage.getItem('cd1_technicians')||'[]
 function tkSet(a){ localStorage.setItem('cd1_technicians',JSON.stringify(a)); }
 function cfgGet(){ return JSON.parse(localStorage.getItem('cd1_cfg')||'{}'); }
 function cfgSet(o){ localStorage.setItem('cd1_cfg',JSON.stringify(o)); }
+
+// ── CLOUD MUTATION ─────────────────────────────────────────────────────────
+// Persists any booking update to Netlify Blobs via update-booking.js.
+// Fire-and-forget: UI updates locally immediately; cloud write is best-effort.
+// On failure we show a soft warning but never block the admin/tech action.
+async function bkCloudUpdate(bookingId, fields) {
+  const adminKey = sessionStorage.getItem('cd1_admin_key') || '';
+  const techId   = sessionStorage.getItem('cd1_tech_id')   || '';
+  const techEmail= sessionStorage.getItem('cd1_tech_email') || '';
+
+  if (!adminKey && !techId) {
+    console.warn('[cloud] no auth in session — cloud update skipped for', bookingId);
+    return;
+  }
+
+  const authHeaders = adminKey
+    ? { 'x-admin-key': adminKey }
+    : { 'x-tech-id': techId, 'x-tech-email': techEmail };
+
+  try {
+    const res = await fetch('/.netlify/functions/update-booking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: JSON.stringify({ bookingId, ...fields }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!data.ok) {
+      console.warn('[cloud] update-booking failed:', data.error, 'for', bookingId);
+      toast('⚠ Cloud save failed — change saved locally only', 'err');
+    } else {
+      // Merge the confirmed Blobs record back into localStorage so next cloud
+      // load does not overwrite what we just wrote.
+      if (data.updated) {
+        const list = bkGet().map(b => b.id === bookingId ? { ...b, ...data.updated, updatedAt: new Date().toISOString() } : b);
+        bkSet(list);
+      }
+    }
+  } catch (e) {
+    console.warn('[cloud] update-booking error:', e.message);
+    toast('⚠ Cloud save error — change saved locally only', 'err');
+  }
+}
 function bkNm(b){ return (b.name||((b.firstName||'')+' '+(b.lastName||''))||'Unknown').trim(); }
 function bkSvc(b){ return b.service||b.package||b.packageName||'Detail'; }
 function bkTot(b){ return b.totalPrice||b.total_price||b.packagePrice||0; }
@@ -751,12 +793,16 @@ function doLogin(){
 
   TECH = tk; IS_ADMIN = false;
   localStorage.setItem('cd1_session','tech:'+em.toLowerCase());
+  sessionStorage.setItem('cd1_tech_id', tk.id);
+  sessionStorage.setItem('cd1_tech_email', em.toLowerCase());
   initTech();
 }
 
 function doLogout(){
   localStorage.removeItem('cd1_session');
   sessionStorage.removeItem('cd1_admin_key');
+  sessionStorage.removeItem('cd1_tech_id');
+  sessionStorage.removeItem('cd1_tech_email');
   TECH=null; IS_ADMIN=false;
   document.getElementById('l-email').value='';
   document.getElementById('l-pass').value='';
@@ -771,7 +817,12 @@ function doLogout(){
   else if(sess.startsWith('tech:')){
     const em=sess.split(':')[1];
     const tk=tkGet().find(t=>t.email.toLowerCase()===em&&t.status==='approved');
-    if(tk) TECH=tk; else { localStorage.removeItem('cd1_session'); return; }
+    if(tk){
+      TECH=tk;
+      // Restore tech sessionStorage (lost on page reload)
+      if(!sessionStorage.getItem('cd1_tech_id'))   sessionStorage.setItem('cd1_tech_id', tk.id);
+      if(!sessionStorage.getItem('cd1_tech_email')) sessionStorage.setItem('cd1_tech_email', em);
+    } else { localStorage.removeItem('cd1_session'); return; }
   }
 })();
 
@@ -897,7 +948,7 @@ function renderBk(){
   admBadges();
 }
 
-function setBkStatus(id,s){ if(!s)return; const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){bk[i].status=s;bkSet(bk);}admBadges(); }
+function setBkStatus(id,s){ if(!s)return; const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){bk[i].status=s;bkSet(bk);}admBadges(); bkCloudUpdate(id,{status:s}); }
 function clearAll(){ if(confirm('Delete ALL bookings?')){localStorage.removeItem('cd1_bookings');renderBk();renderDash();toast('Cleared','err');} }
 
 function clearBkFilters(){
@@ -1040,21 +1091,34 @@ function openDrw(id){
     <div class="qa-row" style="margin-top:4px">
       <span class="qa-btn qa-soon" style="font-size:10px">📝 Internal note — Coming soon</span>
     </div>
-    <div class="local-note">Actions above are saved locally in this browser only. To contact the customer, call directly or use the phone/email links.</div>
+    <div class="local-note">Actions above are saved to the cloud and synced across devices. To contact the customer directly, use the phone/email links below.</div>
+    <div class="qa-sect" style="margin-top:14px">Confirm Appointment</div>
+    <div style="width:100%;margin-bottom:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Confirmed Date & Time <span style="color:var(--mu);font-weight:400">(sent in email when confirmed)</span></div>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <input type="date" class="ssel" id="drw-conf-date" value="${b.confirmedDate||b.preferredDate||''}" style="flex:1">
+        <input type="time" class="ssel" id="drw-conf-time" value="${b.confirmedTime||b.preferredTime||''}" style="flex:1">
+      </div>
+    </div>
     <div class="qa-sect" style="margin-top:14px">Status & Assignment</div>
     <div style="width:100%;margin-bottom:7px">
-      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Change Status</div>
+      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Change Status <span style="color:var(--mu);font-weight:400">(→ Confirmed sends email to customer)</span></div>
       <select class="ssel" id="drw-st" style="width:100%;margin-bottom:6px">${['Pending Review','Confirmed','Scheduled','In Progress','Completed','Cancelled','Rescheduled','No-Show','Payment Pending','Paid'].map(s=>`<option ${(b.status||'Pending Review')===s?'selected':''}>${s}</option>`).join('')}</select>
       <button class="btn btn-p btn-sm" style="width:100%" onclick="drwSetStatus()">Update Status</button>
     </div>
     <div style="width:100%;margin-bottom:7px">
-      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Assign Technician</div>
+      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Assign Technician <span style="color:var(--mu);font-weight:400">(sets status → Confirmed + emails customer)</span></div>
       <select class="ssel" id="drw-tk" style="width:100%;margin-bottom:6px"><option value="">— Select Tech —</option>${tks.map(t=>`<option value="${t.id}" ${b.assignedTech===t.id?'selected':''}>${t.name}</option>`).join('')}</select>
-      <button class="btn btn-g btn-sm" style="width:100%" onclick="drwAssign()">Assign</button>
+      <button class="btn btn-g btn-sm" style="width:100%" onclick="drwAssign()">Assign & Confirm</button>
     </div>
+    ${b.paymentStatus==='authorized'?`<div style="width:100%;margin-bottom:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Capture Payment <span style="color:var(--green);font-weight:700">· $${bkTot(b)} authorized</span></div>
+      <input class="pinp" id="cap-amt" type="number" value="${bkTot(b)}" placeholder="Amount to capture" style="margin-bottom:6px">
+      <button class="btn btn-gr btn-sm" style="width:100%" onclick="drwCapturePayment()">💳 Capture Card Payment</button>
+    </div>`:''}
     <div style="width:100%;margin-bottom:7px">
       <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Send Payment Link</div>
-      <input class="pinp" id="pay-url" placeholder="${cfg.squareUrl||'https://square.link/u/…'}">
+      <input class="pinp" id="pay-url" placeholder="${cfg.squareUrl||'https://stripe.com/pay/…'}">
       <button class="btn btn-tl btn-sm" style="width:100%" onclick="drwSendPay()">📤 WhatsApp / SMS</button>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%">
@@ -1067,28 +1131,83 @@ function openDrw(id){
 }
 function closeDrw(){ document.getElementById('ov').classList.remove('open'); document.getElementById('drw').classList.remove('open'); }
 function drwUpd(fn){ const bk=bkGet();const i=bk.findIndex(b=>b.id===_drwId);if(i>-1){fn(bk[i]);bkSet(bk);}closeDrw();renderBk();renderDash();admBadges(); }
-function drwSetStatus(){ const s=document.getElementById('drw-st').value; drwUpd(b=>b.status=s); toast('Status → '+s); }
-function drwAssign(){ const tid=document.getElementById('drw-tk').value; if(!tid){toast('Select a tech','err');return;} const tk=tkGet().find(t=>t.id===tid); drwUpd(b=>{b.assignedTech=tid;b.assignedTechName=tk?.name||'';b.status='Confirmed';}); toast('Assigned to '+tk?.name); }
-function drwSendPay(){ const b=bkGet().find(x=>x.id===_drwId);if(!b)return; const url=document.getElementById('pay-url').value.trim()||(cfgGet().squareUrl||''); const ph=b.phone||''; const msg=encodeURIComponent(`Hi ${bkNm(b).split(' ')[0]}! Confirm your Cardetail1 appointment with a $${bkTot(b)} payment: ${url} 🚗✨`); window.open(`https://wa.me/${ph.replace(/\D/g,'')}?text=${msg}`,'_blank'); drwUpd(b=>b.payStatus='Payment Pending'); toast('WhatsApp opened'); }
-function drwReschedule(){ const d=prompt('New preferred date (YYYY-MM-DD):');if(!d)return; drwUpd(b=>{b.preferredDate=d;b.status='Rescheduled';}); toast('Rescheduled to '+d); }
-function drwNoShow(){ if(confirm('Mark as No-Show?')){drwUpd(b=>b.status='No-Show');toast('Marked No-Show','err');} }
-function drwCancel(){ if(confirm('Cancel this booking?')){drwUpd(b=>b.status='Cancelled');toast('Cancelled','err');} }
+function drwSetStatus(){
+  const s=document.getElementById('drw-st').value;
+  const cd=document.getElementById('drw-conf-date')?.value||'';
+  const ct=document.getElementById('drw-conf-time')?.value||'';
+  const fields={status:s};
+  if(cd) fields.confirmedDate=cd;
+  if(ct) fields.confirmedTime=ct;
+  drwUpd(b=>{b.status=s;if(cd)b.confirmedDate=cd;if(ct)b.confirmedTime=ct;});
+  bkCloudUpdate(_drwId,fields);
+  toast('Status → '+s+(s==='Confirmed'?' — confirmation email sent to customer':''));
+}
+function drwAssign(){
+  const tid=document.getElementById('drw-tk').value;
+  if(!tid){toast('Select a tech','err');return;}
+  const tk=tkGet().find(t=>t.id===tid);
+  const cd=document.getElementById('drw-conf-date')?.value||'';
+  const ct=document.getElementById('drw-conf-time')?.value||'';
+  const fields={assignedTech:tid,assignedTechName:tk?.name||'',status:'Confirmed'};
+  if(cd) fields.confirmedDate=cd;
+  if(ct) fields.confirmedTime=ct;
+  drwUpd(b=>{b.assignedTech=tid;b.assignedTechName=tk?.name||'';b.status='Confirmed';if(cd)b.confirmedDate=cd;if(ct)b.confirmedTime=ct;});
+  bkCloudUpdate(_drwId,fields);
+  toast('Assigned to '+tk?.name+' — confirmation email sent');
+}
+function drwSendPay(){ const b=bkGet().find(x=>x.id===_drwId);if(!b)return; const url=document.getElementById('pay-url').value.trim()||(cfgGet().squareUrl||''); const ph=b.phone||''; const msg=encodeURIComponent(`Hi ${bkNm(b).split(' ')[0]}! Confirm your Cardetail1 appointment with a $${bkTot(b)} payment: ${url} 🚗✨`); window.open(`https://wa.me/${ph.replace(/\D/g,'')}?text=${msg}`,'_blank'); drwUpd(b=>{b.payStatus='Payment Pending';b.status='Payment Pending';}); bkCloudUpdate(_drwId,{status:'Payment Pending'}); toast('WhatsApp opened — status set to Payment Pending'); }
+function drwReschedule(){ const d=prompt('New preferred date (YYYY-MM-DD):');if(!d)return; drwUpd(b=>{b.preferredDate=d;b.status='Rescheduled';}); bkCloudUpdate(_drwId,{preferredDate:d,status:'Rescheduled'}); toast('Rescheduled to '+d); }
+function drwNoShow(){ if(confirm('Mark as No-Show?')){drwUpd(b=>b.status='No-Show');bkCloudUpdate(_drwId,{status:'No-Show'});toast('Marked No-Show','err');} }
+function drwCancel(){ if(confirm('Cancel this booking?')){drwUpd(b=>b.status='Cancelled');bkCloudUpdate(_drwId,{status:'Cancelled'});toast('Cancelled','err');} }
+
+async function drwCapturePayment(){
+  const b=bkGet().find(x=>x.id===_drwId);
+  if(!b||!b.paymentIntentId){toast('No payment intent on this booking','err');return;}
+  const amt=parseFloat(document.getElementById('cap-amt')?.value||bkTot(b));
+  if(!amt||amt<1){toast('Enter a valid amount','err');return;}
+  if(!confirm(`Capture $${amt} from the card on file?\n\nThis will charge the customer's card — this action cannot be undone.`)) return;
+  const key=sessionStorage.getItem('cd1_admin_key')||'';
+  if(!key){toast('Admin session expired — reload the page','err');return;}
+  const btn=document.querySelector('[onclick="drwCapturePayment()"]');
+  if(btn){btn.disabled=true;btn.textContent='Capturing…';}
+  try{
+    const res=await fetch('/.netlify/functions/capture-payment',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-admin-key':key},
+      body:JSON.stringify({paymentIntentId:b.paymentIntentId,amountCents:Math.round(amt*100),bookingId:b.id}),
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok){toast('Capture failed: '+(data.error||'HTTP '+res.status),'err');return;}
+    // Update local record immediately; webhook will confirm paid status
+    const list=bkGet().map(x=>x.id===_drwId?{...x,paymentStatus:'capture_pending',status:'Completed'}:x);
+    bkSet(list);
+    bkCloudUpdate(_drwId,{status:'Completed'});
+    closeDrw();renderBk();renderDash();admBadges();
+    toast('💳 Payment captured — job marked Completed');
+  }catch(e){
+    toast('Capture error: '+e.message,'err');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='💳 Capture Card Payment';}
+  }
+}
 
 function drwMarkReviewed(){
   const bk=bkGet(); const i=bk.findIndex(b=>b.id===_drwId); if(i<0) return;
-  bk[i].adminReviewed=true; bk[i].adminReviewedAt=new Date().toISOString();
+  const now=new Date().toISOString();
+  bk[i].adminReviewed=true; bk[i].adminReviewedAt=now;
   bkSet(bk);
-  toast('Marked as reviewed (saved locally)');
-  openDrw(_drwId);
-  renderBk();
+  bkCloudUpdate(_drwId,{adminReviewed:true,adminReviewedAt:now});
+  toast('Marked as reviewed');
+  openDrw(_drwId); renderBk();
 }
 function drwMarkContacted(){
   const bk=bkGet(); const i=bk.findIndex(b=>b.id===_drwId); if(i<0) return;
-  bk[i].adminContacted=true; bk[i].adminContactedAt=new Date().toISOString();
+  const now=new Date().toISOString();
+  bk[i].adminContacted=true; bk[i].adminContactedAt=now;
   bkSet(bk);
-  toast('Marked as contacted (saved locally)');
-  openDrw(_drwId);
-  renderBk();
+  bkCloudUpdate(_drwId,{adminContacted:true,adminContactedAt:now});
+  toast('Marked as contacted');
+  openDrw(_drwId); renderBk();
 }
 
 // ═══════════════════════════════════════
@@ -1131,7 +1250,14 @@ function renderDispatch(){
       <td onclick="event.stopPropagation()"><select class="ff" style="font-size:10px" onchange="setBkStatus('${b.id}',this.value);renderDispatch()">${['Confirmed','Scheduled','In Progress','En Route','Completed'].map(s=>`<option ${b.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
     </tr>`;}).join('')}</tbody></table></div></div>`;
 }
-function quickAssign(bkId,tkId){ if(!tkId)return;const bk=bkGet();const i=bk.findIndex(b=>b.id===bkId);if(i>-1){bk[i].assignedTech=tkId;bk[i].status='Confirmed';bkSet(bk);}renderDispatch();toast('Tech assigned'); }
+function quickAssign(bkId,tkId){
+  if(!tkId)return;
+  const bk=bkGet();const i=bk.findIndex(b=>b.id===bkId);
+  const tk=tkGet().find(t=>t.id===tkId);
+  if(i>-1){bk[i].assignedTech=tkId;bk[i].assignedTechName=tk?.name||'';bk[i].status='Confirmed';bkSet(bk);}
+  bkCloudUpdate(bkId,{assignedTech:tkId,assignedTechName:tk?.name||'',status:'Confirmed'});
+  renderDispatch();toast('Tech assigned — confirmation email sent to customer');
+}
 
 // ═══════════════════════════════════════
 // ADMIN — ACCOUNTING
@@ -1239,11 +1365,23 @@ function jobCard(b,mine){
   </div>`;
 }
 
-function techUpdBk(id,status){ const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){bk[i].status=status;if(status==='In Progress')bk[i].startedAt=new Date().toISOString();bkSet(bk);}toast('→ '+status);renderMine(); }
+function techUpdBk(id,status){
+  const bk=bkGet();const i=bk.findIndex(b=>b.id===id);
+  const now=new Date().toISOString();
+  const fields={status};
+  if(status==='In Progress') fields.startedAt=now;
+  if(status==='En Route')    fields.enRouteAt=now;
+  if(status==='Completed')   fields.completedAt=now;
+  if(i>-1){bk[i].status=status;Object.assign(bk[i],fields);bkSet(bk);}
+  bkCloudUpdate(id,fields);
+  toast('→ '+status);renderMine();
+}
 function acceptJob(id){
   const bk=bkGet();const b=bk.find(x=>x.id===id);
   if(!b||b.assignedTech){toast('No longer available','err');renderAvail();return;}
-  const i=bk.findIndex(x=>x.id===id);bk[i].assignedTech=TECH.id;bk[i].assignedTechName=TECH.name;bkSet(bk);
+  const i=bk.findIndex(x=>x.id===id);
+  bk[i].assignedTech=TECH.id;bk[i].assignedTechName=TECH.name;bkSet(bk);
+  bkCloudUpdate(id,{assignedTech:TECH.id,assignedTechName:TECH.name});
   toast('Job accepted ✓');techTab('mine');
 }
 function markComplete(id){
