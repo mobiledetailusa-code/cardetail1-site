@@ -44,6 +44,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
 .tb-nm{font-size:13px;color:var(--mu)}
 .tb-out{background:none;border:1px solid var(--border);color:var(--mu);font-size:11px;padding:5px 11px;border-radius:7px;cursor:pointer;transition:.2s}
 .tb-out:hover{border-color:var(--red);color:var(--red)}
+.tb-back,.tb-home{background:none;border:1px solid var(--border);color:var(--mu);font-size:11px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer;transition:.2s;min-height:36px;white-space:nowrap;font-family:inherit}
+.tb-back:hover,.tb-home:hover{border-color:rgba(77,163,255,.5);color:var(--blue)}
+.tb-book{background:var(--blue);border:none;color:#fff;font-size:11px;font-weight:700;padding:6px 13px;border-radius:7px;cursor:pointer;transition:.2s;min-height:36px;white-space:nowrap;font-family:inherit}
+.tb-book:hover{opacity:.88}
+@media(max-width:480px){.tb-nm{display:none}.topbar{gap:7px;padding:0 12px}}
 .tab-bar{background:var(--bg1);border-bottom:1px solid var(--border);display:flex;padding:0 20px;overflow-x:auto}
 .tab{padding:14px 16px;font-size:13px;font-weight:600;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:.2s;white-space:nowrap}
 .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
@@ -176,8 +181,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
 <!-- APP -->
 <div id="s-app">
   <div class="topbar">
+    <button class="tb-back" onclick="history.back()" title="Back">← Back</button>
     <div class="tb-logo">CAR<span>DETAIL</span>1</div>
     <div class="tb-sp"></div>
+    <button class="tb-book" onclick="location.href='/'">+ Book Service</button>
+    <button class="tb-home" onclick="location.href='/'" title="Go to homepage">Home</button>
     <div class="tb-nm" id="tb-nm">My Account</div>
     <button class="tb-out" onclick="logout()">Sign Out</button>
   </div>

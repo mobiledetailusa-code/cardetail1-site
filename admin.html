@@ -23,11 +23,16 @@
   .links{margin-top:20px;display:flex;gap:14px;font-size:13px}
   .links a{color:var(--mu);text-decoration:none}
   .links a:hover{color:var(--fg)}
+  .top-home{position:fixed;top:16px;left:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--mu);font-size:12px;font-weight:600;padding:8px 14px;border-radius:8px;text-decoration:none;transition:.2s;min-height:40px;display:inline-flex;align-items:center;gap:5px}
+  .top-home:hover{color:var(--fg);border-color:rgba(255,255,255,.22)}
+  .console-tag{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--mu);text-transform:uppercase;margin-bottom:4px}
 </style>
 </head>
 <body>
+  <a href="/" class="top-home">← Home</a>
   <form class="box" onsubmit="return adminLogin(event)">
-    <div class="logo">Cardetail<span>1</span> · Admin</div>
+    <div class="console-tag">Admin Console</div>
+    <div class="logo">Cardetail<span>1</span></div>
     <div class="sub">Restricted area — operators only.</div>
     <label for="code">Access code</label>
     <input id="code" type="password" autocomplete="off" autofocus placeholder="••••••••••">
