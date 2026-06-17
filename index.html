@@ -314,6 +314,11 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 /* â”€â”€ CUSTOMER GARAGE â”€â”€ */
 .cg-back{background:none;border:none;color:var(--mu);font-size:12px;cursor:pointer;padding:0;margin-bottom:12px;display:block;transition:.2s}
 .cg-back:hover{color:var(--white)}
+.cg-nav{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.cg-nav-btn{background:none;border:1px solid rgba(255,255,255,.10);color:var(--mu);font-size:11px;font-weight:600;padding:6px 13px;border-radius:7px;cursor:pointer;transition:.2s;font-family:var(--fb);min-height:34px;white-space:nowrap}
+.cg-nav-btn:hover{border-color:rgba(77,163,255,.5);color:var(--blue)}
+.cg-nav-book{background:var(--blue);border:none;color:#000;font-size:11px;font-weight:700;padding:6px 13px;border-radius:7px;cursor:pointer;transition:.2s;font-family:var(--fb);min-height:34px;white-space:nowrap}
+.cg-nav-book:hover{opacity:.85}
 .cg-badge{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);background:var(--bdim);border:1px solid var(--bbr);border-radius:999px;padding:3px 12px;display:inline-block}
 .cg-section{background:var(--bg3);border:1px solid rgba(255,255,255,.07);border-radius:var(--rs);padding:14px 16px;margin-bottom:10px}
 .cg-sec-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);margin-bottom:10px}
@@ -1722,7 +1727,11 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 
     <!-- CUSTOMER GARAGE &mdash; shown after successful booking lookup -->
     <div id="cp-garage" style="display:none">
-      <button class="cg-back" onclick="cpGarageBack()">&larr; Search again</button>
+      <div class="cg-nav">
+        <button class="cg-nav-btn" onclick="cpGarageBack()">&larr; Back</button>
+        <button class="cg-nav-btn" onclick="closePortal();location.href='/'">Home</button>
+        <button class="cg-nav-book" onclick="closePortal();setTimeout(function(){openBooking(null)},100)">+ Book Service</button>
+      </div>
       <div style="margin-bottom:16px">
         <span class="cg-badge">Customer Garage Preview</span>
         <p style="font-size:12px;color:var(--mu);margin-top:6px">Access your booking and maintenance options.</p>
