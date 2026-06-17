@@ -1016,7 +1016,7 @@ function openDrw(id){
     ${row('Name',bkNm(b))}${row('Phone',b.phone?`<a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a>`:'-')}${row('Email',b.email||'—')}${row('Address',b.address||'—')}${row('ZIP',b.zip||b.zipCode||'—')}${row('Zone',b.zone||b.zip_city||'—')}
     <div class="dsec">Service</div>
     ${row('Vehicle',b.vehicleLabel||b.vehicle||'—')}${row('Service',bkSvc(b))}${row('Add-ons',addons)}${row('Preferred Date',b.preferredDate||b.preferred_date||'—')}${row('Preferred Time',b.preferredTime||'Any')}${row('Total','<span style="color:var(--green);font-weight:800;font-size:14px">$'+bkTot(b)+'</span>')}
-    ${row('Technician',tech?`<span style="color:var(--green)">${tech.name}</span>`:'Unassigned')}
+    ${row('Technician',b.assignedTechName?`<span style="color:var(--green)">${b.assignedTechName}${b.assignedTechEmail?` <span style="color:var(--mu);font-size:10px">(${b.assignedTechEmail})</span>`:''}</span>`:(tech?`<span style="color:var(--green)">${tech.name}</span>`:'<span style="color:var(--mu)">Unassigned</span>'))}
     ${b.notes?`<div class="dsec">Notes</div><div style="font-size:12px;color:var(--mu);background:var(--bg3);border-radius:7px;padding:10px">${b.notes}</div>`:''}
   `;
   const tks=tkGet().filter(t=>t.status==='approved');
@@ -1085,8 +1085,12 @@ function openDrw(id){
     </div>
     <div style="width:100%;margin-bottom:7px">
       <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Assign Technician</div>
-      <select class="ssel" id="drw-tk" style="width:100%;margin-bottom:6px"><option value="">— Select Tech —</option>${tks.map(t=>`<option value="${t.id}" ${b.assignedTech===t.id?'selected':''}>${t.name}</option>`).join('')}</select>
-      <button class="btn btn-g btn-sm" style="width:100%" onclick="drwAssign()">Assign</button>
+      ${tks.length===0
+        ? `<div style="font-size:11px;color:var(--mu);background:var(--bg3);border-radius:7px;padding:10px;line-height:1.5">No approved technicians. Add and approve a technician in the Technicians tab before assigning.</div>`
+        : `<select class="ssel" id="drw-tk" style="width:100%;margin-bottom:6px"><option value="">— Select Tech —</option>${tks.map(t=>`<option value="${t.id}" ${b.assignedTech===t.id?'selected':''}>${t.name}${t.email?' ('+t.email+')':''}</option>`).join('')}</select>
+           <button class="btn btn-g btn-sm" style="width:100%" onclick="drwAssign()">☁️ Assign (cloud)</button>
+           <div style="font-size:10px;color:var(--mu);margin-top:4px">Assignment saves to Blobs and emails the technician.</div>`}
+      ${b.assignedTech?`<div style="margin-top:8px;padding:8px 10px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:7px;font-size:11px"><strong style="color:#22c55e">Assigned:</strong> ${b.assignedTechName||b.assignedTech}${b.assignedTechEmail?` · ${b.assignedTechEmail}`:''}</div>`:''}
     </div>
     <div style="width:100%;margin-bottom:7px">
       <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Send Payment Link</div>
@@ -1103,7 +1107,42 @@ function openDrw(id){
 function closeDrw(){ document.getElementById('ov').classList.remove('open'); document.getElementById('drw').classList.remove('open'); }
 function drwUpd(fn){ const bk=bkGet();const i=bk.findIndex(b=>b.id===_drwId);if(i>-1){fn(bk[i]);bkSet(bk);}closeDrw();renderBk();renderDash();admBadges(); }
 function drwSetStatus(){ const s=document.getElementById('drw-st').value; drwUpd(b=>b.status=s); toast('Status → '+s); }
-function drwAssign(){ const tid=document.getElementById('drw-tk').value; if(!tid){toast('Select a tech','err');return;} const tk=tkGet().find(t=>t.id===tid); drwUpd(b=>{b.assignedTech=tid;b.assignedTechName=tk?.name||'';b.status='Confirmed';}); toast('Assigned to '+tk?.name); }
+async function drwAssign(){
+  if (!IS_ADMIN) { toast('Admin access required', 'err'); return; }
+  const tid = (document.getElementById('drw-tk')?.value || '').trim();
+  if (!tid) { toast('Select a technician', 'err'); return; }
+  const tk = tkGet().find(t => t.id === tid);
+  if (!tk) { toast('Technician not found', 'err'); return; }
+  if (!confirm(`Assign "${tk.name}" to this booking? They will receive an email notification.`)) return;
+  // Sync roster to Blobs first so backend can validate the assignment
+  await syncRosterToBlobs();
+  const now = new Date().toISOString();
+  const result = await adminBkUpdate(_drwId, {
+    assignedTech:      tid,
+    assignedTechName:  tk.name  || '',
+    assignedTechEmail: tk.email || '',
+    assignedAt:        now,
+    assignedBy:        'admin',
+  }, 'admin_assign_technician');
+  if (result.ok) { closeDrw(); renderBk(); renderDash(); admBadges(); toast(`✓ Assigned to ${tk.name}`); }
+}
+
+// Sync the localStorage tech roster to Blobs so backend assignment validation works.
+async function syncRosterToBlobs() {
+  const key = sessionStorage.getItem('cd1_admin_key') || '';
+  if (!key) return;
+  const roster = tkGet()
+    .filter(t => t.status === 'approved')
+    .map(t => ({ id: t.id, name: t.name || '', phone: t.phone || '', email: t.email || '', status: 'approved' }));
+  if (!roster.length) return;
+  try {
+    await fetch('/.netlify/functions/techs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': key },
+      body: JSON.stringify({ techs: roster }),
+    });
+  } catch (e) { console.warn('[syncRosterToBlobs]', e.message); }
+}
 function drwSendPay(){ const b=bkGet().find(x=>x.id===_drwId);if(!b)return; const url=document.getElementById('pay-url').value.trim()||(cfgGet().squareUrl||''); const ph=b.phone||''; const msg=encodeURIComponent(`Hi ${bkNm(b).split(' ')[0]}! Confirm your Cardetail1 appointment with a $${bkTot(b)} payment: ${url} 🚗✨`); window.open(`https://wa.me/${ph.replace(/\D/g,'')}?text=${msg}`,'_blank'); drwUpd(b=>b.paymentLifecycle='payment_link_sent'); toast('WhatsApp opened'); }
 
 // ── Cloud-persisted job lifecycle actions ─────────────────────────────────────
@@ -1281,7 +1320,21 @@ function renderDispatch(){
       <td onclick="event.stopPropagation()"><select class="ff" style="font-size:10px" onchange="setBkStatus('${b.id}',this.value);renderDispatch()">${['Confirmed','Scheduled','In Progress','En Route','Completed'].map(s=>`<option ${b.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
     </tr>`;}).join('')}</tbody></table></div></div>`;
 }
-function quickAssign(bkId,tkId){ if(!tkId)return;const bk=bkGet();const i=bk.findIndex(b=>b.id===bkId);if(i>-1){bk[i].assignedTech=tkId;bk[i].status='Confirmed';bkSet(bk);}renderDispatch();toast('Tech assigned'); }
+async function quickAssign(bkId,tkId){
+  if(!tkId)return;
+  const tk=tkGet().find(t=>t.id===tkId);
+  if(!tk){toast('Tech not found','err');return;}
+  await syncRosterToBlobs();
+  const now=new Date().toISOString();
+  const result=await adminBkUpdate(bkId,{
+    assignedTech:      tkId,
+    assignedTechName:  tk.name||'',
+    assignedTechEmail: tk.email||'',
+    assignedAt:        now,
+    assignedBy:        'admin',
+  },'admin_assign_technician');
+  if(result.ok){renderDispatch();toast('✓ Assigned to '+tk.name);}
+}
 
 // ═══════════════════════════════════════
 // ADMIN — ACCOUNTING
@@ -1341,8 +1394,16 @@ function renderAvail(){
   document.getElementById('avail-list').innerHTML=bk.length?bk.map(b=>jobCard(b,false)).join(''):'<div class="empty"><div class="ei">🗂️</div><div class="et">No open jobs right now.</div></div>';
 }
 function renderMine(){
-  const bk=bkGet().filter(b=>b.assignedTech===TECH.id&&!['Completed','Cancelled'].includes(b.status));
-  document.getElementById('mine-list').innerHTML=bk.length?bk.map(b=>jobCard(b,true)).join(''):'<div class="empty"><div class="ei">📋</div><div class="et">No active jobs. Accept from Available Jobs.</div></div>';
+  // Filter by assignedTech (cloud-persisted from PR D).
+  // Exclude jobs that are done or canceled by either legacy status or jobStatus.
+  const DONE_LEGACY=['Completed','Cancelled','Closed','Canceled'];
+  const DONE_JOB=['completed','closed','canceled'];
+  const bk=bkGet().filter(b=>
+    b.assignedTech===TECH.id&&
+    !DONE_LEGACY.includes(b.status||'')&&
+    !DONE_JOB.includes(b.jobStatus||'')
+  );
+  document.getElementById('mine-list').innerHTML=bk.length?bk.map(b=>jobCard(b,true)).join(''):'<div class="empty"><div class="ei">📋</div><div class="et">No active jobs assigned to you.</div></div>';
 }
 
 function jobCard(b,mine){

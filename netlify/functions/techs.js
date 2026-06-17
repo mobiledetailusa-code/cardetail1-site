@@ -39,8 +39,14 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'POST') {
       const p = JSON.parse(event.body || '{}');
       const techs = (Array.isArray(p.techs) ? p.techs : [])
-        .filter(t => t && t.phone)
-        .map(t => ({ id: t.id || ('TECH-' + (t.phone || '').replace(/\D/g, '')), name: t.name || 'Technician', phone: String(t.phone) }));
+        .filter(t => t && (t.phone || t.email || t.id))
+        .map(t => ({
+          id:     t.id || ('TECH-' + (t.phone || '').replace(/\D/g, '')),
+          name:   t.name || 'Technician',
+          phone:  String(t.phone || ''),
+          email:  (t.email || '').toLowerCase().trim(),
+          status: t.status || 'approved',
+        }));
       await s.setJSON('roster', techs);
       return json(200, { ok: true, count: techs.length });
     }

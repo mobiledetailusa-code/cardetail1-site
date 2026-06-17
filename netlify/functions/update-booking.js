@@ -77,8 +77,10 @@ const ALLOWED_FIELDS = new Set([
   // Problem flags
   'hasProblem', 'lastProblem',
   // Payment collection state — display-only, separate from paymentStatus.
-  // Used by admin when sending a payment link; never conflated with job lifecycle.
   'paymentLifecycle',
+  // Technician assignment (admin-only; backend validates against roster).
+  'assignedTech', 'assignedTechName', 'assignedTechEmail',
+  'assignedAt', 'assignedBy',
 ]);
 
 // Explicitly blocked fields — produce a clear 400 instead of "unknown_field".
@@ -90,7 +92,7 @@ const BLOCKED_FIELDS = new Set([
   'firstName', 'lastName', 'email', 'phone', 'address', 'zipCode',
   'totalPrice', 'packagePrice', 'package', 'vehicle', 'addOns',
   'archived', 'isTest',
-  'assignedTech', 'assignedTechName',
+  // assignedTech* are allowed (admin assignment) — not blocked
 ]);
 
 // String note fields — length-capped before storage.
@@ -190,6 +192,68 @@ async function sendConfirmationEmail(b) {
   }
 }
 
+// ── Tech assignment email ─────────────────────────────────────────────────────
+// Sent to technician when admin assigns them a booking.
+// Must not expose: adminNotes, paymentIntentId, amounts, or customer payment data.
+
+async function sendTechAssignmentEmail(b) {
+  const { RESEND_API_KEY, RESEND_FROM } = process.env;
+  if (!RESEND_API_KEY) return { sent: false, reason: 'RESEND_API_KEY not configured' };
+  const techEmail = b.assignedTechEmail;
+  if (!techEmail) return { sent: false, reason: 'no tech email on booking' };
+
+  const techName = b.assignedTechName || 'Technician';
+  const service  = b.package || b.service || 'Detailing Service';
+  const vehicle  = b.vehicleLabel || b.vehicle || b.vehicleCategory || '—';
+  const date     = b.confirmedDate || b.preferredDate || '—';
+  const win      = b.confirmedTimeWindow || b.confirmedTime || b.preferredTime || '—';
+  const address  = b.address || 'customer will confirm location';
+
+  const lines = [
+    `Hi ${techName.split(' ')[0]},`,
+    ``,
+    `You have been assigned a new Cardetail1 job.`,
+    ``,
+    `  Booking ID:  ${b.id}`,
+    `  Service:     ${service}`,
+    `  Vehicle:     ${vehicle}`,
+    `  Date:        ${date}`,
+    `  Time:        ${win}`,
+    `  Location:    ${address}`,
+  ];
+  if (b.customerNote) lines.push(``, `  Customer note: ${b.customerNote}`);
+  lines.push(
+    ``,
+    `View your assigned jobs:`,
+    `  https://cardetail1.netlify.app/technician.html`,
+    ``,
+    `Questions? Contact the admin: 551-313-2956`,
+    `Cardetail1 Mobile Detailing`,
+  );
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: RESEND_FROM || 'Cardetail1 <onboarding@resend.dev>',
+        to:   [techEmail],
+        subject: `New Cardetail1 job assigned — ${b.id}`,
+        text: lines.join('\n'),
+      }),
+    });
+    if (!res.ok) {
+      console.log('[update-booking] tech assignment email failed:', res.status);
+      return { sent: false, reason: `resend ${res.status}` };
+    }
+    console.log('[update-booking] tech assignment email sent to', b.id);
+    return { sent: true };
+  } catch (e) {
+    console.log('[update-booking] tech assignment email error:', e.message);
+    return { sent: false, reason: e.message };
+  }
+}
+
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
@@ -269,6 +333,33 @@ exports.handler = async (event) => {
     ? body.lastAction.trim().slice(0, 100)
     : 'admin_update_booking';
 
+  // ── Roster validation for technician assignment ───────────────────────────
+  // When assignedTech is provided, validate against the Blobs cd1-techs roster
+  // and override assignedTechName/Email from the authoritative roster record.
+  // If roster is not yet synced (empty), assignment is allowed with a warning.
+  if (validated.assignedTech !== undefined) {
+    try {
+      const rStore = await blobsStore('cd1-techs');
+      const roster = await rStore.get('roster', { type: 'json' }).catch(() => null) || [];
+      if (roster.length > 0) {
+        const tech = roster.find(t => t.id === validated.assignedTech);
+        if (!tech) {
+          return json(400, { ok: false, error: 'tech_not_in_roster', techId: validated.assignedTech });
+        }
+        if (tech.status && tech.status !== 'approved') {
+          return json(400, { ok: false, error: 'tech_not_approved', techId: validated.assignedTech });
+        }
+        // Use authoritative name/email from roster — overrides frontend values
+        if (tech.name)  validated.assignedTechName  = tech.name;
+        if (tech.email) validated.assignedTechEmail = tech.email;
+      } else {
+        console.warn('[update-booking] cd1-techs roster empty — skipping tech validation for', validated.assignedTech);
+      }
+    } catch (rErr) {
+      console.warn('[update-booking] roster check failed, proceeding:', rErr.message);
+    }
+  }
+
   // ── Blobs write ───────────────────────────────────────────────────────────
   try {
     const store   = await blobsStore('cd1-bookings');
@@ -314,6 +405,12 @@ exports.handler = async (event) => {
 
     if (justConfirmed) {
       emailResults.confirmationEmail = await sendConfirmationEmail(patched);
+    }
+
+    // Tech assignment email — sent when assignedTech transitions to a new value.
+    const justAssigned = validated.assignedTech && booking.assignedTech !== validated.assignedTech;
+    if (justAssigned) {
+      emailResults.techAssignmentEmail = await sendTechAssignmentEmail(patched);
     }
 
     return json(200, {
