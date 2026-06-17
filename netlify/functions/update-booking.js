@@ -76,6 +76,9 @@ const ALLOWED_FIELDS = new Set([
   'completedAt', 'closedAt', 'canceledAt',
   // Problem flags
   'hasProblem', 'lastProblem',
+  // Payment collection state — display-only, separate from paymentStatus.
+  // Used by admin when sending a payment link; never conflated with job lifecycle.
+  'paymentLifecycle',
 ]);
 
 // Explicitly blocked fields — produce a clear 400 instead of "unknown_field".
