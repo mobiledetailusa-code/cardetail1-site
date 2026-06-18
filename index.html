@@ -1518,7 +1518,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div style="margin-top:14px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
         <a href="customer.html" style="font-size:12px;color:rgba(255,255,255,.35);text-decoration:none;transition:.2s" onmouseover="this.style.color='#4da3ff'" onmouseout="this.style.color='rgba(255,255,255,.35)'">👤 My Account</a>
       </div>
-      <div class="foot-areas">Serving Bergen County · Hudson County · Manhattan · Long Island · Fairfield CT · and surrounding areas</div>
+      <div class="foot-areas">Serving Bergen County · Hudson County · Manhattan · Long Island · <a href="/connecticut" style="color:inherit;text-decoration:none;border-bottom:1px solid rgba(138,155,176,.25)">Fairfield CT</a> · <a href="/massachusetts" style="color:inherit;text-decoration:none;border-bottom:1px solid rgba(138,155,176,.25)">Greater Boston MA</a> · and surrounding areas</div>
     </div>
   </div>
 </footer>
@@ -3821,6 +3821,7 @@ function buildBookingPayload(){
     zone:activeZone?activeZone.label:'',
     zoneSurcharge:fee,
     richSurcharge:richMultiplier > 1 ? '5% premium area' : '',
+    regionTag: (activeZone?.key === 'ct') ? 'CT' : (activeZone?.key === 'ma') ? 'MA' : '',
     service: (pv.pkgName||'')+(vehicles.length>1?' + '+(vehicles.length-1)+' more':''),
     tip: 0,
     // ── Firebase / radar friendly aliases ──
@@ -3965,7 +3966,7 @@ function renderAdminBookings(){
   if(!list.length){grid.innerHTML='<div class="admin-empty">No bookings in this status.</div>';return;}
   grid.innerHTML=list.map(b=>{
     const addons=(b.addons&&b.addons.length)?b.addons.map(a=>`${a.name}${a.qty>1?' ×'+a.qty:''} +$${a.price*(a.qty||1)}`).join('<br>'):'None';
-    const zoneInfo = [b.zipCode?'📮 ZIP '+b.zipCode:'', b.zone?'📍 '+b.zone:'', b.zoneSurcharge?'+$'+b.zoneSurcharge+' area fee':'', b.richSurcharge?'✦ Premium area (+5%)':''].filter(Boolean).join(' · ');
+    const zoneInfo = [b.zipCode?'📮 ZIP '+b.zipCode:'', b.zone?'📍 '+b.zone:'', b.zoneSurcharge?'+$'+b.zoneSurcharge+' area fee':'', b.richSurcharge?'✦ Premium area (+5%)':'', b.regionTag?'🗺 '+b.regionTag+' Regional':''].filter(Boolean).join(' · ');
     const payLinkHtml = b.payLink ? `<div style="margin-top:6px"><a href="${b.payLink}" target="_blank" style="color:var(--blue);font-weight:600;font-size:12px">💳 Pay Link</a></div>` : '';
     const tipHtml = b.tip ? `<div style="color:var(--gold);font-weight:600;font-size:12px;margin-top:4px">💰 Tip: $${b.tip}</div>` : '';
     const mapsUrl = 'https://maps.google.com/?q='+encodeURIComponent(b.address||'');
@@ -4596,6 +4597,50 @@ const ZIP_CITIES = {
   '06510':'New Haven, CT','06511':'New Haven, CT','06512':'East Haven, CT','06513':'New Haven, CT',
   '06514':'Hamden, CT','06515':'New Haven, CT','06516':'West Haven, CT','06517':'Hamden, CT',
   '06518':'Hamden, CT','06519':'New Haven, CT','06520':'New Haven, CT',
+  // ── MASSACHUSETTS ──
+  // Greater Boston
+  '02101':'Boston, MA','02108':'Beacon Hill, MA','02109':'Boston, MA','02110':'Boston, MA',
+  '02111':'Boston, MA','02113':'North End, MA','02114':'Boston, MA','02115':'Fenway, MA',
+  '02116':'Back Bay, MA','02118':'South End, MA','02119':'Roxbury, MA','02120':'Mission Hill, MA',
+  '02121':'Dorchester, MA','02122':'Dorchester, MA','02124':'Dorchester, MA','02125':'Dorchester, MA',
+  '02126':'Mattapan, MA','02127':'South Boston, MA','02128':'East Boston, MA','02129':'Charlestown, MA',
+  '02130':'Jamaica Plain, MA','02131':'Roslindale, MA','02132':'West Roxbury, MA',
+  '02134':'Allston, MA','02135':'Brighton, MA','02136':'Hyde Park, MA',
+  '02138':'Cambridge, MA','02139':'Cambridge, MA','02140':'Cambridge, MA','02141':'Cambridge, MA',
+  '02143':'Somerville, MA','02144':'Somerville, MA','02145':'Somerville, MA',
+  '02148':'Malden, MA','02149':'Everett, MA','02150':'Chelsea, MA','02151':'Revere, MA',
+  '02155':'Medford, MA','02163':'Cambridge, MA',
+  '02169':'Quincy, MA','02170':'Quincy, MA','02171':'Quincy, MA',
+  '02176':'Melrose, MA','02180':'Stoneham, MA','02184':'Braintree, MA','02186':'Milton, MA',
+  '02188':'Weymouth, MA','02189':'Weymouth, MA','02190':'Weymouth, MA',
+  '02201':'Boston, MA','02203':'Boston, MA','02210':'Boston, MA',
+  // MA — Inner Suburbs (Newton, Brookline, Wellesley, Weston, Lexington, Concord)
+  '02420':'Lexington, MA','02421':'Lexington, MA','02445':'Brookline, MA','02446':'Brookline, MA',
+  '02447':'Brookline, MA','02451':'Waltham, MA','02452':'Waltham, MA','02453':'Waltham, MA',
+  '02454':'Waltham, MA','02457':'Babson Park, MA','02458':'Newton, MA','02459':'Newton Centre, MA',
+  '02460':'Newtonville, MA','02461':'Newton Highlands, MA','02462':'Newton Lower Falls, MA',
+  '02464':'Newton Upper Falls, MA','02465':'West Newton, MA','02466':'Auburndale, MA',
+  '02467':'Chestnut Hill, MA','02468':'Waban, MA','02472':'Watertown, MA','02474':'Arlington, MA',
+  '02476':'Arlington, MA','02478':'Belmont, MA','02481':'Wellesley, MA','02482':'Wellesley, MA',
+  '02492':'Needham, MA','02493':'Weston, MA','02494':'Needham Heights, MA',
+  // MA — North Shore
+  '01801':'Woburn, MA','01803':'Burlington, MA','01821':'Billerica, MA','01824':'Chelmsford, MA',
+  '01840':'Lawrence, MA','01844':'Methuen, MA','01845':'North Andover, MA',
+  '01850':'Lowell, MA','01851':'Lowell, MA','01852':'Lowell, MA','01854':'Lowell, MA',
+  '01880':'Wakefield, MA','01887':'Wilmington, MA','01890':'Winchester, MA',
+  '01902':'Lynn, MA','01906':'Saugus, MA','01907':'Swampscott, MA',
+  '01915':'Beverly, MA','01923':'Danvers, MA','01930':'Gloucester, MA','01940':'Lynnfield, MA',
+  '01944':'Manchester, MA','01945':'Marblehead, MA','01949':'Middleton, MA',
+  '01950':'Newburyport, MA','01960':'Peabody, MA','01966':'Rockport, MA',
+  '01970':'Salem, MA','01971':'Salem, MA','01984':'Wenham, MA',
+  // MA — South Shore & Cape
+  '02332':'Duxbury, MA','02339':'Hanover, MA','02360':'Plymouth, MA','02364':'Kingston, MA',
+  '02368':'Randolph, MA','02370':'Rockland, MA','02382':'Whitman, MA',
+  '02532':'Buzzards Bay, MA','02536':'East Falmouth, MA','02540':'Falmouth, MA',
+  '02554':'Nantucket, MA','02568':'Vineyard Haven, MA','02601':'Hyannis, MA',
+  // MA — Worcester area
+  '01545':'Shrewsbury, MA','01581':'Westborough, MA','01601':'Worcester, MA',
+  '01602':'Worcester, MA','01603':'Worcester, MA','01604':'Worcester, MA','01605':'Worcester, MA',
   // ── PENNSYLVANIA ──
   // Allentown / Lehigh Valley
   '18001':'Allentown, PA','18010':'Alburtis, PA','18011':'Alburtis, PA','18013':'Bangor, PA','18014':'Bath, PA',
@@ -4673,6 +4718,7 @@ const ZIP_ZONES = {
   nyc: { label:'New York City',                 short:'NYC',        surcharge:35, emoji:'🗽', prefixes:['100','101','102','103','104','111','112','113','114'] },
   ny_s:{ label:'NY — Suburbs / Long Island',    short:'NY Suburbs', surcharge:25, emoji:'📍', prefixes:['105','106','107','108','109','115','116','117','118','119','120','121','122','123'] },
   ct:  { label:'Connecticut',                   short:'CT',         surcharge:20, emoji:'📍', prefixes:['060','061','062','063','064','065','066','067','068','069'] },
+  ma:  { label:'Massachusetts',                 short:'MA',         surcharge:35, emoji:'📍', prefixes:['010','011','012','013','014','015','016','017','018','019','020','021','022','023','024','025','026','027'] },
   pa_e:{ label:'PA — Eastern / Lehigh Valley',  short:'PA Lehigh',  surcharge:25, emoji:'🏔️', prefixes:['180','181'] },
   pa_p:{ label:'PA — Pocono / Stroudsburg',     short:'PA Pocono',  surcharge:30, emoji:'🏔️', prefixes:['183'] },
   pa_ph:{ label:'PA — Philadelphia Metro',      short:'PA Philly',  surcharge:35, emoji:'🏛️', prefixes:['190','191'] },
@@ -4685,6 +4731,7 @@ const ZONE_POPULAR = {
   nyc:    ['cars','fleet','boats'],
   ny_s:   ['cars','boats','rvs'],
   ct:     ['boats','rvs','cars'],
+  ma:     ['cars','boats','rvs'],
   pa_e:   ['cars','rvs','powersports'],
   pa_p:   ['rvs','boats','cars'],
   pa_ph:  ['cars','fleet','boats'],
@@ -4781,7 +4828,15 @@ function onBkZipInput(val){
     }
     // Unlock category cards
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('locked'));
-    if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span>'; }
+    // CT/MA: limited-availability notice instead of standard unlock message
+    const isRegional = zone.key === 'ct' || zone.key === 'ma';
+    if(isRegional){
+      const stateShort = zone.key.toUpperCase();
+      const stateSlug  = zone.key === 'ct' ? 'connecticut' : 'massachusetts';
+      if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">⚠️</span><span>'+(cityName ? cityName+' · ' : '')+stateShort+' — <strong>Limited availability.</strong> Pricing shown is estimated. Your booking will be reviewed before confirmation. <a href="/'+stateSlug+'" style="color:var(--blue);text-decoration:none">About '+stateShort+' service →</a></span>'; }
+    } else {
+      if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span>'; }
+    }
     // Update "From" prices dynamically
     updateBkFromPrices();
     // Also sync the location carousel zone
@@ -5803,6 +5858,9 @@ const RICH_ZIPS = new Set([
   '10007','10013','10014','10021','10022','10023','10024','10025','10028',
   // CT — Greenwich, Darien, New Canaan, Westport, Weston, Wilton, Fairfield top
   '06830','06831','06820','06840','06880','06883','06897','06824',
+  // MA — Newton, Wellesley, Weston, Lexington, Concord, Marblehead, Duxbury, Cohasset
+  '02459','02460','02461','02462','02464','02465','02466','02467','02468',
+  '02481','02482','02493','02420','02421','01742','01945','02332','02025',
 ]);
 
 let richMultiplier = 1.0;
@@ -6070,8 +6128,8 @@ function onHeroZipInput(val){
     if(fb) fb.innerHTML = `
       <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:16px 20px;max-width:420px;margin:0 auto;text-align:center">
         <div style="font-size:22px;margin-bottom:8px">📍</div>
-        <div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:6px">Not in our area yet</div>
-        <div style="font-size:13px;color:var(--mu);line-height:1.6">Right now we primarily serve <strong style="color:var(--white)">Bergen County, NJ and nearby NJ/NY areas</strong>.<br>Extended service may be available by quote — <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">call us</a> and we'll confirm coverage.</div>
+        <div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:6px">Not in our primary service area</div>
+        <div style="font-size:13px;color:var(--mu);line-height:1.6">We primarily serve <strong style="color:var(--white)">Bergen County, NJ and nearby NJ/NY areas</strong>, with limited availability in <a href="/connecticut" style="color:var(--blue);text-decoration:none">Connecticut</a> and <a href="/massachusetts" style="color:var(--blue);text-decoration:none">Massachusetts</a>.<br>Extended service may be available by quote — <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">call us</a> to confirm coverage.</div>
       </div>`;
     return;
   }
@@ -6081,6 +6139,38 @@ function onHeroZipInput(val){
   inp.classList.add('valid');
   // City name lookup
   const cityName = getCityByZip(zip5);
+
+  // CT/MA: show limited-availability message — do NOT auto-open booking modal
+  const isRegional = zone.key === 'ct' || zone.key === 'ma';
+  if(isRegional){
+    const stateName  = zone.key === 'ct' ? 'Connecticut' : 'Massachusetts';
+    const stateSlug  = zone.key === 'ct' ? 'connecticut' : 'massachusetts';
+    const stateShort = zone.key.toUpperCase();
+    const locationLabel = cityName || stateName;
+    if(fb) fb.innerHTML = `
+      <div style="background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.3);border-radius:12px;padding:16px 20px;max-width:480px;margin:0 auto;text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--am);margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase">${stateShort} — Limited availability</div>
+        <div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px">📍 ${locationLabel}</div>
+        <div style="font-size:12px;color:var(--mu);line-height:1.6;margin-bottom:12px">Partner-operated service in ${stateName}. Pricing and availability confirmed after review.${zone.surcharge ? ' Regional fee: +$'+zone.surcharge+'.' : ''}</div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <button class="hero-zip-btn" style="font-size:12px;padding:10px 20px;border-radius:var(--r)" onclick="openBooking()">Submit Booking Request →</button>
+          <a href="/${stateSlug}" style="font-size:12px;color:var(--blue);text-decoration:none;display:inline-flex;align-items:center;padding:10px 16px;border:1px solid var(--bbr);border-radius:var(--r)">Learn more about ${stateShort} service</a>
+        </div>
+        <div style="font-size:11px;color:var(--mu);margin-top:10px">All ${stateShort} bookings reviewed before confirmation · Pricing may vary by location and travel</div>
+      </div>`;
+    // Still unlock cards and sync ZIP so customer can proceed to booking if they click through
+    _unlockHomeCards();
+    _updateHomeFromPrices();
+    const bkZip = document.getElementById('bk-zip');
+    if(bkZip){ bkZip.value = zip5; }
+    if(typeof onBkZipInput === 'function') onBkZipInput(zip5);
+    if(typeof updateBkFromPrices === 'function') updateBkFromPrices();
+    if(typeof renderLocationCarousel === 'function') renderLocationCarousel(zone.key);
+    // Do NOT auto-open booking modal for CT/MA — customer sees the message first
+    return;
+  }
+
+  // NJ / NY / standard zones: standard flow
   // Build feedback: city row + pills row
   let cityHtml = '';
   if(cityName){
@@ -6186,7 +6276,7 @@ seedDefaultTechs();
 (function(){
   const $ = id => document.getElementById(id);
   const PHONE_TEL = '5513132956', PHONE = '551-313-2956';
-  const AREAS = 'Bergen County, NJ and nearby NJ/NY areas';
+  const AREAS = 'Bergen County, NJ and nearby NJ/NY areas, with limited availability in Connecticut and Massachusetts';
   let started = false;
 
   function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
