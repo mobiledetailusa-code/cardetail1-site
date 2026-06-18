@@ -243,12 +243,13 @@ exports.handler = async (event) => {
       // This does NOT set paymentStatus — card-on-file is tracked separately.
       // Admin may charge the saved card only according to the cancellation/no-show policy.
       const si = evt.data.object;
-      const siBookingId = (si.metadata && si.metadata.booking_id) || '—';
+      const siBookingId = (si.metadata && (si.metadata.bookingId || si.metadata.booking_id)) || '—';
       results.update = await updateBookingPayment(siBookingId, {
         cardOnFileStatus: 'saved',
+        setupIntentId: si.id,
         stripeCustomerId: si.customer || null,
-        paymentMethodId:  si.payment_method || null,
-        cardSavedAt: new Date().toISOString(),
+        stripePaymentMethodId: si.payment_method || null,
+        cardOnFileSavedAt: new Date().toISOString(),
       });
       await notifyAdmin(
         `Cardetail1 — card on file saved · ${siBookingId}`,
@@ -262,7 +263,7 @@ exports.handler = async (event) => {
 
     case 'setup_intent.setup_failed': {
       const si = evt.data.object;
-      const siBookingId = (si.metadata && si.metadata.booking_id) || '—';
+      const siBookingId = (si.metadata && (si.metadata.bookingId || si.metadata.booking_id)) || '—';
       results.update = await updateBookingPayment(siBookingId, {
         cardOnFileStatus: 'failed',
       });

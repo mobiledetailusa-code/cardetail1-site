@@ -164,7 +164,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
 <div id="s-lookup">
   <div class="lk-box">
     <div class="lk-logo">CAR<span>DETAIL</span>1</div>
-    <div class="lk-sub">Track your booking, pay deposit, reschedule, and more.</div>
+    <div class="lk-sub">Track your booking, appointment review, and cancellation requests.</div>
     <div class="lk-tabs">
       <button class="lk-tab active" onclick="lkTab('phone')" id="lt-phone">📱 Phone</button>
       <button class="lk-tab" onclick="lkTab('email')" id="lt-email">✉️ Email</button>
@@ -172,7 +172,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
     </div>
     <div id="lk-phone-row"><input class="lk-inp" type="tel" id="lk-phone" placeholder="201-555-0000" onkeydown="if(event.key==='Enter')doLookup()"></div>
     <div id="lk-email-row" style="display:none"><input class="lk-inp" type="email" id="lk-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLookup()"></div>
-    <div id="lk-id-row" style="display:none"><input class="lk-inp" id="lk-id" placeholder="Booking ID (e.g. CD1-ABC123)" onkeydown="if(event.key==='Enter')doLookup()"></div>
+    <div id="lk-id-row" style="display:none">
+      <input class="lk-inp" id="lk-id" placeholder="Booking ID (e.g. CD1-ABC123)">
+      <input class="lk-inp" type="tel" id="lk-id-phone" placeholder="Phone used for booking" onkeydown="if(event.key==='Enter')doLookup()">
+    </div>
     <button class="lk-btn" onclick="doLookup()">Find My Booking →</button>
     <div class="lk-err" id="lk-err">No booking found. Check your info or <a href="index.html" style="color:var(--blue)">book now</a>.</div>
     <div class="lk-note">First time? <a href="index.html">Book a service →</a></div>
@@ -247,13 +250,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
   </div>
 </div>
 
-<!-- RESCHEDULE / DEPOSIT / REVIEW MODAL -->
+<!-- RESCHEDULE / REVIEW MODAL -->
 <div id="modal">
   <div class="m-box" id="modal-inner"></div>
 </div>
 
 <script>
-let CUSTOMER_BOOKINGS=[], CUSTOMER_KEY='', _lkMode='phone', _starRating=0, _cancelBookingId='';
+let CUSTOMER_BOOKINGS=[], CUSTOMER_KEY='', CUSTOMER_VERIFY_PHONE='', _lkMode='phone', _starRating=0, _cancelBookingId='';
 
 // ── LOOKUP TABS ──────────────────────────
 function lkTab(mode){
@@ -266,7 +269,28 @@ function lkTab(mode){
 }
 
 // ── LOOKUP ──────────────────────────────
-function doLookup(){
+async function doLookup(){
+  if(_lkMode==='id'){
+    const id=(document.getElementById('lk-id').value||'').trim().toUpperCase();
+    const phone=(document.getElementById('lk-id-phone').value||'').replace(/\D/g,'');
+    if(!id||phone.length<7){ showErr(); return; }
+    try{
+      const res=await fetch('/.netlify/functions/lookup-booking',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({bookingId:id,phone})
+      });
+      const data=await res.json().catch(()=>({}));
+      if(!data.ok||!data.booking){ showErr(); return; }
+      CUSTOMER_BOOKINGS=[data.booking];
+      CUSTOMER_KEY='id:'+id;
+      CUSTOMER_VERIFY_PHONE=phone;
+      localStorage.setItem('cd1_cust_key',CUSTOMER_KEY);
+      localStorage.setItem('cd1_cust_verify_phone',phone);
+      document.getElementById('lk-err').classList.remove('show');
+      initApp(true);
+      return;
+    }catch(e){ showErr(); return; }
+  }
   const all=JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
   let mine=[];
   if(_lkMode==='phone'){
@@ -317,8 +341,8 @@ const STATUS_MAP={
 };
 function badge(s){ return `<span class="badge ${STATUS_MAP[s]||'b-pen'}">${s||'Pending'}</span>`; }
 
-function initApp(){
-  CUSTOMER_BOOKINGS=[...JSON.parse(localStorage.getItem('cd1_bookings')||'[]')].filter(b=>{
+function initApp(useCurrent=false){
+  if(!useCurrent) CUSTOMER_BOOKINGS=[...JSON.parse(localStorage.getItem('cd1_bookings')||'[]')].filter(b=>{
     const[mode,val]=CUSTOMER_KEY.split(':');
     if(mode==='phone') return (b.phone||'').replace(/\D/g,'').includes((val||'').replace(/\D/g,''));
     if(mode==='email') return (b.email||'').toLowerCase()===(val||'').toLowerCase();
@@ -370,12 +394,6 @@ function renderStatus(){
 
   const addons=(active.addons||[]).map(a=>a.name||a).join(', ')||'None';
   const total=tot(active);
-  const cfg=JSON.parse(localStorage.getItem('cd1_cfg')||'{}');
-  const deposit=cfg.deposit||50;
-  const squareUrl=cfg.squareUrl||'';
-
-  const isPending=active.status==='Payment Pending';
-  const canPay=!active.depositPaid&&total>0;
   const canReschedule=!['Completed','Cancelled','In Progress','En Route'].includes(active.status);
   const isDone=active.status==='Completed'||active.status==='Paid';
 
@@ -397,8 +415,11 @@ function renderStatus(){
   const isApptConfirmed = isConfirmed||isEnRoute||isInProgress||isCompleted||isClosed;
 
   _cancelBookingId = active.id || '';
-  const cofStatus = active.cardOnFileStatus || 'not_required';
-  const canCancel = !isCanceled && !isCompleted && !isClosed;
+  const cofStatus = active.cardOnFileStatus || 'pending';
+  const prefLabels={cash_onsite:'Cash on-site',card_onsite:'Card on-site',online_after_service:'Online after service'};
+  const paymentPreference=prefLabels[active.paymentMethodPreference]||'Not available';
+  const cancelRequested=active.cancellationRequestStatus==='requested';
+  const canCancel = !cancelRequested && !isCanceled && !isCompleted && !isClosed;
 
   let cofBanner = '';
   if (cofStatus === 'saved' && !isApptConfirmed && !isCanceled) {
@@ -451,7 +472,6 @@ function renderStatus(){
   }
 
   let acts=`<a href="index.html" class="btn btn-g btn-sm">+ Book Again</a>`;
-  if(canPay&&squareUrl){ acts+=`<button class="btn btn-tl btn-sm" onclick="openPayModal('${esc(active.id)}')">💳 Pay Deposit ($${deposit})</button>`; }
   if(canReschedule){ acts+=`<button class="btn btn-yw btn-sm" onclick="openReschedule('${esc(active.id)}')">📅 Reschedule</button>`; }
   if(isDone&&!active.reviewLeft){ acts+=`<button class="btn btn-p btn-sm" onclick="openReview('${esc(active.id)}')">⭐ Leave Review</button>`; }
   if(canCancel){ acts+=`<button class="btn btn-sm" style="background:transparent;border:1px solid rgba(239,68,68,.4);color:#ef4444" onclick="showCancelForm()">✕ Request Cancellation</button>`; }
@@ -472,6 +492,7 @@ function renderStatus(){
 
   el.innerHTML=`
     ${apptBanner}
+    ${cancelRequested?`<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.28);border-radius:10px;padding:12px 16px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:#f59e0b">Cancellation requested — pending manual review</div><div style="font-size:12px;color:var(--mu);margin-top:3px">No charge has been applied automatically and the booking remains on file.</div></div>`:''}
     ${cofBanner}
     ${progressTrack(active.status)}
     <div class="status-hero">
@@ -490,7 +511,9 @@ function renderStatus(){
           :`<div><div class="sfl">Preferred Date</div><div class="sfv">${esc(active.preferredDate||active.preferred_date||'TBD')}</div></div>
             <div><div class="sfl">Preferred Time</div><div class="sfv">${esc(active.preferredTime||'Any')}</div></div>`}
         <div><div class="sfl">Total</div><div class="sfv" style="color:var(--green)">$${total}</div></div>
-        <div><div class="sfl">Deposit</div><div class="sfv">${active.depositPaid?'<span style="color:var(--green)">✓ Paid</span>':'Not yet paid'}</div></div>
+        <div><div class="sfl">Card on File</div><div class="sfv">${cofStatus==='saved'?'<span style="color:var(--green)">✓ Saved · No charge today</span>':esc(cofStatus)}</div></div>
+        <div><div class="sfl">Payment Preference</div><div class="sfv">${esc(paymentPreference)}</div></div>
+        <div><div class="sfl">Appointment</div><div class="sfv">${isApptConfirmed?'Confirmed':'Pending confirmation'}</div></div>
         <div><div class="sfl">Add-ons</div><div class="sfv">${esc(addons)}</div></div>
         <div><div class="sfl">Location</div><div class="sfv">${esc(active.address||active.zone||active.zipCode||'—')}</div></div>
       </div>
@@ -563,22 +586,6 @@ function cancelPlan(){
   renderPlans();
 }
 
-// ── PAY DEPOSIT MODAL ────────────────────
-function openPayModal(id){
-  const cfg=JSON.parse(localStorage.getItem('cd1_cfg')||'{}');
-  const deposit=cfg.deposit||50;
-  const url=cfg.squareUrl||'';
-  document.getElementById('modal-inner').innerHTML=`
-    <div class="m-title">💳 Pay Deposit</div>
-    <p style="font-size:13px;color:var(--mu);margin-bottom:16px;line-height:1.6">
-      A $${deposit} deposit is required to confirm your appointment. Click below to pay securely via Square.
-    </p>
-    ${url?`<a href="${url}" target="_blank" class="btn btn-p" style="width:100%;justify-content:center;margin-bottom:10px">Pay $${deposit} via Square →</a>`:'<p style="color:var(--red);font-size:13px">Payment link not configured. Call us: 551-313-2956</p>'}
-    <button class="btn" style="width:100%;justify-content:center;background:var(--bg3);border:1px solid var(--border);color:var(--mu)" onclick="closeModal()">Close</button>
-  `;
-  document.getElementById('modal').classList.add('open');
-}
-
 // ── RESCHEDULE MODAL ─────────────────────
 function openReschedule(id){
   document.getElementById('modal-inner').innerHTML=`
@@ -606,7 +613,7 @@ function submitReschedule(id){
   const bks=JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
   const i=bks.findIndex(b=>b.id===id);
   if(i>-1){ bks[i].preferredDate=d; bks[i].preferredTime=document.getElementById('rs-time').value; bks[i].status='Rescheduled'; if(document.getElementById('rs-note').value) bks[i].notes=(bks[i].notes||'')+' | Reschedule note: '+document.getElementById('rs-note').value; localStorage.setItem('cd1_bookings',JSON.stringify(bks)); }
-  closeModal(); alert('✅ Reschedule request sent! We'll confirm your new date within 24 hours.'); initApp();
+  closeModal(); alert("✅ Reschedule request sent! We'll confirm your new date within 24 hours."); initApp();
 }
 
 // ── REVIEW MODAL ─────────────────────────
@@ -659,7 +666,7 @@ async function submitCancelRequest() {
   if (!ack) { alert('Please acknowledge the cancellation policy before submitting.'); return; }
   if (!_cancelBookingId) { alert('Unable to identify booking. Please refresh and try again.'); return; }
   const [mode, val] = CUSTOMER_KEY.split(':');
-  const phone = mode === 'phone' ? (val || '').replace(/\D/g, '') : '';
+  const phone = mode === 'phone' ? (val || '').replace(/\D/g, '') : (CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||'');
   const email = mode === 'email' ? (val || '').toLowerCase() : '';
   const btn = document.querySelector('#cancel-section button:last-child');
   if (btn) btn.disabled = true;
@@ -671,9 +678,10 @@ async function submitCancelRequest() {
     });
     const data = await res.json().catch(() => ({}));
     if (data.ok) {
+      CUSTOMER_BOOKINGS=CUSTOMER_BOOKINGS.map(b=>b.id===_cancelBookingId?{...b,cancellationRequestStatus:'requested',cancellationRequestedAt:new Date().toISOString()}:b);
       hideCancelForm();
       alert('✅ Cancellation request submitted. Our team will review and confirm shortly. No charge has been applied.');
-      initApp();
+      initApp(true);
     } else {
       alert(data.userMessage || 'Unable to submit. Please call us at 551-313-2956.');
     }

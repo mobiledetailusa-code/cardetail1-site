@@ -35,6 +35,12 @@ exports.handler = async (event) => {
     return json(503, { ok: false, error: 'stripe_not_configured', fallback: true });
   }
   const mode = secret.startsWith('sk_test_') ? 'test' : 'live';
+  const isDeployPreview =
+    process.env.CONTEXT === 'deploy-preview' ||
+    /^https:\/\/deploy-preview-\d+--/i.test(process.env.DEPLOY_PRIME_URL || '');
+  if (isDeployPreview && mode !== 'test') {
+    return json(503, { ok: false, error: 'stripe_test_mode_required' });
+  }
 
   let p;
   try { p = JSON.parse(event.body || '{}'); }
@@ -52,6 +58,9 @@ exports.handler = async (event) => {
     return json(503, { ok: false, error: 'booking_store_unavailable', fallback: true });
   }
   if (!booking) return json(404, { ok: false, error: 'booking_not_found' });
+  if (!booking.isDraft || booking.cardOnFileRequired !== true || booking.cardOnFileStatus !== 'pending') {
+    return json(409, { ok: false, error: 'booking_not_eligible_for_card_save' });
+  }
 
   const stripeHeaders = {
     Authorization: `Bearer ${secret}`,
@@ -82,7 +91,7 @@ exports.handler = async (event) => {
     customer:                           cust.id,
     usage:                              'off_session',
     'automatic_payment_methods[enabled]': 'true',
-    'metadata[booking_id]':             bookingId,
+    'metadata[bookingId]':              bookingId,
   });
 
   const siRes = await fetch('https://api.stripe.com/v1/setup_intents', {
@@ -99,12 +108,11 @@ exports.handler = async (event) => {
     return json(502, { ok: false, error: 'card_save_unavailable', fallback: true });
   }
 
-  console.log('[create-setup-intent] ok', bookingId, 'customer:', cust.id, 'mode:', mode);
+  console.log('[create-setup-intent] ok', bookingId, 'mode:', mode);
 
   return json(200, {
     ok: true,
     clientSecret: si.client_secret,
-    customerId: cust.id,
     mode,
   });
 };
