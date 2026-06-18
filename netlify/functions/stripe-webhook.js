@@ -238,6 +238,38 @@ exports.handler = async (event) => {
       break;
     }
 
+    case 'setup_intent.succeeded': {
+      // Customer saved card on file. Update booking with cardOnFileStatus.
+      // This does NOT set paymentStatus — card-on-file is tracked separately.
+      // Admin may charge the saved card only according to the cancellation/no-show policy.
+      const si = evt.data.object;
+      const siBookingId = (si.metadata && si.metadata.booking_id) || '—';
+      results.update = await updateBookingPayment(siBookingId, {
+        cardOnFileStatus: 'saved',
+        stripeCustomerId: si.customer || null,
+        paymentMethodId:  si.payment_method || null,
+        cardSavedAt: new Date().toISOString(),
+      });
+      await notifyAdmin(
+        `Cardetail1 — card on file saved · ${siBookingId}`,
+        `Customer saved card on file for booking ${siBookingId}.\n` +
+        `Stripe Customer: ${si.customer || '—'}\n` +
+        `Payment method reference stored. No charge applied.\n` +
+        `Admin may only charge per the posted cancellation/no-show policy.`
+      );
+      break;
+    }
+
+    case 'setup_intent.setup_failed': {
+      const si = evt.data.object;
+      const siBookingId = (si.metadata && si.metadata.booking_id) || '—';
+      results.update = await updateBookingPayment(siBookingId, {
+        cardOnFileStatus: 'failed',
+      });
+      console.log('[stripe-webhook] setup_intent.setup_failed', siBookingId);
+      break;
+    }
+
     default:
       // Log unexpected event types to help with future debugging.
       if (evt.type) console.log('[stripe-webhook] unhandled event type:', evt.type);
