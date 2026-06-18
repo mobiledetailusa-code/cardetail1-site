@@ -47,7 +47,8 @@ exports.handler = async (event) => {
     const all = (await Promise.all(
       blobs.map(b => store.get(b.key, { type: 'json' }).catch(() => null))
     )).filter(Boolean);
-    const bookings = showTest ? all : all.filter(b => !b.isTest && !b.archived);
+    const finalized = all.filter(b => !b.isDraft);
+    const bookings = showTest ? finalized : finalized.filter(b => !b.isTest && !b.archived);
     // Newest first by createdAt.
     bookings.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
     return json(200, { ok: true, count: bookings.length, bookings });

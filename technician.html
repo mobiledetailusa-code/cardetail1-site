@@ -467,7 +467,7 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
     <div id="l-cust-form" style="display:none">
       <div class="lsub">Customers access their booking status separately</div>
       <a href="customer.html" style="display:block;width:100%;text-align:center;background:var(--blue);color:#fff;font-weight:700;font-size:13px;border-radius:9px;padding:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='#3d94f0'" onmouseout="this.style.background='var(--blue)'">Go to Customer Portal →</a>
-      <div style="margin-top:14px;font-size:12px;color:var(--mu)">Track booking · Pay deposit · Reschedule · Leave review</div>
+      <div style="margin-top:14px;font-size:12px;color:var(--mu)">Track booking · Review appointment status · Request cancellation</div>
     </div>
   </div>
 </div>
@@ -694,7 +694,7 @@ function payPill(b){
     'authorization_pending':['pp-pend','⏳ Auth Pending'],
     'capture_pending':    ['pp-pend','⏳ Capture Pending'],
     'authorization_failed':['pp-fail','✗ Auth Failed'],
-    'no_payment_required_yet':['pp-cash','💵 Cash / On-Site'],
+    'no_payment_required_yet':['pp-cash','No payment required yet'],
     'link_sent':          ['pp-link','🔗 Link Sent'],
   };
   const [cls,label]=MAP[ps]||['pp-cash','—'];
@@ -1010,9 +1010,16 @@ function openDrw(id){
   const addons=(b.addons||[]).map(a=>a.name||a).join(', ')||'None';
   const tech=tkGet().find(t=>t.id===b.assignedTech);
   const row=(k,v)=>`<div class="dr"><span class="dk">${k}</span><span class="dv">${v}</span></div>`;
+  const prefLabels={cash_onsite:'Cash On-Site',card_onsite:'Card On-Site',online_after_service:'Online After Service'};
+  const cardLabels={saved:'Saved',pending:'Pending',failed:'Failed'};
+  const appointmentLabels={pending_review:'Pending Review',confirmed:'Confirmed',canceled:'Canceled'};
   document.getElementById('drw-bd').innerHTML=`
     <div class="dsec">Booking</div>
     ${row('Status',badge(b.status||'Pending Review'))}${row('ID',`<span style="font-family:var(--fd);color:var(--blue);font-size:11px">${esc(b.id||'—')}</span>`)}${row('Submitted',b.createdAt?new Date(b.createdAt).toLocaleString():'—')}
+    ${row('Payment Preference',esc(prefLabels[b.paymentMethodPreference]||'Not available'))}
+    ${row('Card on File',esc(cardLabels[b.cardOnFileStatus]||'Pending'))}
+    ${row('Appointment',esc(appointmentLabels[b.appointmentStatus]||'Pending Review'))}
+    ${b.cancellationRequestStatus?row('Cancellation Request',esc(b.cancellationRequestStatus==='requested'?'Requested — manual review required':b.cancellationRequestStatus)):''}
     <div class="dsec">Customer</div>
     ${row('Name',esc(b.firstName||'')+' '+esc(b.lastName||''))}${row('Phone',b.phone?`<a href="tel:${esc(b.phone)}" style="color:var(--blue)">${esc(b.phone)}</a>`:'-')}${row('Email',esc(b.email||'—'))}${row('Address',esc(b.address||'—'))}${row('ZIP',esc(b.zip||b.zipCode||'—'))}${row('Zone',esc(b.zone||b.zip_city||'—'))}
     <div class="dsec">Service</div>

@@ -7,8 +7,8 @@
 //        This endpoint never trusts client-submitted payment state.
 //   C-3: Booking ID is always generated server-side. Client-submitted id/bookingId
 //        are ignored. Collision-checked against Blobs before writing.
-//   Draft mode: payByCard() pre-registers a minimal draft so create-payment-intent
-//        can fetch the stored totalPrice (C-2). No emails sent for drafts.
+//   Draft mode: Step 5 pre-registers a minimal booking so create-setup-intent
+//        can create a SetupIntent tied to a server-owned booking ID.
 //   Finalization: submitBooking() passes draftBookingId to merge full details into
 //        an existing draft, preserving webhook-set payment fields.
 //
@@ -17,11 +17,7 @@
 //   authorization_failed | capture_pending | paid | canceled |
 //   refunded | expired
 //
-// Dispatch rule: only stripe-webhook.js triggers auction (via payment_intent.amount_capturable_updated).
-// This endpoint's postAuction() is retained for idempotency on finalization but
-// will always find 'dispatch blocked' or 'auction already exists'.
-
-const crypto = require('crypto');
+// This endpoint never dispatches or creates an auction.
 
 // Fields that must never come from the browser.
 // Payment state is owned exclusively by stripe-webhook.js (HMAC-verified).
@@ -29,12 +25,19 @@ const crypto = require('crypto');
 const CLIENT_BLOCKED_FIELDS = [
   'paymentStatus', 'paymentIntentId', 'amountAuthorizedCents', 'amountCapturedCents',
   'capturedAt', 'captureInitiatedAt', 'stripeCustomerId', 'paymentMethodId',
+  'stripePaymentMethodId', 'setupIntentId', 'cardOnFileSavedAt',
   // cardOnFileStatus is set exclusively by stripe-webhook (setup_intent.succeeded).
   'cardOnFileStatus', 'cardSavedAt',
   'status', 'appointmentStatus', 'jobStatus', 'adminNotes', 'assignedTech',
   'assignedTechName', 'confirmedDate', 'confirmedTimeWindow',
   'adminReviewed', 'archived',
 ];
+
+const PAYMENT_PREFERENCES = new Set([
+  'cash_onsite',
+  'card_onsite',
+  'online_after_service',
+]);
 
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
@@ -48,17 +51,6 @@ const json = (status, body) => ({
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(body),
 });
-
-// C-1: Never returns 'authorized' or 'paid'.
-// Those values are set exclusively by stripe-webhook.js after HMAC verification.
-function resolvePaymentStatus(b) {
-  const method = String(b.paymentMethod || '');
-  // No charge today for on-site or card-on-file paths. paymentStatus stays
-  // separate from cardOnFileStatus (set by stripe-webhook setup_intent.succeeded).
-  if (['cash_onsite', 'card_onsite', 'card_on_file'].includes(method)) return 'no_payment_required_yet';
-  if (method === 'link') return 'authorization_pending';
-  return 'authorization_pending';
-}
 
 // C-3: Generate a collision-resistant server-side booking ID.
 function generateId() {
@@ -75,75 +67,6 @@ async function newUniqueId(store) {
   return generateId(); // unlikely collision after 5 tries; proceed anyway
 }
 
-function signBid(jobId, techId, secret) {
-  return crypto.createHmac('sha256', secret)
-    .update(String(jobId) + '|' + String(techId))
-    .digest('hex');
-}
-
-// Dispatch is gated: only fires when paymentStatus is 'authorized' or 'paid'.
-// After C-1, this endpoint sets neither value — so postAuction() will always
-// return 'dispatch blocked' for new bookings. It remains here to handle the
-// rare case where finalization runs after the webhook has already set 'authorized'.
-// The idempotency guard ('auction already exists') prevents double-dispatch.
-async function postAuction(b) {
-  const secret = process.env.BID_SECRET;
-  if (!secret) return { posted: false, reason: 'BID_SECRET not set' };
-
-  const payStatus = String(b.paymentStatus || '');
-  if (!['authorized', 'paid'].includes(payStatus)) {
-    return { posted: false, reason: 'dispatch blocked: paymentStatus=' + payStatus };
-  }
-
-  try {
-    const existing = await (await blobsStore('cd1-auctions')).get(b.id, { type: 'json' });
-    if (existing) return { posted: false, reason: 'auction already exists for ' + b.id };
-
-    const roster = (await (await blobsStore('cd1-techs')).get('roster', { type: 'json' })) || [];
-    const job = {
-      package: b.package || '',
-      vehicle: b.vehicle || b.vehicleCategory || '',
-      date: b.preferredDate || '',
-      time: b.preferredTime || '',
-      area: b.zone || b.zipCode || '',
-      total: b.totalPrice || 0,
-    };
-    await (await blobsStore('cd1-auctions')).setJSON(b.id, {
-      jobId: b.id,
-      status: 'open',
-      job,
-      bids: [],
-      winner: null,
-      createdAt: new Date().toISOString(),
-      paymentStatus: b.paymentStatus,
-      amountAuthorizedCents: b.amountAuthorizedCents || 0,
-    });
-
-    const base = process.env.SITE_URL || '';
-    const { TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM } = process.env;
-    let notified = 0;
-    if (TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM && base && roster.length) {
-      const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
-      await Promise.all(roster.map(t => {
-        const sig = signBid(b.id, t.id, secret);
-        const link = `${base}/bid.html?job=${encodeURIComponent(b.id)}&tech=${encodeURIComponent(t.id)}&sig=${sig}`;
-        const body = new URLSearchParams({
-          To: t.phone, From: TWILIO_FROM,
-          Body: `New Cardetail1 job: ${job.package} · ${job.date} · ${job.area}. Place your bid (lowest wins): ${link}`,
-        });
-        return fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
-          method: 'POST',
-          headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-          body,
-        }).then(r => { if (r.ok) notified++; }).catch(() => {});
-      }));
-    }
-    return { posted: true, techs: roster.length, notified };
-  } catch (e) {
-    return { posted: false, reason: e.message };
-  }
-}
-
 function bookingText(b) {
   const vehicles = (b.vehicles || [])
     .map(v => `  • ${v.vehicleLabel || v.vehicle || 'Vehicle'} — ${v.pkgName || ''} ($${v.subtotal || 0})`)
@@ -154,7 +77,7 @@ function bookingText(b) {
     paid:                    'Captured / Paid',
     authorization_pending:   'Card not yet authorized — awaiting payment',
     authorization_failed:    'Authorization failed',
-    no_payment_required_yet: 'Cash / pay on-site',
+    no_payment_required_yet: 'No payment required yet',
     capture_pending:         'Authorized — capture pending after service',
     canceled:                'Canceled',
     refunded:                'Refunded',
@@ -169,6 +92,9 @@ function bookingText(b) {
     `NEW BOOKING — ${b.id}`,
     `Status: ${b.status || 'Pending Review'}`,
     `Payment: ${payLabel}${authorizedAmt}`,
+    `Payment preference: ${b.paymentMethodPreference || '—'}`,
+    `Card on file: ${b.cardOnFileStatus || 'pending'}`,
+    `Appointment: ${b.appointmentStatus || 'pending_review'}`,
     b.paymentIntentId ? `PaymentIntent: ${b.paymentIntentId}` : '',
     ``,
     `Customer: ${b.firstName || ''} ${b.lastName || ''}`,
@@ -222,6 +148,7 @@ async function sendCustomerEmail(b) {
   const text = [
     `Hi ${name},`,
     ``,
+    `Your card was securely saved with Stripe. No charge has been made today.`,
     `Your booking request was received. This is not yet a confirmed appointment.`,
     ``,
     `Our team will review your location, vehicle condition, service type, weather, access, and availability before confirming. You will receive a separate confirmation once your appointment is approved.`,
@@ -308,18 +235,32 @@ exports.handler = async (event) => {
 
   // ── Draft pre-registration (supports C-2: create-payment-intent fetches amount from Blobs) ──
   if (b.isDraft) {
+    const preference = String(b.paymentMethodPreference || '');
+    if (!PAYMENT_PREFERENCES.has(preference)) {
+      return json(400, { ok: false, error: 'payment_preference_required' });
+    }
+    if (b.acceptedCardOnFilePolicy !== true) {
+      return json(400, { ok: false, error: 'card_on_file_policy_required' });
+    }
+    const now = new Date().toISOString();
     const draftId = await newUniqueId(store);
     const draft = {
       id: draftId,
       isDraft: true,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
       totalPrice: Number(b.totalPrice) || 0,
-      paymentMethod: b.paymentMethod || 'pending',
+      paymentMethod: preference,
       // paymentMethodPreference: client-supplied ('card_on_file'|'card_onsite'|'cash_onsite')
-      paymentMethodPreference: b.paymentMethodPreference || 'not_selected',
+      paymentMethodPreference: preference,
       // cardOnFileStatus: server-controlled. Only stripe-webhook may set 'saved'.
-      cardOnFileStatus: b.paymentMethodPreference === 'card_on_file' ? 'not_collected' : 'not_required',
-      paymentStatus: 'authorization_pending',
+      cardOnFileRequired: true,
+      cardOnFileStatus: 'pending',
+      paymentStatus: 'no_payment_required_yet',
+      appointmentStatus: 'pending_review',
+      jobStatus: 'not_started',
+      acceptedCardOnFilePolicy: true,
+      acceptedCardOnFilePolicyAt: now,
+      policyVersion: '2026-06-card-on-file',
       firstName: b.firstName || '',
       lastName: b.lastName || '',
       phone: b.phone || '',
@@ -351,6 +292,17 @@ exports.handler = async (event) => {
     const existing = await store.get(rawDraftId, { type: 'json' }).catch(() => null);
     if (!existing) return json(404, { ok: false, error: 'Draft booking not found' });
     if (!existing.isDraft) return json(409, { ok: false, error: 'Booking already finalized' });
+    if (existing.cardOnFileStatus !== 'saved') {
+      return json(409, { ok: false, error: 'card_on_file_not_saved' });
+    }
+    const preference = String(b.paymentMethodPreference || '');
+    if (!PAYMENT_PREFERENCES.has(preference) || preference !== existing.paymentMethodPreference) {
+      return json(400, { ok: false, error: 'invalid_payment_preference' });
+    }
+    if (b.acceptedCardOnFilePolicy !== true || b.acceptedBookingPolicy !== true) {
+      return json(400, { ok: false, error: 'booking_policy_required' });
+    }
+    const finalizedAt = new Date().toISOString();
 
     // Preserve fields the webhook may have already set on the draft.
     b = {
@@ -359,18 +311,25 @@ exports.handler = async (event) => {
       status: 'Pending Review',
       isDraft: false,
       createdAt: existing.createdAt,
-      finalizedAt: new Date().toISOString(),
+      finalizedAt,
+      paymentMethod: preference,
+      paymentMethodPreference: preference,
+      cardOnFileRequired: true,
+      acceptedBookingPolicy: true,
+      acceptedBookingPolicyAt: finalizedAt,
+      acceptedCardOnFilePolicy: true,
+      acceptedCardOnFilePolicyAt: existing.acceptedCardOnFilePolicyAt,
+      policyVersion: '2026-06-card-on-file',
       // Payment fields: trust Blobs, not the browser
-      paymentStatus:        existing.paymentStatus,
-      paymentIntentId:      existing.paymentIntentId,
-      amountAuthorizedCents: existing.amountAuthorizedCents,
-      amountCapturedCents:  existing.amountCapturedCents,
-      capturedAt:           existing.capturedAt,
+      paymentStatus:        'no_payment_required_yet',
+      appointmentStatus:    'pending_review',
+      jobStatus:            'not_started',
       // Card-on-file fields: set by stripe-webhook (setup_intent.succeeded)
       cardOnFileStatus:     existing.cardOnFileStatus,
+      setupIntentId:        existing.setupIntentId,
       stripeCustomerId:     existing.stripeCustomerId,
-      paymentMethodId:      existing.paymentMethodId,
-      cardSavedAt:          existing.cardSavedAt,
+      stripePaymentMethodId: existing.stripePaymentMethodId,
+      cardOnFileSavedAt:    existing.cardOnFileSavedAt,
     };
 
     let stored = { saved: false };
@@ -378,14 +337,13 @@ exports.handler = async (event) => {
       await store.setJSON(rawDraftId, b);
       stored = { saved: true };
     } catch (e) {
-      stored = { saved: false, reason: e.message };
+      return json(500, { ok: false, error: 'booking_store_failed' });
     }
 
-    const [email, customerEmail, sms, auction] = await Promise.all([
+    const [email, customerEmail, sms] = await Promise.all([
       sendEmail(b).catch(e => ({ sent: false, reason: e.message })),
       sendCustomerEmail(b).catch(e => ({ sent: false, reason: e.message })),
       sendSms(b).catch(e => ({ sent: false, reason: e.message })),
-      postAuction(b).catch(e => ({ posted: false, reason: e.message })),
     ]);
 
     return json(200, {
@@ -397,41 +355,11 @@ exports.handler = async (event) => {
       email,
       customerEmail,
       sms,
-      auction,
+      appointmentStatus: b.appointmentStatus,
+      cardOnFileStatus: b.cardOnFileStatus,
     });
   }
 
   // ── New booking (cash/on-site or any path that didn't pre-register a draft) ──
-  const newId = await newUniqueId(store);
-  b.id = newId;
-  b.status = 'Pending Review';
-  b.createdAt = new Date().toISOString();
-  b.paymentStatus = resolvePaymentStatus(b);
-
-  let stored = { saved: false };
-  try {
-    await store.setJSON(b.id, b);
-    stored = { saved: true };
-  } catch (e) {
-    stored = { saved: false, reason: e.message };
-  }
-
-  const [email, customerEmail, sms, auction] = await Promise.all([
-    sendEmail(b).catch(e => ({ sent: false, reason: e.message })),
-    sendCustomerEmail(b).catch(e => ({ sent: false, reason: e.message })),
-    sendSms(b).catch(e => ({ sent: false, reason: e.message })),
-    postAuction(b).catch(e => ({ posted: false, reason: e.message })),
-  ]);
-
-  return json(200, {
-    ok: true,
-    id: b.id,
-    status: b.status,
-    paymentStatus: b.paymentStatus,
-    stored,
-    email,
-    customerEmail,
-    sms,
-    auction,
-  });
+  return json(409, { ok: false, error: 'card_on_file_required' });
 };

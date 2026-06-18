@@ -64,6 +64,12 @@ function safeBooking(b) {
     totalPrice:      b.totalPrice      || 0,
     tip:             b.tip             || 0,
     payLink:         b.payLink         || '',
+    paymentMethodPreference: b.paymentMethodPreference || '',
+    cardOnFileStatus: b.cardOnFileStatus || 'pending',
+    appointmentStatus: b.appointmentStatus || 'pending_review',
+    jobStatus:       b.jobStatus || 'not_started',
+    cancellationRequestStatus: b.cancellationRequestStatus || '',
+    cancellationRequestedAt: b.cancellationRequestedAt || '',
     createdAt:       b.createdAt       || '',
   };
 }
