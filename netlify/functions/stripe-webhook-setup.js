@@ -1,8 +1,6 @@
-// TEMPORARY — one-shot Stripe webhook setup.
-// 1. Creates a webhook endpoint at SITE_URL/.netlify/functions/stripe-webhook
-//    (if not already there) with all required events.
-// 2. Updates STRIPE_WEBHOOK_SECRET in Netlify env to match the new endpoint.
-// DELETE THIS FILE after running — it is not meant to stay in production.
+// TEMPORARY — one-shot Stripe webhook setup. DELETE AFTER RUNNING.
+// Rolls the signing secret for the new webhook endpoint and updates
+// STRIPE_WEBHOOK_SECRET in Netlify via multiple API strategies.
 //
 // Usage: POST /.netlify/functions/stripe-webhook-setup
 // Header: x-admin-key: <ADMIN_DASH_PASSWORD>
@@ -13,6 +11,7 @@ const json = (s, b) => ({
   body: JSON.stringify(b),
 });
 
+const NEW_ENDPOINT_ID = 'we_1TjhuwLbeoH0J6blYrUohX0D'; // created by previous run
 const REQUIRED_EVENTS = [
   'setup_intent.succeeded',
   'setup_intent.setup_failed',
@@ -30,86 +29,96 @@ exports.handler = async (event) => {
     return json(401, { error: 'unauthorized' });
   }
 
-  const stripeSecret    = process.env.STRIPE_SECRET_KEY;
-  const netlifyToken    = process.env.NETLIFY_AUTH_TOKEN;
-  const netlifySiteId   = process.env.NETLIFY_SITE_ID;
-  const siteUrl         = (process.env.SITE_URL || 'https://cardetail1.com').replace(/\/$/, '');
-  const webhookUrl      = `${siteUrl}/.netlify/functions/stripe-webhook`;
+  const stripeSecret  = process.env.STRIPE_SECRET_KEY;
+  const netlifyToken  = process.env.NETLIFY_AUTH_TOKEN;
+  const netlifySiteId = process.env.NETLIFY_SITE_ID;
 
   if (!stripeSecret) return json(503, { error: 'STRIPE_SECRET_KEY not set' });
-  const mode = stripeSecret.startsWith('sk_test_') ? 'test' : 'live';
+  if (!netlifyToken)  return json(503, { error: 'NETLIFY_AUTH_TOKEN not set' });
+  if (!netlifySiteId) return json(503, { error: 'NETLIFY_SITE_ID not set' });
 
+  const mode = stripeSecret.startsWith('sk_test_') ? 'test' : 'live';
   const stripeH = {
     Authorization: `Bearer ${stripeSecret}`,
     'Content-Type': 'application/x-www-form-urlencoded',
   };
 
-  // ── 1. Check if endpoint already exists ───────────────────────────────────
-  const listRes = await fetch('https://api.stripe.com/v1/webhook_endpoints?limit=20', { headers: stripeH });
-  if (!listRes.ok) return json(502, { error: 'stripe_list_failed' });
-  const list = await listRes.json().catch(() => ({}));
-  const existing = (list.data || []).find(ep => ep.url === webhookUrl);
+  // ── 1. Roll the signing secret for the new endpoint ───────────────────────
+  const rollRes = await fetch(
+    `https://api.stripe.com/v1/webhook_endpoints/${NEW_ENDPOINT_ID}/secret`,
+    { method: 'POST', headers: stripeH }
+  );
+  if (!rollRes.ok) {
+    const err = await rollRes.json().catch(() => ({}));
+    return json(502, { error: 'stripe_roll_failed', status: rollRes.status, msg: err.error && err.error.message });
+  }
+  const rolled = await rollRes.json().catch(() => ({}));
+  const newSecret = rolled.secret; // whsec_...
+  if (!newSecret) return json(502, { error: 'no_secret_in_roll_response' });
 
-  let endpointId, secretUpdated = false, action;
+  const netlifyH = { Authorization: `Bearer ${netlifyToken}`, 'Content-Type': 'application/json' };
+  const results = {};
 
-  if (existing) {
-    // ── 2a. Already exists — patch events if needed ────────────────────────
-    const current = existing.enabled_events || [];
-    const missing  = REQUIRED_EVENTS.filter(e => !current.includes(e) && e !== '*');
-    if (missing.length > 0) {
-      const merged = [...new Set([...current, ...REQUIRED_EVENTS])].filter(e => e !== '*');
-      const form = new URLSearchParams();
-      merged.forEach(e => form.append('enabled_events[]', e));
-      const patchRes = await fetch(`https://api.stripe.com/v1/webhook_endpoints/${existing.id}`, {
-        method: 'POST', headers: stripeH, body: form,
-      });
-      if (!patchRes.ok) return json(502, { error: 'stripe_patch_failed', id: existing.id });
-      action = 'patched_events';
-    } else {
-      action = 'already_complete';
-    }
-    endpointId = existing.id;
-  } else {
-    // ── 2b. Create new endpoint ────────────────────────────────────────────
-    const form = new URLSearchParams({ url: webhookUrl, api_version: '2023-10-16' });
-    REQUIRED_EVENTS.forEach(e => form.append('enabled_events[]', e));
-    const createRes = await fetch('https://api.stripe.com/v1/webhook_endpoints', {
-      method: 'POST', headers: stripeH, body: form,
+  // ── 2. Try Netlify envelope API: PATCH /sites/{id}/env ────────────────────
+  const patchBody = JSON.stringify([{
+    key: 'STRIPE_WEBHOOK_SECRET',
+    values: [{ value: newSecret, context: 'all' }],
+  }]);
+  const patchRes = await fetch(
+    `https://api.netlify.com/api/v1/sites/${netlifySiteId}/env`,
+    { method: 'PATCH', headers: netlifyH, body: patchBody }
+  );
+  results.envelope_patch = { status: patchRes.status, ok: patchRes.ok };
+
+  if (patchRes.ok) {
+    return json(200, { ok: true, mode, secretUpdated: true, method: 'envelope_patch', results });
+  }
+
+  // ── 3. Try Netlify site-level GET then PUT (old API) ─────────────────────
+  const siteRes = await fetch(
+    `https://api.netlify.com/api/v1/sites/${netlifySiteId}`,
+    { headers: netlifyH }
+  );
+  const siteData = siteRes.ok ? await siteRes.json().catch(() => ({})) : {};
+  const accountId = siteData.account_id || siteData.account_slug || '';
+  results.account_id = accountId;
+
+  if (accountId) {
+    // ── 4. Try Netlify Envelope account-level API ──────────────────────────
+    const accountPutBody = JSON.stringify({
+      key: 'STRIPE_WEBHOOK_SECRET',
+      values: [{ value: newSecret, context: 'all' }],
     });
-    if (!createRes.ok) {
-      const err = await createRes.json().catch(() => ({}));
-      return json(502, { error: 'stripe_create_failed', stripe: err.error && err.error.message });
+    const accountPutRes = await fetch(
+      `https://api.netlify.com/api/v1/accounts/${accountId}/env/STRIPE_WEBHOOK_SECRET`,
+      { method: 'PUT', headers: netlifyH, body: accountPutBody }
+    );
+    results.account_put = { status: accountPutRes.status, ok: accountPutRes.ok };
+    if (accountPutRes.ok) {
+      return json(200, { ok: true, mode, secretUpdated: true, method: 'account_put', results });
     }
-    const created = await createRes.json().catch(() => ({}));
-    endpointId = created.id;
-    action = 'created';
 
-    // ── 3. Update STRIPE_WEBHOOK_SECRET in Netlify env ────────────────────
-    if (netlifyToken && netlifySiteId && created.secret) {
-      const netlifyH = {
-        Authorization: `Bearer ${netlifyToken}`,
-        'Content-Type': 'application/json',
-      };
-      // Netlify env API: patch a single env var
-      const envBody = JSON.stringify([{
-        key: 'STRIPE_WEBHOOK_SECRET',
-        values: [{ value: created.secret, context: 'all' }],
-      }]);
-      const envRes = await fetch(
-        `https://api.netlify.com/api/v1/sites/${netlifySiteId}/env`,
-        { method: 'PATCH', headers: netlifyH, body: envBody }
-      );
-      secretUpdated = envRes.ok;
+    // ── 5. Try PATCH account-level ─────────────────────────────────────────
+    const accountPatchBody = JSON.stringify({
+      values: [{ value: newSecret, context: 'all' }],
+    });
+    const accountPatchRes = await fetch(
+      `https://api.netlify.com/api/v1/accounts/${accountId}/env/STRIPE_WEBHOOK_SECRET`,
+      { method: 'PATCH', headers: netlifyH, body: accountPatchBody }
+    );
+    results.account_patch = { status: accountPatchRes.status, ok: accountPatchRes.ok };
+    if (accountPatchRes.ok) {
+      return json(200, { ok: true, mode, secretUpdated: true, method: 'account_patch', results });
     }
   }
 
+  // All methods failed — return details for manual fallback
   return json(200, {
-    ok: true,
+    ok: false,
     mode,
-    action,
-    endpointId,
-    webhookUrl,
-    secretUpdated,
-    requiredEvents: REQUIRED_EVENTS,
+    secretUpdated: false,
+    webhookEndpointId: NEW_ENDPOINT_ID,
+    note: 'Signing secret was rolled but could not be written to Netlify. Update STRIPE_WEBHOOK_SECRET manually — see Stripe Dashboard → Webhooks → endpoint → Signing secret.',
+    results,
   });
 };
