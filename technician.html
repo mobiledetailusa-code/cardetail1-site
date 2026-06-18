@@ -657,6 +657,7 @@ function cfgSet(o){ localStorage.setItem('cd1_cfg',JSON.stringify(o)); }
 function bkNm(b){ return (b.name||((b.firstName||'')+' '+(b.lastName||''))||'Unknown').trim(); }
 function bkSvc(b){ return b.service||b.package||b.packageName||'Detail'; }
 function bkTot(b){ return b.totalPrice||b.total_price||b.packagePrice||0; }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 const SC={ 'Pending Review':'b-pen','Confirmed':'b-con','Scheduled':'b-sch','In Progress':'b-inp','En Route':'b-enr','Completed':'b-don','Cancelled':'b-can','Rescheduled':'b-res','No-Show':'b-can','Payment Pending':'b-pay','Paid':'b-don','Authorized':'b-auth','Failed':'b-fail','Test':'b-test','Archived':'b-test' };
 function badge(s){ return `<span class="badge ${SC[s]||'b-pen'}">${s||'Pending'}</span>`; }
 
@@ -873,20 +874,20 @@ function renderBk(){
       const archLabel=(b.archived&&!b.isTest)?'<span class="badge b-test" style="margin-left:5px">ARCHIVED</span>':'';
       const chips=bkPriChips(b);
       const adminBtn=IS_ADMIN?(b.archived||b.isTest
-        ?`<button onclick="restoreBk('${b.id}')" style="font-size:10px;padding:2px 6px;margin-top:3px;display:block;background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.3);border-radius:6px;cursor:pointer;white-space:nowrap">↩ Restore</button>`
-        :`<button onclick="markBkArchive('${b.id}')" style="font-size:10px;padding:2px 6px;margin-top:3px;display:block;background:rgba(251,191,36,.08);color:var(--yellow);border:1px solid rgba(251,191,36,.3);border-radius:6px;cursor:pointer;white-space:nowrap">🧪 Archive</button>`
+        ?`<button onclick="restoreBk('${esc(b.id)}')" style="font-size:10px;padding:2px 6px;margin-top:3px;display:block;background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.3);border-radius:6px;cursor:pointer;white-space:nowrap">↩ Restore</button>`
+        :`<button onclick="markBkArchive('${esc(b.id)}')" style="font-size:10px;padding:2px 6px;margin-top:3px;display:block;background:rgba(251,191,36,.08);color:var(--yellow);border:1px solid rgba(251,191,36,.3);border-radius:6px;cursor:pointer;white-space:nowrap">🧪 Archive</button>`
       ):'';
-      return `<tr onclick="openDrw('${b.id}')" ${(b.isTest||b.archived)?'style="opacity:.6"':''}>
-      <td class="td-mo">${(b.id||'').slice(-8)}</td>
-      <td><div class="td-nm">${bkNm(b)}${testLabel}${archLabel}</div><div class="td-mu">${b.email||b.phone||''}</div>${chips}</td>
-      <td><div>${bkSvc(b)}</div><div class="td-mu">${b.vehicleLabel||b.vehicle||''}</div></td>
-      <td class="td-mu">${b.preferredDate||b.preferred_date||'—'}</td>
-      <td class="td-mu">${b.zone||b.zip_city||b.zipCode||'—'}</td>
+      return `<tr onclick="openDrw('${esc(b.id)}')" ${(b.isTest||b.archived)?'style="opacity:.6"':''}>
+      <td class="td-mo">${esc((b.id||'').slice(-8))}</td>
+      <td><div class="td-nm">${esc(b.firstName||'')} ${esc(b.lastName||'')}${testLabel}${archLabel}</div><div class="td-mu">${esc(b.email||b.phone||'')}</div>${chips}</td>
+      <td><div>${esc(bkSvc(b))}</div><div class="td-mu">${esc(b.vehicleLabel||b.vehicle||'')}</div></td>
+      <td class="td-mu">${esc(b.preferredDate||b.preferred_date||'—')}</td>
+      <td class="td-mu">${esc(b.zone||b.zip_city||b.zipCode||'—')}</td>
       <td class="td-pr">$${bkTot(b)}</td>
       <td>${badge(b.status||'Pending Review')}</td>
       <td>${payPill(b)}</td>
       <td onclick="event.stopPropagation()">
-        <select class="ff" style="font-size:10px;padding:3px 6px" onchange="setBkStatus('${b.id}',this.value)">
+        <select class="ff" style="font-size:10px;padding:3px 6px" onchange="setBkStatus('${esc(b.id)}',this.value)">
           <option value="">—</option>
           ${['Pending Review','Confirmed','Scheduled','In Progress','Completed','Cancelled','Rescheduled','No-Show','Payment Pending','Paid'].map(s=>`<option ${b.status===s?'selected':''}>${s}</option>`).join('')}
         </select>
@@ -1011,13 +1012,13 @@ function openDrw(id){
   const row=(k,v)=>`<div class="dr"><span class="dk">${k}</span><span class="dv">${v}</span></div>`;
   document.getElementById('drw-bd').innerHTML=`
     <div class="dsec">Booking</div>
-    ${row('Status',badge(b.status||'Pending Review'))}${row('ID',`<span style="font-family:var(--fd);color:var(--blue);font-size:11px">${b.id||'—'}</span>`)}${row('Submitted',b.createdAt?new Date(b.createdAt).toLocaleString():'—')}
+    ${row('Status',badge(b.status||'Pending Review'))}${row('ID',`<span style="font-family:var(--fd);color:var(--blue);font-size:11px">${esc(b.id||'—')}</span>`)}${row('Submitted',b.createdAt?new Date(b.createdAt).toLocaleString():'—')}
     <div class="dsec">Customer</div>
-    ${row('Name',bkNm(b))}${row('Phone',b.phone?`<a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a>`:'-')}${row('Email',b.email||'—')}${row('Address',b.address||'—')}${row('ZIP',b.zip||b.zipCode||'—')}${row('Zone',b.zone||b.zip_city||'—')}
+    ${row('Name',esc(b.firstName||'')+' '+esc(b.lastName||''))}${row('Phone',b.phone?`<a href="tel:${esc(b.phone)}" style="color:var(--blue)">${esc(b.phone)}</a>`:'-')}${row('Email',esc(b.email||'—'))}${row('Address',esc(b.address||'—'))}${row('ZIP',esc(b.zip||b.zipCode||'—'))}${row('Zone',esc(b.zone||b.zip_city||'—'))}
     <div class="dsec">Service</div>
-    ${row('Vehicle',b.vehicleLabel||b.vehicle||'—')}${row('Service',bkSvc(b))}${row('Add-ons',addons)}${row('Preferred Date',b.preferredDate||b.preferred_date||'—')}${row('Preferred Time',b.preferredTime||'Any')}${row('Total','<span style="color:var(--green);font-weight:800;font-size:14px">$'+bkTot(b)+'</span>')}
-    ${row('Technician',tech?`<span style="color:var(--green)">${tech.name}</span>`:'Unassigned')}
-    ${b.notes?`<div class="dsec">Notes</div><div style="font-size:12px;color:var(--mu);background:var(--bg3);border-radius:7px;padding:10px">${b.notes}</div>`:''}
+    ${row('Vehicle',esc(b.vehicleLabel||b.vehicle||'—'))}${row('Service',esc(bkSvc(b)))}${row('Add-ons',esc(addons))}${row('Preferred Date',esc(b.preferredDate||b.preferred_date||'—'))}${row('Preferred Time',esc(b.preferredTime||'Any'))}${row('Total','<span style="color:var(--green);font-weight:800;font-size:14px">$'+bkTot(b)+'</span>')}
+    ${row('Technician',tech?`<span style="color:var(--green)">${esc(tech.name)}</span>`:'Unassigned')}
+    ${b.notes?`<div class="dsec">Notes</div><div style="font-size:12px;color:var(--mu);background:var(--bg3);border-radius:7px;padding:10px">${esc(b.notes)}</div>`:''}
   `;
   const tks=tkGet().filter(t=>t.status==='approved');
   const cfg=cfgGet();
@@ -1030,8 +1031,8 @@ function openDrw(id){
   document.getElementById('drw-ac').innerHTML=`
     <div class="qa-sect">Quick Actions</div>
     <div class="qa-row">
-      ${phone?`<a class="qa-btn qa-call" href="tel:${phone}">📞 Call ${name1}</a>`:'<span class="qa-btn qa-soon">📞 No phone</span>'}
-      ${email?`<a class="qa-btn qa-email" href="mailto:${email}?subject=Cardetail1+Booking+${b.id}">✉️ Email</a>`:'<span class="qa-btn qa-soon">✉️ No email</span>'}
+      ${phone?`<a class="qa-btn qa-call" href="tel:${esc(phone)}">📞 Call ${esc(name1)}</a>`:'<span class="qa-btn qa-soon">📞 No phone</span>'}
+      ${email?`<a class="qa-btn qa-email" href="mailto:${esc(email)}?subject=Cardetail1+Booking+${esc(b.id)}">✉️ Email</a>`:'<span class="qa-btn qa-soon">✉️ No email</span>'}
     </div>
     <div class="qa-row" style="margin-top:4px">
       <button class="${reviewedCls}" onclick="${b.adminReviewed?'':'drwMarkReviewed()'}">${b.adminReviewed?'✓ Reviewed':'✓ Mark Reviewed'}</button>
@@ -1042,7 +1043,7 @@ function openDrw(id){
     </div>
     <div class="local-note">Actions above are saved locally in this browser only. To contact the customer, call directly or use the phone/email links.</div>
     <div class="qa-sect" style="margin-top:14px">Appointment Confirmation</div>
-    ${b.appointmentStatus==='confirmed'?`<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.28);border-radius:8px;padding:10px 12px;margin-bottom:9px;font-size:12px;color:var(--tx);width:100%">✓ Confirmed — ${b.confirmedDate||'—'} · ${b.confirmedTimeWindow||b.confirmedTime||'—'}${b.customerNote?`<div style="margin-top:5px;font-size:11px;color:var(--mu)">${b.customerNote}</div>`:''}</div>`:''}
+    ${b.appointmentStatus==='confirmed'?`<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.28);border-radius:8px;padding:10px 12px;margin-bottom:9px;font-size:12px;color:var(--tx);width:100%">✓ Confirmed — ${esc(b.confirmedDate||'—')} · ${esc(b.confirmedTimeWindow||b.confirmedTime||'—')}${b.customerNote?`<div style="margin-top:5px;font-size:11px;color:var(--mu)">${esc(b.customerNote)}</div>`:''}</div>`:''}
     <div style="width:100%;margin-bottom:7px">
       <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Confirmed Date <span style="color:var(--green);font-weight:400;font-style:italic;text-transform:none">(required)</span></div>
       <input type="date" class="pinp" id="drw-conf-date" style="width:100%;margin-bottom:6px" value="${b.confirmedDate||''}">
@@ -1073,7 +1074,7 @@ function openDrw(id){
           ${showClose?`<button class="btn btn-tl btn-sm" style="flex:1;min-width:120px" onclick="drwLifecycle('closed','admin_close_job')">🔒 Close Job</button>`:''}
           ${!isCanceledOrClosed?`<button class="btn btn-rd btn-sm" style="flex:1;min-width:120px" onclick="drwCancelCloud()">✕ Cancel Booking</button>`:'<div style="font-size:10px;color:var(--mu);font-style:italic">Booking is ${js}.</div>'}
         </div>
-        <div style="font-size:9px;color:var(--mu);margin-top:2px">Current job status: <strong>${js||'(not set)'}</strong> — lifecycle actions save to cloud immediately.</div>`;
+        <div style="font-size:9px;color:var(--mu);margin-top:2px">Current job status: <strong>${esc(js||'(not set)')}</strong> — lifecycle actions save to cloud immediately.</div>`;
       })()}
     </div>
     <div class="qa-sect" style="margin-top:14px">Status &amp; Assignment</div>
@@ -1085,7 +1086,7 @@ function openDrw(id){
     </div>
     <div style="width:100%;margin-bottom:7px">
       <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Assign Technician</div>
-      <select class="ssel" id="drw-tk" style="width:100%;margin-bottom:6px"><option value="">— Select Tech —</option>${tks.map(t=>`<option value="${t.id}" ${b.assignedTech===t.id?'selected':''}>${t.name}</option>`).join('')}</select>
+      <select class="ssel" id="drw-tk" style="width:100%;margin-bottom:6px"><option value="">— Select Tech —</option>${tks.map(t=>`<option value="${esc(t.id)}" ${b.assignedTech===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select>
       <button class="btn btn-g btn-sm" style="width:100%" onclick="drwAssign()">Assign</button>
     </div>
     <div style="width:100%;margin-bottom:7px">
