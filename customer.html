@@ -253,7 +253,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
 </div>
 
 <script>
-let CUSTOMER_BOOKINGS=[], CUSTOMER_KEY='', _lkMode='phone', _starRating=0;
+let CUSTOMER_BOOKINGS=[], CUSTOMER_KEY='', _lkMode='phone', _starRating=0, _cancelBookingId='';
 
 // ── LOOKUP TABS ──────────────────────────
 function lkTab(mode){
@@ -396,6 +396,22 @@ function renderStatus(){
   // isApptConfirmed controls whether to show the confirmed date/time in the grid
   const isApptConfirmed = isConfirmed||isEnRoute||isInProgress||isCompleted||isClosed;
 
+  _cancelBookingId = active.id || '';
+  const cofStatus = active.cardOnFileStatus || 'not_required';
+  const canCancel = !isCanceled && !isCompleted && !isClosed;
+
+  let cofBanner = '';
+  if (cofStatus === 'saved' && !isApptConfirmed && !isCanceled) {
+    cofBanner = `<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.28);border-radius:10px;padding:12px 16px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:#6366f1;margin-bottom:2px">🔒 Card on file saved</div>
+      <div style="font-size:12px;color:var(--mu)">No charge has been made today. Appointment pending confirmation.</div>
+    </div>`;
+  } else if (cofStatus === 'failed' && !isApptConfirmed && !isCanceled) {
+    cofBanner = `<div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px 16px;margin-bottom:14px">
+      <div style="font-size:12px;color:var(--mu)">⚠️ Card on file could not be saved. Contact us if you'd like to update your payment preference.</div>
+    </div>`;
+  }
+
   let apptBanner;
   if (isCanceled) {
     apptBanner=`<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.28);border-radius:10px;padding:14px 16px;margin-bottom:14px">
@@ -438,9 +454,25 @@ function renderStatus(){
   if(canPay&&squareUrl){ acts+=`<button class="btn btn-tl btn-sm" onclick="openPayModal('${esc(active.id)}')">💳 Pay Deposit ($${deposit})</button>`; }
   if(canReschedule){ acts+=`<button class="btn btn-yw btn-sm" onclick="openReschedule('${esc(active.id)}')">📅 Reschedule</button>`; }
   if(isDone&&!active.reviewLeft){ acts+=`<button class="btn btn-p btn-sm" onclick="openReview('${esc(active.id)}')">⭐ Leave Review</button>`; }
+  if(canCancel){ acts+=`<button class="btn btn-sm" style="background:transparent;border:1px solid rgba(239,68,68,.4);color:#ef4444" onclick="showCancelForm()">✕ Request Cancellation</button>`; }
+
+  const cancelSection = canCancel ? `<div id="cancel-section" style="display:none;margin-top:16px;background:rgba(239,68,68,.04);border:1px solid rgba(239,68,68,.18);border-radius:var(--r);padding:18px 20px">
+    <div style="font-size:13px;font-weight:700;color:#ef4444;margin-bottom:8px">Request Cancellation</div>
+    <div style="font-size:12px;color:var(--mu);margin-bottom:12px">Provide a reason. Our team will review and confirm. No charge will be applied automatically.</div>
+    <textarea id="cancel-reason" placeholder="Reason for cancellation..." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--tx);font-size:13px;min-height:80px;resize:vertical;margin-bottom:12px;display:block"></textarea>
+    <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--tx);cursor:pointer;margin-bottom:14px">
+      <input type="checkbox" id="cancel-ack" style="margin-top:2px;flex-shrink:0">
+      <span>I understand that late cancellation, no-show, or denied access may result in a charge according to the booking policy.</span>
+    </label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-g btn-sm" onclick="hideCancelForm()">Never mind</button>
+      <button class="btn btn-sm" style="background:#ef4444;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer" onclick="submitCancelRequest()">Submit Request</button>
+    </div>
+  </div>` : '';
 
   el.innerHTML=`
     ${apptBanner}
+    ${cofBanner}
     ${progressTrack(active.status)}
     <div class="status-hero">
       <div class="sh-top">
@@ -464,6 +496,7 @@ function renderStatus(){
       </div>
       ${active.notes?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--mu)">Your notes: ${esc(active.notes)}</div>`:''}
       <div class="sh-acts">${acts}</div>
+      ${cancelSection}
     </div>
     ${active.photosBefore?.length||active.photosAfter?.length?`
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px">
@@ -609,6 +642,47 @@ function submitReview(id){
 
 function closeModal(){ document.getElementById('modal').classList.remove('open'); }
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target===this) closeModal(); });
+
+// ── CANCELLATION REQUEST ─────────────────
+function showCancelForm() {
+  const s = document.getElementById('cancel-section');
+  if (s) s.style.display = 'block';
+}
+function hideCancelForm() {
+  const s = document.getElementById('cancel-section');
+  if (s) s.style.display = 'none';
+}
+async function submitCancelRequest() {
+  const reason = (document.getElementById('cancel-reason')?.value || '').trim();
+  const ack = document.getElementById('cancel-ack')?.checked;
+  if (!reason) { alert('Please enter a reason for your cancellation request.'); return; }
+  if (!ack) { alert('Please acknowledge the cancellation policy before submitting.'); return; }
+  if (!_cancelBookingId) { alert('Unable to identify booking. Please refresh and try again.'); return; }
+  const [mode, val] = CUSTOMER_KEY.split(':');
+  const phone = mode === 'phone' ? (val || '').replace(/\D/g, '') : '';
+  const email = mode === 'email' ? (val || '').toLowerCase() : '';
+  const btn = document.querySelector('#cancel-section button:last-child');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/.netlify/functions/request-cancellation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId: _cancelBookingId, phone, email, reason, acknowledgedPolicy: true }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.ok) {
+      hideCancelForm();
+      alert('✅ Cancellation request submitted. Our team will review and confirm shortly. No charge has been applied.');
+      initApp();
+    } else {
+      alert(data.userMessage || 'Unable to submit. Please call us at 551-313-2956.');
+    }
+  } catch (e) {
+    alert('Network error. Please try again or call us at 551-313-2956.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
 
 // ── STARTUP ──────────────────────────────
 if(tryAutoLogin()) initApp();

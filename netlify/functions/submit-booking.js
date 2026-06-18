@@ -29,6 +29,8 @@ const crypto = require('crypto');
 const CLIENT_BLOCKED_FIELDS = [
   'paymentStatus', 'paymentIntentId', 'amountAuthorizedCents', 'amountCapturedCents',
   'capturedAt', 'captureInitiatedAt', 'stripeCustomerId', 'paymentMethodId',
+  // cardOnFileStatus is set exclusively by stripe-webhook (setup_intent.succeeded).
+  'cardOnFileStatus', 'cardSavedAt',
   'status', 'appointmentStatus', 'jobStatus', 'adminNotes', 'assignedTech',
   'assignedTechName', 'confirmedDate', 'confirmedTimeWindow',
   'adminReviewed', 'archived',
@@ -51,9 +53,10 @@ const json = (status, body) => ({
 // Those values are set exclusively by stripe-webhook.js after HMAC verification.
 function resolvePaymentStatus(b) {
   const method = String(b.paymentMethod || '');
-  if (method === 'cash_onsite' || method === 'card_onsite') return 'no_payment_required_yet';
+  // No charge today for on-site or card-on-file paths. paymentStatus stays
+  // separate from cardOnFileStatus (set by stripe-webhook setup_intent.succeeded).
+  if (['cash_onsite', 'card_onsite', 'card_on_file'].includes(method)) return 'no_payment_required_yet';
   if (method === 'link') return 'authorization_pending';
-  // deposit_card | preauth_full | pending | unknown → awaiting Stripe webhook
   return 'authorization_pending';
 }
 
@@ -309,6 +312,10 @@ exports.handler = async (event) => {
       createdAt: new Date().toISOString(),
       totalPrice: Number(b.totalPrice) || 0,
       paymentMethod: b.paymentMethod || 'pending',
+      // paymentMethodPreference: client-supplied ('card_on_file'|'card_onsite'|'cash_onsite')
+      paymentMethodPreference: b.paymentMethodPreference || 'not_selected',
+      // cardOnFileStatus: server-controlled. Only stripe-webhook may set 'saved'.
+      cardOnFileStatus: b.paymentMethodPreference === 'card_on_file' ? 'not_collected' : 'not_required',
       paymentStatus: 'authorization_pending',
       firstName: b.firstName || '',
       lastName: b.lastName || '',
@@ -351,11 +358,16 @@ exports.handler = async (event) => {
       createdAt: existing.createdAt,
       finalizedAt: new Date().toISOString(),
       // Payment fields: trust Blobs, not the browser
-      paymentStatus: existing.paymentStatus,
-      paymentIntentId: existing.paymentIntentId,
+      paymentStatus:        existing.paymentStatus,
+      paymentIntentId:      existing.paymentIntentId,
       amountAuthorizedCents: existing.amountAuthorizedCents,
-      amountCapturedCents: existing.amountCapturedCents,
-      capturedAt: existing.capturedAt,
+      amountCapturedCents:  existing.amountCapturedCents,
+      capturedAt:           existing.capturedAt,
+      // Card-on-file fields: set by stripe-webhook (setup_intent.succeeded)
+      cardOnFileStatus:     existing.cardOnFileStatus,
+      stripeCustomerId:     existing.stripeCustomerId,
+      paymentMethodId:      existing.paymentMethodId,
+      cardSavedAt:          existing.cardSavedAt,
     };
 
     let stored = { saved: false };

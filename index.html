@@ -2147,45 +2147,51 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </div>
       </div>
 
-      <!-- STEP 5: TERMS / NO PAYMENT TODAY -->
+      <!-- STEP 5: SECURE YOUR BOOKING -->
       <div class="bsec" id="bs5">
         <div class="beye">Step 05</div>
-        <div class="btitle">BOOKING<br>TERMS</div>
-        <div class="bdesc"><strong style="color:var(--white)">Choose how you'd like to pay.</strong> A 25% card deposit secures your slot now, a secure link lets you pay in full, or you can pay by card/cash on-site. Your request is reviewed and confirmed by Cardetail1 — we'll reach out to confirm timing, access, and any condition-based adjustments before your appointment is scheduled.</div>
+        <div class="btitle">SECURE YOUR<br>BOOKING</div>
+        <div class="bdesc">Submit your request now. We review every booking before confirmation. No charge today — a card on file may be required before scheduling selected appointments.</div>
         <div class="card-gate">
-          <div class="card-gate-title">Card Requirement / Secure Checkout Setup</div>
+          <div class="card-gate-title">Secure Your Booking</div>
           <div class="card-gate-copy">
-            Choose how to pay: a <strong>25% deposit by card now</strong> (refundable hold), a <strong>secure link to pay in full</strong>, or <strong>card / cash on-site</strong> when we arrive. Card data is handled directly by Stripe — never stored on this site.
+            Your appointment is not confirmed until Cardetail1 reviews and confirms it. Optionally save your card on file for booking security — <strong>no charge today</strong>. Card data is handled directly by Stripe — never stored on this site.
           </div>
           <div class="stripe-pay" aria-label="Secure checkout">
             <div class="pay-choice-row">
-              <button type="button" class="pay-choice" id="pc-card" onclick="payByCard('deposit')">💳 Pay deposit by card now (25%)</button>
-              <button type="button" class="pay-choice" id="pc-full" onclick="payByCard('full')">🔒 Authorize full amount (charged after service)</button>
-              <button type="button" class="pay-choice" id="pc-link" onclick="sendStripeLink()">🔗 Send me a link to pay in full</button>
+              <button type="button" class="pay-choice" id="pc-save" onclick="initCardOnFile()">🔒 Save card to secure booking</button>
               <button type="button" class="pay-choice" id="pc-onsite" onclick="payOnSite('card')">🏠 Pay by card on-site</button>
               <button type="button" class="pay-choice" id="pc-cash" onclick="payOnSite('cash')">💵 Pay cash on-site</button>
             </div>
-            <div id="stripe-card-wrap" style="display:none">
-              <div class="fl" id="stripe-deposit-lbl">Secure card · refundable hold</div>
+            <div id="pc-save-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy.</div>
+            <div id="pc-onsite-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--mu);margin:4px 0 8px">Pay after the service is completed. A card on file may still be required to confirm selected bookings.</div>
+            <div id="pc-cash-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--mu);margin:4px 0 8px">Pay after the service is completed. A card on file may still be required to confirm selected bookings.</div>
+            <div id="cof-wrap" style="display:none">
+              <div class="fl" style="margin-bottom:8px;font-size:12.5px">No charge today · Card saved securely by Stripe · Only charged per our posted policy</div>
               <div id="card-container"></div>
               <div class="pay-err" id="pay-err"></div>
-              <button type="button" class="btn-n" id="stripe-auth-btn" style="margin-top:12px;width:100%" onclick="authorizeStripe()">Authorize deposit</button>
+              <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;margin-top:12px">
+                <div style="font-size:12px;color:var(--mu);margin-bottom:10px;line-height:1.6">
+                  <strong style="color:var(--white)">Before saving your card, please note:</strong>
+                  <ul style="margin:6px 0 0 16px;padding:0">
+                    <li>No charge is made today for saving your card.</li>
+                    <li>Late cancellation, no-show, inaccessible vehicle, unsafe location, or denied access may result in a fee per the posted policy.</li>
+                    <li>Final service payment is collected on-site by card or cash, or online if approved.</li>
+                  </ul>
+                </div>
+                <label class="terms-check">
+                  <input type="checkbox" id="cof-policy-ok" onchange="cofCheckboxChanged()">
+                  <span>I authorize Cardetail1 to securely save my card with Stripe and charge applicable cancellation, no-show, access, or approved service charges according to the booking policy.</span>
+                </label>
+              </div>
+              <button type="button" class="btn-n" id="stripe-auth-btn" style="margin-top:12px;width:100%;opacity:0.5;cursor:not-allowed" disabled onclick="confirmSetupIntent()">Save my card securely</button>
             </div>
-            <div id="stripe-link-result" class="pay-status" style="display:none"></div>
             <div id="stripe-status" class="pay-status" style="display:none"></div>
             <div class="processor-pill-row">
               <span class="processor-pill">Powered by Stripe</span>
-              <span class="processor-pill">PCI-secure · no raw card stored</span>
+              <span class="processor-pill">PCI-secure · no raw card data stored</span>
             </div>
           </div>
-          <div class="card-gate-row">
-            <div class="fg"><div class="fl">Cardholder Name *</div><input class="fi" id="card-holder" type="text" placeholder="Name on card / billing name"></div>
-            <div class="fg"><div class="fl">Secure Link Preference</div><select class="fsel" id="card-pref"><option>Send secure payment link by text</option><option>Send secure payment link by email</option><option>Send secure payment link by text and email</option></select></div>
-          </div>
-          <label class="terms-check" style="margin-top:12px">
-            <input type="checkbox" id="card-policy-ok">
-            <span>I understand that my booking may not be confirmed until a valid card/deposit is completed through Cardetail1's secure payment process.</span>
-          </label>
         </div>
 
         <div class="terms-panel">
@@ -2207,9 +2213,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 
         <div class="pay-box">
           <div class="pay-t">Request First · Confirmation Required</div>
-          <div class="pay-sub">Prices shown are starting estimates. Final pricing may change based on condition, distance, tolls, parking, access, pet hair, heavy soil, odor, oxidation, add-ons, or unsafe service conditions.</div>
-          <div class="pay-badge">✓ No charge today on this request · Card/deposit may be required before confirmation</div>
-          <div class="pay-sub" style="margin-bottom:0">After review, Cardetail1 may confirm the appointment, suggest a different time, request photos, apply travel/toll adjustments, send a secure payment link, or decline unsafe/out-of-scope conditions.</div>
+          <div class="pay-sub">No charge today for submitting a booking request. Bookings are reviewed before confirmation. Prices shown are starting estimates — final pricing may change based on condition, distance, access, add-ons, or unsafe service conditions.</div>
+          <div class="pay-badge">✓ No charge today on this request · Card on file may be required before confirmation</div>
+          <div class="pay-sub" style="margin-bottom:0">A saved card may be required for selected appointments, high-value jobs, long-distance routes, or repeat no-show risk. Cancellation/no-show charges are only applied according to our posted policy.</div>
         </div>
         <div class="btn-row">
           <button class="btn-b" onclick="bkGoTo(4)">← Back</button>
@@ -2243,8 +2249,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div class="oc">
           <div class="oc-t">Request / Payment</div>
           <div class="or"><span class="ol">Charged today</span><span class="ov" style="color:var(--gr)">$0.00 — booking request only</span></div>
-          <div class="or"><span class="ol">Card requirement</span><span class="ov">A valid card/deposit may be required through Cardetail1's secure Stripe checkout before final confirmation.</span></div>
-          <div class="or"><span class="ol">Final payment</span><span class="ov">Collected after confirmation/service unless cancellation, no-show, unavailable vehicle, access issue, or booking terms apply.</span></div>
+          <div class="or"><span class="ol">Payment selection</span><span class="ov" id="c-pay-method">Not selected</span></div>
+          <div class="or"><span class="ol">Final payment</span><span class="ov">Collected on-site by card or cash after service, or online if approved. Cancellation/no-show fees apply per the posted policy.</span></div>
         </div>
 
         <div class="oc">
@@ -2269,9 +2275,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="bsec" id="bs-ok">
         <div class="suc-wrap">
           <div class="suc-ico">✓</div>
-          <div class="suc-title">BOOKING REQUEST RECEIVED</div>
+          <div class="suc-title" id="ok-title">BOOKING REQUEST RECEIVED</div>
           <div style="display:inline-flex;align-items:center;gap:8px;background:var(--grdim);border:1px solid var(--grbr);color:var(--gr);border-radius:999px;padding:6px 16px;font-size:12.5px;font-weight:700;margin-bottom:14px">✓ Your request was submitted</div>
-          <p class="suc-sub">We'll review your request and confirm by text, call, or email.</p>
+          <p class="suc-sub" id="ok-sub">Your request was submitted. Cardetail1 will review your service location, schedule, and vehicle details before confirming the appointment.</p>
           <div class="suc-card">
             <div class="or"><span class="ol">Status</span><span class="ov" style="color:var(--gr);font-weight:700">Under Review</span></div>
             <div class="or"><span class="ol">Package</span><span class="ov" id="ok-pkg">—</span></div>
@@ -3601,117 +3607,94 @@ function depositPctLabel(){ return Math.round(DEPOSIT_PCT*100)+'%'; }
 function ensureBookingId(){ if(!ST.bookingId) ST.bookingId='CD1-'+Date.now().toString(36).toUpperCase(); return ST.bookingId; }
 function stripeMsg(elId,msg,ok){ const el=document.getElementById(elId); if(!el)return; el.innerHTML=msg; el.style.display='block'; if(ok!==undefined)el.style.color=ok?'var(--gr,#34d399)':'var(--mu,#8a9bb0)'; }
 
-// Marca visualmente a opção de pagamento escolhida e limpa as demais.
+// ── Step 5: Secure Your Booking ──────────────────────────────────────────────
+
 function selectPayChoice(activeId){
-  ['pc-card','pc-full','pc-link','pc-onsite','pc-cash'].forEach(id=>{const el=document.getElementById(id); if(el) el.classList.toggle('sel', id===activeId);});
+  ['pc-save','pc-onsite','pc-cash'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.classList.toggle('sel',id===activeId);
+    const desc=document.getElementById(id+'-desc'); if(desc) desc.style.display=(id===activeId)?'block':'none';
+  });
 }
 
-// ── Caminho 3: pagar no local (cartão presencial ou dinheiro) — sem depósito online ──
-function payOnSite(method){
-  ST.payMethod = (method==='cash') ? 'cash_onsite' : 'card_onsite';
-  selectPayChoice(method==='cash' ? 'pc-cash' : 'pc-onsite');
-  const wrap=document.getElementById('stripe-card-wrap'); if(wrap) wrap.style.display='none';
-  const lr=document.getElementById('stripe-link-result'); if(lr) lr.style.display='none';
-  stripeMsg('stripe-status', method==='cash'
-    ? '💵 Pay <b>cash on-site</b> when we arrive — no deposit now. Your booking stays a <b>request</b> until we confirm by text/call.'
-    : '🏠 Pay <b>by card on-site</b> (in person) when we arrive — no deposit now. Your booking stays a <b>request</b> until we confirm by text/call.', true);
+function cofCheckboxChanged(){
+  const cb=document.getElementById('cof-policy-ok');
+  const btn=document.getElementById('stripe-auth-btn');
+  if(!btn||!cb) return;
+  btn.disabled=!cb.checked;
+  btn.style.opacity=cb.checked?'1':'0.5';
+  btn.style.cursor=cb.checked?'pointer':'not-allowed';
 }
 
-// ── Caminho 1: cartão inline (Payment Element) ──
-// mode 'deposit' = autoriza 25% (hold) · mode 'full' = autoriza o TOTAL (hold),
-// capturado só depois do serviço. Ambos usam capture_method:manual.
-async function payByCard(mode){
-  mode = (mode==='full') ? 'full' : 'deposit';
-  ST.draftRegistered = false;
-  ST.payMethod = (mode==='full') ? 'preauth_full' : 'deposit_card';
-  const amountCents = (mode==='full') ? bookingTotalCents() : depositCents();
-  ST.authAmountCents = amountCents;
-  selectPayChoice(mode==='full' ? 'pc-full' : 'pc-card');
-  const wrap=document.getElementById('stripe-card-wrap');
+async function initCardOnFile(){
+  ST.draftRegistered=false; ST.payMethod=null;
+  selectPayChoice('pc-save');
+  const wrap=document.getElementById('cof-wrap');
   const err=document.getElementById('pay-err'); err.classList.remove('show');
-  document.getElementById('stripe-link-result').style.display='none';
+  document.getElementById('stripe-status').style.display='none';
   wrap.style.display='block';
-  document.getElementById('stripe-deposit-lbl').textContent = (mode==='full')
-    ? 'Secure card · authorize full $'+(amountCents/100).toFixed(2)+' (hold now, charged after service)'
-    : 'Secure card · '+depositPctLabel()+' deposit ($'+depositDollars()+') · refundable hold';
-  // Re-mounting for a different amount: tear down a prior element first.
-  if(stripeElements){ try{ stripeElements=null; stripePI=null; document.getElementById('card-container').innerHTML=''; }catch(e){} }
+  if(stripeElements){ try{ stripeElements=null; document.getElementById('card-container').innerHTML=''; }catch(e){} }
+  const cb=document.getElementById('cof-policy-ok'); if(cb) cb.checked=false;
+  const btn=document.getElementById('stripe-auth-btn');
+  if(btn){ btn.disabled=true; btn.style.opacity='0.5'; btn.style.cursor='not-allowed'; btn.textContent='Save my card securely'; btn.style.display=''; }
   if(!STRIPE_READY){
-    document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#8a9bb0;line-height:1.5">Card payment is in review mode (Stripe key not set). Your booking is submitted as a request — we send a secure payment link before the appointment.</div>';
-    document.getElementById('stripe-auth-btn').style.display='none';
-    return;
+    document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#8a9bb0;line-height:1.5">Online card saving is temporarily unavailable. You can still submit your booking request and pay by card or cash on-site.</div>';
+    if(btn) btn.style.display='none'; return;
   }
   try{
-    // C-2/C-3: Pre-register a draft booking server-side to get a server-assigned ID
-    // and store totalPrice so create-payment-intent can fetch it from Blobs.
-    const draftPayload = buildBookingPayload();
-    draftPayload.isDraft = true;
-    const draftRes = await fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(draftPayload)});
-    const draftData = await draftRes.json();
-    if(!draftData.ok) throw new Error(draftData.error||'Could not pre-register booking');
-    ST.bookingId = draftData.id;
-    ST.draftRegistered = true;
-    // Amount is derived server-side from the stored booking total — no amountCents sent.
-    const res=await fetch(BACKEND_BASE+'/create-payment-intent',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bookingId:ST.bookingId})});
-    const data=await res.json();
-    if(!data.ok) throw new Error(data.error||'Could not start payment');
-    stripePI=data.id;
+    const draftPayload=buildBookingPayload();
+    draftPayload.isDraft=true; draftPayload.paymentMethodPreference='card_on_file';
+    const draftRes=await fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(draftPayload)});
+    const draftData=await draftRes.json();
+    if(!draftData.ok) throw new Error('Could not register booking. Please try again.');
+    ST.bookingId=draftData.id; ST.draftRegistered=true;
+    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:ST.bookingId})});
+    const siData=await siRes.json();
+    if(!siData.ok||siData.fallback){
+      document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#8a9bb0;line-height:1.5">Online card saving is temporarily unavailable. You can still submit your booking request and pay by card or cash on-site.</div>';
+      if(btn) btn.style.display='none'; return;
+    }
     stripe=stripe||Stripe(STRIPE_PUBLISHABLE_KEY);
-    stripeElements=stripe.elements({clientSecret:data.clientSecret, appearance:{theme:'night',variables:{colorPrimary:'#4da3ff',colorBackground:'#0c1520'}}});
+    stripeElements=stripe.elements({clientSecret:siData.clientSecret,appearance:{theme:'night',variables:{colorPrimary:'#4da3ff',colorBackground:'#0c1520'}}});
     stripeElements.create('payment').mount('#card-container');
-  }catch(e){ err.textContent=e.message; err.classList.add('show'); }
+  }catch(e){
+    document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#8a9bb0;line-height:1.5">Online card saving is temporarily unavailable. You can still submit your booking request and pay by card or cash on-site.</div>';
+    if(btn) btn.style.display='none';
+  }
 }
 
-async function authorizeStripe(){
+async function confirmSetupIntent(){
+  const cb=document.getElementById('cof-policy-ok');
   const err=document.getElementById('pay-err'); err.classList.remove('show');
-  if(!STRIPE_READY || !stripe || !stripeElements){ stripeMsg('stripe-status','Card not ready. Please refresh.',false); return; }
-  const btn=document.getElementById('stripe-auth-btn'); btn.disabled=true; btn.textContent='Authorizing…';
+  if(!cb||!cb.checked){ err.textContent='Please check the authorization box to continue.'; err.classList.add('show'); return; }
+  if(!STRIPE_READY||!stripe||!stripeElements){ stripeMsg('stripe-status','Card not ready. Please refresh and try again.',false); return; }
+  const btn=document.getElementById('stripe-auth-btn'); btn.disabled=true; btn.textContent='Saving card…';
   try{
-    const {error}=await stripe.confirmPayment({elements:stripeElements, redirect:'if_required'});
-    if(error){ err.textContent=error.message; err.classList.add('show'); btn.disabled=false; btn.textContent='Authorize'; return; }
-    const full = ST.payMethod==='preauth_full';
-    ST.paymentIntentId=stripePI;
-    ST.paymentStatus = full ? 'authorized_full' : 'authorized';
-    ST.depositCents = full ? bookingTotalCents() : depositCents();
-    const held = ((ST.authAmountCents||ST.depositCents)/100).toFixed(2);
-    stripeMsg('stripe-status', full
-      ? '✓ Full amount authorized — $'+held+' held on the card. You\'re only <b>charged after the service is completed</b>. Continue to review &amp; submit below.'
-      : '✓ Deposit authorized — $'+held+' held. Continue to review &amp; submit below.', true);
-    btn.textContent='✓ Authorized'; const chip=document.getElementById(full?'pc-full':'pc-card'); if(chip) chip.textContent='✓ Card authorized';
-  }catch(e){ err.textContent='Payment error. Please try again.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Authorize'; }
+    const {error}=await stripe.confirmSetup({elements:stripeElements,redirect:'if_required'});
+    if(error){
+      err.textContent='Could not save card. Please check your card details and try again.';
+      err.classList.add('show'); btn.disabled=false; btn.textContent='Save my card securely'; return;
+    }
+    ST.payMethod='card_on_file';
+    stripeMsg('stripe-status','✓ Card saved securely with Stripe — <b>no charge has been made today</b>. Continue to review &amp; submit your request below.',true);
+    btn.textContent='✓ Card saved';
+    const chip=document.getElementById('pc-save'); if(chip) chip.textContent='🔒 Card saved';
+  }catch(e){
+    err.textContent='Could not save card. Please try again.'; err.classList.add('show');
+    btn.disabled=false; btn.textContent='Save my card securely';
+  }
 }
 
-// ── Caminho 2: link de pagamento seguro ──
-async function sendStripeLink(){
-  ensureBookingId();
-  ST.payMethod='link';
-  selectPayChoice('pc-link');
-  const wrap=document.getElementById('stripe-card-wrap'); if(wrap) wrap.style.display='none';
-  const email=(document.getElementById('f-email')?.value||'').trim();
-  const pref=document.getElementById('card-pref')?.value||'';
-  if(!STRIPE_READY){ stripeMsg('stripe-link-result','Review mode: a secure payment link will be sent to you after we confirm availability.'); return; }
-  stripeMsg('stripe-link-result','Generating secure link…');
-  try{
-    // Payment LINK = full amount (pay in full). Inline card = % deposit.
-    const fullCents=bookingTotalCents();
-    const res=await fetch(BACKEND_BASE+'/create-payment-link',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({amountCents:fullCents, bookingId:ST.bookingId, email, sendPref:pref})});
-    const data=await res.json();
-    if(!data.ok) throw new Error(data.error||'Could not create link');
-    ST.paymentStatus='link_sent'; ST.paymentLink=data.url; ST.linkAmountCents=fullCents;
-    stripeMsg('stripe-link-result','🔗 Secure link to pay in full ($'+(fullCents/100).toFixed(2)+'): <a href="'+data.url+'" target="_blank" rel="noopener">Open secure checkout</a>'+(data.emailed?' · also sent to '+email:''),true);
-  }catch(e){ stripeMsg('stripe-link-result','Could not create link: '+e.message,false); }
+function payOnSite(method){
+  ST.payMethod=(method==='cash')?'cash_onsite':'card_onsite';
+  selectPayChoice(method==='cash'?'pc-cash':'pc-onsite');
+  const wrap=document.getElementById('cof-wrap'); if(wrap) wrap.style.display='none';
+  document.getElementById('stripe-status').style.display='none';
 }
 
 function goToConfirmFromTerms(){
-  // Pay-on-site (cash or card in person) skips the card/deposit requirements.
-  const onsite = ST.payMethod==='cash_onsite' || ST.payMethod==='card_onsite';
-  if(!onsite){
-    const cardOk=document.getElementById('card-policy-ok');
-    const cardHolder=document.getElementById('card-holder');
-    if(cardOk && !cardOk.checked){alert('Please acknowledge the secure card / payment requirement.');return;}
-    if(cardHolder && !cardHolder.value.trim()){alert('Please enter the cardholder / billing name.');return;}
+  if(!ST.payMethod){
+    alert('Please select how you would like to secure your booking before continuing.');
+    return;
   }
   bkGoTo(6);
 }
@@ -3731,6 +3714,8 @@ function fillConfirm(){
   document.getElementById('c-email').textContent=document.getElementById('f-email').value;
   document.getElementById('c-addr').textContent=document.getElementById('f-addr').value;
   document.getElementById('c-date').textContent=document.getElementById('f-date').value+' · '+tsel;
+  const payLabels={'card_on_file':'🔒 Card saved on file (no charge today)','card_onsite':'🏠 Pay by card on-site','cash_onsite':'💵 Pay cash on-site'};
+  const pmEl=document.getElementById('c-pay-method'); if(pmEl) pmEl.textContent=payLabels[ST.payMethod]||'Not selected';
   document.getElementById('c-addon-rows').innerHTML=ST.addons.length
     ?ST.addons.map(a=>`<div class="or"><span class="ol">+ ${a.name}${a.qty>1?' ×'+a.qty:''}</span><span class="ov">+$${a.price*(a.qty||1)}</span></div>`).join('')
     :'<div class="or"><span class="ol">Add-ons</span><span class="ov" style="color:var(--mu)">None</span></div>';
@@ -3740,13 +3725,7 @@ function fillConfirm(){
 async function submitBooking(){
   const termsOk=document.getElementById('terms-ok');
   if(termsOk && !termsOk.checked){alert('Please agree to the Terms & Conditions before submitting your booking request.');return;}
-  const onsite = ST.payMethod==='cash_onsite' || ST.payMethod==='card_onsite';
-  if(!onsite){
-    const cardOk=document.getElementById('card-policy-ok');
-    const cardHolder=document.getElementById('card-holder');
-    if(cardOk && !cardOk.checked){alert('Please acknowledge the secure card / payment requirement before submitting.');return;}
-    if(cardHolder && !cardHolder.value.trim()){alert('Please enter the cardholder / billing name for the secure checkout process.');return;}
-  }
+  if(!ST.payMethod){alert('Please select a payment option before submitting.');return;}
   const btn=document.getElementById('sub-btn');
   btn.classList.add('loading'); btn.disabled=true;
   const payload=buildBookingPayload();
@@ -3823,12 +3802,8 @@ function buildBookingPayload(){
     notes:document.getElementById('f-notes').value.trim(),
     termsAccepted:true,
     paymentMethod: ST.payMethod || 'pending',
-    cardPolicyAccepted:!!document.getElementById('card-policy-ok')?.checked,
-    cardholderName:document.getElementById('card-holder')?.value.trim()||'',
-    linkPreference:document.getElementById('card-pref')?.value||'',
-    // ── Stripe payment (paymentStatus/paymentIntentId stripped server-side — C-1) ──
-    paymentLink: ST.paymentLink||'',
-    depositCents: ST.depositCents||0,
+    paymentMethodPreference: ST.payMethod==='card_on_file'?'card_on_file':ST.payMethod==='card_onsite'?'card_onsite':ST.payMethod==='cash_onsite'?'cash_onsite':'not_selected',
+    cofPolicyAccepted:!!document.getElementById('cof-policy-ok')?.checked,
     source:'Cardetail1 static booking flow',
     zipCode:document.getElementById('bk-zip')?.value.trim()||'',
     zone:activeZone?activeZone.label:'',
@@ -3896,6 +3871,13 @@ function showSuccess(payload){
   document.getElementById('ok-veh').textContent=ST.vehicleLabel||b.vehicle||'—';
   document.getElementById('ok-total').textContent=(b.totalPrice||0)?'$'+b.totalPrice:'Estimate';
   document.getElementById('ok-date').textContent=b.preferredDate||document.getElementById('f-date').value;
+  const cardOnFile=ST.payMethod==='card_on_file';
+  const titleEl=document.getElementById('ok-title');
+  const subEl=document.getElementById('ok-sub');
+  if(titleEl) titleEl.textContent=cardOnFile?'Card Saved — Booking Request Received':'Booking Request Received';
+  if(subEl) subEl.textContent=cardOnFile
+    ?'Your card was securely saved with Stripe. No charge has been made today. Cardetail1 will review your service location, schedule, and vehicle details before confirming the appointment.'
+    :'Your request was submitted. Cardetail1 will review your service location, schedule, and vehicle details before confirming the appointment.';
   const em=document.getElementById('ok-email'); if(em)em.href=mailtoForBooking(b);
   const sm=document.getElementById('ok-sms'); if(sm)sm.href=smsForBooking(b);
 }
@@ -3927,25 +3909,38 @@ function renderAdminCounts(list){
   const statuses=['Pending Review','Confirmed','Scheduled','Completed','Cancelled','Rescheduled','No-Show'];
   el.innerHTML=[`<div class="admin-count"><b>${list.length}</b><span>Total</span></div>`].concat(statuses.map(st=>`<div class="admin-count"><b>${list.filter(b=>(b.status||'Pending Review')===st).length}</b><span>${st}</span></div>`)).join('');
 }
-// Returns a colored inline badge for paymentStatus. Admin-only — never shown
-// to technicians.
+function mkBadge(color,bg,label){return`<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:${color};background:${bg};border:1px solid ${color};border-radius:999px;padding:3px 9px;white-space:nowrap;display:inline-block;margin:1px">${label}</span>`;}
+
+// Payment status badge — admin only.
 function adminPayBadge(b) {
   const ps = b.paymentStatus || '';
-  const amtAuth = b.amountAuthorizedCents ? ' $'+(b.amountAuthorizedCents/100).toFixed(2) : (b.depositCents ? ' $'+(b.depositCents/100).toFixed(2) : '');
-  const amtCap  = b.amountCapturedCents  ? ' $'+(b.amountCapturedCents/100).toFixed(2)  : '';
+  const amtAuth = b.amountAuthorizedCents ? ' $'+(b.amountAuthorizedCents/100).toFixed(2) : '';
+  const amtCap  = b.amountCapturedCents   ? ' $'+(b.amountCapturedCents/100).toFixed(2)  : '';
   const MAP = {
-    authorized:              ['var(--gr)',    'rgba(34,197,94,.15)',  '✓ Authorized'+amtAuth],
-    paid:                    ['var(--gr)',    'rgba(34,197,94,.25)',  '✓ Paid'+amtCap],
-    capture_pending:         ['var(--am)',    'rgba(245,166,35,.15)', '⏳ Capture pending'],
-    authorization_pending:   ['var(--am)',    'rgba(245,166,35,.12)', '⏳ Auth pending'],
-    authorization_failed:    ['var(--rd)',    'rgba(239,68,68,.15)',  '✗ Auth failed'],
-    no_payment_required_yet: ['var(--mu)',    'rgba(138,155,176,.12)','💵 Cash / on-site'],
-    canceled:                ['var(--rd)',    'rgba(239,68,68,.12)',  '✗ Canceled'],
-    refunded:                ['#c084fc',      'rgba(192,132,252,.12)','↩ Refunded'],
-    expired:                 ['var(--mu)',    'rgba(138,155,176,.12)','⚠ Expired'],
+    authorized:              ['var(--gr)',  'rgba(34,197,94,.15)',  '✓ Authorized'+amtAuth],
+    paid:                    ['var(--gr)',  'rgba(34,197,94,.25)',  '✓ Paid'+amtCap],
+    capture_pending:         ['var(--am)', 'rgba(245,166,35,.15)', '⏳ Capture pending'],
+    authorization_pending:   ['var(--am)', 'rgba(245,166,35,.12)', '⏳ Auth pending'],
+    authorization_failed:    ['var(--rd)', 'rgba(239,68,68,.15)',  '✗ Auth failed'],
+    no_payment_required_yet: ['var(--mu)', 'rgba(138,155,176,.12)','💳 No charge today'],
+    canceled:                ['var(--rd)', 'rgba(239,68,68,.12)',  '✗ Canceled'],
+    refunded:                ['#c084fc',   'rgba(192,132,252,.12)','↩ Refunded'],
+    expired:                 ['var(--mu)', 'rgba(138,155,176,.12)','⚠ Expired'],
   };
-  const [color, bg, label] = MAP[ps] || ['var(--mu)', 'rgba(138,155,176,.1)', ps || 'No payment'];
-  return `<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:${color};background:${bg};border:1px solid ${color};border-radius:999px;padding:3px 9px;white-space:nowrap">${label}</span>`;
+  const [color,bg,label] = MAP[ps]||['var(--mu)','rgba(138,155,176,.1)',ps||'No payment'];
+  return mkBadge(color,bg,label);
+}
+
+// Card-on-file status badge — admin only.
+function adminCofBadge(b) {
+  const cof = b.cardOnFileStatus || '';
+  const pref = b.paymentMethodPreference || b.paymentMethod || '';
+  if(cof==='saved')        return mkBadge('var(--gr)','rgba(34,197,94,.15)','🔒 Card on file saved');
+  if(cof==='not_collected')return mkBadge('var(--am)','rgba(245,166,35,.12)','🔒 Card on file pending');
+  if(cof==='failed')       return mkBadge('var(--rd)','rgba(239,68,68,.12)','✗ Card save failed');
+  if(pref==='card_onsite') return mkBadge('var(--mu)','rgba(138,155,176,.12)','🏠 Card on-site');
+  if(pref==='cash_onsite'||b.paymentMethod==='cash_onsite') return mkBadge('var(--mu)','rgba(138,155,176,.12)','💵 Cash on-site');
+  return '';
 }
 
 function renderAdminBookings(){
@@ -3967,7 +3962,7 @@ function renderAdminBookings(){
     const vehsHtml = vehs ? vehs.map(v=>`<div style="font-size:11.5px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">${v.pkgIcon||'🚗'} <strong>${v.pkgName||'—'}</strong> · ${v.vehicleLabel||'—'} · ${(v.addons||[]).map(a=>a.name+(a.qty>1?' ×'+a.qty:'')).join(', ')||'no add-ons'} · <strong style="color:var(--blue)">$${v.subtotal||0}</strong></div>`).join('') : '';
     const jobPhotos = JSON.parse(localStorage.getItem('cd1_job_photos')||'{}')[b.id];
     const photoCount = jobPhotos ? jobPhotos.length : 0;
-    const payBadge = adminPayBadge(b);
+    const payBadge = adminPayBadge(b)+adminCofBadge(b);
     return `<div class="admin-card">
       <div class="admin-card-top"><div><div class="admin-id">${b.id} · ${new Date(b.createdAt).toLocaleString()}${b.source==='Admin — manual entry'?' · <span style="color:var(--am)">Manual</span>':''}</div><div class="admin-title">${b.firstName} ${b.lastName} · ${b.package||'—'} · $${b.totalPrice}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><div class="status-pill">${b.status||'Pending Review'}</div>${payBadge}</div></div>
       <div class="admin-meta">
@@ -3979,6 +3974,7 @@ function renderAdminBookings(){
         ${b.rescheduledByClient?'<div style="font-size:11px;color:var(--am)">↺ Client requested reschedule</div>':''}
         ${b.addressChangedByClient?'<div style="font-size:11px;color:var(--am)">📍 Client changed address</div>':''}
         ${b.addonsRequested?'<div style="font-size:11px;color:var(--am)">➕ Client requested add-ons</div>':''}
+        ${b.cancellationRequestStatus==='requested'?`<div style="font-size:11px;color:#ef4444;font-weight:600">⚠️ Cancellation requested · ${esc(b.cancellationReason||'No reason provided')}</div>`:''}
       </div>
       <div class="admin-actions">
         ${['Pending Review','Confirmed','Scheduled','Completed','Cancelled','No-Show','Rescheduled','Paid'].map(st=>`<button onclick="setBookingStatus('${b.id}','${st}')">${st}</button>`).join('')}
@@ -4305,8 +4301,8 @@ function restartBooking(){
   ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0,payMethod:''};
   stripeElements=null; stripePI=null;
   const cc=document.getElementById('card-container'); if(cc)cc.innerHTML='';
-  ['f-first','f-last','f-phone','f-email','f-addr','f-date','f-notes','card-holder'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
-  ['terms-ok','card-policy-ok'].forEach(id=>{const el=document.getElementById(id); if(el)el.checked=false;});
+  ['f-first','f-last','f-phone','f-email','f-addr','f-date','f-notes'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
+  ['terms-ok','cof-policy-ok'].forEach(id=>{const el=document.getElementById(id); if(el)el.checked=false;});
   document.getElementById('f-time').selectedIndex=0;
   bkGoTo(1);
 }
