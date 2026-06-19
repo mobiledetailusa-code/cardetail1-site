@@ -2181,7 +2181,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
                 </div>
                 <label class="terms-check">
                   <input type="checkbox" id="cof-policy-ok" onchange="cofCheckboxChanged()">
-                  <span>I authorize Cardetail1 to securely save my card with Stripe and charge applicable cancellation, no-show, access, or approved service charges according to the booking policy.</span>
+                  <span>By providing your card information, you authorize Cardetail1 / Detailing Zone LLC to securely save your card with Stripe and charge applicable cancellation, no-show, access, or approved service charges according to the booking policy.</span>
                 </label>
               </div>
               <button type="button" class="btn-n" id="stripe-auth-btn" style="margin-top:12px;width:100%;opacity:0.5;cursor:not-allowed" disabled onclick="confirmSetupIntent()">Save my card securely</button>
@@ -3712,16 +3712,17 @@ function selectPaymentPreference(preference,activeId){
   cofCheckboxChanged();
 }
 
-async function waitForVerifiedCardSave(){
-  for(let attempt=0;attempt<12;attempt++){
+async function waitForVerifiedCardSave(maxAttempts=20,delayMs=3000){
+  for(let attempt=0;attempt<maxAttempts;attempt++){
+    await new Promise(resolve=>setTimeout(resolve,delayMs));
     const res=await fetch(BACKEND_BASE+'/booking-card-status',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({bookingId:ST.bookingId})
-    });
+    }).catch(()=>null);
+    if(!res) continue;
     const data=await res.json().catch(()=>({}));
     if(data.cardOnFileStatus==='saved') return true;
     if(data.cardOnFileStatus==='failed') return false;
-    await new Promise(resolve=>setTimeout(resolve,1000));
   }
   return false;
 }
@@ -3735,22 +3736,33 @@ async function confirmSetupIntent(){
   try{
     const {error}=await stripe.confirmSetup({elements:stripeElements,redirect:'if_required'});
     if(error){
-      err.textContent='Could not save card. Please check your card details and try again.';
+      err.textContent='Card-on-file could not be completed. Please check your card details or try another card.';
       err.classList.add('show'); btn.disabled=false; btn.textContent='Save my card securely'; return;
     }
-    btn.textContent='Verifying secure card save…';
-    const verified=await waitForVerifiedCardSave();
-    if(!verified){
-      err.textContent='Stripe received the card, but secure verification is still pending. Please wait a moment and try again.';
-      err.classList.add('show'); btn.disabled=false; btn.textContent='Check card save again'; return;
-    }
+    // Stripe accepted the card — unlock submission now; webhook confirmation is async.
     ST.cardOnFileSaved=true;
-    stripeMsg('stripe-status','✓ Card saved securely with Stripe — <b>no charge has been made today</b>. Continue to review &amp; submit your request below.',true);
-    btn.textContent='✓ Card saved';
-    btn.disabled=true;
+    btn.textContent='✓ Card saved'; btn.disabled=true;
+    stripeMsg('stripe-status','Card verification in progress. Stripe received your card securely. We’re confirming your saved-card status. This usually takes a few seconds.',true);
+    const verified=await waitForVerifiedCardSave();
+    if(verified){
+      stripeMsg('stripe-status','✓ Card saved securely with Stripe — <b>no charge has been made today</b>. Continue to review &amp; submit your request below.',true);
+    } else {
+      stripeMsg('stripe-status','Your card may have been saved, but we could not confirm it yet. Please do not submit another request. Contact Cardetail1 / Detailing Zone LLC or try again in a moment. <button type="button" onclick="recheckCardStatus()" style="margin-left:8px;background:none;border:1px solid #4da3ff;color:#4da3ff;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:12px">Check again</button>',true);
+    }
   }catch(e){
-    err.textContent='Could not save card. Please try again.'; err.classList.add('show');
+    err.textContent='Card-on-file could not be completed. Please try again.'; err.classList.add('show');
     btn.disabled=false; btn.textContent='Save my card securely';
+  }
+}
+
+async function recheckCardStatus(){
+  if(!ST.bookingId) return;
+  stripeMsg('stripe-status','Checking card status…',true);
+  const verified=await waitForVerifiedCardSave(4,2000);
+  if(verified){
+    stripeMsg('stripe-status','✓ Card saved securely with Stripe — <b>no charge has been made today</b>. Continue to review &amp; submit your request below.',true);
+  } else {
+    stripeMsg('stripe-status','Your card may have been saved, but we could not confirm it yet. Please do not submit another request. Contact Cardetail1 / Detailing Zone LLC or try again in a moment. <button type="button" onclick="recheckCardStatus()" style="margin-left:8px;background:none;border:1px solid #4da3ff;color:#4da3ff;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:12px">Check again</button>',true);
   }
 }
 

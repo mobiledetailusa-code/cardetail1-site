@@ -156,7 +156,10 @@ exports.handler = async (event) => {
     console.error('[stripe-webhook] STRIPE_WEBHOOK_SECRET not set — rejecting all events');
     return { statusCode: 503, body: 'Webhook secret not configured' };
   }
-  if (!verifyStripeSignature(raw, sig, webhookSecret)) {
+  const sigValid = verifyStripeSignature(raw, sig, webhookSecret);
+  console.log('[stripe-webhook] received | body-length:', raw.length, '| sig-header:', sig ? sig.slice(0, 20) + '…' : 'MISSING', '| sig-valid:', sigValid);
+  if (!sigValid) {
+    console.error('[stripe-webhook] signature verification FAILED — check STRIPE_WEBHOOK_SECRET matches the endpoint signing secret in Stripe Dashboard');
     return { statusCode: 400, body: 'Invalid signature' };
   }
 
@@ -244,6 +247,7 @@ exports.handler = async (event) => {
       // Admin may charge the saved card only according to the cancellation/no-show policy.
       const si = evt.data.object;
       const siBookingId = (si.metadata && (si.metadata.bookingId || si.metadata.booking_id)) || '—';
+      console.log('[stripe-webhook] setup_intent.succeeded | siId prefix:', si.id ? si.id.slice(0, 15) : 'none', '| bookingId:', siBookingId);
       results.update = await updateBookingPayment(siBookingId, {
         cardOnFileStatus: 'saved',
         setupIntentId: si.id,
@@ -251,6 +255,7 @@ exports.handler = async (event) => {
         stripePaymentMethodId: si.payment_method || null,
         cardOnFileSavedAt: new Date().toISOString(),
       });
+      console.log('[stripe-webhook] updateBookingPayment result:', JSON.stringify(results.update));
       await notifyAdmin(
         `Cardetail1 — card on file saved · ${siBookingId}`,
         `Customer saved card on file for booking ${siBookingId}.\n` +
