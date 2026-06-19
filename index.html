@@ -1294,7 +1294,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <span class="svc-ico">🚗</span>
         <div class="svc-name">Cars & Trucks</div>
         <div class="svc-desc">Sedans, SUVs, crossovers, trucks, minivans. Maintenance to premium paint enhancement.</div>
-        <div class="svc-from" id="hfrom-cars">From $175 · Prices by vehicle size</div>
+        <div class="svc-from" id="hfrom-cars">From $179 · Prices by vehicle size</div>
         <div class="svc-tags">
           <span class="svc-tag">Maintenance Detail</span><span class="svc-tag">Interior Detail</span><span class="svc-tag">Premium Detail</span><span class="svc-tag">Paint Correction</span>
         </div>
@@ -1952,7 +1952,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <span class="svc-ico" style="font-size:36px">🚗</span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
-            <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $175</div>
+            <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $179</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
             <span class="svc-ico" style="font-size:36px">🛥️</span>
@@ -2683,10 +2683,10 @@ async function makeWebhookSend(payload){
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:300, premium:450},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:215, interior:250, full:325, premium:550},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:275, full:325, premium:635},
-      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:250, interior:275, full:325, premium:615},
+      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:179, interior:229, full:269, premium:459},
+      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:219, interior:259, full:309, premium:559},
+      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:259, interior:279, full:329, premium:639},
+      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:259, interior:279, full:329, premium:669},
     },
     packages:[
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
@@ -4746,7 +4746,7 @@ const ZONE_POPULAR = {
 };
 
 const LOC_DISPLAY = {
-  cars:       { ico:'🚗', name:'Cars & Trucks',    desc:'Most requested in your area', from:'From $175' },
+  cars:       { ico:'🚗', name:'Cars & Trucks',    desc:'Most requested in your area', from:'From $179' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $199' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $349' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $119' },
@@ -6336,7 +6336,7 @@ seedDefaultTechs();
       reply:"Hey! 👋 How can I help? I can talk pricing, areas we serve, packages or booking.", chips:DEFAULT_CHIPS }) },
 
     { keys:['price','pricing','cost','how much','quote','expensive','rate','charge','dollar','$'], fn:()=>({
-      reply:"Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n🚗 Cars & Trucks — from <b>$175</b>\n🏍️ Powersports — from <b>$119</b>\n🛥️ Boats — from <b>$199</b>\n🏕️ RVs & Trailers — from <b>$349</b>\n🚚 Fleet — from <b>$60/unit</b>\n\nFor an exact quote, start a booking and enter your vehicle + ZIP — pricing updates live.",
+      reply:"Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n🚗 Cars & Trucks — from <b>$179</b>\n🏍️ Powersports — from <b>$119</b>\n🛥️ Boats — from <b>$199</b>\n🏕️ RVs & Trailers — from <b>$349</b>\n🚚 Fleet — from <b>$60/unit</b>\n\nFor an exact quote, start a booking and enter your vehicle + ZIP — pricing updates live.",
       chips:[{label:'📅 Get my exact price',act:'book'},{label:'📍 Travel fees?',q:'Is there a travel fee?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['area','areas','serve','service area','location','where','city','town','county','zip','near me','come to','pa','pennsylvania','new jersey','new york','connecticut',' nj',' ny',' ct'], fn:()=>({
