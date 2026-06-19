@@ -31,7 +31,7 @@ exports.handler = async (event) => {
 
   try {
     const booking = await (await blobsStore('cd1-bookings')).get(bookingId, { type: 'json' });
-    if (!booking || !booking.isDraft) return json(404, { ok: false, error: 'booking_not_found' });
+    if (!booking) return json(404, { ok: false, error: 'booking_not_found' });
     const status = ['pending', 'saved', 'failed'].includes(booking.cardOnFileStatus)
       ? booking.cardOnFileStatus
       : 'pending';

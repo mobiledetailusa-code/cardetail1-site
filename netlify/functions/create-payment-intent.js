@@ -91,7 +91,8 @@ exports.handler = async (event) => {
 
   const pi = await res.json().catch(() => ({}));
   if (!res.ok) {
-    return json(res.status, { ok: false, error: (pi.error && pi.error.message) || `Stripe ${res.status}` });
+    console.error('Stripe error:', (pi.error && pi.error.message) || `HTTP ${res.status}`);
+    return json(res.status, { ok: false, error: 'payment_error' });
   }
 
   return json(200, {
