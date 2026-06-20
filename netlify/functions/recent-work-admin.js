@@ -32,12 +32,17 @@ function sanitizeText(v, max = 500) {
     .slice(0, max);
 }
 
+const INTERNAL_IMG_RE = /^\/\.netlify\/functions\/recent-work-image\?id=img_\d+_[0-9a-f]+$/;
+
 function validHttpUrl(v) {
   if (!v || typeof v !== 'string') return '';
+  const t = v.trim();
+  // Accept internal blob-served image paths (relative, no origin needed)
+  if (INTERNAL_IMG_RE.test(t)) return t;
   try {
-    const u = new URL(v.trim());
+    const u = new URL(t);
     if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
-    return v.trim().slice(0, 512);
+    return t.slice(0, 512);
   } catch { return ''; }
 }
 
