@@ -382,6 +382,24 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .trust-ico{font-size:28px;margin-bottom:8px}
 .trust-val{font-family:var(--fd);font-size:28px;color:var(--blue);letter-spacing:.02em}
 .trust-lbl{font-size:12px;color:var(--mu);letter-spacing:.06em;text-transform:uppercase}
+/* ── TRUST MICROCOPY BAR ── */
+.trust-micro-bar{background:var(--bg0);border-top:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.05);padding:14px 20px}
+.trust-micro-bar-inner{max-width:1100px;margin:0 auto;display:flex;flex-wrap:wrap;gap:6px 20px;justify-content:center;align-items:center}
+.trust-micro{font-size:11.5px;color:rgba(255,255,255,.4)}
+.trust-micro-sep{color:rgba(255,255,255,.18);display:none}
+@media(min-width:700px){.trust-micro-sep{display:inline}}
+/* ── BACK TO TOP ── */
+#btt{position:fixed;bottom:82px;right:18px;width:44px;height:44px;border-radius:50%;border:1px solid var(--bbr);background:rgba(6,12,22,.88);color:var(--blue);font-size:20px;cursor:pointer;z-index:491;display:none;align-items:center;justify-content:center;backdrop-filter:blur(10px);transition:opacity .25s,transform .25s,background .2s;box-shadow:0 4px 18px rgba(0,0,0,.4)}
+#btt.btt-on{display:flex}
+#btt:hover{background:var(--blue);color:#000;border-color:transparent;transform:translateY(-2px)}
+@media(min-width:641px){#btt{bottom:28px}}
+/* ── MOBILE STICKY CTA ── */
+.mobile-sticky-cta{display:none;position:fixed;bottom:0;left:0;right:0;z-index:490;background:rgba(2,4,10,.96);border-top:1px solid var(--bbr);padding:10px 12px;gap:8px;backdrop-filter:blur(12px)}
+@media(max-width:640px){.mobile-sticky-cta{display:flex}}
+.msc-book{flex:2;background:var(--blue);color:#000;border:none;border-radius:var(--rs);padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.02em}
+.msc-portal{flex:1;background:transparent;color:var(--blue);border:1px solid var(--bbr);border-radius:var(--rs);padding:12px 8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.msc-call{display:flex;align-items:center;justify-content:center;padding:12px 14px;background:transparent;color:var(--gr);border:1px solid var(--bbr);border-radius:var(--rs);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap}
+@media(max-width:640px){.msc-book,.msc-portal,.msc-call{font-size:12px;padding:10px 6px}}
 
 /* ── BOOKING FLOW ── */
 .booking-modal-ov{position:fixed;inset:0;background:rgba(2,4,10,.92);backdrop-filter:blur(8px);z-index:1000;display:none;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto}
@@ -1508,6 +1526,19 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   </div>
 </div>
 
+<!-- TRUST MICROCOPY BAR -->
+<div class="trust-micro-bar">
+  <div class="trust-micro-bar-inner">
+    <span class="trust-micro">✓ Real work. Real vehicles. Real service locations.</span>
+    <span class="trust-micro-sep">·</span>
+    <span class="trust-micro">✓ Booking requests reviewed before confirmation.</span>
+    <span class="trust-micro-sep">·</span>
+    <span class="trust-micro">✓ No charge today — card on file secures your appointment only.</span>
+    <span class="trust-micro-sep">·</span>
+    <span class="trust-micro">✓ Mobile service at home, work, storage, marina, or fleet location.</span>
+  </div>
+</div>
+
 <!-- REVIEWS -->
 <div id="reviews" style="background:var(--bg0)">
   <div class="section">
@@ -1566,6 +1597,16 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       </div>
     </div>
   </div>
+</div>
+
+<!-- BACK TO TOP -->
+<button id="btt" aria-label="Back to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<!-- MOBILE STICKY CTA -->
+<div class="mobile-sticky-cta" id="mobile-sticky-cta">
+  <button class="msc-book" onclick="openBooking(null)">Book Now</button>
+  <button class="msc-portal" onclick="openPortal()">My Booking</button>
+  <a class="msc-call" href="tel:5513132956">📞 Call</a>
 </div>
 
 <!-- FOOTER -->
@@ -5570,6 +5611,15 @@ let loginRole = 'admin';
 function changeAdminPassword(){
   alert('Admin password is managed via the ADMIN_DASH_PASSWORD environment variable in Netlify. Update it there and redeploy.');
 }
+
+// ── BACK TO TOP
+(function(){
+  const btn=document.getElementById('btt');
+  if(!btn)return;
+  window.addEventListener('scroll',function(){
+    btn.classList.toggle('btt-on',window.scrollY>420);
+  },{passive:true});
+})();
 
 function openLogin(){
   document.getElementById('login-ov').classList.add('open');
