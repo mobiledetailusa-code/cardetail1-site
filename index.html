@@ -1,4 +1,4 @@
-
+﻿
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1514,19 +1514,20 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="sec-eye">Customer Reviews &amp; Recent Feedback</div>
     <div class="sec-title">SHARE YOUR<br>EXPERIENCE.</div>
     <div class="sec-desc">Had a Cardetail1 service? Your honest feedback helps other customers in Bergen County find mobile detailing they can trust.</div>
-    <div class="rv-honest">
-      <div class="rv-honest-ico">⭐</div>
-      <div class="rv-honest-title">We're collecting customer feedback</div>
-      <div class="rv-honest-desc">We're actively collecting customer feedback. After your service, you'll receive a review link so you can share your experience.</div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:16px">
-        <a class="btn-primary" style="font-size:13px;padding:12px 26px;text-decoration:none;display:inline-flex;align-items:center;gap:6px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">⭐ Leave a Google Review</a>
-        <button class="btn-n" style="font-size:13px;padding:12px 22px" onclick="openPortal();setTimeout(()=>cpTab(3),300)">Send Private Feedback →</button>
-        <button class="btn-n" style="font-size:13px;padding:12px 22px" onclick="openBooking(null)">Book Mobile Detailing →</button>
-      </div>
+    <div class="rv-carousel">
+      <div class="rv-track" id="rv-track"></div>
+    </div>
+    <div class="rv-nav" style="margin-top:14px">
+      <button class="rv-btn" onclick="rvMove(-1)">&#8592;</button>
+      <div class="rv-dots" id="rv-dots"></div>
+      <button class="rv-btn" onclick="rvMove(1)">&#8594;</button>
+    </div>
+    <div style="text-align:center;margin-top:20px">
+      <a class="btn-n" style="font-size:13px;padding:11px 24px;text-decoration:none;display:inline-flex;align-items:center;gap:6px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">&#11088; Leave a Google Review</a>
     </div>
     <div class="cred-row" style="margin-top:20px">
       <div class="cred-item"><span>🧽</span><span>Recent mobile detailing work</span></div>
-      <div class="cred-item"><span>📸</span><span>Before/after gallery coming soon</span></div>
+      <div class="cred-item"><span>📸</span><span>Photo gallery of recent work now live</span></div>
       <div class="cred-item"><span>📍</span><span>Serving Bergen County &amp; North Jersey</span></div>
       <div class="cred-item"><span>🔧</span><span>Professional equipment</span></div>
       <div class="cred-item"><span>🚿</span><span>Water &amp; power available</span></div>
@@ -5394,7 +5395,32 @@ function updateBkFromPrices(){
 // ═══════════════════════════════════════════════════════
 // REVIEWS
 // ═══════════════════════════════════════════════════════
-const REVIEWS = [];  // populated when real verified reviews are available
+const REVIEWS = [
+  {
+    name: 'Pablo Sanchez',
+    rating: 5,
+    text: "The detailer did an amazing job, very thorough and I'm impressed with the high level of quality service he provided. The car looks brand new.",
+    location: 'NJ Area',
+    date: 'May 2025',
+    service: 'Subaru Crosstrek · Exterior Detail'
+  },
+  {
+    name: 'Craig Bitman',
+    rating: 5,
+    text: 'Incredible work on my BMW. Magno was professional, punctual, and the results speak for themselves. Highly recommend Cardetail1 to anyone who takes pride in their car.',
+    location: 'Craryville, NY',
+    date: 'May 2025',
+    service: 'BMW 4 Series · Exterior Detail'
+  },
+  {
+    name: 'Paul Berliner',
+    rating: 5,
+    text: 'Fantastic detailing by Magno! Super intelligent, efficient and a pleasure to deal with. My Land Rover Defender now looks brand new! Thank you Magno! My life is now better!',
+    location: 'Brooklyn, NY',
+    date: 'Jun 2025',
+    service: 'Land Rover Defender 130 · Exterior Detail'
+  }
+];
 
 let rvIdx = 0;
 
