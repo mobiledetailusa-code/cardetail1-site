@@ -1522,6 +1522,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="trust-item"><div class="trust-ico">⭐</div><div class="trust-val">5.0</div><div class="trust-lbl">Google Rating</div></div>
     </div>
 
+    <div id="rv-counter" style="text-align:right;font-size:13px;color:var(--mu);letter-spacing:.06em;margin-bottom:8px">1 / 14</div>
     <div class="rv-carousel">
       <div class="rv-track" id="rv-track"></div>
     </div>
@@ -5555,6 +5556,8 @@ function rvGoTo(i){
   const track = document.getElementById('rv-track');
   if(track) track.style.transform = `translateX(-${rvIdx*100}%)`;
   document.querySelectorAll('.rv-dot').forEach((d,j)=>d.classList.toggle('active',j===rvIdx));
+  const ctr = document.getElementById('rv-counter');
+  if(ctr) ctr.textContent = `${rvIdx+1} / ${REVIEWS.length}`;
 }
 
 function rvMove(dir){ rvGoTo(rvIdx + dir); }
