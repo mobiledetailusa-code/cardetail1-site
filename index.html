@@ -5451,6 +5451,22 @@ const REVIEWS = [
     location: 'Bronx, NY',
     date: 'Jun 2025',
     service: 'Honda CR-V · Full Detail'
+  },
+  {
+    name: 'Jeanne Anderson',
+    rating: 5,
+    text: "Excellent work! Arrived timely and was a pleasure to work with. I was thinking this would be a one time thing but it's been a good experience so we're considering getting the other car done.",
+    location: 'West Islip, NY',
+    date: 'Jun 2025',
+    service: 'Subaru Impreza · Interior Detail'
+  },
+  {
+    name: 'Brian Baker',
+    rating: 5,
+    text: '',
+    location: 'NJ / NY Area',
+    date: 'Jun 2025',
+    service: 'Land Rover Defender · Exterior Detail'
   }
 ];
 
@@ -5466,7 +5482,7 @@ function renderReviews(){
     return `<div class="rv-slide">
       <div class="rv-card">
         <div class="rv-stars">${stars}</div>
-        <div class="rv-text">"${r.text}"</div>
+        ${r.text ? `<div class="rv-text">"${r.text}"</div>` : ''}
         <div class="rv-author">
           <div class="rv-avatar">${initials}</div>
           <div>
