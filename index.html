@@ -963,6 +963,21 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .gal-form-input{width:100%;box-sizing:border-box;background:var(--bg1);border:1px solid rgba(255,255,255,.1);color:var(--white);border-radius:6px;padding:8px 10px;font-size:13px;font-family:var(--fb)}
 .gal-form-input:focus{outline:none;border-color:var(--blue)}
 .gal-form-full{grid-column:1/-1}
+/* upload zone */
+.gal-upload-zone{border:1.5px dashed rgba(255,255,255,.18);border-radius:8px;padding:18px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:var(--bg1);user-select:none}
+.gal-upload-zone:hover{border-color:var(--blue);background:rgba(77,163,255,.05)}
+.gal-upload-prog{text-align:center;padding:12px;color:var(--mu);font-size:13px}
+.gal-prev-wrap{display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg1);border-radius:8px;border:1px solid rgba(34,197,94,.22)}
+.gal-prev-thumb{width:64px;height:48px;object-fit:cover;border-radius:5px;flex-shrink:0}
+.gal-prev-info{flex:1;font-size:12px;color:var(--gr);min-width:0;word-break:break-all}
+.gal-or-sep{text-align:center;color:var(--mu);font-size:11.5px;margin:8px 0;position:relative;line-height:1}
+.gal-or-sep::before,.gal-or-sep::after{content:'';position:absolute;top:50%;width:44%;height:1px;background:rgba(255,255,255,.08)}
+.gal-or-sep::before{left:0}.gal-or-sep::after{right:0}
+/* Instagram-only carousel slide */
+.rw-slide-ig .rw-img-wrap{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-decoration:none;color:inherit}
+.rw-slide-ig .rw-ig-ico{font-size:36px;line-height:1}
+.rw-slide-ig .rw-ig-cta{font-size:12px;color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:6px 14px;transition:.18s}
+.rw-slide-ig .rw-ig-cta:hover{background:rgba(255,255,255,.1)}
 .rv-honest{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--r);padding:28px;text-align:center}
 .rv-honest-ico{font-size:36px;margin-bottom:10px}
 .rv-honest-title{font-size:15px;font-weight:600;color:var(--white);margin-bottom:6px}
@@ -2454,7 +2469,25 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <input type="hidden" id="gal-id">
             <div class="gal-form-grid">
               <div class="gal-form-full">
-                <label class="gal-form-label">Image URL <span style="color:var(--mu);font-weight:400">(https://…)</span></label>
+                <label class="gal-form-label">Photo</label>
+                <!-- Upload zone -->
+                <div id="gal-upload-zone" class="gal-upload-zone" onclick="galUploadClick(event)">
+                  <input type="file" id="gal-file-input" accept=".jpg,.jpeg,.png,.webp" style="display:none" onchange="handleGalFileSelect(this)">
+                  <div id="gal-upload-inner">
+                    <div style="font-size:28px;margin-bottom:5px">📷</div>
+                    <div style="font-size:13px;font-weight:600;color:var(--white)">Upload image</div>
+                    <div style="font-size:11.5px;color:var(--mu);margin-top:3px">JPG, PNG or WebP &nbsp;·&nbsp; max 4 MB</div>
+                  </div>
+                  <div id="gal-upload-prog" class="gal-upload-prog" style="display:none">
+                    <div style="font-size:20px;margin-bottom:5px">⏳</div>Uploading…
+                  </div>
+                  <div id="gal-prev-wrap" class="gal-prev-wrap" style="display:none">
+                    <img id="gal-prev-img" class="gal-prev-thumb" alt="">
+                    <div class="gal-prev-info" id="gal-prev-info"></div>
+                    <button type="button" onclick="event.stopPropagation();clearGalUpload()" style="background:rgba(239,68,68,.14);color:#f87171;border:1px solid rgba(239,68,68,.25);border-radius:5px;padding:4px 10px;font-size:11.5px;cursor:pointer;flex-shrink:0">Remove</button>
+                  </div>
+                </div>
+                <div class="gal-or-sep">or paste URL below</div>
                 <input class="gal-form-input" id="gal-imageUrl" type="url" placeholder="https://example.com/photo.jpg">
               </div>
               <div>
@@ -4287,7 +4320,86 @@ function showAdminTab(tab){
 }
 
 // ── GALLERY MANAGER (admin) ────────────────────────────────────────────────
-const GALLERY_ADMIN_URL = '/.netlify/functions/recent-work-admin';
+const GALLERY_ADMIN_URL  = '/.netlify/functions/recent-work-admin';
+const GALLERY_UPLOAD_URL = '/.netlify/functions/recent-work-upload';
+const GAL_MAX_BYTES      = 4 * 1024 * 1024; // 4 MB (base64 overhead keeps us under Netlify's 6 MB body limit)
+const GAL_ALLOWED_TYPES  = { 'image/jpeg':true, 'image/png':true, 'image/webp':true };
+
+function galUploadClick(e){
+  // Prevent the zone click from triggering when user clicks Remove or types in gal-imageUrl
+  if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT') return;
+  document.getElementById('gal-file-input').click();
+}
+
+function handleGalFileSelect(input){
+  const file = input.files && input.files[0];
+  if(!file){ return; }
+
+  // Client-side validation (server re-validates)
+  if(!GAL_ALLOWED_TYPES[file.type]){
+    galShowMsg('Only JPG, PNG, and WebP images are allowed.', false);
+    input.value='';
+    return;
+  }
+  if(file.size > GAL_MAX_BYTES){
+    galShowMsg(`File is too large (${(file.size/1024/1024).toFixed(1)} MB). Max is 4 MB.`, false);
+    input.value='';
+    return;
+  }
+
+  // Show progress, hide other states
+  document.getElementById('gal-upload-inner').style.display='none';
+  document.getElementById('gal-upload-prog').style.display='block';
+  document.getElementById('gal-prev-wrap').style.display='none';
+
+  const objectUrl = URL.createObjectURL(file);
+
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const base64 = ev.target.result.split(',')[1]; // strip data:…;base64, prefix
+    fetch(GALLERY_UPLOAD_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'x-admin-key': window._adminKey||'' },
+      body: JSON.stringify({ data:base64, contentType:file.type, filename:file.name, size:file.size }),
+    })
+    .then(r=>r.json())
+    .then(d=>{
+      if(!d.ok){
+        galShowMsg('Upload failed: '+(d.error||'unknown'), false);
+        URL.revokeObjectURL(objectUrl);
+        resetGalUpload();
+        return;
+      }
+      // Fill imageUrl with the serve URL
+      document.getElementById('gal-imageUrl').value = d.url;
+      // Show preview
+      document.getElementById('gal-prev-img').src = objectUrl;
+      document.getElementById('gal-prev-info').textContent = '✓ '+file.name+' ('+Math.round(file.size/1024)+' KB)';
+      document.getElementById('gal-upload-prog').style.display='none';
+      document.getElementById('gal-prev-wrap').style.display='flex';
+      galShowMsg('Image uploaded.', true);
+    })
+    .catch(e=>{
+      galShowMsg('Upload error: '+e.message, false);
+      URL.revokeObjectURL(objectUrl);
+      resetGalUpload();
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearGalUpload(){
+  const fi = document.getElementById('gal-file-input');
+  if(fi) fi.value='';
+  document.getElementById('gal-imageUrl').value='';
+  resetGalUpload();
+}
+
+function resetGalUpload(){
+  document.getElementById('gal-upload-inner').style.display='block';
+  document.getElementById('gal-upload-prog').style.display='none';
+  document.getElementById('gal-prev-wrap').style.display='none';
+}
 
 function galShowMsg(msg, ok){
   const el = document.getElementById('gal-msg');
@@ -4354,6 +4466,7 @@ function renderGalleryTable(items){
 }
 
 function openGalleryForm(item){
+  resetGalUpload(); // clear any prior upload state
   document.getElementById('gal-form-title').textContent = item ? 'Edit Photo' : 'Add Photo';
   document.getElementById('gal-id').value             = item ? (item.id||'') : '';
   document.getElementById('gal-imageUrl').value       = item ? (item.imageUrl||'') : '';
@@ -4366,18 +4479,31 @@ function openGalleryForm(item){
   document.getElementById('gal-category').value       = item ? (item.category||'other') : 'other';
   document.getElementById('gal-beforeAfter').value    = item ? (item.beforeAfter||'final') : 'final';
   document.getElementById('gal-showOnHomepage').checked = item ? !!item.showOnHomepage : true;
+  // When editing an existing item that already has an image, show it in preview
+  if(item && item.imageUrl){
+    document.getElementById('gal-upload-inner').style.display='none';
+    document.getElementById('gal-prev-img').src = item.imageUrl;
+    document.getElementById('gal-prev-info').textContent = 'Current image (upload a new one to replace)';
+    document.getElementById('gal-prev-wrap').style.display='flex';
+  }
   document.getElementById('gal-form-wrap').style.display = 'block';
   document.getElementById('gal-form-wrap').scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 function closeGalleryForm(){
+  resetGalUpload();
   document.getElementById('gal-form-wrap').style.display = 'none';
 }
 
 function saveGalleryItem(){
-  const id = document.getElementById('gal-id').value.trim();
-  const imageUrl = document.getElementById('gal-imageUrl').value.trim();
-  if(!imageUrl){ galShowMsg('Image URL is required.', false); return; }
+  const id          = document.getElementById('gal-id').value.trim();
+  const imageUrl    = document.getElementById('gal-imageUrl').value.trim();
+  const instagramUrl = document.getElementById('gal-instagramUrl').value.trim();
+  // Require at least one of: imageUrl or instagramUrl
+  if(!imageUrl && !instagramUrl){
+    galShowMsg('Provide an image (upload or URL) or an Instagram post URL.', false);
+    return;
+  }
   const item = {
     ...(id ? {id} : {}),
     imageUrl,
@@ -4449,32 +4575,45 @@ function escHtml(s){ return String(s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>'
   fetch('/.netlify/functions/recent-work')
     .then(r=>r.ok?r.json():Promise.reject())
     .then(({ items=[] })=>{
-      if(!items.length) return; // keep placeholder
+      // Only show items that have at least an image or an Instagram URL
+      const esc = s => String(s||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+      const displayable = items.filter(i => i.imageUrl || i.instagramUrl);
+      if(!displayable.length) return; // keep placeholder
 
-      // Build slides
-      track.innerHTML = items.map(item=>{
-        const src = item.imageUrl || '';
-        const esc = s => String(s||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
-        const igLink = item.instagramUrl
-          ? `<a class="rw-ov-lbl" href="${esc(item.instagramUrl)}" target="_blank" rel="noopener noreferrer">View on Instagram</a>`
-          : '';
-        return `<div class="rw-slide">
-          <div class="rw-img-wrap">
-            <img class="rw-img" src="${esc(src)}" alt="${esc(item.vehicle||'Cardetail1 recent work')}" loading="lazy" onload="this.classList.add('rw-loaded')">
-            <div class="rw-ov">${igLink}</div>
-          </div>
-          <div class="rw-info">
-            ${item.vehicle ? `<div class="rw-vehicle">${esc(item.vehicle)}</div>` : ''}
-            ${item.servicePackage ? `<div class="rw-pkg">${esc(item.servicePackage)}</div>` : ''}
-            ${item.caption ? `<div class="rw-caption">${esc(item.caption)}</div>` : ''}
-          </div>
+      track.innerHTML = displayable.map(item=>{
+        const info = `<div class="rw-info">
+          ${item.vehicle      ? `<div class="rw-vehicle">${esc(item.vehicle)}</div>`      : ''}
+          ${item.servicePackage ? `<div class="rw-pkg">${esc(item.servicePackage)}</div>` : ''}
+          ${item.caption      ? `<div class="rw-caption">${esc(item.caption)}</div>`      : ''}
         </div>`;
+
+        if(item.imageUrl){
+          // Photo slide — image with optional Instagram overlay link
+          const igLink = item.instagramUrl
+            ? `<a class="rw-ov-lbl" href="${esc(item.instagramUrl)}" target="_blank" rel="noopener noreferrer">View on Instagram</a>`
+            : '';
+          return `<div class="rw-slide">
+            <div class="rw-img-wrap">
+              <img class="rw-img" src="${esc(item.imageUrl)}" alt="${esc(item.vehicle||'Cardetail1 recent work')}" loading="lazy" onload="this.classList.add('rw-loaded')">
+              <div class="rw-ov">${igLink}</div>
+            </div>${info}
+          </div>`;
+        } else {
+          // Instagram-only slide — no direct image; show CTA card, no broken img tag
+          return `<div class="rw-slide rw-slide-ig">
+            <a class="rw-img-wrap" href="${esc(item.instagramUrl)}" target="_blank" rel="noopener noreferrer">
+              <div class="rw-ig-ico">📸</div>
+              <span class="rw-ig-cta">View on Instagram →</span>
+            </a>${info}
+          </div>`;
+        }
       }).join('');
 
-      ph.style.display  = 'none';
+      ph.style.display   = 'none';
       wrap.style.display = 'block';
 
       // Carousel logic
+      const n = displayable.length;
       function perView(){ return window.innerWidth>=900?3:window.innerWidth>=580?2:1; }
       const prevBtn = document.getElementById('rw-prev');
       const nextBtn = document.getElementById('rw-next');
@@ -4483,26 +4622,25 @@ function escHtml(s){ return String(s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>'
 
       function slideWidth(){
         const s = track.querySelector('.rw-slide');
-        return s ? s.offsetWidth + 14 : 0; // 14px gap
+        return s ? s.offsetWidth + 14 : 0; // 14px gap matches CSS gap:14px
       }
 
-      function goTo(n){
+      function goTo(idx){
         const pv  = perView();
-        const max = Math.max(0, items.length - pv);
-        cur = Math.max(0, Math.min(max, n));
+        const max = Math.max(0, n - pv);
+        cur = Math.max(0, Math.min(max, idx));
         track.style.transform = `translateX(-${cur * slideWidth()}px)`;
         if(counter) counter.textContent = `${cur+1} / ${max+1}`;
-        if(prevBtn){ prevBtn.disabled = cur===0; }
-        if(nextBtn){ nextBtn.disabled = cur===max; }
-        // Update slide widths
-        const pct = 100/pv;
-        track.querySelectorAll('.rw-slide').forEach(s=>{ s.style.width=`calc(${pct}% - ${14*(pv-1)/pv}px)`; });
+        if(prevBtn) prevBtn.disabled = cur === 0;
+        if(nextBtn) nextBtn.disabled = cur === max;
+        const pct = 100 / pv;
+        track.querySelectorAll('.rw-slide').forEach(s=>{
+          s.style.width = `calc(${pct}% - ${14*(pv-1)/pv}px)`;
+        });
       }
 
-      function init(){ goTo(0); }
-      init();
+      goTo(0);
       window.addEventListener('resize', ()=>goTo(cur));
-
       if(prevBtn) prevBtn.onclick = ()=>goTo(cur-1);
       if(nextBtn) nextBtn.onclick = ()=>goTo(cur+1);
 
@@ -4514,7 +4652,7 @@ function escHtml(s){ return String(s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>'
         if(Math.abs(dx)>40){ dx>0?goTo(cur+1):goTo(cur-1); }
       }, { passive:true });
     })
-    .catch(()=>{ /* keep placeholder */ });
+    .catch(()=>{ /* keep placeholder on any error */ });
 })();
 
 // ── Technician job auction (admin view) ──
