@@ -4788,7 +4788,7 @@ async function setPayLinkPrompt(id){
 async function captureBookingPayment(id){
   const b=getStoredBookings().find(x=>x.id===id); if(!b)return;
   if(!b.paymentIntentId){ alert('No authorized card hold on this booking.'); return; }
-  const held=(b.depositCents||0)/100;
+  const held=((b.amountAuthorizedCents||b.depositCents||0)/100);
   const amtStr=prompt('Capture amount for '+id+' (the card hold is $'+held.toFixed(2)+').\nLeave as-is to charge the full hold, or enter a LOWER amount:', held.toFixed(2));
   if(amtStr===null) return;
   const amountCents=Math.round(parseFloat(amtStr)*100);
