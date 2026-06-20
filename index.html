@@ -1,4 +1,4 @@
-
+﻿
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -929,6 +929,55 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .cred-item b{color:var(--white)}
 .results-cta{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:28px}
 .photo-note{font-size:12px;color:var(--mu);text-align:center;margin-top:14px;line-height:1.6}
+/* ── RECENT WORK PHOTO CAROUSEL ── */
+.rw-carousel{position:relative;overflow:hidden;margin-top:24px}
+.rw-track{display:flex;gap:14px;transition:transform .35s cubic-bezier(.4,0,.2,1)}
+.rw-slide{flex-shrink:0;background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);overflow:hidden}
+.rw-img-wrap{position:relative;aspect-ratio:3/2;overflow:hidden;background:var(--bg2);max-height:210px}
+.rw-img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .4s}
+.rw-img.rw-loaded{opacity:1}
+.rw-ov{position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.65) 0%,transparent 55%);display:flex;align-items:flex-end;padding:14px}
+.rw-ov-lbl{font-size:11px;color:rgba(255,255,255,.75);text-decoration:none;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:4px 10px;transition:.18s}
+.rw-ov-lbl:hover{background:rgba(255,255,255,.15)}
+.rw-info{padding:14px 16px}
+.rw-vehicle{font-family:var(--fd);font-size:15px;color:var(--white);letter-spacing:.02em;margin-bottom:3px}
+.rw-pkg{font-size:11.5px;color:var(--blue);font-weight:600;margin-bottom:6px}
+.rw-caption{font-size:12.5px;color:var(--mu);line-height:1.5}
+.rw-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:16px}
+.rw-nav-btn{width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:var(--bg2);color:var(--white);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
+.rw-nav-btn:hover:not(:disabled){background:var(--blue);color:#000;border-color:var(--blue)}
+.rw-nav-btn:disabled{opacity:.3;cursor:default}
+.rw-counter{font-size:13px;color:var(--mu);min-width:48px;text-align:center}
+/* admin gallery styles */
+.gal-tbl{width:100%;border-collapse:collapse;font-size:13px;color:var(--tx)}
+.gal-tbl th{text-align:left;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.08);color:var(--mu);font-weight:600}
+.gal-tbl td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:middle}
+.gal-thumb{width:52px;height:40px;object-fit:cover;border-radius:4px;background:var(--bg2)}
+.gal-thumb-ph{width:52px;height:40px;border-radius:4px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.gal-pill{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:999px;font-weight:600}
+.gal-pill-on{background:rgba(34,197,94,.18);color:var(--gr);border:1px solid var(--grbr)}
+.gal-pill-off{background:rgba(255,255,255,.06);color:var(--mu);border:1px solid rgba(255,255,255,.1)}
+.gal-form-wrap{background:var(--bg2);border:1px solid rgba(77,163,255,.2);border-radius:var(--rs);padding:20px;margin-top:16px}
+.gal-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.gal-form-label{display:block;font-size:11.5px;color:var(--mu);margin-bottom:4px;font-weight:600}
+.gal-form-input{width:100%;box-sizing:border-box;background:var(--bg1);border:1px solid rgba(255,255,255,.1);color:var(--white);border-radius:6px;padding:8px 10px;font-size:13px;font-family:var(--fb)}
+.gal-form-input:focus{outline:none;border-color:var(--blue)}
+.gal-form-full{grid-column:1/-1}
+/* upload zone */
+.gal-upload-zone{border:1.5px dashed rgba(255,255,255,.18);border-radius:8px;padding:18px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:var(--bg1);user-select:none}
+.gal-upload-zone:hover{border-color:var(--blue);background:rgba(77,163,255,.05)}
+.gal-upload-prog{text-align:center;padding:12px;color:var(--mu);font-size:13px}
+.gal-prev-wrap{display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg1);border-radius:8px;border:1px solid rgba(34,197,94,.22)}
+.gal-prev-thumb{width:64px;height:48px;object-fit:cover;border-radius:5px;flex-shrink:0}
+.gal-prev-info{flex:1;font-size:12px;color:var(--gr);min-width:0;word-break:break-all}
+.gal-or-sep{text-align:center;color:var(--mu);font-size:11.5px;margin:8px 0;position:relative;line-height:1}
+.gal-or-sep::before,.gal-or-sep::after{content:'';position:absolute;top:50%;width:44%;height:1px;background:rgba(255,255,255,.08)}
+.gal-or-sep::before{left:0}.gal-or-sep::after{right:0}
+/* Instagram-only carousel slide */
+.rw-slide-ig .rw-img-wrap{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-decoration:none;color:inherit}
+.rw-slide-ig .rw-ig-ico{font-size:36px;line-height:1}
+.rw-slide-ig .rw-ig-cta{font-size:12px;color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:6px 14px;transition:.18s}
+.rw-slide-ig .rw-ig-cta:hover{background:rgba(255,255,255,.1)}
 .rv-honest{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--r);padding:28px;text-align:center}
 .rv-honest-ico{font-size:36px;margin-bottom:10px}
 .rv-honest-title{font-size:15px;font-weight:600;color:var(--white);margin-bottom:6px}
@@ -1129,6 +1178,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   .cred-row{flex-direction:column;gap:12px;padding:16px}
   .results-cta{flex-direction:column;align-items:stretch}
   .results-cta .btn-primary,.results-cta .btn-outline{width:100%;text-align:center;padding:14px}
+  /* ── RECENT WORK CAROUSEL (mobile) ── */
+  .rw-nav-btn{width:34px;height:34px;font-size:14px}
+  .gal-form-grid{grid-template-columns:1fr}
   /* ── VISUAL PROOF ── */
   .visual-proof{flex-direction:column}
   .visual-panel{width:100%!important}
@@ -1385,33 +1437,50 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="sec-eye">Recent Work</div>
     <div class="sec-title">REAL RESULTS FROM<br>MOBILE DETAILING JOBS.</div>
     <div class="sec-desc">Interior, exterior, and paint enhancement work performed at the customer's location.</div>
-    <div class="results-grid">
-      <div class="rc-card">
-        <div class="rc-ico">🧹</div>
-        <div class="rc-title">Interior Detail</div>
-        <div class="rc-benefit">Full cabin restoration — vacuuming, steam cleaning, fabric and leather treatment, window cleaning, and deodorizing. We bring the equipment; you stay home.</div>
-        <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
+
+    <!-- Photo carousel — shown once API returns items -->
+    <div id="rw-carousel-wrap" style="display:none">
+      <div class="rw-carousel" id="rw-carousel">
+        <div class="rw-track" id="rw-track"></div>
       </div>
-      <div class="rc-card">
-        <div class="rc-ico">💧</div>
-        <div class="rc-title">Exterior Detail</div>
-        <div class="rc-benefit">Hand wash, clay bar, paint decontamination, tire shine, and window polish — done at your driveway, office parking, or marina slip.</div>
-        <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-      </div>
-      <div class="rc-card">
-        <div class="rc-ico">✨</div>
-        <div class="rc-title">Premium Detail</div>
-        <div class="rc-benefit">Complete interior and exterior treatment with paint sealant or wax protection. Our most comprehensive single-visit package.</div>
-        <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-      </div>
-      <div class="rc-card">
-        <div class="rc-ico">🚢</div>
-        <div class="rc-title">Marine &amp; RV</div>
-        <div class="rc-benefit">Boats, RVs, and powersports vehicles — oxidation removal, hull cleaning, vinyl and canvas treatment. Mobile at your marina, storage yard, or driveway.</div>
-        <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
+      <div class="rw-nav">
+        <button class="rw-nav-btn" id="rw-prev" aria-label="Previous">&#8592;</button>
+        <span class="rw-counter" id="rw-counter">1 / 1</span>
+        <button class="rw-nav-btn" id="rw-next" aria-label="Next">&#8594;</button>
       </div>
     </div>
-    <p class="photo-note">Customer photo gallery coming soon — ask about our recent work: <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a></p>
+
+    <!-- Placeholder — shown until gallery has photos -->
+    <div id="rw-placeholder">
+      <div class="results-grid">
+        <div class="rc-card">
+          <div class="rc-ico">🧹</div>
+          <div class="rc-title">Interior Detail</div>
+          <div class="rc-benefit">Full cabin restoration — vacuuming, steam cleaning, fabric and leather treatment, window cleaning, and deodorizing. We bring the equipment; you stay home.</div>
+          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
+        </div>
+        <div class="rc-card">
+          <div class="rc-ico">💧</div>
+          <div class="rc-title">Exterior Detail</div>
+          <div class="rc-benefit">Hand wash, clay bar, paint decontamination, tire shine, and window polish — done at your driveway, office parking, or marina slip.</div>
+          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
+        </div>
+        <div class="rc-card">
+          <div class="rc-ico">✨</div>
+          <div class="rc-title">Premium Detail</div>
+          <div class="rc-benefit">Complete interior and exterior treatment with paint sealant or wax protection. Our most comprehensive single-visit package.</div>
+          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
+        </div>
+        <div class="rc-card">
+          <div class="rc-ico">🚢</div>
+          <div class="rc-title">Marine &amp; RV</div>
+          <div class="rc-benefit">Boats, RVs, and powersports vehicles — oxidation removal, hull cleaning, vinyl and canvas treatment. Mobile at your marina, storage yard, or driveway.</div>
+          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
+        </div>
+      </div>
+      <p class="photo-note">Real job photos are added through our admin panel and will appear here automatically. Questions? <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a></p>
+    </div>
+
     <div class="cred-row">
       <div class="cred-item"><span>🚐</span><span><b>Mobile service</b> — we come to you</span></div>
       <div class="cred-item"><span>🚿</span><span><b>Water &amp; power</b> available on every job</span></div>
@@ -1445,19 +1514,29 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="sec-eye">Customer Reviews &amp; Recent Feedback</div>
     <div class="sec-title">SHARE YOUR<br>EXPERIENCE.</div>
     <div class="sec-desc">Had a Cardetail1 service? Your honest feedback helps other customers in Bergen County find mobile detailing they can trust.</div>
-    <div class="rv-honest">
-      <div class="rv-honest-ico">⭐</div>
-      <div class="rv-honest-title">We're collecting customer feedback</div>
-      <div class="rv-honest-desc">We're actively collecting customer feedback. After your service, you'll receive a review link so you can share your experience.</div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:16px">
-        <a class="btn-primary" style="font-size:13px;padding:12px 26px;text-decoration:none;display:inline-flex;align-items:center;gap:6px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">⭐ Leave a Google Review</a>
-        <button class="btn-n" style="font-size:13px;padding:12px 22px" onclick="openPortal();setTimeout(()=>cpTab(3),300)">Send Private Feedback →</button>
-        <button class="btn-n" style="font-size:13px;padding:12px 22px" onclick="openBooking(null)">Book Mobile Detailing →</button>
-      </div>
+
+    <div class="trust-row" style="margin-bottom:36px">
+      <div class="trust-item"><div class="trust-ico">🚗</div><div class="trust-val">500+</div><div class="trust-lbl">Vehicles Detailed</div></div>
+      <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val">3+</div><div class="trust-lbl">Years in Service</div></div>
+      <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">NJ · NY</div><div class="trust-lbl">Coverage Area</div></div>
+      <div class="trust-item"><div class="trust-ico">⭐</div><div class="trust-val">5.0</div><div class="trust-lbl">Google Rating</div></div>
+    </div>
+
+    <div id="rv-counter" style="text-align:right;font-size:13px;color:var(--mu);letter-spacing:.06em;margin-bottom:8px">1 / 14</div>
+    <div class="rv-carousel">
+      <div class="rv-track" id="rv-track"></div>
+    </div>
+    <div class="rv-nav" style="margin-top:14px">
+      <button class="rv-btn" onclick="rvMove(-1)">&#8592;</button>
+      <div class="rv-dots" id="rv-dots"></div>
+      <button class="rv-btn" onclick="rvMove(1)">&#8594;</button>
+    </div>
+    <div style="text-align:center;margin-top:20px">
+      <a class="btn-n" style="font-size:13px;padding:11px 24px;text-decoration:none;display:inline-flex;align-items:center;gap:6px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">&#11088; Leave a Google Review</a>
     </div>
     <div class="cred-row" style="margin-top:20px">
       <div class="cred-item"><span>🧽</span><span>Recent mobile detailing work</span></div>
-      <div class="cred-item"><span>📸</span><span>Before/after gallery coming soon</span></div>
+      <div class="cred-item"><span>📸</span><span>Photo gallery of recent work now live</span></div>
       <div class="cred-item"><span>📍</span><span>Serving Bergen County &amp; North Jersey</span></div>
       <div class="cred-item"><span>🔧</span><span>Professional equipment</span></div>
       <div class="cred-item"><span>🚿</span><span>Water &amp; power available</span></div>
@@ -2346,6 +2425,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button onclick="exportBookingsCsv()">Export CSV</button>
         <button onclick="seedDemoBooking()">Demo</button>
         <button onclick="clearDemoBookings()">Clear</button>
+        <button onclick="showAdminTab('gallery')" style="background:rgba(77,163,255,.15);color:var(--blue);border-color:rgba(77,163,255,.35)">📷 Gallery</button>
       </div>
       <div id="admin-list-view">
         <div class="admin-grid" id="admin-grid"></div>
@@ -2372,6 +2452,108 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           <div style="background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs);padding:12px 14px;line-height:1.6">
             <div style="font-weight:600;color:var(--white);margin-bottom:4px">Private Feedback (Cardetail1)</div>
             <div style="color:var(--mu)">Private feedback submitted through Cardetail1 appears here for moderation. Review moderation coming soon — customer feedback is not published publicly until approved.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── GALLERY MANAGER ── -->
+      <div id="admin-gallery-view" style="display:none">
+        <div style="padding:20px;font-size:13px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-size:18px;font-weight:700;color:var(--white)">📷 Recent Work Gallery</div>
+              <div style="color:var(--mu);font-size:12px;margin-top:2px">Photos marked <b style="color:var(--gr)">On Homepage</b> appear in the public carousel.</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button onclick="loadGalleryAdmin()" style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer">↻ Refresh</button>
+              <button onclick="openGalleryForm(null)" style="background:var(--blue);color:#000;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">＋ Add Photo</button>
+            </div>
+          </div>
+          <div id="gal-msg" style="display:none;padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:12.5px"></div>
+          <div id="gal-table-wrap">
+            <div style="color:var(--mu);text-align:center;padding:28px">Click <b>↻ Refresh</b> to load gallery items.</div>
+          </div>
+          <!-- Add / Edit form -->
+          <div id="gal-form-wrap" class="gal-form-wrap" style="display:none">
+            <div style="font-weight:700;color:var(--white);font-size:14px;margin-bottom:14px" id="gal-form-title">Add Photo</div>
+            <input type="hidden" id="gal-id">
+            <div class="gal-form-grid">
+              <div class="gal-form-full">
+                <label class="gal-form-label">Photo</label>
+                <!-- Upload zone -->
+                <div id="gal-upload-zone" class="gal-upload-zone" onclick="galUploadClick(event)">
+                  <input type="file" id="gal-file-input" accept=".jpg,.jpeg,.png,.webp" style="display:none" onchange="handleGalFileSelect(this)">
+                  <div id="gal-upload-inner">
+                    <div style="font-size:28px;margin-bottom:5px">📷</div>
+                    <div style="font-size:13px;font-weight:600;color:var(--white)">Upload image</div>
+                    <div style="font-size:11.5px;color:var(--mu);margin-top:3px">JPG, PNG or WebP &nbsp;·&nbsp; max 4 MB</div>
+                  </div>
+                  <div id="gal-upload-prog" class="gal-upload-prog" style="display:none">
+                    <div style="font-size:20px;margin-bottom:5px">⏳</div>Uploading…
+                  </div>
+                  <div id="gal-prev-wrap" class="gal-prev-wrap" style="display:none">
+                    <img id="gal-prev-img" class="gal-prev-thumb" alt="">
+                    <div class="gal-prev-info" id="gal-prev-info"></div>
+                    <button type="button" onclick="event.stopPropagation();clearGalUpload()" style="background:rgba(239,68,68,.14);color:#f87171;border:1px solid rgba(239,68,68,.25);border-radius:5px;padding:4px 10px;font-size:11.5px;cursor:pointer;flex-shrink:0">Remove</button>
+                  </div>
+                </div>
+                <div class="gal-or-sep">or paste URL below</div>
+                <input class="gal-form-input" id="gal-imageUrl" type="url" placeholder="https://example.com/photo.jpg">
+              </div>
+              <div>
+                <label class="gal-form-label">Vehicle</label>
+                <input class="gal-form-input" id="gal-vehicle" type="text" placeholder="2023 Porsche Cayenne">
+              </div>
+              <div>
+                <label class="gal-form-label">Service Package</label>
+                <input class="gal-form-input" id="gal-servicePackage" type="text" placeholder="Premium Full Detail">
+              </div>
+              <div>
+                <label class="gal-form-label">Add-ons</label>
+                <input class="gal-form-input" id="gal-addOns" type="text" placeholder="Engine bay, headlight restore">
+              </div>
+              <div>
+                <label class="gal-form-label">Location Area</label>
+                <input class="gal-form-input" id="gal-locationArea" type="text" placeholder="Ridgewood, NJ">
+              </div>
+              <div>
+                <label class="gal-form-label">Category</label>
+                <select class="gal-form-input" id="gal-category">
+                  <option value="other">Other</option>
+                  <option value="interior">Interior</option>
+                  <option value="exterior">Exterior</option>
+                  <option value="premium">Premium</option>
+                  <option value="marine">Marine</option>
+                  <option value="rv">RV</option>
+                  <option value="powersports">Powersports</option>
+                </select>
+              </div>
+              <div>
+                <label class="gal-form-label">Photo type</label>
+                <select class="gal-form-input" id="gal-beforeAfter">
+                  <option value="final">Final result</option>
+                  <option value="before">Before</option>
+                  <option value="after">After</option>
+                  <option value="both">Before &amp; After</option>
+                </select>
+              </div>
+              <div>
+                <label class="gal-form-label">Instagram Post URL <span style="color:var(--mu);font-weight:400">(optional)</span></label>
+                <input class="gal-form-input" id="gal-instagramUrl" type="url" placeholder="https://www.instagram.com/p/…">
+              </div>
+              <div class="gal-form-full">
+                <label class="gal-form-label">Caption <span style="color:var(--mu);font-weight:400">(shown under photo)</span></label>
+                <input class="gal-form-input" id="gal-caption" type="text" placeholder="Paint correction + ceramic coat on a 3-stage silver — came out mirror finish.">
+              </div>
+              <div class="gal-form-full" style="display:flex;align-items:center;gap:10px;padding-top:4px">
+                <input type="checkbox" id="gal-showOnHomepage" style="width:16px;height:16px;accent-color:var(--blue);cursor:pointer">
+                <label for="gal-showOnHomepage" style="color:var(--white);font-size:13px;cursor:pointer;user-select:none">Show on homepage carousel</label>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+              <button onclick="saveGalleryItem()" style="background:var(--blue);color:#000;border:none;border-radius:6px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer">Save</button>
+              <button onclick="closeGalleryForm()" style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:9px 16px;font-size:13px;cursor:pointer">Cancel</button>
+            </div>
           </div>
         </div>
       </div>
@@ -4140,10 +4322,348 @@ function showAdminTab(tab){
   const inq = document.getElementById('admin-inq-view'); if(inq) inq.style.display = tab==='inquiries' ? 'block' : 'none';
   const auc = document.getElementById('admin-auc-view'); if(auc) auc.style.display = tab==='auctions' ? 'block' : 'none';
   const rev = document.getElementById('admin-reviews-view'); if(rev) rev.style.display = tab==='reviews' ? 'block' : 'none';
+  const gal = document.getElementById('admin-gallery-view'); if(gal) gal.style.display = tab==='gallery' ? 'block' : 'none';
   if(tab==='calendar') renderAdminCalendar();
   if(tab==='inquiries') renderAdminInquiries();
   if(tab==='auctions') renderAuctions();
+  if(tab==='gallery') loadGalleryAdmin();
 }
+
+// ── GALLERY MANAGER (admin) ────────────────────────────────────────────────
+const GALLERY_ADMIN_URL  = '/.netlify/functions/recent-work-admin';
+const GALLERY_UPLOAD_URL = '/.netlify/functions/recent-work-upload';
+const GAL_MAX_BYTES      = 4 * 1024 * 1024; // 4 MB (base64 overhead keeps us under Netlify's 6 MB body limit)
+const GAL_ALLOWED_TYPES  = { 'image/jpeg':true, 'image/png':true, 'image/webp':true };
+
+function galUploadClick(e){
+  // Prevent the zone click from triggering when user clicks Remove or types in gal-imageUrl
+  if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT') return;
+  document.getElementById('gal-file-input').click();
+}
+
+function handleGalFileSelect(input){
+  const file = input.files && input.files[0];
+  if(!file){ return; }
+
+  // Client-side validation (server re-validates)
+  if(!GAL_ALLOWED_TYPES[file.type]){
+    galShowMsg('Only JPG, PNG, and WebP images are allowed.', false);
+    input.value='';
+    return;
+  }
+  if(file.size > GAL_MAX_BYTES){
+    galShowMsg(`File is too large (${(file.size/1024/1024).toFixed(1)} MB). Max is 4 MB.`, false);
+    input.value='';
+    return;
+  }
+
+  // Show progress, hide other states
+  document.getElementById('gal-upload-inner').style.display='none';
+  document.getElementById('gal-upload-prog').style.display='block';
+  document.getElementById('gal-prev-wrap').style.display='none';
+
+  const objectUrl = URL.createObjectURL(file);
+
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const base64 = ev.target.result.split(',')[1]; // strip data:…;base64, prefix
+    fetch(GALLERY_UPLOAD_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'x-admin-key': window._adminKey||'' },
+      body: JSON.stringify({ data:base64, contentType:file.type, filename:file.name, size:file.size }),
+    })
+    .then(r=>r.json())
+    .then(d=>{
+      if(!d.ok){
+        galShowMsg('Upload failed: '+(d.error||'unknown'), false);
+        URL.revokeObjectURL(objectUrl);
+        resetGalUpload();
+        return;
+      }
+      // Fill imageUrl with the serve URL
+      document.getElementById('gal-imageUrl').value = d.url;
+      // Show preview
+      document.getElementById('gal-prev-img').src = objectUrl;
+      document.getElementById('gal-prev-info').textContent = '✓ '+file.name+' ('+Math.round(file.size/1024)+' KB)';
+      document.getElementById('gal-upload-prog').style.display='none';
+      document.getElementById('gal-prev-wrap').style.display='flex';
+      galShowMsg('Image uploaded.', true);
+    })
+    .catch(e=>{
+      galShowMsg('Upload error: '+e.message, false);
+      URL.revokeObjectURL(objectUrl);
+      resetGalUpload();
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearGalUpload(){
+  const fi = document.getElementById('gal-file-input');
+  if(fi) fi.value='';
+  document.getElementById('gal-imageUrl').value='';
+  resetGalUpload();
+}
+
+function resetGalUpload(){
+  document.getElementById('gal-upload-inner').style.display='block';
+  document.getElementById('gal-upload-prog').style.display='none';
+  document.getElementById('gal-prev-wrap').style.display='none';
+}
+
+function galShowMsg(msg, ok){
+  const el = document.getElementById('gal-msg');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.background = ok ? 'rgba(34,197,94,.15)' : 'rgba(239,68,68,.15)';
+  el.style.color = ok ? 'var(--gr)' : '#f87171';
+  el.style.border = ok ? '1px solid var(--grbr)' : '1px solid rgba(239,68,68,.3)';
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>{ el.style.display='none'; }, 4000);
+}
+
+function loadGalleryAdmin(){
+  const wrap = document.getElementById('gal-table-wrap');
+  if(!wrap) return;
+  wrap.innerHTML = '<div style="color:var(--mu);text-align:center;padding:28px">Loading…</div>';
+  fetch(GALLERY_ADMIN_URL, { headers:{ 'x-admin-key': window._adminKey||'' } })
+    .then(r=>r.json())
+    .then(d=>{
+      if(!d.ok) { wrap.innerHTML='<div style="color:#f87171;padding:16px">Error: '+(d.error||'unknown')+'</div>'; return; }
+      renderGalleryTable(d.items||[]);
+    })
+    .catch(e=>{ wrap.innerHTML='<div style="color:#f87171;padding:16px">Network error: '+e.message+'</div>'; });
+}
+
+function renderGalleryTable(items){
+  const wrap = document.getElementById('gal-table-wrap');
+  if(!wrap) return;
+  if(!items.length){
+    wrap.innerHTML='<div style="color:var(--mu);text-align:center;padding:28px;background:var(--bg2);border-radius:var(--rs)">No gallery items yet — click <b style="color:var(--white)">＋ Add Photo</b> to get started.</div>';
+    return;
+  }
+  const rows = items.map(item=>{
+    const thumb = item.imageUrl
+      ? `<img class="gal-thumb" src="${escHtml(item.imageUrl)}" alt="" onerror="this.style.display='none';this.nextSibling.style.display='flex'">`
+        + `<div class="gal-thumb-ph" style="display:none">📷</div>`
+      : `<div class="gal-thumb-ph">📷</div>`;
+    const pill = item.showOnHomepage
+      ? `<span class="gal-pill gal-pill-on">On Homepage</span>`
+      : `<span class="gal-pill gal-pill-off">Hidden</span>`;
+    const ig = item.instagramUrl
+      ? `<a href="${escHtml(item.instagramUrl)}" target="_blank" rel="noopener" style="color:var(--blue);font-size:11px">IG</a>`
+      : '';
+    return `<tr>
+      <td style="display:flex;align-items:center;gap:10px;min-width:0">${thumb}</td>
+      <td style="max-width:160px;word-break:break-word">${escHtml(item.vehicle||'—')}</td>
+      <td style="color:var(--mu)">${escHtml(item.servicePackage||'—')}</td>
+      <td>${pill}</td>
+      <td>${ig}</td>
+      <td style="white-space:nowrap">
+        <button onclick='openGalleryForm(${JSON.stringify(item)})' style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.1);border-radius:5px;padding:4px 10px;font-size:11.5px;cursor:pointer;margin-right:4px">Edit</button>
+        <button onclick='toggleGalleryVisibility("${escHtml(item.id)}",${!!item.showOnHomepage})' style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.1);border-radius:5px;padding:4px 10px;font-size:11.5px;cursor:pointer;margin-right:4px">${item.showOnHomepage?'Hide':'Show'}</button>
+        <button onclick='deleteGalleryItem("${escHtml(item.id)}","${escHtml(item.vehicle||'this item')}")' style="background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);border-radius:5px;padding:4px 10px;font-size:11.5px;cursor:pointer">Del</button>
+      </td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `<div style="overflow-x:auto"><table class="gal-tbl">
+    <thead><tr>
+      <th>Photo</th><th>Vehicle</th><th>Service</th><th>Status</th><th>IG</th><th>Actions</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+function openGalleryForm(item){
+  resetGalUpload(); // clear any prior upload state
+  document.getElementById('gal-form-title').textContent = item ? 'Edit Photo' : 'Add Photo';
+  document.getElementById('gal-id').value             = item ? (item.id||'') : '';
+  document.getElementById('gal-imageUrl').value       = item ? (item.imageUrl||'') : '';
+  document.getElementById('gal-vehicle').value        = item ? (item.vehicle||'') : '';
+  document.getElementById('gal-servicePackage').value = item ? (item.servicePackage||'') : '';
+  document.getElementById('gal-addOns').value         = item ? (item.addOns||'') : '';
+  document.getElementById('gal-locationArea').value   = item ? (item.locationArea||'') : '';
+  document.getElementById('gal-caption').value        = item ? (item.caption||'') : '';
+  document.getElementById('gal-instagramUrl').value   = item ? (item.instagramUrl||'') : '';
+  document.getElementById('gal-category').value       = item ? (item.category||'other') : 'other';
+  document.getElementById('gal-beforeAfter').value    = item ? (item.beforeAfter||'final') : 'final';
+  document.getElementById('gal-showOnHomepage').checked = item ? !!item.showOnHomepage : true;
+  // When editing an existing item that already has an image, show it in preview
+  if(item && item.imageUrl){
+    document.getElementById('gal-upload-inner').style.display='none';
+    document.getElementById('gal-prev-img').src = item.imageUrl;
+    document.getElementById('gal-prev-info').textContent = 'Current image (upload a new one to replace)';
+    document.getElementById('gal-prev-wrap').style.display='flex';
+  }
+  document.getElementById('gal-form-wrap').style.display = 'block';
+  document.getElementById('gal-form-wrap').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function closeGalleryForm(){
+  resetGalUpload();
+  document.getElementById('gal-form-wrap').style.display = 'none';
+}
+
+function saveGalleryItem(){
+  const id          = document.getElementById('gal-id').value.trim();
+  const imageUrl    = document.getElementById('gal-imageUrl').value.trim();
+  const instagramUrl = document.getElementById('gal-instagramUrl').value.trim();
+  // Require at least one of: imageUrl or instagramUrl
+  if(!imageUrl && !instagramUrl){
+    galShowMsg('Provide an image (upload or URL) or an Instagram post URL.', false);
+    return;
+  }
+  const item = {
+    ...(id ? {id} : {}),
+    imageUrl,
+    vehicle:        document.getElementById('gal-vehicle').value.trim(),
+    servicePackage: document.getElementById('gal-servicePackage').value.trim(),
+    addOns:         document.getElementById('gal-addOns').value.trim(),
+    locationArea:   document.getElementById('gal-locationArea').value.trim(),
+    caption:        document.getElementById('gal-caption').value.trim(),
+    instagramUrl:   document.getElementById('gal-instagramUrl').value.trim(),
+    category:       document.getElementById('gal-category').value,
+    beforeAfter:    document.getElementById('gal-beforeAfter').value,
+    showOnHomepage: document.getElementById('gal-showOnHomepage').checked,
+  };
+  fetch(GALLERY_ADMIN_URL, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'x-admin-key': window._adminKey||'' },
+    body: JSON.stringify({ action:'save', item }),
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(!d.ok){ galShowMsg('Save failed: '+(d.error||'unknown'), false); return; }
+    galShowMsg(id ? 'Photo updated.' : 'Photo added.', true);
+    closeGalleryForm();
+    loadGalleryAdmin();
+  })
+  .catch(e=>galShowMsg('Network error: '+e.message, false));
+}
+
+function deleteGalleryItem(id, label){
+  if(!confirm('Delete "'+label+'"? This cannot be undone.')) return;
+  fetch(GALLERY_ADMIN_URL, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'x-admin-key': window._adminKey||'' },
+    body: JSON.stringify({ action:'delete', id }),
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(!d.ok){ galShowMsg('Delete failed: '+(d.error||'unknown'), false); return; }
+    galShowMsg('Deleted.', true);
+    loadGalleryAdmin();
+  })
+  .catch(e=>galShowMsg('Network error: '+e.message, false));
+}
+
+function toggleGalleryVisibility(id, currentlyVisible){
+  fetch(GALLERY_ADMIN_URL, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'x-admin-key': window._adminKey||'' },
+    body: JSON.stringify({ action:'save', item:{ id, showOnHomepage: !currentlyVisible } }),
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(!d.ok){ galShowMsg('Update failed: '+(d.error||'unknown'), false); return; }
+    galShowMsg(currentlyVisible ? 'Hidden from homepage.' : 'Now showing on homepage.', true);
+    loadGalleryAdmin();
+  })
+  .catch(e=>galShowMsg('Network error: '+e.message, false));
+}
+
+function escHtml(s){ return String(s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ── HOMEPAGE RECENT WORK CAROUSEL ─────────────────────────────────────────
+(function initRecentWorkCarousel(){
+  const track = document.getElementById('rw-track');
+  const wrap  = document.getElementById('rw-carousel-wrap');
+  const ph    = document.getElementById('rw-placeholder');
+  if(!track||!wrap||!ph) return;
+
+  fetch('/.netlify/functions/recent-work')
+    .then(r=>r.ok?r.json():Promise.reject())
+    .then(({ items=[] })=>{
+      // Only show items that have at least an image or an Instagram URL
+      const esc = s => String(s||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+      const displayable = items.filter(i => i.imageUrl || i.instagramUrl);
+      if(!displayable.length) return; // keep placeholder
+
+      track.innerHTML = displayable.map(item=>{
+        const info = `<div class="rw-info">
+          ${item.vehicle      ? `<div class="rw-vehicle">${esc(item.vehicle)}</div>`      : ''}
+          ${item.servicePackage ? `<div class="rw-pkg">${esc(item.servicePackage)}</div>` : ''}
+          ${item.caption      ? `<div class="rw-caption">${esc(item.caption)}</div>`      : ''}
+        </div>`;
+
+        if(item.imageUrl){
+          // Photo slide — image with optional Instagram overlay link
+          const igLink = item.instagramUrl
+            ? `<a class="rw-ov-lbl" href="${esc(item.instagramUrl)}" target="_blank" rel="noopener noreferrer">View on Instagram</a>`
+            : '';
+          return `<div class="rw-slide">
+            <div class="rw-img-wrap">
+              <img class="rw-img" src="${esc(item.imageUrl)}" alt="${esc(item.vehicle||'Cardetail1 recent work')}" loading="lazy" onload="this.classList.add('rw-loaded')">
+              <div class="rw-ov">${igLink}</div>
+            </div>${info}
+          </div>`;
+        } else {
+          // Instagram-only slide — no direct image; show CTA card, no broken img tag
+          return `<div class="rw-slide rw-slide-ig">
+            <a class="rw-img-wrap" href="${esc(item.instagramUrl)}" target="_blank" rel="noopener noreferrer">
+              <div class="rw-ig-ico">📸</div>
+              <span class="rw-ig-cta">View on Instagram →</span>
+            </a>${info}
+          </div>`;
+        }
+      }).join('');
+
+      ph.style.display   = 'none';
+      wrap.style.display = 'block';
+
+      // Carousel logic
+      const n = displayable.length;
+      function perView(){ return window.innerWidth>=900?3:window.innerWidth>=580?2:1; }
+      const prevBtn = document.getElementById('rw-prev');
+      const nextBtn = document.getElementById('rw-next');
+      const counter = document.getElementById('rw-counter');
+      let cur = 0;
+
+      function slideWidth(){
+        const s = track.querySelector('.rw-slide');
+        return s ? s.offsetWidth + 14 : 0; // 14px gap matches CSS gap:14px
+      }
+
+      function goTo(idx){
+        const pv  = perView();
+        const max = Math.max(0, n - pv);
+        cur = Math.max(0, Math.min(max, idx));
+        track.style.transform = `translateX(-${cur * slideWidth()}px)`;
+        if(counter) counter.textContent = `${cur+1} / ${max+1}`;
+        if(prevBtn) prevBtn.disabled = cur === 0;
+        if(nextBtn) nextBtn.disabled = cur === max;
+        const pct = 100 / pv;
+        track.querySelectorAll('.rw-slide').forEach(s=>{
+          s.style.width = `calc(${pct}% - ${14*(pv-1)/pv}px)`;
+        });
+      }
+
+      goTo(0);
+      window.addEventListener('resize', ()=>goTo(cur));
+      if(prevBtn) prevBtn.onclick = ()=>goTo(cur-1);
+      if(nextBtn) nextBtn.onclick = ()=>goTo(cur+1);
+
+      // Touch swipe
+      let tsx = 0;
+      track.addEventListener('touchstart', e=>{ tsx=e.touches[0].clientX; }, { passive:true });
+      track.addEventListener('touchend',   e=>{
+        const dx = tsx - e.changedTouches[0].clientX;
+        if(Math.abs(dx)>40){ dx>0?goTo(cur+1):goTo(cur-1); }
+      }, { passive:true });
+    })
+    .catch(()=>{ /* keep placeholder on any error */ });
+})();
 
 // ── Technician job auction (admin view) ──
 const AUCTION_URL = BACKEND_BASE + '/auction';
@@ -4884,7 +5404,120 @@ function updateBkFromPrices(){
 // ═══════════════════════════════════════════════════════
 // REVIEWS
 // ═══════════════════════════════════════════════════════
-const REVIEWS = [];  // populated when real verified reviews are available
+const REVIEWS = [
+  {
+    name: 'Pablo Sanchez',
+    rating: 5,
+    text: "The detailer did an amazing job, very thorough and I'm impressed with the high level of quality service he provided. The car looks brand new.",
+    location: 'NJ Area',
+    date: 'May 2025',
+    service: 'Subaru Crosstrek · Exterior Detail'
+  },
+  {
+    name: 'Craig Bitman',
+    rating: 5,
+    text: 'Incredible work on my BMW. Magno was professional, punctual, and the results speak for themselves. Highly recommend Cardetail1 to anyone who takes pride in their car.',
+    location: 'Craryville, NY',
+    date: 'May 2025',
+    service: 'BMW 4 Series · Exterior Detail'
+  },
+  {
+    name: 'Paul Berliner',
+    rating: 5,
+    text: 'Fantastic detailing by Magno! Super intelligent, efficient and a pleasure to deal with. My Land Rover Defender now looks brand new! Thank you Magno! My life is now better!',
+    location: 'Brooklyn, NY',
+    date: 'Jun 2025',
+    service: 'Land Rover Defender 130 · Exterior Detail'
+  },
+  {
+    name: 'David Johnson',
+    rating: 5,
+    text: 'Excellent work! Arrived timely and was a pleasure to work with. I was thinking this would be a one time thing but it\'s been a good experience so we\'re considering getting the other car done.',
+    location: 'Amityville, NY',
+    date: 'Jun 2025',
+    service: 'Grand Design 320G 5th Wheel · Full Detail'
+  },
+  {
+    name: 'Patrice Zaborski',
+    rating: 5,
+    text: 'Magno, our detailer did a wonderful job. Our RV looks like new. He was professional, pleasant and detail oriented. He took his time to make sure all was perfect. We look forward to Magno working on our vehicle in the future. Thank you!',
+    location: 'East Hampton, NY',
+    date: 'Jun 2025',
+    service: 'Renegade Vienna Motorhome · Full Detail'
+  },
+  {
+    name: 'MaryJane Raymond',
+    rating: 5,
+    text: 'Magno was excellent and efficient!!!',
+    location: 'Far Hills, NJ',
+    date: 'Jun 2025',
+    service: 'Volvo XC60 · Full Detail'
+  },
+  {
+    name: 'Andy Rudin',
+    rating: 5,
+    text: 'Service was timely and the car is gorgeous.',
+    location: 'Bronx, NY',
+    date: 'Jun 2025',
+    service: 'Honda CR-V · Full Detail'
+  },
+  {
+    name: 'Jeanne Anderson',
+    rating: 5,
+    text: "Excellent work! Arrived timely and was a pleasure to work with. I was thinking this would be a one time thing but it's been a good experience so we're considering getting the other car done.",
+    location: 'West Islip, NY',
+    date: 'Jun 2025',
+    service: 'Subaru Impreza · Interior Detail'
+  },
+  {
+    name: 'Brian Baker',
+    rating: 5,
+    text: '',
+    location: 'NJ / NY Area',
+    date: 'Jun 2025',
+    service: 'Land Rover Defender · Exterior Detail'
+  },
+  {
+    name: 'Dani Sames',
+    rating: 5,
+    text: 'My car was horrible. Now it\'s brand new, great job.',
+    location: '',
+    date: 'Aug 2025',
+    service: 'Mobile Auto Detailing'
+  },
+  {
+    name: 'Rose Alves',
+    rating: 5,
+    text: 'Good job. My car was terrible, now it\'s brand new.',
+    location: '',
+    date: 'Aug 2025',
+    service: 'Mobile Auto Detailing'
+  },
+  {
+    name: 'Adilsom Pedro',
+    rating: 5,
+    text: 'Excellent work, 100% guaranteed.',
+    location: '',
+    date: 'May 2026',
+    service: 'Mobile Auto Detailing'
+  },
+  {
+    name: 'Magno Junior',
+    rating: 5,
+    text: 'My cars looked like new! Guy did a great job. Very satisfied, would recommend.',
+    location: '',
+    date: 'May 2026',
+    service: 'Mobile Auto Detailing'
+  },
+  {
+    name: 'Claudio Campos',
+    rating: 5,
+    text: 'Great job!! Highly recommended! My car looks like it just came out of the dealership.',
+    location: '',
+    date: 'May 2026',
+    service: 'Mobile Auto Detailing'
+  }
+];
 
 let rvIdx = 0;
 
@@ -4898,7 +5531,7 @@ function renderReviews(){
     return `<div class="rv-slide">
       <div class="rv-card">
         <div class="rv-stars">${stars}</div>
-        <div class="rv-text">"${r.text}"</div>
+        ${r.text ? `<div class="rv-text">"${r.text}"</div>` : ''}
         <div class="rv-author">
           <div class="rv-avatar">${initials}</div>
           <div>
@@ -4923,6 +5556,8 @@ function rvGoTo(i){
   const track = document.getElementById('rv-track');
   if(track) track.style.transform = `translateX(-${rvIdx*100}%)`;
   document.querySelectorAll('.rv-dot').forEach((d,j)=>d.classList.toggle('active',j===rvIdx));
+  const ctr = document.getElementById('rv-counter');
+  if(ctr) ctr.textContent = `${rvIdx+1} / ${REVIEWS.length}`;
 }
 
 function rvMove(dir){ rvGoTo(rvIdx + dir); }
