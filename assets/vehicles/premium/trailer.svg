@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" role="img" aria-label="Premium travel trailer visual">
+<defs>
+<radialGradient id="bg" cx="50%" cy="60%" r="72%"><stop offset="0%" stop-color="#0c1e3a"/><stop offset="100%" stop-color="#010408"/></radialGradient>
+<linearGradient id="bd" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1c3c6a"/><stop offset="45%" stop-color="#0d2040"/><stop offset="100%" stop-color="#060f1e"/></linearGradient>
+<linearGradient id="rf" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#254e98"/><stop offset="100%" stop-color="#112650"/></linearGradient>
+<linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8ec8f2" stop-opacity=".22"/><stop offset="100%" stop-color="#1840b8" stop-opacity=".05"/></linearGradient>
+<radialGradient id="wh" cx="38%" cy="32%" r="68%"><stop offset="0%" stop-color="#1e3058"/><stop offset="100%" stop-color="#040c1e"/></radialGradient>
+<radialGradient id="sh" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#000c20" stop-opacity=".88"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="400" height="200" fill="url(#bg)"/>
+<ellipse cx="220" cy="183" rx="170" ry="9" fill="url(#sh)"/>
+<!-- trailer body shadow -->
+<path d="M382,150 L382,44 L374,36 L80,36 L72,44 L72,150Z" fill="#02060d"/>
+<!-- trailer body (rectangular, no cab) -->
+<path d="M380,148 L380,42 L372,34 L78,34 L70,42 L70,148Z" fill="url(#bd)"/>
+<!-- roof panel -->
+<rect x="78" y="34" width="294" height="16" rx="2" fill="url(#rf)"/>
+<!-- side windows -->
+<rect x="96" y="58" width="52" height="32" rx="3" fill="url(#gl)"/>
+<rect x="168" y="58" width="52" height="32" rx="3" fill="url(#gl)"/>
+<rect x="256" y="58" width="52" height="32" rx="3" fill="url(#gl)"/>
+<!-- entry door (rear/left side) -->
+<rect x="84" y="90" width="38" height="52" rx="3" fill="#0d2040" stroke="#4da3ff" stroke-width=".8" opacity=".6"/>
+<rect x="88" y="94" width="30" height="44" rx="2" fill="#08182e"/>
+<rect x="112" y="113" width="8" height="4" rx="2" fill="#4da3ff" fill-opacity=".6"/>
+<!-- accent stripe -->
+<line x1="70" y1="82" x2="380" y2="82" stroke="#4da3ff" stroke-width="1.5" opacity=".3"/>
+<!-- front wall (hitch end, right) -->
+<path d="M372,34 L380,42 L380,148 L372,148Z" fill="#0f2848"/>
+<!-- hitch coupler -->
+<path d="M380,148 L390,148 L390,160 L386,164 L382,164 L380,158Z" fill="#0c2040" stroke="#4da3ff" stroke-width=".8" opacity=".5"/>
+<line x1="390" y1="154" x2="400" y2="148" stroke="#4da3ff" stroke-width="2" opacity=".4" stroke-linecap="round"/>
+<!-- taillights -->
+<rect x="70" y="96" width="8" height="36" rx="2" fill="#c01830" fill-opacity=".7"/>
+<line x1="70" y1="96" x2="78" y2="96" stroke="#ff3f52" stroke-width="2" opacity=".8"/>
+<!-- front marker light -->
+<rect x="374" y="96" width="8" height="16" rx="2" fill="#f0a020" fill-opacity=".7"/>
+<!-- stabilizer jacks -->
+<line x1="128" y1="148" x2="122" y2="168" stroke="#4da3ff" stroke-width="2" opacity=".35" stroke-linecap="round"/>
+<line x1="322" y1="148" x2="328" y2="168" stroke="#4da3ff" stroke-width="2" opacity=".35" stroke-linecap="round"/>
+<line x1="116" y1="166" x2="134" y2="166" stroke="#4da3ff" stroke-width="2" opacity=".35" stroke-linecap="round"/>
+<line x1="316" y1="166" x2="334" y2="166" stroke="#4da3ff" stroke-width="2" opacity=".35" stroke-linecap="round"/>
+<!-- AC unit on roof -->
+<rect x="186" y="26" width="56" height="10" rx="2" fill="#0a1e3a" stroke="#4da3ff" stroke-width=".8" opacity=".5"/>
+<!-- wheel arch -->
+<path d="M184,148 Q206,122 232,120 Q256,118 260,148" fill="#010408"/>
+<!-- tandem axle trailer wheel -->
+<circle cx="222" cy="162" r="22" fill="url(#wh)"/>
+<circle cx="222" cy="162" r="16" fill="none" stroke="#18304e" stroke-width="1.2"/>
+<line x1="222" y1="147" x2="222" y2="177" stroke="#4da3ff" stroke-width="1" opacity=".55"/>
+<line x1="207" y1="162" x2="237" y2="162" stroke="#4da3ff" stroke-width="1" opacity=".55"/>
+<line x1="212" y1="151" x2="232" y2="173" stroke="#4da3ff" stroke-width=".9" opacity=".44"/>
+<line x1="232" y1="151" x2="212" y2="173" stroke="#4da3ff" stroke-width=".9" opacity=".44"/>
+<circle cx="222" cy="162" r="5" fill="#060e20" stroke="#4da3ff" stroke-width="1"/>
+<circle cx="222" cy="162" r="2" fill="#4da3ff" opacity=".65"/>
+<!-- sill / underframe -->
+<rect x="78" y="145" width="298" height="5" rx="1.5" fill="#030810"/>
+<path d="M86,149 L374,149" fill="none" stroke="#4da3ff" stroke-width="1.5" opacity=".1" stroke-linecap="round"/>
+</svg>

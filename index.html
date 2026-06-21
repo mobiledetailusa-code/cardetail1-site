@@ -517,8 +517,15 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .addon-toggle-btn:hover{background:rgba(77,163,255,.12)}
 .addon-selected-summary{font-size:11.5px;color:var(--mu);padding:8px 12px;background:rgba(77,163,255,.04);border:1px solid rgba(77,163,255,.15);border-radius:7px;margin-top:8px}
 .addon-selected-summary strong{color:var(--white)}
-.svc-ico img{width:56px;height:auto;display:block;margin:0 auto}
-.vc-ico img{width:64px;height:auto;display:block}
+/* Premium vehicle visuals — booking Step 1 category cards */
+.svc-ico img{width:100%;height:100%;object-fit:contain;display:block}
+.vc-ico img{width:96px;height:auto;display:block;max-width:100%}
+/* Step 1 category card: image-first layout */
+#bk-cat-grid .svc-card{padding:0;overflow:hidden}
+#bk-cat-grid .svc-ico{display:block;width:100%;height:108px;background:linear-gradient(180deg,#0c1e3a 0%,#010508 100%);margin-bottom:0;font-size:0}
+#bk-cat-grid .svc-name,#bk-cat-grid .svc-desc,#bk-cat-grid .svc-from{padding-left:14px;padding-right:14px}
+#bk-cat-grid .svc-name{padding-top:12px}
+#bk-cat-grid .svc-from{padding-bottom:14px}
 
 /* STRIP */
 .strip{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--rs);padding:12px 16px;display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:20px}
@@ -1116,11 +1123,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   .make-dropdown{max-height:220px}
   .addon-grid{grid-template-columns:1fr;gap:10px}
   .addon-item{padding:14px}
-  .bk-cat-grid{grid-template-columns:1fr 1fr;gap:10px}
-  .bk-cat-grid .svc-card{padding:16px 12px}
-  .bk-cat-grid .svc-ico{font-size:28px;margin-bottom:8px}
-  .bk-cat-grid .svc-name{font-size:16px}
-  .bk-cat-grid .svc-desc{display:none}
+  #bk-cat-grid{grid-template-columns:1fr 1fr;gap:10px}
+  #bk-cat-grid .svc-ico{height:78px}
+  #bk-cat-grid .svc-name{font-size:15px;padding-top:10px}
+  #bk-cat-grid .svc-from{padding-bottom:10px}
 
   /* Date / time pickers */
   .date-grid{grid-template-columns:repeat(3,1fr);gap:8px}
@@ -1206,7 +1212,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 @media(max-width:390px){
   .hero h1{font-size:clamp(34px,11vw,52px)}
   .hero-zip-input{font-size:24px!important;letter-spacing:.16em}
-  .bk-cat-grid{grid-template-columns:1fr}
+  #bk-cat-grid{grid-template-columns:1fr 1fr}
   .how-grid{grid-template-columns:1fr}
   .trust-item{min-width:100%;flex:0 0 100%;border-right:none}
   .act-card{width:210px}
@@ -1979,31 +1985,31 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </div>
         <div class="service-grid" id="bk-cat-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
-            <span class="svc-ico"><img src="/assets/vehicles/sedan.svg" alt="Cars & Trucks"></span>
+            <span class="svc-ico"><img src="/assets/vehicles/premium/sedan.svg" alt="Cars & Trucks" loading="lazy"></span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
             <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $175</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
-            <span class="svc-ico"><img src="/assets/vehicles/boat.svg" alt="Boats"></span>
+            <span class="svc-ico"><img src="/assets/vehicles/premium/boat.svg" alt="Boats" loading="lazy"></span>
             <div class="svc-name" style="font-size:22px">Boats</div>
             <div class="svc-desc" style="font-size:12px">All vessels · Priced by length</div>
             <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $199</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
-            <span class="svc-ico"><img src="/assets/vehicles/rv.svg" alt="RVs & Trailers"></span>
+            <span class="svc-ico"><img src="/assets/vehicles/premium/rv.svg" alt="RVs & Trailers" loading="lazy"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
             <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $349</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
-            <span class="svc-ico"><img src="/assets/vehicles/motorcycle.svg" alt="Powersports"></span>
+            <span class="svc-ico"><img src="/assets/vehicles/premium/motorcycle.svg" alt="Powersports" loading="lazy"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
             <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
             <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $119</div>
           </div>
           <div class="svc-card locked" id="bkcat-fleet" onclick="selectCategory('fleet')">
-            <span class="svc-ico"><img src="/assets/vehicles/van.svg" alt="Fleet Services"></span>
+            <span class="svc-ico"><img src="/assets/vehicles/premium/van.svg" alt="Fleet Services" loading="lazy"></span>
             <div class="svc-name" style="font-size:22px">Fleet Services</div>
             <div class="svc-desc" style="font-size:12px">Cars · Vans · Trucks · Buses · Golf Carts · Boats/RVs</div>
             <div class="svc-from" id="bkfrom-fleet" style="font-size:12px">From $60/unit</div>
@@ -2104,7 +2110,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <!-- Detected vehicle card -->
         <div class="vc" id="vc">
           <div class="vc-l">
-            <div class="vc-ico" id="vc-ico"><img src="/assets/vehicles/sedan.svg" alt="Vehicle"></div>
+            <div class="vc-ico" id="vc-ico"><img src="/assets/vehicles/premium/sedan.svg" alt="Vehicle" loading="lazy"></div>
             <div class="vc-info">
               <strong id="vc-name">—</strong>
               <span id="vc-tier-lbl">—</span>
@@ -3084,17 +3090,18 @@ function setupUnitSelector(cat){
 // ── CAR MODELS ──────────────────────────────────────────────────────────────
 // ── VEHICLE VISUAL LIBRARY ────────────────────────────────────────────────────
 const VEHICLE_VISUALS = {
-  sedan:      { img:'/assets/vehicles/sedan.svg',      alt:'Sedan' },
-  suv:        { img:'/assets/vehicles/suv.svg',        alt:'SUV / Crossover' },
-  pickup:     { img:'/assets/vehicles/pickup.svg',     alt:'Pickup Truck' },
-  van:        { img:'/assets/vehicles/van.svg',        alt:'Full-size Van' },
-  minivan:    { img:'/assets/vehicles/minivan.svg',    alt:'Minivan' },
-  rv:         { img:'/assets/vehicles/rv.svg',         alt:'RV / Motorhome' },
-  trailer:    { img:'/assets/vehicles/trailer.svg',    alt:'Travel Trailer' },
-  boat:       { img:'/assets/vehicles/boat.svg',       alt:'Boat' },
-  jetski:     { img:'/assets/vehicles/jetski.svg',     alt:'Jet Ski / PWC' },
-  motorcycle: { img:'/assets/vehicles/motorcycle.svg', alt:'Motorcycle' },
-  atv:        { img:'/assets/vehicles/atv.svg',        alt:'ATV / UTV' },
+  sedan:       { img:'/assets/vehicles/premium/sedan.svg',      alt:'Sedan' },
+  suv:         { img:'/assets/vehicles/premium/suv.svg',        alt:'SUV / Crossover' },
+  'suv-3row':  { img:'/assets/vehicles/premium/suv-3row.svg',   alt:'Full-size 3-Row SUV' },
+  pickup:      { img:'/assets/vehicles/premium/pickup.svg',     alt:'Pickup Truck' },
+  van:         { img:'/assets/vehicles/premium/van.svg',        alt:'Full-size Van' },
+  minivan:     { img:'/assets/vehicles/premium/minivan.svg',    alt:'Minivan' },
+  rv:          { img:'/assets/vehicles/premium/rv.svg',         alt:'RV / Motorhome' },
+  trailer:     { img:'/assets/vehicles/premium/trailer.svg',    alt:'Travel Trailer' },
+  boat:        { img:'/assets/vehicles/premium/boat.svg',       alt:'Boat' },
+  jetski:      { img:'/assets/vehicles/premium/jet-ski.svg',    alt:'Jet Ski / PWC' },
+  motorcycle:  { img:'/assets/vehicles/premium/motorcycle.svg', alt:'Motorcycle' },
+  atv:         { img:'/assets/vehicles/premium/atv.svg',        alt:'ATV / UTV' },
 };
 // [lowercase substring, visual key] — checked in order; first match wins
 const MODEL_MAP = [
@@ -3110,6 +3117,18 @@ const MODEL_MAP = [
   ['tacoma','pickup'],['tundra','pickup'],['colorado','pickup'],['canyon','pickup'],
   ['frontier','pickup'],['titan','pickup'],['maverick','pickup'],['gladiator','pickup'],
   ['ridgeline','pickup'],['ranger','pickup'],
+  // 3-row full-size SUVs (before generic suv2 models)
+  ['tahoe','suv-3row'],['suburban','suv-3row'],['escalade','suv-3row'],
+  ['expedition','suv-3row'],['navigator','suv-3row'],['sequoia','suv-3row'],
+  ['armada','suv-3row'],['qx80','suv-3row'],['qx60','suv-3row'],
+  ['gx','suv-3row'],['lx','suv-3row'],['land cruiser','suv-3row'],
+  ['4runner','suv-3row'],['pathfinder','suv-3row'],
+  ['traverse','suv-3row'],['enclave','suv-3row'],['acadia','suv-3row'],
+  ['pilot','suv-3row'],['palisade','suv-3row'],['telluride','suv-3row'],
+  ['highlander','suv-3row'],['cx-9','suv-3row'],['cx-90','suv-3row'],
+  ['atlas','suv-3row'],['ascent','suv-3row'],['star','suv-3row'],
+  ['mdx','suv-3row'],['infiniti qx','suv-3row'],
+  ['model x','suv-3row'],['model y','suv'],['model 3','sedan'],['model s','sedan'],
   // motorcycle / powersports
   ['street glide','motorcycle'],['road king','motorcycle'],['sportster','motorcycle'],
   ['cbr','motorcycle'],['gsxr','motorcycle'],['ninja','motorcycle'],
@@ -3136,7 +3155,8 @@ function getVehicleVisualKey(){
   const lbl=(ST.vehicleLabel||'').toLowerCase();
   for(const [k,t] of MODEL_MAP){ if(lbl.indexOf(k)>-1) return t; }
   if(ST.tierKey==='truck') return 'pickup';
-  if(ST.tierKey==='suv3'||ST.tierKey==='suv2') return 'suv';
+  if(ST.tierKey==='suv3') return 'suv-3row';
+  if(ST.tierKey==='suv2') return 'suv';
   return 'sedan';
 }
 function setVehicleVisual(){
