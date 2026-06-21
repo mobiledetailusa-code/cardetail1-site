@@ -598,14 +598,14 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
     <button class="tb-out" onclick="doLogout()">Sign Out</button>
   </div>
   <div class="tab-bar">
-    <div class="tab active" onclick="techTab('avail')" data-tt="avail">Available Jobs</div>
-    <div class="tab" onclick="techTab('mine')" data-tt="mine">My Jobs</div>
+    <div class="tab active" onclick="techTab('avail')" data-tt="avail">Assigned to Me</div>
+    <div class="tab" onclick="techTab('mine')" data-tt="mine">In Progress</div>
     <div class="tab" onclick="techTab('earn')" data-tt="earn">Earnings</div>
     <div class="tab" onclick="techTab('prof')" data-tt="prof">Profile</div>
   </div>
   <div class="main">
-    <div class="page active" id="tp-avail"><div class="pg-t">Available Jobs</div><div class="pg-s">Confirmed bookings open for assignment</div><div id="avail-list"></div></div>
-    <div class="page" id="tp-mine"><div class="pg-t">My Jobs</div><div class="pg-s">Jobs you have accepted</div><div id="mine-list"></div></div>
+    <div class="page active" id="tp-avail"><div class="pg-t">Assigned to Me</div><div class="pg-s">Jobs dispatched to you — ready to start</div><div id="avail-list"></div></div>
+    <div class="page" id="tp-mine"><div class="pg-t">In Progress</div><div class="pg-s">Jobs currently en route or in progress</div><div id="mine-list"></div></div>
     <div class="page" id="tp-earn"><div class="pg-t">Earnings</div><div class="pg-s">Your income from completed jobs (65% cut)</div><div class="sg" id="earn-stats"></div><div id="earn-tbl"></div></div>
     <div class="page" id="tp-prof"><div class="pg-t">Profile</div><div class="pg-s">Your operator info on file</div><div id="prof-wrap"></div></div>
   </div>
@@ -1345,12 +1345,12 @@ function techTab(name){
 // TECH — JOBS
 // ═══════════════════════════════════════
 function renderAvail(){
-  const bk=bkGet().filter(b=>b.status==='Confirmed'&&!b.assignedTech);
-  document.getElementById('avail-list').innerHTML=bk.length?bk.map(b=>jobCard(b,false)).join(''):'<div class="empty"><div class="ei">🗂️</div><div class="et">No open jobs right now.</div></div>';
+  const bk=bkGet().filter(b=>b.assignedTech===TECH.id&&['Confirmed','Scheduled'].includes(b.status));
+  document.getElementById('avail-list').innerHTML=bk.length?bk.map(b=>jobCard(b,true)).join(''):'<div class="empty"><div class="ei">🗂️</div><div class="et">No jobs assigned to you yet.<br><span style="font-size:11px;color:var(--mu2)">Jobs appear here once dispatch assigns them.</span></div></div>';
 }
 function renderMine(){
-  const bk=bkGet().filter(b=>b.assignedTech===TECH.id&&!['Completed','Cancelled'].includes(b.status));
-  document.getElementById('mine-list').innerHTML=bk.length?bk.map(b=>jobCard(b,true)).join(''):'<div class="empty"><div class="ei">📋</div><div class="et">No active jobs. Accept from Available Jobs.</div></div>';
+  const bk=bkGet().filter(b=>b.assignedTech===TECH.id&&['En Route','In Progress'].includes(b.status));
+  document.getElementById('mine-list').innerHTML=bk.length?bk.map(b=>jobCard(b,true)).join(''):'<div class="empty"><div class="ei">📋</div><div class="et">No jobs in progress.</div></div>';
 }
 
 function jobCard(b,mine){
@@ -1397,7 +1397,7 @@ function jobCard(b,mine){
   </div>`;
 }
 
-function techUpdBk(id,status){ const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){bk[i].status=status;if(status==='In Progress')bk[i].startedAt=new Date().toISOString();bkSet(bk);}toast('→ '+status);renderMine(); }
+function techUpdBk(id,status){ const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){bk[i].status=status;if(status==='In Progress')bk[i].startedAt=new Date().toISOString();bkSet(bk);}toast('→ '+status);renderAvail();renderMine(); }
 function acceptJob(id){
   const bk=bkGet();const b=bk.find(x=>x.id===id);
   if(!b||b.assignedTech){toast('No longer available','err');renderAvail();return;}

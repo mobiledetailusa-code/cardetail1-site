@@ -280,9 +280,9 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 
 /* ── SERVICE CATEGORY CARDS ── */
 .service-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
-.svc-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:28px 24px;cursor:pointer;transition:.22s;position:relative;overflow:hidden}
-.svc-card:hover{border-color:var(--bbr);transform:translateY(-4px);box-shadow:0 24px 60px rgba(0,0,0,.4)}
-.svc-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(77,163,255,.08),transparent 60%);opacity:0;transition:.3s}
+.svc-card{background:linear-gradient(150deg,#060c16 0%,#04091a 100%);border:1px solid rgba(255,255,255,.06);border-top:2px solid rgba(77,163,255,.55);border-radius:var(--r);padding:28px 24px;cursor:pointer;transition:.22s;position:relative;overflow:hidden}
+.svc-card:hover{border-top-color:var(--blue);transform:translateY(-4px);box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 48px rgba(77,163,255,.07)}
+.svc-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(77,163,255,.07),transparent 55%);opacity:0;transition:.3s}
 .svc-card:hover::before{opacity:1}
 .svc-card.locked{opacity:.38;pointer-events:none;filter:grayscale(.7)}
 .zip-gate-msg{display:flex;align-items:center;gap:10px;padding:14px 16px;border:1.5px dashed rgba(77,163,255,.35);border-radius:var(--rs);background:rgba(77,163,255,.05);color:var(--blue);font-size:13px;font-weight:500;margin-bottom:14px;transition:.3s}
@@ -359,12 +359,13 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .cp-star{color:rgba(255,255,255,.2);transition:.2s}
 .cp-star.on{color:var(--gold)}
 .svc-ico{font-size:44px;margin-bottom:16px;display:block}
-.svc-name{font-family:var(--fd);font-size:28px;color:var(--white);margin-bottom:6px;letter-spacing:.02em}
-.svc-desc{font-size:13px;color:var(--mu);margin-bottom:18px;line-height:1.5}
-.svc-from{font-size:13px;color:var(--blue);font-weight:600;margin-bottom:14px}
-.svc-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
-.svc-tag{font-size:10.5px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.1);color:var(--mu)}
-.svc-btn{width:100%;padding:12px;border-radius:999px;border:1px solid var(--bbr);background:transparent;color:var(--blue);font-family:var(--fb);font-size:13px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s}
+.svc-cat{font-size:9px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--blue);opacity:.75;margin-bottom:14px}
+.svc-name{font-family:var(--fd);font-size:26px;color:var(--white);margin-bottom:8px;letter-spacing:.02em;line-height:1.1}
+.svc-desc{font-size:13px;color:var(--mu);margin-bottom:16px;line-height:1.55}
+.svc-from{font-size:12.5px;color:var(--blue);font-weight:700;margin-bottom:16px;letter-spacing:.03em}
+.svc-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px}
+.svc-tag{font-size:10px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid rgba(77,163,255,.18);color:rgba(77,163,255,.7);background:rgba(77,163,255,.04)}
+.svc-btn{width:100%;padding:12px;border-radius:999px;border:1px solid rgba(77,163,255,.3);background:rgba(77,163,255,.06);color:var(--blue);font-family:var(--fb);font-size:12.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s}
 .svc-btn:hover{background:var(--blue);color:#000;border-color:var(--blue)}
 
 /* ── HOW IT WORKS ── */
@@ -1409,7 +1410,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 
     <div class="service-grid" id="home-service-grid">
       <div class="svc-card" id="hsvc-cars" onclick="openBookingFromHome('cars')">
-        <span class="svc-ico">🚗</span>
+        <div class="svc-cat">Automotive</div>
         <div class="svc-name">Cars & Trucks</div>
         <div class="svc-desc">Sedans, SUVs, crossovers, trucks, minivans. Maintenance to premium paint enhancement.</div>
         <div class="svc-from" id="hfrom-cars">From $175 · Prices by vehicle size</div>
@@ -1420,7 +1421,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       </div>
 
       <div class="svc-card" id="hsvc-boats" onclick="openBookingFromHome('boats')">
-        <span class="svc-ico">🛥️</span>
+        <div class="svc-cat">Marine</div>
         <div class="svc-name">Boats & Marine</div>
         <div class="svc-desc">Runabouts, bowriders, center consoles, cruisers & jet skis. Priced by vessel length.</div>
         <div class="svc-from" id="hfrom-boats">From $199 · Priced by boat size</div>
@@ -1431,7 +1432,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       </div>
 
       <div class="svc-card" id="hsvc-rvs" onclick="openBookingFromHome('rvs')">
-        <span class="svc-ico">🏕️</span>
+        <div class="svc-cat">Recreational</div>
         <div class="svc-name">RVs & Trailers</div>
         <div class="svc-desc">Travel trailers, fifth wheels, Class C & Class A motorhomes. Interior, exterior, or both.</div>
         <div class="svc-from" id="hfrom-rvs">From $349 · Priced by exact length</div>
@@ -1442,8 +1443,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       </div>
 
       <div class="svc-card" id="hsvc-powersports" onclick="openBookingFromHome('powersports')">
-        <span class="svc-ico">🏍️</span>
-        <div class="svc-name">Powersports</div>
+        <div class="svc-cat">Powersports</div>
+        <div class="svc-name">Motorcycle & ATV</div>
         <div class="svc-desc">Motorcycles, ATVs, UTVs, side-by-sides & jet skis. Showroom finish on any season.</div>
         <div class="svc-from" id="hfrom-powersports">From $119 · Priced by vehicle type</div>
         <div class="svc-tags">
@@ -1453,7 +1454,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       </div>
 
       <div class="svc-card" id="hsvc-fleet" onclick="openBookingFromHome('fleet')">
-        <span class="svc-ico">🚚</span>
+        <div class="svc-cat">Commercial</div>
         <div class="svc-name">Fleet Services</div>
         <div class="svc-desc">Recurring or one-time detailing for cars, vans, trucks, buses, golf carts, boats, RVs and trailers.</div>
         <div class="svc-from" id="hfrom-fleet">From $60/unit · Fleet quote available</div>
@@ -2769,8 +2770,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .cd-h-out{font-size:12.5px;line-height:1.5;display:none}
 .cd-h-out a{color:var(--blue)}
 @media(max-width:480px){
-  #cd-chat{right:14px;bottom:14px}
-  #cd-panel{width:calc(100vw - 24px);height:calc(100svh - 96px);bottom:72px;right:-2px}
+  #cd-chat{right:14px;bottom:78px}
+  #cd-panel{width:calc(100vw - 24px);height:calc(100svh - 160px);bottom:72px;right:-2px}
   #cd-launch{width:54px;height:54px;font-size:23px}
 }
 </style>
@@ -7083,14 +7084,17 @@ seedDefaultTechs();
   function doAct(act){
     if(act==='book'){ cdClose(); (window.openBooking||function(){})(); }
     else if(act==='portal'){ cdClose(); (window.openPortal||function(){})(); }
+    else if(act==='call'){ window.location.href='tel:5513132956'; }
     else if(act==='human'){ openHandoff(); }
   }
 
   const DEFAULT_CHIPS=[
-    {label:'💵 Pricing',q:'How much does it cost?'},
-    {label:'📍 Service area',q:'What areas do you serve?'},
-    {label:'📅 Book now',act:'book'},
-    {label:'🧑‍🔧 Talk to a human',act:'human'}
+    {label:'📦 View Packages',act:'book'},
+    {label:'📅 Book Now',act:'book'},
+    {label:'🚗 My Booking',act:'portal'},
+    {label:'📞 Call / Text',act:'call'},
+    {label:'📍 Service Area',q:'What areas do you serve?'},
+    {label:'✨ Add-ons',q:'What add-ons do you have?'}
   ];
 
   // ── open / close ──
@@ -7201,6 +7205,10 @@ seedDefaultTechs();
     { keys:['human','agent','person','representative','call','phone','contact','speak','talk to','someone','manager','owner','real person'], fn:()=>({
       reply:"Happy to connect you! 📞 Call or text us at "+telLink()+" (Mon–Fri 8AM–5PM), or leave your question here and our team will get back to you.",
       chips:[{label:'📨 Send my question',act:'human'},{label:'📅 Book now',act:'book'}] }) },
+
+    { keys:['my booking','my order','my reservation','check my booking','booking status','cancel my','customer portal','customer garage','view my booking','manage my'], fn:()=>({
+      reply:"To check or manage your booking, open your <b>Customer Garage</b> — see your booking status, selected services, and contact info there.",
+      chips:[{label:'🚗 Open My Booking',act:'portal'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['thank','thanks','obrigado','appreciate','great','awesome','perfect'], fn:()=>({
       reply:"You're welcome! 🙌 Anything else I can help with?", chips:DEFAULT_CHIPS }) }
