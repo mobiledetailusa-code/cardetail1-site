@@ -48,10 +48,11 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
   .nav-links.open{display:flex}
   .nav-menu-btn{display:block}
 }
-/* Mobile-only Book Now pill — visible next to hamburger */
-.nav-book-mobile{display:none}
+/* Mobile-only Book Now + My Booking pills — visible next to hamburger */
+.nav-book-mobile,.nav-portal-mobile{display:none}
 @media(max-width:760px){
-  .nav-book-mobile{display:inline-flex;align-items:center;background:var(--blue);color:#000!important;padding:9px 18px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+  .nav-book-mobile{display:inline-flex;align-items:center;background:var(--blue);color:#000!important;padding:9px 14px;border-radius:999px;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+  .nav-portal-mobile{display:inline-flex;align-items:center;background:transparent;color:var(--blue);border:1px solid var(--bbr);padding:8px 12px;border-radius:999px;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 }
 /* Mobile-only phone link in hero */
 .hero-tel-mobile{display:none}
@@ -1246,8 +1247,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .specialty-action{width:100%;border:1px solid var(--bbr);background:var(--bdim);color:var(--blue);padding:11px 14px;border-radius:999px;font:700 12px var(--fb);letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:.2s}
 .specialty-action:hover{background:var(--blue);color:#02040a}
 .specialty-note{margin-top:20px;text-align:center;color:var(--mu);font-size:12px}
-.hero-proof{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin:-20px auto 28px}
-.hero-proof span{border:1px solid rgba(255,255,255,.1);background:rgba(2,4,10,.58);color:#dce8f6;border-radius:999px;padding:7px 12px;font-size:11px;font-weight:600}
 .review-source{display:inline-flex;align-items:center;gap:7px;margin-top:8px;color:var(--mu);font-size:11px}
 .section-full,.results-section,#reviews,#how{content-visibility:auto;contain-intrinsic-size:900px}
 .rw-img{background:linear-gradient(110deg,var(--bg2) 25%,var(--bg3) 42%,var(--bg2) 58%);background-size:200% 100%;animation:imgShimmer 1.4s linear infinite}
@@ -1263,7 +1262,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   .specialty-lead{grid-template-columns:1fr;gap:18px}
   .specialty-grid{grid-template-columns:1fr}
   .specialty-card{min-height:auto}
-  .hero-proof{margin-top:-12px}
+
   .rw-img-wrap{max-height:190px}
   .rw-track{gap:12px}
   .rw-slide{min-width:84vw}
@@ -1277,14 +1276,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <nav class="nav" id="main-nav">
   <a class="nav-brand-img" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" decoding="async"></a>
   <div class="nav-links" id="nav-links">
-    <a class="nav-link" onclick="scrollTo('services')">Packages</a>
-    <a class="nav-link" onclick="scrollTo('specialty')">Specialty</a>
-    <a class="nav-link" onclick="scrollTo('loc-section')">Service Area</a>
-    <a class="nav-link" onclick="scrollTo('reviews')">Reviews</a>
-    <a class="nav-link" href="tel:5513132956">📞 551-313-2956</a>
+    <a class="nav-link" onclick="scrollTo('services')">Services</a>
+    <a class="nav-link" onclick="openPortal();document.getElementById('nav-links').classList.remove('open')">My Booking</a>
+    <a class="nav-link" href="tel:5513132956">Call / Text</a>
     <a class="nav-cta" onclick="openBooking(null)">Book Now</a>
   </div>
   <a class="nav-book-mobile" onclick="openBooking(null)">Book Now</a>
+  <a class="nav-portal-mobile" onclick="openPortal()">My Booking</a>
   <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
 </nav>
 
@@ -1295,13 +1293,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="hero-badge">⚡ Auto · Marine · RV · Fleet · Specialty Cleaning</div>
     <h1>WE COME<br>TO <em>YOU.</em></h1>
     <p class="hero-sub">Professional mobile detailing and specialty cleaning for cars, RVs, boats, jet skis, fleets, and demanding cleanup jobs across Bergen County and nearby areas.</p>
-    <div class="hero-proof">
-      <span>★★★★★ Customer-rated</span>
-      <span>Real job photos</span>
-      <span>Online booking</span>
-      <span>No shop visit</span>
-    </div>
-
     <!-- ZIP GATE — CENTRO DO SITE -->
     <div class="hero-zip-wrap">
       <span class="hero-zip-label">📍 Enter your ZIP for instant local pricing</span>
@@ -1568,9 +1559,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <!-- REAL RESULTS -->
 <div class="results-section">
   <div class="results-inner">
-    <div class="sec-eye">Our Work · Your Vehicle</div>
-    <div class="sec-title">REAL PHOTOS.<br>REAL RESULTS.</div>
-    <div class="sec-desc">Your own job photos become the strongest proof on the site. Interior, exterior, paint correction, marine, and RV work can be published directly through the existing gallery manager.</div>
+    <div class="sec-eye">Recent Work</div>
+    <div class="sec-title">REAL JOBS.<br>REAL LOCATIONS.</div>
+    <div class="sec-desc">See real mobile detailing work completed at customer locations. Interior, exterior, paint enhancement, RV, marine, and specialty cleaning examples from recent jobs.</div>
 
     <!-- Photo carousel — shown once API returns items -->
     <div id="rw-carousel-wrap" style="display:none">
@@ -1585,34 +1576,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     </div>
 
     <!-- Placeholder — shown until gallery has photos -->
-    <div id="rw-placeholder">
-      <div class="results-grid">
-        <div class="rc-card">
-          <div class="rc-ico">🧹</div>
-          <div class="rc-title">Interior Detail</div>
-          <div class="rc-benefit">Full cabin restoration — vacuuming, steam cleaning, fabric and leather treatment, window cleaning, and deodorizing. We bring the equipment; you stay home.</div>
-          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-        </div>
-        <div class="rc-card">
-          <div class="rc-ico">💧</div>
-          <div class="rc-title">Exterior Detail</div>
-          <div class="rc-benefit">Hand wash, clay bar, paint decontamination, tire shine, and window polish — done at your driveway, office parking, or marina slip.</div>
-          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-        </div>
-        <div class="rc-card">
-          <div class="rc-ico">✨</div>
-          <div class="rc-title">Premium Detail</div>
-          <div class="rc-benefit">Complete interior and exterior treatment with paint sealant or wax protection. Our most comprehensive single-visit package.</div>
-          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-        </div>
-        <div class="rc-card">
-          <div class="rc-ico">🚢</div>
-          <div class="rc-title">Marine &amp; RV</div>
-          <div class="rc-benefit">Boats, RVs, and powersports vehicles — oxidation removal, hull cleaning, vinyl and canvas treatment. Mobile at your marina, storage yard, or driveway.</div>
-          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-        </div>
-      </div>
-      <p class="photo-note">Upload your own before-and-after photos through the admin gallery and they appear here automatically. Questions? <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a></p>
+    <div id="rw-placeholder" style="text-align:center;padding:32px 20px">
+      <p style="font-size:14px;color:var(--mu);margin-bottom:16px">Recent work photos will appear here after completed jobs are approved for display.</p>
+      <button class="btn-primary" onclick="openBooking(null)">Book Mobile Detailing →</button>
     </div>
 
     <div class="cred-row">
@@ -1683,7 +1649,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     </div>
     <div class="cred-row" style="margin-top:20px">
       <div class="cred-item"><span>🧽</span><span>Recent mobile detailing work</span></div>
-      <div class="cred-item"><span>📸</span><span>Photo gallery of recent work now live</span></div>
       <div class="cred-item"><span>📍</span><span>Serving Bergen County &amp; North Jersey</span></div>
       <div class="cred-item"><span>🔧</span><span>Professional equipment</span></div>
       <div class="cred-item"><span>🔧</span><span>Mobile-ready equipment available</span></div>
@@ -2430,36 +2395,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           </div>
         </div>
 
-        <div class="terms-panel">
-          <h4>Suggested Booking Terms Summary</h4>
-          <ul>
-            <li><strong>Booking:</strong> Submitting this form sends a booking request. Cardetail1 reviews your service, location, access, weather, and availability before final confirmation.</li>
-            <li><strong>Service photos:</strong> Cardetail1 may take before/after photos of the vehicle during service for quality improvement, training, and the documentation/security of both parties.</li>
-            <li><strong>Pre-existing damage:</strong> Cardetail1 is <strong>not responsible for pre-existing damage</strong> (scratches, dents, chips, stains, mechanical or electrical issues, worn or aged components) present before service.</li>
-            <li><strong>New damage from vehicle condition:</strong> due to the condition and nature in which some vehicles are found, new issues may occur during normal detailing — e.g. loose or brittle trim/clips, failing clearcoat or paint, cracked or aged plastics, worn seals or water intrusion, or peeling films. These are a result of the vehicle's existing condition and are not the responsibility of Cardetail1.</li>
-            <li><strong>Time windows:</strong> arrival windows are estimates only. Traffic, weather, prior jobs, parking, tolls, and access issues may cause delays.</li>
-            <li><strong>Weather:</strong> rain, storms, freezing temperatures, unsafe heat, wind, or lack of safe covered access may require rescheduling with no penalty.</li>
-            <li><strong>Cancellation / rescheduling:</strong> please request changes at least 24 hours before the appointment. Rescheduling is preferred over cancellation.</li>
-            <li><strong>Late cancellation:</strong> cancellations made within 24 hours, same-day cancellation, unavailable vehicle/vessel, no-show, denied access, or unsafe location may result in a fee under the booking policy.</li>
-            <li><strong>Fairness policy:</strong> if weather, emergency, or reasonable schedule conflict occurs, Cardetail1 may offer rescheduling to avoid unfair charges.</li>
-            <li><strong>Final price:</strong> online totals are starting estimates. Excessive dirt, pet hair, odor, stains, mold, oxidation, black streaks, distance, tolls, parking, difficult access, or add-ons may change the final price.</li>
-            <li><strong>Unsafe/out-of-scope conditions:</strong> biohazard, pest contamination, abandoned units, sewage, mold, severe odor, unsafe roofs, or damaged surfaces may require estimate or may be declined.</li>
-          </ul>
-        </div>
-
         <div class="pay-box">
-          <div class="pay-t">Booking Policy Summary · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
+          <div class="pay-t">Before You Continue · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
           <ul style="list-style:none;padding:0;margin:0 0 14px">
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Booking review:</strong> Submitting a request does not guarantee an appointment. We review location, vehicle condition, service type, weather, access, and availability before confirming.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Card on file:</strong> No charge is made when your card is saved. Card information is handled securely by Stripe and is not stored by Cardetail1.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Cancellation / no-show:</strong> Cancellations less than 24 hours before the confirmed appointment, no-show, inaccessible vehicle, denied access, or unsafe location may be subject to a cancellation/no-show fee according to the confirmed booking amount and service conditions.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Service payment:</strong> If service is completed and you are not available for on-site payment, Cardetail1 may send an online payment request or charge an approved saved payment method according to your selected payment preference and booking policy.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Weather / reschedule:</strong> Severe weather, unsafe conditions, freezing temperatures, or lack of suitable space may require rescheduling. We will contact you to adjust the appointment.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pricing:</strong> Prices shown are starting estimates. Final pricing may change based on vehicle size, condition, pet hair, odor, stains, excessive soil, oversized vehicles, distance, tolls, and add-ons.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Access:</strong> You must provide safe legal access to the vehicle and enough working space. If the vehicle cannot be accessed, a no-show/access fee may apply.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Personal items:</strong> Please remove personal items before service. Cardetail1 is not responsible for unsecured personal belongings left inside the vehicle.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Photos:</strong> Before/after photos may be taken for documentation, quality control, and dispute resolution unless you request otherwise.</li>
-            <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pre-existing condition:</strong> Failing clear coat, loose trim, cracked surfaces, previous repairs, and heavily worn materials may limit results. Cardetail1 is not responsible for pre-existing defects.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span>No charge is made today for saving your card.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span>Your card is securely saved by Stripe — Cardetail1 does not store raw card data.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span>Late cancellation, no-show, inaccessible vehicle, unsafe location, or denied access may result in a fee per the posted policy.</li>
+            <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span>Final service payment is collected after service is completed.</li>
           </ul>
           <div class="pay-badge">✓ No charge today · Card on file is required for every booking request</div>
         </div>
