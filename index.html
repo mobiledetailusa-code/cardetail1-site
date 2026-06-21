@@ -539,11 +539,17 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .svc-ico img{width:100%;height:100%;object-fit:contain;display:block}
 .vc-ico img{width:96px;height:auto;display:block;max-width:100%}
 /* Step 1 category card: image-first layout */
-#bk-cat-grid .svc-card{padding:0;overflow:hidden}
-#bk-cat-grid .svc-ico{display:block;width:100%;height:108px;background:linear-gradient(180deg,#0c1e3a 0%,#010508 100%);margin-bottom:0;font-size:0}
+#bk-cat-grid .svc-card{padding:0;overflow:hidden;border-radius:var(--rs)}
+#bk-cat-grid .svc-ico{display:block;width:100%;height:130px;background:linear-gradient(180deg,#0c1e3a 0%,#010508 100%);margin-bottom:0;font-size:0;position:relative;overflow:hidden}
 #bk-cat-grid .svc-name,#bk-cat-grid .svc-desc,#bk-cat-grid .svc-from{padding-left:14px;padding-right:14px}
 #bk-cat-grid .svc-name{padding-top:12px}
 #bk-cat-grid .svc-from{padding-bottom:14px}
+/* Photo cards: real photos with dark cinematic overlay */
+.svc-ico-photo{display:block;width:100%;height:130px;position:relative;overflow:hidden;margin-bottom:0;font-size:0;flex-shrink:0}
+.svc-ico-photo img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.55) saturate(1.45) contrast(1.12);transition:filter .55s ease,transform .55s ease;transform:scale(1.06);transform-origin:center 40%}
+.svc-card:hover .svc-ico-photo img{filter:brightness(.72) saturate(1.5) contrast(1.14);transform:scale(1)}
+.svc-ico-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 130% 90% at 58% 45%,rgba(40,100,230,.24) 0%,transparent 62%),linear-gradient(180deg,rgba(4,10,28,.5) 0%,rgba(4,10,28,.1) 55%,rgba(4,10,28,.6) 100%);z-index:1;pointer-events:none}
+.svc-ico-photo .photo-label{position:absolute;bottom:0;left:0;right:0;z-index:2;display:none}
 
 /* STRIP */
 .strip{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--rs);padding:12px 16px;display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:20px}
@@ -1142,7 +1148,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   .addon-grid{grid-template-columns:1fr;gap:10px}
   .addon-item{padding:14px}
   #bk-cat-grid{grid-template-columns:1fr 1fr;gap:10px}
-  #bk-cat-grid .svc-ico{height:78px}
+  #bk-cat-grid .svc-ico{height:84px}
+  .svc-ico-photo{height:84px}
   #bk-cat-grid .svc-name{font-size:15px;padding-top:10px}
   #bk-cat-grid .svc-from{padding-bottom:10px}
 
@@ -2141,7 +2148,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </div>
         <div class="service-grid" id="bk-cat-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
-            <span class="svc-ico"><img src="/assets/vehicles/premium/sedan.svg" alt="Cars & Trucks" loading="lazy"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/luxury-car.jpg" alt="Cars & Trucks" loading="lazy" style="object-position:50% 35%;filter:brightness(.68) saturate(1.6) contrast(1.18)"></span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
             <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $175</div>
@@ -2153,13 +2160,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
             <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $199</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
-            <span class="svc-ico"><img src="/assets/vehicles/premium/rv.svg" alt="RVs & Trailers" loading="lazy"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/rvs-trailers.jpg" alt="RVs & Trailers" loading="lazy" style="object-position:center 55%"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
             <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $349</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
-            <span class="svc-ico"><img src="/assets/vehicles/premium/motorcycle.svg" alt="Powersports" loading="lazy"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/powersports.jpg" alt="Powersports" loading="lazy" style="object-position:center 45%"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
             <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
             <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $119</div>
