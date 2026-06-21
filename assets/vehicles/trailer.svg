@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 110" fill="none" role="img" aria-label="Travel Trailer">
+  <!-- tow vehicle hitch area (simplified) -->
+  <path d="M10,72 L16,56 L34,44 L56,40 L80,40 L92,48 L96,56 L98,72 Z" fill="rgba(5,14,32,.7)" stroke="#4da3ff" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- hitch connector -->
+  <line x1="98" y1="64" x2="118" y2="64" stroke="#4da3ff" stroke-width="2.5"/>
+  <circle cx="108" cy="64" r="4" fill="none" stroke="#4da3ff" stroke-width="1.5"/>
+  <!-- tow vehicle windows -->
+  <rect x="38" y="40" width="34" height="20" rx="2" fill="rgba(77,163,255,.08)" stroke="#4da3ff" stroke-width="1"/>
+  <!-- tow vehicle wheel -->
+  <circle cx="50" cy="72" r="16" fill="rgba(3,9,22,.95)" stroke="#4da3ff" stroke-width="1.8"/>
+  <circle cx="50" cy="72" r="7" fill="none" stroke="#4da3ff" stroke-width="1.2"/>
+  <circle cx="50" cy="72" r="2.5" fill="#4da3ff" opacity=".6"/>
+  <!-- TRAILER body -->
+  <path d="M118,22 L118,82 L286,82 L286,22 Z" fill="rgba(5,14,32,.88)" stroke="#4da3ff" stroke-width="2" stroke-linejoin="round"/>
+  <!-- trailer front cap (rounded) -->
+  <path d="M118,22 L122,14 L134,8 L145,8 L145,22 Z" fill="rgba(77,163,255,.06)" stroke="#4da3ff" stroke-width="1.3" stroke-linejoin="round"/>
+  <!-- trailer windows -->
+  <rect x="150" y="18" width="42" height="26" rx="3" fill="rgba(77,163,255,.08)" stroke="#4da3ff" stroke-width="1.2"/>
+  <rect x="202" y="18" width="42" height="26" rx="3" fill="rgba(77,163,255,.07)" stroke="#4da3ff" stroke-width="1.2"/>
+  <!-- trailer door -->
+  <rect x="248" y="34" width="22" height="48" rx="2" fill="rgba(77,163,255,.05)" stroke="#4da3ff" stroke-width="1.2"/>
+  <line x1="248" y1="58" x2="270" y2="58" stroke="#4da3ff" stroke-width="1" opacity=".3"/>
+  <!-- awning -->
+  <path d="M150,8 L144,8 L136,28 L250,28 L250,22 L150,22 Z" fill="rgba(77,163,255,.06)" stroke="#4da3ff" stroke-width="1"/>
+  <!-- trailer support legs -->
+  <line x1="136" y1="82" x2="130" y2="96" stroke="#4da3ff" stroke-width="1.5"/>
+  <line x1="130" y1="96" x2="142" y2="96" stroke="#4da3ff" stroke-width="1.5"/>
+  <!-- trailer wheels -->
+  <circle cx="196" cy="82" r="18" fill="rgba(3,9,22,.95)" stroke="#4da3ff" stroke-width="2"/>
+  <circle cx="196" cy="82" r="8" fill="none" stroke="#4da3ff" stroke-width="1.3"/>
+  <circle cx="196" cy="82" r="3" fill="#4da3ff" opacity=".6"/>
+  <circle cx="230" cy="82" r="18" fill="rgba(3,9,22,.95)" stroke="#4da3ff" stroke-width="2"/>
+  <circle cx="230" cy="82" r="8" fill="none" stroke="#4da3ff" stroke-width="1.3"/>
+  <circle cx="230" cy="82" r="3" fill="#4da3ff" opacity=".6"/>
+  <!-- ground line -->
+  <line x1="20" y1="102" x2="280" y2="102" stroke="#4da3ff" stroke-width="1" opacity=".18"/>
+</svg>

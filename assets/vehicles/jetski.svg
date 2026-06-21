@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 110" fill="none" role="img" aria-label="Jet Ski / PWC">
+  <!-- hull main body -->
+  <path d="M24,72 Q40,84 100,88 Q180,92 248,80 L260,68 L256,58 Q200,70 120,72 Q60,72 30,60 Z" fill="rgba(5,14,32,.9)" stroke="#4da3ff" stroke-width="2" stroke-linejoin="round"/>
+  <!-- upper hull / body -->
+  <path d="M30,60 Q60,72 120,72 Q200,70 256,58 L252,46 Q196,58 120,60 Q62,60 34,50 Z" fill="rgba(5,14,32,.82)" stroke="#4da3ff" stroke-width="1.6" stroke-linejoin="round"/>
+  <!-- bow nose — pointed front -->
+  <path d="M34,50 Q24,40 20,28 Q24,18 34,16 Q44,18 48,28 Q52,40 42,50 Z" fill="rgba(5,14,32,.8)" stroke="#4da3ff" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- deck / saddle area -->
+  <path d="M50,46 L50,30 L210,30 L220,46 Z" fill="rgba(77,163,255,.06)" stroke="#4da3ff" stroke-width="1.3" stroke-linejoin="round"/>
+  <!-- handlebars -->
+  <path d="M90,22 Q110,14 130,14 Q150,14 170,22 L170,28 L90,28 Z" fill="rgba(5,14,32,.7)" stroke="#4da3ff" stroke-width="1.5" stroke-linejoin="round"/>
+  <line x1="88" y1="25" x2="72" y2="25" stroke="#4da3ff" stroke-width="1.5"/>
+  <line x1="172" y1="25" x2="188" y2="25" stroke="#4da3ff" stroke-width="1.5"/>
+  <!-- seat -->
+  <path d="M102,30 L102,22 L190,22 L196,30 Z" fill="rgba(77,163,255,.08)" stroke="#4da3ff" stroke-width="1.2" stroke-linejoin="round"/>
+  <!-- jet pump / nozzle at rear -->
+  <rect x="248" y="60" width="20" height="10" rx="3" fill="rgba(77,163,255,.12)" stroke="#4da3ff" stroke-width="1.2"/>
+  <path d="M268,62 L278,64 L268,68 Z" fill="#4da3ff" opacity=".4"/>
+  <!-- water line -->
+  <line x1="14" y1="86" x2="270" y2="86" stroke="#4da3ff" stroke-width="1" opacity=".2"/>
+  <!-- splash -->
+  <path d="M240,86 Q255,80 265,72" fill="none" stroke="#4da3ff" stroke-width="1" opacity=".2"/>
+  <path d="M30,88 Q40,82 45,74" fill="none" stroke="#4da3ff" stroke-width="1" opacity=".2"/>
+</svg>
