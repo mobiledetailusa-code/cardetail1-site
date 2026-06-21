@@ -49,9 +49,10 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
   .nav-menu-btn{display:block}
 }
 /* Mobile-only Book Now pill — visible next to hamburger */
-.nav-book-mobile{display:none}
+.nav-book-mobile,.nav-portal-mobile{display:none}
 @media(max-width:760px){
   .nav-book-mobile{display:inline-flex;align-items:center;background:var(--blue);color:#000!important;padding:9px 18px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+  .nav-portal-mobile{display:inline-flex;align-items:center;background:transparent;color:var(--blue);border:1px solid rgba(77,163,255,.4);padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.04em;cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 }
 /* Mobile-only phone link in hero */
 .hero-tel-mobile{display:none}
@@ -526,6 +527,16 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 #bs3-addons{display:none;margin-top:22px;padding-top:20px;border-top:1px solid var(--bbr);animation:addonReveal .25s ease}
 #vc.show ~ #bs3-addons{display:block}
 @keyframes addonReveal{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.addon-popular-label{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.1em;padding-bottom:8px;border-bottom:1px solid var(--bbr);margin-bottom:0}
+.addon-all-wrap{grid-column:1/-1}
+.addon-all-inner{display:none;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-top:10px}
+.addon-all-inner.open{display:grid}
+.addon-toggle-btn{display:block;width:100%;padding:9px 16px;background:rgba(77,163,255,.06);border:1px solid rgba(77,163,255,.2);border-radius:8px;color:var(--blue);font-size:13px;font-weight:600;cursor:pointer;text-align:center;margin-top:12px;transition:background .15s}
+.addon-toggle-btn:hover{background:rgba(77,163,255,.12)}
+.addon-selected-summary{font-size:11.5px;color:var(--mu);padding:8px 12px;background:rgba(77,163,255,.04);border:1px solid rgba(77,163,255,.15);border-radius:7px;margin-top:8px}
+.addon-selected-summary strong{color:var(--white)}
+.svc-ico img{width:56px;height:auto;display:block;margin:0 auto}
+.vc-ico img{width:64px;height:auto;display:block}
 
 /* STRIP */
 .strip{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--rs);padding:12px 16px;display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:20px}
@@ -1277,14 +1288,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <nav class="nav" id="main-nav">
   <a class="nav-brand-img" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" decoding="async"></a>
   <div class="nav-links" id="nav-links">
-    <a class="nav-link" onclick="scrollTo('services')">Packages</a>
-    <a class="nav-link" onclick="scrollTo('specialty')">Specialty</a>
-    <a class="nav-link" onclick="scrollTo('loc-section')">Service Area</a>
-    <a class="nav-link" onclick="scrollTo('reviews')">Reviews</a>
-    <a class="nav-link" href="tel:5513132956">📞 551-313-2956</a>
+    <a class="nav-link" onclick="openBooking(null);document.getElementById('nav-links').classList.remove('open')">Services</a>
+    <a class="nav-link" onclick="openPortal();document.getElementById('nav-links').classList.remove('open')">My Booking</a>
+    <a class="nav-link" href="tel:5513132956">Call / Text</a>
     <a class="nav-cta" onclick="openBooking(null)">Book Now</a>
   </div>
   <a class="nav-book-mobile" onclick="openBooking(null)">Book Now</a>
+  <a class="nav-portal-mobile" onclick="openPortal()">My Booking</a>
   <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
 </nav>
 
@@ -1394,74 +1404,14 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 </section>
 
 <!-- SERVICES -->
-<div class="section-full" id="services">
-  <div class="section">
-    <div class="sec-eye">What We Detail</div>
-    <div class="sec-title">EVERY VEHICLE.<br>ONE CALL.</div>
-    <div class="sec-desc">Serving Bergen County and nearby NJ/NY areas. Extended service available for RVs, boats, fleets, and select NJ/NY/CT locations by quote.</div>
-
-    <!-- ZIP tip — hidden by default, only shown if user clicks a card without a ZIP -->
-    <div class="svc-lock-gate" id="svc-lock-gate" style="display:none">
-      <div class="svc-lock-gate-ico">📍</div>
-      <div class="svc-lock-gate-text">Enter your ZIP above for accurate local pricing</div>
-      <div class="svc-lock-gate-sub">Prices adjust automatically for your area — Bergen County, NJ and nearby areas</div>
-    </div>
-
-    <div class="service-grid" id="home-service-grid">
-      <div class="svc-card" id="hsvc-cars" onclick="openBookingFromHome('cars')">
-        <span class="svc-ico">🚗</span>
-        <div class="svc-name">Cars & Trucks</div>
-        <div class="svc-desc">Sedans, SUVs, crossovers, trucks, minivans. Maintenance to premium paint enhancement.</div>
-        <div class="svc-from" id="hfrom-cars">From $175 · Prices by vehicle size</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Maintenance Detail</span><span class="svc-tag">Interior Detail</span><span class="svc-tag">Premium Detail</span><span class="svc-tag">Paint Correction</span>
-        </div>
-        <button class="svc-btn">View Packages →</button>
-      </div>
-
-      <div class="svc-card" id="hsvc-boats" onclick="openBookingFromHome('boats')">
-        <span class="svc-ico">🛥️</span>
-        <div class="svc-name">Boats & Marine</div>
-        <div class="svc-desc">Runabouts, bowriders, center consoles, cruisers & jet skis. Priced by vessel length.</div>
-        <div class="svc-from" id="hfrom-boats">From $199 · Priced by boat size</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Marine Wash</span><span class="svc-tag">Essential</span><span class="svc-tag">Full Marine</span><span class="svc-tag">Premium</span>
-        </div>
-        <button class="svc-btn">View Packages →</button>
-      </div>
-
-      <div class="svc-card" id="hsvc-rvs" onclick="openBookingFromHome('rvs')">
-        <span class="svc-ico">🏕️</span>
-        <div class="svc-name">RVs & Trailers</div>
-        <div class="svc-desc">Travel trailers, fifth wheels, Class C & Class A motorhomes. Interior, exterior, or both.</div>
-        <div class="svc-from" id="hfrom-rvs">From $349 · Priced by exact length</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Exterior Wash</span><span class="svc-tag">Interior</span><span class="svc-tag">Full Detail</span><span class="svc-tag">Premium</span>
-        </div>
-        <button class="svc-btn">View Packages →</button>
-      </div>
-
-      <div class="svc-card" id="hsvc-powersports" onclick="openBookingFromHome('powersports')">
-        <span class="svc-ico">🏍️</span>
-        <div class="svc-name">Powersports</div>
-        <div class="svc-desc">Motorcycles, ATVs, UTVs, side-by-sides & jet skis. Showroom finish on any season.</div>
-        <div class="svc-from" id="hfrom-powersports">From $119 · Priced by vehicle type</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Motorcycle</span><span class="svc-tag">ATV/UTV</span><span class="svc-tag">Jet Ski</span>
-        </div>
-        <button class="svc-btn">View Packages →</button>
-      </div>
-
-      <div class="svc-card" id="hsvc-fleet" onclick="openBookingFromHome('fleet')">
-        <span class="svc-ico">🚚</span>
-        <div class="svc-name">Fleet Services</div>
-        <div class="svc-desc">Recurring or one-time detailing for cars, vans, trucks, buses, golf carts, boats, RVs and trailers.</div>
-        <div class="svc-from" id="hfrom-fleet">From $60/unit · Fleet quote available</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Cars</span><span class="svc-tag">Vans</span><span class="svc-tag">Trucks</span><span class="svc-tag">Golf Carts</span><span class="svc-tag">Boats/RVs</span>
-        </div>
-        <button class="svc-btn">View Fleet Options →</button>
-      </div>
+<div id="services" style="background:var(--bg0)">
+  <div class="section" style="padding-top:52px;padding-bottom:52px;text-align:center">
+    <div class="sec-eye">Choose Your Service</div>
+    <div class="sec-title" style="font-size:clamp(32px,5vw,52px);margin-bottom:14px">CARS · BOATS · RVS<br>POWERSPORTS · FLEET</div>
+    <div class="sec-desc" style="max-width:540px;margin:0 auto 32px">Select your vehicle type and see packages, pricing, and add-ons in the booking flow. Serving Bergen County and nearby NJ/NY areas.</div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <button class="btn-primary" style="font-size:15px;padding:16px 36px" onclick="openBooking(null)">Book Now →</button>
+      <button class="btn-outline" onclick="openPortal()">My Booking</button>
     </div>
   </div>
 </div>
@@ -2185,31 +2135,31 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </div>
         <div class="service-grid" id="bk-cat-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
-            <span class="svc-ico" style="font-size:36px">🚗</span>
+            <span class="svc-ico"><img src="/assets/vehicles/sedan.svg" alt="Cars & Trucks"></span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
             <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $175</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
-            <span class="svc-ico" style="font-size:36px">🛥️</span>
+            <span class="svc-ico"><img src="/assets/vehicles/boat.svg" alt="Boats"></span>
             <div class="svc-name" style="font-size:22px">Boats</div>
             <div class="svc-desc" style="font-size:12px">All vessels · Priced by length</div>
             <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $199</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
-            <span class="svc-ico" style="font-size:36px">🏕️</span>
+            <span class="svc-ico"><img src="/assets/vehicles/rv.svg" alt="RVs & Trailers"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
             <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $349</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
-            <span class="svc-ico" style="font-size:36px">🏍️</span>
+            <span class="svc-ico"><img src="/assets/vehicles/motorcycle.svg" alt="Powersports"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
             <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
             <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $119</div>
           </div>
           <div class="svc-card locked" id="bkcat-fleet" onclick="selectCategory('fleet')">
-            <span class="svc-ico" style="font-size:36px">🚚</span>
+            <span class="svc-ico"><img src="/assets/vehicles/van.svg" alt="Fleet Services"></span>
             <div class="svc-name" style="font-size:22px">Fleet Services</div>
             <div class="svc-desc" style="font-size:12px">Cars · Vans · Trucks · Buses · Golf Carts · Boats/RVs</div>
             <div class="svc-from" id="bkfrom-fleet" style="font-size:12px">From $60/unit</div>
@@ -2310,7 +2260,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <!-- Detected vehicle card -->
         <div class="vc" id="vc">
           <div class="vc-l">
-            <div class="vc-ico" id="vc-ico">🚗</div>
+            <div class="vc-ico" id="vc-ico"><img src="/assets/vehicles/sedan.svg" alt="Vehicle"></div>
             <div class="vc-info">
               <strong id="vc-name">—</strong>
               <span id="vc-tier-lbl">—</span>
@@ -2532,7 +2482,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           <div style="background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs);padding:12px 14px;margin-bottom:16px">
             <p style="font-size:12px;color:var(--mu);margin-bottom:10px">After your service is completed, we'd appreciate your honest review.</p>
             <div style="display:flex;flex-wrap:wrap;gap:8px">
-              <button class="btn-n" style="font-size:12px;padding:8px 18px" onclick="closeBooking();openPortal()">Open My Booking →</button>
+              <button class="btn-n" style="font-size:12px;padding:8px 18px" onclick="forceCloseBooking();openPortal()">Open My Booking →</button>
               <a style="font-size:12px;padding:8px 18px;text-decoration:none;border:1px solid rgba(255,255,255,.18);border-radius:var(--rs);color:var(--white);background:transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">⭐ Leave a Google Review</a>
             </div>
           </div>
@@ -3055,7 +3005,6 @@ const PRICING = {
       {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', icon:'💨',  desc:'Interior odor neutralizer + high-touch surface sanitizing. Not biohazard or mold remediation', price:149},
       {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        icon:'☣️',  desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Requires estimate confirmation before service', price:115},
       {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      icon:'🛠️',  desc:'Top-view engine bay cleaning — visible surfaces, cover, and accessible areas only. NOT a full engine detail or mechanical service', price:45},
-      {id:'undercarriage',scope:'ext', name:'Undercarriage Wash',      icon:'⬇️',  desc:'High-pressure undercarriage rinse to remove road salt, mud, and grime from frame and underside', price:45},
       {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      icon:'🟫',  desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each — set the quantity of mats', price:20, qty:true},
       {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    icon:'💧',  desc:'Water-repellent Rain-X treatment on windshield and front glass for improved wet-weather visibility', price:25},
       {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     icon:'🛡️',  desc:'Hand-applied polymer sealant for paint protection and enhanced gloss. Lasts 3–6 months', price:25},
@@ -3093,7 +3042,6 @@ const PRICING = {
       {id:'polymer',    name:'Polymer Hull Sealant',           icon:'🛡️', desc:'Polymer sealant on hull exterior for enhanced protection and gloss', price:25},
       {id:'wax1yr',     name:'1-Year Marine Carnauba Wax',     icon:'🥇', desc:'Premium carnauba wax for marine gel coat — up to 12 months protection', price:75},
       {id:'chrome',     name:'Chrome / Stainless Metal Polish',icon:'🔩', desc:'Accessible chrome, stainless rails, cleats, and brightwork polished', price:85},
-      {id:'undercarriage',name:'Trailer Undercarriage Rinse',  icon:'⬇️', desc:'High-pressure rinse of trailer frame, hubs, and underside after launch or use', price:45},
       {id:'biohazard',  name:'Biohazard Cleaning',             icon:'☣️', desc:'Bodily fluids or severe contamination. Requires estimate confirmation before service', price:115},
       {id:'trashcans',  name:'Trash Can Cleaning',             icon:'🗑️', desc:'Trash can cleaning at marina, storage yard, or home location — $25 per can', price:25},
     ],
@@ -3127,7 +3075,6 @@ const PRICING = {
       {id:'awning',     scope:'ext', name:'Awning Cleaning',             icon:'⛺', desc:'Accessible awning fabric and arms cleaning. Light mildew and surface buildup only', price:129},
       {id:'roof',       scope:'ext', name:'Roof Surface Cleaning',       icon:'⬆️', desc:'Safe-access roof cleaning. No repairs, resealing, or coating included', price:149},
       {id:'capfront',   scope:'ext', name:'Front Cap Deep Clean',        icon:'🧼', desc:'Heavy bugs, road grime, black streaks, runoff staining, and front cap buildup', price:149},
-      {id:'undercarriage',scope:'ext', name:'Undercarriage Rinse',       icon:'⬇️', desc:'High-pressure undercarriage rinse — frame, axles, and underbody of RV or trailer', price:55},
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',            icon:'🐾', desc:'Pet hair removal from RV seats, rugs, cushions, and living areas', price:95},
       {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize',   icon:'💨', desc:'Interior odor neutralizer + high-touch sanitizing. Not mold or biohazard', price:149},
       {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',          icon:'🗑️', desc:'$25 per can at RV park, campground, storage, or home', price:25},
@@ -3161,7 +3108,6 @@ const PRICING = {
       {id:'heavymud',   name:'Heavy Mud / Trail Buildup',   icon:'🏞️', desc:'Extra labor for heavy mud, clay, trail buildup, or off-road grime', price:55},
       {id:'chain',      name:'Chain & Sprocket Cleaning',   icon:'⚙️', desc:'Motorcycle chain and sprocket degreasing and clean. No mechanical adjustment', price:35},
       {id:'metalpolish',name:'Chrome / Metal Deep Polish',  icon:'🔩', desc:'Accessible chrome, aluminum, and metal surfaces polished to a high shine', price:65},
-      {id:'undercarriage',name:'Undercarriage Wash',        icon:'⬇️', desc:'High-pressure undercarriage rinse for ATVs, UTVs, and off-road vehicles', price:35},
     ],
   },
   fleet: {
@@ -3190,7 +3136,6 @@ const PRICING = {
     ],
     addons:[
       {id:'polymer',      name:'Polymer Sealant Upgrade',       icon:'🛡️', desc:'Polymer sealant per unit for added paint protection and gloss', price:25},
-      {id:'undercarriage',name:'Undercarriage Wash',            icon:'⬇️', desc:'High-pressure undercarriage rinse per unit — road salt, mud, and grime', price:35},
       {id:'trashcans',    name:'Trash Can Cleaning',            icon:'🗑️', desc:'$25 per can at service location or fleet estimate', price:25},
       {id:'disinfect',    name:'High-Touch Sanitizing',         icon:'🧴', desc:'Steering wheels, door handles, controls, seats, and high-contact surfaces', price:20},
       {id:'biohazard',    name:'Biohazard Cleaning',            icon:'☣️', desc:'Bodily fluids or severe contamination per unit. Requires individual estimate', price:115},
@@ -3293,6 +3238,69 @@ function setupUnitSelector(cat){
 }
 
 // ── CAR MODELS ──────────────────────────────────────────────────────────────
+// ── VEHICLE VISUAL LIBRARY ────────────────────────────────────────────────────
+const VEHICLE_VISUALS = {
+  sedan:      { img:'/assets/vehicles/sedan.svg',      alt:'Sedan' },
+  suv:        { img:'/assets/vehicles/suv.svg',        alt:'SUV / Crossover' },
+  pickup:     { img:'/assets/vehicles/pickup.svg',     alt:'Pickup Truck' },
+  van:        { img:'/assets/vehicles/van.svg',        alt:'Full-size Van' },
+  minivan:    { img:'/assets/vehicles/minivan.svg',    alt:'Minivan' },
+  rv:         { img:'/assets/vehicles/rv.svg',         alt:'RV / Motorhome' },
+  trailer:    { img:'/assets/vehicles/trailer.svg',    alt:'Travel Trailer' },
+  boat:       { img:'/assets/vehicles/boat.svg',       alt:'Boat' },
+  jetski:     { img:'/assets/vehicles/jetski.svg',     alt:'Jet Ski / PWC' },
+  motorcycle: { img:'/assets/vehicles/motorcycle.svg', alt:'Motorcycle' },
+  atv:        { img:'/assets/vehicles/atv.svg',        alt:'ATV / UTV' },
+};
+// [lowercase substring, visual key] — checked in order; first match wins
+const MODEL_MAP = [
+  // minivans (before suv/sedan to avoid false positive on "odyssey" etc.)
+  ['odyssey','minivan'],['sienna','minivan'],['caravan','minivan'],['pacifica','minivan'],
+  ['sedona','minivan'],['carnival','minivan'],['quest','minivan'],['town & country','minivan'],
+  // full-size vans
+  ['transit','van'],['express','van'],['savana','van'],['promaster','van'],['sprinter','van'],
+  // pickups (before suv to catch tundra/ridgeline)
+  ['f-150','pickup'],['f150','pickup'],['f-250','pickup'],['f-350','pickup'],
+  ['f250','pickup'],['f350','pickup'],['silverado','pickup'],['sierra','pickup'],
+  ['ram 1500','pickup'],['ram 2500','pickup'],['ram 3500','pickup'],
+  ['tacoma','pickup'],['tundra','pickup'],['colorado','pickup'],['canyon','pickup'],
+  ['frontier','pickup'],['titan','pickup'],['maverick','pickup'],['gladiator','pickup'],
+  ['ridgeline','pickup'],['ranger','pickup'],
+  // motorcycle / powersports
+  ['street glide','motorcycle'],['road king','motorcycle'],['sportster','motorcycle'],
+  ['cbr','motorcycle'],['gsxr','motorcycle'],['ninja','motorcycle'],
+  // jet ski
+  ['waverunner','jetski'],['sea-doo','jetski'],['seadoo','jetski'],['aquatrax','jetski'],
+  // atv/utv
+  ['rzr','atv'],['can-am','atv'],['commander','atv'],['rancher','atv'],['grizzly','atv'],
+];
+function getVehicleVisualKey(){
+  const cat=ST.cat;
+  if(cat==='boats') return 'boat';
+  if(cat==='rvs'){
+    const lbl=(ST.vehicleLabel||'').toLowerCase();
+    return (lbl.indexOf('trailer')>-1||lbl.indexOf('fifth wheel')>-1||lbl.indexOf('airstream')>-1)?'trailer':'rv';
+  }
+  if(cat==='powersports'){
+    const lbl=(ST.vehicleLabel||'').toLowerCase();
+    for(const [k,t] of MODEL_MAP){ if((t==='motorcycle'||t==='jetski'||t==='atv')&&lbl.indexOf(k)>-1) return t; }
+    if(ST.tierKey==='jetski') return 'jetski';
+    if(ST.tierKey==='atv'||ST.tierKey==='utv') return 'atv';
+    return 'motorcycle';
+  }
+  if(cat==='fleet') return 'van';
+  const lbl=(ST.vehicleLabel||'').toLowerCase();
+  for(const [k,t] of MODEL_MAP){ if(lbl.indexOf(k)>-1) return t; }
+  if(ST.tierKey==='truck') return 'pickup';
+  if(ST.tierKey==='suv3'||ST.tierKey==='suv2') return 'suv';
+  return 'sedan';
+}
+function setVehicleVisual(){
+  const v=VEHICLE_VISUALS[getVehicleVisualKey()]||VEHICLE_VISUALS.sedan;
+  const ico=document.getElementById('vc-ico');
+  if(ico) ico.innerHTML=`<img src="${v.img}" alt="${v.alt}">`;
+}
+
 const MAKES = ["Acura","Alfa Romeo","Aston Martin","Audi","Bentley","BMW","Buick","Cadillac","Chevrolet","Chrysler","Dodge","Ferrari","FIAT","Ford","Genesis","GMC","Honda","Hyundai","INFINITI","Jaguar","Jeep","Kia","Lamborghini","Land Rover","Lexus","Lincoln","Maserati","Mazda","McLaren","Mercedes-Benz","MINI","Mitsubishi","Nissan","Porsche","Ram","Rolls-Royce","Subaru","Tesla","Toyota","Volkswagen","Volvo"];
 const MODELS = {"Acura":{m:["ILX","Integra","MDX","RDX","RLX","TLX","NSX","ZDX"],t:{ILX:"small",Integra:"small",MDX:"suv3",RDX:"suv2",RLX:"small",TLX:"small",NSX:"small",ZDX:"suv2"}},
 "Alfa Romeo":{m:["Giulia","Stelvio","Tonale","4C Spider"],t:{Giulia:"small",Stelvio:"suv2",Tonale:"suv2","4C Spider":"small"}},
@@ -3456,8 +3464,16 @@ function openBooking(cat){
   document.body.style.overflow='hidden';
   if(cat){selectCategory(cat)}else{bkGoTo(1)}
 }
-function closeBooking(){document.getElementById('bk-ov').classList.remove('open');document.body.style.overflow=''}
-function handleBkOv(e){if(e.target===document.getElementById('bk-ov'))closeBooking()}
+function closeBooking(){
+  // Check for in-progress booking before closing
+  const hasProgress = !!(ST.cat || (document.getElementById('f-first')&&document.getElementById('f-first').value) || (document.getElementById('f-phone')&&document.getElementById('f-phone').value));
+  if(hasProgress && !confirm('Exit booking? Your selections may be lost.')) return;
+  document.getElementById('bk-ov').classList.remove('open');
+  document.body.style.overflow='';
+}
+function forceCloseBooking(){document.getElementById('bk-ov').classList.remove('open');document.body.style.overflow='';}
+// Overlay click intentionally does NOT close the booking modal — user must click ✕
+function handleBkOv(e){}
 
 // ── BOOKING NAVIGATION ────────────────────────────────────────────────────────
 function bkGoTo(n){
@@ -3730,7 +3746,7 @@ function tryGenericConfirm(){
     ST.vehicleLabel = `${year} ${make} ${model} · ${ft} ft`;
     ST.tierKey='length';
     ST.tier={label:`${ft} ft`, icon:ST.cat==='boats'?'🛥️':'🏕️', desc:ST.cat==='boats'?'Marine vessel priced by exact length':'RV / travel trailer priced by exact length'};
-    document.getElementById('vc-ico').textContent=ST.tier.icon;
+    setVehicleVisual();
     document.getElementById('vc-name').textContent=ST.vehicleLabel;
     document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
     document.getElementById('vc-badge').textContent=ST.tier.label+' · starting estimate';
@@ -3750,7 +3766,7 @@ function tryGenericConfirm(){
       const unitPrice = getLengthPrice('fleet', ST.pkgId, ft) || 0;
       ST.basePrice = ST.pkgId==='custom' ? 0 : unitPrice * units;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model} · avg ${ft} ft`;
-      document.getElementById('vc-ico').textContent=t.icon;
+      setVehicleVisual();
       document.getElementById('vc-name').textContent=ST.vehicleLabel;
       document.getElementById('vc-tier-lbl').textContent='Fleet boats/RVs/trailers priced by average length and unit count';
       document.getElementById('vc-badge').textContent=ST.pkgId==='custom'?'Estimate required':`${units} units · ${ft} ft average`;
@@ -3760,7 +3776,7 @@ function tryGenericConfirm(){
       const needsEstimate = ST.pkgId==='custom' || !unitPrice;
       ST.basePrice = needsEstimate ? 0 : unitPrice * units;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model}`;
-      document.getElementById('vc-ico').textContent=t.icon;
+      setVehicleVisual();
       document.getElementById('vc-name').textContent=ST.vehicleLabel;
       document.getElementById('vc-tier-lbl').textContent=t.desc;
       document.getElementById('vc-badge').textContent=needsEstimate?'Estimate required':`${t.label} · ${units} units`;
@@ -3776,7 +3792,7 @@ function tryGenericConfirm(){
   const t=ST.tier;
   ST.vehicleLabel=`${year} ${make} ${model}`;
   setBasePrice();
-  document.getElementById('vc-ico').textContent=t.icon;
+  setVehicleVisual();
   document.getElementById('vc-name').textContent=ST.vehicleLabel;
   document.getElementById('vc-tier-lbl').textContent=t.desc;
   document.getElementById('vc-badge').textContent=t.label;
@@ -3854,7 +3870,7 @@ document.getElementById('year-sel').addEventListener('change',function(){
   ST.tierKey=tierKey; ST.tier=PRICING.cars.tiers[tierKey];
   ST.vehicleLabel=`${ST.year} ${ST.make} ${ST.model}`;
   setBasePrice();
-  document.getElementById('vc-ico').textContent=ST.tier.icon;
+  setVehicleVisual();
   document.getElementById('vc-name').textContent=ST.vehicleLabel;
   document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
   document.getElementById('vc-badge').textContent=ST.tier.label+' · $'+ST.basePrice;
@@ -3883,22 +3899,42 @@ function renderAddons(){
     const s=a.scope||'any';
     return pkgScope==='both' || s==='any' || s===pkgScope;
   });
-  document.getElementById('addon-grid').innerHTML=addons.map(a=>{
+  const POPULAR_IDS=['rainx','pethair','odor'];
+  const popularAddons=addons.filter(a=>POPULAR_IDS.includes(a.id));
+  const otherAddons=addons.filter(a=>!POPULAR_IDS.includes(a.id));
+  function addonCardHtml(a){
     const isQty=!!a.qty;
-    return `
-    <div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)">
-      <div class="addon-check">✓</div>
-      <div class="addon-ico">${a.icon}</div>
-      <div class="addon-name">${a.name}</div>
-      <div class="addon-desc">${a.desc}</div>
-      <div class="addon-price">+$${a.price}${isQty?' <span class="addon-each">each</span>':''}</div>
-      ${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()">
-        <button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button>
-        <span class="aq-n" id="aq-${a.id}">0</span>
-        <button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button>
-      </div>`:''}
-    </div>`;}).join('');
+    return `<div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)"><div class="addon-check">✓</div><div class="addon-ico">${a.icon}</div><div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">+$${a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
+  }
+  document.getElementById('addon-grid').innerHTML=
+    '<div class="addon-popular-label">Popular Add-ons</div>'+
+    popularAddons.map(addonCardHtml).join('')+
+    '<div class="addon-all-wrap"><div class="addon-all-inner" id="addon-all-inner">'+otherAddons.map(addonCardHtml).join('')+'</div>'+
+    '<div id="addon-selected-summary" class="addon-selected-summary" style="display:none"></div>'+
+    '<button type="button" class="addon-toggle-btn" id="addon-toggle-btn" onclick="toggleAllAddons()">Show All Add-ons ▾</button></div>';
   updateTotal();
+}
+function toggleAllAddons(){
+  const inner=document.getElementById('addon-all-inner');
+  const btn=document.getElementById('addon-toggle-btn');
+  if(!inner) return;
+  const open=inner.classList.contains('open');
+  inner.classList.toggle('open',!open);
+  btn.textContent=open?'Show All Add-ons ▾':'Hide Add-ons ▴';
+  updateAddonSummary();
+}
+function updateAddonSummary(){
+  const inner=document.getElementById('addon-all-inner');
+  const sum=document.getElementById('addon-selected-summary');
+  if(!inner||!sum) return;
+  const open=inner.classList.contains('open');
+  const selected=ST.addons.filter(a=>!['rainx','pethair','odor'].includes(a.id));
+  if(!open&&selected.length>0){
+    sum.innerHTML='<strong>'+selected.length+' extra add-on'+(selected.length>1?'s':'')+' selected:</strong> '+selected.map(a=>a.name).join(', ');
+    sum.style.display='block';
+  }else{
+    sum.style.display='none';
+  }
 }
 
 // Sum of every selected add-on, multiplying per-unit items by their quantity.
@@ -3917,7 +3953,7 @@ function toggleAddon(card){
     card.classList.add('sel'); ST.addons.push(isQty?{id,name,price,qty:1}:{id,name,price});
     if(isQty) setQtyDisplay(id,1);
   }
-  recalcAddonTotal(); updateTotal();
+  recalcAddonTotal(); updateTotal(); updateAddonSummary();
 }
 
 // +/- stepper for per-unit add-ons. Adds the item on first increment, removes it at 0.
@@ -3936,7 +3972,7 @@ function addonQty(id, delta, ev){
     if(item.qty<=0){ ST.addons=ST.addons.filter(a=>a.id!==id); card.classList.remove('sel'); item={qty:0}; }
   }
   setQtyDisplay(id, item.qty||0);
-  recalcAddonTotal(); updateTotal();
+  recalcAddonTotal(); updateTotal(); updateAddonSummary();
 }
 
 function updateTotal(){const fee=activeZone?activeZone.surcharge:0;const total=ST.basePrice+ST.addonTotal+fee;ST.zoneSurcharge=fee;document.getElementById('ah-total').textContent=total?'$'+total:'Estimate';}
@@ -7166,7 +7202,11 @@ seedDefaultTechs();
         chips:[{label:'✨ Add-ons',q:'What add-ons do you have?'},{label:'📅 See packages',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
 
     { keys:['add-on','add on','addon','extra','upgrade','pet hair','odor','ceramic','wax','shampoo','stain'], fn:()=>{
-      const a=addonList('cars'); const list=a.length?a.slice(0,8).map(x=>'• '+x).join('\n'):'• Pet Hair Removal\n• Odor Treatment\n• Ceramic Protection';
+      const popularIds=['pethair','odor','rainx'];
+      const all=(PRICING.cars?.addons||[]);
+      const popular=all.filter(a=>popularIds.includes(a.id)).map(a=>'• '+a.name+' (+$'+a.price+')');
+      const others=all.filter(a=>!popularIds.includes(a.id)).slice(0,4).map(a=>'• '+a.name+' (+$'+a.price+')');
+      const list=[...popular,...others].join('\n')||'• Pet Hair Removal (+$95)\n• Odor Treatment (+$149)\n• Rain-X Glass Treatment (+$25)';
       return { reply:"Popular add-ons you can pick during booking:\n\n"+list+"\n\nThey appear right after you choose your package & vehicle, and the total updates live.",
         chips:[{label:'📅 Add to my booking',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
 
