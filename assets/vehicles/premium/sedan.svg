@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" role="img" aria-label="Premium sedan vehicle visual">
+<defs>
+<radialGradient id="bg" cx="50%" cy="62%" r="72%"><stop offset="0%" stop-color="#0c1e3a"/><stop offset="100%" stop-color="#010408"/></radialGradient>
+<linearGradient id="bd" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1c3c6a"/><stop offset="45%" stop-color="#0d2040"/><stop offset="100%" stop-color="#060f1e"/></linearGradient>
+<linearGradient id="rf" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#254e98"/><stop offset="100%" stop-color="#112650"/></linearGradient>
+<linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8ec8f2" stop-opacity=".24"/><stop offset="100%" stop-color="#1840b8" stop-opacity=".05"/></linearGradient>
+<radialGradient id="wh" cx="38%" cy="32%" r="68%"><stop offset="0%" stop-color="#1e3058"/><stop offset="100%" stop-color="#040c1e"/></radialGradient>
+<radialGradient id="sh" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#000c20" stop-opacity=".88"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="400" height="200" fill="url(#bg)"/>
+<ellipse cx="207" cy="182" rx="160" ry="9" fill="url(#sh)"/>
+<!-- body shadow -->
+<path d="M367,143 L366,124 L352,106 L320,92 L296,96 L275,68 L153,66 L130,92 L114,106 L80,118 L63,130 L51,140 L51,143Z" fill="#02060d"/>
+<!-- body -->
+<path d="M365,141 L364,122 L350,104 L318,90 L294,94 L273,66 L151,64 L128,90 L112,104 L78,116 L61,128 L49,138 L49,141Z" fill="url(#bd)"/>
+<!-- roof/cabin highlight -->
+<path d="M273,66 L294,94 L128,90 L151,64Z" fill="url(#rf)"/>
+<!-- glass -->
+<path d="M273,66 L293,94 L130,90 L151,64Z" fill="url(#gl)"/>
+<!-- front glass sub-highlight -->
+<path d="M272,68 L288,78 L280,82 L264,74Z" fill="white" fill-opacity=".09"/>
+<!-- B-pillar -->
+<rect x="210" y="65" width="4" height="29" fill="#08182e" rx="1"/>
+<!-- beltline highlight -->
+<path d="M82,117 Q200,110 362,117" fill="none" stroke="#4da3ff" stroke-width="1.5" opacity=".38"/>
+<!-- roof studio highlight -->
+<path d="M153,64 Q214,57 273,66" fill="none" stroke="white" stroke-width="1.2" opacity=".06"/>
+<!-- front bumper -->
+<path d="M347,104 L364,108 L365,122 L349,120Z" fill="#0c2040"/>
+<!-- rear bumper -->
+<path d="M64,126 L51,130 L49,140 L61,138Z" fill="#0c2040"/>
+<!-- headlight DRL -->
+<line x1="346" y1="104" x2="364" y2="108" stroke="#a0d8ff" stroke-width="2.5" stroke-linecap="round" opacity=".92"/>
+<path d="M347,106 L364,110 L364,124 L348,122Z" fill="#cceeff" fill-opacity=".38"/>
+<!-- taillight -->
+<path d="M62,106 L78,108 L78,128 L63,128Z" fill="#c01830" fill-opacity=".68"/>
+<line x1="62" y1="106" x2="78" y2="108" stroke="#ff3f52" stroke-width="2" opacity=".8"/>
+<!-- front wheel arch shadow -->
+<path d="M293,141 Q310,114 340,112 Q365,110 368,141" fill="#010408"/>
+<!-- rear wheel arch shadow -->
+<path d="M96,141 Q112,114 140,112 Q162,110 165,141" fill="#010408"/>
+<!-- front wheel -->
+<circle cx="328" cy="154" r="26" fill="url(#wh)"/>
+<circle cx="328" cy="154" r="20" fill="none" stroke="#18304e" stroke-width="1.2"/>
+<line x1="328" y1="135" x2="328" y2="173" stroke="#4da3ff" stroke-width="1" opacity=".55"/>
+<line x1="309" y1="154" x2="347" y2="154" stroke="#4da3ff" stroke-width="1" opacity=".55"/>
+<line x1="315" y1="140" x2="341" y2="168" stroke="#4da3ff" stroke-width=".9" opacity=".44"/>
+<line x1="341" y1="140" x2="315" y2="168" stroke="#4da3ff" stroke-width=".9" opacity=".44"/>
+<circle cx="328" cy="154" r="6" fill="#060e20" stroke="#4da3ff" stroke-width="1"/>
+<circle cx="328" cy="154" r="2" fill="#4da3ff" opacity=".65"/>
+<path d="M311,140 Q302,154 311,168" fill="none" stroke="#4da3ff" stroke-width="1.5" opacity=".28"/>
+<!-- rear wheel -->
+<circle cx="126" cy="154" r="26" fill="url(#wh)"/>
+<circle cx="126" cy="154" r="20" fill="none" stroke="#18304e" stroke-width="1.2"/>
+<line x1="126" y1="135" x2="126" y2="173" stroke="#4da3ff" stroke-width="1" opacity=".55"/>
+<line x1="107" y1="154" x2="145" y2="154" stroke="#4da3ff" stroke-width="1" opacity=".55"/>
+<line x1="113" y1="140" x2="139" y2="168" stroke="#4da3ff" stroke-width=".9" opacity=".44"/>
+<line x1="139" y1="140" x2="113" y2="168" stroke="#4da3ff" stroke-width=".9" opacity=".44"/>
+<circle cx="126" cy="154" r="6" fill="#060e20" stroke="#4da3ff" stroke-width="1"/>
+<circle cx="126" cy="154" r="2" fill="#4da3ff" opacity=".65"/>
+<path d="M109,140 Q100,154 109,168" fill="none" stroke="#4da3ff" stroke-width="1.5" opacity=".28"/>
+<!-- rocker / sill -->
+<rect x="82" y="139" width="268" height="5" rx="1.5" fill="#030810"/>
+<!-- underglow -->
+<path d="M92,143 L350,143" fill="none" stroke="#4da3ff" stroke-width="1.5" opacity=".1" stroke-linecap="round"/>
+</svg>
