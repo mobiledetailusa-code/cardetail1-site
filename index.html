@@ -4319,6 +4319,10 @@ function openAdminPanel(){
   renderAdminBookings();
   document.getElementById('admin-ov').classList.add('open');
   document.body.style.overflow='hidden';
+  // Auto-load from cloud if admin is logged in and localStorage has no bookings yet.
+  if(window._adminKey && !getStoredBookings().length){
+    setTimeout(()=>loadCloudBookings(),400);
+  }
 }
 function closeAdminPanel(){
   document.getElementById('admin-ov').classList.remove('open');
@@ -4381,7 +4385,7 @@ function renderAdminBookings(){
     ADMIN_FILTER==='__cancellation_req'?all.filter(b=>b.cancellationRequestStatus==='requested'):
     ADMIN_FILTER==='__test_archived'?all.filter(b=>b.isTest||b.archived):
     all.filter(b=>(b.status||'Pending Review')===ADMIN_FILTER);
-  if(!all.length){grid.innerHTML='<div class="admin-empty">No local booking requests yet. Submit a test booking to populate this dashboard.</div>';return;}
+  if(!all.length){grid.innerHTML='<div class="admin-empty" style="text-align:center;padding:28px 16px"><div style="font-size:22px;margin-bottom:8px">📭</div><div style="font-weight:600;color:var(--white);margin-bottom:6px">No bookings in local cache</div><div style="font-size:13px;color:var(--mu);margin-bottom:16px;line-height:1.6">All bookings are stored in the cloud.<br>Click below to load them now.</div><button onclick="loadCloudBookings()" style="background:var(--gr);color:#000;font-weight:700;border:none;border-radius:999px;padding:12px 24px;cursor:pointer;font-size:13px">☁️ Load from cloud</button></div>';return;}
   if(!list.length){grid.innerHTML='<div class="admin-empty">No bookings in this status.</div>';return;}
   grid.innerHTML=list.map(b=>{
     const addons=(b.addons&&b.addons.length)?b.addons.map(a=>`${a.name}${a.qty>1?' ×'+a.qty:''} +$${a.price*(a.qty||1)}`).join('<br>'):'None';
