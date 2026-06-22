@@ -25,20 +25,20 @@ Outside these areas: submit a request — travel/toll fees and partner availabil
 PACKAGES (starting prices — confirmed after reviewing vehicle size and condition):
 
 Cars & Trucks:
-  Maintenance Detail:  from $175 — exterior hand wash, wheels, glass, UV protectant, light interior wipe. Best for upkeep every 4-6 weeks.
-  Interior Detail:     from $199 — deep interior vacuum, steam clean, carpet shampoo, seat conditioning, all glass. Interior-focused.
-  Premium Detail:      from $249 — MOST POPULAR: full interior + exterior, clay bar decontamination, spray sealant, carpet & seat shampoo.
-  Paint Enhancement:   from $399 — 1-step machine polish removes light swirls, water spots, oxidation; topped with durable sealant.
+  Maintenance Detail:  from $175 — best for regularly maintained vehicles that need a clean refresh without a full reset.
+  Interior Detail:     from $199 — best for vehicles that need a serious interior reset: vacuum, mats, plastics, seats, glass, cup holders, cracks/crevices, and interior finishing.
+  Premium Detail:      from $279 — MOST POPULAR: best overall value — combines an interior reset with exterior wash, wheels, glass, exterior finishing, and protection.
+  Paint Enhancement:   from $399 — dedicated exterior enhancement/correction service for gloss improvement, light defects, oxidation, and paint clarity.
 
 Vehicle size pricing (Maintenance / Interior / Premium / Paint Enhancement):
-  Small Car (Sedan/Coupe/Hatchback): $175 / $199 / $249 / from $399
-  SUV 2-Row (Compact & Mid-Size):    $195 / $229 / $279 / from $449
-  SUV 3-Row (Full-Size 7-8 Pass):    $225 / $259 / $309 / from $499
-  Pickup Truck:                       $225 / $259 / $309 / from $529
-  Minivan:                            $225 / $259 / $309 / from $529
-  Cargo Van:                          $249 / $289 / $349 / from $599
-  Passenger Van (12/15-pass):         $299 / $349 / $399 / from $699
-  Sprinter / Large Van:               $299 / $349 / $399 / from $699
+  Small Car (Sedan/Coupe/Hatchback): $175 / $199 / $279 / from $399
+  SUV 2-Row (Compact & Mid-Size):    $195 / $239 / $329 / from $449
+  SUV 3-Row (Full-Size 7-8 Pass):    $225 / $279 / $369 / from $499
+  Pickup Truck:                       $225 / $279 / $369 / from $529
+  Minivan:                            $225 / $279 / $369 / from $529
+  Cargo Van:                          $249 / $319 / $429 / from $599
+  Passenger Van (12/15-pass):         $299 / $379 / $499 / from $699
+  Sprinter / Large Van:               $299 / $379 / $499 / from $699
 
 Boats (priced by length):
   Marine Wash: from $199 | Essential Marine: from $299 | Full Marine Detail: from $449 | Premium Marine: from $699
@@ -97,7 +97,7 @@ OBJECTION HANDLING:
 "Will you scratch my car?" — "Paint safety is our top priority. We use pH-balanced shampoos, premium microfiber towels, and proper two-bucket wash technique — trained to minimize any risk."
 
 UPSELL STRATEGY:
-- Customer asks about Maintenance Detail -> mention Premium Detail: "our most popular — full interior + exterior for $249+"
+- Customer asks about Maintenance Detail -> mention Premium Detail: "our most popular — full interior + exterior for $279+"
 - Customer has pets -> suggest Pet Hair + Odor Treatment combo
 - Customer mentions scratches or paint issues -> direct to Paint Enhancement
 - Customer booking any package -> suggest Rain-X ($20): "our most affordable add-on — everyone loves it"
