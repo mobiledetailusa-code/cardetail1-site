@@ -49,9 +49,10 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
   .nav-menu-btn{display:block}
 }
 /* Mobile-only Book Now pill — visible next to hamburger */
-.nav-book-mobile{display:none}
+.nav-book-mobile,.nav-portal-mobile{display:none}
 @media(max-width:760px){
   .nav-book-mobile{display:inline-flex;align-items:center;background:var(--blue);color:#000!important;padding:9px 18px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+  .nav-portal-mobile{display:inline-flex;align-items:center;background:transparent;color:var(--blue);border:1px solid rgba(77,163,255,.4);padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.04em;cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 }
 /* Mobile-only phone link in hero */
 .hero-tel-mobile{display:none}
@@ -1277,14 +1278,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <nav class="nav" id="main-nav">
   <a class="nav-brand-img" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" decoding="async"></a>
   <div class="nav-links" id="nav-links">
-    <a class="nav-link" onclick="scrollTo('services')">Packages</a>
-    <a class="nav-link" onclick="scrollTo('specialty')">Specialty</a>
-    <a class="nav-link" onclick="scrollTo('loc-section')">Service Area</a>
-    <a class="nav-link" onclick="scrollTo('reviews')">Reviews</a>
-    <a class="nav-link" href="tel:5513132956">📞 551-313-2956</a>
+    <a class="nav-link" onclick="openBooking(null);document.getElementById('nav-links').classList.remove('open')">Services</a>
+    <a class="nav-link" onclick="openPortal();document.getElementById('nav-links').classList.remove('open')">My Booking</a>
+    <a class="nav-link" href="tel:5513132956">Call / Text</a>
     <a class="nav-cta" onclick="openBooking(null)">Book Now</a>
   </div>
   <a class="nav-book-mobile" onclick="openBooking(null)">Book Now</a>
+  <a class="nav-portal-mobile" onclick="openPortal()">My Booking</a>
   <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
 </nav>
 
@@ -1297,7 +1297,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <p class="hero-sub">Professional mobile detailing and specialty cleaning for cars, RVs, boats, jet skis, fleets, and demanding cleanup jobs across Bergen County and nearby areas.</p>
     <div class="hero-proof">
       <span>★★★★★ Customer-rated</span>
-      <span>Real job photos</span>
       <span>Online booking</span>
       <span>No shop visit</span>
     </div>
@@ -1394,143 +1393,15 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 </section>
 
 <!-- SERVICES -->
-<div class="section-full" id="services">
-  <div class="section">
-    <div class="sec-eye">What We Detail</div>
-    <div class="sec-title">EVERY VEHICLE.<br>ONE CALL.</div>
-    <div class="sec-desc">Serving Bergen County and nearby NJ/NY areas. Extended service available for RVs, boats, fleets, and select NJ/NY/CT locations by quote.</div>
-
-    <!-- ZIP tip — hidden by default, only shown if user clicks a card without a ZIP -->
-    <div class="svc-lock-gate" id="svc-lock-gate" style="display:none">
-      <div class="svc-lock-gate-ico">📍</div>
-      <div class="svc-lock-gate-text">Enter your ZIP above for accurate local pricing</div>
-      <div class="svc-lock-gate-sub">Prices adjust automatically for your area — Bergen County, NJ and nearby areas</div>
+<div id="services" style="background:var(--bg0)">
+  <div class="section" style="padding-top:52px;padding-bottom:52px;text-align:center">
+    <div class="sec-eye">Choose Your Service</div>
+    <div class="sec-title" style="font-size:clamp(32px,5vw,52px);margin-bottom:14px">CARS · BOATS · RVS<br>POWERSPORTS · FLEET</div>
+    <div class="sec-desc" style="max-width:540px;margin:0 auto 32px">Select your vehicle type and see packages, pricing, and add-ons in the booking flow. Serving Bergen County and nearby NJ/NY areas.</div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <button class="btn-primary" style="font-size:15px;padding:16px 36px" onclick="openBooking(null)">Book Now →</button>
+      <button class="btn-outline" onclick="openPortal()">My Booking</button>
     </div>
-
-    <div class="service-grid" id="home-service-grid">
-      <div class="svc-card" id="hsvc-cars" onclick="openBookingFromHome('cars')">
-        <span class="svc-ico">🚗</span>
-        <div class="svc-name">Cars & Trucks</div>
-        <div class="svc-desc">Sedans, SUVs, crossovers, trucks, minivans. Maintenance to premium paint enhancement.</div>
-        <div class="svc-from" id="hfrom-cars">From $175 · Prices by vehicle size</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Maintenance Detail</span><span class="svc-tag">Interior Detail</span><span class="svc-tag">Premium Detail</span><span class="svc-tag">Paint Correction</span>
-        </div>
-        <button class="svc-btn">View Packages →</button>
-      </div>
-
-      <div class="svc-card" id="hsvc-boats" onclick="openBookingFromHome('boats')">
-        <span class="svc-ico">🛥️</span>
-        <div class="svc-name">Boats & Marine</div>
-        <div class="svc-desc">Runabouts, bowriders, center consoles, cruisers & jet skis. Priced by vessel length.</div>
-        <div class="svc-from" id="hfrom-boats">From $199 · Priced by boat size</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Marine Wash</span><span class="svc-tag">Essential</span><span class="svc-tag">Full Marine</span><span class="svc-tag">Premium</span>
-        </div>
-        <button class="svc-btn">View Packages →</button>
-      </div>
-
-      <div class="svc-card" id="hsvc-rvs" onclick="openBookingFromHome('rvs')">
-        <span class="svc-ico">🏕️</span>
-        <div class="svc-name">RVs & Trailers</div>
-        <div class="svc-desc">Travel trailers, fifth wheels, Class C & Class A motorhomes. Interior, exterior, or both.</div>
-        <div class="svc-from" id="hfrom-rvs">From $349 · Priced by exact length</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Exterior Wash</span><span class="svc-tag">Interior</span><span class="svc-tag">Full Detail</span><span class="svc-tag">Premium</span>
-        </div>
-        <button class="svc-btn">View Packages →</button>
-      </div>
-
-      <div class="svc-card" id="hsvc-powersports" onclick="openBookingFromHome('powersports')">
-        <span class="svc-ico">🏍️</span>
-        <div class="svc-name">Powersports</div>
-        <div class="svc-desc">Motorcycles, ATVs, UTVs, side-by-sides & jet skis. Showroom finish on any season.</div>
-        <div class="svc-from" id="hfrom-powersports">From $119 · Priced by vehicle type</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Motorcycle</span><span class="svc-tag">ATV/UTV</span><span class="svc-tag">Jet Ski</span>
-        </div>
-        <button class="svc-btn">View Packages →</button>
-      </div>
-
-      <div class="svc-card" id="hsvc-fleet" onclick="openBookingFromHome('fleet')">
-        <span class="svc-ico">🚚</span>
-        <div class="svc-name">Fleet Services</div>
-        <div class="svc-desc">Recurring or one-time detailing for cars, vans, trucks, buses, golf carts, boats, RVs and trailers.</div>
-        <div class="svc-from" id="hfrom-fleet">From $60/unit · Fleet quote available</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Cars</span><span class="svc-tag">Vans</span><span class="svc-tag">Trucks</span><span class="svc-tag">Golf Carts</span><span class="svc-tag">Boats/RVs</span>
-        </div>
-        <button class="svc-btn">View Fleet Options →</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- SPECIALTY SERVICES -->
-<div class="section-full specialty-section" id="specialty">
-  <div class="section">
-    <div class="specialty-lead">
-      <div>
-        <div class="sec-eye">Specialty Services</div>
-        <div class="sec-title">WE HANDLE THE<br>HARD JOBS, TOO.</div>
-        <div class="sec-desc" style="margin-bottom:0">Beyond routine detailing, Cardetail1 offers focused restoration, sanitation, and cleanup services. Condition-sensitive work is reviewed before confirmation so the customer receives the right scope and price.</div>
-      </div>
-      <div class="specialty-callout">
-        <strong>Not sure which service fits?</strong>
-        <p>Send a booking request with photos and a short description. We review the condition, recommend the right service, and confirm pricing before the appointment.</p>
-      </div>
-    </div>
-
-    <div class="specialty-grid">
-      <article class="specialty-card">
-        <div class="specialty-icon">✨</div>
-        <h3>Paint Correction</h3>
-        <p>Restore gloss and improve swirl marks, oxidation, haze, and light paint defects.</p>
-        <ul class="specialty-list">
-          <li>Paint condition assessment</li>
-          <li>Machine polish or enhancement</li>
-          <li>Protection applied after correction</li>
-        </ul>
-        <button class="specialty-action" onclick="openBooking('cars')">Request Paint Service</button>
-      </article>
-
-      <article class="specialty-card">
-        <div class="specialty-icon">☣️</div>
-        <h3>Biohazard Remediation</h3>
-        <p>Discreet, condition-based cleaning for bodily fluids, waste, vomit, and severe contamination.</p>
-        <ul class="specialty-list">
-          <li>Photo review required</li>
-          <li>Sanitation-focused process</li>
-          <li>Estimate confirmed before service</li>
-        </ul>
-        <button class="specialty-action" onclick="openBooking('cars')">Request an Estimate</button>
-      </article>
-
-      <article class="specialty-card">
-        <div class="specialty-icon">💨</div>
-        <h3>Odor Removal</h3>
-        <p>Target smoke, pets, food, mildew-like odors, and stubborn interior smells at their source.</p>
-        <ul class="specialty-list">
-          <li>Interior source inspection</li>
-          <li>Deep cleaning and neutralization</li>
-          <li>Sanitizing options available</li>
-        </ul>
-        <button class="specialty-action" onclick="openBooking('cars')">Book Odor Treatment</button>
-      </article>
-
-      <article class="specialty-card">
-        <div class="specialty-icon">🗑️</div>
-        <h3>Trash Bin Cleaning</h3>
-        <p>On-site washing, deodorizing, and sanitizing for residential trash and recycling bins.</p>
-        <ul class="specialty-list">
-          <li>Available as an add-on</li>
-          <li>Multiple-bin quantities supported</li>
-          <li>Residential and rental properties</li>
-        </ul>
-        <button class="specialty-action" onclick="openBooking(null)">Add to Your Booking</button>
-      </article>
-    </div>
-    <div class="specialty-note">If it needs cleaning, restoring, sanitizing, or protecting, ask us — custom work is reviewed before confirmation.</div>
   </div>
 </div>
 
@@ -1568,9 +1439,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <!-- REAL RESULTS -->
 <div class="results-section">
   <div class="results-inner">
-    <div class="sec-eye">Our Work · Your Vehicle</div>
-    <div class="sec-title">REAL PHOTOS.<br>REAL RESULTS.</div>
-    <div class="sec-desc">Your own job photos become the strongest proof on the site. Interior, exterior, paint correction, marine, and RV work can be published directly through the existing gallery manager.</div>
+    <div class="sec-eye">Recent Work</div>
+    <div class="sec-title">REAL RESULTS FROM<br>MOBILE DETAILING JOBS.</div>
+    <div class="sec-desc">Interior, exterior, and paint enhancement work performed at the customer's location.</div>
 
     <!-- Photo carousel — shown once API returns items -->
     <div id="rw-carousel-wrap" style="display:none">
@@ -1586,33 +1457,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 
     <!-- Placeholder — shown until gallery has photos -->
     <div id="rw-placeholder">
-      <div class="results-grid">
-        <div class="rc-card">
-          <div class="rc-ico">🧹</div>
-          <div class="rc-title">Interior Detail</div>
-          <div class="rc-benefit">Full cabin restoration — vacuuming, steam cleaning, fabric and leather treatment, window cleaning, and deodorizing. We bring the equipment; you stay home.</div>
-          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-        </div>
-        <div class="rc-card">
-          <div class="rc-ico">💧</div>
-          <div class="rc-title">Exterior Detail</div>
-          <div class="rc-benefit">Hand wash, clay bar, paint decontamination, tire shine, and window polish — done at your driveway, office parking, or marina slip.</div>
-          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-        </div>
-        <div class="rc-card">
-          <div class="rc-ico">✨</div>
-          <div class="rc-title">Premium Detail</div>
-          <div class="rc-benefit">Complete interior and exterior treatment with paint sealant or wax protection. Our most comprehensive single-visit package.</div>
-          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-        </div>
-        <div class="rc-card">
-          <div class="rc-ico">🚢</div>
-          <div class="rc-title">Marine &amp; RV</div>
-          <div class="rc-benefit">Boats, RVs, and powersports vehicles — oxidation removal, hull cleaning, vinyl and canvas treatment. Mobile at your marina, storage yard, or driveway.</div>
-          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-        </div>
-      </div>
-      <p class="photo-note">Upload your own before-and-after photos through the admin gallery and they appear here automatically. Questions? <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a></p>
+      <p class="photo-note">Recent work photos will appear here after completed jobs are approved for display.</p>
     </div>
 
     <div class="cred-row">
