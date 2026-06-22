@@ -612,15 +612,15 @@ async function submitReschedule(id){
   const d=document.getElementById('rs-date').value;
   if(!d){ alert('Select a date'); return; }
   const time=document.getElementById('rs-time').value;
-  const note=(document.getElementById('rs-note').value||'').trim();
-  const b=CUSTOMER_BOOKINGS.find(x=>x.id===id)||{};
-  const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||(b.phone||'').replace(/\D/g,'');
+  const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||(CUSTOMER_BOOKINGS.find(x=>x.id===id)||{}).phone?.replace(/\D/g,'')||'';
   const btn=document.querySelector('#modal-inner .btn-p'); if(btn){btn.disabled=true;btn.textContent='Sending…';}
   try{
-    await fetch('/.netlify/functions/submit-inquiry',{
+    const r=await fetch('/.netlify/functions/submit-customer-action',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:nm(b),phone,email:b.email||'',message:`Reschedule Request — Booking ${id}\nNew date: ${d}\nTime: ${time}${note?'\nNote: '+note:''}`,source:'Customer Portal — Reschedule'})
+      body:JSON.stringify({bookingId:id,phone,action:'reschedule_request',newDate:d,newTime:time||''})
     });
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok){alert(data.userMessage||'Could not send request. Please call 551-313-2956.');return;}
     closeModal(); alert("✅ Reschedule request sent! We'll confirm your new date within 24 hours.");
   }catch(e){
     alert('Could not send request. Please call 551-313-2956.');
@@ -646,15 +646,15 @@ function openAddressChange(id){
 async function submitAddressChange(id){
   const addr=(document.getElementById('addr-new').value||'').trim();
   if(!addr){ alert('Please enter the new address.'); return; }
-  const note=(document.getElementById('addr-note').value||'').trim();
-  const b=CUSTOMER_BOOKINGS.find(x=>x.id===id)||{};
-  const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||(b.phone||'').replace(/\D/g,'');
+  const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||(CUSTOMER_BOOKINGS.find(x=>x.id===id)||{}).phone?.replace(/\D/g,'')||'';
   const btn=document.querySelector('#modal-inner .btn-p'); if(btn){btn.disabled=true;btn.textContent='Sending…';}
   try{
-    await fetch('/.netlify/functions/submit-inquiry',{
+    const r=await fetch('/.netlify/functions/submit-customer-action',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:nm(b),phone,email:b.email||'',message:`Address Change — Booking ${id}\nNew address: ${addr}${note?'\nNote: '+note:''}`,source:'Customer Portal — Address Change'})
+      body:JSON.stringify({bookingId:id,phone,action:'address_update',newAddress:addr})
     });
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok){alert(data.userMessage||'Could not send request. Please call 551-313-2956.');return;}
     closeModal(); alert('✅ Address change request sent! We will confirm the update shortly.');
   }catch(e){
     alert('Could not send request. Please call 551-313-2956.');

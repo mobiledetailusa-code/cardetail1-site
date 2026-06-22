@@ -2408,6 +2408,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="admin-body">
       <div class="ops-note" id="ops-note"><strong>Central storage:</strong> bookings from every device are saved to the cloud (Netlify Blobs). Click <strong>☁️ Load from cloud</strong> to pull them all in. Requires <code>ADMIN_DASH_PASSWORD</code> set on Netlify (same as your admin password).</div>
       <div class="admin-counts" id="admin-counts"></div>
+      <div style="margin-bottom:10px"><input id="admin-search" type="text" placeholder="Search by ID, name, phone, email, vehicle, status…" oninput="renderAdminBookings()" style="width:100%;padding:10px 14px;background:var(--bg2);border:1px solid var(--bbr);border-radius:var(--rs);color:var(--white);font-size:13px;font-family:inherit;outline:none"></div>
       <div class="admin-tabs" id="admin-tabs">
         <button class="active" data-filter="All" onclick="setAdminFilter('All')">All</button>
         <button data-filter="Pending Review" onclick="setAdminFilter('Pending Review')">Pending</button>
@@ -2435,6 +2436,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button onclick="exportBookingsCsv()">Export CSV</button>
         <button onclick="adminDataAudit()" title="Count bookings by status">📊 Audit</button>
         <button onclick="adminArchiveTestBookings()" title="Find and archive test bookings" style="color:var(--mu)">🧹 Test Cleanup</button>
+        <button onclick="adminExportBackupJSON()" title="Export all bookings as JSON backup" style="color:var(--mu)">💾 Backup JSON</button>
         <button onclick="loadCloudBookings(true)" title="Load cloud bookings including test/archived" style="color:var(--mu)">☁️ Load + Test</button>
         <button onclick="seedDemoBooking()">Demo</button>
         <button onclick="clearDemoBookings()">Clear</button>
@@ -4221,17 +4223,33 @@ function adminCofBadge(b) {
   return '';
 }
 
+function _normPhone(p){return String(p||'').replace(/\D/g,'').slice(-10);}
+function _adminSearchMatch(b,q){
+  const lq=q.toLowerCase();
+  const pq=q.replace(/\D/g,'').slice(-10);
+  if((b.id||'').toLowerCase().includes(lq))return true;
+  if(((b.firstName||'')+' '+(b.lastName||'')).toLowerCase().includes(lq))return true;
+  if((b.email||'').toLowerCase().includes(lq))return true;
+  if((b.vehicle||b.vehicleLabel||b.vehicleCategory||'').toLowerCase().includes(lq))return true;
+  if((b.status||'Pending Review').toLowerCase().includes(lq))return true;
+  if((b.package||'').toLowerCase().includes(lq))return true;
+  if((b.address||'').toLowerCase().includes(lq))return true;
+  if(pq.length>=4&&_normPhone(b.phone).includes(pq))return true;
+  return false;
+}
 function renderAdminBookings(){
   const grid=document.getElementById('admin-grid');
   if(!grid)return;
   const all=getStoredBookings();
   renderAdminCounts(all);
-  const list=ADMIN_FILTER==='All'?all:
+  let list=ADMIN_FILTER==='All'?all:
     ADMIN_FILTER==='__cancellation_req'?all.filter(b=>b.cancellationRequestStatus==='requested'):
     ADMIN_FILTER==='__test_archived'?all.filter(b=>b.isTest||b.archived):
     all.filter(b=>(b.status||'Pending Review')===ADMIN_FILTER);
+  const sq=(document.getElementById('admin-search')||{}).value?.trim()||'';
+  if(sq)list=list.filter(b=>_adminSearchMatch(b,sq));
   if(!all.length){grid.innerHTML='<div class="admin-empty" style="text-align:center;padding:28px 16px"><div style="font-size:22px;margin-bottom:8px">📭</div><div style="font-weight:600;color:var(--white);margin-bottom:6px">No bookings in local cache</div><div style="font-size:13px;color:var(--mu);margin-bottom:16px;line-height:1.6">All bookings are stored in the cloud.<br>Click below to load them now.</div><button onclick="loadCloudBookings()" style="background:var(--gr);color:#000;font-weight:700;border:none;border-radius:999px;padding:12px 24px;cursor:pointer;font-size:13px">☁️ Load from cloud</button></div>';return;}
-  if(!list.length){grid.innerHTML='<div class="admin-empty">No bookings in this status.</div>';return;}
+  if(!list.length){grid.innerHTML='<div class="admin-empty">No bookings match'+(sq?' "'+esc(sq)+'"':' this filter')+'.</div>';return;}
   grid.innerHTML=list.map(b=>{
     const addons=(b.addons&&b.addons.length)?b.addons.map(a=>`${a.name}${a.qty>1?' ×'+a.qty:''} +$${a.price*(a.qty||1)}`).join('<br>'):'None';
     const zoneInfo = [b.zipCode?'📮 ZIP '+b.zipCode:'', b.zone?'📍 '+b.zone:'', b.zoneSurcharge?'+$'+b.zoneSurcharge+' area fee':'', b.richSurcharge?'✦ Premium area (+5%)':''].filter(Boolean).join(' · ');
@@ -4880,6 +4898,10 @@ function adminDataAudit(){
   const missingStatus=real.filter(b=>!b.status).length;
   const ids=real.map(b=>b.id).filter(Boolean);
   const dupIds=ids.filter((id,i)=>ids.indexOf(id)!==i);
+  const cardNoSetup=real.filter(b=>b.cardOnFileStatus==='active'&&!b.setupIntentId).length;
+  const custActions=real.filter(b=>b.rescheduledByClient||b.addressChangedByClient||b.addonsRequested).length;
+  const custActionsNoLog=real.filter(b=>(b.rescheduledByClient||b.addressChangedByClient||b.addonsRequested)&&!Array.isArray(b.eventLog)).length;
+  const noEventLog=real.filter(b=>!Array.isArray(b.eventLog)||!b.eventLog.length).length;
   const report=[
     'BOOKING DATA AUDIT — '+new Date().toLocaleString(),
     '─────────────────────────────────────',
@@ -4887,21 +4909,38 @@ function adminDataAudit(){
     'Drafts: '+drafts.length,
     '',
     'By Status:',
-    ...Object.entries(byStatus).map(([s,c])=>'  '+s+': '+c),
+    ...Object.entries(byStatus).sort((a,b)=>b[1]-a[1]).map(([s,c])=>'  '+s+': '+c),
     '',
     'Cancellation Requests (active): '+cancelReq,
     'Cancelled: '+cancelled,
     'Archived / Test: '+archived,
+    '',
+    'Customer Actions:',
+    '  Bookings with customer actions: '+custActions,
+    '  Customer actions missing eventLog: '+custActionsNoLog,
+    '  Bookings with no eventLog: '+noEventLog,
     '',
     'Data Issues:',
     '  Missing phone: '+missingPhone,
     '  Missing ID: '+missingId,
     '  Missing status: '+missingStatus,
     '  Duplicate IDs: '+(dupIds.length?dupIds.join(', '):'none'),
+    '  cardOnFileStatus without setupIntentId: '+cardNoSetup,
     '',
     'Note: Run ☁️ Load from cloud first for accurate cloud totals.',
   ].join('\n');
   alert(report);
+}
+
+// ── ADMIN: EXPORT BACKUP JSON ─────────────────────────────────────────────────
+function adminExportBackupJSON(){
+  const all=getStoredBookings();
+  if(!all.length){alert('No bookings in local data. Load from cloud first.');return;}
+  const blob=new Blob([JSON.stringify(all,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='cd1-bookings-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 
 // ── ADMIN: TEST BOOKING CLEANUP ───────────────────────────────────────────────
@@ -6088,41 +6127,42 @@ async function cpConfirmCancel(){
     if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
   }
 }
-async function _cpSendInquiry(type,message,phone,msgEl){
+async function _cpSubmitAction(action,payload,msgEl){
+  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()?.replace(/\D/g,'')||'';
+  if(!cpActiveBookingId||!phone){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Load your booking first.</span>';}return;}
   try{
-    await fetch('/.netlify/functions/submit-inquiry',{
+    const r=await fetch(BACKEND_BASE+'/submit-customer-action',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:'My Booking — '+type,phone,email:'',message,source:'My Booking Customer Portal'}),
+      body:JSON.stringify({bookingId:cpActiveBookingId,phone,action,...payload}),
     });
-    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Request sent. Cardetail1 will contact you to confirm changes.</span>';}
+    const data=await r.json().catch(()=>({}));
+    if(r.ok&&data.ok){
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Request saved. Cardetail1 will contact you to confirm changes.</span>';}
+    }else{
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(data.userMessage||'Could not send. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
+    }
   }catch(e){
     if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--mu)">Could not send. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
   }
 }
 async function cpConfirmReschedule(){
-  if(!cpActiveBookingId){return;}
   const newDate=(document.getElementById('cp-new-date')||{}).value||'';
   const newTime=(document.getElementById('cp-new-time')||{}).value||'';
   const msgEl=document.getElementById('cp-reschedule-msg');
-  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
   if(!newDate){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select a new preferred date.</span>';}return;}
-  await _cpSendInquiry('Reschedule Request',`Booking ${cpActiveBookingId} — requested reschedule to: ${newDate}${newTime?' · '+newTime:''}`,phone,msgEl);
+  await _cpSubmitAction('reschedule_request',{newDate,newTime},msgEl);
 }
 async function cpConfirmAddress(){
-  if(!cpActiveBookingId){return;}
   const addr=(document.getElementById('cp-new-addr')||{}).value?.trim()||'';
   const msgEl=document.getElementById('cp-addr-msg');
-  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
   if(!addr){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please enter the new service address.</span>';}return;}
-  await _cpSendInquiry('Address Update',`Booking ${cpActiveBookingId} — requested address change to: ${addr}`,phone,msgEl);
+  await _cpSubmitAction('address_update',{newAddress:addr},msgEl);
 }
 async function cpConfirmAddons(){
-  if(!cpActiveBookingId){return;}
   const msgEl=document.getElementById('cp-addon-msg');
-  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
   if(!cpSelectedAddons.length){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select at least one add-on.</span>';}return;}
   const addonList=cpSelectedAddons.map(a=>a.name+' (+$'+a.price+')').join(', ');
-  await _cpSendInquiry('Add-On Request',`Booking ${cpActiveBookingId} — requested add-ons: ${addonList}`,phone,msgEl);
+  await _cpSubmitAction('addon_request',{requestedAddons:addonList},msgEl);
 }
 function _cpContactOnly(){
   alert('To modify this booking, please contact Cardetail1 at 551-313-2956.');
