@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 110" fill="none" role="img" aria-label="Minivan">
+  <!-- body — tall but rounded, shorter than full van -->
+  <path d="M12,78 L14,46 L28,26 L60,10 L210,10 L234,18 L252,36 L258,56 L260,78 Z" fill="rgba(5,14,32,.88)" stroke="#4da3ff" stroke-width="2" stroke-linejoin="round"/>
+  <!-- windshield — steep angle -->
+  <path d="M34,26 L46,10 L80,10 L88,26 L84,48 L30,48 Z" fill="rgba(77,163,255,.1)" stroke="#4da3ff" stroke-width="1.4" stroke-linejoin="round"/>
+  <!-- B pillar -->
+  <line x1="112" y1="10" x2="110" y2="48" stroke="#4da3ff" stroke-width="1.5" opacity=".45"/>
+  <!-- C pillar -->
+  <line x1="166" y1="10" x2="164" y2="48" stroke="#4da3ff" stroke-width="1.2" opacity=".4"/>
+  <!-- side windows -->
+  <rect x="94" y="14" width="50" height="28" rx="3" fill="rgba(77,163,255,.08)" stroke="#4da3ff" stroke-width="1.2"/>
+  <rect x="150" y="14" width="50" height="28" rx="3" fill="rgba(77,163,255,.07)" stroke="#4da3ff" stroke-width="1.2"/>
+  <!-- sliding door line -->
+  <line x1="188" y1="10" x2="186" y2="78" stroke="#4da3ff" stroke-width="1" opacity=".3"/>
+  <!-- step rail -->
+  <line x1="28" y1="68" x2="252" y2="68" stroke="#4da3ff" stroke-width="1.5" opacity=".3"/>
+  <!-- front wheel -->
+  <circle cx="68" cy="78" r="20" fill="rgba(3,9,22,.95)" stroke="#4da3ff" stroke-width="2"/>
+  <circle cx="68" cy="78" r="10" fill="none" stroke="#4da3ff" stroke-width="1.3"/>
+  <line x1="58" y1="78" x2="78" y2="78" stroke="#4da3ff" stroke-width="1" opacity=".5"/>
+  <line x1="68" y1="68" x2="68" y2="88" stroke="#4da3ff" stroke-width="1" opacity=".5"/>
+  <circle cx="68" cy="78" r="3" fill="#4da3ff" opacity=".6"/>
+  <!-- rear wheel -->
+  <circle cx="202" cy="78" r="20" fill="rgba(3,9,22,.95)" stroke="#4da3ff" stroke-width="2"/>
+  <circle cx="202" cy="78" r="10" fill="none" stroke="#4da3ff" stroke-width="1.3"/>
+  <line x1="192" y1="78" x2="212" y2="78" stroke="#4da3ff" stroke-width="1" opacity=".5"/>
+  <line x1="202" y1="68" x2="202" y2="88" stroke="#4da3ff" stroke-width="1" opacity=".5"/>
+  <circle cx="202" cy="78" r="3" fill="#4da3ff" opacity=".6"/>
+  <!-- headlight -->
+  <ellipse cx="254" cy="50" rx="5" ry="9" fill="rgba(77,163,255,.35)" stroke="#4da3ff" stroke-width="1.2"/>
+  <!-- taillight -->
+  <rect x="11" y="46" width="4" height="18" rx="2" fill="rgba(77,163,255,.25)" stroke="#4da3ff" stroke-width="1"/>
+  <!-- ground line -->
+  <line x1="26" y1="98" x2="252" y2="98" stroke="#4da3ff" stroke-width="1" opacity=".18"/>
+</svg>

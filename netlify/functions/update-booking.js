@@ -303,6 +303,9 @@ exports.handler = async (event) => {
     }
 
     const now = new Date().toISOString();
+    const eventLog = Array.isArray(booking.eventLog) ? [...booking.eventLog] : [];
+    eventLog.push({ action: lastAction, at: now, by: 'admin', fields: Object.keys(validated) });
+
     const patched = {
       ...booking,
       ...validated,
@@ -310,6 +313,7 @@ exports.handler = async (event) => {
       updatedByRole:  'admin',
       updatedBy:      'admin',
       lastAction,
+      eventLog,
     };
 
     await store.setJSON(bookingId, patched);

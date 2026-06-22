@@ -58,7 +58,7 @@ function safeBooking(b) {
     })),
     addons:          (b.addons || []).map(a => ({ name: a.name || '' })),
     preferredDate:   b.preferredDate   || '',
-    confirmedWindow: b.confirmedWindow || '',
+    confirmedWindow: b.confirmedTimeWindow || b.confirmedWindow || '',
     preferredTime:   b.preferredTime   || '',
     address:         b.address         || '',
     totalPrice:      b.totalPrice      || 0,
