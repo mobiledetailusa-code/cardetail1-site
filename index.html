@@ -2427,6 +2427,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button onclick="showAdminTab('auctions')" id="cd-auc-tab-btn" style="background:rgba(168,85,247,.18);color:#c084fc;border-color:rgba(168,85,247,.4)">🏷️ Auctions</button>
         <button onclick="syncTechsToCloud()">🧰 Sync Techs</button>
         <button onclick="changeAdminPassword()">🔑 Password</button>
+        <button onclick="openTechAccountsPanel()">👤 Tech Accounts</button>
+        <button onclick="openSecurityLogPanel()">🛡️ Security Log</button>
+        <button onclick="adminLogout()" style="color:var(--rd)">⏻ Logout</button>
         <button onclick="renderAdminBookings()">Refresh</button>
         <button onclick="showAdminTab('list')">📋 List</button>
         <button onclick="showAdminTab('calendar')">📅 Calendar</button>
@@ -2568,6 +2571,38 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
               <button onclick="closeGalleryForm()" style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:9px 16px;font-size:13px;cursor:pointer">Cancel</button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- ── TECH ACCOUNTS ── -->
+      <div id="admin-tech-accounts-view" style="display:none">
+        <div style="padding:20px;font-size:13px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+            <div><div style="font-size:18px;font-weight:700;color:var(--white)">👤 Technician Accounts</div><div style="color:var(--mu);font-size:12px;margin-top:2px">Create, manage, and control technician access.</div></div>
+            <div style="display:flex;gap:8px"><button onclick="loadTechAccounts()" style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer">↻ Refresh</button><button onclick="showCreateTechForm()" style="background:var(--blue);color:#000;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">＋ Create Tech</button></div>
+          </div>
+          <div id="tech-accounts-msg" style="display:none;padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:12.5px"></div>
+          <div id="tech-accounts-list"></div>
+          <div id="tech-create-form" style="display:none;background:var(--bg2);border:1px solid var(--bbr);border-radius:var(--rs);padding:18px;margin-top:14px">
+            <div style="font-weight:700;color:var(--white);margin-bottom:12px">New Technician Account</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">Name *</label><input id="tc-name" type="text" placeholder="Full name" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+              <div><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">Email *</label><input id="tc-email" type="email" placeholder="tech@email.com" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+            </div>
+            <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">Phone *</label><input id="tc-phone" type="tel" placeholder="5551234567" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+            <div style="display:flex;gap:8px"><button onclick="createTechAccount()" style="background:var(--gr);color:#000;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">Create Account</button><button onclick="document.getElementById('tech-create-form').style.display='none'" style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer">Cancel</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECURITY LOG ── -->
+      <div id="admin-security-log-view" style="display:none">
+        <div style="padding:20px;font-size:13px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+            <div><div style="font-size:18px;font-weight:700;color:var(--white)">🛡️ Security Log</div><div style="color:var(--mu);font-size:12px;margin-top:2px">Recent authentication and security events.</div></div>
+            <button onclick="loadSecurityLog()" style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer">↻ Refresh</button>
+          </div>
+          <div id="security-log-list" style="font-family:'DM Mono',monospace;font-size:11px"></div>
         </div>
       </div>
     </div>
@@ -4348,10 +4383,112 @@ function showAdminTab(tab){
   const auc = document.getElementById('admin-auc-view'); if(auc) auc.style.display = tab==='auctions' ? 'block' : 'none';
   const rev = document.getElementById('admin-reviews-view'); if(rev) rev.style.display = tab==='reviews' ? 'block' : 'none';
   const gal = document.getElementById('admin-gallery-view'); if(gal) gal.style.display = tab==='gallery' ? 'block' : 'none';
+  const ta = document.getElementById('admin-tech-accounts-view'); if(ta) ta.style.display = tab==='tech-accounts' ? 'block' : 'none';
+  const sl = document.getElementById('admin-security-log-view'); if(sl) sl.style.display = tab==='security-log' ? 'block' : 'none';
   if(tab==='calendar') renderAdminCalendar();
   if(tab==='inquiries') renderAdminInquiries();
   if(tab==='auctions') renderAuctions();
   if(tab==='gallery') loadGalleryAdmin();
+  if(tab==='tech-accounts') loadTechAccounts();
+  if(tab==='security-log') loadSecurityLog();
+}
+
+// ── TECH ACCOUNTS (admin) ──────────────────────────────────────────────────
+function openTechAccountsPanel(){ showAdminTab('tech-accounts'); }
+function showCreateTechForm(){ document.getElementById('tech-create-form').style.display='block'; }
+async function loadTechAccounts(){
+  const el=document.getElementById('tech-accounts-list');
+  if(!el)return;
+  el.innerHTML='<div style="color:var(--mu)">Loading…</div>';
+  try{
+    const r=await fetch(BACKEND_BASE+'/tech-accounts',{method:'POST',headers:_adminHeaders(),body:JSON.stringify({action:'list'})});
+    const d=await r.json();
+    if(!d.ok){el.innerHTML='<div style="color:var(--rd)">'+esc(d.error||'Failed')+'</div>';return;}
+    const techs=d.technicians||[];
+    if(!techs.length){el.innerHTML='<div style="color:var(--mu)">No technician accounts yet. Click <b>＋ Create Tech</b> to add one.</div>';return;}
+    el.innerHTML=techs.map(t=>{
+      const statusBadge=t.active?'<span style="color:var(--gr);font-weight:600">Active</span>':'<span style="color:var(--rd);font-weight:600">Inactive</span>';
+      const pwBadge=t.hasPassword?'<span style="color:var(--gr)">✓ Set</span>':'<span style="color:var(--am)">⏳ Invite pending</span>';
+      return '<div style="background:var(--bg2);border:1px solid var(--bbr);border-radius:var(--rs);padding:14px;margin-bottom:8px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+        +'<div><div style="font-weight:700;color:var(--white)">'+esc(t.name)+'</div><div style="font-size:11px;color:var(--mu)">'+esc(t.email)+' · '+esc(t.phone)+'</div></div>'
+        +'<div style="display:flex;gap:6px;align-items:center;font-size:12px">'+statusBadge+' · Password: '+pwBadge+'</div>'
+        +'</div>'
+        +'<div style="margin-top:8px;font-size:11px;color:var(--mu)">ID: '+esc(t.id)+' · Role: '+esc(t.role)+' · Jobs: '+(t.assignedJobCount||0)+' · Last login: '+(t.lastLogin||'never')+'</div>'
+        +'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'
+        +(t.active?'<button onclick="deactivateTech(\''+esc(t.id)+'\')" style="background:rgba(239,68,68,.12);color:var(--rd);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer">Deactivate</button>':'<button onclick="reactivateTech(\''+esc(t.id)+'\')" style="background:rgba(34,197,94,.12);color:var(--gr);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer">Reactivate</button>')
+        +'<button onclick="resetTechPassword(\''+esc(t.id)+'\')" style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer">Reset Password</button>'
+        +'</div></div>';
+    }).join('');
+  }catch(_){el.innerHTML='<div style="color:var(--rd)">Network error loading accounts.</div>';}
+}
+async function createTechAccount(){
+  const name=(document.getElementById('tc-name').value||'').trim();
+  const email=(document.getElementById('tc-email').value||'').trim();
+  const phone=(document.getElementById('tc-phone').value||'').trim();
+  const msg=document.getElementById('tech-accounts-msg');
+  if(!name||!email||!phone){alert('All fields required.');return;}
+  try{
+    const r=await fetch(BACKEND_BASE+'/tech-accounts',{method:'POST',headers:_adminHeaders(),body:JSON.stringify({action:'create',name,email,phone})});
+    const d=await r.json();
+    if(d.ok){
+      document.getElementById('tech-create-form').style.display='none';
+      document.getElementById('tc-name').value='';document.getElementById('tc-email').value='';document.getElementById('tc-phone').value='';
+      if(msg){msg.style.display='block';msg.style.background='rgba(34,197,94,.12)';msg.style.color='var(--gr)';msg.innerHTML='✓ Account created for <b>'+esc(name)+'</b>. Invite token: <code style="background:var(--bg);padding:2px 6px;border-radius:4px;user-select:all">'+esc(d.inviteToken)+'</code><br><span style="font-size:11px;color:var(--mu)">Share this token with the technician to set their password at the Tech Portal.</span>';}
+      loadTechAccounts();
+    }else{alert(d.error||'Failed to create account.');}
+  }catch(_){alert('Network error.');}
+}
+async function deactivateTech(id){
+  if(!confirm('Deactivate this technician? They will be logged out and unable to sign in.'))return;
+  try{
+    const r=await fetch(BACKEND_BASE+'/tech-accounts',{method:'POST',headers:_adminHeaders(),body:JSON.stringify({action:'deactivate',techId:id})});
+    const d=await r.json();
+    if(d.ok){loadTechAccounts();}else{alert(d.error||'Failed.');}
+  }catch(_){alert('Network error.');}
+}
+async function reactivateTech(id){
+  try{
+    const r=await fetch(BACKEND_BASE+'/tech-accounts',{method:'POST',headers:_adminHeaders(),body:JSON.stringify({action:'reactivate',techId:id})});
+    const d=await r.json();
+    if(d.ok){loadTechAccounts();}else{alert(d.error||'Failed.');}
+  }catch(_){alert('Network error.');}
+}
+async function resetTechPassword(id){
+  if(!confirm('Reset this technician\'s password? They will need a new invite token to set a new password.'))return;
+  try{
+    const r=await fetch(BACKEND_BASE+'/tech-accounts',{method:'POST',headers:_adminHeaders(),body:JSON.stringify({action:'reset_password',techId:id})});
+    const d=await r.json();
+    if(d.ok){
+      const msg=document.getElementById('tech-accounts-msg');
+      if(msg){msg.style.display='block';msg.style.background='rgba(251,191,36,.12)';msg.style.color='var(--am)';msg.innerHTML='Password reset. New invite token: <code style="background:var(--bg);padding:2px 6px;border-radius:4px;user-select:all">'+esc(d.inviteToken)+'</code>';}
+      loadTechAccounts();
+    }else{alert(d.error||'Failed.');}
+  }catch(_){alert('Network error.');}
+}
+
+// ── SECURITY LOG (admin) ──────────────────────────────────────────────────
+function openSecurityLogPanel(){ showAdminTab('security-log'); }
+async function loadSecurityLog(){
+  const el=document.getElementById('security-log-list');
+  if(!el)return;
+  el.innerHTML='<div style="color:var(--mu)">Loading…</div>';
+  try{
+    const h=_adminHeaders(); delete h['Content-Type'];
+    const r=await fetch(BACKEND_BASE+'/security-log?limit=200',{headers:h});
+    const d=await r.json();
+    if(!d.ok){el.innerHTML='<div style="color:var(--rd)">'+esc(d.error||'Failed')+'</div>';return;}
+    const evts=d.events||[];
+    if(!evts.length){el.innerHTML='<div style="color:var(--mu)">No security events recorded yet.</div>';return;}
+    const typeColors={'admin_login_success':'var(--gr)','admin_login_failure':'var(--rd)','admin_logout':'var(--mu)','admin_password_changed':'var(--am)',
+      'tech_login_success':'var(--gr)','tech_login_failure':'var(--rd)','tech_account_created':'var(--blue)','tech_account_deactivated':'var(--rd)',
+      'tech_password_reset':'var(--am)','tech_status_update':'var(--blue)','admin_login_rate_limited':'var(--rd)'};
+    el.innerHTML=evts.map(e=>{
+      const c=typeColors[e.type]||'var(--mu)';
+      const details=Object.entries(e).filter(([k])=>!['type','at'].includes(k)).map(([k,v])=>k+':'+v).join(' · ');
+      return '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="color:var(--mu)">'+(e.at||'').slice(0,19).replace('T',' ')+'</span> <span style="color:'+c+';font-weight:600">'+esc(e.type||'?')+'</span> <span style="color:var(--mu)">'+esc(details)+'</span></div>';
+    }).join('');
+  }catch(_){el.innerHTML='<div style="color:var(--rd)">Network error.</div>';}
 }
 
 // ── GALLERY MANAGER (admin) ────────────────────────────────────────────────
@@ -5692,9 +5829,14 @@ function rvMove(dir){ rvGoTo(rvIdx + dir); }
 // ═══════════════════════════════════════════════════════
 let loginRole = 'admin';
 
-function changeAdminPassword(){
-  alert('Admin password is managed via the ADMIN_DASH_PASSWORD environment variable in Netlify. Update it there and redeploy.');
-}
+function changeAdminPassword(){ adminChangePassword(); }
+(function _restoreAdminSession(){
+  const t=sessionStorage.getItem('cd1_admin_token');
+  if(!t)return;
+  window._adminToken=t;
+  fetch(BACKEND_BASE+'/admin-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'validate',token:t})})
+    .then(r=>r.json()).then(d=>{if(d.ok){window._adminSessionActive=true;}else{sessionStorage.removeItem('cd1_admin_token');window._adminToken=null;}}).catch(()=>{});
+})();
 
 // ── BACK TO TOP
 (function(){
@@ -5740,16 +5882,18 @@ async function doLogin(){
   if(!pw) return;
   if(btn){ btn.disabled = true; btn.textContent = 'Checking…'; }
   try {
-    const res  = await fetch('/.netlify/functions/admin-auth', {
+    const res  = await fetch(BACKEND_BASE+'/admin-session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw }),
+      body: JSON.stringify({ action:'login', password: pw }),
     });
     const data = await res.json();
-    if(data.ok){
+    if(data.ok && data.token){
       closeLogin();
       window._adminSessionActive = true;
+      window._adminToken = data.token;
       window._adminKey = pw;
+      sessionStorage.setItem('cd1_admin_token', data.token);
       if(btn){ btn.disabled = false; btn.textContent = 'Enter →'; }
       if(window._pendingAdminFn){
         const fn = window._pendingAdminFn;
@@ -5761,9 +5905,13 @@ async function doLogin(){
       document.body.style.overflow = 'hidden';
       return;
     }
-    err.textContent = data.error === 'missing_admin_password_config'
-      ? 'Admin password not configured. Contact support.'
-      : 'Incorrect password. Try again.';
+    if(data.error==='too_many_attempts'){
+      err.textContent = 'Too many failed attempts. Wait '+data.retryAfter+'s and try again.';
+    } else if(data.error==='missing_admin_password_config'){
+      err.textContent = 'Admin password not configured. Contact support.';
+    } else {
+      err.textContent = 'Incorrect password. Try again.';
+    }
     err.classList.add('show');
   } catch(_) {
     err.textContent = 'Network error — try again.';
@@ -5772,6 +5920,32 @@ async function doLogin(){
   if(btn){ btn.disabled = false; btn.textContent = 'Enter →'; }
   document.getElementById('login-pw').value = '';
   document.getElementById('login-pw').focus();
+}
+function _adminHeaders(){
+  const h={'Content-Type':'application/json'};
+  if(window._adminToken) h['x-admin-token']=window._adminToken;
+  if(window._adminKey) h['x-admin-key']=window._adminKey;
+  return h;
+}
+async function adminLogout(){
+  try{ await fetch(BACKEND_BASE+'/admin-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout',token:window._adminToken||''})}); }catch(_){}
+  window._adminSessionActive=false; window._adminToken=null; window._adminKey=null;
+  sessionStorage.removeItem('cd1_admin_token');
+  document.getElementById('admin-ov').classList.remove('open');
+  document.body.style.overflow='';
+}
+async function adminChangePassword(){
+  const cur=prompt('Current password:');if(!cur)return;
+  const np=prompt('New password (min 8 chars, upper+lower+number):');if(!np)return;
+  const cf=prompt('Confirm new password:');if(!cf)return;
+  if(np!==cf){alert('Passwords do not match.');return;}
+  try{
+    const r=await fetch(BACKEND_BASE+'/admin-session',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'change_password',token:window._adminToken||'',currentPassword:cur,newPassword:np,confirmPassword:cf})});
+    const d=await r.json();
+    if(d.ok){alert('✓ Password changed. Other sessions invalidated.');}
+    else{alert(d.message||d.error||'Failed to change password.');}
+  }catch(_){alert('Network error.');}
 }
 
 // ═══════════════════════════════════════════════════════
