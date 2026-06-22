@@ -5077,7 +5077,7 @@ function renderVehicleCart(){
   }).join('');
   const fee = activeZone ? activeZone.surcharge : 0;
   if(totalEl){ totalEl.style.display='flex'; }
-  if(sumEl){ sumEl.textContent = '$'+(sum + fee) + (fee?' (incl. $'+fee+' area fee)':''); }
+  if(sumEl){ sumEl.textContent = '$'+(sum + fee); }
 }
 
 // ── RESTORE RESTART ─────────────────────────────────────────────────────────────
@@ -5495,12 +5495,7 @@ function applyZip(){
     nameEl.textContent  = zone.short;
     pillEl.style.display= 'inline-flex';
     pillTxt.textContent = zone.emoji+' '+zone.label;
-    if(zone.surcharge > 0){
-      surEl.style.display = 'inline-block';
-      surEl.textContent   = '+$'+zone.surcharge+' travel fee applies';
-    } else {
-      surEl.style.display = 'none';
-    }
+    surEl.style.display = 'none';
   } else {
     nameEl.textContent  = 'YOUR AREA';
     pillEl.style.display= 'none';
@@ -5545,12 +5540,7 @@ function onBkZipInput(val){
     const cityName = getCityByZip(zip5);
     badge.style.display = 'inline-flex';
     badge.textContent   = '✓ ' + (cityName ? cityName : zone.short);
-    if(zone.surcharge > 0){
-      surBadge.style.display = 'inline-flex';
-      surBadge.textContent   = '+$'+zone.surcharge+' area fee';
-    } else {
-      surBadge.style.display = 'none';
-    }
+    surBadge.style.display = 'none';
     // Unlock category cards
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('locked'));
     if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span>'; }
@@ -7067,7 +7057,7 @@ function onHeroZipInput(val){
     cityHtml = `<div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px;letter-spacing:.02em">📍 ${cityName}</div>`;
   }
   let pills = `<span class="zip-pill zip-pill-zone">${zone.label}</span>`;
-  if(zone.surcharge > 0) pills += `<span class="zip-pill zip-pill-fee">+$${zone.surcharge} area fee</span>`;
+  // Fee is included silently in the total — no visible pill
   if(richMultiplier > 1.0) pills += `<span class="zip-pill zip-pill-rich">⭐ Premium area</span>`;
   if(fb) fb.innerHTML = `${cityHtml}<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">${pills}</div>`;
   // Unlock homepage service cards
