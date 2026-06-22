@@ -473,6 +473,7 @@ function renderStatus(){
 
   let acts=`<a href="index.html" class="btn btn-g btn-sm">+ Book Again</a>`;
   if(canReschedule){ acts+=`<button class="btn btn-yw btn-sm" onclick="openReschedule('${esc(active.id)}')">📅 Reschedule</button>`; }
+  if(canReschedule){ acts+=`<button class="btn btn-tl btn-sm" onclick="openAddressChange('${esc(active.id)}')">📍 Change Address</button>`; }
   if(isDone&&!active.reviewLeft){ acts+=`<button class="btn btn-p btn-sm" onclick="openReview('${esc(active.id)}')">⭐ Leave Review</button>`; }
   if(canCancel){ acts+=`<button class="btn btn-sm" style="background:transparent;border:1px solid rgba(239,68,68,.4);color:#ef4444" onclick="showCancelForm()">✕ Request Cancellation</button>`; }
 
@@ -607,13 +608,57 @@ function openReschedule(id){
   `;
   document.getElementById('modal').classList.add('open');
 }
-function submitReschedule(id){
+async function submitReschedule(id){
   const d=document.getElementById('rs-date').value;
   if(!d){ alert('Select a date'); return; }
-  const bks=JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
-  const i=bks.findIndex(b=>b.id===id);
-  if(i>-1){ bks[i].preferredDate=d; bks[i].preferredTime=document.getElementById('rs-time').value; bks[i].status='Rescheduled'; if(document.getElementById('rs-note').value) bks[i].notes=(bks[i].notes||'')+' | Reschedule note: '+document.getElementById('rs-note').value; localStorage.setItem('cd1_bookings',JSON.stringify(bks)); }
-  closeModal(); alert("✅ Reschedule request sent! We'll confirm your new date within 24 hours."); initApp();
+  const time=document.getElementById('rs-time').value;
+  const note=(document.getElementById('rs-note').value||'').trim();
+  const b=CUSTOMER_BOOKINGS.find(x=>x.id===id)||{};
+  const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||(b.phone||'').replace(/\D/g,'');
+  const btn=document.querySelector('#modal-inner .btn-p'); if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  try{
+    await fetch('/.netlify/functions/submit-inquiry',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:nm(b),phone,email:b.email||'',message:`Reschedule Request — Booking ${id}\nNew date: ${d}\nTime: ${time}${note?'\nNote: '+note:''}`,source:'Customer Portal — Reschedule'})
+    });
+    closeModal(); alert("✅ Reschedule request sent! We'll confirm your new date within 24 hours.");
+  }catch(e){
+    alert('Could not send request. Please call 551-313-2956.');
+  }finally{ if(btn){btn.disabled=false;btn.textContent='Submit Request';} }
+}
+
+// ── ADDRESS CHANGE MODAL ─────────────
+function openAddressChange(id){
+  document.getElementById('modal-inner').innerHTML=`
+    <div class="m-title">📍 Change Service Address</div>
+    <p style="font-size:13px;color:var(--mu);margin-bottom:14px">Enter your new service address and we'll update your appointment.</p>
+    <label class="m-lbl">New Address</label>
+    <input class="m-inp" id="addr-new" placeholder="123 Main St, Hoboken NJ 07030">
+    <label class="m-lbl">Notes (optional)</label>
+    <input class="m-inp" id="addr-note" placeholder="Gate code, parking instructions…">
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-p" style="flex:1" onclick="submitAddressChange('${id}')">Update Address</button>
+      <button class="btn btn-g" style="flex:1" onclick="closeModal()">Cancel</button>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('open');
+}
+async function submitAddressChange(id){
+  const addr=(document.getElementById('addr-new').value||'').trim();
+  if(!addr){ alert('Please enter the new address.'); return; }
+  const note=(document.getElementById('addr-note').value||'').trim();
+  const b=CUSTOMER_BOOKINGS.find(x=>x.id===id)||{};
+  const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||(b.phone||'').replace(/\D/g,'');
+  const btn=document.querySelector('#modal-inner .btn-p'); if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  try{
+    await fetch('/.netlify/functions/submit-inquiry',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:nm(b),phone,email:b.email||'',message:`Address Change — Booking ${id}\nNew address: ${addr}${note?'\nNote: '+note:''}`,source:'Customer Portal — Address Change'})
+    });
+    closeModal(); alert('✅ Address change request sent! We will confirm the update shortly.');
+  }catch(e){
+    alert('Could not send request. Please call 551-313-2956.');
+  }finally{ if(btn){btn.disabled=false;btn.textContent='Update Address';} }
 }
 
 // ── REVIEW MODAL ─────────────────────────

@@ -820,18 +820,19 @@ function admRender(p){
 // ═══════════════════════════════════════
 function renderDash(){
   const bk=bkGet(), tk=tkGet();
+  const real=bk.filter(b=>!b.isTest&&!b.archived);
   document.getElementById('dd-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  const rev=bk.filter(b=>b.status==='Completed'||b.status==='Paid').reduce((s,b)=>s+bkTot(b),0);
-  const pend=bk.filter(b=>b.status==='Pending Review').length;
-  const act=bk.filter(b=>['Confirmed','Scheduled','In Progress','En Route'].includes(b.status)).length;
+  const rev=real.filter(b=>b.status==='Completed'||b.status==='Paid').reduce((s,b)=>s+bkTot(b),0);
+  const pend=real.filter(b=>b.status==='Pending Review').length;
+  const act=real.filter(b=>['Confirmed','Scheduled','In Progress','En Route'].includes(b.status)).length;
   document.getElementById('dstats').innerHTML=`
     <div class="sc"><div class="sv" style="color:var(--green)">$${rev.toLocaleString()}</div><div class="sl">Revenue</div></div>
     <div class="sc"><div class="sv" style="color:var(--yellow)">${pend}</div><div class="sl">Pending</div></div>
     <div class="sc"><div class="sv" style="color:var(--blue)">${act}</div><div class="sl">Active Jobs</div></div>
     <div class="sc"><div class="sv" style="color:var(--purple)">${tk.filter(t=>t.status==='approved').length}</div><div class="sl">Active Techs</div></div>
-    <div class="sc"><div class="sv">${bk.length}</div><div class="sl">Total Bookings</div></div>
-    <div class="sc"><div class="sv" style="color:var(--green)">${bk.filter(b=>b.status==='Completed'||b.status==='Paid').length}</div><div class="sl">Completed</div></div>`;
-  const recent=[...bk].reverse().slice(0,6);
+    <div class="sc"><div class="sv">${real.length}</div><div class="sl">Total Bookings</div></div>
+    <div class="sc"><div class="sv" style="color:var(--green)">${real.filter(b=>b.status==='Completed'||b.status==='Paid').length}</div><div class="sl">Completed</div></div>`;
+  const recent=[...real].reverse().slice(0,6);
   document.getElementById('d-recent').innerHTML=recent.length
     ?recent.map(b=>`<tr onclick="openDrw('${b.id}')"><td class="td-mo">${(b.id||'').slice(-6)}</td><td class="td-nm">${bkNm(b)}</td><td class="td-mu">${bkSvc(b)}</td><td class="td-mu">${b.createdAt?new Date(b.createdAt).toLocaleDateString():'—'}</td><td class="td-pr">$${bkTot(b)}</td><td>${badge(b.status||'Pending Review')}</td></tr>`).join('')
     :'<tr><td colspan="6" class="empty"><div class="ei">📭</div><div class="et">No bookings yet</div></td></tr>';
