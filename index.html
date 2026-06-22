@@ -2829,10 +2829,12 @@ async function makeWebhookSend(payload){
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:300, premium:450},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:215, interior:250, full:325, premium:550},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:275, full:325, premium:635},
-      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:250, interior:275, full:325, premium:615},
+      small:   {label:'Small Car', icon:'🚗',desc:'Sedan · Coupe · Hatchback',      maint:175, interior:199, full:249, premium:399},
+      suv2:    {label:'SUV 2-Row', icon:'🚙',desc:'Compact & Mid-Size SUV',         maint:195, interior:229, full:279, premium:449},
+      suv3:    {label:'SUV 3-Row', icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger',  maint:225, interior:259, full:309, premium:499},
+      truck:   {label:'Truck',     icon:'🛻',desc:'Pickup · Full & Mid-Size',        maint:225, interior:259, full:309, premium:529},
+      minivan: {label:'Minivan',   icon:'🚐',desc:'Minivan · Passenger Van',         maint:225, interior:259, full:309, premium:529},
+      van:     {label:'Van',       icon:'🚐',desc:'Cargo Van · Sprinter Van',        maint:249, interior:289, full:349, premium:599},
     },
     packages:[
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
@@ -2857,20 +2859,23 @@ const PRICING = {
         miss:['Interior shampoo (add Interior Detail if needed)']}
     ],
     addons:[
-      {id:'pethair',    scope:'int', name:'Pet Hair Removal',          icon:'🐾',  desc:'Deep removal of embedded pet hair from seats, carpets, mats, and trunk. Heavy vehicles may require estimate', price:95},
-      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    icon:'💎',  desc:'Upgrade any package with extra shampoo passes, hand-steam on every panel, door pockets & cargo area — add to any interior-included package', price:125},
-      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', icon:'💨',  desc:'Interior odor neutralizer + high-touch surface sanitizing. Not biohazard or mold remediation', price:149},
-      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        icon:'☣️',  desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Requires estimate confirmation before service', price:115},
-      {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      icon:'🛠️',  desc:'Top-view engine bay cleaning — visible surfaces, cover, and accessible areas only. NOT a full engine detail or mechanical service', price:45},
-      {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      icon:'🟫',  desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each — set the quantity of mats', price:20, qty:true},
-      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    icon:'💧',  desc:'Water-repellent Rain-X treatment on windshield and front glass for improved wet-weather visibility', price:25},
-      {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     icon:'🛡️',  desc:'Hand-applied polymer sealant for paint protection and enhanced gloss. Lasts 3–6 months', price:25},
-      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       icon:'🥇',  desc:'Premium long-lasting carnauba wax. Superior gloss and up to 12 months of paint protection', price:75},
-      {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        icon:'🧲',  desc:'Removes embedded contaminants, industrial fallout, and rail dust for a smooth, clean paint surface', price:45},
-      {id:'headlight',  scope:'ext', name:'Headlight Restoration',     icon:'💡',  desc:'Sand, polish, and seal foggy or yellowed headlights to restore clarity and night visibility (per pair)', price:90},
-      {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  icon:'🧒',  desc:'Clean and sanitize a child car seat — straps, padding, and buckle. $20 each — set the quantity', price:20, qty:true},
-      {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    icon:'🍼',  desc:'Wash and sanitize a baby stroller — fabric, frame, and wheels. $20 each — set the quantity', price:20, qty:true},
-      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        icon:'🗑️',  desc:'Residential trash can cleaning at the service location. $25 each — set the quantity. Biohazard requires estimate', price:25, qty:true},
+      {id:'rainx',       scope:'ext', name:'Rain-X Glass Treatment',        icon:'💧',  desc:'Water-repellent Rain-X treatment on windshield and front glass for improved wet-weather visibility', price:20},
+      {id:'pethair',     scope:'int', name:'Pet Hair Removal',               icon:'🐾',  desc:'Deep removal of embedded pet hair from seats, carpets, mats, and trunk. Heavy or severe cases may require a separate estimate', price:45, from:true},
+      {id:'odor',        scope:'int', name:'Odor Treatment',                 icon:'💨',  desc:'Interior odor neutralizer + high-touch surface sanitizing. Not biohazard or mold remediation', price:65, from:true},
+      {id:'heavypethair',scope:'int', name:'Heavy Pet Hair Removal',         icon:'🐾',  desc:'Severe or heavily embedded pet hair — multi-pass removal on all surfaces including cargo area and headliner. Price based on severity', price:75, from:true},
+      {id:'seat',        scope:'int', name:'Seat / Carpet Shampoo',          icon:'💺',  desc:'Extra shampoo passes on seats and carpets — deep clean and extraction beyond standard package. Ideal for stains and buildup', price:45, from:true},
+      {id:'leather',     scope:'int', name:'Leather / Plastic Conditioning', icon:'🪑',  desc:'Deep conditioning treatment for leather seats, trim panels, and plastic surfaces to restore softness and protect against cracking', price:35},
+      {id:'stain',       scope:'int', name:'Stain Treatment',                icon:'🧹',  desc:'Targeted stain treatment on seats, carpets, and fabric surfaces. Severe or set-in stains may require a separate estimate', price:45, from:true},
+      {id:'engine',      scope:'ext', name:'Engine Bay Cleaning',            icon:'🛠️',  desc:'Top-view engine bay cleaning — visible surfaces, cover, and accessible areas only. NOT a full engine detail or mechanical service', price:60},
+      {id:'headlight',   scope:'ext', name:'Headlight Restoration',          icon:'💡',  desc:'Sand, polish, and seal foggy or yellowed headlights to restore clarity and night visibility (per pair)', price:60, from:true},
+      {id:'polymer',     scope:'ext', name:'Spray Wax Upgrade',              icon:'🛡️',  desc:'Premium spray wax applied by hand for enhanced gloss and short-term paint protection', price:35},
+      {id:'wax1yr',      scope:'ext', name:'Hand Wax / Sealant Upgrade',     icon:'🥇',  desc:'Hand-applied carnauba wax or paint sealant for superior gloss and up to 12 months of paint protection', price:85},
+      {id:'claybar',     scope:'ext', name:'Paint Sealant Upgrade',          icon:'🧲',  desc:'Professional-grade paint sealant application for long-lasting protection. Price varies by vehicle size and paint condition', price:120, from:true},
+      {id:'biohazard',   scope:'int', name:'Biohazard Cleaning',             icon:'☣️',  desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Requires estimate confirmation before service', price:115},
+      {id:'floormats',   scope:'int', name:'Floor Mat Deep Clean',           icon:'🟫',  desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each — set the quantity of mats', price:20, qty:true},
+      {id:'babyseat',    scope:'int', name:'Baby / Car Seat Cleaning',       icon:'🧒',  desc:'Clean and sanitize a child car seat — straps, padding, and buckle. $20 each — set the quantity', price:20, qty:true},
+      {id:'stroller',    scope:'int', name:'Baby Stroller Cleaning',         icon:'🍼',  desc:'Wash and sanitize a baby stroller — fabric, frame, and wheels. $20 each — set the quantity', price:20, qty:true},
+      {id:'trashcans',   scope:'any', name:'Trash Can Cleaning',             icon:'🗑️',  desc:'Residential trash can cleaning at the service location. $25 each — set the quantity. Biohazard requires estimate', price:25, qty:true},
     ],
   },
   boats: {
@@ -3775,7 +3780,7 @@ function renderAddons(){
   const otherAddons=addons.filter(a=>!POPULAR_IDS.includes(a.id));
   function addonCardHtml(a){
     const isQty=!!a.qty;
-    return `<div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)"><div class="addon-check">✓</div><div class="addon-ico">${a.icon}</div><div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">+$${a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
+    return `<div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)"><div class="addon-check">✓</div><div class="addon-ico">${a.icon}</div><div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">${a.from?'from $'+a.price:'+$'+a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
   }
   document.getElementById('addon-grid').innerHTML=
     '<div class="addon-popular-label">Popular Add-ons</div>'+
@@ -7040,7 +7045,7 @@ seedDefaultTechs();
 
   // ── LOCAL KNOWLEDGE BASE (uses the site's real data) ──
   function pkgNames(cat){ try{ return (PRICING[cat].packages||[]).filter(p=>p.id!=='custom').map(p=>p.name); }catch(e){ return []; } }
-  function addonList(cat){ try{ return (PRICING[cat].addons||[]).map(a=>a.name+' (+$'+a.price+')'); }catch(e){ return []; } }
+  function addonList(cat){ try{ return (PRICING[cat].addons||[]).map(a=>a.name+' ('+(a.from?'from $':'+$')+a.price+')'); }catch(e){ return []; } }
 
   const INTENTS = [
     { keys:['hi','hello','hey','hallo','ola','olá','good morning','good afternoon'], fn:()=>({
@@ -7066,9 +7071,9 @@ seedDefaultTechs();
     { keys:['add-on','add on','addon','extra','upgrade','pet hair','odor','ceramic','wax','shampoo','stain'], fn:()=>{
       const popularIds=['pethair','odor','rainx'];
       const all=(PRICING.cars?.addons||[]);
-      const popular=all.filter(a=>popularIds.includes(a.id)).map(a=>'• '+a.name+' (+$'+a.price+')');
-      const others=all.filter(a=>!popularIds.includes(a.id)).slice(0,4).map(a=>'• '+a.name+' (+$'+a.price+')');
-      const list=[...popular,...others].join('\n')||'• Pet Hair Removal (+$95)\n• Odor Treatment (+$149)\n• Rain-X Glass Treatment (+$25)';
+      const popular=all.filter(a=>popularIds.includes(a.id)).map(a=>'• '+a.name+' ('+(a.from?'from $':'+$')+a.price+')');
+      const others=all.filter(a=>!popularIds.includes(a.id)).slice(0,4).map(a=>'• '+a.name+' ('+(a.from?'from $':'+$')+a.price+')');
+      const list=[...popular,...others].join('\n')||'• Rain-X Glass Treatment (+$20)\n• Pet Hair Removal (from $45)\n• Odor Treatment (from $65)';
       return { reply:"Popular add-ons you can pick during booking:\n\n"+list+"\n\nThey appear right after you choose your package & vehicle, and the total updates live.",
         chips:[{label:'📅 Add to my booking',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
 
