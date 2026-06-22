@@ -90,6 +90,8 @@ exports.handler = async (event) => {
 
   const updated = {
     ...booking,
+    status:                      'Cancellation Requested',
+    previousStatus:              booking.status || 'Pending Review',
     cancellationRequestStatus:   'requested',
     cancellationRequestedAt:     new Date().toISOString(),
     cancellationReason:          reason,

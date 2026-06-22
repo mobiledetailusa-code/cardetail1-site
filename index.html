@@ -1916,7 +1916,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       </div>
       <div class="cp-sub-panel" id="cps-cancel">
         <div id="cp-cancel-warn" style="padding:12px;border:1px solid rgba(239,68,68,.3);border-radius:var(--rs);background:var(--rddim);font-size:13px;color:var(--rd);margin-bottom:12px;line-height:1.6"></div>
-        <button class="cp-btn" id="cp-cancel-confirm-btn" style="background:var(--rd)" onclick="cpConfirmCancel()">Confirm Cancellation</button>
+        <label class="cp-label">Reason for cancellation <span style="color:var(--rd)">*</span></label>
+        <textarea class="cp-fi" id="cp-cancel-reason" rows="3" placeholder="e.g. Schedule conflict, no longer needed…" style="resize:none;margin-bottom:8px"></textarea>
+        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;font-size:12px;color:var(--mu);cursor:pointer;line-height:1.5">
+          <input type="checkbox" id="cp-cancel-ack" style="margin-top:2px;accent-color:var(--blue);flex-shrink:0">
+          <span>I understand the cancellation policy. Late cancellations (within 24h) or no-shows may incur a fee per the posted terms.</span>
+        </label>
+        <button class="cp-btn" id="cp-cancel-confirm-btn" style="background:var(--rd)" onclick="cpConfirmCancel()">Confirm Cancellation Request</button>
         <div id="cp-cancel-msg" style="display:none;margin-top:10px;font-size:13px"></div>
       </div>
       <div class="cp-sub-panel" id="cps-addons">
@@ -2558,14 +2564,16 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="ops-note" id="ops-note"><strong>Central storage:</strong> bookings from every device are saved to the cloud (Netlify Blobs). Click <strong>☁️ Load from cloud</strong> to pull them all in. Requires <code>ADMIN_DASH_PASSWORD</code> set on Netlify (same as your admin password).</div>
       <div class="admin-counts" id="admin-counts"></div>
       <div class="admin-tabs" id="admin-tabs">
-        <button class="active" onclick="setAdminFilter('All')">All</button>
-        <button onclick="setAdminFilter('Pending Review')">Pending</button>
-        <button onclick="setAdminFilter('Confirmed')">Confirmed</button>
-        <button onclick="setAdminFilter('Scheduled')">Scheduled</button>
-        <button onclick="setAdminFilter('Completed')">Completed</button>
-        <button onclick="setAdminFilter('Cancelled')">Cancelled</button>
-        <button onclick="setAdminFilter('Rescheduled')">Rescheduled</button>
-        <button onclick="setAdminFilter('No-Show')">No-Show</button>
+        <button class="active" data-filter="All" onclick="setAdminFilter('All')">All</button>
+        <button data-filter="Pending Review" onclick="setAdminFilter('Pending Review')">Pending</button>
+        <button data-filter="Confirmed" onclick="setAdminFilter('Confirmed')">Confirmed</button>
+        <button data-filter="Scheduled" onclick="setAdminFilter('Scheduled')">Scheduled</button>
+        <button data-filter="Completed" onclick="setAdminFilter('Completed')">Completed</button>
+        <button data-filter="__cancellation_req" onclick="setAdminFilter('__cancellation_req')" style="border-color:rgba(239,68,68,.35);color:#ef4444">⚠️ Cancellations</button>
+        <button data-filter="Cancelled" onclick="setAdminFilter('Cancelled')">Cancelled</button>
+        <button data-filter="No-Show" onclick="setAdminFilter('No-Show')">No-Show</button>
+        <button data-filter="Rescheduled" onclick="setAdminFilter('Rescheduled')">Rescheduled</button>
+        <button data-filter="__test_archived" onclick="setAdminFilter('__test_archived')" style="color:var(--mu)">🗃️ Test/Archived</button>
       </div>
       <div class="admin-toolbar">
         <button onclick="openJobsBoard()" style="background:rgba(168,85,247,.2);color:#c084fc;border-color:rgba(168,85,247,.4)">⚡ Jobs Board</button>
@@ -2580,6 +2588,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button onclick="showAdminTab('inquiries')" id="cd-inq-tab-btn">💬 Inquiries</button>
         <button onclick="showAdminTab('reviews')">⭐ Reviews</button>
         <button onclick="exportBookingsCsv()">Export CSV</button>
+        <button onclick="adminDataAudit()" title="Count bookings by status">📊 Audit</button>
+        <button onclick="adminArchiveTestBookings()" title="Find and archive test bookings" style="color:var(--mu)">🧹 Test Cleanup</button>
+        <button onclick="loadCloudBookings(true)" title="Load cloud bookings including test/archived" style="color:var(--mu)">☁️ Load + Test</button>
         <button onclick="seedDemoBooking()">Demo</button>
         <button onclick="clearDemoBookings()">Clear</button>
         <button onclick="showAdminTab('gallery')" style="background:rgba(77,163,255,.15);color:var(--blue);border-color:rgba(77,163,255,.35)">📷 Gallery</button>
@@ -4317,13 +4328,15 @@ function handleAdminOverlay(e){if(e.target===document.getElementById('admin-ov')
 let ADMIN_FILTER='All';
 function setAdminFilter(status){
   ADMIN_FILTER=status;
-  document.querySelectorAll('#admin-tabs button').forEach(btn=>btn.classList.toggle('active',btn.textContent.trim().toLowerCase().startsWith(status.toLowerCase().split(' ')[0]) || (status==='All' && btn.textContent.trim()==='All')));
+  document.querySelectorAll('#admin-tabs button[data-filter]').forEach(btn=>btn.classList.toggle('active',btn.dataset.filter===status));
   renderAdminBookings();
 }
 function renderAdminCounts(list){
   const el=document.getElementById('admin-counts'); if(!el)return;
-  const statuses=['Pending Review','Confirmed','Scheduled','Completed','Cancelled','Rescheduled','No-Show'];
-  el.innerHTML=[`<div class="admin-count"><b>${list.length}</b><span>Total</span></div>`].concat(statuses.map(st=>`<div class="admin-count"><b>${list.filter(b=>(b.status||'Pending Review')===st).length}</b><span>${st}</span></div>`)).join('');
+  const statuses=['Pending Review','Confirmed','Scheduled','Completed','Cancellation Requested','Cancelled','No-Show'];
+  const cancelReqCount=list.filter(b=>b.cancellationRequestStatus==='requested').length;
+  const cancelReqHtml=`<div class="admin-count" style="${cancelReqCount?'border-color:rgba(239,68,68,.4)':''}"><b${cancelReqCount?' style="color:#ef4444"':''}>${cancelReqCount}</b><span${cancelReqCount?' style="color:#ef4444"':''}>⚠️ Cancel Req</span></div>`;
+  el.innerHTML=`<div class="admin-count"><b>${list.length}</b><span>Total</span></div>`+statuses.map(st=>`<div class="admin-count"><b>${list.filter(b=>(b.status||'Pending Review')===st).length}</b><span>${st}</span></div>`).join('')+cancelReqHtml;
 }
 function mkBadge(color,bg,label){return`<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:${color};background:${bg};border:1px solid ${color};border-radius:999px;padding:3px 9px;white-space:nowrap;display:inline-block;margin:1px">${label}</span>`;}
 
@@ -4364,7 +4377,10 @@ function renderAdminBookings(){
   if(!grid)return;
   const all=getStoredBookings();
   renderAdminCounts(all);
-  const list=ADMIN_FILTER==='All'?all:all.filter(b=>(b.status||'Pending Review')===ADMIN_FILTER);
+  const list=ADMIN_FILTER==='All'?all:
+    ADMIN_FILTER==='__cancellation_req'?all.filter(b=>b.cancellationRequestStatus==='requested'):
+    ADMIN_FILTER==='__test_archived'?all.filter(b=>b.isTest||b.archived):
+    all.filter(b=>(b.status||'Pending Review')===ADMIN_FILTER);
   if(!all.length){grid.innerHTML='<div class="admin-empty">No local booking requests yet. Submit a test booking to populate this dashboard.</div>';return;}
   if(!list.length){grid.innerHTML='<div class="admin-empty">No bookings in this status.</div>';return;}
   grid.innerHTML=list.map(b=>{
@@ -4403,18 +4419,21 @@ function renderAdminBookings(){
     </div>`;
   }).join('');
 }
-function setBookingStatus(id,status){
+async function setBookingStatus(id,status){
   const list=getStoredBookings().map(b=>b.id===id?{...b,status,updatedAt:new Date().toISOString()}:b);
   setStoredBookings(list);renderAdminBookings();
+  adminPersistToCloud(id,{status},'admin_set_status').catch(()=>{});
 }
-function scheduleBookingPrompt(id){
+async function scheduleBookingPrompt(id){
   const list=getStoredBookings();
   const b=list.find(x=>x.id===id); if(!b)return;
   const when=prompt('Enter confirmed or rescheduled date/time window:', (b.confirmedWindow||`${b.preferredDate} · ${b.preferredTime||''}`));
   if(!when)return;
   const status=confirm('Mark as Rescheduled? Press OK for Rescheduled, Cancel for Confirmed.')?'Rescheduled':'Confirmed';
-  const updated=list.map(x=>x.id===id?{...x,status,confirmedWindow:when,updatedAt:new Date().toISOString()}:x);
+  const updates={status,confirmedTimeWindow:when};
+  const updated=list.map(x=>x.id===id?{...x,...updates,updatedAt:new Date().toISOString()}:x);
   setStoredBookings(updated);renderAdminBookings();
+  adminPersistToCloud(id,updates,'admin_schedule_booking').catch(()=>{});
 }
 // ── ADMIN: NEW JOB ────────────────────────────────────────────────────────────
 function openNewJobForm(){
@@ -4893,12 +4912,12 @@ function renderAdminCalendar(){
 }
 
 // Pull ALL bookings stored centrally (Netlify Blobs) and merge into the local view.
-async function loadCloudBookings(){
+async function loadCloudBookings(withTest){
   const btn=document.getElementById('cloud-load-btn');
   const key=window._adminKey||'';
   if(btn){ btn.disabled=true; btn.textContent='☁️ Loading…'; }
   try{
-    const res=await fetch(BACKEND_BASE+'/list-bookings',{headers:{'x-admin-key':key}});
+    const res=await fetch(BACKEND_BASE+'/list-bookings'+(withTest?'?showTest=1':''),{headers:{'x-admin-key':key}});
     const data=await res.json().catch(()=>({}));
     if(res.status===503){ alert('Cloud storage not set up yet.\n\nSet ADMIN_DASH_PASSWORD on Netlify (same as your admin password) and redeploy.'); return; }
     if(res.status===401){ alert('Cloud sync rejected the password. Make sure ADMIN_DASH_PASSWORD on Netlify equals your admin login password.'); return; }
@@ -4938,6 +4957,7 @@ async function setPayLinkPrompt(id){
   }
   const updated=list.map(x=>x.id===id?{...x,payLink:link,updatedAt:new Date().toISOString()}:x);
   setStoredBookings(updated);renderAdminBookings();
+  adminPersistToCloud(id,{payLink:link},'admin_set_paylink').catch(()=>{});
   const msg='Stripe full-payment link ($'+(cents/100).toFixed(2)+') generated & copied:\n'+link;
   if(navigator.clipboard){ navigator.clipboard.writeText(link).then(()=>alert(msg)).catch(()=>alert(msg)); }
   else alert(msg);
@@ -4977,6 +4997,105 @@ function clearDemoBookings(){if(confirm('Clear all local booking requests from t
 function seedDemoBooking(){
   const demo={id:'CD1-DEMO',status:'Pending Review',createdAt:new Date().toISOString(),firstName:'Demo',lastName:'Customer',phone:'551-313-2956',email:'demo@example.com',address:'Bergen County, NJ',preferredDate:new Date().toISOString().slice(0,10),preferredTime:'Morning (8AM – 11AM)',vehicleCategory:'cars',vehicle:'2022 BMW X5',vehicleTier:'SUV 3-Row',lengthFt:'',package:'Premium Detail',packagePrice:435,addons:[{name:'Pet Hair Removal',price:130}],addonTotal:130,totalPrice:565,notes:'Demo booking for admin preview.'};
   saveLocalBooking(demo);renderAdminBookings();
+}
+
+// ── ADMIN: CLOUD PERSISTENCE ──────────────────────────────────────────────────
+async function adminPersistToCloud(bookingId, updates, lastAction){
+  const key=window._adminKey||'';
+  if(!key) return; // not logged in as admin
+  try{
+    const res=await fetch(BACKEND_BASE+'/update-booking',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-admin-key':key},
+      body:JSON.stringify({bookingId,updates,lastAction:lastAction||'admin_update'}),
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok) console.warn('[admin] cloud persist failed:',data.error,'for',bookingId);
+  }catch(e){
+    console.warn('[admin] cloud persist error:',e.message,'for',bookingId);
+  }
+}
+
+// ── ADMIN: DATA AUDIT ─────────────────────────────────────────────────────────
+function adminDataAudit(){
+  const all=getStoredBookings();
+  const drafts=all.filter(b=>b.isDraft);
+  const real=all.filter(b=>!b.isDraft);
+  const byStatus={};
+  real.forEach(b=>{ const s=b.status||'Pending Review'; byStatus[s]=(byStatus[s]||0)+1; });
+  const cancelReq=real.filter(b=>b.cancellationRequestStatus==='requested').length;
+  const cancelled=real.filter(b=>(b.status||'')==='Cancelled').length;
+  const archived=real.filter(b=>b.archived||b.isTest).length;
+  const missingPhone=real.filter(b=>!b.phone).length;
+  const missingId=real.filter(b=>!b.id).length;
+  const missingStatus=real.filter(b=>!b.status).length;
+  const ids=real.map(b=>b.id).filter(Boolean);
+  const dupIds=ids.filter((id,i)=>ids.indexOf(id)!==i);
+  const report=[
+    'BOOKING DATA AUDIT — '+new Date().toLocaleString(),
+    '─────────────────────────────────────',
+    'Total finalized: '+real.length,
+    'Drafts: '+drafts.length,
+    '',
+    'By Status:',
+    ...Object.entries(byStatus).map(([s,c])=>'  '+s+': '+c),
+    '',
+    'Cancellation Requests (active): '+cancelReq,
+    'Cancelled: '+cancelled,
+    'Archived / Test: '+archived,
+    '',
+    'Data Issues:',
+    '  Missing phone: '+missingPhone,
+    '  Missing ID: '+missingId,
+    '  Missing status: '+missingStatus,
+    '  Duplicate IDs: '+(dupIds.length?dupIds.join(', '):'none'),
+    '',
+    'Note: Run ☁️ Load from cloud first for accurate cloud totals.',
+  ].join('\n');
+  alert(report);
+}
+
+// ── ADMIN: TEST BOOKING CLEANUP ───────────────────────────────────────────────
+const _TEST_SIGNALS=[
+  b=>b.isTest===true,
+  b=>String(b.bookingSource||b.source||'').toLowerCase().includes('deploy-preview'),
+  b=>String(b.firstName||'').toLowerCase().includes('test'),
+  b=>String(b.lastName||'').toLowerCase().includes('test'),
+  b=>String(b.email||'').toLowerCase().includes('test'),
+  b=>/^(000|111|123|555)/.test(String(b.phone||'').replace(/\D/g,'')),
+  b=>String(b.vehicle||b.vehicleCategory||'').toLowerCase().includes('test'),
+  b=>String(b.notes||'').toLowerCase().includes('test booking'),
+];
+function _isLikelyTestBooking(b){return _TEST_SIGNALS.some(fn=>{try{return fn(b);}catch{return false;}});}
+async function adminArchiveTestBookings(){
+  const all=getStoredBookings().filter(b=>!b.isDraft);
+  const tests=all.filter(_isLikelyTestBooking);
+  if(!tests.length){alert('No test bookings detected in local data.\n\nRun ☁️ Load + Test first to include archived/test bookings.');return;}
+  const preview=tests.slice(0,10).map(b=>`  • ${b.id||'?'} — ${b.firstName||''} ${b.lastName||''} · ${b.phone||''}`).join('\n');
+  const more=tests.length>10?'\n  … and '+(tests.length-10)+' more':'';
+  const confirmed=confirm(
+    tests.length+' likely-test booking(s) found:\n\n'+preview+more+
+    '\n\nArchive all? (Hidden from default Admin list — NOT deleted.)\n\nExport CSV first if you need a backup.'
+  );
+  if(!confirmed)return;
+  const key=window._adminKey||'';
+  if(!key){alert('Not logged in as Admin — cannot persist archive to cloud.');return;}
+  let ok=0,fail=0;
+  for(const b of tests){
+    try{
+      const res=await fetch(BACKEND_BASE+'/tag-booking',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-admin-key':key},
+        body:JSON.stringify({bookingId:b.id,isTest:true,archived:true,archivedReason:'admin_test_cleanup',archivedAt:new Date().toISOString()}),
+      });
+      const data=await res.json().catch(()=>({}));
+      if(data.ok) ok++; else fail++;
+    }catch{ fail++; }
+  }
+  const updated=getStoredBookings().map(b=>_isLikelyTestBooking(b)?{...b,isTest:true,archived:true,archivedReason:'admin_test_cleanup'}:b);
+  setStoredBookings(updated);
+  renderAdminBookings();
+  alert('✓ Archived '+ok+' test booking(s) to cloud.'+(fail?' '+fail+' failed — check console.':'')+'\n\nUse 🗃️ Test/Archived filter to see them.');
 }
 
 // ── MULTI-VEHICLE CART ─────────────────────────────────────────────────────────
@@ -6023,13 +6142,33 @@ async function cpLoadManage(){
       ? b.vehicles
       : [{pkgName:b.package||'—', vehicleLabel:b.vehicle||'—', pkgIcon:'🚗', addons:b.addons||[], subtotal:b.totalPrice}];
     const vehHtml = vehs.map(v=>'<div style="font-size:12px;line-height:1.7;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+v.pkgIcon+' <strong>'+(v.pkgName||'—')+'</strong> · '+(v.vehicleLabel||'—')+' · <span style="color:var(--blue)">$'+(v.subtotal||0)+'</span></div>').join('');
-    const sc = {'Completed':'var(--gr)','Confirmed':'var(--blue)','Scheduled':'var(--blue)','In Progress':'var(--am)','Cancelled':'var(--rd)'}[status]||'var(--mu)';
+    const isCancelReq = b.cancellationRequestStatus === 'requested';
+    const displayStatus = isCancelReq ? 'Cancellation Requested' : status;
+    const statusColor = isCancelReq ? '#ef4444' : (isCompleted ? 'var(--gr)' : isEditable ? 'var(--am)' : 'var(--mu)');
+    const statusBg = isCancelReq ? 'rgba(239,68,68,.15)' : 'rgba(0,0,0,.3)';
+    let actionsHtml = '';
+    if(isCompleted){
+      actionsHtml='<div style="margin-top:12px"><button class="cp-btn" style="margin:0" onclick="cpTab(3)">⭐ Leave a Review →</button></div>';
+    } else if(isCancelReq){
+      actionsHtml='<div style="margin-top:12px;padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--rs);font-size:12px;color:var(--rd)">⚠️ Cancellation request received. Our team will review and confirm within 1 business day.<br><br>Questions? <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></div>';
+    } else if(!isEditable){
+      actionsHtml='<div style="margin-top:12px;font-size:12px;color:var(--mu)">Need help or want to book again? <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a> · <button class="cp-btn" style="display:inline;padding:4px 12px;font-size:12px;margin:4px 0 0 0" onclick="closePortal();setTimeout(function(){openBooking(null)},100)">Book Again →</button></div>';
+    } else {
+      const cancelLabel=canCancel?'✕ Request Cancellation':'✕ Cancel (fee may apply)';
+      const warnEnc=encodeURIComponent(cancelWarn);
+      actionsHtml='<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">'
+        +`<button class="cp-btn" onclick="cpOpenCancel('${b.id}',${canCancel},'${warnEnc}')" style="margin:0;padding:10px 16px;font-size:12px;background:rgba(239,68,68,.12);color:var(--rd);border-color:rgba(239,68,68,.3)">${cancelLabel}</button>`
+        +`<button class="cp-btn" onclick="cpOpenSub('reschedule')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">↺ Reschedule</button>`
+        +`<button class="cp-btn" onclick="cpOpenSub('addons')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">➕ Add-Ons</button>`
+        +'</div>'
+        +'<div style="margin-top:8px;font-size:11px;color:var(--mu)">Requests reviewed by Cardetail1 · Urgent: <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></div>';
+    }
     res.innerHTML = '<div style="background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--rs);padding:14px;margin-bottom:12px">'
-      +'<div style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">#'+b.id+' · <span style="font-size:12px;font-weight:600;color:'+(isCompleted?'var(--gr)':isEditable?'var(--am)':'var(--mu)')+';background:rgba(0,0,0,.3);padding:3px 10px;border-radius:999px">'+status+'</span></div>'
+      +'<div style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">#'+b.id+' · <span style="font-size:12px;font-weight:600;color:'+statusColor+';background:'+statusBg+';padding:3px 10px;border-radius:999px">'+displayStatus+'</span></div>'
       +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+(b.confirmedWindow||b.preferredDate||'—')+' · '+(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+(b.address||'—')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(b.totalPrice||0)+'</strong>'+(b.tip?' + Tip $'+b.tip:'')+'</div>'
       +'<div style="margin-top:10px">'+vehHtml+'</div>'
       +(b.payLink?'<div style="margin-top:10px"><a href="'+b.payLink+'" target="_blank" style="color:var(--blue);font-weight:600">&#x1F4B3; Pay Now &#x2192;</a></div>':'')
-      +'</div><div style="font-size:12px;color:var(--mu);margin-top:12px;line-height:1.6">To modify this booking, please contact Cardetail1 at <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</div>';
+      +'</div>'+actionsHtml;
   } catch(_){
     if(btn){ btn.disabled=false; btn.textContent='Load My Booking →'; }
     res.style.display='block';
@@ -6068,10 +6207,74 @@ function cpToggleAddon(id, name, price, el){
   else cpSelectedAddons = cpSelectedAddons.filter(a=>a.id!==id);
 }
 
-function cpConfirmAddons(){ _cpContactOnly(); }
-function cpConfirmReschedule(){ _cpContactOnly(); }
-function cpConfirmAddress(){ _cpContactOnly(); }
-function cpConfirmCancel(){ _cpContactOnly(); }
+async function cpConfirmCancel(){
+  if(!cpActiveBookingId){alert('No booking loaded. Please load your booking first.');return;}
+  const reasonEl=document.getElementById('cp-cancel-reason');
+  const ackEl=document.getElementById('cp-cancel-ack');
+  const msgEl=document.getElementById('cp-cancel-msg');
+  const btn=document.getElementById('cp-cancel-confirm-btn');
+  const reason=(reasonEl?.value||'').trim();
+  const ack=ackEl?.checked||false;
+  if(!reason){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please provide a reason for cancellation.</span>';}return;}
+  if(!ack){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please acknowledge the cancellation policy.</span>';}return;}
+  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
+  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
+  if(msgEl)msgEl.style.display='none';
+  try{
+    const r=await fetch('/.netlify/functions/request-cancellation',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bookingId:cpActiveBookingId,phone,reason,acknowledgedPolicy:true}),
+    });
+    const data=await r.json().catch(()=>({}));
+    if(btn){btn.disabled=false;btn.textContent='Confirm Cancellation Request';}
+    if(data.ok||data.alreadyRequested){
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Cancellation request submitted. Cardetail1 will review and confirm within 1 business day.</span>';}
+      if(btn){btn.disabled=true;btn.textContent='Request Submitted';}
+      setTimeout(()=>cpLoadManage(),1500);
+    }else{
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(data.userMessage||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
+    }
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='Confirm Cancellation Request';}
+    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
+  }
+}
+async function _cpSendInquiry(type,message,phone,msgEl){
+  try{
+    await fetch('/.netlify/functions/submit-inquiry',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:'My Booking — '+type,phone,email:'',message,source:'My Booking Customer Portal'}),
+    });
+    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Request sent. Cardetail1 will contact you to confirm changes.</span>';}
+  }catch(e){
+    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--mu)">Could not send. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
+  }
+}
+async function cpConfirmReschedule(){
+  if(!cpActiveBookingId){return;}
+  const newDate=(document.getElementById('cp-new-date')||{}).value||'';
+  const newTime=(document.getElementById('cp-new-time')||{}).value||'';
+  const msgEl=document.getElementById('cp-reschedule-msg');
+  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
+  if(!newDate){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select a new preferred date.</span>';}return;}
+  await _cpSendInquiry('Reschedule Request',`Booking ${cpActiveBookingId} — requested reschedule to: ${newDate}${newTime?' · '+newTime:''}`,phone,msgEl);
+}
+async function cpConfirmAddress(){
+  if(!cpActiveBookingId){return;}
+  const addr=(document.getElementById('cp-new-addr')||{}).value?.trim()||'';
+  const msgEl=document.getElementById('cp-addr-msg');
+  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
+  if(!addr){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please enter the new service address.</span>';}return;}
+  await _cpSendInquiry('Address Update',`Booking ${cpActiveBookingId} — requested address change to: ${addr}`,phone,msgEl);
+}
+async function cpConfirmAddons(){
+  if(!cpActiveBookingId){return;}
+  const msgEl=document.getElementById('cp-addon-msg');
+  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
+  if(!cpSelectedAddons.length){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select at least one add-on.</span>';}return;}
+  const addonList=cpSelectedAddons.map(a=>a.name+' (+$'+a.price+')').join(', ');
+  await _cpSendInquiry('Add-On Request',`Booking ${cpActiveBookingId} — requested add-ons: ${addonList}`,phone,msgEl);
+}
 function _cpContactOnly(){
   alert('To modify this booking, please contact Cardetail1 at 551-313-2956.');
 }
