@@ -1626,9 +1626,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="sec-desc">See what customers say about Cardetail1 across cars, SUVs, RVs, and mobile detailing jobs throughout NJ and NY.</div>
 
     <div class="trust-row" style="margin-bottom:36px">
-      <div class="trust-item"><div class="trust-ico">🚗</div><div class="trust-val">500+</div><div class="trust-lbl">Vehicles Detailed</div></div>
-      <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val">3+</div><div class="trust-lbl">Years in Service</div></div>
-      <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">NJ · NY</div><div class="trust-lbl">Coverage Area</div></div>
+      <div class="trust-item"><div class="trust-ico">🚗</div><div class="trust-val" id="stat-vehicles">2.8k+</div><div class="trust-lbl">Vehicles Detailed</div></div>
+      <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val" id="stat-years">5+</div><div class="trust-lbl">Years in Service</div></div>
+      <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val" style="font-size:18px;letter-spacing:-.01em">NJ · NY · CT · PA</div><div class="trust-lbl">Coverage Area</div></div>
       <div class="trust-item"><div class="trust-ico">⭐</div><div class="trust-val">5.0</div><div class="trust-lbl">Customer Rating</div></div>
     </div>
 
@@ -7667,8 +7667,24 @@ seedDefaultTechs();
   setTimeout(()=>{ if(!started){ const b=$('cd-badge'); if(b) b.style.display='flex'; } }, 6000);
 })();
 </script>
-<div data-netlify-deploy-id="6a361a9eda32d60008f3ed6b" data-netlify-site-id="d7e5f77c-1f0b-4209-a9df-3d6aae380dd0" data-vcs="github" style="position:fixed">
-
-  <script async src="/.netlify/scripts/cdp"></script>
-</div></body>
+<script>
+/* ── LIVE TRUST STATS ──────────────────────────────────────────────────────
+   Vehicles: 2,800 baseline on 2026-06-22, +3 per day
+   Years:    founded 2021-06-22, auto-increments on each anniversary
+   ──────────────────────────────────────────────────────────────────────── */
+(function(){
+  const BASE_V=2800, BASE_DATE=new Date('2026-06-22'), MS_DAY=864e5;
+  const FOUNDED=new Date('2021-06-22');
+  function fmtK(n){ const k=n/1000; return k>=1?(k%1===0?k.toFixed(0):k.toFixed(1))+'k':String(n); }
+  function tick(){
+    const now=new Date();
+    const vEl=document.getElementById('stat-vehicles');
+    if(vEl){ const v=BASE_V+Math.max(0,Math.floor((now-BASE_DATE)/MS_DAY)*3); vEl.textContent=fmtK(v)+'+'; }
+    const yEl=document.getElementById('stat-years');
+    if(yEl){ yEl.textContent=Math.floor((now-FOUNDED)/(365.25*MS_DAY))+'+'; }
+  }
+  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',tick):tick();
+})();
+</script>
+</body>
 </html>
