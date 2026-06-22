@@ -182,13 +182,17 @@ exports.handler = async (event) => {
 
     const result = await findTechByInviteToken(techStore, inviteToken);
     if (!result) return json(404, { ok: false, error: 'invalid_invite_token' });
+    if (result.tech.inviteExpiresAt && new Date(result.tech.inviteExpiresAt) < new Date()) {
+      await securityLog({ type: 'tech_invite_expired', email, ip });
+      return json(410, { ok: false, error: 'invite_expired', message: 'Invite expired. Please ask the admin to send a new invite.' });
+    }
     if (result.tech.email !== email) return json(403, { ok: false, error: 'email_mismatch' });
     if (!result.tech.active) return json(403, { ok: false, error: 'account_deactivated' });
 
-    // Set password and clear invite token
     result.tech.passwordHash = hashPassword(newPassword);
     result.tech.inviteToken = null;
     result.tech.inviteTokenCreatedAt = null;
+    result.tech.inviteExpiresAt = null;
     result.tech.updatedAt = new Date().toISOString();
     await techStore.setJSON(result.key, result.tech);
 

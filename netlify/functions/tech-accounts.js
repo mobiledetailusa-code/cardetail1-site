@@ -1,8 +1,7 @@
 // netlify/functions/tech-accounts.js
 // Admin-only CRUD for technician accounts. Stored in Netlify Blobs (cd1-tech-accounts).
 //
-// Auth: x-admin-token header (session token from admin-session.js)
-//       Falls back to x-admin-key (legacy password) for backward compatibility.
+// Auth: x-admin-token header (session token from admin-session.js).
 //
 // POST { action, ...params }
 //   list                                → { ok, technicians }
@@ -17,7 +16,7 @@ const crypto = require('crypto');
 const CORS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, x-admin-token, x-admin-key',
+  'Access-Control-Allow-Headers': 'Content-Type, x-admin-token',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Cache-Control': 'no-store',
 };
@@ -40,24 +39,18 @@ async function securityLog(entry) {
 
 async function verifyAdmin(headers) {
   const h = headers || {};
-  // Try session token first
   const token = (h['x-admin-token'] || h['X-Admin-Token'] || '').trim();
-  if (token && token.length >= 32) {
-    const sessionStore = await getStore('cd1-admin-sessions');
-    const key = 'sess-' + token.slice(0, 16);
-    const s = await sessionStore.get(key, { type: 'json' }).catch(() => null);
-    if (s && Date.now() <= s.expiresAt) {
-      return crypto.timingSafeEqual(Buffer.from(s.token), Buffer.from(token));
-    }
-  }
-  // Fall back to legacy password
-  const adminKey = (h['x-admin-key'] || h['X-Admin-Key'] || '').trim();
-  const expected = (process.env.ADMIN_DASH_PASSWORD || '').trim();
-  if (!adminKey || !expected) return false;
-  const a = Buffer.from(adminKey);
-  const b = Buffer.from(expected);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!token || token.length < 32) return false;
+  const sessionStore = await getStore('cd1-admin-sessions');
+  const key = 'sess-' + token.slice(0, 16);
+  const s = await sessionStore.get(key, { type: 'json' }).catch(() => null);
+  if (!s || Date.now() > s.expiresAt) return false;
+  return crypto.timingSafeEqual(Buffer.from(s.token), Buffer.from(token));
+  // NOTE: existing endpoints (list-bookings, update-booking, capture-payment, etc.)
+  // still use x-admin-key. Migrate those in a future PR.
 }
+
+const INVITE_TTL_MS = 72 * 60 * 60 * 1000; // 72 hours
 
 function generateInviteToken() {
   return crypto.randomBytes(24).toString('base64url');
@@ -94,8 +87,7 @@ exports.handler = async (event) => {
       if (!b.key.startsWith('tech-')) continue;
       const t = await store.get(b.key, { type: 'json' }).catch(() => null);
       if (t) {
-        // Never return password hash or invite token to admin list
-        const { passwordHash, inviteToken, inviteTokenCreatedAt, ...safe } = t;
+        const { passwordHash, inviteToken, ...safe } = t;
         safe.hasPassword = !!passwordHash;
         safe.hasInviteToken = !!inviteToken;
         technicians.push(safe);
@@ -138,6 +130,7 @@ exports.handler = async (event) => {
       passwordHash: null,
       inviteToken,
       inviteTokenCreatedAt: now,
+      inviteExpiresAt: new Date(Date.now() + INVITE_TTL_MS).toISOString(),
       assignedJobCount: 0,
       lastLogin: null,
       createdAt: now,
@@ -231,6 +224,7 @@ exports.handler = async (event) => {
     tech.passwordHash = null;
     tech.inviteToken = inviteToken;
     tech.inviteTokenCreatedAt = new Date().toISOString();
+    tech.inviteExpiresAt = new Date(Date.now() + INVITE_TTL_MS).toISOString();
     tech.updatedAt = new Date().toISOString();
     await store.setJSON('tech-' + techId, tech);
 

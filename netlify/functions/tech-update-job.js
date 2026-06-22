@@ -146,8 +146,6 @@ exports.handler = async (event) => {
       status: newStatus,
     });
 
-    console.log('[tech-update-job]', session.techId, bookingId, newStatus);
-
     return json(200, {
       ok: true,
       bookingId,

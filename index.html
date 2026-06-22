@@ -4408,7 +4408,8 @@ async function loadTechAccounts(){
     if(!techs.length){el.innerHTML='<div style="color:var(--mu)">No technician accounts yet. Click <b>＋ Create Tech</b> to add one.</div>';return;}
     el.innerHTML=techs.map(t=>{
       const statusBadge=t.active?'<span style="color:var(--gr);font-weight:600">Active</span>':'<span style="color:var(--rd);font-weight:600">Inactive</span>';
-      const pwBadge=t.hasPassword?'<span style="color:var(--gr)">✓ Set</span>':'<span style="color:var(--am)">⏳ Invite pending</span>';
+      const inviteExpired=t.inviteExpiresAt&&new Date(t.inviteExpiresAt)<new Date();
+      const pwBadge=t.hasPassword?'<span style="color:var(--gr)">✓ Set</span>':(inviteExpired?'<span style="color:var(--rd)">⏳ Invite expired</span>':'<span style="color:var(--am)">⏳ Invite pending (expires '+new Date(t.inviteExpiresAt||0).toLocaleDateString()+')</span>');
       return '<div style="background:var(--bg2);border:1px solid var(--bbr);border-radius:var(--rs);padding:14px;margin-bottom:8px">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
         +'<div><div style="font-weight:700;color:var(--white)">'+esc(t.name)+'</div><div style="font-size:11px;color:var(--mu)">'+esc(t.email)+' · '+esc(t.phone)+'</div></div>'

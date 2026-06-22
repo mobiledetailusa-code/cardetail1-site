@@ -1,6 +1,6 @@
 // netlify/functions/security-log.js
 // Admin-only: view security event logs.
-// Auth: x-admin-token or x-admin-key header.
+// Auth: x-admin-token header (session token from admin-session.js).
 //
 // GET → { ok, events[] }
 // Query params: limit (default 100), type (filter by event type)
@@ -10,7 +10,7 @@ const crypto = require('crypto');
 const CORS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, x-admin-token, x-admin-key',
+  'Access-Control-Allow-Headers': 'Content-Type, x-admin-token',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Cache-Control': 'no-store',
 };
@@ -26,20 +26,12 @@ async function getStore(name) {
 async function verifyAdmin(headers) {
   const h = headers || {};
   const token = (h['x-admin-token'] || h['X-Admin-Token'] || '').trim();
-  if (token && token.length >= 32) {
-    const sessionStore = await getStore('cd1-admin-sessions');
-    const key = 'sess-' + token.slice(0, 16);
-    const s = await sessionStore.get(key, { type: 'json' }).catch(() => null);
-    if (s && Date.now() <= s.expiresAt) {
-      return crypto.timingSafeEqual(Buffer.from(s.token), Buffer.from(token));
-    }
-  }
-  const adminKey = (h['x-admin-key'] || h['X-Admin-Key'] || '').trim();
-  const expected = (process.env.ADMIN_DASH_PASSWORD || '').trim();
-  if (!adminKey || !expected) return false;
-  const a = Buffer.from(adminKey);
-  const b = Buffer.from(expected);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!token || token.length < 32) return false;
+  const sessionStore = await getStore('cd1-admin-sessions');
+  const key = 'sess-' + token.slice(0, 16);
+  const s = await sessionStore.get(key, { type: 'json' }).catch(() => null);
+  if (!s || Date.now() > s.expiresAt) return false;
+  return crypto.timingSafeEqual(Buffer.from(s.token), Buffer.from(token));
 }
 
 exports.handler = async (event) => {
