@@ -546,9 +546,9 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 #bk-cat-grid .svc-from{padding-bottom:14px}
 /* Photo cards: real photos with dark cinematic overlay */
 .svc-ico-photo{display:block;width:100%;height:130px;position:relative;overflow:hidden;margin-bottom:0;font-size:0;flex-shrink:0}
-.svc-ico-photo img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.55) saturate(1.45) contrast(1.12);transition:filter .55s ease,transform .55s ease;transform:scale(1.06);transform-origin:center 40%}
-.svc-card:hover .svc-ico-photo img{filter:brightness(.72) saturate(1.5) contrast(1.14);transform:scale(1)}
-.svc-ico-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 130% 90% at 58% 45%,rgba(40,100,230,.24) 0%,transparent 62%),linear-gradient(180deg,rgba(4,10,28,.5) 0%,rgba(4,10,28,.1) 55%,rgba(4,10,28,.6) 100%);z-index:1;pointer-events:none}
+.svc-ico-photo img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.82) saturate(1.15) contrast(1.08);transition:filter .5s ease,transform .5s ease;transform:scale(1.04);transform-origin:center 50%}
+.svc-card:hover .svc-ico-photo img{filter:brightness(1) saturate(1.2) contrast(1.1);transform:scale(1)}
+.svc-ico-photo::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,10,28,.18) 0%,transparent 45%,rgba(4,10,28,.45) 100%);z-index:1;pointer-events:none}
 .svc-ico-photo .photo-label{position:absolute;bottom:0;left:0;right:0;z-index:2;display:none}
 
 /* STRIP */
@@ -2148,31 +2148,31 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </div>
         <div class="service-grid" id="bk-cat-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
-            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/luxury-car.jpg" alt="Cars & Trucks" loading="lazy" style="object-position:50% 35%;filter:brightness(.68) saturate(1.6) contrast(1.18)"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/cars-trucks.png" alt="Cars & Trucks" loading="lazy" style="object-position:50% 58%"></span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
             <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $175</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
-            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/boats.png" alt="Boats" loading="lazy" style="object-position:50% 42%;filter:brightness(.72) saturate(1.35) contrast(1.1)"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/boats.png" alt="Boats" loading="lazy" style="object-position:50% 55%"></span>
             <div class="svc-name" style="font-size:22px">Boats</div>
             <div class="svc-desc" style="font-size:12px">All vessels · Priced by length</div>
             <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $199</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
-            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/rvs-trailers.jpg" alt="RVs & Trailers" loading="lazy" style="object-position:center 55%"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/rvs-trailers.png" alt="RVs & Trailers" loading="lazy" style="object-position:50% 60%"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
             <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $349</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
-            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/powersports.jpg" alt="Powersports" loading="lazy" style="object-position:center 45%"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/powersports.png" alt="Powersports" loading="lazy" style="object-position:50% 62%"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
             <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
             <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $119</div>
           </div>
           <div class="svc-card locked" id="bkcat-fleet" onclick="selectCategory('fleet')">
-            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/fleet.jpg" alt="Fleet Services" loading="lazy" style="object-position:28% 50%"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/fleet.png" alt="Fleet Services" loading="lazy" style="object-position:50% 58%"></span>
             <div class="svc-name" style="font-size:22px">Fleet Services</div>
             <div class="svc-desc" style="font-size:12px">Cars · Vans · Trucks · Buses · Golf Carts · Boats/RVs</div>
             <div class="svc-from" id="bkfrom-fleet" style="font-size:12px">From $60/unit</div>
