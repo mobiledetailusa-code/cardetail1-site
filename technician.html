@@ -451,12 +451,21 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
 
     <!-- OPERATOR LOGIN -->
     <div id="l-tech-form">
-      <div class="lsub">Enter your registered email to access your dashboard</div>
-      <input class="linp" type="email" id="l-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()">
-      <!-- Admin access: go to /admin — this field is not used for admin login -->
-      <input class="linp" type="password" id="l-pass" placeholder="Not required for technicians" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off" style="display:none">
-      <button class="lbtn" onclick="doLogin()">Sign In →</button>
-      <div class="lerr" id="lerr">Not found or not yet approved. Check your approval email.</div>
+      <div class="lsub">Sign in with your email and password</div>
+      <input class="linp" type="email" id="l-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doTechLogin()" autocomplete="email">
+      <input class="linp" type="password" id="l-pass" placeholder="Password" onkeydown="if(event.key==='Enter')doTechLogin()" autocomplete="current-password">
+      <button class="lbtn" id="l-btn" onclick="doTechLogin()">Sign In →</button>
+      <div class="lerr" id="lerr"></div>
+      <div style="margin-top:10px;text-align:center"><a onclick="showInviteSetup()" style="font-size:12px;color:var(--blue);cursor:pointer;text-decoration:underline">First time? Set up with invite token →</a></div>
+      <div id="l-invite-form" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:700;color:var(--white);margin-bottom:8px">Set Up Account</div>
+        <input class="linp" type="text" id="l-invite-token" placeholder="Invite token from admin" autocomplete="off">
+        <input class="linp" type="email" id="l-invite-email" placeholder="Your email" autocomplete="email">
+        <input class="linp" type="password" id="l-invite-pw" placeholder="Choose password (8+ chars, upper+lower+number)" autocomplete="new-password">
+        <input class="linp" type="password" id="l-invite-pw2" placeholder="Confirm password" autocomplete="new-password">
+        <button class="lbtn" onclick="doInviteSetup()" style="background:var(--green)">Set Password & Sign In →</button>
+        <div class="lerr" id="lerr-invite"></div>
+      </div>
       <div class="llinks">
         <a onclick="ss('land')">← Back to landing</a>
         <a onclick="ss('apply')">Apply to become an operator →</a>
@@ -641,6 +650,8 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
 let TECH = null; // approved tech object
 let IS_ADMIN = false;
 let _drwId = '', _probJobId = '';
+let _techToken = null; // server-side tech session token
+const BACKEND_BASE = '/.netlify/functions';
 
 // ═══════════════════════════════════════
 // UTILS
@@ -738,25 +749,76 @@ function lMode(m){
   document.getElementById('l-cust-form').style.display=m==='cust'?'block':'none';
 }
 
-// Admin login is handled exclusively by admin.html → /.netlify/functions/admin-auth.
-// This form is for approved technicians only (email lookup, no password).
-function doLogin(){
-  const em  = (document.getElementById('l-email').value||'').trim();
-  const err = document.getElementById('lerr');
+// ── TECH AUTH (server-side) ────────────
+function showInviteSetup(){ document.getElementById('l-invite-form').style.display='block'; }
+
+async function doTechLogin(){
+  const em=(document.getElementById('l-email').value||'').trim();
+  const pw=(document.getElementById('l-pass').value||'').trim();
+  const err=document.getElementById('lerr');
+  const btn=document.getElementById('l-btn');
   err.classList.remove('show');
-
-  const tk = tkGet().find(t => t.email.toLowerCase() === em.toLowerCase());
-  if(!tk){ err.textContent='Email not found. Check spelling or apply first.'; err.classList.add('show'); return; }
-  if(tk.status==='pending'){ err.textContent='Still under review. We\'ll email you when approved.'; err.classList.add('show'); return; }
-  if(tk.status==='rejected'){ err.textContent='Application not approved. Call 551-313-2956.'; err.classList.add('show'); return; }
-
-  TECH = tk; IS_ADMIN = false;
-  localStorage.setItem('cd1_session','tech:'+em.toLowerCase());
-  initTech();
+  if(!em||!pw){err.textContent='Email and password required.';err.classList.add('show');return;}
+  if(btn){btn.disabled=true;btn.textContent='Signing in…';}
+  try{
+    const r=await fetch(BACKEND_BASE+'/tech-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',email:em,password:pw})});
+    const d=await r.json();
+    if(d.ok&&d.token){
+      _techToken=d.token;
+      sessionStorage.setItem('cd1_tech_token',d.token);
+      TECH={id:d.techId,name:d.name,email:em,status:'approved'};
+      IS_ADMIN=false;
+      localStorage.setItem('cd1_session','tech:'+em.toLowerCase());
+      if(btn){btn.disabled=false;btn.textContent='Sign In →';}
+      initTech();
+      return;
+    }
+    if(d.error==='too_many_attempts') err.textContent='Too many attempts. Wait '+d.retryAfter+'s.';
+    else if(d.error==='account_deactivated') err.textContent='Account deactivated. Contact admin.';
+    else err.textContent='Invalid email or password.';
+    err.classList.add('show');
+  }catch(_){err.textContent='Network error.';err.classList.add('show');}
+  if(btn){btn.disabled=false;btn.textContent='Sign In →';}
 }
 
+async function doInviteSetup(){
+  const token=(document.getElementById('l-invite-token').value||'').trim();
+  const email=(document.getElementById('l-invite-email').value||'').trim();
+  const pw=(document.getElementById('l-invite-pw').value||'');
+  const pw2=(document.getElementById('l-invite-pw2').value||'');
+  const err=document.getElementById('lerr-invite');
+  err.classList.remove('show');
+  if(!token||!email){err.textContent='Invite token and email required.';err.classList.add('show');return;}
+  if(!pw||!pw2){err.textContent='Password required.';err.classList.add('show');return;}
+  if(pw!==pw2){err.textContent='Passwords do not match.';err.classList.add('show');return;}
+  try{
+    const r=await fetch(BACKEND_BASE+'/tech-auth',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'set_password',inviteToken:token,email,newPassword:pw,confirmPassword:pw2})});
+    const d=await r.json();
+    if(d.ok&&d.token){
+      _techToken=d.token;
+      sessionStorage.setItem('cd1_tech_token',d.token);
+      TECH={id:d.techId,name:d.name,email,status:'approved'};
+      IS_ADMIN=false;
+      localStorage.setItem('cd1_session','tech:'+email.toLowerCase());
+      initTech();
+      return;
+    }
+    err.textContent=d.message||d.error||'Setup failed.';
+    err.classList.add('show');
+  }catch(_){err.textContent='Network error.';err.classList.add('show');}
+}
+
+// Legacy doLogin for backward compatibility with any old code paths
+function doLogin(){ doTechLogin(); }
+
 function doLogout(){
+  if(_techToken){
+    fetch(BACKEND_BASE+'/tech-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout',token:_techToken})}).catch(()=>{});
+  }
+  _techToken=null;
   localStorage.removeItem('cd1_session');
+  sessionStorage.removeItem('cd1_tech_token');
   sessionStorage.removeItem('cd1_admin_key');
   TECH=null; IS_ADMIN=false;
   document.getElementById('l-email').value='';
@@ -768,11 +830,22 @@ function doLogout(){
 (function(){
   const sess = localStorage.getItem('cd1_session');
   if(!sess) return;
+  // Restore tech token from sessionStorage
+  const savedToken = sessionStorage.getItem('cd1_tech_token');
   if(sess==='admin'){ IS_ADMIN=true; }
-  else if(sess.startsWith('tech:')){
-    const em=sess.split(':')[1];
-    const tk=tkGet().find(t=>t.email.toLowerCase()===em&&t.status==='approved');
-    if(tk) TECH=tk; else { localStorage.removeItem('cd1_session'); return; }
+  else if(sess.startsWith('tech:') && savedToken){
+    _techToken = savedToken;
+    // Validate session server-side
+    fetch(BACKEND_BASE+'/tech-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'validate',token:savedToken})})
+      .then(r=>r.json()).then(d=>{
+        if(d.ok){ TECH={id:d.techId,name:d.name,email:sess.split(':')[1],status:'approved'}; initTech(); }
+        else{ localStorage.removeItem('cd1_session'); sessionStorage.removeItem('cd1_tech_token'); _techToken=null; }
+      }).catch(()=>{});
+    return;
+  } else if(sess.startsWith('tech:')){
+    // No token — legacy session, clear it
+    localStorage.removeItem('cd1_session');
+    return;
   }
 })();
 
@@ -1326,10 +1399,10 @@ function saveSettings(){cfgSet({email:document.getElementById('s-em').value,phon
 // TECH INIT & TABS
 // ═══════════════════════════════════════
 function initTech(){
-  TECH=tkGet().find(t=>t.email.toLowerCase()===(TECH.email||'').toLowerCase())||TECH;
-  document.getElementById('tech-nm').textContent=TECH.name.split(' ')[0];
+  if(!TECH)return;
+  document.getElementById('tech-nm').textContent=(TECH.name||'Tech').split(' ')[0];
   ss('tech');
-  renderAvail();
+  loadTechJobsFromCloud();
 }
 function techTab(name){
   document.querySelectorAll('#s-tech .page').forEach(p=>p.classList.remove('active'));
@@ -1343,76 +1416,95 @@ function techTab(name){
 }
 
 // ═══════════════════════════════════════
-// TECH — JOBS
+// TECH — JOBS (server-side)
 // ═══════════════════════════════════════
+let _techJobs = [];
+async function loadTechJobsFromCloud(){
+  if(!_techToken){renderAvail();return;}
+  try{
+    const r=await fetch(BACKEND_BASE+'/tech-jobs',{headers:{'x-tech-token':_techToken}});
+    const d=await r.json();
+    if(d.ok){_techJobs=d.jobs||[];renderAvail();renderMine();}
+    else{toast('Could not load jobs: '+(d.error||''),'err');renderAvail();}
+  }catch(_){toast('Network error loading jobs.','err');renderAvail();}
+}
 function renderAvail(){
-  const bk=bkGet().filter(b=>b.status==='Confirmed'&&!b.assignedTech);
-  document.getElementById('avail-list').innerHTML=bk.length?bk.map(b=>jobCard(b,false)).join(''):'<div class="empty"><div class="ei">🗂️</div><div class="et">No open jobs right now.</div></div>';
+  // Tech portal: show only assigned jobs from server. Unassigned jobs are not visible to techs.
+  const el=document.getElementById('avail-list');
+  if(!el)return;
+  if(!_techJobs.length&&!_techToken){
+    el.innerHTML='<div class="empty"><div class="ei">🔒</div><div class="et">Sign in to see your assigned jobs.</div></div>';
+    return;
+  }
+  // Show upcoming assigned jobs that aren't started yet
+  const upcoming=_techJobs.filter(b=>['Pending Review','Confirmed','Scheduled'].includes(b.status));
+  el.innerHTML=upcoming.length?upcoming.map(b=>techJobCard(b)).join(''):'<div class="empty"><div class="ei">🗂️</div><div class="et">No upcoming jobs assigned to you.</div></div>';
 }
 function renderMine(){
-  const bk=bkGet().filter(b=>b.assignedTech===TECH.id&&!['Completed','Cancelled'].includes(b.status));
-  document.getElementById('mine-list').innerHTML=bk.length?bk.map(b=>jobCard(b,true)).join(''):'<div class="empty"><div class="ei">📋</div><div class="et">No active jobs. Accept from Available Jobs.</div></div>';
+  const el=document.getElementById('mine-list');
+  if(!el)return;
+  const active=_techJobs.filter(b=>['En Route','In Progress','Problem'].includes(b.status));
+  el.innerHTML=active.length?active.map(b=>techJobCard(b)).join(''):'<div class="empty"><div class="ei">📋</div><div class="et">No active jobs right now.</div></div>';
 }
 
-function jobCard(b,mine){
-  const svc=bkSvc(b),veh=b.vehicleLabel||b.vehicle||b.vehicleCategory||'—';
-  const pref=b.preferredDate||b.preferred_date||'—',price=bkTot(b),earn=Math.round(price*.65);
-  const zone=b.zone||b.zip_city||b.zipCode||'—';
+function techJobCard(b){
+  const svc=b.package||'Detail', veh=b.vehicle||'—';
+  const pref=b.confirmedDate||b.preferredDate||'—';
+  const time=b.confirmedTimeWindow||b.confirmedTime||b.preferredTime||'TBD';
+  const zone=b.zone||b.zipCode||'—';
   let acts='';
-  if(!mine){ acts=`<button class="btn btn-p btn-sm" onclick="acceptJob('${b.id}')">Accept →</button>`; }
-  else {
-    if(['Confirmed','Scheduled'].includes(b.status)) acts+=`<button class="btn btn-or btn-sm" onclick="techUpdBk('${b.id}','En Route')">🚗 En Route</button>`;
-    if(b.status==='En Route') acts+=`<button class="btn btn-p btn-sm" onclick="techUpdBk('${b.id}','In Progress')">▶ Start</button>`;
-    if(b.status==='In Progress') acts+=`<button class="btn btn-gr btn-sm" onclick="markComplete('${b.id}')">✓ Complete</button>`;
-    if(b.phone){
-      acts+=`<a class="btn btn-g btn-sm" href="tel:${b.phone}">📞</a>`;
-      acts+=`<a class="btn btn-g btn-sm" href="https://wa.me/${b.phone.replace(/\D/g,'')}?text=${encodeURIComponent('Hi '+bkNm(b).split(' ')[0]+'! Your Cardetail1 tech is on the way 🚗✨')}" target="_blank">💬</a>`;
-    }
-    acts+=`<button class="btn btn-yw btn-sm" onclick="openProbModal('${b.id}')">⚠️</button>`;
+  const st=b.status||'';
+  if(['Pending Review','Confirmed','Scheduled'].includes(st)){
+    acts+=`<button class="btn btn-or btn-sm" onclick="techUpdateStatus('${esc(b.id)}','en_route')">🚗 En Route</button>`;
+    acts+=`<button class="btn btn-p btn-sm" onclick="techUpdateStatus('${esc(b.id)}','accepted')">✓ Accept</button>`;
   }
-  const photos=mine?`<div style="margin-top:11px;padding-top:11px;border-top:1px solid var(--border)">
-    <div style="display:flex;gap:8px;margin-bottom:7px;align-items:center">
-      <span style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;flex:1">Before (${(b.photosBefore||[]).length})</span>
-      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${b.id}','before',this)"></label>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px;margin-bottom:9px">${(b.photosBefore||[]).map(p=>`<img class="photo-thumb" src="${p}">`).join('')}</div>
-    <div style="display:flex;gap:8px;margin-bottom:7px;align-items:center">
-      <span style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;flex:1">After (${(b.photosAfter||[]).length})</span>
-      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${b.id}','after',this)"></label>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px">${(b.photosAfter||[]).map(p=>`<img class="photo-thumb" src="${p}">`).join('')}</div>
-  </div>`:'';
-  const cl=mine?(b.status==='En Route'?'jc mine enr':'jc mine'):'jc';
+  if(st==='En Route') acts+=`<button class="btn btn-p btn-sm" onclick="techUpdateStatus('${esc(b.id)}','arrived')">📍 Arrived</button>`;
+  if(st==='En Route'||st==='In Progress'||b.jobStatus==='arrived') acts+=`<button class="btn btn-p btn-sm" onclick="techUpdateStatus('${esc(b.id)}','in_progress')">▶ Start</button>`;
+  if(st==='In Progress') acts+=`<button class="btn btn-gr btn-sm" onclick="techUpdateStatus('${esc(b.id)}','completed')">✓ Complete</button>`;
+  if(b.phone){
+    acts+=`<a class="btn btn-g btn-sm" href="tel:${esc(b.phone)}">📞</a>`;
+    acts+=`<a class="btn btn-g btn-sm" href="https://wa.me/${(b.phone||'').replace(/\\D/g,'')}?text=${encodeURIComponent('Hi '+(b.customerName||'').split(' ')[0]+'! Your Cardetail1 tech is on the way.')}" target="_blank">💬</a>`;
+  }
+  acts+=`<button class="btn btn-yw btn-sm" onclick="techReportIssue('${esc(b.id)}')">⚠️ Issue</button>`;
+  const cl=st==='En Route'?'jc mine enr':st==='In Progress'?'jc mine':'jc';
   return `<div class="${cl}">
-    <div class="jc-top"><div><div class="jc-id">${(b.id||'').slice(-8)}</div><div class="jc-sv">${svc}</div><div class="jc-vh">${veh}</div></div>${badge(b.status||'Confirmed')}</div>
+    <div class="jc-top"><div><div class="jc-id">${esc((b.id||'').slice(-8))}</div><div class="jc-sv">${esc(svc)}</div><div class="jc-vh">${esc(veh)}</div></div>${badge(st||'Confirmed')}</div>
     <div class="jc-grid">
-      <div><div class="jfl">Date</div><div class="jfv">${pref}</div></div>
-      <div><div class="jfl">Zone</div><div class="jfv">${zone}</div></div>
-      <div><div class="jfl">Job Total</div><div class="jfv">$${price}</div></div>
-      <div><div class="jfl">Your Cut</div><div class="jfv" style="color:var(--green)">$${earn}</div></div>
-      ${mine&&b.address?`<div style="grid-column:1/-1"><div class="jfl">Address</div><div class="jfv">${b.address}</div></div>`:''}
-      ${mine&&b.notes?`<div style="grid-column:1/-1"><div class="jfl">Notes</div><div class="jfv" style="color:var(--mu);font-weight:400">${b.notes}</div></div>`:''}
+      <div><div class="jfl">Date</div><div class="jfv">${esc(pref)}</div></div>
+      <div><div class="jfl">Time</div><div class="jfv">${esc(time)}</div></div>
+      <div><div class="jfl">Customer</div><div class="jfv">${esc(b.customerName||'—')}</div></div>
+      <div><div class="jfl">Zone</div><div class="jfv">${esc(zone)}</div></div>
+      <div style="grid-column:1/-1"><div class="jfl">Address</div><div class="jfv">${esc(b.address||'—')}</div></div>
+      ${b.addons&&b.addons.length?`<div style="grid-column:1/-1"><div class="jfl">Add-ons</div><div class="jfv">${b.addons.map(a=>esc(a.name)).join(', ')}</div></div>`:''}
+      ${b.customerNote?`<div style="grid-column:1/-1"><div class="jfl">Notes</div><div class="jfv" style="color:var(--mu);font-weight:400">${esc(b.customerNote)}</div></div>`:''}
     </div>
     <div class="jc-acts">${acts}</div>
-    ${photos}
   </div>`;
 }
 
-function techUpdBk(id,status){ const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){bk[i].status=status;if(status==='In Progress')bk[i].startedAt=new Date().toISOString();bkSet(bk);}toast('→ '+status);renderMine(); }
-function acceptJob(id){
-  const bk=bkGet();const b=bk.find(x=>x.id===id);
-  if(!b||b.assignedTech){toast('No longer available','err');renderAvail();return;}
-  const i=bk.findIndex(x=>x.id===id);bk[i].assignedTech=TECH.id;bk[i].assignedTechName=TECH.name;bkSet(bk);
-  toast('Job accepted ✓');techTab('mine');
+async function techUpdateStatus(id,status,note){
+  if(!_techToken){toast('Not authenticated.','err');return;}
+  try{
+    const r=await fetch(BACKEND_BASE+'/tech-update-job',{method:'POST',headers:{'Content-Type':'application/json','x-tech-token':_techToken},
+      body:JSON.stringify({bookingId:id,status,note:note||''})});
+    const d=await r.json();
+    if(d.ok){toast((d.displayStatus||status)+' ✓');loadTechJobsFromCloud();}
+    else{toast(d.error||'Update failed','err');}
+  }catch(_){toast('Network error.','err');}
 }
-function markComplete(id){
-  const b=bkGet().find(x=>x.id===id);
-  if(!(b?.photosAfter||[]).length&&!confirm('No after photos. Complete anyway?')) return;
-  techUpdBk(id,'Completed');
-  const price=bkTot(b||{});const earn=Math.round(price*.65);
-  const tks=tkGet();const ti=tks.findIndex(t=>t.id===TECH.id);
-  if(ti>-1){tks[ti].earnings=(tks[ti].earnings||0)+earn;tks[ti].jobsCompleted=(tks[ti].jobsCompleted||0)+1;tkSet(tks);TECH=tks[ti];}
-  toast(`🎉 Complete! +$${earn}`);
+
+function techReportIssue(id){
+  const note=prompt('Describe the issue:');
+  if(!note)return;
+  techUpdateStatus(id,'issue_reported',note);
+}
+
+// Keep legacy functions as no-ops for backward compat
+function acceptJob(){}
+function markComplete(id){ techUpdateStatus(id,'completed'); }
+function techUpdBk(id,status){
+  const map={'En Route':'en_route','In Progress':'in_progress','Completed':'completed'};
+  techUpdateStatus(id,map[status]||status.toLowerCase());
 }
 function addPhotos(id,type,input){
   Array.from(input.files).forEach(f=>{const r=new FileReader();r.onload=e=>{const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){const k=type==='before'?'photosBefore':'photosAfter';bk[i][k]=[...(bk[i][k]||[]),e.target.result];bkSet(bk);}renderMine();};r.readAsDataURL(f);});
