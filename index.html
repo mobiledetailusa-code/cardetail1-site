@@ -49,9 +49,10 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
   .nav-menu-btn{display:block}
 }
 /* Mobile-only Book Now pill — visible next to hamburger */
-.nav-book-mobile{display:none}
+.nav-book-mobile,.nav-portal-mobile{display:none}
 @media(max-width:760px){
   .nav-book-mobile{display:inline-flex;align-items:center;background:var(--blue);color:#000!important;padding:9px 18px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+  .nav-portal-mobile{display:inline-flex;align-items:center;background:transparent;color:var(--blue);border:1px solid rgba(77,163,255,.4);padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.04em;cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 }
 /* Mobile-only phone link in hero */
 .hero-tel-mobile{display:none}
@@ -526,6 +527,29 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 #bs3-addons{display:none;margin-top:22px;padding-top:20px;border-top:1px solid var(--bbr);animation:addonReveal .25s ease}
 #vc.show ~ #bs3-addons{display:block}
 @keyframes addonReveal{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.addon-popular-label{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.1em;padding-bottom:8px;border-bottom:1px solid var(--bbr);margin-bottom:0}
+.addon-all-wrap{grid-column:1/-1}
+.addon-all-inner{display:none;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-top:10px}
+.addon-all-inner.open{display:grid}
+.addon-toggle-btn{display:block;width:100%;padding:9px 16px;background:rgba(77,163,255,.06);border:1px solid rgba(77,163,255,.2);border-radius:8px;color:var(--blue);font-size:13px;font-weight:600;cursor:pointer;text-align:center;margin-top:12px;transition:background .15s}
+.addon-toggle-btn:hover{background:rgba(77,163,255,.12)}
+.addon-selected-summary{font-size:11.5px;color:var(--mu);padding:8px 12px;background:rgba(77,163,255,.04);border:1px solid rgba(77,163,255,.15);border-radius:7px;margin-top:8px}
+.addon-selected-summary strong{color:var(--white)}
+/* Premium vehicle visuals — booking Step 1 category cards */
+.svc-ico img{width:100%;height:100%;object-fit:contain;display:block}
+.vc-ico img{width:96px;height:auto;display:block;max-width:100%}
+/* Step 1 category card: image-first layout */
+#bk-cat-grid .svc-card{padding:0;overflow:hidden;border-radius:var(--rs)}
+#bk-cat-grid .svc-ico{display:block;width:100%;height:130px;background:linear-gradient(180deg,#0c1e3a 0%,#010508 100%);margin-bottom:0;font-size:0;position:relative;overflow:hidden}
+#bk-cat-grid .svc-name,#bk-cat-grid .svc-desc,#bk-cat-grid .svc-from{padding-left:14px;padding-right:14px}
+#bk-cat-grid .svc-name{padding-top:12px}
+#bk-cat-grid .svc-from{padding-bottom:14px}
+/* Photo cards: real photos with dark cinematic overlay */
+.svc-ico-photo{display:block;width:100%;height:130px;position:relative;overflow:hidden;margin-bottom:0;font-size:0;flex-shrink:0}
+.svc-ico-photo img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.82) saturate(1.15) contrast(1.08);transition:filter .5s ease,transform .5s ease;transform:scale(1.04);transform-origin:center 50%}
+.svc-card:hover .svc-ico-photo img{filter:brightness(1) saturate(1.2) contrast(1.1);transform:scale(1)}
+.svc-ico-photo::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,10,28,.18) 0%,transparent 45%,rgba(4,10,28,.45) 100%);z-index:1;pointer-events:none}
+.svc-ico-photo .photo-label{position:absolute;bottom:0;left:0;right:0;z-index:2;display:none}
 
 /* STRIP */
 .strip{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--rs);padding:12px 16px;display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:20px}
@@ -1123,11 +1147,11 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   .make-dropdown{max-height:220px}
   .addon-grid{grid-template-columns:1fr;gap:10px}
   .addon-item{padding:14px}
-  .bk-cat-grid{grid-template-columns:1fr 1fr;gap:10px}
-  .bk-cat-grid .svc-card{padding:16px 12px}
-  .bk-cat-grid .svc-ico{font-size:28px;margin-bottom:8px}
-  .bk-cat-grid .svc-name{font-size:16px}
-  .bk-cat-grid .svc-desc{display:none}
+  #bk-cat-grid{grid-template-columns:1fr 1fr;gap:10px}
+  #bk-cat-grid .svc-ico{height:84px}
+  .svc-ico-photo{height:84px}
+  #bk-cat-grid .svc-name{font-size:15px;padding-top:10px}
+  #bk-cat-grid .svc-from{padding-bottom:10px}
 
   /* Date / time pickers */
   .date-grid{grid-template-columns:repeat(3,1fr);gap:8px}
@@ -1213,7 +1237,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 @media(max-width:390px){
   .hero h1{font-size:clamp(34px,11vw,52px)}
   .hero-zip-input{font-size:24px!important;letter-spacing:.16em}
-  .bk-cat-grid{grid-template-columns:1fr}
+  #bk-cat-grid{grid-template-columns:1fr 1fr}
   .how-grid{grid-template-columns:1fr}
   .trust-item{min-width:100%;flex:0 0 100%;border-right:none}
   .act-card{width:210px}
@@ -1277,14 +1301,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <nav class="nav" id="main-nav">
   <a class="nav-brand-img" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" decoding="async"></a>
   <div class="nav-links" id="nav-links">
-    <a class="nav-link" onclick="scrollTo('services')">Packages</a>
-    <a class="nav-link" onclick="scrollTo('specialty')">Specialty</a>
-    <a class="nav-link" onclick="scrollTo('loc-section')">Service Area</a>
-    <a class="nav-link" onclick="scrollTo('reviews')">Reviews</a>
-    <a class="nav-link" href="tel:5513132956">📞 551-313-2956</a>
+    <a class="nav-link" onclick="openBooking(null);document.getElementById('nav-links').classList.remove('open')">Services</a>
+    <a class="nav-link" onclick="openPortal();document.getElementById('nav-links').classList.remove('open')">My Booking</a>
+    <a class="nav-link" href="tel:5513132956">Call / Text</a>
     <a class="nav-cta" onclick="openBooking(null)">Book Now</a>
   </div>
   <a class="nav-book-mobile" onclick="openBooking(null)">Book Now</a>
+  <a class="nav-portal-mobile" onclick="openPortal()">My Booking</a>
   <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
 </nav>
 
@@ -1297,7 +1320,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <p class="hero-sub">Professional mobile detailing and specialty cleaning for cars, RVs, boats, jet skis, fleets, and demanding cleanup jobs across Bergen County and nearby areas.</p>
     <div class="hero-proof">
       <span>★★★★★ Customer-rated</span>
-      <span>Real job photos</span>
       <span>Online booking</span>
       <span>No shop visit</span>
     </div>
@@ -1394,143 +1416,15 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 </section>
 
 <!-- SERVICES -->
-<div class="section-full" id="services">
-  <div class="section">
-    <div class="sec-eye">What We Detail</div>
-    <div class="sec-title">EVERY VEHICLE.<br>ONE CALL.</div>
-    <div class="sec-desc">Serving Bergen County and nearby NJ/NY areas. Extended service available for RVs, boats, fleets, and select NJ/NY/CT locations by quote.</div>
-
-    <!-- ZIP tip — hidden by default, only shown if user clicks a card without a ZIP -->
-    <div class="svc-lock-gate" id="svc-lock-gate" style="display:none">
-      <div class="svc-lock-gate-ico">📍</div>
-      <div class="svc-lock-gate-text">Enter your ZIP above for accurate local pricing</div>
-      <div class="svc-lock-gate-sub">Prices adjust automatically for your area — Bergen County, NJ and nearby areas</div>
+<div id="services" style="background:var(--bg0)">
+  <div class="section" style="padding-top:52px;padding-bottom:52px;text-align:center">
+    <div class="sec-eye">Choose Your Service</div>
+    <div class="sec-title" style="font-size:clamp(32px,5vw,52px);margin-bottom:14px">CARS · BOATS · RVS<br>POWERSPORTS · FLEET</div>
+    <div class="sec-desc" style="max-width:540px;margin:0 auto 32px">Select your vehicle type and see packages, pricing, and add-ons in the booking flow. Serving Bergen County and nearby NJ/NY areas.</div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <button class="btn-primary" style="font-size:15px;padding:16px 36px" onclick="openBooking(null)">Book Now →</button>
+      <button class="btn-outline" onclick="openPortal()">My Booking</button>
     </div>
-
-    <div class="service-grid" id="home-service-grid">
-      <div class="svc-card" id="hsvc-cars" onclick="openBookingFromHome('cars')">
-        <span class="svc-ico">🚗</span>
-        <div class="svc-name">Cars & Trucks</div>
-        <div class="svc-desc">Sedans, SUVs, crossovers, trucks, minivans. Maintenance to premium paint enhancement.</div>
-        <div class="svc-from" id="hfrom-cars">From $175 · Prices by vehicle size</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Maintenance Detail</span><span class="svc-tag">Interior Detail</span><span class="svc-tag">Premium Detail</span><span class="svc-tag">Paint Correction</span>
-        </div>
-        <button class="svc-btn">View Packages →</button>
-      </div>
-
-      <div class="svc-card" id="hsvc-boats" onclick="openBookingFromHome('boats')">
-        <span class="svc-ico">🛥️</span>
-        <div class="svc-name">Boats & Marine</div>
-        <div class="svc-desc">Runabouts, bowriders, center consoles, cruisers & jet skis. Priced by vessel length.</div>
-        <div class="svc-from" id="hfrom-boats">From $199 · Priced by boat size</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Marine Wash</span><span class="svc-tag">Essential</span><span class="svc-tag">Full Marine</span><span class="svc-tag">Premium</span>
-        </div>
-        <button class="svc-btn">View Packages →</button>
-      </div>
-
-      <div class="svc-card" id="hsvc-rvs" onclick="openBookingFromHome('rvs')">
-        <span class="svc-ico">🏕️</span>
-        <div class="svc-name">RVs & Trailers</div>
-        <div class="svc-desc">Travel trailers, fifth wheels, Class C & Class A motorhomes. Interior, exterior, or both.</div>
-        <div class="svc-from" id="hfrom-rvs">From $349 · Priced by exact length</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Exterior Wash</span><span class="svc-tag">Interior</span><span class="svc-tag">Full Detail</span><span class="svc-tag">Premium</span>
-        </div>
-        <button class="svc-btn">View Packages →</button>
-      </div>
-
-      <div class="svc-card" id="hsvc-powersports" onclick="openBookingFromHome('powersports')">
-        <span class="svc-ico">🏍️</span>
-        <div class="svc-name">Powersports</div>
-        <div class="svc-desc">Motorcycles, ATVs, UTVs, side-by-sides & jet skis. Showroom finish on any season.</div>
-        <div class="svc-from" id="hfrom-powersports">From $119 · Priced by vehicle type</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Motorcycle</span><span class="svc-tag">ATV/UTV</span><span class="svc-tag">Jet Ski</span>
-        </div>
-        <button class="svc-btn">View Packages →</button>
-      </div>
-
-      <div class="svc-card" id="hsvc-fleet" onclick="openBookingFromHome('fleet')">
-        <span class="svc-ico">🚚</span>
-        <div class="svc-name">Fleet Services</div>
-        <div class="svc-desc">Recurring or one-time detailing for cars, vans, trucks, buses, golf carts, boats, RVs and trailers.</div>
-        <div class="svc-from" id="hfrom-fleet">From $60/unit · Fleet quote available</div>
-        <div class="svc-tags">
-          <span class="svc-tag">Cars</span><span class="svc-tag">Vans</span><span class="svc-tag">Trucks</span><span class="svc-tag">Golf Carts</span><span class="svc-tag">Boats/RVs</span>
-        </div>
-        <button class="svc-btn">View Fleet Options →</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- SPECIALTY SERVICES -->
-<div class="section-full specialty-section" id="specialty">
-  <div class="section">
-    <div class="specialty-lead">
-      <div>
-        <div class="sec-eye">Specialty Services</div>
-        <div class="sec-title">WE HANDLE THE<br>HARD JOBS, TOO.</div>
-        <div class="sec-desc" style="margin-bottom:0">Beyond routine detailing, Cardetail1 offers focused restoration, sanitation, and cleanup services. Condition-sensitive work is reviewed before confirmation so the customer receives the right scope and price.</div>
-      </div>
-      <div class="specialty-callout">
-        <strong>Not sure which service fits?</strong>
-        <p>Send a booking request with photos and a short description. We review the condition, recommend the right service, and confirm pricing before the appointment.</p>
-      </div>
-    </div>
-
-    <div class="specialty-grid">
-      <article class="specialty-card">
-        <div class="specialty-icon">✨</div>
-        <h3>Paint Correction</h3>
-        <p>Restore gloss and improve swirl marks, oxidation, haze, and light paint defects.</p>
-        <ul class="specialty-list">
-          <li>Paint condition assessment</li>
-          <li>Machine polish or enhancement</li>
-          <li>Protection applied after correction</li>
-        </ul>
-        <button class="specialty-action" onclick="openBooking('cars')">Request Paint Service</button>
-      </article>
-
-      <article class="specialty-card">
-        <div class="specialty-icon">☣️</div>
-        <h3>Biohazard Remediation</h3>
-        <p>Discreet, condition-based cleaning for bodily fluids, waste, vomit, and severe contamination.</p>
-        <ul class="specialty-list">
-          <li>Photo review required</li>
-          <li>Sanitation-focused process</li>
-          <li>Estimate confirmed before service</li>
-        </ul>
-        <button class="specialty-action" onclick="openBooking('cars')">Request an Estimate</button>
-      </article>
-
-      <article class="specialty-card">
-        <div class="specialty-icon">💨</div>
-        <h3>Odor Removal</h3>
-        <p>Target smoke, pets, food, mildew-like odors, and stubborn interior smells at their source.</p>
-        <ul class="specialty-list">
-          <li>Interior source inspection</li>
-          <li>Deep cleaning and neutralization</li>
-          <li>Sanitizing options available</li>
-        </ul>
-        <button class="specialty-action" onclick="openBooking('cars')">Book Odor Treatment</button>
-      </article>
-
-      <article class="specialty-card">
-        <div class="specialty-icon">🗑️</div>
-        <h3>Trash Bin Cleaning</h3>
-        <p>On-site washing, deodorizing, and sanitizing for residential trash and recycling bins.</p>
-        <ul class="specialty-list">
-          <li>Available as an add-on</li>
-          <li>Multiple-bin quantities supported</li>
-          <li>Residential and rental properties</li>
-        </ul>
-        <button class="specialty-action" onclick="openBooking(null)">Add to Your Booking</button>
-      </article>
-    </div>
-    <div class="specialty-note">If it needs cleaning, restoring, sanitizing, or protecting, ask us — custom work is reviewed before confirmation.</div>
   </div>
 </div>
 
@@ -1568,9 +1462,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <!-- REAL RESULTS -->
 <div class="results-section">
   <div class="results-inner">
-    <div class="sec-eye">Our Work · Your Vehicle</div>
-    <div class="sec-title">REAL PHOTOS.<br>REAL RESULTS.</div>
-    <div class="sec-desc">Your own job photos become the strongest proof on the site. Interior, exterior, paint correction, marine, and RV work can be published directly through the existing gallery manager.</div>
+    <div class="sec-eye">Recent Work</div>
+    <div class="sec-title">REAL RESULTS FROM<br>MOBILE DETAILING JOBS.</div>
+    <div class="sec-desc">Interior, exterior, and paint enhancement work performed at the customer's location.</div>
 
     <!-- Photo carousel — shown once API returns items -->
     <div id="rw-carousel-wrap" style="display:none">
@@ -1586,33 +1480,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 
     <!-- Placeholder — shown until gallery has photos -->
     <div id="rw-placeholder">
-      <div class="results-grid">
-        <div class="rc-card">
-          <div class="rc-ico">🧹</div>
-          <div class="rc-title">Interior Detail</div>
-          <div class="rc-benefit">Full cabin restoration — vacuuming, steam cleaning, fabric and leather treatment, window cleaning, and deodorizing. We bring the equipment; you stay home.</div>
-          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-        </div>
-        <div class="rc-card">
-          <div class="rc-ico">💧</div>
-          <div class="rc-title">Exterior Detail</div>
-          <div class="rc-benefit">Hand wash, clay bar, paint decontamination, tire shine, and window polish — done at your driveway, office parking, or marina slip.</div>
-          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-        </div>
-        <div class="rc-card">
-          <div class="rc-ico">✨</div>
-          <div class="rc-title">Premium Detail</div>
-          <div class="rc-benefit">Complete interior and exterior treatment with paint sealant or wax protection. Our most comprehensive single-visit package.</div>
-          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-        </div>
-        <div class="rc-card">
-          <div class="rc-ico">🚢</div>
-          <div class="rc-title">Marine &amp; RV</div>
-          <div class="rc-benefit">Boats, RVs, and powersports vehicles — oxidation removal, hull cleaning, vinyl and canvas treatment. Mobile at your marina, storage yard, or driveway.</div>
-          <button class="rc-btn" onclick="openBooking(null)">Book This Service</button>
-        </div>
-      </div>
-      <p class="photo-note">Upload your own before-and-after photos through the admin gallery and they appear here automatically. Questions? <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a></p>
+      <p class="photo-note">Recent work photos will appear here after completed jobs are approved for display.</p>
     </div>
 
     <div class="cred-row">
@@ -1663,9 +1531,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="sec-desc">See what customers say about Cardetail1 across cars, SUVs, RVs, and mobile detailing jobs throughout NJ and NY.</div>
 
     <div class="trust-row" style="margin-bottom:36px">
-      <div class="trust-item"><div class="trust-ico">🚗</div><div class="trust-val">500+</div><div class="trust-lbl">Vehicles Detailed</div></div>
-      <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val">3+</div><div class="trust-lbl">Years in Service</div></div>
-      <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">NJ · NY</div><div class="trust-lbl">Coverage Area</div></div>
+      <div class="trust-item"><div class="trust-ico">🚗</div><div class="trust-val" id="stat-vehicles">2.8k+</div><div class="trust-lbl">Vehicles Detailed</div></div>
+      <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val" id="stat-years">5+</div><div class="trust-lbl">Years in Service</div></div>
+      <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val" style="font-size:18px;letter-spacing:-.01em">NJ · NY · CT · PA</div><div class="trust-lbl">Coverage Area</div></div>
       <div class="trust-item"><div class="trust-ico">⭐</div><div class="trust-val">5.0</div><div class="trust-lbl">Customer Rating</div></div>
     </div>
 
@@ -1683,8 +1551,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     </div>
     <div class="cred-row" style="margin-top:20px">
       <div class="cred-item"><span>🧽</span><span>Recent mobile detailing work</span></div>
-      <div class="cred-item"><span>📸</span><span>Photo gallery of recent work now live</span></div>
-      <div class="cred-item"><span>📍</span><span>Serving Bergen County &amp; North Jersey</span></div>
+<div class="cred-item"><span>📍</span><span>Serving Bergen County &amp; North Jersey</span></div>
       <div class="cred-item"><span>🔧</span><span>Professional equipment</span></div>
       <div class="cred-item"><span>🔧</span><span>Mobile-ready equipment available</span></div>
       <div class="cred-item"><span>✓</span><span>Booking reviewed before confirmation</span></div>
@@ -1916,7 +1783,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       </div>
       <div class="cp-sub-panel" id="cps-cancel">
         <div id="cp-cancel-warn" style="padding:12px;border:1px solid rgba(239,68,68,.3);border-radius:var(--rs);background:var(--rddim);font-size:13px;color:var(--rd);margin-bottom:12px;line-height:1.6"></div>
-        <button class="cp-btn" id="cp-cancel-confirm-btn" style="background:var(--rd)" onclick="cpConfirmCancel()">Confirm Cancellation</button>
+        <label class="cp-label">Reason for cancellation <span style="color:var(--rd)">*</span></label>
+        <textarea class="cp-fi" id="cp-cancel-reason" rows="3" placeholder="e.g. Schedule conflict, no longer needed…" style="resize:none;margin-bottom:8px"></textarea>
+        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;font-size:12px;color:var(--mu);cursor:pointer;line-height:1.5">
+          <input type="checkbox" id="cp-cancel-ack" style="margin-top:2px;accent-color:var(--blue);flex-shrink:0">
+          <span>I understand the cancellation policy. Late cancellations (within 24h) or no-shows may incur a fee per the posted terms.</span>
+        </label>
+        <button class="cp-btn" id="cp-cancel-confirm-btn" style="background:var(--rd)" onclick="cpConfirmCancel()">Confirm Cancellation Request</button>
         <div id="cp-cancel-msg" style="display:none;margin-top:10px;font-size:13px"></div>
       </div>
       <div class="cp-sub-panel" id="cps-addons">
@@ -2185,31 +2058,31 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </div>
         <div class="service-grid" id="bk-cat-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
-            <span class="svc-ico" style="font-size:36px">🚗</span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/cars-trucks.png" alt="Cars & Trucks" loading="lazy" style="object-position:50% 58%"></span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
             <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $175</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
-            <span class="svc-ico" style="font-size:36px">🛥️</span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/boats.png" alt="Boats" loading="lazy" style="object-position:50% 55%"></span>
             <div class="svc-name" style="font-size:22px">Boats</div>
             <div class="svc-desc" style="font-size:12px">All vessels · Priced by length</div>
             <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $199</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
-            <span class="svc-ico" style="font-size:36px">🏕️</span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/rvs-trailers.png" alt="RVs & Trailers" loading="lazy" style="object-position:50% 60%"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
             <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $349</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
-            <span class="svc-ico" style="font-size:36px">🏍️</span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/powersports.png" alt="Powersports" loading="lazy" style="object-position:50% 62%"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
             <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
             <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $119</div>
           </div>
           <div class="svc-card locked" id="bkcat-fleet" onclick="selectCategory('fleet')">
-            <span class="svc-ico" style="font-size:36px">🚚</span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/fleet.png" alt="Fleet Services" loading="lazy" style="object-position:50% 58%"></span>
             <div class="svc-name" style="font-size:22px">Fleet Services</div>
             <div class="svc-desc" style="font-size:12px">Cars · Vans · Trucks · Buses · Golf Carts · Boats/RVs</div>
             <div class="svc-from" id="bkfrom-fleet" style="font-size:12px">From $60/unit</div>
@@ -2236,8 +2109,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div class="btitle">YOUR VEHICLE</div>
         <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length.</div>
 
-        <!-- Tier chips (shown for cars, boats, rvs, powersports differently) -->
+        <!-- Tier chips (hidden by default for cars; shown for powersports/fleet or on "Change class") -->
         <div id="tier-chips-wrap">
+          <div id="car-class-prompt" style="display:none;font-size:12px;color:var(--mu);margin-bottom:10px;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)"></div>
           <div class="tier-chips" id="tier-chips"></div>
         </div>
 
@@ -2310,11 +2184,12 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <!-- Detected vehicle card -->
         <div class="vc" id="vc">
           <div class="vc-l">
-            <div class="vc-ico" id="vc-ico">🚗</div>
+            <div class="vc-ico" id="vc-ico"><img src="/assets/vehicles/premium/sedan.svg" alt="Vehicle" loading="lazy"></div>
             <div class="vc-info">
               <strong id="vc-name">—</strong>
               <span id="vc-tier-lbl">—</span>
               <div><span class="vc-badge" id="vc-badge">—</span></div>
+              <div id="car-class-change-wrap" style="display:none;margin-top:6px"><button type="button" onclick="showCarClassOverride()" style="background:none;border:none;color:var(--blue);font-size:11.5px;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px">✏️ Change vehicle class</button></div>
             </div>
           </div>
           <div class="vc-price">
@@ -2430,36 +2305,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           </div>
         </div>
 
-        <div class="terms-panel">
-          <h4>Suggested Booking Terms Summary</h4>
-          <ul>
-            <li><strong>Booking:</strong> Submitting this form sends a booking request. Cardetail1 reviews your service, location, access, weather, and availability before final confirmation.</li>
-            <li><strong>Service photos:</strong> Cardetail1 may take before/after photos of the vehicle during service for quality improvement, training, and the documentation/security of both parties.</li>
-            <li><strong>Pre-existing damage:</strong> Cardetail1 is <strong>not responsible for pre-existing damage</strong> (scratches, dents, chips, stains, mechanical or electrical issues, worn or aged components) present before service.</li>
-            <li><strong>New damage from vehicle condition:</strong> due to the condition and nature in which some vehicles are found, new issues may occur during normal detailing — e.g. loose or brittle trim/clips, failing clearcoat or paint, cracked or aged plastics, worn seals or water intrusion, or peeling films. These are a result of the vehicle's existing condition and are not the responsibility of Cardetail1.</li>
-            <li><strong>Time windows:</strong> arrival windows are estimates only. Traffic, weather, prior jobs, parking, tolls, and access issues may cause delays.</li>
-            <li><strong>Weather:</strong> rain, storms, freezing temperatures, unsafe heat, wind, or lack of safe covered access may require rescheduling with no penalty.</li>
-            <li><strong>Cancellation / rescheduling:</strong> please request changes at least 24 hours before the appointment. Rescheduling is preferred over cancellation.</li>
-            <li><strong>Late cancellation:</strong> cancellations made within 24 hours, same-day cancellation, unavailable vehicle/vessel, no-show, denied access, or unsafe location may result in a fee under the booking policy.</li>
-            <li><strong>Fairness policy:</strong> if weather, emergency, or reasonable schedule conflict occurs, Cardetail1 may offer rescheduling to avoid unfair charges.</li>
-            <li><strong>Final price:</strong> online totals are starting estimates. Excessive dirt, pet hair, odor, stains, mold, oxidation, black streaks, distance, tolls, parking, difficult access, or add-ons may change the final price.</li>
-            <li><strong>Unsafe/out-of-scope conditions:</strong> biohazard, pest contamination, abandoned units, sewage, mold, severe odor, unsafe roofs, or damaged surfaces may require estimate or may be declined.</li>
-          </ul>
-        </div>
-
         <div class="pay-box">
-          <div class="pay-t">Booking Policy Summary · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
+          <div class="pay-t">Booking Policy · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
           <ul style="list-style:none;padding:0;margin:0 0 14px">
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Booking review:</strong> Submitting a request does not guarantee an appointment. We review location, vehicle condition, service type, weather, access, and availability before confirming.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Card on file:</strong> No charge is made when your card is saved. Card information is handled securely by Stripe and is not stored by Cardetail1.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Cancellation / no-show:</strong> Cancellations less than 24 hours before the confirmed appointment, no-show, inaccessible vehicle, denied access, or unsafe location may be subject to a cancellation/no-show fee according to the confirmed booking amount and service conditions.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Service payment:</strong> If service is completed and you are not available for on-site payment, Cardetail1 may send an online payment request or charge an approved saved payment method according to your selected payment preference and booking policy.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Weather / reschedule:</strong> Severe weather, unsafe conditions, freezing temperatures, or lack of suitable space may require rescheduling. We will contact you to adjust the appointment.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pricing:</strong> Prices shown are starting estimates. Final pricing may change based on vehicle size, condition, pet hair, odor, stains, excessive soil, oversized vehicles, distance, tolls, and add-ons.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Access:</strong> You must provide safe legal access to the vehicle and enough working space. If the vehicle cannot be accessed, a no-show/access fee may apply.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Personal items:</strong> Please remove personal items before service. Cardetail1 is not responsible for unsecured personal belongings left inside the vehicle.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Photos:</strong> Before/after photos may be taken for documentation, quality control, and dispute resolution unless you request otherwise.</li>
-            <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pre-existing condition:</strong> Failing clear coat, loose trim, cracked surfaces, previous repairs, and heavily worn materials may limit results. Cardetail1 is not responsible for pre-existing defects.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">No charge today</strong> — saving your card secures the booking request only.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Card saved by Stripe</strong> — your card details are encrypted and never stored by Cardetail1.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Late cancellation fee</strong> — cancellations within 24 hours, no-shows, or inaccessible vehicles may incur a fee per our posted policy.</li>
+            <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Final payment after service</strong> — collected on-site by card or cash, or online if approved in advance.</li>
           </ul>
           <div class="pay-badge">✓ No charge today · Card on file is required for every booking request</div>
         </div>
@@ -2481,6 +2333,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           <div class="or"><span class="ol">Package</span><span class="ov" id="c-pkg">—</span></div>
           <div class="or"><span class="ol">Pkg price</span><span class="ov" id="c-pprice">—</span></div>
           <div id="c-addon-rows"></div>
+          <div class="or" id="c-fee-row" style="display:none"><span class="ol" style="color:var(--am)">✈ Travel fee</span><span class="ov" id="c-fee-val" style="color:var(--am)">+$0</span></div>
           <div class="or"><span class="ol" style="color:var(--white);font-weight:600">Total</span><span class="oc-total" id="c-total">—</span></div>
           <div class="oc-note">Final price confirmed on-site. Add-ons are starting prices.</div>
         </div>
@@ -2532,7 +2385,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           <div style="background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs);padding:12px 14px;margin-bottom:16px">
             <p style="font-size:12px;color:var(--mu);margin-bottom:10px">After your service is completed, we'd appreciate your honest review.</p>
             <div style="display:flex;flex-wrap:wrap;gap:8px">
-              <button class="btn-n" style="font-size:12px;padding:8px 18px" onclick="closeBooking();openPortal()">Open My Booking →</button>
+              <button class="btn-n" style="font-size:12px;padding:8px 18px" onclick="forceCloseBooking();openPortal()">Open My Booking →</button>
               <a style="font-size:12px;padding:8px 18px;text-decoration:none;border:1px solid rgba(255,255,255,.18);border-radius:var(--rs);color:var(--white);background:transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">⭐ Leave a Google Review</a>
             </div>
           </div>
@@ -2558,14 +2411,17 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="ops-note" id="ops-note"><strong>Central storage:</strong> bookings from every device are saved to the cloud (Netlify Blobs). Click <strong>☁️ Load from cloud</strong> to pull them all in. Requires <code>ADMIN_DASH_PASSWORD</code> set on Netlify (same as your admin password).</div>
       <div class="admin-counts" id="admin-counts"></div>
       <div class="admin-tabs" id="admin-tabs">
-        <button class="active" onclick="setAdminFilter('All')">All</button>
-        <button onclick="setAdminFilter('Pending Review')">Pending</button>
-        <button onclick="setAdminFilter('Confirmed')">Confirmed</button>
-        <button onclick="setAdminFilter('Scheduled')">Scheduled</button>
-        <button onclick="setAdminFilter('Completed')">Completed</button>
-        <button onclick="setAdminFilter('Cancelled')">Cancelled</button>
-        <button onclick="setAdminFilter('Rescheduled')">Rescheduled</button>
-        <button onclick="setAdminFilter('No-Show')">No-Show</button>
+        <button class="active" data-filter="All" onclick="setAdminFilter('All')">All</button>
+        <button data-filter="Pending Review" onclick="setAdminFilter('Pending Review')">Pending</button>
+        <button data-filter="Confirmed" onclick="setAdminFilter('Confirmed')">Confirmed</button>
+        <button data-filter="Scheduled" onclick="setAdminFilter('Scheduled')">Scheduled</button>
+        <button data-filter="In Progress" onclick="setAdminFilter('In Progress')">In Progress</button>
+        <button data-filter="Completed" onclick="setAdminFilter('Completed')">Completed</button>
+        <button data-filter="__cancellation_req" onclick="setAdminFilter('__cancellation_req')" style="border-color:rgba(239,68,68,.35);color:#ef4444">⚠️ Cancellations</button>
+        <button data-filter="Cancelled" onclick="setAdminFilter('Cancelled')">Cancelled</button>
+        <button data-filter="No-Show" onclick="setAdminFilter('No-Show')">No-Show</button>
+        <button data-filter="Rescheduled" onclick="setAdminFilter('Rescheduled')">Rescheduled</button>
+        <button data-filter="__test_archived" onclick="setAdminFilter('__test_archived')" style="color:var(--mu)">🗃️ Test/Archived</button>
       </div>
       <div class="admin-toolbar">
         <button onclick="openJobsBoard()" style="background:rgba(168,85,247,.2);color:#c084fc;border-color:rgba(168,85,247,.4)">⚡ Jobs Board</button>
@@ -2580,6 +2436,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button onclick="showAdminTab('inquiries')" id="cd-inq-tab-btn">💬 Inquiries</button>
         <button onclick="showAdminTab('reviews')">⭐ Reviews</button>
         <button onclick="exportBookingsCsv()">Export CSV</button>
+        <button onclick="adminDataAudit()" title="Count bookings by status">📊 Audit</button>
+        <button onclick="adminArchiveTestBookings()" title="Find and archive test bookings" style="color:var(--mu)">🧹 Test Cleanup</button>
+        <button onclick="loadCloudBookings(true)" title="Load cloud bookings including test/archived" style="color:var(--mu)">☁️ Load + Test</button>
         <button onclick="seedDemoBooking()">Demo</button>
         <button onclick="clearDemoBookings()">Clear</button>
         <button onclick="showAdminTab('gallery')" style="background:rgba(77,163,255,.15);color:var(--blue);border-color:rgba(77,163,255,.35)">📷 Gallery</button>
@@ -3022,10 +2881,14 @@ async function makeWebhookSend(payload){
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:300, premium:450},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:215, interior:250, full:325, premium:550},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:275, full:325, premium:635},
-      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:250, interior:275, full:325, premium:615},
+      small:   {label:'Small Car', icon:'🚗',desc:'Sedan · Coupe · Hatchback',      maint:175, interior:199, full:249, premium:399},
+      suv2:    {label:'SUV 2-Row', icon:'🚙',desc:'Compact & Mid-Size SUV',         maint:195, interior:229, full:279, premium:449},
+      suv3:    {label:'SUV 3-Row', icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger',  maint:225, interior:259, full:309, premium:499},
+      truck:   {label:'Truck',     icon:'🛻',desc:'Pickup · Full & Mid-Size',        maint:225, interior:259, full:309, premium:529},
+      minivan:  {label:'Minivan',             icon:'🚐',desc:'Minivan · 7-Passenger Van',                 maint:225, interior:259, full:309, premium:529},
+      cargovan: {label:'Cargo Van',           icon:'🚐',desc:'Cargo Van · Enclosed Work Van',               maint:249, interior:289, full:349, premium:599},
+      passvan:  {label:'Passenger Van',       icon:'🚐',desc:'12/15-Passenger Van · Shuttle Van',           maint:299, interior:349, full:399, premium:699},
+      sprinter: {label:'Sprinter / Large Van',icon:'🚐',desc:'Sprinter · High-Roof Transit · ProMaster',    maint:299, interior:349, full:399, premium:699},
     },
     packages:[
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
@@ -3050,21 +2913,23 @@ const PRICING = {
         miss:['Interior shampoo (add Interior Detail if needed)']}
     ],
     addons:[
-      {id:'pethair',    scope:'int', name:'Pet Hair Removal',          icon:'🐾',  desc:'Deep removal of embedded pet hair from seats, carpets, mats, and trunk. Heavy vehicles may require estimate', price:95},
-      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    icon:'💎',  desc:'Upgrade any package with extra shampoo passes, hand-steam on every panel, door pockets & cargo area — add to any interior-included package', price:125},
-      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', icon:'💨',  desc:'Interior odor neutralizer + high-touch surface sanitizing. Not biohazard or mold remediation', price:149},
-      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        icon:'☣️',  desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Requires estimate confirmation before service', price:115},
-      {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      icon:'🛠️',  desc:'Top-view engine bay cleaning — visible surfaces, cover, and accessible areas only. NOT a full engine detail or mechanical service', price:45},
-      {id:'undercarriage',scope:'ext', name:'Undercarriage Wash',      icon:'⬇️',  desc:'High-pressure undercarriage rinse to remove road salt, mud, and grime from frame and underside', price:45},
-      {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      icon:'🟫',  desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each — set the quantity of mats', price:20, qty:true},
-      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    icon:'💧',  desc:'Water-repellent Rain-X treatment on windshield and front glass for improved wet-weather visibility', price:25},
-      {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     icon:'🛡️',  desc:'Hand-applied polymer sealant for paint protection and enhanced gloss. Lasts 3–6 months', price:25},
-      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       icon:'🥇',  desc:'Premium long-lasting carnauba wax. Superior gloss and up to 12 months of paint protection', price:75},
-      {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        icon:'🧲',  desc:'Removes embedded contaminants, industrial fallout, and rail dust for a smooth, clean paint surface', price:45},
-      {id:'headlight',  scope:'ext', name:'Headlight Restoration',     icon:'💡',  desc:'Sand, polish, and seal foggy or yellowed headlights to restore clarity and night visibility (per pair)', price:90},
-      {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  icon:'🧒',  desc:'Clean and sanitize a child car seat — straps, padding, and buckle. $20 each — set the quantity', price:20, qty:true},
-      {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    icon:'🍼',  desc:'Wash and sanitize a baby stroller — fabric, frame, and wheels. $20 each — set the quantity', price:20, qty:true},
-      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        icon:'🗑️',  desc:'Residential trash can cleaning at the service location. $25 each — set the quantity. Biohazard requires estimate', price:25, qty:true},
+      {id:'rainx',       scope:'ext', name:'Rain-X Glass Treatment',        icon:'💧',  desc:'Water-repellent Rain-X treatment on windshield and front glass for improved wet-weather visibility', price:20},
+      {id:'pethair',     scope:'int', name:'Pet Hair Removal',               icon:'🐾',  desc:'Deep removal of embedded pet hair from seats, carpets, mats, and trunk. Heavy or severe cases may require a separate estimate', price:45, from:true},
+      {id:'odor',        scope:'int', name:'Odor Treatment',                 icon:'💨',  desc:'Interior odor neutralizer + high-touch surface sanitizing. Not biohazard or mold remediation', price:65, from:true},
+      {id:'heavypethair',scope:'int', name:'Heavy Pet Hair Removal',         icon:'🐾',  desc:'Severe or heavily embedded pet hair — multi-pass removal on all surfaces including cargo area and headliner. Price based on severity', price:75, from:true},
+      {id:'seat',        scope:'int', name:'Seat / Carpet Shampoo',          icon:'💺',  desc:'Extra shampoo passes on seats and carpets — deep clean and extraction beyond standard package. Ideal for stains and buildup', price:45, from:true},
+      {id:'leather',     scope:'int', name:'Leather / Plastic Conditioning', icon:'🪑',  desc:'Deep conditioning treatment for leather seats, trim panels, and plastic surfaces to restore softness and protect against cracking', price:35},
+      {id:'stain',       scope:'int', name:'Stain Treatment',                icon:'🧹',  desc:'Targeted stain treatment on seats, carpets, and fabric surfaces. Severe or set-in stains may require a separate estimate', price:45, from:true},
+      {id:'engine',      scope:'ext', name:'Engine Bay Cleaning',            icon:'🛠️',  desc:'Top-view engine bay cleaning — visible surfaces, cover, and accessible areas only. NOT a full engine detail or mechanical service', price:60},
+      {id:'headlight',   scope:'ext', name:'Headlight Restoration',          icon:'💡',  desc:'Sand, polish, and seal foggy or yellowed headlights to restore clarity and night visibility (per pair)', price:60, from:true},
+      {id:'polymer',     scope:'ext', name:'Spray Wax Upgrade',              icon:'🛡️',  desc:'Premium spray wax applied by hand for enhanced gloss and short-term paint protection', price:35},
+      {id:'wax1yr',      scope:'ext', name:'Hand Wax / Sealant Upgrade',     icon:'🥇',  desc:'Hand-applied carnauba wax or paint sealant for superior gloss and up to 12 months of paint protection', price:85},
+      {id:'claybar',     scope:'ext', name:'Paint Sealant Upgrade',          icon:'🧲',  desc:'Professional-grade paint sealant application for long-lasting protection. Price varies by vehicle size and paint condition', price:120, from:true},
+      {id:'biohazard',   scope:'int', name:'Biohazard Cleaning',             icon:'☣️',  desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Requires estimate confirmation before service', price:115},
+      {id:'floormats',   scope:'int', name:'Floor Mat Deep Clean',           icon:'🟫',  desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each — set the quantity of mats', price:20, qty:true},
+      {id:'babyseat',    scope:'int', name:'Baby / Car Seat Cleaning',       icon:'🧒',  desc:'Clean and sanitize a child car seat — straps, padding, and buckle. $20 each — set the quantity', price:20, qty:true},
+      {id:'stroller',    scope:'int', name:'Baby Stroller Cleaning',         icon:'🍼',  desc:'Wash and sanitize a baby stroller — fabric, frame, and wheels. $20 each — set the quantity', price:20, qty:true},
+      {id:'trashcans',   scope:'any', name:'Trash Can Cleaning',             icon:'🗑️',  desc:'Residential trash can cleaning at the service location. $25 each — set the quantity. Biohazard requires estimate', price:25, qty:true},
     ],
   },
   boats: {
@@ -3093,7 +2958,6 @@ const PRICING = {
       {id:'polymer',    name:'Polymer Hull Sealant',           icon:'🛡️', desc:'Polymer sealant on hull exterior for enhanced protection and gloss', price:25},
       {id:'wax1yr',     name:'1-Year Marine Carnauba Wax',     icon:'🥇', desc:'Premium carnauba wax for marine gel coat — up to 12 months protection', price:75},
       {id:'chrome',     name:'Chrome / Stainless Metal Polish',icon:'🔩', desc:'Accessible chrome, stainless rails, cleats, and brightwork polished', price:85},
-      {id:'undercarriage',name:'Trailer Undercarriage Rinse',  icon:'⬇️', desc:'High-pressure rinse of trailer frame, hubs, and underside after launch or use', price:45},
       {id:'biohazard',  name:'Biohazard Cleaning',             icon:'☣️', desc:'Bodily fluids or severe contamination. Requires estimate confirmation before service', price:115},
       {id:'trashcans',  name:'Trash Can Cleaning',             icon:'🗑️', desc:'Trash can cleaning at marina, storage yard, or home location — $25 per can', price:25},
     ],
@@ -3127,7 +2991,6 @@ const PRICING = {
       {id:'awning',     scope:'ext', name:'Awning Cleaning',             icon:'⛺', desc:'Accessible awning fabric and arms cleaning. Light mildew and surface buildup only', price:129},
       {id:'roof',       scope:'ext', name:'Roof Surface Cleaning',       icon:'⬆️', desc:'Safe-access roof cleaning. No repairs, resealing, or coating included', price:149},
       {id:'capfront',   scope:'ext', name:'Front Cap Deep Clean',        icon:'🧼', desc:'Heavy bugs, road grime, black streaks, runoff staining, and front cap buildup', price:149},
-      {id:'undercarriage',scope:'ext', name:'Undercarriage Rinse',       icon:'⬇️', desc:'High-pressure undercarriage rinse — frame, axles, and underbody of RV or trailer', price:55},
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',            icon:'🐾', desc:'Pet hair removal from RV seats, rugs, cushions, and living areas', price:95},
       {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize',   icon:'💨', desc:'Interior odor neutralizer + high-touch sanitizing. Not mold or biohazard', price:149},
       {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',          icon:'🗑️', desc:'$25 per can at RV park, campground, storage, or home', price:25},
@@ -3161,7 +3024,6 @@ const PRICING = {
       {id:'heavymud',   name:'Heavy Mud / Trail Buildup',   icon:'🏞️', desc:'Extra labor for heavy mud, clay, trail buildup, or off-road grime', price:55},
       {id:'chain',      name:'Chain & Sprocket Cleaning',   icon:'⚙️', desc:'Motorcycle chain and sprocket degreasing and clean. No mechanical adjustment', price:35},
       {id:'metalpolish',name:'Chrome / Metal Deep Polish',  icon:'🔩', desc:'Accessible chrome, aluminum, and metal surfaces polished to a high shine', price:65},
-      {id:'undercarriage',name:'Undercarriage Wash',        icon:'⬇️', desc:'High-pressure undercarriage rinse for ATVs, UTVs, and off-road vehicles', price:35},
     ],
   },
   fleet: {
@@ -3190,7 +3052,6 @@ const PRICING = {
     ],
     addons:[
       {id:'polymer',      name:'Polymer Sealant Upgrade',       icon:'🛡️', desc:'Polymer sealant per unit for added paint protection and gloss', price:25},
-      {id:'undercarriage',name:'Undercarriage Wash',            icon:'⬇️', desc:'High-pressure undercarriage rinse per unit — road salt, mud, and grime', price:35},
       {id:'trashcans',    name:'Trash Can Cleaning',            icon:'🗑️', desc:'$25 per can at service location or fleet estimate', price:25},
       {id:'disinfect',    name:'High-Touch Sanitizing',         icon:'🧴', desc:'Steering wheels, door handles, controls, seats, and high-contact surfaces', price:20},
       {id:'biohazard',    name:'Biohazard Cleaning',            icon:'☣️', desc:'Bodily fluids or severe contamination per unit. Requires individual estimate', price:115},
@@ -3293,6 +3154,94 @@ function setupUnitSelector(cat){
 }
 
 // ── CAR MODELS ──────────────────────────────────────────────────────────────
+// ── VEHICLE VISUAL LIBRARY ────────────────────────────────────────────────────
+const VEHICLE_VISUALS = {
+  sedan:       { img:'/assets/vehicles/premium/sedan.svg',      alt:'Sedan' },
+  suv:         { img:'/assets/vehicles/premium/suv.svg',        alt:'SUV / Crossover' },
+  'suv-3row':  { img:'/assets/vehicles/premium/suv-3row.svg',   alt:'Full-size 3-Row SUV' },
+  pickup:      { img:'/assets/vehicles/premium/pickup.svg',     alt:'Pickup Truck' },
+  van:         { img:'/assets/vehicles/premium/van.svg',        alt:'Full-size Van' },
+  minivan:     { img:'/assets/vehicles/premium/minivan.svg',    alt:'Minivan' },
+  cargovan:    { img:'/assets/vehicles/premium/van.svg',        alt:'Cargo Van' },
+  passvan:     { img:'/assets/vehicles/premium/van.svg',        alt:'Passenger Van' },
+  sprinter:    { img:'/assets/vehicles/premium/van.svg',        alt:'Sprinter / Large Van' },
+  rv:          { img:'/assets/vehicles/premium/rv.svg',         alt:'RV / Motorhome' },
+  trailer:     { img:'/assets/vehicles/premium/trailer.svg',    alt:'Travel Trailer' },
+  boat:        { img:'/assets/vehicles/premium/boat.svg',       alt:'Boat' },
+  jetski:      { img:'/assets/vehicles/premium/jet-ski.svg',    alt:'Jet Ski / PWC' },
+  motorcycle:  { img:'/assets/vehicles/premium/motorcycle.svg', alt:'Motorcycle' },
+  atv:         { img:'/assets/vehicles/premium/atv.svg',        alt:'ATV / UTV' },
+};
+// [lowercase substring, visual key] — checked in order; first match wins
+const MODEL_MAP = [
+  // minivans (before suv/sedan to avoid false positive on "odyssey" etc.)
+  ['odyssey','minivan'],['sienna','minivan'],['caravan','minivan'],['pacifica','minivan'],
+  ['sedona','minivan'],['carnival','minivan'],['quest','minivan'],['town & country','minivan'],
+  // cargo vans (specific before generic to avoid false match)
+  ['transit connect','cargovan'],['promaster city','cargovan'],
+  // sprinter / large high-roof vans
+  ['sprinter','sprinter'],['transit','sprinter'],['promaster','sprinter'],
+  // passenger / full-size vans
+  ['express','passvan'],['savana','passvan'],
+  // pickups (before suv to catch tundra/ridgeline)
+  ['f-150','pickup'],['f150','pickup'],['f-250','pickup'],['f-350','pickup'],
+  ['f250','pickup'],['f350','pickup'],['silverado','pickup'],['sierra','pickup'],
+  ['ram 1500','pickup'],['ram 2500','pickup'],['ram 3500','pickup'],
+  ['tacoma','pickup'],['tundra','pickup'],['colorado','pickup'],['canyon','pickup'],
+  ['frontier','pickup'],['titan','pickup'],['maverick','pickup'],['gladiator','pickup'],
+  ['ridgeline','pickup'],['ranger','pickup'],
+  // 3-row full-size SUVs (before generic suv2 models)
+  ['tahoe','suv-3row'],['suburban','suv-3row'],['escalade','suv-3row'],
+  ['expedition','suv-3row'],['navigator','suv-3row'],['sequoia','suv-3row'],
+  ['armada','suv-3row'],['qx80','suv-3row'],['qx60','suv-3row'],
+  ['gx','suv-3row'],['lx','suv-3row'],['land cruiser','suv-3row'],
+  ['4runner','suv-3row'],['pathfinder','suv-3row'],
+  ['traverse','suv-3row'],['enclave','suv-3row'],['acadia','suv-3row'],
+  ['pilot','suv-3row'],['palisade','suv-3row'],['telluride','suv-3row'],
+  ['highlander','suv-3row'],['cx-9','suv-3row'],['cx-90','suv-3row'],
+  ['atlas','suv-3row'],['ascent','suv-3row'],['star','suv-3row'],
+  ['mdx','suv-3row'],['infiniti qx','suv-3row'],
+  ['model x','suv-3row'],['model y','suv'],['model 3','sedan'],['model s','sedan'],
+  // motorcycle / powersports
+  ['street glide','motorcycle'],['road king','motorcycle'],['sportster','motorcycle'],
+  ['cbr','motorcycle'],['gsxr','motorcycle'],['ninja','motorcycle'],
+  // jet ski
+  ['waverunner','jetski'],['sea-doo','jetski'],['seadoo','jetski'],['aquatrax','jetski'],
+  // atv/utv
+  ['rzr','atv'],['can-am','atv'],['commander','atv'],['rancher','atv'],['grizzly','atv'],
+];
+function getVehicleVisualKey(){
+  const cat=ST.cat;
+  if(cat==='boats') return 'boat';
+  if(cat==='rvs'){
+    const lbl=(ST.vehicleLabel||'').toLowerCase();
+    return (lbl.indexOf('trailer')>-1||lbl.indexOf('fifth wheel')>-1||lbl.indexOf('airstream')>-1)?'trailer':'rv';
+  }
+  if(cat==='powersports'){
+    const lbl=(ST.vehicleLabel||'').toLowerCase();
+    for(const [k,t] of MODEL_MAP){ if((t==='motorcycle'||t==='jetski'||t==='atv')&&lbl.indexOf(k)>-1) return t; }
+    if(ST.tierKey==='jetski') return 'jetski';
+    if(ST.tierKey==='atv'||ST.tierKey==='utv') return 'atv';
+    return 'motorcycle';
+  }
+  if(cat==='fleet') return 'van';
+  const lbl=(ST.vehicleLabel||'').toLowerCase();
+  for(const [k,t] of MODEL_MAP){ if(lbl.indexOf(k)>-1) return t; }
+  if(ST.tierKey==='truck') return 'pickup';
+  if(ST.tierKey==='suv3') return 'suv-3row';
+  if(ST.tierKey==='suv2') return 'suv';
+  if(ST.tierKey==='minivan') return 'minivan';
+  if(ST.tierKey==='cargovan') return 'cargovan';
+  if(ST.tierKey==='passvan') return 'passvan';
+  if(ST.tierKey==='sprinter') return 'sprinter';
+  return 'sedan';
+}
+function setVehicleVisual(){
+  const v=VEHICLE_VISUALS[getVehicleVisualKey()]||VEHICLE_VISUALS.sedan;
+  const ico=document.getElementById('vc-ico');
+  if(ico) ico.innerHTML=`<img src="${v.img}" alt="${v.alt}">`;
+}
+
 const MAKES = ["Acura","Alfa Romeo","Aston Martin","Audi","Bentley","BMW","Buick","Cadillac","Chevrolet","Chrysler","Dodge","Ferrari","FIAT","Ford","Genesis","GMC","Honda","Hyundai","INFINITI","Jaguar","Jeep","Kia","Lamborghini","Land Rover","Lexus","Lincoln","Maserati","Mazda","McLaren","Mercedes-Benz","MINI","Mitsubishi","Nissan","Porsche","Ram","Rolls-Royce","Subaru","Tesla","Toyota","Volkswagen","Volvo"];
 const MODELS = {"Acura":{m:["ILX","Integra","MDX","RDX","RLX","TLX","NSX","ZDX"],t:{ILX:"small",Integra:"small",MDX:"suv3",RDX:"suv2",RLX:"small",TLX:"small",NSX:"small",ZDX:"suv2"}},
 "Alfa Romeo":{m:["Giulia","Stelvio","Tonale","4C Spider"],t:{Giulia:"small",Stelvio:"suv2",Tonale:"suv2","4C Spider":"small"}},
@@ -3302,20 +3251,20 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","RDX","RLX","TLX","NSX","ZDX"]
 "BMW":{m:["2 Series","3 Series","4 Series","5 Series","6 Series","7 Series","8 Series","M2","M3","M4","M5","M8","X1","X2","X3","X4","X5","X6","X7","XM","Z4","iX","i4","i5","i7"],t:{"2 Series":"small","3 Series":"small","4 Series":"small","5 Series":"small","6 Series":"small","7 Series":"small","8 Series":"small",M2:"small",M3:"small",M4:"small",M5:"small",M8:"small",X1:"suv2",X2:"suv2",X3:"suv2",X4:"suv2",X5:"suv3",X6:"suv3",X7:"suv3",XM:"suv3",Z4:"small",iX:"suv2",i4:"small",i5:"small",i7:"small"}},
 "Buick":{m:["Enclave","Encore","Encore GX","Envision","LaCrosse"],t:{Enclave:"suv3",Encore:"suv2","Encore GX":"suv2",Envision:"suv2",LaCrosse:"small"}},
 "Cadillac":{m:["CT4","CT5","Escalade","Escalade ESV","Lyriq","XT4","XT5","XT6"],t:{CT4:"small",CT5:"small",Escalade:"suv3","Escalade ESV":"suv3",Lyriq:"suv2",XT4:"suv2",XT5:"suv2",XT6:"suv3"}},
-"Chevrolet":{m:["Blazer","Camaro","Colorado","Corvette","Equinox","Express","Malibu","Silverado 1500","Silverado 2500HD","Silverado 3500HD","Suburban","Tahoe","Trailblazer","Traverse","Trax"],t:{Blazer:"suv2",Camaro:"small",Colorado:"truck",Corvette:"small",Equinox:"suv2",Express:"truck",Malibu:"small","Silverado 1500":"truck","Silverado 2500HD":"truck","Silverado 3500HD":"truck",Suburban:"suv3",Tahoe:"suv3",Trailblazer:"suv2",Traverse:"suv3",Trax:"suv2"}},
-"Chrysler":{m:["300","Pacifica","Voyager"],t:{"300":"small",Pacifica:"suv2",Voyager:"suv2"}},
-"Dodge":{m:["Challenger","Charger","Durango","Grand Caravan","Hornet"],t:{Challenger:"small",Charger:"small",Durango:"suv3","Grand Caravan":"suv2",Hornet:"suv2"}},
+"Chevrolet":{m:["Blazer","Camaro","Colorado","Corvette","Equinox","Express","Malibu","Silverado 1500","Silverado 2500HD","Silverado 3500HD","Suburban","Tahoe","Trailblazer","Traverse","Trax"],t:{Blazer:"suv2",Camaro:"small",Colorado:"truck",Corvette:"small",Equinox:"suv2",Express:"passvan",Malibu:"small","Silverado 1500":"truck","Silverado 2500HD":"truck","Silverado 3500HD":"truck",Suburban:"suv3",Tahoe:"suv3",Trailblazer:"suv2",Traverse:"suv3",Trax:"suv2"}},
+"Chrysler":{m:["300","Pacifica","Voyager"],t:{"300":"small",Pacifica:"minivan",Voyager:"minivan"}},
+"Dodge":{m:["Challenger","Charger","Durango","Grand Caravan","Hornet"],t:{Challenger:"small",Charger:"small",Durango:"suv3","Grand Caravan":"minivan",Hornet:"suv2"}},
 "Ferrari":{m:["296 GTB","296 GTS","F8 Tributo","GTC4Lusso","Portofino M","Roma","SF90 Stradale"],t:{"296 GTB":"small","296 GTS":"small","F8 Tributo":"small",GTC4Lusso:"suv2","Portofino M":"small",Roma:"small","SF90 Stradale":"small"}},
 "FIAT":{m:["500","500X","500L"],t:{"500":"small","500X":"suv2","500L":"suv2"}},
-"Ford":{m:["Bronco","Bronco Sport","Edge","Escape","Expedition","Explorer","F-150","F-250 Super Duty","F-350 Super Duty","Maverick","Mustang","Mustang Mach-E","Ranger","Transit","Transit Connect"],t:{Bronco:"suv2","Bronco Sport":"suv2",Edge:"suv2",Escape:"suv2",Expedition:"suv3",Explorer:"suv3","F-150":"truck","F-250 Super Duty":"truck","F-350 Super Duty":"truck",Maverick:"truck",Mustang:"small","Mustang Mach-E":"small",Ranger:"truck",Transit:"truck","Transit Connect":"truck"}},
+"Ford":{m:["Bronco","Bronco Sport","Edge","Escape","Expedition","Explorer","F-150","F-250 Super Duty","F-350 Super Duty","Maverick","Mustang","Mustang Mach-E","Ranger","Transit","Transit Connect"],t:{Bronco:"suv2","Bronco Sport":"suv2",Edge:"suv2",Escape:"suv2",Expedition:"suv3",Explorer:"suv3","F-150":"truck","F-250 Super Duty":"truck","F-350 Super Duty":"truck",Maverick:"truck",Mustang:"small","Mustang Mach-E":"small",Ranger:"truck",Transit:"sprinter","Transit Connect":"cargovan"}},
 "Genesis":{m:["G70","G80","G90","GV70","GV80","GV60"],t:{G70:"small",G80:"small",G90:"small",GV70:"suv2",GV80:"suv3",GV60:"suv2"}},
-"GMC":{m:["Acadia","Canyon","Sierra 1500","Sierra 2500HD","Sierra 3500HD","Terrain","Yukon","Yukon XL"],t:{Acadia:"suv3",Canyon:"truck","Sierra 1500":"truck","Sierra 2500HD":"truck","Sierra 3500HD":"truck",Terrain:"suv2",Yukon:"suv3","Yukon XL":"suv3"}},
-"Honda":{m:["Accord","Civic","CR-V","CR-Z","HR-V","Insight","Odyssey","Passport","Pilot","Prologue","Ridgeline"],t:{Accord:"small",Civic:"small","CR-V":"suv2","CR-Z":"small","HR-V":"suv2",Insight:"small",Odyssey:"suv3",Passport:"suv2",Pilot:"suv3",Prologue:"suv2",Ridgeline:"truck"}},
+"GMC":{m:["Acadia","Canyon","Savana","Sierra 1500","Sierra 2500HD","Sierra 3500HD","Terrain","Yukon","Yukon XL"],t:{Acadia:"suv3",Canyon:"truck",Savana:"passvan","Sierra 1500":"truck","Sierra 2500HD":"truck","Sierra 3500HD":"truck",Terrain:"suv2",Yukon:"suv3","Yukon XL":"suv3"}},
+"Honda":{m:["Accord","Civic","CR-V","CR-Z","HR-V","Insight","Odyssey","Passport","Pilot","Prologue","Ridgeline"],t:{Accord:"small",Civic:"small","CR-V":"suv2","CR-Z":"small","HR-V":"suv2",Insight:"small",Odyssey:"minivan",Passport:"suv2",Pilot:"suv3",Prologue:"suv2",Ridgeline:"truck"}},
 "Hyundai":{m:["Elantra","IONIQ 5","IONIQ 6","Kona","Palisade","Santa Cruz","Santa Fe","Sonata","Tucson","Venue"],t:{Elantra:"small","IONIQ 5":"suv2","IONIQ 6":"small",Kona:"suv2",Palisade:"suv3","Santa Cruz":"truck","Santa Fe":"suv2",Sonata:"small",Tucson:"suv2",Venue:"suv2"}},
 "INFINITI":{m:["Q50","Q60","QX50","QX55","QX60","QX80"],t:{Q50:"small",Q60:"small",QX50:"suv2",QX55:"suv2",QX60:"suv3",QX80:"suv3"}},
 "Jaguar":{m:["E-PACE","F-PACE","F-TYPE","I-PACE","XE","XF"],t:{"E-PACE":"suv2","F-PACE":"suv2","F-TYPE":"small","I-PACE":"suv2",XE:"small",XF:"small"}},
 "Jeep":{m:["Cherokee","Compass","Gladiator","Grand Cherokee","Grand Cherokee L","Grand Wagoneer","Renegade","Wagoneer","Wrangler"],t:{Cherokee:"suv2",Compass:"suv2",Gladiator:"truck","Grand Cherokee":"suv3","Grand Cherokee L":"suv3","Grand Wagoneer":"suv3",Renegade:"suv2",Wagoneer:"suv3",Wrangler:"suv2"}},
-"Kia":{m:["Carnival","EV6","EV9","Forte","K5","Niro","Seltos","Sorento","Soul","Sportage","Stinger","Telluride"],t:{Carnival:"suv3",EV6:"small",EV9:"suv3",Forte:"small",K5:"small",Niro:"suv2",Seltos:"suv2",Sorento:"suv3",Soul:"suv2",Sportage:"suv2",Stinger:"small",Telluride:"suv3"}},
+"Kia":{m:["Carnival","EV6","EV9","Forte","K5","Niro","Seltos","Sorento","Soul","Sportage","Stinger","Telluride"],t:{Carnival:"minivan",EV6:"small",EV9:"suv3",Forte:"small",K5:"small",Niro:"suv2",Seltos:"suv2",Sorento:"suv3",Soul:"suv2",Sportage:"suv2",Stinger:"small",Telluride:"suv3"}},
 "Lamborghini":{m:["Huracán","Urus","Revuelto"],t:{Huracán:"small",Urus:"suv2",Revuelto:"small"}},
 "Land Rover":{m:["Defender","Discovery","Discovery Sport","Freelander","Range Rover","Range Rover Evoque","Range Rover Sport","Range Rover Velar"],t:{Defender:"suv3",Discovery:"suv3","Discovery Sport":"suv2",Freelander:"suv2","Range Rover":"suv3","Range Rover Evoque":"suv2","Range Rover Sport":"suv3","Range Rover Velar":"suv2"}},
 "Lexus":{m:["ES","GS","GX","IS","LC","LS","LX","NX","RX","RZ","UX"],t:{ES:"small",GS:"small",GX:"suv3",IS:"small",LC:"small",LS:"small",LX:"suv3",NX:"suv2",RX:"suv2",RZ:"suv2",UX:"suv2"}},
@@ -3323,16 +3272,16 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","RDX","RLX","TLX","NSX","ZDX"]
 "Maserati":{m:["Ghibli","GranTurismo","Grecale","Levante","MC20","Quattroporte"],t:{Ghibli:"small",GranTurismo:"small",Grecale:"suv2",Levante:"suv2",MC20:"small",Quattroporte:"small"}},
 "Mazda":{m:["CX-3","CX-30","CX-5","CX-50","CX-70","CX-90","Mazda3","Mazda6","MX-5 Miata","MX-30"],t:{"CX-3":"suv2","CX-30":"suv2","CX-5":"suv2","CX-50":"suv2","CX-70":"suv3","CX-90":"suv3",Mazda3:"small",Mazda6:"small","MX-5 Miata":"small","MX-30":"suv2"}},
 "McLaren":{m:["570S","600LT","720S","765LT","Artura","GT"],t:{"570S":"small","600LT":"small","720S":"small","765LT":"small",Artura:"small",GT:"small"}},
-"Mercedes-Benz":{m:["A-Class","B-Class","C-Class","CLA","CLS","E-Class","EQB","EQE","EQS","G-Class","GLA","GLB","GLC","GLE","GLS","S-Class","SL","AMG GT"],t:{"A-Class":"small","B-Class":"small","C-Class":"small",CLA:"small",CLS:"small","E-Class":"small",EQB:"suv2",EQE:"small",EQS:"small","G-Class":"suv3",GLA:"suv2",GLB:"suv2",GLC:"suv2",GLE:"suv3",GLS:"suv3","S-Class":"small",SL:"small","AMG GT":"small"}},
+"Mercedes-Benz":{m:["A-Class","B-Class","C-Class","CLA","CLS","E-Class","EQB","EQE","EQS","G-Class","GLA","GLB","GLC","GLE","GLS","S-Class","SL","AMG GT","Sprinter"],t:{"A-Class":"small","B-Class":"small","C-Class":"small",CLA:"small",CLS:"small","E-Class":"small",EQB:"suv2",EQE:"small",EQS:"small","G-Class":"suv3",GLA:"suv2",GLB:"suv2",GLC:"suv2",GLE:"suv3",GLS:"suv3","S-Class":"small",SL:"small","AMG GT":"small",Sprinter:"sprinter"}},
 "MINI":{m:["Clubman","Convertible","Countryman","Hardtop","Paceman"],t:{Clubman:"small",Convertible:"small",Countryman:"suv2",Hardtop:"small",Paceman:"small"}},
 "Mitsubishi":{m:["Eclipse Cross","Mirage","Outlander","Outlander PHEV","Outlander Sport"],t:{"Eclipse Cross":"suv2",Mirage:"small",Outlander:"suv2","Outlander PHEV":"suv2","Outlander Sport":"suv2"}},
 "Nissan":{m:["Altima","Armada","Frontier","GT-R","Kicks","Leaf","Murano","Pathfinder","Rogue","Rogue Sport","Sentra","Titan","Versa","Z"],t:{Altima:"small",Armada:"suv3",Frontier:"truck","GT-R":"small",Kicks:"suv2",Leaf:"small",Murano:"suv2",Pathfinder:"suv3",Rogue:"suv2","Rogue Sport":"suv2",Sentra:"small",Titan:"truck",Versa:"small",Z:"small"}},
 "Porsche":{m:["718 Boxster","718 Cayman","911","Cayenne","Macan","Panamera","Taycan"],t:{"718 Boxster":"small","718 Cayman":"small","911":"small",Cayenne:"suv2",Macan:"suv2",Panamera:"small",Taycan:"small"}},
-"Ram":{m:["1500","2500","3500","ProMaster","ProMaster City"],t:{"1500":"truck","2500":"truck","3500":"truck",ProMaster:"truck","ProMaster City":"truck"}},
+"Ram":{m:["1500","2500","3500","ProMaster","ProMaster City"],t:{"1500":"truck","2500":"truck","3500":"truck",ProMaster:"sprinter","ProMaster City":"cargovan"}},
 "Rolls-Royce":{m:["Cullinan","Dawn","Ghost","Phantom","Spectre","Wraith"],t:{Cullinan:"suv3",Dawn:"small",Ghost:"small",Phantom:"small",Spectre:"small",Wraith:"small"}},
 "Subaru":{m:["Ascent","BRZ","Crosstrek","Forester","Impreza","Legacy","Outback","Solterra","WRX"],t:{Ascent:"suv3",BRZ:"small",Crosstrek:"suv2",Forester:"suv2",Impreza:"small",Legacy:"small",Outback:"suv2",Solterra:"suv2",WRX:"small"}},
 "Tesla":{m:["Model 3","Model S","Model X","Model Y","Cybertruck"],t:{"Model 3":"small","Model S":"small","Model X":"suv3","Model Y":"suv2",Cybertruck:"truck"}},
-"Toyota":{m:["4Runner","86","Avalon","bZ4X","C-HR","Camry","Corolla","Crown","GR86","GR Corolla","GR Supra","Highlander","Land Cruiser","Mirai","Prius","RAV4","Sequoia","Sienna","Tacoma","Tundra","Venza"],t:{"4Runner":"suv3","86":"small",Avalon:"small",bZ4X:"suv2","C-HR":"suv2",Camry:"small",Corolla:"small",Crown:"small",GR86:"small","GR Corolla":"small","GR Supra":"small",Highlander:"suv3","Land Cruiser":"suv3",Mirai:"small",Prius:"small",RAV4:"suv2",Sequoia:"suv3",Sienna:"suv3",Tacoma:"truck",Tundra:"truck",Venza:"suv2"}},
+"Toyota":{m:["4Runner","86","Avalon","bZ4X","C-HR","Camry","Corolla","Crown","GR86","GR Corolla","GR Supra","Highlander","Land Cruiser","Mirai","Prius","RAV4","Sequoia","Sienna","Tacoma","Tundra","Venza"],t:{"4Runner":"suv3","86":"small",Avalon:"small",bZ4X:"suv2","C-HR":"suv2",Camry:"small",Corolla:"small",Crown:"small",GR86:"small","GR Corolla":"small","GR Supra":"small",Highlander:"suv3","Land Cruiser":"suv3",Mirai:"small",Prius:"small",RAV4:"suv2",Sequoia:"suv3",Sienna:"minivan",Tacoma:"truck",Tundra:"truck",Venza:"suv2"}},
 "Volkswagen":{m:["Arteon","Atlas","Atlas Cross Sport","Golf","ID.4","ID.Buzz","Jetta","Taos","Tiguan"],t:{Arteon:"small",Atlas:"suv3","Atlas Cross Sport":"suv2",Golf:"small","ID.4":"suv2","ID.Buzz":"suv2",Jetta:"small",Taos:"suv2",Tiguan:"suv2"}},
 "Volvo":{m:["C40","S60","S90","V60","V90","XC40","XC60","XC90"],t:{C40:"suv2",S60:"small",S90:"small",V60:"small",V90:"small",XC40:"suv2",XC60:"suv2",XC90:"suv3"}}
 };
@@ -3456,8 +3405,16 @@ function openBooking(cat){
   document.body.style.overflow='hidden';
   if(cat){selectCategory(cat)}else{bkGoTo(1)}
 }
-function closeBooking(){document.getElementById('bk-ov').classList.remove('open');document.body.style.overflow=''}
-function handleBkOv(e){if(e.target===document.getElementById('bk-ov'))closeBooking()}
+function closeBooking(){
+  // Check for in-progress booking before closing
+  const hasProgress = !!(ST.cat || (document.getElementById('f-first')&&document.getElementById('f-first').value) || (document.getElementById('f-phone')&&document.getElementById('f-phone').value));
+  if(hasProgress && !confirm('Exit booking? Your selections may be lost.')) return;
+  document.getElementById('bk-ov').classList.remove('open');
+  document.body.style.overflow='';
+}
+function forceCloseBooking(){document.getElementById('bk-ov').classList.remove('open');document.body.style.overflow='';}
+// Overlay click intentionally does NOT close the booking modal — user must click ✕
+function handleBkOv(e){}
 
 // ── BOOKING NAVIGATION ────────────────────────────────────────────────────────
 function bkGoTo(n){
@@ -3550,11 +3507,16 @@ function renderTierChips(cat){
   const isCar=cat==='cars';
   const usesLength=(cat==='boats'||cat==='rvs');
 
+  // Reset car-specific detection UI on category change
+  const carChangeWrap=document.getElementById('car-class-change-wrap');
+  if(carChangeWrap) carChangeWrap.style.display='none';
+  const carPrompt=document.getElementById('car-class-prompt');
+  if(carPrompt){ carPrompt.textContent=''; carPrompt.style.display='none'; }
+
   if(usesLength){
     wrap.innerHTML='';
     document.getElementById('tier-chips-wrap').style.display='none';
   }else{
-    document.getElementById('tier-chips-wrap').style.display='block';
     const tiers=PRICING[cat].tiers;
     wrap.innerHTML=Object.entries(tiers).map(([k,t])=>{
       const prices=Object.values(t).filter(v=>typeof v==='number');
@@ -3567,6 +3529,8 @@ function renderTierChips(cat){
         <div class="tchip-from">from $${minP+fee}</div>
       </div>`;
     }).join('');
+    // For cars: hide chips by default — progressive detection shows them on demand
+    document.getElementById('tier-chips-wrap').style.display=isCar?'none':'block';
   }
 
   document.getElementById('make-search-wrap').style.display=isCar?'block':'none';
@@ -3711,9 +3675,42 @@ function selectTier(key){
   ST.tierKey=key; ST.tier=PRICING[ST.cat].tiers[key];
   setupLengthSelector(ST.cat);
   setupUnitSelector(ST.cat);
-  // refresh price/card if vehicle already entered (no auto-advance)
+
+  // Cars: vehicle already entered — update card, collapse chips, show "Change class" button
+  if(ST.cat==='cars' && ST.year && ST.make && ST.model){
+    ST.vehicleLabel=`${ST.year} ${ST.make} ${ST.model}`;
+    setBasePrice();
+    setVehicleVisual();
+    document.getElementById('vc-name').textContent=ST.vehicleLabel;
+    document.getElementById('vc-tier-lbl').textContent='Vehicle class selected';
+    document.getElementById('vc-badge').textContent=ST.tier.label;
+    document.getElementById('vc-price').textContent='$'+ST.basePrice;
+    document.getElementById('vc').classList.add('show');
+    document.getElementById('tier-chips-wrap').style.display='none';
+    document.getElementById('car-class-change-wrap').style.display='block';
+    const prompt=document.getElementById('car-class-prompt');
+    if(prompt){ prompt.textContent=''; prompt.style.display='none'; }
+    document.getElementById('next3').disabled=false;
+    renderAddons();
+    return;
+  }
+
   if(ST.vehicleLabel){ setBasePrice(); }
   tryGenericConfirm();
+}
+
+function showCarClassOverride(){
+  document.getElementById('tier-chips-wrap').style.display='block';
+  document.getElementById('car-class-change-wrap').style.display='none';
+  const prompt=document.getElementById('car-class-prompt');
+  if(prompt){
+    prompt.textContent='Select your vehicle class:';
+    prompt.style.display='block';
+  }
+  if(ST.tierKey){
+    document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
+    document.querySelector(`.tchip[data-tier="${ST.tierKey}"]`)?.classList.add('sel');
+  }
 }
 
 function tryGenericConfirm(){
@@ -3730,7 +3727,7 @@ function tryGenericConfirm(){
     ST.vehicleLabel = `${year} ${make} ${model} · ${ft} ft`;
     ST.tierKey='length';
     ST.tier={label:`${ft} ft`, icon:ST.cat==='boats'?'🛥️':'🏕️', desc:ST.cat==='boats'?'Marine vessel priced by exact length':'RV / travel trailer priced by exact length'};
-    document.getElementById('vc-ico').textContent=ST.tier.icon;
+    setVehicleVisual();
     document.getElementById('vc-name').textContent=ST.vehicleLabel;
     document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
     document.getElementById('vc-badge').textContent=ST.tier.label+' · starting estimate';
@@ -3750,7 +3747,7 @@ function tryGenericConfirm(){
       const unitPrice = getLengthPrice('fleet', ST.pkgId, ft) || 0;
       ST.basePrice = ST.pkgId==='custom' ? 0 : unitPrice * units;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model} · avg ${ft} ft`;
-      document.getElementById('vc-ico').textContent=t.icon;
+      setVehicleVisual();
       document.getElementById('vc-name').textContent=ST.vehicleLabel;
       document.getElementById('vc-tier-lbl').textContent='Fleet boats/RVs/trailers priced by average length and unit count';
       document.getElementById('vc-badge').textContent=ST.pkgId==='custom'?'Estimate required':`${units} units · ${ft} ft average`;
@@ -3760,7 +3757,7 @@ function tryGenericConfirm(){
       const needsEstimate = ST.pkgId==='custom' || !unitPrice;
       ST.basePrice = needsEstimate ? 0 : unitPrice * units;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model}`;
-      document.getElementById('vc-ico').textContent=t.icon;
+      setVehicleVisual();
       document.getElementById('vc-name').textContent=ST.vehicleLabel;
       document.getElementById('vc-tier-lbl').textContent=t.desc;
       document.getElementById('vc-badge').textContent=needsEstimate?'Estimate required':`${t.label} · ${units} units`;
@@ -3776,7 +3773,7 @@ function tryGenericConfirm(){
   const t=ST.tier;
   ST.vehicleLabel=`${year} ${make} ${model}`;
   setBasePrice();
-  document.getElementById('vc-ico').textContent=t.icon;
+  setVehicleVisual();
   document.getElementById('vc-name').textContent=ST.vehicleLabel;
   document.getElementById('vc-tier-lbl').textContent=t.desc;
   document.getElementById('vc-badge').textContent=t.label;
@@ -3848,18 +3845,40 @@ document.getElementById('model-sel').addEventListener('change',function(){
 
 document.getElementById('year-sel').addEventListener('change',function(){
   ST.year=this.value; if(!ST.year)return;
-  const tierKey=MODELS[ST.make]?.t[ST.model]||'small';
-  document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
-  document.querySelector(`.tchip[data-tier="${tierKey}"]`)?.classList.add('sel');
-  ST.tierKey=tierKey; ST.tier=PRICING.cars.tiers[tierKey];
+  const rawKey=MODELS[ST.make]?.t[ST.model];
+  const validTier=rawKey && PRICING.cars.tiers[rawKey];
+
+  if(!validTier){
+    // Unknown or unmapped model — show manual class selector
+    const prompt=document.getElementById('car-class-prompt');
+    if(prompt){
+      prompt.textContent=`Couldn't detect the class for your ${ST.make} ${ST.model}. Select the closest option:`;
+      prompt.style.display='block';
+    }
+    document.getElementById('tier-chips-wrap').style.display='block';
+    document.getElementById('car-class-change-wrap').style.display='none';
+    document.getElementById('vc').classList.remove('show');
+    document.getElementById('next3').disabled=true;
+    return;
+  }
+
+  ST.tierKey=rawKey; ST.tier=PRICING.cars.tiers[rawKey];
   ST.vehicleLabel=`${ST.year} ${ST.make} ${ST.model}`;
   setBasePrice();
-  document.getElementById('vc-ico').textContent=ST.tier.icon;
+  setVehicleVisual();
+  // Sync chip highlight (chips may be hidden but state stays accurate)
+  document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
+  document.querySelector(`.tchip[data-tier="${rawKey}"]`)?.classList.add('sel');
+
   document.getElementById('vc-name').textContent=ST.vehicleLabel;
-  document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
-  document.getElementById('vc-badge').textContent=ST.tier.label+' · $'+ST.basePrice;
+  document.getElementById('vc-tier-lbl').textContent='Vehicle class detected';
+  document.getElementById('vc-badge').textContent=ST.tier.label;
   document.getElementById('vc-price').textContent='$'+ST.basePrice;
   document.getElementById('vc').classList.add('show');
+  document.getElementById('tier-chips-wrap').style.display='none';
+  document.getElementById('car-class-change-wrap').style.display='block';
+  const prompt=document.getElementById('car-class-prompt');
+  if(prompt){ prompt.textContent=''; prompt.style.display='none'; }
   document.getElementById('next3').disabled=false; renderAddons();
   // No auto-advance: user clicks "Choose Add-Ons →" after reviewing the vehicle.
 });
@@ -3883,22 +3902,42 @@ function renderAddons(){
     const s=a.scope||'any';
     return pkgScope==='both' || s==='any' || s===pkgScope;
   });
-  document.getElementById('addon-grid').innerHTML=addons.map(a=>{
+  const POPULAR_IDS=['rainx','pethair','odor'];
+  const popularAddons=addons.filter(a=>POPULAR_IDS.includes(a.id));
+  const otherAddons=addons.filter(a=>!POPULAR_IDS.includes(a.id));
+  function addonCardHtml(a){
     const isQty=!!a.qty;
-    return `
-    <div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)">
-      <div class="addon-check">✓</div>
-      <div class="addon-ico">${a.icon}</div>
-      <div class="addon-name">${a.name}</div>
-      <div class="addon-desc">${a.desc}</div>
-      <div class="addon-price">+$${a.price}${isQty?' <span class="addon-each">each</span>':''}</div>
-      ${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()">
-        <button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button>
-        <span class="aq-n" id="aq-${a.id}">0</span>
-        <button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button>
-      </div>`:''}
-    </div>`;}).join('');
+    return `<div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)"><div class="addon-check">✓</div><div class="addon-ico">${a.icon}</div><div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">${a.from?'from $'+a.price:'+$'+a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
+  }
+  document.getElementById('addon-grid').innerHTML=
+    '<div class="addon-popular-label">Popular Add-ons</div>'+
+    popularAddons.map(addonCardHtml).join('')+
+    '<div class="addon-all-wrap"><div class="addon-all-inner" id="addon-all-inner">'+otherAddons.map(addonCardHtml).join('')+'</div>'+
+    '<div id="addon-selected-summary" class="addon-selected-summary" style="display:none"></div>'+
+    '<button type="button" class="addon-toggle-btn" id="addon-toggle-btn" onclick="toggleAllAddons()">Show All Add-ons ▾</button></div>';
   updateTotal();
+}
+function toggleAllAddons(){
+  const inner=document.getElementById('addon-all-inner');
+  const btn=document.getElementById('addon-toggle-btn');
+  if(!inner) return;
+  const open=inner.classList.contains('open');
+  inner.classList.toggle('open',!open);
+  btn.textContent=open?'Show All Add-ons ▾':'Hide Add-ons ▴';
+  updateAddonSummary();
+}
+function updateAddonSummary(){
+  const inner=document.getElementById('addon-all-inner');
+  const sum=document.getElementById('addon-selected-summary');
+  if(!inner||!sum) return;
+  const open=inner.classList.contains('open');
+  const selected=ST.addons.filter(a=>!['rainx','pethair','odor'].includes(a.id));
+  if(!open&&selected.length>0){
+    sum.innerHTML='<strong>'+selected.length+' extra add-on'+(selected.length>1?'s':'')+' selected:</strong> '+selected.map(a=>a.name).join(', ');
+    sum.style.display='block';
+  }else{
+    sum.style.display='none';
+  }
 }
 
 // Sum of every selected add-on, multiplying per-unit items by their quantity.
@@ -3917,7 +3956,7 @@ function toggleAddon(card){
     card.classList.add('sel'); ST.addons.push(isQty?{id,name,price,qty:1}:{id,name,price});
     if(isQty) setQtyDisplay(id,1);
   }
-  recalcAddonTotal(); updateTotal();
+  recalcAddonTotal(); updateTotal(); updateAddonSummary();
 }
 
 // +/- stepper for per-unit add-ons. Adds the item on first increment, removes it at 0.
@@ -3936,7 +3975,7 @@ function addonQty(id, delta, ev){
     if(item.qty<=0){ ST.addons=ST.addons.filter(a=>a.id!==id); card.classList.remove('sel'); item={qty:0}; }
   }
   setQtyDisplay(id, item.qty||0);
-  recalcAddonTotal(); updateTotal();
+  recalcAddonTotal(); updateTotal(); updateAddonSummary();
 }
 
 function updateTotal(){const fee=activeZone?activeZone.surcharge:0;const total=ST.basePrice+ST.addonTotal+fee;ST.zoneSurcharge=fee;document.getElementById('ah-total').textContent=total?'$'+total:'Estimate';}
@@ -4123,7 +4162,8 @@ function goToConfirmFromTerms(){
 
 // ── STEP 7: CONFIRM ───────────────────────────────────────────────────────────
 function fillConfirm(){
-  const total=ST.basePrice+ST.addonTotal;
+  const fee=activeZone?activeZone.surcharge:0;
+  const total=ST.basePrice+ST.addonTotal+fee;
   const tsel=document.getElementById('f-time').value||'Any available';
   const catLabels={cars:'Cars & Trucks',boats:'Boats & Marine',rvs:'RVs & Trailers',powersports:'Powersports',fleet:'Fleet Services'};
   document.getElementById('c-cat').textContent=catLabels[ST.cat]||ST.cat;
@@ -4131,6 +4171,8 @@ function fillConfirm(){
   document.getElementById('c-pkg').textContent=(ST.pkg?.name||'—')+' Package';
   document.getElementById('c-pprice').textContent=ST.basePrice ? '$'+ST.basePrice : 'Estimate';
   document.getElementById('c-total').textContent=total ? '$'+total : 'Estimate';
+  const feeRow=document.getElementById('c-fee-row');
+  if(feeRow){ if(fee>0){feeRow.style.display='flex';document.getElementById('c-fee-val').textContent='+$'+fee;}else{feeRow.style.display='none';} }
   document.getElementById('c-name').textContent=document.getElementById('f-first').value+' '+document.getElementById('f-last').value;
   document.getElementById('c-phone').textContent=document.getElementById('f-phone').value;
   document.getElementById('c-email').textContent=document.getElementById('f-email').value;
@@ -4317,13 +4359,15 @@ function handleAdminOverlay(e){if(e.target===document.getElementById('admin-ov')
 let ADMIN_FILTER='All';
 function setAdminFilter(status){
   ADMIN_FILTER=status;
-  document.querySelectorAll('#admin-tabs button').forEach(btn=>btn.classList.toggle('active',btn.textContent.trim().toLowerCase().startsWith(status.toLowerCase().split(' ')[0]) || (status==='All' && btn.textContent.trim()==='All')));
+  document.querySelectorAll('#admin-tabs button[data-filter]').forEach(btn=>btn.classList.toggle('active',btn.dataset.filter===status));
   renderAdminBookings();
 }
 function renderAdminCounts(list){
   const el=document.getElementById('admin-counts'); if(!el)return;
-  const statuses=['Pending Review','Confirmed','Scheduled','Completed','Cancelled','Rescheduled','No-Show'];
-  el.innerHTML=[`<div class="admin-count"><b>${list.length}</b><span>Total</span></div>`].concat(statuses.map(st=>`<div class="admin-count"><b>${list.filter(b=>(b.status||'Pending Review')===st).length}</b><span>${st}</span></div>`)).join('');
+  const statuses=['Pending Review','Confirmed','Scheduled','Completed','Cancellation Requested','Cancelled','No-Show'];
+  const cancelReqCount=list.filter(b=>b.cancellationRequestStatus==='requested').length;
+  const cancelReqHtml=`<div class="admin-count" style="${cancelReqCount?'border-color:rgba(239,68,68,.4)':''}"><b${cancelReqCount?' style="color:#ef4444"':''}>${cancelReqCount}</b><span${cancelReqCount?' style="color:#ef4444"':''}>⚠️ Cancel Req</span></div>`;
+  el.innerHTML=`<div class="admin-count"><b>${list.length}</b><span>Total</span></div>`+statuses.map(st=>`<div class="admin-count"><b>${list.filter(b=>(b.status||'Pending Review')===st).length}</b><span>${st}</span></div>`).join('')+cancelReqHtml;
 }
 function mkBadge(color,bg,label){return`<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:${color};background:${bg};border:1px solid ${color};border-radius:999px;padding:3px 9px;white-space:nowrap;display:inline-block;margin:1px">${label}</span>`;}
 
@@ -4364,7 +4408,11 @@ function renderAdminBookings(){
   if(!grid)return;
   const all=getStoredBookings();
   renderAdminCounts(all);
-  const list=ADMIN_FILTER==='All'?all:all.filter(b=>(b.status||'Pending Review')===ADMIN_FILTER);
+  const list=ADMIN_FILTER==='All'?all:
+    ADMIN_FILTER==='__cancellation_req'?all.filter(b=>b.cancellationRequestStatus==='requested'):
+    ADMIN_FILTER==='__test_archived'?all.filter(b=>b.isTest||b.archived):
+    ADMIN_FILTER==='In Progress'?all.filter(b=>b.jobStatus==='in_progress'||b.jobStatus==='en_route'||(b.status||'')==='In Progress'||(b.status||'')==='En Route'):
+    all.filter(b=>(b.status||'Pending Review')===ADMIN_FILTER);
   if(!all.length){grid.innerHTML='<div class="admin-empty">No local booking requests yet. Submit a test booking to populate this dashboard.</div>';return;}
   if(!list.length){grid.innerHTML='<div class="admin-empty">No bookings in this status.</div>';return;}
   grid.innerHTML=list.map(b=>{
@@ -4382,15 +4430,15 @@ function renderAdminBookings(){
     return `<div class="admin-card">
       <div class="admin-card-top"><div><div class="admin-id">${b.id} · ${new Date(b.createdAt).toLocaleString()}${b.source==='Admin — manual entry'?' · <span style="color:var(--am)">Manual</span>':''}</div><div class="admin-title">${b.firstName} ${b.lastName} · ${b.package||'—'} · $${b.totalPrice}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><div class="status-pill">${b.status||'Pending Review'}</div>${payBadge}</div></div>
       <div class="admin-meta">
-        <div><b>Phone:</b> <a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a></div><div><b>Email:</b> ${b.email||'—'}</div><div><b>Date:</b> ${b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</div><div><b>Address:</b> <a href="${mapsUrl}" target="_blank" style="color:var(--blue)">${b.address}</a></div>
+        <div><b>Phone:</b> <a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a></div><div><b>Email:</b> ${b.email||'—'}</div><div><b>Date:</b> ${b.confirmedTimeWindow||b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</div><div><b>Address:</b> <a href="${mapsUrl}" target="_blank" style="color:var(--blue)">${b.address}</a></div>
         ${vehs ? `<div style="grid-column:1/-1"><b>Vehicles (${vehs.length}):</b><div style="margin-top:4px">${vehsHtml}</div></div>` : `<div><b>Vehicle:</b> ${b.vehicle||'—'}</div><div><b>Category:</b> ${b.vehicleCategory||'—'}</div><div><b>Add-ons:</b><br>${addons}</div>`}
         <div><b>Notes:</b> ${b.notes||'None'}</div>${zoneInfo?`<div style="grid-column:1/-1;margin-top:4px;font-size:11.5px;color:var(--am)">${zoneInfo}</div>`:''}
         ${tipHtml}${payLinkHtml}
         ${photoCount?`<div style="font-size:11.5px;color:var(--mu)">📷 ${photoCount} photo(s) uploaded</div>`:''}
-        ${b.rescheduledByClient?'<div style="font-size:11px;color:var(--am)">↺ Client requested reschedule</div>':''}
-        ${b.addressChangedByClient?'<div style="font-size:11px;color:var(--am)">📍 Client changed address</div>':''}
-        ${b.addonsRequested?'<div style="font-size:11px;color:var(--am)">➕ Client requested add-ons</div>':''}
-        ${b.cancellationRequestStatus==='requested'?`<div style="font-size:11px;color:#ef4444;font-weight:600">⚠️ Cancellation requested · ${esc(b.cancellationReason||'No reason provided')}</div>`:''}
+        ${b.rescheduledByClient?`<div style="font-size:11px;color:var(--am)">↺ Client requested reschedule${b.rescheduleRequestedDate?' → '+escHtml(b.rescheduleRequestedDate)+(b.rescheduleRequestedTime?' · '+escHtml(b.rescheduleRequestedTime):''):''}</div>`:''}
+        ${b.addressChangedByClient?`<div style="font-size:11px;color:var(--am)">📍 Client requested address: ${escHtml(b.requestedAddress||'—')}</div>`:''}
+        ${b.addonsRequested?`<div style="font-size:11px;color:var(--am)">➕ Client requested add-ons: ${escHtml(b.requestedAddons||'—')}</div>`:''}
+        ${b.cancellationRequestStatus==='requested'?`<div style="font-size:11px;color:#ef4444;font-weight:600">⚠️ Cancellation requested · ${escHtml(b.cancellationReason||'No reason provided')}</div>`:''}
       </div>
       <div class="admin-actions">
         ${['Pending Review','Confirmed','Scheduled','Completed','Cancelled','No-Show','Rescheduled','Paid'].map(st=>`<button onclick="setBookingStatus('${b.id}','${st}')">${st}</button>`).join('')}
@@ -4403,18 +4451,30 @@ function renderAdminBookings(){
     </div>`;
   }).join('');
 }
-function setBookingStatus(id,status){
-  const list=getStoredBookings().map(b=>b.id===id?{...b,status,updatedAt:new Date().toISOString()}:b);
+async function setBookingStatus(id,status){
+  const now=new Date().toISOString();
+  const updates={status,updatedAt:now};
+  if(status==='Cancelled'){
+    updates.cancellationRequestStatus='resolved_approved';
+    updates.cancellationResolvedAt=now;
+    updates.appointmentStatus='canceled';
+  }
+  const list=getStoredBookings().map(b=>b.id===id?{...b,...updates}:b);
   setStoredBookings(list);renderAdminBookings();
+  const cloudUpdates={status};
+  if(status==='Cancelled'){cloudUpdates.cancellationRequestStatus='resolved_approved';cloudUpdates.cancellationResolvedAt=now;cloudUpdates.appointmentStatus='canceled';}
+  adminPersistToCloud(id,cloudUpdates,'admin_set_status').catch(()=>{});
 }
-function scheduleBookingPrompt(id){
+async function scheduleBookingPrompt(id){
   const list=getStoredBookings();
   const b=list.find(x=>x.id===id); if(!b)return;
-  const when=prompt('Enter confirmed or rescheduled date/time window:', (b.confirmedWindow||`${b.preferredDate} · ${b.preferredTime||''}`));
+  const when=prompt('Enter confirmed or rescheduled date/time window:', (b.confirmedTimeWindow||b.confirmedWindow||`${b.preferredDate} · ${b.preferredTime||''}`));
   if(!when)return;
   const status=confirm('Mark as Rescheduled? Press OK for Rescheduled, Cancel for Confirmed.')?'Rescheduled':'Confirmed';
-  const updated=list.map(x=>x.id===id?{...x,status,confirmedWindow:when,updatedAt:new Date().toISOString()}:x);
+  const updates={status,confirmedTimeWindow:when};
+  const updated=list.map(x=>x.id===id?{...x,...updates,updatedAt:new Date().toISOString()}:x);
   setStoredBookings(updated);renderAdminBookings();
+  adminPersistToCloud(id,updates,'admin_schedule_booking').catch(()=>{});
 }
 // ── ADMIN: NEW JOB ────────────────────────────────────────────────────────────
 function openNewJobForm(){
@@ -4893,12 +4953,12 @@ function renderAdminCalendar(){
 }
 
 // Pull ALL bookings stored centrally (Netlify Blobs) and merge into the local view.
-async function loadCloudBookings(){
+async function loadCloudBookings(withTest){
   const btn=document.getElementById('cloud-load-btn');
   const key=window._adminKey||'';
   if(btn){ btn.disabled=true; btn.textContent='☁️ Loading…'; }
   try{
-    const res=await fetch(BACKEND_BASE+'/list-bookings',{headers:{'x-admin-key':key}});
+    const res=await fetch(BACKEND_BASE+'/list-bookings'+(withTest?'?showTest=1':''),{headers:{'x-admin-key':key}});
     const data=await res.json().catch(()=>({}));
     if(res.status===503){ alert('Cloud storage not set up yet.\n\nSet ADMIN_DASH_PASSWORD on Netlify (same as your admin password) and redeploy.'); return; }
     if(res.status===401){ alert('Cloud sync rejected the password. Make sure ADMIN_DASH_PASSWORD on Netlify equals your admin login password.'); return; }
@@ -4938,6 +4998,7 @@ async function setPayLinkPrompt(id){
   }
   const updated=list.map(x=>x.id===id?{...x,payLink:link,updatedAt:new Date().toISOString()}:x);
   setStoredBookings(updated);renderAdminBookings();
+  adminPersistToCloud(id,{payLink:link},'admin_set_paylink').catch(()=>{});
   const msg='Stripe full-payment link ($'+(cents/100).toFixed(2)+') generated & copied:\n'+link;
   if(navigator.clipboard){ navigator.clipboard.writeText(link).then(()=>alert(msg)).catch(()=>alert(msg)); }
   else alert(msg);
@@ -4977,6 +5038,105 @@ function clearDemoBookings(){if(confirm('Clear all local booking requests from t
 function seedDemoBooking(){
   const demo={id:'CD1-DEMO',status:'Pending Review',createdAt:new Date().toISOString(),firstName:'Demo',lastName:'Customer',phone:'551-313-2956',email:'demo@example.com',address:'Bergen County, NJ',preferredDate:new Date().toISOString().slice(0,10),preferredTime:'Morning (8AM – 11AM)',vehicleCategory:'cars',vehicle:'2022 BMW X5',vehicleTier:'SUV 3-Row',lengthFt:'',package:'Premium Detail',packagePrice:435,addons:[{name:'Pet Hair Removal',price:130}],addonTotal:130,totalPrice:565,notes:'Demo booking for admin preview.'};
   saveLocalBooking(demo);renderAdminBookings();
+}
+
+// ── ADMIN: CLOUD PERSISTENCE ──────────────────────────────────────────────────
+async function adminPersistToCloud(bookingId, updates, lastAction){
+  const key=window._adminKey||'';
+  if(!key) return; // not logged in as admin
+  try{
+    const res=await fetch(BACKEND_BASE+'/update-booking',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-admin-key':key},
+      body:JSON.stringify({bookingId,updates,lastAction:lastAction||'admin_update'}),
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok) console.warn('[admin] cloud persist failed:',data.error,'for',bookingId);
+  }catch(e){
+    console.warn('[admin] cloud persist error:',e.message,'for',bookingId);
+  }
+}
+
+// ── ADMIN: DATA AUDIT ─────────────────────────────────────────────────────────
+function adminDataAudit(){
+  const all=getStoredBookings();
+  const drafts=all.filter(b=>b.isDraft);
+  const real=all.filter(b=>!b.isDraft);
+  const byStatus={};
+  real.forEach(b=>{ const s=b.status||'Pending Review'; byStatus[s]=(byStatus[s]||0)+1; });
+  const cancelReq=real.filter(b=>b.cancellationRequestStatus==='requested').length;
+  const cancelled=real.filter(b=>(b.status||'')==='Cancelled').length;
+  const archived=real.filter(b=>b.archived||b.isTest).length;
+  const missingPhone=real.filter(b=>!b.phone).length;
+  const missingId=real.filter(b=>!b.id).length;
+  const missingStatus=real.filter(b=>!b.status).length;
+  const ids=real.map(b=>b.id).filter(Boolean);
+  const dupIds=ids.filter((id,i)=>ids.indexOf(id)!==i);
+  const report=[
+    'BOOKING DATA AUDIT — '+new Date().toLocaleString(),
+    '─────────────────────────────────────',
+    'Total finalized: '+real.length,
+    'Drafts: '+drafts.length,
+    '',
+    'By Status:',
+    ...Object.entries(byStatus).map(([s,c])=>'  '+s+': '+c),
+    '',
+    'Cancellation Requests (active): '+cancelReq,
+    'Cancelled: '+cancelled,
+    'Archived / Test: '+archived,
+    '',
+    'Data Issues:',
+    '  Missing phone: '+missingPhone,
+    '  Missing ID: '+missingId,
+    '  Missing status: '+missingStatus,
+    '  Duplicate IDs: '+(dupIds.length?dupIds.join(', '):'none'),
+    '',
+    'Note: Run ☁️ Load from cloud first for accurate cloud totals.',
+  ].join('\n');
+  alert(report);
+}
+
+// ── ADMIN: TEST BOOKING CLEANUP ───────────────────────────────────────────────
+const _TEST_SIGNALS=[
+  b=>b.isTest===true,
+  b=>String(b.bookingSource||b.source||'').toLowerCase().includes('deploy-preview'),
+  b=>String(b.firstName||'').toLowerCase().includes('test'),
+  b=>String(b.lastName||'').toLowerCase().includes('test'),
+  b=>String(b.email||'').toLowerCase().includes('test'),
+  b=>/^(000|111|123|555)/.test(String(b.phone||'').replace(/\D/g,'')),
+  b=>String(b.vehicle||b.vehicleCategory||'').toLowerCase().includes('test'),
+  b=>String(b.notes||'').toLowerCase().includes('test booking'),
+];
+function _isLikelyTestBooking(b){return _TEST_SIGNALS.some(fn=>{try{return fn(b);}catch{return false;}});}
+async function adminArchiveTestBookings(){
+  const all=getStoredBookings().filter(b=>!b.isDraft);
+  const tests=all.filter(_isLikelyTestBooking);
+  if(!tests.length){alert('No test bookings detected in local data.\n\nRun ☁️ Load + Test first to include archived/test bookings.');return;}
+  const preview=tests.slice(0,10).map(b=>`  • ${b.id||'?'} — ${b.firstName||''} ${b.lastName||''} · ${b.phone||''}`).join('\n');
+  const more=tests.length>10?'\n  … and '+(tests.length-10)+' more':'';
+  const confirmed=confirm(
+    tests.length+' likely-test booking(s) found:\n\n'+preview+more+
+    '\n\nArchive all? (Hidden from default Admin list — NOT deleted.)\n\nExport CSV first if you need a backup.'
+  );
+  if(!confirmed)return;
+  const key=window._adminKey||'';
+  if(!key){alert('Not logged in as Admin — cannot persist archive to cloud.');return;}
+  let ok=0,fail=0;
+  for(const b of tests){
+    try{
+      const res=await fetch(BACKEND_BASE+'/tag-booking',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-admin-key':key},
+        body:JSON.stringify({bookingId:b.id,isTest:true,archived:true,archivedReason:'admin_test_cleanup',archivedAt:new Date().toISOString()}),
+      });
+      const data=await res.json().catch(()=>({}));
+      if(data.ok) ok++; else fail++;
+    }catch{ fail++; }
+  }
+  const updated=getStoredBookings().map(b=>_isLikelyTestBooking(b)?{...b,isTest:true,archived:true,archivedReason:'admin_test_cleanup'}:b);
+  setStoredBookings(updated);
+  renderAdminBookings();
+  alert('✓ Archived '+ok+' test booking(s) to cloud.'+(fail?' '+fail+' failed — check console.':'')+'\n\nUse 🗃️ Test/Archived filter to see them.');
 }
 
 // ── MULTI-VEHICLE CART ─────────────────────────────────────────────────────────
@@ -5465,12 +5625,7 @@ function applyZip(){
     nameEl.textContent  = zone.short;
     pillEl.style.display= 'inline-flex';
     pillTxt.textContent = zone.emoji+' '+zone.label;
-    if(zone.surcharge > 0){
-      surEl.style.display = 'inline-block';
-      surEl.textContent   = '+$'+zone.surcharge+' travel fee applies';
-    } else {
-      surEl.style.display = 'none';
-    }
+    surEl.style.display = 'none'; // travel fee shown at checkout, not here
   } else {
     nameEl.textContent  = 'YOUR AREA';
     pillEl.style.display= 'none';
@@ -5515,12 +5670,7 @@ function onBkZipInput(val){
     const cityName = getCityByZip(zip5);
     badge.style.display = 'inline-flex';
     badge.textContent   = '✓ ' + (cityName ? cityName : zone.short);
-    if(zone.surcharge > 0){
-      surBadge.style.display = 'inline-flex';
-      surBadge.textContent   = '+$'+zone.surcharge+' area fee';
-    } else {
-      surBadge.style.display = 'none';
-    }
+    surBadge.style.display = 'none';
     // Unlock category cards
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('locked'));
     if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span>'; }
@@ -5881,7 +6031,7 @@ function renderEmpPanel(filter){
               <div style="font-size:12px;color:var(--blue);font-weight:600;margin-top:2px">${vehs.map(v=>`${v.pkgIcon||'🚗'} ${v.pkgName}`).join(' · ')}</div>
             </div>
             <div style="text-align:right">
-              <div class="emp-job-time">${b.confirmedWindow||b.preferredDate}</div>
+              <div class="emp-job-time">${b.confirmedTimeWindow||b.confirmedWindow||b.preferredDate}</div>
               <div style="font-size:11px;color:var(--mu)">${b.preferredTime||'TBD'}</div>
             </div>
           </div>
@@ -6010,8 +6160,11 @@ async function cpLoadManage(){
     const b = data.booking;
     cpActiveBookingId = b.id;
     const status = b.status||'Pending Review';
-    const isEditable = !['Completed','Cancelled','No-Show'].includes(status);
-    const isCompleted = status==='Completed';
+    const jobSt = b.jobStatus||'';
+    const apptSt = b.appointmentStatus||'';
+    const isCompleted = jobSt==='completed'||jobSt==='closed'||status==='Completed';
+    const isCancelled = apptSt==='canceled'||status==='Cancelled'||status==='Cancellation Requested';
+    const isEditable = !isCompleted&&!isCancelled&&!['No-Show'].includes(status);
     const now = new Date();
     const svcDate = b.preferredDate ? new Date(b.preferredDate) : null;
     const hoursUntil = svcDate ? (svcDate - now) / 36e5 : 999;
@@ -6023,13 +6176,35 @@ async function cpLoadManage(){
       ? b.vehicles
       : [{pkgName:b.package||'—', vehicleLabel:b.vehicle||'—', pkgIcon:'🚗', addons:b.addons||[], subtotal:b.totalPrice}];
     const vehHtml = vehs.map(v=>'<div style="font-size:12px;line-height:1.7;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+v.pkgIcon+' <strong>'+(v.pkgName||'—')+'</strong> · '+(v.vehicleLabel||'—')+' · <span style="color:var(--blue)">$'+(v.subtotal||0)+'</span></div>').join('');
-    const sc = {'Completed':'var(--gr)','Confirmed':'var(--blue)','Scheduled':'var(--blue)','In Progress':'var(--am)','Cancelled':'var(--rd)'}[status]||'var(--mu)';
+    const isCancelReq = b.cancellationRequestStatus === 'requested';
+    const displayStatus = isCancelReq ? 'Cancellation Requested' : (isCancelled&&!isCancelReq ? 'Cancelled' : status);
+    const statusColor = isCancelReq||isCancelled ? '#ef4444' : (isCompleted ? 'var(--gr)' : isEditable ? 'var(--am)' : 'var(--mu)');
+    const statusBg = isCancelReq||isCancelled ? 'rgba(239,68,68,.15)' : 'rgba(0,0,0,.3)';
+    let actionsHtml = '';
+    if(isCompleted){
+      actionsHtml='<div style="margin-top:12px"><button class="cp-btn" style="margin:0" onclick="cpTab(3)">⭐ Leave a Review →</button></div>';
+    } else if(isCancelReq){
+      actionsHtml='<div style="margin-top:12px;padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--rs);font-size:12px;color:var(--rd)">⚠️ Cancellation request received. Our team will review and confirm within 1 business day.<br><br>Questions? <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></div>';
+    } else if(isCancelled){
+      actionsHtml='<div style="margin-top:12px;font-size:12px;color:var(--rd)">This booking has been cancelled. <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a> · <button class="cp-btn" style="display:inline;padding:4px 12px;font-size:12px;margin:4px 0 0 0" onclick="closePortal();setTimeout(function(){openBooking(null)},100)">Book Again →</button></div>';
+    } else if(!isEditable){
+      actionsHtml='<div style="margin-top:12px;font-size:12px;color:var(--mu)">Need help or want to book again? <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a> · <button class="cp-btn" style="display:inline;padding:4px 12px;font-size:12px;margin:4px 0 0 0" onclick="closePortal();setTimeout(function(){openBooking(null)},100)">Book Again →</button></div>';
+    } else {
+      const cancelLabel=canCancel?'✕ Request Cancellation':'✕ Cancel (fee may apply)';
+      const warnEnc=encodeURIComponent(cancelWarn);
+      actionsHtml='<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">'
+        +`<button class="cp-btn" onclick="cpOpenCancel('${b.id}',${canCancel},'${warnEnc}')" style="margin:0;padding:10px 16px;font-size:12px;background:rgba(239,68,68,.12);color:var(--rd);border-color:rgba(239,68,68,.3)">${cancelLabel}</button>`
+        +`<button class="cp-btn" onclick="cpOpenSub('reschedule')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">↺ Reschedule</button>`
+        +`<button class="cp-btn" onclick="cpOpenSub('addons')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">➕ Add-Ons</button>`
+        +'</div>'
+        +'<div style="margin-top:8px;font-size:11px;color:var(--mu)">Requests reviewed by Cardetail1 · Urgent: <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></div>';
+    }
     res.innerHTML = '<div style="background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--rs);padding:14px;margin-bottom:12px">'
-      +'<div style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">#'+b.id+' · <span style="font-size:12px;font-weight:600;color:'+(isCompleted?'var(--gr)':isEditable?'var(--am)':'var(--mu)')+';background:rgba(0,0,0,.3);padding:3px 10px;border-radius:999px">'+status+'</span></div>'
-      +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+(b.confirmedWindow||b.preferredDate||'—')+' · '+(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+(b.address||'—')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(b.totalPrice||0)+'</strong>'+(b.tip?' + Tip $'+b.tip:'')+'</div>'
+      +'<div style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">#'+b.id+' · <span style="font-size:12px;font-weight:600;color:'+statusColor+';background:'+statusBg+';padding:3px 10px;border-radius:999px">'+displayStatus+'</span></div>'
+      +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+(b.confirmedTimeWindow||b.confirmedWindow||b.preferredDate||'—')+' · '+(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+(b.address||'—')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(b.totalPrice||0)+'</strong>'+(b.tip?' + Tip $'+b.tip:'')+'</div>'
       +'<div style="margin-top:10px">'+vehHtml+'</div>'
       +(b.payLink?'<div style="margin-top:10px"><a href="'+b.payLink+'" target="_blank" style="color:var(--blue);font-weight:600">&#x1F4B3; Pay Now &#x2192;</a></div>':'')
-      +'</div><div style="font-size:12px;color:var(--mu);margin-top:12px;line-height:1.6">To modify this booking, please contact Cardetail1 at <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</div>';
+      +'</div>'+actionsHtml;
   } catch(_){
     if(btn){ btn.disabled=false; btn.textContent='Load My Booking →'; }
     res.style.display='block';
@@ -6068,10 +6243,80 @@ function cpToggleAddon(id, name, price, el){
   else cpSelectedAddons = cpSelectedAddons.filter(a=>a.id!==id);
 }
 
-function cpConfirmAddons(){ _cpContactOnly(); }
-function cpConfirmReschedule(){ _cpContactOnly(); }
-function cpConfirmAddress(){ _cpContactOnly(); }
-function cpConfirmCancel(){ _cpContactOnly(); }
+async function cpConfirmCancel(){
+  if(!cpActiveBookingId){alert('No booking loaded. Please load your booking first.');return;}
+  const reasonEl=document.getElementById('cp-cancel-reason');
+  const ackEl=document.getElementById('cp-cancel-ack');
+  const msgEl=document.getElementById('cp-cancel-msg');
+  const btn=document.getElementById('cp-cancel-confirm-btn');
+  const reason=(reasonEl?.value||'').trim();
+  const ack=ackEl?.checked||false;
+  if(!reason){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please provide a reason for cancellation.</span>';}return;}
+  if(!ack){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please acknowledge the cancellation policy.</span>';}return;}
+  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
+  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
+  if(msgEl)msgEl.style.display='none';
+  try{
+    const r=await fetch('/.netlify/functions/request-cancellation',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bookingId:cpActiveBookingId,phone,reason,acknowledgedPolicy:true}),
+    });
+    const data=await r.json().catch(()=>({}));
+    if(btn){btn.disabled=false;btn.textContent='Confirm Cancellation Request';}
+    if(data.ok||data.alreadyRequested){
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Cancellation request submitted. Cardetail1 will review and confirm within 1 business day.</span>';}
+      if(btn){btn.disabled=true;btn.textContent='Request Submitted';}
+      setTimeout(()=>cpLoadManage(),1500);
+    }else{
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(data.userMessage||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
+    }
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='Confirm Cancellation Request';}
+    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
+  }
+}
+async function _cpSendInquiry(action,payload,phone,msgEl){
+  try{
+    const body=Object.assign({bookingId:cpActiveBookingId,phone,action},payload);
+    const r=await fetch('/.netlify/functions/submit-customer-action',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body),
+    });
+    const data=await r.json().catch(()=>({}));
+    if(r.ok&&data.ok){
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Request sent. Cardetail1 will contact you to confirm changes.</span>';}
+    }else{
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(data.userMessage||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
+    }
+  }catch(e){
+    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--mu)">Could not send. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
+  }
+}
+async function cpConfirmReschedule(){
+  if(!cpActiveBookingId){return;}
+  const newDate=(document.getElementById('cp-new-date')||{}).value||'';
+  const newTime=(document.getElementById('cp-new-time')||{}).value||'';
+  const msgEl=document.getElementById('cp-reschedule-msg');
+  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
+  if(!newDate){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select a new preferred date.</span>';}return;}
+  await _cpSendInquiry('reschedule_request',{newDate,newTime},phone,msgEl);
+}
+async function cpConfirmAddress(){
+  if(!cpActiveBookingId){return;}
+  const addr=(document.getElementById('cp-new-addr')||{}).value?.trim()||'';
+  const msgEl=document.getElementById('cp-addr-msg');
+  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
+  if(!addr){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please enter the new service address.</span>';}return;}
+  await _cpSendInquiry('address_update',{newAddress:addr},phone,msgEl);
+}
+async function cpConfirmAddons(){
+  if(!cpActiveBookingId){return;}
+  const msgEl=document.getElementById('cp-addon-msg');
+  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
+  if(!cpSelectedAddons.length){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select at least one add-on.</span>';}return;}
+  const addonList=cpSelectedAddons.map(a=>a.name+' (+$'+a.price+')').join(', ');
+  await _cpSendInquiry('addon_request',{requestedAddons:addonList},phone,msgEl);
+}
 function _cpContactOnly(){
   alert('To modify this booking, please contact Cardetail1 at 551-313-2956.');
 }
@@ -6147,7 +6392,7 @@ function cpGarageBack(){
 function cpRenderGarage(b){
   const status = b.status || 'Pending Review';
   const sc = {'Completed':'var(--gr)','Confirmed':'var(--blue)','Scheduled':'var(--blue)','In Progress':'var(--am)','Cancelled':'var(--rd)'}[status] || 'var(--mu)';
-  const date = b.confirmedWindow || b.preferredDate || '—';
+  const date = b.confirmedTimeWindow||b.confirmedWindow || b.preferredDate || '—';
   const time = b.preferredTime || '';
   const addr = b.address || '—';
   const vehs = (b.vehicles && b.vehicles.length) ? b.vehicles : [{pkgName:b.package||'—', vehicleLabel:b.vehicle||'—', pkgIcon:'🚗', addons:b.addons||[]}];
@@ -6389,7 +6634,7 @@ function buildJobCard(b){
     <div style="font-size:12px;color:var(--mu);margin-bottom:4px">${vehicleStr}</div>
     <div class="jcard-addr">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(b.address||'')}" target="_blank" style="color:var(--mu)">${b.address||'—'}</a></div>
     <div class="jcard-info">
-      <span>📅 ${b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</span>
+      <span>📅 ${b.confirmedTimeWindow||b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</span>
       <span>📞 <a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a></span>
       <span style="color:var(--blue);font-weight:700">$${b.totalPrice||0}${b.tip?' + tip $'+b.tip:''}</span>
       ${b.zipCode?`<span>📮 ${b.zipCode}${b.richSurcharge?' ✦':''}</span>`:''}
@@ -6411,7 +6656,7 @@ function buildNotifyLink(tech, booking){
   const vehs = booking.vehicles && booking.vehicles.length ? booking.vehicles
     : [{pkgName:booking.package, vehicleLabel:booking.vehicle||booking.vehicleCategory, pkgIcon:'🚗'}];
   const svcList = vehs.map(v=>`${v.pkgIcon||''} ${v.pkgName} - ${v.vehicleLabel}`).join(', ');
-  const msg = `Hi ${tech.name.split(' ')[0]}! New Cardetail1 job assigned:\n📋 ${booking.id}\n👤 ${booking.firstName} ${booking.lastName} | 📞 ${booking.phone}\n📍 ${booking.address}\n🗓 ${booking.confirmedWindow||booking.preferredDate} ${booking.preferredTime||''}\n🔧 ${svcList}\n💰 $${booking.totalPrice}\nMap: https://maps.google.com/?q=${encodeURIComponent(booking.address||'')}`;
+  const msg = `Hi ${tech.name.split(' ')[0]}! New Cardetail1 job assigned:\n📋 ${booking.id}\n👤 ${booking.firstName} ${booking.lastName} | 📞 ${booking.phone}\n📍 ${booking.address}\n🗓 ${booking.confirmedTimeWindow||booking.confirmedWindow||booking.preferredDate} ${booking.preferredTime||''}\n🔧 ${svcList}\n💰 $${booking.totalPrice}\nMap: https://maps.google.com/?q=${encodeURIComponent(booking.address||'')}`;
   const phone = tech.phone.replace(/\D/g,'');
   return WHATSAPP_DISPATCH
     ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
@@ -6529,7 +6774,7 @@ async function sendDispatchWebhook(booking, tech){
         client_name: `${booking.firstName} ${booking.lastName}`,
         client_phone: booking.phone,
         address: booking.address,
-        date: booking.confirmedWindow || booking.preferredDate,
+        date: booking.confirmedTimeWindow || booking.confirmedWindow || booking.preferredDate,
         time: booking.preferredTime || 'TBD',
         service: booking.package || '',
         vehicles: booking.vehicles || [],
@@ -6953,7 +7198,7 @@ function onHeroZipInput(val){
     cityHtml = `<div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px;letter-spacing:.02em">📍 ${cityName}</div>`;
   }
   let pills = `<span class="zip-pill zip-pill-zone">${zone.label}</span>`;
-  if(zone.surcharge > 0) pills += `<span class="zip-pill zip-pill-fee">+$${zone.surcharge} area fee</span>`;
+  // travel fee shown at checkout only — not surfaced at ZIP entry
   if(richMultiplier > 1.0) pills += `<span class="zip-pill zip-pill-rich">⭐ Premium area</span>`;
   if(fb) fb.innerHTML = `${cityHtml}<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">${pills}</div>`;
   // Unlock homepage service cards
@@ -7088,7 +7333,7 @@ seedDefaultTechs();
 
   const DEFAULT_CHIPS=[
     {label:'💵 Pricing',q:'How much does it cost?'},
-    {label:'📍 Service area',q:'What areas do you serve?'},
+    {label:'✨ Packages',q:'What packages do you offer?'},
     {label:'📅 Book now',act:'book'},
     {label:'🧑‍🔧 Talk to a human',act:'human'}
   ];
@@ -7104,8 +7349,15 @@ seedDefaultTechs();
   window.cdToggle=cdToggle;
 
   function cdGreet(){
-    push("👋 Hi! I'm the <b>Cardetail1</b> assistant. Ask me about pricing, service areas, packages, add-ons, booking or payment — or I can connect you with our team.", 'bot');
-    setChips(DEFAULT_CHIPS);
+    const h=new Date().getHours();
+    const g=h<12?'Good morning ☀️':h<17?'Good afternoon 👋':'Good evening 🌙';
+    push(g+" I'm your <b>Cardetail1</b> assistant — here to help with pricing, packages, add-ons, service area, or booking. What can I help you with?", 'bot');
+    setChips([
+      {label:'💵 Pricing',q:'How much does it cost?'},
+      {label:'✨ Packages',q:'What packages do you offer?'},
+      {label:'📅 Book now',act:'book'},
+      {label:'📍 Service area',q:'What areas do you serve?'}
+    ]);
   }
 
   function cdSend(){ const inp=$('cd-input'); const v=(inp.value||'').trim(); if(!v) return; inp.value=''; cdAsk(v); }
@@ -7138,72 +7390,286 @@ seedDefaultTechs();
     return cdLocalAnswer(text);
   }
 
-  function suggestChips(text){ return DEFAULT_CHIPS; }
+  function suggestChips(text){
+    const t=text.toLowerCase();
+    if(/pet|dog hair|cat hair|fur|animal hair/.test(t)) return [{label:'🐾 Pet hair removal',q:'Do you remove pet hair?'},{label:'💨 Odor removal',q:'How does odor treatment work?'},{label:'📅 Add to booking',act:'book'}];
+    if(/odor|smell|stink|smoke|cigarette/.test(t)) return [{label:'💨 Odor treatment',q:'How does odor treatment work?'},{label:'💺 Seat shampoo',q:'What is the seat or carpet shampoo?'},{label:'📅 Book now',act:'book'}];
+    if(/boat|marine|yacht|pontoon/.test(t)) return [{label:'🛥️ Boat pricing',q:'What are your boat detailing prices?'},{label:'📅 Book boat detail',act:'book'},{label:'🧑‍🔧 Custom quote',act:'human'}];
+    if(/rv|camper|trailer|motorhome/.test(t)) return [{label:'🏕️ RV pricing',q:'What are your RV detailing prices?'},{label:'📅 Book RV detail',act:'book'},{label:'🧑‍🔧 Custom quote',act:'human'}];
+    if(/paint|scratch|swirl|oxidat|polish|correction|ceramic/.test(t)) return [{label:'🔴 Paint Enhancement',q:'What is the Paint Enhancement?'},{label:'🧲 Paint Sealant',q:'What is the paint sealant upgrade?'},{label:'📅 Book now',act:'book'}];
+    if(/price|cost|how much|\$|fee/.test(t)) return [{label:'💵 Full pricing',q:'How much does it cost?'},{label:'🚗 By vehicle size',q:'Do prices change by vehicle size?'},{label:'📅 Get exact price',act:'book'}];
+    if(/book|schedul|appoint|reserve/.test(t)) return [{label:'📅 Start booking',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'},{label:'❌ Cancellation?',q:'What is your cancellation policy?'}];
+    if(/premium|full detail|best package/.test(t)) return [{label:'⭐ Premium Detail',q:'What does the Premium Detail include?'},{label:'📅 Book Premium',act:'book'},{label:'✨ All add-ons',q:'What add-ons do you have?'}];
+    return DEFAULT_CHIPS;
+  }
 
   // ── LOCAL KNOWLEDGE BASE (uses the site's real data) ──
   function pkgNames(cat){ try{ return (PRICING[cat].packages||[]).filter(p=>p.id!=='custom').map(p=>p.name); }catch(e){ return []; } }
-  function addonList(cat){ try{ return (PRICING[cat].addons||[]).map(a=>a.name+' (+$'+a.price+')'); }catch(e){ return []; } }
+  function addonList(cat){ try{ return (PRICING[cat].addons||[]).map(a=>a.name+' ('+(a.from?'from $':'+$')+a.price+')'); }catch(e){ return []; } }
 
   const INTENTS = [
-    { keys:['hi','hello','hey','hallo','ola','olá','good morning','good afternoon'], fn:()=>({
-      reply:"Hey! 👋 How can I help? I can talk pricing, areas we serve, packages or booking.", chips:DEFAULT_CHIPS }) },
 
-    { keys:['price','pricing','cost','how much','quote','expensive','rate','charge','dollar','$'], fn:()=>({
-      reply:"Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n🚗 Cars & Trucks — from <b>$175</b>\n🏍️ Powersports — from <b>$119</b>\n🛥️ Boats — from <b>$199</b>\n🏕️ RVs & Trailers — from <b>$349</b>\n🚚 Fleet — from <b>$60/unit</b>\n\nFor an exact quote, start a booking and enter your vehicle + ZIP — pricing updates live.",
-      chips:[{label:'📅 Get my exact price',act:'book'},{label:'📍 Travel fees?',q:'Is there a travel fee?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+    // ── GREETINGS ────────────────────────────────────────────────────────
+    { keys:['hi','hello','hey','hallo','ola','olá','good morning','good afternoon','good evening','howdy'],
+      fn:()=>{ const h=new Date().getHours(); const g=h<12?'Good morning':h<17?'Good afternoon':'Good evening';
+        return { reply:g+"! 👋 I'm your <b>Cardetail1</b> assistant. Ask me about our packages, pricing, add-ons, service area — or I can get you started with a booking.",
+          chips:[{label:'💵 Pricing',q:'How much does it cost?'},{label:'✨ Packages',q:'What packages do you offer?'},{label:'📅 Book now',act:'book'},{label:'📍 Service area',q:'What areas do you serve?'}] }; } },
 
-    { keys:['area','areas','serve','service area','location','where','city','town','county','zip','near me','come to','pa','pennsylvania','new jersey','new york','connecticut',' nj',' ny',' ct'], fn:()=>({
-      reply:"We're <b>mobile</b> — we come to you! 🚐 We serve <b>"+AREAS+"</b>.\n\nEnter your ZIP in the booking flow to confirm coverage and see local pricing (some areas have a small travel fee). Not sure if we reach you? Just ask or call "+telLink()+".",
-      chips:[{label:'📅 Check my ZIP',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+    // ── PRICING ──────────────────────────────────────────────────────────
+    { keys:['price','pricing','cost','how much','quote','expensive','rate','charge','dollar','$'],
+      fn:()=>({
+        reply:"<b>Starting prices:</b>\n🚗 Cars & Trucks — from <b>$175</b>\n🏍️ Powersports — from <b>$119</b>\n🛥️ Boats — from <b>$199</b>\n🏕️ RVs & Trailers — from <b>$349</b>\n🚚 Fleet — from <b>$60/unit</b>\n\nStart a booking and enter your ZIP & vehicle — exact price updates live before you submit.",
+        chips:[{label:'📅 Get my exact price',act:'book'},{label:'🚗 By vehicle size',q:'Do prices change by vehicle size?'},{label:'📍 Travel fees?',q:'Is there a travel fee?'}] }) },
 
-    { keys:['travel fee','surcharge','extra fee','area fee','distance','toll'], fn:()=>({
-      reply:"Most core areas have <b>no travel fee</b>. Farther zones (e.g. NYC, Long Island, PA Philly/Pocono) add a small flat travel fee shown automatically when you enter your ZIP — typically <b>$15–$35</b>. No surprises: it's displayed before you submit.",
-      chips:[{label:'📅 See my area fee',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+    // ── SIZE/TIER PRICING ────────────────────────────────────────────────
+    { keys:['suv price','truck price','van price','size price','vehicle size','tier','which size','larger vehicle','bigger car'],
+      fn:()=>({
+        reply:"Prices go up with vehicle size (Maintenance / Interior / Premium):\n• Small Car — $175 / $199 / $249\n• SUV 2-Row — $195 / $229 / $279\n• SUV 3-Row — $225 / $259 / $309\n• Pickup Truck — $225 / $259 / $309\n• Minivan — $225 / $259 / $309\n• Cargo Van — $249 / $289 / $349\n• Passenger / Sprinter Van — $299 / $349 / $399\n\nEnter your vehicle in the booking flow — pricing auto-adjusts by class.",
+        chips:[{label:'📅 See my price',act:'book'},{label:'💵 Full pricing',q:'How much does it cost?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
-    { keys:['package','packages','plan','plans','tier','what do you offer','full detail','interior','exterior'], fn:()=>{
-      const names=pkgNames('cars'); const list=names.length?names.map(n=>'• '+n).join('\n'):'• Maintenance Detail\n• Premium Detail';
-      return { reply:"For cars we offer:\n\n"+list+"\n\nBoats, RVs and trailers are priced by exact length, and fleet has volume pricing. Each package lists exactly what's included in the booking flow.",
-        chips:[{label:'✨ Add-ons',q:'What add-ons do you have?'},{label:'📅 See packages',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
+    // ── PACKAGES ─────────────────────────────────────────────────────────
+    { keys:['package','packages','plan','what is included','what do i get','full detail','which package','recommend','best package','difference between'],
+      fn:()=>({
+        reply:"<b>Cars & Trucks — 4 packages:</b>\n\n🔵 <b>Maintenance Detail</b> ($175+) — exterior wash, wheels, glass, UV protectant, quick interior wipe. Best for regular upkeep.\n\n🟢 <b>Interior Detail</b> ($199+) — deep vacuum, steam, carpet shampoo, seat conditioning. Interior focus.\n\n⭐ <b>Premium Detail</b> ($249+) — full interior + exterior, clay bar, spray sealant, seat shampoo. <em>Most popular.</em>\n\n🔴 <b>Paint Enhancement</b> ($399+) — 1-step machine polish, removes swirls & oxidation, durable sealant.",
+        chips:[{label:'⭐ Premium Detail',q:'What does the Premium Detail include?'},{label:'📅 Book now',act:'book'},{label:'✨ Add-ons',q:'What add-ons do you have?'}] }) },
 
-    { keys:['add-on','add on','addon','extra','upgrade','pet hair','odor','ceramic','wax','shampoo','stain'], fn:()=>{
-      const a=addonList('cars'); const list=a.length?a.slice(0,8).map(x=>'• '+x).join('\n'):'• Pet Hair Removal\n• Odor Treatment\n• Ceramic Protection';
-      return { reply:"Popular add-ons you can pick during booking:\n\n"+list+"\n\nThey appear right after you choose your package & vehicle, and the total updates live.",
-        chips:[{label:'📅 Add to my booking',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
+    { keys:['maintenance detail','what is maintenance detail','maintenance package'],
+      fn:()=>({
+        reply:"<b>Maintenance Detail</b> (from $175): exterior hand wash, wheel & tire clean, exterior glass, UV/tire dressing, light interior wipe. Perfect for regular upkeep every 4–6 weeks between full details.",
+        chips:[{label:'⭐ Upgrade to Premium',q:'What does the Premium Detail include?'},{label:'📅 Book Maintenance',act:'book'},{label:'✨ Add something on',q:'What add-ons do you have?'}] }) },
 
-    { keys:['book','booking','appointment','schedule','reserve','agendar','set up','sign up','how do i'], fn:()=>({
-      reply:"Booking takes ~2 minutes: 📍 enter ZIP → 🚗 pick category & package → confirm your vehicle → ✨ add extras → your details → review & submit. No charge today — we confirm by text/call first.",
-      chips:[{label:'📅 Start booking',act:'book'},{label:'💳 Deposit/payment',q:'Do I pay now?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+    { keys:['interior detail','what is interior detail','interior only'],
+      fn:()=>({
+        reply:"<b>Interior Detail</b> (from $199): full interior focus — deep vacuum, steam cleaning, carpet shampoo, leather/vinyl conditioning, door panels, all glass. Perfect when the outside is fine but the inside needs serious attention.",
+        chips:[{label:'🐾 Pet hair?',q:'Do you remove pet hair?'},{label:'💨 Odor removal?',q:'How does odor treatment work?'},{label:'📅 Book Interior Detail',act:'book'}] }) },
 
-    { keys:['pay','payment','deposit','charge now','credit card','card','stripe','money','pay now','upfront'], fn:()=>({
-      reply:"You're <b>not charged when you submit</b> — it's a request first. A card on file is required for booking security and is saved securely through Stripe. Choose cash on-site, card on-site, or online after service as your separate payment preference.",
-      chips:[{label:'📅 Book now',act:'book'},{label:'❌ Cancellation policy',q:'What is your cancellation policy?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+    { keys:['premium detail','what does premium include','premium package','what is the premium'],
+      fn:()=>({
+        reply:"<b>Premium Detail</b> (from $249) — our most popular, fully bumper-to-bumper:\n✅ Exterior hand wash + wheel detail\n✅ Clay bar paint decontamination\n✅ Spray sealant protection\n✅ Full interior vacuum & steam\n✅ Carpet & seat shampoo\n✅ Leather/vinyl conditioning\n✅ All interior + exterior glass\n\nRecommended 2–3× per year to keep your car at its best.",
+        chips:[{label:'📅 Book Premium Detail',act:'book'},{label:'🔴 Paint correction?',q:'What is the Paint Enhancement?'},{label:'✨ Add-ons',q:'What add-ons do you have?'}] }) },
 
-    { keys:['hour','hours','open','time','when are you','availability','available','today','same day','same-day','weekend'], fn:()=>({
-      reply:"We operate <b>Mon–Fri, 8AM–5PM</b>. Request your preferred date during booking — we confirm availability based on route, weather, and service type before scheduling.",
-      chips:[{label:'📅 Check availability',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+    { keys:['paint enhancement','paint correction','machine polish','polishing','one step polish','what is paint enhancement'],
+      fn:()=>({
+        reply:"<b>Paint Enhancement</b> (from $399): a 1-step machine polish that removes light swirls, water spot etching, and oxidation — then seals the paint for lasting protection. Restores gloss and clarity on most vehicles. Deep scratches (to primer/metal) need body shop repair.",
+        chips:[{label:'📅 Book Paint Enhancement',act:'book'},{label:'🧲 Longer protection?',q:'What is the paint sealant upgrade?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
-    { keys:['cancel','cancellation','reschedule','refund','no-show','policy','weather','rain'], fn:()=>({
-      reply:"Easy & fair: 🔄 reschedule or cancel at least <b>24h</b> before (rescheduling preferred). Weather, emergencies or schedule conflicts → free reschedule. Late cancellations / no-shows / denied access may incur a fee or deposit loss. Full terms are on the Terms page.",
-      chips:[{label:'📅 Book now',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+    // ── ADD-ONS ──────────────────────────────────────────────────────────
+    { keys:['add-on','add on','addon','extras','upgrade','what add ons','available upgrades'],
+      fn:()=>{
+        const popularIds=['pethair','odor','rainx'];
+        const all=(PRICING.cars?.addons||[]);
+        const popular=all.filter(a=>popularIds.includes(a.id)).map(a=>'• '+a.name+' ('+(a.from?'from $':'+$')+a.price+')');
+        const others=all.filter(a=>!popularIds.includes(a.id)&&a.id!=='biohazard').slice(0,5).map(a=>'• '+a.name+' ('+(a.from?'from $':'+$')+a.price+')');
+        const list=[...popular,...others];
+        return { reply:"<b>Popular add-ons:</b>\n"+(list.slice(0,3).join('\n')||'• Pet Hair Removal (from $45)\n• Odor Treatment (from $65)\n• Rain-X Glass Treatment (+$20)')+"\n\n<b>Also available:</b>\n"+list.slice(3).join('\n')+"\n\nAll add-ons appear in the booking flow — pick any combination before you submit.",
+          chips:[{label:'🐾 Pet hair',q:'Do you remove pet hair?'},{label:'💨 Odor removal',q:'How does odor treatment work?'},{label:'📅 Build my booking',act:'book'}] }; } },
 
-    { keys:['what do you detail','vehicle','vehicles','cars','boat','rv','trailer','motorcycle','atv','jet ski','fleet','truck','suv'], fn:()=>({
-      reply:"We detail 🚗 cars & trucks, 🛥️ boats, 🏕️ RVs & travel trailers, 🏍️ powersports (motorcycle/ATV/UTV/jet ski) and 🚚 fleets — all <b>mobile</b>, at your home or workplace.",
-      chips:[{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] }) },
+    { keys:['pet hair','dog hair','cat hair','animal hair','fur','pets in car'],
+      fn:()=>({
+        reply:"<b>Pet Hair Removal</b> (from $45) tackles light–moderate pet hair from seats and carpet using specialized tools. For heavy or deeply embedded hair, <b>Heavy Pet Hair Removal</b> (from $75) goes deeper. Best added to an Interior Detail or Premium Detail.",
+        chips:[{label:'📅 Add pet hair removal',act:'book'},{label:'💨 Need odor too?',q:'How does odor treatment work?'},{label:'⭐ Best with Premium',q:'What does the Premium Detail include?'}] }) },
 
-    { keys:['mobile','come to me','at home','my place','do you travel','my location','my house','my driveway'], fn:()=>({
-      reply:"Yes — we're <b>100% mobile</b>. We bring professional equipment; water/power access may depend on location and service type. No shop visit needed — just safe access to your vehicle. 🚐",
-      chips:[{label:'📍 Service area',q:'What areas do you serve?'},{label:'📅 Book now',act:'book'}] }) },
+    { keys:['odor','smell','stink','odor treatment','odor removal','bad smell','cigarette','smoke odor'],
+      fn:()=>({
+        reply:"<b>Odor Treatment</b> (from $65) uses professional-grade eliminators — not masking sprays. We treat carpet, seats, and headliner. Heavy smoke or pet odor takes 2–3 days for full results. Works best combined with an Interior Detail or Premium Detail.",
+        chips:[{label:'📅 Add odor treatment',act:'book'},{label:'🐾 Pet hair too?',q:'Do you remove pet hair?'},{label:'💺 Seat shampoo?',q:'What is the seat or carpet shampoo?'}] }) },
 
-    { keys:['how long','duration','take','hours to','time to finish','minutes'], fn:()=>({
-      reply:"It depends on the package and vehicle — each package shows its estimated time in the booking flow (a wash is quick; a full detail takes longer). Pick a package to see the duration.",
-      chips:[{label:'📅 See times',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }) },
+    { keys:['seat shampoo','carpet shampoo','shampoo','seat cleaning','carpet cleaning'],
+      fn:()=>({
+        reply:"<b>Seat / Carpet Shampoo</b> (from $45) is a targeted hot-water extraction shampoo for seats and carpet — great for embedded dirt and general freshening. Combine with <b>Stain Treatment</b> (from $45) for tough spots. Also included in Interior and Premium Detail packages.",
+        chips:[{label:'📅 Book with shampoo',act:'book'},{label:'🧹 Stain treatment?',q:'Can you remove stains?'},{label:'🪑 Leather care?',q:'Do you condition leather?'}] }) },
 
-    { keys:['human','agent','person','representative','call','phone','contact','speak','talk to','someone','manager','owner','real person'], fn:()=>({
-      reply:"Happy to connect you! 📞 Call or text us at "+telLink()+" (Mon–Fri 8AM–5PM), or leave your question here and our team will get back to you.",
-      chips:[{label:'📨 Send my question',act:'human'},{label:'📅 Book now',act:'book'}] }) },
+    { keys:['stain','stain removal','stain treatment','spot clean','coffee stain','food stain','spill'],
+      fn:()=>({
+        reply:"<b>Stain Treatment</b> (from $45) targets food, coffee, beverage, and common interior stains on seats and carpet. Price varies by severity. Some stains (dye transfer, paint) may not fully lift — we advise on-site. Pairs best with Seat / Carpet Shampoo.",
+        chips:[{label:'📅 Add stain treatment',act:'book'},{label:'💺 Seat shampoo too?',q:'What is the seat or carpet shampoo?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
-    { keys:['thank','thanks','obrigado','appreciate','great','awesome','perfect'], fn:()=>({
-      reply:"You're welcome! 🙌 Anything else I can help with?", chips:DEFAULT_CHIPS }) }
+    { keys:['leather','leather conditioning','leather care','condition leather','vinyl conditioning','leather interior'],
+      fn:()=>({
+        reply:"<b>Leather / Plastic Conditioning</b> ($35) restores and protects leather seats, dashboard, door panels, and vinyl trim — preventing cracking and fading. Leaves a clean matte finish. Recommended for any vehicle 2+ years old with a leather interior.",
+        chips:[{label:'📅 Add conditioning',act:'book'},{label:'⭐ Included in Premium?',q:'What does the Premium Detail include?'}] }) },
+
+    { keys:['engine bay','engine cleaning','engine detail','engine wash','engine compartment'],
+      fn:()=>({
+        reply:"<b>Engine Bay Cleaning</b> ($60) safely degreases and cleans the engine compartment. We protect sensors and electrical components. A clean engine makes spotting leaks easier and looks great. Safe for all modern vehicles.",
+        chips:[{label:'📅 Add engine cleaning',act:'book'},{label:'🔴 Also doing paint?',q:'What is the Paint Enhancement?'}] }) },
+
+    { keys:['headlight','headlight restoration','foggy headlights','yellow headlights','hazy headlights'],
+      fn:()=>({
+        reply:"<b>Headlight Restoration</b> (from $60) removes yellowing and haze from plastic lenses using wet-sanding and compound — improving appearance and visibility by up to 70%. Lasts 1–2 years. Not available for cracked lenses.",
+        chips:[{label:'📅 Add headlight restoration',act:'book'},{label:'🔴 Also doing paint?',q:'What is the Paint Enhancement?'}] }) },
+
+    { keys:['rain-x','rainx','rain x','glass treatment','glass coating','hydrophobic','water beading','windshield treatment'],
+      fn:()=>({
+        reply:"<b>Rain-X Glass Treatment</b> ($20) applies a hydrophobic coating to all exterior glass — water beads off at highway speed, dramatically improving rain visibility. Lasts several months. Our most affordable add-on and we recommend it to everyone.",
+        chips:[{label:'📅 Add Rain-X ($20)',act:'book'},{label:'🛡️ What about wax?',q:'What is the spray wax upgrade?'}] }) },
+
+    { keys:['spray wax','polymer wax','polymer','wax upgrade','spray sealant upgrade'],
+      fn:()=>({
+        reply:"<b>Spray Wax Upgrade</b> ($35) adds an extra polymer spray sealant layer — boosting gloss and protection for 3–4 months. A great affordable add-on to a Maintenance Detail.",
+        chips:[{label:'📅 Add Spray Wax',act:'book'},{label:'🥇 Longer protection?',q:'What is the hand wax or sealant upgrade?'}] }) },
+
+    { keys:['hand wax','carnauba','hand wax upgrade','wax sealant upgrade'],
+      fn:()=>({
+        reply:"<b>Hand Wax / Sealant Upgrade</b> ($85) is a hand-applied carnauba wax or synthetic sealant — richer gloss than spray wax with protection lasting 4–6 months. Best paired with a Premium Detail.",
+        chips:[{label:'📅 Add Hand Wax',act:'book'},{label:'🧲 Even longer?',q:'What is the paint sealant upgrade?'}] }) },
+
+    { keys:['paint sealant','clay bar','clay bar treatment','decontamination','6 month protection','paint protection upgrade'],
+      fn:()=>({
+        reply:"<b>Paint Sealant Upgrade</b> (from $120): clay bar decontamination (removes iron, fallout, and bonded contaminants) + a professional-grade sealant. Smooth-as-glass paint that repels water for <b>6–12 months</b>. The best paint protection we offer.",
+        chips:[{label:'📅 Add Paint Sealant',act:'book'},{label:'🔵 What about ceramic?',q:'Do you offer ceramic coating?'}] }) },
+
+    // ── DETAILING EDUCATION ──────────────────────────────────────────────
+    { keys:['car wash versus','car wash vs','difference between car wash','wash vs detail','just a wash'],
+      fn:()=>({
+        reply:"A <b>car wash</b> cleans the surface only — and brush washes cause swirl marks. A <b>professional detail</b> deep-cleans every surface, conditions materials, decontaminates and protects the paint. Your car looks, smells, and feels completely different after a proper detail.",
+        chips:[{label:'⭐ See our packages',q:'What packages do you offer?'},{label:'📅 Book now',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }) },
+
+    { keys:['ceramic','ceramic coating','nano coating','is ceramic worth'],
+      fn:()=>({
+        reply:"We don't install ceramic coatings — they require factory-level conditions and a multi-day cure. Our <b>Paint Sealant Upgrade</b> (from $120) gives 6–12 months of professional paint protection. If you plan to get ceramic elsewhere, we can handle the clay bar prep and surface correction first.",
+        chips:[{label:'🧲 Paint Sealant Upgrade',q:'What is the paint sealant upgrade?'},{label:'🔴 Paint Enhancement',q:'What is the Paint Enhancement?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+
+    { keys:['swirl marks','swirl','light scratch','fine scratch','scratch removal','remove scratches'],
+      fn:()=>({
+        reply:"<b>Light swirl marks and fine surface scratches</b> are usually correctable — our <b>Paint Enhancement</b> (from $399) uses a machine polisher to remove up to 70–80% of light surface defects. Deep scratches through the clear coat to primer or metal need body shop repair — we advise honestly on-site.",
+        chips:[{label:'🔴 Book Paint Enhancement',q:'What is the Paint Enhancement?'},{label:'📅 Book now',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+
+    { keys:['water spots','water spot','water stains','hard water','mineral deposits'],
+      fn:()=>({
+        reply:"<b>Water spots</b> are mineral deposits left when water evaporates on paint or glass. Light spots come off with clay bar (included in Premium Detail and Paint Sealant Upgrade). <b>Etched water spots</b> (chemically bonded to paint) may need our Paint Enhancement. Our tech assesses on-site.",
+        chips:[{label:'🧲 Paint Sealant includes clay',q:'What is the paint sealant upgrade?'},{label:'🔴 Etched spots?',q:'What is the Paint Enhancement?'},{label:'📅 Book now',act:'book'}] }) },
+
+    { keys:['oxidation','oxidized paint','faded paint','dull paint','chalky paint','fading'],
+      fn:()=>({
+        reply:"<b>Oxidation</b> happens when a car's clear coat breaks down from UV — leaving paint dull, chalky, or faded. Very common on older vehicles. Our <b>Paint Enhancement</b> (from $399) includes oxidation treatment and can dramatically restore gloss and color depth.",
+        chips:[{label:'🔴 Book Paint Enhancement',q:'What is the Paint Enhancement?'},{label:'📅 Book now',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+
+    { keys:['how often','frequency','how regularly','when should i','maintenance schedule','how frequently'],
+      fn:()=>({
+        reply:"How often depends on use:\n• <b>Light use / garage kept</b> — full detail every 3–4 months\n• <b>Daily driver</b> — Maintenance Detail every 4–6 weeks + full detail quarterly\n• <b>Pets or kids</b> — interior detail every 4–6 weeks\n• <b>After winter</b> — Premium Detail removes salt & reprotects the paint\n\nRegular upkeep keeps your car worth more at trade-in.",
+        chips:[{label:'🔵 Maintenance Detail',q:'What is the maintenance detail?'},{label:'⭐ Premium Detail',q:'What does the Premium Detail include?'},{label:'📅 Book now',act:'book'}] }) },
+
+    { keys:['after care','aftercare','maintain after detail','after service','how to protect car','after detailing'],
+      fn:()=>({
+        reply:"After your detail:\n✅ Wait <b>24h</b> before washing (lets sealants cure)\n✅ Use a pH-neutral car shampoo for future washes\n✅ Avoid automatic car washes — they cause swirl marks\n✅ Reapply a spray detailer every 2–4 weeks\n✅ Park in shade when possible to reduce UV\n\nThese habits extend your results significantly.",
+        chips:[{label:'📅 Book now',act:'book'},{label:'🔵 Regular maintenance',q:'What is the maintenance detail?'}] }) },
+
+    { keys:['new car','brand new car','just bought','just purchased','dealership car','fresh off the lot'],
+      fn:()=>({
+        reply:"New cars from dealers often have transport scratches and dealer chemical residue. A <b>Maintenance Detail</b> cleans all that off. For the best long-term protection, <b>Premium Detail + Paint Sealant Upgrade</b> is the ideal new-car investment — locking in the factory finish right away.",
+        chips:[{label:'🧲 Paint Sealant Upgrade',q:'What is the paint sealant upgrade?'},{label:'📅 Book now',act:'book'}] }) },
+
+    // ── PREPARATION ──────────────────────────────────────────────────────
+    { keys:['need to be home','be home during','do i need to stay','someone home','present during'],
+      fn:()=>({
+        reply:"You don't need to be home the whole time — just available at drop-off and pick-up (or leave the key in a safe agreed spot). Many customers leave for work and come back to a freshly detailed car.",
+        chips:[{label:'📅 Book now',act:'book'},{label:'🚿 Do you need water?',q:'Do you need water or power?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+
+    { keys:['water','need water','bring water','water hookup','power outlet','electricity','generator','self contained'],
+      fn:()=>({
+        reply:"We're <b>fully self-contained</b> for standard car details — we bring our own water and power. For larger jobs (fleet, RVs, boats) access to a garden hose or outlet may help and we'll specify in your confirmation if needed.",
+        chips:[{label:'📅 Book now',act:'book'},{label:'📍 Service area',q:'What areas do you serve?'}] }) },
+
+    { keys:['prepare','how to prepare','what to do before','before detail','clear car','before appointment'],
+      fn:()=>({
+        reply:"Before we arrive:\n✅ Remove personal items, valuables, and excessive trash\n✅ Ensure safe vehicle access (driveway or parking spot)\n✅ Removing car seats speeds up interior work\n✅ Let us know about specific stains, pet hair, or concerns\n\nThat's it — we handle everything else!",
+        chips:[{label:'📅 Book now',act:'book'},{label:'⏱️ How long will it take?',q:'How long does the service take?'}] }) },
+
+    // ── SERVICE AREA ─────────────────────────────────────────────────────
+    { keys:['area','areas','serve','service area','location','where do you go','city','county','zip','near me','new jersey','new york','connecticut',' nj',' ny','nyc','brooklyn','bronx','bergen','hudson','essex','manhattan','hoboken','jersey city'],
+      fn:()=>({
+        reply:"We're 100% <b>mobile</b> — we come to you! 🚐\n\n<b>Primary:</b> Bergen County NJ, Hudson County NJ, Essex County NJ, all NYC boroughs.\n<b>Extended:</b> Long Island NY, Westchester NY, CT and MA (partner-operated).\n\nEnter your ZIP in the booking flow to confirm coverage and see if a travel fee applies.",
+        chips:[{label:'📅 Check my ZIP',act:'book'},{label:'📍 Travel fees?',q:'Is there a travel fee?'},{label:'🧑‍🔧 Not sure?',act:'human'}] }) },
+
+    { keys:['travel fee','surcharge','extra charge','area fee','distance fee','toll','how far will you'],
+      fn:()=>({
+        reply:"Most core areas have <b>no travel fee</b>. Extended zones (outer NYC, Long Island, PA, CT) add a flat fee — typically <b>$15–$35</b> — shown automatically when you enter your ZIP in booking. No surprises before you submit.",
+        chips:[{label:'📅 See my area fee',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+
+    // ── MOBILE / LOCATION ────────────────────────────────────────────────
+    { keys:['mobile','come to me','at home','my place','do you travel','my location','my house','my driveway','workplace','office','parking lot'],
+      fn:()=>({
+        reply:"We're <b>100% mobile</b> — home, workplace, parking lot, wherever your vehicle is. We bring everything we need. Just provide safe vehicle access and we handle the rest.",
+        chips:[{label:'📍 Service area',q:'What areas do you serve?'},{label:'🚿 Need water?',q:'Do you need water or power?'},{label:'📅 Book now',act:'book'}] }) },
+
+    // ── BOOKING ──────────────────────────────────────────────────────────
+    { keys:['book','booking','appointment','schedule','reserve','set up','sign up','how do i book','start booking','agendar'],
+      fn:()=>({
+        reply:"Booking is easy — about 2 minutes:\n1️⃣ Enter your ZIP\n2️⃣ Pick vehicle type & package\n3️⃣ Choose add-ons\n4️⃣ Enter preferred date & contact info\n5️⃣ Submit — <em>no charge now</em>\n\nWe review and <b>confirm by text or call</b> before your appointment.",
+        chips:[{label:'📅 Start booking',act:'book'},{label:'💳 Payment info',q:'Do I pay now?'},{label:'❌ Cancellation?',q:'What is your cancellation policy?'}] }) },
+
+    // ── PAYMENT ──────────────────────────────────────────────────────────
+    { keys:['pay','payment','deposit','charge','credit card','card on file','money','pay now','upfront','stripe','free to book','no charge'],
+      fn:()=>({
+        reply:"<b>No charge when you submit</b> — booking is a service request first. A card on file is required for security (saved securely via Stripe — no charges without your action). You choose payment preference separately: optional 25% deposit to secure the slot, full online payment, or cash/card on-site.",
+        chips:[{label:'📅 Book now',act:'book'},{label:'❌ Cancellation?',q:'What is your cancellation policy?'},{label:'🧑‍🔧 Questions?',act:'human'}] }) },
+
+    // ── HOURS ────────────────────────────────────────────────────────────
+    { keys:['hour','hours','open','when are you','availability','available','today','same day','same-day','weekend','saturday','sunday','urgent','rush'],
+      fn:()=>({
+        reply:"Regular hours: <b>Mon–Fri, 8AM–5PM</b>. Weekend appointments may be available — pick your preferred date in booking and we'll confirm. For same-day or urgent requests, <b>call or text "+telLink()+"</b> for the fastest response.",
+        chips:[{label:'📅 Book now',act:'book'},{label:'📞 Same-day request',act:'human'}] }) },
+
+    // ── CANCELLATION / WEATHER ───────────────────────────────────────────
+    { keys:['cancel','cancellation','reschedule','refund','no-show','policy','weather','rain','if it rains'],
+      fn:()=>({
+        reply:"Fair & flexible:\n✅ <b>Cancel or reschedule 24h+</b> before → no fee\n🌧️ <b>Rain</b> → free reschedule (exterior needs dry conditions; interior-only can often proceed)\n⚡ <b>Emergencies</b> → always accommodated\n⚠️ Late cancel / no-show → deposit may be forfeited\n\nWe'll reach out first if weather looks questionable.",
+        chips:[{label:'📅 Book now',act:'book'},{label:'💳 Deposit info',q:'Do I pay now?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+
+    // ── VEHICLES ─────────────────────────────────────────────────────────
+    { keys:['boat','marine','yacht','pontoon','sailboat','speed boat','bass boat'],
+      fn:()=>({
+        reply:"Full <b>marine detailing</b> — priced by boat length:\n• Marine Wash — from $199\n• Essential Marine — from $299\n• Full Marine Detail — from $449\n• Premium Marine (oxidation + machine wax) — from $699\n\nWe come to your dock, marina, or driveway.",
+        chips:[{label:'📅 Book boat detail',act:'book'},{label:'🧑‍🔧 Custom marine quote',act:'human'}] }) },
+
+    { keys:['rv','motorhome','travel trailer','camper','fifth wheel','toy hauler'],
+      fn:()=>({
+        reply:"<b>RV & Travel Trailer detailing</b> — priced by length:\n• Exterior Wash — from $349\n• Interior Detail — from $299\n• Full RV Detail — from $549\n• Premium Exterior (oxidation/polish) — from $849\n\nFor very large Class A motorhomes, we recommend calling for a custom quote.",
+        chips:[{label:'📅 Book RV detail',act:'book'},{label:'🧑‍🔧 Custom quote',act:'human'}] }) },
+
+    { keys:['motorcycle','atv','utv','jet ski','seadoo','side-by-side','powersport','quad','dirt bike'],
+      fn:()=>({
+        reply:"<b>Powersports detailing</b> — motorcycles, ATVs, UTVs, jet skis, and more:\n• Wash & Shine — from $119\n• Essential Detail — from $186\n• Full Detail — from $266\n• Premium Detail — from $367",
+        chips:[{label:'📅 Book powersports',act:'book'},{label:'💵 More pricing',q:'How much does it cost?'}] }) },
+
+    { keys:['fleet','multiple vehicles','company cars','business fleet','volume discount','bulk detail','commercial'],
+      fn:()=>({
+        reply:"<b>Fleet detailing</b> from $60/unit — we service dealerships, rental companies, car services, and businesses with 5+ vehicles. Volume discounts and custom scheduling available. Call or send a message for a fleet quote.",
+        chips:[{label:'🧑‍🔧 Get a fleet quote',act:'human'},{label:'📅 Book now',act:'book'}] }) },
+
+    { keys:['what do you detail','vehicle types','what vehicles','do you detail'],
+      fn:()=>({
+        reply:"We detail everything:\n🚗 Cars & Trucks (all sizes, vans, minivans)\n🛥️ Boats & Marine\n🏕️ RVs & Travel Trailers\n🏍️ Powersports (motorcycles, ATVs, UTVs, jet skis)\n🚚 Fleet vehicles\n\nAll 100% mobile — we come to you.",
+        chips:[{label:'💵 Pricing by vehicle',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] }) },
+
+    // ── DURATION ─────────────────────────────────────────────────────────
+    { keys:['how long','duration','time to finish','how many hours','takes how long','hours does it'],
+      fn:()=>({
+        reply:"Estimated times by package:\n• Maintenance Detail — 1–2 hrs\n• Interior Detail — 2–3 hrs\n• Premium Detail — 3–5 hrs\n• Paint Enhancement — 4–6 hrs\n\nLarger vehicles and add-ons extend the time. Exact estimates show in the booking flow.",
+        chips:[{label:'📅 Book now',act:'book'},{label:'⭐ Premium Detail',q:'What does the Premium Detail include?'}] }) },
+
+    // ── OBJECTIONS ───────────────────────────────────────────────────────
+    { keys:['is it worth','worth it','do i need','should i detail','is detailing necessary'],
+      fn:()=>({
+        reply:"A professional detail pays off: well-maintained cars <b>sell for 10–15% more</b> at trade-in, and regular detailing prevents costly UV damage, oxidation, and interior wear. Most customers who try a detail become regulars — the difference is genuinely night and day.",
+        chips:[{label:'⭐ See our packages',q:'What packages do you offer?'},{label:'📅 Book now',act:'book'}] }) },
+
+    { keys:['will you scratch','safe for my car','damage my paint','damage my car','worried about scratch','microfiber','wash technique'],
+      fn:()=>({
+        reply:"Paint safety is our top priority. We use <b>pH-balanced shampoos, premium microfiber towels, and the two-bucket wash method</b> — trained to minimize any risk of introducing swirls or scratches. We've detailed thousands of vehicles including exotics and classics.",
+        chips:[{label:'📅 Book now',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+
+    // ── HUMAN HANDOFF ────────────────────────────────────────────────────
+    { keys:['human','agent','person','representative','call','phone','contact','speak','talk to','someone','manager','owner','real person'],
+      fn:()=>({
+        reply:"Happy to connect you! 📞 Call or text us at "+telLink()+" (Mon–Fri 8AM–5PM), or leave your question below and our team will get back to you by text, call, or email.",
+        chips:[{label:'📨 Leave a message',act:'human'},{label:'📅 Book now',act:'book'}] }) },
+
+    // ── THANKS ───────────────────────────────────────────────────────────
+    { keys:['thank','thanks','obrigado','appreciate','great','awesome','perfect','amazing','love it'],
+      fn:()=>({
+        reply:"You're welcome! 🙌 Anything else I can help with? I'm happy to walk you through our services or get you booked in.", chips:DEFAULT_CHIPS }) }
   ];
 
   function cdLocalAnswer(text){
@@ -7215,8 +7681,8 @@ seedDefaultTechs();
       if(score>bestScore){ bestScore=score; best=intent; }
     });
     if(best && bestScore>0) return best.fn();
-    return { reply:"I want to get this right 🤔 — I'm not 100% sure about that one. I can connect you with our team, or you can call "+telLink()+". Want me to pass your question along?",
-      chips:[{label:'📨 Send my question',act:'human'},{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] };
+    return { reply:"Hmm, let me get you the right answer on that one 🤔 — our team can help directly! Call or text us at "+telLink()+" (Mon–Fri 8AM–5PM), or leave your question below and we'll get back to you.",
+      chips:[{label:'📨 Leave a message',act:'human'},{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] };
   }
 
   // ── HUMAN HANDOFF (last resort → owner / admin portal) ──
@@ -7307,8 +7773,24 @@ seedDefaultTechs();
   setTimeout(()=>{ if(!started){ const b=$('cd-badge'); if(b) b.style.display='flex'; } }, 6000);
 })();
 </script>
-<div data-netlify-deploy-id="6a361a9eda32d60008f3ed6b" data-netlify-site-id="d7e5f77c-1f0b-4209-a9df-3d6aae380dd0" data-vcs="github" style="position:fixed">
-
-  <script async src="/.netlify/scripts/cdp"></script>
-</div></body>
+<script>
+/* ── LIVE TRUST STATS ──────────────────────────────────────────────────────
+   Vehicles: 2,800 baseline on 2026-06-22, +3 per day
+   Years:    founded 2021-06-22, auto-increments on each anniversary
+   ──────────────────────────────────────────────────────────────────────── */
+(function(){
+  const BASE_V=2800, BASE_DATE=new Date('2026-06-22'), MS_DAY=864e5;
+  const FOUNDED=new Date('2021-06-22');
+  function fmtK(n){ const k=n/1000; return k>=1?(k%1===0?k.toFixed(0):k.toFixed(1))+'k':String(n); }
+  function tick(){
+    const now=new Date();
+    const vEl=document.getElementById('stat-vehicles');
+    if(vEl){ const v=BASE_V+Math.max(0,Math.floor((now-BASE_DATE)/MS_DAY)*3); vEl.textContent=fmtK(v)+'+'; }
+    const yEl=document.getElementById('stat-years');
+    if(yEl){ yEl.textContent=Math.floor((now-FOUNDED)/(365.25*MS_DAY))+'+'; }
+  }
+  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',tick):tick();
+})();
+</script>
+</body>
 </html>

@@ -88,13 +88,20 @@ exports.handler = async (event) => {
     return json(200, { ok: true, alreadyRequested: true });
   }
 
+  const now = new Date().toISOString();
+  const eventLog = Array.isArray(booking.eventLog) ? [...booking.eventLog] : [];
+  eventLog.push({ action: 'cancellation_requested', at: now, by: 'customer', reason });
+
   const updated = {
     ...booking,
+    status:                      'Cancellation Requested',
+    previousStatus:              booking.status || 'Pending Review',
     cancellationRequestStatus:   'requested',
-    cancellationRequestedAt:     new Date().toISOString(),
+    cancellationRequestedAt:     now,
     cancellationReason:          reason,
     cancellationAcknowledgedPolicy: true,
-    updatedAt:                   new Date().toISOString(),
+    updatedAt:                   now,
+    eventLog,
   };
 
   try {

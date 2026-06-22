@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" role="img" aria-label="Premium motorcycle visual">
+<defs>
+<radialGradient id="bg" cx="50%" cy="62%" r="72%"><stop offset="0%" stop-color="#0c1e3a"/><stop offset="100%" stop-color="#010408"/></radialGradient>
+<linearGradient id="bd" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1c3c6a"/><stop offset="45%" stop-color="#0d2040"/><stop offset="100%" stop-color="#060f1e"/></linearGradient>
+<linearGradient id="eng" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#182e50"/><stop offset="100%" stop-color="#06101e"/></linearGradient>
+<radialGradient id="wh" cx="38%" cy="32%" r="68%"><stop offset="0%" stop-color="#1e3058"/><stop offset="100%" stop-color="#040c1e"/></radialGradient>
+<radialGradient id="sh" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#000c20" stop-opacity=".88"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="400" height="200" fill="url(#bg)"/>
+<ellipse cx="210" cy="184" rx="155" ry="9" fill="url(#sh)"/>
+<!-- rear wheel -->
+<circle cx="112" cy="152" r="40" fill="url(#wh)"/>
+<circle cx="112" cy="152" r="30" fill="none" stroke="#18304e" stroke-width="1.5"/>
+<!-- rear wheel spokes (6-spoke) -->
+<line x1="112" y1="119" x2="112" y2="185" stroke="#4da3ff" stroke-width="1.2" opacity=".55"/>
+<line x1="79" y1="152" x2="145" y2="152" stroke="#4da3ff" stroke-width="1.2" opacity=".55"/>
+<line x1="83" y1="124" x2="141" y2="180" stroke="#4da3ff" stroke-width="1" opacity=".44"/>
+<line x1="141" y1="124" x2="83" y2="180" stroke="#4da3ff" stroke-width="1" opacity=".44"/>
+<line x1="90" y1="118" x2="134" y2="186" stroke="#4da3ff" stroke-width=".8" opacity=".3"/>
+<line x1="134" y1="118" x2="90" y2="186" stroke="#4da3ff" stroke-width=".8" opacity=".3"/>
+<circle cx="112" cy="152" r="9" fill="#060e20" stroke="#4da3ff" stroke-width="1.2"/>
+<circle cx="112" cy="152" r="3" fill="#4da3ff" opacity=".7"/>
+<path d="M82,125 Q68,152 82,179" fill="none" stroke="#4da3ff" stroke-width="2" opacity=".28"/>
+<!-- front wheel -->
+<circle cx="310" cy="152" r="40" fill="url(#wh)"/>
+<circle cx="310" cy="152" r="30" fill="none" stroke="#18304e" stroke-width="1.5"/>
+<line x1="310" y1="119" x2="310" y2="185" stroke="#4da3ff" stroke-width="1.2" opacity=".55"/>
+<line x1="277" y1="152" x2="343" y2="152" stroke="#4da3ff" stroke-width="1.2" opacity=".55"/>
+<line x1="281" y1="124" x2="339" y2="180" stroke="#4da3ff" stroke-width="1" opacity=".44"/>
+<line x1="339" y1="124" x2="281" y2="180" stroke="#4da3ff" stroke-width="1" opacity=".44"/>
+<line x1="288" y1="118" x2="332" y2="186" stroke="#4da3ff" stroke-width=".8" opacity=".3"/>
+<line x1="332" y1="118" x2="288" y2="186" stroke="#4da3ff" stroke-width=".8" opacity=".3"/>
+<circle cx="310" cy="152" r="9" fill="#060e20" stroke="#4da3ff" stroke-width="1.2"/>
+<circle cx="310" cy="152" r="3" fill="#4da3ff" opacity=".7"/>
+<path d="M280,125 Q266,152 280,179" fill="none" stroke="#4da3ff" stroke-width="2" opacity=".28"/>
+<!-- swing arm (rear) -->
+<path d="M152,140 Q188,136 210,138 L210,148 Q188,148 152,152Z" fill="#0c1e38" stroke="#4da3ff" stroke-width=".8" opacity=".4"/>
+<!-- main frame -->
+<path d="M210,108 L210,140 L152,148 L138,138 L148,120 L180,100 L210,108Z" fill="#0e2040" stroke="#4da3ff" stroke-width=".8" opacity=".45"/>
+<!-- engine block -->
+<path d="M186,122 L240,118 L248,138 L240,148 L188,148 L180,138Z" fill="url(#eng)" stroke="#4da3ff" stroke-width=".8" opacity=".5"/>
+<!-- cylinder fins -->
+<line x1="196" y1="122" x2="194" y2="148" stroke="#4da3ff" stroke-width=".7" opacity=".25"/>
+<line x1="208" y1="120" x2="206" y2="148" stroke="#4da3ff" stroke-width=".7" opacity=".25"/>
+<line x1="220" y1="120" x2="218" y2="148" stroke="#4da3ff" stroke-width=".7" opacity=".25"/>
+<line x1="232" y1="120" x2="230" y2="148" stroke="#4da3ff" stroke-width=".7" opacity=".25"/>
+<!-- exhaust pipe -->
+<path d="M186,142 Q168,150 152,154 Q138,158 130,152" fill="none" stroke="#4da3ff" stroke-width="3" opacity=".35" stroke-linecap="round"/>
+<path d="M128,152 L112,154" stroke="#4da3ff" stroke-width="4" opacity=".25" stroke-linecap="round"/>
+<!-- fuel tank (top) -->
+<path d="M210,88 Q244,80 276,84 L278,108 L210,108Z" fill="url(#bd)" stroke="#4da3ff" stroke-width=".8" opacity=".55"/>
+<!-- tank highlight -->
+<path d="M212,90 Q246,82 274,86" fill="none" stroke="white" stroke-width="1" opacity=".08"/>
+<!-- seat -->
+<path d="M176,108 Q212,100 278,104 L278,120 Q212,116 176,120Z" fill="#060e1e" stroke="#4da3ff" stroke-width=".8" opacity=".5"/>
+<!-- front fairing / upper -->
+<path d="M278,84 L300,88 L318,100 L316,116 L290,112 L278,104Z" fill="url(#bd)" stroke="#4da3ff" stroke-width=".8" opacity=".55"/>
+<!-- fairing highlight -->
+<path d="M280,86 L296,90 L312,100" fill="none" stroke="white" stroke-width="1" opacity=".08"/>
+<!-- headlight -->
+<ellipse cx="322" cy="104" rx="14" ry="12" fill="#cceeff" fill-opacity=".4" stroke="#4da3ff" stroke-width="1"/>
+<ellipse cx="322" cy="104" rx="8" ry="7" fill="white" fill-opacity=".55"/>
+<line x1="310" y1="96" x2="334" y2="96" stroke="#a0d8ff" stroke-width="2" opacity=".8" stroke-linecap="round"/>
+<!-- front forks -->
+<line x1="290" y1="112" x2="296" y2="150" stroke="#4da3ff" stroke-width="2.5" opacity=".4" stroke-linecap="round"/>
+<line x1="300" y1="112" x2="306" y2="150" stroke="#4da3ff" stroke-width="2.5" opacity=".4" stroke-linecap="round"/>
+<!-- handlebars -->
+<path d="M278,84 L258,74 L238,72" fill="none" stroke="#4da3ff" stroke-width="2.5" opacity=".55" stroke-linecap="round"/>
+<path d="M278,84 L286,72 L296,68" fill="none" stroke="#4da3ff" stroke-width="2.5" opacity=".55" stroke-linecap="round"/>
+<!-- mirror -->
+<ellipse cx="240" cy="70" rx="7" ry="5" fill="#08182e" stroke="#4da3ff" stroke-width=".8" opacity=".5"/>
+<ellipse cx="296" cy="66" rx="7" ry="5" fill="#08182e" stroke="#4da3ff" stroke-width=".8" opacity=".5"/>
+<!-- taillight -->
+<ellipse cx="138" cy="108" rx="6" ry="8" fill="#c01830" fill-opacity=".7" stroke="#ff3f52" stroke-width=".8"/>
+<!-- chain -->
+<path d="M152,148 Q180,150 210,148" fill="none" stroke="#4da3ff" stroke-width="1.5" opacity=".2" stroke-dasharray="3,3"/>
+</svg>
