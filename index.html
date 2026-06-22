@@ -416,6 +416,8 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .pkg:hover{border-color:var(--bbr);transform:translateY(-3px)}
 .pkg.sel{border-color:var(--blue);background:rgba(77,163,255,.06)}
 .pkg.pop{border-color:rgba(77,163,255,.32)}
+.pkg-visual{height:112px;margin:-18px -16px 14px;border-radius:16px 16px 0 0;background:#020a16;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.pkg-visual img{width:100%;height:100%;object-fit:contain;display:block}
 .pop-b{position:absolute;top:-1px;right:14px;background:var(--blue);color:#000;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:0 0 8px 8px}
 .pkg-name{font-family:var(--fd);font-size:20px;color:var(--white);letter-spacing:.03em;margin-bottom:2px}
 .pkg-tag{font-size:11px;color:var(--mu);margin-bottom:10px}
@@ -464,7 +466,8 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .tchip{background:var(--bg3);border:1px solid rgba(255,255,255,.07);border-radius:var(--rs);padding:13px 12px;cursor:pointer;text-align:center;transition:.2s}
 .tchip:hover{border-color:var(--bbr)}
 .tchip.sel{border-color:var(--blue);background:rgba(77,163,255,.07)}
-.tchip-ico{font-size:24px;margin-bottom:6px}
+.tchip-ico{height:74px;margin-bottom:7px;display:flex;align-items:center;justify-content:center}
+.tchip-ico img{width:100%;height:100%;object-fit:contain;display:block}
 .tchip-name{font-size:12.5px;font-weight:600;color:var(--white);margin-bottom:2px}
 .tchip-desc{font-size:10.5px;color:var(--mu)}
 .tchip-from{font-size:11px;color:var(--blue);font-weight:600;margin-top:5px}
@@ -473,7 +476,8 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .vc{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--rs);padding:14px 16px;display:none;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px;animation:fu .25s ease}
 .vc.show{display:flex}
 .vc-l{display:flex;align-items:center;gap:12px}
-.vc-ico{font-size:28px}
+.vc-ico{width:112px;height:76px;flex:0 0 112px;display:flex;align-items:center;justify-content:center}
+.vc-ico img{width:100%;height:100%;object-fit:contain;display:block}
 .vc-info strong{display:block;font-size:14px;font-weight:600;color:var(--white)}
 .vc-info span{font-size:11.5px;color:var(--mu)}
 .vc-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 9px;border-radius:999px;margin-top:3px;background:var(--bdim);border:1px solid var(--bbr);color:var(--blue)}
@@ -528,8 +532,9 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 #bk-cat-grid .svc-from{padding-bottom:14px}
 /* Photo cards: real photos with dark cinematic overlay */
 .svc-ico-photo{display:block;width:100%;height:130px;position:relative;overflow:hidden;margin-bottom:0;font-size:0;flex-shrink:0}
-.svc-ico-photo img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.55) saturate(1.45) contrast(1.12);transition:filter .55s ease,transform .55s ease;transform:scale(1.06);transform-origin:center 40%}
-.svc-card:hover .svc-ico-photo img{filter:brightness(.72) saturate(1.5) contrast(1.14);transform:scale(1)}
+.svc-ico-photo{background:#020a16}
+.svc-ico-photo img{width:100%;height:100%;object-fit:contain;display:block;filter:brightness(.62) saturate(1.35) contrast(1.08);transition:filter .35s ease}
+.svc-card:hover .svc-ico-photo img{filter:brightness(.82) saturate(1.4) contrast(1.08)}
 .svc-ico-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 130% 90% at 58% 45%,rgba(40,100,230,.24) 0%,transparent 62%),linear-gradient(180deg,rgba(4,10,28,.5) 0%,rgba(4,10,28,.1) 55%,rgba(4,10,28,.6) 100%);z-index:1;pointer-events:none}
 .svc-ico-photo .photo-label{position:absolute;bottom:0;left:0;right:0;z-index:2;display:none}
 
@@ -586,6 +591,8 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 
 /* ORDER CONFIRM */
 .oc{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--r);padding:18px;margin-bottom:12px}
+.confirm-vehicle-visual{height:150px;background:#020a16;border-radius:9px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.confirm-vehicle-visual img{width:100%;height:100%;object-fit:contain;display:block}
 .oc-t{font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--blue);margin-bottom:10px}
 .or{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;font-size:12.5px;border-bottom:1px solid rgba(255,255,255,.04)}
 .or:last-child{border-bottom:none}
@@ -715,7 +722,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .visual-proof{background:var(--bg1);padding:0 24px 40px}
 .visual-proof-in{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:stretch}
 .visual-panel{border-radius:var(--r);border:1px solid rgba(77,163,255,.24);background:linear-gradient(180deg,var(--bg2),var(--bg1));overflow:hidden;box-shadow:0 18px 52px rgba(0,0,0,.32)}
-.visual-panel-img{min-height:250px;background:url("/assets/vehicles/photos/new/service-overview.webp") center/cover no-repeat}
+.visual-panel-img{min-height:250px;background:url("/assets/vehicles/premium/cars-suvs.webp") center/cover no-repeat}
 .visual-panel-copy{padding:22px}
 .visual-panel-copy h3{font-family:var(--fd);font-size:34px;line-height:.95;color:var(--white);margin-bottom:8px;letter-spacing:.02em}
 .visual-panel-copy p{font-size:13.5px;color:var(--mu);line-height:1.65;margin-bottom:14px}
@@ -817,6 +824,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .vcart-title{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .vcart-item{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;font-size:12.5px}
 .vcart-item-info{line-height:1.7;flex:1}
+.vcart-thumb{width:86px;height:62px;flex:0 0 86px;border-radius:8px;background:#020a16;overflow:hidden}
+.vcart-thumb img{width:100%;height:100%;object-fit:contain;display:block}
 .vcart-item-name{font-weight:700;color:var(--white)}
 .vcart-item-price{font-weight:700;color:var(--blue);white-space:nowrap}
 .vcart-rm{background:none;border:none;color:var(--mu);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;transition:.2s}
@@ -1014,9 +1023,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .loc-zone-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gr);background:var(--grdim);border:1px solid var(--grbr);border-radius:999px;padding:5px 14px}
 .loc-scroll{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
 .loc-scroll::-webkit-scrollbar{display:none}
-.loc-card{flex-shrink:0;width:200px;background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:20px 16px;cursor:pointer;transition:.22s;text-align:center}
+.loc-card{flex-shrink:0;width:200px;background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:0 16px 20px;cursor:pointer;transition:.22s;text-align:center;overflow:hidden}
 .loc-card:hover{border-color:var(--bbr);transform:translateY(-3px)}
-.loc-ico{font-size:38px;margin-bottom:10px}
+.loc-visual{height:112px;margin:0 -16px 14px;background:#020a16;display:flex;align-items:center;justify-content:center}
+.loc-visual img{width:100%;height:100%;object-fit:contain;display:block}
 .loc-name{font-family:var(--fd);font-size:22px;color:var(--white);letter-spacing:.02em;margin-bottom:4px}
 .loc-req{font-size:11px;color:var(--mu);margin-bottom:8px}
 .loc-from{font-size:12px;color:var(--blue);font-weight:600}
@@ -1151,7 +1161,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 
   /* ── VEHICLE CART ── */
   .vcart{padding:14px}
-  .vcart-item{flex-direction:column;gap:8px;align-items:flex-start}
+  .vcart-item{gap:9px;align-items:center}
+  .vcart-thumb{width:74px;height:56px;flex-basis:74px}
 
   /* ── ADMIN PANEL ── */
   .admin-panel{margin:8px;border-radius:var(--r)}
@@ -1992,31 +2003,31 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </div>
         <div class="service-grid" id="bk-cat-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
-            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/new/cars-trucks.webp" alt="Cars and trucks receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async" style="object-position:55% 50%"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/premium/cars-suvs.webp" alt="Cars and trucks receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
             <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $175</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
-            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/new/boats.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async" style="object-position:60% 50%"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/premium/marine.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Boats</div>
             <div class="svc-desc" style="font-size:12px">All vessels · Priced by length</div>
             <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $199</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
-            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/new/rvs-trailers.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async" style="object-position:58% 50%"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/premium/rv-trailer.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
             <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $349</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
-            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/new/powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async" style="object-position:58% 52%"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/premium/powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
             <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
             <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $119</div>
           </div>
           <div class="svc-card locked" id="bkcat-fleet" onclick="selectCategory('fleet')">
-            <span class="svc-ico-photo"><img src="/assets/vehicles/photos/new/fleet.webp" alt="Commercial van fleet receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async" style="object-position:64% 50%"></span>
+            <span class="svc-ico-photo"><img src="/assets/vehicles/premium/fleet-commercial.webp" alt="Commercial van fleet receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Fleet Services</div>
             <div class="svc-desc" style="font-size:12px">Cars · Vans · Trucks · Buses · Golf Carts · Boats/RVs</div>
             <div class="svc-from" id="bkfrom-fleet" style="font-size:12px">From $60/unit</div>
@@ -2117,7 +2128,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <!-- Detected vehicle card -->
         <div class="vc" id="vc">
           <div class="vc-l">
-            <div class="vc-ico" id="vc-ico"><img src="/assets/vehicles/premium/sedan.svg" alt="Vehicle" loading="lazy"></div>
+            <div class="vc-ico" id="vc-ico"><img src="/assets/vehicles/premium/sedan.webp" alt="Sedan receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></div>
             <div class="vc-info">
               <strong id="vc-name">—</strong>
               <span id="vc-tier-lbl">—</span>
@@ -2283,6 +2294,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div class="bdesc">Check everything then submit your booking request.</div>
         <div class="oc">
           <div class="oc-t">Service</div>
+          <div class="confirm-vehicle-visual" id="c-visual"></div>
           <div class="or"><span class="ol">Category</span><span class="ov" id="c-cat">—</span></div>
           <div class="or"><span class="ol">Vehicle</span><span class="ov" id="c-veh">—</span></div>
           <div class="or"><span class="ol">Package</span><span class="ov" id="c-pkg">—</span></div>
@@ -3097,21 +3109,43 @@ function setupUnitSelector(cat){
 // ── CAR MODELS ──────────────────────────────────────────────────────────────
 // ── VEHICLE VISUAL LIBRARY ────────────────────────────────────────────────────
 const VEHICLE_VISUALS = {
-  sedan:       { img:'/assets/vehicles/premium/sedan.svg',      alt:'Sedan' },
-  suv:         { img:'/assets/vehicles/premium/suv.svg',        alt:'SUV / Crossover' },
-  'suv-3row':  { img:'/assets/vehicles/premium/suv-3row.svg',   alt:'Full-size 3-Row SUV' },
-  pickup:      { img:'/assets/vehicles/premium/pickup.svg',     alt:'Pickup Truck' },
-  van:         { img:'/assets/vehicles/premium/van.svg',        alt:'Full-size Van' },
-  minivan:     { img:'/assets/vehicles/premium/minivan.svg',    alt:'Minivan' },
-  rv:          { img:'/assets/vehicles/premium/rv.svg',         alt:'RV / Motorhome' },
-  trailer:     { img:'/assets/vehicles/premium/trailer.svg',    alt:'Travel Trailer' },
-  boat:        { img:'/assets/vehicles/premium/boat.svg',       alt:'Boat' },
-  jetski:      { img:'/assets/vehicles/premium/jet-ski.svg',    alt:'Jet Ski / PWC' },
-  motorcycle:  { img:'/assets/vehicles/premium/motorcycle.svg', alt:'Motorcycle' },
-  atv:         { img:'/assets/vehicles/premium/atv.svg',        alt:'ATV / UTV' },
+  sedan:       { img:'/assets/vehicles/premium/sedan.webp',          alt:'Sedan receiving mobile detailing' },
+  compact:     { img:'/assets/vehicles/premium/compact-sedan.webp',  alt:'Compact sedan receiving mobile detailing' },
+  midsize:     { img:'/assets/vehicles/premium/midsize-sedan.webp',  alt:'Midsize sedan receiving mobile detailing' },
+  suv:         { img:'/assets/vehicles/premium/suv-2-row.webp',      alt:'Two-row SUV receiving mobile detailing' },
+  'suv-3row':  { img:'/assets/vehicles/premium/suv-3-row.webp',      alt:'Three-row SUV receiving mobile detailing' },
+  pickup:      { img:'/assets/vehicles/premium/pickup.webp',         alt:'Pickup truck receiving mobile detailing' },
+  van:         { img:'/assets/vehicles/premium/van.webp',            alt:'Full-size van receiving mobile detailing' },
+  minivan:     { img:'/assets/vehicles/premium/minivan.webp',        alt:'Minivan receiving mobile detailing' },
+  workvan:     { img:'/assets/vehicles/premium/work-van.webp',       alt:'Commercial work van fleet receiving mobile detailing' },
+  boxtruck:    { img:'/assets/vehicles/premium/box-truck.webp',      alt:'Commercial box truck fleet receiving mobile detailing' },
+  rv:          { img:'/assets/vehicles/premium/rv-motorhome.webp',   alt:'RV motorhome receiving mobile detailing' },
+  trailer:     { img:'/assets/vehicles/premium/travel-trailer.webp', alt:'Travel trailer receiving mobile detailing' },
+  boat:        { img:'/assets/vehicles/premium/boat.webp',           alt:'Boat receiving mobile marine detailing' },
+  jetski:      { img:'/assets/vehicles/premium/jet-ski.webp',        alt:'Jet ski receiving mobile marine detailing' },
+  motorcycle:  { img:'/assets/vehicles/premium/motorcycle.webp',     alt:'Motorcycle receiving mobile detailing' },
+  atv:         { img:'/assets/vehicles/premium/atv.webp',            alt:'ATV receiving mobile detailing' },
+  utv:         { img:'/assets/vehicles/premium/utv.webp',            alt:'UTV receiving mobile detailing' },
+};
+const CATEGORY_VISUALS = {
+  cars:        { img:'/assets/vehicles/premium/cars-suvs.webp',       alt:'Cars SUVs and trucks mobile detailing' },
+  boats:       { img:'/assets/vehicles/premium/marine.webp',          alt:'Boat and marine mobile detailing' },
+  rvs:         { img:'/assets/vehicles/premium/rv-trailer.webp',      alt:'RV motorhome and travel trailer mobile detailing' },
+  powersports: { img:'/assets/vehicles/premium/powersports.webp',     alt:'Motorcycle ATV and jet ski mobile detailing' },
+  fleet:       { img:'/assets/vehicles/premium/fleet-commercial.webp',alt:'Commercial fleet and work van mobile detailing' },
+};
+const TIER_VISUAL_KEYS = {
+  small:'compact', sedan:'sedan', suv2:'suv', suv3:'suv-3row', truck:'pickup',
+  motorcycle:'motorcycle', atv:'atv', utv:'utv', jetski:'jetski',
+  cargo:'workvan', workvan:'workvan', van:'van', boxtruck:'boxtruck',
+  vehicle:'sedan', commercial:'workvan', powersports:'atv', marine_rv:'rv'
 };
 // [lowercase substring, visual key] — checked in order; first match wins
 const MODEL_MAP = [
+  // compact and midsize sedans
+  ['civic','compact'],['corolla','compact'],['elantra','compact'],['sentra','compact'],
+  ['forte','compact'],['jetta','compact'],['impreza','compact'],['mazda3','compact'],
+  ['camry','midsize'],['accord','midsize'],['taycan','midsize'],['model 3','midsize'],
   // minivans (before suv/sedan to avoid false positive on "odyssey" etc.)
   ['odyssey','minivan'],['sienna','minivan'],['caravan','minivan'],['pacifica','minivan'],
   ['sedona','minivan'],['carnival','minivan'],['quest','minivan'],['town & country','minivan'],
@@ -3158,12 +3192,13 @@ function getVehicleVisualKey(){
     if(ST.tierKey==='atv'||ST.tierKey==='utv') return 'atv';
     return 'motorcycle';
   }
-  if(cat==='fleet') return 'van';
+  if(cat==='fleet') return TIER_VISUAL_KEYS[ST.tierKey]||'workvan';
   const lbl=(ST.vehicleLabel||'').toLowerCase();
   for(const [k,t] of MODEL_MAP){ if(lbl.indexOf(k)>-1) return t; }
   if(ST.tierKey==='truck') return 'pickup';
   if(ST.tierKey==='suv3') return 'suv-3row';
   if(ST.tierKey==='suv2') return 'suv';
+  if(ST.tierKey==='small') return 'compact';
   return 'sedan';
 }
 function setVehicleVisual(){
@@ -3388,6 +3423,7 @@ function renderPackages(cat){
   const d=PRICING[cat];
   const grid=document.getElementById('pkg-grid');
   const pkgKey = cat==='fleet'?'essential':'full';
+  const categoryVisual=CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
   grid.innerHTML=d.packages.map(p=>{
     let startPrice;
     if(cat==='fleet' && p.id==='custom'){
@@ -3400,6 +3436,7 @@ function renderPackages(cat){
     }
     return `<div class="pkg${p.popular?' pop':''}" id="pk-${p.id}" onclick="selectPkg('${p.id}')">
       ${p.popular?'<div class="pop-b">Most Popular</div>':''}
+      <div class="pkg-visual"><img src="${categoryVisual.img}" alt="${categoryVisual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
       <div class="pkg-name">${p.name}</div>
       <div class="pkg-tag">${p.tag}</div>
       <div class="pkg-price">${p.id==='custom'?'Estimate':'from $'+startPrice}</div>
@@ -3447,8 +3484,9 @@ function renderTierChips(cat){
       const prices=Object.values(t).filter(v=>typeof v==='number');
       const minP=applyRichPrice(Math.min(...prices));
       const fee=activeZone?activeZone.surcharge:0;
+      const visual=VEHICLE_VISUALS[TIER_VISUAL_KEYS[k]||getVehicleVisualKey()]||VEHICLE_VISUALS.sedan;
       return `<div class="tchip" data-tier="${k}" onclick="selectTier('${k}')">
-        <div class="tchip-ico">${t.icon}</div>
+        <div class="tchip-ico"><img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
         <div class="tchip-name">${t.label}</div>
         <div class="tchip-desc">${t.desc}</div>
         <div class="tchip-from">from $${minP+fee}</div>
@@ -4033,6 +4071,9 @@ function fillConfirm(){
   const total=ST.basePrice+ST.addonTotal;
   const tsel=document.getElementById('f-time').value||'Any available';
   const catLabels={cars:'Cars & Trucks',boats:'Boats & Marine',rvs:'RVs & Trailers',powersports:'Powersports',fleet:'Fleet Services'};
+  const visual=VEHICLE_VISUALS[getVehicleVisualKey()]||CATEGORY_VISUALS[ST.cat]||VEHICLE_VISUALS.sedan;
+  const visualEl=document.getElementById('c-visual');
+  if(visualEl) visualEl.innerHTML=`<img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async">`;
   document.getElementById('c-cat').textContent=catLabels[ST.cat]||ST.cat;
   document.getElementById('c-veh').textContent=ST.vehicleLabel;
   document.getElementById('c-pkg').textContent=(ST.pkg?.name||'—')+' Package';
@@ -4894,6 +4935,7 @@ function buildCurrentVehicleItem(){
     cat:ST.cat, pkgId:ST.pkgId,
     pkgName: ST.pkg.name,
     pkgIcon: ST.pkg.icon||'🚗',
+    visualKey: getVehicleVisualKey(),
     vehicleLabel: ST.vehicleLabel,
     tierLabel: ST.tier ? ST.tier.label : '',
     basePrice: ST.basePrice,
@@ -4941,9 +4983,11 @@ function renderVehicleCart(){
   wrap.innerHTML = ST.vehicles.map((v,i)=>{
     sum += v.subtotal;
     const addonStr = v.addons.length ? v.addons.map(a=>a.name+(a.qty>1?' ×'+a.qty:'')).join(', ') : 'No add-ons';
+    const visual = VEHICLE_VISUALS[v.visualKey]||CATEGORY_VISUALS[v.cat]||VEHICLE_VISUALS.sedan;
     return `<div class="vcart-item">
+      <div class="vcart-thumb"><img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
       <div class="vcart-item-info">
-        <div class="vcart-item-name">${v.pkgIcon} ${v.pkgName} · ${v.vehicleLabel}</div>
+        <div class="vcart-item-name">${v.pkgName} · ${v.vehicleLabel}</div>
         <div style="color:var(--mu);font-size:11.5px;margin-top:2px">${addonStr}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
@@ -5393,8 +5437,9 @@ function renderLocationCarousel(zoneKey){
   if(!scroll) return;
   scroll.innerHTML = cats.map(cat=>{
     const d = LOC_DISPLAY[cat];
+    const visual = CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
     return `<div class="loc-card" onclick="openBooking('${cat}')">
-      <div class="loc-ico">${d.ico}</div>
+      <div class="loc-visual"><img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
       <div class="loc-name">${d.name}</div>
       <div class="loc-req">${d.desc}</div>
       <div class="loc-from">${d.from}</div>
