@@ -18,7 +18,9 @@ async function blobStore(name) {
       list: async () => ({ blobs: [...map.keys()].map(key => ({ key })) }),
     };
   }
-  const { getStore } = await import('@netlify/blobs');
+  // Static require lets Netlify's function bundler include the dependency when
+  // this shared helper is imported from multiple serverless functions.
+  const { getStore } = require('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
   const token = process.env.NETLIFY_AUTH_TOKEN;
   return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
