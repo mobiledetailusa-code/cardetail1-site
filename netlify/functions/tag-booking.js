@@ -69,8 +69,27 @@ exports.handler = async (event) => {
     const booking = await store.get(bookingId, { type: 'json' }).catch(() => null);
     if (!booking) return json(404, { ok: false, error: 'booking_not_found' });
 
-    // Patch only the allowed flags; all other fields remain exactly as stored.
-    const patched = { ...booking, ...updates };
+    const now = new Date().toISOString();
+    const isArchivingTest = updates.archived === true || updates.isTest === true;
+
+    // Augment with metadata fields when archiving.
+    if (isArchivingTest) {
+      updates.archivedBy     = 'admin';
+      updates.previousStatus = booking.status || '';
+      updates.status         = 'archived_test';
+      if (!updates.archivedAt) updates.archivedAt = now;
+    }
+
+    const eventLog = Array.isArray(booking.eventLog) ? [...booking.eventLog] : [];
+    eventLog.push({
+      action: isArchivingTest ? 'archived_test' : 'tag_updated',
+      at: now,
+      by: 'admin',
+      flags: Object.keys(updates),
+    });
+
+    // Patch only the allowed flags + metadata; all other fields remain exactly as stored.
+    const patched = { ...booking, ...updates, eventLog };
     await store.setJSON(bookingId, patched);
 
     return json(200, { ok: true, bookingId, updated: updates });

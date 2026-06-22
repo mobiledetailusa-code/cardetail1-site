@@ -2416,6 +2416,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button data-filter="Pending Review" onclick="setAdminFilter('Pending Review')">Pending</button>
         <button data-filter="Confirmed" onclick="setAdminFilter('Confirmed')">Confirmed</button>
         <button data-filter="Scheduled" onclick="setAdminFilter('Scheduled')">Scheduled</button>
+        <button data-filter="In Progress" onclick="setAdminFilter('In Progress')">In Progress</button>
         <button data-filter="Completed" onclick="setAdminFilter('Completed')">Completed</button>
         <button data-filter="__cancellation_req" onclick="setAdminFilter('__cancellation_req')" style="border-color:rgba(239,68,68,.35);color:#ef4444">⚠️ Cancellations</button>
         <button data-filter="Cancelled" onclick="setAdminFilter('Cancelled')">Cancelled</button>
@@ -4411,6 +4412,7 @@ function renderAdminBookings(){
   const list=ADMIN_FILTER==='All'?all:
     ADMIN_FILTER==='__cancellation_req'?all.filter(b=>b.cancellationRequestStatus==='requested'):
     ADMIN_FILTER==='__test_archived'?all.filter(b=>b.isTest||b.archived):
+    ADMIN_FILTER==='In Progress'?all.filter(b=>b.jobStatus==='in_progress'||b.jobStatus==='en_route'||(b.status||'')==='In Progress'||(b.status||'')==='En Route'):
     all.filter(b=>(b.status||'Pending Review')===ADMIN_FILTER);
   if(!all.length){grid.innerHTML='<div class="admin-empty">No local booking requests yet. Submit a test booking to populate this dashboard.</div>';return;}
   if(!list.length){grid.innerHTML='<div class="admin-empty">No bookings in this status.</div>';return;}
@@ -4434,10 +4436,10 @@ function renderAdminBookings(){
         <div><b>Notes:</b> ${b.notes||'None'}</div>${zoneInfo?`<div style="grid-column:1/-1;margin-top:4px;font-size:11.5px;color:var(--am)">${zoneInfo}</div>`:''}
         ${tipHtml}${payLinkHtml}
         ${photoCount?`<div style="font-size:11.5px;color:var(--mu)">📷 ${photoCount} photo(s) uploaded</div>`:''}
-        ${b.rescheduledByClient?'<div style="font-size:11px;color:var(--am)">↺ Client requested reschedule</div>':''}
-        ${b.addressChangedByClient?'<div style="font-size:11px;color:var(--am)">📍 Client changed address</div>':''}
-        ${b.addonsRequested?'<div style="font-size:11px;color:var(--am)">➕ Client requested add-ons</div>':''}
-        ${b.cancellationRequestStatus==='requested'?`<div style="font-size:11px;color:#ef4444;font-weight:600">⚠️ Cancellation requested · ${esc(b.cancellationReason||'No reason provided')}</div>`:''}
+        ${b.rescheduledByClient?`<div style="font-size:11px;color:var(--am)">↺ Client requested reschedule${b.rescheduleRequestedDate?' → '+escHtml(b.rescheduleRequestedDate)+(b.rescheduleRequestedTime?' · '+escHtml(b.rescheduleRequestedTime):''):''}</div>`:''}
+        ${b.addressChangedByClient?`<div style="font-size:11px;color:var(--am)">📍 Client requested address: ${escHtml(b.requestedAddress||'—')}</div>`:''}
+        ${b.addonsRequested?`<div style="font-size:11px;color:var(--am)">➕ Client requested add-ons: ${escHtml(b.requestedAddons||'—')}</div>`:''}
+        ${b.cancellationRequestStatus==='requested'?`<div style="font-size:11px;color:#ef4444;font-weight:600">⚠️ Cancellation requested · ${escHtml(b.cancellationReason||'No reason provided')}</div>`:''}
       </div>
       <div class="admin-actions">
         ${['Pending Review','Confirmed','Scheduled','Completed','Cancelled','No-Show','Rescheduled','Paid'].map(st=>`<button onclick="setBookingStatus('${b.id}','${st}')">${st}</button>`).join('')}
@@ -4451,9 +4453,18 @@ function renderAdminBookings(){
   }).join('');
 }
 async function setBookingStatus(id,status){
-  const list=getStoredBookings().map(b=>b.id===id?{...b,status,updatedAt:new Date().toISOString()}:b);
+  const now=new Date().toISOString();
+  const updates={status,updatedAt:now};
+  if(status==='Cancelled'){
+    updates.cancellationRequestStatus='resolved_approved';
+    updates.cancellationResolvedAt=now;
+    updates.appointmentStatus='canceled';
+  }
+  const list=getStoredBookings().map(b=>b.id===id?{...b,...updates}:b);
   setStoredBookings(list);renderAdminBookings();
-  adminPersistToCloud(id,{status},'admin_set_status').catch(()=>{});
+  const cloudUpdates={status};
+  if(status==='Cancelled'){cloudUpdates.cancellationRequestStatus='resolved_approved';cloudUpdates.cancellationResolvedAt=now;cloudUpdates.appointmentStatus='canceled';}
+  adminPersistToCloud(id,cloudUpdates,'admin_set_status').catch(()=>{});
 }
 async function scheduleBookingPrompt(id){
   const list=getStoredBookings();
@@ -6150,8 +6161,11 @@ async function cpLoadManage(){
     const b = data.booking;
     cpActiveBookingId = b.id;
     const status = b.status||'Pending Review';
-    const isEditable = !['Completed','Cancelled','No-Show'].includes(status);
-    const isCompleted = status==='Completed';
+    const jobSt = b.jobStatus||'';
+    const apptSt = b.appointmentStatus||'';
+    const isCompleted = jobSt==='completed'||jobSt==='closed'||status==='Completed';
+    const isCancelled = apptSt==='canceled'||status==='Cancelled'||status==='Cancellation Requested';
+    const isEditable = !isCompleted&&!isCancelled&&!['No-Show'].includes(status);
     const now = new Date();
     const svcDate = b.preferredDate ? new Date(b.preferredDate) : null;
     const hoursUntil = svcDate ? (svcDate - now) / 36e5 : 999;
@@ -6164,14 +6178,16 @@ async function cpLoadManage(){
       : [{pkgName:b.package||'—', vehicleLabel:b.vehicle||'—', pkgIcon:'🚗', addons:b.addons||[], subtotal:b.totalPrice}];
     const vehHtml = vehs.map(v=>'<div style="font-size:12px;line-height:1.7;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+v.pkgIcon+' <strong>'+(v.pkgName||'—')+'</strong> · '+(v.vehicleLabel||'—')+' · <span style="color:var(--blue)">$'+(v.subtotal||0)+'</span></div>').join('');
     const isCancelReq = b.cancellationRequestStatus === 'requested';
-    const displayStatus = isCancelReq ? 'Cancellation Requested' : status;
-    const statusColor = isCancelReq ? '#ef4444' : (isCompleted ? 'var(--gr)' : isEditable ? 'var(--am)' : 'var(--mu)');
-    const statusBg = isCancelReq ? 'rgba(239,68,68,.15)' : 'rgba(0,0,0,.3)';
+    const displayStatus = isCancelReq ? 'Cancellation Requested' : (isCancelled&&!isCancelReq ? 'Cancelled' : status);
+    const statusColor = isCancelReq||isCancelled ? '#ef4444' : (isCompleted ? 'var(--gr)' : isEditable ? 'var(--am)' : 'var(--mu)');
+    const statusBg = isCancelReq||isCancelled ? 'rgba(239,68,68,.15)' : 'rgba(0,0,0,.3)';
     let actionsHtml = '';
     if(isCompleted){
       actionsHtml='<div style="margin-top:12px"><button class="cp-btn" style="margin:0" onclick="cpTab(3)">⭐ Leave a Review →</button></div>';
     } else if(isCancelReq){
       actionsHtml='<div style="margin-top:12px;padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--rs);font-size:12px;color:var(--rd)">⚠️ Cancellation request received. Our team will review and confirm within 1 business day.<br><br>Questions? <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></div>';
+    } else if(isCancelled){
+      actionsHtml='<div style="margin-top:12px;font-size:12px;color:var(--rd)">This booking has been cancelled. <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a> · <button class="cp-btn" style="display:inline;padding:4px 12px;font-size:12px;margin:4px 0 0 0" onclick="closePortal();setTimeout(function(){openBooking(null)},100)">Book Again →</button></div>';
     } else if(!isEditable){
       actionsHtml='<div style="margin-top:12px;font-size:12px;color:var(--mu)">Need help or want to book again? <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a> · <button class="cp-btn" style="display:inline;padding:4px 12px;font-size:12px;margin:4px 0 0 0" onclick="closePortal();setTimeout(function(){openBooking(null)},100)">Book Again →</button></div>';
     } else {
@@ -6260,13 +6276,19 @@ async function cpConfirmCancel(){
     if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
   }
 }
-async function _cpSendInquiry(type,message,phone,msgEl){
+async function _cpSendInquiry(action,payload,phone,msgEl){
   try{
-    await fetch('/.netlify/functions/submit-inquiry',{
+    const body=Object.assign({bookingId:cpActiveBookingId,phone,action},payload);
+    const r=await fetch('/.netlify/functions/submit-customer-action',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:'My Booking — '+type,phone,email:'',message,source:'My Booking Customer Portal'}),
+      body:JSON.stringify(body),
     });
-    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Request sent. Cardetail1 will contact you to confirm changes.</span>';}
+    const data=await r.json().catch(()=>({}));
+    if(r.ok&&data.ok){
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Request sent. Cardetail1 will contact you to confirm changes.</span>';}
+    }else{
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(data.userMessage||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
+    }
   }catch(e){
     if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--mu)">Could not send. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
   }
@@ -6278,7 +6300,7 @@ async function cpConfirmReschedule(){
   const msgEl=document.getElementById('cp-reschedule-msg');
   const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
   if(!newDate){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select a new preferred date.</span>';}return;}
-  await _cpSendInquiry('Reschedule Request',`Booking ${cpActiveBookingId} — requested reschedule to: ${newDate}${newTime?' · '+newTime:''}`,phone,msgEl);
+  await _cpSendInquiry('reschedule_request',{newDate,newTime},phone,msgEl);
 }
 async function cpConfirmAddress(){
   if(!cpActiveBookingId){return;}
@@ -6286,7 +6308,7 @@ async function cpConfirmAddress(){
   const msgEl=document.getElementById('cp-addr-msg');
   const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
   if(!addr){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please enter the new service address.</span>';}return;}
-  await _cpSendInquiry('Address Update',`Booking ${cpActiveBookingId} — requested address change to: ${addr}`,phone,msgEl);
+  await _cpSendInquiry('address_update',{newAddress:addr},phone,msgEl);
 }
 async function cpConfirmAddons(){
   if(!cpActiveBookingId){return;}
@@ -6294,7 +6316,7 @@ async function cpConfirmAddons(){
   const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
   if(!cpSelectedAddons.length){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select at least one add-on.</span>';}return;}
   const addonList=cpSelectedAddons.map(a=>a.name+' (+$'+a.price+')').join(', ');
-  await _cpSendInquiry('Add-On Request',`Booking ${cpActiveBookingId} — requested add-ons: ${addonList}`,phone,msgEl);
+  await _cpSendInquiry('addon_request',{requestedAddons:addonList},phone,msgEl);
 }
 function _cpContactOnly(){
   alert('To modify this booking, please contact Cardetail1 at 551-313-2956.');
