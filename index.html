@@ -2290,6 +2290,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           <div class="or"><span class="ol">Package</span><span class="ov" id="c-pkg">—</span></div>
           <div class="or"><span class="ol">Pkg price</span><span class="ov" id="c-pprice">—</span></div>
           <div id="c-addon-rows"></div>
+          <div class="or" id="c-fee-row" style="display:none"><span class="ol" style="color:var(--am)">✈ Travel fee</span><span class="ov" id="c-fee-val" style="color:var(--am)">+$0</span></div>
           <div class="or"><span class="ol" style="color:var(--white);font-weight:600">Total</span><span class="oc-total" id="c-total">—</span></div>
           <div class="oc-note">Final price confirmed on-site. Add-ons are starting prices.</div>
         </div>
@@ -4112,7 +4113,8 @@ function goToConfirmFromTerms(){
 
 // ── STEP 7: CONFIRM ───────────────────────────────────────────────────────────
 function fillConfirm(){
-  const total=ST.basePrice+ST.addonTotal;
+  const fee=activeZone?activeZone.surcharge:0;
+  const total=ST.basePrice+ST.addonTotal+fee;
   const tsel=document.getElementById('f-time').value||'Any available';
   const catLabels={cars:'Cars & Trucks',boats:'Boats & Marine',rvs:'RVs & Trailers',powersports:'Powersports',fleet:'Fleet Services'};
   document.getElementById('c-cat').textContent=catLabels[ST.cat]||ST.cat;
@@ -4120,6 +4122,8 @@ function fillConfirm(){
   document.getElementById('c-pkg').textContent=(ST.pkg?.name||'—')+' Package';
   document.getElementById('c-pprice').textContent=ST.basePrice ? '$'+ST.basePrice : 'Estimate';
   document.getElementById('c-total').textContent=total ? '$'+total : 'Estimate';
+  const feeRow=document.getElementById('c-fee-row');
+  if(feeRow){ if(fee>0){feeRow.style.display='flex';document.getElementById('c-fee-val').textContent='+$'+fee;}else{feeRow.style.display='none';} }
   document.getElementById('c-name').textContent=document.getElementById('f-first').value+' '+document.getElementById('f-last').value;
   document.getElementById('c-phone').textContent=document.getElementById('f-phone').value;
   document.getElementById('c-email').textContent=document.getElementById('f-email').value;
@@ -5454,12 +5458,7 @@ function applyZip(){
     nameEl.textContent  = zone.short;
     pillEl.style.display= 'inline-flex';
     pillTxt.textContent = zone.emoji+' '+zone.label;
-    if(zone.surcharge > 0){
-      surEl.style.display = 'inline-block';
-      surEl.textContent   = '+$'+zone.surcharge+' travel fee applies';
-    } else {
-      surEl.style.display = 'none';
-    }
+    surEl.style.display = 'none'; // travel fee shown at checkout, not here
   } else {
     nameEl.textContent  = 'YOUR AREA';
     pillEl.style.display= 'none';
@@ -5504,12 +5503,7 @@ function onBkZipInput(val){
     const cityName = getCityByZip(zip5);
     badge.style.display = 'inline-flex';
     badge.textContent   = '✓ ' + (cityName ? cityName : zone.short);
-    if(zone.surcharge > 0){
-      surBadge.style.display = 'inline-flex';
-      surBadge.textContent   = '+$'+zone.surcharge+' area fee';
-    } else {
-      surBadge.style.display = 'none';
-    }
+    surBadge.style.display = 'none';
     // Unlock category cards
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('locked'));
     if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span>'; }
@@ -6933,7 +6927,7 @@ function onHeroZipInput(val){
     cityHtml = `<div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px;letter-spacing:.02em">📍 ${cityName}</div>`;
   }
   let pills = `<span class="zip-pill zip-pill-zone">${zone.label}</span>`;
-  if(zone.surcharge > 0) pills += `<span class="zip-pill zip-pill-fee">+$${zone.surcharge} area fee</span>`;
+  // travel fee shown at checkout only — not surfaced at ZIP entry
   if(richMultiplier > 1.0) pills += `<span class="zip-pill zip-pill-rich">⭐ Premium area</span>`;
   if(fb) fb.innerHTML = `${cityHtml}<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">${pills}</div>`;
   // Unlock homepage service cards
