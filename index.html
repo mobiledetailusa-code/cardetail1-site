@@ -4431,7 +4431,7 @@ function renderAdminBookings(){
     return `<div class="admin-card">
       <div class="admin-card-top"><div><div class="admin-id">${b.id} · ${new Date(b.createdAt).toLocaleString()}${b.source==='Admin — manual entry'?' · <span style="color:var(--am)">Manual</span>':''}</div><div class="admin-title">${b.firstName} ${b.lastName} · ${b.package||'—'} · $${b.totalPrice}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><div class="status-pill">${b.status||'Pending Review'}</div>${payBadge}</div></div>
       <div class="admin-meta">
-        <div><b>Phone:</b> <a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a></div><div><b>Email:</b> ${b.email||'—'}</div><div><b>Date:</b> ${b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</div><div><b>Address:</b> <a href="${mapsUrl}" target="_blank" style="color:var(--blue)">${b.address}</a></div>
+        <div><b>Phone:</b> <a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a></div><div><b>Email:</b> ${b.email||'—'}</div><div><b>Date:</b> ${b.confirmedTimeWindow||b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</div><div><b>Address:</b> <a href="${mapsUrl}" target="_blank" style="color:var(--blue)">${b.address}</a></div>
         ${vehs ? `<div style="grid-column:1/-1"><b>Vehicles (${vehs.length}):</b><div style="margin-top:4px">${vehsHtml}</div></div>` : `<div><b>Vehicle:</b> ${b.vehicle||'—'}</div><div><b>Category:</b> ${b.vehicleCategory||'—'}</div><div><b>Add-ons:</b><br>${addons}</div>`}
         <div><b>Notes:</b> ${b.notes||'None'}</div>${zoneInfo?`<div style="grid-column:1/-1;margin-top:4px;font-size:11.5px;color:var(--am)">${zoneInfo}</div>`:''}
         ${tipHtml}${payLinkHtml}
@@ -4469,7 +4469,7 @@ async function setBookingStatus(id,status){
 async function scheduleBookingPrompt(id){
   const list=getStoredBookings();
   const b=list.find(x=>x.id===id); if(!b)return;
-  const when=prompt('Enter confirmed or rescheduled date/time window:', (b.confirmedWindow||`${b.preferredDate} · ${b.preferredTime||''}`));
+  const when=prompt('Enter confirmed or rescheduled date/time window:', (b.confirmedTimeWindow||b.confirmedWindow||`${b.preferredDate} · ${b.preferredTime||''}`));
   if(!when)return;
   const status=confirm('Mark as Rescheduled? Press OK for Rescheduled, Cancel for Confirmed.')?'Rescheduled':'Confirmed';
   const updates={status,confirmedTimeWindow:when};
@@ -6032,7 +6032,7 @@ function renderEmpPanel(filter){
               <div style="font-size:12px;color:var(--blue);font-weight:600;margin-top:2px">${vehs.map(v=>`${v.pkgIcon||'🚗'} ${v.pkgName}`).join(' · ')}</div>
             </div>
             <div style="text-align:right">
-              <div class="emp-job-time">${b.confirmedWindow||b.preferredDate}</div>
+              <div class="emp-job-time">${b.confirmedTimeWindow||b.confirmedWindow||b.preferredDate}</div>
               <div style="font-size:11px;color:var(--mu)">${b.preferredTime||'TBD'}</div>
             </div>
           </div>
@@ -6202,7 +6202,7 @@ async function cpLoadManage(){
     }
     res.innerHTML = '<div style="background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--rs);padding:14px;margin-bottom:12px">'
       +'<div style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">#'+b.id+' · <span style="font-size:12px;font-weight:600;color:'+statusColor+';background:'+statusBg+';padding:3px 10px;border-radius:999px">'+displayStatus+'</span></div>'
-      +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+(b.confirmedWindow||b.preferredDate||'—')+' · '+(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+(b.address||'—')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(b.totalPrice||0)+'</strong>'+(b.tip?' + Tip $'+b.tip:'')+'</div>'
+      +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+(b.confirmedTimeWindow||b.confirmedWindow||b.preferredDate||'—')+' · '+(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+(b.address||'—')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(b.totalPrice||0)+'</strong>'+(b.tip?' + Tip $'+b.tip:'')+'</div>'
       +'<div style="margin-top:10px">'+vehHtml+'</div>'
       +(b.payLink?'<div style="margin-top:10px"><a href="'+b.payLink+'" target="_blank" style="color:var(--blue);font-weight:600">&#x1F4B3; Pay Now &#x2192;</a></div>':'')
       +'</div>'+actionsHtml;
@@ -6393,7 +6393,7 @@ function cpGarageBack(){
 function cpRenderGarage(b){
   const status = b.status || 'Pending Review';
   const sc = {'Completed':'var(--gr)','Confirmed':'var(--blue)','Scheduled':'var(--blue)','In Progress':'var(--am)','Cancelled':'var(--rd)'}[status] || 'var(--mu)';
-  const date = b.confirmedWindow || b.preferredDate || '—';
+  const date = b.confirmedTimeWindow||b.confirmedWindow || b.preferredDate || '—';
   const time = b.preferredTime || '';
   const addr = b.address || '—';
   const vehs = (b.vehicles && b.vehicles.length) ? b.vehicles : [{pkgName:b.package||'—', vehicleLabel:b.vehicle||'—', pkgIcon:'🚗', addons:b.addons||[]}];
@@ -6635,7 +6635,7 @@ function buildJobCard(b){
     <div style="font-size:12px;color:var(--mu);margin-bottom:4px">${vehicleStr}</div>
     <div class="jcard-addr">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(b.address||'')}" target="_blank" style="color:var(--mu)">${b.address||'—'}</a></div>
     <div class="jcard-info">
-      <span>📅 ${b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</span>
+      <span>📅 ${b.confirmedTimeWindow||b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</span>
       <span>📞 <a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a></span>
       <span style="color:var(--blue);font-weight:700">$${b.totalPrice||0}${b.tip?' + tip $'+b.tip:''}</span>
       ${b.zipCode?`<span>📮 ${b.zipCode}${b.richSurcharge?' ✦':''}</span>`:''}
@@ -6657,7 +6657,7 @@ function buildNotifyLink(tech, booking){
   const vehs = booking.vehicles && booking.vehicles.length ? booking.vehicles
     : [{pkgName:booking.package, vehicleLabel:booking.vehicle||booking.vehicleCategory, pkgIcon:'🚗'}];
   const svcList = vehs.map(v=>`${v.pkgIcon||''} ${v.pkgName} - ${v.vehicleLabel}`).join(', ');
-  const msg = `Hi ${tech.name.split(' ')[0]}! New Cardetail1 job assigned:\n📋 ${booking.id}\n👤 ${booking.firstName} ${booking.lastName} | 📞 ${booking.phone}\n📍 ${booking.address}\n🗓 ${booking.confirmedWindow||booking.preferredDate} ${booking.preferredTime||''}\n🔧 ${svcList}\n💰 $${booking.totalPrice}\nMap: https://maps.google.com/?q=${encodeURIComponent(booking.address||'')}`;
+  const msg = `Hi ${tech.name.split(' ')[0]}! New Cardetail1 job assigned:\n📋 ${booking.id}\n👤 ${booking.firstName} ${booking.lastName} | 📞 ${booking.phone}\n📍 ${booking.address}\n🗓 ${booking.confirmedTimeWindow||booking.confirmedWindow||booking.preferredDate} ${booking.preferredTime||''}\n🔧 ${svcList}\n💰 $${booking.totalPrice}\nMap: https://maps.google.com/?q=${encodeURIComponent(booking.address||'')}`;
   const phone = tech.phone.replace(/\D/g,'');
   return WHATSAPP_DISPATCH
     ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
@@ -6775,7 +6775,7 @@ async function sendDispatchWebhook(booking, tech){
         client_name: `${booking.firstName} ${booking.lastName}`,
         client_phone: booking.phone,
         address: booking.address,
-        date: booking.confirmedWindow || booking.preferredDate,
+        date: booking.confirmedTimeWindow || booking.confirmedWindow || booking.preferredDate,
         time: booking.preferredTime || 'TBD',
         service: booking.package || '',
         vehicles: booking.vehicles || [],

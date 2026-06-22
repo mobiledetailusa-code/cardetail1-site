@@ -89,7 +89,7 @@ exports.handler = async (event) => {
     });
 
     // Patch only the allowed flags + metadata; all other fields remain exactly as stored.
-    const patched = { ...booking, ...updates, eventLog };
+    const patched = { ...booking, ...updates, eventLog, updatedAt: now };
     await store.setJSON(bookingId, patched);
 
     return json(200, { ok: true, bookingId, updated: updates });
