@@ -26,7 +26,17 @@ Cars & Trucks (sedan/small car starting price — increases by vehicle size):
   Interior Detail:     from $199 — deep interior vacuum, carpet shampoo, steam clean, seat conditioning, glass
   Premium Detail:      from $249 — full interior + exterior, clay bar, spray sealant, carpet & seat shampoo (most popular)
   Paint Enhancement:   from $399 — 1-step machine polish, paint defects, oxidation treatment, sealant
-  Vehicle size pricing: SUV 2-row from $195/$229/$279/$449 · SUV 3-row/Truck from $225/$259/$309/$499–$529 · Minivan from $225/$259/$309/$529 · Van from $249/$289/$349/$599 (Maint/Interior/Premium/Paint)
+  Vehicle size pricing (Maint / Interior / Premium / Paint):
+    Small Car (Sedan/Coupe/Hatchback): $175 / $199 / $249 / from $399
+    SUV 2-Row (Compact & Mid-Size):    $195 / $229 / $279 / from $449
+    SUV 3-Row (Full-Size 7–8 Pass):    $225 / $259 / $309 / from $499
+    Pickup Truck:                       $225 / $259 / $309 / from $529
+    Minivan:                            $225 / $259 / $309 / from $529
+    Cargo Van:                          $249 / $289 / $349 / from $599
+    Passenger Van (12/15-pass):         $299 / $349 / $399 / from $699
+    Sprinter / Large Van:               $299 / $349 / $399 / from $699
+  We service minivans, cargo vans, passenger vans, Sprinter-style vans, and work vans. Large vans and commercial vehicles may require quote review.
+  Box trucks and fleet commercial vehicles are priced as Fleet — from $60/unit (call for quote).
 
 Boats (priced by length — these are minimums):
   Marine Wash:    from $199  — hull rinse, cockpit wipe, glass, trailer rinse

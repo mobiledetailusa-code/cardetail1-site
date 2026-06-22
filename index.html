@@ -2043,8 +2043,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div class="btitle">YOUR VEHICLE</div>
         <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length.</div>
 
-        <!-- Tier chips (shown for cars, boats, rvs, powersports differently) -->
+        <!-- Tier chips (hidden by default for cars; shown for powersports/fleet or on "Change class") -->
         <div id="tier-chips-wrap">
+          <div id="car-class-prompt" style="display:none;font-size:12px;color:var(--mu);margin-bottom:10px;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)"></div>
           <div class="tier-chips" id="tier-chips"></div>
         </div>
 
@@ -2122,6 +2123,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
               <strong id="vc-name">—</strong>
               <span id="vc-tier-lbl">—</span>
               <div><span class="vc-badge" id="vc-badge">—</span></div>
+              <div id="car-class-change-wrap" style="display:none;margin-top:6px"><button type="button" onclick="showCarClassOverride()" style="background:none;border:none;color:var(--blue);font-size:11.5px;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px">✏️ Change vehicle class</button></div>
             </div>
           </div>
           <div class="vc-price">
@@ -2833,8 +2835,10 @@ const PRICING = {
       suv2:    {label:'SUV 2-Row', icon:'🚙',desc:'Compact & Mid-Size SUV',         maint:195, interior:229, full:279, premium:449},
       suv3:    {label:'SUV 3-Row', icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger',  maint:225, interior:259, full:309, premium:499},
       truck:   {label:'Truck',     icon:'🛻',desc:'Pickup · Full & Mid-Size',        maint:225, interior:259, full:309, premium:529},
-      minivan: {label:'Minivan',   icon:'🚐',desc:'Minivan · Passenger Van',         maint:225, interior:259, full:309, premium:529},
-      van:     {label:'Van',       icon:'🚐',desc:'Cargo Van · Sprinter Van',        maint:249, interior:289, full:349, premium:599},
+      minivan:  {label:'Minivan',             icon:'🚐',desc:'Minivan · 7-Passenger Van',                 maint:225, interior:259, full:309, premium:529},
+      cargovan: {label:'Cargo Van',           icon:'🚐',desc:'Cargo Van · Enclosed Work Van',               maint:249, interior:289, full:349, premium:599},
+      passvan:  {label:'Passenger Van',       icon:'🚐',desc:'12/15-Passenger Van · Shuttle Van',           maint:299, interior:349, full:399, premium:699},
+      sprinter: {label:'Sprinter / Large Van',icon:'🚐',desc:'Sprinter · High-Roof Transit · ProMaster',    maint:299, interior:349, full:399, premium:699},
     },
     packages:[
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
@@ -3108,6 +3112,9 @@ const VEHICLE_VISUALS = {
   pickup:      { img:'/assets/vehicles/premium/pickup.svg',     alt:'Pickup Truck' },
   van:         { img:'/assets/vehicles/premium/van.svg',        alt:'Full-size Van' },
   minivan:     { img:'/assets/vehicles/premium/minivan.svg',    alt:'Minivan' },
+  cargovan:    { img:'/assets/vehicles/premium/van.svg',        alt:'Cargo Van' },
+  passvan:     { img:'/assets/vehicles/premium/van.svg',        alt:'Passenger Van' },
+  sprinter:    { img:'/assets/vehicles/premium/van.svg',        alt:'Sprinter / Large Van' },
   rv:          { img:'/assets/vehicles/premium/rv.svg',         alt:'RV / Motorhome' },
   trailer:     { img:'/assets/vehicles/premium/trailer.svg',    alt:'Travel Trailer' },
   boat:        { img:'/assets/vehicles/premium/boat.svg',       alt:'Boat' },
@@ -3120,8 +3127,12 @@ const MODEL_MAP = [
   // minivans (before suv/sedan to avoid false positive on "odyssey" etc.)
   ['odyssey','minivan'],['sienna','minivan'],['caravan','minivan'],['pacifica','minivan'],
   ['sedona','minivan'],['carnival','minivan'],['quest','minivan'],['town & country','minivan'],
-  // full-size vans
-  ['transit','van'],['express','van'],['savana','van'],['promaster','van'],['sprinter','van'],
+  // cargo vans (specific before generic to avoid false match)
+  ['transit connect','cargovan'],['promaster city','cargovan'],
+  // sprinter / large high-roof vans
+  ['sprinter','sprinter'],['transit','sprinter'],['promaster','sprinter'],
+  // passenger / full-size vans
+  ['express','passvan'],['savana','passvan'],
   // pickups (before suv to catch tundra/ridgeline)
   ['f-150','pickup'],['f150','pickup'],['f-250','pickup'],['f-350','pickup'],
   ['f250','pickup'],['f350','pickup'],['silverado','pickup'],['sierra','pickup'],
@@ -3169,6 +3180,10 @@ function getVehicleVisualKey(){
   if(ST.tierKey==='truck') return 'pickup';
   if(ST.tierKey==='suv3') return 'suv-3row';
   if(ST.tierKey==='suv2') return 'suv';
+  if(ST.tierKey==='minivan') return 'minivan';
+  if(ST.tierKey==='cargovan') return 'cargovan';
+  if(ST.tierKey==='passvan') return 'passvan';
+  if(ST.tierKey==='sprinter') return 'sprinter';
   return 'sedan';
 }
 function setVehicleVisual(){
@@ -3186,20 +3201,20 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","RDX","RLX","TLX","NSX","ZDX"]
 "BMW":{m:["2 Series","3 Series","4 Series","5 Series","6 Series","7 Series","8 Series","M2","M3","M4","M5","M8","X1","X2","X3","X4","X5","X6","X7","XM","Z4","iX","i4","i5","i7"],t:{"2 Series":"small","3 Series":"small","4 Series":"small","5 Series":"small","6 Series":"small","7 Series":"small","8 Series":"small",M2:"small",M3:"small",M4:"small",M5:"small",M8:"small",X1:"suv2",X2:"suv2",X3:"suv2",X4:"suv2",X5:"suv3",X6:"suv3",X7:"suv3",XM:"suv3",Z4:"small",iX:"suv2",i4:"small",i5:"small",i7:"small"}},
 "Buick":{m:["Enclave","Encore","Encore GX","Envision","LaCrosse"],t:{Enclave:"suv3",Encore:"suv2","Encore GX":"suv2",Envision:"suv2",LaCrosse:"small"}},
 "Cadillac":{m:["CT4","CT5","Escalade","Escalade ESV","Lyriq","XT4","XT5","XT6"],t:{CT4:"small",CT5:"small",Escalade:"suv3","Escalade ESV":"suv3",Lyriq:"suv2",XT4:"suv2",XT5:"suv2",XT6:"suv3"}},
-"Chevrolet":{m:["Blazer","Camaro","Colorado","Corvette","Equinox","Express","Malibu","Silverado 1500","Silverado 2500HD","Silverado 3500HD","Suburban","Tahoe","Trailblazer","Traverse","Trax"],t:{Blazer:"suv2",Camaro:"small",Colorado:"truck",Corvette:"small",Equinox:"suv2",Express:"truck",Malibu:"small","Silverado 1500":"truck","Silverado 2500HD":"truck","Silverado 3500HD":"truck",Suburban:"suv3",Tahoe:"suv3",Trailblazer:"suv2",Traverse:"suv3",Trax:"suv2"}},
-"Chrysler":{m:["300","Pacifica","Voyager"],t:{"300":"small",Pacifica:"suv2",Voyager:"suv2"}},
-"Dodge":{m:["Challenger","Charger","Durango","Grand Caravan","Hornet"],t:{Challenger:"small",Charger:"small",Durango:"suv3","Grand Caravan":"suv2",Hornet:"suv2"}},
+"Chevrolet":{m:["Blazer","Camaro","Colorado","Corvette","Equinox","Express","Malibu","Silverado 1500","Silverado 2500HD","Silverado 3500HD","Suburban","Tahoe","Trailblazer","Traverse","Trax"],t:{Blazer:"suv2",Camaro:"small",Colorado:"truck",Corvette:"small",Equinox:"suv2",Express:"passvan",Malibu:"small","Silverado 1500":"truck","Silverado 2500HD":"truck","Silverado 3500HD":"truck",Suburban:"suv3",Tahoe:"suv3",Trailblazer:"suv2",Traverse:"suv3",Trax:"suv2"}},
+"Chrysler":{m:["300","Pacifica","Voyager"],t:{"300":"small",Pacifica:"minivan",Voyager:"minivan"}},
+"Dodge":{m:["Challenger","Charger","Durango","Grand Caravan","Hornet"],t:{Challenger:"small",Charger:"small",Durango:"suv3","Grand Caravan":"minivan",Hornet:"suv2"}},
 "Ferrari":{m:["296 GTB","296 GTS","F8 Tributo","GTC4Lusso","Portofino M","Roma","SF90 Stradale"],t:{"296 GTB":"small","296 GTS":"small","F8 Tributo":"small",GTC4Lusso:"suv2","Portofino M":"small",Roma:"small","SF90 Stradale":"small"}},
 "FIAT":{m:["500","500X","500L"],t:{"500":"small","500X":"suv2","500L":"suv2"}},
-"Ford":{m:["Bronco","Bronco Sport","Edge","Escape","Expedition","Explorer","F-150","F-250 Super Duty","F-350 Super Duty","Maverick","Mustang","Mustang Mach-E","Ranger","Transit","Transit Connect"],t:{Bronco:"suv2","Bronco Sport":"suv2",Edge:"suv2",Escape:"suv2",Expedition:"suv3",Explorer:"suv3","F-150":"truck","F-250 Super Duty":"truck","F-350 Super Duty":"truck",Maverick:"truck",Mustang:"small","Mustang Mach-E":"small",Ranger:"truck",Transit:"truck","Transit Connect":"truck"}},
+"Ford":{m:["Bronco","Bronco Sport","Edge","Escape","Expedition","Explorer","F-150","F-250 Super Duty","F-350 Super Duty","Maverick","Mustang","Mustang Mach-E","Ranger","Transit","Transit Connect"],t:{Bronco:"suv2","Bronco Sport":"suv2",Edge:"suv2",Escape:"suv2",Expedition:"suv3",Explorer:"suv3","F-150":"truck","F-250 Super Duty":"truck","F-350 Super Duty":"truck",Maverick:"truck",Mustang:"small","Mustang Mach-E":"small",Ranger:"truck",Transit:"sprinter","Transit Connect":"cargovan"}},
 "Genesis":{m:["G70","G80","G90","GV70","GV80","GV60"],t:{G70:"small",G80:"small",G90:"small",GV70:"suv2",GV80:"suv3",GV60:"suv2"}},
-"GMC":{m:["Acadia","Canyon","Sierra 1500","Sierra 2500HD","Sierra 3500HD","Terrain","Yukon","Yukon XL"],t:{Acadia:"suv3",Canyon:"truck","Sierra 1500":"truck","Sierra 2500HD":"truck","Sierra 3500HD":"truck",Terrain:"suv2",Yukon:"suv3","Yukon XL":"suv3"}},
-"Honda":{m:["Accord","Civic","CR-V","CR-Z","HR-V","Insight","Odyssey","Passport","Pilot","Prologue","Ridgeline"],t:{Accord:"small",Civic:"small","CR-V":"suv2","CR-Z":"small","HR-V":"suv2",Insight:"small",Odyssey:"suv3",Passport:"suv2",Pilot:"suv3",Prologue:"suv2",Ridgeline:"truck"}},
+"GMC":{m:["Acadia","Canyon","Savana","Sierra 1500","Sierra 2500HD","Sierra 3500HD","Terrain","Yukon","Yukon XL"],t:{Acadia:"suv3",Canyon:"truck",Savana:"passvan","Sierra 1500":"truck","Sierra 2500HD":"truck","Sierra 3500HD":"truck",Terrain:"suv2",Yukon:"suv3","Yukon XL":"suv3"}},
+"Honda":{m:["Accord","Civic","CR-V","CR-Z","HR-V","Insight","Odyssey","Passport","Pilot","Prologue","Ridgeline"],t:{Accord:"small",Civic:"small","CR-V":"suv2","CR-Z":"small","HR-V":"suv2",Insight:"small",Odyssey:"minivan",Passport:"suv2",Pilot:"suv3",Prologue:"suv2",Ridgeline:"truck"}},
 "Hyundai":{m:["Elantra","IONIQ 5","IONIQ 6","Kona","Palisade","Santa Cruz","Santa Fe","Sonata","Tucson","Venue"],t:{Elantra:"small","IONIQ 5":"suv2","IONIQ 6":"small",Kona:"suv2",Palisade:"suv3","Santa Cruz":"truck","Santa Fe":"suv2",Sonata:"small",Tucson:"suv2",Venue:"suv2"}},
 "INFINITI":{m:["Q50","Q60","QX50","QX55","QX60","QX80"],t:{Q50:"small",Q60:"small",QX50:"suv2",QX55:"suv2",QX60:"suv3",QX80:"suv3"}},
 "Jaguar":{m:["E-PACE","F-PACE","F-TYPE","I-PACE","XE","XF"],t:{"E-PACE":"suv2","F-PACE":"suv2","F-TYPE":"small","I-PACE":"suv2",XE:"small",XF:"small"}},
 "Jeep":{m:["Cherokee","Compass","Gladiator","Grand Cherokee","Grand Cherokee L","Grand Wagoneer","Renegade","Wagoneer","Wrangler"],t:{Cherokee:"suv2",Compass:"suv2",Gladiator:"truck","Grand Cherokee":"suv3","Grand Cherokee L":"suv3","Grand Wagoneer":"suv3",Renegade:"suv2",Wagoneer:"suv3",Wrangler:"suv2"}},
-"Kia":{m:["Carnival","EV6","EV9","Forte","K5","Niro","Seltos","Sorento","Soul","Sportage","Stinger","Telluride"],t:{Carnival:"suv3",EV6:"small",EV9:"suv3",Forte:"small",K5:"small",Niro:"suv2",Seltos:"suv2",Sorento:"suv3",Soul:"suv2",Sportage:"suv2",Stinger:"small",Telluride:"suv3"}},
+"Kia":{m:["Carnival","EV6","EV9","Forte","K5","Niro","Seltos","Sorento","Soul","Sportage","Stinger","Telluride"],t:{Carnival:"minivan",EV6:"small",EV9:"suv3",Forte:"small",K5:"small",Niro:"suv2",Seltos:"suv2",Sorento:"suv3",Soul:"suv2",Sportage:"suv2",Stinger:"small",Telluride:"suv3"}},
 "Lamborghini":{m:["Huracán","Urus","Revuelto"],t:{Huracán:"small",Urus:"suv2",Revuelto:"small"}},
 "Land Rover":{m:["Defender","Discovery","Discovery Sport","Freelander","Range Rover","Range Rover Evoque","Range Rover Sport","Range Rover Velar"],t:{Defender:"suv3",Discovery:"suv3","Discovery Sport":"suv2",Freelander:"suv2","Range Rover":"suv3","Range Rover Evoque":"suv2","Range Rover Sport":"suv3","Range Rover Velar":"suv2"}},
 "Lexus":{m:["ES","GS","GX","IS","LC","LS","LX","NX","RX","RZ","UX"],t:{ES:"small",GS:"small",GX:"suv3",IS:"small",LC:"small",LS:"small",LX:"suv3",NX:"suv2",RX:"suv2",RZ:"suv2",UX:"suv2"}},
@@ -3207,16 +3222,16 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","RDX","RLX","TLX","NSX","ZDX"]
 "Maserati":{m:["Ghibli","GranTurismo","Grecale","Levante","MC20","Quattroporte"],t:{Ghibli:"small",GranTurismo:"small",Grecale:"suv2",Levante:"suv2",MC20:"small",Quattroporte:"small"}},
 "Mazda":{m:["CX-3","CX-30","CX-5","CX-50","CX-70","CX-90","Mazda3","Mazda6","MX-5 Miata","MX-30"],t:{"CX-3":"suv2","CX-30":"suv2","CX-5":"suv2","CX-50":"suv2","CX-70":"suv3","CX-90":"suv3",Mazda3:"small",Mazda6:"small","MX-5 Miata":"small","MX-30":"suv2"}},
 "McLaren":{m:["570S","600LT","720S","765LT","Artura","GT"],t:{"570S":"small","600LT":"small","720S":"small","765LT":"small",Artura:"small",GT:"small"}},
-"Mercedes-Benz":{m:["A-Class","B-Class","C-Class","CLA","CLS","E-Class","EQB","EQE","EQS","G-Class","GLA","GLB","GLC","GLE","GLS","S-Class","SL","AMG GT"],t:{"A-Class":"small","B-Class":"small","C-Class":"small",CLA:"small",CLS:"small","E-Class":"small",EQB:"suv2",EQE:"small",EQS:"small","G-Class":"suv3",GLA:"suv2",GLB:"suv2",GLC:"suv2",GLE:"suv3",GLS:"suv3","S-Class":"small",SL:"small","AMG GT":"small"}},
+"Mercedes-Benz":{m:["A-Class","B-Class","C-Class","CLA","CLS","E-Class","EQB","EQE","EQS","G-Class","GLA","GLB","GLC","GLE","GLS","S-Class","SL","AMG GT","Sprinter"],t:{"A-Class":"small","B-Class":"small","C-Class":"small",CLA:"small",CLS:"small","E-Class":"small",EQB:"suv2",EQE:"small",EQS:"small","G-Class":"suv3",GLA:"suv2",GLB:"suv2",GLC:"suv2",GLE:"suv3",GLS:"suv3","S-Class":"small",SL:"small","AMG GT":"small",Sprinter:"sprinter"}},
 "MINI":{m:["Clubman","Convertible","Countryman","Hardtop","Paceman"],t:{Clubman:"small",Convertible:"small",Countryman:"suv2",Hardtop:"small",Paceman:"small"}},
 "Mitsubishi":{m:["Eclipse Cross","Mirage","Outlander","Outlander PHEV","Outlander Sport"],t:{"Eclipse Cross":"suv2",Mirage:"small",Outlander:"suv2","Outlander PHEV":"suv2","Outlander Sport":"suv2"}},
 "Nissan":{m:["Altima","Armada","Frontier","GT-R","Kicks","Leaf","Murano","Pathfinder","Rogue","Rogue Sport","Sentra","Titan","Versa","Z"],t:{Altima:"small",Armada:"suv3",Frontier:"truck","GT-R":"small",Kicks:"suv2",Leaf:"small",Murano:"suv2",Pathfinder:"suv3",Rogue:"suv2","Rogue Sport":"suv2",Sentra:"small",Titan:"truck",Versa:"small",Z:"small"}},
 "Porsche":{m:["718 Boxster","718 Cayman","911","Cayenne","Macan","Panamera","Taycan"],t:{"718 Boxster":"small","718 Cayman":"small","911":"small",Cayenne:"suv2",Macan:"suv2",Panamera:"small",Taycan:"small"}},
-"Ram":{m:["1500","2500","3500","ProMaster","ProMaster City"],t:{"1500":"truck","2500":"truck","3500":"truck",ProMaster:"truck","ProMaster City":"truck"}},
+"Ram":{m:["1500","2500","3500","ProMaster","ProMaster City"],t:{"1500":"truck","2500":"truck","3500":"truck",ProMaster:"sprinter","ProMaster City":"cargovan"}},
 "Rolls-Royce":{m:["Cullinan","Dawn","Ghost","Phantom","Spectre","Wraith"],t:{Cullinan:"suv3",Dawn:"small",Ghost:"small",Phantom:"small",Spectre:"small",Wraith:"small"}},
 "Subaru":{m:["Ascent","BRZ","Crosstrek","Forester","Impreza","Legacy","Outback","Solterra","WRX"],t:{Ascent:"suv3",BRZ:"small",Crosstrek:"suv2",Forester:"suv2",Impreza:"small",Legacy:"small",Outback:"suv2",Solterra:"suv2",WRX:"small"}},
 "Tesla":{m:["Model 3","Model S","Model X","Model Y","Cybertruck"],t:{"Model 3":"small","Model S":"small","Model X":"suv3","Model Y":"suv2",Cybertruck:"truck"}},
-"Toyota":{m:["4Runner","86","Avalon","bZ4X","C-HR","Camry","Corolla","Crown","GR86","GR Corolla","GR Supra","Highlander","Land Cruiser","Mirai","Prius","RAV4","Sequoia","Sienna","Tacoma","Tundra","Venza"],t:{"4Runner":"suv3","86":"small",Avalon:"small",bZ4X:"suv2","C-HR":"suv2",Camry:"small",Corolla:"small",Crown:"small",GR86:"small","GR Corolla":"small","GR Supra":"small",Highlander:"suv3","Land Cruiser":"suv3",Mirai:"small",Prius:"small",RAV4:"suv2",Sequoia:"suv3",Sienna:"suv3",Tacoma:"truck",Tundra:"truck",Venza:"suv2"}},
+"Toyota":{m:["4Runner","86","Avalon","bZ4X","C-HR","Camry","Corolla","Crown","GR86","GR Corolla","GR Supra","Highlander","Land Cruiser","Mirai","Prius","RAV4","Sequoia","Sienna","Tacoma","Tundra","Venza"],t:{"4Runner":"suv3","86":"small",Avalon:"small",bZ4X:"suv2","C-HR":"suv2",Camry:"small",Corolla:"small",Crown:"small",GR86:"small","GR Corolla":"small","GR Supra":"small",Highlander:"suv3","Land Cruiser":"suv3",Mirai:"small",Prius:"small",RAV4:"suv2",Sequoia:"suv3",Sienna:"minivan",Tacoma:"truck",Tundra:"truck",Venza:"suv2"}},
 "Volkswagen":{m:["Arteon","Atlas","Atlas Cross Sport","Golf","ID.4","ID.Buzz","Jetta","Taos","Tiguan"],t:{Arteon:"small",Atlas:"suv3","Atlas Cross Sport":"suv2",Golf:"small","ID.4":"suv2","ID.Buzz":"suv2",Jetta:"small",Taos:"suv2",Tiguan:"suv2"}},
 "Volvo":{m:["C40","S60","S90","V60","V90","XC40","XC60","XC90"],t:{C40:"suv2",S60:"small",S90:"small",V60:"small",V90:"small",XC40:"suv2",XC60:"suv2",XC90:"suv3"}}
 };
@@ -3442,11 +3457,16 @@ function renderTierChips(cat){
   const isCar=cat==='cars';
   const usesLength=(cat==='boats'||cat==='rvs');
 
+  // Reset car-specific detection UI on category change
+  const carChangeWrap=document.getElementById('car-class-change-wrap');
+  if(carChangeWrap) carChangeWrap.style.display='none';
+  const carPrompt=document.getElementById('car-class-prompt');
+  if(carPrompt){ carPrompt.textContent=''; carPrompt.style.display='none'; }
+
   if(usesLength){
     wrap.innerHTML='';
     document.getElementById('tier-chips-wrap').style.display='none';
   }else{
-    document.getElementById('tier-chips-wrap').style.display='block';
     const tiers=PRICING[cat].tiers;
     wrap.innerHTML=Object.entries(tiers).map(([k,t])=>{
       const prices=Object.values(t).filter(v=>typeof v==='number');
@@ -3459,6 +3479,8 @@ function renderTierChips(cat){
         <div class="tchip-from">from $${minP+fee}</div>
       </div>`;
     }).join('');
+    // For cars: hide chips by default — progressive detection shows them on demand
+    document.getElementById('tier-chips-wrap').style.display=isCar?'none':'block';
   }
 
   document.getElementById('make-search-wrap').style.display=isCar?'block':'none';
@@ -3603,9 +3625,42 @@ function selectTier(key){
   ST.tierKey=key; ST.tier=PRICING[ST.cat].tiers[key];
   setupLengthSelector(ST.cat);
   setupUnitSelector(ST.cat);
-  // refresh price/card if vehicle already entered (no auto-advance)
+
+  // Cars: vehicle already entered — update card, collapse chips, show "Change class" button
+  if(ST.cat==='cars' && ST.year && ST.make && ST.model){
+    ST.vehicleLabel=`${ST.year} ${ST.make} ${ST.model}`;
+    setBasePrice();
+    setVehicleVisual();
+    document.getElementById('vc-name').textContent=ST.vehicleLabel;
+    document.getElementById('vc-tier-lbl').textContent='Vehicle class selected';
+    document.getElementById('vc-badge').textContent=ST.tier.label;
+    document.getElementById('vc-price').textContent='$'+ST.basePrice;
+    document.getElementById('vc').classList.add('show');
+    document.getElementById('tier-chips-wrap').style.display='none';
+    document.getElementById('car-class-change-wrap').style.display='block';
+    const prompt=document.getElementById('car-class-prompt');
+    if(prompt){ prompt.textContent=''; prompt.style.display='none'; }
+    document.getElementById('next3').disabled=false;
+    renderAddons();
+    return;
+  }
+
   if(ST.vehicleLabel){ setBasePrice(); }
   tryGenericConfirm();
+}
+
+function showCarClassOverride(){
+  document.getElementById('tier-chips-wrap').style.display='block';
+  document.getElementById('car-class-change-wrap').style.display='none';
+  const prompt=document.getElementById('car-class-prompt');
+  if(prompt){
+    prompt.textContent='Select your vehicle class:';
+    prompt.style.display='block';
+  }
+  if(ST.tierKey){
+    document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
+    document.querySelector(`.tchip[data-tier="${ST.tierKey}"]`)?.classList.add('sel');
+  }
 }
 
 function tryGenericConfirm(){
@@ -3740,18 +3795,40 @@ document.getElementById('model-sel').addEventListener('change',function(){
 
 document.getElementById('year-sel').addEventListener('change',function(){
   ST.year=this.value; if(!ST.year)return;
-  const tierKey=MODELS[ST.make]?.t[ST.model]||'small';
-  document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
-  document.querySelector(`.tchip[data-tier="${tierKey}"]`)?.classList.add('sel');
-  ST.tierKey=tierKey; ST.tier=PRICING.cars.tiers[tierKey];
+  const rawKey=MODELS[ST.make]?.t[ST.model];
+  const validTier=rawKey && PRICING.cars.tiers[rawKey];
+
+  if(!validTier){
+    // Unknown or unmapped model — show manual class selector
+    const prompt=document.getElementById('car-class-prompt');
+    if(prompt){
+      prompt.textContent=`Couldn't detect the class for your ${ST.make} ${ST.model}. Select the closest option:`;
+      prompt.style.display='block';
+    }
+    document.getElementById('tier-chips-wrap').style.display='block';
+    document.getElementById('car-class-change-wrap').style.display='none';
+    document.getElementById('vc').classList.remove('show');
+    document.getElementById('next3').disabled=true;
+    return;
+  }
+
+  ST.tierKey=rawKey; ST.tier=PRICING.cars.tiers[rawKey];
   ST.vehicleLabel=`${ST.year} ${ST.make} ${ST.model}`;
   setBasePrice();
   setVehicleVisual();
+  // Sync chip highlight (chips may be hidden but state stays accurate)
+  document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
+  document.querySelector(`.tchip[data-tier="${rawKey}"]`)?.classList.add('sel');
+
   document.getElementById('vc-name').textContent=ST.vehicleLabel;
-  document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
-  document.getElementById('vc-badge').textContent=ST.tier.label+' · $'+ST.basePrice;
+  document.getElementById('vc-tier-lbl').textContent='Vehicle class detected';
+  document.getElementById('vc-badge').textContent=ST.tier.label;
   document.getElementById('vc-price').textContent='$'+ST.basePrice;
   document.getElementById('vc').classList.add('show');
+  document.getElementById('tier-chips-wrap').style.display='none';
+  document.getElementById('car-class-change-wrap').style.display='block';
+  const prompt=document.getElementById('car-class-prompt');
+  if(prompt){ prompt.textContent=''; prompt.style.display='none'; }
   document.getElementById('next3').disabled=false; renderAddons();
   // No auto-advance: user clicks "Choose Add-Ons →" after reviewing the vehicle.
 });
