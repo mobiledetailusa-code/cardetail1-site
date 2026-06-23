@@ -3861,57 +3861,18 @@ function destroyStripePaymentUI(){
   if(cc) cc.innerHTML='';
 }
 
-async function fetchBookingCardStatus(){
-  if(!ST.bookingId) return null;
-  const res=await fetch(BACKEND_BASE+'/booking-card-status',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({bookingId:ST.bookingId})
-  }).catch(()=>null);
-  if(!res) return null;
-  const data=await res.json().catch(()=>({}));
-  if(!data.ok) return null;
-  return data.cardOnFileStatus||'pending';
-}
-
-async function pollBookingCardStatus(opts){
-  const maxAttempts=(opts&&opts.maxAttempts)!=null?opts.maxAttempts:20;
-  const delayMs=(opts&&opts.delayMs)!=null?opts.delayMs:3000;
-  const initialDelayMs=(opts&&opts.initialDelayMs)!=null?opts.initialDelayMs:1500;
-  if(initialDelayMs>0) await new Promise(resolve=>setTimeout(resolve,initialDelayMs));
+async function waitForVerifiedCardSave(maxAttempts=20,delayMs=3000){
   for(let attempt=0;attempt<maxAttempts;attempt++){
-    const status=await fetchBookingCardStatus();
-    if(status==='saved') return 'saved';
-    if(status==='failed') return 'failed';
-    if(attempt<maxAttempts-1) await new Promise(resolve=>setTimeout(resolve,delayMs));
+    if(attempt>0) await new Promise(resolve=>setTimeout(resolve,delayMs));
+    const res=await fetch(BACKEND_BASE+'/booking-card-status',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bookingId:ST.bookingId})
+    }).catch(()=>null);
+    if(!res) continue;
+    const data=await res.json().catch(()=>({}));
+    if(data.cardOnFileStatus==='saved') return true;
+    if(data.cardOnFileStatus==='failed') return false;
   }
-  return 'timeout';
-}
-
-function applyServerCardSavedState(){
-  ST.cardOnFileSaved=true;
-  const btn=document.getElementById('stripe-auth-btn');
-  if(btn){ btn.textContent='✓ Card saved'; btn.disabled=true; btn.style.opacity='1'; btn.style.cursor='default'; }
-  updateCofAuthButtonState();
-}
-
-async function verifyCardOnFileWithServer(opts){
-  if(!ST.bookingId) return false;
-  if(opts&&opts.showProgress!==false){
-    stripeMsg('stripe-status','Card accepted. Verifying secure card-on-file status…',true);
-  }
-  const result=await pollBookingCardStatus(opts||{});
-  if(result==='saved'){
-    applyServerCardSavedState();
-    stripeMsg('stripe-status',COF_SAVED_MSG,true);
-    return true;
-  }
-  ST.cardOnFileSaved=false;
-  if(result==='failed'){
-    stripeMsg('stripe-status','Card-on-file could not be verified. Please try saving your card again.',false);
-  }else{
-    stripeMsg('stripe-status',COF_VERIFY_TIMEOUT_MSG+' '+COF_RETRY_BTN,true);
-  }
-  updateCofAuthButtonState();
   return false;
 }
 
@@ -4057,9 +4018,16 @@ async function confirmSetupIntent(){
       err.classList.add('show'); btn.disabled=false; btn.textContent='Save my card securely'; updateCofAuthButtonState(); return;
     }
     ST.cardSetupConfirmed=true;
-    ST.cardOnFileSaved=false;
-    btn.textContent='Verifying…'; btn.disabled=true;
-    await verifyCardOnFileWithServer();
+    ST.cardOnFileSaved=true;
+    btn.textContent='✓ Card saved'; btn.disabled=true;
+    stripeMsg('stripe-status','Card verification in progress. Stripe received your card securely. We’re confirming your saved-card status. This usually takes a few seconds.',true);
+    const verified=await waitForVerifiedCardSave(8,2000);
+    if(verified){
+      stripeMsg('stripe-status',COF_SAVED_MSG,true);
+    } else {
+      stripeMsg('stripe-status','Your card was saved with Stripe. You can continue — we’ll confirm on the server when you submit. '+COF_RETRY_BTN,true);
+    }
+    updateCofAuthButtonState();
   }catch(e){
     err.textContent='Card-on-file could not be completed. Please try again.'; err.classList.add('show');
     btn.disabled=false; btn.textContent='Save my card securely';
@@ -4069,15 +4037,18 @@ async function confirmSetupIntent(){
 
 async function recheckCardStatus(){
   if(!ST.bookingId) return;
-  if(!ST.cardSetupConfirmed && !ST.cardOnFileSaved){
-    stripeMsg('stripe-status','Please save your card securely first.',false);
-    return;
-  }
   stripeMsg('stripe-status','Checking card status…',true);
-  await verifyCardOnFileWithServer({initialDelayMs:0,maxAttempts:8,delayMs:2000});
+  const verified=await waitForVerifiedCardSave(4,2000);
+  if(verified){
+    ST.cardOnFileSaved=true;
+    stripeMsg('stripe-status',COF_SAVED_MSG,true);
+  } else {
+    stripeMsg('stripe-status','Still confirming your card on our server. You can try submitting your booking — we will verify again. '+COF_RETRY_BTN,true);
+  }
+  updateCofAuthButtonState();
 }
 
-async function goToConfirmFromTerms(){
+function goToConfirmFromTerms(){
   if(!ST.payMethod){
     alert('Please select a payment preference before continuing.');
     return;
@@ -4086,13 +4057,9 @@ async function goToConfirmFromTerms(){
     alert('Please accept the card-on-file policy before continuing.');
     return;
   }
-  if(!ST.cardSetupConfirmed){
+  if(!ST.cardOnFileSaved){
     alert('Please securely save a card with Stripe before continuing.');
     return;
-  }
-  if(!ST.cardOnFileSaved){
-    const verified=await verifyCardOnFileWithServer();
-    if(!verified) return;
   }
   bkGoTo(6);
 }
@@ -4125,22 +4092,25 @@ async function submitBooking(){
   if(termsOk && !termsOk.checked){alert('Please agree to the Terms & Conditions before submitting your booking request.');return;}
   if(!ST.payMethod){alert('Please select a payment preference before submitting.');return;}
   if(!document.getElementById('cof-policy-ok')?.checked){alert('Please accept the card-on-file policy before submitting.');return;}
-  if(!ST.cardSetupConfirmed||!ST.draftRegistered){alert('Please securely save a card with Stripe before submitting.');return;}
-  if(!ST.cardOnFileSaved){
-    const verified=await verifyCardOnFileWithServer();
-    if(!verified) return;
-  }
+  if(!ST.cardOnFileSaved||!ST.draftRegistered){alert('Please securely save a card with Stripe before submitting.');return;}
   const btn=document.getElementById('sub-btn');
   btn.classList.add('loading'); btn.disabled=true;
   const payload=buildBookingPayload();
+  async function postBooking(){
+    return fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  }
   try{
-    const res=await fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    const data=await res.json().catch(()=>({}));
+    let res=await postBooking();
+    let data=await res.json().catch(()=>({}));
+    if((!res.ok||!data.ok) && data.error==='card_on_file_not_saved'){
+      stripeMsg('stripe-status','Confirming your saved card on our server…',true);
+      await waitForVerifiedCardSave(6,2000);
+      res=await postBooking();
+      data=await res.json().catch(()=>({}));
+    }
     if(!res.ok||!data.ok){
       if(data.error==='card_on_file_not_saved'){
-        ST.cardOnFileSaved=false;
         alert(data.userMessage||COF_VERIFY_TIMEOUT_MSG);
-        await verifyCardOnFileWithServer();
         return;
       }
       throw new Error(data.error||'booking_submit_failed');
