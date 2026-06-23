@@ -2679,6 +2679,26 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 const ADMIN_EMAIL    = 'magnojuniorusa93@gmail.com';   // seu email
 const ADMIN_SMS      = '5513132956';         // seu celular (SMS admin)
 
+// ── SECURITY HELPERS ───────────────────────────────────
+// Treat every booking/customer field as untrusted. Use textContent where practical;
+// use these helpers before any intentional innerHTML/template rendering.
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function jsStr(s){ return esc(String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/[\r\n]/g,' ')); }
+function safeUrl(raw, hosts){
+  try{
+    const u=new URL(String(raw||''), location.origin);
+    if(u.protocol!=='https:') return '';
+    if(hosts&&hosts.length&&!hosts.some(h=>u.hostname===h||u.hostname.endsWith('.'+h))) return '';
+    return u.href;
+  }catch(_){ return ''; }
+}
+function safePayLink(raw){ return safeUrl(raw, ['stripe.com','stripe.dev']); }
+function safeImgSrc(raw){
+  const s=String(raw||'');
+  if(/^data:image\/(?:png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/i.test(s)) return s;
+  return safeUrl(s);
+}
+
 // ── STRIPE (Payment Element + Payment Link) ────────────
 // Publishable key — PÚBLICA, pode ficar aqui no HTML.
 // Pegue em: https://dashboard.stripe.com → Developers → API keys
@@ -3479,7 +3499,7 @@ function initSpecialtySearch(cat){
     if(!catData || !q) return;
     const hits = Object.keys(catData).filter(m=>m.toLowerCase().includes(q.toLowerCase()));
     if(!hits.length) return;
-    makeDd.innerHTML = hits.map(m=>`<div class="srch-item" data-val="${m}">${hl(m,q)}</div>`).join('');
+    makeDd.innerHTML = hits.map(m=>`<div class="srch-item" data-val="${esc(m)}">${hl(esc(m),q)}</div>`).join('');
     makeDd.classList.add('open');
     makeDd.querySelectorAll('.srch-item').forEach(el=>{
       el.addEventListener('mousedown',e=>{
@@ -3519,7 +3539,7 @@ function initSpecialtySearch(cat){
     if(q && models.length){
       const hits = models.filter(m=>m.toLowerCase().includes(q.toLowerCase()));
       if(hits.length){
-        modelDd.innerHTML = hits.map(m=>`<div class="srch-item" data-val="${m}">${hl(m,q)}</div>`).join('');
+        modelDd.innerHTML = hits.map(m=>`<div class="srch-item" data-val="${esc(m)}">${hl(esc(m),q)}</div>`).join('');
         modelDd.classList.add('open');
         modelDd.querySelectorAll('.srch-item').forEach(el=>{
           el.addEventListener('mousedown',e=>{e.preventDefault(); newModelIn.value=el.dataset.val; modelDd.classList.remove('open'); tryGenericConfirm();});
@@ -3550,7 +3570,7 @@ function selectSpecialtyMake(make, catData, makeIn, makeDd, modelIn, modelDd, no
   const models = catData[make] || [];
   modelIn.addEventListener('focus', function showAll(){
     if(!modelIn.value.trim() && models.length){
-      modelDd.innerHTML = models.map(m=>`<div class="srch-item" data-val="${m}">${m}</div>`).join('');
+      modelDd.innerHTML = models.map(m=>`<div class="srch-item" data-val="${esc(m)}">${esc(m)}</div>`).join('');
       modelDd.classList.add('open');
       modelDd.querySelectorAll('.srch-item').forEach(el=>{
         el.addEventListener('mousedown',e=>{e.preventDefault(); modelIn.value=el.dataset.val; modelDd.classList.remove('open'); tryGenericConfirm();});
@@ -3881,7 +3901,7 @@ async function initCardOnFile(){
     const draftData=await draftRes.json();
     if(!draftData.ok) throw new Error('Could not register booking. Please try again.');
     ST.bookingId=draftData.id; ST.draftRegistered=true;
-    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:ST.bookingId})});
+    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:ST.bookingId,phone:document.getElementById('f-phone').value.trim()})});
     const siData=await siRes.json();
     if(!siData.ok||siData.fallback){
       throw new Error('Secure card saving is temporarily unavailable.');
@@ -3912,7 +3932,7 @@ async function waitForVerifiedCardSave(maxAttempts=20,delayMs=3000){
     await new Promise(resolve=>setTimeout(resolve,delayMs));
     const res=await fetch(BACKEND_BASE+'/booking-card-status',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bookingId:ST.bookingId})
+      body:JSON.stringify({bookingId:ST.bookingId,phone:document.getElementById('f-phone').value.trim()})
     }).catch(()=>null);
     if(!res) continue;
     const data=await res.json().catch(()=>({}));
@@ -3995,7 +4015,7 @@ function fillConfirm(){
   const payLabels={'card_onsite':'Card on-site','cash_onsite':'Cash on-site','online_after_service':'Online after service'};
   const pmEl=document.getElementById('c-pay-method'); if(pmEl) pmEl.textContent=payLabels[ST.payMethod]||'Not selected';
   document.getElementById('c-addon-rows').innerHTML=ST.addons.length
-    ?ST.addons.map(a=>`<div class="or"><span class="ol">+ ${a.name}${a.qty>1?' ×'+a.qty:''}</span><span class="ov">+$${a.price*(a.qty||1)}</span></div>`).join('')
+    ?ST.addons.map(a=>`<div class="or"><span class="ol">+ ${esc(a.name)}${a.qty>1?' ×'+Number(a.qty):''}</span><span class="ov">+$${Number(a.price||0)*(Number(a.qty)||1)}</span></div>`).join('')
     :'<div class="or"><span class="ol">Add-ons</span><span class="ov" style="color:var(--mu)">None</span></div>';
 }
 
@@ -4187,7 +4207,7 @@ function renderAdminCounts(list){
   const cancelReqHtml=`<div class="admin-count" style="${cancelReqCount?'border-color:rgba(239,68,68,.4)':''}"><b${cancelReqCount?' style="color:#ef4444"':''}>${cancelReqCount}</b><span${cancelReqCount?' style="color:#ef4444"':''}>⚠️ Cancel Req</span></div>`;
   el.innerHTML=`<div class="admin-count"><b>${list.length}</b><span>Total</span></div>`+statuses.map(st=>`<div class="admin-count"><b>${list.filter(b=>(b.status||'Pending Review')===st).length}</b><span>${st}</span></div>`).join('')+cancelReqHtml;
 }
-function mkBadge(color,bg,label){return`<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:${color};background:${bg};border:1px solid ${color};border-radius:999px;padding:3px 9px;white-space:nowrap;display:inline-block;margin:1px">${label}</span>`;}
+function mkBadge(color,bg,label){return`<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:${esc(color)};background:${esc(bg)};border:1px solid ${esc(color)};border-radius:999px;padding:3px 9px;white-space:nowrap;display:inline-block;margin:1px">${esc(label)}</span>`;}
 
 // Payment status badge — admin only.
 function adminPayBadge(b) {
@@ -4233,23 +4253,24 @@ function renderAdminBookings(){
   if(!all.length){grid.innerHTML='<div class="admin-empty" style="text-align:center;padding:28px 16px"><div style="font-size:22px;margin-bottom:8px">📭</div><div style="font-weight:600;color:var(--white);margin-bottom:6px">No bookings in local cache</div><div style="font-size:13px;color:var(--mu);margin-bottom:16px;line-height:1.6">All bookings are stored in the cloud.<br>Click below to load them now.</div><button onclick="loadCloudBookings()" style="background:var(--gr);color:#000;font-weight:700;border:none;border-radius:999px;padding:12px 24px;cursor:pointer;font-size:13px">☁️ Load from cloud</button></div>';return;}
   if(!list.length){grid.innerHTML='<div class="admin-empty">No bookings in this status.</div>';return;}
   grid.innerHTML=list.map(b=>{
-    const addons=(b.addons&&b.addons.length)?b.addons.map(a=>`${a.name}${a.qty>1?' ×'+a.qty:''} +$${a.price*(a.qty||1)}`).join('<br>'):'None';
-    const zoneInfo = [b.zipCode?'📮 ZIP '+b.zipCode:'', b.zone?'📍 '+b.zone:'', b.zoneSurcharge?'+$'+b.zoneSurcharge+' area fee':'', b.richSurcharge?'✦ Premium area (+5%)':''].filter(Boolean).join(' · ');
-    const payLinkHtml = b.payLink ? `<div style="margin-top:6px"><a href="${b.payLink}" target="_blank" style="color:var(--blue);font-weight:600;font-size:12px">💳 Pay Link</a></div>` : '';
-    const tipHtml = b.tip ? `<div style="color:var(--gold);font-weight:600;font-size:12px;margin-top:4px">💰 Tip: $${b.tip}</div>` : '';
+    const addons=(b.addons&&b.addons.length)?b.addons.map(a=>`${esc(a.name)}${a.qty>1?' ×'+Number(a.qty):''} +$${Number(a.price||0)*(Number(a.qty)||1)}`).join('<br>'):'None';
+    const zoneInfo = [b.zipCode?'📮 ZIP '+esc(b.zipCode):'', b.zone?'📍 '+esc(b.zone):'', b.zoneSurcharge?'+$'+Number(b.zoneSurcharge)+' area fee':'', b.richSurcharge?'✦ Premium area (+5%)':''].filter(Boolean).join(' · ');
+    const payLink = safePayLink(b.payLink);
+    const payLinkHtml = payLink ? `<div style="margin-top:6px"><a href="${esc(payLink)}" target="_blank" rel="noopener noreferrer" style="color:var(--blue);font-weight:600;font-size:12px">💳 Pay Link</a></div>` : '';
+    const tipHtml = b.tip ? `<div style="color:var(--gold);font-weight:600;font-size:12px;margin-top:4px">💰 Tip: $${Number(b.tip)||0}</div>` : '';
     const mapsUrl = 'https://maps.google.com/?q='+encodeURIComponent(b.address||'');
     // Multi-vehicle summary
     const vehs = b.vehicles && b.vehicles.length ? b.vehicles : null;
-    const vehsHtml = vehs ? vehs.map(v=>`<div style="font-size:11.5px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">${v.pkgIcon||'🚗'} <strong>${v.pkgName||'—'}</strong> · ${v.vehicleLabel||'—'} · ${(v.addons||[]).map(a=>a.name+(a.qty>1?' ×'+a.qty:'')).join(', ')||'no add-ons'} · <strong style="color:var(--blue)">$${v.subtotal||0}</strong></div>`).join('') : '';
+    const vehsHtml = vehs ? vehs.map(v=>`<div style="font-size:11.5px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">${esc(v.pkgIcon||'🚗')} <strong>${esc(v.pkgName||'—')}</strong> · ${esc(v.vehicleLabel||'—')} · ${(v.addons||[]).map(a=>esc(a.name)+(a.qty>1?' ×'+Number(a.qty):'')).join(', ')||'no add-ons'} · <strong style="color:var(--blue)">$${Number(v.subtotal)||0}</strong></div>`).join('') : '';
     const jobPhotos = JSON.parse(localStorage.getItem('cd1_job_photos')||'{}')[b.id];
     const photoCount = jobPhotos ? jobPhotos.length : 0;
     const payBadge = adminPayBadge(b)+adminCofBadge(b);
     return `<div class="admin-card">
-      <div class="admin-card-top"><div><div class="admin-id">${b.id} · ${new Date(b.createdAt).toLocaleString()}${b.source==='Admin — manual entry'?' · <span style="color:var(--am)">Manual</span>':''}</div><div class="admin-title">${b.firstName} ${b.lastName} · ${b.package||'—'} · $${b.totalPrice}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><div class="status-pill">${b.status||'Pending Review'}</div>${payBadge}</div></div>
+      <div class="admin-card-top"><div><div class="admin-id">${esc(b.id)} · ${b.createdAt?new Date(b.createdAt).toLocaleString():'—'}${b.source==='Admin — manual entry'?' · <span style="color:var(--am)">Manual</span>':''}</div><div class="admin-title">${esc(b.firstName)} ${esc(b.lastName)} · ${esc(b.package||'—')} · $${Number(b.totalPrice)||0}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><div class="status-pill">${esc(b.status||'Pending Review')}</div>${payBadge}</div></div>
       <div class="admin-meta">
-        <div><b>Phone:</b> <a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a></div><div><b>Email:</b> ${b.email||'—'}</div><div><b>Date:</b> ${b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</div><div><b>Address:</b> <a href="${mapsUrl}" target="_blank" style="color:var(--blue)">${b.address}</a></div>
-        ${vehs ? `<div style="grid-column:1/-1"><b>Vehicles (${vehs.length}):</b><div style="margin-top:4px">${vehsHtml}</div></div>` : `<div><b>Vehicle:</b> ${b.vehicle||'—'}</div><div><b>Category:</b> ${b.vehicleCategory||'—'}</div><div><b>Add-ons:</b><br>${addons}</div>`}
-        <div><b>Notes:</b> ${b.notes||'None'}</div>${zoneInfo?`<div style="grid-column:1/-1;margin-top:4px;font-size:11.5px;color:var(--am)">${zoneInfo}</div>`:''}
+        <div><b>Phone:</b> <a href="tel:${esc(b.phone)}" style="color:var(--blue)">${esc(b.phone)}</a></div><div><b>Email:</b> ${esc(b.email||'—')}</div><div><b>Date:</b> ${esc(b.confirmedWindow||b.preferredDate||'—')} · ${esc(b.preferredTime||'TBD')}</div><div><b>Address:</b> <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--blue)">${esc(b.address)}</a></div>
+        ${vehs ? `<div style="grid-column:1/-1"><b>Vehicles (${vehs.length}):</b><div style="margin-top:4px">${vehsHtml}</div></div>` : `<div><b>Vehicle:</b> ${esc(b.vehicle||'—')}</div><div><b>Category:</b> ${esc(b.vehicleCategory||'—')}</div><div><b>Add-ons:</b><br>${addons}</div>`}
+        <div><b>Notes:</b> ${esc(b.notes||'None')}</div>${zoneInfo?`<div style="grid-column:1/-1;margin-top:4px;font-size:11.5px;color:var(--am)">${zoneInfo}</div>`:''}
         ${tipHtml}${payLinkHtml}
         ${photoCount?`<div style="font-size:11.5px;color:var(--mu)">📷 ${photoCount} photo(s) uploaded</div>`:''}
         ${b.rescheduledByClient?'<div style="font-size:11px;color:var(--am)">↺ Client requested reschedule</div>':''}
@@ -4258,12 +4279,12 @@ function renderAdminBookings(){
         ${b.cancellationRequestStatus==='requested'?`<div style="font-size:11px;color:#ef4444;font-weight:600">⚠️ Cancellation requested · ${esc(b.cancellationReason||'No reason provided')}</div>`:''}
       </div>
       <div class="admin-actions">
-        ${['Pending Review','Confirmed','Scheduled','Completed','Cancelled','No-Show','Rescheduled','Paid'].map(st=>`<button onclick="setBookingStatus('${b.id}','${st}')">${st}</button>`).join('')}
-        <button onclick="scheduleBookingPrompt('${b.id}')">Set Date/Time</button>
-        <button onclick="setPayLinkPrompt('${b.id}')">💳 Pay Link (full)</button>
-        ${(b.paymentIntentId && b.paymentStatus==='authorized') ? `<button onclick="captureBookingPayment('${b.id}')" style="border-color:var(--grbr);color:var(--gr)">💰 Capture $${((b.amountAuthorizedCents||b.depositCents||0)/100).toFixed(2)}</button>` : ''}
+        ${['Pending Review','Confirmed','Scheduled','Completed','Cancelled','No-Show','Rescheduled','Paid'].map(st=>`<button onclick="setBookingStatus('${jsStr(b.id)}','${jsStr(st)}')">${esc(st)}</button>`).join('')}
+        <button onclick="scheduleBookingPrompt('${jsStr(b.id)}')">Set Date/Time</button>
+        <button onclick="setPayLinkPrompt('${jsStr(b.id)}')">💳 Pay Link (full)</button>
+        ${(b.paymentIntentId && b.paymentStatus==='authorized') ? `<button onclick="captureBookingPayment('${jsStr(b.id)}')" style="border-color:var(--grbr);color:var(--gr)">💰 Capture $${((b.amountAuthorizedCents||b.depositCents||0)/100).toFixed(2)}</button>` : ''}
         <a href="/authorize.html?job=${encodeURIComponent(b.id)}&amount=${b.totalPrice||0}" target="_blank" rel="noopener">✍️ Auth Form</a>
-        <a href="${mailtoForBooking(b)}">Email</a><a href="${smsForBooking(b)}">SMS</a><button onclick="copyBookingById('${b.id}')">Copy</button>
+        <a href="${mailtoForBooking(b)}">Email</a><a href="${smsForBooking(b)}">SMS</a><button onclick="copyBookingById('${jsStr(b.id)}')">Copy</button>
       </div>
     </div>`;
   }).join('');
@@ -4322,7 +4343,7 @@ function submitNewJob(){
     package:document.getElementById('nj-pkg').value.trim(),
     totalPrice:parseFloat(document.getElementById('nj-price').value)||0,
     notes:document.getElementById('nj-notes').value.trim(),
-    payLink:document.getElementById('nj-paylink').value.trim(),
+    payLink:safePayLink(document.getElementById('nj-paylink').value.trim()),
     addons:[], vehicles:[], vehicleCount:1, tip:0,
   };
   saveLocalBooking(job);
@@ -4752,7 +4773,7 @@ function renderAdminCalendar(){
     const dayJobs = all.filter(b=>b.preferredDate===ds);
     const isToday = ds===todayStr;
     const dayLabel = daysOfWeek[d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate();
-    const events = dayJobs.map(b=>`<div class="cal-ev" title="${b.firstName} ${b.lastName} · ${b.package||''}" onclick="alert('${b.id}: ${b.firstName} ${b.lastName}\\n${b.package||''}\\n${b.address||''}')">${b.firstName?.charAt(0)}${b.lastName?.charAt(0)} · ${(b.package||'').substring(0,10)}</div>`).join('');
+    const events = dayJobs.map(b=>`<div class="cal-ev" title="${esc(b.firstName)} ${esc(b.lastName)} · ${esc(b.package||'')}" onclick="alert('${jsStr(`${b.id}: ${b.firstName||''} ${b.lastName||''}\\n${b.package||''}\\n${b.address||''}`)}')">${esc((b.firstName||'').charAt(0))}${esc((b.lastName||'').charAt(0))} · ${esc((b.package||'').substring(0,10))}</div>`).join('');
     return `<div class="cal-day${isToday?' today':''}">
       <div class="cal-day-hd">${dayLabel}</div>
       ${events || '<div style="font-size:10px;color:var(--mu);text-align:center;padding:4px">—</div>'}
@@ -4795,7 +4816,7 @@ async function setPayLinkPrompt(id){
   const cents=Math.max(Math.round(total*100), 50);
   let link='';
   try{
-    const res=await fetch(BACKEND_BASE+'/create-payment-link',{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await fetch(BACKEND_BASE+'/create-payment-link',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':window._adminKey||''},
       body:JSON.stringify({amountCents:cents, bookingId:b.id, email:b.email||''})});
     const data=await res.json();
     if(data.ok && data.url){ link=data.url; }
@@ -5990,7 +6011,7 @@ async function cpLoadManage(){
     const vehs = b.vehicles && b.vehicles.length
       ? b.vehicles
       : [{pkgName:b.package||'—', vehicleLabel:b.vehicle||'—', pkgIcon:'🚗', addons:b.addons||[], subtotal:b.totalPrice}];
-    const vehHtml = vehs.map(v=>'<div style="font-size:12px;line-height:1.7;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+v.pkgIcon+' <strong>'+(v.pkgName||'—')+'</strong> · '+(v.vehicleLabel||'—')+' · <span style="color:var(--blue)">$'+(v.subtotal||0)+'</span></div>').join('');
+    const vehHtml = vehs.map(v=>'<div style="font-size:12px;line-height:1.7;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+esc(v.pkgIcon||'🚗')+' <strong>'+esc(v.pkgName||'—')+'</strong> · '+esc(v.vehicleLabel||'—')+' · <span style="color:var(--blue)">$'+(Number(v.subtotal)||0)+'</span></div>').join('');
     const isCancelReq = b.cancellationRequestStatus === 'requested';
     const displayStatus = isCancelReq ? 'Cancellation Requested' : status;
     const statusColor = isCancelReq ? '#ef4444' : (isCompleted ? 'var(--gr)' : isEditable ? 'var(--am)' : 'var(--mu)');
@@ -6012,11 +6033,12 @@ async function cpLoadManage(){
         +'</div>'
         +'<div style="margin-top:8px;font-size:11px;color:var(--mu)">Requests reviewed by Cardetail1 · Urgent: <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></div>';
     }
+    const payLink = safePayLink(b.payLink);
     res.innerHTML = '<div style="background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--rs);padding:14px;margin-bottom:12px">'
-      +'<div style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">#'+b.id+' · <span style="font-size:12px;font-weight:600;color:'+statusColor+';background:'+statusBg+';padding:3px 10px;border-radius:999px">'+displayStatus+'</span></div>'
-      +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+(b.confirmedWindow||b.preferredDate||'—')+' · '+(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+(b.address||'—')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(b.totalPrice||0)+'</strong>'+(b.tip?' + Tip $'+b.tip:'')+'</div>'
+      +'<div style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">#'+esc(b.id)+' · <span style="font-size:12px;font-weight:600;color:'+statusColor+';background:'+statusBg+';padding:3px 10px;border-radius:999px">'+esc(displayStatus)+'</span></div>'
+      +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+esc(b.confirmedWindow||b.preferredDate||'—')+' · '+esc(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+esc(b.address||'—')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(Number(b.totalPrice)||0)+'</strong>'+(b.tip?' + Tip $'+(Number(b.tip)||0):'')+'</div>'
       +'<div style="margin-top:10px">'+vehHtml+'</div>'
-      +(b.payLink?'<div style="margin-top:10px"><a href="'+b.payLink+'" target="_blank" style="color:var(--blue);font-weight:600">&#x1F4B3; Pay Now &#x2192;</a></div>':'')
+      +(payLink?'<div style="margin-top:10px"><a href="'+esc(payLink)+'" target="_blank" rel="noopener noreferrer" style="color:var(--blue);font-weight:600">&#x1F4B3; Pay Now &#x2192;</a></div>':'')
       +'</div>'+actionsHtml;
   } catch(_){
     if(btn){ btn.disabled=false; btn.textContent='Load My Booking →'; }
@@ -6212,7 +6234,8 @@ function cpRenderGarage(b){
   sumHTML += '<div class="cg-row"><span class="cg-lbl">Date</span><span class="cg-val">'+date+'</span></div>';
   if(time) sumHTML += '<div class="cg-row"><span class="cg-lbl">Time</span><span class="cg-val">'+time+'</span></div>';
   sumHTML += '<div class="cg-row"><span class="cg-lbl">Location</span><span class="cg-val" style="max-width:200px;text-align:right">'+addr+'</span></div>';
-  if(b.payLink) sumHTML += '<div style="margin-top:12px"><a href="'+b.payLink+'" target="_blank" style="color:var(--blue);font-weight:700;font-size:13px">&#x1F4B3; Pay Now &#x2192;</a></div>';
+  const payLink = safePayLink(b.payLink);
+  if(payLink) sumHTML += '<div style="margin-top:12px"><a href="'+esc(payLink)+'" target="_blank" rel="noopener noreferrer" style="color:var(--blue);font-weight:700;font-size:13px">&#x1F4B3; Pay Now &#x2192;</a></div>';
   document.getElementById('cg-summary').innerHTML = sumHTML;
   let vehHTML = '';
   vehs.forEach(v => {
@@ -6247,9 +6270,10 @@ async function cpGetPayLink(){
     const data = await r.json();
     if(btn){ btn.disabled=false; btn.textContent='Get Payment Link →'; }
     res.style.display='block';
-    if(data.ok && data.booking && data.booking.payLink){
+    const payLink=safePayLink(data.booking&&data.booking.payLink);
+    if(data.ok && data.booking && payLink){
       res.innerHTML='<div style="color:var(--gr);font-weight:600;margin-bottom:8px">&#10003; Payment link found</div>'
-        +'<a href="'+data.booking.payLink+'" target="_blank" style="color:var(--blue);font-weight:700;font-size:15px">&#x1F4B3; Pay Now &#x2192;</a>';
+        +'<a href="'+esc(payLink)+'" target="_blank" rel="noopener noreferrer" style="color:var(--blue);font-weight:700;font-size:15px">&#x1F4B3; Pay Now &#x2192;</a>';
     } else if(data.ok && data.booking){
       res.innerHTML='<span style="color:var(--mu)">No payment link yet. Your technician will send it once confirmed. Call 551-313-2956.</span>';
     } else {
@@ -6406,54 +6430,54 @@ function buildJobCard(b){
 
   const vehs = b.vehicles && b.vehicles.length ? b.vehicles
     : [{pkgName:b.package, vehicleLabel:b.vehicle||b.vehicleCategory, pkgIcon:'🚗', subtotal:b.totalPrice}];
-  const serviceStr = vehs.map(v=>`${v.pkgIcon||'🚗'} ${v.pkgName}`).join(' · ');
-  const vehicleStr = vehs.map(v=>v.vehicleLabel||'').filter(Boolean).join(', ');
+  const serviceStr = vehs.map(v=>`${esc(v.pkgIcon||'🚗')} ${esc(v.pkgName||'')}`).join(' · ');
+  const vehicleStr = vehs.map(v=>v.vehicleLabel||'').filter(Boolean).map(esc).join(', ');
 
   const tech = b.assignedTech;
   const techHtml = tech
     ? `<div class="jcard-tech">
-        <div class="jtech-avatar">${tech.name.split(' ').map(w=>w[0]).join('').substring(0,2)}</div>
-        <div><div class="jtech-name">${tech.name}</div><div class="jtech-status" style="color:var(--mu);font-size:10px">${tech.phone}</div></div>
+        <div class="jtech-avatar">${esc(String(tech.name||'').split(' ').map(w=>w[0]).join('').substring(0,2))}</div>
+        <div><div class="jtech-name">${esc(tech.name)}</div><div class="jtech-status" style="color:var(--mu);font-size:10px">${esc(tech.phone)}</div></div>
         <div style="margin-left:auto;display:flex;gap:6px">
-          <a class="ja-btn" href="${buildNotifyLink(tech,b)}" target="_blank">📲 Notify</a>
-          <button class="ja-btn red" onclick="unassignTech('${b.id}')">✕</button>
+          <a class="ja-btn" href="${esc(buildNotifyLink(tech,b))}" target="_blank" rel="noopener noreferrer">📲 Notify</a>
+          <button class="ja-btn red" onclick="unassignTech('${jsStr(b.id)}')">✕</button>
         </div>
        </div>`
     : `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-        <select class="cp-fi" id="tech-sel-${b.id}" style="flex:1;min-width:0;margin-bottom:0;padding:8px 10px;font-size:12px">
+        <select class="cp-fi" id="tech-sel-${esc(b.id)}" style="flex:1;min-width:0;margin-bottom:0;padding:8px 10px;font-size:12px">
           <option value="">— Assign technician —</option>
-          ${getTechs().map(t=>`<option value="${t.id}" ${t.status!=='available'?'disabled style="color:gray"':''}>${t.name} (${t.status})</option>`).join('')}
+          ${getTechs().map(t=>`<option value="${esc(t.id)}" ${t.status!=='available'?'disabled style="color:gray"':''}>${esc(t.name)} (${esc(t.status)})</option>`).join('')}
         </select>
-        <button class="ja-btn primary" onclick="assignTechFromSelect('${b.id}')">Assign</button>
+        <button class="ja-btn primary" onclick="assignTechFromSelect('${jsStr(b.id)}')">Assign</button>
        </div>`;
 
   const dispatchable = !b.assignedTech && !['Completed','Cancelled'].includes(st);
 
-  return `<div class="jcard${b.assignedTech?' dispatched':''}${st==='In Progress'?' in-progress':''}" id="jcard-${b.id}">
+  return `<div class="jcard${b.assignedTech?' dispatched':''}${st==='In Progress'?' in-progress':''}" id="jcard-${esc(b.id)}">
     <div class="jcard-top">
       <div>
-        <div class="jcard-name">${b.firstName} ${b.lastName}</div>
-        <div class="jcard-id">${b.id} · ${b.source||'Online'}</div>
+        <div class="jcard-name">${esc(b.firstName)} ${esc(b.lastName)}</div>
+        <div class="jcard-id">${esc(b.id)} · ${esc(b.source||'Online')}</div>
       </div>
-      <span class="jcard-status ${statusCls}">${b.assignedTech&&st!=='In Progress'&&st!=='Completed'?'Dispatched':st}</span>
+      <span class="jcard-status ${statusCls}">${esc(b.assignedTech&&st!=='In Progress'&&st!=='Completed'?'Dispatched':st)}</span>
     </div>
     <div class="jcard-service">${serviceStr}</div>
     <div style="font-size:12px;color:var(--mu);margin-bottom:4px">${vehicleStr}</div>
-    <div class="jcard-addr">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(b.address||'')}" target="_blank" style="color:var(--mu)">${b.address||'—'}</a></div>
+    <div class="jcard-addr">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(b.address||'')}" target="_blank" rel="noopener noreferrer" style="color:var(--mu)">${esc(b.address||'—')}</a></div>
     <div class="jcard-info">
-      <span>📅 ${b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</span>
-      <span>📞 <a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a></span>
-      <span style="color:var(--blue);font-weight:700">$${b.totalPrice||0}${b.tip?' + tip $'+b.tip:''}</span>
-      ${b.zipCode?`<span>📮 ${b.zipCode}${b.richSurcharge?' ✦':''}</span>`:''}
+      <span>📅 ${esc(b.confirmedWindow||b.preferredDate||'—')} · ${esc(b.preferredTime||'TBD')}</span>
+      <span>📞 <a href="tel:${esc(b.phone)}" style="color:var(--blue)">${esc(b.phone)}</a></span>
+      <span style="color:var(--blue);font-weight:700">$${Number(b.totalPrice)||0}${b.tip?' + tip $'+(Number(b.tip)||0):''}</span>
+      ${b.zipCode?`<span>📮 ${esc(b.zipCode)}${b.richSurcharge?' ✦':''}</span>`:''}
     </div>
     ${techHtml}
     <div class="jcard-actions">
-      ${dispatchable ? `<button class="ja-btn primary" onclick="autoDispatchOne('${b.id}')">⚡ Auto-Dispatch</button>` : ''}
-      ${b.assignedTech ? `<a class="ja-btn green" href="${buildNotifyLink(b.assignedTech,b)}" target="_blank">📲 Re-Notify Tech</a>` : ''}
-      ${st==='Confirmed'||st==='Scheduled' ? `<button class="ja-btn amber" onclick="setJobStatus('${b.id}','In Progress')">▶ Start</button>` : ''}
-      ${st==='In Progress' ? `<button class="ja-btn green" onclick="setJobStatus('${b.id}','Completed')">✓ Complete</button>` : ''}
-      <a class="ja-btn" href="tel:${b.phone}">📞 Call</a>
-      <button class="ja-btn red" onclick="setJobStatus('${b.id}','Cancelled')">Cancel</button>
+      ${dispatchable ? `<button class="ja-btn primary" onclick="autoDispatchOne('${jsStr(b.id)}')">⚡ Auto-Dispatch</button>` : ''}
+      ${b.assignedTech ? `<a class="ja-btn green" href="${esc(buildNotifyLink(b.assignedTech,b))}" target="_blank" rel="noopener noreferrer">📲 Re-Notify Tech</a>` : ''}
+      ${st==='Confirmed'||st==='Scheduled' ? `<button class="ja-btn amber" onclick="setJobStatus('${jsStr(b.id)}','In Progress')">▶ Start</button>` : ''}
+      ${st==='In Progress' ? `<button class="ja-btn green" onclick="setJobStatus('${jsStr(b.id)}','Completed')">✓ Complete</button>` : ''}
+      <a class="ja-btn" href="tel:${esc(b.phone)}">📞 Call</a>
+      <button class="ja-btn red" onclick="setJobStatus('${jsStr(b.id)}','Cancelled')">Cancel</button>
     </div>
   </div>`;
 }

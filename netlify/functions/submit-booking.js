@@ -19,6 +19,19 @@
 //
 // This endpoint never dispatches or creates an auction.
 
+const {
+  blobsStore,
+  cleanEmail,
+  cleanText,
+  clampNumber,
+  json: secureJson,
+  normalizePhone,
+  rateLimit,
+} = require('./_security');
+
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body, { allowHeaders: 'Content-Type' });
+
 // Fields that must never come from the browser.
 // Payment state is owned exclusively by stripe-webhook.js (HMAC-verified).
 // Admin/assignment state is owned by admin-authenticated endpoints.
@@ -39,19 +52,6 @@ const PAYMENT_PREFERENCES = new Set([
   'online_after_service',
 ]);
 
-async function blobsStore(name) {
-  const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
-}
-
-const json = (status, body) => ({
-  statusCode: status,
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
-});
-
 // C-3: Generate a collision-resistant server-side booking ID.
 function generateId() {
   return 'CD1-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -65,6 +65,81 @@ async function newUniqueId(store) {
     if (!existing) return id;
   }
   return generateId(); // unlikely collision after 5 tries; proceed anyway
+}
+
+function cleanLine(value, max = 160) {
+  return cleanText(value, max);
+}
+
+function cleanDate(value) {
+  const s = cleanText(value, 20);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+}
+
+function cleanAddon(a) {
+  if (!a || typeof a !== 'object') return null;
+  const name = cleanLine(a.name, 100);
+  if (!name) return null;
+  return {
+    id: cleanLine(a.id, 60),
+    name,
+    price: clampNumber(a.price, 0, 5000, 0),
+    qty: Math.round(clampNumber(a.qty || 1, 1, 20, 1)),
+  };
+}
+
+function cleanVehicle(v) {
+  if (!v || typeof v !== 'object') return null;
+  const addons = (Array.isArray(v.addons) ? v.addons : []).map(cleanAddon).filter(Boolean).slice(0, 30);
+  const addonTotal = addons.reduce((sum, a) => sum + (a.price * a.qty), 0);
+  const basePrice = clampNumber(v.basePrice || v.packagePrice || 0, 0, 20000, 0);
+  return {
+    pkgName: cleanLine(v.pkgName || v.package || '', 120),
+    pkgIcon: cleanLine(v.pkgIcon || '', 8),
+    vehicleLabel: cleanLine(v.vehicleLabel || v.vehicle || '', 180),
+    basePrice,
+    addonTotal,
+    addons,
+    subtotal: basePrice + addonTotal,
+  };
+}
+
+function sanitizeBooking(raw) {
+  const vehicles = (Array.isArray(raw.vehicles) && raw.vehicles.length
+    ? raw.vehicles
+    : [{ ...raw, pkgName: raw.package, vehicleLabel: raw.vehicleLabel || raw.vehicle, basePrice: raw.packagePrice, addons: raw.addons }]
+  ).map(cleanVehicle).filter(Boolean).slice(0, 20);
+
+  const zoneSurcharge = clampNumber(raw.zoneSurcharge, 0, 5000, 0);
+  const totalPrice = vehicles.reduce((sum, v) => sum + v.subtotal, 0) + zoneSurcharge;
+  const phone = normalizePhone(raw.phone);
+
+  return {
+    ...raw,
+    firstName: cleanLine(raw.firstName, 80),
+    lastName: cleanLine(raw.lastName, 80),
+    phone,
+    email: cleanEmail(raw.email),
+    address: cleanLine(raw.address, 240),
+    zipCode: cleanLine(raw.zipCode || raw.zip, 12),
+    zone: cleanLine(raw.zone || raw.zip_city, 120),
+    vehicle: cleanLine(raw.vehicle, 180),
+    vehicleLabel: cleanLine(raw.vehicleLabel || raw.vehicle_label, 180),
+    package: cleanLine(raw.package || raw.package_name, 120),
+    addons: vehicles[0] ? vehicles[0].addons : [],
+    vehicles,
+    vehicleCount: vehicles.length,
+    packagePrice: vehicles[0] ? vehicles[0].basePrice : 0,
+    addonTotal: vehicles[0] ? vehicles[0].addonTotal : 0,
+    totalPrice,
+    total_price: totalPrice,
+    preferredDate: cleanDate(raw.preferredDate || raw.preferred_date),
+    preferredTime: cleanLine(raw.preferredTime, 80),
+    notes: cleanText(raw.notes, 1000),
+    source: cleanLine(raw.source, 120),
+    richSurcharge: cleanLine(raw.richSurcharge, 80),
+    zoneSurcharge,
+  };
 }
 
 function bookingText(b) {
@@ -218,7 +293,12 @@ async function sendSms(b) {
 }
 
 exports.handler = async (event) => {
+  currentEvent = event;
+  if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  const rl = await rateLimit(event, 'submit-booking', 12, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
+
   let b;
   try { b = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
@@ -228,8 +308,10 @@ exports.handler = async (event) => {
   // C-3: Ignore any client-submitted ID entirely.
   delete b.id;
   delete b.bookingId;
+  b = sanitizeBooking(b);
 
-  if (!b.firstName || !b.phone) return json(400, { ok: false, error: 'Missing customer name or phone' });
+  if (!b.firstName || !b.phone || b.phone.length < 7) return json(400, { ok: false, error: 'Missing customer name or phone' });
+  if (!b.address || !b.preferredDate) return json(400, { ok: false, error: 'Missing address or preferred date' });
 
   const store = await blobsStore('cd1-bookings');
 
@@ -248,7 +330,7 @@ exports.handler = async (event) => {
       id: draftId,
       isDraft: true,
       createdAt: now,
-      totalPrice: Number(b.totalPrice) || 0,
+      totalPrice: b.totalPrice,
       paymentMethod: preference,
       // paymentMethodPreference: client-supplied ('card_on_file'|'card_onsite'|'cash_onsite')
       paymentMethodPreference: preference,
@@ -275,6 +357,7 @@ exports.handler = async (event) => {
       vehicles: b.vehicles || [],
       preferredDate: b.preferredDate || '',
       preferredTime: b.preferredTime || '',
+      notes: b.notes || '',
     };
     try {
       await store.setJSON(draftId, draft);

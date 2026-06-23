@@ -10,26 +10,24 @@
 //
 // Env: STRIPE_SECRET_KEY
 
-async function blobsStore(name) {
-  const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token  = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
-}
+const {
+  blobsStore,
+  cleanBookingId,
+  json: secureJson,
+  phonesMatchExact,
+  rateLimit,
+} = require('./_security');
 
-const CORS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Cache-Control': 'no-store',
-};
-const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.stringify(body) });
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body, { allowHeaders: 'Content-Type' });
 
 exports.handler = async (event) => {
+  currentEvent = event;
   console.log('[create-setup-intent] called: yes');
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
+  const rl = await rateLimit(event, 'create-setup-intent', 20, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
 
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret || !(secret.startsWith('sk_test_') || secret.startsWith('sk_live_'))) {
@@ -49,9 +47,10 @@ exports.handler = async (event) => {
   try { p = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'invalid_json' }); }
 
-  const bookingId = String(p.bookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
+  const bookingId = cleanBookingId(p.bookingId);
   console.log('[create-setup-intent] bookingId present:', !!bookingId, '| mode:', mode);
   if (!bookingId) return json(400, { ok: false, error: 'bookingId_required' });
+  if (!p.phone) return json(400, { ok: false, error: 'phone_required' });
 
   // Fetch the pre-registered draft booking.
   let booking, store;
@@ -64,6 +63,10 @@ exports.handler = async (event) => {
   }
   console.log('[create-setup-intent] booking found:', !!booking);
   if (!booking) return json(404, { ok: false, error: 'booking_not_found' });
+  if (!phonesMatchExact(p.phone, booking.phone)) {
+    console.warn('[create-setup-intent] phone mismatch for booking:', bookingId);
+    return json(403, { ok: false, error: 'verification_failed' });
+  }
   if (!booking.isDraft || booking.cardOnFileRequired !== true || booking.cardOnFileStatus !== 'pending') {
     console.log('[create-setup-intent] booking not eligible: isDraft=%s status=%s', booking.isDraft, booking.cardOnFileStatus);
     return json(409, { ok: false, error: 'booking_not_eligible_for_card_save' });

@@ -9,11 +9,17 @@
 //
 // Body (JSON): { amountCents, bookingId, email, sendPref }
 
-const json = (status, body) => ({
-  statusCode: status,
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
-});
+const {
+  cleanBookingId,
+  cleanEmail,
+  clampNumber,
+  json: secureJson,
+  rateLimit,
+  requireAdmin,
+} = require('./_security');
+
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body);
 
 async function emailLink(to, url, bookingId) {
   const { RESEND_API_KEY, RESEND_FROM } = process.env;
@@ -34,7 +40,13 @@ async function emailLink(to, url, bookingId) {
 }
 
 exports.handler = async (event) => {
+  currentEvent = event;
+  if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  const rl = await rateLimit(event, 'create-payment-link', 30, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
+  const admin = requireAdmin(event);
+  if (!admin.ok) return json(admin.status, admin.body);
 
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) return json(500, { ok: false, error: 'Stripe not configured on server' });
@@ -43,8 +55,10 @@ exports.handler = async (event) => {
   try { p = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
 
-  const amount = Math.round(Number(p.amountCents) || 0);
+  const amount = Math.round(clampNumber(p.amountCents, 0, 5000000, 0));
   if (amount < 50) return json(400, { ok: false, error: 'Invalid amount' });
+  const bookingId = cleanBookingId(p.bookingId);
+  const email = cleanEmail(p.email);
 
   const base = process.env.SITE_URL || (event.headers && `https://${event.headers.host}`) || '';
 
@@ -52,14 +66,14 @@ exports.handler = async (event) => {
   const form = new URLSearchParams({
     mode: 'payment',
     'line_items[0][price_data][currency]': 'usd',
-    'line_items[0][price_data][product_data][name]': `Cardetail1 deposit${p.bookingId ? ' · ' + p.bookingId : ''}`,
+    'line_items[0][price_data][product_data][name]': `Cardetail1 deposit${bookingId ? ' · ' + bookingId : ''}`,
     'line_items[0][price_data][unit_amount]': String(amount),
     'line_items[0][quantity]': '1',
     success_url: `${base}/?paid=1`,
     cancel_url: `${base}/?canceled=1`,
   });
-  if (p.bookingId) form.append('metadata[booking_id]', p.bookingId);
-  if (p.email) form.append('customer_email', p.email);
+  if (bookingId) form.append('metadata[booking_id]', bookingId);
+  if (email) form.append('customer_email', email);
 
   const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
@@ -72,8 +86,8 @@ exports.handler = async (event) => {
   }
 
   let emailed = false;
-  if (p.email && p.sendPref && /email/i.test(p.sendPref)) {
-    emailed = await emailLink(p.email, sess.url, p.bookingId);
+  if (email && p.sendPref && /email/i.test(p.sendPref)) {
+    emailed = await emailLink(email, sess.url, bookingId);
   }
 
   return json(200, { ok: true, url: sess.url, id: sess.id, emailed });

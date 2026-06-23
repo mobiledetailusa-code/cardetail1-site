@@ -4,12 +4,19 @@
 // does NOT delete the booking, does NOT auto-set appointmentStatus.
 // Sets cancellationRequestStatus: 'requested' for admin review.
 
-async function blobsStore(name) {
-  const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token  = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
-}
+const {
+  blobsStore,
+  cleanBookingId,
+  cleanEmail,
+  cleanText,
+  json: secureJson,
+  normalizePhone,
+  phonesMatchExact,
+  rateLimit,
+} = require('./_security');
+
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body, { allowHeaders: 'Content-Type' });
 
 async function notifyAdmin(subject, text) {
   const { ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM } = process.env;
@@ -28,34 +35,21 @@ async function notifyAdmin(subject, text) {
   } catch (e) { console.warn('[request-cancellation] email error:', e.message); }
 }
 
-const CORS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Cache-Control': 'no-store',
-};
-const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.stringify(body) });
-
-// Last-N-digit phone match tolerates leading country codes.
-function phonesMatch(a, b) {
-  if (!a || !b || a.length < 7 || b.length < 7) return false;
-  const minLen = Math.min(a.length, b.length);
-  return a.slice(-minLen) === b.slice(-minLen);
-}
-
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, userMessage: 'Method not allowed' });
+  const rl = await rateLimit(event, 'request-cancellation', 12, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
 
   let p;
   try { p = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, userMessage: 'Invalid request' }); }
 
-  const bookingId = String(p.bookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
-  const phone     = String(p.phone || '').replace(/\D/g, '').slice(0, 15);
-  const email     = String(p.email || '').toLowerCase().slice(0, 120);
-  const reason    = String(p.reason || '').slice(0, 1000).trim();
+  const bookingId = cleanBookingId(p.bookingId);
+  const phone     = normalizePhone(p.phone);
+  const email     = cleanEmail(p.email);
+  const reason    = cleanText(p.reason, 1000);
   const ack       = p.acknowledgedPolicy === true;
 
   if (!bookingId)    return json(400, { ok: false, userMessage: 'Booking ID is required' });
@@ -73,9 +67,8 @@ exports.handler = async (event) => {
   if (!booking) return json(404, { ok: false, userMessage: 'Booking not found.' });
 
   // Dual-factor: bookingId (verified above) + phone OR email match.
-  const bookingPhone = String(booking.phone || '').replace(/\D/g, '');
   const bookingEmail = String(booking.email || '').toLowerCase();
-  const phoneOk = phonesMatch(phone, bookingPhone);
+  const phoneOk = phonesMatchExact(phone, booking.phone);
   const emailOk = email && bookingEmail && email === bookingEmail;
 
   if (!phoneOk && !emailOk) {

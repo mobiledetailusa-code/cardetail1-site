@@ -332,6 +332,11 @@ function nm(b){ return (b.name||((b.firstName||'')+' '+(b.lastName||''))||'Custo
 function tot(b){ return b.totalPrice||b.total_price||b.packagePrice||0; }
 function svc(b){ return b.service||b.package||b.packageName||'Detail Service'; }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function safeImgSrc(raw){
+  const s=String(raw||'');
+  if(/^data:image\/(?:png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/i.test(s)) return s;
+  try{ const u=new URL(s, location.origin); return u.protocol==='https:'?u.href:''; }catch(_){ return ''; }
+}
 
 const STATUS_MAP={
   'Pending Review':'b-pen','Confirmed':'b-con','Scheduled':'b-sch',
@@ -525,8 +530,8 @@ function renderStatus(){
     ${active.photosBefore?.length||active.photosAfter?.length?`
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px">
         <div style="font-size:13px;font-weight:700;margin-bottom:12px">📷 Job Photos</div>
-        ${active.photosBefore?.length?`<div style="font-size:11px;color:var(--mu);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">Before</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;margin-bottom:12px">${active.photosBefore.map(p=>`<img src="${p}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;border:1px solid var(--border)">`).join('')}</div>`:''}
-        ${active.photosAfter?.length?`<div style="font-size:11px;color:var(--mu);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">After</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px">${active.photosAfter.map(p=>`<img src="${p}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;border:1px solid var(--border)">`).join('')}</div>`:''}
+        ${active.photosBefore?.length?`<div style="font-size:11px;color:var(--mu);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">Before</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;margin-bottom:12px">${active.photosBefore.map(p=>safeImgSrc(p)?`<img src="${esc(safeImgSrc(p))}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;border:1px solid var(--border)">`:'').join('')}</div>`:''}
+        ${active.photosAfter?.length?`<div style="font-size:11px;color:var(--mu);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">After</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px">${active.photosAfter.map(p=>safeImgSrc(p)?`<img src="${esc(safeImgSrc(p))}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;border:1px solid var(--border)">`:'').join('')}</div>`:''}
       </div>` : ''}
   `;
 }

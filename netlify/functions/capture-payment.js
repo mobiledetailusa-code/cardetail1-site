@@ -11,34 +11,28 @@
 //     'capture_pending' in Blobs so admin sees progress; the webhook sets it
 //     to 'paid' once payment_intent.succeeded fires.
 
-const json = (status, body) => ({
-  statusCode: status,
-  headers: {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, x-admin-key',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  },
-  body: JSON.stringify(body),
-});
+const {
+  blobsStore,
+  cleanBookingId,
+  json: secureJson,
+  rateLimit,
+  requireAdmin,
+} = require('./_security');
 
-async function blobsStore(name) {
-  const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token  = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
-}
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body);
 
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  const rl = await rateLimit(event, 'capture-payment', 30, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
 
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) return json(503, { ok: false, error: 'Stripe not configured on server' });
-  const expected = process.env.ADMIN_DASH_PASSWORD || '';
-  if (!expected) return json(503, { ok: false, error: 'ADMIN_DASH_PASSWORD not set on server' });
-  const key = (event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) || '';
-  if (key !== expected) return json(401, { ok: false, error: 'unauthorized' });
+  const admin = requireAdmin(event);
+  if (!admin.ok) return json(admin.status, admin.body);
 
   let p;
   try { p = JSON.parse(event.body || '{}'); } catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
@@ -59,7 +53,7 @@ exports.handler = async (event) => {
 
     // Immediately mark the booking as capture_pending so admin sees progress while
     // waiting for the payment_intent.succeeded webhook to arrive and set it to 'paid'.
-    const bookingId = String(p.bookingId || '').trim().toUpperCase();
+    const bookingId = cleanBookingId(p.bookingId);
     if (bookingId) {
       try {
         const store = await blobsStore('cd1-bookings');

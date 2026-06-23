@@ -6,16 +6,16 @@
 //   ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM, TWILIO_SID, TWILIO_TOKEN,
 //   TWILIO_FROM, ADMIN_SMS
 
-const json = (status, body) => ({
-  statusCode: status,
-  headers: {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  },
-  body: JSON.stringify(body),
-});
+const {
+  cleanEmail,
+  cleanText,
+  json: secureJson,
+  normalizePhone,
+  rateLimit,
+} = require('./_security');
+
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body, { allowHeaders: 'Content-Type' });
 
 function inquiryText(q) {
   return [
@@ -74,13 +74,26 @@ async function sendSms(q) {
 }
 
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  const rl = await rateLimit(event, 'submit-inquiry', 8, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
+
   let q;
   try { q = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
 
-  if (!q.name || !q.phone) return json(400, { ok: false, error: 'Missing name or phone' });
+  q = {
+    id: cleanText(q.id, 48),
+    name: cleanText(q.name, 100),
+    phone: normalizePhone(q.phone),
+    email: cleanEmail(q.email),
+    message: cleanText(q.message, 1500),
+    source: cleanText(q.source, 120) || 'Chat widget',
+  };
+
+  if (!q.name || !q.phone || q.phone.length < 7) return json(400, { ok: false, error: 'Missing name or phone' });
   if (!q.id) q.id = 'INQ-' + Date.now().toString(36).toUpperCase();
 
   const [email, sms] = await Promise.all([

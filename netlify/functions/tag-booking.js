@@ -11,18 +11,10 @@
 //   { ok: false, error: '...' }
 
 const crypto = require('crypto');
+const { json: secureJson } = require('./_security');
 
-const json = (status, body) => ({
-  statusCode: status,
-  headers: {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, x-admin-key',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Cache-Control': 'no-store',
-  },
-  body: JSON.stringify(body),
-});
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body);
 
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
@@ -32,6 +24,7 @@ async function blobsStore(name) {
 }
 
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST')    return json(405, { ok: false, error: 'method_not_allowed' });
 

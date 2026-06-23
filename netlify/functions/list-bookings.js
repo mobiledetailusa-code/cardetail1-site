@@ -8,28 +8,27 @@
 //
 // The admin UI sends it in the `x-admin-key` header (or ?key= for convenience).
 
-const json = (status, body) => ({
-  statusCode: status,
-  headers: {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, x-admin-key',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Cache-Control': 'no-store',
-  },
-  body: JSON.stringify(body),
+const {
+  blobsStore,
+  json: secureJson,
+  rateLimit,
+  requireAdmin,
+} = require('./_security');
+
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body, {
+  allowHeaders: 'Content-Type, x-admin-key, x-show-test',
+  allowMethods: 'GET, POST, OPTIONS',
 });
 
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
+  const rl = await rateLimit(event, 'list-bookings', 60, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
 
-  const expected = process.env.ADMIN_DASH_PASSWORD || '';
-  if (!expected) return json(503, { ok: false, error: 'ADMIN_DASH_PASSWORD not set on server' });
-
-  const provided =
-    (event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) ||
-    (event.queryStringParameters && event.queryStringParameters.key) || '';
-  if (provided !== expected) return json(401, { ok: false, error: 'unauthorized' });
+  const admin = requireAdmin(event);
+  if (!admin.ok) return json(admin.status, admin.body);
 
   // Pass x-show-test: 1 header (or ?showTest=1) to include test/archived bookings.
   const showTest = !!(
@@ -38,10 +37,7 @@ exports.handler = async (event) => {
   );
 
   try {
-    const { getStore } = await import('@netlify/blobs');
-    const siteID = process.env.NETLIFY_SITE_ID;
-    const token = process.env.NETLIFY_AUTH_TOKEN;
-    const store = (siteID && token) ? getStore({ name: 'cd1-bookings', siteID, token }) : getStore('cd1-bookings');
+    const store = await blobsStore('cd1-bookings');
     const listing = await store.list();
     const blobs = (listing && listing.blobs) || [];
     const all = (await Promise.all(

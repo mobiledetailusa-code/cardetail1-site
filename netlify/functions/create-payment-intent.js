@@ -17,27 +17,23 @@
 // Returns: { ok, clientSecret, id, captureMethod, mode, amountCents }
 //   mode: "test" | "live" — front-end uses this to show a test-mode banner.
 
-async function blobsStore(name) {
-  const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
-}
+const {
+  blobsStore,
+  cleanBookingId,
+  json: secureJson,
+  phonesMatchExact,
+  rateLimit,
+} = require('./_security');
 
-const json = (status, body) => ({
-  statusCode: status,
-  headers: {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  },
-  body: JSON.stringify(body),
-});
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body, { allowHeaders: 'Content-Type' });
 
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  const rl = await rateLimit(event, 'create-payment-intent', 20, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
 
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) return json(503, { ok: false, error: 'Stripe not configured on server' });
@@ -48,8 +44,9 @@ exports.handler = async (event) => {
   catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
 
   // C-2: bookingId is required; amount is fetched from Blobs, not from the client.
-  const bookingId = String(p.bookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
+  const bookingId = cleanBookingId(p.bookingId);
   if (!bookingId) return json(400, { ok: false, error: 'bookingId is required' });
+  if (!p.phone) return json(400, { ok: false, error: 'phone is required' });
 
   // Fetch the pre-registered booking to get the authoritative total.
   let booking;
@@ -60,6 +57,7 @@ exports.handler = async (event) => {
     return json(503, { ok: false, error: 'Booking store unavailable' });
   }
   if (!booking) return json(404, { ok: false, error: 'Booking not found — pre-register first' });
+  if (!phonesMatchExact(p.phone, booking.phone)) return json(403, { ok: false, error: 'verification_failed' });
 
   const amount = Math.round((Number(booking.totalPrice) || 0) * 100);
   if (amount < 50) return json(400, { ok: false, error: 'Booking total too low to charge (min $0.50)' });
