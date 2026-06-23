@@ -10,7 +10,10 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return jsonCors(405, { ok: false, error: 'method_not_allowed' });
 
   const auth = await verifyAdminKey(event.headers || {});
-  if (!auth.ok) return jsonCors(auth.error === 'missing_admin_password_config' ? 503 : 401, { ok: false, error: auth.error });
+  if (!auth.ok) {
+    const status = auth.error === 'missing_admin_config' ? 503 : 401;
+    return jsonCors(status, { ok: false, error: auth.error || 'unauthorized' });
+  }
 
   let body;
   try { body = JSON.parse(event.body || '{}'); }

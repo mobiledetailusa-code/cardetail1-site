@@ -342,7 +342,14 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (body) { opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
     const res = await fetch(url, opts);
     const data = await res.json().catch(()=>({}));
-    if (!res.ok || data.ok === false) throw new Error(data.error || ('HTTP '+res.status));
+    if (!res.ok || data.ok === false) {
+      const err = data.error || ('HTTP '+res.status);
+      if (err === 'unauthorized' || res.status === 401) {
+        sessionStorage.removeItem(KEY);
+        throw new Error('Session expired — log in again at admin.html');
+      }
+      throw new Error(err);
+    }
     return data;
   }
 
@@ -667,8 +674,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
 
   function buildInviteLink(email, token) {
-    return location.origin + location.pathname.replace(/[^/]+$/, '') +
-      'technician.html?invite=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(email);
+    return location.origin + '/technician.html?invite=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(email);
+  }
+
+  async function copyInviteLink(email, token) {
+    const link = buildInviteLink(email, token);
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(link);
+      return link;
+    }
+    return link;
   }
 
   async function saveTechProfile() {
@@ -721,7 +736,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         inviteCache[activeTech.techId] = d.inviteToken;
       }
       const link = buildInviteLink(activeTech.email, inviteCache[activeTech.techId]);
-      await navigator.clipboard.writeText(link);
+      await copyInviteLink(activeTech.email, inviteCache[activeTech.techId]);
       $('#tdInvLink').textContent = link;
       toast('Invite link copied');
       await loadTechs();
@@ -1002,7 +1017,18 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         phone:fd.get('phone'), serviceArea:fd.get('serviceArea'), capabilities:caps
       });
       if (d.inviteToken && d.technician) inviteCache[d.technician.techId] = d.inviteToken;
-      toast('Technician created');
+      const email = fd.get('email');
+      if (d.inviteToken && email) {
+        try {
+          const link = await copyInviteLink(email, d.inviteToken);
+          toast('Technician created — invite link copied');
+          alert('Invite link (copied to clipboard):\n\n'+link);
+        } catch(_) {
+          toast('Technician created — copy invite from technician drawer');
+        }
+      } else {
+        toast('Technician created');
+      }
       e.target.reset();
       await loadTechs(); renderTechs(); renderOverview();
     } catch(err) { toast('Create failed: '+err.message); }

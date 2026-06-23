@@ -2006,7 +2006,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <!--            BOOKING MODAL                  -->
 <!-- ══════════════════════════════════════════ -->
 <div class="radar-toast" id="radar-toast"></div>
-<div class="booking-modal-ov" id="bk-ov" onclick="handleBkOv(event)">
+<div class="booking-modal-ov" id="bk-ov">
   <div class="booking-modal">
     <button type="button" class="booking-close" onclick="closeBooking()">✕</button>
 
@@ -3321,8 +3321,19 @@ function openBooking(cat){
   document.body.style.overflow='hidden';
   if(cat){selectCategory(cat)}else{bkGoTo(1)}
 }
-function closeBooking(){document.getElementById('bk-ov').classList.remove('open');document.body.style.overflow=''}
-function handleBkOv(e){if(e.target===document.getElementById('bk-ov'))closeBooking()}
+function closeBooking(){
+  if(bookingHasProgress() && !confirm('Close booking? Your progress will be lost.')) return;
+  document.getElementById('bk-ov').classList.remove('open');
+  document.body.style.overflow='';
+}
+function bookingHasProgress(){
+  if(ST.cat||ST.pkgId||(ST.vehicles&&ST.vehicles.length)) return true;
+  const on=document.querySelector('.bsec.on');
+  if(on&&on.id&&on.id!=='bs1') return true;
+  return ['f-name','f-email','f-phone','f-address'].some(id=>{
+    const el=document.getElementById(id); return el&&String(el.value||'').trim();
+  });
+}
 
 // ── BOOKING NAVIGATION ────────────────────────────────────────────────────────
 function bkGoTo(n){
@@ -3992,7 +4003,14 @@ async function initCardOnFile(){
     const siData=await siRes.json();
     if(isStale()) return;
     if(!siData.ok||siData.fallback){
-      throw new Error('Secure card saving is temporarily unavailable.');
+      const errMap={
+        stripe_test_mode_required:'Card save is blocked on preview deploys when using live Stripe keys. Use production URL or test keys.',
+        booking_not_eligible_for_card_save:'Complete your contact info and payment preference first, then save your card.',
+        booking_not_found:'Booking draft not found — go back one step and try again.',
+        stripe_not_configured:'Card saving is not configured on the server yet.',
+        card_save_unavailable:'Stripe could not start card save. Try again in a moment.',
+      };
+      throw new Error(errMap[siData.error]||siData.error||'Secure card saving is temporarily unavailable.');
     }
     stripe=stripe||Stripe(STRIPE_PUBLISHABLE_KEY);
     stripeElements=stripe.elements({clientSecret:siData.clientSecret,appearance:{theme:'night',variables:{colorPrimary:'#4da3ff',colorBackground:'#0c1520'}}});
@@ -4002,7 +4020,8 @@ async function initCardOnFile(){
     if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; btn.textContent='Save my card securely'; btn.onclick=confirmSetupIntent; }
   }catch(e){
     if(!isStale()){
-      document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#ef4444;line-height:1.5">Secure card saving is temporarily unavailable. Please try again. Your booking has not been submitted.</div>';
+      const msg=String(e.message||'Secure card saving is temporarily unavailable.');
+      document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#ef4444;line-height:1.5">'+msg.replace(/</g,'&lt;')+'</div>';
       if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; btn.textContent='Try secure card setup again'; btn.onclick=initCardOnFile; }
     }
   }finally{
