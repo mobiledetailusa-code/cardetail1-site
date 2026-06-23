@@ -22,6 +22,8 @@ const json = (status, body) => ({
   body: JSON.stringify(body),
 });
 
+const { verifyAdminKey } = require('../lib/tech-security');
+
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
@@ -33,12 +35,14 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
 
+  const auth = await verifyAdminKey(event.headers || {});
+  if (!auth.ok) {
+    const status = auth.error === 'missing_admin_config' ? 503 : 401;
+    return json(status, { ok: false, error: auth.error || 'unauthorized' });
+  }
+
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) return json(503, { ok: false, error: 'Stripe not configured on server' });
-  const expected = process.env.ADMIN_DASH_PASSWORD || '';
-  if (!expected) return json(503, { ok: false, error: 'ADMIN_DASH_PASSWORD not set on server' });
-  const key = (event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) || '';
-  if (key !== expected) return json(401, { ok: false, error: 'unauthorized' });
 
   let p;
   try { p = JSON.parse(event.body || '{}'); } catch { return json(400, { ok: false, error: 'Invalid JSON' }); }

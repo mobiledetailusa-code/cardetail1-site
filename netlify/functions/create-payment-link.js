@@ -33,8 +33,27 @@ async function emailLink(to, url, bookingId) {
   } catch { return false; }
 }
 
+const { verifyAdminKey } = require('../lib/tech-security');
+
 exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, x-admin-key',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      },
+      body: '',
+    };
+  }
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+
+  const auth = await verifyAdminKey(event.headers || {});
+  if (!auth.ok) {
+    const status = auth.error === 'missing_admin_config' ? 503 : 401;
+    return json(status, { ok: false, error: auth.error || 'unauthorized' });
+  }
 
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) return json(500, { ok: false, error: 'Stripe not configured on server' });

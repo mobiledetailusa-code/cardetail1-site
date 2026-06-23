@@ -1616,13 +1616,17 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <button class="login-tab active" id="ltab-customer" onclick="setLoginRole('customer')">👤 My Booking</button>
     </div>
 
-    <!-- Admin — password sign-in -->
+    <!-- Admin — username + password sign-in -->
     <div id="login-staff">
       <div class="fg">
-        <div class="fl">Admin password</div>
+        <div class="fl">Username</div>
+        <input class="fi" id="login-user" type="text" placeholder="admin" autocomplete="username">
+      </div>
+      <div class="fg">
+        <div class="fl">Password</div>
         <input class="fi" id="login-pw" type="password" placeholder="Enter password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
-      <div class="login-err" id="login-err">Incorrect password. Try again.</div>
+      <div class="login-err" id="login-err">Incorrect username or password. Try again.</div>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn-n" onclick="doLogin()">Enter →</button>
       </div>
@@ -2689,6 +2693,10 @@ const DEPOSIT_PCT      = 0.25;   // 25% do total
 const DEPOSIT_MIN_CENTS = 2500;  // piso $25 (Stripe exige ≥ $0.50)
 // Base das funções Netlify (deixe assim em produção no Netlify).
 const BACKEND_BASE   = '/.netlify/functions';
+try {
+  const _adminTok = sessionStorage.getItem('cd1_admin_key');
+  if (_adminTok && /^[a-f0-9]{64}$/.test(_adminTok)) window._adminKey = _adminTok;
+} catch(_) {}
 const IS_DEPLOY_PREVIEW = /^deploy-preview-\d+--/.test(location.hostname);
 let STRIPE_READY = false;
 let stripeConfigPromise = null;
@@ -4338,37 +4346,38 @@ function renderAdminBookings(){
   if(!all.length){grid.innerHTML='<div class="admin-empty" style="text-align:center;padding:28px 16px"><div style="font-size:22px;margin-bottom:8px">📭</div><div style="font-weight:600;color:var(--white);margin-bottom:6px">No bookings in local cache</div><div style="font-size:13px;color:var(--mu);margin-bottom:16px;line-height:1.6">All bookings are stored in the cloud.<br>Click below to load them now.</div><button onclick="loadCloudBookings()" style="background:var(--gr);color:#000;font-weight:700;border:none;border-radius:999px;padding:12px 24px;cursor:pointer;font-size:13px">☁️ Load from cloud</button></div>';return;}
   if(!list.length){grid.innerHTML='<div class="admin-empty">No bookings in this status.</div>';return;}
   grid.innerHTML=list.map(b=>{
-    const addons=(b.addons&&b.addons.length)?b.addons.map(a=>`${a.name}${a.qty>1?' ×'+a.qty:''} +$${a.price*(a.qty||1)}`).join('<br>'):'None';
-    const zoneInfo = [b.zipCode?'📮 ZIP '+b.zipCode:'', b.zone?'📍 '+b.zone:'', b.zoneSurcharge?'+$'+b.zoneSurcharge+' area fee':'', b.richSurcharge?'✦ Premium area (+5%)':''].filter(Boolean).join(' · ');
-    const payLinkHtml = b.payLink ? `<div style="margin-top:6px"><a href="${b.payLink}" target="_blank" style="color:var(--blue);font-weight:600;font-size:12px">💳 Pay Link</a></div>` : '';
-    const tipHtml = b.tip ? `<div style="color:var(--gold);font-weight:600;font-size:12px;margin-top:4px">💰 Tip: $${b.tip}</div>` : '';
+    const e = escHtml;
+    const addons=(b.addons&&b.addons.length)?b.addons.map(a=>`${e(a.name)}${a.qty>1?' ×'+a.qty:''} +$${a.price*(a.qty||1)}`).join('<br>'):'None';
+    const zoneInfo = [b.zipCode?'📮 ZIP '+e(b.zipCode):'', b.zone?'📍 '+e(b.zone):'', b.zoneSurcharge?'+$'+b.zoneSurcharge+' area fee':'', b.richSurcharge?'✦ Premium area (+5%)':''].filter(Boolean).join(' · ');
+    const payLinkHtml = b.payLink && /^https?:\/\//i.test(b.payLink) ? `<div style="margin-top:6px"><a href="${e(b.payLink)}" target="_blank" rel="noopener" style="color:var(--blue);font-weight:600;font-size:12px">💳 Pay Link</a></div>` : '';
+    const tipHtml = b.tip ? `<div style="color:var(--gold);font-weight:600;font-size:12px;margin-top:4px">💰 Tip: $${Number(b.tip)}</div>` : '';
     const mapsUrl = 'https://maps.google.com/?q='+encodeURIComponent(b.address||'');
-    // Multi-vehicle summary
     const vehs = b.vehicles && b.vehicles.length ? b.vehicles : null;
-    const vehsHtml = vehs ? vehs.map(v=>`<div style="font-size:11.5px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">${v.pkgIcon||'🚗'} <strong>${v.pkgName||'—'}</strong> · ${v.vehicleLabel||'—'} · ${(v.addons||[]).map(a=>a.name+(a.qty>1?' ×'+a.qty:'')).join(', ')||'no add-ons'} · <strong style="color:var(--blue)">$${v.subtotal||0}</strong></div>`).join('') : '';
+    const vehsHtml = vehs ? vehs.map(v=>`<div style="font-size:11.5px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">${e(v.pkgIcon||'🚗')} <strong>${e(v.pkgName||'—')}</strong> · ${e(v.vehicleLabel||'—')} · ${(v.addons||[]).map(a=>e(a.name)+(a.qty>1?' ×'+a.qty:'')).join(', ')||'no add-ons'} · <strong style="color:var(--blue)">$${v.subtotal||0}</strong></div>`).join('') : '';
     const jobPhotos = JSON.parse(localStorage.getItem('cd1_job_photos')||'{}')[b.id];
     const photoCount = jobPhotos ? jobPhotos.length : 0;
     const payBadge = adminPayBadge(b)+adminCofBadge(b);
+    const bid = e(b.id);
     return `<div class="admin-card">
-      <div class="admin-card-top"><div><div class="admin-id">${b.id} · ${new Date(b.createdAt).toLocaleString()}${b.source==='Admin — manual entry'?' · <span style="color:var(--am)">Manual</span>':''}</div><div class="admin-title">${b.firstName} ${b.lastName} · ${b.package||'—'} · $${b.totalPrice}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><div class="status-pill">${b.status||'Pending Review'}</div>${payBadge}</div></div>
+      <div class="admin-card-top"><div><div class="admin-id">${bid} · ${new Date(b.createdAt).toLocaleString()}${b.source==='Admin — manual entry'?' · <span style="color:var(--am)">Manual</span>':''}</div><div class="admin-title">${e(b.firstName)} ${e(b.lastName)} · ${e(b.package||'—')} · $${Number(b.totalPrice)||0}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><div class="status-pill">${e(b.status||'Pending Review')}</div>${payBadge}</div></div>
       <div class="admin-meta">
-        <div><b>Phone:</b> <a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a></div><div><b>Email:</b> ${b.email||'—'}</div><div><b>Date:</b> ${b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</div><div><b>Address:</b> <a href="${mapsUrl}" target="_blank" style="color:var(--blue)">${b.address}</a></div>
-        ${vehs ? `<div style="grid-column:1/-1"><b>Vehicles (${vehs.length}):</b><div style="margin-top:4px">${vehsHtml}</div></div>` : `<div><b>Vehicle:</b> ${b.vehicle||'—'}</div><div><b>Category:</b> ${b.vehicleCategory||'—'}</div><div><b>Add-ons:</b><br>${addons}</div>`}
-        <div><b>Notes:</b> ${b.notes||'None'}</div>${zoneInfo?`<div style="grid-column:1/-1;margin-top:4px;font-size:11.5px;color:var(--am)">${zoneInfo}</div>`:''}
+        <div><b>Phone:</b> <a href="tel:${e(b.phone)}" style="color:var(--blue)">${e(b.phone)}</a></div><div><b>Email:</b> ${e(b.email||'—')}</div><div><b>Date:</b> ${e(b.confirmedWindow||b.preferredDate)} · ${e(b.preferredTime||'TBD')}</div><div><b>Address:</b> <a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--blue)">${e(b.address)}</a></div>
+        ${vehs ? `<div style="grid-column:1/-1"><b>Vehicles (${vehs.length}):</b><div style="margin-top:4px">${vehsHtml}</div></div>` : `<div><b>Vehicle:</b> ${e(b.vehicle||'—')}</div><div><b>Category:</b> ${e(b.vehicleCategory||'—')}</div><div><b>Add-ons:</b><br>${addons}</div>`}
+        <div><b>Notes:</b> ${e(b.notes||'None')}</div>${zoneInfo?`<div style="grid-column:1/-1;margin-top:4px;font-size:11.5px;color:var(--am)">${zoneInfo}</div>`:''}
         ${tipHtml}${payLinkHtml}
         ${photoCount?`<div style="font-size:11.5px;color:var(--mu)">📷 ${photoCount} photo(s) uploaded</div>`:''}
         ${b.rescheduledByClient?'<div style="font-size:11px;color:var(--am)">↺ Client requested reschedule</div>':''}
         ${b.addressChangedByClient?'<div style="font-size:11px;color:var(--am)">📍 Client changed address</div>':''}
         ${b.addonsRequested?'<div style="font-size:11px;color:var(--am)">➕ Client requested add-ons</div>':''}
-        ${b.cancellationRequestStatus==='requested'?`<div style="font-size:11px;color:#ef4444;font-weight:600">⚠️ Cancellation requested · ${esc(b.cancellationReason||'No reason provided')}</div>`:''}
+        ${b.cancellationRequestStatus==='requested'?`<div style="font-size:11px;color:#ef4444;font-weight:600">⚠️ Cancellation requested · ${e(b.cancellationReason||'No reason provided')}</div>`:''}
       </div>
       <div class="admin-actions">
-        ${['Pending Review','Confirmed','Scheduled','Completed','Cancelled','No-Show','Rescheduled','Paid'].map(st=>`<button onclick="setBookingStatus('${b.id}','${st}')">${st}</button>`).join('')}
-        <button onclick="scheduleBookingPrompt('${b.id}')">Set Date/Time</button>
-        <button onclick="setPayLinkPrompt('${b.id}')">💳 Pay Link (full)</button>
-        ${(b.paymentIntentId && b.paymentStatus==='authorized') ? `<button onclick="captureBookingPayment('${b.id}')" style="border-color:var(--grbr);color:var(--gr)">💰 Capture $${((b.amountAuthorizedCents||b.depositCents||0)/100).toFixed(2)}</button>` : ''}
+        ${['Pending Review','Confirmed','Scheduled','Completed','Cancelled','No-Show','Rescheduled','Paid'].map(st=>`<button onclick="setBookingStatus('${bid}','${st}')">${st}</button>`).join('')}
+        <button onclick="scheduleBookingPrompt('${bid}')">Set Date/Time</button>
+        <button onclick="setPayLinkPrompt('${bid}')">💳 Pay Link (full)</button>
+        ${(b.paymentIntentId && b.paymentStatus==='authorized') ? `<button onclick="captureBookingPayment('${bid}')" style="border-color:var(--grbr);color:var(--gr)">💰 Capture $${((b.amountAuthorizedCents||b.depositCents||0)/100).toFixed(2)}</button>` : ''}
         <a href="/authorize.html?job=${encodeURIComponent(b.id)}&amount=${b.totalPrice||0}" target="_blank" rel="noopener">✍️ Auth Form</a>
-        <a href="${mailtoForBooking(b)}">Email</a><a href="${smsForBooking(b)}">SMS</a><button onclick="copyBookingById('${b.id}')">Copy</button>
+        <a href="${mailtoForBooking(b)}">Email</a><a href="${smsForBooking(b)}">SMS</a><button onclick="copyBookingById('${bid}')">Copy</button>
       </div>
     </div>`;
   }).join('');
@@ -4900,7 +4909,7 @@ async function setPayLinkPrompt(id){
   const cents=Math.max(Math.round(total*100), 50);
   let link='';
   try{
-    const res=await fetch(BACKEND_BASE+'/create-payment-link',{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await fetch(BACKEND_BASE+'/create-payment-link',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':window._adminKey||''},
       body:JSON.stringify({amountCents:cents, bookingId:b.id, email:b.email||''})});
     const data=await res.json();
     if(data.ok && data.url){ link=data.url; }
@@ -5833,29 +5842,32 @@ function setLoginRole(role){
   document.getElementById('login-customer').style.display = isCustomer ? 'block' : 'none';
   const err = document.getElementById('login-err'); if(err) err.classList.remove('show');
   const pw = document.getElementById('login-pw');
-  if(pw){ pw.value=''; if(!isCustomer) setTimeout(()=>pw.focus(), 60); }
+  const user = document.getElementById('login-user');
+  if(pw){ pw.value=''; if(!isCustomer) setTimeout(()=>(user||pw).focus(), 60); }
 }
 
 function goCustomerPortal(){ closeLogin(); openPortal(); }
 
 async function doLogin(){
-  const pw  = (document.getElementById('login-pw').value || '').trim();
+  const user = (document.getElementById('login-user').value || '').trim();
+  const pw   = (document.getElementById('login-pw').value || '').trim();
   const err = document.getElementById('login-err');
   const btn = document.querySelector('#login-staff .btn-n');
   err.classList.remove('show');
-  if(!pw) return;
+  if(!user || !pw) return;
   if(btn){ btn.disabled = true; btn.textContent = 'Checking…'; }
   try {
     const res  = await fetch('/.netlify/functions/admin-auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw }),
+      body: JSON.stringify({ action: 'login', username: user, password: pw }),
     });
     const data = await res.json();
-    if(data.ok){
+    if(data.ok && data.token){
       closeLogin();
       window._adminSessionActive = true;
-      window._adminKey = pw;
+      window._adminKey = data.token;
+      sessionStorage.setItem('cd1_admin_key', data.token);
       if(btn){ btn.disabled = false; btn.textContent = 'Enter →'; }
       if(window._pendingAdminFn){
         const fn = window._pendingAdminFn;
@@ -5867,9 +5879,11 @@ async function doLogin(){
       document.body.style.overflow = 'hidden';
       return;
     }
-    err.textContent = data.error === 'missing_admin_password_config'
-      ? 'Admin password not configured. Contact support.'
-      : 'Incorrect password. Try again.';
+    err.textContent = res.status === 429
+      ? 'Too many attempts. Wait a few minutes and try again.'
+      : (data.error === 'missing_admin_config'
+        ? 'Admin login not configured. Contact support.'
+        : 'Incorrect username or password. Try again.');
     err.classList.add('show');
   } catch(_) {
     err.textContent = 'Network error — try again.';

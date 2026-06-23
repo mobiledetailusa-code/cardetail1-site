@@ -34,9 +34,11 @@ test('admin-ops has sign out and technician portal link with bypass', () => {
   assert.match(tech, /portal\) === 'tech'/);
 });
 
-test('admin login routes to admin-ops.html', () => {
+test('admin login routes to admin-ops.html with username+password token', () => {
   assert.match(admin, /location\.href\s*=\s*'admin-ops\.html'/);
   assert.match(admin, /location\.replace\('admin-ops\.html'\)/);
+  assert.match(admin, /id="user"/);
+  assert.match(admin, /data\.token/);
 });
 
 test('admin-ops dashboard loads required tabs and APIs', () => {
@@ -166,11 +168,13 @@ test('technician cannot access admin endpoints from portal', () => {
 
 test('tech assignment requires admin key', () => {
   assert.match(techAssign, /verifyAdminKey/);
+  assert.match(techAssign, /await verifyAdminKey/);
   assert.doesNotMatch(techAssign, /validateTechSession/);
 });
 
 test('admin ops jobs requires admin key not tech session', () => {
   assert.match(adminOpsJobs, /verifyAdminKey/);
+  assert.match(adminOpsJobs, /await verifyAdminKey/);
   assert.doesNotMatch(adminOpsJobs, /validateTechSession/);
 });
 

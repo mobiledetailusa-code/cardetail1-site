@@ -14,18 +14,15 @@ exports.handler = async (event) => {
   const phone = normalizePhone(body.phone || '');
   const email = String(body.email || '').trim().toLowerCase();
 
-  if (!phone && !email.includes('@')) {
-    return jsonCors(400, { ok: false, error: 'phone_or_email_required' });
+  if (!phone || phone.length < 7) {
+    return jsonCors(400, { ok: false, error: 'phone_required' });
   }
-  if (phone && phone.length < 7) return jsonCors(400, { ok: false, error: 'invalid_phone' });
 
   try {
     const all = await listRawBookings();
     let matches = all.filter(b => !b.archived && !b.isTest && b.jobStatus !== 'archived_test');
-
-    if (phone) {
-      matches = matches.filter(b => phonesMatch(phone, normalizePhone(b.phone || b.customerPhone || '')));
-    } else {
+    matches = matches.filter(b => phonesMatch(phone, normalizePhone(b.phone || b.customerPhone || '')));
+    if (email.includes('@')) {
       matches = matches.filter(b => String(b.email || '').toLowerCase() === email);
     }
 

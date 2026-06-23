@@ -30,8 +30,8 @@ exports.handler = async (event) => {
     const storedPhone = normalizePhone(booking.phone || booking.customerPhone || '');
     if (!storedPhone || !phonesMatch(rawPhone, storedPhone)) {
       return jsonCors(200, {
-        ok: false, found: 'id_only',
-        message: 'We found the booking ID, but the phone number does not match our records.',
+        ok: false, found: false,
+        message: 'No booking found. Please check your booking ID and phone number.',
       });
     }
 

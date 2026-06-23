@@ -32,7 +32,7 @@ exports.handler = async (event) => {
     return jsonCors(200, { ok: true, templates: MAINTENANCE_PLAN_TEMPLATES });
   }
 
-  const auth = verifyAdminKey(event.headers || {});
+  const auth = await verifyAdminKey(event.headers || {});
   if (!auth.ok) return jsonCors(auth.error === 'missing_admin_password_config' ? 503 : 401, { ok: false, error: auth.error });
 
   const store = await blobsStore(SUBS_STORE);

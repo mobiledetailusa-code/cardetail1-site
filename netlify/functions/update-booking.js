@@ -201,24 +201,19 @@ async function sendConfirmationEmail(b) {
   }
 }
 
+const { verifyAdminKey } = require('../lib/tech-security');
+
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST')    return json(405, { ok: false, error: 'method_not_allowed' });
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
-  const expectedKey = (process.env.ADMIN_DASH_PASSWORD || '').trim();
-  if (!expectedKey) return json(503, { ok: false, error: 'missing_admin_password_config' });
-
-  const hdrs = event.headers || {};
-  const providedKey = ((hdrs['x-admin-key'] || hdrs['X-Admin-Key']) || '').trim();
-  if (!providedKey) return json(401, { ok: false, error: 'unauthorized' });
-
-  const ka = Buffer.from(providedKey);
-  const kb = Buffer.from(expectedKey);
-  const match = ka.length === kb.length && crypto.timingSafeEqual(ka, kb);
-  if (!match) return json(401, { ok: false, error: 'unauthorized' });
+  const auth = await verifyAdminKey(event.headers || {});
+  if (!auth.ok) {
+    const status = auth.error === 'missing_admin_config' ? 503 : 401;
+    return json(status, { ok: false, error: auth.error || 'unauthorized' });
+  }
 
   // ── Parse body ────────────────────────────────────────────────────────────
   let body;

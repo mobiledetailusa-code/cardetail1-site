@@ -9,7 +9,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   if (event.httpMethod !== 'POST') return jsonCors(405, { ok: false, error: 'method_not_allowed' });
 
-  const auth = verifyAdminKey(event.headers || {});
+  const auth = await verifyAdminKey(event.headers || {});
   if (!auth.ok) return jsonCors(auth.error === 'missing_admin_password_config' ? 503 : 401, { ok: false, error: auth.error });
 
   let body;

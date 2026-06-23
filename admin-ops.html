@@ -292,7 +292,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 <script>
 (function(){
   const KEY = 'cd1_admin_key';
-  if (!sessionStorage.getItem(KEY)) { location.replace('admin.html'); return; }
+  const token = sessionStorage.getItem(KEY);
+  if (!token) { location.replace('admin.html'); return; }
 
   const JOB_STATUSES = ['pending_review','confirmed','assigned','accepted','en_route','arrived','in_progress','issue_reported','completed_pending_admin_review','completed_pending_payment','completed_paid','reopened','cancelled'];
   const PAY_STATUSES = ['no_payment_required_yet','pending_admin_review','awaiting_customer_payment','payment_action_required','payment_succeeded','payment_failed','cash_paid'];
@@ -306,9 +307,34 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   const toast = msg => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); };
 
   function adminLogout() {
+    const t = sessionStorage.getItem(KEY);
+    if (t) {
+      fetch('/.netlify/functions/admin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': t },
+        body: JSON.stringify({ action: 'logout', token: t }),
+      }).catch(()=>{});
+    }
     sessionStorage.removeItem(KEY);
     localStorage.removeItem('cd1_session');
     location.replace('admin.html');
+  }
+
+  async function ensureAdminSession() {
+    const t = sessionStorage.getItem(KEY);
+    if (!t) { location.replace('admin.html'); return false; }
+    try {
+      const res = await fetch('/.netlify/functions/admin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': t },
+        body: JSON.stringify({ action: 'validate', token: t }),
+      });
+      const data = await res.json();
+      if (!data.ok) { sessionStorage.removeItem(KEY); location.replace('admin.html'); return false; }
+      return true;
+    } catch {
+      return true;
+    }
   }
 
   async function api(url, method, body) {
@@ -982,7 +1008,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     } catch(err) { toast('Create failed: '+err.message); }
   };
 
-  refreshAll().catch(e => toast('Load error: '+e.message));
+  ensureAdminSession().then(ok => {
+    if (!ok) return;
+    refreshAll().catch(e => toast('Load error: '+e.message));
+  });
 })();
 </script>
 </body>

@@ -171,7 +171,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
       <button class="lk-tab" onclick="lkTab('id')" id="lt-id">🔢 Booking ID</button>
     </div>
     <div id="lk-phone-row"><input class="lk-inp" type="tel" id="lk-phone" placeholder="201-555-0000" onkeydown="if(event.key==='Enter')doLookup()"></div>
-    <div id="lk-email-row" style="display:none"><input class="lk-inp" type="email" id="lk-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLookup()"></div>
+    <div id="lk-email-row" style="display:none">
+      <input class="lk-inp" type="email" id="lk-email" placeholder="your@email.com">
+      <input class="lk-inp" type="tel" id="lk-email-phone" placeholder="Phone used for booking" onkeydown="if(event.key==='Enter')doLookup()">
+    </div>
     <div id="lk-id-row" style="display:none">
       <input class="lk-inp" id="lk-id" placeholder="Booking ID (e.g. CD1-ABC123)">
       <input class="lk-inp" type="tel" id="lk-id-phone" placeholder="Phone used for booking" onkeydown="if(event.key==='Enter')doLookup()">
@@ -301,8 +304,12 @@ async function doLookup(){
       localStorage.setItem('cd1_cust_verify_phone', ph);
     } else {
       const em=(document.getElementById('lk-email').value||'').trim().toLowerCase();
-      if(!em.includes('@')){ showErr(); return; }
+      const ph=(document.getElementById('lk-email-phone').value||'').replace(/\D/g,'');
+      if(!em.includes('@')||ph.length<7){ showErr(); return; }
       body.email = em;
+      body.phone = ph;
+      CUSTOMER_VERIFY_PHONE = ph;
+      localStorage.setItem('cd1_cust_verify_phone', ph);
     }
     const res=await fetch('/.netlify/functions/customer-bookings',{
       method:'POST',headers:{'Content-Type':'application/json'},
@@ -339,7 +346,10 @@ async function tryAutoLogin(){
       CUSTOMER_VERIFY_PHONE=phone;
       return true;
     }
-    const body = mode==='phone' ? { phone: (val||'').replace(/\D/g,'') } : { email: (val||'').toLowerCase() };
+    const body = mode==='phone'
+      ? { phone: (val||'').replace(/\D/g,'') }
+      : { email: (val||'').toLowerCase(), phone: (localStorage.getItem('cd1_cust_verify_phone')||'').replace(/\D/g,'') };
+    if (mode==='email' && (!body.phone || body.phone.length < 7)) return false;
     const res=await fetch('/.netlify/functions/customer-bookings',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(body)

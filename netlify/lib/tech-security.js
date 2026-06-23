@@ -31,15 +31,10 @@ function jsonCors(status, body, extraHeaders = {}) {
   };
 }
 
-function verifyAdminKey(headers) {
-  const expected = (process.env.ADMIN_DASH_PASSWORD || '').trim();
-  if (!expected) return { ok: false, error: 'missing_admin_password_config' };
-  const provided = ((headers && (headers['x-admin-key'] || headers['X-Admin-Key'])) || '').trim();
-  if (!provided) return { ok: false, error: 'unauthorized' };
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return { ok: false, error: 'unauthorized' };
-  return { ok: true };
+const { verifyAdminRequest } = require('./admin-security');
+
+async function verifyAdminKey(headers) {
+  return verifyAdminRequest(headers || {});
 }
 
 function hashPassword(password) {

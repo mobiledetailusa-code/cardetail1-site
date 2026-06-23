@@ -15,6 +15,7 @@
 
 const crypto = require('crypto');
 const { assignAuctionWinnerToBooking } = require('../lib/auction-ops');
+const { verifyAdminRequest } = require('../lib/admin-security');
 
 const json = (status, body) => ({
   statusCode: status,
@@ -79,8 +80,8 @@ exports.handler = async (event) => {
   else { p = event.queryStringParameters || {}; }
 
   const action = p.action || 'get';
-  const adminKey = (event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) || p.adminKey || '';
-  const isAdmin = adminKey && process.env.ADMIN_DASH_PASSWORD && safeEq(adminKey, process.env.ADMIN_DASH_PASSWORD);
+  const auth = await verifyAdminRequest(event.headers || {});
+  const isAdmin = auth.ok;
 
   try {
     const s = await store();

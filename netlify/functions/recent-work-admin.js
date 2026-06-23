@@ -74,21 +74,15 @@ function sortItems(items) {
   });
 }
 
+const { verifyAdminKey } = require('../lib/tech-security');
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
 
-  const expected = (process.env.ADMIN_DASH_PASSWORD || '').trim();
-  if (!expected) return json(503, { ok: false, error: 'admin_password_not_configured' });
-
-  const provided = (
-    (event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) || ''
-  ).trim();
-  if (!provided) return json(401, { ok: false, error: 'missing_key' });
-
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-    return json(401, { ok: false, error: 'unauthorized' });
+  const auth = await verifyAdminKey(event.headers || {});
+  if (!auth.ok) {
+    const status = auth.error === 'missing_admin_config' ? 503 : 401;
+    return json(status, { ok: false, error: auth.error || 'unauthorized' });
   }
 
   try {

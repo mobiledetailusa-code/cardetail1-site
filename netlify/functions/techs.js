@@ -26,13 +26,17 @@ async function rosterStore() {
   return (siteID && token) ? getStore({ name: 'cd1-techs', siteID, token }) : getStore('cd1-techs');
 }
 
+const { verifyAdminKey } = require('../lib/tech-security');
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
-  const expected = process.env.ADMIN_DASH_PASSWORD || '';
-  if (!expected) return json(503, { ok: false, error: 'ADMIN_DASH_PASSWORD not set on server' });
-  const key = (event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) ||
-    (event.queryStringParameters && event.queryStringParameters.key) || '';
-  if (key !== expected) return json(401, { ok: false, error: 'unauthorized' });
+  if (event.httpMethod !== 'GET' && event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
+
+  const auth = await verifyAdminKey(event.headers || {});
+  if (!auth.ok) {
+    const status = auth.error === 'missing_admin_config' ? 503 : 401;
+    return json(status, { ok: false, error: auth.error || 'unauthorized' });
+  }
 
   try {
     const s = await rosterStore();

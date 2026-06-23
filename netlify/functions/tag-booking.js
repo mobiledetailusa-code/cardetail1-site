@@ -24,6 +24,8 @@ const json = (status, body) => ({
   body: JSON.stringify(body),
 });
 
+const { verifyAdminKey } = require('../lib/tech-security');
+
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
@@ -35,17 +37,11 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST')    return json(405, { ok: false, error: 'method_not_allowed' });
 
-  const expected = (process.env.ADMIN_DASH_PASSWORD || '').trim();
-  if (!expected) return json(503, { ok: false, error: 'missing_admin_password_config' });
-
-  const provided = (
-    (event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) || ''
-  ).trim();
-
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  const match = a.length === b.length && crypto.timingSafeEqual(a, b);
-  if (!match) return json(401, { ok: false, error: 'unauthorized' });
+  const auth = await verifyAdminKey(event.headers || {});
+  if (!auth.ok) {
+    const status = auth.error === 'missing_admin_config' ? 503 : 401;
+    return json(status, { ok: false, error: auth.error || 'unauthorized' });
+  }
 
   let body;
   try { body = JSON.parse(event.body || '{}'); }
