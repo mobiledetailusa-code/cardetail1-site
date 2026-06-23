@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Cardetail1 — Admin Ops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0f16;--card:#0e1622;--card2:#0c1520;--line:rgba(255,255,255,.08);--fg:#d6dce5;--mu:#8a9bb0;--ac:#4da3ff;--err:#ef4444;--ok:#22c55e;--warn:#f59e0b;--r:12px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"DM Sans",system-ui,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#13202f,var(--bg) 60%);color:var(--fg);min-height:100vh}
+a{color:var(--ac);text-decoration:none}a:hover{text-decoration:underline}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);background:rgba(10,15,22,.9);position:sticky;top:0;z-index:50;backdrop-filter:blur(8px)}
+.logo{font-weight:800;font-size:18px}.logo span{color:var(--ac)}
+.top-links{display:flex;gap:12px;align-items:center;font-size:13px;color:var(--mu);flex-wrap:wrap}
+.top-links a{color:var(--mu);text-decoration:none}.top-links a:hover{color:var(--fg)}
+.wrap{max-width:1280px;margin:0 auto;padding:20px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.tab{padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--mu);font-size:13px;font-weight:600;cursor:pointer}
+.tab.on{background:rgba(77,163,255,.12);border-color:rgba(77,163,255,.35);color:var(--ac)}
+.panel{display:none}.panel.on{display:block}
+.grid{display:grid;gap:12px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.card h3{font-size:12px;color:var(--mu);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+.stat{font-size:28px;font-weight:800;color:var(--fg)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--fg);font:inherit;font-size:14px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--ac)}
+.srch{max-width:260px}
+.fsel{max-width:200px}
+.btn{padding:9px 14px;border-radius:10px;border:0;background:var(--ac);color:#06121f;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+.btn.sm{padding:6px 10px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th,.tbl td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.tbl th{color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.tbl tr{cursor:pointer}.tbl tr:hover td{background:rgba(255,255,255,.02)}
+.badge{display:inline-block;padding:3px 8px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.02em}
+.b-st{background:rgba(138,155,176,.15);color:var(--mu)}
+.b-ac{background:rgba(77,163,255,.15);color:var(--ac)}
+.b-ok{background:rgba(34,197,94,.15);color:var(--ok)}
+.b-warn{background:rgba(245,158,11,.15);color:var(--warn)}
+.b-err{background:rgba(239,68,68,.15);color:var(--err)}
+.b-pay{background:rgba(167,139,250,.15);color:#c4b5fd}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-grid .full{grid-column:1/-1}
+label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
+.tech-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tech-row:last-child{border-bottom:0}
+.tech-meta{font-size:12px;color:var(--mu);margin-top:3px}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.drawer-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;display:none}
+.drawer-bg.open{display:block}
+.drawer{position:fixed;top:0;right:0;width:min(480px,100vw);height:100vh;background:var(--card);border-left:1px solid var(--line);z-index:90;transform:translateX(100%);transition:.25s;display:flex;flex-direction:column}
+.drawer.open{transform:translateX(0)}
+.dh{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.dh h2{font-size:17px}
+.db{padding:16px 18px;overflow:auto;flex:1}
+.ds{padding:14px 18px;border-top:1px solid var(--line)}
+.sec{margin-bottom:18px}
+.sec h4{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+.kv{font-size:13px;line-height:1.6}
+.kv b{color:var(--mu);font-weight:600}
+.sig{max-width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:6px}
+.ev{font-size:12px;padding:8px 10px;border-radius:8px;background:var(--card2);border:1px solid var(--line);margin-bottom:6px}
+.ev time{color:var(--mu);font-size:11px;display:block;margin-bottom:2px}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--card);border:1px solid var(--line);padding:12px 16px;border-radius:10px;font-size:13px;z-index:100;opacity:0;pointer-events:none;transition:.2s}
+.toast.show{opacity:1}
+.empty{color:var(--mu);font-size:13px;padding:24px;text-align:center}
+@media(max-width:700px){.form-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo">Cardetail<span>1</span> <span style="font-size:12px;color:var(--mu);font-weight:600">Admin Ops</span></div>
+  <div class="top-links">
+    <a href="/">← Home</a>
+    <a href="technician.html">Technician portal</a>
+    <a href="admin.html">Re-login</a>
+    <button type="button" class="btn ghost sm" id="btnRefresh">Refresh</button>
+  </div>
+</header>
+<div class="wrap">
+  <nav class="tabs" id="tabs">
+    <button type="button" class="tab on" data-tab="overview">Overview</button>
+    <button type="button" class="tab" data-tab="jobs">Jobs Board</button>
+    <button type="button" class="tab" data-tab="techs">Technician Management</button>
+    <button type="button" class="tab" data-tab="assign">Assignments</button>
+    <button type="button" class="tab" data-tab="completed">Completed / Review</button>
+    <button type="button" class="tab" data-tab="issues">Issues</button>
+    <button type="button" class="tab" data-tab="events">Event Log</button>
+  </nav>
+
+  <section class="panel on" id="p-overview">
+    <div class="grid g4" id="overviewStats"></div>
+  </section>
+
+  <section class="panel" id="p-jobs">
+    <div class="toolbar">
+      <input class="srch" id="jobsSearch" type="search" placeholder="Search jobs…">
+      <select class="fsel" id="jobsStatus"><option value="">All statuses</option></select>
+      <button type="button" class="btn ghost sm" id="jobsClear">Clear</button>
+    </div>
+    <div class="card" style="padding:0;overflow:auto"><table class="tbl" id="jobsTable"><thead><tr>
+      <th>Customer</th><th>Vehicle</th><th>Date</th><th>Status</th><th>Payment</th><th>Tech</th><th>Assign</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-techs">
+    <div class="card" style="margin-bottom:16px">
+      <h3 style="margin-bottom:12px">Create Technician</h3>
+      <form id="techForm" class="form-grid">
+        <div><label>Full name</label><input name="fullName" required></div>
+        <div><label>Email</label><input name="email" type="email" required></div>
+        <div><label>Phone</label><input name="phone" type="tel"></div>
+        <div><label>Service area</label><input name="serviceArea"></div>
+        <div class="full"><label>Capabilities (comma-separated)</label><input name="capabilities" placeholder="Interior, Exterior, Ceramic"></div>
+        <div class="full"><button type="submit" class="btn">Create &amp; generate invite</button></div>
+      </form>
+    </div>
+    <div class="card" id="techList"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section class="panel" id="p-assign">
+    <p style="color:var(--mu);font-size:13px;margin-bottom:12px">Jobs without an assigned technician.</p>
+    <div class="card" style="padding:0;overflow:auto"><table class="tbl" id="assignTable"><thead><tr>
+      <th>Customer</th><th>Package</th><th>Status</th><th>Assign</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-completed">
+    <div class="toolbar">
+      <span style="font-size:13px;color:var(--mu)">Pending admin review</span>
+      <button type="button" class="btn ghost sm" id="completedRefresh">Reload</button>
+    </div>
+    <div class="card" style="padding:0;overflow:auto"><table class="tbl" id="completedTable"><thead><tr>
+      <th>Customer</th><th>Completed</th><th>Tech</th><th>Actions</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-issues">
+    <div class="card" style="padding:0;overflow:auto"><table class="tbl" id="issuesTable"><thead><tr>
+      <th>Customer</th><th>Vehicle</th><th>Tech</th><th>Status</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-events">
+    <div class="toolbar">
+      <input class="srch" id="evSearch" type="search" placeholder="Filter events…">
+    </div>
+    <div class="card" id="evList"><div class="empty">Loading…</div></div>
+  </section>
+</div>
+
+<div class="drawer-bg" id="drawerBg"></div>
+<aside class="drawer" id="drawer">
+  <div class="dh">
+    <div><h2 id="dTitle">Job</h2><div id="dBadges" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div></div>
+    <button type="button" class="btn ghost sm" id="dClose">✕</button>
+  </div>
+  <div class="db" id="dBody"></div>
+  <div class="ds">
+    <label>Admin note</label>
+    <textarea id="dNote" rows="3" placeholder="Internal note…" style="margin:6px 0 10px"></textarea>
+    <button type="button" class="btn" id="dSaveNote" style="width:100%">Save note</button>
+  </div>
+</aside>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const KEY = 'cd1_admin_key';
+  if (!sessionStorage.getItem(KEY)) { location.replace('admin.html'); return; }
+
+  const JOB_STATUSES = ['pending_review','confirmed','assigned','accepted','en_route','arrived','in_progress','issue_reported','completed_pending_admin_review','completed_pending_payment','completed_paid','reopened','cancelled'];
+  const PAY_STATUSES = ['no_payment_required_yet','pending_admin_review','awaiting_customer_payment','payment_action_required','payment_succeeded','payment_failed','cash_paid'];
+  const inviteCache = {};
+
+  let jobs = [], techs = [], activeJob = null;
+
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const toast = msg => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); };
+
+  async function api(url, method, body) {
+    const opts = { method: method||'GET', headers: { 'x-admin-key': sessionStorage.getItem(KEY) } };
+    if (body) { opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
+    const res = await fetch(url, opts);
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || ('HTTP '+res.status));
+    return data;
+  }
+
+  function badge(text, cls) { return '<span class="badge '+cls+'">'+esc(text.replace(/_/g,' '))+'</span>'; }
+  function jobBadge(st) {
+    const m = {completed_paid:'b-ok',completed_pending_admin_review:'b-warn',completed_pending_payment:'b-warn',issue_reported:'b-err',in_progress:'b-ac',assigned:'b-ac',cancelled:'b-st'};
+    return badge(st, m[st]||'b-st');
+  }
+  function payBadge(st) {
+    const m = {payment_succeeded:'b-ok',payment_failed:'b-err',payment_action_required:'b-warn',pending_admin_review:'b-warn',cash_paid:'b-ok'};
+    return badge(st, m[st]||'b-pay');
+  }
+  function cust(j) { return ((j.firstName||'')+' '+(j.lastName||'')).trim()||j.email||j.id; }
+  function dt(s) { if(!s) return '—'; try { return new Date(s).toLocaleString(); } catch { return s; } }
+
+  async function loadJobs(extra) {
+    const q = new URLSearchParams(extra||{});
+    const data = await api('/.netlify/functions/admin-ops-jobs?'+q);
+    jobs = data.jobs || [];
+    return jobs;
+  }
+
+  async function loadTechs() {
+    const data = await api('/.netlify/functions/tech-accounts', 'POST', { action:'list' });
+    techs = data.technicians || [];
+    return techs;
+  }
+
+  async function refreshAll() {
+    await Promise.all([loadJobs(), loadTechs()]);
+    renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderEvents(); renderTechs();
+  }
+
+  function techOptions(sel) {
+    return '<option value="">— Unassigned —</option>' + techs.filter(t=>t.active).map(t =>
+      '<option value="'+esc(t.techId)+'"'+(sel===t.techId?' selected':'')+'>'+esc(t.fullName)+'</option>'
+    ).join('');
+  }
+
+  function renderOverview() {
+    const c = { total:jobs.length, pending:0, assigned:0, active:0, review:0, issues:0, unassigned:0 };
+    jobs.forEach(j => {
+      const s = j.jobStatus;
+      if (s==='pending_review'||s==='confirmed') c.pending++;
+      if (s==='assigned'||s==='accepted') c.assigned++;
+      if (['en_route','arrived','in_progress'].includes(s)) c.active++;
+      if (s==='completed_pending_admin_review') c.review++;
+      if (s==='issue_reported') c.issues++;
+      if (!j.assignedTechId && !j.assignedTech) c.unassigned++;
+    });
+    $('#overviewStats').innerHTML = [
+      ['Total jobs',c.total],['Pending / confirmed',c.pending],['Assigned',c.assigned],
+      ['In field',c.active],['Awaiting review',c.review],['Issues',c.issues],['Unassigned',c.unassigned],['Technicians',techs.length]
+    ].map(([l,v])=>'<div class="card"><h3>'+l+'</h3><div class="stat">'+v+'</div></div>').join('');
+  }
+
+  function filterJobs(search, status) {
+    let list = jobs;
+    if (status) list = list.filter(j => j.jobStatus === status);
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(j => [j.id,j.firstName,j.lastName,j.phone,j.email,j.vehicle,j.vehicleLabel,j.package,j.assignedTechName].join(' ').toLowerCase().includes(q));
+    }
+    return list;
+  }
+
+  function renderJobs() {
+    const search = $('#jobsSearch').value.trim();
+    const status = $('#jobsStatus').value;
+    const list = filterJobs(search, status);
+    const tb = $('#jobsTable tbody');
+    if (!list.length) { tb.innerHTML='<tr><td colspan="7" class="empty">No jobs found</td></tr>'; return; }
+    tb.innerHTML = list.map(j => '<tr data-id="'+esc(j.id)+'">'+
+      '<td>'+esc(cust(j))+'</td><td>'+esc(j.vehicleLabel||j.vehicle||'—')+'</td>'+
+      '<td>'+esc(j.confirmedDate||j.preferredDate||'—')+'</td>'+
+      '<td>'+jobBadge(j.jobStatus)+'</td><td>'+payBadge(j.paymentWorkflowStatus)+'</td>'+
+      '<td>'+esc(j.assignedTechName||'—')+'</td>'+
+      '<td onclick="event.stopPropagation()"><select class="assignSel" data-id="'+esc(j.id)+'">'+techOptions(j.assignedTechId||j.assignedTech)+'</select></td>'+
+    '</tr>').join('');
+    tb.querySelectorAll('.assignSel').forEach(sel => sel.onchange = () => onAssign(sel.dataset.id, sel.value));
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => openDrawer(tr.dataset.id));
+  }
+
+  function renderAssign() {
+    const list = jobs.filter(j => !j.assignedTechId && !j.assignedTech && !['cancelled','completed_paid','archived_test'].includes(j.jobStatus));
+    const tb = $('#assignTable tbody');
+    if (!list.length) { tb.innerHTML='<tr><td colspan="4" class="empty">All jobs assigned</td></tr>'; return; }
+    tb.innerHTML = list.map(j => '<tr data-id="'+esc(j.id)+'">'+
+      '<td>'+esc(cust(j))+'</td><td>'+esc(j.package||'—')+'</td><td>'+jobBadge(j.jobStatus)+'</td>'+
+      '<td><select class="assignSel2" data-id="'+esc(j.id)+'">'+techOptions('')+'</select></td></tr>').join('');
+    tb.querySelectorAll('.assignSel2').forEach(sel => sel.onchange = () => onAssign(sel.dataset.id, sel.value));
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => { if(e.target.tagName!=='SELECT') openDrawer(tr.dataset.id); });
+  }
+
+  function renderCompleted() {
+    const list = jobs.filter(j => j.jobStatus === 'completed_pending_admin_review');
+    const tb = $('#completedTable tbody');
+    if (!list.length) { tb.innerHTML='<tr><td colspan="4" class="empty">No jobs pending review</td></tr>'; return; }
+    tb.innerHTML = list.map(j => '<tr data-id="'+esc(j.id)+'">'+
+      '<td>'+esc(cust(j))+'</td><td>'+dt(j.completedAt)+'</td><td>'+esc(j.assignedTechName||'—')+'</td>'+
+      '<td onclick="event.stopPropagation()"><div class="actions">'+
+      '<button type="button" class="btn sm approve" data-id="'+esc(j.id)+'">Approve</button>'+
+      '<button type="button" class="btn ghost sm reopen" data-id="'+esc(j.id)+'">Reopen</button>'+
+      '<button type="button" class="btn ghost sm correct" data-id="'+esc(j.id)+'">Request fix</button>'+
+      '</div></td></tr>').join('');
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => { if(!e.target.closest('button')) openDrawer(tr.dataset.id); });
+    tb.querySelectorAll('.approve').forEach(b => b.onclick = () => jobAction(b.dataset.id,'approve_completion'));
+    tb.querySelectorAll('.reopen').forEach(b => b.onclick = () => { const r=prompt('Reopen reason (optional):'); if(r!==null) jobAction(b.dataset.id,'reopen_job',{reason:r}); });
+    tb.querySelectorAll('.correct').forEach(b => b.onclick = () => { const m=prompt('Correction message:'); if(m) jobAction(b.dataset.id,'request_correction',{message:m}); });
+  }
+
+  function renderIssues() {
+    const list = jobs.filter(j => j.jobStatus === 'issue_reported' || j.issueNotes);
+    const tb = $('#issuesTable tbody');
+    if (!list.length) { tb.innerHTML='<tr><td colspan="4" class="empty">No issues</td></tr>'; return; }
+    tb.innerHTML = list.map(j => '<tr data-id="'+esc(j.id)+'">'+
+      '<td>'+esc(cust(j))+'</td><td>'+esc(j.vehicleLabel||j.vehicle||'—')+'</td>'+
+      '<td>'+esc(j.assignedTechName||'—')+'</td><td>'+jobBadge(j.jobStatus)+'</td></tr>').join('');
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => openDrawer(tr.dataset.id));
+  }
+
+  function renderEvents() {
+    const q = ($('#evSearch').value||'').toLowerCase();
+    const evs = [];
+    jobs.forEach(j => (j.eventLog||[]).forEach(e => evs.push({...e, bookingId:j.id, customer:cust(j)})));
+    evs.sort((a,b) => String(b.at||'').localeCompare(String(a.at||'')));
+    const filtered = q ? evs.filter(e => JSON.stringify(e).toLowerCase().includes(q)) : evs;
+    const el = $('#evList');
+    if (!filtered.length) { el.innerHTML='<div class="empty">No events</div>'; return; }
+    el.innerHTML = filtered.slice(0,200).map(e =>
+      '<div class="ev"><time>'+dt(e.at)+' · '+esc(e.bookingId)+' · '+esc(e.customer)+'</time>'+
+      '<strong>'+esc(e.action||e.by||'event')+'</strong>'+
+      (e.note?' — '+esc(e.note):'')+(e.message?' — '+esc(e.message):'')+(e.techName?' · '+esc(e.techName):'')+
+      '</div>'
+    ).join('');
+  }
+
+  function renderTechs() {
+    const el = $('#techList');
+    if (!techs.length) { el.innerHTML='<div class="empty">No technicians yet</div>'; return; }
+    el.innerHTML = techs.map(t => {
+      const tok = inviteCache[t.techId];
+      const link = tok ? 'technician.html?invite='+encodeURIComponent(tok)+'&email='+encodeURIComponent(t.email) : '';
+      return '<div class="tech-row" data-tid="'+esc(t.techId)+'">'+
+        '<div><strong>'+esc(t.fullName)+'</strong> '+(t.active?badge('active','b-ok'):badge('inactive','b-st'))+
+        '<div class="tech-meta">'+esc(t.email)+' · '+esc(t.phone||'—')+' · '+esc(t.serviceArea||'—')+
+        ' · Jobs: '+(t.assignedJobsCount||0)+'</div>'+
+        (t.capabilities&&t.capabilities.length?'<div class="tech-meta">'+esc(t.capabilities.join(', '))+'</div>':'')+
+        (link?'<div class="tech-meta" style="word-break:break-all"><a href="'+link+'">'+esc(link)+'</a></div>':'')+
+        '</div><div class="actions">'+
+        '<button type="button" class="btn ghost sm copy-inv" data-tid="'+esc(t.techId)+'" data-email="'+esc(t.email)+'">Copy invite</button>'+
+        '<button type="button" class="btn ghost sm reset-inv" data-tid="'+esc(t.techId)+'">Reset invite</button>'+
+        (t.active?'<button type="button" class="btn ghost sm deact" data-tid="'+esc(t.techId)+'">Deactivate</button>':
+          '<button type="button" class="btn sm react" data-tid="'+esc(t.techId)+'">Reactivate</button>')+
+        '</div></div>';
+    }).join('');
+    el.querySelectorAll('.copy-inv').forEach(b => b.onclick = () => copyInvite(b.dataset.tid, b.dataset.email));
+    el.querySelectorAll('.reset-inv').forEach(b => b.onclick = () => resetInvite(b.dataset.tid));
+    el.querySelectorAll('.deact').forEach(b => b.onclick = () => toggleTech(b.dataset.tid,'deactivate'));
+    el.querySelectorAll('.react').forEach(b => b.onclick = () => toggleTech(b.dataset.tid,'reactivate'));
+  }
+
+  async function onAssign(bookingId, techId) {
+    try {
+      if (!techId) await api('/.netlify/functions/tech-assignment','POST',{action:'unassign',bookingId});
+      else await api('/.netlify/functions/tech-assignment','POST',{action:'assign',bookingId,techId});
+      toast(techId ? 'Assigned' : 'Unassigned');
+      await refreshAll();
+    } catch(e) { toast('Assign failed: '+e.message); }
+  }
+
+  async function jobAction(bookingId, action, extra) {
+    try {
+      await api('/.netlify/functions/admin-ops-jobs','POST',{action,bookingId,...extra});
+      toast('Saved');
+      await refreshAll();
+      if (activeJob && activeJob.id===bookingId) openDrawer(bookingId);
+    } catch(e) { toast('Action failed: '+e.message); }
+  }
+
+  function openDrawer(id) {
+    const j = jobs.find(x => x.id===id);
+    if (!j) return;
+    activeJob = j;
+    $('#dTitle').textContent = cust(j)+' · '+id;
+    $('#dBadges').innerHTML = jobBadge(j.jobStatus)+payBadge(j.paymentWorkflowStatus);
+    let html = '<div class="sec"><h4>Customer</h4><div class="kv">'+
+      '<div><b>Name:</b> '+esc(cust(j))+'</div><div><b>Phone:</b> '+esc(j.phone||'—')+'</div>'+
+      '<div><b>Email:</b> '+esc(j.email||'—')+'</div><div><b>Address:</b> '+esc(j.address||'—')+' '+(j.zipCode||'')+'</div>'+
+      '<div><b>Vehicle:</b> '+esc(j.vehicleLabel||j.vehicle||'—')+'</div><div><b>Package:</b> '+esc(j.package||'—')+'</div>'+
+      '<div><b>Date:</b> '+esc(j.confirmedDate||j.preferredDate||'—')+' '+esc(j.confirmedTime||j.preferredTime||'')+'</div>'+
+      '</div></div>';
+    html += '<div class="sec"><h4>Assignment</h4><div class="kv"><div><b>Tech:</b> '+esc(j.assignedTechName||'Unassigned')+'</div>'+
+      '<div><b>Assigned:</b> '+dt(j.assignedAt)+'</div></div>'+
+      '<select id="dAssign" style="margin-top:8px">'+techOptions(j.assignedTechId||j.assignedTech)+'</select></div>';
+    html += '<div class="sec"><h4>Payment workflow</h4><div style="margin-bottom:10px">'+payBadge(j.paymentWorkflowStatus)+'</div>'+
+      '<div class="actions"><button type="button" class="btn sm" disabled>Send Invoice — next PR</button>'+
+      '<button type="button" class="btn ghost sm" disabled>Charge Card on File — next PR</button></div></div>';
+    if (j.adminNotes) html += '<div class="sec"><h4>Admin notes</h4><pre style="font-size:12px;white-space:pre-wrap;color:var(--mu)">'+esc(j.adminNotes)+'</pre></div>';
+    if (j.completionSubmitted || j.customerSignature) {
+      html += '<div class="sec"><h4>Completion</h4><div class="kv">'+
+        '<div><b>Submitted:</b> '+dt(j.completedAt)+'</div>'+
+        (j.completionNotes?'<div><b>Notes:</b> '+esc(j.completionNotes)+'</div>':'')+
+        (j.issueNotes?'<div><b>Issue:</b> '+esc(j.issueNotes)+'</div>':'')+
+        '</div>';
+      if (j.customerPrintedName) html += '<div style="margin-top:8px"><b>Customer:</b> '+esc(j.customerPrintedName)+
+        (j.customerSignature&&j.customerSignature.startsWith('data:')?'<img class="sig" src="'+j.customerSignature+'" alt="Customer signature">':'')+'</div>';
+      if (j.technicianPrintedName) html += '<div style="margin-top:8px"><b>Technician:</b> '+esc(j.technicianPrintedName)+
+        (j.technicianSignature&&j.technicianSignature.startsWith('data:')?'<img class="sig" src="'+j.technicianSignature+'" alt="Tech signature">':'')+'</div>';
+      html += '<div class="actions" style="margin-top:12px">'+
+        (j.jobStatus==='completed_pending_admin_review'?'<button type="button" class="btn sm" id="dApprove">Approve completion</button>':'')+
+        '<button type="button" class="btn ghost sm" id="dReopen">Reopen job</button>'+
+        '<button type="button" class="btn ghost sm" id="dCorrect">Request correction</button></div></div>';
+    }
+    const evs = (j.eventLog||[]).slice().reverse();
+    html += '<div class="sec"><h4>Event log</h4>'+(evs.length?evs.map(e=>'<div class="ev"><time>'+dt(e.at)+'</time><strong>'+esc(e.action||'')+'</strong> '+
+      (e.by?'('+esc(e.by)+') ':'')+(e.note?esc(e.note):'')+(e.message?esc(e.message):'')+'</div>').join(''):'<div class="empty">No events</div>')+'</div>';
+    $('#dBody').innerHTML = html;
+    $('#dNote').value = '';
+    const da = $('#dAssign');
+    if (da) da.onchange = () => onAssign(j.id, da.value);
+    const ap = $('#dApprove'); if(ap) ap.onclick = () => jobAction(j.id,'approve_completion');
+    const ro = $('#dReopen'); if(ro) ro.onclick = () => { const r=prompt('Reopen reason:'); if(r!==null) jobAction(j.id,'reopen_job',{reason:r}); };
+    const co = $('#dCorrect'); if(co) co.onclick = () => { const m=prompt('Correction message:'); if(m) jobAction(j.id,'request_correction',{message:m}); };
+    $('#drawerBg').classList.add('open'); $('#drawer').classList.add('open');
+  }
+
+  function closeDrawer() { $('#drawerBg').classList.remove('open'); $('#drawer').classList.remove('open'); activeJob=null; }
+
+  async function copyInvite(techId, email) {
+    try {
+      if (!inviteCache[techId]) {
+        const d = await api('/.netlify/functions/tech-accounts','POST',{action:'reset_invite',techId});
+        inviteCache[techId] = d.inviteToken;
+        renderTechs();
+      }
+      const link = location.origin+location.pathname.replace(/[^/]+$/,'')+'technician.html?invite='+encodeURIComponent(inviteCache[techId])+'&email='+encodeURIComponent(email);
+      await navigator.clipboard.writeText(link);
+      toast('Invite link copied');
+    } catch(e) { toast('Copy failed: '+e.message); }
+  }
+
+  async function resetInvite(techId) {
+    try {
+      const d = await api('/.netlify/functions/tech-accounts','POST',{action:'reset_invite',techId});
+      inviteCache[techId] = d.inviteToken;
+      toast('Invite reset');
+      renderTechs();
+    } catch(e) { toast('Reset failed: '+e.message); }
+  }
+
+  async function toggleTech(techId, action) {
+    if (action==='deactivate' && !confirm('Deactivate this technician?')) return;
+    try {
+      await api('/.netlify/functions/tech-accounts','POST',{action,techId});
+      toast(action==='deactivate'?'Deactivated':'Reactivated');
+      await loadTechs(); renderTechs(); renderOverview();
+    } catch(e) { toast('Failed: '+e.message); }
+  }
+
+  // Tabs
+  $('#tabs').onclick = e => {
+    const b = e.target.closest('.tab'); if(!b) return;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+    b.classList.add('on'); $('#p-'+b.dataset.tab).classList.add('on');
+  };
+
+  // Status filter options
+  $('#jobsStatus').innerHTML = '<option value="">All statuses</option>'+JOB_STATUSES.map(s=>'<option value="'+s+'">'+s.replace(/_/g,' ')+'</option>').join('');
+
+  let searchT;
+  $('#jobsSearch').oninput = () => { clearTimeout(searchT); searchT=setTimeout(renderJobs,250); };
+  $('#jobsStatus').onchange = renderJobs;
+  $('#jobsClear').onclick = () => { $('#jobsSearch').value=''; $('#jobsStatus').value=''; renderJobs(); };
+  $('#evSearch').oninput = renderEvents;
+  $('#completedRefresh').onclick = async () => { await loadJobs({jobStatus:'completed_pending_admin_review'}); await loadJobs(); renderCompleted(); };
+  $('#btnRefresh').onclick = refreshAll;
+  $('#dClose').onclick = closeDrawer;
+  $('#drawerBg').onclick = closeDrawer;
+  $('#dSaveNote').onclick = async () => {
+    if (!activeJob) return;
+    const note = $('#dNote').value.trim();
+    if (!note) return toast('Enter a note');
+    try { await jobAction(activeJob.id,'admin_note',{note}); } catch(e) { toast(e.message); }
+  };
+
+  $('#techForm').onsubmit = async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const caps = (fd.get('capabilities')||'').split(',').map(s=>s.trim()).filter(Boolean);
+    try {
+      const d = await api('/.netlify/functions/tech-accounts','POST',{
+        action:'create', fullName:fd.get('fullName'), email:fd.get('email'),
+        phone:fd.get('phone'), serviceArea:fd.get('serviceArea'), capabilities:caps
+      });
+      if (d.inviteToken && d.technician) inviteCache[d.technician.techId] = d.inviteToken;
+      toast('Technician created');
+      e.target.reset();
+      await loadTechs(); renderTechs(); renderOverview();
+    } catch(err) { toast('Create failed: '+err.message); }
+  };
+
+  refreshAll().catch(e => toast('Load error: '+e.message));
+})();
+</script>
+</body>
+</html>

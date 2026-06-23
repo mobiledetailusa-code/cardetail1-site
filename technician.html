@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>Cardetail1 — Portal</title>
+<title>Cardetail1 — Technician Portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -14,214 +14,60 @@
   --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.13);
   --white:#f1f1f3;--mu:rgba(255,255,255,.45);--mu2:rgba(255,255,255,.25);
   --blue:#4da3ff;--green:#00c853;--yellow:#fbbf24;--red:#f87171;
-  --orange:#fb923c;--purple:#a78bfa;--teal:#2dd4bf;
-  --r:12px;--fd:'DM Mono',monospace;
+  --orange:#fb923c;--purple:#a78bfa;--teal:#2dd4bf;--r:12px;--fd:'DM Mono',monospace;
 }
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-height:100vh}
 .screen{display:none!important}
-.screen.active{display:block!important}
-#s-land.active,#s-pend.active,#s-login.active,#s-admin.active{display:flex!important}
+.screen.active{display:flex!important;flex-direction:column;min-height:100vh}
+#s-land.active{align-items:center;justify-content:center;text-align:center;padding:60px 20px}
+#s-login.active,#s-invite.active{align-items:center;justify-content:center;padding:20px}
+#s-dash.active{display:flex!important;flex-direction:column}
 
-/* ═══ LANDING ═══ */
-#s-land{flex-direction:column;min-height:100vh;align-items:center;justify-content:center;text-align:center;padding:60px 20px}
 .land-logo{font-size:18px;font-weight:800;letter-spacing:.06em;opacity:.5;margin-bottom:24px}
 .land-logo span{color:var(--blue)}
 .land-tag{display:inline-flex;align-items:center;gap:7px;background:rgba(77,163,255,.08);border:1px solid rgba(77,163,255,.15);color:var(--blue);font-size:11px;font-weight:700;padding:5px 14px;border-radius:99px;letter-spacing:.06em;margin-bottom:18px}
-.land-h{font-size:clamp(30px,6vw,58px);font-weight:800;line-height:1.05;margin-bottom:12px}
+.land-h{font-size:clamp(28px,5vw,48px);font-weight:800;line-height:1.08;margin-bottom:12px}
 .land-h span{color:var(--blue)}
-.land-p{font-size:14px;color:var(--mu);max-width:500px;margin:0 auto 32px;line-height:1.7}
+.land-p{font-size:14px;color:var(--mu);max-width:460px;margin:0 auto 32px;line-height:1.7}
 .land-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .bh{padding:12px 26px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:.2s}
 .bh-p{background:var(--blue);color:#fff}.bh-p:hover{background:#3d94f0;transform:translateY(-1px)}
 .bh-g{background:transparent;border:1.5px solid var(--border2);color:var(--white)}.bh-g:hover{background:var(--bg2)}
-.perks{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;max-width:740px;margin:48px auto 0;text-align:left}
-.pk{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px}
-.pk-i{font-size:24px;margin-bottom:7px}
-.pk-t{font-size:13px;font-weight:700;margin-bottom:4px}
-.pk-s{font-size:11px;color:var(--mu);line-height:1.5}
 
-/* ═══ APPLY ═══ */
-#s-apply{min-height:100vh}
-.aw{max-width:640px;margin:0 auto;padding:36px 18px}
-.back{display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--mu);font-size:13px;cursor:pointer;margin-bottom:24px;transition:.2s}
-.back:hover{color:var(--white)}
-.a-t{font-size:24px;font-weight:800;margin-bottom:4px}
-.a-s{color:var(--mu);font-size:13px;margin-bottom:28px}
-.fsec{margin-bottom:22px}
-.fst{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(77,163,255,.12)}
-.fg{margin-bottom:13px}
-.fl{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;display:block}
-.req{color:var(--red)}
-.fi{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 13px;color:var(--white);font-size:13px;font-family:inherit;outline:none;transition:.2s}
-.fi:focus{border-color:var(--blue)}
-select.fi,textarea.fi{cursor:auto}
-textarea.fi{resize:vertical;min-height:78px}
-.fr2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
-.chk-g{display:flex;flex-wrap:wrap;gap:7px}
-.chk-o{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 11px;transition:.2s;user-select:none}
-.chk-o:has(input:checked){border-color:var(--blue);background:rgba(77,163,255,.07);color:var(--blue)}
-.chk-o input{accent-color:var(--blue)}
-.rad-g{display:flex;gap:7px;flex-wrap:wrap}
-.rad-o{flex:1;min-width:100px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:9px 12px;cursor:pointer;transition:.2s;display:flex;align-items:center;gap:7px;font-size:12px;user-select:none}
-.rad-o.sel{border-color:var(--blue);background:rgba(77,163,255,.07);color:var(--blue)}
-.sub-btn{width:100%;background:var(--blue);border:none;border-radius:10px;padding:14px;color:#fff;font-weight:700;font-size:14px;cursor:pointer;transition:.2s;margin-top:4px}
-.sub-btn:hover{background:#3d94f0;transform:translateY(-1px)}
-
-/* ═══ PENDING ═══ */
-#s-pend{flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:40px 20px}
-.pi{font-size:60px;margin-bottom:18px}
-.pt2{font-size:24px;font-weight:800;margin-bottom:9px}
-.ps2{font-size:13px;color:var(--mu);max-width:420px;margin:0 auto 22px;line-height:1.7}
-.pid{font-family:var(--fd);font-size:11px;color:var(--blue);background:rgba(77,163,255,.07);border:1px solid rgba(77,163,255,.18);border-radius:7px;padding:6px 13px;display:inline-block;margin-bottom:24px}
-.pst-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;max-width:560px;margin:0 auto}
-.pst{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:13px}
-.psn{font-family:var(--fd);font-size:10px;color:var(--blue);margin-bottom:4px}
-.pst-t{font-size:12px;font-weight:700;margin-bottom:2px}
-.pst-s{font-size:11px;color:var(--mu)}
-
-/* ═══ LOGIN ═══ */
-#s-login{align-items:center;justify-content:center;min-height:100vh;padding:20px}
-.lbox{background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:40px 36px;width:min(400px,100%);text-align:center}
-.ll{font-size:24px;font-weight:800;letter-spacing:.04em;margin-bottom:5px}
+.lbox{background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:36px 32px;width:min(400px,100%)}
+.ll{font-size:24px;font-weight:800;letter-spacing:.04em;margin-bottom:5px;text-align:center}
 .ll span{color:var(--blue)}
-
-/* login mode tabs */
-.ltabs{display:flex;gap:0;background:var(--bg3);border-radius:9px;padding:3px;margin-bottom:18px}
-.ltab{flex:1;padding:8px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:transparent;color:var(--mu);transition:.2s}
-.ltab.active{background:var(--bg2);color:var(--white)}
-
-.lsub{color:var(--mu);font-size:12px;margin-bottom:20px;line-height:1.5}
+.lsub{color:var(--mu);font-size:12px;margin-bottom:18px;line-height:1.55;text-align:center}
 .linp{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:11px 13px;color:var(--white);font-size:13px;font-family:inherit;outline:none;transition:.2s;margin-bottom:9px}
 .linp:focus{border-color:var(--blue)}
-.lbtn{width:100%;background:var(--blue);border:none;border-radius:9px;padding:12px;color:#fff;font-weight:700;font-size:13px;cursor:pointer;transition:.2s}
+.lbtn{width:100%;background:var(--blue);border:none;border-radius:9px;padding:12px;color:#fff;font-weight:700;font-size:13px;cursor:pointer;transition:.2s;margin-top:4px}
 .lbtn:hover{background:#3d94f0}
-.lerr{color:var(--red);font-size:12px;margin-top:9px;display:none;line-height:1.5}
+.lbtn:disabled{opacity:.5;cursor:not-allowed}
+.lerr{color:var(--red);font-size:12px;margin-top:9px;display:none;line-height:1.5;text-align:center}
 .lerr.show{display:block}
-.llinks{margin-top:16px;display:flex;flex-direction:column;gap:6px}
-.llinks a{color:var(--blue);font-size:12px;text-decoration:none;font-weight:600;cursor:pointer}
+.llink{display:block;text-align:center;color:var(--blue);font-size:12px;text-decoration:none;font-weight:600;cursor:pointer;margin-top:14px;background:none;border:none;width:100%;font-family:inherit}
+.fl{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;display:block}
 
-/* ═══ TOPBAR (shared) ═══ */
-.topbar{height:56px;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:10px;position:sticky;top:0;z-index:200}
+.topbar{height:56px;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:10px;position:sticky;top:0;z-index:200;flex-shrink:0}
 .tb-logo{font-weight:800;font-size:14px;letter-spacing:.04em}
 .tb-logo span{color:var(--blue)}
-.tb-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;letter-spacing:.08em;text-transform:uppercase}
-.tb-badge.adm{background:rgba(248,113,113,.1);color:var(--red)}
-.tb-badge.tech{background:rgba(0,200,83,.1);color:var(--green)}
+.tb-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;letter-spacing:.08em;text-transform:uppercase;background:rgba(0,200,83,.1);color:var(--green)}
 .tb-sp{flex:1}
 .tb-nm{font-size:12px;color:var(--mu)}
 .tb-out{background:none;border:1px solid var(--border);color:var(--mu);font-size:11px;padding:5px 10px;border-radius:7px;cursor:pointer;transition:.2s}
 .tb-out:hover{border-color:var(--red);color:var(--red)}
-.tb-back,.tb-home{background:none;border:1px solid var(--border);color:var(--mu);font-size:11px;font-weight:600;padding:6px 11px;border-radius:7px;cursor:pointer;transition:.2s;min-width:44px;min-height:36px;white-space:nowrap;font-family:inherit}
-.tb-back:hover,.tb-home:hover{border-color:rgba(77,163,255,.5);color:var(--blue)}
-.tb-console{font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--mu);text-transform:uppercase;white-space:nowrap}
-@media(max-width:480px){.tb-console{display:none}.tb-nm{display:none}}
-.tab-bar{background:var(--bg1);border-bottom:1px solid var(--border);display:flex;padding:0 18px;overflow-x:auto}
-.tab{padding:13px 15px;font-size:12px;font-weight:600;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:.2s;white-space:nowrap;user-select:none}
-.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
-.tab:hover{color:var(--white)}
-.main{max-width:980px;margin:0 auto;padding:22px 16px;width:100%}
-.page{display:none}
-.page.active{display:block}
+.main{max-width:900px;margin:0 auto;padding:22px 16px;width:100%;flex:1}
 .pg-t{font-size:19px;font-weight:800;margin-bottom:3px}
-.pg-s{color:var(--mu);font-size:12px;margin-bottom:19px}
+.pg-s{color:var(--mu);font-size:12px;margin-bottom:18px}
+.jobs-hdr{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.refresh-btn{background:var(--bg2);border:1px solid var(--border);color:var(--mu);font-size:11px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer;transition:.2s}
+.refresh-btn:hover{color:var(--white);border-color:var(--border2)}
 
-/* ═══ ADMIN SHELL ═══ */
-#s-admin{flex-direction:column;min-height:100vh}
-.adm-shell{display:grid;grid-template-columns:200px 1fr;min-height:calc(100vh - 112px)}
-.sidebar{background:var(--bg1);border-right:1px solid var(--border);padding:14px 9px;position:sticky;top:112px;height:calc(100vh - 112px);overflow-y:auto}
-.nl{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mu2);padding:0 8px;margin:16px 0 4px}
-.nl:first-child{margin-top:0}
-.ni{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:8px;cursor:pointer;transition:.14s;font-size:12px;font-weight:500;color:var(--mu);margin-bottom:1px;user-select:none}
-.ni:hover{background:var(--bg2);color:var(--white)}
-.ni.active{background:rgba(77,163,255,.1);color:var(--blue)}
-.ni .ico{font-size:14px;width:16px;text-align:center;flex-shrink:0}
-.ni-ct{margin-left:auto;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;min-width:16px;text-align:center}
-
-/* ═══ TECH DASHBOARD ═══ */
-#s-tech{display:flex;flex-direction:column;min-height:100vh}
-#s-tech.active{display:flex!important}
-
-/* ═══ CARDS / STATS ═══ */
-.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:18px}
-.sc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:15px 17px}
-.sv{font-family:var(--fd);font-size:24px;font-weight:500;line-height:1}
-.sl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
-
-/* ═══ CARD ═══ */
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
-.ch{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:7px}
-.ct{font-size:13px;font-weight:700}
-.ca{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-
-/* ═══ TABLE ═══ */
-.tw{overflow-x:auto}
-table{width:100%;border-collapse:collapse;min-width:620px}
-thead th{text-align:left;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mu2);padding:9px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
-tbody tr{border-bottom:1px solid var(--border);transition:.12s;cursor:pointer}
-tbody tr:last-child{border-bottom:none}
-tbody tr:hover{background:rgba(255,255,255,.02)}
-td{padding:10px 12px;font-size:12px;vertical-align:middle}
-.td-nm{font-weight:600;font-size:13px}
-.td-mu{color:var(--mu);font-size:11px}
-.td-mo{font-family:var(--fd);font-size:10px;color:var(--blue)}
-.td-pr{font-weight:700;color:var(--green)}
-
-/* ═══ BADGES ═══ */
-.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
-.badge::before{content:'';width:4px;height:4px;border-radius:50%;flex-shrink:0}
-.b-pen{background:rgba(251,191,36,.1);color:var(--yellow)}.b-pen::before{background:var(--yellow)}
-.b-con{background:rgba(96,165,250,.1);color:#60a5fa}.b-con::before{background:#60a5fa}
-.b-sch{background:rgba(167,139,250,.1);color:var(--purple)}.b-sch::before{background:var(--purple)}
-.b-inp{background:rgba(77,163,255,.1);color:var(--blue)}.b-inp::before{background:var(--blue)}
-.b-enr{background:rgba(251,146,60,.1);color:var(--orange)}.b-enr::before{background:var(--orange)}
-.b-don{background:rgba(0,200,83,.1);color:var(--green)}.b-don::before{background:var(--green)}
-.b-can{background:rgba(248,113,113,.1);color:var(--red)}.b-can::before{background:var(--red)}
-.b-res{background:rgba(45,212,191,.1);color:var(--teal)}.b-res::before{background:var(--teal)}
-.b-pay{background:rgba(251,191,36,.08);color:var(--yellow)}.b-pay::before{background:var(--yellow)}
-
-/* ═══ FILTERS ═══ */
-.filters{display:flex;gap:7px;flex-wrap:wrap;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg3)}
-.ff{background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:5px 9px;color:var(--white);font-size:11px;font-family:inherit;outline:none;cursor:pointer}
-.ff:focus{border-color:var(--blue)}
-
-/* ═══ BTNS ═══ */
-.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:.2s;text-decoration:none;white-space:nowrap}
-.btn:hover{transform:translateY(-1px)}
-.btn-p{background:var(--blue);color:#fff}.btn-p:hover{background:#3d94f0}
-.btn-g{background:transparent;border:1px solid var(--border2);color:var(--mu)}.btn-g:hover{color:var(--white)}
-.btn-gr{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.18)}.btn-gr:hover{background:rgba(0,200,83,.2)}
-.btn-rd{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.18)}.btn-rd:hover{background:rgba(248,113,113,.2)}
-.btn-yw{background:rgba(251,191,36,.1);color:var(--yellow);border:1px solid rgba(251,191,36,.18)}.btn-yw:hover{background:rgba(251,191,36,.2)}
-.btn-or{background:rgba(251,146,60,.1);color:var(--orange);border:1px solid rgba(251,146,60,.18)}.btn-or:hover{background:rgba(251,146,60,.2)}
-.btn-tl{background:rgba(45,212,191,.1);color:var(--teal);border:1px solid rgba(45,212,191,.18)}.btn-tl:hover{background:rgba(45,212,191,.2)}
-.btn-sm{padding:4px 9px;font-size:11px}
-.btn-xs{padding:2px 7px;font-size:10px;border-radius:6px}
-
-/* ═══ DRAWER ═══ */
-#ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;backdrop-filter:blur(4px)}
-#ov.open{display:block}
-#drw{position:fixed;right:-520px;top:0;bottom:0;width:min(500px,100vw);background:var(--bg2);border-left:1px solid var(--border2);z-index:501;transition:.3s cubic-bezier(.4,0,.2,1);overflow-y:auto;padding:0}
-#drw.open{right:0}
-.dh{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 22px 14px;border-bottom:1px solid var(--border);gap:10px}
-.dt{font-size:17px;font-weight:800}
-.di{font-family:var(--fd);font-size:10px;color:var(--blue);margin-top:3px}
-.db{padding:18px 22px}
-.dr{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;gap:7px}
-.dr:last-child{border-bottom:none}
-.dk{color:var(--mu);font-weight:500;flex-shrink:0}
-.dv{font-weight:600;text-align:right;word-break:break-word;max-width:58%}
-.dsec{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin:16px 0 8px;padding-bottom:7px;border-bottom:1px solid rgba(77,163,255,.12)}
-.da{display:flex;flex-wrap:wrap;gap:6px;padding:14px 22px;border-top:1px solid var(--border);background:var(--bg3)}
-.ssel{background:var(--bg2);border:1px solid var(--border);color:var(--white);border-radius:7px;padding:6px 9px;font-size:11px;font-family:inherit;cursor:pointer;outline:none}
-.ssel:focus{border-color:var(--blue)}
-.pinp{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 11px;color:var(--white);font-size:12px;font-family:inherit;width:100%;outline:none;transition:.2s;margin-bottom:7px}
-.pinp:focus{border-color:var(--blue)}
-
-/* ═══ TECH JOB CARDS ═══ */
 .jc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:11px;transition:.18s}
 .jc:hover{border-color:var(--border2)}
-.jc.mine{border-left:3px solid var(--blue)}
+.jc.active-job{border-left:3px solid var(--blue)}
 .jc.enr{border-left:3px solid var(--orange)}
+.jc.done{opacity:.72}
 .jc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
 .jc-id{font-family:var(--fd);font-size:10px;color:var(--blue);margin-bottom:2px}
 .jc-sv{font-size:14px;font-weight:700}
@@ -231,403 +77,244 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
 .jfv{font-size:12px;font-weight:600}
 .jc-acts{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 
-/* ═══ ACCOUNTING ═══ */
-.am{background:var(--bg3);border-radius:9px;padding:12px;margin-bottom:9px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:center}
-.aml{font-weight:700;font-size:13px}
-.av{font-family:var(--fd);font-size:14px}
-.av.r{color:var(--green)}.av.e{color:var(--red)}.av.n{color:var(--blue)}
-.albl{font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.badge::before{content:'';width:4px;height:4px;border-radius:50%;flex-shrink:0}
+.b-ass{background:rgba(167,139,250,.1);color:var(--purple)}.b-ass::before{background:var(--purple)}
+.b-acc{background:rgba(96,165,250,.1);color:#60a5fa}.b-acc::before{background:#60a5fa}
+.b-enr{background:rgba(251,146,60,.1);color:var(--orange)}.b-enr::before{background:var(--orange)}
+.b-arr{background:rgba(45,212,191,.1);color:var(--teal)}.b-arr::before{background:var(--teal)}
+.b-inp{background:rgba(77,163,255,.1);color:var(--blue)}.b-inp::before{background:var(--blue)}
+.b-iss{background:rgba(251,191,36,.1);color:var(--yellow)}.b-iss::before{background:var(--yellow)}
+.b-don{background:rgba(0,200,83,.1);color:var(--green)}.b-don::before{background:var(--green)}
+.b-can{background:rgba(248,113,113,.1);color:var(--red)}.b-can::before{background:var(--red)}
 
-/* ═══ TECH CARD ═══ */
-.tc{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:14px 16px;margin-bottom:9px}
-.tc-nm{font-size:14px;font-weight:700;margin-bottom:2px}
-.tc-mt{font-size:11px;color:var(--mu);margin-bottom:9px}
-.tc-gr{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;font-size:11px}
-.tcfl{font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:.2s;text-decoration:none;white-space:nowrap;font-family:inherit}
+.btn:hover{transform:translateY(-1px)}
+.btn-p{background:var(--blue);color:#fff}.btn-p:hover{background:#3d94f0}
+.btn-g{background:transparent;border:1px solid var(--border2);color:var(--mu)}.btn-g:hover{color:var(--white)}
+.btn-gr{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.18)}.btn-gr:hover{background:rgba(0,200,83,.2)}
+.btn-rd{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.18)}.btn-rd:hover{background:rgba(248,113,113,.2)}
+.btn-or{background:rgba(251,146,60,.1);color:var(--orange);border:1px solid rgba(251,146,60,.18)}.btn-or:hover{background:rgba(251,146,60,.2)}
+.btn-yw{background:rgba(251,191,36,.1);color:var(--yellow);border:1px solid rgba(251,191,36,.18)}.btn-yw:hover{background:rgba(251,191,36,.2)}
+.btn-tl{background:rgba(45,212,191,.1);color:var(--teal);border:1px solid rgba(45,212,191,.18)}.btn-tl:hover{background:rgba(45,212,191,.2)}
+.btn-sm{padding:5px 10px;font-size:11px}
 
-/* ═══ FORM ═══ */
-.fg2{margin-bottom:13px}
-.fl2{font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;display:block}
-.fi2{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-size:12px;font-family:inherit;outline:none;transition:.2s}
-.fi2:focus{border-color:var(--blue)}
+.empty{text-align:center;padding:44px 14px;color:var(--mu)}
+.ei{font-size:34px;margin-bottom:9px}
+.et{font-size:13px}
+.loading{text-align:center;padding:40px;color:var(--mu);font-size:13px}
 
-/* ═══ PHOTO GRID ═══ */
-.photo-thumb{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;border:1px solid var(--border)}
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:600;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;backdrop-filter:blur(4px)}
+.modal-ov.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;width:min(560px,100%);margin:auto 0;max-height:calc(100vh - 32px);overflow-y:auto}
+.modal-hd{display:flex;align-items:flex-start;justify-content:space-between;padding:18px 20px 12px;border-bottom:1px solid var(--border);gap:10px;position:sticky;top:0;background:var(--bg2);z-index:2}
+.modal-t{font-size:17px;font-weight:800}
+.modal-sub{font-size:11px;color:var(--mu);margin-top:3px}
+.modal-bd{padding:18px 20px 22px}
+.modal-ft{display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--border);background:var(--bg3);position:sticky;bottom:0}
 
-/* ═══ PROBLEM MODAL ═══ */
-#prob-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:700;align-items:center;justify-content:center;padding:18px}
-#prob-modal.open{display:flex}
-.pm{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:26px;width:min(420px,100%)}
+.ro-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-bottom:16px;font-size:12px}
+.ro-k{color:var(--mu);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.ro-v{font-weight:600;word-break:break-word}
+.ro-full{grid-column:1/-1}
 
-/* ═══ TOAST ═══ */
-#toast{position:fixed;bottom:18px;right:18px;background:var(--bg2);border:1px solid var(--border2);border-radius:9px;padding:10px 15px;font-size:12px;font-weight:600;z-index:9999;opacity:0;transition:.3s;pointer-events:none;max-width:260px}
+.chk-row{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;margin-bottom:7px;font-size:12px;cursor:pointer;user-select:none}
+.chk-row:has(input:checked){border-color:var(--blue);background:rgba(77,163,255,.06)}
+.chk-row input{accent-color:var(--blue);margin-top:2px;flex-shrink:0}
+.chk-row.issue{border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.04)}
+.sec-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin:16px 0 10px;padding-bottom:7px;border-bottom:1px solid rgba(77,163,255,.12)}
+.sec-lbl:first-child{margin-top:0}
+
+.fi{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-size:13px;font-family:inherit;outline:none;transition:.2s;margin-bottom:10px}
+.fi:focus{border-color:var(--blue)}
+textarea.fi{resize:vertical;min-height:72px}
+
+.sigwrap{border:1.5px dashed var(--border);border-radius:10px;background:#0a121c;position:relative;margin-bottom:6px}
+canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius:10px}
+.sighint{position:absolute;left:14px;bottom:10px;color:var(--mu);font-size:12px;pointer-events:none}
+.sig-actions{display:flex;gap:6px;margin-bottom:12px}
+
+.auth-box{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:12px;margin:12px 0;font-size:11px;color:var(--mu);line-height:1.55}
+.cert-txt{font-size:11px;color:var(--mu2);font-style:italic;margin:10px 0 14px;line-height:1.5;padding:10px 12px;border-left:2px solid var(--border)}
+
+#toast{position:fixed;bottom:18px;right:18px;background:var(--bg2);border:1px solid var(--border2);border-radius:9px;padding:10px 15px;font-size:12px;font-weight:600;z-index:9999;opacity:0;transition:.3s;pointer-events:none;max-width:280px}
 #toast.show{opacity:1}
 #toast.ok{border-color:rgba(0,200,83,.3);color:var(--green)}
 #toast.err{border-color:rgba(248,113,113,.3);color:var(--red)}
 
-/* ═══ EMPTY ═══ */
-.empty{text-align:center;padding:44px 14px;color:var(--mu)}
-.ei{font-size:34px;margin-bottom:9px}
-.et{font-size:13px}
-
-@media(max-width:820px){
-  .adm-shell{grid-template-columns:1fr}
-  .sidebar{display:none;position:fixed;left:0;top:0;height:100vh;z-index:400;width:210px}
-  .sidebar.open{display:block}
-  .fr2{grid-template-columns:1fr}
-  .am{grid-template-columns:1fr 1fr}
-  .main{padding:14px 12px}
-  .sg{grid-template-columns:1fr 1fr}
-}
-
-/* ═══ ADMIN LEAD OPS: WORKFLOW TABS ═══ */
-.wf-tabs{display:flex;gap:0;overflow-x:auto;border-bottom:1px solid var(--border);background:var(--bg2);scrollbar-width:none}
-.wf-tabs::-webkit-scrollbar{display:none}
-.wf-tab{flex-shrink:0;padding:10px 14px;font-size:11px;font-weight:700;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:.15s;white-space:nowrap;display:flex;align-items:center;gap:5px;background:none;border-left:none;border-right:none;border-top:none;font-family:inherit}
-.wf-tab:hover{color:var(--white)}
-.wf-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
-.wf-ct{background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;min-width:14px;text-align:center;line-height:14px}
-.wf-ct.green{background:var(--green)}
-.wf-ct.blue{background:var(--blue);color:#000}
-.wf-ct.gray{background:rgba(255,255,255,.15)}
-
-/* ═══ PRIORITY CHIPS ═══ */
-.pri-chips{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px}
-.pri-chip{display:inline-flex;align-items:center;gap:2px;padding:1px 5px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
-.pri-new{background:rgba(77,163,255,.12);color:var(--blue)}
-.pri-today{background:rgba(251,146,60,.12);color:var(--orange)}
-.pri-ext{background:rgba(45,212,191,.1);color:var(--teal)}
-.pri-hi{background:rgba(0,200,83,.1);color:var(--green)}
-.pri-flag{background:rgba(248,113,113,.1);color:var(--red)}
-
-/* ═══ PAYMENT STATUS PILL ═══ */
-.pay-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:5px;font-size:9px;font-weight:700;white-space:nowrap}
-.pp-auth{background:rgba(0,200,83,.1);color:var(--green)}
-.pp-paid{background:rgba(0,200,83,.2);color:var(--green)}
-.pp-pend{background:rgba(251,191,36,.1);color:var(--yellow)}
-.pp-fail{background:rgba(248,113,113,.1);color:var(--red)}
-.pp-cash{background:rgba(255,255,255,.06);color:var(--mu)}
-.pp-link{background:rgba(77,163,255,.1);color:var(--blue)}
-
-/* ═══ NEW BADGE TYPES ═══ */
-.b-auth{background:rgba(0,200,83,.1);color:var(--green)}.b-auth::before{background:var(--green)}
-.b-fail{background:rgba(248,113,113,.1);color:var(--red)}.b-fail::before{background:var(--red)}
-.b-test{background:rgba(251,191,36,.08);color:rgba(251,191,36,.7)}.b-test::before{background:rgba(251,191,36,.7)}
-
-/* ═══ QUICK ACTIONS ═══ */
-.qa-sect{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mu2);margin:14px 0 7px;width:100%}
-.qa-row{display:flex;gap:6px;flex-wrap:wrap;width:100%}
-.qa-btn{display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:none;transition:.2s;text-decoration:none;font-family:inherit}
-.qa-call{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.2)}
-.qa-call:hover{background:rgba(0,200,83,.2)}
-.qa-email{background:rgba(77,163,255,.1);color:var(--blue);border:1px solid rgba(77,163,255,.2)}
-.qa-email:hover{background:rgba(77,163,255,.18)}
-.qa-lookup{background:rgba(45,212,191,.08);color:var(--teal);border:1px solid rgba(45,212,191,.18)}
-.qa-lookup:hover{background:rgba(45,212,191,.15)}
-.qa-rev{background:rgba(167,139,250,.1);color:var(--purple);border:1px solid rgba(167,139,250,.2)}
-.qa-rev:hover{background:rgba(167,139,250,.18)}
-.qa-cont{background:rgba(251,146,60,.08);color:var(--orange);border:1px solid rgba(251,146,60,.18)}
-.qa-cont:hover{background:rgba(251,146,60,.15)}
-.qa-soon{background:transparent;color:var(--mu2);border:1px dashed var(--border);cursor:default;font-style:italic}
-.qa-soon:hover{transform:none}
-.local-note{font-size:10px;color:var(--mu2);line-height:1.5;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:7px;padding:8px 10px;margin-top:6px;width:100%}
+@media(max-width:520px){.ro-grid{grid-template-columns:1fr}.tb-nm{display:none}}
 </style>
 </head>
 <body>
 
-<!-- ═══════════════ LANDING ═══════════════ -->
+<!-- LANDING -->
 <div id="s-land" class="screen active">
   <div class="land-logo">CAR<span>DETAIL</span>1</div>
-  <div class="land-tag">🧑‍🔧 Operator Portal</div>
-  <h1 class="land-h">Join <span>Cardetail1</span><br>as an Operator</h1>
-  <p class="land-p">Mobile detailing network covering NJ / NY / CT / PA. Flexible schedule, 65% per job, local jobs only.</p>
+  <div class="land-tag">Technician Portal</div>
+  <h1 class="land-h">Operator <span>Dashboard</span></h1>
+  <p class="land-p">Sign in to view your assigned jobs, update status, and submit completion paperwork with customer signatures.</p>
   <div class="land-btns">
-    <button class="bh bh-p" onclick="ss('apply')">Apply Now →</button>
-    <button class="bh bh-g" onclick="ss('login')">Sign In</button>
-  </div>
-  <div class="perks">
-    <div class="pk"><div class="pk-i">💰</div><div class="pk-t">Earn 65% / Job</div><div class="pk-s">Weekly deposit. Tips 100% yours.</div></div>
-    <div class="pk"><div class="pk-i">📅</div><div class="pk-t">Flexible Hours</div><div class="pk-s">Accept only what fits your schedule.</div></div>
-    <div class="pk"><div class="pk-i">📍</div><div class="pk-t">Local ZIP Zones</div><div class="pk-s">Jobs near you only. No long drives.</div></div>
-    <div class="pk"><div class="pk-i">🚀</div><div class="pk-t">Fast Onboarding</div><div class="pk-s">Approved in 1–3 days.</div></div>
+    <button class="bh bh-p" type="button" onclick="showLogin()">Sign In</button>
+    <button class="bh bh-g" type="button" onclick="showInvite()">Set Password from Invite</button>
   </div>
 </div>
 
-<!-- ═══════════════ APPLY ═══════════════ -->
-<div id="s-apply" class="screen">
-  <div class="aw">
-    <button class="back" onclick="ss('land')">← Back</button>
-    <div class="a-t">Technician Application</div>
-    <div class="a-s">Reviewed within 1–3 business days. We'll contact you by phone.</div>
-
-    <div class="fsec">
-      <div class="fst">Personal Info</div>
-      <div class="fr2">
-        <div class="fg"><label class="fl">First Name <span class="req">*</span></label><input class="fi" id="a-first" placeholder="John"></div>
-        <div class="fg"><label class="fl">Last Name <span class="req">*</span></label><input class="fi" id="a-last" placeholder="Doe"></div>
-      </div>
-      <div class="fr2">
-        <div class="fg"><label class="fl">Email <span class="req">*</span></label><input class="fi" id="a-email" type="email" placeholder="john@email.com"></div>
-        <div class="fg"><label class="fl">Phone <span class="req">*</span></label><input class="fi" id="a-phone" type="tel" placeholder="201-555-0000"></div>
-      </div>
-      <div class="fr2">
-        <div class="fg"><label class="fl">City <span class="req">*</span></label><input class="fi" id="a-city" placeholder="Palisades Park"></div>
-        <div class="fg"><label class="fl">ZIP <span class="req">*</span></label><input class="fi" id="a-zip" maxlength="5" placeholder="07650"></div>
-      </div>
-    </div>
-
-    <div class="fsec">
-      <div class="fst">Experience & Services</div>
-      <div class="fg"><label class="fl">Years of Experience <span class="req">*</span></label>
-        <select class="fi" id="a-exp"><option value="">Select…</option><option>Less than 1 year</option><option>1–2 years</option><option>3–5 years</option><option>5–10 years</option><option>10+ years</option></select></div>
-      <div class="fg"><label class="fl">Services You Offer <span class="req">*</span></label>
-        <div class="chk-g">
-          <label class="chk-o"><input type="checkbox" value="Exterior Wash"> Exterior Wash</label>
-          <label class="chk-o"><input type="checkbox" value="Interior Detail"> Interior Detail</label>
-          <label class="chk-o"><input type="checkbox" value="Full Detail"> Full Detail</label>
-          <label class="chk-o"><input type="checkbox" value="Paint Correction"> Paint Correction</label>
-          <label class="chk-o"><input type="checkbox" value="Ceramic Coating"> Ceramic Coating</label>
-          <label class="chk-o"><input type="checkbox" value="Marine / Boats"> Marine / Boats</label>
-          <label class="chk-o"><input type="checkbox" value="RV / Trailer"> RV / Trailer</label>
-        </div>
-      </div>
-      <div class="fg"><label class="fl">Service ZIP Zones <span class="req">*</span></label><input class="fi" id="a-areas" placeholder="Bergen County NJ, 07650, 07601…"></div>
-    </div>
-
-    <div class="fsec">
-      <div class="fst">Equipment & Logistics</div>
-      <div class="fg"><label class="fl">Equipment <span class="req">*</span></label>
-        <div class="rad-g">
-          <div class="rad-o" onclick="selRad(this,'eq')"><input type="radio" name="eq" value="yes"> ✅ Full setup</div>
-          <div class="rad-o" onclick="selRad(this,'eq')"><input type="radio" name="eq" value="partial"> 🔧 Partial</div>
-          <div class="rad-o" onclick="selRad(this,'eq')"><input type="radio" name="eq" value="no"> ❌ None yet</div>
-        </div>
-      </div>
-      <div class="fr2">
-        <div class="fg"><label class="fl">Your Vehicle <span class="req">*</span></label><input class="fi" id="a-veh" placeholder="2020 Toyota Tacoma"></div>
-        <div class="fg"><label class="fl">Availability</label><select class="fi" id="a-avail"><option value="">Select…</option><option>Weekdays only</option><option>Weekends only</option><option>Weekdays + Weekends</option><option>Flexible</option></select></div>
-      </div>
-    </div>
-
-    <div class="fsec">
-      <div class="fst">About You</div>
-      <div class="fg"><label class="fl">Bio / Why you want to join</label><textarea class="fi" id="a-bio" placeholder="Tell us about your detailing background…"></textarea></div>
-      <div class="fg"><label class="fl">References (optional)</label><textarea class="fi" id="a-refs" placeholder="Previous employers, clients…" style="min-height:60px"></textarea></div>
-    </div>
-
-    <div style="background:rgba(77,163,255,.04);border:1px solid rgba(77,163,255,.1);border-radius:8px;padding:12px;margin-bottom:16px;font-size:11px;color:var(--mu);line-height:1.6">
-      By submitting, you authorize Cardetail1 to contact you by phone and email. A background check may be required before activation.
-    </div>
-    <button class="sub-btn" onclick="submitApp()">Submit Application →</button>
-  </div>
-</div>
-
-<!-- ═══════════════ PENDING ═══════════════ -->
-<div id="s-pend" class="screen">
-  <div class="pi">⏳</div>
-  <div class="pt2">Application Received!</div>
-  <p class="ps2">We review applications within 1–3 business days and will call + email you once approved.</p>
-  <div class="pid" id="p-appid">APP-——</div>
-  <div class="pst-g">
-    <div class="pst"><div class="psn">Step 1 ✓</div><div class="pst-t">Submitted</div><div class="pst-s">Received by team</div></div>
-    <div class="pst"><div class="psn">Step 2</div><div class="pst-t">Background Review</div><div class="pst-s">1–3 business days</div></div>
-    <div class="pst"><div class="psn">Step 3</div><div class="pst-t">Phone Interview</div><div class="pst-s">15-min call</div></div>
-    <div class="pst"><div class="psn">Step 4</div><div class="pst-t">Activation</div><div class="pst-s">Job board unlocked</div></div>
-  </div>
-  <div style="margin-top:24px;font-size:13px;color:var(--mu)">Questions? <a href="tel:5513132956" style="color:var(--blue);font-weight:700">📞 551-313-2956</a></div>
-</div>
-
-<!-- ═══════════════ LOGIN ═══════════════ -->
+<!-- LOGIN -->
 <div id="s-login" class="screen">
   <div class="lbox">
     <div class="ll">CAR<span>DETAIL</span>1</div>
-
-    <!-- login mode tabs: Customer | Operator -->
-    <div style="font-size:11px;color:var(--mu);margin:8px 0 14px">Select your access type</div>
-    <div class="ltabs">
-      <button class="ltab active" onclick="lMode('tech')" id="lm-tech">🧑‍🔧 Operator</button>
-      <button class="ltab" onclick="lMode('cust')" id="lm-cust">👤 Customer</button>
-    </div>
-
-    <!-- OPERATOR LOGIN -->
-    <div id="l-tech-form">
-      <div class="lsub">Enter your registered email to access your dashboard</div>
-      <input class="linp" type="email" id="l-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()">
-      <!-- Admin access: go to /admin — this field is not used for admin login -->
-      <input class="linp" type="password" id="l-pass" placeholder="Not required for technicians" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off" style="display:none">
-      <button class="lbtn" onclick="doLogin()">Sign In →</button>
-      <div class="lerr" id="lerr">Not found or not yet approved. Check your approval email.</div>
-      <div class="llinks">
-        <a onclick="ss('land')">← Back to landing</a>
-        <a onclick="ss('apply')">Apply to become an operator →</a>
-      </div>
-    </div>
-
-    <!-- CUSTOMER (redirect) -->
-    <div id="l-cust-form" style="display:none">
-      <div class="lsub">Customers access their booking status separately</div>
-      <a href="customer.html" style="display:block;width:100%;text-align:center;background:var(--blue);color:#fff;font-weight:700;font-size:13px;border-radius:9px;padding:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='#3d94f0'" onmouseout="this.style.background='var(--blue)'">Go to Customer Portal →</a>
-      <div style="margin-top:14px;font-size:12px;color:var(--mu)">Track booking · Review appointment status · Request cancellation</div>
-    </div>
+    <div class="lsub">Sign in with your operator email and password</div>
+    <form id="login-form" onsubmit="return doLogin(event)">
+      <label class="fl" for="l-email">Email</label>
+      <input class="linp" type="email" id="l-email" placeholder="your@email.com" autocomplete="username" required>
+      <label class="fl" for="l-pass">Password</label>
+      <input class="linp" type="password" id="l-pass" placeholder="Your password" autocomplete="current-password" required>
+      <button class="lbtn" type="submit" id="login-btn">Sign In</button>
+    </form>
+    <div class="lerr" id="lerr"></div>
+    <button class="llink" type="button" onclick="showLand()">← Back</button>
+    <button class="llink" type="button" onclick="showInvite()">Have an invite link? Set password →</button>
   </div>
 </div>
 
-<!-- ═══════════════ ADMIN DASHBOARD ═══════════════ -->
-<div id="s-admin" class="screen">
-  <div class="topbar">
-    <button class="tb-back" onclick="history.back()" title="Back">← Back</button>
-    <div class="tb-logo">CAR<span>DETAIL</span>1</div>
-    <div class="tb-badge adm">ADMIN</div>
-    <span class="tb-console">Admin Console</span>
-    <div class="tb-sp"></div>
-    <button class="tb-home" onclick="location.href='/'" title="Go to homepage">Home</button>
-    <div class="tb-nm" id="adm-clock"></div>
-    <button class="tb-out" onclick="doLogout()">Sign Out</button>
-  </div>
-  <div class="tab-bar" id="adm-tabbar">
-    <div class="tab active" onclick="admNav('dashboard')" data-ap="dashboard">📊 Dashboard</div>
-    <div class="tab" onclick="admNav('bookings')" data-ap="bookings">📋 Bookings<span id="b-ct" style="display:none;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;margin-left:5px">0</span></div>
-    <div class="tab" onclick="admNav('technicians')" data-ap="technicians">🧑‍🔧 Technicians<span id="t-ct" style="display:none;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;margin-left:5px">0</span></div>
-    <div class="tab" onclick="admNav('dispatch')" data-ap="dispatch">🗂️ Dispatch</div>
-    <div class="tab" onclick="admNav('accounting')" data-ap="accounting">💰 Accounting</div>
-    <div class="tab" onclick="admNav('subscriptions')" data-ap="subscriptions">🔁 Subs</div>
-    <div class="tab" onclick="admNav('settings')" data-ap="settings">⚙️ Settings</div>
-  </div>
-  <div class="main">
-    <div class="page active" id="ap-dashboard">
-      <div class="pg-t">Dashboard</div><div class="pg-s" id="dd-date"></div>
-      <div class="sg" id="dstats"></div>
-      <div class="card"><div class="ch"><div class="ct">Recent Bookings</div><button class="btn btn-g btn-sm" onclick="admNav('bookings')">View All →</button></div><div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Total</th><th>Status</th></tr></thead><tbody id="d-recent"></tbody></table></div></div>
-      <div class="card"><div class="ch"><div class="ct">Pending Tech Applications</div><button class="btn btn-g btn-sm" onclick="admNav('technicians')">Review →</button></div><div id="d-techs" style="padding:11px 14px"></div></div>
-    </div>
-    <div class="page" id="ap-bookings">
-      <div class="pg-t">Bookings</div><div class="pg-s">Click any row to open full details & quick actions</div>
-
-      <!-- ── DAILY WORKFLOW TABS ── -->
-      <div class="wf-tabs" id="wf-tabs">
-        <button class="wf-tab active" onclick="setWfTab('new')" id="wft-new">🆕 New Requests <span class="wf-ct" id="wfc-new">0</span></button>
-        <button class="wf-tab" onclick="setWfTab('reviewed')" id="wft-reviewed">✓ Reviewed <span class="wf-ct gray" id="wfc-reviewed">0</span></button>
-        <button class="wf-tab" onclick="setWfTab('scheduled')" id="wft-scheduled">📅 Scheduled <span class="wf-ct blue" id="wfc-scheduled">0</span></button>
-        <button class="wf-tab" onclick="setWfTab('completed')" id="wft-completed">✅ Completed <span class="wf-ct green" id="wfc-completed">0</span></button>
-        <button class="wf-tab" onclick="setWfTab('all')" id="wft-all">📋 All Active <span class="wf-ct gray" id="wfc-all">0</span></button>
-        <button class="wf-tab" onclick="setWfTab('test')" id="wft-test">🧪 Test / Archived <span class="wf-ct gray" id="wfc-test">0</span></button>
-      </div>
-
-      <div class="card" style="border-top-left-radius:0;border-top-right-radius:0">
-        <div class="filters">
-          <select class="ff" id="f-st" onchange="renderBk()"><option value="">All Status</option><option>Pending Review</option><option>Confirmed</option><option>Scheduled</option><option>In Progress</option><option>Completed</option><option>Cancelled</option><option>Rescheduled</option><option>No-Show</option><option>Payment Pending</option><option>Paid</option></select>
-          <input class="ff" type="date" id="f-fr" onchange="renderBk()">
-          <input class="ff" type="date" id="f-to" onchange="renderBk()">
-          <input class="ff" type="search" id="f-q" oninput="renderBk()" placeholder="Search…" style="min-width:150px">
-          <button class="btn btn-p btn-sm" onclick="loadBkFromCloud()" id="bk-cloud-btn">☁️ Load from Cloud</button>
-          <button class="btn btn-tl btn-sm" onclick="exportCSV()">⬇ CSV</button>
-          <button class="btn btn-rd btn-sm" onclick="clearBkFilters()">✕ Clear</button>
-          <div id="bk-admin-controls" style="display:none">
-            <select class="ff" id="f-bk-mode" onchange="renderBk()" title="Booking visibility" style="display:none">
-              <option value="active">Active</option>
-              <option value="test">Test / Archived</option>
-              <option value="all">All</option>
-            </select>
-          </div>
-        </div>
-        <div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Vehicle / Service</th><th>Date</th><th>Zone</th><th>Total</th><th>Status</th><th>Payment</th><th>Actions</th></tr></thead><tbody id="bk-body"></tbody></table></div>
-      </div>
-    </div>
-    <div class="page" id="ap-technicians"><div class="pg-t">Technicians</div><div class="pg-s">Applications & active operators</div><div class="card"><div class="ch"><div class="ct">Applications</div></div><div style="padding:12px 14px" id="tch-list"></div></div></div>
-    <div class="page" id="ap-dispatch"><div class="pg-t">Dispatch Board</div><div class="pg-s">Assign confirmed jobs to technicians</div><div id="disp-board"></div></div>
-    <div class="page" id="ap-accounting">
-      <div class="pg-t">Accounting</div><div class="pg-s">Revenue from completed / paid bookings</div>
-      <div class="sg" id="acct-stats"></div>
-      <div class="card"><div class="ch"><div class="ct">Monthly Breakdown</div><button class="btn btn-tl btn-sm" onclick="exportAcctCSV()">⬇ CSV</button></div><div style="padding:12px 14px" id="acct-months"></div></div>
-      <div class="card"><div class="ch"><div class="ct">Revenue Entries</div></div><div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Revenue</th><th>Cost 40%</th><th>Net</th></tr></thead><tbody id="acct-body"></tbody></table></div></div>
-    </div>
-    <div class="page" id="ap-subscriptions"><div class="pg-t">Subscriptions</div><div class="pg-s">Monthly plan members</div><div id="subs-wrap"></div></div>
-    <div class="page" id="ap-settings">
-      <div class="pg-t">Settings</div><div class="pg-s">Local admin preferences</div>
-      <div class="card" style="max-width:500px"><div class="ch"><div class="ct">Config</div></div>
-        <div style="padding:16px">
-          <div style="background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.25);border-radius:8px;padding:10px 13px;margin-bottom:16px;font-size:12px;color:rgba(245,166,35,.9);line-height:1.55">
-            ⚠️ <strong>Local admin preferences only</strong> — these settings are saved on this device/browser and do not change backend booking, payment, email, or public website behavior yet.
-          </div>
-          <div class="fr2">
-            <div class="fg2">
-              <label class="fl2">Admin Email</label>
-              <input class="fi2" id="s-em" placeholder="your@email.com">
-              <div style="font-size:11px;color:var(--mu);margin-top:4px">Backend email is controlled by Netlify <code>ADMIN_EMAIL</code>.</div>
-            </div>
-            <div class="fg2">
-              <label class="fl2">Admin Phone</label>
-              <input class="fi2" id="s-ph" placeholder="551-313-2956">
-              <div style="font-size:11px;color:var(--mu);margin-top:4px">Display/local preference only for now.</div>
-            </div>
-          </div>
-          <div class="fr2">
-            <div class="fg2">
-              <label class="fl2">Square Payment URL</label>
-              <input class="fi2" id="s-sq" placeholder="https://square.link/u/…">
-              <div style="font-size:11px;color:var(--mu);margin-top:4px">Does not change Stripe/card authorization flow.</div>
-            </div>
-            <div class="fg2">
-              <label class="fl2">Deposit Amount ($)</label>
-              <input class="fi2" id="s-dep" type="number" value="50">
-              <div style="font-size:11px;color:var(--mu);margin-top:4px">Does not change backend payment logic yet.</div>
-            </div>
-          </div>
-          <div class="fg2">
-            <label class="fl2">Service Areas</label>
-            <input class="fi2" id="s-ar" value="NJ / NY / CT / PA">
-            <div style="font-size:11px;color:var(--mu);margin-top:4px">Does not change public homepage or ZIP/range logic yet.</div>
-          </div>
-          <button class="btn btn-p" onclick="saveSettings()" style="margin-top:16px">Save local preferences</button>
-          <span id="sv-ok" style="display:none;margin-left:9px;font-size:12px;color:var(--green)">✓ Saved locally</span>
-        </div>
-      </div>
-    </div>
+<!-- SET PASSWORD (INVITE) -->
+<div id="s-invite" class="screen">
+  <div class="lbox">
+    <div class="ll">CAR<span>DETAIL</span>1</div>
+    <div class="lsub">Create your password using the invite link from Cardetail1</div>
+    <form id="invite-form" onsubmit="return doSetPassword(event)">
+      <label class="fl" for="i-email">Email</label>
+      <input class="linp" type="email" id="i-email" placeholder="your@email.com" autocomplete="username" required>
+      <label class="fl" for="i-token">Invite token</label>
+      <input class="linp" type="text" id="i-token" placeholder="From your invite URL" autocomplete="off" required>
+      <label class="fl" for="i-pass">New password</label>
+      <input class="linp" type="password" id="i-pass" placeholder="Min 8 chars, upper, lower, number" autocomplete="new-password" required>
+      <label class="fl" for="i-pass2">Confirm password</label>
+      <input class="linp" type="password" id="i-pass2" placeholder="Re-enter password" autocomplete="new-password" required>
+      <button class="lbtn" type="submit" id="invite-btn">Set Password &amp; Sign In</button>
+    </form>
+    <div class="lerr" id="ierr"></div>
+    <button class="llink" type="button" onclick="showLand()">← Back</button>
+    <button class="llink" type="button" onclick="showLogin()">Already have a password? Sign in →</button>
   </div>
 </div>
 
-<!-- ═══════════════ TECH DASHBOARD ═══════════════ -->
-<div id="s-tech" class="screen">
+<!-- DASHBOARD -->
+<div id="s-dash" class="screen">
   <div class="topbar">
-    <button class="tb-back" onclick="history.back()" title="Back">← Back</button>
     <div class="tb-logo">CAR<span>DETAIL</span>1</div>
-    <div class="tb-badge tech">Operator</div>
+    <div class="tb-badge">Technician</div>
     <div class="tb-sp"></div>
-    <button class="tb-home" onclick="location.href='/'" title="Go to homepage">Home</button>
     <div class="tb-nm" id="tech-nm"></div>
-    <button class="tb-out" onclick="doLogout()">Sign Out</button>
-  </div>
-  <div class="tab-bar">
-    <div class="tab active" onclick="techTab('avail')" data-tt="avail">Available Jobs</div>
-    <div class="tab" onclick="techTab('mine')" data-tt="mine">My Jobs</div>
-    <div class="tab" onclick="techTab('earn')" data-tt="earn">Earnings</div>
-    <div class="tab" onclick="techTab('prof')" data-tt="prof">Profile</div>
+    <button class="tb-out" type="button" onclick="doLogout()">Sign Out</button>
   </div>
   <div class="main">
-    <div class="page active" id="tp-avail"><div class="pg-t">Available Jobs</div><div class="pg-s">Confirmed bookings open for assignment</div><div id="avail-list"></div></div>
-    <div class="page" id="tp-mine"><div class="pg-t">My Jobs</div><div class="pg-s">Jobs you have accepted</div><div id="mine-list"></div></div>
-    <div class="page" id="tp-earn"><div class="pg-t">Earnings</div><div class="pg-s">Your income from completed jobs (65% cut)</div><div class="sg" id="earn-stats"></div><div id="earn-tbl"></div></div>
-    <div class="page" id="tp-prof"><div class="pg-t">Profile</div><div class="pg-s">Your operator info on file</div><div id="prof-wrap"></div></div>
+    <div class="jobs-hdr">
+      <div>
+        <div class="pg-t">My Jobs</div>
+        <div class="pg-s">Assigned jobs — update status and submit completion when done</div>
+      </div>
+      <button class="refresh-btn" type="button" onclick="loadJobs()">↻ Refresh</button>
+    </div>
+    <div id="jobs-list"><div class="loading">Loading jobs…</div></div>
   </div>
 </div>
 
-<!-- BOOKING DRAWER (admin) -->
-<div id="ov" onclick="closeDrw()"></div>
-<div id="drw">
-  <div class="dh"><div><div class="dt" id="drw-nm">Booking</div><div class="di" id="drw-id">—</div></div><button class="btn btn-g btn-sm" onclick="closeDrw()">✕</button></div>
-  <div class="db" id="drw-bd"></div>
-  <div class="da" id="drw-ac"></div>
+<!-- COMPLETE MODAL -->
+<div id="complete-modal" class="modal-ov" onclick="if(event.target===this)closeComplete()">
+  <div class="modal" role="dialog" aria-labelledby="cmp-title">
+    <div class="modal-hd">
+      <div>
+        <div class="modal-t" id="cmp-title">Complete Job</div>
+        <div class="modal-sub" id="cmp-sub">—</div>
+      </div>
+      <button class="btn btn-g btn-sm" type="button" onclick="closeComplete()">✕</button>
+    </div>
+    <div class="modal-bd">
+      <div class="sec-lbl">Booking summary</div>
+      <div class="ro-grid" id="cmp-summary"></div>
+
+      <div class="sec-lbl">Completion checklist</div>
+      <label class="chk-row issue" id="chk-issue-wrap">
+        <input type="checkbox" id="chk-issue" onchange="toggleIssuePath()">
+        <span>Issue reported — service not fully completed as booked</span>
+      </label>
+      <div id="chk-normal">
+        <label class="chk-row"><input type="checkbox" id="chk-service"><span>Service completed as booked</span></label>
+        <label class="chk-row"><input type="checkbox" id="chk-vehicle"><span>Vehicle released to customer</span></label>
+        <label class="chk-row"><input type="checkbox" id="chk-reviewed"><span>Customer reviewed completed work</span></label>
+        <label class="chk-row"><input type="checkbox" id="chk-no-issue"><span>No unresolved issues at time of completion</span></label>
+      </div>
+
+      <div class="sec-lbl">Customer signature</div>
+      <label class="fl" for="cust-name">Customer printed name</label>
+      <input class="fi" type="text" id="cust-name" placeholder="Customer full name" autocomplete="name">
+      <div class="sigwrap">
+        <canvas class="sig" id="sig-customer"></canvas>
+        <div class="sighint" id="hint-customer">Sign here with finger or mouse</div>
+      </div>
+      <div class="sig-actions">
+        <button class="btn btn-g btn-sm" type="button" onclick="sigCustomer.clear()">Clear customer signature</button>
+      </div>
+
+      <div class="sec-lbl">Technician signature</div>
+      <label class="fl" for="tech-name">Technician printed name</label>
+      <input class="fi" type="text" id="tech-name" placeholder="Your full name" autocomplete="name">
+      <div class="sigwrap">
+        <canvas class="sig" id="sig-technician"></canvas>
+        <div class="sighint" id="hint-technician">Your signature</div>
+      </div>
+      <div class="sig-actions">
+        <button class="btn btn-g btn-sm" type="button" onclick="sigTechnician.clear()">Clear technician signature</button>
+      </div>
+
+      <label class="chk-row" style="margin-top:14px">
+        <input type="checkbox" id="chk-auth">
+        <span>I confirm the service was completed and authorize Cardetail1 / Detailing Zone LLC to review and process the final approved amount for this job according to the posted payment policy. If additional confirmation is required, I understand Cardetail1 may send a secure payment link/invoice or contact me before payment is completed. I understand the final amount may include approved services, add-ons, travel/tolls, condition-based charges, or other posted fees.</span>
+      </label>
+
+      <div class="cert-txt">I certify that I completed the listed service or documented any issue accurately.</div>
+
+      <label class="fl" for="cmp-notes">Completion notes (optional)</label>
+      <textarea class="fi" id="cmp-notes" placeholder="Any notes about the job…"></textarea>
+      <label class="fl" for="issue-notes" id="issue-notes-lbl" style="display:none">Issue description (required)</label>
+      <textarea class="fi" id="issue-notes" placeholder="Describe the issue…" style="display:none"></textarea>
+      <div class="lerr" id="cmperr" style="text-align:left"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-gr" style="flex:1" type="button" id="cmp-submit-btn" onclick="submitComplete()">Submit Completion</button>
+      <button class="btn btn-g" type="button" onclick="closeComplete()">Cancel</button>
+    </div>
+  </div>
 </div>
 
-<!-- PROBLEM MODAL (tech) -->
-<div id="prob-modal">
-  <div class="pm">
-    <div style="font-size:16px;font-weight:800;margin-bottom:14px">⚠️ Report a Problem</div>
-    <select class="fi" id="prob-type" style="margin-bottom:9px"><option value="">Problem type…</option><option>Customer not present</option><option>Wrong address</option><option>Vehicle different from booking</option><option>Water/power not available</option><option>Safety concern</option><option>Equipment issue</option><option>Customer conflict</option><option>Other</option></select>
-    <textarea class="fi" id="prob-desc" placeholder="Describe the problem…" style="min-height:90px;margin-bottom:10px"></textarea>
-    <div style="display:flex;gap:7px">
-      <button class="btn btn-rd" style="flex:1" onclick="submitProblem()">Submit Report</button>
-      <button class="btn btn-g" style="flex:1" onclick="closeProbModal()">Cancel</button>
+<!-- ISSUE MODAL -->
+<div id="issue-modal" class="modal-ov" onclick="if(event.target===this)closeIssue()">
+  <div class="modal" style="width:min(420px,100%)">
+    <div class="modal-hd">
+      <div class="modal-t">Report Issue</div>
+      <button class="btn btn-g btn-sm" type="button" onclick="closeIssue()">✕</button>
+    </div>
+    <div class="modal-bd">
+      <label class="fl" for="issue-type">Issue type</label>
+      <select class="fi" id="issue-type">
+        <option value="">Select…</option>
+        <option>Customer not present</option>
+        <option>Wrong address</option>
+        <option>Vehicle different from booking</option>
+        <option>Water/power not available</option>
+        <option>Safety concern</option>
+        <option>Equipment issue</option>
+        <option>Customer conflict</option>
+        <option>Other</option>
+      </select>
+      <label class="fl" for="issue-desc">Description</label>
+      <textarea class="fi" id="issue-desc" placeholder="Describe the issue…" style="min-height:90px"></textarea>
+      <div class="lerr" id="isserr"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-rd" style="flex:1" type="button" onclick="submitIssue()">Submit Report</button>
+      <button class="btn btn-g" type="button" onclick="closeIssue()">Cancel</button>
     </div>
   </div>
 </div>
@@ -635,835 +322,585 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
 <div id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════
-// CONFIG
-// ═══════════════════════════════════════
-let TECH = null; // approved tech object
-let IS_ADMIN = false;
-let _drwId = '', _probJobId = '';
+(function () {
+  'use strict';
 
-// ═══════════════════════════════════════
-// UTILS
-// ═══════════════════════════════════════
-function ss(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById('s-'+id).classList.add('active'); }
-function selRad(el,n){ document.querySelectorAll(`input[name="${n}"]`).forEach(r=>r.closest('.rad-o').classList.remove('sel')); el.classList.add('sel'); el.querySelector('input').checked=true; }
-function toast(msg,type='ok'){ const el=document.getElementById('toast'); el.textContent=msg; el.className='show '+type; setTimeout(()=>el.className='',3000); }
-function bkGet(){ return JSON.parse(localStorage.getItem('cd1_bookings')||'[]'); }
-function bkSet(a){ localStorage.setItem('cd1_bookings',JSON.stringify(a)); }
-function tkGet(){ return JSON.parse(localStorage.getItem('cd1_technicians')||'[]'); }
-function tkSet(a){ localStorage.setItem('cd1_technicians',JSON.stringify(a)); }
-function cfgGet(){ return JSON.parse(localStorage.getItem('cd1_cfg')||'{}'); }
-function cfgSet(o){ localStorage.setItem('cd1_cfg',JSON.stringify(o)); }
-function bkNm(b){ return (b.name||((b.firstName||'')+' '+(b.lastName||''))||'Unknown').trim(); }
-function bkSvc(b){ return b.service||b.package||b.packageName||'Detail'; }
-function bkTot(b){ return b.totalPrice||b.total_price||b.packagePrice||0; }
-function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-const SC={ 'Pending Review':'b-pen','Confirmed':'b-con','Scheduled':'b-sch','In Progress':'b-inp','En Route':'b-enr','Completed':'b-don','Cancelled':'b-can','Rescheduled':'b-res','No-Show':'b-can','Payment Pending':'b-pay','Paid':'b-don','Authorized':'b-auth','Failed':'b-fail','Test':'b-test','Archived':'b-test' };
-function badge(s){ return `<span class="badge ${SC[s]||'b-pen'}">${s||'Pending'}</span>`; }
+  const TOKEN_KEY = 'cd1_tech_token';
+  const AUTH_URL = '/.netlify/functions/tech-auth';
+  const JOBS_URL = '/.netlify/functions/tech-jobs';
+  const COMPLETE_URL = '/.netlify/functions/tech-complete-job';
 
-// ── PRIORITY CHIPS ──────────────────────────────────────────────────────────
-function bkPriChips(b){
-  const chips=[];
-  const now=Date.now();
-  const created=b.createdAt?new Date(b.createdAt).getTime():0;
-  const todayStr=new Date().toISOString().slice(0,10);
-  const tomorrowStr=new Date(now+864e5).toISOString().slice(0,10);
-  const prefDate=b.preferredDate||b.preferred_date||'';
-  const zone=(b.zone||b.zip_city||'').toLowerCase();
-  const total=bkTot(b);
-  // New — submitted within 24h
-  if(created && (now-created)<864e5) chips.push('<span class="pri-chip pri-new">🆕 New</span>');
-  // Today / Tomorrow
-  if(prefDate===todayStr) chips.push('<span class="pri-chip pri-today">📅 Today</span>');
-  else if(prefDate===tomorrowStr) chips.push('<span class="pri-chip pri-today">📅 Tomorrow</span>');
-  // Extended area — CT or zones that imply travel
-  if(/\bct\b|connecticut|fairfield|stamford|greenwich/i.test(zone)) chips.push('<span class="pri-chip pri-ext">📍 Extended</span>');
-  // High value
-  if(total>=300) chips.push('<span class="pri-chip pri-hi">💰 $'+total+'</span>');
-  // Contacted flag (local only)
-  if(b.adminContacted) chips.push('<span class="pri-chip" style="background:rgba(167,139,250,.12);color:var(--purple)">📞 Contacted</span>');
-  return chips.length?`<div class="pri-chips">${chips.join('')}</div>`:'';
-}
+  let TECH = null;
+  let JOBS = [];
+  let _completeJobId = '';
+  let _issueJobId = '';
+  let sigCustomer, sigTechnician;
 
-// ── PAYMENT STATUS PILL ─────────────────────────────────────────────────────
-function payPill(b){
-  const ps=b.paymentStatus||'';
-  const MAP={
-    'authorized':         ['pp-auth','💳 Authorized'],
-    'paid':               ['pp-paid','✓ Paid'],
-    'authorization_pending':['pp-pend','⏳ Auth Pending'],
-    'capture_pending':    ['pp-pend','⏳ Capture Pending'],
-    'authorization_failed':['pp-fail','✗ Auth Failed'],
-    'no_payment_required_yet':['pp-cash','No payment required yet'],
-    'link_sent':          ['pp-link','🔗 Link Sent'],
+  const JS_BADGE = {
+    assigned: 'b-ass', confirmed: 'b-acc', accepted: 'b-acc',
+    en_route: 'b-enr', arrived: 'b-arr', in_progress: 'b-inp',
+    issue_reported: 'b-iss',
+    completed_pending_admin_review: 'b-don', completed_pending_payment: 'b-don',
+    completed_paid: 'b-don', cancelled: 'b-can', reopened: 'b-iss'
   };
-  const [cls,label]=MAP[ps]||['pp-cash','—'];
-  return ps?`<span class="pay-pill ${cls}">${label}</span>`:'';
-}
+  const JS_LABEL = {
+    assigned: 'Assigned', confirmed: 'Confirmed', accepted: 'Accepted',
+    en_route: 'En Route', arrived: 'Arrived', in_progress: 'In Progress',
+    issue_reported: 'Issue Reported',
+    completed_pending_admin_review: 'Pending Admin Review',
+    completed_pending_payment: 'Completed', completed_paid: 'Paid',
+    cancelled: 'Cancelled', pending_review: 'Pending', reopened: 'Reopened'
+  };
+  const DONE_STATUSES = new Set([
+    'completed_pending_admin_review', 'completed_pending_payment', 'completed_paid', 'cancelled'
+  ]);
 
-// ── WORKFLOW TABS ───────────────────────────────────────────────────────────
-let _wfTab='new';
-const WF_MAP={
-  new:      b=>!b.isTest&&!b.archived&&(b.status||'Pending Review')==='Pending Review',
-  reviewed: b=>!b.isTest&&!b.archived&&['Confirmed','Payment Pending','Rescheduled'].includes(b.status||''),
-  scheduled:b=>!b.isTest&&!b.archived&&['Scheduled','In Progress','En Route'].includes(b.status||''),
-  completed:b=>!b.isTest&&!b.archived&&['Completed','Paid','No-Show','Cancelled'].includes(b.status||''),
-  all:      b=>!b.isTest&&!b.archived,
-  test:     b=>!!(b.isTest||b.archived),
-};
-function setWfTab(t){
-  _wfTab=t;
-  document.querySelectorAll('.wf-tab').forEach(el=>el.classList.remove('active'));
-  const el=document.getElementById('wft-'+t); if(el) el.classList.add('active');
-  // Sync the hidden f-bk-mode so filtBk() respects test/all correctly
-  const modeEl=document.getElementById('f-bk-mode');
-  if(modeEl) modeEl.value=(t==='test'?'test':(t==='all'?'all':'active'));
-  renderBk();
-}
-function updateWfCounts(){
-  const all=[...bkGet()];
-  Object.keys(WF_MAP).forEach(t=>{
-    const el=document.getElementById('wfc-'+t);
-    if(el) el.textContent=all.filter(WF_MAP[t]).length;
-  });
-}
-
-// ═══════════════════════════════════════
-// LOGIN MODES
-// ═══════════════════════════════════════
-function lMode(m){
-  document.getElementById('lm-tech').classList.toggle('active',m==='tech');
-  document.getElementById('lm-cust').classList.toggle('active',m==='cust');
-  document.getElementById('l-tech-form').style.display=m==='tech'?'block':'none';
-  document.getElementById('l-cust-form').style.display=m==='cust'?'block':'none';
-}
-
-// Admin login is handled exclusively by admin.html → /.netlify/functions/admin-auth.
-// This form is for approved technicians only (email lookup, no password).
-function doLogin(){
-  const em  = (document.getElementById('l-email').value||'').trim();
-  const err = document.getElementById('lerr');
-  err.classList.remove('show');
-
-  const tk = tkGet().find(t => t.email.toLowerCase() === em.toLowerCase());
-  if(!tk){ err.textContent='Email not found. Check spelling or apply first.'; err.classList.add('show'); return; }
-  if(tk.status==='pending'){ err.textContent='Still under review. We\'ll email you when approved.'; err.classList.add('show'); return; }
-  if(tk.status==='rejected'){ err.textContent='Application not approved. Call 551-313-2956.'; err.classList.add('show'); return; }
-
-  TECH = tk; IS_ADMIN = false;
-  localStorage.setItem('cd1_session','tech:'+em.toLowerCase());
-  initTech();
-}
-
-function doLogout(){
-  localStorage.removeItem('cd1_session');
-  sessionStorage.removeItem('cd1_admin_key');
-  TECH=null; IS_ADMIN=false;
-  document.getElementById('l-email').value='';
-  document.getElementById('l-pass').value='';
-  ss('land');
-}
-
-// ── AUTO-SESSION ──────────────────────
-(function(){
-  const sess = localStorage.getItem('cd1_session');
-  if(!sess) return;
-  if(sess==='admin'){ IS_ADMIN=true; }
-  else if(sess.startsWith('tech:')){
-    const em=sess.split(':')[1];
-    const tk=tkGet().find(t=>t.email.toLowerCase()===em&&t.status==='approved');
-    if(tk) TECH=tk; else { localStorage.removeItem('cd1_session'); return; }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
-})();
 
-// ═══════════════════════════════════════
-// ADMIN INIT
-// ═══════════════════════════════════════
-function initAdmin(){
-  ss('admin');
-  // clock
-  setInterval(()=>{ const n=new Date(); document.getElementById('adm-clock').textContent=n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); },1000);
-  admRender('dashboard');
-  admBadges();
-}
+  function getToken() { return sessionStorage.getItem(TOKEN_KEY) || ''; }
+  function setToken(t) { sessionStorage.setItem(TOKEN_KEY, t); }
+  function clearToken() { sessionStorage.removeItem(TOKEN_KEY); }
 
-function admBadges(){
-  const bp=bkGet().filter(b=>b.status==='Pending Review'&&!b.isTest&&!b.archived).length;
-  const tp=tkGet().filter(t=>t.status==='pending').length;
-  const bc=document.getElementById('b-ct'); bc.textContent=bp; bc.style.display=bp?'inline':'none';
-  const tc=document.getElementById('t-ct'); tc.textContent=tp; tc.style.display=tp?'inline':'none';
-  if(IS_ADMIN){ const bac=document.getElementById('bk-admin-controls'); if(bac) bac.style.display=''; }
-  updateWfCounts();
-}
-
-function admNav(p){
-  document.querySelectorAll('#s-admin .page').forEach(x=>x.classList.remove('active'));
-  document.querySelectorAll('#adm-tabbar .tab').forEach(x=>x.classList.remove('active'));
-  document.getElementById('ap-'+p).classList.add('active');
-  document.querySelector(`[data-ap="${p}"]`)?.classList.add('active');
-  admRender(p);
-}
-
-function admRender(p){
-  if(p==='dashboard') renderDash();
-  if(p==='bookings') renderBk();
-  if(p==='technicians') renderTechs();
-  if(p==='dispatch') renderDispatch();
-  if(p==='accounting') renderAcct();
-  if(p==='subscriptions') renderSubs();
-  if(p==='settings') renderSettings();
-  admBadges();
-}
-
-// ═══════════════════════════════════════
-// ADMIN — DASHBOARD
-// ═══════════════════════════════════════
-function renderDash(){
-  const bk=bkGet(), tk=tkGet();
-  const real=bk.filter(b=>!b.isTest&&!b.archived);
-  document.getElementById('dd-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  const rev=real.filter(b=>b.status==='Completed'||b.status==='Paid').reduce((s,b)=>s+bkTot(b),0);
-  const pend=real.filter(b=>b.status==='Pending Review').length;
-  const act=real.filter(b=>['Confirmed','Scheduled','In Progress','En Route'].includes(b.status)).length;
-  document.getElementById('dstats').innerHTML=`
-    <div class="sc"><div class="sv" style="color:var(--green)">$${rev.toLocaleString()}</div><div class="sl">Revenue</div></div>
-    <div class="sc"><div class="sv" style="color:var(--yellow)">${pend}</div><div class="sl">Pending</div></div>
-    <div class="sc"><div class="sv" style="color:var(--blue)">${act}</div><div class="sl">Active Jobs</div></div>
-    <div class="sc"><div class="sv" style="color:var(--purple)">${tk.filter(t=>t.status==='approved').length}</div><div class="sl">Active Techs</div></div>
-    <div class="sc"><div class="sv">${real.length}</div><div class="sl">Total Bookings</div></div>
-    <div class="sc"><div class="sv" style="color:var(--green)">${real.filter(b=>b.status==='Completed'||b.status==='Paid').length}</div><div class="sl">Completed</div></div>`;
-  const recent=[...real].reverse().slice(0,6);
-  document.getElementById('d-recent').innerHTML=recent.length
-    ?recent.map(b=>`<tr onclick="openDrw('${b.id}')"><td class="td-mo">${(b.id||'').slice(-6)}</td><td class="td-nm">${bkNm(b)}</td><td class="td-mu">${bkSvc(b)}</td><td class="td-mu">${b.createdAt?new Date(b.createdAt).toLocaleDateString():'—'}</td><td class="td-pr">$${bkTot(b)}</td><td>${badge(b.status||'Pending Review')}</td></tr>`).join('')
-    :'<tr><td colspan="6" class="empty"><div class="ei">📭</div><div class="et">No bookings yet</div></td></tr>';
-  const ptkList=tk.filter(t=>t.status==='pending').slice(0,4);
-  document.getElementById('d-techs').innerHTML=ptkList.length
-    ?ptkList.map(t=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><div><div style="font-weight:600;font-size:12px">${t.name}</div><div style="font-size:10px;color:var(--mu)">${t.email} · ${t.experience||'?'}</div></div><div style="display:flex;gap:5px"><button class="btn btn-gr btn-xs" onclick="approveTk('${t.id}');event.stopPropagation()">Approve</button><button class="btn btn-rd btn-xs" onclick="rejectTk('${t.id}');event.stopPropagation()">Reject</button></div></div>`).join('')
-    :'<div class="empty" style="padding:16px"><div class="et">No pending applications</div></div>';
-}
-
-// ═══════════════════════════════════════
-// ADMIN — BOOKINGS
-// ═══════════════════════════════════════
-function filtBk(){
-  let bk=[...bkGet()].reverse();
-  // Workflow tab takes precedence when in admin mode
-  if(IS_ADMIN && WF_MAP[_wfTab]){
-    bk=bk.filter(WF_MAP[_wfTab]);
-  } else {
-    const mode=IS_ADMIN?(document.getElementById('f-bk-mode')?.value||'active'):'active';
-    if(mode==='active') bk=bk.filter(b=>!b.isTest&&!b.archived);
-    else if(mode==='test') bk=bk.filter(b=>b.isTest||b.archived);
+  function toast(msg, type) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show ' + (type || 'ok');
+    setTimeout(function () { el.className = ''; }, 3200);
   }
-  const st=document.getElementById('f-st')?.value||'';
-  const fr=document.getElementById('f-fr')?.value||'';
-  const to=document.getElementById('f-to')?.value||'';
-  const q=(document.getElementById('f-q')?.value||'').toLowerCase();
-  if(st) bk=bk.filter(b=>(b.status||'Pending Review')===st);
-  if(fr) bk=bk.filter(b=>b.createdAt&&new Date(b.createdAt)>=new Date(fr));
-  if(to) bk=bk.filter(b=>b.createdAt&&new Date(b.createdAt)<=new Date(to+'T23:59:59'));
-  if(q) bk=bk.filter(b=>(bkNm(b)+bkSvc(b)+(b.email||'')+(b.zip||b.zipCode||'')+(b.phone||'')).toLowerCase().includes(q));
-  return bk;
-}
 
-function renderBk(){
-  const bk=filtBk();
-  updateWfCounts();
-  document.getElementById('bk-body').innerHTML=bk.length
-    ?bk.map(b=>{
-      const testLabel=b.isTest?'<span class="badge b-test" style="margin-left:5px">TEST</span>':'';
-      const archLabel=(b.archived&&!b.isTest)?'<span class="badge b-test" style="margin-left:5px">ARCHIVED</span>':'';
-      const chips=bkPriChips(b);
-      const adminBtn=IS_ADMIN?(b.archived||b.isTest
-        ?`<button onclick="restoreBk('${esc(b.id)}')" style="font-size:10px;padding:2px 6px;margin-top:3px;display:block;background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.3);border-radius:6px;cursor:pointer;white-space:nowrap">↩ Restore</button>`
-        :`<button onclick="markBkArchive('${esc(b.id)}')" style="font-size:10px;padding:2px 6px;margin-top:3px;display:block;background:rgba(251,191,36,.08);color:var(--yellow);border:1px solid rgba(251,191,36,.3);border-radius:6px;cursor:pointer;white-space:nowrap">🧪 Archive</button>`
-      ):'';
-      return `<tr onclick="openDrw('${esc(b.id)}')" ${(b.isTest||b.archived)?'style="opacity:.6"':''}>
-      <td class="td-mo">${esc((b.id||'').slice(-8))}</td>
-      <td><div class="td-nm">${esc(b.firstName||'')} ${esc(b.lastName||'')}${testLabel}${archLabel}</div><div class="td-mu">${esc(b.email||b.phone||'')}</div>${chips}</td>
-      <td><div>${esc(bkSvc(b))}</div><div class="td-mu">${esc(b.vehicleLabel||b.vehicle||'')}</div></td>
-      <td class="td-mu">${esc(b.preferredDate||b.preferred_date||'—')}</td>
-      <td class="td-mu">${esc(b.zone||b.zip_city||b.zipCode||'—')}</td>
-      <td class="td-pr">$${bkTot(b)}</td>
-      <td>${badge(b.status||'Pending Review')}</td>
-      <td>${payPill(b)}</td>
-      <td onclick="event.stopPropagation()">
-        <select class="ff" style="font-size:10px;padding:3px 6px" onchange="setBkStatus('${esc(b.id)}',this.value)">
-          <option value="">—</option>
-          ${['Pending Review','Confirmed','Scheduled','In Progress','Completed','Cancelled','Rescheduled','No-Show','Payment Pending','Paid'].map(s=>`<option ${b.status===s?'selected':''}>${s}</option>`).join('')}
-        </select>
-        ${adminBtn}
-      </td>
-    </tr>`;}).join('')
-    :'<tr><td colspan="9" class="empty"><div class="ei">📭</div><div class="et">No bookings match</div></td></tr>';
-  admBadges();
-}
-
-function setBkStatus(id,s){ if(!s)return; const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){bk[i].status=s;bkSet(bk);}admBadges(); }
-function clearAll(){ if(confirm('Delete ALL bookings?')){localStorage.removeItem('cd1_bookings');renderBk();renderDash();toast('Cleared','err');} }
-
-function clearBkFilters(){
-  const st=document.getElementById('f-st'); if(st) st.value='';
-  const fr=document.getElementById('f-fr'); if(fr) fr.value='';
-  const to=document.getElementById('f-to'); if(to) to.value='';
-  const q=document.getElementById('f-q');  if(q)  q.value='';
-  renderBk();
-}
-
-async function markBkArchive(id){
-  if(!IS_ADMIN){ toast('Admin only','err'); return; }
-  const key=sessionStorage.getItem('cd1_admin_key')||'';
-  if(!key){ toast('Admin session expired — reload the page','err'); return; }
-  try{
-    const res=await fetch('/.netlify/functions/tag-booking',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-admin-key':key},
-      body:JSON.stringify({bookingId:id,isTest:true,archived:true,archivedReason:'production testing',archivedAt:new Date().toISOString()}),
-    });
-    const data=await res.json().catch(()=>({}));
-    if(!data.ok){ toast('Archive failed: '+(data.error||'HTTP '+res.status),'err'); return; }
-    const list=bkGet().map(b=>b.id===id?{...b,isTest:true,archived:true,archivedReason:'production testing'}:b);
-    bkSet(list); renderBk(); renderDash(); admBadges();
-    toast('Booking archived');
-  }catch(e){ toast('Archive error: '+e.message,'err'); }
-}
-
-async function restoreBk(id){
-  if(!IS_ADMIN){ toast('Admin only','err'); return; }
-  const key=sessionStorage.getItem('cd1_admin_key')||'';
-  if(!key){ toast('Admin session expired — reload the page','err'); return; }
-  try{
-    const res=await fetch('/.netlify/functions/tag-booking',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-admin-key':key},
-      body:JSON.stringify({bookingId:id,isTest:false,archived:false,archivedReason:'',archivedAt:''}),
-    });
-    const data=await res.json().catch(()=>({}));
-    if(!data.ok){ toast('Restore failed: '+(data.error||'HTTP '+res.status),'err'); return; }
-    const list=bkGet().map(b=>b.id===id?{...b,isTest:false,archived:false,archivedReason:'',archivedAt:''}:b);
-    bkSet(list); renderBk(); renderDash(); admBadges();
-    toast('Booking restored');
-  }catch(e){ toast('Restore error: '+e.message,'err'); }
-}
-
-async function loadBkFromCloud(){
-  const btn=document.getElementById('bk-cloud-btn');
-  let key=sessionStorage.getItem('cd1_admin_key')||'';
-  if(!key){
-    key=(prompt('Enter admin password to load bookings from cloud:')||'').trim();
-    if(!key){ toast('Cloud load cancelled','err'); return; }
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+    document.getElementById('s-' + id).classList.add('active');
   }
-  if(btn){ btn.disabled=true; btn.textContent='☁️ Loading…'; }
-  try{
-    const mode=document.getElementById('f-bk-mode')?.value||'active';
-    const res=await fetch('/.netlify/functions/list-bookings',{
-      headers:{'x-admin-key':key,'Cache-Control':'no-store',...(mode!=='active'?{'x-show-test':'1'}:{})},
+
+  window.showLand = function () { showScreen('land'); };
+  window.showLogin = function () { showScreen('login'); clearErr('lerr'); };
+  window.showInvite = function () {
+    showScreen('invite');
+    clearErr('ierr');
+    var qs = new URLSearchParams(location.search);
+    if (qs.get('invite')) document.getElementById('i-token').value = qs.get('invite');
+    if (qs.get('email')) document.getElementById('i-email').value = qs.get('email');
+  };
+
+  function clearErr(id) {
+    var el = document.getElementById(id);
+    if (el) { el.textContent = ''; el.classList.remove('show'); }
+  }
+  function showErr(id, msg) {
+    var el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+
+  function authErrorMsg(data) {
+    var map = {
+      invalid_credentials: 'Invalid email or password.',
+      weak_password: data.message || 'Password does not meet requirements.',
+      passwords_do_not_match: 'Passwords do not match.',
+      invalid_invite_token: 'Invalid invite link. Ask admin for a new invite.',
+      invite_expired: data.message || 'Invite expired. Ask admin for a new invite.',
+      email_mismatch: 'Email does not match this invite.',
+      account_deactivated: 'Account deactivated. Contact Cardetail1.',
+      too_many_attempts: 'Too many attempts. Try again later.',
+      invalid_or_expired_session: 'Session expired. Please sign in again.'
+    };
+    return map[data.error] || data.message || data.error || 'Request failed.';
+  }
+
+  async function authApi(body) {
+    var res = await fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
     });
-    const data=await res.json().catch(()=>({}));
-    if(res.status===401||res.status===503||!data.ok){
-      toast('Could not load bookings from cloud. Please check admin access and retry.','err');
+    var data = await res.json().catch(function () { return {}; });
+    return { res: res, data: data };
+  }
+
+  async function techFetch(url, opts) {
+    opts = opts || {};
+    var headers = Object.assign({ 'x-tech-token': getToken() }, opts.headers || {});
+    if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+    var res = await fetch(url, Object.assign({}, opts, { headers: headers }));
+    var data = await res.json().catch(function () { return {}; });
+    return { res: res, data: data };
+  }
+
+  function onAuthSuccess(data) {
+    setToken(data.token);
+    TECH = { id: data.techId, name: data.name };
+    document.getElementById('tech-nm').textContent = data.name;
+    showScreen('dash');
+    loadJobs();
+  }
+
+  window.doLogin = async function (e) {
+    if (e) e.preventDefault();
+    clearErr('lerr');
+    var btn = document.getElementById('login-btn');
+    btn.disabled = true;
+    try {
+      var email = document.getElementById('l-email').value.trim().toLowerCase();
+      var password = document.getElementById('l-pass').value;
+      var r = await authApi({ action: 'login', email: email, password: password });
+      if (!r.data.ok) { showErr('lerr', authErrorMsg(r.data)); return false; }
+      onAuthSuccess(r.data);
+    } catch (err) {
+      showErr('lerr', 'Network error. Try again.');
+    } finally {
+      btn.disabled = false;
+    }
+    return false;
+  };
+
+  window.doSetPassword = async function (e) {
+    if (e) e.preventDefault();
+    clearErr('ierr');
+    var btn = document.getElementById('invite-btn');
+    btn.disabled = true;
+    try {
+      var body = {
+        action: 'set_password',
+        inviteToken: document.getElementById('i-token').value.trim(),
+        email: document.getElementById('i-email').value.trim().toLowerCase(),
+        newPassword: document.getElementById('i-pass').value,
+        confirmPassword: document.getElementById('i-pass2').value
+      };
+      var r = await authApi(body);
+      if (!r.data.ok) { showErr('ierr', authErrorMsg(r.data)); return false; }
+      history.replaceState({}, '', location.pathname);
+      onAuthSuccess(r.data);
+      toast('Password set — welcome!');
+    } catch (err) {
+      showErr('ierr', 'Network error. Try again.');
+    } finally {
+      btn.disabled = false;
+    }
+    return false;
+  };
+
+  window.doLogout = async function () {
+    var token = getToken();
+    if (token) {
+      try { await authApi({ action: 'logout', token: token }); } catch (_) {}
+    }
+    clearToken();
+    TECH = null;
+    JOBS = [];
+    showScreen('land');
+    toast('Signed out');
+  };
+
+  async function validateSession() {
+    var token = getToken();
+    if (!token) return false;
+    try {
+      var r = await authApi({ action: 'validate', token: token });
+      if (!r.data.ok) { clearToken(); return false; }
+      TECH = { id: r.data.techId, name: r.data.name };
+      document.getElementById('tech-nm').textContent = r.data.name;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function badge(js) {
+    var lbl = JS_LABEL[js] || js || '—';
+    var cls = JS_BADGE[js] || 'b-acc';
+    return '<span class="badge ' + cls + '">' + esc(lbl) + '</span>';
+  }
+
+  function fmtDate(d) {
+    if (!d) return '—';
+    try { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+    catch (_) { return d; }
+  }
+
+  function fmtTime(job) {
+    return job.confirmedTime || job.confirmedTimeWindow || job.preferredTime || '—';
+  }
+
+  function fmtAddons(addons) {
+    if (!addons || !addons.length) return '—';
+    return addons.map(function (a) { return esc(a.name) + (a.qty > 1 ? ' ×' + a.qty : ''); }).join(', ');
+  }
+
+  window.loadJobs = async function () {
+    var el = document.getElementById('jobs-list');
+    if (!getToken()) { showScreen('land'); return; }
+    el.innerHTML = '<div class="loading">Loading jobs…</div>';
+    try {
+      var r = await techFetch(JOBS_URL);
+      if (r.res.status === 401) {
+        clearToken();
+        showScreen('login');
+        showErr('lerr', 'Session expired. Please sign in again.');
+        return;
+      }
+      if (!r.data.ok) {
+        el.innerHTML = '<div class="empty"><div class="ei">⚠️</div><div class="et">Could not load jobs.</div></div>';
+        return;
+      }
+      JOBS = r.data.jobs || [];
+      renderJobs();
+    } catch (_) {
+      el.innerHTML = '<div class="empty"><div class="ei">📡</div><div class="et">Network error loading jobs.</div></div>';
+    }
+  };
+
+  function renderJobs() {
+    var el = document.getElementById('jobs-list');
+    if (!JOBS.length) {
+      el.innerHTML = '<div class="empty"><div class="ei">📋</div><div class="et">No assigned jobs right now.</div></div>';
       return;
     }
-    // On successful auth, persist key to sessionStorage for this tab session
-    sessionStorage.setItem('cd1_admin_key',key);
-    // Merge: Blobs records win for matching IDs; keep any local-only ones
-    const local=bkGet();
-    const map=new Map();
-    local.forEach(b=>map.set(b.id,b));
-    (data.bookings||[]).forEach(b=>map.set(b.id,b));
-    const merged=[...map.values()].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
-    bkSet(merged);
-    renderBk();
-    renderDash();
-    admBadges();
-    toast('Loaded '+(data.count||0)+' booking(s) from cloud');
-  }catch(e){
-    toast('Could not load bookings from cloud. Please check admin access and retry.','err');
-  }finally{
-    if(btn){ btn.disabled=false; btn.textContent='☁️ Load from Cloud'; }
-  }
-}
-
-function exportCSV(){
-  const bk=filtBk(); if(!bk.length){toast('Nothing to export','err');return;}
-  const cols=['ID','Name','Email','Phone','Address','ZIP','Zone','Vehicle','Service','Add-ons','Preferred Date','Time','Total','Status','Notes','Submitted'];
-  const rows=bk.map(b=>[b.id||'',bkNm(b),b.email||'',b.phone||'',b.address||'',b.zip||b.zipCode||'',b.zone||b.zip_city||'',b.vehicleLabel||b.vehicle||'',bkSvc(b),(b.addons||[]).map(a=>a.name||a).join(' | '),b.preferredDate||b.preferred_date||'',b.preferredTime||'',bkTot(b),b.status||'Pending Review',(b.notes||'').replace(/,/g,';'),b.createdAt?new Date(b.createdAt).toLocaleString():''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
-  const csv=[cols.join(','),...rows].join('\n');
-  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='bookings-'+new Date().toISOString().slice(0,10)+'.csv';a.click();toast(`Exported ${bk.length} rows`);
-}
-function exportAcctCSV(){
-  const bk=bkGet().filter(b=>b.status==='Completed'||b.status==='Paid');
-  if(!bk.length){toast('No completed bookings','err');return;}
-  const cols=['ID','Customer','Service','Date','Revenue','Cost 40%','Net 60%'];
-  const rows=bk.map(b=>{const r=bkTot(b);return [b.id||'',bkNm(b),bkSvc(b),b.createdAt?new Date(b.createdAt).toLocaleDateString():'',r,Math.round(r*.4),Math.round(r*.6)].map(v=>`"${v}"`).join(',');});
-  const csv=[cols.join(','),...rows].join('\n');
-  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='accounting-'+new Date().toISOString().slice(0,10)+'.csv';a.click();toast('Accounting CSV exported');
-}
-
-// ═══════════════════════════════════════
-// ADMIN — DRAWER
-// ═══════════════════════════════════════
-function openDrw(id){
-  const b=bkGet().find(x=>x.id===id); if(!b) return;
-  _drwId=id;
-  document.getElementById('drw-nm').textContent=bkNm(b);
-  document.getElementById('drw-id').textContent=b.id||'—';
-  const addons=(b.addons||[]).map(a=>a.name||a).join(', ')||'None';
-  const tech=tkGet().find(t=>t.id===b.assignedTech);
-  const row=(k,v)=>`<div class="dr"><span class="dk">${k}</span><span class="dv">${v}</span></div>`;
-  const prefLabels={cash_onsite:'Cash On-Site',card_onsite:'Card On-Site',online_after_service:'Online After Service'};
-  const cardLabels={saved:'Saved',pending:'Pending',failed:'Failed'};
-  const appointmentLabels={pending_review:'Pending Review',confirmed:'Confirmed',canceled:'Canceled'};
-  document.getElementById('drw-bd').innerHTML=`
-    <div class="dsec">Booking</div>
-    ${row('Status',badge(b.status||'Pending Review'))}${row('ID',`<span style="font-family:var(--fd);color:var(--blue);font-size:11px">${esc(b.id||'—')}</span>`)}${row('Submitted',b.createdAt?new Date(b.createdAt).toLocaleString():'—')}
-    ${row('Payment Preference',esc(prefLabels[b.paymentMethodPreference]||'Not available'))}
-    ${row('Card on File',esc(cardLabels[b.cardOnFileStatus]||'Pending'))}
-    ${row('Appointment',esc(appointmentLabels[b.appointmentStatus]||'Pending Review'))}
-    ${b.cancellationRequestStatus?row('Cancellation Request',esc(b.cancellationRequestStatus==='requested'?'Requested — manual review required':b.cancellationRequestStatus)):''}
-    <div class="dsec">Customer</div>
-    ${row('Name',esc(b.firstName||'')+' '+esc(b.lastName||''))}${row('Phone',b.phone?`<a href="tel:${esc(b.phone)}" style="color:var(--blue)">${esc(b.phone)}</a>`:'-')}${row('Email',esc(b.email||'—'))}${row('Address',esc(b.address||'—'))}${row('ZIP',esc(b.zip||b.zipCode||'—'))}${row('Zone',esc(b.zone||b.zip_city||'—'))}
-    <div class="dsec">Service</div>
-    ${row('Vehicle',esc(b.vehicleLabel||b.vehicle||'—'))}${row('Service',esc(bkSvc(b)))}${row('Add-ons',esc(addons))}${row('Preferred Date',esc(b.preferredDate||b.preferred_date||'—'))}${row('Preferred Time',esc(b.preferredTime||'Any'))}${row('Total','<span style="color:var(--green);font-weight:800;font-size:14px">$'+bkTot(b)+'</span>')}
-    ${row('Technician',tech?`<span style="color:var(--green)">${esc(tech.name)}</span>`:'Unassigned')}
-    ${b.notes?`<div class="dsec">Notes</div><div style="font-size:12px;color:var(--mu);background:var(--bg3);border-radius:7px;padding:10px">${esc(b.notes)}</div>`:''}
-  `;
-  const tks=tkGet().filter(t=>t.status==='approved');
-  const cfg=cfgGet();
-  const phone=b.phone||'';
-  const email=b.email||'';
-  const name1=bkNm(b).split(' ')[0]||bkNm(b);
-  const gaLink=`/technician.html#garage-${encodeURIComponent(b.id)}`;
-  const reviewedCls=b.adminReviewed?'qa-btn qa-soon':'qa-btn qa-rev';
-  const contactedCls=b.adminContacted?'qa-btn qa-soon':'qa-btn qa-cont';
-  document.getElementById('drw-ac').innerHTML=`
-    <div class="qa-sect">Quick Actions</div>
-    <div class="qa-row">
-      ${phone?`<a class="qa-btn qa-call" href="tel:${esc(phone)}">📞 Call ${esc(name1)}</a>`:'<span class="qa-btn qa-soon">📞 No phone</span>'}
-      ${email?`<a class="qa-btn qa-email" href="mailto:${esc(email)}?subject=Cardetail1+Booking+${esc(b.id)}">✉️ Email</a>`:'<span class="qa-btn qa-soon">✉️ No email</span>'}
-    </div>
-    <div class="qa-row" style="margin-top:4px">
-      <button class="${reviewedCls}" onclick="${b.adminReviewed?'':'drwMarkReviewed()'}">${b.adminReviewed?'✓ Reviewed':'✓ Mark Reviewed'}</button>
-      <button class="${contactedCls}" onclick="${b.adminContacted?'':'drwMarkContacted()'}">${b.adminContacted?'📞 Contacted':'📞 Mark Contacted'}</button>
-    </div>
-    <div class="qa-row" style="margin-top:4px">
-      <span class="qa-btn qa-soon" style="font-size:10px">📝 Internal note — Coming soon</span>
-    </div>
-    <div class="local-note">Actions above are saved locally in this browser only. To contact the customer, call directly or use the phone/email links.</div>
-    <div class="qa-sect" style="margin-top:14px">Appointment Confirmation</div>
-    ${b.appointmentStatus==='confirmed'?`<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.28);border-radius:8px;padding:10px 12px;margin-bottom:9px;font-size:12px;color:var(--tx);width:100%">✓ Confirmed — ${esc(b.confirmedDate||'—')} · ${esc(b.confirmedTimeWindow||b.confirmedTime||'—')}${b.customerNote?`<div style="margin-top:5px;font-size:11px;color:var(--mu)">${esc(b.customerNote)}</div>`:''}</div>`:''}
-    <div style="width:100%;margin-bottom:7px">
-      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Confirmed Date <span style="color:var(--green);font-weight:400;font-style:italic;text-transform:none">(required)</span></div>
-      <input type="date" class="pinp" id="drw-conf-date" style="width:100%;margin-bottom:6px" value="${b.confirmedDate||''}">
-      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Time Window <span style="color:var(--green);font-weight:400;font-style:italic;text-transform:none">(required, e.g. 9AM–11AM)</span></div>
-      <input type="text" class="pinp" id="drw-conf-tw" placeholder="9AM–11AM" style="width:100%;margin-bottom:6px" value="${b.confirmedTimeWindow||b.confirmedTime||''}">
-      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Customer note <span style="color:var(--mu);font-weight:400;font-style:italic;text-transform:none">(optional — visible to customer)</span></div>
-      <textarea class="pinp" id="drw-cust-note" placeholder="Any message for the customer…" style="width:100%;min-height:50px;resize:vertical;margin-bottom:6px">${b.customerNote||''}</textarea>
-      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Internal admin note <span style="color:var(--mu);font-weight:400;font-style:italic;text-transform:none">(not shown to customer)</span></div>
-      <textarea class="pinp" id="drw-admin-note" placeholder="Internal notes…" style="width:100%;min-height:50px;resize:vertical;margin-bottom:6px">${b.adminNotes||''}</textarea>
-      <button class="btn ${b.appointmentStatus==='confirmed'?'btn-g':'btn-gr'} btn-sm" style="width:100%" onclick="drwConfirmAppointment()">
-        ${b.appointmentStatus==='confirmed'?'↻ Re-confirm Appointment':'✓ Confirm Appointment'}
-      </button>
-      <div style="font-size:10px;color:var(--mu);margin-top:5px;line-height:1.4">Saves confirmed date and time to the cloud. Sends a confirmation email to the customer. Customer-facing note is included in the email; internal note is not.</div>
-    </div>
-    <div class="qa-sect" style="margin-top:14px">Job Lifecycle</div>
-    <div style="width:100%;margin-bottom:7px">
-      ${(()=>{
-        const js=b.jobStatus||'';
-        const isCanceledOrClosed=['canceled','closed'].includes(js);
-        const showEnRoute=!['en_route','in_progress','completed','closed','canceled'].includes(js);
-        const showInProgress=js==='en_route';
-        const showCompleted=js==='in_progress';
-        const showClose=js==='completed';
-        return `<div style="display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-bottom:7px">
-          ${showEnRoute?`<button class="btn btn-or btn-sm" style="flex:1;min-width:120px" onclick="drwLifecycle('en_route','admin_mark_en_route')">🚗 Mark En Route</button>`:''}
-          ${showInProgress?`<button class="btn btn-p btn-sm" style="flex:1;min-width:120px" onclick="drwLifecycle('in_progress','admin_mark_in_progress')">▶ Mark In Progress</button>`:''}
-          ${showCompleted?`<button class="btn btn-g btn-sm" style="flex:1;min-width:120px" onclick="drwLifecycle('completed','admin_mark_completed')">✓ Mark Completed</button>`:''}
-          ${showClose?`<button class="btn btn-tl btn-sm" style="flex:1;min-width:120px" onclick="drwLifecycle('closed','admin_close_job')">🔒 Close Job</button>`:''}
-          ${!isCanceledOrClosed?`<button class="btn btn-rd btn-sm" style="flex:1;min-width:120px" onclick="drwCancelCloud()">✕ Cancel Booking</button>`:'<div style="font-size:10px;color:var(--mu);font-style:italic">Booking is ${js}.</div>'}
-        </div>
-        <div style="font-size:9px;color:var(--mu);margin-top:2px">Current job status: <strong>${esc(js||'(not set)')}</strong> — lifecycle actions save to cloud immediately.</div>`;
-      })()}
-    </div>
-    <div class="qa-sect" style="margin-top:14px">Status &amp; Assignment</div>
-    <div style="width:100%;margin-bottom:7px">
-      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Legacy Status (local only)</div>
-      <select class="ssel" id="drw-st" style="width:100%;margin-bottom:6px">${['Pending Review','Confirmed','Scheduled','In Progress','Completed','Cancelled','Rescheduled','No-Show','Payment Pending','Paid'].map(s=>`<option ${(b.status||'Pending Review')===s?'selected':''}>${s}</option>`).join('')}</select>
-      <button class="btn btn-p btn-sm" style="width:100%" onclick="drwSetStatus()">Update Legacy Status</button>
-      <div style="font-size:10px;color:var(--mu);margin-top:4px">Legacy status is local-only. Use Job Lifecycle buttons above for cloud-persisted state.</div>
-    </div>
-    <div style="width:100%;margin-bottom:7px">
-      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Assign Technician</div>
-      <select class="ssel" id="drw-tk" style="width:100%;margin-bottom:6px"><option value="">— Select Tech —</option>${tks.map(t=>`<option value="${esc(t.id)}" ${b.assignedTech===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select>
-      <button class="btn btn-g btn-sm" style="width:100%" onclick="drwAssign()">Assign</button>
-    </div>
-    <div style="width:100%;margin-bottom:7px">
-      <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Send Payment Link</div>
-      <input class="pinp" id="pay-url" placeholder="${cfg.squareUrl||'https://square.link/u/…'}">
-      <button class="btn btn-tl btn-sm" style="width:100%" onclick="drwSendPay()">📤 WhatsApp / SMS</button>
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%">
-      <button class="btn btn-yw btn-sm" onclick="drwReschedule()">📅 Reschedule</button>
-      <button class="btn btn-or btn-sm" onclick="drwNoShow()">🚫 No-Show</button>
-    </div>`;
-  document.getElementById('ov').classList.add('open');
-  document.getElementById('drw').classList.add('open');
-}
-function closeDrw(){ document.getElementById('ov').classList.remove('open'); document.getElementById('drw').classList.remove('open'); }
-function drwUpd(fn){ const bk=bkGet();const i=bk.findIndex(b=>b.id===_drwId);if(i>-1){fn(bk[i]);bkSet(bk);}closeDrw();renderBk();renderDash();admBadges(); }
-function drwSetStatus(){ const s=document.getElementById('drw-st').value; drwUpd(b=>b.status=s); toast('Status → '+s); }
-function drwAssign(){ const tid=document.getElementById('drw-tk').value; if(!tid){toast('Select a tech','err');return;} const tk=tkGet().find(t=>t.id===tid); drwUpd(b=>{b.assignedTech=tid;b.assignedTechName=tk?.name||'';b.status='Confirmed';}); toast('Assigned to '+tk?.name); }
-function drwSendPay(){ const b=bkGet().find(x=>x.id===_drwId);if(!b)return; const url=document.getElementById('pay-url').value.trim()||(cfgGet().squareUrl||''); const ph=b.phone||''; const msg=encodeURIComponent(`Hi ${bkNm(b).split(' ')[0]}! Confirm your Cardetail1 appointment with a $${bkTot(b)} payment: ${url} 🚗✨`); window.open(`https://wa.me/${ph.replace(/\D/g,'')}?text=${msg}`,'_blank'); drwUpd(b=>b.paymentLifecycle='payment_link_sent'); toast('WhatsApp opened'); }
-
-// ── Cloud-persisted job lifecycle actions ─────────────────────────────────────
-// These write jobStatus + legacy status + timestamp to Blobs via update-booking.
-// Payment status is never touched here — lifecycle and payment remain separate.
-
-async function drwLifecycle(newJobStatus, lastAction) {
-  if (!IS_ADMIN) { toast('Admin access required', 'err'); return; }
-  const label = { en_route: 'En Route', in_progress: 'In Progress', completed: 'Completed', closed: 'Closed' }[newJobStatus] || newJobStatus;
-  if (!confirm(`Mark this booking as "${label}"?`)) return;
-  const now = new Date().toISOString();
-  const timestampField = { en_route: 'enRouteAt', in_progress: 'startedAt', completed: 'completedAt', closed: 'closedAt' }[newJobStatus];
-  const legacyStatus   = { en_route: 'En Route', in_progress: 'In Progress', completed: 'Completed', closed: 'Closed' }[newJobStatus];
-  const updates = { jobStatus: newJobStatus };
-  if (legacyStatus)    updates.status         = legacyStatus;
-  if (timestampField)  updates[timestampField] = now;
-  const result = await adminBkUpdate(_drwId, updates, lastAction);
-  if (result.ok) { closeDrw(); renderBk(); renderDash(); admBadges(); toast(`✓ Job marked ${label}`); }
-}
-
-async function drwCancelCloud() {
-  if (!IS_ADMIN) { toast('Admin access required', 'err'); return; }
-  if (!confirm('Cancel this booking? Sets both appointmentStatus and jobStatus to canceled.')) return;
-  const result = await adminBkUpdate(_drwId, {
-    appointmentStatus: 'canceled',
-    jobStatus:         'canceled',
-    status:            'Canceled',
-    canceledAt:        new Date().toISOString(),
-  }, 'admin_cancel_booking');
-  if (result.ok) { closeDrw(); renderBk(); renderDash(); admBadges(); toast('Booking canceled', 'err'); }
-}
-function drwReschedule(){ const d=prompt('New preferred date (YYYY-MM-DD):');if(!d)return; drwUpd(b=>{b.preferredDate=d;b.status='Rescheduled';}); toast('Rescheduled to '+d); }
-function drwNoShow(){ if(confirm('Mark as No-Show?')){drwUpd(b=>b.status='No-Show');toast('Marked No-Show','err');} }
-function drwCancel(){ if(confirm('Cancel this booking?')){drwUpd(b=>b.status='Cancelled');toast('Cancelled','err');} }
-
-function drwMarkReviewed(){
-  const bk=bkGet(); const i=bk.findIndex(b=>b.id===_drwId); if(i<0) return;
-  bk[i].adminReviewed=true; bk[i].adminReviewedAt=new Date().toISOString();
-  bkSet(bk);
-  toast('Marked as reviewed (saved locally)');
-  openDrw(_drwId);
-  renderBk();
-}
-function drwMarkContacted(){
-  const bk=bkGet(); const i=bk.findIndex(b=>b.id===_drwId); if(i<0) return;
-  bk[i].adminContacted=true; bk[i].adminContactedAt=new Date().toISOString();
-  bkSet(bk);
-  toast('Marked as contacted (saved locally)');
-  openDrw(_drwId);
-  renderBk();
-}
-
-// ── CLOUD MUTATION (admin-only) ─────────────────────────────────────────────
-// Calls update-booking.js with the x-admin-key from sessionStorage.
-// Updates localStorage on success so the UI stays in sync without a full
-// Load from Cloud round-trip.
-// Returns the server response object (always), or { ok: false } on error.
-async function adminBkUpdate(bookingId, updates, lastAction) {
-  const key = sessionStorage.getItem('cd1_admin_key') || '';
-  if (!key) { toast('Admin session required — reload the page', 'err'); return { ok: false }; }
-  try {
-    const res = await fetch('/.netlify/functions/update-booking', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-admin-key': key },
-      body: JSON.stringify({ bookingId, updates, lastAction }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!data.ok) {
-      console.warn('[admin-update] failed', data.error, 'for', bookingId);
-      toast('Cloud save failed: ' + (data.error || 'error'), 'err');
-      return data;
+    var active = JOBS.filter(function (j) { return !DONE_STATUSES.has(j.jobStatus); });
+    var done = JOBS.filter(function (j) { return DONE_STATUSES.has(j.jobStatus); });
+    var html = '';
+    if (active.length) html += active.map(jobCard).join('');
+    if (done.length) {
+      html += '<div class="sec-lbl" style="margin:20px 0 12px">Completed / closed</div>';
+      html += done.map(jobCard).join('');
     }
-    // Merge written fields into localStorage so next Load from Cloud finds
-    // them already correct rather than overwriting with the old value.
-    const bk = bkGet();
-    const i  = bk.findIndex(b => b.id === bookingId);
-    if (i > -1) {
-      Object.assign(bk[i], updates);
-      bk[i].updatedAt   = data.updatedAt;
-      bk[i].lastAction  = data.lastAction;
-      bkSet(bk);
-    }
-    return data;
-  } catch (e) {
-    console.warn('[admin-update] error', e.message);
-    toast('Cloud save error: ' + e.message, 'err');
-    return { ok: false };
+    el.innerHTML = html;
   }
-}
 
-// ── APPOINTMENT CONFIRMATION ────────────────────────────────────────────────
-async function drwConfirmAppointment() {
-  if (!IS_ADMIN) { toast('Admin access required', 'err'); return; }
+  function jobCard(j) {
+    var js = j.jobStatus || 'assigned';
+    var done = DONE_STATUSES.has(js);
+    var cls = 'jc' + (done ? ' done' : ' active-job') + (js === 'en_route' ? ' enr' : '');
+    var acts = '';
+    if (!done) {
+      if (js === 'assigned' || js === 'confirmed') {
+        acts += btn('Accept', 'btn-p', "updStatus('" + j.id + "','accepted')");
+      }
+      if (js === 'accepted') {
+        acts += btn('En Route', 'btn-or', "updStatus('" + j.id + "','en_route')");
+      }
+      if (js === 'en_route') {
+        acts += btn('Arrived', 'btn-tl', "updStatus('" + j.id + "','arrived')");
+      }
+      if (js === 'arrived') {
+        acts += btn('In Progress', 'btn-p', "updStatus('" + j.id + "','in_progress')");
+      }
+      if (js === 'in_progress' || js === 'issue_reported') {
+        acts += btn('Complete', 'btn-gr', "openComplete('" + j.id + "')");
+        acts += btn('Report Issue', 'btn-yw', "openIssue('" + j.id + "')");
+      }
+      if (j.phone) {
+        acts += '<a class="btn btn-g btn-sm" href="tel:' + esc(j.phone) + '">📞 Call</a>';
+        var wa = 'https://wa.me/' + String(j.phone).replace(/\D/g, '') +
+          '?text=' + encodeURIComponent('Hi! Your Cardetail1 technician is on the way.');
+        acts += '<a class="btn btn-g btn-sm" href="' + wa + '" target="_blank" rel="noopener">💬</a>';
+      }
+    }
+    if (j.completionSubmitted) {
+      acts += '<span style="font-size:11px;color:var(--green);font-weight:600">✓ Completion submitted</span>';
+    }
+    return '<div class="' + cls + '">' +
+      '<div class="jc-top"><div>' +
+        '<div class="jc-id">' + esc((j.id || '').slice(-8)) + '</div>' +
+        '<div class="jc-sv">' + esc(j.package || 'Detail') + '</div>' +
+        '<div class="jc-vh">' + esc(j.vehicle || '—') + '</div>' +
+      '</div>' + badge(js) + '</div>' +
+      '<div class="jc-grid">' +
+        cell('Customer', j.customerName || '—') +
+        cell('Date', fmtDate(j.confirmedDate || j.preferredDate)) +
+        cell('Time', fmtTime(j)) +
+        cell('Zone', j.zone || j.zipCode || '—') +
+        (j.address ? fullCell('Address', j.address) : '') +
+        (j.addons && j.addons.length ? fullCell('Add-ons', fmtAddons(j.addons)) : '') +
+        (j.customerNote ? fullCell('Customer note', j.customerNote) : '') +
+        (j.techNotes ? fullCell('Tech notes', j.techNotes) : '') +
+      '</div>' +
+      (acts ? '<div class="jc-acts">' + acts + '</div>' : '') +
+    '</div>';
+  }
 
-  const confirmedDate       = (document.getElementById('drw-conf-date')?.value   || '').trim();
-  const confirmedTimeWindow = (document.getElementById('drw-conf-tw')?.value     || '').trim();
-  const customerNote        = (document.getElementById('drw-cust-note')?.value   || '').trim();
-  const adminNotes          = (document.getElementById('drw-admin-note')?.value  || '').trim();
+  function cell(k, v) {
+    return '<div><div class="jfl">' + esc(k) + '</div><div class="jfv">' + esc(v) + '</div></div>';
+  }
+  function fullCell(k, v) {
+    return '<div class="ro-full"><div class="jfl">' + esc(k) + '</div><div class="jfv" style="font-weight:500;color:var(--mu)">' + esc(v) + '</div></div>';
+  }
+  function btn(label, cls, onclick) {
+    return '<button class="btn ' + cls + ' btn-sm" type="button" onclick="' + onclick + '">' + label + '</button>';
+  }
 
-  if (!confirmedDate)       { toast('Confirmed date is required', 'err'); return; }
-  if (!confirmedTimeWindow) { toast('Time window is required (e.g. 9AM–11AM)', 'err'); return; }
-
-  const b = bkGet().find(x => x.id === _drwId);
-  if (!b) { toast('Booking not found', 'err'); return; }
-
-  const customerName = bkNm(b).split(' ')[0] || bkNm(b);
-  if (!confirm(
-    `Confirm appointment for ${customerName}?\n\n` +
-    `Date: ${confirmedDate}\nTime: ${confirmedTimeWindow}\n\n` +
-    `A confirmation email will be sent to the customer.`
-  )) return;
-
-  const btn = document.querySelector('[onclick="drwConfirmAppointment()"]');
-  if (btn) { btn.disabled = true; btn.textContent = 'Confirming…'; }
-
-  const updates = {
-    appointmentStatus: 'confirmed',
-    jobStatus:         'not_started',
-    status:            'Confirmed',
-    confirmedDate,
-    confirmedTimeWindow,
-    confirmedAt:       new Date().toISOString(),
+  window.updStatus = async function (bookingId, status) {
+    try {
+      var r = await techFetch(JOBS_URL, {
+        method: 'POST',
+        body: JSON.stringify({ bookingId: bookingId, status: status })
+      });
+      if (!r.data.ok) {
+        toast(r.data.error || 'Status update failed', 'err');
+        return;
+      }
+      toast('Status → ' + (JS_LABEL[status] || status));
+      loadJobs();
+    } catch (_) {
+      toast('Network error', 'err');
+    }
   };
-  if (customerNote) updates.customerNote = customerNote;
-  if (adminNotes)   updates.adminNotes   = adminNotes;
 
-  try {
-    const result = await adminBkUpdate(_drwId, updates, 'admin_confirm_appointment');
-    if (result.ok) {
-      closeDrw(); renderBk(); renderDash(); admBadges();
-      toast('✓ Appointment confirmed — confirmation email sent to customer');
+  window.openIssue = function (id) {
+    _issueJobId = id;
+    document.getElementById('issue-type').value = '';
+    document.getElementById('issue-desc').value = '';
+    clearErr('isserr');
+    document.getElementById('issue-modal').classList.add('open');
+  };
+
+  window.closeIssue = function () {
+    document.getElementById('issue-modal').classList.remove('open');
+    _issueJobId = '';
+  };
+
+  window.submitIssue = async function () {
+    var type = document.getElementById('issue-type').value;
+    var desc = document.getElementById('issue-desc').value.trim();
+    if (!type) { showErr('isserr', 'Select an issue type.'); return; }
+    if (!desc) { showErr('isserr', 'Describe the issue.'); return; }
+    clearErr('isserr');
+    var note = type + ': ' + desc;
+    try {
+      var r = await techFetch(JOBS_URL, {
+        method: 'POST',
+        body: JSON.stringify({ bookingId: _issueJobId, status: 'issue_reported', note: note })
+      });
+      if (!r.data.ok) { showErr('isserr', r.data.error || 'Could not submit.'); return; }
+      closeIssue();
+      toast('Issue reported', 'err');
+      loadJobs();
+    } catch (_) {
+      showErr('isserr', 'Network error.');
     }
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = btn.textContent === 'Confirming…' ? '✓ Confirm Appointment' : btn.textContent; }
-  }
-}
+  };
 
-// ═══════════════════════════════════════
-// ADMIN — TECHNICIANS
-// ═══════════════════════════════════════
-function renderTechs(){
-  const tks=tkGet();
-  const el=document.getElementById('tch-list');
-  if(!tks.length){el.innerHTML='<div class="empty"><div class="ei">🧑‍🔧</div><div class="et">No applications yet</div></div>';return;}
-  el.innerHTML=tks.map(t=>`<div class="tc">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:9px"><div><div class="tc-nm">${t.name}</div><div class="tc-mt">${t.email} · ${t.phone}</div></div>${badge(t.status==='approved'?'Confirmed':t.status==='rejected'?'Cancelled':'Pending Review')}</div>
-    <div class="tc-gr"><div class="tc-f"><div class="tcfl">Experience</div>${t.experience||'—'}</div><div class="tc-f"><div class="tcfl">Areas</div>${t.areas||'—'}</div><div class="tc-f"><div class="tcfl">Vehicle</div>${t.ownVehicle||'—'}</div><div class="tc-f"><div class="tcfl">Availability</div>${t.availability||'—'}</div><div class="tc-f"><div class="tcfl">Applied</div>${t.appliedAt?new Date(t.appliedAt).toLocaleDateString():'—'}</div><div class="tc-f"><div class="tcfl">Equipment</div>${t.hasEquipment==='yes'?'Full':t.hasEquipment==='partial'?'Partial':'None'}</div></div>
-    ${t.bio?`<div style="font-size:11px;color:var(--mu);background:var(--bg);padding:7px 9px;border-radius:7px;margin-bottom:9px">${t.bio}</div>`:''}
-    <div style="display:flex;gap:5px;flex-wrap:wrap">
-      ${t.status!=='approved'?`<button class="btn btn-gr btn-sm" onclick="approveTk('${t.id}')">✓ Approve</button>`:''}
-      ${t.status!=='rejected'?`<button class="btn btn-rd btn-sm" onclick="rejectTk('${t.id}')">✗ Reject</button>`:''}
-      <button class="btn btn-g btn-sm" onclick="delTk('${t.id}')">Delete</button>
-      ${t.phone?`<a class="btn btn-g btn-sm" href="tel:${t.phone}">📞 Call</a>`:''}
-      ${t.phone?`<a class="btn btn-g btn-sm" href="https://wa.me/${t.phone.replace(/\D/g,'')}" target="_blank">💬 WA</a>`:''}
-    </div></div>`).join('');
-  admBadges();
-}
-function approveTk(id){ const t=tkGet();const i=t.findIndex(x=>x.id===id);if(i>-1){t[i].status='approved';t[i].approvedAt=new Date().toISOString();tkSet(t);}renderTechs();admBadges();toast(t.find(x=>x.id===id)?.name+' approved'); }
-function rejectTk(id){ const t=tkGet();const i=t.findIndex(x=>x.id===id);if(i>-1){t[i].status='rejected';tkSet(t);}renderTechs();admBadges();toast('Rejected','err'); }
-function delTk(id){ if(!confirm('Remove?'))return;tkSet(tkGet().filter(t=>t.id!==id));renderTechs();admBadges(); }
+  function createSigPad(canvasId, hintId) {
+    var canvas = document.getElementById(canvasId);
+    var ctx = canvas.getContext('2d');
+    var drawing = false;
+    var hasInk = false;
+    var hint = document.getElementById(hintId);
 
-// ═══════════════════════════════════════
-// ADMIN — DISPATCH
-// ═══════════════════════════════════════
-function renderDispatch(){
-  const bk=bkGet().filter(b=>['Confirmed','Scheduled','In Progress','En Route'].includes(b.status)&&!b.isTest&&!b.archived);
-  const tks=tkGet().filter(t=>t.status==='approved');
-  const el=document.getElementById('disp-board');
-  if(!bk.length){el.innerHTML='<div class="empty"><div class="ei">🗂️</div><div class="et">No active jobs</div></div>';return;}
-  el.innerHTML=`<div class="card"><div class="ch"><div class="ct">Active Jobs (${bk.length})</div></div><div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Zone</th><th>Tech</th><th>Status</th><th>Update</th></tr></thead><tbody>${bk.map(b=>{
-    const tech=tks.find(t=>t.id===b.assignedTech);
-    return `<tr onclick="openDrw('${b.id}')"><td class="td-mo">${(b.id||'').slice(-6)}</td><td><div class="td-nm">${bkNm(b)}</div><div class="td-mu">${b.phone||''}</div></td><td class="td-mu">${bkSvc(b)}</td><td class="td-mu">${b.preferredDate||b.preferred_date||'—'}</td><td class="td-mu">${b.zone||b.zip_city||'—'}</td>
-      <td onclick="event.stopPropagation()">${tech?`<span style="color:var(--green);font-weight:600;font-size:12px">${tech.name}</span>`:`<select class="ff" onchange="quickAssign('${b.id}',this.value)"><option value="">— assign —</option>${tks.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select>`}</td>
-      <td>${badge(b.status)}</td>
-      <td onclick="event.stopPropagation()"><select class="ff" style="font-size:10px" onchange="setBkStatus('${b.id}',this.value);renderDispatch()">${['Confirmed','Scheduled','In Progress','En Route','Completed'].map(s=>`<option ${b.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
-    </tr>`;}).join('')}</tbody></table></div></div>`;
-}
-function quickAssign(bkId,tkId){ if(!tkId)return;const bk=bkGet();const i=bk.findIndex(b=>b.id===bkId);if(i>-1){bk[i].assignedTech=tkId;bk[i].status='Confirmed';bkSet(bk);}renderDispatch();toast('Tech assigned'); }
-
-// ═══════════════════════════════════════
-// ADMIN — ACCOUNTING
-// ═══════════════════════════════════════
-function renderAcct(){
-  const bk=bkGet().filter(b=>b.status==='Completed'||b.status==='Paid');
-  const rev=bk.reduce((s,b)=>s+bkTot(b),0);
-  document.getElementById('acct-stats').innerHTML=`
-    <div class="sc"><div class="sv" style="color:var(--green)">$${rev.toLocaleString()}</div><div class="sl">Revenue</div></div>
-    <div class="sc"><div class="sv" style="color:var(--red)">$${Math.round(rev*.4).toLocaleString()}</div><div class="sl">Est. Costs 40%</div></div>
-    <div class="sc"><div class="sv" style="color:var(--blue)">$${Math.round(rev*.6).toLocaleString()}</div><div class="sl">Net 60%</div></div>
-    <div class="sc"><div class="sv">${bk.length}</div><div class="sl">Jobs Done</div></div>
-    <div class="sc"><div class="sv" style="color:var(--teal)">$${bk.length?Math.round(rev/bk.length):0}</div><div class="sl">Avg / Job</div></div>`;
-  const months={};
-  bk.forEach(b=>{const d=b.createdAt?new Date(b.createdAt):new Date();const k=d.toLocaleDateString('en-US',{year:'numeric',month:'long'});if(!months[k])months[k]={rev:0,n:0};months[k].rev+=bkTot(b);months[k].n++;});
-  document.getElementById('acct-months').innerHTML=Object.entries(months).reverse().map(([m,v])=>`<div class="am"><div><div class="aml">${m}</div><div class="albl">${v.n} job${v.n!==1?'s':''}</div></div><div><div class="av r">$${v.rev.toLocaleString()}</div><div class="albl">Revenue</div></div><div><div class="av e">-$${Math.round(v.rev*.4).toLocaleString()}</div><div class="albl">Cost</div></div><div><div class="av n">$${Math.round(v.rev*.6).toLocaleString()}</div><div class="albl">Net</div></div></div>`).join('')||'<div class="empty"><div class="et">No completed bookings</div></div>';
-  document.getElementById('acct-body').innerHTML=bk.reverse().map(b=>{const r=bkTot(b);return `<tr onclick="openDrw('${b.id}')"><td class="td-mo">${(b.id||'').slice(-6)}</td><td class="td-nm">${bkNm(b)}</td><td class="td-mu">${bkSvc(b)}</td><td class="td-mu">${b.createdAt?new Date(b.createdAt).toLocaleDateString():'—'}</td><td class="td-pr">$${r}</td><td style="color:var(--red)">$${Math.round(r*.4)}</td><td style="color:var(--blue);font-weight:700">$${Math.round(r*.6)}</td></tr>`;}).join('')||'<tr><td colspan="7" class="empty"><div class="et">No entries</div></td></tr>';
-}
-
-// ═══════════════════════════════════════
-// ADMIN — SUBSCRIPTIONS & SETTINGS
-// ═══════════════════════════════════════
-function renderSubs(){
-  const subs=JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]');
-  document.getElementById('subs-wrap').innerHTML=subs.length
-    ?`<div class="card"><div class="ch"><div class="ct">Subscribers (${subs.length})</div></div><div class="tw"><table><thead><tr><th>Name</th><th>Email</th><th>Plan</th><th>Price/mo</th><th>Since</th></tr></thead><tbody>${subs.map(s=>`<tr><td class="td-nm">${s.name||'—'}</td><td class="td-mu">${s.email}</td><td>${badge('Confirmed')}</td><td class="td-pr">$${s.price||'—'}</td><td class="td-mu">${s.since?new Date(s.since).toLocaleDateString():'—'}</td></tr>`).join('')}</tbody></table></div></div>`
-    :'<div class="empty"><div class="ei">🔁</div><div class="et">No subscribers yet</div></div>';
-}
-function renderSettings(){const c=cfgGet();if(c.email)document.getElementById('s-em').value=c.email;if(c.phone)document.getElementById('s-ph').value=c.phone;if(c.area)document.getElementById('s-ar').value=c.area;if(c.squareUrl)document.getElementById('s-sq').value=c.squareUrl;if(c.deposit)document.getElementById('s-dep').value=c.deposit;}
-function saveSettings(){cfgSet({email:document.getElementById('s-em').value,phone:document.getElementById('s-ph').value,area:document.getElementById('s-ar').value,squareUrl:document.getElementById('s-sq').value,deposit:document.getElementById('s-dep').value});const ok=document.getElementById('sv-ok');ok.style.display='inline';setTimeout(()=>ok.style.display='none',2000);toast('Settings saved');}
-
-// ═══════════════════════════════════════
-// TECH INIT & TABS
-// ═══════════════════════════════════════
-function initTech(){
-  TECH=tkGet().find(t=>t.email.toLowerCase()===(TECH.email||'').toLowerCase())||TECH;
-  document.getElementById('tech-nm').textContent=TECH.name.split(' ')[0];
-  ss('tech');
-  renderAvail();
-}
-function techTab(name){
-  document.querySelectorAll('#s-tech .page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('#s-tech .tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tp-'+name).classList.add('active');
-  document.querySelector(`[data-tt="${name}"]`)?.classList.add('active');
-  if(name==='avail') renderAvail();
-  if(name==='mine') renderMine();
-  if(name==='earn') renderEarnings();
-  if(name==='prof') renderProfile();
-}
-
-// ═══════════════════════════════════════
-// TECH — JOBS
-// ═══════════════════════════════════════
-function renderAvail(){
-  const bk=bkGet().filter(b=>b.status==='Confirmed'&&!b.assignedTech);
-  document.getElementById('avail-list').innerHTML=bk.length?bk.map(b=>jobCard(b,false)).join(''):'<div class="empty"><div class="ei">🗂️</div><div class="et">No open jobs right now.</div></div>';
-}
-function renderMine(){
-  const bk=bkGet().filter(b=>b.assignedTech===TECH.id&&!['Completed','Cancelled'].includes(b.status));
-  document.getElementById('mine-list').innerHTML=bk.length?bk.map(b=>jobCard(b,true)).join(''):'<div class="empty"><div class="ei">📋</div><div class="et">No active jobs. Accept from Available Jobs.</div></div>';
-}
-
-function jobCard(b,mine){
-  const svc=bkSvc(b),veh=b.vehicleLabel||b.vehicle||b.vehicleCategory||'—';
-  const pref=b.preferredDate||b.preferred_date||'—',price=bkTot(b),earn=Math.round(price*.65);
-  const zone=b.zone||b.zip_city||b.zipCode||'—';
-  let acts='';
-  if(!mine){ acts=`<button class="btn btn-p btn-sm" onclick="acceptJob('${b.id}')">Accept →</button>`; }
-  else {
-    if(['Confirmed','Scheduled'].includes(b.status)) acts+=`<button class="btn btn-or btn-sm" onclick="techUpdBk('${b.id}','En Route')">🚗 En Route</button>`;
-    if(b.status==='En Route') acts+=`<button class="btn btn-p btn-sm" onclick="techUpdBk('${b.id}','In Progress')">▶ Start</button>`;
-    if(b.status==='In Progress') acts+=`<button class="btn btn-gr btn-sm" onclick="markComplete('${b.id}')">✓ Complete</button>`;
-    if(b.phone){
-      acts+=`<a class="btn btn-g btn-sm" href="tel:${b.phone}">📞</a>`;
-      acts+=`<a class="btn btn-g btn-sm" href="https://wa.me/${b.phone.replace(/\D/g,'')}?text=${encodeURIComponent('Hi '+bkNm(b).split(' ')[0]+'! Your Cardetail1 tech is on the way 🚗✨')}" target="_blank">💬</a>`;
+    function resize() {
+      var r = canvas.getBoundingClientRect();
+      var dpr = window.devicePixelRatio || 1;
+      canvas.width = r.width * dpr;
+      canvas.height = r.height * dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#ffffff';
     }
-    acts+=`<button class="btn btn-yw btn-sm" onclick="openProbModal('${b.id}')">⚠️</button>`;
+    resize();
+
+    function pos(e) {
+      var r = canvas.getBoundingClientRect();
+      var t = e.touches ? e.touches[0] : e;
+      return { x: t.clientX - r.left, y: t.clientY - r.top };
+    }
+    function start(e) {
+      drawing = true;
+      hasInk = true;
+      if (hint) hint.style.display = 'none';
+      var p = pos(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      e.preventDefault();
+    }
+    function move(e) {
+      if (!drawing) return;
+      var p = pos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      e.preventDefault();
+    }
+    function end() { drawing = false; }
+
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', end);
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchend', end);
+
+    return {
+      clear: function () {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        hasInk = false;
+        if (hint) hint.style.display = 'block';
+        resize();
+      },
+      hasInk: function () { return hasInk; },
+      dataUrl: function () { return canvas.toDataURL('image/png'); },
+      resize: resize
+    };
   }
-  const photos=mine?`<div style="margin-top:11px;padding-top:11px;border-top:1px solid var(--border)">
-    <div style="display:flex;gap:8px;margin-bottom:7px;align-items:center">
-      <span style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;flex:1">Before (${(b.photosBefore||[]).length})</span>
-      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${b.id}','before',this)"></label>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px;margin-bottom:9px">${(b.photosBefore||[]).map(p=>`<img class="photo-thumb" src="${p}">`).join('')}</div>
-    <div style="display:flex;gap:8px;margin-bottom:7px;align-items:center">
-      <span style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;flex:1">After (${(b.photosAfter||[]).length})</span>
-      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${b.id}','after',this)"></label>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px">${(b.photosAfter||[]).map(p=>`<img class="photo-thumb" src="${p}">`).join('')}</div>
-  </div>`:'';
-  const cl=mine?(b.status==='En Route'?'jc mine enr':'jc mine'):'jc';
-  return `<div class="${cl}">
-    <div class="jc-top"><div><div class="jc-id">${(b.id||'').slice(-8)}</div><div class="jc-sv">${svc}</div><div class="jc-vh">${veh}</div></div>${badge(b.status||'Confirmed')}</div>
-    <div class="jc-grid">
-      <div><div class="jfl">Date</div><div class="jfv">${pref}</div></div>
-      <div><div class="jfl">Zone</div><div class="jfv">${zone}</div></div>
-      <div><div class="jfl">Job Total</div><div class="jfv">$${price}</div></div>
-      <div><div class="jfl">Your Cut</div><div class="jfv" style="color:var(--green)">$${earn}</div></div>
-      ${mine&&b.address?`<div style="grid-column:1/-1"><div class="jfl">Address</div><div class="jfv">${b.address}</div></div>`:''}
-      ${mine&&b.notes?`<div style="grid-column:1/-1"><div class="jfl">Notes</div><div class="jfv" style="color:var(--mu);font-weight:400">${b.notes}</div></div>`:''}
-    </div>
-    <div class="jc-acts">${acts}</div>
-    ${photos}
-  </div>`;
-}
 
-function techUpdBk(id,status){ const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){bk[i].status=status;if(status==='In Progress')bk[i].startedAt=new Date().toISOString();bkSet(bk);}toast('→ '+status);renderMine(); }
-function acceptJob(id){
-  const bk=bkGet();const b=bk.find(x=>x.id===id);
-  if(!b||b.assignedTech){toast('No longer available','err');renderAvail();return;}
-  const i=bk.findIndex(x=>x.id===id);bk[i].assignedTech=TECH.id;bk[i].assignedTechName=TECH.name;bkSet(bk);
-  toast('Job accepted ✓');techTab('mine');
-}
-function markComplete(id){
-  const b=bkGet().find(x=>x.id===id);
-  if(!(b?.photosAfter||[]).length&&!confirm('No after photos. Complete anyway?')) return;
-  techUpdBk(id,'Completed');
-  const price=bkTot(b||{});const earn=Math.round(price*.65);
-  const tks=tkGet();const ti=tks.findIndex(t=>t.id===TECH.id);
-  if(ti>-1){tks[ti].earnings=(tks[ti].earnings||0)+earn;tks[ti].jobsCompleted=(tks[ti].jobsCompleted||0)+1;tkSet(tks);TECH=tks[ti];}
-  toast(`🎉 Complete! +$${earn}`);
-}
-function addPhotos(id,type,input){
-  Array.from(input.files).forEach(f=>{const r=new FileReader();r.onload=e=>{const bk=bkGet();const i=bk.findIndex(b=>b.id===id);if(i>-1){const k=type==='before'?'photosBefore':'photosAfter';bk[i][k]=[...(bk[i][k]||[]),e.target.result];bkSet(bk);}renderMine();};r.readAsDataURL(f);});
-}
+  window.toggleIssuePath = function () {
+    var issue = document.getElementById('chk-issue').checked;
+    document.getElementById('chk-normal').style.display = issue ? 'none' : 'block';
+    document.getElementById('issue-notes').style.display = issue ? 'block' : 'none';
+    document.getElementById('issue-notes-lbl').style.display = issue ? 'block' : 'none';
+  };
 
-// ═══════════════════════════════════════
-// TECH — EARNINGS & PROFILE
-// ═══════════════════════════════════════
-function renderEarnings(){
-  const done=bkGet().filter(b=>b.assignedTech===TECH.id&&b.status==='Completed');
-  const earn=done.reduce((s,b)=>s+Math.round(bkTot(b)*.65),0);
-  document.getElementById('earn-stats').innerHTML=`<div class="sc"><div class="sv" style="color:var(--green)">$${earn}</div><div class="sl">Total Earned</div></div><div class="sc"><div class="sv">${done.length}</div><div class="sl">Jobs Done</div></div><div class="sc"><div class="sv" style="color:var(--blue)">$${done.length?Math.round(earn/done.length):0}</div><div class="sl">Avg / Job</div></div>`;
-  document.getElementById('earn-tbl').innerHTML=done.length
-    ?`<div class="card"><div class="tw"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Job Total</th><th>Your Cut</th></tr></thead><tbody>${done.map(b=>`<tr><td class="td-mo">${(b.id||'').slice(-8)}</td><td>${bkSvc(b)}</td><td class="td-mu">${b.completedAt?new Date(b.completedAt).toLocaleDateString():'—'}</td><td>$${bkTot(b)}</td><td style="color:var(--green);font-weight:700">$${Math.round(bkTot(b)*.65)}</td></tr>`).join('')}</tbody></table></div></div>`
-    :'<div class="empty"><div class="ei">💰</div><div class="et">No completed jobs yet</div></div>';
-}
-function renderProfile(){
-  document.getElementById('prof-wrap').innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;max-width:460px">
-    <div style="display:flex;align-items:center;gap:13px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border)">
-      <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--green));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0">${TECH.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
-      <div><div style="font-size:16px;font-weight:800">${TECH.name}</div><div style="font-size:10px;color:var(--mu);font-family:var(--fd)">ID: ${TECH.id}</div><div style="margin-top:5px">${badge('Confirmed')}</div></div>
-    </div>
-    ${[['Email',TECH.email],['Phone',TECH.phone],['City',TECH.city||'—'],['Experience',TECH.experience||'—'],['Services',TECH.services||'—'],['Service Zones',TECH.areas||'—'],['Availability',TECH.availability||'—'],['Vehicle',TECH.ownVehicle||'—'],['Jobs Completed',TECH.jobsCompleted||0],['Total Earned','$'+(TECH.earnings||0)],['Member Since',TECH.approvedAt?new Date(TECH.approvedAt).toLocaleDateString():'—']].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--mu)">${k}</span><span style="font-weight:600">${v}</span></div>`).join('')}
-  </div>`;
-}
+  window.openComplete = function (id) {
+    var job = JOBS.find(function (j) { return j.id === id; });
+    if (!job) return;
+    _completeJobId = id;
+    clearErr('cmperr');
 
-// ═══════════════════════════════════════
-// PROBLEM REPORT
-// ═══════════════════════════════════════
-function openProbModal(id){ _probJobId=id; document.getElementById('prob-type').value=''; document.getElementById('prob-desc').value=''; document.getElementById('prob-modal').classList.add('open'); }
-function closeProbModal(){ document.getElementById('prob-modal').classList.remove('open'); _probJobId=''; }
-function submitProblem(){
-  const type=document.getElementById('prob-type').value;
-  const desc=document.getElementById('prob-desc').value.trim();
-  if(!type){alert('Select a problem type');return;}
-  if(!desc){alert('Describe the problem');return;}
-  const probs=JSON.parse(localStorage.getItem('cd1_problems')||'[]');
-  probs.push({jobId:_probJobId,techId:TECH.id,techName:TECH.name,type,description:desc,reportedAt:new Date().toISOString(),resolved:false});
-  localStorage.setItem('cd1_problems',JSON.stringify(probs));
-  const bk=bkGet();const i=bk.findIndex(b=>b.id===_probJobId);if(i>-1){bk[i].hasProblem=true;bkSet(bk);}
-  closeProbModal(); toast('Problem reported ⚠️','err');
-}
+    document.getElementById('cmp-sub').textContent = (job.package || 'Job') + ' · ' + (job.id || '').slice(-8);
+    document.getElementById('cmp-summary').innerHTML =
+      cell('Customer', job.customerName || '—') +
+      cell('Vehicle', job.vehicle || '—') +
+      cell('Service', job.package || '—') +
+      cell('Date', fmtDate(job.confirmedDate || job.preferredDate)) +
+      cell('Time', fmtTime(job)) +
+      (job.address ? fullCell('Address', job.address) : '') +
+      (job.addons && job.addons.length ? fullCell('Add-ons', fmtAddons(job.addons)) : '');
 
-// ═══════════════════════════════════════
-// STARTUP
-// ═══════════════════════════════════════
-if(IS_ADMIN){ initAdmin(); }
-else if(TECH){ initTech(); }
+    ['chk-issue', 'chk-service', 'chk-vehicle', 'chk-reviewed', 'chk-no-issue', 'chk-auth'].forEach(function (cid) {
+      document.getElementById(cid).checked = false;
+    });
+    var preIssue = job.jobStatus === 'issue_reported';
+    document.getElementById('chk-issue').checked = preIssue;
+    toggleIssuePath();
 
-// auto-refresh admin every 20s
-setInterval(()=>{ if(IS_ADMIN){ const ap=document.querySelector('#s-admin .page.active')?.id?.replace('ap-',''); if(ap) admRender(ap); } },20000);
+    document.getElementById('cust-name').value = '';
+    document.getElementById('tech-name').value = TECH ? TECH.name : '';
+    document.getElementById('cmp-notes').value = '';
+    document.getElementById('issue-notes').value = '';
+    sigCustomer.clear();
+    sigTechnician.clear();
+    sigCustomer.resize();
+    sigTechnician.resize();
+
+    document.getElementById('complete-modal').classList.add('open');
+  };
+
+  window.closeComplete = function () {
+    document.getElementById('complete-modal').classList.remove('open');
+    _completeJobId = '';
+  };
+
+  window.submitComplete = async function () {
+    clearErr('cmperr');
+    var issuePath = document.getElementById('chk-issue').checked;
+    var checklist = {};
+
+    if (issuePath) {
+      if (!document.getElementById('chk-issue').checked) {
+        showErr('cmperr', 'Confirm issue reported.'); return;
+      }
+      checklist.issue_reported = true;
+    } else {
+      checklist.service_completed = document.getElementById('chk-service').checked;
+      checklist.vehicle_released = document.getElementById('chk-vehicle').checked;
+      checklist.customer_reviewed = document.getElementById('chk-reviewed').checked;
+      checklist.no_unresolved_issue = document.getElementById('chk-no-issue').checked;
+      if (!checklist.service_completed || !checklist.vehicle_released ||
+          !checklist.customer_reviewed || !checklist.no_unresolved_issue) {
+        showErr('cmperr', 'Complete all checklist items or use the issue path.'); return;
+      }
+    }
+
+    var customerPrintedName = document.getElementById('cust-name').value.trim();
+    var technicianPrintedName = document.getElementById('tech-name').value.trim();
+    var completionNotes = document.getElementById('cmp-notes').value.trim();
+    var issueNotes = document.getElementById('issue-notes').value.trim();
+
+    if (!customerPrintedName) { showErr('cmperr', 'Enter customer printed name.'); return; }
+    if (!technicianPrintedName) { showErr('cmperr', 'Enter technician printed name.'); return; }
+    if (!sigCustomer.hasInk()) { showErr('cmperr', 'Customer signature required.'); return; }
+    if (!sigTechnician.hasInk()) { showErr('cmperr', 'Technician signature required.'); return; }
+    if (!document.getElementById('chk-auth').checked) {
+      showErr('cmperr', 'Customer authorization must be accepted.'); return;
+    }
+    if (issuePath && !issueNotes) {
+      showErr('cmperr', 'Describe the issue.'); return;
+    }
+
+    var btn = document.getElementById('cmp-submit-btn');
+    btn.disabled = true;
+    try {
+      var body = {
+        bookingId: _completeJobId,
+        checklist: checklist,
+        customerPrintedName: customerPrintedName,
+        technicianPrintedName: technicianPrintedName,
+        customerSignature: sigCustomer.dataUrl(),
+        technicianSignature: sigTechnician.dataUrl(),
+        customerAuthorizationAccepted: true,
+        completionNotes: completionNotes,
+        issueNotes: issueNotes,
+        technicianNotes: issuePath ? issueNotes : completionNotes
+      };
+      var r = await techFetch(COMPLETE_URL, { method: 'POST', body: JSON.stringify(body) });
+      if (!r.data.ok) {
+        var errMap = {
+          checklist_incomplete: 'Checklist incomplete.',
+          customer_printed_name_required: 'Customer name required.',
+          technician_printed_name_required: 'Technician name required.',
+          customer_signature_required: 'Customer signature required.',
+          technician_signature_required: 'Technician signature required.',
+          customer_authorization_required: 'Authorization checkbox required.',
+          technician_note_required: 'Technician note required for issues.',
+          completion_already_submitted: 'Completion already submitted.'
+        };
+        showErr('cmperr', errMap[r.data.error] || r.data.error || 'Submit failed.');
+        return;
+      }
+      closeComplete();
+      toast('Completion submitted for admin review');
+      loadJobs();
+    } catch (_) {
+      showErr('cmperr', 'Network error.');
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  async function boot() {
+    if (localStorage.getItem('cd1_session') === 'admin') {
+      location.replace('admin-ops.html');
+      return;
+    }
+
+    sigCustomer = createSigPad('sig-customer', 'hint-customer');
+    sigTechnician = createSigPad('sig-technician', 'hint-technician');
+    window.addEventListener('resize', function () {
+      if (sigCustomer) sigCustomer.resize();
+      if (sigTechnician) sigTechnician.resize();
+    });
+
+    var qs = new URLSearchParams(location.search);
+    if (qs.get('invite') && qs.get('email')) {
+      showInvite();
+      return;
+    }
+
+    if (await validateSession()) {
+      showScreen('dash');
+      loadJobs();
+      return;
+    }
+
+    showScreen('land');
+  }
+
+  boot();
+})();
 </script>
 </body>
 </html>

@@ -63,7 +63,7 @@
       if(data.ok){
         localStorage.setItem('cd1_session','admin');
         sessionStorage.setItem('cd1_admin_key', code);
-        location.href = 'technician.html';
+        location.href = 'admin-ops.html';
         return;
       }
       err.textContent = data.error === 'missing_admin_password_config'
@@ -77,7 +77,7 @@
     btn.disabled = false;
     btn.textContent = 'Enter dashboard';
   }
-  if(localStorage.getItem('cd1_session') === 'admin'){ location.replace('technician.html'); }
+  if(localStorage.getItem('cd1_session') === 'admin'){ location.replace('admin-ops.html'); }
 </script>
 </body>
 </html>
