@@ -39,6 +39,50 @@ const PAYMENT_PREFERENCES = new Set([
   'online_after_service',
 ]);
 
+const CARD_ON_FILE_VERIFY_MSG =
+  'Your card is still being verified. Please wait a few seconds and try again.';
+
+// Safe server-side fallback when webhook is delayed: verify SetupIntent with Stripe API.
+// Never trusts client proof — only persisted setupIntentId on the server-owned draft.
+async function reconcileCardOnFileFromStripe(store, existing) {
+  if (!existing || existing.cardOnFileStatus === 'saved') return existing;
+  const setupIntentId = String(existing.setupIntentId || '').trim();
+  if (!setupIntentId) return existing;
+
+  const secret = process.env.STRIPE_SECRET_KEY;
+  if (!secret || !(secret.startsWith('sk_test_') || secret.startsWith('sk_live_'))) {
+    return existing;
+  }
+
+  try {
+    const res = await fetch(
+      `https://api.stripe.com/v1/setup_intents/${encodeURIComponent(setupIntentId)}`,
+      { headers: { Authorization: `Bearer ${secret}` } }
+    );
+    if (!res.ok) return existing;
+    const si = await res.json().catch(() => null);
+    if (!si || si.status !== 'succeeded') return existing;
+
+    const metaBooking = si.metadata && (si.metadata.bookingId || si.metadata.booking_id);
+    if (metaBooking && String(metaBooking) !== String(existing.id)) return existing;
+
+    const savedAt = existing.cardOnFileSavedAt || new Date().toISOString();
+    const updated = {
+      ...existing,
+      cardOnFileStatus: 'saved',
+      setupIntentId: si.id,
+      stripeCustomerId: si.customer || existing.stripeCustomerId || null,
+      stripePaymentMethodId: si.payment_method || existing.stripePaymentMethodId || null,
+      cardOnFileSavedAt: savedAt,
+      updatedAt: new Date().toISOString(),
+    };
+    await store.setJSON(existing.id, updated);
+    return updated;
+  } catch {
+    return existing;
+  }
+}
+
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
@@ -289,11 +333,18 @@ exports.handler = async (event) => {
   const rawDraftId = String(b.draftBookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
   if (rawDraftId) {
     delete b.draftBookingId;
-    const existing = await store.get(rawDraftId, { type: 'json' }).catch(() => null);
+    let existing = await store.get(rawDraftId, { type: 'json' }).catch(() => null);
     if (!existing) return json(404, { ok: false, error: 'Draft booking not found' });
     if (!existing.isDraft) return json(409, { ok: false, error: 'Booking already finalized' });
     if (existing.cardOnFileStatus !== 'saved') {
-      return json(409, { ok: false, error: 'card_on_file_not_saved' });
+      existing = await reconcileCardOnFileFromStripe(store, existing);
+    }
+    if (existing.cardOnFileStatus !== 'saved') {
+      return json(409, {
+        ok: false,
+        error: 'card_on_file_not_saved',
+        userMessage: CARD_ON_FILE_VERIFY_MSG,
+      });
     }
     const preference = String(b.paymentMethodPreference || '');
     if (!PAYMENT_PREFERENCES.has(preference) || preference !== existing.paymentMethodPreference) {

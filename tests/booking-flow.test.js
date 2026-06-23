@@ -150,3 +150,15 @@ test('inline browser scripts compile', () => {
     });
   }
 });
+
+test('card-on-file hardening uses server verification before saved flag', () => {
+  const confirmBlock = index.slice(
+    index.indexOf('async function confirmSetupIntent'),
+    index.indexOf('async function recheckCardStatus')
+  );
+  assert.match(index, /ST\.cardSetupConfirmed/);
+  assert.doesNotMatch(confirmBlock, /ST\.cardOnFileSaved\s*=\s*true/);
+  assert.match(index, /verifyCardOnFileWithServer/);
+  assert.match(index, /cardInitInProgress/);
+  assert.match(index, /destroyStripePaymentUI/);
+});
