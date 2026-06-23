@@ -26,6 +26,14 @@ test('public index.html unchanged by admin/tech ops work', () => {
   assert.match(index, /const PRICING\s*=/);
 });
 
+test('admin-ops has sign out and technician portal link with bypass', () => {
+  assert.match(adminOps, /btnLogout/);
+  assert.match(adminOps, /adminLogout/);
+  assert.match(adminOps, /technician\.html\?portal=tech/);
+  assert.match(tech, /portalTech/);
+  assert.match(tech, /portal\) === 'tech'/);
+});
+
 test('admin login routes to admin-ops.html', () => {
   assert.match(admin, /location\.href\s*=\s*'admin-ops\.html'/);
   assert.match(admin, /location\.replace\('admin-ops\.html'\)/);

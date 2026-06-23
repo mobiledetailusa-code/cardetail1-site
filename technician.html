@@ -877,7 +877,9 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   };
 
   async function boot() {
-    if (localStorage.getItem('cd1_session') === 'admin') {
+    var qs = new URLSearchParams(location.search);
+    var portalTech = qs.get('portal') === 'tech';
+    if (localStorage.getItem('cd1_session') === 'admin' && !portalTech) {
       location.replace('admin-ops.html');
       return;
     }
@@ -889,7 +891,6 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
       if (sigTechnician) sigTechnician.resize();
     });
 
-    var qs = new URLSearchParams(location.search);
     if (qs.get('invite') && qs.get('email')) {
       showInvite();
       return;

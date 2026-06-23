@@ -89,9 +89,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   <div class="logo">Cardetail<span>1</span> <span style="font-size:12px;color:var(--mu);font-weight:600">Admin Ops</span></div>
   <div class="top-links">
     <a href="/">← Home</a>
-    <a href="technician.html">Technician portal</a>
-    <a href="admin.html">Re-login</a>
+    <a href="technician.html?portal=tech">Technician portal</a>
     <button type="button" class="btn ghost sm" id="btnRefresh">Refresh</button>
+    <button type="button" class="btn ghost sm" id="btnLogout">Sign Out</button>
   </div>
 </header>
 <div class="wrap">
@@ -220,6 +220,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   const $ = s => document.querySelector(s);
   const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const toast = msg => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); };
+
+  function adminLogout() {
+    sessionStorage.removeItem(KEY);
+    localStorage.removeItem('cd1_session');
+    location.replace('admin.html');
+  }
 
   async function api(url, method, body) {
     const opts = { method: method||'GET', headers: { 'x-admin-key': sessionStorage.getItem(KEY) } };
@@ -589,6 +595,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   };
   $('#completedRefresh').onclick = async () => { await loadJobs({jobStatus:'completed_pending_admin_review'}); await loadJobs(); renderCompleted(); };
   $('#btnRefresh').onclick = refreshAll;
+  $('#btnLogout').onclick = () => { if (confirm('Sign out of Admin Ops?')) adminLogout(); };
   $('#dClose').onclick = closeDrawer;
   $('#drawerBg').onclick = closeDrawer;
   $('#dSaveNote').onclick = async () => {
