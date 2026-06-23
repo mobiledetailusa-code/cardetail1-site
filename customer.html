@@ -291,38 +291,66 @@ async function doLookup(){
       return;
     }catch(e){ showErr(); return; }
   }
-  const all=JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
-  let mine=[];
-  if(_lkMode==='phone'){
-    const ph=(document.getElementById('lk-phone').value||'').replace(/\D/g,'');
-    if(ph.length<7){ showErr(); return; }
-    mine=all.filter(b=>(b.phone||'').replace(/\D/g,'').includes(ph));
-  } else if(_lkMode==='email'){
-    const em=(document.getElementById('lk-email').value||'').trim().toLowerCase();
-    if(!em.includes('@')){ showErr(); return; }
-    mine=all.filter(b=>(b.email||'').toLowerCase()===em);
-  } else {
-    const id=(document.getElementById('lk-id').value||'').trim().toUpperCase();
-    mine=all.filter(b=>(b.id||'').toUpperCase().includes(id));
-  }
-  if(!mine.length){ showErr(); return; }
-  CUSTOMER_BOOKINGS=mine;
-  CUSTOMER_KEY=_lkMode+':'+(document.getElementById('lk-'+_lkMode).value);
-  localStorage.setItem('cd1_cust_key',CUSTOMER_KEY);
-  initApp();
+  try {
+    let body = {};
+    if(_lkMode==='phone'){
+      const ph=(document.getElementById('lk-phone').value||'').replace(/\D/g,'');
+      if(ph.length<7){ showErr(); return; }
+      body.phone = ph;
+      CUSTOMER_VERIFY_PHONE = ph;
+      localStorage.setItem('cd1_cust_verify_phone', ph);
+    } else {
+      const em=(document.getElementById('lk-email').value||'').trim().toLowerCase();
+      if(!em.includes('@')){ showErr(); return; }
+      body.email = em;
+    }
+    const res=await fetch('/.netlify/functions/customer-bookings',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok||!data.bookings||!data.bookings.length){ showErr(); return; }
+    CUSTOMER_BOOKINGS=data.bookings;
+    CUSTOMER_KEY=_lkMode+':'+(body.phone||body.email);
+    localStorage.setItem('cd1_cust_key',CUSTOMER_KEY);
+    if(body.phone) localStorage.setItem('cd1_cust_verify_phone', body.phone);
+    document.getElementById('lk-err').classList.remove('show');
+    initApp(true);
+  } catch(e) { showErr(); }
 }
 function showErr(){ document.getElementById('lk-err').classList.add('show'); }
 
-// ── AUTO-LOGIN ───────────────────────────
-function tryAutoLogin(){
+// ── AUTO-LOGIN (cloud) ───────────────────────────
+async function tryAutoLogin(){
   const key=localStorage.getItem('cd1_cust_key'); if(!key) return false;
-  const all=JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
-  const [mode,val]=key.split(':'); let mine=[];
-  if(mode==='phone'){const ph=(val||'').replace(/\D/g,'');mine=all.filter(b=>(b.phone||'').replace(/\D/g,'').includes(ph));}
-  else if(mode==='email'){mine=all.filter(b=>(b.email||'').toLowerCase()===val.toLowerCase());}
-  else{mine=all.filter(b=>(b.id||'').toUpperCase().includes(val.toUpperCase()));}
-  if(!mine.length) return false;
-  CUSTOMER_BOOKINGS=mine; CUSTOMER_KEY=key; return true;
+  const [mode,val]=key.split(':');
+  try {
+    if(mode==='id'){
+      const phone=localStorage.getItem('cd1_cust_verify_phone')||'';
+      if(!phone) return false;
+      const res=await fetch('/.netlify/functions/lookup-booking',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({bookingId:val,phone})
+      });
+      const data=await res.json().catch(()=>({}));
+      if(!data.ok||!data.booking) return false;
+      CUSTOMER_BOOKINGS=[data.booking];
+      CUSTOMER_KEY=key;
+      CUSTOMER_VERIFY_PHONE=phone;
+      return true;
+    }
+    const body = mode==='phone' ? { phone: (val||'').replace(/\D/g,'') } : { email: (val||'').toLowerCase() };
+    const res=await fetch('/.netlify/functions/customer-bookings',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok||!data.bookings||!data.bookings.length) return false;
+    CUSTOMER_BOOKINGS=data.bookings;
+    CUSTOMER_KEY=key;
+    if(body.phone) CUSTOMER_VERIFY_PHONE=body.phone;
+    return true;
+  } catch(e) { return false; }
 }
 
 function logout(){ localStorage.removeItem('cd1_cust_key'); location.reload(); }
@@ -342,12 +370,7 @@ const STATUS_MAP={
 function badge(s){ return `<span class="badge ${STATUS_MAP[s]||'b-pen'}">${s||'Pending'}</span>`; }
 
 function initApp(useCurrent=false){
-  if(!useCurrent) CUSTOMER_BOOKINGS=[...JSON.parse(localStorage.getItem('cd1_bookings')||'[]')].filter(b=>{
-    const[mode,val]=CUSTOMER_KEY.split(':');
-    if(mode==='phone') return (b.phone||'').replace(/\D/g,'').includes((val||'').replace(/\D/g,''));
-    if(mode==='email') return (b.email||'').toLowerCase()===(val||'').toLowerCase();
-    return (b.id||'').toUpperCase().includes((val||'').toUpperCase());
-  });
+  if(!useCurrent) return;
   const name=nm(CUSTOMER_BOOKINGS[0]||{});
   document.getElementById('tb-nm').textContent=name.split(' ')[0]||'Customer';
   document.getElementById('s-lookup').style.display='none';
@@ -394,25 +417,25 @@ function renderStatus(){
 
   const addons=(active.addons||[]).map(a=>a.name||a).join(', ')||'None';
   const total=tot(active);
-  const canReschedule=!['Completed','Cancelled','In Progress','En Route'].includes(active.status);
-  const isDone=active.status==='Completed'||active.status==='Paid';
 
   // Job lifecycle banner — separate from payment status.
   // Never expose adminNotes, paymentIntentId, or internal payment fields.
   const jobSt  = active.jobStatus || '';
   const apptSt = active.appointmentStatus || '';
+  const paySt  = active.paymentWorkflowStatus || '';
   const confirmedDate   = active.confirmedDate || '';
   const confirmedWindow = active.confirmedTimeWindow || active.confirmedTime || '';
 
-  const isCanceled   = jobSt==='canceled'||apptSt==='canceled'||active.status==='Canceled'||active.status==='Cancelled';
-  const isClosed     = !isCanceled && jobSt==='closed';
-  const isCompleted  = !isCanceled && !isClosed && jobSt==='completed';
-  const isInProgress = !isCanceled && !isClosed && !isCompleted && jobSt==='in_progress';
-  const isEnRoute    = !isCanceled && !isClosed && !isCompleted && !isInProgress && jobSt==='en_route';
-  const isConfirmed  = !isCanceled && !isClosed && !isCompleted && !isInProgress && !isEnRoute
-                       && (apptSt==='confirmed'||active.status==='Confirmed');
-  // isApptConfirmed controls whether to show the confirmed date/time in the grid
-  const isApptConfirmed = isConfirmed||isEnRoute||isInProgress||isCompleted||isClosed;
+  const isCanceled   = jobSt==='cancelled'||apptSt==='canceled'||active.status==='Cancelled';
+  const isCompleted  = !isCanceled && ['completed_pending_admin_review','completed_pending_payment','completed_paid'].includes(jobSt);
+  const isInProgress = !isCanceled && !isCompleted && (jobSt==='in_progress'||jobSt==='arrived'||jobSt==='reopened');
+  const isEnRoute    = !isCanceled && !isCompleted && !isInProgress && jobSt==='en_route';
+  const isAssigned   = !isCanceled && !isCompleted && !isInProgress && !isEnRoute && ['assigned','accepted'].includes(jobSt);
+  const isConfirmed  = !isCanceled && !isCompleted && !isInProgress && !isEnRoute && (jobSt==='confirmed'||apptSt==='confirmed'||active.status==='Confirmed'||isAssigned);
+  const isApptConfirmed = isConfirmed||isEnRoute||isInProgress||isCompleted||isAssigned;
+
+  const canReschedule=!isCanceled && !isCompleted && !isInProgress && !isEnRoute && !['cancelled'].includes(jobSt);
+  const isDone=isCompleted||active.status==='Paid';
 
   _cancelBookingId = active.id || '';
   const cofStatus = active.cardOnFileStatus || 'pending';
@@ -439,15 +462,15 @@ function renderStatus(){
       <div style="font-size:13px;font-weight:700;color:#ef4444;margin-bottom:4px">✕ Booking Canceled</div>
       <div style="font-size:12px;color:var(--mu)">This booking has been canceled. To book again, submit a new request.</div>
     </div>`;
-  } else if (isClosed) {
-    apptBanner=`<div style="background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.28);border-radius:10px;padding:14px 16px;margin-bottom:14px">
-      <div style="font-size:13px;font-weight:700;color:var(--tx);margin-bottom:4px">✓ Job Closed</div>
-      <div style="font-size:12px;color:var(--mu)">Service is complete and your job has been closed. Thank you for choosing Cardetail1!</div>
-    </div>`;
   } else if (isCompleted) {
     apptBanner=`<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:14px 16px;margin-bottom:14px">
       <div style="font-size:13px;font-weight:700;color:#22c55e;margin-bottom:4px">✓ Service Completed</div>
       <div style="font-size:12px;color:var(--tx)">Your vehicle has been detailed. Thank you for choosing Cardetail1!</div>
+    </div>`;
+  } else if (isAssigned) {
+    apptBanner=`<div style="background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.28);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:#a78bfa;margin-bottom:4px">👤 Technician Assigned</div>
+      <div style="font-size:12px;color:var(--tx)">${active.assignedTechName?'Your technician: <strong>'+esc(active.assignedTechName)+'</strong>. ':''}We will update you when they are on the way.</div>
     </div>`;
   } else if (isInProgress) {
     apptBanner=`<div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.28);border-radius:10px;padding:14px 16px;margin-bottom:14px">
@@ -475,6 +498,9 @@ function renderStatus(){
   if(canReschedule){ acts+=`<button class="btn btn-yw btn-sm" onclick="openReschedule('${esc(active.id)}')">📅 Reschedule</button>`; }
   if(canReschedule){ acts+=`<button class="btn btn-tl btn-sm" onclick="openAddressChange('${esc(active.id)}')">📍 Change Address</button>`; }
   if(isDone&&!active.reviewLeft){ acts+=`<button class="btn btn-p btn-sm" onclick="openReview('${esc(active.id)}')">⭐ Leave Review</button>`; }
+  if(active.payLink && ['payment_action_required','awaiting_customer_payment'].includes(paySt)){
+    acts+=`<a href="${esc(active.payLink)}" class="btn btn-p btn-sm" target="_blank" rel="noopener">💳 Pay Invoice</a>`;
+  }
   if(canCancel){ acts+=`<button class="btn btn-sm" style="background:transparent;border:1px solid rgba(239,68,68,.4);color:#ef4444" onclick="showCancelForm()">✕ Request Cancellation</button>`; }
 
   const cancelSection = canCancel ? `<div id="cancel-section" style="display:none;margin-top:16px;background:rgba(239,68,68,.04);border:1px solid rgba(239,68,68,.18);border-radius:var(--r);padding:18px 20px">
@@ -617,11 +643,14 @@ async function submitReschedule(id){
   const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||(b.phone||'').replace(/\D/g,'');
   const btn=document.querySelector('#modal-inner .btn-p'); if(btn){btn.disabled=true;btn.textContent='Sending…';}
   try{
-    await fetch('/.netlify/functions/submit-inquiry',{
+    const res=await fetch('/.netlify/functions/submit-customer-action',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:nm(b),phone,email:b.email||'',message:`Reschedule Request — Booking ${id}\nNew date: ${d}\nTime: ${time}${note?'\nNote: '+note:''}`,source:'Customer Portal — Reschedule'})
+      body:JSON.stringify({bookingId:id,phone,action:'reschedule_request',newDate:d,newTime:time})
     });
-    closeModal(); alert("✅ Reschedule request sent! We'll confirm your new date within 24 hours.");
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok) throw new Error(data.userMessage||'failed');
+    closeModal(); alert("✅ Reschedule request saved! We'll confirm your new date within 24 hours.");
+    await refreshBookings();
   }catch(e){
     alert('Could not send request. Please call 551-313-2956.');
   }finally{ if(btn){btn.disabled=false;btn.textContent='Submit Request';} }
@@ -651,11 +680,14 @@ async function submitAddressChange(id){
   const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||(b.phone||'').replace(/\D/g,'');
   const btn=document.querySelector('#modal-inner .btn-p'); if(btn){btn.disabled=true;btn.textContent='Sending…';}
   try{
-    await fetch('/.netlify/functions/submit-inquiry',{
+    const res=await fetch('/.netlify/functions/submit-customer-action',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:nm(b),phone,email:b.email||'',message:`Address Change — Booking ${id}\nNew address: ${addr}${note?'\nNote: '+note:''}`,source:'Customer Portal — Address Change'})
+      body:JSON.stringify({bookingId:id,phone,action:'address_update',newAddress:addr+(note?'\n'+note:'')})
     });
-    closeModal(); alert('✅ Address change request sent! We will confirm the update shortly.');
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok) throw new Error(data.userMessage||'failed');
+    closeModal(); alert('✅ Address change request saved! We will confirm the update shortly.');
+    await refreshBookings();
   }catch(e){
     alert('Could not send request. Please call 551-313-2956.');
   }finally{ if(btn){btn.disabled=false;btn.textContent='Update Address';} }
@@ -687,9 +719,9 @@ function submitReview(id){
   const reviews=JSON.parse(localStorage.getItem('cd1_reviews_pending')||'[]');
   reviews.push({bookingId:id,stars:_starRating,comment:document.getElementById('rv-comment').value.trim(),date:new Date().toISOString()});
   localStorage.setItem('cd1_reviews_pending',JSON.stringify(reviews));
-  const bks=JSON.parse(localStorage.getItem('cd1_bookings')||'[]');
-  const i=bks.findIndex(b=>b.id===id);if(i>-1){bks[i].reviewLeft=true;localStorage.setItem('cd1_bookings',JSON.stringify(bks));}
-  closeModal(); alert('🌟 Thank you for your review! It will appear on our site after approval.'); initApp();
+  const i=CUSTOMER_BOOKINGS.findIndex(b=>b.id===id);
+  if(i>-1) CUSTOMER_BOOKINGS[i]={...CUSTOMER_BOOKINGS[i],reviewLeft:true};
+  closeModal(); alert('🌟 Thank you for your review! It will appear on our site after approval.'); initApp(true);
 }
 
 function closeModal(){ document.getElementById('modal').classList.remove('open'); }
@@ -737,8 +769,27 @@ async function submitCancelRequest() {
   }
 }
 
+// ── REFRESH FROM CLOUD ───────────────────
+async function refreshBookings(){
+  const [mode,val]=CUSTOMER_KEY.split(':');
+  if(mode==='id'){
+    const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||'';
+    const res=await fetch('/.netlify/functions/lookup-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:val,phone})});
+    const data=await res.json().catch(()=>({}));
+    if(data.ok&&data.booking) CUSTOMER_BOOKINGS=[data.booking];
+  } else {
+    const body=mode==='phone'?{phone:(val||'').replace(/\D/g,'')}:{email:(val||'').toLowerCase()};
+    const res=await fetch('/.netlify/functions/customer-bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json().catch(()=>({}));
+    if(data.ok&&data.bookings) CUSTOMER_BOOKINGS=data.bookings;
+  }
+  initApp(true);
+}
+
 // ── STARTUP ──────────────────────────────
-if(tryAutoLogin()) initApp();
+(async function boot(){
+  if(await tryAutoLogin()) initApp(true);
+})();
 </script>
 </body>
 </html>

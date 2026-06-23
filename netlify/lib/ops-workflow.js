@@ -1,15 +1,7 @@
 // Job + payment workflow constants and safe projections.
-
-const JOB_STATUSES = new Set([
-  'pending_review', 'confirmed', 'assigned', 'accepted', 'en_route', 'arrived',
-  'in_progress', 'issue_reported', 'completed_pending_admin_review',
-  'completed_pending_payment', 'completed_paid', 'reopened', 'cancelled', 'archived_test',
-]);
-
-const PAYMENT_WORKFLOW_STATUSES = new Set([
-  'no_payment_required_yet', 'pending_admin_review', 'awaiting_customer_payment',
-  'payment_action_required', 'payment_succeeded', 'payment_failed', 'cash_paid',
-]);
+const {
+  JOB_STATUSES, PAYMENT_WORKFLOW_STATUSES, normalizeJobStatus, normalizePaymentWorkflowStatus,
+} = require('./ops-schema');
 
 const TECH_STATUS_UPDATES = new Set([
   'accepted', 'en_route', 'arrived', 'in_progress', 'issue_reported',
@@ -24,16 +16,6 @@ function appendEventLog(booking, entry) {
   const eventLog = Array.isArray(booking.eventLog) ? [...booking.eventLog] : [];
   eventLog.push({ ...entry, at: entry.at || new Date().toISOString() });
   return eventLog;
-}
-
-function normalizeJobStatus(b) {
-  return b.jobStatus || (b.status === 'Pending Review' ? 'pending_review' : '') || 'pending_review';
-}
-
-function normalizePaymentWorkflowStatus(b) {
-  if (b.paymentWorkflowStatus) return b.paymentWorkflowStatus;
-  if (b.jobStatus === 'completed_pending_admin_review') return 'pending_admin_review';
-  return b.paymentStatus === 'paid' ? 'payment_succeeded' : 'no_payment_required_yet';
 }
 
 function projectJobForAdmin(b) {
@@ -73,9 +55,7 @@ function projectJobForTech(b) {
 }
 
 function projectTechAccountForAdmin(t) {
-  const {
-    passwordHash, inviteToken, ...safe
-  } = t;
+  const { passwordHash, inviteToken, ...safe } = t;
   return {
     ...safe,
     techId: t.techId || t.id,
