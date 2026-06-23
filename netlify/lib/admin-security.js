@@ -1,4 +1,4 @@
-// Admin authentication — username + password login, opaque session tokens (never send password to APIs).
+// Admin authentication — username + password login, signed session tokens (no Blobs required).
 const crypto = require('crypto');
 
 const ADMIN_SESSION_STORE = 'cd1-admin-sessions';
@@ -6,9 +6,14 @@ const ADMIN_RATE_STORE = 'cd1-admin-login-rate';
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const MAX_ADMIN_SESSIONS = 5;
 const RATE_WINDOW_MS = 15 * 60 * 1000;
-const RATE_MAX_FAILURES = 8;
-const RATE_LOCK_MS = 30 * 60 * 1000;
-const TOKEN_LEN = 64;
+const RATE_MAX_FAILURES = 12;
+const RATE_LOCK_MS = 15 * 60 * 1000;
+const TOKEN_PREFIX = 'v1.';
+const LEGACY_TOKEN_LEN = 64;
+
+function normalizeEnvValue(v) {
+  return String(v || '').replace(/^\uFEFF/, '').trim();
+}
 
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
@@ -24,9 +29,17 @@ function timingSafeString(a, b) {
   return crypto.timingSafeEqual(ba, bb);
 }
 
+function sessionSecret() {
+  return normalizeEnvValue(
+    process.env.ADMIN_SESSION_SECRET ||
+    process.env.BID_SECRET ||
+    process.env.ADMIN_DASH_PASSWORD
+  );
+}
+
 function getAdminConfig() {
-  const username = (process.env.ADMIN_USERNAME || 'admin').trim().toLowerCase();
-  const password = (process.env.ADMIN_DASH_PASSWORD || '').trim();
+  const username = normalizeEnvValue(process.env.ADMIN_USERNAME || 'admin').toLowerCase();
+  const password = normalizeEnvValue(process.env.ADMIN_DASH_PASSWORD);
   return { username, password, configured: !!password };
 }
 
@@ -49,77 +62,102 @@ function rateKey(ip) {
 }
 
 async function checkLoginRateLimit(ip) {
-  const store = await blobsStore(ADMIN_RATE_STORE);
-  const key = rateKey(ip);
-  const now = Date.now();
-  const rec = await store.get(key, { type: 'json' }).catch(() => null) || { failures: 0, lockedUntil: 0, windowStart: now };
-  if (rec.lockedUntil > now) return { ok: false, retryAfterMs: rec.lockedUntil - now };
-  if (now - rec.windowStart > RATE_WINDOW_MS) {
-    rec.failures = 0;
-    rec.windowStart = now;
+  try {
+    const store = await blobsStore(ADMIN_RATE_STORE);
+    const key = rateKey(ip);
+    const now = Date.now();
+    const rec = await store.get(key, { type: 'json' }).catch(() => null) || { failures: 0, lockedUntil: 0, windowStart: now };
+    if (rec.lockedUntil > now) return { ok: false, retryAfterMs: rec.lockedUntil - now };
+    if (now - rec.windowStart > RATE_WINDOW_MS) {
+      rec.failures = 0;
+      rec.windowStart = now;
+    }
+    return { ok: true, key, rec, store };
+  } catch {
+    return { ok: true };
   }
-  return { ok: true, key, rec, store };
 }
 
 async function recordLoginFailure(ip) {
-  const check = await checkLoginRateLimit(ip);
-  if (!check.ok) return;
-  const { key, rec, store } = check;
-  const now = Date.now();
-  rec.failures = (rec.failures || 0) + 1;
-  if (rec.failures >= RATE_MAX_FAILURES) rec.lockedUntil = now + RATE_LOCK_MS;
-  await store.setJSON(key, rec);
+  try {
+    const check = await checkLoginRateLimit(ip);
+    if (!check.ok || !check.store) return;
+    const { key, rec, store } = check;
+    const now = Date.now();
+    rec.failures = (rec.failures || 0) + 1;
+    if (rec.failures >= RATE_MAX_FAILURES) rec.lockedUntil = now + RATE_LOCK_MS;
+    await store.setJSON(key, rec);
+  } catch (_) {}
 }
 
 async function clearLoginFailures(ip) {
-  const store = await blobsStore(ADMIN_RATE_STORE);
-  try { await store.delete(rateKey(ip)); } catch (_) {}
+  try {
+    const store = await blobsStore(ADMIN_RATE_STORE);
+    await store.delete(rateKey(ip));
+  } catch (_) {}
+}
+
+function validateStatelessToken(token) {
+  const secret = sessionSecret();
+  if (!secret) return null;
+  try {
+    const raw = JSON.parse(Buffer.from(token.slice(TOKEN_PREFIX.length), 'base64url').toString('utf8'));
+    const u = String(raw.u || '').toLowerCase();
+    const e = Number(raw.e);
+    const n = String(raw.n || '');
+    const s = String(raw.s || '');
+    if (!u || !e || !n || !s) return null;
+    if (Date.now() > e) return null;
+    const payload = `${u}|${e}|${n}`;
+    const expected = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+    const a = Buffer.from(s);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    return { username: u, expiresAt: e, token };
+  } catch {
+    return null;
+  }
+}
+
+async function validateLegacyBlobToken(token) {
+  const t = String(token || '').trim();
+  if (!t || t.length !== LEGACY_TOKEN_LEN || !/^[a-f0-9]+$/.test(t)) return null;
+  try {
+    const store = await blobsStore(ADMIN_SESSION_STORE);
+    const session = await store.get('asess-' + t.slice(0, 16), { type: 'json' }).catch(() => null);
+    if (!session || Date.now() > session.expiresAt) return null;
+    if (!timingSafeString(session.token, t)) return null;
+    return session;
+  } catch {
+    return null;
+  }
 }
 
 async function createAdminSession(username) {
-  const token = crypto.randomBytes(32).toString('hex');
+  const secret = sessionSecret();
+  if (!secret) throw new Error('missing_session_secret');
   const now = Date.now();
-  const session = {
-    token,
-    username: String(username || '').trim().toLowerCase(),
-    createdAt: now,
-    expiresAt: now + ADMIN_SESSION_TTL_MS,
-  };
-  const store = await blobsStore(ADMIN_SESSION_STORE);
-  const listing = await store.list().catch(() => ({ blobs: [] }));
-  const existing = [];
-  for (const b of ((listing && listing.blobs) || [])) {
-    if (!b.key.startsWith('asess-')) continue;
-    const s = await store.get(b.key, { type: 'json' }).catch(() => null);
-    if (!s) continue;
-    if (s.expiresAt <= now) { try { await store.delete(b.key); } catch (_) {} continue; }
-    if (s.username === session.username) existing.push({ key: b.key, ...s });
-  }
-  if (existing.length >= MAX_ADMIN_SESSIONS) {
-    existing.sort((a, b) => a.createdAt - b.createdAt);
-    for (let i = 0; i <= existing.length - MAX_ADMIN_SESSIONS; i++) {
-      try { await store.delete(existing[i].key); } catch (_) {}
-    }
-  }
-  await store.setJSON('asess-' + token.slice(0, 16), session);
-  return { token, expiresAt: session.expiresAt };
+  const expiresAt = now + ADMIN_SESSION_TTL_MS;
+  const u = String(username || '').trim().toLowerCase();
+  const nonce = crypto.randomBytes(12).toString('base64url');
+  const payload = `${u}|${expiresAt}|${nonce}`;
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+  const token = TOKEN_PREFIX + Buffer.from(JSON.stringify({ u, e: expiresAt, n: nonce, s: sig })).toString('base64url');
+  return { token, expiresAt };
 }
 
 async function validateAdminToken(token) {
   const t = String(token || '').trim();
-  if (!t || t.length !== TOKEN_LEN || !/^[a-f0-9]+$/.test(t)) return null;
-  const store = await blobsStore(ADMIN_SESSION_STORE);
-  const session = await store.get('asess-' + t.slice(0, 16), { type: 'json' }).catch(() => null);
-  if (!session || Date.now() > session.expiresAt) return null;
-  if (!timingSafeString(session.token, t)) return null;
-  return session;
+  if (!t) return null;
+  if (t.startsWith(TOKEN_PREFIX)) return validateStatelessToken(t);
+  return validateLegacyBlobToken(t);
 }
 
 async function verifyAdminRequest(headers) {
   const cfg = getAdminConfig();
   if (!cfg.configured) return { ok: false, error: 'missing_admin_config' };
   const token = ((headers && (headers['x-admin-key'] || headers['X-Admin-Key'])) || '').trim();
-  if (!token || token.length !== TOKEN_LEN) return { ok: false, error: 'unauthorized' };
+  if (!token || token.length < 16) return { ok: false, error: 'unauthorized' };
   const session = await validateAdminToken(token);
   if (!session) return { ok: false, error: 'unauthorized' };
   return { ok: true, username: session.username };
@@ -127,9 +165,12 @@ async function verifyAdminRequest(headers) {
 
 async function destroyAdminSession(token) {
   const t = String(token || '').trim();
-  if (!t || t.length !== TOKEN_LEN) return;
-  const store = await blobsStore(ADMIN_SESSION_STORE);
-  try { await store.delete('asess-' + t.slice(0, 16)); } catch (_) {}
+  if (!t || t.startsWith(TOKEN_PREFIX)) return;
+  if (t.length !== LEGACY_TOKEN_LEN) return;
+  try {
+    const store = await blobsStore(ADMIN_SESSION_STORE);
+    await store.delete('asess-' + t.slice(0, 16));
+  } catch (_) {}
 }
 
 function redactBookingForLegacyAdmin(b) {
@@ -156,4 +197,5 @@ module.exports = {
   clientIp,
   redactBookingForLegacyAdmin,
   ADMIN_SESSION_TTL_MS,
+  TOKEN_PREFIX,
 };

@@ -2695,7 +2695,7 @@ const DEPOSIT_MIN_CENTS = 2500;  // piso $25 (Stripe exige ≥ $0.50)
 const BACKEND_BASE   = '/.netlify/functions';
 try {
   const _adminTok = sessionStorage.getItem('cd1_admin_key');
-  if (_adminTok && /^[a-f0-9]{64}$/.test(_adminTok)) window._adminKey = _adminTok;
+  if (_adminTok && (_adminTok.startsWith('v1.') || /^[a-f0-9]{64}$/.test(_adminTok))) window._adminKey = _adminTok;
 } catch(_) {}
 const IS_DEPLOY_PREVIEW = /^deploy-preview-\d+--/.test(location.hostname);
 let STRIPE_READY = false;

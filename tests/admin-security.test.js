@@ -69,6 +69,17 @@ test('upload endpoint is disabled', () => {
   assert.match(up, /endpoint_disabled/);
 });
 
+test('createAdminSession returns v1 signed token', async () => {
+  process.env.ADMIN_USERNAME = 'opsadmin';
+  process.env.ADMIN_DASH_PASSWORD = 'Str0ng-Pass!';
+  process.env.BID_SECRET = 'bid-secret-test';
+  const { createAdminSession, validateAdminToken } = require('../netlify/lib/admin-security');
+  const sess = await createAdminSession('opsadmin');
+  assert.match(sess.token, /^v1\./);
+  const validated = await validateAdminToken(sess.token);
+  assert.equal(validated.username, 'opsadmin');
+});
+
 test('verifyAdminKey rejects raw password in x-admin-key header', async () => {
   process.env.ADMIN_DASH_PASSWORD = 'Test-Admin-99';
   const { verifyAdminKey } = require('../netlify/lib/tech-security');

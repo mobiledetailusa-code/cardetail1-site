@@ -72,11 +72,16 @@
         return;
       }
       if(res.status === 429){
-        err.textContent = 'Too many attempts. Wait a few minutes and try again.';
+        const mins = data.retryAfterMs ? Math.ceil(data.retryAfterMs / 60000) : 15;
+        err.textContent = 'Too many failed attempts. Wait about '+mins+' minute(s), then try again.';
       } else if(data.error === 'missing_admin_config'){
-        err.textContent = 'Admin login not configured. Set ADMIN_USERNAME and ADMIN_DASH_PASSWORD on Netlify.';
+        err.textContent = 'Admin login not configured on the server. In Netlify set ADMIN_DASH_PASSWORD (and optionally ADMIN_USERNAME), then redeploy.';
+      } else if(data.error === 'session_secret_missing'){
+        err.textContent = 'Server session secret missing. Set ADMIN_DASH_PASSWORD or BID_SECRET on Netlify, then redeploy.';
+      } else if(data.error === 'invalid_credentials'){
+        err.textContent = 'Invalid username or password. After changing env vars on Netlify you must redeploy. Username is case-insensitive; default is "admin" if ADMIN_USERNAME is not set.';
       } else {
-        err.textContent = 'Invalid username or password.';
+        err.textContent = 'Login failed ('+(data.error||res.status)+'). Check Netlify env vars and redeploy.';
       }
       err.classList.add('show');
     } catch(ex) {

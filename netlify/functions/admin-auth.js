@@ -62,7 +62,12 @@ exports.handler = async (event) => {
   }
 
   await clearLoginFailures(ip);
-  const sess = await createAdminSession(username);
+  let sess;
+  try {
+    sess = await createAdminSession(username);
+  } catch {
+    return jsonCors(503, { ok: false, error: 'session_secret_missing' });
+  }
   return jsonCors(200, {
     ok: true,
     token: sess.token,
