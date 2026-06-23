@@ -79,6 +79,14 @@ test('technician jobs endpoint blocks completion status', () => {
   assert.match(techJobs, /TECH_STATUS_UPDATES/);
 });
 
+test('tech accounts admin can set password', () => {
+  assert.match(techAccounts, /set_password/);
+  assert.match(techAccounts, /hashPassword/);
+  assert.match(adminOps, /openTechDrawer/);
+  assert.match(adminOps, /setTechPassword/);
+  assert.match(adminOps, /toggleTechFromDrawer/);
+});
+
 test('tech accounts use invite expiry and hide password hash', () => {
   assert.match(techAccounts, /INVITE_TTL_MS/);
   assert.match(techAccounts, /passwordHash/);

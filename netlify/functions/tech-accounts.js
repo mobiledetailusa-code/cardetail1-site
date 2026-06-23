@@ -1,7 +1,7 @@
 // Admin-only technician account management (cd1-tech-accounts).
 const {
   blobsStore, jsonCors, verifyAdminKey, generateInviteToken, generateTechId,
-  sanitizeText, INVITE_TTL_MS,
+  sanitizeText, INVITE_TTL_MS, hashPassword, isWeakPassword,
 } = require('../lib/tech-security');
 const { projectTechAccountForAdmin } = require('../lib/ops-workflow');
 
@@ -125,6 +125,29 @@ exports.handler = async (event) => {
     tech.updatedAt = new Date().toISOString();
     await store.setJSON('tech-' + techId, tech);
     return jsonCors(200, { ok: true, inviteToken });
+  }
+
+  if (action === 'set_password') {
+    const techId = sanitizeText(body.techId, 48);
+    const tech = await getTech(techId);
+    if (!tech) return jsonCors(404, { ok: false, error: 'technician_not_found' });
+    const newPassword = String(body.newPassword || '');
+    const confirmPassword = String(body.confirmPassword || '');
+    if (!newPassword || !confirmPassword) {
+      return jsonCors(400, { ok: false, error: 'password_required' });
+    }
+    if (newPassword !== confirmPassword) {
+      return jsonCors(400, { ok: false, error: 'passwords_do_not_match' });
+    }
+    const weakness = isWeakPassword(newPassword);
+    if (weakness) return jsonCors(400, { ok: false, error: 'weak_password', message: weakness });
+    tech.passwordHash = hashPassword(newPassword);
+    tech.inviteToken = null;
+    tech.inviteUsed = true;
+    tech.inviteExpiresAt = null;
+    tech.updatedAt = new Date().toISOString();
+    await store.setJSON('tech-' + techId, tech);
+    return jsonCors(200, { ok: true, techId, hasPassword: true });
   }
 
   return jsonCors(400, { ok: false, error: 'unknown_action' });

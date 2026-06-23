@@ -124,6 +124,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   </section>
 
   <section class="panel" id="p-techs">
+    <p class="hint" style="margin-bottom:14px">Create technicians, edit profiles, set passwords, send invites, and activate or deactivate accounts.</p>
     <div class="card" style="margin-bottom:16px">
       <h3 style="margin-bottom:12px">Create Technician</h3>
       <form id="techForm" class="form-grid">
@@ -205,6 +206,47 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 </aside>
 <div class="toast" id="toast"></div>
 
+<div class="drawer-bg" id="techDrawerBg"></div>
+<aside class="drawer" id="techDrawer">
+  <div class="dh">
+    <div><h2 id="tdTitle">Technician</h2><div id="tdBadges" style="margin-top:8px"></div></div>
+    <button type="button" class="btn ghost sm" id="tdClose">✕</button>
+  </div>
+  <div class="db">
+    <div class="sec"><h4>Profile</h4>
+      <div class="form-grid">
+        <div class="full"><label>Tech ID</label><input id="tdId" readonly style="opacity:.7"></div>
+        <div><label>Full name</label><input id="tdName"></div>
+        <div><label>Email</label><input id="tdEmail" type="email"></div>
+        <div><label>Phone</label><input id="tdPhone" type="tel"></div>
+        <div class="full"><label>Service area</label><input id="tdArea"></div>
+        <div class="full"><label>Capabilities (comma-separated)</label><input id="tdCaps"></div>
+      </div>
+      <button type="button" class="btn sm" id="tdSave" style="margin-top:10px;width:100%">Save profile</button>
+    </div>
+    <div class="sec"><h4>Password</h4>
+      <p class="hint" id="tdPwStatus" style="margin-bottom:8px"></p>
+      <div class="form-grid">
+        <div><label>New password</label><input id="tdPass" type="password" autocomplete="new-password" placeholder="Min 8 chars"></div>
+        <div><label>Confirm password</label><input id="tdPass2" type="password" autocomplete="new-password"></div>
+      </div>
+      <button type="button" class="btn sm" id="tdSetPass" style="margin-top:10px;width:100%">Set password</button>
+      <p class="hint" style="margin-top:8px">Or send an invite link so the technician sets their own password (72h, single use).</p>
+      <div class="actions" style="margin-top:8px">
+        <button type="button" class="btn ghost sm" id="tdCopyInv">Copy invite link</button>
+        <button type="button" class="btn ghost sm" id="tdResetInv">Reset invite</button>
+      </div>
+      <pre id="tdInvLink" style="font-size:11px;color:var(--mu);margin-top:8px;word-break:break-all;white-space:pre-wrap"></pre>
+    </div>
+    <div class="sec"><h4>Account status</h4>
+      <div class="kv" id="tdMeta"></div>
+      <div class="actions" style="margin-top:12px">
+        <button type="button" class="btn ghost sm" id="tdToggle"></button>
+      </div>
+    </div>
+  </div>
+</aside>
+
 <script>
 (function(){
   const KEY = 'cd1_admin_key';
@@ -214,7 +256,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   const PAY_STATUSES = ['no_payment_required_yet','pending_admin_review','awaiting_customer_payment','payment_action_required','payment_succeeded','payment_failed','cash_paid'];
   const inviteCache = {};
 
-  let jobs = [], techs = [], activeJob = null;
+  let jobs = [], techs = [], activeJob = null, activeTech = null;
   let showTest = false;
 
   const $ = s => document.querySelector(s);
@@ -404,27 +446,155 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   function renderTechs() {
     const el = $('#techList');
-    if (!techs.length) { el.innerHTML='<div class="empty">No technicians yet</div>'; return; }
-    el.innerHTML = techs.map(t => {
-      const tok = inviteCache[t.techId];
-      const link = tok ? 'technician.html?invite='+encodeURIComponent(tok)+'&email='+encodeURIComponent(t.email) : '';
-      return '<div class="tech-row" data-tid="'+esc(t.techId)+'">'+
-        '<div><strong>'+esc(t.fullName)+'</strong> '+(t.active?badge('active','b-ok'):badge('inactive','b-st'))+
-        '<div class="tech-meta">'+esc(t.email)+' · '+esc(t.phone||'—')+' · '+esc(t.serviceArea||'—')+
-        ' · Jobs: '+(t.assignedJobsCount||0)+'</div>'+
-        (t.capabilities&&t.capabilities.length?'<div class="tech-meta">'+esc(t.capabilities.join(', '))+'</div>':'')+
-        (link?'<div class="tech-meta" style="word-break:break-all"><a href="'+link+'">'+esc(link)+'</a></div>':'')+
-        '</div><div class="actions">'+
-        '<button type="button" class="btn ghost sm copy-inv" data-tid="'+esc(t.techId)+'" data-email="'+esc(t.email)+'">Copy invite</button>'+
-        '<button type="button" class="btn ghost sm reset-inv" data-tid="'+esc(t.techId)+'">Reset invite</button>'+
-        (t.active?'<button type="button" class="btn ghost sm deact" data-tid="'+esc(t.techId)+'">Deactivate</button>':
-          '<button type="button" class="btn sm react" data-tid="'+esc(t.techId)+'">Reactivate</button>')+
-        '</div></div>';
-    }).join('');
-    el.querySelectorAll('.copy-inv').forEach(b => b.onclick = () => copyInvite(b.dataset.tid, b.dataset.email));
-    el.querySelectorAll('.reset-inv').forEach(b => b.onclick = () => resetInvite(b.dataset.tid));
-    el.querySelectorAll('.deact').forEach(b => b.onclick = () => toggleTech(b.dataset.tid,'deactivate'));
-    el.querySelectorAll('.react').forEach(b => b.onclick = () => toggleTech(b.dataset.tid,'reactivate'));
+    if (!techs.length) { el.innerHTML='<div class="empty">No technicians yet — create one above</div>'; return; }
+    el.innerHTML = '<table class="tbl"><thead><tr>'+
+      '<th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Jobs</th><th>Login</th><th>Actions</th>'+
+      '</tr></thead><tbody>'+
+      techs.map(t => '<tr data-tid="'+esc(t.techId)+'">'+
+        '<td><strong>'+esc(t.fullName)+'</strong><div class="tech-meta">'+esc(t.techId)+'</div></td>'+
+        '<td>'+esc(t.email)+'</td>'+
+        '<td>'+esc(t.phone||'—')+'</td>'+
+        '<td>'+(t.active?badge('active','b-ok'):badge('inactive','b-st'))+'</td>'+
+        '<td>'+(t.assignedJobsCount||0)+'</td>'+
+        '<td>'+(t.hasPassword?badge('password set','b-ok'):badge('invite pending','b-warn'))+
+          (t.lastLoginAt?'<div class="tech-meta">Last: '+dt(t.lastLoginAt)+'</div>':'')+'</td>'+
+        '<td onclick="event.stopPropagation()"><div class="actions">'+
+        '<button type="button" class="btn sm edit-tech" data-tid="'+esc(t.techId)+'">Manage</button>'+
+        '</div></td></tr>').join('')+
+      '</tbody></table>';
+    el.querySelectorAll('.edit-tech').forEach(b => b.onclick = () => openTechDrawer(b.dataset.tid));
+    el.querySelectorAll('tr[data-tid]').forEach(tr => tr.onclick = e => {
+      if (!e.target.closest('button')) openTechDrawer(tr.dataset.tid);
+    });
+  }
+
+  function openTechDrawer(techId) {
+    const t = techs.find(x => x.techId === techId);
+    if (!t) return;
+    activeTech = t;
+    $('#tdTitle').textContent = t.fullName || 'Technician';
+    $('#tdBadges').innerHTML = (t.active ? badge('active','b-ok') : badge('inactive','b-st')) +
+      (t.hasPassword ? badge('password set','b-ok') : badge('no password','b-warn'));
+    $('#tdId').value = t.techId;
+    $('#tdName').value = t.fullName || '';
+    $('#tdEmail').value = t.email || '';
+    $('#tdPhone').value = t.phone || '';
+    $('#tdArea').value = t.serviceArea || '';
+    $('#tdCaps').value = (t.capabilities || []).join(', ');
+    $('#tdPass').value = '';
+    $('#tdPass2').value = '';
+    $('#tdPwStatus').textContent = t.hasPassword
+      ? 'Password is set. Enter a new password below to replace it.'
+      : 'No password yet. Set one below or send an invite link.';
+    $('#tdMeta').innerHTML =
+      '<div><b>Created:</b> '+dt(t.createdAt)+'</div>'+
+      '<div><b>Updated:</b> '+dt(t.updatedAt)+'</div>'+
+      '<div><b>Last login:</b> '+dt(t.lastLoginAt)+'</div>'+
+      '<div><b>Assigned jobs:</b> '+(t.assignedJobsCount||0)+'</div>'+
+      '<div><b>Invite:</b> '+(t.hasInviteToken ? (t.inviteExpired ? 'expired — reset invite' : 'active') : 'none')+'</div>';
+    const tok = inviteCache[t.techId];
+    const link = tok ? buildInviteLink(t.email, tok) : '';
+    $('#tdInvLink').textContent = link || 'Generate invite to see link here.';
+    const toggle = $('#tdToggle');
+    toggle.textContent = t.active ? 'Deactivate technician' : 'Activate technician';
+    toggle.className = t.active ? 'btn danger sm' : 'btn sm';
+    $('#techDrawerBg').classList.add('open');
+    $('#techDrawer').classList.add('open');
+  }
+
+  function closeTechDrawer() {
+    $('#techDrawerBg').classList.remove('open');
+    $('#techDrawer').classList.remove('open');
+    activeTech = null;
+  }
+
+  function buildInviteLink(email, token) {
+    return location.origin + location.pathname.replace(/[^/]+$/, '') +
+      'technician.html?invite=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(email);
+  }
+
+  async function saveTechProfile() {
+    if (!activeTech) return;
+    const caps = $('#tdCaps').value.split(',').map(s => s.trim()).filter(Boolean);
+    try {
+      await api('/.netlify/functions/tech-accounts', 'POST', {
+        action: 'update', techId: activeTech.techId,
+        updates: {
+          fullName: $('#tdName').value.trim(),
+          email: $('#tdEmail').value.trim(),
+          phone: $('#tdPhone').value.trim(),
+          serviceArea: $('#tdArea').value.trim(),
+          capabilities: caps,
+        },
+      });
+      toast('Profile saved');
+      await loadTechs();
+      activeTech = techs.find(x => x.techId === $('#tdId').value) || activeTech;
+      openTechDrawer($('#tdId').value);
+      renderOverview();
+    } catch (e) { toast('Save failed: ' + e.message); }
+  }
+
+  async function setTechPassword() {
+    if (!activeTech) return;
+    const p1 = $('#tdPass').value;
+    const p2 = $('#tdPass2').value;
+    if (!p1 || !p2) { toast('Enter and confirm password'); return; }
+    try {
+      await api('/.netlify/functions/tech-accounts', 'POST', {
+        action: 'set_password', techId: activeTech.techId,
+        newPassword: p1, confirmPassword: p2,
+      });
+      toast('Password set');
+      $('#tdPass').value = '';
+      $('#tdPass2').value = '';
+      await loadTechs();
+      openTechDrawer(activeTech.techId);
+    } catch (e) {
+      toast(e.message === 'weak_password' ? 'Password too weak (8+ chars, upper, lower, number)' : ('Failed: ' + e.message));
+    }
+  }
+
+  async function copyInviteForTech() {
+    if (!activeTech) return;
+    try {
+      if (!inviteCache[activeTech.techId]) {
+        const d = await api('/.netlify/functions/tech-accounts', 'POST', { action: 'reset_invite', techId: activeTech.techId });
+        inviteCache[activeTech.techId] = d.inviteToken;
+      }
+      const link = buildInviteLink(activeTech.email, inviteCache[activeTech.techId]);
+      await navigator.clipboard.writeText(link);
+      $('#tdInvLink').textContent = link;
+      toast('Invite link copied');
+      await loadTechs();
+    } catch (e) { toast('Invite failed: ' + e.message); }
+  }
+
+  async function resetInviteForTech() {
+    if (!activeTech) return;
+    if (!confirm('Reset invite? This clears the current password until a new one is set.')) return;
+    try {
+      const d = await api('/.netlify/functions/tech-accounts', 'POST', { action: 'reset_invite', techId: activeTech.techId });
+      inviteCache[activeTech.techId] = d.inviteToken;
+      const link = buildInviteLink(activeTech.email, d.inviteToken);
+      $('#tdInvLink').textContent = link;
+      toast('Invite reset');
+      await loadTechs();
+      openTechDrawer(activeTech.techId);
+    } catch (e) { toast('Reset failed: ' + e.message); }
+  }
+
+  async function toggleTechFromDrawer() {
+    if (!activeTech) return;
+    const action = activeTech.active ? 'deactivate' : 'reactivate';
+    if (action === 'deactivate' && !confirm('Deactivate this technician? They cannot log in.')) return;
+    try {
+      await api('/.netlify/functions/tech-accounts', 'POST', { action, techId: activeTech.techId });
+      toast(action === 'deactivate' ? 'Deactivated' : 'Activated');
+      await loadTechs();
+      openTechDrawer(activeTech.techId);
+      renderOverview();
+    } catch (e) { toast('Failed: ' + e.message); }
   }
 
   async function onAssign(bookingId, techId) {
@@ -529,37 +699,6 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   function closeDrawer() { $('#drawerBg').classList.remove('open'); $('#drawer').classList.remove('open'); activeJob=null; }
 
-  async function copyInvite(techId, email) {
-    try {
-      if (!inviteCache[techId]) {
-        const d = await api('/.netlify/functions/tech-accounts','POST',{action:'reset_invite',techId});
-        inviteCache[techId] = d.inviteToken;
-        renderTechs();
-      }
-      const link = location.origin+location.pathname.replace(/[^/]+$/,'')+'technician.html?invite='+encodeURIComponent(inviteCache[techId])+'&email='+encodeURIComponent(email);
-      await navigator.clipboard.writeText(link);
-      toast('Invite link copied');
-    } catch(e) { toast('Copy failed: '+e.message); }
-  }
-
-  async function resetInvite(techId) {
-    try {
-      const d = await api('/.netlify/functions/tech-accounts','POST',{action:'reset_invite',techId});
-      inviteCache[techId] = d.inviteToken;
-      toast('Invite reset');
-      renderTechs();
-    } catch(e) { toast('Reset failed: '+e.message); }
-  }
-
-  async function toggleTech(techId, action) {
-    if (action==='deactivate' && !confirm('Deactivate this technician?')) return;
-    try {
-      await api('/.netlify/functions/tech-accounts','POST',{action,techId});
-      toast(action==='deactivate'?'Deactivated':'Reactivated');
-      await loadTechs(); renderTechs(); renderOverview();
-    } catch(e) { toast('Failed: '+e.message); }
-  }
-
   // Tabs
   $('#tabs').onclick = e => {
     const b = e.target.closest('.tab'); if(!b) return;
@@ -598,6 +737,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   $('#btnLogout').onclick = () => { if (confirm('Sign out of Admin Ops?')) adminLogout(); };
   $('#dClose').onclick = closeDrawer;
   $('#drawerBg').onclick = closeDrawer;
+  $('#tdClose').onclick = closeTechDrawer;
+  $('#techDrawerBg').onclick = closeTechDrawer;
+  $('#tdSave').onclick = saveTechProfile;
+  $('#tdSetPass').onclick = setTechPassword;
+  $('#tdCopyInv').onclick = copyInviteForTech;
+  $('#tdResetInv').onclick = resetInviteForTech;
+  $('#tdToggle').onclick = toggleTechFromDrawer;
   $('#dSaveNote').onclick = async () => {
     if (!activeJob) return;
     const note = $('#dNote').value.trim();
