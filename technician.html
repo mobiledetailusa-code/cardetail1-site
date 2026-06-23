@@ -199,6 +199,46 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   </div>
 </div>
 
+<!-- ONBOARDING -->
+<div id="s-onboard" class="screen">
+  <div class="lbox" style="width:min(520px,100%);max-height:90vh;overflow:auto">
+    <div class="ll">Contractor <span>Profile</span></div>
+    <div class="lsub">Required before bidding. You are an independent contractor — not an employee. You are never required to bid; if you win, you must complete the job or cancel 24+ hours before the appointment.</div>
+    <form id="onboard-form" onsubmit="return submitOnboarding(event)">
+      <label class="fl">Company / DBA name</label>
+      <input class="linp" id="ob-company" required>
+      <label class="fl">Tax ID type</label>
+      <select class="linp" id="ob-taxtype"><option value="ein">EIN (business)</option><option value="ssn">SSN (sole proprietor)</option></select>
+      <label class="fl">EIN or SSN (full number — only last 4 stored)</label>
+      <input class="linp" id="ob-taxid" inputmode="numeric" required placeholder="XX-XXXXXXX or XXX-XX-XXXX">
+      <label class="fl">Insurance carrier</label>
+      <input class="linp" id="ob-ins-carrier" required>
+      <label class="fl">Policy # (optional)</label>
+      <input class="linp" id="ob-ins-policy">
+      <label class="fl">Insurance expiration</label>
+      <input class="linp" id="ob-ins-exp" type="date">
+      <label class="fl">Work vehicle</label>
+      <input class="linp" id="ob-vehicle" required placeholder="Year/make/model van or truck">
+      <label class="chk-row" style="margin:8px 0"><input type="checkbox" id="ob-water"> I can provide water on-site when needed</label>
+      <label class="chk-row" style="margin:8px 0"><input type="checkbox" id="ob-power"> I can provide power/generator when needed</label>
+      <label class="chk-row" style="margin:8px 0"><input type="checkbox" id="ob-ladder"> I have my own ladder (required for boats/RVs)</label>
+      <div class="sec-lbl">Technical experience</div>
+      <label class="chk-row"><input type="checkbox" id="ob-exp-boats"> Boats / marine</label>
+      <label class="chk-row"><input type="checkbox" id="ob-exp-rvs"> RVs / trailers</label>
+      <label class="chk-row"><input type="checkbox" id="ob-exp-orbital"> Orbital / DA polisher</label>
+      <label class="chk-row"><input type="checkbox" id="ob-exp-compound"> Compound / paint correction</label>
+      <label class="chk-row"><input type="checkbox" id="ob-exp-buffer"> Buffer</label>
+      <label class="chk-row"><input type="checkbox" id="ob-exp-extract"> Extraction / shampoo</label>
+      <label class="chk-row"><input type="checkbox" id="ob-exp-deep"> Deep clean</label>
+      <label class="chk-row" style="margin-top:10px"><input type="checkbox" id="ob-photos" required> I will take before &amp; after photos on every job (required)</label>
+      <label class="chk-row"><input type="checkbox" id="ob-emergency" required> If unforeseen issues arise, I will contact the customer to reschedule or cancel 24+ hours before the job when possible</label>
+      <label class="chk-row"><input type="checkbox" id="ob-terms" required> I accept the independent contractor terms (v1) — bidding is optional; winning bids must be completed</label>
+      <button class="lbtn" type="submit" id="ob-btn">Submit profile</button>
+    </form>
+    <div class="lerr" id="oberr"></div>
+  </div>
+</div>
+
 <!-- DASHBOARD -->
 <div id="s-dash" class="screen">
   <div class="topbar">
@@ -212,12 +252,20 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   <div class="main">
     <div class="jobs-hdr">
       <div>
-        <div class="pg-t">My Jobs</div>
-        <div class="pg-s">Assigned jobs — update status and submit completion when done</div>
+        <div class="pg-t" id="dash-title">My Jobs</div>
+        <div class="pg-s" id="dash-sub">Assigned jobs — update status and submit completion when done</div>
       </div>
-      <button class="refresh-btn" type="button" onclick="loadJobs()">↻ Refresh</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="refresh-btn" type="button" id="tab-jobs" onclick="showDashTab('jobs')">My Jobs</button>
+        <button class="refresh-btn" type="button" id="tab-bids" onclick="showDashTab('bids')">Open Bids</button>
+        <button class="refresh-btn" type="button" onclick="loadJobs()">↻ Refresh</button>
+      </div>
+    </div>
+    <div id="dash-bid-note" style="display:none;font-size:11px;color:var(--mu);margin-bottom:12px;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+      Jobs are awarded by <strong>lowest bid</strong> within the bid window AND your <strong>rating/acceptance history</strong> — not price alone. You are never required to bid.
     </div>
     <div id="jobs-list"><div class="loading">Loading jobs…</div></div>
+    <div id="bids-list" style="display:none"><div class="loading">Loading open auctions…</div></div>
   </div>
 </div>
 
@@ -234,6 +282,10 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     <div class="modal-bd">
       <div class="sec-lbl">Booking summary</div>
       <div class="ro-grid" id="cmp-summary"></div>
+
+      <div class="sec-lbl">Equipment suggestions</div>
+      <div id="cmp-equipment" style="font-size:12px;color:var(--mu);margin-bottom:12px"></div>
+      <div class="auth-box" style="margin-bottom:12px">📸 <strong>Before &amp; after photos are required</strong> on every completed job. Upload via admin review if not yet available in-app.</div>
 
       <div class="sec-lbl">Completion checklist</div>
       <label class="chk-row issue" id="chk-issue-wrap">
@@ -330,9 +382,13 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   const AUTH_URL = '/.netlify/functions/tech-auth';
   const JOBS_URL = '/.netlify/functions/tech-jobs';
   const COMPLETE_URL = '/.netlify/functions/tech-complete-job';
+  const PROFILE_URL = '/.netlify/functions/tech-profile';
+  const AUCTIONS_URL = '/.netlify/functions/tech-auctions';
 
   let TECH = null;
+  let TECH_PROFILE = null;
   let JOBS = [];
+  let AUCTIONS = [];
   let _completeJobId = '';
   let _issueJobId = '';
   let sigCustomer, sigTechnician;
@@ -436,9 +492,126 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     setToken(data.token);
     TECH = { id: data.techId, name: data.name };
     document.getElementById('tech-nm').textContent = data.name;
-    showScreen('dash');
-    loadJobs();
+    loadProfileAndRoute();
   }
+
+  async function loadProfileAndRoute() {
+    try {
+      var r = await techFetch(PROFILE_URL, { method: 'POST', body: JSON.stringify({ action: 'get' }) });
+      if (r.data.ok) TECH_PROFILE = r.data.profile;
+      if (!TECH_PROFILE || !TECH_PROFILE.onboardingComplete) {
+        showScreen('onboard');
+        return;
+      }
+      showScreen('dash');
+      showDashTab('jobs');
+    } catch (_) {
+      showScreen('dash');
+      loadJobs();
+    }
+  }
+
+  window.showDashTab = function (tab) {
+    document.getElementById('jobs-list').style.display = tab === 'jobs' ? 'block' : 'none';
+    document.getElementById('bids-list').style.display = tab === 'bids' ? 'block' : 'none';
+    document.getElementById('dash-bid-note').style.display = tab === 'bids' ? 'block' : 'none';
+    document.getElementById('dash-title').textContent = tab === 'bids' ? 'Open Bids' : 'My Jobs';
+    document.getElementById('dash-sub').textContent = tab === 'bids'
+      ? 'Place your bid — lowest wins when the window closes'
+      : 'Assigned jobs — update status and submit completion when done';
+    if (tab === 'bids') loadAuctions();
+    else loadJobs();
+  };
+
+  window.submitOnboarding = async function (e) {
+    if (e) e.preventDefault();
+    clearErr('oberr');
+    var btn = document.getElementById('ob-btn');
+    btn.disabled = true;
+    try {
+      var body = {
+        action: 'submit_onboarding',
+        termsAccepted: document.getElementById('ob-terms').checked,
+        companyName: document.getElementById('ob-company').value.trim(),
+        taxIdType: document.getElementById('ob-taxtype').value,
+        taxId: document.getElementById('ob-taxid').value.trim(),
+        insuranceCarrier: document.getElementById('ob-ins-carrier').value.trim(),
+        insurancePolicyNumber: document.getElementById('ob-ins-policy').value.trim(),
+        insuranceExpiresAt: document.getElementById('ob-ins-exp').value,
+        workVehicle: document.getElementById('ob-vehicle').value.trim(),
+        hasWaterAccess: document.getElementById('ob-water').checked,
+        hasPowerAccess: document.getElementById('ob-power').checked,
+        hasOwnLadder: document.getElementById('ob-ladder').checked,
+        photosRequiredAck: document.getElementById('ob-photos').checked,
+        emergencyPolicyAck: document.getElementById('ob-emergency').checked,
+        experience: {
+          boats: document.getElementById('ob-exp-boats').checked,
+          rvs: document.getElementById('ob-exp-rvs').checked,
+          orbital: document.getElementById('ob-exp-orbital').checked,
+          compound: document.getElementById('ob-exp-compound').checked,
+          buffer: document.getElementById('ob-exp-buffer').checked,
+          extraction: document.getElementById('ob-exp-extract').checked,
+          deepClean: document.getElementById('ob-exp-deep').checked,
+        },
+      };
+      var r = await techFetch(PROFILE_URL, { method: 'POST', body: JSON.stringify(body) });
+      if (!r.data.ok) { showErr('oberr', r.data.userMessage || r.data.error || 'Failed'); return false; }
+      TECH_PROFILE = r.data.profile;
+      toast('Profile submitted — you can now bid on jobs');
+      showScreen('dash');
+      showDashTab('jobs');
+    } catch (_) {
+      showErr('oberr', 'Network error');
+    } finally {
+      btn.disabled = false;
+    }
+    return false;
+  };
+
+  window.loadAuctions = async function () {
+    var el = document.getElementById('bids-list');
+    el.innerHTML = '<div class="loading">Loading open auctions…</div>';
+    try {
+      var r = await techFetch(AUCTIONS_URL);
+      if (!r.data.ok) {
+        if (r.data.error === 'onboarding_required') { showScreen('onboard'); return; }
+        el.innerHTML = '<div class="empty"><div class="ei">⚠️</div><div class="et">' + esc(r.data.error || 'Could not load') + '</div></div>';
+        return;
+      }
+      AUCTIONS = r.data.auctions || [];
+      if (!AUCTIONS.length) {
+        el.innerHTML = '<div class="empty"><div class="ei">🏷️</div><div class="et">No open auctions right now.</div></div>';
+        return;
+      }
+      el.innerHTML = AUCTIONS.map(function (a) {
+        var j = a.job || {};
+        var win = a.youWin ? '<span style="color:var(--green);font-weight:700">You are winning</span>' : '';
+        return '<div class="jc"><div class="jc-top"><div><div class="jc-id">' + esc(a.jobId) + '</div>' +
+          '<div class="jc-sv">' + esc(j.package || '') + '</div><div class="jc-vh">' + esc(j.vehicle || '') + '</div></div>' +
+          '<span class="badge b-acc">' + esc(a.status) + '</span></div>' +
+          '<div class="jc-grid">' + cell('Date', j.date || '—') + cell('Area', j.area || '—') +
+          cell('Lowest', a.lowest != null ? '$' + a.lowest : '—') + cell('Max bid', a.bidMax != null ? '$' + a.bidMax : '—') +
+          cell('Closes', a.closesAt ? new Date(a.closesAt).toLocaleString() : '—') + '</div>' +
+          (win ? '<div style="margin-top:8px;font-size:12px">' + win + '</div>' : '') +
+          '<div class="jc-acts" style="margin-top:10px"><input class="fi" type="number" id="bid-' + esc(a.jobId) + '" placeholder="Your bid $" style="max-width:120px;margin:0" min="1" step="1" value="' + (a.yourBid || '') + '">' +
+          '<button class="btn btn-p btn-sm" type="button" onclick="placeBid(\'' + esc(a.jobId) + '\')">Place bid</button></div></div>';
+      }).join('');
+    } catch (_) {
+      el.innerHTML = '<div class="empty">Network error</div>';
+    }
+  };
+
+  window.placeBid = async function (jobId) {
+    var inp = document.getElementById('bid-' + jobId);
+    var amount = Number(inp && inp.value);
+    if (!amount) { toast('Enter bid amount', 'err'); return; }
+    try {
+      var r = await techFetch(AUCTIONS_URL, { method: 'POST', body: JSON.stringify({ action: 'bid', jobId: jobId, amount: amount }) });
+      if (!r.data.ok) { toast(r.data.userMessage || r.data.error || 'Bid failed', 'err'); return; }
+      toast(r.data.youWin ? 'Bid placed — you are winning!' : 'Bid placed — someone is lower');
+      loadAuctions();
+    } catch (_) { toast('Network error', 'err'); }
+  };
 
   window.doLogin = async function (e) {
     if (e) e.preventDefault();
@@ -622,6 +795,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         (j.address ? fullCell('Address', j.address) : '') +
         (j.addons && j.addons.length ? fullCell('Add-ons', fmtAddons(j.addons)) : '') +
         (j.customerNote ? fullCell('Customer note', j.customerNote) : '') +
+        (j.equipmentHints && j.equipmentHints.length ? fullCell('Equipment', j.equipmentHints.join(' · ')) : '') +
         (j.techNotes ? fullCell('Tech notes', j.techNotes) : '') +
       '</div>' +
       (acts ? '<div class="jc-acts">' + acts + '</div>' : '') +
@@ -774,6 +948,8 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
       cell('Time', fmtTime(job)) +
       (job.address ? fullCell('Address', job.address) : '') +
       (job.addons && job.addons.length ? fullCell('Add-ons', fmtAddons(job.addons)) : '');
+    var eqEl = document.getElementById('cmp-equipment');
+    if (eqEl) eqEl.textContent = (job.equipmentHints && job.equipmentHints.length) ? job.equipmentHints.join(' · ') : 'Standard detail kit';
 
     ['chk-issue', 'chk-service', 'chk-vehicle', 'chk-reviewed', 'chk-no-issue', 'chk-auth'].forEach(function (cid) {
       document.getElementById(cid).checked = false;
@@ -897,8 +1073,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     }
 
     if (await validateSession()) {
-      showScreen('dash');
-      loadJobs();
+      await loadProfileAndRoute();
       return;
     }
 

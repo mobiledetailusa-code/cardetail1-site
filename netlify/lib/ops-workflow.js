@@ -12,6 +12,21 @@ const STRIPE_SENSITIVE = new Set([
   'amountAuthorizedCents', 'amountCapturedCents', 'cardOnFileStatus', 'cardOnFileSavedAt',
 ]);
 
+function suggestEquipmentForJob(b) {
+  const pkg = String(b.package || b.service || '').toLowerCase();
+  const veh = String(b.vehicle || b.vehicleLabel || b.vehicleCategory || '').toLowerCase();
+  const hay = pkg + ' ' + veh;
+  const hints = [];
+  if (/boat|marine|yacht/.test(hay)) hints.push('Own ladder (required)', 'Marine-safe products', 'Shade or dock access');
+  if (/rv|motorhome|trailer|camper/.test(hay)) hints.push('Own ladder 12ft+', 'Extension cord if no shore power');
+  if (/compound|correction|swirl|polish/.test(hay)) hints.push('DA polisher', 'Compound + finishing polish', 'Paint depth gauge recommended');
+  if (/extract|stain|deep.?clean|shampoo/.test(hay)) hints.push('Hot water extractor', 'Brush attachments');
+  if (/ceramic|coating|ppf/.test(hay)) hints.push('Prep wash + iron decon', 'IR lamp optional');
+  if (/interior|full/.test(pkg)) hints.push('Vacuum + steam cleaner', 'Microfiber towels');
+  if (!hints.length) hints.push('Standard detail kit', 'Microfiber towels', 'Pressure washer if exterior');
+  return [...new Set(hints)];
+}
+
 function appendEventLog(booking, entry) {
   const eventLog = Array.isArray(booking.eventLog) ? [...booking.eventLog] : [];
   eventLog.push({ ...entry, at: entry.at || new Date().toISOString() });
@@ -28,10 +43,11 @@ function projectJobForAdmin(b) {
 
 function projectJobForTech(b) {
   const first = b.firstName || '';
-  const lastInitial = (b.lastName || '').charAt(0);
+  const last = b.lastName || '';
+  const customerName = [first, last].filter(Boolean).join(' ') || 'Customer';
   return {
     id: b.id,
-    customerName: lastInitial ? `${first} ${lastInitial}.` : first,
+    customerName,
     phone: b.phone || '',
     address: b.address || '',
     zipCode: b.zipCode || '',
@@ -50,12 +66,16 @@ function projectJobForTech(b) {
     techNotes: b.techNotes || '',
     zone: b.zone || '',
     finalAmount: b.finalAmount != null ? b.finalAmount : (b.totalPrice != null ? b.totalPrice : null),
+    techPayoutAmount: b.techPayoutAmount != null ? b.techPayoutAmount : null,
     completionSubmitted: !!b.completionSubmitted,
+    equipmentHints: suggestEquipmentForJob(b),
+    photosRequired: true,
   };
 }
 
 function projectTechAccountForAdmin(t) {
   const { passwordHash, inviteToken, ...safe } = t;
+  const ob = t.onboarding || {};
   return {
     ...safe,
     techId: t.techId || t.id,
@@ -63,6 +83,12 @@ function projectTechAccountForAdmin(t) {
     hasPassword: !!passwordHash,
     hasInviteToken: !!inviteToken,
     inviteExpired: t.inviteExpiresAt ? new Date(t.inviteExpiresAt) < new Date() : false,
+    onboardingComplete: !!ob.completed,
+    ratingAverage: t.ratingAverage || null,
+    ratingCount: t.ratingCount || 0,
+    insuranceCarrier: ob.insuranceCarrier || '',
+    insuranceExpiresAt: ob.insuranceExpiresAt || '',
+    workVehicle: ob.workVehicle || '',
   };
 }
 
@@ -74,6 +100,7 @@ module.exports = {
   appendEventLog,
   normalizeJobStatus,
   normalizePaymentWorkflowStatus,
+  suggestEquipmentForJob,
   projectJobForAdmin,
   projectJobForTech,
   projectTechAccountForAdmin,

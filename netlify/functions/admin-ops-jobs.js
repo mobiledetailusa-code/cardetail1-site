@@ -3,6 +3,8 @@ const { blobsStore, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/t
 const {
   projectJobForAdmin, normalizeJobStatus, normalizePaymentWorkflowStatus, appendEventLog,
 } = require('../lib/ops-workflow');
+const { getOpsSettings } = require('../lib/ops-config');
+const { createAuctionForBooking, assignAuctionWinnerToBooking } = require('../lib/auction-ops');
 
 const TEST_SIGNALS = [
   b => b.isTest === true,
@@ -158,7 +160,95 @@ async function handleAdminAction(body) {
       eventLog: appendEventLog(booking, { action: 'booking_confirmed', by: 'admin' }),
     };
     await store.setJSON(bookingId, patched);
-    return jsonCors(200, { ok: true, bookingId, jobStatus: patched.jobStatus });
+
+    const settings = await getOpsSettings();
+    let auctionResult = null;
+    if (settings.autoPostToAuctionOnConfirm || settings.dispatchMode === 'auction') {
+      auctionResult = await createAuctionForBooking(patched, { notifySms: true, notifyEmail: true });
+    }
+    return jsonCors(200, {
+      ok: true, bookingId, jobStatus: patched.jobStatus,
+      auction: auctionResult && auctionResult.ok ? { posted: true, bidMax: auctionResult.bidMax, closesAt: auctionResult.closesAt } : null,
+    });
+  }
+
+  if (action === 'post_to_auction') {
+    const result = await createAuctionForBooking(booking, { notifySms: body.notifySms !== false, notifyEmail: body.notifyEmail !== false });
+    if (!result.ok) return jsonCors(503, { ok: false, error: result.error || 'auction_failed' });
+    await store.setJSON(bookingId, {
+      ...booking,
+      auctionPostedAt: now,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'posted_to_auction', by: 'admin', bidMax: result.bidMax }),
+    });
+    return jsonCors(200, { ok: true, bookingId, bidMax: result.bidMax, closesAt: result.closesAt, notifiedSms: result.notifiedSms });
+  }
+
+  if (action === 'assign_auction_winner') {
+    const result = await assignAuctionWinnerToBooking(bookingId, sanitizeText(body.note, 300));
+    if (!result.ok) return jsonCors(409, { ok: false, error: result.error });
+    return jsonCors(200, { ok: true, ...result });
+  }
+
+  if (action === 'update_payment_preference') {
+    const pref = sanitizeText(body.paymentMethodPreference, 64);
+    const ALLOWED_PREF = ['cash_on_site', 'card_on_site', 'online_after_service', 'card_on_file'];
+    if (!ALLOWED_PREF.includes(pref)) return jsonCors(400, { ok: false, error: 'invalid_preference' });
+    await store.setJSON(bookingId, {
+      ...booking,
+      paymentMethodPreference: pref,
+      paymentPreferenceUpdatedAt: now,
+      paymentPreferenceUpdatedBy: 'admin',
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'payment_preference_updated', by: 'admin', preference: pref }),
+    });
+    return jsonCors(200, { ok: true, bookingId });
+  }
+
+  if (action === 'set_payment_link') {
+    const payLink = sanitizeText(body.payLink, 500);
+    if (!payLink.startsWith('http')) return jsonCors(400, { ok: false, error: 'invalid_pay_link' });
+    await store.setJSON(bookingId, {
+      ...booking,
+      payLink,
+      paymentWorkflowStatus: 'awaiting_customer_payment',
+      payLinkSentAt: now,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'payment_link_set', by: 'admin' }),
+    });
+    return jsonCors(200, { ok: true, bookingId });
+  }
+
+  if (action === 'record_refund_request') {
+    const reason = sanitizeText(body.reason, 500);
+    const amount = body.amount != null ? Math.round(Number(body.amount) * 100) / 100 : null;
+    await store.setJSON(bookingId, {
+      ...booking,
+      refundRequestedAt: now,
+      refundRequestReason: reason,
+      refundRequestAmount: amount,
+      refundStatus: 'pending_admin',
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'refund_requested', by: 'admin', reason, amount }),
+    });
+    return jsonCors(200, { ok: true, bookingId, note: 'Refund logged — process manually in Stripe until automated in next PR.' });
+  }
+
+  if (action === 'record_job_balance') {
+    const techPayout = body.techPayoutAmount != null ? Math.round(Number(body.techPayoutAmount) * 100) / 100 : booking.techPayoutAmount;
+    const finalAmount = body.finalAmount != null ? Math.round(Number(body.finalAmount) * 100) / 100 : booking.finalAmount;
+    const platformFee = (finalAmount != null && techPayout != null)
+      ? Math.round((finalAmount - techPayout) * 100) / 100 : null;
+    await store.setJSON(bookingId, {
+      ...booking,
+      finalAmount: finalAmount != null ? finalAmount : booking.finalAmount,
+      techPayoutAmount: techPayout != null ? techPayout : booking.techPayoutAmount,
+      platformFeeAmount: platformFee,
+      balanceRecordedAt: now,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'job_balance_recorded', by: 'admin', finalAmount, techPayout, platformFee }),
+    });
+    return jsonCors(200, { ok: true, bookingId, platformFee });
   }
 
   if (action === 'reschedule') {

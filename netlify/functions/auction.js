@@ -14,6 +14,7 @@
 //                ADMIN_DASH_PASSWORD (for admin actions).
 
 const crypto = require('crypto');
+const { assignAuctionWinnerToBooking } = require('../lib/auction-ops');
 
 const json = (status, body) => ({
   statusCode: status,
@@ -107,8 +108,16 @@ exports.handler = async (event) => {
     if (action === 'bid') {
       if (!safeEq(p.sig, sign(jobId, p.tech, secret))) return json(401, { ok: false, error: 'invalid link' });
       if (auction.status !== 'open') return json(409, { ok: false, error: 'auction closed' });
+      if (auction.closesAt && new Date(auction.closesAt) < new Date()) {
+        auction.status = 'expired';
+        await s.setJSON(jobId, auction);
+        return json(409, { ok: false, error: 'bid_window_closed' });
+      }
       const amount = Math.round(Number(p.amount) * 100) / 100;
       if (!(amount > 0)) return json(400, { ok: false, error: 'invalid amount' });
+      if (auction.bidMax != null && amount > auction.bidMax) {
+        return json(400, { ok: false, error: 'bid_exceeds_max', bidMax: auction.bidMax });
+      }
       auction.bids = auction.bids || [];
       const existing = auction.bids.find(b => b.techId === p.tech);
       if (existing) { existing.amount = amount; existing.at = new Date().toISOString(); }
@@ -127,6 +136,33 @@ exports.handler = async (event) => {
       if (p.lat && p.lng) mine.checkin = { lat: p.lat, lng: p.lng };
       await s.setJSON(jobId, auction);
       return json(200, { ok: true, ...techView(auction, p.tech) });
+    }
+
+    if (action === 'close') {
+      if (!isAdmin) return json(401, { ok: false, error: 'unauthorized' });
+      auction.status = 'closed';
+      auction.closedAt = new Date().toISOString();
+      auction.closedBy = 'admin';
+      await s.setJSON(jobId, auction);
+      return json(200, { ok: true, auction });
+    }
+
+    if (action === 'assign_winner') {
+      if (!isAdmin) return json(401, { ok: false, error: 'unauthorized' });
+      const result = await assignAuctionWinnerToBooking(jobId, p.note || '');
+      if (!result.ok) return json(409, result);
+      const updated = await s.get(jobId, { type: 'json' });
+      return json(200, { ok: true, ...result, auction: updated });
+    }
+
+    if (action === 'extend_deadline') {
+      if (!isAdmin) return json(401, { ok: false, error: 'unauthorized' });
+      const extraMin = Math.min(240, Math.max(5, Number(p.extraMinutes) || 30));
+      const base = auction.closesAt ? new Date(auction.closesAt) : new Date();
+      auction.closesAt = new Date(base.getTime() + extraMin * 60 * 1000).toISOString();
+      auction.status = 'open';
+      await s.setJSON(jobId, auction);
+      return json(200, { ok: true, auction });
     }
 
     return json(400, { ok: false, error: 'unknown action' });

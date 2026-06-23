@@ -52,6 +52,22 @@ test('admin-ops dashboard loads required tabs and APIs', () => {
   assert.doesNotMatch(adminOps, /stripe\.confirmPayment/);
 });
 
+test('admin-ops has auction, settings, subscriptions tabs', () => {
+  assert.match(adminOps, /data-tab="auctions"/);
+  assert.match(adminOps, /data-tab="settings"/);
+  assert.match(adminOps, /data-tab="subscriptions"/);
+  assert.match(adminOps, /ops-settings/);
+  assert.match(adminOps, /post_to_auction/);
+});
+
+test('technician portal has onboarding and auction bidding', () => {
+  assert.match(tech, /s-onboard/);
+  assert.match(tech, /tech-profile/);
+  assert.match(tech, /tech-auctions/);
+  assert.match(tech, /placeBid/);
+  assert.match(tech, /equipmentHints/);
+});
+
 test('technician portal is tech-only with completion modal', () => {
   assert.doesNotMatch(tech, /id="s-admin"/);
   assert.doesNotMatch(tech, /renderAvail/);

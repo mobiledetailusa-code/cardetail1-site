@@ -103,6 +103,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     <button type="button" class="tab" data-tab="completed">Completed / Review</button>
     <button type="button" class="tab" data-tab="issues">Issues</button>
     <button type="button" class="tab" data-tab="requests">Customer Requests</button>
+    <button type="button" class="tab" data-tab="auctions">Auctions</button>
+    <button type="button" class="tab" data-tab="subscriptions">Subscriptions</button>
+    <button type="button" class="tab" data-tab="settings">Settings</button>
     <button type="button" class="tab" data-tab="maintenance">Maintenance</button>
     <button type="button" class="tab" data-tab="events">Event Log</button>
   </nav>
@@ -165,6 +168,45 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   <section class="panel" id="p-requests">
     <p class="hint">Customer cancellation, reschedule, and address-change requests waiting for admin action.</p>
     <div id="requestsList"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section class="panel" id="p-auctions">
+    <div class="toolbar">
+      <button type="button" class="btn ghost sm" id="btnSyncRoster">Sync tech roster (SMS/email)</button>
+      <button type="button" class="btn ghost sm" id="btnReloadAuctions">Reload auctions</button>
+    </div>
+    <p class="hint">Reverse auction: lowest bid wins. Techs bid via portal or SMS link. Set BID_MAX and bid window in Settings.</p>
+    <div class="card" id="auctionsList"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section class="panel" id="p-subscriptions">
+    <div class="toolbar">
+      <button type="button" class="btn sm" id="btnNewSub">+ New subscription</button>
+      <button type="button" class="btn ghost sm" id="btnReloadSubs">Reload</button>
+    </div>
+    <p class="hint">Recurring maintenance plans (monthly / 2–6 months / annual). Billing automation via Stripe in a future PR.</p>
+    <div class="card" id="subsList"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section class="panel" id="p-settings">
+    <div class="card">
+      <h3 style="margin-bottom:12px">Dispatch &amp; auction rules</h3>
+      <p class="hint"><strong>Auto-confirm appointments:</strong> Recommended OFF until your zone rules, card-on-file checks, and fraud filters are stable. Turn ON only when bookings meet your criteria automatically.</p>
+      <div class="form-grid" id="settingsForm">
+        <div class="full"><label class="chk"><input type="checkbox" id="setAutoConfirm"> Auto-confirm new bookings (future: on submit)</label></div>
+        <div class="full"><label class="chk"><input type="checkbox" id="setAutoAuction"> Post to auction when admin confirms booking</label></div>
+        <div><label>Dispatch mode</label>
+          <select id="setDispatch"><option value="manual">Manual assign</option><option value="auction">Auction first</option></select>
+        </div>
+        <div><label>BID MAX (% of customer total)</label><input type="number" id="setBidPct" min="1" max="100" step="1"></div>
+        <div><label>BID MAX override ($)</label><input type="number" id="setBidOverride" min="0" step="1" placeholder="Optional fixed cap"></div>
+        <div><label>Bid window (minutes)</label><input type="number" id="setBidWin" min="15" max="240" step="5"></div>
+        <div><label>Boat/RV bid window (minutes)</label><input type="number" id="setBidWinRv" min="30" max="360" step="5"></div>
+        <div><label>Min tech rating to bid</label><input type="number" id="setMinRating" min="0" max="5" step="0.1"></div>
+        <div class="full"><label class="chk"><input type="checkbox" id="setCompound"> Require compound experience for paint-correction jobs</label></div>
+        <div class="full"><button type="button" class="btn" id="btnSaveSettings">Save settings</button></div>
+      </div>
+    </div>
   </section>
 
   <section class="panel" id="p-maintenance">
@@ -257,7 +299,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   const inviteCache = {};
 
   let jobs = [], techs = [], activeJob = null, activeTech = null;
-  let showTest = false;
+  let showTest = false, platformSettings = {}, auctions = [], subscriptions = [];
 
   const $ = s => document.querySelector(s);
   const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -304,9 +346,97 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     return techs;
   }
 
+  async function loadSettings() {
+    const data = await api('/.netlify/functions/ops-settings');
+    platformSettings = data.settings || {};
+    return platformSettings;
+  }
+
+  async function loadAuctions() {
+    const data = await api('/.netlify/functions/auction', 'POST', { action: 'list' });
+    auctions = data.auctions || [];
+    return auctions;
+  }
+
+  async function loadSubscriptions() {
+    const data = await api('/.netlify/functions/subscriptions-ops', 'POST', { action: 'list' });
+    subscriptions = data.subscriptions || [];
+    return subscriptions;
+  }
+
   async function refreshAll() {
-    await Promise.all([loadJobs(), loadTechs()]);
+    await Promise.all([loadJobs(), loadTechs(), loadSettings().catch(()=>({}))]);
     renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
+    renderSettingsForm();
+  }
+
+  async function refreshAuctionsTab() {
+    try { await loadAuctions(); renderAuctions(); } catch(e) { $('#auctionsList').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+  }
+
+  async function refreshSubsTab() {
+    try { await loadSubscriptions(); renderSubscriptions(); } catch(e) { $('#subsList').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+  }
+
+  function renderSettingsForm() {
+    const s = platformSettings;
+    $('#setAutoConfirm').checked = !!s.autoConfirmAppointments;
+    $('#setAutoAuction').checked = !!s.autoPostToAuctionOnConfirm;
+    $('#setDispatch').value = s.dispatchMode || 'manual';
+    $('#setBidPct').value = s.bidMaxPercent != null ? s.bidMaxPercent : 85;
+    $('#setBidOverride').value = s.bidMaxOverride != null ? s.bidMaxOverride : '';
+    $('#setBidWin').value = s.bidWindowMinutes != null ? s.bidWindowMinutes : 60;
+    $('#setBidWinRv').value = s.bidWindowMinutesBoatRv != null ? s.bidWindowMinutesBoatRv : 90;
+    $('#setMinRating').value = s.minTechRatingToBid != null ? s.minTechRatingToBid : 0;
+    $('#setCompound').checked = s.requireCompoundExperience !== false;
+  }
+
+  function renderAuctions() {
+    const el = $('#auctionsList');
+    if (!auctions.length) { el.innerHTML='<div class="empty">No open auctions. Confirm a job and click Post to Auction, or enable auto-post in Settings.</div>'; return; }
+    el.innerHTML = auctions.map(a => {
+      const j = a.job || {};
+      const bids = (a.bids||[]).slice().sort((x,y)=>x.amount-y.amount);
+      const bidRows = bids.length ? bids.map((b,i)=>'<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:'+(i===0?'var(--ok)':'var(--mu)')+'"><span>'+(i===0?'🏆 ':'')+esc(b.techName||b.techId)+'</span><span>$'+b.amount+'</span></div>').join('') : '<div style="font-size:12px;color:var(--mu)">No bids yet</div>';
+      return '<div class="req-box" data-job="'+esc(a.jobId)+'"><h5>'+esc(a.jobId)+' · '+esc(j.package||'—')+'</h5>'+
+        '<div style="font-size:12px;color:var(--mu);margin-bottom:8px">'+esc(j.vehicle||'')+' · '+esc(j.date||'')+' · '+esc(j.area||'')+
+        ' · Max bid: '+(a.bidMax!=null?'$'+a.bidMax:'—')+' · Closes: '+dt(a.closesAt)+' · Status: '+esc(a.status)+'</div>'+
+        bidRows+
+        '<div class="actions" style="margin-top:10px">'+
+        (a.winner?'<button type="button" class="btn sm auc-assign" data-id="'+esc(a.jobId)+'">Assign winner ('+esc(a.winner.techName)+' $'+a.winner.amount+')</button>':'')+
+        '<button type="button" class="btn ghost sm auc-extend" data-id="'+esc(a.jobId)+'">+30 min</button>'+
+        (a.status==='open'?'<button type="button" class="btn ghost sm auc-close" data-id="'+esc(a.jobId)+'">Close auction</button>':'')+
+        '<button type="button" class="btn ghost sm auc-open" data-id="'+esc(a.jobId)+'">Open job</button></div></div>';
+    }).join('');
+    el.querySelectorAll('.auc-assign').forEach(b => b.onclick = () => auctionAction(b.dataset.id, 'assign_winner'));
+    el.querySelectorAll('.auc-extend').forEach(b => b.onclick = () => auctionAction(b.dataset.id, 'extend_deadline', { extraMinutes: 30 }));
+    el.querySelectorAll('.auc-close').forEach(b => b.onclick = () => auctionAction(b.dataset.id, 'close'));
+    el.querySelectorAll('.auc-open').forEach(b => b.onclick = () => openDrawer(b.dataset.id));
+  }
+
+  async function auctionAction(jobId, action, extra) {
+    try {
+      if (action === 'assign_winner') await jobAction(jobId, 'assign_auction_winner', extra||{});
+      else await api('/.netlify/functions/auction', 'POST', { action, job: jobId, ...extra });
+      toast('Auction updated');
+      await refreshAll();
+      await refreshAuctionsTab();
+    } catch(e) { toast('Auction failed: '+e.message); }
+  }
+
+  function renderSubscriptions() {
+    const el = $('#subsList');
+    const active = subscriptions.filter(s => s.status === 'active');
+    if (!active.length) { el.innerHTML='<div class="empty">No active subscriptions. Create one for recurring customers.</div>'; return; }
+    el.innerHTML = '<table class="tbl"><thead><tr><th>Customer</th><th>Plan</th><th>Interval</th><th>Price</th><th>Next visit</th><th>Actions</th></tr></thead><tbody>'+
+      active.map(s => '<tr><td>'+esc(s.customerName||s.email)+'<div class="tech-meta">'+esc(s.email)+'</div></td>'+
+      '<td>'+esc(s.planName)+'</td><td>'+s.intervalMonths+' mo</td><td>$'+s.price+'</td><td>'+esc(s.nextVisitDate||'—')+'</td>'+
+      '<td><button type="button" class="btn ghost sm sub-cancel" data-id="'+esc(s.id)+'">Cancel</button></td></tr>').join('')+
+      '</tbody></table>';
+    el.querySelectorAll('.sub-cancel').forEach(b => b.onclick = async () => {
+      if (!confirm('Cancel this subscription?')) return;
+      try { await api('/.netlify/functions/subscriptions-ops','POST',{action:'cancel',id:b.dataset.id}); toast('Cancelled'); refreshSubsTab(); } catch(e){ toast(e.message); }
+    });
   }
 
   function techOptions(sel) {
@@ -448,13 +578,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const el = $('#techList');
     if (!techs.length) { el.innerHTML='<div class="empty">No technicians yet — create one above</div>'; return; }
     el.innerHTML = '<table class="tbl"><thead><tr>'+
-      '<th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Jobs</th><th>Login</th><th>Actions</th>'+
+      '<th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Rating</th><th>Onboarding</th><th>Jobs</th><th>Login</th><th>Actions</th>'+
       '</tr></thead><tbody>'+
       techs.map(t => '<tr data-tid="'+esc(t.techId)+'">'+
         '<td><strong>'+esc(t.fullName)+'</strong><div class="tech-meta">'+esc(t.techId)+'</div></td>'+
         '<td>'+esc(t.email)+'</td>'+
         '<td>'+esc(t.phone||'—')+'</td>'+
         '<td>'+(t.active?badge('active','b-ok'):badge('inactive','b-st'))+'</td>'+
+        '<td>'+(t.ratingAverage?('⭐ '+t.ratingAverage+' ('+t.ratingCount+')'):'—')+'</td>'+
+        '<td>'+(t.onboardingComplete?badge('onboarded','b-ok'):badge('onboarding pending','b-warn'))+'</td>'+
         '<td>'+(t.assignedJobsCount||0)+'</td>'+
         '<td>'+(t.hasPassword?badge('password set','b-ok'):badge('invite pending','b-warn'))+
           (t.lastLoginAt?'<div class="tech-meta">Last: '+dt(t.lastLoginAt)+'</div>':'')+'</td>'+
@@ -656,9 +788,32 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div><label>ZIP</label><input type="text" id="dZip" value="'+esc(j.zipCode||'')+'"></div>'+
       '<div class="full"><button type="button" class="btn ghost sm" id="dSaveAddr" style="width:100%">Save address</button></div>'+
       '</div></div>';
-    html += '<div class="sec"><h4>Payment workflow</h4><div style="margin-bottom:10px">'+payBadge(j.paymentWorkflowStatus)+'</div>'+
-      '<div class="actions"><button type="button" class="btn sm" disabled>Send Invoice — next PR</button>'+
-      '<button type="button" class="btn ghost sm" disabled>Charge Card on File — next PR</button></div></div>';
+    html += '<div class="sec"><h4>Job balance</h4><div class="kv">'+
+      '<div><b>Customer total:</b> $'+(j.totalPrice!=null?j.totalPrice:'—')+'</div>'+
+      '<div><b>Tech payout:</b> $'+(j.techPayoutAmount!=null?j.techPayoutAmount:'—')+'</div>'+
+      '<div><b>Platform fee:</b> $'+(j.platformFeeAmount!=null?j.platformFeeAmount:(j.totalPrice!=null&&j.techPayoutAmount!=null?(j.totalPrice-j.techPayoutAmount).toFixed(2):'—'))+'</div>'+
+      '</div>'+
+      '<div class="op-grid" style="margin-top:8px">'+
+      '<div><label>Final amount ($)</label><input type="number" id="dFinalAmt" step="0.01" value="'+(j.finalAmount!=null?j.finalAmount:(j.totalPrice||''))+'"></div>'+
+      '<div><label>Tech payout ($)</label><input type="number" id="dTechPay" step="0.01" value="'+(j.techPayoutAmount!=null?j.techPayoutAmount:'')+'"></div>'+
+      '<div class="full"><button type="button" class="btn ghost sm" id="dSaveBal" style="width:100%">Save balance</button></div></div></div>';
+    html += '<div class="sec"><h4>Dispatch</h4><div class="actions">'+
+      '<button type="button" class="btn sm" id="dPostAuc">Post to auction</button>'+
+      '<button type="button" class="btn ghost sm" id="dAssignWin">Assign auction winner</button></div></div>';
+    html += '<div class="sec"><h4>Payment workflow</h4><div style="margin-bottom:10px">'+payBadge(j.paymentWorkflowStatus)+
+      (j.payLink?' <a href="'+esc(j.payLink)+'" target="_blank" rel="noopener">Pay link</a>':'')+'</div>'+
+      '<div class="op-grid">'+
+      '<div class="full"><label>Payment preference</label><select id="dPayPref">'+
+      ['cash_on_site','card_on_site','online_after_service','card_on_file'].map(p=>'<option value="'+p+'"'+(j.paymentMethodPreference===p?' selected':'')+'>'+p.replace(/_/g,' ')+'</option>').join('')+
+      '</select></div>'+
+      '<div class="full"><button type="button" class="btn ghost sm" id="dSavePref" style="width:100%">Update payment preference</button></div>'+
+      '<div class="full"><label>Payment link URL (Stripe Checkout)</label><input type="url" id="dPayLink" placeholder="https://..." value="'+esc(j.payLink||'')+'"></div>'+
+      '<div class="full"><button type="button" class="btn sm" id="dSetPayLink" style="width:100%">Save payment link for customer</button></div>'+
+      '<div class="full"><label>Refund note</label><input type="text" id="dRefundNote" placeholder="Reason for refund request"></div>'+
+      '<div><label>Refund amount ($)</label><input type="number" id="dRefundAmt" step="0.01"></div>'+
+      '<div class="full"><button type="button" class="btn warn sm" id="dRefund" style="width:100%">Log refund request</button></div>'+
+      '</div>'+
+      '<p class="hint" style="margin-top:8px">Stripe charge/invoice automation — next PR. Use payment link + manual refund in Stripe for now.</p></div>';
     if (j.adminNotes) html += '<div class="sec"><h4>Admin notes</h4><pre style="font-size:12px;white-space:pre-wrap;color:var(--mu)">'+esc(j.adminNotes)+'</pre></div>';
     if (j.completionSubmitted || j.customerSignature) {
       html += '<div class="sec"><h4>Completion</h4><div class="kv">'+
@@ -694,6 +849,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const dcn = $('#dCancelNo'); if(dcn) dcn.onclick = () => { const n=prompt('Denial note:'); if(n!==null) jobAction(j.id,'resolve_cancellation',{decision:'denied',note:n}); };
     const dar = $('#dApplyResched'); if(dar) dar.onclick = () => jobAction(j.id,'apply_customer_request',{requestType:'reschedule'});
     const daa = $('#dApplyAddr'); if(daa) daa.onclick = () => jobAction(j.id,'apply_customer_request',{requestType:'address'});
+    const dpa = $('#dPostAuc'); if(dpa) dpa.onclick = () => jobAction(j.id,'post_to_auction');
+    const daw = $('#dAssignWin'); if(daw) daw.onclick = () => jobAction(j.id,'assign_auction_winner');
+    const dsp = $('#dSavePref'); if(dsp) dsp.onclick = () => jobAction(j.id,'update_payment_preference',{paymentMethodPreference:$('#dPayPref').value});
+    const dspl = $('#dSetPayLink'); if(dspl) dspl.onclick = () => jobAction(j.id,'set_payment_link',{payLink:$('#dPayLink').value.trim()});
+    const drf = $('#dRefund'); if(drf) drf.onclick = () => jobAction(j.id,'record_refund_request',{reason:$('#dRefundNote').value.trim(),amount:$('#dRefundAmt').value});
+    const dsb = $('#dSaveBal'); if(dsb) dsb.onclick = () => jobAction(j.id,'record_job_balance',{finalAmount:$('#dFinalAmt').value,techPayoutAmount:$('#dTechPay').value});
     $('#drawerBg').classList.add('open'); $('#drawer').classList.add('open');
   }
 
@@ -705,6 +866,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
     document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
     b.classList.add('on'); $('#p-'+b.dataset.tab).classList.add('on');
+    if (b.dataset.tab === 'auctions') refreshAuctionsTab();
+    if (b.dataset.tab === 'subscriptions') refreshSubsTab();
+    if (b.dataset.tab === 'settings') loadSettings().then(renderSettingsForm).catch(()=>{});
   };
 
   // Status filter options
@@ -749,6 +913,45 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const note = $('#dNote').value.trim();
     if (!note) return toast('Enter a note');
     try { await jobAction(activeJob.id,'admin_note',{note}); } catch(e) { toast(e.message); }
+  };
+
+  $('#btnSaveSettings').onclick = async () => {
+    try {
+      const ov = $('#setBidOverride').value.trim();
+      await api('/.netlify/functions/ops-settings', 'POST', {
+        autoConfirmAppointments: $('#setAutoConfirm').checked,
+        autoPostToAuctionOnConfirm: $('#setAutoAuction').checked,
+        dispatchMode: $('#setDispatch').value,
+        bidMaxPercent: Number($('#setBidPct').value),
+        bidMaxOverride: ov ? Number(ov) : null,
+        bidWindowMinutes: Number($('#setBidWin').value),
+        bidWindowMinutesBoatRv: Number($('#setBidWinRv').value),
+        minTechRatingToBid: Number($('#setMinRating').value),
+        requireCompoundExperience: $('#setCompound').checked,
+      });
+      toast('Settings saved');
+      await loadSettings();
+    } catch(e) { toast('Save failed: '+e.message); }
+  };
+  $('#btnSyncRoster').onclick = async () => {
+    try { const d = await api('/.netlify/functions/ops-settings','POST',{action:'sync_tech_roster'}); toast('Synced '+d.count+' tech(s)'); } catch(e){ toast(e.message); }
+  };
+  $('#btnReloadAuctions').onclick = refreshAuctionsTab;
+  $('#btnReloadSubs').onclick = refreshSubsTab;
+  $('#btnNewSub').onclick = async () => {
+    const email = prompt('Customer email:'); if(!email) return;
+    const name = prompt('Customer name:') || '';
+    const plan = prompt('Plan (monthly / quarterly / annual):','monthly') || 'monthly';
+    const map = { monthly:1, quarterly:3, biannual:6, annual:12 };
+    const interval = map[plan.toLowerCase()] || 1;
+    const price = Number(prompt('Monthly or per-visit price ($):','79')) || 79;
+    try {
+      await api('/.netlify/functions/subscriptions-ops','POST',{
+        action:'create', email, customerName:name, planName:plan, intervalMonths:interval, price,
+        nextVisitDate: new Date().toISOString().slice(0,10),
+      });
+      toast('Subscription created'); refreshSubsTab();
+    } catch(e) { toast(e.message); }
   };
 
   $('#techForm').onsubmit = async e => {
