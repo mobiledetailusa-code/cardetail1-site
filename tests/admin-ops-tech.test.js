@@ -182,6 +182,27 @@ test('no stripe payment intent or invoice in new ops functions', () => {
   }
 });
 
+test('admin ops supports operational actions', () => {
+  assert.match(adminOpsJobs, /confirm_booking/);
+  assert.match(adminOpsJobs, /reschedule/);
+  assert.match(adminOpsJobs, /update_address/);
+  assert.match(adminOpsJobs, /cancel_booking/);
+  assert.match(adminOpsJobs, /bulk_archive_tests/);
+  assert.match(adminOpsJobs, /archive_test/);
+});
+
+test('admin-ops UI has maintenance and requests tabs', () => {
+  assert.match(adminOps, /Customer Requests/);
+  assert.match(adminOps, /Maintenance/);
+  assert.match(adminOps, /btnArchiveTests/);
+  assert.match(adminOps, /confirm_booking/);
+  assert.match(adminOps, /update_address/);
+});
+
+test('technician portal has directions link', () => {
+  assert.match(tech, /google\.com\/maps/);
+});
+
 test('inline portal scripts compile', () => {
   for (const [file, html] of [['admin-ops.html', adminOps], ['technician.html', tech]]) {
     const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];

@@ -205,6 +205,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     <div class="tb-logo">CAR<span>DETAIL</span>1</div>
     <div class="tb-badge">Technician</div>
     <div class="tb-sp"></div>
+    <a href="/" class="tb-out" style="text-decoration:none;display:inline-flex;align-items:center">Home</a>
     <div class="tb-nm" id="tech-nm"></div>
     <button class="tb-out" type="button" onclick="doLogout()">Sign Out</button>
   </div>
@@ -598,6 +599,10 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         var wa = 'https://wa.me/' + String(j.phone).replace(/\D/g, '') +
           '?text=' + encodeURIComponent('Hi! Your Cardetail1 technician is on the way.');
         acts += '<a class="btn btn-g btn-sm" href="' + wa + '" target="_blank" rel="noopener">💬</a>';
+      }
+      if (j.address) {
+        var mapsQ = encodeURIComponent(j.address + (j.zipCode ? ' ' + j.zipCode : ''));
+        acts += '<a class="btn btn-g btn-sm" href="https://www.google.com/maps/search/?api=1&query=' + mapsQ + '" target="_blank" rel="noopener">📍 Directions</a>';
       }
     }
     if (j.completionSubmitted) {

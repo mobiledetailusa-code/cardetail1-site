@@ -31,6 +31,19 @@
   to = "/terms-conditions.html"
   status = 200
 
+[[headers]]
+  for = "/admin-ops.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate"
+[[headers]]
+  for = "/technician.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate"
+[[headers]]
+  for = "/admin.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate"
+
 # Headers de segurança básicos.
 [[headers]]
   for = "/*"

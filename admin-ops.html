@@ -36,6 +36,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac)}
 .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
 .btn.sm{padding:6px 10px;font-size:12px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.danger{background:rgba(239,68,68,.15);color:var(--err);border:1px solid rgba(239,68,68,.25)}
+.btn.warn{background:rgba(245,158,11,.15);color:var(--warn);border:1px solid rgba(245,158,11,.25)}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mu);cursor:pointer;user-select:none}
+.chk input{accent-color:var(--ac)}
+.req-box{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+.req-box h5{font-size:13px;margin-bottom:6px}
+.hint{font-size:12px;color:var(--mu);margin-bottom:12px;line-height:1.5}
+.op-grid{display:grid;gap:8px;margin-top:8px}
+.op-grid input,.op-grid select{margin-bottom:0}
 .tbl{width:100%;border-collapse:collapse;font-size:13px}
 .tbl th,.tbl td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
 .tbl th{color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
@@ -93,6 +102,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     <button type="button" class="tab" data-tab="assign">Assignments</button>
     <button type="button" class="tab" data-tab="completed">Completed / Review</button>
     <button type="button" class="tab" data-tab="issues">Issues</button>
+    <button type="button" class="tab" data-tab="requests">Customer Requests</button>
+    <button type="button" class="tab" data-tab="maintenance">Maintenance</button>
     <button type="button" class="tab" data-tab="events">Event Log</button>
   </nav>
 
@@ -102,9 +113,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   <section class="panel" id="p-jobs">
     <div class="toolbar">
-      <input class="srch" id="jobsSearch" type="search" placeholder="Search jobs…">
+      <input class="srch" id="jobsSearch" type="search" placeholder="Search ID, customer, phone, email…">
       <select class="fsel" id="jobsStatus"><option value="">All statuses</option></select>
-      <button type="button" class="btn ghost sm" id="jobsClear">Clear</button>
+      <label class="chk"><input type="checkbox" id="jobsShowTest"> Show test/archived</label>
+      <button type="button" class="btn ghost sm" id="jobsClear">Clear filters</button>
     </div>
     <div class="card" style="padding:0;overflow:auto"><table class="tbl" id="jobsTable"><thead><tr>
       <th>Customer</th><th>Vehicle</th><th>Date</th><th>Status</th><th>Payment</th><th>Tech</th><th>Assign</th>
@@ -149,6 +161,27 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     </tr></thead><tbody></tbody></table></div>
   </section>
 
+  <section class="panel" id="p-requests">
+    <p class="hint">Customer cancellation, reschedule, and address-change requests waiting for admin action.</p>
+    <div id="requestsList"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section class="panel" id="p-maintenance">
+    <div class="card" style="margin-bottom:14px">
+      <h3 style="margin-bottom:8px">Test booking cleanup</h3>
+      <p class="hint">Archives likely-test bookings in the cloud (Smoke, ProdTest, names/emails with “test”, etc.). Hidden from default board — not deleted.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost sm" id="btnPreviewTests">Preview test matches</button>
+        <button type="button" class="btn warn sm" id="btnArchiveTests">Archive all test matches</button>
+      </div>
+      <pre id="testPreview" style="margin-top:12px;font-size:12px;color:var(--mu);white-space:pre-wrap;max-height:200px;overflow:auto"></pre>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:8px">Quick tips</h3>
+      <p class="hint">Open any job from Jobs Board to confirm, reschedule, change address, cancel, or archive a single test booking. Assign technicians from the row or job drawer.</p>
+    </div>
+  </section>
+
   <section class="panel" id="p-events">
     <div class="toolbar">
       <input class="srch" id="evSearch" type="search" placeholder="Filter events…">
@@ -182,6 +215,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   const inviteCache = {};
 
   let jobs = [], techs = [], activeJob = null;
+  let showTest = false;
 
   const $ = s => document.querySelector(s);
   const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -210,6 +244,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   async function loadJobs(extra) {
     const q = new URLSearchParams(extra||{});
+    if (showTest) q.set('showTest', '1');
     const data = await api('/.netlify/functions/admin-ops-jobs?'+q);
     jobs = data.jobs || [];
     return jobs;
@@ -223,7 +258,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   async function refreshAll() {
     await Promise.all([loadJobs(), loadTechs()]);
-    renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderEvents(); renderTechs();
+    renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
   }
 
   function techOptions(sel) {
@@ -302,6 +337,37 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     tb.querySelectorAll('.approve').forEach(b => b.onclick = () => jobAction(b.dataset.id,'approve_completion'));
     tb.querySelectorAll('.reopen').forEach(b => b.onclick = () => { const r=prompt('Reopen reason (optional):'); if(r!==null) jobAction(b.dataset.id,'reopen_job',{reason:r}); });
     tb.querySelectorAll('.correct').forEach(b => b.onclick = () => { const m=prompt('Correction message:'); if(m) jobAction(b.dataset.id,'request_correction',{message:m}); });
+  }
+
+  function renderRequests() {
+    const list = jobs.filter(j =>
+      j.cancellationRequestStatus === 'requested' ||
+      j.rescheduledByClient ||
+      j.addressChangedByClient ||
+      j.requestedAddress
+    );
+    const el = $('#requestsList');
+    if (!list.length) { el.innerHTML='<div class="empty">No pending customer requests</div>'; return; }
+    el.innerHTML = list.map(j => {
+      let reqs = [];
+      if (j.cancellationRequestStatus === 'requested') reqs.push('Cancellation: '+(j.cancellationReason||'requested'));
+      if (j.rescheduledByClient) reqs.push('Reschedule → '+(j.rescheduleRequestedDate||'?')+' '+(j.rescheduleRequestedTime||''));
+      if (j.addressChangedByClient || j.requestedAddress) reqs.push('Address → '+esc(j.requestedAddress||'(see booking)'));
+      return '<div class="req-box" data-id="'+esc(j.id)+'">'+
+        '<h5>'+esc(cust(j))+' · <span style="font-family:monospace;font-size:11px">'+esc(j.id)+'</span></h5>'+
+        '<div style="font-size:12px;color:var(--mu);margin-bottom:8px">'+reqs.map(esc).join('<br>')+'</div>'+
+        '<div class="actions">'+
+        (j.cancellationRequestStatus==='requested'?'<button type="button" class="btn danger sm req-cancel-yes" data-id="'+esc(j.id)+'">Approve cancel</button><button type="button" class="btn ghost sm req-cancel-no" data-id="'+esc(j.id)+'">Deny cancel</button>':'')+
+        (j.rescheduledByClient?'<button type="button" class="btn sm req-resched" data-id="'+esc(j.id)+'">Apply reschedule</button>':'')+
+        ((j.addressChangedByClient||j.requestedAddress)?'<button type="button" class="btn sm req-addr" data-id="'+esc(j.id)+'">Apply address</button>':'')+
+        '<button type="button" class="btn ghost sm req-open" data-id="'+esc(j.id)+'">Open job</button>'+
+        '</div></div>';
+    }).join('');
+    el.querySelectorAll('.req-cancel-yes').forEach(b => b.onclick = () => jobAction(b.dataset.id,'resolve_cancellation',{decision:'approved',note:'Approved from requests queue'}));
+    el.querySelectorAll('.req-cancel-no').forEach(b => b.onclick = () => { const n=prompt('Denial note:'); if(n!==null) jobAction(b.dataset.id,'resolve_cancellation',{decision:'denied',note:n}); });
+    el.querySelectorAll('.req-resched').forEach(b => b.onclick = () => jobAction(b.dataset.id,'apply_customer_request',{requestType:'reschedule'}));
+    el.querySelectorAll('.req-addr').forEach(b => b.onclick = () => jobAction(b.dataset.id,'apply_customer_request',{requestType:'address'}));
+    el.querySelectorAll('.req-open').forEach(b => b.onclick = () => openDrawer(b.dataset.id));
   }
 
   function renderIssues() {
@@ -388,6 +454,32 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     html += '<div class="sec"><h4>Assignment</h4><div class="kv"><div><b>Tech:</b> '+esc(j.assignedTechName||'Unassigned')+'</div>'+
       '<div><b>Assigned:</b> '+dt(j.assignedAt)+'</div></div>'+
       '<select id="dAssign" style="margin-top:8px">'+techOptions(j.assignedTechId||j.assignedTech)+'</select></div>';
+    html += '<div class="sec"><h4>Operations</h4>';
+    if (j.cancellationRequestStatus === 'requested') {
+      html += '<div class="req-box"><strong>Cancellation requested</strong><div style="font-size:12px;color:var(--mu);margin:6px 0">'+esc(j.cancellationReason||'')+'</div>'+
+        '<div class="actions"><button type="button" class="btn danger sm" id="dCancelYes">Approve cancel</button>'+
+        '<button type="button" class="btn ghost sm" id="dCancelNo">Deny</button></div></div>';
+    }
+    if (j.rescheduledByClient) {
+      html += '<div class="req-box"><strong>Reschedule requested</strong><div style="font-size:12px;margin:6px 0">'+esc(j.rescheduleRequestedDate||'')+' '+esc(j.rescheduleRequestedTime||'')+'</div>'+
+        '<button type="button" class="btn sm" id="dApplyResched">Apply customer date</button></div>';
+    }
+    if (j.addressChangedByClient || j.requestedAddress) {
+      html += '<div class="req-box"><strong>Address change requested</strong><div style="font-size:12px;margin:6px 0">'+esc(j.requestedAddress||'')+'</div>'+
+        '<button type="button" class="btn sm" id="dApplyAddr">Apply new address</button></div>';
+    }
+    html += '<div class="actions" style="margin-bottom:10px">';
+    if (j.jobStatus === 'pending_review') html += '<button type="button" class="btn sm" id="dConfirm">Confirm booking</button>';
+    html += '<button type="button" class="btn ghost sm" id="dCancel">Cancel job</button>';
+    html += '<button type="button" class="btn warn sm" id="dArchive">Archive as test</button></div>';
+    html += '<div class="op-grid">'+
+      '<div><label>Reschedule date</label><input type="date" id="dDate" value="'+esc((j.confirmedDate||j.preferredDate||'').slice(0,10))+'"></div>'+
+      '<div><label>Time / window</label><input type="text" id="dTime" placeholder="e.g. 10:00 AM or Morning" value="'+esc(j.confirmedTime||j.confirmedTimeWindow||j.preferredTime||'')+'"></div>'+
+      '<div class="full"><button type="button" class="btn ghost sm" id="dResched" style="width:100%">Save reschedule</button></div>'+
+      '<div class="full"><label>Service address</label><input type="text" id="dAddr" value="'+esc(j.address||'')+'"></div>'+
+      '<div><label>ZIP</label><input type="text" id="dZip" value="'+esc(j.zipCode||'')+'"></div>'+
+      '<div class="full"><button type="button" class="btn ghost sm" id="dSaveAddr" style="width:100%">Save address</button></div>'+
+      '</div></div>';
     html += '<div class="sec"><h4>Payment workflow</h4><div style="margin-bottom:10px">'+payBadge(j.paymentWorkflowStatus)+'</div>'+
       '<div class="actions"><button type="button" class="btn sm" disabled>Send Invoice — next PR</button>'+
       '<button type="button" class="btn ghost sm" disabled>Charge Card on File — next PR</button></div></div>';
@@ -417,6 +509,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const ap = $('#dApprove'); if(ap) ap.onclick = () => jobAction(j.id,'approve_completion');
     const ro = $('#dReopen'); if(ro) ro.onclick = () => { const r=prompt('Reopen reason:'); if(r!==null) jobAction(j.id,'reopen_job',{reason:r}); };
     const co = $('#dCorrect'); if(co) co.onclick = () => { const m=prompt('Correction message:'); if(m) jobAction(j.id,'request_correction',{message:m}); };
+    const dc = $('#dConfirm'); if(dc) dc.onclick = () => jobAction(j.id,'confirm_booking');
+    const dca = $('#dCancel'); if(dca) dca.onclick = () => { const r=prompt('Cancel reason:'); if(r!==null) jobAction(j.id,'cancel_booking',{reason:r}); };
+    const da2 = $('#dArchive'); if(da2) da2.onclick = () => { if(confirm('Archive this booking as test?')) jobAction(j.id,'archive_test'); };
+    const dr = $('#dResched'); if(dr) dr.onclick = () => jobAction(j.id,'reschedule',{confirmedDate:$('#dDate').value,confirmedTime:$('#dTime').value,confirmedTimeWindow:$('#dTime').value});
+    const dsa = $('#dSaveAddr'); if(dsa) dsa.onclick = () => jobAction(j.id,'update_address',{address:$('#dAddr').value,zipCode:$('#dZip').value});
+    const dcy = $('#dCancelYes'); if(dcy) dcy.onclick = () => jobAction(j.id,'resolve_cancellation',{decision:'approved'});
+    const dcn = $('#dCancelNo'); if(dcn) dcn.onclick = () => { const n=prompt('Denial note:'); if(n!==null) jobAction(j.id,'resolve_cancellation',{decision:'denied',note:n}); };
+    const dar = $('#dApplyResched'); if(dar) dar.onclick = () => jobAction(j.id,'apply_customer_request',{requestType:'reschedule'});
+    const daa = $('#dApplyAddr'); if(daa) daa.onclick = () => jobAction(j.id,'apply_customer_request',{requestType:'address'});
     $('#drawerBg').classList.add('open'); $('#drawer').classList.add('open');
   }
 
@@ -468,7 +569,24 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   $('#jobsSearch').oninput = () => { clearTimeout(searchT); searchT=setTimeout(renderJobs,250); };
   $('#jobsStatus').onchange = renderJobs;
   $('#jobsClear').onclick = () => { $('#jobsSearch').value=''; $('#jobsStatus').value=''; renderJobs(); };
+  $('#jobsShowTest').onchange = async e => { showTest = e.target.checked; await refreshAll(); };
   $('#evSearch').oninput = renderEvents;
+  $('#btnPreviewTests').onclick = async () => {
+    try {
+      const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'preview_test_cleanup'});
+      const lines = (d.matches||[]).map(m => '• '+m.id+' — '+m.customer+(m.email?' · '+m.email:''));
+      $('#testPreview').textContent = d.count ? (d.count+' match(es):\n\n'+lines.join('\n')) : 'No likely-test bookings found in cloud.';
+    } catch(e) { toast('Preview failed: '+e.message); }
+  };
+  $('#btnArchiveTests').onclick = async () => {
+    if (!confirm('Archive ALL likely-test bookings in the cloud?\n\nThey will be hidden from the default board (not deleted).')) return;
+    try {
+      const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'bulk_archive_tests'});
+      toast('Archived '+d.archived+' test booking(s)');
+      $('#testPreview').textContent = 'Archived: '+d.archived+' · Skipped: '+d.skipped;
+      await refreshAll();
+    } catch(e) { toast('Archive failed: '+e.message); }
+  };
   $('#completedRefresh').onclick = async () => { await loadJobs({jobStatus:'completed_pending_admin_review'}); await loadJobs(); renderCompleted(); };
   $('#btnRefresh').onclick = refreshAll;
   $('#dClose').onclick = closeDrawer;

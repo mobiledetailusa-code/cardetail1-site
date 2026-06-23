@@ -4,6 +4,40 @@ const {
   projectJobForAdmin, normalizeJobStatus, normalizePaymentWorkflowStatus, appendEventLog,
 } = require('../lib/ops-workflow');
 
+const TEST_SIGNALS = [
+  b => b.isTest === true,
+  b => /^test/i.test(String(b.firstName || '')),
+  b => /^test/i.test(String(b.lastName || '')),
+  b => /test/i.test(String(b.email || '')),
+  b => /test/i.test(String(b.id || '')),
+  b => /smoke|prodtest|pendtest|cashtest|validationtest/i.test(
+    [b.firstName, b.lastName, b.email, b.id, b.notes, b.customerNote].join(' ')
+  ),
+  b => String(b.vehicle || b.vehicleCategory || '').toLowerCase().includes('test'),
+  b => String(b.notes || b.customerNote || '').toLowerCase().includes('test booking'),
+];
+
+function isLikelyTestBooking(b) {
+  return TEST_SIGNALS.some(fn => { try { return fn(b); } catch { return false; } });
+}
+
+function archiveBookingRecord(booking, reason) {
+  const now = new Date().toISOString();
+  return {
+    ...booking,
+    isTest: true,
+    archived: true,
+    archivedReason: sanitizeText(reason, 200) || 'admin_archive',
+    archivedAt: now,
+    archivedBy: 'admin',
+    previousStatus: booking.status || '',
+    status: 'archived_test',
+    jobStatus: 'archived_test',
+    updatedAt: now,
+    eventLog: appendEventLog(booking, { action: 'archived_test', by: 'admin', reason }),
+  };
+}
+
 async function listJobs(q) {
   const showTest = String(q.showTest || '') === '1';
   const statusFilter = sanitizeText(q.jobStatus || q.status, 64);
@@ -111,7 +145,182 @@ async function handleAdminAction(body) {
     return jsonCors(200, { ok: true, bookingId });
   }
 
+  if (action === 'confirm_booking') {
+    const patched = {
+      ...booking,
+      jobStatus: 'confirmed',
+      appointmentStatus: 'confirmed',
+      status: 'Confirmed',
+      adminReviewed: true,
+      adminReviewedAt: now,
+      confirmedAt: booking.confirmedAt || now,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'booking_confirmed', by: 'admin' }),
+    };
+    await store.setJSON(bookingId, patched);
+    return jsonCors(200, { ok: true, bookingId, jobStatus: patched.jobStatus });
+  }
+
+  if (action === 'reschedule') {
+    const confirmedDate = sanitizeText(body.confirmedDate || body.date, 32);
+    const confirmedTime = sanitizeText(body.confirmedTime || body.time, 32);
+    const confirmedTimeWindow = sanitizeText(body.confirmedTimeWindow || body.timeWindow, 64);
+    if (!confirmedDate) return jsonCors(400, { ok: false, error: 'date_required' });
+    const patched = {
+      ...booking,
+      confirmedDate,
+      preferredDate: confirmedDate,
+      ...(confirmedTime ? { confirmedTime, preferredTime: confirmedTime } : {}),
+      ...(confirmedTimeWindow ? { confirmedTimeWindow } : {}),
+      jobStatus: ['cancelled', 'archived_test', 'completed_paid'].includes(booking.jobStatus) ? booking.jobStatus : 'confirmed',
+      appointmentStatus: 'confirmed',
+      status: 'Rescheduled',
+      rescheduledByAdmin: true,
+      rescheduledByAdminAt: now,
+      rescheduledByClient: false,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, {
+        action: 'admin_reschedule', by: 'admin', confirmedDate, confirmedTime, confirmedTimeWindow,
+      }),
+    };
+    await store.setJSON(bookingId, patched);
+    return jsonCors(200, { ok: true, bookingId, confirmedDate });
+  }
+
+  if (action === 'update_address') {
+    const address = sanitizeText(body.address, 300);
+    const zipCode = sanitizeText(body.zipCode || body.zip, 16);
+    if (!address) return jsonCors(400, { ok: false, error: 'address_required' });
+    const patched = {
+      ...booking,
+      address,
+      ...(zipCode ? { zipCode } : {}),
+      addressChangedByClient: false,
+      addressUpdatedByAdmin: true,
+      addressUpdatedAt: now,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'admin_address_update', by: 'admin', address, zipCode }),
+    };
+    await store.setJSON(bookingId, patched);
+    return jsonCors(200, { ok: true, bookingId });
+  }
+
+  if (action === 'cancel_booking') {
+    const reason = sanitizeText(body.reason, 500);
+    const patched = {
+      ...booking,
+      jobStatus: 'cancelled',
+      appointmentStatus: 'canceled',
+      status: 'Cancelled',
+      canceledAt: now,
+      cancellationReason: reason || booking.cancellationReason || 'admin_cancelled',
+      cancellationRequestStatus: booking.cancellationRequestStatus === 'requested' ? 'resolved_approved' : booking.cancellationRequestStatus,
+      cancellationResolvedAt: now,
+      cancellationResolvedNote: reason || 'Cancelled by admin',
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'booking_cancelled', by: 'admin', reason }),
+    };
+    await store.setJSON(bookingId, patched);
+    return jsonCors(200, { ok: true, bookingId, jobStatus: 'cancelled' });
+  }
+
+  if (action === 'resolve_cancellation') {
+    const decision = sanitizeText(body.decision, 24);
+    if (!['approved', 'denied'].includes(decision)) {
+      return jsonCors(400, { ok: false, error: 'decision_must_be_approved_or_denied' });
+    }
+    const note = sanitizeText(body.note, 500);
+    if (decision === 'approved') {
+      const patched = {
+        ...booking,
+        jobStatus: 'cancelled',
+        appointmentStatus: 'canceled',
+        status: 'Cancelled',
+        canceledAt: now,
+        cancellationRequestStatus: 'resolved_approved',
+        cancellationResolvedAt: now,
+        cancellationResolvedNote: note,
+        updatedAt: now,
+        eventLog: appendEventLog(booking, { action: 'cancellation_approved', by: 'admin', note }),
+      };
+      await store.setJSON(bookingId, patched);
+      return jsonCors(200, { ok: true, bookingId, jobStatus: 'cancelled' });
+    }
+    await store.setJSON(bookingId, {
+      ...booking,
+      cancellationRequestStatus: 'resolved_denied',
+      cancellationResolvedAt: now,
+      cancellationResolvedNote: note,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'cancellation_denied', by: 'admin', note }),
+    });
+    return jsonCors(200, { ok: true, bookingId });
+  }
+
+  if (action === 'apply_customer_request') {
+    const requestType = sanitizeText(body.requestType, 32);
+    if (requestType === 'reschedule' && booking.rescheduledByClient) {
+      const confirmedDate = sanitizeText(booking.rescheduleRequestedDate || body.confirmedDate, 32);
+      const confirmedTime = sanitizeText(booking.rescheduleRequestedTime || body.confirmedTime, 32);
+      if (!confirmedDate) return jsonCors(400, { ok: false, error: 'no_reschedule_request' });
+      const patched = {
+        ...booking,
+        confirmedDate,
+        preferredDate: confirmedDate,
+        ...(confirmedTime ? { confirmedTime, preferredTime: confirmedTime } : {}),
+        jobStatus: 'confirmed',
+        appointmentStatus: 'confirmed',
+        status: 'Rescheduled',
+        rescheduledByClient: false,
+        rescheduleRequestAppliedAt: now,
+        updatedAt: now,
+        eventLog: appendEventLog(booking, { action: 'customer_reschedule_applied', by: 'admin' }),
+      };
+      await store.setJSON(bookingId, patched);
+      return jsonCors(200, { ok: true, bookingId });
+    }
+    if (requestType === 'address' && (booking.addressChangedByClient || booking.requestedAddress)) {
+      const address = sanitizeText(booking.requestedAddress || body.address, 300);
+      if (!address) return jsonCors(400, { ok: false, error: 'no_address_request' });
+      const patched = {
+        ...booking,
+        address,
+        addressChangedByClient: false,
+        addressRequestAppliedAt: now,
+        updatedAt: now,
+        eventLog: appendEventLog(booking, { action: 'customer_address_applied', by: 'admin' }),
+      };
+      await store.setJSON(bookingId, patched);
+      return jsonCors(200, { ok: true, bookingId });
+    }
+    return jsonCors(400, { ok: false, error: 'no_pending_customer_request' });
+  }
+
+  if (action === 'archive_test') {
+    const reason = sanitizeText(body.reason, 200) || 'admin_archive_test';
+    await store.setJSON(bookingId, archiveBookingRecord(booking, reason));
+    return jsonCors(200, { ok: true, bookingId, archived: true });
+  }
+
   return jsonCors(400, { ok: false, error: 'unknown_action' });
+}
+
+async function bulkArchiveTests(store, includeAlreadyArchived) {
+  const listing = await store.list();
+  const blobs = (listing && listing.blobs) || [];
+  let archived = 0;
+  let skipped = 0;
+  const ids = [];
+  for (const blob of blobs) {
+    const booking = await store.get(blob.key, { type: 'json' }).catch(() => null);
+    if (!booking || booking.isDraft) { skipped++; continue; }
+    if (!includeAlreadyArchived && (booking.archived || booking.jobStatus === 'archived_test')) { skipped++; continue; }
+    if (!isLikelyTestBooking(booking)) { skipped++; continue; }
+    await store.setJSON(blob.key, archiveBookingRecord(booking, 'bulk_test_cleanup'));
+    archived++;
+    ids.push(blob.key);
+  }
+  return { archived, skipped, ids: ids.slice(0, 50) };
 }
 
 exports.handler = async (event) => {
@@ -127,7 +336,39 @@ exports.handler = async (event) => {
     let body = {};
     try { body = JSON.parse(event.body || '{}'); }
     catch { return jsonCors(400, { ok: false, error: 'invalid_json' }); }
-    if (body.action && body.action !== 'list') return handleAdminAction(body);
+    if (body.action && body.action !== 'list') {
+      if (body.action === 'bulk_archive_tests') {
+        try {
+          const store = await blobsStore('cd1-bookings');
+          const result = await bulkArchiveTests(store, body.includeArchived === true);
+          return jsonCors(200, { ok: true, ...result });
+        } catch {
+          return jsonCors(500, { ok: false, error: 'bulk_archive_failed' });
+        }
+      }
+      if (body.action === 'preview_test_cleanup') {
+        try {
+          const store = await blobsStore('cd1-bookings');
+          const listing = await store.list();
+          const matches = [];
+          for (const blob of ((listing && listing.blobs) || [])) {
+            const booking = await store.get(blob.key, { type: 'json' }).catch(() => null);
+            if (!booking || booking.isDraft || booking.archived) continue;
+            if (isLikelyTestBooking(booking)) {
+              matches.push({
+                id: booking.id || blob.key,
+                customer: [booking.firstName, booking.lastName].filter(Boolean).join(' '),
+                email: booking.email || '',
+              });
+            }
+          }
+          return jsonCors(200, { ok: true, count: matches.length, matches: matches.slice(0, 100) });
+        } catch {
+          return jsonCors(500, { ok: false, error: 'preview_failed' });
+        }
+      }
+      return handleAdminAction(body);
+    }
     try {
       const jobs = await listJobs(body);
       return jsonCors(200, { ok: true, count: jobs.length, jobs });
