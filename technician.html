@@ -451,11 +451,15 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
 
     <!-- OPERATOR LOGIN -->
     <div id="l-tech-form">
-      <div class="lsub">Enter your registered email to access your dashboard</div>
+      <div class="lsub" id="tech-login-sub">Enter your technician email and password</div>
       <input class="linp" type="email" id="l-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()">
-      <!-- Admin access: go to /admin — this field is not used for admin login -->
-      <input class="linp" type="password" id="l-pass" placeholder="Not required for technicians" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off" style="display:none">
+      <input class="linp" type="password" id="l-pass" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="current-password">
       <button class="lbtn" onclick="doLogin()">Sign In →</button>
+      <div id="invite-set-password" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div class="lsub">Create your password to activate this invitation</div>
+        <input class="linp" type="password" id="invite-pass" placeholder="New password (10+ characters)" autocomplete="new-password">
+        <button class="lbtn" onclick="setInvitePassword()">Activate Account</button>
+      </div>
       <div class="lerr" id="lerr">Not found or not yet approved. Check your approval email.</div>
       <div class="llinks">
         <a onclick="ss('land')">← Back to landing</a>
@@ -533,7 +537,16 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
         <div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Vehicle / Service</th><th>Date</th><th>Zone</th><th>Total</th><th>Status</th><th>Payment</th><th>Actions</th></tr></thead><tbody id="bk-body"></tbody></table></div>
       </div>
     </div>
-    <div class="page" id="ap-technicians"><div class="pg-t">Technicians</div><div class="pg-s">Applications & active operators</div><div class="card"><div class="ch"><div class="ct">Applications</div></div><div style="padding:12px 14px" id="tch-list"></div></div></div>
+    <div class="page" id="ap-technicians">
+      <div class="pg-t">Technicians</div><div class="pg-s">Create and manage secure operator accounts</div>
+      <div class="card"><div class="ch"><div class="ct">Create Technician</div></div><div style="padding:14px">
+        <div class="fr2"><div class="fg2"><label class="fl2">Full Name</label><input class="fi2" id="tc-name"></div><div class="fg2"><label class="fl2">Email</label><input class="fi2" id="tc-email" type="email"></div></div>
+        <div class="fr2"><div class="fg2"><label class="fl2">Phone</label><input class="fi2" id="tc-phone"></div><div class="fg2"><label class="fl2">Service Area</label><input class="fi2" id="tc-area" placeholder="Bergen County, NJ"></div></div>
+        <div class="fr2"><div class="fg2"><label class="fl2">Capabilities</label><input class="fi2" id="tc-cap" placeholder="Auto, Marine, RV"></div><div class="fg2"><label class="fl2">Initial Password (optional)</label><input class="fi2" id="tc-password" type="password" placeholder="Leave blank to create invite"></div></div>
+        <button class="btn btn-p" onclick="createTechAccount()">Create Technician</button><div id="tc-create-result" style="font-size:11px;color:var(--mu);margin-top:8px"></div>
+      </div></div>
+      <div class="card"><div class="ch"><div class="ct">Technician Accounts</div><button class="btn btn-g btn-sm" onclick="renderTechs()">Refresh</button></div><div style="padding:12px 14px" id="tch-list"></div></div>
+    </div>
     <div class="page" id="ap-dispatch"><div class="pg-t">Dispatch Board</div><div class="pg-s">Assign confirmed jobs to technicians</div><div id="disp-board"></div></div>
     <div class="page" id="ap-accounting">
       <div class="pg-t">Accounting</div><div class="pg-s">Revenue from completed / paid bookings</div>
@@ -598,15 +611,11 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
     <button class="tb-out" onclick="doLogout()">Sign Out</button>
   </div>
   <div class="tab-bar">
-    <div class="tab active" onclick="techTab('avail')" data-tt="avail">Available Jobs</div>
-    <div class="tab" onclick="techTab('mine')" data-tt="mine">My Jobs</div>
-    <div class="tab" onclick="techTab('earn')" data-tt="earn">Earnings</div>
+    <div class="tab active" onclick="techTab('mine')" data-tt="mine">My Assigned Jobs</div>
     <div class="tab" onclick="techTab('prof')" data-tt="prof">Profile</div>
   </div>
   <div class="main">
-    <div class="page active" id="tp-avail"><div class="pg-t">Available Jobs</div><div class="pg-s">Confirmed bookings open for assignment</div><div id="avail-list"></div></div>
-    <div class="page" id="tp-mine"><div class="pg-t">My Jobs</div><div class="pg-s">Jobs you have accepted</div><div id="mine-list"></div></div>
-    <div class="page" id="tp-earn"><div class="pg-t">Earnings</div><div class="pg-s">Your income from completed jobs (65% cut)</div><div class="sg" id="earn-stats"></div><div id="earn-tbl"></div></div>
+    <div class="page active" id="tp-mine"><div class="pg-t">My Assigned Jobs</div><div class="pg-s">Only jobs assigned to your secure technician account</div><div id="mine-list"></div></div>
     <div class="page" id="tp-prof"><div class="pg-t">Profile</div><div class="pg-s">Your operator info on file</div><div id="prof-wrap"></div></div>
   </div>
 </div>
@@ -768,12 +777,15 @@ function doLogout(){
 (function(){
   const sess = localStorage.getItem('cd1_session');
   if(!sess) return;
-  if(sess==='admin'){ IS_ADMIN=true; }
-  else if(sess.startsWith('tech:')){
-    const em=sess.split(':')[1];
-    const tk=tkGet().find(t=>t.email.toLowerCase()===em&&t.status==='approved');
-    if(tk) TECH=tk; else { localStorage.removeItem('cd1_session'); return; }
+  if(sess==='admin'){
+    const adminKey = sessionStorage.getItem('cd1_admin_key')||'';
+    if(adminKey) IS_ADMIN=true;
+    else{
+      localStorage.removeItem('cd1_session');
+      location.replace('admin.html');
+    }
   }
+  else if(sess.startsWith('tech:')) localStorage.removeItem('cd1_session');
 })();
 
 // ═══════════════════════════════════════
@@ -1008,7 +1020,7 @@ function openDrw(id){
   document.getElementById('drw-nm').textContent=bkNm(b);
   document.getElementById('drw-id').textContent=b.id||'—';
   const addons=(b.addons||[]).map(a=>a.name||a).join(', ')||'None';
-  const tech=tkGet().find(t=>t.id===b.assignedTech);
+  const tech=(SECURE_TECHS||[]).find(t=>t.techId===(b.assignedTechId||b.assignedTech));
   const row=(k,v)=>`<div class="dr"><span class="dk">${k}</span><span class="dv">${v}</span></div>`;
   const prefLabels={cash_onsite:'Cash On-Site',card_onsite:'Card On-Site',online_after_service:'Online After Service'};
   const cardLabels={saved:'Saved',pending:'Pending',failed:'Failed'};
@@ -1024,10 +1036,10 @@ function openDrw(id){
     ${row('Name',esc(b.firstName||'')+' '+esc(b.lastName||''))}${row('Phone',b.phone?`<a href="tel:${esc(b.phone)}" style="color:var(--blue)">${esc(b.phone)}</a>`:'-')}${row('Email',esc(b.email||'—'))}${row('Address',esc(b.address||'—'))}${row('ZIP',esc(b.zip||b.zipCode||'—'))}${row('Zone',esc(b.zone||b.zip_city||'—'))}
     <div class="dsec">Service</div>
     ${row('Vehicle',esc(b.vehicleLabel||b.vehicle||'—'))}${row('Service',esc(bkSvc(b)))}${row('Add-ons',esc(addons))}${row('Preferred Date',esc(b.preferredDate||b.preferred_date||'—'))}${row('Preferred Time',esc(b.preferredTime||'Any'))}${row('Total','<span style="color:var(--green);font-weight:800;font-size:14px">$'+bkTot(b)+'</span>')}
-    ${row('Technician',tech?`<span style="color:var(--green)">${esc(tech.name)}</span>`:'Unassigned')}
+    ${row('Technician',tech?`<span style="color:var(--green)">${esc(tech.fullName)}</span>`:'Unassigned')}
     ${b.notes?`<div class="dsec">Notes</div><div style="font-size:12px;color:var(--mu);background:var(--bg3);border-radius:7px;padding:10px">${esc(b.notes)}</div>`:''}
   `;
-  const tks=tkGet().filter(t=>t.status==='approved');
+  const tks=(SECURE_TECHS||[]).filter(t=>t.active);
   const cfg=cfgGet();
   const phone=b.phone||'';
   const email=b.email||'';
@@ -1093,7 +1105,7 @@ function openDrw(id){
     </div>
     <div style="width:100%;margin-bottom:7px">
       <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Assign Technician</div>
-      <select class="ssel" id="drw-tk" style="width:100%;margin-bottom:6px"><option value="">— Select Tech —</option>${tks.map(t=>`<option value="${esc(t.id)}" ${b.assignedTech===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select>
+      <select class="ssel" id="drw-tk" style="width:100%;margin-bottom:6px"><option value="">— Select Tech —</option>${tks.map(t=>`<option value="${esc(t.techId)}" ${(b.assignedTechId||b.assignedTech)===t.techId?'selected':''}>${esc(t.fullName)}</option>`).join('')}</select>
       <button class="btn btn-g btn-sm" style="width:100%" onclick="drwAssign()">Assign</button>
     </div>
     <div style="width:100%;margin-bottom:7px">
@@ -1278,7 +1290,7 @@ function delTk(id){ if(!confirm('Remove?'))return;tkSet(tkGet().filter(t=>t.id!=
 // ═══════════════════════════════════════
 function renderDispatch(){
   const bk=bkGet().filter(b=>['Confirmed','Scheduled','In Progress','En Route'].includes(b.status)&&!b.isTest&&!b.archived);
-  const tks=tkGet().filter(t=>t.status==='approved');
+  const tks=(SECURE_TECHS||[]).filter(t=>t.active);
   const el=document.getElementById('disp-board');
   if(!bk.length){el.innerHTML='<div class="empty"><div class="ei">🗂️</div><div class="et">No active jobs</div></div>';return;}
   el.innerHTML=`<div class="card"><div class="ch"><div class="ct">Active Jobs (${bk.length})</div></div><div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Zone</th><th>Tech</th><th>Status</th><th>Update</th></tr></thead><tbody>${bk.map(b=>{
@@ -1463,6 +1475,227 @@ else if(TECH){ initTech(); }
 
 // auto-refresh admin every 20s
 setInterval(()=>{ if(IS_ADMIN){ const ap=document.querySelector('#s-admin .page.active')?.id?.replace('ap-',''); if(ap) admRender(ap); } },20000);
+</script>
+<script>
+// Secure Technician Login & Assignment MVP.
+// Authorization is enforced by Netlify functions; browser storage only carries the opaque session token.
+const TECH_API = '/.netlify/functions';
+let SECURE_TECHS = [];
+let SECURE_JOBS = [];
+
+function adminHeaders(){
+  return {'Content-Type':'application/json','x-admin-key':sessionStorage.getItem('cd1_admin_key')||''};
+}
+function techHeaders(){
+  return {'Content-Type':'application/json','Authorization':'Bearer '+(sessionStorage.getItem('cd1_tech_token')||'')};
+}
+async function apiJson(url, options={}){
+  const res=await fetch(url,options);
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok||data.ok===false) throw new Error(data.error||('HTTP '+res.status));
+  return data;
+}
+
+async function doLogin(){
+  const email=(document.getElementById('l-email').value||'').trim();
+  const password=document.getElementById('l-pass').value||'';
+  const err=document.getElementById('lerr'); err.classList.remove('show');
+  try{
+    const data=await apiJson(TECH_API+'/tech-auth',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'login',email,password})
+    });
+    sessionStorage.setItem('cd1_tech_token',data.token);
+    TECH={id:data.technician.techId,name:data.technician.fullName,...data.technician};
+    IS_ADMIN=false;
+    initTech();
+  }catch(e){
+    err.textContent=e.message==='technician_inactive'?'This technician account is inactive.':'Invalid email or password.';
+    err.classList.add('show');
+  }
+}
+
+async function setInvitePassword(){
+  const token=new URLSearchParams(location.search).get('invite')||'';
+  const password=document.getElementById('invite-pass').value||'';
+  const err=document.getElementById('lerr'); err.classList.remove('show');
+  try{
+    await apiJson(TECH_API+'/tech-auth',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'set_password',inviteToken:token,password})
+    });
+    document.getElementById('invite-set-password').style.display='none';
+    document.getElementById('tech-login-sub').textContent='Password created. Sign in with your email.';
+    history.replaceState({},'',location.pathname);
+    toast('Account activated. Sign in now.');
+  }catch(e){
+    err.textContent=e.message==='invite_expired'?'This invitation expired. Ask the admin for a new one.':
+      e.message==='invalid_or_used_invite'?'This invitation is invalid or was already used.':
+      'Use a password with at least 10 characters.';
+    err.classList.add('show');
+  }
+}
+
+async function doLogout(){
+  const token=sessionStorage.getItem('cd1_tech_token');
+  if(token) await fetch(TECH_API+'/tech-auth',{method:'POST',headers:techHeaders(),body:JSON.stringify({action:'logout'})}).catch(()=>{});
+  sessionStorage.removeItem('cd1_tech_token');
+  localStorage.removeItem('cd1_session');
+  sessionStorage.removeItem('cd1_admin_key');
+  TECH=null; IS_ADMIN=false; ss('land');
+}
+
+async function createTechAccount(){
+  const payload={
+    action:'create',
+    fullName:document.getElementById('tc-name').value.trim(),
+    email:document.getElementById('tc-email').value.trim(),
+    phone:document.getElementById('tc-phone').value.trim(),
+    serviceArea:document.getElementById('tc-area').value.trim(),
+    capabilities:document.getElementById('tc-cap').value.split(',').map(v=>v.trim()).filter(Boolean),
+    password:document.getElementById('tc-password').value
+  };
+  const out=document.getElementById('tc-create-result');
+  try{
+    const data=await apiJson(TECH_API+'/tech-accounts',{method:'POST',headers:adminHeaders(),body:JSON.stringify(payload)});
+    if(data.inviteToken){
+      const link=location.origin+location.pathname+'?invite='+encodeURIComponent(data.inviteToken);
+      out.innerHTML='Invite expires in 72 hours: <button class="btn btn-g btn-sm" onclick="navigator.clipboard.writeText(\''+esc(link)+'\');toast(\'Invite copied\')">Copy invite link</button>';
+    }else out.textContent='Technician created with an initial password.';
+    ['tc-name','tc-email','tc-phone','tc-area','tc-cap','tc-password'].forEach(id=>document.getElementById(id).value='');
+    await renderTechs();
+  }catch(e){ out.textContent='Could not create technician: '+e.message; }
+}
+
+async function renderTechs(){
+  const el=document.getElementById('tch-list');
+  if(!IS_ADMIN||!el)return;
+  el.innerHTML='<div class="empty"><div class="et">Loading technician accounts…</div></div>';
+  try{
+    const data=await apiJson(TECH_API+'/tech-accounts',{headers:adminHeaders()});
+    SECURE_TECHS=data.technicians||[];
+    el.innerHTML=SECURE_TECHS.length?SECURE_TECHS.map(t=>`<div class="tc">
+      <div style="display:flex;justify-content:space-between;gap:10px"><div><div class="tc-nm">${esc(t.fullName)}</div><div class="tc-mt">${esc(t.email)} · ${esc(t.phone||'No phone')}</div></div>${badge(t.active?'Confirmed':'Cancelled')}</div>
+      <div class="tc-gr"><div class="tc-f"><div class="tcfl">Service Area</div>${esc(t.serviceArea||'—')}</div><div class="tc-f"><div class="tcfl">Capabilities</div>${esc((t.capabilities||[]).join(', ')||'—')}</div><div class="tc-f"><div class="tcfl">Last Login</div>${t.lastLoginAt?new Date(t.lastLoginAt).toLocaleString():'Never'}</div><div class="tc-f"><div class="tcfl">Invite Expires</div>${t.inviteExpiresAt?new Date(t.inviteExpiresAt).toLocaleString():'—'}</div></div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="btn btn-g btn-sm" onclick="editTechAccount('${t.techId}')">Edit</button>
+        <button class="btn btn-g btn-sm" onclick="resetTechInvite('${t.techId}')">Reset Invite</button>
+        <button class="btn ${t.active?'btn-rd':'btn-gr'} btn-sm" onclick="setTechActive('${t.techId}',${!t.active})">${t.active?'Deactivate':'Reactivate'}</button>
+      </div></div>`).join(''):'<div class="empty"><div class="et">No technician accounts yet.</div></div>';
+  }catch(e){ el.innerHTML='<div class="empty"><div class="et">Unable to load technicians: '+esc(e.message)+'</div></div>'; }
+}
+
+async function resetTechInvite(techId){
+  try{
+    const data=await apiJson(TECH_API+'/tech-accounts',{method:'POST',headers:adminHeaders(),body:JSON.stringify({action:'reset_invite',techId})});
+    const link=location.origin+location.pathname+'?invite='+encodeURIComponent(data.inviteToken);
+    await navigator.clipboard.writeText(link);
+    toast('New 72-hour invite copied');
+    renderTechs();
+  }catch(e){toast(e.message,'err');}
+}
+async function editTechAccount(techId){
+  const tech=SECURE_TECHS.find(t=>t.techId===techId); if(!tech)return;
+  const fullName=prompt('Full name:',tech.fullName); if(fullName===null)return;
+  const phone=prompt('Phone:',tech.phone||''); if(phone===null)return;
+  const serviceArea=prompt('Service area:',tech.serviceArea||''); if(serviceArea===null)return;
+  const capabilities=prompt('Capabilities (comma-separated):',(tech.capabilities||[]).join(', ')); if(capabilities===null)return;
+  try{
+    await apiJson(TECH_API+'/tech-accounts',{method:'POST',headers:adminHeaders(),body:JSON.stringify({
+      action:'update',techId,fullName,phone,serviceArea,
+      capabilities:capabilities.split(',').map(v=>v.trim()).filter(Boolean)
+    })});
+    toast('Technician updated'); renderTechs();
+  }catch(e){toast(e.message,'err');}
+}
+async function setTechActive(techId,active){
+  try{
+    await apiJson(TECH_API+'/tech-accounts',{method:'POST',headers:adminHeaders(),body:JSON.stringify({action:active?'reactivate':'deactivate',techId})});
+    toast(active?'Technician reactivated':'Technician deactivated'); renderTechs();
+  }catch(e){toast(e.message,'err');}
+}
+
+async function renderDispatch(){
+  const el=document.getElementById('disp-board'); if(!el||!IS_ADMIN)return;
+  try{
+    const [techData]=await Promise.all([
+      apiJson(TECH_API+'/tech-accounts',{headers:adminHeaders()}),
+      loadBkFromCloud().catch(()=>null)
+    ]);
+    SECURE_TECHS=(techData.technicians||[]).filter(t=>t.active);
+    const bookings=bkGet().filter(b=>!b.isTest&&!b.archived&&!['Completed','Cancelled'].includes(b.status||''));
+    el.innerHTML=bookings.length?`<div class="card"><div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Assigned Technician</th><th>Job Status</th></tr></thead><tbody>${bookings.map(b=>`<tr>
+      <td class="td-mo">${esc(b.id)}</td><td>${esc(bkNm(b))}</td><td>${esc(bkSvc(b))}</td>
+      <td><select class="ff" onchange="quickAssign('${esc(b.id)}',this.value)"><option value="">— Unassigned —</option>${SECURE_TECHS.map(t=>`<option value="${t.techId}" ${(b.assignedTechId||b.assignedTech)===t.techId?'selected':''}>${esc(t.fullName)}</option>`).join('')}</select></td>
+      <td>${esc(b.jobStatus||'not_started')}</td></tr>`).join('')}</tbody></table></div></div>`:'<div class="empty"><div class="et">No active bookings.</div></div>';
+  }catch(e){el.innerHTML='<div class="empty"><div class="et">Unable to load dispatch: '+esc(e.message)+'</div></div>';}
+}
+
+async function quickAssign(bookingId,techId){
+  try{
+    const data=await apiJson(TECH_API+'/tech-assignment',{method:'POST',headers:adminHeaders(),body:JSON.stringify({action:techId?'assign':'unassign',bookingId,techId})});
+    const list=bkGet(); const i=list.findIndex(b=>b.id===bookingId);
+    if(i>-1) Object.assign(list[i],data.booking);
+    bkSet(list); toast(techId?'Technician assigned':'Technician unassigned'); renderDispatch();
+  }catch(e){toast(e.message,'err');}
+}
+async function drwAssign(){
+  const techId=document.getElementById('drw-tk')?.value||'';
+  if(!techId){toast('Select a technician','err');return;}
+  await quickAssign(_drwId,techId); closeDrw();
+}
+
+function initTech(){
+  document.getElementById('tech-nm').textContent=(TECH.fullName||TECH.name||'Technician').split(' ')[0];
+  ss('tech'); techTab('mine');
+}
+async function renderMine(){
+  const el=document.getElementById('mine-list'); if(!el||!TECH)return;
+  el.innerHTML='<div class="empty"><div class="et">Loading assigned jobs…</div></div>';
+  try{
+    const data=await apiJson(TECH_API+'/tech-jobs',{headers:techHeaders()});
+    SECURE_JOBS=data.jobs||[];
+    el.innerHTML=SECURE_JOBS.length?SECURE_JOBS.map(secureJobCard).join(''):'<div class="empty"><div class="et">No jobs assigned to you.</div></div>';
+  }catch(e){
+    if(e.message==='invalid_session'||e.message==='technician_inactive') doLogout();
+    else el.innerHTML='<div class="empty"><div class="et">Unable to load jobs.</div></div>';
+  }
+}
+function secureJobCard(j){
+  const addons=(j.addons||[]).map(a=>esc(a.name)+(a.qty>1?' ×'+a.qty:'')).join(', ')||'None';
+  const actions=[
+    ['accepted','Accept'],['en_route','En Route'],['arrived','Arrived'],
+    ['in_progress','Start'],['completed','Complete'],['issue_reported','Report Issue']
+  ].map(([status,label])=>`<button class="btn btn-g btn-sm" onclick="techUpdBk('${esc(j.id)}','${status}')">${label}</button>`).join('');
+  return `<div class="jc mine"><div class="jc-top"><div><div class="jc-id">${esc(j.id)}</div><div class="jc-sv">${esc(j.package)}</div><div class="jc-vh">${esc(j.vehicle)}</div></div>${badge(j.jobStatus)}</div>
+    <div class="jc-grid"><div><div class="jfl">Date / Window</div><div class="jfv">${esc(j.date)} · ${esc(j.timeWindow)}</div></div><div><div class="jfl">Customer</div><div class="jfv">${esc(j.customerName)}</div></div>
+    <div style="grid-column:1/-1"><div class="jfl">Address</div><div class="jfv">${esc(j.address)}</div></div><div><div class="jfl">Phone</div><div class="jfv">${esc(j.phone)}</div></div><div><div class="jfl">Add-ons</div><div class="jfv">${addons}</div></div>
+    ${j.customerNote?`<div style="grid-column:1/-1"><div class="jfl">Service Note</div><div class="jfv">${esc(j.customerNote)}</div></div>`:''}</div><div class="jc-acts">${actions}</div></div>`;
+}
+async function techUpdBk(id,status){
+  const note=status==='issue_reported'?(prompt('Describe the issue for the admin:')||'').trim():'';
+  if(status==='issue_reported'&&!note)return;
+  try{
+    await apiJson(TECH_API+'/tech-jobs',{method:'POST',headers:techHeaders(),body:JSON.stringify({bookingId:id,jobStatus:status,note})});
+    toast('Status updated: '+status); renderMine();
+  }catch(e){toast(e.message,'err');}
+}
+function markComplete(id){ return techUpdBk(id,'completed'); }
+function renderProfile(){
+  const el=document.getElementById('prof-wrap'); if(!el||!TECH)return;
+  el.innerHTML=`<div class="card" style="max-width:520px;padding:18px"><div class="tc-nm">${esc(TECH.fullName||TECH.name)}</div><div class="tc-mt">${esc(TECH.email)}</div><div class="tc-gr"><div class="tc-f"><div class="tcfl">Phone</div>${esc(TECH.phone||'—')}</div><div class="tc-f"><div class="tcfl">Service Area</div>${esc(TECH.serviceArea||'—')}</div><div class="tc-f"><div class="tcfl">Capabilities</div>${esc((TECH.capabilities||[]).join(', ')||'—')}</div></div></div>`;
+}
+
+(async function secureTechStartup(){
+  const invite=new URLSearchParams(location.search).get('invite');
+  if(invite){ ss('login'); document.getElementById('invite-set-password').style.display='block'; document.getElementById('tech-login-sub').textContent='Technician invitation'; }
+  const token=sessionStorage.getItem('cd1_tech_token');
+  if(!token)return;
+  try{
+    const data=await apiJson(TECH_API+'/tech-auth',{method:'POST',headers:techHeaders(),body:JSON.stringify({action:'validate'})});
+    TECH={id:data.technician.techId,name:data.technician.fullName,...data.technician}; IS_ADMIN=false; initTech();
+  }catch(_){ sessionStorage.removeItem('cd1_tech_token'); }
+})();
 </script>
 </body>
 </html>
