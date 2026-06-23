@@ -162,9 +162,9 @@ test('card-on-file uses optimistic client flag with background server verify', (
   assert.match(index, /destroyStripePaymentUI/);
 });
 
-test('booking categories and vehicle card use SVG visuals', () => {
-  assert.match(index, /assets\/vehicles\/sedan\.svg/);
-  assert.match(index, /assets\/vehicles\/boat\.svg/);
+test('booking categories and vehicle card use premium photo visuals', () => {
+  assert.match(index, /assets\/vehicles\/premium\/cars-suvs\.webp/);
+  assert.match(index, /svc-ico-photo/);
   assert.match(index, /function setVehicleVisual/);
-  assert.match(index, /const VEHICLE_VISUALS/);
+  assert.match(index, /const CATEGORY_VISUALS/);
 });
