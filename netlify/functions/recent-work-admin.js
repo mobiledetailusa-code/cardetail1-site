@@ -10,15 +10,10 @@
 // TODO: future PR — add image upload to Netlify Blobs (currently imageUrl only).
 
 const crypto = require('crypto');
+const { json: secureJson } = require('./_security');
 
-const CORS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, x-admin-key',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Cache-Control': 'no-store',
-};
-const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.stringify(body) });
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body, { allowMethods: 'GET, POST, OPTIONS' });
 
 const VALID_CATEGORIES   = ['interior','exterior','premium','marine','rv','powersports','other'];
 const VALID_BEFORE_AFTER = ['final','before','after','both'];
@@ -75,6 +70,7 @@ function sortItems(items) {
 }
 
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
 
   const expected = (process.env.ADMIN_DASH_PASSWORD || '').trim();

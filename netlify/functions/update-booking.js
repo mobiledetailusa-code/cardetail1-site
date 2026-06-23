@@ -26,15 +26,10 @@
 // Unknown fields: returns 400.
 
 const crypto = require('crypto');
+const { json: secureJson, safeHttpUrl } = require('./_security');
 
-const CORS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, x-admin-key',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Cache-Control': 'no-store',
-};
-const json = (statusCode, body) => ({ statusCode, headers: CORS, body: JSON.stringify(body) });
+let currentEvent;
+const json = (statusCode, body) => secureJson(currentEvent, statusCode, body);
 
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
@@ -204,6 +199,7 @@ async function sendConfirmationEmail(b) {
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST')    return json(405, { ok: false, error: 'method_not_allowed' });
 
@@ -264,7 +260,9 @@ exports.handler = async (event) => {
       return json(400, { ok: false, error: 'invalid_cancellationRequestStatus', received: value });
     }
     if (URL_FIELDS.has(key)) {
-      validated[key] = typeof value === 'string' ? value.slice(0, URL_MAX) : '';
+      const url = safeHttpUrl(value, ['stripe.com', 'stripe.dev']);
+      if (!url) return json(400, { ok: false, error: 'invalid_url', field: key });
+      validated[key] = url.slice(0, URL_MAX);
       continue;
     }
 

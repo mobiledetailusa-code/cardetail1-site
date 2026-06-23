@@ -8,22 +8,17 @@
 // 401 { ok: false, error: 'invalid_password' }
 // 503 { ok: false, error: 'missing_admin_password_config' }
 
-const crypto = require('crypto');
+const { json: secureJson, rateLimit, safeEq } = require('./_security');
 
-const json = (status, body) => ({
-  statusCode: status,
-  headers: {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  },
-  body: JSON.stringify(body),
-});
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body, { allowHeaders: 'Content-Type' });
 
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
+  const rl = await rateLimit(event, 'admin-auth', 8, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
 
   const expected = (process.env.ADMIN_DASH_PASSWORD || '').trim();
   if (!expected) return json(503, { ok: false, error: 'missing_admin_password_config' });
@@ -35,12 +30,7 @@ exports.handler = async (event) => {
   const submitted = String(body.password || '').trim();
   if (!submitted) return json(401, { ok: false, error: 'invalid_password' });
 
-  // Constant-time comparison prevents timing-based enumeration
-  const a = Buffer.from(submitted);
-  const b = Buffer.from(expected);
-  const match = a.length === b.length && crypto.timingSafeEqual(a, b);
-
-  return match
+  return safeEq(submitted, expected)
     ? json(200, { ok: true })
     : json(401, { ok: false, error: 'invalid_password' });
 };

@@ -39,8 +39,8 @@
     <button type="submit">Enter dashboard</button>
     <div class="err" id="err">Invalid access code.</div>
     <div class="links">
-      <a href="technician.html">Technician portal →</a>
-      <a href="index.html">Main site →</a>
+      <a href='/technician'>Technician portal →</a>
+      <a href='/'>Main site →</a>
     </div>
   </form>
 <script>
@@ -77,7 +77,10 @@
     btn.disabled = false;
     btn.textContent = 'Enter dashboard';
   }
-  if(localStorage.getItem('cd1_session') === 'admin'){ location.replace('technician.html'); }
+  const hasAdminSession = localStorage.getItem('cd1_session') === 'admin';
+  const hasAdminKey = !!sessionStorage.getItem('cd1_admin_key');
+  if(hasAdminSession && hasAdminKey){ location.replace('technician.html'); }
+  else if(hasAdminSession){ localStorage.removeItem('cd1_session'); }
 </script>
 </body>
 </html>

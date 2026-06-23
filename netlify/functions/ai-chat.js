@@ -134,15 +134,14 @@ STYLE RULES — follow exactly:
 11. When customer seems ready to book: "You can start a booking at cardetail1.netlify.app — takes about 2 minutes and there's no charge to submit."
 12. Use plain text only — no HTML tags, no asterisks. Use newlines and dashes for lists.`;
 
+const { corsHeaders, rateLimit } = require('./_security');
+
 exports.handler = async (event) => {
-  const cors = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json',
-  };
+  const cors = corsHeaders(event, { allowHeaders: 'Content-Type' });
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: cors, body: '' };
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: cors, body: JSON.stringify({ ok: false, error: 'method_not_allowed' }) };
+  const rl = await rateLimit(event, 'ai-chat', 20, 60);
+  if (!rl.ok) return { statusCode: rl.status, headers: cors, body: JSON.stringify(rl.body) };
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   // Graceful degradation — front-end falls back to the local assistant.

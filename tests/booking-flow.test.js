@@ -12,6 +12,9 @@ const technician = read('technician.html');
 const terms = read('terms-conditions.html');
 const submit = read('netlify/functions/submit-booking.js');
 const setup = read('netlify/functions/create-setup-intent.js');
+const cardStatus = read('netlify/functions/booking-card-status.js');
+const paymentLink = read('netlify/functions/create-payment-link.js');
+const security = read('netlify/functions/_security.js');
 const stripeConfig = read('netlify/functions/stripe-config.js');
 const webhook = read('netlify/functions/stripe-webhook.js');
 const lookup = read('netlify/functions/lookup-booking.js');
@@ -122,6 +125,38 @@ test('temporary webhook setup and secret-transfer function is absent', () => {
   assert.equal(fs.existsSync(path.join(root, 'netlify/functions/stripe-webhook-setup.js')), false);
   const names = fs.readdirSync(path.join(root, 'netlify/functions'));
   assert.equal(names.some(name => /webhook.*setup|secret.*transfer/i.test(name)), false);
+});
+
+test('hardened endpoints require verification and admin-only sensitive actions', () => {
+  assert.match(security, /function phonesMatchExact/);
+  assert.match(security, /a === b/);
+  assert.doesNotMatch(security, /slice\(-minLen\)|slice\(-n\)/);
+  assert.match(setup, /phone_required/);
+  assert.match(setup, /phonesMatchExact\(p\.phone, booking\.phone\)/);
+  assert.match(cardStatus, /phone_required/);
+  assert.match(cardStatus, /phonesMatchExact\(body\.phone, booking\.phone\)/);
+  assert.match(paymentLink, /requireAdmin\(event\)/);
+  assert.doesNotMatch(paymentLink, /queryStringParameters.*key/);
+});
+
+test('front-end escapes stored data and validates payment links', () => {
+  assert.match(index, /function esc\(s\)/);
+  assert.match(index, /function safePayLink/);
+  assert.match(index, /safePayLink\(b\.payLink\)/);
+  assert.doesNotMatch(index, /href="\$\{b\.payLink/);
+  assert.doesNotMatch(index, /href="'\+b\.payLink/);
+  assert.match(technician, /function esc\(s\)/);
+  assert.match(customer, /function safeImgSrc/);
+});
+
+test('admin keys are not accepted through query strings', () => {
+  const functions = fs.readdirSync(path.join(root, 'netlify/functions'))
+    .filter(name => name.endsWith('.js'))
+    .map(name => read(path.join('netlify/functions', name)).replace(/\n/g, ' '));
+  for (const source of functions) {
+    assert.doesNotMatch(source, /queryStringParameters\s*&&[^;]*\.key/);
+    assert.doesNotMatch(source, /p\.adminKey/);
+  }
 });
 
 test('missing and invalid webhook signatures are rejected', async () => {

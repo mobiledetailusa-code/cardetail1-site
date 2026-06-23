@@ -13,12 +13,18 @@
 //
 // Every action appends an eventLog entry: { action, at, by:'customer', ...details }
 
-async function blobsStore(name) {
-  const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token  = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
-}
+const {
+  blobsStore,
+  cleanBookingId,
+  cleanText,
+  json: secureJson,
+  normalizePhone,
+  phonesMatchExact,
+  rateLimit,
+} = require('./_security');
+
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body, { allowHeaders: 'Content-Type' });
 
 async function notifyAdmin(subject, text) {
   const { ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM } = process.env;
@@ -39,34 +45,21 @@ async function notifyAdmin(subject, text) {
   }
 }
 
-const CORS = {
-  'Content-Type':  'application/json',
-  'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Cache-Control': 'no-store',
-};
-const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.stringify(body) });
-
-// Last-N-digit phone match tolerates leading country codes.
-function phonesMatch(a, b) {
-  if (!a || !b || a.length < 7 || b.length < 7) return false;
-  const n = Math.min(a.length, b.length);
-  return a.slice(-n) === b.slice(-n);
-}
-
 const ALLOWED_ACTIONS = new Set(['reschedule_request', 'address_update', 'addon_request']);
 
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST')    return json(405, { ok: false, userMessage: 'Method not allowed' });
+  const rl = await rateLimit(event, 'submit-customer-action', 20, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
 
   let p;
   try { p = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, userMessage: 'Invalid request' }); }
 
-  const bookingId = String(p.bookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
-  const phone     = String(p.phone     || '').replace(/\D/g, '').slice(0, 15);
+  const bookingId = cleanBookingId(p.bookingId);
+  const phone     = normalizePhone(p.phone);
   const action    = String(p.action    || '');
 
   if (!bookingId)              return json(400, { ok: false, userMessage: 'Booking ID is required' });
@@ -82,9 +75,8 @@ exports.handler = async (event) => {
   }
   if (!booking) return json(404, { ok: false, userMessage: 'Booking not found.' });
 
-  // Verify phone — same last-N-digit match as request-cancellation.js
-  const bookingPhone = String(booking.phone || '').replace(/\D/g, '');
-  if (!phonesMatch(phone, bookingPhone)) {
+  // Verify phone by exact normalized match; suffix-only matching is too weak.
+  if (!phonesMatchExact(phone, booking.phone)) {
     console.warn('[submit-customer-action] auth mismatch', bookingId);
     return json(403, { ok: false, userMessage: 'Verification failed. Phone does not match the booking.' });
   }
@@ -97,8 +89,8 @@ exports.handler = async (event) => {
   const custName   = `${booking.firstName || ''} ${booking.lastName || ''}`.trim();
 
   if (action === 'reschedule_request') {
-    const newDate = String(p.newDate || '').slice(0, 20).trim();
-    const newTime = String(p.newTime || '').slice(0, 80).trim();
+    const newDate = cleanText(p.newDate, 20);
+    const newTime = cleanText(p.newTime, 80);
     if (!newDate) return json(400, { ok: false, userMessage: 'Please provide a new preferred date.' });
     updates = {
       rescheduledByClient:      true,
@@ -120,7 +112,7 @@ exports.handler = async (event) => {
       `Phone: ${booking.phone || ''}`,
     ].filter(Boolean).join('\n');
   } else if (action === 'address_update') {
-    const newAddress = String(p.newAddress || '').slice(0, 400).trim();
+    const newAddress = cleanText(p.newAddress, 400);
     if (!newAddress) return json(400, { ok: false, userMessage: 'Please provide a new address.' });
     updates = {
       addressChangedByClient:    true,
@@ -139,7 +131,7 @@ exports.handler = async (event) => {
       `Phone: ${booking.phone || ''}`,
     ].join('\n');
   } else if (action === 'addon_request') {
-    const requestedAddons = String(p.requestedAddons || '').slice(0, 1000).trim();
+    const requestedAddons = cleanText(p.requestedAddons, 1000);
     if (!requestedAddons) return json(400, { ok: false, userMessage: 'Please select at least one add-on.' });
     updates = {
       addonsRequested:    true,

@@ -14,18 +14,10 @@
 //                ADMIN_DASH_PASSWORD (for admin actions).
 
 const crypto = require('crypto');
+const { json: secureJson, rateLimit } = require('./_security');
 
-const json = (status, body) => ({
-  statusCode: status,
-  headers: {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, x-admin-key',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Cache-Control': 'no-store',
-  },
-  body: JSON.stringify(body),
-});
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body, { allowMethods: 'GET, POST, OPTIONS' });
 
 function sign(jobId, techId, secret) {
   return crypto.createHmac('sha256', secret).update(String(jobId) + '|' + String(techId)).digest('hex');
@@ -68,7 +60,10 @@ function techView(a, techId) {
 }
 
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
+  const rl = await rateLimit(event, 'auction', 60, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
 
   const secret = process.env.BID_SECRET;
   if (!secret) return json(503, { ok: false, error: 'BID_SECRET not set on server' });
@@ -78,7 +73,7 @@ exports.handler = async (event) => {
   else { p = event.queryStringParameters || {}; }
 
   const action = p.action || 'get';
-  const adminKey = (event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) || p.adminKey || '';
+  const adminKey = (event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) || '';
   const isAdmin = adminKey && process.env.ADMIN_DASH_PASSWORD && safeEq(adminKey, process.env.ADMIN_DASH_PASSWORD);
 
   try {

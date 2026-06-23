@@ -7,16 +7,16 @@
 //   POST {action:'save', techs:[{id,name,phone}]}  (x-admin-key)  → save roster
 //   GET  ?action=list                              (x-admin-key)  → list roster
 
-const json = (status, body) => ({
-  statusCode: status,
-  headers: {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, x-admin-key',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Cache-Control': 'no-store',
-  },
-  body: JSON.stringify(body),
+const {
+  cleanText,
+  json: secureJson,
+  rateLimit,
+  requireAdmin,
+} = require('./_security');
+
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body, {
+  allowMethods: 'GET, POST, OPTIONS',
 });
 
 async function rosterStore() {
@@ -27,12 +27,12 @@ async function rosterStore() {
 }
 
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
-  const expected = process.env.ADMIN_DASH_PASSWORD || '';
-  if (!expected) return json(503, { ok: false, error: 'ADMIN_DASH_PASSWORD not set on server' });
-  const key = (event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) ||
-    (event.queryStringParameters && event.queryStringParameters.key) || '';
-  if (key !== expected) return json(401, { ok: false, error: 'unauthorized' });
+  const rl = await rateLimit(event, 'techs-admin', 60, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
+  const admin = requireAdmin(event);
+  if (!admin.ok) return json(admin.status, admin.body);
 
   try {
     const s = await rosterStore();
@@ -40,7 +40,11 @@ exports.handler = async (event) => {
       const p = JSON.parse(event.body || '{}');
       const techs = (Array.isArray(p.techs) ? p.techs : [])
         .filter(t => t && t.phone)
-        .map(t => ({ id: t.id || ('TECH-' + (t.phone || '').replace(/\D/g, '')), name: t.name || 'Technician', phone: String(t.phone) }));
+        .map(t => ({
+          id: cleanText(t.id || ('TECH-' + (t.phone || '').replace(/\D/g, '')), 80),
+          name: cleanText(t.name || 'Technician', 120),
+          phone: String(t.phone || '').replace(/\D/g, '').slice(0, 15),
+        }));
       await s.setJSON('roster', techs);
       return json(200, { ok: true, count: techs.length });
     }

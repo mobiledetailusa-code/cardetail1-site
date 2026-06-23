@@ -16,31 +16,16 @@
 //
 // Env: NETLIFY_SITE_ID + NETLIFY_AUTH_TOKEN (same pattern as submit-booking.js)
 
-const json = (status, body) => ({
-  statusCode: status,
-  headers: {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Cache-Control': 'no-store',
-  },
-  body: JSON.stringify(body),
-});
+const {
+  blobsStore,
+  cleanBookingId,
+  json: secureJson,
+  normalizePhone,
+  rateLimit,
+} = require('./_security');
 
-async function blobsStore(name) {
-  const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token  = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
-}
-
-// Normalize phone: strip non-digits, strip leading US country code (1) if 11 digits
-function normalizePhone(raw) {
-  const digits = String(raw || '').replace(/\D/g, '');
-  if (digits.length === 11 && digits.charAt(0) === '1') return digits.slice(1);
-  return digits;
-}
+let currentEvent;
+const json = (status, body) => secureJson(currentEvent, status, body, { allowHeaders: 'Content-Type' });
 
 // Returns only fields safe to expose to customers.
 function safeBooking(b) {
@@ -75,15 +60,18 @@ function safeBooking(b) {
 }
 
 exports.handler = async (event) => {
+  currentEvent = event;
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST')    return json(405, { ok: false, error: 'method_not_allowed' });
+  const rl = await rateLimit(event, 'lookup-booking', 30, 60);
+  if (!rl.ok) return json(rl.status, rl.body);
 
   let body;
   try { body = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'invalid_request' }); }
 
   // Normalize inputs
-  const rawId    = String(body.bookingId || body.id || '').trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+  const rawId    = cleanBookingId(body.bookingId || body.id);
   const rawPhone = normalizePhone(body.phone || body.customerPhone || '');
 
   if (!rawId)    return json(400, { ok: false, error: 'bookingId is required' });
@@ -105,8 +93,8 @@ exports.handler = async (event) => {
     const storedPhone = normalizePhone(booking.phone || booking.customerPhone || '');
     if (!storedPhone || storedPhone !== rawPhone) {
       return json(200, {
-        ok: false, found: 'id_only',
-        message: 'We found the booking ID, but the phone number does not match our records.',
+        ok: false, found: false,
+        message: 'No booking found. Please check your booking ID and phone number.',
       });
     }
 

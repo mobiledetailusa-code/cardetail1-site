@@ -451,11 +451,15 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
 
     <!-- OPERATOR LOGIN -->
     <div id="l-tech-form">
-      <div class="lsub">Enter your registered email to access your dashboard</div>
+      <div class="lsub" id="tech-login-sub">Enter your technician email and password</div>
       <input class="linp" type="email" id="l-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()">
-      <!-- Admin access: go to /admin — this field is not used for admin login -->
-      <input class="linp" type="password" id="l-pass" placeholder="Not required for technicians" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off" style="display:none">
+      <input class="linp" type="password" id="l-pass" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="current-password">
       <button class="lbtn" onclick="doLogin()">Sign In →</button>
+      <div id="invite-set-password" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div class="lsub">Create your password to activate this invitation</div>
+        <input class="linp" type="password" id="invite-pass" placeholder="New password (10+ characters)" autocomplete="new-password">
+        <button class="lbtn" onclick="setInvitePassword()">Activate Account</button>
+      </div>
       <div class="lerr" id="lerr">Not found or not yet approved. Check your approval email.</div>
       <div class="llinks">
         <a onclick="ss('land')">← Back to landing</a>
@@ -466,7 +470,7 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
     <!-- CUSTOMER (redirect) -->
     <div id="l-cust-form" style="display:none">
       <div class="lsub">Customers access their booking status separately</div>
-      <a href="customer.html" style="display:block;width:100%;text-align:center;background:var(--blue);color:#fff;font-weight:700;font-size:13px;border-radius:9px;padding:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='#3d94f0'" onmouseout="this.style.background='var(--blue)'">Go to Customer Portal →</a>
+      <a href='/customer' onmouseout='this.style.background=\'var(--blue)\'' onmouseover='this.style.background=\'#3d94f0\'' style='display:block;width:100%;text-align:center;background:var(--blue);color:#fff;font-weight:700;font-size:13px;border-radius:9px;padding:12px;text-decoration:none;transition:.2s'>Go to Customer Portal →</a>
       <div style="margin-top:14px;font-size:12px;color:var(--mu)">Track booking · Review appointment status · Request cancellation</div>
     </div>
   </div>
@@ -533,7 +537,16 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
         <div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Vehicle / Service</th><th>Date</th><th>Zone</th><th>Total</th><th>Status</th><th>Payment</th><th>Actions</th></tr></thead><tbody id="bk-body"></tbody></table></div>
       </div>
     </div>
-    <div class="page" id="ap-technicians"><div class="pg-t">Technicians</div><div class="pg-s">Applications & active operators</div><div class="card"><div class="ch"><div class="ct">Applications</div></div><div style="padding:12px 14px" id="tch-list"></div></div></div>
+    <div class="page" id="ap-technicians">
+      <div class="pg-t">Technicians</div><div class="pg-s">Create and manage secure operator accounts</div>
+      <div class="card"><div class="ch"><div class="ct">Create Technician</div></div><div style="padding:14px">
+        <div class="fr2"><div class="fg2"><label class="fl2">Full Name</label><input class="fi2" id="tc-name"></div><div class="fg2"><label class="fl2">Email</label><input class="fi2" id="tc-email" type="email"></div></div>
+        <div class="fr2"><div class="fg2"><label class="fl2">Phone</label><input class="fi2" id="tc-phone"></div><div class="fg2"><label class="fl2">Service Area</label><input class="fi2" id="tc-area" placeholder="Bergen County, NJ"></div></div>
+        <div class="fr2"><div class="fg2"><label class="fl2">Capabilities</label><input class="fi2" id="tc-cap" placeholder="Auto, Marine, RV"></div><div class="fg2"><label class="fl2">Initial Password (optional)</label><input class="fi2" id="tc-password" type="password" placeholder="Leave blank to create invite"></div></div>
+        <button class="btn btn-p" onclick="createTechAccount()">Create Technician</button><div id="tc-create-result" style="font-size:11px;color:var(--mu);margin-top:8px"></div>
+      </div></div>
+      <div class="card"><div class="ch"><div class="ct">Technician Accounts</div><button class="btn btn-g btn-sm" onclick="renderTechs()">Refresh</button></div><div style="padding:12px 14px" id="tch-list"></div></div>
+    </div>
     <div class="page" id="ap-dispatch"><div class="pg-t">Dispatch Board</div><div class="pg-s">Assign confirmed jobs to technicians</div><div id="disp-board"></div></div>
     <div class="page" id="ap-accounting">
       <div class="pg-t">Accounting</div><div class="pg-s">Revenue from completed / paid bookings</div>
@@ -598,15 +611,11 @@ td{padding:10px 12px;font-size:12px;vertical-align:middle}
     <button class="tb-out" onclick="doLogout()">Sign Out</button>
   </div>
   <div class="tab-bar">
-    <div class="tab active" onclick="techTab('avail')" data-tt="avail">Available Jobs</div>
-    <div class="tab" onclick="techTab('mine')" data-tt="mine">My Jobs</div>
-    <div class="tab" onclick="techTab('earn')" data-tt="earn">Earnings</div>
+    <div class="tab active" onclick="techTab('mine')" data-tt="mine">My Assigned Jobs</div>
     <div class="tab" onclick="techTab('prof')" data-tt="prof">Profile</div>
   </div>
   <div class="main">
-    <div class="page active" id="tp-avail"><div class="pg-t">Available Jobs</div><div class="pg-s">Confirmed bookings open for assignment</div><div id="avail-list"></div></div>
-    <div class="page" id="tp-mine"><div class="pg-t">My Jobs</div><div class="pg-s">Jobs you have accepted</div><div id="mine-list"></div></div>
-    <div class="page" id="tp-earn"><div class="pg-t">Earnings</div><div class="pg-s">Your income from completed jobs (65% cut)</div><div class="sg" id="earn-stats"></div><div id="earn-tbl"></div></div>
+    <div class="page active" id="tp-mine"><div class="pg-t">My Assigned Jobs</div><div class="pg-s">Only jobs assigned to your secure technician account</div><div id="mine-list"></div></div>
     <div class="page" id="tp-prof"><div class="pg-t">Profile</div><div class="pg-s">Your operator info on file</div><div id="prof-wrap"></div></div>
   </div>
 </div>
@@ -658,8 +667,10 @@ function bkNm(b){ return (b.name||((b.firstName||'')+' '+(b.lastName||''))||'Unk
 function bkSvc(b){ return b.service||b.package||b.packageName||'Detail'; }
 function bkTot(b){ return b.totalPrice||b.total_price||b.packagePrice||0; }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function jsStr(s){ return esc(String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/[\r\n]/g,' ')); }
+function safeImgSrc(raw){ const s=String(raw||''); return /^data:image\/(?:png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/i.test(s)?s:''; }
 const SC={ 'Pending Review':'b-pen','Confirmed':'b-con','Scheduled':'b-sch','In Progress':'b-inp','En Route':'b-enr','Completed':'b-don','Cancelled':'b-can','Rescheduled':'b-res','No-Show':'b-can','Payment Pending':'b-pay','Paid':'b-don','Authorized':'b-auth','Failed':'b-fail','Test':'b-test','Archived':'b-test' };
-function badge(s){ return `<span class="badge ${SC[s]||'b-pen'}">${s||'Pending'}</span>`; }
+function badge(s){ return `<span class="badge ${SC[s]||'b-pen'}">${esc(s||'Pending')}</span>`; }
 
 // ── PRIORITY CHIPS ──────────────────────────────────────────────────────────
 function bkPriChips(b){
@@ -768,12 +779,15 @@ function doLogout(){
 (function(){
   const sess = localStorage.getItem('cd1_session');
   if(!sess) return;
-  if(sess==='admin'){ IS_ADMIN=true; }
-  else if(sess.startsWith('tech:')){
-    const em=sess.split(':')[1];
-    const tk=tkGet().find(t=>t.email.toLowerCase()===em&&t.status==='approved');
-    if(tk) TECH=tk; else { localStorage.removeItem('cd1_session'); return; }
+  if(sess==='admin'){
+    const adminKey = sessionStorage.getItem('cd1_admin_key')||'';
+    if(adminKey) IS_ADMIN=true;
+    else{
+      localStorage.removeItem('cd1_session');
+      location.replace('admin.html');
+    }
   }
+  else if(sess.startsWith('tech:')) localStorage.removeItem('cd1_session');
 })();
 
 // ═══════════════════════════════════════
@@ -820,25 +834,24 @@ function admRender(p){
 // ═══════════════════════════════════════
 function renderDash(){
   const bk=bkGet(), tk=tkGet();
-  const real=bk.filter(b=>!b.isTest&&!b.archived);
   document.getElementById('dd-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  const rev=real.filter(b=>b.status==='Completed'||b.status==='Paid').reduce((s,b)=>s+bkTot(b),0);
-  const pend=real.filter(b=>b.status==='Pending Review').length;
-  const act=real.filter(b=>['Confirmed','Scheduled','In Progress','En Route'].includes(b.status)).length;
+  const rev=bk.filter(b=>b.status==='Completed'||b.status==='Paid').reduce((s,b)=>s+bkTot(b),0);
+  const pend=bk.filter(b=>b.status==='Pending Review').length;
+  const act=bk.filter(b=>['Confirmed','Scheduled','In Progress','En Route'].includes(b.status)).length;
   document.getElementById('dstats').innerHTML=`
     <div class="sc"><div class="sv" style="color:var(--green)">$${rev.toLocaleString()}</div><div class="sl">Revenue</div></div>
     <div class="sc"><div class="sv" style="color:var(--yellow)">${pend}</div><div class="sl">Pending</div></div>
     <div class="sc"><div class="sv" style="color:var(--blue)">${act}</div><div class="sl">Active Jobs</div></div>
     <div class="sc"><div class="sv" style="color:var(--purple)">${tk.filter(t=>t.status==='approved').length}</div><div class="sl">Active Techs</div></div>
-    <div class="sc"><div class="sv">${real.length}</div><div class="sl">Total Bookings</div></div>
-    <div class="sc"><div class="sv" style="color:var(--green)">${real.filter(b=>b.status==='Completed'||b.status==='Paid').length}</div><div class="sl">Completed</div></div>`;
-  const recent=[...real].reverse().slice(0,6);
+    <div class="sc"><div class="sv">${bk.length}</div><div class="sl">Total Bookings</div></div>
+    <div class="sc"><div class="sv" style="color:var(--green)">${bk.filter(b=>b.status==='Completed'||b.status==='Paid').length}</div><div class="sl">Completed</div></div>`;
+  const recent=[...bk].reverse().slice(0,6);
   document.getElementById('d-recent').innerHTML=recent.length
-    ?recent.map(b=>`<tr onclick="openDrw('${b.id}')"><td class="td-mo">${(b.id||'').slice(-6)}</td><td class="td-nm">${bkNm(b)}</td><td class="td-mu">${bkSvc(b)}</td><td class="td-mu">${b.createdAt?new Date(b.createdAt).toLocaleDateString():'—'}</td><td class="td-pr">$${bkTot(b)}</td><td>${badge(b.status||'Pending Review')}</td></tr>`).join('')
+    ?recent.map(b=>`<tr onclick="openDrw('${jsStr(b.id)}')"><td class="td-mo">${esc((b.id||'').slice(-6))}</td><td class="td-nm">${esc(bkNm(b))}</td><td class="td-mu">${esc(bkSvc(b))}</td><td class="td-mu">${b.createdAt?new Date(b.createdAt).toLocaleDateString():'—'}</td><td class="td-pr">$${bkTot(b)}</td><td>${badge(b.status||'Pending Review')}</td></tr>`).join('')
     :'<tr><td colspan="6" class="empty"><div class="ei">📭</div><div class="et">No bookings yet</div></td></tr>';
   const ptkList=tk.filter(t=>t.status==='pending').slice(0,4);
   document.getElementById('d-techs').innerHTML=ptkList.length
-    ?ptkList.map(t=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><div><div style="font-weight:600;font-size:12px">${t.name}</div><div style="font-size:10px;color:var(--mu)">${t.email} · ${t.experience||'?'}</div></div><div style="display:flex;gap:5px"><button class="btn btn-gr btn-xs" onclick="approveTk('${t.id}');event.stopPropagation()">Approve</button><button class="btn btn-rd btn-xs" onclick="rejectTk('${t.id}');event.stopPropagation()">Reject</button></div></div>`).join('')
+    ?ptkList.map(t=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><div><div style="font-weight:600;font-size:12px">${esc(t.name)}</div><div style="font-size:10px;color:var(--mu)">${esc(t.email)} · ${esc(t.experience||'?')}</div></div><div style="display:flex;gap:5px"><button class="btn btn-gr btn-xs" onclick="approveTk('${jsStr(t.id)}');event.stopPropagation()">Approve</button><button class="btn btn-rd btn-xs" onclick="rejectTk('${jsStr(t.id)}');event.stopPropagation()">Reject</button></div></div>`).join('')
     :'<div class="empty" style="padding:16px"><div class="et">No pending applications</div></div>';
 }
 
@@ -1009,7 +1022,7 @@ function openDrw(id){
   document.getElementById('drw-nm').textContent=bkNm(b);
   document.getElementById('drw-id').textContent=b.id||'—';
   const addons=(b.addons||[]).map(a=>a.name||a).join(', ')||'None';
-  const tech=tkGet().find(t=>t.id===b.assignedTech);
+  const tech=(SECURE_TECHS||[]).find(t=>t.techId===(b.assignedTechId||b.assignedTech));
   const row=(k,v)=>`<div class="dr"><span class="dk">${k}</span><span class="dv">${v}</span></div>`;
   const prefLabels={cash_onsite:'Cash On-Site',card_onsite:'Card On-Site',online_after_service:'Online After Service'};
   const cardLabels={saved:'Saved',pending:'Pending',failed:'Failed'};
@@ -1025,10 +1038,10 @@ function openDrw(id){
     ${row('Name',esc(b.firstName||'')+' '+esc(b.lastName||''))}${row('Phone',b.phone?`<a href="tel:${esc(b.phone)}" style="color:var(--blue)">${esc(b.phone)}</a>`:'-')}${row('Email',esc(b.email||'—'))}${row('Address',esc(b.address||'—'))}${row('ZIP',esc(b.zip||b.zipCode||'—'))}${row('Zone',esc(b.zone||b.zip_city||'—'))}
     <div class="dsec">Service</div>
     ${row('Vehicle',esc(b.vehicleLabel||b.vehicle||'—'))}${row('Service',esc(bkSvc(b)))}${row('Add-ons',esc(addons))}${row('Preferred Date',esc(b.preferredDate||b.preferred_date||'—'))}${row('Preferred Time',esc(b.preferredTime||'Any'))}${row('Total','<span style="color:var(--green);font-weight:800;font-size:14px">$'+bkTot(b)+'</span>')}
-    ${row('Technician',tech?`<span style="color:var(--green)">${esc(tech.name)}</span>`:'Unassigned')}
+    ${row('Technician',tech?`<span style="color:var(--green)">${esc(tech.fullName)}</span>`:'Unassigned')}
     ${b.notes?`<div class="dsec">Notes</div><div style="font-size:12px;color:var(--mu);background:var(--bg3);border-radius:7px;padding:10px">${esc(b.notes)}</div>`:''}
   `;
-  const tks=tkGet().filter(t=>t.status==='approved');
+  const tks=(SECURE_TECHS||[]).filter(t=>t.active);
   const cfg=cfgGet();
   const phone=b.phone||'';
   const email=b.email||'';
@@ -1094,7 +1107,7 @@ function openDrw(id){
     </div>
     <div style="width:100%;margin-bottom:7px">
       <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Assign Technician</div>
-      <select class="ssel" id="drw-tk" style="width:100%;margin-bottom:6px"><option value="">— Select Tech —</option>${tks.map(t=>`<option value="${esc(t.id)}" ${b.assignedTech===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select>
+      <select class="ssel" id="drw-tk" style="width:100%;margin-bottom:6px"><option value="">— Select Tech —</option>${tks.map(t=>`<option value="${esc(t.techId)}" ${(b.assignedTechId||b.assignedTech)===t.techId?'selected':''}>${esc(t.fullName)}</option>`).join('')}</select>
       <button class="btn btn-g btn-sm" style="width:100%" onclick="drwAssign()">Assign</button>
     </div>
     <div style="width:100%;margin-bottom:7px">
@@ -1258,14 +1271,14 @@ function renderTechs(){
   const el=document.getElementById('tch-list');
   if(!tks.length){el.innerHTML='<div class="empty"><div class="ei">🧑‍🔧</div><div class="et">No applications yet</div></div>';return;}
   el.innerHTML=tks.map(t=>`<div class="tc">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:9px"><div><div class="tc-nm">${t.name}</div><div class="tc-mt">${t.email} · ${t.phone}</div></div>${badge(t.status==='approved'?'Confirmed':t.status==='rejected'?'Cancelled':'Pending Review')}</div>
-    <div class="tc-gr"><div class="tc-f"><div class="tcfl">Experience</div>${t.experience||'—'}</div><div class="tc-f"><div class="tcfl">Areas</div>${t.areas||'—'}</div><div class="tc-f"><div class="tcfl">Vehicle</div>${t.ownVehicle||'—'}</div><div class="tc-f"><div class="tcfl">Availability</div>${t.availability||'—'}</div><div class="tc-f"><div class="tcfl">Applied</div>${t.appliedAt?new Date(t.appliedAt).toLocaleDateString():'—'}</div><div class="tc-f"><div class="tcfl">Equipment</div>${t.hasEquipment==='yes'?'Full':t.hasEquipment==='partial'?'Partial':'None'}</div></div>
-    ${t.bio?`<div style="font-size:11px;color:var(--mu);background:var(--bg);padding:7px 9px;border-radius:7px;margin-bottom:9px">${t.bio}</div>`:''}
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:9px"><div><div class="tc-nm">${esc(t.name)}</div><div class="tc-mt">${esc(t.email)} · ${esc(t.phone)}</div></div>${badge(t.status==='approved'?'Confirmed':t.status==='rejected'?'Cancelled':'Pending Review')}</div>
+    <div class="tc-gr"><div class="tc-f"><div class="tcfl">Experience</div>${esc(t.experience||'—')}</div><div class="tc-f"><div class="tcfl">Areas</div>${esc(t.areas||'—')}</div><div class="tc-f"><div class="tcfl">Vehicle</div>${esc(t.ownVehicle||'—')}</div><div class="tc-f"><div class="tcfl">Availability</div>${esc(t.availability||'—')}</div><div class="tc-f"><div class="tcfl">Applied</div>${t.appliedAt?new Date(t.appliedAt).toLocaleDateString():'—'}</div><div class="tc-f"><div class="tcfl">Equipment</div>${t.hasEquipment==='yes'?'Full':t.hasEquipment==='partial'?'Partial':'None'}</div></div>
+    ${t.bio?`<div style="font-size:11px;color:var(--mu);background:var(--bg);padding:7px 9px;border-radius:7px;margin-bottom:9px">${esc(t.bio)}</div>`:''}
     <div style="display:flex;gap:5px;flex-wrap:wrap">
-      ${t.status!=='approved'?`<button class="btn btn-gr btn-sm" onclick="approveTk('${t.id}')">✓ Approve</button>`:''}
-      ${t.status!=='rejected'?`<button class="btn btn-rd btn-sm" onclick="rejectTk('${t.id}')">✗ Reject</button>`:''}
-      <button class="btn btn-g btn-sm" onclick="delTk('${t.id}')">Delete</button>
-      ${t.phone?`<a class="btn btn-g btn-sm" href="tel:${t.phone}">📞 Call</a>`:''}
+      ${t.status!=='approved'?`<button class="btn btn-gr btn-sm" onclick="approveTk('${jsStr(t.id)}')">✓ Approve</button>`:''}
+      ${t.status!=='rejected'?`<button class="btn btn-rd btn-sm" onclick="rejectTk('${jsStr(t.id)}')">✗ Reject</button>`:''}
+      <button class="btn btn-g btn-sm" onclick="delTk('${jsStr(t.id)}')">Delete</button>
+      ${t.phone?`<a class="btn btn-g btn-sm" href="tel:${esc(t.phone)}">📞 Call</a>`:''}
       ${t.phone?`<a class="btn btn-g btn-sm" href="https://wa.me/${t.phone.replace(/\D/g,'')}" target="_blank">💬 WA</a>`:''}
     </div></div>`).join('');
   admBadges();
@@ -1279,15 +1292,15 @@ function delTk(id){ if(!confirm('Remove?'))return;tkSet(tkGet().filter(t=>t.id!=
 // ═══════════════════════════════════════
 function renderDispatch(){
   const bk=bkGet().filter(b=>['Confirmed','Scheduled','In Progress','En Route'].includes(b.status)&&!b.isTest&&!b.archived);
-  const tks=tkGet().filter(t=>t.status==='approved');
+  const tks=(SECURE_TECHS||[]).filter(t=>t.active);
   const el=document.getElementById('disp-board');
   if(!bk.length){el.innerHTML='<div class="empty"><div class="ei">🗂️</div><div class="et">No active jobs</div></div>';return;}
   el.innerHTML=`<div class="card"><div class="ch"><div class="ct">Active Jobs (${bk.length})</div></div><div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Zone</th><th>Tech</th><th>Status</th><th>Update</th></tr></thead><tbody>${bk.map(b=>{
     const tech=tks.find(t=>t.id===b.assignedTech);
-    return `<tr onclick="openDrw('${b.id}')"><td class="td-mo">${(b.id||'').slice(-6)}</td><td><div class="td-nm">${bkNm(b)}</div><div class="td-mu">${b.phone||''}</div></td><td class="td-mu">${bkSvc(b)}</td><td class="td-mu">${b.preferredDate||b.preferred_date||'—'}</td><td class="td-mu">${b.zone||b.zip_city||'—'}</td>
-      <td onclick="event.stopPropagation()">${tech?`<span style="color:var(--green);font-weight:600;font-size:12px">${tech.name}</span>`:`<select class="ff" onchange="quickAssign('${b.id}',this.value)"><option value="">— assign —</option>${tks.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select>`}</td>
+    return `<tr onclick="openDrw('${jsStr(b.id)}')"><td class="td-mo">${esc((b.id||'').slice(-6))}</td><td><div class="td-nm">${esc(bkNm(b))}</div><div class="td-mu">${esc(b.phone||'')}</div></td><td class="td-mu">${esc(bkSvc(b))}</td><td class="td-mu">${esc(b.preferredDate||b.preferred_date||'—')}</td><td class="td-mu">${esc(b.zone||b.zip_city||'—')}</td>
+      <td onclick="event.stopPropagation()">${tech?`<span style="color:var(--green);font-weight:600;font-size:12px">${esc(tech.name)}</span>`:`<select class="ff" onchange="quickAssign('${jsStr(b.id)}',this.value)"><option value="">— assign —</option>${tks.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}</select>`}</td>
       <td>${badge(b.status)}</td>
-      <td onclick="event.stopPropagation()"><select class="ff" style="font-size:10px" onchange="setBkStatus('${b.id}',this.value);renderDispatch()">${['Confirmed','Scheduled','In Progress','En Route','Completed'].map(s=>`<option ${b.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
+      <td onclick="event.stopPropagation()"><select class="ff" style="font-size:10px" onchange="setBkStatus('${jsStr(b.id)}',this.value);renderDispatch()">${['Confirmed','Scheduled','In Progress','En Route','Completed'].map(s=>`<option ${b.status===s?'selected':''}>${esc(s)}</option>`).join('')}</select></td>
     </tr>`;}).join('')}</tbody></table></div></div>`;
 }
 function quickAssign(bkId,tkId){ if(!tkId)return;const bk=bkGet();const i=bk.findIndex(b=>b.id===bkId);if(i>-1){bk[i].assignedTech=tkId;bk[i].status='Confirmed';bkSet(bk);}renderDispatch();toast('Tech assigned'); }
@@ -1307,7 +1320,7 @@ function renderAcct(){
   const months={};
   bk.forEach(b=>{const d=b.createdAt?new Date(b.createdAt):new Date();const k=d.toLocaleDateString('en-US',{year:'numeric',month:'long'});if(!months[k])months[k]={rev:0,n:0};months[k].rev+=bkTot(b);months[k].n++;});
   document.getElementById('acct-months').innerHTML=Object.entries(months).reverse().map(([m,v])=>`<div class="am"><div><div class="aml">${m}</div><div class="albl">${v.n} job${v.n!==1?'s':''}</div></div><div><div class="av r">$${v.rev.toLocaleString()}</div><div class="albl">Revenue</div></div><div><div class="av e">-$${Math.round(v.rev*.4).toLocaleString()}</div><div class="albl">Cost</div></div><div><div class="av n">$${Math.round(v.rev*.6).toLocaleString()}</div><div class="albl">Net</div></div></div>`).join('')||'<div class="empty"><div class="et">No completed bookings</div></div>';
-  document.getElementById('acct-body').innerHTML=bk.reverse().map(b=>{const r=bkTot(b);return `<tr onclick="openDrw('${b.id}')"><td class="td-mo">${(b.id||'').slice(-6)}</td><td class="td-nm">${bkNm(b)}</td><td class="td-mu">${bkSvc(b)}</td><td class="td-mu">${b.createdAt?new Date(b.createdAt).toLocaleDateString():'—'}</td><td class="td-pr">$${r}</td><td style="color:var(--red)">$${Math.round(r*.4)}</td><td style="color:var(--blue);font-weight:700">$${Math.round(r*.6)}</td></tr>`;}).join('')||'<tr><td colspan="7" class="empty"><div class="et">No entries</div></td></tr>';
+  document.getElementById('acct-body').innerHTML=bk.reverse().map(b=>{const r=bkTot(b);return `<tr onclick="openDrw('${jsStr(b.id)}')"><td class="td-mo">${esc((b.id||'').slice(-6))}</td><td class="td-nm">${esc(bkNm(b))}</td><td class="td-mu">${esc(bkSvc(b))}</td><td class="td-mu">${b.createdAt?new Date(b.createdAt).toLocaleDateString():'—'}</td><td class="td-pr">$${r}</td><td style="color:var(--red)">$${Math.round(r*.4)}</td><td style="color:var(--blue);font-weight:700">$${Math.round(r*.6)}</td></tr>`;}).join('')||'<tr><td colspan="7" class="empty"><div class="et">No entries</div></td></tr>';
 }
 
 // ═══════════════════════════════════════
@@ -1316,7 +1329,7 @@ function renderAcct(){
 function renderSubs(){
   const subs=JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]');
   document.getElementById('subs-wrap').innerHTML=subs.length
-    ?`<div class="card"><div class="ch"><div class="ct">Subscribers (${subs.length})</div></div><div class="tw"><table><thead><tr><th>Name</th><th>Email</th><th>Plan</th><th>Price/mo</th><th>Since</th></tr></thead><tbody>${subs.map(s=>`<tr><td class="td-nm">${s.name||'—'}</td><td class="td-mu">${s.email}</td><td>${badge('Confirmed')}</td><td class="td-pr">$${s.price||'—'}</td><td class="td-mu">${s.since?new Date(s.since).toLocaleDateString():'—'}</td></tr>`).join('')}</tbody></table></div></div>`
+    ?`<div class="card"><div class="ch"><div class="ct">Subscribers (${subs.length})</div></div><div class="tw"><table><thead><tr><th>Name</th><th>Email</th><th>Plan</th><th>Price/mo</th><th>Since</th></tr></thead><tbody>${subs.map(s=>`<tr><td class="td-nm">${esc(s.name||'—')}</td><td class="td-mu">${esc(s.email)}</td><td>${badge('Confirmed')}</td><td class="td-pr">$${esc(s.price||'—')}</td><td class="td-mu">${s.since?new Date(s.since).toLocaleDateString():'—'}</td></tr>`).join('')}</tbody></table></div></div>`
     :'<div class="empty"><div class="ei">🔁</div><div class="et">No subscribers yet</div></div>';
 }
 function renderSettings(){const c=cfgGet();if(c.email)document.getElementById('s-em').value=c.email;if(c.phone)document.getElementById('s-ph').value=c.phone;if(c.area)document.getElementById('s-ar').value=c.area;if(c.squareUrl)document.getElementById('s-sq').value=c.squareUrl;if(c.deposit)document.getElementById('s-dep').value=c.deposit;}
@@ -1359,39 +1372,39 @@ function jobCard(b,mine){
   const pref=b.preferredDate||b.preferred_date||'—',price=bkTot(b),earn=Math.round(price*.65);
   const zone=b.zone||b.zip_city||b.zipCode||'—';
   let acts='';
-  if(!mine){ acts=`<button class="btn btn-p btn-sm" onclick="acceptJob('${b.id}')">Accept →</button>`; }
+  if(!mine){ acts=`<button class="btn btn-p btn-sm" onclick="acceptJob('${jsStr(b.id)}')">Accept →</button>`; }
   else {
-    if(['Confirmed','Scheduled'].includes(b.status)) acts+=`<button class="btn btn-or btn-sm" onclick="techUpdBk('${b.id}','En Route')">🚗 En Route</button>`;
-    if(b.status==='En Route') acts+=`<button class="btn btn-p btn-sm" onclick="techUpdBk('${b.id}','In Progress')">▶ Start</button>`;
-    if(b.status==='In Progress') acts+=`<button class="btn btn-gr btn-sm" onclick="markComplete('${b.id}')">✓ Complete</button>`;
+    if(['Confirmed','Scheduled'].includes(b.status)) acts+=`<button class="btn btn-or btn-sm" onclick="techUpdBk('${jsStr(b.id)}','En Route')">🚗 En Route</button>`;
+    if(b.status==='En Route') acts+=`<button class="btn btn-p btn-sm" onclick="techUpdBk('${jsStr(b.id)}','In Progress')">▶ Start</button>`;
+    if(b.status==='In Progress') acts+=`<button class="btn btn-gr btn-sm" onclick="markComplete('${jsStr(b.id)}')">✓ Complete</button>`;
     if(b.phone){
-      acts+=`<a class="btn btn-g btn-sm" href="tel:${b.phone}">📞</a>`;
+      acts+=`<a class="btn btn-g btn-sm" href="tel:${esc(b.phone)}">📞</a>`;
       acts+=`<a class="btn btn-g btn-sm" href="https://wa.me/${b.phone.replace(/\D/g,'')}?text=${encodeURIComponent('Hi '+bkNm(b).split(' ')[0]+'! Your Cardetail1 tech is on the way 🚗✨')}" target="_blank">💬</a>`;
     }
-    acts+=`<button class="btn btn-yw btn-sm" onclick="openProbModal('${b.id}')">⚠️</button>`;
+    acts+=`<button class="btn btn-yw btn-sm" onclick="openProbModal('${jsStr(b.id)}')">⚠️</button>`;
   }
   const photos=mine?`<div style="margin-top:11px;padding-top:11px;border-top:1px solid var(--border)">
     <div style="display:flex;gap:8px;margin-bottom:7px;align-items:center">
       <span style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;flex:1">Before (${(b.photosBefore||[]).length})</span>
-      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${b.id}','before',this)"></label>
+      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${jsStr(b.id)}','before',this)"></label>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px;margin-bottom:9px">${(b.photosBefore||[]).map(p=>`<img class="photo-thumb" src="${p}">`).join('')}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px;margin-bottom:9px">${(b.photosBefore||[]).map(p=>safeImgSrc(p)?`<img class="photo-thumb" src="${safeImgSrc(p)}">`:'').join('')}</div>
     <div style="display:flex;gap:8px;margin-bottom:7px;align-items:center">
       <span style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;flex:1">After (${(b.photosAfter||[]).length})</span>
-      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${b.id}','after',this)"></label>
+      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${jsStr(b.id)}','after',this)"></label>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px">${(b.photosAfter||[]).map(p=>`<img class="photo-thumb" src="${p}">`).join('')}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px">${(b.photosAfter||[]).map(p=>safeImgSrc(p)?`<img class="photo-thumb" src="${safeImgSrc(p)}">`:'').join('')}</div>
   </div>`:'';
   const cl=mine?(b.status==='En Route'?'jc mine enr':'jc mine'):'jc';
   return `<div class="${cl}">
-    <div class="jc-top"><div><div class="jc-id">${(b.id||'').slice(-8)}</div><div class="jc-sv">${svc}</div><div class="jc-vh">${veh}</div></div>${badge(b.status||'Confirmed')}</div>
+    <div class="jc-top"><div><div class="jc-id">${esc((b.id||'').slice(-8))}</div><div class="jc-sv">${esc(svc)}</div><div class="jc-vh">${esc(veh)}</div></div>${badge(b.status||'Confirmed')}</div>
     <div class="jc-grid">
-      <div><div class="jfl">Date</div><div class="jfv">${pref}</div></div>
-      <div><div class="jfl">Zone</div><div class="jfv">${zone}</div></div>
+      <div><div class="jfl">Date</div><div class="jfv">${esc(pref)}</div></div>
+      <div><div class="jfl">Zone</div><div class="jfv">${esc(zone)}</div></div>
       <div><div class="jfl">Job Total</div><div class="jfv">$${price}</div></div>
       <div><div class="jfl">Your Cut</div><div class="jfv" style="color:var(--green)">$${earn}</div></div>
-      ${mine&&b.address?`<div style="grid-column:1/-1"><div class="jfl">Address</div><div class="jfv">${b.address}</div></div>`:''}
-      ${mine&&b.notes?`<div style="grid-column:1/-1"><div class="jfl">Notes</div><div class="jfv" style="color:var(--mu);font-weight:400">${b.notes}</div></div>`:''}
+      ${mine&&b.address?`<div style="grid-column:1/-1"><div class="jfl">Address</div><div class="jfv">${esc(b.address)}</div></div>`:''}
+      ${mine&&b.notes?`<div style="grid-column:1/-1"><div class="jfl">Notes</div><div class="jfv" style="color:var(--mu);font-weight:400">${esc(b.notes)}</div></div>`:''}
     </div>
     <div class="jc-acts">${acts}</div>
     ${photos}
@@ -1426,16 +1439,16 @@ function renderEarnings(){
   const earn=done.reduce((s,b)=>s+Math.round(bkTot(b)*.65),0);
   document.getElementById('earn-stats').innerHTML=`<div class="sc"><div class="sv" style="color:var(--green)">$${earn}</div><div class="sl">Total Earned</div></div><div class="sc"><div class="sv">${done.length}</div><div class="sl">Jobs Done</div></div><div class="sc"><div class="sv" style="color:var(--blue)">$${done.length?Math.round(earn/done.length):0}</div><div class="sl">Avg / Job</div></div>`;
   document.getElementById('earn-tbl').innerHTML=done.length
-    ?`<div class="card"><div class="tw"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Job Total</th><th>Your Cut</th></tr></thead><tbody>${done.map(b=>`<tr><td class="td-mo">${(b.id||'').slice(-8)}</td><td>${bkSvc(b)}</td><td class="td-mu">${b.completedAt?new Date(b.completedAt).toLocaleDateString():'—'}</td><td>$${bkTot(b)}</td><td style="color:var(--green);font-weight:700">$${Math.round(bkTot(b)*.65)}</td></tr>`).join('')}</tbody></table></div></div>`
+    ?`<div class="card"><div class="tw"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Job Total</th><th>Your Cut</th></tr></thead><tbody>${done.map(b=>`<tr><td class="td-mo">${esc((b.id||'').slice(-8))}</td><td>${esc(bkSvc(b))}</td><td class="td-mu">${b.completedAt?new Date(b.completedAt).toLocaleDateString():'—'}</td><td>$${bkTot(b)}</td><td style="color:var(--green);font-weight:700">$${Math.round(bkTot(b)*.65)}</td></tr>`).join('')}</tbody></table></div></div>`
     :'<div class="empty"><div class="ei">💰</div><div class="et">No completed jobs yet</div></div>';
 }
 function renderProfile(){
   document.getElementById('prof-wrap').innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;max-width:460px">
     <div style="display:flex;align-items:center;gap:13px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border)">
-      <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--green));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0">${TECH.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
-      <div><div style="font-size:16px;font-weight:800">${TECH.name}</div><div style="font-size:10px;color:var(--mu);font-family:var(--fd)">ID: ${TECH.id}</div><div style="margin-top:5px">${badge('Confirmed')}</div></div>
+      <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--green));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0">${esc(String(TECH.name||'').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase())}</div>
+      <div><div style="font-size:16px;font-weight:800">${esc(TECH.name)}</div><div style="font-size:10px;color:var(--mu);font-family:var(--fd)">ID: ${esc(TECH.id)}</div><div style="margin-top:5px">${badge('Confirmed')}</div></div>
     </div>
-    ${[['Email',TECH.email],['Phone',TECH.phone],['City',TECH.city||'—'],['Experience',TECH.experience||'—'],['Services',TECH.services||'—'],['Service Zones',TECH.areas||'—'],['Availability',TECH.availability||'—'],['Vehicle',TECH.ownVehicle||'—'],['Jobs Completed',TECH.jobsCompleted||0],['Total Earned','$'+(TECH.earnings||0)],['Member Since',TECH.approvedAt?new Date(TECH.approvedAt).toLocaleDateString():'—']].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--mu)">${k}</span><span style="font-weight:600">${v}</span></div>`).join('')}
+    ${[['Email',TECH.email],['Phone',TECH.phone],['City',TECH.city||'—'],['Experience',TECH.experience||'—'],['Services',TECH.services||'—'],['Service Zones',TECH.areas||'—'],['Availability',TECH.availability||'—'],['Vehicle',TECH.ownVehicle||'—'],['Jobs Completed',TECH.jobsCompleted||0],['Total Earned','$'+(TECH.earnings||0)],['Member Since',TECH.approvedAt?new Date(TECH.approvedAt).toLocaleDateString():'—']].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--mu)">${esc(k)}</span><span style="font-weight:600">${esc(v)}</span></div>`).join('')}
   </div>`;
 }
 
@@ -1464,6 +1477,227 @@ else if(TECH){ initTech(); }
 
 // auto-refresh admin every 20s
 setInterval(()=>{ if(IS_ADMIN){ const ap=document.querySelector('#s-admin .page.active')?.id?.replace('ap-',''); if(ap) admRender(ap); } },20000);
+</script>
+<script>
+// Secure Technician Login & Assignment MVP.
+// Authorization is enforced by Netlify functions; browser storage only carries the opaque session token.
+const TECH_API = '/.netlify/functions';
+let SECURE_TECHS = [];
+let SECURE_JOBS = [];
+
+function adminHeaders(){
+  return {'Content-Type':'application/json','x-admin-key':sessionStorage.getItem('cd1_admin_key')||''};
+}
+function techHeaders(){
+  return {'Content-Type':'application/json','Authorization':'Bearer '+(sessionStorage.getItem('cd1_tech_token')||'')};
+}
+async function apiJson(url, options={}){
+  const res=await fetch(url,options);
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok||data.ok===false) throw new Error(data.error||('HTTP '+res.status));
+  return data;
+}
+
+async function doLogin(){
+  const email=(document.getElementById('l-email').value||'').trim();
+  const password=document.getElementById('l-pass').value||'';
+  const err=document.getElementById('lerr'); err.classList.remove('show');
+  try{
+    const data=await apiJson(TECH_API+'/tech-auth',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'login',email,password})
+    });
+    sessionStorage.setItem('cd1_tech_token',data.token);
+    TECH={id:data.technician.techId,name:data.technician.fullName,...data.technician};
+    IS_ADMIN=false;
+    initTech();
+  }catch(e){
+    err.textContent=e.message==='technician_inactive'?'This technician account is inactive.':'Invalid email or password.';
+    err.classList.add('show');
+  }
+}
+
+async function setInvitePassword(){
+  const token=new URLSearchParams(location.search).get('invite')||'';
+  const password=document.getElementById('invite-pass').value||'';
+  const err=document.getElementById('lerr'); err.classList.remove('show');
+  try{
+    await apiJson(TECH_API+'/tech-auth',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'set_password',inviteToken:token,password})
+    });
+    document.getElementById('invite-set-password').style.display='none';
+    document.getElementById('tech-login-sub').textContent='Password created. Sign in with your email.';
+    history.replaceState({},'',location.pathname);
+    toast('Account activated. Sign in now.');
+  }catch(e){
+    err.textContent=e.message==='invite_expired'?'This invitation expired. Ask the admin for a new one.':
+      e.message==='invalid_or_used_invite'?'This invitation is invalid or was already used.':
+      'Use a password with at least 10 characters.';
+    err.classList.add('show');
+  }
+}
+
+async function doLogout(){
+  const token=sessionStorage.getItem('cd1_tech_token');
+  if(token) await fetch(TECH_API+'/tech-auth',{method:'POST',headers:techHeaders(),body:JSON.stringify({action:'logout'})}).catch(()=>{});
+  sessionStorage.removeItem('cd1_tech_token');
+  localStorage.removeItem('cd1_session');
+  sessionStorage.removeItem('cd1_admin_key');
+  TECH=null; IS_ADMIN=false; ss('land');
+}
+
+async function createTechAccount(){
+  const payload={
+    action:'create',
+    fullName:document.getElementById('tc-name').value.trim(),
+    email:document.getElementById('tc-email').value.trim(),
+    phone:document.getElementById('tc-phone').value.trim(),
+    serviceArea:document.getElementById('tc-area').value.trim(),
+    capabilities:document.getElementById('tc-cap').value.split(',').map(v=>v.trim()).filter(Boolean),
+    password:document.getElementById('tc-password').value
+  };
+  const out=document.getElementById('tc-create-result');
+  try{
+    const data=await apiJson(TECH_API+'/tech-accounts',{method:'POST',headers:adminHeaders(),body:JSON.stringify(payload)});
+    if(data.inviteToken){
+      const link=location.origin+location.pathname+'?invite='+encodeURIComponent(data.inviteToken);
+      out.innerHTML='Invite expires in 72 hours: <button class="btn btn-g btn-sm" onclick="navigator.clipboard.writeText(\''+esc(link)+'\');toast(\'Invite copied\')">Copy invite link</button>';
+    }else out.textContent='Technician created with an initial password.';
+    ['tc-name','tc-email','tc-phone','tc-area','tc-cap','tc-password'].forEach(id=>document.getElementById(id).value='');
+    await renderTechs();
+  }catch(e){ out.textContent='Could not create technician: '+e.message; }
+}
+
+async function renderTechs(){
+  const el=document.getElementById('tch-list');
+  if(!IS_ADMIN||!el)return;
+  el.innerHTML='<div class="empty"><div class="et">Loading technician accounts…</div></div>';
+  try{
+    const data=await apiJson(TECH_API+'/tech-accounts',{headers:adminHeaders()});
+    SECURE_TECHS=data.technicians||[];
+    el.innerHTML=SECURE_TECHS.length?SECURE_TECHS.map(t=>`<div class="tc">
+      <div style="display:flex;justify-content:space-between;gap:10px"><div><div class="tc-nm">${esc(t.fullName)}</div><div class="tc-mt">${esc(t.email)} · ${esc(t.phone||'No phone')}</div></div>${badge(t.active?'Confirmed':'Cancelled')}</div>
+      <div class="tc-gr"><div class="tc-f"><div class="tcfl">Service Area</div>${esc(t.serviceArea||'—')}</div><div class="tc-f"><div class="tcfl">Capabilities</div>${esc((t.capabilities||[]).join(', ')||'—')}</div><div class="tc-f"><div class="tcfl">Last Login</div>${t.lastLoginAt?new Date(t.lastLoginAt).toLocaleString():'Never'}</div><div class="tc-f"><div class="tcfl">Invite Expires</div>${t.inviteExpiresAt?new Date(t.inviteExpiresAt).toLocaleString():'—'}</div></div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="btn btn-g btn-sm" onclick="editTechAccount('${t.techId}')">Edit</button>
+        <button class="btn btn-g btn-sm" onclick="resetTechInvite('${t.techId}')">Reset Invite</button>
+        <button class="btn ${t.active?'btn-rd':'btn-gr'} btn-sm" onclick="setTechActive('${t.techId}',${!t.active})">${t.active?'Deactivate':'Reactivate'}</button>
+      </div></div>`).join(''):'<div class="empty"><div class="et">No technician accounts yet.</div></div>';
+  }catch(e){ el.innerHTML='<div class="empty"><div class="et">Unable to load technicians: '+esc(e.message)+'</div></div>'; }
+}
+
+async function resetTechInvite(techId){
+  try{
+    const data=await apiJson(TECH_API+'/tech-accounts',{method:'POST',headers:adminHeaders(),body:JSON.stringify({action:'reset_invite',techId})});
+    const link=location.origin+location.pathname+'?invite='+encodeURIComponent(data.inviteToken);
+    await navigator.clipboard.writeText(link);
+    toast('New 72-hour invite copied');
+    renderTechs();
+  }catch(e){toast(e.message,'err');}
+}
+async function editTechAccount(techId){
+  const tech=SECURE_TECHS.find(t=>t.techId===techId); if(!tech)return;
+  const fullName=prompt('Full name:',tech.fullName); if(fullName===null)return;
+  const phone=prompt('Phone:',tech.phone||''); if(phone===null)return;
+  const serviceArea=prompt('Service area:',tech.serviceArea||''); if(serviceArea===null)return;
+  const capabilities=prompt('Capabilities (comma-separated):',(tech.capabilities||[]).join(', ')); if(capabilities===null)return;
+  try{
+    await apiJson(TECH_API+'/tech-accounts',{method:'POST',headers:adminHeaders(),body:JSON.stringify({
+      action:'update',techId,fullName,phone,serviceArea,
+      capabilities:capabilities.split(',').map(v=>v.trim()).filter(Boolean)
+    })});
+    toast('Technician updated'); renderTechs();
+  }catch(e){toast(e.message,'err');}
+}
+async function setTechActive(techId,active){
+  try{
+    await apiJson(TECH_API+'/tech-accounts',{method:'POST',headers:adminHeaders(),body:JSON.stringify({action:active?'reactivate':'deactivate',techId})});
+    toast(active?'Technician reactivated':'Technician deactivated'); renderTechs();
+  }catch(e){toast(e.message,'err');}
+}
+
+async function renderDispatch(){
+  const el=document.getElementById('disp-board'); if(!el||!IS_ADMIN)return;
+  try{
+    const [techData]=await Promise.all([
+      apiJson(TECH_API+'/tech-accounts',{headers:adminHeaders()}),
+      loadBkFromCloud().catch(()=>null)
+    ]);
+    SECURE_TECHS=(techData.technicians||[]).filter(t=>t.active);
+    const bookings=bkGet().filter(b=>!b.isTest&&!b.archived&&!['Completed','Cancelled'].includes(b.status||''));
+    el.innerHTML=bookings.length?`<div class="card"><div class="tw"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Assigned Technician</th><th>Job Status</th></tr></thead><tbody>${bookings.map(b=>`<tr>
+      <td class="td-mo">${esc(b.id)}</td><td>${esc(bkNm(b))}</td><td>${esc(bkSvc(b))}</td>
+      <td><select class="ff" onchange="quickAssign('${esc(b.id)}',this.value)"><option value="">— Unassigned —</option>${SECURE_TECHS.map(t=>`<option value="${t.techId}" ${(b.assignedTechId||b.assignedTech)===t.techId?'selected':''}>${esc(t.fullName)}</option>`).join('')}</select></td>
+      <td>${esc(b.jobStatus||'not_started')}</td></tr>`).join('')}</tbody></table></div></div>`:'<div class="empty"><div class="et">No active bookings.</div></div>';
+  }catch(e){el.innerHTML='<div class="empty"><div class="et">Unable to load dispatch: '+esc(e.message)+'</div></div>';}
+}
+
+async function quickAssign(bookingId,techId){
+  try{
+    const data=await apiJson(TECH_API+'/tech-assignment',{method:'POST',headers:adminHeaders(),body:JSON.stringify({action:techId?'assign':'unassign',bookingId,techId})});
+    const list=bkGet(); const i=list.findIndex(b=>b.id===bookingId);
+    if(i>-1) Object.assign(list[i],data.booking);
+    bkSet(list); toast(techId?'Technician assigned':'Technician unassigned'); renderDispatch();
+  }catch(e){toast(e.message,'err');}
+}
+async function drwAssign(){
+  const techId=document.getElementById('drw-tk')?.value||'';
+  if(!techId){toast('Select a technician','err');return;}
+  await quickAssign(_drwId,techId); closeDrw();
+}
+
+function initTech(){
+  document.getElementById('tech-nm').textContent=(TECH.fullName||TECH.name||'Technician').split(' ')[0];
+  ss('tech'); techTab('mine');
+}
+async function renderMine(){
+  const el=document.getElementById('mine-list'); if(!el||!TECH)return;
+  el.innerHTML='<div class="empty"><div class="et">Loading assigned jobs…</div></div>';
+  try{
+    const data=await apiJson(TECH_API+'/tech-jobs',{headers:techHeaders()});
+    SECURE_JOBS=data.jobs||[];
+    el.innerHTML=SECURE_JOBS.length?SECURE_JOBS.map(secureJobCard).join(''):'<div class="empty"><div class="et">No jobs assigned to you.</div></div>';
+  }catch(e){
+    if(e.message==='invalid_session'||e.message==='technician_inactive') doLogout();
+    else el.innerHTML='<div class="empty"><div class="et">Unable to load jobs.</div></div>';
+  }
+}
+function secureJobCard(j){
+  const addons=(j.addons||[]).map(a=>esc(a.name)+(a.qty>1?' ×'+a.qty:'')).join(', ')||'None';
+  const actions=[
+    ['accepted','Accept'],['en_route','En Route'],['arrived','Arrived'],
+    ['in_progress','Start'],['completed','Complete'],['issue_reported','Report Issue']
+  ].map(([status,label])=>`<button class="btn btn-g btn-sm" onclick="techUpdBk('${esc(j.id)}','${status}')">${label}</button>`).join('');
+  return `<div class="jc mine"><div class="jc-top"><div><div class="jc-id">${esc(j.id)}</div><div class="jc-sv">${esc(j.package)}</div><div class="jc-vh">${esc(j.vehicle)}</div></div>${badge(j.jobStatus)}</div>
+    <div class="jc-grid"><div><div class="jfl">Date / Window</div><div class="jfv">${esc(j.date)} · ${esc(j.timeWindow)}</div></div><div><div class="jfl">Customer</div><div class="jfv">${esc(j.customerName)}</div></div>
+    <div style="grid-column:1/-1"><div class="jfl">Address</div><div class="jfv">${esc(j.address)}</div></div><div><div class="jfl">Phone</div><div class="jfv">${esc(j.phone)}</div></div><div><div class="jfl">Add-ons</div><div class="jfv">${addons}</div></div>
+    ${j.customerNote?`<div style="grid-column:1/-1"><div class="jfl">Service Note</div><div class="jfv">${esc(j.customerNote)}</div></div>`:''}</div><div class="jc-acts">${actions}</div></div>`;
+}
+async function techUpdBk(id,status){
+  const note=status==='issue_reported'?(prompt('Describe the issue for the admin:')||'').trim():'';
+  if(status==='issue_reported'&&!note)return;
+  try{
+    await apiJson(TECH_API+'/tech-jobs',{method:'POST',headers:techHeaders(),body:JSON.stringify({bookingId:id,jobStatus:status,note})});
+    toast('Status updated: '+status); renderMine();
+  }catch(e){toast(e.message,'err');}
+}
+function markComplete(id){ return techUpdBk(id,'completed'); }
+function renderProfile(){
+  const el=document.getElementById('prof-wrap'); if(!el||!TECH)return;
+  el.innerHTML=`<div class="card" style="max-width:520px;padding:18px"><div class="tc-nm">${esc(TECH.fullName||TECH.name)}</div><div class="tc-mt">${esc(TECH.email)}</div><div class="tc-gr"><div class="tc-f"><div class="tcfl">Phone</div>${esc(TECH.phone||'—')}</div><div class="tc-f"><div class="tcfl">Service Area</div>${esc(TECH.serviceArea||'—')}</div><div class="tc-f"><div class="tcfl">Capabilities</div>${esc((TECH.capabilities||[]).join(', ')||'—')}</div></div></div>`;
+}
+
+(async function secureTechStartup(){
+  const invite=new URLSearchParams(location.search).get('invite');
+  if(invite){ ss('login'); document.getElementById('invite-set-password').style.display='block'; document.getElementById('tech-login-sub').textContent='Technician invitation'; }
+  const token=sessionStorage.getItem('cd1_tech_token');
+  if(!token)return;
+  try{
+    const data=await apiJson(TECH_API+'/tech-auth',{method:'POST',headers:techHeaders(),body:JSON.stringify({action:'validate'})});
+    TECH={id:data.technician.techId,name:data.technician.fullName,...data.technician}; IS_ADMIN=false; initTech();
+  }catch(_){ sessionStorage.removeItem('cd1_tech_token'); }
+})();
 </script>
 </body>
 </html>
