@@ -77,7 +77,10 @@
     btn.disabled = false;
     btn.textContent = 'Enter dashboard';
   }
-  if(localStorage.getItem('cd1_session') === 'admin'){ location.replace('technician.html'); }
+  const hasAdminSession = localStorage.getItem('cd1_session') === 'admin';
+  const hasAdminKey = !!sessionStorage.getItem('cd1_admin_key');
+  if(hasAdminSession && hasAdminKey){ location.replace('technician.html'); }
+  else if(hasAdminSession){ localStorage.removeItem('cd1_session'); }
 </script>
 </body>
 </html>
