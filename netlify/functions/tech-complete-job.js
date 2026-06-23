@@ -62,6 +62,23 @@ exports.handler = async (event) => {
     return jsonCors(400, { ok: false, error: 'technician_note_required' });
   }
 
+  const photosBefore = Array.isArray(booking.photosBefore) ? booking.photosBefore : [];
+  const photosAfter = Array.isArray(booking.photosAfter) ? booking.photosAfter : [];
+  if (photosBefore.length < 1) {
+    return jsonCors(400, {
+      ok: false,
+      error: 'photos_before_required',
+      userMessage: 'Upload at least one BEFORE photo before submitting completion.',
+    });
+  }
+  if (!issueReported && photosAfter.length < 1) {
+    return jsonCors(400, {
+      ok: false,
+      error: 'photos_after_required',
+      userMessage: 'Upload at least one AFTER photo before submitting completion.',
+    });
+  }
+
   const now = new Date().toISOString();
   const patched = {
     ...booking,
@@ -81,6 +98,8 @@ exports.handler = async (event) => {
     completionChecklist: checklist,
     completionSubmitted: true,
     adminReviewRequired: true,
+    photosBefore,
+    photosAfter,
     paymentWorkflowStatus: 'pending_admin_review',
     updatedAt: now,
     eventLog: appendEventLog(booking, {

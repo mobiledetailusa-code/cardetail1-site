@@ -143,6 +143,13 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
 #toast.err{border-color:rgba(248,113,113,.3);color:var(--red)}
 
 @media(max-width:520px){.ro-grid{grid-template-columns:1fr}.tb-nm{display:none}}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px;margin:8px 0 12px}
+.photo-thumb{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--bg3)}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-upload-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.photo-count{font-size:11px;color:var(--mu)}
+.photo-err{font-size:11px;color:var(--red);margin-top:4px;display:none}
+.photo-err.show{display:block}
 </style>
 </head>
 <body>
@@ -285,7 +292,29 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
 
       <div class="sec-lbl">Equipment suggestions</div>
       <div id="cmp-equipment" style="font-size:12px;color:var(--mu);margin-bottom:12px"></div>
-      <div class="auth-box" style="margin-bottom:12px">📸 <strong>Before &amp; after photos are required</strong> on every completed job. Upload via admin review if not yet available in-app.</div>
+      <div class="sec-lbl">Job photos (required)</div>
+      <div class="auth-box" style="margin-bottom:12px">📸 Upload clear <strong>before</strong> photos when you arrive and <strong>after</strong> photos when done. Max 4 MB each, up to 8 per section. JPEG, PNG, or WebP.</div>
+
+      <div class="sec-lbl" style="margin-top:0">Before photos <span class="photo-count" id="cnt-before">0</span></div>
+      <div class="photo-upload-row">
+        <label class="btn btn-g btn-sm" style="cursor:pointer;margin:0">
+          + Add before photo
+          <input type="file" id="file-before" accept="image/jpeg,image/png,image/webp" capture="environment" style="display:none" onchange="onPhotoPick('before',this)">
+        </label>
+      </div>
+      <div class="photo-grid" id="grid-before"></div>
+      <div class="photo-err" id="err-before"></div>
+
+      <div class="sec-lbl">After photos <span class="photo-count" id="cnt-after">0</span></div>
+      <div class="photo-upload-row">
+        <label class="btn btn-g btn-sm" style="cursor:pointer;margin:0">
+          + Add after photo
+          <input type="file" id="file-after" accept="image/jpeg,image/png,image/webp" capture="environment" style="display:none" onchange="onPhotoPick('after',this)">
+        </label>
+      </div>
+      <div class="photo-grid" id="grid-after"></div>
+      <div class="photo-err" id="err-after"></div>
+      <p class="photo-count" id="photo-issue-hint" style="display:none;margin-bottom:12px">Issue path: at least one BEFORE photo required; AFTER optional if service not completed.</p>
 
       <div class="sec-lbl">Completion checklist</div>
       <label class="chk-row issue" id="chk-issue-wrap">
@@ -384,11 +413,13 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   const COMPLETE_URL = '/.netlify/functions/tech-complete-job';
   const PROFILE_URL = '/.netlify/functions/tech-profile';
   const AUCTIONS_URL = '/.netlify/functions/tech-auctions';
+  const PHOTOS_URL = '/.netlify/functions/tech-job-photos';
 
   let TECH = null;
   let TECH_PROFILE = null;
   let JOBS = [];
   let AUCTIONS = [];
+  let _jobPhotos = { before: [], after: [] };
   let _completeJobId = '';
   let _issueJobId = '';
   let sigCustomer, sigTechnician;
@@ -931,7 +962,96 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     document.getElementById('chk-normal').style.display = issue ? 'none' : 'block';
     document.getElementById('issue-notes').style.display = issue ? 'block' : 'none';
     document.getElementById('issue-notes-lbl').style.display = issue ? 'block' : 'none';
+    document.getElementById('photo-issue-hint').style.display = issue ? 'block' : 'none';
+    updatePhotoCounts();
   };
+
+  function updatePhotoCounts() {
+    var issue = document.getElementById('chk-issue') && document.getElementById('chk-issue').checked;
+    var b = _jobPhotos.before.length;
+    var a = _jobPhotos.after.length;
+    var elB = document.getElementById('cnt-before');
+    var elA = document.getElementById('cnt-after');
+    if (elB) elB.textContent = b + (b < 1 ? ' (min 1)' : '');
+    if (elA) elA.textContent = a + (!issue && a < 1 ? ' (min 1)' : '');
+  }
+
+  function renderPhotoGrid(phase) {
+    var grid = document.getElementById('grid-' + phase);
+    if (!grid) return;
+    var urls = _jobPhotos[phase] || [];
+    grid.innerHTML = urls.map(function (url) {
+      return '<div class="photo-thumb"><img src="' + esc(url) + '" alt="' + phase + '"></div>';
+    }).join('');
+    updatePhotoCounts();
+  }
+
+  function fileToBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var res = reader.result || '';
+        var base64 = String(res).split(',')[1] || '';
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  window.onPhotoPick = async function (phase, input) {
+    var file = input && input.files && input.files[0];
+    if (input) input.value = '';
+    if (!file || !_completeJobId) return;
+    var errEl = document.getElementById('err-' + phase);
+    if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
+    if (file.size > 4 * 1024 * 1024) {
+      if (errEl) { errEl.textContent = 'Photo must be 4 MB or smaller.'; errEl.classList.add('show'); }
+      return;
+    }
+    try {
+      var data = await fileToBase64(file);
+      var r = await techFetch(PHOTOS_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          bookingId: _completeJobId,
+          phase: phase,
+          data: data,
+          contentType: file.type,
+          filename: file.name,
+          size: file.size,
+        }),
+      });
+      if (!r.data.ok) {
+        var msg = r.data.userMessage || r.data.error || 'Upload failed';
+        if (errEl) { errEl.textContent = msg; errEl.classList.add('show'); }
+        return;
+      }
+      _jobPhotos.before = r.data.photosBefore || _jobPhotos.before;
+      _jobPhotos.after = r.data.photosAfter || _jobPhotos.after;
+      renderPhotoGrid('before');
+      renderPhotoGrid('after');
+      toast('Photo uploaded');
+    } catch (_) {
+      if (errEl) { errEl.textContent = 'Network error uploading photo.'; errEl.classList.add('show'); }
+    }
+  };
+
+  async function loadJobPhotos(bookingId) {
+    try {
+      var r = await techFetch(PHOTOS_URL + '?bookingId=' + encodeURIComponent(bookingId));
+      if (r.data.ok) {
+        _jobPhotos.before = r.data.photosBefore || [];
+        _jobPhotos.after = r.data.photosAfter || [];
+      } else {
+        _jobPhotos = { before: [], after: [] };
+      }
+    } catch (_) {
+      _jobPhotos = { before: [], after: [] };
+    }
+    renderPhotoGrid('before');
+    renderPhotoGrid('after');
+  }
 
   window.openComplete = function (id) {
     var job = JOBS.find(function (j) { return j.id === id; });
@@ -966,6 +1086,12 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     sigTechnician.clear();
     sigCustomer.resize();
     sigTechnician.resize();
+
+    loadJobPhotos(id);
+    ['err-before', 'err-after'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) { el.textContent = ''; el.classList.remove('show'); }
+    });
 
     document.getElementById('complete-modal').classList.add('open');
   };
@@ -1012,6 +1138,13 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
       showErr('cmperr', 'Describe the issue.'); return;
     }
 
+    if (_jobPhotos.before.length < 1) {
+      showErr('cmperr', 'Upload at least one BEFORE photo.'); return;
+    }
+    if (!issuePath && _jobPhotos.after.length < 1) {
+      showErr('cmperr', 'Upload at least one AFTER photo.'); return;
+    }
+
     var btn = document.getElementById('cmp-submit-btn');
     btn.disabled = true;
     try {
@@ -1037,7 +1170,9 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
           technician_signature_required: 'Technician signature required.',
           customer_authorization_required: 'Authorization checkbox required.',
           technician_note_required: 'Technician note required for issues.',
-          completion_already_submitted: 'Completion already submitted.'
+          completion_already_submitted: 'Completion already submitted.',
+          photos_before_required: 'Upload at least one BEFORE photo.',
+          photos_after_required: 'Upload at least one AFTER photo.'
         };
         showErr('cmperr', errMap[r.data.error] || r.data.error || 'Submit failed.');
         return;

@@ -70,6 +70,8 @@ function projectJobForTech(b) {
     completionSubmitted: !!b.completionSubmitted,
     equipmentHints: suggestEquipmentForJob(b),
     photosRequired: true,
+    photosBefore: b.photosBefore || [],
+    photosAfter: b.photosAfter || [],
   };
 }
 
