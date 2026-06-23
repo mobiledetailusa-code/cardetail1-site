@@ -1361,39 +1361,39 @@ function jobCard(b,mine){
   const pref=b.preferredDate||b.preferred_date||'—',price=bkTot(b),earn=Math.round(price*.65);
   const zone=b.zone||b.zip_city||b.zipCode||'—';
   let acts='';
-  if(!mine){ acts=`<button class="btn btn-p btn-sm" onclick="acceptJob('${b.id}')">Accept →</button>`; }
+  if(!mine){ acts=`<button class="btn btn-p btn-sm" onclick="acceptJob('${jsStr(b.id)}')">Accept →</button>`; }
   else {
-    if(['Confirmed','Scheduled'].includes(b.status)) acts+=`<button class="btn btn-or btn-sm" onclick="techUpdBk('${b.id}','En Route')">🚗 En Route</button>`;
-    if(b.status==='En Route') acts+=`<button class="btn btn-p btn-sm" onclick="techUpdBk('${b.id}','In Progress')">▶ Start</button>`;
-    if(b.status==='In Progress') acts+=`<button class="btn btn-gr btn-sm" onclick="markComplete('${b.id}')">✓ Complete</button>`;
+    if(['Confirmed','Scheduled'].includes(b.status)) acts+=`<button class="btn btn-or btn-sm" onclick="techUpdBk('${jsStr(b.id)}','En Route')">🚗 En Route</button>`;
+    if(b.status==='En Route') acts+=`<button class="btn btn-p btn-sm" onclick="techUpdBk('${jsStr(b.id)}','In Progress')">▶ Start</button>`;
+    if(b.status==='In Progress') acts+=`<button class="btn btn-gr btn-sm" onclick="markComplete('${jsStr(b.id)}')">✓ Complete</button>`;
     if(b.phone){
-      acts+=`<a class="btn btn-g btn-sm" href="tel:${b.phone}">📞</a>`;
+      acts+=`<a class="btn btn-g btn-sm" href="tel:${esc(b.phone)}">📞</a>`;
       acts+=`<a class="btn btn-g btn-sm" href="https://wa.me/${b.phone.replace(/\D/g,'')}?text=${encodeURIComponent('Hi '+bkNm(b).split(' ')[0]+'! Your Cardetail1 tech is on the way 🚗✨')}" target="_blank">💬</a>`;
     }
-    acts+=`<button class="btn btn-yw btn-sm" onclick="openProbModal('${b.id}')">⚠️</button>`;
+    acts+=`<button class="btn btn-yw btn-sm" onclick="openProbModal('${jsStr(b.id)}')">⚠️</button>`;
   }
   const photos=mine?`<div style="margin-top:11px;padding-top:11px;border-top:1px solid var(--border)">
     <div style="display:flex;gap:8px;margin-bottom:7px;align-items:center">
       <span style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;flex:1">Before (${(b.photosBefore||[]).length})</span>
-      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${b.id}','before',this)"></label>
+      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${jsStr(b.id)}','before',this)"></label>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px;margin-bottom:9px">${(b.photosBefore||[]).map(p=>safeImgSrc(p)?`<img class="photo-thumb" src="${safeImgSrc(p)}">`:'').join('')}</div>
     <div style="display:flex;gap:8px;margin-bottom:7px;align-items:center">
       <span style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;flex:1">After (${(b.photosAfter||[]).length})</span>
-      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${b.id}','after',this)"></label>
+      <label class="btn btn-g btn-sm" style="cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${jsStr(b.id)}','after',this)"></label>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px">${(b.photosAfter||[]).map(p=>safeImgSrc(p)?`<img class="photo-thumb" src="${safeImgSrc(p)}">`:'').join('')}</div>
   </div>`:'';
   const cl=mine?(b.status==='En Route'?'jc mine enr':'jc mine'):'jc';
   return `<div class="${cl}">
-    <div class="jc-top"><div><div class="jc-id">${(b.id||'').slice(-8)}</div><div class="jc-sv">${svc}</div><div class="jc-vh">${veh}</div></div>${badge(b.status||'Confirmed')}</div>
+    <div class="jc-top"><div><div class="jc-id">${esc((b.id||'').slice(-8))}</div><div class="jc-sv">${esc(svc)}</div><div class="jc-vh">${esc(veh)}</div></div>${badge(b.status||'Confirmed')}</div>
     <div class="jc-grid">
-      <div><div class="jfl">Date</div><div class="jfv">${pref}</div></div>
-      <div><div class="jfl">Zone</div><div class="jfv">${zone}</div></div>
+      <div><div class="jfl">Date</div><div class="jfv">${esc(pref)}</div></div>
+      <div><div class="jfl">Zone</div><div class="jfv">${esc(zone)}</div></div>
       <div><div class="jfl">Job Total</div><div class="jfv">$${price}</div></div>
       <div><div class="jfl">Your Cut</div><div class="jfv" style="color:var(--green)">$${earn}</div></div>
-      ${mine&&b.address?`<div style="grid-column:1/-1"><div class="jfl">Address</div><div class="jfv">${b.address}</div></div>`:''}
-      ${mine&&b.notes?`<div style="grid-column:1/-1"><div class="jfl">Notes</div><div class="jfv" style="color:var(--mu);font-weight:400">${b.notes}</div></div>`:''}
+      ${mine&&b.address?`<div style="grid-column:1/-1"><div class="jfl">Address</div><div class="jfv">${esc(b.address)}</div></div>`:''}
+      ${mine&&b.notes?`<div style="grid-column:1/-1"><div class="jfl">Notes</div><div class="jfv" style="color:var(--mu);font-weight:400">${esc(b.notes)}</div></div>`:''}
     </div>
     <div class="jc-acts">${acts}</div>
     ${photos}
@@ -1434,8 +1434,8 @@ function renderEarnings(){
 function renderProfile(){
   document.getElementById('prof-wrap').innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;max-width:460px">
     <div style="display:flex;align-items:center;gap:13px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border)">
-      <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--green));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0">${TECH.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
-      <div><div style="font-size:16px;font-weight:800">${TECH.name}</div><div style="font-size:10px;color:var(--mu);font-family:var(--fd)">ID: ${TECH.id}</div><div style="margin-top:5px">${badge('Confirmed')}</div></div>
+      <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--green));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0">${esc(String(TECH.name||'').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase())}</div>
+      <div><div style="font-size:16px;font-weight:800">${esc(TECH.name)}</div><div style="font-size:10px;color:var(--mu);font-family:var(--fd)">ID: ${esc(TECH.id)}</div><div style="margin-top:5px">${badge('Confirmed')}</div></div>
     </div>
     ${[['Email',TECH.email],['Phone',TECH.phone],['City',TECH.city||'—'],['Experience',TECH.experience||'—'],['Services',TECH.services||'—'],['Service Zones',TECH.areas||'—'],['Availability',TECH.availability||'—'],['Vehicle',TECH.ownVehicle||'—'],['Jobs Completed',TECH.jobsCompleted||0],['Total Earned','$'+(TECH.earnings||0)],['Member Since',TECH.approvedAt?new Date(TECH.approvedAt).toLocaleDateString():'—']].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--mu)">${esc(k)}</span><span style="font-weight:600">${esc(v)}</span></div>`).join('')}
   </div>`;

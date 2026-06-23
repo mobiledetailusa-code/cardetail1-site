@@ -4738,14 +4738,14 @@ function renderAuctions(){
       wrap.innerHTML=list.map(a=>{
         const j=a.job||{}; const bids=(a.bids||[]).slice().sort((x,y)=>x.amount-y.amount);
         const win=a.winner;
-        const bidRows = bids.length ? bids.map((b,i)=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;color:${i===0?'var(--gr)':'var(--mu)'}"><span>${i===0?'🏆 ':''}${(b.techName||b.techId)}</span><span style="font-weight:700">$${b.amount}</span></div>`).join('') : '<div style="font-size:12.5px;color:var(--mu)">No bids yet</div>';
+        const bidRows = bids.length ? bids.map((b,i)=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;color:${i===0?'var(--gr)':'var(--mu)'}"><span>${i===0?'🏆 ':''}${esc(b.techName||b.techId)}</span><span style="font-weight:700">$${Number(b.amount)||0}</span></div>`).join('') : '<div style="font-size:12.5px;color:var(--mu)">No bids yet</div>';
         return `<div style="background:var(--bg2);border:1px solid var(--bbr);border-radius:14px;padding:14px 16px;margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
-            <div style="font-weight:700;color:var(--white)">${a.jobId} · ${j.package||'Job'} · ${j.area||''}</div>
-            <div style="font-size:11px;color:var(--mu)">${j.date||''} ${j.time||''}</div></div>
-          <div style="font-size:12.5px;color:var(--mu);margin:4px 0 10px">${j.customer||''} · ${j.vehicle||''} · customer total $${j.total||0}</div>
+            <div style="font-weight:700;color:var(--white)">${esc(a.jobId)} · ${esc(j.package||'Job')} · ${esc(j.area||'')}</div>
+            <div style="font-size:11px;color:var(--mu)">${esc(j.date||'')} ${esc(j.time||'')}</div></div>
+          <div style="font-size:12.5px;color:var(--mu);margin:4px 0 10px">${esc(j.customer||'')} · ${esc(j.vehicle||'')} · customer total $${Number(j.total)||0}</div>
           <div style="border-top:1px solid var(--bbr);padding-top:8px">${bidRows}</div>
-          ${win?`<div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span style="color:var(--gr);font-weight:700;font-size:13px">Winner: ${win.techName||win.techId} · $${win.amount}</span><button onclick="assignAuctionWinner('${a.jobId}','${(win.techName||win.techId).replace(/'/g,'')}')" style="background:var(--blue);color:#001022;border:none;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">✓ Assign to ${win.techName||win.techId}</button></div>`:''}
+          ${win?`<div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span style="color:var(--gr);font-weight:700;font-size:13px">Winner: ${esc(win.techName||win.techId)} · $${Number(win.amount)||0}</span><button onclick="assignAuctionWinner('${jsStr(a.jobId)}','${jsStr(win.techName||win.techId)}')" style="background:var(--blue);color:#001022;border:none;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">✓ Assign to ${esc(win.techName||win.techId)}</button></div>`:''}
         </div>`;
       }).join('');
     }).catch(e=>{ wrap.innerHTML='<div class="ops-note">Auctions unavailable (is the site deployed on Netlify?): '+e.message+'</div>'; });
@@ -5845,20 +5845,20 @@ function renderEmpPanel(filter){
       : [{pkgName:b.package, vehicleLabel:b.vehicle||b.vehicleCategory, pkgIcon:'🚗', addons:b.addons||[], subtotal:b.totalPrice}];
 
     const vehRows = vehs.map(v=>{
-      const ao = v.addons && v.addons.length ? v.addons.map(a=>a.name).join(' · ') : 'No add-ons';
+      const ao = v.addons && v.addons.length ? v.addons.map(a=>esc(a.name)).join(' · ') : 'No add-ons';
       return `<div class="emp-veh-row">
-        <span class="emp-veh-pkg">${v.pkgIcon||'🚗'} ${v.pkgName||'—'}</span>
-        <span style="color:var(--tx)"> · ${v.vehicleLabel||'—'}</span>
+        <span class="emp-veh-pkg">${esc(v.pkgIcon||'🚗')} ${esc(v.pkgName||'—')}</span>
+        <span style="color:var(--tx)"> · ${esc(v.vehicleLabel||'—')}</span>
         <span style="color:var(--mu);font-size:11px"> · ${ao}</span>
-        <span style="color:var(--blue);font-weight:700;float:right">$${v.subtotal||0}</span>
+        <span style="color:var(--blue);font-weight:700;float:right">$${Number(v.subtotal)||0}</span>
       </div>`;
     }).join('');
 
     const photoHtml = photos.length
-      ? photos.map(p=>`<img class="emp-photo-thumb" src="${p.data}" alt="photo" onclick="empViewPhoto('${b.id}',${p.idx})">`).join('')
+      ? photos.map(p=>safeImgSrc(p.data)?`<img class="emp-photo-thumb" src="${esc(safeImgSrc(p.data))}" alt="photo" onclick="empViewPhoto('${jsStr(b.id)}',${Number(p.idx)||0})">`:'').join('')
       : '<span style="font-size:11px;color:var(--mu);font-style:italic">No photos yet</span>';
 
-    return `<div class="emp-job ${stCls}" id="emp-job-${b.id}">
+    return `<div class="emp-job ${stCls}" id="emp-job-${esc(b.id)}">
 
       <!-- CARD HEADER (always visible) -->
       <div class="emp-job-header">
@@ -5866,18 +5866,18 @@ function renderEmpPanel(filter){
         <div class="emp-job-main">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
             <div>
-              <div class="emp-job-name">${b.firstName} ${b.lastName}</div>
-              <div style="font-size:12px;color:var(--blue);font-weight:600;margin-top:2px">${vehs.map(v=>`${v.pkgIcon||'🚗'} ${v.pkgName}`).join(' · ')}</div>
+              <div class="emp-job-name">${esc(b.firstName)} ${esc(b.lastName)}</div>
+              <div style="font-size:12px;color:var(--blue);font-weight:600;margin-top:2px">${vehs.map(v=>`${esc(v.pkgIcon||'🚗')} ${esc(v.pkgName)}`).join(' · ')}</div>
             </div>
             <div style="text-align:right">
-              <div class="emp-job-time">${b.confirmedWindow||b.preferredDate}</div>
-              <div style="font-size:11px;color:var(--mu)">${b.preferredTime||'TBD'}</div>
+              <div class="emp-job-time">${esc(b.confirmedWindow||b.preferredDate||'—')}</div>
+              <div style="font-size:11px;color:var(--mu)">${esc(b.preferredTime||'TBD')}</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
-            <span class="emp-status-pill ${pillCls}">${st}</span>
-            <span style="font-size:12px;color:var(--mu)">📍 ${b.address}</span>
-            ${b.tip ? '<span style="font-size:11px;color:var(--gold);font-weight:700;background:rgba(245,200,66,.1);padding:2px 8px;border-radius:999px">💰 Tip $'+b.tip+'</span>' : ''}
+            <span class="emp-status-pill ${pillCls}">${esc(st)}</span>
+            <span style="font-size:12px;color:var(--mu)">📍 ${esc(b.address)}</span>
+            ${b.tip ? '<span style="font-size:11px;color:var(--gold);font-weight:700;background:rgba(245,200,66,.1);padding:2px 8px;border-radius:999px">💰 Tip $'+(Number(b.tip)||0)+'</span>' : ''}
           </div>
         </div>
       </div>
@@ -5885,18 +5885,18 @@ function renderEmpPanel(filter){
       <!-- VEHICLE DETAILS -->
       <div style="padding:0 16px 12px;border-top:1px solid rgba(255,255,255,.05)">
         <div class="emp-vehicles" style="margin-top:10px">${vehRows}</div>
-        ${b.notes ? `<div style="margin-top:8px;font-size:12px;color:var(--mu);background:var(--bg3);border-radius:var(--rs);padding:8px 10px">📝 ${b.notes}</div>` : ''}
+        ${b.notes ? `<div style="margin-top:8px;font-size:12px;color:var(--mu);background:var(--bg3);border-radius:var(--rs);padding:8px 10px">📝 ${esc(b.notes)}</div>` : ''}
       </div>
 
       <!-- ACTION BAR -->
       <div class="emp-job-actions">
-        <a class="emp-act" href="tel:${b.phone}">📞 ${b.phone}</a>
+        <a class="emp-act" href="tel:${esc(b.phone)}">📞 ${esc(b.phone)}</a>
         <a class="emp-act" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">🗺️ Navigate</a>
-        ${st!=='In Progress'&&st!=='Completed' ? `<button class="emp-act amber" onclick="empSetStatus('${b.id}','In Progress')">▶ Start Job</button>` : ''}
-        ${st==='In Progress' ? `<button class="emp-act green" onclick="empSetStatus('${b.id}','Completed')">✓ Complete</button>` : ''}
+        ${st!=='In Progress'&&st!=='Completed' ? `<button class="emp-act amber" onclick="empSetStatus('${jsStr(b.id)}','In Progress')">▶ Start Job</button>` : ''}
+        ${st==='In Progress' ? `<button class="emp-act green" onclick="empSetStatus('${jsStr(b.id)}','Completed')">✓ Complete</button>` : ''}
         <label class="emp-act" style="cursor:pointer">
           📷 Upload Photo
-          <input type="file" accept="image/*" capture="environment" style="display:none" onchange="empUploadPhoto('${b.id}',this)">
+          <input type="file" accept="image/*" capture="environment" style="display:none" onchange="empUploadPhoto('${jsStr(b.id)}',this)">
         </label>
       </div>
 
@@ -5908,7 +5908,7 @@ function renderEmpPanel(filter){
       <!-- PHOTOS (optional local attachments) -->
       <div style="padding:0 16px 14px">
         <div class="emp-photo-label">📸 Job Photos (optional)</div>
-        <div class="emp-photo-grid" id="ephoto-${b.id}">${photoHtml}</div>
+        <div class="emp-photo-grid" id="ephoto-${esc(b.id)}">${photoHtml}</div>
       </div>
 
     </div>`;
@@ -6027,7 +6027,7 @@ async function cpLoadManage(){
       const cancelLabel=canCancel?'✕ Request Cancellation':'✕ Cancel (fee may apply)';
       const warnEnc=encodeURIComponent(cancelWarn);
       actionsHtml='<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">'
-        +`<button class="cp-btn" onclick="cpOpenCancel('${b.id}',${canCancel},'${warnEnc}')" style="margin:0;padding:10px 16px;font-size:12px;background:rgba(239,68,68,.12);color:var(--rd);border-color:rgba(239,68,68,.3)">${cancelLabel}</button>`
+        +`<button class="cp-btn" onclick="cpOpenCancel('${jsStr(b.id)}',${canCancel},'${warnEnc}')" style="margin:0;padding:10px 16px;font-size:12px;background:rgba(239,68,68,.12);color:var(--rd);border-color:rgba(239,68,68,.3)">${esc(cancelLabel)}</button>`
         +`<button class="cp-btn" onclick="cpOpenSub('reschedule')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">↺ Reschedule</button>`
         +`<button class="cp-btn" onclick="cpOpenSub('addons')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">➕ Add-Ons</button>`
         +'</div>'
@@ -6634,27 +6634,27 @@ function renderTechRoster(){
     const avCls  = t.status==='available'?'available':t.status==='busy'?'busy':'offline';
     const pillCls= t.status==='available'?'tp-avail':t.status==='busy'?'tp-busy':'tp-offline';
     const avIcoCls = t.status==='available'?'green':t.status==='busy'?'amber':'';
-    const initials = t.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    const initials = String(t.name||'').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
     const currentJob = t.currentJobId
       ? getStoredBookings().find(b=>b.id===t.currentJobId)
       : null;
     return `<div class="tech-card ${avCls}">
       <div class="tech-top">
-        <div class="tech-av ${avIcoCls}">${initials}</div>
+        <div class="tech-av ${avIcoCls}">${esc(initials)}</div>
         <div>
-          <div class="tech-name">${t.name}</div>
-          <div class="tech-spec">${t.specialty||'General'} · 📞 ${t.phone}</div>
+          <div class="tech-name">${esc(t.name)}</div>
+          <div class="tech-spec">${esc(t.specialty||'General')} · 📞 ${esc(t.phone)}</div>
         </div>
-        <span class="tech-pill ${pillCls}">${t.status}</span>
+        <span class="tech-pill ${pillCls}">${esc(t.status)}</span>
       </div>
-      ${currentJob ? `<div class="tech-job">📋 ${currentJob.id} · ${currentJob.firstName} ${currentJob.lastName} · ${currentJob.address||''}</div>` : ''}
+      ${currentJob ? `<div class="tech-job">📋 ${esc(currentJob.id)} · ${esc(currentJob.firstName)} ${esc(currentJob.lastName)} · ${esc(currentJob.address||'')}</div>` : ''}
       <div class="tech-actions">
-        ${t.status!=='available' ? `<button class="ja-btn green" onclick="changeTechStatus('${t.id}','available')">✓ Set Available</button>` : ''}
-        ${t.status!=='busy'      ? `<button class="ja-btn amber" onclick="changeTechStatus('${t.id}','busy')">Set Busy</button>` : ''}
-        ${t.status!=='offline'   ? `<button class="ja-btn"       onclick="changeTechStatus('${t.id}','offline')">Set Offline</button>` : ''}
-        <a class="ja-btn" href="tel:${t.phone}">📞</a>
-        <a class="ja-btn" href="${WHATSAPP_DISPATCH?'https://wa.me/'+t.phone.replace(/\D/g,''):'sms:'+t.phone}">💬</a>
-        <button class="ja-btn red" onclick="removeTech('${t.id}')">✕</button>
+        ${t.status!=='available' ? `<button class="ja-btn green" onclick="changeTechStatus('${jsStr(t.id)}','available')">✓ Set Available</button>` : ''}
+        ${t.status!=='busy'      ? `<button class="ja-btn amber" onclick="changeTechStatus('${jsStr(t.id)}','busy')">Set Busy</button>` : ''}
+        ${t.status!=='offline'   ? `<button class="ja-btn"       onclick="changeTechStatus('${jsStr(t.id)}','offline')">Set Offline</button>` : ''}
+        <a class="ja-btn" href="tel:${esc(t.phone)}">📞</a>
+        <a class="ja-btn" href="${WHATSAPP_DISPATCH?'https://wa.me/'+String(t.phone||'').replace(/\D/g,''):'sms:'+encodeURIComponent(t.phone||'')}">💬</a>
+        <button class="ja-btn red" onclick="removeTech('${jsStr(t.id)}')">✕</button>
       </div>
     </div>`;
   }).join('');
