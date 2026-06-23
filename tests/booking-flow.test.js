@@ -151,14 +151,20 @@ test('inline browser scripts compile', () => {
   }
 });
 
-test('card-on-file hardening uses server verification before saved flag', () => {
+test('card-on-file uses optimistic client flag with background server verify', () => {
   const confirmBlock = index.slice(
     index.indexOf('async function confirmSetupIntent'),
     index.indexOf('async function recheckCardStatus')
   );
-  assert.match(index, /ST\.cardSetupConfirmed/);
-  assert.doesNotMatch(confirmBlock, /ST\.cardOnFileSaved\s*=\s*true/);
-  assert.match(index, /verifyCardOnFileWithServer/);
+  assert.match(confirmBlock, /ST\.cardOnFileSaved\s*=\s*true/);
+  assert.match(index, /waitForVerifiedCardSave/);
   assert.match(index, /cardInitInProgress/);
   assert.match(index, /destroyStripePaymentUI/);
+});
+
+test('booking categories and vehicle card use SVG visuals', () => {
+  assert.match(index, /assets\/vehicles\/sedan\.svg/);
+  assert.match(index, /assets\/vehicles\/boat\.svg/);
+  assert.match(index, /function setVehicleVisual/);
+  assert.match(index, /const VEHICLE_VISUALS/);
 });

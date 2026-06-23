@@ -492,6 +492,8 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .vc.show{display:flex}
 .vc-l{display:flex;align-items:center;gap:12px}
 .vc-ico{font-size:28px}
+.svc-ico img{width:56px;height:auto;display:block;margin:0 auto}
+.vc-ico img{width:64px;height:auto;display:block}
 .vc-info strong{display:block;font-size:14px;font-weight:600;color:var(--white)}
 .vc-info span{font-size:11.5px;color:var(--mu)}
 .vc-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 9px;border-radius:999px;margin-top:3px;background:var(--bdim);border:1px solid var(--bbr);color:var(--blue)}
@@ -2040,31 +2042,31 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </div>
         <div class="service-grid" id="bk-cat-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
-            <span class="svc-ico" style="font-size:36px">🚗</span>
+            <span class="svc-ico"><img src="assets/vehicles/sedan.svg" alt="Cars & Trucks"></span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
             <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $175</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
-            <span class="svc-ico" style="font-size:36px">🛥️</span>
+            <span class="svc-ico"><img src="assets/vehicles/boat.svg" alt="Boats"></span>
             <div class="svc-name" style="font-size:22px">Boats</div>
             <div class="svc-desc" style="font-size:12px">All vessels · Priced by length</div>
             <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $199</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
-            <span class="svc-ico" style="font-size:36px">🏕️</span>
+            <span class="svc-ico"><img src="assets/vehicles/rv.svg" alt="RVs & Trailers"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
             <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $349</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
-            <span class="svc-ico" style="font-size:36px">🏍️</span>
+            <span class="svc-ico"><img src="assets/vehicles/motorcycle.svg" alt="Powersports"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
             <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
             <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $119</div>
           </div>
           <div class="svc-card locked" id="bkcat-fleet" onclick="selectCategory('fleet')">
-            <span class="svc-ico" style="font-size:36px">🚚</span>
+            <span class="svc-ico"><img src="assets/vehicles/van.svg" alt="Fleet Services"></span>
             <div class="svc-name" style="font-size:22px">Fleet Services</div>
             <div class="svc-desc" style="font-size:12px">Cars · Vans · Trucks · Buses · Golf Carts · Boats/RVs</div>
             <div class="svc-from" id="bkfrom-fleet" style="font-size:12px">From $60/unit</div>
@@ -2165,7 +2167,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <!-- Detected vehicle card -->
         <div class="vc" id="vc">
           <div class="vc-l">
-            <div class="vc-ico" id="vc-ico">🚗</div>
+            <div class="vc-ico" id="vc-ico"><img src="assets/vehicles/sedan.svg" alt="Vehicle"></div>
             <div class="vc-info">
               <strong id="vc-name">—</strong>
               <span id="vc-tier-lbl">—</span>
@@ -3156,6 +3158,62 @@ function setupUnitSelector(cat){
   };
 }
 
+// ── VEHICLE VISUALS (SVG icons for categories + detected vehicle card) ───────
+const VEHICLE_VISUALS = {
+  sedan:      { img:'assets/vehicles/sedan.svg',      alt:'Sedan' },
+  suv:        { img:'assets/vehicles/suv.svg',        alt:'SUV / Crossover' },
+  pickup:     { img:'assets/vehicles/pickup.svg',     alt:'Pickup Truck' },
+  van:        { img:'assets/vehicles/van.svg',        alt:'Full-size Van' },
+  minivan:    { img:'assets/vehicles/minivan.svg',    alt:'Minivan' },
+  rv:         { img:'assets/vehicles/rv.svg',         alt:'RV / Motorhome' },
+  trailer:    { img:'assets/vehicles/trailer.svg',    alt:'Travel Trailer' },
+  boat:       { img:'assets/vehicles/boat.svg',       alt:'Boat' },
+  jetski:     { img:'assets/vehicles/jetski.svg',     alt:'Jet Ski / PWC' },
+  motorcycle: { img:'assets/vehicles/motorcycle.svg', alt:'Motorcycle' },
+  atv:        { img:'assets/vehicles/atv.svg',        alt:'ATV / UTV' },
+};
+const MODEL_MAP = [
+  ['odyssey','minivan'],['sienna','minivan'],['caravan','minivan'],['pacifica','minivan'],
+  ['sedona','minivan'],['carnival','minivan'],['quest','minivan'],['town & country','minivan'],
+  ['transit','van'],['express','van'],['savana','van'],['promaster','van'],['sprinter','van'],
+  ['f-150','pickup'],['f150','pickup'],['f-250','pickup'],['f-350','pickup'],
+  ['f250','pickup'],['f350','pickup'],['silverado','pickup'],['sierra','pickup'],
+  ['ram 1500','pickup'],['ram 2500','pickup'],['ram 3500','pickup'],
+  ['tacoma','pickup'],['tundra','pickup'],['colorado','pickup'],['canyon','pickup'],
+  ['frontier','pickup'],['titan','pickup'],['maverick','pickup'],['gladiator','pickup'],
+  ['ridgeline','pickup'],['ranger','pickup'],
+  ['street glide','motorcycle'],['road king','motorcycle'],['sportster','motorcycle'],
+  ['cbr','motorcycle'],['gsxr','motorcycle'],['ninja','motorcycle'],
+  ['waverunner','jetski'],['sea-doo','jetski'],['seadoo','jetski'],['aquatrax','jetski'],
+  ['rzr','atv'],['can-am','atv'],['commander','atv'],['rancher','atv'],['grizzly','atv'],
+];
+function getVehicleVisualKey(){
+  const cat=ST.cat;
+  if(cat==='boats') return 'boat';
+  if(cat==='rvs'){
+    const lbl=(ST.vehicleLabel||'').toLowerCase();
+    return (lbl.indexOf('trailer')>-1||lbl.indexOf('fifth wheel')>-1||lbl.indexOf('airstream')>-1)?'trailer':'rv';
+  }
+  if(cat==='powersports'){
+    const lbl=(ST.vehicleLabel||'').toLowerCase();
+    for(const [k,t] of MODEL_MAP){ if((t==='motorcycle'||t==='jetski'||t==='atv')&&lbl.indexOf(k)>-1) return t; }
+    if(ST.tierKey==='jetski') return 'jetski';
+    if(ST.tierKey==='atv'||ST.tierKey==='utv') return 'atv';
+    return 'motorcycle';
+  }
+  if(cat==='fleet') return 'van';
+  const lbl=(ST.vehicleLabel||'').toLowerCase();
+  for(const [k,t] of MODEL_MAP){ if(lbl.indexOf(k)>-1) return t; }
+  if(ST.tierKey==='truck') return 'pickup';
+  if(ST.tierKey==='suv3'||ST.tierKey==='suv2') return 'suv';
+  return 'sedan';
+}
+function setVehicleVisual(){
+  const v=VEHICLE_VISUALS[getVehicleVisualKey()]||VEHICLE_VISUALS.sedan;
+  const ico=document.getElementById('vc-ico');
+  if(ico) ico.innerHTML=`<img src="${v.img}" alt="${v.alt}">`;
+}
+
 // ── CAR MODELS ──────────────────────────────────────────────────────────────
 const MAKES = ["Acura","Alfa Romeo","Aston Martin","Audi","Bentley","BMW","Buick","Cadillac","Chevrolet","Chrysler","Dodge","Ferrari","FIAT","Ford","Genesis","GMC","Honda","Hyundai","INFINITI","Jaguar","Jeep","Kia","Lamborghini","Land Rover","Lexus","Lincoln","Maserati","Mazda","McLaren","Mercedes-Benz","MINI","Mitsubishi","Nissan","Porsche","Ram","Rolls-Royce","Subaru","Tesla","Toyota","Volkswagen","Volvo"];
 const MODELS = {"Acura":{m:["ILX","Integra","MDX","RDX","RLX","TLX","NSX","ZDX"],t:{ILX:"small",Integra:"small",MDX:"suv3",RDX:"suv2",RLX:"small",TLX:"small",NSX:"small",ZDX:"suv2"}},
@@ -3606,7 +3664,7 @@ function tryGenericConfirm(){
     ST.vehicleLabel = `${year} ${make} ${model} · ${ft} ft`;
     ST.tierKey='length';
     ST.tier={label:`${ft} ft`, icon:ST.cat==='boats'?'🛥️':'🏕️', desc:ST.cat==='boats'?'Marine vessel priced by exact length':'RV / travel trailer priced by exact length'};
-    document.getElementById('vc-ico').textContent=ST.tier.icon;
+    setVehicleVisual();
     document.getElementById('vc-name').textContent=ST.vehicleLabel;
     document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
     document.getElementById('vc-badge').textContent=ST.tier.label+' · starting estimate';
@@ -3626,7 +3684,7 @@ function tryGenericConfirm(){
       const unitPrice = getLengthPrice('fleet', ST.pkgId, ft) || 0;
       ST.basePrice = ST.pkgId==='custom' ? 0 : unitPrice * units;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model} · avg ${ft} ft`;
-      document.getElementById('vc-ico').textContent=t.icon;
+      setVehicleVisual();
       document.getElementById('vc-name').textContent=ST.vehicleLabel;
       document.getElementById('vc-tier-lbl').textContent='Fleet boats/RVs/trailers priced by average length and unit count';
       document.getElementById('vc-badge').textContent=ST.pkgId==='custom'?'Estimate required':`${units} units · ${ft} ft average`;
@@ -3636,7 +3694,7 @@ function tryGenericConfirm(){
       const needsEstimate = ST.pkgId==='custom' || !unitPrice;
       ST.basePrice = needsEstimate ? 0 : unitPrice * units;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model}`;
-      document.getElementById('vc-ico').textContent=t.icon;
+      setVehicleVisual();
       document.getElementById('vc-name').textContent=ST.vehicleLabel;
       document.getElementById('vc-tier-lbl').textContent=t.desc;
       document.getElementById('vc-badge').textContent=needsEstimate?'Estimate required':`${t.label} · ${units} units`;
@@ -3652,7 +3710,7 @@ function tryGenericConfirm(){
   const t=ST.tier;
   ST.vehicleLabel=`${year} ${make} ${model}`;
   setBasePrice();
-  document.getElementById('vc-ico').textContent=t.icon;
+  setVehicleVisual();
   document.getElementById('vc-name').textContent=ST.vehicleLabel;
   document.getElementById('vc-tier-lbl').textContent=t.desc;
   document.getElementById('vc-badge').textContent=t.label;
@@ -3730,7 +3788,7 @@ document.getElementById('year-sel').addEventListener('change',function(){
   ST.tierKey=tierKey; ST.tier=PRICING.cars.tiers[tierKey];
   ST.vehicleLabel=`${ST.year} ${ST.make} ${ST.model}`;
   setBasePrice();
-  document.getElementById('vc-ico').textContent=ST.tier.icon;
+  setVehicleVisual();
   document.getElementById('vc-name').textContent=ST.vehicleLabel;
   document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
   document.getElementById('vc-badge').textContent=ST.tier.label+' · $'+ST.basePrice;

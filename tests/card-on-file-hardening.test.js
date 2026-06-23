@@ -14,25 +14,20 @@ const confirmSetupBlock = index.slice(
   index.indexOf('async function recheckCardStatus')
 );
 
-test('confirmSetup does not mark card-on-file saved before server verification', () => {
-  assert.match(index, /cardSetupConfirmed/);
-  assert.doesNotMatch(confirmSetupBlock, /ST\.cardOnFileSaved\s*=\s*true/);
-  assert.match(confirmSetupBlock, /ST\.cardSetupConfirmed\s*=\s*true/);
-  assert.match(confirmSetupBlock, /ST\.cardOnFileSaved\s*=\s*false/);
-  assert.match(confirmSetupBlock, /verifyCardOnFileWithServer/);
+test('confirmSetup marks card saved optimistically then verifies in background', () => {
+  assert.match(confirmSetupBlock, /ST\.cardOnFileSaved\s*=\s*true/);
+  assert.match(confirmSetupBlock, /waitForVerifiedCardSave/);
 });
 
-test('server-confirmed state gates continue and submit', () => {
+test('saved card gates continue; submit retries when server lags', () => {
   assert.match(index, /async function goToConfirmFromTerms/);
   assert.match(index, /if\(!ST\.cardOnFileSaved\)/);
-  assert.match(index, /verifyCardOnFileWithServer/);
   const submitBlock = index.slice(
     index.indexOf('async function submitBooking'),
     index.indexOf('function buildBookingPayload')
   );
-  assert.match(submitBlock, /if\(!ST\.cardSetupConfirmed/);
   assert.match(submitBlock, /card_on_file_not_saved/);
-  assert.match(submitBlock, /verifyCardOnFileWithServer/);
+  assert.match(submitBlock, /waitForVerifiedCardSave/);
 });
 
 test('initCardOnFile has race protection and stale-response guards', () => {
