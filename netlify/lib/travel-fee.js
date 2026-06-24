@@ -100,35 +100,45 @@ function resolveTravelForZip(zip) {
 }
 
 function normalizeTravelFields(booking) {
-  const zip = booking.zipCode || booking.zip || '';
-  const resolved = resolveTravelForZip(zip);
-  const clientMiles = Number(booking.travelFeeMiles);
-  const clientFee = Number(booking.travelFeeAmount ?? booking.zoneSurcharge);
+  const resolved = resolveTravelForZip(booking.zipCode || booking.zip || '');
   if (resolved) {
     return {
       travelFeeMiles: resolved.miles,
       travelFeeAmount: resolved.fee,
       zoneSurcharge: resolved.fee,
-    };
-  }
-  if (Number.isFinite(clientMiles) && clientMiles >= 0 && clientMiles <= TRAVEL_MAX_MILES) {
-    const fee = travelFeeFromMiles(clientMiles);
-    if (fee != null) {
-      return {
-        travelFeeMiles: clientMiles,
-        travelFeeAmount: fee,
-        zoneSurcharge: fee,
-      };
-    }
-  }
-  if (Number.isFinite(clientFee) && clientFee >= 0 && clientFee <= 55) {
-    return {
-      travelFeeMiles: booking.travelFeeMiles || null,
-      travelFeeAmount: clientFee,
-      zoneSurcharge: clientFee,
+      zoneKey: resolved.zoneKey,
+      zoneLabel: resolved.zoneLabel,
     };
   }
   return { travelFeeMiles: null, travelFeeAmount: 0, zoneSurcharge: 0 };
+}
+
+/** Server-side only — rejects out-of-area ZIPs; never trusts client miles/fees. */
+function applyServerTravelAndTotal(booking) {
+  const resolved = resolveTravelForZip(booking.zipCode || booking.zip || '');
+  if (!resolved) {
+    return { ok: false, error: 'out_of_service_area' };
+  }
+  booking.travelFeeMiles = resolved.miles;
+  booking.travelFeeAmount = resolved.fee;
+  booking.zoneSurcharge = resolved.fee;
+  if (!booking.zone) booking.zone = resolved.zoneLabel;
+
+  let serviceSubtotal = 0;
+  if (Array.isArray(booking.vehicles) && booking.vehicles.length) {
+    serviceSubtotal = booking.vehicles.reduce((s, v) => s + (Number(v.subtotal) || 0), 0);
+  }
+  if (Array.isArray(booking.addons) && booking.addons.length) {
+    for (const a of booking.addons) {
+      serviceSubtotal += (Number(a.price) || 0) * (Number(a.qty) || 1);
+    }
+  }
+  if (serviceSubtotal <= 0) {
+    const raw = Number(booking.totalPrice) || 0;
+    serviceSubtotal = Math.max(0, Math.round((raw - resolved.fee) * 100) / 100);
+  }
+  booking.totalPrice = Math.round((serviceSubtotal + resolved.fee) * 100) / 100;
+  return { ok: true };
 }
 
 module.exports = {
@@ -138,4 +148,5 @@ module.exports = {
   estimateMilesForZip,
   resolveTravelForZip,
   normalizeTravelFields,
+  applyServerTravelAndTotal,
 };

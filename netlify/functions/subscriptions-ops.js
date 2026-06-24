@@ -1,6 +1,7 @@
 // Maintenance / recurring customer plans — cd1-subscriptions blob store.
 const { blobsStore, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const { MAINTENANCE_PLAN_TEMPLATES } = require('../lib/ops-config');
+const { listRawBookings, normalizePhone, phonesMatch } = require('../lib/ops-db');
 
 const SUBS_STORE = 'cd1-subscriptions';
 
@@ -38,10 +39,22 @@ exports.handler = async (event) => {
     const customerName = sanitizeText(body.customerName, 120);
     const planId = sanitizeText(body.planId, 48);
     const tpl = MAINTENANCE_PLAN_TEMPLATES.find(p => p.id === planId);
-    const intervalMonths = Number(body.intervalMonths) || (tpl && tpl.intervalMonths) || 1;
-    const price = Number(body.price) || (tpl && tpl.suggestedPrice) || 0;
+    if (!tpl) return jsonCors(400, { ok: false, error: 'invalid_plan' });
     if (!email.includes('@')) return jsonCors(400, { ok: false, error: 'valid_email_required' });
     if (!phone || phone.length < 7) return jsonCors(400, { ok: false, error: 'phone_required' });
+
+    const bookings = await listRawBookings().catch(() => []);
+    const verified = bookings.some(bk =>
+      !bk.isDraft && !bk.archived && bk.jobStatus !== 'archived_test' &&
+      String(bk.email || '').toLowerCase() === email &&
+      phonesMatch(phone, normalizePhone(bk.phone || bk.customerPhone || ''))
+    );
+    if (!verified) {
+      return jsonCors(403, { ok: false, error: 'no_verified_booking', message: 'Complete a booking with this email and phone before subscribing.' });
+    }
+
+    const intervalMonths = tpl.intervalMonths || 1;
+    const price = tpl.suggestedPrice || 0;
 
     const store = await blobsStore(SUBS_STORE);
     const now = new Date().toISOString();

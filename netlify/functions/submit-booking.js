@@ -42,7 +42,7 @@ const PAYMENT_PREFERENCES = new Set([
 const CARD_ON_FILE_VERIFY_MSG =
   'Your card is still being verified. Please wait a few seconds and try again.';
 
-const { normalizeTravelFields } = require('../lib/travel-fee');
+const { applyServerTravelAndTotal } = require('../lib/travel-fee');
 
 // Safe server-side fallback when webhook is delayed: verify SetupIntent with Stripe API.
 // Never trusts client proof — only persisted setupIntentId on the server-owned draft.
@@ -277,15 +277,12 @@ exports.handler = async (event) => {
 
   if (!b.firstName || !b.phone) return json(400, { ok: false, error: 'Missing customer name or phone' });
 
-  const clientTotal = Number(b.totalPrice) || 0;
-  const clientFee = Number(b.zoneSurcharge ?? b.travelFeeAmount) || 0;
-  const travel = normalizeTravelFields(b);
-  b.travelFeeMiles = travel.travelFeeMiles;
-  b.travelFeeAmount = travel.travelFeeAmount;
-  b.zoneSurcharge = travel.zoneSurcharge;
-  const serviceBase = clientTotal - clientFee;
-  if (serviceBase >= 0 && travel.travelFeeAmount != null) {
-    b.totalPrice = Math.round((serviceBase + travel.travelFeeAmount) * 100) / 100;
+  const zip = String(b.zipCode || b.zip || '').replace(/\D/g, '').slice(0, 5);
+  if (zip.length < 5) return json(400, { ok: false, error: 'zip_required' });
+
+  const travelApplied = applyServerTravelAndTotal(b);
+  if (!travelApplied.ok) {
+    return json(400, { ok: false, error: travelApplied.error || 'out_of_service_area' });
   }
 
   const store = await blobsStore('cd1-bookings');

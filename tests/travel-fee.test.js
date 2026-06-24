@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const {
   travelFeeFromMiles,
   resolveTravelForZip,
+  applyServerTravelAndTotal,
   TRAVEL_MAX_MILES,
 } = require('../netlify/lib/travel-fee');
 
@@ -41,4 +42,19 @@ test('resolveTravelForZip covers core and extended zips', () => {
 test('out of range zip returns null', () => {
   assert.equal(resolveTravelForZip('90210'), null);
   assert.equal(resolveTravelForZip('123'), null);
+});
+
+test('applyServerTravelAndTotal rejects out-of-area zip', () => {
+  const b = { zipCode: '90210', totalPrice: 200 };
+  const r = applyServerTravelAndTotal(b);
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'out_of_service_area');
+});
+
+test('applyServerTravelAndTotal ignores inflated client travel fee', () => {
+  const b = { zipCode: '07601', totalPrice: 115, zoneSurcharge: 100, vehicles: [{ subtotal: 100 }] };
+  const r = applyServerTravelAndTotal(b);
+  assert.equal(r.ok, true);
+  assert.equal(b.travelFeeAmount, 0);
+  assert.equal(b.totalPrice, 100);
 });

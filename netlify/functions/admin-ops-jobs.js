@@ -279,9 +279,19 @@ async function handleAdminAction(body) {
     if (!secret) return jsonCors(503, { ok: false, error: 'stripe_not_configured' });
     const feeType = sanitizeText(body.feeType, 32);
     const preset = { no_show: 75, late_cancel: 50 };
-    const amountDollars = body.amount != null
-      ? Math.round(Number(body.amount) * 100) / 100
-      : (preset[feeType] || 50);
+    const cap = preset[feeType] || 50;
+    if (booking.policyChargeStatus === 'charged' && body.forceRetry !== true) {
+      return jsonCors(409, { ok: false, error: 'policy_already_charged' });
+    }
+    let amountDollars;
+    if (body.amount != null) {
+      amountDollars = Math.round(Number(body.amount) * 100) / 100;
+      if (amountDollars > cap) {
+        return jsonCors(400, { ok: false, error: 'amount_exceeds_policy_cap', max: cap });
+      }
+    } else {
+      amountDollars = cap;
+    }
     const amountCents = Math.round(amountDollars * 100);
     const customerId = booking.stripeCustomerId;
     const pmId = booking.stripePaymentMethodId;
