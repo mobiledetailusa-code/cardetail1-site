@@ -64,17 +64,29 @@ async function listJobs(q) {
   }
   jobs.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
   return jobs.map(b => {
-    const j = projectJobForAdmin(b);
-    j.jobStatus = normalizeJobStatus(b);
-    j.paymentWorkflowStatus = normalizePaymentWorkflowStatus(b);
-    delete j.stripeCustomerId;
-    delete j.stripePaymentMethodId;
-    delete j.setupIntentId;
-    delete j.paymentIntentId;
-    delete j.amountAuthorizedCents;
-    delete j.amountCapturedCents;
-    delete j.cardOnFileStatus;
-    return j;
+    try {
+      const j = projectJobForAdmin(b);
+      j.jobStatus = normalizeJobStatus(b);
+      j.paymentWorkflowStatus = normalizePaymentWorkflowStatus(b);
+      delete j.stripeCustomerId;
+      delete j.stripePaymentMethodId;
+      delete j.setupIntentId;
+      delete j.paymentIntentId;
+      delete j.amountAuthorizedCents;
+      delete j.amountCapturedCents;
+      delete j.cardOnFileStatus;
+      return j;
+    } catch (_) {
+      // Never let one malformed record blank the entire admin feed.
+      return {
+        id: (b && b.id) || 'unknown',
+        firstName: (b && b.firstName) || '',
+        lastName: (b && b.lastName) || '',
+        jobStatus: 'pending_review',
+        paymentWorkflowStatus: 'no_payment_required_yet',
+        _malformed: true,
+      };
+    }
   });
 }
 

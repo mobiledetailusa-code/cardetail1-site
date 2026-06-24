@@ -397,10 +397,34 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     return subscriptions;
   }
 
+  function showLoadBanner(failures) {
+    let bar = document.getElementById('loadBanner');
+    if (!failures || !failures.length) { if (bar) bar.remove(); return; }
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'loadBanner';
+      bar.style.cssText = 'position:sticky;top:0;z-index:50;background:#3a1212;border:1px solid #7f1d1d;color:#fecaca;padding:10px 16px;font-size:13px;line-height:1.5';
+      document.body.insertBefore(bar, document.body.firstChild);
+    }
+    const sessionExpired = failures.some(f => /session expired/i.test(f));
+    bar.innerHTML = 'Some admin data failed to load: ' + esc(failures.join(' · ')) +
+      (sessionExpired
+        ? ' — <a href="admin.html" style="color:#fff;text-decoration:underline">log in again</a>'
+        : ' <button type="button" id="loadRetry" style="margin-left:8px;background:#7f1d1d;color:#fff;border:none;border-radius:5px;padding:3px 10px;cursor:pointer">Retry</button>');
+    const rb = document.getElementById('loadRetry');
+    if (rb) rb.onclick = () => refreshAll();
+  }
+
   async function refreshAll() {
-    await Promise.all([loadJobs(), loadTechs(), loadSettings().catch(()=>({}))]);
+    const [jobsR, techsR] = await Promise.allSettled([loadJobs(), loadTechs(), loadSettings()]);
+    if (jobsR.status === 'rejected') jobs = [];
+    if (techsR.status === 'rejected') techs = [];
     renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
     renderSettingsForm();
+    const failures = [];
+    if (jobsR.status === 'rejected') failures.push('bookings (' + (jobsR.reason && jobsR.reason.message || jobsR.reason) + ')');
+    if (techsR.status === 'rejected') failures.push('technicians (' + (techsR.reason && techsR.reason.message || techsR.reason) + ')');
+    showLoadBanner(failures);
   }
 
   async function refreshAuctionsTab() {
