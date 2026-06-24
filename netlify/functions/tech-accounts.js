@@ -39,19 +39,25 @@ exports.handler = async (event) => {
     catch { return jsonCors(400, { ok: false, error: 'invalid_json' }); }
 
     const action = String(body.action || '');
-    let store;
-    try {
-      store = await blobsStore('cd1-tech-accounts');
-    } catch (e) {
-      console.error('[tech-accounts] blobsStore failed:', e.message);
-      return jsonCors(503, { ok: false, error: 'tech_store_unavailable' });
+
+    async function openTechStore() {
+      try {
+        return await blobsStore('cd1-tech-accounts');
+      } catch (e) {
+        console.error('[tech-accounts] blobsStore failed:', e.message, e.stack);
+        return null;
+      }
     }
 
+    const store = await openTechStore();
+
     async function getTech(techId) {
+      if (!store) return null;
       return store.get('tech-' + techId, { type: 'json' }).catch(() => null);
     }
 
     async function listTechs() {
+      if (!store) return [];
       const blobs = await listAllBlobs(store, 'cd1-tech-accounts');
       const techBlobs = blobs.filter(b => b.key.startsWith('tech-'));
       const records = await fetchBlobRecords(store, techBlobs, 15);
@@ -66,8 +72,16 @@ exports.handler = async (event) => {
 
     if (action === 'list') {
       const technicians = await listTechs();
-      await attachAssignedJobCounts(technicians);
-      return jsonCors(200, { ok: true, technicians });
+      if (store) await attachAssignedJobCounts(technicians);
+      return jsonCors(200, {
+        ok: true,
+        technicians,
+        ...(store ? {} : { warning: 'tech_store_unavailable' }),
+      });
+    }
+
+    if (!store) {
+      return jsonCors(503, { ok: false, error: 'tech_store_unavailable' });
     }
 
     if (action === 'create') {

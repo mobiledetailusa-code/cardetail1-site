@@ -9,21 +9,64 @@ const MAX_TECH_SESSIONS = 3;
 const INVITE_TTL_MS = 72 * 60 * 60 * 1000;
 const MIN_PASSWORD_LENGTH = 8;
 
+let _blobsGetStore = null;
+async function getBlobsGetStore() {
+  if (_blobsGetStore) return _blobsGetStore;
+  try {
+    _blobsGetStore = require('@netlify/blobs').getStore;
+    return _blobsGetStore;
+  } catch (_) {}
+  const mod = await import('@netlify/blobs');
+  _blobsGetStore = mod.getStore;
+  return _blobsGetStore;
+}
+
+function runningInNetlifyFunction() {
+  return !!(process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+}
+
 async function blobsStore(name) {
-  const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
+  const getStore = await getBlobsGetStore();
+  const storeName = String(name || '').trim();
+  if (!storeName) throw new Error('blob_store_name_required');
+
+  // In deployed functions, prefer the runtime execution context (no PAT override).
+  if (runningInNetlifyFunction()) {
+    try {
+      return getStore(storeName);
+    } catch (e) {
+      console.warn(`[blobs] getStore(${storeName}) runtime context failed:`, e.message);
+    }
+  }
+
+  const siteID = String(process.env.NETLIFY_SITE_ID || '').trim();
+  const token = String(process.env.NETLIFY_AUTH_TOKEN || '').trim();
+  if (siteID && token) {
+    try {
+      return getStore({ name: storeName, siteID, token });
+    } catch (e) {
+      console.warn(`[blobs] getStore(${storeName}) explicit creds failed:`, e.message);
+    }
+  }
+
+  return getStore(storeName);
 }
 
 /** List all blob keys in a store; paginates and never throws. */
 async function listAllBlobs(store, label = 'store') {
   const blobs = [];
-  try {
-    for await (const page of store.list({ paginate: true })) {
-      blobs.push(...((page && page.blobs) || []));
-    }
+  if (!store || typeof store.list !== 'function') {
+    console.error(`[blobs] invalid store handle (${label})`);
     return blobs;
+  }
+  try {
+    const paged = store.list({ paginate: true });
+    if (paged && typeof paged[Symbol.asyncIterator] === 'function') {
+      for await (const page of paged) {
+        blobs.push(...((page && page.blobs) || []));
+      }
+      return blobs;
+    }
   } catch (e) {
     console.error(`[blobs] paginated list failed (${label}):`, e.message);
   }
