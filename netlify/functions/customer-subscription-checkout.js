@@ -1,7 +1,7 @@
 // Customer subscription checkout — Stripe Checkout (mode: subscription).
 // Prices computed server-side from customer-catalog.js — never trust client amounts.
 
-const { jsonCors, sanitizeText } = require('../lib/tech-security');
+const { blobsStore, jsonCors, sanitizeText } = require('../lib/tech-security');
 const { listRawBookings, normalizePhone, phonesMatch } = require('../lib/ops-db');
 const {
   CAR_PACKAGES, FLEET_PLANS, subscriberPrice, fleetMonthlyPrice, catalogForClient,
@@ -63,6 +63,20 @@ exports.handler = async (event) => {
         error: 'no_verified_booking',
         message: 'Complete a booking with this email and phone before subscribing.',
       });
+    }
+
+    const subsStore = await blobsStore('cd1-subscriptions');
+    const listing = await subsStore.list().catch(() => ({ blobs: [] }));
+    const existingSubs = await Promise.all(
+      ((listing && listing.blobs) || []).map(b => subsStore.get(b.key, { type: 'json' }).catch(() => null))
+    );
+    const hasActive = existingSubs.some(s =>
+      s && s.status === 'active' &&
+      String(s.email || '').toLowerCase() === auth.email &&
+      phonesMatch(auth.phone, String(s.phone || '').replace(/\D/g, ''))
+    );
+    if (hasActive) {
+      return jsonCors(409, { ok: false, error: 'subscription_already_active', message: 'You already have an active subscription.' });
     }
 
     const packId = sanitizeText(body.packId, 32);

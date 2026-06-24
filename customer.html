@@ -301,6 +301,18 @@ function togglePackDesc(){
 function selectFleet(id){
   _selectedFleetId=id||'';
   document.querySelectorAll('.fleet-btn').forEach(b=>b.classList.toggle('active',b.dataset.fleet===_selectedFleetId));
+  document.querySelectorAll('.sub-card-price').forEach(el=>{
+    const price=fleetMonthlyForPack(el.dataset.pack);
+    el.innerHTML='$'+price+'<span style="font-size:12px;color:var(--mu)">/mo</span>';
+  });
+}
+function fleetMonthlyForPack(packId){
+  const p=(CUSTOMER_CATALOG&&CUSTOMER_CATALOG.packages||[]).find(x=>x.id===packId);
+  if(!p) return 0;
+  if(!_selectedFleetId) return p.monthlyPrice;
+  const fleet=(CUSTOMER_CATALOG&&CUSTOMER_CATALOG.fleetPlans||[]).find(f=>f.id===_selectedFleetId);
+  const ex=fleet&&(fleet.examplePrices||[]).find(x=>x.packId===packId);
+  return ex?ex.monthlyTotal:p.monthlyPrice;
 }
 function renderSubscriptionSection(active){
   const packs=(CUSTOMER_CATALOG&&CUSTOMER_CATALOG.packages)||[];
@@ -315,16 +327,18 @@ function renderSubscriptionSection(active){
     </div>`;
   }
   const fleetBtns=`<div class="fleet-toggle">
-    <button type="button" class="fleet-btn active" data-fleet="" onclick="selectFleet('')">1 vehicle</button>
-    ${fleet.map(f=>`<button type="button" class="fleet-btn" data-fleet="${esc(f.id)}" onclick="selectFleet('${esc(f.id)}')">${esc(f.name)}</button>`).join('')}
+    <button type="button" class="fleet-btn${_selectedFleetId===''?' active':''}" data-fleet="" onclick="selectFleet('')">1 vehicle</button>
+    ${fleet.map(f=>`<button type="button" class="fleet-btn${_selectedFleetId===f.id?' active':''}" data-fleet="${esc(f.id)}" onclick="selectFleet('${esc(f.id)}')">${esc(f.name)}</button>`).join('')}
   </div>`;
-  const cards=packs.map((p,i)=>`<div class="sub-card${p.id==='maint'?' feat':''}">
+  const cards=packs.map(p=>{
+    const displayPrice=fleetMonthlyForPack(p.id);
+    return `<div class="sub-card${p.id==='maint'?' feat':''}">
     <div style="font-weight:800;font-size:14px;margin-bottom:4px">${esc(p.name)}</div>
-    <div style="font-family:var(--fd);font-size:22px;color:var(--green)">$${p.monthlyPrice}<span style="font-size:12px;color:var(--mu)">/mo</span></div>
+    <div class="sub-card-price" data-pack="${esc(p.id)}" data-base="${p.basePrice}" data-single="${p.monthlyPrice}" style="font-family:var(--fd);font-size:22px;color:var(--green)">$${displayPrice}<span style="font-size:12px;color:var(--mu)">/mo</span></div>
     <div style="font-size:11px;color:var(--mu);margin:6px 0;text-decoration:line-through">$${p.basePrice} walk-in</div>
     <div style="font-size:11px;color:var(--mu);margin-bottom:10px">${esc(p.tag||'')}</div>
     <button class="btn btn-p btn-sm" style="width:100%" onclick="startSubscription('${esc(p.id)}','${esc(active.id)}', this)">Subscribe via Stripe</button>
-  </div>`).join('');
+  </div>`;}).join('');
   return `${fleetBtns}<div class="sub-grid">${cards}</div>
     <p class="mp-note">${disc}% off walk-in pricing for monthly subscribers. One pack per vehicle — fleet plans bundle multiple cars at one location. Travel fee is flat per address, not per vehicle.</p>`;
 }
@@ -340,7 +354,7 @@ async function startSubscription(packId, bookingId, btn){
       body:JSON.stringify({action:'create_checkout',packId,fleetId:_selectedFleetId||undefined,bookingId,email,phone,customerName:nm(b),vehicle:b.vehicleLabel||b.vehicle||''})
     });
     const data=await res.json().catch(()=>({}));
-    if(!data.ok||!data.url) throw new Error(data.error||data.message||'checkout_failed');
+    if(!data.ok||!data.url) throw new Error(data.message||data.error||'checkout_failed');
     location.href=data.url;
   }catch(e){
     alert('Could not start checkout. Please call 551-313-2956.');
@@ -532,11 +546,17 @@ function initApp(useCurrent=false){
   document.getElementById('tb-nm').textContent=name.split(' ')[0]||'Customer';
   document.getElementById('s-lookup').style.display='none';
   document.getElementById('s-app').style.display='block';
-  loadCatalogAndSubs().then(()=>renderStatus());
-  if(new URLSearchParams(location.search).get('subscribed')==='1'){
-    history.replaceState({},'',location.pathname);
-    setTimeout(()=>alert('✅ Subscription activated! Thank you for joining our monthly plan.'),400);
-  }
+  loadCatalogAndSubs().then(()=>{
+    renderStatus();
+    if(new URLSearchParams(location.search).get('subscribed')==='1'){
+      history.replaceState({},'',location.pathname);
+      if(CUSTOMER_SUBS.some(s=>s.status==='active')){
+        setTimeout(()=>alert('✅ Subscription activated! Thank you for joining our monthly plan.'),400);
+      }else{
+        setTimeout(()=>alert('Payment received — your subscription is processing. Refresh in a minute or contact us if it does not appear.'),400);
+      }
+    }
+  });
 }
 
 function showTab(name){
