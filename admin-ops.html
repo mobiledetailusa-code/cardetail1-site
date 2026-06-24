@@ -943,8 +943,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const dgpl = $('#dGenPayLink'); if(dgpl) dgpl.onclick = async () => {
       try {
         const amt = prompt('Charge amount ($) — leave blank for booking total', j.totalPrice || '');
-        const d = await jobAction(j.id,'generate_stripe_pay_link',{ amount: amt ? Number(amt) : undefined });
-        if(d.url){ $('#dPayLink').value = d.url; await navigator.clipboard.writeText(d.url).catch(()=>{}); toast('Stripe link generated & copied'); }
+        const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'generate_stripe_pay_link',bookingId:j.id,amount:amt?Number(amt):undefined});
+        if(d.url){ $('#dPayLink').value = d.url; await navigator.clipboard.writeText(d.url).catch(()=>{}); toast('Stripe link generated & copied'); await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id); }
       } catch(e){ toast(e.message); }
     };
     const dcpl = $('#dCopyPayLink'); if(dcpl) dcpl.onclick = async () => {
@@ -952,13 +952,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if(!u){ toast('No link to copy'); return; }
       try { await navigator.clipboard.writeText(u); toast('Link copied'); } catch(e){ prompt('Copy link:', u); }
     };
-    const dcns = $('#dChargeNoShow'); if(dcns) dcns.onclick = () => {
+    const dcns = $('#dChargeNoShow'); if(dcns) dcns.onclick = async () => {
       if(!confirm('Charge $75 no-show fee to card on file?')) return;
-      jobAction(j.id,'charge_policy_fee',{feeType:'no_show',amount:75}).then(d=>toast('Charge '+d.status+' · $'+d.amount)).catch(e=>toast(e.message));
+      try { const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'charge_policy_fee',bookingId:j.id,feeType:'no_show',amount:75}); toast('Charge '+d.status+' · $'+d.amount); await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id); } catch(e){ toast(e.message); }
     };
-    const dclc = $('#dChargeLateCancel'); if(dclc) dclc.onclick = () => {
+    const dclc = $('#dChargeLateCancel'); if(dclc) dclc.onclick = async () => {
       if(!confirm('Charge $50 late-cancellation fee to card on file?')) return;
-      jobAction(j.id,'charge_policy_fee',{feeType:'late_cancel',amount:50}).then(d=>toast('Charge '+d.status+' · $'+d.amount)).catch(e=>toast(e.message));
+      try { const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'charge_policy_fee',bookingId:j.id,feeType:'late_cancel',amount:50}); toast('Charge '+d.status+' · $'+d.amount); await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id); } catch(e){ toast(e.message); }
     };
     const drf = $('#dRefund'); if(drf) drf.onclick = () => jobAction(j.id,'record_refund_request',{reason:$('#dRefundNote').value.trim(),amount:$('#dRefundAmt').value});
     const dsb = $('#dSaveBal'); if(dsb) dsb.onclick = () => jobAction(j.id,'record_job_balance',{finalAmount:$('#dFinalAmt').value,techPayoutAmount:$('#dTechPay').value});
