@@ -88,6 +88,17 @@ exports.handler = async (event) => {
     if (!secret) return jsonCors(503, { ok: false, error: 'stripe_not_configured' });
 
     const bookingId = sanitizeText(body.bookingId, 48);
+    if (bookingId) {
+      const bookings = await listRawBookings().catch(() => []);
+      const bound = bookings.find(b =>
+        b.id === bookingId &&
+        String(b.email || '').toLowerCase() === auth.email &&
+        phonesMatch(auth.phone, normalizePhone(b.phone || b.customerPhone || ''))
+      );
+      if (!bound) {
+        return jsonCors(403, { ok: false, error: 'booking_mismatch', message: 'Booking does not match your email and phone.' });
+      }
+    }
     const vehicle = sanitizeText(body.vehicle, 120);
     const customerName = sanitizeText(body.customerName, 120);
     const base = process.env.SITE_URL || (event.headers && `https://${event.headers.host}`) || 'https://cardetail1.com';

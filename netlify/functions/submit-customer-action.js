@@ -158,7 +158,11 @@ exports.handler = async (event) => {
     ].join('\n');
   } else if (action === 'package_change_request') {
     const newPackId = String(p.newPackId || '').slice(0, 32).trim();
-    const newPackName = String(p.newPackName || '').slice(0, 120).trim();
+    const { CAR_PACKAGES } = require('../lib/customer-catalog');
+    const catalogPack = CAR_PACKAGES.find(cp => cp.id === newPackId);
+    const newPackName = catalogPack
+      ? catalogPack.name
+      : String(p.newPackName || '').slice(0, 120).trim();
     if (!newPackName) return json(400, { ok: false, userMessage: 'Please select a package.' });
     updates = {
       packageChangeRequested: true,

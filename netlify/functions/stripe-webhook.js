@@ -345,7 +345,10 @@ exports.handler = async (event) => {
     case 'checkout.session.completed': {
       const sess = evt.data.object;
       const meta = sess.metadata || {};
-      if (meta.type === 'customer_subscription') {
+      if (meta.type === 'customer_subscription' &&
+          sess.mode === 'subscription' &&
+          sess.payment_status === 'paid' &&
+          sess.subscription) {
         results.subscription = await activateCustomerSubscription(sess, meta);
         await notifyAdmin(
           `Cardetail1 — subscription activated · ${meta.email || '—'}`,
