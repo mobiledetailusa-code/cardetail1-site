@@ -1087,6 +1087,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   .hero-stats{gap:18px}
   .hstat-val{font-size:28px}
   .hstat-lbl{font-size:10px}
+  .hero-year-round{margin:-12px auto 22px;font-size:10px;padding:6px 14px}
+  .hstat-wide{max-width:none}
+  .hstat-val-sm{font-size:22px!important}
 
   /* ── PHONE CTA — stack the two cards so the second doesn't overflow ── */
   .phone-cta-grid{grid-template-columns:1fr!important}
@@ -4224,7 +4227,10 @@ function goToConfirmFromTerms(){
 
 // ── STEP 7: CONFIRM ───────────────────────────────────────────────────────────
 function fillConfirm(){
-  const total=ST.basePrice+ST.addonTotal;
+  const fee = getTravelFeeAmount();
+  const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
+  const cartBase = vehicles.reduce((s,v)=>s+(v.subtotal||0),0);
+  const total = cartBase + fee;
   const tsel=document.getElementById('f-time').value||'Any available';
   const catLabels={cars:'Cars & Trucks',boats:'Boats & Marine',rvs:'RVs & Trailers',powersports:'Powersports',fleet:'Fleet Services'};
   const visual=VEHICLE_VISUALS[getVehicleVisualKey()]||CATEGORY_VISUALS[ST.cat]||VEHICLE_VISUALS.sedan;
@@ -4234,7 +4240,7 @@ function fillConfirm(){
   document.getElementById('c-veh').textContent=ST.vehicleLabel;
   document.getElementById('c-pkg').textContent=(ST.pkg?.name||'—')+' Package';
   document.getElementById('c-pprice').textContent=ST.basePrice ? '$'+ST.basePrice : 'Estimate';
-  document.getElementById('c-total').textContent=total ? '$'+total : 'Estimate';
+  document.getElementById('c-total').textContent=total ? '$'+total+(fee?' (incl. travel)':'') : 'Estimate';
   document.getElementById('c-name').textContent=document.getElementById('f-first').value+' '+document.getElementById('f-last').value;
   document.getElementById('c-phone').textContent=document.getElementById('f-phone').value;
   document.getElementById('c-email').textContent=document.getElementById('f-email').value;
