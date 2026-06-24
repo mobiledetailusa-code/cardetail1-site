@@ -1542,8 +1542,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="sec-desc">See what customers say about Cardetail1 across cars, SUVs, RVs, and mobile detailing jobs throughout NJ and NY.</div>
 
     <div class="trust-row" style="margin-bottom:36px">
-      <div class="trust-item"><div class="trust-ico">🚗</div><div class="trust-val">500+</div><div class="trust-lbl">Vehicles Detailed</div></div>
-      <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val">3+</div><div class="trust-lbl">Years in Service</div></div>
+      <div class="trust-item"><div class="trust-ico">🚗</div><div class="trust-val">2.8k+</div><div class="trust-lbl">Vehicles Detailed</div></div>
+      <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val">5+</div><div class="trust-lbl">Years in Service</div></div>
       <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">NJ · NY</div><div class="trust-lbl">Coverage Area</div></div>
       <div class="trust-item"><div class="trust-ico">⭐</div><div class="trust-val">5.0</div><div class="trust-lbl">Customer Rating</div></div>
     </div>
@@ -2471,6 +2471,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button onclick="showAdminTab('calendar')">📅 Calendar</button>
         <button onclick="showAdminTab('inquiries')" id="cd-inq-tab-btn">💬 Inquiries</button>
         <button onclick="showAdminTab('reviews')">⭐ Reviews</button>
+        <button onclick="showAdminTab('proof-engine')" style="background:rgba(34,197,94,.15);color:var(--gr);border-color:rgba(34,197,94,.3)">🏆 Proof Engine</button>
         <button onclick="exportBookingsCsv()">Export CSV</button>
         <button onclick="adminDataAudit()" title="Count bookings by status">📊 Audit</button>
         <button onclick="adminArchiveTestBookings()" title="Find and archive test bookings" style="color:var(--mu)">🧹 Test Cleanup</button>
@@ -2606,6 +2607,57 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
               <button onclick="saveGalleryItem()" style="background:var(--blue);color:#000;border:none;border-radius:6px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer">Save</button>
               <button onclick="closeGalleryForm()" style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:9px 16px;font-size:13px;cursor:pointer">Cancel</button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PROOF ENGINE ── -->
+      <div id="admin-proof-engine-view" style="display:none">
+        <div style="padding:20px;font-size:13px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+            <div><div style="font-size:18px;font-weight:700;color:var(--white)">🏆 Proof Engine</div><div style="color:var(--mu);font-size:12px;margin-top:2px">Turn completed jobs into marketing assets. Create proof cards, generate local SEO, GBP posts, Instagram captions, and customer follow-ups.</div></div>
+            <div style="display:flex;gap:8px"><button onclick="loadProofCards()" style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer">↻ Refresh</button><button onclick="showProofCreateForm()" style="background:var(--gr);color:#000;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">＋ Create Proof Card</button></div>
+          </div>
+          <div id="proof-msg" style="display:none;padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:12.5px"></div>
+          <div id="proof-list"></div>
+          <!-- CREATE / EDIT FORM -->
+          <div id="proof-form" style="display:none;background:var(--bg2);border:1px solid var(--bbr);border-radius:var(--rs);padding:18px;margin-top:14px">
+            <div style="font-weight:700;color:var(--white);margin-bottom:12px" id="proof-form-title">New Proof Card</div>
+            <input type="hidden" id="pc-edit-id">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+              <div><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">Vehicle Year</label><input id="pc-year" type="text" placeholder="2024" maxlength="4" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+              <div><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">Make</label><input id="pc-make" type="text" placeholder="Honda" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+              <div><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">Model</label><input id="pc-model" type="text" placeholder="Civic" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">Vehicle Class</label><input id="pc-class" type="text" placeholder="Sedan, SUV, Truck…" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+              <div><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">Service Package</label><input id="pc-package" type="text" placeholder="Interior Detail, Premium, etc." style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">Add-ons</label><input id="pc-addons" type="text" placeholder="Clay bar, ceramic coat…" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+              <div><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">City / Area *</label><input id="pc-city" type="text" placeholder="Fort Lee, NJ" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+            </div>
+            <div style="margin-bottom:10px"><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">Caption</label><input id="pc-caption" type="text" placeholder="Short description of the result" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+              <div><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">Photo URL</label><input id="pc-photo" type="url" placeholder="https://…" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+              <div><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">Before Photo URL</label><input id="pc-before" type="url" placeholder="https://…" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+              <div><label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">After Photo URL</label><input id="pc-after" type="url" placeholder="https://…" style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:13px;font-family:inherit"></div>
+            </div>
+            <div style="display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap;font-size:12px">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pc-approved" style="accent-color:var(--gr)"> Approve for public page</label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pc-gbp" style="accent-color:var(--blue)"> Approve for Google post</label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pc-ig" style="accent-color:var(--purple)"> Approve for Instagram</label>
+            </div>
+            <div style="display:flex;gap:8px"><button onclick="saveProofCard()" style="background:var(--gr);color:#000;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">Save Proof Card</button><button onclick="document.getElementById('proof-form').style.display='none'" style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer">Cancel</button></div>
+          </div>
+          <!-- DRAFTS PANEL -->
+          <div id="proof-drafts" style="display:none;background:var(--bg2);border:1px solid var(--bbr);border-radius:var(--rs);padding:18px;margin-top:14px">
+            <div style="font-weight:700;color:var(--white);margin-bottom:12px">📋 Marketing Drafts</div>
+            <div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:4px">Google Business Profile Post</div><textarea id="pd-gbp" readonly style="width:100%;min-height:100px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:12px;font-family:inherit;padding:10px;resize:vertical"></textarea><button onclick="copyDraft('pd-gbp')" style="margin-top:4px;background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer">Copy</button></div>
+            <div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:var(--purple);margin-bottom:4px">Instagram Caption</div><textarea id="pd-ig" readonly style="width:100%;min-height:120px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:12px;font-family:inherit;padding:10px;resize:vertical"></textarea><button onclick="copyDraft('pd-ig')" style="margin-top:4px;background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer">Copy</button></div>
+            <div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:var(--gr);margin-bottom:4px">Customer Follow-Up Message</div><textarea id="pd-followup" readonly style="width:100%;min-height:80px;background:var(--bg);border:1px solid var(--bbr);border-radius:6px;color:var(--white);font-size:12px;font-family:inherit;padding:10px;resize:vertical"></textarea><button onclick="copyDraft('pd-followup')" style="margin-top:4px;background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer">Copy</button></div>
+            <div><div style="font-size:11px;font-weight:700;color:var(--am);margin-bottom:4px">QR / Leave-Behind Links</div><div id="pd-qr" style="font-size:12px;color:var(--mu);line-height:2"></div></div>
+            <button onclick="document.getElementById('proof-drafts').style.display='none'" style="margin-top:12px;background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">Close</button>
           </div>
         </div>
       </div>
@@ -4607,10 +4659,140 @@ function showAdminTab(tab){
   const auc = document.getElementById('admin-auc-view'); if(auc) auc.style.display = tab==='auctions' ? 'block' : 'none';
   const rev = document.getElementById('admin-reviews-view'); if(rev) rev.style.display = tab==='reviews' ? 'block' : 'none';
   const gal = document.getElementById('admin-gallery-view'); if(gal) gal.style.display = tab==='gallery' ? 'block' : 'none';
+  const pe = document.getElementById('admin-proof-engine-view'); if(pe) pe.style.display = tab==='proof-engine' ? 'block' : 'none';
   if(tab==='calendar') renderAdminCalendar();
   if(tab==='inquiries') renderAdminInquiries();
   if(tab==='auctions') renderAuctions();
   if(tab==='gallery') loadGalleryAdmin();
+  if(tab==='proof-engine') loadProofCards();
+}
+
+// ── PROOF ENGINE (admin) ───────────────────────────────────────────────────
+const PROOF_URL = BACKEND_BASE+'/proof-cards';
+function _proofHeaders(){
+  const h={'Content-Type':'application/json'};
+  if(window._adminKey) h['x-admin-key']=window._adminKey;
+  return h;
+}
+function showProofCreateForm(){
+  document.getElementById('proof-form').style.display='block';
+  document.getElementById('proof-form-title').textContent='New Proof Card';
+  document.getElementById('pc-edit-id').value='';
+  ['pc-year','pc-make','pc-model','pc-class','pc-package','pc-addons','pc-city','pc-caption','pc-photo','pc-before','pc-after'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('pc-approved').checked=false;
+  document.getElementById('pc-gbp').checked=false;
+  document.getElementById('pc-ig').checked=false;
+}
+async function loadProofCards(){
+  const el=document.getElementById('proof-list');
+  if(!el)return;
+  el.innerHTML='<div style="color:var(--mu)">Loading proof cards…</div>';
+  try{
+    const r=await fetch(PROOF_URL,{method:'POST',headers:_proofHeaders(),body:JSON.stringify({action:'list'})});
+    const d=await r.json();
+    if(!d.ok){el.innerHTML='<div style="color:var(--rd)">'+esc(d.error||'Failed')+'</div>';return;}
+    const cards=d.cards||[];
+    if(!cards.length){el.innerHTML='<div style="color:var(--mu)">No proof cards yet. Create one from a completed booking or upload photos.</div>';return;}
+    el.innerHTML=cards.map(c=>{
+      const vehicle=[c.vehicleYear,c.vehicleMake,c.vehicleModel].filter(Boolean).join(' ');
+      const pub=c.approvedForPublic?'<span style="color:var(--gr)">Public</span>':'<span style="color:var(--mu)">Private</span>';
+      const img=c.photoUrl||c.afterPhotoUrl||'';
+      return '<div style="background:var(--bg2);border:1px solid var(--bbr);border-radius:var(--rs);padding:14px;margin-bottom:8px;display:flex;gap:14px;align-items:flex-start">'
+        +(img?'<img src="'+esc(img)+'" style="width:80px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0">':'')
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-weight:700;color:var(--white)">'+esc(vehicle||c.vehicleClass||'Vehicle')+'</div>'
+        +'<div style="font-size:11px;color:var(--mu)">'+esc(c.servicePackage||'Detail')+' · '+esc(c.cityArea||'')+' · '+pub+'</div>'
+        +(c.caption?'<div style="font-size:11px;color:var(--mu);margin-top:2px">'+esc(c.caption)+'</div>':'')
+        +'<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">'
+        +'<button onclick="editProofCard(\''+esc(c.id)+'\')" style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">Edit</button>'
+        +'<button onclick="generateDrafts(\''+esc(c.id)+'\')" style="background:rgba(77,163,255,.12);color:var(--blue);border:1px solid rgba(77,163,255,.25);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">Generate Drafts</button>'
+        +(c.approvedForPublic?'<a href="/work.html?slug='+esc(c.slug)+'" target="_blank" style="background:rgba(34,197,94,.12);color:var(--gr);border:1px solid rgba(34,197,94,.25);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;text-decoration:none">View Public Page</a>':'')
+        +'<button onclick="deleteProofCard(\''+esc(c.id)+'\')" style="background:rgba(239,68,68,.08);color:var(--rd);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">Delete</button>'
+        +'</div></div></div>';
+    }).join('');
+  }catch(_){el.innerHTML='<div style="color:var(--rd)">Network error.</div>';}
+}
+async function saveProofCard(){
+  const editId=document.getElementById('pc-edit-id').value;
+  const payload={
+    vehicleYear:document.getElementById('pc-year').value,
+    vehicleMake:document.getElementById('pc-make').value,
+    vehicleModel:document.getElementById('pc-model').value,
+    vehicleClass:document.getElementById('pc-class').value,
+    servicePackage:document.getElementById('pc-package').value,
+    addons:document.getElementById('pc-addons').value,
+    cityArea:document.getElementById('pc-city').value,
+    caption:document.getElementById('pc-caption').value,
+    photoUrl:document.getElementById('pc-photo').value,
+    beforePhotoUrl:document.getElementById('pc-before').value,
+    afterPhotoUrl:document.getElementById('pc-after').value,
+    approvedForPublic:document.getElementById('pc-approved').checked,
+    approvedForGooglePost:document.getElementById('pc-gbp').checked,
+    approvedForInstagram:document.getElementById('pc-ig').checked,
+  };
+  const body=editId?{action:'update',cardId:editId,updates:payload}:{action:'create',...payload};
+  try{
+    const r=await fetch(PROOF_URL,{method:'POST',headers:_proofHeaders(),body:JSON.stringify(body)});
+    const d=await r.json();
+    if(d.ok){
+      document.getElementById('proof-form').style.display='none';
+      const msg=document.getElementById('proof-msg');
+      if(msg){msg.style.display='block';msg.style.background='rgba(34,197,94,.12)';msg.style.color='var(--gr)';msg.textContent=editId?'Proof card updated.':'Proof card created.';}
+      loadProofCards();
+    }else{alert(d.error||'Failed to save.');}
+  }catch(_){alert('Network error.');}
+}
+async function editProofCard(id){
+  try{
+    const r=await fetch(PROOF_URL,{method:'POST',headers:_proofHeaders(),body:JSON.stringify({action:'list'})});
+    const d=await r.json();
+    const c=(d.cards||[]).find(x=>x.id===id);
+    if(!c){alert('Card not found.');return;}
+    document.getElementById('proof-form').style.display='block';
+    document.getElementById('proof-form-title').textContent='Edit Proof Card';
+    document.getElementById('pc-edit-id').value=id;
+    document.getElementById('pc-year').value=c.vehicleYear||'';
+    document.getElementById('pc-make').value=c.vehicleMake||'';
+    document.getElementById('pc-model').value=c.vehicleModel||'';
+    document.getElementById('pc-class').value=c.vehicleClass||'';
+    document.getElementById('pc-package').value=c.servicePackage||'';
+    document.getElementById('pc-addons').value=c.addons||'';
+    document.getElementById('pc-city').value=c.cityArea||'';
+    document.getElementById('pc-caption').value=c.caption||'';
+    document.getElementById('pc-photo').value=c.photoUrl||'';
+    document.getElementById('pc-before').value=c.beforePhotoUrl||'';
+    document.getElementById('pc-after').value=c.afterPhotoUrl||'';
+    document.getElementById('pc-approved').checked=!!c.approvedForPublic;
+    document.getElementById('pc-gbp').checked=!!c.approvedForGooglePost;
+    document.getElementById('pc-ig').checked=!!c.approvedForInstagram;
+  }catch(_){alert('Failed to load card.');}
+}
+async function deleteProofCard(id){
+  if(!confirm('Delete this proof card?'))return;
+  try{
+    const r=await fetch(PROOF_URL,{method:'POST',headers:_proofHeaders(),body:JSON.stringify({action:'delete',cardId:id})});
+    const d=await r.json();
+    if(d.ok) loadProofCards(); else alert(d.error||'Failed.');
+  }catch(_){alert('Network error.');}
+}
+async function generateDrafts(id){
+  try{
+    const r=await fetch(PROOF_URL,{method:'POST',headers:_proofHeaders(),body:JSON.stringify({action:'generate_drafts',cardId:id})});
+    const d=await r.json();
+    if(!d.ok){alert(d.error||'Failed.');return;}
+    document.getElementById('pd-gbp').value=d.gbpDraft||'';
+    document.getElementById('pd-ig').value=d.instagramCaption||'';
+    document.getElementById('pd-followup').value=d.followUpText||'';
+    const qr=d.qrLinks||{};
+    document.getElementById('pd-qr').innerHTML=Object.entries(qr).map(([k,v])=>'<div><b>'+esc(k)+':</b> <a href="'+esc(v)+'" target="_blank" style="color:var(--blue)">'+esc(v)+'</a></div>').join('');
+    document.getElementById('proof-drafts').style.display='block';
+  }catch(_){alert('Network error.');}
+}
+function copyDraft(id){
+  const el=document.getElementById(id);if(!el)return;
+  navigator.clipboard.writeText(el.value).then(()=>{
+    const btn=el.nextElementSibling;if(btn){const t=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=t,1500);}
+  }).catch(()=>{el.select();document.execCommand('copy');});
 }
 
 // ── GALLERY MANAGER (admin) ────────────────────────────────────────────────
