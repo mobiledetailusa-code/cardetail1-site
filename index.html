@@ -1363,12 +1363,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       </div>
     </div>
 
-    <div class="hero-stats" id="hero-stats">
-      <div class="hstat"><div class="hstat-val" id="stat-vehicles">2.8k+</div><div class="hstat-lbl">Vehicles Detailed</div></div>
-      <div class="hstat"><div class="hstat-val">5+</div><div class="hstat-lbl">Years in Service</div></div>
-      <div class="hstat hstat-wide"><div class="hstat-val hstat-val-sm">Tristate</div><div class="hstat-lbl">NJ · NY · CT + PA</div></div>
-    </div>
-    <div class="hero-year-round">☀ All year round</div>
     <a class="hero-tel-mobile" href="tel:5513132956">📞 Call or Text: 551-313-2956</a>
   </div>
   <div class="hero-scroll">↓ Scroll</div>
@@ -1545,12 +1539,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   <div class="section">
     <div class="sec-eye">Customer Reviews &amp; Recent Feedback</div>
     <div class="sec-title">TRUSTED ON<br>REAL VEHICLES.</div>
-    <div class="sec-desc">See what customers say about Cardetail1 across cars, SUVs, RVs, and mobile detailing jobs throughout NJ and NY.</div>
+    <div class="sec-desc">See what customers say about Cardetail1 across cars, SUVs, RVs, and mobile detailing throughout the Tristate — NJ, NY, CT and surrounding areas + PA.</div>
 
     <div class="trust-row" style="margin-bottom:36px">
-      <div class="trust-item"><div class="trust-ico">🚗</div><div class="trust-val">500+</div><div class="trust-lbl">Vehicles Detailed</div></div>
-      <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val">3+</div><div class="trust-lbl">Years in Service</div></div>
-      <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">NJ · NY</div><div class="trust-lbl">Coverage Area</div></div>
+      <div class="trust-item"><div class="trust-ico">🚗</div><div class="trust-val" id="trust-stat-vehicles">2.8k+</div><div class="trust-lbl">Vehicles Detailed</div></div>
+      <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val">5+</div><div class="trust-lbl">Years in Service</div></div>
+      <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val" style="font-size:clamp(18px,3vw,24px)">Tristate</div><div class="trust-lbl">NJ · NY · CT + PA</div></div>
+      <div class="trust-item"><div class="trust-ico">☀</div><div class="trust-val" style="font-size:clamp(16px,2.8vw,22px)">All Year</div><div class="trust-lbl">Round Service</div></div>
       <div class="trust-item"><div class="trust-ico">⭐</div><div class="trust-val">5.0</div><div class="trust-lbl">Customer Rating</div></div>
     </div>
 
@@ -7391,7 +7386,7 @@ function _updateHomeFromPrices(){
   const visits = (parseInt(localStorage.getItem(KEY)||'0',10)||0) + 1;
   localStorage.setItem(KEY, String(visits));
   const shown = BASE + Math.floor(visits / 2);
-  const el = document.getElementById('stat-vehicles');
+  const el = document.getElementById('trust-stat-vehicles');
   if(!el) return;
   if(shown >= 1000){
     const k = shown / 1000;
