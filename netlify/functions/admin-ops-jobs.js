@@ -234,6 +234,96 @@ async function handleAdminAction(body) {
     return jsonCors(200, { ok: true, bookingId });
   }
 
+  if (action === 'generate_stripe_pay_link') {
+    const secret = process.env.STRIPE_SECRET_KEY;
+    if (!secret) return jsonCors(503, { ok: false, error: 'stripe_not_configured' });
+    const amountDollars = body.amount != null
+      ? Math.round(Number(body.amount) * 100) / 100
+      : Math.round(Number(booking.totalPrice || booking.finalAmount || 0) * 100) / 100;
+    const amountCents = Math.round(amountDollars * 100);
+    if (amountCents < 50) return jsonCors(400, { ok: false, error: 'amount_too_low' });
+    const base = process.env.SITE_URL || 'https://cardetail1.netlify.app';
+    const form = new URLSearchParams({
+      mode: 'payment',
+      'line_items[0][price_data][currency]': 'usd',
+      'line_items[0][price_data][product_data][name]': `Cardetail1 · ${bookingId}`,
+      'line_items[0][price_data][unit_amount]': String(amountCents),
+      'line_items[0][quantity]': '1',
+      success_url: `${base}/customer.html?paid=1`,
+      cancel_url: `${base}/customer.html?canceled=1`,
+    });
+    if (booking.email) form.append('customer_email', booking.email);
+    form.append('metadata[booking_id]', bookingId);
+    const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form,
+    });
+    const sess = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return jsonCors(res.status, { ok: false, error: (sess.error && sess.error.message) || 'stripe_error' });
+    }
+    await store.setJSON(bookingId, {
+      ...booking,
+      payLink: sess.url,
+      paymentWorkflowStatus: 'awaiting_customer_payment',
+      payLinkSentAt: now,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'stripe_pay_link_generated', by: 'admin', amount: amountDollars }),
+    });
+    return jsonCors(200, { ok: true, bookingId, url: sess.url, id: sess.id });
+  }
+
+  if (action === 'charge_policy_fee') {
+    const secret = process.env.STRIPE_SECRET_KEY;
+    if (!secret) return jsonCors(503, { ok: false, error: 'stripe_not_configured' });
+    const feeType = sanitizeText(body.feeType, 32);
+    const preset = { no_show: 75, late_cancel: 50 };
+    const amountDollars = body.amount != null
+      ? Math.round(Number(body.amount) * 100) / 100
+      : (preset[feeType] || 50);
+    const amountCents = Math.round(amountDollars * 100);
+    const customerId = booking.stripeCustomerId;
+    const pmId = booking.stripePaymentMethodId;
+    if (!customerId || !pmId) {
+      return jsonCors(409, { ok: false, error: 'no_card_on_file', message: 'Booking has no saved Stripe customer/payment method.' });
+    }
+    const form = new URLSearchParams({
+      amount: String(amountCents),
+      currency: 'usd',
+      customer: customerId,
+      payment_method: pmId,
+      off_session: 'true',
+      confirm: 'true',
+      description: `Cardetail1 policy fee · ${bookingId} · ${feeType || 'policy'}`,
+      'metadata[booking_id]': bookingId,
+      'metadata[fee_type]': feeType || 'policy',
+    });
+    const res = await fetch('https://api.stripe.com/v1/payment_intents', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form,
+    });
+    const pi = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return jsonCors(res.status, { ok: false, error: (pi.error && pi.error.message) || 'stripe_charge_failed' });
+    }
+    const succeeded = pi.status === 'succeeded';
+    await store.setJSON(bookingId, {
+      ...booking,
+      policyChargeStatus: succeeded ? 'charged' : pi.status,
+      policyChargeAmount: amountDollars,
+      policyChargeType: feeType || 'policy',
+      policyChargeAt: now,
+      policyPaymentIntentId: pi.id,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, {
+        action: 'policy_fee_charged', by: 'admin', feeType, amount: amountDollars, status: pi.status,
+      }),
+    });
+    return jsonCors(200, { ok: true, bookingId, paymentIntentId: pi.id, status: pi.status, amount: amountDollars });
+  }
+
   if (action === 'record_refund_request') {
     const reason = sanitizeText(body.reason, 500);
     const amount = body.amount != null ? Math.round(Number(body.amount) * 100) / 100 : null;

@@ -805,11 +805,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   async function jobAction(bookingId, action, extra) {
     try {
-      await api('/.netlify/functions/admin-ops-jobs','POST',{action,bookingId,...extra});
+      const data = await api('/.netlify/functions/admin-ops-jobs','POST',{action,bookingId,...extra});
       toast('Saved');
       await refreshAll();
       if (activeJob && activeJob.id===bookingId) openDrawer(bookingId);
-    } catch(e) { toast('Action failed: '+e.message); }
+      return data;
+    } catch(e) { toast('Action failed: '+e.message); throw e; }
   }
 
   function openDrawer(id) {
@@ -866,19 +867,28 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<button type="button" class="btn sm" id="dPostAuc">Post to auction</button>'+
       '<button type="button" class="btn ghost sm" id="dAssignWin">Assign auction winner</button></div></div>';
     html += '<div class="sec"><h4>Payment workflow</h4><div style="margin-bottom:10px">'+payBadge(j.paymentWorkflowStatus)+
-      (j.payLink?' <a href="'+esc(j.payLink)+'" target="_blank" rel="noopener">Pay link</a>':'')+'</div>'+
+      (j.payLink?' <a href="'+esc(j.payLink)+'" target="_blank" rel="noopener">Pay link</a>':'')+
+      (j.policyChargeStatus?(' · Policy charge: '+esc(j.policyChargeStatus)+(j.policyChargeAmount?' $'+j.policyChargeAmount:'')):'' )+'</div>'+
       '<div class="op-grid">'+
       '<div class="full"><label>Payment preference</label><select id="dPayPref">'+
       ['cash_on_site','card_on_site','online_after_service','card_on_file'].map(p=>'<option value="'+p+'"'+(j.paymentMethodPreference===p?' selected':'')+'>'+p.replace(/_/g,' ')+'</option>').join('')+
       '</select></div>'+
       '<div class="full"><button type="button" class="btn ghost sm" id="dSavePref" style="width:100%">Update payment preference</button></div>'+
       '<div class="full"><label>Payment link URL (Stripe Checkout)</label><input type="url" id="dPayLink" placeholder="https://..." value="'+esc(j.payLink||'')+'"></div>'+
-      '<div class="full"><button type="button" class="btn sm" id="dSetPayLink" style="width:100%">Save payment link for customer</button></div>'+
+      '<div class="full actions">'+
+      '<button type="button" class="btn sm" id="dGenPayLink">Generate Stripe link</button>'+
+      '<button type="button" class="btn ghost sm" id="dCopyPayLink">Copy link</button>'+
+      '<button type="button" class="btn ghost sm" id="dSetPayLink">Save manual link</button>'+
+      '</div>'+
+      '<div class="full actions" style="margin-top:4px">'+
+      '<button type="button" class="btn warn sm" id="dChargeNoShow">Charge no-show ($75)</button>'+
+      '<button type="button" class="btn warn sm" id="dChargeLateCancel">Charge late cancel ($50)</button>'+
+      '</div>'+
+      '<p class="hint">Policy charges use card on file (off-session). Requires saved Stripe payment method on booking.</p>'+
       '<div class="full"><label>Refund note</label><input type="text" id="dRefundNote" placeholder="Reason for refund request"></div>'+
       '<div><label>Refund amount ($)</label><input type="number" id="dRefundAmt" step="0.01"></div>'+
       '<div class="full"><button type="button" class="btn warn sm" id="dRefund" style="width:100%">Log refund request</button></div>'+
-      '</div>'+
-      '<p class="hint" style="margin-top:8px">Stripe charge/invoice automation — next PR. Use payment link + manual refund in Stripe for now.</p></div>';
+      '</div></div>';
     if (j.adminNotes) html += '<div class="sec"><h4>Admin notes</h4><pre style="font-size:12px;white-space:pre-wrap;color:var(--mu)">'+esc(j.adminNotes)+'</pre></div>';
     if (j.completionSubmitted || j.customerSignature) {
       html += '<div class="sec"><h4>Completion</h4><div class="kv">'+
@@ -930,6 +940,26 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const daw = $('#dAssignWin'); if(daw) daw.onclick = () => jobAction(j.id,'assign_auction_winner');
     const dsp = $('#dSavePref'); if(dsp) dsp.onclick = () => jobAction(j.id,'update_payment_preference',{paymentMethodPreference:$('#dPayPref').value});
     const dspl = $('#dSetPayLink'); if(dspl) dspl.onclick = () => jobAction(j.id,'set_payment_link',{payLink:$('#dPayLink').value.trim()});
+    const dgpl = $('#dGenPayLink'); if(dgpl) dgpl.onclick = async () => {
+      try {
+        const amt = prompt('Charge amount ($) — leave blank for booking total', j.totalPrice || '');
+        const d = await jobAction(j.id,'generate_stripe_pay_link',{ amount: amt ? Number(amt) : undefined });
+        if(d.url){ $('#dPayLink').value = d.url; await navigator.clipboard.writeText(d.url).catch(()=>{}); toast('Stripe link generated & copied'); }
+      } catch(e){ toast(e.message); }
+    };
+    const dcpl = $('#dCopyPayLink'); if(dcpl) dcpl.onclick = async () => {
+      const u = ($('#dPayLink').value||'').trim();
+      if(!u){ toast('No link to copy'); return; }
+      try { await navigator.clipboard.writeText(u); toast('Link copied'); } catch(e){ prompt('Copy link:', u); }
+    };
+    const dcns = $('#dChargeNoShow'); if(dcns) dcns.onclick = () => {
+      if(!confirm('Charge $75 no-show fee to card on file?')) return;
+      jobAction(j.id,'charge_policy_fee',{feeType:'no_show',amount:75}).then(d=>toast('Charge '+d.status+' · $'+d.amount)).catch(e=>toast(e.message));
+    };
+    const dclc = $('#dChargeLateCancel'); if(dclc) dclc.onclick = () => {
+      if(!confirm('Charge $50 late-cancellation fee to card on file?')) return;
+      jobAction(j.id,'charge_policy_fee',{feeType:'late_cancel',amount:50}).then(d=>toast('Charge '+d.status+' · $'+d.amount)).catch(e=>toast(e.message));
+    };
     const drf = $('#dRefund'); if(drf) drf.onclick = () => jobAction(j.id,'record_refund_request',{reason:$('#dRefundNote').value.trim(),amount:$('#dRefundAmt').value});
     const dsb = $('#dSaveBal'); if(dsb) dsb.onclick = () => jobAction(j.id,'record_job_balance',{finalAmount:$('#dFinalAmt').value,techPayoutAmount:$('#dTechPay').value});
     $('#drawerBg').classList.add('open'); $('#drawer').classList.add('open');

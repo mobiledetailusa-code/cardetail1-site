@@ -32,6 +32,43 @@ exports.handler = async (event) => {
     return jsonCors(200, { ok: true, templates: MAINTENANCE_PLAN_TEMPLATES });
   }
 
+  if (action === 'customer_signup') {
+    const email = sanitizeText(body.email, 200).toLowerCase();
+    const phone = String(body.phone || '').replace(/\D/g, '').slice(0, 15);
+    const customerName = sanitizeText(body.customerName, 120);
+    const planId = sanitizeText(body.planId, 48);
+    const tpl = MAINTENANCE_PLAN_TEMPLATES.find(p => p.id === planId);
+    const intervalMonths = Number(body.intervalMonths) || (tpl && tpl.intervalMonths) || 1;
+    const price = Number(body.price) || (tpl && tpl.suggestedPrice) || 0;
+    if (!email.includes('@')) return jsonCors(400, { ok: false, error: 'valid_email_required' });
+    if (!phone || phone.length < 7) return jsonCors(400, { ok: false, error: 'phone_required' });
+
+    const store = await blobsStore(SUBS_STORE);
+    const now = new Date().toISOString();
+    const id = subId();
+    const sub = {
+      id,
+      customerName,
+      email,
+      phone,
+      planId: planId || 'custom',
+      planName: sanitizeText(body.planName || (tpl && tpl.name) || 'Maintenance', 80),
+      intervalMonths,
+      price,
+      billingCycle: sanitizeText(body.billingCycle || 'monthly', 16),
+      status: 'pending_activation',
+      maxDetailsPerMonth: 1,
+      address: sanitizeText(body.address, 300),
+      vehicle: sanitizeText(body.vehicle, 120),
+      nextVisitDate: sanitizeText(body.nextVisitDate, 32),
+      notes: 'Customer portal signup — pending admin activation',
+      createdAt: now,
+      updatedAt: now,
+    };
+    await store.setJSON(id, sub);
+    return jsonCors(200, { ok: true, subscription: { id: sub.id, planName: sub.planName, status: sub.status } });
+  }
+
   const auth = await verifyAdminKey(event.headers || {});
   if (!auth.ok) return jsonCors(auth.error === 'missing_admin_password_config' ? 503 : 401, { ok: false, error: auth.error });
 

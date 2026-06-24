@@ -221,33 +221,33 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
     <!-- PLANS -->
     <div class="page" id="page-plans">
       <div class="pg-t">Membership Plans</div>
-      <div class="pg-s">Save up to 20% with a monthly plan. Cancel anytime.</div>
+      <div class="pg-s">Save with a maintenance plan — max 1 detail per month. We'll confirm billing after signup.</div>
       <div id="plan-banner"></div>
-      <div class="plan-grid">
+      <div class="plan-grid" id="plan-grid">
         <div class="plan">
           <div class="plan-nm">🧼 Maintenance</div>
           <div class="plan-pr">$79<span>/mo</span></div>
-          <div class="plan-sub">1 maintenance wash/month · Cars</div>
-          <ul class="plan-feats"><li>Monthly exterior hand wash</li><li>Wheels & tires dressed</li><li>Interior vacuum & wipe</li><li>Priority scheduling</li><li>Save ~$10/visit</li></ul>
-          <button class="plan-btn" onclick="joinPlan('Maintenance','79')">Join — $79/mo</button>
+          <div class="plan-sub">1 maintenance detail/month · Cars · ~12% off walk-in</div>
+          <ul class="plan-feats"><li>Monthly exterior hand wash</li><li>Wheels & tires dressed</li><li>Interior vacuum & wipe</li><li>Max 1 visit/month</li><li>Priority scheduling</li></ul>
+          <button class="plan-btn" onclick="joinPlan('maint-monthly','Monthly Maintenance',79,1)">Join — $79/mo</button>
         </div>
         <div class="plan feat">
           <div class="plan-tag">Most Popular</div>
-          <div class="plan-nm">✨ Full Detail</div>
-          <div class="plan-pr">$149<span>/mo</span></div>
-          <div class="plan-sub">Full detail monthly · All vehicles</div>
-          <ul class="plan-feats"><li>Full exterior + interior</li><li>Clay bar treatment</li><li>Paint sealant</li><li>Leather/fabric conditioning</li><li>Priority scheduling</li><li>Save ~$30/visit</li></ul>
-          <button class="plan-btn" onclick="joinPlan('Full Detail','149')">Join — $149/mo</button>
+          <div class="plan-nm">✨ Quarterly</div>
+          <div class="plan-pr">$119<span>/qtr</span></div>
+          <div class="plan-sub">Full detail every 3 months · All vehicles</div>
+          <ul class="plan-feats"><li>Full exterior + interior</li><li>Clay bar treatment</li><li>Paint sealant</li><li>Max 1 visit/month</li><li>Priority scheduling</li></ul>
+          <button class="plan-btn" onclick="joinPlan('maint-quarterly','Quarterly',119,3)">Join — $119/qtr</button>
         </div>
         <div class="plan">
-          <div class="plan-nm">👑 VIP Premium</div>
-          <div class="plan-pr">$229<span>/mo</span></div>
-          <div class="plan-sub">Premium detail biweekly</div>
-          <ul class="plan-feats"><li>Premium detail 2×/month</li><li>Machine polish included</li><li>Same-day availability</li><li>Dedicated technician</li><li>Save ~$110/month</li></ul>
-          <button class="plan-btn" onclick="joinPlan('VIP Premium','229')">Join — $229/mo</button>
+          <div class="plan-nm">👑 Annual</div>
+          <div class="plan-pr">$199<span>/yr</span></div>
+          <div class="plan-sub">Annual premium detail · ~15% off vs one-time</div>
+          <ul class="plan-feats"><li>Premium detail 1×/year</li><li>Machine polish option</li><li>Same-day when available</li><li>Max 1 visit/month cap</li><li>Annual billing commitment</li></ul>
+          <button class="plan-btn" onclick="joinPlan('maint-annual','Annual Detail',199,12)">Join — $199/yr</button>
         </div>
       </div>
-      <p style="margin-top:16px;font-size:12px;color:var(--mu);text-align:center">Cancel anytime. Call us to activate: <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></p>
+      <p style="margin-top:16px;font-size:12px;color:var(--mu);text-align:center">Travel fee is flat per location (not per vehicle). Plans pending admin activation — call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a> with questions.</p>
     </div>
 
   </div>
@@ -446,6 +446,7 @@ function renderStatus(){
 
   const canReschedule=!isCanceled && !isCompleted && !isInProgress && !isEnRoute && !['cancelled'].includes(jobSt);
   const isDone=isCompleted||active.status==='Paid';
+  const isClosed = jobSt === 'closed' || active.status === 'Closed';
 
   _cancelBookingId = active.id || '';
   const cofStatus = active.cardOnFileStatus || 'pending';
@@ -453,6 +454,8 @@ function renderStatus(){
   const paymentPreference=prefLabels[active.paymentMethodPreference]||'Not available';
   const cancelRequested=active.cancellationRequestStatus==='requested';
   const canCancel = !cancelRequested && !isCanceled && !isCompleted && !isClosed;
+  const canRequestAddons = canReschedule && !active.addonsRequested;
+  const travelFee = active.travelFeeAmount || active.zoneSurcharge || 0;
 
   let cofBanner = '';
   if (cofStatus === 'saved' && !isApptConfirmed && !isCanceled) {
@@ -507,9 +510,11 @@ function renderStatus(){
   let acts=`<a href="index.html" class="btn btn-g btn-sm">+ Book Again</a>`;
   if(canReschedule){ acts+=`<button class="btn btn-yw btn-sm" onclick="openReschedule('${esc(active.id)}')">📅 Reschedule</button>`; }
   if(canReschedule){ acts+=`<button class="btn btn-tl btn-sm" onclick="openAddressChange('${esc(active.id)}')">📍 Change Address</button>`; }
+  if(canRequestAddons){ acts+=`<button class="btn btn-tl btn-sm" onclick="openAddonRequest('${esc(active.id)}')">➕ Request Add-ons</button>`; }
   if(isDone&&!active.reviewLeft){ acts+=`<button class="btn btn-p btn-sm" onclick="openReview('${esc(active.id)}')">⭐ Leave Review</button>`; }
-  if(active.payLink && ['payment_action_required','awaiting_customer_payment'].includes(paySt)){
-    acts+=`<a href="${esc(active.payLink)}" class="btn btn-p btn-sm" target="_blank" rel="noopener">💳 Pay Invoice</a>`;
+  if(active.payLink){
+    acts+=`<a href="${esc(active.payLink)}" class="btn btn-p btn-sm" target="_blank" rel="noopener">💳 Prepay Online</a>`;
+    acts+=`<button class="btn btn-g btn-sm" onclick='copyPayLink(${JSON.stringify(active.payLink)})'>Copy Pay Link</button>`;
   }
   if(canCancel){ acts+=`<button class="btn btn-sm" style="background:transparent;border:1px solid rgba(239,68,68,.4);color:#ef4444" onclick="showCancelForm()">✕ Request Cancellation</button>`; }
 
@@ -528,6 +533,9 @@ function renderStatus(){
   </div>` : '';
 
   el.innerHTML=`
+    <div style="background:rgba(100,116,139,.06);border:1px solid rgba(100,116,139,.15);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:12px;color:var(--mu);line-height:1.6">
+      <strong style="color:var(--white)">Cancellation & payment policy:</strong> Cancellations within 24 hours of your confirmed window, no-shows, or denied access may incur a fee per our <a href="terms-conditions.html" target="_blank" style="color:var(--blue)">Terms</a>. No automatic charges — our team reviews each request. Card on file is required to secure bookings; prepay links are optional when sent by admin.
+    </div>
     ${apptBanner}
     ${cancelRequested?`<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.28);border-radius:10px;padding:12px 16px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:#f59e0b">Cancellation requested — pending manual review</div><div style="font-size:12px;color:var(--mu);margin-top:3px">No charge has been applied automatically and the booking remains on file.</div></div>`:''}
     ${cofBanner}
@@ -547,7 +555,7 @@ function renderStatus(){
             <div><div class="sfl" style="color:#22c55e">✓ Time Window</div><div class="sfv" style="color:#22c55e;font-weight:700">${esc(confirmedWindow||'TBD')}</div></div>`
           :`<div><div class="sfl">Preferred Date</div><div class="sfv">${esc(active.preferredDate||active.preferred_date||'TBD')}</div></div>
             <div><div class="sfl">Preferred Time</div><div class="sfv">${esc(active.preferredTime||'Any')}</div></div>`}
-        <div><div class="sfl">Total</div><div class="sfv" style="color:var(--green)">$${total}</div></div>
+        <div><div class="sfl">Total</div><div class="sfv" style="color:var(--green)">$${total}${travelFee?` <span style="font-size:11px;color:var(--mu)">(incl. $${travelFee} travel)</span>`:''}</div></div>
         <div><div class="sfl">Card on File</div><div class="sfv">${cofStatus==='saved'?'<span style="color:var(--green)">✓ Saved · No charge today</span>':esc(cofStatus)}</div></div>
         <div><div class="sfl">Payment Preference</div><div class="sfv">${esc(paymentPreference)}</div></div>
         <div><div class="sfl">Appointment</div><div class="sfv">${isApptConfirmed?'Confirmed':'Pending confirmation'}</div></div>
@@ -555,6 +563,8 @@ function renderStatus(){
         <div><div class="sfl">Location</div><div class="sfv">${esc(active.address||active.zone||active.zipCode||'—')}</div></div>
       </div>
       ${active.notes?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--mu)">Your notes: ${esc(active.notes)}</div>`:''}
+    ${active.addonsRequested?`<div style="margin-top:14px;padding:12px;background:rgba(45,212,191,.06);border:1px solid rgba(45,212,191,.2);border-radius:8px;font-size:12px"><strong>Add-on request pending:</strong> ${esc(active.requestedAddons||'—')}</div>`:''}
+    ${active.policyChargeStatus?`<div style="margin-top:14px;padding:12px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;font-size:12px"><strong>Policy charge:</strong> ${esc(active.policyChargeStatus)}${active.policyChargeAmount?' · $'+active.policyChargeAmount:''}</div>`:''}
       <div class="sh-acts">${acts}</div>
       ${cancelSection}
     </div>
@@ -600,27 +610,75 @@ function renderHistory(){
 
 // ── PLANS ────────────────────────────────
 function renderPlans(){
-  const sub=JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]').find(s=>CUSTOMER_KEY.includes(s.email||'x'));
+  const em=(CUSTOMER_KEY.split(':')[1]||'').toLowerCase();
+  const sub=JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]').find(s=>(s.email||'').toLowerCase()===em);
   document.getElementById('plan-banner').innerHTML=sub
     ?`<div style="background:rgba(0,200,83,.06);border:1px solid rgba(0,200,83,.18);border-radius:var(--r);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
-        <span>✅</span><div><div style="font-weight:700">Active: ${esc(sub.plan)} Plan</div><div style="font-size:12px;color:var(--mu)">Joined ${new Date(sub.since).toLocaleDateString()}</div></div>
-        <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="cancelPlan()">Cancel</button>
-      </div>`:'' ;
+        <span>✅</span><div><div style="font-weight:700">${esc(sub.planName||sub.plan||'Maintenance')} Plan</div><div style="font-size:12px;color:var(--mu)">${esc(sub.status||'pending')} · Joined ${new Date(sub.since||sub.createdAt||Date.now()).toLocaleDateString()}</div></div>
+      </div>`:'';
 }
-function joinPlan(plan,price){
-  if(!confirm(`Join the ${plan} plan for $${price}/month?\n\nOur team will contact you to set up billing.`)) return;
-  const subs=JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]');
-  const em=(CUSTOMER_KEY.split(':')[1]||'').toLowerCase();
-  subs.push({email:em,name:nm(CUSTOMER_BOOKINGS[0]||{}),plan,price:Number(price),since:new Date().toISOString()});
-  localStorage.setItem('cd1_subscriptions',JSON.stringify(subs));
-  alert(`🎉 Joined ${plan} plan! We'll call to confirm billing.`);
-  renderPlans();
+async function joinPlan(planId, planName, price, intervalMonths){
+  const b=CUSTOMER_BOOKINGS[0]||{};
+  const email=(b.email||'').trim().toLowerCase();
+  const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||(b.phone||'').replace(/\D/g,'');
+  if(!email.includes('@')||phone.length<7){
+    alert('We need your booking email and phone on file. Look up your booking first, or call 551-313-2956.');
+    return;
+  }
+  const cycle = intervalMonths===12?'annual':intervalMonths===1?'monthly':'quarterly';
+  if(!confirm(`Request ${planName} plan ($${price}/${cycle==='annual'?'yr':cycle==='quarterly'?'qtr':'mo'})?\n\nOur team will activate billing after review.`)) return;
+  try{
+    const res=await fetch('/.netlify/functions/subscriptions-ops',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'customer_signup',planId,planName,price,intervalMonths,billingCycle:cycle,email,phone,customerName:nm(b),vehicle:b.vehicleLabel||b.vehicle||''})
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok) throw new Error(data.error||'failed');
+    const subs=JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]').filter(s=>(s.email||'').toLowerCase()!==email);
+    subs.push({email,name:nm(b),planName,planId,price:Number(price),status:'pending_activation',since:new Date().toISOString()});
+    localStorage.setItem('cd1_subscriptions',JSON.stringify(subs));
+    alert(`✅ ${planName} signup received! We'll contact you to activate billing.`);
+    renderPlans();
+  }catch(e){ alert('Could not submit signup. Please call 551-313-2956.'); }
 }
 function cancelPlan(){
-  if(!confirm('Cancel your membership?')) return;
-  const em=(CUSTOMER_KEY.split(':')[1]||'').toLowerCase();
-  localStorage.setItem('cd1_subscriptions',JSON.stringify(JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]').filter(s=>s.email!==em)));
+  alert('To cancel your plan, please call 551-313-2956 or email us from your booking confirmation.');
   renderPlans();
+}
+
+function copyPayLink(url){
+  if(!url) return;
+  navigator.clipboard.writeText(url).then(()=>alert('Payment link copied!')).catch(()=>prompt('Copy payment link:',url));
+}
+
+function openAddonRequest(id){
+  document.getElementById('modal-inner').innerHTML=`
+    <div class="m-title">➕ Request Add-ons</div>
+    <p style="font-size:13px;color:var(--mu);margin-bottom:14px">Describe services to add. Our team will confirm pricing before applying.</p>
+    <label class="m-lbl">Requested add-ons</label>
+    <textarea class="m-inp" id="addon-req" placeholder="e.g. Pet hair removal, engine bay, ceramic top-up…" style="resize:vertical;min-height:90px"></textarea>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-p" style="flex:1" onclick="submitAddonRequest('${id}')">Submit Request</button>
+      <button class="btn btn-g" style="flex:1" onclick="closeModal()">Cancel</button>
+    </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+async function submitAddonRequest(id){
+  const requestedAddons=(document.getElementById('addon-req')?.value||'').trim();
+  if(!requestedAddons){ alert('Please describe the add-ons you want.'); return; }
+  const b=CUSTOMER_BOOKINGS.find(x=>x.id===id)||{};
+  const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||(b.phone||'').replace(/\D/g,'');
+  try{
+    const res=await fetch('/.netlify/functions/submit-customer-action',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bookingId:id,phone,action:'addon_request',requestedAddons})
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok) throw new Error(data.userMessage||'failed');
+    closeModal();
+    alert('✅ Add-on request submitted — pending admin approval.');
+    await refreshBookings();
+  }catch(e){ alert('Could not send request. Please call 551-313-2956.'); }
 }
 
 // ── RESCHEDULE MODAL ─────────────────────

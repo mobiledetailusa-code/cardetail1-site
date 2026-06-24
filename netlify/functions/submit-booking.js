@@ -42,6 +42,8 @@ const PAYMENT_PREFERENCES = new Set([
 const CARD_ON_FILE_VERIFY_MSG =
   'Your card is still being verified. Please wait a few seconds and try again.';
 
+const { normalizeTravelFields } = require('../lib/travel-fee');
+
 // Safe server-side fallback when webhook is delayed: verify SetupIntent with Stripe API.
 // Never trusts client proof — only persisted setupIntentId on the server-owned draft.
 async function reconcileCardOnFileFromStripe(store, existing) {
@@ -275,6 +277,17 @@ exports.handler = async (event) => {
 
   if (!b.firstName || !b.phone) return json(400, { ok: false, error: 'Missing customer name or phone' });
 
+  const clientTotal = Number(b.totalPrice) || 0;
+  const clientFee = Number(b.zoneSurcharge ?? b.travelFeeAmount) || 0;
+  const travel = normalizeTravelFields(b);
+  b.travelFeeMiles = travel.travelFeeMiles;
+  b.travelFeeAmount = travel.travelFeeAmount;
+  b.zoneSurcharge = travel.zoneSurcharge;
+  const serviceBase = clientTotal - clientFee;
+  if (serviceBase >= 0 && travel.travelFeeAmount != null) {
+    b.totalPrice = Math.round((serviceBase + travel.travelFeeAmount) * 100) / 100;
+  }
+
   const store = await blobsStore('cd1-bookings');
 
   // ── Draft pre-registration (supports C-2: create-payment-intent fetches amount from Blobs) ──
@@ -312,6 +325,9 @@ exports.handler = async (event) => {
       address: b.address || '',
       zipCode: b.zipCode || '',
       zone: b.zone || '',
+      travelFeeMiles: b.travelFeeMiles ?? null,
+      travelFeeAmount: b.travelFeeAmount ?? 0,
+      zoneSurcharge: b.zoneSurcharge ?? 0,
       vehicle: b.vehicle || '',
       vehicleLabel: b.vehicleLabel || '',
       package: b.package || '',

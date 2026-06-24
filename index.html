@@ -76,6 +76,9 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .hstat{text-align:center}
 .hstat-val{font-family:var(--fd);font-size:38px;color:var(--white);letter-spacing:.02em}
 .hstat-lbl{font-size:12px;color:var(--mu);text-transform:uppercase;letter-spacing:.1em}
+.hstat-val-sm{font-size:clamp(22px,4vw,32px)!important}
+.hstat-wide{max-width:150px}
+.hero-year-round{display:inline-flex;align-items:center;justify-content:center;margin:-28px auto 32px;padding:7px 18px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);border:1px solid var(--bbr);background:var(--bdim)}
 .hero-scroll{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--mu);font-size:11px;letter-spacing:.1em;text-transform:uppercase;animation:bounce 2s ease infinite}
 @keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(6px)}}
 /* ── HERO ZIP GATE ── */
@@ -1328,7 +1331,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="hero-brand-mark"><img src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Auto Marine RV Fleet" decoding="async" fetchpriority="high"></div>
     <div class="hero-badge">⚡ Auto · Marine · RV · Fleet · Specialty Cleaning</div>
     <h1>WE COME<br>TO <em>YOU.</em></h1>
-    <p class="hero-sub">Professional mobile detailing and specialty cleaning for cars, RVs, boats, jet skis, fleets, and demanding cleanup jobs across Bergen County and nearby areas.</p>
+    <p class="hero-sub">Your neighbors in Bergen County trust us to bring showroom-level care right to your driveway — cars, boats, RVs, fleets, and specialty jobs, handled with the same attention we'd give our own.</p>
     <div class="hero-proof">
       <span>★★★★★ Customer-rated</span>
       <span>Online booking</span>
@@ -1357,12 +1360,12 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       </div>
     </div>
 
-    <div class="hero-stats">
-      <div class="hstat"><div class="hstat-val">Professional</div><div class="hstat-lbl">Mobile Detailing</div></div>
-      <div class="hstat"><div class="hstat-val">Bergen Co.</div><div class="hstat-lbl">Home Base</div></div>
-      <div class="hstat"><div class="hstat-val">By Appt.</div><div class="hstat-lbl">Scheduling</div></div>
-      <div class="hstat"><div class="hstat-val">4+</div><div class="hstat-lbl">Vehicle Types</div></div>
+    <div class="hero-stats" id="hero-stats">
+      <div class="hstat"><div class="hstat-val" id="stat-vehicles">2.8k+</div><div class="hstat-lbl">Vehicles Detailed</div></div>
+      <div class="hstat"><div class="hstat-val">5+</div><div class="hstat-lbl">Years in Service</div></div>
+      <div class="hstat hstat-wide"><div class="hstat-val hstat-val-sm">Tristate</div><div class="hstat-lbl">NJ · NY · CT + PA</div></div>
     </div>
+    <div class="hero-year-round">☀ All year round</div>
     <a class="hero-tel-mobile" href="tel:5513132956">📞 Call or Text: 551-313-2956</a>
   </div>
   <div class="hero-scroll">↓ Scroll</div>
@@ -3432,6 +3435,8 @@ let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePric
   // multi-vehicle cart
   vehicles:[],  // [{cat, pkgId, pkgName, vehicleLabel, basePrice, addons, addonTotal, subtotal}]
   zoneSurcharge:0,
+  travelFee:0,
+  travelFeeMiles:0,
   payMethod:'',
   bookingId:'',
   draftRegistered:false,
@@ -3567,7 +3572,7 @@ function renderTierChips(cat){
     wrap.innerHTML=Object.entries(tiers).map(([k,t])=>{
       const prices=Object.values(t).filter(v=>typeof v==='number');
       const minP=applyRichPrice(Math.min(...prices));
-      const fee=activeZone?activeZone.surcharge:0;
+      const fee=getTravelFeeAmount();
       const visual=VEHICLE_VISUALS[TIER_VISUAL_KEYS[k]||getVehicleVisualKey()]||VEHICLE_VISUALS.sedan;
       return `<div class="tchip" data-tier="${k}" onclick="selectTier('${k}')">
         <div class="tchip-ico"><img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
@@ -3968,13 +3973,13 @@ function addonQty(id, delta, ev){
   recalcAddonTotal(); updateTotal(); updateAddonSummary();
 }
 
-function updateTotal(){const fee=activeZone?activeZone.surcharge:0;const total=ST.basePrice+ST.addonTotal+fee;ST.zoneSurcharge=fee;document.getElementById('ah-total').textContent=total?'$'+total:'Estimate';}
+function updateTotal(){const fee=getTravelFeeAmount();const total=ST.basePrice+ST.addonTotal+fee;ST.zoneSurcharge=fee;document.getElementById('ah-total').textContent=total?'$'+total:'Estimate';}
 
 // ── STEP 5: INFO ──────────────────────────────────────────────────────────────
 function fillStrip5(){
   const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
   const cartBase = vehicles.reduce((s,v)=>s+(v.subtotal||0),0);
-  const fee = activeZone ? activeZone.surcharge : 0;
+  const fee = getTravelFeeAmount();
   if(vehicles.length > 1){
     document.getElementById('s5-pkg').textContent = vehicles.length+' Vehicles';
     document.getElementById('s5-car').textContent = vehicles.map(v=>v.pkgIcon+' '+v.vehicleLabel).join(' · ');
@@ -3982,7 +3987,7 @@ function fillStrip5(){
     document.getElementById('s5-pkg').textContent=(ST.pkg?.name||'—')+' Package';
     document.getElementById('s5-car').textContent=ST.vehicleLabel||'—';
   }
-  document.getElementById('s5-total').textContent=cartBase?'$'+(cartBase+fee):'Estimate';
+  document.getElementById('s5-total').textContent=cartBase?'$'+(cartBase+fee)+(fee?' incl. travel':'') :'Estimate';
 }
 
 function goToPayment(){
@@ -4033,7 +4038,7 @@ async function waitForVerifiedCardSave(maxAttempts=20,delayMs=3000){
 function bookingTotalCents(){
   const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
   const base = vehicles.reduce((s,v)=>s+(v.subtotal||0),0);
-  const fee  = activeZone ? activeZone.surcharge : 0;
+  const fee  = getTravelFeeAmount();
   return Math.round((base + fee) * 100);
 }
 function depositCents(){ return Math.max(Math.round(bookingTotalCents()*DEPOSIT_PCT), DEPOSIT_MIN_CENTS); }
@@ -4293,7 +4298,7 @@ function buildBookingPayload(){
   // Use multi-vehicle cart if available
   const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
   const cartBase  = vehicles.reduce((s,v)=>s+(v.subtotal||0), 0);
-  const fee       = activeZone ? activeZone.surcharge : 0;
+  const fee       = getTravelFeeAmount();
   const totalPrice= cartBase + fee;
 
   // Primary vehicle (first or current)
@@ -4341,6 +4346,8 @@ function buildBookingPayload(){
     zipCode:document.getElementById('bk-zip')?.value.trim()||'',
     zone:activeZone?activeZone.label:'',
     zoneSurcharge:fee,
+    travelFeeAmount:fee,
+    travelFeeMiles:ST.travelFeeMiles||0,
     richSurcharge:richMultiplier > 1 ? '5% premium area' : '',
     service: (pv.pkgName||'')+(vehicles.length>1?' + '+(vehicles.length-1)+' more':''),
     tip: 0,
@@ -5275,16 +5282,16 @@ function renderVehicleCart(){
       </div>
     </div>`;
   }).join('');
-  const fee = activeZone ? activeZone.surcharge : 0;
+  const fee = getTravelFeeAmount();
   if(totalEl){ totalEl.style.display='flex'; }
-  if(sumEl){ sumEl.textContent = '$'+(sum + fee) + (fee?' (incl. $'+fee+' area fee)':''); }
+  if(sumEl){ sumEl.textContent = '$'+(sum + fee) + (fee ? ' (incl. travel fee)' : ''); }
 }
 
 // ── RESTORE RESTART ─────────────────────────────────────────────────────────────
 function restartBooking(){
   cardInitNonce++;
   cardInitInProgress=false;
-  ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0,payMethod:'',bookingId:'',draftRegistered:false,cardSetupConfirmed:false,cardOnFileSaved:false};
+  ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0,travelFee:0,travelFeeMiles:0,payMethod:'',bookingId:'',draftRegistered:false,cardSetupConfirmed:false,cardOnFileSaved:false};
   destroyStripePaymentUI(); stripePI=null;
   ['f-first','f-last','f-phone','f-email','f-addr','f-date','f-notes'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
   ['terms-ok','cof-policy-ok'].forEach(id=>{const el=document.getElementById(id); if(el)el.checked=false;});
@@ -5640,6 +5647,66 @@ function getCityByZip(zip){
   return ZIP_CITIES[zip.trim()] || null;
 }
 
+// ── Travel fee tiers (flat per appointment location, not per vehicle) ─────────
+const TRAVEL_MAX_MILES = 150;
+const TRAVEL_FEE_TIERS = [
+  { maxMi: 30,  fee: 0 },
+  { maxMi: 50,  fee: 15 },
+  { maxMi: 65,  fee: 25 },
+  { maxMi: 85,  fee: 35 },
+  { maxMi: 100, fee: 40 },
+  { maxMi: 150, fee: 55 }, // 101–150 mi same tier
+];
+const ZONE_DEFAULT_MILES = {
+  nj_a: 12, nj_b: 38, nyc: 22, ny_s: 42, ct: 58,
+  pa_e: 68, pa_p: 78, pa_ph: 98, pa_b: 72, extended: 90,
+};
+const ZIP3_EST_MILES = {
+  '070':12,'071':18,'072':14,'073':16,'074':10,'075':8,'076':6,'077':20,
+  '078':32,'079':36,'080':48,'081':52,'082':55,'083':58,'084':62,'085':65,
+  '086':68,'087':72,'088':75,'089':78,
+  '100':22,'101':24,'102':25,'103':28,'104':26,'111':26,'112':30,'113':34,'114':36,
+  '105':35,'106':38,'107':42,'108':44,'109':48,'115':40,'116':38,'117':46,'118':50,'119':54,
+  '120':88,'121':92,'122':95,'123':98,'124':102,'125':108,'126':112,'127':118,'128':122,
+  '130':125,'131':128,'132':132,'133':135,'134':138,'136':140,'137':142,'138':145,'139':148,
+  '060':55,'061':58,'062':62,'063':65,'064':68,'065':72,'066':58,'067':60,'068':52,'069':48,
+  '180':65,'181':68,'183':75,'189':70,'190':95,'191':98,
+  '170':110,'171':115,'172':118,'173':122,'174':126,'175':130,'176':135,'177':138,'178':142,
+  '195':120,'196':125,
+};
+function travelFeeFromMiles(mi){
+  if(mi==null||mi<0||mi>TRAVEL_MAX_MILES) return null;
+  for(const t of TRAVEL_FEE_TIERS) if(mi<=t.maxMi) return t.fee;
+  return 55;
+}
+function estimateMilesForZip(zip){
+  const z=String(zip||'').replace(/\D/g,'').slice(0,5);
+  if(z.length<5) return null;
+  const p3=z.slice(0,3);
+  if(ZIP3_EST_MILES[p3]!=null) return Number(ZIP3_EST_MILES[p3]);
+  const zone=getZoneByZip(z);
+  if(zone&&ZONE_DEFAULT_MILES[zone.key]!=null) return ZONE_DEFAULT_MILES[zone.key];
+  return null;
+}
+function resolveZipService(zip){
+  const miles=estimateMilesForZip(zip);
+  if(miles==null||miles>TRAVEL_MAX_MILES) return null;
+  const fee=travelFeeFromMiles(miles);
+  if(fee==null) return null;
+  const zone=getZoneByZip(zip)||{key:'extended',label:'Extended Service Area',short:'Extended',emoji:'📍',surcharge:fee};
+  return {zone,miles,fee};
+}
+function applyTravelForZip(zip5){
+  const svc=resolveZipService(zip5);
+  if(!svc){ activeZone=null; ST.travelFee=0; ST.travelFeeMiles=0; ST.zoneSurcharge=0; return null; }
+  activeZone={...svc.zone,surcharge:svc.fee};
+  ST.travelFee=svc.fee;
+  ST.travelFeeMiles=svc.miles;
+  ST.zoneSurcharge=svc.fee;
+  return svc;
+}
+function getTravelFeeAmount(){ return ST.travelFee||0; }
+
 const ZIP_ZONES = {
   nj_a:{ label:'NJ — Bergen / Hudson / Essex', short:'NJ Core',    surcharge:0,  emoji:'📍', prefixes:['070','071','072','073','074','075','076','077'] },
   nj_b:{ label:'NJ — Other Areas',             short:'NJ Other',   surcharge:15, emoji:'📍', prefixes:['078','079','080','081','082','083','084','085','086','087','088','089'] },
@@ -5686,29 +5753,25 @@ function getZoneByZip(zip){
 function applyZip(){
   const zip = document.getElementById('loc-zip').value.trim();
   if(zip.length < 5){ alert('Please enter a valid 5-digit ZIP code.'); return; }
-  const zone = getZoneByZip(zip);
-  activeZone = zone;
+  const svc = applyTravelForZip(zip);
   const nameEl  = document.getElementById('loc-zone-name');
   const pillEl  = document.getElementById('loc-zone-pill');
   const pillTxt = document.getElementById('loc-pill-text');
   const surEl   = document.getElementById('loc-surcharge-msg');
-  if(zone){
+  if(svc){
+    const zone = svc.zone;
+    activeZone = {...zone, surcharge: svc.fee};
     nameEl.textContent  = zone.short;
     pillEl.style.display= 'inline-flex';
     pillTxt.textContent = zone.emoji+' '+zone.label;
-    if(zone.surcharge > 0){
-      surEl.style.display = 'inline-block';
-      surEl.textContent   = '+$'+zone.surcharge+' travel fee applies';
-    } else {
-      surEl.style.display = 'none';
-    }
+    if(surEl) surEl.style.display = 'none';
   } else {
     nameEl.textContent  = 'YOUR AREA';
     pillEl.style.display= 'none';
-    surEl.style.display = 'none';
-    alert('ZIP not in our primary service area. Call us at 551-313-2956 — extended service may be available by quote.');
+    if(surEl) surEl.style.display = 'none';
+    alert('ZIP is outside our '+TRAVEL_MAX_MILES+'-mile service area. Call us at 551-313-2956 — we may still accommodate by quote.');
   }
-  renderLocationCarousel(zone ? zone.key : 'default');
+  renderLocationCarousel(svc ? (svc.zone.key||'default') : 'default');
 }
 
 function renderLocationCarousel(zoneKey){
@@ -5731,10 +5794,8 @@ function onBkZipInput(val){
   const digits = val.replace(/\D/g,'');
   if(digits.length < 5){ return; }
   const zip5 = digits.substring(0,5);
-  const zone = getZoneByZip(zip5);
-  activeZone = zone;
+  const svc = applyTravelForZip(zip5);
 
-  // Rich zip detection
   richMultiplier = getRichMultiplier(zip5);
   const richBadge = document.getElementById('bk-rich-badge');
   if(richBadge) richBadge.style.display = richMultiplier > 1 ? 'inline-flex' : 'none';
@@ -5743,29 +5804,21 @@ function onBkZipInput(val){
   const surBadge = document.getElementById('bk-surcharge-badge');
   const gateMsg  = document.getElementById('bk-gate-msg');
 
-  if(zone){
+  if(svc){
+    const zone = svc.zone;
     const cityName = getCityByZip(zip5);
     badge.style.display = 'inline-flex';
     badge.textContent   = '✓ ' + (cityName ? cityName : zone.short);
-    if(zone.surcharge > 0){
-      surBadge.style.display = 'inline-flex';
-      surBadge.textContent   = '+$'+zone.surcharge+' area fee';
-    } else {
-      surBadge.style.display = 'none';
-    }
-    // Unlock category cards
+    if(surBadge) surBadge.style.display = 'none';
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('locked'));
     if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span>'; }
-    // Update "From" prices dynamically
     updateBkFromPrices();
-    // Also sync the location carousel zone
-    renderLocationCarousel(zone.key);
+    renderLocationCarousel(zone.key||'default');
   } else {
     badge.style.display    = 'none';
-    surBadge.style.display = 'none';
-    // Re-lock cards if ZIP not in service area
+    if(surBadge) surBadge.style.display = 'none';
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.add('locked'));
-    if(gateMsg){ gateMsg.classList.remove('unlocked'); gateMsg.innerHTML='<span class="zg-ico">⚠️</span><span>ZIP not in our primary service area — call 551-313-2956</span>'; }
+    if(gateMsg){ gateMsg.classList.remove('unlocked'); gateMsg.innerHTML='<span class="zg-ico">⚠️</span><span>Outside our '+TRAVEL_MAX_MILES+'-mile area — call 551-313-2956</span>'; }
   }
   updateTotal();
 }
@@ -5779,7 +5832,7 @@ function updateBkFromPrices(){
     powersports:{label:'From $', price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=>Object.values(t).filter(v=>typeof v==='number')[0]||99))},
     fleet:      {label:'From $', price: null, fixed:'From $60/unit'},
   };
-  const fee = activeZone ? activeZone.surcharge : 0;
+  const fee = getTravelFeeAmount();
   Object.entries(BASE).forEach(([cat, info])=>{
     const el = document.getElementById('bkfrom-'+cat);
     if(!el) return;
@@ -7241,47 +7294,36 @@ function onHeroZipInput(val){
   inp.classList.remove('valid','invalid');
   if(digits.length < 5) return;
   const zip5 = digits.substring(0,5);
-  const zone = getZoneByZip(zip5);
+  const svc = applyTravelForZip(zip5);
   const fb = document.getElementById('hero-zip-feedback');
-  if(!zone){
+  if(!svc){
     inp.classList.add('invalid');
     if(fb) fb.innerHTML = `
       <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:16px 20px;max-width:420px;margin:0 auto;text-align:center">
         <div style="font-size:22px;margin-bottom:8px">📍</div>
-        <div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:6px">Not in our area yet</div>
-        <div style="font-size:13px;color:var(--mu);line-height:1.6">Right now we primarily serve <strong style="color:var(--white)">Bergen County, NJ and nearby NJ/NY areas</strong>.<br>Extended service may be available by quote — <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">call us</a> and we'll confirm coverage.</div>
+        <div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:6px">Outside our service radius</div>
+        <div style="font-size:13px;color:var(--mu);line-height:1.6">We currently serve within <strong style="color:var(--white)">${TRAVEL_MAX_MILES} miles</strong> of Bergen County, NJ.<br>Call <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a> and we'll confirm options.</div>
       </div>`;
     return;
   }
-  // Valid zone — apply globals
-  activeZone = zone;
+  const zone = svc.zone;
   richMultiplier = getRichMultiplier(zip5);
   inp.classList.add('valid');
-  // City name lookup
   const cityName = getCityByZip(zip5);
-  // Build feedback: city row + pills row
   let cityHtml = '';
   if(cityName){
     cityHtml = `<div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px;letter-spacing:.02em">📍 ${cityName}</div>`;
   }
   let pills = `<span class="zip-pill zip-pill-zone">${zone.label}</span>`;
-  if(zone.surcharge > 0) pills += `<span class="zip-pill zip-pill-fee">+$${zone.surcharge} area fee</span>`;
   if(richMultiplier > 1.0) pills += `<span class="zip-pill zip-pill-rich">⭐ Premium area</span>`;
   if(fb) fb.innerHTML = `${cityHtml}<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">${pills}</div>`;
-  // Unlock homepage service cards
   _unlockHomeCards();
-  // Update homepage "From $" prices
   _updateHomeFromPrices();
-  // Pre-fill booking modal ZIP so it's ready when user clicks a card
   const bkZip = document.getElementById('bk-zip');
   if(bkZip){ bkZip.value = zip5; }
-  // Also run booking modal zone detection silently
   if(typeof onBkZipInput === 'function') onBkZipInput(zip5);
-  // Update booking modal from-prices
   if(typeof updateBkFromPrices === 'function') updateBkFromPrices();
-  // Update location carousel
-  if(typeof renderLocationCarousel === 'function') renderLocationCarousel(zone.key);
-  // Open booking modal directly — ZIP done, now pick vehicle + package
+  if(typeof renderLocationCarousel === 'function') renderLocationCarousel(zone.key||'default');
   setTimeout(()=>{
     if(typeof openBooking === 'function') openBooking();
   }, 350);
@@ -7327,7 +7369,7 @@ function _updateHomeFromPrices(){
     powersports: { price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=> Object.values(t).filter(v=>typeof v==='number')[0]||89)), suffix:' · by vehicle type' },
     fleet:       { price: null, fixed:'From $60/unit · Fleet quote available' },
   };
-  const fee = activeZone ? activeZone.surcharge : 0;
+  const fee = getTravelFeeAmount();
   Object.entries(BASE).forEach(([cat, info])=>{
     const el = document.getElementById('hfrom-'+cat);
     if(!el) return;
@@ -7336,6 +7378,22 @@ function _updateHomeFromPrices(){
     el.textContent = 'From $'+adj + info.suffix;
   });
 }
+
+(function initTrustedStatsCounter(){
+  const KEY = 'cd1_page_visits';
+  const BASE = 2800;
+  const visits = (parseInt(localStorage.getItem(KEY)||'0',10)||0) + 1;
+  localStorage.setItem(KEY, String(visits));
+  const shown = BASE + Math.floor(visits / 2);
+  const el = document.getElementById('stat-vehicles');
+  if(!el) return;
+  if(shown >= 1000){
+    const k = shown / 1000;
+    el.textContent = (k % 1 === 0 ? k.toFixed(0) : k.toFixed(1).replace(/\.0$/,'')) + 'k+';
+  } else {
+    el.textContent = shown + '+';
+  }
+})();
 
 // Opens booking — always allowed, but pre-fills ZIP if already entered on hero
 function openBookingFromHome(cat){
