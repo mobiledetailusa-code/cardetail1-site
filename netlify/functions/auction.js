@@ -117,7 +117,12 @@ exports.handler = async (event) => {
       const amount = Math.round(Number(p.amount) * 100) / 100;
       if (!(amount > 0)) return json(400, { ok: false, error: 'invalid amount' });
       if (auction.bidMax != null && amount > auction.bidMax) {
-        return json(400, { ok: false, error: 'bid_exceeds_max', bidMax: auction.bidMax });
+        return json(400, {
+          ok: false,
+          error: 'bid_exceeds_max',
+          bidMax: auction.bidMax,
+          userMessage: `Bid cannot exceed $${auction.bidMax} (max ${auction.bidMaxPercent || 62}% of customer total).`,
+        });
       }
       auction.bids = auction.bids || [];
       const existing = auction.bids.find(b => b.techId === p.tech);

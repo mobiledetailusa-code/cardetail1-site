@@ -17,8 +17,8 @@ a{color:var(--ac);text-decoration:none}a:hover{text-decoration:underline}
 .top-links{display:flex;gap:12px;align-items:center;font-size:13px;color:var(--mu);flex-wrap:wrap}
 .top-links a{color:var(--mu);text-decoration:none}.top-links a:hover{color:var(--fg)}
 .wrap{max-width:1280px;margin:0 auto;padding:20px}
-.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
-.tab{padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--mu);font-size:13px;font-weight:600;cursor:pointer}
+.tabs{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:18px;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.tab{flex-shrink:0;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--mu);font-size:13px;font-weight:600;cursor:pointer}
 .tab.on{background:rgba(77,163,255,.12);border-color:rgba(77,163,255,.35);color:var(--ac)}
 .panel{display:none}.panel.on{display:block}
 .grid{display:grid;gap:12px}
@@ -81,7 +81,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--card);border:1px solid var(--line);padding:12px 16px;border-radius:10px;font-size:13px;z-index:100;opacity:0;pointer-events:none;transition:.2s}
 .toast.show{opacity:1}
 .empty{color:var(--mu);font-size:13px;padding:24px;text-align:center}
-@media(max-width:700px){.form-grid{grid-template-columns:1fr}}
+.sub-err{color:var(--err);font-size:12px;margin-top:8px;display:none;line-height:1.5}
+.sub-err.show{display:block}
+.sub-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:85;display:none;align-items:center;justify-content:center;padding:16px}
+.sub-modal-bg.open{display:flex}
+.sub-modal{background:var(--card);border:1px solid var(--line);border-radius:var(--r);width:min(520px,100%);max-height:90vh;overflow:auto;padding:18px}
+@media(max-width:700px){.form-grid{grid-template-columns:1fr}.top-links{font-size:12px}}
 </style>
 </head>
 <body>
@@ -184,7 +189,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       <button type="button" class="btn sm" id="btnNewSub">+ New subscription</button>
       <button type="button" class="btn ghost sm" id="btnReloadSubs">Reload</button>
     </div>
-    <p class="hint">Recurring maintenance plans (monthly / 2–6 months / annual). Billing automation via Stripe in a future PR.</p>
+    <p class="hint">Recurring maintenance plans. Select a plan template — price and interval auto-fill. Billing automation via Stripe in a future PR.</p>
     <div class="card" id="subsList"><div class="empty">Loading…</div></div>
   </section>
 
@@ -198,7 +203,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         <div><label>Dispatch mode</label>
           <select id="setDispatch"><option value="manual">Manual assign</option><option value="auction">Auction first</option></select>
         </div>
-        <div><label>BID MAX (% of customer total)</label><input type="number" id="setBidPct" min="1" max="100" step="1"></div>
+        <div><label>Tech bid max (% of customer total — default 62%)</label><input type="number" id="setBidPct" min="1" max="100" step="1" title="Technician payout bids cannot exceed this percent of the job total"></div>
         <div><label>BID MAX override ($)</label><input type="number" id="setBidOverride" min="0" step="1" placeholder="Optional fixed cap"></div>
         <div><label>Bid window (minutes)</label><input type="number" id="setBidWin" min="15" max="240" step="5"></div>
         <div><label>Boat/RV bid window (minutes)</label><input type="number" id="setBidWinRv" min="30" max="360" step="5"></div>
@@ -247,6 +252,29 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   </div>
 </aside>
 <div class="toast" id="toast"></div>
+
+<div class="sub-modal-bg" id="subModalBg">
+  <div class="sub-modal" role="dialog" aria-labelledby="subModalTitle">
+    <h3 id="subModalTitle" style="margin-bottom:12px">New subscription</h3>
+    <form id="subForm" class="form-grid">
+      <div><label>Customer email</label><input name="email" type="email" required placeholder="customer@email.com"></div>
+      <div><label>Customer name</label><input name="customerName" placeholder="Full name"></div>
+      <div><label>Phone (optional)</label><input name="phone" type="tel"></div>
+      <div><label>Plan template</label><select name="planId" id="subPlanId" required><option value="">Loading plans…</option></select></div>
+      <div><label>Price per visit ($)</label><input name="price" type="number" id="subPrice" min="1" step="1" required></div>
+      <div><label>Interval (months)</label><input name="intervalMonths" id="subInterval" type="number" min="1" max="24" step="1" required></div>
+      <div><label>Next visit date</label><input name="nextVisitDate" id="subNextDate" type="date" required></div>
+      <div><label>Vehicle (optional)</label><input name="vehicle" placeholder="2022 Honda Accord"></div>
+      <div class="full"><label>Service address (optional)</label><input name="address" placeholder="Street, city"></div>
+      <div class="full"><label>Notes (optional)</label><textarea name="notes" rows="2"></textarea></div>
+      <div class="full sub-err" id="subFormErr"></div>
+      <div class="full actions">
+        <button type="submit" class="btn">Create subscription</button>
+        <button type="button" class="btn ghost" id="subModalCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <div class="drawer-bg" id="techDrawerBg"></div>
 <aside class="drawer" id="techDrawer">
@@ -300,7 +328,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   const inviteCache = {};
 
   let jobs = [], techs = [], activeJob = null, activeTech = null;
-  let showTest = false, platformSettings = {}, auctions = [], subscriptions = [];
+  let showTest = false, platformSettings = {}, auctions = [], subscriptions = [], subTemplates = [];
 
   const $ = s => document.querySelector(s);
   const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -343,7 +371,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const res = await fetch(url, opts);
     const data = await res.json().catch(()=>({}));
     if (!res.ok || data.ok === false) {
-      const err = data.error || ('HTTP '+res.status);
+      const err = data.message || data.error || ('HTTP '+res.status);
       if (err === 'unauthorized' || res.status === 401) {
         sessionStorage.removeItem(KEY);
         throw new Error('Session expired — log in again at admin.html');
@@ -431,8 +459,57 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     try { await loadAuctions(); renderAuctions(); } catch(e) { $('#auctionsList').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
   }
 
+  async function loadSubTemplates() {
+    const data = await api('/.netlify/functions/subscriptions-ops', 'POST', { action: 'list_templates' });
+    subTemplates = data.templates || [];
+    return subTemplates;
+  }
+
+  function populateSubPlanSelect() {
+    const sel = $('#subPlanId');
+    if (!sel) return;
+    if (!subTemplates.length) {
+      sel.innerHTML = '<option value="">No templates — check ops-config</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">Select plan…</option>' + subTemplates.map(t =>
+      '<option value="'+esc(t.id)+'" data-price="'+t.suggestedPrice+'" data-interval="'+t.intervalMonths+'">'+esc(t.name)+' · '+t.intervalMonths+' mo · $'+t.suggestedPrice+'</option>'
+    ).join('');
+  }
+
+  function applySubTemplateDefaults() {
+    const sel = $('#subPlanId');
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) return;
+    if (opt.dataset.price) $('#subPrice').value = opt.dataset.price;
+    if (opt.dataset.interval) $('#subInterval').value = opt.dataset.interval;
+  }
+
+  function openSubModal() {
+    $('#subFormErr').textContent = '';
+    $('#subFormErr').classList.remove('show');
+    $('#subForm').reset();
+    $('#subNextDate').value = new Date().toISOString().slice(0, 10);
+    populateSubPlanSelect();
+    $('#subModalBg').classList.add('open');
+  }
+
+  function closeSubModal() {
+    $('#subModalBg').classList.remove('open');
+  }
+
+  function showSubFormErr(msg) {
+    const el = $('#subFormErr');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+
   async function refreshSubsTab() {
-    try { await loadSubscriptions(); renderSubscriptions(); } catch(e) { $('#subsList').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+    try {
+      if (!subTemplates.length) await loadSubTemplates();
+      await loadSubscriptions();
+      renderSubscriptions();
+    } catch(e) { $('#subsList').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
   }
 
   function renderSettingsForm() {
@@ -440,7 +517,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     $('#setAutoConfirm').checked = !!s.autoConfirmAppointments;
     $('#setAutoAuction').checked = !!s.autoPostToAuctionOnConfirm;
     $('#setDispatch').value = s.dispatchMode || 'manual';
-    $('#setBidPct').value = s.bidMaxPercent != null ? s.bidMaxPercent : 85;
+    $('#setBidPct').value = s.bidMaxPercent != null ? s.bidMaxPercent : 62;
     $('#setBidOverride').value = s.bidMaxOverride != null ? s.bidMaxOverride : '';
     $('#setBidWin').value = s.bidWindowMinutes != null ? s.bidWindowMinutes : 60;
     $('#setBidWinRv').value = s.bidWindowMinutesBoatRv != null ? s.bidWindowMinutesBoatRv : 90;
@@ -1016,19 +1093,43 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   $('#btnReloadAuctions').onclick = refreshAuctionsTab;
   $('#btnReloadSubs').onclick = refreshSubsTab;
   $('#btnNewSub').onclick = async () => {
-    const email = prompt('Customer email:'); if(!email) return;
-    const name = prompt('Customer name:') || '';
-    const plan = prompt('Plan (monthly / quarterly / annual):','monthly') || 'monthly';
-    const map = { monthly:1, quarterly:3, biannual:6, annual:12 };
-    const interval = map[plan.toLowerCase()] || 1;
-    const price = Number(prompt('Monthly or per-visit price ($):','79')) || 79;
     try {
-      await api('/.netlify/functions/subscriptions-ops','POST',{
-        action:'create', email, customerName:name, planName:plan, intervalMonths:interval, price,
-        nextVisitDate: new Date().toISOString().slice(0,10),
-      });
-      toast('Subscription created'); refreshSubsTab();
-    } catch(e) { toast(e.message); }
+      if (!subTemplates.length) await loadSubTemplates();
+      openSubModal();
+    } catch(e) { toast('Could not load plans: '+e.message); }
+  };
+  $('#subModalCancel').onclick = closeSubModal;
+  $('#subModalBg').onclick = e => { if (e.target === $('#subModalBg')) closeSubModal(); };
+  $('#subPlanId').onchange = applySubTemplateDefaults;
+  $('#subForm').onsubmit = async e => {
+    e.preventDefault();
+    $('#subFormErr').classList.remove('show');
+    const fd = new FormData(e.target);
+    const planId = fd.get('planId');
+    const tpl = subTemplates.find(t => t.id === planId);
+    const body = {
+      action: 'create',
+      email: String(fd.get('email') || '').trim(),
+      customerName: String(fd.get('customerName') || '').trim(),
+      phone: String(fd.get('phone') || '').trim(),
+      planId,
+      planName: tpl ? tpl.name : '',
+      intervalMonths: Number(fd.get('intervalMonths')),
+      price: Number(fd.get('price')),
+      nextVisitDate: fd.get('nextVisitDate'),
+      vehicle: String(fd.get('vehicle') || '').trim(),
+      address: String(fd.get('address') || '').trim(),
+      notes: String(fd.get('notes') || '').trim(),
+    };
+    if (!body.email.includes('@')) { showSubFormErr('Enter a valid customer email.'); return; }
+    if (!body.planId) { showSubFormErr('Select a plan template.'); return; }
+    if (!(body.price > 0)) { showSubFormErr('Price must be greater than zero.'); return; }
+    try {
+      await api('/.netlify/functions/subscriptions-ops', 'POST', body);
+      toast('Subscription created');
+      closeSubModal();
+      refreshSubsTab();
+    } catch(err) { showSubFormErr(err.message); }
   };
 
   $('#techForm').onsubmit = async e => {

@@ -50,7 +50,11 @@ exports.handler = async (event) => {
     const tpl = MAINTENANCE_PLAN_TEMPLATES.find(p => p.id === planId);
     const intervalMonths = Number(body.intervalMonths) || (tpl && tpl.intervalMonths) || 1;
     const price = Number(body.price) || (tpl && tpl.suggestedPrice) || 0;
-    if (!email.includes('@')) return jsonCors(400, { ok: false, error: 'valid_email_required' });
+    if (!email.includes('@')) return jsonCors(400, { ok: false, error: 'valid_email_required', message: 'Enter a valid customer email.' });
+    if (!planId && !body.planName && !tpl) {
+      return jsonCors(400, { ok: false, error: 'plan_required', message: 'Select a maintenance plan template.' });
+    }
+    if (price <= 0) return jsonCors(400, { ok: false, error: 'price_required', message: 'Price must be greater than zero.' });
 
     const now = new Date().toISOString();
     const id = subId();

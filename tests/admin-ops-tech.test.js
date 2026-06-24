@@ -235,6 +235,26 @@ test('admin-ops UI has maintenance and requests tabs', () => {
   assert.match(adminOps, /update_address/);
 });
 
+test('admin-ops subscriptions tab uses plan template modal not prompts', () => {
+  assert.match(adminOps, /id="subForm"/);
+  assert.match(adminOps, /list_templates/);
+  assert.match(adminOps, /planId/);
+  assert.match(adminOps, /subFormErr/);
+  assert.doesNotMatch(adminOps, /prompt\('Customer email:'\)/);
+});
+
+test('admin settings default bid max is 62 percent', () => {
+  assert.match(adminOps, /default 62%/);
+  assert.match(adminOps, /bidMaxPercent != null \? s\.bidMaxPercent : 62/);
+});
+
+test('technician portal shows package description and bid cap', () => {
+  assert.match(tech, /packageDescription/);
+  assert.match(tech, /jc-pkg-desc/);
+  assert.match(tech, /bidMax/);
+  assert.match(tech, /Max bid/);
+});
+
 test('technician portal has directions link', () => {
   assert.match(tech, /google\.com\/maps/);
 });

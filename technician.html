@@ -72,6 +72,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
 .jc-id{font-family:var(--fd);font-size:10px;color:var(--blue);margin-bottom:2px}
 .jc-sv{font-size:14px;font-weight:700}
 .jc-vh{font-size:12px;color:var(--mu);margin-top:1px}
+.jc-pkg-desc{font-size:12px;color:var(--mu);margin-top:8px;line-height:1.55;padding:8px 10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)}
+.jc-equip{font-size:11px;color:var(--mu);margin-top:8px;line-height:1.5}
+.jc-equip ul{margin:4px 0 0 16px;padding:0}
+.jc-equip li{margin-bottom:3px}
+.refresh-btn.on{background:rgba(77,163,255,.12);border-color:rgba(77,163,255,.35);color:var(--blue)}
+.bid-cap{font-size:11px;color:var(--yellow);margin-top:6px}
 .jc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:7px;padding-top:11px;border-top:1px solid var(--border)}
 .jfl{font-size:9px;color:var(--mu2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px}
 .jfv{font-size:12px;font-weight:600}
@@ -546,9 +552,11 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     document.getElementById('jobs-list').style.display = tab === 'jobs' ? 'block' : 'none';
     document.getElementById('bids-list').style.display = tab === 'bids' ? 'block' : 'none';
     document.getElementById('dash-bid-note').style.display = tab === 'bids' ? 'block' : 'none';
+    document.getElementById('tab-jobs').classList.toggle('on', tab === 'jobs');
+    document.getElementById('tab-bids').classList.toggle('on', tab === 'bids');
     document.getElementById('dash-title').textContent = tab === 'bids' ? 'Open Bids' : 'My Jobs';
     document.getElementById('dash-sub').textContent = tab === 'bids'
-      ? 'Place your bid — lowest wins when the window closes'
+      ? 'Place your bid — max payout is capped (typically 62% of customer total). Lowest wins when the window closes.'
       : 'Assigned jobs — update status and submit completion when done';
     if (tab === 'bids') loadAuctions();
     else loadJobs();
@@ -617,14 +625,19 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
       el.innerHTML = AUCTIONS.map(function (a) {
         var j = a.job || {};
         var win = a.youWin ? '<span style="color:var(--green);font-weight:700">You are winning</span>' : '';
+        var maxHint = a.bidMax != null
+          ? '<div class="bid-cap">Max bid: $' + a.bidMax + ' — bids above this are rejected</div>'
+          : '';
+        var maxAttr = a.bidMax != null ? ' max="' + a.bidMax + '"' : '';
         return '<div class="jc"><div class="jc-top"><div><div class="jc-id">' + esc(a.jobId) + '</div>' +
           '<div class="jc-sv">' + esc(j.package || '') + '</div><div class="jc-vh">' + esc(j.vehicle || '') + '</div></div>' +
           '<span class="badge b-acc">' + esc(a.status) + '</span></div>' +
           '<div class="jc-grid">' + cell('Date', j.date || '—') + cell('Area', j.area || '—') +
           cell('Lowest', a.lowest != null ? '$' + a.lowest : '—') + cell('Max bid', a.bidMax != null ? '$' + a.bidMax : '—') +
           cell('Closes', a.closesAt ? new Date(a.closesAt).toLocaleString() : '—') + '</div>' +
+          maxHint +
           (win ? '<div style="margin-top:8px;font-size:12px">' + win + '</div>' : '') +
-          '<div class="jc-acts" style="margin-top:10px"><input class="fi" type="number" id="bid-' + esc(a.jobId) + '" placeholder="Your bid $" style="max-width:120px;margin:0" min="1" step="1" value="' + (a.yourBid || '') + '">' +
+          '<div class="jc-acts" style="margin-top:10px"><input class="fi" type="number" id="bid-' + esc(a.jobId) + '" placeholder="Your bid $" style="max-width:120px;margin:0" min="1" step="1"' + maxAttr + ' value="' + (a.yourBid || '') + '">' +
           '<button class="btn btn-p btn-sm" type="button" onclick="placeBid(\'' + esc(a.jobId) + '\')">Place bid</button></div></div>';
       }).join('');
     } catch (_) {
@@ -636,6 +649,11 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     var inp = document.getElementById('bid-' + jobId);
     var amount = Number(inp && inp.value);
     if (!amount) { toast('Enter bid amount', 'err'); return; }
+    var auction = AUCTIONS.find(function (a) { return a.jobId === jobId; });
+    if (auction && auction.bidMax != null && amount > auction.bidMax) {
+      toast('Bid cannot exceed $' + auction.bidMax, 'err');
+      return;
+    }
     try {
       var r = await techFetch(AUCTIONS_URL, { method: 'POST', body: JSON.stringify({ action: 'bid', jobId: jobId, amount: amount }) });
       if (!r.data.ok) { toast(r.data.userMessage || r.data.error || 'Bid failed', 'err'); return; }
@@ -776,6 +794,12 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     el.innerHTML = html;
   }
 
+  function fmtEquipment(hints) {
+    if (!hints || !hints.length) return '';
+    return '<div class="jc-equip"><div class="jfl">Bring / equipment</div><ul>' +
+      hints.map(function (h) { return '<li>' + esc(h) + '</li>'; }).join('') + '</ul></div>';
+  }
+
   function jobCard(j) {
     var js = j.jobStatus || 'assigned';
     var done = DONE_STATUSES.has(js);
@@ -817,6 +841,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         '<div class="jc-id">' + esc((j.id || '').slice(-8)) + '</div>' +
         '<div class="jc-sv">' + esc(j.package || 'Detail') + '</div>' +
         '<div class="jc-vh">' + esc(j.vehicle || '—') + '</div>' +
+        (j.packageDescription ? '<div class="jc-pkg-desc">' + esc(j.packageDescription) + '</div>' : '') +
       '</div>' + badge(js) + '</div>' +
       '<div class="jc-grid">' +
         cell('Customer', j.customerName || '—') +
@@ -826,9 +851,9 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         (j.address ? fullCell('Address', j.address) : '') +
         (j.addons && j.addons.length ? fullCell('Add-ons', fmtAddons(j.addons)) : '') +
         (j.customerNote ? fullCell('Customer note', j.customerNote) : '') +
-        (j.equipmentHints && j.equipmentHints.length ? fullCell('Equipment', j.equipmentHints.join(' · ')) : '') +
         (j.techNotes ? fullCell('Tech notes', j.techNotes) : '') +
       '</div>' +
+      (j.equipmentHints && j.equipmentHints.length ? fmtEquipment(j.equipmentHints) : '') +
       (acts ? '<div class="jc-acts">' + acts + '</div>' : '') +
     '</div>';
   }
@@ -1066,10 +1091,15 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
       cell('Service', job.package || '—') +
       cell('Date', fmtDate(job.confirmedDate || job.preferredDate)) +
       cell('Time', fmtTime(job)) +
+      (job.packageDescription ? fullCell('Scope', job.packageDescription) : '') +
       (job.address ? fullCell('Address', job.address) : '') +
       (job.addons && job.addons.length ? fullCell('Add-ons', fmtAddons(job.addons)) : '');
     var eqEl = document.getElementById('cmp-equipment');
-    if (eqEl) eqEl.textContent = (job.equipmentHints && job.equipmentHints.length) ? job.equipmentHints.join(' · ') : 'Standard detail kit';
+    if (eqEl) {
+      eqEl.innerHTML = (job.equipmentHints && job.equipmentHints.length)
+        ? '<ul style="margin:0 0 0 16px;padding:0;line-height:1.55">' + job.equipmentHints.map(function (h) { return '<li>' + esc(h) + '</li>'; }).join('') + '</ul>'
+        : 'Standard mobile detail kit';
+    }
 
     ['chk-issue', 'chk-service', 'chk-vehicle', 'chk-reviewed', 'chk-no-issue', 'chk-auth'].forEach(function (cid) {
       document.getElementById(cid).checked = false;

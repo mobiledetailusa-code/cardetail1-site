@@ -76,6 +76,7 @@ async function createAuctionForBooking(booking, options = {}) {
     bids: existing && existing.bids ? existing.bids : [],
     winner: null,
     bidMax,
+    bidMaxPercent: settings.bidMaxPercent != null ? settings.bidMaxPercent : 62,
     bidWindowMinutes: windowMin,
     closesAt,
     createdAt: existing && existing.createdAt ? existing.createdAt : now.toISOString(),

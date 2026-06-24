@@ -2,6 +2,7 @@
 const {
   JOB_STATUSES, PAYMENT_WORKFLOW_STATUSES, normalizeJobStatus, normalizePaymentWorkflowStatus,
 } = require('./ops-schema');
+const { matchServicePackage } = require('./ops-config');
 
 const TECH_STATUS_UPDATES = new Set([
   'accepted', 'en_route', 'arrived', 'in_progress', 'issue_reported',
@@ -13,18 +14,47 @@ const STRIPE_SENSITIVE = new Set([
 ]);
 
 function suggestEquipmentForJob(b) {
-  const pkg = String(b.package || b.service || '').toLowerCase();
+  const pkgName = String(b.package || b.service || '');
   const veh = String(b.vehicle || b.vehicleLabel || b.vehicleCategory || '').toLowerCase();
-  const hay = pkg + ' ' + veh;
+  const hay = (pkgName + ' ' + veh).toLowerCase();
   const hints = [];
-  if (/boat|marine|yacht/.test(hay)) hints.push('Own ladder (required)', 'Marine-safe products', 'Shade or dock access');
-  if (/rv|motorhome|trailer|camper/.test(hay)) hints.push('Own ladder 12ft+', 'Extension cord if no shore power');
-  if (/compound|correction|swirl|polish/.test(hay)) hints.push('DA polisher', 'Compound + finishing polish', 'Paint depth gauge recommended');
-  if (/extract|stain|deep.?clean|shampoo/.test(hay)) hints.push('Hot water extractor', 'Brush attachments');
-  if (/ceramic|coating|ppf/.test(hay)) hints.push('Prep wash + iron decon', 'IR lamp optional');
-  if (/interior|full/.test(pkg)) hints.push('Vacuum + steam cleaner', 'Microfiber towels');
-  if (!hints.length) hints.push('Standard detail kit', 'Microfiber towels', 'Pressure washer if exterior');
+  const matched = matchServicePackage(pkgName);
+
+  if (matched && matched.equipment) {
+    hints.push(...matched.equipment);
+  }
+
+  if (/boat|marine|yacht/.test(hay)) {
+    hints.push('Own ladder (required for hull/deck access)', 'Marine-safe wash products', 'Shade or dock access plan');
+  }
+  if (/rv|motorhome|trailer|camper/.test(hay)) {
+    hints.push('Own ladder 12ft+ for roof/upper panels', 'Extension cord if no shore power');
+  }
+  if (!matched && /compound|correction|swirl|polish|enhancement/.test(hay)) {
+    hints.push('DA polisher with cutting/finishing pads', 'Compound + finishing polish', 'Paint depth gauge recommended');
+  }
+  if (!matched && /extract|stain|deep.?clean|shampoo|interior detail/.test(hay)) {
+    hints.push('Hot water extractor', 'Steam cleaner + brush attachments');
+  }
+  if (!matched && /ceramic|coating|ppf/.test(hay)) {
+    hints.push('Prep wash + iron decon', 'Coating applicators + IPA towels', 'IR lamp optional');
+  }
+  if (!matched && /interior|full detail|premium detail/.test(hay)) {
+    hints.push('Shop vacuum + steam cleaner', 'Microfiber towels for all surfaces');
+  }
+  if (!hints.length) {
+    hints.push('Standard mobile detail kit', 'Microfiber towels', 'Pressure washer if exterior work');
+  }
   return [...new Set(hints)];
+}
+
+function resolvePackageInfo(b) {
+  const name = String(b.package || b.service || '').trim();
+  const matched = matchServicePackage(name);
+  return {
+    packageName: name || (matched && matched.name) || '',
+    packageDescription: matched ? matched.description : '',
+  };
 }
 
 function appendEventLog(booking, entry) {
@@ -45,6 +75,7 @@ function projectJobForTech(b) {
   const first = b.firstName || '';
   const last = b.lastName || '';
   const customerName = [first, last].filter(Boolean).join(' ') || 'Customer';
+  const pkgInfo = resolvePackageInfo(b);
   return {
     id: b.id,
     customerName,
@@ -57,7 +88,8 @@ function projectJobForTech(b) {
     confirmedTime: b.confirmedTime || '',
     confirmedTimeWindow: b.confirmedTimeWindow || '',
     vehicle: b.vehicleLabel || b.vehicle || b.vehicleCategory || '',
-    package: b.package || b.service || '',
+    package: pkgInfo.packageName || b.package || b.service || '',
+    packageDescription: pkgInfo.packageDescription || '',
     addons: (b.addons || []).map(a => ({ name: a.name, qty: a.qty || 1 })),
     customerNote: b.customerNote || '',
     jobStatus: normalizeJobStatus(b),
@@ -103,6 +135,7 @@ module.exports = {
   normalizeJobStatus,
   normalizePaymentWorkflowStatus,
   suggestEquipmentForJob,
+  resolvePackageInfo,
   projectJobForAdmin,
   projectJobForTech,
   projectTechAccountForAdmin,

@@ -9,7 +9,7 @@ const DEFAULT_SETTINGS = {
   autoConfirmAppointments: false,
   autoPostToAuctionOnConfirm: false,
   dispatchMode: 'manual', // manual | auction | auto_assign_lowest_bid
-  bidMaxPercent: 85,
+  bidMaxPercent: 62,
   bidMaxOverride: null,
   bidWindowMinutes: 60,
   bidWindowMinutesBoatRv: 90,
@@ -27,6 +27,75 @@ const MAINTENANCE_PLAN_TEMPLATES = [
   { id: 'maint-biannual', name: 'Every 6 Months', intervalMonths: 6, suggestedPrice: 149 },
   { id: 'maint-annual', name: 'Annual Detail', intervalMonths: 12, suggestedPrice: 199 },
 ];
+
+// Pack catalog for technician equipment hints (aligned with index.html service names).
+const SERVICE_PACKAGES = [
+  {
+    name: 'Maintenance Detail',
+    aliases: ['maintenance detail', 'maintenance', 'maint detail', 'marine wash', 'fleet maintenance wash'],
+    description: 'Exterior hand wash, wheels/tires, glass, door jambs, interior vacuum, dash wipe, leather conditioning, UV protectant.',
+    equipment: [
+      'Pressure washer or hose + foam cannon',
+      'Microfiber wash mitts, drying towels, wheel brushes',
+      'Shop vacuum + interior microfiber cloths',
+      'Leather/plastic conditioner, tire dressing, UV protectant',
+    ],
+  },
+  {
+    name: 'Interior Detail',
+    aliases: ['interior detail', 'interior', 'super interior'],
+    description: 'Deep vacuum, carpet/seat shampoo, steam clean vents/panels, trim detail, interior glass, odor-neutral finish.',
+    equipment: [
+      'Shop vacuum with crevice tools',
+      'Hot water extractor or carpet shampooer',
+      'Steam cleaner for vents and panels',
+      'Fabric/leather cleaners and microfiber towels',
+    ],
+  },
+  {
+    name: 'Premium Detail',
+    aliases: ['premium detail', 'full detail', 'essential marine', 'full marine detail'],
+    description: 'Maintenance-level exterior + clay bar, carpet/seat shampoo, steam clean, trunk detail, spray sealant, tire dressing.',
+    equipment: [
+      'Full exterior wash kit + clay bar and lubricant',
+      'Extractor/steam cleaner for interior shampoo',
+      'Spray sealant or polymer protection, tire dressing',
+      'Microfiber towels for interior and exterior',
+    ],
+  },
+  {
+    name: 'Paint Correction',
+    aliases: ['paint correction', 'compound', 'enhancement', 'premium marine', '1-step polish', 'swirl'],
+    description: 'Machine polish, swirl/oxidation reduction, chemical decon, wheel detail, machine-applied sealant/wax.',
+    equipment: [
+      'DA or rotary polisher with cutting/finishing pads',
+      'Compound + finishing polish, paint depth gauge recommended',
+      'Iron decon and clay bar for prep',
+      'Machine-applied wax or sealant, masking tape',
+    ],
+  },
+  {
+    name: 'Ceramic / Coating',
+    aliases: ['ceramic', 'coating', 'ppf', 'sealant upgrade'],
+    description: 'Prep wash, iron decon, paint prep, coating or sealant application per booking scope.',
+    equipment: [
+      'Prep wash + iron decon + clay bar',
+      'IPA wipe-down towels and coating applicators',
+      'IR lamp or heat gun optional for curing',
+      'Nitrile gloves and dedicated microfiber for coating',
+    ],
+  },
+];
+
+function matchServicePackage(packageName) {
+  const hay = String(packageName || '').toLowerCase().trim();
+  if (!hay) return null;
+  for (const pkg of SERVICE_PACKAGES) {
+    if (pkg.name.toLowerCase() === hay) return pkg;
+    if (pkg.aliases.some(a => hay.includes(a))) return pkg;
+  }
+  return null;
+}
 
 async function getOpsSettings() {
   const store = await blobsStore(SETTINGS_STORE);
@@ -47,7 +116,7 @@ function calcBidMax(customerTotal, settings) {
     return Math.round(Number(settings.bidMaxOverride) * 100) / 100;
   }
   const total = Number(customerTotal) || 0;
-  const pct = Number(settings.bidMaxPercent) || 85;
+  const pct = Number(settings.bidMaxPercent) || 62;
   if (total <= 0) return null;
   return Math.round(total * pct) / 100;
 }
@@ -67,6 +136,8 @@ module.exports = {
   SETTINGS_KEY,
   DEFAULT_SETTINGS,
   MAINTENANCE_PLAN_TEMPLATES,
+  SERVICE_PACKAGES,
+  matchServicePackage,
   getOpsSettings,
   saveOpsSettings,
   calcBidMax,
