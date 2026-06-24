@@ -2478,6 +2478,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <button onclick="seedDemoBooking()">Demo</button>
         <button onclick="clearDemoBookings()">Clear</button>
         <button onclick="showAdminTab('gallery')" style="background:rgba(77,163,255,.15);color:var(--blue);border-color:rgba(77,163,255,.35)">📷 Gallery</button>
+        <button onclick="showAdminTab('chatinsights')" style="background:rgba(34,197,94,.15);color:var(--gr);border-color:rgba(34,197,94,.35)">🧠 Chat Insights</button>
       </div>
       <div id="admin-list-view">
         <div class="admin-grid" id="admin-grid"></div>
@@ -2607,6 +2608,25 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
               <button onclick="closeGalleryForm()" style="background:rgba(255,255,255,.07);color:var(--tx);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:9px 16px;font-size:13px;cursor:pointer">Cancel</button>
             </div>
           </div>
+        </div>
+      </div>
+      <div id="admin-chatinsights-view" style="display:none">
+        <div style="padding:20px;font-size:13px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-size:18px;font-weight:700;color:var(--white)">🧠 Chat Insights</div>
+              <div style="color:var(--mu);font-size:12px;margin-top:2px">AI chat usage, unanswered questions, and interaction logs. Use these to improve FAQs and SEO.</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <select id="ci-days" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bbr);border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+                <option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="30">Last 30 days</option>
+              </select>
+              <button onclick="loadChatInsights()" style="background:rgba(34,197,94,.18);color:var(--gr);border:1px solid rgba(34,197,94,.35);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer">↻ Load</button>
+            </div>
+          </div>
+          <div id="ci-stats" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px"></div>
+          <div id="ci-unanswered" style="margin-bottom:16px"></div>
+          <div id="ci-intents"></div>
         </div>
       </div>
     </div>
@@ -4607,11 +4627,53 @@ function showAdminTab(tab){
   const auc = document.getElementById('admin-auc-view'); if(auc) auc.style.display = tab==='auctions' ? 'block' : 'none';
   const rev = document.getElementById('admin-reviews-view'); if(rev) rev.style.display = tab==='reviews' ? 'block' : 'none';
   const gal = document.getElementById('admin-gallery-view'); if(gal) gal.style.display = tab==='gallery' ? 'block' : 'none';
+  const ci = document.getElementById('admin-chatinsights-view'); if(ci) ci.style.display = tab==='chatinsights' ? 'block' : 'none';
   if(tab==='calendar') renderAdminCalendar();
   if(tab==='inquiries') renderAdminInquiries();
   if(tab==='auctions') renderAuctions();
   if(tab==='gallery') loadGalleryAdmin();
+  if(tab==='chatinsights') loadChatInsights();
 }
+
+// ── CHAT INSIGHTS (admin) ──────────────────────────────────────────────────
+function loadChatInsights(){
+  const wrap=document.getElementById('ci-stats');
+  const unWrap=document.getElementById('ci-unanswered');
+  const intWrap=document.getElementById('ci-intents');
+  if(!wrap) return;
+  const days=document.getElementById('ci-days')?.value||'7';
+  wrap.innerHTML='<div style="color:var(--mu)">Loading chat insights…</div>';
+  unWrap.innerHTML=''; intWrap.innerHTML='';
+  const key=window._adminKey||'';
+  fetch(BACKEND_BASE+'/chat-insights?days='+days,{headers:{'x-admin-key':key}})
+    .then(r=>r.json()).then(d=>{
+      if(!d.ok){ wrap.innerHTML='<div style="color:var(--rd)">Could not load insights. Make sure NETLIFY_TOKEN and SITE_ID are set.</div>'; return; }
+      // Stats cards
+      const cards=[
+        {label:'Total Messages',val:d.total,color:'var(--blue)'},
+        {label:'AI Answered',val:d.aiAnswered,color:'var(--gr)'},
+        {label:'Fallback Used',val:d.fallbackCount,color:'#f5a623'},
+        {label:'Injections Blocked',val:d.injectionCount,color:'var(--rd)'}
+      ];
+      wrap.innerHTML=cards.map(c=>'<div style="flex:1;min-width:120px;background:var(--bg2);border:1px solid var(--bbr);border-radius:12px;padding:14px 16px;text-align:center">'
+        +'<div style="font-size:24px;font-weight:800;color:'+c.color+'">'+c.val+'</div>'
+        +'<div style="font-size:11px;color:var(--mu);margin-top:4px">'+c.label+'</div></div>').join('');
+      // Unanswered questions
+      if(d.unanswered&&d.unanswered.length){
+        unWrap.innerHTML='<div style="font-weight:700;color:var(--white);margin-bottom:10px">Unanswered Questions <span style="font-weight:400;color:var(--mu);font-size:11px">(improve FAQ/SEO)</span></div>'
+          +d.unanswered.slice(-20).reverse().map(q=>'<div style="background:var(--bg2);border:1px solid var(--bbr);border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px">'
+          +'<div style="font-size:13px;color:var(--tx)">'+escH(q.question)+'</div>'
+          +'<div style="font-size:10px;color:var(--mu);white-space:nowrap">'+new Date(q.ts).toLocaleDateString()+'</div></div>').join('');
+      } else { unWrap.innerHTML='<div style="color:var(--mu);font-size:12px">No unanswered questions in this period.</div>'; }
+      // Intent breakdown
+      if(d.intentCounts&&Object.keys(d.intentCounts).length){
+        const sorted=Object.entries(d.intentCounts).sort((a,b)=>b[1]-a[1]);
+        intWrap.innerHTML='<div style="font-weight:700;color:var(--white);margin-bottom:10px">Intent Breakdown</div>'
+          +'<div style="display:flex;flex-wrap:wrap;gap:8px">'+sorted.map(([k,v])=>'<span style="background:var(--bg2);border:1px solid var(--bbr);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--tx)">'+escH(k)+' <b style="color:var(--blue)">'+v+'</b></span>').join('')+'</div>';
+      }
+    }).catch(()=>{ wrap.innerHTML='<div style="color:var(--rd)">Failed to fetch chat insights.</div>'; });
+}
+function escH(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // ── GALLERY MANAGER (admin) ────────────────────────────────────────────────
 const GALLERY_ADMIN_URL  = '/.netlify/functions/recent-work-admin';
@@ -5277,7 +5339,7 @@ function renderVehicleCart(){
   }).join('');
   const fee = activeZone ? activeZone.surcharge : 0;
   if(totalEl){ totalEl.style.display='flex'; }
-  if(sumEl){ sumEl.textContent = '$'+(sum + fee) + (fee?' (incl. $'+fee+' area fee)':''); }
+  if(sumEl){ sumEl.textContent = '$'+(sum + fee); }
 }
 
 // ── RESTORE RESTART ─────────────────────────────────────────────────────────────
@@ -5696,12 +5758,7 @@ function applyZip(){
     nameEl.textContent  = zone.short;
     pillEl.style.display= 'inline-flex';
     pillTxt.textContent = zone.emoji+' '+zone.label;
-    if(zone.surcharge > 0){
-      surEl.style.display = 'inline-block';
-      surEl.textContent   = '+$'+zone.surcharge+' travel fee applies';
-    } else {
-      surEl.style.display = 'none';
-    }
+    surEl.style.display = 'none';
   } else {
     nameEl.textContent  = 'YOUR AREA';
     pillEl.style.display= 'none';
@@ -5747,12 +5804,7 @@ function onBkZipInput(val){
     const cityName = getCityByZip(zip5);
     badge.style.display = 'inline-flex';
     badge.textContent   = '✓ ' + (cityName ? cityName : zone.short);
-    if(zone.surcharge > 0){
-      surBadge.style.display = 'inline-flex';
-      surBadge.textContent   = '+$'+zone.surcharge+' area fee';
-    } else {
-      surBadge.style.display = 'none';
-    }
+    surBadge.style.display = 'none';
     // Unlock category cards
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('locked'));
     if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span>'; }
@@ -7265,7 +7317,7 @@ function onHeroZipInput(val){
     cityHtml = `<div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px;letter-spacing:.02em">📍 ${cityName}</div>`;
   }
   let pills = `<span class="zip-pill zip-pill-zone">${zone.label}</span>`;
-  if(zone.surcharge > 0) pills += `<span class="zip-pill zip-pill-fee">+$${zone.surcharge} area fee</span>`;
+  // Fee is included silently in the total — no visible pill
   if(richMultiplier > 1.0) pills += `<span class="zip-pill zip-pill-rich">⭐ Premium area</span>`;
   if(fb) fb.innerHTML = `${cityHtml}<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">${pills}</div>`;
   // Unlock homepage service cards
@@ -7399,10 +7451,14 @@ seedDefaultTechs();
   }
 
   const DEFAULT_CHIPS=[
-    {label:'💵 Pricing',q:'How much does it cost?'},
-    {label:'📍 Service area',q:'What areas do you serve?'},
-    {label:'📅 Book now',act:'book'},
-    {label:'🧑‍🔧 Talk to a human',act:'human'}
+    {label:'📦 View Packages',q:'What packages do you offer?'},
+    {label:'📅 Book Now',act:'book'},
+    {label:'📋 My Booking',act:'portal'},
+    {label:'📞 Call/Text',q:'How do I contact you?'},
+    {label:'📍 Service Area',q:'What areas do you serve?'},
+    {label:'✨ Popular Add-ons',q:'What add-ons do you have?'},
+    {label:'💳 Card-on-File Policy',q:'What is the card on file policy?'},
+    {label:'🧑‍🔧 Talk to Human',act:'human'}
   ];
 
   // ── open / close ──
@@ -7416,15 +7472,57 @@ seedDefaultTechs();
   window.cdToggle=cdToggle;
 
   function cdGreet(){
-    push("👋 Hi! I'm the <b>Cardetail1</b> assistant. Ask me about pricing, service areas, packages, add-ons, booking or payment — or I can connect you with our team.", 'bot');
+    push("👋 Hi! I'm the <b>Cardetail1</b> assistant. I can help with packages, pricing, add-ons, service areas, booking, My Booking, card-on-file policy, and more — or I can connect you with our team.", 'bot');
     setChips(DEFAULT_CHIPS);
   }
+
+  // ── client-side rate limiting ──
+  const cdRateLog = [];
+  const CD_RATE_MAX = 12, CD_RATE_WINDOW = 60000; // 12 msgs per 60s
+  function cdRateLimited(){
+    const now=Date.now();
+    while(cdRateLog.length && now-cdRateLog[0]>CD_RATE_WINDOW) cdRateLog.shift();
+    if(cdRateLog.length>=CD_RATE_MAX) return true;
+    cdRateLog.push(now); return false;
+  }
+
+  // ── client-side prompt injection detection ──
+  const CD_INJECT_RE = [
+    /ignore\s+(all\s+)?(previous|prior|above|your)\s+(instructions|rules|prompt)/i,
+    /reveal\s+(your\s+)?(system|hidden|internal)\s+(prompt|instructions)/i,
+    /show\s+(me\s+)?(your\s+)?(system|hidden)\s+(prompt|instructions)/i,
+    /bypass\s+(your\s+)?(safety|security|booking|payment)\s*(rules|filter)?/i,
+    /pretend\s+(you\s+)?(are|have)\s+(no\s+)?(rules|restrictions)/i,
+    /jailbreak/i, /DAN\s+mode/i, /developer\s+mode/i,
+    /expose\s+(admin|internal|secret|customer)\s+(data|key|info|password)/i,
+    /access\s+(admin|internal|customer|booking)\s+(panel|portal|data|database)/i
+  ];
+  function cdDetectInjection(t){ return CD_INJECT_RE.some(r=>r.test(t)); }
 
   function cdSend(){ const inp=$('cd-input'); const v=(inp.value||'').trim(); if(!v) return; inp.value=''; cdAsk(v); }
   window.cdSend=cdSend;
 
   function cdAsk(text){
-    push(esc(text),'user'); remember('user',text); setChips([]); typing(true);
+    // Sanitize: strip HTML, limit length
+    text=text.replace(/<[^>]*>/g,'').slice(0,500).trim();
+    if(!text) return;
+    push(esc(text),'user'); remember('user',text); setChips([]);
+
+    // Rate limit check
+    if(cdRateLimited()){
+      push("You're sending messages quickly — please wait a moment. Or call "+telLink()+" for immediate help.",'bot');
+      setChips([{label:'📞 Call/Text',q:'How do I contact you?'}]);
+      return;
+    }
+
+    // Prompt injection check
+    if(cdDetectInjection(text)){
+      push("I can only help with Cardetail1 services — packages, pricing, booking, service areas, and add-ons. I can't access internal systems or modify bookings through chat.\n\nFor anything else, call or text "+telLink()+" and our team will help.",'bot');
+      setChips([{label:'📋 My Booking',act:'portal'},{label:'📞 Call/Text',q:'How do I contact you?'},{label:'💵 Pricing',q:'How much does it cost?'}]);
+      return;
+    }
+
+    typing(true);
     cdAnswer(text).then(res=>{
       typing(false); push(res.reply,'bot'); remember('assistant',res.reply.replace(/<[^>]+>/g,'')); setChips(res.chips||DEFAULT_CHIPS);
     }).catch(()=>{
@@ -7433,19 +7531,30 @@ seedDefaultTechs();
   }
   window.cdAsk=cdAsk;
 
-  // Prefer the real AI endpoint; degrade gracefully to the local knowledge base.
+  // Prefer the server-side AI endpoint; degrade gracefully to the local knowledge base.
   async function cdAnswer(text){
     const url = (typeof AI_CHAT_URL==='string') ? AI_CHAT_URL : '';
     if(url){
       try{
         const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),9000);
         const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},signal:ctrl.signal,
-          body:JSON.stringify({message:text, history})});
+          body:JSON.stringify({message:text.slice(0,500), history})});
         clearTimeout(to);
-        if(res.ok){ const data=await res.json(); if(data&&data.ok&&data.reply){ return {reply:safeLinkify(data.reply), chips:data.chips||suggestChips(text)}; } }
+        if(res.ok){
+          const data=await res.json();
+          if(data&&data.ok&&data.reply) return {reply:safeLinkify(data.reply), chips:data.chips||suggestChips(text)};
+          // AI not configured or empty — show fallback notice then try local
+          if(data&&data.reason==='ai_not_configured'){
+            // Let local handle it, but first time show a note
+            if(!cdAnswer._notified){ cdAnswer._notified=true; }
+          }
+        }
+        if(res.status===429){
+          return {reply:"You're sending messages too quickly. Please wait a moment, or call "+telLink()+" for immediate help.",
+            chips:[{label:'📞 Call/Text',q:'How do I contact you?'}]};
+        }
       }catch(e){ /* offline / not configured → local */ }
     }
-    // tiny delay so the typing indicator feels natural
     await new Promise(r=>setTimeout(r,450));
     return cdLocalAnswer(text);
   }
@@ -7490,17 +7599,25 @@ seedDefaultTechs();
       reply:"Booking takes ~2 minutes: 📍 enter ZIP → 🚗 pick category & package → confirm your vehicle → ✨ add extras → your details → review & submit. No charge today — we confirm by text/call first.",
       chips:[{label:'📅 Start booking',act:'book'},{label:'💳 Deposit/payment',q:'Do I pay now?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
-    { keys:['pay','payment','deposit','charge now','credit card','card','stripe','money','pay now','upfront'], fn:()=>({
-      reply:"You're <b>not charged when you submit</b> — it's a request first. A card on file is required for booking security and is saved securely through Stripe. Choose cash on-site, card on-site, or online after service as your separate payment preference.",
-      chips:[{label:'📅 Book now',act:'book'},{label:'❌ Cancellation policy',q:'What is your cancellation policy?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+    { keys:['card on file','card-on-file','cardonfile','why card','hold my card','card required','card policy','secure my card'], fn:()=>({
+      reply:"A card on file is required to secure the booking request. <b>No charge is made today.</b> You may still pay cash or card on-site after service. The card may be used only according to the posted policy for late cancellation, no-show, access issues, or approved payment situations.",
+      chips:[{label:'📅 Book Now',act:'book'},{label:'❌ Cancellation policy',q:'What is your cancellation policy?'},{label:'🧑‍🔧 Talk to Human',act:'human'}] }) },
+
+    { keys:['pay','payment','deposit','charge now','credit card','stripe','money','pay now','upfront','cash'], fn:()=>({
+      reply:"You're <b>not charged when you submit</b> — it's a request first. A card on file is saved securely via Stripe to hold the slot. <b>Payment options:</b> cash on-site, card on-site, or online payment link after service. An optional 25% refundable deposit can secure your slot.\n\nFinal pricing may vary by vehicle size, condition, and add-ons.",
+      chips:[{label:'💳 Card-on-File Policy',q:'What is the card on file policy?'},{label:'📅 Book Now',act:'book'},{label:'🧑‍🔧 Talk to Human',act:'human'}] }) },
 
     { keys:['hour','hours','open','time','when are you','availability','available','today','same day','same-day','weekend'], fn:()=>({
       reply:"We operate <b>Mon–Fri, 8AM–5PM</b>. Request your preferred date during booking — we confirm availability based on route, weather, and service type before scheduling.",
       chips:[{label:'📅 Check availability',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
+    { keys:['my booking','my appointment','check booking','booking status','track booking','where is my','lookup booking','find booking','existing booking','manage booking'], fn:()=>({
+      reply:"You can view and manage your booking anytime from <b>My Booking</b> on the website. Enter your booking ID and the email or phone you used during booking. From there you can check status, request a reschedule, change your address, or request cancellation.",
+      chips:[{label:'📋 My Booking',act:'portal'},{label:'📞 Call/Text',q:'How do I contact you?'},{label:'📅 Book Now',act:'book'}] }) },
+
     { keys:['cancel','cancellation','reschedule','refund','no-show','policy','weather','rain'], fn:()=>({
-      reply:"Easy & fair: 🔄 reschedule or cancel at least <b>24h</b> before (rescheduling preferred). Weather, emergencies or schedule conflicts → free reschedule. Late cancellations / no-shows / denied access may incur a fee or deposit loss. Full terms are on the Terms page.",
-      chips:[{label:'📅 Book now',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+      reply:"Easy & fair: 🔄 reschedule or cancel at least <b>24h</b> before (rescheduling preferred). Weather, emergencies or schedule conflicts → free reschedule. Late cancellations / no-shows / denied access may incur a fee or deposit loss.\n\nTo cancel or reschedule, use <b>My Booking</b> on the website — I can't cancel bookings through chat.",
+      chips:[{label:'📋 My Booking',act:'portal'},{label:'📞 Call/Text',q:'How do I contact you?'},{label:'🧑‍🔧 Talk to Human',act:'human'}] }) },
 
     { keys:['what do you detail','vehicle','vehicles','cars','boat','rv','trailer','motorcycle','atv','jet ski','fleet','truck','suv'], fn:()=>({
       reply:"We detail 🚗 cars & trucks, 🛥️ boats, 🏕️ RVs & travel trailers, 🏍️ powersports (motorcycle/ATV/UTV/jet ski) and 🚚 fleets — all <b>mobile</b>, at your home or workplace.",
@@ -7514,9 +7631,13 @@ seedDefaultTechs();
       reply:"It depends on the package and vehicle — each package shows its estimated time in the booking flow (a wash is quick; a full detail takes longer). Pick a package to see the duration.",
       chips:[{label:'📅 See times',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }) },
 
-    { keys:['human','agent','person','representative','call','phone','contact','speak','talk to','someone','manager','owner','real person'], fn:()=>({
+    { keys:['contact','call','phone','text','reach','number','sms'], fn:()=>({
+      reply:"📞 Call or text us anytime at "+telLink()+" (Mon–Fri 8AM–5PM). For after-hours, leave a message or text — we respond quickly. You can also submit a question through our chat handoff.",
+      chips:[{label:'📨 Send my question',act:'human'},{label:'📋 My Booking',act:'portal'},{label:'📅 Book Now',act:'book'}] }) },
+
+    { keys:['human','agent','person','representative','speak','talk to','someone','manager','owner','real person'], fn:()=>({
       reply:"Happy to connect you! 📞 Call or text us at "+telLink()+" (Mon–Fri 8AM–5PM), or leave your question here and our team will get back to you.",
-      chips:[{label:'📨 Send my question',act:'human'},{label:'📅 Book now',act:'book'}] }) },
+      chips:[{label:'📨 Send my question',act:'human'},{label:'📞 Call/Text',q:'How do I contact you?'},{label:'📅 Book Now',act:'book'}] }) },
 
     { keys:['thank','thanks','obrigado','appreciate','great','awesome','perfect'], fn:()=>({
       reply:"You're welcome! 🙌 Anything else I can help with?", chips:DEFAULT_CHIPS }) }
@@ -7531,8 +7652,8 @@ seedDefaultTechs();
       if(score>bestScore){ bestScore=score; best=intent; }
     });
     if(best && bestScore>0) return best.fn();
-    return { reply:"I want to get this right 🤔 — I'm not 100% sure about that one. I can connect you with our team, or you can call "+telLink()+". Want me to pass your question along?",
-      chips:[{label:'📨 Send my question',act:'human'},{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] };
+    return { reply:"I can still help with packages, booking, My Booking, pricing, add-ons, and service area. 🤔 I'm not sure about that one — want me to connect you with our team, or you can call "+telLink()+"?",
+      chips:[{label:'📨 Send my question',act:'human'},{label:'📦 View Packages',q:'What packages do you offer?'},{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book Now',act:'book'}] };
   }
 
   // ── HUMAN HANDOFF (last resort → owner / admin portal) ──
