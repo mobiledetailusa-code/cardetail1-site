@@ -7385,15 +7385,21 @@ function _updateHomeFromPrices(){
   const BASE = 2800;
   const visits = (parseInt(localStorage.getItem(KEY)||'0',10)||0) + 1;
   localStorage.setItem(KEY, String(visits));
-  const shown = BASE + Math.floor(visits / 2);
+  const shown = BASE + visits;
   const el = document.getElementById('trust-stat-vehicles');
   if(!el) return;
-  if(shown >= 1000){
-    const k = shown / 1000;
-    el.textContent = (k % 1 === 0 ? k.toFixed(0) : k.toFixed(1).replace(/\.0$/,'')) + 'k+';
-  } else {
-    el.textContent = shown + '+';
+  function fmt(n){
+    if(n >= 1000){
+      const k = n / 1000;
+      return (k % 1 === 0 ? k.toFixed(0) : k.toFixed(1).replace(/\.0$/,'')) + 'k+';
+    }
+    return n.toLocaleString('en-US') + '+';
   }
+  el.textContent = fmt(shown);
+  el.style.transition = 'transform .35s ease, opacity .35s ease';
+  el.style.opacity = '0.55';
+  requestAnimationFrame(()=>{ el.style.opacity = '1'; el.style.transform = 'scale(1.04)'; });
+  setTimeout(()=>{ el.style.transform = 'scale(1)'; }, 380);
 })();
 
 // Opens booking — always allowed, but pre-fills ZIP if already entered on hero
