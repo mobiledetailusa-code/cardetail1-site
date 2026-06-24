@@ -16,6 +16,39 @@ async function blobsStore(name) {
   return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
 }
 
+/** List all blob keys in a store; paginates and never throws. */
+async function listAllBlobs(store, label = 'store') {
+  const blobs = [];
+  try {
+    for await (const page of store.list({ paginate: true })) {
+      blobs.push(...((page && page.blobs) || []));
+    }
+    return blobs;
+  } catch (e) {
+    console.error(`[blobs] paginated list failed (${label}):`, e.message);
+  }
+  try {
+    const listing = await store.list();
+    return (listing && listing.blobs) || [];
+  } catch (e) {
+    console.error(`[blobs] list failed (${label}):`, e.message);
+    return [];
+  }
+}
+
+/** Fetch JSON records for blob keys in bounded parallel batches. */
+async function fetchBlobRecords(store, blobs, concurrency = 20) {
+  const records = [];
+  for (let i = 0; i < blobs.length; i += concurrency) {
+    const chunk = blobs.slice(i, i + concurrency);
+    const rows = await Promise.all(
+      chunk.map(b => store.get(b.key, { type: 'json' }).catch(() => null))
+    );
+    for (const row of rows) if (row) records.push(row);
+  }
+  return records;
+}
+
 function jsonCors(status, body, extraHeaders = {}) {
   return {
     statusCode: status,
@@ -141,6 +174,8 @@ function bookingAssignedToTech(booking, techId, techName) {
 
 module.exports = {
   blobsStore,
+  listAllBlobs,
+  fetchBlobRecords,
   jsonCors,
   verifyAdminKey,
   hashPassword,

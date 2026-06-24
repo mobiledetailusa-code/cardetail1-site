@@ -1,5 +1,5 @@
 // Admin-only jobs feed + admin ops actions for Admin Ops dashboard.
-const { blobsStore, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
+const { blobsStore, listAllBlobs, fetchBlobRecords, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const {
   projectJobForAdmin, normalizeJobStatus, normalizePaymentWorkflowStatus, appendEventLog,
 } = require('../lib/ops-workflow');
@@ -44,12 +44,15 @@ async function listJobs(q) {
   const showTest = String(q.showTest || '') === '1';
   const statusFilter = sanitizeText(q.jobStatus || q.status, 64);
   const search = sanitizeText(q.search, 120).toLowerCase();
-  const store = await blobsStore('cd1-bookings');
-  const listing = await store.list();
-  const blobs = (listing && listing.blobs) || [];
-  let jobs = (await Promise.all(
-    blobs.map(b => store.get(b.key, { type: 'json' }).catch(() => null))
-  )).filter(b => b && !b.isDraft);
+  let store;
+  try {
+    store = await blobsStore('cd1-bookings');
+  } catch (e) {
+    console.error('[admin-ops-jobs] blobsStore(cd1-bookings) failed:', e.message);
+    return [];
+  }
+  const blobs = await listAllBlobs(store, 'cd1-bookings');
+  let jobs = (await fetchBlobRecords(store, blobs)).filter(b => b && !b.isDraft);
 
   if (!showTest) jobs = jobs.filter(b => !b.isTest && !b.archived && b.jobStatus !== 'archived_test');
   if (statusFilter) jobs = jobs.filter(b => normalizeJobStatus(b) === statusFilter);
@@ -408,8 +411,7 @@ async function handleAdminAction(body) {
 }
 
 async function bulkArchiveTests(store, includeAlreadyArchived) {
-  const listing = await store.list();
-  const blobs = (listing && listing.blobs) || [];
+  const blobs = await listAllBlobs(store, 'cd1-bookings');
   let archived = 0;
   let skipped = 0;
   const ids = [];
@@ -451,9 +453,9 @@ exports.handler = async (event) => {
       if (body.action === 'preview_test_cleanup') {
         try {
           const store = await blobsStore('cd1-bookings');
-          const listing = await store.list();
+          const blobs = await listAllBlobs(store, 'cd1-bookings');
           const matches = [];
-          for (const blob of ((listing && listing.blobs) || [])) {
+          for (const blob of blobs) {
             const booking = await store.get(blob.key, { type: 'json' }).catch(() => null);
             if (!booking || booking.isDraft || booking.archived) continue;
             if (isLikelyTestBooking(booking)) {
@@ -474,7 +476,8 @@ exports.handler = async (event) => {
     try {
       const jobs = await listJobs(body);
       return jsonCors(200, { ok: true, count: jobs.length, jobs });
-    } catch {
+    } catch (e) {
+      console.error('[admin-ops-jobs] failed_to_load_jobs (POST):', e.message, e.stack);
       return jsonCors(500, { ok: false, error: 'failed_to_load_jobs' });
     }
   }
@@ -482,7 +485,8 @@ exports.handler = async (event) => {
   try {
     const jobs = await listJobs(event.queryStringParameters || {});
     return jsonCors(200, { ok: true, count: jobs.length, jobs });
-  } catch {
+  } catch (e) {
+    console.error('[admin-ops-jobs] failed_to_load_jobs (GET):', e.message, e.stack);
     return jsonCors(500, { ok: false, error: 'failed_to_load_jobs' });
   }
 };
