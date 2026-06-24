@@ -25,7 +25,73 @@ async function blobsStore(name) {
   return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
 }
 
-// ── Stripe signature verification (no SDK, HMAC-SHA256, 5-min replay window) ──
+// ── Customer subscription blob helpers ──
+async function activateCustomerSubscription(sess, meta) {
+  try {
+    const store = await blobsStore('cd1-subscriptions');
+    const stripeSubId = sess.subscription || '';
+    const listing = await store.list().catch(() => ({ blobs: [] }));
+    const existing = stripeSubId
+      ? (await Promise.all(
+          ((listing && listing.blobs) || []).map(b => store.get(b.key, { type: 'json' }).catch(() => null))
+        )).find(s => s && s.stripeSubscriptionId === stripeSubId)
+      : null;
+
+    const now = new Date().toISOString();
+    const { CAR_PACKAGES } = require('../lib/customer-catalog');
+    const pack = CAR_PACKAGES.find(p => p.id === meta.packId);
+    const id = existing ? existing.id : ('SUB-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase());
+    const sub = {
+      ...(existing || {}),
+      id,
+      customerName: meta.customerName || existing?.customerName || '',
+      email: (meta.email || existing?.email || '').toLowerCase(),
+      phone: String(meta.phone || existing?.phone || '').replace(/\D/g, '').slice(0, 15),
+      planId: meta.packId || existing?.planId || 'maint',
+      planName: pack ? pack.name : (existing?.planName || 'Maintenance Detail'),
+      fleetId: meta.fleetId || existing?.fleetId || null,
+      intervalMonths: 1,
+      price: Number(meta.monthlyPrice) || existing?.price || 0,
+      billingCycle: 'monthly',
+      status: 'active',
+      maxDetailsPerMonth: 1,
+      vehicle: meta.vehicle || existing?.vehicle || '',
+      bookingId: meta.bookingId || existing?.bookingId || '',
+      stripeSubscriptionId: stripeSubId,
+      stripeCustomerId: sess.customer || existing?.stripeCustomerId || null,
+      stripeCheckoutSessionId: sess.id,
+      activatedAt: now,
+      notes: existing?.notes || 'Stripe subscription checkout — auto-activated',
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    };
+    await store.setJSON(id, sub);
+    return { activated: true, id };
+  } catch (e) {
+    return { activated: false, reason: e.message };
+  }
+}
+
+async function cancelSubscriptionByStripeId(stripeSubId) {
+  if (!stripeSubId) return { cancelled: false, reason: 'no_stripe_sub_id' };
+  try {
+    const store = await blobsStore('cd1-subscriptions');
+    const listing = await store.list().catch(() => ({ blobs: [] }));
+    const subs = await Promise.all(
+      ((listing && listing.blobs) || []).map(b => store.get(b.key, { type: 'json' }).catch(() => null))
+    );
+    const sub = subs.find(s => s && s.stripeSubscriptionId === stripeSubId);
+    if (!sub) return { cancelled: false, reason: 'subscription_not_found' };
+    sub.status = 'cancelled';
+    sub.cancelledAt = new Date().toISOString();
+    sub.updatedAt = sub.cancelledAt;
+    await store.setJSON(sub.id, sub);
+    return { cancelled: true, id: sub.id };
+  } catch (e) {
+    return { cancelled: false, reason: e.message };
+  }
+}
+
 function verifyStripeSignature(rawBody, sigHeader, secret) {
   if (!sigHeader || !secret) return false;
   const parts = {};
@@ -273,6 +339,25 @@ exports.handler = async (event) => {
         cardOnFileStatus: 'failed',
       });
       console.log('[stripe-webhook] setup_intent.setup_failed', siBookingId);
+      break;
+    }
+
+    case 'checkout.session.completed': {
+      const sess = evt.data.object;
+      const meta = sess.metadata || {};
+      if (meta.type === 'customer_subscription') {
+        results.subscription = await activateCustomerSubscription(sess, meta);
+        await notifyAdmin(
+          `Cardetail1 — subscription activated · ${meta.email || '—'}`,
+          `Customer subscription checkout completed.\nPlan: ${meta.packId || '—'}\nEmail: ${meta.email || '—'}\nVehicle: ${meta.vehicle || '—'}\nStripe sub: ${sess.subscription || '—'}`
+        );
+      }
+      break;
+    }
+
+    case 'customer.subscription.deleted': {
+      const stripeSub = evt.data.object;
+      results.subscription = await cancelSubscriptionByStripeId(stripeSub.id);
       break;
     }
 

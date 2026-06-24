@@ -55,7 +55,7 @@ function phonesMatch(a, b) {
   return a.slice(-n) === b.slice(-n);
 }
 
-const ALLOWED_ACTIONS = new Set(['reschedule_request', 'address_update', 'addon_request']);
+const ALLOWED_ACTIONS = new Set(['reschedule_request', 'address_update', 'addon_request', 'package_change_request']);
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
@@ -153,6 +153,26 @@ exports.handler = async (event) => {
       ``,
       `Requested add-ons: ${requestedAddons}`,
       `Service: ${booking.package || booking.service || '—'}`,
+      `Customer: ${custName}`,
+      `Phone: ${booking.phone || ''}`,
+    ].join('\n');
+  } else if (action === 'package_change_request') {
+    const newPackId = String(p.newPackId || '').slice(0, 32).trim();
+    const newPackName = String(p.newPackName || '').slice(0, 120).trim();
+    if (!newPackName) return json(400, { ok: false, userMessage: 'Please select a package.' });
+    updates = {
+      packageChangeRequested: true,
+      packageChangeRequestedAt: now,
+      requestedPackageId: newPackId,
+      requestedPackageName: newPackName,
+    };
+    logEntry.requestedPackage = newPackName;
+    adminSubject = `Cardetail1 — Package Change Request · ${bookingId}`;
+    adminText = [
+      `Customer requested a package change for booking ${bookingId}.`,
+      ``,
+      `Current package: ${booking.package || booking.service || '—'}`,
+      `Requested package: ${newPackName}${newPackId ? ' (' + newPackId + ')' : ''}`,
       `Customer: ${custName}`,
       `Phone: ${booking.phone || ''}`,
     ].join('\n');

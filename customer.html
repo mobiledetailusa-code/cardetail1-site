@@ -156,6 +156,32 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
   .sh-grid{grid-template-columns:1fr 1fr}
   .plan-grid{grid-template-columns:1fr}
 }
+
+/* ── UNIFIED MANAGE PANEL ── */
+.manage-panel{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.mp-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.mp-section summary{padding:16px 18px;font-size:14px;font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+.mp-section summary::-webkit-details-marker{display:none}
+.mp-body{padding:0 18px 18px;font-size:13px;line-height:1.55}
+.pack-desc-toggle{background:none;border:none;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;padding:0;margin-top:8px;font-family:inherit}
+.pack-desc{display:none;margin-top:10px;padding:12px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--mu);line-height:1.65}
+.pack-desc.open{display:block}
+.pack-feats{list-style:none;margin-top:8px}
+.pack-feats li{font-size:11px;padding:3px 0;color:var(--mu)}
+.pack-feats li::before{content:'✓ ';color:var(--green);font-weight:700}
+.sub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:12px}
+.sub-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px}
+.sub-card.feat{border-color:rgba(77,163,255,.35)}
+.inline-form{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.inline-form input,.inline-form select,.inline-form textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--white);font-family:inherit;font-size:13px;outline:none}
+.inline-form input:focus,.inline-form select:focus,.inline-form textarea:focus{border-color:var(--blue)}
+.addon-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.addon-row:last-child{border-bottom:none}
+.addon-row label{flex:1;cursor:pointer;font-size:12px}
+.mp-note{font-size:11px;color:var(--mu);margin-top:8px;line-height:1.5}
+.fleet-toggle{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.fleet-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--mu);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+.fleet-btn.active{border-color:var(--blue);color:var(--blue);background:rgba(77,163,255,.08)}
 </style>
 </head>
 <body>
@@ -199,14 +225,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
   <div class="tab-bar">
     <div class="tab active" onclick="showTab('status')" data-t="status">📋 My Booking</div>
     <div class="tab" onclick="showTab('history')" data-t="history">History</div>
-    <div class="tab" onclick="showTab('plans')" data-t="plans">Membership Plans</div>
   </div>
   <div class="main">
 
     <!-- STATUS -->
     <div class="page active" id="page-status">
-      <div class="pg-t">Booking Status</div>
-      <div class="pg-s">Your most recent / active booking</div>
+      <div class="pg-t">My Booking</div>
+      <div class="pg-s">Manage your appointment, package, add-ons, and monthly plan — all in one place</div>
       <div id="status-content"></div>
     </div>
 
@@ -216,38 +241,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
       <div class="pg-s">All your service requests</div>
       <div class="sg" id="hist-stats"></div>
       <div id="hist-list"></div>
-    </div>
-
-    <!-- PLANS -->
-    <div class="page" id="page-plans">
-      <div class="pg-t">Membership Plans</div>
-      <div class="pg-s">Save with a maintenance plan — max 1 detail per month. We'll confirm billing after signup.</div>
-      <div id="plan-banner"></div>
-      <div class="plan-grid" id="plan-grid">
-        <div class="plan">
-          <div class="plan-nm">🧼 Maintenance</div>
-          <div class="plan-pr">$79<span>/mo</span></div>
-          <div class="plan-sub">1 maintenance detail/month · Cars · ~12% off walk-in</div>
-          <ul class="plan-feats"><li>Monthly exterior hand wash</li><li>Wheels & tires dressed</li><li>Interior vacuum & wipe</li><li>Max 1 visit/month</li><li>Priority scheduling</li></ul>
-          <button class="plan-btn" onclick="joinPlan('maint-monthly','Monthly Maintenance',79,1)">Join — $79/mo</button>
-        </div>
-        <div class="plan feat">
-          <div class="plan-tag">Most Popular</div>
-          <div class="plan-nm">✨ Quarterly</div>
-          <div class="plan-pr">$119<span>/qtr</span></div>
-          <div class="plan-sub">Full detail every 3 months · All vehicles</div>
-          <ul class="plan-feats"><li>Full exterior + interior</li><li>Clay bar treatment</li><li>Paint sealant</li><li>Max 1 visit/month</li><li>Priority scheduling</li></ul>
-          <button class="plan-btn" onclick="joinPlan('maint-quarterly','Quarterly',119,3)">Join — $119/qtr</button>
-        </div>
-        <div class="plan">
-          <div class="plan-nm">👑 Annual</div>
-          <div class="plan-pr">$199<span>/yr</span></div>
-          <div class="plan-sub">Annual premium detail · ~15% off vs one-time</div>
-          <ul class="plan-feats"><li>Premium detail 1×/year</li><li>Machine polish option</li><li>Same-day when available</li><li>Max 1 visit/month cap</li><li>Annual billing commitment</li></ul>
-          <button class="plan-btn" onclick="joinPlan('maint-annual','Annual Detail',199,12)">Join — $199/yr</button>
-        </div>
-      </div>
-      <p style="margin-top:16px;font-size:12px;color:var(--mu);text-align:center">Travel fee is flat per location (not per vehicle). Plans pending admin activation — call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a> with questions.</p>
     </div>
 
   </div>
@@ -260,6 +253,160 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
 
 <script>
 let CUSTOMER_BOOKINGS=[], CUSTOMER_KEY='', CUSTOMER_VERIFY_PHONE='', _lkMode='phone', _starRating=0, _cancelBookingId='';
+let CUSTOMER_CATALOG=null, CUSTOMER_SUBS=[], _selectedFleetId='';
+
+function getCustomerPhone(){
+  const [mode,val]=CUSTOMER_KEY.split(':');
+  if(mode==='phone') return (val||'').replace(/\D/g,'');
+  return CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||'';
+}
+function getCustomerEmail(){
+  const b=CUSTOMER_BOOKINGS[0]||{};
+  const [mode,val]=CUSTOMER_KEY.split(':');
+  if(mode==='email') return (val||'').toLowerCase();
+  return (b.email||'').trim().toLowerCase();
+}
+async function loadCatalogAndSubs(){
+  try{
+    const res=await fetch('/.netlify/functions/customer-subscription-checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'list_catalog'})});
+    const d=await res.json().catch(()=>({}));
+    if(d.ok) CUSTOMER_CATALOG=d.catalog;
+  }catch(e){}
+  const email=getCustomerEmail();
+  const phone=getCustomerPhone();
+  if(email.includes('@')&&phone.length>=7){
+    try{
+      const res=await fetch('/.netlify/functions/subscriptions-ops',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'customer_list',email,phone})});
+      const d=await res.json().catch(()=>({}));
+      if(d.ok) CUSTOMER_SUBS=d.subscriptions||[];
+    }catch(e){}
+  }
+}
+function matchCurrentPack(active){
+  const hay=(svc(active)+' '+(active.packageId||'')).toLowerCase();
+  const packs=(CUSTOMER_CATALOG&&CUSTOMER_CATALOG.packages)||[];
+  for(const p of packs){
+    if(hay.includes(p.id)||hay.includes(p.name.toLowerCase())) return p;
+  }
+  if(/maint/i.test(hay)) return packs.find(p=>p.id==='maint');
+  if(/interior/i.test(hay)) return packs.find(p=>p.id==='interior');
+  if(/paint|correction/i.test(hay)) return packs.find(p=>p.id==='premium');
+  if(/premium|full/i.test(hay)) return packs.find(p=>p.id==='full');
+  return null;
+}
+function togglePackDesc(){
+  const el=document.getElementById('pack-desc');
+  if(el) el.classList.toggle('open');
+}
+function selectFleet(id){
+  _selectedFleetId=id||'';
+  document.querySelectorAll('.fleet-btn').forEach(b=>b.classList.toggle('active',b.dataset.fleet===_selectedFleetId));
+}
+function renderSubscriptionSection(active){
+  const packs=(CUSTOMER_CATALOG&&CUSTOMER_CATALOG.packages)||[];
+  const fleet=(CUSTOMER_CATALOG&&CUSTOMER_CATALOG.fleetPlans)||[];
+  const disc=CUSTOMER_CATALOG?CUSTOMER_CATALOG.subscriberDiscountPct:10;
+  const activeSub=CUSTOMER_SUBS.find(s=>s.status==='active');
+  if(activeSub){
+    return `<div style="background:rgba(0,200,83,.06);border:1px solid rgba(0,200,83,.18);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-weight:700;color:var(--green)">✓ Active: ${esc(activeSub.planName)}</div>
+      <div style="font-size:12px;color:var(--mu);margin-top:4px">$${activeSub.price}/mo · ${esc(activeSub.vehicle||'Your vehicle')} · Max 1 detail/month</div>
+      <div class="mp-note">To cancel, email support or call 551-313-2956. Stripe billing renews monthly until cancelled.</div>
+    </div>`;
+  }
+  const fleetBtns=`<div class="fleet-toggle">
+    <button type="button" class="fleet-btn active" data-fleet="" onclick="selectFleet('')">1 vehicle</button>
+    ${fleet.map(f=>`<button type="button" class="fleet-btn" data-fleet="${esc(f.id)}" onclick="selectFleet('${esc(f.id)}')">${esc(f.name)}</button>`).join('')}
+  </div>`;
+  const cards=packs.map((p,i)=>`<div class="sub-card${p.id==='maint'?' feat':''}">
+    <div style="font-weight:800;font-size:14px;margin-bottom:4px">${esc(p.name)}</div>
+    <div style="font-family:var(--fd);font-size:22px;color:var(--green)">$${p.monthlyPrice}<span style="font-size:12px;color:var(--mu)">/mo</span></div>
+    <div style="font-size:11px;color:var(--mu);margin:6px 0;text-decoration:line-through">$${p.basePrice} walk-in</div>
+    <div style="font-size:11px;color:var(--mu);margin-bottom:10px">${esc(p.tag||'')}</div>
+    <button class="btn btn-p btn-sm" style="width:100%" onclick="startSubscription('${esc(p.id)}','${esc(active.id)}', this)">Subscribe via Stripe</button>
+  </div>`).join('');
+  return `${fleetBtns}<div class="sub-grid">${cards}</div>
+    <p class="mp-note">${disc}% off walk-in pricing for monthly subscribers. One pack per vehicle — fleet plans bundle multiple cars at one location. Travel fee is flat per address, not per vehicle.</p>`;
+}
+async function startSubscription(packId, bookingId, btn){
+  const b=CUSTOMER_BOOKINGS.find(x=>x.id===bookingId)||CUSTOMER_BOOKINGS[0]||{};
+  const email=getCustomerEmail();
+  const phone=getCustomerPhone();
+  if(!email.includes('@')||phone.length<7){ alert('We need your booking email and phone on file.'); return; }
+  if(btn){btn.disabled=true;btn.textContent='Opening Stripe…';}
+  try{
+    const res=await fetch('/.netlify/functions/customer-subscription-checkout',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'create_checkout',packId,fleetId:_selectedFleetId||undefined,bookingId,email,phone,customerName:nm(b),vehicle:b.vehicleLabel||b.vehicle||''})
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok||!data.url) throw new Error(data.error||data.message||'checkout_failed');
+    location.href=data.url;
+  }catch(e){
+    alert('Could not start checkout. Please call 551-313-2956.');
+    if(btn){btn.disabled=false;btn.textContent='Subscribe via Stripe';}
+  }
+}
+async function submitInlineReschedule(id){
+  const d=document.getElementById('inline-rs-date')?.value;
+  if(!d){ alert('Select a date'); return; }
+  const time=document.getElementById('inline-rs-time')?.value||'';
+  const phone=getCustomerPhone();
+  const btn=document.getElementById('inline-rs-btn'); if(btn){btn.disabled=true;}
+  try{
+    const res=await fetch('/.netlify/functions/submit-customer-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id,phone,action:'reschedule_request',newDate:d,newTime:time})});
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok) throw new Error(data.userMessage||'failed');
+    alert('✅ Reschedule request submitted — we will confirm within 24 hours.');
+    await refreshBookings();
+  }catch(e){ alert('Could not send request. Please call 551-313-2956.'); }
+  finally{ if(btn) btn.disabled=false; }
+}
+async function submitInlineAddress(id){
+  const addr=(document.getElementById('inline-addr')?.value||'').trim();
+  if(!addr){ alert('Enter your new address'); return; }
+  const phone=getCustomerPhone();
+  const btn=document.getElementById('inline-addr-btn'); if(btn){btn.disabled=true;}
+  try{
+    const res=await fetch('/.netlify/functions/submit-customer-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id,phone,action:'address_update',newAddress:addr})});
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok) throw new Error(data.userMessage||'failed');
+    alert('✅ Address update submitted.');
+    await refreshBookings();
+  }catch(e){ alert('Could not send request. Please call 551-313-2956.'); }
+  finally{ if(btn) btn.disabled=false; }
+}
+async function submitInlineAddons(id){
+  const checked=[...document.querySelectorAll('.addon-cb:checked')].map(el=>el.value);
+  const extra=(document.getElementById('inline-addon-extra')?.value||'').trim();
+  const list=[...checked,extra].filter(Boolean).join(', ');
+  if(!list){ alert('Select or describe at least one add-on.'); return; }
+  const phone=getCustomerPhone();
+  const btn=document.getElementById('inline-addon-btn'); if(btn){btn.disabled=true;}
+  try{
+    const res=await fetch('/.netlify/functions/submit-customer-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id,phone,action:'addon_request',requestedAddons:list})});
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok) throw new Error(data.userMessage||'failed');
+    alert('✅ Add-on request submitted — pending admin approval.');
+    await refreshBookings();
+  }catch(e){ alert('Could not send request. Please call 551-313-2956.'); }
+  finally{ if(btn) btn.disabled=false; }
+}
+async function submitPackChange(id){
+  const sel=document.getElementById('pack-change-select');
+  if(!sel||!sel.value){ alert('Select a package'); return; }
+  const opt=sel.options[sel.selectedIndex];
+  const phone=getCustomerPhone();
+  const btn=document.getElementById('pack-change-btn'); if(btn){btn.disabled=true;}
+  try{
+    const res=await fetch('/.netlify/functions/submit-customer-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id,phone,action:'package_change_request',newPackId:sel.value,newPackName:opt.textContent})});
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok) throw new Error(data.userMessage||'failed');
+    alert('✅ Package change request submitted — our team will confirm pricing.');
+    await refreshBookings();
+  }catch(e){ alert('Could not send request. Please call 551-313-2956.'); }
+  finally{ if(btn) btn.disabled=false; }
+}
 
 // ── LOOKUP TABS ──────────────────────────
 function lkTab(mode){
@@ -385,7 +532,11 @@ function initApp(useCurrent=false){
   document.getElementById('tb-nm').textContent=name.split(' ')[0]||'Customer';
   document.getElementById('s-lookup').style.display='none';
   document.getElementById('s-app').style.display='block';
-  renderStatus();
+  loadCatalogAndSubs().then(()=>renderStatus());
+  if(new URLSearchParams(location.search).get('subscribed')==='1'){
+    history.replaceState({},'',location.pathname);
+    setTimeout(()=>alert('✅ Subscription activated! Thank you for joining our monthly plan.'),400);
+  }
 }
 
 function showTab(name){
@@ -395,7 +546,6 @@ function showTab(name){
   document.querySelector(`[data-t="${name}"]`)?.classList.add('active');
   if(name==='status') renderStatus();
   if(name==='history') renderHistory();
-  if(name==='plans') renderPlans();
 }
 
 // ── STATUS STEPS ──────────────────────────
@@ -508,29 +658,86 @@ function renderStatus(){
   }
 
   let acts=`<a href="index.html" class="btn btn-g btn-sm">+ Book Again</a>`;
-  if(canReschedule){ acts+=`<button class="btn btn-yw btn-sm" onclick="openReschedule('${esc(active.id)}')">📅 Reschedule</button>`; }
-  if(canReschedule){ acts+=`<button class="btn btn-tl btn-sm" onclick="openAddressChange('${esc(active.id)}')">📍 Change Address</button>`; }
-  if(canRequestAddons){ acts+=`<button class="btn btn-tl btn-sm" onclick="openAddonRequest('${esc(active.id)}')">➕ Request Add-ons</button>`; }
   if(isDone&&!active.reviewLeft){ acts+=`<button class="btn btn-p btn-sm" onclick="openReview('${esc(active.id)}')">⭐ Leave Review</button>`; }
   if(active.payLink){
     acts+=`<a href="${esc(active.payLink)}" class="btn btn-p btn-sm" target="_blank" rel="noopener">💳 Prepay Online</a>`;
     acts+=`<button class="btn btn-g btn-sm" onclick='copyPayLink(${JSON.stringify(active.payLink)})'>Copy Pay Link</button>`;
   }
-  if(canCancel){ acts+=`<button class="btn btn-sm" style="background:transparent;border:1px solid rgba(239,68,68,.4);color:#ef4444" onclick="showCancelForm()">✕ Request Cancellation</button>`; }
 
-  const cancelSection = canCancel ? `<div id="cancel-section" style="display:none;margin-top:16px;background:rgba(239,68,68,.04);border:1px solid rgba(239,68,68,.18);border-radius:var(--r);padding:18px 20px">
-    <div style="font-size:13px;font-weight:700;color:#ef4444;margin-bottom:8px">Request Cancellation</div>
-    <div style="font-size:12px;color:var(--mu);margin-bottom:12px">Provide a reason. Our team will review and confirm. No charge will be applied automatically.</div>
-    <textarea id="cancel-reason" placeholder="Reason for cancellation..." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--tx);font-size:13px;min-height:80px;resize:vertical;margin-bottom:12px;display:block"></textarea>
-    <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--tx);cursor:pointer;margin-bottom:14px">
-      <input type="checkbox" id="cancel-ack" style="margin-top:2px;flex-shrink:0">
-      <span>I understand this cancellation request will be reviewed according to the cancellation/no-show policy. If the appointment is within the restricted cancellation window or access was denied, a fee may apply.</span>
-    </label>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn btn-g btn-sm" onclick="hideCancelForm()">Never mind</button>
-      <button class="btn btn-sm" style="background:#ef4444;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer" onclick="submitCancelRequest()">Submit Request</button>
-    </div>
-  </div>` : '';
+  const currentPack=matchCurrentPack(active);
+  const packOpts=(CUSTOMER_CATALOG&&CUSTOMER_CATALOG.packages||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name)} — from $${p.basePrice}</option>`).join('');
+  const addonList=(CUSTOMER_CATALOG&&CUSTOMER_CATALOG.addons||[]).map(a=>`<div class="addon-row"><input type="checkbox" class="addon-cb" id="addon-${esc(a.id)}" value="${esc(a.name)} ($${a.price})"><label for="addon-${esc(a.id)}"><strong>${esc(a.name)}</strong> — $${a.price}<br><span style="color:var(--mu)">${esc(a.desc)}</span></label></div>`).join('');
+
+  const managePanel=`
+    <div class="manage-panel">
+      <details class="mp-section" open>
+        <summary>📦 Your Package</summary>
+        <div class="mp-body">
+          <div style="font-size:16px;font-weight:800">${esc(currentPack?currentPack.name:svc(active))}</div>
+          ${currentPack?`<div style="font-size:12px;color:var(--mu);margin-top:4px">${esc(currentPack.tag||'')}</div>`:''}
+          ${currentPack?`<button type="button" class="pack-desc-toggle" onclick="togglePackDesc()">View package details (optional) ▾</button>
+          <div class="pack-desc" id="pack-desc">
+            <div>${esc(currentPack.description||'')}</div>
+            <ul class="pack-feats">${(currentPack.feats||[]).map(f=>`<li>${esc(f)}</li>`).join('')}</ul>
+          </div>`:''}
+          ${active.packageChangeRequested?`<div style="margin-top:10px;padding:10px;background:rgba(45,212,191,.06);border-radius:8px;font-size:12px"><strong>Pack change pending:</strong> ${esc(active.requestedPackageName||'—')}</div>`:''}
+          ${canReschedule&&!active.packageChangeRequested?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+            <div style="font-size:12px;font-weight:700;margin-bottom:8px">Change package</div>
+            <select id="pack-change-select" class="inline-form" style="margin:0;padding:10px 12px;width:100%">
+              <option value="">Select a different pack…</option>${packOpts}
+            </select>
+            <button id="pack-change-btn" class="btn btn-tl btn-sm" style="margin-top:8px" onclick="submitPackChange('${esc(active.id)}')">Request Pack Change</button>
+            <div class="mp-note">Pricing may adjust based on vehicle size. Our team confirms before applying.</div>
+          </div>`:''}
+        </div>
+      </details>
+
+      <details class="mp-section" open>
+        <summary>📅 Manage Appointment</summary>
+        <div class="mp-body">
+          ${canReschedule?`<div class="inline-form">
+            <label class="m-lbl">Reschedule — new preferred date</label>
+            <input type="date" id="inline-rs-date" min="${new Date().toISOString().split('T')[0]}" value="">
+            <select id="inline-rs-time">
+              <option>Morning (8am–12pm)</option><option>Afternoon (12pm–4pm)</option>
+              <option>Evening (4pm–7pm)</option><option>Flexible</option>
+            </select>
+            <button id="inline-rs-btn" class="btn btn-yw btn-sm" onclick="submitInlineReschedule('${esc(active.id)}')">Submit Reschedule Request</button>
+          </div>`:'<div class="mp-note">Reschedule is not available for this booking status.</div>'}
+          ${canReschedule?`<div class="inline-form" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+            <label class="m-lbl">Change service address</label>
+            <input type="text" id="inline-addr" placeholder="123 Main St, Hoboken NJ 07030" value="${esc(active.address||'')}">
+            <button id="inline-addr-btn" class="btn btn-tl btn-sm" onclick="submitInlineAddress('${esc(active.id)}')">Update Address</button>
+          </div>`:''}
+          ${canCancel?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+            <div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">Request cancellation</div>
+            <textarea id="cancel-reason" placeholder="Reason for cancellation…" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--white);font-size:13px;min-height:70px;resize:vertical;margin-bottom:10px"></textarea>
+            <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;cursor:pointer;margin-bottom:10px">
+              <input type="checkbox" id="cancel-ack" style="margin-top:2px">
+              <span>I understand this request will be reviewed per the cancellation/no-show policy.</span>
+            </label>
+            <button class="btn btn-sm" style="background:#ef4444;color:#fff;border:none" onclick="submitCancelRequest()">Submit Cancellation Request</button>
+          </div>`:''}
+        </div>
+      </details>
+
+      ${canRequestAddons?`<details class="mp-section">
+        <summary>➕ Add-ons</summary>
+        <div class="mp-body">
+          ${active.addonsRequested?`<div style="padding:10px;background:rgba(45,212,191,.06);border-radius:8px;font-size:12px;margin-bottom:12px"><strong>Pending:</strong> ${esc(active.requestedAddons||'—')}</div>`:''}
+          ${addonList||'<div class="mp-note">Add-on catalog loading…</div>'}
+          <textarea id="inline-addon-extra" placeholder="Other add-ons (optional)…" style="width:100%;margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--white);font-size:13px;min-height:60px"></textarea>
+          <button id="inline-addon-btn" class="btn btn-tl btn-sm" style="margin-top:10px" onclick="submitInlineAddons('${esc(active.id)}')">Request Selected Add-ons</button>
+        </div>
+      </details>`:''}
+
+      <details class="mp-section">
+        <summary>🔄 Monthly Plans — 10% subscriber discount</summary>
+        <div class="mp-body">${renderSubscriptionSection(active)}</div>
+      </details>
+    </div>`;
+
+  const cancelSection = '';
 
   el.innerHTML=`
     <div style="background:rgba(100,116,139,.06);border:1px solid rgba(100,116,139,.15);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:12px;color:var(--mu);line-height:1.6">
@@ -566,8 +773,8 @@ function renderStatus(){
     ${active.addonsRequested?`<div style="margin-top:14px;padding:12px;background:rgba(45,212,191,.06);border:1px solid rgba(45,212,191,.2);border-radius:8px;font-size:12px"><strong>Add-on request pending:</strong> ${esc(active.requestedAddons||'—')}</div>`:''}
     ${active.policyChargeStatus?`<div style="margin-top:14px;padding:12px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;font-size:12px"><strong>Policy charge:</strong> ${esc(active.policyChargeStatus)}${active.policyChargeAmount?' · $'+active.policyChargeAmount:''}</div>`:''}
       <div class="sh-acts">${acts}</div>
-      ${cancelSection}
     </div>
+    ${managePanel}
     ${active.photosBefore?.length||active.photosAfter?.length?`
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px">
         <div style="font-size:13px;font-weight:700;margin-bottom:12px">📷 Job Photos</div>
@@ -608,43 +815,7 @@ function renderHistory(){
     : '<div class="empty"><div class="ei">📭</div><div class="et">No bookings yet</div></div>';
 }
 
-// ── PLANS ────────────────────────────────
-function renderPlans(){
-  const em=(CUSTOMER_KEY.split(':')[1]||'').toLowerCase();
-  const sub=JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]').find(s=>(s.email||'').toLowerCase()===em);
-  document.getElementById('plan-banner').innerHTML=sub
-    ?`<div style="background:rgba(0,200,83,.06);border:1px solid rgba(0,200,83,.18);border-radius:var(--r);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
-        <span>✅</span><div><div style="font-weight:700">${esc(sub.planName||sub.plan||'Maintenance')} Plan</div><div style="font-size:12px;color:var(--mu)">${esc(sub.status||'pending')} · Joined ${new Date(sub.since||sub.createdAt||Date.now()).toLocaleDateString()}</div></div>
-      </div>`:'';
-}
-async function joinPlan(planId, planName, price, intervalMonths){
-  const b=CUSTOMER_BOOKINGS[0]||{};
-  const email=(b.email||'').trim().toLowerCase();
-  const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||(b.phone||'').replace(/\D/g,'');
-  if(!email.includes('@')||phone.length<7){
-    alert('We need your booking email and phone on file. Look up your booking first, or call 551-313-2956.');
-    return;
-  }
-  const cycle = intervalMonths===12?'annual':intervalMonths===1?'monthly':'quarterly';
-  if(!confirm(`Request ${planName} plan ($${price}/${cycle==='annual'?'yr':cycle==='quarterly'?'qtr':'mo'})?\n\nOur team will activate billing after review.`)) return;
-  try{
-    const res=await fetch('/.netlify/functions/subscriptions-ops',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'customer_signup',planId,planName,price,intervalMonths,billingCycle:cycle,email,phone,customerName:nm(b),vehicle:b.vehicleLabel||b.vehicle||''})
-    });
-    const data=await res.json().catch(()=>({}));
-    if(!data.ok) throw new Error(data.error||'failed');
-    const subs=JSON.parse(localStorage.getItem('cd1_subscriptions')||'[]').filter(s=>(s.email||'').toLowerCase()!==email);
-    subs.push({email,name:nm(b),planName,planId,price:Number(price),status:'pending_activation',since:new Date().toISOString()});
-    localStorage.setItem('cd1_subscriptions',JSON.stringify(subs));
-    alert(`✅ ${planName} signup received! We'll contact you to activate billing.`);
-    renderPlans();
-  }catch(e){ alert('Could not submit signup. Please call 551-313-2956.'); }
-}
-function cancelPlan(){
-  alert('To cancel your plan, please call 551-313-2956 or email us from your booking confirmation.');
-  renderPlans();
-}
+// ── PLANS (legacy — subscriptions now inline in status tab) ──
 
 function copyPayLink(url){
   if(!url) return;
@@ -856,6 +1027,7 @@ async function refreshBookings(){
     const data=await res.json().catch(()=>({}));
     if(data.ok&&data.bookings) CUSTOMER_BOOKINGS=data.bookings;
   }
+  await loadCatalogAndSubs();
   initApp(true);
 }
 

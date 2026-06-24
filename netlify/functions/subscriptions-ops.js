@@ -33,6 +33,34 @@ exports.handler = async (event) => {
     return jsonCors(200, { ok: true, templates: MAINTENANCE_PLAN_TEMPLATES });
   }
 
+  if (action === 'customer_list') {
+    const email = sanitizeText(body.email, 200).toLowerCase();
+    const phone = String(body.phone || '').replace(/\D/g, '').slice(0, 15);
+    if (!email.includes('@') || phone.length < 7) {
+      return jsonCors(400, { ok: false, error: 'email_phone_required' });
+    }
+    const bookings = await listRawBookings().catch(() => []);
+    const verified = bookings.some(bk =>
+      !bk.isDraft && !bk.archived && bk.jobStatus !== 'archived_test' &&
+      String(bk.email || '').toLowerCase() === email &&
+      phonesMatch(phone, normalizePhone(bk.phone || bk.customerPhone || ''))
+    );
+    if (!verified) return jsonCors(403, { ok: false, error: 'no_verified_booking' });
+    const subs = await listSubscriptions();
+    const mine = subs.filter(s =>
+      String(s.email || '').toLowerCase() === email &&
+      phonesMatch(phone, String(s.phone || '').replace(/\D/g, ''))
+    );
+    return jsonCors(200, {
+      ok: true,
+      subscriptions: mine.map(s => ({
+        id: s.id, planName: s.planName, status: s.status, price: s.price,
+        vehicle: s.vehicle, billingCycle: s.billingCycle, nextVisitDate: s.nextVisitDate,
+        stripeSubscriptionId: s.stripeSubscriptionId ? 'active' : null,
+      })),
+    });
+  }
+
   if (action === 'customer_signup') {
     const email = sanitizeText(body.email, 200).toLowerCase();
     const phone = String(body.phone || '').replace(/\D/g, '').slice(0, 15);
