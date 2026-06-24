@@ -289,10 +289,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   </div>
 </aside>
 
+<script src="/netlify/lib/admin-session-client.js"></script>
 <script>
 (function(){
-  const KEY = 'cd1_admin_key';
-  const token = sessionStorage.getItem(KEY);
+  const KEY = CD1AdminSession.SESS_KEY;
+  const token = CD1AdminSession.getToken();
   if (!token) { location.replace('admin.html'); return; }
 
   const JOB_STATUSES = ['pending_review','confirmed','assigned','accepted','en_route','arrived','in_progress','issue_reported','completed_pending_admin_review','completed_pending_payment','completed_paid','reopened','cancelled'];
@@ -307,7 +308,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   const toast = msg => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); };
 
   function adminLogout() {
-    const t = sessionStorage.getItem(KEY);
+    const t = CD1AdminSession.getToken();
     if (t) {
       fetch('/.netlify/functions/admin-auth', {
         method: 'POST',
@@ -315,13 +316,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         body: JSON.stringify({ action: 'logout', token: t }),
       }).catch(()=>{});
     }
-    sessionStorage.removeItem(KEY);
+    CD1AdminSession.clearToken();
     localStorage.removeItem('cd1_session');
     location.replace('admin.html');
   }
 
   async function ensureAdminSession() {
-    const t = sessionStorage.getItem(KEY);
+    const t = CD1AdminSession.getToken();
     if (!t) { location.replace('admin.html'); return false; }
     try {
       const res = await fetch('/.netlify/functions/admin-auth', {
@@ -330,7 +331,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         body: JSON.stringify({ action: 'validate', token: t }),
       });
       const data = await res.json();
-      if (!data.ok) { sessionStorage.removeItem(KEY); location.replace('admin.html'); return false; }
+      if (!data.ok) { CD1AdminSession.clearToken(); location.replace('admin.html'); return false; }
+      CD1AdminSession.syncWindowKey();
       return true;
     } catch {
       return true;
@@ -338,14 +340,14 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
 
   async function api(url, method, body) {
-    const opts = { method: method||'GET', headers: { 'x-admin-key': sessionStorage.getItem(KEY) } };
+    const opts = { method: method||'GET', headers: { 'x-admin-key': CD1AdminSession.getToken() } };
     if (body) { opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
     const res = await fetch(url, opts);
     const data = await res.json().catch(()=>({}));
     if (!res.ok || data.ok === false) {
       const err = data.error || ('HTTP '+res.status);
       if (err === 'unauthorized' || res.status === 401) {
-        sessionStorage.removeItem(KEY);
+        CD1AdminSession.clearToken();
         throw new Error('Session expired — log in again at admin.html');
       }
       throw new Error(err);

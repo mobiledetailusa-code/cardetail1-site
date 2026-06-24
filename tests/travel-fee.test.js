@@ -52,9 +52,22 @@ test('applyServerTravelAndTotal rejects out-of-area zip', () => {
 });
 
 test('applyServerTravelAndTotal ignores inflated client travel fee', () => {
-  const b = { zipCode: '07601', totalPrice: 115, zoneSurcharge: 100, vehicles: [{ subtotal: 100 }] };
+  const b = {
+    zipCode: '07601',
+    totalPrice: 175,
+    zoneSurcharge: 100,
+    vehicles: [{
+      cat: 'cars',
+      pkgId: 'maint',
+      tierKey: 'small',
+      tierLabel: 'Small Car',
+      vehicleLabel: '2022 Honda Civic',
+      subtotal: 100,
+      addons: [],
+    }],
+  };
   const r = applyServerTravelAndTotal(b);
   assert.equal(r.ok, true);
   assert.equal(b.travelFeeAmount, 0);
-  assert.equal(b.totalPrice, 100);
+  assert.equal(b.totalPrice, 175);
 });

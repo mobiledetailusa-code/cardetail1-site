@@ -113,32 +113,36 @@ function normalizeTravelFields(booking) {
   return { travelFeeMiles: null, travelFeeAmount: 0, zoneSurcharge: 0 };
 }
 
-/** Server-side only — rejects out-of-area ZIPs; never trusts client miles/fees. */
-function applyServerTravelAndTotal(booking) {
+const { validateAndRecalculateBookingPricing } = require('./booking-price-catalog');
+
+/** Server-side only — rejects out-of-area ZIPs; never trusts client miles/fees or subtotals. */
+function applyServerTravelAndTotal(booking, opts = {}) {
   const resolved = resolveTravelForZip(booking.zipCode || booking.zip || '');
   if (!resolved) {
     return { ok: false, error: 'out_of_service_area' };
   }
+
+  const pricing = validateAndRecalculateBookingPricing(booking);
+  if (!pricing.ok) {
+    return { ok: false, error: pricing.error || 'invalid_pricing' };
+  }
+
   booking.travelFeeMiles = resolved.miles;
   booking.travelFeeAmount = resolved.fee;
   booking.zoneSurcharge = resolved.fee;
   if (!booking.zone) booking.zone = resolved.zoneLabel;
 
-  let serviceSubtotal = 0;
-  if (Array.isArray(booking.vehicles) && booking.vehicles.length) {
-    serviceSubtotal = booking.vehicles.reduce((s, v) => s + (Number(v.subtotal) || 0), 0);
+  if (pricing.vehicles.length) booking.vehicles = pricing.vehicles;
+
+  const serverTotal = Math.round((pricing.serviceSubtotal + resolved.fee) * 100) / 100;
+  const clientTotal = Number(booking.totalPrice) || 0;
+
+  if (!opts.skipMismatchCheck && clientTotal > 0 && Math.abs(clientTotal - serverTotal) > 1) {
+    return { ok: false, error: 'price_mismatch', serverTotal, clientTotal };
   }
-  if (Array.isArray(booking.addons) && booking.addons.length) {
-    for (const a of booking.addons) {
-      serviceSubtotal += (Number(a.price) || 0) * (Number(a.qty) || 1);
-    }
-  }
-  if (serviceSubtotal <= 0) {
-    const raw = Number(booking.totalPrice) || 0;
-    serviceSubtotal = Math.max(0, Math.round((raw - resolved.fee) * 100) / 100);
-  }
-  booking.totalPrice = Math.round((serviceSubtotal + resolved.fee) * 100) / 100;
-  return { ok: true };
+
+  booking.totalPrice = serverTotal;
+  return { ok: true, serviceSubtotal: pricing.serviceSubtotal, serverTotal };
 }
 
 module.exports = {

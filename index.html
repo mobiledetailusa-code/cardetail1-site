@@ -2709,6 +2709,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 </div>
 
 <script src="https://js.stripe.com/v3/"></script>
+<script src="/netlify/lib/admin-session-client.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════
@@ -2730,8 +2731,7 @@ const DEPOSIT_MIN_CENTS = 2500;  // piso $25 (Stripe exige ≥ $0.50)
 // Base das funções Netlify (deixe assim em produção no Netlify).
 const BACKEND_BASE   = '/.netlify/functions';
 try {
-  const _adminTok = sessionStorage.getItem('cd1_admin_key');
-  if (_adminTok && (_adminTok.startsWith('v1.') || /^[a-f0-9]{64}$/.test(_adminTok))) window._adminKey = _adminTok;
+  if (typeof CD1AdminSession !== 'undefined') CD1AdminSession.syncWindowKey();
 } catch(_) {}
 const IS_DEPLOY_PREVIEW = /^deploy-preview-\d+--/.test(location.hostname);
 let STRIPE_READY = false;
@@ -6068,7 +6068,8 @@ async function doLogin(){
     const data = await res.json();
     if(data.ok && data.token){
       closeLogin();
-      sessionStorage.setItem('cd1_admin_key', data.token);
+      CD1AdminSession.setToken(data.token);
+      CD1AdminSession.syncWindowKey();
       localStorage.setItem('cd1_session','admin');
       location.href = 'admin-ops.html';
       return;

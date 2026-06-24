@@ -28,7 +28,7 @@ test('public homepage login routes to enterprise admin-ops console', () => {
 });
 
 test('admin-ops and admin.html use session token auth', () => {
-  assert.match(adminOps, /cd1_admin_key/);
+  assert.match(adminOps, /CD1AdminSession|cd1_admin_sess/);
   assert.match(adminOps, /x-admin-key/);
   assert.match(adminOps, /admin-auth/);
   assert.match(read('admin.html'), /admin-ops\.html/);

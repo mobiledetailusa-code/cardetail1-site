@@ -455,36 +455,7 @@ async function doLookup(){
       return;
     }catch(e){ showErr(); return; }
   }
-  try {
-    let body = {};
-    if(_lkMode==='phone'){
-      const ph=(document.getElementById('lk-phone').value||'').replace(/\D/g,'');
-      if(ph.length<7){ showErr(); return; }
-      body.phone = ph;
-      CUSTOMER_VERIFY_PHONE = ph;
-      localStorage.setItem('cd1_cust_verify_phone', ph);
-    } else {
-      const em=(document.getElementById('lk-email').value||'').trim().toLowerCase();
-      const ph=(document.getElementById('lk-email-phone').value||'').replace(/\D/g,'');
-      if(!em.includes('@')||ph.length<7){ showErr(); return; }
-      body.email = em;
-      body.phone = ph;
-      CUSTOMER_VERIFY_PHONE = ph;
-      localStorage.setItem('cd1_cust_verify_phone', ph);
-    }
-    const res=await fetch('/.netlify/functions/customer-bookings',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(body)
-    });
-    const data=await res.json().catch(()=>({}));
-    if(!data.ok||!data.bookings||!data.bookings.length){ showErr(); return; }
-    CUSTOMER_BOOKINGS=data.bookings;
-    CUSTOMER_KEY=_lkMode+':'+(body.phone||body.email);
-    localStorage.setItem('cd1_cust_key',CUSTOMER_KEY);
-    if(body.phone) localStorage.setItem('cd1_cust_verify_phone', body.phone);
-    document.getElementById('lk-err').classList.remove('show');
-    initApp(true);
-  } catch(e) { showErr(); }
+  showErr();
 }
 function showErr(){ document.getElementById('lk-err').classList.add('show'); }
 
@@ -492,34 +463,19 @@ function showErr(){ document.getElementById('lk-err').classList.add('show'); }
 async function tryAutoLogin(){
   const key=localStorage.getItem('cd1_cust_key'); if(!key) return false;
   const [mode,val]=key.split(':');
+  if(mode!=='id') return false;
   try {
-    if(mode==='id'){
-      const phone=localStorage.getItem('cd1_cust_verify_phone')||'';
-      if(!phone) return false;
-      const res=await fetch('/.netlify/functions/lookup-booking',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({bookingId:val,phone})
-      });
-      const data=await res.json().catch(()=>({}));
-      if(!data.ok||!data.booking) return false;
-      CUSTOMER_BOOKINGS=[data.booking];
-      CUSTOMER_KEY=key;
-      CUSTOMER_VERIFY_PHONE=phone;
-      return true;
-    }
-    const body = mode==='phone'
-      ? { phone: (val||'').replace(/\D/g,'') }
-      : { email: (val||'').toLowerCase(), phone: (localStorage.getItem('cd1_cust_verify_phone')||'').replace(/\D/g,'') };
-    if (mode==='email' && (!body.phone || body.phone.length < 7)) return false;
-    const res=await fetch('/.netlify/functions/customer-bookings',{
+    const phone=localStorage.getItem('cd1_cust_verify_phone')||'';
+    if(!phone) return false;
+    const res=await fetch('/.netlify/functions/lookup-booking',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(body)
+      body:JSON.stringify({bookingId:val,phone})
     });
     const data=await res.json().catch(()=>({}));
-    if(!data.ok||!data.bookings||!data.bookings.length) return false;
-    CUSTOMER_BOOKINGS=data.bookings;
+    if(!data.ok||!data.booking) return false;
+    CUSTOMER_BOOKINGS=[data.booking];
     CUSTOMER_KEY=key;
-    if(body.phone) CUSTOMER_VERIFY_PHONE=body.phone;
+    CUSTOMER_VERIFY_PHONE=phone;
     return true;
   } catch(e) { return false; }
 }
@@ -1036,17 +992,11 @@ async function submitCancelRequest() {
 // ── REFRESH FROM CLOUD ───────────────────
 async function refreshBookings(){
   const [mode,val]=CUSTOMER_KEY.split(':');
-  if(mode==='id'){
-    const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||'';
-    const res=await fetch('/.netlify/functions/lookup-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:val,phone})});
-    const data=await res.json().catch(()=>({}));
-    if(data.ok&&data.booking) CUSTOMER_BOOKINGS=[data.booking];
-  } else {
-    const body=mode==='phone'?{phone:(val||'').replace(/\D/g,'')}:{email:(val||'').toLowerCase()};
-    const res=await fetch('/.netlify/functions/customer-bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const data=await res.json().catch(()=>({}));
-    if(data.ok&&data.bookings) CUSTOMER_BOOKINGS=data.bookings;
-  }
+  if(mode!=='id') return;
+  const phone=CUSTOMER_VERIFY_PHONE||localStorage.getItem('cd1_cust_verify_phone')||'';
+  const res=await fetch('/.netlify/functions/lookup-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:val,phone})});
+  const data=await res.json().catch(()=>({}));
+  if(data.ok&&data.booking) CUSTOMER_BOOKINGS=[data.booking];
   await loadCatalogAndSubs();
   initApp(true);
 }

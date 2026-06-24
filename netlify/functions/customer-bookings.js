@@ -1,6 +1,6 @@
-// Customer cloud lookup — list bookings by verified phone or email (no admin auth).
+// Customer cloud lookup — requires booking ID + phone (no phone-only enumeration).
 const { jsonCors } = require('../lib/tech-security');
-const { listRawBookings, normalizePhone, phonesMatch } = require('../lib/ops-db');
+const { getBooking, normalizePhone, phonesMatch } = require('../lib/ops-db');
 const { projectBookingForCustomer } = require('../lib/ops-schema');
 
 exports.handler = async (event) => {
@@ -11,25 +11,38 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); }
   catch { return jsonCors(400, { ok: false, error: 'invalid_json' }); }
 
-  const phone = normalizePhone(body.phone || '');
-  const email = String(body.email || '').trim().toLowerCase();
+  const rawId = String(body.bookingId || body.id || '').trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+  const phone = normalizePhone(body.phone || body.customerPhone || '');
 
-  if (!phone || phone.length < 7) {
-    return jsonCors(400, { ok: false, error: 'phone_required' });
+  if (!rawId || !phone || phone.length < 7) {
+    return jsonCors(400, {
+      ok: false,
+      error: 'lookup_failed',
+      message: 'No booking found. Please check your booking ID and phone number.',
+    });
   }
 
   try {
-    const all = await listRawBookings();
-    let matches = all.filter(b => !b.archived && !b.isTest && b.jobStatus !== 'archived_test');
-    matches = matches.filter(b => phonesMatch(phone, normalizePhone(b.phone || b.customerPhone || '')));
-    if (email.includes('@')) {
-      matches = matches.filter(b => String(b.email || '').toLowerCase() === email);
+    const booking = await getBooking(rawId);
+    if (!booking) {
+      return jsonCors(200, {
+        ok: false,
+        found: false,
+        message: 'No booking found. Please check your booking ID and phone number.',
+      });
     }
 
-    matches.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-    const bookings = matches.map(projectBookingForCustomer);
+    const storedPhone = normalizePhone(booking.phone || booking.customerPhone || '');
+    if (!storedPhone || !phonesMatch(phone, storedPhone)) {
+      return jsonCors(200, {
+        ok: false,
+        found: false,
+        message: 'No booking found. Please check your booking ID and phone number.',
+      });
+    }
 
-    return jsonCors(200, { ok: true, count: bookings.length, bookings });
+    const projected = projectBookingForCustomer(booking);
+    return jsonCors(200, { ok: true, count: 1, bookings: [projected] });
   } catch {
     return jsonCors(500, { ok: false, error: 'lookup_failed' });
   }

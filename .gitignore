@@ -9,6 +9,23 @@ squarespace_backup_codes_*.txt
 node_modules/
 .netlify/
 
+# ── Local artifacts / scripts ─────────────────────────
+upload.ts
+netlify/functions/chat.js
+.claude/
+
+# ── Media / temp (local only) ─────────────────────────
+pics/
+tmp/
+temp/
+.tmp/
+test-output/
+*.HEIC
+*.MOV
+Codex*
+ChatGPT*
+Generated*
+
 # ── Variantes antigas arquivadas ──────────────────────
 archive/
 
@@ -16,3 +33,4 @@ archive/
 .DS_Store
 Thumbs.db
 *.log
+*.txt

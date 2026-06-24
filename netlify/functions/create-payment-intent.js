@@ -36,6 +36,7 @@ const json = (status, body) => ({
 });
 
 const { verifyAdminKey } = require('../lib/tech-security');
+const { applyServerTravelAndTotal } = require('../lib/travel-fee');
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
@@ -68,6 +69,18 @@ exports.handler = async (event) => {
     return json(503, { ok: false, error: 'Booking store unavailable' });
   }
   if (!booking) return json(404, { ok: false, error: 'Booking not found — pre-register first' });
+
+  const recalc = applyServerTravelAndTotal(booking, { skipMismatchCheck: true });
+  if (!recalc.ok) {
+    return json(400, { ok: false, error: recalc.error || 'invalid_pricing' });
+  }
+
+  try {
+    const store = await blobsStore('cd1-bookings');
+    await store.setJSON(bookingId, booking);
+  } catch (e) {
+    return json(503, { ok: false, error: 'Booking store unavailable' });
+  }
 
   const amount = Math.round((Number(booking.totalPrice) || 0) * 100);
   if (amount < 50) return json(400, { ok: false, error: 'Booking total too low to charge (min $0.50)' });

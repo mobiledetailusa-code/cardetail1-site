@@ -45,8 +45,9 @@
       <a href="index.html">Main site →</a>
     </div>
   </form>
+<script src="/netlify/lib/admin-session-client.js"></script>
 <script>
-  const TOKEN_KEY = 'cd1_admin_key';
+  const TOKEN_KEY = CD1AdminSession.SESS_KEY;
 
   async function adminLogin(e){
     e.preventDefault();
@@ -66,7 +67,8 @@
       });
       const data = await res.json();
       if(data.ok && data.token){
-        sessionStorage.setItem(TOKEN_KEY, data.token);
+        CD1AdminSession.setToken(data.token);
+        CD1AdminSession.syncWindowKey();
         localStorage.setItem('cd1_session','admin');
         location.href = 'admin-ops.html';
         return;
@@ -93,7 +95,7 @@
   }
 
   (async function boot(){
-    const token = sessionStorage.getItem(TOKEN_KEY);
+    const token = CD1AdminSession.getToken();
     if(!token) return;
     try {
       const res = await fetch('/.netlify/functions/admin-auth', {
@@ -103,7 +105,7 @@
       });
       const data = await res.json();
       if(data.ok) location.replace('admin-ops.html');
-      else sessionStorage.removeItem(TOKEN_KEY);
+      else CD1AdminSession.clearToken();
     } catch(_) {}
   })();
 </script>
