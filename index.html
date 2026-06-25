@@ -1785,7 +1785,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           <div id="cp-addr-msg" style="display:none;margin-top:10px;font-size:13px"></div>
         </div>
       </div>
-      <div class="cp-sub-panel" id="cps-address" style="display:none">
       <div class="cp-sub-panel" id="cps-tip">
         <p style="font-size:13px;color:var(--mu);margin-bottom:8px">Your technician did a great job! Leave a tip — it goes 100% to them.</p>
         <div class="tip-row" id="tip-row">
@@ -6261,8 +6260,20 @@ function empSetStatus(id, status){
 // ═══════════════════════════════════════════════════════
 // CUSTOMER PORTAL
 // ═══════════════════════════════════════════════════════
-function openPortal(){ document.getElementById('cp-ov').classList.add('open'); document.body.style.overflow='hidden'; }
-function closePortal(){ document.getElementById('cp-ov').classList.remove('open'); document.body.style.overflow=''; }
+function resetPortalView(){
+  _cgBooking = null;
+  const tabs = document.querySelector('#cp-ov .cp-tabs');
+  if(tabs) tabs.style.display = '';
+  const garage = document.getElementById('cp-garage');
+  if(garage) garage.style.display = 'none';
+  document.querySelectorAll('#cp-ov .cp-tab').forEach((t,i) => t.classList.toggle('active', i===0));
+  document.querySelectorAll('#cp-ov .cp-panel').forEach((p,i) => {
+    p.style.display = '';
+    p.classList.toggle('active', i===0);
+  });
+}
+function openPortal(){ resetPortalView(); document.getElementById('cp-ov').classList.add('open'); document.body.style.overflow='hidden'; }
+function closePortal(){ document.getElementById('cp-ov').classList.remove('open'); document.body.style.overflow=''; resetPortalView(); }
 function handleCpOv(e){ if(e.target===document.getElementById('cp-ov')) closePortal(); }
 
 function cpTab(n){
@@ -6514,7 +6525,7 @@ async function cpConfirmAddress(){
   const addr=(document.getElementById('cp-new-addr')||{}).value?.trim()||'';
   const msgEl=document.getElementById('cp-addr-msg');
   const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
-  const btn=document.querySelector('#cps-address .cp-btn');
+  const btn=document.querySelector('#cps-reschedule button[onclick="cpConfirmAddress()"]');
   if(!addr){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please enter the new service address.</span>';}return;}
   if(btn){btn.disabled=true;btn.textContent='Submitting…';}
   if(msgEl)msgEl.style.display='none';

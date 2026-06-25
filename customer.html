@@ -195,20 +195,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
   <div class="lk-box">
     <div class="lk-logo">CAR<span>DETAIL</span>1</div>
     <div class="lk-sub">Track your booking, appointment review, and cancellation requests.</div>
-    <div class="lk-tabs">
-      <button class="lk-tab active" onclick="lkTab('phone')" id="lt-phone">📱 Phone</button>
-      <button class="lk-tab" onclick="lkTab('email')" id="lt-email">✉️ Email</button>
-      <button class="lk-tab" onclick="lkTab('id')" id="lt-id">🔢 Booking ID</button>
-    </div>
-    <div id="lk-phone-row"><input class="lk-inp" type="tel" id="lk-phone" placeholder="201-555-0000" onkeydown="if(event.key==='Enter')doLookup()"></div>
-    <div id="lk-email-row" style="display:none">
-      <input class="lk-inp" type="email" id="lk-email" placeholder="your@email.com">
-      <input class="lk-inp" type="tel" id="lk-email-phone" placeholder="Phone used for booking" onkeydown="if(event.key==='Enter')doLookup()">
-    </div>
-    <div id="lk-id-row" style="display:none">
-      <input class="lk-inp" id="lk-id" placeholder="Booking ID (e.g. CD1-ABC123)">
-      <input class="lk-inp" type="tel" id="lk-id-phone" placeholder="Phone used for booking" onkeydown="if(event.key==='Enter')doLookup()">
-    </div>
+    <label class="m-lbl">Booking ID</label>
+    <input class="lk-inp" id="lk-id" placeholder="Booking ID (e.g. CD1-ABC123)" autocomplete="off">
+    <label class="m-lbl" style="margin-top:10px">Phone number on the booking</label>
+    <input class="lk-inp" type="tel" id="lk-id-phone" placeholder="201-555-0000" autocomplete="tel" onkeydown="if(event.key==='Enter')doLookup()">
     <button class="lk-btn" onclick="doLookup()">Find My Booking →</button>
     <div class="lk-err" id="lk-err">No booking found. Check your info or <a href="index.html" style="color:var(--blue)">book now</a>.</div>
     <div class="lk-note">First time? <a href="index.html">Book a service →</a></div>
@@ -256,7 +246,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
 </div>
 
 <script>
-let CUSTOMER_BOOKINGS=[], CUSTOMER_KEY='', CUSTOMER_VERIFY_PHONE='', _lkMode='phone', _starRating=0, _cancelBookingId='';
+let CUSTOMER_BOOKINGS=[], CUSTOMER_KEY='', CUSTOMER_VERIFY_PHONE='', _starRating=0, _cancelBookingId='';
 let CUSTOMER_CATALOG=null, CUSTOMER_SUBS=[], _selectedFleetId='';
 
 function getCustomerPhone(){
@@ -431,40 +421,26 @@ async function submitPackChange(id){
   finally{ if(btn) btn.disabled=false; }
 }
 
-// ── LOOKUP TABS ──────────────────────────
-function lkTab(mode){
-  _lkMode=mode;
-  ['phone','email','id'].forEach(m=>{
-    document.getElementById('lk-'+m+'-row').style.display=m===mode?'block':'none';
-    document.getElementById('lt-'+m).classList.toggle('active',m===mode);
-  });
-  document.getElementById('lk-err').classList.remove('show');
-}
-
 // ── LOOKUP ──────────────────────────────
 async function doLookup(){
-  if(_lkMode==='id'){
-    const id=(document.getElementById('lk-id').value||'').trim().toUpperCase();
-    const phone=(document.getElementById('lk-id-phone').value||'').replace(/\D/g,'');
-    if(!id||phone.length<7){ showErr(); return; }
-    try{
-      const res=await fetch('/.netlify/functions/lookup-booking',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({bookingId:id,phone})
-      });
-      const data=await res.json().catch(()=>({}));
-      if(!data.ok||!data.booking){ showErr(); return; }
-      CUSTOMER_BOOKINGS=[data.booking];
-      CUSTOMER_KEY='id:'+id;
-      CUSTOMER_VERIFY_PHONE=phone;
-      localStorage.setItem('cd1_cust_key',CUSTOMER_KEY);
-      localStorage.setItem('cd1_cust_verify_phone',phone);
-      document.getElementById('lk-err').classList.remove('show');
-      initApp(true);
-      return;
-    }catch(e){ showErr(); return; }
-  }
-  showErr();
+  const id=(document.getElementById('lk-id').value||'').trim().toUpperCase();
+  const phone=(document.getElementById('lk-id-phone').value||'').replace(/\D/g,'');
+  if(!id||phone.length<7){ showErr(); return; }
+  try{
+    const res=await fetch('/.netlify/functions/lookup-booking',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bookingId:id,phone})
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!data.ok||!data.booking){ showErr(); return; }
+    CUSTOMER_BOOKINGS=[data.booking];
+    CUSTOMER_KEY='id:'+id;
+    CUSTOMER_VERIFY_PHONE=phone;
+    localStorage.setItem('cd1_cust_key',CUSTOMER_KEY);
+    localStorage.setItem('cd1_cust_verify_phone',phone);
+    document.getElementById('lk-err').classList.remove('show');
+    initApp(true);
+  }catch(e){ showErr(); }
 }
 function showErr(){ document.getElementById('lk-err').classList.add('show'); }
 
