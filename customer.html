@@ -69,6 +69,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
 .sfl{font-size:10px;color:var(--mu2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
 .sfv{font-size:13px;font-weight:600}
 .sh-acts{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
+.sh-manage-btns{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+.sh-manage-panel{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.mp-panel-hidden{display:none}
+.pack-desc-details{margin-top:8px}
+.pack-desc-details summary{cursor:pointer;color:var(--blue);font-size:12px;font-weight:600;list-style:none}
+.pack-desc-details summary::-webkit-details-marker{display:none}
+.pack-desc-details .pack-desc{margin-top:10px;padding:12px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--mu);line-height:1.65}
 
 /* ── PROGRESS TRACKER ── */
 .progress-track{display:flex;align-items:center;gap:0;margin-bottom:20px;overflow-x:auto;padding-bottom:4px}
@@ -163,9 +170,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
 .mp-section summary{padding:16px 18px;font-size:14px;font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
 .mp-section summary::-webkit-details-marker{display:none}
 .mp-body{padding:0 18px 18px;font-size:13px;line-height:1.55}
-.pack-desc-toggle{background:none;border:none;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;padding:0;margin-top:8px;font-family:inherit}
-.pack-desc{display:none;margin-top:10px;padding:12px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--mu);line-height:1.65}
-.pack-desc.open{display:block}
 .pack-feats{list-style:none;margin-top:8px}
 .pack-feats li{font-size:11px;padding:3px 0;color:var(--mu)}
 .pack-feats li::before{content:'✓ ';color:var(--green);font-weight:700}
@@ -294,9 +298,12 @@ function matchCurrentPack(active){
   if(/premium|full/i.test(hay)) return packs.find(p=>p.id==='full');
   return null;
 }
-function togglePackDesc(){
-  const el=document.getElementById('pack-desc');
-  if(el) el.classList.toggle('open');
+function showManagePanel(panelId){
+  const el=document.getElementById(panelId);
+  if(!el) return;
+  const wasHidden=el.classList.contains('mp-panel-hidden');
+  document.querySelectorAll('.sh-manage-panel').forEach(p=>p.classList.add('mp-panel-hidden'));
+  if(wasHidden) el.classList.remove('mp-panel-hidden');
 }
 function selectFleet(id){
   _selectedFleetId=id||'';
@@ -679,74 +686,70 @@ function renderStatus(){
   const packOpts=(CUSTOMER_CATALOG&&CUSTOMER_CATALOG.packages||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name)} — from $${p.basePrice}</option>`).join('');
   const addonList=(CUSTOMER_CATALOG&&CUSTOMER_CATALOG.addons||[]).map(a=>`<div class="addon-row"><input type="checkbox" class="addon-cb" id="addon-${esc(a.id)}" value="${esc(a.name)} ($${a.price})"><label for="addon-${esc(a.id)}"><strong>${esc(a.name)}</strong> — $${a.price}<br><span style="color:var(--mu)">${esc(a.desc)}</span></label></div>`).join('');
 
-  const managePanel=`
-    <div class="manage-panel">
-      <details class="mp-section" open>
-        <summary>📦 Your Package</summary>
-        <div class="mp-body">
-          <div style="font-size:16px;font-weight:800">${esc(currentPack?currentPack.name:svc(active))}</div>
-          ${currentPack?`<div style="font-size:12px;color:var(--mu);margin-top:4px">${esc(currentPack.tag||'')}</div>`:''}
-          ${currentPack?`<button type="button" class="pack-desc-toggle" onclick="togglePackDesc()">View package details (optional) ▾</button>
-          <div class="pack-desc" id="pack-desc">
-            <div>${esc(currentPack.description||'')}</div>
-            <ul class="pack-feats">${(currentPack.feats||[]).map(f=>`<li>${esc(f)}</li>`).join('')}</ul>
-          </div>`:''}
-          ${active.packageChangeRequested?`<div style="margin-top:10px;padding:10px;background:rgba(45,212,191,.06);border-radius:8px;font-size:12px"><strong>Pack change pending:</strong> ${esc(active.requestedPackageName||'—')}</div>`:''}
-          ${canReschedule&&!active.packageChangeRequested?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-            <div style="font-size:12px;font-weight:700;margin-bottom:8px">Change package</div>
-            <select id="pack-change-select" class="inline-form" style="margin:0;padding:10px 12px;width:100%">
-              <option value="">Select a different pack…</option>${packOpts}
-            </select>
-            <button id="pack-change-btn" class="btn btn-tl btn-sm" style="margin-top:8px" onclick="submitPackChange('${esc(active.id)}')">Request Pack Change</button>
-            <div class="mp-note">Pricing may adjust based on vehicle size. Our team confirms before applying.</div>
-          </div>`:''}
-        </div>
-      </details>
+  const manageBtns=(!isCanceled&&!isCompleted)?`<div class="sh-manage-btns">
+    <button type="button" class="btn btn-g btn-sm" onclick="showManagePanel('mp-appointment')">Modify Appointment</button>
+    ${canReschedule&&!active.packageChangeRequested?`<button type="button" class="btn btn-g btn-sm" onclick="showManagePanel('mp-package')">Change Package</button>`:''}
+    ${canRequestAddons?`<button type="button" class="btn btn-g btn-sm" onclick="showManagePanel('mp-addons')">Add Add-ons</button>`:''}
+  </div>`:'';
 
-      <details class="mp-section" open>
-        <summary>📅 Manage Appointment</summary>
-        <div class="mp-body">
-          ${canReschedule?`<div class="inline-form">
-            <label class="m-lbl">Reschedule — new preferred date</label>
-            <input type="date" id="inline-rs-date" min="${new Date().toISOString().split('T')[0]}" value="">
-            <select id="inline-rs-time">
-              <option>Morning (8am–12pm)</option><option>Afternoon (12pm–4pm)</option>
-              <option>Evening (4pm–7pm)</option><option>Flexible</option>
-            </select>
-            <button id="inline-rs-btn" class="btn btn-yw btn-sm" onclick="submitInlineReschedule('${esc(active.id)}')">Submit Reschedule Request</button>
-          </div>`:'<div class="mp-note">Reschedule is not available for this booking status.</div>'}
-          ${canReschedule?`<div class="inline-form" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-            <label class="m-lbl">Change service address</label>
-            <input type="text" id="inline-addr" placeholder="123 Main St, Hoboken NJ 07030" value="${esc(active.address||'')}">
-            <button id="inline-addr-btn" class="btn btn-tl btn-sm" onclick="submitInlineAddress('${esc(active.id)}')">Update Address</button>
-          </div>`:''}
-          ${canCancel?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-            <div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">Request cancellation</div>
-            <textarea id="cancel-reason" placeholder="Reason for cancellation…" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--white);font-size:13px;min-height:70px;resize:vertical;margin-bottom:10px"></textarea>
-            <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;cursor:pointer;margin-bottom:10px">
-              <input type="checkbox" id="cancel-ack" style="margin-top:2px">
-              <span>I understand this request will be reviewed per the cancellation/no-show policy.</span>
-            </label>
-            <button class="btn btn-sm" style="background:#ef4444;color:#fff;border:none" onclick="submitCancelRequest()">Submit Cancellation Request</button>
-          </div>`:''}
-        </div>
-      </details>
+  const appointmentPanel=(!isCanceled&&!isCompleted)?`<div id="mp-appointment" class="sh-manage-panel mp-panel-hidden">
+    ${canReschedule?`<div class="inline-form">
+      <label class="m-lbl">Reschedule — new preferred date</label>
+      <input type="date" id="inline-rs-date" min="${new Date().toISOString().split('T')[0]}" value="">
+      <select id="inline-rs-time">
+        <option>Morning (8am–12pm)</option><option>Afternoon (12pm–4pm)</option>
+        <option>Evening (4pm–7pm)</option><option>Flexible</option>
+      </select>
+      <button id="inline-rs-btn" class="btn btn-yw btn-sm" onclick="submitInlineReschedule('${esc(active.id)}')">Submit Reschedule Request</button>
+    </div>`:'<div class="mp-note">Reschedule is not available for this booking status.</div>'}
+    ${canReschedule?`<div class="inline-form" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <label class="m-lbl">Change service address</label>
+      <input type="text" id="inline-addr" placeholder="123 Main St, Hoboken NJ 07030" value="${esc(active.address||'')}">
+      <button id="inline-addr-btn" class="btn btn-tl btn-sm" onclick="submitInlineAddress('${esc(active.id)}')">Update Address</button>
+    </div>`:''}
+    ${canCancel?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">Request cancellation</div>
+      <textarea id="cancel-reason" placeholder="Reason for cancellation…" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--white);font-size:13px;min-height:70px;resize:vertical;margin-bottom:10px"></textarea>
+      <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;cursor:pointer;margin-bottom:10px">
+        <input type="checkbox" id="cancel-ack" style="margin-top:2px">
+        <span>I understand this request will be reviewed per the cancellation/no-show policy.</span>
+      </label>
+      <button class="btn btn-sm" style="background:#ef4444;color:#fff;border:none" onclick="submitCancelRequest()">Submit Cancellation Request</button>
+    </div>`:''}
+  </div>`:'';
 
-      ${canRequestAddons?`<details class="mp-section">
-        <summary>➕ Add-ons</summary>
-        <div class="mp-body">
-          ${active.addonsRequested?`<div style="padding:10px;background:rgba(45,212,191,.06);border-radius:8px;font-size:12px;margin-bottom:12px"><strong>Pending:</strong> ${esc(active.requestedAddons||'—')}</div>`:''}
-          ${addonList||'<div class="mp-note">Add-on catalog loading…</div>'}
-          <textarea id="inline-addon-extra" placeholder="Other add-ons (optional)…" style="width:100%;margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--white);font-size:13px;min-height:60px"></textarea>
-          <button id="inline-addon-btn" class="btn btn-tl btn-sm" style="margin-top:10px" onclick="submitInlineAddons('${esc(active.id)}')">Request Selected Add-ons</button>
-        </div>
-      </details>`:''}
+  const packagePanel=(canReschedule&&!active.packageChangeRequested)?`<div id="mp-package" class="sh-manage-panel mp-panel-hidden">
+    <div style="font-size:16px;font-weight:800">${esc(currentPack?currentPack.name:svc(active))}</div>
+    ${currentPack?`<div style="font-size:12px;color:var(--mu);margin-top:4px">${esc(currentPack.tag||'')}</div>`:''}
+    ${currentPack?`<details class="pack-desc-details">
+      <summary>View package details (optional) ▾</summary>
+      <div class="pack-desc">
+        <div>${esc(currentPack.description||'')}</div>
+        <ul class="pack-feats">${(currentPack.feats||[]).map(f=>`<li>${esc(f)}</li>`).join('')}</ul>
+      </div>
+    </details>`:''}
+    ${active.packageChangeRequested?`<div style="margin-top:10px;padding:10px;background:rgba(45,212,191,.06);border-radius:8px;font-size:12px"><strong>Pack change pending:</strong> ${esc(active.requestedPackageName||'—')}</div>`:''}
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px">Change package</div>
+      <select id="pack-change-select" class="inline-form" style="margin:0;padding:10px 12px;width:100%">
+        <option value="">Select a different pack…</option>${packOpts}
+      </select>
+      <button id="pack-change-btn" class="btn btn-tl btn-sm" style="margin-top:8px" onclick="submitPackChange('${esc(active.id)}')">Request Pack Change</button>
+      <div class="mp-note">Pricing may adjust based on vehicle size. Our team confirms before applying.</div>
+    </div>
+  </div>`:'';
 
-      <details class="mp-section">
-        <summary>🔄 Monthly Plans — 10% subscriber discount</summary>
-        <div class="mp-body">${renderSubscriptionSection(active)}</div>
-      </details>
-    </div>`;
+  const addonsPanel=canRequestAddons?`<div id="mp-addons" class="sh-manage-panel mp-panel-hidden">
+    ${active.addonsRequested?`<div style="padding:10px;background:rgba(45,212,191,.06);border-radius:8px;font-size:12px;margin-bottom:12px"><strong>Pending:</strong> ${esc(active.requestedAddons||'—')}</div>`:''}
+    ${addonList||'<div class="mp-note">Add-on catalog loading…</div>'}
+    <textarea id="inline-addon-extra" placeholder="Other add-ons (optional)…" style="width:100%;margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--white);font-size:13px;min-height:60px"></textarea>
+    <button id="inline-addon-btn" class="btn btn-tl btn-sm" style="margin-top:10px" onclick="submitInlineAddons('${esc(active.id)}')">Request Selected Add-ons</button>
+  </div>`:'';
+
+  const subscriptionSection=`<details class="mp-section">
+    <summary>🔄 Monthly Plans — 10% subscriber discount</summary>
+    <div class="mp-body">${renderSubscriptionSection(active)}</div>
+  </details>`;
 
   const cancelSection = '';
 
@@ -784,8 +787,12 @@ function renderStatus(){
     ${active.addonsRequested?`<div style="margin-top:14px;padding:12px;background:rgba(45,212,191,.06);border:1px solid rgba(45,212,191,.2);border-radius:8px;font-size:12px"><strong>Add-on request pending:</strong> ${esc(active.requestedAddons||'—')}</div>`:''}
     ${active.policyChargeStatus?`<div style="margin-top:14px;padding:12px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;font-size:12px"><strong>Policy charge:</strong> ${esc(active.policyChargeStatus)}${active.policyChargeAmount?' · $'+active.policyChargeAmount:''}</div>`:''}
       <div class="sh-acts">${acts}</div>
+      ${manageBtns}
+      ${appointmentPanel}
+      ${packagePanel}
+      ${addonsPanel}
     </div>
-    ${managePanel}
+    ${subscriptionSection}
     ${active.photosBefore?.length||active.photosAfter?.length?`
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px">
         <div style="font-size:13px;font-weight:700;margin-bottom:12px">📷 Job Photos</div>

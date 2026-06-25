@@ -1778,13 +1778,14 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </select>
         <button class="cp-btn" onclick="cpConfirmReschedule()">Confirm Reschedule →</button>
         <div id="cp-reschedule-msg" style="display:none;margin-top:10px;font-size:13px"></div>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.08)">
+          <label class="cp-label">New service address</label>
+          <input class="cp-fi" id="cp-new-addr" type="text" placeholder="123 Main St, Hoboken NJ 07030">
+          <button class="cp-btn" onclick="cpConfirmAddress()">Update Address →</button>
+          <div id="cp-addr-msg" style="display:none;margin-top:10px;font-size:13px"></div>
+        </div>
       </div>
-      <div class="cp-sub-panel" id="cps-address">
-        <label class="cp-label">New service address</label>
-        <input class="cp-fi" id="cp-new-addr" type="text" placeholder="123 Main St, Hoboken NJ 07030">
-        <button class="cp-btn" onclick="cpConfirmAddress()">Update Address →</button>
-        <div id="cp-addr-msg" style="display:none;margin-top:10px;font-size:13px"></div>
-      </div>
+      <div class="cp-sub-panel" id="cps-address" style="display:none">
       <div class="cp-sub-panel" id="cps-tip">
         <p style="font-size:13px;color:var(--mu);margin-bottom:8px">Your technician did a great job! Leave a tip — it goes 100% to them.</p>
         <div class="tip-row" id="tip-row">
@@ -1814,6 +1815,14 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <div id="cp-addon-list" style="display:flex;flex-direction:column;gap:6px"></div>
         <button class="cp-btn" style="margin-top:12px" onclick="cpConfirmAddons()">Request Add-Ons →</button>
         <div id="cp-addon-msg" style="display:none;margin-top:10px;font-size:13px"></div>
+      </div>
+      <div class="cp-sub-panel" id="cps-pack">
+        <p style="font-size:13px;color:var(--mu);margin-bottom:10px">Select a different package. Our team will confirm pricing before applying.</p>
+        <select class="cp-fi" id="cp-pack-select">
+          <option value="">Select a different pack…</option>
+        </select>
+        <button class="cp-btn" style="margin-top:12px" onclick="cpConfirmPackChange()">Request Package Change →</button>
+        <div id="cp-pack-msg" style="display:none;margin-top:10px;font-size:13px"></div>
       </div>
     </div>
 
@@ -6265,6 +6274,59 @@ function cpTab(n){
 let cpActiveBookingId = null;
 let cpSelectedTip = 0;
 let cpSelectedAddons = [];
+let cpCustomerCatalog = null;
+
+function cpEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+async function cpEnsureCatalog(){
+  if(cpCustomerCatalog) return cpCustomerCatalog;
+  try{
+    const res=await fetch('/.netlify/functions/customer-subscription-checkout',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'list_catalog'})
+    });
+    const d=await res.json().catch(()=>({}));
+    if(d.ok) cpCustomerCatalog=d.catalog;
+  }catch(e){}
+  return cpCustomerCatalog;
+}
+
+function cpPopulatePackSelect(){
+  const sel=document.getElementById('cp-pack-select');
+  if(!sel) return;
+  const packs=(cpCustomerCatalog&&cpCustomerCatalog.packages)||[];
+  sel.innerHTML='<option value="">Select a different pack…</option>'+
+    packs.map(p=>`<option value="${cpEsc(p.id)}">${cpEsc(p.name)} — from $${p.basePrice}</option>`).join('');
+}
+
+async function cpConfirmPackChange(){
+  if(!cpActiveBookingId) return;
+  const sel=document.getElementById('cp-pack-select');
+  const msgEl=document.getElementById('cp-pack-msg');
+  const btn=document.querySelector('#cps-pack .cp-btn');
+  if(!sel||!sel.value){ if(msgEl){ msgEl.style.display='block'; msgEl.innerHTML='<span style="color:var(--rd)">Please select a package.</span>'; } return; }
+  const opt=sel.options[sel.selectedIndex];
+  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
+  if(btn){ btn.disabled=true; btn.textContent='Submitting…'; }
+  if(msgEl) msgEl.style.display='none';
+  try{
+    const r=await fetch('/.netlify/functions/submit-customer-action',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bookingId:cpActiveBookingId,phone,action:'package_change_request',newPackId:sel.value,newPackName:opt.textContent})
+    });
+    const data=await r.json().catch(()=>({}));
+    if(btn){ btn.disabled=false; btn.textContent='Request Package Change →'; }
+    if(data.ok){
+      if(msgEl){ msgEl.style.display='block'; msgEl.innerHTML='<span style="color:var(--gr)">✓ Package change request submitted. Our team will confirm pricing.</span>'; }
+      setTimeout(()=>cpLoadManage(),1500);
+    }else{
+      if(msgEl){ msgEl.style.display='block'; msgEl.innerHTML='<span style="color:var(--rd)">'+(cpEsc(data.userMessage)||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>'; }
+    }
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='Request Package Change →'; }
+    if(msgEl){ msgEl.style.display='block'; msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>'; }
+  }
+}
 
 async function cpLoadManage(){
   const id    = (document.getElementById('cp-mgmt-id')    || {value:''}).value.trim();
@@ -6287,7 +6349,7 @@ async function cpLoadManage(){
     if(btn){ btn.disabled=false; btn.textContent='Load My Booking →'; }
     res.style.display='block';
     if(!data.ok || !data.booking){
-      res.innerHTML='<span style="color:var(--mu)">'+(data.message||'We could not verify this booking right now. Please try again or contact support at 551-313-2956.')+'</span>';
+      res.innerHTML='<span style="color:var(--mu)">'+cpEsc(data.message||'We could not verify this booking right now. Please try again or contact support at 551-313-2956.')+'</span>';
       return;
     }
     const b = data.booking;
@@ -6305,7 +6367,7 @@ async function cpLoadManage(){
     const vehs = b.vehicles && b.vehicles.length
       ? b.vehicles
       : [{pkgName:b.package||'—', vehicleLabel:b.vehicle||'—', pkgIcon:'🚗', addons:b.addons||[], subtotal:b.totalPrice}];
-    const vehHtml = vehs.map(v=>'<div style="font-size:12px;line-height:1.7;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+v.pkgIcon+' <strong>'+(v.pkgName||'—')+'</strong> · '+(v.vehicleLabel||'—')+' · <span style="color:var(--blue)">$'+(v.subtotal||0)+'</span></div>').join('');
+    const vehHtml = vehs.map(v=>'<div style="font-size:12px;line-height:1.7;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+cpEsc(v.pkgIcon||'🚗')+' <strong>'+cpEsc(v.pkgName||'—')+'</strong> · '+cpEsc(v.vehicleLabel||'—')+' · <span style="color:var(--blue)">$'+(v.subtotal||0)+'</span></div>').join('');
     const isCancelReq = b.cancellationRequestStatus === 'requested';
     const displayStatus = isCancelReq ? 'Cancellation Requested' : status;
     const statusColor = isCancelReq ? '#ef4444' : (isCompleted ? 'var(--gr)' : isEditable ? 'var(--am)' : 'var(--mu)');
@@ -6321,17 +6383,18 @@ async function cpLoadManage(){
       const cancelLabel=canCancel?'✕ Request Cancellation':'✕ Cancel (fee may apply)';
       const warnEnc=encodeURIComponent(cancelWarn);
       actionsHtml='<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">'
-        +`<button class="cp-btn" onclick="cpOpenCancel('${b.id}',${canCancel},'${warnEnc}')" style="margin:0;padding:10px 16px;font-size:12px;background:rgba(239,68,68,.12);color:var(--rd);border-color:rgba(239,68,68,.3)">${cancelLabel}</button>`
-        +`<button class="cp-btn" onclick="cpOpenSub('reschedule')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">↺ Reschedule</button>`
-        +`<button class="cp-btn" onclick="cpOpenSub('addons')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">➕ Add-Ons</button>`
+        +`<button class="cp-btn" onclick="cpOpenSub('reschedule')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">Modify Appointment</button>`
+        +`<button class="cp-btn" onclick="cpOpenSub('pack')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">Change Package</button>`
+        +`<button class="cp-btn" onclick="cpOpenSub('addons')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">Add Add-ons</button>`
+        +`<button class="cp-btn" onclick="cpOpenCancel('${cpEsc(b.id)}',${canCancel},'${warnEnc}')" style="margin:0;padding:10px 16px;font-size:12px;background:rgba(239,68,68,.12);color:var(--rd);border-color:rgba(239,68,68,.3)">${cancelLabel}</button>`
         +'</div>'
         +'<div style="margin-top:8px;font-size:11px;color:var(--mu)">Requests reviewed by Cardetail1 · Urgent: <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></div>';
     }
     res.innerHTML = '<div style="background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--rs);padding:14px;margin-bottom:12px">'
-      +'<div style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">#'+b.id+' · <span style="font-size:12px;font-weight:600;color:'+statusColor+';background:'+statusBg+';padding:3px 10px;border-radius:999px">'+displayStatus+'</span></div>'
-      +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+(b.confirmedWindow||b.preferredDate||'—')+' · '+(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+(b.address||'—')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(b.totalPrice||0)+'</strong>'+(b.tip?' + Tip $'+b.tip:'')+'</div>'
+      +'<div style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">#'+cpEsc(b.id)+' · <span style="font-size:12px;font-weight:600;color:'+statusColor+';background:'+statusBg+';padding:3px 10px;border-radius:999px">'+cpEsc(displayStatus)+'</span></div>'
+      +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+cpEsc(b.confirmedWindow||b.preferredDate||'—')+' · '+cpEsc(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+cpEsc(b.address||'—')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(b.totalPrice||0)+'</strong>'+(b.tip?' + Tip $'+b.tip:'')+'</div>'
       +'<div style="margin-top:10px">'+vehHtml+'</div>'
-      +(b.payLink?'<div style="margin-top:10px"><a href="'+b.payLink+'" target="_blank" style="color:var(--blue);font-weight:600">&#x1F4B3; Pay Now &#x2192;</a></div>':'')
+      +(b.payLink?'<div style="margin-top:10px"><a href="'+cpEsc(b.payLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-weight:600">&#x1F4B3; Pay Now &#x2192;</a></div>':'')
       +'</div>'+actionsHtml;
   } catch(_){
     if(btn){ btn.disabled=false; btn.textContent='Load My Booking →'; }
@@ -6341,6 +6404,8 @@ async function cpLoadManage(){
 }
 function cpOpenSub(name){
   document.querySelectorAll('.cp-sub-panel').forEach(p=>p.classList.remove('open'));
+  if(name==='addons'){ cpOpenAddons(); return; }
+  if(name==='pack'){ cpEnsureCatalog().then(()=>cpPopulatePackSelect()); }
   document.getElementById('cps-'+name)?.classList.add('open');
 }
 
@@ -6356,14 +6421,16 @@ function cpOpenAddons(){
   document.querySelectorAll('.cp-sub-panel').forEach(p=>p.classList.remove('open'));
   const panel = document.getElementById('cps-addons'); if(!panel) return;
   panel.classList.add('open');
-  const list = document.getElementById('cp-addon-list'); if(!list) return;
-  // Show car add-ons as a quick list
-  list.innerHTML = (PRICING.cars.addons||[]).map(a=>`
+  cpEnsureCatalog().then(()=>{
+    const list = document.getElementById('cp-addon-list'); if(!list) return;
+    const addons=(cpCustomerCatalog&&cpCustomerCatalog.addons)||PRICING.cars.addons||[];
+    list.innerHTML = addons.map(a=>`
     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 10px;background:var(--bg2);border-radius:var(--rs);border:1px solid rgba(255,255,255,.07)">
-      <input type="checkbox" onchange="cpToggleAddon('${a.id}','${a.name}',${a.price},this)" style="accent-color:var(--blue);width:16px;height:16px">
-      <span style="flex:1;font-size:13px">${a.icon} ${a.name}</span>
+      <input type="checkbox" onchange="cpToggleAddon('${cpEsc(a.id)}','${cpEsc(a.name)}',${a.price},this)" style="accent-color:var(--blue);width:16px;height:16px">
+      <span style="flex:1;font-size:13px">${cpEsc(a.icon||'')} ${cpEsc(a.name)}</span>
       <span style="font-weight:700;color:var(--blue)">+$${a.price}</span>
     </label>`).join('');
+  });
 }
 
 function cpToggleAddon(id, name, price, el){
@@ -6420,24 +6487,81 @@ async function cpConfirmReschedule(){
   const newTime=(document.getElementById('cp-new-time')||{}).value||'';
   const msgEl=document.getElementById('cp-reschedule-msg');
   const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
+  const btn=document.querySelector('#cps-reschedule .cp-btn');
   if(!newDate){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select a new preferred date.</span>';}return;}
-  await _cpSendInquiry('Reschedule Request',`Booking ${cpActiveBookingId} — requested reschedule to: ${newDate}${newTime?' · '+newTime:''}`,phone,msgEl);
+  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
+  if(msgEl)msgEl.style.display='none';
+  try{
+    const r=await fetch('/.netlify/functions/submit-customer-action',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bookingId:cpActiveBookingId,phone,action:'reschedule_request',newDate,newTime})
+    });
+    const data=await r.json().catch(()=>({}));
+    if(btn){btn.disabled=false;btn.textContent='Confirm Reschedule →';}
+    if(data.ok){
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Reschedule request submitted. Cardetail1 will confirm within 24 hours.</span>';}
+      setTimeout(()=>cpLoadManage(),1500);
+    }else{
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(cpEsc(data.userMessage)||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
+    }
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='Confirm Reschedule →';}
+    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
+  }
 }
 async function cpConfirmAddress(){
   if(!cpActiveBookingId){return;}
   const addr=(document.getElementById('cp-new-addr')||{}).value?.trim()||'';
   const msgEl=document.getElementById('cp-addr-msg');
   const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
+  const btn=document.querySelector('#cps-address .cp-btn');
   if(!addr){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please enter the new service address.</span>';}return;}
-  await _cpSendInquiry('Address Update',`Booking ${cpActiveBookingId} — requested address change to: ${addr}`,phone,msgEl);
+  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
+  if(msgEl)msgEl.style.display='none';
+  try{
+    const r=await fetch('/.netlify/functions/submit-customer-action',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bookingId:cpActiveBookingId,phone,action:'address_update',newAddress:addr})
+    });
+    const data=await r.json().catch(()=>({}));
+    if(btn){btn.disabled=false;btn.textContent='Update Address →';}
+    if(data.ok){
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Address update submitted.</span>';}
+      setTimeout(()=>cpLoadManage(),1500);
+    }else{
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(cpEsc(data.userMessage)||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
+    }
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='Update Address →';}
+    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
+  }
 }
 async function cpConfirmAddons(){
   if(!cpActiveBookingId){return;}
   const msgEl=document.getElementById('cp-addon-msg');
   const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
+  const btn=document.querySelector('#cps-addons .cp-btn');
   if(!cpSelectedAddons.length){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select at least one add-on.</span>';}return;}
   const addonList=cpSelectedAddons.map(a=>a.name+' (+$'+a.price+')').join(', ');
-  await _cpSendInquiry('Add-On Request',`Booking ${cpActiveBookingId} — requested add-ons: ${addonList}`,phone,msgEl);
+  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
+  if(msgEl)msgEl.style.display='none';
+  try{
+    const r=await fetch('/.netlify/functions/submit-customer-action',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bookingId:cpActiveBookingId,phone,action:'addon_request',requestedAddons:addonList})
+    });
+    const data=await r.json().catch(()=>({}));
+    if(btn){btn.disabled=false;btn.textContent='Request Add-Ons →';}
+    if(data.ok){
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Add-on request submitted — pending admin approval.</span>';}
+      setTimeout(()=>cpLoadManage(),1500);
+    }else{
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(cpEsc(data.userMessage)||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
+    }
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='Request Add-Ons →';}
+    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
+  }
 }
 function _cpContactOnly(){
   alert('To modify this booking, please contact Cardetail1 at 551-313-2956.');
@@ -6518,23 +6642,23 @@ function cpRenderGarage(b){
   const time = b.preferredTime || '';
   const addr = b.address || '—';
   const vehs = (b.vehicles && b.vehicles.length) ? b.vehicles : [{pkgName:b.package||'—', vehicleLabel:b.vehicle||'—', pkgIcon:'🚗', addons:b.addons||[]}];
-  let sumHTML = '<div style="margin-bottom:10px"><span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:'+sc+'22;color:'+sc+';border:1px solid '+sc+'44">'+status+'</span></div>';
-  sumHTML += '<div class="cg-row"><span class="cg-lbl">Booking ID</span><span class="cg-val" style="font-family:var(--fd);color:var(--blue)">#'+b.id+'</span></div>';
+  let sumHTML = '<div style="margin-bottom:10px"><span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:'+sc+'22;color:'+sc+';border:1px solid '+sc+'44">'+cpEsc(status)+'</span></div>';
+  sumHTML += '<div class="cg-row"><span class="cg-lbl">Booking ID</span><span class="cg-val" style="font-family:var(--fd);color:var(--blue)">#'+cpEsc(b.id)+'</span></div>';
   vehs.forEach(v => {
-    sumHTML += '<div class="cg-row"><span class="cg-lbl">Package</span><span class="cg-val">'+v.pkgName+'</span></div>';
-    sumHTML += '<div class="cg-row"><span class="cg-lbl">Vehicle</span><span class="cg-val">'+v.pkgIcon+' '+v.vehicleLabel+'</span></div>';
+    sumHTML += '<div class="cg-row"><span class="cg-lbl">Package</span><span class="cg-val">'+cpEsc(v.pkgName)+'</span></div>';
+    sumHTML += '<div class="cg-row"><span class="cg-lbl">Vehicle</span><span class="cg-val">'+cpEsc(v.pkgIcon||'🚗')+' '+cpEsc(v.vehicleLabel)+'</span></div>';
   });
-  sumHTML += '<div class="cg-row"><span class="cg-lbl">Date</span><span class="cg-val">'+date+'</span></div>';
-  if(time) sumHTML += '<div class="cg-row"><span class="cg-lbl">Time</span><span class="cg-val">'+time+'</span></div>';
-  sumHTML += '<div class="cg-row"><span class="cg-lbl">Location</span><span class="cg-val" style="max-width:200px;text-align:right">'+addr+'</span></div>';
-  if(b.payLink) sumHTML += '<div style="margin-top:12px"><a href="'+b.payLink+'" target="_blank" style="color:var(--blue);font-weight:700;font-size:13px">&#x1F4B3; Pay Now &#x2192;</a></div>';
+  sumHTML += '<div class="cg-row"><span class="cg-lbl">Date</span><span class="cg-val">'+cpEsc(date)+'</span></div>';
+  if(time) sumHTML += '<div class="cg-row"><span class="cg-lbl">Time</span><span class="cg-val">'+cpEsc(time)+'</span></div>';
+  sumHTML += '<div class="cg-row"><span class="cg-lbl">Location</span><span class="cg-val" style="max-width:200px;text-align:right">'+cpEsc(addr)+'</span></div>';
+  if(b.payLink) sumHTML += '<div style="margin-top:12px"><a href="'+cpEsc(b.payLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-weight:700;font-size:13px">&#x1F4B3; Pay Now &#x2192;</a></div>';
   document.getElementById('cg-summary').innerHTML = sumHTML;
   let vehHTML = '';
   vehs.forEach(v => {
-    vehHTML += '<div class="cg-vehicle"><span style="font-size:22px">'+v.pkgIcon+'</span><div><div class="cg-vname">'+v.vehicleLabel+'</div><div class="cg-vpkg">'+v.pkgName+'</div></div></div>';
+    vehHTML += '<div class="cg-vehicle"><span style="font-size:22px">'+cpEsc(v.pkgIcon||'🚗')+'</span><div><div class="cg-vname">'+cpEsc(v.vehicleLabel)+'</div><div class="cg-vpkg">'+cpEsc(v.pkgName)+'</div></div></div>';
   });
   document.getElementById('cg-vehicles').innerHTML = vehHTML;
-  document.getElementById('cg-history').innerHTML = '<div class="cg-hist"><div><div class="cg-hpkg">'+vehs[0].pkgName+'</div><div class="cg-hdate">'+date+'</div></div><span class="cg-hstat">'+status+'</span></div>';
+  document.getElementById('cg-history').innerHTML = '<div class="cg-hist"><div><div class="cg-hpkg">'+cpEsc(vehs[0].pkgName)+'</div><div class="cg-hdate">'+cpEsc(date)+'</div></div><span class="cg-hstat">'+cpEsc(status)+'</span></div>';
 }
 function cpRequestPlan(type){
   if(type==='monthly'||type==='multi-car'){
