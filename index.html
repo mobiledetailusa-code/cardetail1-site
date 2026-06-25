@@ -6537,6 +6537,10 @@ function cpRenderGarage(b){
   document.getElementById('cg-history').innerHTML = '<div class="cg-hist"><div><div class="cg-hpkg">'+vehs[0].pkgName+'</div><div class="cg-hdate">'+date+'</div></div><span class="cg-hstat">'+status+'</span></div>';
 }
 function cpRequestPlan(type){
+  if(type==='monthly'||type==='multi-car'){
+    window.location.href='customer.html?subscribe=1';
+    return;
+  }
   window.location.href = 'tel:5513132956';
 }
 

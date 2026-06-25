@@ -70,6 +70,21 @@ test('deploy-62 premium visuals present on booking surfaces', () => {
   assert.match(index, /CATEGORY_VISUALS/);
 });
 
+test('monthly maintenance plan routes to customer subscription portal', () => {
+  assert.match(index, /customer\.html\?subscribe=1/);
+});
+
+test('customer subscription checkout rejects client price fields server-side', () => {
+  const subCheckout = read('netlify/functions/customer-subscription-checkout.js');
+  const subLib = read('netlify/lib/subscription-checkout.js');
+  assert.match(subLib, /client_price_not_allowed/);
+  assert.match(subCheckout, /rejectClientPriceFields/);
+  assert.match(subCheckout, /booking_id_required/);
+  assert.match(customer, /customer-subscription-checkout/);
+  assert.match(customer, /action:'list_catalog'/);
+  assert.doesNotMatch(customer, /monthlyPrice:/);
+});
+
 test('checkout keeps optimistic client save with server retry', () => {
   assert.match(index, /waitForVerifiedCardSave/);
   assert.match(read('netlify/functions/submit-booking.js'), /reconcileCardOnFileFromStripe/);

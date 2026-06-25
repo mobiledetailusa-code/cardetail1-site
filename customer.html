@@ -319,6 +319,7 @@ function renderSubscriptionSection(active){
   const fleet=(CUSTOMER_CATALOG&&CUSTOMER_CATALOG.fleetPlans)||[];
   const disc=CUSTOMER_CATALOG?CUSTOMER_CATALOG.subscriberDiscountPct:10;
   const activeSub=CUSTOMER_SUBS.find(s=>s.status==='active');
+  const matched=matchCurrentPack(active);
   if(activeSub){
     return `<div style="background:rgba(0,200,83,.06);border:1px solid rgba(0,200,83,.18);border-radius:10px;padding:14px;margin-bottom:12px">
       <div style="font-weight:700;color:var(--green)">✓ Active: ${esc(activeSub.planName)}</div>
@@ -332,8 +333,9 @@ function renderSubscriptionSection(active){
   </div>`;
   const cards=packs.map(p=>{
     const displayPrice=fleetMonthlyForPack(p.id);
-    return `<div class="sub-card${p.id==='maint'?' feat':''}">
-    <div style="font-weight:800;font-size:14px;margin-bottom:4px">${esc(p.name)}</div>
+    const isMatch=matched&&matched.id===p.id;
+    return `<div class="sub-card${p.id==='maint'||isMatch?' feat':''}">
+    <div style="font-weight:800;font-size:14px;margin-bottom:4px">${esc(p.name)}${isMatch?' <span style="font-size:10px;color:var(--blue)">· your package</span>':''}</div>
     <div class="sub-card-price" data-pack="${esc(p.id)}" data-base="${p.basePrice}" data-single="${p.monthlyPrice}" style="font-family:var(--fd);font-size:22px;color:var(--green)">$${displayPrice}<span style="font-size:12px;color:var(--mu)">/mo</span></div>
     <div style="font-size:11px;color:var(--mu);margin:6px 0;text-decoration:line-through">$${p.basePrice} walk-in</div>
     <div style="font-size:11px;color:var(--mu);margin-bottom:10px">${esc(p.tag||'')}</div>
@@ -357,7 +359,7 @@ async function startSubscription(packId, bookingId, btn){
     if(!data.ok||!data.url) throw new Error(data.message||data.error||'checkout_failed');
     location.href=data.url;
   }catch(e){
-    alert('Could not start checkout. Please call 551-313-2956.');
+    alert(e.message==='booking_mismatch'?'This booking does not match your account.':(e.message||'Could not start checkout. Please call 551-313-2956.'));
     if(btn){btn.disabled=false;btn.textContent='Subscribe via Stripe';}
   }
 }
@@ -496,6 +498,42 @@ const STATUS_MAP={
 };
 function badge(s){ return `<span class="badge ${STATUS_MAP[s]||'b-pen'}">${s||'Pending'}</span>`; }
 
+function expandMonthlyPlansSection(){
+  document.querySelectorAll('.mp-section summary').forEach(s=>{
+    if(/Monthly Plans/i.test(s.textContent||'')){
+      const d=s.parentElement;
+      if(d&&d.tagName==='DETAILS') d.open=true;
+    }
+  });
+}
+async function handleSubscriptionReturn(){
+  const params=new URLSearchParams(location.search);
+  if(params.get('subscribed')!=='1') return;
+  const sessionId=params.get('session_id')||'';
+  history.replaceState({},'',location.pathname);
+  const email=getCustomerEmail();
+  const phone=getCustomerPhone();
+  if(sessionId.startsWith('cs_')&&email.includes('@')&&phone.length>=7){
+    try{
+      const res=await fetch('/.netlify/functions/customer-subscription-checkout',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'session_status',sessionId,email,phone})
+      });
+      const d=await res.json().catch(()=>({}));
+      if(d.ok&&d.subscriptionId){
+        await loadCatalogAndSubs();
+        renderStatus();
+        setTimeout(()=>alert('✅ Monthly subscription active (ID on file). Thank you for joining our plan!'),400);
+        return;
+      }
+    }catch(e){}
+  }
+  if(CUSTOMER_SUBS.some(s=>s.status==='active')){
+    setTimeout(()=>alert('✅ Subscription activated! Thank you for joining our monthly plan.'),400);
+  }else{
+    setTimeout(()=>alert('Payment received — your subscription is processing. Refresh in a minute or contact us if it does not appear.'),400);
+  }
+}
 function initApp(useCurrent=false){
   if(!useCurrent) return;
   const name=nm(CUSTOMER_BOOKINGS[0]||{});
@@ -504,14 +542,11 @@ function initApp(useCurrent=false){
   document.getElementById('s-app').style.display='block';
   loadCatalogAndSubs().then(()=>{
     renderStatus();
-    if(new URLSearchParams(location.search).get('subscribed')==='1'){
+    if(new URLSearchParams(location.search).get('subscribe')==='1'){
       history.replaceState({},'',location.pathname);
-      if(CUSTOMER_SUBS.some(s=>s.status==='active')){
-        setTimeout(()=>alert('✅ Subscription activated! Thank you for joining our monthly plan.'),400);
-      }else{
-        setTimeout(()=>alert('Payment received — your subscription is processing. Refresh in a minute or contact us if it does not appear.'),400);
-      }
+      expandMonthlyPlansSection();
     }
+    handleSubscriptionReturn();
   });
 }
 

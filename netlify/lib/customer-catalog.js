@@ -1,5 +1,5 @@
 // Customer-facing service catalog — subscription pricing (10% monthly discount).
-// Base prices use sedan/small-car tier; exact vehicle tier confirmed at service.
+// Stripe Price env mapping: see netlify/lib/subscription-checkout.js
 
 const SUBSCRIBER_DISCOUNT = 0.10;
 const MAX_DETAILS_PER_MONTH = 1;
