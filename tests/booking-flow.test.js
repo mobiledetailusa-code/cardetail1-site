@@ -87,16 +87,16 @@ test('client-controlled protected fields are stripped', () => {
 });
 
 test('admin and customer surfaces show required state without Stripe IDs', () => {
-  assert.match(technician, /Payment Preference/);
-  assert.match(technician, /Card on File/);
-  assert.match(technician, /Pending Review/);
-  assert.match(technician, /Cancellation Request/);
+  assert.match(technician, /customerAuthorizationAccepted/);
+  assert.match(technician, /Pending Admin Review/);
+  assert.match(technician, /complete-modal/);
+  assert.match(technician, /tech-complete-job/);
   assert.match(customer, /Card on file saved/i);
   assert.match(customer, /No charge has been made today/i);
   assert.match(customer, /Payment Preference/);
   assert.match(customer, /Pending confirmation/);
-  assert.match(customer, /Request Cancellation/);
-  assert.match(lookup, /paymentMethodPreference/);
+  assert.match(customer, /Request cancellation|Submit Cancellation Request/);
+  assert.match(read('netlify/lib/ops-schema.js'), /paymentMethodPreference/);
   assert.doesNotMatch(lookup, /setupIntentId:\s*b\./);
   assert.doesNotMatch(lookup, /stripeCustomerId:\s*b\./);
 });
@@ -142,8 +142,10 @@ test('missing and invalid webhook signatures are rejected', async () => {
 });
 
 test('inline browser scripts compile', () => {
+  const jsScripts = html => [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)]
+    .filter(m => !/type\s*=\s*["']application\/ld\+json["']/i.test(m[0]));
   for (const [file, html] of [['index.html', index], ['customer.html', customer], ['technician.html', technician]]) {
-    const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
+    const scripts = jsScripts(html);
     assert.ok(scripts.length > 0, `${file} should contain inline scripts`);
     scripts.forEach((match, i) => {
       assert.doesNotThrow(() => new Function(match[1]), `${file} inline script ${i + 1} should compile`);

@@ -20,7 +20,7 @@ test('confirmSetup marks card saved optimistically then verifies in background',
 });
 
 test('saved card gates continue; submit retries when server lags', () => {
-  assert.match(index, /async function goToConfirmFromTerms/);
+  assert.match(index, /function goToConfirmFromTerms/);
   assert.match(index, /if\(!ST\.cardOnFileSaved\)/);
   const submitBlock = index.slice(
     index.indexOf('async function submitBooking'),

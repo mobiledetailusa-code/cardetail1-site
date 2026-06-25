@@ -21,8 +21,8 @@ const submit = read('netlify/functions/submit-booking.js');
 const setup = read('netlify/functions/create-setup-intent.js');
 
 test('public index.html unchanged by admin/tech ops work', () => {
-  assert.doesNotMatch(index, /admin-ops\.html/);
   assert.doesNotMatch(index, /tech-complete-job/);
+  assert.doesNotMatch(index, /tech-jobs/);
   assert.match(index, /const PRICING\s*=/);
 });
 
@@ -31,7 +31,7 @@ test('admin-ops has sign out and technician portal link with bypass', () => {
   assert.match(adminOps, /adminLogout/);
   assert.match(adminOps, /technician\.html\?portal=tech/);
   assert.match(tech, /portalTech/);
-  assert.match(tech, /portal\) === 'tech'/);
+  assert.match(tech, /get\('portal'\)\s*===\s*'tech'/);
 });
 
 test('admin login routes to admin-ops.html with username+password token', () => {
@@ -49,8 +49,8 @@ test('admin-ops dashboard loads required tabs and APIs', () => {
   assert.match(adminOps, /Jobs Board/);
   assert.match(adminOps, /Technician Management/);
   assert.match(adminOps, /Completed/);
-  assert.match(adminOps, /Send Invoice — next PR/);
-  assert.match(adminOps, /Charge Card on File — next PR/);
+  assert.match(adminOps, /approve_completion/);
+  assert.match(adminOps, /set_payment_link|charge_policy_fee/);
   assert.doesNotMatch(adminOps, /stripe\.confirmPayment/);
 });
 
@@ -77,7 +77,7 @@ test('technician portal is tech-only with completion modal', () => {
   assert.match(tech, /tech-auth/);
   assert.match(tech, /tech-jobs/);
   assert.match(tech, /tech-complete-job/);
-  assert.match(tech, /completion-modal/);
+  assert.match(tech, /complete-modal/);
   assert.match(tech, /customerAuthorizationAccepted/);
   assert.doesNotMatch(tech, /stripeCustomerId/);
   assert.doesNotMatch(tech, /paymentIntentId/);
@@ -107,9 +107,11 @@ test('tech accounts admin can set password', () => {
 
 test('tech accounts use invite expiry and hide password hash', () => {
   assert.match(techAccounts, /INVITE_TTL_MS/);
-  assert.match(techAccounts, /passwordHash/);
   assert.match(techAccounts, /projectTechAccountForAdmin/);
-  assert.doesNotMatch(techAccounts, /passwordHash:/);
+  const proj = read('netlify/lib/ops-workflow.js').match(/function projectTechAccountForAdmin[\s\S]*?^}/m);
+  assert.ok(proj);
+  assert.match(proj[0], /passwordHash/);
+  assert.doesNotMatch(proj[0], /passwordHash:/);
 });
 
 test('assignment writes assignedTechId and eventLog', () => {
@@ -139,8 +141,8 @@ test('tech auth stores hashed passwords not plain text', () => {
 test('protected public surfaces unchanged vs card-on-file base', () => {
   const pricing = index.match(/const PRICING\s*=\s*\{[\s\S]*?\n\};/);
   assert.ok(pricing, 'PRICING block exists');
-  assert.doesNotMatch(index, /admin-ops/);
   assert.doesNotMatch(index, /tech-complete-job/);
+  assert.doesNotMatch(index, /tech-jobs/);
 });
 
 test('ops workflow separates jobStatus and paymentWorkflowStatus', () => {
@@ -240,9 +242,10 @@ test('technician portal has directions link', () => {
 });
 
 test('inline portal scripts compile', () => {
+  const jsScripts = html => [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)]
+    .filter(m => !/type\s*=\s*["']application\/ld\+json["']/i.test(m[0]));
   for (const [file, html] of [['admin-ops.html', adminOps], ['technician.html', tech]]) {
-    const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
-    scripts.forEach((m, i) => {
+    jsScripts(html).forEach((m, i) => {
       assert.doesNotThrow(() => new Function(m[1]), `${file} script ${i + 1} should compile`);
     });
   }

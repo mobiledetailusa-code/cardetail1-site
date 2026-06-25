@@ -52,7 +52,7 @@ test('projectBookingForCustomer exposes ops fields for portal UI', () => {
 });
 
 test('customer portal uses cloud lookup — not localStorage cd1_bookings', () => {
-  assert.match(customer, /customer-bookings/);
+  assert.match(customer, /lookup-booking/);
   assert.match(customer, /submit-customer-action/);
   assert.doesNotMatch(customer, /localStorage\.getItem\('cd1_bookings'\)/);
   assert.match(customer, /completed_pending_admin_review/);
@@ -61,7 +61,8 @@ test('customer portal uses cloud lookup — not localStorage cd1_bookings', () =
 test('lookup-booking and customer-bookings use ops-db + ops-schema', () => {
   assert.match(lookup, /ops-db/);
   assert.match(lookup, /projectBookingForCustomer/);
-  assert.match(customerBookings, /listRawBookings/);
+  assert.match(customerBookings, /getBooking/);
+  assert.match(customerBookings, /projectBookingForCustomer/);
   assert.match(opsDb, /BOOKINGS_STORE/);
   assert.doesNotMatch(opsDb, /require\('\.\.\/lib\/ops-db'\)/);
 });

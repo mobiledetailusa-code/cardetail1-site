@@ -33,7 +33,8 @@ test('tech-complete-job requires before and after photos', () => {
 });
 
 test('job photo serve endpoint uses strict id regex', () => {
-  assert.match(jobPhotoImage, /jobph_/);
+  assert.match(jobPhotoImage, /ID_RE/);
+  assert.match(storage, /jobph_/);
   assert.match(storage, /cd1-job-photos/);
   assert.match(storage, /MAX_BYTES/);
 });

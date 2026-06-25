@@ -6765,11 +6765,11 @@ async function cpGetPayLink(){
     res.style.display='block';
     if(data.ok && data.booking && data.booking.payLink){
       res.innerHTML='<div style="color:var(--gr);font-weight:600;margin-bottom:8px">&#10003; Payment link found</div>'
-        +'<a href="'+data.booking.payLink+'" target="_blank" style="color:var(--blue);font-weight:700;font-size:15px">&#x1F4B3; Pay Now &#x2192;</a>';
+        +'<a href="'+cpEsc(data.booking.payLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-weight:700;font-size:15px">&#x1F4B3; Pay Now &#x2192;</a>';
     } else if(data.ok && data.booking){
       res.innerHTML='<span style="color:var(--mu)">No payment link yet. Your technician will send it once confirmed. Call 551-313-2956.</span>';
     } else {
-      res.innerHTML='<span style="color:var(--mu)">'+(data.message||'We could not verify this booking right now. Please try again or contact support at 551-313-2956.')+'</span>';
+      res.innerHTML='<span style="color:var(--mu)">'+cpEsc(data.message||'We could not verify this booking right now. Please try again or contact support at 551-313-2956.')+'</span>';
     }
   } catch(_){
     if(btn){ btn.disabled=false; btn.textContent='Get Payment Link →'; }
