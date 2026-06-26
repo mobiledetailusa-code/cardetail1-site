@@ -194,7 +194,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
 <div id="s-lookup">
   <div class="lk-box">
     <div class="lk-logo">CAR<span>DETAIL</span>1</div>
-    <div class="lk-sub">Track your booking, appointment review, and cancellation requests.</div>
+    <div class="lk-sub">Look up your appointment, check status, or request changes — all in one place.</div>
     <label class="m-lbl">Booking ID</label>
     <input class="lk-inp" id="lk-id" placeholder="Booking ID (e.g. CD1-ABC123)" autocomplete="off">
     <label class="m-lbl" style="margin-top:10px">Phone number on the booking</label>
@@ -225,14 +225,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
     <!-- STATUS -->
     <div class="page active" id="page-status">
       <div class="pg-t">My Booking</div>
-      <div class="pg-s">Manage your appointment, package, add-ons, and monthly plan — all in one place</div>
+      <div class="pg-s">Your appointment, package, add-ons, and monthly plan — manage it all right here.</div>
       <div id="status-content"></div>
     </div>
 
     <!-- HISTORY -->
     <div class="page" id="page-history">
       <div class="pg-t">Booking History</div>
-      <div class="pg-s">All your service requests</div>
+      <div class="pg-s">Every detail we've done for you</div>
       <div class="sg" id="hist-stats"></div>
       <div id="hist-list"></div>
     </div>
@@ -332,14 +332,17 @@ function renderSubscriptionSection(active){
     const displayPrice=fleetMonthlyForPack(p.id);
     const isMatch=matched&&matched.id===p.id;
     return `<div class="sub-card${p.id==='maint'||isMatch?' feat':''}">
-    <div style="font-weight:800;font-size:14px;margin-bottom:4px">${esc(p.name)}${isMatch?' <span style="font-size:10px;color:var(--blue)">· your package</span>':''}</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
+      <div style="font-weight:800;font-size:14px">${esc(p.name)}${isMatch?' <span style="font-size:10px;color:var(--blue)">· your package</span>':''}</div>
+      <span style="font-size:10px;font-weight:700;color:var(--green);background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);border-radius:999px;padding:2px 8px;white-space:nowrap">10% off for neighbors</span>
+    </div>
     <div class="sub-card-price" data-pack="${esc(p.id)}" data-base="${p.basePrice}" data-single="${p.monthlyPrice}" style="font-family:var(--fd);font-size:22px;color:var(--green)">$${displayPrice}<span style="font-size:12px;color:var(--mu)">/mo</span></div>
     <div style="font-size:11px;color:var(--mu);margin:6px 0;text-decoration:line-through">$${p.basePrice} walk-in</div>
     <div style="font-size:11px;color:var(--mu);margin-bottom:10px">${esc(p.tag||'')}</div>
     <button class="btn btn-p btn-sm" style="width:100%" onclick="startSubscription('${esc(p.id)}','${esc(active.id)}', this)">Subscribe via Stripe</button>
   </div>`;}).join('');
   return `${fleetBtns}<div class="sub-grid">${cards}</div>
-    <p class="mp-note">${disc}% off walk-in pricing for monthly subscribers. One pack per vehicle — fleet plans bundle multiple cars at one location. Travel fee is flat per address, not per vehicle.</p>`;
+    <p class="mp-note">${disc}% off walk-in pricing for monthly subscribers — our local perk for Bergen County neighbors. One pack per vehicle; fleet plans bundle multiple cars at one address. Travel fee is flat per address, not per vehicle.</p>`;
 }
 async function startSubscription(packId, bookingId, btn){
   const b=CUSTOMER_BOOKINGS.find(x=>x.id===bookingId)||CUSTOMER_BOOKINGS[0]||{};
@@ -647,7 +650,7 @@ function renderStatus(){
     </div>`;
   } else {
     apptBanner=`<div style="background:rgba(100,116,139,.07);border:1px solid rgba(100,116,139,.18);border-radius:10px;padding:12px 16px;margin-bottom:14px">
-      <div style="font-size:12px;color:var(--mu)">🕐 <strong>Request received</strong> — We're reviewing your booking details and availability. You'll receive a confirmation with your exact date and time shortly.</div>
+      <div style="font-size:12px;color:var(--mu)">🕐 <strong>Got it — we're on it.</strong> We're reviewing your booking and will text you with your confirmed date and time shortly.</div>
     </div>`;
   }
 
@@ -698,7 +701,7 @@ function renderStatus(){
     <div style="font-size:16px;font-weight:800">${esc(currentPack?currentPack.name:svc(active))}</div>
     ${currentPack?`<div style="font-size:12px;color:var(--mu);margin-top:4px">${esc(currentPack.tag||'')}</div>`:''}
     ${currentPack?`<details class="pack-desc-details">
-      <summary>View package details (optional) ▾</summary>
+      <summary>What's included in this package? ▾</summary>
       <div class="pack-desc">
         <div>${esc(currentPack.description||'')}</div>
         <ul class="pack-feats">${(currentPack.feats||[]).map(f=>`<li>${esc(f)}</li>`).join('')}</ul>
@@ -723,7 +726,7 @@ function renderStatus(){
   </div>`:'';
 
   const subscriptionSection=`<details class="mp-section">
-    <summary>🔄 Monthly Plans — 10% subscriber discount</summary>
+    <summary>🔄 Monthly Maintenance — 10% off for neighbors on monthly plans</summary>
     <div class="mp-body">${renderSubscriptionSection(active)}</div>
   </details>`;
 
