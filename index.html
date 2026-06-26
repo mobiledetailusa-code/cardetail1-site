@@ -2743,17 +2743,17 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 }
 </style>
 <div id="cd-chat">
-  <button id="cd-launch" onclick="cdToggle()" aria-label="Chat with Cardetail1">
+  <button id="cd-launch" onclick="cdToggle()" aria-label="Detailing Zone Concierge">
     <span class="cd-l-ico">💬</span><span class="cd-l-close" style="font-size:22px">✕</span>
     <span class="cd-badge" id="cd-badge">1</span>
   </button>
-  <div id="cd-panel" role="dialog" aria-label="Cardetail1 assistant">
+  <div id="cd-panel" role="dialog" aria-label="Detailing Zone Concierge">
     <div id="cd-head">
       <div class="cd-hl">
-        <div class="cd-avatar">✨</div>
+        <div class="cd-avatar">🟢</div>
         <div>
-          <div class="cd-title">Cardetail1 Assistant</div>
-          <div class="cd-status"><span class="cd-dot"></span> Online · quick local answers</div>
+          <div class="cd-title">Detailing Zone Concierge</div>
+          <div class="cd-status"><span class="cd-dot"></span> Live · booking support</div>
         </div>
       </div>
       <button class="cd-x" onclick="cdToggle()">✕</button>
@@ -2773,10 +2773,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="cd-h-out" id="cd-h-out"></div>
     </form>
     <div id="cd-input-row">
-      <input id="cd-input" placeholder="Ask about pricing, areas, booking…" onkeydown="if(event.key==='Enter')cdSend()" autocomplete="off">
+      <input id="cd-input" placeholder="Tell us about your vehicle or ask about booking…" onkeydown="if(event.key==='Enter')cdSend()" autocomplete="off">
       <button id="cd-send" onclick="cdSend()" aria-label="Send message">➤</button>
     </div>
-    <div id="cd-foot">⚡ AI assistant · urgent? <a href="tel:5513132956">call 551-313-2956</a></div>
+    <div id="cd-foot">🟢 Live Booking Support · Urgent? Call/Text <a href="tel:5513132956">551-313-2956</a></div>
   </div>
 </div>
 
@@ -7668,10 +7668,10 @@ seedDefaultTechs();
   }
 
   const DEFAULT_CHIPS=[
-    {label:'💵 Pricing',q:'How much does it cost?'},
-    {label:'📍 Service area',q:'What areas do you serve?'},
-    {label:'📅 Book now',act:'book'},
-    {label:'🧑‍🔧 Talk to a human',act:'human'}
+    {label:'🚗 Quote my vehicle',q:'How much does it cost?'},
+    {label:'📍 Do you come to me?',q:'What areas do you serve?'},
+    {label:'📅 Secure my spot',act:'book'},
+    {label:'📞 Reach the team',act:'human'}
   ];
 
   // ── open / close ──
@@ -7685,7 +7685,7 @@ seedDefaultTechs();
   window.cdToggle=cdToggle;
 
   function cdGreet(){
-    push("👋 Hi! I'm the <b>Cardetail1</b> assistant. Ask me about pricing, service areas, packages, add-ons, booking or payment — or I can connect you with our team.", 'bot');
+    push("Hi there! I'm the Detailing Zone Booking Concierge. Our field team is currently out servicing vehicles across Bergen County, but I'm here to help you check pricing or secure your spot. What kind of vehicle are we looking at today?", 'bot');
     setChips(DEFAULT_CHIPS);
   }
 
