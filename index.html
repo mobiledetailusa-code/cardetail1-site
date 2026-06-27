@@ -1087,6 +1087,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .ba-section{background:var(--bg1);padding:60px 20px 48px;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.04)}
 .ba-inner{max-width:1100px;margin:0 auto}
 .ba-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:20px;margin-top:28px;align-items:stretch}
+.ba-showcase-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08) 18%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.08) 82%,transparent);margin:44px 0 0}
+.ba-featured-head{margin-top:32px;text-align:center}
+.ba-featured-head .sec-desc{margin-bottom:24px}
+.ba-showcase-row{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-top:0;align-items:stretch}
 .ba-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);overflow:hidden;transition:.22s}
 .ba-card:hover{border-color:var(--bbr)}
 .ba-compare{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--bg3);--ba-pos:50%;touch-action:pan-y;container-type:inline-size}
@@ -1105,6 +1109,16 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .ba-vehicle{font-family:var(--fd);font-size:17px;color:var(--white);letter-spacing:.02em;margin-bottom:4px}
 .ba-service{font-size:11.5px;color:var(--blue);font-weight:600;margin-bottom:8px}
 .ba-caption{font-size:13px;color:var(--mu);line-height:1.6}
+.ba-card--showcase .ba-showcase{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--bg3)}
+.ba-card--showcase .ba-showcase img{width:100%;height:100%;object-fit:cover;display:block}
+.ba-card--luxury{background:#080e18;border-color:rgba(245,166,35,.16)}
+.ba-card--luxury:hover{border-color:rgba(245,166,35,.32)}
+.ba-card--luxury .ba-service{color:var(--am)}
+.ba-card--luxury .ba-showcase{aspect-ratio:1}
+.ba-showcase--collage .ba-collage{aspect-ratio:1;display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:#000;height:100%;width:100%}
+.ba-collage-cell{position:relative;overflow:hidden;min-height:0}
+.ba-collage-cell img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.ba-collage-label{position:absolute;bottom:0;left:0;right:0;padding:18px 8px 7px;background:linear-gradient(transparent,rgba(0,0,0,.85));font-size:9.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.9);text-align:center;line-height:1.2}
 /* admin gallery styles */
 .gal-tbl{width:100%;border-collapse:collapse;font-size:13px;color:var(--tx)}
 .gal-tbl th{text-align:left;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.08);color:var(--mu);font-weight:600}
@@ -1334,6 +1348,11 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   /* ── BEFORE & AFTER (mobile) ── */
   .ba-section{padding:44px 16px 36px}
   .ba-grid{grid-template-columns:1fr;gap:16px}
+  .ba-showcase-divider{margin-top:32px}
+  .ba-featured-head{margin-top:24px}
+  .ba-showcase-row{grid-template-columns:1fr;gap:16px}
+  .ba-showcase--collage .ba-collage{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;aspect-ratio:4/3}
+  .ba-collage-cell:first-child{grid-column:1/-1}
   .gal-form-grid{grid-template-columns:1fr}
   /* ── VISUAL PROOF ── */
   .visual-proof{flex-direction:column}
@@ -1699,6 +1718,74 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           <div class="ba-vehicle">Volvo XC90</div>
           <div class="ba-service">Exterior Wash &amp; Decontamination</div>
           <p class="ba-caption">Spring pollen had turned this black SUV matte overnight. Same front angle after we washed and decontaminated the paint — deep gloss back, trees reflecting off the hood like a mirror.</p>
+        </div>
+      </article>
+
+    </div>
+
+    <div class="ba-showcase-divider" aria-hidden="true"></div>
+
+    <div class="ba-featured-head">
+      <div class="sec-eye">Featured Work</div>
+      <div class="sec-desc">Standout jobs from the route — exotics, fleet days, RVs, and specialty vehicles finished at the client&rsquo;s location.</div>
+    </div>
+
+    <div class="ba-showcase-row">
+
+      <article class="ba-card ba-card--showcase ba-card--luxury">
+        <div class="ba-showcase ba-showcase--collage">
+          <div class="ba-collage" role="img" aria-label="Lamborghini Urus and two Porsches after luxury exterior detailing">
+            <div class="ba-collage-cell">
+              <img src="assets/showcase/luxury-urus.jpg" alt="Lamborghini Urus after exterior detail — deep gloss on grey paint and clean wheels" width="1400" height="1050" loading="lazy" decoding="async">
+              <span class="ba-collage-label">Lamborghini Urus</span>
+            </div>
+            <div class="ba-collage-cell">
+              <img src="assets/showcase/luxury-porsche-1.jpg" alt="Porsche after exterior detail — mirror-gloss paint and dressed trim" width="1400" height="1050" loading="lazy" decoding="async">
+              <span class="ba-collage-label">Porsche</span>
+            </div>
+            <div class="ba-collage-cell">
+              <img src="assets/showcase/luxury-porsche-2.jpg" alt="Porsche after exterior detail — clean body lines and glossy finish" width="1400" height="1050" loading="lazy" decoding="async">
+              <span class="ba-collage-label">Porsche</span>
+            </div>
+          </div>
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Lamborghini Urus &amp; Porsche Lineup</div>
+          <div class="ba-service">Exotic &amp; Luxury Exterior Detail</div>
+          <p class="ba-caption">Three exotics, one driveway — a Urus and two Porsches lined up after a full exterior refresh. Paint decontaminated, wheels detailed, and every panel brought back to a deep, wet gloss without leaving the property.</p>
+        </div>
+      </article>
+
+      <article class="ba-card ba-card--showcase">
+        <div class="ba-showcase">
+          <img src="assets/showcase/luxury-fleet-lineup.jpg" alt="Two Porsches and Range Rover after multi-vehicle premium detail — three luxury SUVs lined up in a driveway with deep gloss finish" width="1400" height="1867" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Two Porsches &amp; Range Rover</div>
+          <div class="ba-service">Multi-Vehicle Premium Detail</div>
+          <p class="ba-caption">Three cars, one visit — two Porsches and a Range Rover detailed back-to-back in the same driveway. Full exterior refresh on every vehicle without a second trip or shop drop-off.</p>
+        </div>
+      </article>
+
+      <article class="ba-card ba-card--showcase">
+        <div class="ba-showcase">
+          <img src="assets/showcase/jayco-dolly-front.jpg" alt="Jayco Eagle Series fifth-wheel front cap with custom Dolly decal after exterior detail — glossy white fiberglass reflecting sky and trees" width="1400" height="1050" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Jayco Eagle &ldquo;Dolly&rdquo;</div>
+          <div class="ba-service">Fifth-Wheel Front Cap &amp; Exterior Detail</div>
+          <p class="ba-caption">This Jayco Eagle wears a custom &ldquo;Dolly&rdquo; decal on the front cap. We cut through road film and oxidation on the white fiberglass until the whole front end was reflecting the sky again — logo, decal, and tinted cap all cleaned up.</p>
+        </div>
+      </article>
+
+      <article class="ba-card ba-card--showcase">
+        <div class="ba-showcase">
+          <img src="assets/showcase/gator-exterior-hero.jpg" alt="John Deere Gator XUV835M side profile after full exterior detail — polished green panels and dressed off-road tires" width="1400" height="1050" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">John Deere Gator XUV835M</div>
+          <div class="ba-service">UTV Full Exterior Detail</div>
+          <p class="ba-caption">Same Gator, outside this time — green panels polished, knobby tires dressed, and those yellow wheels popping again. Built for mud and job sites; finished like it just rolled off the lot.</p>
         </div>
       </article>
 
