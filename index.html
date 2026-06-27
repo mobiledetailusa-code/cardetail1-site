@@ -1080,45 +1080,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .rv-meta{font-size:11px;color:var(--mu)}
 .rv-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--bdim);border:1px solid var(--bbr);color:var(--blue);margin-top:3px}
 
-/* ── REAL RESULTS SECTION ── */
-.results-section{background:var(--bg0);padding:60px 20px}
-.results-inner{max-width:1100px;margin:0 auto}
-.results-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:28px}
-.rc-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:22px 20px;display:flex;flex-direction:column;gap:8px;transition:.2s}
-.rc-card:hover{border-color:var(--bbr);transform:translateY(-2px)}
-.rc-ico{font-size:32px}
-.rc-title{font-family:var(--fd);font-size:18px;color:var(--white);letter-spacing:.03em}
-.rc-benefit{font-size:13px;color:var(--tx);line-height:1.55;flex:1}
-.rc-btn{display:inline-flex;align-items:center;border:1px solid rgba(77,163,255,.4);background:transparent;color:var(--blue);border-radius:999px;padding:9px 16px;font:600 11.5px var(--fb);text-decoration:none;cursor:pointer;transition:.2s;width:fit-content;margin-top:4px}
-.rc-btn:hover{background:var(--blue);color:#000;border-color:var(--blue)}
 .cred-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px;padding:20px 24px;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--r)}
 .cred-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx);flex:1;min-width:170px}
 .cred-item b{color:var(--white)}
-.results-cta{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:28px}
-.photo-note{font-size:12px;color:var(--mu);text-align:center;margin-top:14px;line-height:1.6}
-/* ── RECENT WORK PHOTO CAROUSEL ── */
-.rw-carousel{position:relative;overflow:hidden;margin-top:24px}
-.rw-track{display:flex;gap:14px;transition:transform .35s cubic-bezier(.4,0,.2,1)}
-.rw-slide{flex-shrink:0;background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);overflow:hidden}
-.rw-img-wrap{position:relative;aspect-ratio:3/2;overflow:hidden;background:var(--bg2);max-height:210px}
-.rw-img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .4s}
-.rw-img.rw-loaded{opacity:1}
-.rw-ov{position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.65) 0%,transparent 55%);display:flex;align-items:flex-end;padding:14px}
-.rw-ov-lbl{font-size:11px;color:rgba(255,255,255,.75);text-decoration:none;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:4px 10px;transition:.18s}
-.rw-ov-lbl:hover{background:rgba(255,255,255,.15)}
-.rw-info{padding:14px 16px}
-.rw-vehicle{font-family:var(--fd);font-size:15px;color:var(--white);letter-spacing:.02em;margin-bottom:3px}
-.rw-pkg{font-size:11.5px;color:var(--blue);font-weight:600;margin-bottom:6px}
-.rw-caption{font-size:12.5px;color:var(--mu);line-height:1.5}
-.rw-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:16px}
-.rw-nav-btn{width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:var(--bg2);color:var(--white);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
-.rw-nav-btn:hover:not(:disabled){background:var(--blue);color:#000;border-color:var(--blue)}
-.rw-nav-btn:disabled{opacity:.3;cursor:default}
-.rw-counter{font-size:13px;color:var(--mu);min-width:48px;text-align:center}
 /* ── BEFORE & AFTER ── */
-.ba-section{background:var(--bg1);padding:60px 20px;border-top:1px solid rgba(255,255,255,.06)}
+.ba-section{background:var(--bg1);padding:60px 20px 48px;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.04)}
 .ba-inner{max-width:1100px;margin:0 auto}
-.ba-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:20px;margin-top:28px}
+.ba-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:20px;margin-top:28px;align-items:stretch}
 .ba-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);overflow:hidden;transition:.22s}
 .ba-card:hover{border-color:var(--bbr)}
 .ba-compare{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--bg3);--ba-pos:50%;touch-action:pan-y;container-type:inline-size}
@@ -1137,13 +1105,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .ba-vehicle{font-family:var(--fd);font-size:17px;color:var(--white);letter-spacing:.02em;margin-bottom:4px}
 .ba-service{font-size:11.5px;color:var(--blue);font-weight:600;margin-bottom:8px}
 .ba-caption{font-size:13px;color:var(--mu);line-height:1.6}
-.ba-pending-grid{display:grid;grid-template-columns:1fr 1fr;aspect-ratio:4/3}
-.ba-pending-img,.ba-pending-slot{position:relative;overflow:hidden;background:var(--bg3)}
-.ba-pending-img img{width:100%;height:100%;object-fit:cover;display:block}
-.ba-pending-slot{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;text-align:center;border-left:1px dashed rgba(77,163,255,.35);background:repeating-linear-gradient(-45deg,rgba(77,163,255,.04),rgba(77,163,255,.04) 8px,rgba(77,163,255,.01) 8px,rgba(77,163,255,.01) 16px)}
-.ba-pending-slot p{font-size:12px;color:var(--mu);line-height:1.55;max-width:160px}
-.ba-pending-slot strong{color:var(--white);font-size:13px}
-.ba-hint{font-size:11.5px;color:var(--mu);text-align:center;margin-top:18px;line-height:1.65;padding:12px 16px;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs)}
 /* admin gallery styles */
 .gal-tbl{width:100%;border-collapse:collapse;font-size:13px;color:var(--tx)}
 .gal-tbl th{text-align:left;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.08);color:var(--mu);font-weight:600}
@@ -1169,11 +1130,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .gal-or-sep{text-align:center;color:var(--mu);font-size:11.5px;margin:8px 0;position:relative;line-height:1}
 .gal-or-sep::before,.gal-or-sep::after{content:'';position:absolute;top:50%;width:44%;height:1px;background:rgba(255,255,255,.08)}
 .gal-or-sep::before{left:0}.gal-or-sep::after{right:0}
-/* Instagram-only carousel slide */
-.rw-slide-ig .rw-img-wrap{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-decoration:none;color:inherit}
-.rw-slide-ig .rw-ig-ico{font-size:36px;line-height:1}
-.rw-slide-ig .rw-ig-cta{font-size:12px;color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:6px 14px;transition:.18s}
-.rw-slide-ig .rw-ig-cta:hover{background:rgba(255,255,255,.1)}
 .rv-honest{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--r);padding:28px;text-align:center}
 .rv-honest-ico{font-size:36px;margin-bottom:10px}
 .rv-honest-title{font-size:15px;font-weight:600;color:var(--white);margin-bottom:6px}
@@ -1374,20 +1330,10 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   .cp-tabs{margin:14px 0 18px}
   .cp-tab{font-size:11px;padding:9px 6px}
 
-  /* ── REAL RESULTS ── */
-  .results-section{padding:44px 16px}
-  .results-grid{grid-template-columns:1fr}
   .cred-row{flex-direction:column;gap:12px;padding:16px}
-  .results-cta{flex-direction:column;align-items:stretch}
-  .results-cta .btn-primary,.results-cta .btn-outline{width:100%;text-align:center;padding:14px}
   /* ── BEFORE & AFTER (mobile) ── */
-  .ba-section{padding:44px 16px}
+  .ba-section{padding:44px 16px 36px}
   .ba-grid{grid-template-columns:1fr;gap:16px}
-  .ba-pending-grid{grid-template-columns:1fr;aspect-ratio:auto}
-  .ba-pending-img{aspect-ratio:4/3}
-  .ba-pending-slot{aspect-ratio:4/3;border-left:none;border-top:1px dashed rgba(77,163,255,.35)}
-  /* ── RECENT WORK CAROUSEL (mobile) ── */
-  .rw-nav-btn{width:34px;height:34px;font-size:14px}
   .gal-form-grid{grid-template-columns:1fr}
   /* ── VISUAL PROOF ── */
   .visual-proof{flex-direction:column}
@@ -1439,10 +1385,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .hero-proof{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin:-20px auto 28px}
 .hero-proof span{border:1px solid rgba(255,255,255,.1);background:rgba(2,4,10,.58);color:#dce8f6;border-radius:999px;padding:7px 12px;font-size:11px;font-weight:600}
 .review-source{display:inline-flex;align-items:center;gap:7px;margin-top:8px;color:var(--mu);font-size:11px}
-.section-full,.results-section,.ba-section,#reviews,#how{content-visibility:auto;contain-intrinsic-size:900px}
-.rw-img{background:linear-gradient(110deg,var(--bg2) 25%,var(--bg3) 42%,var(--bg2) 58%);background-size:200% 100%;animation:imgShimmer 1.4s linear infinite}
-.rw-img.rw-loaded{animation:none;background:none}
-@keyframes imgShimmer{to{background-position:-200% 0}}
+.section-full,.ba-section,#reviews,#how{content-visibility:auto;contain-intrinsic-size:900px}
 @media(max-width:980px){.specialty-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){
   .hero{background:
@@ -1454,9 +1397,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   .specialty-grid{grid-template-columns:1fr}
   .specialty-card{min-height:auto}
   .hero-proof{margin-top:-12px}
-  .rw-img-wrap{max-height:190px}
-  .rw-track{gap:12px}
-  .rw-slide{min-width:84vw}
 }
 
 </style>
@@ -1762,71 +1702,12 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         </div>
       </article>
 
-      <article class="ba-card ba-card--pending">
-        <div class="ba-pending-grid">
-          <div class="ba-pending-img">
-            <img src="assets/before-after/ram-interior-before.jpg" alt="RAM Limited truck interior before leather restoration — oily sheen on black leather seats and console" width="1400" height="1050" loading="lazy" decoding="async">
-            <span class="ba-tag ba-tag--before">Before</span>
-          </div>
-          <div class="ba-pending-slot">
-            <span class="ba-tag ba-tag--after" style="position:static;margin-bottom:4px">After</span>
-            <strong>After photo coming soon</strong>
-            <p>Same angle from the passenger door — cleaned leather, matte finish, no oily glare.</p>
-          </div>
-        </div>
-        <div class="ba-meta">
-          <div class="ba-vehicle">RAM Limited</div>
-          <div class="ba-service">Premium Leather Restoration</div>
-          <p class="ba-caption">Black leather with contrast stitching, dulled by body oils and everyday use. This is the kind of interior we bring back to a clean, factory-matte feel — no greasy shine, just deep black leather that looks and feels right.</p>
-        </div>
-      </article>
-
     </div>
-
-    <p class="ba-hint">Drag the slider on completed pairs to compare. The RAM Limited card is still waiting on a matching <strong>after</strong> photo (same passenger-door angle) at <code style="color:var(--blue)">assets/before-after/ram-interior-after.jpg</code>. Several other jobs in the archive have strong before shots but no matching after yet — GMC interior, Jayco Eagle RV, BMW, Corvette, and more.</p>
   </div>
 </section>
 
-<!-- REAL RESULTS -->
-<div class="results-section">
-  <div class="results-inner">
-    <div class="sec-eye">Recent Work</div>
-    <div class="sec-title">REAL RESULTS FROM<br>RECENT JOBS.</div>
-    <div class="sec-desc">Interior, exterior, and paint enhancement work performed at the customer's location.</div>
-
-    <!-- Photo carousel — shown once API returns items -->
-    <div id="rw-carousel-wrap" style="display:none">
-      <div class="rw-carousel" id="rw-carousel">
-        <div class="rw-track" id="rw-track"></div>
-      </div>
-      <div class="rw-nav">
-        <button class="rw-nav-btn" id="rw-prev" aria-label="Previous">&#8592;</button>
-        <span class="rw-counter" id="rw-counter">1 / 1</span>
-        <button class="rw-nav-btn" id="rw-next" aria-label="Next">&#8594;</button>
-      </div>
-    </div>
-
-    <!-- Placeholder — shown until gallery has photos -->
-    <div id="rw-placeholder">
-      <p class="photo-note">Recent work photos will appear here after completed jobs are approved for display.</p>
-    </div>
-
-    <div class="cred-row">
-      <div class="cred-item"><span>🚐</span><span><b>Mobile service</b> — we come to you</span></div>
-      <div class="cred-item"><span>🔧</span><span><b>Equipped</b> for most driveway detail jobs</span></div>
-      <div class="cred-item"><span>🔧</span><span><b>Professional equipment</b></span></div>
-      <div class="cred-item"><span>📍</span><span><b>Bergen County</b> / North Jersey focus</span></div>
-      <div class="cred-item"><span>✓</span><span><b>Booking reviewed</b> before confirmation — no surprises</span></div>
-    </div>
-    <div class="results-cta">
-      <button class="btn-primary" onclick="openBooking(null)">Book Mobile Detailing →</button>
-      <button class="btn-outline" onclick="openBooking(null)">View Packages</button>
-    </div>
-  </div>
-</div>
-
 <!-- AVAIL. BANNER -->
-<div style="background:var(--bg1);padding:40px 24px 0">
+<div style="background:var(--bg1);padding:32px 24px 0">
   <div style="max-width:1100px;margin:0 auto">
     <div class="sameday-banner">
       <div class="sd-left">
@@ -5316,96 +5197,6 @@ function toggleGalleryVisibility(id, currentlyVisible){
 }
 
 function escHtml(s){ return String(s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
-
-// ── HOMEPAGE RECENT WORK CAROUSEL ─────────────────────────────────────────
-(function initRecentWorkCarousel(){
-  const track = document.getElementById('rw-track');
-  const wrap  = document.getElementById('rw-carousel-wrap');
-  const ph    = document.getElementById('rw-placeholder');
-  if(!track||!wrap||!ph) return;
-
-  fetch('/.netlify/functions/recent-work')
-    .then(r=>r.ok?r.json():Promise.reject())
-    .then(({ items=[] })=>{
-      // Only show items that have at least an image or an Instagram URL
-      const esc = s => String(s||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
-      const displayable = items.filter(i => i.imageUrl || i.instagramUrl);
-      if(!displayable.length) return; // keep placeholder
-
-      track.innerHTML = displayable.map(item=>{
-        const info = `<div class="rw-info">
-          ${item.vehicle      ? `<div class="rw-vehicle">${esc(item.vehicle)}</div>`      : ''}
-          ${item.servicePackage ? `<div class="rw-pkg">${esc(item.servicePackage)}</div>` : ''}
-          ${item.caption      ? `<div class="rw-caption">${esc(item.caption)}</div>`      : ''}
-        </div>`;
-
-        if(item.imageUrl){
-          // Photo slide — image with optional Instagram overlay link
-          const igLink = item.instagramUrl
-            ? `<a class="rw-ov-lbl" href="${esc(item.instagramUrl)}" target="_blank" rel="noopener noreferrer">View on Instagram</a>`
-            : '';
-          return `<div class="rw-slide">
-            <div class="rw-img-wrap">
-              <img class="rw-img" src="${esc(item.imageUrl)}" alt="${esc(item.vehicle||'Cardetail1 recent work')}" loading="lazy" decoding="async" fetchpriority="low" sizes="(max-width:680px) 84vw, (max-width:1100px) 46vw, 360px" onload="this.classList.add('rw-loaded')">
-              <div class="rw-ov">${igLink}</div>
-            </div>${info}
-          </div>`;
-        } else {
-          // Instagram-only slide — no direct image; show CTA card, no broken img tag
-          return `<div class="rw-slide rw-slide-ig">
-            <a class="rw-img-wrap" href="${esc(item.instagramUrl)}" target="_blank" rel="noopener noreferrer">
-              <div class="rw-ig-ico">📸</div>
-              <span class="rw-ig-cta">View on Instagram →</span>
-            </a>${info}
-          </div>`;
-        }
-      }).join('');
-
-      ph.style.display   = 'none';
-      wrap.style.display = 'block';
-
-      // Carousel logic
-      const n = displayable.length;
-      function perView(){ return window.innerWidth>=900?3:window.innerWidth>=580?2:1; }
-      const prevBtn = document.getElementById('rw-prev');
-      const nextBtn = document.getElementById('rw-next');
-      const counter = document.getElementById('rw-counter');
-      let cur = 0;
-
-      function slideWidth(){
-        const s = track.querySelector('.rw-slide');
-        return s ? s.offsetWidth + 14 : 0; // 14px gap matches CSS gap:14px
-      }
-
-      function goTo(idx){
-        const pv  = perView();
-        const max = Math.max(0, n - pv);
-        cur = Math.max(0, Math.min(max, idx));
-        track.style.transform = `translateX(-${cur * slideWidth()}px)`;
-        if(counter) counter.textContent = `${cur+1} / ${max+1}`;
-        if(prevBtn) prevBtn.disabled = cur === 0;
-        if(nextBtn) nextBtn.disabled = cur === max;
-        const pct = 100 / pv;
-        track.querySelectorAll('.rw-slide').forEach(s=>{
-          s.style.width = `calc(${pct}% - ${14*(pv-1)/pv}px)`;
-        });
-      }
-
-      goTo(0);
-      window.addEventListener('resize', ()=>goTo(cur));
-      if(prevBtn) prevBtn.onclick = ()=>goTo(cur-1);
-      if(nextBtn) nextBtn.onclick = ()=>goTo(cur+1);
-
-      // Touch swipe
-      let tsx = 0;
-      track.addEventListener('touchstart', e=>{ tsx=e.touches[0].clientX; }, { passive:true });
-      track.addEventListener('touchend',   e=>{
-        const dx = tsx - e.changedTouches[0].clientX;
-        if(Math.abs(dx)>40){ dx>0?goTo(cur+1):goTo(cur-1); }
-      }, { passive:true });
-    })
-    .catch(()=>{ /* keep placeholder on any error */ });
-})();
 
 // ── Technician job auction (admin view) ──
 const AUCTION_URL = BACKEND_BASE + '/auction';
