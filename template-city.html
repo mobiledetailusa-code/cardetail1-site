@@ -7971,6 +7971,18 @@ function openBookingFromHome(cat){
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
+(function initHubZipFromQuery(){
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get('zip') || sessionStorage.getItem('cd1_zip') || '';
+  const zip5 = String(raw).replace(/\D/g,'').slice(0, 5);
+  if(zip5.length === 5){
+    const inp = document.getElementById('hero-zip');
+    if(inp){
+      inp.value = zip5;
+      if(typeof onHeroZipInput === 'function') onHeroZipInput(zip5);
+    }
+  }
+})();
 renderReviews();
 renderLocationCarousel('default');
 renderActivityFeed();

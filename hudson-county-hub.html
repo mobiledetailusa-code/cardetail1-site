@@ -1,6 +1,6 @@
 <!--
-  CITY LANDING PAGE TEMPLATE — replace tokens per city:
-  Hudson County  — city display name (e.g. Newark, Trenton, Westchester, NY)
+  CITY LANDING PAGE TEMPLATE - replace tokens per city:
+  Hudson County  - city display name (e.g. Newark, Trenton, Westchester, NY)
   Used in: <title>, meta description, hero-badge, hero H1, hero-sub
 -->
 <!DOCTYPE html>
@@ -9,7 +9,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <link rel="canonical" href="https://cardetail1.com/hudson-county-hub.html">
-<meta name="description" content="Cardetail1 — premium mobile auto, marine, RV &amp; fleet detailing in Hudson County. We come to your driveway with water, power, and expert care — serving the Tri-State up to 150 miles. Book online, no shop visit.">
+<meta name="description" content="Cardetail1 - premium mobile auto, marine, RV &amp; fleet detailing in Hudson County. We come to your driveway with water, power, and expert care - serving the Tri-State up to 150 miles. Book online, no shop visit.">
 <meta name="geo.region" content="US-NJ">
 <meta name="geo.placename" content="Palisades Park, Bergen County, New Jersey">
 <meta name="geo.position" content="40.8482;-73.9976">
@@ -18,11 +18,11 @@
 <meta property="og:site_name" content="Cardetail1">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://cardetail1.com/hudson-county-hub.html">
-<meta property="og:title" content="Cardetail1 — Mobile Detailing | Palisades Park &amp; Bergen County, NJ">
-<meta property="og:description" content="Mobile detailing for cars, boats, RVs &amp; fleets — based in Palisades Park, NJ. We come to you across Bergen County, NYC, CT &amp; PA (up to 150 mi). Book online.">
+<meta property="og:title" content="Cardetail1 - Mobile Detailing | Palisades Park &amp; Bergen County, NJ">
+<meta property="og:description" content="Mobile detailing for cars, boats, RVs &amp; fleets - based in Palisades Park, NJ. We come to you across Bergen County, NYC, CT &amp; PA (up to 150 mi). Book online.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Cardetail1 — Mobile Detailing | Palisades Park &amp; Bergen County, NJ">
-<meta name="twitter:description" content="Mobile detailing for cars, boats, RVs &amp; fleets — based in Palisades Park, NJ. We come to you across Bergen County, NYC, CT &amp; PA (up to 150 mi). Book online.">
+<meta name="twitter:title" content="Cardetail1 - Mobile Detailing | Palisades Park &amp; Bergen County, NJ">
+<meta name="twitter:description" content="Mobile detailing for cars, boats, RVs &amp; fleets - based in Palisades Park, NJ. We come to you across Bergen County, NYC, CT &amp; PA (up to 150 mi). Book online.">
 <title>Premium Mobile Detailing in Hudson County | Cardetail1</title>
 <script type="application/ld+json">
 {
@@ -32,7 +32,7 @@
   "name": "Cardetail1",
   "url": "https://cardetail1.com",
   "telephone": "+1-551-313-2956",
-  "description": "Mobile auto, marine, RV, fleet, and specialty detailing based in Palisades Park, Bergen County, NJ. We come to your home, office, marina, or approved location with professional equipment — no shop visit required.",
+  "description": "Mobile auto, marine, RV, fleet, and specialty detailing based in Palisades Park, Bergen County, NJ. We come to your home, office, marina, or approved location with professional equipment - no shop visit required.",
   "image": "https://cardetail1.com/assets/cardetail1-logo.webp",
   "priceRange": "$$",
   "serviceType": ["Mobile Car Detailing", "Marine Detailing", "RV Detailing", "Fleet Detailing", "Powersports Detailing"],
@@ -114,7 +114,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
   .nav-links.open{display:flex}
   .nav-menu-btn{display:block}
 }
-/* Mobile-only Book Now pill — visible next to hamburger */
+/* Mobile-only Book Now pill - visible next to hamburger */
 .nav-book-mobile,.nav-portal-mobile{display:none}
 @media(max-width:760px){
   .nav-book-mobile{display:inline-flex;align-items:center;background:var(--blue);color:#000!important;padding:9px 18px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent}
@@ -170,6 +170,12 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .hub-radius-inner{max-width:640px;margin:0 auto;text-align:center}
 .hub-radius-desc{font-size:15px;color:var(--mu);line-height:1.75;margin-bottom:12px}
 .hub-radius-note{font-size:13px;color:rgba(138,155,176,.75);line-height:1.6}
+.hub-serving-section{padding:56px 24px 64px}
+.hub-serving-wrap{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:minmax(0,280px) minmax(0,1fr);gap:36px;align-items:center}
+.hub-serving-visual{margin:0;border-radius:var(--r);overflow:hidden;border:1px solid rgba(77,163,255,.24);background:var(--bg2);aspect-ratio:384/1024;max-height:520px;width:100%;max-width:280px;justify-self:center}
+.hub-serving-visual img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block}
+.hub-serving-wrap .hub-radius-inner{text-align:left;max-width:none;margin:0}
+@media(max-width:820px){.hub-serving-wrap{grid-template-columns:1fr;max-width:640px;gap:28px}.hub-serving-visual{max-width:100%;max-height:360px;aspect-ratio:16/10}.hub-serving-wrap .hub-radius-inner{text-align:center}}
 .bk-travel-line{display:none;font-size:12px;color:var(--mu);margin:-4px 0 14px;padding:10px 14px;background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.2);border-radius:var(--rs);line-height:1.5}
 .bk-travel-line.no-fee{background:rgba(34,197,94,.06);border-color:rgba(34,197,94,.2)}
 /* ── SERVICE CARDS LOCKED STATE (homepage) ── */
@@ -194,7 +200,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 /* Collapsed pill */
 #radar-pill{display:flex;align-items:center;gap:10px;background:#020e1c;border:1.5px solid rgba(14,165,233,.4);border-radius:999px;padding:10px 18px 10px 10px;cursor:pointer;box-shadow:0 8px 32px rgba(14,165,233,.18),0 2px 8px rgba(0,0,0,.5);transition:all .25s;user-select:none}
 #radar-pill:hover{background:#041828;border-color:rgba(125,211,252,.7);box-shadow:0 12px 40px rgba(14,165,233,.3),0 2px 8px rgba(0,0,0,.5);transform:translateY(-2px)}
-/* Pill — mini water drop */
+/* Pill - mini water drop */
 .rpill-radar{width:36px;height:36px;border-radius:50%;background:#020e1c;border:1px solid rgba(14,165,233,.35);position:relative;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .rpill-sweep{display:none}
 .rpill-dot{display:none}
@@ -460,14 +466,14 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .trust-ico{font-size:28px;margin-bottom:8px}
 .trust-val{font-family:var(--fd);font-size:28px;color:var(--blue);letter-spacing:.02em}
 .trust-lbl{font-size:12px;color:var(--mu);letter-spacing:.06em;text-transform:uppercase}
-/* ── Trust stats row (#reviews) — transform-only, fixed box, no CLS ── */
+/* ── Trust stats row (#reviews) - transform-only, fixed box, no CLS ── */
 .trust-row--stats .trust-ico{
   width:48px;height:32px;margin:0 auto 8px;
   display:flex;align-items:center;justify-content:center;
   contain:layout style;flex-shrink:0;
 }
 .trust-row--stats .trust-ico svg{display:block;flex-shrink:0}
-/* 1. Vehicles — horizontal ease-in-out loop */
+/* 1. Vehicles - horizontal ease-in-out loop */
 .trust-ico--vehicles{overflow:hidden;width:48px}
 .trust-ico--vehicles .trust-car-wrap{
   display:flex;align-items:center;justify-content:center;
@@ -479,7 +485,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
   0%,100%{transform:translateX(-5px)}
   50%{transform:translateX(5px)}
 }
-/* 2. Years — gentle scale bounce on load */
+/* 2. Years - gentle scale bounce on load */
 .trust-ico--years{
   animation:trustYearsPop .85s cubic-bezier(.34,1.45,.64,1) both;
   will-change:transform;
@@ -489,7 +495,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
   65%{transform:scale(1.07)}
   100%{transform:scale(1);opacity:1}
 }
-/* 3. Tristate — subtle glow pulse (transform + opacity only) */
+/* 3. Tristate - subtle glow pulse (transform + opacity only) */
 .trust-ico--tristate svg{
   animation:trustTriPulse 2.8s ease-in-out infinite;
   will-change:transform,opacity;
@@ -498,7 +504,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
   0%,100%{transform:scale(1);opacity:.82}
   50%{transform:scale(1.04);opacity:1}
 }
-/* 4. Season slot — fixed footprint for JS-injected SVG */
+/* 4. Season slot - fixed footprint for JS-injected SVG */
 .trust-ico--season{width:32px;height:32px}
 .trust-ico--season svg{
   width:24px;height:24px;
@@ -573,7 +579,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .pkg-feats li{font-size:11.5px;color:var(--tx);padding:2.5px 0;display:flex;align-items:flex-start;gap:6px;line-height:1.4}
 .pkg-feats li::before{content:'✓';color:var(--blue);font-weight:700;font-size:10px;margin-top:2px;flex-shrink:0}
 .pkg-feats li.no{color:rgba(138,155,176,.4)}
-.pkg-feats li.no::before{content:'—';color:rgba(138,155,176,.3)}
+.pkg-feats li.no::before{content:'-';color:rgba(138,155,176,.3)}
 .pkg-feats li.grp{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin:8px 0 3px;padding-top:4px}
 .pkg-feats li.grp::before{content:'';margin:0}
 .pkg-btn{margin-top:12px;width:100%;padding:10px;border-radius:999px;border:1px solid rgba(77,163,255,.4);background:transparent;color:var(--blue);font-family:var(--fb);font-size:11.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s}
@@ -653,7 +659,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .aq-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--bbr);background:var(--bg2);color:var(--blue);font-size:17px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;transition:.15s;flex-shrink:0}
 .aq-btn:hover{background:var(--blue);color:#001022}
 .aq-n{min-width:22px;text-align:center;font-weight:700;color:var(--white);font-size:15px}
-/* Inline add-ons inside the Vehicle step — revealed only after a vehicle is confirmed */
+/* Inline add-ons inside the Vehicle step - revealed only after a vehicle is confirmed */
 #bs3-addons{display:none;margin-top:22px;padding-top:20px;border-top:1px solid var(--bbr);animation:addonReveal .25s ease}
 #vc.show ~ #bs3-addons{display:block}
 @keyframes addonReveal{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -665,7 +671,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .addon-toggle-btn:hover{background:rgba(77,163,255,.12)}
 .addon-selected-summary{font-size:11.5px;color:var(--mu);padding:8px 12px;background:rgba(77,163,255,.04);border:1px solid rgba(77,163,255,.15);border-radius:7px;margin-top:8px}
 .addon-selected-summary strong{color:var(--white)}
-/* Premium vehicle visuals — booking Step 1 category cards */
+/* Premium vehicle visuals - booking Step 1 category cards */
 .svc-ico img{width:100%;height:100%;object-fit:contain;display:block}
 .vc-ico img{width:96px;height:auto;display:block;max-width:100%}
 /* Step 1 category card: image-first layout */
@@ -837,7 +843,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   .tier-chips{grid-template-columns:repeat(2,1fr)}
 }
 
-/* PRO V4 — fleet, card-gate, terms, admin filters */
+/* PRO V4 - fleet, card-gate, terms, admin filters */
 .card-gate{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--r);padding:18px;margin-bottom:16px}
 .card-gate-title{font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--blue);margin-bottom:6px}
 .card-gate-copy{font-size:12.5px;color:var(--mu);line-height:1.55;margin-bottom:12px}
@@ -1188,7 +1194,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .bk-zip-change{font-size:11px;color:var(--mu);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 
 /* ════════════════════════════════════════════════════════
-   MOBILE OPTIMIZATION — comprehensive responsive pass
+   MOBILE OPTIMIZATION - comprehensive responsive pass
    ════════════════════════════════════════════════════════ */
 
 /* ── Touch-friendly base ── */
@@ -1214,11 +1220,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .hstat-wide{max-width:none}
   .hstat-val-sm{font-size:22px!important}
 
-  /* ── PHONE CTA — stack the two cards so the second doesn't overflow ── */
+  /* ── PHONE CTA - stack the two cards so the second doesn't overflow ── */
   .phone-cta-grid{grid-template-columns:1fr!important}
   .phone-cta{padding:26px 20px}
 
-  /* ── UNIFIED PORTAL — fit 3 role tabs (Admin/Operador/Cliente) on small screens ── */
+  /* ── UNIFIED PORTAL - fit 3 role tabs (Admin/Operador/Cliente) on small screens ── */
   .login-box{padding:28px 18px}
   .login-tabs{gap:6px}
   .login-tab{padding:9px 4px;font-size:10.5px;letter-spacing:.02em}
@@ -1273,7 +1279,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .bprog{padding:0 12px}
   .bpt{padding:12px 8px;font-size:9.5px;gap:4px}
 
-  /* Booking steps — full width inputs */
+  /* Booking steps - full width inputs */
   .bsec-title{font-size:18px}
   #bk-zip{font-size:22px!important;padding:14px 12px;letter-spacing:.18em}
   .pkg-grid{grid-template-columns:1fr;gap:12px}
@@ -1464,6 +1470,20 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="hero-scroll">↓ Scroll</div>
 </section>
 
+<!-- SERVING HUDSON COUNTY -->
+<section class="hub-radius-section hub-serving-section" id="serving-hudson-county" aria-label="Serving Hudson County">
+  <div class="hub-serving-wrap">
+    <figure class="hub-serving-visual">
+      <img src="assets/hubs/hub-hudson.jpg" alt="New Jersey coastal skyline representing mobile detailing service in Hudson County" width="384" height="1024" loading="lazy" decoding="async">
+    </figure>
+    <div class="hub-radius-inner">
+      <div class="sec-eye">Service Area</div>
+      <div class="sec-title">SERVING<br><span style="color:var(--blue)">HUDSON COUNTY</span></div>
+      <p class="hub-radius-desc">We come to Jersey City, Hoboken, Bayonne, and Union City &mdash; waterfront condos, brownstones, and fleet yards across Hudson County.</p>
+    </div>
+  </div>
+</section>
+
 <!-- ZIP GATE -->
 <section id="zip-section" aria-label="Check service area by ZIP code">
   <div class="hero-zip-wrap">
@@ -1483,7 +1503,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <button class="hero-zip-btn" onclick="onHeroZipSubmit()">Check →</button>
     </div>
     <div class="hero-zip-feedback" id="hero-zip-feedback">
-      <span style="font-size:12px;color:var(--mu)">Based in Palisades Park — we serve Bergen County neighbors and the wider Tri-State. Pop in your ZIP to check coverage.</span>
+      <span style="font-size:12px;color:var(--mu)">Based in Palisades Park - we serve Bergen County neighbors and the wider Tri-State. Pop in your ZIP to check coverage.</span>
     </div>
   </div>
 </section>
@@ -1493,8 +1513,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="hub-radius-inner">
     <div class="sec-eye">Coverage</div>
     <div class="sec-title">MOBILE SERVICE<br><span style="color:var(--blue)">RADIUS</span></div>
-    <p class="hub-radius-desc">We operate from our <strong>Jersey City</strong> hub and travel up to <strong>150 miles</strong> to your driveway, marina, or fleet yard. Enter your ZIP above — we'll confirm coverage and unlock booking for your area.</p>
-    <p class="hub-radius-note">We travel up to 150 miles from our anchor city. Distance may affect your total — mileage pricing is included in the quote at booking, not shown as a separate fee when you enter your ZIP.</p>
+    <p class="hub-radius-desc">We operate from our <strong>Jersey City</strong> hub and travel up to <strong>150 miles</strong> to your driveway, marina, or fleet yard. Enter your ZIP above - we'll confirm coverage and unlock booking for your area.</p>
+    <p class="hub-radius-note">We travel up to 150 miles from our anchor city. Distance may affect your total - mileage pricing is included in the quote at booking, not shown as a separate fee when you enter your ZIP.</p>
   </div>
 </section>
 
@@ -1515,22 +1535,22 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </div>
 
-<!-- Radar widget removed — now lives in admin.html dispatch board -->
+<!-- Radar widget removed - now lives in admin.html dispatch board -->
 
 <!-- BEFORE & AFTER -->
 <section class="ba-section" id="before-after" aria-labelledby="ba-heading">
   <div class="ba-inner">
     <div class="sec-eye">Before &amp; After</div>
     <div class="sec-title" id="ba-heading">REAL TRANSFORMATIONS.<br>DRAG TO COMPARE.</div>
-    <div class="sec-desc">Actual jobs from our mobile route — leather restoration, exterior refresh, and deep interior work at the customer's location.</div>
+    <div class="sec-desc">Actual jobs from our mobile route - leather restoration, exterior refresh, and deep interior work at the customer's location.</div>
 
     <div class="ba-grid">
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/subaru-exterior-after.jpg" alt="Subaru Crosstrek exterior after mobile detailing — clean paint, dressed trim, and fresh tires" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/subaru-exterior-after.jpg" alt="Subaru Crosstrek exterior after mobile detailing - clean paint, dressed trim, and fresh tires" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/subaru-exterior-before.jpg" alt="Subaru Crosstrek exterior before mobile detailing — road film on paint and dusty wheels" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/subaru-exterior-before.jpg" alt="Subaru Crosstrek exterior before mobile detailing - road film on paint and dusty wheels" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1540,15 +1560,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Subaru Crosstrek</div>
           <div class="ba-service">Exterior Detail &amp; Paint Enhancement</div>
-          <p class="ba-caption">Road film and brake dust cleared off the blue paint, trim restored to a deep black, and the whole finish brought back to a clean, reflective shine — right in the customer's driveway.</p>
+          <p class="ba-caption">Road film and brake dust cleared off the blue paint, trim restored to a deep black, and the whole finish brought back to a clean, reflective shine - right in the customer's driveway.</p>
         </div>
       </article>
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/gator-interior-after.jpg" alt="John Deere Gator interior after deep cleaning — spotless dash, floor mats, and seats" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/gator-interior-after.jpg" alt="John Deere Gator interior after deep cleaning - spotless dash, floor mats, and seats" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/gator-interior-before.jpg" alt="John Deere Gator interior before deep cleaning — dusty dash, floor mats, and controls" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/gator-interior-before.jpg" alt="John Deere Gator interior before deep cleaning - dusty dash, floor mats, and controls" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1558,15 +1578,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">John Deere Gator XUV835M</div>
           <div class="ba-service">Utility Vehicle Interior Deep Clean</div>
-          <p class="ba-caption">Work vehicles take a beating. We pulled the dust out of every vent and crevice, scrubbed the rubber floor mats, and left the cab ready for the next job — not the last one.</p>
+          <p class="ba-caption">Work vehicles take a beating. We pulled the dust out of every vent and crevice, scrubbed the rubber floor mats, and left the cab ready for the next job - not the last one.</p>
         </div>
       </article>
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/gmc-exterior-after.jpg" alt="GMC Terrain exterior after mobile detailing — glossy white paint and deep black trim" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/gmc-exterior-after.jpg" alt="GMC Terrain exterior after mobile detailing - glossy white paint and deep black trim" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/gmc-exterior-before.jpg" alt="GMC Terrain exterior before mobile detailing — road film on white paint and dusty grille" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/gmc-exterior-before.jpg" alt="GMC Terrain exterior before mobile detailing - road film on white paint and dusty grille" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1576,15 +1596,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">GMC Terrain</div>
           <div class="ba-service">Exterior Wash &amp; Paint Decontamination</div>
-          <p class="ba-caption">Weeks of driveway dust and road film dulled this white SUV. Same front angle after the wash — paint back to a clean white, black trim deep again, and the whole front end looking like it just left the lot.</p>
+          <p class="ba-caption">Weeks of driveway dust and road film dulled this white SUV. Same front angle after the wash - paint back to a clean white, black trim deep again, and the whole front end looking like it just left the lot.</p>
         </div>
       </article>
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/pet-hair-interior-after.jpg" alt="Rear bench interior after pet hair removal — clean fabric seats and rubber floor mats" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/pet-hair-interior-after.jpg" alt="Rear bench interior after pet hair removal - clean fabric seats and rubber floor mats" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/pet-hair-interior-before.jpg" alt="Rear bench interior before pet hair removal — heavy dog hair on fabric seats" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/pet-hair-interior-before.jpg" alt="Rear bench interior before pet hair removal - heavy dog hair on fabric seats" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1594,15 +1614,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Crossover Rear Bench</div>
           <div class="ba-service">Pet Hair Removal &amp; Interior Deep Clean</div>
-          <p class="ba-caption">Dog hair woven into every crease of the honeycomb fabric — the kind of mess that doesn't come out with a household vacuum. We extracted it from the seats, mats, and seams until the whole rear cabin looked and smelled fresh again.</p>
+          <p class="ba-caption">Dog hair woven into every crease of the honeycomb fabric - the kind of mess that doesn't come out with a household vacuum. We extracted it from the seats, mats, and seams until the whole rear cabin looked and smelled fresh again.</p>
         </div>
       </article>
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/mini-front-after.jpg" alt="Mini Cooper S front after exterior detail — mirror-gloss black paint" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/mini-front-after.jpg" alt="Mini Cooper S front after exterior detail - mirror-gloss black paint" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/mini-front-before.jpg" alt="Mini Cooper S front before exterior detail — dusty hood and dull black paint" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/mini-front-before.jpg" alt="Mini Cooper S front before exterior detail - dusty hood and dull black paint" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1612,15 +1632,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Mini Cooper S</div>
           <div class="ba-service">Exterior Detail &amp; Gloss Restoration</div>
-          <p class="ba-caption">Pollen, dust, and dried spots had flattened the black paint on this Clubman. One pass through our full exterior process and the hood was reflecting the sky again — tight body, small car, same standard of finish.</p>
+          <p class="ba-caption">Pollen, dust, and dried spots had flattened the black paint on this Clubman. One pass through our full exterior process and the hood was reflecting the sky again - tight body, small car, same standard of finish.</p>
         </div>
       </article>
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/mini-side-after.jpg" alt="Mini Cooper Clubman side after exterior detail — deep gloss on dark blue paint" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/mini-side-after.jpg" alt="Mini Cooper Clubman side after exterior detail - deep gloss on dark blue paint" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/mini-side-before.jpg" alt="Mini Cooper Clubman side before exterior detail — road dust on lower doors and wheels" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/mini-side-before.jpg" alt="Mini Cooper Clubman side before exterior detail - road dust on lower doors and wheels" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1630,15 +1650,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Mini Cooper Clubman</div>
           <div class="ba-service">Full Exterior Detail</div>
-          <p class="ba-caption">Road grime had worked its way up the lower doors and rear quarter. Side-by-side from the same profile — dust gone, dark paint brought back to a wet-look shine, wheels and trim cleaned up to match.</p>
+          <p class="ba-caption">Road grime had worked its way up the lower doors and rear quarter. Side-by-side from the same profile - dust gone, dark paint brought back to a wet-look shine, wheels and trim cleaned up to match.</p>
         </div>
       </article>
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/mini-rear-after.jpg" alt="Mini Cooper Clubman rear after exterior detail — clean split doors and glossy paint" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/mini-rear-after.jpg" alt="Mini Cooper Clubman rear after exterior detail - clean split doors and glossy paint" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/mini-rear-before.jpg" alt="Mini Cooper Clubman rear before exterior detail — thick dust on barn doors and bumper" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/mini-rear-before.jpg" alt="Mini Cooper Clubman rear before exterior detail - thick dust on barn doors and bumper" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1648,15 +1668,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Mini Cooper Clubman</div>
           <div class="ba-service">Rear Detail &amp; Trim Restoration</div>
-          <p class="ba-caption">The barn doors and rear glass were coated in a thick layer of dust — easy to miss until you walk around back. Same rear angle after the job: clean glass, sharp reflections, and trim that actually looks black again.</p>
+          <p class="ba-caption">The barn doors and rear glass were coated in a thick layer of dust - easy to miss until you walk around back. Same rear angle after the job: clean glass, sharp reflections, and trim that actually looks black again.</p>
         </div>
       </article>
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/vienna-rv-front-after.jpg" alt="Renegade Vienna RV front after exterior detail — glossy black cap and clean windshield" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/vienna-rv-front-after.jpg" alt="Renegade Vienna RV front after exterior detail - glossy black cap and clean windshield" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/vienna-rv-front-before.jpg" alt="Renegade Vienna RV front before exterior detail — mud streaks on black front cap" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/vienna-rv-front-before.jpg" alt="Renegade Vienna RV front before exterior detail - mud streaks on black front cap" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1672,9 +1692,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/vienna-rv-roof-after.jpg" alt="Renegade Vienna RV roof after cleaning — clean solar panels and white roof surface" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/vienna-rv-roof-after.jpg" alt="Renegade Vienna RV roof after cleaning - clean solar panels and white roof surface" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/vienna-rv-roof-before.jpg" alt="Renegade Vienna RV roof before cleaning — grime and debris on solar panels and roof" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/vienna-rv-roof-before.jpg" alt="Renegade Vienna RV roof before cleaning - grime and debris on solar panels and roof" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1684,15 +1704,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Renegade Vienna (Mercedes Sprinter RV)</div>
           <div class="ba-service">Roof Wash &amp; Solar Panel Cleaning</div>
-          <p class="ba-caption">Tree debris, grime, and oxidation on the roof don't just look bad — they cut into solar output. Same overhead angle after we cleared the panels and white roof membrane back to a clean, uniform finish.</p>
+          <p class="ba-caption">Tree debris, grime, and oxidation on the roof don't just look bad - they cut into solar output. Same overhead angle after we cleared the panels and white roof membrane back to a clean, uniform finish.</p>
         </div>
       </article>
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/defender-exterior-after.jpg" alt="Land Rover Defender exterior after mobile detail — glossy white paint and clean wheels" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/defender-exterior-after.jpg" alt="Land Rover Defender exterior after mobile detail - glossy white paint and clean wheels" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/defender-exterior-before.jpg" alt="Land Rover Defender exterior before mobile detail — road film and dusty wheels" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/defender-exterior-before.jpg" alt="Land Rover Defender exterior before mobile detail - road film and dusty wheels" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1702,15 +1722,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Land Rover Defender</div>
           <div class="ba-service">Exterior Detail &amp; Wheel Clean</div>
-          <p class="ba-caption">City driving had dulled the white panels and loaded brake dust into the alloys. Same front-quarter angle after the detail — crisp white paint, deep black trim, and wheels that actually match the rest of the truck.</p>
+          <p class="ba-caption">City driving had dulled the white panels and loaded brake dust into the alloys. Same front-quarter angle after the detail - crisp white paint, deep black trim, and wheels that actually match the rest of the truck.</p>
         </div>
       </article>
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/defender-interior-after.jpg" alt="Land Rover Defender interior after deep clean — spotless dash and console" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/defender-interior-after.jpg" alt="Land Rover Defender interior after deep clean - spotless dash and console" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/defender-interior-before.jpg" alt="Land Rover Defender interior before deep clean — muddy floor mat and dusty dash" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/defender-interior-before.jpg" alt="Land Rover Defender interior before deep clean - muddy floor mat and dusty dash" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1720,15 +1740,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Land Rover Defender</div>
           <div class="ba-service">Interior Deep Clean</div>
-          <p class="ba-caption">Mud on the rubber mat, dust in the vents, grime in the console — typical NYC daily-driver wear. Before and after from slightly different angles, same cabin: cleaned, vacuumed, and wiped down until it felt new inside.</p>
+          <p class="ba-caption">Mud on the rubber mat, dust in the vents, grime in the console - typical NYC daily-driver wear. Before and after from slightly different angles, same cabin: cleaned, vacuumed, and wiped down until it felt new inside.</p>
         </div>
       </article>
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/volvo-exterior-after.jpg" alt="Volvo XC90 exterior after mobile detail — mirror-gloss black paint" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/volvo-exterior-after.jpg" alt="Volvo XC90 exterior after mobile detail - mirror-gloss black paint" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/volvo-exterior-before.jpg" alt="Volvo XC90 exterior before mobile detail — pollen and dust on black hood" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/volvo-exterior-before.jpg" alt="Volvo XC90 exterior before mobile detail - pollen and dust on black hood" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1738,7 +1758,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Volvo XC90</div>
           <div class="ba-service">Exterior Wash &amp; Decontamination</div>
-          <p class="ba-caption">Spring pollen had turned this black SUV matte overnight. Same front angle after we washed and decontaminated the paint — deep gloss back, trees reflecting off the hood like a mirror.</p>
+          <p class="ba-caption">Spring pollen had turned this black SUV matte overnight. Same front angle after we washed and decontaminated the paint - deep gloss back, trees reflecting off the hood like a mirror.</p>
         </div>
       </article>
 
@@ -1748,7 +1768,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
     <div class="ba-featured-head">
       <div class="sec-eye">Featured Work</div>
-      <div class="sec-desc">Standout jobs from the route — exotics, fleet days, RVs, and specialty vehicles finished at the client&rsquo;s location.</div>
+      <div class="sec-desc">Standout jobs from the route - exotics, fleet days, RVs, and specialty vehicles finished at the client&rsquo;s location.</div>
     </div>
 
     <div class="ba-showcase-row">
@@ -1757,15 +1777,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-showcase ba-showcase--collage">
           <div class="ba-collage" role="img" aria-label="Lamborghini Urus and two Porsches after luxury exterior detailing">
             <div class="ba-collage-cell">
-              <img src="assets/showcase/luxury-urus.jpg" alt="Lamborghini Urus after exterior detail — deep gloss on grey paint and clean wheels" width="1400" height="1050" loading="lazy" decoding="async">
+              <img src="assets/showcase/luxury-urus.jpg" alt="Lamborghini Urus after exterior detail - deep gloss on grey paint and clean wheels" width="1400" height="1050" loading="lazy" decoding="async">
               <span class="ba-collage-label">Lamborghini Urus</span>
             </div>
             <div class="ba-collage-cell">
-              <img src="assets/showcase/luxury-porsche-1.jpg" alt="Porsche after exterior detail — mirror-gloss paint and dressed trim" width="1400" height="1050" loading="lazy" decoding="async">
+              <img src="assets/showcase/luxury-porsche-1.jpg" alt="Porsche after exterior detail - mirror-gloss paint and dressed trim" width="1400" height="1050" loading="lazy" decoding="async">
               <span class="ba-collage-label">Porsche</span>
             </div>
             <div class="ba-collage-cell">
-              <img src="assets/showcase/luxury-porsche-2.jpg" alt="Porsche after exterior detail — clean body lines and glossy finish" width="1400" height="1050" loading="lazy" decoding="async">
+              <img src="assets/showcase/luxury-porsche-2.jpg" alt="Porsche after exterior detail - clean body lines and glossy finish" width="1400" height="1050" loading="lazy" decoding="async">
               <span class="ba-collage-label">Porsche</span>
             </div>
           </div>
@@ -1773,40 +1793,40 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Lamborghini Urus &amp; Porsche Lineup</div>
           <div class="ba-service">Exotic &amp; Luxury Exterior Detail</div>
-          <p class="ba-caption">Three exotics, one driveway — a Urus and two Porsches lined up after a full exterior refresh. Paint decontaminated, wheels detailed, and every panel brought back to a deep, wet gloss without leaving the property.</p>
+          <p class="ba-caption">Three exotics, one driveway - a Urus and two Porsches lined up after a full exterior refresh. Paint decontaminated, wheels detailed, and every panel brought back to a deep, wet gloss without leaving the property.</p>
         </div>
       </article>
 
       <article class="ba-card ba-card--showcase">
         <div class="ba-showcase">
-          <img src="assets/showcase/luxury-fleet-lineup.jpg" alt="Two Porsches and Range Rover after multi-vehicle premium detail — three luxury SUVs lined up in a driveway with deep gloss finish" width="1400" height="1867" loading="lazy" decoding="async">
+          <img src="assets/showcase/luxury-fleet-lineup.jpg" alt="Two Porsches and Range Rover after multi-vehicle premium detail - three luxury SUVs lined up in a driveway with deep gloss finish" width="1400" height="1867" loading="lazy" decoding="async">
         </div>
         <div class="ba-meta">
           <div class="ba-vehicle">Two Porsches &amp; Range Rover</div>
           <div class="ba-service">Multi-Vehicle Premium Detail</div>
-          <p class="ba-caption">Three cars, one visit — two Porsches and a Range Rover detailed back-to-back in the same driveway. Full exterior refresh on every vehicle without a second trip or shop drop-off.</p>
+          <p class="ba-caption">Three cars, one visit - two Porsches and a Range Rover detailed back-to-back in the same driveway. Full exterior refresh on every vehicle without a second trip or shop drop-off.</p>
         </div>
       </article>
 
       <article class="ba-card ba-card--showcase">
         <div class="ba-showcase">
-          <img src="assets/showcase/jayco-dolly-front.jpg" alt="Jayco Eagle Series fifth-wheel front cap with custom Dolly decal after exterior detail — glossy white fiberglass reflecting sky and trees" width="1400" height="1050" loading="lazy" decoding="async">
+          <img src="assets/showcase/jayco-dolly-front.jpg" alt="Jayco Eagle Series fifth-wheel front cap with custom Dolly decal after exterior detail - glossy white fiberglass reflecting sky and trees" width="1400" height="1050" loading="lazy" decoding="async">
         </div>
         <div class="ba-meta">
           <div class="ba-vehicle">Jayco Eagle &ldquo;Dolly&rdquo;</div>
           <div class="ba-service">Fifth-Wheel Front Cap &amp; Exterior Detail</div>
-          <p class="ba-caption">This Jayco Eagle wears a custom &ldquo;Dolly&rdquo; decal on the front cap. We cut through road film and oxidation on the white fiberglass until the whole front end was reflecting the sky again — logo, decal, and tinted cap all cleaned up.</p>
+          <p class="ba-caption">This Jayco Eagle wears a custom &ldquo;Dolly&rdquo; decal on the front cap. We cut through road film and oxidation on the white fiberglass until the whole front end was reflecting the sky again - logo, decal, and tinted cap all cleaned up.</p>
         </div>
       </article>
 
       <article class="ba-card ba-card--showcase">
         <div class="ba-showcase">
-          <img src="assets/showcase/gator-exterior-hero.jpg" alt="John Deere Gator XUV835M side profile after full exterior detail — polished green panels and dressed off-road tires" width="1400" height="1050" loading="lazy" decoding="async">
+          <img src="assets/showcase/gator-exterior-hero.jpg" alt="John Deere Gator XUV835M side profile after full exterior detail - polished green panels and dressed off-road tires" width="1400" height="1050" loading="lazy" decoding="async">
         </div>
         <div class="ba-meta">
           <div class="ba-vehicle">John Deere Gator XUV835M</div>
           <div class="ba-service">UTV Full Exterior Detail</div>
-          <p class="ba-caption">Same Gator, outside this time — green panels polished, knobby tires dressed, and those yellow wheels popping again. Built for mud and job sites; finished like it just rolled off the lot.</p>
+          <p class="ba-caption">Same Gator, outside this time - green panels polished, knobby tires dressed, and those yellow wheels popping again. Built for mud and job sites; finished like it just rolled off the lot.</p>
         </div>
       </article>
 
@@ -1820,7 +1840,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="sameday-banner">
       <div class="sd-left">
         <h3>📅 PICK YOUR DATE</h3>
-        <p>Tell us when works for you — we'll text you to confirm once we've checked the route, weather, and access at your place.</p>
+        <p>Tell us when works for you - we'll text you to confirm once we've checked the route, weather, and access at your place.</p>
       </div>
       <div class="sd-badge">
         <div class="sdb">✓ No shop visit</div>
@@ -1840,11 +1860,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </div>
     <div class="visual-panel">
       <div class="visual-panel-copy">
-        <h3>Your vehicle is an investment — we treat it like one.</h3>
-        <p>We bring the water, the power, and the expertise directly to your driveway. No waiting rooms, no hassle—just a showroom finish at your doorstep.</p>
+        <h3>Your vehicle is an investment - we treat it like one.</h3>
+        <p>We bring the water, the power, and the expertise directly to your driveway. No waiting rooms, no hassle-just a showroom finish at your doorstep.</p>
         <div class="visual-checks">
           <span><b>✓</b> We detail at your home, office, marina, or approved spot</span>
-          <span><b>✓</b> Pro equipment on every job — no shop drop-off</span>
+          <span><b>✓</b> Pro equipment on every job - no shop drop-off</span>
           <span><b>✓</b> We'll text you before we lock in your appointment</span>
           <span><b>✓</b> Track your appointment easily via text or your local dashboard</span>
         </div>
@@ -1858,7 +1878,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="section" style="padding-top:52px;padding-bottom:52px;text-align:center">
     <div class="sec-eye">Choose Your Service</div>
     <div class="sec-title" style="font-size:clamp(32px,5vw,52px);margin-bottom:14px">CARS · BOATS · RVS<br>POWERSPORTS · FLEET</div>
-    <div class="sec-desc" style="max-width:540px;margin:0 auto 32px">We are a local, hard-working team proud to serve our Bergen County neighbors. Pick your vehicle, see packages and pricing, and lock in your driveway service — all from your phone.</div>
+    <div class="sec-desc" style="max-width:540px;margin:0 auto 32px">We are a local, hard-working team proud to serve our Bergen County neighbors. Pick your vehicle, see packages and pricing, and lock in your driveway service - all from your phone.</div>
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
       <button class="btn-primary booking-popup-trigger" style="font-size:15px;padding:16px 36px" onclick="openBooking(null)">Book Now →</button>
       <button class="btn-outline" onclick="openPortal()">My Booking</button>
@@ -1871,7 +1891,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="section">
     <div class="sec-eye">The Process</div>
     <div class="sec-title">FOUR STEPS.<br>ZERO HASSLE.</div>
-    <div class="sec-desc">No shop drop-off, no waiting room, no phone tag. Lock in your driveway service online — we'll take it from there.</div>
+    <div class="sec-desc">No shop drop-off, no waiting room, no phone tag. Lock in your driveway service online - we'll take it from there.</div>
     <div class="how-grid">
       <div class="how-card">
         <div class="how-ico">📱</div>
@@ -1886,7 +1906,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="how-card">
         <div class="how-ico">🚐</div>
         <div class="how-title">We Come To You</div>
-        <div class="how-desc">Our tech rolls up to your driveway, office, or marina with pro gear. You stay put — we handle the rest.</div>
+        <div class="how-desc">Our tech rolls up to your driveway, office, or marina with pro gear. You stay put - we handle the rest.</div>
       </div>
       <div class="how-card">
         <div class="how-ico">✨</div>
@@ -1915,7 +1935,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="section">
     <div class="sec-eye">Customer Reviews &amp; Recent Feedback</div>
     <div class="sec-title">TRUSTED ON<br>REAL VEHICLES.</div>
-    <div class="sec-desc">See what customers say about Cardetail1 across cars, SUVs, RVs, and mobile detailing throughout the Tristate — NJ, NY, CT and surrounding areas + PA.</div>
+    <div class="sec-desc">See what customers say about Cardetail1 across cars, SUVs, RVs, and mobile detailing throughout the Tristate - NJ, NY, CT and surrounding areas + PA.</div>
 
     <div class="trust-row trust-row--stats" style="margin-bottom:36px">
       <div class="trust-item">
@@ -2091,7 +2111,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <button class="login-tab active" id="ltab-customer" onclick="setLoginRole('customer')">👤 My Booking</button>
     </div>
 
-    <!-- Admin — username + password sign-in -->
+    <!-- Admin - username + password sign-in -->
     <div id="login-staff">
       <div class="fg">
         <div class="fl">Username</div>
@@ -2107,7 +2127,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       </div>
     </div>
 
-    <!-- Cliente — no password, opens the booking portal -->
+    <!-- Cliente - no password, opens the booking portal -->
     <div id="login-customer" style="display:none">
       <div class="login-demo">
         No password needed. Look up your booking by <b>phone number</b> or <b>booking ID</b>, then pay, reschedule or leave a review.
@@ -2142,7 +2162,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <span style="font-size:22px">🔧</span>
       <div>
         <div style="font-size:13px;font-weight:600;color:var(--white)">Welcome, Tech Partner</div>
-        <div style="font-size:11px;color:var(--mu)">Your assigned jobs are below — tap a card to expand details, navigate, and upload photos.</div>
+        <div style="font-size:11px;color:var(--mu)">Your assigned jobs are below - tap a card to expand details, navigate, and upload photos.</div>
       </div>
     </div>
 
@@ -2226,7 +2246,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
       </div>
       <div class="cp-sub-panel" id="cps-tip">
-        <p style="font-size:13px;color:var(--mu);margin-bottom:8px">Your technician did a great job! Leave a tip — it goes 100% to them.</p>
+        <p style="font-size:13px;color:var(--mu);margin-bottom:8px">Your technician did a great job! Leave a tip - it goes 100% to them.</p>
         <div class="tip-row" id="tip-row">
           <div class="tip-btn" onclick="cpSelectTip(10)">$10</div>
           <div class="tip-btn" onclick="cpSelectTip(20)">$20</div>
@@ -2279,7 +2299,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <!-- Option B: Private feedback to Cardetail1 -->
       <div style="padding:14px;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs)">
         <div style="font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px">💬 Send Private Feedback</div>
-        <div style="font-size:12px;color:var(--mu);margin-bottom:12px">Customer-submitted feedback — not a verified Google review. Not shown publicly without admin approval.</div>
+        <div style="font-size:12px;color:var(--mu);margin-bottom:12px">Customer-submitted feedback - not a verified Google review. Not shown publicly without admin approval.</div>
         <label class="cp-label">Your name</label>
         <input class="cp-fi" id="cp-rv-name" type="text" placeholder="First name + last initial">
         <label class="cp-label">Service received</label>
@@ -2368,13 +2388,13 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </div>
 
 <!-- ══════════════════════════════════════════ -->
-<!--          ADMIN — NEW JOB MODAL            -->
+<!--          ADMIN - NEW JOB MODAL            -->
 <!-- ══════════════════════════════════════════ -->
 <div class="njob-ov" id="njob-ov" onclick="if(event.target===this)closeNewJobForm()">
   <div class="njob-modal">
     <button class="cp-close" onclick="closeNewJobForm()">✕</button>
     <div class="njob-title">NEW JOB</div>
-    <p style="font-size:12px;color:var(--mu);margin-bottom:18px">Create a booking directly from admin — no public form needed.</p>
+    <p style="font-size:12px;color:var(--mu);margin-bottom:18px">Create a booking directly from admin - no public form needed.</p>
     <div class="fgrid">
       <div class="fg"><div class="fl">First Name *</div><input class="fi" id="nj-first" type="text" placeholder="John"></div>
       <div class="fg"><div class="fl">Last Name *</div><input class="fi" id="nj-last" type="text" placeholder="Smith"></div>
@@ -2410,7 +2430,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </select>
       </div>
       <div class="fg full"><div class="fl">Notes</div><textarea class="fta" id="nj-notes" rows="2" placeholder="Access code, special instructions…"></textarea></div>
-      <div class="fg full"><div class="fl">Payment Link (Stripe — optional)</div><input class="fi" id="nj-paylink" type="url" placeholder="https://buy.stripe.com/… (or use “Pay Link” on a booking to auto-generate)"></div>
+      <div class="fg full"><div class="fl">Payment Link (Stripe - optional)</div><input class="fi" id="nj-paylink" type="url" placeholder="https://buy.stripe.com/… (or use “Pay Link” on a booking to auto-generate)"></div>
     </div>
     <button class="cp-btn" style="margin-top:8px" onclick="submitNewJob()">Create Job →</button>
     <div id="nj-result" style="display:none;margin-top:12px;font-size:13px"></div>
@@ -2418,7 +2438,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </div>
 
 <!-- ══════════════════════════════════════════ -->
-<!--        CARDETAIL1JOBS — DISPATCH BOARD    -->
+<!--        CARDETAIL1JOBS - DISPATCH BOARD    -->
 <!-- ══════════════════════════════════════════ -->
 <div class="jobs-ov" id="jobs-ov">
 
@@ -2509,7 +2529,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="bsec on" id="bs1">
         <div class="beye">Step 01</div>
         <div class="btitle">WHAT ARE WE<br>DETAILING?</div>
-        <div class="bdesc">Enter your ZIP code first — we'll detect your area and show accurate pricing for your location.</div>
+        <div class="bdesc">Enter your ZIP code first - we'll detect your area and show accurate pricing for your location.</div>
         <!-- ZIP GATE -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
           <input class="fi" id="bk-zip" type="text" maxlength="5" placeholder="Enter ZIP code" inputmode="numeric" style="width:min(150px,100%);padding:11px 14px;font-size:15px;font-weight:600" oninput="onBkZipInput(this.value)" autocomplete="postal-code">
@@ -2560,9 +2580,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="bsec" id="bs2">
         <div class="beye">Step 02</div>
         <div class="btitle">CHOOSE YOUR<br>PACKAGE</div>
-        <div class="bdesc">Select a package — price updates by vehicle type or exact length for boats, RVs and travel trailers.</div>
+        <div class="bdesc">Select a package - price updates by vehicle type or exact length for boats, RVs and travel trailers.</div>
         <div class="pkg-grid" id="pkg-grid"></div>
-        <p style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">Starting prices — final price depends on vehicle size, condition, location, and selected add-ons. Heavy pet hair, odor treatment, biohazard, excessive stains, and oversized vehicles may require additional charges.</p>
+        <p style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">Starting prices - final price depends on vehicle size, condition, location, and selected add-ons. Heavy pet hair, odor treatment, biohazard, excessive stains, and oversized vehicles may require additional charges.</p>
         <div class="btn-row">
           <button type="button" class="btn-b" onclick="bkGoTo(1)">← Back</button>
           <button type="button" class="btn-n" id="next2" disabled onclick="bkGoTo(3)">Enter Vehicle →</button>
@@ -2584,16 +2604,16 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div id="make-search-wrap" style="display:none">
           <div class="srch-wrap">
             <span class="srch-ico">🔍</span>
-            <input class="srch-in" id="make-in" type="text" placeholder="Search make — Toyota, BMW, Ford…" autocomplete="off">
+            <input class="srch-in" id="make-in" type="text" placeholder="Search make - Toyota, BMW, Ford…" autocomplete="off">
             <div class="srch-dd" id="make-dd"></div>
           </div>
           <div class="sel-row">
-            <div class="sel-g"><div class="sel-l">Model</div><select class="sel-s" id="model-sel" disabled><option value="">— select make first —</option></select></div>
-            <div class="sel-g"><div class="sel-l">Year</div><select class="sel-s" id="year-sel" disabled><option value="">— select model —</option></select></div>
+            <div class="sel-g"><div class="sel-l">Model</div><select class="sel-s" id="model-sel" disabled><option value="">- select make first -</option></select></div>
+            <div class="sel-g"><div class="sel-l">Year</div><select class="sel-s" id="year-sel" disabled><option value="">- select model -</option></select></div>
           </div>
         </div>
 
-        <!-- Generic size+year (boats, rvs, powersports) — catalog-powered -->
+        <!-- Generic size+year (boats, rvs, powersports) - catalog-powered -->
         <div id="generic-search-wrap" style="display:none">
           <div class="sel-row" style="grid-template-columns:1fr 1fr 1fr">
             <div class="sel-g">
@@ -2612,9 +2632,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
                 <div class="srch-dd" id="g-model-dd"></div>
               </div>
             </div>
-            <div class="sel-g"><div class="sel-l">Year</div><select class="sel-s" id="g-year"><option value="">— year —</option></select></div>
+            <div class="sel-g"><div class="sel-l">Year</div><select class="sel-s" id="g-year"><option value="">- year -</option></select></div>
           </div>
-          <div id="g-custom-note" style="display:none;font-size:11px;color:var(--accent);margin-top:7px;padding:6px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">✏️ Custom entry — not in catalog. That's OK, free-form is supported.</div>
+          <div id="g-custom-note" style="display:none;font-size:11px;color:var(--accent);margin-top:7px;padding:6px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">✏️ Custom entry - not in catalog. That's OK, free-form is supported.</div>
         </div>
 
         <!-- Length selector for boats, RVs and travel trailers -->
@@ -2651,23 +2671,23 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="vc-l">
             <div class="vc-ico" id="vc-ico"><img src="assets/vehicles/premium/sedan.webp" alt="Sedan receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></div>
             <div class="vc-info">
-              <strong id="vc-name">—</strong>
-              <span id="vc-tier-lbl">—</span>
-              <div><span class="vc-badge" id="vc-badge">—</span></div>
+              <strong id="vc-name">-</strong>
+              <span id="vc-tier-lbl">-</span>
+              <div><span class="vc-badge" id="vc-badge">-</span></div>
             </div>
           </div>
           <div class="vc-price">
             <div class="vc-price-lbl">Package price</div>
-            <div class="vc-price-val" id="vc-price">—</div>
+            <div class="vc-price-val" id="vc-price">-</div>
             <div class="vc-price-note">starting price</div>
           </div>
         </div>
 
-        <!-- INLINE ADD-ONS — revealed once a vehicle/length is confirmed (#vc.show) -->
+        <!-- INLINE ADD-ONS - revealed once a vehicle/length is confirmed (#vc.show) -->
         <div id="bs3-addons">
           <div class="beye" style="margin-top:0">Enhance your service</div>
           <div class="addon-header">
-            <div><div class="ah-pkg" id="ah-pkg">—</div><div class="ah-car" id="ah-car">—</div></div>
+            <div><div class="ah-pkg" id="ah-pkg">-</div><div class="ah-car" id="ah-car">-</div></div>
             <div style="text-align:right"><div class="ah-total-lbl">Running Total</div><div class="ah-total" id="ah-total">$0</div><div style="font-size:10px;color:var(--mu)">starting estimate</div></div>
           </div>
           <div class="addon-grid" id="addon-grid"></div>
@@ -2696,7 +2716,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="btitle">YOUR DETAILS</div>
         <div class="bdesc">We'll confirm your appointment by text or call within a few hours.</div>
         <div class="strip show" id="strip5">
-          <div class="strip-info"><strong id="s5-pkg">—</strong> · <span id="s5-car">—</span></div>
+          <div class="strip-info"><strong id="s5-pkg">-</strong> · <span id="s5-car">-</span></div>
           <div class="strip-price" id="s5-total">$0</div>
         </div>
         <div class="fgrid">
@@ -2726,7 +2746,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="bsec" id="bs5">
         <div class="beye">Step 05</div>
         <div class="btitle">SECURE YOUR<br>BOOKING</div>
-        <div class="bdesc">This sends a booking request — we'll review your location, vehicle, weather, and access, then text you to confirm. Nothing charged today.</div>
+        <div class="bdesc">This sends a booking request - we'll review your location, vehicle, weather, and access, then text you to confirm. Nothing charged today.</div>
         <div class="card-gate">
           <div class="card-gate-title">Lock Your Slot</div>
           <div class="card-gate-copy">Book with confidence. We place a secure $0 hold just to reserve your spot on our route. We never charge you upfront. You only pay when the job is done and you're 100% happy with the results.</div>
@@ -2767,7 +2787,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <span class="processor-pill">Powered by Stripe</span>
               <span class="processor-pill">PCI-secure · no raw card data stored</span>
             </div>
-            <p style="font-size:11.5px;color:var(--mu);line-height:1.6;margin-top:10px;text-align:center">A secure $0 hold reserves your spot — not a charge. You only pay when the job is done and you're 100% happy with the results.</p>
+            <p style="font-size:11.5px;color:var(--mu);line-height:1.6;margin-top:10px;text-align:center">A secure $0 hold reserves your spot - not a charge. You only pay when the job is done and you're 100% happy with the results.</p>
           </div>
         </div>
 
@@ -2777,7 +2797,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <li><strong>Booking:</strong> Submitting this form sends a booking request. Cardetail1 reviews your service, location, access, weather, and availability before final confirmation.</li>
             <li><strong>Service photos:</strong> Cardetail1 may take before/after photos of the vehicle during service for quality improvement, training, and the documentation/security of both parties.</li>
             <li><strong>Pre-existing damage:</strong> Cardetail1 is <strong>not responsible for pre-existing damage</strong> (scratches, dents, chips, stains, mechanical or electrical issues, worn or aged components) present before service.</li>
-            <li><strong>New damage from vehicle condition:</strong> due to the condition and nature in which some vehicles are found, new issues may occur during normal detailing — e.g. loose or brittle trim/clips, failing clearcoat or paint, cracked or aged plastics, worn seals or water intrusion, or peeling films. These are a result of the vehicle's existing condition and are not the responsibility of Cardetail1.</li>
+            <li><strong>New damage from vehicle condition:</strong> due to the condition and nature in which some vehicles are found, new issues may occur during normal detailing - e.g. loose or brittle trim/clips, failing clearcoat or paint, cracked or aged plastics, worn seals or water intrusion, or peeling films. These are a result of the vehicle's existing condition and are not the responsibility of Cardetail1.</li>
             <li><strong>Time windows:</strong> arrival windows are estimates only. Traffic, weather, prior jobs, parking, tolls, and access issues may cause delays.</li>
             <li><strong>Weather:</strong> rain, storms, freezing temperatures, unsafe heat, wind, or lack of safe covered access may require rescheduling with no penalty.</li>
             <li><strong>Cancellation / rescheduling:</strong> please request changes at least 24 hours before the appointment. Rescheduling is preferred over cancellation.</li>
@@ -2814,29 +2834,29 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="bsec" id="bs6">
         <div class="beye">Step 06</div>
         <div class="btitle">REVIEW &<br>SUBMIT</div>
-        <div class="bdesc">Give it a quick look, then send your request — we'll text you to confirm.</div>
+        <div class="bdesc">Give it a quick look, then send your request - we'll text you to confirm.</div>
         <div class="oc">
           <div class="oc-t">Service</div>
           <div class="confirm-vehicle-visual" id="c-visual"></div>
-          <div class="or"><span class="ol">Category</span><span class="ov" id="c-cat">—</span></div>
-          <div class="or"><span class="ol">Vehicle</span><span class="ov" id="c-veh">—</span></div>
-          <div class="or"><span class="ol">Package</span><span class="ov" id="c-pkg">—</span></div>
-          <div class="or"><span class="ol">Pkg price</span><span class="ov" id="c-pprice">—</span></div>
+          <div class="or"><span class="ol">Category</span><span class="ov" id="c-cat">-</span></div>
+          <div class="or"><span class="ol">Vehicle</span><span class="ov" id="c-veh">-</span></div>
+          <div class="or"><span class="ol">Package</span><span class="ov" id="c-pkg">-</span></div>
+          <div class="or"><span class="ol">Pkg price</span><span class="ov" id="c-pprice">-</span></div>
           <div id="c-addon-rows"></div>
-          <div class="or"><span class="ol" style="color:var(--white);font-weight:600">Total</span><span class="oc-total" id="c-total">—</span></div>
+          <div class="or"><span class="ol" style="color:var(--white);font-weight:600">Total</span><span class="oc-total" id="c-total">-</span></div>
           <div class="oc-note">Final price confirmed on-site. Add-ons are starting prices.</div>
         </div>
         <div class="oc">
           <div class="oc-t">Appointment</div>
-          <div class="or"><span class="ol">Name</span><span class="ov" id="c-name">—</span></div>
-          <div class="or"><span class="ol">Phone</span><span class="ov" id="c-phone">—</span></div>
-          <div class="or"><span class="ol">Email</span><span class="ov" id="c-email">—</span></div>
-          <div class="or"><span class="ol">Address</span><span class="ov" id="c-addr">—</span></div>
-          <div class="or"><span class="ol">Date & time</span><span class="ov" id="c-date">—</span></div>
+          <div class="or"><span class="ol">Name</span><span class="ov" id="c-name">-</span></div>
+          <div class="or"><span class="ol">Phone</span><span class="ov" id="c-phone">-</span></div>
+          <div class="or"><span class="ol">Email</span><span class="ov" id="c-email">-</span></div>
+          <div class="or"><span class="ol">Address</span><span class="ov" id="c-addr">-</span></div>
+          <div class="or"><span class="ol">Date & time</span><span class="ov" id="c-date">-</span></div>
         </div>
         <div class="oc">
           <div class="oc-t">Request / Payment</div>
-          <div class="or"><span class="ol">Charged today</span><span class="ov" style="color:var(--gr)">$0.00 — booking request only</span></div>
+          <div class="or"><span class="ol">Charged today</span><span class="ov" style="color:var(--gr)">$0.00 - booking request only</span></div>
           <div class="or"><span class="ol">Payment selection</span><span class="ov" id="c-pay-method">Not selected</span></div>
           <div class="or"><span class="ol">Final payment</span><span class="ov">Collected on-site by card or cash after service, or online if approved. Cancellation/no-show fees apply per the posted policy.</span></div>
         </div>
@@ -2862,13 +2882,13 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="suc-ico">✓</div>
           <div class="suc-title" id="ok-title">BOOKING REQUEST RECEIVED</div>
           <div style="display:inline-flex;align-items:center;gap:8px;background:var(--grdim);border:1px solid var(--grbr);color:var(--gr);border-radius:999px;padding:6px 16px;font-size:12.5px;font-weight:700;margin-bottom:14px">✓ Your request was submitted</div>
-          <p class="suc-sub" id="ok-sub">You're all set! We'll review your details and text you to confirm your appointment — usually within a few hours.</p>
+          <p class="suc-sub" id="ok-sub">You're all set! We'll review your details and text you to confirm your appointment - usually within a few hours.</p>
           <div class="suc-card">
             <div class="or"><span class="ol">Status</span><span class="ov" style="color:var(--gr);font-weight:700">Under Review</span></div>
-            <div class="or"><span class="ol">Package</span><span class="ov" id="ok-pkg">—</span></div>
-            <div class="or"><span class="ol">Vehicle</span><span class="ov" id="ok-veh">—</span></div>
-            <div class="or"><span class="ol">Total</span><span class="ov" id="ok-total" style="color:var(--blue);font-weight:700">—</span></div>
-            <div class="or" style="border:none"><span class="ol">Date</span><span class="ov" id="ok-date">—</span></div>
+            <div class="or"><span class="ol">Package</span><span class="ov" id="ok-pkg">-</span></div>
+            <div class="or"><span class="ol">Vehicle</span><span class="ov" id="ok-veh">-</span></div>
+            <div class="or"><span class="ol">Total</span><span class="ov" id="ok-total" style="color:var(--blue);font-weight:700">-</span></div>
+            <div class="or" style="border:none"><span class="ol">Date</span><span class="ov" id="ok-date">-</span></div>
           </div>
           <p style="font-size:12.5px;color:var(--mu);margin-bottom:10px">Questions? Call / text <strong style="color:var(--white)">551-313-2956</strong> · Mon–Fri 8AM–5PM</p>
           <div style="background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs);padding:12px 14px;margin-bottom:16px">
@@ -2886,7 +2906,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </div><!-- /booking modal -->
 
-<!-- ADMIN PANEL — local/static dashboard for booking requests -->
+<!-- ADMIN PANEL - local/static dashboard for booking requests -->
 <div class="admin-ov" id="admin-ov" onclick="handleAdminOverlay(event)">
   <div class="admin-panel">
     <div class="admin-head">
@@ -2955,7 +2975,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </div>
           <div style="background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs);padding:12px 14px;line-height:1.6">
             <div style="font-weight:600;color:var(--white);margin-bottom:4px">Private Feedback (Cardetail1)</div>
-            <div style="color:var(--mu)">Private feedback submitted through Cardetail1 appears here for moderation. Review moderation coming soon — customer feedback is not published publicly until approved.</div>
+            <div style="color:var(--mu)">Private feedback submitted through Cardetail1 appears here for moderation. Review moderation coming soon - customer feedback is not published publicly until approved.</div>
           </div>
         </div>
       </div>
@@ -3047,7 +3067,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               </div>
               <div class="gal-form-full">
                 <label class="gal-form-label">Caption <span style="color:var(--mu);font-weight:400">(shown under photo)</span></label>
-                <input class="gal-form-input" id="gal-caption" type="text" placeholder="Paint correction + ceramic coat on a 3-stage silver — came out mirror finish.">
+                <input class="gal-form-input" id="gal-caption" type="text" placeholder="Paint correction + ceramic coat on a 3-stage silver - came out mirror finish.">
               </div>
               <div class="gal-form-full" style="display:flex;align-items:center;gap:10px;padding-top:4px">
                 <input type="checkbox" id="gal-showOnHomepage" style="width:16px;height:16px;accent-color:var(--blue);cursor:pointer">
@@ -3164,7 +3184,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script>
 // ═══════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════
-// CONFIG — preencha com seus valores de produção
+// CONFIG - preencha com seus valores de produção
 // ═══════════════════════════════════════════════════════
 
 // ── GERAL ──────────────────────────────────────────────
@@ -3172,7 +3192,7 @@ const ADMIN_EMAIL    = 'magnojuniorusa93@gmail.com';   // seu email
 const ADMIN_SMS      = '5513132956';         // seu celular (SMS admin)
 
 // ── STRIPE (Payment Element + Payment Link) ────────────
-// Publishable key — PÚBLICA, pode ficar aqui no HTML.
+// Publishable key - PÚBLICA, pode ficar aqui no HTML.
 // Pegue em: https://dashboard.stripe.com → Developers → API keys
 // Deixe '' para DESLIGAR o cartão (o booking continua via review manual).
 let STRIPE_PUBLISHABLE_KEY = '';
@@ -3187,7 +3207,7 @@ try {
 const isLocalPreview = /^(127\.0\.0\.1|localhost|\[::1\])$/i.test(window.location.hostname);
 const STRIPE_PUBLISHABLE_KEY_LOCAL_TEST = 'pk_test_51TgF1pLbeoH0J6blFE2w7uTu2VIg4Av3JcbmC9I2hOzEWqoP4xVbb7s5P84xaSDFrFeEotfd1gRKiREfzQ8NBR8m00HNbIZZ9L';
 const IS_DEPLOY_PREVIEW = /^deploy-preview-\d+--/.test(location.hostname);
-const LOCAL_DEV_FUNCTIONS_HINT = 'Secure card saving needs Netlify Functions (not a plain static file server). In the project folder run: npx netlify dev — then open http://localhost:8888. Add a .env file with STRIPE_SECRET_KEY=sk_test_... and STRIPE_PUBLISHABLE_KEY=pk_test_... from the same Stripe test account.';
+const LOCAL_DEV_FUNCTIONS_HINT = 'Secure card saving needs Netlify Functions (not a plain static file server). In the project folder run: npx netlify dev - then open http://localhost:8888. Add a .env file with STRIPE_SECRET_KEY=sk_test_... and STRIPE_PUBLISHABLE_KEY=pk_test_... from the same Stripe test account.';
 let STRIPE_READY = false;
 let stripeConfigLoaded = null;
 
@@ -3232,7 +3252,7 @@ async function loadStripeConfig(){
   STRIPE_READY=!!(stripeJs&&STRIPE_PUBLISHABLE_KEY);
   return {ready:STRIPE_READY, backendOk:cfg.backendOk};
 }
-// Google Business Profile review link — real, owner-provided URL.
+// Google Business Profile review link - real, owner-provided URL.
 // Opens in a new tab. Do not invent or modify this URL.
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CTJwfJerrQeCEAI/review';
 
@@ -3333,7 +3353,7 @@ function firebaseStartListener(){
         if(msg.data) Object.entries(msg.data).forEach(([id,d])=>_fbHandleJob(id,d));
       }catch(err){}
     });
-    _fbEventSource.onerror = ()=>{ console.warn('[Firebase] SSE disconnected — retrying in 10s'); _fbEventSource.close(); _fbEventSource=null; setTimeout(firebaseStartListener,10000); };
+    _fbEventSource.onerror = ()=>{ console.warn('[Firebase] SSE disconnected - retrying in 10s'); _fbEventSource.close(); _fbEventSource=null; setTimeout(firebaseStartListener,10000); };
     console.log('[Firebase] Listening for real-time dispatch jobs…');
   }catch(e){ console.warn('[Firebase] EventSource not supported:',e.message); }
 }
@@ -3359,13 +3379,13 @@ function _fbHandleJob(id, data){
     _simJobs.push(simJob);
     _simJobsToday++;
     addBlipToRadar(simJob);
-    if(isNew) showRadarToast(`📋 New booking — ${data.name} in ${(data.city||'').split(',')[0]||'NJ'}`);
+    if(isNew) showRadarToast(`📋 New booking - ${data.name} in ${(data.city||'').split(',')[0]||'NJ'}`);
   } else {
     // Update status if changed
     if(simJob.status !== status){
       simJob.status = status;
       if(simJob.el){ simJob.el.className=`radar-blip ${status} blip-promo`; setTimeout(()=>{ if(simJob.el) simJob.el.className=`radar-blip ${status}`; },600); }
-      const msgs={ scheduled:`📅 ${data.name} — booking confirmed`, enroute:`🚗 Tech en route to ${data.name}`, done:`✅ Job complete — ${data.name}`, review:`⭐ ${data.name} left a review!` };
+      const msgs={ scheduled:`📅 ${data.name} - booking confirmed`, enroute:`🚗 Tech en route to ${data.name}`, done:`✅ Job complete - ${data.name}`, review:`⭐ ${data.name} left a review!` };
       if(msgs[status]) showRadarToast(msgs[status]);
       if(status==='done'||status==='review'){ _simDone++; setTimeout(()=>{ if(simJob.el) simJob.el.remove(); _simJobs=_simJobs.filter(j=>j.id!==id); renderTickerNow(); updateRadarStats(); },8000); }
     }
@@ -3375,7 +3395,7 @@ function _fbHandleJob(id, data){
 }
 
 // ═══════════════════════════════════════════════════════
-// MAKE.COM WEBHOOK — booking notification
+// MAKE.COM WEBHOOK - booking notification
 // ═══════════════════════════════════════════════════════
 async function makeWebhookSend(payload){
   if(!BACKEND_URL) return;
@@ -3410,17 +3430,17 @@ const PRICING = {
         int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
         feats:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
         miss:['Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
-      {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles — add-ons available for pet hair, odor & stains', dur:'~2.5–3.5h',            popular:false, scope:'int',
+      {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles - add-ons available for pet hair, odor & stains', dur:'~2.5–3.5h',            popular:false, scope:'int',
         ext:[],
-        int:['Deep vacuum — seats, floors, trunk','Carpet shampoo where applicable','Fabric/leather seat cleaning & conditioning','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail','Interior glass cleaned','Odor-neutral finish applied'],
-        feats:['Deep vacuum — seats, floors, trunk','Carpet shampoo where applicable','Fabric/leather seat cleaning & conditioning','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail','Interior glass cleaned','Odor-neutral finish applied'],
+        int:['Deep vacuum - seats, floors, trunk','Carpet shampoo where applicable','Fabric/leather seat cleaning & conditioning','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail','Interior glass cleaned','Odor-neutral finish applied'],
+        feats:['Deep vacuum - seats, floors, trunk','Carpet shampoo where applicable','Fabric/leather seat cleaning & conditioning','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail','Interior glass cleaned','Odor-neutral finish applied'],
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant']},
-      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh — most popular',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
+      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh - most popular',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
         ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'],
         int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','UV protectant'],
         feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','Spray sealant/protection','Tire dressing','UV protectant'],
         miss:['Machine polish','Paint correction','Premium long-term sealant']},
-      {id:'premium',  name:'Paint Correction / Enhancement', icon:'🏅', tag:'Gloss improvement, swirls, oxidation & paint defects — price by vehicle size & condition', dur:'~4–7h', popular:false, scope:'ext', note:'Starting price — exact quote depends on vehicle size, paint condition, and correction level.',
+      {id:'premium',  name:'Paint Correction / Enhancement', icon:'🏅', tag:'Gloss improvement, swirls, oxidation & paint defects - price by vehicle size & condition', dur:'~4–7h', popular:false, scope:'ext', note:'Starting price - exact quote depends on vehicle size, paint condition, and correction level.',
         ext:['1-step machine polish','Paint defect & swirl reduction','Oxidation assessment & treatment','Machine-applied wax/sealant','Chemical decontamination','Full wheel & lug detail','Exterior trim restoration','Rain-X windshield treatment'],
         int:[],
         feats:['1-step machine polish','Paint defect & swirl reduction','Oxidation assessment & treatment','Machine-applied wax/sealant','Chemical decontamination','Full wheel & lug detail','Exterior trim restoration','Rain-X windshield treatment','Final quality inspection'],
@@ -3428,19 +3448,19 @@ const PRICING = {
     ],
     addons:[
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',          icon:'🐾',  desc:'Deep removal of embedded pet hair from seats, carpets, mats, and trunk. Heavy vehicles may require estimate', price:95},
-      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    icon:'💎',  desc:'Upgrade any package with extra shampoo passes, hand-steam on every panel, door pockets & cargo area — add to any interior-included package', price:125},
+      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    icon:'💎',  desc:'Upgrade any package with extra shampoo passes, hand-steam on every panel, door pockets & cargo area - add to any interior-included package', price:125},
       {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', icon:'💨',  desc:'Interior odor neutralizer + high-touch surface sanitizing. Not biohazard or mold remediation', price:149},
       {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        icon:'☣️',  desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Requires estimate confirmation before service', price:115},
-      {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      icon:'🛠️',  desc:'Top-view engine bay cleaning — visible surfaces, cover, and accessible areas only. NOT a full engine detail or mechanical service', price:45},
-      {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      icon:'🟫',  desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each — set the quantity of mats', price:20, qty:true},
+      {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      icon:'🛠️',  desc:'Top-view engine bay cleaning - visible surfaces, cover, and accessible areas only. NOT a full engine detail or mechanical service', price:45},
+      {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      icon:'🟫',  desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each - set the quantity of mats', price:20, qty:true},
       {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    icon:'💧',  desc:'Water-repellent Rain-X treatment on windshield and front glass for improved wet-weather visibility', price:25},
       {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     icon:'🛡️',  desc:'Hand-applied polymer sealant for paint protection and enhanced gloss. Lasts 3–6 months', price:25},
       {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       icon:'🥇',  desc:'Premium long-lasting carnauba wax. Superior gloss and up to 12 months of paint protection', price:75},
       {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        icon:'🧲',  desc:'Removes embedded contaminants, industrial fallout, and rail dust for a smooth, clean paint surface', price:45},
       {id:'headlight',  scope:'ext', name:'Headlight Restoration',     icon:'💡',  desc:'Sand, polish, and seal foggy or yellowed headlights to restore clarity and night visibility (per pair)', price:90},
-      {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  icon:'🧒',  desc:'Clean and sanitize a child car seat — straps, padding, and buckle. $20 each — set the quantity', price:20, qty:true},
-      {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    icon:'🍼',  desc:'Wash and sanitize a baby stroller — fabric, frame, and wheels. $20 each — set the quantity', price:20, qty:true},
-      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        icon:'🗑️',  desc:'Residential trash can cleaning at the service location. $25 each — set the quantity. Biohazard requires estimate', price:25, qty:true},
+      {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  icon:'🧒',  desc:'Clean and sanitize a child car seat - straps, padding, and buckle. $20 each - set the quantity', price:20, qty:true},
+      {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    icon:'🍼',  desc:'Wash and sanitize a baby stroller - fabric, frame, and wheels. $20 each - set the quantity', price:20, qty:true},
+      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        icon:'🗑️',  desc:'Residential trash can cleaning at the service location. $25 each - set the quantity. Biohazard requires estimate', price:25, qty:true},
     ],
   },
   boats: {
@@ -3451,13 +3471,13 @@ const PRICING = {
       over30:   {label:'30+ ft',      icon:'🛳️', desc:'Sport cruiser · Cabin cruiser · Yacht', maint:599, essential:866, full:1334, premium:2001},
     },
     packages:[
-      {id:'maint',    name:'Marine Wash',        icon:'🪣', tag:'Regular upkeep — hull, deck & glass',        dur:'~1.5–2h', popular:false,
+      {id:'maint',    name:'Marine Wash',        icon:'🪣', tag:'Regular upkeep - hull, deck & glass',        dur:'~1.5–2h', popular:false,
         feats:['Exterior hull wash above waterline','Deck & cockpit rinse','Glass & windshield cleaned','Trim & rails wiped','Trailer rinse & tire shine (when accessible)'],
         miss:['Non-skid scrub','Vinyl conditioning','Marine wax','Cabin/interior']},
       {id:'essential',name:'Essential Marine',   icon:'🧽', tag:'Exterior protection + vinyl conditioning',   dur:'~3–4h',   popular:false,
         feats:['Marine Wash included','Non-skid surface scrubbed','Vinyl seats & cushions cleaned & conditioned','Cockpit detail','Spray marine sealant','Trailer rinse & tire shine'],
         miss:['Marine wax','Full cabin detail','Oxidation removal']},
-      {id:'full',     name:'Full Marine Detail', icon:'🧼', tag:'Complete boat refresh — most requested',     dur:'~4–6h',   popular:true,
+      {id:'full',     name:'Full Marine Detail', icon:'🧼', tag:'Complete boat refresh - most requested',     dur:'~4–6h',   popular:true,
         feats:['Essential Marine included','Cockpit & cabin deep clean','Hull surface detail','Marine wax/sealant applied','Teak & trim cleaning','Stainless/chrome wipe-down','Trailer rinse & tire shine'],
         miss:['Machine oxidation removal','Gelcoat correction']},
       {id:'premium',  name:'Premium Marine',     icon:'🏅', tag:'Deep gloss, oxidation & max protection',     dur:'~6–8h',   popular:false,
@@ -3467,10 +3487,10 @@ const PRICING = {
     addons:[
       {id:'rainx',      name:'Rain-X Glass Treatment',        icon:'💧', desc:'Water-repellent treatment for marine windshields and glass surfaces', price:25},
       {id:'polymer',    name:'Polymer Hull Sealant',           icon:'🛡️', desc:'Polymer sealant on hull exterior for enhanced protection and gloss', price:25},
-      {id:'wax1yr',     name:'1-Year Marine Carnauba Wax',     icon:'🥇', desc:'Premium carnauba wax for marine gel coat — up to 12 months protection', price:75},
+      {id:'wax1yr',     name:'1-Year Marine Carnauba Wax',     icon:'🥇', desc:'Premium carnauba wax for marine gel coat - up to 12 months protection', price:75},
       {id:'chrome',     name:'Chrome / Stainless Metal Polish',icon:'🔩', desc:'Accessible chrome, stainless rails, cleats, and brightwork polished', price:85},
       {id:'biohazard',  name:'Biohazard Cleaning',             icon:'☣️', desc:'Bodily fluids or severe contamination. Requires estimate confirmation before service', price:115},
-      {id:'trashcans',  name:'Trash Can Cleaning',             icon:'🗑️', desc:'Trash can cleaning at marina, storage yard, or home location — $25 per can', price:25},
+      {id:'trashcans',  name:'Trash Can Cleaning',             icon:'🗑️', desc:'Trash can cleaning at marina, storage yard, or home location - $25 per can', price:25},
     ],
   },
   rvs: {
@@ -3484,10 +3504,10 @@ const PRICING = {
       {id:'exterior', name:'Exterior Wash',    icon:'🪣', tag:'Full exterior + wheels, tires & glass',         dur:'~2–3h',  popular:false, scope:'ext',
         feats:['Full exterior body wash','Accessible body panels','Light black streak reduction','Exterior glass & mirrors','Wheels cleaned & dried','Tires dressed','Bug & debris removal'],
         miss:['Interior','Wax/sealant','Roof','Awning']},
-      {id:'interior', name:'Interior Detail',  icon:'🛋️', tag:'Deep living space — kitchen, bath & cabin',     dur:'~3–5h',  popular:false, scope:'int',
-        feats:['Full vacuum — floors, furniture, slideouts','Dashboard & cockpit detail','Living area & upholstery cleaned','Kitchen surfaces & appliance fronts','Bathroom cleaning','Cabinet exteriors','Interior windows & mirrors','High-touch surfaces'],
+      {id:'interior', name:'Interior Detail',  icon:'🛋️', tag:'Deep living space - kitchen, bath & cabin',     dur:'~3–5h',  popular:false, scope:'int',
+        feats:['Full vacuum - floors, furniture, slideouts','Dashboard & cockpit detail','Living area & upholstery cleaned','Kitchen surfaces & appliance fronts','Bathroom cleaning','Cabinet exteriors','Interior windows & mirrors','High-touch surfaces'],
         miss:['Exterior wash','Wax/sealant','Roof','Awning']},
-      {id:'full',     name:'Full RV Detail',   icon:'🧽', tag:'Complete interior + exterior — most popular',   dur:'~5–8h',  popular:true, scope:'both',
+      {id:'full',     name:'Full RV Detail',   icon:'🧽', tag:'Complete interior + exterior - most popular',   dur:'~5–8h',  popular:true, scope:'both',
         feats:['Exterior hand wash & streak reduction','Exterior glass & mirrors','Wheels + tires dressed','Spray wax/sealant','Full interior vacuum','Living area & upholstery','Kitchen & bathroom detail','Interior windows','UV protectant'],
         miss:['Roof','Awning','Premium oxidation correction']},
       {id:'premium',  name:'Premium Exterior', icon:'🏅', tag:'Gloss restoration + oxidation + protection',    dur:'~4–6h',  popular:false, scope:'ext',
@@ -3521,7 +3541,7 @@ const PRICING = {
       {id:'essential',name:'Essential Detail', icon:'🧽', tag:'Complete clean + conditioning + protection',  dur:'~1.5–2.5h',  popular:false,
         feats:['Wash & Shine included','Deep frame & underbody cleaning','Engine area light clean','Seat cleaned & conditioned','UV protectant on all plastics','Accessible chrome/metal polished'],
         miss:['Machine polish','Machine wax','Paint enhancement']},
-      {id:'full',     name:'Full Detail',      icon:'🧼', tag:'Complete detail — most requested',            dur:'~2.5–3.5h',  popular:true,
+      {id:'full',     name:'Full Detail',      icon:'🧼', tag:'Complete detail - most requested',            dur:'~2.5–3.5h',  popular:true,
         feats:['Essential Detail included','Machine wax/sealant applied','Water spot removal','Full frame & chassis detail','Exhaust polish','Final quality inspection'],
         miss:[]},
       {id:'premium',  name:'Premium Detail',   icon:'🏅', tag:'Showroom finish + max protection',            dur:'~3–4.5h',    popular:false,
@@ -3530,7 +3550,7 @@ const PRICING = {
     ],
     addons:[
       {id:'polymer',    name:'Polymer Sealant',             icon:'🛡️', desc:'Polymer paint/plastic sealant for enhanced protection and gloss', price:25},
-      {id:'wax1yr',     name:'1-Year Carnauba Wax',         icon:'🥇', desc:'Premium carnauba wax — maximum gloss and 12-month paint protection', price:75},
+      {id:'wax1yr',     name:'1-Year Carnauba Wax',         icon:'🥇', desc:'Premium carnauba wax - maximum gloss and 12-month paint protection', price:75},
       {id:'rainx',      name:'Rain-X Windshield / Visor',   icon:'💧', desc:'Rain-X water-repellent on motorcycle/UTV windshields and helmet visors', price:25},
       {id:'heavymud',   name:'Heavy Mud / Trail Buildup',   icon:'🏞️', desc:'Extra labor for heavy mud, clay, trail buildup, or off-road grime', price:55},
       {id:'chain',      name:'Chain & Sprocket Cleaning',   icon:'⚙️', desc:'Motorcycle chain and sprocket degreasing and clean. No mechanical adjustment', price:35},
@@ -3542,19 +3562,19 @@ const PRICING = {
       vehicle:     {label:'Cars / SUVs / Trucks Fleet',     icon:'🚗', desc:'3+ passenger vehicles. Per-unit pricing on car-style packages.',              maint:79,  essential:132, full:212, premium:306, custom:0},
       commercial:  {label:'Vans / Trucks / Buses',          icon:'🚚', desc:'Sprinters, cargo vans, box trucks, work trucks, school buses & shuttles.',    maint:119, essential:199, full:319, premium:0,   custom:0},
       powersports: {label:'Golf Carts / Powersports Fleet', icon:'⛳', desc:'Golf carts, motorcycles, ATVs, UTVs, quads. Per-unit pricing.',               maint:60,  essential:92,  full:154, premium:234, custom:0},
-      marine_rv:   {label:'Boat / RV / Trailer Fleet',      icon:'🛥️', desc:'Fleet boats, RVs, campers, trailers — quoted by average length × unit count.',maint:0,   essential:0,   full:0,   premium:0,   custom:0}
+      marine_rv:   {label:'Boat / RV / Trailer Fleet',      icon:'🛥️', desc:'Fleet boats, RVs, campers, trailers - quoted by average length × unit count.',maint:0,   essential:0,   full:0,   premium:0,   custom:0}
     },
     packages:[
       {id:'maint',    name:'Fleet Maintenance Wash',    icon:'🪣', tag:'Weekly/biweekly exterior upkeep',                                dur:'Varies by fleet size',  popular:false,
         feats:['Exterior wash or wipe-down per vehicle type','Glass & mirror cleaning','Wheels & tires basic clean','Light interior wipe-down when applicable','Designed for recurring fleet programs'],
         miss:['Deep interior','Wax/sealant','Heavy soil','Restoration']},
-      {id:'essential',name:'Fleet Essential Detail',    icon:'🧽', tag:'Monthly maintenance + interior — most popular fleet plan',      dur:'Varies by fleet size',  popular:true,
+      {id:'essential',name:'Fleet Essential Detail',    icon:'🧽', tag:'Monthly maintenance + interior - most popular fleet plan',      dur:'Varies by fleet size',  popular:true,
         feats:['Maintenance Wash included','Interior vacuum per unit','Dashboard & cabin wipe-down','Door jambs & handles','Tire dressing','Best for monthly or biweekly fleets'],
         miss:['Paint correction','Heavy soil restoration','Severe odor']},
       {id:'full',     name:'Fleet Full Detail',         icon:'🧼', tag:'Deeper quarterly or seasonal refresh',                          dur:'Estimate by fleet size', popular:false,
         feats:['Essential level included','Deeper interior per unit','Light carpet/seat shampoo where applicable','Spray wax or exterior sealant','Final unit-by-unit inspection'],
         miss:['Severe oxidation','Biohazard','Abandoned vehicles']},
-      {id:'premium',  name:'Fleet Premium Protection',  icon:'🏅', tag:'Enhanced gloss — high-value executive fleets',                  dur:'Estimate by fleet size', popular:false,
+      {id:'premium',  name:'Fleet Premium Protection',  icon:'🏅', tag:'Enhanced gloss - high-value executive fleets',                  dur:'Estimate by fleet size', popular:false,
         feats:['Full Detail level included','Machine-applied wax/sealant where appropriate','Chrome & exterior trim per unit','Enhanced gloss for higher-value vehicles'],
         miss:['Heavy paint correction','Wet sanding','Severe oxidation']},
       {id:'custom',   name:'Custom Fleet Quote',         icon:'📋', tag:'Mixed, large, multi-location, or boat/RV fleets',              dur:'Requires estimate',      popular:false,
@@ -3697,7 +3717,7 @@ const TIER_VISUAL_KEYS = {
   cargo:'workvan', workvan:'workvan', van:'van', boxtruck:'boxtruck',
   vehicle:'sedan', commercial:'workvan', powersports:'atv', marine_rv:'rv'
 };
-// [lowercase substring, visual key] — checked in order; first match wins
+// [lowercase substring, visual key] - checked in order; first match wins
 const MODEL_MAP = [
   // compact and midsize sedans
   ['civic','compact'],['corolla','compact'],['elantra','compact'],['sentra','compact'],
@@ -4068,7 +4088,7 @@ function renderTierChips(cat){
 
   if(!isCar){
     const ys=document.getElementById('g-year');
-    ys.innerHTML='<option value="">— year —</option>';
+    ys.innerHTML='<option value="">- year -</option>';
     const cur=new Date().getFullYear();
     for(let y=cur;y>=1980;y--){const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o);}
     // Reset fields and reinitialize specialty autocomplete for new category
@@ -4320,9 +4340,9 @@ function selectMake(make){
   const ms=document.getElementById('model-sel');
   const ys=document.getElementById('year-sel');
   const data=MODELS[make];
-  ms.innerHTML='<option value="">— select model —</option>';
+  ms.innerHTML='<option value="">- select model -</option>';
   if(data)data.m.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;ms.appendChild(o);});
-  ms.disabled=false; ys.innerHTML='<option value="">— select model —</option>'; ys.disabled=true;
+  ms.disabled=false; ys.innerHTML='<option value="">- select model -</option>'; ys.disabled=true;
   ST.model=''; ST.year=''; document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
 }
 
@@ -4331,7 +4351,7 @@ document.getElementById('model-sel').addEventListener('change',function(){
   const ys=document.getElementById('year-sel');
   if(!ST.model){ys.disabled=true;return;}
   const cur=new Date().getFullYear();
-  ys.innerHTML='<option value="">— select year —</option>';
+  ys.innerHTML='<option value="">- select year -</option>';
   for(let y=cur;y>=1990;y--){const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o);}
   ys.disabled=false; ST.year=''; document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
 });
@@ -4359,8 +4379,8 @@ function renderAddons(){
   if(!ST.pkg) return;
   document.getElementById('ah-pkg').textContent=(ST.pkg?.name||'')+' Package';
   document.getElementById('ah-car').textContent=(ST.vehicleLabel||'')+(ST.tier?.label?' · '+ST.tier.label:'');
-  // Called on every vehicle confirm (keystroke/blur). Only rebuild the grid — and reset
-  // selections — when the package scope actually changes, so add-ons picked inline survive
+  // Called on every vehicle confirm (keystroke/blur). Only rebuild the grid - and reset
+  // selections - when the package scope actually changes, so add-ons picked inline survive
   // small vehicle edits. Otherwise just refresh the live running total.
   const key=ST.cat+'|'+ST.pkgId+'|'+(ST.pkg?.scope||'both');
   if(ST._addonKey===key){ updateTotal(); return; }
@@ -4460,8 +4480,8 @@ function fillStrip5(){
     document.getElementById('s5-pkg').textContent = vehicles.length+' Vehicles';
     document.getElementById('s5-car').textContent = vehicles.map(v=>v.pkgIcon+' '+v.vehicleLabel).join(' · ');
   } else {
-    document.getElementById('s5-pkg').textContent=(ST.pkg?.name||'—')+' Package';
-    document.getElementById('s5-car').textContent=ST.vehicleLabel||'—';
+    document.getElementById('s5-pkg').textContent=(ST.pkg?.name||'-')+' Package';
+    document.getElementById('s5-car').textContent=ST.vehicleLabel||'-';
   }
   document.getElementById('s5-total').textContent=cartBase?'$'+(cartBase+fee):'Estimate';
 }
@@ -4479,7 +4499,7 @@ let cardInitInProgress=false;
 let cardInitNonce=0;
 
 const COF_VERIFY_TIMEOUT_MSG='Your card was accepted by Stripe, but we are still verifying it on the server. Please wait a few seconds and try again.';
-const COF_SAVED_MSG='✓ Card saved securely with Stripe — <b>no charge has been made today</b>. Continue to review &amp; submit your request below.';
+const COF_SAVED_MSG='✓ Card saved securely with Stripe - <b>no charge has been made today</b>. Continue to review &amp; submit your request below.';
 const COF_RETRY_BTN='<button type="button" onclick="recheckCardStatus()" style="margin-left:8px;background:none;border:1px solid #4da3ff;color:#4da3ff;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:12px">Retry verification</button>';
 
 function destroyStripePaymentUI(){
@@ -4581,7 +4601,7 @@ async function initCardOnFile(){
     if(!stripeCfg.ready){
       const why=!STRIPE_PUBLISHABLE_KEY
         ? 'Stripe publishable key is not configured for this environment.'
-        : 'Stripe.js did not load — check your network connection or ad blocker, then refresh.';
+        : 'Stripe.js did not load - check your network connection or ad blocker, then refresh.';
       document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#ef4444;line-height:1.5">'+why+'</div>';
       if(btn) btn.style.display='none'; return;
     }
@@ -4612,9 +4632,9 @@ async function initCardOnFile(){
       const errMap={
         stripe_test_mode_required:'Card save is blocked on preview deploys when using live Stripe keys. Use production URL or test keys.',
         booking_not_eligible_for_card_save:'Complete your contact info and payment preference first, then save your card.',
-        booking_not_found:'Booking draft not found — go back one step and try again.',
+        booking_not_found:'Booking draft not found - go back one step and try again.',
         stripe_not_configured:'Card saving is not configured on the server yet. Add STRIPE_SECRET_KEY to .env and run netlify dev.',
-        booking_store_unavailable:'Booking storage is unavailable locally — run netlify dev (not a static file server).',
+        booking_store_unavailable:'Booking storage is unavailable locally - run netlify dev (not a static file server).',
         card_save_unavailable:'Stripe could not start card save. Try again in a moment.',
       };
       throw new Error(errMap[siData.error]||siData.error||'Secure card saving is temporarily unavailable.');
@@ -4671,7 +4691,7 @@ async function confirmSetupIntent(){
     if(verified){
       stripeMsg('stripe-status',COF_SAVED_MSG,true);
     } else {
-      stripeMsg('stripe-status','Your card was saved with Stripe. You can continue — we’ll confirm on the server when you submit. '+COF_RETRY_BTN,true);
+      stripeMsg('stripe-status','Your card was saved with Stripe. You can continue - we’ll confirm on the server when you submit. '+COF_RETRY_BTN,true);
     }
     updateCofAuthButtonState();
   }catch(e){
@@ -4689,7 +4709,7 @@ async function recheckCardStatus(){
     ST.cardOnFileSaved=true;
     stripeMsg('stripe-status',COF_SAVED_MSG,true);
   } else {
-    stripeMsg('stripe-status','Still confirming your card on our server. You can try submitting your booking — we will verify again. '+COF_RETRY_BTN,true);
+    stripeMsg('stripe-status','Still confirming your card on our server. You can try submitting your booking - we will verify again. '+COF_RETRY_BTN,true);
   }
   updateCofAuthButtonState();
 }
@@ -4723,7 +4743,7 @@ function fillConfirm(){
   if(visualEl) visualEl.innerHTML=`<img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async">`;
   document.getElementById('c-cat').textContent=catLabels[ST.cat]||ST.cat;
   document.getElementById('c-veh').textContent=ST.vehicleLabel;
-  document.getElementById('c-pkg').textContent=(ST.pkg?.name||'—')+' Package';
+  document.getElementById('c-pkg').textContent=(ST.pkg?.name||'-')+' Package';
   document.getElementById('c-pprice').textContent=ST.basePrice ? '$'+(ST.basePrice+fee) : 'Estimate';
   document.getElementById('c-total').textContent=total ? '$'+total : 'Estimate';
   document.getElementById('c-name').textContent=document.getElementById('f-first').value+' '+document.getElementById('f-last').value;
@@ -4898,13 +4918,13 @@ function showSuccess(payload){
   document.querySelectorAll('.bsec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.bpt').forEach(t=>t.classList.add('done'));
   document.getElementById('bs-ok').classList.add('on');
-  document.getElementById('ok-pkg').textContent=(ST.pkg?.name||b.package||'—')+' Package';
-  document.getElementById('ok-veh').textContent=ST.vehicleLabel||b.vehicle||'—';
+  document.getElementById('ok-pkg').textContent=(ST.pkg?.name||b.package||'-')+' Package';
+  document.getElementById('ok-veh').textContent=ST.vehicleLabel||b.vehicle||'-';
   document.getElementById('ok-total').textContent=(b.totalPrice||0)?'$'+b.totalPrice:'Estimate';
   document.getElementById('ok-date').textContent=b.preferredDate||document.getElementById('f-date').value;
   const titleEl=document.getElementById('ok-title');
   const subEl=document.getElementById('ok-sub');
-  if(titleEl) titleEl.textContent='Card Saved — Booking Request Received';
+  if(titleEl) titleEl.textContent='Card Saved - Booking Request Received';
   if(subEl) subEl.textContent='Your card was securely saved with Stripe. No charge has been made today. Cardetail1 will review your location, schedule, and vehicle details before confirming the appointment.';
   const em=document.getElementById('ok-email'); if(em)em.href=mailtoForBooking(b);
   const sm=document.getElementById('ok-sms'); if(sm)sm.href=smsForBooking(b);
@@ -4945,7 +4965,7 @@ function renderAdminCounts(list){
 }
 function mkBadge(color,bg,label){return`<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:${color};background:${bg};border:1px solid ${color};border-radius:999px;padding:3px 9px;white-space:nowrap;display:inline-block;margin:1px">${label}</span>`;}
 
-// Payment status badge — admin only.
+// Payment status badge - admin only.
 function adminPayBadge(b) {
   const ps = b.paymentStatus || '';
   const amtAuth = b.amountAuthorizedCents ? ' $'+(b.amountAuthorizedCents/100).toFixed(2) : '';
@@ -4965,7 +4985,7 @@ function adminPayBadge(b) {
   return mkBadge(color,bg,label);
 }
 
-// Card-on-file status badge — admin only.
+// Card-on-file status badge - admin only.
 function adminCofBadge(b) {
   const cof = b.cardOnFileStatus || '';
   const pref = b.paymentMethodPreference || b.paymentMethod || '';
@@ -4996,16 +5016,16 @@ function renderAdminBookings(){
     const tipHtml = b.tip ? `<div style="color:var(--gold);font-weight:600;font-size:12px;margin-top:4px">💰 Tip: $${Number(b.tip)}</div>` : '';
     const mapsUrl = 'https://maps.google.com/?q='+encodeURIComponent(b.address||'');
     const vehs = b.vehicles && b.vehicles.length ? b.vehicles : null;
-    const vehsHtml = vehs ? vehs.map(v=>`<div style="font-size:11.5px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">${e(v.pkgIcon||'🚗')} <strong>${e(v.pkgName||'—')}</strong> · ${e(v.vehicleLabel||'—')} · ${(v.addons||[]).map(a=>e(a.name)+(a.qty>1?' ×'+a.qty:'')).join(', ')||'no add-ons'} · <strong style="color:var(--blue)">$${v.subtotal||0}</strong></div>`).join('') : '';
+    const vehsHtml = vehs ? vehs.map(v=>`<div style="font-size:11.5px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">${e(v.pkgIcon||'🚗')} <strong>${e(v.pkgName||'-')}</strong> · ${e(v.vehicleLabel||'-')} · ${(v.addons||[]).map(a=>e(a.name)+(a.qty>1?' ×'+a.qty:'')).join(', ')||'no add-ons'} · <strong style="color:var(--blue)">$${v.subtotal||0}</strong></div>`).join('') : '';
     const jobPhotos = JSON.parse(localStorage.getItem('cd1_job_photos')||'{}')[b.id];
     const photoCount = jobPhotos ? jobPhotos.length : 0;
     const payBadge = adminPayBadge(b)+adminCofBadge(b);
     const bid = e(b.id);
     return `<div class="admin-card">
-      <div class="admin-card-top"><div><div class="admin-id">${bid} · ${new Date(b.createdAt).toLocaleString()}${b.source==='Admin — manual entry'?' · <span style="color:var(--am)">Manual</span>':''}</div><div class="admin-title">${e(b.firstName)} ${e(b.lastName)} · ${e(b.package||'—')} · $${Number(b.totalPrice)||0}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><div class="status-pill">${e(b.status||'Pending Review')}</div>${payBadge}</div></div>
+      <div class="admin-card-top"><div><div class="admin-id">${bid} · ${new Date(b.createdAt).toLocaleString()}${b.source==='Admin - manual entry'?' · <span style="color:var(--am)">Manual</span>':''}</div><div class="admin-title">${e(b.firstName)} ${e(b.lastName)} · ${e(b.package||'-')} · $${Number(b.totalPrice)||0}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><div class="status-pill">${e(b.status||'Pending Review')}</div>${payBadge}</div></div>
       <div class="admin-meta">
-        <div><b>Phone:</b> <a href="tel:${e(b.phone)}" style="color:var(--blue)">${e(b.phone)}</a></div><div><b>Email:</b> ${e(b.email||'—')}</div><div><b>Date:</b> ${e(b.confirmedWindow||b.preferredDate)} · ${e(b.preferredTime||'TBD')}</div><div><b>Address:</b> <a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--blue)">${e(b.address)}</a></div>
-        ${vehs ? `<div style="grid-column:1/-1"><b>Vehicles (${vehs.length}):</b><div style="margin-top:4px">${vehsHtml}</div></div>` : `<div><b>Vehicle:</b> ${e(b.vehicle||'—')}</div><div><b>Category:</b> ${e(b.vehicleCategory||'—')}</div><div><b>Add-ons:</b><br>${addons}</div>`}
+        <div><b>Phone:</b> <a href="tel:${e(b.phone)}" style="color:var(--blue)">${e(b.phone)}</a></div><div><b>Email:</b> ${e(b.email||'-')}</div><div><b>Date:</b> ${e(b.confirmedWindow||b.preferredDate)} · ${e(b.preferredTime||'TBD')}</div><div><b>Address:</b> <a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--blue)">${e(b.address)}</a></div>
+        ${vehs ? `<div style="grid-column:1/-1"><b>Vehicles (${vehs.length}):</b><div style="margin-top:4px">${vehsHtml}</div></div>` : `<div><b>Vehicle:</b> ${e(b.vehicle||'-')}</div><div><b>Category:</b> ${e(b.vehicleCategory||'-')}</div><div><b>Add-ons:</b><br>${addons}</div>`}
         <div><b>Notes:</b> ${e(b.notes||'None')}</div>${zoneInfo?`<div style="grid-column:1/-1;margin-top:4px;font-size:11.5px;color:var(--am)">${zoneInfo}</div>`:''}
         ${tipHtml}${payLinkHtml}
         ${photoCount?`<div style="font-size:11.5px;color:var(--mu)">📷 ${photoCount} photo(s) uploaded</div>`:''}
@@ -5068,7 +5088,7 @@ function submitNewJob(){
     id:'CD1-'+Date.now().toString(36).toUpperCase(),
     status:document.getElementById('nj-status').value,
     createdAt:new Date().toISOString(),
-    source:'Admin — manual entry',
+    source:'Admin - manual entry',
     firstName:first, lastName:last, phone,
     email:document.getElementById('nj-email').value.trim(),
     address:addr,
@@ -5222,7 +5242,7 @@ function renderGalleryTable(items){
   const wrap = document.getElementById('gal-table-wrap');
   if(!wrap) return;
   if(!items.length){
-    wrap.innerHTML='<div style="color:var(--mu);text-align:center;padding:28px;background:var(--bg2);border-radius:var(--rs)">No gallery items yet — click <b style="color:var(--white)">＋ Add Photo</b> to get started.</div>';
+    wrap.innerHTML='<div style="color:var(--mu);text-align:center;padding:28px;background:var(--bg2);border-radius:var(--rs)">No gallery items yet - click <b style="color:var(--white)">＋ Add Photo</b> to get started.</div>';
     return;
   }
   const rows = items.map(item=>{
@@ -5238,8 +5258,8 @@ function renderGalleryTable(items){
       : '';
     return `<tr>
       <td style="display:flex;align-items:center;gap:10px;min-width:0">${thumb}</td>
-      <td style="max-width:160px;word-break:break-word">${escHtml(item.vehicle||'—')}</td>
-      <td style="color:var(--mu)">${escHtml(item.servicePackage||'—')}</td>
+      <td style="max-width:160px;word-break:break-word">${escHtml(item.vehicle||'-')}</td>
+      <td style="color:var(--mu)">${escHtml(item.servicePackage||'-')}</td>
       <td>${pill}</td>
       <td>${ig}</td>
       <td style="white-space:nowrap">
@@ -5422,7 +5442,7 @@ function renderAdminCalendar(){
     const events = dayJobs.map(b=>`<div class="cal-ev" title="${b.firstName} ${b.lastName} · ${b.package||''}" onclick="alert('${b.id}: ${b.firstName} ${b.lastName}\\n${b.package||''}\\n${b.address||''}')">${b.firstName?.charAt(0)}${b.lastName?.charAt(0)} · ${(b.package||'').substring(0,10)}</div>`).join('');
     return `<div class="cal-day${isToday?' today':''}">
       <div class="cal-day-hd">${dayLabel}</div>
-      ${events || '<div style="font-size:10px;color:var(--mu);text-align:center;padding:4px">—</div>'}
+      ${events || '<div style="font-size:10px;color:var(--mu);text-align:center;padding:4px">-</div>'}
     </div>`;
   }).join('');
 }
@@ -5548,7 +5568,7 @@ function adminDataAudit(){
   const ids=real.map(b=>b.id).filter(Boolean);
   const dupIds=ids.filter((id,i)=>ids.indexOf(id)!==i);
   const report=[
-    'BOOKING DATA AUDIT — '+new Date().toLocaleString(),
+    'BOOKING DATA AUDIT - '+new Date().toLocaleString(),
     '─────────────────────────────────────',
     'Total finalized: '+real.length,
     'Drafts: '+drafts.length,
@@ -5587,15 +5607,15 @@ async function adminArchiveTestBookings(){
   const all=getStoredBookings().filter(b=>!b.isDraft);
   const tests=all.filter(_isLikelyTestBooking);
   if(!tests.length){alert('No test bookings detected in local data.\n\nRun ☁️ Load + Test first to include archived/test bookings.');return;}
-  const preview=tests.slice(0,10).map(b=>`  • ${b.id||'?'} — ${b.firstName||''} ${b.lastName||''} · ${b.phone||''}`).join('\n');
+  const preview=tests.slice(0,10).map(b=>`  • ${b.id||'?'} - ${b.firstName||''} ${b.lastName||''} · ${b.phone||''}`).join('\n');
   const more=tests.length>10?'\n  … and '+(tests.length-10)+' more':'';
   const confirmed=confirm(
     tests.length+' likely-test booking(s) found:\n\n'+preview+more+
-    '\n\nArchive all? (Hidden from default Admin list — NOT deleted.)\n\nExport CSV first if you need a backup.'
+    '\n\nArchive all? (Hidden from default Admin list - NOT deleted.)\n\nExport CSV first if you need a backup.'
   );
   if(!confirmed)return;
   const key=window._adminKey||'';
-  if(!key){alert('Not logged in as Admin — cannot persist archive to cloud.');return;}
+  if(!key){alert('Not logged in as Admin - cannot persist archive to cloud.');return;}
   let ok=0,fail=0;
   for(const b of tests){
     try{
@@ -5611,7 +5631,7 @@ async function adminArchiveTestBookings(){
   const updated=getStoredBookings().map(b=>_isLikelyTestBooking(b)?{...b,isTest:true,archived:true,archivedReason:'admin_test_cleanup'}:b);
   setStoredBookings(updated);
   renderAdminBookings();
-  alert('✓ Archived '+ok+' test booking(s) to cloud.'+(fail?' '+fail+' failed — check console.':'')+'\n\nUse 🗃️ Test/Archived filter to see them.');
+  alert('✓ Archived '+ok+' test booking(s) to cloud.'+(fail?' '+fail+' failed - check console.':'')+'\n\nUse 🗃️ Test/Archived filter to see them.');
 }
 
 // ── MULTI-VEHICLE CART ─────────────────────────────────────────────────────────
@@ -5708,7 +5728,7 @@ if(location.hash==='#admin') setTimeout(openLogin,300);
 // ═══════════════════════════════════════════════════════
 // ── ZIP → City lookup (NJ / NY / CT service area) ──────────────────────────
 const ZIP_CITIES = {
-  // NJ — Bergen County
+  // NJ - Bergen County
   '07010':'Cliffside Park, NJ','07011':'Clifton, NJ','07012':'Clifton, NJ','07013':'Clifton, NJ',
   '07014':'Clifton, NJ','07020':'Edgewater, NJ','07021':'Essex Fells, NJ','07022':'Fairview, NJ',
   '07024':'Fort Lee, NJ','07026':'Garfield, NJ','07027':'Garwood, NJ','07028':'Glen Ridge, NJ',
@@ -5724,7 +5744,7 @@ const ZIP_CITIES = {
   '07081':'Springfield, NJ','07082':'Towaco, NJ','07083':'Union, NJ','07086':'Weehawken, NJ',
   '07087':'Union City, NJ','07088':'Vauxhall, NJ','07090':'Westfield, NJ','07092':'Mountainside, NJ',
   '07093':'West New York, NJ','07094':'Secaucus, NJ','07095':'Woodbridge, NJ',
-  // NJ — Bergen County north
+  // NJ - Bergen County north
   '07401':'Allendale, NJ','07403':'Bloomingdale, NJ','07405':'Butler, NJ','07407':'Elmwood Park, NJ',
   '07410':'Fair Lawn, NJ','07416':'Franklin, NJ','07417':'Franklin Lakes, NJ','07418':'Glenwood, NJ',
   '07420':'Haskell, NJ','07421':'Hewitt, NJ','07422':'Highland Lakes, NJ','07423':'Ho-Ho-Kus, NJ',
@@ -5737,7 +5757,7 @@ const ZIP_CITIES = {
   '07481':'Wyckoff, NJ','07495':'Mahwah, NJ','07501':'Paterson, NJ','07502':'Paterson, NJ',
   '07503':'Paterson, NJ','07504':'Paterson, NJ','07505':'Paterson, NJ','07506':'Hawthorne, NJ',
   '07507':'Hawthorne, NJ','07508':'Haledon, NJ','07513':'Paterson, NJ','07514':'Paterson, NJ',
-  // NJ — Bergen County east
+  // NJ - Bergen County east
   '07601':'Hackensack, NJ','07602':'Hackensack, NJ','07603':'Bogota, NJ','07604':'Hasbrouck Heights, NJ',
   '07605':'Leonia, NJ','07606':'South Hackensack, NJ','07607':'Maywood, NJ','07608':'Teterboro, NJ',
   '07620':'Alpine, NJ','07621':'Bergenfield, NJ','07624':'Closter, NJ','07626':'Cresskill, NJ',
@@ -5749,7 +5769,7 @@ const ZIP_CITIES = {
   '07657':'Ridgefield, NJ','07660':'Ridgefield Park, NJ','07661':'River Edge, NJ',
   '07662':'Rochelle Park, NJ','07663':'Saddle Brook, NJ','07666':'Teaneck, NJ','07670':'Tenafly, NJ',
   '07675':'Westwood, NJ','07676':'Township of Washington, NJ','07677':'Woodcliff Lake, NJ',
-  // NJ — Morris / Somerset / Union
+  // NJ - Morris / Somerset / Union
   '07801':'Dover, NJ','07803':'Mine Hill, NJ','07820':'Allamuchy, NJ','07821':'Andover, NJ',
   '07822':'Augusta, NJ','07823':'Belvidere, NJ','07825':'Blairstown, NJ','07826':'Branchville, NJ',
   '07827':'Montague, NJ','07828':'Budd Lake, NJ','07830':'Califon, NJ','07832':'Columbia, NJ',
@@ -5771,7 +5791,7 @@ const ZIP_CITIES = {
   '07962':'Morristown, NJ','07963':'Morristown, NJ','07970':'Mount Freedom, NJ',
   '07974':'New Providence, NJ','07976':'New Vernon, NJ','07977':'Peapack, NJ',
   '07978':'Pluckemin, NJ','07979':'Pottersville, NJ','07980':'Stirling, NJ','07981':'Whippany, NJ',
-  // NYC — Manhattan
+  // NYC - Manhattan
   '10001':'New York, NY (Chelsea)','10002':'New York, NY (Lower East Side)','10003':'New York, NY (East Village)',
   '10004':'New York, NY (Financial District)','10005':'New York, NY (Financial District)',
   '10006':'New York, NY (Financial District)','10007':'New York, NY (Tribeca/City Hall)',
@@ -5790,7 +5810,7 @@ const ZIP_CITIES = {
   '10035':'New York, NY (East Harlem)','10036':'New York, NY (Midtown)',
   '10037':'New York, NY (Harlem)','10038':'New York, NY (Fulton)','10039':'New York, NY (Harlem)',
   '10040':'New York, NY (Inwood)',
-  // NYC — Bronx
+  // NYC - Bronx
   '10451':'Bronx, NY','10452':'Bronx, NY','10453':'Bronx, NY','10454':'Bronx, NY','10455':'Bronx, NY',
   '10456':'Bronx, NY','10457':'Bronx, NY','10458':'Bronx, NY (Fordham)','10459':'Bronx, NY',
   '10460':'Bronx, NY','10461':'Bronx, NY (Pelham Pkwy)','10462':'Bronx, NY','10463':'Bronx, NY (Riverdale)',
@@ -5798,7 +5818,7 @@ const ZIP_CITIES = {
   '10467':'Bronx, NY (Norwood)','10468':'Bronx, NY (Kingsbridge)','10469':'Bronx, NY',
   '10470':'Bronx, NY','10471':'Bronx, NY (Riverdale)','10472':'Bronx, NY','10473':'Bronx, NY',
   '10474':'Bronx, NY','10475':'Bronx, NY (Co-op City)',
-  // NYC — Brooklyn
+  // NYC - Brooklyn
   '11201':'Brooklyn, NY (Brooklyn Heights)','11202':'Brooklyn, NY','11203':'Brooklyn, NY (Flatbush)',
   '11204':'Brooklyn, NY (Bensonhurst)','11205':'Brooklyn, NY (Clinton Hill)',
   '11206':'Brooklyn, NY (Bushwick)','11207':'Brooklyn, NY','11208':'Brooklyn, NY',
@@ -5815,7 +5835,7 @@ const ZIP_CITIES = {
   '11232':'Brooklyn, NY (Sunset Park)','11233':'Brooklyn, NY','11234':'Brooklyn, NY (Flatlands)',
   '11235':'Brooklyn, NY (Brighton Beach)','11236':'Brooklyn, NY','11237':'Brooklyn, NY (Bushwick)',
   '11238':'Brooklyn, NY (Prospect Heights)','11239':'Brooklyn, NY',
-  // NYC — Queens
+  // NYC - Queens
   '11101':'Long Island City, NY','11102':'Astoria, NY','11103':'Astoria, NY','11104':'Sunnyside, NY',
   '11105':'Astoria, NY','11106':'Astoria, NY','11354':'Flushing, NY','11355':'Flushing, NY',
   '11356':'College Point, NY','11357':'Whitestone, NY','11358':'Flushing, NY','11360':'Bayside, NY',
@@ -5831,13 +5851,13 @@ const ZIP_CITIES = {
   '11422':'Rosedale, NY','11423':'Hollis, NY','11426':'Bellerose, NY','11427':'Queens Village, NY',
   '11428':'Queens Village, NY','11429':'Queens Village, NY','11432':'Jamaica, NY',
   '11433':'Jamaica, NY','11434':'Jamaica, NY','11435':'Jamaica, NY','11436':'Jamaica, NY',
-  // NYC — Staten Island
+  // NYC - Staten Island
   '10301':'Staten Island, NY (St. George)','10302':'Staten Island, NY','10303':'Staten Island, NY',
   '10304':'Staten Island, NY','10305':'Staten Island, NY (Rosebank)','10306':'Staten Island, NY',
   '10307':'Staten Island, NY (Tottenville)','10308':'Staten Island, NY','10309':'Staten Island, NY',
   '10310':'Staten Island, NY','10311':'Staten Island, NY','10312':'Staten Island, NY',
   '10313':'Staten Island, NY','10314':'Staten Island, NY',
-  // NY — Westchester / Rockland
+  // NY - Westchester / Rockland
   '10501':'Ardsley, NY','10502':'Ardsley, NY','10503':'Ardsley on Hudson, NY','10504':'Armonk, NY',
   '10505':'Baldwin Place, NY','10506':'Bedford, NY','10507':'Bedford Hills, NY','10509':'Brewster, NY',
   '10510':'Briarcliff Manor, NY','10511':'Buchanan, NY','10512':'Carmel, NY','10514':'Chappaqua, NY',
@@ -5859,7 +5879,7 @@ const ZIP_CITIES = {
   '10701':'Yonkers, NY','10703':'Yonkers, NY','10704':'Yonkers, NY','10705':'Yonkers, NY',
   '10706':'Hastings-on-Hudson, NY','10707':'Tuckahoe, NY','10708':'Bronxville, NY',
   '10709':'Eastchester, NY','10710':'Yonkers, NY',
-  // NY — Rockland County
+  // NY - Rockland County
   '10901':'Suffern, NY','10910':'Arden, NY','10911':'Bear Mountain, NY','10913':'Blauvelt, NY',
   '10914':'Blooming Grove, NY','10915':'Bullville, NY','10916':'Campbell Hall, NY',
   '10917':'Central Valley, NY','10918':'Chester, NY','10919':'Circleville, NY',
@@ -5878,7 +5898,7 @@ const ZIP_CITIES = {
   '10987':'Tuxedo Park, NY','10988':'Unionville, NY','10989':'Valley Cottage, NY',
   '10990':'Warwick, NY','10992':'Washingtonville, NY','10993':'West Haverstraw, NY',
   '10994':'West Nyack, NY','10996':'West Point, NY','10998':'Westtown, NY',
-  // NY — Long Island (Nassau)
+  // NY - Long Island (Nassau)
   '11001':'Floral Park, NY','11002':'Floral Park, NY','11003':'Elmont, NY','11004':'Glen Oaks, NY',
   '11005':'Glen Oaks, NY','11010':'Franklin Square, NY','11020':'Great Neck, NY',
   '11021':'Great Neck, NY','11022':'Great Neck, NY','11023':'Great Neck, NY',
@@ -5900,7 +5920,7 @@ const ZIP_CITIES = {
   '11575':'Roosevelt, NY','11576':'Roslyn, NY','11577':'Roslyn Heights, NY',
   '11579':'Sea Cliff, NY','11580':'Valley Stream, NY','11581':'Valley Stream, NY',
   '11590':'Westbury, NY','11596':'Williston Park, NY','11598':'Woodmere, NY',
-  // NY — Long Island (Suffolk)
+  // NY - Long Island (Suffolk)
   '11701':'Amityville, NY','11702':'Babylon, NY','11703':'North Babylon, NY','11704':'West Babylon, NY',
   '11705':'Bayport, NY','11706':'Bay Shore, NY','11709':'Bayville, NY','11710':'Bellmore, NY',
   '11713':'Bellport, NY','11714':'Bethpage, NY','11715':'Blue Point, NY','11716':'Bohemia, NY',
@@ -5927,7 +5947,7 @@ const ZIP_CITIES = {
   '11794':'Stony Brook, NY','11795':'West Islip, NY','11796':'West Sayville, NY',
   '11797':'Woodbury, NY','11798':'Wyandanch, NY','11801':'Hicksville, NY',
   '11803':'Plainview, NY','11804':'Old Bethpage, NY','11815':'Hicksville, NY',
-  // NY — Hamptons / East End
+  // NY - Hamptons / East End
   '11930':'Amagansett, NY','11931':'Aquebogue, NY','11932':'Bridgehampton, NY',
   '11933':'Calverton, NY','11934':'Center Moriches, NY','11935':'Cutchogue, NY',
   '11937':'East Hampton, NY','11939':'East Marion, NY','11940':'East Moriches, NY',
@@ -5943,7 +5963,7 @@ const ZIP_CITIES = {
   '11970':'South Jamesport, NY','11971':'Southold, NY','11972':'Speonk, NY',
   '11973':'Upton, NY','11975':'Westhampton, NY','11976':'Westhampton Beach, NY',
   '11977':'Westhampton Beach, NY','11978':'Westhampton, NY','11980':'Yaphank, NY',
-  // CT — Fairfield County
+  // CT - Fairfield County
   '06604':'Bridgeport, CT','06605':'Bridgeport, CT','06606':'Bridgeport, CT',
   '06607':'Bridgeport, CT','06608':'Bridgeport, CT','06610':'Bridgeport, CT',
   '06611':'Trumbull, CT','06612':'Easton, CT','06614':'Stratford, CT','06615':'Stratford, CT',
@@ -5956,7 +5976,7 @@ const ZIP_CITIES = {
   '06896':'Redding, CT','06897':'Wilton, CT','06901':'Stamford, CT','06902':'Stamford, CT',
   '06903':'Stamford, CT','06904':'Stamford, CT','06905':'Stamford, CT','06906':'Stamford, CT',
   '06907':'Stamford, CT','06910':'Stamford, CT','06911':'Stamford, CT',
-  // CT — New Haven / Hartford
+  // CT - New Haven / Hartford
   '06401':'Ansonia, CT','06403':'Beacon Falls, CT','06405':'Branford, CT','06408':'Cheshire, CT',
   '06410':'Cheshire, CT','06411':'Higganum, CT','06412':'Chester, CT','06413':'Clinton, CT',
   '06414':'Cobalt, CT','06415':'Colchester, CT','06416':'Cromwell, CT','06417':'Deep River, CT',
@@ -6136,15 +6156,15 @@ function formatLocFrom(cat){
 }
 
 const ZIP_ZONES = {
-  nj_a:{ label:'NJ — Bergen / Hudson / Essex', short:'NJ Core',    surcharge:0,  emoji:'📍', prefixes:['070','071','072','073','074','075','076','077'] },
-  nj_b:{ label:'NJ — Other Areas',             short:'NJ Other',   surcharge:15, emoji:'📍', prefixes:['078','079','080','081','082','083','084','085','086','087','088','089'] },
+  nj_a:{ label:'NJ - Bergen / Hudson / Essex', short:'NJ Core',    surcharge:0,  emoji:'📍', prefixes:['070','071','072','073','074','075','076','077'] },
+  nj_b:{ label:'NJ - Other Areas',             short:'NJ Other',   surcharge:15, emoji:'📍', prefixes:['078','079','080','081','082','083','084','085','086','087','088','089'] },
   nyc: { label:'New York City',                 short:'NYC',        surcharge:35, emoji:'🗽', prefixes:['100','101','102','103','104','111','112','113','114'] },
-  ny_s:{ label:'NY — Suburbs / Long Island',    short:'NY Suburbs', surcharge:25, emoji:'📍', prefixes:['105','106','107','108','109','115','116','117','118','119','120','121','122','123'] },
+  ny_s:{ label:'NY - Suburbs / Long Island',    short:'NY Suburbs', surcharge:25, emoji:'📍', prefixes:['105','106','107','108','109','115','116','117','118','119','120','121','122','123'] },
   ct:  { label:'Connecticut',                   short:'CT',         surcharge:20, emoji:'📍', prefixes:['060','061','062','063','064','065','066','067','068','069'] },
-  pa_e:{ label:'PA — Eastern / Lehigh Valley',  short:'PA Lehigh',  surcharge:25, emoji:'🏔️', prefixes:['180','181'] },
-  pa_p:{ label:'PA — Pocono / Stroudsburg',     short:'PA Pocono',  surcharge:30, emoji:'🏔️', prefixes:['183'] },
-  pa_ph:{ label:'PA — Philadelphia Metro',      short:'PA Philly',  surcharge:35, emoji:'🏛️', prefixes:['190','191'] },
-  pa_b:{ label:'PA — Bucks County',             short:'PA Bucks',   surcharge:30, emoji:'📍', prefixes:['189'] },
+  pa_e:{ label:'PA - Eastern / Lehigh Valley',  short:'PA Lehigh',  surcharge:25, emoji:'🏔️', prefixes:['180','181'] },
+  pa_p:{ label:'PA - Pocono / Stroudsburg',     short:'PA Pocono',  surcharge:30, emoji:'🏔️', prefixes:['183'] },
+  pa_ph:{ label:'PA - Philadelphia Metro',      short:'PA Philly',  surcharge:35, emoji:'🏛️', prefixes:['190','191'] },
+  pa_b:{ label:'PA - Bucks County',             short:'PA Bucks',   surcharge:30, emoji:'📍', prefixes:['189'] },
 };
 
 const ZONE_POPULAR = {
@@ -6197,7 +6217,7 @@ function applyZip(){
     nameEl.textContent  = 'YOUR AREA';
     pillEl.style.display= 'none';
     if(surEl) surEl.style.display = 'none';
-    alert('ZIP is outside our '+TRAVEL_MAX_MILES+'-mile service area. Call us at 551-313-2956 — we may still accommodate by quote.');
+    alert('ZIP is outside our '+TRAVEL_MAX_MILES+'-mile service area. Call us at 551-313-2956 - we may still accommodate by quote.');
   }
   renderLocationCarousel(svc ? (svc.zone.key||'default') : 'default');
   if(typeof _updateHomeFromPrices==='function') _updateHomeFromPrices();
@@ -6251,14 +6271,14 @@ function onBkZipInput(val){
     badge.textContent   = '✓ ' + (cityName ? cityName : zone.short);
     updateBkTravelDisplay(svc);
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('locked'));
-    if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span><span style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px">· Prices include service to your area</span>'; }
+    if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' - ' : '')+'select your service below</span><span style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px">· Prices include service to your area</span>'; }
     updateBkFromPrices();
     renderLocationCarousel(zone.key||'default');
   } else {
     badge.style.display    = 'none';
     updateBkTravelDisplay(null);
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.add('locked'));
-    if(gateMsg){ gateMsg.classList.remove('unlocked'); gateMsg.innerHTML='<span class="zg-ico">⚠️</span><span>Outside our '+TRAVEL_MAX_MILES+'-mile area — call 551-313-2956</span>'; }
+    if(gateMsg){ gateMsg.classList.remove('unlocked'); gateMsg.innerHTML='<span class="zg-ico">⚠️</span><span>Outside our '+TRAVEL_MAX_MILES+'-mile area - call 551-313-2956</span>'; }
   }
   updateTotal();
 }
@@ -6520,7 +6540,7 @@ async function doLogin(){
         : 'Incorrect username or password. Try again.');
     err.classList.add('show');
   } catch(_) {
-    err.textContent = 'Network error — try again.';
+    err.textContent = 'Network error - try again.';
     err.classList.add('show');
   }
   if(btn){ btn.disabled = false; btn.textContent = 'Enter →'; }
@@ -6580,8 +6600,8 @@ function renderEmpPanel(filter){
     const vehRows = vehs.map(v=>{
       const ao = v.addons && v.addons.length ? v.addons.map(a=>a.name).join(' · ') : 'No add-ons';
       return `<div class="emp-veh-row">
-        <span class="emp-veh-pkg">${v.pkgIcon||'🚗'} ${v.pkgName||'—'}</span>
-        <span style="color:var(--tx)"> · ${v.vehicleLabel||'—'}</span>
+        <span class="emp-veh-pkg">${v.pkgIcon||'🚗'} ${v.pkgName||'-'}</span>
+        <span style="color:var(--tx)"> · ${v.vehicleLabel||'-'}</span>
         <span style="color:var(--mu);font-size:11px"> · ${ao}</span>
         <span style="color:var(--blue);font-weight:700;float:right">$${v.subtotal||0}</span>
       </div>`;
@@ -6633,9 +6653,9 @@ function renderEmpPanel(filter){
         </label>
       </div>
 
-      <!-- PHOTO REMINDER (no upload required — for the tech's own records & protection) -->
+      <!-- PHOTO REMINDER (no upload required - for the tech's own records & protection) -->
       <div style="margin:0 16px 12px;padding:10px 13px;border-radius:10px;background:var(--amdim);border:1px solid var(--ambr);color:var(--am);font-size:12.5px;line-height:1.5;font-weight:600">
-        📸 <strong>Reminder:</strong> take <strong>before &amp; after</strong> photos and photos of <strong>any existing or new damage</strong> on this vehicle — for quality and the protection of both parties.
+        📸 <strong>Reminder:</strong> take <strong>before &amp; after</strong> photos and photos of <strong>any existing or new damage</strong> on this vehicle - for quality and the protection of both parties.
       </div>
 
       <!-- PHOTOS (optional local attachments) -->
@@ -6738,7 +6758,7 @@ function cpPopulatePackSelect(){
   if(!sel) return;
   const packs=(cpCustomerCatalog&&cpCustomerCatalog.packages)||[];
   sel.innerHTML='<option value="">Select a different pack…</option>'+
-    packs.map(p=>`<option value="${cpEsc(p.id)}">${cpEsc(p.name)} — from $${p.basePrice}</option>`).join('');
+    packs.map(p=>`<option value="${cpEsc(p.id)}">${cpEsc(p.name)} - from $${p.basePrice}</option>`).join('');
 }
 
 async function cpConfirmPackChange(){
@@ -6808,8 +6828,8 @@ async function cpLoadManage(){
       : '🚨 Cancellation within 24 hours of your appointment may incur a late cancellation fee per our terms. Proceed?';
     const vehs = b.vehicles && b.vehicles.length
       ? b.vehicles
-      : [{pkgName:b.package||'—', vehicleLabel:b.vehicle||'—', pkgIcon:'🚗', addons:b.addons||[], subtotal:b.totalPrice}];
-    const vehHtml = vehs.map(v=>'<div style="font-size:12px;line-height:1.7;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+cpEsc(v.pkgIcon||'🚗')+' <strong>'+cpEsc(v.pkgName||'—')+'</strong> · '+cpEsc(v.vehicleLabel||'—')+' · <span style="color:var(--blue)">$'+(v.subtotal||0)+'</span></div>').join('');
+      : [{pkgName:b.package||'-', vehicleLabel:b.vehicle||'-', pkgIcon:'🚗', addons:b.addons||[], subtotal:b.totalPrice}];
+    const vehHtml = vehs.map(v=>'<div style="font-size:12px;line-height:1.7;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+cpEsc(v.pkgIcon||'🚗')+' <strong>'+cpEsc(v.pkgName||'-')+'</strong> · '+cpEsc(v.vehicleLabel||'-')+' · <span style="color:var(--blue)">$'+(v.subtotal||0)+'</span></div>').join('');
     const isCancelReq = b.cancellationRequestStatus === 'requested';
     const displayStatus = isCancelReq ? 'Cancellation Requested' : status;
     const statusColor = isCancelReq ? '#ef4444' : (isCompleted ? 'var(--gr)' : isEditable ? 'var(--am)' : 'var(--mu)');
@@ -6834,7 +6854,7 @@ async function cpLoadManage(){
     }
     res.innerHTML = '<div style="background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--rs);padding:14px;margin-bottom:12px">'
       +'<div style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">#'+cpEsc(b.id)+' · <span style="font-size:12px;font-weight:600;color:'+statusColor+';background:'+statusBg+';padding:3px 10px;border-radius:999px">'+cpEsc(displayStatus)+'</span></div>'
-      +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+cpEsc(b.confirmedWindow||b.preferredDate||'—')+' · '+cpEsc(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+cpEsc(b.address||'—')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(b.totalPrice||0)+'</strong>'+(b.tip?' + Tip $'+b.tip:'')+'</div>'
+      +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+cpEsc(b.confirmedWindow||b.preferredDate||'-')+' · '+cpEsc(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+cpEsc(b.address||'-')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(b.totalPrice||0)+'</strong>'+(b.tip?' + Tip $'+b.tip:'')+'</div>'
       +'<div style="margin-top:10px">'+vehHtml+'</div>'
       +(b.payLink?'<div style="margin-top:10px"><a href="'+cpEsc(b.payLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-weight:600">&#x1F4B3; Pay Now &#x2192;</a></div>':'')
       +'</div>'+actionsHtml;
@@ -6916,7 +6936,7 @@ async function _cpSendInquiry(type,message,phone,msgEl){
   try{
     await fetch('/.netlify/functions/submit-inquiry',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:'My Booking — '+type,phone,email:'',message,source:'My Booking Customer Portal'}),
+      body:JSON.stringify({name:'My Booking - '+type,phone,email:'',message,source:'My Booking Customer Portal'}),
     });
     if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Request sent. Cardetail1 will contact you to confirm changes.</span>';}
   }catch(e){
@@ -6995,7 +7015,7 @@ async function cpConfirmAddons(){
     const data=await r.json().catch(()=>({}));
     if(btn){btn.disabled=false;btn.textContent='Request Add-Ons →';}
     if(data.ok){
-      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Add-on request submitted — pending admin approval.</span>';}
+      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Add-on request submitted - pending admin approval.</span>';}
       setTimeout(()=>cpLoadManage(),1500);
     }else{
       if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(cpEsc(data.userMessage)||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
@@ -7080,10 +7100,10 @@ function cpGarageBack(){
 function cpRenderGarage(b){
   const status = b.status || 'Pending Review';
   const sc = {'Completed':'var(--gr)','Confirmed':'var(--blue)','Scheduled':'var(--blue)','In Progress':'var(--am)','Cancelled':'var(--rd)'}[status] || 'var(--mu)';
-  const date = b.confirmedWindow || b.preferredDate || '—';
+  const date = b.confirmedWindow || b.preferredDate || '-';
   const time = b.preferredTime || '';
-  const addr = b.address || '—';
-  const vehs = (b.vehicles && b.vehicles.length) ? b.vehicles : [{pkgName:b.package||'—', vehicleLabel:b.vehicle||'—', pkgIcon:'🚗', addons:b.addons||[]}];
+  const addr = b.address || '-';
+  const vehs = (b.vehicles && b.vehicles.length) ? b.vehicles : [{pkgName:b.package||'-', vehicleLabel:b.vehicle||'-', pkgIcon:'🚗', addons:b.addons||[]}];
   let sumHTML = '<div style="margin-bottom:10px"><span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:'+sc+'22;color:'+sc+';border:1px solid '+sc+'44">'+cpEsc(status)+'</span></div>';
   sumHTML += '<div class="cg-row"><span class="cg-lbl">Booking ID</span><span class="cg-val" style="font-family:var(--fd);color:var(--blue)">#'+cpEsc(b.id)+'</span></div>';
   vehs.forEach(v => {
@@ -7171,7 +7191,7 @@ function cpSubmitReview(){
 }
 
 // ═══════════════════════════════════════════════════════
-// CARDETAIL1JOBS — DISPATCH ENGINE
+// CARDETAIL1JOBS - DISPATCH ENGINE
 // ═══════════════════════════════════════════════════════
 
 /* ── TECHNICIAN STORAGE ───────────────────────────────── */
@@ -7306,7 +7326,7 @@ function buildJobCard(b){
        </div>`
     : `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
         <select class="cp-fi" id="tech-sel-${b.id}" style="flex:1;min-width:0;margin-bottom:0;padding:8px 10px;font-size:12px">
-          <option value="">— Assign technician —</option>
+          <option value="">- Assign technician -</option>
           ${getTechs().map(t=>`<option value="${t.id}" ${t.status!=='available'?'disabled style="color:gray"':''}>${t.name} (${t.status})</option>`).join('')}
         </select>
         <button class="ja-btn primary" onclick="assignTechFromSelect('${b.id}')">Assign</button>
@@ -7324,7 +7344,7 @@ function buildJobCard(b){
     </div>
     <div class="jcard-service">${serviceStr}</div>
     <div style="font-size:12px;color:var(--mu);margin-bottom:4px">${vehicleStr}</div>
-    <div class="jcard-addr">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(b.address||'')}" target="_blank" style="color:var(--mu)">${b.address||'—'}</a></div>
+    <div class="jcard-addr">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(b.address||'')}" target="_blank" style="color:var(--mu)">${b.address||'-'}</a></div>
     <div class="jcard-info">
       <span>📅 ${b.confirmedWindow||b.preferredDate} · ${b.preferredTime||'TBD'}</span>
       <span>📞 <a href="tel:${b.phone}" style="color:var(--blue)">${b.phone}</a></span>
@@ -7362,7 +7382,7 @@ function autoDispatchOne(bookingId){
     alert('No available technicians right now. Change a tech status to Available first.');
     return;
   }
-  const tech = available[0]; // First available — extend here for geo-sort if coords available
+  const tech = available[0]; // First available - extend here for geo-sort if coords available
   assignTech(bookingId, tech.id, true);
 }
 
@@ -7455,7 +7475,7 @@ function setJobStatus(bookingId, status){
 
 /* ── WEBHOOK DISPATCH ─────────────────────────────────── */
 async function sendDispatchWebhook(booking, tech){
-  if(!DISPATCH_WEBHOOK_URL) return; // No webhook configured — use manual SMS links
+  if(!DISPATCH_WEBHOOK_URL) return; // No webhook configured - use manual SMS links
   try{
     await fetch(DISPATCH_WEBHOOK_URL, {
       method:'POST',
@@ -7570,7 +7590,7 @@ function showDispatchToast(msg){
 }
 
 /* ── AUTO-CONFIRM ON JOB CREATE ───────────────────────── */
-// Called after saveLocalBooking — auto-confirm on-demand jobs created via admin
+// Called after saveLocalBooking - auto-confirm on-demand jobs created via admin
 function autoConfirmAndDispatch(payload){
   // Mark confirmed
   const list = getStoredBookings().map(b=>
@@ -7583,7 +7603,7 @@ function autoConfirmAndDispatch(payload){
     assignTech(payload.id, available[0].id, true);
     showDispatchToast(`⚡ Job ${payload.id} confirmed & dispatched to ${available[0].name}`);
   } else {
-    showDispatchToast(`✓ Job ${payload.id} confirmed. No techs available — assign manually.`);
+    showDispatchToast(`✓ Job ${payload.id} confirmed. No techs available - assign manually.`);
   }
   // Refresh boards if open
   if(jobsBoardOpen) renderJobsBoard();
@@ -7594,17 +7614,17 @@ function autoConfirmAndDispatch(payload){
 // RICH ZIP ALGORITHM
 // ═══════════════════════════════════════════════════════
 const RICH_ZIPS = new Set([
-  // NJ — Wealthy areas (Short Hills, Millburn, Summit, Chatham, Mendham, Basking Ridge, Far Hills, Bedminster,
+  // NJ - Wealthy areas (Short Hills, Millburn, Summit, Chatham, Mendham, Basking Ridge, Far Hills, Bedminster,
   //       Alpine, Saddle River, Tenafly, Englewood Cliffs, Ridgewood, Glen Ridge, Montclair top, Hoboken top)
   '07078','07041','07901','07928','07945','07920','07931','07921',
   '07620','07458','07670','07632','07450','07028','07042','07030',
   '07068','07960','07043','07410','07663','07649','07656','07677',
-  // NY — Westchester, Long Island North Shore, Hamptons, Tribeca/UES/UWS
+  // NY - Westchester, Long Island North Shore, Hamptons, Tribeca/UES/UWS
   '10504','10514','10532','10577','10583','10605','10706','10708',
   '11020','11021','11030','11050','11545','11576','11577','11803',
   '11932','11937','11959','11962','11968','11975',
   '10007','10013','10014','10021','10022','10023','10024','10025','10028',
-  // CT — Greenwich, Darien, New Canaan, Westport, Weston, Wilton, Fairfield top
+  // CT - Greenwich, Darien, New Canaan, Westport, Weston, Wilton, Fairfield top
   '06830','06831','06820','06840','06880','06883','06897','06824',
 ]);
 
@@ -7716,7 +7736,7 @@ function addBlipToRadar(job){
   el.className = `radar-blip ${job.status} blip-new`;
   el.style.cssText = `left:${50+job.cx}%;top:${50+job.cy}%`;
   el.setAttribute('data-label', `${job.name} · ${job.city}`);
-  el.title = `${job.name} — ${job.service} — ${job.city}`;
+  el.title = `${job.name} - ${job.service} - ${job.city}`;
   screen.appendChild(el);
   job.el = el;
   setTimeout(()=>el.classList.remove('blip-new'), 800);
@@ -7740,9 +7760,9 @@ function advanceJobStatus(job){
     setTimeout(()=>{ if(job.el) job.el.className = `radar-blip ${next}`; }, 600);
   }
   const msgs = {
-    scheduled: `📅 ${job.name} — booking confirmed`,
+    scheduled: `📅 ${job.name} - booking confirmed`,
     enroute:   `🚗 Tech en route to ${job.name} in ${job.city.split(',')[0]}`,
-    done:      `✅ Job complete — ${job.name} · ${job.city.split(',')[0]}`,
+    done:      `✅ Job complete - ${job.name} · ${job.city.split(',')[0]}`,
     review:    `⭐ ${job.name} left a 5-star review!`,
   };
   if(msgs[next]) showRadarToast(msgs[next]);
@@ -7772,7 +7792,7 @@ function spawnNewJob(){
   _simJobs.push(job);
   _simJobsToday++;
   addBlipToRadar(job);
-  showRadarToast(`📋 New request — ${job.name} in ${job.city.split(',')[0]}`);
+  showRadarToast(`📋 New request - ${job.name} in ${job.city.split(',')[0]}`);
   updateRadarStats();
   renderTickerNow();
   // Start status progression
@@ -7854,7 +7874,7 @@ function renderDispatchRadar(){
   }
 }
 
-function renderActivityFeed(){ /* radar removed — lives in admin.html */ }
+function renderActivityFeed(){ /* radar removed - lives in admin.html */ }
 
 // ═══════════════════════════════════════════════════════
 // HERO ZIP GATE
@@ -7986,7 +8006,7 @@ function _updateHomeFromPrices(){
   el.innerHTML = icons[season];
 })();
 
-// Opens booking — always allowed, but pre-fills ZIP if already entered on hero
+// Opens booking - always allowed, but pre-fills ZIP if already entered on hero
 function openBookingFromHome(cat){
   // If ZIP already entered on hero, sync it to the booking modal silently
   const heroZip = document.getElementById('hero-zip');
@@ -8019,7 +8039,7 @@ seedDefaultTechs();
 </script>
 
 <!-- ════════════════════════════════════════════ -->
-<!--        FLOATING AI CHAT — LOGIC              -->
+<!--        FLOATING AI CHAT - LOGIC              -->
 <!-- ════════════════════════════════════════════ -->
 <script>
 (function(){
@@ -8117,15 +8137,15 @@ seedDefaultTechs();
       reply:"Hey! 👋 How can I help? I can talk pricing, areas we serve, packages or booking.", chips:DEFAULT_CHIPS }) },
 
     { keys:['price','pricing','cost','how much','quote','expensive','rate','charge','dollar','$'], fn:()=>({
-      reply:"Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n🚗 Cars & Trucks — from <b>$175</b>\n🏍️ Powersports — from <b>$119</b>\n🛥️ Boats — from <b>$199</b>\n🏕️ RVs & Trailers — from <b>$349</b>\n🚚 Fleet — from <b>$60/unit</b>\n\nFor an exact quote, start a booking and enter your vehicle + ZIP — pricing updates as you go.",
+      reply:"Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n🚗 Cars & Trucks - from <b>$175</b>\n🏍️ Powersports - from <b>$119</b>\n🛥️ Boats - from <b>$199</b>\n🏕️ RVs & Trailers - from <b>$349</b>\n🚚 Fleet - from <b>$60/unit</b>\n\nFor an exact quote, start a booking and enter your vehicle + ZIP - pricing updates as you go.",
       chips:[{label:'📅 Get my exact price',act:'book'},{label:'📍 Travel fees?',q:'Is there a travel fee?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['area','areas','serve','service area','location','where','city','town','county','zip','near me','come to','pa','pennsylvania','new jersey','new york','connecticut',' nj',' ny',' ct'], fn:()=>({
-      reply:"We're <b>mobile</b> — we come to you! 🚐 We serve <b>"+AREAS+"</b>.\n\nEnter your ZIP when booking to confirm coverage and see local pricing (some areas have a small travel fee). Not sure if we reach you? Just ask or call "+telLink()+".",
+      reply:"We're <b>mobile</b> - we come to you! 🚐 We serve <b>"+AREAS+"</b>.\n\nEnter your ZIP when booking to confirm coverage and see local pricing (some areas have a small travel fee). Not sure if we reach you? Just ask or call "+telLink()+".",
       chips:[{label:'📅 Check my ZIP',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['travel fee','surcharge','extra fee','area fee','distance','toll'], fn:()=>({
-      reply:"Most core areas have <b>no travel fee</b>. Farther zones (e.g. NYC, Long Island, PA Philly/Pocono) may include a small distance-based fee — typically <b>$15–$35</b> — already included in the package total shown when you book.",
+      reply:"Most core areas have <b>no travel fee</b>. Farther zones (e.g. NYC, Long Island, PA Philly/Pocono) may include a small distance-based fee - typically <b>$15–$35</b> - already included in the package total shown when you book.",
       chips:[{label:'📅 See my area fee',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['package','packages','plan','plans','tier','what do you offer','full detail','interior','exterior'], fn:()=>{
@@ -8143,15 +8163,15 @@ seedDefaultTechs();
         chips:[{label:'📅 Add to my booking',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
 
     { keys:['book','booking','appointment','schedule','reserve','agendar','set up','sign up','how do i'], fn:()=>({
-      reply:"Booking takes a couple minutes: 📍 enter ZIP → 🚗 pick category & package → confirm your vehicle → ✨ add extras → your details → review & submit. No charge today — we confirm by text or call first.",
+      reply:"Booking takes a couple minutes: 📍 enter ZIP → 🚗 pick category & package → confirm your vehicle → ✨ add extras → your details → review & submit. No charge today - we confirm by text or call first.",
       chips:[{label:'📅 Start booking',act:'book'},{label:'💳 Deposit/payment',q:'Do I pay now?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['pay','payment','deposit','charge now','credit card','card','stripe','money','pay now','upfront'], fn:()=>({
-      reply:"You're <b>not charged when you submit</b> — it's a request first. A card on file is required for booking security and is saved securely through Stripe. Choose cash on-site, card on-site, or online after service as your separate payment preference.",
+      reply:"You're <b>not charged when you submit</b> - it's a request first. A card on file is required for booking security and is saved securely through Stripe. Choose cash on-site, card on-site, or online after service as your separate payment preference.",
       chips:[{label:'📅 Book now',act:'book'},{label:'❌ Cancellation policy',q:'What is your cancellation policy?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['hour','hours','open','time','when are you','availability','available','today','same day','same-day','weekend'], fn:()=>({
-      reply:"We operate <b>Mon–Fri, 8AM–5PM</b>. Request your preferred date during booking — we confirm availability based on route, weather, and service type before scheduling.",
+      reply:"We operate <b>Mon–Fri, 8AM–5PM</b>. Request your preferred date during booking - we confirm availability based on route, weather, and service type before scheduling.",
       chips:[{label:'📅 Check availability',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['cancel','cancellation','reschedule','refund','no-show','policy','weather','rain'], fn:()=>({
@@ -8159,15 +8179,15 @@ seedDefaultTechs();
       chips:[{label:'📅 Book now',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['what do you detail','vehicle','vehicles','cars','boat','rv','trailer','motorcycle','atv','jet ski','fleet','truck','suv'], fn:()=>({
-      reply:"We detail 🚗 cars & trucks, 🛥️ boats, 🏕️ RVs & travel trailers, 🏍️ powersports (motorcycle/ATV/UTV/jet ski) and 🚚 fleets — all <b>mobile</b>, at your home or workplace.",
+      reply:"We detail 🚗 cars & trucks, 🛥️ boats, 🏕️ RVs & travel trailers, 🏍️ powersports (motorcycle/ATV/UTV/jet ski) and 🚚 fleets - all <b>mobile</b>, at your home or workplace.",
       chips:[{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] }) },
 
     { keys:['mobile','come to me','at home','my place','do you travel','my location','my house','my driveway'], fn:()=>({
-      reply:"Yes — we're <b>100% mobile</b>. We bring professional equipment; water/power access may depend on location and service type. No shop visit needed — just safe access to your vehicle. 🚐",
+      reply:"Yes - we're <b>100% mobile</b>. We bring professional equipment; water/power access may depend on location and service type. No shop visit needed - just safe access to your vehicle. 🚐",
       chips:[{label:'📍 Service area',q:'What areas do you serve?'},{label:'📅 Book now',act:'book'}] }) },
 
     { keys:['how long','duration','take','hours to','time to finish','minutes'], fn:()=>({
-      reply:"It depends on the package and vehicle — each package shows its estimated time in the booking flow (a wash is quick; a full detail takes longer). Pick a package to see the duration.",
+      reply:"It depends on the package and vehicle - each package shows its estimated time in the booking flow (a wash is quick; a full detail takes longer). Pick a package to see the duration.",
       chips:[{label:'📅 See times',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }) },
 
     { keys:['human','agent','person','representative','call','phone','contact','speak','talk to','someone','manager','owner','real person'], fn:()=>({
@@ -8187,7 +8207,7 @@ seedDefaultTechs();
       if(score>bestScore){ bestScore=score; best=intent; }
     });
     if(best && bestScore>0) return best.fn();
-    return { reply:"I want to get this right 🤔 — I'm not 100% sure about that one. I can connect you with our team, or you can call "+telLink()+". Want me to pass your question along?",
+    return { reply:"I want to get this right 🤔 - I'm not 100% sure about that one. I can connect you with our team, or you can call "+telLink()+". Want me to pass your question along?",
       chips:[{label:'📨 Send my question',act:'human'},{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] };
   }
 
@@ -8195,7 +8215,7 @@ seedDefaultTechs();
   function openHandoff(){
     $('cd-handoff').style.display='flex'; $('cd-input-row').style.display='none'; $('cd-chips').style.display='none';
     $('cd-h-out').style.display='none';
-    push("No problem — leave your details and question and our team will reply by text, call or email. 📨",'bot');
+    push("No problem - leave your details and question and our team will reply by text, call or email. 📨",'bot');
     setTimeout(()=>$('cd-h-name')&&$('cd-h-name').focus(),100);
   }
   function cdCancelHandoff(){
@@ -8233,8 +8253,8 @@ seedDefaultTechs();
     const adminSms=(typeof ADMIN_SMS==='string'&&ADMIN_SMS)?ADMIN_SMS:PHONE_TEL;
     const mailto=adminEmail?('mailto:'+adminEmail+'?subject='+subject+'&body='+body):'';
     cdCancelHandoff();
-    push("✅ Thanks, <b>"+esc(name)+"</b>! Your question is on its way to our team — we'll reply to <b>"+esc(phone)+"</b> soon.",'bot');
-    let extra="Want it instantly? "+(mailto?'<a href="'+mailto+'">email us</a> or ':'')+'<a href="sms:'+adminSms+'?&body='+body+'">text us</a> — or call '+telLink()+'.';
+    push("✅ Thanks, <b>"+esc(name)+"</b>! Your question is on its way to our team - we'll reply to <b>"+esc(phone)+"</b> soon.",'bot');
+    let extra="Want it instantly? "+(mailto?'<a href="'+mailto+'">email us</a> or ':'')+'<a href="sms:'+adminSms+'?&body='+body+'">text us</a> - or call '+telLink()+'.';
     push(extra,'bot');
     setChips([{label:'📅 Book now',act:'book'},{label:'💬 Ask something else',q:'hi'}]);
     $('cd-h-name').value=$('cd-h-phone').value=$('cd-h-email').value=$('cd-h-msg').value='';

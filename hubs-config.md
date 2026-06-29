@@ -21,6 +21,7 @@ Em vez de criar dezenas de landing pages por cidade, agrupamos a cobertura em **
 | **Essex County** | Newark | Elizabeth, Bloomfield, West Orange | `essex-county-hub.html` | ✅ Ativo |
 | **Passaic County** | Paterson | Franklin Lakes, Wayne, Clifton | `passaic-county-hub.html` | ✅ Ativo |
 | **NY Metro** | Manhattan | Westchester, Bronx, Queens | `ny-metro-hub.html` | ✅ Ativo |
+| **Pennsylvania** | Philadelphia | Allentown, King of Prussia, Scranton | `pennsylvania-hub.html` | ✅ Ativo |
 | **Connecticut** | Waterbury | Danbury, New Haven, Hartford, Stamford | `connecticut-hub.html` | ✅ Ativo |
 
 ### Detalhe por hub
@@ -30,9 +31,10 @@ Em vez de criar dezenas de landing pages por cidade, agrupamos a cobertura em **
 - **HUB: Essex County** (Âncora: Newark) — Elizabeth, Bloomfield, West Orange — `essex-county-hub.html`
 - **HUB: Passaic County** (Âncora: Paterson) — Franklin Lakes, Wayne, Clifton — `passaic-county-hub.html`
 - **HUB: NY Metro** (Âncora: Manhattan) — Westchester, Bronx, Queens — `ny-metro-hub.html`
+- **HUB: Pennsylvania** (Âncora: Philadelphia or King of Prussia) — Philadelphia, Allentown, King of Prussia, Scranton — `pennsylvania-hub.html`
 - **HUB: Connecticut** (Âncora: Waterbury) — Danbury, New Haven, Hartford, Stamford — `connecticut-hub.html`
 
-> **Status:** implementado — 6 hubs ativos (`index.html` redirect + páginas-hub).
+> **Status:** implementado — 7 hubs ativos (`index.html` redirect + páginas-hub).
 
 ---
 
@@ -47,14 +49,14 @@ Derivado de `ZIP_CITIES`, `ZIP_ZONES` e `netlify/lib/travel-fee.js` em `index.ht
 | **Essex** | `071`, `070` (Newark metro: Montclair, Bloomfield, West Orange, Maplewood, Glen Ridge, Orange) | 07102 Newark, 07104 Newark, 07042 Montclair, 07003 Bloomfield, 07052 West Orange, 07201 Elizabeth* |
 | **Passaic** | `075`, `074` (Wayne, Franklin Lakes, Pompton), `070` (Clifton, Passaic, Wallington) | 07501 Paterson, 07470 Wayne, 07417 Franklin Lakes, 07011 Clifton, 07055 Passaic |
 | **NY Metro** | `100`–`104`, `111`–`114` (NYC), `105`–`107` (Westchester), `109` (Rockland — opcional) | 10001 Manhattan, 10451 Bronx, 11354 Queens, 10583 Scarsdale, 10601 White Plains |
+| **Pennsylvania** | `170`–`179`, `180`–`189`, `190`–`191`, `193`–`196` | 19104 Philadelphia, 18101 Allentown, 19406 King of Prussia, 18503 Scranton |
 | **Connecticut** | `060`–`069` | 06708 Waterbury, 06810 Danbury, 06510 New Haven, 06103 Hartford, 06901 Stamford |
 
 \* Elizabeth (`072xx`) está em Union County; incluir em **Essex** hub por proximidade operacional a Newark, ou mapear para hub próprio no futuro.
 
-**Fora dos 6 hubs (permanecem na home ou hub estendido):**
+**Fora dos 7 hubs (permanecem na home ou hub estendido):**
 - `078`–`089` — NJ Other (`nj_b` em `ZIP_ZONES`)
 - `115`–`119`, `117` — Long Island
-- `180`–`191` — Pennsylvania
 - Demais prefixos dentro de `TRAVEL_MAX_MILES` (150 mi) — fallback abaixo
 
 ---
@@ -94,6 +96,7 @@ const HUB_PAGES = {
   essex:   'essex-county-hub.html',
   passaic: 'passaic-county-hub.html',
   nyMetro: 'ny-metro-hub.html',
+  pennsylvania: 'pennsylvania-hub.html',
   connecticut: 'connecticut-hub.html',
 };
 

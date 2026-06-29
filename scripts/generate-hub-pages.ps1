@@ -43,6 +43,13 @@ $hubs = @(
     badge = "Serving Connecticut & Fairfield County"
     sub = "Premium mobile detailing across Connecticut — Waterbury, Hartford, New Haven, Danbury, and Stamford. We bring the water, power, and expertise to your driveway."
     footAreas = "Waterbury, Hartford, New Haven, Danbury, Stamford"
+  },
+  @{
+    file = "pennsylvania-hub.html"
+    name = "Pennsylvania"
+    badge = "Serving Pennsylvania & Delaware Valley"
+    sub = "Premium mobile detailing across Pennsylvania — Philadelphia, Allentown, King of Prussia, and Scranton. We bring the water, power, and expertise to your driveway."
+    footAreas = "Philadelphia, Allentown, King of Prussia, Scranton"
   }
 )
 
