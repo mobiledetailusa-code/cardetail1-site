@@ -118,6 +118,34 @@ No fim do agendamento o cliente escolhe: **depósito no cartão agora** (Stripe)
 3. Logs das funções: Netlify → *Logs* → *Functions* → `submit-booking` (ou `stripe-webhook`).
 4. Stripe em modo teste: use o cartão `4242 4242 4242 4242`, qualquer data futura e CVC.
 
+## 4b. Desenvolvimento local (card save / Netlify Functions)
+
+**Salvar cartão no checkout não funciona com um servidor estático simples** (Python `http.server`, Live Server, `serve.ps1`, etc.). Esses servidores só entregam HTML/CSS/JS — não executam `/.netlify/functions/*` (`stripe-config`, `submit-booking`, `create-setup-intent`).
+
+### Card save local (recomendado)
+
+1. Instale a CLI: `npm i -g netlify-cli` (ou use `npx netlify dev`).
+2. Copie `.env.example` → `.env` na raiz do projeto.
+3. Preencha **par de chaves de teste do mesmo account Stripe**:
+   - `STRIPE_PUBLISHABLE_KEY=pk_test_...`
+   - `STRIPE_SECRET_KEY=sk_test_...`
+4. Na pasta do projeto: `npx netlify dev`
+5. Abra **http://localhost:8888** (porta padrão no `netlify.toml`).
+6. No step 5 do booking, use cartão `4242 4242 4242 4242`.
+
+O front-end em `127.0.0.1` / `localhost` usa fallback `pk_test_...` embutido só se a função `stripe-config` não responder; com `netlify dev` a função devolve a chave do `.env` (preferível — garante par pk/sk do mesmo account).
+
+### Preview estático (sem card save)
+
+Se você só precisa ver layout/copy, pode usar qualquer servidor estático. Ao tentar salvar cartão, a UI mostra instruções para rodar `netlify dev` em vez da mensagem genérica “temporarily unavailable”.
+
+### Verificar funções
+
+```bash
+curl http://localhost:8888/.netlify/functions/stripe-config
+# esperado: {"ok":true,"publishableKey":"pk_test_...","mode":"test"}
+```
+
 ## ⚠️ Segurança — antes de produção
 - `squarespace_backup_codes_*.txt` está no repositório. **Remova do Git** (`git rm --cached`) e guarde offline.
 - As credenciais demo dos portais (`admin@cardetail1.com` / `cd1admin2026`, `tech@cardetail1.com` / `tech2026`) são client-side. Para produção real, mover auth para backend (Netlify Identity ou similar).

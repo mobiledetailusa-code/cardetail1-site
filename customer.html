@@ -602,8 +602,6 @@ function renderStatus(){
   const cancelRequested=active.cancellationRequestStatus==='requested';
   const canCancel = !cancelRequested && !isCanceled && !isCompleted && !isClosed;
   const canRequestAddons = canReschedule && !active.addonsRequested;
-  const travelFee = active.travelFeeAmount || active.zoneSurcharge || 0;
-
   let cofBanner = '';
   if (cofStatus === 'saved' && !isApptConfirmed && !isCanceled) {
     cofBanner = `<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.28);border-radius:10px;padding:12px 16px;margin-bottom:14px">
@@ -755,7 +753,7 @@ function renderStatus(){
             <div><div class="sfl" style="color:#22c55e">✓ Time Window</div><div class="sfv" style="color:#22c55e;font-weight:700">${esc(confirmedWindow||'TBD')}</div></div>`
           :`<div><div class="sfl">Preferred Date</div><div class="sfv">${esc(active.preferredDate||active.preferred_date||'TBD')}</div></div>
             <div><div class="sfl">Preferred Time</div><div class="sfv">${esc(active.preferredTime||'Any')}</div></div>`}
-        <div><div class="sfl">Total</div><div class="sfv" style="color:var(--green)">$${total}${travelFee?` <span style="font-size:11px;color:var(--mu)">(incl. $${travelFee} travel)</span>`:''}</div></div>
+        <div><div class="sfl">Total</div><div class="sfv" style="color:var(--green)">$${total}</div></div>
         <div><div class="sfl">Card on File</div><div class="sfv">${cofStatus==='saved'?'<span style="color:var(--green)">✓ Saved · No charge today</span>':esc(cofStatus)}</div></div>
         <div><div class="sfl">Payment Preference</div><div class="sfv">${esc(paymentPreference)}</div></div>
         <div><div class="sfl">Appointment</div><div class="sfv">${isApptConfirmed?'Confirmed':'Pending confirmation'}</div></div>

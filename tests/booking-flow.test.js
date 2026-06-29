@@ -43,12 +43,16 @@ test('card-on-file uses SetupIntent with off-session usage and bookingId metadat
   assert.match(setup, /CONTEXT === 'deploy-preview'/);
   assert.match(setup, /DEPLOY_PRIME_URL/);
   assert.match(setup, /stripe_test_mode_required/);
+  assert.match(setup, /NETLIFY_DEV/);
   assert.match(index, /IS_DEPLOY_PREVIEW/);
+  assert.match(index, /isLocalPreview/);
+  assert.match(index, /LOCAL_DEV_FUNCTIONS_HINT/);
   assert.match(index, /loadStripeConfig/);
-  assert.match(index, /\/\.netlify\/functions\/stripe-config/);
+  assert.match(index, /BACKEND_BASE\+'\/stripe-config'/);
   assert.doesNotMatch(index, /const\s+STRIPE_PUBLISHABLE_KEY\s*=\s*'pk_(?:test|live)_/);
   assert.match(stripeConfig, /STRIPE_PUBLISHABLE_KEY/);
   assert.match(stripeConfig, /stripe_test_mode_required/);
+  assert.match(stripeConfig, /NETLIFY_DEV/);
   assert.doesNotMatch(stripeConfig, /STRIPE_SECRET_KEY/);
 });
 

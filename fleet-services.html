@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="Commercial fleet wash &amp; mobile detailing in New Jersey. On-site van &amp; truck cleaning for plumbing, HVAC, delivery &amp; corporate fleets — zero downtime, volume discounts. Cardetail1.">
+<meta name="geo.region" content="US-NJ">
+<meta name="geo.placename" content="New Jersey">
+<title>Commercial Fleet Wash &amp; Mobile Detailing NJ | Work Vans &amp; Trucks — Cardetail1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#02040a;--bg1:#060c16;--bg2:#0c1520;--bg3:#111e2e;
+  --blue:#4da3ff;--bdim:rgba(77,163,255,.13);--bbr:rgba(77,163,255,.28);
+  --white:#fff;--mu:#8a9bb0;--tx:#d6dce5;
+  --gr:#22c55e;--grdim:rgba(34,197,94,.12);--grbr:rgba(34,197,94,.3);
+  --am:#f5a623;--amdim:rgba(245,166,35,.12);--ambr:rgba(245,166,35,.3);
+  --gold:#f5c842;
+  --fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;
+  --r:18px;--rs:12px;--rx:26px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;line-height:1.6;overflow-x:hidden}
+
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;z-index:900;background:rgba(2,4,10,.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.06);padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+.nav-brand-img{display:flex;align-items:center;text-decoration:none;line-height:0}
+.nav-logo-img{height:52px;width:auto;max-width:245px;object-fit:contain;display:block;filter:drop-shadow(0 8px 18px rgba(0,0,0,.45))}
+.nav-links{display:flex;gap:24px;align-items:center}
+.nav-link{font-size:13px;font-weight:600;color:var(--mu);text-decoration:none;letter-spacing:.04em;transition:.2s}
+.nav-link:hover{color:var(--white)}
+.nav-cta{background:var(--blue);color:#000!important;padding:9px 22px;border-radius:999px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:.2s;text-decoration:none}
+.nav-cta:hover{background:#fff}
+.nav-menu-btn{display:none;background:none;border:none;color:var(--white);font-size:22px;cursor:pointer;padding:4px}
+@media(max-width:760px){
+  .nav-links{display:none;position:absolute;top:64px;left:0;right:0;background:var(--bg1);flex-direction:column;padding:20px;gap:16px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .nav-links.open{display:flex}
+  .nav-menu-btn{display:block}
+  .nav-logo-img{height:42px;max-width:190px}
+}
+
+/* HERO */
+.hero{min-height:88vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:100px 20px 72px;position:relative;overflow:hidden;background:var(--bg0)}
+.hero-bg{position:absolute;inset:0;z-index:0}
+.hero-bg img{width:100%;height:100%;object-fit:cover;opacity:.22}
+.hero-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(2,4,10,.75) 0%,rgba(2,4,10,.92) 60%,var(--bg0) 100%)}
+.hero-inner{position:relative;z-index:1;max-width:780px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--blue);border:1px solid var(--bbr);background:var(--bdim);padding:6px 18px;border-radius:999px;margin-bottom:20px}
+.hero h1{font-family:var(--fd);font-size:clamp(42px,8vw,82px);line-height:.92;color:var(--white);margin-bottom:18px;letter-spacing:.01em}
+.hero-sub{font-size:17px;font-weight:300;color:var(--mu);max-width:620px;margin:0 auto 32px;line-height:1.75}
+.hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn-primary{padding:16px 36px;border-radius:999px;border:none;background:var(--blue);color:#000;font-family:var(--fb);font-size:14px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s;text-decoration:none;display:inline-block}
+.btn-primary:hover{background:#fff;transform:translateY(-2px)}
+.btn-outline{padding:16px 36px;border-radius:999px;border:1px solid var(--bbr);background:transparent;color:var(--blue);font-family:var(--fb);font-size:14px;font-weight:600;cursor:pointer;transition:.2s;text-decoration:none;display:inline-block}
+.btn-outline:hover{background:var(--blue);color:#000}
+
+/* SECTIONS */
+.section{padding:80px 20px;max-width:1100px;margin:0 auto}
+.section-full{padding:80px 20px;background:var(--bg1)}
+.section-full .section{padding:0}
+.sec-eye{font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--blue);margin-bottom:10px;text-align:center}
+.sec-title{font-family:var(--fd);font-size:clamp(36px,6vw,58px);line-height:.95;color:var(--white);margin-bottom:12px;text-align:center;letter-spacing:.02em}
+.sec-desc{color:var(--mu);font-size:15px;text-align:center;max-width:620px;margin:0 auto 48px;line-height:1.7}
+
+/* BENEFITS */
+.benefit-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.benefit-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:28px 24px;transition:.22s}
+.benefit-card:hover{border-color:var(--bbr);transform:translateY(-3px)}
+.benefit-card h3{font-family:var(--fd);font-size:26px;color:var(--white);letter-spacing:.02em;margin-bottom:8px}
+.benefit-card p{font-size:14px;color:var(--mu);line-height:1.65}
+
+/* PRICING PACKAGES */
+.pkg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+.pkg-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:28px 24px;transition:.22s;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.pkg-card:hover{border-color:var(--bbr);transform:translateY(-3px)}
+.pkg-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(77,163,255,.08),transparent 60%);opacity:0;transition:.3s;pointer-events:none}
+.pkg-card:hover::before{opacity:1}
+.pkg-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gr);margin-bottom:6px}
+.pkg-price{font-family:var(--fd);font-size:34px;color:var(--gold);letter-spacing:.03em;margin-bottom:10px;line-height:1}
+.pkg-card h3{font-family:var(--fd);font-size:26px;color:var(--white);letter-spacing:.02em;margin-bottom:12px;position:relative}
+.pkg-card p{font-size:14px;color:var(--mu);line-height:1.65;position:relative;flex:1;margin-bottom:20px}
+.pkg-btn{width:100%;padding:12px;border-radius:999px;border:1px solid var(--bbr);background:transparent;color:var(--blue);font-family:var(--fb);font-size:13px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s;text-decoration:none;text-align:center;display:block;margin-top:auto}
+.pkg-btn:hover{background:var(--blue);color:#000;border-color:var(--blue)}
+
+/* CTA */
+.cta-block{background:linear-gradient(135deg,rgba(77,163,255,.12),rgba(77,163,255,.04));border:1px solid var(--bbr);border-radius:var(--rx);padding:48px 32px;text-align:center;max-width:720px;margin:0 auto}
+.cta-block h2{font-family:var(--fd);font-size:clamp(32px,5vw,48px);color:var(--white);margin-bottom:10px;letter-spacing:.02em}
+.cta-block p{color:var(--mu);font-size:15px;margin-bottom:8px;max-width:480px;margin-left:auto;margin-right:auto}
+.cta-price{font-family:var(--fd);font-size:42px;color:var(--gold);letter-spacing:.03em;margin:16px 0 24px}
+.cta-note{font-size:12px;color:rgba(138,155,176,.7);margin-top:14px}
+.cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+/* GALLERY */
+.ba-showcase-row{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:stretch}
+.ba-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);overflow:hidden;transition:.22s}
+.ba-card:hover{border-color:var(--bbr)}
+.ba-showcase{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--bg3)}
+.ba-showcase img{width:100%;height:100%;object-fit:cover;display:block}
+.ba-meta{padding:16px 18px 18px}
+.ba-vehicle{font-family:var(--fd);font-size:20px;color:var(--white);letter-spacing:.02em;margin-bottom:4px}
+.ba-service{font-size:11.5px;color:var(--blue);font-weight:600;margin-bottom:8px}
+.ba-caption{font-size:13px;color:var(--mu);line-height:1.6}
+
+/* FOOTER */
+footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:48px 24px 32px}
+.foot-in{max-width:1100px;margin:0 auto}
+.foot-top{display:grid;grid-template-columns:1fr 1fr 1fr;gap:40px;margin-bottom:36px}
+@media(max-width:700px){.foot-top{grid-template-columns:1fr}}
+.foot-logo-img{height:58px;width:auto;max-width:270px;object-fit:contain;display:block;margin-bottom:12px;filter:drop-shadow(0 8px 18px rgba(0,0,0,.38))}
+.foot-tagline{font-size:13px;color:var(--mu);line-height:1.6;max-width:260px}
+.foot-col h4{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
+.foot-col a{display:block;font-size:13.5px;color:var(--mu);text-decoration:none;margin-bottom:7px;transition:.2s}
+.foot-col a:hover{color:var(--white)}
+.foot-bot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-top:24px;border-top:1px solid rgba(255,255,255,.05)}
+.foot-copy{font-size:12px;color:rgba(138,155,176,.5)}
+.foot-areas{font-size:12px;color:rgba(138,155,176,.5)}
+
+@media(max-width:900px){
+  .ba-showcase-row{grid-template-columns:1fr;gap:16px}
+}
+@media(max-width:640px){
+  .section{padding:56px 16px}
+  .cta-block{padding:36px 20px}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav" id="main-nav">
+  <a class="nav-brand-img" href="/" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" decoding="async"></a>
+  <div class="nav-links" id="nav-links">
+    <a class="nav-link" href="/">Services</a>
+    <a class="nav-link" href="tel:5513132956">Call / Text</a>
+    <a class="nav-cta" href="index.html">Book Now</a>
+  </div>
+  <button class="nav-menu-btn" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Menu">☰</button>
+</nav>
+
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true">
+    <img src="assets/vehicles/premium/fleet-commercial.webp" alt="" width="720" height="720" decoding="async">
+  </div>
+  <div class="hero-inner">
+    <div class="hero-badge">B2B · On-Site Fleet Service</div>
+    <h1>Commercial Fleet Wash &amp; Mobile Detailing in NJ</h1>
+    <p class="hero-sub">Your work vehicles are rolling billboards. Keep your brand looking sharp and your crew happy without pulling them off the road. We clean at your lot.</p>
+    <div class="hero-btns">
+      <a class="btn-primary" href="index.html">Book Fleet Wash</a>
+    </div>
+  </div>
+</section>
+
+<section class="section-full">
+  <div class="section">
+    <div class="sec-eye">Built for business</div>
+    <h2 class="sec-title">Why Choose Us</h2>
+    <p class="sec-desc">Fleet managers across North Jersey trust us to keep work vans and trucks presentable — on your schedule, at your location.</p>
+    <div class="benefit-grid">
+      <article class="benefit-card">
+        <h3>Zero Downtime</h3>
+        <p>We wash your vans and trucks early morning, evenings, or weekends. Your vehicles stay on the road making money.</p>
+      </article>
+      <article class="benefit-card">
+        <h3>Multi-Unit Discounts</h3>
+        <p>Competitive volume pricing for plumbing, HVAC, delivery, and corporate fleets. The more we wash, the more you save.</p>
+      </article>
+      <article class="benefit-card">
+        <h3>Consistent Brand Image</h3>
+        <p>A clean truck builds trust. We remove job-site mud, road salt, and grime so your company always looks uniform.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="sec-eye">Fleet packages</div>
+  <h2 class="sec-title">Services &amp; Pricing</h2>
+  <p class="sec-desc">Straightforward per-unit pricing for vans, pickups, box trucks, and utility vehicles. Multi-unit discounts apply at checkout.</p>
+  <div class="pkg-grid">
+    <article class="pkg-card">
+      <div class="pkg-price">From $60 / unit</div>
+      <h3>Exterior Fleet Wash</h3>
+      <p>High-pressure foam wash, wheel and tire cleaning, glass wiped down, and trim dressed. Fast, efficient, and keeps the fleet looking uniform.</p>
+      <a class="pkg-btn" href="index.html">Book Fleet Wash</a>
+    </article>
+    <article class="pkg-card">
+      <div class="pkg-price">From $125 / unit</div>
+      <h3>Work Cab Deep Clean</h3>
+      <p>Work trucks get destroyed inside. We blow out the dust from vents, scrub rubber floors, extract stains from cloth seats, and sanitize steering wheels.</p>
+      <a class="pkg-btn" href="index.html">Book Fleet Wash</a>
+    </article>
+    <article class="pkg-card">
+      <div class="pkg-label">Included</div>
+      <div class="pkg-price">Wrap-Safe</div>
+      <h3>Decal &amp; Wrap Safe Wash</h3>
+      <p>We use pH-balanced soaps and safe pressure distances to clean vinyl wraps and custom graphics without peeling the edges.</p>
+      <a class="pkg-btn" href="index.html">Check Availability</a>
+    </article>
+  </div>
+</section>
+
+<section class="section-full">
+  <div class="section">
+    <div class="sec-eye">Fleet work</div>
+    <h2 class="sec-title">Recent Fleet &amp; Work Vehicles</h2>
+    <p class="sec-desc">Utility rigs, service vans, and company trucks we've detailed on-site across Bergen County and North Jersey.</p>
+    <div class="ba-showcase-row">
+      <article class="ba-card">
+        <div class="ba-showcase">
+          <img src="assets/showcase/gator-exterior-hero.jpg" alt="John Deere Gator UTV after exterior wash — clean utility vehicle on a residential driveway" width="1400" height="1050" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">John Deere Gator UTV</div>
+          <div class="ba-service">Exterior fleet wash · Utility vehicle</div>
+          <p class="ba-caption">On-site wash for a work-site utility vehicle — mud knocked off, plastics dressed, ready for the next job.</p>
+        </div>
+      </article>
+      <article class="ba-card">
+        <div class="ba-showcase">
+          <img src="assets/vehicles/premium/fleet-commercial.webp" alt="Row of commercial cargo vans and work trucks after on-site fleet wash — uniform clean finish" width="720" height="720" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Commercial Van &amp; Truck Fleet</div>
+          <div class="ba-service">Exterior fleet wash · Volume pricing</div>
+          <p class="ba-caption">Cargo vans, pickups, and box trucks washed on-site — wheels, trim, and company branding cleaned to the same standard across every unit.</p>
+        </div>
+      </article>
+      <article class="ba-card">
+        <div class="ba-showcase">
+          <img src="assets/before-after/defender-exterior-after.jpg" alt="Land Rover Defender work truck after exterior detail — clean paint and wheels ready for the job site" width="1400" height="1050" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Land Rover Defender</div>
+          <div class="ba-service">Exterior detail · Work truck finish</div>
+          <p class="ba-caption">Heavy-use utility vehicle brought back to a professional standard — road grime and salt removed, company-ready.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="book-fleet">
+  <div class="cta-block">
+    <h2>Ready to Book Your Fleet?</h2>
+    <p>Exterior washes from $60/unit · work cab deep cleans from $125/unit. Book online or call to schedule on-site service.</p>
+    <div class="cta-price">From $60 / unit</div>
+    <div class="cta-btns">
+      <a class="btn-primary" href="index.html">Book Fleet Wash</a>
+      <a class="btn-outline" href="tel:5513132956">Call 551-313-2956</a>
+    </div>
+    <p class="cta-note">We typically respond within one business day. For same-week scheduling, call or text directly.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="foot-in">
+    <div class="foot-top">
+      <div>
+        <img class="foot-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" loading="lazy" decoding="async">
+        <p class="foot-tagline">We are a local, hard-working team proud to serve our Bergen County neighbors. Whether it's the family SUV, your weekend boat, or a commercial fleet, we show up on time and do the job right. Detailing Zone LLC.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Services</h4>
+        <a href="/">Cars, SUVs &amp; Trucks</a>
+        <a href="/">Boats &amp; Marine</a>
+        <a href="rv-detailing.html">RVs &amp; Trailers</a>
+        <a href="/">Motorcycles &amp; ATV</a>
+        <a href="fleet-services.html">Fleet Services</a>
+      </div>
+      <div class="foot-col">
+        <h4>Contact</h4>
+        <a href="tel:5513132956">📞 551-313-2956</a>
+        <a href="https://www.instagram.com/cardetail1com" target="_blank" rel="noopener">📸 @cardetail1com</a>
+        <a href="/">Book Online</a>
+        <a>📍 Palisades Park · Bergen Co.</a>
+      </div>
+    </div>
+    <div class="foot-bot">
+      <div class="foot-copy">© 2026 Cardetail1 · Detailing Zone LLC · All rights reserved.</div>
+      <div class="foot-areas">Serving Bergen County · Hudson County · Manhattan · Long Island · Fairfield CT · and surrounding areas</div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

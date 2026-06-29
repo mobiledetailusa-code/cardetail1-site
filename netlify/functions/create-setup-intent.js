@@ -37,11 +37,12 @@ exports.handler = async (event) => {
     return json(503, { ok: false, error: 'stripe_not_configured', fallback: true });
   }
   const mode = secret.startsWith('sk_test_') ? 'test' : 'live';
+  const isLocalDev = process.env.NETLIFY_DEV === 'true';
   const isDeployPreview =
     process.env.CONTEXT === 'deploy-preview' ||
     /^https:\/\/deploy-preview-\d+--/i.test(process.env.DEPLOY_PRIME_URL || '');
-  if (isDeployPreview && mode !== 'test') {
-    console.log('[create-setup-intent] blocked: deploy-preview requires test mode, got live key');
+  if ((isDeployPreview || isLocalDev) && mode !== 'test') {
+    console.log('[create-setup-intent] blocked: preview/local dev requires test mode, got live key');
     return json(503, { ok: false, error: 'stripe_test_mode_required' });
   }
 

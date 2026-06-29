@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="Mobile RV, motorhome &amp; travel trailer detailing in NJ. We bring water, power &amp; scaffolding to your driveway or storage lot in Bergen County. Full exterior washes from $349, roof care &amp; oxidation removal.">
+<meta name="geo.region" content="US-NJ">
+<meta name="geo.placename" content="Bergen County, New Jersey">
+<title>Mobile RV, Motorhome &amp; Travel Trailer Detailing NJ | Cardetail1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#02040a;--bg1:#060c16;--bg2:#0c1520;--bg3:#111e2e;
+  --blue:#4da3ff;--bdim:rgba(77,163,255,.13);--bbr:rgba(77,163,255,.28);
+  --white:#fff;--mu:#8a9bb0;--tx:#d6dce5;
+  --gr:#22c55e;--grdim:rgba(34,197,94,.12);--grbr:rgba(34,197,94,.3);
+  --am:#f5a623;--amdim:rgba(245,166,35,.12);--ambr:rgba(245,166,35,.3);
+  --gold:#f5c842;
+  --fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;
+  --r:18px;--rs:12px;--rx:26px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;line-height:1.6;overflow-x:hidden}
+
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;z-index:900;background:rgba(2,4,10,.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.06);padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+.nav-brand-img{display:flex;align-items:center;text-decoration:none;line-height:0}
+.nav-logo-img{height:52px;width:auto;max-width:245px;object-fit:contain;display:block;filter:drop-shadow(0 8px 18px rgba(0,0,0,.45))}
+.nav-links{display:flex;gap:24px;align-items:center}
+.nav-link{font-size:13px;font-weight:600;color:var(--mu);text-decoration:none;letter-spacing:.04em;transition:.2s}
+.nav-link:hover{color:var(--white)}
+.nav-cta{background:var(--blue);color:#000!important;padding:9px 22px;border-radius:999px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:.2s;text-decoration:none}
+.nav-cta:hover{background:#fff}
+.nav-menu-btn{display:none;background:none;border:none;color:var(--white);font-size:22px;cursor:pointer;padding:4px}
+@media(max-width:760px){
+  .nav-links{display:none;position:absolute;top:64px;left:0;right:0;background:var(--bg1);flex-direction:column;padding:20px;gap:16px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .nav-links.open{display:flex}
+  .nav-menu-btn{display:block}
+  .nav-logo-img{height:42px;max-width:190px}
+}
+
+/* HERO */
+.hero{min-height:88vh;background:linear-gradient(180deg,#020b18 0%,#030d1a 55%,var(--bg0) 100%);display:flex;align-items:center;justify-content:center;text-align:center;padding:100px 20px 72px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 55% at 50% 8%,rgba(77,163,255,.14),transparent);pointer-events:none}
+.hero-inner{position:relative;z-index:1;max-width:780px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--blue);border:1px solid var(--bbr);background:var(--bdim);padding:6px 18px;border-radius:999px;margin-bottom:20px}
+.hero h1{font-family:var(--fd);font-size:clamp(42px,8vw,82px);line-height:.92;color:var(--white);margin-bottom:18px;letter-spacing:.01em}
+.hero-sub{font-size:17px;font-weight:300;color:var(--mu);max-width:620px;margin:0 auto 32px;line-height:1.75}
+.hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn-primary{padding:16px 36px;border-radius:999px;border:none;background:var(--blue);color:#000;font-family:var(--fb);font-size:14px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s;text-decoration:none;display:inline-block}
+.btn-primary:hover{background:#fff;transform:translateY(-2px)}
+.btn-outline{padding:16px 36px;border-radius:999px;border:1px solid var(--bbr);background:transparent;color:var(--blue);font-family:var(--fb);font-size:14px;font-weight:600;cursor:pointer;transition:.2s;text-decoration:none;display:inline-block}
+.btn-outline:hover{background:var(--blue);color:#000}
+
+/* SECTIONS */
+.section{padding:80px 20px;max-width:1100px;margin:0 auto}
+.section-full{padding:80px 20px;background:var(--bg1)}
+.section-full .section{padding:0}
+.sec-eye{font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--blue);margin-bottom:10px;text-align:center}
+.sec-title{font-family:var(--fd);font-size:clamp(36px,6vw,58px);line-height:.95;color:var(--white);margin-bottom:12px;text-align:center;letter-spacing:.02em}
+.sec-desc{color:var(--mu);font-size:15px;text-align:center;max-width:620px;margin:0 auto 48px;line-height:1.7}
+
+/* BENEFITS */
+.benefit-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.benefit-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:28px 24px;transition:.22s}
+.benefit-card:hover{border-color:var(--bbr);transform:translateY(-3px)}
+.benefit-card h3{font-family:var(--fd);font-size:26px;color:var(--white);letter-spacing:.02em;margin-bottom:8px}
+.benefit-card p{font-size:14px;color:var(--mu);line-height:1.65}
+
+/* SERVICE PACKAGES */
+.service-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+.svc-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:28px 24px;transition:.22s;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.svc-card:hover{border-color:var(--bbr);transform:translateY(-4px);box-shadow:0 24px 60px rgba(0,0,0,.4)}
+.svc-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(77,163,255,.08),transparent 60%);opacity:0;transition:.3s;pointer-events:none}
+.svc-card:hover::before{opacity:1}
+.svc-name{font-family:var(--fd);font-size:28px;color:var(--white);margin-bottom:6px;letter-spacing:.02em}
+.svc-from{font-size:13px;color:var(--gold);font-weight:700;margin-bottom:14px;letter-spacing:.04em}
+.svc-desc{font-size:14px;color:var(--mu);margin-bottom:20px;line-height:1.65;flex:1}
+.svc-btn{width:100%;padding:12px;border-radius:999px;border:1px solid var(--bbr);background:transparent;color:var(--blue);font-family:var(--fb);font-size:13px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s;text-decoration:none;text-align:center;display:block;margin-top:auto}
+.svc-btn:hover{background:var(--blue);color:#000;border-color:var(--blue)}
+
+/* GALLERY */
+.ba-showcase-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;align-items:stretch}
+.ba-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);overflow:hidden;transition:.22s}
+.ba-card:hover{border-color:var(--bbr)}
+.ba-showcase{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--bg3)}
+.ba-showcase img{width:100%;height:100%;object-fit:cover;display:block}
+.ba-meta{padding:16px 18px 18px}
+.ba-vehicle{font-family:var(--fd);font-size:20px;color:var(--white);letter-spacing:.02em;margin-bottom:4px}
+.ba-service{font-size:11.5px;color:var(--blue);font-weight:600;margin-bottom:8px}
+.ba-caption{font-size:13px;color:var(--mu);line-height:1.6}
+
+/* CTA */
+.cta-block{background:linear-gradient(135deg,rgba(77,163,255,.12),rgba(77,163,255,.04));border:1px solid var(--bbr);border-radius:var(--rx);padding:48px 32px;text-align:center;max-width:720px;margin:0 auto}
+.cta-block h2{font-family:var(--fd);font-size:clamp(32px,5vw,48px);color:var(--white);margin-bottom:10px;letter-spacing:.02em}
+.cta-block p{color:var(--mu);font-size:15px;margin-bottom:8px;max-width:480px;margin-left:auto;margin-right:auto}
+.cta-price{font-family:var(--fd);font-size:42px;color:var(--gold);letter-spacing:.03em;margin:16px 0 24px}
+.cta-note{font-size:12px;color:rgba(138,155,176,.7);margin-top:14px}
+
+/* FOOTER */
+footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:48px 24px 32px}
+.foot-in{max-width:1100px;margin:0 auto}
+.foot-top{display:grid;grid-template-columns:1fr 1fr 1fr;gap:40px;margin-bottom:36px}
+@media(max-width:700px){.foot-top{grid-template-columns:1fr}}
+.foot-logo-img{height:58px;width:auto;max-width:270px;object-fit:contain;display:block;margin-bottom:12px;filter:drop-shadow(0 8px 18px rgba(0,0,0,.38))}
+.foot-tagline{font-size:13px;color:var(--mu);line-height:1.6;max-width:260px}
+.foot-col h4{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
+.foot-col a{display:block;font-size:13.5px;color:var(--mu);text-decoration:none;margin-bottom:7px;transition:.2s}
+.foot-col a:hover{color:var(--white)}
+.foot-bot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-top:24px;border-top:1px solid rgba(255,255,255,.05)}
+.foot-copy{font-size:12px;color:rgba(138,155,176,.5)}
+.foot-areas{font-size:12px;color:rgba(138,155,176,.5)}
+
+@media(max-width:640px){
+  .section{padding:56px 16px}
+  .ba-showcase-row{grid-template-columns:1fr;gap:16px}
+  .service-grid{grid-template-columns:1fr;gap:14px}
+  .svc-name{font-size:24px}
+  .cta-block{padding:36px 20px}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav" id="main-nav">
+  <a class="nav-brand-img" href="/" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" decoding="async"></a>
+  <div class="nav-links" id="nav-links">
+    <a class="nav-link" href="/">Services</a>
+    <a class="nav-link" href="tel:5513132956">Call / Text</a>
+    <a class="nav-cta" href="/">Book Now</a>
+  </div>
+  <button class="nav-menu-btn" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Menu">☰</button>
+</nav>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">Bergen County · Fully Mobile RV Service</div>
+    <h1>Mobile RV, Motorhome &amp; Travel Trailer Detailing in NJ</h1>
+    <p class="hero-sub">Don't waste your weekend washing a 30-foot rig. We bring the water, power, and scaffolding directly to your driveway or storage facility. Bergen County's trusted mobile service.</p>
+    <div class="hero-btns">
+      <a class="btn-primary" href="index.html">Book RV Detail</a>
+    </div>
+  </div>
+</section>
+
+<section class="section-full">
+  <div class="section">
+    <div class="sec-eye">Why RV owners call us</div>
+    <h2 class="sec-title">Why Choose Us</h2>
+    <p class="sec-desc">Big rigs need more than a garden hose. We've built our mobile setup around what RV owners actually need — no utility hookups, no towing to a shop.</p>
+    <div class="benefit-grid">
+      <article class="benefit-card">
+        <h3>Fully Equipped Mobile Units</h3>
+        <p>We bring our own spot-free water tanks, generators, and heavy-duty scaffolding. No need to hook up to your utilities.</p>
+      </article>
+      <article class="benefit-card">
+        <h3>Roof &amp; Solar Panel Care</h3>
+        <p>Built-up grime destroys RV roofs and blocks solar efficiency. We safely wash, treat, and protect your roof membrane.</p>
+      </article>
+      <article class="benefit-card">
+        <h3>Storage Lot Friendly</h3>
+        <p>We detail your Class A, Class C, Fifth-Wheel, or Travel Trailer right where it sits.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="packages">
+  <div class="sec-eye">Packages &amp; pricing</div>
+  <h2 class="sec-title">Services &amp; Pricing</h2>
+  <p class="sec-desc">Published per-length pricing for travel trailers, fifth-wheels, and motorhomes. Totals scale with your rig's length — book online to see your price.</p>
+  <div class="service-grid">
+    <article class="svc-card">
+      <h3 class="svc-name">Full Exterior Wash</h3>
+      <div class="svc-from">From $349</div>
+      <p class="svc-desc">Complete exterior wash, bug and tar removal from the front cap, wheel and tire cleaning, and window cleaning. Perfect for end-of-season or pre-trip prep.</p>
+      <a class="svc-btn" href="index.html">Book RV Detail</a>
+    </article>
+    <article class="svc-card">
+      <h3 class="svc-name">Roof Wash &amp; UV Treatment</h3>
+      <div class="svc-from">From $149</div>
+      <p class="svc-desc">Deep clean of the roof membrane, slide-out tops, and solar panels, followed by a protective UV coating to prevent chalking and cracking.</p>
+      <a class="svc-btn" href="index.html">Check Availability</a>
+    </article>
+    <article class="svc-card">
+      <h3 class="svc-name">Oxidation Removal &amp; Wax</h3>
+      <div class="svc-from">From $849</div>
+      <p class="svc-desc">Machine polishing to cut through chalky, faded fiberglass. Restores the deep gloss to your gel coat and seals it for the season.</p>
+      <a class="svc-btn" href="index.html">Book RV Detail</a>
+    </article>
+  </div>
+</section>
+
+<section class="section-full">
+  <div class="section">
+    <div class="sec-eye">Recent work</div>
+    <h2 class="sec-title">RV Gallery</h2>
+    <p class="sec-desc">Real rigs we've finished in North Jersey — motorhomes, fifth-wheels, and travel trailers at driveways and storage lots.</p>
+    <div class="ba-showcase-row">
+      <article class="ba-card">
+        <div class="ba-showcase">
+          <img src="assets/before-after/vienna-rv-front-after.jpg" alt="Renegade Vienna Class C motorhome after full exterior detail — clean front cap and cab area" width="1400" height="1050" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Renegade Vienna</div>
+          <div class="ba-service">Exterior detail · Front cap &amp; cab</div>
+          <p class="ba-caption">Class C motorhome front-end work including cab, cap, and lower panels — finished at the customer's home in Bergen County.</p>
+        </div>
+      </article>
+      <article class="ba-card">
+        <div class="ba-showcase">
+          <img src="assets/before-after/vienna-rv-roof-after.jpg" alt="Renegade Vienna Class C motorhome roof after wash and treatment — clean white membrane" width="1400" height="1050" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Renegade Vienna</div>
+          <div class="ba-service">Roof wash &amp; UV treatment</div>
+          <p class="ba-caption">Roof membrane deep-cleaned and treated — grime removed from the membrane and slide-out tops without damaging seals.</p>
+        </div>
+      </article>
+      <article class="ba-card">
+        <div class="ba-showcase">
+          <img src="assets/showcase/jayco-dolly-front.jpg" alt="Jayco Eagle Series fifth-wheel front cap after exterior detail — glossy white fiberglass" width="1400" height="1050" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Jayco Eagle Fifth-Wheel</div>
+          <div class="ba-service">Exterior wash · Front cap &amp; decals</div>
+          <p class="ba-caption">Full front-cap detail on a tall fifth-wheel — oxidation knocked back and the white gel coat brought back to a clean gloss.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="cta-block">
+    <h2>Ready to Book Your RV?</h2>
+    <p>Exterior washes from $349 · roof care from $149 · premium oxidation &amp; wax from $849. Book online or call to schedule.</p>
+    <div class="cta-price">From $349</div>
+    <a class="btn-primary" href="index.html">Book RV Detail</a>
+    <p class="cta-note">Prefer to talk it through first? Call or text <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="foot-in">
+    <div class="foot-top">
+      <div>
+        <img class="foot-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" loading="lazy" decoding="async">
+        <p class="foot-tagline">We are a local, hard-working team proud to serve our Bergen County neighbors. Whether it's the family SUV, your weekend boat, or a commercial fleet, we show up on time and do the job right. Detailing Zone LLC.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Services</h4>
+        <a href="/">Cars, SUVs &amp; Trucks</a>
+        <a href="/">Boats &amp; Marine</a>
+        <a href="rv-detailing.html">RVs &amp; Trailers</a>
+        <a href="/">Motorcycles &amp; ATV</a>
+        <a href="fleet-services.html">Fleet Services</a>
+      </div>
+      <div class="foot-col">
+        <h4>Contact</h4>
+        <a href="tel:5513132956">📞 551-313-2956</a>
+        <a href="https://www.instagram.com/cardetail1com" target="_blank" rel="noopener">📸 @cardetail1com</a>
+        <a href="/">Book Online</a>
+        <a>📍 Palisades Park · Bergen Co.</a>
+      </div>
+    </div>
+    <div class="foot-bot">
+      <div class="foot-copy">© 2026 Cardetail1 · Detailing Zone LLC · All rights reserved.</div>
+      <div class="foot-areas">Serving Bergen County · Hudson County · Manhattan · Long Island · Fairfield CT · and surrounding areas</div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
