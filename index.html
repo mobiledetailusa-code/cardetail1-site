@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <link rel="canonical" href="https://cardetail1.com/">
 <meta name="description" content="Cardetail1 — mobile auto, marine, RV &amp; fleet detailing based in Palisades Park, Bergen County, NJ. We come to you across the Tri-State — up to 150 miles. Book online, no shop visit.">
+<meta name="keywords" content="mobile car detailing, mobile detailing near me, auto detailing, interior detailing, paint correction, ceramic coating, boat &amp; RV detailing, fleet detailing, Bergen County NJ, Palisades Park, Tri-State NY NJ CT PA">
 <meta name="geo.region" content="US-NJ">
 <meta name="geo.placename" content="Palisades Park, Bergen County, New Jersey">
 <meta name="geo.position" content="40.8482;-73.9976">
@@ -6154,10 +6155,14 @@ function resolveHubPageForHero(zip){
   const zip3 = zip5.slice(0, 3);
   const zip2 = zip5.slice(0, 2);
   if(HUB_ZIP3_OVERRIDES[zip3]) return HUB_ZIP3_OVERRIDES[zip3];
+  // New Jersey (070–089)
   if(zip2 === '07' || zip2 === '08') return 'bergen-county-hub.html';
-  if(zip2 === '10' || zip2 === '11') return 'ny-metro-hub.html';
+  // New York City, suburbs / Long Island and Hudson Valley (100–123)
+  if(zip2 === '10' || zip2 === '11' || zip2 === '12') return 'ny-metro-hub.html';
+  // Connecticut (060–069)
   if(zip2 === '06') return 'connecticut-hub.html';
-  if(zip2 === '19') return 'pennsylvania-hub.html';
+  // Pennsylvania — Lehigh/Pocono (180–183) and Philadelphia/Bucks (189–191)
+  if(zip2 === '18' || zip2 === '19') return 'pennsylvania-hub.html';
   return null;
 }
 
@@ -7871,7 +7876,6 @@ function onHeroZipSubmit(){
   const hubPage = resolveHubPageForHero(zip5);
   if(hubPage){
     sessionStorage.setItem('cd1_zip', zip5);
-    console.log('Debug: CEP detectado -> Redirecionando para Hub', zip5, hubPage);
     window.location.href = hubPage + '?zip=' + zip5;
     return;
   }
