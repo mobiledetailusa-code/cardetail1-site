@@ -43,11 +43,12 @@ const cases = [
   ['07030', 'hudson'],
   ['10583', 'nyMetro'],
   ['19104', 'pennsylvania'],
+  ['90210', null],
 ];
 let failed = 0;
 for (const [zip, expected] of cases) {
   const r = resolveHubByZip(zip);
-  const ok = r?.key === expected;
+  const ok = expected === null ? r === null : r?.key === expected;
   if (!ok) failed++;
   console.log(zip, r?.key, ok ? 'OK' : 'FAIL expected ' + expected);
 }

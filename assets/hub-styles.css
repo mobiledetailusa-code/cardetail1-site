@@ -1,0 +1,88 @@
+/* Shared responsive hero backgrounds for hub pages (desktop / mobile) */
+.hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-bg-desktop,
+.hero-bg-mobile {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.hero-bg-desktop::after,
+.hero-bg-mobile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(2, 4, 10, 0.9) 0%, rgba(2, 4, 10, 0.72) 43%, rgba(2, 4, 10, 0.28) 100%),
+    linear-gradient(180deg, rgba(2, 11, 24, 0.4), rgba(3, 13, 26, 0.45), var(--bg0));
+}
+
+.hero-bg-mobile {
+  display: none;
+}
+
+.hero > *:not(.hero-bg-desktop):not(.hero-bg-mobile) {
+  position: relative;
+  z-index: 1;
+}
+
+.hero::before {
+  z-index: 0;
+}
+
+@media (max-width: 760px) {
+  .hero-bg-desktop {
+    display: none;
+  }
+
+  .hero-bg-mobile {
+    display: block;
+  }
+
+  .hero-bg-mobile::after {
+    background:
+      linear-gradient(90deg, rgba(2, 4, 10, 0.94) 0%, rgba(2, 4, 10, 0.75) 55%, rgba(2, 4, 10, 0.36) 100%),
+      linear-gradient(180deg, rgba(2, 11, 24, 0.45), rgba(3, 13, 26, 0.52), var(--bg0));
+  }
+}
+
+/* NJ counties share NJ header assets */
+.hero--nj .hero-bg-desktop {
+  background-image: url('hubs/hero-nj-desktop.webp');
+}
+
+.hero--nj .hero-bg-mobile {
+  background-image: url('hubs/hero-nj-mobile.webp');
+}
+
+.hero--ny .hero-bg-desktop {
+  background-image: url('hubs/hero-ny-desktop.webp');
+}
+
+.hero--ny .hero-bg-mobile {
+  background-image: url('hubs/hero-ny-mobile.webp');
+}
+
+.hero--ct .hero-bg-desktop {
+  background-image: url('hubs/hero-ct-desktop.webp');
+}
+
+.hero--ct .hero-bg-mobile {
+  background-image: url('hubs/hero-ct-mobile.webp');
+}
+
+.hero--pa .hero-bg-desktop {
+  background-image: url('hubs/hero-pa-desktop.webp');
+}
+
+.hero--pa .hero-bg-mobile {
+  background-image: url('hubs/hero-pa-mobile.webp');
+}

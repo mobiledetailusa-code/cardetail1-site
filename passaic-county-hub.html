@@ -861,11 +861,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .nav-brand-img{display:flex;align-items:center;text-decoration:none;line-height:0}
 .nav-logo-img{height:52px;width:auto;max-width:245px;object-fit:contain;display:block;filter:drop-shadow(0 8px 18px rgba(0,0,0,.45))}
 .foot-logo-img{height:58px;width:auto;max-width:270px;object-fit:contain;display:block;margin-bottom:12px;filter:drop-shadow(0 8px 18px rgba(0,0,0,.38))}
-.hero{background:
-  linear-gradient(90deg,rgba(2,4,10,.90) 0%,rgba(2,4,10,.72) 43%,rgba(2,4,10,.28) 100%),
-  linear-gradient(180deg,rgba(2,11,24,.40),rgba(3,13,26,.45),var(--bg0)),
-  url("assets/hero-mobile-detailing.webp") center right/cover no-repeat !important;
-}
+.hero{background:linear-gradient(180deg,#020b18,#030d1a,var(--bg0))}
 .hero::before{background:radial-gradient(ellipse 70% 60% at 38% 18%,rgba(77,163,255,.22),transparent),linear-gradient(180deg,transparent 72%,var(--bg0) 100%) !important}
 .hero-brand-mark{display:flex;justify-content:center;margin-bottom:20px}
 .hero-brand-mark img{height:92px;width:auto;max-width:min(430px,88vw);object-fit:contain;filter:drop-shadow(0 14px 32px rgba(0,0,0,.62))}
@@ -886,7 +882,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .processor-pill{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--bbr);background:var(--bdim);color:var(--blue);border-radius:999px;padding:5px 10px}
 @media(max-width:760px){
   .nav-logo-img{height:42px;max-width:190px}
-  .hero{text-align:left;justify-content:flex-start;background-position:center right !important}
+  .hero{text-align:left;justify-content:flex-start}
   .hero-brand-mark{justify-content:flex-start}
   .hero-brand-mark img{height:70px;max-width:86vw}
   .visual-proof-in{grid-template-columns:1fr}
@@ -1424,10 +1420,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .section-full,.ba-section,#reviews,#how{content-visibility:auto;contain-intrinsic-size:900px}
 @media(max-width:980px){.specialty-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){
-  .hero{background:
-    linear-gradient(90deg,rgba(2,4,10,.94) 0%,rgba(2,4,10,.75) 55%,rgba(2,4,10,.36) 100%),
-    linear-gradient(180deg,rgba(2,11,24,.45),rgba(3,13,26,.52),var(--bg0)),
-    url("assets/hero-mobile-detailing-720.webp") 62% center/cover no-repeat !important}
   .visual-panel-img{background-image:url("assets/services-vehicles-640.webp")}
   .specialty-lead{grid-template-columns:1fr;gap:18px}
   .specialty-grid{grid-template-columns:1fr}
@@ -1436,6 +1428,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 }
 
 </style>
+<link rel="stylesheet" href="assets/hub-styles.css">
 </head>
 <body>
 
@@ -1454,7 +1447,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </nav>
 
 <!-- HERO -->
-<section class="hero">
+<section class="hero hero--nj">
+  <div class="hero-bg-desktop" aria-hidden="true"></div>
+  <div class="hero-bg-mobile" aria-hidden="true"></div>
   <div>
     <div class="hero-brand-mark"><img src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Auto Marine RV Fleet" decoding="async" fetchpriority="high"></div>
     <div class="hero-badge">📍 Serving Passaic County and North Jersey | Fully Mobile Service</div>
