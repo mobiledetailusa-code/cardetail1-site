@@ -19,8 +19,8 @@ test('travel fee tier boundaries', () => {
   assert.equal(travelFeeFromMiles(86), 40);
   assert.equal(travelFeeFromMiles(100), 40);
   assert.equal(travelFeeFromMiles(101), 55);
-  assert.equal(travelFeeFromMiles(150), 55);
-  assert.equal(travelFeeFromMiles(151), null);
+  assert.equal(travelFeeFromMiles(120), 55);
+  assert.equal(travelFeeFromMiles(121), null);
 });
 
 test('resolveTravelForZip covers core and extended zips', () => {

@@ -5,7 +5,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <link rel="canonical" href="https://cardetail1.com/">
-<meta name="description" content="Cardetail1 — mobile auto, marine, RV &amp; fleet detailing based in Palisades Park, Bergen County, NJ. We come to you across the Tri-State — up to 150 miles. Book online, no shop visit.">
+<meta name="description" content="Cardetail1 — mobile auto, marine, RV &amp; fleet detailing based in Palisades Park, Bergen County, NJ. We come to you across the Tri-State — up to 120 miles. Book online, no shop visit.">
+<meta property="og:description" content="Mobile detailing for cars, boats, RVs &amp; fleets — based in Palisades Park, NJ. We come to you across Bergen County, NYC, CT &amp; PA (up to 120 mi). Book online.">
 <meta name="geo.region" content="US-NJ">
 <meta name="geo.placename" content="Palisades Park, Bergen County, New Jersey">
 <meta name="geo.position" content="40.8482;-73.9976">
@@ -15,10 +16,10 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://cardetail1.com/">
 <meta property="og:title" content="Cardetail1 — Mobile Detailing | Palisades Park &amp; Bergen County, NJ">
-<meta property="og:description" content="Mobile detailing for cars, boats, RVs &amp; fleets — based in Palisades Park, NJ. We come to you across Bergen County, NYC, CT &amp; PA (up to 150 mi). Book online.">
+<meta property="og:description" content="Mobile detailing for cars, boats, RVs &amp; fleets — based in Palisades Park, NJ. We come to you across Bergen County, NYC, CT &amp; PA (up to 120 mi). Book online.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Cardetail1 — Mobile Detailing | Palisades Park &amp; Bergen County, NJ">
-<meta name="twitter:description" content="Mobile detailing for cars, boats, RVs &amp; fleets — based in Palisades Park, NJ. We come to you across Bergen County, NYC, CT &amp; PA (up to 150 mi). Book online.">
+<meta name="twitter:description" content="Mobile detailing for cars, boats, RVs &amp; fleets — based in Palisades Park, NJ. We come to you across Bergen County, NYC, CT &amp; PA (up to 120 mi). Book online.">
 <title>Cardetail1 — Mobile Detailing | Palisades Park &amp; Bergen County, NJ</title>
 <script type="application/ld+json">
 {
@@ -6014,14 +6015,14 @@ function getCityByZip(zip){
 }
 
 // ── Travel fee tiers (flat per appointment location, not per vehicle) ─────────
-const TRAVEL_MAX_MILES = 150;
+const TRAVEL_MAX_MILES = 120;
 const TRAVEL_FEE_TIERS = [
   { maxMi: 30,  fee: 0 },
   { maxMi: 50,  fee: 15 },
   { maxMi: 65,  fee: 25 },
   { maxMi: 85,  fee: 35 },
   { maxMi: 100, fee: 40 },
-  { maxMi: 150, fee: 55 }, // 101–150 mi same tier
+  { maxMi: 120, fee: 55 }, // 101–120 mi same tier
 ];
 const ZONE_DEFAULT_MILES = {
   nj_a: 12, nj_b: 38, nyc: 22, ny_s: 42, ct: 58,
@@ -6143,13 +6144,24 @@ function getZoneByZip(zip){
   return null;
 }
 
-// Hero ZIP → hub page: ZIP3 county overrides before 2-digit prefix rules
-// (073 Hudson / 071+072 Essex / 075 Passaic must win over 07→Bergen fallback)
-const HUB_ZIP3_OVERRIDES = {
-  '073': 'hudson-county-hub.html',
-  '071': 'essex-county-hub.html',
-  '072': 'essex-county-hub.html',
-  '075': 'passaic-county-hub.html',
+// Hero ZIP → hub page: ZIP5 overrides win over ZIP3 county prefixes
+const HUB_ZIP5_TO_PAGE = {
+  '07030':'hudson-county-hub.html','07032':'hudson-county-hub.html','07047':'hudson-county-hub.html',
+  '07086':'hudson-county-hub.html','07087':'hudson-county-hub.html','07093':'hudson-county-hub.html','07094':'hudson-county-hub.html',
+  '07003':'essex-county-hub.html','07028':'essex-county-hub.html','07040':'essex-county-hub.html','07042':'essex-county-hub.html',
+  '07043':'essex-county-hub.html','07044':'essex-county-hub.html','07050':'essex-county-hub.html','07052':'essex-county-hub.html',
+  '07201':'essex-county-hub.html','07202':'essex-county-hub.html',
+  '07011':'passaic-county-hub.html','07012':'passaic-county-hub.html','07013':'passaic-county-hub.html','07014':'passaic-county-hub.html',
+  '07055':'passaic-county-hub.html','07407':'passaic-county-hub.html','07424':'passaic-county-hub.html',
+  '07010':'bergen-county-hub.html','07020':'bergen-county-hub.html','07022':'bergen-county-hub.html','07024':'bergen-county-hub.html',
+  '07026':'bergen-county-hub.html','07031':'bergen-county-hub.html','07057':'bergen-county-hub.html','07070':'bergen-county-hub.html',
+  '07071':'bergen-county-hub.html','07072':'bergen-county-hub.html','07073':'bergen-county-hub.html','07074':'bergen-county-hub.html','07075':'bergen-county-hub.html',
+};
+const HUB_ZIP3_TO_PAGE = {
+  '076':'bergen-county-hub.html','074':'bergen-county-hub.html',
+  '073':'hudson-county-hub.html',
+  '071':'essex-county-hub.html','072':'essex-county-hub.html',
+  '075':'passaic-county-hub.html',
 };
 
 function resolveHubPageForHero(zip){
@@ -6157,8 +6169,9 @@ function resolveHubPageForHero(zip){
   if(zip5.length < 5) return null;
   const zip3 = zip5.slice(0, 3);
   const zip2 = zip5.slice(0, 2);
-  if(HUB_ZIP3_OVERRIDES[zip3]) return HUB_ZIP3_OVERRIDES[zip3];
-  if(zip2 === '07' || zip2 === '08') return 'bergen-county-hub.html';
+  if(HUB_ZIP5_TO_PAGE[zip5]) return HUB_ZIP5_TO_PAGE[zip5];
+  if(HUB_ZIP3_TO_PAGE[zip3]) return HUB_ZIP3_TO_PAGE[zip3];
+  if(zip2 === '07' || zip2 === '08') return 'new-jersey-hub.html';
   if(zip2 === '10' || zip2 === '11') return 'ny-metro-hub.html';
   if(zip2 === '06') return 'connecticut-hub.html';
   if(zip2 === '19') return 'pennsylvania-hub.html';

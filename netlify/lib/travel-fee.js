@@ -1,7 +1,7 @@
 // Mile-based travel fee — flat per appointment location (not per vehicle).
-// Base: Bergen County, NJ (076xx). Service radius up to 150 miles.
+// Base: Bergen County, NJ (076xx). Service radius up to 120 miles.
 
-const TRAVEL_MAX_MILES = 150;
+const TRAVEL_MAX_MILES = 120;
 
 const TRAVEL_FEE_TIERS = [
   { maxMi: 30, fee: 0 },
@@ -9,7 +9,7 @@ const TRAVEL_FEE_TIERS = [
   { maxMi: 65, fee: 25 },
   { maxMi: 85, fee: 35 },
   { maxMi: 100, fee: 40 },
-  { maxMi: 150, fee: 55 }, // 101–150 mi same tier
+  { maxMi: 120, fee: 55 }, // 101–120 mi same tier
 ];
 
 const ZONE_DEFAULT_MILES = {

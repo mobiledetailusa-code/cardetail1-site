@@ -1,4 +1,4 @@
-<!--
+﻿<!--
   CITY LANDING PAGE TEMPLATE - replace tokens per city:
   Bergen County  - city display name (e.g. Newark, Trenton, Westchester, NY)
   Used in: <title>, meta description, hero-badge, hero H1, hero-sub
@@ -24,7 +24,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Cardetail1 - Mobile Car Detailing | Bergen County, NJ">
 <meta name="twitter:description" content="Mobile car detailing in Bergen County, NJ. We come to your driveway in Palisades Park, Fort Lee and North Jersey. Book online.">
-<title>Mobile Car Detailing in Bergen County, NJ | Cardetail1</title>
+<title>Mobile Car Detailing in New Jersey | Cardetail1</title>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -1454,7 +1454,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div>
     <div class="hero-brand-mark"><img src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Auto Marine RV Fleet" decoding="async" fetchpriority="high"></div>
     <div class="hero-badge">📍 Serving Bergen County and North Jersey | Fully Mobile Service</div>
-    <h1>Mobile Car Detailing in Bergen County, New Jersey</h1>
+    <h1>Mobile Car Detailing in New Jersey</h1>
     <p class="hero-sub">Premium mobile detailing across Bergen County, from Palisades Park to Fort Lee. We bring the water, power, and expertise to your driveway.</p>
     <div class="hero-proof">
       <span>★★★★★ Neighbor-rated</span>
@@ -1495,8 +1495,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="hub-radius-inner">
     <div class="sec-eye">Coverage</div>
     <div class="sec-title">MOBILE SERVICE<br><span style="color:var(--blue)">RADIUS</span></div>
-    <p class="hub-radius-desc">We operate from our <strong>Hackensack / Palisades Park</strong> hub and travel up to <strong>150 miles</strong> to your driveway, marina, or fleet yard. Enter your ZIP above - we'll confirm coverage and unlock booking for your area.</p>
-    <p class="hub-radius-note">We travel up to 150 miles from our anchor city. Distance may affect your total - mileage pricing is included in the quote at booking, not shown as a separate fee when you enter your ZIP.</p>
+    <p class="hub-radius-desc">We operate from our <strong>Hackensack / Palisades Park</strong> hub and travel up to <strong>120 miles</strong> to your driveway, marina, or fleet yard. Enter your ZIP above - we'll confirm coverage and unlock booking for your area.</p>
+    <p class="hub-radius-note">We travel up to 120 miles from our anchor city. Distance may affect your total - mileage pricing is included in the quote at booking, not shown as a separate fee when you enter your ZIP.</p>
   </div>
 </section>
 
@@ -6054,14 +6054,14 @@ function getCityByZip(zip){
 }
 
 // ── Travel fee tiers (flat per appointment location, not per vehicle) ─────────
-const TRAVEL_MAX_MILES = 150;
+const TRAVEL_MAX_MILES = 120;
 const TRAVEL_FEE_TIERS = [
   { maxMi: 30,  fee: 0 },
   { maxMi: 50,  fee: 15 },
   { maxMi: 65,  fee: 25 },
   { maxMi: 85,  fee: 35 },
   { maxMi: 100, fee: 40 },
-  { maxMi: 150, fee: 55 }, // 101–150 mi same tier
+  { maxMi: 120, fee: 55 }, // 101–120 mi same tier
 ];
 const ZONE_DEFAULT_MILES = {
   nj_a: 12, nj_b: 38, nyc: 22, ny_s: 42, ct: 58,
