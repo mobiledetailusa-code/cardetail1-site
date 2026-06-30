@@ -3993,8 +3993,8 @@ function renderPackages(cat){
       <div class="pkg-div"></div>
       <ul class="pkg-feats">
         ${(p.ext||p.int)
-          ? `${(p.ext&&p.ext.length)?`<li class="grp">🚿 Exterior</li>`+p.ext.map(f=>`<li>${f}</li>`).join(''):''}`
-            +`${(p.int&&p.int.length)?`<li class="grp">🪑 Interior</li>`+p.int.map(f=>`<li>${f}</li>`).join(''):''}`
+          ? `${(p.ext&&p.ext.length)?`<li class="grp">🚗 Exterior</li>`+p.ext.map(f=>`<li>${f}</li>`).join(''):''}`
+            +`${(p.int&&p.int.length)?`<li class="grp">💺 Interior</li>`+p.int.map(f=>`<li>${f}</li>`).join(''):''}`
             +`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`
           : `${p.feats.map(f=>`<li>${f}</li>`).join('')}`+`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`}
       </ul>
