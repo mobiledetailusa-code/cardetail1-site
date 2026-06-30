@@ -155,8 +155,12 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .hero-zip-input.valid{border-color:var(--gr);box-shadow:0 0 0 3px rgba(34,197,94,.1)}
 .hero-zip-input.invalid{border-color:var(--rd);animation:shake .4s ease}
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
-.hero-zip-btn{background:var(--blue);border:none;border-radius:var(--r);padding:0 24px;color:#000;font-family:var(--fb);font-size:14px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s;white-space:nowrap}
-.hero-zip-btn:hover{background:#fff}
+.hero-zip-btn{display:flex;align-items:center;justify-content:center;gap:7px;background:var(--blue);border:none;border-radius:var(--r);padding:0 24px;color:#000;font-family:var(--fb);font-size:14px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s;white-space:nowrap}
+.hero-zip-btn:hover:not(:disabled){background:#fff}
+.hero-zip-btn:disabled{opacity:.65;cursor:wait}
+.hero-zip-btn.loading .hero-zip-spin{display:block}
+.hero-zip-spin{display:none;width:12px;height:12px;border:2px solid rgba(0,0,0,.25);border-top-color:#000;border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
+.hero-zip-input:disabled{opacity:.7;cursor:wait}
 .hero-zip-feedback{min-height:28px;margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .hero-zone-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--gr);background:var(--grdim);border:1px solid var(--grbr);border-radius:999px;padding:5px 14px}
 .hero-fee-pill{font-size:11.5px;color:var(--am);background:var(--amdim);border:1px solid var(--ambr);border-radius:999px;padding:4px 12px}
@@ -1474,7 +1478,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         oninput="onHeroZipInput(this.value)"
         onkeydown="if(event.key==='Enter')onHeroZipSubmit()"
       >
-      <button class="hero-zip-btn" onclick="onHeroZipSubmit()">BOOK NOW</button>
+      <button class="hero-zip-btn" id="hero-zip-btn" type="button" onclick="onHeroZipSubmit()"><span class="hero-zip-spin" aria-hidden="true"></span><span class="hero-zip-btn-lbl">BOOK NOW</span></button>
     </div>
     <div class="hero-zip-feedback" id="hero-zip-feedback">
       <span style="font-size:12px;color:var(--mu)">Based in Palisades Park — we serve Bergen County neighbors and the wider Tri-State. Pop in your ZIP to check coverage.</span>
@@ -7848,9 +7852,21 @@ function onHeroZipInput(val){
   if(fb) fb.innerHTML = `<div style="font-size:14px;font-weight:600;color:var(--white);letter-spacing:.02em">${label}</div>`;
 }
 
+function setHeroZipLoading(on){
+  const btn = document.getElementById('hero-zip-btn');
+  const inp = document.getElementById('hero-zip');
+  if(btn){
+    btn.disabled = on;
+    btn.classList.toggle('loading', on);
+    const lbl = btn.querySelector('.hero-zip-btn-lbl');
+    if(lbl) lbl.textContent = on ? 'Loading…' : 'BOOK NOW';
+  }
+  if(inp) inp.disabled = on;
+}
+
 function onHeroZipSubmit(){
   const inp = document.getElementById('hero-zip');
-  if(!inp) return;
+  if(!inp || inp.disabled) return;
   const fb = document.getElementById('hero-zip-feedback');
   const digits = inp.value.replace(/\D/g,'');
   if(digits.length < 5){
@@ -7870,9 +7886,11 @@ function onHeroZipSubmit(){
   }
   const hubPage = resolveHubPageForHero(zip5);
   if(hubPage){
+    onHeroZipInput(inp.value);
+    setHeroZipLoading(true);
+    if(fb) fb.innerHTML = '<span style="font-size:12px;color:var(--mu)">Validating your ZIP…</span>';
     sessionStorage.setItem('cd1_zip', zip5);
-    console.log('Debug: CEP detectado -> Redirecionando para Hub', zip5, hubPage);
-    window.location.href = hubPage + '?zip=' + zip5;
+    window.location.href = hubPage + '?zip=' + encodeURIComponent(zip5);
     return;
   }
   inp.classList.remove('valid');
