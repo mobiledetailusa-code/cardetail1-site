@@ -20,8 +20,8 @@ const CAR_PACKAGES = [
     basePrice: 225,
     tag: 'Deep interior refresh',
     duration: '~2.5–3.5h',
-    description: 'Deep vacuum, carpet shampoo, steam clean, leather conditioning, interior glass.',
-    feats: ['Deep vacuum — seats, floors, trunk', 'Carpet shampoo', 'Steam clean vents & panels', 'Interior glass', 'Odor-neutral finish'],
+    description: 'Deep vacuum, fabric shampoo, leather conditioning, steam clean, UV protectant on plastics. Odor treatment available as add-on.',
+    feats: ['Deep vacuum — seats, floors, trunk', 'Fabric seats & carpet shampoo', 'Leather surfaces conditioned', 'Steam clean vents & panels', 'UV protectant on plastics', 'Interior glass'],
   },
   {
     id: 'full',
@@ -33,13 +33,22 @@ const CAR_PACKAGES = [
     feats: ['Clay bar decontamination', 'Carpet & seat shampoo', 'Interior steam clean', 'Spray sealant', 'Tire dressing'],
   },
   {
+    id: 'refresh',
+    name: 'Exterior Refresh & Protect',
+    basePrice: 375,
+    tag: 'Clay bar, single-pass correction, sealant, Rain-X & wheels',
+    duration: '~2.5–3h',
+    description: 'Clay bar, chemical decontamination, single-pass paint correction, sealant, deep wheel detail, and Rain-X included.',
+    feats: ['Clay bar decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X glass treatment', 'Tire dressing'],
+  },
+  {
     id: 'premium',
-    name: 'Paint Correction / Enhancement',
+    name: 'Signature Interior & Exterior Restoration',
     basePrice: 450,
-    tag: 'Gloss & swirl reduction',
-    duration: '~4–7h',
-    description: 'Machine polish, defect reduction, sealant. Starting price — final quote by paint condition.',
-    feats: ['1-step machine polish', 'Swirl reduction', 'Chemical decontamination', 'Machine wax/sealant', 'Rain-X windshield'],
+    tag: 'Single-pass correction, ceramic, clay bar, Rain-X & deep interior',
+    duration: '~6–8h',
+    description: 'Clay bar, single-pass correction, ceramic protection, Rain-X, deep wheels, carpet shampoo, leather and plastics with UV protection.',
+    feats: ['Clay bar decontamination', 'Single-pass paint correction', 'Ceramic protection', 'Deep wheel detailing', 'Rain-X windshield', 'Carpet & seat shampoo', 'Leather & plastics with UV protection'],
   },
 ];
 
@@ -93,8 +102,9 @@ function matchPackFromBooking(booking) {
   }
   if (/maint/i.test(hay)) return CAR_PACKAGES[0];
   if (/interior/i.test(hay)) return CAR_PACKAGES[1];
-  if (/premium detail|full detail|premium/i.test(hay) && !/paint|correction/i.test(hay)) return CAR_PACKAGES[2];
-  if (/paint|correction|enhancement/i.test(hay)) return CAR_PACKAGES[3];
+  if (/premium detail|full detail/i.test(hay) && !/paint|correction|signature|refresh/i.test(hay)) return CAR_PACKAGES[2];
+  if (/refresh|exterior refresh/i.test(hay)) return CAR_PACKAGES[3];
+  if (/signature|restoration|paint|correction/i.test(hay)) return CAR_PACKAGES[4];
   return null;
 }
 

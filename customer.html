@@ -284,7 +284,8 @@ function matchCurrentPack(active){
   }
   if(/maint/i.test(hay)) return packs.find(p=>p.id==='maint');
   if(/interior/i.test(hay)) return packs.find(p=>p.id==='interior');
-  if(/paint|correction/i.test(hay)) return packs.find(p=>p.id==='premium');
+  if(/refresh|exterior refresh/i.test(hay)) return packs.find(p=>p.id==='refresh');
+  if(/paint|correction|signature|restoration/i.test(hay)) return packs.find(p=>p.id==='premium');
   if(/premium|full/i.test(hay)) return packs.find(p=>p.id==='full');
   return null;
 }

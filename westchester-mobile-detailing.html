@@ -1,4 +1,4 @@
-﻿<!--
+<!--
   CITY LANDING PAGE TEMPLATE — replace tokens per city:
   Westchester, NY  — city display name (e.g. Newark, Trenton, Westchester, NY)
   Used in: <title>, meta description, hero-badge, hero H1, hero-sub
@@ -618,6 +618,9 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .vc-ico img{width:100%;height:100%;object-fit:contain;display:block}
 .vc-info strong{display:block;font-size:14px;font-weight:600;color:var(--white)}
 .vc-info span{font-size:11.5px;color:var(--mu)}
+.vc-price{font-family:var(--fd);font-size:26px;color:var(--white);margin-top:6px;letter-spacing:.02em}
+.vc-price-lbl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+.vc-urgency{font-size:11px;color:var(--mu);margin-top:8px;line-height:1.45;max-width:300px}
 .vc-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 9px;border-radius:999px;margin-top:3px;background:var(--bdim);border:1px solid var(--bbr);color:var(--blue)}
 .vc-price{text-align:right}
 .vc-price-lbl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em}
@@ -3382,32 +3385,37 @@ async function makeWebhookSend(payload){
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:300, premium:450},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:215, interior:250, full:325, premium:550},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:275, full:325, premium:635},
-      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:250, interior:275, full:325, premium:615},
+      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:300, refresh:375, premium:450},
+      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:215, interior:250, full:325, refresh:425, premium:550},
+      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:275, full:325, refresh:475, premium:635},
+      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:250, interior:275, full:325, refresh:465, premium:615},
     },
     packages:[
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
-        ext:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
         int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
-        feats:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
+        feats:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
         miss:['Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
       {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles — add-ons available for pet hair, odor & stains', dur:'~2.5–3.5h',            popular:false, scope:'int',
         ext:[],
-        int:['Deep vacuum — seats, floors, trunk','Carpet shampoo where applicable','Fabric/leather seat cleaning & conditioning','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail','Interior glass cleaned','Odor-neutral finish applied'],
-        feats:['Deep vacuum — seats, floors, trunk','Carpet shampoo where applicable','Fabric/leather seat cleaning & conditioning','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail','Interior glass cleaned','Odor-neutral finish applied'],
-        miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant']},
+        int:['Deep vacuum — seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior glass cleaned'],
+        feats:['Deep vacuum — seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior glass cleaned'],
+        miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
       {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh — most popular',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
         ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'],
         int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','UV protectant'],
         feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','Spray sealant/protection','Tire dressing','UV protectant'],
         miss:['Machine polish','Paint correction','Premium long-term sealant']},
-      {id:'premium',  name:'Paint Correction / Enhancement', icon:'🏅', tag:'Gloss improvement, swirls, oxidation & paint defects — price by vehicle size & condition', dur:'~4–7h', popular:false, scope:'ext', note:'Starting price — exact quote depends on vehicle size, paint condition, and correction level.',
-        ext:['1-step machine polish','Paint defect & swirl reduction','Oxidation assessment & treatment','Machine-applied wax/sealant','Chemical decontamination','Full wheel & lug detail','Exterior trim restoration','Rain-X windshield treatment'],
+      {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~2.5–3h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'],
         int:[],
-        feats:['1-step machine polish','Paint defect & swirl reduction','Oxidation assessment & treatment','Machine-applied wax/sealant','Chemical decontamination','Full wheel & lug detail','Exterior trim restoration','Rain-X windshield treatment','Final quality inspection'],
-        miss:['Interior shampoo (add Interior Detail if needed)']}
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X glass treatment','Tire dressing','Final quality inspection'],
+        miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
+      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — single-pass correction, ceramic protection, clay bar, Rain-X & deep interior care', dur:'~6–8h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting ceramic paint protection','Deep wheel & lug detailing','Exterior trim restoration','Rain-X windshield treatment'],
+        int:['Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Detailed dash & console cleaning','Interior glass & vents detailed','Trunk & cargo area detail'],
+        feats:['Clay bar decontamination','Single-pass paint correction','Ceramic paint protection','Deep wheel & lug detailing','Rain-X windshield treatment','Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Dash & console detail','Final quality inspection'],
+        miss:[]}
     ],
     addons:[
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',          icon:'🐾',  desc:'Deep removal of embedded pet hair from seats, carpets, mats, and trunk. Heavy vehicles may require estimate', price:95},
@@ -4207,7 +4215,7 @@ function tryGenericConfirm(){
     document.getElementById('vc-name').textContent=ST.vehicleLabel;
     document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
     document.getElementById('vc-badge').textContent=ST.tier.label+' · starting estimate';
-    document.getElementById('vc-price').textContent='$'+ST.basePrice;
+    updateVcPriceDisplay();
     document.getElementById('vc').classList.add('show');
     document.getElementById('next3').disabled=false; renderAddons();
     // No auto-advance: user clicks "Choose Add-Ons →" (lets boats/RVs/trailers pick length first).
@@ -4227,7 +4235,7 @@ function tryGenericConfirm(){
       document.getElementById('vc-name').textContent=ST.vehicleLabel;
       document.getElementById('vc-tier-lbl').textContent='Fleet boats/RVs/trailers priced by average length and unit count';
       document.getElementById('vc-badge').textContent=ST.pkgId==='custom'?'Estimate required':`${units} units · ${ft} ft average`;
-      document.getElementById('vc-price').textContent=ST.pkgId==='custom'?'Estimate':'$'+ST.basePrice;
+      updateVcPriceDisplay();
     }else{
       const unitPrice = t[ST.pkgId] || 0;
       const needsEstimate = ST.pkgId==='custom' || !unitPrice;
@@ -4237,7 +4245,7 @@ function tryGenericConfirm(){
       document.getElementById('vc-name').textContent=ST.vehicleLabel;
       document.getElementById('vc-tier-lbl').textContent=t.desc;
       document.getElementById('vc-badge').textContent=needsEstimate?'Estimate required':`${t.label} · ${units} units`;
-      document.getElementById('vc-price').textContent=needsEstimate?'Estimate':'$'+ST.basePrice;
+      updateVcPriceDisplay();
     }
     document.getElementById('vc').classList.add('show');
     document.getElementById('next3').disabled=false; renderAddons();
@@ -4253,7 +4261,7 @@ function tryGenericConfirm(){
   document.getElementById('vc-name').textContent=ST.vehicleLabel;
   document.getElementById('vc-tier-lbl').textContent=t.desc;
   document.getElementById('vc-badge').textContent=t.label;
-  document.getElementById('vc-price').textContent='$'+ST.basePrice;
+  updateVcPriceDisplay();
   document.getElementById('vc').classList.add('show');
   document.getElementById('next3').disabled=false; renderAddons();
   // No auto-advance: user reviews the vehicle card, then clicks "Choose Add-Ons →".
@@ -4276,13 +4284,31 @@ function setBasePrice(){
     raw=ST.tier[ST.pkgId]||ST.tier['wash']||ST.tier['maint']||ST.tier['exterior']||0;
   }
   ST.basePrice = applyRichPrice(raw);
-  // Update vc price display if visible
-  const vcPrice=document.getElementById('vc-price');
-  if(vcPrice&&ST.basePrice)vcPrice.textContent='$'+ST.basePrice;
+  updateVcPriceDisplay();
   updateTotal();
 }
 
 // ── CAR SEARCH ────────────────────────────────────────────────────────────────
+
+function updateVcPriceDisplay(){
+  const wrap=document.getElementById('vc-price-wrap');
+  const priceEl=document.getElementById('vc-price');
+  const urgEl=document.getElementById('vc-urgency');
+  if(!priceEl) return;
+  const isSignature=ST.cat==='cars'&&ST.pkgId==='premium'&&ST.basePrice>0;
+  if(isSignature){
+    const complete=ST.basePrice+getTravelFeeAmount();
+    priceEl.textContent='$'+complete;
+    if(wrap) wrap.style.display='';
+    if(urgEl){
+      urgEl.textContent='Limited availability for this premium service. Our technicians give exclusive attention to every panel of your vehicle.';
+      urgEl.style.display='block';
+    }
+  }else{
+    if(wrap) wrap.style.display='none';
+    if(urgEl) urgEl.style.display='none';
+  }
+}
 const makeIn=document.getElementById('make-in');
 const makeDd=document.getElementById('make-dd');
 makeIn.addEventListener('input',()=>{
@@ -4331,7 +4357,7 @@ document.getElementById('year-sel').addEventListener('change',function(){
   document.getElementById('vc-name').textContent=ST.vehicleLabel;
   document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
   document.getElementById('vc-badge').textContent=ST.tier.label+' · $'+ST.basePrice;
-  document.getElementById('vc-price').textContent='$'+ST.basePrice;
+  updateVcPriceDisplay();
   document.getElementById('vc').classList.add('show');
   document.getElementById('next3').disabled=false; renderAddons();
   // No auto-advance: user clicks "Choose Add-Ons →" after reviewing the vehicle.
@@ -4432,7 +4458,20 @@ function addonQty(id, delta, ev){
   recalcAddonTotal(); updateTotal(); updateAddonSummary();
 }
 
-function updateTotal(){const fee=getTravelFeeAmount();const total=ST.basePrice+ST.addonTotal+fee;ST.zoneSurcharge=fee;document.getElementById('ah-total').textContent=total?'$'+total:'Estimate';}
+function updateTotal(){
+  const fee=getTravelFeeAmount();
+  const total=ST.basePrice+ST.addonTotal+fee;
+  ST.zoneSurcharge=fee;
+  const el=document.getElementById('ah-total');
+  if(!el) return;
+  const isSignature=ST.cat==='cars'&&ST.pkgId==='premium';
+  if(isSignature && ST.basePrice>0){
+    el.textContent='$'+(ST.basePrice+fee+(ST.addonTotal||0));
+  }else{
+    el.textContent=total?'$'+total:'Estimate';
+  }
+  updateVcPriceDisplay();
+}
 
 // ── STEP 5: INFO ──────────────────────────────────────────────────────────────
 function fillStrip5(){
