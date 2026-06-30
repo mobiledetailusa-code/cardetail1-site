@@ -12,9 +12,9 @@ function resolveHubPageForHero(zip) {
   const zip2 = zip5.slice(0, 2);
   if (HUB_ZIP3_OVERRIDES[zip3]) return HUB_ZIP3_OVERRIDES[zip3];
   if (zip2 === '07' || zip2 === '08') return 'bergen-county-hub.html';
-  if (zip2 === '10' || zip2 === '11') return 'ny-metro-hub.html';
+  if (zip2 === '10' || zip2 === '11' || zip2 === '12') return 'ny-metro-hub.html';
   if (zip2 === '06') return 'connecticut-hub.html';
-  if (zip2 === '19') return 'pennsylvania-hub.html';
+  if (zip2 === '18' || zip2 === '19') return 'pennsylvania-hub.html';
   return null;
 }
 
@@ -28,6 +28,8 @@ const cases = [
   ['07030', 'bergen-county-hub.html'],
   ['10583', 'ny-metro-hub.html'],
   ['19104', 'pennsylvania-hub.html'],
+  ['18101', 'pennsylvania-hub.html'],
+  ['12550', 'ny-metro-hub.html'],
   ['90210', null],
 ];
 
