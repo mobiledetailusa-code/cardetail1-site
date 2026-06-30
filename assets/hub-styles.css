@@ -13,6 +13,8 @@
   background-position: center;
   background-repeat: no-repeat;
   pointer-events: none;
+  filter: brightness(0.85) contrast(1.1);
+  opacity: 0.45;
 }
 
 .hero-bg-desktop::after,
@@ -20,9 +22,10 @@
   content: '';
   position: absolute;
   inset: 0;
+  opacity: 1;
   background:
-    linear-gradient(90deg, rgba(2, 4, 10, 0.9) 0%, rgba(2, 4, 10, 0.72) 43%, rgba(2, 4, 10, 0.28) 100%),
-    linear-gradient(180deg, rgba(2, 11, 24, 0.4), rgba(3, 13, 26, 0.45), var(--bg0));
+    linear-gradient(90deg, rgba(2, 4, 10, 0.78) 0%, rgba(2, 4, 10, 0.58) 43%, rgba(2, 4, 10, 0.22) 100%),
+    linear-gradient(180deg, rgba(2, 11, 24, 0.32), rgba(3, 13, 26, 0.38), var(--bg0));
 }
 
 .hero-bg-mobile {
@@ -49,12 +52,12 @@
 
   .hero-bg-mobile::after {
     background:
-      linear-gradient(90deg, rgba(2, 4, 10, 0.94) 0%, rgba(2, 4, 10, 0.75) 55%, rgba(2, 4, 10, 0.36) 100%),
-      linear-gradient(180deg, rgba(2, 11, 24, 0.45), rgba(3, 13, 26, 0.52), var(--bg0));
+      linear-gradient(90deg, rgba(2, 4, 10, 0.82) 0%, rgba(2, 4, 10, 0.62) 55%, rgba(2, 4, 10, 0.28) 100%),
+      linear-gradient(180deg, rgba(2, 11, 24, 0.36), rgba(3, 13, 26, 0.44), var(--bg0));
   }
 }
 
-/* NJ counties share NJ header assets */
+/* NJ counties share NJ header assets (from imagens estados → assets/hubs/) */
 .hero--nj .hero-bg-desktop {
   background-image: url('hubs/hero-nj-desktop.webp');
 }
