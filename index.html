@@ -612,7 +612,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .tchip-desc{font-size:10.5px;color:var(--mu)}
 .tchip-from{font-size:11px;color:var(--blue);font-weight:600;margin-top:5px}
 /* Hide pre-selection price hints — single price shown after vehicle + package */
-#bk-cat-grid .svc-from,.tchip-from,.pkg-price,.vc-price-note,.ah-total-est{display:none!important}
+#bk-cat-grid .svc-from,.tchip-from,.pkg-price,.ah-total-est{display:none!important}
 
 /* VEHICLE CONFIRM CARD */
 .vc{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--rs);padding:14px 16px;display:none;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px;animation:fu .25s ease}
@@ -622,11 +622,6 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .vc-ico img{width:100%;height:100%;object-fit:contain;display:block}
 .vc-info strong{display:block;font-size:14px;font-weight:600;color:var(--white)}
 .vc-info span{font-size:11.5px;color:var(--mu)}
-.vc-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 9px;border-radius:999px;margin-top:3px;background:var(--bdim);border:1px solid var(--bbr);color:var(--blue)}
-.vc-price{text-align:right}
-.vc-price-lbl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em}
-.vc-price-val{font-size:26px;font-weight:600;color:var(--blue)}
-.vc-price-note{font-size:10px;color:var(--mu)}
 .vc-chg{font-size:11.5px;font-weight:600;color:var(--blue);cursor:pointer;text-decoration:underline;text-underline-offset:3px;flex-shrink:0}
 
 /* ADD-ONS */
@@ -2635,14 +2630,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="vc-ico" id="vc-ico"><img src="assets/vehicles/premium/sedan.webp" alt="Sedan receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></div>
             <div class="vc-info">
               <strong id="vc-name">—</strong>
-              <span id="vc-tier-lbl">—</span>
-              <div><span class="vc-badge" id="vc-badge">—</span></div>
             </div>
-          </div>
-          <div class="vc-price">
-            <div class="vc-price-lbl">Your Price</div>
-            <div class="vc-price-val" id="vc-price">—</div>
-            <div class="vc-price-note"></div>
           </div>
         </div>
 
@@ -4203,10 +4191,7 @@ function tryGenericConfirm(){
     ST.tierKey='length';
     ST.tier={label:`${ft} ft`, icon:ST.cat==='boats'?'🛥️':'🏕️', desc:ST.cat==='boats'?'Marine vessel priced by exact length':'RV / travel trailer priced by exact length'};
     setVehicleVisual();
-    document.getElementById('vc-name').textContent=ST.vehicleLabel;
-    document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
-    document.getElementById('vc-badge').textContent=ST.tier.label;
-    document.getElementById('vc-price').textContent='$'+ST.basePrice;
+    setVcName(ST.vehicleLabel);
     document.getElementById('vc').classList.add('show');
     document.getElementById('next3').disabled=false; renderAddons();
     // No auto-advance: user clicks "Choose Add-Ons →" (lets boats/RVs/trailers pick length first).
@@ -4223,20 +4208,14 @@ function tryGenericConfirm(){
       ST.basePrice = ST.pkgId==='custom' ? 0 : unitPrice * units;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model} · avg ${ft} ft`;
       setVehicleVisual();
-      document.getElementById('vc-name').textContent=ST.vehicleLabel;
-      document.getElementById('vc-tier-lbl').textContent='Fleet boats/RVs/trailers priced by average length and unit count';
-      document.getElementById('vc-badge').textContent=ST.pkgId==='custom'?'Estimate required':`${units} units · ${ft} ft average`;
-      document.getElementById('vc-price').textContent=ST.pkgId==='custom'?'Estimate':'$'+ST.basePrice;
+      setVcName(ST.vehicleLabel);
     }else{
       const unitPrice = t[ST.pkgId] || 0;
       const needsEstimate = ST.pkgId==='custom' || !unitPrice;
       ST.basePrice = needsEstimate ? 0 : unitPrice * units;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model}`;
       setVehicleVisual();
-      document.getElementById('vc-name').textContent=ST.vehicleLabel;
-      document.getElementById('vc-tier-lbl').textContent=t.desc;
-      document.getElementById('vc-badge').textContent=needsEstimate?'Estimate required':`${t.label} · ${units} units`;
-      document.getElementById('vc-price').textContent=needsEstimate?'Estimate':'$'+ST.basePrice;
+      setVcName(ST.vehicleLabel);
     }
     document.getElementById('vc').classList.add('show');
     document.getElementById('next3').disabled=false; renderAddons();
@@ -4249,10 +4228,7 @@ function tryGenericConfirm(){
   ST.vehicleLabel=`${year} ${make} ${model}`;
   setBasePrice();
   setVehicleVisual();
-  document.getElementById('vc-name').textContent=ST.vehicleLabel;
-  document.getElementById('vc-tier-lbl').textContent=t.desc;
-  document.getElementById('vc-badge').textContent=t.label;
-  document.getElementById('vc-price').textContent='$'+ST.basePrice;
+  setVcName(ST.vehicleLabel);
   document.getElementById('vc').classList.add('show');
   document.getElementById('next3').disabled=false; renderAddons();
   // No auto-advance: user reviews the vehicle card, then clicks "Choose Add-Ons →".
@@ -4275,10 +4251,16 @@ function setBasePrice(){
     raw=ST.tier[ST.pkgId]||ST.tier['wash']||ST.tier['maint']||ST.tier['exterior']||0;
   }
   ST.basePrice = applyRichPrice(raw);
-  // Update vc price display if visible
-  const vcPrice=document.getElementById('vc-price');
-  if(vcPrice&&ST.basePrice)vcPrice.textContent='$'+ST.basePrice;
+  // Single source of truth for price is the Total (#ah-total). The vehicle card no
+  // longer shows a separate "Your Price" to avoid duplicate/confusing values.
   updateTotal();
+}
+
+// Sets the vehicle name on the confirmation card. Price is intentionally shown only
+// once, as the Total, so no base/"starting" price is injected here.
+function setVcName(label){
+  const el=document.getElementById('vc-name');
+  if(el)el.textContent=label||'—';
 }
 
 // ── CAR SEARCH ────────────────────────────────────────────────────────────────
@@ -4327,10 +4309,7 @@ document.getElementById('year-sel').addEventListener('change',function(){
   ST.vehicleLabel=`${ST.year} ${ST.make} ${ST.model}`;
   setBasePrice();
   setVehicleVisual();
-  document.getElementById('vc-name').textContent=ST.vehicleLabel;
-  document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
-  document.getElementById('vc-badge').textContent=ST.tier.label;
-  document.getElementById('vc-price').textContent='$'+ST.basePrice;
+  setVcName(ST.vehicleLabel);
   document.getElementById('vc').classList.add('show');
   document.getElementById('next3').disabled=false; renderAddons();
   // No auto-advance: user clicks "Choose Add-Ons →" after reviewing the vehicle.
