@@ -4398,8 +4398,15 @@ function renderAddons(){
   // Only show add-ons relevant to the selected package's scope.
   // pkg scope: 'int' | 'ext' | 'both'  ·  addon scope: 'int' | 'ext' | 'any'
   const pkgScope = ST.pkg?.scope || 'both';
+  // Dedup: if the selected package already includes Rain-X or clay bar, don't
+  // offer them again as paid add-ons (prevents double-charge / confusion).
+  // Data-driven from the package's own included-features text; the global
+  // add-on catalog and prices are unchanged.
+  const _pkgInclTxt=[].concat(ST.pkg?.feats||[],ST.pkg?.ext||[],ST.pkg?.int||[]).join(' ').toLowerCase();
+  const _pkgIncludesAddon={rainx:/rain-?x/.test(_pkgInclTxt),claybar:/clay\s*bar/.test(_pkgInclTxt)};
   const addons=(PRICING[ST.cat]?.addons||[]).filter(a=>{
     const s=a.scope||'any';
+    if(_pkgIncludesAddon[a.id]) return false;
     return pkgScope==='both' || s==='any' || s===pkgScope;
   });
   const POPULAR_IDS=['rainx','pethair','odor'];
@@ -7649,12 +7656,12 @@ function applyRichPrice(base){ return base ? Math.round(base * richMultiplier) :
 const RADAR_JOBS = [
   { name:'Bruno M.',   city:'Cliffside Park, NJ', service:'Premium Detail · Honda CR-V',     status:'done',      cx:-8,  cy:2,   delay:0.0, timeAgo:'12 min ago' },
   { name:'Sarah K.',   city:'Fort Lee, NJ',        service:'Interior Detail · Toyota RAV4',  status:'scheduled', cx:-6,  cy:-4,  delay:0.6, timeAgo:'18 min ago' },
-  { name:'Carlos R.',  city:'Hoboken, NJ',         service:'Paint Correction · BMW X5',      status:'enroute',   cx:4,   cy:5,   delay:1.1, timeAgo:'Just now'   },
+  { name:'Carlos R.',  city:'Hoboken, NJ',         service:'Signature Detail · BMW X5',      status:'enroute',   cx:4,   cy:5,   delay:1.1, timeAgo:'Just now'   },
   { name:'Aisha T.',   city:'Teaneck, NJ',         service:'Maintenance Detail · Ford F-150',status:'done',      cx:-12, cy:-8,  delay:1.8, timeAgo:'1 hr ago'   },
   { name:'Mike S.',    city:'Edgewater, NJ',       service:'Marine · 26ft Chaparral',        status:'enroute',   cx:-4,  cy:9,   delay:2.3, timeAgo:'5 min ago'  },
-  { name:'Priya L.',   city:'Short Hills, NJ',     service:'Paint Correction · Mercedes GLE',status:'review',    cx:-22, cy:6,   delay:0.3, timeAgo:'3 hrs ago'  },
+  { name:'Priya L.',   city:'Short Hills, NJ',     service:'Signature Detail · Mercedes GLE',status:'review',    cx:-22, cy:6,   delay:0.3, timeAgo:'3 hrs ago'  },
   { name:'Jason W.',   city:'White Plains, NY',    service:'Premium Detail · Jeep Grand Ch.',status:'scheduled', cx:18,  cy:-14, delay:2.8, timeAgo:'32 min ago' },
-  { name:'Diana C.',   city:'Greenwich, CT',       service:'Paint Correction · Porsche Cay.',status:'done',      cx:28,  cy:-20, delay:1.5, timeAgo:'2 hrs ago'  },
+  { name:'Diana C.',   city:'Greenwich, CT',       service:'Signature Detail · Porsche Cay.',status:'done',      cx:28,  cy:-20, delay:1.5, timeAgo:'2 hrs ago'  },
   { name:'Omar H.',    city:'Ridgewood, NJ',       service:'RV Detail · Winnebago 34ft',     status:'requested', cx:-18, cy:-16, delay:3.2, timeAgo:'7 min ago'  },
   { name:'Tanya B.',   city:'Scarsdale, NY',       service:'Interior Detail · Audi Q7',      status:'enroute',   cx:16,  cy:-8,  delay:0.9, timeAgo:'11 min ago' },
   { name:'Luis P.',    city:'Hackensack, NJ',      service:'Fleet · 6 vehicles',             status:'done',      cx:-10, cy:-12, delay:2.1, timeAgo:'Yesterday'  },
@@ -7688,10 +7695,10 @@ const SIM_CITIES = [
   'Bronxville, NY','Tarrytown, NY','Port Washington, NY','Garden City, NY','Manhasset, NY',
   'Greenwich, CT','Westport, CT','Darien, CT','Stamford, CT','New Canaan, CT','Wilton, CT'];
 const SIM_SERVICES = [
-  'Premium Detail · BMW X5','Interior Detail · Tesla Model 3','Paint Correction · Mercedes GLE',
+  'Premium Detail · BMW X5','Interior Detail · Tesla Model 3','Signature Detail · Mercedes GLE',
   'Maintenance Detail · Ford F-150','Marine Detail · 28ft Chaparral','RV Detail · Winnebago 32ft',
-  'Paint Correction · Porsche Cayenne','Interior Detail · Audi Q7','Fleet · 4 vehicles',
-  'Premium Detail · Honda CR-V','Paint Correction · Range Rover','Powersports · Harley Davidson',
+  'Signature Detail · Porsche Cayenne','Interior Detail · Audi Q7','Fleet · 4 vehicles',
+  'Premium Detail · Honda CR-V','Signature Detail · Range Rover','Powersports · Harley Davidson',
   'Interior Detail · Kia Telluride','Maintenance Detail · Toyota RAV4','Premium Detail · Chevy Tahoe'];
 // Geographic positions within radar circle (cx/cy = offset % from center, max ±38)
 const SIM_POSITIONS = [

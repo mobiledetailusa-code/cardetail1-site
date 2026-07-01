@@ -18,7 +18,7 @@ const lookup = read('netlify/functions/lookup-booking.js');
 
 test('Step 5 has final copy and all payment preferences', () => {
   assert.match(index, /Secure Your Booking/);
-  assert.match(index, /Choose how you prefer to pay, then save a card to secure your appointment request\. No charge today\./);
+  assert.match(index, /No charge today\. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy\./);
   assert.match(index, /Payment Preference/);
   assert.match(index, /Cash on-site/);
   assert.match(index, /Card on-site/);
