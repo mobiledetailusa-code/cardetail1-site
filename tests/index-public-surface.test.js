@@ -40,6 +40,18 @@ test('index.html admin login routes to canonical admin-ops console', () => {
   assert.doesNotMatch(doLoginBlock, /admin-ov.*classList\.add\('open'\)/);
 });
 
+test('#admin hash redirects to canonical admin page, not customer portal', () => {
+  assert.match(index, /location\.hash\s*===?\s*['"]#admin['"]/);
+  assert.match(index, /location\.replace\s*\(\s*['"]\/admin['"]\s*\)/);
+  assert.doesNotMatch(index, /location\.hash\s*===?\s*['"]#admin['"]\)[^;]*openLogin/);
+  assert.doesNotMatch(index, /location\.hash\s*===?\s*['"]#admin['"]\)[^;]*openPortal/);
+  assert.doesNotMatch(index, /id="admin-ov"/);
+  assert.doesNotMatch(index, /id="jobs-ov"/);
+  assert.doesNotMatch(index, /id="emp-ov"/);
+  assert.match(index, /id="bk-ov"/);
+  assert.match(index, /id="cp-ov"/);
+});
+
 test('canonical portal HTML files are present and unchanged by this guard', () => {
   for (const f of portalFiles) {
     assert.ok(fs.existsSync(path.join(root, f)), `${f} should exist`);

@@ -4458,7 +4458,7 @@ function restartBooking(){
 }
 
 document.getElementById('f-date').min=new Date().toISOString().split('T')[0];
-if(location.hash==='#admin') setTimeout(openLogin,300);
+if(location.hash==='#admin') location.replace('/admin');
 
 // ═══════════════════════════════════════════════════════
 // ZIP / LOCATION PRICING
