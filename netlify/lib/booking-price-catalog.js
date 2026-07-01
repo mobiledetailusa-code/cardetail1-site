@@ -3,10 +3,10 @@
 const PRICING = {
   cars: {
     tiers: {
-      small: { label: 'Small Car', maint: 175, interior: 225, full: 300, premium: 450 },
-      suv2: { label: 'SUV 2-Row', maint: 215, interior: 250, full: 325, premium: 550 },
-      suv3: { label: 'SUV 3-Row', maint: 250, interior: 275, full: 325, premium: 635 },
-      truck: { label: 'Truck', maint: 250, interior: 275, full: 325, premium: 615 },
+      small: { label: 'Small Car', maint: 175, interior: 225, full: 300, refresh: 375, premium: 450 },
+      suv2: { label: 'SUV 2-Row', maint: 215, interior: 250, full: 325, refresh: 425, premium: 550 },
+      suv3: { label: 'SUV 3-Row', maint: 250, interior: 275, full: 325, refresh: 475, premium: 635 },
+      truck: { label: 'Truck', maint: 250, interior: 275, full: 325, refresh: 465, premium: 615 },
     },
     addons: [
       { id: 'pethair', price: 95 }, { id: 'superint', price: 125 }, { id: 'odor', price: 149 },
@@ -114,6 +114,19 @@ const PKG_ID_ALIASES = {
   'maintenance detail': 'maint',
   'interior detail': 'interior',
   'premium detail': 'full',
+  // Exterior Refresh & Protect (cars) — pkgId 'refresh'. Exact-name aliases are
+  // required because inferPkgId's includes() fallback would otherwise match the
+  // substring 'exterior' and mis-resolve this to the RV 'exterior' package.
+  // NOTE: a bare 'exterior' alias is intentionally NOT added — 'exterior' is a
+  // real RV package id and must not be globally remapped.
+  'exterior refresh & protect': 'refresh',
+  'exterior refresh and protect': 'refresh',
+  'exterior refresh': 'refresh',
+  'exterior detail': 'refresh',
+  'exterior_refresh': 'refresh',
+  'refresh': 'refresh',
+  // Paint Correction / Enhancement stays on the premium/correction path — it is
+  // NOT an alias for the cheaper 'refresh' package.
   'paint correction / enhancement': 'premium',
   'marine wash': 'maint',
   'essential marine': 'essential',
