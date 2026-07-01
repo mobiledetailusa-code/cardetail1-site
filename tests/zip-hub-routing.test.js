@@ -1,4 +1,15 @@
-const NJ_HUB_ZIP3 = new Set(['070','071','072','073','074','075','076','077','078','079']);
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.resolve(__dirname, '..');
+const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
+
+const NJ_HUB_ZIP3 = new Set([
+  '070', '071', '072', '073', '074', '075', '076', '077', '078', '079',
+  '080', '081', '082', '083', '084', '085', '086', '087', '088', '089',
+]);
 
 function resolveHubPageForHero(zip) {
   const zip5 = String(zip).replace(/\D/g, '').slice(0, 5);
@@ -13,8 +24,6 @@ function resolveHubPageForHero(zip) {
 }
 
 const cases = [
-  ['10001', 'ny-metro-hub.html'],
-  ['06710', 'connecticut-hub.html'],
   ['07650', 'new-jersey-hub.html'],
   ['07302', 'new-jersey-hub.html'],
   ['07102', 'new-jersey-hub.html'],
@@ -22,18 +31,50 @@ const cases = [
   ['07030', 'new-jersey-hub.html'],
   ['07060', 'new-jersey-hub.html'],
   ['07901', 'new-jersey-hub.html'],
-  ['08901', null],
-  ['08001', null],
+  ['08001', 'new-jersey-hub.html'],
+  ['08901', 'new-jersey-hub.html'],
+  ['08540', 'new-jersey-hub.html'],
+  ['10001', 'ny-metro-hub.html'],
   ['10583', 'ny-metro-hub.html'],
+  ['06710', 'connecticut-hub.html'],
   ['19104', 'pennsylvania-hub.html'],
   ['90210', null],
 ];
 
-let failed = 0;
 for (const [zip, expected] of cases) {
-  const r = resolveHubPageForHero(zip);
-  const ok = expected === null ? r === null : r === expected;
-  if (!ok) failed++;
-  console.log(zip, r, ok ? 'OK' : 'FAIL expected ' + expected);
+  test(`resolveHubPageForHero(${zip}) → ${expected ?? 'null'}`, () => {
+    const result = resolveHubPageForHero(zip);
+    if (expected === null) assert.equal(result, null);
+    else assert.equal(result, expected);
+  });
 }
-if (failed) process.exit(1);
+
+test('index.html NJ_HUB_ZIP3 includes 080–089 prefixes', () => {
+  const index = read('index.html');
+  for (const p of ['080', '081', '085', '089']) {
+    assert.match(index, new RegExp(`'${p}'`));
+  }
+});
+
+test('index.html car pricing values unchanged (refresh tiers still present)', () => {
+  const index = read('index.html');
+  assert.ok(index.includes('refresh:375, premium:450'));
+  assert.ok(index.includes('refresh:425, premium:550'));
+});
+
+test('ZIP routing change is isolated to index.html hero resolver', () => {
+  const index = read('index.html');
+  assert.ok(index.includes('function resolveHubPageForHero'));
+  assert.ok(index.includes("return 'new-jersey-hub.html'"));
+  for (const f of [
+    'netlify/functions/stripe-webhook.js',
+    'netlify/functions/submit-booking.js',
+    'admin.html',
+    'technician.html',
+    'customer.html',
+    'netlify/lib/travel-fee.js',
+    'netlify/lib/booking-price-catalog.js',
+  ]) {
+    assert.ok(!read(f).includes('NJ_HUB_ZIP3'), `${f} must not contain homepage routing set`);
+  }
+});
