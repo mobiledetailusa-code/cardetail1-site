@@ -9,9 +9,10 @@
 // Env (Netlify):
 //   STRIPE_SECRET_KEY    sk_test_... / sk_live_...
 //   SITE_URL             https://cardetail1.com
-//   Optional recurring Price IDs (see netlify/lib/subscription-checkout.js):
+//   Optional recurring Price IDs (see netlify/lib/subscription-checkout.js and STRIPE-SUBSCRIPTION-PRICE-IDS.md):
 //     STRIPE_PRICE_SUB_MAINT, STRIPE_PRICE_SUB_INTERIOR, STRIPE_PRICE_SUB_FULL,
-//     STRIPE_PRICE_SUB_PREMIUM, STRIPE_PRICE_SUB_FLEET_2_MAINT, etc.
+//     STRIPE_PRICE_SUB_REFRESH, STRIPE_PRICE_SUB_PREMIUM,
+//     STRIPE_PRICE_SUB_FLEET_2_MAINT … STRIPE_PRICE_SUB_FLEET_3_PREMIUM (5 packs × 3 tiers = 15 total)
 
 const { blobsStore, jsonCors, sanitizeText } = require('../lib/tech-security');
 const { listRawBookings, phonesMatch } = require('../lib/ops-db');

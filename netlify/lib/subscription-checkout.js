@@ -5,9 +5,11 @@
 //   STRIPE_PRICE_SUB_MAINT      — Maintenance Detail monthly (10% off walk-in)
 //   STRIPE_PRICE_SUB_INTERIOR   — Interior Detail monthly
 //   STRIPE_PRICE_SUB_FULL       — Premium Detail monthly
-//   STRIPE_PRICE_SUB_PREMIUM    — Paint Correction monthly
-//   STRIPE_PRICE_SUB_FLEET_2_<packId>  — e.g. STRIPE_PRICE_SUB_FLEET_2_MAINT
-//   STRIPE_PRICE_SUB_FLEET_3_<packId>  — e.g. STRIPE_PRICE_SUB_FLEET_3_MAINT
+//   STRIPE_PRICE_SUB_REFRESH    — Exterior Refresh & Protect monthly
+//   STRIPE_PRICE_SUB_PREMIUM    — Signature Restoration monthly
+//   STRIPE_PRICE_SUB_FLEET_2_<PACK>  — e.g. STRIPE_PRICE_SUB_FLEET_2_MAINT (PACK = MAINT|INTERIOR|FULL|REFRESH|PREMIUM)
+//   STRIPE_PRICE_SUB_FLEET_3_<PACK>  — e.g. STRIPE_PRICE_SUB_FLEET_3_MAINT
+// Full table: STRIPE-SUBSCRIPTION-PRICE-IDS.md
 // When unset, Checkout uses dynamic price_data computed server-side.
 
 const { sanitizeText } = require('./tech-security');

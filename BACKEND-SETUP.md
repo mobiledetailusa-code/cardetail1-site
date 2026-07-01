@@ -59,10 +59,29 @@ Funções **aditivas**, sem dependências npm: `create-payment-intent.js` e `str
 | Publishable key | **pode no HTML** | `pk_test_…` / `pk_live_…` |
 
 ### Registrar o webhook
-Stripe → *Developers → Webhooks → Add endpoint*:
-- **URL:** `https://SEU-SITE.netlify.app/.netlify/functions/stripe-webhook`
-- **Eventos:** `payment_intent.succeeded`, `payment_intent.amount_capturable_updated`, `payment_intent.payment_failed`
-- Copie o *Signing secret* (`whsec_…`) → variável `STRIPE_WEBHOOK_SECRET`.
+Stripe → *Developers → Webhooks → Add endpoint* (ou edite o endpoint existente):
+- **URL:** `https://cardetail1.com/.netlify/functions/stripe-webhook` (ou `https://SEU-SITE.netlify.app/.netlify/functions/stripe-webhook`)
+- **Signing secret:** copie `whsec_…` → variável `STRIPE_WEBHOOK_SECRET` no Netlify.
+
+**Eventos obrigatórios (card-on-file + assinaturas mensais):**
+
+| Evento | Para quê |
+|---|---|
+| `setup_intent.succeeded` | Card-on-file salvo após booking |
+| `setup_intent.setup_failed` | Falha ao salvar cartão |
+| `checkout.session.completed` | **Assinatura mensal** ativada após pagamento no Customer Portal |
+| `customer.subscription.deleted` | Sync quando assinatura é cancelada no Stripe |
+| `payment_intent.amount_capturable_updated` | (legado) autorização manual / dispatch |
+| `payment_intent.succeeded` | (legado) pagamento capturado |
+| `payment_intent.payment_failed` | (legado) falha de pagamento |
+
+> ⚠️ Se `checkout.session.completed` **não** estiver no endpoint, o cliente paga no Stripe mas a assinatura **não aparece** em `customer.html` nem em Admin → Subscriptions.
+
+### Outras variáveis Stripe (Netlify)
+| Variável | Onde fica | Valor |
+|---|---|---|
+| `STRIPE_PUBLISHABLE_KEY` | Netlify (servidor) + browser via `stripe-config` | `pk_live_…` / `pk_test_…` |
+| `SITE_URL` | Netlify | `https://cardetail1.com` (URLs success/cancel do checkout de assinatura) |
 
 ### Modelo de cobrança (preço por pé variável de barco/RV)
 `create-payment-intent` usa `capture_method: 'manual'` por padrão → **autoriza** (segura) o valor no cartão; depois do serviço você **captura o valor final** no painel do Stripe. Para cobrar na hora, mande `capture: 'auto'` no body.
@@ -107,6 +126,55 @@ Antes, o admin só via os agendamentos feitos **no mesmo navegador**. Agora **to
 - **Não precisa de conta externa.** O `package.json` declara `@netlify/blobs`; a Netlify instala no build automaticamente. O `submit-booking.js` grava cada booking; o `list-bookings.js` lista (protegido por senha).
 - **Variável de ambiente (Netlify):** `ADMIN_DASH_PASSWORD` = **a mesma senha do seu login de admin**. Sem ela, o "Load from cloud" responde "não configurado".
 - **Senha do admin:** agora é **uma só**, no topo do `<script>` do `index.html` — constante `ADMIN_PASSWORD` (troque pela sua). O portal de login mostra só **Admin** (senha) e **Cliente** (consulta sem senha); as senhas **não** aparecem mais na tela.
+
+## 3e. Assinaturas mensais (Customer Portal + Stripe Checkout)
+
+Função: `customer-subscription-checkout.js` · Webhook: `stripe-webhook.js` (`checkout.session.completed`) · Storage: blob `cd1-subscriptions`.
+
+### Onde o cliente assina
+- **Portal dedicado:** `https://cardetail1.com/customer.html` → aba *My Booking* → seção *Monthly Maintenance* → botão **Subscribe via Stripe**.
+- **Hubs (modal My Booking):** planos Monthly / Multi-Car redirecionam para `customer.html?subscribe=1` (checkout Stripe **não** é inline no hub).
+
+### Pré-requisitos (backend valida)
+1. Cliente informa **Booking ID + telefone** (ou sessão salva).
+2. Deve existir **booking verificado** na cloud com o **mesmo email e telefone**.
+3. **Sem assinatura ativa** para esse email/telefone.
+4. `STRIPE_SECRET_KEY` configurada (senão `stripe_not_configured`).
+
+### Fluxo
+1. Front chama `POST /.netlify/functions/customer-subscription-checkout` com `action: create_checkout`.
+2. Servidor cria **Stripe Checkout Session** (`mode: subscription`) e devolve `url`.
+3. Browser redireciona para a página hospedada do Stripe → cliente paga.
+4. Stripe redireciona para `customer.html?subscribed=1&session_id=cs_…`.
+5. Webhook `checkout.session.completed` grava assinatura em `cd1-subscriptions` e notifica admin.
+6. Stripe cobra **automaticamente todo mês** até cancelamento.
+
+### Preços (10% desconto recorrente — calculados no servidor)
+| Pacote | Walk-in | Mensal |
+|---|---|---|
+| Maintenance Detail | $175 | $157.50/mo |
+| Interior Detail | $225 | $202.50/mo |
+| Premium Detail | $300 | $270.00/mo |
+| Exterior Refresh & Protect | $375 | $337.50/mo |
+| Signature Restoration | $450 | $405.00/mo |
+
+Fleet (mesmo endereço): **2-Vehicle Fleet** (−8% extra) e **3+ Vehicle Fleet** (−12% extra). Ver tabela completa em [`STRIPE-SUBSCRIPTION-PRICE-IDS.md`](STRIPE-SUBSCRIPTION-PRICE-IDS.md).
+
+### Price IDs opcionais (recomendado em produção)
+Sem `STRIPE_PRICE_SUB_*`, o checkout usa **preço dinâmico** (`price_data` + `recurring.interval: month`) — funciona, mas Price IDs fixos facilitam reporting no Stripe.
+
+Lista completa de **15 variáveis**, valores em centavos e passo a passo no Stripe Dashboard: **[STRIPE-SUBSCRIPTION-PRICE-IDS.md](STRIPE-SUBSCRIPTION-PRICE-IDS.md)**.
+
+### Cancelamento
+- Cliente: email ou **551-313-2956** (sem botão self-service no portal).
+- Admin: tab **Subscriptions** em `admin-ops.html`.
+- Stripe Dashboard: cancelar subscription → webhook `customer.subscription.deleted` sync status.
+
+### Testar assinatura
+1. Booking real (ou teste) com email + telefone conhecidos.
+2. `customer.html` → lookup → expandir planos mensais → **Subscribe via Stripe**.
+3. Após pagamento: banner *Active* no portal + entrada em Admin → Subscriptions.
+4. Stripe → Webhooks → *Recent deliveries* → `checkout.session.completed` com **200 OK**.
 
 ### Opções de pagamento no checkout
 No fim do agendamento o cliente escolhe: **depósito no cartão agora** (Stripe), **link de pagamento**, **pagar com cartão no local** ou **dinheiro (cash)**. As duas últimas não exigem cartão e seguem como *request* até sua confirmação. O método aparece no admin e no e-mail/SMS.
