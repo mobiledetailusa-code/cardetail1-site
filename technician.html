@@ -403,6 +403,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
 
 <div id="toast"></div>
 
+<script src="/netlify/lib/site-access-client.js"></script>
 <script>
 (function () {
   'use strict';
@@ -826,6 +827,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         (j.address ? fullCell('Address', j.address) : '') +
         (j.addons && j.addons.length ? fullCell('Add-ons', fmtAddons(j.addons)) : '') +
         (j.customerNote ? fullCell('Customer note', j.customerNote) : '') +
+        (typeof SiteAccess !== 'undefined' ? SiteAccess.techCells(j, esc, fullCell) : '') +
         (j.equipmentHints && j.equipmentHints.length ? fullCell('Equipment', j.equipmentHints.join(' · ')) : '') +
         (j.techNotes ? fullCell('Tech notes', j.techNotes) : '') +
       '</div>' +
@@ -1067,7 +1069,8 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
       cell('Date', fmtDate(job.confirmedDate || job.preferredDate)) +
       cell('Time', fmtTime(job)) +
       (job.address ? fullCell('Address', job.address) : '') +
-      (job.addons && job.addons.length ? fullCell('Add-ons', fmtAddons(job.addons)) : '');
+      (job.addons && job.addons.length ? fullCell('Add-ons', fmtAddons(job.addons)) : '') +
+      (typeof SiteAccess !== 'undefined' ? SiteAccess.techCells(job, esc, fullCell) : '');
     var eqEl = document.getElementById('cmp-equipment');
     if (eqEl) eqEl.textContent = (job.equipmentHints && job.equipmentHints.length) ? job.equipmentHints.join(' · ') : 'Standard detail kit';
 

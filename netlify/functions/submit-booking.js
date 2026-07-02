@@ -43,6 +43,9 @@ const CARD_ON_FILE_VERIFY_MSG =
   'Your card is still being verified. Please wait a few seconds and try again.';
 
 const { applyServerTravelAndTotal } = require('../lib/travel-fee');
+const {
+  formatSiteAccessLines,
+} = require('../lib/site-access');
 
 // Safe server-side fallback when webhook is delayed: verify SetupIntent with Stripe API.
 // Never trusts client proof — only persisted setupIntentId on the server-owned draft.
@@ -134,6 +137,8 @@ function bookingText(b) {
     ? ' ($' + (b.amountAuthorizedCents / 100).toFixed(2) + ' held)'
     : '';
 
+  const accessLines = formatSiteAccessLines(b);
+
   return [
     `NEW BOOKING — ${b.id}`,
     `Status: ${b.status || 'Pending Review'}`,
@@ -154,6 +159,7 @@ function bookingText(b) {
     vehicles ? `Vehicles:\n${vehicles}` : '',
     `Add-ons:  ${(b.addons || []).map(a => a.name).join(', ') || 'None'}`,
     `TOTAL:    $${b.totalPrice || 0}`,
+    ...(accessLines.length ? ['', ...accessLines] : []),
     ``,
     `Notes:    ${b.notes || '—'}`,
   ].filter(Boolean).join('\n');
@@ -332,6 +338,10 @@ exports.handler = async (event) => {
       vehicles: b.vehicles || [],
       preferredDate: b.preferredDate || '',
       preferredTime: b.preferredTime || '',
+      waterAvailable: b.waterAvailable || '',
+      electricityAvailable: b.electricityAvailable || '',
+      serviceLocation: b.serviceLocation || '',
+      accessNotes: b.accessNotes || '',
     };
     try {
       await store.setJSON(draftId, draft);
