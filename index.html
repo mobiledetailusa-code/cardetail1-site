@@ -837,6 +837,17 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .terms-panel{background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);padding:16px;margin-bottom:16px;max-height:260px;overflow:auto}
 .terms-panel h4{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);margin:0 0 8px}
 .terms-panel p,.terms-panel li{font-size:12px;color:var(--tx);line-height:1.55;margin-bottom:7px}.terms-panel ul{padding-left:18px;margin-bottom:8px}.terms-panel strong{color:var(--white)}
+.checkout-terms-wrap{margin-bottom:16px}
+.checkout-terms-linkline{font-size:12.5px;color:var(--mu);line-height:1.55;margin:0 0 10px;text-align:center}
+.checkout-terms-linkline a{color:var(--blue);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.checkout-terms-disclosure{background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);overflow:hidden}
+.checkout-terms-disclosure summary{padding:12px 16px;font-size:12px;font-weight:600;color:var(--mu);cursor:pointer;list-style:none;user-select:none}
+.checkout-terms-disclosure summary::-webkit-details-marker{display:none}
+.checkout-terms-disclosure summary::before{content:'▸ ';color:var(--blue)}
+.checkout-terms-disclosure[open] summary::before{content:'▾ '}
+.checkout-terms-disclosure[open] summary{border-bottom:1px solid rgba(255,255,255,.08);color:var(--tx)}
+.checkout-terms-disclosure .terms-panel,.checkout-terms-disclosure .pay-box{border:none;border-radius:0;margin-bottom:0;max-height:none}
+.checkout-terms-disclosure .terms-panel{border-bottom:1px solid rgba(255,255,255,.06)}
 .unit-box{display:none;background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--r);padding:16px;margin-bottom:18px}.unit-box.show{display:block}.unit-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:12px}.unit-title{font-size:11px;font-weight:800;color:var(--blue);letter-spacing:.14em;text-transform:uppercase}.unit-value{font-size:30px;font-weight:800;color:var(--white);line-height:1}.unit-range{width:100%;accent-color:var(--blue);cursor:pointer}.unit-note{font-size:11.5px;color:var(--mu);line-height:1.45;margin-top:10px}
 
 
@@ -2416,7 +2427,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </div>
         </div>
 
-        <div class="terms-panel">
+        <div class="checkout-terms-wrap">
+          <p class="checkout-terms-linkline"><a href="/terms-conditions" target="_blank" rel="noopener noreferrer">Read full booking terms &amp; agreements →</a></p>
+          <details class="checkout-terms-disclosure">
+            <summary>View policy summary (optional)</summary>
+            <div class="terms-panel">
           <h4>Suggested Booking Terms Summary</h4>
           <ul>
             <li><strong>Booking:</strong> Submitting this form sends a booking request. Cardetail1 reviews your service, location, access, weather, and availability before final confirmation.</li>
@@ -2448,6 +2463,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pre-existing condition:</strong> Failing clear coat, loose trim, cracked surfaces, previous repairs, and heavily worn materials may limit results. Cardetail1 is not responsible for pre-existing defects.</li>
           </ul>
           <div class="pay-badge">✓ No charge today · Card on file is required for every booking request</div>
+        </div>
+          </details>
         </div>
         <div class="btn-row">
           <button type="button" class="btn-b" onclick="bkGoTo(4)">← Back</button>
