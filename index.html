@@ -952,6 +952,34 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .rv-meta{font-size:11px;color:var(--mu)}
 .rv-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--bdim);border:1px solid var(--bbr);color:var(--blue);margin-top:3px}
 
+/* ── REAL RESULTS SECTION ── */
+.results-section{background:var(--bg0);padding:60px 20px}
+.results-inner{max-width:1100px;margin:0 auto}
+.results-cta{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:28px}
+.photo-note{font-size:12px;color:var(--mu);text-align:center;margin-top:14px;line-height:1.6}
+/* ── RECENT WORK PHOTO CAROUSEL ── */
+.rw-carousel{position:relative;overflow:hidden;margin-top:24px}
+.rw-track{display:flex;gap:14px;transition:transform .35s cubic-bezier(.4,0,.2,1)}
+.rw-slide{flex-shrink:0;background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);overflow:hidden}
+.rw-img-wrap{position:relative;aspect-ratio:3/2;overflow:hidden;background:var(--bg2);max-height:210px}
+.rw-img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .4s}
+.rw-img.rw-loaded{opacity:1}
+.rw-ov{position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.65) 0%,transparent 55%);display:flex;align-items:flex-end;padding:14px}
+.rw-ov-lbl{font-size:11px;color:rgba(255,255,255,.75);text-decoration:none;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:4px 10px;transition:.18s}
+.rw-ov-lbl:hover{background:rgba(255,255,255,.15)}
+.rw-info{padding:14px 16px}
+.rw-vehicle{font-family:var(--fd);font-size:15px;color:var(--white);letter-spacing:.02em;margin-bottom:3px}
+.rw-pkg{font-size:11.5px;color:var(--blue);font-weight:600;margin-bottom:6px}
+.rw-caption{font-size:12.5px;color:var(--mu);line-height:1.5}
+.rw-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:16px}
+.rw-nav-btn{width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:var(--bg2);color:var(--white);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
+.rw-nav-btn:hover:not(:disabled){background:var(--blue);color:#000;border-color:var(--blue)}
+.rw-nav-btn:disabled{opacity:.3;cursor:default}
+.rw-counter{font-size:13px;color:var(--mu);min-width:48px;text-align:center}
+.rw-slide-ig .rw-img-wrap{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-decoration:none;color:inherit}
+.rw-slide-ig .rw-ig-ico{font-size:36px;line-height:1}
+.rw-slide-ig .rw-ig-cta{font-size:12px;color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:6px 14px;transition:.18s}
+.rw-slide-ig .rw-ig-cta:hover{background:rgba(255,255,255,.1)}
 .cred-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px;padding:20px 24px;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--r)}
 .cred-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx);flex:1;min-width:170px}
 .cred-item b{color:var(--white)}
@@ -1166,6 +1194,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .cp-tab{font-size:11px;padding:9px 6px}
 
   .cred-row{flex-direction:column;gap:12px;padding:16px}
+  .results-section{padding:44px 16px}
+  .rw-nav-btn{width:34px;height:34px;font-size:14px}
+  .rw-img-wrap{max-height:190px}
+  .rw-track{gap:12px}
+  .rw-slide{min-width:84vw}
   /* ── BEFORE & AFTER (mobile) ── */
   .ba-section{padding:44px 16px 36px}
   .ba-grid{grid-template-columns:1fr;gap:16px}
@@ -1224,7 +1257,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .hero-proof{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin:-20px auto 28px}
 .hero-proof span{border:1px solid rgba(255,255,255,.1);background:rgba(2,4,10,.58);color:#dce8f6;border-radius:999px;padding:7px 12px;font-size:11px;font-weight:600}
 .review-source{display:inline-flex;align-items:center;gap:7px;margin-top:8px;color:var(--mu);font-size:11px}
-.section-full,.ba-section,#reviews,#how{content-visibility:auto;contain-intrinsic-size:900px}
+.section-full,.results-section,.ba-section,#reviews,#how{content-visibility:auto;contain-intrinsic-size:900px}
+.rw-img{background:linear-gradient(110deg,var(--bg2) 25%,var(--bg3) 42%,var(--bg2) 58%);background-size:200% 100%;animation:imgShimmer 1.4s linear infinite}
+.rw-img.rw-loaded{animation:none;background:none}
+@keyframes imgShimmer{to{background-position:-200% 0}}
 @media(max-width:980px){.specialty-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){
   .hero{background:
@@ -1657,7 +1693,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="section" style="padding-top:52px;padding-bottom:52px;text-align:center">
     <div class="sec-eye">Choose Your Service</div>
     <div class="sec-title" style="font-size:clamp(32px,5vw,52px);margin-bottom:14px">CARS · BOATS · RVS<br>POWERSPORTS · FLEET</div>
-    <div class="sec-desc" style="max-width:540px;margin:0 auto 32px">Premium results at your driveway — pick your vehicle, see packages and pricing, and lock in service from your phone.</div>
+    <div class="sec-desc" style="max-width:540px;margin:0 auto 32px">Select your vehicle type and see packages, pricing, and add-ons in the booking flow. Serving Bergen County and nearby NJ/NY areas.</div>
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
       <button class="btn-primary booking-popup-trigger" style="font-size:15px;padding:16px 36px" onclick="openBooking(null)">Book Now →</button>
       <button class="btn-outline" onclick="openPortal()">My Booking</button>
@@ -1692,6 +1728,42 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="how-title">Inspect & Pay</div>
         <div class="how-desc">Walk around with your tech when the job's done. Final payment happens after you've seen the results.</div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- REAL RESULTS -->
+<div class="results-section">
+  <div class="results-inner">
+    <div class="sec-eye">Recent Work</div>
+    <div class="sec-title">REAL RESULTS FROM<br>MOBILE DETAILING JOBS.</div>
+    <div class="sec-desc">Interior, exterior, and paint enhancement work performed at the customer's location.</div>
+
+    <div id="rw-carousel-wrap" style="display:none">
+      <div class="rw-carousel" id="rw-carousel">
+        <div class="rw-track" id="rw-track"></div>
+      </div>
+      <div class="rw-nav">
+        <button class="rw-nav-btn" id="rw-prev" aria-label="Previous">&#8592;</button>
+        <span class="rw-counter" id="rw-counter">1 / 1</span>
+        <button class="rw-nav-btn" id="rw-next" aria-label="Next">&#8594;</button>
+      </div>
+    </div>
+
+    <div id="rw-placeholder">
+      <p class="photo-note">Recent work photos will appear here after completed jobs are approved for display.</p>
+    </div>
+
+    <div class="cred-row">
+      <div class="cred-item"><span>🚐</span><span><b>Mobile service</b> — we come to you</span></div>
+      <div class="cred-item"><span>🔧</span><span><b>Equipped</b> for most mobile detailing jobs</span></div>
+      <div class="cred-item"><span>🔧</span><span><b>Professional equipment</b></span></div>
+      <div class="cred-item"><span>📍</span><span><b>Bergen County</b> / North Jersey focus</span></div>
+      <div class="cred-item"><span>✓</span><span><b>Booking reviewed</b> before confirmation — no surprises</span></div>
+    </div>
+    <div class="results-cta">
+      <button class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Mobile Detailing →</button>
+      <button class="btn-outline" onclick="openBooking(null)">View Packages</button>
     </div>
   </div>
 </div>
@@ -1791,7 +1863,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </div>
     <div class="cred-row" style="margin-top:20px">
       <div class="cred-item"><span>🧽</span><span>Recent detail work</span></div>
-      <div class="cred-item"><span>📸</span><span>Photo gallery of recent work now live</span></div>
       <div class="cred-item"><span>📍</span><span>Serving Bergen County &amp; North Jersey</span></div>
       <div class="cred-item"><span>🔧</span><span>Professional equipment</span></div>
       <div class="cred-item"><span>🔧</span><span>Mobile-ready equipment available</span></div>
@@ -2427,44 +2498,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </div>
         </div>
 
-        <div class="checkout-terms-wrap">
-          <p class="checkout-terms-linkline"><a href="/terms-conditions" target="_blank" rel="noopener noreferrer">Read full booking terms &amp; agreements →</a></p>
-          <details class="checkout-terms-disclosure">
-            <summary>View policy summary (optional)</summary>
-            <div class="terms-panel">
-          <h4>Suggested Booking Terms Summary</h4>
-          <ul>
-            <li><strong>Booking:</strong> Submitting this form sends a booking request. Cardetail1 reviews your service, location, access, weather, and availability before final confirmation.</li>
-            <li><strong>Service photos:</strong> Cardetail1 may take before/after photos of the vehicle during service for quality improvement, training, and the documentation/security of both parties.</li>
-            <li><strong>Pre-existing damage:</strong> Cardetail1 is <strong>not responsible for pre-existing damage</strong> (scratches, dents, chips, stains, mechanical or electrical issues, worn or aged components) present before service.</li>
-            <li><strong>New damage from vehicle condition:</strong> due to the condition and nature in which some vehicles are found, new issues may occur during normal detailing — e.g. loose or brittle trim/clips, failing clearcoat or paint, cracked or aged plastics, worn seals or water intrusion, or peeling films. These are a result of the vehicle's existing condition and are not the responsibility of Cardetail1.</li>
-            <li><strong>Time windows:</strong> arrival windows are estimates only. Traffic, weather, prior jobs, parking, tolls, and access issues may cause delays.</li>
-            <li><strong>Weather:</strong> rain, storms, freezing temperatures, unsafe heat, wind, or lack of safe covered access may require rescheduling with no penalty.</li>
-            <li><strong>Cancellation / rescheduling:</strong> please request changes at least 24 hours before the appointment. Rescheduling is preferred over cancellation.</li>
-            <li><strong>Late cancellation:</strong> cancellations made within 24 hours, same-day cancellation, unavailable vehicle/vessel, no-show, denied access, or unsafe location may result in a fee under the booking policy.</li>
-            <li><strong>Fairness policy:</strong> if weather, emergency, or reasonable schedule conflict occurs, Cardetail1 may offer rescheduling to avoid unfair charges.</li>
-            <li><strong>Final price:</strong> online totals are starting estimates. Excessive dirt, pet hair, odor, stains, mold, oxidation, black streaks, distance, tolls, parking, difficult access, or add-ons may change the final price.</li>
-            <li><strong>Unsafe/out-of-scope conditions:</strong> biohazard, pest contamination, abandoned units, sewage, mold, severe odor, unsafe roofs, or damaged surfaces may require estimate or may be declined.</li>
-          </ul>
-        </div>
-
         <div class="pay-box">
-          <div class="pay-t">Booking Policy Summary · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
+          <div class="pay-t">Booking Policy · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
           <ul style="list-style:none;padding:0;margin:0 0 14px">
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Booking review:</strong> Submitting a request does not guarantee an appointment. We review location, vehicle condition, service type, weather, access, and availability before confirming.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Card on file:</strong> No charge is made when your card is saved. Card information is handled securely by Stripe and is not stored by Cardetail1.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Cancellation / no-show:</strong> Cancellations less than 24 hours before the confirmed appointment, no-show, inaccessible vehicle, denied access, or unsafe location may be subject to a cancellation/no-show fee according to the confirmed booking amount and service conditions.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Service payment:</strong> If service is completed and you are not available for on-site payment, Cardetail1 may send an online payment request or charge an approved saved payment method according to your selected payment preference and booking policy.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Weather / reschedule:</strong> Severe weather, unsafe conditions, freezing temperatures, or lack of suitable space may require rescheduling. We will contact you to adjust the appointment.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pricing:</strong> Prices shown are starting estimates. Final pricing may change based on vehicle size, condition, pet hair, odor, stains, excessive soil, oversized vehicles, distance, tolls, and add-ons.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Access:</strong> You must provide safe legal access to the vehicle and enough working space. If the vehicle cannot be accessed, a no-show/access fee may apply.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Personal items:</strong> Please remove personal items before service. Cardetail1 is not responsible for unsecured personal belongings left inside the vehicle.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Photos:</strong> Before/after photos may be taken for documentation, quality control, and dispute resolution unless you request otherwise.</li>
-            <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pre-existing condition:</strong> Failing clear coat, loose trim, cracked surfaces, previous repairs, and heavily worn materials may limit results. Cardetail1 is not responsible for pre-existing defects.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">No charge today</strong> — saving your card secures the booking request only.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Card saved by Stripe</strong> — your card details are encrypted and never stored by Cardetail1.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Late cancellation fee</strong> — cancellations within 24 hours, no-shows, or inaccessible vehicles may incur a fee per our posted policy.</li>
+            <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Final payment after service</strong> — collected on-site by card or cash, or online if approved in advance.</li>
           </ul>
           <div class="pay-badge">✓ No charge today · Card on file is required for every booking request</div>
-        </div>
-          </details>
         </div>
         <div class="btn-row">
           <button type="button" class="btn-b" onclick="bkGoTo(4)">← Back</button>
@@ -5228,6 +5270,90 @@ const REVIEWS = [
 ];
 
 let rvIdx = 0;
+
+// ── HOMEPAGE RECENT WORK CAROUSEL ──
+(function initRecentWorkCarousel(){
+  const track = document.getElementById('rw-track');
+  const wrap  = document.getElementById('rw-carousel-wrap');
+  const ph    = document.getElementById('rw-placeholder');
+  if(!track||!wrap||!ph) return;
+
+  fetch('/.netlify/functions/recent-work')
+    .then(r=>r.ok?r.json():Promise.reject())
+    .then(({ items=[] })=>{
+      const esc = s => String(s||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+      const displayable = items.filter(i => i.imageUrl || i.instagramUrl);
+      if(!displayable.length) return;
+
+      track.innerHTML = displayable.map(item=>{
+        const info = `<div class="rw-info">
+          ${item.vehicle      ? `<div class="rw-vehicle">${esc(item.vehicle)}</div>`      : ''}
+          ${item.servicePackage ? `<div class="rw-pkg">${esc(item.servicePackage)}</div>` : ''}
+          ${item.caption      ? `<div class="rw-caption">${esc(item.caption)}</div>`      : ''}
+        </div>`;
+
+        if(item.imageUrl){
+          const igLink = item.instagramUrl
+            ? `<a class="rw-ov-lbl" href="${esc(item.instagramUrl)}" target="_blank" rel="noopener noreferrer">View on Instagram</a>`
+            : '';
+          return `<div class="rw-slide">
+            <div class="rw-img-wrap">
+              <img class="rw-img" src="${esc(item.imageUrl)}" alt="${esc(item.vehicle||'Cardetail1 recent work')}" loading="lazy" decoding="async" fetchpriority="low" sizes="(max-width:680px) 84vw, (max-width:1100px) 46vw, 360px" onload="this.classList.add('rw-loaded')">
+              <div class="rw-ov">${igLink}</div>
+            </div>${info}
+          </div>`;
+        }
+        return `<div class="rw-slide rw-slide-ig">
+          <a class="rw-img-wrap" href="${esc(item.instagramUrl)}" target="_blank" rel="noopener noreferrer">
+            <div class="rw-ig-ico">📸</div>
+            <span class="rw-ig-cta">View on Instagram →</span>
+          </a>${info}
+        </div>`;
+      }).join('');
+
+      ph.style.display   = 'none';
+      wrap.style.display = 'block';
+
+      const n = displayable.length;
+      function perView(){ return window.innerWidth>=900?3:window.innerWidth>=580?2:1; }
+      const prevBtn = document.getElementById('rw-prev');
+      const nextBtn = document.getElementById('rw-next');
+      const counter = document.getElementById('rw-counter');
+      let cur = 0;
+
+      function slideWidth(){
+        const s = track.querySelector('.rw-slide');
+        return s ? s.offsetWidth + 14 : 0;
+      }
+
+      function goTo(idx){
+        const pv  = perView();
+        const max = Math.max(0, n - pv);
+        cur = Math.max(0, Math.min(max, idx));
+        track.style.transform = `translateX(-${cur * slideWidth()}px)`;
+        if(counter) counter.textContent = `${cur+1} / ${max+1}`;
+        if(prevBtn) prevBtn.disabled = cur === 0;
+        if(nextBtn) nextBtn.disabled = cur === max;
+        const pct = 100 / pv;
+        track.querySelectorAll('.rw-slide').forEach(s=>{
+          s.style.width = `calc(${pct}% - ${14*(pv-1)/pv}px)`;
+        });
+      }
+
+      goTo(0);
+      window.addEventListener('resize', ()=>goTo(cur));
+      if(prevBtn) prevBtn.onclick = ()=>goTo(cur-1);
+      if(nextBtn) nextBtn.onclick = ()=>goTo(cur+1);
+
+      let tsx = 0;
+      track.addEventListener('touchstart', e=>{ tsx=e.touches[0].clientX; }, { passive:true });
+      track.addEventListener('touchend',   e=>{
+        const dx = tsx - e.changedTouches[0].clientX;
+        if(Math.abs(dx)>40){ dx>0?goTo(cur+1):goTo(cur-1); }
+      }, { passive:true });
+    })
+    .catch(()=>{});
+})();
 
 function renderReviews(){
   const track = document.getElementById('rv-track');
