@@ -2,6 +2,7 @@
 const {
   JOB_STATUSES, PAYMENT_WORKFLOW_STATUSES, normalizeJobStatus, normalizePaymentWorkflowStatus,
 } = require('./ops-schema');
+const { techEquipmentHintsForSiteAccess } = require('./site-access');
 
 const TECH_STATUS_UPDATES = new Set([
   'accepted', 'en_route', 'arrived', 'in_progress', 'issue_reported',
@@ -24,6 +25,7 @@ function suggestEquipmentForJob(b) {
   if (/ceramic|coating|ppf/.test(hay)) hints.push('Prep wash + iron decon', 'IR lamp optional');
   if (/interior|full/.test(pkg)) hints.push('Vacuum + steam cleaner', 'Microfiber towels');
   if (!hints.length) hints.push('Standard detail kit', 'Microfiber towels', 'Pressure washer if exterior');
+  hints.push(...techEquipmentHintsForSiteAccess(b));
   return [...new Set(hints)];
 }
 
@@ -60,6 +62,11 @@ function projectJobForTech(b) {
     package: b.package || b.service || '',
     addons: (b.addons || []).map(a => ({ name: a.name, qty: a.qty || 1 })),
     customerNote: b.customerNote || '',
+    notes: b.customerNote || b.notes || '',
+    waterAvailable: b.waterAvailable || '',
+    electricityAvailable: b.electricityAvailable || '',
+    serviceLocation: b.serviceLocation || '',
+    accessNotes: b.accessNotes || '',
     jobStatus: normalizeJobStatus(b),
     assignedTechId: b.assignedTechId || b.assignedTech || '',
     assignedTechName: b.assignedTechName || '',

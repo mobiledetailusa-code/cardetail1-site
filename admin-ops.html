@@ -290,6 +290,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 </aside>
 
 <script src="/netlify/lib/admin-session-client.js"></script>
+<script src="/netlify/lib/site-access-client.js"></script>
 <script>
 (function(){
   const KEY = CD1AdminSession.SESS_KEY;
@@ -827,6 +828,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div><b>Vehicle:</b> '+esc(j.vehicleLabel||j.vehicle||'—')+'</div><div><b>Package:</b> '+esc(j.package||'—')+'</div>'+
       '<div><b>Date:</b> '+esc(j.confirmedDate||j.preferredDate||'—')+' '+esc(j.confirmedTime||j.preferredTime||'')+'</div>'+
       '</div></div>';
+    html += (typeof SiteAccess !== 'undefined' ? SiteAccess.adminSection(j, esc) : '');
     html += '<div class="sec"><h4>Assignment</h4><div class="kv"><div><b>Tech:</b> '+esc(j.assignedTechName||'Unassigned')+'</div>'+
       '<div><b>Assigned:</b> '+dt(j.assignedAt)+'</div></div>'+
       '<select id="dAssign" style="margin-top:8px">'+techOptions(j.assignedTechId||j.assignedTech)+'</select></div>';
