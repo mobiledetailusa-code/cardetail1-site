@@ -12,8 +12,10 @@ const JOB_STATUSES = [
 ];
 
 const PAYMENT_WORKFLOW_STATUSES = [
-  'no_payment_required_yet', 'pending_admin_review', 'awaiting_customer_payment',
-  'payment_action_required', 'payment_succeeded', 'payment_failed', 'cash_paid',
+  'no_payment_required_yet', 'card_on_file_saved', 'pending_admin_review',
+  'invoice_sent', 'payment_link_sent', 'awaiting_customer_payment',
+  'payment_action_required', 'payment_requires_customer_action',
+  'payment_succeeded', 'payment_failed', 'cash_paid', 'refunded',
 ];
 
 const LEGACY_STATUS_TO_JOB = {

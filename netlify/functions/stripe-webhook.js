@@ -17,6 +17,17 @@
 //   SITE_URL    (required for bid magic links)
 
 const crypto = require('crypto');
+const { appendEventLog } = require('../lib/ops-workflow');
+
+function bookingIdFromMeta(meta) {
+  if (!meta) return '';
+  return String(meta.bookingId || meta.booking_id || '').trim();
+}
+
+function eventAlreadyLogged(booking, action, refId) {
+  const log = Array.isArray(booking.eventLog) ? booking.eventLog : [];
+  return log.some(e => e.action === action && (refId ? e.refId === refId : true));
+}
 
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
@@ -109,7 +120,7 @@ function verifyStripeSignature(rawBody, sigHeader, secret) {
 }
 
 // ── Read booking, apply updates, write back to Blobs ──
-async function updateBookingPayment(bookingId, updates) {
+async function updateBookingPayment(bookingId, updates, eventEntry) {
   if (!bookingId || bookingId === '—') {
     return { updated: false, reason: 'no booking_id in Stripe metadata' };
   }
@@ -117,9 +128,19 @@ async function updateBookingPayment(bookingId, updates) {
     const store = await blobsStore('cd1-bookings');
     const booking = await store.get(bookingId, { type: 'json' });
     if (!booking) return { updated: false, reason: 'booking not found: ' + bookingId };
-    const updated = { ...booking, ...updates, updatedAt: new Date().toISOString() };
-    await store.setJSON(bookingId, updated);
-    return { updated: true, booking: updated };
+    if (eventEntry && eventAlreadyLogged(booking, eventEntry.action, eventEntry.refId)) {
+      return { updated: true, booking, duplicate: true };
+    }
+    const patched = {
+      ...booking,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+      eventLog: eventEntry
+        ? appendEventLog(booking, { ...eventEntry, by: eventEntry.by || 'stripe_webhook' })
+        : (booking.eventLog || []),
+    };
+    await store.setJSON(bookingId, patched);
+    return { updated: true, booking: patched };
   } catch (e) {
     return { updated: false, reason: e.message };
   }
@@ -234,7 +255,9 @@ exports.handler = async (event) => {
   catch { return { statusCode: 400, body: 'Invalid JSON' }; }
 
   const pi = (evt.data && evt.data.object) ? evt.data.object : {};
-  const bookingId = (pi.metadata && pi.metadata.booking_id) || '—';
+  const meta = pi.metadata || {};
+  const bookingId = bookingIdFromMeta(meta) || (pi.metadata && pi.metadata.booking_id) || '—';
+  const isJobFinalPayment = meta.payment_action === 'job_final';
   const dollars = pi.amount != null ? (pi.amount / 100).toFixed(2) : '?';
   const results = {};
 
@@ -263,12 +286,21 @@ exports.handler = async (event) => {
     }
 
     case 'payment_intent.succeeded': {
-      // Payment captured (either via manual capture or automatic).
+      const jobPayUpdates = isJobFinalPayment ? {
+        jobStatus: 'completed_paid',
+        status: 'Paid',
+        paymentWorkflowStatus: 'payment_succeeded',
+      } : {};
       results.update = await updateBookingPayment(bookingId, {
         paymentStatus: 'paid',
         paymentIntentId: pi.id,
         amountCapturedCents: pi.amount_received != null ? pi.amount_received : pi.amount,
         capturedAt: new Date().toISOString(),
+        ...jobPayUpdates,
+      }, {
+        action: 'webhook_payment_succeeded',
+        refId: pi.id,
+        amountCents: pi.amount_received != null ? pi.amount_received : pi.amount,
       });
       await notifyAdmin(
         `Cardetail1 — payment captured $${dollars} · ${bookingId}`,
@@ -279,10 +311,19 @@ exports.handler = async (event) => {
 
     case 'payment_intent.payment_failed': {
       const reason = (pi.last_payment_error && pi.last_payment_error.message) || 'unknown';
-      results.update = await updateBookingPayment(bookingId, {
+      const failUpdates = isJobFinalPayment ? {
+        paymentWorkflowStatus: 'payment_failed',
+      } : {
         paymentStatus: 'authorization_failed',
+      };
+      results.update = await updateBookingPayment(bookingId, {
+        ...failUpdates,
         paymentIntentId: pi.id,
         paymentFailureReason: reason,
+      }, {
+        action: 'webhook_payment_failed',
+        refId: pi.id,
+        reason,
       });
       await notifyAdmin(
         `Cardetail1 — payment FAILED · ${bookingId}`,
@@ -344,7 +385,28 @@ exports.handler = async (event) => {
 
     case 'checkout.session.completed': {
       const sess = evt.data.object;
-      const meta = sess.metadata || {};
+      const sm = sess.metadata || {};
+      const sessBookingId = bookingIdFromMeta(sm);
+      if (sess.mode === 'payment' && sess.payment_status === 'paid' && sessBookingId) {
+        results.update = await updateBookingPayment(sessBookingId, {
+          paymentStatus: 'paid',
+          paymentWorkflowStatus: 'payment_succeeded',
+          jobStatus: 'completed_paid',
+          status: 'Paid',
+          stripeCheckoutSessionId: sess.id,
+          amountCapturedCents: sess.amount_total,
+          capturedAt: new Date().toISOString(),
+        }, {
+          action: 'webhook_checkout_paid',
+          refId: sess.id,
+          amountCents: sess.amount_total,
+        });
+        await notifyAdmin(
+          `Cardetail1 — checkout paid · ${sessBookingId}`,
+          `Customer paid via Checkout for booking ${sessBookingId}.\nSession: ${sess.id}\nAmount: $${((sess.amount_total || 0) / 100).toFixed(2)}`
+        );
+      }
+      const meta = sm;
       if (meta.type === 'customer_subscription' &&
           sess.mode === 'subscription' &&
           sess.payment_status === 'paid' &&
@@ -353,6 +415,46 @@ exports.handler = async (event) => {
         await notifyAdmin(
           `Cardetail1 — subscription activated · ${meta.email || '—'}`,
           `Customer subscription checkout completed.\nPlan: ${meta.packId || '—'}\nEmail: ${meta.email || '—'}\nVehicle: ${meta.vehicle || '—'}\nStripe sub: ${sess.subscription || '—'}`
+        );
+      }
+      break;
+    }
+
+    case 'invoice.paid': {
+      const inv = evt.data.object;
+      const invBookingId = bookingIdFromMeta(inv.metadata || {});
+      if (invBookingId) {
+        results.update = await updateBookingPayment(invBookingId, {
+          paymentStatus: 'paid',
+          paymentWorkflowStatus: 'payment_succeeded',
+          jobStatus: 'completed_paid',
+          status: 'Paid',
+          stripeInvoiceId: inv.id,
+          amountCapturedCents: inv.amount_paid,
+          capturedAt: new Date().toISOString(),
+        }, {
+          action: 'webhook_invoice_paid',
+          refId: inv.id,
+          amountCents: inv.amount_paid,
+        });
+      }
+      break;
+    }
+
+    case 'invoice.payment_failed': {
+      const inv = evt.data.object;
+      const invBookingId = bookingIdFromMeta(inv.metadata || {});
+      if (invBookingId) {
+        results.update = await updateBookingPayment(invBookingId, {
+          paymentWorkflowStatus: 'payment_failed',
+          paymentStatus: 'payment_failed',
+        }, {
+          action: 'webhook_invoice_failed',
+          refId: inv.id,
+        });
+        await notifyAdmin(
+          `Cardetail1 — invoice payment failed · ${invBookingId}`,
+          `Invoice payment failed for booking ${invBookingId}.\nInvoice: ${inv.id}`
         );
       }
       break;

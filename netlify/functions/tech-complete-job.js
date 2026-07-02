@@ -111,6 +111,21 @@ exports.handler = async (event) => {
   };
 
   await store.setJSON(bookingId, patched);
+
+  const { ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM } = process.env;
+  if (ADMIN_EMAIL && RESEND_API_KEY) {
+    fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: RESEND_FROM || 'Cardetail1 <onboarding@resend.dev>',
+        to: [ADMIN_EMAIL],
+        subject: `Cardetail1 — job completion submitted · ${bookingId}`,
+        text: `Technician ${session.techName} submitted completion for ${bookingId}.\nCustomer: ${customerPrintedName}\nReview in Admin Ops → Completed / Payment Review.`,
+      }),
+    }).catch(() => {});
+  }
+
   return jsonCors(200, {
     ok: true,
     bookingId,

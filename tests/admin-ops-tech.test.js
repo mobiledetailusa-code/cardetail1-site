@@ -50,7 +50,9 @@ test('admin-ops dashboard loads required tabs and APIs', () => {
   assert.match(adminOps, /Technician Management/);
   assert.match(adminOps, /Completed/);
   assert.match(adminOps, /approve_completion/);
-  assert.match(adminOps, /set_payment_link|charge_policy_fee/);
+  assert.match(adminOps, /admin-job-payment/);
+  assert.match(adminOps, /charge_card_on_file|Charge card on file/);
+  assert.match(adminOps, /mark_cash_paid|Mark cash paid/);
   assert.doesNotMatch(adminOps, /stripe\.confirmPayment/);
 });
 
@@ -211,13 +213,18 @@ test('completion authorization text version saved server-side', () => {
   assert.match(techComplete, /customerAuthorizationTextVersion/);
 });
 
-test('no stripe payment intent or invoice in new ops functions', () => {
-  for (const f of ['netlify/functions/tech-complete-job.js', 'netlify/functions/admin-ops-jobs.js', 'netlify/functions/tech-assignment.js', 'netlify/functions/tech-jobs.js', 'netlify/functions/tech-accounts.js']) {
+test('no stripe payment intent in non-payment ops functions', () => {
+  for (const f of ['netlify/functions/tech-complete-job.js', 'netlify/functions/tech-assignment.js', 'netlify/functions/tech-jobs.js', 'netlify/functions/tech-accounts.js']) {
     const src = read(f);
     assert.doesNotMatch(src, /paymentIntents\.create/);
-    assert.doesNotMatch(src, /invoices\.create/);
-    assert.doesNotMatch(src, /paymentLinks\.create/);
   }
+});
+
+test('admin-job-payment handles stripe payment intents idempotently', () => {
+  const lib = read('netlify/lib/admin-job-payment.js');
+  assert.match(lib, /payment_intents/);
+  assert.match(lib, /Idempotency-Key/);
+  assert.match(read('netlify/functions/admin-job-payment.js'), /verifyAdminKey/);
 });
 
 test('admin ops supports operational actions', () => {

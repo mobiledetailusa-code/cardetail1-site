@@ -107,6 +107,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     <button type="button" class="tab" data-tab="subscriptions">Subscriptions</button>
     <button type="button" class="tab" data-tab="settings">Settings</button>
     <button type="button" class="tab" data-tab="maintenance">Maintenance</button>
+    <button type="button" class="tab" data-tab="payments">Payment Logs</button>
     <button type="button" class="tab" data-tab="events">Event Log</button>
   </nav>
 
@@ -225,6 +226,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     </div>
   </section>
 
+  <section class="panel" id="p-payments">
+    <p class="hint">Payment attempts, links, and cash entries across all jobs (from event log).</p>
+    <div class="card" id="payLogList"><div class="empty">Loading…</div></div>
+  </section>
+
   <section class="panel" id="p-events">
     <div class="toolbar">
       <input class="srch" id="evSearch" type="search" placeholder="Filter events…">
@@ -298,7 +304,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   if (!token) { location.replace('admin.html'); return; }
 
   const JOB_STATUSES = ['pending_review','confirmed','assigned','accepted','en_route','arrived','in_progress','issue_reported','completed_pending_admin_review','completed_pending_payment','completed_paid','reopened','cancelled'];
-  const PAY_STATUSES = ['no_payment_required_yet','pending_admin_review','awaiting_customer_payment','payment_action_required','payment_succeeded','payment_failed','cash_paid'];
+  const PAY_STATUSES = ['no_payment_required_yet','card_on_file_saved','pending_admin_review','invoice_sent','payment_link_sent','awaiting_customer_payment','payment_action_required','payment_requires_customer_action','payment_succeeded','payment_failed','cash_paid'];
   const inviteCache = {};
 
   let jobs = [], techs = [], activeJob = null, activeTech = null;
@@ -422,7 +428,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const [jobsR, techsR] = await Promise.allSettled([loadJobs(), loadTechs(), loadSettings()]);
     if (jobsR.status === 'rejected') jobs = [];
     if (techsR.status === 'rejected') techs = [];
-    renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
+    renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderPaymentLogs(); renderEvents(); renderTechs();
     renderSettingsForm();
     const failures = [];
     if (jobsR.status === 'rejected') failures.push('bookings (' + (jobsR.reason && jobsR.reason.message || jobsR.reason) + ')');
@@ -616,6 +622,35 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<td>'+esc(cust(j))+'</td><td>'+esc(j.vehicleLabel||j.vehicle||'—')+'</td>'+
       '<td>'+esc(j.assignedTechName||'—')+'</td><td>'+jobBadge(j.jobStatus)+'</td></tr>').join('');
     tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => openDrawer(tr.dataset.id));
+  }
+
+  const PAY_LOG_ACTIONS = new Set([
+    'payment_link_sent','stripe_pay_link_generated','card_charged','card_charge_failed','card_charge_pending',
+    'cash_paid_marked','final_amount_confirmed','webhook_payment_succeeded','webhook_payment_failed',
+    'webhook_checkout_paid','webhook_invoice_paid','webhook_invoice_failed','policy_fee_charged',
+    'payment_request_canceled','completion_approved',
+  ]);
+
+  function renderPaymentLogs() {
+    const evs = [];
+    jobs.forEach(j => (j.eventLog||[]).forEach(e => {
+      if (PAY_LOG_ACTIONS.has(e.action)) evs.push({ ...e, bookingId: j.id, customer: cust(j), paymentWorkflowStatus: j.paymentWorkflowStatus });
+    }));
+    evs.sort((a,b) => String(b.at||'').localeCompare(String(a.at||'')));
+    const el = $('#payLogList');
+    if (!el) return;
+    if (!evs.length) { el.innerHTML='<div class="empty">No payment events yet</div>'; return; }
+    el.innerHTML = '<table class="tbl"><thead><tr><th>When</th><th>Booking</th><th>Action</th><th>Details</th><th>Status</th></tr></thead><tbody>'+
+      evs.slice(0,150).map(e => '<tr data-id="'+esc(e.bookingId)+'" style="cursor:pointer">'+
+        '<td>'+dt(e.at)+'</td><td>'+esc(e.bookingId)+'<div class="tech-meta">'+esc(e.customer)+'</div></td>'+
+        '<td><strong>'+esc(e.action)+'</strong></td>'+
+        '<td style="font-size:12px;color:var(--mu)">'+
+          (e.amountCents!=null?'$'+(e.amountCents/100).toFixed(2)+' ':'')+
+          (e.note?esc(e.note):'')+(e.emailSent===false?' (email failed)':'')+
+        '</td>'+
+        '<td>'+payBadge(e.paymentWorkflowStatus||'')+'</td></tr>').join('')+
+      '</tbody></table>';
+    el.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => openDrawer(tr.dataset.id));
   }
 
   function renderEvents() {
@@ -816,6 +851,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     } catch(e) { toast('Action failed: '+e.message); throw e; }
   }
 
+  async function payAction(bookingId, action, extra) {
+    try {
+      const data = await api('/.netlify/functions/admin-job-payment','POST',{action,bookingId,...extra});
+      toast(data.userMessage || 'Payment action saved');
+      await refreshAll();
+      if (activeJob && activeJob.id===bookingId) openDrawer(bookingId);
+      return data;
+    } catch(e) { toast(e.message || 'Payment failed'); throw e; }
+  }
+
   function openDrawer(id) {
     const j = jobs.find(x => x.id===id);
     if (!j) return;
@@ -888,7 +933,21 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<button type="button" class="btn warn sm" id="dChargeNoShow">Charge no-show ($75)</button>'+
       '<button type="button" class="btn warn sm" id="dChargeLateCancel">Charge late cancel ($50)</button>'+
       '</div>'+
-      '<p class="hint">Policy charges use card on file (off-session). Requires saved Stripe payment method on booking.</p>'+
+      '<div class="full" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">'+
+      '<label>Admin note (required for payment actions)</label>'+
+      '<input type="text" id="dPayNote" placeholder="Internal note for payment audit…">'+
+      '<div class="actions" style="margin-top:8px">'+
+      '<button type="button" class="btn sm" id="dConfirmFinal">Confirm final amount</button>'+
+      '<button type="button" class="btn sm" id="dSendInvoice">Send payment link</button>'+
+      '<button type="button" class="btn sm" id="dChargeCof">Charge card on file</button>'+
+      '<button type="button" class="btn ghost sm" id="dMarkCash">Mark cash paid</button>'+
+      '<button type="button" class="btn ghost sm" id="dRetryPay">Retry payment</button>'+
+      '<button type="button" class="btn ghost sm" id="dCancelPayReq">Cancel payment request</button>'+
+      '</div>'+
+      (j.cardOnFileStatus==='saved'?' <span class="badge b-ok">Card on file</span>':' <span class="badge b-warn">No card on file</span>')+
+      (j.finalAmountCents||j.finalAmount?(' · Final: $'+((j.finalAmountCents?j.finalAmountCents/100:j.finalAmount)||0).toFixed(2)):' · <span style="color:var(--warn)">Final amount not confirmed</span>')+
+      '</div>'+
+      '<p class="hint">Job completion payments use admin-job-payment (idempotent). Policy fees use card on file separately.</p>'+
       '<div class="full"><label>Refund note</label><input type="text" id="dRefundNote" placeholder="Reason for refund request"></div>'+
       '<div><label>Refund amount ($)</label><input type="number" id="dRefundAmt" step="0.01"></div>'+
       '<div class="full"><button type="button" class="btn warn sm" id="dRefund" style="width:100%">Log refund request</button></div>'+
@@ -966,6 +1025,23 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     };
     const drf = $('#dRefund'); if(drf) drf.onclick = () => jobAction(j.id,'record_refund_request',{reason:$('#dRefundNote').value.trim(),amount:$('#dRefundAmt').value});
     const dsb = $('#dSaveBal'); if(dsb) dsb.onclick = () => jobAction(j.id,'record_job_balance',{finalAmount:$('#dFinalAmt').value,techPayoutAmount:$('#dTechPay').value});
+    const payNote = () => ($('#dPayNote')&&$('#dPayNote').value||'').trim();
+    const dcf = $('#dConfirmFinal'); if(dcf) dcf.onclick = () => {
+      const note = payNote(); if(!note){ toast('Admin note required'); return; }
+      const amt = Number($('#dFinalAmt').value||j.finalAmount||j.totalPrice||0);
+      payAction(j.id,'confirm_final_amount',{adminNote:note,finalAmount:amt});
+    };
+    const dsi = $('#dSendInvoice'); if(dsi) dsi.onclick = () => payAction(j.id,'send_invoice',{adminNote:payNote()});
+    const dcc = $('#dChargeCof'); if(dcc) dcc.onclick = () => {
+      if(!confirm('Charge card on file for confirmed final amount?')) return;
+      payAction(j.id,'charge_card_on_file',{adminNote:payNote()});
+    };
+    const dmc = $('#dMarkCash'); if(dmc) dmc.onclick = () => {
+      const note = payNote(); if(!note){ toast('Admin note required'); return; }
+      payAction(j.id,'mark_cash_paid',{adminNote:note,finalAmount:Number($('#dFinalAmt').value||j.finalAmount||j.totalPrice||0)});
+    };
+    const drp = $('#dRetryPay'); if(drp) drp.onclick = () => payAction(j.id,'retry_payment',{adminNote:payNote(),forceRetry:true});
+    const dcp = $('#dCancelPayReq'); if(dcp) dcp.onclick = () => payAction(j.id,'cancel_payment_request',{adminNote:payNote()});
     $('#drawerBg').classList.add('open'); $('#drawer').classList.add('open');
   }
 
