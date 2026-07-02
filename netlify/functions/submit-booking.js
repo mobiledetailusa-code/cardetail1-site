@@ -286,7 +286,11 @@ exports.handler = async (event) => {
   const zip = String(b.zipCode || b.zip || '').replace(/\D/g, '').slice(0, 5);
   if (zip.length < 5) return json(400, { ok: false, error: 'zip_required' });
 
-  const travelApplied = applyServerTravelAndTotal(b);
+  const isDraftRequest = !!b.isDraft;
+  const travelApplied = applyServerTravelAndTotal(
+    b,
+    isDraftRequest ? { skipMismatchCheck: true } : {}
+  );
   if (!travelApplied.ok) {
     return json(400, { ok: false, error: travelApplied.error || 'out_of_service_area' });
   }

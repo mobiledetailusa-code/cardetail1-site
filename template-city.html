@@ -4093,7 +4093,17 @@ async function initCardOnFile(){
       if(!draftCt.includes('json')) throw new Error(isLocalPreview?LOCAL_DEV_FUNCTIONS_HINT:'Booking backend returned an invalid response. Try again.');
       const draftData=await draftRes.json();
       if(isStale()) return;
-      if(!draftData.ok) throw new Error('Could not register booking. Please try again.');
+      if(!draftData.ok){
+        const draftErrMap={
+          payment_preference_required:'Choose a payment preference first.',
+          card_on_file_policy_required:'Accept the card-on-file policy to continue.',
+          zip_required:'Enter a valid ZIP code in the booking form.',
+          out_of_service_area:'This ZIP is outside our service area.',
+          invalid_pricing:'We could not verify your package price. Go back and reselect your service.',
+          price_mismatch:'Your total changed — go back one step and continue again.',
+        };
+        throw new Error(draftErrMap[draftData.error]||'Could not register booking. Please try again.');
+      }
       ST.bookingId=draftData.id; ST.draftRegistered=true;
     }
     destroyStripePaymentUI();
@@ -6214,8 +6224,10 @@ function openBookingFromHome(cat){
   // If ZIP already entered on hero, sync it to the booking modal silently
   const heroZip = document.getElementById('hero-zip');
   if(heroZip && heroZip.value.replace(/\D/g,'').length === 5){
+    const zip5 = heroZip.value.replace(/\D/g,'').slice(0, 5);
     const bkZip = document.getElementById('bk-zip');
-    if(bkZip && !bkZip.value) bkZip.value = heroZip.value;
+    if(bkZip && !bkZip.value) bkZip.value = zip5;
+    if(typeof onBkZipInput === 'function') onBkZipInput(zip5);
   }
   openBooking(cat);
 }
@@ -6233,6 +6245,9 @@ function openBookingFromHome(cat){
       inp.value = zip5;
       if(typeof onHeroZipInput === 'function') onHeroZipInput(zip5);
     }
+    const bkZip = document.getElementById('bk-zip');
+    if(bkZip && !bkZip.value) bkZip.value = zip5;
+    if(typeof onBkZipInput === 'function') onBkZipInput(zip5);
   }
 })();
 renderReviews();

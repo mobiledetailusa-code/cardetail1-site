@@ -40,6 +40,13 @@ test('initCardOnFile has race protection and stale-response guards', () => {
   assert.match(initBlock, /if\(cardInitInProgress\) return/);
   assert.match(initBlock, /isStale/);
   assert.match(initBlock, /if\(!ST\.draftRegistered\)/);
+  assert.match(initBlock, /draftErrMap/);
+});
+
+test('openBookingFromHome syncs ZIP into booking modal with onBkZipInput', () => {
+  assert.match(index, /onBkZipInput\(zip5\)/);
+  assert.match(read('new-jersey-hub.html'), /initHubZipFromQuery/);
+  assert.match(read('new-jersey-hub.html'), /onBkZipInput\(zip5\)/);
 });
 
 test('Stripe Payment Element unmounts before remount', () => {
