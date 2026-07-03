@@ -46,6 +46,22 @@ const { applyServerTravelAndTotal } = require('../lib/travel-fee');
 const {
   formatSiteAccessLines,
 } = require('../lib/site-access');
+const { validateBookingSchedule, hasSlotConflict } = require('../lib/booking-schedule');
+const { listRawBookings } = require('../lib/ops-db');
+
+async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
+  const v = validateBookingSchedule(b.preferredDate, b.preferredTime);
+  if (!v.ok) return { ok: false, error: v.error };
+  b.preferredDate = v.preferredDate;
+  b.preferredTime = v.preferredTime;
+  if (checkSlot) {
+    const bookings = await listRawBookings().catch(() => []);
+    if (hasSlotConflict(bookings, v.preferredDate, v.preferredTime, excludeId)) {
+      return { ok: false, error: 'booking_slot_unavailable' };
+    }
+  }
+  return { ok: true };
+}
 
 // Safe server-side fallback when webhook is delayed: verify SetupIntent with Stripe API.
 // Never trusts client proof — only persisted setupIntentId on the server-owned draft.
@@ -299,6 +315,10 @@ exports.handler = async (event) => {
 
   // ── Draft pre-registration (supports C-2: create-payment-intent fetches amount from Blobs) ──
   if (b.isDraft) {
+    const scheduleDraft = await enforceScheduleFields(b);
+    if (!scheduleDraft.ok) {
+      return json(400, { ok: false, error: scheduleDraft.error });
+    }
     const preference = String(b.paymentMethodPreference || '');
     if (!PAYMENT_PREFERENCES.has(preference)) {
       return json(400, { ok: false, error: 'payment_preference_required' });
@@ -379,6 +399,11 @@ exports.handler = async (event) => {
     }
     if (b.acceptedCardOnFilePolicy !== true || b.acceptedBookingPolicy !== true) {
       return json(400, { ok: false, error: 'booking_policy_required' });
+    }
+    const scheduleFinal = await enforceScheduleFields(b, { checkSlot: true, excludeId: rawDraftId });
+    if (!scheduleFinal.ok) {
+      const status = scheduleFinal.error === 'booking_slot_unavailable' ? 409 : 400;
+      return json(status, { ok: false, error: scheduleFinal.error });
     }
     const finalizedAt = new Date().toISOString();
 
