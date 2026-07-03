@@ -7,10 +7,19 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
-test('Choose Your Service copy matches PR #64 compact section', () => {
+test('booking Step 1 uses ZIP-first copy and unlock gate message', () => {
   assert.match(
     index,
-    /Select your vehicle type and see packages, pricing, and add-ons in the booking flow\. Serving Bergen County and nearby NJ\/NY areas\./
+    /Enter your ZIP code first — we'll detect your area and show accurate pricing for your location\./
+  );
+  assert.match(
+    index,
+    /Enter your 5-digit ZIP code to unlock services and see local pricing/
+  );
+  assert.match(index, /id="bs1"[\s\S]*?id="bk-zip"/);
+  assert.doesNotMatch(
+    index,
+    /Select your vehicle type and see packages, pricing, and add-ons in the booking flow/
   );
 });
 
