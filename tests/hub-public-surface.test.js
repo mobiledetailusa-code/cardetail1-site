@@ -130,6 +130,9 @@ for (const page of stateHubPages) {
   test(`${page} uses shared package details modal for all three cards`, () => {
     const html = read(page);
     assert.match(html, /id="car-pkg-detail-ov"/);
+    assert.match(html, /\.car-pkg-detail-ov\[hidden\]\{display:none!important\}/);
+    assert.equal((html.match(/id="car-pkg-detail-body"/g) || []).length, 1, 'single modal body element');
+    assert.doesNotMatch(html, /<div class="car-pkg-detail-body" id="car-pkg-detail-body"><\/div>\s*<div class="car-addons-block">/);
     assert.match(html, /assets\/car-pkg-detail-modal\.js/);
     assert.match(html, /assets\/button-states\.css/);
     assert.match(html, /initCarPkgDetailModal\(\);/);

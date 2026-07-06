@@ -81,8 +81,14 @@ test('homepage opens package details in modal panel instead of inline card expan
   assert.match(index, /id="car-pkg-detail-body"/);
   assert.match(index, /assets\/car-pkg-detail-modal\.js/);
   assert.match(index, /initCarPkgDetailModal\(\);/);
+  assert.match(index, /\.car-pkg-detail-ov\[hidden\]\{display:none!important\}/);
   assert.doesNotMatch(index, /function toggleHomePkgDetail/);
   assert.doesNotMatch(index, /id="home-pkg-detail-interior"/);
+  const modalIdx = index.indexOf('id="car-pkg-detail-ov"');
+  const addonsIdx = index.indexOf('class="car-addons-block"');
+  const bodyCloseIdx = index.lastIndexOf('</body>');
+  assert.ok(modalIdx > addonsIdx, 'modal should not sit inside package cards');
+  assert.ok(modalIdx > bodyCloseIdx - 1200 && modalIdx < bodyCloseIdx, 'modal should live near end of body');
   for (const pkgId of ['interior', 'full', 'refresh']) {
     assert.match(index, new RegExp(`openHomePkgDetailModal\\('${pkgId}'`));
     assert.match(index, new RegExp(`openBookingCarPkg\\('${pkgId}'\\)`));
@@ -92,6 +98,12 @@ test('homepage opens package details in modal panel instead of inline card expan
   assert.match(pkgModalJs, /<h4>Best for<\/h4>/);
   assert.match(pkgModalJs, /<h4>Add-ons may apply<\/h4>/);
   assert.match(pkgModalJs, /openBookingCarPkg\(pkgId\)/);
+  assert.match(pkgModalJs, /ov\.hidden = true/);
+});
+
+test('homepage specialty cards do not render orphan icon markup', () => {
+  const section = index.slice(index.indexOf('id="specialty-services"'), index.indexOf('id="specialty-services"') + 3500);
+  assert.doesNotMatch(section, /<div class="specialty-icon">/);
 });
 
 test('booking modal primary buttons keep readable hover colors', () => {

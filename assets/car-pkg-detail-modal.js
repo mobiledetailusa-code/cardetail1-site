@@ -148,6 +148,8 @@ function closeHomePkgDetailModal() {
 function initCarPkgDetailModal() {
   const ov = document.getElementById("car-pkg-detail-ov");
   if (!ov) return;
+  ov.hidden = true;
+  ov.setAttribute("aria-hidden", "true");
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && !ov.hidden) closeHomePkgDetailModal();
   });

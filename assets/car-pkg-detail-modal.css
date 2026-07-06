@@ -1,5 +1,8 @@
-/* In-page package details panel (homepage + state hubs) */
-.car-pkg-detail-ov {
+/* Package details modal — hidden by default; only visible when [hidden] is removed */
+.car-pkg-detail-ov[hidden] {
+  display: none !important;
+}
+.car-pkg-detail-ov:not([hidden]) {
   position: fixed;
   inset: 0;
   z-index: 850;
@@ -10,9 +13,6 @@
   background: rgba(15, 23, 42, 0.55);
   backdrop-filter: blur(6px);
   overflow-y: auto;
-}
-.car-pkg-detail-ov[hidden] {
-  display: none !important;
 }
 .car-pkg-detail-panel {
   position: relative;
@@ -176,7 +176,7 @@
 }
 
 @media (max-width: 640px) {
-  .car-pkg-detail-ov {
+  .car-pkg-detail-ov:not([hidden]) {
     padding: 0;
     align-items: flex-end;
   }
