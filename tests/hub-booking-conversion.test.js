@@ -35,6 +35,11 @@ for (const page of pages) {
     assert.match(html, /theme:'stripe'/);
     assert.doesNotMatch(html, /theme:'night'/);
   });
+
+  test(`${page} advances to vehicle step after package selection`, () => {
+    const html = read(page);
+    assert.match(html, /function selectPkg\(id\)\{[\s\S]*?if\(ST\.pkg\) setTimeout\(\(\)=>bkGoTo\(3\), 180\)/);
+  });
 }
 
 test('ny-metro-hub.html shows NYC travel fee notice in hero', () => {
