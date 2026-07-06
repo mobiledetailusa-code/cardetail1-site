@@ -26,25 +26,45 @@ const BOOKING_PAGES = [
 
 const MECH_RE = /\b(repair|lubricat|chain adjustment|oil change|brake service|drivetrain|electrical inspection|mechanical inspection|engine repair)\b/i;
 
-function extractPowersportsAddons(html) {
-  const m = html.match(/powersports:\s*\{[\s\S]*?addons:\[([\s\S]*?)\],\s*\n\s*\},/);
-  assert.ok(m, 'powersports addons block');
-  return m[1];
+function extractAddonBlocks(html) {
+  const blocks = [];
+  const re = /addons:\[([\s\S]*?)\](?:,|\n  \})/g;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    blocks.push(m[1]);
+  }
+  return blocks;
 }
 
-test('Mold Treatment appears in cars catalog with icon and estimate copy', () => {
+test('add-on catalog entries do not define icon fields', () => {
+  for (const f of BOOKING_PAGES) {
+    const blocks = extractAddonBlocks(read(f));
+    assert.ok(blocks.length >= 5, `${f} should include multiple add-on blocks`);
+    for (const block of blocks) {
+      assert.ok(!/\bicon:/.test(block), `${f} add-on block still has icon fields`);
+    }
+  }
+});
+
+test('booking add-on UI does not render icon markup', () => {
+  for (const f of BOOKING_PAGES) {
+    const s = read(f);
+    assert.ok(!s.includes('addon-ico'), `${f} still references addon-ico`);
+    assert.ok(!s.includes('${a.icon}'), `${f} still interpolates add-on icons in UI`);
+  }
+});
+
+test('Mold Treatment appears with estimate copy and price', () => {
   const s = read('index.html');
-  assert.match(s, /id:'mold'[^}]*icon:'🦠'/);
   assert.match(s, /id:'mold'[^}]*price:149/);
-  assert.match(s, /id:'mold'[^}]*estimate confirmation/i);
+  assert.match(s, /id:'mold'[^}]*estimate/i);
   const def = PRICING.cars.addons.find((a) => a.id === 'mold');
   assert.equal(def.price, 149);
 });
 
-test('Interior Sanitizing appears in cars catalog with icon and price', () => {
+test('Interior Sanitizing appears with correct price', () => {
   const s = read('index.html');
   assert.match(s, /id:'sanitize'[^}]*name:'Interior Sanitizing'/);
-  assert.match(s, /id:'sanitize'[^}]*icon:'🛡️'/);
   assert.match(s, /id:'sanitize'[^}]*price:65/);
   const def = PRICING.cars.addons.find((a) => a.id === 'sanitize');
   assert.equal(def.price, 65);
@@ -73,9 +93,11 @@ test('RV roof and awning are $50 each with quantity support', () => {
 
 test('powersports add-ons have no mechanical-service language', () => {
   for (const f of BOOKING_PAGES) {
-    const block = extractPowersportsAddons(read(f));
+    const html = read(f);
+    const m = html.match(/powersports:\s*\{[\s\S]*?addons:\[([\s\S]*?)\],/);
+    assert.ok(m, `${f} powersports addons block`);
+    const block = m[1];
     assert.ok(!block.includes("id:'chain'"), `${f} still has chain add-on`);
-    assert.ok(!block.includes('Chain & Sprocket'), `${f} still has chain add-on name`);
     assert.ok(!MECH_RE.test(block), `${f} powersports addons contain mechanical language`);
   }
 });
@@ -108,12 +130,21 @@ test('addon quantity and totals still compute correctly', () => {
   assert.equal(combo.addonTotal, 90 + 65 + 149);
 });
 
-test('all booking pages share the same new add-on ids', () => {
+test('all booking pages share mold and sanitize add-ons', () => {
   for (const f of BOOKING_PAGES) {
     const s = read(f);
     for (const id of ['mold', 'sanitize']) {
       assert.ok(s.includes(`id:'${id}'`), `${f} missing ${id}`);
     }
     assert.ok(!s.includes("id:'chain'"), `${f} still has chain`);
+  }
+});
+
+test('client and server add-on ids/prices stay synced for cars', () => {
+  const clientIds = [...read('index.html').matchAll(/cars:[\s\S]*?addons:\[([\s\S]*?)\],/g)][0][1]
+    .matchAll(/id:'([^']+)'[^}]*price:(\d+)/g);
+  const clientMap = Object.fromEntries([...clientIds].map((m) => [m[1], Number(m[2])]));
+  for (const a of PRICING.cars.addons) {
+    assert.equal(clientMap[a.id], a.price, `cars.${a.id} price mismatch`);
   }
 });

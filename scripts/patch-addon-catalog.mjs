@@ -1,5 +1,6 @@
 /**
  * Sync add-on catalog across booking pages + server pricing catalog.
+ * Add-on entries have no icon fields — UI is name/description/price only.
  */
 import fs from "fs";
 import path from "path";
@@ -25,64 +26,73 @@ const HTML_FILES = [
 ];
 
 const CARS_ADDONS = `    addons:[
-      {id:'pethair',    scope:'int', name:'Pet Hair Removal',          icon:'🐾',  desc:'Deep removal of embedded pet hair from seats, carpets, mats, and trunk. Heavy buildup may require estimate', price:95},
-      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    icon:'💎',  desc:'Extra shampoo passes, hand-steam on panels, door pockets, and cargo areas for interior-included packages', price:125},
-      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', icon:'🌫️',  desc:'Odor treatment for smoke, food, pet, and general interior smells. Severe odor, mold, urine, biohazard, or contamination may require estimate confirmation', price:90},
-      {id:'mold',       scope:'int', name:'Mold Treatment',            icon:'🦠',  desc:'Targeted mold treatment for affected interior areas. Requires inspection and may require estimate confirmation. Starting at $149 — final price depends on severity', price:149},
-      {id:'sanitize',   scope:'int', name:'Interior Sanitizing',       icon:'🛡️',  desc:'Interior surface sanitizing for high-touch areas after cleaning — steering wheel, controls, handles, seats, belts, and contact points', price:65},
-      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        icon:'☣️',  desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Requires estimate confirmation before service', price:115},
-      {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      icon:'🧼',  desc:'Top-view engine bay cleaning for visible surfaces and covers only. Not mechanical service, repair, or fluid work', price:45},
-      {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      icon:'🧽',  desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each — set the quantity of mats', price:20, qty:true},
-      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    icon:'💧',  desc:'Water-repellent Rain-X treatment on windshield and front glass for improved wet-weather visibility', price:25},
-      {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     icon:'🛡️',  desc:'Hand-applied polymer sealant for paint protection and enhanced gloss. Lasts 3–6 months', price:25},
-      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       icon:'🥇',  desc:'Premium long-lasting carnauba wax. Superior gloss and up to 12 months of paint protection', price:75},
-      {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        icon:'🧲',  desc:'Removes embedded contaminants, industrial fallout, and rail dust for a smooth, clean paint surface', price:45},
-      {id:'headlight',  scope:'ext', name:'Headlight Restoration',     icon:'💡',  desc:'Clean, polish, and seal foggy or yellowed headlights to restore clarity (per pair). Cosmetic detailing only', price:90},
-      {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  icon:'👶',  desc:'Clean and sanitize a child car seat — straps, padding, and buckle. $20 each — set the quantity', price:20, qty:true},
-      {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    icon:'🍼',  desc:'Wash and sanitize a baby stroller — fabric, frame, and wheels. $20 each — set the quantity', price:20, qty:true},
-      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        icon:'🗑️',  desc:'Residential trash can cleaning at the service location. $25 each — set the quantity. Biohazard requires estimate', price:25, qty:true},
+      {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Deep pet hair removal from seats, carpets, mats, and trunk. Heavy buildup may need an estimate', price:95},
+      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    desc:'Extra shampoo passes and hand-steam on panels, pockets, and cargo areas', price:125},
+      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, pet, and general interior odors. Severe odor, mold, urine, or biohazard may require estimate confirmation', price:90},
+      {id:'mold',       scope:'int', name:'Mold Treatment',            desc:'Targeted mold treatment for affected interior areas. Inspection required; estimate may be needed. Starting at $149 based on severity', price:149},
+      {id:'sanitize',   scope:'int', name:'Interior Sanitizing',       desc:'High-touch interior wipe-down after cleaning — wheel, controls, handles, seats, and belts', price:65},
+      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Estimate confirmation required', price:115},
+      {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      desc:'Top-view cleaning of visible engine bay surfaces and covers. Detailing only — not mechanical service', price:45},
+      {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each', price:20, qty:true},
+      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    desc:'Water-repellent Rain-X on windshield and front glass', price:25},
+      {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     desc:'Hand-applied polymer sealant for paint protection and gloss. Lasts 3–6 months', price:25},
+      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax with enhanced gloss and up to 12 months of protection', price:75},
+      {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        desc:'Removes embedded contaminants, fallout, and rail dust for smooth paint', price:45},
+      {id:'headlight',  scope:'ext', name:'Headlight Restoration',     desc:'Clean, polish, and seal foggy headlights (per pair). Cosmetic detailing only', price:90},
+      {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  desc:'Clean child car seat straps, padding, and buckle. $20 each', price:20, qty:true},
+      {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    desc:'Wash stroller fabric, frame, and wheels. $20 each', price:20, qty:true},
+      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'Residential trash can cleaning at the service location. $25 each', price:25, qty:true},
     ],`;
 
 const BOATS_ADDONS = `    addons:[
-      {id:'rainx',      name:'Rain-X Glass Treatment',        icon:'💧', desc:'Water-repellent treatment for marine windshields and glass surfaces', price:25},
-      {id:'polymer',    name:'Polymer Hull Sealant',           icon:'🛡️', desc:'Polymer sealant on hull exterior for enhanced protection and gloss', price:25},
-      {id:'wax1yr',     name:'1-Year Marine Carnauba Wax',     icon:'🥇', desc:'Premium carnauba wax for marine gel coat — up to 12 months protection', price:75},
-      {id:'chrome',     name:'Chrome / Stainless Polish',      icon:'✨', desc:'Accessible chrome, stainless rails, cleats, and brightwork polished on exterior surfaces', price:85},
-      {id:'odor',       name:'Odor Treatment & Sanitize',     icon:'🌫️', desc:'Odor treatment for smoke, food, pet, and general cabin smells. Severe odor, mold, urine, biohazard, or contamination may require estimate confirmation', price:90},
-      {id:'mold',       name:'Mold Treatment',                icon:'🦠', desc:'Targeted mold treatment for affected cabin areas. Requires inspection and may require estimate confirmation. Starting at $149 — final price depends on severity', price:149},
-      {id:'sanitize',   name:'Interior Sanitizing',           icon:'🛡️', desc:'Cabin surface sanitizing for high-touch areas after cleaning', price:65},
-      {id:'biohazard',  name:'Biohazard Cleaning',             icon:'☣️', desc:'Bodily fluids or severe contamination. Requires estimate confirmation before service', price:115},
-      {id:'trashcans',  name:'Trash Can Cleaning',             icon:'🗑️', desc:'Trash can cleaning at marina, storage yard, or home location — $25 per can', price:25, qty:true},
+      {id:'rainx',      name:'Rain-X Glass Treatment',     desc:'Water-repellent treatment for marine windshields and glass', price:25},
+      {id:'polymer',    name:'Polymer Hull Sealant',        desc:'Polymer sealant on hull exterior for protection and gloss', price:25},
+      {id:'wax1yr',     name:'1-Year Marine Carnauba Wax',  desc:'Premium carnauba wax for marine gel coat — up to 12 months protection', price:75},
+      {id:'chrome',     name:'Chrome / Stainless Polish',   desc:'Polish accessible chrome, rails, cleats, and brightwork on exterior surfaces', price:85},
+      {id:'odor',       name:'Odor Treatment & Sanitize',  desc:'Treatment for smoke, food, pet, and cabin odors. Severe cases may require estimate confirmation', price:90},
+      {id:'mold',       name:'Mold Treatment',              desc:'Targeted mold treatment for affected cabin areas. Inspection required; estimate may be needed. Starting at $149 based on severity', price:149},
+      {id:'sanitize',   name:'Interior Sanitizing',         desc:'High-touch cabin wipe-down after cleaning', price:65},
+      {id:'biohazard',  name:'Biohazard Cleaning',          desc:'Bodily fluids or severe contamination. Estimate confirmation required', price:115},
+      {id:'trashcans',  name:'Trash Can Cleaning',          desc:'Trash can cleaning at marina, storage yard, or home. $25 per can', price:25, qty:true},
     ],`;
 
 const RVS_ADDONS = `    addons:[
-      {id:'polymer',    scope:'ext', name:'Polymer Sealant Upgrade',     icon:'🛡️', desc:'Polymer sealant on RV exterior for added protection and gloss. Excellent for fiberglass', price:25},
-      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',         icon:'🥇', desc:'Premium carnauba wax on RV exterior. Up to 12 months UV and weather protection', price:75},
-      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment', icon:'💧', desc:'Water-repellent Rain-X on RV windshield and front glass', price:25},
-      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',          icon:'☣️', desc:'Bodily fluids, waste, or severe contamination. Requires estimate confirmation before service', price:115},
-      {id:'mold',       scope:'int', name:'Mold Treatment',              icon:'🦠', desc:'Targeted mold treatment for affected interior areas. Requires inspection and may require estimate confirmation. Starting at $149 — final price depends on severity', price:149},
-      {id:'sanitize',   scope:'int', name:'Interior Sanitizing',         icon:'🛡️', desc:'Interior surface sanitizing for high-touch areas after cleaning', price:65},
-      {id:'awning',     scope:'ext', name:'Awning Cleaning',             icon:'⛱️', desc:'Awning fabric and surface cleaning. Does not include repair, replacement, motorized mechanism service, or re-tensioning', price:50, qty:true},
-      {id:'roof',       scope:'ext', name:'Roof Surface Cleaning',       icon:'🏠', desc:'Exterior roof surface cleaning for RVs and trailers. Does not include roof repair, resealing, leak inspection, or mechanical work', price:50, qty:true},
-      {id:'capfront',   scope:'ext', name:'Front Cap Deep Clean',        icon:'🧼', desc:'Bugs, road grime, black streaks, and front cap buildup on accessible exterior surfaces', price:149},
-      {id:'pethair',    scope:'int', name:'Pet Hair Removal',            icon:'🐾', desc:'Pet hair removal from RV seats, rugs, cushions, and living areas', price:95},
-      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize',   icon:'🌫️', desc:'Odor treatment for smoke, food, pet, and general interior smells. Severe odor, mold, urine, biohazard, or contamination may require estimate confirmation', price:90},
-      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',          icon:'🗑️', desc:'$25 per can at RV park, campground, storage, or home', price:25, qty:true},
+      {id:'polymer',    scope:'ext', name:'Polymer Sealant Upgrade',   desc:'Polymer sealant on RV exterior for added protection and gloss', price:25},
+      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax on RV exterior with UV and weather protection', price:75},
+      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment', desc:'Water-repellent Rain-X on RV windshield and front glass', price:25},
+      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids, waste, or severe contamination. Estimate confirmation required', price:115},
+      {id:'mold',       scope:'int', name:'Mold Treatment',            desc:'Targeted mold treatment for affected interior areas. Inspection required; estimate may be needed. Starting at $149 based on severity', price:149},
+      {id:'sanitize',   scope:'int', name:'Interior Sanitizing',       desc:'High-touch interior wipe-down after cleaning', price:65},
+      {id:'awning',     scope:'ext', name:'Awning Cleaning',           desc:'RV awning fabric wash and clean. Cleaning only — no repair, replacement, mechanism service, or re-tensioning', price:50, qty:true},
+      {id:'roof',       scope:'ext', name:'Roof Surface Cleaning',     desc:'Exterior RV/trailer roof wash and clean. Cleaning only — no repair, resealing, leaks, or mechanical work', price:50, qty:true},
+      {id:'capfront',   scope:'ext', name:'Front Cap Deep Clean',      desc:'RV front cap exterior wash for bugs, grime, and road film. Surface cleaning and detailing only', price:149},
+      {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Pet hair removal from RV seats, rugs, cushions, and living areas', price:95},
+      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, pet, and interior odors. Severe cases may require estimate confirmation', price:90},
+      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'$25 per can at RV park, campground, storage, or home', price:25, qty:true},
     ],`;
 
 const POWERSPORTS_ADDONS = `    addons:[
-      {id:'polymer',    name:'Polymer Sealant',             icon:'🛡️', desc:'Polymer paint and plastic sealant for enhanced protection and gloss', price:25},
-      {id:'wax1yr',     name:'1-Year Carnauba Wax',         icon:'🥇', desc:'Premium carnauba wax for enhanced gloss and paint protection', price:75},
-      {id:'rainx',      name:'Rain-X Windshield / Visor',   icon:'💧', desc:'Water-repellent treatment on windshields, visors, and exterior glass', price:25},
-      {id:'heavymud',   name:'Heavy Mud / Trail Buildup',   icon:'🧼', desc:'Extra cleaning for heavy mud, clay, trail buildup, or off-road grime on exterior surfaces', price:55},
-      {id:'seatdeep',   name:'Seat Deep Clean',             icon:'🪑', desc:'Deep cleaning for seats and riding surfaces', price:45},
-      {id:'storage',    name:'Storage Compartment Cleaning',icon:'🧰', desc:'Vacuum and wipe storage boxes, saddlebags, and accessible compartments', price:35},
-      {id:'wheeldet',   name:'Wheel Detail',                icon:'🛞', desc:'Deep wheel and rim cleaning on accessible surfaces', price:35},
-      {id:'waterspot',  name:'Water Spot Treatment',        icon:'💧', desc:'Light water spot removal on paint and exterior surfaces', price:35},
-      {id:'saltwash',   name:'Salt Rinse / Marine Rinse',   icon:'🌊', desc:'Salt and mineral rinse for jet ski and marine-exposed exterior surfaces', price:35},
-      {id:'trimprot',   name:'Plastic Trim Protection',     icon:'✨', desc:'Clean and protect plastic trim, body panels, and accessible exterior plastics', price:35},
-      {id:'lightdeg',   name:'Light Exterior Degreasing',   icon:'🧼', desc:'Light degreasing of visible exterior surfaces. Not engine or mechanical service', price:45},
+      {id:'polymer',    name:'Polymer Sealant',              desc:'Polymer paint and plastic sealant for protection and gloss', price:25},
+      {id:'wax1yr',     name:'1-Year Carnauba Wax',          desc:'Premium carnauba wax for enhanced gloss and paint protection', price:75},
+      {id:'rainx',      name:'Rain-X Windshield / Visor',    desc:'Water-repellent treatment on windshields, visors, and exterior glass', price:25},
+      {id:'heavymud',   name:'Heavy Mud / Trail Buildup',    desc:'Extra cleaning for heavy mud, clay, and trail grime on exterior surfaces', price:55},
+      {id:'seatdeep',   name:'Seat Deep Clean',              desc:'Deep cleaning for seats and riding surfaces', price:45},
+      {id:'storage',    name:'Storage Compartment Cleaning', desc:'Vacuum and wipe saddlebags, boxes, and accessible compartments', price:35},
+      {id:'wheeldet',   name:'Wheel Detail',                 desc:'Deep wheel and rim cleaning on accessible surfaces', price:35},
+      {id:'waterspot',  name:'Water Spot Treatment',         desc:'Light water spot removal on paint and exterior surfaces', price:35},
+      {id:'saltwash',   name:'Salt Rinse / Marine Rinse',    desc:'Salt and mineral rinse for jet ski and marine-exposed exterior surfaces', price:35},
+      {id:'trimprot',   name:'Plastic Trim Protection',      desc:'Clean and protect plastic trim, panels, and exterior plastics', price:35},
+      {id:'lightdeg',   name:'Light Exterior Degreasing',    desc:'Light degrease of visible exterior surfaces. Detailing only — not engine service', price:45},
     ],`;
+
+const FLEET_ADDONS = `    addons:[
+      {id:'polymer',      name:'Polymer Sealant Upgrade',     desc:'Polymer sealant per unit for added paint protection and gloss', price:25},
+      {id:'trashcans',    name:'Trash Can Cleaning',          desc:'$25 per can at service location or fleet estimate', price:25},
+      {id:'disinfect',    name:'High-Touch Sanitizing',       desc:'Wheel, controls, handles, seats, and high-contact surfaces per unit', price:20},
+      {id:'biohazard',    name:'Biohazard Cleaning',          desc:'Bodily fluids or severe contamination per unit. Individual estimate required', price:115},
+      {id:'odor',         name:'Fleet Odor Treatment',        desc:'Interior odor treatment per unit. Severe odor requires individual estimate', price:99},
+      {id:'heavymud',     name:'Heavy Mud / Worksite Soil',   desc:'Extra cleaning for construction, trail, farm, or worksite grime per unit', price:65},
+    ]`;
 
 function replaceAddonsBlock(html, category, replacement) {
   const catRe = new RegExp(
@@ -98,6 +108,17 @@ function replaceAddonsBlock(html, category, replacement) {
   });
 }
 
+function replaceFleetAddons(html, replacement) {
+  const fleetRe = /fleet:\s*\{[\s\S]*?    addons:\[[\s\S]*?\n    \]/m;
+  if (!fleetRe.test(html)) {
+    throw new Error("Could not find fleet addons block");
+  }
+  return html.replace(fleetRe, (match) => {
+    const head = match.slice(0, match.indexOf("    addons:["));
+    return head + replacement;
+  });
+}
+
 for (const file of HTML_FILES) {
   const p = path.join(root, file);
   let html = fs.readFileSync(p, "utf8");
@@ -105,8 +126,9 @@ for (const file of HTML_FILES) {
   html = replaceAddonsBlock(html, "boats", BOATS_ADDONS);
   html = replaceAddonsBlock(html, "rvs", RVS_ADDONS);
   html = replaceAddonsBlock(html, "powersports", POWERSPORTS_ADDONS);
+  html = replaceFleetAddons(html, FLEET_ADDONS);
   fs.writeFileSync(p, html);
-  console.log("patched", file);
+  console.log("patched catalog", file);
 }
 
 const serverPath = path.join(root, "netlify/lib/booking-price-catalog.js");
