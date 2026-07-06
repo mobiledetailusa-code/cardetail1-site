@@ -3896,6 +3896,7 @@ function bkGoTo(n){
   document.getElementById('bs'+n).classList.add('on');
   if(n===3) renderVehicleCart();
   if(n===4)fillStrip5();
+  if(n===5)ensureStep5Defaults();
   if(n===6)fillConfirm();
   // Reset scroll on every scroll container (desktop scrolls the overlay, mobile the modal)
   ['.bcontent','.booking-modal','.booking-modal-ov'].forEach(s=>{const el=document.querySelector(s); if(el) el.scrollTop=0;});
@@ -4511,6 +4512,16 @@ function stripeMsg(elId,msg,ok){ const el=document.getElementById(elId); if(!el)
 
 // ── Step 5: Secure Your Booking ──────────────────────────────────────────────
 
+function ensureStep5Defaults(){
+  if(!ST.payMethod){
+    ST.payMethod='card_onsite';
+    selectPayChoice('pc-onsite');
+    const desc=document.getElementById('pc-onsite-desc');
+    if(desc) desc.style.display='block';
+    updateCofAuthButtonState();
+  }
+}
+
 function selectPayChoice(activeId){
   ['pc-cash','pc-onsite','pc-online'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.classList.toggle('sel',id===activeId);
@@ -4616,7 +4627,7 @@ async function initCardOnFile(){
       throw new Error(errMap[siData.error]||siData.error||'Secure card saving is temporarily unavailable.');
     }
     stripe=stripe||Stripe(STRIPE_PUBLISHABLE_KEY);
-    stripeElements=stripe.elements({clientSecret:siData.clientSecret,appearance:{theme:'night',variables:{colorPrimary:'#4da3ff',colorBackground:'#0c1520'}}});
+    stripeElements=stripe.elements({clientSecret:siData.clientSecret,appearance:{theme:'stripe',variables:{colorPrimary:'#2563eb',colorBackground:'#ffffff',colorText:'#0f172a',colorDanger:'#dc2626',borderRadius:'12px'}}});
     stripePaymentElement=stripeElements.create('payment');
     stripePaymentElement.mount('#card-container');
     if(isStale()){ destroyStripePaymentUI(); return; }
@@ -4637,7 +4648,6 @@ function selectPaymentPreference(preference,activeId){
   if(ST.payMethod!==preference){
     cardInitNonce++;
     cardInitInProgress=false;
-    ST.draftRegistered=false; ST.bookingId='';
     ST.cardSetupConfirmed=false; ST.cardOnFileSaved=false;
     destroyStripePaymentUI();
     const cb=document.getElementById('cof-policy-ok'); if(cb) cb.checked=false;
