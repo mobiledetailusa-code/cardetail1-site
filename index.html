@@ -3975,6 +3975,7 @@ function selectPkg(id){
   document.getElementById('next2').disabled=!ST.pkg;
   renderPkgDetailPanel();
   if((ST.cat==='boats'||ST.cat==='rvs'||ST.cat==='fleet') && (ST.lengthFt||ST.units)){tryGenericConfirm();}
+  if(ST.pkg) setTimeout(()=>bkGoTo(3), 180);
 }
 
 // ── STEP 3: VEHICLE ───────────────────────────────────────────────────────────
