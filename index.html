@@ -16,6 +16,8 @@
 <meta property="og:url" content="https://cardetail1.com/">
 <meta property="og:title" content="Cardetail1 — Mobile Detailing | Palisades Park &amp; Bergen County, NJ">
 <meta property="og:description" content="Mobile car detailing based in Palisades Park, NJ. Serving Bergen County and nearby NJ/NY areas. Book online — extended areas by quote.">
+<meta property="og:image" content="https://cardetail1.com/assets/vehicles/premium/cars-suvs.webp">
+<meta name="twitter:image" content="https://cardetail1.com/assets/vehicles/premium/cars-suvs.webp">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Cardetail1 — Mobile Detailing | Palisades Park &amp; Bergen County, NJ">
 <meta name="twitter:description" content="Mobile car detailing based in Palisades Park, NJ. Serving Bergen County and nearby NJ/NY areas. Book online — extended areas by quote.">
@@ -69,7 +71,8 @@
     }
   ],
   "sameAs": [
-    "https://www.instagram.com/cardetail1com"
+    "https://www.instagram.com/cardetail1com",
+    "https://g.page/r/CTJwfJerrQeCEAI/review"
   ]
 }
 </script>
@@ -3843,7 +3846,23 @@ function toggleNav(){document.getElementById('nav-links').classList.toggle('open
 function scrollTo(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth'});document.getElementById('nav-links').classList.remove('open')}
 
 // ── BOOKING MODAL ─────────────────────────────────────────────────────────────
+function syncBookingZipFromHero(){
+  const heroZip=document.getElementById('hero-zip');
+  let zip5='';
+  if(heroZip&&heroZip.value.replace(/\D/g,'').length===5){
+    zip5=heroZip.value.replace(/\D/g,'').slice(0,5);
+  }else{
+    const stored=sessionStorage.getItem('cd1_zip')||'';
+    zip5=String(stored).replace(/\D/g,'').slice(0,5);
+  }
+  if(zip5.length===5){
+    const bkZip=document.getElementById('bk-zip');
+    if(bkZip) bkZip.value=zip5;
+    if(typeof onBkZipInput==='function') onBkZipInput(zip5);
+  }
+}
 function openBooking(cat){
+  syncBookingZipFromHero();
   document.getElementById('bk-ov').classList.add('open');
   document.body.style.overflow='hidden';
   if(cat){selectCategory(cat)}else{bkGoTo(1)}
@@ -6833,14 +6852,7 @@ function openBookingCarPkg(pkgId){
 
 // Opens booking — always allowed, but pre-fills ZIP if already entered on hero
 function openBookingFromHome(cat){
-  // If ZIP already entered on hero, sync it to the booking modal silently
-  const heroZip = document.getElementById('hero-zip');
-  if(heroZip && heroZip.value.replace(/\D/g,'').length === 5){
-    const zip5 = heroZip.value.replace(/\D/g,'').slice(0, 5);
-    const bkZip = document.getElementById('bk-zip');
-    if(bkZip && !bkZip.value) bkZip.value = zip5;
-    if(typeof onBkZipInput === 'function') onBkZipInput(zip5);
-  }
+  syncBookingZipFromHero();
   openBooking(cat);
 }
 

@@ -17,6 +17,10 @@
 <meta property="og:url" content="https://cardetail1.com/pennsylvania-hub.html">
 <meta property="og:title" content="Cardetail1 - Mobile Car Detailing | Pennsylvania">
 <meta property="og:description" content="Mobile car detailing in Pennsylvania — interior, full, and exterior packages by quote for approved long-distance appointments.">
+<meta property="og:image" content="https://cardetail1.com/assets/hubs/hero-pa-desktop.webp">
+<meta property="og:image:width" content="1920">
+<meta property="og:image:height" content="520">
+<meta name="twitter:image" content="https://cardetail1.com/assets/hubs/hero-pa-desktop.webp">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Cardetail1 - Mobile Car Detailing | Pennsylvania">
 <meta name="twitter:description" content="Mobile car detailing in Pennsylvania — interior, full, and exterior packages by quote for approved long-distance appointments.">
@@ -75,7 +79,48 @@
     }
   ],
   "sameAs": [
-    "https://www.instagram.com/cardetail1com"
+    "https://www.instagram.com/cardetail1com",
+    "https://g.page/r/CTJwfJerrQeCEAI/review"
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Do you offer mobile car detailing in Pennsylvania?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes — by quote and approved appointment. We serve parts of the Delaware Valley and eastern PA when distance and scheduling align with our mobile route."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which Pennsylvania areas do you serve?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Philadelphia, King of Prussia, Allentown, Scranton, and surrounding areas may be available. Enter your ZIP to confirm service and see pricing."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a travel fee for Pennsylvania jobs?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Longer-distance PA appointments may include a distance-based fee. Your ZIP unlocks local pricing and any travel fee before you book."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I pay today when I book online?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No charge is made today when your card is saved with Stripe. Final payment is collected after service."
+      }
+    }
   ]
 }
 </script>
@@ -1279,6 +1324,12 @@ body{background:var(--bg0)!important;color:var(--tx)!important;-webkit-font-smoo
 .hero-zip-input{background:var(--bg0)!important;border:1px solid var(--line-strong)!important;color:var(--ink)!important;border-radius:14px!important}
 .hero-zip-input::placeholder{color:#94a3b8!important}
 .hero-zip-btn{color:var(--white)!important;border-radius:14px!important;font-weight:600!important;text-transform:none!important;letter-spacing:0!important}
+.hub-faq-section{background:var(--bg0)!important;border-top:1px solid var(--line)!important;padding:48px 24px!important}
+.hub-faq-list{max-width:720px;margin:0 auto;display:grid;gap:10px}
+.hub-faq-item{background:var(--bg1);border:1px solid var(--line);border-radius:var(--r);padding:0 16px}
+.hub-faq-item summary{padding:14px 0;font-weight:600;color:var(--ink);cursor:pointer;list-style:none}
+.hub-faq-item summary::-webkit-details-marker{display:none}
+.hub-faq-item p{padding:0 0 14px;font-size:14px;color:var(--ink-soft);line-height:1.6;margin:0}
 .hub-service-area-note{font-size:12px;color:#475569;max-width:440px;margin:8px auto 0;line-height:1.55;text-align:center}
 .hub-radius-section{background:var(--bg0)!important;border-top:1px solid var(--line)!important;padding:32px 24px!important}
 .hub-radius-desc,.hub-radius-note{color:var(--ink-soft)!important}
@@ -2931,6 +2982,32 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </div>
 
+<!-- LOCAL FAQ -->
+<section class="hub-faq-section" id="local-faq" aria-labelledby="hub-faq-heading">
+  <div class="section">
+    <div class="sec-eye">Questions</div>
+    <h2 class="sec-title" id="hub-faq-heading" style="margin-bottom:20px">Mobile detailing FAQ</h2>
+    <div class="hub-faq-list">
+      <details class="hub-faq-item">
+        <summary>Do you offer mobile car detailing in Pennsylvania?</summary>
+        <p>Yes — by quote and approved appointment. We serve parts of the Delaware Valley and eastern PA when distance and scheduling align with our mobile route.</p>
+      </details>
+      <details class="hub-faq-item">
+        <summary>Which Pennsylvania areas do you serve?</summary>
+        <p>Philadelphia, King of Prussia, Allentown, Scranton, and surrounding areas may be available. Enter your ZIP to confirm service and see pricing.</p>
+      </details>
+      <details class="hub-faq-item">
+        <summary>Is there a travel fee for Pennsylvania jobs?</summary>
+        <p>Longer-distance PA appointments may include a distance-based fee. Your ZIP unlocks local pricing and any travel fee before you book.</p>
+      </details>
+      <details class="hub-faq-item">
+        <summary>Do I pay today when I book online?</summary>
+        <p>No charge is made today when your card is saved with Stripe. Final payment is collected after service.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
 <!-- CTA SECTION -->
 <div class="section-full" style="background:var(--bg1)">
   <div class="section">
@@ -4555,7 +4632,23 @@ function toggleNav(){document.getElementById('nav-links').classList.toggle('open
 function scrollTo(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth'});document.getElementById('nav-links').classList.remove('open')}
 
 // ── BOOKING MODAL ─────────────────────────────────────────────────────────────
+function syncBookingZipFromHero(){
+  const heroZip=document.getElementById('hero-zip');
+  let zip5='';
+  if(heroZip&&heroZip.value.replace(/\D/g,'').length===5){
+    zip5=heroZip.value.replace(/\D/g,'').slice(0,5);
+  }else{
+    const stored=sessionStorage.getItem('cd1_zip')||'';
+    zip5=String(stored).replace(/\D/g,'').slice(0,5);
+  }
+  if(zip5.length===5){
+    const bkZip=document.getElementById('bk-zip');
+    if(bkZip) bkZip.value=zip5;
+    if(typeof onBkZipInput==='function') onBkZipInput(zip5);
+  }
+}
 function openBooking(cat){
+  syncBookingZipFromHero();
   document.getElementById('bk-ov').classList.add('open');
   document.body.style.overflow='hidden';
   if(cat){selectCategory(cat)}else{bkGoTo(1)}
@@ -7455,14 +7548,7 @@ function openBookingCarPkg(pkgId){
 
 // Opens booking - always allowed, but pre-fills ZIP if already entered on hero
 function openBookingFromHome(cat){
-  // If ZIP already entered on hero, sync it to the booking modal silently
-  const heroZip = document.getElementById('hero-zip');
-  if(heroZip && heroZip.value.replace(/\D/g,'').length === 5){
-    const zip5 = heroZip.value.replace(/\D/g,'').slice(0, 5);
-    const bkZip = document.getElementById('bk-zip');
-    if(bkZip && !bkZip.value) bkZip.value = zip5;
-    if(typeof onBkZipInput === 'function') onBkZipInput(zip5);
-  }
+  syncBookingZipFromHero();
   openBooking(cat);
 }
 
