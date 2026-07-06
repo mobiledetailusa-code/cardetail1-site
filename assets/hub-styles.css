@@ -123,19 +123,58 @@
 .hero--ny h1,
 .hero--ct h1,
 .hero--pa h1,
+.hub-nj h1,
+.hub-ny h1,
+.hub-ct h1,
+.hub-pa h1 {
+  color: #0f172a;
+  font-family: "DM Sans", sans-serif;
+  font-weight: 600;
+  text-shadow: none;
+}
+
 .hero--nj .hero-sub,
 .hero--ny .hero-sub,
 .hero--ct .hero-sub,
 .hero--pa .hero-sub,
+.hub-nj .hero-sub,
+.hub-ny .hero-sub,
+.hub-ct .hero-sub,
+.hub-pa .hero-sub {
+  color: #475569;
+  text-shadow: none;
+}
+
 .hero--nj .hero-badge,
 .hero--ny .hero-badge,
 .hero--ct .hero-badge,
 .hero--pa .hero-badge,
+.hub-nj .hero-badge,
+.hub-ny .hero-badge,
+.hub-ct .hero-badge,
+.hub-pa .hero-badge,
 .hero--nj .hero-trust-line,
 .hero--ny .hero-trust-line,
 .hero--ct .hero-trust-line,
-.hero--pa .hero-trust-line {
+.hero--pa .hero-trust-line,
+.hub-nj .hero-trust-line,
+.hub-ny .hero-trust-line,
+.hub-ct .hero-trust-line,
+.hub-pa .hero-trust-line {
   text-shadow: none;
+}
+
+.hero--nj .hero-proof span,
+.hero--ny .hero-proof span,
+.hero--ct .hero-proof span,
+.hero--pa .hero-proof span,
+.hub-nj .hero-proof span,
+.hub-ny .hero-proof span,
+.hub-ct .hero-proof span,
+.hub-pa .hero-proof span {
+  color: #475569;
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.08);
 }
 
 /* ── Hub Background Assets (state line-art headers from imagens estados) ── */

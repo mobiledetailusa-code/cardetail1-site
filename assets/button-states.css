@@ -1,0 +1,137 @@
+/* Readable button hover/focus states — scoped, no global button resets */
+
+/* Primary step / next CTAs (booking modal + public pages) */
+.booking-modal .btn-n,
+.booking-modal .btn-sub {
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+.booking-modal .btn-n:hover:not(:disabled),
+.booking-modal .btn-sub:hover:not(:disabled),
+.booking-modal .btn-n:focus-visible:not(:disabled),
+.booking-modal .btn-sub:focus-visible:not(:disabled) {
+  background: #1d4ed8 !important;
+  color: #ffffff !important;
+}
+.booking-modal .btn-n:active:not(:disabled),
+.booking-modal .btn-sub:active:not(:disabled) {
+  background: #1e40af !important;
+  color: #ffffff !important;
+}
+.booking-modal .btn-n:disabled,
+.booking-modal .btn-sub:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Back / secondary in booking modal */
+.booking-modal .btn-b:hover,
+.booking-modal .btn-b:focus-visible {
+  color: #0f172a !important;
+  background: #eef2f7 !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  outline: 2px solid rgba(37, 99, 235, 0.25);
+  outline-offset: 2px;
+}
+
+/* Package select buttons in booking modal */
+.booking-modal .pkg-btn {
+  color: #2563eb !important;
+  border-color: rgba(37, 99, 235, 0.22) !important;
+  background: transparent !important;
+}
+.booking-modal .pkg-btn:hover,
+.booking-modal .pkg-btn:focus-visible,
+.booking-modal .pkg.sel .pkg-btn,
+.booking-modal .pkg.pop .pkg-btn {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+}
+
+/* Add-on quantity steppers */
+.booking-modal .aq-btn:hover,
+.booking-modal .aq-btn:focus-visible {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+}
+
+/* Hero + package card CTAs */
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+.btn-primary:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.4);
+  outline-offset: 2px;
+}
+.btn-outline:hover,
+.btn-outline:focus-visible {
+  background: #eef2f7;
+  border-color: rgba(37, 99, 235, 0.22);
+  color: #2563eb;
+}
+.btn-outline:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.3);
+  outline-offset: 2px;
+}
+.car-pkg-cta:hover,
+.car-pkg-cta:focus-visible {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+}
+.car-pkg-card--popular .car-pkg-cta:hover,
+.car-pkg-card--popular .car-pkg-cta:focus-visible {
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+  color: #ffffff !important;
+}
+
+/* Sticky mobile CTA */
+.msc-book:hover,
+.msc-book:focus-visible {
+  background: #1d4ed8 !important;
+  color: #ffffff !important;
+}
+.msc-portal:hover,
+.msc-portal:focus-visible {
+  background: rgba(37, 99, 235, 0.08) !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(37, 99, 235, 0.35) !important;
+}
+.msc-call:hover,
+.msc-call:focus-visible {
+  background: #eef2f7 !important;
+  color: #0f172a !important;
+}
+
+/* Portal / login primary buttons */
+.cp-modal .cp-btn:hover,
+.cp-modal .cp-btn:focus-visible,
+.login-box .btn-n:hover,
+.login-box .btn-n:focus-visible {
+  background: #1d4ed8 !important;
+  color: #ffffff !important;
+}
+
+/* Success / restart — avoid black-on-blue or white-on-white */
+.success-actions a:hover,
+.success-actions button:hover,
+.success-actions a:focus-visible,
+.success-actions button:focus-visible,
+.btn-restart:hover,
+.btn-restart:focus-visible {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+}
+
+/* ZIP submit */
+.hero-zip-btn:hover:not(:disabled),
+.hero-zip-btn:focus-visible:not(:disabled) {
+  background: #1d4ed8;
+  color: #ffffff;
+}

@@ -1469,6 +1469,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 }
 
 </style>
+<link rel="stylesheet" href="assets/booking-modal-light.css">
+<link rel="stylesheet" href="assets/public-surface-contrast.css">
+<link rel="stylesheet" href="assets/button-states.css">
+<link rel="stylesheet" href="assets/car-pkg-detail-modal.css">
 </head>
 <body>
 
@@ -1561,7 +1565,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
     <div class="car-pkg-grid">
       <article class="car-pkg-card" data-pkg="interior">
-        <div class="car-pkg-top" onclick="toggleHomePkgDetail('interior', event)">
+        <div class="car-pkg-top">
           <span class="car-pkg-scope">Interior only</span>
           <h3 class="car-pkg-name">Interior Detail</h3>
           <p class="car-pkg-desc">Vacuum, shampoo, steam, and wipe-down for seats, carpets, and dash.</p>
@@ -1569,8 +1573,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
             <span class="car-pkg-chip">⏱ ~2.5–3.5 hrs</span>
           </div>
-          <span class="car-pkg-see-btn">See what's included</span>
-          <div class="car-pkg-detail" id="home-pkg-detail-interior" hidden aria-hidden="true"></div>
+          <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('interior', event)">See what's included</button>
         </div>
         <div class="car-pkg-foot">
           <div class="car-pkg-price-row">
@@ -1584,7 +1587,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
       </article>
       <article class="car-pkg-card car-pkg-card--popular" data-pkg="full">
-        <div class="car-pkg-top" onclick="toggleHomePkgDetail('full', event)">
+        <div class="car-pkg-top">
           <span class="car-pkg-popular">Most booked</span>
           <span class="car-pkg-scope">Inside &amp; out</span>
           <h3 class="car-pkg-name">Premium Full Detail</h3>
@@ -1593,8 +1596,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
             <span class="car-pkg-chip">⏱ ~3–5 hrs</span>
           </div>
-          <span class="car-pkg-see-btn">See what's included</span>
-          <div class="car-pkg-detail" id="home-pkg-detail-full" hidden aria-hidden="true"></div>
+          <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('full', event)">See what's included</button>
         </div>
         <div class="car-pkg-foot">
           <div class="car-pkg-price-row">
@@ -1606,7 +1608,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
       </article>
       <article class="car-pkg-card" data-pkg="refresh">
-        <div class="car-pkg-top" onclick="toggleHomePkgDetail('refresh', event)">
+        <div class="car-pkg-top">
           <span class="car-pkg-scope">Premium exterior</span>
           <h3 class="car-pkg-name">Exterior Detail &amp; Paint Enhancement</h3>
           <p class="car-pkg-desc">Advanced exterior-only package — clay bar, polish, sealant, wheels, glass, and gloss restoration. Premium paint enhancement, not a basic wash.</p>
@@ -1614,8 +1616,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
             <span class="car-pkg-chip">⏱ ~2.5–3 hrs</span>
           </div>
-          <span class="car-pkg-see-btn">See what's included</span>
-          <div class="car-pkg-detail" id="home-pkg-detail-refresh" hidden aria-hidden="true"></div>
+          <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('refresh', event)">See what's included</button>
         </div>
         <div class="car-pkg-foot">
           <div class="car-pkg-price-row">
@@ -1630,7 +1631,22 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       </article>
     </div>
 
-    <div class="car-addons-block">
+    <!-- Package details in-page panel -->
+<div class="car-pkg-detail-ov" id="car-pkg-detail-ov" hidden aria-hidden="true" onclick="if(event.target===this)closeHomePkgDetailModal()">
+  <div class="car-pkg-detail-panel" role="dialog" aria-modal="true" aria-labelledby="car-pkg-detail-title">
+    <button type="button" class="car-pkg-detail-close" onclick="closeHomePkgDetailModal()" aria-label="Close package details">✕</button>
+    <div class="car-pkg-detail-head">
+      <h2 class="car-pkg-detail-title" id="car-pkg-detail-title"></h2>
+      <div class="car-pkg-detail-price" id="car-pkg-detail-price"></div>
+    </div>
+    <div class="car-pkg-detail-body" id="car-pkg-detail-body"></div>
+    <div class="car-pkg-detail-foot">
+      <button type="button" class="btn-primary car-pkg-detail-book" id="car-pkg-detail-book">Book this package</button>
+    </div>
+  </div>
+</div>
+
+<div class="car-addons-block">
       <div class="car-addons-title">Add-ons</div>
       <div class="car-addons-sub">Pet hair, odor treatment, engine bay, headlights, and more — add when you book.</div>
       <div class="car-addon-chips" id="home-addon-chips"></div>
@@ -3040,6 +3056,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 <script src="https://js.stripe.com/v3/"></script>
 <script src="/netlify/lib/admin-session-client.js"></script>
+<script src="assets/car-pkg-detail-modal.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════
@@ -3266,49 +3283,6 @@ async function makeWebhookSend(payload){
 }
 
 // ── PRICING DATA ──────────────────────────────────────────────────────────────
-const CAR_PKG_DETAILS = {
-  interior: {
-    title: 'Interior Detail',
-    includes: ['Vacuum', 'Shampoo/extraction as needed', 'Steam touch points', 'Dash, console, doors, cupholders', 'Interior glass', 'Floor mats'],
-    bestFor: 'Daily drivers, family cars, dust, spills, and normal interior buildup.',
-    notIncluded: ['Exterior wash', 'Clay bar & paint correction', 'Exterior sealant or wax', 'Heavy odor, mold, or biohazard remediation'],
-    addonsMayApply: ['Heavy pet hair', 'Severe odor', 'Mold', 'Biohazard', 'Excessive stains']
-  },
-  full: {
-    title: 'Premium Full Detail',
-    includes: ['Interior detail', 'Exterior hand wash', 'Wheels and tires', 'Exterior glass', 'Door jambs', 'Light paint cleaning', 'Exterior protection'],
-    bestFor: 'Full refresh inside and out, seasonal cleanup, resale prep, and neglected daily drivers.',
-    notIncluded: ['Heavy pet hair & odor (available as add-ons)', 'Multi-stage paint correction', 'Engine bay & headlight restoration unless added'],
-    addonsMayApply: ['Heavy pet hair', 'Odor', 'Deep stains', 'Clay/polish upgrade', 'Engine bay', 'Headlights']
-  },
-  refresh: {
-    title: 'Exterior Detail & Paint Enhancement',
-    includes: ['Hand wash', 'Wheels & tires', 'Exterior glass', 'Clay bar & decontamination', 'Polish or gloss enhancement', 'Sealant/protection'],
-    bestFor: 'Dull paint, road film, brake dust, loss of gloss, and exterior restoration.',
-    notIncluded: ['Interior shampoo & carpet extraction', 'Deep interior odor treatment', 'Multi-stage scratch correction'],
-    addonsMayApply: ['Heavy oxidation', 'Severe scratches', 'Ceramic coating', 'Engine bay', 'Headlight restoration']
-  }
-};
-
-function buildCarPkgDetailSectionsHtml(d){
-  if(!d) return '';
-  let html='';
-  if(d.intro) html+=`<p class="pkg-detail-panel-note">${d.intro}</p>`;
-  if(d.includes&&d.includes.length){
-    html+=`<div class="car-pkg-detail-section"><h4>What's included</h4><ul class="car-pkg-detail-list car-pkg-detail-list--inc">${d.includes.map(i=>`<li>${i}</li>`).join('')}</ul></div>`;
-  }
-  if(d.bestFor){
-    html+=`<div class="car-pkg-detail-section"><h4>Best for</h4><p>${d.bestFor}</p></div>`;
-  }
-  if(d.notIncluded&&d.notIncluded.length){
-    html+=`<div class="car-pkg-detail-section"><h4>Not included</h4><ul class="car-pkg-detail-list car-pkg-detail-list--not">${d.notIncluded.map(i=>`<li>${i}</li>`).join('')}</ul></div>`;
-  }
-  if(d.addonsMayApply&&d.addonsMayApply.length){
-    html+=`<div class="car-pkg-detail-section"><h4>Add-ons may apply</h4><ul class="car-pkg-detail-list car-pkg-detail-list--addons">${d.addonsMayApply.map(i=>`<li>${i}</li>`).join('')}</ul></div>`;
-  }
-  return html;
-}
-
 function clearPkgDetailPanel(){
   const panel=document.getElementById('pkg-detail-panel');
   if(panel){ panel.innerHTML=''; panel.hidden=true; panel.setAttribute('aria-hidden','true'); }
@@ -3341,39 +3315,6 @@ function renderPkgDetailPanel(){
   panel.hidden=false;
   panel.removeAttribute('aria-hidden');
   requestAnimationFrame(()=>{ try{ panel.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(_){} });
-}
-
-function toggleHomePkgDetail(pkgId, e){
-  if(e){
-    if(e.type==='keydown') e.preventDefault();
-    if(e.target.closest('.car-pkg-cta')) return;
-  }
-  const detail=document.getElementById('home-pkg-detail-'+pkgId);
-  if(!detail) return;
-  const card=detail.closest('.car-pkg-card');
-  const willOpen=detail.hidden;
-  document.querySelectorAll('.car-pkg-detail').forEach(el=>{
-    if(el===detail) return;
-    el.hidden=true;
-    el.setAttribute('aria-hidden','true');
-    const c=el.closest('.car-pkg-card');
-    if(c){ c.classList.remove('car-pkg-card--open'); const b=c.querySelector('.car-pkg-see-btn'); if(b) b.textContent="See what's included"; }
-  });
-  detail.hidden=!willOpen;
-  detail.setAttribute('aria-hidden', willOpen?'false':'true');
-  if(card){
-    card.classList.toggle('car-pkg-card--open', willOpen);
-    const seeBtn=card.querySelector('.car-pkg-see-btn');
-    if(seeBtn) seeBtn.textContent=willOpen?'Hide details':"See what's included";
-  }
-  if(willOpen) requestAnimationFrame(()=>{ try{ detail.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(_){} });
-}
-
-function initHomePkgDetails(){
-  ['interior','full','refresh'].forEach(id=>{
-    const el=document.getElementById('home-pkg-detail-'+id);
-    if(el&&CAR_PKG_DETAILS[id]) el.innerHTML=buildCarPkgDetailSectionsHtml(CAR_PKG_DETAILS[id]);
-  });
 }
 
 const PRICING = {
@@ -6932,7 +6873,7 @@ renderHomeAddons();
 _updateHomeFromPrices();
 renderActivityFeed();
 seedDefaultTechs();
-initHomePkgDetails();
+initCarPkgDetailModal();
 </script>
 
 <!-- ════════════════════════════════════════════ -->

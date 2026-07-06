@@ -2230,6 +2230,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 </style>
 <link rel="stylesheet" href="assets/hub-styles.css">
+<link rel="stylesheet" href="assets/booking-modal-light.css">
+<link rel="stylesheet" href="assets/public-surface-contrast.css">
+<link rel="stylesheet" href="assets/button-states.css">
+<link rel="stylesheet" href="assets/car-pkg-detail-modal.css">
 </head>
 <body>
 
@@ -2648,7 +2652,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
     <div class="car-pkg-grid">
       <article class="car-pkg-card" data-pkg="interior">
-        <div class="car-pkg-top" onclick="toggleHomePkgDetail('interior', event)">
+        <div class="car-pkg-top">
           <span class="car-pkg-scope">Interior only</span>
           <h3 class="car-pkg-name">Interior Detail</h3>
           <p class="car-pkg-desc">Vacuum, shampoo, steam, and wipe-down for seats, carpets, and dash.</p>
@@ -2656,8 +2660,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
             <span class="car-pkg-chip">⏱ ~2.5–3.5 hrs</span>
           </div>
-          <span class="car-pkg-see-btn">See what's included</span>
-          <div class="car-pkg-detail" id="home-pkg-detail-interior" hidden aria-hidden="true"></div>
+          <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('interior', event)">See what's included</button>
         </div>
         <div class="car-pkg-foot">
           <div class="car-pkg-price-row">
@@ -2671,7 +2674,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
       </article>
       <article class="car-pkg-card car-pkg-card--popular" data-pkg="full">
-        <div class="car-pkg-top" onclick="toggleHomePkgDetail('full', event)">
+        <div class="car-pkg-top">
           <span class="car-pkg-popular">Most booked</span>
           <span class="car-pkg-scope">Inside &amp; out</span>
           <h3 class="car-pkg-name">Premium Full Detail</h3>
@@ -2680,8 +2683,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
             <span class="car-pkg-chip">⏱ ~3–5 hrs</span>
           </div>
-          <span class="car-pkg-see-btn">See what's included</span>
-          <div class="car-pkg-detail" id="home-pkg-detail-full" hidden aria-hidden="true"></div>
+          <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('full', event)">See what's included</button>
         </div>
         <div class="car-pkg-foot">
           <div class="car-pkg-price-row">
@@ -2693,7 +2695,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
       </article>
       <article class="car-pkg-card" data-pkg="refresh">
-        <div class="car-pkg-top" onclick="toggleHomePkgDetail('refresh', event)">
+        <div class="car-pkg-top">
           <span class="car-pkg-scope">Premium exterior</span>
           <h3 class="car-pkg-name">Exterior Detail &amp; Paint Enhancement</h3>
           <p class="car-pkg-desc">Advanced exterior-only package — clay bar, polish, sealant, wheels, glass, and gloss restoration. Premium paint enhancement, not a basic wash.</p>
@@ -2701,8 +2703,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
             <span class="car-pkg-chip">⏱ ~2.5–3 hrs</span>
           </div>
-          <span class="car-pkg-see-btn">See what's included</span>
-          <div class="car-pkg-detail" id="home-pkg-detail-refresh" hidden aria-hidden="true"></div>
+          <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('refresh', event)">See what's included</button>
         </div>
         <div class="car-pkg-foot">
           <div class="car-pkg-price-row">
@@ -2717,7 +2718,22 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       </article>
     </div>
 
-    <div class="car-addons-block">
+    <!-- Package details in-page panel -->
+<div class="car-pkg-detail-ov" id="car-pkg-detail-ov" hidden aria-hidden="true" onclick="if(event.target===this)closeHomePkgDetailModal()">
+  <div class="car-pkg-detail-panel" role="dialog" aria-modal="true" aria-labelledby="car-pkg-detail-title">
+    <button type="button" class="car-pkg-detail-close" onclick="closeHomePkgDetailModal()" aria-label="Close package details">✕</button>
+    <div class="car-pkg-detail-head">
+      <h2 class="car-pkg-detail-title" id="car-pkg-detail-title"></h2>
+      <div class="car-pkg-detail-price" id="car-pkg-detail-price"></div>
+    </div>
+    <div class="car-pkg-detail-body" id="car-pkg-detail-body"></div>
+    <div class="car-pkg-detail-foot">
+      <button type="button" class="btn-primary car-pkg-detail-book" id="car-pkg-detail-book">Book this package</button>
+    </div>
+  </div>
+</div>
+
+<div class="car-addons-block">
       <div class="car-addons-title">Add-ons</div>
       <div class="car-addons-sub">Pet hair, odor treatment, engine bay, headlights, and more — add when you book.</div>
       <div class="car-addon-chips" id="home-addon-chips"></div>
@@ -3787,6 +3803,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 <script src="https://js.stripe.com/v3/"></script>
 <script src="/netlify/lib/admin-session-client.js"></script>
+<script src="assets/car-pkg-detail-modal.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════
@@ -7478,7 +7495,7 @@ renderActivityFeed();
 seedDefaultTechs();
 _updateHomeFromPrices();
 renderHomeAddons();
-initHomePkgDetails();
+initCarPkgDetailModal();
 </script>
 
 <!-- ════════════════════════════════════════════ -->

@@ -1,0 +1,343 @@
+/* Booking modal — light-theme contrast (scoped to .booking-modal only) */
+
+/* Isolate light tokens so dark-themed hub pages still get a readable modal */
+.booking-modal {
+  --bg0: #f4f6f9;
+  --bg1: #ffffff;
+  --bg2: #eef2f7;
+  --bg3: #e4eaf2;
+  --ink: #0f172a;
+  --ink-soft: #475569;
+  --mu: #64748b;
+  --tx: #334155;
+  --line: rgba(15, 23, 42, 0.08);
+  --line-strong: rgba(15, 23, 42, 0.14);
+  --blue: #2563eb;
+  --blue-hover: #1d4ed8;
+  --bdim: rgba(37, 99, 235, 0.08);
+  --bbr: rgba(37, 99, 235, 0.22);
+  --white: #ffffff;
+  color: var(--tx);
+}
+
+/* Step 1 category grid */
+.booking-modal #bk-cat-grid .svc-name {
+  color: var(--ink);
+}
+.booking-modal #bk-cat-grid .svc-desc,
+.booking-modal #bk-cat-grid .svc-from {
+  color: var(--ink-soft);
+}
+.booking-modal #bk-cat-grid .svc-btn {
+  color: var(--blue);
+  border-color: var(--bbr);
+  background: transparent;
+}
+.booking-modal #bk-cat-grid .svc-btn:hover {
+  background: var(--blue);
+  color: var(--white);
+  border-color: var(--blue);
+}
+.booking-modal #bk-cat-grid .svc-card.locked {
+  opacity: 0.45;
+}
+
+/* Add-ons */
+.booking-modal .addon {
+  background: var(--bg1, #ffffff);
+  border-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .addon:hover {
+  border-color: var(--bbr, rgba(37, 99, 235, 0.22));
+}
+.booking-modal .addon.sel {
+  border-color: var(--blue, #2563eb);
+  background: var(--bdim, rgba(37, 99, 235, 0.08));
+}
+.booking-modal .addon-name {
+  color: var(--ink, #0f172a);
+  font-weight: 600;
+}
+.booking-modal .addon-desc {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .addon-price {
+  color: var(--blue, #2563eb);
+}
+.booking-modal .addon-each {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .addon-check {
+  border-color: var(--line-strong, rgba(15, 23, 42, 0.14));
+}
+.booking-modal .addon.sel .addon-check {
+  color: var(--white, #ffffff);
+}
+.booking-modal .addon-header {
+  background: var(--bg0, #f4f6f9);
+  border-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .ah-pkg {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .ah-car,
+.booking-modal .ah-total-lbl {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .addon-popular-label {
+  color: var(--ink-soft, #475569);
+  border-bottom-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .addon-selected-summary strong {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .addon-toggle-btn {
+  background: var(--bdim, rgba(37, 99, 235, 0.08));
+  border-color: var(--bbr, rgba(37, 99, 235, 0.22));
+}
+
+/* Quantity stepper */
+.booking-modal .aq-n {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .aq-btn {
+  background: var(--bg1, #ffffff);
+  border-color: var(--line-strong, rgba(15, 23, 42, 0.14));
+  color: var(--blue, #2563eb);
+}
+.booking-modal .aq-btn:hover {
+  background: var(--blue, #2563eb);
+  color: var(--white, #ffffff);
+}
+
+/* Packages */
+.booking-modal .btitle {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .bdesc {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .pkg-tag {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .pkg-from,
+.booking-modal .pkg-time {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .pkg-feats li {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .pkg-feats li.no {
+  color: #94a3b8;
+}
+.booking-modal .pkg-div {
+  background: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .pkg-btn {
+  border-color: var(--bbr, rgba(37, 99, 235, 0.22));
+  color: var(--blue, #2563eb);
+}
+.booking-modal .pkg-btn:hover,
+.booking-modal .pkg.sel .pkg-btn,
+.booking-modal .pkg.pop .pkg-btn {
+  color: var(--white, #ffffff) !important;
+}
+
+/* Vehicle tiers & confirm */
+.booking-modal .tchip-name {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .tchip-desc,
+.booking-modal .tchip-from {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .tchip {
+  border-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .tchip.sel {
+  background: var(--bdim, rgba(37, 99, 235, 0.08));
+}
+.booking-modal .vc {
+  background: var(--bg0, #f4f6f9);
+  border-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .vc-info strong {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .vc-info span,
+.booking-modal .vc-price-lbl,
+.booking-modal .vc-urgency {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .vc-price {
+  color: var(--ink, #0f172a);
+}
+
+/* Forms & search */
+.booking-modal .fl,
+.booking-modal .sel-l {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .srch-in,
+.booking-modal .sel-s,
+.booking-modal .fi,
+.booking-modal .fsel,
+.booking-modal .fta {
+  color: var(--ink, #0f172a);
+  background: var(--bg0, #f4f6f9);
+  border-color: var(--line-strong, rgba(15, 23, 42, 0.14));
+}
+.booking-modal .srch-in::placeholder,
+.booking-modal .fi::placeholder,
+.booking-modal .fta::placeholder {
+  color: #94a3b8;
+}
+.booking-modal .srch-item {
+  color: var(--ink, #0f172a);
+  border-bottom-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .srch-item:hover {
+  background: var(--bg2, #eef2f7);
+  color: var(--ink, #0f172a);
+}
+
+/* Step 1 categories */
+.booking-modal .svc-lock-gate-text {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .svc-lock-gate-sub {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal #bk-cat-grid .svc-name {
+  color: var(--ink, #0f172a);
+}
+.booking-modal #bk-cat-grid .svc-desc {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal #bk-cat-grid .svc-cat-note {
+  color: #475569;
+}
+
+/* Length / fleet units */
+.booking-modal .length-box {
+  background: var(--bg0, #f4f6f9);
+  border-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .length-value {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .length-marks,
+.booking-modal .length-note {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .unit-value {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .unit-note {
+  color: var(--ink-soft, #475569);
+}
+
+/* Order summary strip */
+.booking-modal .strip {
+  background: var(--bg0, #f4f6f9);
+  border-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .strip-info {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .strip-info strong {
+  color: var(--ink, #0f172a);
+}
+
+/* Confirm / checkout */
+.booking-modal .oc {
+  background: var(--bg0, #f4f6f9);
+  border-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .or {
+  border-bottom-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .ol,
+.booking-modal .oc-note {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .ov {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .oc-total {
+  color: var(--blue, #2563eb);
+}
+
+/* Payment / card on file */
+.booking-modal .pay-box {
+  background: var(--bg0, #f4f6f9);
+  border-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .pay-sub,
+.booking-modal .pay-status {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .pay-choice {
+  background: var(--bg1, #ffffff);
+  color: var(--ink, #0f172a);
+  border-color: var(--line-strong, rgba(15, 23, 42, 0.14));
+}
+.booking-modal .pay-choice.sel {
+  background: var(--bdim, rgba(37, 99, 235, 0.08));
+  border-color: var(--blue, #2563eb);
+}
+.booking-modal .terms-panel strong {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .terms-panel p,
+.booking-modal .terms-panel li,
+.booking-modal .terms-check {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .card-gate,
+.booking-modal .card-gate-note {
+  color: var(--ink-soft, #475569);
+}
+
+/* Nav buttons — back should not look disabled */
+.booking-modal .btn-b {
+  color: var(--ink-soft, #475569);
+  border-color: var(--line-strong, rgba(15, 23, 42, 0.14));
+}
+.booking-modal .btn-b:hover {
+  color: var(--ink, #0f172a);
+  border-color: var(--line-strong, rgba(15, 23, 42, 0.14));
+  background: var(--bg2, #eef2f7);
+}
+.booking-modal .btn-n:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Success step */
+.booking-modal .suc-title {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .suc-desc {
+  color: var(--ink-soft, #475569);
+}
+
+/* Package detail panel (step 2) */
+.booking-modal .pkg-detail-panel {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .pkg-detail-panel-title {
+  color: var(--ink, #0f172a);
+}
+.booking-modal .pkg-detail-panel-note {
+  color: #475569;
+}
+
+/* ZIP / travel helper in modal */
+.booking-modal .bk-travel-line {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .hero-zip-label,
+.booking-modal .zip-pill {
+  color: var(--ink-soft, #475569);
+}
