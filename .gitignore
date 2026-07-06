@@ -36,3 +36,4 @@ archive/
 Thumbs.db
 *.log
 *.txt
+!robots.txt

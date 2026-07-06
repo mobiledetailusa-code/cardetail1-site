@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://cardetail1.com/</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <!-- State Hubs -->
+  <url><loc>https://cardetail1.com/new-jersey-hub.html</loc></url>
+  <url><loc>https://cardetail1.com/ny-metro-hub.html</loc></url>
+  <!-- County Hubs -->
+  <url><loc>https://cardetail1.com/bergen-county-hub.html</loc></url>
+  <url><loc>https://cardetail1.com/essex-county-hub.html</loc></url>
+  <url><loc>https://cardetail1.com/hudson-county-hub.html</loc></url>
+  <url><loc>https://cardetail1.com/passaic-county-hub.html</loc></url>
+</urlset>

@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /customer/
+Disallow: /admin/
+Disallow: /tech/
+
+Sitemap: https://cardetail1.com/sitemap.xml
