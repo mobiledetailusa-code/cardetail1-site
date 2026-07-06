@@ -123,7 +123,7 @@ test('existing car packages still validate (maint/interior/full/premium)', () =>
   const cases = [
     { pkgId: 'maint', expected: 175 },
     { pkgId: 'interior', expected: 225 },
-    { pkgId: 'full', expected: 300 },
+    { pkgId: 'full', expected: 285 },
     { pkgId: 'premium', expected: 450 },
   ];
   for (const c of cases) {
@@ -135,6 +135,38 @@ test('existing car packages still validate (maint/interior/full/premium)', () =>
     assert.equal(r.basePrice, c.expected);
   }
 });
+
+const FULL_DETAIL_CAPS = {
+  small: 285,
+  suv2: 305,
+  suv3: 315,
+  truck: 325,
+};
+const FULL_TIER_LABELS = {
+  small: 'Small Car',
+  suv2: 'SUV 2-Row',
+  suv3: 'SUV 3-Row',
+  truck: 'Truck',
+};
+
+for (const [tierKey, expected] of Object.entries(FULL_DETAIL_CAPS)) {
+  test(`premium full detail (${tierKey}) capped at ${expected}`, () => {
+    const r = computeVehicleSubtotal(
+      {
+        cat: 'cars',
+        pkgId: 'full',
+        tierKey,
+        tierLabel: FULL_TIER_LABELS[tierKey],
+        addons: [],
+      },
+      '07601'
+    );
+    assert.equal(r.ok, true);
+    assert.equal(r.pkgId, 'full');
+    assert.equal(r.basePrice, expected);
+    assert.ok(r.basePrice <= expected);
+  });
+}
 
 test('Signature/premium booking still validates server-side', () => {
   const booking = {

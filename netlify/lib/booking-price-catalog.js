@@ -3,9 +3,9 @@
 const PRICING = {
   cars: {
     tiers: {
-      small: { label: 'Small Car', maint: 175, interior: 225, full: 300, refresh: 375, premium: 450 },
-      suv2: { label: 'SUV 2-Row', maint: 215, interior: 250, full: 325, refresh: 425, premium: 550 },
-      suv3: { label: 'SUV 3-Row', maint: 250, interior: 275, full: 325, refresh: 475, premium: 635 },
+      small: { label: 'Small Car', maint: 175, interior: 225, full: 285, refresh: 375, premium: 450 },
+      suv2: { label: 'SUV 2-Row', maint: 215, interior: 250, full: 305, refresh: 425, premium: 550 },
+      suv3: { label: 'SUV 3-Row', maint: 250, interior: 275, full: 315, refresh: 475, premium: 635 },
       truck: { label: 'Truck', maint: 250, interior: 275, full: 325, refresh: 465, premium: 615 },
     },
     addons: [
@@ -114,6 +114,7 @@ const PKG_ID_ALIASES = {
   'maintenance detail': 'maint',
   'interior detail': 'interior',
   'premium detail': 'full',
+  'premium full detail': 'full',
   // Exterior Refresh & Protect (cars) — pkgId 'refresh'. Exact-name aliases are
   // required because inferPkgId's includes() fallback would otherwise match the
   // substring 'exterior' and mis-resolve this to the RV 'exterior' package.

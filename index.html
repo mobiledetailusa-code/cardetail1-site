@@ -120,9 +120,9 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
   .nav-logo-img{height:36px;max-width:min(168px,46vw)}
 }
 .nav-portal-mobile{display:none!important}
-.foot-portal-link{font-size:12.5px!important;color:rgba(255,255,255,.5)!important}
+.foot-portal-link{font-size:12.5px!important;color:rgba(255,255,255,.72)!important}
 .foot-portal-link:hover{color:rgba(255,255,255,.85)!important}
-.msc-portal{opacity:.88;font-size:11px;font-weight:500;border-color:rgba(255,255,255,.18)!important}
+.msc-portal{opacity:1;font-size:11px;font-weight:500;border-color:rgba(255,255,255,.45)!important}
 /* Mobile-only phone link in hero */
 .hero-tel-mobile{display:none}
 @media(max-width:760px){
@@ -534,7 +534,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .mobile-sticky-cta{display:none;position:fixed;bottom:0;left:0;right:0;z-index:490;background:rgba(23,33,47,.96);border-top:1px solid rgba(255,255,255,.10);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));gap:8px;backdrop-filter:blur(14px)}
 @media(max-width:640px){.mobile-sticky-cta{display:flex}}
 .msc-book{flex:2;background:var(--blue);color:var(--white);border:none;border-radius:12px;padding:13px 10px;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.01em;box-shadow:0 2px 8px rgba(37,99,235,.25);min-height:48px}
-.msc-portal{flex:1;background:transparent;color:var(--white);border:1px solid rgba(255,255,255,.28);border-radius:var(--rs);padding:13px 8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;min-height:48px}
+.msc-portal{flex:1;background:transparent;color:var(--white);border:1px solid rgba(255,255,255,.45);border-radius:var(--rs);padding:13px 8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;min-height:48px}
 .msc-call{display:flex;align-items:center;justify-content:center;padding:13px 14px;background:transparent;color:var(--gr);border:1px solid rgba(255,255,255,.22);border-radius:var(--rs);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;min-height:48px;min-width:48px}
 @media(max-width:640px){body{padding-bottom:calc(68px + env(safe-area-inset-bottom,0px))}}
 
@@ -1248,15 +1248,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 /* ── SPECIALTY SERVICES / 2026 REFRESH ── */
 .specialty-section{background:var(--bg0);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.car-pkg-intro{margin-bottom:24px;max-width:640px}
-.car-pkg-intro .sec-title{margin-bottom:10px;text-align:left}
-.car-pkg-intro .sec-desc{margin:0;text-align:left;max-width:none;line-height:1.6}
+.car-pkg-intro{margin-bottom:28px;max-width:680px}
+.car-pkg-intro .sec-title{margin-bottom:10px;text-align:left;font-size:clamp(24px,3.5vw,34px)}
+.car-pkg-intro .sec-desc{margin:0;text-align:left;max-width:none;line-height:1.65;color:var(--ink-soft);font-size:15px}
 .car-pkg-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:28px;align-items:stretch}
 .car-pkg-card{display:flex;flex-direction:column;background:var(--bg0);border:1px solid var(--line);border-radius:var(--r);transition:.22s;text-align:left;box-shadow:var(--shadow-sm);overflow:hidden}
 .car-pkg-card:hover{border-color:var(--bbr);box-shadow:var(--shadow-md)}
 .car-pkg-card--open{border-color:var(--bbr);box-shadow:var(--shadow-md)}
 .car-pkg-top{cursor:pointer}
-.car-pkg-see-btn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:0;border:none;background:none;color:var(--blue);font-family:var(--fb);font-size:12px;font-weight:600;cursor:pointer;text-align:left;transition:.18s;pointer-events:none}
+.car-pkg-see-btn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:0;border:none;background:none;color:#1d4ed8;font-family:var(--fb);font-size:12px;font-weight:600;cursor:pointer;text-align:left;transition:.18s;pointer-events:none}
 .car-pkg-see-btn:hover{color:#1d4ed8;text-decoration:underline}
 .car-pkg-see-btn::after{content:'↓';font-size:10px;transition:transform .2s}
 .car-pkg-card--open .car-pkg-see-btn::after{transform:rotate(180deg)}
@@ -1265,9 +1265,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .car-pkg-detail-section{margin-bottom:10px}
 .car-pkg-detail-section:last-child{margin-bottom:0}
 .car-pkg-detail-section h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--blue);margin-bottom:5px}
-.car-pkg-detail-section p{margin:0}
+.car-pkg-detail-section p{margin:0;color:#475569}
 .car-pkg-detail-list{list-style:none;padding:0;margin:0}
-.car-pkg-detail-list li{padding:2px 0 2px 14px;position:relative;line-height:1.45}
+.car-pkg-detail-list li{padding:2px 0 2px 14px;position:relative;line-height:1.45;color:#475569}
 .car-pkg-detail-list li::before{position:absolute;left:0;font-size:10px;font-weight:700}
 .car-pkg-detail-list--inc li::before{content:'✓';color:var(--blue)}
 .car-pkg-detail-list--not li::before{content:'—';color:var(--mu)}
@@ -1276,31 +1276,31 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .pkg-detail-panel[hidden]{display:none!important}
 .pkg-detail-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
 .pkg-detail-panel-title{font-size:16px;font-weight:700;color:var(--ink);line-height:1.25}
-.pkg-detail-panel-note{font-size:12px;color:var(--mu);line-height:1.5;margin-bottom:12px}
+.pkg-detail-panel-note{font-size:12.5px;color:#475569;line-height:1.55;margin-bottom:12px}
 @keyframes pkgDetailIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .car-pkg-card--popular{border:2px solid var(--blue);background:linear-gradient(180deg,var(--bdim) 0%,var(--bg0) 45%);box-shadow:0 4px 22px rgba(37,99,235,.1)}
 .car-pkg-card--popular:hover{border-color:var(--blue);box-shadow:0 6px 26px rgba(37,99,235,.16)}
 .car-pkg-top{padding:18px 18px 14px;flex:1;display:flex;flex-direction:column;min-height:0}
 .car-pkg-popular{display:inline-flex;align-self:flex-start;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--white);background:var(--blue);border-radius:999px;padding:4px 10px;margin-bottom:10px;line-height:1.2}
-.car-pkg-scope{display:block;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--blue);margin-bottom:6px}
+.car-pkg-scope{display:block;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#1d4ed8;margin-bottom:6px}
 .car-pkg-name{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px;line-height:1.25}
 .car-pkg-desc{font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin-bottom:12px}
 .car-pkg-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}
 .car-pkg-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:var(--ink-soft);background:var(--bg1);border:1px solid var(--line);border-radius:999px;padding:5px 10px;line-height:1.2}
 .car-pkg-foot{margin-top:auto;padding:14px 18px 16px;border-top:1px solid var(--line);background:var(--bg1)}
-.car-pkg-card--popular .car-pkg-foot{background:rgba(255,255,255,.72)}
+.car-pkg-card--popular .car-pkg-foot{background:var(--bg1)}
 .car-pkg-price-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:12px}
 .car-pkg-price{display:flex;flex-direction:column;gap:2px;min-width:0}
-.car-pkg-price-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--mu)}
+.car-pkg-price-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
 .car-pkg-price-amt{font-size:clamp(24px,4vw,30px);font-weight:700;color:var(--ink);letter-spacing:-.02em;line-height:1}
-.car-pkg-price-note{font-size:11px;color:var(--ink-soft);line-height:1.3}
-.car-pkg-cta{width:100%;padding:11px 14px;border-radius:999px;border:1px solid var(--bbr);background:var(--bg0);color:var(--blue);font-family:var(--fb);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:.2s}
+.car-pkg-price-note{font-size:11px;color:#475569;line-height:1.35}
+.car-pkg-cta{width:100%;padding:11px 14px;border-radius:999px;border:1px solid #93c5fd;background:var(--bg0);color:#1d4ed8;font-family:var(--fb);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:.2s}
 .car-pkg-card:hover .car-pkg-cta,.car-pkg-cta:hover{background:var(--blue);color:var(--white);border-color:var(--blue)}
 .car-pkg-card--popular .car-pkg-cta{background:var(--blue);color:var(--white);border-color:var(--blue);box-shadow:0 2px 8px rgba(37,99,235,.2)}
 .car-pkg-card--popular:hover .car-pkg-cta,.car-pkg-card--popular .car-pkg-cta:hover{background:#1d4ed8;border-color:#1d4ed8}
 .car-addons-block{margin-bottom:28px;padding:20px 22px;background:var(--bg0);border:1px solid var(--line);border-radius:var(--r)}
 .car-addons-title{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px}
-.car-addons-sub{font-size:12px;color:var(--mu);margin-bottom:14px;line-height:1.5}
+.car-addons-sub{font-size:12.5px;color:#475569;margin-bottom:14px;line-height:1.5}
 .car-addon-chips{display:flex;flex-wrap:wrap;gap:8px}
 .car-addon-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--ink-soft);background:var(--bg1);border:1px solid var(--line);border-radius:999px;padding:7px 12px;cursor:pointer;transition:.18s}
 .car-addon-chip:hover{border-color:var(--bbr);color:var(--blue);background:var(--bdim)}
@@ -1552,7 +1552,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <div id="services" style="background:var(--bg1)">
   <div class="section">
     <div class="car-pkg-intro">
-      <div class="sec-eye">Cars &amp; SUVs</div>
       <div class="sec-title">Choose Your Mobile Detailing Package</div>
       <p class="sec-desc">Mobile detailing for sedans, SUVs, and trucks. Select the package that fits your vehicle condition. Final pricing adjusts by vehicle size, condition, location, and add-ons.</p>
     </div>
@@ -1585,8 +1584,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="car-pkg-top" onclick="toggleHomePkgDetail('full', event)">
           <span class="car-pkg-popular">Most booked</span>
           <span class="car-pkg-scope">Inside &amp; out</span>
-          <h3 class="car-pkg-name">Full Detail</h3>
-          <p class="car-pkg-desc">Inside and out — our go-to package for a full refresh.</p>
+          <h3 class="car-pkg-name">Premium Full Detail</h3>
+          <p class="car-pkg-desc">Our premium inside-and-out package — interior detail plus exterior wash, protection, and light paint cleaning.</p>
           <div class="car-pkg-meta">
             <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
             <span class="car-pkg-chip">⏱ ~3–5 hrs</span>
@@ -1598,8 +1597,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="car-pkg-price-row">
             <div class="car-pkg-price">
               <span class="car-pkg-price-label">From</span>
-              <span class="car-pkg-price-amt" id="home-from-full">$300</span>
-              <span class="car-pkg-price-note" id="home-from-full-note">sedan to truck · sized by vehicle</span>
+              <span class="car-pkg-price-amt" id="home-from-full">$285</span>
+              <span class="car-pkg-price-note" id="home-from-full-note">sedan from · up to $315 for large SUVs</span>
             </div>
           </div>
           <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('full')">Book this package</button>
@@ -3269,17 +3268,17 @@ async function makeWebhookSend(payload){
 const CAR_PKG_DETAILS = {
   interior: {
     title: 'Interior Detail',
-    includes: ['Vacuum throughout', 'Seats & carpets shampoo or extraction as needed', 'Steam cleaning on touch points', 'Dash, console, doors & cupholders', 'Interior glass', 'Floor mats'],
+    includes: ['Vacuum', 'Shampoo/extraction as needed', 'Steam touch points', 'Dash, console, doors, cupholders', 'Interior glass', 'Floor mats'],
     bestFor: 'Daily drivers, family cars, dust, spills, and normal interior buildup.',
     notIncluded: ['Exterior wash', 'Clay bar & paint correction', 'Exterior sealant or wax', 'Heavy odor, mold, or biohazard remediation'],
     addonsMayApply: ['Heavy pet hair', 'Severe odor', 'Mold', 'Biohazard', 'Excessive stains']
   },
   full: {
-    title: 'Full Detail',
-    includes: ['Everything in Interior Detail', 'Exterior hand wash', 'Wheels & tires', 'Exterior glass', 'Door jambs', 'Light paint cleaning', 'Exterior protection'],
-    bestFor: 'Full refresh inside and out, seasonal cleanup, and resale prep.',
+    title: 'Premium Full Detail',
+    includes: ['Interior detail', 'Exterior hand wash', 'Wheels and tires', 'Exterior glass', 'Door jambs', 'Light paint cleaning', 'Exterior protection'],
+    bestFor: 'Full refresh inside and out, seasonal cleanup, resale prep, and neglected daily drivers.',
     notIncluded: ['Heavy pet hair & odor (available as add-ons)', 'Multi-stage paint correction', 'Engine bay & headlight restoration unless added'],
-    addonsMayApply: ['Heavy pet hair', 'Odor treatment', 'Deep stains', 'Clay/polish upgrade', 'Engine bay', 'Headlights']
+    addonsMayApply: ['Heavy pet hair', 'Odor', 'Deep stains', 'Clay/polish upgrade', 'Engine bay', 'Headlights']
   },
   refresh: {
     title: 'Exterior Detail & Paint Enhancement',
@@ -3379,9 +3378,9 @@ function initHomePkgDetails(){
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:300, refresh:375, premium:450},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:215, interior:250, full:325, refresh:425, premium:550},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:275, full:325, refresh:475, premium:635},
+      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:285, refresh:375, premium:450},
+      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:215, interior:250, full:305, refresh:425, premium:550},
+      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:275, full:315, refresh:475, premium:635},
       truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:250, interior:275, full:325, refresh:465, premium:615},
     },
     packages:[
@@ -3395,7 +3394,7 @@ const PRICING = {
         int:['Deep vacuum — seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior glass cleaned'],
         feats:['Deep vacuum — seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior glass cleaned'],
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
-      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh — most popular',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
+      {id:'full',     name:'Premium Full Detail', icon:'🧽', tag:'Best for a full inside/out refresh — most popular', dur:'~3–5h depending on condition', popular:true,  scope:'both',
         ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'],
         int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','UV protectant'],
         feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','Spray sealant/protection','Tire dressing','UV protectant'],
