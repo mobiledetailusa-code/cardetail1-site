@@ -627,6 +627,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .tchip-from{font-size:11px;color:var(--blue);font-weight:600;margin-top:5px}
 /* Hide pre-selection price hints — single price shown after vehicle + package */
 #bk-cat-grid .svc-from,.tchip-from,.pkg-price,.ah-total-est{display:none!important}
+#bk-cat-grid .svc-cat-note{font-size:12px;color:#475569;font-weight:500;line-height:1.45;padding:0 14px 14px}
 
 /* VEHICLE CONFIRM CARD */
 .vc{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--rs);padding:14px 16px;display:none;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px;animation:fu .25s ease}
@@ -1353,7 +1354,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .hero-proof{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 auto 8px}
 .hero-proof span{border:1px solid var(--line);background:var(--bg1);color:var(--ink-soft);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:500}
 .review-source{display:inline-flex;align-items:center;gap:7px;margin-top:8px;color:var(--mu);font-size:11px}
-#services{content-visibility:auto;contain-intrinsic-size:900px}
+#services{content-visibility:auto;contain-intrinsic-size:900px;scroll-margin-top:76px}
+@media(max-width:640px){#services{scroll-margin-top:68px}}
 .section-full,.results-section,.ba-section,#reviews,#how{content-visibility:auto;contain-intrinsic-size:900px}
 .rw-img{background:linear-gradient(110deg,var(--bg2) 25%,var(--bg3) 42%,var(--bg2) 58%);background-size:200% 100%;animation:imgShimmer 1.4s linear infinite}
 .rw-img.rw-loaded{animation:none;background:none}
@@ -1598,7 +1600,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="car-pkg-price">
               <span class="car-pkg-price-label">From</span>
               <span class="car-pkg-price-amt" id="home-from-full">$285</span>
-              <span class="car-pkg-price-note" id="home-from-full-note">sedan from · up to $315 for large SUVs</span>
+              <span class="car-pkg-price-note" id="home-from-full-note">sedans from $285 · SUVs from $305 · 3-row SUVs from $315</span>
             </div>
           </div>
           <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('full')">Book this package</button>
@@ -2582,7 +2584,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="svc-ico-photo"><img src="assets/vehicles/premium/cars-suvs.webp" alt="Cars and trucks receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Cars &amp; SUVs</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
-            <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $175</div>
+            <div class="svc-cat-note" id="bkfrom-cars">Packages shown after ZIP check</div>
           </div>
           <div class="bk-cat-specialty">
             <div class="bk-cat-specialty-label">Boats, RVs, powersports &amp; fleet</div>
@@ -6817,8 +6819,13 @@ function _updateHomeFromPrices(){
     if(el) el.textContent='$'+(applyRichPrice(minTier(field))+fee);
   };
   setPkgAmt('home-from-interior','interior');
-  setPkgAmt('home-from-full','full');
   setPkgAmt('home-from-refresh','refresh');
+  const tiers=PRICING.cars.tiers;
+  const fmtFull=(base)=>'$'+(applyRichPrice(base)+fee);
+  const fullAmt=document.getElementById('home-from-full');
+  const fullNote=document.getElementById('home-from-full-note');
+  if(fullAmt) fullAmt.textContent=fmtFull(tiers.small.full);
+  if(fullNote) fullNote.textContent=`sedans from ${fmtFull(tiers.small.full)} · SUVs from ${fmtFull(tiers.suv2.full)} · 3-row SUVs from ${fmtFull(tiers.suv3.full)}`;
   const BASE = {
     boats:       { price: LENGTH_PRICING.boats.packages.maint.min,     note:'by vessel length', amtId:'hfrom-boats-amt' },
     rvs:         { price: LENGTH_PRICING.rvs.packages.exterior.min,    note:'by RV length', amtId:'hfrom-rvs-amt' },
