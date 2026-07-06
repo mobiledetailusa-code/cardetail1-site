@@ -1,0 +1,175 @@
+/* Public page contrast — scoped surfaces (not admin/tech/customer portal app) */
+
+/* Visual proof panels (light gradient cards) */
+.visual-panel-copy h3 {
+  color: #0f172a;
+}
+.visual-panel-copy p {
+  color: #475569;
+}
+.visual-checks span {
+  color: #334155;
+}
+
+/* Mobile sticky CTA — light bar, clickable controls */
+.mobile-sticky-cta {
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(12px);
+}
+.msc-book {
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+}
+.msc-portal {
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.22);
+  background: #ffffff;
+  opacity: 1;
+}
+.msc-call {
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.14);
+  background: #ffffff;
+}
+
+/* Customer lookup modal (public “My Booking” overlay) */
+.cp-modal {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.14);
+  color: #334155;
+}
+.cp-modal .cp-title,
+.cp-modal .cg-val,
+.cp-modal .cg-vname,
+.cp-modal .cg-hpkg,
+.cp-modal .cg-plan-name,
+.cp-modal .cg-pref-lbl {
+  color: #0f172a;
+}
+.cp-modal .cp-close,
+.cp-modal .cg-back,
+.cp-modal .cg-lbl,
+.cp-modal .cg-vpkg,
+.cp-modal .cg-hdate,
+.cp-modal .cg-plan-freq,
+.cp-modal .cg-placeholder {
+  color: #64748b;
+}
+.cp-modal .cp-close:hover,
+.cp-modal .cg-back:hover {
+  color: #0f172a;
+}
+.cp-modal .cp-tabs,
+.cp-modal .cp-tab {
+  border-color: rgba(15, 23, 42, 0.14);
+}
+.cp-modal .cp-tab {
+  color: #64748b;
+  background: #f4f6f9;
+}
+.cp-modal .cp-tab.active {
+  background: #2563eb;
+  color: #ffffff;
+}
+.cp-modal .cg-section,
+.cp-modal .cg-vehicle,
+.cp-modal .cp-fi,
+.cp-modal .cp-result {
+  background: #f4f6f9;
+  border-color: rgba(15, 23, 42, 0.14);
+  color: #0f172a;
+}
+.cp-modal .cg-nav-btn {
+  border-color: rgba(15, 23, 42, 0.14);
+  color: #64748b;
+}
+.cp-modal .cg-nav-btn:hover {
+  border-color: rgba(37, 99, 235, 0.22);
+  color: #2563eb;
+}
+.cp-modal .cg-nav-book,
+.cp-modal .cp-btn,
+.cp-modal .cg-cta-p {
+  background: #2563eb;
+  color: #ffffff;
+}
+.cp-modal .cg-plan {
+  border-color: rgba(15, 23, 42, 0.14);
+}
+.cp-modal .cg-plan:hover {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: #2563eb;
+}
+.cp-modal .cg-plan-cta {
+  color: #2563eb;
+}
+.cp-modal .cp-label {
+  color: #64748b;
+}
+.cp-modal .cp-btn {
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+.cp-modal .cp-btn:hover {
+  background: #1d4ed8 !important;
+  color: #ffffff !important;
+}
+
+/* Login overlay on public pages */
+.login-box {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.14);
+  color: #334155;
+}
+.login-title {
+  color: #0f172a;
+}
+.login-sub,
+.login-desc,
+.login-demo {
+  color: #64748b;
+}
+.login-tab {
+  border-color: rgba(15, 23, 42, 0.14);
+  color: #64748b;
+  background: #f4f6f9;
+}
+.login-tab.active {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+}
+.login-demo b {
+  color: #0f172a;
+}
+.login-box .fi {
+  background: #f4f6f9;
+  border-color: rgba(15, 23, 42, 0.14);
+  color: #0f172a;
+}
+.login-close {
+  background: #f4f6f9;
+  color: #64748b;
+}
+.login-close:hover {
+  background: #eef2f7;
+  color: #0f172a;
+}
+
+/* Package CTAs — default state must look clickable, not disabled */
+.booking-modal .pkg-btn {
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.22);
+  background: transparent;
+}
+
+/* Progress steps — inactive labels readable */
+.booking-modal .bpn {
+  color: #64748b;
+}
+.booking-modal .bpt.active .bpn,
+.booking-modal .bpt.done .bpn {
+  color: #ffffff;
+}

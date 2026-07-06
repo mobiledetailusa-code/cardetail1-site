@@ -4,9 +4,11 @@
   "private": true,
   "description": "Cardetail1 — mobile detailing site (static) + Netlify functions",
   "scripts": {
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "audit:pre-deploy": "node scripts/pre-deploy-audit.mjs"
   },
   "dependencies": {
+    "@cursor/sdk": "^1.0.22",
     "@netlify/blobs": "^8.1.0"
   }
 }

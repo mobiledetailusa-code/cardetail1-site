@@ -7,7 +7,9 @@ squarespace_backup_codes_*.txt
 
 # ── Build / deps ──────────────────────────────────────
 node_modules/
+.tools/
 .netlify/
+reports/*.md
 
 # ── Local artifacts / scripts ─────────────────────────
 upload.ts

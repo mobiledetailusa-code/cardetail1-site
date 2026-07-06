@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "cursor-sdk": {
+      "enabled": true
+    }
+  }
+}

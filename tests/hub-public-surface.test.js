@@ -118,3 +118,29 @@ test('ZIP routing logic in index.html is unchanged', () => {
     assert.doesNotMatch(read(page), /NJ_HUB_ZIP3/, `${page} must not embed homepage ZIP routing set`);
   }
 });
+
+const stateHubPages = [
+  'new-jersey-hub.html',
+  'ny-metro-hub.html',
+  'connecticut-hub.html',
+  'pennsylvania-hub.html',
+];
+
+for (const page of stateHubPages) {
+  test(`${page} uses shared package details modal for all three cards`, () => {
+    const html = read(page);
+    assert.match(html, /id="car-pkg-detail-ov"/);
+    assert.match(html, /\.car-pkg-detail-ov\[hidden\]\{display:none!important\}/);
+    assert.equal((html.match(/id="car-pkg-detail-body"/g) || []).length, 1, 'single modal body element');
+    assert.doesNotMatch(html, /<div class="car-pkg-detail-body" id="car-pkg-detail-body"><\/div>\s*<div class="car-addons-block">/);
+    assert.match(html, /assets\/car-pkg-detail-modal\.js/);
+    assert.match(html, /assets\/button-states\.css/);
+    assert.match(html, /initCarPkgDetailModal\(\);/);
+    assert.doesNotMatch(html, /function toggleHomePkgDetail/);
+    assert.doesNotMatch(html, /id="home-pkg-detail-interior"/);
+    for (const pkgId of ['interior', 'full', 'refresh']) {
+      assert.match(html, new RegExp(`openHomePkgDetailModal\\('${pkgId}'`));
+      assert.match(html, new RegExp(`openBookingCarPkg\\('${pkgId}'\\)`));
+    }
+  });
+}

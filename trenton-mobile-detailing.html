@@ -640,8 +640,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .addon.sel{border-color:var(--blue);background:rgba(77,163,255,.07)}
 .addon-check{position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:50%;border:1.5px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:11px;transition:.2s;color:transparent}
 .addon.sel .addon-check{background:var(--blue);border-color:var(--blue);color:#000}
-.addon-ico{font-size:30px;margin-bottom:8px}
-.addon-name{font-size:12.5px;font-weight:600;color:var(--white);margin-bottom:3px}
+.addon-name{font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px;line-height:1.35;padding-top:2px}
 .addon-desc{font-size:10.5px;color:var(--mu);line-height:1.4;margin-bottom:8px}
 .addon-price{font-size:16px;font-weight:600;color:var(--blue)}
 .addon-each{font-size:11px;color:var(--mu);font-weight:500}
@@ -1231,6 +1230,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 }
 
 </style>
+<link rel="stylesheet" href="assets/booking-modal-light.css">
+<link rel="stylesheet" href="assets/public-surface-contrast.css">
 </head>
 <body>
 
@@ -2335,14 +2336,12 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="fg"><div class="fl">Email *</div><input class="fi" id="f-email" type="email" placeholder="john@email.com" required></div>
           <div class="fg full"><div class="fl">Service Address *</div><input class="fi" id="f-addr" type="text" placeholder="123 Main St, Hoboken, NJ 07030" required></div>
           <div class="fg"><div class="fl">Preferred Date *</div><input class="fi" id="f-date" type="date" required></div>
-          <div class="fg"><div class="fl">Preferred Time</div>
-            <select class="fsel" id="f-time">
-              <option value="">Any available (Mon–Fri 8AM–5PM)</option>
-              <option>Morning (8AM – 11AM)</option>
-              <option>Midday (11AM – 2PM)</option>
-              <option>Afternoon (2PM – 5PM)</option>
+          <div class="fg"><div class="fl">Preferred Time *</div>
+            <select class="fsel" id="f-time" required>
+              <option value="">Select a time</option>
             </select>
           </div>
+          <div class="fg full" id="f-schedule-msg" style="display:none;font-size:12.5px;color:var(--am);line-height:1.55;margin-top:-4px"></div>
           <div class="fg"><div class="fl">Water available?</div>
             <select class="fsel" id="f-water">
               <option value="">Select…</option>
@@ -2905,20 +2904,22 @@ const PRICING = {
         miss:[]}
     ],
     addons:[
-      {id:'pethair',    scope:'int', name:'Pet Hair Removal',          icon:'🐾',  desc:'Deep removal of embedded pet hair from seats, carpets, mats, and trunk. Heavy vehicles may require estimate', price:95},
-      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    icon:'💎',  desc:'Upgrade any package with extra shampoo passes, hand-steam on every panel, door pockets & cargo area — add to any interior-included package', price:125},
-      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', icon:'💨',  desc:'Interior odor neutralizer + high-touch surface sanitizing. Not biohazard or mold remediation', price:149},
-      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        icon:'☣️',  desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Requires estimate confirmation before service', price:115},
-      {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      icon:'🛠️',  desc:'Top-view engine bay cleaning — visible surfaces, cover, and accessible areas only. NOT a full engine detail or mechanical service', price:45},
-      {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      icon:'🟫',  desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each — set the quantity of mats', price:20, qty:true},
-      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    icon:'💧',  desc:'Water-repellent Rain-X treatment on windshield and front glass for improved wet-weather visibility', price:25},
-      {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     icon:'🛡️',  desc:'Hand-applied polymer sealant for paint protection and enhanced gloss. Lasts 3–6 months', price:25},
-      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       icon:'🥇',  desc:'Premium long-lasting carnauba wax. Superior gloss and up to 12 months of paint protection', price:75},
-      {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        icon:'🧲',  desc:'Removes embedded contaminants, industrial fallout, and rail dust for a smooth, clean paint surface', price:45},
-      {id:'headlight',  scope:'ext', name:'Headlight Restoration',     icon:'💡',  desc:'Sand, polish, and seal foggy or yellowed headlights to restore clarity and night visibility (per pair)', price:90},
-      {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  icon:'🧒',  desc:'Clean and sanitize a child car seat — straps, padding, and buckle. $20 each — set the quantity', price:20, qty:true},
-      {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    icon:'🍼',  desc:'Wash and sanitize a baby stroller — fabric, frame, and wheels. $20 each — set the quantity', price:20, qty:true},
-      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        icon:'🗑️',  desc:'Residential trash can cleaning at the service location. $25 each — set the quantity. Biohazard requires estimate', price:25, qty:true},
+      {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Deep pet hair removal from seats, carpets, mats, and trunk. Heavy buildup may need an estimate', price:95},
+      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    desc:'Extra shampoo passes and hand-steam on panels, pockets, and cargo areas', price:125},
+      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, pet, and general interior odors. Severe odor, mold, urine, or biohazard may require estimate confirmation', price:90},
+      {id:'mold',       scope:'int', name:'Mold Treatment',            desc:'Targeted mold treatment for affected interior areas. Inspection required; estimate may be needed. Starting at $149 based on severity', price:149},
+      {id:'sanitize',   scope:'int', name:'Interior Sanitizing',       desc:'High-touch interior wipe-down after cleaning — wheel, controls, handles, seats, and belts', price:65},
+      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Estimate confirmation required', price:115},
+      {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      desc:'Top-view cleaning of visible engine bay surfaces and covers. Detailing only — not mechanical service', price:45},
+      {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each', price:20, qty:true},
+      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    desc:'Water-repellent Rain-X on windshield and front glass', price:25},
+      {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     desc:'Hand-applied polymer sealant for paint protection and gloss. Lasts 3–6 months', price:25},
+      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax with enhanced gloss and up to 12 months of protection', price:75},
+      {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        desc:'Removes embedded contaminants, fallout, and rail dust for smooth paint', price:45},
+      {id:'headlight',  scope:'ext', name:'Headlight Restoration',     desc:'Clean, polish, and seal foggy headlights (per pair). Cosmetic detailing only', price:90},
+      {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  desc:'Clean child car seat straps, padding, and buckle. $20 each', price:20, qty:true},
+      {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    desc:'Wash stroller fabric, frame, and wheels. $20 each', price:20, qty:true},
+      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'Residential trash can cleaning at the service location. $25 each', price:25, qty:true},
     ],
   },
   boats: {
@@ -2943,12 +2944,15 @@ const PRICING = {
         miss:[]}
     ],
     addons:[
-      {id:'rainx',      name:'Rain-X Glass Treatment',        icon:'💧', desc:'Water-repellent treatment for marine windshields and glass surfaces', price:25},
-      {id:'polymer',    name:'Polymer Hull Sealant',           icon:'🛡️', desc:'Polymer sealant on hull exterior for enhanced protection and gloss', price:25},
-      {id:'wax1yr',     name:'1-Year Marine Carnauba Wax',     icon:'🥇', desc:'Premium carnauba wax for marine gel coat — up to 12 months protection', price:75},
-      {id:'chrome',     name:'Chrome / Stainless Metal Polish',icon:'🔩', desc:'Accessible chrome, stainless rails, cleats, and brightwork polished', price:85},
-      {id:'biohazard',  name:'Biohazard Cleaning',             icon:'☣️', desc:'Bodily fluids or severe contamination. Requires estimate confirmation before service', price:115},
-      {id:'trashcans',  name:'Trash Can Cleaning',             icon:'🗑️', desc:'Trash can cleaning at marina, storage yard, or home location — $25 per can', price:25},
+      {id:'rainx',      name:'Rain-X Glass Treatment',     desc:'Water-repellent treatment for marine windshields and glass', price:25},
+      {id:'polymer',    name:'Polymer Hull Sealant',        desc:'Polymer sealant on hull exterior for protection and gloss', price:25},
+      {id:'wax1yr',     name:'1-Year Marine Carnauba Wax',  desc:'Premium carnauba wax for marine gel coat — up to 12 months protection', price:75},
+      {id:'chrome',     name:'Chrome / Stainless Polish',   desc:'Polish accessible chrome, rails, cleats, and brightwork on exterior surfaces', price:85},
+      {id:'odor',       name:'Odor Treatment & Sanitize',  desc:'Treatment for smoke, food, pet, and cabin odors. Severe cases may require estimate confirmation', price:90},
+      {id:'mold',       name:'Mold Treatment',              desc:'Targeted mold treatment for affected cabin areas. Inspection required; estimate may be needed. Starting at $149 based on severity', price:149},
+      {id:'sanitize',   name:'Interior Sanitizing',         desc:'High-touch cabin wipe-down after cleaning', price:65},
+      {id:'biohazard',  name:'Biohazard Cleaning',          desc:'Bodily fluids or severe contamination. Estimate confirmation required', price:115},
+      {id:'trashcans',  name:'Trash Can Cleaning',          desc:'Trash can cleaning at marina, storage yard, or home. $25 per can', price:25, qty:true},
     ],
   },
   rvs: {
@@ -2973,16 +2977,18 @@ const PRICING = {
         miss:['Roof requires separate estimate']}
     ],
     addons:[
-      {id:'polymer',    scope:'ext', name:'Polymer Sealant Upgrade',     icon:'🛡️', desc:'Polymer sealant on RV exterior for added protection and gloss. Excellent for fiberglass', price:25},
-      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',         icon:'🥇', desc:'Premium carnauba wax on RV exterior. Up to 12 months UV and weather protection', price:75},
-      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment', icon:'💧', desc:'Water-repellent Rain-X on RV windshield and front glass', price:25},
-      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',          icon:'☣️', desc:'Bodily fluids, waste, or severe contamination. Requires estimate confirmation before service', price:115},
-      {id:'awning',     scope:'ext', name:'Awning Cleaning',             icon:'⛺', desc:'Accessible awning fabric and arms cleaning. Light mildew and surface buildup only', price:129},
-      {id:'roof',       scope:'ext', name:'Roof Surface Cleaning',       icon:'⬆️', desc:'Safe-access roof cleaning. No repairs, resealing, or coating included', price:149},
-      {id:'capfront',   scope:'ext', name:'Front Cap Deep Clean',        icon:'🧼', desc:'Heavy bugs, road grime, black streaks, runoff staining, and front cap buildup', price:149},
-      {id:'pethair',    scope:'int', name:'Pet Hair Removal',            icon:'🐾', desc:'Pet hair removal from RV seats, rugs, cushions, and living areas', price:95},
-      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize',   icon:'💨', desc:'Interior odor neutralizer + high-touch sanitizing. Not mold or biohazard', price:149},
-      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',          icon:'🗑️', desc:'$25 per can at RV park, campground, storage, or home', price:25},
+      {id:'polymer',    scope:'ext', name:'Polymer Sealant Upgrade',   desc:'Polymer sealant on RV exterior for added protection and gloss', price:25},
+      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax on RV exterior with UV and weather protection', price:75},
+      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment', desc:'Water-repellent Rain-X on RV windshield and front glass', price:25},
+      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids, waste, or severe contamination. Estimate confirmation required', price:115},
+      {id:'mold',       scope:'int', name:'Mold Treatment',            desc:'Targeted mold treatment for affected interior areas. Inspection required; estimate may be needed. Starting at $149 based on severity', price:149},
+      {id:'sanitize',   scope:'int', name:'Interior Sanitizing',       desc:'High-touch interior wipe-down after cleaning', price:65},
+      {id:'awning',     scope:'ext', name:'Awning Cleaning',           desc:'RV awning fabric wash and clean. Cleaning only — no repair, replacement, mechanism service, or re-tensioning', price:50, qty:true},
+      {id:'roof',       scope:'ext', name:'Roof Surface Cleaning',     desc:'Exterior RV/trailer roof wash and clean. Cleaning only — no repair, resealing, leaks, or mechanical work', price:50, qty:true},
+      {id:'capfront',   scope:'ext', name:'Front Cap Deep Clean',      desc:'RV front cap exterior wash for bugs, grime, and road film. Surface cleaning and detailing only', price:149},
+      {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Pet hair removal from RV seats, rugs, cushions, and living areas', price:95},
+      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, pet, and interior odors. Severe cases may require estimate confirmation', price:90},
+      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'$25 per can at RV park, campground, storage, or home', price:25, qty:true},
     ],
   },
   powersports: {
@@ -3007,12 +3013,17 @@ const PRICING = {
         miss:[]}
     ],
     addons:[
-      {id:'polymer',    name:'Polymer Sealant',             icon:'🛡️', desc:'Polymer paint/plastic sealant for enhanced protection and gloss', price:25},
-      {id:'wax1yr',     name:'1-Year Carnauba Wax',         icon:'🥇', desc:'Premium carnauba wax — maximum gloss and 12-month paint protection', price:75},
-      {id:'rainx',      name:'Rain-X Windshield / Visor',   icon:'💧', desc:'Rain-X water-repellent on motorcycle/UTV windshields and helmet visors', price:25},
-      {id:'heavymud',   name:'Heavy Mud / Trail Buildup',   icon:'🏞️', desc:'Extra labor for heavy mud, clay, trail buildup, or off-road grime', price:55},
-      {id:'chain',      name:'Chain & Sprocket Cleaning',   icon:'⚙️', desc:'Motorcycle chain and sprocket degreasing and clean. No mechanical adjustment', price:35},
-      {id:'metalpolish',name:'Chrome / Metal Deep Polish',  icon:'🔩', desc:'Accessible chrome, aluminum, and metal surfaces polished to a high shine', price:65},
+      {id:'polymer',    name:'Polymer Sealant',              desc:'Polymer paint and plastic sealant for protection and gloss', price:25},
+      {id:'wax1yr',     name:'1-Year Carnauba Wax',          desc:'Premium carnauba wax for enhanced gloss and paint protection', price:75},
+      {id:'rainx',      name:'Rain-X Windshield / Visor',    desc:'Water-repellent treatment on windshields, visors, and exterior glass', price:25},
+      {id:'heavymud',   name:'Heavy Mud / Trail Buildup',    desc:'Extra cleaning for heavy mud, clay, and trail grime on exterior surfaces', price:55},
+      {id:'seatdeep',   name:'Seat Deep Clean',              desc:'Deep cleaning for seats and riding surfaces', price:45},
+      {id:'storage',    name:'Storage Compartment Cleaning', desc:'Vacuum and wipe saddlebags, boxes, and accessible compartments', price:35},
+      {id:'wheeldet',   name:'Wheel Detail',                 desc:'Deep wheel and rim cleaning on accessible surfaces', price:35},
+      {id:'waterspot',  name:'Water Spot Treatment',         desc:'Light water spot removal on paint and exterior surfaces', price:35},
+      {id:'saltwash',   name:'Salt Rinse / Marine Rinse',    desc:'Salt and mineral rinse for jet ski and marine-exposed exterior surfaces', price:35},
+      {id:'trimprot',   name:'Plastic Trim Protection',      desc:'Clean and protect plastic trim, panels, and exterior plastics', price:35},
+      {id:'lightdeg',   name:'Light Exterior Degreasing',    desc:'Light degrease of visible exterior surfaces. Detailing only — not engine service', price:45},
     ],
   },
   fleet: {
@@ -3040,12 +3051,12 @@ const PRICING = {
         miss:[]}
     ],
     addons:[
-      {id:'polymer',      name:'Polymer Sealant Upgrade',       icon:'🛡️', desc:'Polymer sealant per unit for added paint protection and gloss', price:25},
-      {id:'trashcans',    name:'Trash Can Cleaning',            icon:'🗑️', desc:'$25 per can at service location or fleet estimate', price:25},
-      {id:'disinfect',    name:'High-Touch Sanitizing',         icon:'🧴', desc:'Steering wheels, door handles, controls, seats, and high-contact surfaces', price:20},
-      {id:'biohazard',    name:'Biohazard Cleaning',            icon:'☣️', desc:'Bodily fluids or severe contamination per unit. Requires individual estimate', price:115},
-      {id:'odor',         name:'Fleet Odor Treatment',          icon:'💨', desc:'Interior odor reduction per unit. Severe odor requires individual estimate', price:99},
-      {id:'heavymud',     name:'Heavy Mud / Worksite Soil',     icon:'🏗️', desc:'Extra labor for construction, trail, farm, or worksite grime per unit', price:65},
+      {id:'polymer',      name:'Polymer Sealant Upgrade',     desc:'Polymer sealant per unit for added paint protection and gloss', price:25},
+      {id:'trashcans',    name:'Trash Can Cleaning',          desc:'$25 per can at service location or fleet estimate', price:25},
+      {id:'disinfect',    name:'High-Touch Sanitizing',       desc:'Wheel, controls, handles, seats, and high-contact surfaces per unit', price:20},
+      {id:'biohazard',    name:'Biohazard Cleaning',          desc:'Bodily fluids or severe contamination per unit. Individual estimate required', price:115},
+      {id:'odor',         name:'Fleet Odor Treatment',        desc:'Interior odor treatment per unit. Severe odor requires individual estimate', price:99},
+      {id:'heavymud',     name:'Heavy Mud / Worksite Soil',   desc:'Extra cleaning for construction, trail, farm, or worksite grime per unit', price:65},
     ]
   }
 
@@ -3880,7 +3891,7 @@ function renderAddons(){
   const otherAddons=addons.filter(a=>!POPULAR_IDS.includes(a.id));
   function addonCardHtml(a){
     const isQty=!!a.qty;
-    return `<div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)"><div class="addon-check">✓</div><div class="addon-ico">${a.icon}</div><div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">+$${a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
+    return `<div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)"><div class="addon-check">✓</div><div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">+$${a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
   }
   document.getElementById('addon-grid').innerHTML=
     '<div class="addon-popular-label">Popular Add-ons</div>'+
@@ -3966,6 +3977,21 @@ function updateTotal(){
   updateVcPriceDisplay();
 }
 
+// ── BOOKING SCHEDULE (Step 4) ───────────────────────────────────────────────
+const BK_SLOTS=['8:00 AM','10:00 AM','12:00 PM','2:00 PM'];
+const BK_SAT_SLOTS=['8:00 AM','10:00 AM'];
+function bkToIso(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day;}
+function bkEaster(y){const a=y%19,b=~~(y/100),c=y%100,d=~~(b/4),e=b%4,f=~~((b+8)/25),g=~~((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=~~(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=~~((a+11*h+22*l)/451);return new Date(y,~~((h+l-7*m+114)/31)-1,((h+l-7*m+114)%31)+1);}
+function bkNthWd(y,mi,wd,n){let c=0;for(let d=1;d<=31;d++){const dt=new Date(y,mi,d);if(dt.getMonth()!==mi)break;if(dt.getDay()===wd&&++c===n)return bkToIso(dt);}return null;}
+function bkLastWd(y,mi,wd){for(let d=31;d>=1;d--){const dt=new Date(y,mi,d);if(dt.getMonth()!==mi)continue;if(dt.getDay()===wd)return bkToIso(dt);}return null;}
+function bkHolidays(y){return new Set([y+'-01-01',bkToIso(bkEaster(y)),bkLastWd(y,4,1),y+'-07-04',bkNthWd(y,8,1,1),bkNthWd(y,10,4,4),y+'-12-24',y+'-12-25',y+'-12-31']);}
+function bkIsoParts(iso){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||'').trim());if(!m)return null;const y=+m[1],mo=+m[2],d=+m[3],dt=new Date(y,mo-1,d);if(dt.getFullYear()!==y||dt.getMonth()!==mo-1||dt.getDate()!==d)return null;return{iso:m[1]+'-'+m[2]+'-'+m[3],day:dt.getDay()};}
+function bkSlotsFor(iso){const p=bkIsoParts(iso);if(!p)return[];if(p.day===0)return[];if(bkHolidays(+p.iso.slice(0,4)).has(p.iso))return[];return p.day===6?BK_SAT_SLOTS.slice():BK_SLOTS.slice();}
+function bkShowScheduleMsg(msg){const el=document.getElementById('f-schedule-msg');if(!el)return;if(msg){el.textContent=msg;el.style.display='block';}else{el.textContent='';el.style.display='none';}}
+function bkRefreshTimeSlots(){const dateEl=document.getElementById('f-date');const timeEl=document.getElementById('f-time');if(!dateEl||!timeEl)return;const iso=dateEl.value;const prev=timeEl.value;bkShowScheduleMsg('');timeEl.querySelectorAll('option[data-slot]').forEach(o=>o.remove());if(!iso)return;const p=bkIsoParts(iso);if(!p)return;if(p.day===0){bkShowScheduleMsg('Unavailable — please choose another date.');timeEl.value='';return;}if(bkHolidays(+p.iso.slice(0,4)).has(p.iso)){bkShowScheduleMsg('Closed for the holiday. Please choose another date.');timeEl.value='';return;}const allowed=bkSlotsFor(iso);for(const slot of allowed){const opt=document.createElement('option');opt.value=slot;opt.textContent=slot;opt.dataset.slot='1';timeEl.appendChild(opt);}if(prev&&allowed.includes(prev))timeEl.value=prev;else timeEl.value='';}
+function bkValidateScheduleSelection(){const iso=document.getElementById('f-date')?.value||'';const time=document.getElementById('f-time')?.value||'';if(!iso)return{ok:false,message:'Please select a preferred date.'};const p=bkIsoParts(iso);if(!p)return{ok:false,message:'Please select a valid date.'};if(p.day===0)return{ok:false,message:'Unavailable — please choose another date.'};if(bkHolidays(+p.iso.slice(0,4)).has(p.iso))return{ok:false,message:'Closed for the holiday. Please choose another date.'};if(!time)return{ok:false,message:'Please select a preferred time.'};const allowed=bkSlotsFor(iso);if(!allowed.includes(time))return{ok:false,message:'That time is unavailable on the selected date. Please choose another slot.'};return{ok:true};}
+function bkInitSchedulePicker(){const dateEl=document.getElementById('f-date');if(!dateEl)return;dateEl.addEventListener('change',bkRefreshTimeSlots);const timeEl=document.getElementById('f-time');if(timeEl)timeEl.addEventListener('change',()=>bkShowScheduleMsg(''));}
+
 // ── STEP 5: INFO ──────────────────────────────────────────────────────────────
 function fillStrip5(){
   const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
@@ -3982,8 +4008,11 @@ function fillStrip5(){
 }
 
 function goToPayment(){
-  const req=['f-first','f-last','f-phone','f-email','f-addr','f-date'];
+  const req=['f-first','f-last','f-phone','f-email','f-addr','f-date','f-time'];
   if(req.some(id=>!document.getElementById(id).value.trim())){alert('Please fill in all required fields marked with *');return;}
+  const sched=bkValidateScheduleSelection();
+  if(!sched.ok){bkShowScheduleMsg(sched.message);return;}
+  bkShowScheduleMsg('');
   bkGoTo(5);
 }
 
@@ -4241,7 +4270,7 @@ function fillConfirm(){
   const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
   const cartBase = vehicles.reduce((s,v)=>s+(v.subtotal||0),0);
   const total = cartBase + fee;
-  const tsel=document.getElementById('f-time').value||'Any available';
+  const tsel=document.getElementById('f-time').value;
   const catLabels={cars:'Cars & Trucks',boats:'Boats & Marine',rvs:'RVs & Trailers',powersports:'Powersports',fleet:'Fleet Services'};
   const visual=VEHICLE_VISUALS[getVehicleVisualKey()]||CATEGORY_VISUALS[ST.cat]||VEHICLE_VISUALS.sedan;
   const visualEl=document.getElementById('c-visual');
@@ -4366,7 +4395,7 @@ function buildBookingPayload(){
     email:document.getElementById('f-email').value.trim(),
     address:document.getElementById('f-addr').value.trim(),
     preferredDate:document.getElementById('f-date').value,
-    preferredTime:document.getElementById('f-time').value||'Any available',
+    preferredTime:document.getElementById('f-time').value,
         ...readSiteAccessFields(),
     notes:document.getElementById('f-notes').value.trim(),
     termsAccepted:true,
@@ -4543,6 +4572,7 @@ function restartBooking(){
 }
 
 document.getElementById('f-date').min=new Date().toISOString().split('T')[0];
+bkInitSchedulePicker();
 if(location.hash==='#admin') location.replace('/admin');
 
 // ═══════════════════════════════════════════════════════
@@ -5542,7 +5572,7 @@ function cpOpenAddons(){
     list.innerHTML = addons.map(a=>`
     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 10px;background:var(--bg2);border-radius:var(--rs);border:1px solid rgba(255,255,255,.07)">
       <input type="checkbox" onchange="cpToggleAddon('${cpEsc(a.id)}','${cpEsc(a.name)}',${a.price},this)" style="accent-color:var(--blue);width:16px;height:16px">
-      <span style="flex:1;font-size:13px">${cpEsc(a.icon||'')} ${cpEsc(a.name)}</span>
+      <span style="flex:1;font-size:13px">${cpEsc(a.name)}</span>
       <span style="font-weight:700;color:var(--blue)">+$${a.price}</span>
     </label>`).join('');
   });
