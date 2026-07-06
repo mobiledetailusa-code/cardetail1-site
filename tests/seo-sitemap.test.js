@@ -20,3 +20,11 @@ test('sitemap.xml lists homepage and public hub URLs', () => {
   assert.match(sitemap, /bergen-county-hub\.html/);
   assert.match(sitemap, /passaic-county-hub\.html/);
 });
+
+test('index.html includes Google Search Console verification meta tag', () => {
+  const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.match(
+    index,
+    /<meta name="google-site-verification" content="J5dl5bL4P6NqxVkm1zauqfoFghfu2puiXoRWyvFID3c">/
+  );
+});
