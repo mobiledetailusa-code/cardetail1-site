@@ -122,9 +122,11 @@ body{background:var(--bg0)!important;color:var(--tx)!important;-webkit-font-smoo
 .nav-cta:hover{background:var(--blue-hover)!important}
 .nav-book-mobile{color:var(--white)!important}
 .nav-portal-mobile{display:none!important}
-.hero--nj,.hero--ny,.hero--ct,.hero--pa,.hub-nj,.hub-ny,.hub-ct,.hub-pa,.hero{background:var(--bg1)!important;min-height:auto!important;padding:88px 20px 48px!important;border-bottom:1px solid var(--line)!important;text-align:center!important}
-.hero::before{background:radial-gradient(ellipse 80% 60% at 70% 40%,rgba(37,99,235,.04),transparent)!important}
-.hero-bg-desktop,.hero-bg-mobile,.hero-brand-mark,.hero-scroll{display:none!important}
+.hero--nj,.hero--ny,.hero--ct,.hero--pa,.hub-nj,.hub-ny,.hub-ct,.hub-pa{background:transparent!important;min-height:60vh!important;padding:88px 20px 48px!important;border-bottom:1px solid var(--line)!important;text-align:center!important;position:relative!important;overflow:hidden!important}
+.hero--nj::before,.hero--ny::before,.hero--ct::before,.hero--pa::before,.hub-nj::before,.hub-ny::before,.hub-ct::before,.hub-pa::before{display:none!important}
+.hero-brand-mark,.hero-scroll{display:none!important}
+.hero--nj .hero-inner,.hero--ny .hero-inner,.hero--ct .hero-inner,.hero--pa .hero-inner{position:relative;z-index:1}
+@media(max-width:768px){.hero--nj,.hero--ny,.hero--ct,.hero--pa,.hub-nj,.hub-ny,.hub-ct,.hub-pa{min-height:40vh!important}}
 .hero-inner{max-width:520px;width:100%;position:relative;z-index:1;margin:0 auto}
 .hero h1{font-family:var(--fb)!important;font-size:clamp(30px,5.5vw,44px)!important;font-weight:600!important;color:var(--ink)!important;line-height:1.15!important;letter-spacing:-.025em!important;margin-bottom:10px!important}
 .hero-sub{color:var(--ink-soft)!important;font-weight:400!important;font-size:15px!important;max-width:460px!important;margin:0 auto 20px!important;line-height:1.6!important}
@@ -192,7 +194,7 @@ const STATES = {
     serviceArea: 'Based in Palisades Park, NJ. Serving Bergen County and nearby NJ areas. Extended service areas available by quote.',
     specialtyNote: 'Boats, RVs, powersports, and fleets available by quote for larger vehicles and approved appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome(\'cars\');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.',
     locTitle: 'SERVICES IN',
-    heroClass: '',
+    heroClass: ' hero--nj hub-nj',
   },
   'ny-metro-hub.html': {
     metaDesc: 'Mobile interior, full, and exterior car detailing in New York. Service by appointment from our Palisades Park, NJ base. Longer-distance NY jobs available by quote.',
@@ -204,7 +206,7 @@ const STATES = {
     serviceArea: 'Serving nearby NY areas by appointment from our Palisades Park, NJ base. Longer-distance jobs available by quote.',
     specialtyNote: 'Available by quote for larger vehicles, fleets, RVs, boats, and long-distance appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome(\'cars\');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.',
     locTitle: 'NY METRO SERVICES IN',
-    heroClass: ' hero--ny',
+    heroClass: ' hero--ny hub-ny',
   },
   'connecticut-hub.html': {
     metaDesc: 'Mobile interior, full, and exterior car detailing in Connecticut. Service by quote for approved appointments, larger details, RVs, and fleets.',
@@ -216,7 +218,7 @@ const STATES = {
     serviceArea: 'Connecticut service is available by quote for larger details, RVs, fleets, and approved long-distance appointments.',
     specialtyNote: 'Available by quote for larger vehicles, fleets, RVs, boats, and long-distance appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome(\'cars\');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.',
     locTitle: 'CONNECTICUT SERVICES IN',
-    heroClass: ' hero--ct',
+    heroClass: ' hero--ct hub-ct',
   },
   'pennsylvania-hub.html': {
     metaDesc: 'Mobile interior, full, and exterior car detailing in Pennsylvania. Service by quote for approved appointments, larger details, RVs, and fleets.',
@@ -228,13 +230,15 @@ const STATES = {
     serviceArea: 'Pennsylvania service is available by quote for larger details, RVs, fleets, and approved long-distance appointments.',
     specialtyNote: 'Available by quote for larger vehicles, fleets, RVs, boats, and long-distance appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome(\'cars\');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.',
     locTitle: 'PENNSYLVANIA SERVICES IN',
-    heroClass: ' hero--pa',
+    heroClass: ' hero--pa hub-pa',
   },
 };
 
 function heroHtml(cfg) {
   return `<!-- HERO -->
 <section class="hero${cfg.heroClass}">
+  <div class="hero-bg-desktop" aria-hidden="true"></div>
+  <div class="hero-bg-mobile" aria-hidden="true"></div>
   <div class="hero-inner">
     <div class="hero-badge">${cfg.badge}</div>
     <h1>${cfg.h1}</h1>

@@ -1259,9 +1259,11 @@ body{background:var(--bg0)!important;color:var(--tx)!important;-webkit-font-smoo
 .nav-cta:hover{background:var(--blue-hover)!important}
 .nav-book-mobile{color:var(--white)!important}
 .nav-portal-mobile{display:none!important}
-.hero--nj,.hero--ny,.hero--ct,.hero--pa,.hub-nj,.hub-ny,.hub-ct,.hub-pa,.hero{background:var(--bg1)!important;min-height:auto!important;padding:88px 20px 48px!important;border-bottom:1px solid var(--line)!important;text-align:center!important}
-.hero::before{background:radial-gradient(ellipse 80% 60% at 70% 40%,rgba(37,99,235,.04),transparent)!important}
-.hero-bg-desktop,.hero-bg-mobile,.hero-brand-mark,.hero-scroll{display:none!important}
+.hero--nj,.hero--ny,.hero--ct,.hero--pa,.hub-nj,.hub-ny,.hub-ct,.hub-pa{background:transparent!important;min-height:60vh!important;padding:88px 20px 48px!important;border-bottom:1px solid var(--line)!important;text-align:center!important;position:relative!important;overflow:hidden!important}
+.hero--nj::before,.hero--ny::before,.hero--ct::before,.hero--pa::before,.hub-nj::before,.hub-ny::before,.hub-ct::before,.hub-pa::before{display:none!important}
+.hero-brand-mark,.hero-scroll{display:none!important}
+.hero--nj .hero-inner,.hero--ny .hero-inner,.hero--ct .hero-inner,.hero--pa .hero-inner{position:relative;z-index:1}
+@media(max-width:768px){.hero--nj,.hero--ny,.hero--ct,.hero--pa,.hub-nj,.hub-ny,.hub-ct,.hub-pa{min-height:40vh!important}}
 .hero-inner{max-width:520px;width:100%;position:relative;z-index:1;margin:0 auto}
 .hero h1{font-family:var(--fb)!important;font-size:clamp(30px,5.5vw,44px)!important;font-weight:600!important;color:var(--ink)!important;line-height:1.15!important;letter-spacing:-.025em!important;margin-bottom:10px!important}
 .hero-sub{color:var(--ink-soft)!important;font-weight:400!important;font-size:15px!important;max-width:460px!important;margin:0 auto 20px!important;line-height:1.6!important}
@@ -1334,6 +1336,7 @@ body{background:var(--bg0)!important;color:var(--tx)!important;-webkit-font-smoo
 .car-pkg-price-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
 .car-pkg-price-amt{font-size:clamp(24px,4vw,30px);font-weight:700;color:var(--ink);letter-spacing:-.02em;line-height:1}
 .car-pkg-price-note{font-size:11px;color:#475569;line-height:1.35}
+.car-pkg-price--tiered .car-pkg-price-note--primary{font-size:clamp(13px,2.2vw,15px);font-weight:600;color:var(--ink);line-height:1.45}
 .car-pkg-cta{width:100%;padding:11px 14px;border-radius:999px;border:1px solid #93c5fd;background:var(--bg0);color:#1d4ed8;font-family:var(--fb);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:.2s}
 .car-pkg-card:hover .car-pkg-cta,.car-pkg-cta:hover{background:var(--blue);color:var(--white);border-color:var(--blue)}
 .car-pkg-card--popular .car-pkg-cta{background:var(--blue);color:var(--white);border-color:var(--blue);box-shadow:0 2px 8px rgba(37,99,235,.2)}
@@ -1384,6 +1387,7 @@ body{background:var(--bg0)!important;color:var(--tx)!important;-webkit-font-smoo
 .car-pkg-price-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
 .car-pkg-price-amt{font-size:clamp(24px,4vw,30px);font-weight:700;color:var(--ink);letter-spacing:-.02em;line-height:1}
 .car-pkg-price-note{font-size:11px;color:#475569;line-height:1.35}
+.car-pkg-price--tiered .car-pkg-price-note--primary{font-size:clamp(13px,2.2vw,15px);font-weight:600;color:var(--ink);line-height:1.45}
 .car-pkg-cta{width:100%;padding:11px 14px;border-radius:999px;border:1px solid #93c5fd;background:var(--bg0);color:#1d4ed8;font-family:var(--fb);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:.2s}
 .car-pkg-card:hover .car-pkg-cta,.car-pkg-cta:hover{background:var(--blue);color:var(--white);border-color:var(--blue)}
 .car-pkg-card--popular .car-pkg-cta{background:var(--blue);color:var(--white);border-color:var(--blue);box-shadow:0 2px 8px rgba(37,99,235,.2)}
@@ -2164,6 +2168,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .car-pkg-price-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
 .car-pkg-price-amt{font-size:clamp(24px,4vw,30px);font-weight:700;color:var(--ink);letter-spacing:-.02em;line-height:1}
 .car-pkg-price-note{font-size:11px;color:#475569;line-height:1.35}
+.car-pkg-price--tiered .car-pkg-price-note--primary{font-size:clamp(13px,2.2vw,15px);font-weight:600;color:var(--ink);line-height:1.45}
 .car-pkg-cta{width:100%;padding:11px 14px;border-radius:999px;border:1px solid #93c5fd;background:var(--bg0);color:#1d4ed8;font-family:var(--fb);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:.2s}
 .car-pkg-card:hover .car-pkg-cta,.car-pkg-cta:hover{background:var(--blue);color:var(--white);border-color:var(--blue)}
 .car-pkg-card--popular .car-pkg-cta{background:var(--blue);color:var(--white);border-color:var(--blue);box-shadow:0 2px 8px rgba(37,99,235,.2)}
@@ -2243,7 +2248,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </nav>
 
 <!-- HERO -->
-<section class="hero">
+<section class="hero hero--nj hub-nj">
+  <div class="hero-bg-desktop" aria-hidden="true"></div>
+  <div class="hero-bg-mobile" aria-hidden="true"></div>
   <div class="hero-inner">
     <div class="hero-badge">Palisades Park, NJ · Bergen County</div>
     <h1>Mobile Car Detailing in New Jersey</h1>
@@ -2680,10 +2687,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
         <div class="car-pkg-foot">
           <div class="car-pkg-price-row">
-            <div class="car-pkg-price">
-              <span class="car-pkg-price-label">From</span>
-              <span class="car-pkg-price-amt" id="home-from-full">$285</span>
-              <span class="car-pkg-price-note" id="home-from-full-note">sedans from $285 · SUVs from $305 · 3-row SUVs from $315</span>
+            <div class="car-pkg-price car-pkg-price--tiered">
+              <span class="car-pkg-price-note car-pkg-price-note--primary" id="home-from-full-note">Sedans from $285 · SUVs from $305 · 3-row SUVs from $315</span>
             </div>
           </div>
           <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('full')">Book this package</button>
@@ -7355,7 +7360,7 @@ function _updateHomeFromPrices(){
   const fullAmt=document.getElementById('home-from-full');
   const fullNote=document.getElementById('home-from-full-note');
   if(fullAmt) fullAmt.textContent=fmtFull(tiers.small.full);
-  if(fullNote) fullNote.textContent=`sedans from ${fmtFull(tiers.small.full)} · SUVs from ${fmtFull(tiers.suv2.full)} · 3-row SUVs from ${fmtFull(tiers.suv3.full)}`;
+  if(fullNote) fullNote.textContent=`Sedans from ${fmtFull(tiers.small.full)} · SUVs from ${fmtFull(tiers.suv2.full)} · 3-row SUVs from ${fmtFull(tiers.suv3.full)}`;
   const BASE = {
     boats:       { price: LENGTH_PRICING.boats.packages.maint.min,     note:'by vessel length', amtId:'hfrom-boats-amt' },
     rvs:         { price: LENGTH_PRICING.rvs.packages.exterior.min,    note:'by RV length', amtId:'hfrom-rvs-amt' },
