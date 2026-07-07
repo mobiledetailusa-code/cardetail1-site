@@ -9,6 +9,8 @@
 //   CHAT_MODEL          (optional)  default 'claude-haiku-4-5' (fast/cheap for a
 //                        public FAQ widget; set 'claude-opus-4-8' for max quality)
 
+const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+
 const BUSINESS_SYSTEM = `You are the Booking Assistant for Cardetail1 Team. Your ONLY goal is to provide quick answers and guide the customer to book an appointment.
 
 STRICT RULES:
@@ -36,6 +38,9 @@ exports.handler = async (event) => {
   };
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: cors, body: '' };
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: cors, body: JSON.stringify({ ok: false, error: 'method_not_allowed' }) };
+
+  const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'ai-chat', cors: true });
+  if (rateLimit.blocked) return rateLimit.response;
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   // Graceful degradation — front-end falls back to the local assistant.

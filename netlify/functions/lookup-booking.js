@@ -2,10 +2,14 @@
 const { jsonCors } = require('../lib/tech-security');
 const { getBooking, normalizePhone, phonesMatch } = require('../lib/ops-db');
 const { projectBookingForCustomer } = require('../lib/ops-schema');
+const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   if (event.httpMethod !== 'POST') return jsonCors(405, { ok: false, error: 'method_not_allowed' });
+
+  const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'lookup-booking', cors: true });
+  if (rateLimit.blocked) return rateLimit.response;
 
   let body;
   try { body = JSON.parse(event.body || '{}'); }

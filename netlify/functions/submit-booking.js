@@ -44,6 +44,10 @@ const CARD_ON_FILE_VERIFY_MSG =
 
 const { applyServerTravelAndTotal } = require('../lib/travel-fee');
 const {
+  enforcePublicRateLimit,
+  identifySubmitBookingAction,
+} = require('../lib/public-rate-limit');
+const {
   formatSiteAccessLines,
 } = require('../lib/site-access');
 const { validateBookingSchedule, hasSlotConflict } = require('../lib/booking-schedule');
@@ -290,6 +294,12 @@ exports.handler = async (event) => {
   let b;
   try { b = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
+
+  const rateLimit = await enforcePublicRateLimit(event, {
+    endpoint: 'submit-booking',
+    action: identifySubmitBookingAction(b),
+  });
+  if (rateLimit.blocked) return rateLimit.response;
 
   // C-1: Strip all fields the browser must never control.
   for (const f of CLIENT_BLOCKED_FIELDS) delete b[f];

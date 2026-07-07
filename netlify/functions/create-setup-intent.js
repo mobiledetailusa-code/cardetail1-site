@@ -10,6 +10,8 @@
 //
 // Env: STRIPE_SECRET_KEY
 
+const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
@@ -30,6 +32,12 @@ exports.handler = async (event) => {
   console.log('[create-setup-intent] called: yes');
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
+
+  const rateLimit = await enforcePublicRateLimit(event, {
+    endpoint: 'create-setup-intent',
+    cors: true,
+  });
+  if (rateLimit.blocked) return rateLimit.response;
 
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret || !(secret.startsWith('sk_test_') || secret.startsWith('sk_live_'))) {
