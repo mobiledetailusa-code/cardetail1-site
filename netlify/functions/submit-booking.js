@@ -55,7 +55,7 @@ const {
   formatSiteAccessLines,
 } = require('../lib/site-access');
 const { validateBookingSchedule, hasSlotConflict } = require('../lib/booking-schedule');
-const { listRawBookings } = require('../lib/ops-db');
+const { listRawBookings, normalizePhone } = require('../lib/ops-db');
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const v = validateBookingSchedule(b.preferredDate, b.preferredTime);
@@ -175,7 +175,11 @@ function issueDraftSaveResponse(draft) {
     phone: draft.phone,
   });
   if (!tokenResult.ok) {
-    return { ok: false, status: 503, body: { ok: false, error: 'missing_draft_token_secret' } };
+    const err = tokenResult.error === 'invalid_draft_token_inputs'
+      ? 'invalid_phone'
+      : (tokenResult.error || 'missing_draft_token_secret');
+    const status = err === 'missing_draft_token_secret' ? 503 : 400;
+    return { ok: false, status, body: { ok: false, error: err } };
   }
   return {
     ok: true,
@@ -383,6 +387,9 @@ exports.handler = async (event) => {
   delete b.bookingId;
 
   if (!b.firstName || !b.phone) return json(400, { ok: false, error: 'Missing customer name or phone' });
+  if (normalizePhone(b.phone).length < 7) {
+    return json(400, { ok: false, error: 'invalid_phone' });
+  }
 
   const zip = String(b.zipCode || b.zip || '').replace(/\D/g, '').slice(0, 5);
   if (zip.length < 5) return json(400, { ok: false, error: 'zip_required' });

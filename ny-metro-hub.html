@@ -5211,6 +5211,8 @@ function bkSlotsFor(iso){const p=bkIsoParts(iso);if(!p)return[];if(p.day===0)ret
 function bkShowScheduleMsg(msg){const el=document.getElementById('f-schedule-msg');if(!el)return;if(msg){el.textContent=msg;el.style.display='block';}else{el.textContent='';el.style.display='none';}}
 function bkRefreshTimeSlots(){const dateEl=document.getElementById('f-date');const timeEl=document.getElementById('f-time');if(!dateEl||!timeEl)return;const iso=dateEl.value;const prev=timeEl.value;bkShowScheduleMsg('');timeEl.querySelectorAll('option[data-slot]').forEach(o=>o.remove());if(!iso)return;const p=bkIsoParts(iso);if(!p)return;if(p.day===0){bkShowScheduleMsg('Unavailable — please choose another date.');timeEl.value='';return;}if(bkHolidays(+p.iso.slice(0,4)).has(p.iso)){bkShowScheduleMsg('Closed for the holiday. Please choose another date.');timeEl.value='';return;}const allowed=bkSlotsFor(iso);for(const slot of allowed){const opt=document.createElement('option');opt.value=slot;opt.textContent=slot;opt.dataset.slot='1';timeEl.appendChild(opt);}if(prev&&allowed.includes(prev))timeEl.value=prev;else timeEl.value='';}
 function bkValidateScheduleSelection(){const iso=document.getElementById('f-date')?.value||'';const time=document.getElementById('f-time')?.value||'';if(!iso)return{ok:false,message:'Please select a preferred date.'};const p=bkIsoParts(iso);if(!p)return{ok:false,message:'Please select a valid date.'};if(p.day===0)return{ok:false,message:'Unavailable — please choose another date.'};if(bkHolidays(+p.iso.slice(0,4)).has(p.iso))return{ok:false,message:'Closed for the holiday. Please choose another date.'};if(!time)return{ok:false,message:'Please select a preferred time.'};const allowed=bkSlotsFor(iso);if(!allowed.includes(time))return{ok:false,message:'That time is unavailable on the selected date. Please choose another slot.'};return{ok:true};}
+function bkNormalizePhoneDigits(v){const d=String(v||'').replace(/\D/g,'');return d.length===11&&d.charAt(0)==='1'?d.slice(1):d;}
+function bkValidateContactPhone(){const digits=bkNormalizePhoneDigits(document.getElementById('f-phone')?.value||'');if(digits.length<7)return{ok:false,message:'Please enter a valid phone number (at least 7 digits).'};return{ok:true};}
 function bkInitSchedulePicker(){const dateEl=document.getElementById('f-date');if(!dateEl)return;dateEl.addEventListener('change',bkRefreshTimeSlots);const timeEl=document.getElementById('f-time');if(timeEl)timeEl.addEventListener('change',()=>bkShowScheduleMsg(''));}
 
 // ── STEP 5: INFO ──────────────────────────────────────────────────────────────
@@ -5231,6 +5233,8 @@ function fillStrip5(){
 function goToPayment(){
   const req=['f-first','f-last','f-phone','f-email','f-addr','f-date','f-time'];
   if(req.some(id=>!document.getElementById(id).value.trim())){alert('Please fill in all required fields marked with *');return;}
+  const phone=bkValidateContactPhone();
+  if(!phone.ok){alert(phone.message);return;}
   const sched=bkValidateScheduleSelection();
   if(!sched.ok){bkShowScheduleMsg(sched.message);return;}
   bkShowScheduleMsg('');
@@ -5396,6 +5400,10 @@ async function initCardOnFile(){
         throw new Error(sched.message);
       }
       bkShowScheduleMsg('');
+      const phone=bkValidateContactPhone();
+      if(!phone.ok){
+        throw new Error(phone.message);
+      }
       const draftPayload=buildBookingPayload();
       draftPayload.isDraft=true;
       draftPayload.acceptedCardOnFilePolicy=true;
@@ -5415,6 +5423,7 @@ async function initCardOnFile(){
           booking_time_unavailable:'That time is unavailable on the selected date. Go back one step and choose another slot.',
           booking_date_unavailable:'That date is unavailable. Go back one step and choose another day.',
           rate_limited:'Too many attempts. Please wait a few minutes and try again.',
+          invalid_phone:'Please enter a valid phone number (at least 7 digits).',
           missing_draft_token_secret:'Booking is temporarily unavailable. Please try again in a moment.',
           'Draft booking not found':'Your booking session expired. Go back one step and try again.',
           'Missing customer name or phone':'Please complete your contact details before saving your card.',

@@ -387,6 +387,20 @@ test('submit-booking draft response includes token fields via issue helper', () 
   assert.equal(issued.body.draftSaveToken.includes('551'), false);
 });
 
+test('submit-booking issueDraftSaveResponse maps invalid phone inputs to invalid_phone', () => {
+  delete require.cache[SUBMIT_PATH];
+  const { __test } = require('../netlify/functions/submit-booking');
+  const draft = __test.buildDraftRecord({
+    firstName: 'A',
+    phone: 'honda',
+    paymentMethodPreference: 'card_onsite',
+  }, 'CD1-F', new Date().toISOString());
+  const issued = __test.issueDraftSaveResponse(draft);
+  assert.equal(issued.ok, false);
+  assert.equal(issued.status, 400);
+  assert.equal(issued.body.error, 'invalid_phone');
+});
+
 test('submit-booking missing production secret blocks draft issuance', () => {
   delete process.env.DRAFT_TOKEN_SECRET;
   delete require.cache[SUBMIT_PATH];

@@ -117,6 +117,19 @@ afterEach(() => {
   } catch { /* ignore */ }
 });
 
+test('submit-booking draft with invalid phone returns invalid_phone', async () => {
+  delete require.cache[SUBMIT_PATH];
+  const { handler, __test } = require('../netlify/functions/submit-booking');
+  __test.setBlobsStoreOverride(() => createMemoryStore());
+  const res = await handler({
+    httpMethod: 'POST',
+    headers: { 'x-forwarded-for': '203.0.113.79' },
+    body: JSON.stringify(validDraftBody({ phone: 'honda' })),
+  });
+  assert.equal(res.statusCode, 400);
+  assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'invalid_phone' });
+});
+
 test('submit-booking draft with empty preferredTime returns booking_time_unavailable', async () => {
   delete require.cache[SUBMIT_PATH];
   const { handler, __test } = require('../netlify/functions/submit-booking');
@@ -202,14 +215,18 @@ for (const page of BOOKING_PAGES) {
     assert.match(initBlock, /const sched=bkValidateScheduleSelection\(\)/);
     assert.match(initBlock, /if\(!sched\.ok\)/);
     assert.match(initBlock, /bkShowScheduleMsg\(sched\.message\)/);
+    assert.match(initBlock, /const phone=bkValidateContactPhone\(\)/);
+    assert.match(initBlock, /if\(!phone\.ok\)/);
     assert.match(initBlock, /const draftPayload=buildBookingPayload\(\)/);
     const schedIdx = initBlock.indexOf('bkValidateScheduleSelection');
+    const phoneIdx = initBlock.indexOf('bkValidateContactPhone');
     const payloadIdx = initBlock.indexOf('buildBookingPayload()');
-    assert.ok(schedIdx > 0 && payloadIdx > schedIdx);
+    assert.ok(schedIdx > 0 && phoneIdx > schedIdx && payloadIdx > phoneIdx);
   });
 
-  test(`${page} maps booking_time_unavailable in draftErrMap`, () => {
+  test(`${page} maps booking_time_unavailable and invalid_phone in draftErrMap`, () => {
     const html = read(page);
     assert.match(html, /booking_time_unavailable:'That time is unavailable on the selected date/);
+    assert.match(html, /invalid_phone:'Please enter a valid phone number/);
   });
 }
