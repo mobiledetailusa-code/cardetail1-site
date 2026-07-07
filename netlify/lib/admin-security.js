@@ -10,9 +10,68 @@ const RATE_MAX_FAILURES = 12;
 const RATE_LOCK_MS = 15 * 60 * 1000;
 const TOKEN_PREFIX = 'v1.';
 const LEGACY_TOKEN_LEN = 64;
+const MIN_SESSION_SECRET_LEN = 32;
+let devSessionSecretFallbackWarned = false;
 
 function normalizeEnvValue(v) {
   return String(v || '').replace(/^\uFEFF/, '').trim();
+}
+
+function isProductionRuntime() {
+  return String(process.env.CONTEXT || '').toLowerCase() === 'production';
+}
+
+function isDevOrPreviewRuntime() {
+  const ctx = String(process.env.CONTEXT || '').toLowerCase();
+  return (
+    process.env.NETLIFY_DEV === 'true' ||
+    ctx === 'dev' ||
+    ctx === 'deploy-preview' ||
+    ctx === 'branch-deploy' ||
+    !ctx
+  );
+}
+
+/**
+ * Resolves the HMAC secret for v1 admin session tokens.
+ * Production: ADMIN_SESSION_SECRET only (min 32 chars).
+ * Dev/preview: may fall back to BID_SECRET or ADMIN_DASH_PASSWORD with a console warning.
+ */
+function getSessionSecretStatus() {
+  const primary = normalizeEnvValue(process.env.ADMIN_SESSION_SECRET);
+
+  if (isProductionRuntime()) {
+    if (!primary || primary.length < MIN_SESSION_SECRET_LEN) {
+      return { ok: false, error: 'missing_admin_session_secret' };
+    }
+    return { ok: true, secret: primary };
+  }
+
+  if (primary) {
+    if (primary.length < MIN_SESSION_SECRET_LEN) {
+      return { ok: false, error: 'missing_admin_session_secret' };
+    }
+    return { ok: true, secret: primary };
+  }
+
+  const fallback = normalizeEnvValue(process.env.BID_SECRET) ||
+    normalizeEnvValue(process.env.ADMIN_DASH_PASSWORD);
+  if (fallback) {
+    if (!devSessionSecretFallbackWarned) {
+      devSessionSecretFallbackWarned = true;
+      console.warn(
+        '[admin-security] ADMIN_SESSION_SECRET not set; using dev/preview fallback for admin session signing. Configure ADMIN_SESSION_SECRET (32+ chars) before production deploy.'
+      );
+    }
+    return { ok: true, secret: fallback, usedFallback: true };
+  }
+
+  return { ok: false, error: 'missing_admin_session_secret' };
+}
+
+function sessionSecret() {
+  const status = getSessionSecretStatus();
+  return status.ok ? status.secret : '';
 }
 
 async function blobsStore(name) {
@@ -27,14 +86,6 @@ function timingSafeString(a, b) {
   const bb = Buffer.from(String(b));
   if (ba.length !== bb.length) return false;
   return crypto.timingSafeEqual(ba, bb);
-}
-
-function sessionSecret() {
-  return normalizeEnvValue(
-    process.env.ADMIN_SESSION_SECRET ||
-    process.env.BID_SECRET ||
-    process.env.ADMIN_DASH_PASSWORD
-  );
 }
 
 function getAdminConfig() {
@@ -134,8 +185,9 @@ async function validateLegacyBlobToken(token) {
 }
 
 async function createAdminSession(username) {
-  const secret = sessionSecret();
-  if (!secret) throw new Error('missing_session_secret');
+  const secretStatus = getSessionSecretStatus();
+  if (!secretStatus.ok) throw new Error(secretStatus.error || 'missing_admin_session_secret');
+  const secret = secretStatus.secret;
   const now = Date.now();
   const expiresAt = now + ADMIN_SESSION_TTL_MS;
   const u = String(username || '').trim().toLowerCase();
@@ -196,6 +248,10 @@ module.exports = {
   clearLoginFailures,
   clientIp,
   redactBookingForLegacyAdmin,
+  getSessionSecretStatus,
+  isProductionRuntime,
+  isDevOrPreviewRuntime,
   ADMIN_SESSION_TTL_MS,
   TOKEN_PREFIX,
+  MIN_SESSION_SECRET_LEN,
 };

@@ -124,8 +124,11 @@ As **dúvidas** (botão "Talk to a human") já são salvas localmente e aparecem
 Antes, o admin só via os agendamentos feitos **no mesmo navegador**. Agora **todo** booking é salvo na nuvem (Netlify Blobs) e o admin puxa todos com **☁️ Load from cloud**.
 
 - **Não precisa de conta externa.** O `package.json` declara `@netlify/blobs`; a Netlify instala no build automaticamente. O `submit-booking.js` grava cada booking; o `list-bookings.js` lista (protegido por senha).
-- **Variável de ambiente (Netlify):** `ADMIN_DASH_PASSWORD` = **a mesma senha do seu login de admin**. Sem ela, o "Load from cloud" responde "não configurado".
-- **Senha do admin:** agora é **uma só**, no topo do `<script>` do `index.html` — constante `ADMIN_PASSWORD` (troque pela sua). O portal de login mostra só **Admin** (senha) e **Cliente** (consulta sem senha); as senhas **não** aparecem mais na tela.
+- **Variáveis de ambiente (Netlify):**
+  - `ADMIN_DASH_PASSWORD` — senha do login admin (obrigatória).
+  - `ADMIN_SESSION_SECRET` — **obrigatória em produção** (mín. 32 caracteres). Usada apenas para assinar tokens de sessão `v1.`; **não** use a senha admin como fallback. Gere com: `openssl rand -hex 32`.
+  - Sem `ADMIN_SESSION_SECRET` em produção, o login admin retorna `503 missing_admin_session_secret`.
+- **Senha do admin:** configure só via variáveis de ambiente no Netlify (não commitar no repo).
 
 ## 3e. Assinaturas mensais (Customer Portal + Stripe Checkout)
 
