@@ -4724,7 +4724,7 @@ function renderPackages(cat){
             +`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`
           : `${p.feats.map(f=>`<li>${f}</li>`).join('')}`+`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`}
       </ul>
-      <button class="pkg-btn">Select Package</button>
+      <button type="button" class="pkg-btn" onclick="event.stopPropagation();selectPkg('${p.id}')">Select Package</button>
     </div>`;
   }).join('');
   document.getElementById('next2').disabled=true;
@@ -4737,9 +4737,8 @@ function selectPkg(id){
   ST.pkgId=id;
   ST.pkg=(PRICING[ST.cat]&&PRICING[ST.cat].packages)?PRICING[ST.cat].packages.find(p=>p.id===id):null;
   document.getElementById('next2').disabled=!ST.pkg;
-  renderPkgDetailPanel();
   if((ST.cat==='boats'||ST.cat==='rvs'||ST.cat==='fleet') && (ST.lengthFt||ST.units)){tryGenericConfirm();}
-  if(ST.pkg) setTimeout(()=>bkGoTo(3), 180);
+  if(ST.pkg) bkGoTo(3);
 }
 
 // ── STEP 3: VEHICLE ───────────────────────────────────────────────────────────
