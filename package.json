@@ -9,6 +9,6 @@
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.22",
-    "@netlify/blobs": "^8.1.0"
+    "@netlify/blobs": "10.7.9"
   }
 }

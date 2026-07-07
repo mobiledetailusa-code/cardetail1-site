@@ -6,6 +6,8 @@
 //   ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM, TWILIO_SID, TWILIO_TOKEN,
 //   TWILIO_FROM, ADMIN_SMS
 
+const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+
 const json = (status, body) => ({
   statusCode: status,
   headers: {
@@ -76,6 +78,13 @@ async function sendSms(q) {
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+
+  const rateLimit = await enforcePublicRateLimit(event, {
+    endpoint: 'submit-inquiry',
+    cors: true,
+  });
+  if (rateLimit.blocked) return rateLimit.response;
+
   let q;
   try { q = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
