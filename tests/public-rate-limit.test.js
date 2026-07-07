@@ -546,3 +546,162 @@ test('strong consistency is configured on store reads and creation', () => {
   assert.match(src, /onlyIfNew:\s*true/);
   assert.match(src, /onlyIfMatch:\s*etag/);
 });
+
+test('production and deploy-preview use different rate-limit keys for same IP and endpoint', () => {
+  const rl = getRateLimit();
+  const ip = '203.0.113.60';
+  const prodEnv = { CONTEXT: 'production', DEPLOY_ID: 'prod-deploy-1' };
+  const previewEnv = { CONTEXT: 'deploy-preview', DEPLOY_ID: 'preview-deploy-92' };
+
+  const prodKey = rl.deriveRateLimitKey(ip, 'create-setup-intent', '', prodEnv);
+  const previewKey = rl.deriveRateLimitKey(ip, 'create-setup-intent', '', previewEnv);
+
+  assert.notEqual(prodKey, previewKey);
+});
+
+test('production rate-limit key is stable when DEPLOY_ID changes', () => {
+  const rl = getRateLimit();
+  const ip = '203.0.113.61';
+  const first = rl.deriveRateLimitKey(ip, 'lookup-booking', '', {
+    CONTEXT: 'production',
+    DEPLOY_ID: 'deploy-a',
+  });
+  const second = rl.deriveRateLimitKey(ip, 'lookup-booking', '', {
+    CONTEXT: 'production',
+    DEPLOY_ID: 'deploy-b',
+  });
+
+  assert.equal(first, second);
+  assert.equal(rl.rateLimitNamespace({ CONTEXT: 'production', DEPLOY_ID: 'deploy-b' }), 'production');
+});
+
+test('different deploy-preview deploy IDs use different rate-limit keys', () => {
+  const rl = getRateLimit();
+  const ip = '203.0.113.62';
+  const previewA = rl.deriveRateLimitKey(ip, 'create-setup-intent', '', {
+    CONTEXT: 'deploy-preview',
+    DEPLOY_ID: '6a4d33288e85c400086e0add',
+  });
+  const previewB = rl.deriveRateLimitKey(ip, 'create-setup-intent', '', {
+    CONTEXT: 'deploy-preview',
+    DEPLOY_ID: 'other-preview-deploy-id',
+  });
+
+  assert.notEqual(previewA, previewB);
+});
+
+test('branch deploy does not share rate-limit keys with production', () => {
+  const rl = getRateLimit();
+  const ip = '203.0.113.63';
+  const prodKey = rl.deriveRateLimitKey(ip, 'submit-inquiry', '', {
+    CONTEXT: 'production',
+    DEPLOY_ID: 'prod-1',
+  });
+  const branchKey = rl.deriveRateLimitKey(ip, 'submit-inquiry', '', {
+    CONTEXT: 'branch-deploy',
+    DEPLOY_ID: 'branch-deploy-1',
+    BRANCH: 'security-draft-token-setup-intent',
+  });
+
+  assert.notEqual(prodKey, branchKey);
+  assert.equal(
+    rl.rateLimitNamespace({ CONTEXT: 'branch-deploy', DEPLOY_ID: 'branch-deploy-1' }),
+    'branch-deploy:branch-deploy-1'
+  );
+});
+
+test('missing CONTEXT defaults to a non-production namespace', () => {
+  const rl = getRateLimit();
+  assert.equal(rl.rateLimitNamespace({}), 'dev:local');
+  assert.notEqual(rl.rateLimitNamespace({}), 'production');
+
+  const key = rl.deriveRateLimitKey('203.0.113.64', 'ai-chat', '', {});
+  const prodKey = rl.deriveRateLimitKey('203.0.113.64', 'ai-chat', '', { CONTEXT: 'production' });
+  assert.notEqual(key, prodKey);
+});
+
+test('endpoint and action bucket separation remains intact with namespace', async () => {
+  process.env.PUBLIC_RATE_LIMIT_SUBMIT_BOOKING_DRAFT_MAX = '1';
+  process.env.PUBLIC_RATE_LIMIT_SUBMIT_BOOKING_FINALIZE_MAX = '1';
+  process.env.CONTEXT = 'deploy-preview';
+  process.env.DEPLOY_ID = 'preview-test-buckets';
+  const rl = getRateLimit();
+  const ip = '203.0.113.65';
+  const now = 24_000_000;
+
+  await rl.checkPublicRateLimit(makeEvent(ip), {
+    endpoint: 'submit-booking',
+    action: 'draft',
+    now,
+  });
+  const blockedDraft = await rl.checkPublicRateLimit(makeEvent(ip), {
+    endpoint: 'submit-booking',
+    action: 'draft',
+    now: now + 1,
+  });
+  const allowedFinalize = await rl.checkPublicRateLimit(makeEvent(ip), {
+    endpoint: 'submit-booking',
+    action: 'finalize',
+    now: now + 1,
+  });
+
+  assert.equal(blockedDraft.allowed, false);
+  assert.equal(allowedFinalize.allowed, true);
+
+  const draftKey = rl.deriveRateLimitKey(ip, 'submit-booking', 'draft', process.env);
+  const finalizeKey = rl.deriveRateLimitKey(ip, 'submit-booking', 'finalize', process.env);
+  assert.notEqual(draftKey, finalizeKey);
+});
+
+test('deploy-context isolation keeps raw IP out of stored keys', () => {
+  const rl = getRateLimit();
+  const ip = '203.0.113.66';
+  const key = rl.deriveRateLimitKey(ip, 'lookup-booking', '', {
+    CONTEXT: 'deploy-preview',
+    DEPLOY_ID: 'preview-raw-ip-check',
+  });
+  assert.match(key, /^rl-[a-f0-9]{40}$/);
+  assert.doesNotMatch(key, /203\.0\.113\.66/);
+  assert.doesNotMatch(key, /deploy-preview/);
+  assert.doesNotMatch(key, /preview-raw-ip-check/);
+});
+
+test('production and deploy-preview counters are independent for same IP', async () => {
+  process.env.PUBLIC_RATE_LIMIT_CREATE_SETUP_INTENT_MAX = '1';
+  const rl = getRateLimit();
+  const ip = '203.0.113.67';
+  const now = 25_000_000;
+  const envSnapContext = process.env.CONTEXT;
+  const envSnapDeployId = process.env.DEPLOY_ID;
+
+  try {
+    const prodEnv = { CONTEXT: 'production' };
+    const previewEnv = { CONTEXT: 'deploy-preview', DEPLOY_ID: 'preview-92' };
+
+    const prodKey = rl.deriveRateLimitKey(ip, 'create-setup-intent', '', prodEnv);
+    const previewKey = rl.deriveRateLimitKey(ip, 'create-setup-intent', '', previewEnv);
+
+    process.env.CONTEXT = 'production';
+    delete process.env.DEPLOY_ID;
+    await rl.checkPublicRateLimit(makeEvent(ip), { endpoint: 'create-setup-intent', now });
+    const prodBlocked = await rl.checkPublicRateLimit(makeEvent(ip), { endpoint: 'create-setup-intent', now: now + 1 });
+
+    process.env.CONTEXT = 'deploy-preview';
+    process.env.DEPLOY_ID = 'preview-92';
+    const previewAllowed = await rl.checkPublicRateLimit(makeEvent(ip), { endpoint: 'create-setup-intent', now: now + 1 });
+
+    assert.equal(prodBlocked.allowed, false);
+    assert.equal(previewAllowed.allowed, true);
+    assert.notEqual(prodKey, previewKey);
+
+    const prodStored = await memoryStore.getWithMetadata(prodKey, { type: 'json' });
+    const previewStored = await memoryStore.getWithMetadata(previewKey, { type: 'json' });
+    assert.equal(prodStored.data.count, 1);
+    assert.equal(previewStored.data.count, 1);
+  } finally {
+    if (envSnapContext === undefined) delete process.env.CONTEXT;
+    else process.env.CONTEXT = envSnapContext;
+    if (envSnapDeployId === undefined) delete process.env.DEPLOY_ID;
+    else process.env.DEPLOY_ID = envSnapDeployId;
+  }
+});
