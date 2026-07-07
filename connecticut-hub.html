@@ -5375,6 +5375,12 @@ async function initCardOnFile(){
     let draftSessionBookingId=ST.draftRegistered?ST.bookingId:'';
     let draftSessionToken=ST.draftSaveToken||'';
     if(!ST.draftRegistered){
+      const sched=bkValidateScheduleSelection();
+      if(!sched.ok){
+        bkShowScheduleMsg(sched.message);
+        throw new Error(sched.message);
+      }
+      bkShowScheduleMsg('');
       const draftPayload=buildBookingPayload();
       draftPayload.isDraft=true;
       draftPayload.acceptedCardOnFilePolicy=true;
@@ -5391,6 +5397,13 @@ async function initCardOnFile(){
           out_of_service_area:'This ZIP is outside our service area.',
           invalid_pricing:'We could not verify your package price. Go back and reselect your service.',
           price_mismatch:'Your total changed — go back one step and continue again.',
+          booking_time_unavailable:'That time is unavailable on the selected date. Go back one step and choose another slot.',
+          booking_date_unavailable:'That date is unavailable. Go back one step and choose another day.',
+          rate_limited:'Too many attempts. Please wait a few minutes and try again.',
+          missing_draft_token_secret:'Booking is temporarily unavailable. Please try again in a moment.',
+          'Draft booking not found':'Your booking session expired. Go back one step and try again.',
+          'Missing customer name or phone':'Please complete your contact details before saving your card.',
+          'Failed to pre-register booking':'Could not register booking. Please try again in a moment.',
         };
         throw new Error(draftErrMap[draftData.error]||'Could not register booking. Please try again.');
       }
