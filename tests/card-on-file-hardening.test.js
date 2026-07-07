@@ -40,6 +40,9 @@ test('initCardOnFile has race protection and stale-response guards', () => {
   assert.match(initBlock, /if\(cardInitInProgress\) return/);
   assert.match(initBlock, /isStale/);
   assert.match(initBlock, /if\(!ST\.draftRegistered\)/);
+  assert.match(initBlock, /captureDraftSaveResponse/);
+  assert.match(initBlock, /draftSessionBookingId/);
+  assert.match(initBlock, /draftSessionToken/);
   assert.match(initBlock, /draftErrMap/);
 });
 

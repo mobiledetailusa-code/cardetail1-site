@@ -3403,6 +3403,8 @@ let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePric
   payMethod:'',
   bookingId:'',
   draftRegistered:false,
+  draftSaveToken:null,
+  draftSaveTokenExp:null,
   cardSetupConfirmed:false,
   cardOnFileSaved:false
 };
@@ -3990,6 +3992,8 @@ function bkSlotsFor(iso){const p=bkIsoParts(iso);if(!p)return[];if(p.day===0)ret
 function bkShowScheduleMsg(msg){const el=document.getElementById('f-schedule-msg');if(!el)return;if(msg){el.textContent=msg;el.style.display='block';}else{el.textContent='';el.style.display='none';}}
 function bkRefreshTimeSlots(){const dateEl=document.getElementById('f-date');const timeEl=document.getElementById('f-time');if(!dateEl||!timeEl)return;const iso=dateEl.value;const prev=timeEl.value;bkShowScheduleMsg('');timeEl.querySelectorAll('option[data-slot]').forEach(o=>o.remove());if(!iso)return;const p=bkIsoParts(iso);if(!p)return;if(p.day===0){bkShowScheduleMsg('Unavailable — please choose another date.');timeEl.value='';return;}if(bkHolidays(+p.iso.slice(0,4)).has(p.iso)){bkShowScheduleMsg('Closed for the holiday. Please choose another date.');timeEl.value='';return;}const allowed=bkSlotsFor(iso);for(const slot of allowed){const opt=document.createElement('option');opt.value=slot;opt.textContent=slot;opt.dataset.slot='1';timeEl.appendChild(opt);}if(prev&&allowed.includes(prev))timeEl.value=prev;else timeEl.value='';}
 function bkValidateScheduleSelection(){const iso=document.getElementById('f-date')?.value||'';const time=document.getElementById('f-time')?.value||'';if(!iso)return{ok:false,message:'Please select a preferred date.'};const p=bkIsoParts(iso);if(!p)return{ok:false,message:'Please select a valid date.'};if(p.day===0)return{ok:false,message:'Unavailable — please choose another date.'};if(bkHolidays(+p.iso.slice(0,4)).has(p.iso))return{ok:false,message:'Closed for the holiday. Please choose another date.'};if(!time)return{ok:false,message:'Please select a preferred time.'};const allowed=bkSlotsFor(iso);if(!allowed.includes(time))return{ok:false,message:'That time is unavailable on the selected date. Please choose another slot.'};return{ok:true};}
+function bkNormalizePhoneDigits(v){const d=String(v||'').replace(/\D/g,'');return d.length===11&&d.charAt(0)==='1'?d.slice(1):d;}
+function bkValidateContactPhone(){const digits=bkNormalizePhoneDigits(document.getElementById('f-phone')?.value||'');if(digits.length<7)return{ok:false,message:'Please enter a valid phone number (at least 7 digits).'};return{ok:true};}
 function bkInitSchedulePicker(){const dateEl=document.getElementById('f-date');if(!dateEl)return;dateEl.addEventListener('change',bkRefreshTimeSlots);const timeEl=document.getElementById('f-time');if(timeEl)timeEl.addEventListener('change',()=>bkShowScheduleMsg(''));}
 
 // ── STEP 5: INFO ──────────────────────────────────────────────────────────────
@@ -4010,6 +4014,8 @@ function fillStrip5(){
 function goToPayment(){
   const req=['f-first','f-last','f-phone','f-email','f-addr','f-date','f-time'];
   if(req.some(id=>!document.getElementById(id).value.trim())){alert('Please fill in all required fields marked with *');return;}
+  const phone=bkValidateContactPhone();
+  if(!phone.ok){alert(phone.message);return;}
   const sched=bkValidateScheduleSelection();
   if(!sched.ok){bkShowScheduleMsg(sched.message);return;}
   bkShowScheduleMsg('');
@@ -4097,6 +4103,28 @@ function cofCheckboxChanged(){
   updateCofAuthButtonState();
 }
 
+function clearDraftSaveTokenState(){ST.draftSaveToken=null;ST.draftSaveTokenExp=null;}
+function clearDraftRegistrationState(){
+  ST.draftRegistered=false;
+  ST.bookingId='';
+  clearDraftSaveTokenState();
+  cardInitNonce++;
+  cardInitInProgress=false;
+  ST.cardSetupConfirmed=false;
+  ST.cardOnFileSaved=false;
+  destroyStripePaymentUI();
+}
+function captureDraftSaveResponse(draftData){
+  if(!draftData||!draftData.ok||!draftData.id||!draftData.draftSaveToken||!draftData.draftSaveTokenExp){
+    throw new Error('We could not securely verify this booking session. Please go back one step and try again.');
+  }
+  ST.bookingId=draftData.id;
+  ST.draftRegistered=true;
+  ST.draftSaveToken=draftData.draftSaveToken;
+  ST.draftSaveTokenExp=draftData.draftSaveTokenExp;
+  return {bookingId:draftData.id,draftSaveToken:draftData.draftSaveToken};
+}
+
 async function initCardOnFile(){
   if(cardInitInProgress) return;
   if(!ST.payMethod){
@@ -4133,7 +4161,20 @@ async function initCardOnFile(){
       document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#ef4444;line-height:1.5">'+LOCAL_DEV_FUNCTIONS_HINT.replace(/</g,'&lt;')+'</div>';
       if(btn) btn.style.display='none'; return;
     }
+    if(ST.draftRegistered&&!ST.draftSaveToken){ST.draftRegistered=false;ST.bookingId='';clearDraftSaveTokenState();}
+    let draftSessionBookingId=ST.draftRegistered?ST.bookingId:'';
+    let draftSessionToken=ST.draftSaveToken||'';
     if(!ST.draftRegistered){
+      const sched=bkValidateScheduleSelection();
+      if(!sched.ok){
+        bkShowScheduleMsg(sched.message);
+        throw new Error(sched.message);
+      }
+      bkShowScheduleMsg('');
+      const phone=bkValidateContactPhone();
+      if(!phone.ok){
+        throw new Error(phone.message);
+      }
       const draftPayload=buildBookingPayload();
       draftPayload.isDraft=true;
       draftPayload.acceptedCardOnFilePolicy=true;
@@ -4150,14 +4191,25 @@ async function initCardOnFile(){
           out_of_service_area:'This ZIP is outside our service area.',
           invalid_pricing:'We could not verify your package price. Go back and reselect your service.',
           price_mismatch:'Your total changed — go back one step and continue again.',
+          booking_time_unavailable:'That time is unavailable on the selected date. Go back one step and choose another slot.',
+          booking_date_unavailable:'That date is unavailable. Go back one step and choose another day.',
+          rate_limited:'Too many attempts. Please wait a few minutes and try again.',
+          invalid_phone:'Please enter a valid phone number (at least 7 digits).',
+          missing_draft_token_secret:'Booking is temporarily unavailable. Please try again in a moment.',
+          'Draft booking not found':'Your booking session expired. Go back one step and try again.',
+          'Missing customer name or phone':'Please complete your contact details before saving your card.',
+          'Failed to pre-register booking':'Could not register booking. Please try again in a moment.',
         };
         throw new Error(draftErrMap[draftData.error]||'Could not register booking. Please try again.');
       }
-      ST.bookingId=draftData.id; ST.draftRegistered=true;
+      const session=captureDraftSaveResponse(draftData);
+      draftSessionBookingId=session.bookingId;
+      draftSessionToken=session.draftSaveToken;
     }
     destroyStripePaymentUI();
     if(isStale()) return;
-    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:ST.bookingId})});
+    if(!draftSessionBookingId||!draftSessionToken){throw new Error('We could not securely verify this booking session. Please go back one step and try again.');}
+    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:draftSessionBookingId,draftSaveToken:draftSessionToken})});
     const siCt=(siRes.headers.get('content-type')||'').toLowerCase();
     if(!siCt.includes('json')) throw new Error(isLocalPreview?LOCAL_DEV_FUNCTIONS_HINT:'Secure card saving is temporarily unavailable.');
     const siData=await siRes.json();
@@ -4167,6 +4219,8 @@ async function initCardOnFile(){
         stripe_test_mode_required:'Card save is blocked on preview deploys when using live Stripe keys. Use production URL or test keys.',
         booking_not_eligible_for_card_save:'Complete your contact info and payment preference first, then save your card.',
         booking_not_found:'Booking draft not found — go back one step and try again.',
+        invalid_draft_token:'We could not securely verify this booking session. Please go back one step and try again.',
+        missing_draft_token_secret:'Booking is temporarily unavailable. Please try again in a moment.',
         stripe_not_configured:'Card saving is not configured on the server yet. Add STRIPE_SECRET_KEY to .env and run netlify dev.',
         booking_store_unavailable:'Booking storage is unavailable locally — run netlify dev (not a static file server).',
         card_save_unavailable:'Stripe could not start card save. Try again in a moment.',
@@ -4193,11 +4247,7 @@ async function initCardOnFile(){
 
 function selectPaymentPreference(preference,activeId){
   if(ST.payMethod!==preference){
-    cardInitNonce++;
-    cardInitInProgress=false;
-    ST.draftRegistered=false; ST.bookingId='';
-    ST.cardSetupConfirmed=false; ST.cardOnFileSaved=false;
-    destroyStripePaymentUI();
+    clearDraftRegistrationState();
     const cb=document.getElementById('cof-policy-ok'); if(cb) cb.checked=false;
   }
   ST.payMethod=preference;
@@ -4469,6 +4519,7 @@ function smsForBooking(b){
 }
 
 function showSuccess(payload){
+  clearDraftSaveTokenState();
   const b=payload||window.__lastBookingPayload||buildBookingPayload();
   document.querySelectorAll('.bsec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.bpt').forEach(t=>t.classList.add('done'));
@@ -4563,7 +4614,7 @@ function renderVehicleCart(){
 function restartBooking(){
   cardInitNonce++;
   cardInitInProgress=false;
-  ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0,travelFee:0,travelFeeMiles:0,payMethod:'',bookingId:'',draftRegistered:false,cardSetupConfirmed:false,cardOnFileSaved:false};
+  ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0,travelFee:0,travelFeeMiles:0,payMethod:'',bookingId:'',draftRegistered:false,draftSaveToken:null,draftSaveTokenExp:null,cardSetupConfirmed:false,cardOnFileSaved:false};
   destroyStripePaymentUI(); stripePI=null;
   ['f-first','f-last','f-phone','f-email','f-addr','f-date','f-notes'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
   ['terms-ok','cof-policy-ok'].forEach(id=>{const el=document.getElementById(id); if(el)el.checked=false;});

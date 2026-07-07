@@ -48,10 +48,14 @@ const {
   identifySubmitBookingAction,
 } = require('../lib/public-rate-limit');
 const {
+  issueDraftSaveToken,
+  getDraftTokenSecretStatus,
+} = require('../lib/draft-save-token');
+const {
   formatSiteAccessLines,
 } = require('../lib/site-access');
 const { validateBookingSchedule, hasSlotConflict } = require('../lib/booking-schedule');
-const { listRawBookings } = require('../lib/ops-db');
+const { listRawBookings, normalizePhone } = require('../lib/ops-db');
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const v = validateBookingSchedule(b.preferredDate, b.preferredTime);
@@ -108,11 +112,86 @@ async function reconcileCardOnFileFromStripe(store, existing) {
   }
 }
 
+let blobsStoreOverride = null;
+
 async function blobsStore(name) {
+  if (typeof blobsStoreOverride === 'function') {
+    return blobsStoreOverride(name);
+  }
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
   const token = process.env.NETLIFY_AUTH_TOKEN;
   return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
+}
+
+function buildDraftRecord(b, draftId, now, existing = null) {
+  const preference = String(b.paymentMethodPreference || '');
+  return {
+    id: draftId,
+    isDraft: true,
+    createdAt: existing ? existing.createdAt : now,
+    updatedAt: now,
+    totalPrice: Number(b.totalPrice) || 0,
+    paymentMethod: preference,
+    paymentMethodPreference: preference,
+    cardOnFileRequired: true,
+    cardOnFileStatus: existing ? existing.cardOnFileStatus : 'pending',
+    paymentStatus: existing ? existing.paymentStatus : 'no_payment_required_yet',
+    appointmentStatus: existing ? existing.appointmentStatus : 'pending_review',
+    jobStatus: existing ? existing.jobStatus : 'not_started',
+    acceptedCardOnFilePolicy: true,
+    acceptedCardOnFilePolicyAt: existing ? existing.acceptedCardOnFilePolicyAt : now,
+    policyVersion: '2026-06-card-on-file',
+    setupIntentId: existing ? existing.setupIntentId : undefined,
+    stripeCustomerId: existing ? existing.stripeCustomerId : undefined,
+    stripePaymentMethodId: existing ? existing.stripePaymentMethodId : undefined,
+    firstName: b.firstName || '',
+    lastName: b.lastName || '',
+    phone: b.phone || '',
+    email: b.email || '',
+    address: b.address || '',
+    zipCode: b.zipCode || '',
+    zone: b.zone || '',
+    travelFeeMiles: b.travelFeeMiles ?? null,
+    travelFeeAmount: b.travelFeeAmount ?? 0,
+    zoneSurcharge: b.zoneSurcharge ?? 0,
+    vehicle: b.vehicle || '',
+    vehicleLabel: b.vehicleLabel || '',
+    package: b.package || '',
+    addons: b.addons || [],
+    vehicles: b.vehicles || [],
+    preferredDate: b.preferredDate || '',
+    preferredTime: b.preferredTime || '',
+    waterAvailable: b.waterAvailable || '',
+    electricityAvailable: b.electricityAvailable || '',
+    serviceLocation: b.serviceLocation || '',
+    accessNotes: b.accessNotes || '',
+  };
+}
+
+function issueDraftSaveResponse(draft) {
+  const tokenResult = issueDraftSaveToken({
+    bookingId: draft.id,
+    phone: draft.phone,
+  });
+  if (!tokenResult.ok) {
+    const err = tokenResult.error === 'invalid_draft_token_inputs'
+      ? 'invalid_phone'
+      : (tokenResult.error || 'missing_draft_token_secret');
+    const status = err === 'missing_draft_token_secret' ? 503 : 400;
+    return { ok: false, status, body: { ok: false, error: err } };
+  }
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      ok: true,
+      id: draft.id,
+      isDraft: true,
+      draftSaveToken: tokenResult.token,
+      draftSaveTokenExp: tokenResult.draftSaveTokenExp,
+    },
+  };
 }
 
 const json = (status, body) => ({
@@ -308,6 +387,9 @@ exports.handler = async (event) => {
   delete b.bookingId;
 
   if (!b.firstName || !b.phone) return json(400, { ok: false, error: 'Missing customer name or phone' });
+  if (normalizePhone(b.phone).length < 7) {
+    return json(400, { ok: false, error: 'invalid_phone' });
+  }
 
   const zip = String(b.zipCode || b.zip || '').replace(/\D/g, '').slice(0, 5);
   if (zip.length < 5) return json(400, { ok: false, error: 'zip_required' });
@@ -325,6 +407,11 @@ exports.handler = async (event) => {
 
   // ── Draft pre-registration (supports C-2: create-payment-intent fetches amount from Blobs) ──
   if (b.isDraft) {
+    const secretStatus = getDraftTokenSecretStatus();
+    if (!secretStatus.ok) {
+      return json(503, { ok: false, error: 'missing_draft_token_secret' });
+    }
+
     const scheduleDraft = await enforceScheduleFields(b);
     if (!scheduleDraft.ok) {
       return json(400, { ok: false, error: scheduleDraft.error });
@@ -336,53 +423,33 @@ exports.handler = async (event) => {
     if (b.acceptedCardOnFilePolicy !== true) {
       return json(400, { ok: false, error: 'card_on_file_policy_required' });
     }
+
     const now = new Date().toISOString();
-    const draftId = await newUniqueId(store);
-    const draft = {
-      id: draftId,
-      isDraft: true,
-      createdAt: now,
-      totalPrice: Number(b.totalPrice) || 0,
-      paymentMethod: preference,
-      // paymentMethodPreference: client-supplied ('card_on_file'|'card_onsite'|'cash_onsite')
-      paymentMethodPreference: preference,
-      // cardOnFileStatus: server-controlled. Only stripe-webhook may set 'saved'.
-      cardOnFileRequired: true,
-      cardOnFileStatus: 'pending',
-      paymentStatus: 'no_payment_required_yet',
-      appointmentStatus: 'pending_review',
-      jobStatus: 'not_started',
-      acceptedCardOnFilePolicy: true,
-      acceptedCardOnFilePolicyAt: now,
-      policyVersion: '2026-06-card-on-file',
-      firstName: b.firstName || '',
-      lastName: b.lastName || '',
-      phone: b.phone || '',
-      email: b.email || '',
-      address: b.address || '',
-      zipCode: b.zipCode || '',
-      zone: b.zone || '',
-      travelFeeMiles: b.travelFeeMiles ?? null,
-      travelFeeAmount: b.travelFeeAmount ?? 0,
-      zoneSurcharge: b.zoneSurcharge ?? 0,
-      vehicle: b.vehicle || '',
-      vehicleLabel: b.vehicleLabel || '',
-      package: b.package || '',
-      addons: b.addons || [],
-      vehicles: b.vehicles || [],
-      preferredDate: b.preferredDate || '',
-      preferredTime: b.preferredTime || '',
-      waterAvailable: b.waterAvailable || '',
-      electricityAvailable: b.electricityAvailable || '',
-      serviceLocation: b.serviceLocation || '',
-      accessNotes: b.accessNotes || '',
-    };
+    const rawUpdateId = String(b.draftBookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
+    delete b.draftBookingId;
+
+    let draftId;
+    let existing = null;
+    if (rawUpdateId) {
+      existing = await store.get(rawUpdateId, { type: 'json' }).catch(() => null);
+      if (!existing || !existing.isDraft) {
+        return json(404, { ok: false, error: 'Draft booking not found' });
+      }
+      draftId = rawUpdateId;
+    } else {
+      draftId = await newUniqueId(store);
+    }
+
+    const draft = buildDraftRecord(b, draftId, now, existing);
     try {
       await store.setJSON(draftId, draft);
     } catch (e) {
       return json(500, { ok: false, error: 'Failed to pre-register booking' });
     }
-    return json(200, { ok: true, id: draftId, isDraft: true });
+
+    const issued = issueDraftSaveResponse(draft);
+    if (!issued.ok) return json(issued.status, issued.body);
+    return json(issued.status, issued.body);
   }
 
   // ── Draft finalization: merge full booking into an existing draft ──
@@ -475,4 +542,12 @@ exports.handler = async (event) => {
 
   // ── New booking (cash/on-site or any path that didn't pre-register a draft) ──
   return json(409, { ok: false, error: 'card_on_file_required' });
+};
+
+exports.__test = {
+  setBlobsStoreOverride(fn) {
+    blobsStoreOverride = typeof fn === 'function' ? fn : null;
+  },
+  buildDraftRecord,
+  issueDraftSaveResponse,
 };

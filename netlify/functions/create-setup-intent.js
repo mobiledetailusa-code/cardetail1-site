@@ -4,15 +4,24 @@
 // charged later by admin, according to the posted cancellation/no-show policy.
 //
 // Security:
-//   - bookingId is required; draft is fetched from Blobs (not client-supplied data).
+//   - bookingId + draftSaveToken required; draft is fetched from Blobs.
 //   - client_secret is returned — standard Stripe SDK flow (single-use, expires).
 //   - Raw Stripe errors are never forwarded to the client.
 //
-// Env: STRIPE_SECRET_KEY
+// Env: STRIPE_SECRET_KEY, DRAFT_TOKEN_SECRET
 
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const {
+  verifyDraftSaveToken,
+  getDraftTokenSecretStatus,
+} = require('../lib/draft-save-token');
+
+let blobsStoreOverride = null;
 
 async function blobsStore(name) {
+  if (typeof blobsStoreOverride === 'function') {
+    return blobsStoreOverride(name);
+  }
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
   const token  = process.env.NETLIFY_AUTH_TOKEN;
@@ -39,6 +48,49 @@ exports.handler = async (event) => {
   });
   if (rateLimit.blocked) return rateLimit.response;
 
+  const secretStatus = getDraftTokenSecretStatus();
+  if (!secretStatus.ok) {
+    return json(503, { ok: false, error: 'missing_draft_token_secret' });
+  }
+
+  let p;
+  try { p = JSON.parse(event.body || '{}'); }
+  catch { return json(400, { ok: false, error: 'invalid_json' }); }
+
+  const bookingId = String(p.bookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
+  const draftSaveToken = String(p.draftSaveToken || '').trim();
+  if (!bookingId || !draftSaveToken) {
+    return json(403, { ok: false, error: 'invalid_draft_token' });
+  }
+
+  let booking, store;
+  try {
+    store = await blobsStore('cd1-bookings');
+    booking = await store.get(bookingId, { type: 'json' });
+  } catch (e) {
+    console.error('[create-setup-intent] store unavailable:', e.message);
+    return json(503, { ok: false, error: 'booking_store_unavailable', fallback: true });
+  }
+
+  if (!booking) {
+    return json(403, { ok: false, error: 'invalid_draft_token' });
+  }
+
+  const tokenCheck = verifyDraftSaveToken({
+    token: draftSaveToken,
+    bookingId,
+    phone: booking.phone || booking.customerPhone,
+  });
+  if (!tokenCheck.ok) {
+    return json(403, { ok: false, error: 'invalid_draft_token' });
+  }
+
+  console.log('[create-setup-intent] booking found:', !!booking);
+  if (!booking.isDraft || booking.cardOnFileRequired !== true || booking.cardOnFileStatus !== 'pending') {
+    console.log('[create-setup-intent] booking not eligible: isDraft=%s status=%s', booking.isDraft, booking.cardOnFileStatus);
+    return json(409, { ok: false, error: 'booking_not_eligible_for_card_save' });
+  }
+
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret || !(secret.startsWith('sk_test_') || secret.startsWith('sk_live_'))) {
     console.log('[create-setup-intent] stripe key: not configured');
@@ -54,29 +106,7 @@ exports.handler = async (event) => {
     return json(503, { ok: false, error: 'stripe_test_mode_required' });
   }
 
-  let p;
-  try { p = JSON.parse(event.body || '{}'); }
-  catch { return json(400, { ok: false, error: 'invalid_json' }); }
-
-  const bookingId = String(p.bookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
   console.log('[create-setup-intent] bookingId present:', !!bookingId, '| mode:', mode);
-  if (!bookingId) return json(400, { ok: false, error: 'bookingId_required' });
-
-  // Fetch the pre-registered draft booking.
-  let booking, store;
-  try {
-    store = await blobsStore('cd1-bookings');
-    booking = await store.get(bookingId, { type: 'json' });
-  } catch (e) {
-    console.error('[create-setup-intent] store unavailable:', e.message);
-    return json(503, { ok: false, error: 'booking_store_unavailable', fallback: true });
-  }
-  console.log('[create-setup-intent] booking found:', !!booking);
-  if (!booking) return json(404, { ok: false, error: 'booking_not_found' });
-  if (!booking.isDraft || booking.cardOnFileRequired !== true || booking.cardOnFileStatus !== 'pending') {
-    console.log('[create-setup-intent] booking not eligible: isDraft=%s status=%s', booking.isDraft, booking.cardOnFileStatus);
-    return json(409, { ok: false, error: 'booking_not_eligible_for_card_save' });
-  }
 
   const stripeHeaders = {
     Authorization: `Bearer ${secret}`,
@@ -140,4 +170,10 @@ exports.handler = async (event) => {
     clientSecret: si.client_secret,
     mode,
   });
+};
+
+exports.__test = {
+  setBlobsStoreOverride(fn) {
+    blobsStoreOverride = typeof fn === 'function' ? fn : null;
+  },
 };

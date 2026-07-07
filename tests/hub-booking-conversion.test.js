@@ -23,11 +23,27 @@ for (const page of pages) {
     assert.doesNotMatch(html, /Suggested Booking Terms Summary/);
   });
 
-  test(`${page} auto-selects card-on-file and keeps draft on payment preference change`, () => {
+  test(`${page} auto-selects card-on-file and clears draft token on payment preference change`, () => {
     const html = read(page);
     assert.match(html, /function ensureStep5Defaults/);
     assert.match(html, /if\(n===5\)ensureStep5Defaults\(\)/);
-    assert.doesNotMatch(html, /ST\.draftRegistered=false; ST\.bookingId=''/);
+    assert.match(html, /clearDraftRegistrationState/);
+    assert.match(html, /function selectPaymentPreference/);
+    const prefBlock = html.slice(
+      html.indexOf('function selectPaymentPreference'),
+      html.indexOf('function selectPaymentPreference') + 900
+    );
+    assert.match(prefBlock, /clearDraftRegistrationState\(\)/);
+    assert.match(prefBlock, /cofCheckboxChanged\(\)/);
+    const initBlock = html.slice(
+      html.indexOf('async function initCardOnFile'),
+      html.indexOf('function selectPaymentPreference')
+    );
+    assert.match(initBlock, /captureDraftSaveResponse\(draftData\)/);
+    assert.match(initBlock, /draftSessionBookingId=session\.bookingId/);
+    assert.match(initBlock, /draftSessionToken=session\.draftSaveToken/);
+    assert.match(initBlock, /bookingId:draftSessionBookingId,draftSaveToken:draftSessionToken/);
+    assert.doesNotMatch(initBlock, /bookingId:ST\.bookingId,draftSaveToken:ST\.draftSaveToken/);
   });
 
   test(`${page} Stripe Payment Element uses light stripe theme`, () => {
