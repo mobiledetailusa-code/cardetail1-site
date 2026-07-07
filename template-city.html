@@ -3397,6 +3397,8 @@ let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePric
   payMethod:'',
   bookingId:'',
   draftRegistered:false,
+  draftSaveToken:null,
+  draftSaveTokenExp:null,
   cardSetupConfirmed:false,
   cardOnFileSaved:false
 };
@@ -4091,6 +4093,28 @@ function cofCheckboxChanged(){
   updateCofAuthButtonState();
 }
 
+function clearDraftSaveTokenState(){ST.draftSaveToken=null;ST.draftSaveTokenExp=null;}
+function clearDraftRegistrationState(){
+  ST.draftRegistered=false;
+  ST.bookingId='';
+  clearDraftSaveTokenState();
+  cardInitNonce++;
+  cardInitInProgress=false;
+  ST.cardSetupConfirmed=false;
+  ST.cardOnFileSaved=false;
+  destroyStripePaymentUI();
+}
+function captureDraftSaveResponse(draftData){
+  if(!draftData||!draftData.ok||!draftData.id||!draftData.draftSaveToken||!draftData.draftSaveTokenExp){
+    throw new Error('We could not securely verify this booking session. Please go back one step and try again.');
+  }
+  ST.bookingId=draftData.id;
+  ST.draftRegistered=true;
+  ST.draftSaveToken=draftData.draftSaveToken;
+  ST.draftSaveTokenExp=draftData.draftSaveTokenExp;
+  return {bookingId:draftData.id,draftSaveToken:draftData.draftSaveToken};
+}
+
 async function initCardOnFile(){
   if(cardInitInProgress) return;
   if(!ST.payMethod){
@@ -4127,6 +4151,9 @@ async function initCardOnFile(){
       document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#ef4444;line-height:1.5">'+LOCAL_DEV_FUNCTIONS_HINT.replace(/</g,'&lt;')+'</div>';
       if(btn) btn.style.display='none'; return;
     }
+    if(ST.draftRegistered&&!ST.draftSaveToken){ST.draftRegistered=false;ST.bookingId='';clearDraftSaveTokenState();}
+    let draftSessionBookingId=ST.draftRegistered?ST.bookingId:'';
+    let draftSessionToken=ST.draftSaveToken||'';
     if(!ST.draftRegistered){
       const draftPayload=buildBookingPayload();
       draftPayload.isDraft=true;
@@ -4147,11 +4174,14 @@ async function initCardOnFile(){
         };
         throw new Error(draftErrMap[draftData.error]||'Could not register booking. Please try again.');
       }
-      ST.bookingId=draftData.id; ST.draftRegistered=true;
+      const session=captureDraftSaveResponse(draftData);
+      draftSessionBookingId=session.bookingId;
+      draftSessionToken=session.draftSaveToken;
     }
     destroyStripePaymentUI();
     if(isStale()) return;
-    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:ST.bookingId})});
+    if(!draftSessionBookingId||!draftSessionToken){throw new Error('We could not securely verify this booking session. Please go back one step and try again.');}
+    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:draftSessionBookingId,draftSaveToken:draftSessionToken})});
     const siCt=(siRes.headers.get('content-type')||'').toLowerCase();
     if(!siCt.includes('json')) throw new Error(isLocalPreview?LOCAL_DEV_FUNCTIONS_HINT:'Secure card saving is temporarily unavailable.');
     const siData=await siRes.json();
@@ -4161,6 +4191,8 @@ async function initCardOnFile(){
         stripe_test_mode_required:'Card save is blocked on preview deploys when using live Stripe keys. Use production URL or test keys.',
         booking_not_eligible_for_card_save:'Complete your contact info and payment preference first, then save your card.',
         booking_not_found:'Booking draft not found — go back one step and try again.',
+        invalid_draft_token:'We could not securely verify this booking session. Please go back one step and try again.',
+        missing_draft_token_secret:'Booking is temporarily unavailable. Please try again in a moment.',
         stripe_not_configured:'Card saving is not configured on the server yet. Add STRIPE_SECRET_KEY to .env and run netlify dev.',
         booking_store_unavailable:'Booking storage is unavailable locally — run netlify dev (not a static file server).',
         card_save_unavailable:'Stripe could not start card save. Try again in a moment.',
@@ -4187,11 +4219,7 @@ async function initCardOnFile(){
 
 function selectPaymentPreference(preference,activeId){
   if(ST.payMethod!==preference){
-    cardInitNonce++;
-    cardInitInProgress=false;
-    ST.draftRegistered=false; ST.bookingId='';
-    ST.cardSetupConfirmed=false; ST.cardOnFileSaved=false;
-    destroyStripePaymentUI();
+    clearDraftRegistrationState();
     const cb=document.getElementById('cof-policy-ok'); if(cb) cb.checked=false;
   }
   ST.payMethod=preference;
@@ -4463,6 +4491,7 @@ function smsForBooking(b){
 }
 
 function showSuccess(payload){
+  clearDraftSaveTokenState();
   const b=payload||window.__lastBookingPayload||buildBookingPayload();
   document.querySelectorAll('.bsec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.bpt').forEach(t=>t.classList.add('done'));
@@ -4557,7 +4586,7 @@ function renderVehicleCart(){
 function restartBooking(){
   cardInitNonce++;
   cardInitInProgress=false;
-  ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0,travelFee:0,travelFeeMiles:0,payMethod:'',bookingId:'',draftRegistered:false,cardSetupConfirmed:false,cardOnFileSaved:false};
+  ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0,travelFee:0,travelFeeMiles:0,payMethod:'',bookingId:'',draftRegistered:false,draftSaveToken:null,draftSaveTokenExp:null,cardSetupConfirmed:false,cardOnFileSaved:false};
   destroyStripePaymentUI(); stripePI=null;
   ['f-first','f-last','f-phone','f-email','f-addr','f-date','f-notes'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
   ['terms-ok','cof-policy-ok'].forEach(id=>{const el=document.getElementById(id); if(el)el.checked=false;});

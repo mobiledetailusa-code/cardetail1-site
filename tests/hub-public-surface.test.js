@@ -71,6 +71,15 @@ for (const page of hubPages) {
       assert.match(html, new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
     assert.match(html, /id="cp-ov"/);
+    assert.match(html, /captureDraftSaveResponse/);
+    assert.match(html, /draftSessionBookingId/);
+    assert.match(html, /draftSessionToken/);
+    assert.match(html, /clearDraftRegistrationState/);
+    assert.match(html, /clearDraftSaveTokenState/);
+    assert.doesNotMatch(html, /ST\.draftBookingId/);
+    assert.doesNotMatch(html, /localStorage\.[^(]*draftSaveToken/);
+    assert.doesNotMatch(html, /sessionStorage\.[^(]*draftSaveToken/);
+    assert.doesNotMatch(html, /console\.log\([^)]*draftSaveToken/);
   });
 
   test(`${page} #admin hash redirects to canonical admin page`, () => {
@@ -85,6 +94,14 @@ test('index.html was not modified by hub strip (still has public booking)', () =
   const index = read('index.html');
   assert.match(index, /id="bk-ov"/);
   assert.doesNotMatch(index, /id="admin-ov"/);
+  assert.match(index, /captureDraftSaveResponse/);
+  assert.match(index, /draftSessionBookingId/);
+  assert.match(index, /draftSessionToken/);
+  assert.match(index, /clearDraftRegistrationState/);
+  assert.match(index, /clearDraftSaveTokenState/);
+  assert.doesNotMatch(index, /ST\.draftBookingId/);
+  assert.doesNotMatch(index, /localStorage\.[^(]*draftSaveToken/);
+  assert.doesNotMatch(index, /sessionStorage\.[^(]*draftSaveToken/);
 });
 
 test('portal HTML files are present and unchanged by hub strip guards', () => {

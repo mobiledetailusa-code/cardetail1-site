@@ -38,6 +38,8 @@ test('card-on-file uses SetupIntent with off-session usage and bookingId metadat
   assert.match(setup, /\/v1\/setup_intents/);
   assert.match(setup, /usage:\s+'off_session'/);
   assert.match(setup, /metadata\[bookingId\]/);
+  assert.match(setup, /verifyDraftSaveToken/);
+  assert.match(setup, /invalid_draft_token/);
   assert.doesNotMatch(setup, /\/v1\/payment_intents/);
   assert.doesNotMatch(setup, /capture_method/);
   assert.match(setup, /CONTEXT === 'deploy-preview'/);
@@ -61,6 +63,8 @@ test('server requires webhook-saved card and fixes booking statuses', () => {
   assert.match(submit, /card_on_file_required/);
   assert.match(submit, /skipMismatchCheck:\s*true/);
   assert.match(submit, /isDraftRequest/);
+  assert.match(submit, /draftSaveToken/);
+  assert.match(submit, /getDraftTokenSecretStatus/);
   assert.match(submit, /paymentStatus:\s+'no_payment_required_yet'/);
   assert.match(submit, /appointmentStatus:\s+'pending_review'/);
   assert.match(submit, /jobStatus:\s+'not_started'/);
