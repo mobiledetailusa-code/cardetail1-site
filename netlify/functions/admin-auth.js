@@ -4,7 +4,7 @@
 // POST { action:'validate', token }            → { ok, username, expiresAt }
 // POST { action:'logout', token }              → { ok }
 //
-// Env: ADMIN_USERNAME (default: admin), ADMIN_DASH_PASSWORD
+// Env: ADMIN_USERNAME (default: admin), ADMIN_DASH_PASSWORD, ADMIN_SESSION_SECRET (required in production)
 
 const { jsonCors } = require('../lib/tech-security');
 const {
@@ -17,6 +17,7 @@ const {
   recordLoginFailure,
   clearLoginFailures,
   clientIp,
+  getSessionSecretStatus,
 } = require('../lib/admin-security');
 
 exports.handler = async (event) => {
@@ -46,6 +47,11 @@ exports.handler = async (event) => {
   const cfg = getAdminConfig();
   if (!cfg.configured) return jsonCors(503, { ok: false, error: 'missing_admin_config' });
 
+  const secretStatus = getSessionSecretStatus();
+  if (!secretStatus.ok) {
+    return jsonCors(503, { ok: false, error: secretStatus.error || 'missing_admin_session_secret' });
+  }
+
   const ip = clientIp(event);
   const rate = await checkLoginRateLimit(ip);
   if (!rate.ok) {
@@ -66,7 +72,7 @@ exports.handler = async (event) => {
   try {
     sess = await createAdminSession(username);
   } catch {
-    return jsonCors(503, { ok: false, error: 'session_secret_missing' });
+    return jsonCors(503, { ok: false, error: 'missing_admin_session_secret' });
   }
   return jsonCors(200, {
     ok: true,
