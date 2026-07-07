@@ -93,11 +93,29 @@ function getLimitConfig(endpoint, action) {
   };
 }
 
-function deriveRateLimitKey(normalizedIp, endpoint, action) {
-  const bucket = bucketName(endpoint, action);
+function rateLimitNamespace(env = process.env) {
+  const context = String(env.CONTEXT || 'dev').trim().toLowerCase();
+
+  if (context === 'production') {
+    return 'production';
+  }
+
+  const deployIdentity =
+    env.DEPLOY_ID ||
+    env.COMMIT_REF ||
+    env.BRANCH ||
+    'local';
+
+  return `${context}:${deployIdentity}`;
+}
+
+function deriveRateLimitKey(normalizedIp, endpoint, action, env = process.env) {
+  const namespace = rateLimitNamespace(env);
+  const ep = String(endpoint || '').trim();
+  const act = String(action || '').trim();
   const digest = crypto
     .createHash('sha256')
-    .update(`${normalizedIp}|${bucket}`)
+    .update(`${namespace}|${normalizedIp}|${ep}|${act}`)
     .digest('hex');
   return `rl-${digest.slice(0, 40)}`;
 }
@@ -305,6 +323,7 @@ module.exports = {
   ENV_WINDOW_SEC_MAX,
   isOptionsRequest,
   normalizeClientIp,
+  rateLimitNamespace,
   deriveRateLimitKey,
   getLimitConfig,
   parseEnvPositiveInt,
