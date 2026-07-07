@@ -38,7 +38,8 @@ for (const page of pages) {
 
   test(`${page} advances to vehicle step after package selection`, () => {
     const html = read(page);
-    assert.match(html, /function selectPkg\(id\)\{[\s\S]*?if\(ST\.pkg\) setTimeout\(\(\)=>bkGoTo\(3\), 180\)/);
+    assert.match(html, /function selectPkg\(id\)\{[\s\S]*?if\(ST\.pkg\) bkGoTo\(3\)/);
+    assert.doesNotMatch(html, /function selectPkg\(id\)\{[\s\S]*?renderPkgDetailPanel\(\)/);
   });
 }
 
