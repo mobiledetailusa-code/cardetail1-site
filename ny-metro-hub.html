@@ -40,7 +40,7 @@
   "description": "Mobile auto, marine, RV, fleet, and specialty detailing based in Palisades Park, Bergen County, NJ. We come to your home, office, marina, or approved location with professional equipment - no shop visit required.",
   "image": "https://cardetail1.com/assets/cardetail1-logo.webp",
   "priceRange": "$$",
-  "serviceType": ["Mobile Car Detailing", "Marine Detailing", "RV Detailing", "Fleet Detailing", "Powersports Detailing"],
+  "serviceType": ["Mobile Car Detailing", "Marine Detailing", "RV Detailing", "Powersports Detailing"],
   "address": {
     "@type": "PostalAddress",
     "addressLocality": "Palisades Park",
@@ -1461,7 +1461,7 @@ body{background:var(--bg0)!important;color:var(--tx)!important;-webkit-font-smoo
 .specialty-section--secondary{background:var(--bg0);border-top:1px solid var(--line)}
 .specialty-section--secondary .sec-title{font-size:clamp(22px,3.5vw,32px)}
 .specialty-section--secondary .sec-desc{max-width:520px}
-.specialty-grid--compact{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.specialty-grid--compact{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .specialty-card--compact{min-height:0;padding:0;box-shadow:var(--shadow-sm);background:var(--bg1);overflow:hidden;display:flex;flex-direction:column}
 .specialty-card--compact .specialty-card-top{padding:18px 16px 12px;flex:1;display:flex;flex-direction:column}
 .specialty-card--compact h3{font-size:17px;font-weight:700;margin-bottom:6px;color:var(--ink)}
@@ -2241,7 +2241,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .specialty-section--secondary{background:var(--bg0);border-top:1px solid var(--line)}
 .specialty-section--secondary .sec-title{font-size:clamp(22px,3.5vw,32px)}
 .specialty-section--secondary .sec-desc{max-width:520px}
-.specialty-grid--compact{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.specialty-grid--compact{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .specialty-card--compact{min-height:0;padding:0;box-shadow:var(--shadow-sm);background:var(--bg1);overflow:hidden;display:flex;flex-direction:column}
 .specialty-card--compact .specialty-card-top{padding:18px 16px 12px;flex:1;display:flex;flex-direction:column}
 .specialty-card--compact h3{font-size:17px;font-weight:700;margin-bottom:6px;color:var(--ink)}
@@ -2822,8 +2822,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <section class="specialty-section specialty-section--secondary" id="specialty-services">
   <div class="section">
     <div class="sec-eye">More than cars</div>
-    <div class="sec-title">Boats, RVs, powersports &amp; fleet</div>
-    <div class="sec-desc">Same mobile service for other vehicles. Priced by size and scope — book when that's what you need.</div>
+    <div class="sec-title">Boats, RVs &amp; powersports</div>
+    <div class="sec-desc">Same mobile service for boats, RVs, and powersports. Commercial fleets: request a custom quote.</div>
     <div class="specialty-grid specialty-grid--compact">
       <div class="specialty-card specialty-card--compact" onclick="openBookingFromHome('boats')">
         <div class="specialty-card-top">
@@ -2867,21 +2867,18 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <button type="button" class="specialty-action" onclick="event.stopPropagation();openBookingFromHome('powersports')">Book powersports</button>
         </div>
       </div>
-      <div class="specialty-card specialty-card--compact" onclick="openBookingFromHome('fleet')">
+
+    </div>
+    <div class="specialty-card specialty-card--compact" style="grid-column:1/-1;cursor:pointer" onclick="openCommercialInquiry()">
         <div class="specialty-card-top">
-          <h3>Fleet Services</h3>
-          <p>Vans, trucks, and multi-vehicle accounts. Unit pricing available.</p>
-        </div>
-        <div class="specialty-price-block">
-          <span class="specialty-price-label">From</span>
-          <span class="specialty-price-amt" id="hfrom-fleet-amt">$60/unit</span>
-          <span class="specialty-price-note" id="hfrom-fleet-note">fleet quote available</span>
+          <h3>Commercial &amp; Fleet Inquiries</h3>
+          <p>Need service for multiple company vehicles? Contact us for a custom service plan based on vehicle type, quantity, location and frequency.</p>
         </div>
         <div class="specialty-card-foot">
-          <button type="button" class="specialty-action" onclick="event.stopPropagation();openBookingFromHome('fleet')">Book fleet</button>
+          <button type="button" class="specialty-action" onclick="event.stopPropagation();openCommercialInquiry()">Request a Custom Quote</button>
+          <a href="tel:5513132956" class="specialty-action" style="margin-left:10px;text-decoration:none" onclick="event.stopPropagation()">Call/Text 551-313-2956</a>
         </div>
       </div>
-    </div>
     <p class="specialty-note">Available by quote for larger vehicles, fleets, RVs, boats, and long-distance appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome('cars');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.</p>
   </div>
 </section>
@@ -3059,7 +3056,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="foot-top">
       <div>
         <a href="index.html" aria-label="Cardetail1 Home"><img class="foot-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" loading="lazy" decoding="async"></a>
-        <p class="foot-tagline">We are a mobile detailing team serving New York Metro customers by appointment from our Palisades Park, NJ base. Whether it's the family SUV, your weekend boat, or a commercial fleet, we show up on time and do the job right. Detailing Zone LLC.</p>
+        <p class="foot-tagline">We are a mobile detailing team serving New York Metro customers by appointment from our Palisades Park, NJ base. Whether it's the family SUV or your weekend boat, we show up on time and do the job right. Commercial fleets: ask for a custom quote. Detailing Zone LLC.</p>
       </div>
       <div class="foot-col">
         <h4>Services</h4>
@@ -3067,18 +3064,18 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <a onclick="openBooking('boats')">Boats & Marine</a>
         <a onclick="openBooking('rvs')">RVs & Trailers</a>
         <a onclick="openBooking('powersports')">Motorcycles & ATV</a>
-        <a onclick="openBooking('fleet')">Fleet Services</a>
+        <a onclick="openCommercialInquiry()">Commercial &amp; Fleet Inquiries</a>
       </div>
       <div class="foot-col">
         <h4>Specialty Services</h4>
         <a href="rv-detailing.html">RV &amp; Motorhome Detailing</a>
-        <a href="fleet-services.html">Commercial Fleet Wash</a>
+        <a onclick="openCommercialInquiry()">Request a Custom Quote</a>
       </div>
       <div class="foot-col">
         <h4>Quick Links</h4>
         <a href="index.html">Home</a>
         <a href="rv-detailing.html">RV Detailing</a>
-        <a href="fleet-services.html">Fleet Services</a>
+        <a onclick="openCommercialInquiry()">Commercial &amp; Fleet Inquiries</a>
       </div>
       <div class="foot-col">
         <h4>Contact</h4>
@@ -3409,12 +3406,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
             <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $119</div>
           </div>
-          <div class="svc-card locked" id="bkcat-fleet" onclick="selectCategory('fleet')">
-            <span class="svc-ico-photo"><img src="assets/vehicles/premium/fleet-commercial.webp" alt="Commercial van fleet receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
-            <div class="svc-name" style="font-size:22px">Fleet Services</div>
-            <div class="svc-desc" style="font-size:12px">Cars · Vans · Trucks · Buses · Golf Carts · Boats/RVs</div>
-            <div class="svc-from" id="bkfrom-fleet" style="font-size:12px">From $60/unit</div>
-          </div>
+
         </div>
       </div>
 
@@ -4634,7 +4626,45 @@ function syncBookingZipFromHero(){
     if(typeof onBkZipInput==='function') onBkZipInput(zip5);
   }
 }
+function openCommercialInquiry(){
+  try{ if(typeof forceCloseBooking==='function') forceCloseBooking(); }catch(e){}
+  try{
+    if(typeof ST==='object' && ST){
+      ST.cat=''; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel='';
+      ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.units=1; ST._addonKey='';
+    }
+  }catch(e){}
+  try{
+    var launch=document.getElementById('cd-launch');
+    var looksOpen=launch && launch.classList.contains('open');
+    if(!looksOpen && typeof cdToggle==='function') cdToggle();
+  }catch(e){}
+  try{
+    if(typeof window.cdOpenHandoff==='function') window.cdOpenHandoff();
+    else {
+      var hf=document.getElementById('cd-handoff');
+      var ir=document.getElementById('cd-input-row');
+      var chips=document.getElementById('cd-chips');
+      var out=document.getElementById('cd-h-out');
+      if(hf) hf.style.display='flex';
+      if(ir) ir.style.display='none';
+      if(chips) chips.style.display='none';
+      if(out) out.style.display='none';
+    }
+  }catch(e){}
+  var msgEl=document.getElementById('cd-h-msg');
+  if(msgEl){
+    var pref='Commercial / Fleet Inquiry\n\nNeed service for multiple company vehicles? Looking for a custom service plan based on vehicle type, quantity, location and frequency.';
+    if(!String(msgEl.value||'').trim()) msgEl.value=pref;
+    else if(!/Commercial\s*\/\s*Fleet Inquiry/i.test(msgEl.value)) msgEl.value='Commercial / Fleet Inquiry\n\n'+msgEl.value;
+  }
+  setTimeout(function(){
+    var nameEl=document.getElementById('cd-h-name');
+    if(nameEl) try{ nameEl.focus(); }catch(e){}
+  }, 120);
+}
 function openBooking(cat){
+  if(cat==='fleet'){ openCommercialInquiry(); return; }
   syncBookingZipFromHero();
   document.getElementById('bk-ov').classList.add('open');
   document.body.style.overflow='hidden';
@@ -4677,6 +4707,7 @@ function bkGoTo(n){
 
 // ── STEP 1: CATEGORY ──────────────────────────────────────────────────────────
 function selectCategory(cat){
+  if(cat==='fleet'){ openCommercialInquiry(); return; }
   // Require ZIP before proceeding
   const zipEl = document.getElementById('bk-zip');
   const zip = zipEl ? zipEl.value.replace(/\D/g,'') : '';
@@ -4946,7 +4977,7 @@ function tryGenericConfirm(){
     const t = ST.tier;
     if(ST.tierKey === 'marine_rv'){
       const ft = ST.lengthFt || LENGTH_PRICING.fleet.defaultFt;
-      const unitPrice = getLengthPrice('fleet', ST.pkgId, ft) || 0;
+      const unitPrice = getLengthPrice( ST.pkgId, ft) || 0;
       ST.basePrice = ST.pkgId==='custom' ? 0 : unitPrice * units;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model} · avg ${ft} ft`;
       setVehicleVisual();
@@ -4992,7 +5023,7 @@ function setBasePrice(){
     const units=ST.units||2;
     if(ST.tierKey==='marine_rv'){
       const ft=ST.lengthFt||LENGTH_PRICING.fleet.defaultFt;
-      const p=getLengthPrice('fleet',ST.pkgId,ft)||0;
+      const p=getLengthPrice(ST.pkgId,ft)||0;
       raw=ST.pkgId==='custom'?0:p*units;
     }else{
       const unitPrice = ST.tier[ST.pkgId] || 0;
@@ -6281,7 +6312,7 @@ function getCategoryFromBases(){
   };
 }
 function formatLocFrom(cat){
-  if(cat==='fleet') return 'From $60/unit';
+
   syncTravelFromKnownZip();
   const fee=getKnownZip5()&&activeZone?getTravelFeeAmount():0;
   return 'From $'+(applyRichPrice(getCategoryFromBases()[cat])+fee);
@@ -6300,16 +6331,16 @@ const ZIP_ZONES = {
 };
 
 const ZONE_POPULAR = {
-  nj_a:   ['cars','boats','fleet'],
+  nj_a:   ['cars','boats'],
   nj_b:   ['cars','rvs','powersports'],
-  nyc:    ['cars','fleet','boats'],
+  nyc:    ['cars','boats'],
   ny_s:   ['cars','boats','rvs'],
   ct:     ['boats','rvs','cars'],
   pa_e:   ['cars','rvs','powersports'],
   pa_p:   ['rvs','boats','cars'],
-  pa_ph:  ['cars','fleet','boats'],
+  pa_ph:  ['cars','boats'],
   pa_b:   ['cars','boats','rvs'],
-  default:['cars','boats','rvs','powersports','fleet'],
+  default:['cars','boats','rvs','powersports'],
 };
 
 const LOC_DISPLAY = {
@@ -6317,7 +6348,7 @@ const LOC_DISPLAY = {
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $199' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $349' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $119' },
-  fleet:      { ico:'🚚', name:'Fleet Services',   desc:'Multi-unit discounts apply',  from:'From $60/unit' },
+
 };
 
 let activeZone = null;
@@ -6368,7 +6399,7 @@ function renderLocationCarousel(zoneKey){
       <div class="loc-name">${d.name}</div>
       <div class="loc-req">${d.desc}</div>
       <div class="loc-from">${formatLocFrom(cat)}</div>`;
-    const seoHref = cat === 'rvs' ? 'rv-detailing.html' : cat === 'fleet' ? 'fleet-services.html' : null;
+    const seoHref = cat === 'rvs' ? 'rv-detailing.html' : null;
     if(seoHref){
       return `<a href="${seoHref}" class="loc-card loc-card-link">${inner}</a>`;
     }
@@ -7512,7 +7543,7 @@ function _updateHomeFromPrices(){
     boats:       { price: LENGTH_PRICING.boats.packages.maint.min,     note:'by vessel length', amtId:'hfrom-boats-amt' },
     rvs:         { price: LENGTH_PRICING.rvs.packages.exterior.min,    note:'by RV length', amtId:'hfrom-rvs-amt' },
     powersports: { price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=> Object.values(t).filter(v=>typeof v==='number')[0]||89)), note:'by vehicle type', amtId:'hfrom-powersports-amt' },
-    fleet:       { price: null, fixedAmt:'$60/unit', fixedNote:'fleet quote available', amtId:'hfrom-fleet-amt', noteId:'hfrom-fleet-note' },
+
   };
   Object.entries(BASE).forEach(([cat, info])=>{
     const amtEl = document.getElementById(info.amtId);
@@ -7595,6 +7626,7 @@ function openBookingCarPkg(pkgId){
 
 // Opens booking - always allowed, but pre-fills ZIP if already entered on hero
 function openBookingFromHome(cat){
+  if(cat==='fleet'){ openCommercialInquiry(); return; }
   syncBookingZipFromHero();
   openBooking(cat);
 }
@@ -7722,7 +7754,7 @@ initCarPkgDetailModal();
       reply:"Hey! 👋 How can I help? I can talk pricing, areas we serve, packages or booking.", chips:DEFAULT_CHIPS }) },
 
     { keys:['price','pricing','cost','how much','quote','expensive','rate','charge','dollar','$'], fn:()=>({
-      reply:"Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n🚗 Cars & Trucks - from <b>$175</b>\n🏍️ Powersports - from <b>$119</b>\n🛥️ Boats - from <b>$199</b>\n🏕️ RVs & Trailers - from <b>$349</b>\n🚚 Fleet - from <b>$60/unit</b>\n\nFor an exact quote, start a booking and enter your vehicle + ZIP - pricing updates as you go.",
+      reply:"Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n🚗 Cars & Trucks - from <b>$175</b>\n🏍️ Powersports - from <b>$119</b>\n🛥️ Boats - from <b>$199</b>\n🏕️ RVs & Trailers - from <b>$349</b>\n\nFor an exact quote, start a booking and enter your vehicle + ZIP - pricing updates as you go.",
       chips:[{label:'📅 Get my exact price',act:'book'},{label:'📍 Travel fees?',q:'Is there a travel fee?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['area','areas','serve','service area','location','where','city','town','county','zip','near me','come to','pa','pennsylvania','new jersey','new york','connecticut',' nj',' ny',' ct'], fn:()=>({
@@ -7763,7 +7795,7 @@ initCarPkgDetailModal();
       reply:"Easy & fair: 🔄 reschedule or cancel at least <b>24h</b> before (rescheduling preferred). Weather, emergencies or schedule conflicts → free reschedule. Late cancellations / no-shows / denied access may incur a fee or deposit loss. Full terms are on the Terms page.",
       chips:[{label:'📅 Book now',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
-    { keys:['what do you detail','vehicle','vehicles','cars','boat','rv','trailer','motorcycle','atv','jet ski','fleet','truck','suv'], fn:()=>({
+    { keys:['what do you detail','vehicle','vehicles','cars','boat','rv','trailer','motorcycle','atv','jet ski','truck','suv'], fn:()=>({
       reply:"We detail 🚗 cars & trucks, 🛥️ boats, 🏕️ RVs & travel trailers, 🏍️ powersports (motorcycle/ATV/UTV/jet ski) and 🚚 fleets - all <b>mobile</b>, at your home or workplace.",
       chips:[{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] }) },
 
@@ -7808,6 +7840,7 @@ initCarPkgDetailModal();
     $('cd-input-row').style.display='flex'; $('cd-chips').style.display='flex';
   }
   window.cdCancelHandoff=cdCancelHandoff;
+  window.cdOpenHandoff=openHandoff;
 
   function getInquiries(){ try{ return JSON.parse(localStorage.getItem('cd1_inquiries')||'[]'); }catch(e){ return []; } }
   function setInquiries(l){ try{ localStorage.setItem('cd1_inquiries',JSON.stringify(l)); }catch(e){} }
