@@ -157,11 +157,12 @@ test('single-open accordion script is wired on state hubs', () => {
   }
 });
 
-test('hero overlay uses luxury slate gradient synced with dark hub theme', () => {
+test('hub heroes use shared brand gradient without background images', () => {
   const css = read('assets/hub-styles.css');
-  assert.match(css, /rgba\(15,\s*20,\s*28,\s*0\.96\)/);
-  assert.match(css, /#ece8e1/);
-  assert.doesNotMatch(css, /rgba\(244,\s*246,\s*249,\s*0\.95\)/);
+  assert.match(css, /radial-gradient\(circle at 82% 20%, rgba\(77, 163, 255, 0\.12\), transparent 34%\)/);
+  assert.match(css, /linear-gradient\(135deg, #07111d 0%, #0a1725 55%, #07101a 100%\)/);
+  assert.match(css, /#ffffff !important/);
+  assert.doesNotMatch(css, /background-image:\s*url\(/);
 });
 
 test('state hubs load luxury theme stylesheet', () => {
@@ -171,21 +172,58 @@ test('state hubs load luxury theme stylesheet', () => {
     assert.match(html, /STATE HUB LUXURY THEME/);
     assert.match(html, /--bg0:#12181f/);
     assert.match(html, /class="luxury-surface"/);
-    assert.match(html, /luxury-hero-glow/);
+    assert.match(html, /hero--hub-brand/);
+    assert.doesNotMatch(html, /hero-bg-desktop/);
+    assert.doesNotMatch(html, /luxury-hero-glow/);
   }
 });
 
-test('homepage shares luxury surface and gradient hero with state hubs', () => {
+test('homepage restores master cars-suvs hero image with PR #96 copy', () => {
   const index = read('index.html');
   assert.match(index, /class="luxury-surface"/);
   assert.match(index, /--bg0:#12181f/);
   assert.match(index, /luxury-theme\.css/);
-  assert.match(index, /hub-styles\.css/);
-  assert.match(index, /hero--home/);
-  assert.match(index, /luxury-hero-glow/);
-  assert.match(index, /hero-bg-desktop/);
+  assert.doesNotMatch(index, /hub-styles\.css/);
+  assert.doesNotMatch(index, /hero--home/);
+  assert.doesNotMatch(index, /hero-bg-desktop/);
+  assert.match(index, /url\("assets\/vehicles\/premium\/cars-suvs\.webp"\) center right\/cover no-repeat/);
+  assert.match(index, /<h1>Mobile Car Detailing at Your Home or Office<\/h1>/);
   assert.match(read('assets/luxury-theme.css'), /body\.luxury-surface/);
-  assert.match(read('assets/luxury-theme.css'), /hero--home/);
+  assert.doesNotMatch(read('assets/luxury-theme.css'), /hero--home/);
+});
+
+const revisedHubPages = [
+  ...stateHubs,
+  'bergen-county-hub.html',
+  'hudson-county-hub.html',
+  'essex-county-hub.html',
+  'passaic-county-hub.html',
+  'newark-mobile-detailing.html',
+  'trenton-mobile-detailing.html',
+  'westchester-mobile-detailing.html',
+  'template-city.html',
+];
+
+test('revised hub pages remove hero background image layers from markup', () => {
+  for (const page of revisedHubPages) {
+    const html = read(page);
+    assert.doesNotMatch(html, /hero-bg-desktop/);
+    assert.doesNotMatch(html, /hero-bg-mobile/);
+    assert.match(html, /hero--hub-brand/);
+  }
+});
+
+test('city hub pages drop hero-mobile-detailing background URLs', () => {
+  for (const page of [
+    'newark-mobile-detailing.html',
+    'trenton-mobile-detailing.html',
+    'westchester-mobile-detailing.html',
+    'template-city.html',
+  ]) {
+    const html = read(page);
+    assert.doesNotMatch(html, /hero-mobile-detailing/);
+    assert.match(html, /assets\/hub-styles\.css/);
+  }
 });
 
 test('state hub city links use readable colors on luxury dark surface', () => {
@@ -198,13 +236,13 @@ test('state hub city links use readable colors on luxury dark surface', () => {
   }
 });
 
-test('state hubs keep hero--contrast with ivory headline on slate hero', () => {
+test('state hubs keep hero--contrast with high-contrast white headline on brand hero', () => {
   const css = read('assets/hub-styles.css');
   for (const page of stateHubs) {
     const html = read(page);
     assert.match(html, /hero--contrast/);
   }
-  assert.match(css, /#ece8e1/);
+  assert.match(css, /#ffffff !important/);
 });
 
 test('header navigation remains visible on hub pages', () => {
@@ -214,6 +252,8 @@ test('header navigation remains visible on hub pages', () => {
     assert.match(html, /nav-menu-btn/);
     assert.match(html, /nav-link/);
   }
+  const navCss = read('assets/hub-styles.css');
+  assert.match(navCss, /rgba\(23,\s*33,\s*47,\s*0\.96\)/);
 });
 
 test('no Netlify Function files changed in this UX scope', () => {

@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════
    Midnight Slate & Champagne — shared luxury surface
-   Homepage + NJ / NY / CT / PA state hubs
+   Homepage body/sections + state hub accordions
    ═══════════════════════════════════════════════════════════ */
 
 /* ── Page foundation gradient ── */
@@ -9,159 +9,59 @@ body.luxury-surface {
   color: #c8d0da;
 }
 
-/* Ambient glow shared by all luxury heroes */
-.luxury-hero-glow::before,
-.hero--luxury::before,
-.hero--nj::before,
-.hero--ny::before,
-.hero--ct::before,
-.hero--pa::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 68% 52% at 78% 32%, rgba(196, 165, 116, 0.09), transparent 68%),
-    radial-gradient(ellipse 48% 42% at 18% 78%, rgba(77, 143, 217, 0.07), transparent 72%);
-}
+/* ── Homepage photo hero — readable copy on restored cars-suvs image ── */
+@media (min-width: 769px) {
+  body.luxury-surface > .hero:not(.hero--hub-brand) h1 {
+    color: #0f172a !important;
+  }
 
-/* ── Homepage hero (NJ line-art, same treatment as state hubs) ── */
-.hero--home {
-  min-height: 60vh !important;
-  background: #12181f !important;
-  border-bottom: 1px solid rgba(196, 165, 116, 0.12) !important;
-  position: relative;
-  overflow: hidden;
-}
+  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub,
+  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--long,
+  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--short {
+    color: #475569 !important;
+  }
 
-.hero--home .hero-bg-desktop,
-.hero--home .hero-bg-mobile {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-repeat: no-repeat;
-  background-attachment: scroll;
-  pointer-events: none;
-  opacity: 0.92;
-  filter: brightness(0.82) contrast(1.18) saturate(0.72);
-}
-
-.hero--home .hero-bg-desktop {
-  display: block;
-  background-image: url('hubs/hero-nj-desktop.webp');
-  background-position: center right;
-  background-size: cover;
-}
-
-.hero--home .hero-bg-mobile {
-  display: none;
-  background-image: url('hubs/hero-nj-mobile.webp');
-  background-position: top center;
-  background-size: contain;
-}
-
-.hero--home .hero-bg-desktop::after,
-.hero--home .hero-bg-mobile::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.hero--home .hero-bg-desktop::after {
-  background: linear-gradient(
-    105deg,
-    rgba(15, 20, 28, 0.96) 0%,
-    rgba(18, 24, 33, 0.88) 40%,
-    rgba(18, 24, 33, 0.52) 58%,
-    rgba(18, 24, 33, 0.08) 100%
-  );
-}
-
-.hero--home .hero-bg-mobile::after {
-  background: linear-gradient(
-    180deg,
-    rgba(15, 20, 28, 0.94) 0%,
-    rgba(18, 24, 33, 0.86) 48%,
-    rgba(18, 24, 33, 0.78) 100%
-  );
+  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-facts li {
+    color: #334155 !important;
+    background: rgba(255, 255, 255, 0.72) !important;
+    border-color: rgba(15, 23, 42, 0.08) !important;
+  }
 }
 
 @media (max-width: 768px) {
-  .hero--home {
-    min-height: 40vh !important;
+  body.luxury-surface > .hero:not(.hero--hub-brand) h1 {
+    color: var(--ink) !important;
   }
 
-  .hero--home .hero-bg-desktop {
-    display: none;
-  }
-
-  .hero--home .hero-bg-mobile {
-    display: block;
+  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub,
+  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--long,
+  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--short {
+    color: var(--ink-soft) !important;
   }
 }
 
-.hero--home > .hero-inner {
-  position: relative;
-  z-index: 1;
+/* ── Dark navigation (homepage + state hubs) ── */
+body.luxury-surface .nav {
+  background: rgba(23, 33, 47, 0.96) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-/* ── Hero copy panel (home + state hubs) ── */
-.hero--luxury .hero-inner,
-.hero--home .hero-inner,
-.hero--nj .hero-inner,
-.hero--ny .hero-inner,
-.hero--ct .hero-inner,
-.hero--pa .hero-inner {
-  padding: 28px 26px 24px;
-  border-radius: 20px;
-  background: rgba(15, 20, 28, 0.42);
-  border: 1px solid rgba(196, 165, 116, 0.14);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28);
+body.luxury-surface .nav-link {
+  color: rgba(255, 255, 255, 0.78) !important;
 }
 
-@media (max-width: 768px) {
-  .hero--luxury .hero-inner,
-  .hero--home .hero-inner,
-  .hero--nj .hero-inner,
-  .hero--ny .hero-inner,
-  .hero--ct .hero-inner,
-  .hero--pa .hero-inner {
-    padding: 22px 18px 20px;
-    background: rgba(15, 20, 28, 0.55);
-  }
+body.luxury-surface .nav-link:hover {
+  color: #ffffff !important;
 }
 
-/* ── Champagne eyebrow badges ── */
-.hero--luxury .hero-badge,
-.hero--home .hero-badge,
-.hero--nj .hero-badge,
-.hero--ny .hero-badge,
-.hero--ct .hero-badge,
-.hero--pa .hero-badge {
-  color: #d4b896 !important;
-  background: rgba(196, 165, 116, 0.1) !important;
-  border-color: rgba(196, 165, 116, 0.28) !important;
-  letter-spacing: 0.12em !important;
-}
-
-.hero--luxury .hero-facts li,
-.hero--home .hero-facts li,
-.hero--nj .hero-facts li,
-.hero--ny .hero-facts li,
-.hero--ct .hero-facts li,
-.hero--pa .hero-facts li {
-  color: #b8c4d0 !important;
-  background: rgba(26, 34, 44, 0.72) !important;
-  border-color: rgba(196, 165, 116, 0.12) !important;
+body.luxury-surface .nav-menu-btn {
+  color: rgba(255, 255, 255, 0.9) !important;
 }
 
 /* ── ZIP card — recessed luxury panel ── */
 .luxury-surface .hero-zip-wrap,
-.hero--home .hero-zip-wrap,
 .hero--nj .hero-zip-wrap,
 .hero--ny .hero-zip-wrap,
 .hero--ct .hero-zip-wrap,
@@ -172,7 +72,6 @@ body.luxury-surface {
 }
 
 .luxury-surface .hero-zip-input,
-.hero--home .hero-zip-input,
 .hero--nj .hero-zip-input,
 .hero--ny .hero-zip-input,
 .hero--ct .hero-zip-input,
@@ -183,7 +82,6 @@ body.luxury-surface {
 }
 
 .luxury-surface .hero-zip-label,
-.hero--home .hero-zip-label,
 .hero--nj .hero-zip-label,
 .hero--ny .hero-zip-label,
 .hero--ct .hero-zip-label,
@@ -316,9 +214,4 @@ body.luxury-surface {
   background: rgba(26, 34, 44, 0.85) !important;
   color: #d4b896 !important;
   border-color: rgba(196, 165, 116, 0.28) !important;
-}
-
-/* Restore ambient glow where hub inline CSS hides ::before */
-body.luxury-surface .luxury-hero-glow::before {
-  display: block !important;
 }
