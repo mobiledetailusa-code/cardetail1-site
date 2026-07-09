@@ -9,35 +9,41 @@ body.luxury-surface {
   color: #c8d0da;
 }
 
-/* ── Homepage photo hero — readable copy on restored cars-suvs image ── */
-@media (min-width: 769px) {
-  body.luxury-surface > .hero:not(.hero--hub-brand) h1 {
-    color: #0f172a !important;
-  }
-
-  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub,
-  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--long,
-  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--short {
-    color: #475569 !important;
-  }
-
-  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-facts li {
-    color: #334155 !important;
-    background: rgba(255, 255, 255, 0.72) !important;
-    border-color: rgba(15, 23, 42, 0.08) !important;
-  }
+/* ── Homepage photo hero — sync header with luxury dark surface ── */
+body.luxury-surface > .hero:not(.hero--hub-brand) {
+  border-bottom-color: rgba(196, 165, 116, 0.12) !important;
 }
 
-@media (max-width: 768px) {
-  body.luxury-surface > .hero:not(.hero--hub-brand) h1 {
-    color: var(--ink) !important;
-  }
+body.luxury-surface > .hero:not(.hero--hub-brand) h1 {
+  color: var(--ink) !important;
+}
 
-  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub,
-  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--long,
-  body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--short {
-    color: var(--ink-soft) !important;
-  }
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub,
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--long,
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--short {
+  color: var(--ink-soft) !important;
+}
+
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-badge {
+  color: #d4b896 !important;
+  background: rgba(196, 165, 116, 0.1) !important;
+  border-color: rgba(196, 165, 116, 0.28) !important;
+}
+
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-facts li {
+  color: #b8c4d0 !important;
+  background: rgba(26, 34, 44, 0.72) !important;
+  border-color: rgba(196, 165, 116, 0.12) !important;
+}
+
+body.luxury-surface > .hero:not(.hero--hub-brand) .btn-outline {
+  background: transparent !important;
+  color: #ece8e1 !important;
+  border-color: rgba(196, 165, 116, 0.35) !important;
+}
+
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-zip-details > summary {
+  color: #7eb3e8 !important;
 }
 
 /* ── Dark navigation (homepage + state hubs) ── */
