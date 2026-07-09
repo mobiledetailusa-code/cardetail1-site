@@ -221,3 +221,114 @@ body.luxury-surface .nav-menu-btn {
   color: #d4b896 !important;
   border-color: rgba(196, 165, 116, 0.28) !important;
 }
+
+/* ── Homepage service areas ── */
+.home-service-areas {
+  background: linear-gradient(180deg, #1a222c 0%, #12181f 100%);
+  border-top: 1px solid rgba(196, 165, 116, 0.1);
+  border-bottom: 1px solid rgba(196, 165, 116, 0.1);
+  padding: 48px 24px;
+  overflow-x: hidden;
+}
+
+.home-service-areas .section {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.home-service-areas-copy {
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.service-area-city-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.service-area-hub-links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.service-area-city-link {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.service-area-city-link:hover,
+.service-area-city-link:focus-visible {
+  border-color: rgba(77, 163, 255, 0.55);
+  background: rgba(77, 163, 255, 0.08);
+  outline: none;
+}
+
+.service-area-hub-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid rgba(196, 165, 116, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  color: #c4a574;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.service-area-hub-link:hover,
+.service-area-hub-link:focus-visible {
+  border-color: rgba(196, 165, 116, 0.4);
+  background: rgba(196, 165, 116, 0.08);
+  color: #d4b896;
+  outline: none;
+}
+
+@media (max-width: 768px) {
+  .home-service-areas {
+    padding: 40px 16px;
+  }
+
+  .service-area-city-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .service-area-hub-links {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .service-area-city-link,
+  .service-area-hub-link {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 420px) {
+  .service-area-city-grid {
+    grid-template-columns: 1fr;
+  }
+}
