@@ -2696,7 +2696,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             </div>
             <div class="sel-g"><div class="sel-l">Year</div><select class="sel-s" id="g-year"><option value="">— year —</option></select></div>
           </div>
-          <div id="g-custom-note" style="display:none;font-size:11px;color:var(--accent);margin-top:7px;padding:6px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">✏️ Custom entry — not in catalog. That's OK, free-form is supported.</div>
+          <div id="g-custom-note" style="display:none;font-size:11px;color:var(--blue);margin-top:7px;padding:6px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">✏️ Custom entry — not in catalog. That's OK, free-form is supported.</div>
         </div>
 
         <!-- Length selector for boats, RVs and travel trailers -->
@@ -4236,18 +4236,14 @@ function tryGenericConfirm(){
   if(ST.cat==='fleet'){
     if(!ST.tierKey || !ST.pkgId) return;
     const units = ST.units || 2;
-    const t = ST.tier;
     if(ST.tierKey === 'marine_rv'){
       const ft = ST.lengthFt || LENGTH_PRICING.fleet.defaultFt;
-      const unitPrice = getLengthPrice( ST.pkgId, ft) || 0;
-      ST.basePrice = ST.pkgId==='custom' ? 0 : unitPrice * units;
+      ST.basePrice = 0;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model} · avg ${ft} ft`;
       setVehicleVisual();
       setVcName(ST.vehicleLabel);
     }else{
-      const unitPrice = t[ST.pkgId] || 0;
-      const needsEstimate = ST.pkgId==='custom' || !unitPrice;
-      ST.basePrice = needsEstimate ? 0 : unitPrice * units;
+      ST.basePrice = 0;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model}`;
       setVehicleVisual();
       setVcName(ST.vehicleLabel);
@@ -4276,11 +4272,9 @@ function setBasePrice(){
     const units=ST.units||2;
     if(ST.tierKey==='marine_rv'){
       const ft=ST.lengthFt||LENGTH_PRICING.fleet.defaultFt;
-      const p=getLengthPrice(ST.pkgId,ft)||0;
-      raw=ST.pkgId==='custom'?0:p*units;
+      raw=0;
     }else{
-      const unitPrice = ST.tier[ST.pkgId] || 0;
-      raw=(ST.pkgId==='custom'||!unitPrice)?0:unitPrice*units;
+      raw=0;
     }
   }else{
     raw=ST.tier[ST.pkgId]||ST.tier['wash']||ST.tier['maint']||ST.tier['exterior']||0;
