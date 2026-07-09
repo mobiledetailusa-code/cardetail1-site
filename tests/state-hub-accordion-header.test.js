@@ -167,16 +167,31 @@ test('hero overlay uses luxury slate gradient synced with dark hub theme', () =>
 test('state hubs load luxury theme stylesheet', () => {
   for (const page of stateHubs) {
     const html = read(page);
-    assert.match(html, /hub-luxury-theme\.css/);
+    assert.match(html, /luxury-theme\.css/);
     assert.match(html, /STATE HUB LUXURY THEME/);
     assert.match(html, /--bg0:#12181f/);
+    assert.match(html, /class="luxury-surface"/);
+    assert.match(html, /luxury-hero-glow/);
   }
+});
+
+test('homepage shares luxury surface and gradient hero with state hubs', () => {
+  const index = read('index.html');
+  assert.match(index, /class="luxury-surface"/);
+  assert.match(index, /--bg0:#12181f/);
+  assert.match(index, /luxury-theme\.css/);
+  assert.match(index, /hub-styles\.css/);
+  assert.match(index, /hero--home/);
+  assert.match(index, /luxury-hero-glow/);
+  assert.match(index, /hero-bg-desktop/);
+  assert.match(read('assets/luxury-theme.css'), /body\.luxury-surface/);
+  assert.match(read('assets/luxury-theme.css'), /hero--home/);
 });
 
 test('state hub city links use readable colors on luxury dark surface', () => {
   const css = read('assets/service-area-accordion.css');
   assert.match(css, /\.service-area-links a\{[^}]*color:#9aa8b8/);
-  assert.match(read('assets/hub-luxury-theme.css'), /#d4b896/);
+  assert.match(read('assets/luxury-theme.css'), /#d4b896/);
   for (const page of stateHubs) {
     const html = read(page);
     assert.match(html, /class="service-area-links"/);
