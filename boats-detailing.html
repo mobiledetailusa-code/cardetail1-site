@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="Mobile boat and marine detailing in Bergen County and nearby marinas. Hull, deck, and cockpit cleaning done where your vessel is parked or docked.">
+<title>Mobile Boat &amp; Marine Detailing | Cardetail1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#0f1419;--bg1:#121922;--bg2:#1a2230;--line:rgba(196,165,116,.12);
+  --ink:#ece8e1;--muted:#9aa8b8;--blue:#4d8fd9;--gold:#c4a574;
+  --fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;--r:16px;
+}
+body{background:linear-gradient(180deg,#0f1419 0%,#12181f 100%);color:var(--ink);font-family:var(--fb);line-height:1.6}
+.nav{position:sticky;top:0;z-index:10;background:rgba(23,33,47,.96);border-bottom:1px solid rgba(255,255,255,.08);padding:10px 20px;display:flex;justify-content:space-between;align-items:center}
+.nav a{color:#dbe6f2;text-decoration:none;font-size:14px}
+.nav .cta{background:var(--blue);color:#fff;padding:8px 16px;border-radius:999px}
+.hero{padding:84px 20px 56px;text-align:center;max-width:960px;margin:0 auto}
+.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+h1{font-family:var(--fd);font-size:clamp(42px,8vw,82px);line-height:.9;margin-bottom:16px}
+.sub{color:var(--muted);max-width:700px;margin:0 auto 22px}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-block;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-outline{border:1px solid var(--line);color:#d7e5f4}
+.section{max-width:1120px;margin:0 auto;padding:0 20px 64px}
+.sec-title{font-family:var(--fd);font-size:clamp(32px,6vw,56px);line-height:.95;margin-bottom:8px;text-align:center}
+.sec-copy{color:var(--muted);text-align:center;max-width:720px;margin:0 auto 28px}
+.video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.card video{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:#0b1118}
+.meta{padding:12px 14px 14px}
+.meta h3{font-family:var(--fd);font-size:24px;letter-spacing:.02em}
+.meta p{color:var(--muted);font-size:13px}
+.cta-block{max-width:780px;margin:0 auto 70px;padding:34px 24px;border:1px solid var(--line);border-radius:24px;background:rgba(18,25,34,.7);text-align:center}
+.cta-block p{color:var(--muted);margin:8px 0 16px}
+footer{padding:30px 20px;color:var(--muted);text-align:center;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a href="index.html">Cardetail1 Home</a>
+  <a href="tel:5513132956">Call / Text 551-313-2956</a>
+  <a class="cta" href="index.html">Book online</a>
+</nav>
+
+<header class="hero">
+  <div class="eyebrow">Marine Service</div>
+  <h1>Mobile Boat &amp; Marine Detailing</h1>
+  <p class="sub">Dedicated boat detailing page built from your uploaded boat videos. We service boats where they are parked, docked, or stored across Bergen County and nearby areas by quote.</p>
+  <div class="btns">
+    <a class="btn btn-primary" href="index.html">Book boat detail</a>
+    <a class="btn btn-outline" href="#boat-gallery">See boat videos</a>
+  </div>
+</header>
+
+<section class="section" id="boat-gallery">
+  <h2 class="sec-title">Recent Boat Work</h2>
+  <p class="sec-copy">Videos below were pulled from your `POwersport pics/boats videos` folder and embedded directly on this page.</p>
+  <div class="video-grid">
+    <article class="card">
+      <video controls playsinline preload="metadata">
+        <source src="assets/media/boats/RWAJ3347.MP4" type="video/mp4">
+      </video>
+      <div class="meta">
+        <h3>Boat Video 01</h3>
+        <p>On-site marine detail footage.</p>
+      </div>
+    </article>
+    <article class="card">
+      <video controls playsinline preload="metadata">
+        <source src="assets/media/boats/VKPQ0511.MP4" type="video/mp4">
+      </video>
+      <div class="meta">
+        <h3>Boat Video 02</h3>
+        <p>Hull and deck cleanup highlight.</p>
+      </div>
+    </article>
+    <article class="card">
+      <video controls playsinline preload="metadata">
+        <source src="assets/media/boats/XATS4703.MP4" type="video/mp4">
+      </video>
+      <div class="meta">
+        <h3>Boat Video 03</h3>
+        <p>Quick before/after pass on marine surfaces.</p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="cta-block">
+  <h2 class="sec-title">Need Boat Detailing?</h2>
+  <p>Send your ZIP and vessel details in booking, and we confirm travel/service availability by location and size.</p>
+  <a class="btn btn-primary" href="index.html">Start booking</a>
+</section>
+
+<footer>
+  <div>Cardetail1 - Detailing Zone LLC - Mobile boats, RVs, and powersports by quote where needed.</div>
+</footer>
+</body>
+</html>
