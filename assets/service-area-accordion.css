@@ -1,25 +1,25 @@
-/* Service area accordion — compact city/county disclosure sections */
-.service-area-section{background:var(--bg1,#0a1018);border-top:1px solid var(--line,rgba(255,255,255,.08));padding:40px 20px 48px}
+/* Service area accordion — compact city/county disclosure sections (light hub surface) */
+.service-area-section{background:var(--bg1,#fff);border-top:1px solid var(--line,rgba(15,23,42,.08));padding:40px 20px 48px}
 .service-area-inner{max-width:960px;margin:0 auto}
 .service-area-intro{text-align:center;margin-bottom:24px}
-.service-area-eyebrow{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--blue,#4da3ff);margin-bottom:8px}
-.service-area-heading{font-family:var(--fb,'DM Sans',sans-serif);font-size:clamp(22px,3vw,28px);font-weight:600;color:var(--ink,#fff);margin:0 0 8px;line-height:1.2}
-.service-area-copy{font-size:14px;color:var(--ink-soft,#94a3b8);max-width:520px;margin:0 auto;line-height:1.55}
+.service-area-eyebrow{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--blue,#2563eb);margin-bottom:8px}
+.service-area-heading{font-family:var(--fb,'DM Sans',sans-serif);font-size:clamp(22px,3vw,28px);font-weight:600;color:var(--ink,#1e293b);margin:0 0 8px;line-height:1.2}
+.service-area-copy{font-size:14px;color:var(--ink-soft,#475569);max-width:520px;margin:0 auto;line-height:1.55}
 .service-area-accordion-group{display:flex;flex-direction:column;gap:8px}
-.service-area-accordion{border:1px solid var(--line,rgba(255,255,255,.1));border-radius:10px;background:var(--bg0,rgba(255,255,255,.02));overflow:hidden}
-.service-area-accordion[open]{background:var(--bg2,rgba(255,255,255,.04))}
+.service-area-accordion{border:1px solid var(--line,rgba(15,23,42,.1));border-radius:10px;background:var(--bg0,#f4f6f9);overflow:hidden}
+.service-area-accordion[open]{background:var(--bg1,#fff)}
 .service-area-accordion>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;min-height:64px;padding:14px 18px;-webkit-tap-highlight-color:transparent}
 .service-area-accordion>summary::-webkit-details-marker{display:none}
 .service-area-accordion>summary::marker{display:none;content:""}
-.service-area-name{flex:1;font-size:15px;font-weight:600;color:var(--ink,#e8eef6);line-height:1.3}
-.service-area-count{font-size:13px;font-weight:500;color:var(--mu,#94a3b8);white-space:nowrap}
-.service-area-chevron{flex-shrink:0;width:10px;height:10px;border-right:2px solid var(--mu,#94a3b8);border-bottom:2px solid var(--mu,#94a3b8);transform:rotate(45deg);margin-right:4px;transition:transform .22s ease,border-color .22s ease}
-.service-area-accordion[open]>summary .service-area-chevron{transform:rotate(-135deg);margin-top:4px;border-color:var(--blue,#4da3ff)}
+.service-area-name{flex:1;font-size:15px;font-weight:600;color:var(--ink,#1e293b);line-height:1.3}
+.service-area-count{font-size:13px;font-weight:500;color:var(--mu,#64748b);white-space:nowrap}
+.service-area-chevron{flex-shrink:0;width:10px;height:10px;border-right:2px solid var(--mu,#64748b);border-bottom:2px solid var(--mu,#64748b);transform:rotate(45deg);margin-right:4px;transition:transform .22s ease,border-color .22s ease}
+.service-area-accordion[open]>summary .service-area-chevron{transform:rotate(-135deg);margin-top:4px;border-color:var(--blue,#2563eb)}
 .service-area-content{padding:4px 18px 16px}
 .service-area-links{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px 12px}
 .service-area-links li{margin:0;min-width:0}
-.service-area-links a{display:block;color:rgba(255,255,255,.55);font-size:.85rem;font-weight:400;text-decoration:none;line-height:1.45;padding:4px 0;transition:color .18s;overflow-wrap:anywhere}
-.service-area-links a:hover{color:var(--blue,#4da3ff);text-decoration:underline;text-underline-offset:3px}
+.service-area-links a{display:block;color:#475569;font-size:.85rem;font-weight:400;text-decoration:none;line-height:1.45;padding:4px 0;transition:color .18s;overflow-wrap:anywhere}
+.service-area-links a:hover{color:var(--blue,#2563eb);text-decoration:underline;text-underline-offset:3px}
 @media(max-width:768px){
   .service-area-section{padding:32px 16px 40px}
   .service-area-accordion>summary{min-height:60px;padding:12px 14px}
@@ -29,22 +29,6 @@
   .service-area-chevron{transition:none}
 }
 
-/* Hub pages with light section tokens */
-.hub-nj .service-area-section,.hub-ny .service-area-section,.hub-ct .service-area-section,.hub-pa .service-area-section,
-.hero--nj~.service-area-section{background:var(--bg1)}
-.hub-nj .service-area-heading,.hub-ny .service-area-heading,.hub-ct .service-area-heading,.hub-pa .service-area-heading{color:var(--ink)}
-.hub-nj .service-area-name,.hub-ny .service-area-name,.hub-ct .service-area-name,.hub-pa .service-area-name{color:var(--ink)}
-.hub-nj .service-area-links a,.hub-ny .service-area-links a,.hub-ct .service-area-links a,.hub-pa .service-area-links a{color:var(--ink-soft)}
-.hub-nj .service-area-accordion,.hub-ny .service-area-accordion,.hub-ct .service-area-accordion,.hub-pa .service-area-accordion{background:var(--bg0);border-color:var(--line)}
-
-/* Hero high-contrast copy on image-backed hubs */
-.hero--contrast .hero-inner{max-width:540px}
-.hero--contrast h1{color:#fff!important;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,.35)}
-.hero--contrast .hero-sub{color:rgba(255,255,255,.9)!important;text-shadow:0 1px 2px rgba(0,0,0,.25)}
-.hero--contrast .hero-badge{color:#93c5fd!important;background:rgba(37,99,235,.18)!important;border-color:rgba(147,197,253,.35)!important}
-.hero--contrast .hero-facts li{color:rgba(255,255,255,.88);background:rgba(5,11,18,.45);border-color:rgba(255,255,255,.12)}
-.hero--contrast .hero-trust-line{color:rgba(255,255,255,.78)!important}
-.hero--contrast .hub-service-area-note{color:rgba(255,255,255,.72)!important}
-@media(max-width:768px){
-  .hero--contrast .hero-inner{max-width:100%}
-}
+/* Slightly stronger city link contrast when accordion is open */
+.service-area-accordion[open] .service-area-links a{color:#334155}
+.service-area-accordion[open] .service-area-links a:hover{color:var(--blue,#2563eb)}

@@ -103,10 +103,11 @@
 .hub-ct .hero-bg-desktop::after,
 .hub-pa .hero-bg-desktop::after {
   background: linear-gradient(
-    90deg,
-    rgba(4, 10, 18, 0.92) 0%,
-    rgba(4, 10, 18, 0.76) 46%,
-    rgba(4, 10, 18, 0.42) 100%
+    105deg,
+    rgba(244, 246, 249, 0.95) 0%,
+    rgba(244, 246, 249, 0.86) 38%,
+    rgba(244, 246, 249, 0.58) 56%,
+    rgba(244, 246, 249, 0.2) 100%
   );
 }
 
@@ -120,9 +121,9 @@
 .hub-pa .hero-bg-mobile::after {
   background: linear-gradient(
     180deg,
-    rgba(4, 10, 18, 0.86) 0%,
-    rgba(4, 10, 18, 0.78) 58%,
-    rgba(4, 10, 18, 0.72) 100%
+    rgba(244, 246, 249, 0.92) 0%,
+    rgba(244, 246, 249, 0.84) 52%,
+    rgba(244, 246, 249, 0.76) 100%
   );
 }
 
@@ -133,12 +134,11 @@
 .hub-nj h1,
 .hub-ny h1,
 .hub-ct h1,
-.hub-pa h1,
-.hero--contrast h1 {
-  color: #ffffff;
+.hub-pa h1 {
+  color: #0f172a;
   font-family: "DM Sans", sans-serif;
   font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  text-shadow: none;
 }
 
 .hero--nj .hero-sub,
@@ -148,10 +148,9 @@
 .hub-nj .hero-sub,
 .hub-ny .hero-sub,
 .hub-ct .hero-sub,
-.hub-pa .hero-sub,
-.hero--contrast .hero-sub {
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+.hub-pa .hero-sub {
+  color: #475569;
+  text-shadow: none;
 }
 
 .hero--nj .hero-badge,
@@ -161,11 +160,10 @@
 .hub-nj .hero-badge,
 .hub-ny .hero-badge,
 .hub-ct .hero-badge,
-.hub-pa .hero-badge,
-.hero--contrast .hero-badge {
-  color: #93c5fd;
-  background: rgba(37, 99, 235, 0.18);
-  border-color: rgba(147, 197, 253, 0.35);
+.hub-pa .hero-badge {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.22);
   text-shadow: none;
 }
 
@@ -176,9 +174,8 @@
 .hub-nj .hero-trust-line,
 .hub-ny .hero-trust-line,
 .hub-ct .hero-trust-line,
-.hub-pa .hero-trust-line,
-.hero--contrast .hero-trust-line {
-  color: rgba(255, 255, 255, 0.78);
+.hub-pa .hero-trust-line {
+  color: #475569;
   text-shadow: none;
 }
 
@@ -190,7 +187,7 @@
 .hub-ny .hub-service-area-note,
 .hub-ct .hub-service-area-note,
 .hub-pa .hub-service-area-note {
-  color: rgba(255, 255, 255, 0.72);
+  color: #475569;
 }
 
 .hero--nj .hero-proof span,
@@ -247,65 +244,13 @@
   background-image: url('hubs/hero-pa-mobile.webp');
 }
 
-/* Beat inline hub page !important rules when image-backed contrast hero is active */
-.hero.hero--contrast h1,
-.hero--contrast.hub-nj h1,
-.hero--contrast.hub-ny h1,
-.hero--contrast.hub-ct h1,
-.hero--contrast.hub-pa h1 {
-  color: #ffffff !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+/* hero--contrast: balanced overlay syncs with light page body; inline hub CSS keeps ink colors */
+.hero.hero--contrast .hero-inner {
+  max-width: 540px;
 }
 
-.hero.hero--contrast .hero-sub,
-.hero--contrast.hub-nj .hero-sub,
-.hero--contrast.hub-ny .hero-sub,
-.hero--contrast.hub-ct .hero-sub,
-.hero--contrast.hub-pa .hero-sub {
-  color: rgba(255, 255, 255, 0.9) !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-}
-
-.hero.hero--contrast .hero-badge,
-.hero--contrast.hub-nj .hero-badge,
-.hero--contrast.hub-ny .hero-badge,
-.hero--contrast.hub-ct .hero-badge,
-.hero--contrast.hub-pa .hero-badge {
-  color: #93c5fd !important;
-  background: rgba(37, 99, 235, 0.18) !important;
-  border-color: rgba(147, 197, 253, 0.35) !important;
-}
-
-.hero.hero--contrast .hero-trust-line,
-.hero--contrast.hub-nj .hero-trust-line,
-.hero--contrast.hub-ny .hero-trust-line,
-.hero--contrast.hub-ct .hero-trust-line,
-.hero--contrast.hub-pa .hero-trust-line {
-  color: rgba(255, 255, 255, 0.78) !important;
-}
-
-.hero.hero--contrast .hub-service-area-note,
-.hero--contrast.hub-nj .hub-service-area-note,
-.hero--contrast.hub-ny .hub-service-area-note,
-.hero--contrast.hub-ct .hub-service-area-note,
-.hero--contrast.hub-pa .hub-service-area-note {
-  color: rgba(255, 255, 255, 0.72) !important;
-}
-
-.hero.hero--contrast .hero-facts li {
-  color: rgba(255, 255, 255, 0.88) !important;
-  background: rgba(5, 11, 18, 0.45) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-.hero.hero--contrast .btn-outline {
-  background: rgba(5, 11, 18, 0.35) !important;
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.28) !important;
-}
-
-.hero.hero--contrast .btn-outline:hover {
-  background: rgba(5, 11, 18, 0.55) !important;
-  border-color: rgba(147, 197, 253, 0.45) !important;
-  color: #ffffff !important;
+@media (max-width: 768px) {
+  .hero.hero--contrast .hero-inner {
+    max-width: 100%;
+  }
 }
