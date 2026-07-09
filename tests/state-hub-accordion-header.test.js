@@ -157,31 +157,39 @@ test('single-open accordion script is wired on state hubs', () => {
   }
 });
 
-test('hero overlay uses balanced light gradient synced with hub page theme', () => {
+test('hero overlay uses luxury slate gradient synced with dark hub theme', () => {
   const css = read('assets/hub-styles.css');
-  assert.match(css, /rgba\(244,\s*246,\s*249,\s*0\.95\)/);
-  assert.match(css, /rgba\(244,\s*246,\s*249,\s*0\.92\)/);
-  assert.doesNotMatch(css, /rgba\(4,\s*10,\s*18,\s*0\.92\)/);
+  assert.match(css, /rgba\(15,\s*20,\s*28,\s*0\.96\)/);
+  assert.match(css, /#ece8e1/);
+  assert.doesNotMatch(css, /rgba\(244,\s*246,\s*249,\s*0\.95\)/);
 });
 
-test('state hub city links use solid readable colors on light surface', () => {
+test('state hubs load luxury theme stylesheet', () => {
+  for (const page of stateHubs) {
+    const html = read(page);
+    assert.match(html, /hub-luxury-theme\.css/);
+    assert.match(html, /STATE HUB LUXURY THEME/);
+    assert.match(html, /--bg0:#12181f/);
+  }
+});
+
+test('state hub city links use readable colors on luxury dark surface', () => {
   const css = read('assets/service-area-accordion.css');
-  assert.match(css, /\.service-area-links a\{[^}]*color:#475569/);
-  assert.doesNotMatch(css, /color:rgba\(255,255,255,\.55\)/);
+  assert.match(css, /\.service-area-links a\{[^}]*color:#9aa8b8/);
+  assert.match(read('assets/hub-luxury-theme.css'), /#d4b896/);
   for (const page of stateHubs) {
     const html = read(page);
     assert.match(html, /class="service-area-links"/);
   }
 });
 
-test('state hubs keep hero--contrast marker without forcing white headline overrides', () => {
+test('state hubs keep hero--contrast with ivory headline on slate hero', () => {
   const css = read('assets/hub-styles.css');
   for (const page of stateHubs) {
     const html = read(page);
     assert.match(html, /hero--contrast/);
   }
-  assert.doesNotMatch(css, /hero\.hero--contrast h1[\s\S]*#ffffff !important/);
-  assert.match(css, /#0f172a/);
+  assert.match(css, /#ece8e1/);
 });
 
 test('header navigation remains visible on hub pages', () => {

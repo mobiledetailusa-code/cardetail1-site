@@ -69,7 +69,7 @@
   }
 }
 
-/* ── State hub heroes (NJ/NY/CT/PA) — light theme + stronger line-art (homepage-style) ── */
+/* ── State hub heroes — luxury editorial line-art treatment ── */
 .hero--nj .hero-bg-desktop,
 .hero--ny .hero-bg-desktop,
 .hero--ct .hero-bg-desktop,
@@ -80,7 +80,8 @@
 .hub-pa .hero-bg-desktop {
   background-position: center right;
   background-size: cover;
-  filter: contrast(1.34) brightness(1.05) saturate(0.92);
+  opacity: 0.92;
+  filter: brightness(0.82) contrast(1.18) saturate(0.72);
 }
 
 .hero--nj .hero-bg-mobile,
@@ -91,7 +92,8 @@
 .hub-ny .hero-bg-mobile,
 .hub-ct .hero-bg-mobile,
 .hub-pa .hero-bg-mobile {
-  filter: contrast(1.34) brightness(1.05) saturate(0.92);
+  opacity: 0.88;
+  filter: brightness(0.8) contrast(1.15) saturate(0.7);
 }
 
 .hero--nj .hero-bg-desktop::after,
@@ -104,10 +106,10 @@
 .hub-pa .hero-bg-desktop::after {
   background: linear-gradient(
     105deg,
-    rgba(244, 246, 249, 0.95) 0%,
-    rgba(244, 246, 249, 0.86) 38%,
-    rgba(244, 246, 249, 0.58) 56%,
-    rgba(244, 246, 249, 0.2) 100%
+    rgba(15, 20, 28, 0.96) 0%,
+    rgba(18, 24, 33, 0.88) 40%,
+    rgba(18, 24, 33, 0.52) 58%,
+    rgba(18, 24, 33, 0.08) 100%
   );
 }
 
@@ -121,9 +123,9 @@
 .hub-pa .hero-bg-mobile::after {
   background: linear-gradient(
     180deg,
-    rgba(244, 246, 249, 0.92) 0%,
-    rgba(244, 246, 249, 0.84) 52%,
-    rgba(244, 246, 249, 0.76) 100%
+    rgba(15, 20, 28, 0.94) 0%,
+    rgba(18, 24, 33, 0.86) 48%,
+    rgba(18, 24, 33, 0.78) 100%
   );
 }
 
@@ -135,10 +137,11 @@
 .hub-ny h1,
 .hub-ct h1,
 .hub-pa h1 {
-  color: #0f172a;
+  color: #ece8e1;
   font-family: "DM Sans", sans-serif;
   font-weight: 600;
-  text-shadow: none;
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .hero--nj .hero-sub,
@@ -149,7 +152,7 @@
 .hub-ny .hero-sub,
 .hub-ct .hero-sub,
 .hub-pa .hero-sub {
-  color: #475569;
+  color: #b8c4d0;
   text-shadow: none;
 }
 
@@ -161,9 +164,9 @@
 .hub-ny .hero-badge,
 .hub-ct .hero-badge,
 .hub-pa .hero-badge {
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.08);
-  border-color: rgba(37, 99, 235, 0.22);
+  color: #d4b896;
+  background: rgba(196, 165, 116, 0.1);
+  border-color: rgba(196, 165, 116, 0.28);
   text-shadow: none;
 }
 
@@ -175,7 +178,7 @@
 .hub-ny .hero-trust-line,
 .hub-ct .hero-trust-line,
 .hub-pa .hero-trust-line {
-  color: #475569;
+  color: #9aa8b8;
   text-shadow: none;
 }
 
@@ -187,7 +190,7 @@
 .hub-ny .hub-service-area-note,
 .hub-ct .hub-service-area-note,
 .hub-pa .hub-service-area-note {
-  color: #475569;
+  color: #8b97a8;
 }
 
 .hero--nj .hero-proof span,
