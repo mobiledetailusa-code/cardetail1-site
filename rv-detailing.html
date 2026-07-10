@@ -129,14 +129,13 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   <div class="nav-links" id="nav-links">
     <a class="nav-link" href="/">Services</a>
     <a class="nav-link" href="tel:5513132956">Call / Text</a>
-    <a class="nav-cta" href="index.html?book=rvs">Book Now</a>
+    <button type="button" class="nav-cta" data-booking-category="rvs">Book Now</button>
   </div>
   <button class="nav-menu-btn" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Menu">☰</button>
 </nav>
 
 <nav class="specialty-service-nav" aria-label="Specialty detailing services">
   <div class="specialty-service-nav-inner">
-    <span class="specialty-service-nav-label">Specialty Services</span>
     <div class="specialty-service-links">
       <a class="specialty-service-link" href="rv-detailing.html" aria-current="page">RV &amp; Trailers</a>
       <a class="specialty-service-link" href="boats-detailing.html">Boats</a>
@@ -152,7 +151,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <p class="hero-sub">Mobile exterior, interior and full detailing for travel trailers, fifth wheels and motorhomes, priced by length and condition.</p>
     <div class="hero-btns">
       <a class="btn-primary" href="#packages">View RV Packages</a>
-      <a class="btn-outline" href="index.html?book=rvs">Book RV &amp; Trailer Detailing</a>
+      <button type="button" class="btn-outline" data-booking-category="rvs">Book RV &amp; Trailer Detailing</button>
     </div>
   </div>
 </section>
@@ -175,7 +174,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <li>Wheels cleaned &amp; tires dressed</li>
         <li>Bug &amp; debris removal</li>
       </ul>
-      <a class="btn-primary" href="index.html?book=rvs">Book Exterior Wash</a>
+      <button type="button" class="btn-primary package-booking-cta" data-booking-category="rvs" data-booking-package="exterior">Select This RV Package</button>
     </article>
     <article class="pkg-card">
       <h3 class="pkg-name">Interior Detail</h3>
@@ -190,7 +189,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <li>Bathroom cleaning</li>
         <li>Interior windows &amp; mirrors</li>
       </ul>
-      <a class="btn-primary" href="index.html?book=rvs">Book Interior Detail</a>
+      <button type="button" class="btn-primary package-booking-cta" data-booking-category="rvs" data-booking-package="interior">Select This RV Package</button>
     </article>
     <article class="pkg-card pop">
       <h3 class="pkg-name">Full RV Detail</h3>
@@ -205,7 +204,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <li>Kitchen &amp; bathroom detail</li>
         <li>UV protectant</li>
       </ul>
-      <a class="btn-primary" href="index.html?book=rvs">Book Full RV Detail</a>
+      <button type="button" class="btn-primary package-booking-cta" data-booking-category="rvs" data-booking-package="full">Select This RV Package</button>
     </article>
     <article class="pkg-card">
       <h3 class="pkg-name">Premium Exterior</h3>
@@ -220,7 +219,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <li>Exterior trim &amp; cap cleaning</li>
         <li>Final inspection</li>
       </ul>
-      <a class="btn-primary" href="index.html?book=rvs">Book Premium Exterior</a>
+      <button type="button" class="btn-primary package-booking-cta" data-booking-category="rvs" data-booking-package="premium">Select This RV Package</button>
     </article>
   </div>
   <p class="pkg-note">Difficult access, oversized units, severe oxidation, roof work, awnings, and restoration-level jobs may require inspection or a custom quote before final pricing.</p>
@@ -284,6 +283,26 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
           <p class="ba-caption">Full front-cap detail on a tall fifth-wheel — oxidation knocked back and the white gel coat brought back to a clean gloss.</p>
         </div>
       </article>
+      <article class="ba-card">
+        <div class="ba-showcase">
+          <img src="assets/media/rv/gallery/IMG_7463.jpeg" alt="Jayco Eagle fifth-wheel front cap after mobile detailing" width="1200" height="900" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Jayco Eagle</div>
+          <div class="ba-service">Front cap detail</div>
+          <p class="ba-caption">Fifth-wheel front cap cleaned and finished on location.</p>
+        </div>
+      </article>
+      <article class="ba-card">
+        <div class="ba-showcase">
+          <img src="assets/media/rv/gallery/IMG_7473.jpeg" alt="Jayco Eagle travel trailer side profile after detailing" width="1200" height="900" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Jayco Eagle Trailer</div>
+          <div class="ba-service">Exterior wash</div>
+          <p class="ba-caption">Travel trailer side profile after exterior detailing.</p>
+        </div>
+      </article>
     </div>
   </div>
 </section>
@@ -293,7 +312,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <h2>Ready to Book Your RV?</h2>
     <p>Exterior washes from $349 · interior from $299 · full detail from $549. Book online or call to schedule.</p>
     <div class="cta-price">From $349</div>
-    <a class="btn-primary" href="index.html?book=rvs">Book RV Detail</a>
+    <button type="button" class="btn-primary" data-booking-category="rvs">Book RV Detail</button>
     <p class="cta-note">Prefer to talk it through first? Call or text <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.</p>
   </div>
 </section>
@@ -317,7 +336,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <h4>Contact</h4>
         <a href="tel:5513132956">📞 551-313-2956</a>
         <a href="https://www.instagram.com/cardetail1com" target="_blank" rel="noopener">📸 @cardetail1com</a>
-        <a href="/">Book Online</a>
+        <button type="button" class="foot-book-btn" data-booking-category="rvs" style="background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer;text-align:left">Book Online</button>
         <a>📍 Palisades Park · Bergen Co.</a>
       </div>
     </div>
@@ -327,6 +346,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     </div>
   </div>
 </footer>
-
+<script src="assets/specialty-booking-bridge.js" defer></script>
 </body>
 </html>

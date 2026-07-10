@@ -103,6 +103,8 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 
 /* ── NAV (dark chrome) ── */
 .nav{position:fixed;top:0;left:0;right:0;z-index:900;background:rgba(23,33,47,.94);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;transition:.3s}
+/* Homepage only: clear fixed header so the shared specialty switcher is visible (dedicated pages use sticky nav). */
+.specialty-service-nav{margin-top:60px}
 .nav-logo{height:46px;width:auto}
 .nav-links{display:flex;gap:24px;align-items:center}
 .nav-link{font-size:14px;font-weight:500;color:rgba(255,255,255,.72);text-decoration:none;letter-spacing:0;transition:.2s;cursor:pointer}
@@ -112,6 +114,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .nav-menu-btn{display:none;background:none;border:none;color:var(--white);font-size:22px;cursor:pointer;padding:4px}
 @media(max-width:760px){
   .nav{height:52px;padding:0 12px;gap:8px}
+  .specialty-service-nav{margin-top:52px}
   .nav-links{display:none;position:absolute;top:52px;left:0;right:0;background:var(--dark);flex-direction:column;padding:16px;gap:12px;border-bottom:1px solid rgba(255,255,255,.08)}
   .nav-links.open{display:flex}
   .nav-link{padding:12px 4px;font-size:15px;min-height:44px;display:flex;align-items:center}
@@ -132,7 +135,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 @media(max-width:760px){
   .hero-tel-mobile{display:inline-flex;align-items:center;gap:8px;color:var(--blue);font-size:14px;font-weight:600;text-decoration:none;border:1px solid var(--bbr);border-radius:999px;padding:10px 20px;margin-top:16px;background:var(--bg1);-webkit-tap-highlight-color:transparent}
 }
-.hero{min-height:auto;background:var(--bg1);display:flex;align-items:center;justify-content:center;text-align:center;padding:88px 20px 48px;position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.hero{min-height:auto;background:var(--bg1);display:flex;align-items:center;justify-content:center;text-align:center;padding:40px 20px 48px;position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
 .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 70% 40%,rgba(37,99,235,.04),transparent);pointer-events:none}
 .hero-inner{max-width:520px;width:100%;position:relative;z-index:1;margin:0 auto}
 .hero-badge{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--blue);border:1px solid var(--bbr);background:var(--bdim);border-radius:999px;padding:5px 12px;margin-bottom:12px}
@@ -193,6 +196,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .svc-lock-gate-sub{font-size:13px;color:var(--mu)}
 .svc-card.locked{opacity:.35;pointer-events:none;filter:grayscale(.8);transform:none!important}
 .svc-card.locked .svc-btn{opacity:.4}
+#bk-cat-grid .svc-card.pending-cat{box-shadow:0 0 0 2px var(--blue);opacity:.9!important;filter:none!important}
 /* Unlock animation */
 @keyframes unlock-pop{0%{opacity:.35;transform:translateY(10px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
 .svc-card.unlocking{animation:unlock-pop .35s ease forwards}
@@ -1082,7 +1086,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .brand-sub{font-size:7px;letter-spacing:.1em}
 
   /* ── HERO ── */
-  .hero{padding:76px 16px 40px;min-height:auto;flex-direction:column;overflow-x:hidden}
+  .hero{padding:32px 16px 40px;min-height:auto;flex-direction:column;overflow-x:hidden}
   .hero>*{width:100%;max-width:100%;min-width:0}
   .hero h1{font-size:clamp(28px,8vw,38px);line-height:1.15;overflow-wrap:break-word}
   .hero-sub{font-size:14px;margin-bottom:18px;max-width:100%}
@@ -1246,7 +1250,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 @media(max-height:500px) and (max-width:900px){
   .booking-modal-ov{align-items:flex-start;padding:0}
   .booking-modal{max-height:100svh;border-radius:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
-  .hero{min-height:auto;padding:70px 20px 40px}
+  .hero{min-height:auto;padding:28px 20px 40px}
   .hero h1{font-size:clamp(40px,10vw,72px)}
 }
 
@@ -1434,7 +1438,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 /* ── MOBILE CONVERSION PASS (hero, nav, packages, tap targets) ── */
 @media(max-width:768px){
-  .hero{padding:64px 16px 28px;min-height:0;align-items:flex-start;justify-content:flex-start;background:var(--bg1)!important}
+  .hero{padding:28px 16px 28px;min-height:0;align-items:flex-start;justify-content:flex-start;background:var(--bg1)!important}
   .hero::before{display:none!important}
   .hero-inner{display:flex;flex-direction:column;align-items:stretch;width:100%;max-width:100%;min-width:0}
   .hero-badge{align-self:flex-start;font-size:10.5px;padding:4px 10px;margin-bottom:10px}
@@ -1505,7 +1509,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 <nav class="specialty-service-nav" aria-label="Specialty detailing services">
   <div class="specialty-service-nav-inner">
-    <span class="specialty-service-nav-label">Specialty Services</span>
     <div class="specialty-service-links">
       <a class="specialty-service-link" href="rv-detailing.html">RV &amp; Trailers</a>
       <a class="specialty-service-link" href="boats-detailing.html">Boats</a>
@@ -3998,17 +4001,25 @@ function selectCategory(cat){
   const zipEl = document.getElementById('bk-zip');
   const zip = zipEl ? zipEl.value.replace(/\D/g,'') : '';
   if(zip.length < 5 || !activeZone){
+    // Remember intended category/package so specialty-page deep links survive ZIP entry
+    ST._pendingCat=cat;
+    bkGoTo(1);
+    document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('pending-cat'));
+    const pendingCard=document.getElementById('bkcat-'+cat);
+    if(pendingCard) pendingCard.classList.add('pending-cat');
     // Focus the ZIP input with a shake animation
     if(zipEl){ zipEl.focus(); zipEl.style.outline='2px solid var(--rd)'; setTimeout(()=>zipEl.style.outline='',1800); }
     const gateMsg = document.getElementById('bk-gate-msg');
     if(gateMsg){ gateMsg.style.animation='none'; void gateMsg.offsetWidth; gateMsg.style.animation=''; }
     return;
   }
+  ST._pendingCat='';
+  document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('pending-cat'));
   ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
   renderPackages(cat);
   renderTierChips(cat);
   bkGoTo(2);
-  if(ST._prefillPkgId && cat==='cars'){
+  if(ST._prefillPkgId){
     const pid=ST._prefillPkgId;
     ST._prefillPkgId='';
     requestAnimationFrame(()=>{ if(document.getElementById('pk-'+pid)) selectPkg(pid); });
@@ -5725,6 +5736,11 @@ function onBkZipInput(val){
     if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span><span style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px">· Prices include service to your area</span>'; }
     updateBkFromPrices();
     renderLocationCarousel(zone.key||'default');
+    if(ST._pendingCat){
+      const pending=ST._pendingCat;
+      ST._pendingCat='';
+      selectCategory(pending);
+    }
   } else {
     badge.style.display    = 'none';
     updateBkTravelDisplay(null);
@@ -6994,6 +7010,12 @@ function openBookingCarPkg(pkgId){
   openBookingFromHome('cars');
 }
 
+function openBookingPkg(cat, pkgId){
+  if(cat==='fleet'){ openCommercialInquiry(); return; }
+  ST._prefillPkgId=pkgId||'';
+  openBookingFromHome(cat);
+}
+
 // Opens booking — always allowed, but pre-fills ZIP if already entered on hero
 function openBookingFromHome(cat){
   if(cat==='fleet'){ openCommercialInquiry(); return; }
@@ -7029,12 +7051,54 @@ initCarPkgDetailModal();
   try{
     const params=new URLSearchParams(window.location.search||'');
     const book=String(params.get('book')||'').toLowerCase();
+    const pkg=String(params.get('pkg')||params.get('package')||'');
+    const zipQ=String(params.get('zip')||'').replace(/\D/g,'');
+    const embed=params.get('embed')==='1';
     const allowed={cars:1,boats:1,rvs:1,powersports:1};
+    if(embed){
+      document.documentElement.classList.add('cd1-booking-embed');
+      document.body.classList.add('cd1-booking-embed');
+      Array.prototype.forEach.call(document.body.children, function(el){
+        if(el.id==='bk-ov' || el.id==='radar-toast' || el.tagName==='SCRIPT' || el.tagName==='STYLE') return;
+        if(el.classList && (el.classList.contains('booking-modal-ov') || el.id==='cd-widget' || el.id==='cd-panel')) return;
+        el.style.setProperty('display','none','important');
+      });
+      const prevClose=window.closeBooking;
+      window.closeBooking=function(){
+        try{ if(window.parent && window.parent!==window) window.parent.postMessage({type:'cd1-booking-closed'}, '*'); }catch(e){}
+        if(typeof prevClose==='function') prevClose();
+        else forceCloseBooking();
+      };
+      const prevForce=window.forceCloseBooking;
+      window.forceCloseBooking=function(){
+        try{ if(window.parent && window.parent!==window) window.parent.postMessage({type:'cd1-booking-closed'}, '*'); }catch(e){}
+        if(typeof prevForce==='function') prevForce();
+      };
+    }
+    if(zipQ.length===5){
+      const heroZip=document.getElementById('zip-input');
+      const bkZip=document.getElementById('bk-zip');
+      if(heroZip) heroZip.value=zipQ;
+      if(bkZip) bkZip.value=zipQ;
+      try{ localStorage.setItem('cd1_zip', zipQ); sessionStorage.setItem('cd1_zip', zipQ); }catch(e){}
+      if(typeof onBkZipInput==='function') onBkZipInput(zipQ);
+    }
     if(!allowed[book]) return;
+    if(pkg) ST._prefillPkgId=pkg;
+    ST._pendingCat=book;
     setTimeout(function(){ openBookingFromHome(book); }, 120);
-  }catch(e){}
+  }catch(e){
+    try{ if(window.parent && window.parent!==window) window.parent.postMessage({type:'cd1-booking-error', message:'Booking could not open. Call or text 551-313-2956.'}, '*'); }catch(err){}
+  }
 })();
 </script>
+<style>
+html.cd1-booking-embed, body.cd1-booking-embed{background:transparent!important}
+body.cd1-booking-embed #bk-ov{display:flex!important}
+body.cd1-booking-embed .nav,
+body.cd1-booking-embed .specialty-service-nav,
+body.cd1-booking-embed .mobile-sticky-bar{display:none!important}
+</style>
 
 <!-- ════════════════════════════════════════════ -->
 <!--        FLOATING AI CHAT — LOGIC              -->
