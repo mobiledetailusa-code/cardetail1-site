@@ -1,10 +1,13 @@
 /**
  * Specialty-page booking bridge.
- * Opens the existing homepage booking modal in an on-page overlay iframe
- * so the visitor never leaves boats/RV/powersports pages.
+ *
+ * Preferred: open the existing homepage booking UI in an on-page overlay iframe
+ * (requires CSP frame-src 'self').
+ *
+ * Fallback: if the iframe is blocked (CSP / "This content is blocked"), navigate
+ * to the homepage booking with the same category + package + ZIP preselected.
  *
  * Shared launcher: openCategoryPackageBooking({ categoryId, packageId, sourcePath })
- * Alias: openSpecialtyBooking(categoryId, packageId)
  */
 (function () {
   'use strict';
@@ -13,6 +16,7 @@
   var frame = null;
   var styleInjected = false;
   var listenersBound = false;
+  var loadWatchTimer = null;
 
   /** Real package IDs from index.html PRICING — do not invent. */
   var VALID_PACKAGES = {
@@ -43,7 +47,6 @@
     ensureFocusStyles();
     overlay = document.createElement('div');
     overlay.id = 'specialty-booking-overlay';
-    overlay.className = '';
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', 'Booking');
@@ -76,11 +79,22 @@
     return overlay;
   }
 
+  function clearLoadWatch() {
+    if (loadWatchTimer) {
+      clearTimeout(loadWatchTimer);
+      loadWatchTimer = null;
+    }
+  }
+
   function closeSpecialtyBooking() {
+    clearLoadWatch();
     if (!overlay) return;
     overlay.style.display = 'none';
     overlay.classList.remove('is-open');
-    if (frame) frame.src = 'about:blank';
+    if (frame) {
+      frame.onload = null;
+      frame.src = 'about:blank';
+    }
     document.body.style.overflow = '';
   }
 
@@ -118,15 +132,58 @@
     return zip.length === 5 ? zip : '';
   }
 
+  function buildBookingParams(categoryId, packageId, embed) {
+    var params = new URLSearchParams();
+    params.set('book', categoryId);
+    if (embed) params.set('embed', '1');
+    if (packageId) params.set('pkg', packageId);
+    var zip = resolveZip();
+    if (zip) params.set('zip', zip);
+    return params;
+  }
+
+  /** Same booking engine as homepage — top-level navigation (no iframe). */
+  function navigateToHomepageBooking(categoryId, packageId) {
+    var params = buildBookingParams(categoryId, packageId, false);
+    logDiag('BOOKING_NAV_FALLBACK', categoryId, packageId);
+    window.location.assign('index.html?' + params.toString());
+  }
+
+  function iframeLooksBlocked() {
+    if (!frame) return true;
+    try {
+      var doc = frame.contentDocument;
+      if (!doc) return true;
+      var html = doc.documentElement;
+      var body = doc.body;
+      var text = String((body && body.innerText) || '');
+      if (/This content is blocked|refused to display|X-Frame-Options|frame-ancestors/i.test(text)) {
+        return true;
+      }
+      // Successful embed marks html/body with cd1-booking-embed
+      if (html && html.classList && html.classList.contains('cd1-booking-embed')) {
+        return false;
+      }
+      if (body && body.classList && body.classList.contains('cd1-booking-embed')) {
+        return false;
+      }
+      // Loaded something that is not embed mode
+      if (doc.getElementById('bk-ov')) return false;
+      return true;
+    } catch (e) {
+      // Cross-origin / CSP denial
+      return true;
+    }
+  }
+
   /**
-   * Shared package launcher — validates IDs, opens existing booking UI locally.
+   * Shared package launcher — validates IDs, opens existing booking UI.
    * @param {{categoryId:string, packageId?:string|null, sourcePath?:string}} opts
    */
   function openCategoryPackageBooking(opts) {
     opts = opts || {};
     var categoryId = String(opts.categoryId || '').toLowerCase();
     var packageId = opts.packageId ? String(opts.packageId) : '';
-    var sourcePath = opts.sourcePath || String(window.location.pathname || '');
 
     if (!VALID_PACKAGES[categoryId]) {
       showBookingError(
@@ -147,49 +204,62 @@
       return;
     }
 
+    // Prefer overlay; fall back to homepage booking if iframe cannot load.
     try {
       ensureOverlay();
-      var params = new URLSearchParams();
-      params.set('book', categoryId);
-      params.set('embed', '1');
-      if (packageId) params.set('pkg', packageId);
-      var zip = resolveZip();
-      if (zip) params.set('zip', zip);
-      // Stay on the specialty page URL; booking loads inside the overlay iframe only.
+      clearLoadWatch();
+      var params = buildBookingParams(categoryId, packageId, true);
+      var settled = false;
+
+      function settleOk() {
+        if (settled) return;
+        settled = true;
+        clearLoadWatch();
+        logDiag('BOOKING_OPENED', categoryId, packageId);
+      }
+
+      function settleFallback(code) {
+        if (settled) return;
+        settled = true;
+        clearLoadWatch();
+        closeSpecialtyBooking();
+        navigateToHomepageBooking(categoryId, packageId);
+        logDiag(code || 'IFRAME_BLOCKED_FALLBACK', categoryId, packageId);
+      }
+
       frame.onload = function () {
-        try {
-          var doc = frame.contentDocument;
-          if (!doc) return;
-          var embedOk = doc.documentElement && doc.documentElement.classList.contains('cd1-booking-embed');
-          var bk = doc.getElementById('bk-ov');
-          if (!embedOk || !bk) {
-            showBookingError(
-              'We could not load this package. Please try again or call/text 551-313-2956.',
-              'EMBED_INIT_FAILED',
-              categoryId,
-              packageId
-            );
-            closeSpecialtyBooking();
+        // Give embed init a moment (openBookingFromQuery uses setTimeout 120ms)
+        setTimeout(function () {
+          if (settled) return;
+          if (iframeLooksBlocked()) {
+            settleFallback('IFRAME_BLOCKED');
+            return;
           }
-        } catch (e) {
-          /* same-origin expected; ignore cross-origin edge cases */
-        }
+          settleOk();
+        }, 280);
       };
+
+      frame.onerror = function () {
+        settleFallback('IFRAME_ERROR');
+      };
+
       frame.src = 'index.html?' + params.toString();
       overlay.style.display = 'flex';
       overlay.classList.add('is-open');
       document.body.style.overflow = 'hidden';
+
+      // Hard timeout: if CSP blocks without a useful onload, fall back.
+      loadWatchTimer = setTimeout(function () {
+        if (settled) return;
+        if (iframeLooksBlocked()) settleFallback('IFRAME_TIMEOUT');
+        else settleOk();
+      }, 1800);
+
       setTimeout(function () {
         try { frame.focus(); } catch (e) {}
       }, 80);
-      logDiag('BOOKING_OPENED', categoryId, packageId);
     } catch (err) {
-      showBookingError(
-        'We could not load this package. Please try again or call/text 551-313-2956.',
-        'LAUNCHER_EXCEPTION',
-        categoryId,
-        packageId
-      );
+      navigateToHomepageBooking(categoryId, packageId);
     }
   }
 
@@ -212,12 +282,19 @@
       if (!ev || !ev.data) return;
       if (ev.data.type === 'cd1-booking-closed') closeSpecialtyBooking();
       if (ev.data.type === 'cd1-booking-error') {
+        // Prefer homepage booking over a dead overlay when embed reports failure.
+        var cat = ev.data.categoryId || '';
+        var pkg = ev.data.packageId || '';
         closeSpecialtyBooking();
+        if (cat && VALID_PACKAGES[cat]) {
+          navigateToHomepageBooking(cat, pkg || null);
+          return;
+        }
         showBookingError(
           ev.data.message || 'We could not load this package. Please try again or call/text 551-313-2956.',
           ev.data.code || 'IFRAME_BOOKING_ERROR',
-          ev.data.categoryId,
-          ev.data.packageId
+          cat,
+          pkg
         );
       }
     });

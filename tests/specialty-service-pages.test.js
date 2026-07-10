@@ -419,7 +419,7 @@ describe('local booking CTAs (no homepage redirect)', () => {
     });
   }
 
-  it('booking bridge opens overlay without navigating away', () => {
+  it('booking bridge opens overlay and falls back to homepage booking if iframe blocked', () => {
     const js = read('assets/specialty-booking-bridge.js');
     assert.match(js, /openSpecialtyBooking/);
     assert.match(js, /openCategoryPackageBooking/);
@@ -427,10 +427,15 @@ describe('local booking CTAs (no homepage redirect)', () => {
     assert.match(js, /params\.set\('book'/);
     assert.match(js, /params\.set\('embed',\s*'1'\)/);
     assert.match(js, /cd1-booking-closed/);
-    assert.doesNotMatch(js, /location\.href\s*=/);
-    assert.doesNotMatch(js, /window\.location\s*=/);
+    assert.match(js, /navigateToHomepageBooking|location\.assign/);
+    assert.match(js, /IFRAME_BLOCKED|This content is blocked/);
     assert.doesNotMatch(js, /href\s*=\s*['"]\/['"]/);
-    assert.doesNotMatch(js, /index\.html['"]?\s*$/m);
+  });
+
+  it('netlify CSP allows same-origin booking iframe', () => {
+    const toml = read('netlify.toml');
+    assert.match(toml, /frame-src 'self'/);
+    assert.match(toml, /X-Frame-Options\s*=\s*"SAMEORIGIN"/);
   });
 
   it('shared launcher validates real category and package IDs', () => {
