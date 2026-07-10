@@ -1314,6 +1314,12 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .specialty-section--secondary{background:var(--bg0);border-top:1px solid var(--line)}
 .specialty-section--secondary .sec-title{font-size:clamp(22px,3.5vw,32px)}
 .specialty-section--secondary .sec-desc{max-width:520px}
+.specialty-highlight-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:0 0 16px}
+.specialty-highlight-btn{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 16px;border-radius:999px;text-decoration:none;font:700 12px var(--fb);letter-spacing:.06em;text-transform:uppercase;transition:.2s}
+.specialty-highlight-btn--boats{background:linear-gradient(135deg,#4d8fd9 0%,#3a7bc8 100%);color:var(--white);border:1px solid var(--blue)}
+.specialty-highlight-btn--boats:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.specialty-highlight-btn--powersports{background:rgba(196,165,116,.12);color:#d9c39a;border:1px solid rgba(196,165,116,.35)}
+.specialty-highlight-btn--powersports:hover{background:rgba(196,165,116,.2);color:#edd7b0}
 .specialty-grid--compact{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .specialty-card--compact{min-height:0;padding:0;box-shadow:var(--shadow-sm);background:var(--bg1);overflow:hidden;display:flex;flex-direction:column}
 .specialty-card--compact .specialty-card-top{padding:18px 16px 12px;flex:1;display:flex;flex-direction:column}
@@ -1333,6 +1339,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 @media(max-width:760px){
   .car-pkg-grid{grid-template-columns:1fr;gap:14px}
   .car-pkg-card--popular{order:-1}
+  .specialty-highlight-row{gap:8px}
+  .specialty-highlight-btn{width:100%;max-width:340px}
   .specialty-grid--compact{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(min-width:761px) and (max-width:980px){
@@ -2026,6 +2034,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="sec-eye">More than cars</div>
     <div class="sec-title">Boats, RVs &amp; powersports</div>
     <div class="sec-desc">Same mobile service for boats, RVs, and powersports. Commercial fleets: request a custom quote.</div>
+    <div class="specialty-highlight-row" aria-label="Dedicated service pages">
+      <a class="specialty-highlight-btn specialty-highlight-btn--boats" href="boats-detailing.html">Featured boat page</a>
+      <a class="specialty-highlight-btn specialty-highlight-btn--powersports" href="powersports-detailing.html">Featured powersports page</a>
+    </div>
     <div class="specialty-grid specialty-grid--compact">
       <div class="specialty-card specialty-card--compact" onclick="openBookingFromHome('boats')">
         <div class="specialty-card-top">
