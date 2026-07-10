@@ -422,12 +422,42 @@ describe('local booking CTAs (no homepage redirect)', () => {
   it('booking bridge opens overlay without navigating away', () => {
     const js = read('assets/specialty-booking-bridge.js');
     assert.match(js, /openSpecialtyBooking/);
+    assert.match(js, /openCategoryPackageBooking/);
     assert.match(js, /specialty-booking-overlay/);
     assert.match(js, /params\.set\('book'/);
     assert.match(js, /params\.set\('embed',\s*'1'\)/);
     assert.match(js, /cd1-booking-closed/);
     assert.doesNotMatch(js, /location\.href\s*=/);
     assert.doesNotMatch(js, /window\.location\s*=/);
+    assert.doesNotMatch(js, /href\s*=\s*['"]\/['"]/);
+    assert.doesNotMatch(js, /index\.html['"]?\s*$/m);
+  });
+
+  it('shared launcher validates real category and package IDs', () => {
+    const js = read('assets/specialty-booking-bridge.js');
+    assert.match(js, /VALID_PACKAGES/);
+    assert.match(js, /boats:\s*\{[^}]*maint/);
+    assert.match(js, /rvs:\s*\{[^}]*exterior/);
+    assert.match(js, /powersports:\s*\{[^}]*wash/);
+    assert.match(js, /INVALID_CATEGORY|INVALID_PACKAGE/);
+    assert.match(js, /We could not load this package/);
+    assert.match(js, /551-313-2956/);
+    assert.doesNotMatch(js, /fallback.*cars|default.*cars/i);
+  });
+
+  it('package CTAs never use href # / or index.html', () => {
+    for (const page of SPECIALTY_PAGES) {
+      const html = read(page);
+      const ctaBlocks = html.match(/<button[^>]*package-booking-cta[\s\S]*?<\/button>/g) || [];
+      assert.ok(ctaBlocks.length >= 3, `${page} expected package CTAs`);
+      for (const block of ctaBlocks) {
+        assert.doesNotMatch(block, /href=/);
+        assert.match(block, /type="button"/);
+        assert.match(block, /data-booking-category="/);
+        assert.match(block, /data-booking-package="/);
+      }
+      assert.doesNotMatch(html, /package-booking-cta[^>]*href="/);
+    }
   });
 
   it('homepage embed mode supports specialty iframe booking', () => {
@@ -437,12 +467,45 @@ describe('local booking CTAs (no homepage redirect)', () => {
     assert.match(html, /cd1-booking-embed/);
     assert.match(html, /openBookingPkg/);
     assert.match(html, /ST\._prefillPkgId/);
+    assert.match(html, /typeof seedDefaultTechs==='function'/);
+    assert.match(html, /hero-zip/);
   });
 
   it('ZIP is preserved into embed query when present', () => {
     const js = read('assets/specialty-booking-bridge.js');
     assert.match(js, /params\.set\('zip'/);
     assert.match(js, /cd1_zip/);
+    assert.match(js, /resolveZip/);
+  });
+
+  it('package CTA IDs exist in index.html PRICING for each specialty category', () => {
+    const index = read('index.html');
+    const extractIds = (cat) => {
+      const m = index.match(new RegExp(`${cat}:\\s*\\{[\\s\\S]*?packages:\\[([\\s\\S]*?)\\],\\s*addons:`));
+      assert.ok(m, `missing ${cat} packages`);
+      return [...m[1].matchAll(/id:'([^']+)'/g)].map((x) => x[1]);
+    };
+    const boatsIds = extractIds('boats');
+    const rvsIds = extractIds('rvs');
+    const psIds = extractIds('powersports');
+    for (const pkg of PACKAGE_BY_PAGE['boats-detailing.html']) {
+      assert.ok(boatsIds.includes(pkg), `boats missing ${pkg}`);
+    }
+    for (const pkg of PACKAGE_BY_PAGE['rv-detailing.html']) {
+      assert.ok(rvsIds.includes(pkg), `rvs missing ${pkg}`);
+    }
+    for (const pkg of PACKAGE_BY_PAGE['powersports-detailing.html']) {
+      assert.ok(psIds.includes(pkg), `powersports missing ${pkg}`);
+    }
+  });
+
+  it('boats/RV length and powersports tiers remain in booking config', () => {
+    const html = read('index.html');
+    assert.match(html, /usesLength=\(cat==='boats'\|\|cat==='rvs'\)/);
+    assert.match(html, /setupLengthSelector/);
+    assert.match(html, /LENGTH_PRICING/);
+    assert.match(html, /motorcycle:\s*\{label:'Motorcycle'/);
+    assert.match(html, /utv:\s*\{label:'UTV \/ Side-by-Side'/);
   });
 });
 

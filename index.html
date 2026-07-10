@@ -6907,8 +6907,9 @@ renderLocationCarousel('default');
 renderHomeAddons();
 _updateHomeFromPrices();
 renderActivityFeed();
-seedDefaultTechs();
-initCarPkgDetailModal();
+// seedDefaultTechs exists on hub pages only — never block specialty embed booking
+try{ if(typeof seedDefaultTechs==='function') seedDefaultTechs(); }catch(e){}
+try{ if(typeof initCarPkgDetailModal==='function') initCarPkgDetailModal(); }catch(e){}
 
 (function openBookingFromQuery(){
   try{
@@ -6939,7 +6940,7 @@ initCarPkgDetailModal();
       };
     }
     if(zipQ.length===5){
-      const heroZip=document.getElementById('zip-input');
+      const heroZip=document.getElementById('hero-zip')||document.getElementById('zip-input');
       const bkZip=document.getElementById('bk-zip');
       if(heroZip) heroZip.value=zipQ;
       if(bkZip) bkZip.value=zipQ;
@@ -6951,16 +6952,28 @@ initCarPkgDetailModal();
     ST._pendingCat=book;
     setTimeout(function(){ openBookingFromHome(book); }, 120);
   }catch(e){
-    try{ if(window.parent && window.parent!==window) window.parent.postMessage({type:'cd1-booking-error', message:'Booking could not open. Call or text 551-313-2956.'}, '*'); }catch(err){}
+    try{
+      if(window.parent && window.parent!==window){
+        window.parent.postMessage({
+          type:'cd1-booking-error',
+          message:'We could not load this package. Please try again or call/text 551-313-2956.',
+          code:'OPEN_BOOKING_QUERY_FAILED',
+          source:String(location.pathname||''),
+          categoryId:String(new URLSearchParams(location.search||'').get('book')||''),
+          packageId:String(new URLSearchParams(location.search||'').get('pkg')||'')
+        }, '*');
+      }
+    }catch(err){}
   }
 })();
 </script>
 <style>
-html.cd1-booking-embed, body.cd1-booking-embed{background:transparent!important}
-body.cd1-booking-embed #bk-ov{display:flex!important}
+html.cd1-booking-embed, body.cd1-booking-embed{background:#02040a!important;overflow:hidden!important}
+body.cd1-booking-embed #bk-ov{display:flex!important;z-index:10000!important;opacity:1!important;visibility:visible!important}
 body.cd1-booking-embed .nav,
 body.cd1-booking-embed .specialty-service-nav,
-body.cd1-booking-embed .mobile-sticky-bar{display:none!important}
+body.cd1-booking-embed .mobile-sticky-bar,
+body.cd1-booking-embed #cd-chat{display:none!important}
 </style>
 
 <!-- ════════════════════════════════════════════ -->
