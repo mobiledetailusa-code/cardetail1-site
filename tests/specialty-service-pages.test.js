@@ -217,14 +217,13 @@ describe('homepage specialty switcher placement and state', () => {
     assert.doesNotMatch(block, /openBooking|data-booking-category|onclick=/);
   });
 
-  it('homepage does not introduce a duplicate More Than Cars block near the header', () => {
+  it('homepage does not include the More Than Cars promo section', () => {
     const html = read('index.html');
-    const headerSlice = html.slice(
-      html.indexOf('id="main-nav"'),
-      html.indexOf('<section class="hero">')
-    );
-    assert.doesNotMatch(headerSlice, /More Than Cars/i);
-    assert.doesNotMatch(headerSlice, /specialty-section/);
+    assert.doesNotMatch(html, /id="specialty-services"/);
+    assert.doesNotMatch(html, /More than cars/i);
+    assert.doesNotMatch(html, /Featured boat page/i);
+    assert.doesNotMatch(html, /specialty-section--secondary/);
+    assert.doesNotMatch(html, /specialty-highlight-btn/);
   });
 
   it('homepage clears fixed header so specialty switcher is visible', () => {

@@ -101,9 +101,12 @@ test('homepage opens package details in modal panel instead of inline card expan
   assert.match(pkgModalJs, /ov\.hidden = true/);
 });
 
-test('homepage specialty cards do not render orphan icon markup', () => {
-  const section = index.slice(index.indexOf('id="specialty-services"'), index.indexOf('id="specialty-services"') + 3500);
-  assert.doesNotMatch(section, /<div class="specialty-icon">/);
+test('homepage no longer shows the More Than Cars specialty promo section', () => {
+  assert.doesNotMatch(index, /id="specialty-services"/);
+  assert.doesNotMatch(index, /More than cars/i);
+  assert.doesNotMatch(index, /Featured boat page/i);
+  assert.doesNotMatch(index, /Featured powersports page/i);
+  assert.match(index, /class="specialty-service-nav"/);
 });
 
 test('booking modal primary buttons keep readable hover colors', () => {
