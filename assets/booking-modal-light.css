@@ -112,35 +112,56 @@
 
 /* Packages */
 .booking-modal .btitle {
-  color: var(--ink, #0f172a);
+  color: var(--ink, #0f172a) !important;
 }
 .booking-modal .bdesc {
-  color: var(--ink-soft, #475569);
+  color: var(--ink-soft, #475569) !important;
 }
 .booking-modal .pkg-tag {
-  color: var(--ink-soft, #475569);
+  color: var(--ink-soft, #475569) !important;
 }
 .booking-modal .pkg-from,
 .booking-modal .pkg-time {
   color: var(--ink-soft, #475569);
 }
 .booking-modal .pkg-feats li {
-  color: var(--ink-soft, #475569);
+  color: var(--ink-soft, #475569) !important;
 }
 .booking-modal .pkg-feats li.no {
-  color: #94a3b8;
+  color: #94a3b8 !important;
 }
 .booking-modal .pkg-div {
   background: var(--line, rgba(15, 23, 42, 0.08));
 }
 .booking-modal .pkg-btn {
-  border-color: var(--bbr, rgba(37, 99, 235, 0.22));
-  color: var(--blue, #2563eb);
+  border-color: var(--bbr, rgba(37, 99, 235, 0.22)) !important;
+  color: var(--blue, #2563eb) !important;
+  background: transparent !important;
 }
 .booking-modal .pkg-btn:hover,
 .booking-modal .pkg.sel .pkg-btn,
 .booking-modal .pkg.pop .pkg-btn {
+  background: var(--blue, #2563eb) !important;
   color: var(--white, #ffffff) !important;
+}
+
+/* Keep pricing/value labels high-contrast in the light booking modal */
+.booking-modal .ov,
+.booking-modal .strip-price,
+.booking-modal .vc-price,
+.booking-modal .pkg-price,
+.booking-modal .addon-price,
+.booking-modal .vcart-item-price {
+  color: var(--ink, #0f172a) !important;
+}
+.booking-modal .pkg-from,
+.booking-modal .pkg-time,
+.booking-modal .vc-price-lbl,
+.booking-modal .ah-total-lbl {
+  color: var(--ink-soft, #475569) !important;
+}
+.booking-modal .pkg-time {
+  background: var(--bdim, rgba(37, 99, 235, 0.08)) !important;
 }
 
 /* Vehicle tiers & confirm */
