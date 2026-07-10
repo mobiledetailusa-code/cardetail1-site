@@ -1,0 +1,98 @@
+/* Shared specialty-services switcher — compact, below global header */
+.specialty-service-nav {
+  position: relative;
+  z-index: 850;
+  background: rgba(18, 25, 34, 0.98);
+  border-bottom: 1px solid rgba(196, 165, 116, 0.14);
+  padding: 8px 16px;
+}
+
+.specialty-service-nav-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.specialty-service-nav-label {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #c4a574;
+  white-space: nowrap;
+}
+
+.specialty-service-links {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.specialty-service-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 10px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(236, 232, 225, 0.88);
+  background: rgba(26, 34, 44, 0.9);
+  border: 1px solid rgba(196, 165, 116, 0.16);
+  border-radius: 10px;
+  line-height: 1.25;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+
+.specialty-service-link:hover {
+  color: #ffffff;
+  border-color: rgba(77, 143, 217, 0.45);
+  background: rgba(77, 143, 217, 0.12);
+}
+
+.specialty-service-link:focus-visible {
+  outline: 2px solid #4d8fd9;
+  outline-offset: 2px;
+}
+
+.specialty-service-link[aria-current="page"] {
+  color: #ffffff;
+  background: linear-gradient(135deg, #4d8fd9 0%, #3a7bc8 100%);
+  border-color: #4d8fd9;
+}
+
+@media (max-width: 640px) {
+  .specialty-service-nav {
+    padding: 8px 12px;
+  }
+
+  .specialty-service-nav-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .specialty-service-nav-label {
+    text-align: center;
+  }
+
+  .specialty-service-links {
+    gap: 6px;
+  }
+
+  .specialty-service-link {
+    min-height: 44px;
+    font-size: 11px;
+    padding: 8px 6px;
+  }
+}

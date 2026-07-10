@@ -6,10 +6,15 @@
 <meta name="description" content="Mobile RV, motorhome &amp; travel trailer detailing in NJ. We bring water, power &amp; scaffolding to your driveway or storage lot in Bergen County. Full exterior washes from $349, roof care &amp; oxidation removal.">
 <meta name="geo.region" content="US-NJ">
 <meta name="geo.placename" content="Bergen County, New Jersey">
+<link rel="canonical" href="https://cardetail1.com/rv-detailing.html">
+<meta property="og:title" content="Mobile RV, Motorhome &amp; Travel Trailer Detailing NJ | Cardetail1">
+<meta property="og:description" content="Mobile exterior, interior and full detailing for travel trailers, fifth wheels and motorhomes, priced by length and condition.">
+<meta property="og:url" content="https://cardetail1.com/rv-detailing.html">
 <title>Mobile RV, Motorhome &amp; Travel Trailer Detailing NJ | Cardetail1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/specialty-service-nav.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -25,7 +30,6 @@
 html{scroll-behavior:smooth}
 body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;line-height:1.6;overflow-x:hidden}
 
-/* NAV */
 .nav{position:fixed;top:0;left:0;right:0;z-index:900;background:rgba(2,4,10,.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.06);padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
 .nav-brand-img{display:flex;align-items:center;text-decoration:none;line-height:0}
 .nav-logo-img{height:52px;width:auto;max-width:245px;object-fit:contain;display:block;filter:drop-shadow(0 8px 18px rgba(0,0,0,.45))}
@@ -42,47 +46,46 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
   .nav-logo-img{height:42px;max-width:190px}
 }
 
-/* HERO */
-.hero{min-height:88vh;background:linear-gradient(180deg,#020b18 0%,#030d1a 55%,var(--bg0) 100%);display:flex;align-items:center;justify-content:center;text-align:center;padding:100px 20px 72px;position:relative;overflow:hidden}
+.specialty-service-nav{margin-top:64px}
+
+.hero{min-height:auto;background:linear-gradient(180deg,#020b18 0%,#030d1a 55%,var(--bg0) 100%);display:flex;align-items:center;justify-content:center;text-align:center;padding:48px 20px 48px;position:relative;overflow:hidden}
 .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 55% at 50% 8%,rgba(77,163,255,.14),transparent);pointer-events:none}
 .hero-inner{position:relative;z-index:1;max-width:780px}
 .hero-badge{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--blue);border:1px solid var(--bbr);background:var(--bdim);padding:6px 18px;border-radius:999px;margin-bottom:20px}
-.hero h1{font-family:var(--fd);font-size:clamp(42px,8vw,82px);line-height:.92;color:var(--white);margin-bottom:18px;letter-spacing:.01em}
+.hero h1{font-family:var(--fd);font-size:clamp(36px,7vw,68px);line-height:.92;color:var(--white);margin-bottom:18px;letter-spacing:.01em}
 .hero-sub{font-size:17px;font-weight:300;color:var(--mu);max-width:620px;margin:0 auto 32px;line-height:1.75}
 .hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.btn-primary{padding:16px 36px;border-radius:999px;border:none;background:var(--blue);color:#000;font-family:var(--fb);font-size:14px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s;text-decoration:none;display:inline-block}
+.btn-primary{padding:16px 36px;border-radius:999px;border:none;background:var(--blue);color:#000;font-family:var(--fb);font-size:14px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px}
 .btn-primary:hover{background:#fff;transform:translateY(-2px)}
-.btn-outline{padding:16px 36px;border-radius:999px;border:1px solid var(--bbr);background:transparent;color:var(--blue);font-family:var(--fb);font-size:14px;font-weight:600;cursor:pointer;transition:.2s;text-decoration:none;display:inline-block}
+.btn-outline{padding:16px 36px;border-radius:999px;border:1px solid var(--bbr);background:transparent;color:var(--blue);font-family:var(--fb);font-size:14px;font-weight:600;cursor:pointer;transition:.2s;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px}
 .btn-outline:hover{background:var(--blue);color:#000}
 
-/* SECTIONS */
-.section{padding:80px 20px;max-width:1100px;margin:0 auto}
-.section-full{padding:80px 20px;background:var(--bg1)}
+.section{padding:64px 20px;max-width:1100px;margin:0 auto}
+.section-full{padding:64px 20px;background:var(--bg1)}
 .section-full .section{padding:0}
 .sec-eye{font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--blue);margin-bottom:10px;text-align:center}
-.sec-title{font-family:var(--fd);font-size:clamp(36px,6vw,58px);line-height:.95;color:var(--white);margin-bottom:12px;text-align:center;letter-spacing:.02em}
-.sec-desc{color:var(--mu);font-size:15px;text-align:center;max-width:620px;margin:0 auto 48px;line-height:1.7}
+.sec-title{font-family:var(--fd);font-size:clamp(32px,5vw,52px);line-height:.95;color:var(--white);margin-bottom:12px;text-align:center;letter-spacing:.02em}
+.sec-desc{color:var(--mu);font-size:15px;text-align:center;max-width:620px;margin:0 auto 36px;line-height:1.7}
 
-/* BENEFITS */
+.pkg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.pkg-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:22px 18px;display:flex;flex-direction:column;min-height:100%}
+.pkg-card.pop{border-color:rgba(77,163,255,.4)}
+.pkg-name{font-family:var(--fd);font-size:26px;color:var(--white);letter-spacing:.02em;margin-bottom:4px}
+.pkg-tag{font-size:12px;color:var(--mu);margin-bottom:10px}
+.pkg-price{font-size:22px;font-weight:700;color:var(--gold);margin-bottom:4px}
+.pkg-basis{font-size:11px;color:var(--mu);margin-bottom:8px}
+.pkg-time{font-size:11px;color:var(--blue);margin-bottom:12px}
+.pkg-feats{list-style:none;margin:0 0 16px;flex:1}
+.pkg-feats li{font-size:13px;color:var(--mu);padding:3px 0 3px 16px;position:relative}
+.pkg-feats li::before{content:'✓';position:absolute;left:0;color:var(--blue);font-weight:700}
+.pkg-note{font-size:12px;color:var(--mu);text-align:center;max-width:760px;margin:20px auto 0;line-height:1.55}
+
 .benefit-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
 .benefit-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:28px 24px;transition:.22s}
 .benefit-card:hover{border-color:var(--bbr);transform:translateY(-3px)}
 .benefit-card h3{font-family:var(--fd);font-size:26px;color:var(--white);letter-spacing:.02em;margin-bottom:8px}
 .benefit-card p{font-size:14px;color:var(--mu);line-height:1.65}
 
-/* SERVICE PACKAGES */
-.service-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
-.svc-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);padding:28px 24px;transition:.22s;position:relative;overflow:hidden;display:flex;flex-direction:column}
-.svc-card:hover{border-color:var(--bbr);transform:translateY(-4px);box-shadow:0 24px 60px rgba(0,0,0,.4)}
-.svc-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(77,163,255,.08),transparent 60%);opacity:0;transition:.3s;pointer-events:none}
-.svc-card:hover::before{opacity:1}
-.svc-name{font-family:var(--fd);font-size:28px;color:var(--white);margin-bottom:6px;letter-spacing:.02em}
-.svc-from{font-size:13px;color:var(--gold);font-weight:700;margin-bottom:14px;letter-spacing:.04em}
-.svc-desc{font-size:14px;color:var(--mu);margin-bottom:20px;line-height:1.65;flex:1}
-.svc-btn{width:100%;padding:12px;border-radius:999px;border:1px solid var(--bbr);background:transparent;color:var(--blue);font-family:var(--fb);font-size:13px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s;text-decoration:none;text-align:center;display:block;margin-top:auto}
-.svc-btn:hover{background:var(--blue);color:#000;border-color:var(--blue)}
-
-/* GALLERY */
 .ba-showcase-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;align-items:stretch}
 .ba-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);overflow:hidden;transition:.22s}
 .ba-card:hover{border-color:var(--bbr)}
@@ -93,14 +96,12 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .ba-service{font-size:11.5px;color:var(--blue);font-weight:600;margin-bottom:8px}
 .ba-caption{font-size:13px;color:var(--mu);line-height:1.6}
 
-/* CTA */
 .cta-block{background:linear-gradient(135deg,rgba(77,163,255,.12),rgba(77,163,255,.04));border:1px solid var(--bbr);border-radius:var(--rx);padding:48px 32px;text-align:center;max-width:720px;margin:0 auto}
 .cta-block h2{font-family:var(--fd);font-size:clamp(32px,5vw,48px);color:var(--white);margin-bottom:10px;letter-spacing:.02em}
 .cta-block p{color:var(--mu);font-size:15px;margin-bottom:8px;max-width:480px;margin-left:auto;margin-right:auto}
 .cta-price{font-family:var(--fd);font-size:42px;color:var(--gold);letter-spacing:.03em;margin:16px 0 24px}
 .cta-note{font-size:12px;color:rgba(138,155,176,.7);margin-top:14px}
 
-/* FOOTER */
 footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:48px 24px 32px}
 .foot-in{max-width:1100px;margin:0 auto}
 .foot-top{display:grid;grid-template-columns:1fr 1fr 1fr;gap:40px;margin-bottom:36px}
@@ -115,10 +116,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 .foot-areas{font-size:12px;color:rgba(138,155,176,.5)}
 
 @media(max-width:640px){
-  .section{padding:56px 16px}
+  .section{padding:48px 16px}
   .ba-showcase-row{grid-template-columns:1fr;gap:16px}
-  .service-grid{grid-template-columns:1fr;gap:14px}
-  .svc-name{font-size:24px}
   .cta-block{padding:36px 20px}
 }
 </style>
@@ -130,20 +129,101 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   <div class="nav-links" id="nav-links">
     <a class="nav-link" href="/">Services</a>
     <a class="nav-link" href="tel:5513132956">Call / Text</a>
-    <a class="nav-cta" href="/">Book Now</a>
+    <a class="nav-cta" href="index.html?book=rvs">Book Now</a>
   </div>
   <button class="nav-menu-btn" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Menu">☰</button>
 </nav>
 
-<section class="hero">
-  <div class="hero-inner">
-    <div class="hero-badge">Bergen County · Fully Mobile RV Service</div>
-    <h1>Mobile RV, Motorhome &amp; Travel Trailer Detailing in NJ</h1>
-    <p class="hero-sub">Don't waste your weekend washing a 30-foot rig. We bring the water, power, and scaffolding directly to your driveway or storage facility. Bergen County's trusted mobile service.</p>
-    <div class="hero-btns">
-      <a class="btn-primary" href="index.html">Book RV Detail</a>
+<nav class="specialty-service-nav" aria-label="Specialty detailing services">
+  <div class="specialty-service-nav-inner">
+    <span class="specialty-service-nav-label">Specialty Services</span>
+    <div class="specialty-service-links">
+      <a class="specialty-service-link" href="rv-detailing.html" aria-current="page">RV &amp; Trailers</a>
+      <a class="specialty-service-link" href="boats-detailing.html">Boats</a>
+      <a class="specialty-service-link" href="powersports-detailing.html">Powersports</a>
     </div>
   </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">Mobile RV &amp; Trailer Detailing</div>
+    <h1>Mobile RV &amp; Trailer Detailing at Your Location</h1>
+    <p class="hero-sub">Mobile exterior, interior and full detailing for travel trailers, fifth wheels and motorhomes, priced by length and condition.</p>
+    <div class="hero-btns">
+      <a class="btn-primary" href="#packages">View RV Packages</a>
+      <a class="btn-outline" href="index.html?book=rvs">Book RV &amp; Trailer Detailing</a>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="packages">
+  <div class="sec-eye">RV &amp; Trailer Packages</div>
+  <h2 class="sec-title">Choose Your Mobile RV &amp; Trailer Detailing Package</h2>
+  <p class="sec-desc">Select exterior, interior or complete detailing based on vehicle length, access and condition.</p>
+  <div class="pkg-grid">
+    <article class="pkg-card">
+      <h3 class="pkg-name">Exterior Wash</h3>
+      <p class="pkg-tag">Full exterior + wheels, tires &amp; glass</p>
+      <div class="pkg-price">From $349</div>
+      <div class="pkg-basis">Priced by length</div>
+      <div class="pkg-time">~2–3h</div>
+      <ul class="pkg-feats">
+        <li>Full exterior body wash</li>
+        <li>Light black streak reduction</li>
+        <li>Exterior glass &amp; mirrors</li>
+        <li>Wheels cleaned &amp; tires dressed</li>
+        <li>Bug &amp; debris removal</li>
+      </ul>
+      <a class="btn-primary" href="index.html?book=rvs">Book Exterior Wash</a>
+    </article>
+    <article class="pkg-card">
+      <h3 class="pkg-name">Interior Detail</h3>
+      <p class="pkg-tag">Deep living space — kitchen, bath &amp; cabin</p>
+      <div class="pkg-price">From $299</div>
+      <div class="pkg-basis">Priced by length</div>
+      <div class="pkg-time">~3–5h</div>
+      <ul class="pkg-feats">
+        <li>Full vacuum — floors, furniture, slideouts</li>
+        <li>Living area &amp; upholstery cleaned</li>
+        <li>Kitchen surfaces &amp; appliance fronts</li>
+        <li>Bathroom cleaning</li>
+        <li>Interior windows &amp; mirrors</li>
+      </ul>
+      <a class="btn-primary" href="index.html?book=rvs">Book Interior Detail</a>
+    </article>
+    <article class="pkg-card pop">
+      <h3 class="pkg-name">Full RV Detail</h3>
+      <p class="pkg-tag">Complete interior + exterior — most popular</p>
+      <div class="pkg-price">From $549</div>
+      <div class="pkg-basis">Priced by length</div>
+      <div class="pkg-time">~5–8h</div>
+      <ul class="pkg-feats">
+        <li>Exterior hand wash &amp; streak reduction</li>
+        <li>Spray wax/sealant</li>
+        <li>Full interior vacuum</li>
+        <li>Kitchen &amp; bathroom detail</li>
+        <li>UV protectant</li>
+      </ul>
+      <a class="btn-primary" href="index.html?book=rvs">Book Full RV Detail</a>
+    </article>
+    <article class="pkg-card">
+      <h3 class="pkg-name">Premium Exterior</h3>
+      <p class="pkg-tag">Gloss restoration + oxidation + protection</p>
+      <div class="pkg-price">From $849</div>
+      <div class="pkg-basis">Priced by length &amp; condition</div>
+      <div class="pkg-time">~4–6h</div>
+      <ul class="pkg-feats">
+        <li>Oxidation assessment &amp; panel polishing</li>
+        <li>Gelcoat gloss enhancement</li>
+        <li>Machine-applied premium wax/sealant</li>
+        <li>Exterior trim &amp; cap cleaning</li>
+        <li>Final inspection</li>
+      </ul>
+      <a class="btn-primary" href="index.html?book=rvs">Book Premium Exterior</a>
+    </article>
+  </div>
+  <p class="pkg-note">Difficult access, oversized units, severe oxidation, roof work, awnings, and restoration-level jobs may require inspection or a custom quote before final pricing.</p>
 </section>
 
 <section class="section-full">
@@ -165,32 +245,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <p>We detail your Class A, Class C, Fifth-Wheel, or Travel Trailer right where it sits.</p>
       </article>
     </div>
-  </div>
-</section>
-
-<section class="section" id="packages">
-  <div class="sec-eye">Packages &amp; pricing</div>
-  <h2 class="sec-title">Services &amp; Pricing</h2>
-  <p class="sec-desc">Published per-length pricing for travel trailers, fifth-wheels, and motorhomes. Totals scale with your rig's length — book online to see your price.</p>
-  <div class="service-grid">
-    <article class="svc-card">
-      <h3 class="svc-name">Full Exterior Wash</h3>
-      <div class="svc-from">From $349</div>
-      <p class="svc-desc">Complete exterior wash, bug and tar removal from the front cap, wheel and tire cleaning, and window cleaning. Perfect for end-of-season or pre-trip prep.</p>
-      <a class="svc-btn" href="index.html">Book RV Detail</a>
-    </article>
-    <article class="svc-card">
-      <h3 class="svc-name">Roof Wash &amp; UV Treatment</h3>
-      <div class="svc-from">From $149</div>
-      <p class="svc-desc">Deep clean of the roof membrane, slide-out tops, and solar panels, followed by a protective UV coating to prevent chalking and cracking.</p>
-      <a class="svc-btn" href="index.html">Check Availability</a>
-    </article>
-    <article class="svc-card">
-      <h3 class="svc-name">Oxidation Removal &amp; Wax</h3>
-      <div class="svc-from">From $849</div>
-      <p class="svc-desc">Machine polishing to cut through chalky, faded fiberglass. Restores the deep gloss to your gel coat and seals it for the season.</p>
-      <a class="svc-btn" href="index.html">Book RV Detail</a>
-    </article>
   </div>
 </section>
 
@@ -237,9 +291,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 <section class="section">
   <div class="cta-block">
     <h2>Ready to Book Your RV?</h2>
-    <p>Exterior washes from $349 · roof care from $149 · premium oxidation &amp; wax from $849. Book online or call to schedule.</p>
+    <p>Exterior washes from $349 · interior from $299 · full detail from $549. Book online or call to schedule.</p>
     <div class="cta-price">From $349</div>
-    <a class="btn-primary" href="index.html">Book RV Detail</a>
+    <a class="btn-primary" href="index.html?book=rvs">Book RV Detail</a>
     <p class="cta-note">Prefer to talk it through first? Call or text <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.</p>
   </div>
 </section>
@@ -254,9 +308,9 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="foot-col">
         <h4>Services</h4>
         <a href="/">Cars, SUVs &amp; Trucks</a>
-        <a href="/">Boats &amp; Marine</a>
+        <a href="boats-detailing.html">Boats &amp; Marine</a>
         <a href="rv-detailing.html">RVs &amp; Trailers</a>
-        <a href="/">Motorcycles &amp; ATV</a>
+        <a href="powersports-detailing.html">Motorcycles &amp; ATV</a>
         <a href="fleet-services.html">Fleet Services</a>
       </div>
       <div class="foot-col">

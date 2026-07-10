@@ -3,11 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="description" content="Mobile powersports detailing for motorcycles, ATVs, UTVs, and jet skis in Bergen County and nearby areas.">
+<meta name="description" content="Mobile powersports detailing for motorcycles, ATVs, UTVs, side-by-sides and personal watercraft in Bergen County and nearby areas.">
+<link rel="canonical" href="https://cardetail1.com/powersports-detailing.html">
+<meta property="og:title" content="Mobile Powersports Detailing | Cardetail1">
+<meta property="og:description" content="Mobile detailing for motorcycles, ATVs, UTVs and jet skis—from maintenance cleaning to showroom-level finishing.">
+<meta property="og:url" content="https://cardetail1.com/powersports-detailing.html">
 <title>Mobile Powersports Detailing | Cardetail1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/specialty-service-nav.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -16,103 +21,192 @@
   --fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;--r:16px;
 }
 body{background:linear-gradient(180deg,#0f1419 0%,#12181f 100%);color:var(--ink);font-family:var(--fb);line-height:1.6}
-.nav{position:sticky;top:0;z-index:10;background:rgba(23,33,47,.96);border-bottom:1px solid rgba(255,255,255,.08);padding:10px 20px;display:flex;justify-content:space-between;align-items:center}
+.nav{position:sticky;top:0;z-index:900;background:rgba(23,33,47,.96);border-bottom:1px solid rgba(255,255,255,.08);padding:10px 20px;display:flex;justify-content:space-between;align-items:center}
 .nav a{color:#dbe6f2;text-decoration:none;font-size:14px}
 .nav .cta{background:var(--blue);color:#fff;padding:8px 16px;border-radius:999px}
-.hero{padding:84px 20px 56px;text-align:center;max-width:960px;margin:0 auto}
+.hero{padding:48px 20px 40px;text-align:center;max-width:960px;margin:0 auto}
 .eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
-h1{font-family:var(--fd);font-size:clamp(42px,8vw,82px);line-height:.9;margin-bottom:16px}
-.sub{color:var(--muted);max-width:700px;margin:0 auto 22px}
+h1{font-family:var(--fd);font-size:clamp(36px,7vw,68px);line-height:.92;margin-bottom:14px}
+.sub{color:var(--muted);max-width:720px;margin:0 auto 22px}
 .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.btn{display:inline-block;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:.05em;text-transform:uppercase}
 .btn-primary{background:var(--blue);color:#fff}
 .btn-outline{border:1px solid var(--line);color:#d7e5f4}
-.section{max-width:1120px;margin:0 auto;padding:0 20px 64px}
-.sec-title{font-family:var(--fd);font-size:clamp(32px,6vw,56px);line-height:.95;margin-bottom:8px;text-align:center}
+.section{max-width:1120px;margin:0 auto;padding:0 20px 56px}
+.sec-eye{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);text-align:center;margin-bottom:8px}
+.sec-title{font-family:var(--fd);font-size:clamp(28px,5vw,48px);line-height:.95;margin-bottom:8px;text-align:center}
 .sec-copy{color:var(--muted);text-align:center;max-width:760px;margin:0 auto 28px}
-.video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
-.card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.card video{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:#0b1118}
-.meta{padding:12px 14px 14px}
-.meta h3{font-family:var(--fd);font-size:24px;letter-spacing:.02em}
-.meta p{color:var(--muted);font-size:13px}
-.asset-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;max-width:980px;margin:0 auto}
-.asset-list a{display:block;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:#cfe1f4;text-decoration:none;font-size:13px}
-.asset-list a:hover{border-color:#3a7bc8}
+.pkg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.pkg-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:22px 18px;display:flex;flex-direction:column;min-height:100%}
+.pkg-card.pop{border-color:rgba(77,143,217,.4)}
+.pkg-name{font-family:var(--fd);font-size:26px;letter-spacing:.02em;margin-bottom:4px}
+.pkg-tag{font-size:12px;color:var(--muted);margin-bottom:10px}
+.pkg-price{font-size:22px;font-weight:700;color:var(--blue);margin-bottom:4px}
+.pkg-basis{font-size:11px;color:var(--muted);margin-bottom:8px}
+.pkg-time{font-size:11px;color:var(--gold);margin-bottom:12px}
+.pkg-feats{list-style:none;margin:0 0 16px;flex:1}
+.pkg-feats li{font-size:13px;color:var(--muted);padding:3px 0 3px 16px;position:relative}
+.pkg-feats li::before{content:'✓';position:absolute;left:0;color:var(--blue);font-weight:700}
+.pkg-note{font-size:12px;color:var(--muted);text-align:center;max-width:760px;margin:20px auto 0;line-height:1.55}
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.gallery-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.gallery-card img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#0b1118}
+.gallery-card .meta{padding:10px 12px 12px}
+.gallery-card h3{font-family:var(--fd);font-size:18px;letter-spacing:.02em}
+.gallery-card p{color:var(--muted);font-size:12px}
 .cta-block{max-width:780px;margin:0 auto 70px;padding:34px 24px;border:1px solid var(--line);border-radius:24px;background:rgba(18,25,34,.7);text-align:center}
 .cta-block p{color:var(--muted);margin:8px 0 16px}
 footer{padding:30px 20px;color:var(--muted);text-align:center;border-top:1px solid var(--line)}
+footer a{color:var(--blue);text-decoration:none}
 </style>
 </head>
 <body>
-<nav class="nav">
+<nav class="nav" id="main-nav">
   <a href="index.html">Cardetail1 Home</a>
   <a href="tel:5513132956">Call / Text 551-313-2956</a>
-  <a class="cta" href="index.html">Book online</a>
+  <a class="cta" href="index.html?book=powersports">Book online</a>
+</nav>
+
+<nav class="specialty-service-nav" aria-label="Specialty detailing services">
+  <div class="specialty-service-nav-inner">
+    <span class="specialty-service-nav-label">Specialty Services</span>
+    <div class="specialty-service-links">
+      <a class="specialty-service-link" href="rv-detailing.html">RV &amp; Trailers</a>
+      <a class="specialty-service-link" href="boats-detailing.html">Boats</a>
+      <a class="specialty-service-link" href="powersports-detailing.html" aria-current="page">Powersports</a>
+    </div>
+  </div>
 </nav>
 
 <header class="hero">
-  <div class="eyebrow">Powersports Service</div>
-  <h1>Mobile Powersports Detailing</h1>
-  <p class="sub">Dedicated page for motorcycle, ATV, UTV, and jet ski detailing. Built using assets copied from your `POwersport pics` folder.</p>
+  <div class="eyebrow">Mobile Powersports Detailing</div>
+  <h1>Mobile Powersports Detailing at Your Location</h1>
+  <p class="sub">Mobile detailing for motorcycles, ATVs, UTVs, side-by-sides and personal watercraft—from maintenance cleaning to showroom-level finishing.</p>
   <div class="btns">
-    <a class="btn btn-primary" href="index.html">Book powersports</a>
-    <a class="btn btn-outline" href="#powersports-gallery">See media</a>
+    <a class="btn btn-primary" href="#packages">View Powersports Packages</a>
+    <a class="btn btn-outline" href="index.html?book=powersports">Book Powersports Detailing</a>
   </div>
 </header>
 
-<section class="section" id="powersports-gallery">
-  <h2 class="sec-title">Powersports Video Gallery</h2>
-  <p class="sec-copy">MOV clips from your folder are embedded below. Browser support can vary by codec, but files are included and linked directly.</p>
-  <div class="video-grid">
-    <article class="card">
-      <video controls playsinline preload="metadata">
-        <source src="assets/media/powersports/IMG_6740.MOV" type="video/quicktime">
-      </video>
-      <div class="meta"><h3>Clip 01</h3><p>Powersports cleaning clip from source folder.</p></div>
+<section class="section" id="packages">
+  <div class="sec-eye">Powersports Packages</div>
+  <h2 class="sec-title">Choose Your Powersports Detailing Package</h2>
+  <p class="sec-copy">Select a service based on the vehicle type, surface condition and level of detailing required.</p>
+  <div class="pkg-grid">
+    <article class="pkg-card">
+      <h3 class="pkg-name">Wash &amp; Shine</h3>
+      <p class="pkg-tag">Quick refresh + UV protection</p>
+      <div class="pkg-price">From $119</div>
+      <div class="pkg-basis">By vehicle type</div>
+      <div class="pkg-time">~45–75 min</div>
+      <ul class="pkg-feats">
+        <li>Full exterior wash &amp; rinse</li>
+        <li>Wheels &amp; tires cleaned</li>
+        <li>Plastics &amp; body panels cleaned</li>
+        <li>Seat wipe-down</li>
+        <li>UV protectant applied</li>
+      </ul>
+      <a class="btn btn-primary" href="index.html?book=powersports">Book Wash &amp; Shine</a>
     </article>
-    <article class="card">
-      <video controls playsinline preload="metadata">
-        <source src="assets/media/powersports/IMG_6756.MOV" type="video/quicktime">
-      </video>
-      <div class="meta"><h3>Clip 02</h3><p>On-site detail footage.</p></div>
+    <article class="pkg-card pop">
+      <h3 class="pkg-name">Full Detail</h3>
+      <p class="pkg-tag">Complete detail — most requested</p>
+      <div class="pkg-price">From $266</div>
+      <div class="pkg-basis">By vehicle type</div>
+      <div class="pkg-time">~2.5–3.5h</div>
+      <ul class="pkg-feats">
+        <li>Deeper cleaning included</li>
+        <li>Detailed wheels and accessible areas</li>
+        <li>Plastics, paint and trim treatment</li>
+        <li>Machine wax/sealant applied</li>
+        <li>Final quality inspection</li>
+      </ul>
+      <a class="btn btn-primary" href="index.html?book=powersports">Book Full Detail</a>
     </article>
-    <article class="card">
-      <video controls playsinline preload="metadata">
-        <source src="assets/media/powersports/IMG_7193.MOV" type="video/quicktime">
-      </video>
-      <div class="meta"><h3>Clip 03</h3><p>Quick turnaround example.</p></div>
-    </article>
-    <article class="card">
-      <video controls playsinline preload="metadata">
-        <source src="assets/media/powersports/IMG_7194.MOV" type="video/quicktime">
-      </video>
-      <div class="meta"><h3>Clip 04</h3><p>Additional powersports result.</p></div>
+    <article class="pkg-card">
+      <h3 class="pkg-name">Premium Detail</h3>
+      <p class="pkg-tag">Showroom finish + max protection</p>
+      <div class="pkg-price">From $367</div>
+      <div class="pkg-basis">By vehicle type &amp; condition</div>
+      <div class="pkg-time">~3–4.5h</div>
+      <ul class="pkg-feats">
+        <li>Deeper finish enhancement</li>
+        <li>Paint &amp; plastic enhancement polish</li>
+        <li>Light oxidation removal</li>
+        <li>Premium polymer sealant</li>
+        <li>Condition-based review when required</li>
+      </ul>
+      <a class="btn btn-primary" href="index.html?book=powersports">Book Premium Detail</a>
     </article>
   </div>
+  <p class="pkg-note">Heavy mud, trail buildup, severe oxidation, unsafe working conditions, and restoration-level work may require inspection or additional charges before final pricing.</p>
 </section>
 
-<section class="section">
-  <h2 class="sec-title">Additional Image Assets</h2>
-  <p class="sec-copy">HEIC files are preserved exactly as provided. They are linked below for direct open/download.</p>
-  <div class="asset-list">
-    <a href="assets/media/powersports/IMG_6736.HEIC" target="_blank" rel="noopener">IMG_6736.HEIC</a>
-    <a href="assets/media/powersports/IMG_6739.HEIC" target="_blank" rel="noopener">IMG_6739.HEIC</a>
-    <a href="assets/media/powersports/IMG_6754.HEIC" target="_blank" rel="noopener">IMG_6754.HEIC</a>
-    <a href="assets/media/powersports/IMG_6764.HEIC" target="_blank" rel="noopener">IMG_6764.HEIC</a>
-    <a href="assets/media/powersports/IMG_7189.HEIC" target="_blank" rel="noopener">IMG_7189.HEIC</a>
-    <a href="assets/media/powersports/IMG_7191.HEIC" target="_blank" rel="noopener">IMG_7191.HEIC</a>
+<section class="section" id="gallery">
+  <div class="sec-eye">Recent work</div>
+  <h2 class="sec-title">Powersports Gallery</h2>
+  <p class="sec-copy">Real mobile powersports detailing photos from recent jobs.</p>
+  <div class="gallery-grid">
+    <article class="gallery-card">
+      <img src="assets/media/powersports/gallery/IMG_7146.jpeg" alt="Mobile motorcycle detailing exterior finish" width="1200" height="900" loading="lazy" decoding="async">
+      <div class="meta"><h3>Motorcycle Detail</h3><p>Exterior finish and chrome cleanup.</p></div>
+    </article>
+    <article class="gallery-card">
+      <img src="assets/media/powersports/gallery/IMG_7147.jpeg" alt="Motorcycle paint and trim detailing" width="1200" height="900" loading="lazy" decoding="async">
+      <div class="meta"><h3>Paint &amp; Trim</h3><p>Paint and plastic trim treatment.</p></div>
+    </article>
+    <article class="gallery-card">
+      <img src="assets/media/powersports/gallery/IMG_7154.jpeg" alt="ATV exterior detailing" width="1200" height="900" loading="lazy" decoding="async">
+      <div class="meta"><h3>ATV Exterior</h3><p>ATV exterior detailing.</p></div>
+    </article>
+    <article class="gallery-card">
+      <img src="assets/media/powersports/gallery/IMG_7156.jpeg" alt="ATV wheels and plastics detailing" width="1200" height="900" loading="lazy" decoding="async">
+      <div class="meta"><h3>Wheels &amp; Plastics</h3><p>Wheels and accessible plastics cleaned.</p></div>
+    </article>
+    <article class="gallery-card">
+      <img src="assets/media/powersports/gallery/IMG_7157.jpeg" alt="UTV and side-by-side mobile detailing" width="1200" height="900" loading="lazy" decoding="async">
+      <div class="meta"><h3>UTV Detail</h3><p>UTV and side-by-side mobile detailing.</p></div>
+    </article>
+    <article class="gallery-card">
+      <img src="assets/media/powersports/gallery/IMG_7166.jpeg" alt="Powersports exterior wash and protection" width="1200" height="900" loading="lazy" decoding="async">
+      <div class="meta"><h3>Wash &amp; Protect</h3><p>Exterior wash and UV protection.</p></div>
+    </article>
+    <article class="gallery-card">
+      <img src="assets/media/powersports/gallery/IMG_7167.jpeg" alt="Powersports detailing at customer location" width="1200" height="900" loading="lazy" decoding="async">
+      <div class="meta"><h3>On Location</h3><p>Detailing completed at the customer location.</p></div>
+    </article>
+    <article class="gallery-card">
+      <img src="assets/media/powersports/gallery/IMG_7168.jpeg" alt="Motorcycle chrome and body panel detailing" width="1200" height="900" loading="lazy" decoding="async">
+      <div class="meta"><h3>Chrome Finish</h3><p>Chrome and body panel detailing.</p></div>
+    </article>
+    <article class="gallery-card">
+      <img src="assets/media/powersports/gallery/IMG_7381.jpeg" alt="Powersports vehicle after mobile detailing" width="1200" height="900" loading="lazy" decoding="async">
+      <div class="meta"><h3>Finished Result</h3><p>Completed powersports detail.</p></div>
+    </article>
+    <article class="gallery-card">
+      <img src="assets/media/powersports/gallery/IMG_7413.jpeg" alt="Mobile powersports detailing exterior gloss" width="1200" height="900" loading="lazy" decoding="async">
+      <div class="meta"><h3>Gloss Finish</h3><p>Exterior gloss after detailing.</p></div>
+    </article>
+    <article class="gallery-card">
+      <img src="assets/media/powersports/gallery/IMG_7441.jpeg" alt="Powersports detailing close-up finish" width="1200" height="900" loading="lazy" decoding="async">
+      <div class="meta"><h3>Close-Up Finish</h3><p>Surface finish after cleaning and protection.</p></div>
+    </article>
+    <article class="gallery-card">
+      <img src="assets/media/powersports/gallery/IMG_7491.jpeg" alt="Powersports detailing completed outdoors" width="1200" height="900" loading="lazy" decoding="async">
+      <div class="meta"><h3>Outdoor Job</h3><p>Completed outdoor powersports detail.</p></div>
+    </article>
   </div>
 </section>
 
 <section class="cta-block">
   <h2 class="sec-title">Ready to Schedule?</h2>
   <p>Pick your package in booking, then we confirm final details by vehicle type, condition, and location.</p>
-  <a class="btn btn-primary" href="index.html">Start booking</a>
+  <a class="btn btn-primary" href="index.html?book=powersports">Start powersports booking</a>
 </section>
 
 <footer>
-  <div>Cardetail1 - Detailing Zone LLC - Mobile detailing for cars, boats, RVs, and powersports.</div>
+  <div><a href="index.html">Home</a> · <a href="new-jersey-hub.html">New Jersey</a> · <a href="boats-detailing.html">Boats</a> · <a href="rv-detailing.html">RV &amp; Trailers</a></div>
+  <div style="margin-top:8px">Cardetail1 · Detailing Zone LLC · Mobile detailing for cars, boats, RVs, and powersports.</div>
 </footer>
 </body>
 </html>

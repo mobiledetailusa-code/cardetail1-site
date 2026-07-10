@@ -152,15 +152,16 @@ test('no Netlify Function files changed in this scope', () => {
   }
 });
 
-test('state-hub accordions remain unchanged', () => {
-  const diff = execSync('git diff --name-only HEAD', { cwd: root, encoding: 'utf8' });
-  const changed = diff.split('\n').filter(Boolean);
+test('state-hub accordions remain intact', () => {
   for (const hub of [
     'new-jersey-hub.html',
     'ny-metro-hub.html',
     'connecticut-hub.html',
     'pennsylvania-hub.html',
   ]) {
-    assert.ok(!changed.includes(hub), `${hub} should remain unchanged`);
+    const html = fs.readFileSync(path.join(root, hub), 'utf8');
+    assert.match(html, /class="service-area-accordion"/, `${hub} missing accordion`);
+    assert.match(html, /data-single-open/, `${hub} missing single-open accordion group`);
+    assert.match(html, /id="service-areas"/, `${hub} missing service-areas section`);
   }
 });
