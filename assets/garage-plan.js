@@ -3,6 +3,24 @@
   'use strict';
 
   var STYLE_ID = 'cd1-garage-plan-styles';
+  var PHONE_TEL = '5513132956';
+  var PHONE_DISPLAY = '551-313-2956';
+
+  var ERROR_COPY = {
+    validation_error: 'Please complete all required fields.',
+    invalid_phone: 'Please enter a valid US phone number (10 digits).',
+    invalid_zip: 'Please enter a valid 5-digit service ZIP code.',
+    missing_required_fields: 'Please complete name, phone, and service ZIP.',
+    transactional_consent_required: 'Service contact consent is required to submit your Garage Plan.',
+    garage_plan_requires_two_vehicles: 'Garage Plan is for 2+ personal vehicles at one location.',
+    fleet_quote_required: 'Fleet and commercial requests use our quote team — redirecting you now.',
+    manual_review_required: 'Your ZIP may need an alternative service path. We saved your request and will follow up.',
+    rate_limited: 'Too many attempts. Please wait a few minutes or call us.',
+    service_unavailable: 'Our system is temporarily unavailable. Please call or text us and we will help you directly.',
+    server_error: 'Something went wrong on our end. Please try again or call us.',
+    invalid_json: 'Could not send your request. Please try again.',
+    method_not_allowed: 'Could not send your request. Please try again.',
+  };
 
   function injectStyles() {
     if (document.getElementById(STYLE_ID)) return;
@@ -44,6 +62,39 @@
     return Array.from(sel.selectedOptions).map(function (o) { return o.value; });
   }
 
+  function pageSource() {
+    return String((global.location && global.location.pathname) || 'garage_plan_modal');
+  }
+
+  function sessionAttribution() {
+    var out = {};
+    try {
+      if (global.Cardetail1Revenue && global.Cardetail1Revenue.getSessionId) {
+        out.anonymous_session_id = global.Cardetail1Revenue.getSessionId();
+      }
+    } catch (e) { /* ignore */ }
+    try {
+      var params = new URLSearchParams(global.location.search || '');
+      if (params.get('utm_campaign')) out.utm_campaign = params.get('utm_campaign');
+    } catch (e2) { /* ignore */ }
+    return out;
+  }
+
+  function showMessage(msgEl, text, isError) {
+    msgEl.innerHTML = text + ' <a href="tel:' + PHONE_TEL + '" style="color:#4da3ff;font-weight:600;text-decoration:none">Call / Text ' + PHONE_DISPLAY + '</a>';
+    msgEl.style.color = isError ? '#f5a5a5' : '#8a9bb0';
+  }
+
+  function mapError(data, status) {
+    if (!data || typeof data !== 'object') {
+      return status >= 500 ? ERROR_COPY.service_unavailable : ERROR_COPY.server_error;
+    }
+    if (data.error && ERROR_COPY[data.error]) return ERROR_COPY[data.error];
+    if (status >= 500) return ERROR_COPY.service_unavailable;
+    if (status === 429) return ERROR_COPY.rate_limited;
+    return ERROR_COPY.server_error;
+  }
+
   function openGaragePlan() {
     injectStyles();
     if (!document.getElementById('cd1-garage-plan-ov')) {
@@ -52,7 +103,9 @@
       document.getElementById('cd1-gp-submit').onclick = submitGaragePlan;
     }
     document.getElementById('cd1-garage-plan-ov').classList.add('open');
-    if (global.Cardetail1Revenue) global.Cardetail1Revenue.track('garage_plan_started', { page_type: 'garage_plan' });
+    if (global.Cardetail1Revenue) {
+      global.Cardetail1Revenue.track('garage_plan_started', { page_type: 'garage_plan' });
+    }
   }
 
   function closeGaragePlan() {
@@ -64,6 +117,7 @@
     var count = Number(document.getElementById('cd1-gp-count').value || 0);
     var msg = document.getElementById('cd1-gp-msg');
     msg.textContent = '';
+    msg.style.color = '#8a9bb0';
 
     if (count >= 7) {
       closeGaragePlan();
@@ -83,13 +137,15 @@
       return;
     }
     if (!document.getElementById('cd1-gp-txn-consent').checked) {
-      msg.textContent = 'Transactional contact consent is required.';
+      showMessage(msg, ERROR_COPY.transactional_consent_required, true);
       return;
     }
 
+    var attribution = sessionAttribution();
     var payload = {
       vehicleCount: count,
       vehicleCategories: selectedCategories(document.getElementById('cd1-gp-cats')),
+      sameServiceLocation: document.getElementById('cd1-gp-same-loc').checked,
       sameLocationSameVisit: document.getElementById('cd1-gp-same-visit').checked,
       maintenanceFrequency: document.getElementById('cd1-gp-maint').value,
       name: document.getElementById('cd1-gp-name').value.trim(),
@@ -101,18 +157,23 @@
       smsConsent: document.getElementById('cd1-gp-mkt-consent').checked,
       emailConsent: document.getElementById('cd1-gp-mkt-consent').checked,
       prefillBooking: true,
-      source: 'garage_plan_modal',
+      source: pageSource(),
+      utm_campaign: attribution.utm_campaign || null,
+      anonymous_session_id: attribution.anonymous_session_id || null,
     };
 
     fetch('/.netlify/functions/garage-plan-submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-    }).then(function (r) { return r.json(); }).then(function (data) {
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (data) {
+        return { status: r.status, data: data };
+      });
+    }).then(function (res) {
+      var data = res.data || {};
       if (!data.ok) {
-        msg.textContent = data.error === 'garage_plan_requires_two_vehicles'
-          ? 'Please enter at least 2 personal vehicles.'
-          : 'Could not submit. Please try again or call us.';
+        showMessage(msg, mapError(data, res.status), true);
         return;
       }
       if (data.route === 'fleet_quote') {
@@ -126,7 +187,11 @@
         });
         global.Cardetail1Revenue.track('lead_created', { household_segment: data.segment });
       }
-      msg.textContent = 'Thank you — your Garage Plan request was received. We will follow up shortly.';
+      if (data.route === 'manual_review' || data.manualReviewRequired) {
+        showMessage(msg, 'Thank you — your Garage Plan request was received. Your area may need an alternative service path, and our team will follow up shortly.', false);
+        return;
+      }
+      showMessage(msg, 'Thank you — your Garage Plan request was received. We will follow up shortly.', false);
       if (typeof global.openBooking === 'function' && data.bookingPrefill) {
         setTimeout(function () {
           closeGaragePlan();
@@ -134,7 +199,7 @@
         }, 1200);
       }
     }).catch(function () {
-      msg.textContent = 'Network error. Please try again.';
+      showMessage(msg, ERROR_COPY.service_unavailable, true);
     });
   }
 

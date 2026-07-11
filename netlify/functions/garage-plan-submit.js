@@ -1,13 +1,19 @@
 // POST /.netlify/functions/garage-plan-submit — Garage Plan lead capture (no card data).
 
-const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
-const { createLead, createHousehold, createOpportunity } = require('../lib/revenue-household');
+const publicRateLimit = require('../lib/public-rate-limit');
+const {
+  createLead,
+  createHousehold,
+  createOpportunity,
+  findLeadByEmailOrPhone,
+} = require('../lib/revenue-household');
 const { classifySegment, vehicleCountBand } = require('../lib/revenue-segments');
 const { computeHouseholdValueScore, commercialPriority } = require('../lib/revenue-scoring');
 const { recommendNextAction } = require('../lib/next-best-action');
 const { hubspotEnabled, upsertContact, upsertDeal } = require('../lib/hubspot-adapter');
 const { createResumeToken } = require('../lib/revenue-resume');
 const { getOfferConfig } = require('../lib/revenue-offers');
+const { validateGaragePlanInput } = require('../lib/garage-plan-validation');
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -16,176 +22,233 @@ const cors = {
   'Content-Type': 'application/json',
 };
 
-function sanitizeText(v, max = 200) {
-  return String(v || '').trim().slice(0, max);
+function json(status, body) {
+  return { statusCode: status, headers: cors, body: JSON.stringify(body) };
+}
+
+function buildSuccessResponse({
+  validated,
+  segmentResult,
+  lead,
+  household,
+  opportunity,
+  nextAction,
+  resume,
+  idempotent,
+}) {
+  const priority = commercialPriority(30, lead.householdValueScore || 0, segmentResult.segment);
+  const route = validated.manualReviewRequired ? 'manual_review' : 'garage_plan';
+  return json(200, {
+    ok: true,
+    route,
+    idempotent: !!idempotent,
+    leadId: lead.leadId,
+    householdId: household.householdId,
+    opportunityId: opportunity.opportunityId,
+    segment: segmentResult.segment,
+    vehicleCountBand: vehicleCountBand(validated.vehicleCount),
+    commercialPriority: priority.classification,
+    nextAction: nextAction.action,
+    manualReviewRequired: validated.manualReviewRequired,
+    resumePath: resume && resume.ok ? `/resume?token=${encodeURIComponent(resume.token)}` : null,
+    bookingPrefill: validated.prefillBooking ? {
+      vehicleCount: validated.vehicleCount,
+      categories: validated.categories,
+      zip: validated.zip,
+      sameLocationSameVisit: validated.sameLocationSameVisit,
+    } : null,
+    fleetUrl: route === 'fleet_quote' ? '/fleet-services.html' : null,
+  });
+}
+
+async function persistGaragePlanLead(validated) {
+  const segmentResult = classifySegment({
+    vehicleCount: validated.vehicleCount,
+    assetCategories: validated.categories,
+    unsupportedZip: validated.manualReviewRequired,
+    sameLocationSameVisit: validated.sameLocationSameVisit,
+    maintenanceFrequency: validated.maintenanceFrequency,
+    isCommercial: false,
+  });
+
+  const hv = computeHouseholdValueScore({
+    vehicleCount: validated.vehicleCount,
+    assetCategories: validated.categories,
+    sameLocationSameVisit: validated.sameLocationSameVisit,
+    maintenanceFrequency: validated.maintenanceFrequency,
+    estimatedValue: validated.estimatedValue,
+  });
+
+  const lead = await createLead({
+    name: validated.name,
+    email: validated.email,
+    phone: validated.phone,
+    zip: validated.zip,
+    vehicleCount: validated.vehicleCount,
+    assetCategories: validated.categories,
+    source: validated.source,
+    utm_campaign: validated.utm_campaign,
+    marketingConsent: validated.marketingConsent,
+    smsConsent: validated.smsConsent,
+    emailConsent: validated.emailConsent,
+    transactionalConsent: true,
+    isCommercial: false,
+  });
+  lead.householdValueScore = hv.score;
+  lead.intentScore = 30;
+
+  const household = await createHousehold({
+    leadId: lead.leadId,
+    vehicleCount: validated.vehicleCount,
+    assetCategories: validated.categories,
+    zip: validated.zip,
+    intentScore: 30,
+    marketingConsent: validated.marketingConsent,
+    smsConsent: validated.smsConsent,
+    emailConsent: validated.emailConsent,
+    opportunityStage: 'Multi-Vehicle Opportunity',
+  });
+
+  const offers = getOfferConfig();
+  const nextAction = recommendNextAction({
+    segment: segmentResult.segment,
+    vehicleCount: validated.vehicleCount,
+    assetCategories: validated.categories,
+    offersEnabled: offers.multiVehicle.enabled || offers.firstBooking.enabled,
+  });
+
+  const opportunity = await createOpportunity({
+    leadId: lead.leadId,
+    householdId: household.householdId,
+    vehicleCount: validated.vehicleCount,
+    assetCategories: validated.categories,
+    selectedCategory: validated.packageInterest || null,
+    estimatedValue: validated.estimatedValue,
+    source: validated.source,
+    utm_campaign: validated.utm_campaign,
+    intentScore: 30,
+    marketingConsent: validated.marketingConsent,
+    smsConsent: validated.smsConsent,
+    emailConsent: validated.emailConsent,
+    transactionalConsent: true,
+    stage: validated.vehicleCount >= 3 ? 'Multi-Vehicle Opportunity' : 'Qualified Lead',
+    nextAction: nextAction.action,
+  });
+
+  const leadStore = await require('../lib/revenue-store').getRevenueStore('leads');
+  await require('../lib/revenue-store').blobSetJson(leadStore, lead.leadId, {
+    ...lead,
+    householdId: household.householdId,
+    opportunityId: opportunity.opportunityId,
+    updatedAt: new Date().toISOString(),
+  });
+
+  let resume = null;
+  if (validated.prefillBooking) {
+    resume = await createResumeToken({
+      leadId: lead.leadId,
+      householdId: household.householdId,
+      bookingStep: 1,
+      garagePlanId: opportunity.opportunityId,
+    });
+  }
+
+  if (hubspotEnabled()) {
+    await upsertContact({ ...lead, householdId: household.householdId }).catch(() => null);
+    await upsertDeal({ ...opportunity, offerId: nextAction.offer_id }).catch(() => null);
+  }
+
+  return { segmentResult, lead, household, opportunity, nextAction, resume };
 }
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: cors, body: '' };
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers: cors, body: JSON.stringify({ ok: false, error: 'method_not_allowed' }) };
+    return json(405, { ok: false, error: 'method_not_allowed' });
   }
 
-  const rate = await enforcePublicRateLimit(event, 'garage-plan-submit', 'submit');
-  if (!rate.ok) {
-    return { statusCode: 429, headers: cors, body: JSON.stringify({ ok: false, error: 'rate_limited' }) };
+  const rate = await publicRateLimit.enforcePublicRateLimit(event, {
+    endpoint: 'garage-plan-submit',
+    action: 'submit',
+    cors: true,
+  });
+  if (rate.blocked) {
+    return rate.response || json(429, { ok: false, error: 'rate_limited' });
   }
 
   let body;
   try { body = JSON.parse(event.body || '{}'); }
-  catch { return { statusCode: 400, headers: cors, body: JSON.stringify({ ok: false, error: 'invalid_json' }) }; }
+  catch { return json(400, { ok: false, error: 'invalid_json' }); }
 
-  const vehicleCount = Math.max(0, Number(body.vehicleCount || body.personalVehicleCount || 0));
-  const isCommercial = body.isCommercial === true || body.ownership === 'business' || vehicleCount >= 7;
-
-  if (isCommercial) {
-    return {
-      statusCode: 200,
-      headers: cors,
-      body: JSON.stringify({
+  const validated = validateGaragePlanInput(body);
+  if (!validated.ok) {
+    if (validated.error === 'fleet_quote_required') {
+      return json(200, {
         ok: true,
         route: 'fleet_quote',
         message: 'Commercial and fleet inquiries are routed to our quote team.',
         fleetUrl: '/fleet-services.html',
-      }),
-    };
-  }
-
-  if (vehicleCount < 2) {
-    return {
-      statusCode: 400,
-      headers: cors,
-      body: JSON.stringify({ ok: false, error: 'garage_plan_requires_two_vehicles' }),
-    };
-  }
-
-  if (!body.transactionalConsent) {
-    return { statusCode: 400, headers: cors, body: JSON.stringify({ ok: false, error: 'transactional_consent_required' }) };
-  }
-
-  const name = sanitizeText(body.name, 120);
-  const email = sanitizeText(body.email, 120);
-  const phone = sanitizeText(body.phone, 32);
-  const zip = sanitizeText(body.zip || body.serviceZip, 10);
-  if (!name || !phone || !zip) {
-    return { statusCode: 400, headers: cors, body: JSON.stringify({ ok: false, error: 'missing_required_fields' }) };
+      });
+    }
+    const status = validated.error === 'rate_limited' ? 429 : 400;
+    return json(status, {
+      ok: false,
+      error: validated.error,
+      field: validated.field || null,
+      route: validated.route || null,
+    });
   }
 
   try {
-    const segmentResult = classifySegment({
-      vehicleCount,
-      assetCategories: body.vehicleCategories || body.categories || [],
-      sameLocationSameVisit: body.sameLocationSameVisit,
-      maintenanceFrequency: body.maintenanceFrequency,
-    });
-
-    const hv = computeHouseholdValueScore({
-      vehicleCount,
-      assetCategories: body.vehicleCategories || [],
-      sameLocationSameVisit: body.sameLocationSameVisit,
-      maintenanceFrequency: body.maintenanceFrequency,
-      estimatedValue: body.estimatedValue,
-    });
-
-    const lead = await createLead({
-      name,
-      email,
-      phone,
-      zip,
-      vehicleCount,
-      assetCategories: body.vehicleCategories || [],
-      source: body.source || 'garage_plan',
-      utm_campaign: body.utm_campaign,
-      marketingConsent: !!body.marketingConsent,
-      smsConsent: !!body.smsConsent,
-      emailConsent: !!body.emailConsent,
-      transactionalConsent: true,
-      isCommercial: false,
-    });
-    lead.householdValueScore = hv.score;
-    lead.intentScore = 30;
-
-    const household = await createHousehold({
-      leadId: lead.leadId,
-      vehicleCount,
-      assetCategories: body.vehicleCategories || [],
-      address: body.address,
-      zip,
-      intentScore: 30,
-      marketingConsent: !!body.marketingConsent,
-      smsConsent: !!body.smsConsent,
-      emailConsent: !!body.emailConsent,
-      opportunityStage: 'Multi-Vehicle Opportunity',
-    });
-
-    const offers = getOfferConfig();
-    const nextAction = recommendNextAction({
-      segment: segmentResult.segment,
-      vehicleCount,
-      assetCategories: body.vehicleCategories || [],
-      offersEnabled: offers.multiVehicle.enabled || offers.firstBooking.enabled,
-    });
-
-    const opportunity = await createOpportunity({
-      leadId: lead.leadId,
-      householdId: household.householdId,
-      vehicleCount,
-      assetCategories: body.vehicleCategories || [],
-      selectedCategory: body.packageInterest || null,
-      estimatedValue: Number(body.estimatedValue || 0),
-      source: body.source || 'garage_plan',
-      utm_campaign: body.utm_campaign,
-      lastBookingStep: null,
-      intentScore: 30,
-      marketingConsent: !!body.marketingConsent,
-      smsConsent: !!body.smsConsent,
-      emailConsent: !!body.emailConsent,
-      transactionalConsent: true,
-      stage: vehicleCount >= 3 ? 'Multi-Vehicle Opportunity' : 'Qualified Lead',
-      nextAction: nextAction.action,
-    });
-
-    let resume = null;
-    if (body.prefillBooking) {
-      resume = await createResumeToken({
-        leadId: lead.leadId,
-        householdId: household.householdId,
-        bookingStep: 1,
-        garagePlanId: opportunity.opportunityId,
+    const existing = await findLeadByEmailOrPhone(validated.email, validated.phone);
+    if (existing && existing.leadId) {
+      const segmentResult = classifySegment({
+        vehicleCount: validated.vehicleCount,
+        assetCategories: validated.categories,
+        unsupportedZip: validated.manualReviewRequired,
+      });
+      const offers = getOfferConfig();
+      const nextAction = recommendNextAction({
+        segment: segmentResult.segment,
+        vehicleCount: validated.vehicleCount,
+        assetCategories: validated.categories,
+        offersEnabled: offers.multiVehicle.enabled || offers.firstBooking.enabled,
+      });
+      return buildSuccessResponse({
+        validated,
+        segmentResult,
+        lead: existing,
+        household: { householdId: existing.householdId || null },
+        opportunity: { opportunityId: existing.opportunityId || null },
+        nextAction,
+        resume: null,
+        idempotent: true,
       });
     }
 
-    if (hubspotEnabled()) {
-      await upsertContact({ ...lead, householdId: household.householdId }).catch(() => null);
-      await upsertDeal({ ...opportunity, offerId: nextAction.offer_id }).catch(() => null);
-    }
-
-    const priority = commercialPriority(30, hv.score, segmentResult.segment);
-
-    return {
-      statusCode: 200,
-      headers: cors,
-      body: JSON.stringify({
-        ok: true,
-        route: 'garage_plan',
-        leadId: lead.leadId,
-        householdId: household.householdId,
-        opportunityId: opportunity.opportunityId,
-        segment: segmentResult.segment,
-        vehicleCountBand: vehicleCountBand(vehicleCount),
-        commercialPriority: priority.classification,
-        nextAction: nextAction.action,
-        resumePath: resume && resume.ok ? `/resume?token=${encodeURIComponent(resume.token)}` : null,
-        bookingPrefill: body.prefillBooking ? {
-          vehicleCount,
-          categories: body.vehicleCategories || [],
-          zip,
-          sameLocationSameVisit: !!body.sameLocationSameVisit,
-        } : null,
-      }),
-    };
+    const persisted = await persistGaragePlanLead(validated);
+    return buildSuccessResponse({
+      validated,
+      ...persisted,
+      idempotent: false,
+    });
   } catch (err) {
-    console.error('[garage-plan-submit]', err.message);
-    return { statusCode: 503, headers: cors, body: JSON.stringify({ ok: false, error: 'service_unavailable' }) };
+    const message = String(err && err.message || '');
+    const code = err.code || message || 'server_error';
+    console.error('[garage-plan-submit]', code);
+    if (code === 'anonymous_not_identified' || code === 'transactional_consent_required') {
+      return json(400, { ok: false, error: code });
+    }
+    const blobFailure = /blob/i.test(message) || code === 'service_unavailable';
+    if (blobFailure) {
+      return json(503, { ok: false, error: 'service_unavailable' });
+    }
+    return json(500, { ok: false, error: 'server_error' });
   }
+};
+
+exports.__test = {
+  validateGaragePlanInput,
+  persistGaragePlanLead,
+  buildSuccessResponse,
 };

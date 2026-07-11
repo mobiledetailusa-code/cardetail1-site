@@ -15,6 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/specialty-service-nav.css">
 <link rel="stylesheet" href="assets/specialty-public-footer.css">
+<link rel="stylesheet" href="assets/specialty-page-ui.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg0:#0f1419;--bg1:#121922;--bg2:#1a2230;--line:rgba(196,165,116,.12);--ink:#ece8e1;--muted:#9aa8b8;--blue:#4d8fd9;--gold:#c4a574;--fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;--r:16px}
@@ -60,7 +61,8 @@ h1{font-family:var(--fd);font-size:clamp(34px,7vw,64px);line-height:.92;margin-b
 .pkg-note{font-size:12px;color:var(--muted);text-align:center;max-width:760px;margin:20px auto 0;line-height:1.55}
 .media-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
 .card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.card img,.card video{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:#0b1118}
+.card img,.card video{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:#0b1118;cursor:zoom-in}
+.card video{cursor:default}
 .meta{padding:12px 14px 14px}
 .meta h3{font-family:var(--fd);font-size:22px}
 .meta p{color:var(--muted);font-size:13px}
@@ -166,6 +168,18 @@ footer a{color:var(--blue);text-decoration:none}
 
 <section class="section" id="boat-gallery">
   <div class="sec-eye">Recent work</div>
+  <h2 class="sec-title">Boat Detailing Gallery</h2>
+  <p class="sec-copy">Recent marine detailing — on-site hull, deck and cockpit work.</p>
+  <div class="media-grid">
+    <article class="card">
+      <img src="assets/media/boats/gallery/yacht-cruise.jpg" alt="White luxury motor yacht cruising on open water after marine detailing" width="1200" height="800" loading="lazy" decoding="async">
+      <div class="meta"><h3>Luxury Motor Yacht</h3><p>High-gloss hull and deck finish on the water.</p></div>
+    </article>
+  </div>
+</section>
+
+<section class="section" id="boat-videos">
+  <div class="sec-eye">On-site footage</div>
   <h2 class="sec-title">Boat Detailing Videos</h2>
   <p class="sec-copy">On-site marine detailing footage from recent jobs.</p>
   <div class="media-grid">
@@ -186,6 +200,24 @@ footer a{color:var(--blue);text-decoration:none}
         <source src="assets/media/boats/XATS4703.MP4" type="video/mp4">
       </video>
       <div class="meta"><h3>Boat Video 03</h3><p>Quick before/after pass on marine surfaces.</p></div>
+    </article>
+    <article class="card">
+      <video controls playsinline preload="metadata" width="640" height="400">
+        <source src="assets/media/boats/IMG_8389.MP4" type="video/mp4">
+      </video>
+      <div class="meta"><h3>Boat Video 04</h3><p>Recent on-site marine detail — spring 2026.</p></div>
+    </article>
+    <article class="card">
+      <video controls playsinline preload="metadata" width="640" height="400">
+        <source src="assets/media/boats/IMG_8390.MP4" type="video/mp4">
+      </video>
+      <div class="meta"><h3>Boat Video 05</h3><p>Hull and deck cleanup on location.</p></div>
+    </article>
+    <article class="card">
+      <video controls playsinline preload="metadata" width="640" height="400">
+        <source src="assets/media/boats/IMG_8393.MP4" type="video/mp4">
+      </video>
+      <div class="meta"><h3>Boat Video 06</h3><p>Marina-side detailing highlight.</p></div>
     </article>
   </div>
 </section>
@@ -231,6 +263,7 @@ footer a{color:var(--blue);text-decoration:none}
   </div>
 </footer>
 <script src="assets/specialty-booking-bridge.js" defer></script>
+<script src="assets/specialty-page-ui.js" defer></script>
 <script src="assets/customer-segments.js"></script>
 <script src="assets/universal-customer-strategy.generated.js"></script>
 <script src="assets/booking-routing-gate.js"></script>

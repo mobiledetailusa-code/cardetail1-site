@@ -1,0 +1,126 @@
+{
+  "version": "2026-07-universal-v2",
+  "segmentIds": {
+    "SINGLE_VEHICLE_NEW": "SINGLE_VEHICLE_NEW",
+    "MULTI_VEHICLE_HOUSEHOLD": "MULTI_VEHICLE_HOUSEHOLD",
+    "PREMIUM_ENTHUSIAST_HOUSEHOLD": "PREMIUM_ENTHUSIAST_HOUSEHOLD",
+    "SPECIALTY_ASSET_OWNER": "SPECIALTY_ASSET_OWNER",
+    "RECURRING_MAINTENANCE_PROSPECT": "RECURRING_MAINTENANCE_PROSPECT",
+    "COMMERCIAL_FLEET": "COMMERCIAL_FLEET",
+    "RETURNING_CUSTOMER": "RETURNING_CUSTOMER",
+    "MANUAL_REVIEW_OR_ALTERNATIVE_PATH": "MANUAL_REVIEW_OR_ALTERNATIVE_PATH"
+  },
+  "conversionPaths": {
+    "SINGLE_VEHICLE_NEW": {
+      "servicePath": "standard_booking",
+      "catalogVisible": true,
+      "standardBookingAllowed": true,
+      "quoteRequired": false,
+      "manualReviewRequired": false,
+      "discardLead": false,
+      "headline": "Professional mobile detailing at your home, office or approved location.",
+      "subline": "Choose your package and book online — same quality for every customer.",
+      "offerIds": [
+        "first_booking_welcome"
+      ],
+      "growthBoost": 0
+    },
+    "MULTI_VEHICLE_HOUSEHOLD": {
+      "servicePath": "garage_plan_or_booking",
+      "catalogVisible": true,
+      "standardBookingAllowed": true,
+      "quoteRequired": false,
+      "manualReviewRequired": false,
+      "discardLead": false,
+      "headline": "One visit. Multiple vehicles. A service plan built around your garage.",
+      "subline": "Coordinate same-location service — or book vehicles individually at full quality.",
+      "offerIds": [
+        "multi_vehicle_same_visit",
+        "first_booking_welcome"
+      ],
+      "growthBoost": 15
+    },
+    "PREMIUM_ENTHUSIAST_HOUSEHOLD": {
+      "servicePath": "garage_plan_or_booking",
+      "catalogVisible": true,
+      "standardBookingAllowed": true,
+      "quoteRequired": false,
+      "manualReviewRequired": false,
+      "discardLead": false,
+      "headline": "Coordinated care for the vehicles you value most.",
+      "subline": "Individual package selection per vehicle — enthusiast-grade attention throughout.",
+      "offerIds": [
+        "multi_vehicle_same_visit"
+      ],
+      "growthBoost": 20
+    },
+    "SPECIALTY_ASSET_OWNER": {
+      "servicePath": "specialty_booking",
+      "catalogVisible": true,
+      "standardBookingAllowed": true,
+      "quoteRequired": false,
+      "manualReviewRequired": false,
+      "discardLead": false,
+      "headline": "Mobile detailing for boats, RVs, powersports and cars.",
+      "subline": "Book your specialty package online — manual quote review when length or access requires it.",
+      "offerIds": [
+        "first_booking_welcome"
+      ],
+      "growthBoost": 10
+    },
+    "RECURRING_MAINTENANCE_PROSPECT": {
+      "servicePath": "maintenance_booking",
+      "catalogVisible": true,
+      "standardBookingAllowed": true,
+      "quoteRequired": false,
+      "manualReviewRequired": false,
+      "discardLead": false,
+      "headline": "Keep your vehicle looking its best on a schedule that works for you.",
+      "subline": "Start with any detail package — maintenance plans available after your first service.",
+      "offerIds": [
+        "first_booking_welcome"
+      ],
+      "growthBoost": 12
+    },
+    "RETURNING_CUSTOMER": {
+      "servicePath": "rebook",
+      "catalogVisible": true,
+      "standardBookingAllowed": true,
+      "quoteRequired": false,
+      "manualReviewRequired": false,
+      "discardLead": false,
+      "headline": "Welcome back — rebook or add maintenance at your convenience.",
+      "subline": "Returning customers receive the same packages and service quality as new bookings.",
+      "offerIds": [],
+      "growthBoost": 10
+    },
+    "COMMERCIAL_FLEET": {
+      "servicePath": "fleet_quote",
+      "catalogVisible": true,
+      "standardBookingAllowed": false,
+      "quoteRequired": true,
+      "manualReviewRequired": false,
+      "discardLead": false,
+      "headline": "Commercial and fleet mobile detailing — custom quote for your operation.",
+      "subline": "Fleet uses a quote path — residential checkout is not used for business fleets.",
+      "offerIds": [],
+      "growthBoost": 5
+    },
+    "MANUAL_REVIEW_OR_ALTERNATIVE_PATH": {
+      "servicePath": "manual_review",
+      "catalogVisible": true,
+      "standardBookingAllowed": false,
+      "quoteRequired": false,
+      "manualReviewRequired": true,
+      "discardLead": false,
+      "headline": "Extended areas and specialty requests may be available by alternative path.",
+      "subline": "Your request is routed for operational review — we do not discard legitimate interest.",
+      "offerIds": [],
+      "growthBoost": 0
+    }
+  },
+  "offerExcludedSegments": [
+    "COMMERCIAL_FLEET",
+    "MANUAL_REVIEW_OR_ALTERNATIVE_PATH"
+  ]
+}

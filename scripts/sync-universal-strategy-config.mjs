@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Sync shared/universal-customer-strategy-config.json → frontend generated bundle. */
+/** Sync shared/universal-customer-strategy-config.json → frontend + function bundles. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,12 +7,14 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const src = path.join(root, 'shared/universal-customer-strategy-config.json');
+const backendConfigPath = path.join(root, 'netlify/lib/universal-customer-strategy-config.json');
 const logicPath = path.join(root, 'netlify/lib/universal-customer-strategy-logic.js');
 const outPath = path.join(root, 'assets/universal-customer-strategy.generated.js');
 const checkMode = process.argv.includes('--check');
 
 const logicSrc = fs.readFileSync(logicPath, 'utf8');
 const config = JSON.parse(fs.readFileSync(src, 'utf8'));
+const backendConfigJson = `${JSON.stringify(config, null, 2)}\n`;
 
 const logicBody = logicSrc
   .replace(/^\/\/[^\n]*\n/, '')
@@ -45,20 +47,36 @@ function buildGeneratedBundle() {
 const expected = buildGeneratedBundle();
 
 if (checkMode) {
+  let stale = false;
   if (!fs.existsSync(outPath)) {
     console.error('[sync] STALE: missing assets/universal-customer-strategy.generated.js');
+    stale = true;
+  } else {
+    const existing = fs.readFileSync(outPath, 'utf8');
+    if (existing !== expected) {
+      console.error('[sync] STALE: assets/universal-customer-strategy.generated.js does not match shared config.');
+      stale = true;
+    }
+  }
+  if (!fs.existsSync(backendConfigPath)) {
+    console.error('[sync] STALE: missing netlify/lib/universal-customer-strategy-config.json');
+    stale = true;
+  } else {
+    const backendExisting = fs.readFileSync(backendConfigPath, 'utf8');
+    if (backendExisting !== backendConfigJson) {
+      console.error('[sync] STALE: netlify/lib/universal-customer-strategy-config.json does not match shared config.');
+      stale = true;
+    }
+  }
+  if (stale) {
     console.error('[sync] Run: node scripts/sync-universal-strategy-config.mjs');
     process.exit(1);
   }
-  const existing = fs.readFileSync(outPath, 'utf8');
-  if (existing !== expected) {
-    console.error('[sync] STALE: assets/universal-customer-strategy.generated.js does not match shared config.');
-    console.error('[sync] Run: node scripts/sync-universal-strategy-config.mjs');
-    process.exit(1);
-  }
-  console.log('[sync] OK: generated bundle is synchronized');
+  console.log('[sync] OK: generated bundle and function config are synchronized');
   process.exit(0);
 }
 
 fs.writeFileSync(outPath, expected, 'utf8');
+fs.writeFileSync(backendConfigPath, backendConfigJson, 'utf8');
 console.log('[sync] wrote', outPath);
+console.log('[sync] wrote', backendConfigPath);

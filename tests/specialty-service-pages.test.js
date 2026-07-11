@@ -68,9 +68,13 @@ const POWERSPORTS_MEDIA = [
 const BOATS_MEDIA = [
   'assets/vehicles/premium/boat.webp',
   'assets/vehicles/premium/marine.webp',
+  'assets/media/boats/gallery/yacht-cruise.jpg',
   'assets/media/boats/RWAJ3347.MP4',
   'assets/media/boats/VKPQ0511.MP4',
   'assets/media/boats/XATS4703.MP4',
+  'assets/media/boats/IMG_8389.MP4',
+  'assets/media/boats/IMG_8390.MP4',
+  'assets/media/boats/IMG_8393.MP4',
 ];
 
 const RV_MEDIA = [
@@ -78,6 +82,8 @@ const RV_MEDIA = [
   'assets/before-after/vienna-rv-roof-after.jpg',
   'assets/showcase/jayco-dolly-front.jpg',
   'assets/media/rv/gallery/IMG_7463.jpeg',
+  'assets/media/rv/gallery/IMG_7464.jpeg',
+  'assets/media/rv/gallery/IMG_7471.jpeg',
   'assets/media/rv/gallery/IMG_7473.jpeg',
 ];
 
@@ -295,6 +301,7 @@ describe('package sections near top', () => {
   it('boats page package section appears before gallery', () => {
     const html = read('boats-detailing.html');
     assert.ok(html.indexOf('id="packages"') < html.indexOf('id="boat-gallery"'));
+    assert.ok(html.indexOf('id="boat-gallery"') < html.indexOf('id="boat-videos"'));
   });
   it('powersports page package section appears before gallery', () => {
     const html = read('powersports-detailing.html');
@@ -545,6 +552,39 @@ describe('pricing catalog unchanged for specialty packages', () => {
     assert.match(html, /rvs:\s*\{[\s\S]*?exterior:\s*\{perFt:\s*12,\s*min:\s*349\}/);
     assert.match(html, /interior:\s*\{perFt:\s*21,\s*min:\s*299\}/);
     assert.match(html, /full:\s*\{perFt:\s*30,\s*min:\s*549\}/);
+  });
+});
+
+describe('specialty page UI (back-to-top + gallery lightbox)', () => {
+  const pages = [
+    'boats-detailing.html',
+    'powersports-detailing.html',
+    'rv-detailing.html',
+    'fleet-services.html',
+    'multi-vehicle-detailing.html',
+  ];
+
+  for (const page of pages) {
+    it(`${page} loads shared specialty-page-ui assets`, () => {
+      const html = read(page);
+      assert.match(html, /assets\/specialty-page-ui\.css/);
+      assert.match(html, /assets\/specialty-page-ui\.js/);
+    });
+  }
+
+  it('specialty-page-ui.js provides back-to-top and lightbox behavior', () => {
+    const js = read('assets/specialty-page-ui.js');
+    assert.match(js, /initBackToTop/);
+    assert.match(js, /initGalleryLightbox/);
+    assert.match(js, /cd1-lightbox/);
+    assert.match(js, /scrollY>420|scrollY > 420/);
+  });
+
+  it('rv gallery images are wired for full-size viewing', () => {
+    const html = read('rv-detailing.html');
+    assert.match(html, /assets\/media\/rv\/gallery\/IMG_7464\.jpeg/);
+    assert.match(html, /assets\/media\/rv\/gallery\/IMG_7471\.jpeg/);
+    assert.match(html, /cursor:zoom-in/);
   });
 });
 
