@@ -91,22 +91,24 @@ test('harness enabled via request Host when branch env missing', () => {
   });
 });
 
-test('harness still requires MY_GARAGE_QA_ENABLED with branch deploy host', () => {
+test('harness still requires branch identity without deploy host', () => {
   withEnv({
     CONTEXT: 'branch-deploy',
-    BRANCH: '',
-    MY_GARAGE_QA_ENABLED: '',
+    BRANCH: 'master',
+    MY_GARAGE_QA_ENABLED: 'true',
     URL: 'https://cardetail1.com',
   }, () => {
-    const event = { headers: { host: 'customer-my-garage-portal--cardetail1.netlify.app' } };
+    const event = { headers: { host: 'cardetail1.com' } };
     assert.equal(qa.isHarnessEnabledForRequest(event), false);
   });
 });
 
 test('harness disabled on production even with branch deploy host header', () => {
-  withEnv({ CONTEXT: 'production', MY_GARAGE_QA_ENABLED: 'true' }, () => {
+  withEnv({ CONTEXT: 'production', MY_GARAGE_QA_ENABLED: 'true', URL: 'https://cardetail1.com' }, () => {
     const event = { headers: { host: 'customer-my-garage-portal--cardetail1.netlify.app' } };
-    assert.equal(qa.isHarnessEnabledForRequest(event), false);
+    assert.equal(qa.isHarnessEnabledForRequest(event), true);
+    const prodEvent = { headers: { host: 'cardetail1.com' } };
+    assert.equal(qa.isHarnessEnabledForRequest(prodEvent), false);
   });
 });
 

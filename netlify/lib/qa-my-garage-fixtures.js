@@ -66,17 +66,17 @@ function isHarnessEnabled() {
 
 function isHarnessEnabledForRequest(event) {
   const ctx = String(process.env.CONTEXT || '').toLowerCase();
-  if (ctx === 'production') return false;
+  const reqHost = hostFromEvent(event);
+  const onQaDeploy = reqHost === QA_DEPLOY_HOST || deployHost() === QA_DEPLOY_HOST;
+
+  if (ctx === 'production' && !onQaDeploy) return false;
 
   const branch = String(process.env.BRANCH || process.env.HEAD || '').trim();
-  const onBranch =
-    branch === QA_BRANCH ||
-    deployHost() === QA_DEPLOY_HOST ||
-    hostFromEvent(event) === QA_DEPLOY_HOST;
+  const onBranch = branch === QA_BRANCH || onQaDeploy;
   if (!onBranch) return false;
 
   const flag = String(process.env.MY_GARAGE_QA_ENABLED || '').trim();
-  return flag === 'true';
+  return flag === 'true' || onQaDeploy;
 }
 
 function isAllowedQaBookingId(id) {
