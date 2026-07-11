@@ -70,6 +70,15 @@ async function deterministicChecks() {
   }
   sections.push("### JS syntax (node --check)\n", syntaxLines.join("\n"), "");
 
+  const syncCheck = run(`"${NODE}" scripts/sync-universal-strategy-config.mjs --check`);
+  sections.push(
+    "### Universal strategy sync\n",
+    syncCheck.ok
+      ? "- [ok] universal-customer-strategy.generated.js is synchronized"
+      : `- [FAIL] strategy sync check:\n\`\`\`\n${syncCheck.output}\n\`\`\``,
+    ""
+  );
+
   const testResult = run(
     `"${NODE}" --test tests/card-on-file-hardening.test.js tests/booking-flow.test.js`
   );
@@ -81,14 +90,15 @@ async function deterministicChecks() {
     ""
   );
 
+  const allOk = testResult.ok && syncCheck.ok && syntaxLines.every(l => l.startsWith("- [ok]"));
   sections.push(
     "### Recommendation (deterministic only)\n",
-    testResult.ok && syntaxLines.every(l => l.startsWith("- [ok]"))
+    allOk
       ? "**Proceed** on syntax/tests — run AI sweep below before production deploy if payment code changed."
       : "**Hold deploy** — fix failing checks first."
   );
 
-  return sections.join("\n");
+  return { text: sections.join("\n"), ok: allOk };
 }
 
 async function aiSweep(apiKey) {
@@ -126,7 +136,7 @@ async function main() {
   console.log("[audit] cwd:", ROOT);
 
   const deterministic = await deterministicChecks();
-  let report = `# Pre-deploy audit\n\nGenerated: ${new Date().toISOString()}\n\n${deterministic}\n`;
+  let report = `# Pre-deploy audit\n\nGenerated: ${new Date().toISOString()}\n\n${deterministic.text}\n`;
 
   const apiKey = process.env.CURSOR_API_KEY?.trim();
   if (apiKey) {
@@ -155,7 +165,7 @@ async function main() {
   if (report.length > 2500) process.stdout.write("\n… (see report file)\n");
 
   const hold = report.includes("[FAIL]");
-  process.exit(hold ? 2 : 0);
+  process.exit(hold || !deterministic.ok ? 2 : 0);
 }
 
 main().catch(err => {

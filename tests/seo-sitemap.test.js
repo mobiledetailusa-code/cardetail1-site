@@ -24,6 +24,7 @@ test('sitemap.xml lists homepage and public hub URLs', () => {
   assert.match(sitemap, /boats-detailing\.html/);
   assert.match(sitemap, /rv-detailing\.html/);
   assert.match(sitemap, /powersports-detailing\.html/);
+  assert.match(sitemap, /multi-vehicle-detailing\.html/);
   assert.match(sitemap, /fleet-services\.html/);
   assert.match(sitemap, /newark-mobile-detailing\.html/);
   assert.doesNotMatch(sitemap, /admin\.html/);

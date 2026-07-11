@@ -88,7 +88,7 @@ test('homepage opens package details in modal panel instead of inline card expan
   const addonsIdx = index.indexOf('class="car-addons-block"');
   const bodyCloseIdx = index.lastIndexOf('</body>');
   assert.ok(modalIdx > addonsIdx, 'modal should not sit inside package cards');
-  assert.ok(modalIdx > bodyCloseIdx - 1200 && modalIdx < bodyCloseIdx, 'modal should live near end of body');
+  assert.ok(modalIdx > bodyCloseIdx - 2800 && modalIdx < bodyCloseIdx, 'modal should live near end of body');
   for (const pkgId of ['interior', 'full', 'refresh']) {
     assert.match(index, new RegExp(`openHomePkgDetailModal\\('${pkgId}'`));
     assert.match(index, new RegExp(`openBookingCarPkg\\('${pkgId}'\\)`));

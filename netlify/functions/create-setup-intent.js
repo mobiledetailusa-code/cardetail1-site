@@ -15,6 +15,7 @@ const {
   verifyDraftSaveToken,
   getDraftTokenSecretStatus,
 } = require('../lib/draft-save-token');
+const { validateBookingRouting } = require('../lib/booking-routing-validation');
 
 let blobsStoreOverride = null;
 
@@ -89,6 +90,11 @@ exports.handler = async (event) => {
   if (!booking.isDraft || booking.cardOnFileRequired !== true || booking.cardOnFileStatus !== 'pending') {
     console.log('[create-setup-intent] booking not eligible: isDraft=%s status=%s', booking.isDraft, booking.cardOnFileStatus);
     return json(409, { ok: false, error: 'booking_not_eligible_for_card_save' });
+  }
+
+  const routingCheck = validateBookingRouting(booking);
+  if (!routingCheck.ok) {
+    return json(403, { ok: false, error: routingCheck.error });
   }
 
   const secret = process.env.STRIPE_SECRET_KEY;

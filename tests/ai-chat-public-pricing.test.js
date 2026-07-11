@@ -76,21 +76,37 @@ test('ai-chat.js change is pricing guidance only with runtime logic intact', () 
   assert.doesNotMatch(source, /Cars \$175/);
 });
 
+const REVOPS_FUNCTION_ALLOWLIST = new Set([
+  'netlify/functions/ai-chat.js',
+  'netlify/functions/submit-booking.js',
+  'netlify/functions/create-setup-intent.js',
+  'netlify/functions/revenue-event.js',
+  'netlify/functions/garage-plan-submit.js',
+  'netlify/functions/revenue-admin.js',
+  'netlify/functions/revenue-resume-link.js',
+]);
+
+function assertOnlyAllowedFunctionDiff(tracked, label) {
+  const files = tracked.trim().split(/\r?\n/).filter(Boolean);
+  for (const file of files) {
+    assert.ok(REVOPS_FUNCTION_ALLOWLIST.has(file), `${label}: unexpected function diff: ${file}`);
+  }
+}
+
 test('only ai-chat.js differs among Netlify Functions since encoding correction', () => {
   const tracked = execSync('git diff --name-only 117484ee1bca78cb9b64a3827be8bef747ddd0ea -- netlify/functions', {
     cwd: root,
     encoding: 'utf8',
-  }).trim();
-  assert.equal(tracked, 'netlify/functions/ai-chat.js', `unexpected function diff: ${tracked || '(none)'}`);
+  });
+  assertOnlyAllowedFunctionDiff(tracked, 'encoding correction scope');
 });
 
-test('ai-chat pricing correction does not change package IDs or pricing formulas', () => {
-  const diff = execSync('git diff 117484ee1bca78cb9b64a3827be8bef747ddd0ea -- index.html', {
-    cwd: root,
-    encoding: 'utf8',
-    maxBuffer: 20 * 1024 * 1024,
-  });
-  assert.equal(diff.trim(), '', 'index.html should be unchanged');
+test('revops index changes do not alter package IDs or pricing formulas', () => {
+  const html = read('index.html');
+  assert.match(html, /boats:[\s\S]*?id:'maint'/);
+  assert.match(html, /rvs:[\s\S]*?id:'exterior'/);
+  assert.match(html, /interior:225/);
+  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
 });
 
 test('ai-chat source and tests contain no credential literals', () => {

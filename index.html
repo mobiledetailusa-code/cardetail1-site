@@ -1545,6 +1545,13 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <p class="sec-desc">Mobile detailing for sedans, SUVs, and trucks. Select the package that fits your vehicle condition. Final pricing adjusts by vehicle size, condition, location, and add-ons.</p>
     </div>
 
+    <div class="cd1-garage-cta-wrap" style="text-align:center;margin:18px 0 8px">
+      <button type="button" data-cd1-garage-cta style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;border:1px solid rgba(77,163,255,.45);background:rgba(77,163,255,.08);color:#4da3ff;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit">
+        Have 2+ vehicles at one location? <strong>Build Your Garage Plan</strong>
+      </button>
+      <p style="font-size:12px;color:#8a9bb0;margin-top:8px">One vehicle? Book any package above — same service quality for every customer.</p>
+    </div>
+
     <div class="car-pkg-grid">
       <article class="car-pkg-card" data-pkg="interior">
         <div class="car-pkg-top">
@@ -2212,6 +2219,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <a href="boats-detailing.html">Boat &amp; Marine Detailing</a>
         <a href="rv-detailing.html">RV &amp; Motorhome Detailing</a>
         <a href="powersports-detailing.html">Powersports Detailing</a>
+        <a href="multi-vehicle-detailing.html">Multi-Vehicle Detailing</a>
         <a onclick="openCommercialInquiry()">Commercial &amp; Fleet Inquiry</a>
       </div>
       <div class="foot-col">
@@ -6976,7 +6984,7 @@ try{ if(typeof initCarPkgDetailModal==='function') initCarPkgDetailModal(); }cat
     if(!allowed[book]) return;
     if(pkg) ST._prefillPkgId=pkg;
     ST._pendingCat=book;
-    setTimeout(function(){ openBookingFromHome(book); }, 120);
+    window.__cd1PendingBookQuery={book:book,pkg:pkg,zipQ:zipQ,embed:embed,allowed:allowed};
   }catch(e){
     try{
       if(window.parent && window.parent!==window){
@@ -7245,6 +7253,17 @@ body.cd1-booking-embed #cd-chat{display:none!important}
     </div>
   </div>
 </div>
+
+<script src="assets/customer-segments.js"></script>
+<script src="assets/universal-customer-strategy.generated.js"></script>
+<script src="assets/booking-routing-gate.js"></script>
+<script src="assets/lead-score.js"></script>
+<script src="assets/next-best-action.js"></script>
+<script src="assets/consent-manager.js"></script>
+<script src="assets/revenue-events.js"></script>
+<script src="assets/garage-plan.js"></script>
+<script src="assets/revops-booking-hooks.js"></script>
+<script src="assets/revops-init.js"></script>
 
 </body>
 </html>

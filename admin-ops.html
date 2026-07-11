@@ -108,6 +108,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     <button type="button" class="tab" data-tab="settings">Settings</button>
     <button type="button" class="tab" data-tab="maintenance">Maintenance</button>
     <button type="button" class="tab" data-tab="events">Event Log</button>
+    <button type="button" class="tab" data-tab="revops">Revenue Ops</button>
   </nav>
 
   <section class="panel on" id="p-overview">
@@ -230,6 +231,27 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       <input class="srch" id="evSearch" type="search" placeholder="Filter events…">
     </div>
     <div class="card" id="evList"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section class="panel" id="p-revops">
+    <p class="hint">Revenue Operations dashboard — household opportunities, funnel metrics, and manual follow-up queue. Requires authenticated admin session.</p>
+    <div class="grid g4" id="revopsStats"></div>
+    <div class="card" style="margin-top:14px">
+      <h3 style="margin-bottom:10px">Needs attention now</h3>
+      <div id="revopsPriority"><div class="empty">Open this tab to load priority queue…</div></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="toolbar">
+        <select class="fsel" id="revopsPriorityFilter">
+          <option value="">All priorities</option>
+          <option value="immediate_follow_up">Immediate follow-up</option>
+          <option value="high_value">High value</option>
+          <option value="priority">Priority</option>
+        </select>
+        <button type="button" class="btn ghost sm" id="revopsRefresh">Refresh RevOps</button>
+      </div>
+      <div id="revopsOpps"></div>
+    </div>
   </section>
 </div>
 
@@ -980,6 +1002,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (b.dataset.tab === 'auctions') refreshAuctionsTab();
     if (b.dataset.tab === 'subscriptions') refreshSubsTab();
     if (b.dataset.tab === 'settings') loadSettings().then(renderSettingsForm).catch(()=>{});
+    if (b.dataset.tab === 'revops') refreshRevopsTab();
   };
 
   // Status filter options
@@ -1096,6 +1119,40 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (!ok) return;
     refreshAll().catch(e => toast('Load error: '+e.message));
   });
+
+  async function refreshRevopsTab() {
+    try {
+      const summary = await api('/.netlify/functions/revenue-admin?view=summary');
+      const priority = await api('/.netlify/functions/revenue-admin?view=priority');
+      const pf = $('#revopsPriorityFilter').value;
+      const opps = await api('/.netlify/functions/revenue-admin?view=opportunities&limit=50'+(pf?'&priority='+encodeURIComponent(pf):''));
+      const ec = summary.eventCounts || {};
+      $('#revopsStats').innerHTML = [
+        ['Garage Plan starts', ec.garage_plan_started||0],
+        ['Leads created', ec.lead_created||0],
+        ['Booking starts', ec.booking_started||0],
+        ['Pipeline value', '$'+(summary.estimatedPipelineValue||0)],
+      ].map(function(row){
+        return '<div class="card"><h3>'+row[0]+'</h3><div class="stat">'+row[1]+'</div></div>';
+      }).join('');
+      const pri = priority.items || [];
+      $('#revopsPriority').innerHTML = pri.length ? (
+        '<table class="tbl"><thead><tr><th>Segment</th><th>Vehicles</th><th>Intent</th><th>Priority</th><th>Next action</th></tr></thead><tbody>'+
+        pri.map(function(o){
+          return '<tr><td>'+esc(o.segment)+'</td><td>'+esc(o.vehicleCountBand)+'</td><td>'+esc(o.intentScore)+'</td><td>'+esc(o.commercialPriority)+'</td><td>'+esc(o.nextAction||'—')+'</td></tr>';
+        }).join('')+'</tbody></table>'
+      ) : '<div class="empty">No high-priority opportunities yet.</div>';
+      const items = opps.items || [];
+      $('#revopsOpps').innerHTML = items.length ? (
+        '<table class="tbl"><thead><tr><th>Stage</th><th>Segment</th><th>Value</th><th>Temperature</th><th>Source</th></tr></thead><tbody>'+
+        items.map(function(o){
+          return '<tr><td>'+esc(o.stage)+'</td><td>'+esc(o.segment)+'</td><td>$'+esc(o.estimatedValue||0)+'</td><td>'+esc(o.leadTemperature||'—')+'</td><td>'+esc(o.source||'—')+'</td></tr>';
+        }).join('')+'</tbody></table>'
+      ) : '<div class="empty">No opportunities recorded yet.</div>';
+    } catch(e) { toast('RevOps load failed: '+e.message); }
+  }
+  $('#revopsRefresh').onclick = refreshRevopsTab;
+  $('#revopsPriorityFilter').onchange = refreshRevopsTab;
 })();
 </script>
 </body>

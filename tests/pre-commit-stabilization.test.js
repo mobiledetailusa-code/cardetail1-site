@@ -56,9 +56,9 @@ function resolveHref(href) {
   return file;
 }
 
-test('sitemap reported count equals actual URL entries (17)', () => {
+test('sitemap reported count equals actual URL entries (18)', () => {
   const urls = sitemapUrls();
-  assert.equal(urls.length, 17);
+  assert.equal(urls.length, 18);
 });
 
 test('every sitemap route file exists on disk', () => {
@@ -155,17 +155,45 @@ test('accidental local QA server file is not in working tree', () => {
   assert.ok(!fs.existsSync(path.join(root, 'scripts/_qa-server.mjs')));
 });
 
-test('Netlify Function changes vs production master are limited to ai-chat pricing guidance', () => {
+test('Netlify Function changes vs production master are limited to approved RevOps additions', () => {
   let diff = '';
   try {
-    diff = execSync('git diff --name-only e9ebbe0e50d2768d0bea9fb391ad50c63239b7f7 -- netlify/functions netlify/lib', {
+    diff = execSync('git diff --name-only 4474151ed2d41647e2b61cdbca66bb497b5d3403 -- netlify/functions netlify/lib', {
       cwd: root,
       encoding: 'utf8',
     });
   } catch (e) {
     diff = e.stdout || '';
   }
-  assert.equal(diff.trim(), 'netlify/functions/ai-chat.js', `unexpected backend diff: ${diff.trim() || '(none)'}`);
+  const changed = diff.trim().split(/\r?\n/).filter(Boolean);
+  const allowed = new Set([
+    'netlify/functions/revenue-event.js',
+    'netlify/functions/garage-plan-submit.js',
+    'netlify/functions/revenue-admin.js',
+    'netlify/functions/revenue-resume-link.js',
+    'netlify/functions/submit-booking.js',
+    'netlify/functions/create-setup-intent.js',
+    'netlify/lib/public-rate-limit.js',
+    'netlify/lib/revenue-event-schema.js',
+    'netlify/lib/revenue-store.js',
+    'netlify/lib/revenue-segments.js',
+    'netlify/lib/revenue-scoring.js',
+    'netlify/lib/revenue-offers.js',
+    'netlify/lib/revenue-resume.js',
+    'netlify/lib/revenue-recovery.js',
+    'netlify/lib/revenue-household.js',
+    'netlify/lib/hubspot-adapter.js',
+    'netlify/lib/google-ads-export.js',
+    'netlify/lib/recovery-communications.js',
+    'netlify/lib/next-best-action.js',
+    'netlify/lib/universal-customer-strategy.js',
+    'netlify/lib/universal-customer-strategy-logic.js',
+    'netlify/lib/anonymous-prospect.js',
+    'netlify/lib/booking-routing-validation.js',
+  ]);
+  for (const file of changed) {
+    assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);
+  }
 });
 
 test('package IDs in index PRICING unchanged for specialty categories', () => {

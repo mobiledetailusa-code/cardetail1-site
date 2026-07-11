@@ -136,8 +136,20 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
   const tracked = execSync('git diff --name-only f64f5f587b7470535891471e62665c8901799263 -- netlify/functions', {
     cwd: root,
     encoding: 'utf8',
-  }).trim();
-  assert.equal(tracked, 'netlify/functions/ai-chat.js', `unexpected Netlify Function diff: ${tracked || '(none)'}`);
+  });
+  const files = tracked.trim().split(/\r?\n/).filter(Boolean);
+  const allowed = new Set([
+    'netlify/functions/ai-chat.js',
+    'netlify/functions/submit-booking.js',
+    'netlify/functions/create-setup-intent.js',
+    'netlify/functions/revenue-event.js',
+    'netlify/functions/garage-plan-submit.js',
+    'netlify/functions/revenue-admin.js',
+    'netlify/functions/revenue-resume-link.js',
+  ]);
+  for (const file of files) {
+    assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);
+  }
 });
 
 test('correction commit leaves package IDs and pricing formulas unchanged from checkpoint', () => {

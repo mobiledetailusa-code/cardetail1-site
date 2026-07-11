@@ -56,6 +56,7 @@ const {
 } = require('../lib/site-access');
 const { validateBookingSchedule, hasSlotConflict } = require('../lib/booking-schedule');
 const { listRawBookings, normalizePhone } = require('../lib/ops-db');
+const { validateBookingRouting } = require('../lib/booking-routing-validation');
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const v = validateBookingSchedule(b.preferredDate, b.preferredTime);
@@ -393,6 +394,11 @@ exports.handler = async (event) => {
 
   const zip = String(b.zipCode || b.zip || '').replace(/\D/g, '').slice(0, 5);
   if (zip.length < 5) return json(400, { ok: false, error: 'zip_required' });
+
+  const routingCheck = validateBookingRouting(b);
+  if (!routingCheck.ok) {
+    return json(403, { ok: false, error: routingCheck.error });
+  }
 
   const isDraftRequest = !!b.isDraft;
   const travelApplied = applyServerTravelAndTotal(

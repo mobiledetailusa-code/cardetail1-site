@@ -193,6 +193,31 @@
       failBooking(categoryId, packageId, 'INVALID_CATEGORY');
       return;
     }
+    if (global.Cardetail1UniversalStrategy && global.CD1BookingRoutingGate) {
+      var routeCtx = global.CD1BookingRoutingGate.gatherContext({
+        category: categoryId,
+        source: 'specialty_bridge',
+      });
+      var routeResult = global.CD1BookingRoutingGate.evaluateAndMaybeBlock(routeCtx);
+      if (routeResult.blocked) {
+        showBookingError(
+          'This booking option uses an alternative service path. Please use the suggested inquiry option or call/text 551-313-2956.',
+          routeResult.route.code || 'ROUTING_BLOCKED',
+          categoryId,
+          packageId
+        );
+        return;
+      }
+      if (routeResult.route.route !== 'specialty_booking' && routeResult.route.route !== 'standard_booking') {
+        showBookingError(
+          'This booking option uses an alternative service path. Please use the suggested inquiry option or call/text 551-313-2956.',
+          'ROUTING_PATH_MISMATCH',
+          categoryId,
+          packageId
+        );
+        return;
+      }
+    }
     if (!VALID_PACKAGES[categoryId]) {
       failBooking(categoryId, packageId, 'INVALID_CATEGORY');
       return;

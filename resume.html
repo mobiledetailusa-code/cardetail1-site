@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Resume Your Booking | Cardetail1</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0a1628;color:#e8eef5;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;text-align:center}
+.box{max-width:420px;padding:24px;border:1px solid rgba(77,163,255,.35);border-radius:16px;background:#020a16}
+a{color:#4da3ff}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1 style="font-size:20px;margin-bottom:10px">Resume your booking</h1>
+  <p id="msg" style="color:#8a9bb0;font-size:14px">Validating secure link…</p>
+  <p style="margin-top:16px"><a href="index.html">Return to homepage</a></p>
+</div>
+<script src="assets/consent-manager.js"></script>
+<script src="assets/revenue-events.js"></script>
+<script>
+(function(){
+  var params=new URLSearchParams(location.search);
+  var token=params.get('token')||'';
+  var msg=document.getElementById('msg');
+  if(!token){ msg.textContent='This resume link is invalid or expired.'; return; }
+  fetch('/.netlify/functions/revenue-resume-link?token='+encodeURIComponent(token))
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(!data.ok){
+        msg.textContent=data.error==='expired'?'This resume link has expired. Start a new booking or contact us.':'This resume link is invalid or expired.';
+        return;
+      }
+      if(window.Cardetail1Revenue) window.Cardetail1Revenue.track('booking_resumed',{booking_step:data.bookingStep});
+      msg.textContent='Link verified. Opening booking…';
+      location.href='index.html?resume=1&step='+(data.bookingStep||1);
+    })
+    .catch(function(){ msg.textContent='Could not validate link. Please try again or call us.'; });
+})();
+</script>
+</body>
+</html>
