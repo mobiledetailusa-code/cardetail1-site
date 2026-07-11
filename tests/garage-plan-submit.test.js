@@ -248,8 +248,8 @@ test('function strategy config exists beside universal-customer-strategy.js', ()
   const configPath = path.join(root, 'netlify/lib/universal-customer-strategy-config.json');
   assert.ok(fs.existsSync(configPath), 'missing netlify/lib/universal-customer-strategy-config.json');
   const strategy = fs.readFileSync(path.join(root, 'netlify/lib/universal-customer-strategy.js'), 'utf8');
-  assert.match(strategy, /universal-customer-strategy-config\.json/);
-  assert.doesNotMatch(strategy, /\.\.\/\.\.\/shared\//);
+  assert.match(strategy, /require\('\.\/universal-customer-strategy-config\.json'\)/);
+  assert.doesNotMatch(strategy, /path\.join\(__dirname/);
 });
 
 test('garage-plan-submit function file exists and exports handler', () => {
