@@ -22,7 +22,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Cardetail1 — Mobile Detailing | Palisades Park &amp; Bergen County, NJ">
 <meta name="twitter:description" content="Mobile car detailing based in Palisades Park, NJ. Serving Bergen County and nearby NJ/NY areas. Book online — extended areas by quote.">
-<title>Cardetail1 — Mobile Detailing | Palisades Park &amp; Bergen County, NJ</title>
+<title>Mobile Car Detailing in Bergen County, NJ | Cardetail1</title>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -84,17 +84,17 @@
 /* ── RESET & VARS ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg0:#f4f6f9;--bg1:#ffffff;--bg2:#eef2f7;--bg3:#e4eaf2;--bg4:#d8e0ea;
-  --ink:#1e293b;--ink-soft:#475569;
-  --dark:#17212f;--dark-soft:#243044;
-  --blue:#2563eb;--blue-hover:#1d4ed8;--bdim:rgba(37,99,235,.08);--bbr:rgba(37,99,235,.22);
-  --white:#ffffff;--mu:#64748b;--tx:#334155;
-  --gr:#16a34a;--grdim:rgba(22,163,74,.10);--grbr:rgba(22,163,74,.28);
-  --am:#d97706;--amdim:rgba(217,119,6,.10);--ambr:rgba(217,119,6,.28);
-  --rd:#dc2626;--rddim:rgba(220,38,38,.10);
-  --gold:#ca8a04;
-  --line:rgba(15,23,42,.08);--line-strong:rgba(15,23,42,.14);
-  --shadow-sm:0 1px 3px rgba(15,23,42,.06);--shadow-md:0 8px 24px rgba(15,23,42,.08);
+  --bg0:#12181f;--bg1:#1a222c;--bg2:#222c38;--bg3:#2a3544;--bg4:#323f50;
+  --ink:#ece8e1;--ink-soft:#9aa8b8;
+  --dark:#0a0e14;--dark-soft:#12181f;
+  --blue:#4d8fd9;--blue-hover:#3a7bc8;--bdim:rgba(77,143,217,.12);--bbr:rgba(77,143,217,.28);
+  --white:#ece8e1;--mu:#8b97a8;--tx:#c8d0da;
+  --gr:#34c759;--grdim:rgba(52,199,89,.12);--grbr:rgba(52,199,89,.28);
+  --am:#d4a054;--amdim:rgba(212,160,84,.12);--ambr:rgba(212,160,84,.28);
+  --rd:#ef4444;--rddim:rgba(239,68,68,.12);
+  --gold:#c4a574;--gold-dim:rgba(196,165,116,.12);--gold-br:rgba(196,165,116,.28);
+  --line:rgba(196,165,116,.1);--line-strong:rgba(196,165,116,.18);
+  --shadow-sm:0 2px 8px rgba(0,0,0,.22);--shadow-md:0 12px 32px rgba(0,0,0,.32);
   --fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;
   --r:16px;--rs:12px;--rx:20px;
 }
@@ -103,6 +103,8 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 
 /* ── NAV (dark chrome) ── */
 .nav{position:fixed;top:0;left:0;right:0;z-index:900;background:rgba(23,33,47,.94);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;transition:.3s}
+/* Homepage only: clear fixed header so the shared specialty switcher is visible (dedicated pages use sticky nav). */
+.specialty-service-nav{margin-top:60px}
 .nav-logo{height:46px;width:auto}
 .nav-links{display:flex;gap:24px;align-items:center}
 .nav-link{font-size:14px;font-weight:500;color:rgba(255,255,255,.72);text-decoration:none;letter-spacing:0;transition:.2s;cursor:pointer}
@@ -112,6 +114,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .nav-menu-btn{display:none;background:none;border:none;color:var(--white);font-size:22px;cursor:pointer;padding:4px}
 @media(max-width:760px){
   .nav{height:52px;padding:0 12px;gap:8px}
+  .specialty-service-nav{margin-top:52px}
   .nav-links{display:none;position:absolute;top:52px;left:0;right:0;background:var(--dark);flex-direction:column;padding:16px;gap:12px;border-bottom:1px solid rgba(255,255,255,.08)}
   .nav-links.open{display:flex}
   .nav-link{padding:12px 4px;font-size:15px;min-height:44px;display:flex;align-items:center}
@@ -132,7 +135,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 @media(max-width:760px){
   .hero-tel-mobile{display:inline-flex;align-items:center;gap:8px;color:var(--blue);font-size:14px;font-weight:600;text-decoration:none;border:1px solid var(--bbr);border-radius:999px;padding:10px 20px;margin-top:16px;background:var(--bg1);-webkit-tap-highlight-color:transparent}
 }
-.hero{min-height:auto;background:var(--bg1);display:flex;align-items:center;justify-content:center;text-align:center;padding:88px 20px 48px;position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.hero{min-height:auto;background:var(--bg1);display:flex;align-items:center;justify-content:center;text-align:center;padding:40px 20px 48px;position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
 .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 70% 40%,rgba(37,99,235,.04),transparent);pointer-events:none}
 .hero-inner{max-width:520px;width:100%;position:relative;z-index:1;margin:0 auto}
 .hero-badge{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--blue);border:1px solid var(--bbr);background:var(--bdim);border-radius:999px;padding:5px 12px;margin-bottom:12px}
@@ -193,6 +196,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .svc-lock-gate-sub{font-size:13px;color:var(--mu)}
 .svc-card.locked{opacity:.35;pointer-events:none;filter:grayscale(.8);transform:none!important}
 .svc-card.locked .svc-btn{opacity:.4}
+#bk-cat-grid .svc-card.pending-cat{box-shadow:0 0 0 2px var(--blue);opacity:.9!important;filter:none!important}
 /* Unlock animation */
 @keyframes unlock-pop{0%{opacity:.35;transform:translateY(10px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
 .svc-card.unlocking{animation:unlock-pop .35s ease forwards}
@@ -866,10 +870,10 @@ footer{background:var(--dark);border-top:1px solid rgba(255,255,255,.08);padding
 .nav-logo-img{height:48px;width:auto;max-width:220px;object-fit:contain;display:block;filter:none}
 .foot-logo-img{height:52px;width:auto;max-width:240px;object-fit:contain;display:block;margin-bottom:12px;filter:none}
 .hero{background:
-  linear-gradient(105deg,rgba(255,255,255,.97) 0%,rgba(255,255,255,.90) 42%,rgba(255,255,255,.55) 100%),
+  linear-gradient(105deg,rgba(15,20,28,.94) 0%,rgba(18,24,33,.82) 40%,rgba(18,24,33,.48) 62%,rgba(18,24,33,.10) 100%),
   url("assets/vehicles/premium/cars-suvs.webp") center right/cover no-repeat !important;
 }
-.hero::before{background:radial-gradient(ellipse 55% 45% at 72% 45%,rgba(37,99,235,.04),transparent),linear-gradient(180deg,transparent 85%,var(--bg0) 100%) !important}
+.hero::before{background:radial-gradient(circle at 82% 20%,rgba(77,163,255,.10),transparent 34%),linear-gradient(180deg,transparent 82%,#12181f 100%) !important}
 .hero > *{position:relative;z-index:1}
 .hero-brand-mark{display:none}
 .visual-proof{display:none}
@@ -1082,7 +1086,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .brand-sub{font-size:7px;letter-spacing:.1em}
 
   /* ── HERO ── */
-  .hero{padding:76px 16px 40px;min-height:auto;flex-direction:column;overflow-x:hidden}
+  .hero{padding:32px 16px 40px;min-height:auto;flex-direction:column;overflow-x:hidden}
   .hero>*{width:100%;max-width:100%;min-width:0}
   .hero h1{font-size:clamp(28px,8vw,38px);line-height:1.15;overflow-wrap:break-word}
   .hero-sub{font-size:14px;margin-bottom:18px;max-width:100%}
@@ -1246,12 +1250,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 @media(max-height:500px) and (max-width:900px){
   .booking-modal-ov{align-items:flex-start;padding:0}
   .booking-modal{max-height:100svh;border-radius:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
-  .hero{min-height:auto;padding:70px 20px 40px}
+  .hero{min-height:auto;padding:28px 20px 40px}
   .hero h1{font-size:clamp(40px,10vw,72px)}
 }
 
-/* ── SPECIALTY SERVICES / 2026 REFRESH ── */
-.specialty-section{background:var(--bg0);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+/* ── CAR PACKAGES / 2026 REFRESH ── */
 .car-pkg-intro{margin-bottom:28px;max-width:680px}
 .car-pkg-intro .sec-title{margin-bottom:10px;text-align:left;font-size:clamp(24px,3.5vw,34px)}
 .car-pkg-intro .sec-desc{margin:0;text-align:left;max-width:none;line-height:1.65;color:var(--ink-soft);font-size:15px}
@@ -1311,50 +1314,17 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .car-addon-chip:hover{border-color:var(--bbr);color:var(--blue);background:var(--bdim)}
 .car-addon-chip b{color:var(--blue);font-weight:600}
 .car-services-cta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.specialty-section--secondary{background:var(--bg0);border-top:1px solid var(--line)}
-.specialty-section--secondary .sec-title{font-size:clamp(22px,3.5vw,32px)}
-.specialty-section--secondary .sec-desc{max-width:520px}
-.specialty-grid--compact{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.specialty-card--compact{min-height:0;padding:0;box-shadow:var(--shadow-sm);background:var(--bg1);overflow:hidden;display:flex;flex-direction:column}
-.specialty-card--compact .specialty-card-top{padding:18px 16px 12px;flex:1;display:flex;flex-direction:column}
-.specialty-card--compact h3{font-size:17px;font-weight:700;margin-bottom:6px;color:var(--ink)}
-.specialty-card--compact p{font-size:12px;margin-bottom:10px;line-height:1.5;color:var(--ink-soft);flex:1}
-.specialty-card--compact .specialty-icon{font-size:26px;margin-bottom:10px}
-.specialty-card--compact .specialty-price-block{padding:0 16px 12px;display:flex;flex-direction:column;gap:2px}
-.specialty-card--compact .specialty-price-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mu)}
-.specialty-card--compact .specialty-price-amt{font-size:22px;font-weight:700;color:var(--ink);letter-spacing:-.02em;line-height:1.1}
-.specialty-card--compact .specialty-price-note{font-size:11px;color:var(--ink-soft);line-height:1.35;margin-top:2px}
-.specialty-card--compact .specialty-card-foot{padding:12px 16px 16px;border-top:1px solid var(--line);background:var(--bg0)}
-.specialty-card--compact .specialty-action{font-size:11px;padding:10px 12px;width:100%;background:var(--bg1);font-weight:700}
-.specialty-card--compact:hover .specialty-action{background:var(--blue);color:var(--white);border-color:var(--blue)}
 #bk-cat-grid .bk-cat-specialty{margin-top:8px;padding-top:16px;border-top:1px dashed var(--line);display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 #bk-cat-grid .bk-cat-specialty .svc-card{opacity:.92}
 #bk-cat-grid .bk-cat-specialty-label{grid-column:1/-1;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin-bottom:4px}
 @media(max-width:760px){
   .car-pkg-grid{grid-template-columns:1fr;gap:14px}
   .car-pkg-card--popular{order:-1}
-  .specialty-grid--compact{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(min-width:761px) and (max-width:980px){
   .car-pkg-grid{grid-template-columns:1fr 1fr}
   .car-pkg-card--popular{grid-column:1/-1}
 }
-.specialty-lead{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);gap:34px;align-items:end;margin-bottom:30px}
-.specialty-callout{border:1px solid var(--bbr);background:var(--bdim);border-radius:var(--rx);padding:22px}
-.specialty-callout strong{display:block;color:var(--ink);font-size:18px;margin-bottom:7px}
-.specialty-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.specialty-card{display:flex;flex-direction:column;min-height:280px;padding:24px;border-radius:var(--r);border:1px solid var(--line);background:var(--bg1);box-shadow:var(--shadow-sm);transition:.22s}
-.specialty-card:hover{transform:translateY(-2px);border-color:var(--bbr);box-shadow:var(--shadow-md)}
-.specialty-card h3{color:var(--ink);font-size:19px;line-height:1.25;margin-bottom:9px}
-.specialty-card p{color:var(--ink-soft);font-size:13px;line-height:1.65;margin-bottom:18px}
-.specialty-action:hover{background:var(--blue);color:var(--white)}
-.specialty-callout p{color:var(--ink-soft);font-size:13px;line-height:1.65}
-.specialty-icon{font-size:30px;margin-bottom:17px}
-.specialty-list{list-style:none;margin:auto 0 20px;display:grid;gap:8px}
-.specialty-list li{font-size:12px;color:var(--tx);padding-left:18px;position:relative}
-.specialty-list li::before{content:'✓';position:absolute;left:0;color:var(--blue);font-weight:800}
-.specialty-action{width:100%;border:1px solid var(--bbr);background:var(--bdim);color:var(--blue);padding:11px 14px;border-radius:999px;font:700 12px var(--fb);letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:.2s}
-.specialty-note{margin-top:20px;text-align:center;color:var(--mu);font-size:12px}
 .hero-proof{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 auto 8px}
 .hero-proof span{border:1px solid var(--line);background:var(--bg1);color:var(--ink-soft);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:500}
 .review-source{display:inline-flex;align-items:center;gap:7px;margin-top:8px;color:var(--mu);font-size:11px}
@@ -1364,7 +1334,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .rw-img{background:linear-gradient(110deg,var(--bg2) 25%,var(--bg3) 42%,var(--bg2) 58%);background-size:200% 100%;animation:imgShimmer 1.4s linear infinite}
 .rw-img.rw-loaded{animation:none;background:none}
 @keyframes imgShimmer{to{background-position:-200% 0}}
-@media(max-width:980px){.specialty-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .ba-section{background:var(--bg1);padding:64px 24px 56px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .ba-card{background:var(--bg1);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;transition:.22s;box-shadow:var(--shadow-sm)}
 .ba-vehicle{font-family:var(--fd);font-size:17px;color:var(--ink);letter-spacing:.02em;margin-bottom:4px}
@@ -1426,7 +1395,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 /* ── MOBILE CONVERSION PASS (hero, nav, packages, tap targets) ── */
 @media(max-width:768px){
-  .hero{padding:64px 16px 28px;min-height:0;align-items:flex-start;justify-content:flex-start;background:var(--bg1)!important}
+  .hero{padding:28px 16px 28px;min-height:0;align-items:flex-start;justify-content:flex-start;background:var(--bg1)!important}
   .hero::before{display:none!important}
   .hero-inner{display:flex;flex-direction:column;align-items:stretch;width:100%;max-width:100%;min-width:0}
   .hero-badge{align-self:flex-start;font-size:10.5px;padding:4px 10px;margin-bottom:10px}
@@ -1457,28 +1426,26 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .car-addon-chip{min-height:40px;padding:10px 14px;font-size:13px}
   .loc-section{padding:32px 16px 40px}
   .loc-header .sec-title{font-size:clamp(20px,5.5vw,28px)!important}
-  .specialty-card--compact .specialty-action{min-height:44px;font-size:12px;padding:12px}
-  .specialty-grid--compact{gap:10px}
   .section{padding:52px 16px}
   .sec-desc{margin-bottom:28px}
   .btn-primary,.btn-outline{touch-action:manipulation}
 }
-@media(max-width:480px){
-  .specialty-grid--compact{grid-template-columns:1fr}
-}
 @media(max-width:768px){
-  .loc-scroll,.loc-inner,.section,.hero-inner,.car-pkg-grid,.specialty-grid--compact{max-width:100%;min-width:0}
+  .loc-scroll,.loc-inner,.section,.hero-inner,.car-pkg-grid{max-width:100%;min-width:0}
   .loc-scroll{padding-bottom:4px;margin:0 -4px;padding-left:4px;padding-right:4px}
 }
 
 </style>
 <link rel="stylesheet" href="assets/booking-modal-light.css">
 <link rel="stylesheet" href="assets/public-surface-contrast.css">
+<link rel="stylesheet" href="assets/luxury-theme.css">
+<link rel="stylesheet" href="assets/specialty-service-nav.css">
+<link rel="stylesheet" href="assets/service-area-accordion.css">
 <link rel="stylesheet" href="assets/button-states.css">
 <link rel="stylesheet" href="assets/car-pkg-detail-modal.css">
 <style>.car-pkg-detail-ov[hidden]{display:none!important}</style>
 </head>
-<body>
+<body class="luxury-surface">
 
 <!-- NAV -->
 <nav class="nav" id="main-nav">
@@ -1492,18 +1459,29 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
 </nav>
 
+<nav class="specialty-service-nav" aria-label="Specialty detailing services">
+  <div class="specialty-service-nav-inner">
+    <div class="specialty-service-links">
+      <a class="specialty-service-link" href="rv-detailing.html">RV &amp; Trailers</a>
+      <a class="specialty-service-link" href="boats-detailing.html">Boats</a>
+      <a class="specialty-service-link" href="powersports-detailing.html">Powersports</a>
+    </div>
+  </div>
+</nav>
+
+
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-inner">
+<div class="hero-inner">
     <div class="hero-badge">Palisades Park, NJ · Bergen County</div>
-    <h1><span class="hero-h1-line">Mobile Car Detailing</span><br class="hero-br"><span class="hero-h1-line">That Comes To You</span></h1>
+    <h1>Mobile Car Detailing at Your Home or Office</h1>
     <ul class="hero-facts" aria-label="Service highlights">
       <li>🚐 We come to you</li>
       <li>📍 Bergen County &amp; nearby NJ/NY</li>
       <li>📅 Book online</li>
     </ul>
-    <p class="hero-sub hero-sub--long">Interior detail, exterior detail, and full detail for cars and SUVs. We drive to your home or office — you skip the shop.</p>
-    <p class="hero-sub hero-sub--short">Interior, exterior &amp; full detail for cars and SUVs — at your home or office.</p>
+    <p class="hero-sub hero-sub--long">Interior, exterior and full detailing for cars and SUVs across Bergen County and nearby NJ/NY.</p>
+    <p class="hero-sub hero-sub--short">Interior, exterior and full detailing for cars and SUVs across Bergen County and nearby NJ/NY.</p>
 
     <div class="hero-btns">
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
@@ -1643,7 +1621,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
     <div class="car-services-cta">
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBookingFromHome('cars')">Book Your Detail</button>
-      <button type="button" class="btn-outline" onclick="document.getElementById('specialty-services').scrollIntoView({behavior:'smooth'})">Boats, RVs &amp; fleet</button>
+      <a class="btn-outline" href="boats-detailing.html">Boats, RVs &amp; powersports</a>
     </div>
   </div>
 </div>
@@ -1991,8 +1969,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <div id="how" style="background:var(--bg0)">
   <div class="section">
     <div class="sec-eye">How it works</div>
-    <div class="sec-title">Book in four steps</div>
-    <div class="sec-desc">Book online, we come to you — no charge today, card holds your slot.</div>
+    <div class="sec-title">Book online in a few simple steps</div>
+    <div class="sec-desc">Request your appointment online — we confirm by text. No charge today; your card holds your booking request.</div>
     <div class="how-grid">
       <div class="how-card">
         <div class="how-ico">📱</div>
@@ -2017,71 +1995,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </div>
   </div>
 </div>
-
-<!-- SPECIALTY SERVICES (secondary) -->
-<section class="specialty-section specialty-section--secondary" id="specialty-services">
-  <div class="section">
-    <div class="sec-eye">More than cars</div>
-    <div class="sec-title">Boats, RVs &amp; powersports</div>
-    <div class="sec-desc">Same mobile service for boats, RVs, and powersports. Commercial fleets: request a custom quote.</div>
-    <div class="specialty-grid specialty-grid--compact">
-      <div class="specialty-card specialty-card--compact" onclick="openBookingFromHome('boats')">
-        <div class="specialty-card-top">
-          <h3>Boats &amp; Marine</h3>
-          <p>Hull, deck, and cockpit wash at your marina or storage spot.</p>
-        </div>
-        <div class="specialty-price-block">
-          <span class="specialty-price-label">From</span>
-          <span class="specialty-price-amt" id="hfrom-boats-amt">$266</span>
-          <span class="specialty-price-note" id="hfrom-boats-note">by vessel length</span>
-        </div>
-        <div class="specialty-card-foot">
-          <button type="button" class="specialty-action" onclick="event.stopPropagation();openBookingFromHome('boats')">Book boat detail</button>
-        </div>
-      </div>
-      <div class="specialty-card specialty-card--compact" onclick="openBookingFromHome('rvs')">
-        <div class="specialty-card-top">
-          <h3>RVs &amp; Trailers</h3>
-          <p>Travel trailers, fifth wheels, and motorhomes — cleaned where parked.</p>
-        </div>
-        <div class="specialty-price-block">
-          <span class="specialty-price-label">From</span>
-          <span class="specialty-price-amt" id="hfrom-rvs-amt">$466</span>
-          <span class="specialty-price-note" id="hfrom-rvs-note">by RV length</span>
-        </div>
-        <div class="specialty-card-foot">
-          <button type="button" class="specialty-action" onclick="event.stopPropagation();openBookingFromHome('rvs')">Book RV detail</button>
-        </div>
-      </div>
-      <div class="specialty-card specialty-card--compact" onclick="openBookingFromHome('powersports')">
-        <div class="specialty-card-top">
-          <h3>Powersports</h3>
-          <p>Motorcycles, ATVs, UTVs, and jet skis at your location.</p>
-        </div>
-        <div class="specialty-price-block">
-          <span class="specialty-price-label">From</span>
-          <span class="specialty-price-amt" id="hfrom-powersports-amt">$119</span>
-          <span class="specialty-price-note" id="hfrom-powersports-note">by vehicle type</span>
-        </div>
-        <div class="specialty-card-foot">
-          <button type="button" class="specialty-action" onclick="event.stopPropagation();openBookingFromHome('powersports')">Book powersports</button>
-        </div>
-      </div>
-
-    </div>
-    <div class="specialty-card specialty-card--compact" style="grid-column:1/-1;cursor:pointer" onclick="openCommercialInquiry()">
-        <div class="specialty-card-top">
-          <h3>Commercial &amp; Fleet Inquiries</h3>
-          <p>Need service for multiple company vehicles? Contact us for a custom service plan based on vehicle type, quantity, location and frequency.</p>
-        </div>
-        <div class="specialty-card-foot">
-          <button type="button" class="specialty-action" onclick="event.stopPropagation();openCommercialInquiry()">Request a Custom Quote</button>
-          <a href="tel:5513132956" class="specialty-action" style="margin-left:10px;text-decoration:none" onclick="event.stopPropagation()">Call/Text 551-313-2956</a>
-        </div>
-      </div>
-    <p class="specialty-note">Most bookings are car detailing. Start with <a href="#" onclick="openBookingFromHome('cars');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">Cars &amp; SUVs</a> or call <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.</p>
-  </div>
-</section>
 
 <!-- REAL RESULTS -->
 <div class="results-section">
@@ -2221,6 +2134,33 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </div>
 
+<!-- SERVICE AREAS -->
+<section class="home-service-areas" aria-labelledby="home-service-areas-title">
+  <div class="section">
+    <div class="sec-eye">SERVICE AREAS</div>
+    <h2 id="home-service-areas-title" class="sec-title">Mobile Detailing Near You</h2>
+    <p class="sec-desc home-service-areas-copy">Based in Palisades Park, Cardetail1 provides mobile interior, exterior and full detailing throughout Bergen County and selected nearby areas in New Jersey, New York and Connecticut.</p>
+
+    <div class="service-area-city-grid">
+      <a class="service-area-city-link" href="/bergen-county-hub.html">Mobile detailing in Bergen County</a>
+      <a class="service-area-city-link" href="/hudson-county-hub.html">Mobile detailing in Hudson County</a>
+      <a class="service-area-city-link" href="/essex-county-hub.html">Mobile detailing in Essex County</a>
+      <a class="service-area-city-link" href="/passaic-county-hub.html">Mobile detailing in Passaic County</a>
+      <a class="service-area-city-link" href="/newark-mobile-detailing.html">Mobile detailing in Newark</a>
+      <a class="service-area-city-link" href="/westchester-mobile-detailing.html">Mobile detailing in Westchester</a>
+      <a class="service-area-city-link" href="/trenton-mobile-detailing.html">Mobile detailing in Trenton</a>
+      <a class="service-area-city-link" href="/ny-metro-hub.html#rockland-county">Mobile detailing in Rockland County</a>
+      <a class="service-area-city-link" href="/connecticut-hub.html#fairfield-county">Mobile detailing in Fairfield County</a>
+    </div>
+
+    <div class="service-area-hub-links">
+      <a class="service-area-hub-link" href="/new-jersey-hub.html">View all New Jersey service areas →</a>
+      <a class="service-area-hub-link" href="/ny-metro-hub.html">View New York service areas →</a>
+      <a class="service-area-hub-link" href="/connecticut-hub.html">View Connecticut service areas →</a>
+    </div>
+  </div>
+</section>
+
 <!-- CTA SECTION -->
 <div class="section-full" style="background:var(--bg1)">
   <div class="section">
@@ -2269,8 +2209,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       </div>
       <div class="foot-col">
         <h4>Specialty Services</h4>
+        <a href="boats-detailing.html">Boat &amp; Marine Detailing</a>
         <a href="rv-detailing.html">RV &amp; Motorhome Detailing</a>
-        <a onclick="openCommercialInquiry()">Request a Custom Quote</a>
+        <a href="powersports-detailing.html">Powersports Detailing</a>
+        <a onclick="openCommercialInquiry()">Commercial &amp; Fleet Inquiry</a>
       </div>
       <div class="foot-col">
         <h4>Contact</h4>
@@ -2667,7 +2609,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             </div>
             <div class="sel-g"><div class="sel-l">Year</div><select class="sel-s" id="g-year"><option value="">— year —</option></select></div>
           </div>
-          <div id="g-custom-note" style="display:none;font-size:11px;color:var(--accent);margin-top:7px;padding:6px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">✏️ Custom entry — not in catalog. That's OK, free-form is supported.</div>
+          <div id="g-custom-note" style="display:none;font-size:11px;color:var(--blue);margin-top:7px;padding:6px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">✏️ Custom entry — not in catalog. That's OK, free-form is supported.</div>
         </div>
 
         <!-- Length selector for boats, RVs and travel trailers -->
@@ -3942,17 +3884,25 @@ function selectCategory(cat){
   const zipEl = document.getElementById('bk-zip');
   const zip = zipEl ? zipEl.value.replace(/\D/g,'') : '';
   if(zip.length < 5 || !activeZone){
+    // Remember intended category/package so specialty-page deep links survive ZIP entry
+    ST._pendingCat=cat;
+    bkGoTo(1);
+    document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('pending-cat'));
+    const pendingCard=document.getElementById('bkcat-'+cat);
+    if(pendingCard) pendingCard.classList.add('pending-cat');
     // Focus the ZIP input with a shake animation
     if(zipEl){ zipEl.focus(); zipEl.style.outline='2px solid var(--rd)'; setTimeout(()=>zipEl.style.outline='',1800); }
     const gateMsg = document.getElementById('bk-gate-msg');
     if(gateMsg){ gateMsg.style.animation='none'; void gateMsg.offsetWidth; gateMsg.style.animation=''; }
     return;
   }
+  ST._pendingCat='';
+  document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('pending-cat'));
   ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
   renderPackages(cat);
   renderTierChips(cat);
   bkGoTo(2);
-  if(ST._prefillPkgId && cat==='cars'){
+  if(ST._prefillPkgId){
     const pid=ST._prefillPkgId;
     ST._prefillPkgId='';
     requestAnimationFrame(()=>{ if(document.getElementById('pk-'+pid)) selectPkg(pid); });
@@ -4207,18 +4157,14 @@ function tryGenericConfirm(){
   if(ST.cat==='fleet'){
     if(!ST.tierKey || !ST.pkgId) return;
     const units = ST.units || 2;
-    const t = ST.tier;
     if(ST.tierKey === 'marine_rv'){
       const ft = ST.lengthFt || LENGTH_PRICING.fleet.defaultFt;
-      const unitPrice = getLengthPrice( ST.pkgId, ft) || 0;
-      ST.basePrice = ST.pkgId==='custom' ? 0 : unitPrice * units;
+      ST.basePrice = 0;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model} · avg ${ft} ft`;
       setVehicleVisual();
       setVcName(ST.vehicleLabel);
     }else{
-      const unitPrice = t[ST.pkgId] || 0;
-      const needsEstimate = ST.pkgId==='custom' || !unitPrice;
-      ST.basePrice = needsEstimate ? 0 : unitPrice * units;
+      ST.basePrice = 0;
       ST.vehicleLabel = `${units} unit fleet · ${year} ${make} ${model}`;
       setVehicleVisual();
       setVcName(ST.vehicleLabel);
@@ -4247,11 +4193,9 @@ function setBasePrice(){
     const units=ST.units||2;
     if(ST.tierKey==='marine_rv'){
       const ft=ST.lengthFt||LENGTH_PRICING.fleet.defaultFt;
-      const p=getLengthPrice(ST.pkgId,ft)||0;
-      raw=ST.pkgId==='custom'?0:p*units;
+      raw=0;
     }else{
-      const unitPrice = ST.tier[ST.pkgId] || 0;
-      raw=(ST.pkgId==='custom'||!unitPrice)?0:unitPrice*units;
+      raw=0;
     }
   }else{
     raw=ST.tier[ST.pkgId]||ST.tier['wash']||ST.tier['maint']||ST.tier['exterior']||0;
@@ -5530,7 +5474,7 @@ function syncTravelFromKnownZip(){
 }
 function getCategoryFromBases(){
   return {
-    cars:Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.maint)),
+    cars:Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.interior)),
     boats:LENGTH_PRICING.boats.packages.maint.min,
     rvs:LENGTH_PRICING.rvs.packages.exterior.min,
     powersports:Math.min(...Object.values(PRICING.powersports.tiers).map(t=>Object.values(t).filter(v=>typeof v==='number')[0]||99)),
@@ -5675,6 +5619,11 @@ function onBkZipInput(val){
     if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span><span style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px">· Prices include service to your area</span>'; }
     updateBkFromPrices();
     renderLocationCarousel(zone.key||'default');
+    if(ST._pendingCat){
+      const pending=ST._pendingCat;
+      ST._pendingCat='';
+      selectCategory(pending);
+    }
   } else {
     badge.style.display    = 'none';
     updateBkTravelDisplay(null);
@@ -5684,7 +5633,20 @@ function onBkZipInput(val){
   updateTotal();
 }
 
-function updateBkFromPrices(){}
+function updateBkFromPrices(){
+  const BASE = {
+    boats:      { price: LENGTH_PRICING.boats.packages.maint.min },
+    rvs:        { price: LENGTH_PRICING.rvs.packages.exterior.min },
+    powersports:{ price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=>Object.values(t).filter(v=>typeof v==='number')[0]||99)) },
+  };
+  syncTravelFromKnownZip();
+  const fee=getKnownZip5()&&activeZone?getTravelFeeAmount():0;
+  Object.entries(BASE).forEach(([cat, info])=>{
+    const el = document.getElementById('bkfrom-'+cat);
+    if(!el || info.price == null) return;
+    el.textContent = 'From $'+(applyRichPrice(info.price)+fee);
+  });
+}
 
 
 // ═══════════════════════════════════════════════════════
@@ -6872,24 +6834,6 @@ function _updateHomeFromPrices(){
   const fullNote=document.getElementById('home-from-full-note');
   if(fullAmt) fullAmt.textContent=fmtFull(tiers.small.full);
   if(fullNote) fullNote.textContent=`Sedans from ${fmtFull(tiers.small.full)} · SUVs from ${fmtFull(tiers.suv2.full)} · 3-row SUVs from ${fmtFull(tiers.suv3.full)}`;
-  const BASE = {
-    boats:       { price: LENGTH_PRICING.boats.packages.maint.min,     note:'by vessel length', amtId:'hfrom-boats-amt' },
-    rvs:         { price: LENGTH_PRICING.rvs.packages.exterior.min,    note:'by RV length', amtId:'hfrom-rvs-amt' },
-    powersports: { price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=> Object.values(t).filter(v=>typeof v==='number')[0]||89)), note:'by vehicle type', amtId:'hfrom-powersports-amt' },
-
-  };
-  Object.entries(BASE).forEach(([cat, info])=>{
-    const amtEl = document.getElementById(info.amtId);
-    const noteEl = document.getElementById(info.noteId || ('hfrom-'+cat+'-note'));
-    if(!amtEl) return;
-    if(info.fixedAmt){
-      amtEl.textContent = info.fixedAmt;
-      if(noteEl && info.fixedNote) noteEl.textContent = info.fixedNote;
-      return;
-    }
-    amtEl.textContent = '$'+(applyRichPrice(info.price)+fee);
-    if(noteEl && info.note) noteEl.textContent = info.note;
-  });
 }
 
 const HOME_ADDON_IDS=['pethair','odor','engine','headlight','claybar','rainx'];
@@ -6944,6 +6888,12 @@ function openBookingCarPkg(pkgId){
   openBookingFromHome('cars');
 }
 
+function openBookingPkg(cat, pkgId){
+  if(cat==='fleet'){ openCommercialInquiry(); return; }
+  ST._prefillPkgId=pkgId||'';
+  openBookingFromHome(cat);
+}
+
 // Opens booking — always allowed, but pre-fills ZIP if already entered on hero
 function openBookingFromHome(cat){
   if(cat==='fleet'){ openCommercialInquiry(); return; }
@@ -6971,10 +6921,76 @@ renderReviews();
 renderLocationCarousel('default');
 renderHomeAddons();
 _updateHomeFromPrices();
+updateBkFromPrices();
 renderActivityFeed();
-seedDefaultTechs();
-initCarPkgDetailModal();
+// seedDefaultTechs exists on hub pages only — never block specialty embed booking
+try{ if(typeof seedDefaultTechs==='function') seedDefaultTechs(); }catch(e){}
+try{ if(typeof initCarPkgDetailModal==='function') initCarPkgDetailModal(); }catch(e){}
+
+(function openBookingFromQuery(){
+  try{
+    const params=new URLSearchParams(window.location.search||'');
+    const book=String(params.get('book')||'').toLowerCase();
+    const pkg=String(params.get('pkg')||params.get('package')||'');
+    const zipQ=String(params.get('zip')||'').replace(/\D/g,'');
+    const embed=params.get('embed')==='1';
+    const allowed={cars:1,boats:1,rvs:1,powersports:1};
+    if(embed){
+      document.documentElement.classList.add('cd1-booking-embed');
+      document.body.classList.add('cd1-booking-embed');
+      Array.prototype.forEach.call(document.body.children, function(el){
+        if(el.id==='bk-ov' || el.id==='radar-toast' || el.tagName==='SCRIPT' || el.tagName==='STYLE') return;
+        if(el.classList && (el.classList.contains('booking-modal-ov') || el.id==='cd-widget' || el.id==='cd-panel')) return;
+        el.style.setProperty('display','none','important');
+      });
+      const prevClose=window.closeBooking;
+      window.closeBooking=function(){
+        try{ if(window.parent && window.parent!==window) window.parent.postMessage({type:'cd1-booking-closed'}, '*'); }catch(e){}
+        if(typeof prevClose==='function') prevClose();
+        else forceCloseBooking();
+      };
+      const prevForce=window.forceCloseBooking;
+      window.forceCloseBooking=function(){
+        try{ if(window.parent && window.parent!==window) window.parent.postMessage({type:'cd1-booking-closed'}, '*'); }catch(e){}
+        if(typeof prevForce==='function') prevForce();
+      };
+    }
+    if(zipQ.length===5){
+      const heroZip=document.getElementById('hero-zip')||document.getElementById('zip-input');
+      const bkZip=document.getElementById('bk-zip');
+      if(heroZip) heroZip.value=zipQ;
+      if(bkZip) bkZip.value=zipQ;
+      try{ localStorage.setItem('cd1_zip', zipQ); sessionStorage.setItem('cd1_zip', zipQ); }catch(e){}
+      if(typeof onBkZipInput==='function') onBkZipInput(zipQ);
+    }
+    if(!allowed[book]) return;
+    if(pkg) ST._prefillPkgId=pkg;
+    ST._pendingCat=book;
+    setTimeout(function(){ openBookingFromHome(book); }, 120);
+  }catch(e){
+    try{
+      if(window.parent && window.parent!==window){
+        window.parent.postMessage({
+          type:'cd1-booking-error',
+          message:'We could not load this package. Please try again or call/text 551-313-2956.',
+          code:'OPEN_BOOKING_QUERY_FAILED',
+          source:String(location.pathname||''),
+          categoryId:String(new URLSearchParams(location.search||'').get('book')||''),
+          packageId:String(new URLSearchParams(location.search||'').get('pkg')||'')
+        }, '*');
+      }
+    }catch(err){}
+  }
+})();
 </script>
+<style>
+html.cd1-booking-embed, body.cd1-booking-embed{background:#02040a!important;overflow:hidden!important}
+body.cd1-booking-embed #bk-ov{display:flex!important;z-index:10000!important;opacity:1!important;visibility:visible!important}
+body.cd1-booking-embed .nav,
+body.cd1-booking-embed .specialty-service-nav,
+body.cd1-booking-embed .mobile-sticky-bar,
+body.cd1-booking-embed #cd-chat{display:none!important}
+</style>
 
 <!-- ════════════════════════════════════════════ -->
 <!--        FLOATING AI CHAT — LOGIC              -->

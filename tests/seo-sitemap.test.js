@@ -17,8 +17,17 @@ test('sitemap.xml lists homepage and public hub URLs', () => {
   assert.match(sitemap, /<loc>https:\/\/cardetail1\.com\/<\/loc>/);
   assert.match(sitemap, /new-jersey-hub\.html/);
   assert.match(sitemap, /ny-metro-hub\.html/);
+  assert.match(sitemap, /connecticut-hub\.html/);
+  assert.match(sitemap, /pennsylvania-hub\.html/);
   assert.match(sitemap, /bergen-county-hub\.html/);
   assert.match(sitemap, /passaic-county-hub\.html/);
+  assert.match(sitemap, /boats-detailing\.html/);
+  assert.match(sitemap, /rv-detailing\.html/);
+  assert.match(sitemap, /powersports-detailing\.html/);
+  assert.match(sitemap, /fleet-services\.html/);
+  assert.match(sitemap, /newark-mobile-detailing\.html/);
+  assert.doesNotMatch(sitemap, /admin\.html/);
+  assert.doesNotMatch(sitemap, /customer\.html/);
 });
 
 test('index.html includes Google Search Console verification meta tag', () => {

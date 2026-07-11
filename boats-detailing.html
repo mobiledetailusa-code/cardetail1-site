@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="Mobile boat and marine detailing in Bergen County and nearby marinas. Hull, deck, cockpit and interior detailing priced by vessel length, condition and access.">
+<link rel="canonical" href="https://cardetail1.com/boats-detailing.html">
+<meta property="og:title" content="Mobile Boat &amp; Marine Detailing | Cardetail1">
+<meta property="og:description" content="Mobile hull, deck, cockpit and interior boat detailing at your marina or storage location.">
+<meta property="og:url" content="https://cardetail1.com/boats-detailing.html">
+<meta property="og:image" content="https://cardetail1.com/assets/vehicles/premium/marine.webp">
+<title>Mobile Boat &amp; Marine Detailing | Cardetail1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/specialty-service-nav.css">
+<link rel="stylesheet" href="assets/specialty-public-footer.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg0:#0f1419;--bg1:#121922;--bg2:#1a2230;--line:rgba(196,165,116,.12);--ink:#ece8e1;--muted:#9aa8b8;--blue:#4d8fd9;--gold:#c4a574;--fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;--r:16px}
+body{background:linear-gradient(180deg,#0f1419 0%,#12181f 100%);color:var(--ink);font-family:var(--fb);line-height:1.6}
+.nav{position:sticky;top:0;z-index:900;background:rgba(23,33,47,.96);border-bottom:1px solid rgba(255,255,255,.08);padding:0 20px;height:64px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.nav-brand-img{display:flex;align-items:center;text-decoration:none;line-height:0}
+.nav-logo-img{height:48px;width:auto;max-width:220px;object-fit:contain;display:block}
+.nav-links{display:flex;gap:16px;align-items:center}
+.nav-link{color:#dbe6f2;text-decoration:none;font-size:14px;font-weight:600}
+.nav-cta{background:var(--blue);color:#fff;padding:9px 18px;border-radius:999px;border:0;cursor:pointer;font:700 12px var(--fb);letter-spacing:.05em;text-transform:uppercase}
+.nav-menu-btn{display:none;background:none;border:0;color:#fff;font-size:22px;cursor:pointer}
+.specialty-service-nav{margin-top:64px}
+@media(max-width:760px){
+  .nav-links{display:none;position:absolute;top:64px;left:0;right:0;background:var(--bg1);flex-direction:column;padding:16px;gap:12px;border-bottom:1px solid var(--line)}
+  .nav-links.open{display:flex}
+  .nav-menu-btn{display:block}
+}
+.hero{padding:40px 20px 36px;text-align:center;max-width:960px;margin:0 auto}
+.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+h1{font-family:var(--fd);font-size:clamp(34px,7vw,64px);line-height:.92;margin-bottom:14px}
+.sub{color:var(--muted);max-width:700px;margin:0 auto 22px}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:.05em;text-transform:uppercase;border:0;cursor:pointer;font-family:var(--fb)}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-outline{border:1px solid var(--line);color:#d7e5f4;background:transparent}
+.section{max-width:1120px;margin:0 auto;padding:0 20px 56px}
+.sec-eye{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);text-align:center;margin-bottom:8px}
+.sec-title{font-family:var(--fd);font-size:clamp(28px,5vw,48px);line-height:.95;margin-bottom:8px;text-align:center}
+.sec-copy{color:var(--muted);text-align:center;max-width:720px;margin:0 auto 28px}
+.pkg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.pkg-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:22px 18px;display:flex;flex-direction:column;min-height:100%}
+.pkg-card.pop{border-color:rgba(77,143,217,.4)}
+.pkg-visual{margin:-22px -18px 14px;border-radius:var(--r) var(--r) 0 0;overflow:hidden;aspect-ratio:16/10;background:#0b1118}
+.pkg-visual img{width:100%;height:100%;object-fit:cover;display:block}
+.pkg-name{font-family:var(--fd);font-size:26px;letter-spacing:.02em;margin-bottom:4px}
+.pkg-tag{font-size:12px;color:var(--muted);margin-bottom:10px}
+.pkg-price{font-size:22px;font-weight:700;color:var(--blue);margin-bottom:4px}
+.pkg-basis{font-size:11px;color:var(--muted);margin-bottom:8px}
+.pkg-time{font-size:11px;color:var(--gold);margin-bottom:12px}
+.pkg-feats{list-style:none;margin:0 0 16px;flex:1}
+.pkg-feats li{font-size:13px;color:var(--muted);padding:3px 0 3px 16px;position:relative}
+.pkg-feats li::before{content:'✓';position:absolute;left:0;color:var(--blue);font-weight:700}
+.pkg-note{font-size:12px;color:var(--muted);text-align:center;max-width:760px;margin:20px auto 0;line-height:1.55}
+.media-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.card img,.card video{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:#0b1118}
+.meta{padding:12px 14px 14px}
+.meta h3{font-family:var(--fd);font-size:22px}
+.meta p{color:var(--muted);font-size:13px}
+.cta-block{max-width:780px;margin:0 auto 70px;padding:34px 24px;border:1px solid var(--line);border-radius:24px;background:rgba(18,25,34,.7);text-align:center}
+.cta-block p{color:var(--muted);margin:8px 0 16px}
+footer{padding:30px 20px;color:var(--muted);text-align:center;border-top:1px solid var(--line)}
+footer a{color:var(--blue);text-decoration:none}
+</style>
+</head>
+<body>
+<nav class="nav" id="main-nav">
+  <a class="nav-brand-img" href="index.html" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" decoding="async"></a>
+  <div class="nav-links" id="nav-links">
+    <a class="nav-link" href="index.html#services">Services</a>
+    <a class="nav-link" href="tel:5513132956">Call / Text</a>
+    <button type="button" class="nav-cta" data-booking-category="boats">Book online</button>
+  </div>
+  <button type="button" class="nav-menu-btn" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Menu">☰</button>
+</nav>
+
+<nav class="specialty-service-nav" aria-label="Specialty detailing services">
+  <div class="specialty-service-nav-inner">
+    <div class="specialty-service-links">
+      <a class="specialty-service-link" href="rv-detailing.html">RV &amp; Trailers</a>
+      <a class="specialty-service-link" href="boats-detailing.html" aria-current="page">Boats</a>
+      <a class="specialty-service-link" href="powersports-detailing.html">Powersports</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="eyebrow">Mobile Marine Detailing</div>
+  <h1>Mobile Boat Detailing at Your Marina or Storage Location</h1>
+  <p class="sub">Mobile hull, deck, cockpit and interior detailing, priced by vessel length, condition and access.</p>
+  <div class="btns">
+    <a class="btn btn-primary" href="#packages">View Boat Packages</a>
+    <a class="btn btn-outline" href="tel:5513132956">Request a Marine Quote</a>
+  </div>
+</header>
+
+<section class="section" id="packages">
+  <div class="sec-eye">Boat Detailing Packages</div>
+  <h2 class="sec-title">Choose Your Mobile Boat Detailing Package</h2>
+  <p class="sec-copy">Choose the service level that matches your boat’s condition, size and storage location. Final pricing depends on vessel length, access and surface condition.</p>
+  <div class="pkg-grid">
+    <article class="pkg-card">
+      <div class="pkg-visual"><img src="assets/vehicles/premium/boat.webp" alt="Boat exterior wash representation" width="720" height="450" decoding="async"></div>
+      <h3 class="pkg-name">Marine Wash</h3>
+      <p class="pkg-tag">Regular upkeep — hull, deck &amp; glass</p>
+      <div class="pkg-price">From $199</div>
+      <div class="pkg-basis">Priced by length</div>
+      <div class="pkg-time">~1.5–2h</div>
+      <ul class="pkg-feats">
+        <li>Exterior hull wash above waterline</li>
+        <li>Deck &amp; cockpit rinse</li>
+        <li>Glass &amp; windshield cleaned</li>
+        <li>Trim &amp; rails wiped</li>
+        <li>Trailer rinse when accessible</li>
+      </ul>
+      <button type="button" class="btn btn-primary package-booking-cta" data-booking-category="boats" data-booking-package="maint">Select This Boat Package</button>
+    </article>
+    <article class="pkg-card pop">
+      <div class="pkg-visual"><img src="assets/vehicles/premium/marine.webp" alt="Marine detailing representation" width="720" height="450" loading="lazy" decoding="async"></div>
+      <h3 class="pkg-name">Full Marine Detail</h3>
+      <p class="pkg-tag">Complete boat refresh — most requested</p>
+      <div class="pkg-price">From $449</div>
+      <div class="pkg-basis">Priced by length</div>
+      <div class="pkg-time">~4–6h</div>
+      <ul class="pkg-feats">
+        <li>Deeper deck and cockpit cleaning</li>
+        <li>Cockpit &amp; cabin deep clean</li>
+        <li>Marine vinyl cleaning</li>
+        <li>Marine wax/sealant applied</li>
+        <li>Stainless/chrome wipe-down</li>
+      </ul>
+      <button type="button" class="btn btn-primary package-booking-cta" data-booking-category="boats" data-booking-package="full">Select This Boat Package</button>
+    </article>
+    <article class="pkg-card">
+      <div class="pkg-visual"><img src="assets/vehicles/premium/boat.webp" alt="Boat gloss and oxidation improvement representation" width="720" height="450" loading="lazy" decoding="async"></div>
+      <h3 class="pkg-name">Premium Marine</h3>
+      <p class="pkg-tag">Deep gloss, oxidation &amp; max protection</p>
+      <div class="pkg-price">From $699</div>
+      <div class="pkg-basis">Priced by length &amp; condition</div>
+      <div class="pkg-time">~6–8h</div>
+      <ul class="pkg-feats">
+        <li>Surface assessment required</li>
+        <li>Oxidation assessment &amp; light improvement</li>
+        <li>Machine-applied marine wax/sealant</li>
+        <li>Gloss enhancement</li>
+        <li>Severe oxidation requires review</li>
+      </ul>
+      <button type="button" class="btn btn-primary package-booking-cta" data-booking-category="boats" data-booking-package="premium">Select This Boat Package</button>
+    </article>
+  </div>
+  <p class="pkg-note">Difficult marina access, in-water limitations, severe oxidation, oversized vessels, and restoration-level work may require inspection or a custom quote before final pricing.</p>
+</section>
+
+<section class="section" id="boat-gallery">
+  <div class="sec-eye">Recent work</div>
+  <h2 class="sec-title">Boat Detailing Videos</h2>
+  <p class="sec-copy">On-site marine detailing footage from recent jobs.</p>
+  <div class="media-grid">
+    <article class="card">
+      <video controls playsinline preload="metadata" width="640" height="400">
+        <source src="assets/media/boats/RWAJ3347.MP4" type="video/mp4">
+      </video>
+      <div class="meta"><h3>Boat Video 01</h3><p>On-site marine detail footage.</p></div>
+    </article>
+    <article class="card">
+      <video controls playsinline preload="metadata" width="640" height="400">
+        <source src="assets/media/boats/VKPQ0511.MP4" type="video/mp4">
+      </video>
+      <div class="meta"><h3>Boat Video 02</h3><p>Hull and deck cleanup highlight.</p></div>
+    </article>
+    <article class="card">
+      <video controls playsinline preload="metadata" width="640" height="400">
+        <source src="assets/media/boats/XATS4703.MP4" type="video/mp4">
+      </video>
+      <div class="meta"><h3>Boat Video 03</h3><p>Quick before/after pass on marine surfaces.</p></div>
+    </article>
+  </div>
+</section>
+
+<section class="cta-block">
+  <h2 class="sec-title">Ready to Book Your Boat?</h2>
+  <p>Enter your ZIP in booking to unlock local pricing by vessel length.</p>
+  <button type="button" class="btn btn-primary" data-booking-category="boats">Start boat booking</button>
+</section>
+
+<footer class="specialty-public-footer">
+  <div class="foot-in">
+    <div class="foot-top">
+      <div>
+        <img class="foot-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" loading="lazy" decoding="async">
+        <p class="foot-tagline">Based in Palisades Park, NJ. Mobile cars, boats, RVs, and powersports — we come to you. Detailing Zone LLC.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Services</h4>
+        <a href="index.html">Cars, SUVs &amp; Trucks</a>
+        <a href="boats-detailing.html">Boat &amp; Marine Detailing</a>
+        <a href="rv-detailing.html">RV &amp; Trailer Detailing</a>
+        <a href="powersports-detailing.html">Powersports Detailing</a>
+        <a href="fleet-services.html">Commercial &amp; Fleet Inquiry</a>
+      </div>
+      <div class="foot-col">
+        <h4>Service Areas</h4>
+        <a href="new-jersey-hub.html">New Jersey service areas</a>
+        <a href="ny-metro-hub.html">New York service areas</a>
+        <a href="connecticut-hub.html">Connecticut service areas</a>
+        <a href="pennsylvania-hub.html">Pennsylvania service areas</a>
+      </div>
+      <div class="foot-col">
+        <h4>Customer</h4>
+        <a href="customer.html">View your booking</a>
+        <a href="tel:5513132956">Call / Text</a>
+        <a href="terms-conditions.html">Terms &amp; Conditions</a>
+      </div>
+    </div>
+    <div class="foot-bot">
+      <div class="foot-copy">&copy; 2026 Cardetail1 &middot; Detailing Zone LLC &middot; All rights reserved.</div>
+    </div>
+  </div>
+</footer>
+<script src="assets/specialty-booking-bridge.js" defer></script>
+</body>
+</html>

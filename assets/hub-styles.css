@@ -1,124 +1,63 @@
-/* Shared responsive hero backgrounds for hub pages (desktop / mobile) */
-.hero {
-  position: relative;
-  overflow: hidden;
-  /* Floor height so the artwork isn't force-scaled to a full-screen box
-     (which over-zoomed/cropped the state line-art). Content can still grow it. */
-  min-height: 60vh;
+/* ═══════════════════════════════════════════════════════════
+   Hub hero — shared brand gradient (no background images)
+   State / county / city hub pages
+   ═══════════════════════════════════════════════════════════ */
+
+.hero--hub-brand,
+.hero--nj,
+.hero--ny,
+.hero--ct,
+.hero--pa,
+.hub-nj,
+.hub-ny,
+.hub-ct,
+.hub-pa {
+  position: relative !important;
+  overflow: hidden !important;
+  min-height: 60vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 88px 20px 48px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background:
+    radial-gradient(circle at 82% 20%, rgba(77, 163, 255, 0.12), transparent 34%),
+    linear-gradient(135deg, #07111d 0%, #0a1725 55%, #07101a 100%) !important;
+  background-image: none !important;
 }
 
 .hero-bg-desktop,
 .hero-bg-mobile {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-attachment: scroll;
-  pointer-events: none;
-  /* Subtle lift only — no heavy blur/over-brightening that looks amateur. */
-  filter: brightness(1.1) contrast(1.05);
+  display: none !important;
 }
 
-.hero-bg-desktop::after,
-.hero-bg-mobile::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4));
-  pointer-events: none;
+.hero--hub-brand::before,
+.hero--nj::before,
+.hero--ny::before,
+.hero--ct::before,
+.hero--pa::before,
+.hub-nj::before,
+.hub-ny::before,
+.hub-ct::before,
+.hub-pa::before {
+  display: none !important;
 }
 
-.hero-bg-mobile {
-  display: none;
-}
-
-.hero > *:not(.hero-bg-desktop):not(.hero-bg-mobile) {
+.hero--hub-brand > *:not(.hero-bg-desktop):not(.hero-bg-mobile),
+.hero--nj > *:not(.hero-bg-desktop):not(.hero-bg-mobile),
+.hero--ny > *:not(.hero-bg-desktop):not(.hero-bg-mobile),
+.hero--ct > *:not(.hero-bg-desktop):not(.hero-bg-mobile),
+.hero--pa > *:not(.hero-bg-desktop):not(.hero-bg-mobile),
+.hub-nj > *:not(.hero-bg-desktop):not(.hero-bg-mobile),
+.hub-ny > *:not(.hero-bg-desktop):not(.hero-bg-mobile),
+.hub-ct > *:not(.hero-bg-desktop):not(.hero-bg-mobile),
+.hub-pa > *:not(.hero-bg-desktop):not(.hero-bg-mobile) {
   position: relative;
   z-index: 1;
 }
 
-.hero::before {
-  z-index: 0;
-}
-
-/* Keep the white hero copy readable while the artwork is visible. */
-.hero h1,
-.hero .hero-sub,
-.hero .hero-badge,
-.hero .hero-year-round {
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-}
-
-@media (max-width: 768px) {
-  .hero {
-    min-height: 40vh;
-  }
-
-  .hero-bg-desktop {
-    display: none;
-  }
-
-  .hero-bg-mobile {
-    display: block;
-    /* Show the whole state artwork on phones instead of cropping/zooming it. */
-    background-size: contain;
-    background-position: top center;
-    background-attachment: scroll;
-  }
-}
-
-/* ── State hub heroes (NJ/NY/CT/PA) — light theme + stronger line-art (homepage-style) ── */
-.hero--nj .hero-bg-desktop,
-.hero--ny .hero-bg-desktop,
-.hero--ct .hero-bg-desktop,
-.hero--pa .hero-bg-desktop,
-.hub-nj .hero-bg-desktop,
-.hub-ny .hero-bg-desktop,
-.hub-ct .hero-bg-desktop,
-.hub-pa .hero-bg-desktop {
-  background-position: center right;
-  background-size: cover;
-  filter: contrast(1.34) brightness(1.05) saturate(0.92);
-}
-
-.hero--nj .hero-bg-mobile,
-.hero--ny .hero-bg-mobile,
-.hero--ct .hero-bg-mobile,
-.hero--pa .hero-bg-mobile,
-.hub-nj .hero-bg-mobile,
-.hub-ny .hero-bg-mobile,
-.hub-ct .hero-bg-mobile,
-.hub-pa .hero-bg-mobile {
-  filter: contrast(1.34) brightness(1.05) saturate(0.92);
-}
-
-.hero--nj .hero-bg-desktop::after,
-.hero--ny .hero-bg-desktop::after,
-.hero--ct .hero-bg-desktop::after,
-.hero--pa .hero-bg-desktop::after,
-.hub-nj .hero-bg-desktop::after,
-.hub-ny .hero-bg-desktop::after,
-.hub-ct .hero-bg-desktop::after,
-.hub-pa .hero-bg-desktop::after,
-.hero--nj .hero-bg-mobile::after,
-.hero--ny .hero-bg-mobile::after,
-.hero--ct .hero-bg-mobile::after,
-.hero--pa .hero-bg-mobile::after,
-.hub-nj .hero-bg-mobile::after,
-.hub-ny .hero-bg-mobile::after,
-.hub-ct .hero-bg-mobile::after,
-.hub-pa .hero-bg-mobile::after {
-  background: linear-gradient(
-    105deg,
-    rgba(244, 246, 249, 0.97) 0%,
-    rgba(244, 246, 249, 0.9) 42%,
-    rgba(244, 246, 249, 0.55) 62%,
-    rgba(244, 246, 249, 0.12) 100%
-  );
-}
-
+.hero--hub-brand h1,
 .hero--nj h1,
 .hero--ny h1,
 .hero--ct h1,
@@ -127,12 +66,14 @@
 .hub-ny h1,
 .hub-ct h1,
 .hub-pa h1 {
-  color: #0f172a;
-  font-family: "DM Sans", sans-serif;
-  font-weight: 600;
-  text-shadow: none;
+  color: #ffffff !important;
+  font-family: "DM Sans", sans-serif !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  text-shadow: none !important;
 }
 
+.hero--hub-brand .hero-sub,
 .hero--nj .hero-sub,
 .hero--ny .hero-sub,
 .hero--ct .hero-sub,
@@ -141,10 +82,11 @@
 .hub-ny .hero-sub,
 .hub-ct .hero-sub,
 .hub-pa .hero-sub {
-  color: #475569;
-  text-shadow: none;
+  color: rgba(255, 255, 255, 0.82) !important;
+  text-shadow: none !important;
 }
 
+.hero--hub-brand .hero-badge,
 .hero--nj .hero-badge,
 .hero--ny .hero-badge,
 .hero--ct .hero-badge,
@@ -152,68 +94,63 @@
 .hub-nj .hero-badge,
 .hub-ny .hero-badge,
 .hub-ct .hero-badge,
-.hub-pa .hero-badge,
-.hero--nj .hero-trust-line,
-.hero--ny .hero-trust-line,
-.hero--ct .hero-trust-line,
-.hero--pa .hero-trust-line,
-.hub-nj .hero-trust-line,
-.hub-ny .hero-trust-line,
-.hub-ct .hero-trust-line,
-.hub-pa .hero-trust-line {
-  text-shadow: none;
+.hub-pa .hero-badge {
+  color: #4d8fd9 !important;
+  background: rgba(77, 143, 217, 0.12) !important;
+  border-color: rgba(77, 143, 217, 0.28) !important;
+  text-shadow: none !important;
 }
 
-.hero--nj .hero-proof span,
-.hero--ny .hero-proof span,
-.hero--ct .hero-proof span,
-.hero--pa .hero-proof span,
-.hub-nj .hero-proof span,
-.hub-ny .hero-proof span,
-.hub-ct .hero-proof span,
-.hub-pa .hero-proof span {
-  color: #475569;
-  background: #ffffff;
-  border-color: rgba(15, 23, 42, 0.08);
+.hero--hub-brand .hero-facts li,
+.hero--nj .hero-facts li,
+.hero--ny .hero-facts li,
+.hero--ct .hero-facts li,
+.hero--pa .hero-facts li {
+  color: rgba(255, 255, 255, 0.78) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
-/* ── Hub Background Assets (state line-art headers from imagens estados) ── */
-.hub-nj .hero-bg-desktop,
-.hero--nj .hero-bg-desktop {
-  background-image: url('hubs/hero-nj-desktop.webp');
+.hero.hero--contrast .hero-inner {
+  max-width: 540px;
 }
 
-.hub-nj .hero-bg-mobile,
-.hero--nj .hero-bg-mobile {
-  background-image: url('hubs/hero-nj-mobile.webp');
+@media (max-width: 768px) {
+  .hero--hub-brand,
+  .hero--nj,
+  .hero--ny,
+  .hero--ct,
+  .hero--pa,
+  .hub-nj,
+  .hub-ny,
+  .hub-ct,
+  .hub-pa {
+    min-height: 40vh !important;
+    padding: 64px 16px 28px !important;
+  }
+
+  .hero.hero--contrast .hero-inner {
+    max-width: 100%;
+  }
 }
 
-.hub-ny .hero-bg-desktop,
-.hero--ny .hero-bg-desktop {
-  background-image: url('hubs/hero-ny-desktop.webp');
+/* Consistent dark navigation on hub pages linking this sheet */
+body .nav {
+  background: rgba(23, 33, 47, 0.96) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  height: 60px !important;
 }
 
-.hub-ny .hero-bg-mobile,
-.hero--ny .hero-bg-mobile {
-  background-image: url('hubs/hero-ny-mobile.webp');
+body .nav-link {
+  color: rgba(255, 255, 255, 0.78) !important;
 }
 
-.hub-ct .hero-bg-desktop,
-.hero--ct .hero-bg-desktop {
-  background-image: url('hubs/hero-ct-desktop.webp');
+body .nav-link:hover {
+  color: #ffffff !important;
 }
 
-.hub-ct .hero-bg-mobile,
-.hero--ct .hero-bg-mobile {
-  background-image: url('hubs/hero-ct-mobile.webp');
-}
-
-.hub-pa .hero-bg-desktop,
-.hero--pa .hero-bg-desktop {
-  background-image: url('hubs/hero-pa-desktop.webp');
-}
-
-.hub-pa .hero-bg-mobile,
-.hero--pa .hero-bg-mobile {
-  background-image: url('hubs/hero-pa-mobile.webp');
+body .nav-menu-btn {
+  color: rgba(255, 255, 255, 0.9) !important;
 }

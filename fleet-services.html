@@ -148,7 +148,8 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <h1>Commercial Fleet Wash &amp; Mobile Detailing in NJ</h1>
     <p class="hero-sub">Your work vehicles are rolling billboards. Keep your brand looking sharp and your crew happy without pulling them off the road. We clean at your lot.</p>
     <div class="hero-btns">
-      <a class="btn-primary" href="index.html">Book Fleet Wash</a>
+      <a class="btn-primary" href="#fleet-quote">Request a Fleet Quote</a>
+      <a class="btn-outline" href="tel:5513132956">Call / Text 551-313-2956</a>
     </div>
   </div>
 </section>
@@ -175,30 +176,74 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   </div>
 </section>
 
-<section class="section">
-  <div class="sec-eye">Fleet packages</div>
-  <h2 class="sec-title">Services &amp; Pricing</h2>
-  <p class="sec-desc">Straightforward per-unit pricing for vans, pickups, box trucks, and utility vehicles. Multi-unit discounts apply at checkout.</p>
-  <div class="pkg-grid">
-    <article class="pkg-card">
-      <div class="pkg-price">From $60 / unit</div>
-      <h3>Exterior Fleet Wash</h3>
-      <p>High-pressure foam wash, wheel and tire cleaning, glass wiped down, and trim dressed. Fast, efficient, and keeps the fleet looking uniform.</p>
-      <a class="pkg-btn" href="index.html">Book Fleet Wash</a>
-    </article>
-    <article class="pkg-card">
-      <div class="pkg-price">From $125 / unit</div>
-      <h3>Work Cab Deep Clean</h3>
-      <p>Work trucks get destroyed inside. We blow out the dust from vents, scrub rubber floors, extract stains from cloth seats, and sanitize steering wheels.</p>
-      <a class="pkg-btn" href="index.html">Book Fleet Wash</a>
-    </article>
-    <article class="pkg-card">
-      <div class="pkg-label">Included</div>
-      <div class="pkg-price">Wrap-Safe</div>
-      <h3>Decal &amp; Wrap Safe Wash</h3>
-      <p>We use pH-balanced soaps and safe pressure distances to clean vinyl wraps and custom graphics without peeling the edges.</p>
-      <a class="pkg-btn" href="index.html">Check Availability</a>
-    </article>
+<section class="section" id="fleet-quote">
+  <div class="sec-eye">Commercial &amp; Fleet Inquiry</div>
+  <h2 class="sec-title">Request a Fleet Quote</h2>
+  <p class="sec-desc">Tell us about your fleet type, unit count, service frequency, and location. We review access and routing, then confirm pricing by text or email — no instant checkout on this page.</p>
+  <form class="fleet-quote-form" id="fleet-quote-form" style="max-width:640px;margin:0 auto;display:grid;gap:14px">
+    <label style="display:grid;gap:6px;font-size:13px;color:var(--mu)">Fleet type
+      <select name="fleetType" required style="padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:var(--bg2);color:var(--white);font:inherit">
+        <option value="">Select fleet type</option>
+        <option>Work vans / cargo vans</option>
+        <option>Pickup trucks</option>
+        <option>Box trucks / commercial trucks</option>
+        <option>Utility / mixed fleet</option>
+        <option>Boats / RV / trailer fleet</option>
+        <option>Other commercial fleet</option>
+      </select>
+    </label>
+    <label style="display:grid;gap:6px;font-size:13px;color:var(--mu)">Approximate unit count
+      <input name="unitCount" type="number" min="2" required placeholder="e.g. 8" style="padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:var(--bg2);color:var(--white);font:inherit">
+    </label>
+    <label style="display:grid;gap:6px;font-size:13px;color:var(--mu)">Service frequency
+      <select name="frequency" required style="padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:var(--bg2);color:var(--white);font:inherit">
+        <option value="">Select frequency</option>
+        <option>One-time / project</option>
+        <option>Weekly</option>
+        <option>Bi-weekly</option>
+        <option>Monthly</option>
+        <option>Seasonal / as needed</option>
+      </select>
+    </label>
+    <label style="display:grid;gap:6px;font-size:13px;color:var(--mu)">Service location (city / ZIP)
+      <input name="location" type="text" required placeholder="City, NJ or ZIP" style="padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:var(--bg2);color:var(--white);font:inherit">
+    </label>
+    <label style="display:grid;gap:6px;font-size:13px;color:var(--mu)">Your name
+      <input name="name" type="text" required autocomplete="name" style="padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:var(--bg2);color:var(--white);font:inherit">
+    </label>
+    <label style="display:grid;gap:6px;font-size:13px;color:var(--mu)">Phone
+      <input name="phone" type="tel" required autocomplete="tel" style="padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:var(--bg2);color:var(--white);font:inherit">
+    </label>
+    <label style="display:grid;gap:6px;font-size:13px;color:var(--mu)">Email (optional)
+      <input name="email" type="email" autocomplete="email" style="padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:var(--bg2);color:var(--white);font:inherit">
+    </label>
+    <label style="display:grid;gap:6px;font-size:13px;color:var(--mu)">Access notes / additional details
+      <textarea name="notes" rows="4" placeholder="Lot access, wrap/decals, interior needs, preferred schedule…" style="padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:var(--bg2);color:var(--white);font:inherit;resize:vertical"></textarea>
+    </label>
+    <button type="submit" class="btn-primary" style="border:0;cursor:pointer;margin-top:6px">Submit Fleet Quote Request</button>
+    <p id="fleet-quote-status" style="font-size:13px;color:var(--mu);text-align:center;min-height:1.2em"></p>
+  </form>
+</section>
+
+<section class="section-full">
+  <div class="section">
+    <div class="sec-eye">What we offer</div>
+    <h2 class="sec-title">Fleet Services Available by Quote</h2>
+    <p class="sec-desc">Exterior fleet washes, work cab deep cleans, wrap-safe washing, and recurring on-site programs for vans, trucks, and utility fleets.</p>
+    <div class="benefit-grid">
+      <article class="benefit-card">
+        <h3>Exterior Fleet Wash</h3>
+        <p>High-pressure foam wash, wheels, glass, and trim dressed — priced by fleet size, vehicle type, and frequency.</p>
+      </article>
+      <article class="benefit-card">
+        <h3>Work Cab Deep Clean</h3>
+        <p>Interior vacuum, vent blow-out, rubber floors, and high-touch sanitizing for work trucks and vans.</p>
+      </article>
+      <article class="benefit-card">
+        <h3>Wrap-Safe Washing</h3>
+        <p>pH-balanced soaps and safe distances for vinyl wraps, decals, and company branding.</p>
+      </article>
+    </div>
   </div>
 </section>
 
@@ -242,19 +287,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   </div>
 </section>
 
-<section class="section" id="book-fleet">
-  <div class="cta-block">
-    <h2>Ready to Book Your Fleet?</h2>
-    <p>Exterior washes from $60/unit · work cab deep cleans from $125/unit. Book online or call to schedule on-site service.</p>
-    <div class="cta-price">From $60 / unit</div>
-    <div class="cta-btns">
-      <a class="btn-primary" href="index.html">Book Fleet Wash</a>
-      <a class="btn-outline" href="tel:5513132956">Call 551-313-2956</a>
-    </div>
-    <p class="cta-note">We typically respond within one business day. For same-week scheduling, call or text directly.</p>
-  </div>
-</section>
-
 <footer>
   <div class="foot-in">
     <div class="foot-top">
@@ -265,16 +297,16 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       <div class="foot-col">
         <h4>Services</h4>
         <a href="/">Cars, SUVs &amp; Trucks</a>
-        <a href="/">Boats &amp; Marine</a>
+        <a href="boats-detailing.html">Boats &amp; Marine</a>
         <a href="rv-detailing.html">RVs &amp; Trailers</a>
-        <a href="/">Motorcycles &amp; ATV</a>
-        <a href="fleet-services.html">Fleet Services</a>
+        <a href="powersports-detailing.html">Motorcycles &amp; ATV</a>
+        <a href="fleet-services.html">Commercial &amp; Fleet Inquiry</a>
       </div>
       <div class="foot-col">
         <h4>Contact</h4>
         <a href="tel:5513132956">📞 551-313-2956</a>
         <a href="https://www.instagram.com/cardetail1com" target="_blank" rel="noopener">📸 @cardetail1com</a>
-        <a href="/">Book Online</a>
+        <a href="index.html">Book Online</a>
         <a>📍 Palisades Park · Bergen Co.</a>
       </div>
     </div>
@@ -284,6 +316,52 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     </div>
   </div>
 </footer>
+
+<script>
+(function(){
+  var form=document.getElementById('fleet-quote-form');
+  var statusEl=document.getElementById('fleet-quote-status');
+  if(!form) return;
+  form.addEventListener('submit',async function(ev){
+    ev.preventDefault();
+    if(statusEl) statusEl.textContent='Sending…';
+    var fd=new FormData(form);
+    var message=[
+      'Commercial / Fleet Inquiry',
+      '',
+      'Fleet type: '+fd.get('fleetType'),
+      'Unit count: '+fd.get('unitCount'),
+      'Frequency: '+fd.get('frequency'),
+      'Location: '+fd.get('location'),
+      '',
+      'Notes:',
+      fd.get('notes')||'(none)'
+    ].join('\n');
+    try{
+      var res=await fetch('/.netlify/functions/submit-inquiry',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          name:fd.get('name'),
+          phone:fd.get('phone'),
+          email:fd.get('email')||'',
+          message:message,
+          source:'fleet-services.html'
+        })
+      });
+      var data=await res.json().catch(function(){return {};});
+      if(res.ok && data.ok!==false){
+        if(statusEl) statusEl.textContent='Quote request sent — we will follow up by text or email.';
+        form.reset();
+      }else{
+        if(statusEl) statusEl.textContent='Could not send online — please call or text 551-313-2956.';
+      }
+    }catch(e){
+      if(statusEl) statusEl.textContent='Could not send online — please call or text 551-313-2956.';
+    }
+  });
+})();
+</script>
 
 </body>
 </html>
