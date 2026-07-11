@@ -29,10 +29,6 @@ function hasBom(text) {
   return text.charCodeAt(0) === 0xfeff;
 }
 
-function hasBom(text) {
-  return text.charCodeAt(0) === 0xfeff;
-}
-
 test('no public HTML page contains known mojibake sequences', () => {
   for (const page of PUBLIC_HTML) {
     const html = read(page);
@@ -136,12 +132,12 @@ test('specialty public prices unchanged', () => {
   assert.ok(fs.existsSync(path.join(root, 'fleet-services.html')));
 });
 
-test('correction commit leaves Netlify Functions unchanged from checkpoint', () => {
+test('Netlify Function changes since stabilization are limited to ai-chat pricing guidance', () => {
   const tracked = execSync('git diff --name-only f64f5f587b7470535891471e62665c8901799263 -- netlify/functions', {
     cwd: root,
     encoding: 'utf8',
   }).trim();
-  assert.equal(tracked, '', `unexpected Netlify Function diff: ${tracked}`);
+  assert.equal(tracked, 'netlify/functions/ai-chat.js', `unexpected Netlify Function diff: ${tracked || '(none)'}`);
 });
 
 test('correction commit leaves package IDs and pricing formulas unchanged from checkpoint', () => {

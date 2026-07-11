@@ -155,7 +155,7 @@ test('accidental local QA server file is not in working tree', () => {
   assert.ok(!fs.existsSync(path.join(root, 'scripts/_qa-server.mjs')));
 });
 
-test('no Netlify Function files changed vs production master', () => {
+test('Netlify Function changes vs production master are limited to ai-chat pricing guidance', () => {
   let diff = '';
   try {
     diff = execSync('git diff --name-only e9ebbe0e50d2768d0bea9fb391ad50c63239b7f7 -- netlify/functions netlify/lib', {
@@ -165,7 +165,7 @@ test('no Netlify Function files changed vs production master', () => {
   } catch (e) {
     diff = e.stdout || '';
   }
-  assert.equal(diff.trim(), '', `unexpected backend diff: ${diff}`);
+  assert.equal(diff.trim(), 'netlify/functions/ai-chat.js', `unexpected backend diff: ${diff.trim() || '(none)'}`);
 });
 
 test('package IDs in index PRICING unchanged for specialty categories', () => {

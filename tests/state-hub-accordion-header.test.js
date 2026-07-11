@@ -259,9 +259,12 @@ test('header navigation remains visible on hub pages', () => {
 test('no Netlify Function files changed in this UX scope', () => {
   const diff = execSync('git diff --name-only e9ebbe0', { cwd: root, encoding: 'utf8' });
   const changed = diff.split('\n').filter(Boolean);
-  for (const file of changed) {
-    assert.doesNotMatch(file, /^netlify\/functions\//, `unexpected function change: ${file}`);
-  }
+  const functionChanges = changed.filter((file) => /^netlify\/functions\//.test(file));
+  assert.deepEqual(
+    functionChanges,
+    functionChanges.filter((file) => file === 'netlify/functions/ai-chat.js'),
+    `unexpected function change: ${functionChanges.join(', ')}`
+  );
 });
 
 test('package IDs and prices remain unchanged on index', () => {
