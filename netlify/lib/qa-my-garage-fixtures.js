@@ -28,13 +28,18 @@ function stripeMode() {
   return 'none';
 }
 
+function resolveQaBranch() {
+  const branch = String(process.env.BRANCH || process.env.HEAD || '').trim();
+  if (branch === QA_BRANCH) return true;
+  const prime = String(process.env.DEPLOY_PRIME_URL || process.env.URL || '').toLowerCase();
+  return prime.includes('customer-my-garage-portal--');
+}
+
 function isHarnessEnabled() {
   const ctx = String(process.env.CONTEXT || '').toLowerCase();
   if (ctx === 'production') return false;
-  const branch = String(process.env.BRANCH || process.env.HEAD || '').trim();
-  if (branch !== QA_BRANCH) return false;
   if (String(process.env.MY_GARAGE_QA_ENABLED || '').trim() !== 'true') return false;
-  return true;
+  return resolveQaBranch();
 }
 
 function isAllowedQaBookingId(id) {

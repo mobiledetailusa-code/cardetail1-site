@@ -55,11 +55,12 @@ test('harness requires MY_GARAGE_QA_ENABLED', () => {
   });
 });
 
-test('harness enabled only on approved branch context', () => {
+test('harness enabled on branch deploy URL when flag set', () => {
   withEnv({
     CONTEXT: 'branch-deploy',
-    BRANCH: 'customer-my-garage-portal',
+    BRANCH: '',
     MY_GARAGE_QA_ENABLED: 'true',
+    DEPLOY_PRIME_URL: 'https://customer-my-garage-portal--cardetail1.netlify.app',
   }, () => {
     assert.equal(qa.isHarnessEnabled(), true);
   });
