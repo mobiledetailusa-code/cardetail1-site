@@ -3,7 +3,7 @@
 const { jsonCors } = require('../lib/tech-security');
 const { verifyAdminRequest } = require('../lib/admin-security');
 const {
-  isHarnessEnabled,
+  isHarnessEnabledForRequest,
   isAllowedQaBookingId,
   isAllowedQaBooking,
   seedFixtures,
@@ -18,7 +18,7 @@ function disabledResponse() {
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   if (event.httpMethod !== 'POST') return disabledResponse();
-  if (!isHarnessEnabled()) return disabledResponse();
+  if (!isHarnessEnabledForRequest(event)) return disabledResponse();
 
   const admin = await verifyAdminRequest(event.headers || {});
   if (!admin.ok) return jsonCors(401, { ok: false, error: 'unauthorized' });

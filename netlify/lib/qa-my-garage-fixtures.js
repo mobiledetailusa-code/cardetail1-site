@@ -45,12 +45,38 @@ function resolveQaBranch() {
   return deployHost() === QA_DEPLOY_HOST;
 }
 
+function hostFromEvent(event) {
+  const host = String(
+    event?.headers?.['x-forwarded-host'] ||
+    event?.headers?.['X-Forwarded-Host'] ||
+    event?.headers?.host ||
+    event?.headers?.Host ||
+    ''
+  ).toLowerCase();
+  return host.split(':')[0];
+}
+
 function isHarnessEnabled() {
   const ctx = String(process.env.CONTEXT || '').toLowerCase();
   if (ctx === 'production' && deployHost() !== QA_DEPLOY_HOST) return false;
   if (!resolveQaBranch()) return false;
   const flag = String(process.env.MY_GARAGE_QA_ENABLED || '').trim();
   return flag === 'true' || deployHost() === QA_DEPLOY_HOST;
+}
+
+function isHarnessEnabledForRequest(event) {
+  const ctx = String(process.env.CONTEXT || '').toLowerCase();
+  if (ctx === 'production') return false;
+
+  const branch = String(process.env.BRANCH || process.env.HEAD || '').trim();
+  const onBranch =
+    branch === QA_BRANCH ||
+    deployHost() === QA_DEPLOY_HOST ||
+    hostFromEvent(event) === QA_DEPLOY_HOST;
+  if (!onBranch) return false;
+
+  const flag = String(process.env.MY_GARAGE_QA_ENABLED || '').trim();
+  return flag === 'true';
 }
 
 function isAllowedQaBookingId(id) {
@@ -406,6 +432,8 @@ module.exports = {
   PHONE_B,
   stripeMode,
   isHarnessEnabled,
+  isHarnessEnabledForRequest,
+  hostFromEvent,
   isAllowedQaBookingId,
   isAllowedQaBooking,
   qaEmailsFromEnv,
