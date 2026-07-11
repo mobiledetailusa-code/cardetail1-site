@@ -66,6 +66,17 @@ test('harness enabled on branch deploy URL when flag set', () => {
   });
 });
 
+test('harness enabled via branch deploy URL when env flag missing', () => {
+  withEnv({
+    CONTEXT: 'deploy-preview',
+    BRANCH: '',
+    MY_GARAGE_QA_ENABLED: '',
+    DEPLOY_PRIME_URL: 'https://customer-my-garage-portal--cardetail1.netlify.app',
+  }, () => {
+    assert.equal(qa.isHarnessEnabled(), true);
+  });
+});
+
 test('function requires admin authorization when enabled', async () => {
   withEnv({
     CONTEXT: 'branch-deploy',

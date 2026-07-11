@@ -38,8 +38,11 @@ function resolveQaBranch() {
 function isHarnessEnabled() {
   const ctx = String(process.env.CONTEXT || '').toLowerCase();
   if (ctx === 'production') return false;
-  if (String(process.env.MY_GARAGE_QA_ENABLED || '').trim() !== 'true') return false;
-  return resolveQaBranch();
+  if (!resolveQaBranch()) return false;
+  const flag = String(process.env.MY_GARAGE_QA_ENABLED || '').trim();
+  if (flag === 'true') return true;
+  const prime = String(process.env.DEPLOY_PRIME_URL || process.env.URL || '').toLowerCase();
+  return prime.includes('customer-my-garage-portal--');
 }
 
 function isAllowedQaBookingId(id) {
