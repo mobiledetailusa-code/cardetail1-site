@@ -30,6 +30,11 @@ const DEFAULT_LIMITS = {
   'revenue-event:track': { max: 120, windowMs: DEFAULT_WINDOW_MS },
   'garage-plan-submit:submit': { max: 10, windowMs: DEFAULT_WINDOW_MS },
   'revenue-resume-link:validate': { max: 20, windowMs: DEFAULT_WINDOW_MS },
+  'submit-customer-action': { max: 12, windowMs: DEFAULT_WINDOW_MS },
+  'request-cancellation': { max: 8, windowMs: DEFAULT_WINDOW_MS },
+  'customer-portal-auth:start': { max: 8, windowMs: DEFAULT_WINDOW_MS },
+  'customer-portal-auth:verify': { max: 12, windowMs: DEFAULT_WINDOW_MS },
+  'booking-card-status': { max: 40, windowMs: DEFAULT_WINDOW_MS },
 };
 
 const ENV_SCOPE_BY_BUCKET = {
@@ -42,6 +47,11 @@ const ENV_SCOPE_BY_BUCKET = {
   'revenue-event:track': 'REVENUE_EVENT',
   'garage-plan-submit:submit': 'GARAGE_PLAN_SUBMIT',
   'revenue-resume-link:validate': 'REVENUE_RESUME_LINK',
+  'submit-customer-action': 'SUBMIT_CUSTOMER_ACTION',
+  'request-cancellation': 'REQUEST_CANCELLATION',
+  'customer-portal-auth:start': 'CUSTOMER_PORTAL_AUTH_START',
+  'customer-portal-auth:verify': 'CUSTOMER_PORTAL_AUTH_VERIFY',
+  'booking-card-status': 'BOOKING_CARD_STATUS',
 };
 
 let storeFactoryOverride = null;

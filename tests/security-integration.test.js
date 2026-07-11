@@ -41,9 +41,11 @@ test('technician portal uses tech token header', () => {
 });
 
 test('customer portal verifies possession without exposing stripe ids', () => {
-  assert.match(customer, /customer-bookings|lookup-booking/);
-  assert.doesNotMatch(customer, /setupIntentId/);
-  assert.doesNotMatch(customer, /stripeCustomerId/);
+  const garage = read('my-garage.html');
+  const portalJs = read('assets/my-garage.js');
+  assert.match(portalJs, /customer-portal-data|lookup-booking/);
+  assert.doesNotMatch(garage, /setupIntentId/);
+  assert.doesNotMatch(garage, /stripeCustomerId/);
 });
 
 test('admin security module provides stateless tokens and redaction', () => {
@@ -70,8 +72,8 @@ test('deploy-62 premium visuals present on booking surfaces', () => {
   assert.match(index, /CATEGORY_VISUALS/);
 });
 
-test('monthly maintenance plan routes to customer subscription portal', () => {
-  assert.match(index, /customer\.html\?subscribe=1/);
+test('monthly maintenance plan routes to My Garage portal', () => {
+  assert.match(index, /my-garage\.html/);
 });
 
 test('customer subscription checkout rejects client price fields server-side', () => {
@@ -80,9 +82,8 @@ test('customer subscription checkout rejects client price fields server-side', (
   assert.match(subLib, /client_price_not_allowed/);
   assert.match(subCheckout, /rejectClientPriceFields/);
   assert.match(subCheckout, /booking_id_required/);
-  assert.match(customer, /customer-subscription-checkout/);
-  assert.match(customer, /action:'list_catalog'/);
-  assert.doesNotMatch(customer, /monthlyPrice:/);
+  const portalJs = read('assets/my-garage.js');
+  assert.doesNotMatch(portalJs, /monthlyPrice:/);
 });
 
 test('checkout keeps optimistic client save with server retry', () => {

@@ -7,7 +7,8 @@ const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 const index = read('index.html');
-const customer = read('customer.html');
+const myGarage = read('my-garage.html');
+const myGarageJs = read('assets/my-garage.js');
 const technician = read('technician.html');
 const terms = read('terms-conditions.html');
 const submit = read('netlify/functions/submit-booking.js');
@@ -101,11 +102,9 @@ test('admin and customer surfaces show required state without Stripe IDs', () =>
   assert.match(technician, /Pending Admin Review/);
   assert.match(technician, /complete-modal/);
   assert.match(technician, /tech-complete-job/);
-  assert.match(customer, /Card on file saved/i);
-  assert.match(customer, /No charge has been made today/i);
-  assert.match(customer, /Payment Preference/);
-  assert.match(customer, /Pending confirmation/);
-  assert.match(customer, /Request cancellation|Submit Cancellation Request/);
+  assert.match(myGarage, /My Garage/);
+  assert.match(myGarageJs, /submit-customer-action/);
+  assert.match(myGarageJs, /request-cancellation|submitAction/);
   assert.match(read('netlify/lib/ops-schema.js'), /paymentMethodPreference/);
   assert.doesNotMatch(lookup, /setupIntentId:\s*b\./);
   assert.doesNotMatch(lookup, /stripeCustomerId:\s*b\./);
@@ -154,7 +153,7 @@ test('missing and invalid webhook signatures are rejected', async () => {
 test('inline browser scripts compile', () => {
   const jsScripts = html => [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)]
     .filter(m => !/type\s*=\s*["']application\/ld\+json["']/i.test(m[0]));
-  for (const [file, html] of [['index.html', index], ['customer.html', customer], ['technician.html', technician]]) {
+  for (const [file, html] of [['index.html', index], ['my-garage.html', myGarage], ['technician.html', technician]]) {
     const scripts = jsScripts(html);
     assert.ok(scripts.length > 0, `${file} should contain inline scripts`);
     scripts.forEach((match, i) => {

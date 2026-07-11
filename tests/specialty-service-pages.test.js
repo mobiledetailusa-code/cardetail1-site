@@ -592,8 +592,10 @@ describe('specialty page UI (back-to-top + gallery lightbox)', () => {
 
   it('homepage back-to-top sits above chat widget', () => {
     const html = read('index.html');
-    assert.match(html, /#btt\{[^}]*z-index:985/);
-    assert.match(html, /syncBtt\(\)/);
+    const css = read('assets/public-surface.css');
+    assert.match(html, /assets\/back-to-top\.js/);
+    assert.match(css, /#cd1-btt\{[^}]*z-index:985/);
+    assert.match(read('assets/back-to-top.js'), /cd1-btt-on/);
   });
 });
 

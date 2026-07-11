@@ -1,15 +1,11 @@
-// netlify/functions/request-cancellation.js
-// Customer-initiated cancellation request. Dual-factor auth: bookingId +
-// matching phone OR email from the booking record. Does NOT charge the card,
-// does NOT delete the booking, does NOT auto-set appointmentStatus.
-// Sets cancellationRequestStatus: 'requested' for admin review.
+// Customer-initiated cancellation request with rate limiting and status policy.
 
-async function blobsStore(name) {
-  const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token  = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
-}
+const { getBooking, bookingStore } = require('../lib/ops-db');
+const { authorizeBookingAccess, normalizeBookingId } = require('../lib/booking-customer-auth');
+const { canRequestChange } = require('../lib/appointment-status-policy');
+const { createChangeRequest, sanitizeSnapshot } = require('../lib/customer-change-requests');
+const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { phonesMatch, normalizeUsPhoneDigits } = require('../lib/phone-auth');
 
 async function notifyAdmin(subject, text) {
   const { ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM } = process.env;
@@ -37,89 +33,99 @@ const CORS = {
 };
 const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.stringify(body) });
 
-// Last-N-digit phone match tolerates leading country codes.
-function phonesMatch(a, b) {
-  if (!a || !b || a.length < 7 || b.length < 7) return false;
-  const minLen = Math.min(a.length, b.length);
-  return a.slice(-minLen) === b.slice(-minLen);
-}
-
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
-  if (event.httpMethod !== 'POST') return json(405, { ok: false, userMessage: 'Method not allowed' });
+  if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
+
+  const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'request-cancellation', cors: false });
+  if (rateLimit.blocked) return rateLimit.response;
 
   let p;
   try { p = JSON.parse(event.body || '{}'); }
-  catch { return json(400, { ok: false, userMessage: 'Invalid request' }); }
+  catch { return json(400, { ok: false, error: 'validation_error' }); }
 
-  const bookingId = String(p.bookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
-  const phone     = String(p.phone || '').replace(/\D/g, '').slice(0, 15);
-  const email     = String(p.email || '').toLowerCase().slice(0, 120);
-  const reason    = String(p.reason || '').slice(0, 1000).trim();
-  const ack       = p.acknowledgedPolicy === true;
+  const bookingId = normalizeBookingId(p.bookingId);
+  const phone = normalizeUsPhoneDigits(p.phone);
+  const email = String(p.email || '').toLowerCase().slice(0, 120);
+  const reason = String(p.reason || '').slice(0, 1000).trim();
+  const ack = p.acknowledgedPolicy === true;
 
-  if (!bookingId)    return json(400, { ok: false, userMessage: 'Booking ID is required' });
-  if (!reason)       return json(400, { ok: false, userMessage: 'Please provide a reason' });
-  if (!ack)          return json(400, { ok: false, userMessage: 'Policy acknowledgment is required' });
-  if (!phone && !email) return json(400, { ok: false, userMessage: 'Verification required' });
+  if (!bookingId) return json(400, { ok: false, error: 'validation_error', message: 'Booking ID is required.' });
+  if (!reason) return json(400, { ok: false, error: 'validation_error', message: 'Please provide a reason.' });
+  if (!ack) return json(400, { ok: false, error: 'validation_error', message: 'Policy acknowledgment is required.' });
+  if (!phone && !email) return json(400, { ok: false, error: 'validation_error', message: 'Verification required.' });
 
-  let store, booking;
-  try {
-    store   = await blobsStore('cd1-bookings');
-    booking = await store.get(bookingId, { type: 'json' });
-  } catch (e) {
-    return json(503, { ok: false, userMessage: 'Service unavailable. Please try again.' });
-  }
-  if (!booking) return json(404, { ok: false, userMessage: 'Booking not found.' });
+  const auth = await authorizeBookingAccess(event, { bookingId, phone: p.phone });
+  let booking = auth.ok ? auth.booking : null;
 
-  // Dual-factor: bookingId (verified above) + phone OR email match.
-  const bookingPhone = String(booking.phone || '').replace(/\D/g, '');
-  const bookingEmail = String(booking.email || '').toLowerCase();
-  const phoneOk = phonesMatch(phone, bookingPhone);
-  const emailOk = email && bookingEmail && email === bookingEmail;
-
-  if (!phoneOk && !emailOk) {
-    console.warn('[request-cancellation] auth mismatch', bookingId);
-    return json(403, { ok: false, userMessage: 'Verification failed. Phone or email does not match the booking.' });
+  if (!booking && email) {
+    const { getBooking } = require('../lib/ops-db');
+    const candidate = await getBooking(bookingId);
+    const bookingEmail = String(candidate?.email || '').toLowerCase();
+    if (candidate && bookingEmail && email === bookingEmail) booking = candidate;
   }
 
-  // Idempotent: return success if already requested.
+  if (!booking) {
+    return json(200, { ok: false, error: 'authentication_failed', message: 'Verification failed.' });
+  }
+
+  if (phone) {
+    const stored = booking.phone || booking.customerPhone || '';
+    if (!phonesMatch(phone, stored)) {
+      return json(200, { ok: false, error: 'authentication_failed', message: 'Verification failed.' });
+    }
+  }
+
+  const policy = canRequestChange(booking, 'cancel');
+  if (!policy.ok) {
+    return json(200, {
+      ok: false,
+      error: 'action_not_allowed',
+      message: policy.requiresCall
+        ? 'This appointment is in progress. Please call or text Cardetail1 to cancel.'
+        : 'Online cancellation is not available for this appointment.',
+    });
+  }
+
   if (booking.cancellationRequestStatus === 'requested') {
     return json(200, { ok: true, alreadyRequested: true });
   }
 
   const now = new Date().toISOString();
+  const changeRecord = await createChangeRequest({
+    bookingId,
+    requestType: 'cancellation',
+    previousState: sanitizeSnapshot(booking),
+    requestedState: { reason },
+    authorizedRef: auth.ok ? auth.scope : 'email',
+    status: 'pending_approval',
+  });
+
   const eventLog = Array.isArray(booking.eventLog) ? [...booking.eventLog] : [];
-  eventLog.push({ action: 'cancellation_requested', at: now, by: 'customer', reason });
+  eventLog.push({ action: 'cancellation_requested', at: now, by: 'customer', reason, changeRequestId: changeRecord.id });
 
   const updated = {
-    ...booking,
-    status:                      'Cancellation Requested',
-    previousStatus:              booking.status || 'Pending Review',
-    cancellationRequestStatus:   'requested',
-    cancellationRequestedAt:     now,
-    cancellationReason:          reason,
+    status: 'Cancellation Requested',
+    previousStatus: booking.status || 'Pending Review',
+    cancellationRequestStatus: 'requested',
+    cancellationRequestedAt: now,
+    cancellationReason: reason,
     cancellationAcknowledgedPolicy: true,
-    updatedAt:                   now,
+    updatedAt: now,
     eventLog,
   };
 
   try {
-    await store.setJSON(bookingId, updated);
-  } catch (e) {
-    return json(503, { ok: false, userMessage: 'Failed to save request. Please try again.' });
+    const store = await bookingStore();
+    await store.setJSON(bookingId, { ...booking, ...updated });
+  } catch {
+    return json(503, { ok: false, error: 'service_unavailable', message: 'Failed to save request. Please try again.' });
   }
 
   await notifyAdmin(
     `Cardetail1 — Cancellation Request · ${bookingId}`,
-    `Customer requested cancellation for booking ${bookingId}.\n\n` +
-    `Service: ${booking.service || booking.package || '—'}\n` +
-    `Preferred date: ${booking.preferredDate || '—'}\n` +
-    `Reason: ${reason}\n\n` +
-    `Customer acknowledged the cancellation/no-show policy.\n` +
-    `No charge has been applied. Admin review required before any action.`
+    `Customer requested cancellation for booking ${bookingId}.\nReason: ${reason}\nNo charge has been applied. Admin review required.`
   );
 
-  console.log('[request-cancellation] ok', bookingId);
-  return json(200, { ok: true });
+  return json(200, { ok: true, changeRequestId: changeRecord.id });
 };

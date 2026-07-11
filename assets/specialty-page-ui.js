@@ -3,6 +3,8 @@
   'use strict';
 
   function initBackToTop() {
+    if (window.__CD1_BTT_INIT__ || document.getElementById('cd1-btt')) return;
+    /* Legacy fallback — prefer assets/back-to-top.js on all public pages */
     if (document.getElementById('btt')) return;
     var btn = document.createElement('button');
     btn.id = 'btt';

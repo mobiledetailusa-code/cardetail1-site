@@ -41,17 +41,10 @@ async function listRawBookings() {
   )).filter(b => b && !b.isDraft);
 }
 
-function normalizePhone(raw) {
-  const digits = String(raw || '').replace(/\D/g, '');
-  if (digits.length === 11 && digits.charAt(0) === '1') return digits.slice(1);
-  return digits;
-}
-
-function phonesMatch(a, b) {
-  if (!a || !b || a.length < 7 || b.length < 7) return false;
-  const n = Math.min(a.length, b.length);
-  return a.slice(-n) === b.slice(-n);
-}
+const {
+  normalizePhone,
+  phonesMatch,
+} = require('./phone-auth');
 
 module.exports = {
   bookingStore,

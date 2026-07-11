@@ -78,10 +78,16 @@ test('specialty dedicated pages use logo header shell', () => {
 });
 
 test('customer portal has no public Admin tab', () => {
-  const html = read('customer.html');
+  const html = read('my-garage.html');
   assert.doesNotMatch(html, /id="ltab-admin"/);
   assert.doesNotMatch(html, /setLoginRole\('admin'\)/);
-  assert.match(html, /My Booking/);
+  assert.match(html, /My Garage/);
+});
+
+test('customer.html is a redirect handoff only', () => {
+  const html = read('customer.html');
+  assert.match(html, /my-garage\.html/);
+  assert.doesNotMatch(html, /#s-app|#s-lookup/);
 });
 
 test('fleet-services.html is quote-only (no public unit pricing or fleet booking)', () => {
@@ -140,5 +146,6 @@ test('index footer links to dedicated specialty pages', () => {
   assert.match(footer, /href="boats-detailing\.html"/);
   assert.match(footer, /href="rv-detailing\.html"/);
   assert.match(footer, /href="powersports-detailing\.html"/);
-  assert.match(footer, /Commercial &amp; Fleet Inquiry/);
+  assert.match(footer, /href="fleet-services\.html"/);
+  assert.match(footer, /Commercial &amp; Fleet/);
 });
