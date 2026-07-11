@@ -12,6 +12,9 @@
   publish = "."
   functions = "netlify/functions"
 
+[context.branch-deploy.environment]
+  MY_GARAGE_QA_ENABLED = "true"
+
 # A página principal é o index.html (servido nativamente na raiz "/").
 
 # Portais com URLs limpas (estilo nationaldetailpros).

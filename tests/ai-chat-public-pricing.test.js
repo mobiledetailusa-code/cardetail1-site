@@ -92,6 +92,7 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/customer-portal-auth.js',
   'netlify/functions/customer-portal-data.js',
   'netlify/functions/customer-portal-vehicles.js',
+  'netlify/functions/qa-my-garage-fixtures.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {
