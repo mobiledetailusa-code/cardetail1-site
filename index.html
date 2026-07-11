@@ -534,10 +534,11 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
   .trust-ico--season svg{animation:none!important}
 }
 /* ── BACK TO TOP ── */
-#btt{position:fixed;bottom:82px;right:18px;width:44px;height:44px;border-radius:50%;border:1px solid var(--line-strong);background:var(--bg1);color:var(--blue);font-size:20px;cursor:pointer;z-index:491;display:none;align-items:center;justify-content:center;transition:opacity .25s,transform .25s,background .2s;box-shadow:var(--shadow-md)}
+#btt{position:fixed;bottom:90px;right:18px;width:44px;height:44px;border-radius:50%;border:1px solid var(--line-strong);background:var(--bg1);color:var(--blue);font-size:20px;cursor:pointer;z-index:985;display:none;align-items:center;justify-content:center;transition:opacity .25s,transform .25s,background .2s;box-shadow:var(--shadow-md)}
 #btt.btt-on{display:flex}
 #btt:hover{background:var(--blue);color:var(--white);border-color:transparent;transform:translateY(-2px)}
-@media(min-width:641px){#btt{bottom:28px}}
+@media(min-width:641px){#btt{bottom:88px;right:20px}}
+@media(max-width:640px){#btt{bottom:132px;right:14px}}
 /* ── MOBILE STICKY CTA ── */
 .mobile-sticky-cta{display:none;position:fixed;bottom:0;left:0;right:0;z-index:490;background:rgba(23,33,47,.96);border-top:1px solid rgba(255,255,255,.10);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));gap:8px;backdrop-filter:blur(14px)}
 @media(max-width:640px){.mobile-sticky-cta{display:flex}}
@@ -5924,9 +5925,9 @@ let loginRole = 'admin';
 (function(){
   const btn=document.getElementById('btt');
   if(!btn)return;
-  window.addEventListener('scroll',function(){
-    btn.classList.toggle('btt-on',window.scrollY>420);
-  },{passive:true});
+  function syncBtt(){ btn.classList.toggle('btt-on',window.scrollY>420); }
+  window.addEventListener('scroll',syncBtt,{passive:true});
+  syncBtt();
 })();
 
 function openLogin(){

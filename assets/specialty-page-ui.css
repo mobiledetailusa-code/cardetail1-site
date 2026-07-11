@@ -1,7 +1,7 @@
 /* Shared specialty pages: back-to-top + gallery lightbox */
 #btt {
   position: fixed;
-  bottom: 28px;
+  bottom: 88px;
   right: 18px;
   width: 44px;
   height: 44px;
@@ -11,7 +11,7 @@
   color: #4da3ff;
   font-size: 20px;
   cursor: pointer;
-  z-index: 491;
+  z-index: 985;
   display: none;
   align-items: center;
   justify-content: center;
@@ -26,7 +26,7 @@
   transform: translateY(-2px);
 }
 @media (max-width: 640px) {
-  #btt { bottom: 82px; }
+  #btt { bottom: 132px; right: 14px; }
 }
 
 .cd1-gallery-zoom {

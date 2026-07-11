@@ -88,11 +88,11 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .benefit-card h3{font-family:var(--fd);font-size:26px;color:var(--white);letter-spacing:.02em;margin-bottom:8px}
 .benefit-card p{font-size:14px;color:var(--mu);line-height:1.65}
 
-.ba-showcase-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;align-items:stretch}
+.ba-showcase-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;align-items:stretch}
 .ba-card{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r);overflow:hidden;transition:.22s}
 .ba-card:hover{border-color:var(--bbr)}
-.ba-showcase{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--bg3)}
-.ba-showcase img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+.ba-showcase{position:relative;aspect-ratio:4/3;min-height:240px;overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center}
+.ba-showcase img{width:100%;height:100%;object-fit:contain;object-position:center;display:block;cursor:zoom-in;background:#060c16}
 .ba-meta{padding:16px 18px 18px}
 .ba-vehicle{font-family:var(--fd);font-size:20px;color:var(--white);letter-spacing:.02em;margin-bottom:4px}
 .ba-service{font-size:11.5px;color:var(--blue);font-weight:600;margin-bottom:8px}
@@ -257,22 +257,42 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     <div class="ba-showcase-row">
       <article class="ba-card">
         <div class="ba-showcase">
-          <img src="assets/before-after/vienna-rv-front-after.jpg" alt="Renegade Vienna Class C motorhome after full exterior detail — clean front cap and cab area" width="1400" height="1050" loading="lazy" decoding="async">
+          <img src="assets/media/rv/gallery/momentum-gclass-front.jpeg" alt="Grand Design Momentum G-Class fifth-wheel front cap after mobile RV detailing" width="1400" height="1050" loading="eager" decoding="async">
         </div>
         <div class="ba-meta">
-          <div class="ba-vehicle">Renegade Vienna</div>
-          <div class="ba-service">Exterior detail · Front cap &amp; cab</div>
-          <p class="ba-caption">Class C motorhome front-end work including cab, cap, and lower panels — finished at the customer's home in Bergen County.</p>
+          <div class="ba-vehicle">Grand Design Momentum G-Class</div>
+          <div class="ba-service">Fifth-wheel · Front cap detail</div>
+          <p class="ba-caption">Full front-cap wash and finish on a large fifth-wheel — graphics, cap, and lower panels cleaned on location.</p>
         </div>
       </article>
       <article class="ba-card">
         <div class="ba-showcase">
-          <img src="assets/before-after/vienna-rv-roof-after.jpg" alt="Renegade Vienna Class C motorhome roof after wash and treatment — clean white membrane" width="1400" height="1050" loading="lazy" decoding="async">
+          <img src="assets/media/rv/gallery/momentum-gclass-side.jpeg" alt="Grand Design Momentum G-Class fifth-wheel side profile after exterior RV wash" width="1400" height="1050" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Grand Design Momentum G-Class</div>
+          <div class="ba-service">Exterior wash · Full side profile</div>
+          <p class="ba-caption">Complete side profile after exterior detailing — slide-outs, graphics, and body panels finished at the customer&apos;s location.</p>
+        </div>
+      </article>
+      <article class="ba-card">
+        <div class="ba-showcase">
+          <img src="assets/media/rv/gallery/rockwood-signature-front.jpeg" alt="Rockwood Signature travel trailer front cap after mobile detailing" width="1400" height="1050" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Rockwood Signature</div>
+          <div class="ba-service">Travel trailer · Front cap &amp; awning area</div>
+          <p class="ba-caption">Travel trailer front cap cleaned at a campground — awning, cap, and hitch area finished without moving the rig.</p>
+        </div>
+      </article>
+      <article class="ba-card">
+        <div class="ba-showcase">
+          <img src="assets/before-after/vienna-rv-front-after.jpg" alt="Renegade Vienna Class C motorhome after full exterior detail — clean front cap and cab area" width="1400" height="1050" loading="lazy" decoding="async">
         </div>
         <div class="ba-meta">
           <div class="ba-vehicle">Renegade Vienna</div>
-          <div class="ba-service">Roof wash &amp; UV treatment</div>
-          <p class="ba-caption">Roof membrane deep-cleaned and treated — grime removed from the membrane and slide-out tops without damaging seals.</p>
+          <div class="ba-service">Class C motorhome · Front cap &amp; cab</div>
+          <p class="ba-caption">Class C motorhome front-end work including cab, cap, and lower panels — finished at the customer&apos;s home in Bergen County.</p>
         </div>
       </article>
       <article class="ba-card">
@@ -297,32 +317,22 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       </article>
       <article class="ba-card">
         <div class="ba-showcase">
-          <img src="assets/media/rv/gallery/IMG_7471.jpeg" alt="Jayco Eagle travel trailer rear corner after exterior detailing" width="1200" height="900" loading="lazy" decoding="async">
-        </div>
-        <div class="ba-meta">
-          <div class="ba-vehicle">Jayco Eagle Trailer</div>
-          <div class="ba-service">Rear corner · Exterior detail</div>
-          <p class="ba-caption">Rear corner and lower panels cleaned on location — ready for storage or the next trip.</p>
-        </div>
-      </article>
-      <article class="ba-card">
-        <div class="ba-showcase">
-          <img src="assets/media/rv/gallery/IMG_7463.jpeg" alt="Jayco Eagle fifth-wheel front cap after mobile detailing" width="1200" height="900" loading="lazy" decoding="async">
-        </div>
-        <div class="ba-meta">
-          <div class="ba-vehicle">Jayco Eagle</div>
-          <div class="ba-service">Front cap detail</div>
-          <p class="ba-caption">Fifth-wheel front cap cleaned and finished on location.</p>
-        </div>
-      </article>
-      <article class="ba-card">
-        <div class="ba-showcase">
           <img src="assets/media/rv/gallery/IMG_7473.jpeg" alt="Jayco Eagle travel trailer side profile after detailing" width="1200" height="900" loading="lazy" decoding="async">
         </div>
         <div class="ba-meta">
           <div class="ba-vehicle">Jayco Eagle Trailer</div>
-          <div class="ba-service">Exterior wash</div>
+          <div class="ba-service">Exterior wash · Side profile</div>
           <p class="ba-caption">Travel trailer side profile after exterior detailing.</p>
+        </div>
+      </article>
+      <article class="ba-card">
+        <div class="ba-showcase">
+          <img src="assets/before-after/vienna-rv-roof-after.jpg" alt="Renegade Vienna Class C motorhome roof after wash and treatment — clean white membrane" width="1400" height="1050" loading="lazy" decoding="async">
+        </div>
+        <div class="ba-meta">
+          <div class="ba-vehicle">Renegade Vienna</div>
+          <div class="ba-service">Roof wash &amp; UV treatment</div>
+          <p class="ba-caption">Roof membrane deep-cleaned and treated — grime removed from the membrane and slide-out tops without damaging seals.</p>
         </div>
       </article>
     </div>

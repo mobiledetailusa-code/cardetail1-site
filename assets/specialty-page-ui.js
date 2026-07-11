@@ -16,6 +16,7 @@
     global.addEventListener('scroll', function () {
       btn.classList.toggle('btt-on', global.scrollY > 420);
     }, { passive: true });
+    btn.classList.toggle('btt-on', global.scrollY > 420);
   }
 
   function initGalleryLightbox() {

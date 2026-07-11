@@ -49,6 +49,8 @@ const PACKAGE_BY_PAGE = {
 
 /** Approved real-work / category media (no car filler). */
 const POWERSPORTS_MEDIA = [
+  'assets/media/powersports/gallery/polaris-atv-front.jpeg',
+  'assets/media/powersports/gallery/polaris-atv-angle.jpeg',
   'assets/media/powersports/gallery/IMG_6736.jpeg',
   'assets/media/powersports/gallery/IMG_6739.jpeg',
   'assets/media/powersports/gallery/IMG_6754.jpeg',
@@ -81,9 +83,10 @@ const RV_MEDIA = [
   'assets/before-after/vienna-rv-front-after.jpg',
   'assets/before-after/vienna-rv-roof-after.jpg',
   'assets/showcase/jayco-dolly-front.jpg',
-  'assets/media/rv/gallery/IMG_7463.jpeg',
+  'assets/media/rv/gallery/momentum-gclass-front.jpeg',
+  'assets/media/rv/gallery/momentum-gclass-side.jpeg',
+  'assets/media/rv/gallery/rockwood-signature-front.jpeg',
   'assets/media/rv/gallery/IMG_7464.jpeg',
-  'assets/media/rv/gallery/IMG_7471.jpeg',
   'assets/media/rv/gallery/IMG_7473.jpeg',
 ];
 
@@ -582,9 +585,15 @@ describe('specialty page UI (back-to-top + gallery lightbox)', () => {
 
   it('rv gallery images are wired for full-size viewing', () => {
     const html = read('rv-detailing.html');
-    assert.match(html, /assets\/media\/rv\/gallery\/IMG_7464\.jpeg/);
-    assert.match(html, /assets\/media\/rv\/gallery\/IMG_7471\.jpeg/);
-    assert.match(html, /cursor:zoom-in/);
+    assert.match(html, /momentum-gclass-front\.jpeg/);
+    assert.match(html, /rockwood-signature-front\.jpeg/);
+    assert.match(html, /object-fit:contain/);
+  });
+
+  it('homepage back-to-top sits above chat widget', () => {
+    const html = read('index.html');
+    assert.match(html, /#btt\{[^}]*z-index:985/);
+    assert.match(html, /syncBtt\(\)/);
   });
 });
 
