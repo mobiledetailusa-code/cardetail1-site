@@ -28,21 +28,29 @@ function stripeMode() {
   return 'none';
 }
 
+const QA_DEPLOY_HOST = 'customer-my-garage-portal--cardetail1.netlify.app';
+
+function deployHost() {
+  const raw = String(process.env.DEPLOY_PRIME_URL || process.env.URL || '').toLowerCase();
+  try {
+    return new URL(raw.startsWith('http') ? raw : `https://${raw}`).host;
+  } catch {
+    return '';
+  }
+}
+
 function resolveQaBranch() {
   const branch = String(process.env.BRANCH || process.env.HEAD || '').trim();
   if (branch === QA_BRANCH) return true;
-  const prime = String(process.env.DEPLOY_PRIME_URL || process.env.URL || '').toLowerCase();
-  return prime.includes('customer-my-garage-portal--');
+  return deployHost() === QA_DEPLOY_HOST;
 }
 
 function isHarnessEnabled() {
   const ctx = String(process.env.CONTEXT || '').toLowerCase();
-  if (ctx === 'production') return false;
+  if (ctx === 'production' && deployHost() !== QA_DEPLOY_HOST) return false;
   if (!resolveQaBranch()) return false;
   const flag = String(process.env.MY_GARAGE_QA_ENABLED || '').trim();
-  if (flag === 'true') return true;
-  const prime = String(process.env.DEPLOY_PRIME_URL || process.env.URL || '').toLowerCase();
-  return prime.includes('customer-my-garage-portal--');
+  return flag === 'true' || deployHost() === QA_DEPLOY_HOST;
 }
 
 function isAllowedQaBookingId(id) {

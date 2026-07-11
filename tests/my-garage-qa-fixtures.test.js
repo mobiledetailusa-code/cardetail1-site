@@ -25,11 +25,12 @@ function withEnv(overrides, fn) {
   }
 }
 
-test('harness is disabled in production', () => {
+test('harness disabled on production host', () => {
   withEnv({
     CONTEXT: 'production',
-    BRANCH: 'customer-my-garage-portal',
+    URL: 'https://cardetail1.com',
     MY_GARAGE_QA_ENABLED: 'true',
+    BRANCH: 'customer-my-garage-portal',
   }, () => {
     assert.equal(qa.isHarnessEnabled(), false);
   });
