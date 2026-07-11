@@ -390,7 +390,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .cp-tab.active{background:var(--blue);color:#000}
 .cp-panel{display:none}
 .cp-panel.active{display:block}
-/* Ã¢â€â‚¬Ã¢â€â‚¬ CUSTOMER GARAGE Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── CUSTOMER GARAGE ── */
 .cg-back{background:none;border:none;color:var(--mu);font-size:12px;cursor:pointer;padding:0;margin-bottom:12px;display:block;transition:.2s}
 .cg-back:hover{color:var(--white)}
 .cg-nav{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
@@ -849,8 +849,8 @@ h2.hero-sub{font-weight:300}
 .checkout-terms-disclosure{background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);overflow:hidden}
 .checkout-terms-disclosure summary{padding:12px 16px;font-size:12px;font-weight:600;color:var(--mu);cursor:pointer;list-style:none;user-select:none}
 .checkout-terms-disclosure summary::-webkit-details-marker{display:none}
-.checkout-terms-disclosure summary::before{content:'â–¸ ';color:var(--blue)}
-.checkout-terms-disclosure[open] summary::before{content:'â–¾ '}
+.checkout-terms-disclosure summary::before{content:'▸ ';color:var(--blue)}
+.checkout-terms-disclosure[open] summary::before{content:'▾ '}
 .checkout-terms-disclosure[open] summary{border-bottom:1px solid rgba(255,255,255,.08);color:var(--tx)}
 .checkout-terms-disclosure .terms-panel,.checkout-terms-disclosure .pay-box{border:none;border-radius:0;margin-bottom:0;max-height:none}
 .checkout-terms-disclosure .terms-panel{border-bottom:1px solid rgba(255,255,255,.06)}
@@ -972,7 +972,7 @@ h2.hero-sub{font-weight:300}
 .ba-compare input[type=range]{position:absolute;inset:0;z-index:4;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize;touch-action:none}
 .ba-compare-handle{position:absolute;top:0;bottom:0;left:var(--ba-pos);z-index:3;width:36px;transform:translateX(-50%);pointer-events:none;display:flex;align-items:center;justify-content:center}
 .ba-compare-handle::before{content:'';width:2px;height:100%;background:var(--white);box-shadow:0 0 8px rgba(0,0,0,.45)}
-.ba-compare-handle::after{content:'â†”';position:absolute;width:34px;height:34px;border-radius:50%;background:rgba(2,14,2,.88);border:2px solid var(--white);color:var(--white);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1}
+.ba-compare-handle::after{content:'↔';position:absolute;width:34px;height:34px;border-radius:50%;background:rgba(2,14,2,.88);border:2px solid var(--white);color:var(--white);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1}
 .ba-tag{position:absolute;top:12px;padding:4px 10px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;z-index:5}
 .ba-tag--before{left:12px;background:rgba(0,0,0,.72);color:var(--white);border:1px solid rgba(255,255,255,.25)}
 .ba-tag--after{right:12px;background:var(--bdim);color:var(--blue);border:1px solid var(--bbr)}
@@ -1024,9 +1024,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .bk-zip-info{font-size:12px;color:var(--gr);font-weight:600}
 .bk-zip-change{font-size:11px;color:var(--mu);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ════════════════════════════════════════════════════════
    MOBILE OPTIMIZATION - comprehensive responsive pass
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+   ════════════════════════════════════════════════════════ */
 
 /* ── Touch-friendly base ── */
 @media(max-width:768px){
@@ -1253,7 +1253,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
   <a class="nav-book-mobile booking-popup-trigger" onclick="openBooking(null)">Book Now</a>
   <a class="nav-portal-mobile" onclick="openPortal()">My Booking</a>
-  <button class="nav-menu-btn" onclick="toggleNav()">â˜°</button>
+  <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
 </nav>
 
 <nav class="specialty-service-nav" aria-label="Specialty detailing services">
@@ -1275,19 +1275,19 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <h1>Mobile Car Detailing in Essex County</h1>
     <p class="hero-sub">Premium mobile detailing across Essex County, from Newark to Montclair. We bring the water, power, and expertise to your driveway.</p>
     <div class="hero-proof">
-      <span>â˜…â˜…â˜…â˜…â˜… Neighbor-rated</span>
+      <span>★★★★★ Neighbor-rated</span>
       <span>Lock in your driveway service online</span>
     </div>
 
     <a class="hero-tel-mobile" href="tel:5513132956">📍ž Call or Text: 551-313-2956</a>
   </div>
-  <div class="hero-scroll">â†“ Scroll</div>
+  <div class="hero-scroll">↓ Scroll</div>
 </section>
 
 <!-- ZIP GATE -->
 <section id="zip-section" aria-label="Check service area by ZIP code">
   <div class="hero-zip-wrap">
-    <span class="hero-zip-label">📍 What's your ZIP? We'll show local pricing</span>
+    <span class="hero-zip-label">📍 What's your ZIP? We'll show local pricing</span>
     <div class="hero-zip-row">
       <input
         class="hero-zip-input"
@@ -1327,7 +1327,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div style="font-family:var(--fd);font-size:clamp(28px,5vw,46px);color:var(--white);letter-spacing:.02em;line-height:1">SERVICES IN<br><span id="loc-zone-name" style="color:var(--blue)">YOUR AREA</span></div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
-        <div id="loc-zone-pill" class="loc-zone-pill" style="display:none">📍 <span id="loc-pill-text">Detected</span></div>
+        <div id="loc-zone-pill" class="loc-zone-pill" style="display:none">📍 <span id="loc-pill-text">Detected</span></div>
         <div id="loc-surcharge-msg" class="loc-surcharge" style="display:none"></div>
       </div>
     </div>
@@ -1639,7 +1639,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div style="max-width:1100px;margin:0 auto">
     <div class="sameday-banner">
       <div class="sd-left">
-        <h3>📍… PICK YOUR DATE</h3>
+        <h3>📅 PICK YOUR DATE</h3>
         <p>Tell us when works for you - we'll text you to confirm once we've checked the route, weather, and access at your place.</p>
       </div>
       <div class="sd-badge">
@@ -1694,22 +1694,22 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="sec-desc">No shop drop-off, no waiting room, no phone tag. Lock in your driveway service online - we'll take it from there.</div>
     <div class="how-grid">
       <div class="how-card">
-        <div class="how-ico">📍±</div>
+        <div class="how-ico">📱</div>
         <div class="how-title">Grab Your Spot</div>
         <div class="how-desc">Lock in your driveway service online.</div>
       </div>
       <div class="how-card">
-        <div class="how-ico">ðŸ”’</div>
+        <div class="how-ico">🔒</div>
         <div class="how-title">Lock It In</div>
         <div class="how-desc">Book with confidence. We place a secure $0 hold just to reserve your spot on our route. We never charge you upfront. You only pay when the job is done and you're 100% happy with the results.</div>
       </div>
       <div class="how-card">
-        <div class="how-ico">ðŸš</div>
+        <div class="how-ico">🚐</div>
         <div class="how-title">We Come To You</div>
         <div class="how-desc">Our tech rolls up to your driveway, office, or marina with pro gear. You stay put - we handle the rest.</div>
       </div>
       <div class="how-card">
-        <div class="how-ico">âœ¨</div>
+        <div class="how-ico">✨</div>
         <div class="how-title">Inspect & Pay</div>
         <div class="how-desc">Walk around with your tech when the job's done. Final payment happens after you've seen the results.</div>
       </div>
@@ -1721,11 +1721,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <div class="section-full" style="background:var(--bg1)">
   <div class="section">
     <div class="trust-row">
-      <div class="trust-item"><div class="trust-ico">ðŸ”§</div><div class="trust-val">PRO</div><div class="trust-lbl">Gear On Board</div></div>
-      <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">LOCAL</div><div class="trust-lbl">Bergen County</div></div>
+      <div class="trust-item"><div class="trust-ico">🔧</div><div class="trust-val">PRO</div><div class="trust-lbl">Gear On Board</div></div>
+      <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">LOCAL</div><div class="trust-lbl">Bergen County</div></div>
       <div class="trust-item"><div class="trust-ico">✓</div><div class="trust-val">$0</div><div class="trust-lbl">No Charge Today</div></div>
-      <div class="trust-item"><div class="trust-ico">📍…</div><div class="trust-val">ONLINE</div><div class="trust-lbl">Book Anytime</div></div>
-      <div class="trust-item"><div class="trust-ico">ðŸš</div><div class="trust-val">MOBILE</div><div class="trust-lbl">We Come To You</div></div>
+      <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val">ONLINE</div><div class="trust-lbl">Book Anytime</div></div>
+      <div class="trust-item"><div class="trust-ico">🚐</div><div class="trust-val">MOBILE</div><div class="trust-lbl">We Come To You</div></div>
     </div>
   </div>
 </div>
@@ -1792,7 +1792,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="trust-lbl">Round Service</div>
       </div>
       <div class="trust-item">
-        <div class="trust-ico" aria-hidden="true">â­</div>
+        <div class="trust-ico" aria-hidden="true">⭐</div>
         <div class="trust-val">5.0</div>
         <div class="trust-lbl">Customer Rating</div>
       </div>
@@ -1811,15 +1811,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <a class="btn-n" style="font-size:13px;padding:11px 24px;text-decoration:none;display:inline-flex;align-items:center;gap:6px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">&#11088; Leave a Google Review</a>
     </div>
     <div class="cred-row" style="margin-top:20px">
-      <div class="cred-item"><span>ðŸ§½</span><span>Recent detail work</span></div>
+      <div class="cred-item"><span>🧽</span><span>Recent detail work</span></div>
       <div class="cred-item"><span>📍¸</span><span>Photo gallery of recent work now live</span></div>
-      <div class="cred-item"><span>📍</span><span>Serving Bergen County &amp; North Jersey</span></div>
-      <div class="cred-item"><span>ðŸ”§</span><span>Professional equipment</span></div>
-      <div class="cred-item"><span>ðŸ”§</span><span>Mobile-ready equipment available</span></div>
+      <div class="cred-item"><span>📍</span><span>Serving Bergen County &amp; North Jersey</span></div>
+      <div class="cred-item"><span>🔧</span><span>Professional equipment</span></div>
+      <div class="cred-item"><span>🔧</span><span>Mobile-ready equipment available</span></div>
       <div class="cred-item"><span>✓</span><span>Booking reviewed before confirmation</span></div>
     </div>
     <div style="text-align:center;margin-top:14px">
-      <span style="font-size:12px;color:var(--mu)">📍 Bergen County &amp; North Jersey · Local Detail Service</span>
+      <span style="font-size:12px;color:var(--mu)">📍 Bergen County &amp; North Jersey · Local Detail Service</span>
     </div>
   </div>
 </div>
@@ -1835,7 +1835,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="pc-note">Mon–Fri 8AM–5PM · Bergen County, NJ and nearby areas</div>
       </div>
       <div class="phone-cta">
-        <div class="pc-ico">âš¡</div>
+        <div class="pc-ico">⚡</div>
         <div class="pc-title">BOOK FROM YOUR DRIVEWAY</div>
         <button class="btn-primary booking-popup-trigger" style="font-size:15px;padding:18px 36px;margin-bottom:8px" onclick="openBooking(null)">Book Mobile Detailing →</button>
         <div class="pc-note">We'll text you to confirm · Track your appointment easily via text or your local dashboard</div>
@@ -1845,7 +1845,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </div>
 
 <!-- BACK TO TOP -->
-<button id="btt" aria-label="Back to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">â†‘</button>
+<button id="btt" aria-label="Back to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 
 <!-- MOBILE STICKY CTA -->
 <div class="mobile-sticky-cta" id="mobile-sticky-cta">
@@ -1886,7 +1886,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <a href="tel:5513132956">📍ž 551-313-2956</a>
         <a href="https://www.instagram.com/cardetail1com" target="_blank">📍¸ @cardetail1com</a>
         <a onclick="openPortal()">My Booking</a>
-        <a>📍 Palisades Park · Bergen Co.</a>
+        <a>📍 Palisades Park · Bergen Co.</a>
       </div>
     </div>
     <div class="foot-seo">
@@ -1894,9 +1894,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <p>We are proud to provide top-tier auto detailing in New Jersey. Our mobile unit is fully equipped to handle sedans, SUVs, trucks, and powersports with precision and care.</p>
     </div>
     <div class="foot-bot">
-      <div class="foot-copy">Â© 2026 Cardetail1 · Detailing Zone LLC · All rights reserved.</div>
+      <div class="foot-copy">© 2026 Cardetail1 · Detailing Zone LLC · All rights reserved.</div>
       <div style="margin-top:14px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
-        <a href='/customer' onmouseout='this.style.color=\'rgba(255,255,255,.35)\'' onmouseover='this.style.color=\'#4da3ff\'' style='font-size:12px;color:rgba(255,255,255,.35);text-decoration:none;transition:.2s'>ðŸ‘¤ My Account</a>
+        <a href='/customer' onmouseout='this.style.color=\'rgba(255,255,255,.35)\'' onmouseover='this.style.color=\'#4da3ff\'' style='font-size:12px;color:rgba(255,255,255,.35);text-decoration:none;transition:.2s'>👤 My Account</a>
       </div>
       <div class="foot-areas">Serving Bergen County · Hudson County · Manhattan · Long Island · Fairfield CT · and surrounding areas</div>
     </div>
@@ -1906,13 +1906,13 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <!-- LOGIN MODAL -->
 <div class="login-ov" id="login-ov" onclick="handleLoginOv(event)">
   <div class="login-box">
-    <button class="login-close" onclick="closeLogin()">âœ•</button>
+    <button class="login-close" onclick="closeLogin()">✕</button>
     <div class="login-eye">Cardetail1 Portal</div>
     <div class="login-title">SIGN IN</div>
     <div class="login-desc" id="login-desc">Look up your booking by phone number or booking ID.</div>
     <div class="login-tabs">
-      <button class="login-tab" id="ltab-admin" onclick="setLoginRole('admin')" style="display:none">ðŸ” Admin</button>
-      <button class="login-tab active" id="ltab-customer" onclick="setLoginRole('customer')">ðŸ‘¤ My Booking</button>
+      <button class="login-tab" id="ltab-admin" onclick="setLoginRole('admin')" style="display:none">🔐 Admin</button>
+      <button class="login-tab active" id="ltab-customer" onclick="setLoginRole('customer')">👤 My Booking</button>
     </div>
 
     <!-- Admin - username + password sign-in -->
@@ -1945,14 +1945,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 <div class="cp-ov" id="cp-ov" onclick="handleCpOv(event)">
   <div class="cp-modal">
-    <button class="cp-close" onclick="closePortal()">âœ•</button>
+    <button class="cp-close" onclick="closePortal()">✕</button>
     <div class="cp-title">MY BOOKING</div>
     <p style="font-size:13px;color:var(--mu);margin-bottom:0">Access your booking and maintenance options.</p>
     <div class="cp-tabs">
-      <button class="cp-tab active" onclick="cpTab(0)">ðŸ” Find</button>
-      <button class="cp-tab" onclick="cpTab(1)">ðŸ’³ Pay</button>
-      <button class="cp-tab" onclick="cpTab(2)">âœï¸ Manage</button>
-      <button class="cp-tab" onclick="cpTab(3)">â­ Review</button>
+      <button class="cp-tab active" onclick="cpTab(0)">🔍 Find</button>
+      <button class="cp-tab" onclick="cpTab(1)">💳 Pay</button>
+      <button class="cp-tab" onclick="cpTab(2)">✏️ Manage</button>
+      <button class="cp-tab" onclick="cpTab(3)">⭐ Review</button>
     </div>
 
     <!-- TAB 0: FIND MY BOOKING -->
@@ -2022,7 +2022,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="cp-sub-panel" id="cps-cancel">
         <div id="cp-cancel-warn" style="padding:12px;border:1px solid rgba(239,68,68,.3);border-radius:var(--rs);background:var(--rddim);font-size:13px;color:var(--rd);margin-bottom:12px;line-height:1.6"></div>
         <label class="cp-label">Reason for cancellation <span style="color:var(--rd)">*</span></label>
-        <textarea class="cp-fi" id="cp-cancel-reason" rows="3" placeholder="e.g. Schedule conflict, no longer neededâ€¦" style="resize:none;margin-bottom:8px"></textarea>
+        <textarea class="cp-fi" id="cp-cancel-reason" rows="3" placeholder="e.g. Schedule conflict, no longer needed…" style="resize:none;margin-bottom:8px"></textarea>
         <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;font-size:12px;color:var(--mu);cursor:pointer;line-height:1.5">
           <input type="checkbox" id="cp-cancel-ack" style="margin-top:2px;accent-color:var(--blue);flex-shrink:0">
           <span>I understand the cancellation policy. Late cancellations (within 24h) or no-shows may incur a fee per the posted terms.</span>
@@ -2039,7 +2039,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="cp-sub-panel" id="cps-pack">
         <p style="font-size:13px;color:var(--mu);margin-bottom:10px">Select a different package. Our team will confirm pricing before applying.</p>
         <select class="cp-fi" id="cp-pack-select">
-          <option value="">Select a different packâ€¦</option>
+          <option value="">Select a different pack…</option>
         </select>
         <button class="cp-btn" style="margin-top:12px" onclick="cpConfirmPackChange()">Request Package Change →</button>
         <div id="cp-pack-msg" style="display:none;margin-top:10px;font-size:13px"></div>
@@ -2052,14 +2052,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <!-- Option A: Public Google Review -->
       <div style="padding:14px;background:var(--bg2);border:1px solid rgba(77,163,255,.25);border-radius:var(--rs);margin-bottom:12px">
-        <div style="font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px">â­ Public Google Review</div>
+        <div style="font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px">⭐ Public Google Review</div>
         <div style="font-size:12px;color:var(--mu);margin-bottom:10px">Your review will appear publicly on Google and help others find us in Bergen County.</div>
         <a class="cp-btn" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;text-align:center">Leave a Google Review →</a>
       </div>
 
       <!-- Option B: Private feedback to Cardetail1 -->
       <div style="padding:14px;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs)">
-        <div style="font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px">ðŸ’¬ Send Private Feedback</div>
+        <div style="font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px">💬 Send Private Feedback</div>
         <div style="font-size:12px;color:var(--mu);margin-bottom:12px">Customer-submitted feedback - not a verified Google review. Not shown publicly without admin approval.</div>
         <label class="cp-label">Your name</label>
         <input class="cp-fi" id="cp-rv-name" type="text" placeholder="First name + last initial">
@@ -2067,14 +2067,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <input class="cp-fi" id="cp-rv-service" type="text" placeholder="e.g. Cars · Full Detail">
         <label class="cp-label">Your rating</label>
         <div class="cp-stars" id="cp-stars">
-          <span class="cp-star" data-s="1" onclick="cpSetStar(1)">â˜…</span>
-          <span class="cp-star" data-s="2" onclick="cpSetStar(2)">â˜…</span>
-          <span class="cp-star" data-s="3" onclick="cpSetStar(3)">â˜…</span>
-          <span class="cp-star" data-s="4" onclick="cpSetStar(4)">â˜…</span>
-          <span class="cp-star" data-s="5" onclick="cpSetStar(5)">â˜…</span>
+          <span class="cp-star" data-s="1" onclick="cpSetStar(1)">★</span>
+          <span class="cp-star" data-s="2" onclick="cpSetStar(2)">★</span>
+          <span class="cp-star" data-s="3" onclick="cpSetStar(3)">★</span>
+          <span class="cp-star" data-s="4" onclick="cpSetStar(4)">★</span>
+          <span class="cp-star" data-s="5" onclick="cpSetStar(5)">★</span>
         </div>
         <label class="cp-label">Your review</label>
-        <textarea class="cp-fi" id="cp-rv-text" rows="4" placeholder="Tell us about your experienceâ€¦" style="resize:none"></textarea>
+        <textarea class="cp-fi" id="cp-rv-text" rows="4" placeholder="Tell us about your experience…" style="resize:none"></textarea>
         <button class="cp-btn" onclick="cpSubmitReview()">Submit Private Feedback →</button>
         <div class="cp-result" id="cp-rv-result"></div>
       </div>
@@ -2148,13 +2148,13 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ══════════════════════════════════════════ -->
 <!--            BOOKING MODAL                  -->
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ══════════════════════════════════════════ -->
 <div class="radar-toast" id="radar-toast"></div>
 <div class="booking-modal-ov" id="bk-ov">
   <div class="booking-modal">
-    <button type="button" class="booking-close" onclick="closeBooking()">âœ•</button>
+    <button type="button" class="booking-close" onclick="closeBooking()">✕</button>
 
     <!-- PROGRESS -->
     <div class="bprog" id="bprog">
@@ -2178,10 +2178,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <input class="fi" id="bk-zip" type="text" maxlength="5" placeholder="Enter ZIP code" inputmode="numeric" style="width:min(150px,100%);padding:11px 14px;font-size:15px;font-weight:600" oninput="onBkZipInput(this.value)" autocomplete="postal-code">
           <div id="bk-zone-badge" style="display:none;font-size:12px;font-weight:600;color:var(--gr);background:var(--grdim);border:1px solid var(--grbr);border-radius:999px;padding:5px 14px"></div>
           <div id="bk-surcharge-badge" style="display:none;font-size:11.5px;color:var(--am);background:var(--amdim);border:1px solid var(--ambr);border-radius:999px;padding:4px 12px"></div>
-          <div id="bk-rich-badge" style="display:none;font-size:11px;color:#c084fc;background:rgba(192,132,252,.1);border:1px solid rgba(192,132,252,.3);border-radius:999px;padding:4px 12px;font-weight:600">âœ¦ Premium area</div>
+          <div id="bk-rich-badge" style="display:none;font-size:11px;color:#c084fc;background:rgba(192,132,252,.1);border:1px solid rgba(192,132,252,.3);border-radius:999px;padding:4px 12px;font-weight:600">✦ Premium area</div>
         </div>
         <div class="zip-gate-msg" id="bk-gate-msg">
-          <span class="zg-ico">📍</span>
+          <span class="zg-ico">📍</span>
           <span>Enter your 5-digit ZIP code to unlock services and see local pricing</span>
         </div>
         <div class="bk-travel-line" id="bk-travel-line"></div>
@@ -2190,7 +2190,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="svc-ico-photo"><img src="assets/vehicles/premium/cars-suvs.webp" alt="Cars and trucks receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
-            <div class="svc-from" id="bkfrom-cars" style="font-size:12px">From $175</div>
+            <div class="svc-from" id="bkfrom-cars" style="font-size:12px">Packages shown after ZIP check</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
             <span class="svc-ico-photo"><img src="assets/vehicles/premium/marine.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
@@ -2222,7 +2222,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="pkg-grid" id="pkg-grid"></div>
         <p style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">Final price depends on vehicle size, condition, location, and selected add-ons. Heavy pet hair, odor treatment, biohazard, excessive stains, and oversized vehicles may require additional charges.</p>
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(1)">â† Back</button>
+          <button type="button" class="btn-b" onclick="bkGoTo(1)">← Back</button>
           <button type="button" class="btn-n" id="next2" disabled onclick="bkGoTo(3)">Enter Vehicle →</button>
         </div>
       </div>
@@ -2241,8 +2241,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <!-- Make search (cars only) -->
         <div id="make-search-wrap" style="display:none">
           <div class="srch-wrap">
-            <span class="srch-ico">ðŸ”</span>
-            <input class="srch-in" id="make-in" type="text" placeholder="Search make - Toyota, BMW, Fordâ€¦" autocomplete="off">
+            <span class="srch-ico">🔍</span>
+            <input class="srch-in" id="make-in" type="text" placeholder="Search make - Toyota, BMW, Ford…" autocomplete="off">
             <div class="srch-dd" id="make-dd"></div>
           </div>
           <div class="sel-row">
@@ -2257,22 +2257,22 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="sel-g">
               <div class="sel-l">Make / Brand</div>
               <div class="srch-wrap" style="margin:0">
-                <span class="srch-ico">ðŸ”</span>
-                <input class="srch-in" id="g-make" type="text" placeholder="e.g. Sea Ray, Yamahaâ€¦" autocomplete="off">
+                <span class="srch-ico">🔍</span>
+                <input class="srch-in" id="g-make" type="text" placeholder="e.g. Sea Ray, Yamaha…" autocomplete="off">
                 <div class="srch-dd" id="g-make-dd"></div>
               </div>
             </div>
             <div class="sel-g">
               <div class="sel-l">Model</div>
               <div class="srch-wrap" style="margin:0">
-                <span class="srch-ico">ðŸ”</span>
-                <input class="srch-in" id="g-model" type="text" placeholder="Select make firstâ€¦" autocomplete="off" disabled>
+                <span class="srch-ico">🔍</span>
+                <input class="srch-in" id="g-model" type="text" placeholder="Select make first…" autocomplete="off" disabled>
                 <div class="srch-dd" id="g-model-dd"></div>
               </div>
             </div>
             <div class="sel-g"><div class="sel-l">Year</div><select class="sel-s" id="g-year"><option value="">- year -</option></select></div>
           </div>
-          <div id="g-custom-note" style="display:none;font-size:11px;color:var(--accent);margin-top:7px;padding:6px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">âœï¸ Custom entry - not in catalog. That's OK, free-form is supported.</div>
+          <div id="g-custom-note" style="display:none;font-size:11px;color:var(--accent);margin-top:7px;padding:6px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">✏️ Custom entry - not in catalog. That's OK, free-form is supported.</div>
         </div>
 
         <!-- Length selector for boats, RVs and travel trailers -->
@@ -2332,18 +2332,18 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
           <!-- VEHICLE CART -->
           <div class="vcart" id="vcart">
-            <div class="vcart-title">ðŸ›’ Vehicles in this booking</div>
+            <div class="vcart-title">🛒 Vehicles in this booking</div>
             <div id="vcart-items"><div class="vcart-empty">Configure this vehicle then add to cart</div></div>
             <div class="vcart-total" id="vcart-total" style="display:none">
               <span>Cart Total</span><span id="vcart-sum">$0</span>
             </div>
           </div>
 
-          <button type="button" class="btn-add-veh" onclick="addCurrentVehicleToCart()">ï¼‹ Add Another Vehicle</button>
+          <button type="button" class="btn-add-veh" onclick="addCurrentVehicleToCart()">＋ Add Another Vehicle</button>
         </div>
 
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(2)">â† Back</button>
+          <button type="button" class="btn-b" onclick="bkGoTo(2)">← Back</button>
           <button type="button" class="btn-n" id="next3" disabled onclick="addCurrentVehicleAndContinue()">Continue to Info →</button>
         </div>
       </div>
@@ -2372,7 +2372,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="fg full" id="f-schedule-msg" style="display:none;font-size:12.5px;color:var(--am);line-height:1.55;margin-top:-4px"></div>
           <div class="fg"><div class="fl">Water available?</div>
             <select class="fsel" id="f-water">
-              <option value="">Selectâ€¦</option>
+              <option value="">Select…</option>
               <option value="yes">Yes, water spigot/hose access available</option>
               <option value="no">No water available</option>
               <option value="unsure">Not sure</option>
@@ -2380,7 +2380,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </div>
           <div class="fg"><div class="fl">Electricity available?</div>
             <select class="fsel" id="f-electric">
-              <option value="">Selectâ€¦</option>
+              <option value="">Select…</option>
               <option value="yes">Yes, outlet available</option>
               <option value="no">No electricity available</option>
               <option value="unsure">Not sure</option>
@@ -2388,7 +2388,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </div>
           <div class="fg full"><div class="fl">Service location / access</div>
             <select class="fsel" id="f-location">
-              <option value="">Selectâ€¦</option>
+              <option value="">Select…</option>
               <option value="driveway">Driveway</option>
               <option value="street">Street parking</option>
               <option value="garage">Garage / parking deck</option>
@@ -2398,11 +2398,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <option value="other">Other</option>
             </select>
           </div>
-          <div class="fg full"><div class="fl">Access notes (optional)</div><textarea class="fta" id="f-access-notes" placeholder="Gate code, parking instructions, hose location, power outlet location, restrictionsâ€¦"></textarea></div>
-          <div class="fg full"><div class="fl">Notes (optional)</div><textarea class="fta" id="f-notes" placeholder="Specific stains, pet hair, vehicle conditionâ€¦"></textarea></div>
+          <div class="fg full"><div class="fl">Access notes (optional)</div><textarea class="fta" id="f-access-notes" placeholder="Gate code, parking instructions, hose location, power outlet location, restrictions…"></textarea></div>
+          <div class="fg full"><div class="fl">Notes (optional)</div><textarea class="fta" id="f-notes" placeholder="Specific stains, pet hair, vehicle condition…"></textarea></div>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(3)">â† Back</button>
+          <button type="button" class="btn-b" onclick="bkGoTo(3)">← Back</button>
           <button type="button" class="btn-n" onclick="goToPayment()">Review Terms →</button>
         </div>
       </div>
@@ -2417,9 +2417,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="stripe-pay" aria-label="Secure checkout">
             <div class="fl" style="margin-bottom:8px">Payment Preference</div>
             <div class="pay-choice-row">
-              <button type="button" class="pay-choice" id="pc-cash" onclick="selectPaymentPreference('cash_onsite','pc-cash')">ðŸ’µ Cash on-site</button>
-              <button type="button" class="pay-choice" id="pc-onsite" onclick="selectPaymentPreference('card_onsite','pc-onsite')">ðŸ’³ Card on-site</button>
-              <button type="button" class="pay-choice" id="pc-online" onclick="selectPaymentPreference('online_after_service','pc-online')">ðŸ”— Online after service</button>
+              <button type="button" class="pay-choice" id="pc-cash" onclick="selectPaymentPreference('cash_onsite','pc-cash')">💵 Cash on-site</button>
+              <button type="button" class="pay-choice" id="pc-onsite" onclick="selectPaymentPreference('card_onsite','pc-onsite')">💳 Card on-site</button>
+              <button type="button" class="pay-choice" id="pc-online" onclick="selectPaymentPreference('online_after_service','pc-online')">🔗 Online after service</button>
             </div>
             <div id="pc-cash-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Pay cash after the service is completed. A card on file is still required to secure the booking.</div>
             <div id="pc-onsite-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Pay by card after the service is completed. A card on file is still required to secure the booking.</div>
@@ -2493,7 +2493,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </details>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(4)">â† Back</button>
+          <button type="button" class="btn-b" onclick="bkGoTo(4)">← Back</button>
           <button type="button" class="btn-n" onclick="goToConfirmFromTerms()">Review & Submit →</button>
         </div>
       </div>
@@ -2537,7 +2537,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </label>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(5)">â† Back</button>
+          <button type="button" class="btn-b" onclick="bkGoTo(5)">← Back</button>
           <button type="button" class="btn-sub" id="sub-btn" onclick="submitBooking()">
             <div class="spin"></div><span class="bl">Submit Booking Request ✓</span>
           </button>
@@ -2563,7 +2563,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <p style="font-size:12px;color:var(--mu);margin-bottom:10px">After your service is completed, we'd appreciate your honest review.</p>
             <div style="display:flex;flex-wrap:wrap;gap:8px">
               <button type="button" class="btn-n" style="font-size:12px;padding:8px 18px" onclick="forceCloseBooking();openPortal()">Open My Booking →</button>
-              <a style="font-size:12px;padding:8px 18px;text-decoration:none;border:1px solid rgba(255,255,255,.18);border-radius:var(--rs);color:var(--white);background:transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">â­ Leave a Google Review</a>
+              <a style="font-size:12px;padding:8px 18px;text-decoration:none;border:1px solid rgba(255,255,255,.18);border-radius:var(--rs);color:var(--white);background:transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">⭐ Leave a Google Review</a>
             </div>
           </div>
           <button type="button" class="btn-restart" onclick="restartBooking()">Book Another Service</button>
@@ -2574,9 +2574,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </div><!-- /booking modal -->
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ════════════════════════════════════════════ -->
 <!--           FLOATING AI CHAT WIDGET            -->
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ════════════════════════════════════════════ -->
 <style>
 #cd-chat{position:fixed;right:20px;bottom:20px;z-index:980;font-family:var(--fb)}
 #cd-launch{width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,var(--blue),#2b7fe0);color:#001022;box-shadow:0 10px 30px rgba(77,163,255,.45);display:flex;align-items:center;justify-content:center;font-size:26px;position:relative;transition:transform .2s,box-shadow .2s}
@@ -2632,19 +2632,19 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </style>
 <div id="cd-chat">
   <button id="cd-launch" onclick="cdToggle()" aria-label="Cardetail1 Booking Team">
-    <span class="cd-l-ico">ðŸ’¬</span><span class="cd-l-close" style="font-size:22px">âœ•</span>
+    <span class="cd-l-ico">💬</span><span class="cd-l-close" style="font-size:22px">✕</span>
     <span class="cd-badge" id="cd-badge">1</span>
   </button>
   <div id="cd-panel" role="dialog" aria-label="Cardetail1 Booking Team">
     <div id="cd-head">
       <div class="cd-hl">
-        <div class="cd-avatar">ðŸŸ¢</div>
+        <div class="cd-avatar">🟢</div>
         <div>
           <div class="cd-title">Cardetail1 Booking Team</div>
           <div class="cd-status"><span class="cd-dot"></span> Live · booking support</div>
         </div>
       </div>
-      <button class="cd-x" onclick="cdToggle()">âœ•</button>
+      <button class="cd-x" onclick="cdToggle()">✕</button>
     </div>
     <div id="cd-msgs"></div>
     <div id="cd-chips"></div>
@@ -2653,28 +2653,28 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <input class="cd-in" id="cd-h-name" placeholder="Your name *" autocomplete="name">
       <input class="cd-in" id="cd-h-phone" placeholder="Phone / text *" autocomplete="tel" inputmode="tel">
       <input class="cd-in" id="cd-h-email" placeholder="Email (optional)" type="email" autocomplete="email">
-      <textarea class="cd-in" id="cd-h-msg" placeholder="Your questionâ€¦" rows="3"></textarea>
+      <textarea class="cd-in" id="cd-h-msg" placeholder="Your question…" rows="3"></textarea>
       <div class="cd-handoff-row">
-        <button type="button" class="cd-ghost" onclick="cdCancelHandoff()">â† Back</button>
+        <button type="button" class="cd-ghost" onclick="cdCancelHandoff()">← Back</button>
         <button type="submit" class="cd-send-btn">Send to team →</button>
       </div>
       <div class="cd-h-out" id="cd-h-out"></div>
     </form>
     <div id="cd-input-row">
-      <input id="cd-input" placeholder="Tell us about your vehicle or ask about bookingâ€¦" onkeydown="if(event.key==='Enter')cdSend()" autocomplete="off">
-      <button id="cd-send" onclick="cdSend()" aria-label="Send message">âž¤</button>
+      <input id="cd-input" placeholder="Tell us about your vehicle or ask about booking…" onkeydown="if(event.key==='Enter')cdSend()" autocomplete="off">
+      <button id="cd-send" onclick="cdSend()" aria-label="Send message">➤</button>
     </div>
-    <div id="cd-foot">ðŸŸ¢ Live Booking Support · Urgent? Call/Text <a href="tel:5513132956">551-313-2956</a></div>
+    <div id="cd-foot">🟢 Live Booking Support · Urgent? Call/Text <a href="tel:5513132956">551-313-2956</a></div>
   </div>
 </div>
 
 <script src="https://js.stripe.com/v3/"></script>
 <script src="/netlify/lib/admin-session-client.js"></script>
 <script>
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 // CONFIG - preencha com seus valores de produÃ§Ã£o
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 
 // ── GERAL ──────────────────────────────────────────────
 const ADMIN_EMAIL    = 'magnojuniorusa93@gmail.com';   // seu email
@@ -2685,9 +2685,9 @@ const ADMIN_SMS      = '5513132956';         // seu celular (SMS admin)
 // Pegue em: https://dashboard.stripe.com → Developers → API keys
 // Deixe '' para DESLIGAR o cartÃ£o (o booking continua via review manual).
 let STRIPE_PUBLISHABLE_KEY = '';
-// DepÃ³sito = % do total estimado (0.25 = 25%). Piso mÃ­nimo em centavos.
+// Depósito = % do total estimado (0.25 = 25%). Piso mínimo em centavos.
 const DEPOSIT_PCT      = 0.25;   // 25% do total
-const DEPOSIT_MIN_CENTS = 2500;  // piso $25 (Stripe exige â‰¥ $0.50)
+const DEPOSIT_MIN_CENTS = 2500;  // piso $25 (Stripe exige ≥ $0.50)
 // Base das funÃ§Ãµes Netlify (deixe assim em produÃ§Ã£o no Netlify).
 const BACKEND_BASE   = '/.netlify/functions';
 try {
@@ -2748,9 +2748,9 @@ const GOOGLE_REVIEW_URL = 'https://g.page/r/CTJwfJerrQeCEAI/review';
 // ── ASSISTENTE IA (chat flutuante) ─────────────────────
 // Endpoint da funÃ§Ã£o Netlify que chama a IA (Claude). Se a IA nÃ£o estiver
 // configurada (sem ANTHROPIC_API_KEY no Netlify), o chat usa automaticamente
-// o assistente local (base de conhecimento do site). Deixe '' para forÃ§ar sÃ³ o local.
+// o assistente local (base de conhecimento do site). Deixe '' para forÃ§ar só o local.
 const AI_CHAT_URL    = BACKEND_BASE + '/ai-chat';
-// Para onde vÃ£o as dÃºvidas quando o cliente pede atendimento humano.
+// Para onde vÃ£o as dúvidas quando o cliente pede atendimento humano.
 const INQUIRY_URL    = BACKEND_BASE + '/submit-inquiry';
 
 // ── MAKE.COM / ZAPIER WEBHOOK (booking → email/SMS) ────
@@ -2772,17 +2772,17 @@ const FIREBASE_DB_URL     = '';
 
 const FIREBASE_AUTH_TOKEN = '';
 // Ex: token gerado em: Project Settings → Service Accounts → Database secrets
-// Ou deixe '' se as regras do banco forem pÃºblicas (modo test)
+// Ou deixe '' se as regras do banco forem públicas (modo test)
 
 // true  = radar mostra SOMENTE jobs reais do Firebase
 // false = radar mistura jobs reais + simulaÃ§Ã£o de fundo
 const FIREBASE_LIVE_ONLY  = false;
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 // FIREBASE INTEGRATION
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 
 // ── Write a confirmed booking to Firebase ──────────────
 async function firebaseWriteJob(payload){
@@ -2834,7 +2834,7 @@ function firebaseStartListener(){
       }catch(err){}
     });
     _fbEventSource.onerror = ()=>{ console.warn('[Firebase] SSE disconnected - retrying in 10s'); _fbEventSource.close(); _fbEventSource=null; setTimeout(firebaseStartListener,10000); };
-    console.log('[Firebase] Listening for real-time dispatch jobsâ€¦');
+    console.log('[Firebase] Listening for real-time dispatch jobs…');
   }catch(e){ console.warn('[Firebase] EventSource not supported:',e.message); }
 }
 
@@ -2859,13 +2859,13 @@ function _fbHandleJob(id, data){
     _simJobs.push(simJob);
     _simJobsToday++;
     addBlipToRadar(simJob);
-    if(isNew) showRadarToast(`📍‹ New booking - ${data.name} in ${(data.city||'').split(',')[0]||'NJ'}`);
+    if(isNew) showRadarToast(`📋 New booking - ${data.name} in ${(data.city||'').split(',')[0]||'NJ'}`);
   } else {
     // Update status if changed
     if(simJob.status !== status){
       simJob.status = status;
       if(simJob.el){ simJob.el.className=`radar-blip ${status} blip-promo`; setTimeout(()=>{ if(simJob.el) simJob.el.className=`radar-blip ${status}`; },600); }
-      const msgs={ scheduled:`📍… ${data.name} - booking confirmed`, enroute:`ðŸš— Tech en route to ${data.name}`, done:`âœ… Job complete - ${data.name}`, review:`â­ ${data.name} left a review!` };
+      const msgs={ scheduled:`📅 ${data.name} - booking confirmed`, enroute:`🚗 Tech en route to ${data.name}`, done:`✅ Job complete - ${data.name}`, review:`⭐ ${data.name} left a review!` };
       if(msgs[status]) showRadarToast(msgs[status]);
       if(status==='done'||status==='review'){ _simDone++; setTimeout(()=>{ if(simJob.el) simJob.el.remove(); _simJobs=_simJobs.filter(j=>j.id!==id); renderTickerNow(); updateRadarStats(); },8000); }
     }
@@ -2874,9 +2874,9 @@ function _fbHandleJob(id, data){
   updateRadarStats();
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 // MAKE.COM WEBHOOK - booking notification
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 async function makeWebhookSend(payload){
   if(!BACKEND_URL) return;
   // Same-origin Netlify Function (URL relativo "/...") → fetch real com confirmaÃ§Ã£o.
@@ -2899,33 +2899,33 @@ async function makeWebhookSend(payload){
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'ðŸš—',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:300, refresh:375, premium:450},
-      suv2:  {label:'SUV 2-Row',  icon:'ðŸš™',desc:'Compact & Mid-Size SUV',        maint:215, interior:250, full:325, refresh:425, premium:550},
-      suv3:  {label:'SUV 3-Row',  icon:'ðŸš',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:275, full:325, refresh:475, premium:635},
-      truck: {label:'Truck',      icon:'ðŸ›»',desc:'Pickup · Full & Mid-Size',       maint:250, interior:275, full:325, refresh:465, premium:615},
+      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:300, refresh:375, premium:450},
+      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:215, interior:250, full:325, refresh:425, premium:550},
+      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:275, full:325, refresh:475, premium:635},
+      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:250, interior:275, full:325, refresh:465, premium:615},
     },
     packages:[
-      {id:'maint',    name:'Maintenance Detail', icon:'ðŸª£', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
+      {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
         ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
         int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
         feats:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
         miss:['Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
-      {id:'interior', name:'Interior Detail',   icon:'ðŸ’º', tag:'Best for neglected interiors or family vehicles - add-ons available for pet hair, odor & stains', dur:'~2.5–3.5h',            popular:false, scope:'int',
+      {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles - add-ons available for pet hair, odor & stains', dur:'~2.5–3.5h',            popular:false, scope:'int',
         ext:[],
         int:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior glass cleaned'],
         feats:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior glass cleaned'],
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
-      {id:'full',     name:'Premium Detail',    icon:'ðŸ§½', tag:'Best for a full inside/out refresh - most popular',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
+      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh - most popular',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
         ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'],
         int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','UV protectant'],
         feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','Spray sealant/protection','Tire dressing','UV protectant'],
         miss:['Machine polish','Paint correction','Premium long-term sealant']},
-      {id:'refresh',  name:'Exterior Refresh & Protect', icon:'ðŸ›¡ï¸', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~2.5–3h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
+      {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~2.5–3h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
         ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'],
         int:[],
         feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X glass treatment','Tire dressing','Final quality inspection'],
         miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
-      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'âœ¨', tag:'Our ultimate restoration — single-pass correction, ceramic protection, clay bar, Rain-X & deep interior care', dur:'~6–8h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
+      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — single-pass correction, ceramic protection, clay bar, Rain-X & deep interior care', dur:'~6–8h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
         ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting ceramic paint protection','Deep wheel & lug detailing','Exterior trim restoration','Rain-X windshield treatment'],
         int:['Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Detailed dash & console cleaning','Interior glass & vents detailed','Trunk & cargo area detail'],
         feats:['Clay bar decontamination','Single-pass paint correction','Ceramic paint protection','Deep wheel & lug detailing','Rain-X windshield treatment','Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Dash & console detail','Final quality inspection'],
@@ -2952,22 +2952,22 @@ const PRICING = {
   },
   boats: {
     tiers: {
-      under20:  {label:'Under 20 ft', icon:'â›µ', desc:'Runabout · Jon · Small PWC trailer',    maint:266, essential:399, full:599, premium:933},
-      '20to25': {label:'20–25 ft',    icon:'ðŸš¤', desc:'Bowrider · Center console · Deck boat', maint:367, essential:533, full:800, premium:1200},
-      '26to30': {label:'26–30 ft',    icon:'ðŸ›¥ï¸', desc:'Cuddy cabin · Walkaround · Express',    maint:466, essential:666, full:1000, premium:1467},
-      over30:   {label:'30+ ft',      icon:'ðŸ›³ï¸', desc:'Sport cruiser · Cabin cruiser · Yacht', maint:599, essential:866, full:1334, premium:2001},
+      under20:  {label:'Under 20 ft', icon:'⛵', desc:'Runabout · Jon · Small PWC trailer',    maint:266, essential:399, full:599, premium:933},
+      '20to25': {label:'20–25 ft',    icon:'🚤', desc:'Bowrider · Center console · Deck boat', maint:367, essential:533, full:800, premium:1200},
+      '26to30': {label:'26–30 ft',    icon:'🚥️️️️', desc:'Cuddy cabin · Walkaround · Express',    maint:466, essential:666, full:1000, premium:1467},
+      over30:   {label:'30+ ft',      icon:'🛳️', desc:'Sport cruiser · Cabin cruiser · Yacht', maint:599, essential:866, full:1334, premium:2001},
     },
     packages:[
-      {id:'maint',    name:'Marine Wash',        icon:'ðŸª£', tag:'Regular upkeep - hull, deck & glass',        dur:'~1.5–2h', popular:false,
+      {id:'maint',    name:'Marine Wash',        icon:'🪣', tag:'Regular upkeep - hull, deck & glass',        dur:'~1.5–2h', popular:false,
         feats:['Exterior hull wash above waterline','Deck & cockpit rinse','Glass & windshield cleaned','Trim & rails wiped','Trailer rinse & tire shine (when accessible)'],
         miss:['Non-skid scrub','Vinyl conditioning','Marine wax','Cabin/interior']},
-      {id:'essential',name:'Essential Marine',   icon:'ðŸ§½', tag:'Exterior protection + vinyl conditioning',   dur:'~3–4h',   popular:false,
+      {id:'essential',name:'Essential Marine',   icon:'🧽', tag:'Exterior protection + vinyl conditioning',   dur:'~3–4h',   popular:false,
         feats:['Marine Wash included','Non-skid surface scrubbed','Vinyl seats & cushions cleaned & conditioned','Cockpit detail','Spray marine sealant','Trailer rinse & tire shine'],
         miss:['Marine wax','Full cabin detail','Oxidation removal']},
-      {id:'full',     name:'Full Marine Detail', icon:'ðŸ§¼', tag:'Complete boat refresh - most requested',     dur:'~4–6h',   popular:true,
+      {id:'full',     name:'Full Marine Detail', icon:'🧼', tag:'Complete boat refresh - most requested',     dur:'~4–6h',   popular:true,
         feats:['Essential Marine included','Cockpit & cabin deep clean','Hull surface detail','Marine wax/sealant applied','Teak & trim cleaning','Stainless/chrome wipe-down','Trailer rinse & tire shine'],
         miss:['Machine oxidation removal','Gelcoat correction']},
-      {id:'premium',  name:'Premium Marine',     icon:'ðŸ…', tag:'Deep gloss, oxidation & max protection',     dur:'~6–8h',   popular:false,
+      {id:'premium',  name:'Premium Marine',     icon:'🏅', tag:'Deep gloss, oxidation & max protection',     dur:'~6–8h',   popular:false,
         feats:['Full Marine Detail included','Oxidation assessment & light improvement','Machine-applied marine wax/sealant','Gloss enhancement','Hull polish','Teak conditioning','Final inspection'],
         miss:[]}
     ],
@@ -2985,22 +2985,22 @@ const PRICING = {
   },
   rvs: {
     tiers: {
-      travel:     {label:'Travel Trailer', icon:'ðŸ•ï¸', desc:'Up to 25 ft · bumper pull trailer',  exterior:466, interior:399, full:733, premium:1133},
-      fifthwheel: {label:'Fifth Wheel',    icon:'ðŸš›', desc:'Fifth wheel trailer 25–42 ft',        exterior:599, interior:506, full:933, premium:1334},
-      classC:     {label:'Class C',        icon:'ðŸš', desc:'Class C motorhome up to 30 ft',       exterior:666, interior:573, full:1067, premium:1534},
-      classA:     {label:'Class A',        icon:'ðŸšŒ', desc:'Class A motorhome 30–45 ft',          exterior:866, interior:733, full:1334, premium:1934},
+      travel:     {label:'Travel Trailer', icon:'🏕️', desc:'Up to 25 ft · bumper pull trailer',  exterior:466, interior:399, full:733, premium:1133},
+      fifthwheel: {label:'Fifth Wheel',    icon:'🚛', desc:'Fifth wheel trailer 25–42 ft',        exterior:599, interior:506, full:933, premium:1334},
+      classC:     {label:'Class C',        icon:'🚐', desc:'Class C motorhome up to 30 ft',       exterior:666, interior:573, full:1067, premium:1534},
+      classA:     {label:'Class A',        icon:'🚌', desc:'Class A motorhome 30–45 ft',          exterior:866, interior:733, full:1334, premium:1934},
     },
     packages:[
-      {id:'exterior', name:'Exterior Wash',    icon:'ðŸª£', tag:'Full exterior + wheels, tires & glass',         dur:'~2–3h',  popular:false, scope:'ext',
+      {id:'exterior', name:'Exterior Wash',    icon:'🪣', tag:'Full exterior + wheels, tires & glass',         dur:'~2–3h',  popular:false, scope:'ext',
         feats:['Full exterior body wash','Accessible body panels','Light black streak reduction','Exterior glass & mirrors','Wheels cleaned & dried','Tires dressed','Bug & debris removal'],
         miss:['Interior','Wax/sealant','Roof','Awning']},
-      {id:'interior', name:'Interior Detail',  icon:'ðŸ›‹ï¸', tag:'Deep living space - kitchen, bath & cabin',     dur:'~3–5h',  popular:false, scope:'int',
+      {id:'interior', name:'Interior Detail',  icon:'🛋️', tag:'Deep living space - kitchen, bath & cabin',     dur:'~3–5h',  popular:false, scope:'int',
         feats:['Full vacuum - floors, furniture, slideouts','Dashboard & cockpit detail','Living area & upholstery cleaned','Kitchen surfaces & appliance fronts','Bathroom cleaning','Cabinet exteriors','Interior windows & mirrors','High-touch surfaces'],
         miss:['Exterior wash','Wax/sealant','Roof','Awning']},
-      {id:'full',     name:'Full RV Detail',   icon:'ðŸ§½', tag:'Complete interior + exterior - most popular',   dur:'~5–8h',  popular:true, scope:'both',
+      {id:'full',     name:'Full RV Detail',   icon:'🧽', tag:'Complete interior + exterior - most popular',   dur:'~5–8h',  popular:true, scope:'both',
         feats:['Exterior hand wash & streak reduction','Exterior glass & mirrors','Wheels + tires dressed','Spray wax/sealant','Full interior vacuum','Living area & upholstery','Kitchen & bathroom detail','Interior windows','UV protectant'],
         miss:['Roof','Awning','Premium oxidation correction']},
-      {id:'premium',  name:'Premium Exterior', icon:'ðŸ…', tag:'Gloss restoration + oxidation + protection',    dur:'~4–6h',  popular:false, scope:'ext',
+      {id:'premium',  name:'Premium Exterior', icon:'🏅', tag:'Gloss restoration + oxidation + protection',    dur:'~4–6h',  popular:false, scope:'ext',
         feats:['Exterior wash & decontamination prep','Oxidation assessment & panel polishing','Gelcoat gloss enhancement','Light-to-moderate oxidation improvement','Machine-applied premium wax/sealant','Exterior trim & cap cleaning','Final inspection'],
         miss:['Roof requires separate estimate']}
     ],
@@ -3021,22 +3021,22 @@ const PRICING = {
   },
   powersports: {
     tiers: {
-      motorcycle: {label:'Motorcycle',         icon:'ðŸï¸', desc:'Street · Cruiser · Sport · Touring',  wash:119,  essential:186, full:266, premium:372},
-      atv:        {label:'ATV',                icon:'ðŸŽï¸', desc:'All-Terrain Vehicle · Quad',           wash:119,  essential:186, full:266, premium:372},
-      utv:        {label:'UTV / Side-by-Side', icon:'ðŸšœ', desc:'Side-by-side · Sport UTV · Crew cab',  wash:146, essential:226, full:332, premium:466},
-      jetski:     {label:'Jet Ski / PWC',      icon:'ðŸŒŠ', desc:'PWC · Sea-Doo · Yamaha · Kawasaki',   wash:119,  essential:186, full:266, premium:367},
+      motorcycle: {label:'Motorcycle',         icon:'🏍️', desc:'Street · Cruiser · Sport · Touring',  wash:119,  essential:186, full:266, premium:372},
+      atv:        {label:'ATV',                icon:'🏎️', desc:'All-Terrain Vehicle · Quad',           wash:119,  essential:186, full:266, premium:372},
+      utv:        {label:'UTV / Side-by-Side', icon:'🚜', desc:'Side-by-side · Sport UTV · Crew cab',  wash:146, essential:226, full:332, premium:466},
+      jetski:     {label:'Jet Ski / PWC',      icon:'🌊', desc:'PWC · Sea-Doo · Yamaha · Kawasaki',   wash:119,  essential:186, full:266, premium:367},
     },
     packages:[
-      {id:'wash',     name:'Wash & Shine',     icon:'ðŸª£', tag:'Quick refresh + UV protection',               dur:'~45–75 min', popular:false,
+      {id:'wash',     name:'Wash & Shine',     icon:'🪣', tag:'Quick refresh + UV protection',               dur:'~45–75 min', popular:false,
         feats:['Full exterior wash & rinse','Wheels & tires cleaned','Seat wipe-down','Plastics & body panels cleaned','UV protectant applied','Trailer rinse when accessible'],
         miss:['Deep degreasing','Machine polish','Wax/sealant']},
-      {id:'essential',name:'Essential Detail', icon:'ðŸ§½', tag:'Complete clean + conditioning + protection',  dur:'~1.5–2.5h',  popular:false,
+      {id:'essential',name:'Essential Detail', icon:'🧽', tag:'Complete clean + conditioning + protection',  dur:'~1.5–2.5h',  popular:false,
         feats:['Wash & Shine included','Deep frame & underbody cleaning','Engine area light clean','Seat cleaned & conditioned','UV protectant on all plastics','Accessible chrome/metal polished'],
         miss:['Machine polish','Machine wax','Paint enhancement']},
-      {id:'full',     name:'Full Detail',      icon:'ðŸ§¼', tag:'Complete detail - most requested',            dur:'~2.5–3.5h',  popular:true,
+      {id:'full',     name:'Full Detail',      icon:'🧼', tag:'Complete detail - most requested',            dur:'~2.5–3.5h',  popular:true,
         feats:['Essential Detail included','Machine wax/sealant applied','Water spot removal','Full frame & chassis detail','Exhaust polish','Final quality inspection'],
         miss:[]},
-      {id:'premium',  name:'Premium Detail',   icon:'ðŸ…', tag:'Showroom finish + max protection',            dur:'~3–4.5h',    popular:false,
+      {id:'premium',  name:'Premium Detail',   icon:'🏅', tag:'Showroom finish + max protection',            dur:'~3–4.5h',    popular:false,
         feats:['Full Detail included','Paint & plastic enhancement polish','Light oxidation removal','Premium polymer sealant','Chrome deep polish','Engine bay detailing','Show-quality inspection'],
         miss:[]}
     ],
@@ -3056,25 +3056,25 @@ const PRICING = {
   },
   fleet: {
     tiers: {
-      vehicle:     {label:'Cars / SUVs / Trucks Fleet',     icon:'ðŸš—', desc:'3+ passenger vehicles. Per-unit pricing on car-style packages.',              maint:79,  essential:132, full:212, premium:306, custom:0},
-      commercial:  {label:'Vans / Trucks / Buses',          icon:'ðŸšš', desc:'Sprinters, cargo vans, box trucks, work trucks, school buses & shuttles.',    maint:119, essential:199, full:319, premium:0,   custom:0},
-      powersports: {label:'Golf Carts / Powersports Fleet', icon:'â›³', desc:'Golf carts, motorcycles, ATVs, UTVs, quads. Per-unit pricing.',               maint:60,  essential:92,  full:154, premium:234, custom:0},
-      marine_rv:   {label:'Boat / RV / Trailer Fleet',      icon:'ðŸ›¥ï¸', desc:'Fleet boats, RVs, campers, trailers - quoted by average length Ã— unit count.',maint:0,   essential:0,   full:0,   premium:0,   custom:0}
+      vehicle:     {label:'Cars / SUVs / Trucks Fleet',     icon:'🚗', desc:'3+ passenger vehicles. Per-unit pricing on car-style packages.',              maint:79,  essential:132, full:212, premium:306, custom:0},
+      commercial:  {label:'Vans / Trucks / Buses',          icon:'🚚', desc:'Sprinters, cargo vans, box trucks, work trucks, school buses & shuttles.',    maint:119, essential:199, full:319, premium:0,   custom:0},
+      powersports: {label:'Golf Carts / Powersports Fleet', icon:'⛳', desc:'Golf carts, motorcycles, ATVs, UTVs, quads. Per-unit pricing.',               maint:60,  essential:92,  full:154, premium:234, custom:0},
+      marine_rv:   {label:'Boat / RV / Trailer Fleet',      icon:'🚥️️️️', desc:'Fleet boats, RVs, campers, trailers - quoted by average length Ã— unit count.',maint:0,   essential:0,   full:0,   premium:0,   custom:0}
     },
     packages:[
-      {id:'maint',    name:'Fleet Maintenance Wash',    icon:'ðŸª£', tag:'Weekly/biweekly exterior upkeep',                                dur:'Varies by fleet size',  popular:false,
+      {id:'maint',    name:'Fleet Maintenance Wash',    icon:'🪣', tag:'Weekly/biweekly exterior upkeep',                                dur:'Varies by fleet size',  popular:false,
         feats:['Exterior wash or wipe-down per vehicle type','Glass & mirror cleaning','Wheels & tires basic clean','Light interior wipe-down when applicable','Designed for recurring fleet programs'],
         miss:['Deep interior','Wax/sealant','Heavy soil','Restoration']},
-      {id:'essential',name:'Fleet Essential Detail',    icon:'ðŸ§½', tag:'Monthly maintenance + interior - most popular fleet plan',      dur:'Varies by fleet size',  popular:true,
+      {id:'essential',name:'Fleet Essential Detail',    icon:'🧽', tag:'Monthly maintenance + interior - most popular fleet plan',      dur:'Varies by fleet size',  popular:true,
         feats:['Maintenance Wash included','Interior vacuum per unit','Dashboard & cabin wipe-down','Door jambs & handles','Tire dressing','Best for monthly or biweekly fleets'],
         miss:['Paint correction','Heavy soil restoration','Severe odor']},
-      {id:'full',     name:'Fleet Full Detail',         icon:'ðŸ§¼', tag:'Deeper quarterly or seasonal refresh',                          dur:'Estimate by fleet size', popular:false,
+      {id:'full',     name:'Fleet Full Detail',         icon:'🧼', tag:'Deeper quarterly or seasonal refresh',                          dur:'Estimate by fleet size', popular:false,
         feats:['Essential level included','Deeper interior per unit','Light carpet/seat shampoo where applicable','Spray wax or exterior sealant','Final unit-by-unit inspection'],
         miss:['Severe oxidation','Biohazard','Abandoned vehicles']},
-      {id:'premium',  name:'Fleet Premium Protection',  icon:'ðŸ…', tag:'Enhanced gloss - high-value executive fleets',                  dur:'Estimate by fleet size', popular:false,
+      {id:'premium',  name:'Fleet Premium Protection',  icon:'🏅', tag:'Enhanced gloss - high-value executive fleets',                  dur:'Estimate by fleet size', popular:false,
         feats:['Full Detail level included','Machine-applied wax/sealant where appropriate','Chrome & exterior trim per unit','Enhanced gloss for higher-value vehicles'],
         miss:['Heavy paint correction','Wet sanding','Severe oxidation']},
-      {id:'custom',   name:'Custom Fleet Quote',         icon:'📍‹', tag:'Mixed, large, multi-location, or boat/RV fleets',              dur:'Requires estimate',      popular:false,
+      {id:'custom',   name:'Custom Fleet Quote',         icon:'📋', tag:'Mixed, large, multi-location, or boat/RV fleets',              dur:'Requires estimate',      popular:false,
         feats:['Custom per-unit pricing','Recurring service agreements','Multi-location routing','Mixed vehicle types','Boats/RVs/trailers by average length'],
         miss:[]}
     ],
@@ -3303,7 +3303,7 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","RDX","RLX","TLX","NSX","ZDX"]
 "Jaguar":{m:["E-PACE","F-PACE","F-TYPE","I-PACE","XE","XF"],t:{"E-PACE":"suv2","F-PACE":"suv2","F-TYPE":"small","I-PACE":"suv2",XE:"small",XF:"small"}},
 "Jeep":{m:["Cherokee","Compass","Gladiator","Grand Cherokee","Grand Cherokee L","Grand Wagoneer","Renegade","Wagoneer","Wrangler"],t:{Cherokee:"suv2",Compass:"suv2",Gladiator:"truck","Grand Cherokee":"suv3","Grand Cherokee L":"suv3","Grand Wagoneer":"suv3",Renegade:"suv2",Wagoneer:"suv3",Wrangler:"suv2"}},
 "Kia":{m:["Carnival","EV6","EV9","Forte","K5","Niro","Seltos","Sorento","Soul","Sportage","Stinger","Telluride"],t:{Carnival:"suv3",EV6:"small",EV9:"suv3",Forte:"small",K5:"small",Niro:"suv2",Seltos:"suv2",Sorento:"suv3",Soul:"suv2",Sportage:"suv2",Stinger:"small",Telluride:"suv3"}},
-"Lamborghini":{m:["HuracÃ¡n","Urus","Revuelto"],t:{HuracÃ¡n:"small",Urus:"suv2",Revuelto:"small"}},
+"Lamborghini":{m:["Huracán","Urus","Revuelto"],t:{Huracán:"small",Urus:"suv2",Revuelto:"small"}},
 "Land Rover":{m:["Defender","Discovery","Discovery Sport","Freelander","Range Rover","Range Rover Evoque","Range Rover Sport","Range Rover Velar"],t:{Defender:"suv3",Discovery:"suv3","Discovery Sport":"suv2",Freelander:"suv2","Range Rover":"suv3","Range Rover Evoque":"suv2","Range Rover Sport":"suv3","Range Rover Velar":"suv2"}},
 "Lexus":{m:["ES","GS","GX","IS","LC","LS","LX","NX","RX","RZ","UX"],t:{ES:"small",GS:"small",GX:"suv3",IS:"small",LC:"small",LS:"small",LX:"suv3",NX:"suv2",RX:"suv2",RZ:"suv2",UX:"suv2"}},
 "Lincoln":{m:["Aviator","Corsair","Nautilus","Navigator","Navigator L"],t:{Aviator:"suv3",Corsair:"suv2",Nautilus:"suv2",Navigator:"suv3","Navigator L":"suv3"}},
@@ -3563,12 +3563,12 @@ function renderPackages(cat){
       <div class="pkg-tag">${p.tag}</div>
       <div class="pkg-price" aria-hidden="true"></div>
       <div class="pkg-from">${p.id==='custom'?'quote required for mixed, large, or multi-location fleets':p.note||'price set by vehicle size/type'}</div>
-      <div class="pkg-time">â± ${p.dur}</div>
+      <div class="pkg-time">⏱ ${p.dur}</div>
       <div class="pkg-div"></div>
       <ul class="pkg-feats">
         ${(p.ext||p.int)
-          ? `${(p.ext&&p.ext.length)?`<li class="grp">ðŸš— Exterior</li>`+p.ext.map(f=>`<li>${f}</li>`).join(''):''}`
-            +`${(p.int&&p.int.length)?`<li class="grp">ðŸ’º Interior</li>`+p.int.map(f=>`<li>${f}</li>`).join(''):''}`
+          ? `${(p.ext&&p.ext.length)?`<li class="grp">🚗 Exterior</li>`+p.ext.map(f=>`<li>${f}</li>`).join(''):''}`
+            +`${(p.int&&p.int.length)?`<li class="grp">💺 Interior</li>`+p.int.map(f=>`<li>${f}</li>`).join(''):''}`
             +`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`
           : `${p.feats.map(f=>`<li>${f}</li>`).join('')}`+`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`}
       </ul>
@@ -3734,7 +3734,7 @@ function selectSpecialtyMake(make, catData, makeIn, makeDd, modelIn, modelDd, no
   note.style.display = 'none';
   modelIn.value = '';
   modelIn.disabled = false;
-  modelIn.placeholder = `Search ${make} modelsâ€¦`;
+  modelIn.placeholder = `Search ${make} models…`;
 
   // Populate model dropdown immediately on focus/input
   const models = catData[make] || [];
@@ -3775,7 +3775,7 @@ function tryGenericConfirm(){
     ST.basePrice = price;
     ST.vehicleLabel = `${year} ${make} ${model} · ${ft} ft`;
     ST.tierKey='length';
-    ST.tier={label:`${ft} ft`, icon:ST.cat==='boats'?'ðŸ›¥ï¸':'ðŸ•ï¸', desc:ST.cat==='boats'?'Marine vessel priced by exact length':'RV / travel trailer priced by exact length'};
+    ST.tier={label:`${ft} ft`, icon:ST.cat==='boats'?'🚥️️️️':'🏕️', desc:ST.cat==='boats'?'Marine vessel priced by exact length':'RV / travel trailer priced by exact length'};
     setVehicleVisual();
     document.getElementById('vc-name').textContent=ST.vehicleLabel;
     document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
@@ -3959,14 +3959,14 @@ function renderAddons(){
   const otherAddons=addons.filter(a=>!POPULAR_IDS.includes(a.id));
   function addonCardHtml(a){
     const isQty=!!a.qty;
-    return `<div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)"><div class="addon-check">✓</div><div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">+$${a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">âˆ’</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">ï¼‹</button></div>`:''}</div>`;
+    return `<div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)"><div class="addon-check">✓</div><div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">+$${a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
   }
   document.getElementById('addon-grid').innerHTML=
     '<div class="addon-popular-label">Popular Add-ons</div>'+
     popularAddons.map(addonCardHtml).join('')+
     '<div class="addon-all-wrap"><div class="addon-all-inner" id="addon-all-inner">'+otherAddons.map(addonCardHtml).join('')+'</div>'+
     '<div id="addon-selected-summary" class="addon-selected-summary" style="display:none"></div>'+
-    '<button type="button" class="addon-toggle-btn" id="addon-toggle-btn" onclick="toggleAllAddons()">Show All Add-ons â–¾</button></div>';
+    '<button type="button" class="addon-toggle-btn" id="addon-toggle-btn" onclick="toggleAllAddons()">Show All Add-ons ▾</button></div>';
   updateTotal();
 }
 function toggleAllAddons(){
@@ -3975,7 +3975,7 @@ function toggleAllAddons(){
   if(!inner) return;
   const open=inner.classList.contains('open');
   inner.classList.toggle('open',!open);
-  btn.textContent=open?'Show All Add-ons â–¾':'Hide Add-ons â–´';
+  btn.textContent=open?'Show All Add-ons ▾':'Hide Add-ons ▴';
   updateAddonSummary();
 }
 function updateAddonSummary(){
@@ -4126,7 +4126,7 @@ async function waitForVerifiedCardSave(maxAttempts=20,delayMs=3000){
   return false;
 }
 
-// Total atual do booking (espelha buildBookingPayload) → depÃ³sito = % do total.
+// Total atual do booking (espelha buildBookingPayload) → depósito = % do total.
 function bookingTotalCents(){
   const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
   const base = vehicles.reduce((s,v)=>s+(v.subtotal||0),0);
@@ -4212,7 +4212,7 @@ async function initCardOnFile(){
   const err=document.getElementById('pay-err'); err.classList.remove('show');
   document.getElementById('stripe-status').style.display='none';
   const btn=document.getElementById('stripe-auth-btn');
-  if(btn){ btn.disabled=true; btn.style.opacity='0.5'; btn.style.cursor='not-allowed'; btn.textContent='Preparing secure card formâ€¦'; btn.style.display=''; }
+  if(btn){ btn.disabled=true; btn.style.opacity='0.5'; btn.style.cursor='not-allowed'; btn.textContent='Preparing secure card form…'; btn.style.display=''; }
   try{
     const stripeCfg=await loadStripeConfig();
     if(isStale()) return;
@@ -4326,7 +4326,7 @@ async function confirmSetupIntent(){
   const err=document.getElementById('pay-err'); err.classList.remove('show');
   if(!cb||!cb.checked){ err.textContent='Please check the authorization box to continue.'; err.classList.add('show'); return; }
   if(!STRIPE_READY||!stripe||!stripeElements){ stripeMsg('stripe-status','Card not ready. Please refresh and try again.',false); return; }
-  const btn=document.getElementById('stripe-auth-btn'); btn.disabled=true; btn.textContent='Saving cardâ€¦';
+  const btn=document.getElementById('stripe-auth-btn'); btn.disabled=true; btn.textContent='Saving card…';
   try{
     const {error}=await stripe.confirmSetup({elements:stripeElements,redirect:'if_required'});
     if(error){
@@ -4336,12 +4336,12 @@ async function confirmSetupIntent(){
     ST.cardSetupConfirmed=true;
     ST.cardOnFileSaved=true;
     btn.textContent='✓ Card saved'; btn.disabled=true;
-    stripeMsg('stripe-status','Card verification in progress. Stripe received your card securely. Weâ€™re confirming your saved-card status. This usually takes a few seconds.',true);
+    stripeMsg('stripe-status','Card verification in progress. Stripe received your card securely. We’re confirming your saved-card status. This usually takes a few seconds.',true);
     const verified=await waitForVerifiedCardSave(8,2000);
     if(verified){
       stripeMsg('stripe-status',COF_SAVED_MSG,true);
     } else {
-      stripeMsg('stripe-status','Your card was saved with Stripe. You can continue - weâ€™ll confirm on the server when you submit. '+COF_RETRY_BTN,true);
+      stripeMsg('stripe-status','Your card was saved with Stripe. You can continue - we’ll confirm on the server when you submit. '+COF_RETRY_BTN,true);
     }
     updateCofAuthButtonState();
   }catch(e){
@@ -4353,7 +4353,7 @@ async function confirmSetupIntent(){
 
 async function recheckCardStatus(){
   if(!ST.bookingId) return;
-  stripeMsg('stripe-status','Checking card statusâ€¦',true);
+  stripeMsg('stripe-status','Checking card status…',true);
   const verified=await waitForVerifiedCardSave(4,2000);
   if(verified){
     ST.cardOnFileSaved=true;
@@ -4425,7 +4425,7 @@ async function submitBooking(){
     let res=await postBooking();
     let data=await res.json().catch(()=>({}));
     if((!res.ok||!data.ok) && data.error==='card_on_file_not_saved'){
-      stripeMsg('stripe-status','Confirming your saved card on our serverâ€¦',true);
+      stripeMsg('stripe-status','Confirming your saved card on our server…',true);
       await waitForVerifiedCardSave(6,2000);
       res=await postBooking();
       data=await res.json().catch(()=>({}));
@@ -4609,7 +4609,7 @@ function buildCurrentVehicleItem(){
   return {
     cat:ST.cat, pkgId:ST.pkgId,
     pkgName: ST.pkg.name,
-    pkgIcon: ST.pkg.icon||'ðŸš—',
+    pkgIcon: ST.pkg.icon||'🚗',
     visualKey: getVehicleVisualKey(),
     vehicleLabel: ST.vehicleLabel,
     tierLabel: ST.tier ? ST.tier.label : '',
@@ -4667,7 +4667,7 @@ function renderVehicleCart(){
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
         <div class="vcart-item-price">$${v.subtotal}</div>
-        <button class="vcart-rm" onclick="removeVehicleFromCart(${i})" title="Remove">âœ•</button>
+        <button class="vcart-rm" onclick="removeVehicleFromCart(${i})" title="Remove">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -4692,9 +4692,9 @@ document.getElementById('f-date').min=new Date().toISOString().split('T')[0];
 bkInitSchedulePicker();
 if(location.hash==='#admin') location.replace('/admin');
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 // ZIP / LOCATION PRICING
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 // ── ZIP → City lookup (NJ / NY / CT service area) ──────────────────────────
 const ZIP_CITIES = {
   // NJ - Bergen County
@@ -5083,7 +5083,7 @@ function resolveZipService(zip){
   if(miles==null||miles>TRAVEL_MAX_MILES) return null;
   const fee=travelFeeFromMiles(miles);
   if(fee==null) return null;
-  const zone=getZoneByZip(zip)||{key:'extended',label:'Extended Service Area',short:'Extended',emoji:'📍',surcharge:fee};
+  const zone=getZoneByZip(zip)||{key:'extended',label:'Extended Service Area',short:'Extended',emoji:'📍',surcharge:fee};
   return {zone,miles,fee};
 }
 function applyTravelForZip(zip5){
@@ -5123,17 +5123,27 @@ function formatLocFrom(cat){
   const fee=getKnownZip5()&&activeZone?getTravelFeeAmount():0;
   return 'From $'+(applyRichPrice(getCategoryFromBases()[cat])+fee);
 }
+function chatStartingPricesReply(){
+  const b=getCategoryFromBases();
+  return "Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n"
+    +"🚗 Cars & Trucks — from <b>$"+applyRichPrice(b.cars)+"</b> (Interior Detail)\n"
+    +"🏍️ Powersports — from <b>$"+applyRichPrice(b.powersports)+"</b>\n"
+    +"🛥️ Boats — from <b>$"+applyRichPrice(b.boats)+"</b>\n"
+    +"🏕️ RVs & Trailers — from <b>$"+applyRichPrice(b.rvs)+"</b>\n\n"
+    +"For an exact quote, start a booking and enter your vehicle + ZIP — pricing updates as you go.";
+}
+
 
 const ZIP_ZONES = {
-  nj_a:{ label:'NJ - Bergen / Hudson / Essex', short:'NJ Core',    surcharge:0,  emoji:'📍', prefixes:['070','071','072','073','074','075','076','077'] },
-  nj_b:{ label:'NJ - Other Areas',             short:'NJ Other',   surcharge:15, emoji:'📍', prefixes:['078','079','080','081','082','083','084','085','086','087','088','089'] },
-  nyc: { label:'New York City',                 short:'NYC',        surcharge:35, emoji:'ðŸ—½', prefixes:['100','101','102','103','104','111','112','113','114'] },
-  ny_s:{ label:'NY - Suburbs / Long Island',    short:'NY Suburbs', surcharge:25, emoji:'📍', prefixes:['105','106','107','108','109','115','116','117','118','119','120','121','122','123'] },
-  ct:  { label:'Connecticut',                   short:'CT',         surcharge:20, emoji:'📍', prefixes:['060','061','062','063','064','065','066','067','068','069'] },
-  pa_e:{ label:'PA - Eastern / Lehigh Valley',  short:'PA Lehigh',  surcharge:25, emoji:'ðŸ”ï¸', prefixes:['180','181'] },
-  pa_p:{ label:'PA - Pocono / Stroudsburg',     short:'PA Pocono',  surcharge:30, emoji:'ðŸ”ï¸', prefixes:['183'] },
-  pa_ph:{ label:'PA - Philadelphia Metro',      short:'PA Philly',  surcharge:35, emoji:'ðŸ›ï¸', prefixes:['190','191'] },
-  pa_b:{ label:'PA - Bucks County',             short:'PA Bucks',   surcharge:30, emoji:'📍', prefixes:['189'] },
+  nj_a:{ label:'NJ - Bergen / Hudson / Essex', short:'NJ Core',    surcharge:0,  emoji:'📍', prefixes:['070','071','072','073','074','075','076','077'] },
+  nj_b:{ label:'NJ - Other Areas',             short:'NJ Other',   surcharge:15, emoji:'📍', prefixes:['078','079','080','081','082','083','084','085','086','087','088','089'] },
+  nyc: { label:'New York City',                 short:'NYC',        surcharge:35, emoji:'🗽', prefixes:['100','101','102','103','104','111','112','113','114'] },
+  ny_s:{ label:'NY - Suburbs / Long Island',    short:'NY Suburbs', surcharge:25, emoji:'📍', prefixes:['105','106','107','108','109','115','116','117','118','119','120','121','122','123'] },
+  ct:  { label:'Connecticut',                   short:'CT',         surcharge:20, emoji:'📍', prefixes:['060','061','062','063','064','065','066','067','068','069'] },
+  pa_e:{ label:'PA - Eastern / Lehigh Valley',  short:'PA Lehigh',  surcharge:25, emoji:'🏔️', prefixes:['180','181'] },
+  pa_p:{ label:'PA - Pocono / Stroudsburg',     short:'PA Pocono',  surcharge:30, emoji:'🏔️', prefixes:['183'] },
+  pa_ph:{ label:'PA - Philadelphia Metro',      short:'PA Philly',  surcharge:35, emoji:'🏛️', prefixes:['190','191'] },
+  pa_b:{ label:'PA - Bucks County',             short:'PA Bucks',   surcharge:30, emoji:'📍', prefixes:['189'] },
 };
 
 const ZONE_POPULAR = {
@@ -5150,10 +5160,10 @@ const ZONE_POPULAR = {
 };
 
 const LOC_DISPLAY = {
-  cars:       { ico:'ðŸš—', name:'Cars & Trucks',    desc:'Most requested in your area', from:'From $175' },
-  boats:      { ico:'ðŸ›¥ï¸', name:'Boats',            desc:'Marine detailing on-site',    from:'From $199' },
-  rvs:        { ico:'ðŸ•ï¸', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $349' },
-  powersports:{ ico:'ðŸï¸', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $119' },
+  cars:       { ico:'🚗', name:'Cars & Trucks',    desc:'Most requested in your area', from:'From $225' },
+  boats:      { ico:'🚥️️️️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $199' },
+  rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $349' },
+  powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $119' },
 
 };
 
@@ -5240,14 +5250,14 @@ function onBkZipInput(val){
     badge.textContent   = '✓ ' + (cityName ? cityName : zone.short);
     updateBkTravelDisplay(svc);
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('locked'));
-    if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">âœ…</span><span>'+(cityName ? cityName+' - ' : '')+'select your service below</span><span style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px">· Prices include service to your area</span>'; }
+    if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' - ' : '')+'select your service below</span><span style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px">· Prices include service to your area</span>'; }
     updateBkFromPrices();
     renderLocationCarousel(zone.key||'default');
   } else {
     badge.style.display    = 'none';
     updateBkTravelDisplay(null);
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.add('locked'));
-    if(gateMsg){ gateMsg.classList.remove('unlocked'); gateMsg.innerHTML='<span class="zg-ico">âš ï¸</span><span>Outside our '+TRAVEL_MAX_MILES+'-mile area - call 551-313-2956</span>'; }
+    if(gateMsg){ gateMsg.classList.remove('unlocked'); gateMsg.innerHTML='<span class="zg-ico">⚠️</span><span>Outside our '+TRAVEL_MAX_MILES+'-mile area - call 551-313-2956</span>'; }
   }
   updateTotal();
 }
@@ -5268,9 +5278,9 @@ function updateBkFromPrices(){
 }
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 // REVIEWS
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 const REVIEWS = [
   {
     name: 'Pablo Sanchez',
@@ -5394,7 +5404,7 @@ function renderReviews(){
   if(!track) return;
   track.innerHTML = REVIEWS.map(r=>{
     const initials = r.name.split(' ').map(w=>w[0]).join('');
-    const stars    = 'â˜…'.repeat(r.rating)+'â˜†'.repeat(5-r.rating);
+    const stars    = '★'.repeat(r.rating)+'☆'.repeat(5-r.rating);
     return `<div class="rv-slide">
       <div class="rv-card">
         <div class="rv-stars">${stars}</div>
@@ -5429,9 +5439,9 @@ function rvGoTo(i){
 
 function rvMove(dir){ rvGoTo(rvIdx + dir); }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 // AUTH / LOGIN
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 let loginRole = 'admin';
 
 
@@ -5479,7 +5489,7 @@ async function doLogin(){
   const btn = document.querySelector('#login-staff .btn-n');
   err.classList.remove('show');
   if(!user || !pw) return;
-  if(btn){ btn.disabled = true; btn.textContent = 'Checkingâ€¦'; }
+  if(btn){ btn.disabled = true; btn.textContent = 'Checking…'; }
   try {
     const res  = await fetch('/.netlify/functions/admin-auth', {
       method: 'POST',
@@ -5510,9 +5520,9 @@ async function doLogin(){
   document.getElementById('login-pw').focus();
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 // CUSTOMER PORTAL
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 function resetPortalView(){
   _cgBooking = null;
   const tabs = document.querySelector('#cp-ov .cp-tabs');
@@ -5559,7 +5569,7 @@ function cpPopulatePackSelect(){
   const sel=document.getElementById('cp-pack-select');
   if(!sel) return;
   const packs=(cpCustomerCatalog&&cpCustomerCatalog.packages)||[];
-  sel.innerHTML='<option value="">Select a different packâ€¦</option>'+
+  sel.innerHTML='<option value="">Select a different pack…</option>'+
     packs.map(p=>`<option value="${cpEsc(p.id)}">${cpEsc(p.name)} - from $${p.basePrice}</option>`).join('');
 }
 
@@ -5571,7 +5581,7 @@ async function cpConfirmPackChange(){
   if(!sel||!sel.value){ if(msgEl){ msgEl.style.display='block'; msgEl.innerHTML='<span style="color:var(--rd)">Please select a package.</span>'; } return; }
   const opt=sel.options[sel.selectedIndex];
   const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
-  if(btn){ btn.disabled=true; btn.textContent='Submittingâ€¦'; }
+  if(btn){ btn.disabled=true; btn.textContent='Submitting…'; }
   if(msgEl) msgEl.style.display='none';
   try{
     const r=await fetch('/.netlify/functions/submit-customer-action',{
@@ -5602,7 +5612,7 @@ async function cpLoadManage(){
     res.innerHTML='<span style="color:var(--rd)">Enter your booking ID and phone number.</span>';
     return;
   }
-  if(btn){ btn.disabled=true; btn.textContent='Loadingâ€¦'; }
+  if(btn){ btn.disabled=true; btn.textContent='Loading…'; }
   document.querySelectorAll('.cp-sub-panel').forEach(p=>p.classList.remove('open'));
   try{
     const r = await fetch('/.netlify/functions/lookup-booking',{
@@ -5626,25 +5636,25 @@ async function cpLoadManage(){
     const hoursUntil = svcDate ? (svcDate - now) / 36e5 : 999;
     const canCancel = hoursUntil > 24;
     const cancelWarn = canCancel
-      ? 'âš ï¸ Cancelling more than 24 hours before your appointment is allowed with no fee. Are you sure?'
-      : 'ðŸš¨ Cancellation within 24 hours of your appointment may incur a late cancellation fee per our terms. Proceed?';
+      ? '⚠️ Cancelling more than 24 hours before your appointment is allowed with no fee. Are you sure?'
+      : '🚨 Cancellation within 24 hours of your appointment may incur a late cancellation fee per our terms. Proceed?';
     const vehs = b.vehicles && b.vehicles.length
       ? b.vehicles
-      : [{pkgName:b.package||'-', vehicleLabel:b.vehicle||'-', pkgIcon:'ðŸš—', addons:b.addons||[], subtotal:b.totalPrice}];
-    const vehHtml = vehs.map(v=>'<div style="font-size:12px;line-height:1.7;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+cpEsc(v.pkgIcon||'ðŸš—')+' <strong>'+cpEsc(v.pkgName||'-')+'</strong> · '+cpEsc(v.vehicleLabel||'-')+' · <span style="color:var(--blue)">$'+(v.subtotal||0)+'</span></div>').join('');
+      : [{pkgName:b.package||'-', vehicleLabel:b.vehicle||'-', pkgIcon:'🚗', addons:b.addons||[], subtotal:b.totalPrice}];
+    const vehHtml = vehs.map(v=>'<div style="font-size:12px;line-height:1.7;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+cpEsc(v.pkgIcon||'🚗')+' <strong>'+cpEsc(v.pkgName||'-')+'</strong> · '+cpEsc(v.vehicleLabel||'-')+' · <span style="color:var(--blue)">$'+(v.subtotal||0)+'</span></div>').join('');
     const isCancelReq = b.cancellationRequestStatus === 'requested';
     const displayStatus = isCancelReq ? 'Cancellation Requested' : status;
     const statusColor = isCancelReq ? '#ef4444' : (isCompleted ? 'var(--gr)' : isEditable ? 'var(--am)' : 'var(--mu)');
     const statusBg = isCancelReq ? 'rgba(239,68,68,.15)' : 'rgba(0,0,0,.3)';
     let actionsHtml = '';
     if(isCompleted){
-      actionsHtml='<div style="margin-top:12px"><button class="cp-btn" style="margin:0" onclick="cpTab(3)">â­ Leave a Review →</button></div>';
+      actionsHtml='<div style="margin-top:12px"><button class="cp-btn" style="margin:0" onclick="cpTab(3)">⭐ Leave a Review →</button></div>';
     } else if(isCancelReq){
-      actionsHtml='<div style="margin-top:12px;padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--rs);font-size:12px;color:var(--rd)">âš ï¸ Cancellation request received. Our team will review and confirm within 1 business day.<br><br>Questions? <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></div>';
+      actionsHtml='<div style="margin-top:12px;padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--rs);font-size:12px;color:var(--rd)">⚠️ Cancellation request received. Our team will review and confirm within 1 business day.<br><br>Questions? <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></div>';
     } else if(!isEditable){
       actionsHtml='<div style="margin-top:12px;font-size:12px;color:var(--mu)">Need help or want to book again? <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a> · <button class="cp-btn" style="display:inline;padding:4px 12px;font-size:12px;margin:4px 0 0 0" onclick="closePortal();setTimeout(function(){openBooking(null)},100)">Book Again →</button></div>';
     } else {
-      const cancelLabel=canCancel?'âœ• Request Cancellation':'âœ• Cancel (fee may apply)';
+      const cancelLabel=canCancel?'✕ Request Cancellation':'✕ Cancel (fee may apply)';
       const warnEnc=encodeURIComponent(cancelWarn);
       actionsHtml='<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">'
         +`<button class="cp-btn" onclick="cpOpenSub('reschedule')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">Modify Appointment</button>`
@@ -5713,7 +5723,7 @@ async function cpConfirmCancel(){
   if(!reason){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please provide a reason for cancellation.</span>';}return;}
   if(!ack){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please acknowledge the cancellation policy.</span>';}return;}
   const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
-  if(btn){btn.disabled=true;btn.textContent='Submittingâ€¦';}
+  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
   if(msgEl)msgEl.style.display='none';
   try{
     const r=await fetch('/.netlify/functions/request-cancellation',{
@@ -5753,7 +5763,7 @@ async function cpConfirmReschedule(){
   const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
   const btn=document.querySelector('#cps-reschedule .cp-btn');
   if(!newDate){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select a new preferred date.</span>';}return;}
-  if(btn){btn.disabled=true;btn.textContent='Submittingâ€¦';}
+  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
   if(msgEl)msgEl.style.display='none';
   try{
     const r=await fetch('/.netlify/functions/submit-customer-action',{
@@ -5780,7 +5790,7 @@ async function cpConfirmAddress(){
   const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
   const btn=document.querySelector('#cps-reschedule button[onclick="cpConfirmAddress()"]');
   if(!addr){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please enter the new service address.</span>';}return;}
-  if(btn){btn.disabled=true;btn.textContent='Submittingâ€¦';}
+  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
   if(msgEl)msgEl.style.display='none';
   try{
     const r=await fetch('/.netlify/functions/submit-customer-action',{
@@ -5807,7 +5817,7 @@ async function cpConfirmAddons(){
   const btn=document.querySelector('#cps-addons .cp-btn');
   if(!cpSelectedAddons.length){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select at least one add-on.</span>';}return;}
   const addonList=cpSelectedAddons.map(a=>a.name+' (+$'+a.price+')').join(', ');
-  if(btn){btn.disabled=true;btn.textContent='Submittingâ€¦';}
+  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
   if(msgEl)msgEl.style.display='none';
   try{
     const r=await fetch('/.netlify/functions/submit-customer-action',{
@@ -5856,7 +5866,7 @@ async function cpFindBooking(){
     res.innerHTML='<span style="color:var(--rd)">Enter your booking ID and phone number.</span>';
     return;
   }
-  if(btn){ btn.disabled=true; btn.textContent='Looking upâ€¦'; }
+  if(btn){ btn.disabled=true; btn.textContent='Looking up…'; }
   try{
     const r = await fetch('/.netlify/functions/lookup-booking',{
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -5878,7 +5888,7 @@ async function cpFindBooking(){
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ CUSTOMER GARAGE Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── CUSTOMER GARAGE ──────────────────────────────────────────────────────────
 let _cgBooking = null;
 
 function cpShowGarage(b){
@@ -5905,12 +5915,12 @@ function cpRenderGarage(b){
   const date = b.confirmedWindow || b.preferredDate || '-';
   const time = b.preferredTime || '';
   const addr = b.address || '-';
-  const vehs = (b.vehicles && b.vehicles.length) ? b.vehicles : [{pkgName:b.package||'-', vehicleLabel:b.vehicle||'-', pkgIcon:'ðŸš—', addons:b.addons||[]}];
+  const vehs = (b.vehicles && b.vehicles.length) ? b.vehicles : [{pkgName:b.package||'-', vehicleLabel:b.vehicle||'-', pkgIcon:'🚗', addons:b.addons||[]}];
   let sumHTML = '<div style="margin-bottom:10px"><span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:'+sc+'22;color:'+sc+';border:1px solid '+sc+'44">'+cpEsc(status)+'</span></div>';
   sumHTML += '<div class="cg-row"><span class="cg-lbl">Booking ID</span><span class="cg-val" style="font-family:var(--fd);color:var(--blue)">#'+cpEsc(b.id)+'</span></div>';
   vehs.forEach(v => {
     sumHTML += '<div class="cg-row"><span class="cg-lbl">Package</span><span class="cg-val">'+cpEsc(v.pkgName)+'</span></div>';
-    sumHTML += '<div class="cg-row"><span class="cg-lbl">Vehicle</span><span class="cg-val">'+cpEsc(v.pkgIcon||'ðŸš—')+' '+cpEsc(v.vehicleLabel)+'</span></div>';
+    sumHTML += '<div class="cg-row"><span class="cg-lbl">Vehicle</span><span class="cg-val">'+cpEsc(v.pkgIcon||'🚗')+' '+cpEsc(v.vehicleLabel)+'</span></div>';
   });
   sumHTML += '<div class="cg-row"><span class="cg-lbl">Date</span><span class="cg-val">'+cpEsc(date)+'</span></div>';
   if(time) sumHTML += '<div class="cg-row"><span class="cg-lbl">Time</span><span class="cg-val">'+cpEsc(time)+'</span></div>';
@@ -5919,7 +5929,7 @@ function cpRenderGarage(b){
   document.getElementById('cg-summary').innerHTML = sumHTML;
   let vehHTML = '';
   vehs.forEach(v => {
-    vehHTML += '<div class="cg-vehicle"><span style="font-size:22px">'+cpEsc(v.pkgIcon||'ðŸš—')+'</span><div><div class="cg-vname">'+cpEsc(v.vehicleLabel)+'</div><div class="cg-vpkg">'+cpEsc(v.pkgName)+'</div></div></div>';
+    vehHTML += '<div class="cg-vehicle"><span style="font-size:22px">'+cpEsc(v.pkgIcon||'🚗')+'</span><div><div class="cg-vname">'+cpEsc(v.vehicleLabel)+'</div><div class="cg-vpkg">'+cpEsc(v.pkgName)+'</div></div></div>';
   });
   document.getElementById('cg-vehicles').innerHTML = vehHTML;
   document.getElementById('cg-history').innerHTML = '<div class="cg-hist"><div><div class="cg-hpkg">'+cpEsc(vehs[0].pkgName)+'</div><div class="cg-hdate">'+cpEsc(date)+'</div></div><span class="cg-hstat">'+cpEsc(status)+'</span></div>';
@@ -5945,7 +5955,7 @@ async function cpGetPayLink(){
     res.innerHTML='<span style="color:var(--rd)">Enter your booking ID and phone number.</span>';
     return;
   }
-  if(btn){ btn.disabled=true; btn.textContent='Looking upâ€¦'; }
+  if(btn){ btn.disabled=true; btn.textContent='Looking up…'; }
   try{
     const r = await fetch('/.netlify/functions/lookup-booking',{
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -5992,9 +6002,9 @@ function cpSubmitReview(){
   cpSetStar(0);
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 // RICH ZIP ALGORITHM
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 const RICH_ZIPS = new Set([
   // NJ - Wealthy areas (Short Hills, Millburn, Summit, Chatham, Mendham, Basking Ridge, Far Hills, Bedminster,
   //       Alpine, Saddle River, Tenafly, Englewood Cliffs, Ridgewood, Glen Ridge, Montclair top, Hoboken top)
@@ -6018,9 +6028,9 @@ function getRichMultiplier(zip){
 
 function applyRichPrice(base){ return base ? Math.round(base * richMultiplier) : 0; }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 // DISPATCH RADAR
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 // Blip positions: cx/cy are % from center (0=center, radius=50)
 // Mapped roughly to NJ/NY/CT geography within the circle
 const RADAR_JOBS = [
@@ -6045,11 +6055,11 @@ const RADAR_JOBS = [
 ];
 
 const TICKER_STATUS = {
-  requested:{ ico:'📍‹', label:'Booking requested',  cls:'requested' },
-  scheduled:{ ico:'📍…', label:'Job confirmed',       cls:'scheduled' },
-  enroute:  { ico:'ðŸš—', label:'Tech en route',       cls:'enroute'   },
-  done:     { ico:'âœ…', label:'Completed',            cls:'done'      },
-  review:   { ico:'â­', label:'5-star review left',  cls:'review'    },
+  requested:{ ico:'📋', label:'Booking requested',  cls:'requested' },
+  scheduled:{ ico:'📅', label:'Job confirmed',       cls:'scheduled' },
+  enroute:  { ico:'🚗', label:'Tech en route',       cls:'enroute'   },
+  done:     { ico:'✅', label:'Completed',            cls:'done'      },
+  review:   { ico:'⭐', label:'5-star review left',  cls:'review'    },
 };
 
 // ── Simulation data pools ─────────────────────────────
@@ -6142,10 +6152,10 @@ function advanceJobStatus(job){
     setTimeout(()=>{ if(job.el) job.el.className = `radar-blip ${next}`; }, 600);
   }
   const msgs = {
-    scheduled: `📍… ${job.name} - booking confirmed`,
-    enroute:   `ðŸš— Tech en route to ${job.name} in ${job.city.split(',')[0]}`,
-    done:      `âœ… Job complete - ${job.name} · ${job.city.split(',')[0]}`,
-    review:    `â­ ${job.name} left a 5-star review!`,
+    scheduled: `📅 ${job.name} - booking confirmed`,
+    enroute:   `🚗 Tech en route to ${job.name} in ${job.city.split(',')[0]}`,
+    done:      `✅ Job complete - ${job.name} · ${job.city.split(',')[0]}`,
+    review:    `⭐ ${job.name} left a 5-star review!`,
   };
   if(msgs[next]) showRadarToast(msgs[next]);
   renderTickerNow();
@@ -6174,7 +6184,7 @@ function spawnNewJob(){
   _simJobs.push(job);
   _simJobsToday++;
   addBlipToRadar(job);
-  showRadarToast(`📍‹ New request - ${job.name} in ${job.city.split(',')[0]}`);
+  showRadarToast(`📋 New request - ${job.name} in ${job.city.split(',')[0]}`);
   updateRadarStats();
   renderTickerNow();
   // Start status progression
@@ -6191,12 +6201,12 @@ function renderTickerNow(){
   const order = {enroute:0,scheduled:1,requested:2,done:3,review:4};
   const sorted = [..._simJobs].sort((a,b)=>(order[a.status]||9)-(order[b.status]||9)).slice(0,6);
   if(!sorted.length){
-    ticker.innerHTML = `<div style="color:rgba(255,255,255,.3);font-size:13px;padding:20px 0;text-align:center">Waiting for activityâ€¦</div>`;
+    ticker.innerHTML = `<div style="color:rgba(255,255,255,.3);font-size:13px;padding:20px 0;text-align:center">Waiting for activity…</div>`;
     return;
   }
   const s = TICKER_STATUS;
   ticker.innerHTML = sorted.map(j=>{
-    const t = s[j.status]||{ico:'📍‹',label:'Active',cls:'requested'};
+    const t = s[j.status]||{ico:'📋',label:'Active',cls:'requested'};
     const elapsed = Math.round((Date.now()-j.createdAt)/60000);
     const timeStr = elapsed < 1 ? 'Just now' : elapsed < 60 ? elapsed+'m ago' : Math.round(elapsed/60)+'h ago';
     return `<div class="ticker-item">
@@ -6258,9 +6268,9 @@ function renderDispatchRadar(){
 
 function renderActivityFeed(){ /* radar removed - lives in admin.html */ }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 // HERO ZIP GATE
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 function onHeroZipInput(val){
   const digits = val.replace(/\D/g,'');
   const inp = document.getElementById('hero-zip');
@@ -6274,7 +6284,7 @@ function onHeroZipInput(val){
     inp.classList.add('invalid');
     if(fb) fb.innerHTML = `
       <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:16px 20px;max-width:420px;margin:0 auto;text-align:center">
-        <div style="font-size:22px;margin-bottom:8px">📍</div>
+        <div style="font-size:22px;margin-bottom:8px">📍</div>
         <div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:6px">Outside our service radius</div>
         <div style="font-size:13px;color:var(--mu);line-height:1.6">We currently serve within <strong style="color:var(--white)">${TRAVEL_MAX_MILES} miles</strong> of Bergen County, NJ.<br>Call <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a> and we'll confirm options.</div>
       </div>`;
@@ -6286,10 +6296,10 @@ function onHeroZipInput(val){
   const cityName = getCityByZip(zip5);
   let cityHtml = '';
   if(cityName){
-    cityHtml = `<div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px;letter-spacing:.02em">📍 ${cityName}</div>`;
+    cityHtml = `<div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px;letter-spacing:.02em">📍 ${cityName}</div>`;
   }
   let pills = `<span class="zip-pill zip-pill-zone">${zone.label}</span>`;
-  if(richMultiplier > 1.0) pills += `<span class="zip-pill zip-pill-rich">â­ Premium area</span>`;
+  if(richMultiplier > 1.0) pills += `<span class="zip-pill zip-pill-rich">⭐ Premium area</span>`;
   if(fb) fb.innerHTML = `${cityHtml}<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">${pills}</div>`;
   _unlockHomeCards();
   _updateHomeFromPrices();
@@ -6408,9 +6418,9 @@ function openBookingFromHome(cat){
   openBooking(cat);
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 // INIT
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════
 (function initHubZipFromQuery(){
   const params = new URLSearchParams(window.location.search);
   const raw = params.get('zip') || sessionStorage.getItem('cd1_zip') || '';
@@ -6429,9 +6439,9 @@ renderActivityFeed();
 seedDefaultTechs();
 </script>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ════════════════════════════════════════════ -->
 <!--        FLOATING AI CHAT - LOGIC              -->
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ════════════════════════════════════════════ -->
 <script>
 (function(){
   const $ = id => document.getElementById(id);
@@ -6471,9 +6481,9 @@ seedDefaultTechs();
   }
 
   const DEFAULT_CHIPS=[
-    {label:'ðŸš— Quote my vehicle',q:'How much does it cost?'},
-    {label:'📍 Do you come to me?',q:'What areas do you serve?'},
-    {label:'📍… Secure my spot',act:'book'},
+    {label:'🚗 Quote my vehicle',q:'How much does it cost?'},
+    {label:'📍 Do you come to me?',q:'What areas do you serve?'},
+    {label:'📅 Secure my spot',act:'book'},
     {label:'📍ž Reach the team',act:'human'}
   ];
 
@@ -6524,69 +6534,69 @@ seedDefaultTechs();
   function addonList(cat){ try{ return (PRICING[cat].addons||[]).map(a=>a.name+' (+$'+a.price+')'); }catch(e){ return []; } }
 
   const INTENTS = [
-    { keys:['hi','hello','hey','hallo','ola','olÃ¡','good morning','good afternoon'], fn:()=>({
-      reply:"Hey! ðŸ‘‹ How can I help? I can talk pricing, areas we serve, packages or booking.", chips:DEFAULT_CHIPS }) },
+    { keys:['hi','hello','hey','hallo','ola','olá','good morning','good afternoon'], fn:()=>({
+      reply:"Hey! 👋 How can I help? I can talk pricing, areas we serve, packages or booking.", chips:DEFAULT_CHIPS }) },
 
     { keys:['price','pricing','cost','how much','quote','expensive','rate','charge','dollar','$'], fn:()=>({
-      reply:"Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\nðŸš— Cars & Trucks - from <b>$175</b>\nðŸï¸ Powersports - from <b>$119</b>\nðŸ›¥ï¸ Boats - from <b>$199</b>\nðŸ•ï¸ RVs & Trailers - from <b>$349</b>\n\nFor an exact quote, start a booking and enter your vehicle + ZIP - pricing updates as you go.",
-      chips:[{label:'📍… Get my exact price',act:'book'},{label:'📍 Travel fees?',q:'Is there a travel fee?'},{label:'ðŸ§‘â€ðŸ”§ Talk to a human',act:'human'}] }) },
+      reply:chatStartingPricesReply(),
+      chips:[{label:'📅 Get my exact price',act:'book'},{label:'📍 Travel fees?',q:'Is there a travel fee?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['area','areas','serve','service area','location','where','city','town','county','zip','near me','come to','pa','pennsylvania','new jersey','new york','connecticut',' nj',' ny',' ct'], fn:()=>({
-      reply:"We're <b>mobile</b> - we come to you! ðŸš We serve <b>"+AREAS+"</b>.\n\nEnter your ZIP when booking to confirm coverage and see local pricing (some areas have a small travel fee). Not sure if we reach you? Just ask or call "+telLink()+".",
-      chips:[{label:'📍… Check my ZIP',act:'book'},{label:'ðŸ’µ Pricing',q:'How much does it cost?'},{label:'ðŸ§‘â€ðŸ”§ Talk to a human',act:'human'}] }) },
+      reply:"We're <b>mobile</b> - we come to you! 🚐 We serve <b>"+AREAS+"</b>.\n\nEnter your ZIP when booking to confirm coverage and see local pricing (some areas have a small travel fee). Not sure if we reach you? Just ask or call "+telLink()+".",
+      chips:[{label:'📅 Check my ZIP',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['travel fee','surcharge','extra fee','area fee','distance','toll'], fn:()=>({
       reply:"Most core areas have <b>no travel fee</b>. Farther zones (e.g. NYC, Long Island, PA Philly/Pocono) may include a small distance-based fee - typically <b>$15–$35</b> - already included in the package total shown when you book.",
-      chips:[{label:'📍… See my area fee',act:'book'},{label:'ðŸ§‘â€ðŸ”§ Talk to a human',act:'human'}] }) },
+      chips:[{label:'📅 See my area fee',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['package','packages','plan','plans','tier','what do you offer','full detail','interior','exterior'], fn:()=>{
-      const names=pkgNames('cars'); const list=names.length?names.map(n=>'â€¢ '+n).join('\n'):'â€¢ Maintenance Detail\nâ€¢ Premium Detail';
+      const names=pkgNames('cars'); const list=names.length?names.map(n=>'• '+n).join('\n'):'• Maintenance Detail\n• Premium Detail';
       return { reply:"For cars we offer:\n\n"+list+"\n\nBoats, RVs and trailers are priced by exact length, and fleet has volume pricing. Each package lists exactly what's included in the booking flow.",
-        chips:[{label:'âœ¨ Add-ons',q:'What add-ons do you have?'},{label:'📍… See packages',act:'book'},{label:'ðŸ’µ Pricing',q:'How much does it cost?'}] }; } },
+        chips:[{label:'✨ Add-ons',q:'What add-ons do you have?'},{label:'📅 See packages',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
 
     { keys:['add-on','add on','addon','extra','upgrade','pet hair','odor','ceramic','wax','shampoo','stain'], fn:()=>{
       const popularIds=['pethair','odor','rainx'];
       const all=(PRICING.cars?.addons||[]);
-      const popular=all.filter(a=>popularIds.includes(a.id)).map(a=>'â€¢ '+a.name+' (+$'+a.price+')');
-      const others=all.filter(a=>!popularIds.includes(a.id)).slice(0,4).map(a=>'â€¢ '+a.name+' (+$'+a.price+')');
-      const list=[...popular,...others].join('\n')||'â€¢ Pet Hair Removal (+$95)\nâ€¢ Odor Treatment (+$149)\nâ€¢ Rain-X Glass Treatment (+$25)';
+      const popular=all.filter(a=>popularIds.includes(a.id)).map(a=>'• '+a.name+' (+$'+a.price+')');
+      const others=all.filter(a=>!popularIds.includes(a.id)).slice(0,4).map(a=>'• '+a.name+' (+$'+a.price+')');
+      const list=[...popular,...others].join('\n')||'• Pet Hair Removal (+$95)\n• Odor Treatment (+$149)\n• Rain-X Glass Treatment (+$25)';
       return { reply:"Popular add-ons you can pick during booking:\n\n"+list+"\n\nThey appear right after you choose your package & vehicle, and the total updates live.",
-        chips:[{label:'📍… Add to my booking',act:'book'},{label:'ðŸ’µ Pricing',q:'How much does it cost?'}] }; } },
+        chips:[{label:'📅 Add to my booking',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
 
     { keys:['book','booking','appointment','schedule','reserve','agendar','set up','sign up','how do i'], fn:()=>({
-      reply:"Booking takes a couple minutes: 📍 enter ZIP → ðŸš— pick category & package → confirm your vehicle → âœ¨ add extras → your details → review & submit. No charge today - we confirm by text or call first.",
-      chips:[{label:'📍… Start booking',act:'book'},{label:'ðŸ’³ Deposit/payment',q:'Do I pay now?'},{label:'ðŸ§‘â€ðŸ”§ Talk to a human',act:'human'}] }) },
+      reply:"Booking takes a couple minutes: 📍 enter ZIP → 🚗 pick category & package → confirm your vehicle → ✨ add extras → your details → review & submit. No charge today - we confirm by text or call first.",
+      chips:[{label:'📅 Start booking',act:'book'},{label:'💳 Deposit/payment',q:'Do I pay now?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['pay','payment','deposit','charge now','credit card','card','stripe','money','pay now','upfront'], fn:()=>({
       reply:"You're <b>not charged when you submit</b> - it's a request first. A card on file is required for booking security and is saved securely through Stripe. Choose cash on-site, card on-site, or online after service as your separate payment preference.",
-      chips:[{label:'📍… Book now',act:'book'},{label:'âŒ Cancellation policy',q:'What is your cancellation policy?'},{label:'ðŸ§‘â€ðŸ”§ Talk to a human',act:'human'}] }) },
+      chips:[{label:'📅 Book now',act:'book'},{label:'❌ Cancellation policy',q:'What is your cancellation policy?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['hour','hours','open','time','when are you','availability','available','today','same day','same-day','weekend'], fn:()=>({
       reply:"We operate <b>Mon–Fri, 8AM–5PM</b>. Request your preferred date during booking - we confirm availability based on route, weather, and service type before scheduling.",
-      chips:[{label:'📍… Check availability',act:'book'},{label:'ðŸ§‘â€ðŸ”§ Talk to a human',act:'human'}] }) },
+      chips:[{label:'📅 Check availability',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['cancel','cancellation','reschedule','refund','no-show','policy','weather','rain'], fn:()=>({
-      reply:"Easy & fair: ðŸ”„ reschedule or cancel at least <b>24h</b> before (rescheduling preferred). Weather, emergencies or schedule conflicts → free reschedule. Late cancellations / no-shows / denied access may incur a fee or deposit loss. Full terms are on the Terms page.",
-      chips:[{label:'📍… Book now',act:'book'},{label:'ðŸ§‘â€ðŸ”§ Talk to a human',act:'human'}] }) },
+      reply:"Easy & fair: 🔄 reschedule or cancel at least <b>24h</b> before (rescheduling preferred). Weather, emergencies or schedule conflicts → free reschedule. Late cancellations / no-shows / denied access may incur a fee or deposit loss. Full terms are on the Terms page.",
+      chips:[{label:'📅 Book now',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['what do you detail','vehicle','vehicles','cars','boat','rv','trailer','motorcycle','atv','jet ski','truck','suv'], fn:()=>({
-      reply:"We detail ðŸš— cars & trucks, ðŸ›¥ï¸ boats, ðŸ•ï¸ RVs & travel trailers, ðŸï¸ powersports (motorcycle/ATV/UTV/jet ski) and ðŸšš fleets - all <b>mobile</b>, at your home or workplace.",
-      chips:[{label:'ðŸ’µ Pricing',q:'How much does it cost?'},{label:'📍… Book now',act:'book'}] }) },
+      reply:"We detail 🚗 cars & trucks, 🚥️️️️ boats, 🏕️ RVs & travel trailers, 🏍️ powersports (motorcycle/ATV/UTV/jet ski) and 🚚 fleets - all <b>mobile</b>, at your home or workplace.",
+      chips:[{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] }) },
 
     { keys:['mobile','come to me','at home','my place','do you travel','my location','my house','my driveway'], fn:()=>({
-      reply:"Yes - we're <b>100% mobile</b>. We bring professional equipment; water/power access may depend on location and service type. No shop visit needed - just safe access to your vehicle. ðŸš",
-      chips:[{label:'📍 Service area',q:'What areas do you serve?'},{label:'📍… Book now',act:'book'}] }) },
+      reply:"Yes - we're <b>100% mobile</b>. We bring professional equipment; water/power access may depend on location and service type. No shop visit needed - just safe access to your vehicle. 🚐",
+      chips:[{label:'📍 Service area',q:'What areas do you serve?'},{label:'📅 Book now',act:'book'}] }) },
 
     { keys:['how long','duration','take','hours to','time to finish','minutes'], fn:()=>({
       reply:"It depends on the package and vehicle - each package shows its estimated time in the booking flow (a wash is quick; a full detail takes longer). Pick a package to see the duration.",
-      chips:[{label:'📍… See times',act:'book'},{label:'ðŸ’µ Pricing',q:'How much does it cost?'}] }) },
+      chips:[{label:'📅 See times',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }) },
 
     { keys:['human','agent','person','representative','call','phone','contact','speak','talk to','someone','manager','owner','real person'], fn:()=>({
       reply:"Happy to connect you! 📍ž Call or text us at "+telLink()+" (Mon–Fri 8AM–5PM), or leave your question here and our team will get back to you.",
-      chips:[{label:'📍¨ Send my question',act:'human'},{label:'📍… Book now',act:'book'}] }) },
+      chips:[{label:'📍¨ Send my question',act:'human'},{label:'📅 Book now',act:'book'}] }) },
 
     { keys:['thank','thanks','obrigado','appreciate','great','awesome','perfect'], fn:()=>({
-      reply:"You're welcome! ðŸ™Œ Anything else I can help with?", chips:DEFAULT_CHIPS }) }
+      reply:"You're welcome! 🙌 Anything else I can help with?", chips:DEFAULT_CHIPS }) }
   ];
 
   function cdLocalAnswer(text){
@@ -6598,8 +6608,8 @@ seedDefaultTechs();
       if(score>bestScore){ bestScore=score; best=intent; }
     });
     if(best && bestScore>0) return best.fn();
-    return { reply:"I want to get this right ðŸ¤” - I'm not 100% sure about that one. I can connect you with our team, or you can call "+telLink()+". Want me to pass your question along?",
-      chips:[{label:'📍¨ Send my question',act:'human'},{label:'ðŸ’µ Pricing',q:'How much does it cost?'},{label:'📍… Book now',act:'book'}] };
+    return { reply:"I want to get this right 🤔 - I'm not 100% sure about that one. I can connect you with our team, or you can call "+telLink()+". Want me to pass your question along?",
+      chips:[{label:'📍¨ Send my question',act:'human'},{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] };
   }
 
   // ── HUMAN HANDOFF (last resort → owner / admin portal) ──
@@ -6645,10 +6655,10 @@ seedDefaultTechs();
     const adminSms=(typeof ADMIN_SMS==='string'&&ADMIN_SMS)?ADMIN_SMS:PHONE_TEL;
     const mailto=adminEmail?('mailto:'+adminEmail+'?subject='+subject+'&body='+body):'';
     cdCancelHandoff();
-    push("âœ… Thanks, <b>"+esc(name)+"</b>! Your question is on its way to our team - we'll reply to <b>"+esc(phone)+"</b> soon.",'bot');
+    push("✅ Thanks, <b>"+esc(name)+"</b>! Your question is on its way to our team - we'll reply to <b>"+esc(phone)+"</b> soon.",'bot');
     let extra="Want it instantly? "+(mailto?'<a href="'+mailto+'">email us</a> or ':'')+'<a href="sms:'+adminSms+'?&body='+body+'">text us</a> - or call '+telLink()+'.';
     push(extra,'bot');
-    setChips([{label:'📍… Book now',act:'book'},{label:'ðŸ’¬ Ask something else',q:'hi'}]);
+    setChips([{label:'📅 Book now',act:'book'},{label:'💬 Ask something else',q:'hi'}]);
     $('cd-h-name').value=$('cd-h-phone').value=$('cd-h-email').value=$('cd-h-msg').value='';
   }
   window.cdSubmitHandoff=cdSubmitHandoff;

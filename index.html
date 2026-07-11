@@ -407,7 +407,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .cp-tab.active{background:var(--blue);color:#000}
 .cp-panel{display:none}
 .cp-panel.active{display:block}
-/* â”€â”€ CUSTOMER GARAGE â”€â”€ */
+/* ── CUSTOMER GARAGE ── */
 .cg-back{background:none;border:none;color:var(--mu);font-size:12px;cursor:pointer;padding:0;margin-bottom:12px;display:block;transition:.2s}
 .cg-back:hover{color:var(--white)}
 .cg-nav{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
@@ -5486,6 +5486,16 @@ function formatLocFrom(cat){
   const fee=getKnownZip5()&&activeZone?getTravelFeeAmount():0;
   return 'From $'+(applyRichPrice(getCategoryFromBases()[cat])+fee);
 }
+function chatStartingPricesReply(){
+  const b=getCategoryFromBases();
+  return "Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n"
+    +"🚗 Cars & Trucks — from <b>$"+applyRichPrice(b.cars)+"</b> (Interior Detail)\n"
+    +"🏍️ Powersports — from <b>$"+applyRichPrice(b.powersports)+"</b>\n"
+    +"🛥️ Boats — from <b>$"+applyRichPrice(b.boats)+"</b>\n"
+    +"🏕️ RVs & Trailers — from <b>$"+applyRichPrice(b.rvs)+"</b>\n\n"
+    +"For an exact quote, start a booking and enter your vehicle + ZIP — pricing updates as you go.";
+}
+
 
 const ZIP_ZONES = {
   nj_a:{ label:'NJ — Bergen / Hudson / Essex', short:'NJ Core',    surcharge:0,  emoji:'📍', prefixes:['070','071','072','073','074','075','076','077'] },
@@ -5513,7 +5523,7 @@ const ZONE_POPULAR = {
 };
 
 const LOC_DISPLAY = {
-  cars:       { ico:'🚗', name:'Cars & SUVs',      desc:'Mobile car detailing at your location', from:'From $175' },
+  cars:       { ico:'🚗', name:'Cars & SUVs',      desc:'Mobile car detailing at your location', from:'From $225' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine wash & detail on-site',    from:'From $199' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'From $349' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs, jet skis',       from:'From $119' },
@@ -6345,7 +6355,7 @@ async function cpFindBooking(){
   }
 }
 
-// â”€â”€ CUSTOMER GARAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CUSTOMER GARAGE ──────────────────────────────────────────────────────────
 let _cgBooking = null;
 
 function cpShowGarage(b){
@@ -7091,7 +7101,7 @@ body.cd1-booking-embed #cd-chat{display:none!important}
       reply:"Hey! 👋 How can I help? I can talk pricing, areas we serve, packages or booking.", chips:DEFAULT_CHIPS }) },
 
     { keys:['price','pricing','cost','how much','quote','expensive','rate','charge','dollar','$'], fn:()=>({
-      reply:"Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n🚗 Cars & Trucks — from <b>$175</b>\n🏍️ Powersports — from <b>$119</b>\n🛥️ Boats — from <b>$199</b>\n🏕️ RVs & Trailers — from <b>$349</b>\n\nFor an exact quote, start a booking and enter your vehicle + ZIP — pricing updates as you go.",
+      reply:chatStartingPricesReply(),
       chips:[{label:'📅 Get my exact price',act:'book'},{label:'📍 Travel fees?',q:'Is there a travel fee?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['area','areas','serve','service area','location','where','city','town','county','zip','near me','come to','pa','pennsylvania','new jersey','new york','connecticut',' nj',' ny',' ct'], fn:()=>({
