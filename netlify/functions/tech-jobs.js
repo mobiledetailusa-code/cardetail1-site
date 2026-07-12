@@ -9,6 +9,7 @@ const LEGACY_STATUS = {
   en_route: 'En Route',
   arrived: 'In Progress',
   in_progress: 'In Progress',
+  paused: 'In Progress',
   issue_reported: 'Problem',
 };
 
@@ -78,6 +79,7 @@ exports.handler = async (event) => {
   if (newStatus === 'en_route') updates.enRouteAt = now;
   if (newStatus === 'arrived') updates.arrivedAt = now;
   if (newStatus === 'in_progress') updates.startedAt = now;
+  if (newStatus === 'paused') updates.pausedAt = now;
   if (newStatus === 'issue_reported') {
     updates.hasProblem = true;
     updates.lastProblem = note || 'Issue reported by technician';
