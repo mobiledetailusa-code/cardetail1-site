@@ -5,6 +5,12 @@ const {
 } = require('../lib/ops-workflow');
 const { getOpsSettings } = require('../lib/ops-config');
 const { createAuctionForBooking, assignAuctionWinnerToBooking } = require('../lib/auction-ops');
+const { applyServerTravelAndTotal } = require('../lib/travel-fee');
+const {
+  applyServerOffersToBooking,
+  evaluateBookingOfferPreview,
+} = require('../lib/booking-offers');
+const { auditEntry, appendAudit } = require('../lib/operations-audit');
 
 const TEST_SIGNALS = [
   b => b.isTest === true,
@@ -103,6 +109,103 @@ async function handleAdminAction(body) {
   if (!booking) return jsonCors(404, { ok: false, error: 'booking_not_found' });
 
   const now = new Date().toISOString();
+
+  if (action === 'apply_welcome_offer') {
+    const reason = sanitizeText(body.reason, 300);
+    const forceEligible = body.forceEligible === true;
+    if (forceEligible && !reason) {
+      return jsonCors(400, { ok: false, error: 'reason_required_for_override' });
+    }
+    const travel = applyServerTravelAndTotal({ ...booking }, { skipMismatchCheck: true });
+    if (!travel.ok) return jsonCors(400, { ok: false, error: travel.error || 'invalid_booking' });
+    const preview = await evaluateBookingOfferPreview(booking, { sourceTrigger: 'admin_apply' });
+    if (preview.offer.eligibility_status !== 'eligible' && !forceEligible) {
+      return jsonCors(409, {
+        ok: false,
+        error: 'offer_ineligible',
+        reason: preview.offer.eligibility_reason,
+        offer: preview.offer,
+      });
+    }
+    const working = { ...booking };
+    if (forceEligible && preview.offer.eligibility_status !== 'eligible') {
+      working.welcomeOfferSource = 'admin_override';
+    }
+    const applied = await applyServerOffersToBooking(working, {
+      serviceSubtotal: travel.serviceSubtotal,
+      travelFee: working.travelFeeAmount || 0,
+      sourceTrigger: forceEligible ? 'admin_override' : 'admin_apply',
+    });
+    const updated = {
+      ...working,
+      offerAudit: [
+        ...(Array.isArray(booking.offerAudit) ? booking.offerAudit : []),
+        {
+          at: now,
+          by: 'admin',
+          action: 'apply_welcome_offer',
+          reason: reason || null,
+          forceEligible,
+          discount: applied.discountDollars,
+        },
+      ],
+      updatedAt: now,
+      eventLog: appendEventLog(booking, {
+        action: 'welcome_offer_applied',
+        by: 'admin',
+        discount: applied.discountDollars,
+        reason: reason || null,
+      }),
+    };
+    await store.setJSON(bookingId, updated);
+    await appendAudit(auditEntry({
+      bookingId,
+      actorType: 'admin',
+      actorId: 'admin',
+      action: 'welcome_offer_applied',
+      previousState: booking,
+      resultingState: updated,
+      reason: reason || 'admin_apply',
+      sourcePortal: 'admin_ops',
+    })).catch(() => null);
+    return jsonCors(200, { ok: true, bookingId, offer: updated.offer, totalPrice: updated.totalPrice });
+  }
+
+  if (action === 'remove_welcome_offer') {
+    const reason = sanitizeText(body.reason, 300);
+    if (!reason) return jsonCors(400, { ok: false, error: 'reason_required' });
+    const travel = applyServerTravelAndTotal({ ...booking }, { skipMismatchCheck: true });
+    if (!travel.ok) return jsonCors(400, { ok: false, error: travel.error || 'invalid_booking' });
+    const preDiscount = Math.round((travel.serviceSubtotal + (booking.travelFeeAmount || 0)) * 100) / 100;
+    const updated = {
+      ...booking,
+      offer: null,
+      welcomeOffer: null,
+      discountAmount: 0,
+      approvedDiscount: 0,
+      totalPrice: preDiscount,
+      approvedFinalAmount: preDiscount,
+      finalAmount: preDiscount,
+      offerAudit: [
+        ...(Array.isArray(booking.offerAudit) ? booking.offerAudit : []),
+        { at: now, by: 'admin', action: 'remove_welcome_offer', reason },
+      ],
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'welcome_offer_removed', by: 'admin', reason }),
+    };
+    await store.setJSON(bookingId, updated);
+    await appendAudit(auditEntry({
+      bookingId,
+      actorType: 'admin',
+      actorId: 'admin',
+      action: 'welcome_offer_removed',
+      previousState: booking,
+      resultingState: updated,
+      reason,
+      sourcePortal: 'admin_ops',
+    })).catch(() => null);
+    return jsonCors(200, { ok: true, bookingId, totalPrice: preDiscount });
+  }
 
   if (action === 'admin_note') {
     const note = sanitizeText(body.note, 1000);

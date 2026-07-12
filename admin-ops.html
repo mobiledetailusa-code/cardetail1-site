@@ -957,6 +957,30 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div><label>ZIP</label><input type="text" id="dZip" value="'+esc(j.zipCode||'')+'"></div>'+
       '<div class="full"><button type="button" class="btn ghost sm" id="dSaveAddr" style="width:100%">Save address</button></div>'+
       '</div></div>';
+    html += '<div class="sec"><h4>Welcome offer (WELCOME10)</h4>';
+    const offer = j.offer || j.welcomeOffer || null;
+    const offerEnabled = true;
+    if (!offerEnabled) {
+      html += '<p class="hint">Feature disabled in production policy. Controls shown for branch QA.</p>';
+    }
+    if (offer && offer.eligibility_status === 'eligible') {
+      html += '<div class="kv">'+
+        '<div><b>Status:</b> '+esc(offer.public_name || 'Welcome offer')+'</div>'+
+        '<div><b>Eligible subtotal:</b> $'+((offer.eligible_subtotal||0)/100).toFixed(2)+'</div>'+
+        '<div><b>Discount:</b> -$'+((offer.discount_amount||0)/100).toFixed(2)+' ('+esc(offer.percent||10)+'%, cap $'+((offer.cap_cents||4000)/100).toFixed(0)+')</div>'+
+        '<div><b>Redemption:</b> '+esc(offer.redemption_status||'pending')+'</div>'+
+        '<div><b>Reason:</b> '+esc(offer.eligibility_reason||'—')+'</div>'+
+        '</div>';
+    } else {
+      html += '<div class="kv"><div><b>Status:</b> '+(offer?esc(offer.eligibility_status||'ineligible'):'No offer applied')+'</div>'+
+        (offer?'<div><b>Reason:</b> '+esc(offer.eligibility_reason||'—')+'</div>':'')+'</div>';
+    }
+    if (Array.isArray(j.offerAudit) && j.offerAudit.length) {
+      html += '<div style="font-size:11px;color:var(--mu);margin-top:8px">Audit: '+j.offerAudit.slice(-3).map(a=>esc(a.action+' · '+a.at)).join(' · ')+'</div>';
+    }
+    html += '<div class="actions" style="margin-top:10px">'+
+      '<button type="button" class="btn sm" id="dOfferApply">Apply welcome offer</button>'+
+      '<button type="button" class="btn ghost sm" id="dOfferRemove">Remove offer</button></div></div>';
     html += '<div class="sec"><h4>Job balance</h4><div class="kv">'+
       '<div><b>Customer total:</b> $'+(j.totalPrice!=null?j.totalPrice:'—')+'</div>'+
       '<div><b>Tech payout:</b> $'+(j.techPayoutAmount!=null?j.techPayoutAmount:'—')+'</div>'+
@@ -1065,6 +1089,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     };
     const drf = $('#dRefund'); if(drf) drf.onclick = () => jobAction(j.id,'record_refund_request',{reason:$('#dRefundNote').value.trim(),amount:$('#dRefundAmt').value});
     const dsb = $('#dSaveBal'); if(dsb) dsb.onclick = () => jobAction(j.id,'record_job_balance',{finalAmount:$('#dFinalAmt').value,techPayoutAmount:$('#dTechPay').value});
+    const doa = $('#dOfferApply'); if(doa) doa.onclick = () => { const r=prompt('Reason (required for override if ineligible):')||''; jobAction(j.id,'apply_welcome_offer',{reason:r,forceEligible:!!r}); };
+    const dor = $('#dOfferRemove'); if(dor) dor.onclick = () => { const r=prompt('Reason for removing offer (required):'); if(r) jobAction(j.id,'remove_welcome_offer',{reason:r}); };
     $('#drawerBg').classList.add('open'); $('#drawer').classList.add('open');
   }
 
