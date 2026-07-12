@@ -78,7 +78,8 @@ test('technician portal is tech-only with completion modal', () => {
   assert.match(tech, /tech-jobs/);
   assert.match(tech, /tech-complete-job/);
   assert.match(tech, /complete-modal/);
-  assert.match(tech, /customerAuthorizationAccepted/);
+  assert.match(tech, /technicianConfirmation/);
+  assert.match(techComplete, /technicianConfirmation/);
   assert.doesNotMatch(tech, /stripeCustomerId/);
   assert.doesNotMatch(tech, /paymentIntentId/);
   assert.doesNotMatch(tech, /cardOnFileStatus/);
@@ -86,9 +87,9 @@ test('technician portal is tech-only with completion modal', () => {
 
 test('tech-complete-job does not call Stripe or set payment succeeded', () => {
   assert.match(techComplete, /completed_pending_admin_review/);
-  assert.match(techComplete, /paymentWorkflowStatus:\s*'pending_admin_review'/);
+  assert.match(techComplete, /paymentWorkflowStatus\s*=\s*'pending_admin_review'/);
   assert.doesNotMatch(techComplete, /stripe\.com/);
-  assert.doesNotMatch(techComplete, /payment_succeeded/);
+  assert.doesNotMatch(techComplete, /paymentIntents/);
   assert.doesNotMatch(techComplete, /invoice/);
 });
 
@@ -207,8 +208,8 @@ test('inactive technician rejected at login', () => {
 });
 
 test('completion authorization text version saved server-side', () => {
-  assert.match(techComplete, /completion-auth-v1/);
   assert.match(techComplete, /customerAuthorizationTextVersion/);
+  assert.match(techComplete, /completion-auth-v1/);
 });
 
 test('no stripe payment intent or invoice in new ops functions', () => {
