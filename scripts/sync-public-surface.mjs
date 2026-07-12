@@ -34,11 +34,12 @@ const PUBLIC_HTML = [
 ];
 
 const HUB_PAGES = PUBLIC_HTML.filter((f) =>
-  f.includes('-hub.html') || f.includes('-detailing.html')
+  f.includes('-hub.html') || f.includes('-detailing.html') || f === 'template-city.html'
 );
 
 const SURFACE_CSS = '<link rel="stylesheet" href="assets/public-surface.css">';
 const BTT_JS = '<script src="assets/back-to-top.js" defer></script>';
+const HUB_BRIDGE_JS = '<script src="assets/hub-booking-bridge.js" defer></script>';
 
 const CARD_STATUS_BODY =
   "body:JSON.stringify({bookingId:ST.bookingId,phone:(ST.phone||ST.customerPhone||''),draftSaveToken:(ST.draftSaveToken||draftSessionToken||'')})";
@@ -148,6 +149,10 @@ async function main() {
 
     if (!html.includes('<script src="assets/back-to-top.js"') && html.includes('</body>')) {
       html = html.replace('</body>', `  ${BTT_JS}\n</body>`);
+    }
+
+    if (HUB_PAGES.includes(file) && !html.includes('assets/hub-booking-bridge.js') && html.includes('</body>')) {
+      html = html.replace('</body>', `  ${HUB_BRIDGE_JS}\n</body>`);
     }
 
     if (html !== orig) {
