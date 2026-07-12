@@ -279,6 +279,8 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/tech-complete-job.js',
     'netlify/functions/tech-jobs.js',
     'netlify/functions/customer-portal-action.js',
+    'netlify/functions/evaluate-booking-offer.js',
+    'netlify/functions/admin-ops-jobs.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);

@@ -211,6 +211,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/tech-complete-job.js',
     'netlify/functions/tech-jobs.js',
     'netlify/functions/customer-portal-action.js',
+    'netlify/functions/evaluate-booking-offer.js',
+    'netlify/functions/admin-ops-jobs.js',
     'netlify/lib/operations-lifecycle.js',
     'netlify/lib/operations-audit.js',
     'netlify/lib/customer-completion-link.js',

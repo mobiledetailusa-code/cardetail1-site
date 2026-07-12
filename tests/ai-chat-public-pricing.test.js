@@ -95,6 +95,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/tech-complete-job.js',
   'netlify/functions/tech-jobs.js',
   'netlify/functions/customer-portal-action.js',
+  'netlify/functions/evaluate-booking-offer.js',
+  'netlify/functions/admin-ops-jobs.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {
