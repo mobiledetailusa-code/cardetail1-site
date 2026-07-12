@@ -72,7 +72,13 @@ test('welcome offer terms linked from checkout and terms page', () => {
 
 test('WELCOME10 enabled only on operations-core-job-lifecycle branch context', () => {
   const toml = read('netlify.toml');
-  assert.match(toml, /\[context\.operations-core-job-lifecycle\.environment\]/);
+  assert.match(toml, /\[context\."operations-core-job-lifecycle"\.environment\]/);
   assert.match(toml, /FIRST_BOOKING_OFFER_ENABLED = "true"/);
   assert.doesNotMatch(toml, /\[context\.production\.environment\][\s\S]*FIRST_BOOKING_OFFER_ENABLED = "true"/);
+});
+
+test('offer engine scopes branch QA to operations-core-job-lifecycle deploy only', () => {
+  const src = read('netlify/lib/revenue-offers.js');
+  assert.match(src, /isOperationsCoreBranchDeploy/);
+  assert.match(src, /operations-core-job-lifecycle--/);
 });

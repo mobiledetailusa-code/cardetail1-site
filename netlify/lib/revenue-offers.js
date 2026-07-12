@@ -19,10 +19,30 @@ function envIntAny(names, fallback) {
   return fallback;
 }
 
+const OPS_CORE_BRANCH = 'operations-core-job-lifecycle';
+
+/** Branch deploy QA — operations-core-job-lifecycle only (not production or other branches). */
+function isOperationsCoreBranchDeploy() {
+  const ctx = String(process.env.CONTEXT || '').toLowerCase();
+  if (ctx === 'production') return false;
+  const branch = String(
+    process.env.BRANCH || process.env.COMMIT_REF || process.env.HEAD || ''
+  ).trim();
+  if (branch === OPS_CORE_BRANCH) return true;
+  const prime = String(process.env.DEPLOY_PRIME_URL || process.env.URL || '');
+  return /^https:\/\/operations-core-job-lifecycle--/i.test(prime);
+}
+
+function isFirstBookingOfferEnabled() {
+  if (envBool('FIRST_BOOKING_OFFER_ENABLED', false)) return true;
+  // Fallback when Netlify branch-context env is not injected into serverless functions.
+  return isOperationsCoreBranchDeploy();
+}
+
 function getOfferConfig() {
   return {
     firstBooking: {
-      enabled: envBool('FIRST_BOOKING_OFFER_ENABLED', false),
+      enabled: isFirstBookingOfferEnabled(),
       percent: envIntAny(['FIRST_BOOKING_OFFER_PERCENT', 'FIRST_BOOKING_PERCENT'], 10),
       capCents: envIntAny(['FIRST_BOOKING_OFFER_CAP_CENTS', 'FIRST_BOOKING_CAP_CENTS'], 4000),
       triggerSeconds: envIntAny(['FIRST_BOOKING_OFFER_TRIGGER_SECONDS'], 120),
