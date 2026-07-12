@@ -63,6 +63,7 @@ const {
   CLIENT_OFFER_BLOCKED_FIELDS,
 } = require('../lib/booking-offers');
 const { setOfferDeployHost, clearOfferDeployHost } = require('../lib/revenue-offers');
+const { sendNotificationsDecoupled, attachDeliveryToBooking } = require('../lib/notification-delivery');
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const v = validateBookingSchedule(b.preferredDate, b.preferredTime);
@@ -554,11 +555,17 @@ exports.handler = async (event) => {
       return json(500, { ok: false, error: 'booking_store_failed' });
     }
 
-    const [email, customerEmail, sms] = await Promise.all([
-      sendEmail(b).catch(e => ({ sent: false, reason: e.message })),
-      sendCustomerEmail(b).catch(e => ({ sent: false, reason: e.message })),
-      sendSms(b).catch(e => ({ sent: false, reason: e.message })),
-    ]);
+    const delivery = await sendNotificationsDecoupled(b, {
+      adminEmail: (booking) => sendEmail(booking).catch((e) => ({ sent: false, reason: e.message })),
+      customerEmail: (booking) => sendCustomerEmail(booking).catch((e) => ({ sent: false, reason: e.message })),
+      adminSms: (booking) => sendSms(booking).catch((e) => ({ sent: false, reason: e.message })),
+    });
+    const withDelivery = attachDeliveryToBooking(b, delivery);
+    try {
+      await store.setJSON(rawDraftId, withDelivery);
+    } catch (e) {
+      console.warn('[submit-booking] notification delivery persist failed:', e.message);
+    }
 
     return json(200, {
       ok: true,
@@ -566,9 +573,10 @@ exports.handler = async (event) => {
       status: b.status,
       paymentStatus: b.paymentStatus,
       stored,
-      email,
-      customerEmail,
-      sms,
+      email: delivery.adminEmail,
+      customerEmail: delivery.customerEmail,
+      sms: delivery.adminSms,
+      notificationDelivery: delivery,
       appointmentStatus: b.appointmentStatus,
       cardOnFileStatus: b.cardOnFileStatus,
       offer: b.offer || null,
