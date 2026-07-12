@@ -123,7 +123,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 /* Mobile-only Book Now pill — visible next to hamburger */
 .nav-book-mobile,.nav-portal-mobile{display:none}
 @media(max-width:760px){
-  .nav-book-mobile{display:inline-flex;align-items:center;justify-content:center;background:var(--blue);color:var(--white)!important;min-height:40px;padding:10px 14px;border-radius:999px;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent;box-shadow:0 2px 8px rgba(37,99,235,.25)}
+  .nav-book-mobile{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:1.5px solid rgba(255,255,255,.2);color:var(--white)!important;min-height:40px;padding:10px 12px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;cursor:pointer;text-decoration:none;white-space:nowrap;margin-right:6px}
   .nav-logo-img{height:36px;max-width:min(168px,46vw)}
 }
 .nav-portal-mobile{display:none!important}
@@ -1454,10 +1454,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <a class="nav-brand-img" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" decoding="async"></a>
   <div class="nav-links" id="nav-links">
     <a class="nav-link" onclick="openBooking(null);document.getElementById('nav-links').classList.remove('open')">Services</a>
+    <a class="nav-link" href="my-garage.html">My Garage</a>
     <a class="nav-link" href="tel:5513132956">Call / Text</a>
     <a class="nav-cta booking-popup-trigger" onclick="openBooking(null)">Book online</a>
   </div>
-  <a class="nav-book-mobile booking-popup-trigger" onclick="openBooking(null)">Book online</a>
+  <a class="nav-book-mobile" href="my-garage.html">My Garage</a>
   <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
 </nav>
 

@@ -232,6 +232,20 @@
     if (preId && $('lk-booking-id')) $('lk-booking-id').value = preId.toUpperCase();
     if (prePhone && $('lk-phone')) $('lk-phone').value = prePhone;
 
+    var actionToken = params.get('action');
+    if (actionToken) {
+      var ar = await post('customer-portal-action', { action: 'view', token: actionToken });
+      if (ar.data && ar.data.ok) {
+        state.scope = 'booking';
+        state.booking = ar.data.booking;
+        history.replaceState({}, '', 'my-garage.html');
+        renderDashboard({ payment: { canPay: ar.data.labels && ar.data.labels.canPay } });
+        show($('pre-auth'), false);
+        show($('post-auth'), true);
+        return;
+      }
+    }
+
     var challengeId = params.get('auth');
     var token = params.get('t');
     if (challengeId && token) {
