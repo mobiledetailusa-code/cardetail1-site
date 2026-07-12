@@ -17,6 +17,7 @@ const {
   MAGIC_LINK_TTL_MS,
 } = require('../lib/customer-session');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { maybeCaptureQaMagicLink } = require('../lib/qa-my-garage-fixtures');
 
 const CHALLENGE_STORE = 'cd1-customer-auth-tokens';
 
@@ -181,6 +182,9 @@ exports.handler = async (event) => {
     phoneDigits: phoneDigits || normalizeUsPhoneDigits(matches[0]?.phone || ''),
     codeOrTokenHash: hashToken(rawToken),
   });
+
+  const expiresAt = new Date(Date.now() + MAGIC_LINK_TTL_MS).toISOString();
+  await maybeCaptureQaMagicLink({ challengeId, rawToken, email, expiresAt });
 
   const linkUrl = `${siteBaseUrl(event)}/my-garage.html?auth=${encodeURIComponent(challengeId)}&t=${encodeURIComponent(rawToken)}`;
   const sent = await sendMagicLinkEmail(email, linkUrl);

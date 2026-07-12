@@ -1,5 +1,6 @@
 // Branch-only My Garage QA fixture helpers — never enabled in production.
 
+const crypto = require('crypto');
 const { blobsStore } = require('./tech-security');
 const { bookingStore, getBooking } = require('./ops-db');
 const { BOOKINGS_STORE } = require('./ops-schema');
@@ -15,7 +16,9 @@ const BOOKING_A_ID = 'QA-MYGARAGE-A';
 const BOOKING_B_ID = 'QA-MYGARAGE-B';
 const MANIFEST_KEY = 'qa-manifest-customer-my-garage-portal';
 const MANIFEST_STORE = 'cd1-qa-my-garage-fixtures';
+const QA_MAGIC_CAPTURE_PREFIX = 'magic-capture-';
 const QA_TTL_MS = 24 * 60 * 60 * 1000;
+const MAGIC_LINK_CAPTURE_TTL_MS = 15 * 60 * 1000;
 const INERT_PAY_BASE = 'https://qa-inert.cardetail1-branch.local/pay/';
 
 const PHONE_A = '2025550101';
@@ -98,6 +101,139 @@ function qaEmailsFromEnv() {
   const a = String(process.env.MY_GARAGE_QA_EMAIL_A || '').trim().toLowerCase();
   const b = String(process.env.MY_GARAGE_QA_EMAIL_B || '').trim().toLowerCase();
   return { emailA: a, emailB: b };
+}
+
+function isAuthorizedQaEmail(email) {
+  const { emailA, emailB } = qaEmailsFromEnv();
+  const em = String(email || '').trim().toLowerCase();
+  return !!em && (em === emailA || em === emailB);
+}
+
+function verifyQaHarnessAdmin(headers) {
+  if (String(process.env.MY_GARAGE_QA_ENABLED || '').trim() !== 'true') return null;
+  const expected = String(process.env.MY_GARAGE_QA_ADMIN_TOKEN || '').trim();
+  if (!expected || expected.length < 16) return null;
+  const provided = String((headers && (headers['x-admin-key'] || headers['X-Admin-Key'])) || '').trim();
+  if (!provided) return null;
+  try {
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    return { ok: true, username: 'qa-harness' };
+  } catch {
+    return null;
+  }
+}
+
+async function maybeCaptureQaMagicLink({ challengeId, rawToken, email, expiresAt }) {
+  if (String(process.env.MY_GARAGE_QA_ENABLED || '').trim() !== 'true') return;
+  if (!isAuthorizedQaEmail(email)) return;
+  const store = await manifestStore();
+  const key = `${QA_MAGIC_CAPTURE_PREFIX}${challengeId}`;
+  await store.setJSON(key, {
+    qaFixture: true,
+    qaBranch: QA_BRANCH,
+    challengeId,
+    token: String(rawToken || ''),
+    emailHash: crypto.createHash('sha256').update(String(email).toLowerCase()).digest('base64url'),
+    expiresAt,
+    capturedAt: new Date().toISOString(),
+  }, { ttl: MAGIC_LINK_CAPTURE_TTL_MS });
+}
+
+async function retrieveQaMagicCapture(email) {
+  const em = String(email || '').trim().toLowerCase();
+  if (!isAuthorizedQaEmail(em)) {
+    return { ok: false, error: 'forbidden' };
+  }
+  const emailHash = crypto.createHash('sha256').update(em).digest('base64url');
+  const store = await manifestStore();
+  const listing = await store.list({ prefix: QA_MAGIC_CAPTURE_PREFIX }).catch(() => ({ blobs: [] }));
+  const blobs = (listing && listing.blobs) || [];
+  let latest = null;
+  for (const b of blobs) {
+    const rec = await store.get(b.key, { type: 'json' }).catch(() => null);
+    if (!rec || rec.qaFixture !== true || rec.qaBranch !== QA_BRANCH) continue;
+    if (rec.emailHash !== emailHash) continue;
+    if (rec.expiresAt && Date.parse(rec.expiresAt) < Date.now()) continue;
+    if (!latest || String(rec.capturedAt || '') > String(latest.capturedAt || '')) latest = rec;
+  }
+  if (!latest || !latest.challengeId || !latest.token) {
+    return { ok: false, error: 'not_found' };
+  }
+  return {
+    ok: true,
+    challengeId: latest.challengeId,
+    token: latest.token,
+    expiresAt: latest.expiresAt,
+    resendBypassed: true,
+  };
+}
+
+async function sendQaMagicLinkEmail(email, linkUrl) {
+  const { RESEND_API_KEY, RESEND_FROM, ADMIN_EMAIL } = process.env;
+  if (!RESEND_API_KEY) return false;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: RESEND_FROM || 'Cardetail1 <onboarding@resend.dev>',
+      to: [email],
+      subject: 'Your Cardetail1 My Garage sign-in link',
+      text: `Sign in to My Garage:\n\n${linkUrl}\n\nThis link expires in 15 minutes and can only be used once.`,
+      reply_to: ADMIN_EMAIL || undefined,
+    }),
+  });
+  return res.ok;
+}
+
+async function startQaMagicLink(slot, baseUrl) {
+  const { emailA, emailB } = qaEmailsFromEnv();
+  const useB = String(slot || 'a').toLowerCase() === 'b';
+  const email = useB ? emailB : emailA;
+  const phoneDigits = useB ? PHONE_B : PHONE_A;
+  if (!email) return { ok: false, error: 'validation_error', message: 'Branch QA emails are not configured.' };
+
+  const { hashToken, storeAuthChallenge, resendConfigured, MAGIC_LINK_TTL_MS } = require('./customer-session');
+  if (!resendConfigured()) return { ok: false, error: 'service_unavailable' };
+
+  const { listRawBookings } = require('./ops-db');
+  const all = await listRawBookings();
+  const matches = all.filter((b) => {
+    const bEmail = String(b.email || '').trim().toLowerCase();
+    return bEmail === email;
+  });
+  if (!matches.length) return { ok: false, error: 'authentication_failed' };
+
+  const rawToken = crypto.randomBytes(24).toString('base64url');
+  const challengeId = await storeAuthChallenge({
+    type: 'magic_link',
+    email,
+    phoneDigits,
+    codeOrTokenHash: hashToken(rawToken),
+  });
+  const expiresAt = new Date(Date.now() + MAGIC_LINK_TTL_MS).toISOString();
+  await maybeCaptureQaMagicLink({ challengeId, rawToken, email, expiresAt });
+  const linkUrl = `${baseUrl}/my-garage.html?auth=${encodeURIComponent(challengeId)}&t=${encodeURIComponent(rawToken)}`;
+  const sent = await sendQaMagicLinkEmail(email, linkUrl);
+  if (!sent) return { ok: false, error: 'service_unavailable' };
+  return {
+    ok: true,
+    challengeId,
+    delivery: 'email',
+    stripeCheckoutExercised: false,
+  };
+}
+
+async function cleanupQaMagicCaptures() {
+  const store = await manifestStore();
+  const listing = await store.list({ prefix: QA_MAGIC_CAPTURE_PREFIX }).catch(() => ({ blobs: [] }));
+  let deleted = 0;
+  for (const b of ((listing && listing.blobs) || [])) {
+    await store.delete(b.key).catch(() => {});
+    deleted += 1;
+  }
+  return deleted;
 }
 
 function buildBookingA(emailA, now, expiresAt) {
@@ -411,6 +547,7 @@ async function cleanupFixtures() {
 
   const mStore = await manifestStore();
   await mStore.delete(MANIFEST_KEY).catch(() => {});
+  const deletedMagicCaptures = await cleanupQaMagicCaptures();
 
   return {
     ok: true,
@@ -418,6 +555,7 @@ async function cleanupFixtures() {
     deletedRequests,
     deletedSessions,
     deletedTokens,
+    deletedMagicCaptures,
     stripeCheckoutExercised: false,
   };
 }
@@ -436,7 +574,12 @@ module.exports = {
   hostFromEvent,
   isAllowedQaBookingId,
   isAllowedQaBooking,
+  isAuthorizedQaEmail,
+  verifyQaHarnessAdmin,
+  maybeCaptureQaMagicLink,
+  retrieveQaMagicCapture,
   qaEmailsFromEnv,
+  startQaMagicLink,
   seedFixtures,
   inspectFixtures,
   cleanupFixtures,

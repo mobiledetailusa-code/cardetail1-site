@@ -129,6 +129,37 @@ test('function requires admin authorization when enabled', async () => {
   });
 });
 
+test('harness accepts branch QA admin token when configured', () => {
+  withEnv({
+    MY_GARAGE_QA_ENABLED: 'true',
+    MY_GARAGE_QA_ADMIN_TOKEN: 'qa-test-admin-token-32chars-minimum-ok',
+  }, () => {
+    const admin = qa.verifyQaHarnessAdmin({ 'x-admin-key': 'qa-test-admin-token-32chars-minimum-ok' });
+    assert.equal(admin?.ok, true);
+    assert.equal(admin?.username, 'qa-harness');
+  });
+});
+
+test('QA harness admin token requires MY_GARAGE_QA_ENABLED flag', () => {
+  withEnv({
+    MY_GARAGE_QA_ENABLED: '',
+    MY_GARAGE_QA_ADMIN_TOKEN: 'qa-test-admin-token-32chars-minimum-ok',
+  }, () => {
+    assert.equal(qa.verifyQaHarnessAdmin({ 'x-admin-key': 'qa-test-admin-token-32chars-minimum-ok' }), null);
+  });
+});
+
+test('magic link capture only allows authorized QA emails', async () => {
+  withEnv({
+    MY_GARAGE_QA_ENABLED: 'true',
+    MY_GARAGE_QA_EMAIL_A: 'qa-a@example.com',
+    MY_GARAGE_QA_EMAIL_B: 'qa-b@example.com',
+  }, async () => {
+    const bad = await qa.retrieveQaMagicCapture('other@example.com');
+    assert.equal(bad.ok, false);
+  });
+});
+
 test('only QA-MYGARAGE-prefixed records are allowed', () => {
   assert.equal(qa.isAllowedQaBookingId('QA-MYGARAGE-A'), true);
   assert.equal(qa.isAllowedQaBookingId('CD1-REAL'), false);
