@@ -1437,8 +1437,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   $('#revopsPriorityFilter').onchange = refreshRevopsTab;
 
   function revopsTabActive() {
-    const tab = document.querySelector('.tab.on[data-tab="revops"]');
-    return !!(tab && document.visibilityState !== 'hidden');
+    const tab = document.querySelector('#tabs .tab.on');
+    return !!(tab && tab.dataset.tab === 'revops' && document.visibilityState !== 'hidden');
   }
 
   document.addEventListener('visibilitychange', () => {
