@@ -133,6 +133,9 @@ async function persistGaragePlanLead(validated) {
     transactionalConsent: true,
     stage: validated.vehicleCount >= 3 ? 'Multi-Vehicle Opportunity' : 'Qualified Lead',
     nextAction: nextAction.action,
+    isGaragePlan: true,
+    garagePlanStatus: 'new',
+    source: validated.source || 'garage_plan',
   });
 
   const leadStore = await require('../lib/revenue-store').getRevenueStore('leads');
