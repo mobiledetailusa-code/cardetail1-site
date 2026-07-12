@@ -208,6 +208,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/customer-change-requests.js',
     'netlify/lib/customer-vehicles.js',
     'netlify/lib/admin-security.js',
+    'netlify/lib/admin-booking-mutations.js',
+    'netlify/lib/notification-delivery.js',
     'netlify/functions/tech-complete-job.js',
     'netlify/functions/tech-jobs.js',
     'netlify/functions/customer-portal-action.js',
@@ -218,6 +220,10 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/customer-completion-link.js',
     'netlify/lib/customer-feature-flags.js',
     'netlify/lib/ops-workflow.js',
+    'netlify/lib/revenue-store.js',
+    'netlify/lib/revops-dashboard.js',
+    'netlify/functions/qa-opscore-lifecycle.js',
+    'netlify/functions/qa-revops-lifecycle.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

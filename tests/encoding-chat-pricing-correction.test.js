@@ -159,6 +159,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/customer-portal-action.js',
     'netlify/functions/evaluate-booking-offer.js',
     'netlify/functions/admin-ops-jobs.js',
+    'netlify/functions/qa-opscore-lifecycle.js',
+    'netlify/functions/qa-revops-lifecycle.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);
