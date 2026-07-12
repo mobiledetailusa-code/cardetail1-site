@@ -90,6 +90,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   <div class="top-links">
     <a href="/">← Home</a>
     <a href="technician.html?portal=tech">Technician portal</a>
+    <span class="hint" id="lastUpdated" style="margin:0"></span>
     <button type="button" class="btn ghost sm" id="btnRefresh">Refresh</button>
     <button type="button" class="btn ghost sm" id="btnLogout">Sign Out</button>
   </div>
@@ -121,6 +122,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       <select class="fsel" id="jobsStatus"><option value="">All statuses</option></select>
       <label class="chk"><input type="checkbox" id="jobsShowTest"> Show test/archived</label>
       <button type="button" class="btn ghost sm" id="jobsClear">Clear filters</button>
+      <button type="button" class="btn sm" id="jobsCreate">Create appointment</button>
     </div>
     <div class="card" style="padding:0;overflow:auto"><table class="tbl" id="jobsTable"><thead><tr>
       <th>Customer</th><th>Vehicle</th><th>Date</th><th>Status</th><th>Payment</th><th>Tech</th><th>Assign</th>
@@ -314,6 +316,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
 <script src="/netlify/lib/admin-session-client.js"></script>
 <script src="/netlify/lib/site-access-client.js"></script>
+<script src="assets/operational-refresh.js"></script>
 <script>
 (function(){
   const KEY = CD1AdminSession.SESS_KEY;
@@ -921,10 +924,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     activeJob = j;
     $('#dTitle').textContent = cust(j)+' · '+id;
     $('#dBadges').innerHTML = jobBadge(j.jobStatus)+payBadge(j.paymentWorkflowStatus);
-    let html = '<div class="sec"><h4>Customer</h4><div class="kv">'+
-      '<div><b>Name:</b> '+esc(cust(j))+'</div><div><b>Phone:</b> '+esc(j.phone||'—')+'</div>'+
-      '<div><b>Email:</b> '+esc(j.email||'—')+'</div><div><b>Address:</b> '+esc(j.address||'—')+' '+(j.zipCode||'')+'</div>'+
-      '<div><b>Vehicle:</b> '+esc(j.vehicleLabel||j.vehicle||'—')+'</div><div><b>Package:</b> '+esc(j.package||'—')+'</div>'+
+    let html = '<div class="sec"><h4>Customer</h4><div class="op-grid">'+
+      '<div><label>First name</label><input type="text" id="dFirst" value="'+esc(j.firstName||'')+'"></div>'+
+      '<div><label>Last name</label><input type="text" id="dLast" value="'+esc(j.lastName||'')+'"></div>'+
+      '<div><label>Phone</label><input type="tel" id="dPhone" value="'+esc(j.phone||'')+'"></div>'+
+      '<div><label>Email</label><input type="email" id="dEmail" value="'+esc(j.email||'')+'"></div>'+
+      '<div class="full"><button type="button" class="btn ghost sm" id="dSaveCustomer" style="width:100%">Save customer contact</button></div>'+
+      '<div class="full"><label>Vehicle</label><input type="text" id="dVehicle" value="'+esc(j.vehicleLabel||j.vehicle||'')+'"></div>'+
+      '<div><label>Package</label><input type="text" id="dPackage" value="'+esc(j.package||'')+'"></div>'+
+      '<div class="full"><button type="button" class="btn ghost sm" id="dSaveService" style="width:100%">Recalculate service (server)</button></div>'+
       '<div><b>Date:</b> '+esc(j.confirmedDate||j.preferredDate||'—')+' '+esc(j.confirmedTime||j.preferredTime||'')+'</div>'+
       '</div></div>';
     html += (typeof SiteAccess !== 'undefined' ? SiteAccess.adminSection(j, esc) : '');
@@ -948,7 +956,14 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     html += '<div class="actions" style="margin-bottom:10px">';
     if (j.jobStatus === 'pending_review') html += '<button type="button" class="btn sm" id="dConfirm">Confirm booking</button>';
     html += '<button type="button" class="btn ghost sm" id="dCancel">Cancel job</button>';
+    html += '<button type="button" class="btn ghost sm" id="dReopenAppt">Reopen</button>';
     html += '<button type="button" class="btn warn sm" id="dArchive">Archive as test</button></div>';
+    html += '<div class="sec"><h4>Technician proxy</h4><div class="actions">'+
+      '<button type="button" class="btn ghost sm" id="dTechEnRoute">En Route</button>'+
+      '<button type="button" class="btn ghost sm" id="dTechStart">Start</button>'+
+      '<button type="button" class="btn ghost sm" id="dTechPause">Pause</button>'+
+      '<button type="button" class="btn ghost sm" id="dTechResume">Resume</button>'+
+      '<button type="button" class="btn sm" id="dTechComplete">Complete service</button></div></div>';
     html += '<div class="op-grid">'+
       '<div><label>Reschedule date</label><input type="date" id="dDate" value="'+esc((j.confirmedDate||j.preferredDate||'').slice(0,10))+'"></div>'+
       '<div><label>Time / window</label><input type="text" id="dTime" placeholder="e.g. 10:00 AM or Morning" value="'+esc(j.confirmedTime||j.confirmedTimeWindow||j.preferredTime||'')+'"></div>'+
@@ -1015,7 +1030,22 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div class="full"><label>Refund note</label><input type="text" id="dRefundNote" placeholder="Reason for refund request"></div>'+
       '<div><label>Refund amount ($)</label><input type="number" id="dRefundAmt" step="0.01"></div>'+
       '<div class="full"><button type="button" class="btn warn sm" id="dRefund" style="width:100%">Log refund request</button></div>'+
+      '<div class="full actions" style="margin-top:8px">'+
+      '<button type="button" class="btn ghost sm" id="dMarkCash">Mark cash received</button>'+
+      '<button type="button" class="btn ghost sm" id="dMarkCardSite">Record card on-site</button>'+
+      '<button type="button" class="btn ghost sm" id="dApproveAdj">Approve adjustment</button>'+
+      '<button type="button" class="btn ghost sm" id="dRejectAdj">Reject adjustment</button>'+
+      '</div>'+
       '</div></div>';
+    html += '<div class="sec"><h4>Customer links</h4><div class="actions">'+
+      '<button type="button" class="btn sm" id="dGenCompletion">Generate completion link</button>'+
+      '<button type="button" class="btn ghost sm" id="dGenGarage">My Garage link</button>'+
+      '<button type="button" class="btn ghost sm" id="dCopyCustomerLink">Copy last link</button></div>'+
+      (j.completionLinkUrl?'<p class="hint">Completion: '+esc(j.completionLinkUrl)+'</p>':'')+
+      (j.myGarageLinkUrl?'<p class="hint">My Garage: '+esc(j.myGarageLinkUrl)+'</p>':'')+
+      (j.notificationDelivery?'<p class="hint">Notifications — admin: '+esc((j.notificationDelivery.adminEmail&&j.notificationDelivery.adminEmail.status)||'—')+
+        ' · customer: '+esc((j.notificationDelivery.customerEmail&&j.notificationDelivery.customerEmail.status)||'—')+'</p>':'')+
+      '</div>';
     if (j.adminNotes) html += '<div class="sec"><h4>Admin notes</h4><pre style="font-size:12px;white-space:pre-wrap;color:var(--mu)">'+esc(j.adminNotes)+'</pre></div>';
     if (j.completionSubmitted || j.customerSignature) {
       html += '<div class="sec"><h4>Completion</h4><div class="kv">'+
@@ -1047,6 +1077,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const evs = (j.eventLog||[]).slice().reverse();
     html += '<div class="sec"><h4>Event log</h4>'+(evs.length?evs.map(e=>'<div class="ev"><time>'+dt(e.at)+'</time><strong>'+esc(e.action||'')+'</strong> '+
       (e.by?'('+esc(e.by)+') ':'')+(e.note?esc(e.note):'')+(e.message?esc(e.message):'')+'</div>').join(''):'<div class="empty">No events</div>')+'</div>';
+    html += '<div class="sec" id="dAuditSec"><h4>Operational audit</h4><div class="empty">Loading audit…</div></div>';
     $('#dBody').innerHTML = html;
     $('#dNote').value = '';
     const da = $('#dAssign');
@@ -1059,6 +1090,36 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const da2 = $('#dArchive'); if(da2) da2.onclick = () => { if(confirm('Archive this booking as test?')) jobAction(j.id,'archive_test'); };
     const dr = $('#dResched'); if(dr) dr.onclick = () => jobAction(j.id,'reschedule',{confirmedDate:$('#dDate').value,confirmedTime:$('#dTime').value,confirmedTimeWindow:$('#dTime').value});
     const dsa = $('#dSaveAddr'); if(dsa) dsa.onclick = () => jobAction(j.id,'update_address',{address:$('#dAddr').value,zipCode:$('#dZip').value});
+    const dsc = $('#dSaveCustomer'); if(dsc) dsc.onclick = () => jobAction(j.id,'update_customer',{firstName:$('#dFirst').value,lastName:$('#dLast').value,phone:$('#dPhone').value,email:$('#dEmail').value});
+    const dss = $('#dSaveService'); if(dss) dss.onclick = () => jobAction(j.id,'update_service',{package:$('#dPackage').value,vehicleLabel:$('#dVehicle').value});
+    const dro = $('#dReopenAppt'); if(dro) dro.onclick = () => { const r=prompt('Reopen reason:'); if(r) jobAction(j.id,'reopen_appointment',{reason:r}); };
+    const dte = $('#dTechEnRoute'); if(dte) dte.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'en_route'});
+    const dts = $('#dTechStart'); if(dts) dts.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'start'});
+    const dtp = $('#dTechPause'); if(dtp) dtp.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'pause'});
+    const dtr = $('#dTechResume'); if(dtr) dtr.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'resume'});
+    const dtc = $('#dTechComplete'); if(dtc) dtc.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'complete_service'});
+    const dmc = $('#dMarkCash'); if(dmc) dmc.onclick = () => jobAction(j.id,'mark_cash_received',{});
+    const dmcs = $('#dMarkCardSite'); if(dmcs) dmcs.onclick = () => { const ref=prompt('Card-on-site reference:'); if(ref) jobAction(j.id,'mark_card_on_site',{reference:ref}); };
+    const daa2 = $('#dApproveAdj'); if(daa2) daa2.onclick = () => jobAction(j.id,'approve_adjustment',{approvedFinalAmount:$('#dFinalAmt').value});
+    const dra = $('#dRejectAdj'); if(dra) dra.onclick = () => { const r=prompt('Rejection reason:'); if(r) jobAction(j.id,'reject_adjustment',{reason:r}); };
+    let lastCustomerLink = '';
+    const dgc = $('#dGenCompletion'); if(dgc) dgc.onclick = async () => {
+      try { const d = await jobAction(j.id,'generate_customer_link',{linkType:'completion'}); lastCustomerLink = d.url||''; if(lastCustomerLink) await navigator.clipboard.writeText(lastCustomerLink).catch(()=>{}); toast('Completion link copied'); } catch(e){}
+    };
+    const dgg = $('#dGenGarage'); if(dgg) dgg.onclick = async () => {
+      try { const d = await jobAction(j.id,'generate_customer_link',{linkType:'my_garage'}); lastCustomerLink = d.url||''; if(lastCustomerLink) await navigator.clipboard.writeText(lastCustomerLink).catch(()=>{}); toast('My Garage link copied'); } catch(e){}
+    };
+    const dcl = $('#dCopyCustomerLink'); if(dcl) dcl.onclick = async () => {
+      const u = lastCustomerLink || j.completionLinkUrl || j.myGarageLinkUrl || '';
+      if(!u){ toast('Generate a link first'); return; }
+      await navigator.clipboard.writeText(u).catch(()=>{}); toast('Copied');
+    };
+    api('/.netlify/functions/admin-ops-jobs','POST',{action:'list_audit',bookingId:j.id}).then(d=>{
+      const sec = $('#dAuditSec');
+      if(!sec) return;
+      const rows = (d.audit||[]).slice().reverse();
+      sec.innerHTML = '<h4>Operational audit</h4>'+(rows.length?rows.map(a=>'<div class="ev"><time>'+dt(a.timestamp)+'</time><strong>'+esc(a.action)+'</strong> · '+esc(a.actor_type)+' · '+esc(a.reason||'')+'</div>').join(''):'<div class="empty">No audit entries</div>');
+    }).catch(()=>{});
     const dcy = $('#dCancelYes'); if(dcy) dcy.onclick = () => jobAction(j.id,'resolve_cancellation',{decision:'approved'});
     const dcn = $('#dCancelNo'); if(dcn) dcn.onclick = () => { const n=prompt('Denial note:'); if(n!==null) jobAction(j.id,'resolve_cancellation',{decision:'denied',note:n}); };
     const dar = $('#dApplyResched'); if(dar) dar.onclick = () => jobAction(j.id,'apply_customer_request',{requestType:'reschedule'});
@@ -1223,6 +1284,40 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       await loadTechs(); renderTechs(); renderOverview();
     } catch(err) { toast('Create failed: '+err.message); }
   };
+
+  $('#jobsCreate').onclick = async () => {
+    const firstName = prompt('Customer first name:');
+    if (!firstName) return;
+    const phone = prompt('Phone (10 digits):');
+    if (!phone) return;
+    const email = prompt('Email (optional):') || '';
+    const zipCode = prompt('ZIP code:');
+    if (!zipCode) return;
+    const packageId = prompt('Package ID (interior, full, exterior, maintenance):', 'interior') || 'interior';
+    try {
+      const d = await api('/.netlify/functions/admin-ops-jobs','POST',{
+        action:'create_appointment',
+        firstName, phone, email, zipCode,
+        packageId,
+        package: packageId === 'full' ? 'Premium Full Detail' : 'Interior Detail',
+        vehicleCategory:'cars',
+        vehicleTier:'Small Car',
+        vehicles:[{cat:'cars',pkgId:packageId,tierKey:'small',tierLabel:'Small Car'}],
+      });
+      toast('Appointment created: '+d.bookingId);
+      await refreshAll();
+      if (d.bookingId) openDrawer(d.bookingId);
+    } catch(e) { toast('Create failed: '+e.message); }
+  };
+
+  if (window.CD1OperationalRefresh) {
+    const opsRefresh = window.CD1OperationalRefresh.createRefreshController({
+      onRefresh: async () => { await refreshAll(); },
+      onUpdated: (d) => { const el = $('#lastUpdated'); if (el) el.textContent = 'Updated '+d.toLocaleTimeString(); },
+      shouldPoll: () => document.visibilityState !== 'hidden',
+    });
+    opsRefresh.bindLifecycle();
+  }
 
   ensureAdminSession().then(ok => {
     if (!ok) return;
