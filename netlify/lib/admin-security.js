@@ -103,9 +103,13 @@ function verifyAdminCredentials(username, password) {
 }
 
 function clientIp(event) {
-  const fwd = event && event.headers && (event.headers['x-forwarded-for'] || event.headers['X-Forwarded-For']);
+  const h = (event && event.headers) || {};
+  // Prefer Netlify/platform-injected client identity over client-supplied X-Forwarded-For.
+  const platform = h['x-nf-client-connection-ip'] || h['client-ip'];
+  if (platform) return String(platform).trim();
+  const fwd = h['x-forwarded-for'] || h['X-Forwarded-For'];
   if (fwd) return String(fwd).split(',')[0].trim();
-  return (event && event.headers && (event.headers['client-ip'] || event.headers['x-nf-client-connection-ip'])) || 'unknown';
+  return 'unknown';
 }
 
 function rateKey(ip) {

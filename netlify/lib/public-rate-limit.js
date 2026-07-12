@@ -1,8 +1,8 @@
 // Application-level IP rate limiting for public Netlify Functions.
 // Not a substitute for edge WAF/DDoS protection. Blobs outage → fail-open.
 //
-// IP trust: relies on Netlify/platform headers (x-forwarded-for,
-// x-nf-client-connection-ip, client-ip) as populated by the hosting edge.
+// IP trust: prefer Netlify/platform client identity (x-nf-client-connection-ip, client-ip)
+// over client-supplied X-Forwarded-For. See admin-security.clientIp.
 //
 // Privacy: no raw IP addresses, customer data, request bodies, phone numbers,
 // emails, booking data, or card data are stored. Only deterministic pseudonymous

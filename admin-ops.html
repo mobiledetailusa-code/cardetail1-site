@@ -95,20 +95,20 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   </div>
 </header>
 <div class="wrap">
-  <nav class="tabs" id="tabs">
-    <button type="button" class="tab on" data-tab="overview">Overview</button>
-    <button type="button" class="tab" data-tab="jobs">Jobs Board</button>
-    <button type="button" class="tab" data-tab="techs">Technician Management</button>
-    <button type="button" class="tab" data-tab="assign">Assignments</button>
-    <button type="button" class="tab" data-tab="completed">Completed / Review</button>
-    <button type="button" class="tab" data-tab="issues">Issues</button>
-    <button type="button" class="tab" data-tab="requests">Customer Requests</button>
-    <button type="button" class="tab" data-tab="auctions">Auctions</button>
-    <button type="button" class="tab" data-tab="subscriptions">Subscriptions</button>
-    <button type="button" class="tab" data-tab="settings">Settings</button>
-    <button type="button" class="tab" data-tab="maintenance">Maintenance</button>
-    <button type="button" class="tab" data-tab="events">Event Log</button>
-    <button type="button" class="tab" data-tab="revops">Revenue Ops</button>
+  <nav class="tabs" id="tabs" role="tablist">
+    <button type="button" class="tab on" data-tab="overview" role="tab" aria-selected="true">Overview</button>
+    <button type="button" class="tab" data-tab="jobs" role="tab" aria-selected="false">Jobs Board</button>
+    <button type="button" class="tab" data-tab="techs" role="tab" aria-selected="false">Technician Management</button>
+    <button type="button" class="tab" data-tab="assign" role="tab" aria-selected="false">Assignments</button>
+    <button type="button" class="tab" data-tab="completed" role="tab" aria-selected="false">Completed / Review</button>
+    <button type="button" class="tab" data-tab="issues" role="tab" aria-selected="false">Issues</button>
+    <button type="button" class="tab" data-tab="requests" role="tab" aria-selected="false">Customer Requests</button>
+    <button type="button" class="tab" data-tab="auctions" role="tab" aria-selected="false">Auctions</button>
+    <button type="button" class="tab" data-tab="subscriptions" role="tab" aria-selected="false">Subscriptions</button>
+    <button type="button" class="tab" data-tab="settings" role="tab" aria-selected="false">Settings</button>
+    <button type="button" class="tab" data-tab="maintenance" role="tab" aria-selected="false">Maintenance</button>
+    <button type="button" class="tab" data-tab="events" role="tab" aria-selected="false">Event Log</button>
+    <button type="button" class="tab" data-tab="revops" role="tab" aria-selected="false">Revenue Ops</button>
   </nav>
 
   <section class="panel on" id="p-overview">
@@ -457,17 +457,31 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
 
   async function refreshAll() {
-    const [jobsR, techsR, reqR] = await Promise.allSettled([loadJobs(), loadTechs(), loadSettings(), loadChangeRequests()]);
+    const [jobsR, techsR, settingsR, changeR] = await Promise.allSettled([
+      loadJobs(), loadTechs(), loadSettings(), loadChangeRequests(),
+    ]);
     if (jobsR.status === 'rejected') jobs = [];
     if (techsR.status === 'rejected') techs = [];
-    if (reqR.status === 'rejected') changeRequests = [];
+    if (changeR.status === 'rejected') changeRequests = [];
     renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
     renderSettingsForm();
     const failures = [];
     if (jobsR.status === 'rejected') failures.push('bookings (' + (jobsR.reason && jobsR.reason.message || jobsR.reason) + ')');
     if (techsR.status === 'rejected') failures.push('technicians (' + (techsR.reason && techsR.reason.message || techsR.reason) + ')');
-    if (reqR.status === 'rejected') failures.push('change requests (' + (reqR.reason && reqR.reason.message || reqR.reason) + ')');
+    if (settingsR.status === 'rejected') failures.push('settings (' + (settingsR.reason && settingsR.reason.message || settingsR.reason) + ')');
+    if (changeR.status === 'rejected') failures.push('change requests (' + (changeR.reason && changeR.reason.message || changeR.reason) + ')');
     showLoadBanner(failures);
+  }
+
+  async function refreshRequestsTab() {
+    const el = $('#requestsList');
+    if (el) el.innerHTML = '<div class="empty">Loading customer requests…</div>';
+    try {
+      await loadChangeRequests();
+      renderRequests();
+    } catch (e) {
+      if (el) el.innerHTML = '<div class="empty">Could not load customer requests: ' + esc(e.message) + '</div>';
+    }
   }
 
   async function refreshAuctionsTab() {
@@ -1059,12 +1073,18 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   // Tabs
   $('#tabs').onclick = e => {
     const b = e.target.closest('.tab'); if(!b) return;
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-    b.classList.add('on'); $('#p-'+b.dataset.tab).classList.add('on');
+    document.querySelectorAll('.tab').forEach(t => {
+      t.classList.remove('on');
+      t.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+    b.classList.add('on');
+    b.setAttribute('aria-selected', 'true');
+    $('#p-'+b.dataset.tab).classList.add('on');
     if (b.dataset.tab === 'auctions') refreshAuctionsTab();
     if (b.dataset.tab === 'subscriptions') refreshSubsTab();
     if (b.dataset.tab === 'settings') loadSettings().then(renderSettingsForm).catch(()=>{});
+    if (b.dataset.tab === 'requests') refreshRequestsTab();
     if (b.dataset.tab === 'revops') refreshRevopsTab();
   };
 
