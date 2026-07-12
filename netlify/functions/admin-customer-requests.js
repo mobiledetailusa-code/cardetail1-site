@@ -2,7 +2,6 @@
 
 const { jsonCors } = require('../lib/tech-security');
 const { verifyAdminRequest } = require('../lib/admin-security');
-const { verifyQaHarnessAdmin } = require('../lib/qa-my-garage-fixtures');
 const { blobsStore } = require('../lib/tech-security');
 const { getBooking, bookingStore } = require('../lib/ops-db');
 const { updateRequest } = require('../lib/customer-change-requests');
@@ -40,8 +39,7 @@ function shortId(id) {
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
-  let admin = verifyQaHarnessAdmin(event.headers || {});
-  if (!admin) admin = await verifyAdminRequest(event.headers || {});
+  const admin = await verifyAdminRequest(event.headers || {});
   if (!admin.ok) return jsonCors(401, { ok: false, error: 'unauthorized' });
 
   let body = {};
