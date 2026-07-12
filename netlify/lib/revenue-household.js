@@ -156,6 +156,8 @@ async function createOpportunity(input) {
     },
     nextAction: input.nextAction || null,
     assignedStatus: input.assignedStatus || 'unassigned',
+    isGaragePlan: !!input.isGaragePlan,
+    garagePlanStatus: input.garagePlanStatus || null,
     lostReason: null,
     stage: input.stage || 'Lead Captured',
     createdAt: now,

@@ -1,5 +1,7 @@
 // Netlify Blob helpers for Revenue Operations private stores.
 
+const crypto = require('crypto');
+
 const REVENUE_STORES = Object.freeze({
   events: 'revenue-events',
   households: 'revenue-households',
@@ -24,14 +26,33 @@ const RETENTION_DAYS = {
   adminAudit: 365,
 };
 
+function runningInNetlifyFunction() {
+  return !!(process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+}
+
 async function getRevenueStore(name) {
   const storeName = REVENUE_STORES[name] || name;
   const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token)
-    ? getStore({ name: storeName, siteID, token })
-    : getStore(storeName);
+
+  if (runningInNetlifyFunction()) {
+    try {
+      return getStore(storeName);
+    } catch (e) {
+      console.warn(`[revenue-store] runtime getStore(${storeName}) failed:`, e.message);
+    }
+  }
+
+  const siteID = String(process.env.NETLIFY_SITE_ID || '').trim();
+  const token = String(process.env.NETLIFY_AUTH_TOKEN || '').trim();
+  if (siteID && token) {
+    try {
+      return getStore({ name: storeName, siteID, token });
+    } catch (e) {
+      console.warn(`[revenue-store] explicit getStore(${storeName}) failed:`, e.message);
+    }
+  }
+
+  return getStore(storeName);
 }
 
 async function blobGetJson(store, key) {
@@ -48,11 +69,44 @@ async function blobSetJson(store, key, value) {
   await store.set(key, JSON.stringify(value));
 }
 
+/** List blob keys — compatible with Netlify Blobs paginated and legacy list APIs. */
 async function blobListKeys(store, { prefix = '', limit = 500 } = {}) {
   const out = [];
-  for await (const entry of store.list({ prefix, limit })) {
-    out.push(entry.key || entry.blobKey || entry);
+  if (!store || typeof store.list !== 'function') {
+    return out;
   }
+
+  const cap = Math.min(Math.max(Number(limit) || 500, 1), 2000);
+
+  try {
+    const paged = store.list({ prefix, paginate: true });
+    if (paged && typeof paged[Symbol.asyncIterator] === 'function') {
+      for await (const page of paged) {
+        for (const blob of (page && page.blobs) || []) {
+          const key = blob.key || blob.blobKey || blob;
+          if (key) out.push(key);
+          if (out.length >= cap) return out;
+        }
+      }
+      return out;
+    }
+  } catch (e) {
+    console.warn('[revenue-store] paginated list failed:', e.message);
+  }
+
+  try {
+    const listing = await store.list({ prefix, limit: cap });
+    const blobs = (listing && listing.blobs) || [];
+    for (const blob of blobs) {
+      const key = blob.key || blob.blobKey || blob;
+      if (key) out.push(key);
+      if (out.length >= cap) return out;
+    }
+  } catch (e) {
+    console.warn('[revenue-store] list failed:', e.message);
+    throw e;
+  }
+
   return out;
 }
 
@@ -62,7 +116,6 @@ function retentionExpiresAt(storeKey) {
 }
 
 function generateOpaqueId(prefix) {
-  const crypto = require('crypto');
   return `${prefix}_${crypto.randomBytes(12).toString('base64url')}`;
 }
 
@@ -75,4 +128,5 @@ module.exports = {
   blobListKeys,
   retentionExpiresAt,
   generateOpaqueId,
+  runningInNetlifyFunction,
 };

@@ -238,10 +238,24 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   <section class="panel" id="p-revops">
     <p class="hint">Revenue Operations dashboard — household opportunities, funnel metrics, and manual follow-up queue. Requires authenticated admin session.</p>
+    <div class="toolbar">
+      <span class="hint" id="revopsLastUpdated" style="margin:0"></span>
+      <button type="button" class="btn ghost sm" id="revopsRefresh">Refresh RevOps</button>
+      <button type="button" class="btn ghost sm" id="revopsRetry" hidden>Retry</button>
+    </div>
+    <div id="revopsLoading" class="empty" hidden>Loading Revenue Operations…</div>
+    <div id="revopsError" class="card" hidden style="border-color:rgba(239,68,68,.35)">
+      <p id="revopsErrorMsg" class="hint" style="color:var(--err)"></p>
+    </div>
+    <div id="revopsContent">
     <div class="grid g4" id="revopsStats"></div>
     <div class="card" style="margin-top:14px">
       <h3 style="margin-bottom:10px">Needs attention now</h3>
       <div id="revopsPriority"><div class="empty">Open this tab to load priority queue…</div></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3 style="margin-bottom:10px">Garage Plan opportunities</h3>
+      <div id="revopsGarage"><div class="empty">—</div></div>
     </div>
     <div class="card" style="margin-top:14px">
       <div class="toolbar">
@@ -251,9 +265,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           <option value="high_value">High value</option>
           <option value="priority">Priority</option>
         </select>
-        <button type="button" class="btn ghost sm" id="revopsRefresh">Refresh RevOps</button>
       </div>
       <div id="revopsOpps"></div>
+    </div>
     </div>
   </section>
 </div>
@@ -1324,38 +1338,102 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     refreshAll().catch(e => toast('Load error: '+e.message));
   });
 
+  let revopsInflight = null;
+
+  function setRevopsLoading(on) {
+    const el = $('#revopsLoading');
+    const content = $('#revopsContent');
+    if (el) el.hidden = !on;
+    if (content) content.hidden = !!on;
+  }
+
+  function setRevopsError(msg) {
+    const err = $('#revopsError');
+    const msgEl = $('#revopsErrorMsg');
+    const retry = $('#revopsRetry');
+    if (msg) {
+      if (err) err.hidden = false;
+      if (msgEl) msgEl.textContent = msg;
+      if (retry) retry.hidden = false;
+    } else {
+      if (err) err.hidden = true;
+      if (retry) retry.hidden = true;
+    }
+  }
+
+  function renderRevopsDashboard(data) {
+    const s = data.summary || {};
+    const ec = s.eventCounts || data.eventCounts || {};
+    $('#revopsStats').innerHTML = [
+      ['Sessions', s.sessions || ec.page_view || 0],
+      ['Booking starts', s.bookingStarts || ec.booking_started || 0],
+      ['Garage Plan requests', s.garagePlanRequests || 0],
+      ['Pipeline value', '$' + (s.estimatedPipelineValue || data.estimatedPipelineValue || 0)],
+      ['Contact captures', s.contactCaptures || 0],
+      ['Payment step reaches', s.paymentStepReaches || 0],
+      ['Submissions', s.bookingSubmissions || 0],
+      ['Avg ticket', '$' + (s.averageEstimatedTicket || 0)],
+    ].map(function (row) {
+      return '<div class="card"><h3>' + row[0] + '</h3><div class="stat">' + row[1] + '</div></div>';
+    }).join('');
+
+    const pri = data.priorityQueue || [];
+    $('#revopsPriority').innerHTML = pri.length ? (
+      '<table class="tbl"><thead><tr><th>Reason</th><th>Segment</th><th>Vehicles</th><th>Intent</th><th>Priority</th><th>Next action</th></tr></thead><tbody>' +
+      pri.map(function (o) {
+        return '<tr><td>' + esc(o.attentionReason || '—') + '</td><td>' + esc(o.segment) + '</td><td>' + esc(o.vehicleCountBand) + '</td><td>' + esc(o.intentScore) + '</td><td>' + esc(o.commercialPriority) + '</td><td>' + esc(o.nextAction || '—') + '</td></tr>';
+      }).join('') + '</tbody></table>'
+    ) : '<div class="empty">No items need attention right now.</div>';
+
+    const garage = data.garagePlanOpportunities || [];
+    $('#revopsGarage').innerHTML = garage.length ? (
+      '<table class="tbl"><thead><tr><th>ID</th><th>Status</th><th>Vehicles</th><th>Categories</th><th>Value</th><th>Source</th></tr></thead><tbody>' +
+      garage.map(function (o) {
+        return '<tr><td><code>' + esc((o.opportunityId || '').slice(-10)) + '</code></td><td>' + esc(o.garagePlanStatus || 'new') + '</td><td>' + esc(o.vehicleCountBand) + '</td><td>' + esc((o.assetCategories || []).join(', ')) + '</td><td>$' + esc(o.estimatedValue || 0) + '</td><td>' + esc(o.source || '—') + '</td></tr>';
+      }).join('') + '</tbody></table>'
+    ) : '<div class="empty">No Garage Plan opportunities in queue.</div>';
+
+    const pf = $('#revopsPriorityFilter').value;
+    let items = data.opportunities || [];
+    if (pf) items = items.filter(function (o) { return o.commercialPriority === pf; });
+    $('#revopsOpps').innerHTML = items.length ? (
+      '<table class="tbl"><thead><tr><th>Stage</th><th>Segment</th><th>Value</th><th>Temperature</th><th>Source</th></tr></thead><tbody>' +
+      items.map(function (o) {
+        return '<tr><td>' + esc(o.stage) + '</td><td>' + esc(o.segment) + '</td><td>$' + esc(o.estimatedValue || 0) + '</td><td>' + esc(o.leadTemperature || '—') + '</td><td>' + esc(o.source || '—') + '</td></tr>';
+      }).join('') + '</tbody></table>'
+    ) : '<div class="empty">No opportunities recorded yet.</div>';
+
+    if (data.warnings && data.warnings.length) {
+      toast('RevOps loaded with warnings: ' + data.warnings.slice(0, 2).join(', '));
+    }
+  }
+
   async function refreshRevopsTab() {
-    try {
-      const summary = await api('/.netlify/functions/revenue-admin?view=summary');
-      const priority = await api('/.netlify/functions/revenue-admin?view=priority');
-      const pf = $('#revopsPriorityFilter').value;
-      const opps = await api('/.netlify/functions/revenue-admin?view=opportunities&limit=50'+(pf?'&priority='+encodeURIComponent(pf):''));
-      const ec = summary.eventCounts || {};
-      $('#revopsStats').innerHTML = [
-        ['Garage Plan starts', ec.garage_plan_started||0],
-        ['Leads created', ec.lead_created||0],
-        ['Booking starts', ec.booking_started||0],
-        ['Pipeline value', '$'+(summary.estimatedPipelineValue||0)],
-      ].map(function(row){
-        return '<div class="card"><h3>'+row[0]+'</h3><div class="stat">'+row[1]+'</div></div>';
-      }).join('');
-      const pri = priority.items || [];
-      $('#revopsPriority').innerHTML = pri.length ? (
-        '<table class="tbl"><thead><tr><th>Segment</th><th>Vehicles</th><th>Intent</th><th>Priority</th><th>Next action</th></tr></thead><tbody>'+
-        pri.map(function(o){
-          return '<tr><td>'+esc(o.segment)+'</td><td>'+esc(o.vehicleCountBand)+'</td><td>'+esc(o.intentScore)+'</td><td>'+esc(o.commercialPriority)+'</td><td>'+esc(o.nextAction||'—')+'</td></tr>';
-        }).join('')+'</tbody></table>'
-      ) : '<div class="empty">No high-priority opportunities yet.</div>';
-      const items = opps.items || [];
-      $('#revopsOpps').innerHTML = items.length ? (
-        '<table class="tbl"><thead><tr><th>Stage</th><th>Segment</th><th>Value</th><th>Temperature</th><th>Source</th></tr></thead><tbody>'+
-        items.map(function(o){
-          return '<tr><td>'+esc(o.stage)+'</td><td>'+esc(o.segment)+'</td><td>$'+esc(o.estimatedValue||0)+'</td><td>'+esc(o.leadTemperature||'—')+'</td><td>'+esc(o.source||'—')+'</td></tr>';
-        }).join('')+'</tbody></table>'
-      ) : '<div class="empty">No opportunities recorded yet.</div>';
-    } catch(e) { toast('RevOps load failed: '+e.message); }
+    if (revopsInflight) return revopsInflight;
+    setRevopsError('');
+    setRevopsLoading(true);
+    revopsInflight = (async function () {
+      try {
+        const pf = $('#revopsPriorityFilter').value;
+        const q = '/.netlify/functions/revenue-admin?view=dashboard&limit=50' + (pf ? '&priority=' + encodeURIComponent(pf) : '');
+        const data = await api(q);
+        renderRevopsDashboard(data);
+        const lu = $('#revopsLastUpdated');
+        if (lu) lu.textContent = 'Last updated ' + new Date().toLocaleTimeString();
+      } catch (e) {
+        setRevopsError('RevOps load failed: ' + (e.message || 'unknown error'));
+        $('#revopsPriority').innerHTML = '<div class="empty">Could not load priority queue.</div>';
+        $('#revopsGarage').innerHTML = '<div class="empty">Could not load Garage Plan opportunities.</div>';
+        $('#revopsOpps').innerHTML = '<div class="empty">Could not load opportunities.</div>';
+      } finally {
+        setRevopsLoading(false);
+        revopsInflight = null;
+      }
+    })();
+    return revopsInflight;
   }
   $('#revopsRefresh').onclick = refreshRevopsTab;
+  $('#revopsRetry').onclick = refreshRevopsTab;
   $('#revopsPriorityFilter').onchange = refreshRevopsTab;
 })();
 </script>
