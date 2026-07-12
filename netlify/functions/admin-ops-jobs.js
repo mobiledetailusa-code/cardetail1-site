@@ -10,7 +10,21 @@ const {
   applyServerOffersToBooking,
   evaluateBookingOfferPreview,
 } = require('../lib/booking-offers');
-const { auditEntry, appendAudit } = require('../lib/operations-audit');
+const { auditEntry, appendAudit, listAuditForBooking } = require('../lib/operations-audit');
+const {
+  createAdminAppointment,
+  updateCustomerContact,
+  mutateVehicles,
+  updateServicePackage,
+  adminTechStatus,
+  approveAdjustment,
+  rejectAdjustment,
+  setApprovedFinalAmount,
+  markCashReceived,
+  markCardOnSite,
+  generateCustomerLinks,
+  reopenAppointment,
+} = require('../lib/admin-booking-mutations');
 
 const TEST_SIGNALS = [
   b => b.isTest === true,
@@ -99,8 +113,47 @@ async function listJobs(q) {
   });
 }
 
+async function persistMutation(store, bookingId, booking, previous, action, reason) {
+  await store.setJSON(bookingId, booking);
+  await appendAudit(auditEntry({
+    bookingId,
+    actorType: 'admin',
+    actorId: 'admin',
+    action,
+    previousState: previous,
+    resultingState: booking,
+    reason: reason || '',
+    sourcePortal: 'admin_ops',
+  })).catch(() => null);
+}
+
 async function handleAdminAction(body) {
   const action = sanitizeText(body.action, 40);
+
+  if (action === 'create_appointment') {
+    const store = await blobsStore('cd1-bookings');
+    const result = await createAdminAppointment(store, body);
+    if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
+    await appendAudit(auditEntry({
+      bookingId: result.bookingId,
+      actorType: 'admin',
+      actorId: 'admin',
+      action: 'create_appointment',
+      previousState: null,
+      resultingState: result.booking,
+      reason: sanitizeText(body.reason, 300) || 'admin_create',
+      sourcePortal: 'admin_ops',
+    })).catch(() => null);
+    return jsonCors(200, { ok: true, bookingId: result.bookingId, booking: projectJobForAdmin(result.booking) });
+  }
+
+  if (action === 'list_audit') {
+    const bookingId = sanitizeText(body.bookingId, 48);
+    if (!bookingId) return jsonCors(400, { ok: false, error: 'bookingId_required' });
+    const rows = await listAuditForBooking(bookingId, Number(body.limit) || 100);
+    return jsonCors(200, { ok: true, bookingId, audit: rows });
+  }
+
   const bookingId = sanitizeText(body.bookingId, 48);
   if (!bookingId) return jsonCors(400, { ok: false, error: 'bookingId_required' });
 
@@ -608,6 +661,97 @@ async function handleAdminAction(body) {
     const reason = sanitizeText(body.reason, 200) || 'admin_archive_test';
     await store.setJSON(bookingId, archiveBookingRecord(booking, reason));
     return jsonCors(200, { ok: true, bookingId, archived: true });
+  }
+
+  if (action === 'update_customer') {
+    const result = updateCustomerContact(booking, body);
+    if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
+    await persistMutation(store, bookingId, result.booking, booking, 'update_customer', body.reason);
+    return jsonCors(200, { ok: true, bookingId });
+  }
+
+  if (action === 'update_vehicles') {
+    const result = mutateVehicles(booking, body);
+    if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
+    await persistMutation(store, bookingId, result.booking, booking, 'update_vehicles', body.reason);
+    return jsonCors(200, { ok: true, bookingId, totalPrice: result.booking.totalPrice });
+  }
+
+  if (action === 'update_service') {
+    const result = await updateServicePackage(booking, body);
+    if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
+    await persistMutation(store, bookingId, result.booking, booking, 'update_service', body.reason);
+    return jsonCors(200, { ok: true, bookingId, totalPrice: result.booking.totalPrice });
+  }
+
+  if (action === 'admin_tech_status') {
+    const result = adminTechStatus(booking, body);
+    if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
+    await persistMutation(store, bookingId, result.booking, booking, 'admin_tech_status', body.statusAction);
+    return jsonCors(200, { ok: true, bookingId, jobStatus: result.booking.jobStatus });
+  }
+
+  if (action === 'approve_adjustment') {
+    const result = approveAdjustment(booking, body);
+    if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
+    await persistMutation(store, bookingId, result.booking, booking, 'approve_adjustment', body.reason);
+    return jsonCors(200, { ok: true, bookingId, approvedFinalAmount: result.booking.approvedFinalAmount });
+  }
+
+  if (action === 'reject_adjustment') {
+    const reason = sanitizeText(body.reason, 500);
+    if (!reason) return jsonCors(400, { ok: false, error: 'reason_required' });
+    const result = rejectAdjustment(booking, body);
+    await persistMutation(store, bookingId, result.booking, booking, 'reject_adjustment', reason);
+    return jsonCors(200, { ok: true, bookingId });
+  }
+
+  if (action === 'set_approved_final_amount') {
+    const result = setApprovedFinalAmount(booking, body);
+    if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
+    await persistMutation(store, bookingId, result.booking, booking, 'set_approved_final_amount', body.reason);
+    return jsonCors(200, { ok: true, bookingId, approvedFinalAmount: result.booking.approvedFinalAmount });
+  }
+
+  if (action === 'mark_cash_received') {
+    const result = markCashReceived(booking, body);
+    await persistMutation(store, bookingId, result.booking, booking, 'mark_cash_received', body.reference);
+    return jsonCors(200, { ok: true, bookingId, paymentStatus: result.booking.paymentStatus });
+  }
+
+  if (action === 'mark_card_on_site') {
+    const reference = sanitizeText(body.reference, 120);
+    if (!reference) return jsonCors(400, { ok: false, error: 'reference_required' });
+    const result = markCardOnSite(booking, body);
+    await persistMutation(store, bookingId, result.booking, booking, 'mark_card_on_site', reference);
+    return jsonCors(200, { ok: true, bookingId, paymentStatus: result.booking.paymentStatus });
+  }
+
+  if (action === 'generate_customer_link') {
+    const siteUrl = process.env.DEPLOY_PRIME_URL || process.env.URL || '';
+    const result = await generateCustomerLinks(booking, body, siteUrl);
+    if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
+    const patch = {
+      ...booking,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'customer_link_generated', by: 'admin', linkType: result.linkType }),
+    };
+    if (result.linkType === 'completion') {
+      patch.completionLinkUrl = result.url;
+      patch.completionLinkExpiresAt = result.expiresAt;
+    } else {
+      patch.myGarageLinkUrl = result.url;
+    }
+    await persistMutation(store, bookingId, patch, booking, 'generate_customer_link', result.linkType);
+    return jsonCors(200, { ok: true, bookingId, url: result.url, linkType: result.linkType, expiresAt: result.expiresAt || null });
+  }
+
+  if (action === 'reopen_appointment') {
+    const reason = sanitizeText(body.reason, 500);
+    if (!reason) return jsonCors(400, { ok: false, error: 'reason_required' });
+    const result = reopenAppointment(booking, body);
+    await persistMutation(store, bookingId, result.booking, booking, 'reopen_appointment', reason);
+    return jsonCors(200, { ok: true, bookingId, jobStatus: result.booking.jobStatus });
   }
 
   return jsonCors(400, { ok: false, error: 'unknown_action' });
