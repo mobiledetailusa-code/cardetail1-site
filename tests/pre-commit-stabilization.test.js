@@ -177,6 +177,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/revenue-segments.js',
     'netlify/lib/revenue-scoring.js',
     'netlify/lib/revenue-offers.js',
+    'netlify/lib/booking-offers.js',
+    'netlify/functions/evaluate-booking-offer.js',
     'netlify/lib/revenue-resume.js',
     'netlify/lib/revenue-recovery.js',
     'netlify/lib/revenue-household.js',

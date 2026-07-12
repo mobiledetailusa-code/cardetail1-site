@@ -4,7 +4,15 @@ Branch: `operations-core-job-lifecycle`
 Base SHA: `2c842b8ac92993cd16f6084ddd018a62c50c5408`  
 Last updated: 2026-07-12
 
-## Phase 1 — Baseline audit
+## CARDDETAIL1 extension — checkout, WELCOME10, Back to Top (2026-07-12)
+
+- **Four-step checkout:** `BK_VISIBLE_STEPS = 4` — Service (ZIP+category+package), Vehicle & add-ons, Contact & schedule, Secure & submit (payment + review)
+- **WELCOME10:** `netlify/lib/booking-offers.js`, `evaluate-booking-offer.js`, server apply in `submit-booking.js`; client panel `assets/checkout-offer.js`
+- **Analytics:** `assets/checkout-analytics.js` — funnel events without PII; GA4 `begin_checkout` / `add_payment_info` / `purchase` (purchase only on real payment)
+- **Back to Top:** `assets/back-to-top.js` uses `document.scrollingElement`, keyboard Enter/Space
+- **Tests:** `tests/checkout-offer-btt.test.js`
+- **Branch QA:** set `FIRST_BOOKING_OFFER_ENABLED=true` on Branch Deploy only
+
 
 - **Tests at base:** 871 pass
 - **Signature failure root cause:** white stroke (`#ffffff`) on transparent canvas exports invisible PNG on admin white background; `resize()` clears canvas without resetting `hasInk`; server only checks signature string length
