@@ -102,6 +102,31 @@ function removeInlineBtt(html) {
   return out;
 }
 
+function injectMyGarageNav(html, file) {
+  if (file === 'index.html' || file === 'my-garage.html') return html;
+  if (file === 'multi-vehicle-detailing.html') {
+    if (html.includes('my-garage.html') && html.match(/<nav[\s\S]*?my-garage\.html/)) return html;
+    return html.replace(
+      /(<nav class="nav">[\s\S]*?<\/a>)\s*(<a href="index\.html">Home<\/a>)/,
+      '$1\n  <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">\n    <a href="my-garage.html">My Garage</a>\n    $2\n  </div>'
+    );
+  }
+  if (!html.includes('id="nav-links"')) return html;
+  const navBlock = html.match(/<div class="nav-links" id="nav-links">[\s\S]*?<\/div>/);
+  if (!navBlock || navBlock[0].includes('my-garage.html')) return html;
+  let out = html.replace(
+    /(<div class="nav-links" id="nav-links">[\s\S]*?<a class="nav-link"[^>]*>Services<\/a>)\s*/i,
+    '$1\n    <a class="nav-link" href="my-garage.html">My Garage</a>\n    '
+  );
+  if (!out.includes('class="nav-book-mobile"') && out.includes('class="nav-menu-btn"')) {
+    out = out.replace(
+      /(\s*<button[^>]*class="nav-menu-btn")/,
+      '\n  <a class="nav-book-mobile" href="my-garage.html">My Garage</a>$1'
+    );
+  }
+  return out;
+}
+
 async function main() {
   const footerRaw = await readFile(FOOTER_PARTIAL, 'utf8');
   const footer = stripFooterComment(footerRaw);
@@ -154,6 +179,8 @@ async function main() {
     if (HUB_PAGES.includes(file) && !html.includes('assets/hub-booking-bridge.js') && html.includes('</body>')) {
       html = html.replace('</body>', `  ${HUB_BRIDGE_JS}\n</body>`);
     }
+
+    html = injectMyGarageNav(html, file);
 
     if (html !== orig) {
       await writeFile(path, html, 'utf8');
