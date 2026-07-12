@@ -20,17 +20,30 @@ function envIntAny(names, fallback) {
 }
 
 const OPS_CORE_BRANCH = 'operations-core-job-lifecycle';
+const OPS_CORE_HOST_PREFIX = 'operations-core-job-lifecycle--';
+
+let offerDeployHost = '';
+
+/** Set per-request deploy host from Netlify function event (cleared after handler). */
+function setOfferDeployHost(host) {
+  offerDeployHost = String(host || '').trim().toLowerCase();
+}
+
+function clearOfferDeployHost() {
+  offerDeployHost = '';
+}
 
 /** Branch deploy QA — operations-core-job-lifecycle only (not production or other branches). */
 function isOperationsCoreBranchDeploy() {
   const ctx = String(process.env.CONTEXT || '').toLowerCase();
   if (ctx === 'production') return false;
+  if (offerDeployHost && offerDeployHost.startsWith(OPS_CORE_HOST_PREFIX)) return true;
   const branch = String(
     process.env.BRANCH || process.env.COMMIT_REF || process.env.HEAD || ''
   ).trim();
   if (branch === OPS_CORE_BRANCH) return true;
   const prime = String(process.env.DEPLOY_PRIME_URL || process.env.URL || '');
-  return /^https:\/\/operations-core-job-lifecycle--/i.test(prime);
+  return new RegExp(`^https:\\/\\/${OPS_CORE_HOST_PREFIX}`, 'i').test(prime);
 }
 
 function isFirstBookingOfferEnabled() {
@@ -132,4 +145,7 @@ module.exports = {
   getOfferConfig,
   evaluateOffers,
   isEligiblePackage,
+  setOfferDeployHost,
+  clearOfferDeployHost,
+  isOperationsCoreBranchDeploy,
 };

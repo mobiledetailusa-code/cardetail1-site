@@ -62,6 +62,7 @@ const {
   stripClientOfferFields,
   CLIENT_OFFER_BLOCKED_FIELDS,
 } = require('../lib/booking-offers');
+const { setOfferDeployHost, clearOfferDeployHost } = require('../lib/revenue-offers');
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const v = validateBookingSchedule(b.preferredDate, b.preferredTime);
@@ -380,6 +381,8 @@ async function sendSms(b) {
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  setOfferDeployHost(event.headers?.['x-forwarded-host'] || event.headers?.Host || event.headers?.host || '');
+  try {
   let b;
   try { b = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
@@ -575,6 +578,9 @@ exports.handler = async (event) => {
 
   // ── New booking (cash/on-site or any path that didn't pre-register a draft) ──
   return json(409, { ok: false, error: 'card_on_file_required' });
+  } finally {
+    clearOfferDeployHost();
+  }
 };
 
 exports.__test = {

@@ -81,4 +81,32 @@ test('offer engine scopes branch QA to operations-core-job-lifecycle deploy only
   const src = read('netlify/lib/revenue-offers.js');
   assert.match(src, /isOperationsCoreBranchDeploy/);
   assert.match(src, /operations-core-job-lifecycle--/);
+  assert.match(src, /setOfferDeployHost/);
+});
+
+test('evaluate-booking-offer binds deploy host for branch QA', () => {
+  const src = read('netlify/functions/evaluate-booking-offer.js');
+  assert.match(src, /setOfferDeployHost/);
+  assert.match(src, /x-forwarded-host/);
+});
+
+test('host header enables offer only on operations-core branch deploy', () => {
+  const {
+    setOfferDeployHost,
+    clearOfferDeployHost,
+    getOfferConfig,
+    isOperationsCoreBranchDeploy,
+  } = require('../netlify/lib/revenue-offers');
+  const prev = process.env.FIRST_BOOKING_OFFER_ENABLED;
+  delete process.env.FIRST_BOOKING_OFFER_ENABLED;
+  clearOfferDeployHost();
+  assert.equal(getOfferConfig().firstBooking.enabled, false);
+  setOfferDeployHost('operations-core-job-lifecycle--cardetail1.netlify.app');
+  assert.equal(isOperationsCoreBranchDeploy(), true);
+  assert.equal(getOfferConfig().firstBooking.enabled, true);
+  setOfferDeployHost('cardetail1.netlify.app');
+  assert.equal(getOfferConfig().firstBooking.enabled, false);
+  clearOfferDeployHost();
+  if (prev === undefined) delete process.env.FIRST_BOOKING_OFFER_ENABLED;
+  else process.env.FIRST_BOOKING_OFFER_ENABLED = prev;
 });

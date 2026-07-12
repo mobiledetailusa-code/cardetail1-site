@@ -3,6 +3,11 @@
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 const { applyServerTravelAndTotal } = require('../lib/travel-fee');
 const { evaluateBookingOfferPreview, stripClientOfferFields } = require('../lib/booking-offers');
+const { setOfferDeployHost, clearOfferDeployHost } = require('../lib/revenue-offers');
+
+function deployHostFromEvent(event) {
+  return event.headers?.['x-forwarded-host'] || event.headers?.Host || event.headers?.host || '';
+}
 
 function json(status, body) {
   return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -11,6 +16,8 @@ function json(status, body) {
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
 
+  setOfferDeployHost(deployHostFromEvent(event));
+  try {
   const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'evaluate-booking-offer' });
   if (rateLimit.blocked) return rateLimit.response;
 
@@ -41,4 +48,7 @@ exports.handler = async (event) => {
         - (preview.offer.discount_amount || 0) / 100) * 100) / 100
     ),
   });
+  } finally {
+    clearOfferDeployHost();
+  }
 };
