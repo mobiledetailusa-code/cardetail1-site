@@ -57,6 +57,11 @@ const {
 const { validateBookingSchedule, hasSlotConflict } = require('../lib/booking-schedule');
 const { listRawBookings, normalizePhone } = require('../lib/ops-db');
 const { validateBookingRouting } = require('../lib/booking-routing-validation');
+const {
+  applyServerOffersToBooking,
+  stripClientOfferFields,
+  CLIENT_OFFER_BLOCKED_FIELDS,
+} = require('../lib/booking-offers');
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const v = validateBookingSchedule(b.preferredDate, b.preferredTime);
@@ -167,6 +172,10 @@ function buildDraftRecord(b, draftId, now, existing = null) {
     electricityAvailable: b.electricityAvailable || '',
     serviceLocation: b.serviceLocation || '',
     accessNotes: b.accessNotes || '',
+    offer: b.offer || existing?.offer || null,
+    welcomeOffer: b.welcomeOffer || existing?.welcomeOffer || null,
+    approvedFinalAmount: b.approvedFinalAmount ?? existing?.approvedFinalAmount ?? null,
+    discountAmount: b.discountAmount ?? existing?.discountAmount ?? 0,
   };
 }
 
@@ -383,6 +392,8 @@ exports.handler = async (event) => {
 
   // C-1: Strip all fields the browser must never control.
   for (const f of CLIENT_BLOCKED_FIELDS) delete b[f];
+  for (const f of CLIENT_OFFER_BLOCKED_FIELDS) delete b[f];
+  stripClientOfferFields(b);
   // C-3: Ignore any client-submitted ID entirely.
   delete b.id;
   delete b.bookingId;
@@ -408,6 +419,20 @@ exports.handler = async (event) => {
   if (!travelApplied.ok) {
     return json(400, { ok: false, error: travelApplied.error || 'out_of_service_area' });
   }
+
+  const welcomeSource = String(b.welcomeOfferSource || b.offerSource || '').trim() || null;
+  delete b.welcomeOfferSource;
+  delete b.offerSource;
+  delete b.welcomeOfferAccepted;
+
+  const offerApplied = await applyServerOffersToBooking(b, {
+    serviceSubtotal: travelApplied.serviceSubtotal,
+    travelFee: b.travelFeeAmount || 0,
+    sourceTrigger: welcomeSource,
+  }).catch((e) => {
+    console.warn('[submit-booking] offer apply failed:', e.message);
+    return null;
+  });
 
   const store = await blobsStore('cd1-bookings');
 
@@ -543,6 +568,8 @@ exports.handler = async (event) => {
       sms,
       appointmentStatus: b.appointmentStatus,
       cardOnFileStatus: b.cardOnFileStatus,
+      offer: b.offer || null,
+      approvedFinalAmount: b.approvedFinalAmount || b.totalPrice,
     });
   }
 

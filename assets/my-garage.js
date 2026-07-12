@@ -135,6 +135,14 @@
       return;
     }
     var pay = (data && data.payment) || {};
+    var offer = b.offer || b.welcomeOffer || null;
+    var offerHtml = '';
+    if (offer && offer.eligibility_status === 'eligible' && Number(offer.discount_amount) > 0) {
+      offerHtml =
+        '<div><dt>' + (offer.public_name || 'Welcome offer') + '</dt><dd>-' + fmtMoney((offer.discount_amount || 0) / 100) + '</dd></div>' +
+        '<div><dt>Original eligible subtotal</dt><dd>' + fmtMoney((offer.eligible_subtotal || 0) / 100) + '</dd></div>' +
+        '<div><dt>Redemption status</dt><dd>' + (offer.redemption_status || 'pending') + '</dd></div>';
+    }
     hero.innerHTML =
       '<div class="card">' +
       '<div class="card-kicker">' + (b.status || 'Status') + '</div>' +
@@ -143,7 +151,8 @@
       '<div><dt>Date</dt><dd>' + (b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
       '<div><dt>Time</dt><dd>' + (b.confirmedTime || b.preferredTime || '—') + '</dd></div>' +
       '<div><dt>Location</dt><dd>' + (b.address || b.serviceLocation || '—') + '</dd></div>' +
-      '<div><dt>Estimated total</dt><dd>' + fmtMoney(b.totalPrice) + '</dd></div>' +
+      offerHtml +
+      '<div><dt>Approved total</dt><dd>' + fmtMoney(b.approvedFinalAmount != null ? b.approvedFinalAmount : b.totalPrice) + '</dd></div>' +
       (pay.amountDueApproved ? '<div><dt>Amount due</dt><dd>' + fmtMoney(pay.amountDueApproved) + '</dd></div>' : '') +
       '</dl>' +
       (pay.canPay && pay.payLink
