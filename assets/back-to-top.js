@@ -1,4 +1,4 @@
-/** Single shared Back to Top — one listener, chat-safe z-index, reduced-motion aware. */
+/** Single authoritative Back to Top — scrolls document.scrollingElement. */
 (function (global) {
   'use strict';
 
@@ -7,29 +7,48 @@
 
   var THRESHOLD = 420;
   var btn = null;
+  var scrollRoot = null;
 
   function prefersReducedMotion() {
     return global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
+  function getScrollRoot() {
+    return global.document.scrollingElement || global.document.documentElement || global.document.body;
+  }
+
   function scrollToTop() {
+    var root = getScrollRoot();
     if (prefersReducedMotion()) {
+      root.scrollTop = 0;
       global.scrollTo(0, 0);
     } else {
       global.scrollTo({ top: 0, behavior: 'smooth' });
+      root.scrollTop = 0;
     }
+  }
+
+  function onActivate(e) {
+    if (e.type === 'keydown') {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+    }
+    scrollToTop();
   }
 
   function syncVisibility() {
     if (!btn) return;
-    var on = global.scrollY > THRESHOLD;
+    var root = getScrollRoot();
+    var y = root.scrollTop || global.scrollY || 0;
+    var on = y > THRESHOLD;
     btn.classList.toggle('cd1-btt-on', on);
     btn.setAttribute('aria-hidden', on ? 'false' : 'true');
   }
 
   function ensureButton() {
-    if (document.getElementById('cd1-btt')) {
-      btn = document.getElementById('cd1-btt');
+    var existing = document.getElementById('cd1-btt');
+    if (existing) {
+      btn = existing;
       return btn;
     }
     var legacy = document.getElementById('btt');
@@ -41,12 +60,14 @@
     btn.setAttribute('aria-label', 'Back to top');
     btn.setAttribute('aria-hidden', 'true');
     btn.textContent = '\u2191';
-    btn.addEventListener('click', scrollToTop);
+    btn.addEventListener('click', onActivate);
+    btn.addEventListener('keydown', onActivate);
     document.body.appendChild(btn);
     return btn;
   }
 
   function init() {
+    scrollRoot = getScrollRoot();
     ensureButton();
     syncVisibility();
     global.addEventListener('scroll', syncVisibility, { passive: true });
@@ -59,5 +80,7 @@
     init();
   }
 
+  global.cd1ScrollToTop = scrollToTop;
   global.cd1SyncBackToTop = syncVisibility;
+  global.cd1GetScrollRoot = getScrollRoot;
 })(window);
