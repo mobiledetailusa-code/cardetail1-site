@@ -70,7 +70,8 @@ for (const page of hubPages) {
     for (const s of preservedBookingStrings) {
       assert.match(html, new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
-    assert.match(html, /id="cp-ov"/);
+    assert.match(html, /my-garage\.html/);
+    assert.doesNotMatch(html, /id="cp-ov"/);
     assert.match(html, /captureDraftSaveResponse/);
     assert.match(html, /draftSessionBookingId/);
     assert.match(html, /draftSessionToken/);

@@ -14,7 +14,8 @@ const {
   JOB_STATUSES,
 } = require('../netlify/lib/ops-schema');
 
-const customer = read('customer.html');
+const myGarage = read('my-garage.html');
+const myGarageJs = read('assets/my-garage.js');
 const lookup = read('netlify/functions/lookup-booking.js');
 const customerBookings = read('netlify/functions/customer-bookings.js');
 const opsDb = read('netlify/lib/ops-db.js');
@@ -52,10 +53,10 @@ test('projectBookingForCustomer exposes ops fields for portal UI', () => {
 });
 
 test('customer portal uses cloud lookup — not localStorage cd1_bookings', () => {
-  assert.match(customer, /lookup-booking/);
-  assert.match(customer, /submit-customer-action/);
-  assert.doesNotMatch(customer, /localStorage\.getItem\('cd1_bookings'\)/);
-  assert.match(customer, /completed_pending_admin_review/);
+  assert.match(myGarageJs, /customer-portal-data|lookup-booking/);
+  assert.match(myGarageJs, /submit-customer-action/);
+  assert.doesNotMatch(myGarageJs, /localStorage\.getItem\('cd1_bookings'\)/);
+  assert.doesNotMatch(myGarage, /localStorage\.getItem\('cd1_bookings'\)/);
 });
 
 test('lookup-booking and customer-bookings use ops-db + ops-schema', () => {

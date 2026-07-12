@@ -1,0 +1,18 @@
+/* Shared public footer + back-to-top — all public pages */
+.specialty-public-footer{background:#060c16;border-top:1px solid rgba(255,255,255,.06);padding:48px 24px 32px;color:#8a9bb0;font-family:'DM Sans',Inter,sans-serif}
+.specialty-public-footer .foot-in{max-width:1100px;margin:0 auto}
+.specialty-public-footer .foot-top{display:grid;grid-template-columns:minmax(0,1.15fr) repeat(4,minmax(0,1fr));gap:28px 32px;margin-bottom:32px}
+.specialty-public-footer .foot-logo-img{height:52px;width:auto;max-width:240px;object-fit:contain;display:block;margin-bottom:12px}
+.specialty-public-footer .foot-tagline{font-size:13px;line-height:1.65;color:#8a9bb0;max-width:300px;margin:0}
+.specialty-public-footer .foot-col h4{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#4da3ff;margin:0 0 12px}
+.specialty-public-footer .foot-col a,.specialty-public-footer .foot-static{display:block;font-size:13.5px;color:#8a9bb0;text-decoration:none;margin-bottom:7px;transition:color .2s}
+.specialty-public-footer .foot-col a:hover,.specialty-public-footer .foot-col a:focus-visible{color:#fff;outline:2px solid #4da3ff;outline-offset:2px;border-radius:2px}
+.specialty-public-footer .foot-static{cursor:default}
+.specialty-public-footer .foot-bot{padding-top:22px;border-top:1px solid rgba(255,255,255,.06)}
+.specialty-public-footer .foot-copy{font-size:12px;color:rgba(138,155,176,.55)}
+#cd1-btt{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(88px,calc(72px + env(safe-area-inset-bottom)));width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(12,18,32,.92);color:#fff;font-size:20px;line-height:1;cursor:pointer;z-index:985;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(8px);transition:opacity .2s,visibility .2s,transform .2s;box-shadow:0 4px 20px rgba(0,0,0,.35)}
+#cd1-btt.cd1-btt-on{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0)}
+#cd1-btt:hover,#cd1-btt:focus-visible{background:#1a2840;border-color:rgba(77,163,255,.5);outline:2px solid #4da3ff;outline-offset:2px}
+@media(max-width:900px){.specialty-public-footer .foot-top{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.specialty-public-footer .foot-top{grid-template-columns:1fr}}
+@media (prefers-reduced-motion: reduce){#cd1-btt{transition:none}}

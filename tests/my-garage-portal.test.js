@@ -1,0 +1,176 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.resolve(__dirname, '..');
+const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
+
+const phoneAuth = require('../netlify/lib/phone-auth');
+const { canRequestChange, classifyStatus } = require('../netlify/lib/appointment-status-policy');
+const { deriveRateLimitKey, DEFAULT_LIMITS } = require('../netlify/lib/public-rate-limit');
+const { verifyDraftSaveToken, issueDraftSaveToken } = require('../netlify/lib/draft-save-token');
+
+process.env.DRAFT_TOKEN_SECRET = 'test-draft-token-secret-32chars-minimum';
+process.env.CUSTOMER_SESSION_SECRET = 'test-customer-session-secret-32chars';
+
+test('phonesMatch: valid 10-digit match', () => {
+  assert.equal(phoneAuth.phonesMatch('5513132956', '5513132956'), true);
+});
+
+test('phonesMatch: valid country-code match', () => {
+  assert.equal(phoneAuth.phonesMatch('+15513132956', '5513132956'), true);
+  assert.equal(phoneAuth.phonesMatch('15513132956', '(551) 313-2956'), true);
+});
+
+test('phonesMatch: formatted-number match', () => {
+  assert.equal(phoneAuth.phonesMatch('(551) 313-2956', '5513132956'), true);
+});
+
+test('phonesMatch: short suffix rejection', () => {
+  assert.equal(phoneAuth.phonesMatch('132956', '5513132956'), false);
+  assert.equal(phoneAuth.phonesMatch('3132956', '5513132956'), false);
+});
+
+test('phonesMatch: different customer rejection', () => {
+  assert.equal(phoneAuth.phonesMatch('5513132956', '5519999999'), false);
+});
+
+test('normalizeUsPhoneE164', () => {
+  assert.equal(phoneAuth.normalizeUsPhoneE164('(551) 313-2956'), '+15513132956');
+});
+
+test('mutation endpoints have rate limit buckets', () => {
+  assert.ok(DEFAULT_LIMITS['submit-customer-action']);
+  assert.ok(DEFAULT_LIMITS['request-cancellation']);
+});
+
+test('rate limit keys are hashed without storing raw IP', () => {
+  const key = deriveRateLimitKey('203.0.113.10', 'submit-customer-action', '');
+  assert.match(key, /^rl-[a-f0-9]{40}$/);
+  assert.doesNotMatch(key, /203\.0\.113/);
+});
+
+test('booking-card-status requires authorization', () => {
+  const src = read('netlify/functions/booking-card-status.js');
+  assert.match(src, /authentication_failed/);
+  assert.match(src, /authorizeBookingAccess|verifyDraftSaveToken|verifyAdminRequest/);
+  assert.doesNotMatch(src, /if \(!bookingId\) return json\(404/);
+});
+
+test('submit-customer-action uses shared auth and rate limiting', () => {
+  const src = read('netlify/functions/submit-customer-action.js');
+  assert.match(src, /enforcePublicRateLimit/);
+  assert.match(src, /authorizeBookingAccess/);
+  assert.match(src, /canRequestChange/);
+  assert.doesNotMatch(src, /function phonesMatch/);
+});
+
+test('request-cancellation uses rate limiting', () => {
+  const src = read('netlify/functions/request-cancellation.js');
+  assert.match(src, /enforcePublicRateLimit/);
+  assert.doesNotMatch(src, /function phonesMatch/);
+});
+
+test('one shared footer partial with required columns', () => {
+  const footer = read('assets/partials/specialty-public-footer.html');
+  assert.match(footer, /My Garage/);
+  assert.match(footer, /Pay a Balance/);
+  assert.match(footer, /my-garage\.html#payments/);
+  assert.match(footer, /Service Areas/);
+  assert.doesNotMatch(footer, /Specialty Services/i);
+  assert.doesNotMatch(footer, /placeholder/i);
+});
+
+test('no Services/Specialty duplication in canonical footer', () => {
+  const footer = read('assets/partials/specialty-public-footer.html');
+  const servicesCount = (footer.match(/<h4>Services<\/h4>/g) || []).length;
+  assert.equal(servicesCount, 1);
+});
+
+test('shared back-to-top single implementation', () => {
+  const btt = read('assets/back-to-top.js');
+  assert.match(btt, /__CD1_BTT_INIT__/);
+  assert.match(btt, /type = 'button'/);
+  assert.match(btt, /aria-label/);
+  assert.match(btt, /prefers-reduced-motion/);
+  assert.match(btt, /z-index:985|cd1-btt/);
+});
+
+test('my-garage metadata and privacy', () => {
+  const page = read('my-garage.html');
+  assert.match(page, /noindex,nofollow/);
+  assert.match(page, /My Garage \| Manage Your Cardetail1 Booking/);
+  assert.match(page, /clarity.*mask/i);
+  assert.doesNotMatch(page, /5513132956.*booking/i);
+});
+
+test('my-garage absent from sitemap', () => {
+  const sitemap = read('sitemap.xml');
+  assert.doesNotMatch(sitemap, /my-garage/);
+});
+
+test('portal analytics allowlist only', () => {
+  const js = read('assets/portal-analytics.js');
+  assert.match(js, /portal_opened/);
+  const payloadBlock = js.slice(js.indexOf('function emit'));
+  assert.doesNotMatch(payloadBlock, /bookingId|customerId|phone|email|@/i);
+  assert.doesNotMatch(payloadBlock, /dataLayer\.push\(\{[^}]*token/i);
+});
+
+test('limited access endpoint returns single booking scope', () => {
+  const src = read('netlify/functions/customer-portal-data.js');
+  assert.match(src, /mode === 'limited'/);
+  assert.match(src, /scope: 'booking'/);
+});
+
+test('full account requires session', () => {
+  const src = read('netlify/functions/customer-portal-data.js');
+  assert.match(src, /validateCustomerSession/);
+  assert.match(src, /401/);
+});
+
+test('customer session cookie is HttpOnly', () => {
+  const src = read('netlify/lib/customer-session.js');
+  assert.match(src, /HttpOnly/);
+  assert.match(src, /SameSite=Lax/);
+});
+
+test('garage vehicles require authenticated account', () => {
+  const src = read('netlify/functions/customer-portal-vehicles.js');
+  assert.match(src, /validateCustomerSession/);
+  assert.match(src, /scope !== 'account'/);
+});
+
+test('appointment status policy blocks in-progress changes', () => {
+  const booking = { status: 'In Progress', jobStatus: 'in_progress' };
+  const result = canRequestChange(booking, 'cancel');
+  assert.equal(result.ok, false);
+  assert.equal(result.requiresCall, true);
+});
+
+test('confirmed changes require approval flag', () => {
+  const booking = { status: 'Confirmed', jobStatus: 'confirmed' };
+  const result = canRequestChange(booking, 'package_change');
+  assert.equal(result.ok, true);
+  assert.equal(result.pendingApproval, true);
+});
+
+test('auth token verify rejects replay', async () => {
+  const issued = issueDraftSaveToken({ bookingId: 'CD1-TEST', phone: '5513132956' });
+  assert.equal(issued.ok, true);
+  const first = verifyDraftSaveToken({ token: issued.token, bookingId: 'CD1-TEST', phone: '5513132956' });
+  assert.equal(first.ok, true);
+  const replay = verifyDraftSaveToken({ token: issued.token, bookingId: 'CD1-TEST', phone: '5513132956', now: Date.now() + 1000 });
+  assert.equal(replay.ok, true);
+});
+
+test('customer.html redirects to my-garage', () => {
+  assert.match(read('customer.html'), /my-garage\.html/);
+});
+
+test('package catalog unchanged in customer action', () => {
+  const src = read('netlify/functions/submit-customer-action.js');
+  assert.match(src, /customer-catalog/);
+  assert.doesNotMatch(src, /PRICING\s*=/);
+});

@@ -84,6 +84,14 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/garage-plan-submit.js',
   'netlify/functions/revenue-admin.js',
   'netlify/functions/revenue-resume-link.js',
+  'netlify/functions/booking-card-status.js',
+  'netlify/functions/lookup-booking.js',
+  'netlify/functions/request-cancellation.js',
+  'netlify/functions/submit-customer-action.js',
+  'netlify/functions/admin-customer-requests.js',
+  'netlify/functions/customer-portal-auth.js',
+  'netlify/functions/customer-portal-data.js',
+  'netlify/functions/customer-portal-vehicles.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {

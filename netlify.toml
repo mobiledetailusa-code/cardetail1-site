@@ -20,6 +20,10 @@
   to = "/customer.html"
   status = 200
 [[redirects]]
+  from = "/my-garage"
+  to = "/my-garage.html"
+  status = 200
+[[redirects]]
   from = "/technician"
   to = "/technician.html"
   status = 200

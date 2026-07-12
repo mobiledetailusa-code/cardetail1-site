@@ -1445,6 +1445,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <link rel="stylesheet" href="assets/button-states.css">
 <link rel="stylesheet" href="assets/car-pkg-detail-modal.css">
 <style>.car-pkg-detail-ov[hidden]{display:none!important}</style>
+  <link rel="stylesheet" href="assets/public-surface.css">
 </head>
 <body class="luxury-surface">
 
@@ -2190,8 +2191,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </div>
 
 <!-- BACK TO TOP -->
-<button id="btt" aria-label="Back to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
-
 <!-- MOBILE STICKY CTA -->
 <div class="mobile-sticky-cta" id="mobile-sticky-cta">
   <button class="msc-book booking-popup-trigger" onclick="openBooking(null)">Book detail</button>
@@ -2200,44 +2199,49 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </div>
 
 <!-- FOOTER -->
-<footer>
+<footer class="specialty-public-footer" id="cd1-public-footer">
   <div class="foot-in">
     <div class="foot-top">
       <div>
         <img class="foot-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" loading="lazy" decoding="async">
-        <p class="foot-tagline">Based in Palisades Park, NJ. Serving Bergen County and nearby NJ/NY areas. Extended service areas available by quote. Mobile cars, boats, RVs, and powersports — we come to you. Commercial fleets by custom quote. Detailing Zone LLC.</p>
+        <p class="foot-tagline">Based in Palisades Park, NJ. Mobile cars, boats, RVs, and powersports — we come to you. Detailing Zone LLC.</p>
       </div>
       <div class="foot-col">
         <h4>Services</h4>
-        <a onclick="openBooking('cars')">Cars, SUVs & Trucks</a>
-        <a onclick="openBooking('boats')">Boats & Marine</a>
-        <a onclick="openBooking('rvs')">RVs & Trailers</a>
-        <a onclick="openBooking('powersports')">Motorcycles & ATV</a>
-        <a onclick="openCommercialInquiry()">Commercial &amp; Fleet Inquiries</a>
+        <a href="index.html">Cars, SUVs &amp; Trucks</a>
+        <a href="boats-detailing.html">Boats &amp; Marine</a>
+        <a href="rv-detailing.html">RVs &amp; Trailers</a>
+        <a href="powersports-detailing.html">Motorcycles &amp; Powersports</a>
+        <a href="multi-vehicle-detailing.html">Multi-Vehicle Detailing</a>
+        <a href="fleet-services.html">Commercial &amp; Fleet</a>
       </div>
       <div class="foot-col">
-        <h4>Specialty Services</h4>
-        <a href="boats-detailing.html">Boat &amp; Marine Detailing</a>
-        <a href="rv-detailing.html">RV &amp; Motorhome Detailing</a>
-        <a href="powersports-detailing.html">Powersports Detailing</a>
-        <a href="multi-vehicle-detailing.html">Multi-Vehicle Detailing</a>
-        <a onclick="openCommercialInquiry()">Commercial &amp; Fleet Inquiry</a>
+        <h4>Service Areas</h4>
+        <a href="new-jersey-hub.html">New Jersey</a>
+        <a href="ny-metro-hub.html">New York Metro</a>
+        <a href="connecticut-hub.html">Connecticut</a>
+        <a href="pennsylvania-hub.html">Pennsylvania</a>
+        <a href="bergen-county-hub.html">Bergen County</a>
+        <a href="index.html#service-areas">Extended Areas by Quote</a>
+      </div>
+      <div class="foot-col">
+        <h4>Customer</h4>
+        <a href="my-garage.html">My Garage</a>
+        <a href="my-garage.html#lookup">View or Manage Booking</a>
+        <a href="my-garage.html#payments">Pay a Balance</a>
+        <a href="index.html">Book Another Service</a>
+        <a href="terms-conditions.html">Terms &amp; Policies</a>
       </div>
       <div class="foot-col">
         <h4>Contact</h4>
-        <a href="tel:5513132956">📞 551-313-2956</a>
-        <a href="https://www.instagram.com/cardetail1com" target="_blank">📸 @cardetail1com</a>
-        <a class="foot-portal-link" onclick="openPortal()">View your booking</a>
-        <a>📍 Palisades Park, NJ · Bergen County</a>
+        <a href="tel:5513132956">Call / Text</a>
+        <a href="https://www.instagram.com/cardetail1com" target="_blank" rel="noopener noreferrer">Instagram</a>
+        <span class="foot-static">Palisades Park, NJ</span>
+        <span class="foot-static">Mon–Sat · By appointment</span>
       </div>
     </div>
     <div class="foot-bot">
-      <div class="foot-copy">© 2026 Cardetail1 · Detailing Zone LLC · All rights reserved.</div>
-      <div style="margin-top:14px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;align-items:center">
-        <span style="font-size:12px;color:rgba(255,255,255,.4)">Already booked?</span>
-        <a class="foot-portal-link" onclick="openPortal()" style="cursor:pointer;text-decoration:none">View your appointment</a>
-      </div>
-      <div class="foot-areas">Farther out? Call for an extended-service quote.</div>
+      <div class="foot-copy">&copy; 2026 Cardetail1 &middot; Detailing Zone LLC &middot; All rights reserved.</div>
     </div>
   </div>
 </footer>
@@ -2282,216 +2286,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════ -->
-<!--          CUSTOMER PORTAL MODAL            -->
-<!-- ══════════════════════════════════════════ -->
-<div class="cp-ov" id="cp-ov" onclick="handleCpOv(event)">
-  <div class="cp-modal">
-    <button class="cp-close" onclick="closePortal()">✕</button>
-    <div class="cp-title">MY BOOKING</div>
-    <p style="font-size:13px;color:var(--mu);margin-bottom:0">Access your booking and maintenance options.</p>
-    <div class="cp-tabs">
-      <button class="cp-tab active" onclick="cpTab(0)">🔍 Find</button>
-      <button class="cp-tab" onclick="cpTab(1)">💳 Pay</button>
-      <button class="cp-tab" onclick="cpTab(2)">✏️ Manage</button>
-      <button class="cp-tab" onclick="cpTab(3)">⭐ Review</button>
-    </div>
-
-    <!-- TAB 0: FIND MY BOOKING -->
-    <div class="cp-panel active" id="cp-p0">
-      <label class="cp-label">Booking ID</label>
-      <input class="cp-fi" id="cp-find-id" type="text" placeholder="e.g. CD1-XXXXX" autocomplete="off">
-      <label class="cp-label" style="margin-top:8px">Phone number on the booking</label>
-      <input class="cp-fi" id="cp-find-phone" type="tel" placeholder="e.g. 201-555-0100" autocomplete="tel">
-      <button class="cp-btn" onclick="cpFindBooking()">Access My Garage &rarr;</button>
-      <div class="cp-result" id="cp-find-result"></div>
-    </div>
-
-    <!-- TAB 1: PAY ONLINE -->
-    <div class="cp-panel" id="cp-p1">
-      <label class="cp-label">Booking ID</label>
-      <input class="cp-fi" id="cp-pay-id" type="text" placeholder="e.g. CD1-XXXXX" autocomplete="off">
-      <label class="cp-label" style="margin-top:8px">Phone number on the booking</label>
-      <input class="cp-fi" id="cp-pay-phone" type="tel" placeholder="e.g. 201-555-0100" autocomplete="tel">
-      <button class="cp-btn" onclick="cpGetPayLink()">Get Payment Link &rarr;</button>
-      <div class="cp-result" id="cp-pay-result"></div>
-      <p style="font-size:11px;color:var(--mu);margin-top:12px;line-height:1.6">Payment links are generated by Cardetail1 after your booking is confirmed. You&apos;ll also receive your link by text.</p>
-    </div>
-
-    <!-- TAB 2: MANAGE BOOKING -->
-    <div class="cp-panel" id="cp-p2">
-      <label class="cp-label">Booking ID</label>
-      <input class="cp-fi" id="cp-mgmt-id" type="text" placeholder="e.g. CD1-XXXXX" autocomplete="off">
-      <label class="cp-label" style="margin-top:8px">Phone number on the booking</label>
-      <input class="cp-fi" id="cp-mgmt-phone" type="tel" placeholder="e.g. 201-555-0100" autocomplete="tel">
-      <button class="cp-btn" onclick="cpLoadManage()">Load My Booking &rarr;</button>
-      <div id="cp-mgmt-result" style="display:none">
-        <!-- populated by JS -->
-      </div>
-      <!-- Sub-panels for each action -->
-      <div class="cp-sub-panel" id="cps-reschedule">
-        <label class="cp-label">New preferred date</label>
-        <input class="cp-fi" id="cp-new-date" type="date">
-        <label class="cp-label">New preferred time</label>
-        <select class="cp-fi" id="cp-new-time">
-          <option value="">Any available</option>
-          <option>Morning (8AM – 11AM)</option>
-          <option>Midday (11AM – 2PM)</option>
-          <option>Afternoon (2PM – 5PM)</option>
-        </select>
-        <button class="cp-btn" onclick="cpConfirmReschedule()">Confirm Reschedule →</button>
-        <div id="cp-reschedule-msg" style="display:none;margin-top:10px;font-size:13px"></div>
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.08)">
-          <label class="cp-label">New service address</label>
-          <input class="cp-fi" id="cp-new-addr" type="text" placeholder="123 Main St, Hoboken NJ 07030">
-          <button class="cp-btn" onclick="cpConfirmAddress()">Update Address →</button>
-          <div id="cp-addr-msg" style="display:none;margin-top:10px;font-size:13px"></div>
-        </div>
-      </div>
-      <div class="cp-sub-panel" id="cps-tip">
-        <p style="font-size:13px;color:var(--mu);margin-bottom:8px">Your technician did a great job! Leave a tip — it goes 100% to them.</p>
-        <div class="tip-row" id="tip-row">
-          <div class="tip-btn" onclick="cpSelectTip(10)">$10</div>
-          <div class="tip-btn" onclick="cpSelectTip(20)">$20</div>
-          <div class="tip-btn" onclick="cpSelectTip(30)">$30</div>
-          <div class="tip-btn" onclick="cpSelectTip(50)">$50</div>
-          <div class="tip-btn" onclick="cpSelectTip('custom')">Custom</div>
-        </div>
-        <input class="cp-fi" id="cp-custom-tip" type="number" min="1" placeholder="Custom tip amount $" style="display:none">
-        <button class="cp-btn" onclick="cpConfirmTip()">Send Tip →</button>
-        <div id="cp-tip-msg" style="display:none;margin-top:10px;font-size:13px"></div>
-      </div>
-      <div class="cp-sub-panel" id="cps-cancel">
-        <div id="cp-cancel-warn" style="padding:12px;border:1px solid rgba(239,68,68,.3);border-radius:var(--rs);background:var(--rddim);font-size:13px;color:var(--rd);margin-bottom:12px;line-height:1.6"></div>
-        <label class="cp-label">Reason for cancellation <span style="color:var(--rd)">*</span></label>
-        <textarea class="cp-fi" id="cp-cancel-reason" rows="3" placeholder="e.g. Schedule conflict, no longer needed…" style="resize:none;margin-bottom:8px"></textarea>
-        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;font-size:12px;color:var(--mu);cursor:pointer;line-height:1.5">
-          <input type="checkbox" id="cp-cancel-ack" style="margin-top:2px;accent-color:var(--blue);flex-shrink:0">
-          <span>I understand the cancellation policy. Late cancellations (within 24h) or no-shows may incur a fee per the posted terms.</span>
-        </label>
-        <button class="cp-btn" id="cp-cancel-confirm-btn" style="background:var(--rd)" onclick="cpConfirmCancel()">Confirm Cancellation Request</button>
-        <div id="cp-cancel-msg" style="display:none;margin-top:10px;font-size:13px"></div>
-      </div>
-      <div class="cp-sub-panel" id="cps-addons">
-        <p style="font-size:13px;color:var(--mu);margin-bottom:10px">Select add-ons to add to your booking. We'll confirm availability and adjust the total.</p>
-        <div id="cp-addon-list" style="display:flex;flex-direction:column;gap:6px"></div>
-        <button class="cp-btn" style="margin-top:12px" onclick="cpConfirmAddons()">Request Add-Ons →</button>
-        <div id="cp-addon-msg" style="display:none;margin-top:10px;font-size:13px"></div>
-      </div>
-      <div class="cp-sub-panel" id="cps-pack">
-        <p style="font-size:13px;color:var(--mu);margin-bottom:10px">Select a different package. Our team will confirm pricing before applying.</p>
-        <select class="cp-fi" id="cp-pack-select">
-          <option value="">Select a different pack…</option>
-        </select>
-        <button class="cp-btn" style="margin-top:12px" onclick="cpConfirmPackChange()">Request Package Change →</button>
-        <div id="cp-pack-msg" style="display:none;margin-top:10px;font-size:13px"></div>
-      </div>
-    </div>
-
-    <!-- TAB 3: LEAVE A REVIEW -->
-    <div class="cp-panel" id="cp-p3">
-      <p style="font-size:12px;color:var(--mu);margin-bottom:14px">Submit your rating only after your service has been completed.</p>
-
-      <!-- Option A: Public Google Review -->
-      <div style="padding:14px;background:var(--bg2);border:1px solid rgba(77,163,255,.25);border-radius:var(--rs);margin-bottom:12px">
-        <div style="font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px">⭐ Public Google Review</div>
-        <div style="font-size:12px;color:var(--mu);margin-bottom:10px">Your review will appear publicly on Google and help others find us in Bergen County.</div>
-        <a class="cp-btn" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;text-align:center">Leave a Google Review →</a>
-      </div>
-
-      <!-- Option B: Private feedback to Cardetail1 -->
-      <div style="padding:14px;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs)">
-        <div style="font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px">💬 Send Private Feedback</div>
-        <div style="font-size:12px;color:var(--mu);margin-bottom:12px">Customer-submitted feedback — not a verified Google review. Not shown publicly without admin approval.</div>
-        <label class="cp-label">Your name</label>
-        <input class="cp-fi" id="cp-rv-name" type="text" placeholder="First name + last initial">
-        <label class="cp-label">Service received</label>
-        <input class="cp-fi" id="cp-rv-service" type="text" placeholder="e.g. Cars · Full Detail">
-        <label class="cp-label">Your rating</label>
-        <div class="cp-stars" id="cp-stars">
-          <span class="cp-star" data-s="1" onclick="cpSetStar(1)">★</span>
-          <span class="cp-star" data-s="2" onclick="cpSetStar(2)">★</span>
-          <span class="cp-star" data-s="3" onclick="cpSetStar(3)">★</span>
-          <span class="cp-star" data-s="4" onclick="cpSetStar(4)">★</span>
-          <span class="cp-star" data-s="5" onclick="cpSetStar(5)">★</span>
-        </div>
-        <label class="cp-label">Your review</label>
-        <textarea class="cp-fi" id="cp-rv-text" rows="4" placeholder="Tell us about your experience…" style="resize:none"></textarea>
-        <button class="cp-btn" onclick="cpSubmitReview()">Submit Private Feedback →</button>
-        <div class="cp-result" id="cp-rv-result"></div>
-      </div>
-    </div>
-
-    <!-- CUSTOMER GARAGE &mdash; shown after successful booking lookup -->
-    <div id="cp-garage" style="display:none">
-      <div class="cg-nav">
-        <button class="cg-nav-btn" onclick="cpGarageBack()">&larr; Back</button>
-        <button class="cg-nav-btn" onclick="closePortal();location.href='/'">Home</button>
-        <button class="cg-nav-book" onclick="closePortal();setTimeout(function(){openBooking(null)},100)">+ Book Service</button>
-      </div>
-      <div style="margin-bottom:16px">
-        <span class="cg-badge">Customer Garage Preview</span>
-        <p style="font-size:12px;color:var(--mu);margin-top:6px">Access your booking and maintenance options.</p>
-      </div>
-
-      <!-- 1. Booking Summary -->
-      <div class="cg-section">
-        <div class="cg-sec-title">&#x1F4CB; Booking Summary</div>
-        <div id="cg-summary"></div>
-      </div>
-
-      <!-- 2. My Garage -->
-      <div class="cg-section">
-        <div class="cg-sec-title">&#x1F697; My Garage</div>
-        <div id="cg-vehicles"></div>
-        <p class="cg-placeholder">Multi-vehicle garage available once your account is activated.</p>
-      </div>
-
-      <!-- 3. Service History -->
-      <div class="cg-section">
-        <div class="cg-sec-title">&#x1F4DC; Service History</div>
-        <div id="cg-history"></div>
-        <p class="cg-placeholder">Previous services will appear here once your account is set up.</p>
-      </div>
-
-      <!-- 4. Maintenance Plans -->
-      <div class="cg-section">
-        <div class="cg-sec-title">&#x1F527; Maintenance Plans</div>
-        <p style="font-size:12px;color:var(--mu);margin-bottom:12px">Request a plan &mdash; we&apos;ll follow up with pricing and scheduling.</p>
-        <div class="cg-plan" onclick="cpRequestPlan('weekly')"><div><div class="cg-plan-name">Weekly Maintenance</div><div class="cg-plan-freq">Every week &middot; Best shine, best protection</div></div><span class="cg-plan-cta">Request &rarr;</span></div>
-        <div class="cg-plan" onclick="cpRequestPlan('biweekly')"><div><div class="cg-plan-name">Biweekly Maintenance</div><div class="cg-plan-freq">Every 2 weeks &middot; Most popular</div></div><span class="cg-plan-cta">Request &rarr;</span></div>
-        <div class="cg-plan" onclick="cpRequestPlan('monthly')"><div><div class="cg-plan-name">Monthly Maintenance</div><div class="cg-plan-freq">Once a month &middot; Essential care</div></div><span class="cg-plan-cta">Request &rarr;</span></div>
-        <div class="cg-plan" onclick="cpRequestPlan('multi-car')"><div><div class="cg-plan-name">Multi-Car Garage Plan</div><div class="cg-plan-freq">2+ vehicles &middot; Custom pricing</div></div><span class="cg-plan-cta">Request &rarr;</span></div>
-      </div>
-
-      <!-- 5. Request Next Service -->
-      <div class="cg-section">
-        <div class="cg-sec-title">Request Next Service</div>
-        <button class="cg-cta-p" onclick="cpRequestPlan('custom')">&#x1F527; Request a Maintenance Plan</button>
-        <button class="cg-cta-s" onclick="closePortal(); setTimeout(function(){ openBooking(null); }, 100)">&#x1F697; Book Another Detail</button>
-        <a class="cg-cta-s" href="tel:5513132956">&#x1F4DE; Contact Cardetail1</a>
-      </div>
-
-      <!-- 6. Communication Preferences -->
-      <div class="cg-section">
-        <div class="cg-sec-title">&#x1F4AC; Communication Preferences</div>
-        <div class="cg-pref-row">
-          <input type="checkbox" id="cg-pref-transact" checked disabled>
-          <div><div class="cg-pref-lbl">Appointment-related messages</div><div class="cg-pref-sub">Required &mdash; agreed to at booking.</div></div>
-        </div>
-        <div class="cg-pref-row">
-          <input type="checkbox" id="cg-pref-mkt" disabled>
-          <div><div class="cg-pref-lbl">Marketing preferences coming soon.</div>
-          <div class="cg-pref-sub">Server-side preference management not yet available.</div></div>
-        </div>
-        <div id="cg-pref-msg" style="display:none;font-size:12px;color:var(--gr);margin-top:8px;text-align:center"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════ -->
-<!--            BOOKING MODAL                  -->
 <!-- ══════════════════════════════════════════ -->
 <div class="radar-toast" id="radar-toast"></div>
 <div class="booking-modal-ov" id="bk-ov">
@@ -4478,7 +4272,7 @@ async function waitForVerifiedCardSave(maxAttempts=20,delayMs=3000){
     if(attempt>0) await new Promise(resolve=>setTimeout(resolve,delayMs));
     const res=await fetch(BACKEND_BASE+'/booking-card-status',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bookingId:ST.bookingId})
+      body:JSON.stringify({bookingId:ST.bookingId,phone:(ST.phone||ST.customerPhone||''),draftSaveToken:(ST.draftSaveToken||draftSessionToken||'')})
     }).catch(()=>null);
     if(!res) continue;
     const data=await res.json().catch(()=>({}));
@@ -5921,15 +5715,7 @@ function rvMove(dir){ rvGoTo(rvIdx + dir); }
 // ═══════════════════════════════════════════════════════
 let loginRole = 'admin';
 
-// ── BACK TO TOP
-(function(){
-  const btn=document.getElementById('btt');
-  if(!btn)return;
-  function syncBtt(){ btn.classList.toggle('btt-on',window.scrollY>420); }
-  window.addEventListener('scroll',syncBtt,{passive:true});
-  syncBtt();
-})();
-
+// Back to top: assets/back-to-top.js
 function openLogin(){
   document.getElementById('login-ov').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -5996,487 +5782,15 @@ async function doLogin(){
   document.getElementById('login-pw').focus();
 }
 
-// ═══════════════════════════════════════════════════════
-// CUSTOMER PORTAL
-// ═══════════════════════════════════════════════════════
-function resetPortalView(){
-  _cgBooking = null;
-  const tabs = document.querySelector('#cp-ov .cp-tabs');
-  if(tabs) tabs.style.display = '';
-  const garage = document.getElementById('cp-garage');
-  if(garage) garage.style.display = 'none';
-  document.querySelectorAll('#cp-ov .cp-tab').forEach((t,i) => t.classList.toggle('active', i===0));
-  document.querySelectorAll('#cp-ov .cp-panel').forEach((p,i) => {
-    p.style.display = '';
-    p.classList.toggle('active', i===0);
-  });
-}
-function openPortal(){ resetPortalView(); document.getElementById('cp-ov').classList.add('open'); document.body.style.overflow='hidden'; }
-function closePortal(){ document.getElementById('cp-ov').classList.remove('open'); document.body.style.overflow=''; resetPortalView(); }
-function handleCpOv(e){ if(e.target===document.getElementById('cp-ov')) closePortal(); }
-
-function cpTab(n){
-  document.querySelectorAll('.cp-tab').forEach((t,i)=>t.classList.toggle('active',i===n));
-  document.querySelectorAll('.cp-panel').forEach((p,i)=>p.classList.toggle('active',i===n));
-}
-
-// ── MANAGE BOOKING ────────────────────────────────────────────────────────────
-let cpActiveBookingId = null;
-let cpSelectedTip = 0;
-let cpSelectedAddons = [];
-let cpCustomerCatalog = null;
-
-function cpEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-
-async function cpEnsureCatalog(){
-  if(cpCustomerCatalog) return cpCustomerCatalog;
-  try{
-    const res=await fetch('/.netlify/functions/customer-subscription-checkout',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'list_catalog'})
-    });
-    const d=await res.json().catch(()=>({}));
-    if(d.ok) cpCustomerCatalog=d.catalog;
-  }catch(e){}
-  return cpCustomerCatalog;
-}
-
-function cpPopulatePackSelect(){
-  const sel=document.getElementById('cp-pack-select');
-  if(!sel) return;
-  const packs=(cpCustomerCatalog&&cpCustomerCatalog.packages)||[];
-  sel.innerHTML='<option value="">Select a different pack…</option>'+
-    packs.map(p=>`<option value="${cpEsc(p.id)}">${cpEsc(p.name)} — from $${p.basePrice}</option>`).join('');
-}
-
-async function cpConfirmPackChange(){
-  if(!cpActiveBookingId) return;
-  const sel=document.getElementById('cp-pack-select');
-  const msgEl=document.getElementById('cp-pack-msg');
-  const btn=document.querySelector('#cps-pack .cp-btn');
-  if(!sel||!sel.value){ if(msgEl){ msgEl.style.display='block'; msgEl.innerHTML='<span style="color:var(--rd)">Please select a package.</span>'; } return; }
-  const opt=sel.options[sel.selectedIndex];
-  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
-  if(btn){ btn.disabled=true; btn.textContent='Submitting…'; }
-  if(msgEl) msgEl.style.display='none';
-  try{
-    const r=await fetch('/.netlify/functions/submit-customer-action',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bookingId:cpActiveBookingId,phone,action:'package_change_request',newPackId:sel.value,newPackName:opt.textContent})
-    });
-    const data=await r.json().catch(()=>({}));
-    if(btn){ btn.disabled=false; btn.textContent='Request Package Change →'; }
-    if(data.ok){
-      if(msgEl){ msgEl.style.display='block'; msgEl.innerHTML='<span style="color:var(--gr)">✓ Package change request submitted. Our team will confirm pricing.</span>'; }
-      setTimeout(()=>cpLoadManage(),1500);
-    }else{
-      if(msgEl){ msgEl.style.display='block'; msgEl.innerHTML='<span style="color:var(--rd)">'+(cpEsc(data.userMessage)||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>'; }
-    }
-  }catch(e){
-    if(btn){ btn.disabled=false; btn.textContent='Request Package Change →'; }
-    if(msgEl){ msgEl.style.display='block'; msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>'; }
-  }
-}
-
-async function cpLoadManage(){
-  const id    = (document.getElementById('cp-mgmt-id')    || {value:''}).value.trim();
-  const phone = (document.getElementById('cp-mgmt-phone') || {value:''}).value.trim();
-  const res   = document.getElementById('cp-mgmt-result');
-  const btn   = document.querySelector('#cp-p2 .cp-btn');
-  if(!id || !phone){
-    res.style.display='block';
-    res.innerHTML='<span style="color:var(--rd)">Enter your booking ID and phone number.</span>';
-    return;
-  }
-  if(btn){ btn.disabled=true; btn.textContent='Loading…'; }
-  document.querySelectorAll('.cp-sub-panel').forEach(p=>p.classList.remove('open'));
-  try{
-    const r = await fetch('/.netlify/functions/lookup-booking',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ bookingId: id, phone }),
-    });
-    const data = await r.json();
-    if(btn){ btn.disabled=false; btn.textContent='Load My Booking →'; }
-    res.style.display='block';
-    if(!data.ok || !data.booking){
-      res.innerHTML='<span style="color:var(--mu)">'+cpEsc(data.message||'We could not verify this booking right now. Please try again or contact support at 551-313-2956.')+'</span>';
-      return;
-    }
-    const b = data.booking;
-    cpActiveBookingId = b.id;
-    const status = b.status||'Pending Review';
-    const isEditable = !['Completed','Cancelled','No-Show'].includes(status);
-    const isCompleted = status==='Completed';
-    const now = new Date();
-    const svcDate = b.preferredDate ? new Date(b.preferredDate) : null;
-    const hoursUntil = svcDate ? (svcDate - now) / 36e5 : 999;
-    const canCancel = hoursUntil > 24;
-    const cancelWarn = canCancel
-      ? '⚠️ Cancelling more than 24 hours before your appointment is allowed with no fee. Are you sure?'
-      : '🚨 Cancellation within 24 hours of your appointment may incur a late cancellation fee per our terms. Proceed?';
-    const vehs = b.vehicles && b.vehicles.length
-      ? b.vehicles
-      : [{pkgName:b.package||'—', vehicleLabel:b.vehicle||'—', pkgIcon:'🚗', addons:b.addons||[], subtotal:b.totalPrice}];
-    const vehHtml = vehs.map(v=>'<div style="font-size:12px;line-height:1.7;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+cpEsc(v.pkgIcon||'🚗')+' <strong>'+cpEsc(v.pkgName||'—')+'</strong> · '+cpEsc(v.vehicleLabel||'—')+' · <span style="color:var(--blue)">$'+(v.subtotal||0)+'</span></div>').join('');
-    const isCancelReq = b.cancellationRequestStatus === 'requested';
-    const displayStatus = isCancelReq ? 'Cancellation Requested' : status;
-    const statusColor = isCancelReq ? '#ef4444' : (isCompleted ? 'var(--gr)' : isEditable ? 'var(--am)' : 'var(--mu)');
-    const statusBg = isCancelReq ? 'rgba(239,68,68,.15)' : 'rgba(0,0,0,.3)';
-    let actionsHtml = '';
-    if(isCompleted){
-      actionsHtml='<div style="margin-top:12px"><button class="cp-btn" style="margin:0" onclick="cpTab(3)">⭐ Leave a Review →</button></div>';
-    } else if(isCancelReq){
-      actionsHtml='<div style="margin-top:12px;padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--rs);font-size:12px;color:var(--rd)">⚠️ Cancellation request received. Our team will review and confirm within 1 business day.<br><br>Questions? <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></div>';
-    } else if(!isEditable){
-      actionsHtml='<div style="margin-top:12px;font-size:12px;color:var(--mu)">Need help or want to book again? <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a> · <button class="cp-btn" style="display:inline;padding:4px 12px;font-size:12px;margin:4px 0 0 0" onclick="closePortal();setTimeout(function(){openBooking(null)},100)">Book Again →</button></div>';
-    } else {
-      const cancelLabel=canCancel?'✕ Request Cancellation':'✕ Cancel (fee may apply)';
-      const warnEnc=encodeURIComponent(cancelWarn);
-      actionsHtml='<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">'
-        +`<button class="cp-btn" onclick="cpOpenSub('reschedule')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">Modify Appointment</button>`
-        +`<button class="cp-btn" onclick="cpOpenSub('pack')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">Change Package</button>`
-        +`<button class="cp-btn" onclick="cpOpenSub('addons')" style="margin:0;padding:10px 16px;font-size:12px;background:transparent;border-color:var(--bbr)">Add Add-ons</button>`
-        +`<button class="cp-btn" onclick="cpOpenCancel('${cpEsc(b.id)}',${canCancel},'${warnEnc}')" style="margin:0;padding:10px 16px;font-size:12px;background:rgba(239,68,68,.12);color:var(--rd);border-color:rgba(239,68,68,.3)">${cancelLabel}</button>`
-        +'</div>'
-        +'<div style="margin-top:8px;font-size:11px;color:var(--mu)">Requests reviewed by Cardetail1 · Urgent: <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a></div>';
-    }
-    res.innerHTML = '<div style="background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--rs);padding:14px;margin-bottom:12px">'
-      +'<div style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">#'+cpEsc(b.id)+' · <span style="font-size:12px;font-weight:600;color:'+statusColor+';background:'+statusBg+';padding:3px 10px;border-radius:999px">'+cpEsc(displayStatus)+'</span></div>'
-      +'<div style="font-size:12px;color:var(--mu);line-height:1.8">&#x1F4C5; '+cpEsc(b.confirmedWindow||b.preferredDate||'—')+' · '+cpEsc(b.preferredTime||'TBD')+'<br>&#x1F4CD; '+cpEsc(b.address||'—')+'<br>&#x1F4B0; Total: <strong style="color:var(--white)">$'+(b.totalPrice||0)+'</strong>'+(b.tip?' + Tip $'+b.tip:'')+'</div>'
-      +'<div style="margin-top:10px">'+vehHtml+'</div>'
-      +(b.payLink?'<div style="margin-top:10px"><a href="'+cpEsc(b.payLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-weight:600">&#x1F4B3; Pay Now &#x2192;</a></div>':'')
-      +'</div>'+actionsHtml;
-  } catch(_){
-    if(btn){ btn.disabled=false; btn.textContent='Load My Booking →'; }
-    res.style.display='block';
-    res.innerHTML='<span style="color:var(--mu)">We could not verify this booking right now. Please try again or contact support at 551-313-2956.</span>';
-  }
-}
-function cpOpenSub(name){
-  document.querySelectorAll('.cp-sub-panel').forEach(p=>p.classList.remove('open'));
-  if(name==='addons'){ cpOpenAddons(); return; }
-  if(name==='pack'){ cpEnsureCatalog().then(()=>cpPopulatePackSelect()); }
-  document.getElementById('cps-'+name)?.classList.add('open');
-}
-
-function cpOpenCancel(id, canCancel, warn){
-  document.querySelectorAll('.cp-sub-panel').forEach(p=>p.classList.remove('open'));
-  const panel = document.getElementById('cps-cancel'); if(!panel) return;
-  panel.classList.add('open');
-  document.getElementById('cp-cancel-warn').textContent = decodeURIComponent(warn.replace(/`/g,"'"));
-}
-
-function cpOpenAddons(){
-  cpSelectedAddons = [];
-  document.querySelectorAll('.cp-sub-panel').forEach(p=>p.classList.remove('open'));
-  const panel = document.getElementById('cps-addons'); if(!panel) return;
-  panel.classList.add('open');
-  cpEnsureCatalog().then(()=>{
-    const list = document.getElementById('cp-addon-list'); if(!list) return;
-    const addons=(cpCustomerCatalog&&cpCustomerCatalog.addons)||PRICING.cars.addons||[];
-    list.innerHTML = addons.map(a=>`
-    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 10px;background:var(--bg2);border-radius:var(--rs);border:1px solid rgba(255,255,255,.07)">
-      <input type="checkbox" onchange="cpToggleAddon('${cpEsc(a.id)}','${cpEsc(a.name)}',${a.price},this)" style="accent-color:var(--blue);width:16px;height:16px">
-      <span style="flex:1;font-size:13px">${cpEsc(a.name)}</span>
-      <span style="font-weight:700;color:var(--blue)">+$${a.price}</span>
-    </label>`).join('');
-  });
-}
-
-function cpToggleAddon(id, name, price, el){
-  if(el.checked) cpSelectedAddons.push({id,name,price});
-  else cpSelectedAddons = cpSelectedAddons.filter(a=>a.id!==id);
-}
-
-async function cpConfirmCancel(){
-  if(!cpActiveBookingId){alert('No booking loaded. Please load your booking first.');return;}
-  const reasonEl=document.getElementById('cp-cancel-reason');
-  const ackEl=document.getElementById('cp-cancel-ack');
-  const msgEl=document.getElementById('cp-cancel-msg');
-  const btn=document.getElementById('cp-cancel-confirm-btn');
-  const reason=(reasonEl?.value||'').trim();
-  const ack=ackEl?.checked||false;
-  if(!reason){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please provide a reason for cancellation.</span>';}return;}
-  if(!ack){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please acknowledge the cancellation policy.</span>';}return;}
-  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
-  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
-  if(msgEl)msgEl.style.display='none';
-  try{
-    const r=await fetch('/.netlify/functions/request-cancellation',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bookingId:cpActiveBookingId,phone,reason,acknowledgedPolicy:true}),
-    });
-    const data=await r.json().catch(()=>({}));
-    if(btn){btn.disabled=false;btn.textContent='Confirm Cancellation Request';}
-    if(data.ok||data.alreadyRequested){
-      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Cancellation request submitted. Cardetail1 will review and confirm within 1 business day.</span>';}
-      if(btn){btn.disabled=true;btn.textContent='Request Submitted';}
-      setTimeout(()=>cpLoadManage(),1500);
-    }else{
-      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(data.userMessage||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
-    }
-  }catch(e){
-    if(btn){btn.disabled=false;btn.textContent='Confirm Cancellation Request';}
-    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
-  }
-}
-async function _cpSendInquiry(type,message,phone,msgEl){
-  try{
-    await fetch('/.netlify/functions/submit-inquiry',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:'My Booking — '+type,phone,email:'',message,source:'My Booking Customer Portal'}),
-    });
-    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Request sent. Cardetail1 will contact you to confirm changes.</span>';}
-  }catch(e){
-    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--mu)">Could not send. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
-  }
-}
-async function cpConfirmReschedule(){
-  if(!cpActiveBookingId){return;}
-  const newDate=(document.getElementById('cp-new-date')||{}).value||'';
-  const newTime=(document.getElementById('cp-new-time')||{}).value||'';
-  const msgEl=document.getElementById('cp-reschedule-msg');
-  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
-  const btn=document.querySelector('#cps-reschedule .cp-btn');
-  if(!newDate){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select a new preferred date.</span>';}return;}
-  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
-  if(msgEl)msgEl.style.display='none';
-  try{
-    const r=await fetch('/.netlify/functions/submit-customer-action',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bookingId:cpActiveBookingId,phone,action:'reschedule_request',newDate,newTime})
-    });
-    const data=await r.json().catch(()=>({}));
-    if(btn){btn.disabled=false;btn.textContent='Confirm Reschedule →';}
-    if(data.ok){
-      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Reschedule request submitted. Cardetail1 will confirm within 24 hours.</span>';}
-      setTimeout(()=>cpLoadManage(),1500);
-    }else{
-      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(cpEsc(data.userMessage)||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
-    }
-  }catch(e){
-    if(btn){btn.disabled=false;btn.textContent='Confirm Reschedule →';}
-    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
-  }
-}
-async function cpConfirmAddress(){
-  if(!cpActiveBookingId){return;}
-  const addr=(document.getElementById('cp-new-addr')||{}).value?.trim()||'';
-  const msgEl=document.getElementById('cp-addr-msg');
-  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
-  const btn=document.querySelector('#cps-reschedule button[onclick="cpConfirmAddress()"]');
-  if(!addr){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please enter the new service address.</span>';}return;}
-  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
-  if(msgEl)msgEl.style.display='none';
-  try{
-    const r=await fetch('/.netlify/functions/submit-customer-action',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bookingId:cpActiveBookingId,phone,action:'address_update',newAddress:addr})
-    });
-    const data=await r.json().catch(()=>({}));
-    if(btn){btn.disabled=false;btn.textContent='Update Address →';}
-    if(data.ok){
-      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Address update submitted.</span>';}
-      setTimeout(()=>cpLoadManage(),1500);
-    }else{
-      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(cpEsc(data.userMessage)||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
-    }
-  }catch(e){
-    if(btn){btn.disabled=false;btn.textContent='Update Address →';}
-    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
-  }
-}
-async function cpConfirmAddons(){
-  if(!cpActiveBookingId){return;}
-  const msgEl=document.getElementById('cp-addon-msg');
-  const phone=(document.getElementById('cp-mgmt-phone')||{}).value?.trim()||'';
-  const btn=document.querySelector('#cps-addons .cp-btn');
-  if(!cpSelectedAddons.length){if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Please select at least one add-on.</span>';}return;}
-  const addonList=cpSelectedAddons.map(a=>a.name+' (+$'+a.price+')').join(', ');
-  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
-  if(msgEl)msgEl.style.display='none';
-  try{
-    const r=await fetch('/.netlify/functions/submit-customer-action',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bookingId:cpActiveBookingId,phone,action:'addon_request',requestedAddons:addonList})
-    });
-    const data=await r.json().catch(()=>({}));
-    if(btn){btn.disabled=false;btn.textContent='Request Add-Ons →';}
-    if(data.ok){
-      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--gr)">✓ Add-on request submitted — pending admin approval.</span>';}
-      setTimeout(()=>cpLoadManage(),1500);
-    }else{
-      if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">'+(cpEsc(data.userMessage)||'Could not submit. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.')+'</span>';}
-    }
-  }catch(e){
-    if(btn){btn.disabled=false;btn.textContent='Request Add-Ons →';}
-    if(msgEl){msgEl.style.display='block';msgEl.innerHTML='<span style="color:var(--rd)">Network error. Please call <a href="tel:5513132956" style="color:var(--blue)">551-313-2956</a>.</span>';}
-  }
-}
-function _cpContactOnly(){
-  alert('To modify this booking, please contact Cardetail1 at 551-313-2956.');
-}
-
-function cpSelectTip(val){
-  cpSelectedTip = val;
-  document.querySelectorAll('.tip-btn').forEach(b=>b.classList.remove('sel'));
-  if(val==='custom'){
-    event.target.classList.add('sel');
-    document.getElementById('cp-custom-tip').style.display='block';
-    cpSelectedTip = 0;
-  } else {
-    event.target.classList.add('sel');
-    document.getElementById('cp-custom-tip').style.display='none';
-  }
-}
-
-function cpConfirmTip(){ _cpContactOnly(); }
-
-async function cpFindBooking(){
-  const bkId  = (document.getElementById('cp-find-id')   || {value:''}).value.trim();
-  const phone = (document.getElementById('cp-find-phone') || {value:''}).value.trim();
-  const res   = document.getElementById('cp-find-result');
-  const btn   = document.querySelector('#cp-p0 .cp-btn');
-  if(!bkId || !phone){
-    res.style.display='block';
-    res.innerHTML='<span style="color:var(--rd)">Enter your booking ID and phone number.</span>';
-    return;
-  }
-  if(btn){ btn.disabled=true; btn.textContent='Looking up…'; }
-  try{
-    const r = await fetch('/.netlify/functions/lookup-booking',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ bookingId: bkId, phone }),
-    });
-    const data = await r.json();
-    if(btn){ btn.disabled=false; btn.textContent='Access My Garage →'; }
-    if(data.ok && data.booking){
-      res.style.display='none';
-      cpShowGarage(data.booking);
-    } else {
-      res.style.display='block';
-      res.innerHTML='<span style="color:var(--mu)">'+(data.message||'No booking found. Contact us at 551-313-2956.')+'</span>';
-    }
-  } catch(_){
-    if(btn){ btn.disabled=false; btn.textContent='Access My Garage →'; }
-    res.style.display='block';
-    res.innerHTML='<span style="color:var(--mu)">Could not connect. Try again or call 551-313-2956.</span>';
-  }
-}
-
-// ── CUSTOMER GARAGE ──────────────────────────────────────────────────────────
-let _cgBooking = null;
-
-function cpShowGarage(b){
-  _cgBooking = b;
-  const tabs = document.querySelector('#cp-ov .cp-tabs');
-  if(tabs) tabs.style.display = 'none';
-  document.querySelectorAll('#cp-ov .cp-panel').forEach(p => { p.style.display='none'; });
-  document.getElementById('cp-garage').style.display = 'block';
-  cpRenderGarage(b);
-}
-
-function cpGarageBack(){
-  _cgBooking = null;
-  document.getElementById('cp-garage').style.display = 'none';
-  const tabs = document.querySelector('#cp-ov .cp-tabs');
-  if(tabs) tabs.style.display = '';
-  document.querySelectorAll('#cp-ov .cp-tab').forEach((t,i)  => t.classList.toggle('active', i===0));
-  document.querySelectorAll('#cp-ov .cp-panel').forEach((p,i) => { p.style.display=''; p.classList.toggle('active', i===0); });
-}
-
-function cpRenderGarage(b){
-  const status = b.status || 'Pending Review';
-  const sc = {'Completed':'var(--gr)','Confirmed':'var(--blue)','Scheduled':'var(--blue)','In Progress':'var(--am)','Cancelled':'var(--rd)'}[status] || 'var(--mu)';
-  const date = b.confirmedWindow || b.preferredDate || '—';
-  const time = b.preferredTime || '';
-  const addr = b.address || '—';
-  const vehs = (b.vehicles && b.vehicles.length) ? b.vehicles : [{pkgName:b.package||'—', vehicleLabel:b.vehicle||'—', pkgIcon:'🚗', addons:b.addons||[]}];
-  let sumHTML = '<div style="margin-bottom:10px"><span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:'+sc+'22;color:'+sc+';border:1px solid '+sc+'44">'+cpEsc(status)+'</span></div>';
-  sumHTML += '<div class="cg-row"><span class="cg-lbl">Booking ID</span><span class="cg-val" style="font-family:var(--fd);color:var(--blue)">#'+cpEsc(b.id)+'</span></div>';
-  vehs.forEach(v => {
-    sumHTML += '<div class="cg-row"><span class="cg-lbl">Package</span><span class="cg-val">'+cpEsc(v.pkgName)+'</span></div>';
-    sumHTML += '<div class="cg-row"><span class="cg-lbl">Vehicle</span><span class="cg-val">'+cpEsc(v.pkgIcon||'🚗')+' '+cpEsc(v.vehicleLabel)+'</span></div>';
-  });
-  sumHTML += '<div class="cg-row"><span class="cg-lbl">Date</span><span class="cg-val">'+cpEsc(date)+'</span></div>';
-  if(time) sumHTML += '<div class="cg-row"><span class="cg-lbl">Time</span><span class="cg-val">'+cpEsc(time)+'</span></div>';
-  sumHTML += '<div class="cg-row"><span class="cg-lbl">Location</span><span class="cg-val" style="max-width:200px;text-align:right">'+cpEsc(addr)+'</span></div>';
-  if(b.payLink) sumHTML += '<div style="margin-top:12px"><a href="'+cpEsc(b.payLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-weight:700;font-size:13px">&#x1F4B3; Pay Now &#x2192;</a></div>';
-  document.getElementById('cg-summary').innerHTML = sumHTML;
-  let vehHTML = '';
-  vehs.forEach(v => {
-    vehHTML += '<div class="cg-vehicle"><span style="font-size:22px">'+cpEsc(v.pkgIcon||'🚗')+'</span><div><div class="cg-vname">'+cpEsc(v.vehicleLabel)+'</div><div class="cg-vpkg">'+cpEsc(v.pkgName)+'</div></div></div>';
-  });
-  document.getElementById('cg-vehicles').innerHTML = vehHTML;
-  document.getElementById('cg-history').innerHTML = '<div class="cg-hist"><div><div class="cg-hpkg">'+cpEsc(vehs[0].pkgName)+'</div><div class="cg-hdate">'+cpEsc(date)+'</div></div><span class="cg-hstat">'+cpEsc(status)+'</span></div>';
-}
-function cpRequestPlan(type){
-  if(type==='monthly'||type==='multi-car'){
-    window.location.href='customer.html?subscribe=1';
-    return;
-  }
-  window.location.href = 'tel:5513132956';
-}
-
-function cpSavePrefs(){
-  // Marketing preferences require server-side storage -- coming soon
-}
-async function cpGetPayLink(){
-  const id    = (document.getElementById('cp-pay-id')    || {value:''}).value.trim();
-  const phone = (document.getElementById('cp-pay-phone') || {value:''}).value.trim();
-  const res   = document.getElementById('cp-pay-result');
-  const btn   = document.querySelector('#cp-p1 .cp-btn');
-  if(!id || !phone){
-    res.style.display='block';
-    res.innerHTML='<span style="color:var(--rd)">Enter your booking ID and phone number.</span>';
-    return;
-  }
-  if(btn){ btn.disabled=true; btn.textContent='Looking up…'; }
-  try{
-    const r = await fetch('/.netlify/functions/lookup-booking',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ bookingId: id, phone }),
-    });
-    const data = await r.json();
-    if(btn){ btn.disabled=false; btn.textContent='Get Payment Link →'; }
-    res.style.display='block';
-    if(data.ok && data.booking && data.booking.payLink){
-      res.innerHTML='<div style="color:var(--gr);font-weight:600;margin-bottom:8px">&#10003; Payment link found</div>'
-        +'<a href="'+cpEsc(data.booking.payLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-weight:700;font-size:15px">&#x1F4B3; Pay Now &#x2192;</a>';
-    } else if(data.ok && data.booking){
-      res.innerHTML='<span style="color:var(--mu)">No payment link yet. Your technician will send it once confirmed. Call 551-313-2956.</span>';
-    } else {
-      res.innerHTML='<span style="color:var(--mu)">'+cpEsc(data.message||'We could not verify this booking right now. Please try again or contact support at 551-313-2956.')+'</span>';
-    }
-  } catch(_){
-    if(btn){ btn.disabled=false; btn.textContent='Get Payment Link →'; }
-    res.style.display='block';
-    res.innerHTML='<span style="color:var(--mu)">We could not verify this booking right now. Please try again or contact support at 551-313-2956.</span>';
-  }
-}
-let cpStarVal = 0;
-function cpSetStar(n){
-  cpStarVal = n;
-  document.querySelectorAll('.cp-star').forEach((s,i)=>s.classList.toggle('on', i<n));
-}
-
-function cpSubmitReview(){
-  const name    = document.getElementById('cp-rv-name').value.trim();
-  const service = document.getElementById('cp-rv-service').value.trim();
-  const text    = document.getElementById('cp-rv-text').value.trim();
-  const res     = document.getElementById('cp-rv-result');
-  if(!name||!text||!cpStarVal){ res.style.display='block'; res.innerHTML='<span style="color:var(--rd)">Please fill in name, rating, and review.</span>'; return; }
-  // Save to localStorage pending reviews
-  const pending = JSON.parse(localStorage.getItem('cd1_reviews_pending')||'[]');
-  pending.push({ name, service, text, rating:cpStarVal, date: new Date().toLocaleDateString('en-US',{month:'short',year:'numeric'}), submitted: new Date().toISOString() });
-  localStorage.setItem('cd1_reviews_pending', JSON.stringify(pending));
-  res.style.display='block';
-  res.innerHTML='<span style="color:var(--gr);font-weight:600">✓ Thank you for your feedback. Customer-submitted reviews are not shown publicly without admin approval.</span>';
-  document.getElementById('cp-rv-name').value='';
-  document.getElementById('cp-rv-service').value='';
-  document.getElementById('cp-rv-text').value='';
-  cpSetStar(0);
-}
+// CUSTOMER PORTAL — My Garage handoff (legacy modal removed)
+function resetPortalView(){}
+function openPortal(){window.location.href='my-garage.html#lookup';}
+function closePortal(){}
+function handleCpOv(e){}
+function cpTab(){openPortal();}
+function cpFindBooking(){openPortal();}
+function cpSetStar(){openPortal();}
+function cpSubmitReview(){openPortal();}
 
 // ═══════════════════════════════════════════════════════
 // RICH ZIP ALGORITHM
@@ -7266,5 +6580,6 @@ body.cd1-booking-embed #cd-chat{display:none!important}
 <script src="assets/revops-booking-hooks.js"></script>
 <script src="assets/revops-init.js"></script>
 
+  <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>

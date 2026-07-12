@@ -1,42 +1,72 @@
-// Returns only the card-on-file state for a pre-registered booking draft.
-// The browser waits for the verified Stripe webhook before final submission.
-// No Stripe IDs, customer data, or client secrets are exposed.
+// Returns card-on-file state only after verified authorization.
+// Auth: draft token, booking+phone, customer session, or admin key.
 
-async function blobsStore(name) {
-  const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
-}
+const { jsonCors, blobsStore } = require('../lib/tech-security');
+const { getBooking } = require('../lib/ops-db');
+const { authorizeBookingAccess, normalizeBookingId } = require('../lib/booking-customer-auth');
+const { verifyDraftSaveToken } = require('../lib/draft-save-token');
+const { normalizeUsPhoneDigits } = require('../lib/phone-auth');
+const { validateCustomerSession } = require('../lib/customer-session');
+const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { verifyAdminRequest } = require('../lib/admin-security');
 
-const CORS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Cache-Control': 'no-store',
-};
-const json = (statusCode, body) => ({ statusCode, headers: CORS, body: JSON.stringify(body) });
+const SAFE_STATUSES = new Set(['pending', 'saved', 'failed']);
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return json(204, {});
-  if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
+  if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
+  if (event.httpMethod !== 'POST') {
+    return jsonCors(405, { ok: false, error: 'method_not_allowed' });
+  }
+
+  const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'booking-card-status', cors: true });
+  if (rateLimit.blocked) return rateLimit.response;
 
   let body;
   try { body = JSON.parse(event.body || '{}'); }
-  catch { return json(400, { ok: false, error: 'invalid_request' }); }
+  catch { return jsonCors(400, { ok: false, error: 'validation_error' }); }
 
-  const bookingId = String(body.bookingId || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 48);
-  if (!bookingId) return json(400, { ok: false, error: 'bookingId_required' });
+  const bookingId = normalizeBookingId(body.bookingId);
+  if (!bookingId) return jsonCors(400, { ok: false, error: 'validation_error' });
+
+  const admin = await verifyAdminRequest(event.headers || {});
+  let authorized = admin.ok;
+
+  if (!authorized) {
+    const session = await validateCustomerSession(event);
+    if (session.ok) {
+      const booking = await getBooking(bookingId);
+      if (booking) {
+        const auth = await authorizeBookingAccess(event, { bookingId, phone: body.phone });
+        authorized = auth.ok;
+      }
+    }
+  }
+
+  if (!authorized && body.draftSaveToken) {
+    const phone = normalizeUsPhoneDigits(body.phone || body.customerPhone || '');
+    const draft = verifyDraftSaveToken({
+      token: body.draftSaveToken,
+      bookingId,
+      phone,
+    });
+    if (draft.ok) authorized = true;
+  }
+
+  if (!authorized) {
+    const auth = await authorizeBookingAccess(event, { bookingId, phone: body.phone || body.customerPhone });
+    authorized = auth.ok;
+  }
+
+  if (!authorized) {
+    return jsonCors(200, { ok: false, error: 'authentication_failed' });
+  }
 
   try {
-    const booking = await (await blobsStore('cd1-bookings')).get(bookingId, { type: 'json' });
-    if (!booking) return json(404, { ok: false, error: 'booking_not_found' });
-    const status = ['pending', 'saved', 'failed'].includes(booking.cardOnFileStatus)
-      ? booking.cardOnFileStatus
-      : 'pending';
-    return json(200, { ok: true, cardOnFileStatus: status });
+    const booking = await getBooking(bookingId);
+    if (!booking) return jsonCors(200, { ok: false, error: 'booking_not_found' });
+    const status = SAFE_STATUSES.has(booking.cardOnFileStatus) ? booking.cardOnFileStatus : 'pending';
+    return jsonCors(200, { ok: true, cardOnFileStatus: status });
   } catch {
-    return json(503, { ok: false, error: 'status_unavailable' });
+    return jsonCors(503, { ok: false, error: 'status_unavailable' });
   }
 };

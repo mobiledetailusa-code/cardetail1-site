@@ -77,17 +77,21 @@ test('LOC_DISPLAY has no public fleet entry', () => {
   }
 });
 
-test('footer/contact uses Commercial & Fleet Inquiries and openCommercialInquiry', () => {
+test('footer/contact uses Commercial fleet quote path (no instant fleet booking)', () => {
   for (const page of PAGES) {
     const html = read(page);
-    assert.match(html, /Commercial &amp; Fleet Inquiries/, `${page} missing commercial inquiry label`);
-    assert.match(html, /openCommercialInquiry\(\)/, `${page} missing openCommercialInquiry calls`);
-    assert.match(html, /function openCommercialInquiry\(/, `${page} missing openCommercialInquiry definition`);
+    assert.match(html, /Commercial &amp; Fleet/, `${page} missing commercial fleet label`);
     assert.doesNotMatch(
       html,
       /onclick="openBooking\('fleet'\)"/,
       `${page} still books fleet from footer`
     );
+    if (page === 'index.html') {
+      assert.match(html, /href="fleet-services\.html"/, `${page} missing fleet-services link`);
+    } else {
+      assert.match(html, /openCommercialInquiry\(\)|href="fleet-services\.html"/, `${page} missing fleet quote path`);
+      assert.match(html, /function openCommercialInquiry\(/, `${page} missing openCommercialInquiry definition`);
+    }
   }
 });
 

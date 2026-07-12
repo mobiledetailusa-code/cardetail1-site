@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>My Garage | Manage Your Cardetail1 Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/public-surface.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0f;--bg2:#14141c;--border:rgba(255,255,255,.1);--text:#f1f1f3;--muted:rgba(255,255,255,.5);--blue:#4da3ff;--r:14px}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:880px;margin:0 auto;padding:24px 16px 48px}
+.hero{text-align:center;padding:32px 0 24px}
+.hero h1{font-size:clamp(1.75rem,4vw,2.25rem);font-weight:800;margin-bottom:8px}
+.hero p{color:var(--muted);font-size:15px;max-width:520px;margin:0 auto}
+.top-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:20px 0 28px}
+.top-nav a,.top-nav button{font-size:13px;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);cursor:pointer;font-family:inherit}
+.top-nav a:hover,.top-nav button:hover{border-color:var(--blue)}
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:24px;margin-bottom:20px}
+.panel h2{font-size:17px;font-weight:700;margin-bottom:6px}
+.panel .sub{font-size:13px;color:var(--muted);margin-bottom:16px}
+.inp{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:#0e0e14;color:var(--text);font:inherit;margin-bottom:10px}
+.inp:focus{outline:2px solid var(--blue);border-color:transparent}
+.btn{display:inline-block;padding:12px 18px;border-radius:10px;border:none;font-weight:700;font:inherit;cursor:pointer}
+.btn.primary{background:var(--blue);color:#fff}
+.btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+.msg{font-size:13px;margin-top:10px}
+.msg.err{color:#f87171}
+.section{margin-top:28px}
+.section h3{font-size:15px;font-weight:700;margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--blue)}
+.card-kicker{font-size:12px;color:var(--blue);font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+.card-title{font-size:20px;font-weight:800;margin:6px 0 14px}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.meta-grid dt{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.06em}
+.meta-grid dd{font-size:14px;font-weight:600;margin-top:2px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.empty{font-size:13px;color:var(--muted);padding:12px 0}
+ul.clean{list-style:none;padding:0}
+ul.clean li{padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.bar h2{font-size:18px;font-weight:800}
+@media(max-width:430px){.wrap{padding:16px 12px 40px}.panel{padding:18px}}
+</style>
+<script>
+/* Clarity — mask entire portal surface (no PII in recordings) */
+window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]).push(arguments)};
+if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
+</script>
+</head>
+<body>
+<div class="wrap" data-clarity-mask="true">
+  <header class="hero">
+    <h1>My Garage</h1>
+    <p>Manage your appointments, vehicles, payments and service history.</p>
+    <nav class="top-nav" aria-label="Portal shortcuts">
+      <a href="index.html">Back to Cardetail1</a>
+      <a href="index.html">Book Another Service</a>
+      <a href="tel:5513132956">Call / Text</a>
+    </nav>
+  </header>
+
+  <div id="pre-auth">
+    <section class="panel" id="lookup">
+      <h2>Find your booking</h2>
+      <p class="sub">Limited access — view and manage one appointment with booking ID + phone.</p>
+      <form id="lk-form">
+        <label for="lk-booking-id" class="sub">Booking ID</label>
+        <input class="inp" id="lk-booking-id" name="bookingId" autocomplete="off" placeholder="CD1-…" required>
+        <label for="lk-phone" class="sub">Phone on booking</label>
+        <input class="inp" id="lk-phone" name="phone" type="tel" autocomplete="tel" placeholder="(551) 313-2956" required>
+        <button type="submit" class="btn primary">View booking</button>
+      </form>
+      <p id="lk-error" class="msg err" hidden></p>
+    </section>
+
+    <section class="panel" id="account-access">
+      <h2>Full My Garage access</h2>
+      <p class="sub">Sign in with the email on your booking to see all appointments and saved vehicles.</p>
+      <form id="acct-form">
+        <label for="acct-email" class="sub">Email</label>
+        <input class="inp" id="acct-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+        <label for="acct-phone" class="sub">Phone (optional, helps match your account)</label>
+        <input class="inp" id="acct-phone" name="phone" type="tel" autocomplete="tel" placeholder="Optional">
+        <button type="submit" class="btn primary">Email me a secure sign-in link</button>
+      </form>
+      <p id="acct-error" class="msg" hidden></p>
+      <p class="sub" style="margin-top:14px">If email sign-in is unavailable, use booking lookup above or <a href="tel:5513132956">call/text 551-313-2956</a>.</p>
+    </section>
+  </div>
+
+  <div id="post-auth" hidden style="display:none">
+    <div class="bar">
+      <h2>Dashboard</h2>
+      <button type="button" class="btn ghost" id="btn-logout">Sign out</button>
+    </div>
+
+    <section class="section" aria-labelledby="upcoming-h">
+      <h3 id="upcoming-h">Upcoming appointment</h3>
+      <div id="upcoming-panel"></div>
+      <div class="actions">
+        <a class="btn primary" href="#payments" id="pay-balance-link">Pay Balance</a>
+        <button type="button" class="btn ghost" onclick="cd1MyGarage.submitAction('reschedule_request',{newDate:prompt('Preferred date (YYYY-MM-DD):')||''})">Request New Date</button>
+        <button type="button" class="btn ghost" onclick="cd1MyGarage.submitAction('addon_request',{requestedAddons:prompt('Add-ons requested:')||''})">Modify Service / Add-ons</button>
+        <button type="button" class="btn ghost" onclick="cd1MyGarage.submitAction('vehicle_add_request',{vehicleLabel:prompt('Vehicle to add:')||''})">Add Vehicle</button>
+        <a class="btn ghost" href="tel:5513132956">Contact Cardetail1</a>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="appt-h">
+      <h3 id="appt-h">My Appointments</h3>
+      <ul class="clean" id="appointments-list"></ul>
+    </section>
+
+    <section class="section" aria-labelledby="veh-h">
+      <h3 id="veh-h">My Vehicles</h3>
+      <p id="vehicles-empty" class="empty">No saved vehicles yet. After signing in, you can add vehicles for faster rebooking.</p>
+      <ul class="clean" id="vehicles-list"></ul>
+    </section>
+
+    <section class="section" aria-labelledby="hist-h">
+      <h3 id="hist-h">Service History</h3>
+      <p id="history-empty" class="empty">Completed services will appear here.</p>
+      <ul class="clean" id="history-list"></ul>
+    </section>
+
+    <section class="section" aria-labelledby="maint-h">
+      <h3 id="maint-h">Maintenance Plans</h3>
+      <p id="maintenance-empty" class="empty">No active maintenance plan on file. Ask about a Garage Plan when booking.</p>
+    </section>
+
+    <section class="section" id="payments" aria-labelledby="pay-h">
+      <h3 id="pay-h">Payments &amp; Receipts</h3>
+      <p id="payments-empty" class="empty">No balance due. Approved payment links appear on your upcoming appointment when ready.</p>
+    </section>
+
+    <section class="section" aria-labelledby="comm-h">
+      <h3 id="comm-h">Communication Preferences</h3>
+      <p id="comm-empty" class="empty">Preference management is coming soon. Call or text us to update how we reach you.</p>
+    </section>
+  </div>
+</div>
+
+<script src="assets/portal-analytics.js" defer></script>
+<script src="assets/my-garage.js" defer></script>
+<script src="assets/back-to-top.js" defer></script>
+</body>
+</html>

@@ -95,20 +95,20 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   </div>
 </header>
 <div class="wrap">
-  <nav class="tabs" id="tabs">
-    <button type="button" class="tab on" data-tab="overview">Overview</button>
-    <button type="button" class="tab" data-tab="jobs">Jobs Board</button>
-    <button type="button" class="tab" data-tab="techs">Technician Management</button>
-    <button type="button" class="tab" data-tab="assign">Assignments</button>
-    <button type="button" class="tab" data-tab="completed">Completed / Review</button>
-    <button type="button" class="tab" data-tab="issues">Issues</button>
-    <button type="button" class="tab" data-tab="requests">Customer Requests</button>
-    <button type="button" class="tab" data-tab="auctions">Auctions</button>
-    <button type="button" class="tab" data-tab="subscriptions">Subscriptions</button>
-    <button type="button" class="tab" data-tab="settings">Settings</button>
-    <button type="button" class="tab" data-tab="maintenance">Maintenance</button>
-    <button type="button" class="tab" data-tab="events">Event Log</button>
-    <button type="button" class="tab" data-tab="revops">Revenue Ops</button>
+  <nav class="tabs" id="tabs" role="tablist">
+    <button type="button" class="tab on" data-tab="overview" role="tab" aria-selected="true">Overview</button>
+    <button type="button" class="tab" data-tab="jobs" role="tab" aria-selected="false">Jobs Board</button>
+    <button type="button" class="tab" data-tab="techs" role="tab" aria-selected="false">Technician Management</button>
+    <button type="button" class="tab" data-tab="assign" role="tab" aria-selected="false">Assignments</button>
+    <button type="button" class="tab" data-tab="completed" role="tab" aria-selected="false">Completed / Review</button>
+    <button type="button" class="tab" data-tab="issues" role="tab" aria-selected="false">Issues</button>
+    <button type="button" class="tab" data-tab="requests" role="tab" aria-selected="false">Customer Requests</button>
+    <button type="button" class="tab" data-tab="auctions" role="tab" aria-selected="false">Auctions</button>
+    <button type="button" class="tab" data-tab="subscriptions" role="tab" aria-selected="false">Subscriptions</button>
+    <button type="button" class="tab" data-tab="settings" role="tab" aria-selected="false">Settings</button>
+    <button type="button" class="tab" data-tab="maintenance" role="tab" aria-selected="false">Maintenance</button>
+    <button type="button" class="tab" data-tab="events" role="tab" aria-selected="false">Event Log</button>
+    <button type="button" class="tab" data-tab="revops" role="tab" aria-selected="false">Revenue Ops</button>
   </nav>
 
   <section class="panel on" id="p-overview">
@@ -167,7 +167,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   </section>
 
   <section class="panel" id="p-requests">
-    <p class="hint">Customer cancellation, reschedule, and address-change requests waiting for admin action.</p>
+    <h3 style="font-size:14px;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--ac)">Customer Change Requests</h3>
+    <p class="hint">Portal change requests awaiting admin review. Auto-apply supported for reschedule, address, and cancellation only; other types require manual confirmation after approval.</p>
     <div id="requestsList"><div class="empty">Loading…</div></div>
   </section>
 
@@ -324,7 +325,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   const inviteCache = {};
 
   let jobs = [], techs = [], activeJob = null, activeTech = null;
-  let showTest = false, platformSettings = {}, auctions = [], subscriptions = [];
+  let showTest = false, platformSettings = {}, auctions = [], subscriptions = [], changeRequests = [];
 
   const $ = s => document.querySelector(s);
   const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -390,6 +391,21 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   function cust(j) { return ((j.firstName||'')+' '+(j.lastName||'')).trim()||j.email||j.id; }
   function dt(s) { if(!s) return '—'; try { return new Date(s).toLocaleString(); } catch { return s; } }
 
+  async function loadChangeRequests() {
+    const data = await api('/.netlify/functions/admin-customer-requests?action=list');
+    changeRequests = data.requests || [];
+    return changeRequests;
+  }
+
+  async function decideChangeRequest(requestId, decision, adminNote) {
+    return api('/.netlify/functions/admin-customer-requests', 'POST', {
+      action: 'decide',
+      requestId,
+      decision,
+      adminNote: adminNote || '',
+    });
+  }
+
   async function loadJobs(extra) {
     const q = new URLSearchParams(extra||{});
     if (showTest) q.set('showTest', '1');
@@ -441,15 +457,31 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
 
   async function refreshAll() {
-    const [jobsR, techsR] = await Promise.allSettled([loadJobs(), loadTechs(), loadSettings()]);
+    const [jobsR, techsR, settingsR, changeR] = await Promise.allSettled([
+      loadJobs(), loadTechs(), loadSettings(), loadChangeRequests(),
+    ]);
     if (jobsR.status === 'rejected') jobs = [];
     if (techsR.status === 'rejected') techs = [];
+    if (changeR.status === 'rejected') changeRequests = [];
     renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
     renderSettingsForm();
     const failures = [];
     if (jobsR.status === 'rejected') failures.push('bookings (' + (jobsR.reason && jobsR.reason.message || jobsR.reason) + ')');
     if (techsR.status === 'rejected') failures.push('technicians (' + (techsR.reason && techsR.reason.message || techsR.reason) + ')');
+    if (settingsR.status === 'rejected') failures.push('settings (' + (settingsR.reason && settingsR.reason.message || settingsR.reason) + ')');
+    if (changeR.status === 'rejected') failures.push('change requests (' + (changeR.reason && changeR.reason.message || changeR.reason) + ')');
     showLoadBanner(failures);
+  }
+
+  async function refreshRequestsTab() {
+    const el = $('#requestsList');
+    if (el) el.innerHTML = '<div class="empty">Loading customer requests…</div>';
+    try {
+      await loadChangeRequests();
+      renderRequests();
+    } catch (e) {
+      if (el) el.innerHTML = '<div class="empty">Could not load customer requests: ' + esc(e.message) + '</div>';
+    }
   }
 
   async function refreshAuctionsTab() {
@@ -599,35 +631,80 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     tb.querySelectorAll('.correct').forEach(b => b.onclick = () => { const m=prompt('Correction message:'); if(m) jobAction(b.dataset.id,'request_correction',{message:m}); });
   }
 
+  function safeReqJson(o) {
+    try { return JSON.stringify(o || {}); } catch { return '{}'; }
+  }
+
   function renderRequests() {
-    const list = jobs.filter(j =>
-      j.cancellationRequestStatus === 'requested' ||
-      j.rescheduledByClient ||
-      j.addressChangedByClient ||
-      j.requestedAddress
-    );
     const el = $('#requestsList');
-    if (!list.length) { el.innerHTML='<div class="empty">No pending customer requests</div>'; return; }
-    el.innerHTML = list.map(j => {
-      let reqs = [];
-      if (j.cancellationRequestStatus === 'requested') reqs.push('Cancellation: '+(j.cancellationReason||'requested'));
-      if (j.rescheduledByClient) reqs.push('Reschedule → '+(j.rescheduleRequestedDate||'?')+' '+(j.rescheduleRequestedTime||''));
-      if (j.addressChangedByClient || j.requestedAddress) reqs.push('Address → '+esc(j.requestedAddress||'(see booking)'));
-      return '<div class="req-box" data-id="'+esc(j.id)+'">'+
-        '<h5>'+esc(cust(j))+' · <span style="font-family:monospace;font-size:11px">'+esc(j.id)+'</span></h5>'+
-        '<div style="font-size:12px;color:var(--mu);margin-bottom:8px">'+reqs.map(esc).join('<br>')+'</div>'+
+    const list = changeRequests || [];
+    if (!list.length) {
+      el.innerHTML = '<div class="empty">No pending customer change requests</div>';
+      return;
+    }
+    el.innerHTML = list.map(r => {
+      const prev = esc(safeReqJson(r.previousState));
+      const next = esc(safeReqJson(r.requestedState));
+      const manual = !['reschedule_request','address_update','cancellation'].includes(r.requestType);
+      return '<div class="req-box" data-req="'+esc(r.id)+'">'+
+        '<h5>'+esc(r.typeLabel || r.requestType)+' · <span style="font-family:monospace;font-size:11px">'+esc(r.shortId || r.id)+'</span></h5>'+
+        '<div style="font-size:12px;color:var(--mu);margin-bottom:6px">Booking: <code>'+esc(r.bookingId)+'</code> · '+dt(r.createdAt)+' · '+esc(r.status)+'</div>'+
+        (manual ? '<div style="font-size:11px;color:var(--warn);margin-bottom:6px">Manual review required after approval</div>' : '')+
+        '<div style="font-size:11px;color:var(--mu);margin-bottom:4px"><b>Previous:</b> '+prev+'</div>'+
+        '<div style="font-size:11px;color:var(--mu);margin-bottom:8px"><b>Requested:</b> '+next+'</div>'+
+        (r.customerVisibleResult ? '<div style="font-size:11px;margin-bottom:8px">Customer: '+esc(r.customerVisibleResult)+'</div>' : '')+
         '<div class="actions">'+
-        (j.cancellationRequestStatus==='requested'?'<button type="button" class="btn danger sm req-cancel-yes" data-id="'+esc(j.id)+'">Approve cancel</button><button type="button" class="btn ghost sm req-cancel-no" data-id="'+esc(j.id)+'">Deny cancel</button>':'')+
-        (j.rescheduledByClient?'<button type="button" class="btn sm req-resched" data-id="'+esc(j.id)+'">Apply reschedule</button>':'')+
-        ((j.addressChangedByClient||j.requestedAddress)?'<button type="button" class="btn sm req-addr" data-id="'+esc(j.id)+'">Apply address</button>':'')+
-        '<button type="button" class="btn ghost sm req-open" data-id="'+esc(j.id)+'">Open job</button>'+
+        '<button type="button" class="btn sm req-approve" data-id="'+esc(r.id)+'">Approve</button>'+
+        '<button type="button" class="btn ghost sm req-reject" data-id="'+esc(r.id)+'">Reject</button>'+
+        '<button type="button" class="btn ghost sm req-clarify" data-id="'+esc(r.id)+'">Request clarification</button>'+
+        '<button type="button" class="btn ghost sm req-open" data-bid="'+esc(r.bookingId)+'">Open booking</button>'+
+        '<button type="button" class="btn ghost sm req-pay" data-bid="'+esc(r.bookingId)+'">Confirm pay link</button>'+
         '</div></div>';
     }).join('');
-    el.querySelectorAll('.req-cancel-yes').forEach(b => b.onclick = () => jobAction(b.dataset.id,'resolve_cancellation',{decision:'approved',note:'Approved from requests queue'}));
-    el.querySelectorAll('.req-cancel-no').forEach(b => b.onclick = () => { const n=prompt('Denial note:'); if(n!==null) jobAction(b.dataset.id,'resolve_cancellation',{decision:'denied',note:n}); });
-    el.querySelectorAll('.req-resched').forEach(b => b.onclick = () => jobAction(b.dataset.id,'apply_customer_request',{requestType:'reschedule'}));
-    el.querySelectorAll('.req-addr').forEach(b => b.onclick = () => jobAction(b.dataset.id,'apply_customer_request',{requestType:'address'}));
-    el.querySelectorAll('.req-open').forEach(b => b.onclick = () => openDrawer(b.dataset.id));
+
+    el.querySelectorAll('.req-approve').forEach(b => b.onclick = async () => {
+      const id = b.dataset.id;
+      const r = list.find(x => x.id === id);
+      const msg = r && !['reschedule_request','address_update','cancellation'].includes(r.requestType)
+        ? 'This request type requires manual follow-up after approval. Continue?'
+        : 'Approve this customer request?';
+      if (!confirm(msg)) return;
+      b.disabled = true;
+      try {
+        await decideChangeRequest(id, 'approve');
+        toast('Request approved');
+        await refreshAll();
+      } catch(e) { toast(e.message); b.disabled = false; }
+    });
+    el.querySelectorAll('.req-reject').forEach(b => b.onclick = async () => {
+      const note = prompt('Rejection note for customer (optional):');
+      if (note === null) return;
+      if (!confirm('Reject this request?')) return;
+      b.disabled = true;
+      try {
+        await decideChangeRequest(b.dataset.id, 'reject', note);
+        toast('Request rejected');
+        await refreshAll();
+      } catch(e) { toast(e.message); b.disabled = false; }
+    });
+    el.querySelectorAll('.req-clarify').forEach(b => b.onclick = async () => {
+      const note = prompt('Clarification message:');
+      if (!note) return;
+      b.disabled = true;
+      try {
+        await decideChangeRequest(b.dataset.id, 'clarify', note);
+        toast('Clarification requested');
+        await refreshAll();
+      } catch(e) { toast(e.message); b.disabled = false; }
+    });
+    el.querySelectorAll('.req-open').forEach(b => b.onclick = () => openDrawer(b.dataset.bid));
+    el.querySelectorAll('.req-pay').forEach(b => b.onclick = async () => {
+      try {
+        const d = await api('/.netlify/functions/admin-customer-requests', 'POST', { action: 'generate_pay_link', bookingId: b.dataset.bid });
+        if (d.payLink) { await navigator.clipboard.writeText(d.payLink).catch(()=>{}); toast('Approved pay link copied'); }
+        else toast(d.message || 'No pay link on file');
+      } catch(e) { toast(e.message); }
+    });
   }
 
   function renderIssues() {
@@ -996,12 +1073,18 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   // Tabs
   $('#tabs').onclick = e => {
     const b = e.target.closest('.tab'); if(!b) return;
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-    b.classList.add('on'); $('#p-'+b.dataset.tab).classList.add('on');
+    document.querySelectorAll('.tab').forEach(t => {
+      t.classList.remove('on');
+      t.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+    b.classList.add('on');
+    b.setAttribute('aria-selected', 'true');
+    $('#p-'+b.dataset.tab).classList.add('on');
     if (b.dataset.tab === 'auctions') refreshAuctionsTab();
     if (b.dataset.tab === 'subscriptions') refreshSubsTab();
     if (b.dataset.tab === 'settings') loadSettings().then(renderSettingsForm).catch(()=>{});
+    if (b.dataset.tab === 'requests') refreshRequestsTab();
     if (b.dataset.tab === 'revops') refreshRevopsTab();
   };
 

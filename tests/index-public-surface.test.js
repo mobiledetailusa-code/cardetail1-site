@@ -49,7 +49,8 @@ test('#admin hash redirects to canonical admin page, not customer portal', () =>
   assert.doesNotMatch(index, /id="jobs-ov"/);
   assert.doesNotMatch(index, /id="emp-ov"/);
   assert.match(index, /id="bk-ov"/);
-  assert.match(index, /id="cp-ov"/);
+  assert.match(index, /my-garage\.html#lookup/);
+  assert.doesNotMatch(index, /id="cp-ov"/);
 });
 
 test('canonical portal HTML files are present and unchanged by this guard', () => {

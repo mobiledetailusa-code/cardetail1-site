@@ -372,15 +372,34 @@ test('default limits match roadmap values', () => {
   assert.equal(limits['chat'], undefined);
 });
 
-test('normalizeClientIp reuses admin-security clientIp logic', () => {
+test('normalizeClientIp prefers platform identity over spoofed X-Forwarded-For', () => {
   const rl = getRateLimit();
   const event = {
     headers: {
       'x-forwarded-for': '198.51.100.7, 10.0.0.1',
+      'x-nf-client-connection-ip': '10.0.0.1',
       'client-ip': '10.0.0.1',
     },
   };
-  assert.equal(rl.normalizeClientIp(event), '198.51.100.7');
+  assert.equal(rl.normalizeClientIp(event), '10.0.0.1');
+});
+
+test('spoofed X-Forwarded-For alone cannot bypass rate limit when platform IP is present', async () => {
+  process.env.PUBLIC_RATE_LIMIT_LOOKUP_BOOKING_MAX = '2';
+  const rl = getRateLimit();
+  const now = 30_000_000;
+  const platformEvent = makeEvent('203.0.113.88');
+  platformEvent.headers['x-nf-client-connection-ip'] = '203.0.113.88';
+  platformEvent.headers['x-forwarded-for'] = '1.2.3.4';
+
+  await rl.enforcePublicRateLimit(platformEvent, { endpoint: 'lookup-booking', now });
+  await rl.enforcePublicRateLimit(platformEvent, { endpoint: 'lookup-booking', now: now + 1 });
+
+  const spoofed = makeEvent('1.2.3.4');
+  spoofed.headers['x-forwarded-for'] = '1.2.3.4';
+  spoofed.headers['x-nf-client-connection-ip'] = '203.0.113.88';
+  const blocked = await rl.enforcePublicRateLimit(spoofed, { endpoint: 'lookup-booking', now: now + 2 });
+  assert.equal(blocked.blocked, true);
 });
 
 test('missing client IP fails open without using a shared unknown bucket', async () => {

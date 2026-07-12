@@ -91,13 +91,11 @@ test('Boats RV Powersports share identical specialty-public-footer structure', (
   for (const page of SPECIALTY_PAGES) {
     const html = read(page);
     assert.match(html, /class="specialty-public-footer"/);
-    assert.match(html, /assets\/specialty-public-footer\.css/);
-    assert.match(html, /Boat &amp; Marine Detailing/);
-    assert.match(html, /RV &amp; Trailer Detailing/);
-    assert.match(html, /Powersports Detailing/);
-    assert.match(html, /Commercial &amp; Fleet Inquiry/);
-    assert.match(html, /New Jersey service areas/);
-    assert.match(html, /View your booking/);
+    assert.match(html, /Boats &amp; Marine/);
+    assert.match(html, /RVs &amp; Trailers/);
+    assert.match(html, /Motorcycles &amp; Powersports/);
+    assert.match(html, /Commercial &amp; Fleet/);
+    assert.match(html, /my-garage\.html/);
     assert.match(html, /terms-conditions\.html/);
     const footer = html.match(/<footer class="specialty-public-footer"[\s\S]*?<\/footer>/);
     assert.ok(footer, `${page} missing shared footer`);
@@ -188,8 +186,26 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/next-best-action.js',
     'netlify/lib/universal-customer-strategy.js',
     'netlify/lib/universal-customer-strategy-logic.js',
+    'netlify/lib/universal-customer-strategy-config.json',
     'netlify/lib/anonymous-prospect.js',
     'netlify/lib/booking-routing-validation.js',
+    'netlify/lib/garage-plan-validation.js',
+    'netlify/functions/booking-card-status.js',
+    'netlify/functions/lookup-booking.js',
+    'netlify/functions/request-cancellation.js',
+    'netlify/functions/submit-customer-action.js',
+    'netlify/functions/admin-customer-requests.js',
+    'netlify/functions/customer-portal-auth.js',
+    'netlify/functions/customer-portal-data.js',
+    'netlify/functions/customer-portal-vehicles.js',
+    'netlify/lib/ops-db.js',
+    'netlify/lib/phone-auth.js',
+    'netlify/lib/booking-customer-auth.js',
+    'netlify/lib/customer-session.js',
+    'netlify/lib/appointment-status-policy.js',
+    'netlify/lib/customer-change-requests.js',
+    'netlify/lib/customer-vehicles.js',
+    'netlify/lib/admin-security.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

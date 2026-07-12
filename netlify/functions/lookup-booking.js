@@ -18,9 +18,10 @@ exports.handler = async (event) => {
   const rawId = String(body.bookingId || body.id || '').trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '');
   const rawPhone = normalizePhone(body.phone || body.customerPhone || '');
 
-  if (!rawId) return jsonCors(400, { ok: false, error: 'bookingId is required' });
-  if (!rawPhone) return jsonCors(400, { ok: false, error: 'phone is required' });
-  if (rawPhone.length < 7) return jsonCors(400, { ok: false, error: 'invalid_phone' });
+  if (!rawId) return jsonCors(400, { ok: false, error: 'validation_error', message: 'Booking ID is required.' });
+  if (!rawPhone || rawPhone.length !== 10) {
+    return jsonCors(400, { ok: false, error: 'validation_error', message: 'A valid 10-digit phone number is required.' });
+  }
 
   try {
     const booking = await getBooking(rawId);
