@@ -1435,6 +1435,18 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   $('#revopsRefresh').onclick = refreshRevopsTab;
   $('#revopsRetry').onclick = refreshRevopsTab;
   $('#revopsPriorityFilter').onchange = refreshRevopsTab;
+
+  function revopsTabActive() {
+    const tab = document.querySelector('.tab.on[data-tab="revops"]');
+    return !!(tab && document.visibilityState !== 'hidden');
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (revopsTabActive()) refreshRevopsTab();
+  });
+  window.addEventListener('focus', () => {
+    if (revopsTabActive()) refreshRevopsTab();
+  });
 })();
 </script>
 </body>

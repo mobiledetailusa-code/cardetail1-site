@@ -161,6 +161,7 @@ test('admin UI uses single dashboard loader with loading and error states', () =
   assert.match(ui, /revopsError/);
   assert.match(ui, /revopsInflight/);
   assert.match(ui, /revopsGarage/);
+  assert.match(ui, /visibilitychange/);
   assert.doesNotMatch(ui, /RevOps load failed: '\+e\.message\); toast/);
 });
 
