@@ -44,6 +44,13 @@ ul.clean{list-style:none;padding:0}
 ul.clean li{padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}
 .bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
 .bar h2{font-size:18px;font-weight:800}
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:3000;padding:16px}
+.modal-ov.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:22px;max-width:420px;width:100%}
+.modal h4{font-size:16px;margin-bottom:12px}
+.modal label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a2a3a;border:1px solid var(--border);padding:10px 16px;border-radius:10px;font-size:13px;z-index:4000;opacity:0;transition:opacity .2s}
+.toast.show{opacity:1}
 @media(max-width:430px){.wrap{padding:16px 12px 40px}.panel{padding:18px}}
 </style>
 <script>
@@ -102,11 +109,19 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
     <section class="section" aria-labelledby="upcoming-h">
       <h3 id="upcoming-h">Upcoming appointment</h3>
       <div id="upcoming-panel"></div>
-      <div class="actions">
+      <div class="actions" id="customer-actions">
         <a class="btn primary" href="#payments" id="pay-balance-link">Pay Balance</a>
-        <button type="button" class="btn ghost" onclick="cd1MyGarage.submitAction('reschedule_request',{newDate:prompt('Preferred date (YYYY-MM-DD):')||''})">Request New Date</button>
-        <button type="button" class="btn ghost" onclick="cd1MyGarage.submitAction('addon_request',{requestedAddons:prompt('Add-ons requested:')||''})">Modify Service / Add-ons</button>
-        <button type="button" class="btn ghost" onclick="cd1MyGarage.submitAction('vehicle_add_request',{vehicleLabel:prompt('Vehicle to add:')||''})">Add Vehicle</button>
+        <button type="button" class="btn ghost" data-action="reschedule_request">Request New Date</button>
+        <button type="button" class="btn ghost" data-action="addon_request">Modify Service / Add-ons</button>
+        <button type="button" class="btn ghost" data-action="package_change_request">Change Package</button>
+        <button type="button" class="btn ghost" data-action="vehicle_add_request">Add Vehicle</button>
+        <button type="button" class="btn ghost" data-action="vehicle_replace_request">Replace Vehicle</button>
+        <button type="button" class="btn ghost" data-action="address_update">Update Address</button>
+        <button type="button" class="btn ghost" data-action="cancellation_request">Cancel Appointment</button>
+        <button type="button" class="btn ghost" data-action="maintenance_request">Maintenance Plan</button>
+        <button type="button" class="btn ghost" data-action="approve_completion" id="btn-approve-completion" hidden>Approve Completion</button>
+        <button type="button" class="btn ghost" data-action="report_issue" id="btn-report-issue" hidden>Report Issue</button>
+        <a class="btn ghost" href="index.html">Rebook Service</a>
         <a class="btn ghost" href="tel:5513132956">Contact Cardetail1</a>
       </div>
     </section>
@@ -120,6 +135,9 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
       <h3 id="veh-h">My Vehicles</h3>
       <p id="vehicles-empty" class="empty">No saved vehicles yet. After signing in, you can add vehicles for faster rebooking.</p>
       <ul class="clean" id="vehicles-list"></ul>
+      <div class="actions" id="vehicle-actions" hidden>
+        <button type="button" class="btn ghost" data-vehicle-action="add">Add Vehicle</button>
+      </div>
     </section>
 
     <section class="section" aria-labelledby="hist-h">
@@ -145,7 +163,21 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
   </div>
 </div>
 
+<div class="modal-ov" id="action-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+  <div class="modal">
+    <h4 id="modal-title">Request change</h4>
+    <form id="modal-form"></form>
+    <div class="actions" style="margin-top:14px">
+      <button type="button" class="btn primary" id="modal-submit">Submit</button>
+      <button type="button" class="btn ghost" id="modal-cancel">Cancel</button>
+    </div>
+    <p id="modal-error" class="msg err" hidden></p>
+  </div>
+</div>
+<div class="toast" id="portal-toast" role="status" aria-live="polite"></div>
+
 <script src="assets/portal-analytics.js" defer></script>
+<script src="assets/operational-refresh.js" defer></script>
 <script src="assets/my-garage.js" defer></script>
 <script src="assets/back-to-top.js" defer></script>
 </body>

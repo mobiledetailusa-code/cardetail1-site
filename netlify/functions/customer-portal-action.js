@@ -1,13 +1,51 @@
-// Customer completion / action link verification and actions (booking-scoped token).
+// Customer completion / action link verification and actions (booking-scoped token or portal auth).
 const { jsonCors, blobsStore } = require('../lib/tech-security');
 const { syncLegacyFields, portalLabel } = require('../lib/operations-lifecycle');
 const { auditEntry, appendAudit } = require('../lib/operations-audit');
 const { projectBookingForCustomer } = require('../lib/ops-schema');
 const { checkPublicRateLimit } = require('../lib/public-rate-limit');
+const { verifyActionToken } = require('../lib/customer-completion-link');
+const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
 
 async function getBooking(bookingId) {
   const store = await blobsStore('cd1-bookings');
   return store.get(bookingId, { type: 'json' }).catch(() => null);
+}
+
+async function resolveContext(event, body, action) {
+  const token = String(body.token || '').trim();
+  if (token) {
+    const record = await verifyActionToken(token);
+    if (!record) return { err: jsonCors(401, { ok: false, error: 'invalid_or_expired_token' }) };
+    const booking = await getBooking(record.bookingId);
+    if (!booking) return { err: jsonCors(404, { ok: false, error: 'booking_not_found' }) };
+    return { booking, bookingId: record.bookingId, actorId: 'action_link' };
+  }
+
+  if (action === 'view') {
+    return { err: jsonCors(400, { ok: false, error: 'token_required' }) };
+  }
+
+  const auth = await authorizeBookingAccess(event, {
+    bookingId: body.bookingId,
+    phone: body.phone,
+  });
+  if (!auth.ok) {
+    const code = auth.statusCode && auth.statusCode !== 200 ? auth.statusCode : 403;
+    return {
+      err: jsonCors(code, {
+        ok: false,
+        error: auth.error,
+        message: auth.message,
+      }),
+    };
+  }
+  const bookingId = auth.booking.id || auth.booking.bookingId;
+  return {
+    booking: auth.booking,
+    bookingId,
+    actorId: auth.scope === 'session' ? 'session' : 'booking_lookup',
+  };
 }
 
 exports.handler = async (event) => {
@@ -22,15 +60,11 @@ exports.handler = async (event) => {
   catch { return jsonCors(400, { ok: false, error: 'invalid_json' }); }
 
   const action = String(body.action || 'view').toLowerCase();
-  const token = String(body.token || '').trim();
-  if (!token) return jsonCors(400, { ok: false, error: 'token_required' });
+  const ctx = await resolveContext(event, body, action);
+  if (ctx.err) return ctx.err;
 
-  const record = await verifyActionToken(token);
-  if (!record) return jsonCors(401, { ok: false, error: 'invalid_or_expired_token' });
-
-  const booking = await getBooking(record.bookingId);
-  if (!booking) return jsonCors(404, { ok: false, error: 'booking_not_found' });
-
+  const booking = ctx.booking;
+  const bookingId = ctx.bookingId;
   const synced = syncLegacyFields(booking);
   const labels = portalLabel(synced.serviceStatus, synced.paymentStatus, synced.customerApprovalStatus);
 
@@ -60,11 +94,11 @@ exports.handler = async (event) => {
       updatedAt: new Date().toISOString(),
     });
     const store = await blobsStore('cd1-bookings');
-    await store.setJSON(record.bookingId, patched);
+    await store.setJSON(bookingId, patched);
     await appendAudit(auditEntry({
-      bookingId: record.bookingId,
+      bookingId,
       actorType: 'customer',
-      actorId: 'action_link',
+      actorId: ctx.actorId,
       action: 'approve_completion',
       requestId: body.requestId,
       previousState: prev,
@@ -75,7 +109,7 @@ exports.handler = async (event) => {
   }
 
   if (action === 'report_issue') {
-    const note = String(body.note || '').trim().slice(0, 1000);
+    const note = String(body.note || body.message || '').trim().slice(0, 1000);
     if (!note) return jsonCors(400, { ok: false, error: 'note_required' });
     const prev = { ...synced };
     const patched = syncLegacyFields({
@@ -86,11 +120,11 @@ exports.handler = async (event) => {
       updatedAt: new Date().toISOString(),
     });
     const store = await blobsStore('cd1-bookings');
-    await store.setJSON(record.bookingId, patched);
+    await store.setJSON(bookingId, patched);
     await appendAudit(auditEntry({
-      bookingId: record.bookingId,
+      bookingId,
       actorType: 'customer',
-      actorId: 'action_link',
+      actorId: ctx.actorId,
       action: 'report_issue',
       requestId: body.requestId,
       previousState: prev,
