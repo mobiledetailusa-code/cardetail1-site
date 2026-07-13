@@ -10,6 +10,7 @@ node_modules/
 .tools/
 .netlify/
 reports/*.md
+reports/revops-auth-qa-*.json
 
 # ── Local artifacts / scripts ─────────────────────────
 upload.ts

@@ -90,6 +90,10 @@ function safeRecord(value) {
   }
 }
 
+function isQaFixtureRecord(rec) {
+  return !!(rec && (rec.qaFixture === true || rec.qaTag === 'QA-REVOPS'));
+}
+
 function normalizeEvent(rec, key) {
   if (!rec || typeof rec !== 'object') return null;
   const event = String(rec.event || '').trim();
@@ -121,6 +125,7 @@ async function loadEventsInRange(range, { limit = MAX_EVENTS } = {}) {
     for (const key of keys) {
       if (events.length >= limit) break;
       const raw = await revenueStore.blobGetJson(store, key);
+      if (isQaFixtureRecord(raw)) continue;
       const norm = normalizeEvent(raw, key);
       if (!norm) {
         malformed++;
@@ -186,6 +191,7 @@ async function loadOpportunities({ limit = MAX_OPPORTUNITIES, segment, priority 
   let malformed = 0;
   for (const key of keys) {
     const opp = await revenueStore.blobGetJson(store, key);
+    if (isQaFixtureRecord(opp)) continue;
     const safe = sanitizeOpportunityForAdmin(opp);
     if (!safe || !safe.opportunityId) {
       malformed++;

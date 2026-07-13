@@ -223,7 +223,6 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/revenue-store.js',
     'netlify/lib/revops-dashboard.js',
     'netlify/functions/qa-opscore-lifecycle.js',
-    'netlify/functions/qa-revops-lifecycle.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

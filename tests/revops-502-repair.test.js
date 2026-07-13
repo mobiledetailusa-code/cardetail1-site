@@ -188,6 +188,86 @@ test('revenue-admin module imports successfully', () => {
   assert.ok(fs.existsSync(path.join(root, 'netlify/lib/revops-dashboard.js')));
 });
 
+test('priority queue excludes converted garage plan and confirmed bookings', () => {
+  const items = buildPriorityQueue([
+    sanitizeOpportunityForAdmin({
+      opportunityId: 'opp_converted',
+      isGaragePlan: true,
+      garagePlanStatus: 'converted_to_booking',
+      intentScore: 50,
+      stage: 'Booking Requested',
+    }),
+    sanitizeOpportunityForAdmin({
+      opportunityId: 'opp_confirmed',
+      stage: 'Confirmed',
+      intentScore: 50,
+      vehicleCountBand: '1',
+    }),
+    sanitizeOpportunityForAdmin({
+      opportunityId: 'opp_active_gp',
+      isGaragePlan: true,
+      garagePlanStatus: 'new',
+      intentScore: 50,
+      stage: 'Qualified Lead',
+      vehicleCountBand: '2',
+    }),
+  ].filter(Boolean));
+  assert.equal(items.length, 1);
+  assert.equal(items[0].opportunityId, 'opp_active_gp');
+});
+
+test('qaFixture records are excluded from RevOps aggregation', async () => {
+  const origList = revenueStore.blobListKeys;
+  const origGet = revenueStore.blobGetJson;
+  const origStore = revenueStore.getRevenueStore;
+  revenueStore.getRevenueStore = async () => ({ list: async () => ({ blobs: [] }) });
+  revenueStore.blobListKeys = async () => ['opp_real', 'opp_qa'];
+  revenueStore.blobGetJson = async (_store, key) => {
+    if (key === 'opp_real') {
+      return {
+        opportunityId: 'opp_real',
+        segment: 'SINGLE_VEHICLE_NEW',
+        intentScore: 45,
+        commercialPriority: 'priority',
+        stage: 'Lead Captured',
+        vehicleCountBand: '1',
+        estimatedValue: 200,
+      };
+    }
+    if (key === 'opp_qa') {
+      return {
+        opportunityId: 'opp_qa',
+        qaFixture: true,
+        qaTag: 'QA-REVOPS',
+        segment: 'SINGLE_VEHICLE_NEW',
+        intentScore: 99,
+        commercialPriority: 'priority',
+        stage: 'Lead Captured',
+        vehicleCountBand: '1',
+        estimatedValue: 999,
+      };
+    }
+    return null;
+  };
+  try {
+    const dash = await buildRevopsDashboard({});
+    assert.equal(dash.ok, true);
+    assert.equal(dash.opportunities.length, 1);
+    assert.equal(dash.opportunities[0].opportunityId, 'opp_real');
+    assert.equal(dash.summary.estimatedPipelineValue, 200);
+  } finally {
+    revenueStore.blobListKeys = origList;
+    revenueStore.blobGetJson = origGet;
+    revenueStore.getRevenueStore = origStore;
+  }
+});
+
+test('temporary RevOps QA function is not deployed in repository', () => {
+  assert.ok(!fs.existsSync(path.join(root, 'netlify/functions/qa-revops-lifecycle.js')));
+  assert.ok(!fs.existsSync(path.join(root, 'scripts/revops-auth-qa.mjs')));
+  assert.ok(!fs.existsSync(path.join(root, 'scripts/run-revops-auth-qa.ps1')));
+});
+
 test('response contract includes funnel and warnings arrays', async () => {
   const origList = revenueStore.blobListKeys;
   revenueStore.blobListKeys = async () => [];
