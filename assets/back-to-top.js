@@ -19,13 +19,18 @@
 
   function scrollToTop() {
     var root = getScrollRoot();
-    if (prefersReducedMotion()) {
-      root.scrollTop = 0;
-      global.scrollTo(0, 0);
-    } else {
-      global.scrollTo({ top: 0, behavior: 'smooth' });
-      root.scrollTop = 0;
-    }
+    var reduce = prefersReducedMotion();
+    try {
+      if (!reduce && typeof global.scrollTo === 'function') {
+        global.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } catch (_) { /* ignore */ }
+    // Hard reset all known roots — some browsers keep documentElement.scrollTop
+    // even after window.scrollTo, and automation shells can race smooth scroll.
+    root.scrollTop = 0;
+    if (global.document.documentElement) global.document.documentElement.scrollTop = 0;
+    if (global.document.body) global.document.body.scrollTop = 0;
+    try { global.scrollTo(0, 0); } catch (_) { /* ignore */ }
   }
 
   function onActivate(e) {
