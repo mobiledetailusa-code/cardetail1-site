@@ -32,7 +32,9 @@ function runningInNetlifyFunction() {
 
 async function getRevenueStore(name) {
   const storeName = REVENUE_STORES[name] || name;
-  const { getStore } = await import('@netlify/blobs');
+  // Static require so Netlify esbuild always externalizes/includes @netlify/blobs.
+  // Dynamic import() was omitted from some function bundles (ERR_MODULE_NOT_FOUND on Branch Deploy).
+  const { getStore } = require('@netlify/blobs');
 
   // Prefer auto-bound runtime store inside Netlify Functions (same path used by bookings).
   if (runningInNetlifyFunction()) {
