@@ -172,7 +172,7 @@ async function seedQaFixtures() {
     vehicleCount: 1,
     assetCategories: ['cars'],
     estimatedValue: 199,
-    intentScore: 44,
+    intentScore: 65,
     source: 'qa_referral',
     stage: 'Lead Captured',
     marketingConsent: true,

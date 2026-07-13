@@ -158,6 +158,7 @@ async function createOpportunity(input) {
     assignedStatus: input.assignedStatus || 'unassigned',
     isGaragePlan: !!input.isGaragePlan,
     garagePlanStatus: input.garagePlanStatus || null,
+    notificationStatus: input.notificationStatus || null,
     lostReason: null,
     stage: input.stage || 'Lead Captured',
     createdAt: now,
