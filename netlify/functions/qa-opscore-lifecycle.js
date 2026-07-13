@@ -1,37 +1,64 @@
 // Branch-only QA lifecycle harness — operations-core-job-lifecycle deploy only.
-const { verifyAdminKey, jsonCors, blobsStore } = require('../lib/tech-security');
+const {
+  verifyAdminKey,
+  jsonCors,
+  blobsStore,
+  listAllBlobs,
+} = require('../lib/tech-security');
 const { createAdminAppointment } = require('../lib/admin-booking-mutations');
 const { listAuditForBooking } = require('../lib/operations-audit');
 
 const QA_PREFIX = 'QA-OPSCORE';
 const OPS_BRANCH = 'operations-core-job-lifecycle';
 
+function isProductionContext() {
+  return String(process.env.CONTEXT || '').toLowerCase() === 'production';
+}
+
 function isQaBranchDeploy(event) {
+  // Never enable on production context, even if host headers are spoofed.
+  if (isProductionContext()) return false;
+
   const host = String(
     event.headers?.['x-forwarded-host'] || event.headers?.Host || event.headers?.host || ''
   ).toLowerCase();
+
+  // Explicit production / primary domain deny.
+  if (
+    host === 'cardetail1.com' ||
+    host === 'www.cardetail1.com' ||
+    host === 'cardetail1.netlify.app' ||
+    host.endsWith('.cardetail1.com')
+  ) {
+    return false;
+  }
+
   if (host.startsWith(`${OPS_BRANCH}--`)) return true;
+
   const branch = String(process.env.BRANCH || process.env.COMMIT_REF || '').trim();
-  return branch === OPS_BRANCH && String(process.env.CONTEXT || '').toLowerCase() !== 'production';
+  return branch === OPS_BRANCH;
 }
 
 function qaDisabled() {
   return jsonCors(404, { ok: false, error: 'not_found' });
 }
 
+/**
+ * Delete only QA-OPSCORE fixtures. Never deletes non-QA keys.
+ * Uses listAllBlobs (paginated) — never assumes store.list() is an async iterator
+ * and never destructures a nonexistent `list` property.
+ */
 async function cleanupQa(store) {
-  const { list } = await store.list();
-  const blobs = (list && list.blobs) || [];
+  const blobs = await listAllBlobs(store, 'qa-opscore-cleanup');
   let removed = 0;
   for (const b of blobs) {
-    if (!String(b.key).startsWith(QA_PREFIX)) continue;
-    const rec = await store.get(b.key, { type: 'json' }).catch(() => null);
-    if (!rec) continue;
-    const created = new Date(rec.createdAt || 0).getTime();
-    if (Date.now() - created > 24 * 60 * 60 * 1000) {
-      await store.delete(b.key).catch(() => null);
-      removed++;
-    }
+    const key = String(b.key || '');
+    if (!key.startsWith(QA_PREFIX)) continue;
+    const rec = await store.get(key, { type: 'json' }).catch(() => null);
+    // Prefer fixture marker when present; still allow key-prefix delete for malformed JSON.
+    if (rec && rec.qaFixture !== true && !String(rec.id || '').startsWith(QA_PREFIX)) continue;
+    await store.delete(key).catch(() => null);
+    removed++;
   }
   return removed;
 }
@@ -57,6 +84,8 @@ exports.handler = async (event) => {
   }
 
   if (action === 'seed') {
+    // Always start from a clean QA slate — never leave orphan fixtures.
+    await cleanupQa(store);
     const fixtures = [
       {
         id: `${QA_PREFIX}-CUST-A-001`,
@@ -117,4 +146,4 @@ exports.handler = async (event) => {
   return jsonCors(400, { ok: false, error: 'unknown_action' });
 };
 
-exports.__test = { isQaBranchDeploy, QA_PREFIX };
+exports.__test = { isQaBranchDeploy, isProductionContext, QA_PREFIX, cleanupQa };

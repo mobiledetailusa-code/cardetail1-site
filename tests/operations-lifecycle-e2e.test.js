@@ -108,12 +108,93 @@ test('customer cancellation request is supported', () => {
   assert.match(src, /cancellation_request/);
 });
 
-test('qa-opscore harness is branch-only', () => {
+test('qa-opscore harness is branch-only and production-safe', () => {
   const src = read('netlify/functions/qa-opscore-lifecycle.js');
   assert.match(src, /QA-OPSCORE/);
   assert.match(src, /operations-core-job-lifecycle/);
   assert.match(src, /verifyAdminKey/);
   assert.match(src, /not_found/);
+  assert.match(src, /listAllBlobs/);
+  assert.doesNotMatch(src, /const\s*\{\s*list\s*\}\s*=\s*await\s+store\.list/);
+  assert.match(src, /isProductionContext/);
+  assert.match(src, /CONTEXT.*production/);
+  assert.match(src, /cardetail1\.com/);
+});
+
+test('qa-opscore isQaBranchDeploy denies production context', () => {
+  const { __test } = require('../netlify/functions/qa-opscore-lifecycle.js');
+  const prev = { ...process.env };
+  try {
+    process.env.CONTEXT = 'production';
+    process.env.BRANCH = 'operations-core-job-lifecycle';
+    assert.equal(__test.isProductionContext(), true);
+    assert.equal(
+      __test.isQaBranchDeploy({
+        headers: { host: 'operations-core-job-lifecycle--cardetail1.netlify.app' },
+      }),
+      false
+    );
+    process.env.CONTEXT = 'branch-deploy';
+    assert.equal(
+      __test.isQaBranchDeploy({
+        headers: { host: 'operations-core-job-lifecycle--cardetail1.netlify.app' },
+      }),
+      true
+    );
+    assert.equal(
+      __test.isQaBranchDeploy({ headers: { host: 'cardetail1.com' } }),
+      false
+    );
+  } finally {
+    Object.keys(process.env).forEach((k) => {
+      if (!(k in prev)) delete process.env[k];
+    });
+    Object.assign(process.env, prev);
+  }
+});
+
+test('qa-opscore cleanupQa only deletes QA_PREFIX keys via listAllBlobs', async () => {
+  const { __test } = require('../netlify/functions/qa-opscore-lifecycle.js');
+  const deleted = [];
+  const store = {
+    async list() {
+      throw new Error('cleanup must not call raw store.list without pagination helper');
+    },
+    async get(key) {
+      if (key.startsWith('QA-OPSCORE')) return { id: key, qaFixture: true, createdAt: new Date().toISOString() };
+      return { id: key, qaFixture: false };
+    },
+    async delete(key) { deleted.push(key); },
+  };
+  // Monkey-patch listAllBlobs through cleanup using a store that mimics listAllBlobs call path:
+  // cleanupQa calls listAllBlobs(store) which uses store.list({paginate:true}) then fallback.
+  // Provide paginate async iterator.
+  store.list = async function list(opts) {
+    if (opts && opts.paginate) {
+      return {
+        async *[Symbol.asyncIterator]() {
+          yield {
+            blobs: [
+              { key: 'QA-OPSCORE-CUST-A-001' },
+              { key: 'CD1-REAL-BOOKING' },
+              { key: 'QA-OPSCORE-MULTI-003' },
+            ],
+          };
+        },
+      };
+    }
+    return {
+      blobs: [
+        { key: 'QA-OPSCORE-CUST-A-001' },
+        { key: 'CD1-REAL-BOOKING' },
+        { key: 'QA-OPSCORE-MULTI-003' },
+      ],
+    };
+  };
+  const removed = await __test.cleanupQa(store);
+  assert.equal(removed, 2);
+  assert.deepEqual(deleted.sort(), ['QA-OPSCORE-CUST-A-001', 'QA-OPSCORE-MULTI-003']);
+  assert.ok(!deleted.includes('CD1-REAL-BOOKING'));
 });
 
 test('sync injects My Garage into public nav', () => {
