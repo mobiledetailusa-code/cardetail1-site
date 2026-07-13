@@ -249,11 +249,11 @@ exports.handler = async (event) => {
     const allowDebug = ctx !== 'production';
     if (blobFailure) {
       const body = { ok: false, error: 'service_unavailable' };
-      if (allowDebug) body.debug = String(code).slice(0, 160);
+      if (allowDebug) body.debug = String(message || code).slice(0, 180);
       return json(503, body);
     }
     const body = { ok: false, error: 'server_error' };
-    if (allowDebug) body.debug = String(code).slice(0, 160);
+    if (allowDebug) body.debug = String(message || code).slice(0, 180);
     return json(500, body);
   }
 };
