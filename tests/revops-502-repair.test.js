@@ -103,6 +103,16 @@ test('priority queue includes garage plan and payment-step abandonment signals',
       estimatedValue: 200,
     }),
     sanitizeOpportunityForAdmin({
+      opportunityId: 'opp_d',
+      segment: 'STANDARD',
+      intentScore: 44,
+      commercialPriority: 'standard',
+      stage: 'Lead Captured',
+      notificationStatus: 'failed',
+      vehicleCountBand: '1',
+      estimatedValue: 199,
+    }),
+    sanitizeOpportunityForAdmin({
       opportunityId: 'opp_c',
       segment: 'STANDARD',
       intentScore: 5,
@@ -114,6 +124,7 @@ test('priority queue includes garage plan and payment-step abandonment signals',
 
   assert.ok(items.some((i) => i.attentionReason === 'garage_plan_request'));
   assert.ok(items.some((i) => i.attentionReason === 'payment_step_abandonment'));
+  assert.ok(items.some((i) => i.attentionReason === 'failed_customer_notification'));
   assert.equal(items.find((i) => i.opportunityId === 'opp_c'), undefined);
 });
 
@@ -163,7 +174,7 @@ test('admin UI uses single dashboard loader with loading and error states', () =
   assert.match(ui, /revopsGarage/);
   assert.match(ui, /tab\.dataset\.tab === 'revops'/);
   assert.match(ui, /visibilitychange/);
-  assert.doesNotMatch(ui, /RevOps load failed: '\+e\.message\); toast/);
+  assert.doesNotMatch(ui, /Open this tab to load priority queue/);
 });
 
 test('garage plan submit marks opportunities as garage plan', () => {

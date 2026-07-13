@@ -163,6 +163,7 @@ function sanitizeOpportunityForAdmin(opp) {
     assignedStatus: opp.assignedStatus || opp.garagePlanStatus || 'unassigned',
     garagePlanStatus: opp.garagePlanStatus || (isGaragePlan ? 'new' : null),
     isGaragePlan,
+    notificationStatus: opp.notificationStatus || null,
     lostReason: opp.lostReason,
     stage: opp.stage,
     updatedAt: opp.updatedAt,
@@ -288,6 +289,7 @@ function buildPriorityQueue(opportunities) {
       || o.segment === SEGMENTS.RECURRING_MAINTENANCE_PROSPECT
       || o.segment === SEGMENTS.MULTI_VEHICLE_HOUSEHOLD
       || o.isGaragePlan
+      || o.notificationStatus === 'failed'
       || ['2', '3-4', '5-6'].includes(o.vehicleCountBand)
       || (o.lastBookingStep && Number(o.lastBookingStep) >= 4 && o.stage !== 'Booking Requested')
     );
@@ -298,7 +300,8 @@ function buildPriorityQueue(opportunities) {
     .slice(0, MAX_PRIORITY)
     .map((o) => ({
       ...o,
-      attentionReason: o.isGaragePlan ? 'garage_plan_request'
+      attentionReason: o.notificationStatus === 'failed' ? 'failed_customer_notification'
+        : o.isGaragePlan ? 'garage_plan_request'
         : (o.lastBookingStep && Number(o.lastBookingStep) >= 4 ? 'payment_step_abandonment' : 'high_intent_lead'),
     }));
 }
