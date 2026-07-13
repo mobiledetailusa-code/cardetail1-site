@@ -34,23 +34,22 @@ async function getRevenueStore(name) {
   const storeName = REVENUE_STORES[name] || name;
   const { getStore } = await import('@netlify/blobs');
 
-  const siteID = String(process.env.NETLIFY_SITE_ID || '').trim();
-  const token = String(process.env.NETLIFY_AUTH_TOKEN || '').trim();
-
-  // Prefer explicit credentials when present (more reliable on Branch Deploy / Deploy Preview).
-  if (siteID && token) {
-    try {
-      return getStore({ name: storeName, siteID, token });
-    } catch (e) {
-      console.warn(`[revenue-store] explicit getStore(${storeName}) failed:`, e.message);
-    }
-  }
-
+  // Prefer auto-bound runtime store inside Netlify Functions (same path used by bookings).
   if (runningInNetlifyFunction()) {
     try {
       return getStore(storeName);
     } catch (e) {
       console.warn(`[revenue-store] runtime getStore(${storeName}) failed:`, e.message);
+    }
+  }
+
+  const siteID = String(process.env.NETLIFY_SITE_ID || process.env.SITE_ID || '').trim();
+  const token = String(process.env.NETLIFY_AUTH_TOKEN || '').trim();
+  if (siteID && token) {
+    try {
+      return getStore({ name: storeName, siteID, token });
+    } catch (e) {
+      console.warn(`[revenue-store] explicit getStore(${storeName}) failed:`, e.message);
     }
   }
 

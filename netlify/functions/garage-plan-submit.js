@@ -243,16 +243,17 @@ exports.handler = async (event) => {
       return json(400, { ok: false, error: code });
     }
     // Match real storage failures — do not treat any stack path containing "blobs" as unavailable.
-    const blobFailure = err && err.code === 'service_unavailable'
+    const blobFailure = (err && err.code === 'service_unavailable')
       || /blob store|blobs api|failed to (get|set|list) blob|netlify blobs/i.test(message);
     const ctx = String(process.env.CONTEXT || '').toLowerCase();
+    const allowDebug = ctx !== 'production';
     if (blobFailure) {
       const body = { ok: false, error: 'service_unavailable' };
-      if (ctx && ctx !== 'production') body.debug = String(code).slice(0, 120);
+      if (allowDebug) body.debug = String(code).slice(0, 160);
       return json(503, body);
     }
     const body = { ok: false, error: 'server_error' };
-    if (ctx && ctx !== 'production') body.debug = String(code).slice(0, 120);
+    if (allowDebug) body.debug = String(code).slice(0, 160);
     return json(500, body);
   }
 };
