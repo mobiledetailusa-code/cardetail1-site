@@ -49,6 +49,12 @@ const PACKAGE_BY_PAGE = {
 
 /** Approved real-work / category media (no car filler). */
 const POWERSPORTS_MEDIA = [
+  'assets/images/specialty/powersports/polaris-front-before-480.jpg',
+  'assets/images/specialty/powersports/polaris-front-before-768.jpg',
+  'assets/images/specialty/powersports/polaris-front-before-1200.jpg',
+  'assets/images/specialty/powersports/polaris-front-after-480.jpg',
+  'assets/images/specialty/powersports/polaris-front-after-768.jpg',
+  'assets/images/specialty/powersports/polaris-front-after-1200.jpg',
   'assets/images/specialty/powersports/gator-interior-before-480.jpg',
   'assets/images/specialty/powersports/gator-interior-before-768.jpg',
   'assets/images/specialty/powersports/gator-interior-before-1200.jpg',
@@ -80,6 +86,24 @@ const BOATS_MEDIA = [
 ];
 
 const RV_MEDIA = [
+  'assets/images/specialty/rv/rockwood-front-before-480.jpg',
+  'assets/images/specialty/rv/rockwood-front-before-768.jpg',
+  'assets/images/specialty/rv/rockwood-front-before-1200.jpg',
+  'assets/images/specialty/rv/rockwood-front-after-480.jpg',
+  'assets/images/specialty/rv/rockwood-front-after-768.jpg',
+  'assets/images/specialty/rv/rockwood-front-after-1200.jpg',
+  'assets/images/specialty/rv/wingamm-front-before-480.jpg',
+  'assets/images/specialty/rv/wingamm-front-before-768.jpg',
+  'assets/images/specialty/rv/wingamm-front-before-1200.jpg',
+  'assets/images/specialty/rv/wingamm-front-after-480.jpg',
+  'assets/images/specialty/rv/wingamm-front-after-768.jpg',
+  'assets/images/specialty/rv/wingamm-front-after-1200.jpg',
+  'assets/images/specialty/rv/wingamm-side-before-480.jpg',
+  'assets/images/specialty/rv/wingamm-side-before-768.jpg',
+  'assets/images/specialty/rv/wingamm-side-before-1200.jpg',
+  'assets/images/specialty/rv/wingamm-side-after-480.jpg',
+  'assets/images/specialty/rv/wingamm-side-after-768.jpg',
+  'assets/images/specialty/rv/wingamm-side-after-1200.jpg',
   'assets/images/specialty/rv/vienna-front-before-480.jpg',
   'assets/images/specialty/rv/vienna-front-before-768.jpg',
   'assets/images/specialty/rv/vienna-front-before-1200.jpg',
