@@ -202,9 +202,9 @@ test('sync injects My Garage into public nav', () => {
   assert.match(sync, /injectMyGarageNav/);
 });
 
-test('f1c1c40 checkout work remains in branch', () => {
+test('six-step checkout remains in branch with ops wiring', () => {
   const html = read('index.html');
-  assert.match(html, /BK_VISIBLE_STEPS\s*=\s*4/);
-  assert.doesNotMatch(html, /id="bpt5"/);
+  assert.match(html, /BK_VISIBLE_STEPS\s*=\s*6/);
+  assert.match(html, /id="bpt5"/);
   assert.match(read('assets/hub-booking-bridge.js'), /hub-booking-bridge/);
 });

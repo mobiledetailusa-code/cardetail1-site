@@ -39,13 +39,12 @@ function h1Count(html) {
   return (html.match(/<h1[\s>]/gi) || []).length;
 }
 
-test('homepage markets Book in four steps matching checkout', () => {
+test('homepage markets Book in six steps matching checkout', () => {
   const html = read('index.html');
-  assert.match(html, /Book in four steps/i);
-  assert.match(html, /BK_VISIBLE_STEPS\s*=\s*4/);
-  assert.match(html, /id="bpt4"/);
-  assert.doesNotMatch(html, /id="bpt5"/);
-  assert.doesNotMatch(html, /id="bpt6"/);
+  assert.match(html, /Book in six steps/i);
+  assert.match(html, /BK_VISIBLE_STEPS\s*=\s*6/);
+  assert.match(html, /id="bpt6"/);
+  assert.match(html, /id="bpt5"/);
 });
 
 test('index updateBkFromPrices derives specialty mins from LENGTH_PRICING / PRICING', () => {

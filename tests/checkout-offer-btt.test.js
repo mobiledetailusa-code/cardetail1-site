@@ -19,26 +19,26 @@ const {
 } = require('../netlify/lib/booking-offers');
 const { getOfferConfig, evaluateOffers } = require('../netlify/lib/revenue-offers');
 
-describe('four-step checkout', () => {
-  it('index exposes exactly four progress steps', () => {
+describe('six-step checkout', () => {
+  it('index exposes exactly six progress steps', () => {
     const html = read('index.html');
-    assert.match(html, /BK_VISIBLE_STEPS\s*=\s*4/);
-    assert.match(html, /id="bpt1"[\s\S]*Service/);
-    assert.match(html, /id="bpt2"[\s\S]*Vehicle/);
-    assert.match(html, /id="bpt3"[\s\S]*Contact/);
-    assert.match(html, /id="bpt4"[\s\S]*Secure/);
-    assert.doesNotMatch(html, /id="bpt5"/);
-    assert.doesNotMatch(html, /id="bpt6"/);
+    assert.match(html, /BK_VISIBLE_STEPS\s*=\s*6/);
+    assert.match(html, /id="bpt1"[\s\S]*Category/);
+    assert.match(html, /id="bpt2"[\s\S]*Package/);
+    assert.match(html, /id="bpt3"[\s\S]*Vehicle/);
+    assert.match(html, /id="bpt4"[\s\S]*Info/);
+    assert.match(html, /id="bpt5"[\s\S]*Secure Your Booking/);
+    assert.match(html, /id="bpt6"[\s\S]*Confirm/);
   });
 
-  it('public copy says Book in four steps', () => {
+  it('public copy says Book in six steps', () => {
     const html = read('index.html');
-    assert.match(html, /Book in four steps/i);
+    assert.match(html, /Book in six steps/i);
   });
 
-  it('bkGoTo maps step 4 to secure and confirm panels', () => {
+  it('bkGoTo maps one panel per step', () => {
     const html = read('index.html');
-    assert.match(html, /if \(n === 4\) return \['bs5', 'bs6'\]/);
+    assert.match(html, /return \['bs' \+ n\]/);
   });
 
   it('preserves Stripe SetupIntent and package fields', () => {

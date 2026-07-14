@@ -63,9 +63,9 @@ test('Stripe Payment Element unmounts before remount', () => {
   assert.match(initBlock, /destroyStripePaymentUI\(\)/);
 });
 
-test('booking modal progress step 4 label matches secure submit step', () => {
-  assert.match(index, /id="bpt4"[^>]*>[\s\S]*?Secure/);
-  assert.doesNotMatch(index, /id="bpt5"/);
+test('booking modal progress shows six-step secure and confirm labels', () => {
+  assert.match(index, /id="bpt5"[\s\S]*?Secure Your Booking/);
+  assert.match(index, /id="bpt6"[\s\S]*?Confirm/);
 });
 
 test('booking modal action buttons use type="button"', () => {
@@ -74,7 +74,7 @@ test('booking modal action buttons use type="button"', () => {
     index.indexOf('<!-- ADMIN PANEL')
   );
   assert.match(modal, /<button type="button" class="btn-sub" id="sub-btn"/);
-  assert.match(modal, /<button type="button" class="btn-n" onclick="bkScrollToConfirm\(\)"/);
+  assert.match(modal, /<button type="button" class="btn-n" onclick="goToConfirmFromTerms\(\)"/);
   assert.doesNotMatch(modal, /<button class="btn-sub" id="sub-btn"/);
 });
 

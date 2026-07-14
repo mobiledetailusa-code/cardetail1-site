@@ -23,11 +23,11 @@ const HUB_PAGES = [
   'template-city.html',
 ];
 
-test('index.html is authoritative four-step checkout', () => {
+test('index.html is authoritative six-step checkout', () => {
   const html = read('index.html');
-  assert.match(html, /BK_VISIBLE_STEPS\s*=\s*4/);
-  assert.doesNotMatch(html, /id="bpt5"/);
-  assert.doesNotMatch(html, /id="bpt6"/);
+  assert.match(html, /BK_VISIBLE_STEPS\s*=\s*6/);
+  assert.match(html, /id="bpt5"/);
+  assert.match(html, /id="bpt6"/);
   assert.match(html, /checkout-analytics\.js/);
   assert.match(html, /checkout-offer\.js/);
 });

@@ -61,7 +61,7 @@ for (const page of pages) {
   test(`${page} advances to vehicle step after package selection`, () => {
     const html = read(page);
     if (page !== 'index.html') return;
-    assert.match(html, /function selectPkg\(id\)\{[\s\S]*?currentBkStep < 2/);
+    assert.match(html, /function selectPkg\(id\)\{[\s\S]*?currentBkStep < 3/);
     assert.match(html, /bkContinueFromPackage/);
     assert.doesNotMatch(html, /function selectPkg\(id\)\{[\s\S]*?renderPkgDetailPanel\(\)/);
   });
