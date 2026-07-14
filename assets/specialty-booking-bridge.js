@@ -301,6 +301,16 @@
   window.openSpecialtyBooking = openSpecialtyBooking;
   window.openCategoryBooking = openCategoryBooking;
   window.closeSpecialtyBooking = closeSpecialtyBooking;
+  window.launchBooking = function launchBooking(opts) {
+    opts = opts || {};
+    var cat = typeof opts === 'string' ? opts : (opts.category || opts.cat || '');
+    openCategoryPackageBooking({
+      categoryId: cat,
+      packageId: opts.packageId || null,
+      multiVehicle: opts.multiVehicle === true,
+      sourcePath: window.location.pathname
+    });
+  };
 
   if (!listenersBound) {
     listenersBound = true;
