@@ -1563,11 +1563,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <p class="sec-desc">Mobile detailing for sedans, SUVs, and trucks. Select the package that fits your vehicle condition. Final pricing adjusts by vehicle size, condition, location, and add-ons.</p>
     </div>
 
-    <div class="cd1-garage-cta-wrap" style="text-align:center;margin:18px 0 8px">
-      <button type="button" data-cd1-garage-cta style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;border:1px solid rgba(77,163,255,.45);background:rgba(77,163,255,.08);color:#4da3ff;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit">
-        Have 2+ vehicles at one location? <strong>Build Your Garage Plan</strong>
-      </button>
-      <p style="font-size:12px;color:#8a9bb0;margin-top:8px">One vehicle? Book any package above — same service quality for every customer.</p>
+    <div class="cd1-multi-cta" data-cd1-multi-vehicle-section style="text-align:center;margin:18px auto 8px;max-width:640px;padding:18px 16px;border:1px solid rgba(77,163,255,.28);border-radius:18px;background:rgba(18,32,52,.45)">
+      <p style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.02em;margin:0 0 6px">Detail 2 or more vehicles in one visit</p>
+      <p style="font-size:13px;color:#8a9bb0;margin:0 0 14px">Book multiple vehicles now or request a recurring Garage Plan.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">
+        <button type="button" class="btn-primary booking-popup-trigger" data-booking-multi-home="1" onclick="(function(){ try{ if(window.ST){ ST._forceMultiVehicle=true; } }catch(e){} openBooking(null); setTimeout(function(){ var b=document.querySelector('.btn-add-veh'); if(b){ b.style.outline='2px solid #4da3ff'; b.scrollIntoView({block:'nearest',behavior:'smooth'}); } }, 500); })()">Book Multiple Vehicles</button>
+        <button type="button" data-cd1-garage-cta style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;border:1px solid rgba(77,163,255,.45);background:rgba(77,163,255,.08);color:#4da3ff;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit">Request Garage Plan</button>
+      </div>
+      <p style="font-size:12px;color:#8a9bb0;margin-top:12px">Garage Plan is a request — not a confirmed appointment. No card required. One vehicle? Book any package above.</p>
     </div>
 
     <div class="car-pkg-grid">
@@ -6372,6 +6375,7 @@ try{ if(typeof initCarPkgDetailModal==='function') initCarPkgDetailModal(); }cat
     const pkg=String(params.get('pkg')||params.get('package')||'');
     const zipQ=String(params.get('zip')||'').replace(/\D/g,'');
     const embed=params.get('embed')==='1';
+    const multi=params.get('multi')==='1';
     const allowed={cars:1,boats:1,rvs:1,powersports:1};
     if(embed){
       document.documentElement.classList.add('cd1-booking-embed');
@@ -6404,7 +6408,11 @@ try{ if(typeof initCarPkgDetailModal==='function') initCarPkgDetailModal(); }cat
     if(!allowed[book]) return;
     if(pkg) ST._prefillPkgId=pkg;
     ST._pendingCat=book;
-    window.__cd1PendingBookQuery={book:book,pkg:pkg,zipQ:zipQ,embed:embed,allowed:allowed};
+    if(multi){
+      ST._forceMultiVehicle=true;
+      try{ ST.units=Math.max(2, Number(ST.units||1)); }catch(e){}
+    }
+    window.__cd1PendingBookQuery={book:book,pkg:pkg,zipQ:zipQ,embed:embed,multi:multi,allowed:allowed};
   }catch(e){
     try{
       if(window.parent && window.parent!==window){
