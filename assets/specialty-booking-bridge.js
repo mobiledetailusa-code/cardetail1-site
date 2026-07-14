@@ -142,11 +142,12 @@
     return zip.length === 5 ? zip : '';
   }
 
-  function buildBookingParams(categoryId, packageId, embed) {
+  function buildBookingParams(categoryId, packageId, embed, multiVehicle) {
     var params = new URLSearchParams();
     params.set('book', categoryId);
     if (embed) params.set('embed', '1');
     if (packageId) params.set('pkg', packageId);
+    if (multiVehicle) params.set('multi', '1');
     var zip = resolveZip();
     if (zip) params.set('zip', zip);
     return params;
@@ -182,12 +183,13 @@
 
   /**
    * Shared package launcher — validates IDs, opens existing booking UI.
-   * @param {{categoryId:string, packageId?:string|null, sourcePath?:string}} opts
+   * @param {{categoryId:string, packageId?:string|null, sourcePath?:string, multiVehicle?:boolean}} opts
    */
   function openCategoryPackageBooking(opts) {
     opts = opts || {};
     var categoryId = String(opts.categoryId || '').toLowerCase();
     var packageId = opts.packageId ? String(opts.packageId) : '';
+    var multiVehicle = opts.multiVehicle === true;
 
     if (categoryId === 'cars' || categoryId === 'fleet') {
       failBooking(categoryId, packageId, 'INVALID_CATEGORY');
@@ -197,18 +199,26 @@
       var routeCtx = global.CD1BookingRoutingGate.gatherContext({
         category: categoryId,
         source: 'specialty_bridge',
+        vehicleCount: multiVehicle ? 2 : 0,
       });
       var routeResult = global.CD1BookingRoutingGate.evaluateAndMaybeBlock(routeCtx);
       if (routeResult.blocked) {
         showBookingError(
           'This booking option uses an alternative service path. Please use the suggested inquiry option or call/text 551-313-2956.',
-          routeResult.route.code || 'ROUTING_BLOCKED',
+          (routeResult.route && routeResult.route.code) || 'ROUTING_BLOCKED',
           categoryId,
           packageId
         );
         return;
       }
-      if (routeResult.route.route !== 'specialty_booking' && routeResult.route.route !== 'standard_booking') {
+      var routeName = routeResult.route && routeResult.route.route;
+      // Book CTAs must open checkout even when strategy also offers garage_plan as alt.
+      if (
+        routeName &&
+        routeName !== 'specialty_booking' &&
+        routeName !== 'standard_booking' &&
+        routeName !== 'garage_plan'
+      ) {
         showBookingError(
           'This booking option uses an alternative service path. Please use the suggested inquiry option or call/text 551-313-2956.',
           'ROUTING_PATH_MISMATCH',
@@ -233,7 +243,7 @@
     try {
       ensureOverlay();
       clearLoadWatch();
-      var params = buildBookingParams(categoryId, packageId, true);
+      var params = buildBookingParams(categoryId, packageId, true, multiVehicle);
       var settled = false;
 
       function settleOk() {
@@ -258,7 +268,7 @@
             return;
           }
           settleOk();
-        }, 280);
+        }, 450);
       };
 
       frame.onerror = function () {
@@ -272,9 +282,14 @@
 
       loadWatchTimer = setTimeout(function () {
         if (settled) return;
+        // Prefer success once overlay is visible — transient iframe probe races should not kill booking.
+        if (overlay && overlay.classList.contains('is-open') && frame && frame.src && frame.src.indexOf('index.html') >= 0) {
+          settleOk();
+          return;
+        }
         if (iframeLooksBlocked()) settleFail('IFRAME_TIMEOUT');
         else settleOk();
-      }, 1800);
+      }, 3200);
 
       setTimeout(function () {
         try { frame.focus(); } catch (e) {}
@@ -292,8 +307,20 @@
     });
   }
 
+  /** Stable helper for specialty + homepage dual CTAs. */
+  function openCategoryBooking(category, opts) {
+    opts = opts || {};
+    openCategoryPackageBooking({
+      categoryId: category,
+      packageId: opts.packageId || null,
+      multiVehicle: opts.multiVehicle === true,
+      sourcePath: window.location.pathname
+    });
+  }
+
   window.openCategoryPackageBooking = openCategoryPackageBooking;
   window.openSpecialtyBooking = openSpecialtyBooking;
+  window.openCategoryBooking = openCategoryBooking;
   window.closeSpecialtyBooking = closeSpecialtyBooking;
 
   if (!listenersBound) {
@@ -318,6 +345,7 @@
       openCategoryPackageBooking({
         categoryId: btn.getAttribute('data-booking-category'),
         packageId: btn.getAttribute('data-booking-package') || null,
+        multiVehicle: btn.getAttribute('data-booking-multi') === '1',
         sourcePath: window.location.pathname
       });
     });

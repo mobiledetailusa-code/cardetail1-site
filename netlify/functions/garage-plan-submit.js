@@ -38,6 +38,7 @@ function buildSuccessResponse({
 }) {
   const priority = commercialPriority(30, lead.householdValueScore || 0, segmentResult.segment);
   const route = validated.manualReviewRequired ? 'manual_review' : 'garage_plan';
+  const gpReference = 'GP-' + String(opportunity.opportunityId || '').replace(/^opp_?/i, '').slice(-10).toUpperCase();
   return json(200, {
     ok: true,
     route,
@@ -45,6 +46,7 @@ function buildSuccessResponse({
     leadId: lead.leadId,
     householdId: household.householdId,
     opportunityId: opportunity.opportunityId,
+    gpReference,
     segment: segmentResult.segment,
     vehicleCountBand: vehicleCountBand(validated.vehicleCount),
     commercialPriority: priority.classification,
@@ -124,7 +126,7 @@ async function persistGaragePlanLead(validated) {
     assetCategories: validated.categories,
     selectedCategory: validated.packageInterest || null,
     estimatedValue: validated.estimatedValue,
-    source: validated.source,
+    source: validated.source || 'garage_plan',
     utm_campaign: validated.utm_campaign,
     intentScore: 30,
     marketingConsent: validated.marketingConsent,
@@ -135,7 +137,13 @@ async function persistGaragePlanLead(validated) {
     nextAction: nextAction.action,
     isGaragePlan: true,
     garagePlanStatus: 'new',
-    source: validated.source || 'garage_plan',
+    notificationStatus: 'recorded',
+    customerName: validated.name,
+    customerPhone: validated.phone,
+    customerEmail: validated.email,
+    zip: validated.zip,
+    sameLocationSameVisit: validated.sameLocationSameVisit,
+    maintenanceFrequency: validated.maintenanceFrequency,
   });
 
   const leadStore = await require('../lib/revenue-store').getRevenueStore('leads');
