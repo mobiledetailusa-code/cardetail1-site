@@ -43,7 +43,7 @@ test('specialty pages exist with unique SEO essentials', () => {
     assert.match(html, /class="specialty-service-nav"/);
     assert.match(html, /specialty-category\.css/);
     assert.match(html, /data-booking-category="/);
-    assert.doesNotMatch(html, /step\s*6|six-step|6-step checkout/i);
+    assert.doesNotMatch(html, /id="bpt6"|BK_VISIBLE_STEPS/i);
   }
   assert.equal(titles.size, 3);
   assert.equal(descriptions.size, 3);
@@ -68,7 +68,7 @@ test('category media stays scoped and dimensioned', () => {
       assert.match(attrs, /\b(width|height|style)=|aspect-ratio/i);
       assert.match(attrs, /\bsrc="([^"]+)"/);
     }
-    assert.match(html, /sp-media-frame|sp-pkg-visual/);
+    assert.match(html, /sp-media-frame|sp-pkg-visual|sp-video-frame|ba-compare|sp-ba-card/);
   }
   const boats = read('boats-detailing.html');
   assert.doesNotMatch(boats, /powersports\/gallery|before-after\/.*car/i);

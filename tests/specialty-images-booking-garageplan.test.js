@@ -45,22 +45,22 @@ test('specialty pages use category-compatible image refs and no yacht stock', ()
 
 test('boats page images stay marine and do not reference RV/car/powersports galleries', () => {
   const html = read('boats-detailing.html');
-  assert.match(html, /assets\/media\/boats\//);
+  assert.match(html, /assets\/videos\/specialty\/boats\//);
   assert.doesNotMatch(html, /assets\/media\/rv\/|assets\/media\/powersports\/|luxury-urus|sedan/i);
-  assert.match(html, /boat-mastercraft-side\.jpg|boat-cockpit-detail\.jpg/);
+  assert.match(html, /vkpq0511\.mp4|rwaj3347\.mp4/);
 });
 
 test('RV page images stay RV and do not reference boats/powersports/car stock', () => {
   const html = read('rv-detailing.html');
-  assert.match(html, /assets\/media\/rv\/gallery\//);
+  assert.match(html, /assets\/images\/specialty\/rv\//);
   assert.doesNotMatch(html, /assets\/media\/boats\/|assets\/media\/powersports\/|luxury-urus/i);
 });
 
 test('powersports page images stay powersports and do not reference RV/car-only assets', () => {
   const html = read('powersports-detailing.html');
-  assert.match(html, /assets\/media\/powersports\/gallery\//);
+  assert.match(html, /assets\/images\/specialty\/powersports\//);
   assert.doesNotMatch(html, /assets\/media\/rv\/|assets\/media\/boats\/|luxury-urus|momentum-gclass/i);
-  assert.match(html, /motorcycle-road-glide\.jpg/);
+  assert.match(html, /gator-interior/);
 });
 
 test('Book CTAs exist and use correct data-booking-category', () => {
@@ -78,7 +78,7 @@ test('specialty booking bridge opens category booking helpers', () => {
   assert.match(js, /openSpecialtyBooking/);
   assert.match(js, /data-booking-multi/);
   assert.match(js, /multi/);
-  assert.doesNotMatch(js, /bk-step-6|six-step|step\s*6/i);
+  assert.doesNotMatch(js, /evaluateAndMaybeBlock/);
 });
 
 test('Have 2+ vehicles section keeps working Book Multiple CTA only', () => {
@@ -107,14 +107,17 @@ test('Garage Plan Admin plumbing remains available server-side when deferred fro
   assert.match(household, /notificationStatus/);
 });
 
-test('four-step checkout remains authoritative; obsolete six-step absent on specialty', () => {
+test('six-step checkout is authoritative on index; specialty pages keep process copy without booking step chrome', () => {
   for (const p of PAGES) {
     const html = read(p.file);
-    assert.doesNotMatch(html, /step\s*6|six-step|bk-step-6/i);
-    assert.match(html, /Four clear steps|four-step|Start booking|Book Online/i);
+    assert.doesNotMatch(html, /id="bpt6"|BK_VISIBLE_STEPS/i);
+    assert.match(html, /Four clear steps|Start booking|Book Online/i);
   }
   const bridge = read('assets/specialty-booking-bridge.js');
   assert.match(bridge, /index\.html\?/);
+  assert.match(bridge, /launchBooking/);
+  const index = read('index.html');
+  assert.match(index, /BK_VISIBLE_STEPS = 6/);
 });
 
 test('committed specialty content images stay under size budget', () => {

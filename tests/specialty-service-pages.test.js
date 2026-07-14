@@ -49,6 +49,12 @@ const PACKAGE_BY_PAGE = {
 
 /** Approved real-work / category media (no car filler). */
 const POWERSPORTS_MEDIA = [
+  'assets/images/specialty/powersports/gator-interior-before-480.jpg',
+  'assets/images/specialty/powersports/gator-interior-before-768.jpg',
+  'assets/images/specialty/powersports/gator-interior-before-1200.jpg',
+  'assets/images/specialty/powersports/gator-interior-after-480.jpg',
+  'assets/images/specialty/powersports/gator-interior-after-768.jpg',
+  'assets/images/specialty/powersports/gator-interior-after-1200.jpg',
   'assets/media/powersports/gallery/polaris-atv-front.jpeg',
   'assets/media/powersports/gallery/polaris-atv-angle.jpeg',
   'assets/media/powersports/gallery/motorcycle-road-glide.jpg',
@@ -65,21 +71,27 @@ const POWERSPORTS_MEDIA = [
 const BOATS_MEDIA = [
   'assets/vehicles/premium/boat.webp',
   'assets/vehicles/premium/marine.webp',
-  'assets/media/boats/gallery/boat-mastercraft-side.jpg',
-  'assets/media/boats/gallery/boat-cockpit-detail.jpg',
-  'assets/media/boats/IMG_8389.MP4',
-  'assets/media/boats/IMG_8390.MP4',
-  'assets/media/boats/RWAJ3347.MP4',
-  'assets/media/boats/VKPQ0511.MP4',
-  'assets/media/boats/XATS4703.MP4',
+  'assets/videos/specialty/boats/vkpq0511.mp4',
+  'assets/videos/specialty/boats/rwaj3347.mp4',
+  'assets/videos/specialty/boats/xats4703.mp4',
+  'assets/images/specialty/boats/vkpq0511-poster.jpg',
+  'assets/images/specialty/boats/rwaj3347-poster.jpg',
+  'assets/images/specialty/boats/xats4703-poster.jpg',
 ];
 
 const RV_MEDIA = [
-  'assets/media/rv/gallery/momentum-gclass-front.jpeg',
-  'assets/media/rv/gallery/momentum-gclass-side.jpeg',
-  'assets/media/rv/gallery/rockwood-signature-front.jpeg',
-  'assets/media/rv/gallery/jayco-eagle-front.jpeg',
-  'assets/media/rv/gallery/wingamm-side.jpeg',
+  'assets/images/specialty/rv/vienna-front-before-480.jpg',
+  'assets/images/specialty/rv/vienna-front-before-768.jpg',
+  'assets/images/specialty/rv/vienna-front-before-1200.jpg',
+  'assets/images/specialty/rv/vienna-front-after-480.jpg',
+  'assets/images/specialty/rv/vienna-front-after-768.jpg',
+  'assets/images/specialty/rv/vienna-front-after-1200.jpg',
+  'assets/images/specialty/rv/vienna-roof-before-480.jpg',
+  'assets/images/specialty/rv/vienna-roof-before-768.jpg',
+  'assets/images/specialty/rv/vienna-roof-before-1200.jpg',
+  'assets/images/specialty/rv/vienna-roof-after-480.jpg',
+  'assets/images/specialty/rv/vienna-roof-after-768.jpg',
+  'assets/images/specialty/rv/vienna-roof-after-1200.jpg',
 ];
 
 /** Known car gallery filenames that must never appear on Powersports. */
@@ -104,8 +116,12 @@ function extractImgSrcs(html) {
 function extractMediaSrcs(html) {
   const imgs = extractImgSrcs(html);
   const videos = [...html.matchAll(/<source[^>]+src="([^"]+)"/gi)].map((m) => m[1]);
+  const posters = [...html.matchAll(/\bposter="([^"]+)"/gi)].map((m) => m[1]);
+  const srcset = [...html.matchAll(/\bsrcset="([^"]+)"/gi)].flatMap((m) =>
+    m[1].split(',').map((part) => part.trim().split(/\s+/)[0]).filter(Boolean)
+  );
   const og = [...html.matchAll(/property="og:image"\s+content="https:\/\/cardetail1\.com\/([^"]+)"/gi)].map((m) => m[1]);
-  return [...imgs, ...videos, ...og];
+  return [...imgs, ...videos, ...posters, ...srcset, ...og];
 }
 
 describe('specialty dedicated pages exist', () => {
@@ -293,12 +309,12 @@ describe('package sections near top', () => {
     assert.match(read('powersports-detailing.html'), /Choose Your Powersports Detailing Package/);
   });
 
-  it('boats page package section appears before on-site footage', () => {
+  it('boats page package section appears before video gallery', () => {
     const html = read('boats-detailing.html');
-    assert.ok(html.indexOf('id="packages"') < html.indexOf('id="boat-videos"'));
+    assert.ok(html.indexOf('id="packages"') < html.indexOf('id="boat-gallery"'));
     assert.doesNotMatch(html, /yacht-cruise|yacht-speed-cruise/i);
     assert.match(html, /id="boat-gallery"/i);
-    assert.match(html, /boat-mastercraft-side\.jpg/);
+    assert.match(html, /assets\/videos\/specialty\/boats\/vkpq0511\.mp4/);
   });
   it('powersports page package section appears before gallery', () => {
     const html = read('powersports-detailing.html');
@@ -307,7 +323,7 @@ describe('package sections near top', () => {
   it('rv page package section appears before gallery', () => {
     const html = read('rv-detailing.html');
     const pkg = html.indexOf('id="packages"');
-    const gallery = html.indexOf('RV Gallery');
+    const gallery = html.indexOf('RV Before');
     assert.ok(pkg >= 0 && gallery > pkg);
   });
 });
@@ -581,12 +597,11 @@ describe('specialty page UI (back-to-top + gallery lightbox)', () => {
 
   it('rv gallery images are constrained with cover framing', () => {
     const html = read('rv-detailing.html');
-    const css = read('assets/specialty-category.css');
-    assert.match(html, /momentum-gclass-front\.jpeg/);
-    assert.match(html, /rockwood-signature-front\.jpeg/);
-    assert.match(html, /sp-media-frame/);
-    assert.match(css, /\.sp-media-frame[\s\S]*object-fit:\s*cover/);
-    assert.doesNotMatch(html, /yacht-cruise|object-fit:contain/);
+    const css = read('assets/specialty-gallery.css');
+    assert.match(html, /vienna-front-after-768.jpg/);
+    assert.match(html, /ba-compare|sp-ba-card/);
+    assert.match(css, /\.sp-ba-card[\s\S]*object-fit:\s*cover/);
+    assert.doesNotMatch(html, /yacht-cruise/);
   });
 
   it('homepage back-to-top sits above chat widget', () => {

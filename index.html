@@ -550,7 +550,8 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 /* ── BOOKING FLOW ── */
 .booking-modal-ov{position:fixed;inset:0;background:rgba(2,4,10,.92);backdrop-filter:blur(8px);z-index:1000;display:none;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto}
 .booking-modal-ov.open{display:flex}
-.booking-modal{background:var(--bg1);border:1px solid var(--bbr);border-radius:var(--rx);width:100%;max-width:900px;margin:auto;min-height:400px;position:relative;overflow:hidden}
+/* six-step booking modal sizing */
+.booking-modal{background:var(--bg1);border:1px solid var(--bbr);border-radius:var(--rx);width:100%;max-width:920px;min-height:min(78vh,720px);margin:auto;position:relative;overflow:hidden}
 .booking-close{position:absolute;top:16px;right:18px;background:rgba(255,255,255,.07);border:none;color:var(--mu);width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;transition:.2s}
 .booking-close:hover{background:rgba(255,255,255,.14);color:var(--white)}
 
@@ -1996,8 +1997,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <div id="how" style="background:var(--bg0)">
   <div class="section">
     <div class="sec-eye">How it works</div>
-    <div class="sec-title">Book in four steps</div>
-    <div class="sec-desc">Request your appointment in four clear steps — we confirm by text. No charge today; your card holds your booking request.</div>
+    <div class="sec-title">Book in six steps</div>
+    <div class="sec-desc">Request your appointment in six clear steps — we confirm by text. No charge today; your card holds your booking request.</div>
     <div class="how-grid">
       <div class="how-card">
         <div class="how-ico">📱</div>
@@ -2311,18 +2312,20 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <button type="button" class="booking-close" onclick="closeBooking()">✕</button>
 
     <!-- PROGRESS -->
-    <div class="bprog" id="bprog" aria-label="Booking progress — 4 steps">
-      <div class="bpt active" id="bpt1"><div class="bpn">1</div><span>Service</span></div>
-      <div class="bpt" id="bpt2"><div class="bpn">2</div><span>Vehicle &amp; Add-ons</span></div>
-      <div class="bpt" id="bpt3"><div class="bpn">3</div><span>Contact &amp; Schedule</span></div>
-      <div class="bpt" id="bpt4"><div class="bpn">4</div><span>Secure &amp; Submit</span></div>
+        <div class="bprog" id="bprog" aria-label="Booking progress — 6 steps">
+      <div class="bpt active" id="bpt1"><div class="bpn">1</div><span>Category</span></div>
+      <div class="bpt" id="bpt2"><div class="bpn">2</div><span>Package</span></div>
+      <div class="bpt" id="bpt3"><div class="bpn">3</div><span>Vehicle</span></div>
+      <div class="bpt" id="bpt4"><div class="bpn">4</div><span>Info</span></div>
+      <div class="bpt" id="bpt5"><div class="bpn">5</div><span>Secure Your Booking</span></div>
+      <div class="bpt" id="bpt6"><div class="bpn">6</div><span>Confirm</span></div>
     </div>
 
     <div class="bcontent">
 
       <!-- STEP 1: CATEGORY -->
       <div class="bsec on" id="bs1">
-        <div class="beye">Step 1 of 4 — Service</div>
+        <div class="beye">Step 01 — Category</div>
         <div class="btitle">WHAT ARE WE<br>DETAILING?</div>
         <div class="bdesc">Enter your ZIP code first — we'll detect your area and show accurate pricing for your location.</div>
         <!-- ZIP GATE -->
@@ -2369,9 +2372,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
       </div>
 
-      <!-- STEP 1 (cont.): PACKAGES — same visible step as category -->
+      <!-- STEP 2: PACKAGES -->
       <div class="bsec" id="bs2">
-        <div class="beye">Step 1 of 4 — Package</div>
+        <div class="beye">Step 02 — Package</div>
         <div class="btitle">CHOOSE YOUR<br>PACKAGE</div>
         <div class="bdesc">Review what's included in your package before entering vehicle details. Price updates by vehicle size or exact length for boats, RVs and travel trailers.</div>
         <div class="pkg-grid" id="pkg-grid"></div>
@@ -2385,7 +2388,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <!-- STEP 3: VEHICLE -->
       <div class="bsec" id="bs3">
-        <div class="beye">Step 2 of 4 — Vehicle &amp; Add-ons</div>
+        <div class="beye">Step 03 — Vehicle</div>
         <div class="btitle">YOUR VEHICLE</div>
         <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length.</div>
 
@@ -2494,14 +2497,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
 
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(1)">← Back</button>
-          <button type="button" class="btn-n" id="next3" disabled onclick="addCurrentVehicleAndContinue()">Continue to contact →</button>
+          <button type="button" class="btn-b" onclick="bkGoTo(2)">← Back</button>
+          <button type="button" class="btn-n" id="next3" disabled onclick="addCurrentVehicleAndContinue()">Continue to Info →</button>
         </div>
       </div>
 
       <!-- STEP 4: INFO -->
       <div class="bsec" id="bs4">
-        <div class="beye">Step 3 of 4 — Contact &amp; Schedule</div>
+        <div class="beye">Step 04 — Info</div>
         <div class="btitle">YOUR DETAILS</div>
         <div class="bdesc">We'll confirm your appointment by text or call within a few hours.</div>
         <div class="strip show" id="strip5">
@@ -2553,14 +2556,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="fg full"><div class="fl">Notes (optional)</div><textarea class="fta" id="f-notes" placeholder="Specific stains, pet hair, vehicle condition…"></textarea></div>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(2)">← Back</button>
-          <button type="button" class="btn-n" onclick="bkContinueFromContact()">Continue to secure booking →</button>
+          <button type="button" class="btn-b" onclick="bkGoTo(3)">← Back</button>
+          <button type="button" class="btn-n" onclick="goToPayment()">Review Terms →</button>
         </div>
       </div>
 
       <!-- STEP 5: SECURE YOUR BOOKING -->
       <div class="bsec" id="bs5">
-        <div class="beye">Step 4 of 4 — Secure &amp; Submit</div>
+        <div class="beye">Step 05 — Secure Your Booking</div>
         <div class="btitle">SECURE YOUR<br>BOOKING</div>
         <div id="bk-welcome-offer" class="bk-welcome-offer" hidden role="complementary" aria-label="New customer welcome offer">
           <div class="bk-offer-title">Still deciding?</div>
@@ -2628,14 +2631,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="pay-badge">✓ No charge today · Card on file is required for every booking request</div>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(3)">← Back</button>
-          <button type="button" class="btn-n" onclick="bkScrollToConfirm()">Review &amp; Submit →</button>
+          <button type="button" class="btn-b" onclick="bkGoTo(4)">← Back</button>
+          <button type="button" class="btn-n" onclick="goToConfirmFromTerms()">Review &amp; Submit →</button>
         </div>
       </div>
 
-      <!-- STEP 4 (cont.): REVIEW & SUBMIT -->
+      <!-- STEP 6: CONFIRM -->
       <div class="bsec" id="bs6">
-        <div class="beye">Step 4 of 4 — Review</div>
+        <div class="beye">Step 06 — Confirm</div>
         <div class="btitle">REVIEW &<br>SUBMIT</div>
         <div class="bdesc">Give it a quick look, then send your request — we'll text you to confirm.</div>
         <div class="oc">
@@ -2673,7 +2676,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </label>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkScrollToPayment()">← Back</button>
+          <button type="button" class="btn-b" onclick="bkGoTo(5)">← Back</button>
           <button type="button" class="btn-sub" id="sub-btn" onclick="submitBooking()">
             <div class="spin"></div><span class="bl">Submit Booking Request ✓</span>
           </button>
@@ -3668,6 +3671,12 @@ function openCommercialInquiry(){
     if(nameEl) try{ nameEl.focus(); }catch(e){}
   }, 120);
 }
+function launchBooking(opts){
+  opts = opts || {};
+  var cat = typeof opts === 'string' ? opts : (opts.category || opts.cat || null);
+  return openBooking(cat);
+}
+window.launchBooking = launchBooking;
 function openBooking(cat){
   if(cat==='fleet'){ openCommercialInquiry(); return; }
   syncBookingZipFromHero();
@@ -3690,17 +3699,13 @@ function bookingHasProgress(){
   });
 }
 
-// ── BOOKING NAVIGATION (4 visible steps) ─────────────────────────────────────
-const BK_VISIBLE_STEPS = 4;
+// ── BOOKING NAVIGATION (6 visible steps — restored from proven 117484e UX) ────
+const BK_VISIBLE_STEPS = 6;
 let currentBkStep = 1;
 let _bkPrevStep = 1;
 
 function bkPanelsForStep(n) {
-  if (n === 1) return ST.cat ? ['bs1', 'bs2'] : ['bs1'];
-  if (n === 2) return ['bs3'];
-  if (n === 3) return ['bs4'];
-  if (n === 4) return ['bs5', 'bs6'];
-  return ['bs1'];
+  return ['bs' + n];
 }
 
 function bkGoTo(n, opts = {}) {
@@ -3718,19 +3723,23 @@ function bkGoTo(n, opts = {}) {
   });
   const activeTab = document.getElementById('bpt' + n);
   if (activeTab && activeTab.scrollIntoView) activeTab.scrollIntoView({ inline: 'center', block: 'nearest' });
-  if (n === 2) renderVehicleCart();
-  if (n === 3) fillStrip5();
-  if (n === 4) {
+  if (n === 3) renderVehicleCart();
+  if (n === 4) fillStrip5();
+  if (n === 5) {
     ensureStep5Defaults();
-    fillConfirm();
-    if (window.Cardetail1WelcomeOffer) Cardetail1WelcomeOffer.fetchPreview('step4');
+    if (window.Cardetail1WelcomeOffer) Cardetail1WelcomeOffer.fetchPreview('step5');
   }
+  if (n === 6) fillConfirm();
   if (!opts.noScroll) {
     ['.bcontent', '.booking-modal', '.booking-modal-ov'].forEach(s => {
       const el = document.querySelector(s);
       if (el) el.scrollTop = 0;
     });
   }
+  try {
+    const heading = document.querySelector('#bs' + n + ' .btitle');
+    if (heading) { heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true }); }
+  } catch (e) {}
   if (window.Cardetail1CheckoutAnalytics && _bkPrevStep > n) {
     Cardetail1CheckoutAnalytics.onStepBack(_bkPrevStep, n);
   }
@@ -3738,19 +3747,19 @@ function bkGoTo(n, opts = {}) {
 
 function bkContinueFromPackage() {
   if (!ST.pkg) {
-    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(1, 'package_required');
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(2, 'package_required');
     alert('Please select a package to continue.');
     return;
   }
-  if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(1);
-  bkGoTo(2);
+  if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(2);
+  bkGoTo(3);
 }
 
 function bkContinueFromContact() {
   const req = ['f-first', 'f-last', 'f-phone', 'f-email', 'f-addr', 'f-date', 'f-time'];
   const missing = req.find(id => !document.getElementById(id)?.value?.trim());
   if (missing) {
-    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(3, 'required_fields');
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(4, 'required_fields');
     const el = document.getElementById(missing);
     if (el) { el.focus(); el.scrollIntoView({ block: 'center' }); }
     alert('Please fill in all required fields marked with *');
@@ -3758,22 +3767,24 @@ function bkContinueFromContact() {
   }
   const phone = bkValidateContactPhone();
   if (!phone.ok) {
-    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(3, 'invalid_phone');
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(4, 'invalid_phone');
     alert(phone.message);
     return;
   }
   const sched = bkValidateScheduleSelection();
   if (!sched.ok) {
-    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(3, 'invalid_schedule');
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(4, 'invalid_schedule');
     bkShowScheduleMsg(sched.message);
     return;
   }
   bkShowScheduleMsg('');
-  if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(3);
-  bkGoTo(4);
+  if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(4);
+  bkGoTo(5);
 }
 
-function bkScrollToConfirm() {
+function goToPayment() { bkContinueFromContact(); }
+
+function goToConfirmFromTerms() {
   if (!ST.payMethod) {
     alert('Please select a payment preference before continuing.');
     return;
@@ -3786,18 +3797,12 @@ function bkScrollToConfirm() {
     alert('Please securely save a card with Stripe before continuing.');
     return;
   }
-  fillConfirm();
-  const el = document.getElementById('bs6');
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(5);
+  bkGoTo(6);
 }
 
-function bkScrollToPayment() {
-  const el = document.getElementById('bs5');
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function goToPayment() { bkContinueFromContact(); }
-function goToConfirmFromTerms() { bkScrollToConfirm(); }
+function bkScrollToConfirm() { goToConfirmFromTerms(); }
+function bkScrollToPayment() { bkGoTo(5); }
 
 // ── STEP 1: CATEGORY ──────────────────────────────────────────────────────────
 function selectCategory(cat){
@@ -3823,7 +3828,7 @@ function selectCategory(cat){
   ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
   renderPackages(cat);
   renderTierChips(cat);
-  bkGoTo(1);
+  bkGoTo(2);
   if(ST._prefillPkgId){
     const pid=ST._prefillPkgId;
     ST._prefillPkgId='';
@@ -3879,7 +3884,7 @@ function selectPkg(id){
   ST.pkg=(PRICING[ST.cat]&&PRICING[ST.cat].packages)?PRICING[ST.cat].packages.find(p=>p.id===id):null;
   document.getElementById('next2').disabled=!ST.pkg;
   if((ST.cat==='boats'||ST.cat==='rvs'||ST.cat==='fleet') && (ST.lengthFt||ST.units)){tryGenericConfirm();}
-  if(ST.pkg && currentBkStep < 2) { /* stay on step 1 until Continue */ }
+  if(ST.pkg && currentBkStep < 3) { /* stay on package step until Continue */ }
 }
 
 // ── STEP 3: VEHICLE ───────────────────────────────────────────────────────────
@@ -4908,8 +4913,8 @@ function addCurrentVehicleAndContinue(){
   if(item) ST.vehicles.push(item);
   if(!ST.vehicles.length){ alert('Please configure at least one vehicle.'); return; }
   renderVehicleCart();
-  if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(2);
-  bkGoTo(3);
+  if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(3);
+  bkGoTo(4);
 }
 
 function removeVehicleFromCart(idx){
@@ -6370,7 +6375,8 @@ try{ if(typeof initCarPkgDetailModal==='function') initCarPkgDetailModal(); }cat
 (function openBookingFromQuery(){
   try{
     const params=new URLSearchParams(window.location.search||'');
-    const book=String(params.get('book')||'').toLowerCase();
+    const bookRaw=String(params.get('book')||params.get('category')||'').toLowerCase();
+    const book = bookRaw === '1' ? String(params.get('category')||params.get('cat')||'').toLowerCase() : bookRaw;
     const pkg=String(params.get('pkg')||params.get('package')||'');
     const zipQ=String(params.get('zip')||'').replace(/\D/g,'');
     const embed=params.get('embed')==='1';
