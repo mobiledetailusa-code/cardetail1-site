@@ -133,6 +133,9 @@ async function persistGaragePlanLead(validated) {
     transactionalConsent: true,
     stage: validated.vehicleCount >= 3 ? 'Multi-Vehicle Opportunity' : 'Qualified Lead',
     nextAction: nextAction.action,
+    isGaragePlan: true,
+    garagePlanStatus: 'new',
+    source: validated.source || 'garage_plan',
   });
 
   const leadStore = await require('../lib/revenue-store').getRevenueStore('leads');
@@ -235,15 +238,23 @@ exports.handler = async (event) => {
   } catch (err) {
     const message = String(err && err.message || '');
     const code = err.code || message || 'server_error';
-    console.error('[garage-plan-submit]', code);
+    console.error('[garage-plan-submit]', code, message.slice(0, 240));
     if (code === 'anonymous_not_identified' || code === 'transactional_consent_required') {
       return json(400, { ok: false, error: code });
     }
-    const blobFailure = /blob/i.test(message) || code === 'service_unavailable';
+    // Match real storage failures — do not treat any stack path containing "blobs" as unavailable.
+    const blobFailure = (err && err.code === 'service_unavailable')
+      || /blob store|blobs api|failed to (get|set|list) blob|netlify blobs/i.test(message);
+    const ctx = String(process.env.CONTEXT || '').toLowerCase();
+    const allowDebug = ctx !== 'production';
     if (blobFailure) {
-      return json(503, { ok: false, error: 'service_unavailable' });
+      const body = { ok: false, error: 'service_unavailable' };
+      if (allowDebug) body.debug = String(message || code).slice(0, 180);
+      return json(503, body);
     }
-    return json(500, { ok: false, error: 'server_error' });
+    const body = { ok: false, error: 'server_error' };
+    if (allowDebug) body.debug = String(message || code).slice(0, 180);
+    return json(500, body);
   }
 };
 

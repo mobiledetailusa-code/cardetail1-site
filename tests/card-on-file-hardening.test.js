@@ -20,8 +20,8 @@ test('confirmSetup marks card saved optimistically then verifies in background',
 });
 
 test('saved card gates continue; submit retries when server lags', () => {
-  assert.match(index, /function goToConfirmFromTerms/);
-  assert.match(index, /if\(!ST\.cardOnFileSaved\)/);
+  assert.match(index, /function bkScrollToConfirm|function goToConfirmFromTerms/);
+  assert.match(index, /if\s*\(!ST\.cardOnFileSaved\)/);
   const submitBlock = index.slice(
     index.indexOf('async function submitBooking'),
     index.indexOf('function buildBookingPayload')
@@ -63,8 +63,9 @@ test('Stripe Payment Element unmounts before remount', () => {
   assert.match(initBlock, /destroyStripePaymentUI\(\)/);
 });
 
-test('booking modal progress step 5 label matches secure booking step', () => {
-  assert.match(index, /id="bpt5"[^>]*>[\s\S]*?Secure Your Booking/);
+test('booking modal progress step 4 label matches secure submit step', () => {
+  assert.match(index, /id="bpt4"[^>]*>[\s\S]*?Secure/);
+  assert.doesNotMatch(index, /id="bpt5"/);
 });
 
 test('booking modal action buttons use type="button"', () => {
@@ -73,7 +74,7 @@ test('booking modal action buttons use type="button"', () => {
     index.indexOf('<!-- ADMIN PANEL')
   );
   assert.match(modal, /<button type="button" class="btn-sub" id="sub-btn"/);
-  assert.match(modal, /<button type="button" class="btn-n" onclick="goToConfirmFromTerms\(\)"/);
+  assert.match(modal, /<button type="button" class="btn-n" onclick="bkScrollToConfirm\(\)"/);
   assert.doesNotMatch(modal, /<button class="btn-sub" id="sub-btn"/);
 });
 

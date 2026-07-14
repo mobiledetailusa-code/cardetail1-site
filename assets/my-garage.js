@@ -135,6 +135,14 @@
       return;
     }
     var pay = (data && data.payment) || {};
+    var offer = b.offer || b.welcomeOffer || null;
+    var offerHtml = '';
+    if (offer && offer.eligibility_status === 'eligible' && Number(offer.discount_amount) > 0) {
+      offerHtml =
+        '<div><dt>' + (offer.public_name || 'Welcome offer') + '</dt><dd>-' + fmtMoney((offer.discount_amount || 0) / 100) + '</dd></div>' +
+        '<div><dt>Original eligible subtotal</dt><dd>' + fmtMoney((offer.eligible_subtotal || 0) / 100) + '</dd></div>' +
+        '<div><dt>Redemption status</dt><dd>' + (offer.redemption_status || 'pending') + '</dd></div>';
+    }
     hero.innerHTML =
       '<div class="card">' +
       '<div class="card-kicker">' + (b.status || 'Status') + '</div>' +
@@ -143,7 +151,8 @@
       '<div><dt>Date</dt><dd>' + (b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
       '<div><dt>Time</dt><dd>' + (b.confirmedTime || b.preferredTime || '—') + '</dd></div>' +
       '<div><dt>Location</dt><dd>' + (b.address || b.serviceLocation || '—') + '</dd></div>' +
-      '<div><dt>Estimated total</dt><dd>' + fmtMoney(b.totalPrice) + '</dd></div>' +
+      offerHtml +
+      '<div><dt>Approved total</dt><dd>' + fmtMoney(b.approvedFinalAmount != null ? b.approvedFinalAmount : b.totalPrice) + '</dd></div>' +
       (pay.amountDueApproved ? '<div><dt>Amount due</dt><dd>' + fmtMoney(pay.amountDueApproved) + '</dd></div>' : '') +
       '</dl>' +
       (pay.canPay && pay.payLink
@@ -176,6 +185,11 @@
     $('history-empty') && show($('history-empty'), !hist.length);
     $('maintenance-empty') && show($('maintenance-empty'), true);
     $('comm-empty') && show($('comm-empty'), true);
+    $('vehicle-actions') && show($('vehicle-actions'), state.scope === 'account');
+    var approveBtn = $('btn-approve-completion');
+    var issueBtn = $('btn-report-issue');
+    if (approveBtn) show(approveBtn, b.customerApprovalStatus === 'pending' || b.jobStatus === 'completed_pending_payment');
+    if (issueBtn) show(issueBtn, ['completed_pending_payment', 'completed_pending_admin_review', 'awaiting_customer_action'].indexOf(b.jobStatus) >= 0 || b.serviceStatus === 'awaiting_customer_action');
   }
 
   function renderList(id, items, mapFn) {
@@ -195,12 +209,154 @@
     if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.changeRequested();
     var r = await post('submit-customer-action', body);
     if (r.data && r.data.ok) {
-      alert(r.data.pendingApproval ? 'Request submitted for admin review.' : 'Request saved.');
+      showToast(r.data.pendingApproval ? 'Request submitted for admin review.' : 'Request saved.');
       if (state.scope === 'account') await loadAccount();
       else await loadLimited();
-    } else {
-      alert((r.data && r.data.message) || 'Unable to submit request. Call/text 551-313-2956.');
+      return true;
     }
+    showToast((r.data && r.data.message) || 'Unable to submit request. Call/text 551-313-2956.', true);
+    return false;
+  }
+
+  async function submitPortalAction(action, payload) {
+    var r = await post('customer-portal-action', Object.assign({ action: action }, payload || {}));
+    if (r.data && r.data.ok) {
+      showToast('Saved.');
+      if (state.scope === 'account') await loadAccount();
+      else await loadLimited();
+      return true;
+    }
+    showToast((r.data && r.data.message) || 'Action unavailable.', true);
+    return false;
+  }
+
+  async function vehicleAction(action, payload) {
+    var r = await post('customer-portal-vehicles', Object.assign({ action: action }, payload || {}));
+    if (r.data && r.data.ok) {
+      showToast('Vehicle updated.');
+      await loadAccount();
+      return true;
+    }
+    showToast((r.data && r.data.message) || 'Vehicle update failed.', true);
+    return false;
+  }
+
+  var modalAction = null;
+  var modalFields = [];
+
+  function showToast(msg, isErr) {
+    var el = $('portal-toast');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.classList.toggle('err', !!isErr);
+    el.classList.add('show');
+    setTimeout(function () { el.classList.remove('show'); }, 3200);
+  }
+
+  function closeModal() {
+    var ov = $('action-modal');
+    if (!ov) return;
+    ov.classList.remove('open');
+    ov.hidden = true;
+    modalAction = null;
+    modalFields = [];
+    setMsg($('modal-error'), '', false);
+  }
+
+  function openActionModal(action) {
+    var defs = {
+      reschedule_request: { title: 'Request new date', fields: [
+        { name: 'newDate', label: 'Preferred date', type: 'date', required: true },
+        { name: 'newTime', label: 'Preferred time (optional)', type: 'text' },
+      ]},
+      addon_request: { title: 'Request add-ons', fields: [
+        { name: 'requestedAddons', label: 'Add-ons requested', type: 'text', required: true },
+      ]},
+      package_change_request: { title: 'Change package', fields: [
+        { name: 'newPackName', label: 'Requested package', type: 'text', required: true },
+      ]},
+      vehicle_add_request: { title: 'Add vehicle', fields: [
+        { name: 'vehicleLabel', label: 'Vehicle description', type: 'text', required: true },
+      ]},
+      vehicle_replace_request: { title: 'Replace vehicle', fields: [
+        { name: 'vehicleLabel', label: 'New vehicle description', type: 'text', required: true },
+      ]},
+      address_update: { title: 'Update address', fields: [
+        { name: 'newAddress', label: 'New service address', type: 'text', required: true },
+      ]},
+      cancellation_request: { title: 'Cancel appointment', fields: [
+        { name: 'reason', label: 'Cancellation reason', type: 'textarea', required: true },
+      ]},
+      maintenance_request: { title: 'Maintenance plan request', fields: [
+        { name: 'note', label: 'Notes (optional)', type: 'textarea' },
+      ]},
+      vehicle_add: { title: 'Add vehicle to garage', fields: [
+        { name: 'label', label: 'Vehicle label', type: 'text', required: true },
+        { name: 'make', label: 'Make', type: 'text' },
+        { name: 'model', label: 'Model', type: 'text' },
+      ]},
+      approve_completion: { title: 'Approve completed service', fields: [], confirmOnly: true },
+      report_issue: { title: 'Report an issue', fields: [
+        { name: 'message', label: 'Describe the issue', type: 'textarea', required: true },
+      ]},
+    };
+    var def = defs[action];
+    if (!def) return;
+    modalAction = action;
+    $('modal-title').textContent = def.title;
+    var form = $('modal-form');
+    if (def.confirmOnly) {
+      form.innerHTML = '<p class="hint">Confirm you approve the completed service. Payment steps may follow if a balance is due.</p>';
+      modalFields = [];
+      var ov = $('action-modal');
+      ov.hidden = false;
+      ov.classList.add('open');
+      return;
+    }
+    form.innerHTML = def.fields.map(function (f) {
+      if (f.type === 'textarea') {
+        return '<label for="mf-' + f.name + '">' + f.label + '</label><textarea class="inp" id="mf-' + f.name + '" name="' + f.name + '"' + (f.required ? ' required' : '') + '></textarea>';
+      }
+      return '<label for="mf-' + f.name + '">' + f.label + '</label><input class="inp" id="mf-' + f.name + '" name="' + f.name + '" type="' + (f.type || 'text') + '"' + (f.required ? ' required' : '') + '>';
+    }).join('');
+    modalFields = def.fields;
+    var ov = $('action-modal');
+    ov.hidden = false;
+    ov.classList.add('open');
+  }
+
+  async function submitModal() {
+    if (!modalAction) return;
+    var payload = {};
+    for (var i = 0; i < modalFields.length; i++) {
+      var f = modalFields[i];
+      var el = $('mf-' + f.name);
+      var val = el ? String(el.value || '').trim() : '';
+      if (f.required && !val) {
+        setMsg($('modal-error'), 'Please complete: ' + f.label, true);
+        return;
+      }
+      payload[f.name] = val;
+    }
+    setMsg($('modal-error'), '', false);
+    var ok = false;
+    if (modalAction === 'vehicle_add') {
+      ok = await vehicleAction('add', { vehicle: { label: payload.label, make: payload.make, model: payload.model } });
+    } else if (modalAction === 'approve_completion') {
+      ok = await submitPortalAction('approve_completion', {
+        bookingId: state.booking && state.booking.id,
+        phone: state.verifyPhone || normalizePhoneInput(state.booking && state.booking.phone),
+      });
+    } else if (modalAction === 'report_issue') {
+      ok = await submitPortalAction('report_issue', {
+        bookingId: state.booking && state.booking.id,
+        phone: state.verifyPhone || normalizePhoneInput(state.booking && state.booking.phone),
+        note: payload.message,
+      });
+    } else {
+      ok = await submitAction(modalAction, payload);
+    }
+    if (ok) closeModal();
   }
 
   function bindUi() {
@@ -220,6 +376,29 @@
     }
     var out = $('btn-logout');
     if (out) out.addEventListener('click', logout);
+    var actions = $('customer-actions');
+    if (actions) {
+      actions.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        var act = btn.getAttribute('data-action');
+        openActionModal(act);
+      });
+    }
+    var vehActions = $('vehicle-actions');
+    if (vehActions) {
+      vehActions.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-vehicle-action]');
+        if (!btn) return;
+        if (btn.getAttribute('data-vehicle-action') === 'add') openActionModal('vehicle_add');
+      });
+    }
+    var modalSubmit = $('modal-submit');
+    if (modalSubmit) modalSubmit.addEventListener('click', submitModal);
+    var modalCancel = $('modal-cancel');
+    if (modalCancel) modalCancel.addEventListener('click', closeModal);
+    var modalOv = $('action-modal');
+    if (modalOv) modalOv.addEventListener('click', function (e) { if (e.target === modalOv) closeModal(); });
   }
 
   async function boot() {
@@ -231,6 +410,20 @@
     var prePhone = params.get('phone');
     if (preId && $('lk-booking-id')) $('lk-booking-id').value = preId.toUpperCase();
     if (prePhone && $('lk-phone')) $('lk-phone').value = prePhone;
+
+    var actionToken = params.get('action');
+    if (actionToken) {
+      var ar = await post('customer-portal-action', { action: 'view', token: actionToken });
+      if (ar.data && ar.data.ok) {
+        state.scope = 'booking';
+        state.booking = ar.data.booking;
+        history.replaceState({}, '', 'my-garage.html');
+        renderDashboard({ payment: { canPay: ar.data.labels && ar.data.labels.canPay } });
+        show($('pre-auth'), false);
+        show($('post-auth'), true);
+        return;
+      }
+    }
 
     var challengeId = params.get('auth');
     var token = params.get('t');
@@ -248,13 +441,29 @@
     show($('post-auth'), false);
   }
 
+  function portalReload() {
+    if (state.scope === 'account') return loadAccount();
+    if (state.booking) return loadLimited();
+    return Promise.resolve();
+  }
+
   global.cd1MyGarage = {
     submitAction: submitAction,
-    reload: function () {
-      if (state.scope === 'account') return loadAccount();
-      return loadLimited();
-    },
+    openModal: openActionModal,
+    reload: portalReload,
   };
+
+  if (global.CD1OperationalRefresh) {
+    var portalRefresh = global.CD1OperationalRefresh.createRefreshController({
+      onRefresh: function () { return portalReload(); },
+      onUpdated: function (d) {
+        var el = $('portal-last-updated');
+        if (el) el.textContent = 'Updated ' + d.toLocaleTimeString();
+      },
+      shouldPoll: function () { return !!state.booking || state.session; },
+    });
+    portalRefresh.bindLifecycle();
+  }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);

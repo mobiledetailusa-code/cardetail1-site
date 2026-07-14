@@ -336,10 +336,19 @@ test('each tracked in-scope function invokes the shared helper', () => {
 });
 
 test('chat.js is ignored and not part of PR scope', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
   const { execSync } = require('node:child_process');
   const tracked = execSync('git ls-files netlify/functions/chat.js', { cwd: root, encoding: 'utf8' }).trim();
-  const ignored = execSync('git check-ignore -v netlify/functions/chat.js', { cwd: root, encoding: 'utf8' }).trim();
   assert.equal(tracked, '');
+  const chatPath = path.join(root, 'netlify', 'functions', 'chat.js');
+  // Local leftover copies may exist and must stay ignored; clean worktrees may omit the file entirely.
+  if (!fs.existsSync(chatPath)) {
+    const ignoreRule = fs.readFileSync(path.join(root, '.gitignore'), 'utf8');
+    assert.match(ignoreRule, /netlify\/functions\/chat\.js/);
+    return;
+  }
+  const ignored = execSync('git check-ignore -v netlify/functions/chat.js', { cwd: root, encoding: 'utf8' }).trim();
   assert.match(ignored, /netlify\/functions\/chat\.js/);
   const src = read('netlify/functions/chat.js');
   assert.doesNotMatch(src, /public-rate-limit/);

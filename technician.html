@@ -323,39 +323,63 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
       </label>
       <div id="chk-normal">
         <label class="chk-row"><input type="checkbox" id="chk-service"><span>Service completed as booked</span></label>
-        <label class="chk-row"><input type="checkbox" id="chk-vehicle"><span>Vehicle released to customer</span></label>
-        <label class="chk-row"><input type="checkbox" id="chk-reviewed"><span>Customer reviewed completed work</span></label>
-        <label class="chk-row"><input type="checkbox" id="chk-no-issue"><span>No unresolved issues at time of completion</span></label>
+        <label class="chk-row"><input type="checkbox" id="chk-work-doc"><span>Work documented with required photos</span></label>
       </div>
 
-      <div class="sec-lbl">Customer signature</div>
-      <label class="fl" for="cust-name">Customer printed name</label>
-      <input class="fi" type="text" id="cust-name" placeholder="Customer full name" autocomplete="name">
-      <div class="sigwrap">
-        <canvas class="sig" id="sig-customer"></canvas>
-        <div class="sighint" id="hint-customer">Sign here with finger or mouse</div>
+      <div class="sec-lbl">Payment channel</div>
+      <select class="fi" id="cmp-payment-channel" onchange="togglePaymentChannelFields()">
+        <option value="customer_unavailable">Customer unavailable — send secure review link</option>
+        <option value="online">Online payment — customer will pay via link</option>
+        <option value="cash">Cash collected on site</option>
+        <option value="card_on_site">Card on site (processor reference only)</option>
+      </select>
+      <div id="cmp-cash-wrap" style="display:none;margin-top:10px">
+        <label class="fl" for="cmp-cash-amount">Cash collected ($)</label>
+        <input class="fi" type="number" id="cmp-cash-amount" min="0" step="0.01" placeholder="0.00">
       </div>
-      <div class="sig-actions">
-        <button class="btn btn-g btn-sm" type="button" onclick="sigCustomer.clear()">Clear customer signature</button>
+      <div id="cmp-card-wrap" style="display:none;margin-top:10px">
+        <label class="fl" for="cmp-card-ref">Processor reference (no card numbers)</label>
+        <input class="fi" type="text" id="cmp-card-ref" placeholder="Terminal receipt or auth reference">
       </div>
 
-      <div class="sec-lbl">Technician signature</div>
-      <label class="fl" for="tech-name">Technician printed name</label>
-      <input class="fi" type="text" id="tech-name" placeholder="Your full name" autocomplete="name">
-      <div class="sigwrap">
-        <canvas class="sig" id="sig-technician"></canvas>
-        <div class="sighint" id="hint-technician">Your signature</div>
-      </div>
-      <div class="sig-actions">
-        <button class="btn btn-g btn-sm" type="button" onclick="sigTechnician.clear()">Clear technician signature</button>
-      </div>
+      <div class="sec-lbl" style="margin-top:14px">Final amount</div>
+      <label class="fl" for="cmp-proposed-amount">Proposed final amount ($)</label>
+      <input class="fi" type="number" id="cmp-proposed-amount" min="0" step="0.01" placeholder="Leave as approved amount">
+      <label class="fl" for="cmp-adjust-reason">Adjustment reason (if amount changed)</label>
+      <input class="fi" type="text" id="cmp-adjust-reason" placeholder="Required when reducing price">
 
       <label class="chk-row" style="margin-top:14px">
-        <input type="checkbox" id="chk-auth">
-        <span>I confirm the service was completed and authorize Cardetail1 / Detailing Zone LLC to review and process the final approved amount for this job according to the posted payment policy. If additional confirmation is required, I understand Cardetail1 may send a secure payment link/invoice or contact me before payment is completed. I understand the final amount may include approved services, add-ons, travel/tolls, condition-based charges, or other posted fees.</span>
+        <input type="checkbox" id="chk-customer-present">
+        <span>Customer was present at completion (optional signature below)</span>
       </label>
 
-      <div class="cert-txt">I certify that I completed the listed service or documented any issue accurately.</div>
+      <details id="cmp-sig-optional" style="margin-top:10px">
+        <summary style="cursor:pointer;color:var(--mu);font-size:13px">Optional signatures (not required)</summary>
+        <div style="margin-top:10px">
+          <label class="fl" for="cust-name">Customer printed name</label>
+          <input class="fi" type="text" id="cust-name" placeholder="Optional" autocomplete="name">
+          <div class="sigwrap">
+            <canvas class="sig" id="sig-customer"></canvas>
+            <div class="sighint" id="hint-customer">Optional customer signature</div>
+          </div>
+          <button class="btn btn-g btn-sm" type="button" onclick="sigCustomer.clear()">Clear customer signature</button>
+          <label class="fl" for="tech-name" style="margin-top:12px">Technician printed name</label>
+          <input class="fi" type="text" id="tech-name" placeholder="Your full name" autocomplete="name">
+          <div class="sigwrap">
+            <canvas class="sig" id="sig-technician"></canvas>
+            <div class="sighint" id="hint-technician">Optional technician signature</div>
+          </div>
+          <button class="btn btn-g btn-sm" type="button" onclick="sigTechnician.clear()">Clear technician signature</button>
+        </div>
+      </details>
+
+      <label class="chk-row" style="margin-top:14px">
+        <input type="checkbox" id="chk-tech-confirm">
+        <span>I confirm that the listed service was completed (or issue documented accurately).</span>
+      </label>
+
+      <label class="fl" for="cmp-customer-notes">Customer-visible notes (optional)</label>
+      <textarea class="fi" id="cmp-customer-notes" placeholder="Notes the customer may see…"></textarea>
 
       <label class="fl" for="cmp-notes">Completion notes (optional)</label>
       <textarea class="fi" id="cmp-notes" placeholder="Any notes about the job…"></textarea>
@@ -403,6 +427,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
 
 <div id="toast"></div>
 
+<script src="/assets/operational-refresh.js"></script>
 <script src="/netlify/lib/site-access-client.js"></script>
 <script>
 (function () {
@@ -796,8 +821,13 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         acts += btn('In Progress', 'btn-p', "updStatus('" + j.id + "','in_progress')");
       }
       if (js === 'in_progress' || js === 'issue_reported') {
-        acts += btn('Complete', 'btn-gr', "openComplete('" + j.id + "')");
+        acts += btn('Pause', 'btn-yw', "updStatus('" + j.id + "','paused')");
+        acts += btn('Complete Service', 'btn-gr', "openComplete('" + j.id + "')");
         acts += btn('Report Issue', 'btn-yw', "openIssue('" + j.id + "')");
+      }
+      if (js === 'paused') {
+        acts += btn('Resume', 'btn-p', "updStatus('" + j.id + "','in_progress')");
+        acts += btn('Complete Service', 'btn-gr', "openComplete('" + j.id + "')");
       }
       if (j.phone) {
         acts += '<a class="btn btn-g btn-sm" href="tel:' + esc(j.phone) + '">📞 Call</a>';
@@ -826,6 +856,9 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         cell('Zone', j.zone || j.zipCode || '—') +
         (j.address ? fullCell('Address', j.address) : '') +
         (j.addons && j.addons.length ? fullCell('Add-ons', fmtAddons(j.addons)) : '') +
+        (j.packageDescription ? fullCell('Package details', j.packageDescription) : '') +
+        (j.packageChecklist && j.packageChecklist.length ? fullCell('Checklist', j.packageChecklist.join(' · ')) : '') +
+        (j.vehicles && j.vehicles.length > 1 ? fullCell('Vehicles', j.vehicles.map(function(v){ return v.vehicleLabel || 'Vehicle'; }).join(' · ')) : '') +
         (j.customerNote ? fullCell('Customer note', j.customerNote) : '') +
         (typeof SiteAccess !== 'undefined' ? SiteAccess.techCells(j, esc, fullCell) : '') +
         (j.equipmentHints && j.equipmentHints.length ? fullCell('Equipment', j.equipmentHints.join(' · ')) : '') +
@@ -912,7 +945,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
       ctx.scale(dpr, dpr);
       ctx.lineWidth = 2.5;
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = '#111827';
     }
     resize();
 
@@ -1074,9 +1107,17 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     var eqEl = document.getElementById('cmp-equipment');
     if (eqEl) eqEl.textContent = (job.equipmentHints && job.equipmentHints.length) ? job.equipmentHints.join(' · ') : 'Standard detail kit';
 
-    ['chk-issue', 'chk-service', 'chk-vehicle', 'chk-reviewed', 'chk-no-issue', 'chk-auth'].forEach(function (cid) {
-      document.getElementById(cid).checked = false;
+    ['chk-issue', 'chk-service', 'chk-work-doc', 'chk-tech-confirm', 'chk-customer-present'].forEach(function (cid) {
+      var el = document.getElementById(cid);
+      if (el) el.checked = false;
     });
+    document.getElementById('cmp-payment-channel').value = 'customer_unavailable';
+    document.getElementById('cmp-proposed-amount').value = job.approvedAmount != null ? job.approvedAmount : '';
+    document.getElementById('cmp-adjust-reason').value = '';
+    document.getElementById('cmp-cash-amount').value = '';
+    document.getElementById('cmp-card-ref').value = '';
+    document.getElementById('cmp-customer-notes').value = '';
+    togglePaymentChannelFields();
     var preIssue = job.jobStatus === 'issue_reported';
     document.getElementById('chk-issue').checked = preIssue;
     toggleIssuePath();
@@ -1104,38 +1145,40 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     _completeJobId = '';
   };
 
+  window.togglePaymentChannelFields = function () {
+    var ch = document.getElementById('cmp-payment-channel').value;
+    document.getElementById('cmp-cash-wrap').style.display = ch === 'cash' ? 'block' : 'none';
+    document.getElementById('cmp-card-wrap').style.display = ch === 'card_on_site' ? 'block' : 'none';
+  };
+
   window.submitComplete = async function () {
     clearErr('cmperr');
     var issuePath = document.getElementById('chk-issue').checked;
     var checklist = {};
 
     if (issuePath) {
-      if (!document.getElementById('chk-issue').checked) {
-        showErr('cmperr', 'Confirm issue reported.'); return;
-      }
       checklist.issue_reported = true;
     } else {
       checklist.service_completed = document.getElementById('chk-service').checked;
-      checklist.vehicle_released = document.getElementById('chk-vehicle').checked;
-      checklist.customer_reviewed = document.getElementById('chk-reviewed').checked;
-      checklist.no_unresolved_issue = document.getElementById('chk-no-issue').checked;
-      if (!checklist.service_completed || !checklist.vehicle_released ||
-          !checklist.customer_reviewed || !checklist.no_unresolved_issue) {
-        showErr('cmperr', 'Complete all checklist items or use the issue path.'); return;
+      checklist.work_documented = document.getElementById('chk-work-doc').checked;
+      if (!checklist.service_completed || !checklist.work_documented) {
+        showErr('cmperr', 'Complete checklist items or use the issue path.'); return;
       }
     }
 
-    var customerPrintedName = document.getElementById('cust-name').value.trim();
-    var technicianPrintedName = document.getElementById('tech-name').value.trim();
+    var technicianPrintedName = document.getElementById('tech-name').value.trim() || (TECH ? TECH.name : '');
+    var customerPresent = document.getElementById('chk-customer-present').checked;
+    var customerPrintedName = customerPresent ? document.getElementById('cust-name').value.trim() : '';
     var completionNotes = document.getElementById('cmp-notes').value.trim();
+    var customerVisibleNotes = document.getElementById('cmp-customer-notes').value.trim();
     var issueNotes = document.getElementById('issue-notes').value.trim();
+    var paymentChannel = document.getElementById('cmp-payment-channel').value;
+    var proposedRaw = document.getElementById('cmp-proposed-amount').value.trim();
+    var adjustmentReason = document.getElementById('cmp-adjust-reason').value.trim();
 
-    if (!customerPrintedName) { showErr('cmperr', 'Enter customer printed name.'); return; }
-    if (!technicianPrintedName) { showErr('cmperr', 'Enter technician printed name.'); return; }
-    if (!sigCustomer.hasInk()) { showErr('cmperr', 'Customer signature required.'); return; }
-    if (!sigTechnician.hasInk()) { showErr('cmperr', 'Technician signature required.'); return; }
-    if (!document.getElementById('chk-auth').checked) {
-      showErr('cmperr', 'Customer authorization must be accepted.'); return;
+    if (!technicianPrintedName) { showErr('cmperr', 'Enter technician name.'); return; }
+    if (!document.getElementById('chk-tech-confirm').checked) {
+      showErr('cmperr', 'Confirm service completion.'); return;
     }
     if (issuePath && !issueNotes) {
       showErr('cmperr', 'Describe the issue.'); return;
@@ -1148,31 +1191,48 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
       showErr('cmperr', 'Upload at least one AFTER photo.'); return;
     }
 
+    if (paymentChannel === 'cash') {
+      var cashAmt = parseFloat(document.getElementById('cmp-cash-amount').value);
+      if (!Number.isFinite(cashAmt) || cashAmt <= 0) {
+        showErr('cmperr', 'Enter cash collected amount.'); return;
+      }
+    }
+    if (paymentChannel === 'card_on_site' && !document.getElementById('cmp-card-ref').value.trim()) {
+      showErr('cmperr', 'Enter processor reference.'); return;
+    }
+
     var btn = document.getElementById('cmp-submit-btn');
     btn.disabled = true;
     try {
       var body = {
         bookingId: _completeJobId,
         checklist: checklist,
-        customerPrintedName: customerPrintedName,
         technicianPrintedName: technicianPrintedName,
-        customerSignature: sigCustomer.dataUrl(),
-        technicianSignature: sigTechnician.dataUrl(),
-        customerAuthorizationAccepted: true,
+        technicianConfirmation: true,
+        customerPresent: customerPresent,
+        customerPrintedName: customerPrintedName,
+        customerSignature: sigCustomer && sigCustomer.hasInk() ? sigCustomer.dataUrl() : '',
+        technicianSignature: sigTechnician && sigTechnician.hasInk() ? sigTechnician.dataUrl() : '',
         completionNotes: completionNotes,
+        customerVisibleNotes: customerVisibleNotes,
         issueNotes: issueNotes,
-        technicianNotes: issuePath ? issueNotes : completionNotes
+        paymentChannel: paymentChannel,
+        adjustmentReason: adjustmentReason,
       };
+      if (proposedRaw) body.proposedFinalAmount = parseFloat(proposedRaw);
+      if (paymentChannel === 'cash') body.cashCollectedAmount = parseFloat(document.getElementById('cmp-cash-amount').value);
+      if (paymentChannel === 'card_on_site') body.cardOnSiteReference = document.getElementById('cmp-card-ref').value.trim();
+
       var r = await techFetch(COMPLETE_URL, { method: 'POST', body: JSON.stringify(body) });
       if (!r.data.ok) {
         var errMap = {
           checklist_incomplete: 'Checklist incomplete.',
-          customer_printed_name_required: 'Customer name required.',
+          technician_confirmation_required: 'Confirm service completion.',
           technician_printed_name_required: 'Technician name required.',
-          customer_signature_required: 'Customer signature required.',
-          technician_signature_required: 'Technician signature required.',
-          customer_authorization_required: 'Authorization checkbox required.',
-          technician_note_required: 'Technician note required for issues.',
+          adjustment_reason_required: 'Adjustment reason required.',
+          cash_amount_required: 'Cash amount required.',
+          cash_amount_mismatch: 'Cash amount must match approved total.',
+          card_on_site_reference_required: 'Processor reference required.',
           completion_already_submitted: 'Completion already submitted.',
           photos_before_required: 'Upload at least one BEFORE photo.',
           photos_after_required: 'Upload at least one AFTER photo.'
@@ -1181,7 +1241,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         return;
       }
       closeComplete();
-      toast('Completion submitted for admin review');
+      toast('Service completion recorded');
       loadJobs();
     } catch (_) {
       showErr('cmperr', 'Network error.');

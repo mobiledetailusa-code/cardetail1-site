@@ -32,6 +32,15 @@ const canonicalFooter = read('assets/partials/specialty-public-footer.html')
   .replace(/\s+/g, ' ')
   .trim();
 
+test('public pages include My Garage in top navigation', () => {
+  const hubPages = PUBLIC_PAGES.filter((p) => p !== 'terms-conditions.html' && p !== 'index.html');
+  for (const page of hubPages) {
+    const html = read(page);
+    if (!html.includes('id="nav-links"')) continue;
+    assert.match(html, /nav-links[\s\S]*my-garage\.html/, `${page} missing My Garage in top nav`);
+  }
+});
+
 test('every public page includes shared back-to-top assets', () => {
   for (const page of PUBLIC_PAGES) {
     const html = read(page);

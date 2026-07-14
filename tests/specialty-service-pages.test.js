@@ -594,7 +594,7 @@ describe('specialty page UI (back-to-top + gallery lightbox)', () => {
     const html = read('index.html');
     const css = read('assets/public-surface.css');
     assert.match(html, /assets\/back-to-top\.js/);
-    assert.match(css, /#cd1-btt\{[^}]*z-index:985/);
+    assert.match(css, /#cd1-btt\{[^}]*z-index:10050/);
     assert.match(read('assets/back-to-top.js'), /cd1-btt-on/);
   });
 });

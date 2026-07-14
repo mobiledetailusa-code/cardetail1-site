@@ -57,6 +57,13 @@ const {
 const { validateBookingSchedule, hasSlotConflict } = require('../lib/booking-schedule');
 const { listRawBookings, normalizePhone } = require('../lib/ops-db');
 const { validateBookingRouting } = require('../lib/booking-routing-validation');
+const {
+  applyServerOffersToBooking,
+  stripClientOfferFields,
+  CLIENT_OFFER_BLOCKED_FIELDS,
+} = require('../lib/booking-offers');
+const { setOfferDeployHost, clearOfferDeployHost } = require('../lib/revenue-offers');
+const { sendNotificationsDecoupled, attachDeliveryToBooking } = require('../lib/notification-delivery');
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const v = validateBookingSchedule(b.preferredDate, b.preferredTime);
@@ -167,6 +174,10 @@ function buildDraftRecord(b, draftId, now, existing = null) {
     electricityAvailable: b.electricityAvailable || '',
     serviceLocation: b.serviceLocation || '',
     accessNotes: b.accessNotes || '',
+    offer: b.offer || existing?.offer || null,
+    welcomeOffer: b.welcomeOffer || existing?.welcomeOffer || null,
+    approvedFinalAmount: b.approvedFinalAmount ?? existing?.approvedFinalAmount ?? null,
+    discountAmount: b.discountAmount ?? existing?.discountAmount ?? 0,
   };
 }
 
@@ -371,6 +382,8 @@ async function sendSms(b) {
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  setOfferDeployHost(event.headers?.['x-forwarded-host'] || event.headers?.Host || event.headers?.host || '');
+  try {
   let b;
   try { b = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
@@ -383,6 +396,8 @@ exports.handler = async (event) => {
 
   // C-1: Strip all fields the browser must never control.
   for (const f of CLIENT_BLOCKED_FIELDS) delete b[f];
+  for (const f of CLIENT_OFFER_BLOCKED_FIELDS) delete b[f];
+  stripClientOfferFields(b);
   // C-3: Ignore any client-submitted ID entirely.
   delete b.id;
   delete b.bookingId;
@@ -408,6 +423,20 @@ exports.handler = async (event) => {
   if (!travelApplied.ok) {
     return json(400, { ok: false, error: travelApplied.error || 'out_of_service_area' });
   }
+
+  const welcomeSource = String(b.welcomeOfferSource || b.offerSource || '').trim() || null;
+  delete b.welcomeOfferSource;
+  delete b.offerSource;
+  delete b.welcomeOfferAccepted;
+
+  const offerApplied = await applyServerOffersToBooking(b, {
+    serviceSubtotal: travelApplied.serviceSubtotal,
+    travelFee: b.travelFeeAmount || 0,
+    sourceTrigger: welcomeSource,
+  }).catch((e) => {
+    console.warn('[submit-booking] offer apply failed:', e.message);
+    return null;
+  });
 
   const store = await blobsStore('cd1-bookings');
 
@@ -526,11 +555,17 @@ exports.handler = async (event) => {
       return json(500, { ok: false, error: 'booking_store_failed' });
     }
 
-    const [email, customerEmail, sms] = await Promise.all([
-      sendEmail(b).catch(e => ({ sent: false, reason: e.message })),
-      sendCustomerEmail(b).catch(e => ({ sent: false, reason: e.message })),
-      sendSms(b).catch(e => ({ sent: false, reason: e.message })),
-    ]);
+    const delivery = await sendNotificationsDecoupled(b, {
+      adminEmail: (booking) => sendEmail(booking).catch((e) => ({ sent: false, reason: e.message })),
+      customerEmail: (booking) => sendCustomerEmail(booking).catch((e) => ({ sent: false, reason: e.message })),
+      adminSms: (booking) => sendSms(booking).catch((e) => ({ sent: false, reason: e.message })),
+    });
+    const withDelivery = attachDeliveryToBooking(b, delivery);
+    try {
+      await store.setJSON(rawDraftId, withDelivery);
+    } catch (e) {
+      console.warn('[submit-booking] notification delivery persist failed:', e.message);
+    }
 
     return json(200, {
       ok: true,
@@ -538,16 +573,22 @@ exports.handler = async (event) => {
       status: b.status,
       paymentStatus: b.paymentStatus,
       stored,
-      email,
-      customerEmail,
-      sms,
+      email: delivery.adminEmail,
+      customerEmail: delivery.customerEmail,
+      sms: delivery.adminSms,
+      notificationDelivery: delivery,
       appointmentStatus: b.appointmentStatus,
       cardOnFileStatus: b.cardOnFileStatus,
+      offer: b.offer || null,
+      approvedFinalAmount: b.approvedFinalAmount || b.totalPrice,
     });
   }
 
   // ── New booking (cash/on-site or any path that didn't pre-register a draft) ──
   return json(409, { ok: false, error: 'card_on_file_required' });
+  } finally {
+    clearOfferDeployHost();
+  }
 };
 
 exports.__test = {

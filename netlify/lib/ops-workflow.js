@@ -2,10 +2,11 @@
 const {
   JOB_STATUSES, PAYMENT_WORKFLOW_STATUSES, normalizeJobStatus, normalizePaymentWorkflowStatus,
 } = require('./ops-schema');
+const { matchPackFromBooking } = require('./customer-catalog');
 const { techEquipmentHintsForSiteAccess } = require('./site-access');
 
 const TECH_STATUS_UPDATES = new Set([
-  'accepted', 'en_route', 'arrived', 'in_progress', 'issue_reported',
+  'accepted', 'en_route', 'arrived', 'in_progress', 'paused', 'issue_reported',
 ]);
 
 const STRIPE_SENSITIVE = new Set([
@@ -47,10 +48,19 @@ function projectJobForTech(b) {
   const first = b.firstName || '';
   const last = b.lastName || '';
   const customerName = [first, last].filter(Boolean).join(' ') || 'Customer';
+  const pack = matchPackFromBooking(b);
+  const vehicles = Array.isArray(b.vehicles) && b.vehicles.length
+    ? b.vehicles
+    : [{
+      vehicleLabel: b.vehicleLabel || b.vehicle || b.vehicleCategory || '',
+      pkgName: b.package || b.service || '',
+      addons: b.addons || [],
+    }];
   return {
     id: b.id,
     customerName,
     phone: b.phone || '',
+    email: b.email ? '[on file]' : '',
     address: b.address || '',
     zipCode: b.zipCode || '',
     preferredDate: b.preferredDate || '',
@@ -59,19 +69,32 @@ function projectJobForTech(b) {
     confirmedTime: b.confirmedTime || '',
     confirmedTimeWindow: b.confirmedTimeWindow || '',
     vehicle: b.vehicleLabel || b.vehicle || b.vehicleCategory || '',
+    vehicles: vehicles.map(v => ({
+      vehicleLabel: v.vehicleLabel || v.vehicle || '',
+      pkgName: v.pkgName || b.package || '',
+      addons: (v.addons || []).map(a => ({ name: a.name, qty: a.qty || 1 })),
+    })),
     package: b.package || b.service || '',
+    packageDescription: pack ? pack.description : '',
+    packageChecklist: pack ? pack.feats : [],
+    packageDuration: pack ? pack.duration : '',
     addons: (b.addons || []).map(a => ({ name: a.name, qty: a.qty || 1 })),
     customerNote: b.customerNote || '',
     notes: b.customerNote || b.notes || '',
+    adminNotes: b.adminNotes || b.opsNotes || '',
     waterAvailable: b.waterAvailable || '',
     electricityAvailable: b.electricityAvailable || '',
     serviceLocation: b.serviceLocation || '',
     accessNotes: b.accessNotes || '',
     jobStatus: normalizeJobStatus(b),
+    serviceStatus: b.serviceStatus || '',
+    paymentStatus: b.paymentStatus || '',
+    customerApprovalStatus: b.customerApprovalStatus || '',
     assignedTechId: b.assignedTechId || b.assignedTech || '',
     assignedTechName: b.assignedTechName || '',
     techNotes: b.techNotes || '',
     zone: b.zone || '',
+    approvedAmount: b.approvedFinalAmount != null ? b.approvedFinalAmount : (b.totalPrice != null ? b.totalPrice : null),
     finalAmount: b.finalAmount != null ? b.finalAmount : (b.totalPrice != null ? b.totalPrice : null),
     techPayoutAmount: b.techPayoutAmount != null ? b.techPayoutAmount : null,
     completionSubmitted: !!b.completionSubmitted,
@@ -79,6 +102,7 @@ function projectJobForTech(b) {
     photosRequired: true,
     photosBefore: b.photosBefore || [],
     photosAfter: b.photosAfter || [],
+    adjustmentStatus: b.adjustmentStatus || 'none',
   };
 }
 

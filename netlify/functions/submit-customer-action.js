@@ -44,6 +44,7 @@ const ACTION_MAP = {
   vehicle_replace_request: 'vehicle_replace',
   addon_remove_request: 'addon',
   maintenance_request: 'maintenance',
+  cancellation_request: 'cancellation',
 };
 
 const ALLOWED_ACTIONS = new Set(Object.keys(ACTION_MAP));
@@ -189,6 +190,19 @@ exports.handler = async (event) => {
     };
     adminSubject = `Cardetail1 — Maintenance Request · ${bookingId}`;
     adminText = `Customer maintenance request for booking ${bookingId}.\n${note || '(no note)'}`;
+  } else if (action === 'cancellation_request') {
+    const reason = String(p.reason || p.message || '').slice(0, 500).trim();
+    if (!reason) return json(400, { ok: false, error: 'validation_error', message: 'Please provide a cancellation reason.' });
+    requestedState = { cancellationReason: reason };
+    updates = {
+      cancellationRequestStatus: 'requested',
+      cancellationRequestedAt: now,
+      cancellationReason: reason,
+      customerChangePending: true,
+    };
+    logEntry.cancellationReason = reason;
+    adminSubject = `Cardetail1 — Cancellation Request · ${bookingId}`;
+    adminText = `Customer requested cancellation for booking ${bookingId}.\nReason: ${reason}`;
   }
 
   const changeRecord = await createChangeRequest({

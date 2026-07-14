@@ -3,12 +3,10 @@
   'use strict';
 
   var STEP_EVENTS = {
-    1: 'zip_check_started',
-    2: 'package_view',
-    3: 'vehicle_added',
-    4: 'contact_captured',
-    5: 'payment_step_viewed',
-    6: 'booking_submitted',
+    1: 'package_view',
+    2: 'vehicle_added',
+    3: 'contact_captured',
+    4: 'payment_step_viewed',
   };
 
   function track(event, props) {
@@ -33,7 +31,7 @@
       orig(n);
       track('booking_step_viewed', { booking_step: n, category: global.ST && global.ST.cat });
       if (STEP_EVENTS[n]) track(STEP_EVENTS[n], { booking_step: n, category: global.ST && global.ST.cat });
-      if (n === 3 && global.ST && global.ST.vehicles && global.ST.vehicles.length >= 2) {
+      if (n === 2 && global.ST && global.ST.vehicles && global.ST.vehicles.length >= 2) {
         track('multi_vehicle_detected', { vehicle_count_band: vehicleCountBand(), multi_vehicle_band: vehicleCountBand() });
       }
     };
