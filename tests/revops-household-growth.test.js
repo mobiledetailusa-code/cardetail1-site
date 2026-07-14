@@ -348,12 +348,11 @@ test('duplicate GTM install guarded by id cd1-gtm', () => {
 
 // ── REGRESSION / FILES ──────────────────────────────────────────────────────
 
-test('multi-vehicle landing page distinguishes booking vs Garage Plan CTAs', () => {
+test('multi-vehicle landing page books via working checkout CTA', () => {
   const html = fs.readFileSync(path.join(root, 'multi-vehicle-detailing.html'), 'utf8');
   assert.match(html, /Book Multiple Vehicles/);
-  assert.match(html, /Request Garage Plan/);
-  assert.match(html, /data-cd1-garage-cta/);
-  assert.match(html, /index\.html(?:\?multi=1)?#book/);
+  assert.match(html, /index\.html\?multi=1#book/);
+  assert.doesNotMatch(html, /data-cd1-garage-cta|Request Garage Plan|Build Your Garage Plan/);
 });
 
 test('multi-vehicle landing page exists and is indexable', () => {

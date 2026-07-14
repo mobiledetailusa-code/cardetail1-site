@@ -195,39 +195,18 @@
       failBooking(categoryId, packageId, 'INVALID_CATEGORY');
       return;
     }
-    if (global.Cardetail1UniversalStrategy && global.CD1BookingRoutingGate) {
-      var routeCtx = global.CD1BookingRoutingGate.gatherContext({
-        category: categoryId,
-        source: 'specialty_bridge',
-        vehicleCount: multiVehicle ? 2 : 0,
-      });
-      var routeResult = global.CD1BookingRoutingGate.evaluateAndMaybeBlock(routeCtx);
-      if (routeResult.blocked) {
-        showBookingError(
-          'This booking option uses an alternative service path. Please use the suggested inquiry option or call/text 551-313-2956.',
-          (routeResult.route && routeResult.route.code) || 'ROUTING_BLOCKED',
-          categoryId,
-          packageId
-        );
-        return;
+    // Soft diagnostics only — never block specialty Book CTAs on the parent page.
+    // CD1BookingRoutingGate / routeServiceIntent still run inside the embed.
+    // Fleet / multi-vehicle intent uses Book Multiple Vehicles (alternative service path).
+    try {
+      if (window.CD1BookingRoutingGate && typeof window.CD1BookingRoutingGate.gatherContext === 'function') {
+        window.CD1BookingRoutingGate.gatherContext({
+          category: categoryId,
+          source: 'specialty_bridge',
+          vehicleCount: multiVehicle ? 2 : 0,
+        });
       }
-      var routeName = routeResult.route && routeResult.route.route;
-      // Book CTAs must open checkout even when strategy also offers garage_plan as alt.
-      if (
-        routeName &&
-        routeName !== 'specialty_booking' &&
-        routeName !== 'standard_booking' &&
-        routeName !== 'garage_plan'
-      ) {
-        showBookingError(
-          'This booking option uses an alternative service path. Please use the suggested inquiry option or call/text 551-313-2956.',
-          'ROUTING_PATH_MISMATCH',
-          categoryId,
-          packageId
-        );
-        return;
-      }
-    }
+    } catch (eGate) { /* non-blocking */ }
     if (!VALID_PACKAGES[categoryId]) {
       failBooking(categoryId, packageId, 'INVALID_CATEGORY');
       return;
@@ -341,6 +320,7 @@
     document.addEventListener('click', function (ev) {
       var btn = ev.target && ev.target.closest ? ev.target.closest('[data-booking-category]') : null;
       if (!btn) return;
+      // Progressive enhancement: anchors still navigate if JS throws before preventDefault settles.
       ev.preventDefault();
       openCategoryPackageBooking({
         categoryId: btn.getAttribute('data-booking-category'),

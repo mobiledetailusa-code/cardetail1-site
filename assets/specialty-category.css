@@ -68,6 +68,10 @@ button { font-family: inherit; }
   text-transform: uppercase;
   cursor: pointer;
   min-height: 40px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .nav-cta:hover { filter: brightness(1.06); }
 .nav-menu-btn {
