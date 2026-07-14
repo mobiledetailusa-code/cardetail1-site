@@ -465,6 +465,37 @@ button { font-family: inherit; }
   font-size: 13px;
   cursor: pointer;
 }
+.cd1-multi-cta {
+  margin-top: 22px;
+  padding: 18px 16px;
+  border: 1px solid var(--sp-line-strong);
+  border-radius: var(--sp-rx);
+  background: rgba(18, 32, 52, 0.55);
+  text-align: center;
+}
+.cd1-multi-cta-title {
+  font-family: var(--sp-fd);
+  font-size: clamp(22px, 3.5vw, 30px);
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+.cd1-multi-cta-copy {
+  color: var(--sp-muted);
+  font-size: 14px;
+  max-width: 480px;
+  margin: 0 auto 14px;
+}
+.cd1-multi-cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.cd1-multi-cta-note {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--sp-muted);
+}
 
 @media (max-width: 900px) {
   .sp-section { padding-top: 64px; }
