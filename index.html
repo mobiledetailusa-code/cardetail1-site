@@ -123,7 +123,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 /* Mobile-only Book Now pill — visible next to hamburger */
 .nav-book-mobile,.nav-portal-mobile{display:none}
 @media(max-width:760px){
-  .nav-book-mobile{display:inline-flex;align-items:center;justify-content:center;background:var(--blue);color:var(--white)!important;min-height:40px;padding:10px 14px;border-radius:999px;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent;box-shadow:0 2px 8px rgba(37,99,235,.25)}
+  .nav-book-mobile{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:1.5px solid rgba(255,255,255,.2);color:var(--white)!important;min-height:40px;padding:10px 12px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;cursor:pointer;text-decoration:none;white-space:nowrap;margin-right:6px}
   .nav-logo-img{height:36px;max-width:min(168px,46vw)}
 }
 .nav-portal-mobile{display:none!important}
@@ -765,6 +765,21 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 
 /* BUTTONS */
 .btn-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.bk-welcome-offer{background:var(--bg2);border:1px solid rgba(77,163,255,.25);border-radius:var(--r);padding:16px;margin:0 0 16px}
+.bk-offer-title{font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px}
+.bk-offer-copy{font-size:13px;color:var(--mu);line-height:1.55;margin:0 0 12px}
+.bk-offer-actions{display:flex;flex-wrap:wrap;gap:8px}
+.bk-financial-summary{background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);padding:14px 16px;margin-bottom:16px}
+.bk-fin-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mu);margin-bottom:10px}
+.bk-fin-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.bk-fin-row:last-child{border-bottom:none}
+.bk-fin-discount span:last-child{color:var(--gr)}
+.bk-fin-total span{font-weight:700;color:var(--white)}
+.bk-fin-muted span:last-child{color:var(--mu)}
+@media(max-width:640px){
+  .bsec .btn-row{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,var(--bg1) 24%);padding-top:12px;margin-top:20px;z-index:2}
+  .bk-sticky-subtotal{position:sticky;top:0;z-index:3;background:var(--bg1);padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+}
 .btn-n{padding:13px 26px;border-radius:999px;border:none;background:var(--blue);color:#000;font-family:var(--fb);font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:.2s}
 .btn-n:hover{background:#fff;transform:translateY(-1px)}
 .btn-n:disabled{opacity:.3;cursor:not-allowed;transform:none}
@@ -1454,10 +1469,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <a class="nav-brand-img" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" decoding="async"></a>
   <div class="nav-links" id="nav-links">
     <a class="nav-link" onclick="openBooking(null);document.getElementById('nav-links').classList.remove('open')">Services</a>
+    <a class="nav-link" href="my-garage.html">My Garage</a>
     <a class="nav-link" href="tel:5513132956">Call / Text</a>
     <a class="nav-cta booking-popup-trigger" onclick="openBooking(null)">Book online</a>
   </div>
-  <a class="nav-book-mobile booking-popup-trigger" onclick="openBooking(null)">Book online</a>
+  <a class="nav-book-mobile" href="my-garage.html">My Garage</a>
   <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
 </nav>
 
@@ -1978,8 +1994,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <div id="how" style="background:var(--bg0)">
   <div class="section">
     <div class="sec-eye">How it works</div>
-    <div class="sec-title">Book online in a few simple steps</div>
-    <div class="sec-desc">Request your appointment online — we confirm by text. No charge today; your card holds your booking request.</div>
+    <div class="sec-title">Book in four steps</div>
+    <div class="sec-desc">Request your appointment in four clear steps — we confirm by text. No charge today; your card holds your booking request.</div>
     <div class="how-grid">
       <div class="how-card">
         <div class="how-ico">📱</div>
@@ -2293,20 +2309,18 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <button type="button" class="booking-close" onclick="closeBooking()">✕</button>
 
     <!-- PROGRESS -->
-    <div class="bprog" id="bprog">
-      <div class="bpt active" id="bpt1"><div class="bpn">1</div><span>Category</span></div>
-      <div class="bpt" id="bpt2"><div class="bpn">2</div><span>Package</span></div>
-      <div class="bpt" id="bpt3"><div class="bpn">3</div><span>Vehicle</span></div>
-      <div class="bpt" id="bpt4"><div class="bpn">4</div><span>Info</span></div>
-      <div class="bpt" id="bpt5"><div class="bpn">5</div><span>Secure Your Booking</span></div>
-      <div class="bpt" id="bpt6"><div class="bpn">6</div><span>Confirm</span></div>
+    <div class="bprog" id="bprog" aria-label="Booking progress — 4 steps">
+      <div class="bpt active" id="bpt1"><div class="bpn">1</div><span>Service</span></div>
+      <div class="bpt" id="bpt2"><div class="bpn">2</div><span>Vehicle &amp; Add-ons</span></div>
+      <div class="bpt" id="bpt3"><div class="bpn">3</div><span>Contact &amp; Schedule</span></div>
+      <div class="bpt" id="bpt4"><div class="bpn">4</div><span>Secure &amp; Submit</span></div>
     </div>
 
     <div class="bcontent">
 
       <!-- STEP 1: CATEGORY -->
       <div class="bsec on" id="bs1">
-        <div class="beye">Step 01</div>
+        <div class="beye">Step 1 of 4 — Service</div>
         <div class="btitle">WHAT ARE WE<br>DETAILING?</div>
         <div class="bdesc">Enter your ZIP code first — we'll detect your area and show accurate pricing for your location.</div>
         <!-- ZIP GATE -->
@@ -2353,9 +2367,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
       </div>
 
-      <!-- STEP 2: PACKAGES -->
+      <!-- STEP 1 (cont.): PACKAGES — same visible step as category -->
       <div class="bsec" id="bs2">
-        <div class="beye">Step 02</div>
+        <div class="beye">Step 1 of 4 — Package</div>
         <div class="btitle">CHOOSE YOUR<br>PACKAGE</div>
         <div class="bdesc">Review what's included in your package before entering vehicle details. Price updates by vehicle size or exact length for boats, RVs and travel trailers.</div>
         <div class="pkg-grid" id="pkg-grid"></div>
@@ -2363,13 +2377,13 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <p style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">Final price depends on vehicle size, condition, location, and selected add-ons. Heavy pet hair, odor treatment, biohazard, excessive stains, and oversized vehicles may require additional charges.</p>
         <div class="btn-row">
           <button type="button" class="btn-b" onclick="bkGoTo(1)">← Back</button>
-          <button type="button" class="btn-n" id="next2" disabled onclick="bkGoTo(3)">Continue to vehicle →</button>
+          <button type="button" class="btn-n" id="next2" disabled onclick="bkContinueFromPackage()">Continue to vehicle →</button>
         </div>
       </div>
 
       <!-- STEP 3: VEHICLE -->
       <div class="bsec" id="bs3">
-        <div class="beye">Step 03</div>
+        <div class="beye">Step 2 of 4 — Vehicle &amp; Add-ons</div>
         <div class="btitle">YOUR VEHICLE</div>
         <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length.</div>
 
@@ -2478,14 +2492,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
 
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(2)">← Back</button>
-          <button type="button" class="btn-n" id="next3" disabled onclick="addCurrentVehicleAndContinue()">Continue to Info →</button>
+          <button type="button" class="btn-b" onclick="bkGoTo(1)">← Back</button>
+          <button type="button" class="btn-n" id="next3" disabled onclick="addCurrentVehicleAndContinue()">Continue to contact →</button>
         </div>
       </div>
 
       <!-- STEP 4: INFO -->
       <div class="bsec" id="bs4">
-        <div class="beye">Step 04</div>
+        <div class="beye">Step 3 of 4 — Contact &amp; Schedule</div>
         <div class="btitle">YOUR DETAILS</div>
         <div class="bdesc">We'll confirm your appointment by text or call within a few hours.</div>
         <div class="strip show" id="strip5">
@@ -2537,15 +2551,28 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="fg full"><div class="fl">Notes (optional)</div><textarea class="fta" id="f-notes" placeholder="Specific stains, pet hair, vehicle condition…"></textarea></div>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(3)">← Back</button>
-          <button type="button" class="btn-n" onclick="goToPayment()">Review Terms →</button>
+          <button type="button" class="btn-b" onclick="bkGoTo(2)">← Back</button>
+          <button type="button" class="btn-n" onclick="bkContinueFromContact()">Continue to secure booking →</button>
         </div>
       </div>
 
       <!-- STEP 5: SECURE YOUR BOOKING -->
       <div class="bsec" id="bs5">
-        <div class="beye">Step 05</div>
+        <div class="beye">Step 4 of 4 — Secure &amp; Submit</div>
         <div class="btitle">SECURE YOUR<br>BOOKING</div>
+        <div id="bk-welcome-offer" class="bk-welcome-offer" hidden role="complementary" aria-label="New customer welcome offer">
+          <div class="bk-offer-title">Still deciding?</div>
+          <p class="bk-offer-copy">Your first eligible booking receives 10% off eligible service subtotal, up to $40 savings.<br>No promo code needed. New customers only — one redemption per household. <a href="/terms-conditions#welcome-offer" target="_blank" rel="noopener noreferrer">Terms apply</a>.</p>
+          <div class="bk-offer-actions">
+            <button type="button" class="btn-n" id="bk-offer-apply">Apply My Savings</button>
+            <button type="button" class="btn-b" id="bk-offer-dismiss">Continue Without Changes</button>
+          </div>
+        </div>
+        <div class="bk-financial-summary" id="bk-financial-summary" aria-live="polite">
+          <div class="bk-fin-title">Estimated summary</div>
+          <div id="bk-financial-lines"></div>
+          <p class="bk-offer-terms-note" style="font-size:11px;color:var(--mu);line-height:1.5;margin-top:10px">Welcome savings apply to eligible service subtotal only (10% max $40). Excludes travel, tolls, Maintenance Detail, Fleet and custom quotes. <a href="/terms-conditions#welcome-offer" target="_blank" rel="noopener noreferrer">Terms apply</a>.</p>
+        </div>
         <div class="bdesc">This sends a booking request — we'll review your location, vehicle, weather, and access, then text you to confirm. Nothing charged today.</div>
         <div class="card-gate">
           <div class="card-gate-title">Lock Your Slot</div>
@@ -2599,14 +2626,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="pay-badge">✓ No charge today · Card on file is required for every booking request</div>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(4)">← Back</button>
-          <button type="button" class="btn-n" onclick="goToConfirmFromTerms()">Review & Submit →</button>
+          <button type="button" class="btn-b" onclick="bkGoTo(3)">← Back</button>
+          <button type="button" class="btn-n" onclick="bkScrollToConfirm()">Review &amp; Submit →</button>
         </div>
       </div>
 
-      <!-- STEP 6: CONFIRM -->
+      <!-- STEP 4 (cont.): REVIEW & SUBMIT -->
       <div class="bsec" id="bs6">
-        <div class="beye">Step 06</div>
+        <div class="beye">Step 4 of 4 — Review</div>
         <div class="btitle">REVIEW &<br>SUBMIT</div>
         <div class="bdesc">Give it a quick look, then send your request — we'll text you to confirm.</div>
         <div class="oc">
@@ -2617,7 +2644,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="or"><span class="ol">Package</span><span class="ov" id="c-pkg">—</span></div>
           <div class="or"><span class="ol">Pkg price</span><span class="ov" id="c-pprice">—</span></div>
           <div id="c-addon-rows"></div>
-          <div class="or"><span class="ol" style="color:var(--white);font-weight:600">Total</span><span class="oc-total" id="c-total">—</span></div>
+          <div id="c-offer-line"></div>
+          <div class="or"><span class="ol" style="color:var(--white);font-weight:600">Estimated total</span><span class="oc-total" id="c-total">—</span></div>
           <div class="oc-note">Final price confirmed on-site. Add-ons are starting prices.</div>
         </div>
         <div class="oc">
@@ -2643,7 +2671,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </label>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(5)">← Back</button>
+          <button type="button" class="btn-b" onclick="bkScrollToPayment()">← Back</button>
           <button type="button" class="btn-sub" id="sub-btn" onclick="submitBooking()">
             <div class="spin"></div><span class="bl">Submit Booking Request ✓</span>
           </button>
@@ -3660,25 +3688,114 @@ function bookingHasProgress(){
   });
 }
 
-// ── BOOKING NAVIGATION ────────────────────────────────────────────────────────
-function bkGoTo(n){
-  document.querySelectorAll('.bsec').forEach(s=>s.classList.remove('on'));
-  document.querySelectorAll('.bpt').forEach((t,i)=>{
-    t.classList.remove('active','done');
-    if(i+1<n)t.classList.add('done');
-    else if(i+1===n)t.classList.add('active');
-  });
-  // Keep the active step visible in the horizontally-scrolling progress bar on mobile
-  const activeTab=document.getElementById('bpt'+n);
-  if(activeTab&&activeTab.scrollIntoView) activeTab.scrollIntoView({inline:'center',block:'nearest'});
-  document.getElementById('bs'+n).classList.add('on');
-  if(n===3) renderVehicleCart();
-  if(n===4)fillStrip5();
-  if(n===5)ensureStep5Defaults();
-  if(n===6)fillConfirm();
-  // Reset scroll on every scroll container (desktop scrolls the overlay, mobile the modal)
-  ['.bcontent','.booking-modal','.booking-modal-ov'].forEach(s=>{const el=document.querySelector(s); if(el) el.scrollTop=0;});
+// ── BOOKING NAVIGATION (4 visible steps) ─────────────────────────────────────
+const BK_VISIBLE_STEPS = 4;
+let currentBkStep = 1;
+let _bkPrevStep = 1;
+
+function bkPanelsForStep(n) {
+  if (n === 1) return ST.cat ? ['bs1', 'bs2'] : ['bs1'];
+  if (n === 2) return ['bs3'];
+  if (n === 3) return ['bs4'];
+  if (n === 4) return ['bs5', 'bs6'];
+  return ['bs1'];
 }
+
+function bkGoTo(n, opts = {}) {
+  n = Math.max(1, Math.min(BK_VISIBLE_STEPS, Number(n) || 1));
+  _bkPrevStep = currentBkStep;
+  currentBkStep = n;
+  const panels = bkPanelsForStep(n);
+  document.querySelectorAll('.bsec').forEach(s => {
+    s.classList.toggle('on', panels.includes(s.id));
+  });
+  document.querySelectorAll('.bpt').forEach((t, i) => {
+    t.classList.remove('active', 'done');
+    if (i + 1 < n) t.classList.add('done');
+    else if (i + 1 === n) t.classList.add('active');
+  });
+  const activeTab = document.getElementById('bpt' + n);
+  if (activeTab && activeTab.scrollIntoView) activeTab.scrollIntoView({ inline: 'center', block: 'nearest' });
+  if (n === 2) renderVehicleCart();
+  if (n === 3) fillStrip5();
+  if (n === 4) {
+    ensureStep5Defaults();
+    fillConfirm();
+    if (window.Cardetail1WelcomeOffer) Cardetail1WelcomeOffer.fetchPreview('step4');
+  }
+  if (!opts.noScroll) {
+    ['.bcontent', '.booking-modal', '.booking-modal-ov'].forEach(s => {
+      const el = document.querySelector(s);
+      if (el) el.scrollTop = 0;
+    });
+  }
+  if (window.Cardetail1CheckoutAnalytics && _bkPrevStep > n) {
+    Cardetail1CheckoutAnalytics.onStepBack(_bkPrevStep, n);
+  }
+}
+
+function bkContinueFromPackage() {
+  if (!ST.pkg) {
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(1, 'package_required');
+    alert('Please select a package to continue.');
+    return;
+  }
+  if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(1);
+  bkGoTo(2);
+}
+
+function bkContinueFromContact() {
+  const req = ['f-first', 'f-last', 'f-phone', 'f-email', 'f-addr', 'f-date', 'f-time'];
+  const missing = req.find(id => !document.getElementById(id)?.value?.trim());
+  if (missing) {
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(3, 'required_fields');
+    const el = document.getElementById(missing);
+    if (el) { el.focus(); el.scrollIntoView({ block: 'center' }); }
+    alert('Please fill in all required fields marked with *');
+    return;
+  }
+  const phone = bkValidateContactPhone();
+  if (!phone.ok) {
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(3, 'invalid_phone');
+    alert(phone.message);
+    return;
+  }
+  const sched = bkValidateScheduleSelection();
+  if (!sched.ok) {
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(3, 'invalid_schedule');
+    bkShowScheduleMsg(sched.message);
+    return;
+  }
+  bkShowScheduleMsg('');
+  if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(3);
+  bkGoTo(4);
+}
+
+function bkScrollToConfirm() {
+  if (!ST.payMethod) {
+    alert('Please select a payment preference before continuing.');
+    return;
+  }
+  if (!document.getElementById('cof-policy-ok')?.checked) {
+    alert('Please accept the card-on-file policy before continuing.');
+    return;
+  }
+  if (!ST.cardOnFileSaved) {
+    alert('Please securely save a card with Stripe before continuing.');
+    return;
+  }
+  fillConfirm();
+  const el = document.getElementById('bs6');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function bkScrollToPayment() {
+  const el = document.getElementById('bs5');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function goToPayment() { bkContinueFromContact(); }
+function goToConfirmFromTerms() { bkScrollToConfirm(); }
 
 // ── STEP 1: CATEGORY ──────────────────────────────────────────────────────────
 function selectCategory(cat){
@@ -3704,7 +3821,7 @@ function selectCategory(cat){
   ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
   renderPackages(cat);
   renderTierChips(cat);
-  bkGoTo(2);
+  bkGoTo(1);
   if(ST._prefillPkgId){
     const pid=ST._prefillPkgId;
     ST._prefillPkgId='';
@@ -3760,7 +3877,7 @@ function selectPkg(id){
   ST.pkg=(PRICING[ST.cat]&&PRICING[ST.cat].packages)?PRICING[ST.cat].packages.find(p=>p.id===id):null;
   document.getElementById('next2').disabled=!ST.pkg;
   if((ST.cat==='boats'||ST.cat==='rvs'||ST.cat==='fleet') && (ST.lengthFt||ST.units)){tryGenericConfirm();}
-  if(ST.pkg) bkGoTo(3);
+  if(ST.pkg && currentBkStep < 2) { /* stay on step 1 until Continue */ }
 }
 
 // ── STEP 3: VEHICLE ───────────────────────────────────────────────────────────
@@ -4233,17 +4350,6 @@ function fillStrip5(){
   document.getElementById('s5-total').textContent=cartBase?'$'+(cartBase+fee):'Estimate';
 }
 
-function goToPayment(){
-  const req=['f-first','f-last','f-phone','f-email','f-addr','f-date','f-time'];
-  if(req.some(id=>!document.getElementById(id).value.trim())){alert('Please fill in all required fields marked with *');return;}
-  const phone=bkValidateContactPhone();
-  if(!phone.ok){alert(phone.message);return;}
-  const sched=bkValidateScheduleSelection();
-  if(!sched.ok){bkShowScheduleMsg(sched.message);return;}
-  bkShowScheduleMsg('');
-  bkGoTo(5);
-}
-
 // ── STEP 6: STRIPE (Payment Element + Payment Link) ───────────────────────────
 let stripe=null, stripeElements=null, stripePI=null;
 let stripePaymentElement=null;
@@ -4506,6 +4612,7 @@ async function confirmSetupIntent(){
     const verified=await waitForVerifiedCardSave(8,2000);
     if(verified){
       stripeMsg('stripe-status',COF_SAVED_MSG,true);
+      if(window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onPaymentInfoSaved();
     } else {
       stripeMsg('stripe-status','Your card was saved with Stripe. You can continue — we’ll confirm on the server when you submit. '+COF_RETRY_BTN,true);
     }
@@ -4530,28 +4637,14 @@ async function recheckCardStatus(){
   updateCofAuthButtonState();
 }
 
-function goToConfirmFromTerms(){
-  if(!ST.payMethod){
-    alert('Please select a payment preference before continuing.');
-    return;
-  }
-  if(!document.getElementById('cof-policy-ok')?.checked){
-    alert('Please accept the card-on-file policy before continuing.');
-    return;
-  }
-  if(!ST.cardOnFileSaved){
-    alert('Please securely save a card with Stripe before continuing.');
-    return;
-  }
-  bkGoTo(6);
-}
-
 // ── STEP 7: CONFIRM ───────────────────────────────────────────────────────────
 function fillConfirm(){
   const fee = getTravelFeeAmount();
   const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
   const cartBase = vehicles.reduce((s,v)=>s+(v.subtotal||0),0);
-  const total = cartBase + fee;
+  const discount = (ST.offerPreview && ST.offerPreview.eligibility_status === 'eligible')
+    ? (ST.offerPreview.discount_amount || 0) / 100 : 0;
+  const total = Math.max(0, cartBase + fee - discount);
   const tsel=document.getElementById('f-time').value;
   const catLabels={cars:'Cars & Trucks',boats:'Boats & Marine',rvs:'RVs & Trailers',powersports:'Powersports',fleet:'Fleet Services'};
   const visual=VEHICLE_VISUALS[getVehicleVisualKey()]||CATEGORY_VISUALS[ST.cat]||VEHICLE_VISUALS.sedan;
@@ -4561,7 +4654,15 @@ function fillConfirm(){
   document.getElementById('c-veh').textContent=ST.vehicleLabel;
   document.getElementById('c-pkg').textContent=(ST.pkg?.name||'—')+' Package';
   document.getElementById('c-pprice').textContent=ST.basePrice ? '$'+(ST.basePrice+fee) : 'Estimate';
-  document.getElementById('c-total').textContent=total ? '$'+total : 'Estimate';
+  document.getElementById('c-total').textContent=total ? '$'+total.toFixed(2) : 'Estimate';
+  const offerLine = document.getElementById('c-offer-line');
+  if (offerLine) {
+    offerLine.style.display = discount > 0 ? '' : 'none';
+    offerLine.innerHTML = discount > 0
+      ? `<div class="or"><span class="ol">New Customer Welcome — 10%</span><span class="ov" style="color:var(--gr)">-$${discount.toFixed(2)}</span></div>`
+      : '';
+  }
+  if (window.Cardetail1WelcomeOffer) Cardetail1WelcomeOffer.renderOfferLines(ST.offerPreview, cartBase, fee);
   document.getElementById('c-name').textContent=document.getElementById('f-first').value+' '+document.getElementById('f-last').value;
   document.getElementById('c-phone').textContent=document.getElementById('f-phone').value;
   document.getElementById('c-email').textContent=document.getElementById('f-email').value;
@@ -4612,6 +4713,7 @@ async function submitBooking(){
     payload.cardOnFileRequired=true;
     payload.cloudSaved=true;
     saveLocalBooking(payload);
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onBookingSubmitted();
     showSuccess(payload);
   }catch(e){
     console.warn('Booking submission failed:',e.message);
@@ -4707,6 +4809,8 @@ function buildBookingPayload(){
     vehicle_label: pv.vehicleLabel || ST.vehicleLabel || '',
     total_price: totalPrice,
     preferred_date: document.getElementById('f-date').value,
+    welcomeOfferAccepted: !!(ST.offerApplied || (ST.offerPreview && ST.offerPreview.eligibility_status === 'eligible')),
+    welcomeOfferSource: ST.welcomeOfferSource || (ST.offerApplied ? 'panel_apply' : null),
   };
   window.__lastBookingPayload=payload;
   return payload;
@@ -4802,7 +4906,8 @@ function addCurrentVehicleAndContinue(){
   if(item) ST.vehicles.push(item);
   if(!ST.vehicles.length){ alert('Please configure at least one vehicle.'); return; }
   renderVehicleCart();
-  bkGoTo(4);
+  if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(2);
+  bkGoTo(3);
 }
 
 function removeVehicleFromCart(idx){
@@ -6575,6 +6680,8 @@ body.cd1-booking-embed #cd-chat{display:none!important}
 <script src="assets/lead-score.js"></script>
 <script src="assets/next-best-action.js"></script>
 <script src="assets/consent-manager.js"></script>
+<script src="assets/checkout-analytics.js"></script>
+<script src="assets/checkout-offer.js"></script>
 <script src="assets/revenue-events.js"></script>
 <script src="assets/garage-plan.js"></script>
 <script src="assets/revops-booking-hooks.js"></script>

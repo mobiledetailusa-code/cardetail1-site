@@ -1236,12 +1236,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <a class="nav-brand-img" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" decoding="async"></a>
   <div class="nav-links" id="nav-links">
     <a class="nav-link" onclick="openBooking(null);document.getElementById('nav-links').classList.remove('open')">Services</a>
+    <a class="nav-link" href="my-garage.html">My Garage</a>
     <a class="nav-link" onclick="openPortal();document.getElementById('nav-links').classList.remove('open')">My Booking</a>
     <a class="nav-link" href="tel:5513132956">Call / Text</a>
     <a class="nav-cta booking-popup-trigger" onclick="openBooking(null)">Book Now</a>
   </div>
   <a class="nav-book-mobile booking-popup-trigger" onclick="openBooking(null)">Book Now</a>
   <a class="nav-portal-mobile" onclick="openPortal()">My Booking</a>
+  <a class="nav-book-mobile" href="my-garage.html">My Garage</a>
   <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
 </nav>
 
@@ -5954,6 +5956,7 @@ seedDefaultTechs();
 })();
 </script>
   <script src="assets/back-to-top.js" defer></script>
+  <script src="assets/hub-booking-bridge.js" defer></script>
 </body>
 </html>], fn:()=>({
       reply:chatStartingPricesReply(),

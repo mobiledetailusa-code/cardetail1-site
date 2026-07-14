@@ -43,15 +43,21 @@ footer a{color:var(--blue);text-decoration:none}
 <body>
 <nav class="nav">
   <a href="index.html"><img src="assets/cardetail1-logo.webp" alt="Cardetail1" width="520" height="261" decoding="async"></a>
-  <a href="index.html">Home</a>
+  <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+    <a href="my-garage.html">My Garage</a>
+    <a href="index.html">Home</a>
+  </div>
 </nav>
 
 <header class="hero">
   <div class="eyebrow">Household / Garage Account</div>
   <h1>Mobile Detailing for Multi-Vehicle Households</h1>
   <p class="sub">One visit. Multiple vehicles. A service plan built around your garage — cars, SUVs, trucks, boats, RVs and powersports at the same location. <strong>One vehicle?</strong> Standard online booking is always available with the same packages and quality.</p>
-  <button type="button" class="btn btn-primary" data-cd1-garage-cta>Build Your Garage Plan</button>
-  <a class="btn btn-outline" href="index.html">Book single vehicle</a>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center">
+    <a class="btn btn-outline" href="index.html#book" style="margin-left:0">Book Multiple Vehicles</a>
+    <button type="button" class="btn btn-primary" data-cd1-garage-cta>Request a Garage Plan</button>
+  </div>
+  <p style="color:var(--muted);font-size:13px;margin-top:12px">Two+ vehicles in standard checkout, or request a Garage Plan for coordinated discovery. <a href="index.html#book" style="color:var(--blue)">Single-vehicle booking</a> always available.</p>
 </header>
 
 <section class="section">
@@ -84,7 +90,10 @@ footer a{color:var(--blue);text-decoration:none}
 </section>
 
 <div class="cta">
-  <button type="button" class="btn btn-primary" data-cd1-garage-cta>Build Your Garage Plan</button>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;margin-bottom:12px">
+    <a class="btn btn-outline" href="index.html#book" style="margin-left:0">Book Multiple Vehicles</a>
+    <button type="button" class="btn btn-primary" data-cd1-garage-cta>Request a Garage Plan</button>
+  </div>
   <div class="links">
     <a href="index.html">Cars &amp; SUVs</a>
     <a href="boats-detailing.html">Boats</a>
@@ -152,5 +161,6 @@ footer a{color:var(--blue);text-decoration:none}
 <script src="assets/specialty-page-ui.js" defer></script>
 <script src="assets/revops-init.js"></script>
   <script src="assets/back-to-top.js" defer></script>
+  <script src="assets/hub-booking-bridge.js" defer></script>
 </body>
 </html>

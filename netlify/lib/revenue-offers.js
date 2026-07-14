@@ -11,13 +11,56 @@ function envInt(name, fallback) {
   return Number.isFinite(n) ? Math.round(n) : fallback;
 }
 
+function envIntAny(names, fallback) {
+  for (const name of names) {
+    const n = Number(process.env[name]);
+    if (Number.isFinite(n)) return Math.round(n);
+  }
+  return fallback;
+}
+
+const OPS_CORE_BRANCH = 'operations-core-job-lifecycle';
+const OPS_CORE_HOST_PREFIX = 'operations-core-job-lifecycle--';
+
+let offerDeployHost = '';
+
+/** Set per-request deploy host from Netlify function event (cleared after handler). */
+function setOfferDeployHost(host) {
+  offerDeployHost = String(host || '').trim().toLowerCase();
+}
+
+function clearOfferDeployHost() {
+  offerDeployHost = '';
+}
+
+/** Branch deploy QA — operations-core-job-lifecycle only (not production or other branches). */
+function isOperationsCoreBranchDeploy() {
+  const ctx = String(process.env.CONTEXT || '').toLowerCase();
+  if (ctx === 'production') return false;
+  if (offerDeployHost && offerDeployHost.startsWith(OPS_CORE_HOST_PREFIX)) return true;
+  const branch = String(
+    process.env.BRANCH || process.env.COMMIT_REF || process.env.HEAD || ''
+  ).trim();
+  if (branch === OPS_CORE_BRANCH) return true;
+  const prime = String(process.env.DEPLOY_PRIME_URL || process.env.URL || '');
+  return new RegExp(`^https:\\/\\/${OPS_CORE_HOST_PREFIX}`, 'i').test(prime);
+}
+
+function isFirstBookingOfferEnabled() {
+  if (envBool('FIRST_BOOKING_OFFER_ENABLED', false)) return true;
+  // Fallback when Netlify branch-context env is not injected into serverless functions.
+  return isOperationsCoreBranchDeploy();
+}
+
 function getOfferConfig() {
   return {
     firstBooking: {
-      enabled: envBool('FIRST_BOOKING_OFFER_ENABLED', false),
-      percent: envInt('FIRST_BOOKING_PERCENT', 10),
-      capCents: envInt('FIRST_BOOKING_CAP_CENTS', 4000),
+      enabled: isFirstBookingOfferEnabled(),
+      percent: envIntAny(['FIRST_BOOKING_OFFER_PERCENT', 'FIRST_BOOKING_PERCENT'], 10),
+      capCents: envIntAny(['FIRST_BOOKING_OFFER_CAP_CENTS', 'FIRST_BOOKING_CAP_CENTS'], 4000),
+      triggerSeconds: envIntAny(['FIRST_BOOKING_OFFER_TRIGGER_SECONDS'], 120),
       id: 'first_booking_welcome',
+      publicCode: 'WELCOME10',
     },
     multiVehicle: {
       enabled: envBool('MULTI_VEHICLE_OFFER_ENABLED', false),
@@ -25,12 +68,12 @@ function getOfferConfig() {
       maxAdditional: envInt('MULTI_VEHICLE_MAX_ADDITIONAL_VEHICLES', 2),
       id: 'multi_vehicle_same_visit',
     },
-    stackingEnabled: envBool('OFFER_STACKING_ENABLED', false),
+    stackingEnabled: envBool('FIRST_BOOKING_OFFER_STACKING', envBool('OFFER_STACKING_ENABLED', false)),
   };
 }
 
 const EXCLUDED_CATEGORIES = new Set(['fleet', 'commercial']);
-const EXCLUDED_PACKAGE_IDS = new Set(['maint']);
+const EXCLUDED_PACKAGE_IDS = new Set(['maint', 'custom']);
 
 function isEligiblePackage(pkgId, category) {
   const id = String(pkgId || '').toLowerCase();
@@ -42,7 +85,8 @@ function isEligiblePackage(pkgId, category) {
 
 function computeFirstBookingDiscount(subtotalCents, cfg, ctx) {
   if (!cfg.enabled) return null;
-  if (ctx.priorCompletedServices > 0) return null;
+  if (ctx.priorCompletedServices > 0 || ctx.priorOfferRedeemed) return null;
+  if (ctx.isCustomQuote) return null;
   if (!isEligiblePackage(ctx.packageId, ctx.category)) return null;
   const subtotal = Math.max(0, Number(subtotalCents) || 0);
   if (subtotal <= 0) return null;
@@ -101,4 +145,7 @@ module.exports = {
   getOfferConfig,
   evaluateOffers,
   isEligiblePackage,
+  setOfferDeployHost,
+  clearOfferDeployHost,
+  isOperationsCoreBranchDeploy,
 };

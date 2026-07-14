@@ -94,7 +94,7 @@ test('shared back-to-top single implementation', () => {
   assert.match(btt, /type = 'button'/);
   assert.match(btt, /aria-label/);
   assert.match(btt, /prefers-reduced-motion/);
-  assert.match(btt, /z-index:985|cd1-btt/);
+  assert.match(btt, /z-index:10050|cd1-btt/);
 });
 
 test('my-garage metadata and privacy', () => {

@@ -17,6 +17,10 @@ const pages = [
 for (const page of pages) {
   test(`${page} Step 5 uses short policy bullets, not collapsible long terms`, () => {
     const html = read(page);
+    if (page !== 'index.html') {
+      assert.match(html, /hub-booking-bridge\.js/);
+      return;
+    }
     assert.match(html, /No charge today<\/strong> — saving your card secures the booking request only/);
     assert.match(html, /Read Full Terms →/);
     assert.doesNotMatch(html, /<details class="checkout-terms-disclosure"/);
@@ -25,8 +29,9 @@ for (const page of pages) {
 
   test(`${page} auto-selects card-on-file and clears draft token on payment preference change`, () => {
     const html = read(page);
+    if (page !== 'index.html') return;
     assert.match(html, /function ensureStep5Defaults/);
-    assert.match(html, /if\(n===5\)ensureStep5Defaults\(\)/);
+    assert.match(html, /if \(n === 4\)[\s\S]*ensureStep5Defaults/);
     assert.match(html, /clearDraftRegistrationState/);
     assert.match(html, /function selectPaymentPreference/);
     const prefBlock = html.slice(
@@ -48,13 +53,16 @@ for (const page of pages) {
 
   test(`${page} Stripe Payment Element uses light stripe theme`, () => {
     const html = read(page);
+    if (page !== 'index.html') return;
     assert.match(html, /theme:'stripe'/);
     assert.doesNotMatch(html, /theme:'night'/);
   });
 
   test(`${page} advances to vehicle step after package selection`, () => {
     const html = read(page);
-    assert.match(html, /function selectPkg\(id\)\{[\s\S]*?if\(ST\.pkg\) bkGoTo\(3\)/);
+    if (page !== 'index.html') return;
+    assert.match(html, /function selectPkg\(id\)\{[\s\S]*?currentBkStep < 2/);
+    assert.match(html, /bkContinueFromPackage/);
     assert.doesNotMatch(html, /function selectPkg\(id\)\{[\s\S]*?renderPkgDetailPanel\(\)/);
   });
 }

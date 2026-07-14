@@ -4,15 +4,24 @@
 
 ```
 FIRST_BOOKING_OFFER_ENABLED=false
+FIRST_BOOKING_OFFER_PERCENT=10
+FIRST_BOOKING_OFFER_CAP_CENTS=4000
+FIRST_BOOKING_OFFER_TRIGGER_SECONDS=120
+FIRST_BOOKING_OFFER_STACKING=false
+
+# Legacy aliases (still supported)
 FIRST_BOOKING_PERCENT=10
 FIRST_BOOKING_CAP_CENTS=4000
-
-MULTI_VEHICLE_OFFER_ENABLED=false
-MULTI_VEHICLE_ADDITIONAL_CREDIT_CENTS=2500
-MULTI_VEHICLE_MAX_ADDITIONAL_VEHICLES=2
-
 OFFER_STACKING_ENABLED=false
 ```
+
+Branch Deploy QA only (do **not** enable in production until review):
+
+```
+FIRST_BOOKING_OFFER_ENABLED=true
+```
+
+Preview URL pattern: `https://operations-core-job-lifecycle--cardetail1.netlify.app/`
 
 ## Offers
 

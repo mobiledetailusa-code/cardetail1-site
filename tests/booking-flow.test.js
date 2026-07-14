@@ -98,7 +98,7 @@ test('client-controlled protected fields are stripped', () => {
 });
 
 test('admin and customer surfaces show required state without Stripe IDs', () => {
-  assert.match(technician, /customerAuthorizationAccepted/);
+  assert.match(technician, /technicianConfirmation/);
   assert.match(technician, /Pending Admin Review/);
   assert.match(technician, /complete-modal/);
   assert.match(technician, /tech-complete-job/);
