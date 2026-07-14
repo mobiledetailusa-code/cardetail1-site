@@ -20,8 +20,8 @@ const BOAT_POSTERS = [
   'assets/images/specialty/boats/rwaj3347-poster.jpg',
   'assets/images/specialty/boats/xats4703-poster.jpg',
 ];
-const RV_PAIRS = ['vienna-front', 'vienna-roof'];
-const PS_PAIRS = ['gator-interior'];
+const RV_PAIRS = ['rockwood-front', 'wingamm-front', 'wingamm-side', 'vienna-front', 'vienna-roof'];
+const PS_PAIRS = ['polaris-front', 'gator-interior'];
 
 test('boats gallery exists as compact video gallery', () => {
   const html = read('boats-detailing.html');
@@ -55,7 +55,7 @@ test('RV gallery uses only verified Before/After pairs', () => {
     assert.ok(exists(`assets/images/specialty/rv/${id}-before-768.jpg`));
     assert.ok(exists(`assets/images/specialty/rv/${id}-after-768.jpg`));
   }
-  assert.doesNotMatch(html, /momentum-gclass|rockwood-signature|jayco-eagle|wingamm-side/);
+  assert.doesNotMatch(html, /assets\/media\/rv\/gallery\/(momentum-gclass|rockwood-signature|jayco-eagle|wingamm-side)/);
   assert.match(html, /ba-tag--before/);
   assert.match(html, /ba-tag--after/);
   assert.match(html, /<input type="range"/);
@@ -70,7 +70,7 @@ test('Powersports gallery uses only verified Before/After pairs', () => {
     assert.ok(exists(`assets/images/specialty/powersports/${id}-before-768.jpg`));
     assert.ok(exists(`assets/images/specialty/powersports/${id}-after-768.jpg`));
   }
-  assert.doesNotMatch(gallery, /motorcycle-road-glide|polaris-atv|IMG_7482/);
+  assert.doesNotMatch(gallery, /assets\/media\/powersports\/gallery\/(motorcycle-road-glide|polaris-atv|IMG_7482)/);
   assert.match(gallery, /<input type="range"/);
 });
 
@@ -130,6 +130,8 @@ test('media map documents selections without operator absolute Windows dump path
   assert.match(doc, /verified_pair/);
   assert.match(doc, /vkpq0511/);
   assert.match(doc, /vienna-front/);
+  assert.match(doc, /rockwood-front|wingamm-front/);
   assert.match(doc, /gator-interior/);
+  assert.match(doc, /polaris-front/);
   assert.doesNotMatch(doc, /C:\\\\Users\\\\magno\\\\Desktop\\\\dz project\\\\pics/);
 });
