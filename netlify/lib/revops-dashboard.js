@@ -169,6 +169,16 @@ function sanitizeOpportunityForAdmin(opp) {
     garagePlanStatus: opp.garagePlanStatus || (isGaragePlan ? 'new' : null),
     isGaragePlan,
     notificationStatus: opp.notificationStatus || null,
+    customerName: opp.customerName || null,
+    customerPhone: opp.customerPhone || null,
+    customerEmail: opp.customerEmail || null,
+    zip: opp.zip || null,
+    vehicleCount: opp.vehicleCount || null,
+    sameLocationSameVisit: opp.sameLocationSameVisit === true,
+    maintenanceFrequency: opp.maintenanceFrequency || null,
+    gpReference: opp.opportunityId
+      ? ('GP-' + String(opp.opportunityId).replace(/^opp_?/i, '').slice(-10).toUpperCase())
+      : null,
     lostReason: opp.lostReason,
     stage: opp.stage,
     updatedAt: opp.updatedAt,

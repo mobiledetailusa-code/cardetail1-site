@@ -187,11 +187,12 @@
         });
         global.Cardetail1Revenue.track('lead_created', { household_segment: data.segment });
       }
+      var ref = data.gpReference ? (' Reference: <strong>' + data.gpReference + '</strong>.') : '';
       if (data.route === 'manual_review' || data.manualReviewRequired) {
-        showMessage(msg, 'Thank you — your Garage Plan request was received. Your area may need an alternative service path, and our team will follow up shortly.', false);
+        showMessage(msg, 'Thank you — your Garage Plan request was received.' + ref + ' Your area may need an alternative service path, and our team will follow up shortly.', false);
         return;
       }
-      showMessage(msg, 'Thank you — your Garage Plan request was received. We will follow up shortly.', false);
+      showMessage(msg, 'Thank you — your Garage Plan request was received.' + ref + ' This is a request, not a confirmed appointment. We will follow up shortly.', false);
       if (typeof global.openBooking === 'function' && data.bookingPrefill) {
         setTimeout(function () {
           closeGaragePlan();

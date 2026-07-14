@@ -1387,9 +1387,25 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
     const garage = data.garagePlanOpportunities || [];
     $('#revopsGarage').innerHTML = garage.length ? (
-      '<table class="tbl"><thead><tr><th>ID</th><th>Status</th><th>Vehicles</th><th>Categories</th><th>Value</th><th>Source</th></tr></thead><tbody>' +
+      '<table class="tbl"><thead><tr><th>Ref</th><th>Customer</th><th>Contact</th><th>ZIP</th><th>Vehicles</th><th>Categories</th><th>Same visit</th><th>Maint.</th><th>Status</th><th>Notify</th><th>Source</th><th>Created</th><th>Next</th></tr></thead><tbody>' +
       garage.map(function (o) {
-        return '<tr><td><code>' + esc((o.opportunityId || '').slice(-10)) + '</code></td><td>' + esc(o.garagePlanStatus || 'new') + '</td><td>' + esc(o.vehicleCountBand) + '</td><td>' + esc((o.assetCategories || []).join(', ')) + '</td><td>$' + esc(o.estimatedValue || 0) + '</td><td>' + esc(o.source || '—') + '</td></tr>';
+        var phone = o.customerPhone ? ('<a href="tel:' + esc(String(o.customerPhone).replace(/\D/g,'')) + '">' + esc(o.customerPhone) + '</a>') : '—';
+        var email = o.customerEmail ? (' <a href="mailto:' + esc(o.customerEmail) + '">email</a>') : '';
+        return '<tr>' +
+          '<td><code>' + esc(o.gpReference || (o.opportunityId || '').slice(-10)) + '</code></td>' +
+          '<td>' + esc(o.customerName || '—') + '</td>' +
+          '<td>' + phone + email + '</td>' +
+          '<td>' + esc(o.zip || '—') + '</td>' +
+          '<td>' + esc(o.vehicleCount || o.vehicleCountBand || '—') + '</td>' +
+          '<td>' + esc((o.assetCategories || []).join(', ') || '—') + '</td>' +
+          '<td>' + (o.sameLocationSameVisit ? 'Yes' : '—') + '</td>' +
+          '<td>' + esc(o.maintenanceFrequency || '—') + '</td>' +
+          '<td>' + esc(o.garagePlanStatus || 'new') + '</td>' +
+          '<td>' + esc(o.notificationStatus || '—') + '</td>' +
+          '<td>' + esc(o.source || '—') + '</td>' +
+          '<td>' + esc((o.createdAt || '').slice(0, 10) || '—') + '</td>' +
+          '<td>' + esc(o.nextAction || '—') + '</td>' +
+          '</tr>';
       }).join('') + '</tbody></table>'
     ) : '<div class="empty">No Garage Plan opportunities in queue.</div>';
 
