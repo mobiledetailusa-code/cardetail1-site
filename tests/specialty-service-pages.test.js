@@ -389,12 +389,14 @@ describe('local booking CTAs (no homepage redirect)', () => {
       assert.match(html, /assets\/specialty-booking-bridge\.js/);
     });
 
-    it(`${page} booking CTAs do not use homepage book links`, () => {
+    it(`${page} Book CTAs use overlay bridge with href fallback`, () => {
       const html = read(page);
-      assert.doesNotMatch(html, /href="index\.html\?book=/);
-      assert.doesNotMatch(html, /href="\/\?book=/);
+      // Progressive enhancement: primary Book links may include index.html?book=…
+      // but must also carry data-booking-category so the specialty bridge opens overlay.
+      assert.match(html, new RegExp(`href="index\\.html\\?book=${cat}"[^>]*data-booking-category="${cat}"|data-booking-category="${cat}"[^>]*href="index\\.html\\?book=${cat}"`));
       assert.doesNotMatch(html, /href="\/#booking"/);
       assert.doesNotMatch(html, /href="index\.html#booking"/);
+      assert.match(html, /assets\/specialty-booking-bridge\.js/);
     });
 
     it(`${page} Book CTAs use data-booking-category="${cat}"`, () => {

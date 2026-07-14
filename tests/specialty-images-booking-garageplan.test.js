@@ -81,28 +81,27 @@ test('specialty booking bridge opens category booking helpers', () => {
   assert.doesNotMatch(js, /bk-step-6|six-step|step\s*6/i);
 });
 
-test('Have 2+ vehicles section is dual CTA (not dead Build Your Garage Plan alone)', () => {
+test('Have 2+ vehicles section keeps working Book Multiple CTA only', () => {
   const index = read('index.html');
   assert.match(index, /Detail 2 or more vehicles in one visit/);
   assert.match(index, /Book Multiple Vehicles/);
-  assert.match(index, /Request Garage Plan/);
-  assert.doesNotMatch(index, /Build Your Garage Plan/);
+  assert.doesNotMatch(index, /Request Garage Plan|Build Your Garage Plan|data-cd1-garage-cta/);
   for (const p of PAGES) {
     const html = read(p.file);
     assert.match(html, /data-cd1-multi-vehicle-section/);
     assert.match(html, /data-booking-multi="1"/);
-    assert.match(html, /data-cd1-garage-cta/);
-    assert.doesNotMatch(html, /Build Your Garage Plan/);
+    assert.match(html, /data-booking-category="[^"]+"/);
+    assert.doesNotMatch(html, /Request Garage Plan|Build Your Garage Plan|data-cd1-garage-cta/);
   }
 });
 
-test('Garage Plan submit returns opaque GP reference and Admin renders Garage Plan table', () => {
+test('Garage Plan Admin plumbing remains available server-side when deferred from public CTAs', () => {
   const submit = read('netlify/functions/garage-plan-submit.js');
   assert.match(submit, /gpReference/);
   assert.match(submit, /customerName/);
   const admin = read('admin-ops.html');
   assert.match(admin, /revopsGarage/);
-  assert.match(admin, /gpReference|Request Garage Plan|Garage Plan/i);
+  assert.match(admin, /gpReference|Garage Plan/i);
   const household = read('netlify/lib/revenue-household.js');
   assert.match(household, /customerName/);
   assert.match(household, /notificationStatus/);
