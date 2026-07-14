@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="assets/specialty-service-nav.css">
 <link rel="stylesheet" href="assets/specialty-public-footer.css">
 <link rel="stylesheet" href="assets/specialty-page-ui.css">
+<link rel="stylesheet" href="assets/specialty-gallery.css">
 <link rel="stylesheet" href="assets/public-surface.css">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"Service","name":"Mobile Motorcycle & Powersports Detailing","provider":{"@type":"LocalBusiness","name":"Cardetail1","telephone":"+1-551-313-2956","address":{"@type":"PostalAddress","addressLocality":"Palisades Park","addressRegion":"NJ","addressCountry":"US"}},"areaServed":"Bergen County and nearby areas","url":"https://cardetail1.com/powersports-detailing.html"}
@@ -174,46 +175,23 @@
   </div>
 </section>
 
-<section class="sp-section" id="gallery">
-  <div class="sp-sec-eye">Recent work</div>
-  <h2 class="sp-sec-title">Motorcycle &amp; Powersports Results</h2>
-  <p class="sp-sec-copy">Real motorcycle, ATV, and UTV detailing from recent Cardetail1 jobs.</p>
-  <div class="sp-media-grid">
-    <article class="sp-media-card">
-      <div class="sp-media-frame">
-        <img src="assets/media/powersports/gallery/motorcycle-road-glide.jpg" alt="Harley-Davidson touring motorcycle after mobile powersports detailing" width="1400" height="1050" loading="lazy" decoding="async">
+<section class="sp-section" id="gallery" data-specialty-gallery="powersports-before-after">
+  <div class="sp-sec-eye">Verified results</div>
+  <h2 class="sp-sec-title">Powersports Before &amp; After</h2>
+  <p class="sp-sec-copy">Compare the same John Deere Gator interior before and after deep cleaning. Drag, touch, or use the keyboard.</p>
+  <div class="sp-ba-grid">
+    <article class="sp-ba-card" data-ba-pair="gator-interior">
+      <div class="ba-compare" style="--ba-pos:50%">
+        <img class="ba-after" src="assets/images/specialty/powersports/gator-interior-after-768.jpg" srcset="assets/images/specialty/powersports/gator-interior-after-480.jpg 480w, assets/images/specialty/powersports/gator-interior-after-768.jpg 768w, assets/images/specialty/powersports/gator-interior-after-1200.jpg 1200w" sizes="(max-width:860px) 100vw, 50vw" alt="John Deere Gator interior after mobile detailing" width="1200" height="900" loading="lazy" decoding="async">
+        <div class="ba-before-wrap">
+          <img class="ba-before" src="assets/images/specialty/powersports/gator-interior-before-768.jpg" srcset="assets/images/specialty/powersports/gator-interior-before-480.jpg 480w, assets/images/specialty/powersports/gator-interior-before-768.jpg 768w, assets/images/specialty/powersports/gator-interior-before-1200.jpg 1200w" sizes="(max-width:860px) 100vw, 50vw" alt="John Deere Gator interior before mobile detailing" width="1200" height="900" loading="lazy" decoding="async">
+        </div>
+        <span class="ba-tag ba-tag--before">Before</span>
+        <span class="ba-tag ba-tag--after">After</span>
+        <div class="ba-compare-handle" aria-hidden="true"></div>
+        <input type="range" min="0" max="100" value="50" aria-label="Compare before and after: John Deere Gator interior" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
       </div>
-      <div class="sp-media-meta"><h3>Touring motorcycle</h3><p>Road Glide exterior finish after mobile detailing.</p></div>
-    </article>
-    <article class="sp-media-card">
-      <div class="sp-media-frame">
-        <img src="assets/media/powersports/gallery/motorcycle-touring-side.jpg" alt="Harley-Davidson touring motorcycle side profile after detailing" width="1400" height="1050" loading="lazy" decoding="async">
-      </div>
-      <div class="sp-media-meta"><h3>Side-profile finish</h3><p>Chrome, plastics, and paint wiped and protected.</p></div>
-    </article>
-    <article class="sp-media-card">
-      <div class="sp-media-frame">
-        <img src="assets/media/powersports/gallery/polaris-atv-front.jpeg" alt="Blue Polaris Sportsman ATV after mobile powersports detailing" width="1200" height="900" loading="lazy" decoding="async">
-      </div>
-      <div class="sp-media-meta"><h3>Polaris ATV</h3><p>Front-end and plastics detail on location.</p></div>
-    </article>
-    <article class="sp-media-card">
-      <div class="sp-media-frame">
-        <img src="assets/media/powersports/gallery/IMG_7482.jpeg" alt="John Deere XUV UTV exterior after mobile detailing" width="1400" height="1050" loading="lazy" decoding="async">
-      </div>
-      <div class="sp-media-meta"><h3>John Deere UTV</h3><p>Full exterior detailing on a side-by-side.</p></div>
-    </article>
-    <article class="sp-media-card">
-      <div class="sp-media-frame">
-        <img src="assets/media/powersports/gallery/IMG_7492.jpeg" alt="John Deere XUV side profile after powersports detailing" width="1400" height="1050" loading="lazy" decoding="async">
-      </div>
-      <div class="sp-media-meta"><h3>UTV side profile</h3><p>Premium exterior finish on location.</p></div>
-    </article>
-    <article class="sp-media-card">
-      <div class="sp-media-frame">
-        <img src="assets/media/powersports/gallery/utv-interior-detail.jpg" alt="UTV cabin interior after powersports interior wipe-down" width="1200" height="900" loading="lazy" decoding="async">
-      </div>
-      <div class="sp-media-meta"><h3>UTV interior</h3><p>Cabin wipe-down and floor mat detail.</p></div>
+      <div class="sp-ba-meta"><h3>John Deere Gator XUV835M — interior</h3><p>Same cabin angle: dusty dash and mats restored after a utility-vehicle deep clean.</p></div>
     </article>
   </div>
 </section>
@@ -286,6 +264,7 @@
   </div>
 </footer>
 <script src="assets/specialty-page-ui.js" defer></script>
+<script src="assets/specialty-gallery.js" defer></script>
 <script src="assets/customer-segments.js"></script>
 <script src="assets/universal-customer-strategy.generated.js"></script>
 <script src="assets/booking-routing-gate.js"></script>
