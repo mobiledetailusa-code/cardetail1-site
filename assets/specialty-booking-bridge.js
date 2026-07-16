@@ -168,6 +168,8 @@
       try { living = sessionStorage.getItem('cd1_rv_living') || ''; } catch (e3) { living = ''; }
     }
     if (categoryId === 'rvs' && living) params.set('living', living);
+    if (packageId) params.set('start', 'vehicle');
+    else if (categoryId) params.set('start', 'package');
     return params;
   }
 
@@ -344,7 +346,7 @@
     var cat = typeof opts === 'string' ? opts : (opts.category || opts.cat || '');
     openCategoryPackageBooking({
       categoryId: cat,
-      packageId: opts.packageId || null,
+      packageId: opts.packageId || opts.pkgId || null,
       multiVehicle: opts.multiVehicle === true,
       sourcePath: window.location.pathname
     });
