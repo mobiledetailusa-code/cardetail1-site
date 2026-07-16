@@ -112,12 +112,12 @@ const LENGTH_PRICING = {
   rvs: {
     min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
-      maint: { perFt: 12.75, min: 225 },
-      maint_light: { perFt: 16, min: 229 },
-      interior: { perFt: 21, min: 249 },
-      full_basic: { perFt: 31, min: 399 },
-      premium: { perFt: 33, min: 449 },
-      full: { perFt: 49.5, min: 699 },
+      maint: { base: 150, ratePerFoot: 10 },
+      maint_light: { base: 250, ratePerFoot: 16 },
+      interior: { base: 250, ratePerFoot: 18 },
+      full_basic: { base: 300, ratePerFoot: 25 },
+      premium: { base: 300, ratePerFoot: 28 },
+      full: { base: 400, ratePerFoot: 36 },
     },
   },
   fleet: {
@@ -241,15 +241,16 @@ function getLengthPrice(cat, pkgId, ft, typeKey) {
   if (!cfg.packages[id]) return null;
   const rule = cfg.packages[id];
   const lengthFt = Number(ft || cfg.defaultFt);
-  let mult = 1;
   if (cat === 'rvs') {
-    const key = typeKey && RV_TYPES[typeKey] ? typeKey : null;
-    if (key) mult = Number(RV_TYPES[key].multiplier) || 1;
+    const key = typeKey && RV_TYPES[typeKey] ? typeKey : 'travel';
+    const mult = Number(RV_TYPES[key]?.multiplier) || 1;
+    const base = Number(rule.base) || 0;
+    const rate = Number(rule.ratePerFoot != null ? rule.ratePerFoot : rule.perFt) || 0;
+    const raw = (base + rate * lengthFt) * mult;
+    return Math.round(raw * 100) / 100;
   }
-  const raw = rule.perFt * lengthFt * mult;
-  // RVs keep exact cents (e.g. 19 × 12.75 = 242.25); boats stay whole dollars.
-  const priced = cat === 'rvs' ? Math.round(raw * 100) / 100 : Math.round(raw);
-  return Math.max(rule.min, priced);
+  const raw = rule.perFt * lengthFt;
+  return Math.max(rule.min, Math.round(raw));
 }
 
 function inferPkgId(vehicle, booking) {
