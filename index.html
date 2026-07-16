@@ -729,6 +729,12 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .length-title{font-size:11px;font-weight:700;color:var(--blue);letter-spacing:.14em;text-transform:uppercase}
 .length-value{font-size:30px;font-weight:700;color:var(--white);line-height:1}
 .length-value span{color:var(--blue)}
+.length-num{width:56px;background:transparent;border:0;border-bottom:2px solid rgba(77,163,255,.45);color:var(--white);font:inherit;font-size:30px;font-weight:700;text-align:right;padding:0 2px;margin-right:2px;-moz-appearance:textfield}
+.length-num::-webkit-outer-spin-button,.length-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.length-num:focus{outline:none;border-bottom-color:var(--blue)}
+.rv-service-subtotal{margin-top:12px;font-size:13px;color:var(--tx)}
+.rv-service-subtotal strong{color:var(--blue);font-size:15px}
+.rv-subtotal-note{color:var(--mu);font-size:11px}
 .length-range{width:100%;accent-color:var(--blue);cursor:pointer}
 .length-marks{display:flex;justify-content:space-between;color:var(--mu);font-size:10.5px;margin-top:8px}
 .length-note{color:var(--mu);font-size:11.5px;line-height:1.45;margin-top:12px}
@@ -2359,7 +2365,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="svc-ico-photo"><img src="assets/vehicles/premium/rv-trailer.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
-            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $8.50/ft</div>
+            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $12.75/ft</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
             <span class="svc-ico-photo"><img src="assets/vehicles/premium/powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
@@ -2377,6 +2383,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="beye">Step 02 — Package</div>
         <div class="btitle">CHOOSE YOUR<br>PACKAGE</div>
         <div class="bdesc">Review what's included in your package before entering vehicle details. Price updates by vehicle size or exact length for boats, RVs and travel trailers.</div>
+        <div class="bdesc" id="bs2-rv-note" style="display:none;font-size:12px;color:var(--mu);margin:-8px 0 14px">Per-foot rate and minimum apply. Your exact subtotal is calculated on the Vehicle step after RV type and length.</div>
         <div class="pkg-grid" id="pkg-grid"></div>
         <div class="pkg-detail-panel" id="pkg-detail-panel" hidden aria-live="polite"></div>
         <p style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">Final price depends on vehicle size, condition, location, and selected add-ons. Heavy pet hair, odor treatment, biohazard, excessive stains, and oversized vehicles may require additional charges.</p>
@@ -2391,6 +2398,34 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="beye">Step 03 — Vehicle</div>
         <div class="btitle">YOUR VEHICLE</div>
         <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length.</div>
+
+        <!-- RV type + living quarters (rvs only) -->
+        <div id="rv-type-wrap" style="display:none;margin-bottom:14px">
+          <div class="sel-g" style="margin-bottom:10px">
+            <div class="sel-l">RV Type *</div>
+            <select class="sel-s" id="rv-type-sel">
+              <option value="">— select RV type —</option>
+              <option value="travel">Travel Trailer</option>
+              <option value="fifthwheel">Fifth Wheel</option>
+              <option value="classA">Class A Motorhome</option>
+              <option value="classB">Class B Motorhome</option>
+              <option value="classC">Class C Motorhome</option>
+              <option value="airstream">Airstream</option>
+              <option value="cargo">Cargo Trailer</option>
+              <option value="horse">Horse Trailer</option>
+              <option value="other">Other RV / Custom Trailer</option>
+            </select>
+          </div>
+          <div id="rv-living-wrap" style="display:none;margin-bottom:10px">
+            <div class="sel-l">Finished living quarters? *</div>
+            <select class="sel-s" id="rv-living-sel">
+              <option value="">— select —</option>
+              <option value="yes">Yes — finished living quarters</option>
+              <option value="no">No — exterior-only packages</option>
+            </select>
+          </div>
+          <p id="rv-airstream-note" style="display:none;font-size:11.5px;color:var(--blue);line-height:1.45;margin:0 0 10px;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Airstream units use surface-aware polish scope — tell us about aluminum condition in notes if needed.</p>
+        </div>
 
         <!-- Tier chips (shown for cars, boats, rvs, powersports differently) -->
         <div id="tier-chips-wrap">
@@ -2441,13 +2476,17 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <div class="length-title" id="length-title">Select Length</div>
               <div class="length-note" id="length-note-top">Use the slider to select exact size. Pricing updates by length.</div>
             </div>
-            <div class="length-value"><span id="length-val">24</span> ft</div>
+            <div class="length-value"><input class="length-num" id="length-input" type="number" min="12" max="60" step="1" inputmode="numeric" aria-label="Exact length in feet"><span id="length-val">—</span> ft</div>
           </div>
           <input class="length-range" id="length-range" type="range" min="10" max="60" value="24" step="1">
           <div class="length-marks" id="length-marks">
             <span>10 ft</span><span>24 ft</span><span>36 ft</span><span>45 ft</span><span>60 ft</span>
           </div>
           <div class="length-note" id="length-note">Large boats, RVs, fifth wheels, severe oxidation, height restrictions, or difficult access may require estimate confirmation.</div>
+          <div class="rv-service-subtotal" id="rv-service-subtotal" hidden>
+            Service subtotal: <strong id="rv-subtotal-amt">$0</strong>
+            <span class="rv-subtotal-note"> — travel fee added after ZIP in Info &amp; Schedule</span>
+          </div>
         </div>
 
         <!-- Fleet unit count selector -->
@@ -3292,10 +3331,10 @@ const LENGTH_PRICING = {
   rvs: {
     min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
-      maint:          {perFt: 8.5, min: 129},
+      maint:          {perFt: 12.75, min: 225},
       maint_light:    {perFt: 16, min: 229},
       interior:       {perFt: 21, min: 249},
-      full_basic:     {perFt: 27, min: 349},
+      full_basic:     {perFt: 31, min: 399},
       premium:        {perFt: 33, min: 449},
       full:           {perFt: 49.5, min: 699}
     }
@@ -3312,7 +3351,7 @@ const LENGTH_PRICING = {
   }
 };
 
-const RV_TYPE_MULTIPLIERS = { travel:1, fifthwheel:1.1, classA:1.15, classBC:1.1, classC:1.1, airstream:1.08, specialty:1 };
+const RV_TYPE_MULTIPLIERS = { travel:1, fifthwheel:1.1, classA:1.15, classB:1.08, classC:1.1, classBC:1.1, airstream:1.08, cargo:1, horse:1, other:1, specialty:1 };
 function getLengthPrice(cat, pkgId, ft, typeKey){
   const cfg = LENGTH_PRICING[cat];
   if(!cfg) return null;
@@ -3328,39 +3367,149 @@ function getLengthPrice(cat, pkgId, ft, typeKey){
     const key = typeKey || (typeof ST!=='undefined' && ST.rvType) || 'travel';
     mult = Number(RV_TYPE_MULTIPLIERS[key]) || 1;
   }
-  return Math.max(rule.min, Math.round(rule.perFt * Number(ft || cfg.defaultFt) * mult));
+  const raw = rule.perFt * Number(ft || cfg.defaultFt) * mult;
+  const priced = cat === 'rvs' ? Math.round(raw * 100) / 100 : Math.round(raw);
+  return Math.max(rule.min, priced);
 }
 
 function setupLengthSelector(cat){
   const box = document.getElementById('length-box');
   const range = document.getElementById('length-range');
+  const numIn = document.getElementById('length-input');
   const val = document.getElementById('length-val');
   const title = document.getElementById('length-title');
   const note = document.getElementById('length-note');
+  const subEl = document.getElementById('rv-service-subtotal');
   if(!box || !range || !val) return;
   const usesFleetLength = cat === 'fleet' && ST.tierKey === 'marine_rv';
   if(cat !== 'boats' && cat !== 'rvs' && !usesFleetLength){
     box.classList.remove('show');
     ST.lengthFt = 0;
+    if(subEl) subEl.hidden = true;
     return;
   }
   const cfg = LENGTH_PRICING[usesFleetLength ? 'fleet' : cat];
   box.classList.add('show');
+  range.min = cfg.min; range.max = cfg.max;
+  if(numIn){ numIn.min = cfg.min; numIn.max = cfg.max; }
+  const isRv = cat === 'rvs';
   const pref = Number(ST._prefillLengthFt || 0);
-  const startFt = (pref >= cfg.min && pref <= cfg.max) ? pref : cfg.defaultFt;
-  if (ST._prefillLengthFt) ST._prefillLengthFt = null;
-  range.min = cfg.min; range.max = cfg.max; range.value = startFt;
+  let startFt = 0;
+  if(isRv){
+    startFt = (pref >= cfg.min && pref <= cfg.max) ? pref : 0;
+    if (ST._prefillLengthFt) ST._prefillLengthFt = null;
+  }else{
+    startFt = (pref >= cfg.min && pref <= cfg.max) ? pref : cfg.defaultFt;
+    if (ST._prefillLengthFt) ST._prefillLengthFt = null;
+  }
   ST.lengthFt = startFt;
-  val.textContent = startFt;
-  title.textContent = cat === 'boats' ? 'Select Boat Length' : (usesFleetLength ? 'Select Average Boat / RV / Trailer Length' : 'Select RV / Travel Trailer Length');
+  if(startFt){
+    range.value = startFt;
+    if(numIn) numIn.value = startFt;
+    val.textContent = startFt;
+  }else{
+    range.value = cfg.min;
+    if(numIn) numIn.value = '';
+    val.textContent = '—';
+  }
+  title.textContent = cat === 'boats' ? 'Select Boat Length' : (usesFleetLength ? 'Select Average Boat / RV / Trailer Length' : 'Exact RV Length *');
   note.textContent = cat === 'boats'
     ? 'Boats over 36 ft, houseboats, severe oxidation, marina restrictions, or difficult access may require estimate confirmation.'
-    : (usesFleetLength ? 'Fleet boats, RVs, or trailers use average unit length x quantity. Mixed fleets require final quote review.' : 'Large RVs, fifth wheels, Class A motorhomes, roof work, awnings, heavy oxidation, height restrictions, or difficult access may require estimate confirmation.');
-  range.oninput = function(){
-    ST.lengthFt = Number(this.value);
-    val.textContent = this.value;
+    : (usesFleetLength ? 'Fleet boats, RVs, or trailers use average unit length x quantity. Mixed fleets require final quote review.' : (isRv ? 'Enter your exact overall length in feet. Pricing does not assume a default length until you set it.' : 'Large RVs, fifth wheels, Class A motorhomes, roof work, awnings, heavy oxidation, height restrictions, or difficult access may require estimate confirmation.'));
+  function syncLength(ft){
+    const n = Number(ft);
+    if(!n || n < cfg.min || n > cfg.max){
+      ST.lengthFt = 0;
+      val.textContent = '—';
+      if(subEl) subEl.hidden = true;
+    }else{
+      ST.lengthFt = n;
+      range.value = n;
+      if(numIn && document.activeElement !== numIn) numIn.value = n;
+      val.textContent = n;
+    }
+    updateRvServiceSubtotal();
+    tryGenericConfirm();
+  }
+  range.oninput = function(){ syncLength(this.value); };
+  if(numIn){
+    numIn.oninput = function(){ syncLength(this.value); };
+    numIn.onblur = function(){
+      const n = Number(this.value);
+      if(!n){ ST.lengthFt = 0; val.textContent = '—'; updateRvServiceSubtotal(); tryGenericConfirm(); return; }
+      if(n < cfg.min) this.value = cfg.min;
+      if(n > cfg.max) this.value = cfg.max;
+      syncLength(this.value);
+    };
+  }
+  updateRvServiceSubtotal();
+}
+
+function setupRvTypeControls(cat){
+  const wrap = document.getElementById('rv-type-wrap');
+  const livingWrap = document.getElementById('rv-living-wrap');
+  const airNote = document.getElementById('rv-airstream-note');
+  const typeSel = document.getElementById('rv-type-sel');
+  const livingSel = document.getElementById('rv-living-sel');
+  if(!wrap || !typeSel) return;
+  if(cat !== 'rvs'){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  if(ST._prefillRvType){
+    typeSel.value = ST._prefillRvType;
+    ST.rvType = ST._prefillRvType;
+    ST._prefillRvType = '';
+  }else if(ST.rvType){
+    typeSel.value = ST.rvType;
+  }else{
+    typeSel.value = '';
+    ST.rvType = '';
+  }
+  if(ST.rvLiving && livingSel) livingSel.value = ST.rvLiving;
+  function syncLivingVisibility(){
+    const t = typeSel.value;
+    const needsAsk = t === 'cargo' || t === 'horse' || t === 'other';
+    if(livingWrap) livingWrap.style.display = needsAsk ? 'block' : 'none';
+    if(airNote) airNote.style.display = t === 'airstream' ? 'block' : 'none';
+    if(!needsAsk){ ST.rvLiving = ''; if(livingSel) livingSel.value = ''; }
+  }
+  typeSel.onchange = function(){
+    ST.rvType = this.value;
+    try{ sessionStorage.setItem('cd1_rv_type', ST.rvType); }catch(e){}
+    syncLivingVisibility();
+    updateRvServiceSubtotal();
     tryGenericConfirm();
   };
+  if(livingSel){
+    livingSel.onchange = function(){
+      ST.rvLiving = this.value;
+      try{ sessionStorage.setItem('cd1_rv_living', ST.rvLiving); }catch(e){}
+      tryGenericConfirm();
+    };
+  }
+  syncLivingVisibility();
+}
+
+function updateRvServiceSubtotal(){
+  const subEl = document.getElementById('rv-service-subtotal');
+  const amtEl = document.getElementById('rv-subtotal-amt');
+  if(!subEl || !amtEl || ST.cat !== 'rvs'){ if(subEl) subEl.hidden = true; return; }
+  const ft = Number(ST.lengthFt || 0);
+  const type = ST.rvType || '';
+  if(!ft || !type || !ST.pkgId){
+    subEl.hidden = true;
+    return;
+  }
+  if((type === 'cargo' || type === 'horse' || type === 'other') && !ST.rvLiving){
+    subEl.hidden = true;
+    return;
+  }
+  const price = getLengthPrice('rvs', ST.pkgId, ft, type);
+  if(!price){ subEl.hidden = true; return; }
+  amtEl.textContent = '$' + price;
+  subEl.hidden = false;
 }
 
 function setupUnitSelector(cat){
@@ -3853,7 +4002,9 @@ function selectCategory(cat){
   }
   ST._pendingCat='';
   document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('pending-cat'));
-  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
+  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
+  const rvPkgNote = document.getElementById('bs2-rv-note');
+  if(rvPkgNote) rvPkgNote.style.display = cat==='rvs' ? 'block' : 'none';
   renderPackages(cat);
   renderTierChips(cat);
   bkGoTo(2);
@@ -3875,19 +4026,30 @@ function renderPackages(cat){
     if(cat==='fleet' && p.id==='custom'){
       startPrice = 0;
     }else if((cat==='boats'||cat==='rvs') && LENGTH_PRICING[cat]?.packages[p.id]){
-      startPrice = applyRichPrice(LENGTH_PRICING[cat].packages[p.id].min);
+      const rule = LENGTH_PRICING[cat].packages[p.id];
+      if(cat==='rvs'){
+        startPrice = null;
+      }else{
+        startPrice = applyRichPrice(rule.min);
+      }
     }else{
       const sampleTier=Object.values(d.tiers)[0];
       startPrice=applyRichPrice(sampleTier[p.id]||sampleTier.maint||sampleTier.wash||sampleTier.exterior);
     }
-    if(p.id!=='custom') startPrice += getTravelFeeAmount();
+    if(p.id!=='custom' && startPrice != null) startPrice += getTravelFeeAmount();
+    const rvRate = (cat==='rvs' && LENGTH_PRICING.rvs?.packages[p.id]) ? LENGTH_PRICING.rvs.packages[p.id] : null;
+    const pkgFrom = p.id==='custom'
+      ? 'quote required for mixed, large, or multi-location fleets'
+      : (rvRate
+        ? ('$'+rvRate.perFt+'/ft · min $'+rvRate.min+' · exact total on Vehicle step')
+        : (p.note||'price set by vehicle size/type'));
     return `<div class="pkg${p.popular?' pop':''}" id="pk-${p.id}" onclick="selectPkg('${p.id}')">
       ${p.popular?'<div class="pop-b">Most Popular</div>':''}
       <div class="pkg-visual"><img src="${categoryVisual.img}" alt="${categoryVisual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
       <div class="pkg-name">${p.name}</div>
       <div class="pkg-tag">${p.tag}</div>
       <div class="pkg-price" aria-hidden="true"></div>
-      <div class="pkg-from">${p.id==='custom'?'quote required for mixed, large, or multi-location fleets':p.note||'price set by vehicle size/type'}</div>
+      <div class="pkg-from">${pkgFrom}</div>
       <div class="pkg-time">⏱ ${p.dur}</div>
       <div class="pkg-div"></div>
       <ul class="pkg-feats">
@@ -3911,7 +4073,8 @@ function selectPkg(id){
   ST.pkgId=id;
   ST.pkg=(PRICING[ST.cat]&&PRICING[ST.cat].packages)?PRICING[ST.cat].packages.find(p=>p.id===id):null;
   document.getElementById('next2').disabled=!ST.pkg;
-  if((ST.cat==='boats'||ST.cat==='rvs'||ST.cat==='fleet') && (ST.lengthFt||ST.units)){tryGenericConfirm();}
+  if((ST.cat==='boats'&&ST.lengthFt)||(ST.cat==='rvs'&&(ST.lengthFt&&ST.rvType))||(ST.cat==='fleet'&&ST.units)){tryGenericConfirm();}
+  if(ST.cat==='rvs') updateRvServiceSubtotal();
   if(ST.pkg && currentBkStep < 3) { /* stay on package step until Continue */ }
 }
 
@@ -3942,6 +4105,7 @@ function renderTierChips(cat){
 
   document.getElementById('make-search-wrap').style.display=isCar?'block':'none';
   document.getElementById('generic-search-wrap').style.display=isCar?'none':'block';
+  setupRvTypeControls(cat);
   setupLengthSelector(cat);
   setupUnitSelector(cat);
   document.getElementById('vc').classList.remove('show');
@@ -4094,13 +4258,27 @@ function tryGenericConfirm(){
   if(!make||!model||!year||!ST.pkgId)return;
 
   if(ST.cat==='boats'||ST.cat==='rvs'){
-    const ft = ST.lengthFt || LENGTH_PRICING[ST.cat].defaultFt;
-    const price = getLengthPrice(ST.cat, ST.pkgId, ft, ST.cat==='rvs' ? (ST.rvType||'travel') : null);
-    if(!price)return;
-    ST.basePrice = price;
-    ST.vehicleLabel = `${year} ${make} ${model} · ${ft} ft`;
-    ST.tierKey = ST.cat==='rvs' && ST.rvType ? ST.rvType : 'length';
-    ST.tier={label:`${ft} ft`, icon:ST.cat==='boats'?'🛥️':'🏕️', desc:ST.cat==='boats'?'Marine vessel priced by exact length':'RV / travel trailer priced by exact length'};
+    if(ST.cat==='rvs'){
+      if(!ST.rvType) return;
+      if((ST.rvType==='cargo'||ST.rvType==='horse'||ST.rvType==='other') && !ST.rvLiving) return;
+      const ft = Number(ST.lengthFt || 0);
+      if(!ft) return;
+      const price = getLengthPrice(ST.cat, ST.pkgId, ft, ST.rvType);
+      if(!price) return;
+      ST.basePrice = price;
+      ST.vehicleLabel = `${year} ${make} ${model} · ${ft} ft`;
+      ST.tierKey = ST.rvType;
+      ST.tier={label:`${ft} ft`, icon:'🏕️', desc:'RV priced by exact length and type'};
+      updateRvServiceSubtotal();
+    }else{
+      const ft = ST.lengthFt || LENGTH_PRICING[ST.cat].defaultFt;
+      const price = getLengthPrice(ST.cat, ST.pkgId, ft, null);
+      if(!price)return;
+      ST.basePrice = price;
+      ST.vehicleLabel = `${year} ${make} ${model} · ${ft} ft`;
+      ST.tierKey = 'length';
+      ST.tier={label:`${ft} ft`, icon:'🛥️', desc:'Marine vessel priced by exact length'};
+    }
     setVehicleVisual();
     setVcName(ST.vehicleLabel);
     document.getElementById('vc').classList.add('show');
@@ -5474,7 +5652,7 @@ const ZONE_POPULAR = {
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & SUVs',      desc:'Mobile car detailing at your location', from:'From $225' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine wash & detail on-site',    from:'From $199' },
-  rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'From $8.50/ft' },
+  rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'From $12.75/ft' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs, jet skis',       from:'From $119' },
 
 };
@@ -5595,14 +5773,19 @@ function onBkZipInput(val){
 function updateBkFromPrices(){
   const BASE = {
     boats:      { price: LENGTH_PRICING.boats.packages.maint.min },
-    rvs:        { price: LENGTH_PRICING.rvs.packages.maint.min },
+    rvs:        { perFt: LENGTH_PRICING.rvs.packages.maint.perFt },
     powersports:{ price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=>Object.values(t).filter(v=>typeof v==='number')[0]||99)) },
   };
   syncTravelFromKnownZip();
   const fee=getKnownZip5()&&activeZone?getTravelFeeAmount():0;
   Object.entries(BASE).forEach(([cat, info])=>{
     const el = document.getElementById('bkfrom-'+cat);
-    if(!el || info.price == null) return;
+    if(!el) return;
+    if(cat==='rvs' && info.perFt != null){
+      el.textContent = 'From $'+info.perFt+'/ft';
+      return;
+    }
+    if(info.price == null) return;
     el.textContent = 'From $'+(applyRichPrice(info.price)+fee);
   });
 }

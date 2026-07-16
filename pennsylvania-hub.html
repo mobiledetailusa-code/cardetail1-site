@@ -4099,10 +4099,10 @@ const LENGTH_PRICING = {
   rvs: {
     min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
-      maint:          {perFt: 8.5, min: 129},
+      maint:          {perFt: 12.75, min: 225},
       maint_light:    {perFt: 16, min: 229},
       interior:       {perFt: 21, min: 249},
-      full_basic:     {perFt: 27, min: 349},
+      full_basic:     {perFt: 31, min: 399},
       premium:        {perFt: 33, min: 449},
       full:           {perFt: 49.5, min: 699}
     }
@@ -4123,7 +4123,9 @@ function getLengthPrice(cat, pkgId, ft){
   const cfg = LENGTH_PRICING[cat];
   if(!cfg || !cfg.packages[pkgId]) return null;
   const rule = cfg.packages[pkgId];
-  return Math.max(rule.min, Math.round(rule.perFt * Number(ft || cfg.defaultFt)));
+  const raw = rule.perFt * Number(ft || cfg.defaultFt);
+  const priced = cat === 'rvs' ? Math.round(raw * 100) / 100 : Math.round(raw);
+  return Math.max(rule.min, priced);
 }
 
 function setupLengthSelector(cat){

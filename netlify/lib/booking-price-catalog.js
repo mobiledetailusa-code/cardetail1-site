@@ -112,10 +112,10 @@ const LENGTH_PRICING = {
   rvs: {
     min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
-      maint: { perFt: 8.5, min: 129 },
+      maint: { perFt: 12.75, min: 225 },
       maint_light: { perFt: 16, min: 229 },
       interior: { perFt: 21, min: 249 },
-      full_basic: { perFt: 27, min: 349 },
+      full_basic: { perFt: 31, min: 399 },
       premium: { perFt: 33, min: 449 },
       full: { perFt: 49.5, min: 699 },
     },
@@ -218,9 +218,14 @@ function resolveRvTypeKey(vehicle, booking) {
   const lower = raw.toLowerCase();
   if (lower.includes('fifth')) return 'fifthwheel';
   if (lower.includes('airstream')) return 'airstream';
-  if (lower.includes('specialty') || lower.includes('cargo') || lower.includes('horse')) return 'specialty';
+  if (lower.includes('horse')) return 'horse';
+  if (lower.includes('cargo')) return 'cargo';
   if (lower.includes('class a') || lower === 'classa') return 'classA';
-  if (lower.includes('class b') || lower.includes('class c') || lower === 'classbc' || lower === 'classc') return 'classBC';
+  if (lower.includes('class b') || lower === 'classb') return 'classB';
+  if (lower.includes('class c') || lower === 'classc') return 'classC';
+  if (lower.includes('class bc') || lower === 'classbc') return 'classC';
+  if (lower.includes('specialty') || lower.includes('custom')) return 'other';
+  if (lower.includes('other')) return 'other';
   if (lower.includes('travel')) return 'travel';
   return 'travel';
 }
@@ -241,7 +246,10 @@ function getLengthPrice(cat, pkgId, ft, typeKey) {
     const key = typeKey && RV_TYPES[typeKey] ? typeKey : null;
     if (key) mult = Number(RV_TYPES[key].multiplier) || 1;
   }
-  return Math.max(rule.min, Math.round(rule.perFt * lengthFt * mult));
+  const raw = rule.perFt * lengthFt * mult;
+  // RVs keep exact cents (e.g. 19 × 12.75 = 242.25); boats stay whole dollars.
+  const priced = cat === 'rvs' ? Math.round(raw * 100) / 100 : Math.round(raw);
+  return Math.max(rule.min, priced);
 }
 
 function inferPkgId(vehicle, booking) {
