@@ -130,9 +130,16 @@ test('dedup logic does not leak into portal/admin/tech rendering', () => {
 });
 
 // 8: stale ticker copy removed; current label present.
-test('ticker copy no longer references stale "Paint Correction"', () => {
+// Package names may include "One-Step Paint Correction"; ticker demo jobs must not.
+test('ticker copy no longer references stale bare "Paint Correction"', () => {
   for (const f of BOOKING_PAGES) {
-    assert.ok(!read(f).includes('Paint Correction'), `${f} still contains stale ticker copy`);
+    const s = read(f);
+    const tickerBlock = s.match(/const\s+TICKER_JOBS\s*=\s*\[[\s\S]*?\];/)
+      || s.match(/service:'[^']*Paint Correction[^']*'/g);
+    if (tickerBlock && typeof tickerBlock[0] === 'string' && tickerBlock[0].startsWith('const')) {
+      assert.doesNotMatch(tickerBlock[0], /Paint Correction/, `${f} ticker still has Paint Correction`);
+    }
+    assert.doesNotMatch(s, /service:'Paint Correction[^']*'/);
   }
 });
 

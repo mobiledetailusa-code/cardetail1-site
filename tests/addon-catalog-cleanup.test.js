@@ -130,14 +130,20 @@ test('addon quantity and totals still compute correctly', () => {
   assert.equal(combo.addonTotal, 90 + 65 + 149);
 });
 
-test('all booking pages share mold and sanitize add-ons', () => {
+test('all booking pages share sanitize; mold remains on cars/boats only', () => {
   for (const f of BOOKING_PAGES) {
     const s = read(f);
-    for (const id of ['mold', 'sanitize']) {
-      assert.ok(s.includes(`id:'${id}'`), `${f} missing ${id}`);
-    }
+    assert.ok(s.includes("id:'sanitize'"), `${f} missing sanitize`);
+    assert.ok(s.includes("id:'mold'"), `${f} missing cars/boats mold`);
     assert.ok(!s.includes("id:'chain'"), `${f} still has chain`);
+    const rv = s.match(/rvs:\s*\{[\s\S]*?addons:\[([\s\S]*?)\],/);
+    assert.ok(rv, `${f} missing rvs addons`);
+    assert.ok(!rv[1].includes("id:'mold'"), `${f} RV addons still include mold`);
+    assert.match(rv[1], /id:'superint'[^}]*price:135/);
   }
+  assert.ok(!PRICING.rvs.addons.some((a) => a.id === 'mold'));
+  assert.equal(PRICING.rvs.addons.find((a) => a.id === 'superint').price, 135);
+  assert.equal(PRICING.cars.addons.find((a) => a.id === 'mold').price, 149);
 });
 
 test('client and server add-on ids/prices stay synced for cars', () => {

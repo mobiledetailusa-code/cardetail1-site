@@ -223,6 +223,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/revenue-store.js',
     'netlify/lib/revops-dashboard.js',
     'netlify/functions/qa-opscore-lifecycle.js',
+    'netlify/lib/booking-price-catalog.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);
@@ -236,10 +237,12 @@ test('package IDs in index PRICING unchanged for specialty categories', () => {
   assert.match(html, /powersports:[\s\S]*?id:'wash'/);
 });
 
-test('LENGTH_PRICING formulas unchanged (boat maint min 199, rv exterior min 349)', () => {
+test('LENGTH_PRICING formulas (boat maint min 199, rv exterior Wash & Protect min 399)', () => {
   const html = read('index.html');
   assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-  assert.match(html, /rvs:[\s\S]*?exterior:\s*\{perFt:\s*12,\s*min:\s*349\}/);
+  assert.match(html, /rvs:[\s\S]*?exterior:\s*\{perFt:\s*16,\s*min:\s*399\}/);
+  assert.match(html, /rvs:[\s\S]*?maint:\s*\{perFt:\s*10,\s*min:\s*279\}/);
+  assert.match(html, /rvs:[\s\S]*?full:\s*\{perFt:\s*54,\s*min:\s*1299\}/);
 });
 
 test('no secrets in public HTML/JS specialty surface', () => {

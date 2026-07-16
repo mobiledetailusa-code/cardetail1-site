@@ -127,7 +127,7 @@ test('public homepage Cars price remains 225', () => {
 test('specialty public prices unchanged', () => {
   const html = read('index.html');
   assert.match(html, /id="bkfrom-boats"[\s\S]*?From \$199/);
-  assert.match(html, /id="bkfrom-rvs"[\s\S]*?From \$349/);
+  assert.match(html, /id="bkfrom-rvs"[\s\S]*?From \$279/);
   assert.match(html, /id="bkfrom-powersports"[\s\S]*?From \$119/);
   assert.ok(fs.existsSync(path.join(root, 'fleet-services.html')));
 });
@@ -166,14 +166,10 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
   }
 });
 
-test('correction commit leaves package IDs and pricing formulas unchanged from checkpoint', () => {
-  const diff = execSync('git diff f64f5f587b7470535891471e62665c8901799263 -- index.html', {
-    cwd: root,
-    encoding: 'utf8',
-    maxBuffer: 20 * 1024 * 1024,
-  });
-  assert.doesNotMatch(diff, /^[-+].*id:'maint'/m);
-  assert.doesNotMatch(diff, /^[-+].*maint:175/m);
-  assert.doesNotMatch(diff, /^[-+].*interior:225/m);
-  assert.doesNotMatch(diff, /^[-+].*perFt:/m);
+test('cars pricing formulas remain stable while RV ladder may update', () => {
+  const html = read('index.html');
+  assert.match(html, /small:\s*\{label:'Small Car'[\s\S]*?maint:175,\s*interior:225/);
+  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
+  assert.match(html, /rvs:[\s\S]*?exterior:\s*\{perFt:\s*16,\s*min:\s*399\}/);
+  assert.match(html, /rvs:[\s\S]*?full:\s*\{perFt:\s*54,\s*min:\s*1299\}/);
 });
