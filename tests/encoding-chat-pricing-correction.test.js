@@ -127,7 +127,7 @@ test('public homepage Cars price remains 225', () => {
 test('specialty public prices unchanged', () => {
   const html = read('index.html');
   assert.match(html, /id="bkfrom-boats"[\s\S]*?From \$199/);
-  assert.match(html, /id="bkfrom-rvs"[\s\S]*?From \$12\.75\/ft/);
+  assert.match(html, /id="bkfrom-rvs"[\s\S]*?Price calculated from your vehicle details/);
   assert.match(html, /id="bkfrom-powersports"[\s\S]*?From \$119/);
   assert.ok(fs.existsSync(path.join(root, 'fleet-services.html')));
 });
@@ -170,6 +170,6 @@ test('cars pricing formulas remain stable while RV ladder may update', () => {
   const html = read('index.html');
   assert.match(html, /small:\s*\{label:'Small Car'[\s\S]*?maint:175,\s*interior:225/);
   assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{perFt:\s*16,\s*min:\s*229\}/);
-  assert.match(html, /rvs:[\s\S]*?full:\s*\{perFt:\s*49\.5,\s*min:\s*699\}/);
+  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 250, ratePerFoot: 16 \}/);
+  assert.match(html, /rvs:[\s\S]*?full:\s*\{ base: 400, ratePerFoot: 36 \}/);
 });

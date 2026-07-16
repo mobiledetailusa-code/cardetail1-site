@@ -137,40 +137,39 @@ test('ADD-ONS: historical Mold Treatment records remain display-safe', () => {
   assert.match(line, /Mold Treatment/);
 });
 
-test('PRICING: six-package hierarchy and per-foot math', () => {
+test('PRICING: six-package hierarchy and base+ratePerFoot math', () => {
   const lp = LENGTH_PRICING.rvs.packages;
-  assert.equal(lp.maint.min, 225);
-  assert.equal(lp.maint.perFt, 12.75);
-  assert.equal(lp.maint_light.min, 229);
-  assert.equal(lp.interior.min, 249);
-  assert.equal(lp.full_basic.min, 399);
-  assert.equal(lp.premium.min, 449);
-  assert.equal(lp.full.min, 699);
+  assert.equal(lp.maint.base, 150);
+  assert.equal(lp.maint.ratePerFoot, 10);
+  assert.equal(lp.maint_light.base, 250);
+  assert.equal(lp.interior.base, 250);
+  assert.equal(lp.full_basic.base, 300);
+  assert.equal(lp.premium.base, 300);
+  assert.equal(lp.full.base, 400);
   assert.equal(Object.keys(lp).sort().join(','), FINAL_IDS.slice().sort().join(','));
 
-  assert.ok(lp.maint_light.min > lp.maint.min);
-  assert.ok(lp.premium.min > lp.maint_light.min);
-  assert.ok(lp.full.min > lp.premium.min);
+  assert.ok(lp.maint_light.base > lp.maint.base);
+  assert.ok(lp.full.ratePerFoot > lp.premium.ratePerFoot);
 
   const ft = 24;
   const prices = Object.fromEntries(FINAL_IDS.map((id) => [id, getLengthPrice('rvs', id, ft, 'travel')]));
-  assert.equal(prices.maint, Math.max(225, Math.round(12.75 * 24 * 100) / 100));
-  assert.equal(prices.maint_light, Math.max(229, Math.round(16 * 24)));
-  assert.equal(prices.interior, Math.max(249, Math.round(21 * 24)));
-  assert.equal(prices.full_basic, Math.max(399, Math.round(31 * 24)));
-  assert.equal(prices.premium, Math.max(449, Math.round(33 * 24)));
-  assert.equal(prices.full, Math.max(699, Math.round(49.5 * 24)));
+  assert.equal(prices.maint, 390);
+  assert.equal(prices.maint_light, 634);
+  assert.equal(prices.interior, 682);
+  assert.equal(prices.full_basic, 900);
+  assert.equal(prices.premium, 972);
+  assert.equal(prices.full, 1264);
   assert.ok(prices.maint < prices.maint_light);
   assert.ok(prices.full > prices.premium);
 
   const lengthBlock = extractRvLength(read('index.html'));
-  assert.match(lengthBlock, /maint_light:\s*\{perFt:\s*16,\s*min:\s*229\}/);
-  assert.match(lengthBlock, /full:\s*\{perFt:\s*49\.5,\s*min:\s*699\}/);
+  assert.match(lengthBlock, /maint_light:\s*\{ base: 250, ratePerFoot: 16 \}/);
+  assert.match(lengthBlock, /full:\s*\{ base: 400, ratePerFoot: 36 \}/);
 });
 
-test('DISPLAY: per-foot cards and booking CTAs; no funnel', () => {
+test('DISPLAY: single-price cards and booking CTAs; no funnel', () => {
   const page = read('rv-detailing.html');
-  assert.match(page, /Starting at \$12\.75\/ft/);
+  assert.match(page, /Price calculated from your vehicle details/);
   assert.match(page, /package-booking-cta/);
   assert.match(page, /Select This RV Package|Book This Package/);
   assert.doesNotMatch(page, /rv-pricing-funnel/);
@@ -201,7 +200,7 @@ test('client and server LENGTH_PRICING.rvs stay synced', () => {
     const rule = LENGTH_PRICING.rvs.packages[id];
     assert.match(
       lengthBlock,
-      new RegExp(`${id}:\\s*\\{perFt:\\s*${rule.perFt},\\s*min:\\s*${rule.min}\\}`),
+      new RegExp(`${id}:\\s*\\{ base: ${rule.base}, ratePerFoot: ${rule.ratePerFoot} \\}`),
     );
   }
 });

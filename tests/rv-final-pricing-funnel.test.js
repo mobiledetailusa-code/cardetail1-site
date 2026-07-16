@@ -28,10 +28,10 @@ test('Package CTAs use package-booking-cta into six-step booking', () => {
   assert.match(read('index.html'), /Step 03 — Vehicle/);
 });
 
-test('Maint rate is commercial final 12.75/225 not funnel 8.5/129', () => {
-  assert.equal(LENGTH_PRICING.rvs.packages.maint.perFt, 12.75);
-  assert.equal(LENGTH_PRICING.rvs.packages.maint.min, 225);
-  assert.equal(getLengthPrice('rvs', 'maint', 19, 'travel'), 242.25);
+test('Maint uses base+ratePerFoot authoritative table', () => {
+  assert.equal(LENGTH_PRICING.rvs.packages.maint.base, 150);
+  assert.equal(LENGTH_PRICING.rvs.packages.maint.ratePerFoot, 10);
+  assert.equal(getLengthPrice('rvs', 'maint', 19, 'travel'), 340);
   assert.notEqual(getLengthPrice('rvs', 'maint', 19, 'travel'), Math.max(129, Math.round(8.5 * 19)));
 });
 

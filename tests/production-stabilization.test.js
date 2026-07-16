@@ -52,7 +52,7 @@ test('index updateBkFromPrices derives specialty mins from LENGTH_PRICING / PRIC
   assert.match(html, /function updateBkFromPrices\(\)\{/);
   assert.doesNotMatch(html, /function updateBkFromPrices\(\)\{\s*\}/);
   assert.match(html, /LENGTH_PRICING\.boats\.packages\.maint\.min/);
-  assert.match(html, /LENGTH_PRICING\.rvs\.packages\.maint\.min/);
+  assert.match(html, /Price calculated from your vehicle details/);
   assert.match(html, /PRICING\.powersports\.tiers/);
   assert.match(html, /updateBkFromPrices\(\);/);
 });
@@ -60,12 +60,12 @@ test('index updateBkFromPrices derives specialty mins from LENGTH_PRICING / PRIC
 test('booking category starting prices align with catalog minimums', () => {
   const html = read('index.html');
   assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{perFt:\s*16,\s*min:\s*229\}/);
-  assert.match(html, /rvs:[\s\S]*?maint:\s*\{perFt:\s*12\.75,\s*min:\s*225\}/);
-  assert.match(html, /rvs:[\s\S]*?full_basic:\s*\{perFt:\s*31,\s*min:\s*399\}/);
+  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 250, ratePerFoot: 16 \}/);
+  assert.match(html, /rvs:[\s\S]*?maint:\s*\{ base: 150, ratePerFoot: 10 \}/);
+  assert.match(html, /rvs:[\s\S]*?full_basic:\s*\{ base: 300, ratePerFoot: 25 \}/);
   assert.match(html, /motorcycle:\s*\{[\s\S]*?wash:119/);
   assert.match(html, /id="bkfrom-boats"[\s\S]*?From \$199/);
-  assert.match(html, /id="bkfrom-rvs"[\s\S]*?From \$12\.75\/ft/);
+  assert.match(html, /id="bkfrom-rvs"[\s\S]*?Price calculated from your vehicle details/);
   assert.match(html, /id="bkfrom-powersports"[\s\S]*?From \$119/);
   assert.match(html, /id="home-from-interior">\$225/);
   assert.match(html, /getCategoryFromBases\(\)[\s\S]*?\.interior\)/);
