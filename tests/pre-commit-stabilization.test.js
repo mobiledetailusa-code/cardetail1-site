@@ -19,7 +19,7 @@ const HUB_PAGES = [
 ];
 const PACKAGE_MAP = {
   'boats-detailing.html': { cat: 'boats', pkgs: ['maint', 'full', 'premium'] },
-  'rv-detailing.html': { cat: 'rvs', pkgs: ['exterior', 'interior', 'full', 'premium'] },
+  'rv-detailing.html': { cat: 'rvs', pkgs: ['maint_light', 'interior', 'full', 'premium'] },
   'powersports-detailing.html': { cat: 'powersports', pkgs: ['wash', 'full', 'premium'] },
 };
 
@@ -233,16 +233,16 @@ test('Netlify Function changes vs production master are limited to approved RevO
 test('package IDs in index PRICING unchanged for specialty categories', () => {
   const html = read('index.html');
   assert.match(html, /boats:[\s\S]*?id:'maint'/);
-  assert.match(html, /rvs:[\s\S]*?id:'exterior'/);
+  assert.match(html, /rvs:[\s\S]*?id:'maint_light'/);
   assert.match(html, /powersports:[\s\S]*?id:'wash'/);
 });
 
-test('LENGTH_PRICING formulas (boat maint min 199, rv exterior Wash & Protect min 399)', () => {
+test('LENGTH_PRICING formulas (boat maint min 199, rv maint_light min 229)', () => {
   const html = read('index.html');
   assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-  assert.match(html, /rvs:[\s\S]*?exterior:\s*\{perFt:\s*16,\s*min:\s*399\}/);
-  assert.match(html, /rvs:[\s\S]*?maint:\s*\{perFt:\s*10,\s*min:\s*279\}/);
-  assert.match(html, /rvs:[\s\S]*?full:\s*\{perFt:\s*54,\s*min:\s*1299\}/);
+  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{perFt:\s*15,\s*min:\s*229\}/);
+  assert.match(html, /rvs:[\s\S]*?maint:\s*\{perFt:\s*8,\s*min:\s*129\}/);
+  assert.match(html, /rvs:[\s\S]*?full:\s*\{perFt:\s*44,\s*min:\s*699\}/);
 });
 
 test('no secrets in public HTML/JS specialty surface', () => {

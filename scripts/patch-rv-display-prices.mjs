@@ -25,8 +25,8 @@ for (const f of files) {
     "const POPULAR_IDS=ST.cat==='rvs'?['superint','rainx','pethair','odor']:['rainx','pethair','odor'];"
   );
   html = html.replace(
-    /(id="bkfrom-rvs"[^>]*>)From \$349/g,
-    '$1From $279'
+    /(id="bkfrom-rvs"[^>]*>)From \$(?:279|349)/g,
+    '$1From $8/ft'
   );
   html = html.replace(
     /rvs:LENGTH_PRICING\.rvs\.packages\.exterior\.min/g,
@@ -37,12 +37,12 @@ for (const f of files) {
     'rvs:        { price: LENGTH_PRICING.rvs.packages.maint.min }'
   );
   html = html.replace(
-    /(name:'RVs & Trailers',[^\n]*from:')From \$349'/g,
-    "$1From $279'"
+    /(name:'RVs & Trailers',[^\n]*from:')From \$(?:279|349)'/g,
+    "$1From $8/ft'"
   );
   html = html.replace(
-    /(name:'RVs & Trailers',[^\n]*from:")From \$349"/g,
-    '$1From $279"'
+    /(name:'RVs & Trailers',[^\n]*from:")From \$(?:279|349)"/g,
+    '$1From $8/ft"'
   );
   if (html !== orig) {
     await writeFile(f, html);

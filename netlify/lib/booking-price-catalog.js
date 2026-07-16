@@ -35,28 +35,24 @@ const PRICING = {
     tiers: {
       travel: {
         label: 'Travel Trailer',
-        maint: 320, exterior: 466, interior: 460, premium: 1133, full: 1400,
-        correction: 1248, correction_int: 1499,
+        maint: 320, maint_light: 466, interior: 460, premium: 1133, full: 1400,
       },
       fifthwheel: {
         label: 'Fifth Wheel',
-        maint: 360, exterior: 599, interior: 576, premium: 1334, full: 1680,
-        correction: 1560, correction_int: 1860,
+        maint: 360, maint_light: 599, interior: 576, premium: 1334, full: 1680,
       },
       classC: {
         label: 'Class C',
-        maint: 380, exterior: 666, interior: 620, premium: 1534, full: 1860,
-        correction: 1680, correction_int: 1980,
+        maint: 380, maint_light: 666, interior: 620, premium: 1534, full: 1860,
       },
       classA: {
         label: 'Class A',
-        maint: 420, exterior: 866, interior: 760, premium: 1934, full: 2280,
-        correction: 2080, correction_int: 2480,
+        maint: 420, maint_light: 866, interior: 760, premium: 1934, full: 2280,
       },
     },
     addons: [
       { id: 'polymer', price: 25 }, { id: 'wax1yr', price: 75 }, { id: 'rainx', price: 25 },
-      { id: 'biohazard', price: 115 }, { id: 'sanitize', price: 65 },
+      { id: 'biohazard', price: 115 }, { id: 'sanitize', price: 75 },
       { id: 'superint', price: 135 },
       { id: 'awning', price: 50, qty: true }, { id: 'roof', price: 50, qty: true },
       { id: 'capfront', price: 149 }, { id: 'pethair', price: 95 }, { id: 'odor', price: 90 },
@@ -102,15 +98,13 @@ const LENGTH_PRICING = {
     },
   },
   rvs: {
-    min: 12, max: 45, defaultFt: 24, estimateOver: 40,
+    min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
-      maint: { perFt: 10, min: 279 },
-      exterior: { perFt: 16, min: 399 },
-      interior: { perFt: 24, min: 379 },
-      premium: { perFt: 40, min: 899 },
-      full: { perFt: 54, min: 1299 },
-      correction: { perFt: 52, min: 1199 },
-      correction_int: { perFt: 62, min: 1499 },
+      maint: { perFt: 8, min: 129 },
+      maint_light: { perFt: 15, min: 229 },
+      interior: { perFt: 20, min: 249 },
+      premium: { perFt: 31, min: 449 },
+      full: { perFt: 44, min: 699 },
     },
   },
   fleet: {
@@ -160,16 +154,21 @@ const PKG_ID_ALIASES = {
   'full marine detail': 'full',
   'premium marine': 'premium',
   'maintenance wash': 'maint',
-  'exterior wash': 'exterior',
-  'exterior wash & protect': 'exterior',
-  'exterior wash and protect': 'exterior',
+  'maintenance wash + light interior': 'maint_light',
+  'maintenance wash and light interior': 'maint_light',
+  'maint light': 'maint_light',
+  'maint_light': 'maint_light',
+  'exterior wash': 'maint_light',
+  'exterior wash & protect': 'maint_light',
+  'exterior wash and protect': 'maint_light',
   'full rv detail': 'full',
   'premium complete detail': 'full',
+  'premium complete rv detail': 'full',
   'premium exterior': 'premium',
   'premium exterior detail': 'premium',
-  'one-step paint correction': 'correction',
-  'one-step paint correction + interior': 'correction_int',
-  'one-step paint correction and interior': 'correction_int',
+  'one-step paint correction': 'premium',
+  'one-step paint correction + interior': 'full',
+  'one-step paint correction and interior': 'full',
   'wash & shine': 'wash',
   'essential detail': 'essential',
   'full detail': 'full',
@@ -194,23 +193,35 @@ function applyRichPrice(base, zip) {
 
 function getLengthPrice(cat, pkgId, ft) {
   const cfg = LENGTH_PRICING[cat];
-  if (!cfg || !cfg.packages[pkgId]) return null;
-  const rule = cfg.packages[pkgId];
+  if (!cfg) return null;
+  let id = pkgId;
+  if (cat === 'rvs') {
+    const legacy = { exterior: 'maint_light', correction: 'premium', correction_int: 'full' };
+    if (legacy[id]) id = legacy[id];
+  }
+  if (!cfg.packages[id]) return null;
+  const rule = cfg.packages[id];
   return Math.max(rule.min, Math.round(rule.perFt * Number(ft || cfg.defaultFt)));
 }
 
 function inferPkgId(vehicle, booking) {
-  if (vehicle.pkgId) return vehicle.pkgId;
+  if (vehicle.pkgId) {
+    const legacy = { exterior: 'maint_light', correction: 'premium', correction_int: 'full' };
+    const cat = vehicle.cat || booking?.vehicleCategory;
+    if (cat === 'rvs' && legacy[vehicle.pkgId]) return legacy[vehicle.pkgId];
+    return vehicle.pkgId;
+  }
   const name = String(vehicle.pkgName || booking.package || '').trim().toLowerCase();
   if (PKG_ID_ALIASES[name]) return PKG_ID_ALIASES[name];
   const cat = vehicle.cat || booking.vehicleCategory;
   const pkgs = PRICING[cat];
   if (!pkgs) return null;
-  if (name.includes('correction') && name.includes('interior')) return 'correction_int';
-  if (name.includes('paint correction') || name.includes('one-step paint')) return 'correction';
+  if (name.includes('light interior') || name.includes('maint_light')) return 'maint_light';
+  if (name.includes('correction') && name.includes('interior')) return 'full';
+  if (name.includes('paint correction') || name.includes('one-step paint')) return 'premium';
   if (name.includes('premium complete')) return 'full';
-  if (name.includes('wash & protect') || name.includes('wash and protect')) return 'exterior';
-  for (const key of ['maint', 'interior', 'full', 'premium', 'essential', 'exterior', 'wash', 'custom', 'correction']) {
+  if (name.includes('wash & protect') || name.includes('wash and protect')) return 'maint_light';
+  for (const key of ['maint_light', 'maint', 'interior', 'full', 'premium', 'essential', 'wash', 'custom']) {
     if (name.includes(key.replace('_', ' '))) return key;
   }
   return null;

@@ -120,7 +120,7 @@ test('canonical launcher exists on specialty bridge', () => {
 test('package IDs and prices remain unchanged for specialty catalogs', () => {
   const html = read('index.html');
   assert.match(html, /boats:[\s\S]*?id:\s*['"]maint['"]/);
-  assert.match(html, /rvs:[\s\S]*?id:\s*['"]exterior['"]/);
+  assert.match(html, /rvs:[\s\S]*?id:\s*['"]maint_light['"]/);
   assert.match(html, /powersports:[\s\S]*?id:\s*['"]wash['"]/);
   assert.match(html, /PRICE_PER_FOOT|LENGTH_PRICING/);
 });

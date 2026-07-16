@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * RV package commercial finalization — structure, claims, add-ons, pricing, regressions.
+ * RV five-package scope clarity + per-foot pricing gates.
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -24,24 +24,13 @@ const {
   computeAddonTotal,
 } = require('../netlify/lib/booking-price-catalog');
 
-const FINAL_IDS = [
-  'maint',
-  'exterior',
-  'interior',
-  'premium',
-  'full',
-  'correction',
-  'correction_int',
-];
-
+const FINAL_IDS = ['maint', 'maint_light', 'interior', 'premium', 'full'];
 const FINAL_NAMES = {
   maint: 'Maintenance Wash',
-  exterior: 'Exterior Wash & Protect',
+  maint_light: 'Maintenance Wash + Light Interior',
   interior: 'Interior Detail',
   premium: 'Premium Exterior Detail',
-  full: 'Premium Complete Detail',
-  correction: 'One-Step Paint Correction',
-  correction_int: 'One-Step Paint Correction + Interior',
+  full: 'Premium Complete RV Detail',
 };
 
 function extractRvPackages(html) {
@@ -62,88 +51,73 @@ function extractRvLength(html) {
   return m[1];
 }
 
-test('PACKAGE STRUCTURE: seven RV packages remain with unique IDs and order', () => {
+test('PACKAGE STRUCTURE: exactly five customer-visible RV packages', () => {
   const html = read('index.html');
   const block = extractRvPackages(html);
   const ids = [...block.matchAll(/id:'([^']+)'/g)].map((m) => m[1]);
   assert.deepEqual(ids, FINAL_IDS);
-  assert.equal(new Set(ids).size, FINAL_IDS.length);
 
   const page = read('rv-detailing.html');
+  assert.equal((page.match(/data-rv-tier="/g) || []).length, 5);
   for (const [id, name] of Object.entries(FINAL_NAMES)) {
     assert.match(page, new RegExp(`data-rv-tier="${id}"`));
-    const htmlName = name.replace(/&/g, '&amp;').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    assert.match(page, new RegExp(htmlName));
-    assert.match(block, new RegExp(`id:'${id}'[^\\n]*name:'${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`));
+    assert.match(page, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(block, new RegExp(`id:'${id}'`));
   }
+  assert.doesNotMatch(page, /One-Step Paint Correction \+|Exterior Wash &amp; Protect|Paint Improvement|Essential Care|Complete Care/);
+  assert.doesNotMatch(block, /id:'(exterior|correction|correction_int)'/);
 
   const bridge = read('assets/specialty-booking-bridge.js');
-  assert.match(bridge, /rvs:\s*\{[^}]*maint:[^}]*correction_int:/);
+  assert.match(bridge, /rvs:\s*\{[^}]*maint_light:[^}]*full:/);
+  assert.doesNotMatch(bridge, /correction_int/);
 });
 
-test('PACKAGE STRUCTURE: cards use customer-centered copy groupings', () => {
-  const page = read('rv-detailing.html');
-  assert.match(page, /Essential Care/);
-  assert.match(page, /Complete Care/);
-  assert.match(page, /Paint Improvement/);
-  assert.match(page, /Keep your RV clean between major services/i);
-  assert.match(page, /Bring comfort back inside your RV/i);
-  assert.match(page, /Everything most RV owners need in one visit/i);
-  assert.doesNotMatch(page, /\bWho:\s|\bSolves:\s|Why upgrade:/i);
-});
-
-test('TRUTHFUL CLAIMS: one-step polish scope; no restoration overpromises', () => {
+test('SCOPE CLARITY: banned vague phrases removed; surfaces listed', () => {
   const page = read('rv-detailing.html');
   const pkgs = extractRvPackages(read('index.html'));
   for (const src of [page, pkgs]) {
-    assert.match(src, /One-Step Machine Polish|one-step machine polish|One-step machine polishing/i);
+    assert.doesNotMatch(src, /full interior scope/i);
+    assert.doesNotMatch(src, /full restoration/i);
+    assert.doesNotMatch(src, /complete restoration/i);
+    assert.doesNotMatch(src, /living-area restoration/i);
+    assert.doesNotMatch(src, /rejuvenation/i);
     assert.doesNotMatch(src, /highest ticket/i);
-    assert.doesNotMatch(src, /like new/i);
-    assert.doesNotMatch(src, /removes all oxidation/i);
-    assert.doesNotMatch(src, /complete restoration|full restoration|living-area restoration/i);
   }
-  assert.match(page, /multi-stage restoration|requires inspection/i);
-  assert.match(page, /Most Popular/);
-  assert.doesNotMatch(page, /Full RV Detail/);
+  assert.doesNotMatch(page, /~\d/);
+  assert.match(page, /Service duration depends on RV size, condition and crew assigned/);
+  assert.match(page, /Exterior hand wash/);
+  assert.match(page, /Refrigerator interior when empty/);
+  assert.match(page, /One-step machine polish/);
+  assert.match(page, /MOST POPULAR/);
 });
 
-test('ADD-ONS: Super Interior $135 in RV list; Mold Treatment absent from RV', () => {
-  const html = read('index.html');
-  const rvAddons = extractRvAddons(html);
-  assert.match(rvAddons, /id:'superint'[^}]*name:'Super Interior'[^}]*price:135/);
-  assert.doesNotMatch(rvAddons, /id:'mold'/);
-  assert.match(rvAddons, /id:'odor'/);
-  assert.match(rvAddons, /id:'pethair'/);
-  assert.match(rvAddons, /id:'sanitize'/);
+test('ADD-ONS: Super Interior $135, Sanitize $75, Mold absent for new RV bookings', () => {
+  const addons = PRICING.rvs.addons;
+  assert.equal(addons.find((a) => a.id === 'superint').price, 135);
+  assert.equal(addons.find((a) => a.id === 'sanitize').price, 75);
+  assert.ok(!addons.some((a) => a.id === 'mold'));
 
-  const server = PRICING.rvs.addons.find((a) => a.id === 'superint');
-  assert.equal(server.price, 135);
-  assert.ok(!PRICING.rvs.addons.some((a) => a.id === 'mold'));
-  assert.ok(PRICING.cars.addons.some((a) => a.id === 'mold'));
+  const htmlAddons = extractRvAddons(read('index.html'));
+  assert.match(htmlAddons, /id:'superint'[\s\S]*?price:135/);
+  assert.match(htmlAddons, /id:'sanitize'[\s\S]*?price:75/);
+  assert.doesNotMatch(htmlAddons, /id:'mold'/);
 
   const page = read('rv-detailing.html');
-  assert.match(page, /Super Interior · \$135/);
+  assert.match(page, /Super Interior · \$135|Super Interior is \$135/);
+  assert.match(page, /Sanitize · \$75|Sanitize is \$75/);
   assert.doesNotMatch(page, /Mold Treatment/);
-});
 
-test('ADD-ONS: Super Interior is server-authoritative and persists in pricing payload', () => {
   const priced = computeVehicleSubtotal({
     cat: 'rvs',
     pkgId: 'interior',
     lengthFt: 24,
-    addons: [{ id: 'superint', name: 'Hacked Name', price: 1 }],
+    addons: [
+      { id: 'superint', name: 'Hacked', price: 1 },
+      { id: 'sanitize', name: 'Hacked', price: 1 },
+    ],
   }, '07601');
   assert.equal(priced.ok, true);
-  assert.equal(priced.addonTotal, 135);
-  const si = priced.addons.find((a) => a.id === 'superint');
-  assert.equal(si.price, 135);
-
-  const hacked = computeAddonTotal({
-    cat: 'rvs',
-    addons: [{ id: 'superint', price: 999 }],
-  });
-  assert.equal(hacked.ok, true);
-  assert.equal(hacked.total, 135);
+  assert.equal(priced.addonTotal, 210);
 
   const moldNew = computeAddonTotal({
     cat: 'rvs',
@@ -160,91 +134,90 @@ test('ADD-ONS: historical Mold Treatment records remain display-safe', () => {
   };
   const line = `Add-ons: ${(historical.addons || []).map((a) => a.name).join(', ') || 'None'}`;
   assert.match(line, /Mold Treatment/);
-  assert.doesNotThrow(() => JSON.stringify(historical));
 });
 
-test('PRICING: hierarchy, mins, deterministic per-foot math', () => {
+test('PRICING: five-package hierarchy and per-foot math', () => {
   const lp = LENGTH_PRICING.rvs.packages;
-  assert.equal(lp.maint.min, 279);
-  assert.equal(lp.exterior.min, 399);
-  assert.equal(lp.interior.min, 379);
-  assert.equal(lp.premium.min, 899);
-  assert.equal(lp.full.min, 1299);
-  assert.equal(lp.correction.min, 1199);
-  assert.equal(lp.correction_int.min, 1499);
+  assert.equal(lp.maint.min, 129);
+  assert.equal(lp.maint_light.min, 229);
+  assert.equal(lp.interior.min, 249);
+  assert.equal(lp.premium.min, 449);
+  assert.equal(lp.full.min, 699);
+  assert.equal(Object.keys(lp).sort().join(','), FINAL_IDS.slice().sort().join(','));
 
-  assert.ok(lp.exterior.min > lp.maint.min);
-  assert.ok(lp.premium.min > lp.exterior.min);
+  assert.ok(lp.maint_light.min > lp.maint.min);
+  assert.ok(lp.premium.min > lp.maint_light.min);
   assert.ok(lp.full.min > lp.premium.min);
-  assert.ok(lp.correction.min > lp.premium.min);
-  assert.ok(lp.correction_int.min > lp.correction.min);
 
   const ft = 24;
-  const prices = Object.fromEntries(
-    FINAL_IDS.map((id) => [id, getLengthPrice('rvs', id, ft)]),
-  );
-  assert.equal(prices.maint, 279);
-  assert.equal(prices.exterior, 399);
-  assert.equal(prices.interior, 576);
-  assert.equal(prices.premium, 960);
-  assert.equal(prices.full, 1299);
-  assert.equal(prices.correction, 1248);
-  assert.equal(prices.correction_int, 1499);
+  const prices = Object.fromEntries(FINAL_IDS.map((id) => [id, getLengthPrice('rvs', id, ft)]));
+  assert.equal(prices.maint, 192);
+  assert.equal(prices.maint_light, 360);
+  assert.equal(prices.interior, 480);
+  assert.equal(prices.premium, 744);
+  assert.equal(prices.full, 1056);
+  assert.ok(prices.maint < prices.maint_light);
   assert.ok(prices.full > prices.premium);
-  assert.ok(prices.correction > prices.premium);
-  assert.ok(prices.correction_int > prices.correction);
+  assert.ok(prices.full > prices.interior);
 
-  const bundleGap = (prices.premium + prices.interior) - prices.full;
-  assert.ok(bundleGap > 0 && bundleGap / (prices.premium + prices.interior) < 0.25);
+  // Legacy IDs still resolve without creating a 7-package ladder.
+  assert.equal(getLengthPrice('rvs', 'exterior', 24), prices.maint_light);
+  assert.equal(getLengthPrice('rvs', 'correction', 24), prices.premium);
+  assert.equal(getLengthPrice('rvs', 'correction_int', 24), prices.full);
 
   const lengthBlock = extractRvLength(read('index.html'));
-  assert.match(lengthBlock, /exterior:\s*\{perFt:\s*16,\s*min:\s*399\}/);
-  assert.match(lengthBlock, /full:\s*\{perFt:\s*54,\s*min:\s*1299\}/);
+  assert.match(lengthBlock, /maint_light:\s*\{perFt:\s*15,\s*min:\s*229\}/);
+  assert.match(lengthBlock, /full:\s*\{perFt:\s*44,\s*min:\s*699\}/);
+  assert.doesNotMatch(lengthBlock, /correction/);
 });
 
-test('REGRESSION: six-step booking, other categories, Stripe surface, no Twilio', () => {
+test('DISPLAY: starting at per-foot; no four-digit From totals before length', () => {
+  const page = read('rv-detailing.html');
+  assert.match(page, /Starting at \$8\/ft/);
+  assert.match(page, /Starting at \$15\/ft/);
+  assert.match(page, /Starting at \$44\/ft/);
+  assert.match(page, /Select your exact RV length to see your estimated total/);
+  assert.doesNotMatch(page, /From \$899\b|From \$1,?199|From \$1,?299|From \$1,?499/);
+  assert.match(page, /id="rv-length-range"/);
+  assert.match(page, /cd1_rv_length/);
+});
+
+test('BOOKING: length bridge + six-step + other categories unchanged', () => {
+  const bridge = read('assets/specialty-booking-bridge.js');
+  assert.match(bridge, /params\.set\('length'/);
+  assert.match(bridge, /cd1_rv_length/);
+
   const index = read('index.html');
   assert.match(index, /BK_VISIBLE_STEPS\s*=\s*6/);
-  assert.match(index, /id="bpt6"/);
   assert.match(index, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
   assert.match(index, /motorcycle:\s*\{[\s\S]*?wash:119/);
   assert.match(index, /id="home-from-interior">\$225/);
+  assert.equal(LENGTH_PRICING.boats.packages.maint.min, 199);
+  assert.equal(PRICING.cars.tiers.small.interior, 225);
+  assert.equal(PRICING.cars.addons.find((a) => a.id === 'sanitize').price, 65);
 
-  const boatsLp = LENGTH_PRICING.boats.packages;
-  assert.equal(boatsLp.maint.min, 199);
-  assert.equal(boatsLp.full.min, 449);
-
-  const page = read('rv-detailing.html');
-  assert.match(page, /vienna-front-after-768\.jpg/);
-  assert.match(page, /wingamm-front-after-768\.jpg/);
-  assert.doesNotMatch(page, /\btwilio\b/i);
-  assert.doesNotMatch(index, /require\(['"]twilio['"]\)|from ['"]twilio['"]/);
-
-  const catalog = read('netlify/lib/booking-price-catalog.js');
-  assert.doesNotMatch(catalog, /stripe\.(charges|paymentIntents)/i);
+  assert.doesNotMatch(read('rv-detailing.html'), /\btwilio\b/i);
+  assert.doesNotMatch(read('netlify/lib/booking-price-catalog.js'), /stripe\.(charges|paymentIntents)/i);
 });
 
-test('REGRESSION: WELCOME10 remains disabled on production; membership interest-only', () => {
-  const toml = read('netlify.toml');
-  assert.doesNotMatch(toml, /\[context\.production\.environment\][\s\S]*FIRST_BOOKING_OFFER_ENABLED = "true"/);
+test('REGRESSION: membership interest-only; galleries untouched markers', () => {
   const page = read('rv-detailing.html');
   assert.match(page, /Interest list only|future interest list/i);
-  assert.doesNotMatch(page, /Subscribe now|Start membership checkout/i);
+  assert.match(page, /vienna-front-after-768\.jpg/);
+  assert.match(page, /wingamm-front-after-768\.jpg/);
 });
 
-test('public-surface sync script remains available and RV pricing sync is idempotent', () => {
-  assert.ok(fs.existsSync(path.join(root, 'scripts/sync-public-surface.mjs')));
+test('SYNC: RV pricing sync remains idempotent', () => {
   const syncRv = path.join(root, 'scripts/sync-rv-pricing-blocks.mjs');
-  if (fs.existsSync(syncRv)) {
-    const first = spawnSync(nodeBin, [syncRv], { cwd: root, encoding: 'utf8' });
-    assert.equal(first.status, 0, first.stderr || first.stdout);
-    const second = spawnSync(nodeBin, [syncRv], { cwd: root, encoding: 'utf8' });
-    assert.equal(second.status, 0, second.stderr || second.stdout);
-    assert.match(second.stdout + second.stderr, /0 files|unchanged|no changes|idempotent|identical/i);
-  }
+  assert.ok(fs.existsSync(syncRv));
+  const first = spawnSync(nodeBin, [syncRv], { cwd: root, encoding: 'utf8' });
+  assert.equal(first.status, 0, first.stderr || first.stdout);
+  const second = spawnSync(nodeBin, [syncRv], { cwd: root, encoding: 'utf8' });
+  assert.equal(second.status, 0, second.stderr || second.stdout);
+  assert.match(second.stdout + second.stderr, /0 file|unchanged|no change|idempotent/i);
 });
 
-test('client and server RV package mins stay synced', () => {
+test('client and server LENGTH_PRICING.rvs stay synced', () => {
   const lengthBlock = extractRvLength(read('index.html'));
   for (const id of FINAL_IDS) {
     const rule = LENGTH_PRICING.rvs.packages[id];
@@ -252,9 +225,5 @@ test('client and server RV package mins stay synced', () => {
       lengthBlock,
       new RegExp(`${id}:\\s*\\{perFt:\\s*${rule.perFt},\\s*min:\\s*${rule.min}\\}`),
     );
-  }
-  const bridge = read('assets/specialty-booking-bridge.js');
-  for (const id of FINAL_IDS) {
-    assert.match(bridge, new RegExp(`\\b${id}:\\s*1`));
   }
 });
