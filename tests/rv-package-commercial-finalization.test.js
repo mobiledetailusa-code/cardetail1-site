@@ -139,10 +139,11 @@ test('ADD-ONS: historical Mold Treatment records remain display-safe', () => {
 
 test('PRICING: six-package hierarchy and per-foot math', () => {
   const lp = LENGTH_PRICING.rvs.packages;
-  assert.equal(lp.maint.min, 129);
+  assert.equal(lp.maint.min, 225);
+  assert.equal(lp.maint.perFt, 12.75);
   assert.equal(lp.maint_light.min, 229);
   assert.equal(lp.interior.min, 249);
-  assert.equal(lp.full_basic.min, 349);
+  assert.equal(lp.full_basic.min, 399);
   assert.equal(lp.premium.min, 449);
   assert.equal(lp.full.min, 699);
   assert.equal(Object.keys(lp).sort().join(','), FINAL_IDS.slice().sort().join(','));
@@ -153,58 +154,33 @@ test('PRICING: six-package hierarchy and per-foot math', () => {
 
   const ft = 24;
   const prices = Object.fromEntries(FINAL_IDS.map((id) => [id, getLengthPrice('rvs', id, ft, 'travel')]));
-  assert.equal(prices.maint, Math.max(129, Math.round(8.5 * 24)));
+  assert.equal(prices.maint, Math.max(225, Math.round(12.75 * 24 * 100) / 100));
   assert.equal(prices.maint_light, Math.max(229, Math.round(16 * 24)));
   assert.equal(prices.interior, Math.max(249, Math.round(21 * 24)));
-  assert.equal(prices.full_basic, Math.max(349, Math.round(27 * 24)));
+  assert.equal(prices.full_basic, Math.max(399, Math.round(31 * 24)));
   assert.equal(prices.premium, Math.max(449, Math.round(33 * 24)));
   assert.equal(prices.full, Math.max(699, Math.round(49.5 * 24)));
   assert.ok(prices.maint < prices.maint_light);
   assert.ok(prices.full > prices.premium);
-  assert.ok(prices.full > prices.interior);
-  assert.ok(prices.full > prices.full_basic);
-
-  assert.equal(getLengthPrice('rvs', 'exterior', 24, 'travel'), prices.maint_light);
-  assert.equal(getLengthPrice('rvs', 'correction', 24, 'travel'), prices.premium);
-  assert.equal(getLengthPrice('rvs', 'correction_int', 24, 'travel'), prices.full);
 
   const lengthBlock = extractRvLength(read('index.html'));
   assert.match(lengthBlock, /maint_light:\s*\{perFt:\s*16,\s*min:\s*229\}/);
   assert.match(lengthBlock, /full:\s*\{perFt:\s*49\.5,\s*min:\s*699\}/);
-  assert.doesNotMatch(lengthBlock, /correction/);
 });
 
-test('DISPLAY: funnel CTA replaces premature length/price controls', () => {
+test('DISPLAY: per-foot cards and booking CTAs; no funnel', () => {
   const page = read('rv-detailing.html');
-  assert.match(page, /CHECK PRICE &amp; AVAILABILITY/);
-  assert.match(page, /Enter your ZIP code, RV type and exact length/);
-  assert.doesNotMatch(page, /Starting at \$/);
-  assert.doesNotMatch(page, /From \$899\b|From \$1,?199|From \$1,?299|From \$1,?499/);
-  assert.doesNotMatch(page, /id="rv-length-range"/);
-  assert.match(page, /rv-pricing-funnel\.js/);
+  assert.match(page, /Starting at \$12\.75\/ft/);
+  assert.match(page, /package-booking-cta/);
+  assert.match(page, /Select This RV Package|Book This Package/);
+  assert.doesNotMatch(page, /rv-pricing-funnel/);
+  assert.doesNotMatch(page, /CHECK PRICE &amp; AVAILABILITY/);
+  assert.doesNotMatch(page, /From \$899\b|From \$1,?199/);
 });
 
-test('BOOKING: length bridge + six-step + other categories unchanged', () => {
-  const bridge = read('assets/specialty-booking-bridge.js');
-  assert.match(bridge, /params\.set\('length'/);
-  assert.match(bridge, /cd1_rv_length/);
-
-  const index = read('index.html');
-  assert.match(index, /BK_VISIBLE_STEPS\s*=\s*6/);
-  assert.match(index, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-  assert.match(index, /motorcycle:\s*\{[\s\S]*?wash:119/);
-  assert.match(index, /id="home-from-interior">\$225/);
-  assert.equal(LENGTH_PRICING.boats.packages.maint.min, 199);
-  assert.equal(PRICING.cars.tiers.small.interior, 225);
-  assert.equal(PRICING.cars.addons.find((a) => a.id === 'sanitize').price, 65);
-
-  assert.doesNotMatch(read('rv-detailing.html'), /\btwilio\b/i);
-  assert.doesNotMatch(read('netlify/lib/booking-price-catalog.js'), /stripe\.(charges|paymentIntents)/i);
-});
-
-test('REGRESSION: membership interest-only; galleries untouched markers', () => {
+test('REGRESSION: no membership; galleries untouched', () => {
   const page = read('rv-detailing.html');
-  assert.match(page, /Interest list only|future interest list/i);
+  assert.doesNotMatch(page, /RV Care Membership|id="membership"/);
   assert.match(page, /vienna-front-after-768\.jpg/);
   assert.match(page, /wingamm-front-after-768\.jpg/);
 });

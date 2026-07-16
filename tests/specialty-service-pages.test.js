@@ -586,12 +586,12 @@ describe('pricing catalog unchanged for specialty packages', () => {
     assert.match(html, /full:\s*\{perFt:\s*30,\s*min:\s*449\}/);
     assert.match(html, /premium:\s*\{perFt:\s*38,\s*min:\s*699\}/);
   });
-  it('LENGTH_PRICING rv mins match six-package funnel ladder', () => {
+  it('LENGTH_PRICING rv mins match Preview104 commercial ladder', () => {
     const html = read('index.html');
-    assert.match(html, /rvs:\s*\{[\s\S]*?maint:\s*\{perFt:\s*8\.5,\s*min:\s*129\}/);
+    assert.match(html, /rvs:\s*\{[\s\S]*?maint:\s*\{perFt:\s*12\.75,\s*min:\s*225\}/);
     assert.match(html, /maint_light:\s*\{perFt:\s*16,\s*min:\s*229\}/);
     assert.match(html, /interior:\s*\{perFt:\s*21,\s*min:\s*249\}/);
-    assert.match(html, /full_basic:\s*\{perFt:\s*27,\s*min:\s*349\}/);
+    assert.match(html, /full_basic:\s*\{perFt:\s*31,\s*min:\s*399\}/);
     assert.match(html, /premium:\s*\{perFt:\s*33,\s*min:\s*449\}/);
     assert.match(html, /full:\s*\{perFt:\s*49\.5,\s*min:\s*699\}/);
     assert.doesNotMatch(html, /rvs:[\s\S]*?correction:\s*\{perFt:/);
