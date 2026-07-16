@@ -224,6 +224,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/revops-dashboard.js',
     'netlify/functions/qa-opscore-lifecycle.js',
     'netlify/lib/booking-price-catalog.js',
+    'netlify/lib/rv-type-catalog.js',
+    'netlify/lib/travel-fee.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);
@@ -241,7 +243,7 @@ test('LENGTH_PRICING formulas (boat maint min 199, rv maint_light min 229)', () 
   const html = read('index.html');
   assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
   assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{perFt:\s*16,\s*min:\s*229\}/);
-  assert.match(html, /rvs:[\s\S]*?maint:\s*\{perFt:\s*8\.5,\s*min:\s*129\}/);
+  assert.match(html, /rvs:[\s\S]*?maint:\s*\{perFt:\s*12\.75,\s*min:\s*225\}/);
   assert.match(html, /rvs:[\s\S]*?full:\s*\{perFt:\s*49\.5,\s*min:\s*699\}/);
 });
 

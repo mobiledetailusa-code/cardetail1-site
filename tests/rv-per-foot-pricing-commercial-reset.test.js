@@ -36,7 +36,7 @@ test('every supported length uses exact ft × perFt with package min', () => {
       const rule = cfg.packages[id];
       assert.equal(
         getLengthPrice('rvs', id, ft, 'travel'),
-        Math.max(rule.min, Math.round(rule.perFt * ft)),
+        Math.max(rule.min, Math.round(rule.perFt * ft * 100) / 100),
       );
     }
   }
@@ -48,7 +48,7 @@ test('no double-count: price is not min + perFt*(ft-24)', () => {
   for (const id of PKG_IDS) {
     const rule = LENGTH_PRICING.rvs.packages[id];
     const ft = 30;
-    const expected = Math.max(rule.min, Math.round(rule.perFt * ft));
+    const expected = Math.max(rule.min, Math.round(rule.perFt * ft * 100) / 100);
     assert.equal(getLengthPrice('rvs', id, ft, 'travel'), expected);
     assert.notEqual(getLengthPrice('rvs', id, ft, 'travel'), rule.min + Math.round(rule.perFt * (ft - 24)));
   }
@@ -62,12 +62,13 @@ test('Super Interior $135; Sanitize $75; Mold absent', () => {
   assert.equal(computeAddonTotal({ cat: 'rvs', addons: [{ id: 'sanitize' }] }).total, 75);
 });
 
-test('public page: no premature ruler/prices; six packages; funnel CTA', () => {
+test('public page: per-foot cards; six packages; booking CTAs; no funnel', () => {
   const page = read('rv-detailing.html');
-  assert.doesNotMatch(page, /Starting at \$|id="rv-length-range"/);
+  assert.match(page, /Starting at \$12\.75\/ft/);
   assert.doesNotMatch(page, /From \$899\b|From \$1,?299|From \$1,?499/);
   assert.equal((page.match(/data-rv-tier="/g) || []).length, 6);
-  assert.match(page, /CHECK PRICE &amp; AVAILABILITY/);
+  assert.match(page, /package-booking-cta/);
+  assert.doesNotMatch(page, /CHECK PRICE &amp; AVAILABILITY|rv-pricing-funnel/);
   assert.match(page, /Maintenance Wash \+ Light Interior/);
   assert.match(page, /Full RV Detail/);
   assert.match(page, /Premium Complete RV Detail/);
@@ -79,7 +80,7 @@ test('frontend formula matches backend; manipulated addon prices rejected', () =
   for (const id of PKG_IDS) {
     const front = Math.max(
       LENGTH_PRICING.rvs.packages[id].min,
-      Math.round(LENGTH_PRICING.rvs.packages[id].perFt * ft),
+      Math.round(LENGTH_PRICING.rvs.packages[id].perFt * ft * 100) / 100,
     );
     assert.equal(getLengthPrice('rvs', id, ft, 'travel'), front);
     const total = computeVehicleSubtotal({

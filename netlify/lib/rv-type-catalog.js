@@ -1,5 +1,5 @@
 /**
- * RV type catalog + funnel pricing helpers.
+ * RV type catalog — explicit per-foot rates (no blanket bump).
  * Travel fees come only from travel-fee.js (authoritative mileage table).
  */
 'use strict';
@@ -35,15 +35,25 @@ const RV_TYPES = {
     packages: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
     notes: 'Large motorhomes — access and height reviewed upfront',
   },
-  classBC: {
-    id: 'classBC',
-    label: 'Class B / Class C Motorhome',
-    multiplier: 1.1,
+  classB: {
+    id: 'classB',
+    label: 'Class B Motorhome',
+    multiplier: 1.08,
     minFt: 16,
+    maxFt: 28,
+    livingQuarters: true,
+    packages: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    notes: 'Camper vans and Class B coaches',
+  },
+  classC: {
+    id: 'classC',
+    label: 'Class C Motorhome',
+    multiplier: 1.1,
+    minFt: 18,
     maxFt: 35,
     livingQuarters: true,
     packages: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
-    notes: 'Class B vans and Class C coaches',
+    notes: 'Class C coaches with cab-over bunk',
   },
   airstream: {
     id: 'airstream',
@@ -56,9 +66,9 @@ const RV_TYPES = {
     notes: 'Polished aluminum may require inspection before polish scope',
     surfaceAware: true,
   },
-  specialty: {
-    id: 'specialty',
-    label: 'Cargo, Horse or Custom Trailer',
+  cargo: {
+    id: 'cargo',
+    label: 'Cargo Trailer',
     multiplier: 1.0,
     minFt: 12,
     maxFt: 45,
@@ -67,47 +77,45 @@ const RV_TYPES = {
     packagesLiving: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
     notes: 'Finished living quarters required for residential interior packages',
   },
+  horse: {
+    id: 'horse',
+    label: 'Horse Trailer',
+    multiplier: 1.0,
+    minFt: 12,
+    maxFt: 45,
+    livingQuarters: 'ask',
+    packagesExterior: ['maint', 'premium'],
+    packagesLiving: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    notes: 'Living-quarters horse trailers only for interior packages',
+  },
+  other: {
+    id: 'other',
+    label: 'Other RV / Custom Trailer',
+    multiplier: 1.0,
+    minFt: 12,
+    maxFt: 45,
+    livingQuarters: 'ask',
+    packagesExterior: ['maint', 'premium'],
+    packagesLiving: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    notes: 'Tell us about your unit — scope confirmed before service',
+  },
 };
 
-/** Pre-7% authoritative per-foot rates (commercial reset baseline). */
-const RV_RATE_BASELINE = {
-  maint: 8,
-  maint_light: 15,
-  interior: 20,
-  premium: 31,
-  full: 44,
-};
-
-function bumpPerFtRate(oldRate) {
-  const maxAllowed = Number(oldRate) * 1.07;
-  let candidate = Math.round(Number(oldRate) * 1.07 * 2) / 2;
-  if (candidate > maxAllowed + 1e-9) candidate = Math.floor(maxAllowed * 2) / 2;
-  return candidate;
-}
-
-function roundHalfDown(n) {
-  return Math.floor(Number(n) * 2) / 2;
-}
-
+/** Authoritative per-foot rates (commercial final). */
 const ADJUSTED_RATES = {
-  maint: bumpPerFtRate(RV_RATE_BASELINE.maint),
-  maint_light: bumpPerFtRate(RV_RATE_BASELINE.maint_light),
-  interior: bumpPerFtRate(RV_RATE_BASELINE.interior),
-  premium: bumpPerFtRate(RV_RATE_BASELINE.premium),
+  maint: 12.75,
+  maint_light: 16,
+  interior: 21,
+  full_basic: 31,
+  premium: 33,
+  full: 49.5,
 };
-
-ADJUSTED_RATES.full_basic = roundHalfDown(
-  (ADJUSTED_RATES.maint + ADJUSTED_RATES.interior) * 0.92,
-);
-ADJUSTED_RATES.full = roundHalfDown(
-  (ADJUSTED_RATES.premium + ADJUSTED_RATES.interior) * 0.92,
-);
 
 const RV_PACKAGE_META = {
   maint: {
     id: 'maint',
     name: 'Maintenance Wash',
-    group: 'exterior',
+    group: 'outside',
     badge: null,
     subtitle: 'Exterior maintenance with quick machine-applied protection.',
   },
@@ -121,7 +129,7 @@ const RV_PACKAGE_META = {
   interior: {
     id: 'interior',
     name: 'Interior Detail',
-    group: 'interior',
+    group: 'inside',
     badge: null,
     subtitle: 'Complete interior cleaning from the driver cabin to the living area.',
   },
@@ -135,14 +143,14 @@ const RV_PACKAGE_META = {
   premium: {
     id: 'premium',
     name: 'Premium Exterior Detail',
-    group: 'premium',
+    group: 'outside',
     badge: null,
     subtitle: 'One-Step Machine Polish + Premium Protection',
   },
   full: {
     id: 'full',
     name: 'Premium Complete RV Detail',
-    group: 'premium',
+    group: 'inside_out',
     badge: 'BEST FINISH',
     subtitle: 'One-Step Exterior Polish + Complete Interior Detail',
   },
@@ -151,20 +159,23 @@ const RV_PACKAGE_META = {
 function eligiblePackagesForType(typeKey, livingQuarters) {
   const t = RV_TYPES[typeKey];
   if (!t) return [];
-  if (typeKey === 'specialty') {
-    if (livingQuarters === true || livingQuarters === 'yes') return t.packagesLiving.slice();
-    return t.packagesExterior.slice();
-  }
-  return t.packages.slice();
+  if (t.packages) return t.packages.slice();
+  const hasLiving = livingQuarters === true || livingQuarters === 'yes';
+  if (hasLiving) return (t.packagesLiving || []).slice();
+  return (t.packagesExterior || []).slice();
 }
 
 function rateIncreasePct(oldRate, newRate) {
   return ((newRate - oldRate) / oldRate) * 100;
 }
 
+/** @deprecated legacy alias — rates are explicit in ADJUSTED_RATES */
+function bumpPerFtRate(oldRate) {
+  return Number(oldRate);
+}
+
 module.exports = {
   RV_TYPES,
-  RV_RATE_BASELINE,
   ADJUSTED_RATES,
   RV_PACKAGE_META,
   bumpPerFtRate,
