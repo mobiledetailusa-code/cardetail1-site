@@ -26,7 +26,7 @@ const {
 
 const PKG_IDS = ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
 
-test('every supported length uses exact ft × perFt with package min', () => {
+test('every supported length uses base + ratePerFoot (no min)', () => {
   const cfg = LENGTH_PRICING.rvs;
   assert.equal(cfg.min, 12);
   assert.equal(cfg.max, 45);
@@ -34,23 +34,22 @@ test('every supported length uses exact ft × perFt with package min', () => {
   for (let ft = cfg.min; ft <= cfg.max; ft += 1) {
     for (const id of PKG_IDS) {
       const rule = cfg.packages[id];
-      assert.equal(
-        getLengthPrice('rvs', id, ft, 'travel'),
-        Math.max(rule.min, Math.round(rule.perFt * ft * 100) / 100),
-      );
+      const expected = Math.round((rule.base + rule.ratePerFoot * ft) * 100) / 100;
+      assert.equal(getLengthPrice('rvs', id, ft, 'travel'), expected);
     }
   }
   assert.ok(getLengthPrice('rvs', 'premium', 20) < getLengthPrice('rvs', 'premium', 24));
   assert.notEqual(getLengthPrice('rvs', 'maint_light', 20), getLengthPrice('rvs', 'maint_light', 24));
 });
 
-test('no double-count: price is not min + perFt*(ft-24)', () => {
+test('no legacy min + perFt-only double-count', () => {
   for (const id of PKG_IDS) {
     const rule = LENGTH_PRICING.rvs.packages[id];
     const ft = 30;
-    const expected = Math.max(rule.min, Math.round(rule.perFt * ft * 100) / 100);
+    const expected = Math.round((rule.base + rule.ratePerFoot * ft) * 100) / 100;
     assert.equal(getLengthPrice('rvs', id, ft, 'travel'), expected);
-    assert.notEqual(getLengthPrice('rvs', id, ft, 'travel'), rule.min + Math.round(rule.perFt * (ft - 24)));
+    assert.equal(rule.min, undefined);
+    assert.equal(rule.perFt, undefined);
   }
 });
 
@@ -62,9 +61,10 @@ test('Super Interior $135; Sanitize $75; Mold absent', () => {
   assert.equal(computeAddonTotal({ cat: 'rvs', addons: [{ id: 'sanitize' }] }).total, 75);
 });
 
-test('public page: per-foot cards; six packages; booking CTAs; no funnel', () => {
+test('public page: single-price cards; six packages; booking CTAs; no funnel', () => {
   const page = read('rv-detailing.html');
-  assert.match(page, /Starting at \$12\.75\/ft/);
+  assert.match(page, /Price calculated from your vehicle details/);
+  assert.doesNotMatch(page, /Starting at \$[\d.]+\/ft/);
   assert.doesNotMatch(page, /From \$899\b|From \$1,?299|From \$1,?499/);
   assert.equal((page.match(/data-rv-tier="/g) || []).length, 6);
   assert.match(page, /package-booking-cta/);
@@ -78,10 +78,8 @@ test('public page: per-foot cards; six packages; booking CTAs; no funnel', () =>
 test('frontend formula matches backend; manipulated addon prices rejected', () => {
   const ft = 22;
   for (const id of PKG_IDS) {
-    const front = Math.max(
-      LENGTH_PRICING.rvs.packages[id].min,
-      Math.round(LENGTH_PRICING.rvs.packages[id].perFt * ft * 100) / 100,
-    );
+    const rule = LENGTH_PRICING.rvs.packages[id];
+    const front = Math.round((rule.base + rule.ratePerFoot * ft) * 100) / 100;
     assert.equal(getLengthPrice('rvs', id, ft, 'travel'), front);
     const total = computeVehicleSubtotal({
       cat: 'rvs',

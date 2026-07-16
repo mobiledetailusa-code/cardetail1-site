@@ -35,12 +35,12 @@ const {
 
 const PKG_IDS = ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
 const RATES = {
-  maint: { perFt: 12.75, min: 225 },
-  maint_light: { perFt: 16, min: 229 },
-  interior: { perFt: 21, min: 249 },
-  full_basic: { perFt: 31, min: 399 },
-  premium: { perFt: 33, min: 449 },
-  full: { perFt: 49.5, min: 699 },
+  maint: { base: 150, ratePerFoot: 10 },
+  maint_light: { base: 250, ratePerFoot: 16 },
+  interior: { base: 250, ratePerFoot: 18 },
+  full_basic: { base: 300, ratePerFoot: 25 },
+  premium: { base: 300, ratePerFoot: 28 },
+  full: { base: 400, ratePerFoot: 36 },
 };
 
 function extractRvLength(html) {
@@ -80,8 +80,7 @@ test('compact tabbed packages with booking CTAs', () => {
   assert.match(page, /id="rv-panel-inside"/);
   assert.match(page, /id="rv-panel-both"/);
   assert.equal((page.match(/data-rv-tier="/g) || []).length, 6);
-  assert.match(page, /Starting at \$12\.75\/ft/);
-  assert.match(page, /Starting at \$31\/ft/);
+  assert.match(page, /Price calculated from your vehicle details/);
   assert.match(page, /MOST POPULAR/);
   assert.match(page, /BEST FINISH/);
   assert.match(page, /data-rv-tier="full_basic"[\s\S]*?MOST POPULAR/);
@@ -118,24 +117,23 @@ test('gallery unchanged', () => {
 test('authoritative LENGTH_PRICING.rvs rates', () => {
   for (const id of PKG_IDS) {
     const rule = LENGTH_PRICING.rvs.packages[id];
-    assert.equal(rule.perFt, RATES[id].perFt, id);
-    assert.equal(rule.min, RATES[id].min, id);
-    assert.equal(ADJUSTED_RATES[id], RATES[id].perFt, id);
+    assert.equal(rule.base, RATES[id].base, id);
+    assert.equal(rule.ratePerFoot, RATES[id].ratePerFoot, id);
+    assert.equal(ADJUSTED_RATES[id], RATES[id].ratePerFoot, id);
   }
-  assert.equal(12.75 * 19, 242.25);
-  assert.equal(getLengthPrice('rvs', 'maint', 19, 'travel'), 242.25);
+  assert.equal(getLengthPrice('rvs', 'maint', 19, 'travel'), 340);
 });
 
 test('client and server LENGTH_PRICING.rvs synced', () => {
   const block = extractRvLength(read('index.html'));
   for (const id of PKG_IDS) {
     const rule = LENGTH_PRICING.rvs.packages[id];
-    assert.match(block, new RegExp(`${id}:\\s*\\{perFt:\\s*${rule.perFt},\\s*min:\\s*${rule.min}\\}`));
+    assert.match(block, new RegExp(`${id}:\\s*\\{ base: ${rule.base}, ratePerFoot: ${rule.ratePerFoot} \\}`));
   }
 });
 
-test('full_basic formula uses maint+interior bundle', () => {
-  assert.equal(ADJUSTED_RATES.full_basic, 31);
+test('full_basic rate is bundle-efficient vs maint+interior per-ft sum', () => {
+  assert.equal(ADJUSTED_RATES.full_basic, 25);
   assert.ok(ADJUSTED_RATES.full_basic < ADJUSTED_RATES.maint + ADJUSTED_RATES.interior);
 });
 
@@ -171,7 +169,7 @@ test('index Vehicle step RV fields and no default length pricing', () => {
   assert.match(index, /Exact RV Length/);
   assert.match(index, /bs2-rv-note/);
   assert.match(index, /BK_VISIBLE_STEPS\s*=\s*6|bpt6|Step 06/);
-  assert.match(index, /From \$12\.75\/ft/);
+  assert.match(index, /Price calculated from your vehicle details/);
 });
 
 test('specialty bridge uses openCategoryPackageBooking only', () => {

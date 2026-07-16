@@ -18,7 +18,7 @@ const RV_TYPES = {
   fifthwheel: {
     id: 'fifthwheel',
     label: 'Fifth Wheel',
-    multiplier: 1.1,
+    multiplier: 1.0,
     minFt: 20,
     maxFt: 45,
     livingQuarters: true,
@@ -28,7 +28,7 @@ const RV_TYPES = {
   classA: {
     id: 'classA',
     label: 'Class A Motorhome',
-    multiplier: 1.15,
+    multiplier: 1.0,
     minFt: 24,
     maxFt: 45,
     livingQuarters: true,
@@ -38,7 +38,7 @@ const RV_TYPES = {
   classB: {
     id: 'classB',
     label: 'Class B Motorhome',
-    multiplier: 1.08,
+    multiplier: 1.0,
     minFt: 16,
     maxFt: 28,
     livingQuarters: true,
@@ -48,7 +48,7 @@ const RV_TYPES = {
   classC: {
     id: 'classC',
     label: 'Class C Motorhome',
-    multiplier: 1.1,
+    multiplier: 1.0,
     minFt: 18,
     maxFt: 35,
     livingQuarters: true,
@@ -58,7 +58,7 @@ const RV_TYPES = {
   airstream: {
     id: 'airstream',
     label: 'Airstream',
-    multiplier: 1.08,
+    multiplier: 1.0,
     minFt: 16,
     maxFt: 34,
     livingQuarters: true,
@@ -101,15 +101,30 @@ const RV_TYPES = {
   },
 };
 
-/** Authoritative per-foot rates (commercial final). */
-const ADJUSTED_RATES = {
-  maint: 12.75,
-  maint_light: 16,
-  interior: 21,
-  full_basic: 31,
-  premium: 33,
-  full: 49.5,
+/** Authoritative RV service price: base + exactLength × ratePerFoot (no mins, no blanket %). */
+const RV_RATE_TABLE = {
+  maint: { base: 150, ratePerFoot: 10 },
+  maint_light: { base: 250, ratePerFoot: 16 },
+  interior: { base: 250, ratePerFoot: 18 },
+  full_basic: { base: 300, ratePerFoot: 25 },
+  premium: { base: 300, ratePerFoot: 28 },
+  full: { base: 400, ratePerFoot: 36 },
 };
+
+const ADJUSTED_RATES = Object.fromEntries(
+  Object.entries(RV_RATE_TABLE).map(([k, v]) => [k, v.ratePerFoot]),
+);
+
+const RV_RATE_BASELINE = { ...ADJUSTED_RATES };
+
+function computeRvServicePrice(pkgId, lengthFt, typeKey) {
+  const rule = RV_RATE_TABLE[pkgId];
+  if (!rule) return null;
+  const t = RV_TYPES[typeKey] || RV_TYPES.travel;
+  const mult = Number(t?.multiplier) || 1;
+  const ft = Number(lengthFt) || 0;
+  return Math.round((rule.base + rule.ratePerFoot * ft) * mult * 100) / 100;
+}
 
 const RV_PACKAGE_META = {
   maint: {
@@ -176,9 +191,11 @@ function bumpPerFtRate(oldRate) {
 
 module.exports = {
   RV_TYPES,
+  RV_RATE_TABLE,
+  RV_RATE_BASELINE,
   ADJUSTED_RATES,
   RV_PACKAGE_META,
-  bumpPerFtRate,
+  computeRvServicePrice,
   eligiblePackagesForType,
   rateIncreasePct,
 };
