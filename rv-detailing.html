@@ -514,6 +514,7 @@
 <script src="assets/revops-init.js"></script>
 <script src="assets/back-to-top.js" defer></script>
 <script src="assets/hub-booking-bridge.js" defer></script>
+
 <script>
 (function () {
   var KEY = 'cd1_rv_length';
@@ -562,9 +563,7 @@
       if (hint) hint.textContent = 'Estimated totals for your ' + ft + '-ft RV. Final price may change with unit type, condition, access, roof work, add-ons, and travel rules.';
     } else {
       valEl.textContent = '—';
-      range.removeAttribute('value');
-      range.value = '';
-      if (hint) hint.textContent = 'Select your exact RV length to see your estimated total. Package cards start at a per-foot rate.';
+      if (hint) hint.textContent = 'Select your exact RV length to see your estimated total. Package cards show a starting per-foot rate.';
     }
     for (var i = 0; i < cards.length; i++) {
       var card = cards[i];
@@ -578,45 +577,23 @@
         priceEl.textContent = 'Estimated total for your ' + ft + '-ft RV: ' + money(total);
         if (basisEl) basisEl.textContent = 'Based on $' + perFt + '/ft · estimate subject to condition and access';
       } else {
-        priceEl.textContent = 'Starting at 
+        priceEl.textContent = 'Starting at $' + perFt + '/ft';
         if (basisEl) basisEl.textContent = 'Select your exact RV length to see your estimated total.';
       }
     }
     syncBookingButtons(hasFt ? ft : 0);
   }
 
-  range.addEventListener('input', function () {
+  function onLengthInput() {
     var ft = Number(range.value);
+    if (!(ft >= 12 && ft <= 45)) return;
     store(ft);
     render(ft);
-  });
-
-  // Initial: restore prior length if present; otherwise show per-foot only (no expensive default).
-  var initial = readStored();
-  if (initial) {
-    range.value = String(initial);
-    render(initial);
-  } else {
-    render(0);
-  }
-})();
-</script>
-</body>
-</html>
- + perFt + '/ft';
-        if (basisEl) basisEl.textContent = 'Select your exact RV length to see your estimated total.';
-      }
-    }
-    syncBookingButtons(hasFt ? ft : 0);
   }
 
-  range.addEventListener('input', function () {
-    var ft = Number(range.value);
-    store(ft);
-    render(ft);
-  });
+  range.addEventListener('input', onLengthInput);
+  range.addEventListener('change', onLengthInput);
 
-  // Initial: restore prior length if present; otherwise show per-foot only (no expensive default).
   var initial = readStored();
   if (initial) {
     range.value = String(initial);
