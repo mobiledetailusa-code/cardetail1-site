@@ -43,7 +43,7 @@ const CATEGORY_BY_PAGE = {
 
 const PACKAGE_BY_PAGE = {
   'boats-detailing.html': ['maint', 'full', 'premium'],
-  'rv-detailing.html': ['exterior', 'interior', 'full', 'premium'],
+  'rv-detailing.html': ['maint', 'exterior', 'interior', 'premium', 'full', 'correction', 'correction_int'],
   'powersports-detailing.html': ['wash', 'full', 'premium'],
 };
 
@@ -586,11 +586,15 @@ describe('pricing catalog unchanged for specialty packages', () => {
     assert.match(html, /full:\s*\{perFt:\s*30,\s*min:\s*449\}/);
     assert.match(html, /premium:\s*\{perFt:\s*38,\s*min:\s*699\}/);
   });
-  it('LENGTH_PRICING rv mins unchanged', () => {
+  it('LENGTH_PRICING rv mins match commercial finalization ladder', () => {
     const html = read('index.html');
-    assert.match(html, /rvs:\s*\{[\s\S]*?exterior:\s*\{perFt:\s*12,\s*min:\s*349\}/);
-    assert.match(html, /interior:\s*\{perFt:\s*21,\s*min:\s*299\}/);
-    assert.match(html, /full:\s*\{perFt:\s*30,\s*min:\s*549\}/);
+    assert.match(html, /rvs:\s*\{[\s\S]*?maint:\s*\{perFt:\s*10,\s*min:\s*279\}/);
+    assert.match(html, /exterior:\s*\{perFt:\s*16,\s*min:\s*399\}/);
+    assert.match(html, /interior:\s*\{perFt:\s*24,\s*min:\s*379\}/);
+    assert.match(html, /premium:\s*\{perFt:\s*40,\s*min:\s*899\}/);
+    assert.match(html, /full:\s*\{perFt:\s*54,\s*min:\s*1299\}/);
+    assert.match(html, /correction:\s*\{perFt:\s*52,\s*min:\s*1199\}/);
+    assert.match(html, /correction_int:\s*\{perFt:\s*62,\s*min:\s*1499\}/);
   });
 });
 

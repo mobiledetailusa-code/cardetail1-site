@@ -23,7 +23,7 @@
   /** Real package IDs from index.html PRICING — do not invent. */
   var VALID_PACKAGES = {
     boats: { maint: 1, essential: 1, full: 1, premium: 1 },
-    rvs: { exterior: 1, interior: 1, full: 1, premium: 1 },
+    rvs: { maint: 1, exterior: 1, interior: 1, premium: 1, full: 1, correction: 1, correction_int: 1 },
     powersports: { wash: 1, essential: 1, full: 1, premium: 1 }
   };
 
