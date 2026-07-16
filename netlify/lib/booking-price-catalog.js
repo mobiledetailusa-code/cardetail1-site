@@ -33,14 +33,31 @@ const PRICING = {
   },
   rvs: {
     tiers: {
-      travel: { label: 'Travel Trailer', exterior: 466, interior: 399, full: 733, premium: 1133 },
-      fifthwheel: { label: 'Fifth Wheel', exterior: 599, interior: 506, full: 933, premium: 1334 },
-      classC: { label: 'Class C', exterior: 666, interior: 573, full: 1067, premium: 1534 },
-      classA: { label: 'Class A', exterior: 866, interior: 733, full: 1334, premium: 1934 },
+      travel: {
+        label: 'Travel Trailer',
+        maint: 320, exterior: 466, interior: 460, premium: 1133, full: 1400,
+        correction: 1248, correction_int: 1499,
+      },
+      fifthwheel: {
+        label: 'Fifth Wheel',
+        maint: 360, exterior: 599, interior: 576, premium: 1334, full: 1680,
+        correction: 1560, correction_int: 1860,
+      },
+      classC: {
+        label: 'Class C',
+        maint: 380, exterior: 666, interior: 620, premium: 1534, full: 1860,
+        correction: 1680, correction_int: 1980,
+      },
+      classA: {
+        label: 'Class A',
+        maint: 420, exterior: 866, interior: 760, premium: 1934, full: 2280,
+        correction: 2080, correction_int: 2480,
+      },
     },
     addons: [
       { id: 'polymer', price: 25 }, { id: 'wax1yr', price: 75 }, { id: 'rainx', price: 25 },
-      { id: 'biohazard', price: 115 }, { id: 'mold', price: 149 }, { id: 'sanitize', price: 65 },
+      { id: 'biohazard', price: 115 }, { id: 'sanitize', price: 65 },
+      { id: 'superint', price: 135 },
       { id: 'awning', price: 50, qty: true }, { id: 'roof', price: 50, qty: true },
       { id: 'capfront', price: 149 }, { id: 'pethair', price: 95 }, { id: 'odor', price: 90 },
       { id: 'trashcans', price: 25, qty: true },
@@ -87,10 +104,13 @@ const LENGTH_PRICING = {
   rvs: {
     min: 12, max: 45, defaultFt: 24, estimateOver: 40,
     packages: {
-      exterior: { perFt: 12, min: 349 },
-      interior: { perFt: 21, min: 299 },
-      full: { perFt: 30, min: 549 },
-      premium: { perFt: 38, min: 849 },
+      maint: { perFt: 10, min: 279 },
+      exterior: { perFt: 16, min: 399 },
+      interior: { perFt: 24, min: 379 },
+      premium: { perFt: 40, min: 899 },
+      full: { perFt: 54, min: 1299 },
+      correction: { perFt: 52, min: 1199 },
+      correction_int: { perFt: 62, min: 1499 },
     },
   },
   fleet: {
@@ -139,9 +159,17 @@ const PKG_ID_ALIASES = {
   'essential marine': 'essential',
   'full marine detail': 'full',
   'premium marine': 'premium',
+  'maintenance wash': 'maint',
   'exterior wash': 'exterior',
+  'exterior wash & protect': 'exterior',
+  'exterior wash and protect': 'exterior',
   'full rv detail': 'full',
+  'premium complete detail': 'full',
   'premium exterior': 'premium',
+  'premium exterior detail': 'premium',
+  'one-step paint correction': 'correction',
+  'one-step paint correction + interior': 'correction_int',
+  'one-step paint correction and interior': 'correction_int',
   'wash & shine': 'wash',
   'essential detail': 'essential',
   'full detail': 'full',
@@ -178,7 +206,11 @@ function inferPkgId(vehicle, booking) {
   const cat = vehicle.cat || booking.vehicleCategory;
   const pkgs = PRICING[cat];
   if (!pkgs) return null;
-  for (const key of ['maint', 'interior', 'full', 'premium', 'essential', 'exterior', 'wash', 'custom']) {
+  if (name.includes('correction') && name.includes('interior')) return 'correction_int';
+  if (name.includes('paint correction') || name.includes('one-step paint')) return 'correction';
+  if (name.includes('premium complete')) return 'full';
+  if (name.includes('wash & protect') || name.includes('wash and protect')) return 'exterior';
+  for (const key of ['maint', 'interior', 'full', 'premium', 'essential', 'exterior', 'wash', 'custom', 'correction']) {
     if (name.includes(key.replace('_', ' '))) return key;
   }
   return null;
@@ -355,6 +387,7 @@ module.exports = {
   getRichMultiplier,
   applyRichPrice,
   getLengthPrice,
+  computeAddonTotal,
   computeVehicleSubtotal,
   computeBookingServiceSubtotal,
   validateAndRecalculateBookingPricing,

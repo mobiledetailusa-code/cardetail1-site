@@ -1995,7 +1995,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="svc-ico-photo"><img src="assets/vehicles/premium/rv-trailer.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
-            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $349</div>
+            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $279</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
             <span class="svc-ico-photo"><img src="assets/vehicles/premium/powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
@@ -2778,32 +2778,41 @@ const PRICING = {
   },
   rvs: {
     tiers: {
-      travel:     {label:'Travel Trailer', icon:'🏕️', desc:'Up to 25 ft · bumper pull trailer',  exterior:466, interior:399, full:733, premium:1133},
-      fifthwheel: {label:'Fifth Wheel',    icon:'🚛', desc:'Fifth wheel trailer 25–42 ft',        exterior:599, interior:506, full:933, premium:1334},
-      classC:     {label:'Class C',        icon:'🚐', desc:'Class C motorhome up to 30 ft',       exterior:666, interior:573, full:1067, premium:1534},
-      classA:     {label:'Class A',        icon:'🚌', desc:'Class A motorhome 30–45 ft',          exterior:866, interior:733, full:1334, premium:1934},
+      travel:     {label:'Travel Trailer', icon:'🏕️', desc:'Up to 25 ft · bumper pull trailer',  maint:320, exterior:466, interior:460, premium:1133, full:1400, correction:1248, correction_int:1499},
+      fifthwheel: {label:'Fifth Wheel',    icon:'🚛', desc:'Fifth wheel trailer 25–42 ft',        maint:360, exterior:599, interior:576, premium:1334, full:1680, correction:1560, correction_int:1860},
+      classC:     {label:'Class C',        icon:'🚐', desc:'Class C motorhome up to 30 ft',       maint:380, exterior:666, interior:620, premium:1534, full:1860, correction:1680, correction_int:1980},
+      classA:     {label:'Class A',        icon:'🚌', desc:'Class A motorhome 30–45 ft',          maint:420, exterior:866, interior:760, premium:1934, full:2280, correction:2080, correction_int:2480},
     },
     packages:[
-      {id:'exterior', name:'Exterior Wash',    icon:'🪣', tag:'Full exterior + wheels, tires & glass',         dur:'~2–3h',  popular:false, scope:'ext',
-        feats:['Full exterior body wash','Accessible body panels','Light black streak reduction','Exterior glass & mirrors','Wheels cleaned & dried','Tires dressed','Bug & debris removal'],
-        miss:['Interior','Wax/sealant','Roof','Awning']},
-      {id:'interior', name:'Interior Detail',  icon:'🛋️', tag:'Deep living space - kitchen, bath & cabin',     dur:'~3–5h',  popular:false, scope:'int',
-        feats:['Full vacuum - floors, furniture, slideouts','Dashboard & cockpit detail','Living area & upholstery cleaned','Kitchen surfaces & appliance fronts','Bathroom cleaning','Cabinet exteriors','Interior windows & mirrors','High-touch surfaces'],
-        miss:['Exterior wash','Wax/sealant','Roof','Awning']},
-      {id:'full',     name:'Full RV Detail',   icon:'🧽', tag:'Complete interior + exterior - most popular',   dur:'~5–8h',  popular:true, scope:'both',
-        feats:['Exterior hand wash & streak reduction','Exterior glass & mirrors','Wheels + tires dressed','Spray wax/sealant','Full interior vacuum','Living area & upholstery','Kitchen & bathroom detail','Interior windows','UV protectant'],
-        miss:['Roof','Awning','Premium oxidation correction']},
-      {id:'premium',  name:'Premium Exterior', icon:'🏅', tag:'Gloss restoration + oxidation + protection',    dur:'~4–6h',  popular:false, scope:'ext',
-        feats:['Exterior wash & decontamination prep','Oxidation assessment & panel polishing','Gelcoat gloss enhancement','Light-to-moderate oxidation improvement','Machine-applied premium wax/sealant','Exterior trim & cap cleaning','Final inspection'],
-        miss:['Roof requires separate estimate']}
+      {id:'maint', name:'Maintenance Wash', icon:'🪣', tag:'Keep your RV clean between major services', dur:'~1.5–2.5h', popular:false, scope:'ext',
+        feats:['Light exterior hand wash','Road film and light dust removal','Accessible panels wiped clean','Wheels cleaned · tires dressed','Exterior glass & mirrors','Maintenance protection booster when appropriate'],
+        miss:['Machine polish','Heavy black streaks','Oxidation correction','Interior']},
+      {id:'exterior', name:'Exterior Wash & Protect', icon:'🪣', tag:'Clean, road-ready exterior with short-term protection', dur:'~2.5–3.5h', popular:false, scope:'ext',
+        feats:['Full exterior hand wash','Accessible body panels','Wheels cleaned · tires dressed','Exterior glass & mirrors','Bug and road-film removal within normal limits','Light black-streak reduction','Machine-applied quick wax or surface-appropriate protection','Final exterior inspection'],
+        miss:['One-step polish','Oxidation correction','Interior','Roof','Awning']},
+      {id:'interior', name:'Interior Detail', icon:'🛋️', tag:'Bring comfort back inside your RV', dur:'~3–5h', popular:false, scope:'int',
+        feats:['Full vacuum of accessible floors and living areas','Driver cabin cleaned','Living-area surfaces refreshed','Upholstery surface cleaning','Kitchen surfaces & appliance fronts','Bathroom surfaces','Cabinet exteriors','Interior glass & mirrors','High-touch surfaces'],
+        miss:['Exterior','Deep extraction','Heavy pet hair','Cabinet interiors','Odor treatment']},
+      {id:'premium', name:'Premium Exterior Detail', icon:'🏅', tag:'Improve gloss and protect the exterior in one visit', dur:'~4–6h', popular:false, scope:'ext',
+        feats:['Exterior hand wash','Decontamination preparation','One-Step Machine Polish','Light oxidation and haze improvement where achievable','Machine-applied wax or sealant','Wheels, tires & exterior glass','Final exterior inspection'],
+        miss:['Multi-stage restoration','Interior','Roof requires separate estimate']},
+      {id:'full', name:'Premium Complete Detail', icon:'🧽', tag:'Everything most RV owners need in one visit', dur:'~6–9h', popular:true, scope:'both',
+        feats:['Exterior hand wash & light streak reduction','One-Step Machine Polish / gloss enhancement','Machine-applied wax or sealant','Wheels, tires & exterior glass','Full Interior Detail','Cockpit, living areas, kitchen & bathroom','Accessible flooring & upholstery','Interior glass & high-touch surfaces','Final interior and exterior inspection'],
+        miss:['Multi-stage restoration','Super Interior','Odor treatment','Roof','Awning']},
+      {id:'correction', name:'One-Step Paint Correction', icon:'✨', tag:'Strongest same-day improvement in exterior gloss', dur:'~5–7h', popular:false, scope:'ext',
+        feats:['Condition assessment','Exterior preparation and decontamination','One-step machine polishing','Light-to-moderate oxidation improvement where achievable','Haze and minor surface-defect improvement','Protective wax or sealant','Final finish inspection'],
+        miss:['Multi-stage restoration','Interior','Guaranteed removal of every defect']},
+      {id:'correction_int', name:'One-Step Paint Correction + Interior', icon:'💎', tag:'Strongest same-day exterior improvement plus a complete interior detail', dur:'~7–10h', popular:false, scope:'both',
+        feats:['Full One-Step Paint Correction exterior scope','Full Interior Detail scope','Ideal before travel, storage or resale','Protective exterior finish','Final inspection inside and out'],
+        miss:['Multi-stage restoration','Super Interior','Odor treatment']}
     ],
     addons:[
       {id:'polymer',    scope:'ext', name:'Polymer Sealant Upgrade',   desc:'Polymer sealant on RV exterior for added protection and gloss', price:25},
       {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax on RV exterior with UV and weather protection', price:75},
       {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment', desc:'Water-repellent Rain-X on RV windshield and front glass', price:25},
       {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids, waste, or severe contamination. Estimate confirmation required', price:115},
-      {id:'mold',       scope:'int', name:'Mold Treatment',            desc:'Targeted mold treatment for affected interior areas. Inspection required; estimate may be needed. Starting at $149 based on severity', price:149},
       {id:'sanitize',   scope:'int', name:'Interior Sanitizing',       desc:'High-touch interior wipe-down after cleaning', price:65},
+      {id:'superint',   scope:'int', name:'Super Interior',            desc:'Extra attention for busy family RVs or interiors needing more than the standard detail. Includes additional labor for emptied cabinet interiors, detailed kitchen and bathroom cleaning, accessible storage, high-touch sanitizing, and extended finishing. Customer must remove belongings for access. Pet hair, odor treatment, and extraction remain separate. Biohazards and mold remediation are not included.', price:135},
       {id:'awning',     scope:'ext', name:'Awning Cleaning',           desc:'RV awning fabric wash and clean. Cleaning only — no repair, replacement, mechanism service, or re-tensioning', price:50, qty:true},
       {id:'roof',       scope:'ext', name:'Roof Surface Cleaning',     desc:'Exterior RV/trailer roof wash and clean. Cleaning only — no repair, resealing, leaks, or mechanical work', price:50, qty:true},
       {id:'capfront',   scope:'ext', name:'Front Cap Deep Clean',      desc:'RV front cap exterior wash for bugs, grime, and road film. Surface cleaning and detailing only', price:149},
@@ -2898,10 +2907,13 @@ const LENGTH_PRICING = {
   rvs: {
     min: 12, max: 45, defaultFt: 24, estimateOver: 40,
     packages: {
-      exterior: {perFt: 12, min: 349},
-      interior: {perFt: 21, min: 299},
-      full:     {perFt: 30, min: 549},
-      premium:  {perFt: 38, min: 849}
+      maint:          {perFt: 10, min: 279},
+      exterior:       {perFt: 16, min: 399},
+      interior:       {perFt: 24, min: 379},
+      premium:        {perFt: 40, min: 899},
+      full:           {perFt: 54, min: 1299},
+      correction:     {perFt: 52, min: 1199},
+      correction_int: {perFt: 62, min: 1499}
     }
   },
   fleet: {
@@ -3747,7 +3759,7 @@ function renderAddons(){
     if(_pkgIncludesAddon[a.id]) return false;
     return pkgScope==='both' || s==='any' || s===pkgScope;
   });
-  const POPULAR_IDS=['rainx','pethair','odor'];
+  const POPULAR_IDS=ST.cat==='rvs'?['superint','rainx','pethair','odor']:['rainx','pethair','odor'];
   const popularAddons=addons.filter(a=>POPULAR_IDS.includes(a.id));
   const otherAddons=addons.filter(a=>!POPULAR_IDS.includes(a.id));
   function addonCardHtml(a){
@@ -4906,7 +4918,7 @@ function getCategoryFromBases(){
   return {
     cars:Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.interior)),
     boats:LENGTH_PRICING.boats.packages.maint.min,
-    rvs:LENGTH_PRICING.rvs.packages.exterior.min,
+    rvs:LENGTH_PRICING.rvs.packages.maint.min,
     powersports:Math.min(...Object.values(PRICING.powersports.tiers).map(t=>Object.values(t).filter(v=>typeof v==='number')[0]||99)),
   };
 }
@@ -4955,7 +4967,7 @@ const ZONE_POPULAR = {
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & Trucks',    desc:'Most requested in your area', from:'From $225' },
   boats:      { ico:'🚥️️️️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $199' },
-  rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $349' },
+  rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $279' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $119' },
 
 };
@@ -5058,7 +5070,7 @@ function onBkZipInput(val){
 function updateBkFromPrices(){
   const BASE = {
     boats:      { price: LENGTH_PRICING.boats.packages.maint.min },
-    rvs:        { price: LENGTH_PRICING.rvs.packages.exterior.min },
+    rvs:        { price: LENGTH_PRICING.rvs.packages.maint.min },
     powersports:{ price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=>Object.values(t).filter(v=>typeof v==='number')[0]||99)) },
   };
   syncTravelFromKnownZip();
