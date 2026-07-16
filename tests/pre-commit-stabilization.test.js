@@ -240,9 +240,9 @@ test('package IDs in index PRICING unchanged for specialty categories', () => {
 test('LENGTH_PRICING formulas (boat maint min 199, rv maint_light min 229)', () => {
   const html = read('index.html');
   assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{perFt:\s*15,\s*min:\s*229\}/);
-  assert.match(html, /rvs:[\s\S]*?maint:\s*\{perFt:\s*8,\s*min:\s*129\}/);
-  assert.match(html, /rvs:[\s\S]*?full:\s*\{perFt:\s*44,\s*min:\s*699\}/);
+  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{perFt:\s*16,\s*min:\s*229\}/);
+  assert.match(html, /rvs:[\s\S]*?maint:\s*\{perFt:\s*8\.5,\s*min:\s*129\}/);
+  assert.match(html, /rvs:[\s\S]*?full:\s*\{perFt:\s*49\.5,\s*min:\s*699\}/);
 });
 
 test('no secrets in public HTML/JS specialty surface', () => {

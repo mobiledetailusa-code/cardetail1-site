@@ -35,19 +35,31 @@ const PRICING = {
     tiers: {
       travel: {
         label: 'Travel Trailer',
-        maint: 320, maint_light: 466, interior: 460, premium: 1133, full: 1400,
+        maint: 320, maint_light: 466, interior: 460, full_basic: 900, premium: 1133, full: 1400,
       },
       fifthwheel: {
         label: 'Fifth Wheel',
-        maint: 360, maint_light: 599, interior: 576, premium: 1334, full: 1680,
+        maint: 360, maint_light: 599, interior: 576, full_basic: 1050, premium: 1334, full: 1680,
       },
       classC: {
         label: 'Class C',
-        maint: 380, maint_light: 666, interior: 620, premium: 1534, full: 1860,
+        maint: 380, maint_light: 666, interior: 620, full_basic: 1120, premium: 1534, full: 1860,
       },
       classA: {
         label: 'Class A',
-        maint: 420, maint_light: 866, interior: 760, premium: 1934, full: 2280,
+        maint: 420, maint_light: 866, interior: 760, full_basic: 1280, premium: 1934, full: 2280,
+      },
+      classBC: {
+        label: 'Class B / Class C Motorhome',
+        maint: 380, maint_light: 666, interior: 620, full_basic: 1120, premium: 1534, full: 1860,
+      },
+      airstream: {
+        label: 'Airstream',
+        maint: 340, maint_light: 500, interior: 500, full_basic: 980, premium: 1200, full: 1500,
+      },
+      specialty: {
+        label: 'Cargo, Horse or Custom Trailer',
+        maint: 300, maint_light: 0, interior: 0, full_basic: 0, premium: 1050, full: 0,
       },
     },
     addons: [
@@ -100,11 +112,12 @@ const LENGTH_PRICING = {
   rvs: {
     min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
-      maint: { perFt: 8, min: 129 },
-      maint_light: { perFt: 15, min: 229 },
-      interior: { perFt: 20, min: 249 },
-      premium: { perFt: 31, min: 449 },
-      full: { perFt: 44, min: 699 },
+      maint: { perFt: 8.5, min: 129 },
+      maint_light: { perFt: 16, min: 229 },
+      interior: { perFt: 21, min: 249 },
+      full_basic: { perFt: 27, min: 349 },
+      premium: { perFt: 33, min: 449 },
+      full: { perFt: 49.5, min: 699 },
     },
   },
   fleet: {
@@ -161,7 +174,10 @@ const PKG_ID_ALIASES = {
   'exterior wash': 'maint_light',
   'exterior wash & protect': 'maint_light',
   'exterior wash and protect': 'maint_light',
-  'full rv detail': 'full',
+  'full rv detail': 'full_basic',
+  'full rv detail package': 'full_basic',
+  'full rv detailing': 'full_basic',
+  'full_basic': 'full_basic',
   'premium complete detail': 'full',
   'premium complete rv detail': 'full',
   'premium exterior': 'premium',
@@ -191,7 +207,25 @@ function applyRichPrice(base, zip) {
   return base ? Math.round(base * getRichMultiplier(zip)) : 0;
 }
 
-function getLengthPrice(cat, pkgId, ft) {
+const { RV_TYPES } = require('./rv-type-catalog');
+
+function resolveRvTypeKey(vehicle, booking) {
+  const raw = String(
+    vehicle?.rvType || vehicle?.typeKey || vehicle?.tierKey || booking?.rvType || '',
+  ).trim();
+  if (!raw || raw === 'length') return 'travel';
+  if (RV_TYPES[raw]) return raw;
+  const lower = raw.toLowerCase();
+  if (lower.includes('fifth')) return 'fifthwheel';
+  if (lower.includes('airstream')) return 'airstream';
+  if (lower.includes('specialty') || lower.includes('cargo') || lower.includes('horse')) return 'specialty';
+  if (lower.includes('class a') || lower === 'classa') return 'classA';
+  if (lower.includes('class b') || lower.includes('class c') || lower === 'classbc' || lower === 'classc') return 'classBC';
+  if (lower.includes('travel')) return 'travel';
+  return 'travel';
+}
+
+function getLengthPrice(cat, pkgId, ft, typeKey) {
   const cfg = LENGTH_PRICING[cat];
   if (!cfg) return null;
   let id = pkgId;
@@ -201,7 +235,13 @@ function getLengthPrice(cat, pkgId, ft) {
   }
   if (!cfg.packages[id]) return null;
   const rule = cfg.packages[id];
-  return Math.max(rule.min, Math.round(rule.perFt * Number(ft || cfg.defaultFt)));
+  const lengthFt = Number(ft || cfg.defaultFt);
+  let mult = 1;
+  if (cat === 'rvs') {
+    const key = typeKey && RV_TYPES[typeKey] ? typeKey : null;
+    if (key) mult = Number(RV_TYPES[key].multiplier) || 1;
+  }
+  return Math.max(rule.min, Math.round(rule.perFt * lengthFt * mult));
 }
 
 function inferPkgId(vehicle, booking) {
@@ -216,12 +256,13 @@ function inferPkgId(vehicle, booking) {
   const cat = vehicle.cat || booking.vehicleCategory;
   const pkgs = PRICING[cat];
   if (!pkgs) return null;
+  if (name.includes('full rv detail') && !name.includes('premium complete')) return 'full_basic';
   if (name.includes('light interior') || name.includes('maint_light')) return 'maint_light';
   if (name.includes('correction') && name.includes('interior')) return 'full';
   if (name.includes('paint correction') || name.includes('one-step paint')) return 'premium';
   if (name.includes('premium complete')) return 'full';
   if (name.includes('wash & protect') || name.includes('wash and protect')) return 'maint_light';
-  for (const key of ['maint_light', 'maint', 'interior', 'full', 'premium', 'essential', 'wash', 'custom']) {
+  for (const key of ['full_basic', 'maint_light', 'maint', 'interior', 'full', 'premium', 'essential', 'wash', 'custom']) {
     if (name.includes(key.replace('_', ' '))) return key;
   }
   return null;
@@ -292,10 +333,11 @@ function computeVehicleBasePrice(vehicle, zip, booking) {
   if (cat === 'boats' || cat === 'rvs') {
     const cfg = LENGTH_PRICING[cat];
     const ft = parseLengthFt(vehicle, booking) || cfg.defaultFt;
-    const raw = getLengthPrice(cat, pkgId, ft);
+    const typeKey = cat === 'rvs' ? resolveRvTypeKey(vehicle, booking) : null;
+    const raw = getLengthPrice(cat, pkgId, ft, typeKey);
     if (raw == null) return { ok: false, error: 'invalid_pricing' };
     // Client length path (tryGenericConfirm) does not apply rich multiplier.
-    return { ok: true, basePrice: raw, cat, pkgId, tierKey: tierKey || 'length' };
+    return { ok: true, basePrice: raw, cat, pkgId, tierKey: tierKey || typeKey || 'length', rvType: typeKey || undefined };
   }
 
   if (cat === 'fleet') {
@@ -398,6 +440,7 @@ module.exports = {
   getRichMultiplier,
   applyRichPrice,
   getLengthPrice,
+  resolveRvTypeKey,
   computeAddonTotal,
   computeVehicleSubtotal,
   computeBookingServiceSubtotal,

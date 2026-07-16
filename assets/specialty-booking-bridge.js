@@ -23,7 +23,7 @@
   /** Real package IDs from index.html PRICING — do not invent. */
   var VALID_PACKAGES = {
     boats: { maint: 1, essential: 1, full: 1, premium: 1 },
-    rvs: { maint: 1, maint_light: 1, interior: 1, premium: 1, full: 1 },
+    rvs: { maint: 1, maint_light: 1, interior: 1, full_basic: 1, premium: 1, full: 1 },
     powersports: { wash: 1, essential: 1, full: 1, premium: 1 }
   };
 
@@ -142,14 +142,15 @@
     return zip.length === 5 ? zip : '';
   }
 
-  function buildBookingParams(categoryId, packageId, embed, multiVehicle, lengthFt) {
+  function buildBookingParams(categoryId, packageId, embed, multiVehicle, lengthFt, opts) {
+    opts = opts || {};
     var params = new URLSearchParams();
     params.set('book', categoryId);
     if (embed) params.set('embed', '1');
     if (packageId) params.set('pkg', packageId);
     if (multiVehicle) params.set('multi', '1');
-    var zip = resolveZip();
-    if (zip) params.set('zip', zip);
+    var zip = String(opts.zip || resolveZip() || '').replace(/\D/g, '').slice(0, 5);
+    if (zip.length === 5) params.set('zip', zip);
     var ft = Number(lengthFt || 0);
     if (!ft) {
       try {
@@ -157,6 +158,16 @@
       } catch (e1) { ft = 0; }
     }
     if (categoryId === 'rvs' && ft >= 12 && ft <= 45) params.set('length', String(ft));
+    var rvType = String(opts.rvType || '');
+    if (!rvType) {
+      try { rvType = sessionStorage.getItem('cd1_rv_type') || ''; } catch (e2) { rvType = ''; }
+    }
+    if (categoryId === 'rvs' && rvType) params.set('rvType', rvType);
+    var living = String(opts.living || '');
+    if (!living) {
+      try { living = sessionStorage.getItem('cd1_rv_living') || ''; } catch (e3) { living = ''; }
+    }
+    if (categoryId === 'rvs' && living) params.set('living', living);
     return params;
   }
 
@@ -198,6 +209,21 @@
     var packageId = opts.packageId ? String(opts.packageId) : '';
     var multiVehicle = opts.multiVehicle === true;
     var lengthFt = opts.lengthFt != null ? Number(opts.lengthFt) : 0;
+    if (opts.zip) {
+      try {
+        var z = String(opts.zip).replace(/\D/g, '').slice(0, 5);
+        if (z.length === 5) {
+          localStorage.setItem('cd1_zip', z);
+          sessionStorage.setItem('cd1_zip', z);
+        }
+      } catch (eZip) {}
+    }
+    if (opts.rvType) {
+      try { sessionStorage.setItem('cd1_rv_type', String(opts.rvType)); } catch (eType) {}
+    }
+    if (opts.living) {
+      try { sessionStorage.setItem('cd1_rv_living', String(opts.living)); } catch (eLiv) {}
+    }
 
     if (categoryId === 'cars' || categoryId === 'fleet') {
       failBooking(categoryId, packageId, 'INVALID_CATEGORY');
@@ -230,7 +256,11 @@
     try {
       ensureOverlay();
       clearLoadWatch();
-      var params = buildBookingParams(categoryId, packageId, true, multiVehicle, lengthFt);
+      var params = buildBookingParams(categoryId, packageId, true, multiVehicle, lengthFt, {
+        zip: opts.zip,
+        rvType: opts.rvType,
+        living: opts.living,
+      });
       var settled = false;
 
       function settleOk() {

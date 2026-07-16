@@ -2359,7 +2359,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="svc-ico-photo"><img src="assets/vehicles/premium/rv-trailer.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
-            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $8/ft</div>
+            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $8.50/ft</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
             <span class="svc-ico-photo"><img src="assets/vehicles/premium/powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
@@ -3162,10 +3162,13 @@ const PRICING = {
 
   rvs: {
     tiers: {
-      travel:     {label:'Travel Trailer', icon:'🏕️', desc:'Up to 25 ft · bumper pull trailer',  maint:320, maint_light:466, interior:460, premium:1133, full:1400},
-      fifthwheel: {label:'Fifth Wheel',    icon:'🚛', desc:'Fifth wheel trailer 25–42 ft',        maint:360, maint_light:599, interior:576, premium:1334, full:1680},
-      classC:     {label:'Class C',        icon:'🚐', desc:'Class C motorhome up to 30 ft',       maint:380, maint_light:666, interior:620, premium:1534, full:1860},
-      classA:     {label:'Class A',        icon:'🚌', desc:'Class A motorhome 30–45 ft',          maint:420, maint_light:866, interior:760, premium:1934, full:2280},
+      travel:     {label:'Travel Trailer', icon:'🏕️', desc:'Bumper-pull travel trailer',  maint:320, maint_light:466, interior:460, full_basic:900, premium:1133, full:1400},
+      fifthwheel: {label:'Fifth Wheel',    icon:'🚛', desc:'Fifth wheel trailer',        maint:360, maint_light:599, interior:576, full_basic:1050, premium:1334, full:1680},
+      classBC:    {label:'Class B / Class C Motorhome', icon:'🚐', desc:'Class B vans and Class C coaches', maint:380, maint_light:666, interior:620, full_basic:1120, premium:1534, full:1860},
+      classC:     {label:'Class C',        icon:'🚐', desc:'Class C motorhome',       maint:380, maint_light:666, interior:620, full_basic:1120, premium:1534, full:1860},
+      classA:     {label:'Class A Motorhome', icon:'🚌', desc:'Class A motorhome',          maint:420, maint_light:866, interior:760, full_basic:1280, premium:1934, full:2280},
+      airstream:  {label:'Airstream', icon:'✨', desc:'Polished aluminum — surface-aware', maint:340, maint_light:500, interior:500, full_basic:980, premium:1200, full:1500},
+      specialty:  {label:'Cargo, Horse or Custom Trailer', icon:'📦', desc:'Living quarters required for interior packages', maint:300, maint_light:0, interior:0, full_basic:0, premium:1050, full:0},
     },
     packages:[
       {id:'maint', name:'Maintenance Wash', icon:'🪣', tag:'Keep your RV clean, protected and ready for the road.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
@@ -3177,10 +3180,13 @@ const PRICING = {
       {id:'interior', name:'Interior Detail', icon:'🛋️', tag:'A complete interior cleaning from the driver cabin to the living area.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'int',
         feats:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Exterior','Personal belongings left in place','Heavy staining without Super Interior','Excessive pet hair','Strong odors']},
+      {id:'full_basic', name:'Full RV Detail', icon:'🧽', tag:'Complete interior cleaning plus exterior wash and protection.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:true, scope:'both',
+        feats:['Exterior hand wash','Bug and normal road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
+        miss:['Roof','One-step machine polishing','Oxidation correction']},
       {id:'premium', name:'Premium Exterior Detail', icon:'🏅', tag:'One-Step Machine Polish + Premium Protection', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
         feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
         miss:['Roof','Multi-stage restoration','Interior','Guaranteed removal of every scratch or permanent water spot']},
-      {id:'full', name:'Premium Complete RV Detail', icon:'🧽', tag:'One-Step Exterior Polish + Complete Interior Detail', dur:'Service duration depends on RV size, condition and crew assigned.', popular:true, scope:'both',
+      {id:'full', name:'Premium Complete RV Detail', icon:'🧽', tag:'One-Step Exterior Polish + Complete Interior Detail', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'both',
         feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Roof','Multi-stage correction','Severe oxidation without inspection','Deep scratches and damaged decals without inspection']}
     ],
@@ -3286,11 +3292,12 @@ const LENGTH_PRICING = {
   rvs: {
     min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
-      maint:          {perFt: 8, min: 129},
-      maint_light:    {perFt: 15, min: 229},
-      interior:       {perFt: 20, min: 249},
-      premium:        {perFt: 31, min: 449},
-      full:           {perFt: 44, min: 699}
+      maint:          {perFt: 8.5, min: 129},
+      maint_light:    {perFt: 16, min: 229},
+      interior:       {perFt: 21, min: 249},
+      full_basic:     {perFt: 27, min: 349},
+      premium:        {perFt: 33, min: 449},
+      full:           {perFt: 49.5, min: 699}
     }
   },
   fleet: {
@@ -3305,11 +3312,23 @@ const LENGTH_PRICING = {
   }
 };
 
-function getLengthPrice(cat, pkgId, ft){
+const RV_TYPE_MULTIPLIERS = { travel:1, fifthwheel:1.1, classA:1.15, classBC:1.1, classC:1.1, airstream:1.08, specialty:1 };
+function getLengthPrice(cat, pkgId, ft, typeKey){
   const cfg = LENGTH_PRICING[cat];
-  if(!cfg || !cfg.packages[pkgId]) return null;
-  const rule = cfg.packages[pkgId];
-  return Math.max(rule.min, Math.round(rule.perFt * Number(ft || cfg.defaultFt)));
+  if(!cfg) return null;
+  let id = pkgId;
+  if(cat==='rvs'){
+    const legacy = { exterior:'maint_light', correction:'premium', correction_int:'full' };
+    if(legacy[id]) id = legacy[id];
+  }
+  if(!cfg.packages[id]) return null;
+  const rule = cfg.packages[id];
+  let mult = 1;
+  if(cat==='rvs'){
+    const key = typeKey || (typeof ST!=='undefined' && ST.rvType) || 'travel';
+    mult = Number(RV_TYPE_MULTIPLIERS[key]) || 1;
+  }
+  return Math.max(rule.min, Math.round(rule.perFt * Number(ft || cfg.defaultFt) * mult));
 }
 
 function setupLengthSelector(cat){
@@ -3607,7 +3626,7 @@ window.SPECIALTY_MODELS = {
 };
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
-let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',
+let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,rvType:'',rvLiving:'',units:1,cardToken:'',cardBrand:'',cardLast4:'',
   // multi-vehicle cart
   vehicles:[],  // [{cat, pkgId, pkgName, vehicleLabel, basePrice, addons, addonTotal, subtotal}]
   zoneSurcharge:0,
@@ -4076,11 +4095,11 @@ function tryGenericConfirm(){
 
   if(ST.cat==='boats'||ST.cat==='rvs'){
     const ft = ST.lengthFt || LENGTH_PRICING[ST.cat].defaultFt;
-    const price = getLengthPrice(ST.cat, ST.pkgId, ft);
+    const price = getLengthPrice(ST.cat, ST.pkgId, ft, ST.cat==='rvs' ? (ST.rvType||'travel') : null);
     if(!price)return;
     ST.basePrice = price;
     ST.vehicleLabel = `${year} ${make} ${model} · ${ft} ft`;
-    ST.tierKey='length';
+    ST.tierKey = ST.cat==='rvs' && ST.rvType ? ST.rvType : 'length';
     ST.tier={label:`${ft} ft`, icon:ST.cat==='boats'?'🛥️':'🏕️', desc:ST.cat==='boats'?'Marine vessel priced by exact length':'RV / travel trailer priced by exact length'};
     setVehicleVisual();
     setVcName(ST.vehicleLabel);
@@ -4779,6 +4798,8 @@ function buildBookingPayload(){
     vehicleCategory: pv.cat || ST.cat,
     vehicleTier: pv.tierLabel || ST.tier?.label || '',
     lengthFt: ST.lengthFt||'',
+    rvType: ST.rvType||'',
+    livingQuarters: ST.rvLiving||'',
     units: ST.units||1,
     package: pv.pkgName || ST.pkg?.name || '',
     packagePrice: pv.basePrice || ST.basePrice,
@@ -4899,6 +4920,10 @@ function buildCurrentVehicleItem(){
     visualKey: getVehicleVisualKey(),
     vehicleLabel: ST.vehicleLabel,
     tierLabel: ST.tier ? ST.tier.label : '',
+    tierKey: ST.tierKey || '',
+    lengthFt: ST.lengthFt || '',
+    rvType: ST.rvType || '',
+    livingQuarters: ST.rvLiving || '',
     basePrice: ST.basePrice,
     addons: [...ST.addons],
     addonTotal: ST.addonTotal,
@@ -5449,7 +5474,7 @@ const ZONE_POPULAR = {
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & SUVs',      desc:'Mobile car detailing at your location', from:'From $225' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine wash & detail on-site',    from:'From $199' },
-  rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'From $8/ft' },
+  rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'From $8.50/ft' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs, jet skis',       from:'From $119' },
 
 };
@@ -6389,6 +6414,8 @@ try{ if(typeof initCarPkgDetailModal==='function') initCarPkgDetailModal(); }cat
     const pkg=String(params.get('pkg')||params.get('package')||'');
     const zipQ=String(params.get('zip')||'').replace(/\D/g,'');
     const lengthQ=Number(params.get('length')||params.get('ft')||'');
+    const rvTypeQ=String(params.get('rvType')||params.get('type')||'');
+    const livingQ=String(params.get('living')||'');
     const embed=params.get('embed')==='1';
     const multi=params.get('multi')==='1';
     const allowed={cars:1,boats:1,rvs:1,powersports:1};
@@ -6423,6 +6450,15 @@ try{ if(typeof initCarPkgDetailModal==='function') initCarPkgDetailModal(); }cat
     if(!allowed[book]) return;
     if(pkg) ST._prefillPkgId=pkg;
     if(lengthQ >= 12 && lengthQ <= 60) ST._prefillLengthFt=lengthQ;
+    if(rvTypeQ){
+      ST.rvType=rvTypeQ;
+      ST._prefillRvType=rvTypeQ;
+      try{ sessionStorage.setItem('cd1_rv_type', rvTypeQ); }catch(e){}
+    }
+    if(livingQ){
+      ST.rvLiving=livingQ;
+      try{ sessionStorage.setItem('cd1_rv_living', livingQ); }catch(e){}
+    }
     ST._pendingCat=book;
     if(multi){
       ST._forceMultiVehicle=true;
