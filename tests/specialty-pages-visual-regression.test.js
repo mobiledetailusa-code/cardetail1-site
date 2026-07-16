@@ -21,7 +21,7 @@ const PAGES = [
 
 const PRICES = {
   'boats-detailing.html': ['From $199', 'From $449', 'From $699'],
-  'rv-detailing.html': ['From $279', 'From $399', 'From $379', 'From $899', 'From $1,299', 'From $1,199', 'From $1,499'],
+  'rv-detailing.html': ['Starting at $8/ft', 'Starting at $15/ft', 'Starting at $20/ft', 'Starting at $31/ft', 'Starting at $44/ft'],
   'powersports-detailing.html': ['From $119', 'From $266', 'From $367'],
 };
 
@@ -82,8 +82,8 @@ test('package IDs and listed prices remain unchanged', () => {
   assert.match(read('boats-detailing.html'), /data-booking-package="maint"/);
   assert.match(read('boats-detailing.html'), /data-booking-package="full"/);
   assert.match(read('boats-detailing.html'), /data-booking-package="premium"/);
-  assert.match(read('rv-detailing.html'), /data-booking-package="exterior"/);
-  assert.match(read('rv-detailing.html'), /data-booking-package="interior"/);
+  assert.match(read('rv-detailing.html'), /data-booking-package="maint_light"/);
+  assert.match(read('rv-detailing.html'), /data-booking-package="full"/);
   assert.match(read('powersports-detailing.html'), /data-booking-package="wash"/);
   for (const page of PAGES) {
     const html = read(page);

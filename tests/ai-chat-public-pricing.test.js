@@ -118,7 +118,7 @@ test('only ai-chat.js differs among Netlify Functions since encoding correction'
 test('revops index changes do not alter package IDs or pricing formulas', () => {
   const html = read('index.html');
   assert.match(html, /boats:[\s\S]*?id:'maint'/);
-  assert.match(html, /rvs:[\s\S]*?id:'exterior'/);
+  assert.match(html, /rvs:[\s\S]*?id:'maint_light'/);
   assert.match(html, /interior:225/);
   assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
 });

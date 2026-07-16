@@ -23,7 +23,7 @@
   /** Real package IDs from index.html PRICING — do not invent. */
   var VALID_PACKAGES = {
     boats: { maint: 1, essential: 1, full: 1, premium: 1 },
-    rvs: { maint: 1, exterior: 1, interior: 1, premium: 1, full: 1, correction: 1, correction_int: 1 },
+    rvs: { maint: 1, maint_light: 1, interior: 1, premium: 1, full: 1 },
     powersports: { wash: 1, essential: 1, full: 1, premium: 1 }
   };
 
@@ -142,7 +142,7 @@
     return zip.length === 5 ? zip : '';
   }
 
-  function buildBookingParams(categoryId, packageId, embed, multiVehicle) {
+  function buildBookingParams(categoryId, packageId, embed, multiVehicle, lengthFt) {
     var params = new URLSearchParams();
     params.set('book', categoryId);
     if (embed) params.set('embed', '1');
@@ -150,6 +150,13 @@
     if (multiVehicle) params.set('multi', '1');
     var zip = resolveZip();
     if (zip) params.set('zip', zip);
+    var ft = Number(lengthFt || 0);
+    if (!ft) {
+      try {
+        ft = Number(sessionStorage.getItem('cd1_rv_length') || localStorage.getItem('cd1_rv_length') || 0);
+      } catch (e1) { ft = 0; }
+    }
+    if (categoryId === 'rvs' && ft >= 12 && ft <= 45) params.set('length', String(ft));
     return params;
   }
 
@@ -190,6 +197,7 @@
     var categoryId = String(opts.categoryId || '').toLowerCase();
     var packageId = opts.packageId ? String(opts.packageId) : '';
     var multiVehicle = opts.multiVehicle === true;
+    var lengthFt = opts.lengthFt != null ? Number(opts.lengthFt) : 0;
 
     if (categoryId === 'cars' || categoryId === 'fleet') {
       failBooking(categoryId, packageId, 'INVALID_CATEGORY');
@@ -222,7 +230,7 @@
     try {
       ensureOverlay();
       clearLoadWatch();
-      var params = buildBookingParams(categoryId, packageId, true, multiVehicle);
+      var params = buildBookingParams(categoryId, packageId, true, multiVehicle, lengthFt);
       var settled = false;
 
       function settleOk() {
@@ -336,7 +344,8 @@
         categoryId: btn.getAttribute('data-booking-category'),
         packageId: btn.getAttribute('data-booking-package') || null,
         multiVehicle: btn.getAttribute('data-booking-multi') === '1',
-        sourcePath: window.location.pathname
+        lengthFt: btn.getAttribute('data-booking-length') || null,
+        sourcePath: String(window.location.pathname || '')
       });
     });
 

@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="description" content="Mobile RV, travel trailer &amp; motorhome detailing in NJ. Exterior wash &amp; protect, interior detail, Premium Complete Detail, and one-step paint correction — priced by exact length.">
+<meta name="description" content="Mobile RV detailing in NJ — Maintenance Wash, Light Interior, Interior Detail, Premium Exterior, and Premium Complete RV Detail, priced by exact length.">
 <meta name="geo.region" content="US-NJ">
 <meta name="geo.placename" content="Bergen County, New Jersey">
 <link rel="canonical" href="https://cardetail1.com/rv-detailing.html">
 <meta property="og:title" content="Mobile RV &amp; Travel Trailer Detailing | Cardetail1">
-<meta property="og:description" content="Mobile RV detailing for travel trailers, fifth wheels, and motorhomes — clean exteriors, refreshed interiors, and one-step gloss improvement priced by length.">
+<meta property="og:description" content="Five clear RV packages with explicit surfaces and tasks — priced by exact length at your driveway or storage lot.">
 <meta property="og:url" content="https://cardetail1.com/rv-detailing.html">
 <title>Mobile RV &amp; Travel Trailer Detailing | Cardetail1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,7 +54,7 @@
   <p class="sp-hero-area">Driveways and storage lots across Bergen County and nearby North Jersey service areas.</p>
   <div class="sp-btns">
     <a class="sp-btn sp-btn-primary" href="#packages">View RV Packages</a>
-    <a class="sp-btn sp-btn-outline" href="index.html?book=rvs&amp;pkg=full" data-booking-category="rvs" data-booking-package="full">Book Premium Complete</a>
+    <a class="sp-btn sp-btn-outline" href="index.html?book=rvs&amp;pkg=full" data-booking-category="rvs" data-booking-package="full">Book Premium Complete RV Detail</a>
     <a class="sp-btn sp-btn-outline" href="tel:5513132956">Call / Text</a>
   </div>
   <div class="cd1-multi-cta" data-cd1-multi-vehicle-section>
@@ -78,145 +78,165 @@
 <section class="sp-section" id="packages">
   <div class="sp-sec-eye">RV &amp; Trailer Packages</div>
   <h2 class="sp-sec-title">Choose Your Mobile RV &amp; Trailer Detailing Package</h2>
-  <p class="sp-sec-copy">Pick outside only, inside only, or both. Most owners choose Premium Complete Detail.</p>
+  <p class="sp-sec-copy">Five clear packages. Every card lists the surfaces and tasks included. Most owners choose Premium Complete RV Detail.</p>
 
-  <h3 class="rv-group-title">Essential Care</h3>
+  <div class="rv-length-bar" id="rv-length-bar" data-rv-length-control>
+    <label class="rv-length-label" for="rv-length-range">RV length</label>
+    <div class="rv-length-row">
+      <input class="rv-length-range" id="rv-length-range" type="range" min="12" max="45" value="" step="1" aria-valuemin="12" aria-valuemax="45" aria-describedby="rv-length-hint">
+      <div class="rv-length-value"><span id="rv-length-val">—</span> ft</div>
+    </div>
+    <p class="rv-length-hint" id="rv-length-hint">Select your exact RV length to see your estimated total. Package cards show a starting per-foot rate.</p>
+  </div>
+
   <div class="sp-pkg-grid rv-pkg-grid">
-    <article class="sp-pkg-card" data-rv-tier="maint">
+    <article class="sp-pkg-card" data-rv-tier="maint" data-per-ft="8" data-min="129">
       <h3 class="sp-pkg-name">Maintenance Wash</h3>
-      <p class="sp-pkg-tag">Keep your RV clean between major services</p>
-      <p class="sp-pkg-why">Best for units that were recently detailed and need light upkeep before another trip.</p>
-      <div class="sp-pkg-price">From $279</div>
-      <div class="sp-pkg-basis">Priced by length</div>
-      <div class="sp-pkg-time">~1.5–2.5h</div>
+      <p class="sp-pkg-tag">Keep your RV clean, protected and ready for the road.</p>
+      <div class="sp-pkg-price" data-rv-price>Starting at $8/ft</div>
+      <div class="sp-pkg-basis" data-rv-basis>Select your exact RV length to see your estimated total.</div>
+      <div class="sp-pkg-minote">Minimum mobile service charge: $129</div>
+      <div class="sp-pkg-time">Service duration depends on RV size, condition and crew assigned.</div>
       <ul class="sp-pkg-feats">
-        <li>Light exterior hand wash</li>
-        <li>Road film and light dust removal</li>
-        <li>Wheels cleaned · tires dressed</li>
-        <li>Exterior glass &amp; mirrors</li>
-        <li>Maintenance protection booster when appropriate</li>
+        <li>Exterior hand wash</li>
+        <li>Bug and light road-film removal</li>
+        <li>Exterior windows and mirrors</li>
+        <li>Wheels cleaned</li>
+        <li>Tire shine</li>
+        <li>Quick machine-applied wax or sealant</li>
+        <li>Final exterior inspection</li>
       </ul>
-      <p class="sp-pkg-limit">Heavy black streaks, oxidation, or neglected surfaces may need a higher package.</p>
+      <p class="sp-pkg-limit">Roof excluded. Heavy black streaks, oxidation and severe water spots are not included.</p>
       <button type="button" class="sp-btn sp-btn-primary sp-btn-block package-booking-cta" data-booking-category="rvs" data-booking-package="maint">Select This RV Package</button>
     </article>
 
-    <article class="sp-pkg-card" data-rv-tier="exterior">
-      <h3 class="sp-pkg-name">Exterior Wash &amp; Protect</h3>
-      <p class="sp-pkg-tag">Clean, road-ready exterior with short-term protection</p>
-      <p class="sp-pkg-why">Best for owners who want a presentable exterior with added gloss — not just a rinse.</p>
-      <div class="sp-pkg-price">From $399</div>
-      <div class="sp-pkg-basis">Priced by length</div>
-      <div class="sp-pkg-time">~2.5–3.5h</div>
+    <article class="sp-pkg-card" data-rv-tier="maint_light" data-per-ft="15" data-min="229">
+      <h3 class="sp-pkg-name">Maintenance Wash + Light Interior</h3>
+      <p class="sp-pkg-tag">Exterior maintenance plus a quick interior refresh.</p>
+      <div class="sp-pkg-price" data-rv-price>Starting at $15/ft</div>
+      <div class="sp-pkg-basis" data-rv-basis>Select your exact RV length to see your estimated total.</div>
+      <div class="sp-pkg-minote">Minimum mobile service charge: $229</div>
+      <div class="sp-pkg-time">Service duration depends on RV size, condition and crew assigned.</div>
+      <p class="sp-pkg-why"><strong>Exterior includes:</strong></p>
       <ul class="sp-pkg-feats">
-        <li>Full exterior hand wash</li>
-        <li>Wheels, tires, glass &amp; mirrors</li>
-        <li>Bug and road-film removal within normal limits</li>
-        <li>Light black-streak reduction</li>
-        <li>Machine-applied quick wax or surface-appropriate protection</li>
-        <li>Final exterior inspection</li>
+        <li>Exterior hand wash</li>
+        <li>Exterior windows and mirrors</li>
+        <li>Wheels cleaned</li>
+        <li>Tire shine</li>
+        <li>Quick machine-applied wax or sealant</li>
       </ul>
-      <p class="sp-pkg-limit">Heavy streaks, severe water spots, oxidation, roof access, or neglected awnings may need add-ons or inspection.</p>
-      <button type="button" class="sp-btn sp-btn-primary sp-btn-block package-booking-cta" data-booking-category="rvs" data-booking-package="exterior">Select This RV Package</button>
+      <p class="sp-pkg-why"><strong>Light interior includes:</strong></p>
+      <ul class="sp-pkg-feats">
+        <li>Vacuum accessible floors and seating areas</li>
+        <li>Driver cabin vacuum and wipe-down</li>
+        <li>Tables and countertops wiped clean</li>
+        <li>Kitchen surfaces and sink wiped clean</li>
+        <li>Stove exterior cleaned</li>
+        <li>Bathroom surfaces wiped clean</li>
+        <li>Interior mirrors and glass</li>
+        <li>Accessible trash removal</li>
+      </ul>
+      <p class="sp-pkg-limit">Not included: upholstery shampoo, carpet extraction, pet hair, odor treatment, refrigerator interior, oven interior, cabinet interiors, bed making, roof cleaning.</p>
+      <button type="button" class="sp-btn sp-btn-primary sp-btn-block package-booking-cta" data-booking-category="rvs" data-booking-package="maint_light">Select This RV Package</button>
     </article>
 
-    <article class="sp-pkg-card" data-rv-tier="interior">
+    <article class="sp-pkg-card" data-rv-tier="interior" data-per-ft="20" data-min="249">
       <h3 class="sp-pkg-name">Interior Detail</h3>
-      <p class="sp-pkg-tag">Bring comfort back inside your RV</p>
-      <p class="sp-pkg-why">Best after camping trips, family travel, or seasonal storage — inside only.</p>
-      <div class="sp-pkg-price">From $379</div>
-      <div class="sp-pkg-basis">Priced by length</div>
-      <div class="sp-pkg-time">~3–5h</div>
+      <p class="sp-pkg-tag">A complete interior cleaning from the driver cabin to the living area.</p>
+      <div class="sp-pkg-price" data-rv-price>Starting at $20/ft</div>
+      <div class="sp-pkg-basis" data-rv-basis>Select your exact RV length to see your estimated total.</div>
+      <div class="sp-pkg-minote">Minimum mobile service charge: $249</div>
+      <div class="sp-pkg-time">Service duration depends on RV size, condition and crew assigned.</div>
       <ul class="sp-pkg-feats">
-        <li>Full vacuum of accessible floors and living areas</li>
-        <li>Driver cabin cleaned</li>
-        <li>Kitchen surfaces &amp; appliance fronts</li>
-        <li>Bathroom surfaces · cabinet exteriors</li>
-        <li>Interior glass, mirrors &amp; high-touch surfaces</li>
+        <li>Full interior vacuum</li>
+        <li>Carpet and upholstery shampoo</li>
+        <li>Driver cabin detailing</li>
+        <li>Dashboard and high-touch surfaces</li>
+        <li>Tables and countertops</li>
+        <li>Leather cleaning and conditioning where applicable</li>
+        <li>Kitchen sink and stove cleaning</li>
+        <li>Refrigerator interior when empty</li>
+        <li>Oven interior when empty and cool</li>
+        <li>Bathroom surfaces</li>
+        <li>Interior windows and mirrors</li>
+        <li>Cabinet exteriors</li>
+        <li>Cabinet interiors when completely emptied</li>
+        <li>Accessible floor mats</li>
+        <li>Bed neatly made when clean linens are provided</li>
+        <li>Final interior inspection</li>
       </ul>
-      <p class="sp-pkg-limit">Deep extraction, heavy pet hair, odor treatment, and Super Interior are separate add-ons.</p>
+      <p class="sp-pkg-limit">Personal belongings must be removed. Refrigerator, oven and cabinet interiors must be empty. Heavy staining, excessive pet hair and strong odors may require Super Interior or separate pricing.</p>
       <button type="button" class="sp-btn sp-btn-primary sp-btn-block package-booking-cta" data-booking-category="rvs" data-booking-package="interior">Select This RV Package</button>
     </article>
-  </div>
 
-  <h3 class="rv-group-title">Complete Care</h3>
-  <div class="sp-pkg-grid rv-pkg-grid">
-    <article class="sp-pkg-card" data-rv-tier="premium">
+    <article class="sp-pkg-card" data-rv-tier="premium" data-per-ft="31" data-min="449">
       <h3 class="sp-pkg-name">Premium Exterior Detail</h3>
-      <p class="sp-pkg-tag">Improve gloss and protect the exterior in one visit</p>
-      <p class="sp-pkg-why">Best for dullness, road film, or light oxidation that needs more than a wash.</p>
-      <div class="sp-pkg-price">From $899</div>
-      <div class="sp-pkg-basis">Priced by length &amp; condition</div>
-      <div class="sp-pkg-time">~4–6h</div>
+      <p class="sp-pkg-tag">One-Step Machine Polish + Premium Protection</p>
+      <div class="sp-pkg-price" data-rv-price>Starting at $31/ft</div>
+      <div class="sp-pkg-basis" data-rv-basis>Select your exact RV length to see your estimated total.</div>
+      <div class="sp-pkg-minote">Minimum mobile service charge: $449</div>
+      <div class="sp-pkg-time">Service duration depends on RV size, condition and crew assigned.</div>
       <ul class="sp-pkg-feats">
-        <li>Exterior hand wash &amp; decontamination prep</li>
-        <li>One-Step Machine Polish</li>
+        <li>Exterior hand wash</li>
+        <li>Bug, road-film and light black-streak removal</li>
+        <li>Exterior decontamination preparation</li>
+        <li>One-step machine polish</li>
         <li>Light oxidation and haze improvement where achievable</li>
-        <li>Machine-applied wax or sealant</li>
-        <li>Wheels, tires &amp; exterior glass</li>
+        <li>High-quality machine-applied wax or sealant</li>
+        <li>Exterior windows and mirrors</li>
+        <li>Wheels cleaned</li>
+        <li>Tire shine</li>
+        <li>Entry-door jambs and accessible tracks</li>
         <li>Final exterior inspection</li>
       </ul>
-      <p class="sp-pkg-limit">A one-step polish improves gloss and light imperfections. It is not a multi-stage restoration and will not remove every defect. Severe oxidation needs inspection.</p>
+      <p class="sp-pkg-limit">Roof excluded. A one-step polish improves gloss and reduces light defects. It is not a multi-stage restoration and will not remove every scratch, severe oxidation, damaged decal or permanent water spot.</p>
       <button type="button" class="sp-btn sp-btn-primary sp-btn-block package-booking-cta" data-booking-category="rvs" data-booking-package="premium">Select This RV Package</button>
     </article>
 
-    <article class="sp-pkg-card pop rv-pkg-recommended" data-rv-tier="full">
-      <div class="sp-pkg-badge sp-pkg-badge--rec">Most Popular</div>
-      <h3 class="sp-pkg-name">Premium Complete Detail</h3>
-      <p class="sp-pkg-tag">Everything most RV owners need in one visit</p>
-      <p class="sp-pkg-why">Ideal before a long trip, after camping season, before storage, or when preparing an RV for sale.</p>
-      <div class="sp-pkg-price">From $1,299</div>
-      <div class="sp-pkg-basis">Priced by length · exterior + interior</div>
-      <div class="sp-pkg-time">~6–9h</div>
+    <article class="sp-pkg-card pop rv-pkg-recommended" data-rv-tier="full" data-per-ft="44" data-min="699">
+      <div class="sp-pkg-badge sp-pkg-badge--rec">MOST POPULAR</div>
+      <h3 class="sp-pkg-name">Premium Complete RV Detail</h3>
+      <p class="sp-pkg-tag">One-Step Exterior Polish + Complete Interior Detail</p>
+      <p class="sp-pkg-why">Everything most RV owners need in one appointment. A premium exterior detail combined with a complete interior cleaning—ideal before a long trip, after camping season, before storage or when preparing the RV for sale.</p>
+      <div class="sp-pkg-price" data-rv-price>Starting at $44/ft</div>
+      <div class="sp-pkg-basis" data-rv-basis>Select your exact RV length to see your estimated total.</div>
+      <div class="sp-pkg-minote">Minimum mobile service charge: $699</div>
+      <div class="sp-pkg-time">Service duration depends on RV size, condition and crew assigned.</div>
+      <p class="sp-pkg-why"><strong>Premium Exterior Detail includes:</strong></p>
       <ul class="sp-pkg-feats">
-        <li>Exterior hand wash &amp; light streak reduction</li>
-        <li>One-Step Machine Polish / gloss enhancement</li>
-        <li>Machine-applied wax or sealant</li>
-        <li>Full Interior Detail</li>
-        <li>Cockpit, living areas, kitchen &amp; bathroom</li>
-        <li>Final inspection inside and out</li>
+        <li>Exterior hand wash</li>
+        <li>Bug, road-film and light black-streak removal</li>
+        <li>Exterior decontamination preparation</li>
+        <li>One-step machine polish</li>
+        <li>Light oxidation and haze improvement where achievable</li>
+        <li>High-quality machine-applied wax or sealant</li>
+        <li>Exterior windows and mirrors</li>
+        <li>Wheels cleaned</li>
+        <li>Tire shine</li>
+        <li>Entry-door jambs and accessible tracks</li>
+        <li>Final exterior inspection</li>
       </ul>
-      <p class="sp-pkg-limit">Does not include multi-stage correction, Super Interior, odor treatment, or roof work unless selected separately.</p>
+      <p class="sp-pkg-why"><strong>Interior Detail includes:</strong></p>
+      <ul class="sp-pkg-feats">
+        <li>Full interior vacuum</li>
+        <li>Carpet and upholstery shampoo</li>
+        <li>Driver cabin detailing</li>
+        <li>Dashboard and high-touch surfaces</li>
+        <li>Tables and countertops</li>
+        <li>Leather cleaning and conditioning where applicable</li>
+        <li>Kitchen sink and stove cleaning</li>
+        <li>Refrigerator interior when empty</li>
+        <li>Oven interior when empty and cool</li>
+        <li>Bathroom surfaces</li>
+        <li>Interior windows and mirrors</li>
+        <li>Cabinet exteriors</li>
+        <li>Cabinet interiors when completely emptied</li>
+        <li>Accessible floor mats</li>
+        <li>Bed neatly made when clean linens are provided</li>
+        <li>Final interior inspection</li>
+      </ul>
+      <p class="sp-pkg-limit">Roof excluded. This package includes a one-step machine polish. Severe oxidation, deep scratches, damaged decals and multi-stage correction require inspection and separate pricing.</p>
       <button type="button" class="sp-btn sp-btn-primary sp-btn-block package-booking-cta" data-booking-category="rvs" data-booking-package="full">Select Recommended Package</button>
-    </article>
-  </div>
-
-  <h3 class="rv-group-title">Paint Improvement</h3>
-  <div class="sp-pkg-grid rv-pkg-grid">
-    <article class="sp-pkg-card" data-rv-tier="correction">
-      <h3 class="sp-pkg-name">One-Step Paint Correction</h3>
-      <p class="sp-pkg-tag">Strongest same-day improvement in exterior gloss</p>
-      <p class="sp-pkg-why">Best when you want a focused one-step polishing service for visible dullness, haze, or light oxidation.</p>
-      <div class="sp-pkg-price">From $1,199</div>
-      <div class="sp-pkg-basis">Priced by length &amp; condition</div>
-      <div class="sp-pkg-time">~5–7h</div>
-      <ul class="sp-pkg-feats">
-        <li>Condition assessment</li>
-        <li>Exterior preparation and decontamination</li>
-        <li>One-step machine polishing</li>
-        <li>Light-to-moderate oxidation improvement where achievable</li>
-        <li>Protective wax or sealant</li>
-        <li>Final finish inspection</li>
-      </ul>
-      <p class="sp-pkg-limit">Results depend on material type, oxidation depth, previous damage, and decal condition. Deep defects, severe oxidation, failed coatings, and multi-stage work require inspection and a separate quote.</p>
-      <button type="button" class="sp-btn sp-btn-primary sp-btn-block package-booking-cta" data-booking-category="rvs" data-booking-package="correction">Select This RV Package</button>
-    </article>
-
-    <article class="sp-pkg-card" data-rv-tier="correction_int">
-      <div class="sp-pkg-badge">Best for complete care</div>
-      <h3 class="sp-pkg-name">One-Step Paint Correction + Interior</h3>
-      <p class="sp-pkg-tag">Strongest same-day exterior improvement plus a complete interior detail</p>
-      <p class="sp-pkg-why">Ideal before travel, storage, or resale when you want both sides of the unit addressed in one visit.</p>
-      <div class="sp-pkg-price">From $1,499</div>
-      <div class="sp-pkg-basis">Priced by length &amp; condition</div>
-      <div class="sp-pkg-time">~7–10h</div>
-      <ul class="sp-pkg-feats">
-        <li>Full One-Step Paint Correction exterior scope</li>
-        <li>Full Interior Detail scope</li>
-        <li>Protective exterior finish</li>
-        <li>Final inspection inside and out</li>
-      </ul>
-      <p class="sp-pkg-limit">This is a one-step polishing service. Multi-stage correction or severe work requires inspection and separate pricing. Super Interior remains an optional $135 upgrade.</p>
-      <button type="button" class="sp-btn sp-btn-primary sp-btn-block package-booking-cta" data-booking-category="rvs" data-booking-package="correction_int">Select This RV Package</button>
     </article>
   </div>
 
@@ -226,13 +246,35 @@
 <section class="sp-section" id="addons">
   <div class="sp-sec-eye">Add-ons</div>
   <h2 class="sp-sec-title">Useful Upgrades When You Book</h2>
-  <p class="sp-sec-copy">Select add-ons in the normal booking flow. Super Interior is $135 and appears with the other RV add-ons.</p>
+  <p class="sp-sec-copy">Select add-ons in the normal booking flow. Super Interior is $135 and Sanitize is $75.</p>
   <div class="rv-addon-grid">
     <article class="rv-addon-card rv-addon-card--feature">
       <h3>Super Interior · $135</h3>
-      <p>Extra attention for busy family RVs, extended trips, or interiors that need more than the standard detail — including emptied cabinet interiors, detailed kitchen and bathroom cleaning, accessible storage, high-touch sanitizing, and extended finishing.</p>
-      <p class="rv-addon-note">Remove belongings for access. Pet hair, odor treatment, and extraction remain separate.</p>
+      <ul class="sp-pkg-feats">
+        <li>Additional upholstery or carpet shampoo pass</li>
+        <li>Up to two total shampoo/extraction passes where needed</li>
+        <li>Moderate pet hair removal</li>
+        <li>Odor-neutralizing treatment</li>
+        <li>Detailed floor-mat cleaning</li>
+        <li>Additional attention to high-use interior areas</li>
+        <li>Extended interior labor</li>
+      </ul>
+      <p class="rv-addon-note">Severe pet hair, smoke, sewage, mold, biological contamination or deeply embedded odors may require inspection and separate pricing.</p>
       <a class="sp-btn sp-btn-primary" href="index.html?book=rvs&amp;pkg=interior" data-booking-category="rvs" data-booking-package="interior">Book Interior &amp; Add in Checkout</a>
+    </article>
+    <article class="rv-addon-card rv-addon-card--feature">
+      <h3>Sanitize · $75</h3>
+      <ul class="sp-pkg-feats">
+        <li>Sanitizing treatment after normal cleaning</li>
+        <li>Steering wheel and driver controls</li>
+        <li>Door handles</li>
+        <li>Tables and countertops</li>
+        <li>Kitchen touch points</li>
+        <li>Bathroom touch points</li>
+        <li>Switches and frequently handled surfaces</li>
+      </ul>
+      <p class="rv-addon-note">Sanitize is a treatment after cleaning — not sterilization.</p>
+      <a class="sp-btn sp-btn-outline" href="index.html?book=rvs&amp;pkg=interior" data-booking-category="rvs" data-booking-package="interior">Add in Checkout</a>
     </article>
     <article class="rv-addon-card">
       <h3>Also available at booking</h3>
@@ -241,7 +283,7 @@
         <li>Awning cleaning</li>
         <li>Front cap deep clean</li>
         <li>Pet hair removal</li>
-        <li>Odor treatment &amp; sanitize</li>
+        <li>Odor treatment</li>
         <li>Polymer / carnauba protection upgrades</li>
       </ul>
     </article>
@@ -397,18 +439,18 @@
   <div class="sp-faq">
     <details><summary>Do I need water or power at my lot?</summary><p>Usually no. We bring our own water and power so storage lots and driveways without hookups are still workable when space allows.</p></details>
     <details><summary>Can you wash RV roofs?</summary><p>Roof surface cleaning can be added when safe access is available. Tell us about ladders, height, and membrane type during booking.</p></details>
-    <details><summary>How do you price different RV types?</summary><p>Packages start at the listed “From” prices and scale with exact length, condition, and access — including slide-outs and oxidation.</p></details>
+    <details><summary>How do you price different RV types?</summary><p>Packages show a starting per-foot rate. Select your exact RV length to see an estimated total. A minimum mobile service charge may apply on smaller units. Unit type, condition, access, and add-ons can change the final price.</p></details>
     <details><summary>Do you detail fifth wheels and Class A coaches?</summary><p>Yes — travel trailers, fifth wheels, Class C, and larger coaches when site access is safe for equipment.</p></details>
-    <details><summary>What is One-Step Machine Polish?</summary><p>A one-step polish is designed to improve gloss and reduce light oxidation, haze, and minor surface imperfections. It is not a multi-stage restoration and will not remove every defect.</p></details>
-    <details><summary>Which package should most owners book?</summary><p>Premium Complete Detail is the most popular choice — exterior wash, one-step gloss improvement, protection, and a full interior detail in one visit.</p></details>
+    <details><summary>What is One-Step Machine Polish?</summary><p>A one-step polish is designed to improve gloss and reduce light oxidation, haze, and minor surface imperfections. It is not a multi-stage restoration and will not remove every scratch, severe oxidation, damaged decal or permanent water spot.</p></details>
+    <details><summary>Which package should most owners book?</summary><p>Premium Complete RV Detail is the most popular choice — one-step exterior polish plus a complete interior cleaning in one appointment.</p></details>
   </div>
 </section>
 
 <section class="sp-cta" aria-label="Book RV detailing">
   <h2>Ready to Book Your RV?</h2>
-  <p>Start with Premium Complete Detail, or choose outside-only / inside-only packages online.</p>
+  <p>Start with Premium Complete RV Detail, or choose Maintenance Wash, Light Interior, Interior Detail, or Premium Exterior online.</p>
   <div class="sp-btns">
-    <a class="sp-btn sp-btn-primary" href="index.html?book=rvs&amp;pkg=full" data-booking-category="rvs" data-booking-package="full">Book Premium Complete</a>
+    <a class="sp-btn sp-btn-primary" href="index.html?book=rvs&amp;pkg=full" data-booking-category="rvs" data-booking-package="full">Book Premium Complete RV Detail</a>
     <a class="sp-btn sp-btn-outline" href="tel:5513132956">Call / Text</a>
   </div>
 </section>
@@ -472,5 +514,94 @@
 <script src="assets/revops-init.js"></script>
 <script src="assets/back-to-top.js" defer></script>
 <script src="assets/hub-booking-bridge.js" defer></script>
+
+<script>
+(function () {
+  var KEY = 'cd1_rv_length';
+  var range = document.getElementById('rv-length-range');
+  var valEl = document.getElementById('rv-length-val');
+  var hint = document.getElementById('rv-length-hint');
+  if (!range || !valEl) return;
+
+  function money(n) {
+    return '$' + Number(n).toLocaleString('en-US');
+  }
+
+  function calc(perFt, min, ft) {
+    return Math.max(Number(min), Math.round(Number(perFt) * Number(ft)));
+  }
+
+  function readStored() {
+    try {
+      var n = Number(sessionStorage.getItem(KEY) || localStorage.getItem(KEY) || 0);
+      return (n >= 12 && n <= 45) ? n : 0;
+    } catch (e) { return 0; }
+  }
+
+  function store(ft) {
+    try {
+      sessionStorage.setItem(KEY, String(ft));
+      localStorage.setItem(KEY, String(ft));
+    } catch (e) {}
+  }
+
+  function syncBookingButtons(ft) {
+    var btns = document.querySelectorAll('[data-booking-category="rvs"]');
+    for (var i = 0; i < btns.length; i++) {
+      if (ft) btns[i].setAttribute('data-booking-length', String(ft));
+      else btns[i].removeAttribute('data-booking-length');
+    }
+  }
+
+  function render(ft) {
+    var cards = document.querySelectorAll('[data-rv-tier][data-per-ft]');
+    var hasFt = ft >= 12 && ft <= 45;
+    if (hasFt) {
+      valEl.textContent = String(ft);
+      range.value = String(ft);
+      range.setAttribute('aria-valuenow', String(ft));
+      if (hint) hint.textContent = 'Estimated totals for your ' + ft + '-ft RV. Final price may change with unit type, condition, access, roof work, add-ons, and travel rules.';
+    } else {
+      valEl.textContent = '—';
+      if (hint) hint.textContent = 'Select your exact RV length to see your estimated total. Package cards show a starting per-foot rate.';
+    }
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      var perFt = Number(card.getAttribute('data-per-ft'));
+      var min = Number(card.getAttribute('data-min'));
+      var priceEl = card.querySelector('[data-rv-price]');
+      var basisEl = card.querySelector('[data-rv-basis]');
+      if (!priceEl) continue;
+      if (hasFt) {
+        var total = calc(perFt, min, ft);
+        priceEl.textContent = 'Estimated total for your ' + ft + '-ft RV: ' + money(total);
+        if (basisEl) basisEl.textContent = 'Based on $' + perFt + '/ft · estimate subject to condition and access';
+      } else {
+        priceEl.textContent = 'Starting at $' + perFt + '/ft';
+        if (basisEl) basisEl.textContent = 'Select your exact RV length to see your estimated total.';
+      }
+    }
+    syncBookingButtons(hasFt ? ft : 0);
+  }
+
+  function onLengthInput() {
+    var ft = Number(range.value);
+    if (!(ft >= 12 && ft <= 45)) return;
+    store(ft);
+    render(ft);
+  }
+
+  range.addEventListener('input', onLengthInput);
+  range.addEventListener('change', onLengthInput);
+
+  var initial = readStored();
+  if (initial) {
+    range.value = String(initial);
+    render(initial);
+  } else {
+    render(0);
+  }
+})();
+</script>
 </body>
 </html>
