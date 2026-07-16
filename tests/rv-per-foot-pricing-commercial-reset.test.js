@@ -24,7 +24,7 @@ const {
   computeAddonTotal,
 } = require('../netlify/lib/booking-price-catalog');
 
-const PKG_IDS = ['maint', 'maint_light', 'interior', 'premium', 'full'];
+const PKG_IDS = ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
 
 test('every supported length uses exact ft × perFt with package min', () => {
   const cfg = LENGTH_PRICING.rvs;
@@ -35,7 +35,7 @@ test('every supported length uses exact ft × perFt with package min', () => {
     for (const id of PKG_IDS) {
       const rule = cfg.packages[id];
       assert.equal(
-        getLengthPrice('rvs', id, ft),
+        getLengthPrice('rvs', id, ft, 'travel'),
         Math.max(rule.min, Math.round(rule.perFt * ft)),
       );
     }
@@ -49,8 +49,8 @@ test('no double-count: price is not min + perFt*(ft-24)', () => {
     const rule = LENGTH_PRICING.rvs.packages[id];
     const ft = 30;
     const expected = Math.max(rule.min, Math.round(rule.perFt * ft));
-    assert.equal(getLengthPrice('rvs', id, ft), expected);
-    assert.notEqual(getLengthPrice('rvs', id, ft), rule.min + Math.round(rule.perFt * (ft - 24)));
+    assert.equal(getLengthPrice('rvs', id, ft, 'travel'), expected);
+    assert.notEqual(getLengthPrice('rvs', id, ft, 'travel'), rule.min + Math.round(rule.perFt * (ft - 24)));
   }
 });
 
@@ -62,15 +62,14 @@ test('Super Interior $135; Sanitize $75; Mold absent', () => {
   assert.equal(computeAddonTotal({ cat: 'rvs', addons: [{ id: 'sanitize' }] }).total, 75);
 });
 
-test('cards show Starting at $/ft; length selector present; five packages only', () => {
+test('public page: no premature ruler/prices; six packages; funnel CTA', () => {
   const page = read('rv-detailing.html');
-  assert.match(page, /Starting at \$8\/ft/);
-  assert.match(page, /Starting at \$15\/ft/);
-  assert.match(page, /Starting at \$44\/ft/);
+  assert.doesNotMatch(page, /Starting at \$|id="rv-length-range"/);
   assert.doesNotMatch(page, /From \$899\b|From \$1,?299|From \$1,?499/);
-  assert.match(page, /id="rv-length-range"/);
-  assert.equal((page.match(/data-rv-tier="/g) || []).length, 5);
+  assert.equal((page.match(/data-rv-tier="/g) || []).length, 6);
+  assert.match(page, /CHECK PRICE &amp; AVAILABILITY/);
   assert.match(page, /Maintenance Wash \+ Light Interior/);
+  assert.match(page, /Full RV Detail/);
   assert.match(page, /Premium Complete RV Detail/);
   assert.doesNotMatch(page, /One-Step Paint Correction \+/);
 });
@@ -82,11 +81,12 @@ test('frontend formula matches backend; manipulated addon prices rejected', () =
       LENGTH_PRICING.rvs.packages[id].min,
       Math.round(LENGTH_PRICING.rvs.packages[id].perFt * ft),
     );
-    assert.equal(getLengthPrice('rvs', id, ft), front);
+    assert.equal(getLengthPrice('rvs', id, ft, 'travel'), front);
     const total = computeVehicleSubtotal({
       cat: 'rvs',
       pkgId: id,
       lengthFt: ft,
+      rvType: 'travel',
       addons: [],
     }, '07650');
     assert.equal(total.ok, true);
@@ -103,11 +103,13 @@ test('frontend formula matches backend; manipulated addon prices rejected', () =
 
 test('package hierarchy valid; other categories unchanged', () => {
   for (const ft of [20, 24, 30, 40, 45]) {
-    const p = Object.fromEntries(PKG_IDS.map((id) => [id, getLengthPrice('rvs', id, ft)]));
+    const p = Object.fromEntries(PKG_IDS.map((id) => [id, getLengthPrice('rvs', id, ft, 'travel')]));
     assert.ok(p.maint < p.maint_light);
+    assert.ok(p.full_basic > p.interior);
     assert.ok(p.premium > p.maint_light);
     assert.ok(p.full > p.premium);
     assert.ok(p.full > p.interior);
+    assert.ok(p.full > p.full_basic);
   }
   const index = read('index.html');
   assert.match(index, /BK_VISIBLE_STEPS\s*=\s*6/);

@@ -24,11 +24,12 @@ const {
   computeAddonTotal,
 } = require('../netlify/lib/booking-price-catalog');
 
-const FINAL_IDS = ['maint', 'maint_light', 'interior', 'premium', 'full'];
+const FINAL_IDS = ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
 const FINAL_NAMES = {
   maint: 'Maintenance Wash',
   maint_light: 'Maintenance Wash + Light Interior',
   interior: 'Interior Detail',
+  full_basic: 'Full RV Detail',
   premium: 'Premium Exterior Detail',
   full: 'Premium Complete RV Detail',
 };
@@ -51,14 +52,14 @@ function extractRvLength(html) {
   return m[1];
 }
 
-test('PACKAGE STRUCTURE: exactly five customer-visible RV packages', () => {
+test('PACKAGE STRUCTURE: six customer-visible RV packages', () => {
   const html = read('index.html');
   const block = extractRvPackages(html);
   const ids = [...block.matchAll(/id:'([^']+)'/g)].map((m) => m[1]);
   assert.deepEqual(ids, FINAL_IDS);
 
   const page = read('rv-detailing.html');
-  assert.equal((page.match(/data-rv-tier="/g) || []).length, 5);
+  assert.equal((page.match(/data-rv-tier="/g) || []).length, 6);
   for (const [id, name] of Object.entries(FINAL_NAMES)) {
     assert.match(page, new RegExp(`data-rv-tier="${id}"`));
     assert.match(page, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
@@ -68,7 +69,7 @@ test('PACKAGE STRUCTURE: exactly five customer-visible RV packages', () => {
   assert.doesNotMatch(block, /id:'(exterior|correction|correction_int)'/);
 
   const bridge = read('assets/specialty-booking-bridge.js');
-  assert.match(bridge, /rvs:\s*\{[^}]*maint_light:[^}]*full:/);
+  assert.match(bridge, /rvs:\s*\{[^}]*full_basic:[^}]*full:/);
   assert.doesNotMatch(bridge, /correction_int/);
 });
 
@@ -83,12 +84,12 @@ test('SCOPE CLARITY: banned vague phrases removed; surfaces listed', () => {
     assert.doesNotMatch(src, /rejuvenation/i);
     assert.doesNotMatch(src, /highest ticket/i);
   }
-  assert.doesNotMatch(page, /~\d/);
-  assert.match(page, /Service duration depends on RV size, condition and crew assigned/);
+  assert.doesNotMatch(page, /Service duration depends|~\d+–\d+h/);
   assert.match(page, /Exterior hand wash/);
   assert.match(page, /Refrigerator interior when empty/);
   assert.match(page, /One-step machine polish/);
   assert.match(page, /MOST POPULAR/);
+  assert.match(page, /BEST FINISH/);
 });
 
 test('ADD-ONS: Super Interior $135, Sanitize $75, Mold absent for new RV bookings', () => {
@@ -136,11 +137,12 @@ test('ADD-ONS: historical Mold Treatment records remain display-safe', () => {
   assert.match(line, /Mold Treatment/);
 });
 
-test('PRICING: five-package hierarchy and per-foot math', () => {
+test('PRICING: six-package hierarchy and per-foot math', () => {
   const lp = LENGTH_PRICING.rvs.packages;
   assert.equal(lp.maint.min, 129);
   assert.equal(lp.maint_light.min, 229);
   assert.equal(lp.interior.min, 249);
+  assert.equal(lp.full_basic.min, 349);
   assert.equal(lp.premium.min, 449);
   assert.equal(lp.full.min, 699);
   assert.equal(Object.keys(lp).sort().join(','), FINAL_IDS.slice().sort().join(','));
@@ -150,36 +152,36 @@ test('PRICING: five-package hierarchy and per-foot math', () => {
   assert.ok(lp.full.min > lp.premium.min);
 
   const ft = 24;
-  const prices = Object.fromEntries(FINAL_IDS.map((id) => [id, getLengthPrice('rvs', id, ft)]));
-  assert.equal(prices.maint, 192);
-  assert.equal(prices.maint_light, 360);
-  assert.equal(prices.interior, 480);
-  assert.equal(prices.premium, 744);
-  assert.equal(prices.full, 1056);
+  const prices = Object.fromEntries(FINAL_IDS.map((id) => [id, getLengthPrice('rvs', id, ft, 'travel')]));
+  assert.equal(prices.maint, Math.max(129, Math.round(8.5 * 24)));
+  assert.equal(prices.maint_light, Math.max(229, Math.round(16 * 24)));
+  assert.equal(prices.interior, Math.max(249, Math.round(21 * 24)));
+  assert.equal(prices.full_basic, Math.max(349, Math.round(27 * 24)));
+  assert.equal(prices.premium, Math.max(449, Math.round(33 * 24)));
+  assert.equal(prices.full, Math.max(699, Math.round(49.5 * 24)));
   assert.ok(prices.maint < prices.maint_light);
   assert.ok(prices.full > prices.premium);
   assert.ok(prices.full > prices.interior);
+  assert.ok(prices.full > prices.full_basic);
 
-  // Legacy IDs still resolve without creating a 7-package ladder.
-  assert.equal(getLengthPrice('rvs', 'exterior', 24), prices.maint_light);
-  assert.equal(getLengthPrice('rvs', 'correction', 24), prices.premium);
-  assert.equal(getLengthPrice('rvs', 'correction_int', 24), prices.full);
+  assert.equal(getLengthPrice('rvs', 'exterior', 24, 'travel'), prices.maint_light);
+  assert.equal(getLengthPrice('rvs', 'correction', 24, 'travel'), prices.premium);
+  assert.equal(getLengthPrice('rvs', 'correction_int', 24, 'travel'), prices.full);
 
   const lengthBlock = extractRvLength(read('index.html'));
-  assert.match(lengthBlock, /maint_light:\s*\{perFt:\s*15,\s*min:\s*229\}/);
-  assert.match(lengthBlock, /full:\s*\{perFt:\s*44,\s*min:\s*699\}/);
+  assert.match(lengthBlock, /maint_light:\s*\{perFt:\s*16,\s*min:\s*229\}/);
+  assert.match(lengthBlock, /full:\s*\{perFt:\s*49\.5,\s*min:\s*699\}/);
   assert.doesNotMatch(lengthBlock, /correction/);
 });
 
-test('DISPLAY: starting at per-foot; no four-digit From totals before length', () => {
+test('DISPLAY: funnel CTA replaces premature length/price controls', () => {
   const page = read('rv-detailing.html');
-  assert.match(page, /Starting at \$8\/ft/);
-  assert.match(page, /Starting at \$15\/ft/);
-  assert.match(page, /Starting at \$44\/ft/);
-  assert.match(page, /Select your exact RV length to see your estimated total/);
+  assert.match(page, /CHECK PRICE &amp; AVAILABILITY/);
+  assert.match(page, /Enter your ZIP code, RV type and exact length/);
+  assert.doesNotMatch(page, /Starting at \$/);
   assert.doesNotMatch(page, /From \$899\b|From \$1,?199|From \$1,?299|From \$1,?499/);
-  assert.match(page, /id="rv-length-range"/);
-  assert.match(page, /cd1_rv_length/);
+  assert.doesNotMatch(page, /id="rv-length-range"/);
+  assert.match(page, /rv-pricing-funnel\.js/);
 });
 
 test('BOOKING: length bridge + six-step + other categories unchanged', () => {

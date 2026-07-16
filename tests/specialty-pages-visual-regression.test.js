@@ -21,7 +21,7 @@ const PAGES = [
 
 const PRICES = {
   'boats-detailing.html': ['From $199', 'From $449', 'From $699'],
-  'rv-detailing.html': ['Starting at $8/ft', 'Starting at $15/ft', 'Starting at $20/ft', 'Starting at $31/ft', 'Starting at $44/ft'],
+  'rv-detailing.html': ['CHECK PRICE &amp; AVAILABILITY', 'Full RV Detail', 'MOST POPULAR', 'BEST FINISH'],
   'powersports-detailing.html': ['From $119', 'From $266', 'From $367'],
 };
 
