@@ -23,17 +23,20 @@
 | Remediation branch | `fix/final-production-readiness` |
 | Worktree | `C:\Users\magno\Desktop\Cardetail1\cardetail1-final-readiness` |
 | Parent SHA | `d30a713849ed705fe1faf96161f3ba65c4c4c8e8` |
-| Remediation commit | `b6c4160ee338b5c6bcd7048b4eeba968cb01789b` (includes report SHA note; code fix at `70897631f42f4287a1156e81dfd6e34824fa61e7`) |
+| Remediation commit | `32f63b36e915682981d88360ce7708b031fba846` (code fix `70897631f42f4287a1156e81dfd6e34824fa61e7`) |
 
 ## 3. Branch Deploy URL and SHA
 
 | Item | Value |
 |---|---|
-| Branch | `fix/final-production-readiness` |
-| Deploy method | GitHub push → Netlify Branch Deploy (auto if connected) |
-| Deploy URL | See Netlify dashboard for branch deploy of `fix/final-production-readiness` after push |
-| Build | Static publish + Netlify Functions (`netlify.toml`) |
-| External validation gap | Live Stripe Checkout end-to-end against Branch Deploy requires Netlify preview env with `STRIPE_SECRET_KEY=sk_test_…` and webhook signing secret. Local intercepted fixtures cover reconciliation invariants. |
+| Branch | `fix/final-production-readiness` (also fast-forwarded to `fix/release-a-canonical-aggregate` for PR #118) |
+| Deploy SHA | `32f63b36e915682981d88360ce7708b031fba846` |
+| Deploy URL | https://deploy-preview-118--cardetail1.netlify.app |
+| Deploy result | SUCCESS (`netlify/cardetail1/deploy-preview`) |
+| Netlify deploy | https://app.netlify.com/projects/cardetail1/deploys/6a5a95e6bc1dbd0008f41800 |
+| PR | https://github.com/mobiledetailusa-code/cardetail1-site/pull/118 |
+| Build | Static publish + Netlify Functions green (header/redirect rules SUCCESS) |
+| External validation gap | Live Stripe Checkout end-to-end on the preview still requires owner-held `sk_test` + webhook signing in Netlify env. Intercepted fixtures cover reconciliation invariants. |
 
 ## 4. Files changed (remediation only)
 
