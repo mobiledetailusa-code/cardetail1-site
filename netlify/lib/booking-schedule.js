@@ -3,6 +3,8 @@ const { normalizeJobStatus } = require('./ops-schema');
 
 const ALLOWED_WEEKDAY_SLOTS = ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'];
 const ALLOWED_SATURDAY_SLOTS = ['8:00 AM', '10:00 AM'];
+/** Minimum calendar days from today before a preferred date can be booked (route planning). */
+const MIN_ADVANCE_DAYS = 3;
 
 const LEGACY_TIME_PATTERNS = [
   /^any available/i,
@@ -27,6 +29,15 @@ function toIsoLocal(date) {
   const mo = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${mo}-${d}`;
+}
+
+function addLocalDays(date, days) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+/** Earliest selectable preferred date (local calendar day + MIN_ADVANCE_DAYS). */
+function earliestBookableIso(now = new Date()) {
+  return toIsoLocal(addLocalDays(now, MIN_ADVANCE_DAYS));
 }
 
 function computeEasterSunday(year) {
@@ -109,11 +120,17 @@ function normalizePreferredTime(raw) {
   return found || null;
 }
 
-function validateBookingSchedule(preferredDate, preferredTime) {
+function validateBookingSchedule(preferredDate, preferredTime, opts = {}) {
   const parts = isoDateParts(preferredDate);
   if (!parts) return { ok: false, error: 'booking_date_unavailable' };
   if (parts.day === 0) return { ok: false, error: 'booking_date_unavailable' };
   if (isClosedHoliday(parts.iso)) return { ok: false, error: 'booking_date_unavailable' };
+
+  const now = opts.now instanceof Date ? opts.now : new Date();
+  const minIso = earliestBookableIso(now);
+  if (parts.iso < minIso) {
+    return { ok: false, error: 'booking_date_unavailable' };
+  }
 
   const normalizedTime = normalizePreferredTime(preferredTime);
   if (!normalizedTime) return { ok: false, error: 'booking_time_unavailable' };
@@ -164,6 +181,8 @@ function hasSlotConflict(bookings, preferredDate, preferredTime, excludeId) {
 module.exports = {
   ALLOWED_WEEKDAY_SLOTS,
   ALLOWED_SATURDAY_SLOTS,
+  MIN_ADVANCE_DAYS,
+  earliestBookableIso,
   getHolidaySet,
   isClosedHoliday,
   slotsForDate,

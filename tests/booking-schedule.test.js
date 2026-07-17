@@ -5,6 +5,8 @@ const path = require('node:path');
 const {
   ALLOWED_WEEKDAY_SLOTS,
   ALLOWED_SATURDAY_SLOTS,
+  MIN_ADVANCE_DAYS,
+  earliestBookableIso,
   getHolidaySet,
   isClosedHoliday,
   slotsForDate,
@@ -16,6 +18,10 @@ const {
 
 const root = path.resolve(__dirname, '..');
 const read = f => fs.readFileSync(path.join(root, f), 'utf8');
+
+/** Freeze "today" so fixture weekdays stay valid under the 3-day advance rule. */
+const FIXTURE_NOW = new Date(2026, 6, 1); // Wed Jul 1, 2026
+const vs = (date, time) => validateBookingSchedule(date, time, { now: FIXTURE_NOW });
 
 const BOOKING_PAGES = [
   'index.html',
@@ -42,7 +48,7 @@ const STRIPE_PAYMENT_FILES = [
 ];
 
 test('Sundays are rejected server-side', () => {
-  const r = validateBookingSchedule('2026-07-05', '8:00 AM'); // Sunday
+  const r = vs('2026-07-05', '8:00 AM'); // Sunday
   assert.equal(r.ok, false);
   assert.equal(r.error, 'booking_date_unavailable');
 });
@@ -53,14 +59,14 @@ test('approved holidays are rejected server-side', () => {
   assert.equal(isClosedHoliday('2026-12-25'), true);
   const easter2026 = [...getHolidaySet(2026)].find(d => d.startsWith('2026-04-'));
   assert.ok(easter2026);
-  const r = validateBookingSchedule(easter2026, '10:00 AM');
+  const r = validateBookingSchedule(easter2026, '10:00 AM', { now: new Date(2026, 3, 1) });
   assert.equal(r.ok, false);
   assert.equal(r.error, 'booking_date_unavailable');
 });
 
 test('weekdays allow 8, 10, 12, 2', () => {
   for (const slot of ALLOWED_WEEKDAY_SLOTS) {
-    const r = validateBookingSchedule('2026-07-06', slot); // Monday
+    const r = vs('2026-07-06', slot); // Monday
     assert.equal(r.ok, true, slot);
     assert.equal(r.preferredTime, slot);
   }
@@ -69,7 +75,7 @@ test('weekdays allow 8, 10, 12, 2', () => {
 test('Saturday allows only 8 and 10', () => {
   const sat = '2026-07-11';
   for (const slot of ALLOWED_SATURDAY_SLOTS) {
-    const rs = validateBookingSchedule(sat, slot);
+    const rs = vs(sat, slot);
     assert.equal(rs.ok, true, slot);
   }
   assert.deepEqual(slotsForDate(sat), ALLOWED_SATURDAY_SLOTS);
@@ -77,14 +83,14 @@ test('Saturday allows only 8 and 10', () => {
 
 test('Saturday rejects 12 and 2', () => {
   for (const slot of ['12:00 PM', '2:00 PM']) {
-    const r = validateBookingSchedule('2026-07-11', slot);
+    const r = vs('2026-07-11', slot);
     assert.equal(r.ok, false);
     assert.equal(r.error, 'booking_time_unavailable');
   }
 });
 
 test('empty preferredTime is rejected', () => {
-  const r = validateBookingSchedule('2026-07-06', '');
+  const r = vs('2026-07-06', '');
   assert.equal(r.ok, false);
   assert.equal(r.error, 'booking_time_unavailable');
 });
@@ -98,16 +104,30 @@ test('legacy windows are rejected', () => {
     'Afternoon (2PM – 5PM)',
   ]) {
     assert.equal(normalizePreferredTime(legacy), null, legacy);
-    const r = validateBookingSchedule('2026-07-06', legacy);
+    const r = vs('2026-07-06', legacy);
     assert.equal(r.ok, false);
     assert.equal(r.error, 'booking_time_unavailable');
   }
 });
 
 test('tampered time is rejected', () => {
-  const r = validateBookingSchedule('2026-07-06', '3:00 AM');
+  const r = vs('2026-07-06', '3:00 AM');
   assert.equal(r.ok, false);
   assert.equal(r.error, 'booking_time_unavailable');
+});
+
+test('3-day advance notice: earliest bookable is today + 3', () => {
+  assert.equal(MIN_ADVANCE_DAYS, 3);
+  assert.equal(earliestBookableIso(new Date(2026, 6, 16)), '2026-07-19');
+});
+
+test('3-day advance notice: dates before min are rejected', () => {
+  const now = new Date(2026, 6, 16); // Thu Jul 16
+  assert.equal(validateBookingSchedule('2026-07-16', '8:00 AM', { now }).ok, false); // today
+  assert.equal(validateBookingSchedule('2026-07-17', '8:00 AM', { now }).ok, false); // +1
+  assert.equal(validateBookingSchedule('2026-07-18', '8:00 AM', { now }).ok, false); // +2
+  const ok = validateBookingSchedule('2026-07-20', '8:00 AM', { now }); // +4 Mon
+  assert.equal(ok.ok, true);
 });
 
 test('duplicate active booking same date/time is rejected', () => {
@@ -159,6 +179,20 @@ test('all 13 pages have Sunday/holiday/Saturday slot handling', () => {
     assert.match(html, /Unavailable — please choose another date/);
     assert.match(html, /Closed for the holiday/);
     assert.match(html, /bkValidateScheduleSelection/);
+  }
+});
+
+test('all 13 pages enforce 3-day advance notice UX', () => {
+  for (const page of BOOKING_PAGES) {
+    const html = read(page);
+    assert.match(html, /bkEarliestBookable/);
+    assert.match(html, /bk-advance-notice/);
+    assert.match(html, /typically 3 days out/);
+    assert.match(html, /bk-rush-note/);
+    assert.match(html, /Call or Text Us/);
+    assert.match(html, /tel:5513132956/);
+    assert.match(html, /dateEl\.min=bkEarliestBookable/);
+    assert.doesNotMatch(html, /f-date'\)\.min=new Date\(\)\.toISOString/);
   }
 });
 
