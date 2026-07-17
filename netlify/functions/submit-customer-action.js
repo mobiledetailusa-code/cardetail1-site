@@ -170,22 +170,47 @@ exports.handler = async (event) => {
   } else if (action === 'package_change_request') {
     const newPackId = String(p.newPackId || '').slice(0, 32).trim();
     const { CAR_PACKAGES } = require('../lib/customer-catalog');
-    const catalogPack = CAR_PACKAGES.find((cp) => cp.id === newPackId);
+    const {
+      usesLengthPricing,
+      getLengthPrice,
+      packagesForCategory,
+      normalizeLengthCategory,
+    } = require('../lib/length-pricing');
+    const vehicleCategory = normalizeLengthCategory(
+      p.vehicleCategory || booking.vehicleCategory || booking.cat || 'cars'
+    );
+    const lengthFt = Number(p.lengthFt || p.vehicleLengthFt || booking.vehicleLengthFt || booking.lengthFt || 0);
+    const lengthPacks = packagesForCategory(vehicleCategory);
+    const catalogPack = CAR_PACKAGES.find((cp) => cp.id === newPackId)
+      || (lengthPacks || []).find((cp) => cp.id === newPackId);
     const newPackName = catalogPack ? catalogPack.name : String(p.newPackName || '').slice(0, 120).trim();
     if (!newPackName) return json(400, { ok: false, error: 'validation_error', message: 'Please select a package.' });
-    const packPrice = catalogPack ? Number(catalogPack.basePrice) : 0;
+    if (usesLengthPricing(vehicleCategory) && !(lengthFt > 0)) {
+      return json(400, { ok: false, error: 'validation_error', message: 'Enter vessel / RV length in feet for accurate pricing.' });
+    }
+    let packPrice = catalogPack && catalogPack.basePrice != null ? Number(catalogPack.basePrice) : 0;
+    if (usesLengthPricing(vehicleCategory) && newPackId) {
+      const priced = getLengthPrice(vehicleCategory, newPackId, lengthFt, p.rvType || booking.rvType);
+      if (priced == null) {
+        return json(400, { ok: false, error: 'validation_error', message: 'Selected package is not available for this length category.' });
+      }
+      packPrice = priced;
+    }
     const travel = Number(booking.travelFeeAmount || booking.zoneSurcharge || 0);
     const existingAddons = Array.isArray(booking.addons)
       ? booking.addons.reduce((s, a) => s + Number(a.price || 0) * Number(a.qty || 1), 0)
       : 0;
-    const proposedTotal = catalogPack
+    const proposedTotal = (catalogPack || packPrice > 0)
       ? Math.round((packPrice + travel + existingAddons) * 100) / 100
       : Number(booking.totalPrice || 0);
     requestedState = {
       packageId: newPackId || (catalogPack && catalogPack.id) || '',
       packageName: newPackName,
       packagePrice: packPrice,
-      packageDescription: catalogPack ? catalogPack.description : '',
+      packageDescription: catalogPack ? (catalogPack.description || catalogPack.tag || '') : '',
+      packageDuration: catalogPack ? (catalogPack.duration || catalogPack.dur || '') : '',
+      vehicleCategory,
+      lengthFt: usesLengthPricing(vehicleCategory) ? lengthFt : 0,
       proposedTotal,
     };
     updates = {
@@ -194,25 +219,32 @@ exports.handler = async (event) => {
       requestedPackageId: newPackId || (catalogPack && catalogPack.id) || '',
       requestedPackageName: newPackName,
       requestedPackagePrice: packPrice,
-      requestedPackageDescription: catalogPack ? catalogPack.description : '',
+      requestedPackageDescription: catalogPack ? (catalogPack.description || catalogPack.tag || '') : '',
+      requestedLengthFt: usesLengthPricing(vehicleCategory) ? lengthFt : 0,
       proposedTotal,
       customerChangePending: true,
     };
     logEntry.requestedPackage = newPackName;
     logEntry.proposedTotal = proposedTotal;
+    logEntry.lengthFt = lengthFt || undefined;
     adminSubject = `Cardetail1 — Package Change Request · ${bookingId}`;
-    adminText = `Customer requested package change for booking ${bookingId}.\nRequested: ${newPackName}${packPrice ? ` ($${packPrice.toFixed(2)})` : ''}\nProposed total: $${proposedTotal.toFixed(2)}`;
+    adminText = `Customer requested package change for booking ${bookingId}.\nRequested: ${newPackName}${packPrice ? ` ($${packPrice.toFixed(2)})` : ''}${usesLengthPricing(vehicleCategory) ? ` · ${lengthFt} ft` : ''}\nProposed total: $${proposedTotal.toFixed(2)}`;
   } else if (action === 'vehicle_add_request' || action === 'vehicle_replace_request') {
+    const { usesLengthPricing } = require('../lib/length-pricing');
     const category = String(p.category || p.vehicleCategory || 'cars').slice(0, 32).trim();
     const year = String(p.year || p.vehicleYear || '').slice(0, 8).trim();
     const make = String(p.make || p.vehicleMake || '').slice(0, 60).trim();
     const model = String(p.model || p.vehicleModel || '').slice(0, 60).trim();
+    const lengthFt = Number(p.lengthFt || p.vehicleLengthFt || 0);
     const vehicleLabel = String(p.vehicleLabel || p.label || [year, make, model].filter(Boolean).join(' ')).slice(0, 160).trim();
     if (!vehicleLabel && !(make && model)) {
       return json(400, { ok: false, error: 'validation_error', message: 'Select category, year, make, and model.' });
     }
+    if (usesLengthPricing(category) && !(lengthFt > 0)) {
+      return json(400, { ok: false, error: 'validation_error', message: 'Enter length in feet for boats and RVs.' });
+    }
     const label = vehicleLabel || `${year} ${make} ${model}`.trim();
-    requestedState = { vehicleLabel: label, category, year, make, model };
+    requestedState = { vehicleLabel: label, category, year, make, model, lengthFt: lengthFt || 0 };
     updates = {
       vehicleChangeRequested: true,
       vehicleChangeRequestedAt: now,
@@ -221,12 +253,13 @@ exports.handler = async (event) => {
       requestedVehicleYear: year,
       requestedVehicleMake: make,
       requestedVehicleModel: model,
+      requestedVehicleLengthFt: lengthFt || 0,
       requestedVehicleAction: action === 'vehicle_replace_request' ? 'replace' : 'add',
       customerChangePending: true,
     };
     logEntry.vehicleLabel = label;
     adminSubject = `Cardetail1 — Vehicle Change Request · ${bookingId}`;
-    adminText = `Customer requested vehicle ${action === 'vehicle_replace_request' ? 'replacement' : 'addition'} for booking ${bookingId}.\n${label} (${category})`;
+    adminText = `Customer requested vehicle ${action === 'vehicle_replace_request' ? 'replacement' : 'addition'} for booking ${bookingId}.\n${label} (${category}${lengthFt ? `, ${lengthFt} ft` : ''})`;
   } else if (action === 'maintenance_request') {
     const { CAR_PACKAGES, MAINTENANCE_PERIODS } = require('../lib/customer-catalog');
     const periodId = String(p.period || p.maintenancePeriod || '').slice(0, 32).trim();

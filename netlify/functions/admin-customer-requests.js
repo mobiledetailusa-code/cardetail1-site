@@ -97,10 +97,13 @@ exports.handler = async (event) => {
       adminDecision: decision,
       adminNote,
       decidedAt: now,
+  // Improve customer-facing approval copy when money auto-applied.
       customerVisibleResult: decision === 'approve'
         ? (manualOnly
           ? 'Approved for manual review — our team will confirm details shortly.'
-          : 'Approved — our team will confirm details shortly.')
+          : (canAutoApply
+            ? 'Approved — your appointment details and totals were updated.'
+            : 'Approved — our team will confirm details shortly.'))
         : decision === 'reject'
           ? 'We could not approve this request. Please contact us.'
           : 'We need more information. Please check your email or call us.',
@@ -130,21 +133,29 @@ exports.handler = async (event) => {
           patch.appointmentStatus = 'canceled';
         }
         if (record.requestType === 'package_change_request' && (rs.packageName || rs.packageId)) {
+          const { applyApprovedMoney } = require('../lib/portal-money-sync');
           patch.package = rs.packageName || booking.package;
           patch.service = rs.packageName || booking.service;
           patch.packageId = rs.packageId || booking.packageId || '';
           patch.packageDescription = rs.packageDescription || booking.packageDescription || '';
+          if (rs.packageDuration) patch.packageDuration = rs.packageDuration;
+          if (rs.lengthFt != null) patch.vehicleLengthFt = Number(rs.lengthFt) || booking.vehicleLengthFt;
+          if (rs.vehicleCategory) patch.vehicleCategory = rs.vehicleCategory;
           if (rs.proposedTotal > 0) {
-            patch.totalPrice = rs.proposedTotal;
-            patch.approvedFinalAmount = rs.proposedTotal;
-            patch.amountDueApproved = rs.proposedTotal;
-            patch.balanceDue = rs.proposedTotal;
+            Object.assign(patch, applyApprovedMoney(booking, rs.proposedTotal));
+          } else {
+            // Still invalidate stale checkout if package changed without a proposed total.
+            patch.payLink = '';
+            patch.payLinkAmount = null;
+            patch.stripeCheckoutSessionId = '';
           }
           patch.packageChangeRequested = false;
           patch.requestedPackageName = '';
           patch.requestedPackageId = '';
+          patch.customerVisiblePackage = patch.package;
         }
         if (record.requestType === 'addon_request') {
+          const { applyApprovedMoney } = require('../lib/portal-money-sync');
           const incoming = Array.isArray(rs.addons) ? rs.addons : [];
           const merged = [...(Array.isArray(booking.addons) ? booking.addons : [])];
           for (const a of incoming) {
@@ -152,10 +163,11 @@ exports.handler = async (event) => {
           }
           patch.addons = merged;
           if (rs.proposedTotal > 0) {
-            patch.totalPrice = rs.proposedTotal;
-            patch.approvedFinalAmount = rs.proposedTotal;
-            patch.amountDueApproved = rs.proposedTotal;
-            patch.balanceDue = rs.proposedTotal;
+            Object.assign(patch, applyApprovedMoney(booking, rs.proposedTotal));
+          } else {
+            patch.payLink = '';
+            patch.payLinkAmount = null;
+            patch.stripeCheckoutSessionId = '';
           }
           patch.addonsRequested = false;
           patch.requestedAddons = '';
@@ -170,6 +182,7 @@ exports.handler = async (event) => {
             patch.vehicleMake = rs.make || '';
             patch.vehicleModel = rs.model || '';
             patch.vehicleCategory = rs.category || '';
+            if (rs.lengthFt != null) patch.vehicleLengthFt = Number(rs.lengthFt) || 0;
           } else {
             const vehicles = Array.isArray(booking.vehicles) ? [...booking.vehicles] : [];
             vehicles.push({
@@ -179,6 +192,7 @@ exports.handler = async (event) => {
               year: rs.year || '',
               make: rs.make || '',
               model: rs.model || '',
+              lengthFt: rs.lengthFt || 0,
               subtotal: 0,
               addons: [],
             });
@@ -187,6 +201,10 @@ exports.handler = async (event) => {
               patch.vehicleLabel = label;
               patch.vehicle = label;
             }
+            if (rs.lengthFt != null && !booking.vehicleLengthFt) {
+              patch.vehicleLengthFt = Number(rs.lengthFt) || 0;
+            }
+            if (rs.category && !booking.vehicleCategory) patch.vehicleCategory = rs.category;
           }
           patch.vehicleChangeRequested = false;
           patch.requestedVehicleLabel = '';

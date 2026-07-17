@@ -393,9 +393,12 @@ async function handleAdminAction(body) {
   if (action === 'generate_stripe_pay_link') {
     const secret = process.env.STRIPE_SECRET_KEY;
     if (!secret) return jsonCors(503, { ok: false, error: 'stripe_not_configured' });
+    const { applyPayLinkMoney, computeDue, approvedAmount } = require('../lib/portal-money-sync');
+    const freshBooking = (await getBooking(bookingId)) || booking;
+    const defaultDue = computeDue(freshBooking) || approvedAmount(freshBooking);
     const amountDollars = body.amount != null
       ? Math.round(Number(body.amount) * 100) / 100
-      : Math.round(Number(booking.totalPrice || booking.finalAmount || 0) * 100) / 100;
+      : Math.round(Number(defaultDue || 0) * 100) / 100;
     const amountCents = Math.round(amountDollars * 100);
     if (amountCents < 50) return jsonCors(400, { ok: false, error: 'amount_too_low' });
     const base = process.env.SITE_URL || 'https://cardetail1.netlify.app';
@@ -409,8 +412,9 @@ async function handleAdminAction(body) {
       success_url: `${base}/my-garage.html?paid=1&bookingId=${encodeURIComponent(bookingId)}`,
       cancel_url: `${base}/my-garage.html?canceled=1&bookingId=${encodeURIComponent(bookingId)}`,
     });
-    if (booking.email) form.append('customer_email', booking.email);
+    if (freshBooking.email) form.append('customer_email', freshBooking.email);
     form.append('metadata[booking_id]', bookingId);
+    form.append('metadata[amount_due]', String(amountDollars));
     const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -420,18 +424,15 @@ async function handleAdminAction(body) {
     if (!res.ok) {
       return jsonCors(res.status, { ok: false, error: (sess.error && sess.error.message) || 'stripe_error' });
     }
+    const latest = (await getBooking(bookingId)) || freshBooking;
     await store.setJSON(bookingId, {
-      ...booking,
-      payLink: sess.url,
-      amountDueApproved: amountDollars,
-      balanceDue: amountDollars,
-      approvedFinalAmount: booking.approvedFinalAmount != null ? booking.approvedFinalAmount : amountDollars,
-      paymentWorkflowStatus: 'awaiting_customer_payment',
+      ...latest,
+      ...applyPayLinkMoney(latest, amountDollars, sess.url, sess.id),
       payLinkSentAt: now,
       updatedAt: now,
-      eventLog: appendEventLog(booking, { action: 'stripe_pay_link_generated', by: 'admin', amount: amountDollars }),
+      eventLog: appendEventLog(latest, { action: 'stripe_pay_link_generated', by: 'admin', amount: amountDollars }),
     });
-    return jsonCors(200, { ok: true, bookingId, url: sess.url, id: sess.id });
+    return jsonCors(200, { ok: true, bookingId, url: sess.url, id: sess.id, amountDueApproved: amountDollars });
   }
 
   if (action === 'charge_policy_fee') {

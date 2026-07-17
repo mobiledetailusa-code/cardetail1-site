@@ -132,6 +132,12 @@ function matchPackFromBooking(booking) {
 }
 
 function catalogForClient() {
+  const {
+    LENGTH_PRICING,
+    BOAT_PACKAGES,
+    RV_PACKAGES,
+    lengthConfigForClient,
+  } = require('./length-pricing');
   return {
     subscriberDiscountPct: SUBSCRIBER_DISCOUNT * 100,
     maxDetailsPerMonth: MAX_DETAILS_PER_MONTH,
@@ -139,7 +145,27 @@ function catalogForClient() {
       ...p,
       monthlyPrice: subscriberPrice(p.basePrice),
       savings: roundPrice(p.basePrice - subscriberPrice(p.basePrice)),
+      category: 'cars',
     })),
+    packagesByCategory: {
+      cars: CAR_PACKAGES.map(p => ({
+        ...p,
+        monthlyPrice: subscriberPrice(p.basePrice),
+        savings: roundPrice(p.basePrice - subscriberPrice(p.basePrice)),
+        category: 'cars',
+      })),
+      boats: BOAT_PACKAGES.map(p => ({ ...p, category: 'boats', pricedByLength: true })),
+      rvs: RV_PACKAGES.map(p => ({ ...p, category: 'rvs', pricedByLength: true })),
+    },
+    lengthPricing: {
+      boats: lengthConfigForClient('boats'),
+      rvs: lengthConfigForClient('rvs'),
+      fleet: lengthConfigForClient('fleet'),
+    },
+    lengthPackageRules: {
+      boats: LENGTH_PRICING.boats.packages,
+      rvs: LENGTH_PRICING.rvs.packages,
+    },
     addons: ADDONS,
     maintenancePeriods: MAINTENANCE_PERIODS,
     vehicleCategories: VEHICLE_CATEGORIES,

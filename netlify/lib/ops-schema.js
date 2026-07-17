@@ -110,6 +110,7 @@ function projectBookingForCustomer(b) {
     vehicleMake: b.vehicleMake || b.make || '',
     vehicleModel: b.vehicleModel || b.model || '',
     vehicleCategory: b.vehicleCategory || b.cat || '',
+    vehicleLengthFt: b.vehicleLengthFt || b.lengthFt || 0,
     vehicles: (b.vehicles || []).map(v => ({
       pkgName: v.pkgName || '',
       vehicleLabel: v.vehicleLabel || '',

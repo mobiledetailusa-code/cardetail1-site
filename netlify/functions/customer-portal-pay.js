@@ -4,6 +4,11 @@ const { authorizeBookingAccess, normalizeBookingId } = require('../lib/booking-c
 const { bookingStore, getBooking } = require('../lib/ops-db');
 const { canPayBalance } = require('../lib/appointment-status-policy');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const {
+  computeDue,
+  canReusePayLink,
+  applyPayLinkMoney,
+} = require('../lib/portal-money-sync');
 
 const CORS = {
   'Content-Type': 'application/json',
@@ -13,18 +18,6 @@ const CORS = {
   'Cache-Control': 'no-store',
 };
 const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.stringify(body) });
-
-function computeDue(booking) {
-  const paid = Number(booking.amountPaid || booking.paidAmount || 0);
-  const approved = Number(
-    booking.approvedFinalAmount != null
-      ? booking.approvedFinalAmount
-      : (booking.totalPrice || booking.finalAmount || 0)
-  );
-  if (booking.amountDueApproved != null) return Math.max(0, Number(booking.amountDueApproved));
-  if (booking.balanceDue != null) return Math.max(0, Number(booking.balanceDue));
-  return Math.max(0, Math.round((approved - paid) * 100) / 100);
-}
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
@@ -64,8 +57,8 @@ exports.handler = async (event) => {
     return json(200, { ok: false, error: 'payment_not_due', message: 'No balance is due for this appointment.' });
   }
 
-  // Reuse existing valid link when amount matches.
-  if (booking.payLink && Number(booking.amountDueApproved) === due) {
+  // Reuse only when stored payLinkAmount matches current due (prevents stale Stripe vs UI).
+  if (canReusePayLink(booking, due)) {
     return json(200, { ok: true, url: booking.payLink, amountDueApproved: due, reused: true });
   }
 
@@ -107,11 +100,7 @@ exports.handler = async (event) => {
   const fresh = (await getBooking(bookingId)) || booking;
   await store.setJSON(bookingId, {
     ...fresh,
-    amountDueApproved: due,
-    balanceDue: due,
-    payLink: sess.url,
-    stripeCheckoutSessionId: sess.id,
-    paymentWorkflowStatus: 'awaiting_customer_payment',
+    ...applyPayLinkMoney(fresh, due, sess.url, sess.id),
     payLinkSentAt: now,
     updatedAt: now,
     eventLog: [...(Array.isArray(fresh.eventLog) ? fresh.eventLog : []), {

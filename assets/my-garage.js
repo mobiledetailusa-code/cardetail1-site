@@ -74,8 +74,79 @@
   function vehicleLine(b) {
     if (!b) return '—';
     var parts = [b.vehicleYear, b.vehicleMake, b.vehicleModel].filter(Boolean).join(' ');
-    if (parts) return parts + (b.vehicleCategory ? ' · ' + b.vehicleCategory : '');
-    return b.vehicleLabel || b.vehicle || '—';
+    var length = Number(b.vehicleLengthFt || b.lengthFt || 0);
+    var cat = b.vehicleCategory || '';
+    if (parts) {
+      return parts +
+        (cat ? ' · ' + cat : '') +
+        (length > 0 ? ' · ' + length + ' ft' : '');
+    }
+    return (b.vehicleLabel || b.vehicle || '—') + (length > 0 ? ' · ' + length + ' ft' : '');
+  }
+
+  function packagesForBooking() {
+    var cat = getCatalog();
+    var bookingCat = String((state.booking && (state.booking.vehicleCategory || state.booking.cat)) || 'cars').toLowerCase();
+    if (bookingCat === 'boat') bookingCat = 'boats';
+    if (bookingCat === 'rv' || bookingCat === 'trailer') bookingCat = 'rvs';
+    if (cat.packagesByCategory && cat.packagesByCategory[bookingCat]) {
+      return { category: bookingCat, packages: cat.packagesByCategory[bookingCat] };
+    }
+    return { category: 'cars', packages: cat.packages || [] };
+  }
+
+  function lengthCfg(category) {
+    var cat = getCatalog();
+    var key = String(category || '').toLowerCase();
+    if (key === 'boat') key = 'boats';
+    if (key === 'rv') key = 'rvs';
+    return (cat.lengthPricing && cat.lengthPricing[key]) || null;
+  }
+
+  function estimateLengthPrice(category, packId, lengthFt) {
+    var cat = getCatalog();
+    var rules = cat.lengthPackageRules && cat.lengthPackageRules[category];
+    if (!rules || !rules[packId]) return null;
+    var rule = rules[packId];
+    var ft = Number(lengthFt) || 0;
+    if (!(ft > 0)) return null;
+    if (rule.base != null || rule.ratePerFoot != null) {
+      var base = Number(rule.base) || 0;
+      var rate = Number(rule.ratePerFoot != null ? rule.ratePerFoot : rule.perFt) || 0;
+      return Math.round((base + rate * ft) * 100) / 100;
+    }
+    var raw = Number(rule.perFt || 0) * ft;
+    return Math.max(Number(rule.min) || 0, Math.round(raw));
+  }
+
+  function lengthRulerHtml(category, currentFt) {
+    var cfg = lengthCfg(category);
+    if (!cfg) return '';
+    var start = Number(currentFt) || cfg.defaultFt || cfg.min;
+    return '<div class="length-box" id="mf-length-box">' +
+      '<label for="mf-lengthFt">Length (ft) — required for accurate ' + esc(category) + ' pricing</label>' +
+      '<div class="length-row">' +
+      '<input type="range" id="mf-length-range" min="' + cfg.min + '" max="' + cfg.max + '" value="' + start + '">' +
+      '<input class="inp length-num" id="mf-lengthFt" name="lengthFt" type="number" min="' + cfg.min + '" max="' + cfg.max + '" value="' + start + '" required>' +
+      '<span class="length-val" id="mf-length-val">' + start + ' ft</span>' +
+      '</div>' +
+      '<p class="hint">Drag the ruler or type exact feet (' + cfg.min + '–' + cfg.max + '). Over ' + cfg.estimateOver + ' ft may need estimate confirmation.</p>' +
+      '</div>';
+  }
+
+  function bindLengthRuler(onChange) {
+    var range = $('mf-length-range');
+    var num = $('mf-lengthFt');
+    var val = $('mf-length-val');
+    function sync(from) {
+      var v = Number((from === 'range' ? range : num).value);
+      if (range) range.value = String(v);
+      if (num) num.value = String(v);
+      if (val) val.textContent = v + ' ft';
+      if (typeof onChange === 'function') onChange(v);
+    }
+    if (range) range.addEventListener('input', function () { sync('range'); });
+    if (num) num.addEventListener('input', function () { sync('num'); });
   }
 
   function addonLines(b) {
@@ -477,17 +548,13 @@
       return;
     }
     var pay = state.payment || {};
-    if (pay.payLink && pay.canPay) {
-      if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.paymentOpened();
-      global.location.href = pay.payLink;
-      return;
-    }
     if (!pay.canPay && !pay.canCreatePayLink) {
       showToast('No balance is due yet, or payment is locked until approval.', true);
       return;
     }
     var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
     showToast('Preparing secure checkout…');
+    // Always mint/validate via server so Stripe amount matches portal due.
     var r = await post('customer-portal-pay', {
       bookingId: state.booking.id,
       phone: phone,
@@ -528,35 +595,65 @@
   }
 
   function renderPackageModal() {
-    var cat = getCatalog();
-    var packs = cat.packages || [];
+    var packInfo = packagesForBooking();
+    var packs = packInfo.packages || [];
+    var category = packInfo.category;
     if (!packs.length) {
       showToast('Package list unavailable. Refresh and try again.', true);
       return false;
     }
+    var needsLength = !!lengthCfg(category);
+    var currentFt = Number((state.booking && (state.booking.vehicleLengthFt || state.booking.lengthFt)) || 0);
     var form = $('modal-form');
     form.innerHTML =
-      '<p class="hint">Select a package. The proposed total updates from the catalog; admin approval applies it to your invoice.</p>' +
+      '<p class="hint">Select a package' +
+      (needsLength ? ' and set length so pricing matches boat/RV size' : '') +
+      '. Proposed total updates live; admin approval applies it to your invoice.</p>' +
+      (needsLength ? lengthRulerHtml(category, currentFt) : '') +
       '<div class="modal-catalog" role="radiogroup" aria-label="Packages">' +
       packs.map(function (p) {
+        var priceLabel = p.basePrice != null ? fmtMoney(p.basePrice) : (p.pricedByLength ? 'By length' : '');
         return '<label class="catalog-option">' +
           '<input type="radio" name="newPackId" value="' + esc(p.id) + '" required>' +
           '<span class="opt-body">' +
           '<span class="opt-name">' + esc(p.name) + '</span>' +
-          '<span class="opt-price">' + fmtMoney(p.basePrice) + '</span>' +
+          '<span class="opt-price" data-pack-price="' + esc(p.id) + '">' + esc(priceLabel) + '</span>' +
           '<span class="opt-meta">' + esc(p.duration || '') + (p.tag ? ' · ' + esc(p.tag) : '') + '</span>' +
           '<span class="opt-desc">' + esc(p.description || '') + '</span>' +
           '</span></label>';
       }).join('') +
       '</div>' +
       '<p class="modal-live-total" id="mf-package-proposed">Proposed package price: —</p>';
+
+    function refreshProposed() {
+      var packEl = form.querySelector('input[name="newPackId"]:checked');
+      var el = $('mf-package-proposed');
+      if (!packEl || !el) return;
+      var pack = packs.find(function (x) { return x.id === packEl.value; });
+      if (!pack) return;
+      var ft = Number(($('mf-lengthFt') && $('mf-lengthFt').value) || currentFt || 0);
+      var priced = needsLength ? estimateLengthPrice(category, pack.id, ft) : Number(pack.basePrice || 0);
+      if (needsLength) {
+        form.querySelectorAll('[data-pack-price]').forEach(function (span) {
+          var id = span.getAttribute('data-pack-price');
+          var est = estimateLengthPrice(category, id, ft);
+          span.textContent = est != null ? fmtMoney(est) : 'By length';
+        });
+      }
+      if (priced != null) {
+        el.textContent = 'Proposed package price: ' + fmtMoney(priced) +
+          (needsLength ? ' · ' + ft + ' ft' : '') +
+          ' (+ travel/add-ons as approved)';
+      } else {
+        el.textContent = 'Proposed package price: —';
+      }
+    }
+
     form.querySelectorAll('input[name="newPackId"]').forEach(function (inp) {
-      inp.addEventListener('change', function () {
-        var pack = packs.find(function (x) { return x.id === inp.value; });
-        var el = $('mf-package-proposed');
-        if (el && pack) el.textContent = 'Proposed package price: ' + fmtMoney(pack.basePrice) + ' (+ travel/add-ons as approved)';
-      });
+      inp.addEventListener('change', refreshProposed);
     });
+    if (needsLength) bindLengthRuler(refreshProposed);
+    refreshProposed();
     return true;
   }
 
@@ -609,7 +706,7 @@
     var years = cat.vehicleYears || [];
     var form = $('modal-form');
     form.innerHTML =
-      '<p class="hint">' + esc(titleHint || 'Select vehicle details. No admin approval is needed to pick category / year / make / model.') + '</p>' +
+      '<p class="hint">' + esc(titleHint || 'Select vehicle details. Boats and RVs require length for package pricing.') + '</p>' +
       '<label for="mf-category">Category</label>' +
       '<select class="inp" id="mf-category" name="category" required>' +
       '<option value="">Select…</option>' +
@@ -617,6 +714,7 @@
         return '<option value="' + esc(c.id) + '">' + esc(c.label) + '</option>';
       }).join('') +
       '</select>' +
+      '<div id="mf-length-host"></div>' +
       '<label for="mf-year">Year</label>' +
       '<select class="inp" id="mf-year" name="year" required>' +
       '<option value="">Select…</option>' +
@@ -628,6 +726,20 @@
       '<input class="inp" id="mf-make" name="make" required placeholder="e.g. Toyota">' +
       '<label for="mf-model">Model</label>' +
       '<input class="inp" id="mf-model" name="model" required placeholder="e.g. Camry">';
+
+    var catSel = $('mf-category');
+    function syncLengthHost() {
+      var host = $('mf-length-host');
+      if (!host) return;
+      var selected = catSel && catSel.value;
+      if (lengthCfg(selected)) {
+        host.innerHTML = lengthRulerHtml(selected, lengthCfg(selected).defaultFt);
+        bindLengthRuler();
+      } else {
+        host.innerHTML = '';
+      }
+    }
+    if (catSel) catSel.addEventListener('change', syncLengthHost);
     return true;
   }
 
@@ -749,7 +861,17 @@
         setMsg($('modal-error'), 'Select a package.', true);
         return null;
       }
-      return { newPackId: pack.value };
+      var packInfo = packagesForBooking();
+      var payload = { newPackId: pack.value, vehicleCategory: packInfo.category };
+      if (lengthCfg(packInfo.category)) {
+        var ft = Number(($('mf-lengthFt') && $('mf-lengthFt').value) || 0);
+        if (!(ft > 0)) {
+          setMsg($('modal-error'), 'Enter vessel / RV length in feet.', true);
+          return null;
+        }
+        payload.lengthFt = ft;
+      }
+      return payload;
     }
     if (modalMode === 'addons') {
       var ids = [];
@@ -771,7 +893,16 @@
         setMsg($('modal-error'), 'Complete category, year, make, and model.', true);
         return null;
       }
-      return { category: category, year: year, make: make, model: model };
+      var vehiclePayload = { category: category, year: year, make: make, model: model };
+      if (lengthCfg(category)) {
+        var lengthFt = Number(($('mf-lengthFt') && $('mf-lengthFt').value) || 0);
+        if (!(lengthFt > 0)) {
+          setMsg($('modal-error'), 'Enter length in feet for boats and RVs.', true);
+          return null;
+        }
+        vehiclePayload.lengthFt = lengthFt;
+      }
+      return vehiclePayload;
     }
     if (modalMode === 'maintenance') {
       var period = ($('mf-period') && $('mf-period').value) || '';

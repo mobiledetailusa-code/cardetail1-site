@@ -657,6 +657,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const t = r.requestType;
     if (t === 'package_change_request') {
       return 'Package → ' + (rs.packageName || rs.packageId || '—') +
+        (rs.lengthFt ? ' · ' + rs.lengthFt + ' ft' : '') +
         (rs.proposedTotal != null ? ' · proposed $' + Number(rs.proposedTotal).toFixed(2) : '');
     }
     if (t === 'addon_request') {

@@ -11,18 +11,7 @@ const { listRequestsForBooking } = require('../lib/customer-change-requests');
 const { canPayBalance } = require('../lib/appointment-status-policy');
 const { catalogForClient } = require('../lib/customer-catalog');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
-
-function computeDue(booking) {
-  const paid = Number(booking.amountPaid || booking.paidAmount || 0);
-  const approved = Number(
-    booking.approvedFinalAmount != null
-      ? booking.approvedFinalAmount
-      : (booking.totalPrice || booking.finalAmount || 0)
-  );
-  if (booking.amountDueApproved != null) return Math.max(0, Number(booking.amountDueApproved));
-  if (booking.balanceDue != null) return Math.max(0, Number(booking.balanceDue));
-  return Math.max(0, Math.round((approved - paid) * 100) / 100);
-}
+const { computeDue } = require('../lib/portal-money-sync');
 
 function safePaymentState(booking) {
   const due = computeDue(booking);
@@ -39,6 +28,7 @@ function safePaymentState(booking) {
     approvedTotal: Number(booking.approvedFinalAmount != null ? booking.approvedFinalAmount : (booking.totalPrice || 0)),
     amountPaid: Number(booking.amountPaid || booking.paidAmount || 0),
     payLink: booking.payLink || '',
+    payLinkAmount: booking.payLinkAmount != null ? Number(booking.payLinkAmount) : null,
     canPay: !!(payAllowed.ok && due > 0),
     canCreatePayLink: !!(payAllowed.ok && due > 0),
   };
