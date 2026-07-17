@@ -204,6 +204,22 @@ describe('cross-step price consistency', () => {
     assert.match(html, /Estimated total: \$\$\{\(Number\(b\.totalPrice\)\|\|0\)\.toFixed\(2\)\}/);
   });
 
+  it('sticky updateTotal always includes travel fee (never gated by step)', () => {
+    assert.doesNotMatch(html, /currentBkStep\s*>=\s*4\s*\?\s*getTravelFeeAmount/);
+    const updateStart = html.indexOf('function updateTotal()');
+    assert.ok(updateStart > 0);
+    const updateFn = html.slice(updateStart, updateStart + 1600);
+    assert.match(updateFn, /const fee = getTravelFeeAmount\(\);/);
+    assert.match(updateFn, /Estimated total/);
+    assert.match(updateFn, /Includes mobile adjustment/);
+    assert.match(updateFn, /Mobile service included/);
+  });
+
+  it('ZIP gate copy no longer claims prices silently include travel', () => {
+    assert.doesNotMatch(html, /Prices include service to your area/);
+    assert.match(html, /Estimated total includes any mobile adjustment for your ZIP/);
+  });
+
   it('step 6 explains the adjustment instead of hiding it in Pkg price', () => {
     assert.match(html, /<div id="c-travel-line"><\/div>/);
     assert.match(html, /Mobile service adjustment<\/span><span class="ov">\+'\+bkMoney\(fee\)/);

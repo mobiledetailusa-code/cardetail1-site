@@ -636,7 +636,8 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .tchip-desc{font-size:10.5px;color:var(--mu)}
 .tchip-from{font-size:11px;color:var(--blue);font-weight:600;margin-top:5px}
 /* Hide pre-selection price hints — single price shown after vehicle + package */
-#bk-cat-grid .svc-from,.tchip-from,.pkg-price,.ah-total-est{display:none!important}
+#bk-cat-grid .svc-from,.tchip-from,.pkg-price{display:none!important}
+.ah-total-est{display:none;font-size:10px;color:var(--mu);text-align:right;margin-top:2px;max-width:180px;line-height:1.35}
 #bk-cat-grid .svc-cat-note{font-size:12px;color:#475569;font-weight:500;line-height:1.45;padding:0 14px 14px}
 
 /* VEHICLE CONFIRM CARD */
@@ -2530,7 +2531,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="beye" style="margin-top:0">Enhance your service</div>
           <div class="addon-header">
             <div><div class="ah-pkg" id="ah-pkg">—</div><div class="ah-car" id="ah-car">—</div></div>
-            <div style="text-align:right"><div class="ah-total-lbl" id="ah-total-lbl">Estimated service price</div><div class="ah-total" id="ah-total">$0</div><div class="ah-total-est" id="ah-total-est" style="font-size:10px;color:var(--mu)"></div></div>
+            <div style="text-align:right"><div class="ah-total-lbl" id="ah-total-lbl">Estimated total</div><div class="ah-total" id="ah-total">$0</div><div class="ah-total-est" id="ah-total-est"></div></div>
           </div>
           <div class="addon-grid" id="addon-grid"></div>
 
@@ -4391,7 +4392,7 @@ function updateVcPriceDisplay(){
   const isSignature=ST.cat==='cars'&&ST.pkgId==='premium'&&ST.basePrice>0;
   if(isSignature){
     const complete=ST.basePrice+getTravelFeeAmount();
-    priceEl.innerHTML='<div class="vc-price-lbl">Complete package</div>$'+complete;
+    priceEl.innerHTML='<div class="vc-price-lbl">Complete package</div>'+bkMoney(complete);
     priceEl.style.display='block';
     if(urgEl){
       urgEl.textContent='Limited availability for this premium service. Our technicians give exclusive attention to every panel of your vehicle.';
@@ -4587,7 +4588,9 @@ function addonQty(id, delta, ev){
 }
 
 function updateTotal(){
-  const fee = currentBkStep >= 4 ? getTravelFeeAmount() : 0;
+  // Same formula every step: service + add-ons + travel (when ZIP known).
+  // Do not gate travel on currentBkStep — that caused sticky totals to jump at Step 4.
+  const fee = getTravelFeeAmount();
   const serviceTotal = ST.basePrice + (ST.addonTotal || 0);
   const total = serviceTotal + fee;
   ST.zoneSurcharge = fee;
@@ -4596,15 +4599,23 @@ function updateTotal(){
   const estEl = document.getElementById('ah-total-est');
   if(!el) return;
   const isSignature = ST.cat==='cars'&&ST.pkgId==='premium';
-  if(lbl) lbl.textContent = currentBkStep >= 4 ? 'Estimated total' : 'Estimated service price';
+  if(lbl) lbl.textContent = 'Estimated total';
   if(isSignature && ST.basePrice>0){
     el.textContent = bkMoney(ST.basePrice+fee+(ST.addonTotal||0));
   }else{
     el.textContent = total ? bkMoney(total) : 'Estimate';
   }
   if(estEl){
-    estEl.textContent = '';
-    estEl.style.display = 'none';
+    if(total > 0 && fee > 0){
+      estEl.textContent = 'Includes mobile adjustment '+bkMoney(fee);
+      estEl.style.display = 'block';
+    }else if(total > 0){
+      estEl.textContent = 'Mobile service included';
+      estEl.style.display = 'block';
+    }else{
+      estEl.textContent = '';
+      estEl.style.display = 'none';
+    }
   }
   updateVcPriceDisplay();
 }
@@ -5905,7 +5916,7 @@ function onBkZipInput(val){
     badge.textContent   = '✓ ' + (cityName ? cityName : zone.short);
     updateBkTravelDisplay(svc);
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('locked'));
-    if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span><span style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px">· Prices include service to your area</span>'; }
+    if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span><span style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px">· Estimated total includes any mobile adjustment for your ZIP</span>'; }
     updateBkFromPrices();
     renderLocationCarousel(zone.key||'default');
     if(ST._pendingCat){
