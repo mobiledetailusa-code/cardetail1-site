@@ -55,22 +55,36 @@ function canPayBalance(booking) {
   if (phase === 'cancelled' || phase === 'in_progress') {
     return { ok: false, error: 'action_not_allowed' };
   }
-  const paid = Number(booking?.amountPaid || booking?.paidAmount || 0);
-  const approved = Number(
-    booking?.approvedFinalAmount != null
-      ? booking.approvedFinalAmount
-      : (booking?.totalPrice || booking?.finalAmount || 0)
-  );
-  const due = Number(
-    booking?.amountDueApproved != null
-      ? booking.amountDueApproved
-      : (booking?.balanceDue != null ? booking.balanceDue : Math.max(0, approved - paid))
-  );
-  // Prepaid / balance pay allowed from Pending Review onward whenever a balance exists or admin issued a link.
+  if (booking?._historicalPaidClosed) {
+    return { ok: false, error: 'payment_not_due', due: 0 };
+  }
+  const status = String(booking?.status || '').toLowerCase();
+  const js = String(booking?.jobStatus || '').toLowerCase();
+  if (status === 'paid' || status === 'closed' || js === 'completed_paid' || phase === 'paid') {
+    return { ok: false, error: 'payment_not_due', due: 0 };
+  }
+
+  // Prefer ledger-derived remaining; never trust stale amountDueApproved / balanceDue alone.
+  let due = 0;
+  if (booking?.ledger && (booking.ledger.approvedCents != null || booking.ledger.settledCents != null)) {
+    const approved = Math.max(0, Math.round(Number(booking.ledger.approvedCents) || 0));
+    const settled = Math.max(0, Math.round(Number(booking.ledger.settledCents) || 0));
+    const credited = Math.max(0, Math.round(Number(booking.ledger.creditedCents) || 0));
+    due = Math.max(0, approved - settled - credited) / 100;
+  } else {
+    const paid = Number(booking?.amountPaid || booking?.paidAmount || 0);
+    const approved = Number(
+      booking?.approvedFinalAmount != null
+        ? booking.approvedFinalAmount
+        : (booking?.totalPrice || booking?.finalAmount || 0)
+    );
+    due = Math.max(0, approved - paid);
+  }
+
   if (!(due > 0) && !booking?.payLink) {
     return { ok: false, error: 'payment_not_due', due: 0 };
   }
-  return { ok: true, phase, due: due > 0 ? due : Number(booking?.amountDueApproved || approved || 0) };
+  return { ok: true, phase, due: due > 0 ? due : 0 };
 }
 
 module.exports = {

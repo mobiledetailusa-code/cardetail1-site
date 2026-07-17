@@ -1209,3 +1209,110 @@ describe('Release A — action-link focus/poll credential (PDA-15)', () => {
     assert.doesNotMatch(src, /localStorage\.setItem\([^)]*token/);
   });
 });
+
+describe('Final readiness remediation — Admin CAS + overpayment', () => {
+  it('Admin money mutation uses commitBooking CAS and syncs ledger', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'netlify/functions/admin-ops-jobs.js'), 'utf8');
+    assert.match(src, /commitBooking/);
+    assert.match(src, /MONEY_MUTATION_ACTIONS/);
+    assert.match(src, /version_conflict/);
+    assert.match(src, /supersedeOpenAttempts/);
+    assert.doesNotMatch(
+      src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''),
+      /async function persistMutation[\s\S]{0,200}await store\.setJSON\(bookingId, booking\)/
+    );
+  });
+
+  it('Admin Generate Stripe UI does not send amount override', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8');
+    assert.match(src, /generate_stripe_pay_link/);
+    assert.doesNotMatch(src, /prompt\('Charge amount/);
+    assert.match(src, /authoritative remaining balance/);
+  });
+
+  it('rejects overpayment when settled would exceed remaining', () => {
+    const { reconcileCustomerBalanceSession } = require('../netlify/lib/payment-service');
+    const { normalizeAggregate } = require('../netlify/lib/booking-aggregate');
+    const raw = {
+      id: 'CD1-OV',
+      bookingVersion: 3,
+      quoteVersion: 2,
+      status: 'Confirmed',
+      appointmentStatus: 'confirmed',
+      jobStatus: 'confirmed',
+      ledger: {
+        approvedCents: 31000,
+        settledCents: 20000,
+        creditedCents: 0,
+        entries: [],
+      },
+      paymentAttempts: [{
+        providerObjectId: 'cs_test_over',
+        bookingId: 'CD1-OV',
+        bookingVersion: 2,
+        quoteVersion: 2,
+        amountCents: 31000,
+        currency: 'usd',
+        status: 'open',
+      }],
+      quote: { quoteVersion: 2, approvedCents: 31000 },
+    };
+    const { aggregate } = normalizeAggregate(raw);
+    const result = reconcileCustomerBalanceSession({
+      aggregate,
+      session: {
+        id: 'cs_test_over',
+        amount_total: 31000,
+        currency: 'usd',
+        payment_status: 'paid',
+        metadata: {
+          booking_id: 'CD1-OV',
+          purpose: 'customer_balance',
+          bookingVersion: '2',
+          quoteVersion: '2',
+        },
+      },
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.error, 'overpayment');
+    assert.equal(result.quarantined, true);
+  });
+
+  it('canPayBalance uses ledger remaining not stale stored due', () => {
+    const { canPayBalance } = require('../netlify/lib/appointment-status-policy');
+    const legacyPaid = {
+      status: 'Paid',
+      appointmentStatus: 'paid',
+      jobStatus: 'completed_paid',
+      totalPrice: 225,
+      amountDueApproved: 225,
+      balanceDue: 225,
+      ledger: { approvedCents: 22500, settledCents: 22500, creditedCents: 0 },
+      _historicalPaidClosed: true,
+    };
+    const deny = canPayBalance(legacyPaid);
+    assert.equal(deny.ok, false);
+
+    const staleDue = {
+      status: 'Confirmed',
+      appointmentStatus: 'confirmed',
+      jobStatus: 'confirmed',
+      approvedFinalAmount: 460,
+      amountDueApproved: 260,
+      balanceDue: 260,
+      amountPaid: 50,
+      ledger: { approvedCents: 46000, settledCents: 5000, creditedCents: 0 },
+    };
+    const allow = canPayBalance(staleDue);
+    assert.equal(allow.ok, true);
+    assert.equal(allow.due, 410);
+  });
+
+  it('setApprovedQuoteCommand remains exported for Admin quote authority', () => {
+    const cmds = require('../netlify/lib/booking-commands');
+    assert.equal(typeof cmds.setApprovedQuoteCommand, 'function');
+    const adminSrc = fs.readFileSync(path.join(ROOT, 'netlify/functions/admin-ops-jobs.js'), 'utf8');
+    assert.match(adminSrc, /buildNextAggregate/);
+    assert.match(adminSrc, /ledger/);
+  });
+});

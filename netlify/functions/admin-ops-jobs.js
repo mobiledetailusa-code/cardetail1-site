@@ -14,6 +14,20 @@ const { auditEntry, appendAudit, listAuditForBooking } = require('../lib/operati
 const { getBooking } = require('../lib/ops-db');
 const { guardStripeOrReject } = require('../lib/stripe-mode');
 const {
+  setBookingStoreOverride,
+  commitBooking,
+  getBookingRecord,
+} = require('../lib/booking-repository');
+const {
+  buildNextAggregate,
+  normalizeAggregate,
+} = require('../lib/booking-aggregate');
+const {
+  supersedeOpenAttempts,
+  expireSupersededAttempts,
+} = require('../lib/payment-service');
+const { dollarsToCents, centsToDollars } = require('../lib/historical-adapter');
+const {
   createAdminAppointment,
   updateCustomerContact,
   mutateVehicles,
@@ -27,6 +41,19 @@ const {
   generateCustomerLinks,
   reopenAppointment,
 } = require('../lib/admin-booking-mutations');
+
+const MONEY_MUTATION_ACTIONS = new Set([
+  'update_service',
+  'update_vehicles',
+  'approve_adjustment',
+  'reject_adjustment',
+  'set_approved_final_amount',
+  'mark_cash_received',
+  'mark_card_on_site',
+  'apply_welcome_offer',
+  'remove_welcome_offer',
+  'record_job_balance',
+]);
 
 const TEST_SIGNALS = [
   b => b.isTest === true,
@@ -118,18 +145,132 @@ async function listJobs(q) {
   });
 }
 
+/**
+ * Persist Admin mutations through CAS + ledger sync.
+ * Unconditional store.setJSON is not acceptable conflict protection.
+ */
 async function persistMutation(store, bookingId, booking, previous, action, reason) {
-  await store.setJSON(bookingId, booking);
+  setBookingStoreOverride(store);
+  const expected = Math.max(0, Math.round(Number(previous?.bookingVersion) || 0));
+  const { ok: prevOk, aggregate: prevAgg } = normalizeAggregate(previous, { allowDraft: true });
+  const base = prevOk ? prevAgg : previous;
+
+  const { ok: nextOk, aggregate: mutatedAgg } = normalizeAggregate(booking, { allowDraft: true });
+  const mutated = nextOk ? mutatedAgg : booking;
+
+  const patches = { ...mutated };
+  delete patches.bookingVersion;
+  delete patches.__etag;
+  delete patches._etag;
+
+  let expireResult = null;
+  if (MONEY_MUTATION_ACTIONS.has(action)) {
+    const approvedCents = dollarsToCents(
+      mutated.approvedFinalAmount != null ? mutated.approvedFinalAmount : mutated.totalPrice
+    );
+    let settledCents = Math.max(0, Math.round(Number(base.ledger?.settledCents) || 0));
+    let creditedCents = Math.max(0, Math.round(Number(base.ledger?.creditedCents) || 0));
+    const entries = Array.isArray(base.ledger?.entries) ? [...base.ledger.entries] : [];
+
+    if (action === 'mark_cash_received' || action === 'mark_card_on_site') {
+      const cashCents = dollarsToCents(
+        mutated.cashReceivedAmount != null
+          ? mutated.cashReceivedAmount
+          : (mutated.cardOnSiteAmount != null ? mutated.cardOnSiteAmount : centsToDollars(approvedCents))
+      );
+      const remaining = Math.max(0, approvedCents - settledCents - creditedCents);
+      const credit = Math.min(Math.max(0, cashCents), remaining);
+      if (credit > 0) {
+        settledCents += credit;
+        entries.push({
+          entryId: `le_admin_${action}_${Date.now()}`,
+          kind: 'settlement',
+          amountCents: credit,
+          currency: 'usd',
+          quoteVersion: Math.round(Number(base.quoteVersion) || 0),
+          bookingVersion: expected,
+          occurredAt: new Date().toISOString(),
+          recordedAt: new Date().toISOString(),
+          actor: `admin_${action}`,
+        });
+      }
+    }
+
+    const priorApproved = Math.max(0, Math.round(Number(base.ledger?.approvedCents) || 0));
+    const quoteChanged = approvedCents !== priorApproved
+      || action === 'update_service'
+      || action === 'update_vehicles'
+      || action === 'approve_adjustment'
+      || action === 'reject_adjustment'
+      || action === 'set_approved_final_amount'
+      || action === 'apply_welcome_offer'
+      || action === 'remove_welcome_offer'
+      || action === 'record_job_balance';
+
+    let paymentAttempts = Array.isArray(base.paymentAttempts) ? base.paymentAttempts : [];
+    let nextQuoteVersion = Math.round(Number(base.quoteVersion || base.quote?.quoteVersion) || 0);
+    if (quoteChanged) {
+      nextQuoteVersion += 1;
+      paymentAttempts = supersedeOpenAttempts(paymentAttempts, { quoteVersion: nextQuoteVersion });
+      patches.payLink = '';
+      patches.stripeCheckoutSessionId = '';
+      patches.payLinkAmount = null;
+      patches.payLinkInvalidatedAt = new Date().toISOString();
+      patches.quoteVersion = nextQuoteVersion;
+      patches.quote = {
+        ...(base.quote || {}),
+        quoteVersion: nextQuoteVersion,
+        basedOnBookingVersion: expected,
+        approvedCents,
+        currency: 'usd',
+        createdAt: new Date().toISOString(),
+        source: `admin_${action}`,
+      };
+    }
+
+    patches.ledger = {
+      currency: 'usd',
+      approvedCents,
+      settledCents,
+      creditedCents,
+      pendingCents: 0,
+      lastReconciledAt: base.ledger?.lastReconciledAt || null,
+      entries,
+    };
+    patches.paymentAttempts = paymentAttempts;
+    patches.approvedFinalAmount = centsToDollars(approvedCents);
+    patches.totalPrice = centsToDollars(approvedCents);
+    patches.amountPaid = centsToDollars(settledCents);
+    patches.paidAmount = centsToDollars(settledCents);
+    const dueCents = Math.max(0, approvedCents - settledCents - creditedCents);
+    patches.amountDueApproved = centsToDollars(dueCents);
+    patches.balanceDue = centsToDollars(dueCents);
+
+    expireResult = await expireSupersededAttempts(paymentAttempts, process.env).catch(() => null);
+  }
+
+  const next = buildNextAggregate(base, patches);
+  const committed = await commitBooking({
+    bookingId,
+    expectedBookingVersion: expected,
+    nextAggregate: next,
+  });
+  if (!committed.ok) {
+    return committed;
+  }
+
   await appendAudit(auditEntry({
     bookingId,
     actorType: 'admin',
     actorId: 'admin',
     action,
     previousState: previous,
-    resultingState: booking,
+    resultingState: committed.booking,
     reason: reason || '',
     sourcePortal: 'admin_ops',
   })).catch(() => null);
+
+  return { ok: true, booking: committed.booking, bookingVersion: committed.bookingVersion, expireResult };
 }
 
 async function handleAdminAction(body) {
@@ -163,7 +304,9 @@ async function handleAdminAction(body) {
   if (!bookingId) return jsonCors(400, { ok: false, error: 'bookingId_required' });
 
   const store = await blobsStore('cd1-bookings');
-  const booking = await store.get(bookingId, { type: 'json' }).catch(() => null);
+  setBookingStoreOverride(store);
+  const bookingRec = await getBookingRecord(bookingId);
+  const booking = bookingRec.booking || await store.get(bookingId, { type: 'json' }).catch(() => null);
   if (!booking) return jsonCors(404, { ok: false, error: 'booking_not_found' });
 
   const now = new Date().toISOString();
@@ -215,18 +358,25 @@ async function handleAdminAction(body) {
         reason: reason || null,
       }),
     };
-    await store.setJSON(bookingId, updated);
-    await appendAudit(auditEntry({
+    const persisted = await persistMutation(
+      store,
       bookingId,
-      actorType: 'admin',
-      actorId: 'admin',
-      action: 'welcome_offer_applied',
-      previousState: booking,
-      resultingState: updated,
-      reason: reason || 'admin_apply',
-      sourcePortal: 'admin_ops',
-    })).catch(() => null);
-    return jsonCors(200, { ok: true, bookingId, offer: updated.offer, totalPrice: updated.totalPrice });
+      updated,
+      booking,
+      'apply_welcome_offer',
+      reason || 'admin_apply'
+    );
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      offer: persisted.booking.offer,
+      totalPrice: persisted.booking.totalPrice,
+      bookingVersion: persisted.bookingVersion,
+      quoteVersion: persisted.booking.quoteVersion,
+    });
   }
 
   if (action === 'remove_welcome_offer') {
@@ -251,18 +401,17 @@ async function handleAdminAction(body) {
       updatedAt: now,
       eventLog: appendEventLog(booking, { action: 'welcome_offer_removed', by: 'admin', reason }),
     };
-    await store.setJSON(bookingId, updated);
-    await appendAudit(auditEntry({
+    const persisted = await persistMutation(store, bookingId, updated, booking, 'remove_welcome_offer', reason);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
       bookingId,
-      actorType: 'admin',
-      actorId: 'admin',
-      action: 'welcome_offer_removed',
-      previousState: booking,
-      resultingState: updated,
-      reason,
-      sourcePortal: 'admin_ops',
-    })).catch(() => null);
-    return jsonCors(200, { ok: true, bookingId, totalPrice: preDiscount });
+      totalPrice: persisted.booking.totalPrice,
+      bookingVersion: persisted.bookingVersion,
+      quoteVersion: persisted.booking.quoteVersion,
+    });
   }
 
   if (action === 'admin_note') {
@@ -384,15 +533,32 @@ async function handleAdminAction(body) {
   if (action === 'set_payment_link') {
     const payLink = sanitizeText(body.payLink, 500);
     if (!payLink.startsWith('http')) return jsonCors(400, { ok: false, error: 'invalid_pay_link' });
-    await store.setJSON(bookingId, {
+    // Manual external reference only — not an authoritative Stripe payment attempt.
+    const patched = {
       ...booking,
       payLink,
+      manualPayLink: payLink,
+      manualPayLinkAt: now,
       paymentWorkflowStatus: 'awaiting_customer_payment',
       payLinkSentAt: now,
       updatedAt: now,
-      eventLog: appendEventLog(booking, { action: 'payment_link_set', by: 'admin' }),
+      eventLog: appendEventLog(booking, {
+        action: 'manual_payment_link_set',
+        by: 'admin',
+        note: 'external_manual_reference_not_authoritative',
+      }),
+    };
+    const persisted = await persistMutation(store, bookingId, patched, booking, 'set_payment_link', 'manual_link');
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      bookingVersion: persisted.bookingVersion,
+      authoritative: false,
+      note: 'Manual link stored as external reference only; Generate Stripe link remains the authoritative path.',
     });
-    return jsonCors(200, { ok: true, bookingId });
   }
 
   if (action === 'generate_stripe_pay_link') {
@@ -578,7 +744,7 @@ async function handleAdminAction(body) {
     const finalAmount = body.finalAmount != null ? Math.round(Number(body.finalAmount) * 100) / 100 : booking.finalAmount;
     const platformFee = (finalAmount != null && techPayout != null)
       ? Math.round((finalAmount - techPayout) * 100) / 100 : null;
-    await store.setJSON(bookingId, {
+    const patched = {
       ...booking,
       finalAmount: finalAmount != null ? finalAmount : booking.finalAmount,
       techPayoutAmount: techPayout != null ? techPayout : booking.techPayoutAmount,
@@ -586,8 +752,16 @@ async function handleAdminAction(body) {
       balanceRecordedAt: now,
       updatedAt: now,
       eventLog: appendEventLog(booking, { action: 'job_balance_recorded', by: 'admin', finalAmount, techPayout, platformFee }),
-    });
-    return jsonCors(200, { ok: true, bookingId, platformFee });
+    };
+    if (finalAmount != null) {
+      patched.approvedFinalAmount = finalAmount;
+      patched.totalPrice = finalAmount;
+    }
+    const persisted = await persistMutation(store, bookingId, patched, booking, 'record_job_balance', 'admin_balance');
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, platformFee, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'reschedule') {
@@ -734,65 +908,116 @@ async function handleAdminAction(body) {
   if (action === 'update_customer') {
     const result = updateCustomerContact(booking, body);
     if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
-    await persistMutation(store, bookingId, result.booking, booking, 'update_customer', body.reason);
-    return jsonCors(200, { ok: true, bookingId });
+    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'update_customer', body.reason);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'update_vehicles') {
     const result = mutateVehicles(booking, body);
     if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
-    await persistMutation(store, bookingId, result.booking, booking, 'update_vehicles', body.reason);
-    return jsonCors(200, { ok: true, bookingId, totalPrice: result.booking.totalPrice });
+    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'update_vehicles', body.reason);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      totalPrice: persisted.booking.totalPrice,
+      bookingVersion: persisted.bookingVersion,
+      quoteVersion: persisted.booking.quoteVersion,
+    });
   }
 
   if (action === 'update_service') {
     const result = await updateServicePackage(booking, body);
     if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
-    await persistMutation(store, bookingId, result.booking, booking, 'update_service', body.reason);
-    return jsonCors(200, { ok: true, bookingId, totalPrice: result.booking.totalPrice });
+    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'update_service', body.reason);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      totalPrice: persisted.booking.totalPrice,
+      bookingVersion: persisted.bookingVersion,
+      quoteVersion: persisted.booking.quoteVersion,
+    });
   }
 
   if (action === 'admin_tech_status') {
     const result = adminTechStatus(booking, body);
     if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
-    await persistMutation(store, bookingId, result.booking, booking, 'admin_tech_status', body.statusAction);
-    return jsonCors(200, { ok: true, bookingId, jobStatus: result.booking.jobStatus });
+    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'admin_tech_status', body.statusAction);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, jobStatus: persisted.booking.jobStatus, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'approve_adjustment') {
     const result = approveAdjustment(booking, body);
     if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
-    await persistMutation(store, bookingId, result.booking, booking, 'approve_adjustment', body.reason);
-    return jsonCors(200, { ok: true, bookingId, approvedFinalAmount: result.booking.approvedFinalAmount });
+    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'approve_adjustment', body.reason);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      approvedFinalAmount: persisted.booking.approvedFinalAmount,
+      bookingVersion: persisted.bookingVersion,
+      quoteVersion: persisted.booking.quoteVersion,
+    });
   }
 
   if (action === 'reject_adjustment') {
     const reason = sanitizeText(body.reason, 500);
     if (!reason) return jsonCors(400, { ok: false, error: 'reason_required' });
     const result = rejectAdjustment(booking, body);
-    await persistMutation(store, bookingId, result.booking, booking, 'reject_adjustment', reason);
-    return jsonCors(200, { ok: true, bookingId });
+    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'reject_adjustment', reason);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'set_approved_final_amount') {
     const result = setApprovedFinalAmount(booking, body);
     if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
-    await persistMutation(store, bookingId, result.booking, booking, 'set_approved_final_amount', body.reason);
-    return jsonCors(200, { ok: true, bookingId, approvedFinalAmount: result.booking.approvedFinalAmount });
+    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'set_approved_final_amount', body.reason);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      approvedFinalAmount: persisted.booking.approvedFinalAmount,
+      bookingVersion: persisted.bookingVersion,
+      quoteVersion: persisted.booking.quoteVersion,
+    });
   }
 
   if (action === 'mark_cash_received') {
     const result = markCashReceived(booking, body);
-    await persistMutation(store, bookingId, result.booking, booking, 'mark_cash_received', body.reference);
-    return jsonCors(200, { ok: true, bookingId, paymentStatus: result.booking.paymentStatus });
+    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'mark_cash_received', body.reference);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, paymentStatus: persisted.booking.paymentStatus, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'mark_card_on_site') {
     const reference = sanitizeText(body.reference, 120);
     if (!reference) return jsonCors(400, { ok: false, error: 'reference_required' });
     const result = markCardOnSite(booking, body);
-    await persistMutation(store, bookingId, result.booking, booking, 'mark_card_on_site', reference);
-    return jsonCors(200, { ok: true, bookingId, paymentStatus: result.booking.paymentStatus });
+    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'mark_card_on_site', reference);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, paymentStatus: persisted.booking.paymentStatus, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'generate_customer_link') {
@@ -810,16 +1035,28 @@ async function handleAdminAction(body) {
     } else {
       patch.myGarageLinkUrl = result.url;
     }
-    await persistMutation(store, bookingId, patch, booking, 'generate_customer_link', result.linkType);
-    return jsonCors(200, { ok: true, bookingId, url: result.url, linkType: result.linkType, expiresAt: result.expiresAt || null });
+    const persisted = await persistMutation(store, bookingId, patch, booking, 'generate_customer_link', result.linkType);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, url: result.url, linkType: result.linkType, expiresAt: result.expiresAt || null, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'reopen_appointment') {
     const reason = sanitizeText(body.reason, 500);
     if (!reason) return jsonCors(400, { ok: false, error: 'reason_required' });
     const result = reopenAppointment(booking, body);
-    await persistMutation(store, bookingId, result.booking, booking, 'reopen_appointment', reason);
-    return jsonCors(200, { ok: true, bookingId, jobStatus: result.booking.jobStatus });
+    if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
+    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'reopen_appointment', reason);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      jobStatus: persisted.booking.jobStatus,
+      bookingVersion: persisted.bookingVersion,
+    });
   }
 
   return jsonCors(400, { ok: false, error: 'unknown_action' });

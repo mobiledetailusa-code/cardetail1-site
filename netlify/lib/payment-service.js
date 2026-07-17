@@ -12,14 +12,6 @@ function moneyConflict(aggregate) {
   if (!ok) return { conflict: true, reason: 'invalid_aggregate' };
   const ledger = norm.ledger;
   const derived = remainingCents(ledger);
-  if (norm.amountDueApproved != null || norm.balanceDue != null) {
-    const storedDueCents = dollarsToCents(
-      norm.amountDueApproved != null ? norm.amountDueApproved : norm.balanceDue
-    );
-    if (ledger.approvedCents === 0 && storedDueCents > 0 && !norm._historicalPaidClosed) {
-      // allow bootstrap
-    }
-  }
   if (norm._historicalPaidClosed) {
     return { conflict: false, payable: false, reason: 'historical_paid_closed', remainingCents: 0 };
   }
@@ -34,6 +26,25 @@ function moneyConflict(aggregate) {
   }
   if (js === 'cancelled' || status === 'cancelled' || status === 'canceled') {
     return { conflict: false, payable: false, reason: 'cancelled', remainingCents: 0 };
+  }
+  // Raw (pre-normalize) stored due that disagrees with raw ledger is a hard conflict.
+  const raw = aggregate && typeof aggregate === 'object' ? aggregate : {};
+  if (raw.ledger && typeof raw.ledger === 'object'
+    && (raw.amountDueApproved != null || raw.balanceDue != null)
+    && (raw.ledger.approvedCents != null || raw.ledger.settledCents != null)) {
+    const rawDerived = remainingCents(raw.ledger);
+    const storedDueCents = dollarsToCents(
+      raw.amountDueApproved != null ? raw.amountDueApproved : raw.balanceDue
+    );
+    if (Math.round(Number(raw.ledger.approvedCents) || 0) > 0 && Math.abs(storedDueCents - rawDerived) > 1) {
+      return {
+        conflict: true,
+        payable: false,
+        reason: 'stale_due_mismatch',
+        remainingCents: rawDerived,
+        storedDueCents,
+      };
+    }
   }
   return { conflict: false, payable: derived > 0, remainingCents: derived, reason: null };
 }
@@ -240,6 +251,16 @@ function reconcileCustomerBalanceSession({
   }
 
   const creditCents = attemptCents;
+  const currentRemaining = remainingCents(norm.ledger);
+  if (creditCents > currentRemaining) {
+    return {
+      ok: false,
+      error: 'overpayment',
+      quarantined: true,
+      remainingCents: currentRemaining,
+      creditCents,
+    };
+  }
   const entry = {
     entryId: `le_${crypto.randomBytes(6).toString('hex')}`,
     kind: 'settlement',
