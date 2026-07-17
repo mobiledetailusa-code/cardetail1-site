@@ -49,6 +49,7 @@ const {
 } = require('../lib/public-rate-limit');
 const {
   issueDraftSaveToken,
+  verifyDraftSaveToken,
   getDraftTokenSecretStatus,
 } = require('../lib/draft-save-token');
 const {
@@ -86,10 +87,12 @@ async function reconcileCardOnFileFromStripe(store, existing) {
   const setupIntentId = String(existing.setupIntentId || '').trim();
   if (!setupIntentId) return existing;
 
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret || !(secret.startsWith('sk_test_') || secret.startsWith('sk_live_'))) {
+  const { guardStripeOrReject } = require('../lib/stripe-mode');
+  const stripeGuard = guardStripeOrReject(process.env, { purpose: 'setup_intent_lookup' });
+  if (stripeGuard.blocked) {
     return existing;
   }
+  const secret = stripeGuard.secret;
 
   try {
     const res = await fetch(
@@ -470,6 +473,15 @@ exports.handler = async (event) => {
       if (!existing || !existing.isDraft) {
         return json(404, { ok: false, error: 'Draft booking not found' });
       }
+      const tokenCheck = verifyDraftSaveToken({
+        token: b.draftSaveToken,
+        bookingId: rawUpdateId,
+        phone: existing.phone || b.phone,
+      });
+      delete b.draftSaveToken;
+      if (!tokenCheck.ok) {
+        return json(401, { ok: false, error: 'draft_token_invalid' });
+      }
       draftId = rawUpdateId;
     } else {
       draftId = await newUniqueId(store);
@@ -494,7 +506,27 @@ exports.handler = async (event) => {
     delete b.draftBookingId;
     let existing = await store.get(rawDraftId, { type: 'json' }).catch(() => null);
     if (!existing) return json(404, { ok: false, error: 'Draft booking not found' });
-    if (!existing.isDraft) return json(409, { ok: false, error: 'Booking already finalized' });
+    if (!existing.isDraft) {
+      // Idempotent finalize: already submitted booking returns same id/version
+      if (existing.finalizedAt || existing.bookingVersion >= 1) {
+        return json(200, {
+          ok: true,
+          id: existing.id,
+          bookingVersion: existing.bookingVersion || 1,
+          idempotent: true,
+        });
+      }
+      return json(409, { ok: false, error: 'Booking already finalized' });
+    }
+    const tokenCheck = verifyDraftSaveToken({
+      token: b.draftSaveToken,
+      bookingId: rawDraftId,
+      phone: existing.phone || b.phone,
+    });
+    delete b.draftSaveToken;
+    if (!tokenCheck.ok) {
+      return json(401, { ok: false, error: 'draft_token_invalid' });
+    }
     if (existing.cardOnFileStatus !== 'saved') {
       existing = await reconcileCardOnFileFromStripe(store, existing);
     }
@@ -525,8 +557,13 @@ exports.handler = async (event) => {
       id: rawDraftId,
       status: 'Pending Review',
       isDraft: false,
+      kind: 'booking',
+      schemaVersion: 1,
+      bookingVersion: 1,
+      quoteVersion: 1,
       createdAt: existing.createdAt,
       finalizedAt,
+      draftSaveTokenRevokedAt: finalizedAt,
       paymentMethod: preference,
       paymentMethodPreference: preference,
       cardOnFileRequired: true,

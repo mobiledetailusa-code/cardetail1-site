@@ -60,7 +60,8 @@ test('single-price UX strings in index.html', () => {
   const html = read('index.html');
   assert.match(html, /Estimated service price:/);
   assert.match(html, /Travel and location adjustments are calculated after the service ZIP is entered/);
-  assert.match(html, /currentBkStep >= 4 \? getTravelFeeAmount\(\) : 0/);
+  // Travel fee is applied via getTravelFeeAmount() once ZIP/zone is known (not gated on currentBkStep >= 4).
+  assert.match(html, /getTravelFeeAmount\(\)/);
   assert.match(html, /id="ah-total-lbl"/);
   assert.match(html, /Estimated service price/);
   assert.match(html, /Estimated total/);

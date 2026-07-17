@@ -11,6 +11,8 @@ const {
   evaluateBookingOfferPreview,
 } = require('../lib/booking-offers');
 const { auditEntry, appendAudit, listAuditForBooking } = require('../lib/operations-audit');
+const { getBooking } = require('../lib/ops-db');
+const { guardStripeOrReject } = require('../lib/stripe-mode');
 const {
   createAdminAppointment,
   updateCustomerContact,
@@ -72,7 +74,10 @@ async function listJobs(q) {
     return [];
   }
   const blobs = await listAllBlobs(store, 'cd1-bookings');
-  let jobs = (await fetchBlobRecords(store, blobs)).filter(b => b && !b.isDraft);
+  const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
+  let jobs = (await fetchBlobRecords(store, blobs)).filter((b) =>
+    b && isVisibleSubmittedBooking(b, { includeArchivedTest: !!showTest })
+  );
 
   if (!showTest) jobs = jobs.filter(b => !b.isTest && !b.archived && b.jobStatus !== 'archived_test');
   if (statusFilter) jobs = jobs.filter(b => normalizeJobStatus(b) === statusFilter);
@@ -391,53 +396,111 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'generate_stripe_pay_link') {
-    const secret = process.env.STRIPE_SECRET_KEY;
-    if (!secret) return jsonCors(503, { ok: false, error: 'stripe_not_configured' });
-    const { applyPayLinkMoney, computeDue, approvedAmount } = require('../lib/portal-money-sync');
-    const freshBooking = (await getBooking(bookingId)) || booking;
-    const defaultDue = computeDue(freshBooking) || approvedAmount(freshBooking);
-    const amountDollars = body.amount != null
-      ? Math.round(Number(body.amount) * 100) / 100
-      : Math.round(Number(defaultDue || 0) * 100) / 100;
-    const amountCents = Math.round(amountDollars * 100);
-    if (amountCents < 50) return jsonCors(400, { ok: false, error: 'amount_too_low' });
+    const stripeGuard = guardStripeOrReject(process.env, { purpose: 'admin_pay_link' });
+    if (stripeGuard.blocked) {
+      return jsonCors(stripeGuard.statusCode, stripeGuard.body);
+    }
+    const { prepareBalanceCheckout, buildPaymentAttempt } = require('../lib/payment-service');
+    const { getBookingRecord, commitBooking } = require('../lib/booking-repository');
+    const { buildNextAggregate, normalizeAggregate } = require('../lib/booking-aggregate');
+    const { applyPayLinkMoney } = require('../lib/portal-money-sync');
+    const { centsToDollars } = require('../lib/historical-adapter');
+
+    const freshRec = await getBookingRecord(bookingId);
+    const freshBooking = freshRec.booking || (await getBooking(bookingId)) || booking;
+    // Reject operator amount override — derive remaining only
+    if (body.amount != null || body.amountCents != null) {
+      return jsonCors(400, { ok: false, error: 'amount_override_rejected' });
+    }
+    const prepared = prepareBalanceCheckout(freshBooking, {
+      expectedBookingVersion: body.expectedBookingVersion,
+      expectedQuoteVersion: body.expectedQuoteVersion,
+    }, process.env);
+    if (!prepared.ok) {
+      return jsonCors(prepared.statusCode || 400, { ok: false, error: prepared.error });
+    }
+    const amountDollars = centsToDollars(prepared.amountCents);
+    if (prepared.amountCents < 50) return jsonCors(400, { ok: false, error: 'amount_too_low' });
     const base = process.env.SITE_URL || 'https://cardetail1.netlify.app';
     const form = new URLSearchParams({
       mode: 'payment',
       'payment_method_types[0]': 'card',
       'line_items[0][price_data][currency]': 'usd',
       'line_items[0][price_data][product_data][name]': `Cardetail1 · ${bookingId}`,
-      'line_items[0][price_data][unit_amount]': String(amountCents),
+      'line_items[0][price_data][unit_amount]': String(prepared.amountCents),
       'line_items[0][quantity]': '1',
       success_url: `${base}/my-garage.html?paid=1&bookingId=${encodeURIComponent(bookingId)}`,
       cancel_url: `${base}/my-garage.html?canceled=1&bookingId=${encodeURIComponent(bookingId)}`,
     });
     if (freshBooking.email) form.append('customer_email', freshBooking.email);
     form.append('metadata[booking_id]', bookingId);
+    form.append('metadata[purpose]', 'customer_balance');
     form.append('metadata[amount_due]', String(amountDollars));
+    form.append('metadata[bookingVersion]', String(prepared.bookingVersion));
+    form.append('metadata[quoteVersion]', String(prepared.quoteVersion));
     const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        Authorization: `Bearer ${prepared.secret}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Idempotency-Key': prepared.idempotencyKey,
+      },
       body: form,
     });
     const sess = await res.json().catch(() => ({}));
     if (!res.ok) {
       return jsonCors(res.status, { ok: false, error: (sess.error && sess.error.message) || 'stripe_error' });
     }
-    const latest = (await getBooking(bookingId)) || freshBooking;
-    await store.setJSON(bookingId, {
-      ...latest,
-      ...applyPayLinkMoney(latest, amountDollars, sess.url, sess.id),
-      payLinkSentAt: now,
-      updatedAt: now,
-      eventLog: appendEventLog(latest, { action: 'stripe_pay_link_generated', by: 'admin', amount: amountDollars }),
+    const { ok: nOk, aggregate: nAgg } = normalizeAggregate(freshBooking);
+    const baseAgg = nOk ? nAgg : freshBooking;
+    const attempt = buildPaymentAttempt({
+      bookingId,
+      bookingVersion: prepared.bookingVersion,
+      quoteVersion: prepared.quoteVersion,
+      amountCents: prepared.amountCents,
+      providerObjectId: sess.id,
+      type: 'customer_balance',
+      idempotencyKey: prepared.idempotencyKey,
     });
-    return jsonCors(200, { ok: true, bookingId, url: sess.url, id: sess.id, amountDueApproved: amountDollars });
+    attempt.status = 'open';
+    const next = buildNextAggregate(baseAgg, {
+      ...applyPayLinkMoney(baseAgg, amountDollars, sess.url, sess.id),
+      paymentAttempts: [...(Array.isArray(baseAgg.paymentAttempts) ? baseAgg.paymentAttempts : []), attempt],
+      payLinkSentAt: now,
+      eventLog: appendEventLog(baseAgg, { action: 'stripe_pay_link_generated', by: 'admin', amount: amountDollars }),
+    });
+    const committed = await commitBooking({
+      bookingId,
+      expectedBookingVersion: baseAgg.bookingVersion || 0,
+      nextAggregate: next,
+    });
+    if (!committed.ok) {
+      try {
+        await fetch(`https://api.stripe.com/v1/checkout/sessions/${sess.id}/expire`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${prepared.secret}` },
+        });
+      } catch { /* ignore */ }
+      return jsonCors(409, { ok: false, error: 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      url: sess.url,
+      id: sess.id,
+      amountDueApproved: amountDollars,
+      remainingCents: prepared.amountCents,
+      bookingVersion: committed.bookingVersion,
+      quoteVersion: prepared.quoteVersion,
+    });
   }
 
   if (action === 'charge_policy_fee') {
-    const secret = process.env.STRIPE_SECRET_KEY;
-    if (!secret) return jsonCors(503, { ok: false, error: 'stripe_not_configured' });
+    const stripeGuard = guardStripeOrReject(process.env, { purpose: 'policy_charge' });
+    if (stripeGuard.blocked) {
+      return jsonCors(stripeGuard.statusCode, stripeGuard.body);
+    }
+    const secret = stripeGuard.secret;
     const feeType = sanitizeText(body.feeType, 32);
     const preset = { no_show: 75, late_cancel: 50 };
     const cap = preset[feeType] || 50;

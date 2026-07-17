@@ -22,6 +22,7 @@ const {
   resolveMonthlyCents, resolveStripePriceId, validateStripePriceAmount,
   buildCheckoutLineItemParams,
 } = require('../lib/subscription-checkout');
+const { guardStripeOrReject } = require('../lib/stripe-mode');
 
 async function customerHasActiveSubscription(email, phone) {
   const subsStore = await blobsStore('cd1-subscriptions');
@@ -59,8 +60,11 @@ exports.handler = async (event) => {
       return jsonCors(400, { ok: false, error: 'invalid_session_id' });
     }
 
-    const secret = process.env.STRIPE_SECRET_KEY;
-    if (!secret) return jsonCors(503, { ok: false, error: 'stripe_not_configured' });
+    const stripeGuard = guardStripeOrReject(process.env, { purpose: 'subscription_session_status' });
+    if (stripeGuard.blocked) {
+      return jsonCors(stripeGuard.statusCode || 503, stripeGuard.body);
+    }
+    const secret = stripeGuard.secret;
 
     const res = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
       headers: { Authorization: `Bearer ${secret}` },
@@ -137,8 +141,11 @@ exports.handler = async (event) => {
     const pricing = resolveMonthlyCents(packId, fleetId);
     if (!pricing) return jsonCors(400, { ok: false, error: 'invalid_plan' });
 
-    const secret = process.env.STRIPE_SECRET_KEY;
-    if (!secret) return jsonCors(503, { ok: false, error: 'stripe_not_configured' });
+    const stripeGuard = guardStripeOrReject(process.env, { purpose: 'subscription_checkout' });
+    if (stripeGuard.blocked) {
+      return jsonCors(stripeGuard.statusCode || 503, stripeGuard.body);
+    }
+    const secret = stripeGuard.secret;
 
     const stripePriceId = resolveStripePriceId(packId, fleetId);
     if (stripePriceId) {

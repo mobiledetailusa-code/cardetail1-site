@@ -187,7 +187,8 @@ test('my-garage uses catalog selectors and customer-portal-pay', () => {
 
 test('portal data excludes drafts and returns catalog + payment', () => {
   const src = read('netlify/functions/customer-portal-data.js');
-  assert.match(src, /isDraft/);
+  // Release A: centralized draft visibility via booking-visibility
+  assert.match(src, /isVisibleSubmittedBooking|isVisibleCustomerBooking/);
   assert.match(src, /catalogForClient/);
   assert.match(src, /safePaymentState/);
   assert.match(src, /changeRequests/);

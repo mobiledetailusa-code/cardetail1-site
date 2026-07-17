@@ -36,6 +36,7 @@ test('Step 5 gates preference, consent, saved card, and final terms', () => {
 });
 
 test('card-on-file uses SetupIntent with off-session usage and bookingId metadata', () => {
+  const stripeMode = fs.readFileSync(path.join(__dirname, '..', 'netlify', 'lib', 'stripe-mode.js'), 'utf8');
   assert.match(setup, /\/v1\/setup_intents/);
   assert.match(setup, /usage:\s+'off_session'/);
   assert.match(setup, /metadata\[bookingId\]/);
@@ -43,10 +44,12 @@ test('card-on-file uses SetupIntent with off-session usage and bookingId metadat
   assert.match(setup, /invalid_draft_token/);
   assert.doesNotMatch(setup, /\/v1\/payment_intents/);
   assert.doesNotMatch(setup, /capture_method/);
-  assert.match(setup, /CONTEXT === 'deploy-preview'/);
-  assert.match(setup, /DEPLOY_PRIME_URL/);
-  assert.match(setup, /stripe_test_mode_required/);
-  assert.match(setup, /NETLIFY_DEV/);
+  // Release A: local/preview live-key guard is centralized in stripe-mode.js
+  assert.match(setup, /guardStripeOrReject/);
+  assert.match(setup, /stripe-mode/);
+  assert.match(stripeMode, /deploy-preview/);
+  assert.match(stripeMode, /NETLIFY_DEV/);
+  assert.match(stripeMode, /stripe_test_mode_required/);
   assert.match(index, /IS_DEPLOY_PREVIEW/);
   assert.match(index, /isLocalPreview/);
   assert.match(index, /LOCAL_DEV_FUNCTIONS_HINT/);

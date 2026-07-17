@@ -1,21 +1,6 @@
 // netlify/functions/create-payment-intent.js
-// Creates a Stripe PaymentIntent for a Cardetail1 booking.
-// No npm SDK — calls the Stripe REST API directly via fetch.
-//
-// Security (C-2): amount is derived server-side from the stored booking's
-// totalPrice. Client-submitted amountCents is ignored. The booking must
-// exist in Netlify Blobs before this endpoint can be called (pre-registered
-// via submit-booking?isDraft=true in the payByCard() flow).
-//
-// Env (Netlify → Environment variables):
-//   STRIPE_SECRET_KEY   secret key (sk_test_... or sk_live_...)
-//
-// Body expected (JSON):
-//   { bookingId: "CD1-...", capture: "manual" }
-//   capture: "manual" = authorize/hold (default); "auto" = charge immediately
-//
-// Returns: { ok, clientSecret, id, captureMethod, mode, amountCents }
-//   mode: "test" | "live" — front-end uses this to show a test-mode banner.
+// Dormant Pay-in-Full path — Release A routes through authoritative remaining balance.
+// Never charges catalog totalPrice when an approved ledger/quote exists.
 
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
@@ -36,7 +21,10 @@ const json = (status, body) => ({
 });
 
 const { verifyAdminKey } = require('../lib/tech-security');
-const { applyServerTravelAndTotal } = require('../lib/travel-fee');
+const { guardStripeOrReject } = require('../lib/stripe-mode');
+const { prepareBalanceCheckout } = require('../lib/payment-service');
+const { adaptHistoricalBooking } = require('../lib/historical-adapter');
+const { normalizeAggregate } = require('../lib/booking-aggregate');
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
@@ -48,19 +36,18 @@ exports.handler = async (event) => {
     return json(status, { ok: false, error: auth.error || 'unauthorized' });
   }
 
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return json(503, { ok: false, error: 'Stripe not configured on server' });
-  const mode = secret.startsWith('sk_test_') ? 'test' : 'live';
+  const stripeGuard = guardStripeOrReject(process.env, { purpose: 'payment_intent' });
+  if (stripeGuard.blocked) {
+    return json(stripeGuard.statusCode, stripeGuard.body);
+  }
 
   let p;
   try { p = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
 
-  // C-2: bookingId is required; amount is fetched from Blobs, not from the client.
   const bookingId = String(p.bookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
   if (!bookingId) return json(400, { ok: false, error: 'bookingId is required' });
 
-  // Fetch the pre-registered booking to get the authoritative total.
   let booking;
   try {
     const store = await blobsStore('cd1-bookings');
@@ -70,26 +57,25 @@ exports.handler = async (event) => {
   }
   if (!booking) return json(404, { ok: false, error: 'Booking not found — pre-register first' });
 
-  const recalc = applyServerTravelAndTotal(booking, { skipMismatchCheck: true });
-  if (!recalc.ok) {
-    return json(400, { ok: false, error: recalc.error || 'invalid_pricing' });
+  const adapted = adaptHistoricalBooking(booking);
+  const raw = adapted.ok ? adapted.booking : booking;
+  const { ok: nOk, aggregate } = normalizeAggregate(raw, { allowDraft: true });
+  const agg = nOk ? aggregate : raw;
+
+  // Authoritative remaining — ignore client amountCents and catalog totalPrice when ledger/approved exists
+  const prepared = prepareBalanceCheckout(agg, {
+    expectedBookingVersion: p.expectedBookingVersion,
+    expectedQuoteVersion: p.expectedQuoteVersion,
+  }, process.env);
+  if (!prepared.ok) {
+    return json(prepared.statusCode || 400, { ok: false, error: prepared.error });
   }
 
-  try {
-    const store = await blobsStore('cd1-bookings');
-    await store.setJSON(bookingId, booking);
-  } catch (e) {
-    return json(503, { ok: false, error: 'Booking store unavailable' });
-  }
-
-  const amount = Math.round((Number(booking.totalPrice) || 0) * 100);
+  const amount = prepared.amountCents;
   if (amount < 50) return json(400, { ok: false, error: 'Booking total too low to charge (min $0.50)' });
 
-  // capture_method: manual = authorize and hold (ideal for variable final pricing —
-  // capture exact amount after service). auto = charge immediately.
   const captureMethod = p.capture === 'auto' ? 'automatic' : 'manual';
-
-  const email = String(booking.email || '').includes('@') ? booking.email.slice(0, 120) : '';
+  const email = String(agg.email || '').includes('@') ? agg.email.slice(0, 120) : '';
 
   const form = new URLSearchParams({
     amount: String(amount),
@@ -99,13 +85,17 @@ exports.handler = async (event) => {
     description: `Cardetail1 booking ${bookingId}`,
   });
   form.append('metadata[booking_id]', bookingId);
+  form.append('metadata[bookingVersion]', String(prepared.bookingVersion));
+  form.append('metadata[quoteVersion]', String(prepared.quoteVersion));
+  form.append('metadata[purpose]', 'authoritative_balance');
   if (email) form.append('receipt_email', email);
 
   const res = await fetch('https://api.stripe.com/v1/payment_intents', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${secret}`,
+      Authorization: `Bearer ${prepared.secret}`,
       'Content-Type': 'application/x-www-form-urlencoded',
+      'Idempotency-Key': prepared.idempotencyKey,
     },
     body: form,
   });
@@ -121,7 +111,9 @@ exports.handler = async (event) => {
     clientSecret: pi.client_secret,
     id: pi.id,
     captureMethod,
-    mode,
+    mode: prepared.stripeMode,
     amountCents: amount,
+    bookingVersion: prepared.bookingVersion,
+    quoteVersion: prepared.quoteVersion,
   });
 };

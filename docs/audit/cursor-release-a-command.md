@@ -6,8 +6,10 @@ Use the prompt below only after reviewing the audit. It authorizes a future impl
 CARDDETAIL1 — IMPLEMENT RELEASE A ONLY
 
 Repository baseline:
-- expected branch: fix/my-garage-operational-portal
-- audited HEAD: 5fa47b99c4d8707dba29b35c6559b3cdba3eb125
+- expected implementation branch: fix/release-a-canonical-aggregate
+- committed baseline before Release A code: 22d4c02712fff167a58149bc14e7627996e133dc
+- original audited application HEAD (evidence preserved): 5fa47b99c4d8707dba29b35c6559b3cdba3eb125
+- see docs/audit/release-a-ship-baseline.md
 
 This is an authorized defensive implementation on my own application. Use only repository inspection, existing tests, synthetic local/preview fixtures, normal authorized workflows, browser console/network inspection, and Stripe test mode.
 

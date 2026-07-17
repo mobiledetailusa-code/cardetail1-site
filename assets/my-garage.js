@@ -14,6 +14,7 @@
     session: false,
     verifyPhone: '',
     verifyBookingId: '',
+    actionToken: null,
     catalog: null,
     changeRequests: [],
     payment: null,
@@ -183,6 +184,18 @@
   }
 
   async function loadLimited() {
+    // Action-link scoped session: refresh via in-memory token (never re-persist to URL/localStorage)
+    if (state.actionToken) {
+      var ar = await post('customer-portal-action', { action: 'view', token: state.actionToken });
+      if (ar.data && ar.data.ok) {
+        state.booking = ar.data.booking;
+        applyPortalPayload(ar.data);
+        renderDashboard({ payment: ar.data.payment || { canPay: ar.data.labels && ar.data.labels.canPay } });
+        return true;
+      }
+      // Token expired — clear and fall through
+      state.actionToken = null;
+    }
     var id = state.verifyBookingId || ($('lk-booking-id') && $('lk-booking-id').value.trim().toUpperCase());
     var phone = normalizePhoneInput(state.verifyPhone || ($('lk-phone') && $('lk-phone').value));
     if (!id || phone.length < 10) {
@@ -1035,7 +1048,8 @@
     if (prePhone && $('lk-phone')) $('lk-phone').value = prePhone;
 
     if (params.get('paid') === '1') {
-      showToast('Payment received. Thank you!');
+      // Never treat ?paid=1 as verified settlement — show processing until ledger confirms
+      showToast('Payment processing — refreshing your balance…');
     } else if (params.get('canceled') === '1') {
       showToast('Checkout canceled. You can pay anytime from My Garage.', true);
     }
@@ -1045,7 +1059,11 @@
       var ar = await post('customer-portal-action', { action: 'view', token: actionToken });
       if (ar.data && ar.data.ok) {
         state.scope = 'booking';
+        state.actionToken = actionToken; // retain in memory only for focus/poll refresh
         state.booking = ar.data.booking;
+        if (ar.data.booking && ar.data.booking.id) {
+          state.verifyBookingId = ar.data.booking.id;
+        }
         applyPortalPayload(ar.data);
         history.replaceState({}, '', 'my-garage.html');
         renderDashboard({ payment: ar.data.payment || { canPay: ar.data.labels && ar.data.labels.canPay } });
@@ -1078,7 +1096,7 @@
 
   function portalReload() {
     if (state.scope === 'account') return loadAccount();
-    if (state.booking) return loadLimited();
+    if (state.actionToken || state.booking) return loadLimited();
     return Promise.resolve();
   }
 

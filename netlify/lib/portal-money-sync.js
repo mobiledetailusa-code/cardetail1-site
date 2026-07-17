@@ -1,33 +1,54 @@
 /**
  * Keep customer-visible totals and Stripe pay links in sync after money changes.
+ * Remaining due is derived from ledger inputs — stored due is never authoritative.
  */
+
+const { dollarsToCents, centsToDollars } = require('./historical-adapter');
+const { remainingCents: ledgerRemaining } = require('./booking-aggregate');
 
 function roundMoney(n) {
   return Math.round(Number(n || 0) * 100) / 100;
 }
 
 function paidAmount(booking) {
+  if (booking?.ledger && booking.ledger.settledCents != null) {
+    return centsToDollars(booking.ledger.settledCents);
+  }
   return roundMoney(booking?.amountPaid || booking?.paidAmount || 0);
 }
 
 function approvedAmount(booking) {
+  if (booking?.ledger && booking.ledger.approvedCents != null) {
+    return centsToDollars(booking.ledger.approvedCents);
+  }
   if (booking?.approvedFinalAmount != null) return roundMoney(booking.approvedFinalAmount);
   return roundMoney(booking?.totalPrice || booking?.finalAmount || 0);
 }
 
 /**
  * Apply a new approved total and invalidate any stale Stripe Checkout link.
- * Due = max(0, approved − paid).
+ * Due = max(0, approved − paid). Also writes ledger cents when possible.
  */
 function applyApprovedMoney(booking, proposedTotal, extras = {}) {
   const approved = roundMoney(proposedTotal);
   const paid = paidAmount(booking);
   const due = Math.max(0, roundMoney(approved - paid));
+  const approvedCents = dollarsToCents(approved);
+  const settledCents = dollarsToCents(paid);
   return {
     totalPrice: approved,
     approvedFinalAmount: approved,
     amountDueApproved: due,
     balanceDue: due,
+    ledger: {
+      currency: 'usd',
+      approvedCents,
+      settledCents,
+      creditedCents: Number(booking?.ledger?.creditedCents) || 0,
+      pendingCents: 0,
+      entries: Array.isArray(booking?.ledger?.entries) ? booking.ledger.entries : [],
+      lastReconciledAt: booking?.ledger?.lastReconciledAt || null,
+    },
     // Invalidate checkout so customer/admin never open a stale Stripe amount.
     payLink: '',
     stripeCheckoutSessionId: '',
@@ -64,11 +85,21 @@ function canReusePayLink(booking, due) {
   return Math.abs(roundMoney(linkedAmount) - roundMoney(due)) < 0.009;
 }
 
+/**
+ * Derive due from approved − paid (ledger when present).
+ * Never trust stale amountDueApproved / balanceDue ahead of the ledger.
+ */
 function computeDue(booking) {
+  if (booking?._historicalPaidClosed) return 0;
+  const status = String(booking?.status || '').toLowerCase();
+  const js = String(booking?.jobStatus || '').toLowerCase();
+  if (status === 'paid' || status === 'closed' || js === 'completed_paid') return 0;
+
+  if (booking?.ledger && (booking.ledger.approvedCents != null || booking.ledger.settledCents != null)) {
+    return centsToDollars(ledgerRemaining(booking.ledger));
+  }
   const paid = paidAmount(booking);
   const approved = approvedAmount(booking);
-  if (booking?.amountDueApproved != null) return Math.max(0, roundMoney(booking.amountDueApproved));
-  if (booking?.balanceDue != null) return Math.max(0, roundMoney(booking.balanceDue));
   return Math.max(0, roundMoney(approved - paid));
 }
 
@@ -90,6 +121,16 @@ function detectMoneyConflict(booking) {
       expectedDue,
     });
   }
+  // Stale stored due vs derived
+  if (booking?.amountDueApproved != null
+    && Math.abs(roundMoney(booking.amountDueApproved) - expectedDue) > 0.009
+    && !booking?._historicalPaidClosed) {
+    conflicts.push({
+      code: 'stale_stored_due',
+      storedDue: roundMoney(booking.amountDueApproved),
+      expectedDue,
+    });
+  }
   if (booking?.payLink && booking?.payLinkAmount != null && Math.abs(roundMoney(booking.payLinkAmount) - due) > 0.009) {
     conflicts.push({
       code: 'stale_pay_link_amount',
@@ -98,15 +139,9 @@ function detectMoneyConflict(booking) {
     });
   }
   if (booking?.payLink && (booking.payLinkAmount == null || booking.payLinkAmount === '')) {
-    conflicts.push({ code: 'pay_link_without_amount', due });
+    conflicts.push({ code: 'pay_link_missing_amount' });
   }
-  return {
-    ok: conflicts.length === 0,
-    approved,
-    due,
-    paid,
-    conflicts,
-  };
+  return { ok: conflicts.length === 0, conflicts };
 }
 
 module.exports = {

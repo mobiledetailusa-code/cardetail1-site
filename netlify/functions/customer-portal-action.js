@@ -6,6 +6,7 @@ const { projectBookingForCustomer } = require('../lib/ops-schema');
 const { checkPublicRateLimit } = require('../lib/public-rate-limit');
 const { verifyActionToken } = require('../lib/customer-completion-link');
 const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
+const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
 
 async function getBooking(bookingId) {
   const store = await blobsStore('cd1-bookings');
@@ -18,7 +19,9 @@ async function resolveContext(event, body, action) {
     const record = await verifyActionToken(token);
     if (!record) return { err: jsonCors(401, { ok: false, error: 'invalid_or_expired_token' }) };
     const booking = await getBooking(record.bookingId);
-    if (!booking) return { err: jsonCors(404, { ok: false, error: 'booking_not_found' }) };
+    if (!booking || !isVisibleSubmittedBooking(booking)) {
+      return { err: jsonCors(404, { ok: false, error: 'booking_not_found' }) };
+    }
     return { booking, bookingId: record.bookingId, actorId: 'action_link' };
   }
 

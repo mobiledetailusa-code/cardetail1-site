@@ -41,6 +41,24 @@ function projectJobForAdmin(b) {
   delete safe.passwordHash;
   safe.jobStatus = normalizeJobStatus(safe);
   safe.paymentWorkflowStatus = normalizePaymentWorkflowStatus(safe);
+  // Release A: Admin projection carries the same material version/money fields as Customer
+  try {
+    const { materialProjection } = require('./booking-aggregate');
+    const { computeDue } = require('./portal-money-sync');
+    const material = materialProjection(safe);
+    if (material) {
+      safe.bookingVersion = material.bookingVersion;
+      safe.quoteVersion = material.quoteVersion;
+      safe.schemaVersion = material.schemaVersion;
+      safe.approvedCents = material.approvedCents;
+      safe.settledCents = material.settledCents;
+      safe.remainingCents = material.remainingCents;
+      safe.amountDueApproved = computeDue(safe);
+      if (safe.approvedFinalAmount == null && material.approvedCents != null) {
+        safe.approvedFinalAmount = material.approvedCents / 100;
+      }
+    }
+  } catch { /* keep raw projection if aggregate unavailable */ }
   return safe;
 }
 

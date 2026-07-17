@@ -91,76 +91,134 @@ describe('portal money sync — conflict detection', () => {
 });
 
 describe('e2e simulate: customer package change → admin approve → customer panel', () => {
-  it('cars: approved total and due appear on customer projection', () => {
-    const booking = baseBooking();
+  const { quoteService, canonicalAddonPrice } = require('../netlify/lib/canonical-quote');
+
+  it('cars: approved total and due appear on customer projection (canonical quote)', () => {
+    // Release A: approvable amount from booking-price-catalog, not customer-catalog fixed $450
+    const booking = baseBooking({
+      travelFeeAmount: 10,
+      vehicles: [{
+        vehicleId: 'veh_1',
+        cat: 'cars',
+        tierKey: 'suv3',
+        tierLabel: 'SUV 3-Row',
+        pkgId: 'full',
+        addons: [],
+      }],
+      zipCode: '07102',
+    });
     const pack = CAR_PACKAGES.find((p) => p.id === 'premium');
-    const travel = Number(booking.travelFeeAmount || 0);
-    const proposedTotal = Math.round((pack.basePrice + travel) * 100) / 100;
+    const quoted = quoteService({
+      zip: '07102',
+      vehicles: [{
+        vehicleId: 'veh_1',
+        category: 'cars',
+        tier: 'suv3',
+        tierLabel: 'SUV 3-Row',
+        packageId: 'premium',
+        pkgId: 'premium',
+        addons: [],
+      }],
+    }, { travelCents: 1000, basedOnBookingVersion: 1 });
+    assert.equal(quoted.ok, true);
+    // SUV3 Premium $635 + $10 travel
+    assert.equal(quoted.quote.approvedCents, 64500);
+    const proposedTotal = quoted.approvedDollars;
 
-    // Customer request state
-    const requestedState = {
-      packageId: pack.id,
-      packageName: pack.name,
-      packagePrice: pack.basePrice,
-      packageDescription: pack.description,
-      proposedTotal,
-    };
-    assert.equal(requestedState.proposedTotal, 460);
-
-    // Admin approve
     const after = simulateAdminApproveMoney(booking, proposedTotal, {
       package: pack.name,
       service: pack.name,
       packageId: pack.id,
       packageDescription: pack.description,
+      ledger: {
+        approvedCents: quoted.quote.approvedCents,
+        settledCents: 0,
+        creditedCents: 0,
+      },
     });
 
     const projected = projectBookingForCustomer(after);
     assert.equal(projected.package, 'Signature Interior & Exterior Restoration');
-    assert.equal(projected.approvedFinalAmount, 460);
-    assert.equal(projected.totalPrice, 460);
-    assert.equal(projected.amountDueApproved, 460);
+    assert.equal(projected.approvedFinalAmount, 645);
+    assert.equal(projected.totalPrice, 645);
+    assert.equal(projected.amountDueApproved, 645);
     assert.equal(projected.payLink, '');
     assert.equal(projected.customerChangePending, false);
 
     const pay = canPayBalance(after);
     assert.equal(pay.ok, true);
-    assert.equal(computeDue(after), 460);
+    assert.equal(computeDue(after), 645);
     assert.equal(detectMoneyConflict(after).ok, true);
   });
 
   it('cars: Stripe mint syncs approvedFinalAmount with due (no UI/Stripe split)', () => {
-    const afterApprove = simulateAdminApproveMoney(baseBooking(), 460, {
+    const afterApprove = simulateAdminApproveMoney(baseBooking(), 645, {
       package: 'Signature Interior & Exterior Restoration',
       packageId: 'premium',
+      ledger: { approvedCents: 64500, settledCents: 0, creditedCents: 0 },
     });
-    // Customer opens pay → new session
     const withPay = {
       ...afterApprove,
       ...applyPayLinkMoney(afterApprove, computeDue(afterApprove), 'https://checkout.stripe.com/new', 'cs_test'),
     };
     const projected = projectBookingForCustomer(withPay);
-    assert.equal(projected.approvedFinalAmount, 460);
-    assert.equal(projected.amountDueApproved, 460);
-    assert.equal(withPay.payLinkAmount, 460);
-    assert.equal(canReusePayLink(withPay, 460), true);
+    assert.equal(projected.approvedFinalAmount, 645);
+    assert.equal(projected.amountDueApproved, 645);
+    assert.equal(withPay.payLinkAmount, 645);
+    assert.equal(canReusePayLink(withPay, 645), true);
     assert.equal(detectMoneyConflict(withPay).ok, true);
   });
 
-  it('addon request: merge + proposed total applied to customer panel', () => {
-    const booking = baseBooking({ approvedFinalAmount: 310, amountDueApproved: 310 });
-    const selected = resolveAddonsByIds(['pethair', 'odor']);
-    const addOnSum = addonTotal(selected);
-    const proposedTotal = Math.round((310 + addOnSum) * 100) / 100;
-    assert.equal(proposedTotal, 554);
+  it('addon request: merge + proposed total uses canonical Odor $90 (not portal $149)', () => {
+    assert.equal(canonicalAddonPrice('cars', 'odor'), 90);
+    assert.equal(canonicalAddonPrice('cars', 'pethair'), 95);
+    // Labels may still come from customer-catalog; money must not.
+    const portalOdor = ADDONS.find((a) => a.id === 'odor');
+    assert.ok(portalOdor.price !== 90, 'portal catalog remains non-authoritative for odor');
+
+    const booking = baseBooking({
+      approvedFinalAmount: 315,
+      amountDueApproved: 315,
+      travelFeeAmount: 0,
+      zipCode: '07102',
+      vehicles: [{
+        vehicleId: 'veh_1',
+        cat: 'cars',
+        tierKey: 'suv3',
+        tierLabel: 'SUV 3-Row',
+        pkgId: 'full',
+        addons: [],
+      }],
+    });
+    const quoted = quoteService({
+      zip: '07102',
+      vehicles: [{
+        vehicleId: 'veh_1',
+        category: 'cars',
+        tier: 'suv3',
+        packageId: 'full',
+        pkgId: 'full',
+        addOnIds: ['pethair', 'odor'],
+        addons: [{ id: 'pethair' }, { id: 'odor' }],
+      }],
+    });
+    assert.equal(quoted.ok, true);
+    // SUV3 Full $315 + pet $95 + odor $90 = $500
+    assert.equal(quoted.quote.approvedCents, 50000);
+    const proposedTotal = quoted.approvedDollars;
+    const selected = resolveAddonsByIds(['pethair', 'odor']).map((a) => ({
+      ...a,
+      price: canonicalAddonPrice('cars', a.id),
+    }));
 
     const after = simulateAdminApproveMoney(booking, proposedTotal, {
       addons: selected,
+      ledger: { approvedCents: quoted.quote.approvedCents, settledCents: 0, creditedCents: 0 },
     });
     const projected = projectBookingForCustomer(after);
     assert.equal(projected.addons.length, 2);
-    assert.equal(projected.approvedFinalAmount, 554);
-    assert.equal(projected.amountDueApproved, 554);
+    assert.equal(projected.approvedFinalAmount, 500);
+    assert.equal(projected.amountDueApproved, 500);
     assert.equal(projected.payLink, '');
   });
 });
@@ -233,7 +291,8 @@ describe('policy modes: pending review / confirmed / pay', () => {
 
   it('drafts blocked from customer portal visibility contract', () => {
     const src = read('netlify/functions/customer-portal-data.js');
-    assert.match(src, /isDraft/);
+    // Release A: centralized visibility gate (isDraft handled inside booking-visibility)
+    assert.match(src, /isVisibleSubmittedBooking|isVisibleCustomerBooking/);
     assert.match(src, /booking_not_ready/);
   });
 });
@@ -252,23 +311,27 @@ describe('catalog smoke: all category modes exposed to client', () => {
 });
 
 describe('source smoke: admin approve + customer UI wiring', () => {
-  it('admin approve uses applyApprovedMoney', () => {
+  it('admin approve uses canonical decideChangeRequestCommand', () => {
+    // Release A: booking-commands is authority; request index is rebuildable
     const src = read('netlify/functions/admin-customer-requests.js');
-    assert.match(src, /applyApprovedMoney/);
-    assert.match(src, /Approved — your appointment details and totals were updated/);
+    assert.match(src, /decideChangeRequestCommand/);
+    assert.match(src, /listAllBlobs/);
+    assert.doesNotMatch(src, /\.slice\(0,\s*200\)/);
   });
 
-  it('customer-portal-pay uses canReusePayLink / payLinkAmount', () => {
+  it('customer-portal-pay uses authoritative payment-service', () => {
     const src = read('netlify/functions/customer-portal-pay.js');
-    assert.match(src, /canReusePayLink/);
+    assert.match(src, /prepareBalanceCheckout/);
     assert.match(src, /applyPayLinkMoney/);
+    assert.match(src, /commitBooking/);
     assert.doesNotMatch(src, /Number\(booking\.amountDueApproved\) === due/);
   });
 
-  it('admin stripe generate syncs approvedFinalAmount via applyPayLinkMoney', () => {
+  it('admin stripe generate syncs via applyPayLinkMoney and getBooking', () => {
     const src = read('netlify/functions/admin-ops-jobs.js');
     assert.match(src, /applyPayLinkMoney/);
     assert.match(src, /getBooking\(bookingId\)/);
+    assert.match(src, /amount_override_rejected/);
   });
 
   it('my-garage has length ruler and always pays via customer-portal-pay', () => {
@@ -280,11 +343,14 @@ describe('source smoke: admin approve + customer UI wiring', () => {
     assert.doesNotMatch(js, /if \(pay\.payLink && pay\.canPay\) \{\s*\n\s*if \(global\.cd1PortalAnalytics\) global\.cd1PortalAnalytics\.paymentOpened\(\);\s*\n\s*global\.location\.href = pay\.payLink/);
   });
 
-  it('submit-customer-action prices boats/rvs by length', () => {
+  it('submit-customer-action prices via booking-commands / canonical quote', () => {
+    // Release A: approvable totals from booking-commands → canonical-quote
     const src = read('netlify/functions/submit-customer-action.js');
-    assert.match(src, /getLengthPrice/);
+    assert.match(src, /booking-commands/);
+    assert.match(src, /submitChangeRequestCommand/);
     assert.match(src, /lengthFt/);
     assert.match(src, /Enter vessel \/ RV length/);
+    assert.doesNotMatch(src, /await store\.setJSON\(bookingId,/);
   });
 });
 
@@ -298,7 +364,14 @@ describe('regression: UI approved total vs due after admin regenerate pattern', 
     });
     const conflict = detectMoneyConflict(booking);
     assert.equal(conflict.ok, false);
-    assert.ok(conflict.conflicts.some((c) => c.code === 'due_mismatch_approved_minus_paid'));
+    // Release A derives due from approved−paid, so stale stored due / pay link are flagged
+    assert.ok(
+      conflict.conflicts.some((c) =>
+        c.code === 'due_mismatch_approved_minus_paid'
+        || c.code === 'stale_stored_due'
+        || c.code === 'stale_pay_link_amount'
+      )
+    );
   });
 
   it('fixed path: applyPayLinkMoney keeps approved and due aligned', () => {

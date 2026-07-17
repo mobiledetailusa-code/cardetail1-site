@@ -2,8 +2,9 @@
 // Returns ALL bookings stored centrally in Netlify Blobs, for the Admin dashboard.
 // Protected by admin session token (x-admin-key header).
 
-const { verifyAdminKey } = require('../lib/tech-security');
+const { verifyAdminKey, listAllBlobs, fetchBlobRecords } = require('../lib/tech-security');
 const { redactBookingForLegacyAdmin } = require('../lib/admin-security');
+const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
 
 const json = (status, body) => ({
   statusCode: status,
@@ -36,14 +37,12 @@ exports.handler = async (event) => {
     const siteID = process.env.NETLIFY_SITE_ID;
     const token = process.env.NETLIFY_AUTH_TOKEN;
     const store = (siteID && token) ? getStore({ name: 'cd1-bookings', siteID, token }) : getStore('cd1-bookings');
-    const listing = await store.list();
-    const blobs = (listing && listing.blobs) || [];
-    const all = (await Promise.all(
-      blobs.map(b => store.get(b.key, { type: 'json' }).catch(() => null))
-    )).filter(Boolean);
-    const finalized = all.filter(b => !b.isDraft);
-    const filtered = showTest ? finalized : finalized.filter(b => !b.isTest && !b.archived);
-    const bookings = filtered.map(redactBookingForLegacyAdmin);
+    const blobs = await listAllBlobs(store, 'cd1-bookings');
+    const all = await fetchBlobRecords(store, blobs);
+    const finalized = all.filter((b) =>
+      b && isVisibleSubmittedBooking(b, { includeArchivedTest: !!showTest })
+    );
+    const bookings = finalized.map(redactBookingForLegacyAdmin);
     bookings.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
     return json(200, { ok: true, count: bookings.length, bookings });
   } catch (e) {

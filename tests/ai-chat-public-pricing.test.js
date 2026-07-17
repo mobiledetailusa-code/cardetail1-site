@@ -98,6 +98,15 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/evaluate-booking-offer.js',
   'netlify/functions/admin-ops-jobs.js',
   'netlify/functions/qa-opscore-lifecycle.js',
+  // Release A — canonical aggregate / payments
+  'netlify/functions/create-payment-intent.js',
+  'netlify/functions/create-payment-link.js',
+  'netlify/functions/capture-payment.js',
+  'netlify/functions/customer-subscription-checkout.js',
+  'netlify/functions/customer-bookings.js',
+  'netlify/functions/customer-portal-pay.js',
+  'netlify/functions/stripe-webhook.js',
+  'netlify/functions/list-bookings.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {

@@ -12,6 +12,7 @@ const { canPayBalance } = require('../lib/appointment-status-policy');
 const { catalogForClient } = require('../lib/customer-catalog');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 const { computeDue } = require('../lib/portal-money-sync');
+const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
 
 function safePaymentState(booking) {
   const due = computeDue(booking);
@@ -27,6 +28,11 @@ function safePaymentState(booking) {
     amountDueApproved: due,
     approvedTotal: Number(booking.approvedFinalAmount != null ? booking.approvedFinalAmount : (booking.totalPrice || 0)),
     amountPaid: Number(booking.amountPaid || booking.paidAmount || 0),
+    remainingCents: booking.remainingCents != null
+      ? booking.remainingCents
+      : Math.round(due * 100),
+    bookingVersion: booking.bookingVersion || 0,
+    quoteVersion: booking.quoteVersion || 0,
     payLink: booking.payLink || '',
     payLinkAmount: booking.payLinkAmount != null ? Number(booking.payLinkAmount) : null,
     canPay: !!(payAllowed.ok && due > 0),
@@ -35,10 +41,22 @@ function safePaymentState(booking) {
 }
 
 function isVisibleCustomerBooking(b) {
-  if (!b) return false;
-  if (b.isDraft) return false;
-  if (b.archived || b.isTest) return false;
-  return true;
+  return isVisibleSubmittedBooking(b, { includeArchivedTest: false });
+}
+
+function upcomingSortKey(b) {
+  const date = String(b.preferredDate || b.confirmedDate || '');
+  const updated = String(b.updatedAt || b.createdAt || '');
+  return `${date}|${updated}|${b.id || ''}`;
+}
+
+function selectUpcoming(projected) {
+  const terminal = new Set(['Paid', 'Closed', 'Cancelled', 'Canceled', 'Completed']);
+  const active = projected
+    .filter((b) => !terminal.has(String(b.status || '')))
+    .filter((b) => String(b.jobStatus || '') !== 'completed_paid')
+    .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
+  return active[0] || null;
 }
 
 exports.handler = async (event) => {
@@ -100,9 +118,11 @@ exports.handler = async (event) => {
     return phoneDigits && bPhone && phonesMatch(phoneDigits, bPhone);
   });
 
-  const projected = bookings.map((b) => projectBookingForCustomer(b));
+  const projected = bookings
+    .map((b) => projectBookingForCustomer(b))
+    .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
   const vehicles = phoneDigits ? await listVehiclesForOwner(phoneDigits) : [];
-  const upcoming = projected.find((b) => !['Paid', 'Cancelled', 'Canceled'].includes(b.status)) || projected[0] || null;
+  const upcoming = selectUpcoming(projected);
   const payment = upcoming
     ? safePaymentState(bookings.find((b) => (b.id || b.bookingId) === upcoming.id) || {})
     : { state: 'not_due', amountDueApproved: 0, canPay: false, payLink: '' };

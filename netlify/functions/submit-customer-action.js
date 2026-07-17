@@ -135,100 +135,103 @@ exports.handler = async (event) => {
     logEntry.requestedAddress = newAddress;
     adminSubject = `Cardetail1 — Address Update Request · ${bookingId}`;
     adminText = `Customer requested address change for booking ${bookingId}.\nRequested: ${newAddress}`;
-  } else if (action === 'addon_request') {
-    const { resolveAddonsByIds, addonTotal } = require('../lib/customer-catalog');
-    const rawIds = Array.isArray(p.addonIds) ? p.addonIds : String(p.addonIds || '').split(',');
-    const selected = resolveAddonsByIds(rawIds);
-    const requestedAddons = selected.length
-      ? selected.map((a) => `${a.name} ($${Number(a.price).toFixed(2)})`).join(', ')
-      : String(p.requestedAddons || '').slice(0, 1000).trim();
-    if (!requestedAddons) return json(400, { ok: false, error: 'validation_error', message: 'Please select at least one add-on.' });
-    const addOnSum = selected.length ? addonTotal(selected) : 0;
-    const base = Number(booking.approvedFinalAmount != null ? booking.approvedFinalAmount : (booking.totalPrice || 0));
-    const proposedTotal = Math.round((base + addOnSum) * 100) / 100;
-    requestedState = {
-      requestedAddons,
-      addonIds: selected.map((a) => a.id),
-      addons: selected,
-      addonTotal: addOnSum,
-      proposedTotal,
-    };
-    updates = {
-      addonsRequested: true,
-      addonRequestedAt: now,
-      requestedAddons,
-      requestedAddonIds: selected.map((a) => a.id),
-      requestedAddonItems: selected,
-      requestedAddonTotal: addOnSum,
-      proposedTotal,
-      customerChangePending: true,
-    };
-    logEntry.requestedAddons = requestedAddons;
-    logEntry.proposedTotal = proposedTotal;
-    adminSubject = `Cardetail1 — Add-On Request · ${bookingId}`;
-    adminText = `Customer requested add-ons for booking ${bookingId}.\n${requestedAddons}\nProposed total: $${proposedTotal.toFixed(2)}`;
-  } else if (action === 'package_change_request') {
-    const newPackId = String(p.newPackId || '').slice(0, 32).trim();
+  } else if (action === 'addon_request' || action === 'package_change_request') {
+    // Release A: money requests go through versioned command + canonical quote (PDA-01/02/05/07)
+    const { submitChangeRequestCommand } = require('../lib/booking-commands');
     const { CAR_PACKAGES } = require('../lib/customer-catalog');
     const {
       usesLengthPricing,
-      getLengthPrice,
       packagesForCategory,
       normalizeLengthCategory,
     } = require('../lib/length-pricing');
-    const vehicleCategory = normalizeLengthCategory(
-      p.vehicleCategory || booking.vehicleCategory || booking.cat || 'cars'
-    );
-    const lengthFt = Number(p.lengthFt || p.vehicleLengthFt || booking.vehicleLengthFt || booking.lengthFt || 0);
-    const lengthPacks = packagesForCategory(vehicleCategory);
-    const catalogPack = CAR_PACKAGES.find((cp) => cp.id === newPackId)
-      || (lengthPacks || []).find((cp) => cp.id === newPackId);
-    const newPackName = catalogPack ? catalogPack.name : String(p.newPackName || '').slice(0, 120).trim();
-    if (!newPackName) return json(400, { ok: false, error: 'validation_error', message: 'Please select a package.' });
-    if (usesLengthPricing(vehicleCategory) && !(lengthFt > 0)) {
-      return json(400, { ok: false, error: 'validation_error', message: 'Enter vessel / RV length in feet for accurate pricing.' });
-    }
-    let packPrice = catalogPack && catalogPack.basePrice != null ? Number(catalogPack.basePrice) : 0;
-    if (usesLengthPricing(vehicleCategory) && newPackId) {
-      const priced = getLengthPrice(vehicleCategory, newPackId, lengthFt, p.rvType || booking.rvType);
-      if (priced == null) {
-        return json(400, { ok: false, error: 'validation_error', message: 'Selected package is not available for this length category.' });
+
+    let target = { vehicleId: p.vehicleId || undefined };
+    let delta = {};
+    let adminSubjectLocal = '';
+    let adminTextLocal = '';
+
+    if (action === 'addon_request') {
+      const rawIds = Array.isArray(p.addonIds) ? p.addonIds : String(p.addonIds || '').split(',');
+      const addonIds = rawIds.map((id) => String(id || '').trim()).filter(Boolean);
+      if (!addonIds.length && !String(p.requestedAddons || '').trim()) {
+        return json(400, { ok: false, error: 'validation_error', message: 'Please select at least one add-on.' });
       }
-      packPrice = priced;
+      delta = { addOnIdsToAdd: addonIds, addonIds, requestedAddons: addonIds.join(', ') };
+      adminSubjectLocal = `Cardetail1 — Add-On Request · ${bookingId}`;
+      adminTextLocal = `Customer requested add-ons for booking ${bookingId}.\n${addonIds.join(', ')}`;
+    } else {
+      const newPackId = String(p.newPackId || '').slice(0, 32).trim();
+      const vehicleCategory = normalizeLengthCategory(
+        p.vehicleCategory || booking.vehicleCategory || booking.cat || 'cars'
+      );
+      const lengthFt = Number(p.lengthFt || p.vehicleLengthFt || booking.vehicleLengthFt || booking.lengthFt || 0);
+      const lengthPacks = packagesForCategory(vehicleCategory);
+      const catalogPack = CAR_PACKAGES.find((cp) => cp.id === newPackId)
+        || (lengthPacks || []).find((cp) => cp.id === newPackId);
+      const newPackName = catalogPack ? catalogPack.name : String(p.newPackName || '').slice(0, 120).trim();
+      if (!newPackName) return json(400, { ok: false, error: 'validation_error', message: 'Please select a package.' });
+      if (usesLengthPricing(vehicleCategory) && !(lengthFt > 0)) {
+        return json(400, { ok: false, error: 'validation_error', message: 'Enter vessel / RV length in feet for accurate pricing.' });
+      }
+      const tierKey = p.tier || p.vehicleTier || booking.vehicleTier || booking.tierKey || 'suv3';
+      delta = {
+        packageId: newPackId,
+        newPackId,
+        packageName: newPackName,
+        vehicleCategory,
+        lengthFt: usesLengthPricing(vehicleCategory) ? lengthFt : 0,
+        tierKey,
+        tier: tierKey,
+      };
+      adminSubjectLocal = `Cardetail1 — Package Change Request · ${bookingId}`;
+      adminTextLocal = `Customer requested package change for booking ${bookingId}.\nRequested: ${newPackName}`;
     }
-    const travel = Number(booking.travelFeeAmount || booking.zoneSurcharge || 0);
-    const existingAddons = Array.isArray(booking.addons)
-      ? booking.addons.reduce((s, a) => s + Number(a.price || 0) * Number(a.qty || 1), 0)
-      : 0;
-    const proposedTotal = (catalogPack || packPrice > 0)
-      ? Math.round((packPrice + travel + existingAddons) * 100) / 100
-      : Number(booking.totalPrice || 0);
-    requestedState = {
-      packageId: newPackId || (catalogPack && catalogPack.id) || '',
-      packageName: newPackName,
-      packagePrice: packPrice,
-      packageDescription: catalogPack ? (catalogPack.description || catalogPack.tag || '') : '',
-      packageDuration: catalogPack ? (catalogPack.duration || catalogPack.dur || '') : '',
-      vehicleCategory,
-      lengthFt: usesLengthPricing(vehicleCategory) ? lengthFt : 0,
-      proposedTotal,
-    };
-    updates = {
-      packageChangeRequested: true,
-      packageChangeRequestedAt: now,
-      requestedPackageId: newPackId || (catalogPack && catalogPack.id) || '',
-      requestedPackageName: newPackName,
-      requestedPackagePrice: packPrice,
-      requestedPackageDescription: catalogPack ? (catalogPack.description || catalogPack.tag || '') : '',
-      requestedLengthFt: usesLengthPricing(vehicleCategory) ? lengthFt : 0,
-      proposedTotal,
-      customerChangePending: true,
-    };
-    logEntry.requestedPackage = newPackName;
-    logEntry.proposedTotal = proposedTotal;
-    logEntry.lengthFt = lengthFt || undefined;
-    adminSubject = `Cardetail1 — Package Change Request · ${bookingId}`;
-    adminText = `Customer requested package change for booking ${bookingId}.\nRequested: ${newPackName}${packPrice ? ` ($${packPrice.toFixed(2)})` : ''}${usesLengthPricing(vehicleCategory) ? ` · ${lengthFt} ft` : ''}\nProposed total: $${proposedTotal.toFixed(2)}`;
+
+    const cmd = await submitChangeRequestCommand({
+      bookingId,
+      expectedBookingVersion: booking.bookingVersion,
+      requestType: action,
+      target,
+      delta,
+      authorizedRef: auth.scope,
+    });
+    if (cmd.noop) {
+      return json(200, {
+        ok: true,
+        noop: true,
+        reason: cmd.reason || 'duplicate_addon',
+        message: 'Selected add-on is already on this booking.',
+        changeRequestId: null,
+      });
+    }
+    if (!cmd.ok) {
+      const status = cmd.statusCode || 400;
+      return json(status, {
+        ok: false,
+        error: cmd.error || 'request_failed',
+        message: cmd.error === 'version_conflict'
+          ? 'This booking changed. Refresh and try again.'
+          : (cmd.error === 'invalid_pricing' ? 'Selected package could not be priced.' : undefined),
+      });
+    }
+
+    const proposed = cmd.changeRequest?.proposedApprovedCents != null
+      ? cmd.changeRequest.proposedApprovedCents / 100
+      : null;
+    notifyAdmin(
+      adminSubjectLocal,
+      `${adminTextLocal}${proposed != null ? `\nProposed total: $${Number(proposed).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
+    ).catch(() => {});
+
+    return json(200, {
+      ok: true,
+      changeRequestId: cmd.changeRequest.requestId,
+      pendingApproval: true,
+      bookingVersion: cmd.booking?.bookingVersion,
+      quoteVersion: cmd.changeRequest?.quoteVersion,
+      proposedTotal: proposed,
+      projection: cmd.projection,
+    });
   } else if (action === 'vehicle_add_request' || action === 'vehicle_replace_request') {
     const { usesLengthPricing } = require('../lib/length-pricing');
     const category = String(p.category || p.vehicleCategory || 'cars').slice(0, 32).trim();
@@ -305,6 +308,44 @@ exports.handler = async (event) => {
     adminText = `Customer requested cancellation for booking ${bookingId}.\nReason: ${reason}`;
   }
 
+  // Non-money paths: embed request via versioned command when possible; index remains rebuildable.
+  const { submitChangeRequestCommand } = require('../lib/booking-commands');
+  const moneyish = new Set(['reschedule_request', 'address_update', 'cancellation_request']);
+  if (moneyish.has(action) || action === 'vehicle_add_request' || action === 'vehicle_replace_request'
+    || action === 'maintenance_request' || action === 'addon_remove_request') {
+    const cmdDelta = {
+      ...requestedState,
+      requestedDate: requestedState.preferredDate || requestedState.requestedDate,
+      requestedTime: requestedState.preferredTime || requestedState.requestedTime,
+      serviceAddress: requestedState.address || requestedState.serviceAddress,
+    };
+    const cmd = await submitChangeRequestCommand({
+      bookingId,
+      expectedBookingVersion: booking.bookingVersion,
+      requestType: action === 'cancellation_request' ? 'cancellation' : action,
+      target: {},
+      delta: cmdDelta,
+      authorizedRef: auth.scope,
+      extraPatches: updates,
+    });
+    if (!cmd.ok) {
+      return json(cmd.statusCode || 400, {
+        ok: false,
+        error: cmd.error || 'request_failed',
+        message: cmd.error === 'version_conflict'
+          ? 'This booking changed. Refresh and try again.'
+          : 'Failed to save request. Please try again.',
+      });
+    }
+    notifyAdmin(adminSubject, `${adminText}\n\nCustomer: ${custName}`).catch(() => {});
+    return json(200, {
+      ok: true,
+      changeRequestId: cmd.changeRequest.requestId,
+      pendingApproval: !!policy.pendingApproval,
+      bookingVersion: cmd.booking?.bookingVersion,
+    });
+  }
+
   const changeRecord = await createChangeRequest({
     bookingId,
     requestType: action,
@@ -318,9 +359,27 @@ exports.handler = async (event) => {
   eventLog.push({ ...logEntry, changeRequestId: changeRecord.id });
 
   try {
-    const store = await bookingStore();
-    const patched = { ...booking, ...updates, eventLog, updatedAt: now };
-    await store.setJSON(bookingId, patched);
+    const { getBookingRecord, commitBooking } = require('../lib/booking-repository');
+    const { buildNextAggregate, normalizeAggregate } = require('../lib/booking-aggregate');
+    const rec = await getBookingRecord(bookingId);
+    if (!rec.exists) {
+      return json(404, { ok: false, error: 'not_found' });
+    }
+    const { ok: nOk, aggregate } = normalizeAggregate(rec.booking, { allowDraft: true });
+    const base = nOk ? aggregate : rec.booking;
+    const next = buildNextAggregate(base, { ...updates, eventLog, updatedAt: now });
+    const committed = await commitBooking({
+      bookingId,
+      expectedBookingVersion: base.bookingVersion || 0,
+      nextAggregate: next,
+    });
+    if (!committed.ok) {
+      return json(committed.statusCode || 409, {
+        ok: false,
+        error: committed.error || 'version_conflict',
+        message: 'This booking changed. Refresh and try again.',
+      });
+    }
   } catch {
     return json(503, { ok: false, error: 'service_unavailable', message: 'Failed to save request. Please try again.' });
   }

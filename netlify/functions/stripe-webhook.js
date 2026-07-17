@@ -354,6 +354,33 @@ exports.handler = async (event) => {
           `Cardetail1 — subscription activated · ${meta.email || '—'}`,
           `Customer subscription checkout completed.\nPlan: ${meta.packId || '—'}\nEmail: ${meta.email || '—'}\nVehicle: ${meta.vehicle || '—'}\nStripe sub: ${sess.subscription || '—'}`
         );
+      } else if (meta.purpose === 'customer_balance' && sess.payment_status === 'paid') {
+        const bookingId = String(meta.booking_id || meta.bookingId || '').trim();
+        if (bookingId) {
+          const {
+            applyCustomerBalanceReconciliation,
+          } = require('../lib/payment-service');
+          const { getBookingRecord, commitBooking } = require('../lib/booking-repository');
+          const applied = await applyCustomerBalanceReconciliation({
+            bookingId,
+            session: sess,
+            getBookingRecord,
+            commitBooking,
+          });
+          if (applied.ok) {
+            results.customerBalance = {
+              ok: true,
+              duplicate: !!applied.duplicate,
+              creditCents: applied.creditCents,
+              attempts: applied.attempts,
+            };
+          } else if (applied.quarantined) {
+            results.customerBalance = { ok: false, quarantined: true, error: applied.error };
+            console.warn('[stripe-webhook] customer_balance quarantined', bookingId, applied.error);
+          } else {
+            results.customerBalance = { ok: false, error: applied.error, statusCode: applied.statusCode };
+          }
+        }
       }
       break;
     }
