@@ -5040,7 +5040,7 @@ function onBkZipInput(val){
     badge.textContent   = '✓ ' + (cityName ? cityName : zone.short);
     if(surBadge) surBadge.style.display = 'none';
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('locked'));
-    if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span><span style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px">· Prices include service to your area</span>'; }
+    if(gateMsg){ gateMsg.classList.add('unlocked'); gateMsg.innerHTML='<span class="zg-ico">✅</span><span>'+(cityName ? cityName+' — ' : '')+'select your service below</span><span style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px">· Estimated total includes any mobile adjustment for your ZIP</span>'; }
     updateBkFromPrices();
     renderLocationCarousel(zone.key||'default');
   } else {

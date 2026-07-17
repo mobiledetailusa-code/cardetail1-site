@@ -269,6 +269,9 @@
 .booking-modal .strip-info strong {
   color: var(--ink, #0f172a);
 }
+.booking-modal .ah-total-est {
+  color: var(--ink-soft, #475569) !important;
+}
 
 /* Confirm / checkout */
 .booking-modal .oc {
