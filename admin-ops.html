@@ -170,7 +170,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   <section class="panel" id="p-requests">
     <h3 style="font-size:14px;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--ac)">Customer Change Requests</h3>
-    <p class="hint">Portal change requests awaiting admin review. Auto-apply supported for reschedule, address, and cancellation only; other types require manual confirmation after approval.</p>
+    <p class="hint">Portal change requests awaiting admin review. Auto-apply on approve: reschedule, address, cancellation, package change, add-ons, and vehicle add/replace. Maintenance plans and discounts need manual follow-up after approval. Use Confirm pay link after money-changing approvals.</p>
     <div id="requestsList"><div class="empty">Loading…</div></div>
   </section>
 
@@ -652,6 +652,31 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     try { return JSON.stringify(o || {}); } catch { return '{}'; }
   }
 
+  function formatRequestSummary(r) {
+    const rs = r.requestedState || {};
+    const t = r.requestType;
+    if (t === 'package_change_request') {
+      return 'Package → ' + (rs.packageName || rs.packageId || '—') +
+        (rs.proposedTotal != null ? ' · proposed $' + Number(rs.proposedTotal).toFixed(2) : '');
+    }
+    if (t === 'addon_request') {
+      const names = (rs.addons || []).map(a => a.name || a.id).join(', ') || 'Add-ons';
+      return names + (rs.proposedTotal != null ? ' · proposed $' + Number(rs.proposedTotal).toFixed(2) : '');
+    }
+    if (t === 'vehicle_add_request' || t === 'vehicle_replace_request') {
+      return (rs.vehicleLabel || [rs.year, rs.make, rs.model].filter(Boolean).join(' ') || 'Vehicle') +
+        (rs.category ? ' · ' + rs.category : '');
+    }
+    if (t === 'maintenance_request') {
+      return (rs.maintenancePeriodLabel || rs.periodLabel || rs.maintenancePeriod || rs.period || 'Plan') +
+        ' · ' + (rs.packageName || rs.packageId || 'Package');
+    }
+    if (t === 'reschedule_request') return (rs.preferredDate || '') + (rs.preferredTime ? ' · ' + rs.preferredTime : '');
+    if (t === 'address_update') return rs.address || 'New address';
+    if (t === 'cancellation' || t === 'cancellation_request') return rs.reason || 'Cancellation';
+    return safeReqJson(rs);
+  }
+
   function renderRequests() {
     const el = $('#requestsList');
     const list = changeRequests || [];
@@ -659,16 +684,24 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       el.innerHTML = '<div class="empty">No pending customer change requests</div>';
       return;
     }
+    const autoApply = new Set([
+      'reschedule_request','address_update','cancellation','cancellation_request',
+      'package_change_request','addon_request','vehicle_add_request','vehicle_replace_request',
+    ]);
     el.innerHTML = list.map(r => {
       const prev = esc(safeReqJson(r.previousState));
-      const next = esc(safeReqJson(r.requestedState));
-      const manual = !['reschedule_request','address_update','cancellation'].includes(r.requestType);
+      const summary = esc(formatRequestSummary(r));
+      const manual = !autoApply.has(r.requestType);
+      const moneyChange = ['package_change_request','addon_request','discount_request'].includes(r.requestType);
       return '<div class="req-box" data-req="'+esc(r.id)+'">'+
         '<h5>'+esc(r.typeLabel || r.requestType)+' · <span style="font-family:monospace;font-size:11px">'+esc(r.shortId || r.id)+'</span></h5>'+
         '<div style="font-size:12px;color:var(--mu);margin-bottom:6px">Booking: <code>'+esc(r.bookingId)+'</code> · '+dt(r.createdAt)+' · '+esc(r.status)+'</div>'+
-        (manual ? '<div style="font-size:11px;color:var(--warn);margin-bottom:6px">Manual review required after approval</div>' : '')+
-        '<div style="font-size:11px;color:var(--mu);margin-bottom:4px"><b>Previous:</b> '+prev+'</div>'+
-        '<div style="font-size:11px;color:var(--mu);margin-bottom:8px"><b>Requested:</b> '+next+'</div>'+
+        (manual ? '<div style="font-size:11px;color:var(--warn);margin-bottom:6px">Manual follow-up required after approval</div>' : '<div style="font-size:11px;color:var(--ok,#4ade80);margin-bottom:6px">Auto-applies to booking on approve</div>')+
+        (moneyChange && r.requestedState && r.requestedState.proposedTotal != null
+          ? '<div style="font-size:13px;font-weight:700;margin-bottom:6px">Proposed total: $'+Number(r.requestedState.proposedTotal).toFixed(2)+'</div>'
+          : '')+
+        '<div style="font-size:12px;margin-bottom:6px"><b>Requested:</b> '+summary+'</div>'+
+        '<div style="font-size:11px;color:var(--mu);margin-bottom:8px"><b>Previous (raw):</b> '+prev+'</div>'+
         (r.customerVisibleResult ? '<div style="font-size:11px;margin-bottom:8px">Customer: '+esc(r.customerVisibleResult)+'</div>' : '')+
         '<div class="actions">'+
         '<button type="button" class="btn sm req-approve" data-id="'+esc(r.id)+'">Approve</button>'+
@@ -682,7 +715,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     el.querySelectorAll('.req-approve').forEach(b => b.onclick = async () => {
       const id = b.dataset.id;
       const r = list.find(x => x.id === id);
-      const msg = r && !['reschedule_request','address_update','cancellation'].includes(r.requestType)
+      const msg = r && !autoApply.has(r.requestType)
         ? 'This request type requires manual follow-up after approval. Continue?'
         : 'Approve this customer request?';
       if (!confirm(msg)) return;

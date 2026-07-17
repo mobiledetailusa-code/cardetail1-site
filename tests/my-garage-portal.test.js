@@ -174,3 +174,28 @@ test('package catalog unchanged in customer action', () => {
   assert.match(src, /customer-catalog/);
   assert.doesNotMatch(src, /PRICING\s*=/);
 });
+
+test('my-garage uses catalog selectors and customer-portal-pay', () => {
+  const js = read('assets/my-garage.js');
+  assert.match(js, /customer-portal-pay/);
+  assert.match(js, /newPackId/);
+  assert.match(js, /addonIds/);
+  assert.match(js, /maintenancePeriods|renderMaintenanceModal/);
+  assert.match(js, /startPayBalance/);
+  assert.doesNotMatch(js, /requestedAddons.*type: 'text'/);
+});
+
+test('portal data excludes drafts and returns catalog + payment', () => {
+  const src = read('netlify/functions/customer-portal-data.js');
+  assert.match(src, /isDraft/);
+  assert.match(src, /catalogForClient/);
+  assert.match(src, /safePaymentState/);
+  assert.match(src, /changeRequests/);
+});
+
+test('stripe checkout paths are card-only', () => {
+  assert.match(read('netlify/functions/customer-portal-pay.js'), /payment_method_types\[0\].*card|card only/i);
+  assert.match(read('netlify/functions/create-setup-intent.js'), /payment_method_types\[0\]/);
+  assert.doesNotMatch(read('netlify/functions/create-setup-intent.js'), /automatic_payment_methods/);
+  assert.doesNotMatch(read('netlify/functions/create-payment-intent.js'), /automatic_payment_methods/);
+});

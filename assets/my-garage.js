@@ -14,7 +14,14 @@
     session: false,
     verifyPhone: '',
     verifyBookingId: '',
+    catalog: null,
+    changeRequests: [],
+    payment: null,
   };
+
+  var modalAction = null;
+  var modalMode = 'fields';
+  var modalFields = [];
 
   function $(id) { return document.getElementById(id); }
 
@@ -35,6 +42,52 @@
     el.classList.toggle('err', !!isErr);
   }
 
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function fmtMoney(n) {
+    var v = Number(n) || 0;
+    return '$' + v.toFixed(2);
+  }
+
+  function getCatalog() {
+    return state.catalog || {
+      packages: [],
+      addons: [],
+      maintenancePeriods: [],
+      vehicleCategories: [],
+      vehicleYears: [],
+    };
+  }
+
+  function bookingBaseTotal(b) {
+    if (!b) return 0;
+    if (b.approvedFinalAmount != null) return Number(b.approvedFinalAmount) || 0;
+    return Number(b.totalPrice || b.finalAmount || 0) || 0;
+  }
+
+  function vehicleLine(b) {
+    if (!b) return '—';
+    var parts = [b.vehicleYear, b.vehicleMake, b.vehicleModel].filter(Boolean).join(' ');
+    if (parts) return parts + (b.vehicleCategory ? ' · ' + b.vehicleCategory : '');
+    return b.vehicleLabel || b.vehicle || '—';
+  }
+
+  function addonLines(b) {
+    var list = (b && Array.isArray(b.addons)) ? b.addons : [];
+    if (!list.length) return 'None';
+    return list.map(function (a) {
+      var name = a.name || a.id || 'Add-on';
+      var price = a.price != null ? ' (' + fmtMoney(a.price) + ')' : '';
+      return name + price;
+    }).join(', ');
+  }
+
   async function post(fn, body) {
     var res = await fetch(API + fn, {
       method: 'POST',
@@ -44,6 +97,12 @@
     });
     var data = await res.json().catch(function () { return {}; });
     return { ok: res.ok, status: res.status, data: data };
+  }
+
+  function applyPortalPayload(data) {
+    state.catalog = data.catalog || state.catalog || null;
+    state.changeRequests = data.changeRequests || [];
+    state.payment = data.payment || null;
   }
 
   async function checkSession() {
@@ -66,8 +125,10 @@
     }
     state.scope = 'booking';
     state.booking = r.data.booking;
+    state.bookings = r.data.booking ? [r.data.booking] : [];
     state.verifyPhone = phone;
     state.verifyBookingId = id;
+    applyPortalPayload(r.data);
     setMsg($('lk-error'), '', false);
     renderDashboard(r.data);
     show($('pre-auth'), false);
@@ -82,6 +143,7 @@
     state.bookings = r.data.bookings || [];
     state.booking = r.data.upcoming || state.bookings[0] || null;
     state.vehicles = r.data.vehicles || [];
+    applyPortalPayload(r.data);
     renderDashboard(r.data);
     show($('pre-auth'), false);
     show($('post-auth'), true);
@@ -117,73 +179,241 @@
 
   async function logout() {
     await post('customer-portal-auth', { action: 'logout' });
-    state = { scope: null, booking: null, bookings: [], vehicles: [], session: false, verifyPhone: '', verifyBookingId: '' };
+    state = {
+      scope: null, booking: null, bookings: [], vehicles: [],
+      session: false, verifyPhone: '', verifyBookingId: '',
+      catalog: null, changeRequests: [], payment: null,
+    };
     show($('pre-auth'), true);
     show($('post-auth'), false);
   }
 
-  function fmtMoney(n) {
-    var v = Number(n) || 0;
-    return '$' + v.toFixed(2);
+  function requestTypeLabel(type) {
+    var map = {
+      package_change_request: 'Package change',
+      addon_request: 'Add-ons',
+      vehicle_add_request: 'Add vehicle',
+      vehicle_replace_request: 'Replace vehicle',
+      reschedule_request: 'Reschedule',
+      address_update: 'Address update',
+      cancellation_request: 'Cancellation',
+      maintenance_request: 'Maintenance plan',
+      discount_request: 'Discount',
+    };
+    return map[type] || type || 'Request';
+  }
+
+  function summarizeRequestedState(r) {
+    var rs = (r && r.requestedState) || {};
+    if (r.requestType === 'package_change_request') {
+      return (rs.packageName || rs.packageId || 'Package') +
+        (rs.proposedTotal ? ' · proposed ' + fmtMoney(rs.proposedTotal) : '');
+    }
+    if (r.requestType === 'addon_request') {
+      var names = (rs.addons || []).map(function (a) { return a.name || a.id; }).join(', ');
+      return (names || 'Add-ons') + (rs.proposedTotal ? ' · proposed ' + fmtMoney(rs.proposedTotal) : '');
+    }
+    if (r.requestType === 'vehicle_add_request' || r.requestType === 'vehicle_replace_request') {
+      return rs.vehicleLabel || [rs.year, rs.make, rs.model].filter(Boolean).join(' ') || 'Vehicle';
+    }
+    if (r.requestType === 'maintenance_request') {
+      return (rs.maintenancePeriodLabel || rs.periodLabel || rs.maintenancePeriod || rs.period || 'Plan') +
+        ' · ' + (rs.packageName || rs.packageId || 'Package');
+    }
+    if (r.requestType === 'reschedule_request') {
+      return (rs.preferredDate || '') + (rs.preferredTime ? ' · ' + rs.preferredTime : '');
+    }
+    if (r.requestType === 'address_update') return rs.address || 'New address';
+    if (r.requestType === 'cancellation_request' || r.requestType === 'cancellation') return rs.reason || 'Cancellation';
+    try { return JSON.stringify(rs); } catch (e) { return ''; }
+  }
+
+  function renderPendingRequests(list) {
+    var section = $('pending-requests-section');
+    var el = $('pending-requests-list');
+    if (!section || !el) return;
+    var open = (list || []).filter(function (r) {
+      var s = String(r.status || '').toLowerCase();
+      return s === 'pending' || s === 'pending_approval' || s === 'needs_clarification' || s === 'awaiting_admin';
+    });
+    if (!open.length) {
+      el.innerHTML = '';
+      show(section, false);
+      return;
+    }
+    show(section, true);
+    el.innerHTML = open.map(function (r) {
+      return '<li class="pending-req">' +
+        '<strong>' + esc(requestTypeLabel(r.requestType)) + '</strong>' +
+        ' · <span class="req-status">' + esc(r.status || 'pending') + '</span>' +
+        '<div class="req-detail">' + esc(summarizeRequestedState(r)) + '</div>' +
+        (r.customerVisibleResult ? '<div class="req-note">' + esc(r.customerVisibleResult) + '</div>' : '') +
+        '</li>';
+    }).join('');
+  }
+
+  function syncPayBalanceButton(pay) {
+    var link = $('pay-balance-link');
+    if (!link) return;
+    var due = Number(pay.amountDueApproved || 0);
+    var can = !!(pay.canPay || pay.canCreatePayLink);
+    link.classList.toggle('is-disabled', !can);
+    link.setAttribute('aria-disabled', can ? 'false' : 'true');
+    if (can && due > 0) {
+      link.textContent = 'Pay Balance · ' + fmtMoney(due);
+    } else if (can) {
+      link.textContent = 'Pay Balance';
+    } else {
+      link.textContent = 'Pay Balance';
+    }
+  }
+
+  function renderPaymentsPanel(pay) {
+    var panel = $('payments-panel');
+    var empty = $('payments-empty');
+    if (!panel) return;
+    var due = Number(pay.amountDueApproved || 0);
+    var can = !!(pay.canPay || pay.canCreatePayLink);
+    if (!can && !(due > 0) && !(Number(pay.approvedTotal || 0) > 0)) {
+      panel.innerHTML = '';
+      if (empty) show(empty, true);
+      return;
+    }
+    if (empty) show(empty, false);
+    panel.innerHTML =
+      '<div class="card pay-card">' +
+      '<dl class="meta-grid">' +
+      '<div><dt>Payment status</dt><dd>' + esc(pay.state || '—') + '</dd></div>' +
+      '<div><dt>Approved total</dt><dd>' + fmtMoney(pay.approvedTotal) + '</dd></div>' +
+      '<div><dt>Amount paid</dt><dd>' + fmtMoney(pay.amountPaid) + '</dd></div>' +
+      '<div><dt>Amount due</dt><dd>' + fmtMoney(due) + '</dd></div>' +
+      '</dl>' +
+      (can
+        ? '<button type="button" class="btn primary" id="btn-pay-balance">Pay ' +
+          (due > 0 ? fmtMoney(due) : 'Balance') + ' securely</button>' +
+          '<p class="hint">Secure Stripe Checkout (card only). Your approved balance updates if add-ons or package changes are approved.</p>'
+        : '<p class="hint">No balance is due yet, or payment is locked until admin approval.</p>') +
+      '</div>';
+    var btn = $('btn-pay-balance');
+    if (btn) btn.addEventListener('click', startPayBalance);
+  }
+
+  function renderMaintenancePlans() {
+    var empty = $('maintenance-empty');
+    var list = $('maintenance-list');
+    var cat = getCatalog();
+    var pendingMaint = (state.changeRequests || []).filter(function (r) {
+      return r.requestType === 'maintenance_request';
+    });
+    if (list) {
+      if (pendingMaint.length) {
+        list.innerHTML = pendingMaint.map(function (r) {
+          return '<li>' + esc(summarizeRequestedState(r)) + ' · ' + esc(r.status || 'pending') + '</li>';
+        }).join('');
+        if (empty) show(empty, false);
+      } else {
+        list.innerHTML = '';
+        if (empty) {
+          empty.innerHTML =
+            'No active maintenance plan. Choose a package and frequency — we send it to admin as a new request. ' +
+            '<button type="button" class="btn ghost" data-action="maintenance_request" style="margin-top:8px">Start a plan</button>';
+          show(empty, true);
+        }
+      }
+    } else if (empty) {
+      show(empty, !pendingMaint.length);
+    }
+    if (empty && cat.packages && cat.packages.length) {
+      // catalog available for modal
+    }
   }
 
   function renderDashboard(data) {
     var b = state.booking;
     var hero = $('upcoming-panel');
+    var pay = (data && data.payment) || state.payment || {};
+    state.payment = pay;
+
     if (!hero || !b) {
       if (hero) hero.innerHTML = '<p class="empty">No upcoming appointment. <a href="index.html">Book a service</a>.</p>';
+      syncPayBalanceButton({});
+      renderPaymentsPanel({});
+      renderPendingRequests([]);
       return;
     }
-    var pay = (data && data.payment) || {};
+
     var offer = b.offer || b.welcomeOffer || null;
     var offerHtml = '';
     if (offer && offer.eligibility_status === 'eligible' && Number(offer.discount_amount) > 0) {
       offerHtml =
-        '<div><dt>' + (offer.public_name || 'Welcome offer') + '</dt><dd>-' + fmtMoney((offer.discount_amount || 0) / 100) + '</dd></div>' +
+        '<div><dt>' + esc(offer.public_name || 'Welcome offer') + '</dt><dd>-' + fmtMoney((offer.discount_amount || 0) / 100) + '</dd></div>' +
         '<div><dt>Original eligible subtotal</dt><dd>' + fmtMoney((offer.eligible_subtotal || 0) / 100) + '</dd></div>' +
-        '<div><dt>Redemption status</dt><dd>' + (offer.redemption_status || 'pending') + '</dd></div>';
+        '<div><dt>Redemption status</dt><dd>' + esc(offer.redemption_status || 'pending') + '</dd></div>';
     }
+
+    var packDesc = b.packageDescription || '';
+    var packDur = b.packageDuration || '';
+    var pendingFlag = b.customerChangePending || (state.changeRequests || []).some(function (r) {
+      var s = String(r.status || '').toLowerCase();
+      return s === 'pending' || s === 'pending_approval' || s === 'needs_clarification';
+    });
+
     hero.innerHTML =
       '<div class="card">' +
-      '<div class="card-kicker">' + (b.status || 'Status') + '</div>' +
-      '<h2 class="card-title">' + (b.service || b.package || 'Service') + '</h2>' +
+      '<div class="card-kicker">' + esc(b.status || 'Status') +
+      (pendingFlag ? ' · Change pending' : '') + '</div>' +
+      '<h2 class="card-title">' + esc(b.service || b.package || 'Service') + '</h2>' +
+      (packDesc ? '<p class="pack-desc">' + esc(packDesc) + (packDur ? ' · ' + esc(packDur) : '') + '</p>' : '') +
       '<dl class="meta-grid">' +
-      '<div><dt>Date</dt><dd>' + (b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
-      '<div><dt>Time</dt><dd>' + (b.confirmedTime || b.preferredTime || '—') + '</dd></div>' +
-      '<div><dt>Location</dt><dd>' + (b.address || b.serviceLocation || '—') + '</dd></div>' +
+      '<div><dt>Booking ID</dt><dd class="mono">' + esc(b.id || '—') + '</dd></div>' +
+      '<div><dt>Vehicle</dt><dd>' + esc(vehicleLine(b)) + '</dd></div>' +
+      '<div><dt>Add-ons</dt><dd>' + esc(addonLines(b)) + '</dd></div>' +
+      '<div><dt>Date</dt><dd>' + esc(b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
+      '<div><dt>Time</dt><dd>' + esc(b.confirmedTime || b.preferredTime || b.confirmedTimeWindow || '—') + '</dd></div>' +
+      '<div><dt>Location</dt><dd>' + esc(b.address || b.serviceLocation || '—') + '</dd></div>' +
+      (b.assignedTechName ? '<div><dt>Technician</dt><dd>' + esc(b.assignedTechName) + '</dd></div>' : '') +
+      (b.travelFeeAmount ? '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>' : '') +
       offerHtml +
       '<div><dt>Approved total</dt><dd>' + fmtMoney(b.approvedFinalAmount != null ? b.approvedFinalAmount : b.totalPrice) + '</dd></div>' +
+      (pay.amountPaid ? '<div><dt>Paid</dt><dd>' + fmtMoney(pay.amountPaid) + '</dd></div>' : '') +
       (pay.amountDueApproved ? '<div><dt>Amount due</dt><dd>' + fmtMoney(pay.amountDueApproved) + '</dd></div>' : '') +
       '</dl>' +
-      (pay.canPay && pay.payLink
-        ? '<a class="btn primary" href="' + pay.payLink + '" rel="noopener noreferrer" data-portal-pay>Pay Balance</a>'
+      ((pay.canPay || pay.canCreatePayLink)
+        ? '<button type="button" class="btn primary" data-portal-pay>Pay Balance' +
+          (pay.amountDueApproved ? ' · ' + fmtMoney(pay.amountDueApproved) : '') + '</button>'
         : '') +
       '</div>';
 
     var payBtn = hero.querySelector('[data-portal-pay]');
-    if (payBtn && global.cd1PortalAnalytics) {
-      payBtn.addEventListener('click', function () { global.cd1PortalAnalytics.paymentOpened(); });
-    }
+    if (payBtn) payBtn.addEventListener('click', startPayBalance);
 
-    renderList('appointments-list', state.bookings.length ? state.bookings : (b ? [b] : []), function (item) {
-      return '<li><strong>' + (item.id || '') + '</strong> — ' + (item.status || '') + ' · ' + (item.preferredDate || '—') + '</li>';
+    syncPayBalanceButton(pay);
+    renderPaymentsPanel(pay);
+    renderPendingRequests(state.changeRequests);
+    renderMaintenancePlans();
+
+    renderList('appointments-list', state.bookings.length ? state.bookings : [b], function (item) {
+      return '<li><strong class="mono">' + esc(item.id || '') + '</strong> — ' +
+        esc(item.status || '') + ' · ' + esc(item.preferredDate || '—') +
+        ' · ' + esc(item.service || item.package || '') +
+        ' · ' + esc(vehicleLine(item)) + '</li>';
     });
 
     renderList('vehicles-list', state.vehicles, function (v) {
-      return '<li>' + (v.label || v.make + ' ' + v.model || 'Vehicle') + '</li>';
+      var label = v.label || [v.year, v.make, v.model].filter(Boolean).join(' ') || 'Vehicle';
+      return '<li>' + esc(label) + (v.category ? ' · ' + esc(v.category) : '') + '</li>';
     });
 
     var hist = (state.bookings.length ? state.bookings : [b]).filter(function (x) {
-      return x.status === 'Paid' || x.status === 'Completed';
+      return x.status === 'Paid' || x.status === 'Completed' || x.jobStatus === 'completed';
     });
     renderList('history-list', hist, function (item) {
-      return '<li>' + (item.preferredDate || '—') + ' · ' + (item.service || item.package || '') + '</li>';
+      return '<li>' + esc(item.preferredDate || '—') + ' · ' + esc(item.service || item.package || '') +
+        ' · ' + fmtMoney(item.approvedFinalAmount != null ? item.approvedFinalAmount : item.totalPrice) + '</li>';
     });
 
-    $('payments-empty') && show($('payments-empty'), !pay.canPay);
     $('vehicles-empty') && show($('vehicles-empty'), !state.vehicles.length);
     $('history-empty') && show($('history-empty'), !hist.length);
-    $('maintenance-empty') && show($('maintenance-empty'), true);
     $('comm-empty') && show($('comm-empty'), true);
     $('vehicle-actions') && show($('vehicle-actions'), state.scope === 'account');
     var approveBtn = $('btn-approve-completion');
@@ -241,8 +471,34 @@
     return false;
   }
 
-  var modalAction = null;
-  var modalFields = [];
+  async function startPayBalance() {
+    if (!state.booking) {
+      showToast('Open a booking first.', true);
+      return;
+    }
+    var pay = state.payment || {};
+    if (pay.payLink && pay.canPay) {
+      if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.paymentOpened();
+      global.location.href = pay.payLink;
+      return;
+    }
+    if (!pay.canPay && !pay.canCreatePayLink) {
+      showToast('No balance is due yet, or payment is locked until approval.', true);
+      return;
+    }
+    var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
+    showToast('Preparing secure checkout…');
+    var r = await post('customer-portal-pay', {
+      bookingId: state.booking.id,
+      phone: phone,
+    });
+    if (r.data && r.data.ok && r.data.url) {
+      if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.paymentOpened();
+      global.location.href = r.data.url;
+      return;
+    }
+    showToast((r.data && r.data.message) || 'Payment is not available yet.', true);
+  }
 
   function showToast(msg, isErr) {
     var el = $('portal-toast');
@@ -259,27 +515,163 @@
     ov.classList.remove('open');
     ov.hidden = true;
     modalAction = null;
+    modalMode = 'fields';
     modalFields = [];
     setMsg($('modal-error'), '', false);
   }
 
+  function openModalShell(title) {
+    $('modal-title').textContent = title;
+    var ov = $('action-modal');
+    ov.hidden = false;
+    ov.classList.add('open');
+  }
+
+  function renderPackageModal() {
+    var cat = getCatalog();
+    var packs = cat.packages || [];
+    if (!packs.length) {
+      showToast('Package list unavailable. Refresh and try again.', true);
+      return false;
+    }
+    var form = $('modal-form');
+    form.innerHTML =
+      '<p class="hint">Select a package. The proposed total updates from the catalog; admin approval applies it to your invoice.</p>' +
+      '<div class="modal-catalog" role="radiogroup" aria-label="Packages">' +
+      packs.map(function (p) {
+        return '<label class="catalog-option">' +
+          '<input type="radio" name="newPackId" value="' + esc(p.id) + '" required>' +
+          '<span class="opt-body">' +
+          '<span class="opt-name">' + esc(p.name) + '</span>' +
+          '<span class="opt-price">' + fmtMoney(p.basePrice) + '</span>' +
+          '<span class="opt-meta">' + esc(p.duration || '') + (p.tag ? ' · ' + esc(p.tag) : '') + '</span>' +
+          '<span class="opt-desc">' + esc(p.description || '') + '</span>' +
+          '</span></label>';
+      }).join('') +
+      '</div>' +
+      '<p class="modal-live-total" id="mf-package-proposed">Proposed package price: —</p>';
+    form.querySelectorAll('input[name="newPackId"]').forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        var pack = packs.find(function (x) { return x.id === inp.value; });
+        var el = $('mf-package-proposed');
+        if (el && pack) el.textContent = 'Proposed package price: ' + fmtMoney(pack.basePrice) + ' (+ travel/add-ons as approved)';
+      });
+    });
+    return true;
+  }
+
+  function updateAddonLiveTotal() {
+    var form = $('modal-form');
+    if (!form) return;
+    var sum = 0;
+    form.querySelectorAll('input[name="addonIds"]:checked').forEach(function (inp) {
+      sum += Number(inp.getAttribute('data-price') || 0);
+    });
+    var base = bookingBaseTotal(state.booking);
+    var el = $('mf-addon-total');
+    if (el) {
+      el.textContent = 'Add-ons: ' + fmtMoney(sum) + ' · New proposed total: ' + fmtMoney(base + sum);
+    }
+  }
+
+  function renderAddonModal() {
+    var cat = getCatalog();
+    var addons = cat.addons || [];
+    if (!addons.length) {
+      showToast('Add-on list unavailable. Refresh and try again.', true);
+      return false;
+    }
+    var form = $('modal-form');
+    form.innerHTML =
+      '<p class="hint">Select add-ons to request. Totals are proposed until admin approval, then locked for Stripe payment.</p>' +
+      '<div class="modal-catalog">' +
+      addons.map(function (a) {
+        return '<label class="catalog-option">' +
+          '<input type="checkbox" name="addonIds" value="' + esc(a.id) + '" data-price="' + esc(a.price) + '">' +
+          '<span class="opt-body">' +
+          '<span class="opt-name">' + esc(a.name) + '</span>' +
+          '<span class="opt-price">+' + fmtMoney(a.price) + '</span>' +
+          '<span class="opt-desc">' + esc(a.desc || '') + '</span>' +
+          '</span></label>';
+      }).join('') +
+      '</div>' +
+      '<p class="modal-live-total" id="mf-addon-total">Add-ons: $0.00 · New proposed total: ' +
+      fmtMoney(bookingBaseTotal(state.booking)) + '</p>';
+    form.querySelectorAll('input[name="addonIds"]').forEach(function (inp) {
+      inp.addEventListener('change', updateAddonLiveTotal);
+    });
+    return true;
+  }
+
+  function renderVehicleModal(titleHint) {
+    var cat = getCatalog();
+    var cats = cat.vehicleCategories || [];
+    var years = cat.vehicleYears || [];
+    var form = $('modal-form');
+    form.innerHTML =
+      '<p class="hint">' + esc(titleHint || 'Select vehicle details. No admin approval is needed to pick category / year / make / model.') + '</p>' +
+      '<label for="mf-category">Category</label>' +
+      '<select class="inp" id="mf-category" name="category" required>' +
+      '<option value="">Select…</option>' +
+      cats.map(function (c) {
+        return '<option value="' + esc(c.id) + '">' + esc(c.label) + '</option>';
+      }).join('') +
+      '</select>' +
+      '<label for="mf-year">Year</label>' +
+      '<select class="inp" id="mf-year" name="year" required>' +
+      '<option value="">Select…</option>' +
+      years.map(function (y) {
+        return '<option value="' + esc(y) + '">' + esc(y) + '</option>';
+      }).join('') +
+      '</select>' +
+      '<label for="mf-make">Make</label>' +
+      '<input class="inp" id="mf-make" name="make" required placeholder="e.g. Toyota">' +
+      '<label for="mf-model">Model</label>' +
+      '<input class="inp" id="mf-model" name="model" required placeholder="e.g. Camry">';
+    return true;
+  }
+
+  function renderMaintenanceModal() {
+    var cat = getCatalog();
+    var periods = cat.maintenancePeriods || [];
+    var packs = cat.packages || [];
+    if (!periods.length || !packs.length) {
+      showToast('Maintenance catalog unavailable. Refresh and try again.', true);
+      return false;
+    }
+    var form = $('modal-form');
+    form.innerHTML =
+      '<p class="hint">Choose how often you want service and which package. This creates a new admin request (subscription-style plan).</p>' +
+      '<label for="mf-period">Service frequency</label>' +
+      '<select class="inp" id="mf-period" name="period" required>' +
+      '<option value="">Select…</option>' +
+      periods.map(function (p) {
+        return '<option value="' + esc(p.id) + '">' + esc(p.label) + '</option>';
+      }).join('') +
+      '</select>' +
+      '<label>Package for the plan</label>' +
+      '<div class="modal-catalog" role="radiogroup" aria-label="Plan package">' +
+      packs.map(function (p) {
+        return '<label class="catalog-option">' +
+          '<input type="radio" name="packageId" value="' + esc(p.id) + '" required>' +
+          '<span class="opt-body">' +
+          '<span class="opt-name">' + esc(p.name) + '</span>' +
+          '<span class="opt-price">' + fmtMoney(p.monthlyPrice != null ? p.monthlyPrice : p.basePrice) +
+          (p.monthlyPrice != null ? '/mo plan rate' : '') + '</span>' +
+          '<span class="opt-desc">' + esc(p.description || '') + '</span>' +
+          '</span></label>';
+      }).join('') +
+      '</div>' +
+      '<label for="mf-note">Notes (optional)</label>' +
+      '<textarea class="inp" id="mf-note" name="note" rows="3" placeholder="Preferred days, fleet size, etc."></textarea>';
+    return true;
+  }
+
   function openActionModal(action) {
-    var defs = {
+    var simpleDefs = {
       reschedule_request: { title: 'Request new date', fields: [
         { name: 'newDate', label: 'Preferred date', type: 'date', required: true },
         { name: 'newTime', label: 'Preferred time (optional)', type: 'text' },
-      ]},
-      addon_request: { title: 'Request add-ons', fields: [
-        { name: 'requestedAddons', label: 'Add-ons requested', type: 'text', required: true },
-      ]},
-      package_change_request: { title: 'Change package', fields: [
-        { name: 'newPackName', label: 'Requested package', type: 'text', required: true },
-      ]},
-      vehicle_add_request: { title: 'Add vehicle', fields: [
-        { name: 'vehicleLabel', label: 'Vehicle description', type: 'text', required: true },
-      ]},
-      vehicle_replace_request: { title: 'Replace vehicle', fields: [
-        { name: 'vehicleLabel', label: 'New vehicle description', type: 'text', required: true },
       ]},
       address_update: { title: 'Update address', fields: [
         { name: 'newAddress', label: 'New service address', type: 'text', required: true },
@@ -287,30 +679,57 @@
       cancellation_request: { title: 'Cancel appointment', fields: [
         { name: 'reason', label: 'Cancellation reason', type: 'textarea', required: true },
       ]},
-      maintenance_request: { title: 'Maintenance plan request', fields: [
-        { name: 'note', label: 'Notes (optional)', type: 'textarea' },
-      ]},
-      vehicle_add: { title: 'Add vehicle to garage', fields: [
-        { name: 'label', label: 'Vehicle label', type: 'text', required: true },
-        { name: 'make', label: 'Make', type: 'text' },
-        { name: 'model', label: 'Model', type: 'text' },
-      ]},
       approve_completion: { title: 'Approve completed service', fields: [], confirmOnly: true },
       report_issue: { title: 'Report an issue', fields: [
         { name: 'message', label: 'Describe the issue', type: 'textarea', required: true },
       ]},
     };
-    var def = defs[action];
-    if (!def) return;
+
     modalAction = action;
-    $('modal-title').textContent = def.title;
+    modalMode = 'fields';
+    modalFields = [];
+
+    if (action === 'package_change_request') {
+      modalMode = 'package';
+      if (!renderPackageModal()) { modalAction = null; return; }
+      openModalShell('Change package');
+      return;
+    }
+    if (action === 'addon_request') {
+      modalMode = 'addons';
+      if (!renderAddonModal()) { modalAction = null; return; }
+      openModalShell('Modify service / add-ons');
+      return;
+    }
+    if (action === 'vehicle_add_request' || action === 'vehicle_replace_request' || action === 'vehicle_add') {
+      modalMode = 'vehicle';
+      renderVehicleModal(
+        action === 'vehicle_replace_request'
+          ? 'Replace the vehicle on this appointment.'
+          : action === 'vehicle_add'
+            ? 'Save a vehicle to your garage for faster rebooking.'
+            : 'Add another vehicle to this appointment request.'
+      );
+      openModalShell(
+        action === 'vehicle_replace_request' ? 'Replace vehicle'
+          : action === 'vehicle_add' ? 'Add vehicle to garage' : 'Add vehicle'
+      );
+      return;
+    }
+    if (action === 'maintenance_request') {
+      modalMode = 'maintenance';
+      if (!renderMaintenanceModal()) { modalAction = null; return; }
+      openModalShell('Maintenance plan');
+      return;
+    }
+
+    var def = simpleDefs[action];
+    if (!def) return;
+    openModalShell(def.title);
     var form = $('modal-form');
     if (def.confirmOnly) {
       form.innerHTML = '<p class="hint">Confirm you approve the completed service. Payment steps may follow if a balance is due.</p>';
       modalFields = [];
-      var ov = $('action-modal');
-      ov.hidden = false;
-      ov.classList.add('open');
       return;
     }
     form.innerHTML = def.fields.map(function (f) {
@@ -320,28 +739,85 @@
       return '<label for="mf-' + f.name + '">' + f.label + '</label><input class="inp" id="mf-' + f.name + '" name="' + f.name + '" type="' + (f.type || 'text') + '"' + (f.required ? ' required' : '') + '>';
     }).join('');
     modalFields = def.fields;
-    var ov = $('action-modal');
-    ov.hidden = false;
-    ov.classList.add('open');
+  }
+
+  function collectCatalogPayload() {
+    var form = $('modal-form');
+    if (modalMode === 'package') {
+      var pack = form.querySelector('input[name="newPackId"]:checked');
+      if (!pack) {
+        setMsg($('modal-error'), 'Select a package.', true);
+        return null;
+      }
+      return { newPackId: pack.value };
+    }
+    if (modalMode === 'addons') {
+      var ids = [];
+      form.querySelectorAll('input[name="addonIds"]:checked').forEach(function (inp) {
+        ids.push(inp.value);
+      });
+      if (!ids.length) {
+        setMsg($('modal-error'), 'Select at least one add-on.', true);
+        return null;
+      }
+      return { addonIds: ids };
+    }
+    if (modalMode === 'vehicle') {
+      var category = ($('mf-category') && $('mf-category').value) || '';
+      var year = ($('mf-year') && $('mf-year').value) || '';
+      var make = ($('mf-make') && $('mf-make').value.trim()) || '';
+      var model = ($('mf-model') && $('mf-model').value.trim()) || '';
+      if (!category || !year || !make || !model) {
+        setMsg($('modal-error'), 'Complete category, year, make, and model.', true);
+        return null;
+      }
+      return { category: category, year: year, make: make, model: model };
+    }
+    if (modalMode === 'maintenance') {
+      var period = ($('mf-period') && $('mf-period').value) || '';
+      var packageEl = form.querySelector('input[name="packageId"]:checked');
+      var note = ($('mf-note') && $('mf-note').value.trim()) || '';
+      if (!period || !packageEl) {
+        setMsg($('modal-error'), 'Select a frequency and a package.', true);
+        return null;
+      }
+      return { period: period, packageId: packageEl.value, note: note };
+    }
+    return {};
   }
 
   async function submitModal() {
     if (!modalAction) return;
-    var payload = {};
-    for (var i = 0; i < modalFields.length; i++) {
-      var f = modalFields[i];
-      var el = $('mf-' + f.name);
-      var val = el ? String(el.value || '').trim() : '';
-      if (f.required && !val) {
-        setMsg($('modal-error'), 'Please complete: ' + f.label, true);
-        return;
-      }
-      payload[f.name] = val;
-    }
     setMsg($('modal-error'), '', false);
+    var payload = {};
+
+    if (modalMode !== 'fields') {
+      payload = collectCatalogPayload();
+      if (!payload) return;
+    } else {
+      for (var i = 0; i < modalFields.length; i++) {
+        var f = modalFields[i];
+        var el = $('mf-' + f.name);
+        var val = el ? String(el.value || '').trim() : '';
+        if (f.required && !val) {
+          setMsg($('modal-error'), 'Please complete: ' + f.label, true);
+          return;
+        }
+        payload[f.name] = val;
+      }
+    }
+
     var ok = false;
     if (modalAction === 'vehicle_add') {
-      ok = await vehicleAction('add', { vehicle: { label: payload.label, make: payload.make, model: payload.model } });
+      ok = await vehicleAction('add', {
+        vehicle: {
+          label: [payload.year, payload.make, payload.model].join(' '),
+          category: payload.category,
+          year: payload.year,
+          make: payload.make,
+          model: payload.model,
+        },
+      });
     } else if (modalAction === 'approve_completion') {
       ok = await submitPortalAction('approve_completion', {
         bookingId: state.booking && state.booking.id,
@@ -376,13 +852,29 @@
     }
     var out = $('btn-logout');
     if (out) out.addEventListener('click', logout);
+
+    var payLink = $('pay-balance-link');
+    if (payLink) {
+      payLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        startPayBalance();
+      });
+    }
+
     var actions = $('customer-actions');
     if (actions) {
       actions.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-action]');
         if (!btn) return;
-        var act = btn.getAttribute('data-action');
-        openActionModal(act);
+        openActionModal(btn.getAttribute('data-action'));
+      });
+    }
+    var maintEmpty = $('maintenance-empty');
+    if (maintEmpty) {
+      maintEmpty.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        openActionModal(btn.getAttribute('data-action'));
       });
     }
     var vehActions = $('vehicle-actions');
@@ -411,14 +903,21 @@
     if (preId && $('lk-booking-id')) $('lk-booking-id').value = preId.toUpperCase();
     if (prePhone && $('lk-phone')) $('lk-phone').value = prePhone;
 
+    if (params.get('paid') === '1') {
+      showToast('Payment received. Thank you!');
+    } else if (params.get('canceled') === '1') {
+      showToast('Checkout canceled. You can pay anytime from My Garage.', true);
+    }
+
     var actionToken = params.get('action');
     if (actionToken) {
       var ar = await post('customer-portal-action', { action: 'view', token: actionToken });
       if (ar.data && ar.data.ok) {
         state.scope = 'booking';
         state.booking = ar.data.booking;
+        applyPortalPayload(ar.data);
         history.replaceState({}, '', 'my-garage.html');
-        renderDashboard({ payment: { canPay: ar.data.labels && ar.data.labels.canPay } });
+        renderDashboard({ payment: ar.data.payment || { canPay: ar.data.labels && ar.data.labels.canPay } });
         show($('pre-auth'), false);
         show($('post-auth'), true);
         return;
@@ -437,6 +936,11 @@
       return;
     }
 
+    if (preId && prePhone) {
+      await loadLimited();
+      return;
+    }
+
     show($('pre-auth'), true);
     show($('post-auth'), false);
   }
@@ -451,6 +955,7 @@
     submitAction: submitAction,
     openModal: openActionModal,
     reload: portalReload,
+    startPayBalance: startPayBalance,
   };
 
   if (global.CD1OperationalRefresh) {

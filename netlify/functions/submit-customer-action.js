@@ -136,60 +136,127 @@ exports.handler = async (event) => {
     adminSubject = `Cardetail1 — Address Update Request · ${bookingId}`;
     adminText = `Customer requested address change for booking ${bookingId}.\nRequested: ${newAddress}`;
   } else if (action === 'addon_request') {
-    const requestedAddons = String(p.requestedAddons || '').slice(0, 1000).trim();
+    const { resolveAddonsByIds, addonTotal } = require('../lib/customer-catalog');
+    const rawIds = Array.isArray(p.addonIds) ? p.addonIds : String(p.addonIds || '').split(',');
+    const selected = resolveAddonsByIds(rawIds);
+    const requestedAddons = selected.length
+      ? selected.map((a) => `${a.name} ($${Number(a.price).toFixed(2)})`).join(', ')
+      : String(p.requestedAddons || '').slice(0, 1000).trim();
     if (!requestedAddons) return json(400, { ok: false, error: 'validation_error', message: 'Please select at least one add-on.' });
-    requestedState = { requestedAddons };
+    const addOnSum = selected.length ? addonTotal(selected) : 0;
+    const base = Number(booking.approvedFinalAmount != null ? booking.approvedFinalAmount : (booking.totalPrice || 0));
+    const proposedTotal = Math.round((base + addOnSum) * 100) / 100;
+    requestedState = {
+      requestedAddons,
+      addonIds: selected.map((a) => a.id),
+      addons: selected,
+      addonTotal: addOnSum,
+      proposedTotal,
+    };
     updates = {
       addonsRequested: true,
       addonRequestedAt: now,
       requestedAddons,
-      customerChangePending: policy.pendingApproval || false,
+      requestedAddonIds: selected.map((a) => a.id),
+      requestedAddonItems: selected,
+      requestedAddonTotal: addOnSum,
+      proposedTotal,
+      customerChangePending: true,
     };
     logEntry.requestedAddons = requestedAddons;
+    logEntry.proposedTotal = proposedTotal;
     adminSubject = `Cardetail1 — Add-On Request · ${bookingId}`;
-    adminText = `Customer requested add-ons for booking ${bookingId}.\n${requestedAddons}`;
+    adminText = `Customer requested add-ons for booking ${bookingId}.\n${requestedAddons}\nProposed total: $${proposedTotal.toFixed(2)}`;
   } else if (action === 'package_change_request') {
     const newPackId = String(p.newPackId || '').slice(0, 32).trim();
     const { CAR_PACKAGES } = require('../lib/customer-catalog');
     const catalogPack = CAR_PACKAGES.find((cp) => cp.id === newPackId);
     const newPackName = catalogPack ? catalogPack.name : String(p.newPackName || '').slice(0, 120).trim();
     if (!newPackName) return json(400, { ok: false, error: 'validation_error', message: 'Please select a package.' });
-    requestedState = { packageId: newPackId, packageName: newPackName };
+    const packPrice = catalogPack ? Number(catalogPack.basePrice) : 0;
+    const travel = Number(booking.travelFeeAmount || booking.zoneSurcharge || 0);
+    const existingAddons = Array.isArray(booking.addons)
+      ? booking.addons.reduce((s, a) => s + Number(a.price || 0) * Number(a.qty || 1), 0)
+      : 0;
+    const proposedTotal = catalogPack
+      ? Math.round((packPrice + travel + existingAddons) * 100) / 100
+      : Number(booking.totalPrice || 0);
+    requestedState = {
+      packageId: newPackId || (catalogPack && catalogPack.id) || '',
+      packageName: newPackName,
+      packagePrice: packPrice,
+      packageDescription: catalogPack ? catalogPack.description : '',
+      proposedTotal,
+    };
     updates = {
       packageChangeRequested: true,
       packageChangeRequestedAt: now,
-      requestedPackageId: newPackId,
+      requestedPackageId: newPackId || (catalogPack && catalogPack.id) || '',
       requestedPackageName: newPackName,
-      customerChangePending: policy.pendingApproval || false,
+      requestedPackagePrice: packPrice,
+      requestedPackageDescription: catalogPack ? catalogPack.description : '',
+      proposedTotal,
+      customerChangePending: true,
     };
     logEntry.requestedPackage = newPackName;
+    logEntry.proposedTotal = proposedTotal;
     adminSubject = `Cardetail1 — Package Change Request · ${bookingId}`;
-    adminText = `Customer requested package change for booking ${bookingId}.\nRequested: ${newPackName}`;
+    adminText = `Customer requested package change for booking ${bookingId}.\nRequested: ${newPackName}${packPrice ? ` ($${packPrice.toFixed(2)})` : ''}\nProposed total: $${proposedTotal.toFixed(2)}`;
   } else if (action === 'vehicle_add_request' || action === 'vehicle_replace_request') {
-    const vehicleLabel = String(p.vehicleLabel || p.label || '').slice(0, 120).trim();
-    if (!vehicleLabel) return json(400, { ok: false, error: 'validation_error', message: 'Vehicle description is required.' });
-    requestedState = { vehicleLabel, category: String(p.category || 'car').slice(0, 32) };
+    const category = String(p.category || p.vehicleCategory || 'cars').slice(0, 32).trim();
+    const year = String(p.year || p.vehicleYear || '').slice(0, 8).trim();
+    const make = String(p.make || p.vehicleMake || '').slice(0, 60).trim();
+    const model = String(p.model || p.vehicleModel || '').slice(0, 60).trim();
+    const vehicleLabel = String(p.vehicleLabel || p.label || [year, make, model].filter(Boolean).join(' ')).slice(0, 160).trim();
+    if (!vehicleLabel && !(make && model)) {
+      return json(400, { ok: false, error: 'validation_error', message: 'Select category, year, make, and model.' });
+    }
+    const label = vehicleLabel || `${year} ${make} ${model}`.trim();
+    requestedState = { vehicleLabel: label, category, year, make, model };
     updates = {
       vehicleChangeRequested: true,
       vehicleChangeRequestedAt: now,
-      requestedVehicleLabel: vehicleLabel,
+      requestedVehicleLabel: label,
+      requestedVehicleCategory: category,
+      requestedVehicleYear: year,
+      requestedVehicleMake: make,
+      requestedVehicleModel: model,
       requestedVehicleAction: action === 'vehicle_replace_request' ? 'replace' : 'add',
       customerChangePending: true,
     };
-    logEntry.vehicleLabel = vehicleLabel;
+    logEntry.vehicleLabel = label;
     adminSubject = `Cardetail1 — Vehicle Change Request · ${bookingId}`;
-    adminText = `Customer requested vehicle ${action === 'vehicle_replace_request' ? 'replacement' : 'addition'} for booking ${bookingId}.\n${vehicleLabel}`;
+    adminText = `Customer requested vehicle ${action === 'vehicle_replace_request' ? 'replacement' : 'addition'} for booking ${bookingId}.\n${label} (${category})`;
   } else if (action === 'maintenance_request') {
+    const { CAR_PACKAGES, MAINTENANCE_PERIODS } = require('../lib/customer-catalog');
+    const periodId = String(p.period || p.maintenancePeriod || '').slice(0, 32).trim();
+    const packId = String(p.packageId || p.maintenancePackageId || '').slice(0, 32).trim();
+    const period = MAINTENANCE_PERIODS.find((x) => x.id === periodId);
+    const pack = CAR_PACKAGES.find((x) => x.id === packId);
     const note = String(p.note || p.message || '').slice(0, 1000).trim();
-    requestedState = { maintenanceNote: note };
+    if (!period || !pack) {
+      return json(400, { ok: false, error: 'validation_error', message: 'Select a maintenance period and package.' });
+    }
+    requestedState = {
+      maintenancePeriod: period.id,
+      maintenancePeriodLabel: period.label,
+      packageId: pack.id,
+      packageName: pack.name,
+      packagePrice: pack.basePrice,
+      maintenanceNote: note,
+    };
     updates = {
       maintenanceRequested: true,
       maintenanceRequestedAt: now,
       maintenanceRequestNote: note,
+      maintenancePeriod: period.id,
+      maintenancePeriodLabel: period.label,
+      maintenancePackageId: pack.id,
+      maintenancePackageName: pack.name,
       customerChangePending: true,
     };
-    adminSubject = `Cardetail1 — Maintenance Request · ${bookingId}`;
-    adminText = `Customer maintenance request for booking ${bookingId}.\n${note || '(no note)'}`;
+    adminSubject = `Cardetail1 — Maintenance Plan Request · ${bookingId}`;
+    adminText = `Customer maintenance plan request for booking ${bookingId}.\nPeriod: ${period.label}\nPackage: ${pack.name} ($${Number(pack.basePrice).toFixed(2)})\n${note || '(no note)'}`;
   } else if (action === 'cancellation_request') {
     const reason = String(p.reason || p.message || '').slice(0, 500).trim();
     if (!reason) return json(400, { ok: false, error: 'validation_error', message: 'Please provide a cancellation reason.' });

@@ -401,12 +401,13 @@ async function handleAdminAction(body) {
     const base = process.env.SITE_URL || 'https://cardetail1.netlify.app';
     const form = new URLSearchParams({
       mode: 'payment',
+      'payment_method_types[0]': 'card',
       'line_items[0][price_data][currency]': 'usd',
       'line_items[0][price_data][product_data][name]': `Cardetail1 · ${bookingId}`,
       'line_items[0][price_data][unit_amount]': String(amountCents),
       'line_items[0][quantity]': '1',
-      success_url: `${base}/customer.html?paid=1`,
-      cancel_url: `${base}/customer.html?canceled=1`,
+      success_url: `${base}/my-garage.html?paid=1&bookingId=${encodeURIComponent(bookingId)}`,
+      cancel_url: `${base}/my-garage.html?canceled=1&bookingId=${encodeURIComponent(bookingId)}`,
     });
     if (booking.email) form.append('customer_email', booking.email);
     form.append('metadata[booking_id]', bookingId);
@@ -422,6 +423,9 @@ async function handleAdminAction(body) {
     await store.setJSON(bookingId, {
       ...booking,
       payLink: sess.url,
+      amountDueApproved: amountDollars,
+      balanceDue: amountDollars,
+      approvedFinalAmount: booking.approvedFinalAmount != null ? booking.approvedFinalAmount : amountDollars,
       paymentWorkflowStatus: 'awaiting_customer_payment',
       payLinkSentAt: now,
       updatedAt: now,

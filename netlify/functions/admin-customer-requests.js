@@ -13,6 +13,11 @@ const AUTO_APPLY_TYPES = new Set([
   'reschedule_request',
   'address_update',
   'cancellation',
+  'cancellation_request',
+  'package_change_request',
+  'addon_request',
+  'vehicle_add_request',
+  'vehicle_replace_request',
 ]);
 
 const TYPE_LABELS = {
@@ -108,18 +113,83 @@ exports.handler = async (event) => {
       if (booking) {
         const bStore = await bookingStore();
         const patch = { customerChangePending: false, updatedAt: now };
-        if (record.requestType === 'reschedule_request' && record.requestedState?.preferredDate) {
-          patch.preferredDate = record.requestedState.preferredDate;
-          patch.preferredTime = record.requestedState.preferredTime || booking.preferredTime;
+        const rs = record.requestedState || {};
+        if (record.requestType === 'reschedule_request' && rs.preferredDate) {
+          patch.preferredDate = rs.preferredDate;
+          patch.preferredTime = rs.preferredTime || booking.preferredTime;
           patch.rescheduledByClient = false;
         }
-        if (record.requestType === 'address_update' && record.requestedState?.address) {
-          patch.address = record.requestedState.address;
+        if (record.requestType === 'address_update' && rs.address) {
+          patch.address = rs.address;
           patch.addressChangedByClient = false;
         }
-        if (record.requestType === 'cancellation') {
+        if (record.requestType === 'cancellation' || record.requestType === 'cancellation_request') {
           patch.cancellationRequestStatus = 'approved';
           patch.status = 'Cancelled';
+          patch.jobStatus = 'cancelled';
+          patch.appointmentStatus = 'canceled';
+        }
+        if (record.requestType === 'package_change_request' && (rs.packageName || rs.packageId)) {
+          patch.package = rs.packageName || booking.package;
+          patch.service = rs.packageName || booking.service;
+          patch.packageId = rs.packageId || booking.packageId || '';
+          patch.packageDescription = rs.packageDescription || booking.packageDescription || '';
+          if (rs.proposedTotal > 0) {
+            patch.totalPrice = rs.proposedTotal;
+            patch.approvedFinalAmount = rs.proposedTotal;
+            patch.amountDueApproved = rs.proposedTotal;
+            patch.balanceDue = rs.proposedTotal;
+          }
+          patch.packageChangeRequested = false;
+          patch.requestedPackageName = '';
+          patch.requestedPackageId = '';
+        }
+        if (record.requestType === 'addon_request') {
+          const incoming = Array.isArray(rs.addons) ? rs.addons : [];
+          const merged = [...(Array.isArray(booking.addons) ? booking.addons : [])];
+          for (const a of incoming) {
+            if (!merged.some((m) => m.id === a.id || m.name === a.name)) merged.push(a);
+          }
+          patch.addons = merged;
+          if (rs.proposedTotal > 0) {
+            patch.totalPrice = rs.proposedTotal;
+            patch.approvedFinalAmount = rs.proposedTotal;
+            patch.amountDueApproved = rs.proposedTotal;
+            patch.balanceDue = rs.proposedTotal;
+          }
+          patch.addonsRequested = false;
+          patch.requestedAddons = '';
+          patch.requestedAddonIds = [];
+        }
+        if (record.requestType === 'vehicle_add_request' || record.requestType === 'vehicle_replace_request') {
+          const label = rs.vehicleLabel || booking.vehicleLabel || '';
+          if (record.requestType === 'vehicle_replace_request') {
+            patch.vehicleLabel = label;
+            patch.vehicle = label;
+            patch.vehicleYear = rs.year || '';
+            patch.vehicleMake = rs.make || '';
+            patch.vehicleModel = rs.model || '';
+            patch.vehicleCategory = rs.category || '';
+          } else {
+            const vehicles = Array.isArray(booking.vehicles) ? [...booking.vehicles] : [];
+            vehicles.push({
+              vehicleLabel: label,
+              pkgName: booking.package || booking.service || '',
+              category: rs.category || 'cars',
+              year: rs.year || '',
+              make: rs.make || '',
+              model: rs.model || '',
+              subtotal: 0,
+              addons: [],
+            });
+            patch.vehicles = vehicles;
+            if (!booking.vehicleLabel) {
+              patch.vehicleLabel = label;
+              patch.vehicle = label;
+            }
+          }
+          patch.vehicleChangeRequested = false;
+          patch.requestedVehicleLabel = '';
         }
         await bStore.setJSON(record.bookingId, { ...booking, ...patch });
       }

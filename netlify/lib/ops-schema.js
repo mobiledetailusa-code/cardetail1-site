@@ -83,24 +83,41 @@ function projectBookingForCustomer(b) {
   const jobStatus = normalizeJobStatus(b);
   const paymentWorkflowStatus = normalizePaymentWorkflowStatus(b);
   const status = legacyDisplayStatus(b);
+  const pack = b.package || b.service || '';
+  const paid = Number(b.amountPaid || b.paidAmount || 0);
+  const approved = Number(
+    b.approvedFinalAmount != null ? b.approvedFinalAmount : (b.totalPrice || b.total_price || 0)
+  );
+  const amountDueApproved = Number(
+    b.amountDueApproved != null
+      ? b.amountDueApproved
+      : (b.balanceDue != null ? b.balanceDue : Math.max(0, approved - paid))
+  );
   return {
     id: b.id,
     status,
     jobStatus,
     paymentWorkflowStatus,
     appointmentStatus: b.appointmentStatus || (jobStatus === 'cancelled' ? 'canceled' : jobStatus === 'confirmed' ? 'confirmed' : 'pending_review'),
-    package: b.package || b.service || '',
-    service: b.package || b.service || '',
+    package: pack,
+    service: pack,
+    packageId: b.packageId || b.pkgId || '',
+    packageDescription: b.packageDescription || b.pkgTag || b.packageTag || '',
+    packageDuration: b.packageDuration || b.pkgDuration || '',
     vehicle: b.vehicle || b.vehicleCategory || '',
     vehicleLabel: b.vehicleLabel || b.vehicle || '',
+    vehicleYear: b.vehicleYear || '',
+    vehicleMake: b.vehicleMake || b.make || '',
+    vehicleModel: b.vehicleModel || b.model || '',
+    vehicleCategory: b.vehicleCategory || b.cat || '',
     vehicles: (b.vehicles || []).map(v => ({
       pkgName: v.pkgName || '',
       vehicleLabel: v.vehicleLabel || '',
       pkgIcon: v.pkgIcon || '🚗',
       subtotal: v.subtotal || 0,
-      addons: (v.addons || []).map(a => ({ name: a.name || '', qty: a.qty || 1 })),
+      addons: (v.addons || []).map(a => ({ name: a.name || '', qty: a.qty || 1, price: a.price || 0 })),
     })),
-    addons: (b.addons || []).map(a => ({ name: a.name || '', qty: a.qty || 1 })),
+    addons: (b.addons || []).map(a => ({ id: a.id || '', name: a.name || '', qty: a.qty || 1, price: a.price || 0 })),
     preferredDate: b.preferredDate || '',
     preferredTime: b.preferredTime || '',
     confirmedDate: b.confirmedDate || '',
@@ -112,11 +129,16 @@ function projectBookingForCustomer(b) {
     travelFeeMiles: b.travelFeeMiles ?? null,
     travelFeeAmount: b.travelFeeAmount ?? b.zoneSurcharge ?? 0,
     zoneSurcharge: b.zoneSurcharge ?? b.travelFeeAmount ?? 0,
-    totalPrice: b.totalPrice || b.total_price || 0,
+    totalPrice: approved,
+    approvedFinalAmount: approved,
+    amountPaid: paid,
+    amountDueApproved: amountDueApproved > 0 ? amountDueApproved : 0,
     tip: b.tip || 0,
     payLink: b.payLink || '',
     paymentMethodPreference: b.paymentMethodPreference || '',
     cardOnFileStatus: b.cardOnFileStatus || 'pending',
+    customerApprovalStatus: b.customerApprovalStatus || '',
+    customerChangePending: !!b.customerChangePending,
     cancellationRequestStatus: b.cancellationRequestStatus || '',
     cancellationRequestedAt: b.cancellationRequestedAt || '',
     rescheduledByClient: !!b.rescheduledByClient,
@@ -124,9 +146,20 @@ function projectBookingForCustomer(b) {
     addressChangedByClient: !!b.addressChangedByClient,
     addonsRequested: !!b.addonsRequested,
     requestedAddons: b.requestedAddons || '',
+    requestedAddonIds: b.requestedAddonIds || [],
+    requestedAddonTotal: b.requestedAddonTotal || 0,
     packageChangeRequested: !!b.packageChangeRequested,
     requestedPackageName: b.requestedPackageName || '',
     requestedPackageId: b.requestedPackageId || '',
+    requestedPackagePrice: b.requestedPackagePrice || 0,
+    proposedTotal: b.proposedTotal || 0,
+    vehicleChangeRequested: !!b.vehicleChangeRequested,
+    requestedVehicleLabel: b.requestedVehicleLabel || '',
+    maintenanceRequested: !!b.maintenanceRequested,
+    maintenanceRequestNote: b.maintenanceRequestNote || '',
+    maintenancePeriod: b.maintenancePeriod || '',
+    maintenancePackageId: b.maintenancePackageId || '',
+    maintenancePackageName: b.maintenancePackageName || '',
     policyChargeStatus: b.policyChargeStatus || '',
     policyChargeAmount: b.policyChargeAmount || null,
     assignedTechName: b.assignedTechName || '',
@@ -144,6 +177,7 @@ function projectBookingForCustomer(b) {
     photosBefore: b.photosBefore || [],
     photosAfter: b.photosAfter || [],
     reviewLeft: !!b.reviewLeft,
+    offer: b.offer || b.welcomeOffer || null,
   };
 }
 

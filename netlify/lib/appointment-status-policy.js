@@ -40,7 +40,11 @@ function canRequestChange(booking, action) {
   if (blocked[phase] && blocked[phase].has(action)) {
     return { ok: false, error: 'action_not_allowed', phase, requiresCall: phase === 'in_progress' };
   }
-  if (phase === 'confirmed' && ['package_change', 'addon', 'address', 'vehicle_add', 'vehicle_replace', 'reschedule'].includes(action)) {
+  // Pending Review / draft-like and confirmed appointments always need admin review for structural changes.
+  if (
+    (phase === 'confirmed' || phase === 'draft') &&
+    ['package_change', 'addon', 'address', 'vehicle_add', 'vehicle_replace', 'reschedule', 'maintenance'].includes(action)
+  ) {
     return { ok: true, pendingApproval: true, phase };
   }
   return { ok: true, pendingApproval: false, phase };
@@ -51,11 +55,22 @@ function canPayBalance(booking) {
   if (phase === 'cancelled' || phase === 'in_progress') {
     return { ok: false, error: 'action_not_allowed' };
   }
-  const due = Number(booking?.amountDueApproved || booking?.balanceDue || 0);
+  const paid = Number(booking?.amountPaid || booking?.paidAmount || 0);
+  const approved = Number(
+    booking?.approvedFinalAmount != null
+      ? booking.approvedFinalAmount
+      : (booking?.totalPrice || booking?.finalAmount || 0)
+  );
+  const due = Number(
+    booking?.amountDueApproved != null
+      ? booking.amountDueApproved
+      : (booking?.balanceDue != null ? booking.balanceDue : Math.max(0, approved - paid))
+  );
+  // Prepaid / balance pay allowed from Pending Review onward whenever a balance exists or admin issued a link.
   if (!(due > 0) && !booking?.payLink) {
-    return { ok: false, error: 'payment_not_due' };
+    return { ok: false, error: 'payment_not_due', due: 0 };
   }
-  return { ok: true, phase };
+  return { ok: true, phase, due: due > 0 ? due : Number(booking?.amountDueApproved || approved || 0) };
 }
 
 module.exports = {

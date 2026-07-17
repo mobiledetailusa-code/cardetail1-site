@@ -95,7 +95,7 @@ exports.handler = async (event) => {
     amount: String(amount),
     currency: 'usd',
     capture_method: captureMethod,
-    'automatic_payment_methods[enabled]': 'true',
+    'payment_method_types[0]': 'card',
     description: `Cardetail1 booking ${bookingId}`,
   });
   form.append('metadata[booking_id]', bookingId);
