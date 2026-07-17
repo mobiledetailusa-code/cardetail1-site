@@ -777,13 +777,23 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .bk-offer-title{font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px}
 .bk-offer-copy{font-size:13px;color:var(--mu);line-height:1.55;margin:0 0 12px}
 .bk-offer-actions{display:flex;flex-wrap:wrap;gap:8px}
-.bk-financial-summary{background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);padding:14px 16px;margin-bottom:16px}
-.bk-fin-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mu);margin-bottom:10px}
-.bk-fin-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.bk-financial-summary{background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);padding:16px 18px;margin-bottom:16px}
+.bk-fin-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mu);margin-bottom:8px}
+.bk-total-main{background:#f4f7fb;border:1px solid #d7e0ec;border-radius:var(--rs);padding:14px 16px;margin-bottom:8px;text-align:center}
+.bk-total-amount{font-size:clamp(28px,5.4vw,36px);font-weight:700;color:#0f172a;letter-spacing:-.02em;line-height:1.1}
+.bk-total-incl{font-size:12.5px;color:var(--tx);line-height:1.5;margin:0 0 10px;text-align:center}
+.bk-details-toggle{display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:6px 0;font-family:var(--fb);font-size:13px;font-weight:600;color:var(--blue);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.bk-details-toggle:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
+.bk-details-toggle::before{content:'▸';font-size:11px;text-decoration:none;transition:transform .18s}
+.bk-details-toggle[aria-expanded="true"]::before{transform:rotate(90deg)}
+.bk-price-details{margin:4px 0 10px;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--rs)}
+.bk-fin-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--tx);padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)}
 .bk-fin-row:last-child{border-bottom:none}
 .bk-fin-discount span:last-child{color:var(--gr)}
 .bk-fin-total span{font-weight:700;color:var(--white)}
-.bk-fin-muted span:last-child{color:var(--mu)}
+.bk-charged-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--tx);padding:8px 0 2px;border-top:1px solid rgba(255,255,255,.08);margin-top:6px}
+.bk-charged-amt{font-weight:700;color:var(--gr)}
+.bk-charged-copy{font-size:11.5px;color:var(--mu);line-height:1.5;margin:4px 0 0}
 @media(max-width:640px){
   .bsec .btn-row{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,var(--bg1) 24%);padding-top:12px;margin-top:20px;z-index:2}
   .bk-sticky-subtotal{position:sticky;top:0;z-index:3;background:var(--bg1);padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
@@ -2614,9 +2624,13 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </div>
         </div>
         <div class="bk-financial-summary" id="bk-financial-summary" aria-live="polite">
-          <div class="bk-fin-title">Estimated summary</div>
-          <div id="bk-financial-lines"></div>
-          <p class="bk-offer-terms-note" style="font-size:11px;color:var(--mu);line-height:1.5;margin-top:10px">Welcome savings apply to eligible service subtotal only (10% max $40). Excludes travel, tolls, Maintenance Detail, Fleet and custom quotes. <a href="/terms-conditions#welcome-offer" target="_blank" rel="noopener noreferrer">Terms apply</a>.</p>
+          <div class="bk-fin-title">Estimated total</div>
+          <div class="bk-total-main"><span class="bk-total-amount" id="bk-total-amount">—</span></div>
+          <p class="bk-total-incl" id="bk-total-incl">Mobile service included.</p>
+          <button type="button" class="bk-details-toggle" id="bk-details-toggle" aria-expanded="false" aria-controls="bk-financial-lines" onclick="toggleBkPriceDetails()">View price details</button>
+          <div id="bk-financial-lines" class="bk-price-details" hidden></div>
+          <div class="bk-charged-row"><span>Charged today</span><span class="bk-charged-amt">$0.00</span></div>
+          <p class="bk-charged-copy">No payment is collected today. A card may be securely placed on file to confirm the booking request.</p>
         </div>
         <div class="bdesc">This sends a booking request — we'll review your location, vehicle, weather, and access, then text you to confirm. Nothing charged today.</div>
         <div class="card-gate">
@@ -2689,6 +2703,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="or"><span class="ol">Package</span><span class="ov" id="c-pkg">—</span></div>
           <div class="or"><span class="ol">Pkg price</span><span class="ov" id="c-pprice">—</span></div>
           <div id="c-addon-rows"></div>
+          <div id="c-travel-line"></div>
           <div id="c-offer-line"></div>
           <div class="or"><span class="ol" style="color:var(--white);font-weight:600">Estimated total</span><span class="oc-total" id="c-total">—</span></div>
           <div class="oc-note">Final price confirmed on-site. Add-ons are starting prices.</div>
@@ -3917,6 +3932,7 @@ function bkGoTo(n, opts = {}) {
   if (n === 4) fillStrip5();
   if (n === 5) {
     ensureStep5Defaults();
+    renderStep5Summary();
     if (window.Cardetail1WelcomeOffer) Cardetail1WelcomeOffer.fetchPreview('step5');
   }
   if (n === 6) fillConfirm();
@@ -4577,18 +4593,13 @@ function updateTotal(){
   const isSignature = ST.cat==='cars'&&ST.pkgId==='premium';
   if(lbl) lbl.textContent = currentBkStep >= 4 ? 'Estimated total' : 'Estimated service price';
   if(isSignature && ST.basePrice>0){
-    el.textContent = '$'+(ST.basePrice+fee+(ST.addonTotal||0));
+    el.textContent = bkMoney(ST.basePrice+fee+(ST.addonTotal||0));
   }else{
-    el.textContent = total ? '$'+total : 'Estimate';
+    el.textContent = total ? bkMoney(total) : 'Estimate';
   }
   if(estEl){
-    if(currentBkStep >= 4 && fee > 0){
-      estEl.textContent = 'Service $'+serviceTotal+' + travel $'+fee;
-      estEl.style.display = '';
-    }else{
-      estEl.textContent = '';
-      estEl.style.display = 'none';
-    }
+    estEl.textContent = '';
+    estEl.style.display = 'none';
   }
   updateVcPriceDisplay();
 }
@@ -4624,11 +4635,7 @@ function fillStrip5(){
   }
   const totalEl = document.getElementById('s5-total');
   if(totalEl){
-    if(cartBase && fee > 0){
-      totalEl.textContent = '$'+(cartBase+fee)+' (service $'+cartBase+' + travel $'+fee+')';
-    }else{
-      totalEl.textContent = cartBase ? '$'+(cartBase+fee) : 'Estimate';
-    }
+    totalEl.textContent = cartBase ? bkMoney(cartBase+fee) : 'Estimate';
   }
 }
 
@@ -4684,6 +4691,69 @@ function ensureBookingId(){ if(!ST.bookingId) ST.bookingId='CD1-'+Date.now().toS
 function stripeMsg(elId,msg,ok){ const el=document.getElementById(elId); if(!el)return; el.innerHTML=msg; el.style.display='block'; if(ok!==undefined)el.style.color=ok?'var(--gr,#34d399)':'var(--mu,#8a9bb0)'; }
 
 // ── Step 5: Secure Your Booking ──────────────────────────────────────────────
+
+function bkMoney(n){ return '$' + (Number(n) || 0).toFixed(2); }
+
+function bkFinRow(label, val, cls){
+  return '<div class="bk-fin-row' + (cls ? ' bk-fin-' + cls : '') + '"><span>' + label + '</span><span>' + val + '</span></div>';
+}
+
+// Single authoritative renderer for the Step 5 financial summary.
+// estimatedTotal = servicePrice + addonTotal + travelFee - discount
+function renderBkFinancialSummary(o){
+  o = o || {};
+  const service  = Math.max(0, Number(o.servicePrice) || 0);
+  const addons   = Math.max(0, Number(o.addonTotal) || 0);
+  const fee      = Math.max(0, Number(o.travelFee) || 0);
+  const discount = Math.max(0, Number(o.discount) || 0);
+  const total    = Math.max(0, Math.round((service + addons + fee - discount) * 100) / 100);
+  const amtEl = document.getElementById('bk-total-amount');
+  if(amtEl) amtEl.textContent = total > 0 ? bkMoney(total) : 'Estimate';
+  const inclEl = document.getElementById('bk-total-incl');
+  if(inclEl) inclEl.textContent = fee > 0
+    ? 'Includes the mobile service adjustment for your location.'
+    : 'Mobile service included.';
+  const lines = document.getElementById('bk-financial-lines');
+  if(lines){
+    let html = bkFinRow('Service price', bkMoney(service));
+    if(addons > 0)   html += bkFinRow('Selected add-ons', bkMoney(addons));
+    if(fee > 0)      html += bkFinRow('Mobile service adjustment', bkMoney(fee));
+    if(discount > 0) html += bkFinRow(o.discountLabel || 'Applied discount', '-' + bkMoney(discount), 'discount');
+    html += bkFinRow('Estimated total', bkMoney(total), 'total');
+    lines.innerHTML = html;
+  }
+  return total;
+}
+
+function bkCartServiceParts(){
+  const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
+  return {
+    base:   vehicles.reduce((s,v)=>s+(Number(v.basePrice)||0),0),
+    addons: vehicles.reduce((s,v)=>s+(Number(v.addonTotal)||0),0),
+  };
+}
+
+function renderStep5Summary(){
+  const parts = bkCartServiceParts();
+  const discount = (ST.offerPreview && ST.offerPreview.eligibility_status === 'eligible')
+    ? (ST.offerPreview.discount_amount || 0) / 100 : 0;
+  renderBkFinancialSummary({
+    servicePrice: parts.base,
+    addonTotal: parts.addons,
+    travelFee: getTravelFeeAmount(),
+    discount,
+    discountLabel: 'New Customer Welcome — 10%',
+  });
+}
+
+function toggleBkPriceDetails(){
+  const btn = document.getElementById('bk-details-toggle');
+  const panel = document.getElementById('bk-financial-lines');
+  if(!btn || !panel) return;
+  const open = btn.getAttribute('aria-expanded') === 'true';
+  btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+  panel.hidden = open;
+}
 
 function ensureStep5Defaults(){
   if(!ST.payMethod){
@@ -4935,8 +5005,15 @@ function fillConfirm(){
   document.getElementById('c-cat').textContent=catLabels[ST.cat]||ST.cat;
   document.getElementById('c-veh').textContent=ST.vehicleLabel;
   document.getElementById('c-pkg').textContent=(ST.pkg?.name||'—')+' Package';
-  document.getElementById('c-pprice').textContent=ST.basePrice ? '$'+(ST.basePrice+fee) : 'Estimate';
-  document.getElementById('c-total').textContent=total ? '$'+total.toFixed(2) : 'Estimate';
+  const cParts=bkCartServiceParts();
+  document.getElementById('c-pprice').textContent=cParts.base ? bkMoney(cParts.base) : 'Estimate';
+  const travelLine=document.getElementById('c-travel-line');
+  if(travelLine){
+    travelLine.innerHTML = fee > 0
+      ? '<div class="or"><span class="ol">Mobile service adjustment</span><span class="ov">+'+bkMoney(fee)+'</span></div>'
+      : '';
+  }
+  document.getElementById('c-total').textContent=total ? bkMoney(total) : 'Estimate';
   const offerLine = document.getElementById('c-offer-line');
   if (offerLine) {
     offerLine.style.display = discount > 0 ? '' : 'none';
@@ -4953,7 +5030,7 @@ function fillConfirm(){
   const payLabels={'card_onsite':'Card on-site','cash_onsite':'Cash on-site','online_after_service':'Online after service'};
   const pmEl=document.getElementById('c-pay-method'); if(pmEl) pmEl.textContent=payLabels[ST.payMethod]||'Not selected';
   document.getElementById('c-addon-rows').innerHTML=ST.addons.length
-    ?ST.addons.map(a=>`<div class="or"><span class="ol">+ ${a.name}${a.qty>1?' ×'+a.qty:''}</span><span class="ov">+$${a.price*(a.qty||1)}</span></div>`).join('')
+    ?ST.addons.map(a=>`<div class="or"><span class="ol">+ ${a.name}${a.qty>1?' ×'+a.qty:''}</span><span class="ov">+${bkMoney(a.price*(a.qty||1))}</span></div>`).join('')
     :'<div class="or"><span class="ol">Add-ons</span><span class="ov" style="color:var(--mu)">None</span></div>';
 }
 
@@ -5125,7 +5202,7 @@ Vehicle: ${b.vehicle}
 Units: ${b.units||1}
 Package: ${b.package}
 Add-ons: ${addons}
-Estimated total: $${b.totalPrice}
+Estimated total: $${(Number(b.totalPrice)||0).toFixed(2)}
 Pay method: ${({deposit_card:'Card deposit (online)',link:'Secure payment link',card_onsite:'CARD ON-SITE (in person)',cash_onsite:'CASH ON-SITE',pending:'Not selected'})[b.paymentMethod]||b.paymentMethod||'Not selected'}
 Payment: ${b.paymentStatus==='authorized'?('Deposit authorized $'+((b.depositCents||0)/100).toFixed(2)):(b.paymentStatus==='link_sent'?'Payment link sent':'None yet')} · Cardholder: ${b.cardholderName||'N/A'} · Link pref: ${b.linkPreference||'N/A'}
 ${formatSiteAccessForText(b)?formatSiteAccessForText(b)+'\n':''}Notes: ${b.notes||'None'}`;
@@ -5146,7 +5223,7 @@ function showSuccess(payload){
   document.getElementById('bs-ok').classList.add('on');
   document.getElementById('ok-pkg').textContent=(ST.pkg?.name||b.package||'—')+' Package';
   document.getElementById('ok-veh').textContent=ST.vehicleLabel||b.vehicle||'—';
-  document.getElementById('ok-total').textContent=(b.totalPrice||0)?'$'+b.totalPrice:'Estimate';
+  document.getElementById('ok-total').textContent=(b.totalPrice||0)?bkMoney(b.totalPrice):'Estimate';
   document.getElementById('ok-date').textContent=b.preferredDate||document.getElementById('f-date').value;
   const titleEl=document.getElementById('ok-title');
   const subEl=document.getElementById('ok-sub');

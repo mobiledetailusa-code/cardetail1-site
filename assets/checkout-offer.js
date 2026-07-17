@@ -48,21 +48,34 @@
     if (el) el.hidden = true;
   }
 
+  function cartAddonTotal(serviceSubtotal) {
+    var addons = 0;
+    try {
+      var st = global.ST || {};
+      if (st.vehicles && st.vehicles.length) {
+        addons = st.vehicles.reduce(function (s, v) { return s + (Number(v.addonTotal) || 0); }, 0);
+      } else {
+        addons = Number(st.addonTotal) || 0;
+      }
+    } catch (e) { addons = 0; }
+    return Math.min(Math.max(0, addons), Math.max(0, serviceSubtotal || 0));
+  }
+
   function renderOfferLines(offer, serviceSubtotal, travelFee) {
     var discount = offer && offer.eligibility_status === 'eligible'
       ? (offer.discount_amount || 0) / 100 : 0;
     var total = Math.max(0, (serviceSubtotal || 0) + (travelFee || 0) - discount);
-    var lines = document.getElementById('bk-financial-lines');
-    if (!lines) return;
-    var html = '';
-    html += row('Service subtotal', money(serviceSubtotal));
-    if (discount > 0) {
-      html += row('New Customer Welcome — 10%', '-' + money(discount), 'discount');
+    // serviceSubtotal is server-authoritative and includes add-ons; split for display only.
+    var addons = cartAddonTotal(serviceSubtotal);
+    if (typeof global.renderBkFinancialSummary === 'function') {
+      total = global.renderBkFinancialSummary({
+        servicePrice: (serviceSubtotal || 0) - addons,
+        addonTotal: addons,
+        travelFee: travelFee || 0,
+        discount: discount,
+        discountLabel: 'New Customer Welcome — 10%',
+      });
     }
-    html += row('Travel', money(travelFee));
-    html += row('Estimated total', money(total), 'total');
-    html += row('Charged today', '$0.00', 'muted');
-    lines.innerHTML = html;
 
     var discEl = document.getElementById('c-offer-line');
     if (discEl) {
@@ -73,10 +86,6 @@
     }
     var totalEl = document.getElementById('c-total');
     if (totalEl && total > 0) totalEl.textContent = money(total);
-  }
-
-  function row(label, val, cls) {
-    return '<div class="bk-fin-row' + (cls ? ' bk-fin-' + cls : '') + '"><span>' + label + '</span><span>' + val + '</span></div>';
   }
 
   function money(n) {
