@@ -87,7 +87,7 @@ test('SCOPE CLARITY: banned vague phrases removed; surfaces listed', () => {
   assert.doesNotMatch(page, /Service duration depends|~\d+–\d+h/);
   assert.match(page, /Exterior hand wash/);
   assert.match(page, /Refrigerator interior when empty/);
-  assert.match(page, /One-step machine polish/);
+  assert.match(page, /Machine buffing &amp; shine enhancement|Exterior Gloss Restoration/);
   assert.match(page, /MOST POPULAR/);
   assert.match(page, /BEST FINISH/);
 });

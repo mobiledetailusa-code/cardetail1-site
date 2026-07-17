@@ -150,6 +150,15 @@ button { font-family: inherit; }
   font-size: 16px;
   line-height: 1.65;
 }
+.sp-hero-emotional {
+  color: #dce6f2;
+  max-width: 680px;
+  margin: 0 auto 14px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+}
 .sp-hero-area {
   color: var(--sp-muted);
   font-size: 13px;
@@ -307,6 +316,36 @@ button { font-family: inherit; }
   max-width: 760px;
   margin: 20px auto 0;
   line-height: 1.55;
+}
+.rv-pkg-support {
+  max-width: 720px;
+  margin: 28px auto 0;
+  padding: 18px 22px;
+  border-radius: 12px;
+  border: 1px solid rgba(77, 163, 255, 0.22);
+  background: linear-gradient(135deg, rgba(77, 163, 255, 0.08), rgba(12, 18, 28, 0.55));
+  text-align: center;
+}
+.rv-pkg-support-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #e8eef5;
+  letter-spacing: 0.02em;
+}
+.rv-pkg-support-copy {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--sp-muted);
+}
+.rv-pkg-support-copy a {
+  color: var(--sp-blue);
+  font-weight: 600;
+  text-decoration: none;
+}
+.rv-pkg-support-copy a:hover {
+  text-decoration: underline;
 }
 .sp-pkg-why {
   font-size: 13px;
