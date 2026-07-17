@@ -23,7 +23,7 @@
 | Remediation branch | `fix/final-production-readiness` |
 | Worktree | `C:\Users\magno\Desktop\Cardetail1\cardetail1-final-readiness` |
 | Parent SHA | `d30a713849ed705fe1faf96161f3ba65c4c4c8e8` |
-| Remediation commit | *(recorded at commit time; see git log on branch)* |
+| Remediation commit | `70897631f42f4287a1156e81dfd6e34824fa61e7` |
 
 ## 3. Branch Deploy URL and SHA
 
