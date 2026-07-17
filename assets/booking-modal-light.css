@@ -273,6 +273,30 @@
   color: var(--ink-soft, #475569) !important;
 }
 
+/* Step 5 price details — keep total readable on light panels */
+.booking-modal .bk-price-details {
+  background: var(--bg2, #eef2f7);
+  border-color: var(--line-strong, rgba(15, 23, 42, 0.14));
+}
+.booking-modal .bk-fin-row {
+  color: var(--ink, #0f172a);
+  border-bottom-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .bk-fin-total span {
+  color: #0f172a !important;
+  font-weight: 700;
+}
+.booking-modal .bk-total-incl {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .bk-charged-row {
+  color: var(--ink-soft, #475569);
+  border-top-color: var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .bk-charged-copy {
+  color: var(--mu, #64748b);
+}
+
 /* Confirm / checkout */
 .booking-modal .oc {
   background: var(--bg0, #f4f6f9);

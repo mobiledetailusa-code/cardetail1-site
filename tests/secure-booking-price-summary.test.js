@@ -141,6 +141,20 @@ describe('price presentation', () => {
     assert.ok(contrast(fg[1], bg[1]) >= 4.5, `contrast ${contrast(fg[1], bg[1]).toFixed(2)} must be >= 4.5`);
   });
 
+  it('price-details Estimated total row uses dark ink (not theme --white)', () => {
+    const totalRule = html.match(/\.bk-fin-total span\{[^}]*\}/);
+    assert.ok(totalRule, 'bk-fin-total rule missing');
+    assert.match(totalRule[0], /color:#0f172a/);
+    assert.doesNotMatch(totalRule[0], /color:var\(--white\)/);
+    const lightCss = fs.readFileSync(path.join(ROOT, 'assets/booking-modal-light.css'), 'utf8');
+    assert.match(lightCss, /\.booking-modal \.bk-fin-total span\s*\{[^}]*color:\s*#0f172a/s);
+  });
+
+  it('selecting a package auto-advances to the vehicle step', () => {
+    assert.match(html, /if\(ST\.pkg && currentBkStep < 3\) setTimeout\(\(\)=>bkContinueFromPackage\(\), 180\);/);
+    assert.doesNotMatch(html, /stay on package step until Continue/);
+  });
+
   it('no competing prominent Travel row in the collapsed summary', () => {
     const summary = html.match(/<div class="bk-financial-summary"[\s\S]*?<\/div>\s*<div class="bdesc"/)[0];
     assert.doesNotMatch(summary, />Travel</);
