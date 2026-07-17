@@ -787,11 +787,11 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .bk-details-toggle:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
 .bk-details-toggle::before{content:'▸';font-size:11px;text-decoration:none;transition:transform .18s}
 .bk-details-toggle[aria-expanded="true"]::before{transform:rotate(90deg)}
-.bk-price-details{margin:4px 0 10px;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--rs)}
-.bk-fin-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--tx);padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.bk-price-details{margin:4px 0 10px;padding:10px 12px;background:#eef2f7;border:1px solid #d7e0ec;border-radius:var(--rs)}
+.bk-fin-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:#334155;padding:5px 0;border-bottom:1px solid rgba(15,23,42,.08)}
 .bk-fin-row:last-child{border-bottom:none}
 .bk-fin-discount span:last-child{color:var(--gr)}
-.bk-fin-total span{font-weight:700;color:var(--white)}
+.bk-fin-total span{font-weight:700;color:#0f172a}
 .bk-charged-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--tx);padding:8px 0 2px;border-top:1px solid rgba(255,255,255,.08);margin-top:6px}
 .bk-charged-amt{font-weight:700;color:var(--gr)}
 .bk-charged-copy{font-size:11.5px;color:var(--mu);line-height:1.5;margin:4px 0 0}
@@ -4117,7 +4117,8 @@ function selectPkg(id){
   document.getElementById('next2').disabled=!ST.pkg;
   if((ST.cat==='boats'&&ST.lengthFt)||(ST.cat==='rvs'&&(ST.lengthFt&&ST.rvType))||(ST.cat==='fleet'&&ST.units)){tryGenericConfirm();}
   if(ST.cat==='rvs') updateRvServiceSubtotal();
-  if(ST.pkg && currentBkStep < 3) { /* stay on package step until Continue */ }
+  // Auto-advance to vehicle step after package selection
+  if(ST.pkg && currentBkStep < 3) setTimeout(()=>bkContinueFromPackage(), 180);
 }
 
 // ── STEP 3: VEHICLE ───────────────────────────────────────────────────────────
