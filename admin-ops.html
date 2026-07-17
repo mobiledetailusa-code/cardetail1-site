@@ -40,8 +40,25 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac)}
 .btn.warn{background:rgba(245,158,11,.15);color:var(--warn);border:1px solid rgba(245,158,11,.25)}
 .chk{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mu);cursor:pointer;user-select:none}
 .chk input{accent-color:var(--ac)}
-.req-box{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
-.req-box h5{font-size:13px;margin-bottom:6px}
+.req-box{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.req-box h5{font-size:15px;font-weight:800;margin-bottom:4px}
+.req-pill{display:inline-block;font-size:11px;font-weight:700;padding:4px 8px;border-radius:999px;margin:0 0 10px}
+.req-pill.ok{background:rgba(74,222,128,.12);color:#4ade80}
+.req-pill.warn{background:rgba(251,191,36,.12);color:var(--warn,#fbbf24)}
+.req-money{font-size:14px;margin:0 0 10px}
+.req-warn{font-size:12px;color:var(--warn,#fbbf24);background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:8px 10px;margin:0 0 10px;line-height:1.4}
+.req-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+@media(max-width:720px){.req-cols{grid-template-columns:1fr}}
+.req-col{background:rgba(0,0,0,.18);border:1px solid var(--line);border-radius:8px;padding:10px}
+.req-col-new{border-color:rgba(77,163,255,.35)}
+.req-col-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);font-weight:700;margin-bottom:8px}
+.req-dl{margin:0}
+.req-dl > div{margin-bottom:8px}
+.req-dl dt{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu)}
+.req-dl dd{font-size:13px;font-weight:600;margin:2px 0 0;line-height:1.35;word-break:break-word}
+.req-tech{margin-top:10px;font-size:12px;color:var(--mu)}
+.req-tech summary{cursor:pointer;color:var(--ac,#4da3ff)}
+.req-pre{margin-top:8px;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:140px;overflow:auto;background:rgba(0,0,0,.25);padding:8px;border-radius:6px}
 .hint{font-size:12px;color:var(--mu);margin-bottom:12px;line-height:1.5}
 .op-grid{display:grid;gap:8px;margin-top:8px}
 .op-grid input,.op-grid select{margin-bottom:0}
@@ -170,7 +187,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   <section class="panel" id="p-requests">
     <h3 style="font-size:14px;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--ac)">Customer Change Requests</h3>
-    <p class="hint">Portal change requests awaiting admin review. Auto-apply on approve: reschedule, address, cancellation, package change, add-ons, and vehicle add/replace. Maintenance plans and discounts need manual follow-up after approval. Use Confirm pay link after money-changing approvals.</p>
+    <p class="hint">Read each card in plain language: what is on the booking now vs what the customer asked for. Approve updates the booking for reschedule, address, cancel, package, add-ons, and vehicle changes. Maintenance plans still need a quick manual follow-up. After money changes, use Confirm pay link.</p>
     <div id="requestsList"><div class="empty">Loading…</div></div>
   </section>
 
@@ -652,30 +669,129 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     try { return JSON.stringify(o || {}); } catch { return '{}'; }
   }
 
-  function formatRequestSummary(r) {
+  function moneyLabel(n) {
+    if (n == null || n === '') return '';
+    const v = Number(n);
+    if (!Number.isFinite(v)) return '';
+    return '$' + v.toFixed(2);
+  }
+
+  function categoryLabel(id) {
+    const map = {
+      cars: 'Car / SUV / Truck',
+      boats: 'Boat / Marine',
+      rvs: 'RV / Trailer',
+      powersports: 'Powersports',
+      fleet: 'Fleet / Commercial',
+    };
+    return map[String(id || '').toLowerCase()] || (id || '—');
+  }
+
+  function requestTitle(r) {
+    const titles = {
+      package_change_request: 'Change package',
+      addon_request: 'Add service add-ons',
+      vehicle_add_request: 'Add a vehicle',
+      vehicle_replace_request: 'Replace vehicle',
+      reschedule_request: 'Reschedule appointment',
+      address_update: 'Update service address',
+      cancellation: 'Cancel appointment',
+      cancellation_request: 'Cancel appointment',
+      maintenance_request: 'Maintenance plan request',
+      discount_request: 'Discount request',
+    };
+    return titles[r.requestType] || r.typeLabel || r.requestType || 'Customer request';
+  }
+
+  function plainPrevious(r) {
+    const p = r.previousState || {};
+    const lines = [];
+    if (p.package || p.service) lines.push(['Current package', p.package || p.service]);
+    if (p.preferredDate) lines.push(['Current date', p.preferredDate + (p.preferredTime ? ' · ' + p.preferredTime : '')]);
+    if (p.address) lines.push(['Current address', p.address]);
+    if (p.vehicleLabel || p.vehicle) lines.push(['Current vehicle', p.vehicleLabel || p.vehicle]);
+    if (p.vehicleCount != null) lines.push(['Vehicles on booking', String(p.vehicleCount)]);
+    if (p.status) lines.push(['Booking status', p.status]);
+    if (p.approvedFinalAmount != null || p.totalPrice != null) {
+      lines.push(['Current total', moneyLabel(p.approvedFinalAmount != null ? p.approvedFinalAmount : p.totalPrice)]);
+    }
+    return lines;
+  }
+
+  function plainRequested(r) {
     const rs = r.requestedState || {};
     const t = r.requestType;
+    const lines = [];
+    const warnings = [];
+
     if (t === 'package_change_request') {
-      return 'Package → ' + (rs.packageName || rs.packageId || '—') +
-        (rs.lengthFt ? ' · ' + rs.lengthFt + ' ft' : '') +
-        (rs.proposedTotal != null ? ' · proposed $' + Number(rs.proposedTotal).toFixed(2) : '');
+      lines.push(['Requested package', rs.packageName || rs.packageId || '—']);
+      if (rs.packageDescription) lines.push(['What it includes', rs.packageDescription]);
+      if (rs.lengthFt) lines.push(['Vehicle length', rs.lengthFt + ' ft']);
+      if (rs.vehicleCategory) lines.push(['Category', categoryLabel(rs.vehicleCategory)]);
+      if (rs.packagePrice != null) lines.push(['Package price', moneyLabel(rs.packagePrice)]);
+      if (rs.proposedTotal != null) lines.push(['New total if approved', moneyLabel(rs.proposedTotal)]);
+    } else if (t === 'addon_request') {
+      const names = (rs.addons || []).map(a => {
+        const price = a.price != null ? ' (' + moneyLabel(a.price) + ')' : '';
+        return (a.name || a.id || 'Add-on') + price;
+      });
+      lines.push(['Add-ons requested', names.length ? names.join(', ') : (rs.requestedAddons || '—')]);
+      if (rs.addonTotal != null) lines.push(['Add-ons subtotal', moneyLabel(rs.addonTotal)]);
+      if (rs.proposedTotal != null) lines.push(['New total if approved', moneyLabel(rs.proposedTotal)]);
+    } else if (t === 'vehicle_add_request' || t === 'vehicle_replace_request') {
+      const label = rs.vehicleLabel || [rs.year, rs.make, rs.model].filter(Boolean).join(' ') || '—';
+      lines.push([t === 'vehicle_replace_request' ? 'Replace with' : 'Add vehicle', label]);
+      if (rs.category) lines.push(['Category', categoryLabel(rs.category)]);
+      if (rs.year) lines.push(['Year', rs.year]);
+      if (rs.make) lines.push(['Make', rs.make]);
+      if (rs.model) lines.push(['Model', rs.model]);
+      if (rs.lengthFt) lines.push(['Length', rs.lengthFt + ' ft']);
+      const cat = String(rs.category || '').toLowerCase();
+      const hay = (label + ' ' + (rs.make || '') + ' ' + (rs.model || '')).toLowerCase();
+      if (cat === 'boats' && /civic|camry|accord|corolla|f-?150|silverado|rav4|cr-?v/i.test(hay)) {
+        warnings.push('Category is Boat, but the vehicle name looks like a car. Confirm with customer before approving.');
+      }
+      if (cat === 'rvs' && /civic|camry|accord|corolla/i.test(hay)) {
+        warnings.push('Category is RV, but the vehicle name looks like a car. Confirm with customer before approving.');
+      }
+      if ((cat === 'cars' || !cat) && /\b(ft|foot|yacht|pontoon|trailer|motorhome|class\s*[abc])\b/i.test(hay)) {
+        warnings.push('Vehicle name may not match a standard car category. Double-check size/type.');
+      }
+    } else if (t === 'maintenance_request') {
+      lines.push(['Frequency', rs.maintenancePeriodLabel || rs.periodLabel || rs.maintenancePeriod || rs.period || '—']);
+      lines.push(['Plan package', rs.packageName || rs.packageId || '—']);
+      if (rs.packagePrice != null) lines.push(['Package base', moneyLabel(rs.packagePrice)]);
+      if (rs.maintenanceNote || rs.note) lines.push(['Customer note', rs.maintenanceNote || rs.note]);
+    } else if (t === 'reschedule_request') {
+      lines.push(['New preferred date', rs.preferredDate || rs.newDate || '—']);
+      if (rs.preferredTime || rs.newTime) lines.push(['New preferred time', rs.preferredTime || rs.newTime]);
+    } else if (t === 'address_update') {
+      lines.push(['New address', rs.address || rs.newAddress || '—']);
+    } else if (t === 'cancellation' || t === 'cancellation_request') {
+      lines.push(['Reason', rs.reason || 'Customer requested cancellation']);
+    } else if (rs && Object.keys(rs).length) {
+      Object.keys(rs).forEach(k => {
+        const v = rs[k];
+        if (v == null || v === '' || typeof v === 'object') return;
+        lines.push([k, String(v)]);
+      });
+    } else {
+      lines.push(['Details', 'No structured details on this request']);
     }
-    if (t === 'addon_request') {
-      const names = (rs.addons || []).map(a => a.name || a.id).join(', ') || 'Add-ons';
-      return names + (rs.proposedTotal != null ? ' · proposed $' + Number(rs.proposedTotal).toFixed(2) : '');
-    }
-    if (t === 'vehicle_add_request' || t === 'vehicle_replace_request') {
-      return (rs.vehicleLabel || [rs.year, rs.make, rs.model].filter(Boolean).join(' ') || 'Vehicle') +
-        (rs.category ? ' · ' + rs.category : '');
-    }
-    if (t === 'maintenance_request') {
-      return (rs.maintenancePeriodLabel || rs.periodLabel || rs.maintenancePeriod || rs.period || 'Plan') +
-        ' · ' + (rs.packageName || rs.packageId || 'Package');
-    }
-    if (t === 'reschedule_request') return (rs.preferredDate || '') + (rs.preferredTime ? ' · ' + rs.preferredTime : '');
-    if (t === 'address_update') return rs.address || 'New address';
-    if (t === 'cancellation' || t === 'cancellation_request') return rs.reason || 'Cancellation';
-    return safeReqJson(rs);
+    return { lines, warnings };
+  }
+
+  function dlRows(rows) {
+    if (!rows || !rows.length) return '<div class="hint" style="margin:0">No details on file.</div>';
+    return '<dl class="req-dl">' + rows.map(([k, v]) =>
+      '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>'
+    ).join('') + '</dl>';
+  }
+
+  function formatRequestSummary(r) {
+    const { lines } = plainRequested(r);
+    return lines.map(([k, v]) => k + ': ' + v).join(' · ');
   }
 
   function renderRequests() {
@@ -690,24 +806,36 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       'package_change_request','addon_request','vehicle_add_request','vehicle_replace_request',
     ]);
     el.innerHTML = list.map(r => {
-      const prev = esc(safeReqJson(r.previousState));
-      const summary = esc(formatRequestSummary(r));
+      const prevRows = plainPrevious(r);
+      const req = plainRequested(r);
       const manual = !autoApply.has(r.requestType);
       const moneyChange = ['package_change_request','addon_request','discount_request'].includes(r.requestType);
+      const proposed = r.requestedState && r.requestedState.proposedTotal;
+      const title = requestTitle(r);
+      const techId = 'req-tech-' + String(r.id || '').replace(/[^\w-]/g, '');
       return '<div class="req-box" data-req="'+esc(r.id)+'">'+
-        '<h5>'+esc(r.typeLabel || r.requestType)+' · <span style="font-family:monospace;font-size:11px">'+esc(r.shortId || r.id)+'</span></h5>'+
-        '<div style="font-size:12px;color:var(--mu);margin-bottom:6px">Booking: <code>'+esc(r.bookingId)+'</code> · '+dt(r.createdAt)+' · '+esc(r.status)+'</div>'+
-        (manual ? '<div style="font-size:11px;color:var(--warn);margin-bottom:6px">Manual follow-up required after approval</div>' : '<div style="font-size:11px;color:var(--ok,#4ade80);margin-bottom:6px">Auto-applies to booking on approve</div>')+
-        (moneyChange && r.requestedState && r.requestedState.proposedTotal != null
-          ? '<div style="font-size:13px;font-weight:700;margin-bottom:6px">Proposed total: $'+Number(r.requestedState.proposedTotal).toFixed(2)+'</div>'
+        '<h5 style="font-size:15px;margin-bottom:4px">'+esc(title)+'</h5>'+
+        '<div style="font-size:12px;color:var(--mu);margin-bottom:8px">Booking <code>'+esc(r.bookingId)+'</code> · '+dt(r.createdAt)+' · '+esc(r.status || 'pending')+'</div>'+
+        (manual
+          ? '<div class="req-pill warn">Needs manual follow-up after approve</div>'
+          : '<div class="req-pill ok">Approving updates the booking automatically</div>')+
+        (moneyChange && proposed != null
+          ? '<div class="req-money">New total if approved: <strong>'+esc(moneyLabel(proposed))+'</strong></div>'
           : '')+
-        '<div style="font-size:12px;margin-bottom:6px"><b>Requested:</b> '+summary+'</div>'+
-        '<div style="font-size:11px;color:var(--mu);margin-bottom:8px"><b>Previous (raw):</b> '+prev+'</div>'+
-        (r.customerVisibleResult ? '<div style="font-size:11px;margin-bottom:8px">Customer: '+esc(r.customerVisibleResult)+'</div>' : '')+
-        '<div class="actions">'+
+        (req.warnings || []).map(w => '<div class="req-warn">⚠ '+esc(w)+'</div>').join('')+
+        '<div class="req-cols">'+
+          '<div class="req-col"><div class="req-col-h">Currently on booking</div>'+dlRows(prevRows)+'</div>'+
+          '<div class="req-col req-col-new"><div class="req-col-h">Customer is asking for</div>'+dlRows(req.lines)+'</div>'+
+        '</div>'+
+        (r.customerVisibleResult ? '<div class="hint" style="margin-top:8px">Last customer message: '+esc(r.customerVisibleResult)+'</div>' : '')+
+        '<details class="req-tech"><summary>Technical details (optional)</summary>'+
+          '<div class="hint" style="margin-top:6px">Request ID: <code>'+esc(r.shortId || r.id)+'</code> · Type: <code>'+esc(r.requestType)+'</code></div>'+
+          '<pre class="req-pre">'+esc(safeReqJson({ previous: r.previousState, requested: r.requestedState }))+'</pre>'+
+        '</details>'+
+        '<div class="actions" style="margin-top:12px">'+
         '<button type="button" class="btn sm req-approve" data-id="'+esc(r.id)+'">Approve</button>'+
         '<button type="button" class="btn ghost sm req-reject" data-id="'+esc(r.id)+'">Reject</button>'+
-        '<button type="button" class="btn ghost sm req-clarify" data-id="'+esc(r.id)+'">Request clarification</button>'+
+        '<button type="button" class="btn ghost sm req-clarify" data-id="'+esc(r.id)+'">Ask customer for clarification</button>'+
         '<button type="button" class="btn ghost sm req-open" data-bid="'+esc(r.bookingId)+'">Open booking</button>'+
         '<button type="button" class="btn ghost sm req-pay" data-bid="'+esc(r.bookingId)+'">Confirm pay link</button>'+
         '</div></div>';
@@ -717,13 +845,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       const id = b.dataset.id;
       const r = list.find(x => x.id === id);
       const msg = r && !autoApply.has(r.requestType)
-        ? 'This request type requires manual follow-up after approval. Continue?'
-        : 'Approve this customer request?';
+        ? 'This request still needs manual follow-up after approval. Continue?'
+        : 'Approve this request and update the booking?';
       if (!confirm(msg)) return;
       b.disabled = true;
       try {
         await decideChangeRequest(id, 'approve');
-        toast('Request approved');
+        toast('Request approved — booking updated');
         await refreshAll();
       } catch(e) { toast(e.message); b.disabled = false; }
     });
@@ -739,7 +867,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       } catch(e) { toast(e.message); b.disabled = false; }
     });
     el.querySelectorAll('.req-clarify').forEach(b => b.onclick = async () => {
-      const note = prompt('Clarification message:');
+      const note = prompt('Clarification message for the customer:');
       if (!note) return;
       b.disabled = true;
       try {
