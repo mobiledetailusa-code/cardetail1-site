@@ -431,13 +431,26 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     return changeRequests;
   }
 
-  async function decideChangeRequest(requestId, decision, adminNote) {
-    return api('/.netlify/functions/admin-customer-requests', 'POST', {
+  async function decideChangeRequest(requestId, decision, adminNote, extra) {
+    const body = Object.assign({
       action: 'decide',
       requestId,
       decision,
       adminNote: adminNote || '',
-    });
+    }, extra || {});
+    try {
+      return await api('/.netlify/functions/admin-customer-requests', 'POST', body);
+    } catch (e) {
+      // Booking moved since the request — retry once with requote acceptance.
+      if (decision === 'approve' && String(e.message || '') === 'version_conflict' && !body.acceptRequote) {
+        if (confirm('Booking changed since this request. Approve using the updated quote?')) {
+          return api('/.netlify/functions/admin-customer-requests', 'POST', Object.assign({}, body, {
+            acceptRequote: true,
+          }));
+        }
+      }
+      throw e;
+    }
   }
 
   async function loadJobs(extra) {

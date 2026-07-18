@@ -66,10 +66,13 @@ async function submitChangeRequestCommand({
   let service = aggregate.service;
   let quote = aggregate.quote;
   let schedulePatch = {};
-  let noop = false;
+  let proposedApprovedCents = null;
+  let proposedQuoteVersion = null;
 
   const moneyTypes = new Set(['package_change_request', 'addon_request']);
   if (moneyTypes.has(requestType)) {
+    // Proposal only — compute quote from a tentative service delta, but do NOT mutate
+    // live service/quote until Admin approve. Premature apply caused approve noop → version_conflict.
     const applied = applyServiceDelta(service, target, delta);
     if (!applied.ok) return { ok: false, error: applied.error, statusCode: 400 };
     if (applied.noop) {
@@ -81,17 +84,19 @@ async function submitChangeRequestCommand({
         projection: materialProjection(aggregate),
       };
     }
-    service = applied.service;
     const travelCents = dollarsToCents(aggregate.travelFeeAmount || aggregate.zoneSurcharge || 0);
-    const quoted = quoteService(service, {
+    const quoted = quoteService(applied.service, {
       basedOnBookingVersion: actualVersion,
       previousQuoteVersion: aggregate.quoteVersion || aggregate.quote?.quoteVersion || 0,
       travelCents,
       bookingBase: aggregate,
     });
     if (!quoted.ok) return { ok: false, error: quoted.error || 'invalid_pricing', statusCode: 400 };
-    quote = quoted.quote;
-    service = quoted.service;
+    proposedApprovedCents = quoted.quote.approvedCents;
+    proposedQuoteVersion = quoted.quote.quoteVersion;
+    // Keep live service + quote unchanged until decide(approve)
+    service = aggregate.service;
+    quote = aggregate.quote;
   } else if (requestType === 'reschedule_request') {
     schedulePatch = {
       rescheduledByClient: true,
@@ -127,7 +132,10 @@ async function submitChangeRequestCommand({
     status: 'pending',
     submittedBy: authorizedRef || 'customer',
     submittedAt: new Date().toISOString(),
-    proposedApprovedCents: quote?.approvedCents ?? null,
+    proposedApprovedCents: proposedApprovedCents != null
+      ? proposedApprovedCents
+      : (quote?.approvedCents ?? null),
+    proposedQuoteVersion: proposedQuoteVersion,
   };
   changeRequest.id = changeRequest.requestId;
 
@@ -142,9 +150,9 @@ async function submitChangeRequestCommand({
     ...(extraPatches && typeof extraPatches === 'object' ? extraPatches : {}),
   };
 
-  if (moneyTypes.has(requestType) && quote) {
+  if (moneyTypes.has(requestType) && proposedApprovedCents != null) {
     // Proposal only — do not change ledger until Admin applies
-    patches.proposedTotal = (quote.approvedCents || 0) / 100;
+    patches.proposedTotal = (proposedApprovedCents || 0) / 100;
   }
 
   const next = buildNextAggregate(aggregate, patches);
@@ -294,39 +302,61 @@ async function decideChangeRequestCommand({
   }
   // True drift: booking moved past the version that embedded this pending request.
   // Legacy index rows without embeddedBookingVersion skip this check; CAS still applies.
+  const moneyDelta = {
+    packageId: cr.delta?.packageId || cr.delta?.newPackId,
+    addOnIdsToAdd: cr.delta?.addOnIdsToAdd || cr.delta?.addonIds || asArray(cr.delta?.addons).map((a) => a.id),
+    packageName: cr.delta?.packageName,
+    vehicleCategory: cr.delta?.vehicleCategory || cr.delta?.category,
+    tierKey: cr.delta?.tierKey || cr.delta?.tier,
+    tierLabel: cr.delta?.tierLabel,
+    lengthFt: cr.delta?.lengthFt,
+  };
   const embeddedAt = cr.embeddedBookingVersion != null
     ? Math.round(Number(cr.embeddedBookingVersion) || 0)
     : actualVersion;
+  let alreadyOnBooking = false;
   if (actualVersion !== embeddedAt) {
-    // Stale — requote path
-    const applied = applyServiceDelta(aggregate.service, cr.target, cr.delta);
-    if (!applied.ok || applied.noop) {
+    const probe = applyServiceDelta(aggregate.service, cr.target || {}, moneyDelta);
+    if (!probe.ok) {
       return { ok: false, error: 'version_conflict', statusCode: 409, reason: 'stale_base' };
     }
-    const travelCents = dollarsToCents(aggregate.travelFeeAmount || aggregate.zoneSurcharge || 0);
-    const requoted = quoteService(applied.service, {
-      basedOnBookingVersion: actualVersion,
-      previousQuoteVersion: aggregate.quoteVersion || 0,
-      travelCents,
-      bookingBase: aggregate,
-    });
-    if (!acceptRequote) {
+    if (probe.noop) {
+      // Requested delta already present (common after older submit-applied-live bug).
+      alreadyOnBooking = true;
+    } else if (!acceptRequote) {
+      const travelCents = dollarsToCents(aggregate.travelFeeAmount || aggregate.zoneSurcharge || 0);
+      const requoted = quoteService(probe.service, {
+        basedOnBookingVersion: actualVersion,
+        previousQuoteVersion: aggregate.quoteVersion || 0,
+        travelCents,
+        bookingBase: aggregate,
+      });
       return {
         ok: false,
         error: 'version_conflict',
         statusCode: 409,
         requoteRequired: true,
         quote: requoted.ok ? requoted.quote : null,
+        message: 'Booking changed since this request. Confirm to approve with the updated quote.',
+      };
+    } else {
+      const travelCents = dollarsToCents(aggregate.travelFeeAmount || aggregate.zoneSurcharge || 0);
+      const requoted = quoteService(probe.service, {
+        basedOnBookingVersion: actualVersion,
+        previousQuoteVersion: aggregate.quoteVersion || 0,
+        travelCents,
+        bookingBase: aggregate,
+      });
+      if (!requoted.ok) return { ok: false, error: requoted.error || 'invalid_pricing', statusCode: 400 };
+      cr = {
+        ...cr,
+        baseBookingVersion: actualVersion,
+        embeddedBookingVersion: actualVersion,
+        quoteVersion: requoted.quote.quoteVersion,
+        delta: cr.delta,
+        proposedApprovedCents: requoted.quote.approvedCents,
       };
     }
-    cr = {
-      ...cr,
-      baseBookingVersion: actualVersion,
-      embeddedBookingVersion: actualVersion,
-      quoteVersion: requoted.quote.quoteVersion,
-      delta: cr.delta,
-      proposedApprovedCents: requoted.quote.approvedCents,
-    };
   }
 
   const moneyTypes = new Set(['package_change_request', 'addon_request']);
@@ -336,43 +366,37 @@ async function decideChangeRequestCommand({
   let ledger = aggregate.ledger;
   const rtDecide = cr.type || cr.requestType;
 
-  if (moneyTypes.has(rtDecide)) {
-    const applied = applyServiceDelta(service, cr.target || {}, {
-      packageId: cr.delta?.packageId || cr.delta?.newPackId,
-      addOnIdsToAdd: cr.delta?.addOnIdsToAdd || cr.delta?.addonIds || asArray(cr.delta?.addons).map((a) => a.id),
-      packageName: cr.delta?.packageName,
-      vehicleCategory: cr.delta?.vehicleCategory || cr.delta?.category,
-      tierKey: cr.delta?.tierKey || cr.delta?.tier,
-      tierLabel: cr.delta?.tierLabel,
-      lengthFt: cr.delta?.lengthFt,
-    });
+  if (moneyTypes.has(rtDecide) && !alreadyOnBooking) {
+    const applied = applyServiceDelta(service, cr.target || {}, moneyDelta);
     if (!applied.ok) return { ok: false, error: applied.error, statusCode: 400 };
     if (applied.noop) {
-      return { ok: true, noop: true, booking: aggregate, projection: materialProjection(aggregate) };
-    }
-    service = applied.service;
-    const travelCents = dollarsToCents(aggregate.travelFeeAmount || aggregate.zoneSurcharge || 0);
-    const quoted = quoteService(service, {
-      basedOnBookingVersion: actualVersion,
-      previousQuoteVersion: aggregate.quoteVersion || aggregate.quote?.quoteVersion || 0,
-      travelCents,
-      bookingBase: aggregate,
-    });
-    if (!quoted.ok) return { ok: false, error: quoted.error, statusCode: 400 };
-    quote = quoted.quote;
-    service = quoted.service;
+      // Idempotent approve — mark applied below without requoting.
+      alreadyOnBooking = true;
+    } else {
+      service = applied.service;
+      const travelCents = dollarsToCents(aggregate.travelFeeAmount || aggregate.zoneSurcharge || 0);
+      const quoted = quoteService(service, {
+        basedOnBookingVersion: actualVersion,
+        previousQuoteVersion: aggregate.quoteVersion || aggregate.quote?.quoteVersion || 0,
+        travelCents,
+        bookingBase: aggregate,
+      });
+      if (!quoted.ok) return { ok: false, error: quoted.error, statusCode: 400 };
+      quote = quoted.quote;
+      service = quoted.service;
 
-    if (expectedQuoteVersion != null
-      && Math.round(Number(expectedQuoteVersion)) !== Math.round(Number(cr.quoteVersion) || 0)
-      && Math.round(Number(expectedQuoteVersion)) !== quote.quoteVersion) {
-      return { ok: false, error: 'quote_version_conflict', statusCode: 409 };
-    }
+      if (expectedQuoteVersion != null
+        && Math.round(Number(expectedQuoteVersion)) !== Math.round(Number(cr.quoteVersion) || 0)
+        && Math.round(Number(expectedQuoteVersion)) !== quote.quoteVersion) {
+        return { ok: false, error: 'quote_version_conflict', statusCode: 409 };
+      }
 
-    // Never trust proposedTotal from client/index — use canonical quote
-    ledger = {
-      ...ledger,
-      approvedCents: quote.approvedCents,
-    };
+      // Never trust proposedTotal from client/index — use canonical quote
+      ledger = {
+        ...ledger,
+        approvedCents: quote.approvedCents,
+      };
+    }
   } else if (vehicleTypes.has(rtDecide)) {
     const { normalizeLengthCategory } = require('./length-pricing');
     const d = cr.delta || {};

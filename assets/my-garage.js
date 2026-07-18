@@ -85,15 +85,46 @@
     return (b.vehicleLabel || b.vehicle || '—') + (length > 0 ? ' · ' + length + ' ft' : '');
   }
 
+  function normalizePackageCategory(raw) {
+    var key = String(raw || '').toLowerCase().trim();
+    if (!key) return '';
+    if (key === 'boat' || key === 'boats') return 'boats';
+    if (key === 'rv' || key === 'rvs' || key === 'trailer' || key === 'trailers') return 'rvs';
+    if (key === 'car' || key === 'cars' || key === 'suv' || key === 'truck' || key === 'van'
+      || key === 'minivan' || key === 'sedan' || key === 'coupe') {
+      return 'cars';
+    }
+    return key;
+  }
+
+  function inferCategoryFromPackageId(packId) {
+    var cat = getCatalog();
+    var id = String(packId || '');
+    if (!id || !cat.packagesByCategory) return '';
+    var keys = Object.keys(cat.packagesByCategory);
+    for (var i = 0; i < keys.length; i += 1) {
+      var list = cat.packagesByCategory[keys[i]] || [];
+      if (list.some(function (p) { return p && p.id === id; })) return keys[i];
+    }
+    return '';
+  }
+
   function packagesForBooking() {
     var cat = getCatalog();
-    var bookingCat = String((state.booking && (state.booking.vehicleCategory || state.booking.cat)) || 'cars').toLowerCase();
-    if (bookingCat === 'boat') bookingCat = 'boats';
-    if (bookingCat === 'rv' || bookingCat === 'trailer') bookingCat = 'rvs';
-    if (cat.packagesByCategory && cat.packagesByCategory[bookingCat]) {
+    var b = state.booking || {};
+    var bookingCat = normalizePackageCategory(b.vehicleCategory || b.cat || '');
+    var packId = b.packageId || b.pkgId || '';
+    var inferred = inferCategoryFromPackageId(packId);
+    // Prefer category implied by the current package so a wrong sticky "rvs" label
+    // cannot force the Change Package modal into RV-only options for a car booking.
+    if (inferred && inferred !== bookingCat) {
+      bookingCat = inferred;
+    }
+    if (!bookingCat) bookingCat = inferred || 'cars';
+    if (cat.packagesByCategory && cat.packagesByCategory[bookingCat] && cat.packagesByCategory[bookingCat].length) {
       return { category: bookingCat, packages: cat.packagesByCategory[bookingCat] };
     }
-    return { category: 'cars', packages: cat.packages || [] };
+    return { category: 'cars', packages: cat.packages || (cat.packagesByCategory && cat.packagesByCategory.cars) || [] };
   }
 
   function lengthCfg(category) {
@@ -201,12 +232,16 @@
     // and typed IDs never reach the API.
     var formId = ($('lk-booking-id') && $('lk-booking-id').value.trim().toUpperCase()) || '';
     var formPhone = normalizePhoneInput($('lk-phone') && $('lk-phone').value);
-    var id = opts.fromForm ? formId : (state.verifyBookingId || formId);
+    var bookingId = state.booking && (state.booking.id || state.booking.bookingId);
+    var bookingPhone = state.booking && state.booking.phone;
+    var id = opts.fromForm
+      ? formId
+      : (state.verifyBookingId || formId || (bookingId ? String(bookingId).toUpperCase() : ''));
     var phone = opts.fromForm
       ? formPhone
-      : (normalizePhoneInput(state.verifyPhone) || formPhone);
+      : (normalizePhoneInput(state.verifyPhone) || formPhone || normalizePhoneInput(bookingPhone));
     if (!id || phone.length < 10) {
-      setMsg($('lk-error'), 'Enter your booking ID and phone number.', true);
+      if (opts.fromForm) setMsg($('lk-error'), 'Enter your booking ID and phone number.', true);
       return false;
     }
     var r = await post('customer-portal-data', { mode: 'limited', bookingId: id, phone: phone });
@@ -218,6 +253,13 @@
         else if (errCode === 'booking_not_ready') errMsg = 'Booking is not ready in My Garage yet.';
         else errMsg = 'No booking found. Check your ID and phone.';
       }
+      // Soft reload (poll / post-submit): never kick the customer out of the appointment hub.
+      var soft = !opts.fromForm && !!state.booking;
+      var hardAuth = errCode === 'authentication_failed' || errCode === 'booking_not_found';
+      if (soft && !hardAuth) {
+        showToast(errMsg || 'Could not refresh booking — try again shortly.', true);
+        return false;
+      }
       setMsg($('lk-error'), errMsg, true);
       show($('pre-auth'), true);
       show($('post-auth'), false);
@@ -225,6 +267,7 @@
       state.verifyBookingId = '';
       state.verifyPhone = '';
       state.actionToken = null;
+      state.booking = null;
       try {
         sessionStorage.removeItem('cd1_garage_id');
         sessionStorage.removeItem('cd1_garage_phone');
@@ -614,8 +657,11 @@
     var r = await post('submit-customer-action', body);
     if (r.data && r.data.ok) {
       showToast(r.data.pendingApproval ? 'Request submitted for admin review.' : 'Request saved.');
-      if (state.scope === 'account') await loadAccount();
-      else await loadLimited();
+      // Keep hub open even if the follow-up refresh blips — submit already succeeded.
+      try {
+        if (state.scope === 'account') await loadAccount();
+        else await loadLimited({ soft: true });
+      } catch (e) { /* ignore refresh errors */ }
       return true;
     }
     showToast((r.data && r.data.message) || 'Unable to submit request. Call/text 551-313-2956.', true);
@@ -1016,7 +1062,11 @@
         return null;
       }
       var packInfo = packagesForBooking();
-      var payload = { newPackId: pack.value, vehicleCategory: packInfo.category };
+      // Only stamp length categories — do not rewrite a car booking to rvs/boats.
+      var payload = { newPackId: pack.value };
+      if (packInfo.category === 'boats' || packInfo.category === 'rvs') {
+        payload.vehicleCategory = packInfo.category;
+      }
       if (lengthCfg(packInfo.category)) {
         var ft = Number(($('mf-lengthFt') && $('mf-lengthFt').value) || 0);
         if (!(ft > 0)) {
@@ -1354,7 +1404,12 @@
         var el = $('portal-last-updated');
         if (el) el.textContent = 'Updated ' + d.toLocaleTimeString();
       },
-      shouldPoll: function () { return !!state.booking || state.session; },
+      // Pause polling while a change modal is open so refresh cannot yank the appointment away.
+      shouldPoll: function () {
+        var modal = $('action-modal');
+        var modalOpen = modal && !modal.hidden && modal.classList.contains('open');
+        return !modalOpen && (!!state.booking || state.session);
+      },
     });
     portalRefresh.bindLifecycle();
   }

@@ -129,7 +129,8 @@ function projectBookingForCustomer(b) {
     appointmentStatus: src.appointmentStatus || (jobStatus === 'cancelled' ? 'canceled' : jobStatus === 'confirmed' ? 'confirmed' : 'pending_review'),
     package: pack,
     service: pack,
-    packageId: src.packageId || src.pkgId || '',
+    packageId: src.packageId || src.pkgId
+      || (vehiclesArr[0] && (vehiclesArr[0].packageId || vehiclesArr[0].pkgId)) || '',
     packageDescription: src.packageDescription || src.pkgTag || src.packageTag || '',
     packageDuration: src.packageDuration || src.pkgDuration || '',
     vehicle: src.vehicle || src.vehicleCategory || '',
@@ -137,8 +138,10 @@ function projectBookingForCustomer(b) {
     vehicleYear: src.vehicleYear || '',
     vehicleMake: src.vehicleMake || src.make || '',
     vehicleModel: src.vehicleModel || src.model || '',
-    vehicleCategory: src.vehicleCategory || src.cat || '',
-    vehicleLengthFt: src.vehicleLengthFt || src.lengthFt || 0,
+    vehicleCategory: src.vehicleCategory || src.cat
+      || (vehiclesArr[0] && (vehiclesArr[0].category || vehiclesArr[0].cat)) || '',
+    vehicleLengthFt: src.vehicleLengthFt || src.lengthFt
+      || (vehiclesArr[0] && vehiclesArr[0].lengthFt) || 0,
     vehicles: vehiclesArr.map(v => ({
       vehicleId: v.vehicleId || '',
       pkgName: v.pkgName || '',
