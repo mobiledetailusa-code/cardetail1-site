@@ -5364,20 +5364,29 @@ async function confirmSetupIntent(){
   if(!STRIPE_READY||!stripe||!stripeElements){ stripeMsg('stripe-status','Card not ready. Please refresh and try again.',false); return; }
   const btn=document.getElementById('stripe-auth-btn'); btn.disabled=true; btn.textContent='Saving card…';
   try{
-    const {error}=await stripe.confirmSetup({elements:stripeElements,redirect:'if_required'});
+    const {error,setupIntent}=await stripe.confirmSetup({elements:stripeElements,redirect:'if_required'});
     if(error){
       err.textContent='Card-on-file could not be completed. Please check your card details or try another card.';
       err.classList.add('show'); btn.disabled=false; btn.textContent='Save my card securely'; updateCofAuthButtonState(); return;
     }
+    if(!setupIntent||setupIntent.status!=='succeeded'){
+      ST.cardSetupConfirmed=false; ST.cardOnFileSaved=false;
+      err.textContent='Card setup did not finish successfully. Please try saving your card again.';
+      err.classList.add('show'); btn.disabled=false; btn.textContent='Save my card securely'; updateCofAuthButtonState(); return;
+    }
     ST.cardSetupConfirmed=true;
-    ST.cardOnFileSaved=true;
-    btn.textContent='✓ Card saved'; btn.disabled=true;
-    stripeMsg('stripe-status','Card verification in progress. Stripe received your card securely. We’re confirming your saved-card status. This usually takes a few seconds.',true);
-    const verified=await waitForVerifiedCardSave(8,2000);
+    btn.textContent='Verifying card…'; btn.disabled=true;
+    stripeMsg('stripe-status','Card verification in progress. Stripe accepted your card. We are confirming saved-card status on our server…',true);
+    const verified=await waitForVerifiedCardSave(10,2000);
     if(verified){
+      ST.cardOnFileSaved=true;
+      btn.textContent='✓ Card saved';
       stripeMsg('stripe-status',COF_SAVED_MSG,true);
+      if(window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onPaymentInfoSaved();
     } else {
-      stripeMsg('stripe-status','Your card was saved with Stripe. You can continue - we’ll confirm on the server when you submit. '+COF_RETRY_BTN,true);
+      ST.cardOnFileSaved=true;
+      btn.textContent='✓ Card saved';
+      stripeMsg('stripe-status','Stripe confirmed your card. Final server verification will run when you submit. '+COF_RETRY_BTN,true);
     }
     updateCofAuthButtonState();
   }catch(e){
@@ -5471,7 +5480,7 @@ async function submitBooking(){
         alert(data.userMessage||COF_VERIFY_TIMEOUT_MSG);
         return;
       }
-      throw new Error(data.error||'booking_submit_failed');
+      throw new Error(data.error||data.message||('booking_submit_failed_'+res.status));
     }
     payload.id=data.id;
     payload.status='Pending Review';
@@ -5485,7 +5494,22 @@ async function submitBooking(){
     showSuccess(payload);
   }catch(e){
     console.warn('Booking submission failed:',e.message);
-    alert('Your booking request was not submitted. Please verify the card-on-file step and try again.');
+    const code=String(e.message||'');
+    const map={
+      card_on_file_not_saved:'Your card is still being verified. Wait a few seconds and try again, or tap Retry verification.',
+      draft_token_invalid:'Your booking session expired. Go back to Secure Your Booking, save your card again, then submit.',
+      invalid_payment_preference:'Your payment preference changed. Go back one step, reselect it, and save your card again.',
+      booking_policy_required:'Please accept the Terms and the card-on-file policy before submitting.',
+      booking_store_unavailable:'Booking storage is temporarily unavailable. Please try again in a moment.',
+      stripe_test_mode_required:'Card save is blocked in this preview environment. Use Stripe test keys on the deploy preview.',
+      booking_slot_unavailable:'That time slot is no longer available. Go back and choose another time.',
+      booking_time_unavailable:'That time is unavailable. Go back and choose another slot.',
+      booking_date_unavailable:'That date is unavailable. Go back and choose another day.',
+      'Draft booking not found':'Your booking draft was not found. Go back to Secure Your Booking and save your card again.',
+      card_on_file_required:'Please securely save a card before submitting.',
+      rate_limited:'Too many attempts. Please wait a few minutes and try again.'
+    };
+    alert(map[code]||('Your booking request was not submitted ('+code+'). Please verify the card-on-file step and try again.'));
   }finally{
     btn.classList.remove('loading'); btn.disabled=false;
   }
@@ -5524,7 +5548,7 @@ function buildBookingPayload(){
     // id is for local display only; server always generates its own (C-3).
     id: ST.bookingId || ('CD1-'+Date.now().toString(36).toUpperCase()),
     // Tell server to finalize the pre-registered draft (C-2/C-3).
-    ...(ST.draftRegistered ? {draftBookingId:ST.bookingId} : {}),
+    ...(ST.draftRegistered ? {draftBookingId:ST.bookingId,draftSaveToken:ST.draftSaveToken||''} : {}),
     createdAt:new Date().toISOString(),
     // Primary vehicle fields (backward compat)
     vehicle: pv.vehicleLabel || ST.vehicleLabel,

@@ -1,8 +1,18 @@
 # CARDDETAIL1 — Final Production-Readiness Report
 
-**Report date:** 2026-07-17  
-**Final state:** FINAL REVIEW READY  
+**Report date:** 2026-07-17 (updated after card-on-file finalize hotfix)  
+**Final state:** PENDING OWNER RE-TEST — card-on-file P0 hotfix deployed to preview  
 **Production changed:** No
+
+### Card-on-file owner-review failure (hotfix)
+
+| Field | Detail |
+|---|---|
+| Symptom | Stripe test card appeared saved; final submit showed generic “verify the card-on-file step” |
+| Root cause | `buildBookingPayload()` sent `draftBookingId` but **omitted `draftSaveToken`**. Finalize required the token (Release A PDA-14) and returned `draft_token_invalid` (401), which the UI mapped to the generic card-on-file alert. |
+| Secondary issues | UI marked `cardOnFileSaved` before SetupIntent `succeeded`; delayed-webhook reconcile existed but was never reached because auth failed first. |
+| Fix | Include `draftSaveToken` on finalize payload (all booking pages); require SetupIntent `succeeded` before marking saved; shared Stripe reconcile for status + finalize; diagnostic error map; structured non-sensitive logs. |
+| Tests | `tests/card-on-file-finalize-flow.test.js` (new) + updated hardening assertions |
 
 ---
 

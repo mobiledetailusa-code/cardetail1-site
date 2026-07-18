@@ -160,9 +160,24 @@ exports.handler = async (event) => {
   }
   console.log('[create-setup-intent] SetupIntent created: yes | id prefix:', si.id ? si.id.slice(0, 15) : 'none', '| mode:', mode);
 
-  // Store setupIntentId on the draft so webhook can reconcile even if metadata lookup fails.
+  // Persist SetupIntent on the draft without dropping unrelated draft fields.
   try {
-    await store.setJSON(bookingId, { ...booking, setupIntentId: si.id, stripeCustomerId: cust.id });
+    const nextDraft = {
+      ...booking,
+      setupIntentId: si.id,
+      stripeCustomerId: cust.id,
+      // Keep prior payment-method / saved markers if webhook already applied.
+      stripePaymentMethodId: booking.stripePaymentMethodId,
+      cardOnFileStatus: booking.cardOnFileStatus || 'pending',
+      isDraft: true,
+      updatedAt: new Date().toISOString(),
+    };
+    await store.setJSON(bookingId, nextDraft);
+    console.log('[create-setup-intent] draft updated', {
+      draftBookingId: bookingId,
+      setupIntentIdPrefix: si.id ? String(si.id).slice(0, 15) : 'none',
+      cardOnFileStatus: nextDraft.cardOnFileStatus,
+    });
   } catch (e) {
     console.warn('[create-setup-intent] could not update draft with setupIntentId:', e.message);
   }
@@ -172,6 +187,7 @@ exports.handler = async (event) => {
     ok: true,
     clientSecret: si.client_secret,
     mode,
+    bookingId,
   });
 };
 

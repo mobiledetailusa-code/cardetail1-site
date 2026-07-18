@@ -1,5 +1,6 @@
 // Returns card-on-file state only after verified authorization.
 // Auth: draft token, booking+phone, customer session, or admin key.
+// When webhook is delayed, reconciles succeeded SetupIntent from Stripe.
 
 const { jsonCors, blobsStore } = require('../lib/tech-security');
 const { getBooking } = require('../lib/ops-db');
@@ -9,6 +10,7 @@ const { normalizeUsPhoneDigits } = require('../lib/phone-auth');
 const { validateCustomerSession } = require('../lib/customer-session');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 const { verifyAdminRequest } = require('../lib/admin-security');
+const { reconcileCardOnFileFromStripe, siIdPrefix } = require('../lib/card-on-file');
 
 const SAFE_STATUSES = new Set(['pending', 'saved', 'failed']);
 
@@ -62,8 +64,22 @@ exports.handler = async (event) => {
   }
 
   try {
-    const booking = await getBooking(bookingId);
+    const store = await blobsStore('cd1-bookings');
+    let booking = await store.get(bookingId, { type: 'json' }).catch(() => null);
+    if (!booking) booking = await getBooking(bookingId);
     if (!booking) return jsonCors(200, { ok: false, error: 'booking_not_found' });
+
+    const before = booking.cardOnFileStatus || 'pending';
+    if (before !== 'saved' && before !== 'failed' && booking.setupIntentId) {
+      booking = await reconcileCardOnFileFromStripe(store, booking);
+      console.log('[booking-card-status] reconcile attempt', {
+        draftBookingId: bookingId,
+        setupIntentIdPrefix: siIdPrefix(booking.setupIntentId),
+        cardOnFileStatusBefore: before,
+        cardOnFileStatusAfter: booking.cardOnFileStatus || null,
+      });
+    }
+
     const status = SAFE_STATUSES.has(booking.cardOnFileStatus) ? booking.cardOnFileStatus : 'pending';
     return jsonCors(200, { ok: true, cardOnFileStatus: status });
   } catch {

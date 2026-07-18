@@ -65,6 +65,10 @@ const {
 } = require('../lib/booking-offers');
 const { setOfferDeployHost, clearOfferDeployHost } = require('../lib/revenue-offers');
 const { sendNotificationsDecoupled, attachDeliveryToBooking } = require('../lib/notification-delivery');
+const {
+  reconcileCardOnFileFromStripe,
+  siIdPrefix,
+} = require('../lib/card-on-file');
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const v = validateBookingSchedule(b.preferredDate, b.preferredTime);
@@ -78,49 +82,6 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
     }
   }
   return { ok: true };
-}
-
-// Safe server-side fallback when webhook is delayed: verify SetupIntent with Stripe API.
-// Never trusts client proof — only persisted setupIntentId on the server-owned draft.
-async function reconcileCardOnFileFromStripe(store, existing) {
-  if (!existing || existing.cardOnFileStatus === 'saved') return existing;
-  const setupIntentId = String(existing.setupIntentId || '').trim();
-  if (!setupIntentId) return existing;
-
-  const { guardStripeOrReject } = require('../lib/stripe-mode');
-  const stripeGuard = guardStripeOrReject(process.env, { purpose: 'setup_intent_lookup' });
-  if (stripeGuard.blocked) {
-    return existing;
-  }
-  const secret = stripeGuard.secret;
-
-  try {
-    const res = await fetch(
-      `https://api.stripe.com/v1/setup_intents/${encodeURIComponent(setupIntentId)}`,
-      { headers: { Authorization: `Bearer ${secret}` } }
-    );
-    if (!res.ok) return existing;
-    const si = await res.json().catch(() => null);
-    if (!si || si.status !== 'succeeded') return existing;
-
-    const metaBooking = si.metadata && (si.metadata.bookingId || si.metadata.booking_id);
-    if (metaBooking && String(metaBooking) !== String(existing.id)) return existing;
-
-    const savedAt = existing.cardOnFileSavedAt || new Date().toISOString();
-    const updated = {
-      ...existing,
-      cardOnFileStatus: 'saved',
-      setupIntentId: si.id,
-      stripeCustomerId: si.customer || existing.stripeCustomerId || null,
-      stripePaymentMethodId: si.payment_method || existing.stripePaymentMethodId || null,
-      cardOnFileSavedAt: savedAt,
-      updatedAt: new Date().toISOString(),
-    };
-    await store.setJSON(existing.id, updated);
-    return updated;
-  } catch {
-    return existing;
-  }
 }
 
 let blobsStoreOverride = null;
@@ -518,6 +479,7 @@ exports.handler = async (event) => {
       }
       return json(409, { ok: false, error: 'Booking already finalized' });
     }
+    const finalizeTokenPresent = !!String(b.draftSaveToken || '').trim();
     const tokenCheck = verifyDraftSaveToken({
       token: b.draftSaveToken,
       bookingId: rawDraftId,
@@ -525,12 +487,32 @@ exports.handler = async (event) => {
     });
     delete b.draftSaveToken;
     if (!tokenCheck.ok) {
+      console.log('[submit-booking] finalize draft_token_invalid', {
+        draftBookingId: rawDraftId,
+        setupIntentIdPrefix: siIdPrefix(existing.setupIntentId),
+        cardOnFileStatus: existing.cardOnFileStatus || null,
+        tokenPresent: finalizeTokenPresent,
+        responseCode: 401,
+      });
       return json(401, { ok: false, error: 'draft_token_invalid' });
     }
+    const cofBefore = existing.cardOnFileStatus || 'pending';
     if (existing.cardOnFileStatus !== 'saved') {
       existing = await reconcileCardOnFileFromStripe(store, existing);
     }
+    console.log('[submit-booking] finalize card-on-file gate', {
+      draftBookingId: rawDraftId,
+      setupIntentIdPrefix: siIdPrefix(existing.setupIntentId),
+      cardOnFileStatusBefore: cofBefore,
+      cardOnFileStatusAfter: existing.cardOnFileStatus || null,
+    });
     if (existing.cardOnFileStatus !== 'saved') {
+      console.log('[submit-booking] finalize rejected card_on_file_not_saved', {
+        draftBookingId: rawDraftId,
+        setupIntentIdPrefix: siIdPrefix(existing.setupIntentId),
+        cardOnFileStatus: existing.cardOnFileStatus || null,
+        responseCode: 409,
+      });
       return json(409, {
         ok: false,
         error: 'card_on_file_not_saved',
@@ -604,6 +586,13 @@ exports.handler = async (event) => {
       console.warn('[submit-booking] notification delivery persist failed:', e.message);
     }
 
+    console.log('[submit-booking] finalize ok', {
+      draftBookingId: b.id,
+      setupIntentIdPrefix: siIdPrefix(b.setupIntentId),
+      cardOnFileStatus: b.cardOnFileStatus || null,
+      responseCode: 200,
+      bookingVersion: b.bookingVersion || 1,
+    });
     return json(200, {
       ok: true,
       id: b.id,
@@ -616,6 +605,7 @@ exports.handler = async (event) => {
       notificationDelivery: delivery,
       appointmentStatus: b.appointmentStatus,
       cardOnFileStatus: b.cardOnFileStatus,
+      bookingVersion: b.bookingVersion || 1,
       offer: b.offer || null,
       approvedFinalAmount: b.approvedFinalAmount || b.totalPrice,
     });
@@ -634,4 +624,5 @@ exports.__test = {
   },
   buildDraftRecord,
   issueDraftSaveResponse,
+  reconcileCardOnFileFromStripe,
 };
