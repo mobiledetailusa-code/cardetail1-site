@@ -97,12 +97,15 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
     <section class="panel" id="lookup">
       <h2>Find your booking</h2>
       <p class="sub">Limited access — view and manage one appointment with booking ID + phone.</p>
-      <form id="lk-form">
+      <form id="lk-form" autocomplete="off">
         <label for="lk-booking-id" class="sub">Booking ID</label>
-        <input class="inp" id="lk-booking-id" name="bookingId" autocomplete="off" placeholder="CD1-…" required>
+        <input class="inp" id="lk-booking-id" name="bookingId" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CD1-…" required>
         <label for="lk-phone" class="sub">Phone on booking</label>
-        <input class="inp" id="lk-phone" name="phone" type="tel" autocomplete="tel" placeholder="(551) 313-2956" required>
-        <button type="submit" class="btn primary">View booking</button>
+        <input class="inp" id="lk-phone" name="phone" type="tel" autocomplete="off" inputmode="tel" placeholder="(551) 313-2956" required>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px">
+          <button type="submit" class="btn primary">View booking</button>
+          <button type="button" class="btn ghost" id="lk-clear">Clear / different booking</button>
+        </div>
       </form>
       <p id="lk-error" class="msg err" hidden></p>
     </section>
@@ -125,7 +128,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
   <div id="post-auth" hidden style="display:none">
     <div class="bar">
       <h2>Dashboard</h2>
-      <button type="button" class="btn ghost" id="btn-logout">Sign out</button>
+      <button type="button" class="btn ghost" id="btn-logout">Sign out / switch booking</button>
     </div>
 
     <section class="section" aria-labelledby="upcoming-h">
@@ -207,7 +210,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 
 <script src="assets/portal-analytics.js" defer></script>
 <script src="assets/operational-refresh.js" defer></script>
-<script src="assets/my-garage.js" defer></script>
+<script src="assets/my-garage.js?v=20260718-login2" defer></script>
 <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>

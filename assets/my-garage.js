@@ -221,12 +221,14 @@
       setMsg($('lk-error'), errMsg, true);
       show($('pre-auth'), true);
       show($('post-auth'), false);
-      // Drop sticky credentials so the next submit uses whatever the user typed.
-      if (opts.fromForm || formId) {
-        state.verifyBookingId = '';
-        state.verifyPhone = '';
-        state.actionToken = null;
-      }
+      // Drop sticky session so refresh does not re-lock the previous Booking ID.
+      state.verifyBookingId = '';
+      state.verifyPhone = '';
+      state.actionToken = null;
+      try {
+        sessionStorage.removeItem('cd1_garage_id');
+        sessionStorage.removeItem('cd1_garage_phone');
+      } catch (e) { /* ignore */ }
       return false;
     }
     state.scope = 'booking';
@@ -287,6 +289,27 @@
     }
   }
 
+  function clearLookupCredentials() {
+    state.verifyPhone = '';
+    state.verifyBookingId = '';
+    state.actionToken = null;
+    try {
+      sessionStorage.removeItem('cd1_garage_id');
+      sessionStorage.removeItem('cd1_garage_phone');
+    } catch (e) { /* ignore */ }
+    if ($('lk-booking-id')) {
+      $('lk-booking-id').value = '';
+      $('lk-booking-id').readOnly = false;
+      $('lk-booking-id').removeAttribute('readonly');
+    }
+    if ($('lk-phone')) {
+      $('lk-phone').value = '';
+      $('lk-phone').readOnly = false;
+      $('lk-phone').removeAttribute('readonly');
+    }
+    setMsg($('lk-error'), '', false);
+  }
+
   async function logout() {
     await post('customer-portal-auth', { action: 'logout' });
     state = {
@@ -294,15 +317,15 @@
       session: false, verifyPhone: '', verifyBookingId: '',
       catalog: null, changeRequests: [], payment: null, actionToken: null,
     };
-    try {
-      sessionStorage.removeItem('cd1_garage_id');
-      sessionStorage.removeItem('cd1_garage_phone');
-    } catch (e) { /* ignore */ }
-    if ($('lk-booking-id')) $('lk-booking-id').value = '';
-    if ($('lk-phone')) $('lk-phone').value = '';
-    setMsg($('lk-error'), '', false);
+    clearLookupCredentials();
     show($('pre-auth'), true);
     show($('post-auth'), false);
+    try {
+      var clean = 'my-garage.html';
+      if (global.location.search || global.location.hash) {
+        history.replaceState({}, '', clean);
+      }
+    } catch (e) { /* ignore */ }
   }
 
   function requestTypeLabel(type) {
@@ -1112,6 +1135,13 @@
         loadLimited({ fromForm: true });
       });
     }
+    var lkClear = $('lk-clear');
+    if (lkClear) {
+      lkClear.addEventListener('click', function () {
+        clearLookupCredentials();
+        if ($('lk-booking-id')) $('lk-booking-id').focus();
+      });
+    }
     // Editing the login fields clears sticky last-booking so a new code can be used.
     ['lk-booking-id', 'lk-phone'].forEach(function (fid) {
       var el = $(fid);
@@ -1120,6 +1150,10 @@
         state.verifyBookingId = '';
         state.verifyPhone = '';
         state.actionToken = null;
+        try {
+          sessionStorage.removeItem('cd1_garage_id');
+          sessionStorage.removeItem('cd1_garage_phone');
+        } catch (e) { /* ignore */ }
       });
     });
     var acctForm = $('acct-form');
@@ -1250,24 +1284,30 @@
       return;
     }
 
-    try {
-      if (!preId) preId = sessionStorage.getItem('cd1_garage_id') || '';
-      if (!prePhone) prePhone = sessionStorage.getItem('cd1_garage_phone') || '';
-      if (preId && $('lk-booking-id') && !$('lk-booking-id').value) $('lk-booking-id').value = String(preId).toUpperCase();
-      if (prePhone && $('lk-phone') && !$('lk-phone').value) $('lk-phone').value = prePhone;
-    } catch (e) { /* ignore */ }
-
-    if (preId && prePhone) {
-      state.verifyBookingId = String(preId).toUpperCase();
-      state.verifyPhone = normalizePhoneInput(prePhone);
-      var autoOk = await loadLimited();
-      if (autoOk) {
-        if (params.get('paid') === '1') pollPaymentSettlement();
-        return;
+    // Auto-open only for explicit URL deep-links (incl. Stripe ?paid=1&bookingId=…).
+    // Never auto-login from sessionStorage alone — that re-locked the last Booking ID on login.
+    var urlHasBooking = !!(params.get('bookingId') || params.get('id') || params.get('booking'));
+    if (urlHasBooking && preId) {
+      if (!prePhone) {
+        try { prePhone = sessionStorage.getItem('cd1_garage_phone') || ''; } catch (e) { prePhone = ''; }
       }
-      // Auto-login failed — keep fields editable for a different booking ID.
-      state.verifyBookingId = '';
-      state.verifyPhone = '';
+      if (prePhone) {
+        state.verifyBookingId = String(preId).toUpperCase();
+        state.verifyPhone = normalizePhoneInput(prePhone);
+        var wasPaidReturn = params.get('paid') === '1';
+        var autoOk = await loadLimited();
+        if (autoOk) {
+          history.replaceState({}, '', 'my-garage.html' + (wasPaidReturn ? '?paid=1' : ''));
+          if (wasPaidReturn) pollPaymentSettlement();
+          return;
+        }
+      }
+      clearLookupCredentials();
+      if ($('lk-booking-id')) $('lk-booking-id').value = String(preId).toUpperCase();
+      if (prePhone && $('lk-phone')) $('lk-phone').value = prePhone;
+    } else {
+      // Fresh login screen — do not restore the previous Booking ID into the fields.
+      clearLookupCredentials();
     }
 
     show($('pre-auth'), true);

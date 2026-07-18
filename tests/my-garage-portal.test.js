@@ -187,13 +187,19 @@ test('my-garage uses catalog selectors and customer-portal-pay', () => {
 
 test('my-garage login form is not stuck on last booking id', () => {
   const js = read('assets/my-garage.js');
+  const html = read('my-garage.html');
   // Form submit must prefer typed fields over sticky verifyBookingId
   assert.match(js, /loadLimited\(\{\s*fromForm:\s*true\s*\}\)/);
   assert.match(js, /opts\.fromForm\s*\?\s*formId/);
-  // Sign-out must clear sessionStorage so reload does not re-lock the prior ID
+  assert.match(js, /function clearLookupCredentials/);
+  // Must not auto-login from sessionStorage alone (that re-locked the last ID)
+  assert.match(js, /Never auto-login from sessionStorage alone/);
+  assert.match(js, /urlHasBooking/);
+  // Explicit clear control on login
+  assert.match(html, /id="lk-clear"/);
+  assert.match(html, /my-garage\.js\?v=/);
+  // Sign-out / typing clears sessionStorage
   assert.match(js, /sessionStorage\.removeItem\('cd1_garage_id'\)/);
-  assert.match(js, /sessionStorage\.removeItem\('cd1_garage_phone'\)/);
-  // Typing clears sticky credentials
   assert.match(js, /lk-booking-id[\s\S]*addEventListener\('input'/);
 });
 
