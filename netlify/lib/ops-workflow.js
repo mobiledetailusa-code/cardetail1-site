@@ -45,6 +45,7 @@ function projectJobForAdmin(b) {
   try {
     const { materialProjection } = require('./booking-aggregate');
     const { computeDue } = require('./portal-money-sync');
+    const { isInvoicePaid } = require('./appointment-status-policy');
     const material = materialProjection(safe);
     if (material) {
       safe.bookingVersion = material.bookingVersion;
@@ -54,10 +55,17 @@ function projectJobForAdmin(b) {
       safe.settledCents = material.settledCents;
       safe.remainingCents = material.remainingCents;
       safe.amountDueApproved = computeDue(safe);
+      safe.amountPaid = (material.settledCents || 0) / 100;
       if (safe.approvedFinalAmount == null && material.approvedCents != null) {
         safe.approvedFinalAmount = material.approvedCents / 100;
       }
     }
+    // Jobber invoice close: webhook settlement surfaces as Paid without admin click.
+    safe.invoicePaid = isInvoicePaid(safe);
+    if (safe.invoicePaid && safe.paymentWorkflowStatus !== 'cash_paid') {
+      safe.paymentWorkflowStatus = 'payment_succeeded';
+    }
+    safe.canGeneratePayLink = !safe.invoicePaid && Number(safe.remainingCents || 0) > 0;
   } catch { /* keep raw projection if aggregate unavailable */ }
   return safe;
 }

@@ -17,9 +17,11 @@ const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
 function safePaymentState(booking) {
   const due = computeDue(booking);
   const payAllowed = canPayBalance(booking);
+  const { isInvoicePaid } = require('../lib/appointment-status-policy');
   let state = 'not_due';
-  if (booking.paymentWorkflowStatus === 'payment_succeeded' || booking.paymentStatus === 'paid') state = 'paid';
-  else if (booking.paymentStatus === 'failed') state = 'failed';
+  if (isInvoicePaid(booking) || booking.paymentWorkflowStatus === 'payment_succeeded' || booking.paymentStatus === 'paid') {
+    state = 'paid';
+  } else if (booking.paymentStatus === 'failed') state = 'failed';
   else if (booking.paymentStatus === 'processing') state = 'processing';
   else if (due > 0) state = 'due';
   return {

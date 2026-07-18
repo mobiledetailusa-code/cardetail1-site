@@ -342,6 +342,36 @@
     }).join('');
   }
 
+  function invoiceIsPaid(pay) {
+    var p = pay || state.payment || {};
+    if (p.state === 'paid') return true;
+    var due = Number(p.amountDueApproved || 0);
+    var paid = Number(p.amountPaid || 0);
+    return paid > 0 && !(due > 0) && !(p.canPay || p.canCreatePayLink);
+  }
+
+  function syncMoneyActionButtons(pay) {
+    var paid = invoiceIsPaid(pay);
+    var moneyActions = {
+      package_change_request: true,
+      addon_request: true,
+      vehicle_add_request: true,
+      vehicle_replace_request: true,
+      maintenance_request: true,
+    };
+    var root = $('customer-actions');
+    if (!root) return;
+    root.querySelectorAll('[data-action]').forEach(function (btn) {
+      var action = btn.getAttribute('data-action');
+      if (!moneyActions[action]) return;
+      btn.disabled = !!paid;
+      btn.classList.toggle('is-disabled', !!paid);
+      btn.title = paid
+        ? 'Invoice paid — call/text Cardetail1 for a quote adjustment'
+        : '';
+    });
+  }
+
   function syncPayBalanceButton(pay) {
     var link = $('pay-balance-link');
     if (!link) return;
@@ -354,8 +384,9 @@
     } else if (can) {
       link.textContent = 'Pay Balance';
     } else {
-      link.textContent = 'Pay Balance';
+      link.textContent = invoiceIsPaid(pay) ? 'Invoice paid' : 'Pay Balance';
     }
+    syncMoneyActionButtons(pay);
   }
 
   function renderPaymentsPanel(pay) {
@@ -364,7 +395,8 @@
     if (!panel) return;
     var due = Number(pay.amountDueApproved || 0);
     var can = !!(pay.canPay || pay.canCreatePayLink);
-    if (!can && !(due > 0) && !(Number(pay.approvedTotal || 0) > 0)) {
+    var paid = invoiceIsPaid(pay);
+    if (!can && !(due > 0) && !(Number(pay.approvedTotal || 0) > 0) && !paid) {
       panel.innerHTML = '';
       if (empty) show(empty, true);
       return;
@@ -373,7 +405,7 @@
     panel.innerHTML =
       '<div class="card pay-card">' +
       '<dl class="meta-grid">' +
-      '<div><dt>Payment status</dt><dd>' + esc(pay.state || '—') + '</dd></div>' +
+      '<div><dt>Invoice status</dt><dd>' + esc(paid ? 'paid' : (pay.state || '—')) + '</dd></div>' +
       '<div><dt>Approved total</dt><dd>' + fmtMoney(pay.approvedTotal) + '</dd></div>' +
       '<div><dt>Amount paid</dt><dd>' + fmtMoney(pay.amountPaid) + '</dd></div>' +
       '<div><dt>Amount due</dt><dd>' + fmtMoney(due) + '</dd></div>' +
@@ -381,8 +413,10 @@
       (can
         ? '<button type="button" class="btn primary" id="btn-pay-balance">Pay ' +
           (due > 0 ? fmtMoney(due) : 'Balance') + ' securely</button>' +
-          '<p class="hint">Secure Stripe Checkout (card only). Your approved balance updates if add-ons or package changes are approved.</p>'
-        : '<p class="hint">No balance is due yet, or payment is locked until admin approval.</p>') +
+          '<p class="hint">Secure Stripe Checkout (card only). After payment your invoice closes automatically.</p>'
+        : (paid
+          ? '<p class="hint">Invoice paid. Pack/add-on/vehicle price changes are closed — call/text for a quote adjustment. Address and date requests still work.</p>'
+          : '<p class="hint">No balance is due yet, or payment is locked until admin approval.</p>')) +
       '</div>';
     var btn = $('btn-pay-balance');
     if (btn) btn.addEventListener('click', startPayBalance);
@@ -719,13 +753,27 @@
     return true;
   }
 
+  function packagesForCategoryId(categoryId) {
+    var cat = getCatalog();
+    var key = String(categoryId || '').toLowerCase();
+    if (key === 'boat') key = 'boats';
+    if (key === 'rv' || key === 'trailer' || key === 'trailers') key = 'rvs';
+    if (cat.packagesByCategory && cat.packagesByCategory[key]) {
+      return { category: key, packages: cat.packagesByCategory[key] };
+    }
+    if (key === 'cars' || !key) {
+      return { category: 'cars', packages: cat.packages || [] };
+    }
+    return { category: key, packages: [] };
+  }
+
   function renderVehicleModal(titleHint) {
     var cat = getCatalog();
     var cats = cat.vehicleCategories || [];
     var years = cat.vehicleYears || [];
     var form = $('modal-form');
     form.innerHTML =
-      '<p class="hint">' + esc(titleHint || 'Select vehicle details. Boats and RVs require length for package pricing.') + '</p>' +
+      '<p class="hint">' + esc(titleHint || 'Select vehicle details. Boats, RVs, and trailers need length and a package for that category.') + '</p>' +
       '<label for="mf-category">Category</label>' +
       '<select class="inp" id="mf-category" name="category" required>' +
       '<option value="">Select…</option>' +
@@ -734,6 +782,7 @@
       }).join('') +
       '</select>' +
       '<div id="mf-length-host"></div>' +
+      '<div id="mf-pack-host"></div>' +
       '<label for="mf-year">Year</label>' +
       '<select class="inp" id="mf-year" name="year" required>' +
       '<option value="">Select…</option>' +
@@ -747,18 +796,42 @@
       '<input class="inp" id="mf-model" name="model" required placeholder="e.g. Camry">';
 
     var catSel = $('mf-category');
-    function syncLengthHost() {
+    function syncCategoryExtras() {
       var host = $('mf-length-host');
-      if (!host) return;
+      var packHost = $('mf-pack-host');
       var selected = catSel && catSel.value;
-      if (lengthCfg(selected)) {
-        host.innerHTML = lengthRulerHtml(selected, lengthCfg(selected).defaultFt);
-        bindLengthRuler();
-      } else {
-        host.innerHTML = '';
+      if (host) {
+        if (lengthCfg(selected)) {
+          host.innerHTML = lengthRulerHtml(selected, lengthCfg(selected).defaultFt);
+          bindLengthRuler();
+        } else {
+          host.innerHTML = '';
+        }
+      }
+      if (packHost) {
+        var packInfo = packagesForCategoryId(selected);
+        var packs = packInfo.packages || [];
+        if (selected && packs.length && (lengthCfg(selected) || packInfo.category !== 'cars')) {
+          packHost.innerHTML =
+            '<label>Package for this vehicle</label>' +
+            '<div class="modal-catalog" role="radiogroup" aria-label="Vehicle package">' +
+            packs.map(function (p) {
+              return '<label class="catalog-option">' +
+                '<input type="radio" name="packageId" value="' + esc(p.id) + '" data-pack-name="' + esc(p.name) + '" required>' +
+                '<span class="opt-body">' +
+                '<span class="opt-name">' + esc(p.name) + '</span>' +
+                (p.tag ? '<span class="opt-desc">' + esc(p.tag) + '</span>' : '') +
+                '</span></label>';
+            }).join('') +
+            '</div>';
+        } else if (selected && lengthCfg(selected) && !packs.length) {
+          packHost.innerHTML = '<p class="hint">No packages listed for this category. Call/text Cardetail1 to price this vehicle.</p>';
+        } else {
+          packHost.innerHTML = '';
+        }
       }
     }
-    if (catSel) catSel.addEventListener('change', syncLengthHost);
+    if (catSel) catSel.addEventListener('change', syncCategoryExtras);
     return true;
   }
 
@@ -799,6 +872,18 @@
   }
 
   function openActionModal(action) {
+    var moneyLocked = {
+      package_change_request: true,
+      addon_request: true,
+      vehicle_add_request: true,
+      vehicle_replace_request: true,
+      maintenance_request: true,
+    };
+    if (moneyLocked[action] && invoiceIsPaid(state.payment)) {
+      showToast('Invoice paid — call/text Cardetail1 for a quote adjustment.', true);
+      return;
+    }
+
     var simpleDefs = {
       reschedule_request: { title: 'Request new date', fields: [
         { name: 'newDate', label: 'Preferred date', type: 'date', required: true },
@@ -920,6 +1005,13 @@
           return null;
         }
         vehiclePayload.lengthFt = lengthFt;
+        var packEl = form.querySelector('input[name="packageId"]:checked');
+        if (!packEl) {
+          setMsg($('modal-error'), 'Select a package for this boat / RV / trailer.', true);
+          return null;
+        }
+        vehiclePayload.packageId = packEl.value;
+        vehiclePayload.packageName = packEl.getAttribute('data-pack-name') || '';
       }
       return vehiclePayload;
     }
@@ -1041,6 +1133,14 @@
     if (modalCancel) modalCancel.addEventListener('click', closeModal);
     var modalOv = $('action-modal');
     if (modalOv) modalOv.addEventListener('click', function (e) { if (e.target === modalOv) closeModal(); });
+    // Enter in address/fields must not GET-navigate away (?newAddress=…) and drop the hub session.
+    var modalForm = $('modal-form');
+    if (modalForm) {
+      modalForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        submitModal();
+      });
+    }
   }
 
   async function boot() {
@@ -1048,6 +1148,15 @@
     if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.opened();
 
     var params = new URLSearchParams(global.location.search);
+    // Accidental modal GET submit left junk query keys — strip and recover session.
+    var junkKeys = ['newAddress', 'newDate', 'newTime', 'reason', 'message', 'category', 'year', 'make', 'model'];
+    var hasJunk = junkKeys.some(function (k) { return params.has(k); });
+    if (hasJunk) {
+      junkKeys.forEach(function (k) { params.delete(k); });
+      var cleaned = params.toString();
+      history.replaceState({}, '', 'my-garage.html' + (cleaned ? ('?' + cleaned) : ''));
+      params = new URLSearchParams(global.location.search);
+    }
     var preId = params.get('bookingId') || params.get('id') || params.get('booking');
     var prePhone = params.get('phone');
     if (preId && $('lk-booking-id')) $('lk-booking-id').value = preId.toUpperCase();

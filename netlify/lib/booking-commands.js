@@ -274,6 +274,24 @@ async function decideChangeRequestCommand({
   if (actualVersion !== expected) {
     return { ok: false, error: 'version_conflict', statusCode: 409, actualBookingVersion: actualVersion };
   }
+
+  // Jobber/HCP: paid invoice cannot auto-apply pack/addon/vehicle money mutations.
+  {
+    const { isInvoicePaid } = require('./appointment-status-policy');
+    const moneyOrVehicle = new Set([
+      'package_change_request', 'addon_request',
+      'vehicle_replace_request', 'vehicle_add_request',
+    ]);
+    const rtEarly = cr.type || cr.requestType;
+    if (moneyOrVehicle.has(rtEarly) && isInvoicePaid(aggregate)) {
+      return {
+        ok: false,
+        error: 'invoice_paid',
+        statusCode: 409,
+        message: 'Invoice paid — create an adjustment or new quote instead of approving this money change.',
+      };
+    }
+  }
   // True drift: booking moved past the version that embedded this pending request.
   // Legacy index rows without embeddedBookingVersion skip this check; CAS still applies.
   const embeddedAt = cr.embeddedBookingVersion != null
@@ -361,6 +379,8 @@ async function decideChangeRequestCommand({
     const category = normalizeLengthCategory(d.category || d.vehicleCategory || 'cars');
     const label = d.vehicleLabel || d.label
       || [d.year, d.make, d.model].filter(Boolean).join(' ').trim();
+    const packageId = d.packageId || d.newPackId || d.pkgId || '';
+    const packageName = d.packageName || d.pkgName || '';
     if (rtDecide === 'vehicle_replace_request') {
       const applied = applyServiceDelta(service, cr.target || {}, {
         vehicleCategory: category,
@@ -373,13 +393,16 @@ async function decideChangeRequestCommand({
         tierKey: d.tierKey || d.tier,
         tierLabel: d.tierLabel,
         rvType: d.rvType || d.typeKey,
+        packageId: packageId || undefined,
+        packageName: packageName || undefined,
       });
       if (!applied.ok) return { ok: false, error: applied.error, statusCode: 400 };
       service = applied.service;
     } else {
-      // vehicle_add_request — append a new priced vehicle (keep prior package on primary)
+      // vehicle_add_request — append a new priced vehicle
       const vehicles = ensureVehicleIds(service.vehicles || []);
       const primary = vehicles[0] || {};
+      const pkg = packageId || primary.packageId || primary.pkgId || '';
       vehicles.push({
         vehicleId: newVehicleId(),
         category,
@@ -390,9 +413,9 @@ async function decideChangeRequestCommand({
         vehicleLabel: label,
         label,
         lengthFt: Number(d.lengthFt) || 0,
-        packageId: primary.packageId || primary.pkgId || '',
-        pkgId: primary.packageId || primary.pkgId || '',
-        pkgName: primary.pkgName || primary.packageName || '',
+        packageId: pkg,
+        pkgId: pkg,
+        pkgName: packageName || primary.pkgName || primary.packageName || '',
         addOnIds: [],
         addons: [],
         tierKey: d.tierKey || d.tier || primary.tierKey || '',

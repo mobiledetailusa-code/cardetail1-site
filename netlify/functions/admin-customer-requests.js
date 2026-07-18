@@ -120,6 +120,10 @@ exports.handler = async (event) => {
       return jsonCors(result.statusCode || 400, {
         ok: false,
         error: result.error,
+        message: result.message
+          || (result.error === 'invoice_paid'
+            ? 'Invoice paid — create an adjustment or new quote instead of approving this money change.'
+            : undefined),
         requoteRequired: result.requoteRequired || false,
         quote: result.quote || null,
         actualBookingVersion: result.actualBookingVersion,

@@ -1184,20 +1184,33 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     html += '<div class="sec"><h4>Dispatch</h4><div class="actions">'+
       '<button type="button" class="btn sm" id="dPostAuc">Post to auction</button>'+
       '<button type="button" class="btn ghost sm" id="dAssignWin">Assign auction winner</button></div></div>';
-    html += '<div class="sec"><h4>Payment workflow</h4><div style="margin-bottom:10px">'+payBadge(j.paymentWorkflowStatus)+
-      (j.payLink?' <a href="'+esc(j.payLink)+'" target="_blank" rel="noopener">Pay link</a>':'')+
+    const invPaid = !!(j.invoicePaid || j.paymentWorkflowStatus==='payment_succeeded' || j.paymentWorkflowStatus==='cash_paid' || (Number(j.remainingCents||0)===0 && Number(j.settledCents||0)>0));
+    const balDue = Number(j.remainingCents!=null ? j.remainingCents/100 : (j.amountDueApproved||0));
+    const paidAmt = Number(j.amountPaid!=null ? j.amountPaid : ((j.settledCents||0)/100));
+    const canGenLink = !invPaid && balDue > 0 && j.canGeneratePayLink !== false;
+    html += '<div class="sec"><h4>Invoice / Payment</h4>'+
+      '<div style="margin-bottom:10px">'+payBadge(invPaid?'payment_succeeded':j.paymentWorkflowStatus)+
+      (invPaid?' <strong style="color:var(--ok)">· PAID / CLOSED</strong>':' <strong>· Balance due</strong>')+
+      (j.payLink && !invPaid?' <a href="'+esc(j.payLink)+'" target="_blank" rel="noopener">Pay link</a>':'')+
       (j.policyChargeStatus?(' · Policy charge: '+esc(j.policyChargeStatus)+(j.policyChargeAmount?' $'+j.policyChargeAmount:'')):'' )+'</div>'+
+      '<div class="kv" style="margin-bottom:10px">'+
+      '<div><b>Approved total:</b> $'+esc(String(Number(j.approvedFinalAmount!=null?j.approvedFinalAmount:(j.approvedCents||0)/100).toFixed(2)))+'</div>'+
+      '<div><b>Paid:</b> $'+esc(String(paidAmt.toFixed(2)))+'</div>'+
+      '<div><b>Balance:</b> $'+esc(String(Math.max(0,balDue).toFixed(2)))+'</div>'+
+      '</div>'+
+      (invPaid?'<p class="hint">Stripe settlement closed this invoice automatically. Do not generate another pay link.</p>':'')+
       '<div class="op-grid">'+
       '<div class="full"><label>Payment preference</label><select id="dPayPref">'+
       ['cash_on_site','card_on_site','online_after_service','card_on_file'].map(p=>'<option value="'+p+'"'+(j.paymentMethodPreference===p?' selected':'')+'>'+p.replace(/_/g,' ')+'</option>').join('')+
       '</select></div>'+
       '<div class="full"><button type="button" class="btn ghost sm" id="dSavePref" style="width:100%">Update payment preference</button></div>'+
-      '<div class="full"><label>Payment link URL (Stripe Checkout)</label><input type="url" id="dPayLink" placeholder="https://..." value="'+esc(j.payLink||'')+'"></div>'+
+      '<div class="full"><label>Payment link URL (Stripe Checkout)</label><input type="url" id="dPayLink" placeholder="https://..." value="'+esc(j.payLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
       '<div class="full actions">'+
-      '<button type="button" class="btn sm" id="dGenPayLink">Generate Stripe link</button>'+
+      '<button type="button" class="btn sm" id="dGenPayLink"'+(canGenLink?'':' disabled title="Invoice paid or zero balance"')+'>Generate Stripe link</button>'+
       '<button type="button" class="btn ghost sm" id="dCopyPayLink">Copy link</button>'+
-      '<button type="button" class="btn ghost sm" id="dSetPayLink">Save manual link</button>'+
+      '<button type="button" class="btn ghost sm" id="dSetPayLink"'+(canGenLink?'':' disabled')+'>Save manual link</button>'+
       '</div>'+
+      (!canGenLink?'<p class="hint" id="dGenPayHint">'+(invPaid?'Generate link blocked — invoice already paid.':'Generate link blocked — no remaining balance.')+'</p>':'')+
       '<div class="full actions" style="margin-top:4px">'+
       '<button type="button" class="btn warn sm" id="dChargeNoShow">Charge no-show ($75)</button>'+
       '<button type="button" class="btn warn sm" id="dChargeLateCancel">Charge late cancel ($50)</button>'+
@@ -1306,10 +1319,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const dspl = $('#dSetPayLink'); if(dspl) dspl.onclick = () => jobAction(j.id,'set_payment_link',{payLink:$('#dPayLink').value.trim()});
     const dgpl = $('#dGenPayLink'); if(dgpl) dgpl.onclick = async () => {
       try {
+        if(dgpl.disabled){ toast('Invoice paid or zero balance — link not created.'); return; }
         if(!confirm('Generate Stripe Checkout for the authoritative remaining balance? Amount cannot be overridden.')) return;
         const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'generate_stripe_pay_link',bookingId:j.id});
-        if(d.url){ $('#dPayLink').value = d.url; await navigator.clipboard.writeText(d.url).catch(()=>{}); toast('Stripe link generated & copied · $'+(d.amountDueApproved!=null?d.amountDueApproved:(d.remainingCents/100))); await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id); }
-      } catch(e){ toast(e.message); }
+        if(d.reused){ toast('Reusing open Stripe link · $'+(d.amountDueApproved!=null?d.amountDueApproved:(d.remainingCents/100))); }
+        if(d.url){ $('#dPayLink').value = d.url; await navigator.clipboard.writeText(d.url).catch(()=>{}); toast((d.reused?'Existing':'Stripe')+' link ready · $'+(d.amountDueApproved!=null?d.amountDueApproved:(d.remainingCents/100))); await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id); }
+      } catch(e){ toast(e.message || 'Could not generate pay link'); }
     };
     const dcpl = $('#dCopyPayLink'); if(dcpl) dcpl.onclick = async () => {
       const u = ($('#dPayLink').value||'').trim();

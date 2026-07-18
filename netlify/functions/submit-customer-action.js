@@ -79,10 +79,11 @@ exports.handler = async (event) => {
   if (!policy.ok) {
     return json(200, {
       ok: false,
-      error: 'action_not_allowed',
-      message: policy.requiresCall
-        ? 'This appointment is in progress. Please call or text Cardetail1 for changes.'
-        : 'This change is not available for your appointment status.',
+      error: policy.error || 'action_not_allowed',
+      message: policy.message
+        || (policy.requiresCall
+          ? 'This appointment is in progress. Please call or text Cardetail1 for changes.'
+          : 'This change is not available for your appointment status.'),
     });
   }
 
@@ -269,7 +270,25 @@ exports.handler = async (event) => {
       return json(400, { ok: false, error: 'validation_error', message: 'Enter length in feet for boats and RVs.' });
     }
     const label = vehicleLabel || `${year} ${make} ${model}`.trim();
-    requestedState = { vehicleLabel: label, category, year, make, model, lengthFt: lengthFt || 0 };
+    const packageId = String(p.packageId || p.newPackId || '').slice(0, 32).trim();
+    const packageName = String(p.packageName || p.newPackName || '').slice(0, 120).trim();
+    if (usesLengthPricing(category) && !packageId) {
+      return json(400, {
+        ok: false,
+        error: 'validation_error',
+        message: 'Select a package for this boat / RV / trailer.',
+      });
+    }
+    requestedState = {
+      vehicleLabel: label,
+      category,
+      year,
+      make,
+      model,
+      lengthFt: lengthFt || 0,
+      packageId,
+      packageName,
+    };
     updates = {
       vehicleChangeRequested: true,
       vehicleChangeRequestedAt: now,
@@ -279,12 +298,13 @@ exports.handler = async (event) => {
       requestedVehicleMake: make,
       requestedVehicleModel: model,
       requestedVehicleLengthFt: lengthFt || 0,
+      requestedVehiclePackageId: packageId,
       requestedVehicleAction: action === 'vehicle_replace_request' ? 'replace' : 'add',
       customerChangePending: true,
     };
     logEntry.vehicleLabel = label;
     adminSubject = `Cardetail1 — Vehicle Change Request · ${bookingId}`;
-    adminText = `Customer requested vehicle ${action === 'vehicle_replace_request' ? 'replacement' : 'addition'} for booking ${bookingId}.\n${label} (${category}${lengthFt ? `, ${lengthFt} ft` : ''})`;
+    adminText = `Customer requested vehicle ${action === 'vehicle_replace_request' ? 'replacement' : 'addition'} for booking ${bookingId}.\n${label} (${category}${lengthFt ? `, ${lengthFt} ft` : ''}${packageName || packageId ? `, pack ${packageName || packageId}` : ''})`;
   } else if (action === 'maintenance_request') {
     const { CAR_PACKAGES, MAINTENANCE_PERIODS } = require('../lib/customer-catalog');
     const periodId = String(p.period || p.maintenancePeriod || '').slice(0, 32).trim();
