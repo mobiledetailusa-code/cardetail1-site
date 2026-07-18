@@ -1,6 +1,7 @@
 /**
  * Prisma dual-write must never break Blob authority / checkout.
  */
+require('dotenv/config');
 const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -160,3 +161,52 @@ describe('booking Prisma mirror (safe dual-write)', () => {
     assert.match(src, /never block Blob authority/);
   });
 });
+
+/**
+ * Every test above deliberately runs with DATABASE_URL unset/disabled — they
+ * prove the mirror fails open and never blocks checkout. None of them prove
+ * the mirror actually works end-to-end. This block is the missing proof:
+ * when a real DATABASE_URL is configured (Deploy Preview or local dev, per
+ * docs/audit/db-env-requirements-2026-07-18.md), a write must be a real,
+ * verifiable database round trip — a skipped or fail-open result here must
+ * never be reported as a pass. Skips (visibly, as `skipped` not `pass`) only
+ * when no DATABASE_URL is configured at all in this environment.
+ */
+describe(
+  'booking Prisma mirror — real database round trip when configured',
+  { skip: !(process.env.DATABASE_URL && String(process.env.DATABASE_URL).trim()) && 'DATABASE_URL not configured in this environment' },
+  () => {
+    it('a configured DATABASE_URL must produce a real write + a real read, not a skipped/fail-open result', async () => {
+      const { prismaConfigured, getPrisma, _resetPrismaForTests } = require('../netlify/lib/prisma');
+      _resetPrismaForTests();
+      assert.equal(prismaConfigured(), true, 'DATABASE_URL must be set for this test to run at all');
+
+      const { upsertBookingMirror, readBookingMirror } = require('../netlify/lib/booking-prisma-mirror');
+      const id = `TESTMIRROR-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
+      const booking = {
+        id,
+        kind: 'booking',
+        isDraft: false,
+        bookingVersion: 1,
+        quoteVersion: 1,
+        paymentWorkflowStatus: 'no_payment_required_yet',
+        phone: '5550000000',
+      };
+
+      let prisma;
+      try {
+        const result = await upsertBookingMirror(booking);
+        assert.equal(result.skipped, undefined, `mirror write was skipped, not a real success: ${JSON.stringify(result)}`);
+        assert.equal(result.ok, true, `mirror write did not succeed: ${JSON.stringify(result)}`);
+
+        const readBack = await readBookingMirror(id);
+        assert.ok(readBack, 'a real SELECT must find the row that was just written — proves the round trip, not just that the write call returned');
+        assert.equal(readBack.id, id);
+        assert.equal(readBack.bookingVersion, 1);
+      } finally {
+        prisma = getPrisma();
+        await prisma.bookingRecord.delete({ where: { id } }).catch(() => {});
+      }
+    });
+  }
+);
