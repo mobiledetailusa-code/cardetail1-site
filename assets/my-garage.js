@@ -183,9 +183,10 @@
     return state.session;
   }
 
-  async function loadLimited() {
+  async function loadLimited(opts) {
+    opts = opts || {};
     // Action-link scoped session: refresh via in-memory token (never re-persist to URL/localStorage)
-    if (state.actionToken) {
+    if (state.actionToken && !opts.fromForm) {
       var ar = await post('customer-portal-action', { action: 'view', token: state.actionToken });
       if (ar.data && ar.data.ok) {
         state.booking = ar.data.booking;
@@ -196,8 +197,14 @@
       // Token expired — clear and fall through
       state.actionToken = null;
     }
-    var id = state.verifyBookingId || ($('lk-booking-id') && $('lk-booking-id').value.trim().toUpperCase());
-    var phone = normalizePhoneInput(state.verifyPhone || ($('lk-phone') && $('lk-phone').value));
+    // Login form must win over sticky state — otherwise the last Booking ID stays "locked"
+    // and typed IDs never reach the API.
+    var formId = ($('lk-booking-id') && $('lk-booking-id').value.trim().toUpperCase()) || '';
+    var formPhone = normalizePhoneInput($('lk-phone') && $('lk-phone').value);
+    var id = opts.fromForm ? formId : (state.verifyBookingId || formId);
+    var phone = opts.fromForm
+      ? formPhone
+      : (normalizePhoneInput(state.verifyPhone) || formPhone);
     if (!id || phone.length < 10) {
       setMsg($('lk-error'), 'Enter your booking ID and phone number.', true);
       return false;
@@ -214,6 +221,12 @@
       setMsg($('lk-error'), errMsg, true);
       show($('pre-auth'), true);
       show($('post-auth'), false);
+      // Drop sticky credentials so the next submit uses whatever the user typed.
+      if (opts.fromForm || formId) {
+        state.verifyBookingId = '';
+        state.verifyPhone = '';
+        state.actionToken = null;
+      }
       return false;
     }
     state.scope = 'booking';
@@ -279,8 +292,15 @@
     state = {
       scope: null, booking: null, bookings: [], vehicles: [],
       session: false, verifyPhone: '', verifyBookingId: '',
-      catalog: null, changeRequests: [], payment: null,
+      catalog: null, changeRequests: [], payment: null, actionToken: null,
     };
+    try {
+      sessionStorage.removeItem('cd1_garage_id');
+      sessionStorage.removeItem('cd1_garage_phone');
+    } catch (e) { /* ignore */ }
+    if ($('lk-booking-id')) $('lk-booking-id').value = '';
+    if ($('lk-phone')) $('lk-phone').value = '';
+    setMsg($('lk-error'), '', false);
     show($('pre-auth'), true);
     show($('post-auth'), false);
   }
@@ -1089,9 +1109,19 @@
     if (lkForm) {
       lkForm.addEventListener('submit', function (e) {
         e.preventDefault();
-        loadLimited();
+        loadLimited({ fromForm: true });
       });
     }
+    // Editing the login fields clears sticky last-booking so a new code can be used.
+    ['lk-booking-id', 'lk-phone'].forEach(function (fid) {
+      var el = $(fid);
+      if (!el) return;
+      el.addEventListener('input', function () {
+        state.verifyBookingId = '';
+        state.verifyPhone = '';
+        state.actionToken = null;
+      });
+    });
     var acctForm = $('acct-form');
     if (acctForm) {
       acctForm.addEventListener('submit', function (e) {
@@ -1230,9 +1260,14 @@
     if (preId && prePhone) {
       state.verifyBookingId = String(preId).toUpperCase();
       state.verifyPhone = normalizePhoneInput(prePhone);
-      await loadLimited();
-      if (params.get('paid') === '1') pollPaymentSettlement();
-      return;
+      var autoOk = await loadLimited();
+      if (autoOk) {
+        if (params.get('paid') === '1') pollPaymentSettlement();
+        return;
+      }
+      // Auto-login failed — keep fields editable for a different booking ID.
+      state.verifyBookingId = '';
+      state.verifyPhone = '';
     }
 
     show($('pre-auth'), true);

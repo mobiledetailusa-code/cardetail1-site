@@ -185,6 +185,18 @@ test('my-garage uses catalog selectors and customer-portal-pay', () => {
   assert.doesNotMatch(js, /requestedAddons.*type: 'text'/);
 });
 
+test('my-garage login form is not stuck on last booking id', () => {
+  const js = read('assets/my-garage.js');
+  // Form submit must prefer typed fields over sticky verifyBookingId
+  assert.match(js, /loadLimited\(\{\s*fromForm:\s*true\s*\}\)/);
+  assert.match(js, /opts\.fromForm\s*\?\s*formId/);
+  // Sign-out must clear sessionStorage so reload does not re-lock the prior ID
+  assert.match(js, /sessionStorage\.removeItem\('cd1_garage_id'\)/);
+  assert.match(js, /sessionStorage\.removeItem\('cd1_garage_phone'\)/);
+  // Typing clears sticky credentials
+  assert.match(js, /lk-booking-id[\s\S]*addEventListener\('input'/);
+});
+
 test('portal data excludes drafts and returns catalog + payment', () => {
   const src = read('netlify/functions/customer-portal-data.js');
   // Release A: centralized draft visibility via booking-visibility
