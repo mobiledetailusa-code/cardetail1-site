@@ -1,20 +1,16 @@
 /**
- * Phase 3 — authoritative PaymentService foundation on the Phase 2
- * relational tables. This is the ONLY module meant to reserve payment
- * obligations, create/retrieve PaymentIntents, reconcile provider state,
- * write ledger entries, or create refunds against the new schema.
+ * Authoritative PaymentService on the Phase 2 relational tables.
+ * This is the ONLY module meant to reserve payment obligations,
+ * create/retrieve PaymentIntents, reconcile provider state, write ledger
+ * entries, or create refunds against the new schema.
  *
- * NOT wired into any live endpoint. netlify/lib/payment-service.js (Blob
- * aggregate + Netlify Blobs) remains the sole live authority for Release A.
- * Building this in parallel, tested against the real Postgres foundation,
- * without touching checkout/webhook/portal code — see
- * docs/audit/phase1-delta-audit-2026-07-18.md and the Phase 2 gate report.
+ * Operational wiring (webhook / Admin / My Garage) calls this module when
+ * DATABASE_URL is configured. Blobs remain for operational booking fields;
+ * financial projection authority is Postgres once a booking is ensured.
  *
  * Stripe network calls always go through an injectable `fetchImpl`
- * (defaults to globalThis.fetch) and the existing stripe-mode.js guard —
- * same pattern netlify/lib/payment-service.js already uses. Tests never
- * hit real Stripe; they pass a fake fetchImpl, matching this repo's
- * existing test convention (see tests/release-a-acceptance.test.js).
+ * (defaults to globalThis.fetch) and the existing stripe-mode.js guard.
+ * Tests never hit real Stripe; they pass a fake fetchImpl.
  */
 
 const { guardStripeOrReject } = require('../stripe-mode');
@@ -114,8 +110,11 @@ async function reserveAndCreatePaymentIntent({
   const body = new URLSearchParams({
     amount: String(amountCents),
     currency: 'usd',
+    'automatic_payment_methods[enabled]': 'true',
     'metadata[bookingId]': bookingId,
+    'metadata[booking_id]': bookingId,
     'metadata[quoteVersion]': String(quoteVersion),
+    'metadata[purpose]': 'customer_balance',
   });
   if (stripeCustomerId) body.set('customer', stripeCustomerId);
 
@@ -149,8 +148,145 @@ async function reserveAndCreatePaymentIntent({
     recoveredFromTimeout: stuckCreatingWithoutProvider || undefined,
     paymentAttempt,
     stripePaymentIntentId: stripePaymentIntent.id,
+    clientSecret: stripePaymentIntent.client_secret || null,
     projection,
   };
+}
+
+/**
+ * Retrieve client_secret for an existing PaymentIntent (idempotent reopen).
+ */
+async function retrievePaymentIntentClientSecret({
+  paymentIntentId,
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+}) {
+  if (!paymentIntentId) return { ok: false, error: 'missing_payment_intent', statusCode: 400 };
+  const guard = guardStripeOrReject(env, { purpose: 'payment_intent_retrieve' });
+  if (guard.blocked) {
+    return { ok: false, error: guard.body?.error || 'stripe_unavailable', statusCode: guard.statusCode };
+  }
+  try {
+    const res = await fetchImpl(`https://api.stripe.com/v1/payment_intents/${paymentIntentId}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${guard.secret}` },
+    });
+    const pi = await res.json();
+    if (!res.ok) {
+      return { ok: false, error: pi?.error?.message || 'stripe_retrieve_failed', statusCode: 502 };
+    }
+    return {
+      ok: true,
+      paymentIntent: pi,
+      clientSecret: pi.client_secret || null,
+      status: pi.status,
+    };
+  } catch {
+    return { ok: false, error: 'stripe_network_error', statusCode: 502 };
+  }
+}
+
+/**
+ * Create a Stripe Customer Session so Payment Element can redisplay eligible
+ * saved payment methods (respecting Stripe allow_redisplay / consent rules).
+ */
+async function createCustomerSession({
+  stripeCustomerId,
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+}) {
+  if (!stripeCustomerId) return { ok: false, error: 'missing_customer', statusCode: 400 };
+  const guard = guardStripeOrReject(env, { purpose: 'customer_session_create' });
+  if (guard.blocked) {
+    return { ok: false, error: guard.body?.error || 'stripe_unavailable', statusCode: guard.statusCode };
+  }
+  const body = new URLSearchParams({
+    customer: stripeCustomerId,
+    'components[payment_element][enabled]': 'true',
+    'components[payment_element][features][payment_method_redisplay]': 'enabled',
+    'components[payment_element][features][payment_method_save]': 'enabled',
+    'components[payment_element][features][payment_method_save_usage]': 'off_session',
+    'components[payment_element][features][payment_method_remove]': 'disabled',
+  });
+  try {
+    const res = await fetchImpl('https://api.stripe.com/v1/customer_sessions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${guard.secret}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
+    });
+    const session = await res.json();
+    if (!res.ok) {
+      return { ok: false, error: session?.error?.message || 'customer_session_failed', statusCode: 502 };
+    }
+    return { ok: true, customerSessionClientSecret: session.client_secret || null, session };
+  } catch {
+    return { ok: false, error: 'stripe_network_error', statusCode: 502 };
+  }
+}
+
+/**
+ * Admin/Customer recovery: GET PaymentIntent from Stripe and run the same
+ * idempotent reconciler the webhook uses. No separate money path.
+ */
+async function reconcileFromStripeProvider({
+  bookingId,
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+}) {
+  const projection = await getFinancialProjection(bookingId);
+  if (!projection) return { ok: false, error: 'not_found', statusCode: 404 };
+  if (projection.paymentStatus === 'paid') {
+    return { ok: true, skipped: true, reason: 'already_paid', projection };
+  }
+
+  const attempts = await repo.listPaymentAttempts(bookingId);
+  const active = attempts.find((a) => ['creating', 'open', 'requires_action'].includes(a.status))
+    || [...attempts].reverse().find((a) => a.providerObjectId);
+  const piId = active?.providerObjectId || projection.stripeReference;
+  if (!piId || !String(piId).startsWith('pi_')) {
+    return { ok: true, skipped: true, reason: 'no_payment_intent', projection };
+  }
+
+  const retrieved = await retrievePaymentIntentClientSecret({
+    paymentIntentId: piId,
+    env,
+    fetchImpl,
+  });
+  if (!retrieved.ok) return retrieved;
+
+  const pi = retrieved.paymentIntent;
+  const terminal = pi.status === 'succeeded'
+    || pi.status === 'canceled'
+    || pi.status === 'requires_action'
+    || (pi.status === 'requires_payment_method' && !!pi.last_payment_error);
+  if (!terminal) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: 'provider_not_terminal',
+      projection,
+      providerState: { id: pi.id, status: pi.status },
+    };
+  }
+
+  const eventType = pi.status === 'succeeded'
+    ? 'payment_intent.succeeded'
+    : pi.status === 'canceled'
+      ? 'payment_intent.canceled'
+      : pi.status === 'requires_action'
+        ? 'payment_intent.requires_action'
+        : 'payment_intent.payment_failed';
+  const stripeEventId = `reconcile_${pi.id}_${pi.status}_${pi.amount_received || pi.amount || 0}`;
+  const result = await reconcilePaymentIntentEvent({
+    stripeEventId,
+    type: eventType,
+    paymentIntent: pi,
+  });
+  const after = await getFinancialProjection(bookingId);
+  return { ok: true, skipped: false, result, projection: after, providerState: { id: pi.id, status: pi.status } };
 }
 
 /**
@@ -178,6 +314,13 @@ async function reconcilePaymentIntentEvent({ stripeEventId, type, paymentIntent 
   }
 
   if (paymentIntent.status === 'succeeded') {
+    // One ledger credit per PaymentIntent — not per Stripe event id — so a
+    // checkout.session.completed and a later payment_intent.succeeded for the
+    // same PI cannot double-settle.
+    if (attempt.status === 'succeeded') {
+      const projection = await getFinancialProjection(attempt.bookingId);
+      return { ok: true, duplicate: true, reason: 'attempt_already_succeeded', projection };
+    }
     const amountCents = Math.round(Number(paymentIntent.amount_received ?? paymentIntent.amount) || 0);
     const ledgerResult = await foundation.appendLedgerEntry({
       bookingId: attempt.bookingId,
@@ -186,7 +329,7 @@ async function reconcilePaymentIntentEvent({ stripeEventId, type, paymentIntent 
       amountCents,
       quoteVersion: attempt.quoteVersion,
       providerObjectId: paymentIntent.id,
-      providerEventId: stripeEventId,
+      providerEventId: `settlement_${paymentIntent.id}`,
       stripeEventId,
       actor: 'stripe_webhook',
     });
@@ -205,18 +348,25 @@ async function reconcilePaymentIntentEvent({ stripeEventId, type, paymentIntent 
     return { ok: true, duplicate: false, terminal: 'canceled' };
   }
 
-  if (paymentIntent.status === 'requires_payment_method') {
-    // Declined / failed confirmation — terminal for this attempt, but the
-    // obligation itself isn't canceled; a fresh attempt can be reserved
-    // once this one is marked failed (partial unique index only blocks
-    // creating/open/requires_action, so a 'failed' row doesn't block retry).
-    await repo.updatePaymentAttempt(attempt.id, { status: 'failed' });
-    return { ok: true, duplicate: false, terminal: 'failed' };
-  }
-
   if (paymentIntent.status === 'requires_action') {
     await repo.updatePaymentAttempt(attempt.id, { status: 'requires_action' });
     return { ok: true, duplicate: false, terminal: 'requires_action' };
+  }
+
+  if (paymentIntent.status === 'requires_payment_method') {
+    // Fresh PaymentIntents are often `requires_payment_method` before the
+    // customer confirms. Only mark failed on an explicit failure event (or
+    // when Stripe reports a last_payment_error during recovery reconcile).
+    const isFailure = type === 'payment_intent.payment_failed'
+      || !!(paymentIntent.last_payment_error);
+    if (isFailure) {
+      await repo.updatePaymentAttempt(attempt.id, { status: 'failed' });
+      return { ok: true, duplicate: false, terminal: 'failed' };
+    }
+    if (attempt.status === 'creating') {
+      await repo.updatePaymentAttempt(attempt.id, { status: 'open' });
+    }
+    return { ok: true, duplicate: false, status: 'requires_payment_method' };
   }
 
   return { ok: true, duplicate: false, ignored: true, status: paymentIntent.status };
@@ -316,6 +466,9 @@ module.exports = {
   buildIdempotencyKey,
   getFinancialProjection,
   reserveAndCreatePaymentIntent,
+  retrievePaymentIntentClientSecret,
+  createCustomerSession,
+  reconcileFromStripeProvider,
   reconcilePaymentIntentEvent,
   createRefund,
   createAdjustment,
