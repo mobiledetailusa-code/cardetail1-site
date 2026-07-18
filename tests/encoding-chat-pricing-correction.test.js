@@ -169,6 +169,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/customer-portal-pay.js',
     'netlify/functions/stripe-webhook.js',
     'netlify/functions/list-bookings.js',
+    // Phase 2/3 Postgres foundation — additive, non-sensitive health endpoint.
+    'netlify/functions/db-health.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);

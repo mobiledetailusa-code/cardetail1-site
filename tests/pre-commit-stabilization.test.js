@@ -255,6 +255,13 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/prisma.js',
     'netlify/lib/card-on-file.js',
     'netlify/lib/tech-security.js',
+    // Phase 2/3 Postgres foundation — additive, not wired into live traffic.
+    'netlify/functions/db-health.js',
+    'netlify/lib/db/repositories.js',
+    'netlify/lib/db/foundation-services.js',
+    'netlify/lib/db/financial-projection.js',
+    'netlify/lib/db/payment-authority-service.js',
+    'netlify/lib/db/webhook-inbox.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

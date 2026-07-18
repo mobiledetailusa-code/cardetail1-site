@@ -107,6 +107,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/customer-portal-pay.js',
   'netlify/functions/stripe-webhook.js',
   'netlify/functions/list-bookings.js',
+  // Phase 2/3 Postgres foundation — additive, non-sensitive health endpoint.
+  'netlify/functions/db-health.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {
