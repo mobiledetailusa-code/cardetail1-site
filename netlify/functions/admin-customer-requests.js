@@ -164,7 +164,7 @@ exports.handler = async (event) => {
       return jsonCors(200, {
         ok: false,
         error: 'payment_link_unavailable',
-        message: 'No approved payment link on file. Generate one from the job drawer.',
+        message: 'No Stripe Checkout link on file yet. Open the job drawer and click Generate Stripe link.',
       });
     }
     return jsonCors(200, { ok: true, payLink: booking.payLink, bookingId });

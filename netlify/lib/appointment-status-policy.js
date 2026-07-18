@@ -67,9 +67,9 @@ function canRequestChange(booking, action) {
         : undefined,
     };
   }
-  // Pending Review / draft-like and confirmed appointments always need admin review for structural changes.
+  // Structural / schedule changes always need admin review (including after invoice paid).
   if (
-    (phase === 'confirmed' || phase === 'draft') &&
+    (phase === 'confirmed' || phase === 'draft' || phase === 'paid' || phase === 'payment_due') &&
     ['package_change', 'addon', 'address', 'vehicle_add', 'vehicle_replace', 'reschedule', 'maintenance'].includes(action)
   ) {
     return { ok: true, pendingApproval: true, phase };

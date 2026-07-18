@@ -100,12 +100,12 @@ async function submitChangeRequestCommand({
       customerChangePending: true,
     };
   } else if (requestType === 'address_update') {
+    // Jobber-style: request only until admin approve — do not mutate live address on submit.
     schedulePatch = {
       addressChangedByClient: true,
-      requestedAddress: delta?.serviceAddress || '',
+      requestedAddress: delta?.serviceAddress || delta?.address || '',
       customerChangePending: true,
     };
-    service = { ...service, serviceAddress: delta?.serviceAddress || service.serviceAddress };
   } else {
     schedulePatch = { customerChangePending: true };
   }
