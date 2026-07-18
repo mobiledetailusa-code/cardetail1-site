@@ -2,6 +2,10 @@
 // Validates Stripe webhook signatures, persists payment status to Blobs,
 // and triggers technician dispatch when a card hold is confirmed.
 //
+// When DATABASE_URL is configured, payment_intent.* events (and Checkout
+// sessions that produce a PI) are also reconciled through
+// PaymentAuthorityService — same idempotent path as Admin Reconcile.
+//
 // Canonical paymentStatus enum:
 //   no_payment_required_yet | authorization_pending | authorized |
 //   authorization_failed | capture_pending | paid | canceled |
@@ -106,6 +110,57 @@ function verifyStripeSignature(rawBody, sigHeader, secret) {
   const a = Buffer.from(expected);
   const b = Buffer.from(parts.v1);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+/**
+ * Postgres-authoritative reconcile for PaymentIntent events. Returns
+ * { handled:true } when customer_balance was settled in Postgres so the
+ * legacy Blob money write can be skipped (compatibility sync already ran).
+ */
+async function reconcilePostgresPaymentIntent(evt, paymentIntent) {
+  try {
+    const { postgresPaymentEnabled, syncBlobCompatibilityFromProjection } = require('../lib/db/operational-payment');
+    if (!postgresPaymentEnabled()) return { handled: false, skipped: true, reason: 'postgres_disabled' };
+
+    const { reconcilePaymentIntentEvent, getFinancialProjection } = require('../lib/db/payment-authority-service');
+    const { ensureBookingFinancial } = require('../lib/db/ensure-booking-financial');
+    const meta = paymentIntent.metadata || {};
+    const bookingId = String(meta.bookingId || meta.booking_id || '').trim();
+    if (bookingId) {
+      try {
+        const { getBookingRecord } = require('../lib/booking-repository');
+        const rec = await getBookingRecord(bookingId);
+        if (rec.exists) await ensureBookingFinancial(rec.booking);
+      } catch { /* best-effort ensure */ }
+    }
+
+    const result = await reconcilePaymentIntentEvent({
+      stripeEventId: evt.id,
+      type: evt.type,
+      paymentIntent,
+    });
+
+    let projection = null;
+    if (result.ok && !result.duplicate && bookingId) {
+      projection = result.projection || await getFinancialProjection(bookingId);
+      if (projection) {
+        await syncBlobCompatibilityFromProjection(bookingId, projection).catch(() => {});
+      }
+    } else if (result.ok && bookingId) {
+      projection = await getFinancialProjection(bookingId);
+    }
+
+    const purpose = String(meta.purpose || '');
+    const handled = purpose === 'customer_balance'
+      && result.ok
+      && !result.quarantined
+      && (result.duplicate || projection?.paymentStatus === 'paid' || result.terminal);
+
+    return { handled: !!handled, result, projection, bookingId };
+  } catch (e) {
+    console.warn('[stripe-webhook] postgres reconcile failed', e && e.message ? e.message : e);
+    return { handled: false, error: e && e.message ? e.message : 'postgres_reconcile_failed' };
+  }
 }
 
 // ── Read booking, apply updates, write back to Blobs ──
@@ -263,13 +318,16 @@ exports.handler = async (event) => {
     }
 
     case 'payment_intent.succeeded': {
-      // Payment captured (either via manual capture or automatic).
-      results.update = await updateBookingPayment(bookingId, {
-        paymentStatus: 'paid',
-        paymentIntentId: pi.id,
-        amountCapturedCents: pi.amount_received != null ? pi.amount_received : pi.amount,
-        capturedAt: new Date().toISOString(),
-      });
+      results.postgres = await reconcilePostgresPaymentIntent(evt, pi);
+      if (!results.postgres.handled) {
+        // Legacy hold/capture path (not a Postgres customer_balance obligation).
+        results.update = await updateBookingPayment(bookingId, {
+          paymentStatus: 'paid',
+          paymentIntentId: pi.id,
+          amountCapturedCents: pi.amount_received != null ? pi.amount_received : pi.amount,
+          capturedAt: new Date().toISOString(),
+        });
+      }
       await notifyAdmin(
         `Cardetail1 — payment captured $${dollars} · ${bookingId}`,
         `Payment of $${dollars} captured for booking ${bookingId}.\nPaymentIntent: ${pi.id}`
@@ -278,32 +336,41 @@ exports.handler = async (event) => {
     }
 
     case 'payment_intent.payment_failed': {
-      const reason = (pi.last_payment_error && pi.last_payment_error.message) || 'unknown';
-      results.update = await updateBookingPayment(bookingId, {
-        paymentStatus: 'authorization_failed',
-        paymentIntentId: pi.id,
-        paymentFailureReason: reason,
-      });
+      results.postgres = await reconcilePostgresPaymentIntent(evt, pi);
+      if (!results.postgres.handled) {
+        const reason = (pi.last_payment_error && pi.last_payment_error.message) || 'unknown';
+        results.update = await updateBookingPayment(bookingId, {
+          paymentStatus: 'authorization_failed',
+          paymentIntentId: pi.id,
+          paymentFailureReason: reason,
+        });
+      }
       await notifyAdmin(
         `Cardetail1 — payment FAILED · ${bookingId}`,
-        `Payment failed for booking ${bookingId}.\nReason: ${reason}\nPaymentIntent: ${pi.id}`
+        `Payment failed for booking ${bookingId}.\nPaymentIntent: ${pi.id}`
       );
       break;
     }
 
     case 'payment_intent.canceled': {
-      // Stripe canceled the PaymentIntent (card expired, customer canceled, etc.)
-      // Mark booking so admin is not left waiting on an authorization that will never come.
-      const cancelReason = pi.cancellation_reason || 'unknown';
-      results.update = await updateBookingPayment(bookingId, {
-        paymentStatus: 'canceled',
-        paymentIntentId: pi.id,
-        paymentCancelReason: cancelReason,
-      });
+      results.postgres = await reconcilePostgresPaymentIntent(evt, pi);
+      if (!results.postgres.handled) {
+        const cancelReason = pi.cancellation_reason || 'unknown';
+        results.update = await updateBookingPayment(bookingId, {
+          paymentStatus: 'canceled',
+          paymentIntentId: pi.id,
+          paymentCancelReason: cancelReason,
+        });
+      }
       await notifyAdmin(
         `Cardetail1 — payment CANCELED · ${bookingId}`,
-        `PaymentIntent canceled for booking ${bookingId}.\nReason: ${cancelReason}\nPaymentIntent: ${pi.id}`
+        `PaymentIntent canceled for booking ${bookingId}.\nPaymentIntent: ${pi.id}`
       );
+      break;
+    }
+
+    case 'payment_intent.requires_action': {
+      results.postgres = await reconcilePostgresPaymentIntent(evt, pi);
       break;
     }
 
@@ -357,60 +424,87 @@ exports.handler = async (event) => {
       } else if (meta.purpose === 'customer_balance' && sess.payment_status === 'paid') {
         const bookingId = String(meta.booking_id || meta.bookingId || '').trim();
         if (bookingId) {
-          const {
-            applyCustomerBalanceReconciliation,
-            financialProjection,
-            logPaymentReconciliation,
-          } = require('../lib/payment-service');
-          const { getBookingRecord, commitBooking } = require('../lib/booking-repository');
-          const beforeRec = await getBookingRecord(bookingId);
-          const localBefore = beforeRec.exists ? financialProjection(beforeRec.booking) : null;
-          const applied = await applyCustomerBalanceReconciliation({
-            bookingId,
-            session: sess,
-            getBookingRecord,
-            commitBooking,
-            stripeEventId: evt.id,
-          });
-          const localAfter = applied.booking
-            ? financialProjection(applied.booking)
-            : (applied.projection || localBefore);
-          logPaymentReconciliation({
-            bookingId,
-            stripeEventId: evt.id,
-            checkoutSessionId: sess.id,
-            paymentIntentId: sess.payment_intent,
-            localBefore,
-            providerState: { payment_status: sess.payment_status, type: evt.type },
-            localAfter,
-            adminProjection: localAfter,
-          });
-          if (applied.ok) {
+          // Prefer Postgres PI reconcile when the session produced a PaymentIntent
+          // that PaymentAuthorityService reserved (embedded pay path).
+          const piId = typeof sess.payment_intent === 'string'
+            ? sess.payment_intent
+            : (sess.payment_intent && sess.payment_intent.id) || null;
+          if (piId) {
+            results.postgres = await reconcilePostgresPaymentIntent(evt, {
+              id: piId,
+              status: 'succeeded',
+              amount_received: sess.amount_total,
+              amount: sess.amount_total,
+              metadata: {
+                bookingId,
+                booking_id: bookingId,
+                purpose: 'customer_balance',
+                quoteVersion: meta.quoteVersion,
+              },
+            });
+          }
+
+          if (!(results.postgres && results.postgres.handled)) {
+            const {
+              applyCustomerBalanceReconciliation,
+              financialProjection,
+              logPaymentReconciliation,
+            } = require('../lib/payment-service');
+            const { getBookingRecord, commitBooking } = require('../lib/booking-repository');
+            const beforeRec = await getBookingRecord(bookingId);
+            const localBefore = beforeRec.exists ? financialProjection(beforeRec.booking) : null;
+            const applied = await applyCustomerBalanceReconciliation({
+              bookingId,
+              session: sess,
+              getBookingRecord,
+              commitBooking,
+              stripeEventId: evt.id,
+            });
+            const localAfter = applied.booking
+              ? financialProjection(applied.booking)
+              : (applied.projection || localBefore);
+            logPaymentReconciliation({
+              bookingId,
+              stripeEventId: evt.id,
+              checkoutSessionId: sess.id,
+              paymentIntentId: sess.payment_intent,
+              localBefore,
+              providerState: { payment_status: sess.payment_status, type: evt.type },
+              localAfter,
+              adminProjection: localAfter,
+            });
+            if (applied.ok) {
+              results.customerBalance = {
+                ok: true,
+                duplicate: !!applied.duplicate,
+                creditCents: applied.creditCents,
+                attempts: applied.attempts,
+                projection: localAfter,
+              };
+            } else if (applied.quarantined) {
+              results.customerBalance = { ok: false, quarantined: true, error: applied.error };
+              console.warn('[stripe-webhook] customer_balance quarantined', bookingId, applied.error);
+            } else if (applied.retryable || applied.error === 'version_conflict' || applied.error === 'not_found') {
+              results.customerBalance = {
+                ok: false,
+                retryable: true,
+                error: applied.error,
+                statusCode: applied.statusCode || 500,
+              };
+              console.warn('[stripe-webhook] customer_balance retryable failure', bookingId, applied.error);
+              return {
+                statusCode: 500,
+                body: JSON.stringify({ received: false, retryable: true, ...results }),
+              };
+            } else {
+              results.customerBalance = { ok: false, error: applied.error, statusCode: applied.statusCode };
+            }
+          } else {
             results.customerBalance = {
               ok: true,
-              duplicate: !!applied.duplicate,
-              creditCents: applied.creditCents,
-              attempts: applied.attempts,
-              projection: localAfter,
+              authority: 'postgres',
+              projection: results.postgres.projection,
             };
-          } else if (applied.quarantined) {
-            // Permanent validation failure — ack so Stripe does not poison-retry forever.
-            results.customerBalance = { ok: false, quarantined: true, error: applied.error };
-            console.warn('[stripe-webhook] customer_balance quarantined', bookingId, applied.error);
-          } else if (applied.retryable || applied.error === 'version_conflict' || applied.error === 'not_found') {
-            results.customerBalance = {
-              ok: false,
-              retryable: true,
-              error: applied.error,
-              statusCode: applied.statusCode || 500,
-            };
-            console.warn('[stripe-webhook] customer_balance retryable failure', bookingId, applied.error);
-            return {
-              statusCode: 500,
-              body: JSON.stringify({ received: false, retryable: true, ...results }),
-            };
-          } else {
-            results.customerBalance = { ok: false, error: applied.error, statusCode: applied.statusCode };
           }
         }
       }
