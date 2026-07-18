@@ -249,6 +249,12 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/length-pricing.js',
     'netlify/lib/booking-schedule.js',
     'netlify/lib/draft-save-token.js',
+    // Prisma dual-write mirror + card-on-file hardening (already shipped;
+    // allowlist was never updated for them — see docs/audit/phase2-gate-report.md).
+    'netlify/lib/booking-prisma-mirror.js',
+    'netlify/lib/prisma.js',
+    'netlify/lib/card-on-file.js',
+    'netlify/lib/tech-security.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

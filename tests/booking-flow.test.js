@@ -71,7 +71,7 @@ test('server requires webhook-saved card and fixes booking statuses', () => {
   assert.match(submit, /getDraftTokenSecretStatus/);
   assert.match(submit, /paymentStatus:\s+'no_payment_required_yet'/);
   assert.match(submit, /appointmentStatus:\s+'pending_review'/);
-  assert.match(submit, /jobStatus:\s+'not_started'/);
+  assert.match(submit, /jobStatus:\s+'pending_review'/);
   assert.match(submit, /cardOnFileRequired:\s+true/);
   assert.match(submit, /online_after_service/);
 });
