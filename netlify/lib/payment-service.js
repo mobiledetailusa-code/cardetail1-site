@@ -199,8 +199,11 @@ function financialProjection(booking) {
   const pwf = String(booking?.paymentWorkflowStatus || '').toLowerCase();
   const invoicePaid = !!(isInvoicePaid(booking) || (settledCents > 0 && rem === 0));
 
+  const refundStatus = String(booking?.refundStatus || '').toLowerCase();
   let paymentStatus = 'not_due';
-  if (rawPay === 'failed' || pwf === 'payment_failed') {
+  if (rawPay === 'refunded' || pwf === 'refunded' || refundStatus === 'refunded' || refundStatus === 'succeeded') {
+    paymentStatus = 'refunded';
+  } else if (rawPay === 'failed' || pwf === 'payment_failed') {
     paymentStatus = 'failed';
   } else if (
     invoicePaid
@@ -217,7 +220,9 @@ function financialProjection(booking) {
   }
 
   let paymentWorkflowStatus = pwf || 'no_payment_required_yet';
-  if (paymentStatus === 'paid') {
+  if (paymentStatus === 'refunded') {
+    paymentWorkflowStatus = 'refunded';
+  } else if (paymentStatus === 'paid') {
     paymentWorkflowStatus = pwf === 'cash_paid' ? 'cash_paid' : 'payment_succeeded';
   } else if (paymentStatus === 'failed') {
     paymentWorkflowStatus = 'payment_failed';
@@ -391,9 +396,17 @@ function reconcileCustomerBalanceSession({
 
   const remAfter = remainingCents(ledger);
   const settled = remAfter === 0;
+  let changeRequests = asArray(norm.changeRequests);
+  if (settled) {
+    try {
+      const { supersedeMoneyRequestsOnSettle } = require('./customer-change-requests');
+      changeRequests = supersedeMoneyRequestsOnSettle(changeRequests);
+    } catch { /* ignore */ }
+  }
   const next = buildNextAggregate(norm, {
     ledger,
     paymentAttempts: nextAttempts,
+    changeRequests,
     paymentWorkflowStatus: settled ? 'payment_succeeded' : 'awaiting_customer_payment',
     paymentStatus: settled ? 'paid' : (norm.paymentStatus || ''),
     // Clear payable link projections so admin/customer cannot re-open a settled Checkout.
@@ -403,6 +416,13 @@ function reconcileCustomerBalanceSession({
       stripeCheckoutSessionId: '',
       payLinkAmount: null,
       lastStripeCheckoutSessionId: sessionId,
+      // Money change requests closed; schedule/address/cancel still need admin if open.
+      customerChangePending: changeRequests.some((r) => {
+        const s = String(r.status || '').toLowerCase();
+        return s === 'pending' || s === 'pending_approval' || s === 'needs_clarification';
+      }),
+      packageChangeRequested: false,
+      addonsRequested: false,
     } : {}),
   });
 
@@ -474,6 +494,21 @@ async function applyCustomerBalanceReconciliation({
         localAfter,
         adminProjection: localAfter,
       });
+      // Sync superseded money requests into the rebuildable index so Admin/Customer queues clear.
+      try {
+        const { rebuildRequestIndex } = require('./booking-commands');
+        const rows = asArray(committed.booking.changeRequests)
+          .filter((r) => String(r.status || '') === 'superseded');
+        await Promise.all(rows.map((r) => rebuildRequestIndex({
+          ...r,
+          id: r.requestId || r.id,
+          bookingId,
+          status: 'superseded',
+          adminDecision: 'reject',
+          decidedAt: r.decidedAt || new Date().toISOString(),
+          customerVisibleResult: r.customerVisibleResult || 'Closed — invoice paid.',
+        })));
+      } catch { /* fail-open */ }
       return {
         ok: true,
         duplicate: false,

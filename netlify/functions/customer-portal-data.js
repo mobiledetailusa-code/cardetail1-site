@@ -7,7 +7,7 @@ const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
 const { validateCustomerSession } = require('../lib/customer-session');
 const { phonesMatch, normalizeUsPhoneDigits } = require('../lib/phone-auth');
 const { listVehiclesForOwner } = require('../lib/customer-vehicles');
-const { listRequestsForBooking } = require('../lib/customer-change-requests');
+const { listVisibleRequestsForBooking } = require('../lib/customer-change-requests');
 const { canPayBalance } = require('../lib/appointment-status-policy');
 const { catalogForClient } = require('../lib/customer-catalog');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
@@ -50,12 +50,14 @@ function upcomingSortKey(b) {
 }
 
 function selectUpcoming(projected) {
-  const terminal = new Set(['Paid', 'Closed', 'Cancelled', 'Canceled', 'Completed']);
+  // Paid invoice is NOT terminal for the appointment hub — customer must still see the job.
+  const terminalStatus = new Set(['Cancelled', 'Canceled', 'Completed']);
+  const terminalJob = new Set(['cancelled', 'completed_paid', 'archived_test']);
   const active = projected
-    .filter((b) => !terminal.has(String(b.status || '')))
-    .filter((b) => String(b.jobStatus || '') !== 'completed_paid')
+    .filter((b) => !terminalStatus.has(String(b.status || '')))
+    .filter((b) => !terminalJob.has(String(b.jobStatus || '').toLowerCase()))
     .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
-  return active[0] || null;
+  return active[0] || projected[0] || null;
 }
 
 exports.handler = async (event) => {
@@ -99,7 +101,7 @@ exports.handler = async (event) => {
       booking: projected,
       payment,
       catalog,
-      changeRequests: await listRequestsForBooking(auth.booking.id || auth.booking.bookingId),
+      changeRequests: await listVisibleRequestsForBooking(auth.booking),
     });
   }
 
@@ -128,7 +130,10 @@ exports.handler = async (event) => {
 
   let changeRequests = [];
   if (upcoming?.id) {
-    try { changeRequests = await listRequestsForBooking(upcoming.id); } catch { changeRequests = []; }
+    try {
+      const rawUpcoming = bookings.find((b) => (b.id || b.bookingId) === upcoming.id);
+      changeRequests = await listVisibleRequestsForBooking(rawUpcoming || upcoming);
+    } catch { changeRequests = []; }
   }
 
   return jsonCors(200, {

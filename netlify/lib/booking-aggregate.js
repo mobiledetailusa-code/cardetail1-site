@@ -114,9 +114,16 @@ function normalizeAggregate(raw, opts = {}) {
     }]);
   }
 
+  // Top-level address wins over nested service.serviceAddress so admin/customer
+  // address applies are not reverted on the next normalize/strong read.
   const service = {
-    serviceAddress: (b.service && typeof b.service === 'object' ? b.service.serviceAddress : null) || b.address || '',
-    zip: (b.service && typeof b.service === 'object' ? b.service.zip : null) || b.zipCode || b.zip || '',
+    serviceAddress: (b.address && String(b.address).trim())
+      || (b.service && typeof b.service === 'object' ? b.service.serviceAddress : null)
+      || '',
+    zip: (b.zipCode && String(b.zipCode).trim())
+      || (b.zip && String(b.zip).trim())
+      || (b.service && typeof b.service === 'object' ? b.service.zip : null)
+      || '',
     vehicles,
   };
 

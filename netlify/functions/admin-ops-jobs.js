@@ -736,6 +736,27 @@ async function handleAdminAction(body) {
     if (stripeGuard.blocked) {
       return jsonCors(stripeGuard.statusCode, stripeGuard.body);
     }
+    const js = normalizeJobStatus(booking);
+    const cancelled = js === 'cancelled'
+      || String(booking.appointmentStatus || '').toLowerCase() === 'canceled'
+      || String(booking.appointmentStatus || '').toLowerCase() === 'cancelled'
+      || String(booking.cancellationRequestStatus || '').toLowerCase() === 'approved'
+      || String(booking.status || '').toLowerCase() === 'cancelled'
+      || String(booking.status || '').toLowerCase() === 'canceled';
+    const completed = [
+      'completed_paid',
+      'completed_pending_admin_review',
+      'completed_pending_payment',
+    ].includes(js);
+    if (cancelled || completed) {
+      return jsonCors(409, {
+        ok: false,
+        error: 'policy_charge_blocked',
+        message: cancelled
+          ? 'Policy fee blocked — appointment is cancelled within terms / already cancelled.'
+          : 'Policy fee blocked — job is already completed.',
+      });
+    }
     const secret = stripeGuard.secret;
     const feeType = sanitizeText(body.feeType, 32);
     const preset = { no_show: 75, late_cancel: 50 };
@@ -797,16 +818,51 @@ async function handleAdminAction(body) {
   if (action === 'record_refund_request') {
     const reason = sanitizeText(body.reason, 500);
     const amount = body.amount != null ? Math.round(Number(body.amount) * 100) / 100 : null;
+    const markDone = body.markRefunded === true || String(body.refundStatus || '').toLowerCase() === 'refunded';
     await store.setJSON(bookingId, {
       ...booking,
       refundRequestedAt: now,
       refundRequestReason: reason,
       refundRequestAmount: amount,
-      refundStatus: 'pending_admin',
+      refundStatus: markDone ? 'refunded' : 'pending_admin',
+      ...(markDone ? {
+        paymentStatus: 'refunded',
+        paymentWorkflowStatus: 'refunded',
+        refundedAt: now,
+      } : {}),
       updatedAt: now,
-      eventLog: appendEventLog(booking, { action: 'refund_requested', by: 'admin', reason, amount }),
+      eventLog: appendEventLog(booking, {
+        action: markDone ? 'refund_recorded' : 'refund_requested',
+        by: 'admin',
+        reason,
+        amount,
+      }),
     });
-    return jsonCors(200, { ok: true, bookingId, note: 'Refund logged — process manually in Stripe until automated in next PR.' });
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      refundStatus: markDone ? 'refunded' : 'pending_admin',
+      note: markDone
+        ? 'Refund marked — payment status is now refunded.'
+        : 'Refund logged — process in Stripe; webhook or Mark refunded updates status.',
+    });
+  }
+
+  if (action === 'mark_refunded') {
+    const reason = sanitizeText(body.reason, 500);
+    const amount = body.amount != null ? Math.round(Number(body.amount) * 100) / 100 : null;
+    await store.setJSON(bookingId, {
+      ...booking,
+      paymentStatus: 'refunded',
+      paymentWorkflowStatus: 'refunded',
+      refundStatus: 'refunded',
+      refundedAt: now,
+      refundRequestReason: reason || booking.refundRequestReason || '',
+      refundRequestAmount: amount != null ? amount : booking.refundRequestAmount,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'refund_recorded', by: 'admin', reason, amount }),
+    });
+    return jsonCors(200, { ok: true, bookingId, paymentWorkflowStatus: 'refunded' });
   }
 
   if (action === 'record_job_balance') {
@@ -955,16 +1011,57 @@ async function handleAdminAction(body) {
     if (requestType === 'address' && (booking.addressChangedByClient || booking.requestedAddress)) {
       const address = sanitizeText(booking.requestedAddress || body.address, 300);
       if (!address) return jsonCors(400, { ok: false, error: 'no_address_request' });
+      const service = {
+        ...(booking.service && typeof booking.service === 'object' ? booking.service : {}),
+        serviceAddress: address,
+        vehicles: (booking.service && Array.isArray(booking.service.vehicles))
+          ? booking.service.vehicles
+          : (booking.vehicles || []),
+      };
+      const changeRequests = (Array.isArray(booking.changeRequests) ? booking.changeRequests : []).map((r) => {
+        const type = r.requestType || r.type;
+        const open = ['pending', 'pending_approval'].includes(String(r.status || '').toLowerCase());
+        if (type === 'address_update' && open) {
+          return {
+            ...r,
+            status: 'applied',
+            decision: 'approve',
+            decidedAt: now,
+            customerVisibleResult: 'Address updated.',
+          };
+        }
+        return r;
+      });
       const patched = {
         ...booking,
         address,
+        service,
+        requestedAddress: '',
         addressChangedByClient: false,
         addressRequestAppliedAt: now,
+        changeRequests,
+        customerChangePending: changeRequests.some((r) => ['pending', 'pending_approval', 'needs_clarification'].includes(String(r.status || '').toLowerCase())),
         updatedAt: now,
         eventLog: appendEventLog(booking, { action: 'customer_address_applied', by: 'admin' }),
       };
-      await store.setJSON(bookingId, patched);
-      return jsonCors(200, { ok: true, bookingId });
+      const persisted = await persistMutation(store, bookingId, patched, booking, 'customer_address_applied', 'admin_apply');
+      if (!persisted.ok) {
+        return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+      }
+      try {
+        const { rebuildRequestIndex } = require('../lib/booking-commands');
+        await Promise.all(changeRequests
+          .filter((r) => (r.requestType || r.type) === 'address_update' && r.status === 'applied')
+          .map((r) => rebuildRequestIndex({
+            ...r,
+            id: r.requestId || r.id,
+            bookingId,
+            status: 'applied',
+            adminDecision: 'approve',
+            decidedAt: now,
+          })));
+      } catch { /* fail-open */ }
+      return jsonCors(200, { ok: true, bookingId, bookingVersion: persisted.bookingVersion });
     }
     return jsonCors(400, { ok: false, error: 'no_pending_customer_request' });
   }

@@ -423,6 +423,59 @@ exports.handler = async (event) => {
       break;
     }
 
+    case 'charge.refunded':
+    case 'refund.updated': {
+      const obj = evt.data.object || {};
+      const charge = evt.type === 'charge.refunded' ? obj : null;
+      const refund = evt.type === 'refund.updated' ? obj : null;
+      const meta = (charge && charge.metadata) || (refund && refund.metadata) || {};
+      let refundBookingId = String(meta.booking_id || meta.bookingId || bookingId || '').trim();
+      const piId = String(
+        (charge && charge.payment_intent)
+        || (refund && refund.payment_intent)
+        || ''
+      ).trim();
+      const refunded = charge
+        ? (Number(charge.amount_refunded || 0) > 0)
+        : (String(refund.status || '').toLowerCase() === 'succeeded');
+      if (refunded && refundBookingId && refundBookingId !== '—') {
+        results.update = await updateBookingPayment(refundBookingId, {
+          paymentStatus: 'refunded',
+          paymentWorkflowStatus: 'refunded',
+          refundStatus: 'refunded',
+          refundedAt: new Date().toISOString(),
+          stripeRefundId: (refund && refund.id) || (charge && charge.refunds && charge.refunds.data && charge.refunds.data[0] && charge.refunds.data[0].id) || null,
+          stripeRefundPaymentIntentId: piId || null,
+        });
+      } else if (refunded && piId) {
+        // Best-effort: locate booking by stored PaymentIntent / policy charge id.
+        try {
+          const { listAllBlobs, fetchBlobRecords } = require('../lib/tech-security');
+          const store = await blobsStore('cd1-bookings');
+          const blobs = await listAllBlobs(store, 'cd1-bookings');
+          const rows = await fetchBlobRecords(store, blobs);
+          const match = rows.find((b) => b && (
+            b.paymentIntentId === piId
+            || b.policyPaymentIntentId === piId
+            || b.stripeRefundPaymentIntentId === piId
+          ));
+          if (match && (match.id || match.bookingId)) {
+            refundBookingId = match.id || match.bookingId;
+            results.update = await updateBookingPayment(refundBookingId, {
+              paymentStatus: 'refunded',
+              paymentWorkflowStatus: 'refunded',
+              refundStatus: 'refunded',
+              refundedAt: new Date().toISOString(),
+              stripeRefundPaymentIntentId: piId,
+            });
+          }
+        } catch (e) {
+          console.warn('[stripe-webhook] refund booking lookup failed', e.message);
+        }
+      }
+      break;
+    }
+
     default:
       // Log unexpected event types to help with future debugging.
       if (evt.type) console.log('[stripe-webhook] unhandled event type:', evt.type);

@@ -466,8 +466,18 @@ async function decideChangeRequestCommand({
     fieldPatches.rescheduledByClient = false;
   }
   if (rt === 'address_update') {
-    fieldPatches.address = cr.delta?.serviceAddress || cr.delta?.address || aggregate.address;
+    const newAddr = String(cr.delta?.serviceAddress || cr.delta?.address || aggregate.address || '').trim();
+    fieldPatches.address = newAddr;
+    fieldPatches.requestedAddress = '';
     fieldPatches.addressChangedByClient = false;
+    // Keep nested service in sync — normalizeAggregate must not revive the old address.
+    service = {
+      ...(service && typeof service === 'object' ? service : {}),
+      serviceAddress: newAddr,
+      vehicles: ensureVehicleIds(
+        (service && Array.isArray(service.vehicles) ? service.vehicles : aggregate.service?.vehicles) || []
+      ),
+    };
   }
   if (rt === 'cancellation' || rt === 'cancellation_request') {
     fieldPatches.status = 'Cancelled';

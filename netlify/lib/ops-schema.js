@@ -13,7 +13,7 @@ const JOB_STATUSES = [
 
 const PAYMENT_WORKFLOW_STATUSES = [
   'no_payment_required_yet', 'pending_admin_review', 'awaiting_customer_payment',
-  'payment_action_required', 'payment_succeeded', 'payment_failed', 'cash_paid',
+  'payment_action_required', 'payment_succeeded', 'payment_failed', 'cash_paid', 'refunded',
 ];
 
 const LEGACY_STATUS_TO_JOB = {
@@ -70,6 +70,7 @@ function normalizePaymentWorkflowStatus(booking) {
   try {
     const { financialProjection } = require('./payment-service');
     const fp = financialProjection(b);
+    if (fp.paymentStatus === 'refunded') return 'refunded';
     if (fp.paymentStatus === 'paid') {
       return b.paymentWorkflowStatus === 'cash_paid' ? 'cash_paid' : 'payment_succeeded';
     }
@@ -152,7 +153,7 @@ function projectBookingForCustomer(b) {
     confirmedDate: src.confirmedDate || '',
     confirmedTime: src.confirmedTime || '',
     confirmedTimeWindow: src.confirmedTimeWindow || src.confirmedWindow || '',
-    address: src.address || '',
+    address: src.address || (src.service && src.service.serviceAddress) || '',
     zipCode: src.zipCode || '',
     zone: src.zone || '',
     travelFeeMiles: src.travelFeeMiles ?? null,
