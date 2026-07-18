@@ -173,7 +173,29 @@ exports.handler = async (event) => {
       if (usesLengthPricing(vehicleCategory) && !(lengthFt > 0)) {
         return json(400, { ok: false, error: 'validation_error', message: 'Enter vessel / RV length in feet for accurate pricing.' });
       }
-      const tierKey = p.tier || p.vehicleTier || booking.vehicleTier || booking.tierKey || 'suv3';
+      const { PRICING } = require('../lib/booking-price-catalog');
+      const carTiers = (PRICING.cars && PRICING.cars.tiers) || {};
+      const primaryVehicle = (booking.service && Array.isArray(booking.service.vehicles)
+        ? booking.service.vehicles[0]
+        : null) || (Array.isArray(booking.vehicles) ? booking.vehicles[0] : null) || {};
+      const tierCandidates = [
+        p.tier, p.vehicleTier, p.tierKey,
+        primaryVehicle.tierKey, primaryVehicle.tier,
+        booking.vehicleTier, booking.tierKey,
+      ].map((t) => String(t || '').trim()).filter(Boolean);
+      let tierKey = '';
+      for (const candidate of tierCandidates) {
+        if (carTiers[candidate]) { tierKey = candidate; break; }
+      }
+      if (!tierKey) {
+        const tierLabel = String(p.tierLabel || primaryVehicle.tierLabel || booking.tierLabel || '').trim();
+        if (tierLabel) {
+          for (const [key, tier] of Object.entries(carTiers)) {
+            if (tier && tier.label === tierLabel) { tierKey = key; break; }
+          }
+        }
+      }
+      if (!tierKey) tierKey = 'suv3';
       delta = {
         packageId: newPackId,
         newPackId,

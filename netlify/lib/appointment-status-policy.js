@@ -81,10 +81,11 @@ function canPayBalance(booking) {
     due = Math.max(0, approved - paid);
   }
 
-  if (!(due > 0) && !booking?.payLink) {
+  // Stale payLink must never keep Pay Balance open after ledger remaining is 0.
+  if (!(due > 0)) {
     return { ok: false, error: 'payment_not_due', due: 0 };
   }
-  return { ok: true, phase, due: due > 0 ? due : 0 };
+  return { ok: true, phase, due };
 }
 
 module.exports = {

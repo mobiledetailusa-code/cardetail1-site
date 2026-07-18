@@ -102,9 +102,22 @@ function applyServiceDelta(service, target, delta) {
     vehicle.tierKey = tierKey;
     vehicle.tier = tierKey;
     if (d.tierLabel) vehicle.tierLabel = d.tierLabel;
+  } else if (d.tierLabel) {
+    vehicle.tierLabel = d.tierLabel;
   }
   if (d.lengthFt != null && d.lengthFt !== '') {
     vehicle.lengthFt = Number(d.lengthFt) || 0;
+  }
+  if (d.year != null && d.year !== '') vehicle.year = String(d.year);
+  if (d.make != null && d.make !== '') vehicle.make = String(d.make);
+  if (d.model != null && d.model !== '') vehicle.model = String(d.model);
+  if (d.vehicleLabel || d.label) {
+    vehicle.vehicleLabel = String(d.vehicleLabel || d.label);
+    vehicle.label = vehicle.vehicleLabel;
+  }
+  if (d.rvType || d.typeKey) {
+    vehicle.rvType = String(d.rvType || d.typeKey);
+    vehicle.typeKey = vehicle.rvType;
   }
 
   let existingIds = new Set(

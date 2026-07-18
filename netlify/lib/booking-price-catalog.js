@@ -278,8 +278,7 @@ function inferPkgId(vehicle, booking) {
 }
 
 function resolveTierKey(vehicle) {
-  if (vehicle.tierKey) return vehicle.tierKey;
-  const cat = vehicle.cat;
+  const cat = vehicle.cat || vehicle.category;
   if (cat === 'boats' || cat === 'rvs') return 'length';
   if (cat === 'fleet') {
     const label = String(vehicle.vehicleLabel || '');
@@ -288,6 +287,9 @@ function resolveTierKey(vehicle) {
     }
   }
   const tiers = PRICING[cat]?.tiers;
+  // Only accept known tier keys — stale/unknown keys (e.g. leftover suv2) must not win.
+  const rawKey = String(vehicle.tierKey || vehicle.tier || '').trim();
+  if (rawKey && tiers && tiers[rawKey]) return rawKey;
   const tierLabel = String(vehicle.tierLabel || '').trim();
   if (tiers && tierLabel) {
     for (const [key, tier] of Object.entries(tiers)) {

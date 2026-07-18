@@ -10,6 +10,7 @@ const {
   materialProjection,
   remainingCents,
   ensureVehicleIds,
+  newVehicleId,
 } = require('./booking-aggregate');
 const { quoteService, applyServiceDelta } = require('./canonical-quote');
 const { dollarsToCents, asArray } = require('./historical-adapter');
@@ -311,11 +312,13 @@ async function decideChangeRequestCommand({
   }
 
   const moneyTypes = new Set(['package_change_request', 'addon_request']);
+  const vehicleTypes = new Set(['vehicle_replace_request', 'vehicle_add_request']);
   let service = aggregate.service;
   let quote = aggregate.quote;
   let ledger = aggregate.ledger;
+  const rtDecide = cr.type || cr.requestType;
 
-  if (moneyTypes.has(cr.type || cr.requestType)) {
+  if (moneyTypes.has(rtDecide)) {
     const applied = applyServiceDelta(service, cr.target || {}, {
       packageId: cr.delta?.packageId || cr.delta?.newPackId,
       addOnIdsToAdd: cr.delta?.addOnIdsToAdd || cr.delta?.addonIds || asArray(cr.delta?.addons).map((a) => a.id),
@@ -352,6 +355,66 @@ async function decideChangeRequestCommand({
       ...ledger,
       approvedCents: quote.approvedCents,
     };
+  } else if (vehicleTypes.has(rtDecide)) {
+    const { normalizeLengthCategory } = require('./length-pricing');
+    const d = cr.delta || {};
+    const category = normalizeLengthCategory(d.category || d.vehicleCategory || 'cars');
+    const label = d.vehicleLabel || d.label
+      || [d.year, d.make, d.model].filter(Boolean).join(' ').trim();
+    if (rtDecide === 'vehicle_replace_request') {
+      const applied = applyServiceDelta(service, cr.target || {}, {
+        vehicleCategory: category,
+        category,
+        year: d.year,
+        make: d.make,
+        model: d.model,
+        vehicleLabel: label,
+        lengthFt: d.lengthFt,
+        tierKey: d.tierKey || d.tier,
+        tierLabel: d.tierLabel,
+        rvType: d.rvType || d.typeKey,
+      });
+      if (!applied.ok) return { ok: false, error: applied.error, statusCode: 400 };
+      service = applied.service;
+    } else {
+      // vehicle_add_request — append a new priced vehicle (keep prior package on primary)
+      const vehicles = ensureVehicleIds(service.vehicles || []);
+      const primary = vehicles[0] || {};
+      vehicles.push({
+        vehicleId: newVehicleId(),
+        category,
+        cat: category,
+        year: d.year || '',
+        make: d.make || '',
+        model: d.model || '',
+        vehicleLabel: label,
+        label,
+        lengthFt: Number(d.lengthFt) || 0,
+        packageId: primary.packageId || primary.pkgId || '',
+        pkgId: primary.packageId || primary.pkgId || '',
+        pkgName: primary.pkgName || primary.packageName || '',
+        addOnIds: [],
+        addons: [],
+        tierKey: d.tierKey || d.tier || primary.tierKey || '',
+        tierLabel: d.tierLabel || primary.tierLabel || '',
+        rvType: d.rvType || d.typeKey || '',
+      });
+      service = { ...service, vehicles };
+    }
+    const travelCents = dollarsToCents(aggregate.travelFeeAmount || aggregate.zoneSurcharge || 0);
+    const quoted = quoteService(service, {
+      basedOnBookingVersion: actualVersion,
+      previousQuoteVersion: aggregate.quoteVersion || aggregate.quote?.quoteVersion || 0,
+      travelCents,
+      bookingBase: aggregate,
+    });
+    if (!quoted.ok) return { ok: false, error: quoted.error, statusCode: 400 };
+    quote = quoted.quote;
+    service = quoted.service;
+    ledger = {
+      ...ledger,
+      approvedCents: quote.approvedCents,
+    };
   }
 
   const appliedBookingVersion = actualVersion + 1;
@@ -373,7 +436,7 @@ async function decideChangeRequestCommand({
   });
 
   const fieldPatches = {};
-  const rt = cr.type || cr.requestType;
+  const rt = rtDecide;
   if (rt === 'reschedule_request') {
     fieldPatches.preferredDate = cr.delta?.requestedDate || cr.delta?.preferredDate || aggregate.preferredDate;
     fieldPatches.preferredTime = cr.delta?.requestedTime || cr.delta?.preferredTime || aggregate.preferredTime;
@@ -388,6 +451,16 @@ async function decideChangeRequestCommand({
     fieldPatches.jobStatus = 'cancelled';
     fieldPatches.appointmentStatus = 'canceled';
     fieldPatches.cancellationRequestStatus = 'approved';
+  }
+  if (vehicleTypes.has(rt)) {
+    fieldPatches.vehicleChangeRequested = false;
+    fieldPatches.requestedVehicleLabel = '';
+    fieldPatches.requestedVehicleCategory = '';
+    fieldPatches.requestedVehicleYear = '';
+    fieldPatches.requestedVehicleMake = '';
+    fieldPatches.requestedVehicleModel = '';
+    fieldPatches.requestedVehicleLengthFt = 0;
+    fieldPatches.requestedVehicleAction = '';
   }
 
   const next = buildNextAggregate(aggregate, {

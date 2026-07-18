@@ -7,11 +7,7 @@ const { checkPublicRateLimit } = require('../lib/public-rate-limit');
 const { verifyActionToken } = require('../lib/customer-completion-link');
 const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
 const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
-
-async function getBooking(bookingId) {
-  const store = await blobsStore('cd1-bookings');
-  return store.get(bookingId, { type: 'json' }).catch(() => null);
-}
+const { getBooking } = require('../lib/ops-db');
 
 async function resolveContext(event, body, action) {
   const token = String(body.token || '').trim();

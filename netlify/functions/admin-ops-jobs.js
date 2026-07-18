@@ -533,14 +533,22 @@ async function handleAdminAction(body) {
   if (action === 'set_payment_link') {
     const payLink = sanitizeText(body.payLink, 500);
     if (!payLink.startsWith('http')) return jsonCors(400, { ok: false, error: 'invalid_pay_link' });
+    const { moneyConflict } = require('../lib/payment-service');
+    const money = moneyConflict(booking);
+    if (money.conflict || !money.payable || !(money.remainingCents > 0)) {
+      return jsonCors(409, {
+        ok: false,
+        error: 'not_payable',
+        reason: money.reason || 'zero_balance',
+        message: 'Booking is already paid or has no remaining balance. Manual pay links are blocked.',
+      });
+    }
     // Manual external reference only — not an authoritative Stripe payment attempt.
+    // Do NOT set payLink/awaiting_customer_payment (those drive Pay Balance CTAs).
     const patched = {
       ...booking,
-      payLink,
       manualPayLink: payLink,
       manualPayLinkAt: now,
-      paymentWorkflowStatus: 'awaiting_customer_payment',
-      payLinkSentAt: now,
       updatedAt: now,
       eventLog: appendEventLog(booking, {
         action: 'manual_payment_link_set',
@@ -583,10 +591,49 @@ async function handleAdminAction(body) {
       expectedQuoteVersion: body.expectedQuoteVersion,
     }, process.env);
     if (!prepared.ok) {
-      return jsonCors(prepared.statusCode || 400, { ok: false, error: prepared.error });
+      return jsonCors(prepared.statusCode || 400, {
+        ok: false,
+        error: prepared.error,
+        reason: prepared.reason,
+        message: prepared.error === 'not_payable' || prepared.error === 'zero_balance'
+          ? 'Booking is already paid or has no remaining balance. A new Stripe link was not created.'
+          : undefined,
+      });
     }
     const amountDollars = centsToDollars(prepared.amountCents);
     if (prepared.amountCents < 50) return jsonCors(400, { ok: false, error: 'amount_too_low' });
+
+    const { ok: nOk, aggregate: nAgg } = normalizeAggregate(freshBooking);
+    const baseAgg = nOk ? nAgg : freshBooking;
+    // Reuse matching open Checkout — never mint a second payable session for the same balance.
+    const open = (Array.isArray(baseAgg.paymentAttempts) ? baseAgg.paymentAttempts : [])
+      .find((a) => a
+        && a.status === 'open'
+        && a.amountCents === prepared.amountCents
+        && a.quoteVersion === prepared.quoteVersion
+        && a.providerObjectId
+        && baseAgg.payLink);
+    if (open && baseAgg.payLink) {
+      return jsonCors(200, {
+        ok: true,
+        bookingId,
+        url: baseAgg.payLink,
+        id: open.providerObjectId,
+        amountDueApproved: amountDollars,
+        remainingCents: prepared.amountCents,
+        bookingVersion: prepared.bookingVersion,
+        quoteVersion: prepared.quoteVersion,
+        reused: true,
+      });
+    }
+
+    // Expire any other open sessions before creating a new one (prevents dual Checkout windows).
+    const superseded = supersedeOpenAttempts(baseAgg.paymentAttempts, {
+      quoteVersion: prepared.quoteVersion,
+      forceAll: true,
+    });
+    await expireSupersededAttempts(superseded, process.env);
+
     const base = process.env.SITE_URL || 'https://cardetail1.netlify.app';
     const form = new URLSearchParams({
       mode: 'payment',
@@ -617,8 +664,6 @@ async function handleAdminAction(body) {
     if (!res.ok) {
       return jsonCors(res.status, { ok: false, error: (sess.error && sess.error.message) || 'stripe_error' });
     }
-    const { ok: nOk, aggregate: nAgg } = normalizeAggregate(freshBooking);
-    const baseAgg = nOk ? nAgg : freshBooking;
     const attempt = buildPaymentAttempt({
       bookingId,
       bookingVersion: prepared.bookingVersion,
@@ -631,7 +676,7 @@ async function handleAdminAction(body) {
     attempt.status = 'open';
     const next = buildNextAggregate(baseAgg, {
       ...applyPayLinkMoney(baseAgg, amountDollars, sess.url, sess.id),
-      paymentAttempts: [...(Array.isArray(baseAgg.paymentAttempts) ? baseAgg.paymentAttempts : []), attempt],
+      paymentAttempts: [...superseded, attempt],
       payLinkSentAt: now,
       eventLog: appendEventLog(baseAgg, { action: 'stripe_pay_link_generated', by: 'admin', amount: amountDollars }),
     });

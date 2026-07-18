@@ -64,13 +64,14 @@ const RV_PACKAGES = [
 
 function usesLengthPricing(category) {
   const c = String(category || '').toLowerCase();
-  return c === 'boats' || c === 'rvs' || c === 'boat' || c === 'rv';
+  return c === 'boats' || c === 'rvs' || c === 'boat' || c === 'rv'
+    || c === 'trailer' || c === 'trailers';
 }
 
 function normalizeLengthCategory(category) {
   const c = String(category || '').toLowerCase();
   if (c === 'boat') return 'boats';
-  if (c === 'rv' || c === 'trailer') return 'rvs';
+  if (c === 'rv' || c === 'trailer' || c === 'trailers') return 'rvs';
   return c;
 }
 

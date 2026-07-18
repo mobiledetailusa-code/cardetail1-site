@@ -17,8 +17,17 @@ async function bookingStore() {
 }
 
 async function getBooking(bookingId) {
+  // Strong consistency — customer lookup after admin approve must not race Blob replication.
   const store = await bookingStore();
-  const raw = await store.get(bookingId, { type: 'json' }).catch(() => null);
+  const id = String(bookingId || '').trim();
+  if (!id) return null;
+  let result = null;
+  if (typeof store.getWithMetadata === 'function') {
+    result = await store.getWithMetadata(id, { type: 'json', consistency: 'strong' }).catch(() => null);
+  }
+  const raw = (result && result.data)
+    ? result.data
+    : await store.get(id, { type: 'json' }).catch(() => null);
   if (!raw) return null;
   const adapted = adaptHistoricalBooking(raw);
   return adapted.ok ? adapted.booking : raw;

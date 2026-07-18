@@ -22,7 +22,6 @@ function safePaymentState(booking) {
   else if (booking.paymentStatus === 'failed') state = 'failed';
   else if (booking.paymentStatus === 'processing') state = 'processing';
   else if (due > 0) state = 'due';
-  else if (booking.payLink) state = 'due';
   return {
     state,
     amountDueApproved: due,

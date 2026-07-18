@@ -100,7 +100,7 @@
     var cat = getCatalog();
     var key = String(category || '').toLowerCase();
     if (key === 'boat') key = 'boats';
-    if (key === 'rv') key = 'rvs';
+    if (key === 'rv' || key === 'trailer' || key === 'trailers') key = 'rvs';
     return (cat.lengthPricing && cat.lengthPricing[key]) || null;
   }
 
@@ -205,6 +205,8 @@
     var r = await post('customer-portal-data', { mode: 'limited', bookingId: id, phone: phone });
     if (!r.data || !r.data.ok) {
       setMsg($('lk-error'), (r.data && r.data.message) || 'No booking found. Check your ID and phone.', true);
+      show($('pre-auth'), true);
+      show($('post-auth'), false);
       return false;
     }
     state.scope = 'booking';
@@ -212,6 +214,10 @@
     state.bookings = r.data.booking ? [r.data.booking] : [];
     state.verifyPhone = phone;
     state.verifyBookingId = id;
+    try {
+      sessionStorage.setItem('cd1_garage_id', id);
+      sessionStorage.setItem('cd1_garage_phone', phone);
+    } catch (e) { /* ignore */ }
     applyPortalPayload(r.data);
     setMsg($('lk-error'), '', false);
     renderDashboard(r.data);
@@ -1064,11 +1070,23 @@
         if (ar.data.booking && ar.data.booking.id) {
           state.verifyBookingId = ar.data.booking.id;
         }
+        // Retain phone for hard-refresh fallback after URL credentials are stripped
+        var linkPhone = normalizePhoneInput(
+          (ar.data.booking && ar.data.booking.phone) || prePhone || ''
+        );
+        if (linkPhone.length >= 10) {
+          state.verifyPhone = linkPhone;
+          try {
+            sessionStorage.setItem('cd1_garage_id', state.verifyBookingId);
+            sessionStorage.setItem('cd1_garage_phone', linkPhone);
+          } catch (e) { /* ignore */ }
+        }
         applyPortalPayload(ar.data);
         history.replaceState({}, '', 'my-garage.html');
         renderDashboard({ payment: ar.data.payment || { canPay: ar.data.labels && ar.data.labels.canPay } });
         show($('pre-auth'), false);
         show($('post-auth'), true);
+        if (params.get('paid') === '1') pollPaymentSettlement();
         return;
       }
     }
@@ -1082,16 +1100,47 @@
 
     if (await checkSession()) {
       await loadAccount();
+      if (params.get('paid') === '1') pollPaymentSettlement();
       return;
     }
 
+    try {
+      if (!preId) preId = sessionStorage.getItem('cd1_garage_id') || '';
+      if (!prePhone) prePhone = sessionStorage.getItem('cd1_garage_phone') || '';
+      if (preId && $('lk-booking-id') && !$('lk-booking-id').value) $('lk-booking-id').value = String(preId).toUpperCase();
+      if (prePhone && $('lk-phone') && !$('lk-phone').value) $('lk-phone').value = prePhone;
+    } catch (e) { /* ignore */ }
+
     if (preId && prePhone) {
+      state.verifyBookingId = String(preId).toUpperCase();
+      state.verifyPhone = normalizePhoneInput(prePhone);
       await loadLimited();
+      if (params.get('paid') === '1') pollPaymentSettlement();
       return;
     }
 
     show($('pre-auth'), true);
     show($('post-auth'), false);
+  }
+
+  async function pollPaymentSettlement() {
+    var tries = 0;
+    async function tick() {
+      tries += 1;
+      await portalReload();
+      var pay = state.payment || {};
+      var settled = pay.state === 'paid' || !(pay.canPay || pay.amountDueApproved > 0);
+      if (settled) {
+        showToast('Payment confirmed — thank you!');
+        return;
+      }
+      if (tries < 6) {
+        setTimeout(tick, 2000);
+      } else {
+        showToast('Payment received by Stripe — balance will update shortly. Refresh if needed.');
+      }
+    }
+    setTimeout(tick, 1500);
   }
 
   function portalReload() {

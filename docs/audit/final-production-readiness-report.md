@@ -277,3 +277,22 @@ Confirmed: no merge to `master`, no Production deploy, no live Stripe keys used,
 | PDA-17 | RESOLVED |
 | PDA-18 | RESOLVED |
 | PDA-19 | DEFERRED |
+
+---
+
+## Owner portal retest findings (post card-on-file)
+
+Observed on preview testing:
+
+1. **Duplicate charge risk** — Stripe refused a second customer pay, but Admin could mint another Checkout link while balance still looked open / stale `payLink` remained.
+2. **Intermittent / permanent “no booking for code”** — after add-on / pack approve + refresh, customer lookup sometimes failed (weak Blob read + lost phone credentials on hard refresh).
+3. **Vehicle replace no-op** — Admin approve of car→trailer did not apply vehicle identity or reprice; trailer had no length ruler; pack pending could show $550 (suv2) for a 3-row vehicle.
+
+Surgical fixes on this branch (local; deploy when ready):
+
+- Admin Generate Stripe: reuse open session, force-expire prior opens, block when remaining = 0; settlement clears `payLink`; `canPayBalance` ignores leftover links; My Garage polls after `?paid=1`.
+- Strong consistency on customer booking reads; sessionStorage retains booking ID + phone for hard refresh.
+- Vehicle approve applies category/make/model/length + ledger reprice; trailer aliases use length pricing; pack-change tier prefers known vehicle tier keys.
+- Tests: `tests/portal-payment-access-hardening.test.js` (+ Release A suite green).
+
+**Retest required on deploy preview before owner approval.**

@@ -102,10 +102,11 @@ function buildPaymentAttempt({
   };
 }
 
-function supersedeOpenAttempts(attempts, { quoteVersion }) {
+function supersedeOpenAttempts(attempts, { quoteVersion, forceAll = false } = {}) {
   return asArray(attempts).map((a) => {
     if (a.status === 'open' || a.status === 'creating') {
-      if (Math.round(Number(a.quoteVersion) || 0) !== Math.round(Number(quoteVersion) || 0)) {
+      if (forceAll
+        || Math.round(Number(a.quoteVersion) || 0) !== Math.round(Number(quoteVersion) || 0)) {
         return { ...a, status: 'superseded', supersededAt: new Date().toISOString() };
       }
     }
@@ -286,11 +287,15 @@ function reconcileCustomerBalanceSession({
     a.providerObjectId === sessionId ? { ...a, status: 'settled', settledAt: entry.recordedAt } : a
   ));
 
+  const remAfter = remainingCents(ledger);
+  const settled = remAfter === 0;
   const next = buildNextAggregate(norm, {
     ledger,
     paymentAttempts: nextAttempts,
-    paymentWorkflowStatus: remainingCents(ledger) === 0 ? 'payment_succeeded' : 'awaiting_customer_payment',
-    paymentStatus: remainingCents(ledger) === 0 ? 'paid' : (norm.paymentStatus || ''),
+    paymentWorkflowStatus: settled ? 'payment_succeeded' : 'awaiting_customer_payment',
+    paymentStatus: settled ? 'paid' : (norm.paymentStatus || ''),
+    // Clear payable link projections so admin/customer cannot re-open a settled Checkout.
+    ...(settled ? { payLink: '', stripeCheckoutSessionId: '', payLinkAmount: null } : {}),
   });
 
   return { ok: true, duplicate: false, aggregate: next, entry, creditCents };
