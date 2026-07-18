@@ -16,6 +16,10 @@ async function bookingStore() {
   return blobsStore(BOOKINGS_STORE);
 }
 
+function normalizeBookingKey(raw) {
+  return String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '').slice(0, 48);
+}
+
 function healStickyDraftFlags(booking) {
   if (!booking || typeof booking !== 'object') return booking;
   const { hasSubmissionMarkers } = require('./booking-visibility');
@@ -31,31 +35,83 @@ function healStickyDraftFlags(booking) {
   };
 }
 
-async function getBooking(bookingId) {
-  // Blobs remain primary (checkout + CAS). Prisma is read fallback only after Blob miss.
-  const store = await bookingStore();
-  // Same normalization as booking-customer-auth (avoid circular require).
-  const id = String(bookingId || '').trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '').slice(0, 48);
-  if (!id) return null;
-  let result = null;
+async function readBlobJson(store, key) {
+  if (!key) return null;
   if (typeof store.getWithMetadata === 'function') {
-    result = await store.getWithMetadata(id, { type: 'json', consistency: 'strong' }).catch(() => null);
+    const result = await store.getWithMetadata(key, {
+      type: 'json',
+      consistency: 'strong',
+    }).catch(() => null);
+    if (result && result.data) return result.data;
   }
-  const raw = (result && result.data)
-    ? result.data
-    : await store.get(id, { type: 'json' }).catch(() => null);
-  if (raw) {
-    const adapted = adaptHistoricalBooking(raw);
-    return healStickyDraftFlags(adapted.ok ? adapted.booking : raw);
+  return store.get(key, { type: 'json' }).catch(() => null);
+}
+
+function finalizeBookingRead(raw, fallbackId) {
+  if (!raw) return null;
+  const adapted = adaptHistoricalBooking(raw);
+  const booking = healStickyDraftFlags(adapted.ok ? adapted.booking : raw);
+  if (!booking) return null;
+  const canonical = normalizeBookingKey(booking.id || booking.bookingId || fallbackId);
+  if (canonical) {
+    booking.id = booking.id || canonical;
+    booking.bookingId = booking.bookingId || booking.id;
   }
+  return booking;
+}
+
+/**
+ * Resolve a booking by Blob key variants, then by scanning records where
+ * payload.id / bookingId matches (Admin list can show jobs whose Blob key ≠ id).
+ */
+async function getBooking(bookingId) {
+  const store = await bookingStore();
+  const id = normalizeBookingKey(bookingId);
+  if (!id) return null;
+
+  const keyVariants = [...new Set([
+    id,
+    String(bookingId || '').trim(),
+    String(bookingId || '').trim().toLowerCase(),
+  ])].filter(Boolean);
+
+  for (const key of keyVariants) {
+    const raw = await readBlobJson(store, key);
+    if (raw) return finalizeBookingRead(raw, id);
+  }
+
+  // Scan fallback — Admin feed uses list keys; Customer lookup uses booking.id.
+  try {
+    const blobs = await listAllBlobs(store, BOOKINGS_STORE);
+    for (let i = 0; i < blobs.length; i += 30) {
+      const chunk = blobs.slice(i, i + 30);
+      const rows = await Promise.all(chunk.map(async (b) => {
+        const raw = await readBlobJson(store, b.key);
+        return raw ? { key: b.key, raw } : null;
+      }));
+      for (const row of rows) {
+        if (!row) continue;
+        const rid = normalizeBookingKey(row.raw.id || row.raw.bookingId || '');
+        const rkey = normalizeBookingKey(row.key);
+        if (rid === id || rkey === id) {
+          console.log('[ops-db] getBooking resolved via scan', {
+            lookupId: id,
+            blobKey: String(row.key).slice(0, 48),
+            payloadId: rid || null,
+          });
+          return finalizeBookingRead(row.raw, id);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[ops-db] getBooking scan failed:', e.message);
+  }
+
   // Fail-open Prisma fallback — helps intermittent Blob miss; never used for CAS writes.
   try {
     const { readBookingMirror } = require('./booking-prisma-mirror');
     const mirrored = await readBookingMirror(id);
-    if (mirrored) {
-      const adapted = adaptHistoricalBooking(mirrored);
-      return healStickyDraftFlags(adapted.ok ? adapted.booking : mirrored);
-    }
+    if (mirrored) return finalizeBookingRead(mirrored, id);
   } catch { /* ignore */ }
   return null;
 }
@@ -98,9 +154,7 @@ async function listRawBookings() {
     const adapted = adaptHistoricalBooking(raw);
     if (!adapted.ok || !adapted.booking) continue;
     if (!isVisibleSubmittedBooking(adapted.booking, { includeArchivedTest: true })) continue;
-    // listRawBookings historically excluded drafts only; keep archived/test for schedule conflict checks
-    if (adapted.booking.isDraft) continue;
-    out.push(adapted.booking);
+    out.push(healStickyDraftFlags(adapted.booking));
   }
   out.sort((a, b) => {
     const ta = String(a.updatedAt || a.createdAt || '');
@@ -122,6 +176,7 @@ module.exports = {
   getBooking,
   patchBooking,
   listRawBookings,
+  normalizeBookingKey,
   normalizePhone,
   phonesMatch,
 };

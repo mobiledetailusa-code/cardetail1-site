@@ -204,7 +204,14 @@
     }
     var r = await post('customer-portal-data', { mode: 'limited', bookingId: id, phone: phone });
     if (!r.data || !r.data.ok) {
-      setMsg($('lk-error'), (r.data && r.data.message) || 'No booking found. Check your ID and phone.', true);
+      var errCode = (r.data && r.data.error) || '';
+      var errMsg = (r.data && r.data.message) || '';
+      if (!errMsg) {
+        if (errCode === 'authentication_failed') errMsg = 'Phone does not match this booking.';
+        else if (errCode === 'booking_not_ready') errMsg = 'Booking is not ready in My Garage yet.';
+        else errMsg = 'No booking found. Check your ID and phone.';
+      }
+      setMsg($('lk-error'), errMsg, true);
       show($('pre-auth'), true);
       show($('post-auth'), false);
       return false;

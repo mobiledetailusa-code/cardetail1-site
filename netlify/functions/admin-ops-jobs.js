@@ -1,5 +1,5 @@
 // Admin-only jobs feed + admin ops actions for Admin Ops dashboard.
-const { blobsStore, listAllBlobs, fetchBlobRecords, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
+const { blobsStore, listAllBlobs, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const {
   projectJobForAdmin, normalizeJobStatus, appendEventLog,
 } = require('../lib/ops-workflow');
@@ -102,7 +102,29 @@ async function listJobs(q) {
   }
   const blobs = await listAllBlobs(store, 'cd1-bookings');
   const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
-  let jobs = (await fetchBlobRecords(store, blobs)).filter((b) =>
+  const { normalizeBookingKey } = require('../lib/ops-db');
+  // Keep Blob key on each record so Customer lookup can resolve when key ≠ payload.id
+  const keyed = [];
+  for (let i = 0; i < blobs.length; i += 30) {
+    const chunk = blobs.slice(i, i + 30);
+    const rows = await Promise.all(chunk.map(async (blob) => {
+      let raw = null;
+      if (typeof store.getWithMetadata === 'function') {
+        const result = await store.getWithMetadata(blob.key, {
+          type: 'json',
+          consistency: 'strong',
+        }).catch(() => null);
+        raw = result && result.data;
+      }
+      if (!raw) raw = await store.get(blob.key, { type: 'json' }).catch(() => null);
+      if (!raw) return null;
+      if (!raw.id && !raw.bookingId) raw.id = blob.key;
+      raw.__blobKey = blob.key;
+      return raw;
+    }));
+    for (const row of rows) if (row) keyed.push(row);
+  }
+  let jobs = keyed.filter((b) =>
     b && isVisibleSubmittedBooking(b, { includeArchivedTest: !!showTest })
   );
 
@@ -121,6 +143,8 @@ async function listJobs(q) {
   return jobs.map(b => {
     try {
       const j = projectJobForAdmin(b);
+      // Prefer payload id; if missing, use Blob key so Admin copy/paste matches Customer lookup.
+      j.id = normalizeBookingKey(j.id || j.bookingId || b.__blobKey) || j.id;
       j.jobStatus = normalizeJobStatus(b);
       // paymentWorkflowStatus / remainingCents come from financialProjection via projectJobForAdmin.
       // Do not overwrite with normalizePaymentWorkflowStatus(raw) — that reintroduces stale Pending.

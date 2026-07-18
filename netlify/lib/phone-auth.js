@@ -27,9 +27,22 @@ function phonesMatch(inputRaw, storedRaw) {
   return a === b;
 }
 
+/**
+ * Portal lookup: accept last-10 match when one side has extra country/trunk digits
+ * that normalizeUsPhoneDigits rejected (e.g. 12+ digit paste).
+ */
+function phonesMatchForPortal(inputRaw, storedRaw) {
+  if (phonesMatch(inputRaw, storedRaw)) return true;
+  const a = String(inputRaw || '').replace(/\D/g, '');
+  const b = String(storedRaw || '').replace(/\D/g, '');
+  if (a.length >= 10 && b.length >= 10 && a.slice(-10) === b.slice(-10)) return true;
+  return false;
+}
+
 module.exports = {
   normalizeUsPhoneDigits,
   normalizeUsPhoneE164,
   normalizePhone,
   phonesMatch,
+  phonesMatchForPortal,
 };

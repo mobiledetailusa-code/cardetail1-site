@@ -1,19 +1,19 @@
 // Booking-scoped customer authorization helpers.
 
 const { getBooking } = require('./ops-db');
-const { phonesMatch, normalizeUsPhoneDigits } = require('./phone-auth');
+const { phonesMatch, phonesMatchForPortal, normalizeUsPhoneDigits } = require('./phone-auth');
 const { validateCustomerSession } = require('./customer-session');
 
 const AUTH_FAIL = Object.freeze({
   ok: false,
   error: 'authentication_failed',
-  message: 'Verification failed. Please check your booking ID and phone number.',
+  message: 'Phone does not match this booking. Use the same mobile number from checkout, or call/text 551-313-2956.',
 });
 
 const NOT_FOUND = Object.freeze({
   ok: false,
   error: 'booking_not_found',
-  message: 'No booking found. Please check your booking ID and phone number.',
+  message: 'No booking found for that ID. Copy the Booking ID from your confirmation email or Admin Ops, then try again.',
 });
 
 function normalizeBookingId(raw) {
@@ -46,14 +46,22 @@ async function authorizeBookingAccess(event, { bookingId, phone, requireSessionF
 
   const phoneDigits = normalizeUsPhoneDigits(phone);
   if (!phoneDigits) {
-    return { ok: false, error: 'validation_error', message: 'A valid phone number is required.', statusCode: 400 };
+    return { ok: false, error: 'validation_error', message: 'A valid US mobile number is required (10 digits).', statusCode: 400 };
   }
 
   const booking = await getBooking(id);
   if (!booking) return { ...NOT_FOUND, statusCode: 200 };
 
-  const stored = booking.phone || booking.customerPhone || '';
-  if (!phonesMatch(phoneDigits, stored)) {
+  const stored = booking.phone || booking.customerPhone || booking.phoneNumber || '';
+  if (!String(stored).replace(/\D/g, '')) {
+    return {
+      ok: false,
+      error: 'phone_not_on_file',
+      message: 'This booking has no phone on file. Ask Admin to save your mobile number, or call/text 551-313-2956.',
+      statusCode: 200,
+    };
+  }
+  if (!phonesMatchForPortal(phoneDigits, stored)) {
     return { ...AUTH_FAIL, statusCode: 200 };
   }
 
@@ -62,10 +70,13 @@ async function authorizeBookingAccess(event, { bookingId, phone, requireSessionF
 
 function sessionBookingAllowed(session, booking) {
   if (!session || !booking) return false;
-  if (session.bookingIds && session.bookingIds.includes(booking.id || booking.bookingId)) return true;
+  const bid = booking.id || booking.bookingId;
+  if (session.bookingIds && session.bookingIds.some((x) => normalizeBookingId(x) === normalizeBookingId(bid))) {
+    return true;
+  }
   const sessionPhone = session.phoneDigits;
   const bookingPhone = booking.phone || booking.customerPhone || '';
-  return sessionPhone && phonesMatch(sessionPhone, bookingPhone);
+  return sessionPhone && phonesMatchForPortal(sessionPhone, bookingPhone);
 }
 
 module.exports = {
