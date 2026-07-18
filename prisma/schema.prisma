@@ -43,3 +43,268 @@ model BookingRecord {
   @@index([preferredDate])
   @@index([updatedAt])
 }
+
+// =====================================================================
+// Phase 2 — transactional foundation (Blob aggregate remains authoritative
+// for Release A; these tables are the additive foundation for a future
+// cutover, per docs/audit/phase1-delta-audit-2026-07-18.md GATE 1 output.
+// Nothing in netlify/functions writes here yet except via netlify/lib/db/*
+// repositories, which are not wired into any live endpoint in Phase 2.
+// =====================================================================
+
+enum BookingLifecycleStatus {
+  draft
+  submitted
+  confirmed
+  in_progress
+  completed
+  cancelled
+}
+
+enum QuoteStatus {
+  draft
+  approved
+  settled
+  superseded
+}
+
+enum ChangeRequestKind {
+  package_change
+  addon
+  vehicle_add
+  vehicle_replace
+  address
+  reschedule
+  cancel
+  maintenance
+}
+
+enum ChangeRequestStatus {
+  pending
+  auto_applied
+  approved
+  rejected
+  superseded
+}
+
+enum ProviderObjectType {
+  payment_intent
+  checkout_session
+  setup_intent
+}
+
+/// creating -> open -> succeeded | failed | canceled | expired; open/creating -> superseded on quote change.
+enum PaymentAttemptStatus {
+  creating
+  open
+  requires_action
+  succeeded
+  failed
+  canceled
+  expired
+  superseded
+}
+
+enum LedgerEntryKind {
+  settlement
+  refund
+  adjustment
+  fee
+}
+
+enum StripeEventStatus {
+  received
+  processing
+  processed
+  failed
+}
+
+model Customer {
+  id               String   @id @default(cuid())
+  phone            String?
+  email            String?
+  firstName        String?
+  lastName         String?
+  stripeCustomerId String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  bookings Booking[]
+
+  @@index([phone])
+  @@index([email])
+}
+
+model Booking {
+  id             String                  @id
+  customerId     String?
+  bookingVersion Int                     @default(0)
+  status         BookingLifecycleStatus  @default(draft)
+  isDraft        Boolean                 @default(true)
+  archived       Boolean                 @default(false)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  customer        Customer?        @relation(fields: [customerId], references: [id])
+  vehicles        Vehicle[]
+  quotes          Quote[]
+  changeRequests  ChangeRequest[]
+  paymentAttempts PaymentAttempt[]
+  ledgerEntries   LedgerEntry[]
+  auditEvents     AuditEvent[]
+
+  @@index([customerId])
+  @@index([status])
+}
+
+model Vehicle {
+  id         String   @id @default(cuid())
+  bookingId  String
+  category   String?
+  make       String?
+  model      String?
+  lengthFeet Int?
+  label      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  booking    Booking     @relation(fields: [bookingId], references: [id])
+  quoteItems QuoteItem[]
+
+  @@index([bookingId])
+}
+
+/// Immutable once status = settled (application-layer + trigger enforced; see migration.sql).
+model Quote {
+  id            String      @id @default(cuid())
+  bookingId     String
+  quoteVersion  Int
+  approvedCents Int         @default(0)
+  currency      String      @default("usd")
+  status        QuoteStatus @default(draft)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  booking         Booking          @relation(fields: [bookingId], references: [id])
+  items           QuoteItem[]
+  paymentAttempts PaymentAttempt[]
+  ledgerEntries   LedgerEntry[]
+
+  @@unique([bookingId, quoteVersion])
+  @@index([bookingId])
+}
+
+model QuoteItem {
+  id          String   @id @default(cuid())
+  quoteId     String
+  vehicleId   String?
+  kind        String
+  label       String
+  amountCents Int
+  createdAt   DateTime @default(now())
+
+  quote   Quote    @relation(fields: [quoteId], references: [id])
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id])
+
+  @@index([quoteId])
+  @@index([vehicleId])
+}
+
+model ChangeRequest {
+  id                  String               @id @default(cuid())
+  bookingId           String
+  quoteVersion        Int?
+  kind                ChangeRequestKind
+  status              ChangeRequestStatus  @default(pending)
+  payload             Json
+  requiresAdminReview Boolean              @default(false)
+  decidedAt           DateTime?
+  decidedBy           String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+  @@index([status])
+}
+
+/// One active (creating|open|requires_action) obligation per bookingId+quoteVersion —
+/// enforced by a partial unique index in migration.sql (not expressible in schema.prisma).
+model PaymentAttempt {
+  id                 String                @id @default(cuid())
+  bookingId          String
+  quoteId            String?
+  quoteVersion       Int
+  generation         Int                   @default(1)
+  provider           String                @default("stripe")
+  providerObjectType ProviderObjectType
+  providerObjectId   String?               @unique
+  status             PaymentAttemptStatus  @default(creating)
+  amountCents        Int
+  currency           String                @default("usd")
+  idempotencyKey     String                @unique
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  booking       Booking       @relation(fields: [bookingId], references: [id])
+  quote         Quote?        @relation(fields: [quoteId], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  @@index([bookingId])
+  @@index([quoteVersion])
+}
+
+/// Append-only: UPDATE/DELETE are blocked at the database level (see migration.sql trigger).
+model LedgerEntry {
+  id               String          @id @default(cuid())
+  bookingId        String
+  quoteId          String?
+  paymentAttemptId String?
+  kind             LedgerEntryKind
+  amountCents      Int
+  currency         String          @default("usd")
+  quoteVersion     Int
+  providerObjectId String?
+  providerEventId  String?         @unique
+  stripeEventId    String?
+  occurredAt       DateTime        @default(now())
+  recordedAt       DateTime        @default(now())
+  actor            String?
+
+  booking        Booking         @relation(fields: [bookingId], references: [id])
+  quote          Quote?          @relation(fields: [quoteId], references: [id])
+  paymentAttempt PaymentAttempt? @relation(fields: [paymentAttemptId], references: [id])
+
+  @@index([bookingId])
+  @@index([quoteId])
+}
+
+/// Idempotent webhook inbox — insert-first-then-process pattern (Phase 3).
+model StripeEvent {
+  id            String            @id @default(cuid())
+  stripeEventId String            @unique
+  type          String
+  bookingId     String?
+  payload       Json
+  status        StripeEventStatus @default(received)
+  processedAt   DateTime?
+  createdAt     DateTime          @default(now())
+
+  @@index([bookingId])
+  @@index([type])
+}
+
+model AuditEvent {
+  id        String   @id @default(cuid())
+  bookingId String?
+  actor     String
+  action    String
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  booking Booking? @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+  @@index([action])
+}
