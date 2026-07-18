@@ -294,4 +294,20 @@ describe('operational payment — pure guards', () => {
     assert.match(html, /dReconcileStripe/);
     assert.match(html, /reconcile_with_stripe/);
   });
+
+  test('my-garage booking lookup treats rate-limiting as transient, not "not found" / auth failure', () => {
+    // Found live on deploy-preview-120: polling during payment confirmation
+    // can trip public-rate-limit.js's 429, and the lookup path was mislabeling
+    // that as "No booking found" and clearing the customer's session over it.
+    const fs = require('fs');
+    const path = require('path');
+    const js = fs.readFileSync(path.join(__dirname, '../assets/my-garage.js'), 'utf8');
+    const loadLimitedSrc = js.slice(js.indexOf('async function loadLimited'), js.indexOf('async function loadLimited') + 4000);
+    assert.match(loadLimitedSrc, /429/);
+    assert.match(loadLimitedSrc, /rate_limited/);
+    // The 429 branch must return before the session-clearing code runs.
+    const rateLimitIdx = loadLimitedSrc.search(/r\.status === 429|errCode === 'rate_limited'/);
+    const sessionClearIdx = loadLimitedSrc.indexOf('cd1_garage_id');
+    assert.ok(rateLimitIdx > -1 && sessionClearIdx > -1 && rateLimitIdx < sessionClearIdx);
+  });
 });

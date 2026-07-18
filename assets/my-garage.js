@@ -248,6 +248,14 @@
     if (!r.data || !r.data.ok) {
       var errCode = (r.data && r.data.error) || '';
       var errMsg = (r.data && r.data.message) || '';
+      // Rate limiting is transient and not a credentials/existence problem —
+      // never mislabel it as "not found" and never clear the customer's
+      // session over it (that was forcing a real re-login after a burst of
+      // legitimate polling, e.g. right after paying).
+      if (r.status === 429 || errCode === 'rate_limited') {
+        showToast('Too many requests — please wait a moment and try again.', true);
+        return false;
+      }
       if (!errMsg) {
         if (errCode === 'authentication_failed') errMsg = 'Phone does not match this booking.';
         else if (errCode === 'booking_not_ready') errMsg = 'Booking is not ready in My Garage yet.';
