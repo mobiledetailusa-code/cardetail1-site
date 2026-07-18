@@ -1,5 +1,7 @@
 // Server-side booking price catalog — mirrors index.html PRICING / LENGTH_PRICING / RICH_ZIPS.
 
+const { asArray } = require('./historical-adapter');
+
 const PRICING = {
   cars: {
     tiers: {
@@ -444,6 +446,83 @@ function validateAndRecalculateBookingPricing(booking) {
   };
 }
 
+/**
+ * When category changes (trailer/RV → SUV/car), coerce package/tier/addons so
+ * quoteService does not return invalid_pricing from leftover length packages.
+ */
+function coerceVehicleForCategory(vehicle, category, opts = {}) {
+  const { normalizeLengthCategory } = require('./length-pricing');
+  const cat = normalizeLengthCategory(category || vehicle?.category || vehicle?.cat || 'cars');
+  const next = { ...(vehicle || {}), category: cat, cat };
+  let pkgId = String(opts.packageId || next.packageId || next.pkgId || '').trim();
+  let tierKey = String(opts.tierKey || opts.tier || next.tierKey || next.tier || '').trim();
+  let lengthFt = Number(opts.lengthFt != null ? opts.lengthFt : next.lengthFt) || 0;
+
+  if (cat === 'cars') {
+    lengthFt = 0;
+    const carPkgMap = {
+      full_basic: 'full',
+      maint_light: 'maint',
+      essential: 'full',
+      wash: 'maint',
+      exterior: 'refresh',
+    };
+    if (carPkgMap[pkgId]) pkgId = carPkgMap[pkgId];
+    const carPkgs = ['maint', 'interior', 'full', 'refresh', 'premium'];
+    if (!carPkgs.includes(pkgId)) pkgId = 'full';
+    const tiers = PRICING.cars.tiers || {};
+    if (!tierKey || !tiers[tierKey]) {
+      const label = String(opts.tierLabel || next.tierLabel || opts.vehicleLabel || next.vehicleLabel || '').toLowerCase();
+      if (/3[\s-]?row|suburban|tahoe|expedition|sequoia|pilot|pathfinder/.test(label)) tierKey = 'suv3';
+      else if (/truck|pickup|f-?150|silverado|ram|tundra|sierra/.test(label)) tierKey = 'truck';
+      else if (/suv|crossover|cx-|rav4|cr-v|highlander|explorer|4runner/.test(label)) tierKey = 'suv2';
+      else if (/sedan|coupe|small|civic|corolla|camry|accord/.test(label)) tierKey = 'small';
+      else tierKey = 'suv2';
+    }
+    next.rvType = '';
+    next.typeKey = '';
+    const carAddonIds = new Set((PRICING.cars.addons || []).map((a) => a.id));
+    const ids = asArray(opts.addOnIds || next.addOnIds).length
+      ? asArray(opts.addOnIds || next.addOnIds)
+      : asArray(next.addons).map((a) => a && a.id).filter(Boolean);
+    const kept = ids.filter((id) => carAddonIds.has(id));
+    next.addOnIds = kept;
+    next.addons = kept.map((id) => {
+      const prev = asArray(next.addons).find((a) => a && a.id === id);
+      return prev || { id };
+    });
+  } else if (cat === 'boats' || cat === 'rvs') {
+    if (!(lengthFt > 0)) lengthFt = LENGTH_PRICING[cat]?.defaultFt || 20;
+    const lengthPkgs = Object.keys((LENGTH_PRICING[cat] && LENGTH_PRICING[cat].packages) || {});
+    if (!lengthPkgs.includes(pkgId)) pkgId = cat === 'rvs' ? 'full_basic' : 'full';
+    const catAddonIds = new Set((PRICING[cat].addons || []).map((a) => a.id));
+    const ids = asArray(opts.addOnIds || next.addOnIds).length
+      ? asArray(opts.addOnIds || next.addOnIds)
+      : asArray(next.addons).map((a) => a && a.id).filter(Boolean);
+    const kept = ids.filter((id) => catAddonIds.has(id));
+    next.addOnIds = kept;
+    next.addons = kept.map((id) => {
+      const prev = asArray(next.addons).find((a) => a && a.id === id);
+      return prev || { id };
+    });
+  }
+
+  next.packageId = pkgId;
+  next.pkgId = pkgId;
+  if (opts.packageName) {
+    next.packageName = opts.packageName;
+    next.pkgName = opts.packageName;
+  }
+  next.tierKey = tierKey;
+  next.tier = tierKey;
+  if (opts.tierLabel) next.tierLabel = opts.tierLabel;
+  else if (cat === 'cars' && PRICING.cars.tiers[tierKey]) {
+    next.tierLabel = PRICING.cars.tiers[tierKey].label;
+  }
+  next.lengthFt = lengthFt;
+  return next;
+}
+
 module.exports = {
   PRICING,
   LENGTH_PRICING,
@@ -457,4 +536,5 @@ module.exports = {
   computeBookingServiceSubtotal,
   validateAndRecalculateBookingPricing,
   vehiclesFromBooking,
+  coerceVehicleForCategory,
 };

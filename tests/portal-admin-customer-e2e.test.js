@@ -278,10 +278,10 @@ describe('e2e simulate: boats & RVs length pricing modes', () => {
 });
 
 describe('policy modes: pending review / confirmed / pay', () => {
-  it('pending review can request package change with approval', () => {
+  it('pending review package change auto-applies (no admin gate)', () => {
     const r = canRequestChange(baseBooking(), 'package_change');
     assert.equal(r.ok, true);
-    assert.equal(r.pendingApproval, true);
+    assert.equal(r.pendingApproval, false);
   });
 
   it('confirmed can pay when due > 0', () => {

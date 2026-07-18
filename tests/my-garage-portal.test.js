@@ -149,11 +149,15 @@ test('appointment status policy blocks in-progress changes', () => {
   assert.equal(result.requiresCall, true);
 });
 
-test('confirmed changes require approval flag', () => {
+test('confirmed pack/address/cancel auto-apply without admin approval', () => {
   const booking = { status: 'Confirmed', jobStatus: 'confirmed' };
-  const result = canRequestChange(booking, 'package_change');
-  assert.equal(result.ok, true);
-  assert.equal(result.pendingApproval, true);
+  assert.equal(canRequestChange(booking, 'package_change').pendingApproval, false);
+  assert.equal(canRequestChange(booking, 'addon').pendingApproval, false);
+  assert.equal(canRequestChange(booking, 'address').pendingApproval, false);
+  assert.equal(canRequestChange(booking, 'cancel').pendingApproval, false);
+  assert.equal(canRequestChange(booking, 'vehicle_replace').pendingApproval, false);
+  // Reschedule still admin-gated
+  assert.equal(canRequestChange(booking, 'reschedule').pendingApproval, true);
 });
 
 test('auth token verify rejects replay', async () => {

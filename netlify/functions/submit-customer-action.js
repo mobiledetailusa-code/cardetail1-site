@@ -44,8 +44,45 @@ const ACTION_MAP = {
   vehicle_replace_request: 'vehicle_replace',
   addon_remove_request: 'addon',
   maintenance_request: 'maintenance',
-  cancellation_request: 'cancellation',
+  cancellation_request: 'cancel',
 };
+
+/** Auto-apply pending CR so totals update without Admin approve click. */
+async function autoApplySubmittedRequest(bookingId, cmd) {
+  if (!cmd || !cmd.ok || !cmd.changeRequest) return cmd;
+  const { decideChangeRequestCommand } = require('../lib/booking-commands');
+  const decided = await decideChangeRequestCommand({
+    bookingId,
+    requestId: cmd.changeRequest.requestId || cmd.changeRequest.id,
+    decision: 'approve',
+    expectedBookingVersion: cmd.booking?.bookingVersion,
+    acceptRequote: true,
+  });
+  if (!decided.ok) {
+    return {
+      ok: false,
+      error: decided.error || 'apply_failed',
+      statusCode: decided.statusCode || 400,
+      message: decided.message
+        || (decided.error === 'invalid_pricing'
+          ? 'Could not price this change. For trailer → SUV, select a car package and size, then try again.'
+          : 'Change saved as a request but could not auto-apply. Call/text 551-313-2956.'),
+      changeRequest: cmd.changeRequest,
+      booking: cmd.booking,
+    };
+  }
+  return {
+    ok: true,
+    applied: true,
+    pendingApproval: false,
+    booking: decided.booking,
+    projection: decided.projection,
+    changeRequest: {
+      ...cmd.changeRequest,
+      status: 'applied',
+    },
+  };
+}
 
 const ALLOWED_ACTIONS = new Set(Object.keys(ACTION_MAP));
 
@@ -238,26 +275,46 @@ exports.handler = async (event) => {
       });
     }
 
-    const proposed = cmd.changeRequest?.proposedApprovedCents != null
-      ? cmd.changeRequest.proposedApprovedCents / 100
-      : null;
+    let appliedCmd = cmd;
+    if (!policy.pendingApproval) {
+      appliedCmd = await autoApplySubmittedRequest(bookingId, cmd);
+      if (!appliedCmd.ok) {
+        return json(appliedCmd.statusCode || 400, {
+          ok: false,
+          error: appliedCmd.error || 'apply_failed',
+          message: appliedCmd.message,
+          changeRequestId: cmd.changeRequest?.requestId || null,
+        });
+      }
+    }
+    const proposed = appliedCmd.changeRequest?.proposedApprovedCents != null
+      ? appliedCmd.changeRequest.proposedApprovedCents / 100
+      : (appliedCmd.booking?.approvedFinalAmount != null
+        ? Number(appliedCmd.booking.approvedFinalAmount)
+        : null);
+    const appliedTotal = appliedCmd.booking?.approvedFinalAmount != null
+      ? Number(appliedCmd.booking.approvedFinalAmount)
+      : proposed;
     notifyAdmin(
-      adminSubjectLocal,
-      `${adminTextLocal}${proposed != null ? `\nProposed total: $${Number(proposed).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
+      adminSubjectLocal.replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
+      `${adminTextLocal}${appliedTotal != null ? `\nTotal: $${Number(appliedTotal).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
     ).catch(() => {});
 
     return json(200, {
       ok: true,
-      changeRequestId: cmd.changeRequest.requestId,
-      pendingApproval: true,
-      bookingVersion: cmd.booking?.bookingVersion,
-      quoteVersion: cmd.changeRequest?.quoteVersion,
-      proposedTotal: proposed,
-      projection: cmd.projection,
+      changeRequestId: appliedCmd.changeRequest.requestId,
+      pendingApproval: !!policy.pendingApproval && !appliedCmd.applied,
+      applied: !!appliedCmd.applied,
+      bookingVersion: appliedCmd.booking?.bookingVersion,
+      quoteVersion: appliedCmd.booking?.quoteVersion || appliedCmd.changeRequest?.quoteVersion,
+      proposedTotal: appliedTotal,
+      approvedFinalAmount: appliedCmd.booking?.approvedFinalAmount,
+      projection: appliedCmd.projection,
     });
   } else if (action === 'vehicle_add_request' || action === 'vehicle_replace_request') {
     const { usesLengthPricing } = require('../lib/length-pricing');
-    const category = String(p.category || p.vehicleCategory || 'cars').slice(0, 32).trim();
+    const { normalizeLengthCategory } = require('../lib/length-pricing');
+    const category = normalizeLengthCategory(String(p.category || p.vehicleCategory || 'cars').slice(0, 32).trim());
     const year = String(p.year || p.vehicleYear || '').slice(0, 8).trim();
     const make = String(p.make || p.vehicleMake || '').slice(0, 60).trim();
     const model = String(p.model || p.vehicleModel || '').slice(0, 60).trim();
@@ -272,22 +329,35 @@ exports.handler = async (event) => {
     const label = vehicleLabel || `${year} ${make} ${model}`.trim();
     const packageId = String(p.packageId || p.newPackId || '').slice(0, 32).trim();
     const packageName = String(p.packageName || p.newPackName || '').slice(0, 120).trim();
-    if (usesLengthPricing(category) && !packageId) {
+    const tierKey = String(p.tierKey || p.tier || '').slice(0, 32).trim();
+    if (!packageId) {
       return json(400, {
         ok: false,
         error: 'validation_error',
-        message: 'Select a package for this boat / RV / trailer.',
+        message: usesLengthPricing(category)
+          ? 'Select a package for this boat / RV / trailer.'
+          : 'Select a package for the new vehicle.',
+      });
+    }
+    if (category === 'cars' && !tierKey) {
+      return json(400, {
+        ok: false,
+        error: 'validation_error',
+        message: 'Select vehicle size (Small Car, SUV 2-Row, SUV 3-Row, or Truck).',
       });
     }
     requestedState = {
       vehicleLabel: label,
       category,
+      vehicleCategory: category,
       year,
       make,
       model,
       lengthFt: lengthFt || 0,
       packageId,
       packageName,
+      tierKey,
+      tier: tierKey,
     };
     updates = {
       vehicleChangeRequested: true,
@@ -379,12 +449,30 @@ exports.handler = async (event) => {
           : 'Failed to save request. Please try again.',
       });
     }
-    notifyAdmin(adminSubject, `${adminText}\n\nCustomer: ${custName}`).catch(() => {});
+    let appliedCmd = cmd;
+    if (!policy.pendingApproval) {
+      appliedCmd = await autoApplySubmittedRequest(bookingId, cmd);
+      if (!appliedCmd.ok) {
+        return json(appliedCmd.statusCode || 400, {
+          ok: false,
+          error: appliedCmd.error || 'apply_failed',
+          message: appliedCmd.message,
+          changeRequestId: cmd.changeRequest?.requestId || null,
+        });
+      }
+    }
+    notifyAdmin(
+      (adminSubject || '').replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
+      `${adminText}${appliedCmd.booking?.approvedFinalAmount != null ? `\nTotal: $${Number(appliedCmd.booking.approvedFinalAmount).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
+    ).catch(() => {});
     return json(200, {
       ok: true,
-      changeRequestId: cmd.changeRequest.requestId,
-      pendingApproval: !!policy.pendingApproval,
-      bookingVersion: cmd.booking?.bookingVersion,
+      changeRequestId: appliedCmd.changeRequest.requestId,
+      pendingApproval: !!policy.pendingApproval && !appliedCmd.applied,
+      applied: !!appliedCmd.applied,
+      bookingVersion: appliedCmd.booking?.bookingVersion,
+      approvedFinalAmount: appliedCmd.booking?.approvedFinalAmount,
+      projection: appliedCmd.projection,
     });
   }
 

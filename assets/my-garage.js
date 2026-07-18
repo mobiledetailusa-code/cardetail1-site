@@ -656,7 +656,15 @@
     if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.changeRequested();
     var r = await post('submit-customer-action', body);
     if (r.data && r.data.ok) {
-      showToast(r.data.pendingApproval ? 'Request submitted for admin review.' : 'Request saved.');
+      if (r.data.pendingApproval) {
+        showToast('Request submitted for admin review.');
+      } else if (r.data.applied) {
+        showToast('Appointment updated' + (r.data.approvedFinalAmount != null
+          ? (' · new total ' + fmtMoney(Number(r.data.approvedFinalAmount)))
+          : '') + '.');
+      } else {
+        showToast('Request saved.');
+      }
       // Keep hub open even if the follow-up refresh blips — submit already succeeded.
       try {
         if (state.scope === 'account') await loadAccount();
@@ -907,8 +915,19 @@
       if (packHost) {
         var packInfo = packagesForCategoryId(selected);
         var packs = packInfo.packages || [];
-        if (selected && packs.length && (lengthCfg(selected) || packInfo.category !== 'cars')) {
-          packHost.innerHTML =
+        var tiers = (getCatalog().carSizeTiers) || [];
+        var html = '';
+        if (selected === 'cars' && tiers.length) {
+          html += '<label for="mf-tierKey">Vehicle size</label>' +
+            '<select class="inp" id="mf-tierKey" name="tierKey" required>' +
+            '<option value="">Select size…</option>' +
+            tiers.map(function (t) {
+              return '<option value="' + esc(t.id) + '">' + esc(t.label) + '</option>';
+            }).join('') +
+            '</select>';
+        }
+        if (selected && packs.length) {
+          html +=
             '<label>Package for this vehicle</label>' +
             '<div class="modal-catalog" role="radiogroup" aria-label="Vehicle package">' +
             packs.map(function (p) {
@@ -920,11 +939,10 @@
                 '</span></label>';
             }).join('') +
             '</div>';
-        } else if (selected && lengthCfg(selected) && !packs.length) {
-          packHost.innerHTML = '<p class="hint">No packages listed for this category. Call/text Cardetail1 to price this vehicle.</p>';
-        } else {
-          packHost.innerHTML = '';
+        } else if (selected && !packs.length) {
+          html += '<p class="hint">No packages listed for this category. Call/text Cardetail1 to price this vehicle.</p>';
         }
+        packHost.innerHTML = html;
       }
     }
     if (catSel) catSel.addEventListener('change', syncCategoryExtras);
@@ -1098,6 +1116,15 @@
         return null;
       }
       var vehiclePayload = { category: category, year: year, make: make, model: model };
+      if (category === 'cars') {
+        var tierKey = ($('mf-tierKey') && $('mf-tierKey').value) || '';
+        if (!tierKey) {
+          setMsg($('modal-error'), 'Select vehicle size (SUV 2-Row, SUV 3-Row, etc.).', true);
+          return null;
+        }
+        vehiclePayload.tierKey = tierKey;
+        vehiclePayload.tier = tierKey;
+      }
       if (lengthCfg(category)) {
         var lengthFt = Number(($('mf-lengthFt') && $('mf-lengthFt').value) || 0);
         if (!(lengthFt > 0)) {
@@ -1105,14 +1132,14 @@
           return null;
         }
         vehiclePayload.lengthFt = lengthFt;
-        var packEl = form.querySelector('input[name="packageId"]:checked');
-        if (!packEl) {
-          setMsg($('modal-error'), 'Select a package for this boat / RV / trailer.', true);
-          return null;
-        }
-        vehiclePayload.packageId = packEl.value;
-        vehiclePayload.packageName = packEl.getAttribute('data-pack-name') || '';
       }
+      var packEl = form.querySelector('input[name="packageId"]:checked');
+      if (!packEl) {
+        setMsg($('modal-error'), 'Select a package for this vehicle.', true);
+        return null;
+      }
+      vehiclePayload.packageId = packEl.value;
+      vehiclePayload.packageName = packEl.getAttribute('data-pack-name') || '';
       return vehiclePayload;
     }
     if (modalMode === 'maintenance') {

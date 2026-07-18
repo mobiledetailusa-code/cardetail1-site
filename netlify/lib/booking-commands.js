@@ -399,52 +399,62 @@ async function decideChangeRequestCommand({
     }
   } else if (vehicleTypes.has(rtDecide)) {
     const { normalizeLengthCategory } = require('./length-pricing');
+    const { coerceVehicleForCategory } = require('./booking-price-catalog');
     const d = cr.delta || {};
     const category = normalizeLengthCategory(d.category || d.vehicleCategory || 'cars');
     const label = d.vehicleLabel || d.label
       || [d.year, d.make, d.model].filter(Boolean).join(' ').trim();
-    const packageId = d.packageId || d.newPackId || d.pkgId || '';
     const packageName = d.packageName || d.pkgName || '';
     if (rtDecide === 'vehicle_replace_request') {
-      const applied = applyServiceDelta(service, cr.target || {}, {
-        vehicleCategory: category,
-        category,
-        year: d.year,
-        make: d.make,
-        model: d.model,
-        vehicleLabel: label,
-        lengthFt: d.lengthFt,
+      const vehicles = ensureVehicleIds(service.vehicles || []);
+      let vehicleId = cr.target?.vehicleId;
+      if (!vehicleId && vehicles.length === 1) vehicleId = vehicles[0].vehicleId;
+      const idx = vehicles.findIndex((v) => v.vehicleId === vehicleId);
+      if (idx < 0) return { ok: false, error: 'vehicle_not_found', statusCode: 400 };
+      const coerced = coerceVehicleForCategory(vehicles[idx], category, {
+        packageId: d.packageId || d.newPackId || d.pkgId,
+        packageName,
         tierKey: d.tierKey || d.tier,
         tierLabel: d.tierLabel,
-        rvType: d.rvType || d.typeKey,
-        packageId: packageId || undefined,
-        packageName: packageName || undefined,
+        lengthFt: d.lengthFt,
+        vehicleLabel: label,
       });
-      if (!applied.ok) return { ok: false, error: applied.error, statusCode: 400 };
-      service = applied.service;
+      const nextVehicles = vehicles.slice();
+      nextVehicles[idx] = {
+        ...coerced,
+        year: d.year != null ? String(d.year) : coerced.year,
+        make: d.make != null ? String(d.make) : coerced.make,
+        model: d.model != null ? String(d.model) : coerced.model,
+        vehicleLabel: label || coerced.vehicleLabel,
+        label: label || coerced.label,
+      };
+      service = { ...service, vehicles: nextVehicles };
     } else {
       // vehicle_add_request — append a new priced vehicle
       const vehicles = ensureVehicleIds(service.vehicles || []);
       const primary = vehicles[0] || {};
-      const pkg = packageId || primary.packageId || primary.pkgId || '';
-      vehicles.push({
-        vehicleId: newVehicleId(),
+      const coerced = coerceVehicleForCategory({
         category,
-        cat: category,
         year: d.year || '',
         make: d.make || '',
         model: d.model || '',
         vehicleLabel: label,
-        label,
-        lengthFt: Number(d.lengthFt) || 0,
-        packageId: pkg,
-        pkgId: pkg,
-        pkgName: packageName || primary.pkgName || primary.packageName || '',
+        packageId: d.packageId || d.newPackId || primary.packageId || primary.pkgId || '',
+        packageName: packageName || primary.pkgName || primary.packageName || '',
+        tierKey: d.tierKey || d.tier || primary.tierKey || '',
+        lengthFt: d.lengthFt,
         addOnIds: [],
         addons: [],
-        tierKey: d.tierKey || d.tier || primary.tierKey || '',
-        tierLabel: d.tierLabel || primary.tierLabel || '',
-        rvType: d.rvType || d.typeKey || '',
+      }, category, {
+        packageId: d.packageId || d.newPackId || primary.packageId || primary.pkgId,
+        packageName: packageName || primary.pkgName || primary.packageName,
+        tierKey: d.tierKey || d.tier || primary.tierKey,
+        lengthFt: d.lengthFt,
+        vehicleLabel: label,
+      });
+      vehicles.push({
+        ...coerced,
+        vehicleId: newVehicleId(),
       });
       service = { ...service, vehicles };
     }
@@ -453,9 +463,21 @@ async function decideChangeRequestCommand({
       basedOnBookingVersion: actualVersion,
       previousQuoteVersion: aggregate.quoteVersion || aggregate.quote?.quoteVersion || 0,
       travelCents,
-      bookingBase: aggregate,
+      bookingBase: {
+        ...aggregate,
+        vehicleCategory: category,
+        // Avoid stale RV length/tier on bookingBase during car requote
+        lengthFt: category === 'cars' ? 0 : (d.lengthFt || aggregate.lengthFt || 0),
+      },
     });
-    if (!quoted.ok) return { ok: false, error: quoted.error, statusCode: 400 };
+    if (!quoted.ok) {
+      return {
+        ok: false,
+        error: quoted.error || 'invalid_pricing',
+        statusCode: 400,
+        message: 'Could not price this vehicle change. Pick a car package and size (SUV/truck), then try again.',
+      };
+    }
     quote = quoted.quote;
     service = quoted.service;
     ledger = {

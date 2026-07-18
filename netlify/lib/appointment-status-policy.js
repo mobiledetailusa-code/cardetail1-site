@@ -67,10 +67,12 @@ function canRequestChange(booking, action) {
         : undefined,
     };
   }
-  // Structural / schedule changes always need admin review (including after invoice paid).
+  // Ops policy: pack / add-on / address / cancel / vehicle changes auto-apply
+  // (update totals + notify). Only reschedule + maintenance stay admin-gated.
+  const needsAdminReview = new Set(['reschedule', 'maintenance']);
   if (
-    (phase === 'confirmed' || phase === 'draft' || phase === 'paid' || phase === 'payment_due') &&
-    ['package_change', 'addon', 'address', 'vehicle_add', 'vehicle_replace', 'reschedule', 'maintenance'].includes(action)
+    (phase === 'confirmed' || phase === 'draft' || phase === 'paid' || phase === 'payment_due')
+    && needsAdminReview.has(action)
   ) {
     return { ok: true, pendingApproval: true, phase };
   }

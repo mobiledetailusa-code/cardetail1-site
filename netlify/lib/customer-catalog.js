@@ -170,6 +170,12 @@ function catalogForClient() {
     maintenancePeriods: MAINTENANCE_PERIODS,
     vehicleCategories: VEHICLE_CATEGORIES,
     vehicleYears: VEHICLE_YEARS,
+    carSizeTiers: [
+      { id: 'small', label: 'Small Car' },
+      { id: 'suv2', label: 'SUV 2-Row' },
+      { id: 'suv3', label: 'SUV 3-Row' },
+      { id: 'truck', label: 'Truck' },
+    ],
     fleetPlans: FLEET_PLANS.map(f => ({
       ...f,
       examplePrices: CAR_PACKAGES.map(p => ({

@@ -44,7 +44,7 @@ describe('portal ops smoke — customer + admin real ops', () => {
     assert.equal(canRequestChange(paid, 'package_change').ok, false);
     const addr = canRequestChange(paid, 'address');
     assert.equal(addr.ok, true);
-    assert.equal(addr.pendingApproval, true);
+    assert.equal(addr.pendingApproval, false);
   });
 
   it('set_payment_link is non-authoritative manual reference only', () => {
