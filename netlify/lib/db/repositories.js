@@ -54,6 +54,56 @@ async function getQuote({ bookingId, quoteVersion }) {
   return prisma.quote.findUnique({ where: { bookingId_quoteVersion: { bookingId, quoteVersion } } });
 }
 
+/** Highest quoteVersion for a booking — the currently active quote. */
+async function getLatestQuote(bookingId) {
+  const prisma = getPrisma();
+  return prisma.quote.findFirst({ where: { bookingId }, orderBy: { quoteVersion: 'desc' } });
+}
+
+/**
+ * Post-payment/pre-payment adjustment: create quoteVersion = current+1.
+ * Never mutates the prior quote row (settled quotes are immutable by
+ * convention — nothing in this codebase updates Quote.approvedCents in
+ * place). Errors if a quote already exists at the target version (caller
+ * raced another adjustment) rather than silently overwriting.
+ */
+async function createAdjustmentQuote({ bookingId, approvedCents, status = 'approved' }) {
+  const prisma = getPrisma();
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.quote.findFirst({ where: { bookingId }, orderBy: { quoteVersion: 'desc' } });
+    const nextVersion = (current?.quoteVersion || 0) + 1;
+    const quote = await tx.quote.create({
+      data: { bookingId, quoteVersion: nextVersion, approvedCents, status },
+    });
+    return { previousQuote: current, quote };
+  });
+}
+
+async function listPaymentAttempts(bookingId) {
+  const prisma = getPrisma();
+  return prisma.paymentAttempt.findMany({ where: { bookingId }, orderBy: { createdAt: 'asc' } });
+}
+
+async function listLedgerEntries(bookingId) {
+  const prisma = getPrisma();
+  return prisma.ledgerEntry.findMany({ where: { bookingId }, orderBy: { recordedAt: 'asc' } });
+}
+
+async function findPaymentAttemptByProviderObjectId(providerObjectId) {
+  const prisma = getPrisma();
+  return prisma.paymentAttempt.findUnique({ where: { providerObjectId } });
+}
+
+async function updatePaymentAttempt(id, data) {
+  const prisma = getPrisma();
+  return prisma.paymentAttempt.update({ where: { id }, data });
+}
+
+async function markQuoteStatus({ bookingId, quoteVersion, status }) {
+  const prisma = getPrisma();
+  return prisma.quote.update({ where: { bookingId_quoteVersion: { bookingId, quoteVersion } }, data: { status } });
+}
+
 /**
  * Atomic: create a booking and its first quote in one transaction. If quote
  * creation fails (e.g. a caller passes a duplicate version), the booking
@@ -91,7 +141,14 @@ module.exports = {
   casUpdateBooking,
   createQuote,
   getQuote,
+  getLatestQuote,
+  createAdjustmentQuote,
   createBookingWithInitialQuote,
   createVehicle,
   createChangeRequest,
+  listPaymentAttempts,
+  listLedgerEntries,
+  findPaymentAttemptByProviderObjectId,
+  updatePaymentAttempt,
+  markQuoteStatus,
 };
