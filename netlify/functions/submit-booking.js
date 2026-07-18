@@ -557,7 +557,9 @@ exports.handler = async (event) => {
       // Payment fields: trust Blobs, not the browser
       paymentStatus:        'no_payment_required_yet',
       appointmentStatus:    'pending_review',
-      jobStatus:            'not_started',
+      // pending_review (not not_started) so Admin + Customer share the same submitted lifecycle
+      jobStatus:            'pending_review',
+      portalReleasedAt:     finalizedAt,
       // Card-on-file fields: set by stripe-webhook (setup_intent.succeeded)
       cardOnFileStatus:     existing.cardOnFileStatus,
       setupIntentId:        existing.setupIntentId,

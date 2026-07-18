@@ -79,8 +79,11 @@ async function createAdminAppointment(store, body) {
     ...draft,
     id,
     isDraft: false,
+    kind: 'booking',
     createdAt: now,
     updatedAt: now,
+    finalizedAt: now,
+    portalReleasedAt: now,
     status: 'Pending Review',
     appointmentStatus: 'pending_review',
     jobStatus: 'pending_review',
@@ -91,6 +94,8 @@ async function createAdminAppointment(store, body) {
     cardOnFileStatus: 'waived_admin',
     paymentWorkflowStatus: 'no_payment_required_yet',
     adminCreated: true,
+    bookingVersion: Math.max(1, Math.round(Number(draft.bookingVersion) || 1)),
+    schemaVersion: 1,
     eventLog: [{ action: 'admin_create_appointment', by: 'admin', at: now }],
   });
 

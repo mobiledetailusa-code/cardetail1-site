@@ -498,14 +498,17 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'confirm_booking') {
+    const { portalReleasePatch } = require('../lib/booking-visibility');
     const patched = {
       ...booking,
+      ...portalReleasePatch(now),
       jobStatus: 'confirmed',
       appointmentStatus: 'confirmed',
       status: 'Confirmed',
       adminReviewed: true,
       adminReviewedAt: now,
       confirmedAt: booking.confirmedAt || now,
+      finalizedAt: booking.finalizedAt || now,
       updatedAt: now,
       eventLog: appendEventLog(booking, { action: 'booking_confirmed', by: 'admin' }),
     };

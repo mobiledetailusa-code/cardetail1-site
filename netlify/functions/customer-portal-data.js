@@ -87,10 +87,16 @@ exports.handler = async (event) => {
       });
     }
     if (!isVisibleCustomerBooking(auth.booking)) {
+      const draftLike = auth.booking && (
+        auth.booking.isDraft === true
+        || String(auth.booking.kind || '').toLowerCase() === 'draft'
+      );
       return jsonCors(200, {
         ok: false,
         error: 'booking_not_ready',
-        message: 'This booking is still being finalized. Complete checkout first, or call/text 551-313-2956.',
+        message: draftLike
+          ? 'This booking is still being finalized. Complete checkout first, or call/text 551-313-2956.'
+          : 'This booking is not available in My Garage yet. If Admin just created it, ask them to Confirm booking, or call/text 551-313-2956.',
       });
     }
     const projected = projectBookingForCustomer(auth.booking);

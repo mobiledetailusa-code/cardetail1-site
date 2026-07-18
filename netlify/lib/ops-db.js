@@ -16,10 +16,26 @@ async function bookingStore() {
   return blobsStore(BOOKINGS_STORE);
 }
 
+function healStickyDraftFlags(booking) {
+  if (!booking || typeof booking !== 'object') return booking;
+  const { hasSubmissionMarkers } = require('./booking-visibility');
+  if (!hasSubmissionMarkers(booking)) return booking;
+  if (booking.isDraft !== true && String(booking.kind || '').toLowerCase() !== 'draft') {
+    return booking;
+  }
+  // In-memory heal so Customer Portal can open Admin-pending / finalized jobs.
+  return {
+    ...booking,
+    isDraft: false,
+    kind: 'booking',
+  };
+}
+
 async function getBooking(bookingId) {
   // Blobs remain primary (checkout + CAS). Prisma is read fallback only after Blob miss.
   const store = await bookingStore();
-  const id = String(bookingId || '').trim();
+  // Same normalization as booking-customer-auth (avoid circular require).
+  const id = String(bookingId || '').trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '').slice(0, 48);
   if (!id) return null;
   let result = null;
   if (typeof store.getWithMetadata === 'function') {
@@ -30,7 +46,7 @@ async function getBooking(bookingId) {
     : await store.get(id, { type: 'json' }).catch(() => null);
   if (raw) {
     const adapted = adaptHistoricalBooking(raw);
-    return adapted.ok ? adapted.booking : raw;
+    return healStickyDraftFlags(adapted.ok ? adapted.booking : raw);
   }
   // Fail-open Prisma fallback — helps intermittent Blob miss; never used for CAS writes.
   try {
@@ -38,7 +54,7 @@ async function getBooking(bookingId) {
     const mirrored = await readBookingMirror(id);
     if (mirrored) {
       const adapted = adaptHistoricalBooking(mirrored);
-      return adapted.ok ? adapted.booking : mirrored;
+      return healStickyDraftFlags(adapted.ok ? adapted.booking : mirrored);
     }
   } catch { /* ignore */ }
   return null;

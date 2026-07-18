@@ -1,9 +1,35 @@
 /**
  * Centralized booking visibility — drafts never appear in normal portal feeds.
+ * Submitted / admin-pending bookings must remain My Garage accessible.
  */
+
+function hasSubmissionMarkers(booking) {
+  if (!booking || typeof booking !== 'object') return false;
+  if (booking.finalizedAt) return true;
+  if (booking.adminCreated || booking.createdByAdmin || booking.adminReviewed) return true;
+  if (booking.portalReleasedAt) return true;
+  if (Number(booking.bookingVersion) >= 1) return true;
+  const status = String(booking.status || '').trim();
+  // Finalized marketing bookings use this display status; true drafts omit it.
+  if (status === 'Pending Review' || status === 'Confirmed' || status === 'Scheduled'
+    || status === 'Assigned' || status === 'Paid' || status === 'Closed'
+    || status === 'Rescheduled') {
+    return true;
+  }
+  const js = String(booking.jobStatus || '').toLowerCase();
+  if (js === 'pending_review' || js === 'confirmed' || js === 'assigned'
+    || js === 'accepted' || js === 'en_route' || js === 'arrived'
+    || js === 'in_progress' || js === 'completed_pending_admin_review'
+    || js === 'completed_pending_payment' || js === 'completed_paid') {
+    return true;
+  }
+  return false;
+}
 
 function isDraftRecord(booking) {
   if (!booking || typeof booking !== 'object') return false;
+  // Stale isDraft/kind must not lock out submitted appointments (Admin pending / confirmed).
+  if (hasSubmissionMarkers(booking)) return false;
   if (booking.isDraft === true) return true;
   if (String(booking.kind || '').toLowerCase() === 'draft') return true;
   return false;
@@ -27,8 +53,21 @@ function isVisibleSubmittedBooking(booking, opts = {}) {
   return true;
 }
 
+/**
+ * Patch used when persisting Admin confirm / portal release.
+ */
+function portalReleasePatch(now = new Date().toISOString()) {
+  return {
+    isDraft: false,
+    kind: 'booking',
+    portalReleasedAt: now,
+  };
+}
+
 module.exports = {
+  hasSubmissionMarkers,
   isDraftRecord,
   isArchivedOrTest,
   isVisibleSubmittedBooking,
+  portalReleasePatch,
 };
