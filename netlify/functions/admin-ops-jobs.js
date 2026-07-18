@@ -341,6 +341,84 @@ async function handleAdminAction(body) {
       reconcileOpenCheckoutFromProvider,
       financialProjection,
     } = require('../lib/payment-service');
+    const {
+      postgresPaymentEnabled,
+      getSharedFinancialProjection,
+      adminReconcileWithStripe,
+    } = require('../lib/db/operational-payment');
+
+    let reconciled = { ok: true, skipped: true, reason: 'not_run' };
+    let projection = null;
+    let authority = 'blob';
+
+    if (postgresPaymentEnabled()) {
+      const pgReconcile = await adminReconcileWithStripe({ booking });
+      const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: false });
+      if (shared.ok && shared.projection) {
+        projection = shared.projection;
+        authority = 'postgres';
+        reconciled = {
+          ok: !!pgReconcile.ok,
+          skipped: !!pgReconcile.skipped,
+          reason: pgReconcile.reason || pgReconcile.error || null,
+        };
+        // Refresh blob booking after compatibility sync
+        const refreshed = await getBookingRecord(bookingId);
+        if (refreshed.exists) booking = refreshed.booking;
+      }
+    }
+
+    if (!projection) {
+      reconciled = await reconcileOpenCheckoutFromProvider({
+        booking,
+        bookingId,
+        getBookingRecord,
+        commitBooking,
+      });
+      booking = reconciled.booking || booking;
+      projection = reconciled.projection || financialProjection(booking);
+      authority = 'blob';
+    }
+
+    const job = projectJobForAdmin(booking);
+    return jsonCors(200, {
+      ok: true,
+      job,
+      projection,
+      authority,
+      reconciled: !reconciled.skipped && !!reconciled.ok,
+      reconcileSkipped: !!reconciled.skipped,
+      reconcileReason: reconciled.reason || reconciled.error || null,
+    });
+  }
+
+  if (action === 'reconcile_with_stripe') {
+    const {
+      postgresPaymentEnabled,
+      adminReconcileWithStripe,
+      getSharedFinancialProjection,
+    } = require('../lib/db/operational-payment');
+    const {
+      reconcileOpenCheckoutFromProvider,
+      financialProjection,
+    } = require('../lib/payment-service');
+
+    if (postgresPaymentEnabled()) {
+      const result = await adminReconcileWithStripe({ booking });
+      const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: false });
+      const refreshed = await getBookingRecord(bookingId);
+      if (refreshed.exists) booking = refreshed.booking;
+      return jsonCors(200, {
+        ok: !!result.ok,
+        action: 'reconcile_with_stripe',
+        authority: 'postgres',
+        projection: shared.projection || result.projection || null,
+        skipped: !!result.skipped,
+        reason: result.reason || result.error || null,
+        job: projectJobForAdmin(booking),
+      });
+    }
+
     const reconciled = await reconcileOpenCheckoutFromProvider({
       booking,
       bookingId,
@@ -348,15 +426,14 @@ async function handleAdminAction(body) {
       commitBooking,
     });
     booking = reconciled.booking || booking;
-    const job = projectJobForAdmin(booking);
-    const projection = reconciled.projection || financialProjection(booking);
     return jsonCors(200, {
-      ok: true,
-      job,
-      projection,
-      reconciled: !reconciled.skipped && !!reconciled.ok,
-      reconcileSkipped: !!reconciled.skipped,
-      reconcileReason: reconciled.reason || reconciled.error || null,
+      ok: !!reconciled.ok,
+      action: 'reconcile_with_stripe',
+      authority: 'blob',
+      projection: reconciled.projection || financialProjection(booking),
+      skipped: !!reconciled.skipped,
+      reason: reconciled.reason || reconciled.error || null,
+      job: projectJobForAdmin(booking),
     });
   }
 

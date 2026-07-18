@@ -13,12 +13,16 @@ const { catalogForClient } = require('../lib/customer-catalog');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
 const { financialProjection } = require('../lib/payment-service');
+const {
+  postgresPaymentEnabled,
+  getSharedFinancialProjection,
+} = require('../lib/db/operational-payment');
 
-function safePaymentState(booking) {
-  const money = financialProjection(booking);
+function safePaymentStateFromProjection(booking, money, authority) {
   const due = money.remainingCents / 100;
   const payAllowed = canPayBalance(booking);
   const canPay = !!(payAllowed.ok && money.paymentStatus !== 'paid' && money.remainingCents > 0);
+  const piRef = money.stripeReference || money.paymentIntentIdPrefix || null;
   return {
     state: money.paymentStatus,
     amountDueApproved: due,
@@ -27,16 +31,37 @@ function safePaymentState(booking) {
     remainingCents: money.remainingCents,
     approvedCents: money.approvedCents,
     settledCents: money.settledCents,
+    refundedCents: money.refundedCents || 0,
     paymentStatus: money.paymentStatus,
+    paymentAttemptStatus: money.paymentAttemptStatus || null,
+    stripeReference: money.stripeReference || null,
+    paidAt: money.paidAt || null,
     bookingVersion: booking.bookingVersion || 0,
-    quoteVersion: booking.quoteVersion || 0,
+    quoteVersion: money.quoteVersion != null ? money.quoteVersion : (booking.quoteVersion || 0),
     payLink: money.paymentStatus === 'paid' ? '' : (booking.payLink || ''),
     payLinkAmount: booking.payLinkAmount != null ? Number(booking.payLinkAmount) : null,
     canPay,
     canCreatePayLink: canPay,
-    stripeCheckoutSessionIdPrefix: money.stripeCheckoutSessionIdPrefix,
-    paymentIntentIdPrefix: money.paymentIntentIdPrefix,
+    embeddedPayAvailable: authority === 'postgres' && canPay,
+    authority,
+    stripeCheckoutSessionIdPrefix: money.stripeCheckoutSessionIdPrefix || null,
+    paymentIntentIdPrefix: piRef && String(piRef).startsWith('pi_') ? String(piRef).slice(0, 12) : (money.paymentIntentIdPrefix || null),
   };
+}
+
+function safePaymentState(booking) {
+  const money = financialProjection(booking);
+  return safePaymentStateFromProjection(booking, money, 'blob');
+}
+
+async function safePaymentStateAsync(booking) {
+  if (postgresPaymentEnabled()) {
+    const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: true });
+    if (shared.ok && shared.projection) {
+      return safePaymentStateFromProjection(booking, shared.projection, 'postgres');
+    }
+  }
+  return safePaymentState(booking);
 }
 
 function isVisibleCustomerBooking(b) {
@@ -100,7 +125,7 @@ exports.handler = async (event) => {
       });
     }
     const projected = projectBookingForCustomer(auth.booking);
-    const payment = safePaymentState(auth.booking);
+    const payment = await safePaymentStateAsync(auth.booking);
     return jsonCors(200, {
       ok: true,
       scope: 'booking',
@@ -131,8 +156,8 @@ exports.handler = async (event) => {
   const vehicles = phoneDigits ? await listVehiclesForOwner(phoneDigits) : [];
   const upcoming = selectUpcoming(projected);
   const payment = upcoming
-    ? safePaymentState(bookings.find((b) => (b.id || b.bookingId) === upcoming.id) || {})
-    : { state: 'not_due', amountDueApproved: 0, canPay: false, payLink: '' };
+    ? await safePaymentStateAsync(bookings.find((b) => (b.id || b.bookingId) === upcoming.id) || {})
+    : { state: 'not_due', amountDueApproved: 0, canPay: false, payLink: '', authority: 'none' };
 
   let changeRequests = [];
   if (upcoming?.id) {
