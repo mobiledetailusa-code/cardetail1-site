@@ -184,8 +184,19 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 
     <section class="section" id="payments" aria-labelledby="pay-h">
       <h3 id="pay-h">Payments &amp; Receipts</h3>
-      <p id="payments-empty" class="empty">No balance due. When a balance is approved, Pay Balance opens secure Stripe Checkout (card only).</p>
+      <p id="payments-empty" class="empty">No balance due. When a balance is approved, Pay Balance opens secure card payment in this page (Stripe Payment Element).</p>
       <div id="payments-panel"></div>
+      <div id="embedded-pay-panel" class="panel pay-card" hidden>
+        <p class="card-kicker">Secure payment</p>
+        <p class="sub" id="embedded-pay-amount">Pay the approved balance without leaving My Garage.</p>
+        <div id="payment-element"></div>
+        <div class="actions" style="margin-top:14px">
+          <button type="button" class="btn primary" id="embedded-pay-submit">Pay now</button>
+          <button type="button" class="btn ghost" id="embedded-pay-cancel">Cancel</button>
+          <button type="button" class="btn ghost" id="embedded-pay-checkout-fallback" hidden>Open hosted Checkout</button>
+        </div>
+        <p id="embedded-pay-msg" class="msg" hidden></p>
+      </div>
     </section>
 
     <section class="section" aria-labelledby="comm-h">
@@ -208,9 +219,10 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 </div>
 <div class="toast" id="portal-toast" role="status" aria-live="polite"></div>
 
+<script src="https://js.stripe.com/v3/"></script>
 <script src="assets/portal-analytics.js" defer></script>
 <script src="assets/operational-refresh.js" defer></script>
-<script src="assets/my-garage.js?v=20260718-portal4" defer></script>
+<script src="assets/my-garage.js?v=20260718-portal5" defer></script>
 <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>

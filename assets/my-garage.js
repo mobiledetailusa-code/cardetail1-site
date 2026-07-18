@@ -699,6 +699,64 @@
     return false;
   }
 
+  var embeddedPay = {
+    stripe: null,
+    elements: null,
+    paymentElement: null,
+    clientSecret: null,
+  };
+
+  function setEmbeddedPayMsg(text, isErr) {
+    var el = $('embedded-pay-msg');
+    if (!el) return;
+    if (!text) {
+      el.hidden = true;
+      el.textContent = '';
+      return;
+    }
+    el.hidden = false;
+    el.textContent = text;
+    el.classList.toggle('err', !!isErr);
+  }
+
+  function hideEmbeddedPay() {
+    var panel = $('embedded-pay-panel');
+    if (panel) panel.hidden = true;
+    if (embeddedPay.paymentElement) {
+      try { embeddedPay.paymentElement.unmount(); } catch (e) { /* ignore */ }
+    }
+    embeddedPay.paymentElement = null;
+    embeddedPay.elements = null;
+    embeddedPay.clientSecret = null;
+    setEmbeddedPayMsg('', false);
+  }
+
+  async function loadStripePublishableKey() {
+    try {
+      var res = await fetch(API + 'stripe-config', { method: 'GET', credentials: 'same-origin' });
+      var data = await res.json();
+      return data && data.publishableKey ? data.publishableKey : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function startHostedCheckoutFallback() {
+    var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
+    showToast('Opening hosted Checkout…');
+    var r = await post('customer-portal-pay', {
+      bookingId: state.booking.id,
+      phone: phone,
+      expectedQuoteVersion: state.payment && state.payment.quoteVersion,
+    });
+    if (r.data && r.data.ok && r.data.url) {
+      if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.paymentOpened();
+      global.location.href = r.data.url;
+      return;
+    }
+    showToast((r.data && r.data.message) || 'Hosted Checkout is not available.', true);
+  }
+
   async function startPayBalance() {
     if (!state.booking) {
       showToast('Open a booking first.', true);
@@ -710,19 +768,106 @@
       return;
     }
     var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
-    showToast('Preparing secure checkout…');
-    // Always mint/validate via server so Stripe amount matches portal due.
-    var r = await post('customer-portal-pay', {
+    showToast('Preparing secure payment…');
+
+    // Prefer in-page Payment Element (Postgres authority) when available.
+    var intent = await post('customer-balance-payment-intent', {
       bookingId: state.booking.id,
       phone: phone,
+      expectedQuoteVersion: pay.quoteVersion,
     });
-    if (r.data && r.data.ok && r.data.url) {
+
+    if (intent.data && intent.data.ok && intent.data.clientSecret) {
+      if (typeof global.Stripe !== 'function') {
+        showToast('Stripe.js failed to load — using hosted Checkout.', true);
+        return startHostedCheckoutFallback();
+      }
+      var pk = await loadStripePublishableKey();
+      if (!pk) {
+        showToast('Payment config unavailable — using hosted Checkout.', true);
+        return startHostedCheckoutFallback();
+      }
+
+      embeddedPay.stripe = global.Stripe(pk);
+      embeddedPay.clientSecret = intent.data.clientSecret;
+      var elementsOpts = { clientSecret: intent.data.clientSecret };
+      if (intent.data.customerSessionClientSecret) {
+        elementsOpts.customerSessionClientSecret = intent.data.customerSessionClientSecret;
+      }
+      embeddedPay.elements = embeddedPay.stripe.elements(elementsOpts);
+      embeddedPay.paymentElement = embeddedPay.elements.create('payment', {
+        layout: 'tabs',
+      });
+      var mountEl = $('payment-element');
+      var panel = $('embedded-pay-panel');
+      var amountEl = $('embedded-pay-amount');
+      if (!mountEl || !panel) {
+        return startHostedCheckoutFallback();
+      }
+      if (amountEl) {
+        var cents = intent.data.amountCents || pay.remainingCents || 0;
+        amountEl.textContent = 'Pay ' + fmtMoney(cents / 100) + ' securely without leaving this page.';
+      }
+      panel.hidden = false;
+      embeddedPay.paymentElement.mount(mountEl);
+      setEmbeddedPayMsg('Enter card details to pay. Saved cards appear only when Stripe allows redisplay.', false);
+      var fallbackBtn = $('embedded-pay-checkout-fallback');
+      if (fallbackBtn) fallbackBtn.hidden = false;
       if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.paymentOpened();
-      global.location.href = r.data.url;
       return;
     }
-    showToast((r.data && r.data.message) || 'Payment is not available yet.', true);
+
+    // Controlled recovery: hosted Checkout when embedded path unavailable.
+    if (intent.data && (intent.data.fallback === 'checkout' || intent.data.error === 'postgres_payment_disabled')) {
+      return startHostedCheckoutFallback();
+    }
+    showToast((intent.data && intent.data.message) || 'Payment is not available yet.', true);
   }
+
+  async function confirmEmbeddedPay() {
+    if (!embeddedPay.stripe || !embeddedPay.elements) {
+      showToast('Payment form is not ready.', true);
+      return;
+    }
+    var submitBtn = $('embedded-pay-submit');
+    if (submitBtn) submitBtn.disabled = true;
+    setEmbeddedPayMsg('Processing payment…', false);
+    var result = await embeddedPay.stripe.confirmPayment({
+      elements: embeddedPay.elements,
+      redirect: 'if_required',
+      confirmParams: {
+        return_url: global.location.origin + '/my-garage.html?paid=1&bookingId=' +
+          encodeURIComponent(state.booking.id),
+      },
+    });
+    if (submitBtn) submitBtn.disabled = false;
+    if (result.error) {
+      setEmbeddedPayMsg(result.error.message || 'Payment failed. Try again or use hosted Checkout.', true);
+      return;
+    }
+    var status = result.paymentIntent && result.paymentIntent.status;
+    if (status === 'succeeded' || status === 'processing') {
+      setEmbeddedPayMsg(status === 'processing' ? 'Payment processing — confirming…' : 'Payment succeeded — confirming…', false);
+      hideEmbeddedPay();
+      pollPaymentSettlement();
+      return;
+    }
+    if (status === 'requires_action') {
+      setEmbeddedPayMsg('Additional authentication required. Follow the prompts.', false);
+      return;
+    }
+    setEmbeddedPayMsg('Payment status: ' + (status || 'unknown'), true);
+  }
+
+  function bindEmbeddedPayControls() {
+    var submit = $('embedded-pay-submit');
+    var cancel = $('embedded-pay-cancel');
+    var fallback = $('embedded-pay-checkout-fallback');
+    if (submit) submit.addEventListener('click', function () { confirmEmbeddedPay(); });
+    if (cancel) cancel.addEventListener('click', function () { hideEmbeddedPay(); });
+    if (fallback) fallback.addEventListener('click', function () { startHostedCheckoutFallback(); });
+  }
+  bindEmbeddedPayControls();
 
   function showToast(msg, isErr) {
     var el = $('portal-toast');
@@ -1405,7 +1550,7 @@
       if (tries < 6) {
         setTimeout(tick, 2000);
       } else {
-        showToast('Payment received by Stripe — balance will update shortly. Refresh if needed.');
+        showToast('Still confirming payment with the server. Tap Refresh — do not pay again.', true);
       }
     }
     setTimeout(tick, 1500);
