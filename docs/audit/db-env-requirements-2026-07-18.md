@@ -101,3 +101,20 @@ No `.html` file, no `netlify/functions/*` file other than the new `db-health.js`
 **Nothing was committed.** All of §8's files are new/modified in the working tree only, same as the rest of this session's Phase 2 work (still uncommitted per `docs/audit/containment-evidence-2026-07-18.md`).
 
 Stopping here per instruction — waiting for the owner to configure Netlify before any further action.
+
+---
+
+## Addendum — closed out 2026-07-18
+
+`DATABASE_URL` is now correctly configured for `deploy-preview`, `branch-deploy`, and `dev` contexts (set via `netlify-cli env:set`, since the raw Environment Variables API rejected every hand-built payload this session tried — the CLI succeeded on the first attempt with the correct site auto-detected from `NETLIFY_SITE_ID`). `production` context was deliberately left untouched, per this document's original recommendation.
+
+Netlify's env-var read API masks the `value` field for any `is_secret: true` variable (confirmed by comparing against `STRIPE_SECRET_KEY`, a known-good live variable showing the identical masked pattern) — so correctness could not be verified by reading the API back. It was instead verified by deploying and calling the real endpoint:
+
+All 8 commits from this session were pushed to `feat/postgres-payment-core` (not merged to master, not touching `fix/final-production-readiness`). Netlify auto-built a branch deploy: `https://feat-postgres-payment-core--cardetail1.netlify.app` (context: `branch-deploy`).
+
+```
+GET https://feat-postgres-payment-core--cardetail1.netlify.app/.netlify/functions/db-health
+200 { "configured": true, "reachable": true }
+```
+
+This is the first real, live confirmation that a deployed Netlify Function can reach Postgres. Deploy Preview scope closes here. Phase 3 was not started; master was not touched; Production was not configured.
