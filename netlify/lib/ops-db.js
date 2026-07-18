@@ -17,7 +17,7 @@ async function bookingStore() {
 }
 
 async function getBooking(bookingId) {
-  // Strong consistency — customer lookup after admin approve must not race Blob replication.
+  // Blobs remain primary (checkout + CAS). Prisma is read fallback only after Blob miss.
   const store = await bookingStore();
   const id = String(bookingId || '').trim();
   if (!id) return null;
@@ -28,9 +28,20 @@ async function getBooking(bookingId) {
   const raw = (result && result.data)
     ? result.data
     : await store.get(id, { type: 'json' }).catch(() => null);
-  if (!raw) return null;
-  const adapted = adaptHistoricalBooking(raw);
-  return adapted.ok ? adapted.booking : raw;
+  if (raw) {
+    const adapted = adaptHistoricalBooking(raw);
+    return adapted.ok ? adapted.booking : raw;
+  }
+  // Fail-open Prisma fallback — helps intermittent Blob miss; never used for CAS writes.
+  try {
+    const { readBookingMirror } = require('./booking-prisma-mirror');
+    const mirrored = await readBookingMirror(id);
+    if (mirrored) {
+      const adapted = adaptHistoricalBooking(mirrored);
+      return adapted.ok ? adapted.booking : mirrored;
+    }
+  } catch { /* ignore */ }
+  return null;
 }
 
 async function patchBooking(bookingId, patches, eventEntry) {

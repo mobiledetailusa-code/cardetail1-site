@@ -98,6 +98,11 @@ async function commitBooking({
     if (!writeWasApplied(writeResult)) {
       return { ok: false, error: 'version_conflict', statusCode: 409 };
     }
+    // Dual-write Prisma (fail-open) — Blobs already committed
+    try {
+      const { scheduleBookingMirror } = require('./booking-prisma-mirror');
+      scheduleBookingMirror(toWrite);
+    } catch { /* never block Blob authority */ }
     return { ok: true, booking: toWrite, bookingVersion: toWrite.bookingVersion };
   }
 
@@ -149,6 +154,12 @@ async function commitBooking({
       expectedBookingVersion: expected,
     };
   }
+
+  // Dual-write Prisma (fail-open) — Blobs already committed; never affect checkout/CAS.
+  try {
+    const { scheduleBookingMirror } = require('./booking-prisma-mirror');
+    scheduleBookingMirror(toWrite);
+  } catch { /* never block Blob authority */ }
 
   return { ok: true, booking: toWrite, bookingVersion: toWrite.bookingVersion };
 }

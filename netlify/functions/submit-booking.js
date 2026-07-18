@@ -573,6 +573,11 @@ exports.handler = async (event) => {
     } catch (e) {
       return json(500, { ok: false, error: 'booking_store_failed' });
     }
+    // Prisma dual-write AFTER Blob finalize — fail-open; never affects checkout response.
+    try {
+      const { scheduleBookingMirror } = require('../lib/booking-prisma-mirror');
+      scheduleBookingMirror(b);
+    } catch { /* ignore */ }
 
     const delivery = await sendNotificationsDecoupled(b, {
       adminEmail: (booking) => sendEmail(booking).catch((e) => ({ sent: false, reason: e.message })),
@@ -582,6 +587,10 @@ exports.handler = async (event) => {
     const withDelivery = attachDeliveryToBooking(b, delivery);
     try {
       await store.setJSON(rawDraftId, withDelivery);
+      try {
+        const { scheduleBookingMirror } = require('../lib/booking-prisma-mirror');
+        scheduleBookingMirror(withDelivery);
+      } catch { /* ignore */ }
     } catch (e) {
       console.warn('[submit-booking] notification delivery persist failed:', e.message);
     }
