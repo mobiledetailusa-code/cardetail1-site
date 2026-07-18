@@ -89,10 +89,20 @@ async function reserveAndCreatePaymentIntent({
   });
   if (!reserved.ok) return { ok: false, error: reserved.error, statusCode: 500 };
 
-  if (!reserved.created) {
-    // Idempotent replay or an active obligation already reserved by a
-    // concurrent request — return it as-is, never create a second Stripe
-    // object for the same bookingId+quoteVersion.
+  // Stuck `creating` row with no providerObjectId after a Stripe-side timeout:
+  // the first call reserved the obligation and Stripe may already have the PI
+  // (Idempotency-Key), but we never persisted the id. Replaying the same key
+  // must fall through and finish attaching — not return the orphan forever.
+  const stuckCreatingWithoutProvider =
+    !reserved.created &&
+    reserved.reason === 'idempotent_replay' &&
+    reserved.attempt &&
+    !reserved.attempt.providerObjectId &&
+    reserved.attempt.status === 'creating';
+
+  if (!reserved.created && !stuckCreatingWithoutProvider) {
+    // Concurrent reservation or a completed attempt — return as-is, never
+    // create a second Stripe object for the same bookingId+quoteVersion.
     return { ok: true, created: false, paymentAttempt: reserved.attempt, projection };
   }
 
@@ -133,7 +143,14 @@ async function reserveAndCreatePaymentIntent({
     status: 'open',
   });
 
-  return { ok: true, created: true, paymentAttempt, stripePaymentIntentId: stripePaymentIntent.id, projection };
+  return {
+    ok: true,
+    created: !stuckCreatingWithoutProvider,
+    recoveredFromTimeout: stuckCreatingWithoutProvider || undefined,
+    paymentAttempt,
+    stripePaymentIntentId: stripePaymentIntent.id,
+    projection,
+  };
 }
 
 /**

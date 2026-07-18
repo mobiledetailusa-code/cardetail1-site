@@ -324,6 +324,97 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     assert.equal(deltaAttempt.ok, true);
     assert.equal(deltaAttempt.paymentAttempt.amountCents, 750, 'must charge only the 750-cent delta, not the full 2750');
   });
+
+  test('network timeout after Stripe creates the PI: retry with same Idempotency-Key attaches the same PI (no orphan)', async () => {
+    const svc = require('../netlify/lib/db/payment-authority-service');
+    const { bookingId } = await makeBookingWithQuote(3300);
+    const piId = nextId('pi');
+    let stripeCalls = 0;
+    // First call: Stripe "succeeds" server-side but the response never reaches us.
+    const timeoutThenSucceedFetch = async (url, opts) => {
+      if (!String(url).includes('/payment_intents')) {
+        return { ok: false, json: async () => ({ error: { message: 'unexpected_url' } }) };
+      }
+      stripeCalls += 1;
+      if (stripeCalls === 1) {
+        throw new Error('simulated_timeout_after_stripe_accept');
+      }
+      // Second call: Stripe idempotency returns the same PI that was created
+      // on the timed-out request (same Idempotency-Key).
+      return { ok: true, json: async () => ({ id: piId, status: 'requires_payment_method', amount: 3300 }) };
+    };
+
+    const first = await svc.reserveAndCreatePaymentIntent({
+      bookingId, quoteVersion: 1, env: FAKE_ENV, fetchImpl: timeoutThenSucceedFetch,
+    });
+    assert.equal(first.ok, false);
+    assert.equal(first.error, 'stripe_network_error');
+
+    const stuck = await prisma.paymentAttempt.findFirst({ where: { bookingId, quoteVersion: 1 } });
+    assert.ok(stuck, 'obligation must remain reserved after the timeout');
+    assert.equal(stuck.status, 'creating');
+    assert.equal(stuck.providerObjectId, null);
+
+    const retry = await svc.reserveAndCreatePaymentIntent({
+      bookingId, quoteVersion: 1, env: FAKE_ENV, fetchImpl: timeoutThenSucceedFetch,
+    });
+    assert.equal(retry.ok, true);
+    assert.equal(retry.recoveredFromTimeout, true);
+    assert.equal(retry.stripePaymentIntentId, piId);
+    assert.equal(retry.paymentAttempt.id, stuck.id, 'must attach to the same attempt row, not create a second');
+    assert.equal(retry.paymentAttempt.providerObjectId, piId);
+    assert.equal(retry.paymentAttempt.status, 'open');
+    assert.equal(stripeCalls, 2, 'exactly two Stripe calls: timed-out create + idempotent replay');
+
+    const count = await prisma.paymentAttempt.count({ where: { bookingId, quoteVersion: 1 } });
+    assert.equal(count, 1, 'timeout recovery must not create a second PaymentAttempt');
+  });
+
+  test('requires_action then succeeded: 3DS/auth path settles exactly once and blocks a concurrent second PI', async () => {
+    const svc = require('../netlify/lib/db/payment-authority-service');
+    const { bookingId } = await makeBookingWithQuote(4800);
+    const piId = nextId('pi');
+    const created = await svc.reserveAndCreatePaymentIntent({
+      bookingId, quoteVersion: 1, env: FAKE_ENV, fetchImpl: fakePaymentIntentCreateFetch({ id: piId }),
+    });
+    assert.equal(created.ok, true);
+
+    const authRequired = await svc.reconcilePaymentIntentEvent({
+      stripeEventId: nextId('EVT'), type: 'payment_intent.requires_action',
+      paymentIntent: { id: piId, status: 'requires_action' },
+    });
+    assert.equal(authRequired.ok, true);
+    assert.equal(authRequired.terminal, 'requires_action');
+
+    const duringAuth = await prisma.paymentAttempt.findUnique({ where: { id: created.paymentAttempt.id } });
+    assert.equal(duringAuth.status, 'requires_action');
+
+    // While auth is outstanding, a second create must collapse to the same
+    // active obligation — not open a parallel PaymentIntent.
+    const concurrent = await svc.reserveAndCreatePaymentIntent({
+      bookingId, quoteVersion: 1, env: FAKE_ENV, fetchImpl: fakePaymentIntentCreateFetch({ id: nextId('pi') }),
+    });
+    assert.equal(concurrent.ok, true);
+    assert.equal(concurrent.created, false);
+    assert.equal(concurrent.paymentAttempt.id, created.paymentAttempt.id);
+
+    const settled = await svc.reconcilePaymentIntentEvent({
+      stripeEventId: nextId('EVT'), type: 'payment_intent.succeeded',
+      paymentIntent: { id: piId, status: 'succeeded', amount_received: 4800 },
+    });
+    assert.equal(settled.ok, true);
+    assert.equal(settled.duplicate, false);
+
+    const projection = await svc.getFinancialProjection(bookingId);
+    assert.equal(projection.paymentStatus, 'paid');
+    assert.equal(projection.remainingCents, 0);
+    assert.equal(projection.settledCents, 4800);
+
+    const attempt = await prisma.paymentAttempt.findUnique({ where: { id: created.paymentAttempt.id } });
+    assert.equal(attempt.status, 'succeeded');
+    const count = await prisma.paymentAttempt.count({ where: { bookingId, quoteVersion: 1 } });
+    assert.equal(count, 1);
+  });
 });
 
 describe('Phase 3 webhook-inbox signature verification', () => {
