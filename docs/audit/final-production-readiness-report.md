@@ -235,9 +235,9 @@ Deferred High items (PDA-10, PDA-11) are explicit Release A exclusions, not merg
 
 ## 33. Exact merge recommendation
 
-**APPROVE FOR OWNER REVIEW**
+**DO NOT APPROVE** until the owner re-runs the mandatory Stripe test-mode card-on-file booking on deploy-preview-118 after hotfix `67f5653` and confirms final submit succeeds.
 
-Do not merge to `master` and do not deploy Production until the owner completes the checklist above (especially live test-mode Checkout on Branch Deploy).
+When that retest passes, recommendation returns to **APPROVE FOR OWNER REVIEW** (still no Production merge without owner sign-off).
 
 ## 34. Confirmation that Production was not changed
 
