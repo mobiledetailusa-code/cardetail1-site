@@ -153,7 +153,8 @@ describe('portal ops smoke — customer + admin real ops', () => {
     assert.match(src, /Generate Stripe link/);
     assert.match(src, /Copy pay link if present/);
     assert.match(src, /Manual external reference|manual reference/i);
-    assert.match(src, /never opens Pay Balance/i);
+    assert.match(src, /Manual reference is notes-only|never opens Pay Balance/i);
+    assert.match(src, /Reconcile with Stripe|reconcile_with_stripe/);
     assert.doesNotMatch(src, /create-payment-link\.js|\/\.netlify\/functions\/create-payment-link/);
   });
 

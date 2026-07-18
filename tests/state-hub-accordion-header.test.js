@@ -293,6 +293,10 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/list-bookings.js',
     // Phase 2/3 Postgres foundation — additive, non-sensitive health endpoint.
     'netlify/functions/db-health.js',
+    // Operational Postgres payment wiring.
+    'netlify/functions/customer-balance-payment-intent.js',
+    'netlify/functions/customer-portal-data.js',
+    'netlify/functions/admin-ops-jobs.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);

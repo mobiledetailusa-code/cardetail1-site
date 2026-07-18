@@ -257,11 +257,17 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/tech-security.js',
     // Phase 2/3 Postgres foundation — additive, not wired into live traffic.
     'netlify/functions/db-health.js',
+    'netlify/functions/customer-balance-payment-intent.js',
+    'netlify/functions/customer-portal-data.js',
+    'netlify/functions/admin-ops-jobs.js',
+    'netlify/functions/stripe-webhook.js',
     'netlify/lib/db/repositories.js',
     'netlify/lib/db/foundation-services.js',
     'netlify/lib/db/financial-projection.js',
     'netlify/lib/db/payment-authority-service.js',
     'netlify/lib/db/webhook-inbox.js',
+    'netlify/lib/db/ensure-booking-financial.js',
+    'netlify/lib/db/operational-payment.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);
