@@ -1,7 +1,7 @@
 // Admin-only jobs feed + admin ops actions for Admin Ops dashboard.
 const { blobsStore, listAllBlobs, fetchBlobRecords, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const {
-  projectJobForAdmin, normalizeJobStatus, normalizePaymentWorkflowStatus, appendEventLog,
+  projectJobForAdmin, normalizeJobStatus, appendEventLog,
 } = require('../lib/ops-workflow');
 const { getOpsSettings } = require('../lib/ops-config');
 const { createAuctionForBooking, assignAuctionWinnerToBooking } = require('../lib/auction-ops');
@@ -122,7 +122,8 @@ async function listJobs(q) {
     try {
       const j = projectJobForAdmin(b);
       j.jobStatus = normalizeJobStatus(b);
-      j.paymentWorkflowStatus = normalizePaymentWorkflowStatus(b);
+      // paymentWorkflowStatus / remainingCents come from financialProjection via projectJobForAdmin.
+      // Do not overwrite with normalizePaymentWorkflowStatus(raw) — that reintroduces stale Pending.
       delete j.stripeCustomerId;
       delete j.stripePaymentMethodId;
       delete j.setupIntentId;
@@ -306,10 +307,34 @@ async function handleAdminAction(body) {
   const store = await blobsStore('cd1-bookings');
   setBookingStoreOverride(store);
   const bookingRec = await getBookingRecord(bookingId);
-  const booking = bookingRec.booking || await store.get(bookingId, { type: 'json' }).catch(() => null);
+  let booking = bookingRec.booking || await store.get(bookingId, { type: 'json' }).catch(() => null);
   if (!booking) return jsonCors(404, { ok: false, error: 'booking_not_found' });
 
   const now = new Date().toISOString();
+
+  if (action === 'get_job') {
+    const {
+      reconcileOpenCheckoutFromProvider,
+      financialProjection,
+    } = require('../lib/payment-service');
+    const reconciled = await reconcileOpenCheckoutFromProvider({
+      booking,
+      bookingId,
+      getBookingRecord,
+      commitBooking,
+    });
+    booking = reconciled.booking || booking;
+    const job = projectJobForAdmin(booking);
+    const projection = reconciled.projection || financialProjection(booking);
+    return jsonCors(200, {
+      ok: true,
+      job,
+      projection,
+      reconciled: !reconciled.skipped && !!reconciled.ok,
+      reconcileSkipped: !!reconciled.skipped,
+      reconcileReason: reconciled.reason || reconciled.error || null,
+    });
+  }
 
   if (action === 'apply_welcome_offer') {
     const reason = sanitizeText(body.reason, 300);

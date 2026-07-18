@@ -175,12 +175,109 @@ async function expireSupersededAttempts(attempts, env = process.env, fetchImpl =
 }
 
 /**
+ * Authoritative financial projection shared by Admin + Customer portals.
+ * paymentStatus: paid | due | processing | failed | not_due
+ */
+function financialProjection(booking) {
+  const { materialProjection } = require('./booking-aggregate');
+  const { isInvoicePaid } = require('./appointment-status-policy');
+  const material = materialProjection(booking) || {};
+  const ledger = (booking && booking.ledger) || {};
+  const approvedCents = Math.max(
+    0,
+    Math.round(Number(material.approvedCents != null ? material.approvedCents : ledger.approvedCents) || 0)
+  );
+  const settledCents = Math.max(
+    0,
+    Math.round(Number(material.settledCents != null ? material.settledCents : ledger.settledCents) || 0)
+  );
+  const rem = material.remainingCents != null
+    ? Math.max(0, Math.round(Number(material.remainingCents) || 0))
+    : remainingCents(ledger);
+
+  const rawPay = String(booking?.paymentStatus || '').toLowerCase();
+  const pwf = String(booking?.paymentWorkflowStatus || '').toLowerCase();
+  const invoicePaid = !!(isInvoicePaid(booking) || (settledCents > 0 && rem === 0));
+
+  let paymentStatus = 'not_due';
+  if (rawPay === 'failed' || pwf === 'payment_failed') {
+    paymentStatus = 'failed';
+  } else if (
+    invoicePaid
+    || rawPay === 'paid'
+    || pwf === 'payment_succeeded'
+    || pwf === 'cash_paid'
+    || (settledCents > 0 && rem === 0)
+  ) {
+    paymentStatus = 'paid';
+  } else if (rawPay === 'processing' || pwf === 'awaiting_customer_payment' || pwf === 'payment_action_required') {
+    paymentStatus = rem > 0 ? 'processing' : 'paid';
+  } else if (rem > 0) {
+    paymentStatus = 'due';
+  }
+
+  let paymentWorkflowStatus = pwf || 'no_payment_required_yet';
+  if (paymentStatus === 'paid') {
+    paymentWorkflowStatus = pwf === 'cash_paid' ? 'cash_paid' : 'payment_succeeded';
+  } else if (paymentStatus === 'failed') {
+    paymentWorkflowStatus = 'payment_failed';
+  } else if (paymentStatus === 'processing') {
+    paymentWorkflowStatus = pwf === 'payment_action_required'
+      ? 'payment_action_required'
+      : 'awaiting_customer_payment';
+  } else if (paymentStatus === 'due') {
+    paymentWorkflowStatus = pwf && pwf !== 'payment_succeeded' ? pwf : 'awaiting_customer_payment';
+  }
+
+  const settlementEntry = asArray(booking?.ledger?.entries)
+    .filter((e) => e && e.kind === 'settlement' && e.providerObjectId)
+    .slice(-1)[0];
+  const sessionId = String(
+    booking?.stripeCheckoutSessionId
+    || booking?.lastStripeCheckoutSessionId
+    || settlementEntry?.providerObjectId
+    || ''
+  ).trim();
+  const piId = String(booking?.paymentIntentId || '').trim();
+
+  return {
+    approvedCents,
+    settledCents,
+    remainingCents: paymentStatus === 'paid' ? 0 : rem,
+    paymentStatus,
+    paymentWorkflowStatus,
+    invoicePaid: paymentStatus === 'paid',
+    canGeneratePayLink: paymentStatus !== 'paid' && rem > 0,
+    stripeCheckoutSessionId: sessionId,
+    stripeCheckoutSessionIdPrefix: sessionId ? sessionId.slice(0, 12) : '',
+    paymentIntentIdPrefix: piId ? piId.slice(0, 12) : '',
+  };
+}
+
+function logPaymentReconciliation(payload) {
+  const p = payload || {};
+  const sessionId = p.checkoutSessionId || p.sessionId || '';
+  const piId = p.paymentIntentId || '';
+  console.log('[payment-reconcile]', JSON.stringify({
+    bookingId: p.bookingId || null,
+    stripeEventId: p.stripeEventId || null,
+    checkoutSessionIdPrefix: sessionId ? String(sessionId).slice(0, 12) : null,
+    paymentIntentIdPrefix: piId ? String(piId).slice(0, 12) : null,
+    localStateBefore: p.localBefore || null,
+    providerState: p.providerState || null,
+    localStateAfter: p.localAfter || null,
+    adminProjection: p.adminProjection || null,
+  }));
+}
+
+/**
  * Pure reconciliation for customer_balance Checkout completion.
  * Requires a matching stored payment attempt with exact booking/version/currency/amount/object binding.
  */
 function reconcileCustomerBalanceSession({
   aggregate,
   session,
+  stripeEventId,
 }) {
   const { ok, aggregate: norm } = normalizeAggregate(aggregate, { allowDraft: false });
   if (!ok) return { ok: false, error: 'invalid_aggregate', quarantined: true };
@@ -201,9 +298,12 @@ function reconcileCustomerBalanceSession({
   const sessionBookingId = String(meta.booking_id || meta.bookingId || '').trim();
   const sessionBookingVersion = Math.round(Number(meta.bookingVersion || meta.booking_version) || 0);
   const sessionQuoteVersion = Math.round(Number(meta.quoteVersion || meta.quote_version) || 0);
+  const eventId = String(stripeEventId || '').trim();
 
   const already = asArray(norm.ledger.entries).some(
-    (e) => e.providerObjectId === sessionId || e.providerEventId === sessionId
+    (e) => e.providerObjectId === sessionId
+      || e.providerEventId === sessionId
+      || (eventId && (e.stripeEventId === eventId || e.providerEventId === eventId))
   );
   if (already) {
     return { ok: true, duplicate: true, aggregate: norm };
@@ -268,7 +368,9 @@ function reconcileCustomerBalanceSession({
     amountCents: creditCents,
     currency: 'usd',
     providerObjectId: sessionId,
+    // Session id remains the credit uniqueness key; Stripe event id is recorded for audit/idempotency.
     providerEventId: sessionId,
+    stripeEventId: eventId || null,
     quoteVersion: qv,
     bookingVersion: bv,
     occurredAt: new Date().toISOString(),
@@ -295,7 +397,13 @@ function reconcileCustomerBalanceSession({
     paymentWorkflowStatus: settled ? 'payment_succeeded' : 'awaiting_customer_payment',
     paymentStatus: settled ? 'paid' : (norm.paymentStatus || ''),
     // Clear payable link projections so admin/customer cannot re-open a settled Checkout.
-    ...(settled ? { payLink: '', stripeCheckoutSessionId: '', payLinkAmount: null } : {}),
+    // Keep lastStripeCheckoutSessionId for Admin display of Stripe reference after close.
+    ...(settled ? {
+      payLink: '',
+      stripeCheckoutSessionId: '',
+      payLinkAmount: null,
+      lastStripeCheckoutSessionId: sessionId,
+    } : {}),
   });
 
   return { ok: true, duplicate: false, aggregate: next, entry, creditCents };
@@ -310,22 +418,42 @@ async function applyCustomerBalanceReconciliation({
   session,
   getBookingRecord,
   commitBooking,
+  stripeEventId,
   maxAttempts = 5,
 }) {
   let lastConflict = null;
   for (let i = 0; i < maxAttempts; i += 1) {
     const current = await getBookingRecord(bookingId);
-    if (!current.exists) return { ok: false, error: 'not_found', statusCode: 404 };
+    if (!current.exists) return { ok: false, error: 'not_found', statusCode: 404, retryable: true };
 
+    const localBefore = financialProjection(current.booking);
     const reconciled = reconcileCustomerBalanceSession({
       aggregate: current.booking,
       session,
+      stripeEventId,
     });
     if (reconciled.duplicate) {
-      return { ok: true, duplicate: true, booking: current.booking, attempts: i + 1 };
+      const localAfter = financialProjection(current.booking);
+      logPaymentReconciliation({
+        bookingId,
+        stripeEventId,
+        checkoutSessionId: session?.id,
+        paymentIntentId: session?.payment_intent,
+        localBefore,
+        providerState: { payment_status: session?.payment_status || null },
+        localAfter,
+        adminProjection: localAfter,
+      });
+      return { ok: true, duplicate: true, booking: current.booking, attempts: i + 1, projection: localAfter };
     }
     if (!reconciled.ok) {
-      return { ...reconciled, attempts: i + 1 };
+      return {
+        ...reconciled,
+        attempts: i + 1,
+        retryable: !reconciled.quarantined && (
+          reconciled.error === 'version_conflict' || reconciled.error === 'not_found'
+        ),
+      };
     }
 
     const expected = Math.round(Number(current.booking.bookingVersion) || 0);
@@ -335,26 +463,179 @@ async function applyCustomerBalanceReconciliation({
       nextAggregate: reconciled.aggregate,
     });
     if (committed.ok) {
+      const localAfter = financialProjection(committed.booking);
+      logPaymentReconciliation({
+        bookingId,
+        stripeEventId,
+        checkoutSessionId: session?.id,
+        paymentIntentId: session?.payment_intent,
+        localBefore,
+        providerState: { payment_status: session?.payment_status || null },
+        localAfter,
+        adminProjection: localAfter,
+      });
       return {
         ok: true,
         duplicate: false,
         booking: committed.booking,
         creditCents: reconciled.creditCents,
         attempts: i + 1,
+        projection: localAfter,
       };
     }
     if (committed.error === 'version_conflict' || committed.statusCode === 409) {
       lastConflict = committed;
       continue;
     }
-    return { ...committed, attempts: i + 1 };
+    return { ...committed, attempts: i + 1, retryable: false };
   }
   return {
     ok: false,
     error: 'version_conflict',
     statusCode: 409,
     exhausted: true,
+    retryable: true,
     lastConflict,
+  };
+}
+
+/**
+ * Admin/Customer recovery: if local state is unpaid but a Checkout session exists,
+ * fetch Stripe and run the same idempotent reconcile as the webhook.
+ */
+async function reconcileOpenCheckoutFromProvider({
+  booking,
+  bookingId,
+  getBookingRecord,
+  commitBooking,
+  env = process.env,
+  fetchImpl = fetch,
+  stripeEventId = null,
+}) {
+  const id = String(bookingId || booking?.id || booking?.bookingId || '').trim();
+  const localBefore = financialProjection(booking);
+  if (localBefore.paymentStatus === 'paid') {
+    return {
+      ok: true,
+      skipped: true,
+      reason: 'already_paid',
+      booking,
+      projection: localBefore,
+    };
+  }
+
+  const attempts = asArray(booking?.paymentAttempts);
+  const openOrAny = attempts.find((a) => a && (a.status === 'open' || a.status === 'creating'))
+    || attempts.find((a) => a && a.providerObjectId);
+  const sessionId = String(booking?.stripeCheckoutSessionId || openOrAny?.providerObjectId || '').trim();
+  if (!sessionId || !sessionId.startsWith('cs_')) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: 'no_session',
+      booking,
+      projection: localBefore,
+    };
+  }
+
+  const guard = guardStripeOrReject(env, { purpose: 'admin_pay_reconcile' });
+  if (guard.blocked) {
+    return {
+      ok: false,
+      error: guard.body?.error || 'stripe_unavailable',
+      statusCode: guard.statusCode,
+      booking,
+      projection: localBefore,
+    };
+  }
+
+  let session;
+  try {
+    const res = await fetchImpl(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${guard.secret}` },
+    });
+    session = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      logPaymentReconciliation({
+        bookingId: id,
+        stripeEventId,
+        checkoutSessionId: sessionId,
+        localBefore,
+        providerState: { error: session?.error?.message || 'retrieve_failed', httpStatus: res.status },
+        localAfter: localBefore,
+        adminProjection: localBefore,
+      });
+      return {
+        ok: false,
+        error: 'stripe_retrieve_failed',
+        statusCode: 502,
+        retryable: true,
+        booking,
+        projection: localBefore,
+      };
+    }
+  } catch (e) {
+    return {
+      ok: false,
+      error: 'stripe_retrieve_failed',
+      statusCode: 502,
+      retryable: true,
+      booking,
+      projection: localBefore,
+    };
+  }
+
+  const providerState = {
+    payment_status: session.payment_status || null,
+    status: session.status || null,
+  };
+  if (session.payment_status !== 'paid') {
+    logPaymentReconciliation({
+      bookingId: id,
+      stripeEventId,
+      checkoutSessionId: sessionId,
+      paymentIntentId: session.payment_intent,
+      localBefore,
+      providerState,
+      localAfter: localBefore,
+      adminProjection: localBefore,
+    });
+    return {
+      ok: true,
+      skipped: true,
+      reason: 'provider_not_paid',
+      booking,
+      projection: localBefore,
+      providerState,
+    };
+  }
+
+  const applied = await applyCustomerBalanceReconciliation({
+    bookingId: id,
+    session,
+    getBookingRecord,
+    commitBooking,
+    stripeEventId,
+  });
+  const nextBooking = applied.booking || booking;
+  const localAfter = financialProjection(nextBooking);
+  logPaymentReconciliation({
+    bookingId: id,
+    stripeEventId,
+    checkoutSessionId: sessionId,
+    paymentIntentId: session.payment_intent,
+    localBefore,
+    providerState,
+    localAfter,
+    adminProjection: localAfter,
+  });
+  return {
+    ...applied,
+    skipped: false,
+    booking: nextBooking,
+    projection: localAfter,
+    providerState,
   };
 }
 
@@ -407,6 +688,9 @@ module.exports = {
   expireSupersededAttempts,
   reconcileCustomerBalanceSession,
   applyCustomerBalanceReconciliation,
+  reconcileOpenCheckoutFromProvider,
+  financialProjection,
+  logPaymentReconciliation,
   prepareBalanceCheckout,
   remainingCents,
   centsToDollars,

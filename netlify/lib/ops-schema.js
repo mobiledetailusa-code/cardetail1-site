@@ -66,6 +66,19 @@ function normalizeJobStatus(booking) {
 
 function normalizePaymentWorkflowStatus(booking) {
   const b = booking || {};
+  // Authoritative money projection beats a stale stored workflow label.
+  try {
+    const { financialProjection } = require('./payment-service');
+    const fp = financialProjection(b);
+    if (fp.paymentStatus === 'paid') {
+      return b.paymentWorkflowStatus === 'cash_paid' ? 'cash_paid' : 'payment_succeeded';
+    }
+    if (fp.paymentStatus === 'failed') return 'payment_failed';
+    if (fp.paymentStatus === 'processing' || fp.paymentStatus === 'due') {
+      return fp.paymentWorkflowStatus || 'awaiting_customer_payment';
+    }
+  } catch { /* fall through for non-aggregate records */ }
+
   if (b.paymentWorkflowStatus) return b.paymentWorkflowStatus;
   const js = normalizeJobStatus(b);
   if (js === 'completed_pending_admin_review') return 'pending_admin_review';

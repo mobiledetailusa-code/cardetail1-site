@@ -40,33 +40,39 @@ function projectJobForAdmin(b) {
   const safe = { ...b };
   delete safe.passwordHash;
   safe.jobStatus = normalizeJobStatus(safe);
-  safe.paymentWorkflowStatus = normalizePaymentWorkflowStatus(safe);
-  // Release A: Admin projection carries the same material version/money fields as Customer
+  // Release A: Admin + Customer share financialProjection for money parity.
   try {
     const { materialProjection } = require('./booking-aggregate');
     const { computeDue } = require('./portal-money-sync');
-    const { isInvoicePaid } = require('./appointment-status-policy');
+    const { financialProjection } = require('./payment-service');
     const material = materialProjection(safe);
+    const money = financialProjection(safe);
     if (material) {
       safe.bookingVersion = material.bookingVersion;
       safe.quoteVersion = material.quoteVersion;
       safe.schemaVersion = material.schemaVersion;
-      safe.approvedCents = material.approvedCents;
-      safe.settledCents = material.settledCents;
-      safe.remainingCents = material.remainingCents;
+    }
+    safe.approvedCents = money.approvedCents;
+    safe.settledCents = money.settledCents;
+    safe.remainingCents = money.remainingCents;
+    safe.amountDueApproved = money.remainingCents / 100;
+    safe.amountPaid = (money.settledCents || 0) / 100;
+    if (safe.approvedFinalAmount == null && money.approvedCents != null) {
+      safe.approvedFinalAmount = money.approvedCents / 100;
+    }
+    // Keep computeDue for diagnostics; never override zero remaining when paid.
+    if (money.paymentStatus !== 'paid') {
       safe.amountDueApproved = computeDue(safe);
-      safe.amountPaid = (material.settledCents || 0) / 100;
-      if (safe.approvedFinalAmount == null && material.approvedCents != null) {
-        safe.approvedFinalAmount = material.approvedCents / 100;
-      }
     }
-    // Jobber invoice close: webhook settlement surfaces as Paid without admin click.
-    safe.invoicePaid = isInvoicePaid(safe);
-    if (safe.invoicePaid && safe.paymentWorkflowStatus !== 'cash_paid') {
-      safe.paymentWorkflowStatus = 'payment_succeeded';
-    }
-    safe.canGeneratePayLink = !safe.invoicePaid && Number(safe.remainingCents || 0) > 0;
-  } catch { /* keep raw projection if aggregate unavailable */ }
+    safe.invoicePaid = money.invoicePaid;
+    safe.paymentWorkflowStatus = money.paymentWorkflowStatus;
+    safe.financialPaymentStatus = money.paymentStatus;
+    safe.canGeneratePayLink = money.canGeneratePayLink;
+    safe.stripeCheckoutSessionIdPrefix = money.stripeCheckoutSessionIdPrefix;
+    safe.paymentIntentIdPrefix = money.paymentIntentIdPrefix;
+  } catch {
+    safe.paymentWorkflowStatus = normalizePaymentWorkflowStatus(safe);
+  }
   return safe;
 }
 

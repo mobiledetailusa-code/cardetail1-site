@@ -79,13 +79,22 @@ async function listAllBlobs(store, label = 'store') {
   }
 }
 
-/** Fetch JSON records for blob keys in bounded parallel batches. */
+/** Fetch JSON records for blob keys in bounded parallel batches (strong consistency when available). */
 async function fetchBlobRecords(store, blobs, concurrency = 20) {
   const records = [];
   for (let i = 0; i < blobs.length; i += concurrency) {
     const chunk = blobs.slice(i, i + concurrency);
     const rows = await Promise.all(
-      chunk.map(b => store.get(b.key, { type: 'json' }).catch(() => null))
+      chunk.map(async (b) => {
+        if (typeof store.getWithMetadata === 'function') {
+          const result = await store.getWithMetadata(b.key, {
+            type: 'json',
+            consistency: 'strong',
+          }).catch(() => null);
+          if (result && result.data) return result.data;
+        }
+        return store.get(b.key, { type: 'json' }).catch(() => null);
+      })
     );
     for (const row of rows) if (row) records.push(row);
   }

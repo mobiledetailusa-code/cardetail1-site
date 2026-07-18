@@ -1094,7 +1094,20 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     } catch(e) { toast('Action failed: '+e.message); throw e; }
   }
 
-  function openDrawer(id) {
+  async function openDrawer(id) {
+    // Strong read + provider reconcile so Admin money matches Customer after Stripe pay.
+    try {
+      const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'get_job',bookingId:id});
+      if (d && d.job) {
+        const idx = jobs.findIndex(x => x.id===id);
+        if (idx >= 0) jobs[idx] = d.job;
+        else jobs.unshift(d.job);
+        if (d.reconciled) {
+          toast('Payment reconciled from Stripe');
+          renderJobs(); renderOverview(); renderCompleted();
+        }
+      }
+    } catch (e) { /* fall back to list cache */ }
     const j = jobs.find(x => x.id===id);
     if (!j) return;
     activeJob = j;
@@ -1184,10 +1197,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     html += '<div class="sec"><h4>Dispatch</h4><div class="actions">'+
       '<button type="button" class="btn sm" id="dPostAuc">Post to auction</button>'+
       '<button type="button" class="btn ghost sm" id="dAssignWin">Assign auction winner</button></div></div>';
-    const invPaid = !!(j.invoicePaid || j.paymentWorkflowStatus==='payment_succeeded' || j.paymentWorkflowStatus==='cash_paid' || (Number(j.remainingCents||0)===0 && Number(j.settledCents||0)>0));
-    const balDue = Number(j.remainingCents!=null ? j.remainingCents/100 : (j.amountDueApproved||0));
+    const invPaid = !!(j.invoicePaid || j.financialPaymentStatus==='paid' || j.paymentWorkflowStatus==='payment_succeeded' || j.paymentWorkflowStatus==='cash_paid' || (Number(j.remainingCents||0)===0 && Number(j.settledCents||0)>0));
+    const balDue = invPaid ? 0 : Number(j.remainingCents!=null ? j.remainingCents/100 : (j.amountDueApproved||0));
     const paidAmt = Number(j.amountPaid!=null ? j.amountPaid : ((j.settledCents||0)/100));
     const canGenLink = !invPaid && balDue > 0 && j.canGeneratePayLink !== false;
+    const stripeRef = j.stripeCheckoutSessionIdPrefix || j.paymentIntentIdPrefix || '';
     html += '<div class="sec"><h4>Invoice / Payment</h4>'+
       '<div style="margin-bottom:10px">'+payBadge(invPaid?'payment_succeeded':j.paymentWorkflowStatus)+
       (invPaid?' <strong style="color:var(--ok)">· PAID / CLOSED</strong>':' <strong>· Balance due</strong>')+
@@ -1197,6 +1211,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div><b>Approved total:</b> $'+esc(String(Number(j.approvedFinalAmount!=null?j.approvedFinalAmount:(j.approvedCents||0)/100).toFixed(2)))+'</div>'+
       '<div><b>Paid:</b> $'+esc(String(paidAmt.toFixed(2)))+'</div>'+
       '<div><b>Balance:</b> $'+esc(String(Math.max(0,balDue).toFixed(2)))+'</div>'+
+      (stripeRef?'<div><b>Stripe:</b> '+esc(stripeRef)+'…</div>':'')+
       '</div>'+
       (invPaid?'<p class="hint">Stripe settlement closed this invoice automatically. Do not generate another pay link.</p>':'')+
       '<div class="op-grid">'+

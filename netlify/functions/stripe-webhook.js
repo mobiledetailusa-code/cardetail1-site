@@ -359,13 +359,31 @@ exports.handler = async (event) => {
         if (bookingId) {
           const {
             applyCustomerBalanceReconciliation,
+            financialProjection,
+            logPaymentReconciliation,
           } = require('../lib/payment-service');
           const { getBookingRecord, commitBooking } = require('../lib/booking-repository');
+          const beforeRec = await getBookingRecord(bookingId);
+          const localBefore = beforeRec.exists ? financialProjection(beforeRec.booking) : null;
           const applied = await applyCustomerBalanceReconciliation({
             bookingId,
             session: sess,
             getBookingRecord,
             commitBooking,
+            stripeEventId: evt.id,
+          });
+          const localAfter = applied.booking
+            ? financialProjection(applied.booking)
+            : (applied.projection || localBefore);
+          logPaymentReconciliation({
+            bookingId,
+            stripeEventId: evt.id,
+            checkoutSessionId: sess.id,
+            paymentIntentId: sess.payment_intent,
+            localBefore,
+            providerState: { payment_status: sess.payment_status, type: evt.type },
+            localAfter,
+            adminProjection: localAfter,
           });
           if (applied.ok) {
             results.customerBalance = {
@@ -373,10 +391,24 @@ exports.handler = async (event) => {
               duplicate: !!applied.duplicate,
               creditCents: applied.creditCents,
               attempts: applied.attempts,
+              projection: localAfter,
             };
           } else if (applied.quarantined) {
+            // Permanent validation failure — ack so Stripe does not poison-retry forever.
             results.customerBalance = { ok: false, quarantined: true, error: applied.error };
             console.warn('[stripe-webhook] customer_balance quarantined', bookingId, applied.error);
+          } else if (applied.retryable || applied.error === 'version_conflict' || applied.error === 'not_found') {
+            results.customerBalance = {
+              ok: false,
+              retryable: true,
+              error: applied.error,
+              statusCode: applied.statusCode || 500,
+            };
+            console.warn('[stripe-webhook] customer_balance retryable failure', bookingId, applied.error);
+            return {
+              statusCode: 500,
+              body: JSON.stringify({ received: false, retryable: true, ...results }),
+            };
           } else {
             results.customerBalance = { ok: false, error: applied.error, statusCode: applied.statusCode };
           }

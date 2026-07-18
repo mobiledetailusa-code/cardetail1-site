@@ -11,33 +11,31 @@ const { listRequestsForBooking } = require('../lib/customer-change-requests');
 const { canPayBalance } = require('../lib/appointment-status-policy');
 const { catalogForClient } = require('../lib/customer-catalog');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
-const { computeDue } = require('../lib/portal-money-sync');
 const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
+const { financialProjection } = require('../lib/payment-service');
 
 function safePaymentState(booking) {
-  const due = computeDue(booking);
+  const money = financialProjection(booking);
+  const due = money.remainingCents / 100;
   const payAllowed = canPayBalance(booking);
-  const { isInvoicePaid } = require('../lib/appointment-status-policy');
-  let state = 'not_due';
-  if (isInvoicePaid(booking) || booking.paymentWorkflowStatus === 'payment_succeeded' || booking.paymentStatus === 'paid') {
-    state = 'paid';
-  } else if (booking.paymentStatus === 'failed') state = 'failed';
-  else if (booking.paymentStatus === 'processing') state = 'processing';
-  else if (due > 0) state = 'due';
+  const canPay = !!(payAllowed.ok && money.paymentStatus !== 'paid' && money.remainingCents > 0);
   return {
-    state,
+    state: money.paymentStatus,
     amountDueApproved: due,
-    approvedTotal: Number(booking.approvedFinalAmount != null ? booking.approvedFinalAmount : (booking.totalPrice || 0)),
-    amountPaid: Number(booking.amountPaid || booking.paidAmount || 0),
-    remainingCents: booking.remainingCents != null
-      ? booking.remainingCents
-      : Math.round(due * 100),
+    approvedTotal: money.approvedCents / 100,
+    amountPaid: money.settledCents / 100,
+    remainingCents: money.remainingCents,
+    approvedCents: money.approvedCents,
+    settledCents: money.settledCents,
+    paymentStatus: money.paymentStatus,
     bookingVersion: booking.bookingVersion || 0,
     quoteVersion: booking.quoteVersion || 0,
-    payLink: booking.payLink || '',
+    payLink: money.paymentStatus === 'paid' ? '' : (booking.payLink || ''),
     payLinkAmount: booking.payLinkAmount != null ? Number(booking.payLinkAmount) : null,
-    canPay: !!(payAllowed.ok && due > 0),
-    canCreatePayLink: !!(payAllowed.ok && due > 0),
+    canPay,
+    canCreatePayLink: canPay,
+    stripeCheckoutSessionIdPrefix: money.stripeCheckoutSessionIdPrefix,
+    paymentIntentIdPrefix: money.paymentIntentIdPrefix,
   };
 }
 
