@@ -38,3 +38,10 @@ Thumbs.db
 *.log
 *.txt
 !robots.txt
+
+/generated/prisma
+
+# allow committed env template
+!.env.example
+/generated/prisma/
+

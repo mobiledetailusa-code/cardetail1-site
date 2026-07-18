@@ -1,0 +1,45 @@
+// Cardetail1 — Prisma Postgres (project: cardetail1)
+// Ops data still lives in Netlify Blobs for Release A.
+// This schema is the foundation for gradual migration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Connectivity / deploy smoke check
+model PrismaHealth {
+  id        String   @id @default(cuid())
+  label     String   @default("cardetail1")
+  ok        Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Future booking aggregate mirror (JSON payload = Release A booking shape)
+model BookingRecord {
+  id                      String   @id
+  bookingVersion          Int      @default(0)
+  quoteVersion            Int      @default(0)
+  schemaVersion           Int      @default(1)
+  kind                    String   @default("booking")
+  jobStatus               String?
+  paymentWorkflowStatus   String?
+  paymentStatus           String?
+  phone                   String?
+  email                   String?
+  preferredDate           String?
+  /// Full Release A aggregate / historical blob JSON
+  payload                 Json
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([phone])
+  @@index([email])
+  @@index([paymentWorkflowStatus])
+  @@index([preferredDate])
+  @@index([updatedAt])
+}
