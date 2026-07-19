@@ -136,6 +136,10 @@ test('temporary webhook setup and secret-transfer function is absent', () => {
   assert.equal(names.some(name => /webhook.*setup|secret.*transfer/i.test(name)), false);
 });
 
+test('temporary qa-webhook-admin function is absent (not for Production)', () => {
+  assert.equal(fs.existsSync(path.join(root, 'netlify/functions/qa-webhook-admin.js')), false);
+});
+
 test('missing and invalid webhook signatures are rejected', async () => {
   const old = process.env.STRIPE_WEBHOOK_SECRET;
   process.env.STRIPE_WEBHOOK_SECRET = 'test-signing-secret';
