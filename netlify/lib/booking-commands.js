@@ -69,8 +69,21 @@ async function submitChangeRequestCommand({
   let proposedApprovedCents = null;
   let proposedQuoteVersion = null;
 
-  const moneyTypes = new Set(['package_change_request', 'addon_request']);
+  const moneyTypes = new Set(['package_change_request', 'addon_request', 'addon_remove_request']);
   if (moneyTypes.has(requestType)) {
+    // Stage 1: deny remove proposals after any settlement (no fake refund path).
+    if (requestType === 'addon_remove_request' || asArray(delta?.addOnIdsToRemove).length) {
+      const settled = Math.max(0, Math.round(Number(aggregate.ledger?.settledCents) || 0));
+      if (settled > 0) {
+        return {
+          ok: false,
+          error: 'settled_addon_remove_denied',
+          statusCode: 409,
+          message: 'Add-on removal is denied after settlement.',
+          projection: materialProjection(aggregate),
+        };
+      }
+    }
     // Proposal only — compute quote from a tentative service delta, but do NOT mutate
     // live service/quote until Admin approve. Premature apply caused approve noop → version_conflict.
     const applied = applyServiceDelta(service, target, delta);
@@ -283,28 +296,92 @@ async function decideChangeRequestCommand({
     return { ok: false, error: 'version_conflict', statusCode: 409, actualBookingVersion: actualVersion };
   }
 
-  // Jobber/HCP: paid invoice cannot auto-apply pack/addon/vehicle money mutations.
+  // Jobber/HCP: paid invoice cannot auto-apply pack/vehicle money mutations.
+  // Stage 1 narrow exception: additive addon_request may create an unpaid delta
+  // via applyAddonFinancialMutation (does not redefine isInvoicePaid()).
   {
     const { isInvoicePaid } = require('./appointment-status-policy');
+    const { canApplyAdditiveAddonAdjustment } = require('./addon-financial-mutation');
     const moneyOrVehicle = new Set([
-      'package_change_request', 'addon_request',
+      'package_change_request', 'addon_request', 'addon_remove_request',
       'vehicle_replace_request', 'vehicle_add_request',
     ]);
     const rtEarly = cr.type || cr.requestType;
     if (moneyOrVehicle.has(rtEarly) && isInvoicePaid(aggregate)) {
+      const addOnIdsToAdd = cr.delta?.addOnIdsToAdd || cr.delta?.addonIds || asArray(cr.delta?.addons).map((a) => a.id);
+      const addOnIdsToRemove = cr.delta?.addOnIdsToRemove || [];
+      const additiveAddonOk = rtEarly === 'addon_request'
+        && canApplyAdditiveAddonAdjustment({ addOnIdsToAdd, addOnIdsToRemove });
+      if (!additiveAddonOk) {
+        return {
+          ok: false,
+          error: rtEarly === 'addon_remove_request' || asArray(addOnIdsToRemove).length
+            ? 'settled_addon_remove_denied'
+            : 'invoice_paid',
+          statusCode: 409,
+          message: rtEarly === 'addon_remove_request' || asArray(addOnIdsToRemove).length
+            ? 'Add-on removal is denied after settlement.'
+            : 'Invoice paid — create an adjustment or new quote instead of approving this money change.',
+        };
+      }
+    }
+  }
+
+  // Stage 1: addon add/remove money goes through authoritative Postgres adjustment.
+  {
+    const rtAddon = cr.type || cr.requestType;
+    if (rtAddon === 'addon_request' || rtAddon === 'addon_remove_request') {
+      const { applyAddonFinancialMutation } = require('./addon-financial-mutation');
+      const addOnIdsToAdd = rtAddon === 'addon_request'
+        ? (cr.delta?.addOnIdsToAdd || cr.delta?.addonIds || asArray(cr.delta?.addons).map((a) => a.id))
+        : [];
+      const addOnIdsToRemove = rtAddon === 'addon_remove_request'
+        ? (cr.delta?.addOnIdsToRemove || cr.delta?.addonIds || asArray(cr.delta?.addons).map((a) => a.id))
+        : asArray(cr.delta?.addOnIdsToRemove);
+      const addonResult = await applyAddonFinancialMutation({
+        bookingId,
+        expectedBookingVersion: expected,
+        target: cr.target || {},
+        addOnIdsToAdd,
+        addOnIdsToRemove,
+        changeRequest: cr,
+        adminNote,
+      });
+      if (!addonResult.ok) return addonResult;
+      await rebuildRequestIndex({
+        ...cr,
+        id: cr.requestId || cr.id,
+        bookingId,
+        status: 'applied',
+        adminDecision: 'approve',
+        adminNote,
+        decidedAt: new Date().toISOString(),
+        appliedAutomatically: true,
+        noop: !!addonResult.noop,
+        reason: addonResult.reason || null,
+        customerVisibleResult: addonResult.noop
+          ? 'Already on booking — no price change.'
+          : 'Approved — your appointment details and totals were updated.',
+      });
       return {
-        ok: false,
-        error: 'invoice_paid',
-        statusCode: 409,
-        message: 'Invoice paid — create an adjustment or new quote instead of approving this money change.',
+        ok: true,
+        noop: !!addonResult.noop,
+        reason: addonResult.reason || undefined,
+        booking: addonResult.booking,
+        projection: addonResult.projection,
+        financialProjection: addonResult.financialProjection,
+        postgresProjection: addonResult.postgresProjection,
+        quoteVersion: addonResult.quoteVersion,
       };
     }
   }
+
   // True drift: booking moved past the version that embedded this pending request.
   // Legacy index rows without embeddedBookingVersion skip this check; CAS still applies.
   const moneyDelta = {
     packageId: cr.delta?.packageId || cr.delta?.newPackId,
     addOnIdsToAdd: cr.delta?.addOnIdsToAdd || cr.delta?.addonIds || asArray(cr.delta?.addons).map((a) => a.id),
+    addOnIdsToRemove: cr.delta?.addOnIdsToRemove,
     packageName: cr.delta?.packageName,
     vehicleCategory: cr.delta?.vehicleCategory || cr.delta?.category,
     tierKey: cr.delta?.tierKey || cr.delta?.tier,
@@ -667,4 +744,14 @@ module.exports = {
   rebuildRequestIndex,
   materialProjection,
   remainingCents,
+};
+
+// Re-export Stage 1 addon financial API for callers/tests.
+module.exports.applyAddonFinancialMutation = (...args) => {
+  const { applyAddonFinancialMutation } = require('./addon-financial-mutation');
+  return applyAddonFinancialMutation(...args);
+};
+module.exports.canApplyAdditiveAddonAdjustment = (...args) => {
+  const { canApplyAdditiveAddonAdjustment } = require('./addon-financial-mutation');
+  return canApplyAdditiveAddonAdjustment(...args);
 };

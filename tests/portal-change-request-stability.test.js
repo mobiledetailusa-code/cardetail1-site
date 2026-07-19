@@ -1,10 +1,13 @@
 /**
  * Portal change-request stability: proposal-only submit, idempotent approve, no hub kick-out.
  */
+require('dotenv/config');
 const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { prismaConfigured } = require('../netlify/lib/prisma');
+const dbConfigured = prismaConfigured();
 
 const ROOT = path.join(__dirname, '..');
 
@@ -51,15 +54,19 @@ describe('portal change request stability', () => {
   });
 
   it('addon submit is proposal-only; approve after version bump still applies', async () => {
+    // Hard requirement: approve path uses Postgres createAdjustment (Stage 1).
+    // Must fail (not skip) when DATABASE_URL is absent.
+    assert.equal(dbConfigured, true, 'DATABASE_URL/DIRECT_URL required for addon approve financial path');
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,
     } = require('../netlify/lib/booking-commands');
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
+    const bookingId = `CD1-ADDON-${Date.now().toString(36)}`;
 
     const store = createMemoryStore({
-      'CD1-ADDON': {
-        id: 'CD1-ADDON',
+      [bookingId]: {
+        id: bookingId,
         bookingVersion: 3,
         schemaVersion: 1,
         quoteVersion: 1,
@@ -87,7 +94,7 @@ describe('portal change request stability', () => {
     setBookingStoreOverride(store);
 
     const submitted = await submitChangeRequestCommand({
-      bookingId: 'CD1-ADDON',
+      bookingId,
       expectedBookingVersion: 3,
       requestType: 'addon_request',
       target: { vehicleId: 'veh_1' },
@@ -95,7 +102,7 @@ describe('portal change request stability', () => {
     });
     assert.equal(submitted.ok, true, submitted.error || 'submit failed');
     // Live service must NOT already include the add-on before approve
-    const mid = await getBookingRecord('CD1-ADDON');
+    const mid = await getBookingRecord(bookingId);
     const midVeh = (mid.booking.service && mid.booking.service.vehicles && mid.booking.service.vehicles[0])
       || (mid.booking.vehicles && mid.booking.vehicles[0])
       || {};
@@ -104,26 +111,30 @@ describe('portal change request stability', () => {
 
     // Simulate another write bumping version (admin note / webhook / etc.)
     mid.booking.bookingVersion = Number(mid.booking.bookingVersion) + 1;
-    await store.setJSON('CD1-ADDON', mid.booking);
+    await store.setJSON(bookingId, mid.booking);
 
     const decided = await decideChangeRequestCommand({
-      bookingId: 'CD1-ADDON',
+      bookingId,
       requestId: submitted.changeRequest.requestId,
       decision: 'approve',
       acceptRequote: true,
     });
     assert.equal(decided.ok, true, `${decided.error || 'decide failed'} ${decided.reason || ''}`);
-    const final = await getBookingRecord('CD1-ADDON');
+    const final = await getBookingRecord(bookingId);
     assert.equal(final.booking.changeRequests.some((r) => r.status === 'applied'), true);
   });
 
   it('approve idempotent when add-on already on booking (legacy submit-applied path)', async () => {
+    // Hard requirement: decide path hits applyAddonFinancialMutation / Postgres.
+    // Must fail (not skip) when DATABASE_URL is absent.
+    assert.equal(dbConfigured, true, 'DATABASE_URL/DIRECT_URL required for addon approve financial path');
     const { decideChangeRequestCommand } = require('../netlify/lib/booking-commands');
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
+    const bookingId = `CD1-LEGACY-${Date.now().toString(36)}`;
 
     const store = createMemoryStore({
-      'CD1-LEGACY': {
-        id: 'CD1-LEGACY',
+      [bookingId]: {
+        id: bookingId,
         bookingVersion: 5,
         quoteVersion: 2,
         status: 'Confirmed',
@@ -157,12 +168,12 @@ describe('portal change request stability', () => {
     setBookingStoreOverride(store);
 
     const decided = await decideChangeRequestCommand({
-      bookingId: 'CD1-LEGACY',
+      bookingId,
       requestId: 'cr_legacy_1',
       decision: 'approve',
     });
     assert.equal(decided.ok, true, `${decided.error || 'decide failed'} ${decided.reason || ''}`);
-    const final = await getBookingRecord('CD1-LEGACY');
+    const final = await getBookingRecord(bookingId);
     assert.equal(final.booking.changeRequests[0].status, 'applied');
   });
 

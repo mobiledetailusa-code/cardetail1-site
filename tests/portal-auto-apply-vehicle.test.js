@@ -1,8 +1,11 @@
 /**
  * Auto-apply customer changes + trailer→SUV pricing coercion.
  */
+require('dotenv/config');
 const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
+const { prismaConfigured } = require('../netlify/lib/prisma');
+const dbConfigured = prismaConfigured();
 
 function createMemoryStore(seed = {}) {
   const data = new Map(Object.entries(seed).map(([k, v]) => [k, JSON.parse(JSON.stringify(v))]));
@@ -129,15 +132,19 @@ describe('portal auto-apply + vehicle coerce', () => {
   });
 
   it('addon submit+decide updates ledger approvedCents', async () => {
+    // Hard requirement: Stage 1 addon decide uses Postgres createAdjustment.
+    // Must fail (not skip) when DATABASE_URL is absent so financial coverage cannot silently vanish.
+    assert.equal(dbConfigured, true, 'DATABASE_URL/DIRECT_URL required for addon decide financial path');
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,
     } = require('../netlify/lib/booking-commands');
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
+    const bookingId = `CD1-ADD-${Date.now().toString(36)}`;
 
     const store = createMemoryStore({
-      'CD1-ADD': {
-        id: 'CD1-ADD',
+      [bookingId]: {
+        id: bookingId,
         bookingVersion: 1,
         quoteVersion: 1,
         status: 'Confirmed',
@@ -161,7 +168,7 @@ describe('portal auto-apply + vehicle coerce', () => {
     setBookingStoreOverride(store);
 
     const submitted = await submitChangeRequestCommand({
-      bookingId: 'CD1-ADD',
+      bookingId,
       expectedBookingVersion: 1,
       requestType: 'addon_request',
       target: { vehicleId: 'veh_1' },
@@ -170,13 +177,13 @@ describe('portal auto-apply + vehicle coerce', () => {
     assert.equal(submitted.ok, true);
 
     const decided = await decideChangeRequestCommand({
-      bookingId: 'CD1-ADD',
+      bookingId,
       requestId: submitted.changeRequest.requestId,
       decision: 'approve',
       expectedBookingVersion: submitted.booking.bookingVersion,
     });
     assert.equal(decided.ok, true, decided.error);
-    const final = await getBookingRecord('CD1-ADD');
+    const final = await getBookingRecord(bookingId);
     assert.ok(Number(final.booking.ledger.approvedCents) > 31500);
     assert.equal(Number(final.booking.approvedFinalAmount) > 315, true);
   });

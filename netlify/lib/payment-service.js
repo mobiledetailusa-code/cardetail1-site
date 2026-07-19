@@ -205,6 +205,12 @@ function financialProjection(booking) {
     paymentStatus = 'refunded';
   } else if (rawPay === 'failed' || pwf === 'payment_failed') {
     paymentStatus = 'failed';
+  } else if (rem > 0) {
+    // Open ledger remaining (incl. post-settlement quote adjustment) wins over sticky paid flags.
+    // Does not redefine isInvoicePaid() — only projection remaining/status derivation.
+    paymentStatus = (rawPay === 'processing' || pwf === 'awaiting_customer_payment' || pwf === 'payment_action_required')
+      ? 'processing'
+      : 'due';
   } else if (
     invoicePaid
     || rawPay === 'paid'
@@ -214,9 +220,7 @@ function financialProjection(booking) {
   ) {
     paymentStatus = 'paid';
   } else if (rawPay === 'processing' || pwf === 'awaiting_customer_payment' || pwf === 'payment_action_required') {
-    paymentStatus = rem > 0 ? 'processing' : 'paid';
-  } else if (rem > 0) {
-    paymentStatus = 'due';
+    paymentStatus = 'paid';
   }
 
   let paymentWorkflowStatus = pwf || 'no_payment_required_yet';
@@ -248,7 +252,7 @@ function financialProjection(booking) {
   return {
     approvedCents,
     settledCents,
-    remainingCents: paymentStatus === 'paid' ? 0 : rem,
+    remainingCents: rem,
     paymentStatus,
     paymentWorkflowStatus,
     invoicePaid: paymentStatus === 'paid',

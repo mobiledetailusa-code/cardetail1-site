@@ -17,6 +17,8 @@ const PRICING = {
       { id: 'rainx', price: 25 }, { id: 'polymer', price: 25 }, { id: 'wax1yr', price: 75 },
       { id: 'claybar', price: 45 }, { id: 'headlight', price: 90 }, { id: 'babyseat', price: 20, qty: true },
       { id: 'stroller', price: 20, qty: true }, { id: 'trashcans', price: 25, qty: true },
+      // Stage 1 financial-mutation fixture / canonical $40 add-on (4000 cents)
+      { id: 'ozone', price: 40 },
     ],
   },
   boats: {

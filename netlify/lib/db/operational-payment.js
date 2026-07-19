@@ -62,15 +62,22 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
     amountDueApproved: dollarsRemaining,
     balanceDue: dollarsRemaining,
     totalPrice: dollarsApproved,
+    amountPaid: dollarsSettled,
+    paidAmount: dollarsSettled,
+    approvedFinalAmount: dollarsApproved,
     paymentStatus: projection.paymentStatus === 'paid'
       ? 'paid'
       : projection.paymentStatus === 'processing'
         ? 'processing'
         : projection.paymentStatus === 'refunded'
           ? 'refunded'
-          : (base.paymentStatus || 'no_payment_required_yet'),
+          : projection.paymentStatus === 'due'
+            ? 'due'
+            : (base.paymentStatus || 'no_payment_required_yet'),
     paymentWorkflowStatus: projection.paymentStatus === 'paid'
-      ? 'payment_succeeded'
+      ? (String(base.paymentWorkflowStatus || '').toLowerCase() === 'cash_paid'
+        ? 'cash_paid'
+        : 'payment_succeeded')
       : projection.paymentStatus === 'processing'
         ? 'awaiting_customer_payment'
         : projection.paymentStatus === 'due'
@@ -78,6 +85,18 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
           : (base.paymentWorkflowStatus || null),
     paymentIntentId: projection.stripeReference || base.paymentIntentId || null,
   };
+
+  // Open remaining after quote adjustment must not keep historical Paid markers
+  // (adaptHistoricalBooking would clamp settledCents up to approvedCents).
+  if (projection.paymentStatus === 'due' || projection.remainingCents > 0) {
+    patch._historicalPaidClosed = false;
+    if (String(base.status || '') === 'Paid' || String(base.status || '') === 'Closed') {
+      patch.status = 'Confirmed';
+    }
+    if (String(base.jobStatus || '').toLowerCase() === 'completed_paid') {
+      patch.jobStatus = 'confirmed';
+    }
+  }
   if (projection.paymentStatus === 'paid' && projection.paidAt) {
     patch.capturedAt = typeof projection.paidAt === 'string'
       ? projection.paidAt
