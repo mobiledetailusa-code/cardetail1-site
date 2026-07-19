@@ -13,6 +13,7 @@ const {
   mutateVehicles,
   approveAdjustment,
   markCashReceived,
+  markRefunded,
   adminTechStatus,
 } = require('../netlify/lib/admin-booking-mutations');
 
@@ -76,6 +77,49 @@ test('admin-ops-jobs exposes operational mutations', () => {
   ]) {
     assert.match(src, new RegExp(`action === '${action}'`));
   }
+});
+
+test('markRefunded clamps to net settled and never exceeds what was actually paid', () => {
+  const paidBooking = {
+    ...baseBooking,
+    ledger: { approvedCents: 22500, settledCents: 22500, creditedCents: 0, entries: [] },
+  };
+  const full = markRefunded(paidBooking, {});
+  assert.equal(full.amount, 225);
+  assert.equal(full.booking.refundStatus, 'refunded');
+
+  const overRequested = markRefunded(paidBooking, { amount: 999 });
+  assert.equal(overRequested.amount, 225, 'must clamp to net settled, never the caller-requested amount');
+
+  const partial = markRefunded(paidBooking, { amount: 50 });
+  assert.equal(partial.amount, 50);
+
+  const nothingSettled = markRefunded({ ...baseBooking, ledger: { approvedCents: 22500, settledCents: 0, creditedCents: 0, entries: [] } }, { amount: 100 });
+  assert.equal(nothingSettled.amount, 0, 'nothing was ever paid — refund amount must be zero, not the requested amount');
+});
+
+test('mark_refunded is routed through the authoritative ledger, never a bare status flip', () => {
+  const src = read('netlify/functions/admin-ops-jobs.js');
+  assert.match(src, /'mark_refunded',\s*\n?\s*\]\)|'mark_cash_received',\s*\n\s*'mark_card_on_site',\s*\n\s*'mark_refunded'/);
+  // mark_refunded must call persistMutation (CAS + ledger), not a bare store.setJSON.
+  // (lastIndexOf, not indexOf: the ledger-computation branch inside
+  // persistMutation also matches this string earlier in the file.)
+  const handlerStart = src.lastIndexOf("if (action === 'mark_refunded') {");
+  const handlerBlock = src.slice(handlerStart, handlerStart + 400);
+  assert.match(handlerBlock, /markRefunded\(booking, body\)/);
+  assert.match(handlerBlock, /persistMutation\(/);
+  assert.doesNotMatch(handlerBlock, /store\.setJSON/);
+  // record_refund_request must no longer offer a "markDone" bypass to refunded status.
+  const requestStart = src.indexOf("if (action === 'record_refund_request') {");
+  const requestBlock = src.slice(requestStart, requestStart + 700);
+  assert.doesNotMatch(requestBlock, /markRefunded\s*===\s*true|markDone/);
+});
+
+test('technician cash/card-on-site completion is routed through the ledger + CAS, never a bare status flip', () => {
+  const src = read('netlify/functions/tech-complete-job.js');
+  assert.match(src, /commitBooking/);
+  assert.match(src, /kind:\s*'settlement'/);
+  assert.match(src, /remainingCents\(base\.ledger\)/);
 });
 
 test('admin ops UI wires customer edit and audit', () => {

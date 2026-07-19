@@ -8,6 +8,9 @@ const {
 } = require('../lib/operations-lifecycle');
 const { auditEntry, appendAudit } = require('../lib/operations-audit');
 const { createCompletionLink, buildCompletionUrl } = require('../lib/customer-completion-link');
+const { commitBooking } = require('../lib/booking-repository');
+const { buildNextAggregate, normalizeAggregate, remainingCents } = require('../lib/booking-aggregate');
+const { dollarsToCents, centsToDollars } = require('../lib/historical-adapter');
 
 const PAYMENT_CHANNELS = new Set(['online', 'cash', 'card_on_site', 'customer_unavailable']);
 const AUTH_TEXT_VERSION = 'completion-auth-v1';
@@ -212,7 +215,60 @@ exports.handler = async (event) => {
     patched.jobStatus = 'completed_pending_admin_review';
   }
 
-  await store.setJSON(bookingId, patched);
+  // Cash / card-on-site collected in the field must hit the authoritative
+  // ledger, not just a status label — otherwise remainingCents/parity with
+  // Admin and Customer silently disagree with what the technician actually
+  // collected. Never a bare status flip.
+  if (paymentStatus === 'paid_cash' || paymentStatus === 'paid_card_on_site') {
+    const { ok: normOk, aggregate: normBooking } = normalizeAggregate(booking, { allowDraft: false });
+    const base = normOk ? normBooking : booking;
+    const approvedCents = dollarsToCents(
+      patched.approvedFinalAmount != null ? patched.approvedFinalAmount : patched.totalPrice
+    );
+    const collectedCents = paymentStatus === 'paid_cash'
+      ? Math.max(0, cashCollectedCents || 0)
+      : approvedCents;
+    const remaining = remainingCents(base.ledger);
+    const credit = Math.min(Math.max(0, collectedCents), remaining);
+    if (credit > 0) {
+      const ledger = {
+        ...(base.ledger || {}),
+        currency: 'usd',
+        settledCents: Math.max(0, Math.round(Number(base.ledger?.settledCents) || 0) + credit),
+        entries: [
+          ...(Array.isArray(base.ledger?.entries) ? base.ledger.entries : []),
+          {
+            entryId: `le_tech_${paymentChannel}_${Date.now()}`,
+            kind: 'settlement',
+            amountCents: credit,
+            currency: 'usd',
+            quoteVersion: Math.round(Number(base.quoteVersion) || 0),
+            bookingVersion: Math.round(Number(base.bookingVersion) || 0),
+            occurredAt: now,
+            recordedAt: now,
+            actor: `technician_${paymentChannel}`,
+          },
+        ],
+      };
+      const dueCents = Math.max(0, dollarsToCents(patched.approvedFinalAmount) - ledger.settledCents);
+      patched.ledger = ledger;
+      patched.amountPaid = centsToDollars(ledger.settledCents);
+      patched.paidAmount = centsToDollars(ledger.settledCents);
+      patched.amountDueApproved = centsToDollars(dueCents);
+      patched.balanceDue = centsToDollars(dueCents);
+    }
+    const next = buildNextAggregate(base, patched);
+    const committed = await commitBooking({
+      bookingId,
+      expectedBookingVersion: Math.round(Number(base.bookingVersion) || 0),
+      nextAggregate: next,
+    });
+    if (!committed.ok) {
+      return jsonCors(committed.statusCode || 409, { ok: false, error: committed.error || 'version_conflict' });
+    }
+  } else {
+    await store.setJSON(bookingId, patched);
+  }
   await appendAudit(auditEntry({
     bookingId,
     actorType: 'technician',

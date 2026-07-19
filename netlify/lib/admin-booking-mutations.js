@@ -373,6 +373,36 @@ function markCardOnSite(booking, body) {
   return { ok: true, booking: patched };
 }
 
+/**
+ * Records a refund against the authoritative ledger — never a bare status
+ * flip. Amount is clamped to what is currently settled (can't refund more
+ * than was actually paid); persistMutation derives the ledger delta from
+ * refundRequestAmount, exactly like markCashReceived/markCardOnSite derive
+ * theirs from cashReceivedAmount/cardOnSiteAmount.
+ */
+function markRefunded(booking, body) {
+  const now = new Date().toISOString();
+  const reason = sanitizeText(body.reason, 500);
+  const settledCents = Math.max(0, Math.round(Number(booking.ledger?.settledCents) || 0));
+  const creditedCents = Math.max(0, Math.round(Number(booking.ledger?.creditedCents) || 0));
+  const netSettledCents = Math.max(0, settledCents - creditedCents);
+  const requestedCents = body.amount != null
+    ? Math.round(Number(body.amount) * 100)
+    : netSettledCents;
+  const amount = Math.max(0, Math.min(requestedCents, netSettledCents)) / 100;
+  const patched = syncLegacyFields({
+    ...booking,
+    refundRequestedAt: now,
+    refundRequestReason: reason || booking.refundRequestReason || '',
+    refundRequestAmount: amount,
+    refundStatus: 'refunded',
+    refundedAt: now,
+    updatedAt: now,
+    eventLog: appendEventLog(booking, { action: 'refund_recorded', by: 'admin', reason, amount }),
+  });
+  return { ok: true, booking: patched, amount };
+}
+
 async function generateCustomerLinks(booking, body, siteUrl) {
   const linkType = sanitizeText(body.linkType, 32);
   const base = siteUrl || process.env.DEPLOY_PRIME_URL || process.env.URL || 'https://cardetail1.com';
@@ -419,6 +449,7 @@ module.exports = {
   setApprovedFinalAmount,
   markCashReceived,
   markCardOnSite,
+  markRefunded,
   generateCustomerLinks,
   reopenAppointment,
   evaluateTechAdjustment,

@@ -37,6 +37,7 @@ const {
   rejectAdjustment,
   setApprovedFinalAmount,
   markCashReceived,
+  markRefunded,
   markCardOnSite,
   generateCustomerLinks,
   reopenAppointment,
@@ -50,6 +51,7 @@ const MONEY_MUTATION_ACTIONS = new Set([
   'set_approved_final_amount',
   'mark_cash_received',
   'mark_card_on_site',
+  'mark_refunded',
   'apply_welcome_offer',
   'remove_welcome_offer',
   'record_job_balance',
@@ -217,6 +219,29 @@ async function persistMutation(store, bookingId, booking, previous, action, reas
           occurredAt: new Date().toISOString(),
           recordedAt: new Date().toISOString(),
           actor: `admin_${action}`,
+        });
+      }
+    }
+
+    if (action === 'mark_refunded') {
+      // Never a bare status flip: clamp to what is actually settled and
+      // record a real ledger debit + audit entry, same as a cash credit
+      // but in reverse. Never allow refunding more than was paid.
+      const requestedCents = dollarsToCents(mutated.refundRequestAmount);
+      const netSettled = Math.max(0, settledCents - creditedCents);
+      const refundCents = Math.min(Math.max(0, requestedCents), netSettled);
+      if (refundCents > 0) {
+        settledCents = Math.max(0, settledCents - refundCents);
+        entries.push({
+          entryId: `le_admin_${action}_${Date.now()}`,
+          kind: 'refund',
+          amountCents: refundCents,
+          currency: 'usd',
+          quoteVersion: Math.round(Number(base.quoteVersion) || 0),
+          bookingVersion: expected,
+          occurredAt: new Date().toISOString(),
+          recordedAt: new Date().toISOString(),
+          actor: 'admin_mark_refunded',
         });
       }
     }
@@ -920,53 +945,41 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'record_refund_request') {
+    // Logging only — never a status-only "mark refunded" shortcut. Marking
+    // an invoice as actually refunded must go through the mark_refunded
+    // action below, which records a real ledger debit, not just this note.
     const reason = sanitizeText(body.reason, 500);
     const amount = body.amount != null ? Math.round(Number(body.amount) * 100) / 100 : null;
-    const markDone = body.markRefunded === true || String(body.refundStatus || '').toLowerCase() === 'refunded';
     await store.setJSON(bookingId, {
       ...booking,
       refundRequestedAt: now,
       refundRequestReason: reason,
       refundRequestAmount: amount,
-      refundStatus: markDone ? 'refunded' : 'pending_admin',
-      ...(markDone ? {
-        paymentStatus: 'refunded',
-        paymentWorkflowStatus: 'refunded',
-        refundedAt: now,
-      } : {}),
+      refundStatus: 'pending_admin',
       updatedAt: now,
-      eventLog: appendEventLog(booking, {
-        action: markDone ? 'refund_recorded' : 'refund_requested',
-        by: 'admin',
-        reason,
-        amount,
-      }),
+      eventLog: appendEventLog(booking, { action: 'refund_requested', by: 'admin', reason, amount }),
     });
     return jsonCors(200, {
       ok: true,
       bookingId,
-      refundStatus: markDone ? 'refunded' : 'pending_admin',
-      note: markDone
-        ? 'Refund marked — payment status is now refunded.'
-        : 'Refund logged — process in Stripe; webhook or Mark refunded updates status.',
+      refundStatus: 'pending_admin',
+      note: 'Refund logged — use Mark refunded once the money has actually moved (Stripe or cash) to record it against the ledger.',
     });
   }
 
   if (action === 'mark_refunded') {
-    const reason = sanitizeText(body.reason, 500);
-    const amount = body.amount != null ? Math.round(Number(body.amount) * 100) / 100 : null;
-    await store.setJSON(bookingId, {
-      ...booking,
-      paymentStatus: 'refunded',
-      paymentWorkflowStatus: 'refunded',
-      refundStatus: 'refunded',
-      refundedAt: now,
-      refundRequestReason: reason || booking.refundRequestReason || '',
-      refundRequestAmount: amount != null ? amount : booking.refundRequestAmount,
-      updatedAt: now,
-      eventLog: appendEventLog(booking, { action: 'refund_recorded', by: 'admin', reason, amount }),
+    const result = markRefunded(booking, body);
+    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'mark_refunded', body.reason);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      refundStatus: persisted.booking.refundStatus,
+      amountDueApproved: persisted.booking.amountDueApproved,
+      bookingVersion: persisted.bookingVersion,
     });
-    return jsonCors(200, { ok: true, bookingId, paymentWorkflowStatus: 'refunded' });
   }
 
   if (action === 'record_job_balance') {
