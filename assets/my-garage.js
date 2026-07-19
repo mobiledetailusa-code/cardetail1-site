@@ -23,8 +23,121 @@
   var modalAction = null;
   var modalMode = 'fields';
   var modalFields = [];
+  /** One in-flight mutation per modal action — client idempotency lock. */
+  var mutationPending = false;
 
   function $(id) { return document.getElementById(id); }
+
+  function settledCentsFromPayment(pay) {
+    var p = pay || state.payment || {};
+    if (p.settledCents != null) return Math.max(0, Math.round(Number(p.settledCents) || 0));
+    return Math.max(0, Math.round((Number(p.amountPaid) || 0) * 100));
+  }
+
+  function remainingCentsFromPayment(pay) {
+    var p = pay || state.payment || {};
+    if (p.remainingCents != null) return Math.max(0, Math.round(Number(p.remainingCents) || 0));
+    return Math.max(0, Math.round((Number(p.amountDueApproved) || 0) * 100));
+  }
+
+  function approvedCentsFromPayment(pay) {
+    var p = pay || state.payment || {};
+    if (p.approvedCents != null) return Math.max(0, Math.round(Number(p.approvedCents) || 0));
+    return Math.max(0, Math.round((Number(p.approvedTotal) || 0) * 100));
+  }
+
+  function fmtCents(cents) {
+    return fmtMoney((Number(cents) || 0) / 100);
+  }
+
+  function currentBookingAddonIds() {
+    var b = state.booking || {};
+    var list = Array.isArray(b.addons) ? b.addons : [];
+    return list.map(function (a) { return String(a.id || '').trim(); }).filter(Boolean);
+  }
+
+  function addonsForBookingCategory() {
+    var cat = getCatalog();
+    var key = normalizePackageCategory(
+      (state.booking && (state.booking.vehicleCategory || state.booking.cat)) || 'cars'
+    ) || 'cars';
+    if (cat.addonsByCategory && cat.addonsByCategory[key] && cat.addonsByCategory[key].length) {
+      return cat.addonsByCategory[key];
+    }
+    return cat.addons || [];
+  }
+
+  function setModalSubmitPending(on) {
+    mutationPending = !!on;
+    var btn = $('modal-submit');
+    if (btn) {
+      btn.disabled = !!on;
+      btn.classList.toggle('is-disabled', !!on);
+      btn.textContent = on ? 'Updating…' : 'Submit';
+    }
+  }
+
+  function mapAddonErrorMessage(data, status) {
+    var err = (data && data.error) || '';
+    if (status === 429 || err === 'too_many_requests') {
+      return 'Too many requests. Wait a moment and try again — your session is still active.';
+    }
+    if (status >= 500 || err === 'service_unavailable' || err === 'postgres_payment_disabled') {
+      return 'Temporary server error. Try again shortly — your session is still active.';
+    }
+    if (err === 'version_conflict') {
+      return 'This booking changed. Reloading the latest totals — please review and try again if needed.';
+    }
+    if (err === 'unknown_addon' || err === 'unknown_addon_id') {
+      return 'That add-on is not available for this vehicle.';
+    }
+    if (err === 'duplicate_addon') {
+      return 'That add-on is already on your booking.';
+    }
+    if (err === 'settled_addon_remove_denied') {
+      return 'Paid add-ons cannot be removed online.';
+    }
+    if (err === 'invoice_paid') {
+      return (data && data.message) || 'This change is not available after payment.';
+    }
+    return (data && data.message) || 'Unable to update add-ons. Call/text 551-313-2956.';
+  }
+
+  function applyAuthoritativeMoney(data) {
+    if (!data) return;
+    var proj = data.postgresProjection || data.financialProjection || null;
+    if (proj && (proj.approvedCents != null || proj.remainingCents != null)) {
+      state.payment = Object.assign({}, state.payment || {}, {
+        approvedCents: proj.approvedCents,
+        settledCents: proj.settledCents,
+        remainingCents: proj.remainingCents,
+        approvedTotal: (proj.approvedCents || 0) / 100,
+        amountPaid: (proj.settledCents || 0) / 100,
+        amountDueApproved: (proj.remainingCents || 0) / 100,
+        state: proj.paymentStatus || (state.payment && state.payment.state) || null,
+        paymentStatus: proj.paymentStatus || (state.payment && state.payment.paymentStatus) || null,
+        canPay: (proj.remainingCents || 0) > 0,
+        canCreatePayLink: (proj.remainingCents || 0) > 0,
+        quoteVersion: data.quoteVersion != null
+          ? data.quoteVersion
+          : (proj.quoteVersion != null ? proj.quoteVersion : (state.payment && state.payment.quoteVersion)),
+      });
+    } else if (data.approvedCents != null || data.remainingCents != null) {
+      state.payment = Object.assign({}, state.payment || {}, {
+        approvedCents: data.approvedCents,
+        settledCents: data.settledCents,
+        remainingCents: data.remainingCents,
+        approvedTotal: (data.approvedCents || 0) / 100,
+        amountPaid: (data.settledCents || 0) / 100,
+        amountDueApproved: (data.remainingCents || 0) / 100,
+        canPay: (data.remainingCents || 0) > 0,
+        canCreatePayLink: (data.remainingCents || 0) > 0,
+        quoteVersion: data.quoteVersion != null
+          ? data.quoteVersion
+          : (state.payment && state.payment.quoteVersion),
+      });
+    }
+  }
 
   function normalizePhoneInput(raw) {
     return String(raw || '').replace(/\D/g, '');
@@ -453,9 +566,9 @@
 
   function syncMoneyActionButtons(pay) {
     var paid = invoiceIsPaid(pay);
-    var moneyActions = {
+    // Stage 2: additive add-ons remain available after payment; pack/vehicle stay locked.
+    var moneyActionsLockedWhenPaid = {
       package_change_request: true,
-      addon_request: true,
       vehicle_add_request: true,
       vehicle_replace_request: true,
       maintenance_request: true,
@@ -464,7 +577,15 @@
     if (!root) return;
     root.querySelectorAll('[data-action]').forEach(function (btn) {
       var action = btn.getAttribute('data-action');
-      if (!moneyActions[action]) return;
+      if (action === 'addon_request') {
+        btn.disabled = false;
+        btn.classList.remove('is-disabled');
+        btn.title = paid
+          ? 'Add services — new balance due will appear after approval'
+          : '';
+        return;
+      }
+      if (!moneyActionsLockedWhenPaid[action]) return;
       btn.disabled = !!paid;
       btn.classList.toggle('is-disabled', !!paid);
       btn.title = paid
@@ -503,20 +624,23 @@
       return;
     }
     if (empty) show(empty, false);
+    var approvedLabel = fmtCents(approvedCentsFromPayment(pay));
+    var paidLabel = fmtCents(settledCentsFromPayment(pay));
+    var dueLabel = fmtCents(remainingCentsFromPayment(pay));
     panel.innerHTML =
       '<div class="card pay-card">' +
       '<dl class="meta-grid">' +
       '<div><dt>Invoice status</dt><dd>' + esc(paid ? 'paid' : (pay.state || '—')) + '</dd></div>' +
-      '<div><dt>Approved total</dt><dd>' + fmtMoney(pay.approvedTotal) + '</dd></div>' +
-      '<div><dt>Amount paid</dt><dd>' + fmtMoney(pay.amountPaid) + '</dd></div>' +
-      '<div><dt>Amount due</dt><dd>' + fmtMoney(due) + '</dd></div>' +
+      '<div><dt>Total approved</dt><dd>' + approvedLabel + '</dd></div>' +
+      '<div><dt>Amount paid</dt><dd>' + paidLabel + '</dd></div>' +
+      '<div><dt>Amount due</dt><dd>' + dueLabel + '</dd></div>' +
       '</dl>' +
       (can
         ? '<button type="button" class="btn primary" id="btn-pay-balance">Pay ' +
-          (due > 0 ? fmtMoney(due) : 'Balance') + ' securely</button>' +
+          (due > 0 ? dueLabel : 'Balance') + ' securely</button>' +
           '<p class="hint">Secure Stripe Checkout (card only). After payment your invoice closes automatically.</p>'
         : (paid
-          ? '<p class="hint">Invoice paid. Pack/add-on/vehicle price changes are closed — call/text for a quote adjustment. Address and date requests still work.</p>'
+          ? '<p class="hint">Invoice paid. You can still add services — any new balance appears here. Package and vehicle changes stay closed.</p>'
           : '<p class="hint">No balance is due yet, or payment is locked until admin approval.</p>')) +
       '</div>';
     var btn = $('btn-pay-balance');
@@ -599,9 +723,17 @@
       (b.assignedTechName ? '<div><dt>Technician</dt><dd>' + esc(b.assignedTechName) + '</dd></div>' : '') +
       (b.travelFeeAmount ? '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>' : '') +
       offerHtml +
-      '<div><dt>Approved total</dt><dd>' + fmtMoney(b.approvedFinalAmount != null ? b.approvedFinalAmount : b.totalPrice) + '</dd></div>' +
-      (pay.amountPaid ? '<div><dt>Paid</dt><dd>' + fmtMoney(pay.amountPaid) + '</dd></div>' : '') +
-      (pay.amountDueApproved ? '<div><dt>Amount due</dt><dd>' + fmtMoney(pay.amountDueApproved) + '</dd></div>' : '') +
+      '<div><dt>Total approved</dt><dd>' + (
+        pay.approvedCents != null || pay.approvedTotal != null
+          ? fmtCents(approvedCentsFromPayment(pay))
+          : fmtMoney(b.approvedFinalAmount != null ? b.approvedFinalAmount : b.totalPrice)
+      ) + '</dd></div>' +
+      (settledCentsFromPayment(pay) > 0
+        ? '<div><dt>Amount paid</dt><dd>' + fmtCents(settledCentsFromPayment(pay)) + '</dd></div>'
+        : '') +
+      (remainingCentsFromPayment(pay) > 0
+        ? '<div><dt>Amount due</dt><dd>' + fmtCents(remainingCentsFromPayment(pay)) + '</dd></div>'
+        : '') +
       '</dl>' +
       ((pay.canPay || pay.canCreatePayLink)
         ? '<button type="button" class="btn primary" data-portal-pay>Pay Balance' +
@@ -657,30 +789,65 @@
     el.innerHTML = items.map(mapFn).join('');
   }
 
-  async function submitAction(action, payload) {
-    if (!state.booking) return;
+  async function submitAction(action, payload, opts) {
+    opts = opts || {};
+    if (!state.booking) return false;
+    if (mutationPending && !opts.fromModal) return false;
     var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
-    var body = Object.assign({ bookingId: state.booking.id, phone: phone, action: action }, payload || {});
+    var body = Object.assign({
+      bookingId: state.booking.id,
+      phone: phone,
+      action: action,
+      expectedBookingVersion: state.booking.bookingVersion,
+    }, payload || {});
+    // Never send browser prices/totals as authoritative for add-on money.
+    delete body.price;
+    delete body.priceCents;
+    delete body.proposedTotal;
+    delete body.approvedTotal;
+    delete body.total;
     if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.changeRequested();
     var r = await post('submit-customer-action', body);
+
     if (r.data && r.data.ok) {
-      if (r.data.pendingApproval) {
+      if (r.data.noop && (r.data.reason === 'duplicate_addon' || action === 'addon_request')) {
+        showToast(r.data.message || 'That add-on is already on your booking.');
+      } else if (r.data.noop) {
+        showToast(r.data.message || 'No change needed.');
+      } else if (r.data.pendingApproval) {
         showToast('Request submitted for admin review.');
       } else if (r.data.applied) {
-        showToast('Appointment updated' + (r.data.approvedFinalAmount != null
-          ? (' · new total ' + fmtMoney(Number(r.data.approvedFinalAmount)))
-          : '') + '.');
+        applyAuthoritativeMoney(r.data);
+        showToast('Appointment updated' + (
+          r.data.approvedCents != null
+            ? (' · total approved ' + fmtCents(r.data.approvedCents))
+            : (r.data.approvedFinalAmount != null
+              ? (' · new total ' + fmtMoney(Number(r.data.approvedFinalAmount)))
+              : '')
+        ) + '.');
       } else {
         showToast('Request saved.');
       }
-      // Keep hub open even if the follow-up refresh blips — submit already succeeded.
+      // Always reload authoritative portal projection; discard local preview totals.
       try {
         if (state.scope === 'account') await loadAccount();
         else await loadLimited({ soft: true });
-      } catch (e) { /* ignore refresh errors */ }
+      } catch (e) { /* keep session; mutation already applied server-side */ }
       return true;
     }
-    showToast((r.data && r.data.message) || 'Unable to submit request. Call/text 551-313-2956.', true);
+
+    var msg = mapAddonErrorMessage(r.data, r.status);
+    if (r.data && r.data.error === 'version_conflict') {
+      showToast(msg, true);
+      try {
+        if (state.scope === 'account') await loadAccount();
+        else await loadLimited({ soft: true });
+      } catch (e) { /* session preserved */ }
+      // Do not silently replay the mutation.
+      return false;
+    }
+    if (opts.fromModal) setMsg($('modal-error'), msg, true);
+    else showToast(msg, true);
     return false;
   }
 
@@ -970,43 +1137,122 @@
   function updateAddonLiveTotal() {
     var form = $('modal-form');
     if (!form) return;
-    var sum = 0;
+    var sumCents = 0;
     form.querySelectorAll('input[name="addonIds"]:checked').forEach(function (inp) {
-      sum += Number(inp.getAttribute('data-price') || 0);
+      sumCents += Math.max(0, Math.round(Number(inp.getAttribute('data-price-cents') || 0)));
     });
-    var base = bookingBaseTotal(state.booking);
     var el = $('mf-addon-total');
     if (el) {
-      el.textContent = 'Add-ons: ' + fmtMoney(sum) + ' · New proposed total: ' + fmtMoney(base + sum);
+      el.textContent = 'Preview only (catalog): +' + fmtCents(sumCents)
+        + ' · Final totals come from the server after you submit';
+    }
+  }
+
+  function bindAddonRemoveButtons(form) {
+    form.querySelectorAll('[data-remove-addon]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-remove-addon');
+        if (!id || mutationPending) return;
+        removeAddonFromBooking(id);
+      });
+    });
+  }
+
+  async function removeAddonFromBooking(addonId) {
+    if (mutationPending) return;
+    if (settledCentsFromPayment(state.payment) > 0) {
+      showToast('Paid add-ons cannot be removed online.', true);
+      return;
+    }
+    setModalSubmitPending(true);
+    setMsg($('modal-error'), '', false);
+    try {
+      var ok = await submitAction('addon_remove_request', { addonIds: [addonId] }, { fromModal: true });
+      if (ok) {
+        if (!renderAddonModal()) closeModal();
+        else openModalShell('Modify service / add-ons');
+      }
+    } finally {
+      setModalSubmitPending(false);
     }
   }
 
   function renderAddonModal() {
-    var cat = getCatalog();
-    var addons = cat.addons || [];
+    var addons = addonsForBookingCategory();
     if (!addons.length) {
       showToast('Add-on list unavailable. Refresh and try again.', true);
       return false;
     }
+    var selectedIds = currentBookingAddonIds();
+    var selectedSet = {};
+    selectedIds.forEach(function (id) { selectedSet[id] = true; });
+    var settled = settledCentsFromPayment(state.payment);
+    var canRemove = settled === 0;
+    var pay = state.payment || {};
+
+    var onBooking = addons.filter(function (a) { return selectedSet[a.id]; });
+    // Also show unknown-on-catalog selected ids from booking projection
+    selectedIds.forEach(function (id) {
+      if (!onBooking.some(function (a) { return a.id === id; })) {
+        var fromBooking = (state.booking.addons || []).find(function (a) { return a.id === id; });
+        onBooking.push({
+          id: id,
+          name: (fromBooking && fromBooking.name) || id,
+          description: '',
+          priceCents: fromBooking && fromBooking.price != null
+            ? Math.round(Number(fromBooking.price) * 100)
+            : null,
+        });
+      }
+    });
+    var available = addons.filter(function (a) {
+      return a.available !== false && !selectedSet[a.id];
+    });
+
     var form = $('modal-form');
     form.innerHTML =
-      '<p class="hint">Select add-ons to request. Totals are proposed until admin approval, then locked for Stripe payment.</p>' +
-      '<div class="modal-catalog">' +
-      addons.map(function (a) {
-        return '<label class="catalog-option">' +
-          '<input type="checkbox" name="addonIds" value="' + esc(a.id) + '" data-price="' + esc(a.price) + '">' +
-          '<span class="opt-body">' +
-          '<span class="opt-name">' + esc(a.name) + '</span>' +
-          '<span class="opt-price">+' + fmtMoney(a.price) + '</span>' +
-          '<span class="opt-desc">' + esc(a.desc || '') + '</span>' +
-          '</span></label>';
-      }).join('') +
-      '</div>' +
-      '<p class="modal-live-total" id="mf-addon-total">Add-ons: $0.00 · New proposed total: ' +
-      fmtMoney(bookingBaseTotal(state.booking)) + '</p>';
+      '<p class="hint">Prices shown are from the official catalog. After you submit, My Garage shows the server Total approved / Amount paid / Amount due.</p>' +
+      '<dl class="meta-grid" style="margin-bottom:12px">' +
+      '<div><dt>Total approved</dt><dd>' + fmtCents(approvedCentsFromPayment(pay)) + '</dd></div>' +
+      '<div><dt>Amount paid</dt><dd>' + fmtCents(settledCentsFromPayment(pay)) + '</dd></div>' +
+      '<div><dt>Amount due</dt><dd>' + fmtCents(remainingCentsFromPayment(pay)) + '</dd></div>' +
+      '</dl>' +
+      '<h4 class="sub" style="margin:8px 0 6px">On this booking</h4>' +
+      (onBooking.length
+        ? '<ul class="clean" id="mf-current-addons">' + onBooking.map(function (a) {
+          return '<li class="catalog-option" style="display:flex;justify-content:space-between;gap:8px;align-items:center">' +
+            '<span><strong>' + esc(a.name || a.id) + '</strong>' +
+            (a.priceCents != null ? ' · ' + fmtCents(a.priceCents) : '') +
+            '</span>' +
+            (canRemove
+              ? '<button type="button" class="btn ghost" data-remove-addon="' + esc(a.id) + '"'
+                + (mutationPending ? ' disabled' : '') + '>Remove</button>'
+              : '<span class="hint">Paid — removal unavailable</span>') +
+            '</li>';
+        }).join('') + '</ul>'
+        : '<p class="hint">No add-ons on this booking yet.</p>') +
+      '<h4 class="sub" style="margin:14px 0 6px">Available add-ons</h4>' +
+      (available.length
+        ? '<div class="modal-catalog">' + available.map(function (a) {
+          var cents = a.priceCents != null
+            ? Math.round(Number(a.priceCents) || 0)
+            : Math.round((Number(a.price) || 0) * 100);
+          return '<label class="catalog-option">' +
+            '<input type="checkbox" name="addonIds" value="' + esc(a.id) + '"'
+            + ' data-price-cents="' + esc(cents) + '">' +
+            '<span class="opt-body">' +
+            '<span class="opt-name">' + esc(a.name) + '</span>' +
+            '<span class="opt-price">+' + fmtCents(cents) + '</span>' +
+            '<span class="opt-desc">' + esc(a.description || a.desc || '') + '</span>' +
+            '</span></label>';
+        }).join('') + '</div>'
+        : '<p class="hint">All catalog add-ons for this vehicle are already on the booking.</p>') +
+      '<p class="modal-live-total" id="mf-addon-total">Preview only (catalog): +$0.00 · Final totals come from the server after you submit</p>';
+
     form.querySelectorAll('input[name="addonIds"]').forEach(function (inp) {
       inp.addEventListener('change', updateAddonLiveTotal);
     });
+    bindAddonRemoveButtons(form);
     return true;
   }
 
@@ -1141,7 +1387,6 @@
   function openActionModal(action) {
     var moneyLocked = {
       package_change_request: true,
-      addon_request: true,
       vehicle_add_request: true,
       vehicle_replace_request: true,
       maintenance_request: true,
@@ -1309,7 +1554,7 @@
   }
 
   async function submitModal() {
-    if (!modalAction) return;
+    if (!modalAction || mutationPending) return;
     setMsg($('modal-error'), '', false);
     var payload = {};
 
@@ -1329,32 +1574,46 @@
       }
     }
 
+    setModalSubmitPending(true);
     var ok = false;
-    if (modalAction === 'vehicle_add') {
-      ok = await vehicleAction('add', {
-        vehicle: {
-          label: [payload.year, payload.make, payload.model].join(' '),
-          category: payload.category,
-          year: payload.year,
-          make: payload.make,
-          model: payload.model,
-        },
-      });
-    } else if (modalAction === 'approve_completion') {
-      ok = await submitPortalAction('approve_completion', {
-        bookingId: state.booking && state.booking.id,
-        phone: state.verifyPhone || normalizePhoneInput(state.booking && state.booking.phone),
-      });
-    } else if (modalAction === 'report_issue') {
-      ok = await submitPortalAction('report_issue', {
-        bookingId: state.booking && state.booking.id,
-        phone: state.verifyPhone || normalizePhoneInput(state.booking && state.booking.phone),
-        note: payload.message,
-      });
-    } else {
-      ok = await submitAction(modalAction, payload);
+    try {
+      if (modalAction === 'vehicle_add') {
+        ok = await vehicleAction('add', {
+          vehicle: {
+            label: [payload.year, payload.make, payload.model].join(' '),
+            category: payload.category,
+            year: payload.year,
+            make: payload.make,
+            model: payload.model,
+          },
+        });
+      } else if (modalAction === 'approve_completion') {
+        ok = await submitPortalAction('approve_completion', {
+          bookingId: state.booking && state.booking.id,
+          phone: state.verifyPhone || normalizePhoneInput(state.booking && state.booking.phone),
+        });
+      } else if (modalAction === 'report_issue') {
+        ok = await submitPortalAction('report_issue', {
+          bookingId: state.booking && state.booking.id,
+          phone: state.verifyPhone || normalizePhoneInput(state.booking && state.booking.phone),
+          note: payload.message,
+        });
+      } else if (modalAction === 'addon_request') {
+        ok = await submitAction(modalAction, payload, { fromModal: true });
+        if (ok) {
+          // Re-render modal from server projection; do not keep catalog preview as final.
+          if (renderAddonModal()) {
+            openModalShell('Modify service / add-ons');
+            return;
+          }
+        }
+      } else {
+        ok = await submitAction(modalAction, payload, { fromModal: true });
+      }
+      if (ok) closeModal();
+    } finally {
+      setModalSubmitPending(false);
     }
-    if (ok) closeModal();
   }
 
   function bindUi() {
