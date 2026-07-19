@@ -74,14 +74,64 @@ async function autoApplySubmittedRequest(bookingId, cmd) {
   return {
     ok: true,
     applied: true,
+    noop: !!decided.noop,
+    reason: decided.reason || undefined,
     pendingApproval: false,
     booking: decided.booking,
     projection: decided.projection,
+    financialProjection: decided.financialProjection || null,
+    postgresProjection: decided.postgresProjection || null,
+    quoteVersion: decided.quoteVersion,
     changeRequest: {
       ...cmd.changeRequest,
       status: 'applied',
     },
   };
+}
+
+function addonMutationResponse(appliedCmd, {
+  policy,
+  changeRequestId = null,
+  custName = '',
+  adminSubjectLocal = '',
+  adminTextLocal = '',
+}) {
+  const proj = appliedCmd.postgresProjection
+    || appliedCmd.financialProjection
+    || null;
+  const proposed = appliedCmd.changeRequest?.proposedApprovedCents != null
+    ? appliedCmd.changeRequest.proposedApprovedCents / 100
+    : (appliedCmd.booking?.approvedFinalAmount != null
+      ? Number(appliedCmd.booking.approvedFinalAmount)
+      : null);
+  const appliedTotal = appliedCmd.booking?.approvedFinalAmount != null
+    ? Number(appliedCmd.booking.approvedFinalAmount)
+    : proposed;
+  if (adminSubjectLocal) {
+    notifyAdmin(
+      adminSubjectLocal.replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
+      `${adminTextLocal}${appliedTotal != null ? `\nTotal: $${Number(appliedTotal).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
+    ).catch(() => {});
+  }
+  return json(200, {
+    ok: true,
+    changeRequestId: changeRequestId || appliedCmd.changeRequest?.requestId || null,
+    pendingApproval: !!policy.pendingApproval && !appliedCmd.applied,
+    applied: !!appliedCmd.applied,
+    noop: !!appliedCmd.noop,
+    reason: appliedCmd.reason || undefined,
+    bookingVersion: appliedCmd.booking?.bookingVersion,
+    quoteVersion: appliedCmd.quoteVersion || appliedCmd.booking?.quoteVersion
+      || appliedCmd.changeRequest?.quoteVersion,
+    proposedTotal: appliedTotal,
+    approvedFinalAmount: appliedCmd.booking?.approvedFinalAmount,
+    projection: appliedCmd.projection,
+    financialProjection: appliedCmd.financialProjection || null,
+    postgresProjection: appliedCmd.postgresProjection || null,
+    approvedCents: proj?.approvedCents ?? null,
+    settledCents: proj?.settledCents ?? null,
+    remainingCents: proj?.remainingCents ?? null,
+  });
 }
 
 const ALLOWED_ACTIONS = new Set(Object.keys(ACTION_MAP));
@@ -112,16 +162,63 @@ exports.handler = async (event) => {
 
   const booking = auth.booking;
   const policyAction = ACTION_MAP[action];
-  const policy = canRequestChange(booking, policyAction);
+  let policy = canRequestChange(booking, policyAction);
+  // Stage 2: narrow post-settlement carve-out for additive addon_request only.
+  // Does not loosen canRequestChange / isInvoicePaid globally.
   if (!policy.ok) {
-    return json(200, {
-      ok: false,
-      error: policy.error || 'action_not_allowed',
-      message: policy.message
-        || (policy.requiresCall
-          ? 'This appointment is in progress. Please call or text Cardetail1 for changes.'
-          : 'This change is not available for your appointment status.'),
-    });
+    const settledHint = Math.max(0, Math.round(Number(booking?.ledger?.settledCents) || 0));
+    if (
+      action === 'addon_remove_request'
+      && (settledHint > 0 || policy.error === 'invoice_paid')
+    ) {
+      return json(409, {
+        ok: false,
+        error: 'settled_addon_remove_denied',
+        message: 'Add-on removal is not available after payment.',
+      });
+    }
+    if (action === 'addon_request' && policy.error === 'invoice_paid') {
+      const {
+        evaluatePostPayAdditiveAddonCarveOut,
+      } = require('../lib/canonical-addon-catalog');
+      const carve = evaluatePostPayAdditiveAddonCarveOut(booking, p);
+      if (carve.ok) {
+        policy = { ok: true, pendingApproval: false, phase: 'paid', postPayAdditiveCarveOut: true };
+      } else if (carve.noop || carve.error === 'duplicate_addon') {
+        return json(200, {
+          ok: true,
+          noop: true,
+          reason: 'duplicate_addon',
+          message: carve.message || 'Selected add-on is already on this booking.',
+          changeRequestId: null,
+        });
+      } else if (carve.error) {
+        return json(carve.statusCode || 409, {
+          ok: false,
+          error: carve.error,
+          message: carve.message
+            || (carve.error === 'settled_addon_remove_denied'
+              ? 'Add-on removal is not available after payment.'
+              : 'Invoice paid — this change is not available online.'),
+        });
+      } else {
+        return json(200, {
+          ok: false,
+          error: policy.error || 'action_not_allowed',
+          message: policy.message
+            || 'Invoice is paid. Request a quote adjustment with Cardetail1 — pack/add-on/vehicle price changes are closed.',
+        });
+      }
+    } else {
+      return json(200, {
+        ok: false,
+        error: policy.error || 'action_not_allowed',
+        message: policy.message
+          || (policy.requiresCall
+            ? 'This appointment is in progress. Please call or text Cardetail1 for changes.'
+            : 'This change is not available for your appointment status.'),
+      });
+    }
   }
 
   const now = new Date().toISOString();
@@ -173,6 +270,105 @@ exports.handler = async (event) => {
     logEntry.requestedAddress = newAddress;
     adminSubject = `Cardetail1 — Address Update Request · ${bookingId}`;
     adminText = `Customer requested address change for booking ${bookingId}.\nRequested: ${newAddress}`;
+  } else if (action === 'addon_remove_request') {
+    // Stage 2: narrow remove — only when unsettled; empty/absent → safe noop.
+    const {
+      parseAddonIdList,
+      currentAddonIdsOnBooking,
+    } = require('../lib/canonical-addon-catalog');
+    const { submitChangeRequestCommand } = require('../lib/booking-commands');
+
+    const settled = Math.max(0, Math.round(Number(booking?.ledger?.settledCents) || 0));
+    if (settled > 0) {
+      return json(409, {
+        ok: false,
+        error: 'settled_addon_remove_denied',
+        message: 'Add-on removal is not available after payment.',
+      });
+    }
+
+    const requestedIds = parseAddonIdList(p.addonIds || p.addOnIdsToRemove || p.removeAddonIds);
+    if (!requestedIds.length) {
+      return json(200, {
+        ok: true,
+        noop: true,
+        reason: 'empty_remove',
+        message: 'No add-on to remove.',
+        changeRequestId: null,
+        quoteVersion: booking.quoteVersion || booking.quote?.quoteVersion || 0,
+        bookingVersion: booking.bookingVersion,
+      });
+    }
+
+    const onBooking = new Set(currentAddonIdsOnBooking(booking));
+    const addonIds = requestedIds.filter((id) => onBooking.has(id));
+    if (!addonIds.length) {
+      return json(200, {
+        ok: true,
+        noop: true,
+        reason: 'addon_not_present',
+        message: 'Selected add-on is not on this booking.',
+        changeRequestId: null,
+        quoteVersion: booking.quoteVersion || booking.quote?.quoteVersion || 0,
+        bookingVersion: booking.bookingVersion,
+      });
+    }
+
+    // Ignore browser price / label / total — IDs only.
+    const cmd = await submitChangeRequestCommand({
+      bookingId,
+      expectedBookingVersion: booking.bookingVersion,
+      requestType: 'addon_remove_request',
+      target: { vehicleId: p.vehicleId || undefined },
+      delta: { addOnIdsToRemove: addonIds, addonIds },
+      authorizedRef: auth.scope,
+    });
+    if (cmd.noop) {
+      return json(200, {
+        ok: true,
+        noop: true,
+        reason: cmd.reason || 'addon_not_present',
+        message: 'Selected add-on is not on this booking.',
+        changeRequestId: null,
+        quoteVersion: booking.quoteVersion || booking.quote?.quoteVersion || 0,
+        bookingVersion: booking.bookingVersion,
+      });
+    }
+    if (!cmd.ok) {
+      const status = cmd.statusCode || 400;
+      return json(status, {
+        ok: false,
+        error: cmd.error || 'request_failed',
+        message: cmd.error === 'version_conflict'
+          ? 'This booking changed. Refresh and try again.'
+          : (cmd.error === 'settled_addon_remove_denied'
+            ? 'Add-on removal is not available after payment.'
+            : undefined),
+      });
+    }
+
+    let appliedCmd = cmd;
+    if (!policy.pendingApproval) {
+      appliedCmd = await autoApplySubmittedRequest(bookingId, cmd);
+      if (!appliedCmd.ok) {
+        return json(appliedCmd.statusCode || 400, {
+          ok: false,
+          error: appliedCmd.error || 'apply_failed',
+          message: appliedCmd.message
+            || (appliedCmd.error === 'settled_addon_remove_denied'
+              ? 'Add-on removal is not available after payment.'
+              : undefined),
+          changeRequestId: cmd.changeRequest?.requestId || null,
+        });
+      }
+    }
+    return addonMutationResponse(appliedCmd, {
+      policy,
+      changeRequestId: appliedCmd.changeRequest?.requestId,
+      custName,
+      adminSubjectLocal: `Cardetail1 — Add-On Removal · ${bookingId}`,
+      adminTextLocal: `Customer removed add-ons for booking ${bookingId}.\n${addonIds.join(', ')}`,
+    });
   } else if (action === 'addon_request' || action === 'package_change_request') {
     // Release A: money requests go through versioned command + canonical quote (PDA-01/02/05/07)
     const { submitChangeRequestCommand } = require('../lib/booking-commands');
@@ -182,6 +378,7 @@ exports.handler = async (event) => {
       packagesForCategory,
       normalizeLengthCategory,
     } = require('../lib/length-pricing');
+    const { parseAddonIdList } = require('../lib/canonical-addon-catalog');
 
     let target = { vehicleId: p.vehicleId || undefined };
     let delta = {};
@@ -189,11 +386,11 @@ exports.handler = async (event) => {
     let adminTextLocal = '';
 
     if (action === 'addon_request') {
-      const rawIds = Array.isArray(p.addonIds) ? p.addonIds : String(p.addonIds || '').split(',');
-      const addonIds = rawIds.map((id) => String(id || '').trim()).filter(Boolean);
+      const addonIds = parseAddonIdList(p.addonIds || p.addOnIdsToAdd);
       if (!addonIds.length && !String(p.requestedAddons || '').trim()) {
         return json(400, { ok: false, error: 'validation_error', message: 'Please select at least one add-on.' });
       }
+      // Browser price/label/total ignored — IDs only; Stage 1 mutation prices from catalog.
       delta = { addOnIdsToAdd: addonIds, addonIds, requestedAddons: addonIds.join(', ') };
       adminSubjectLocal = `Cardetail1 — Add-On Request · ${bookingId}`;
       adminTextLocal = `Customer requested add-ons for booking ${bookingId}.\n${addonIds.join(', ')}`;
@@ -287,29 +484,12 @@ exports.handler = async (event) => {
         });
       }
     }
-    const proposed = appliedCmd.changeRequest?.proposedApprovedCents != null
-      ? appliedCmd.changeRequest.proposedApprovedCents / 100
-      : (appliedCmd.booking?.approvedFinalAmount != null
-        ? Number(appliedCmd.booking.approvedFinalAmount)
-        : null);
-    const appliedTotal = appliedCmd.booking?.approvedFinalAmount != null
-      ? Number(appliedCmd.booking.approvedFinalAmount)
-      : proposed;
-    notifyAdmin(
-      adminSubjectLocal.replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
-      `${adminTextLocal}${appliedTotal != null ? `\nTotal: $${Number(appliedTotal).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
-    ).catch(() => {});
-
-    return json(200, {
-      ok: true,
-      changeRequestId: appliedCmd.changeRequest.requestId,
-      pendingApproval: !!policy.pendingApproval && !appliedCmd.applied,
-      applied: !!appliedCmd.applied,
-      bookingVersion: appliedCmd.booking?.bookingVersion,
-      quoteVersion: appliedCmd.booking?.quoteVersion || appliedCmd.changeRequest?.quoteVersion,
-      proposedTotal: appliedTotal,
-      approvedFinalAmount: appliedCmd.booking?.approvedFinalAmount,
-      projection: appliedCmd.projection,
+    return addonMutationResponse(appliedCmd, {
+      policy,
+      changeRequestId: appliedCmd.changeRequest?.requestId,
+      custName,
+      adminSubjectLocal,
+      adminTextLocal,
     });
   } else if (action === 'vehicle_add_request' || action === 'vehicle_replace_request') {
     const { usesLengthPricing } = require('../lib/length-pricing');
@@ -424,7 +604,7 @@ exports.handler = async (event) => {
   const { submitChangeRequestCommand } = require('../lib/booking-commands');
   const moneyish = new Set(['reschedule_request', 'address_update', 'cancellation_request']);
   if (moneyish.has(action) || action === 'vehicle_add_request' || action === 'vehicle_replace_request'
-    || action === 'maintenance_request' || action === 'addon_remove_request') {
+    || action === 'maintenance_request') {
     const cmdDelta = {
       ...requestedState,
       requestedDate: requestedState.preferredDate || requestedState.requestedDate,

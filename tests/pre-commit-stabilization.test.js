@@ -268,6 +268,10 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/db/webhook-inbox.js',
     'netlify/lib/db/ensure-booking-financial.js',
     'netlify/lib/db/operational-payment.js',
+    // Stage 1 — authoritative add-on financial mutations
+    'netlify/lib/addon-financial-mutation.js',
+    // Stage 2 — canonical add-on catalog serializer for My Garage
+    'netlify/lib/canonical-addon-catalog.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);
