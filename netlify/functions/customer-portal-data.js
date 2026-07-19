@@ -1,25 +1,88 @@
 // Authenticated customer portal data — bookings, vehicles, payments (safe fields only).
 
 const { jsonCors } = require('../lib/tech-security');
-const { listRawBookings, getBooking } = require('../lib/ops-db');
+const { listRawBookings } = require('../lib/ops-db');
 const { projectBookingForCustomer } = require('../lib/ops-schema');
-const { authorizeBookingAccess, normalizeBookingId } = require('../lib/booking-customer-auth');
+const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
 const { validateCustomerSession } = require('../lib/customer-session');
 const { phonesMatch, normalizeUsPhoneDigits } = require('../lib/phone-auth');
 const { listVehiclesForOwner } = require('../lib/customer-vehicles');
-const { listRequestsForBooking } = require('../lib/customer-change-requests');
-const { canPayBalance, classifyStatus } = require('../lib/appointment-status-policy');
+const { listVisibleRequestsForBooking } = require('../lib/customer-change-requests');
+const { canPayBalance } = require('../lib/appointment-status-policy');
+const { catalogForClient } = require('../lib/customer-catalog');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
+const { financialProjection } = require('../lib/payment-service');
+const {
+  postgresPaymentEnabled,
+  getSharedFinancialProjection,
+} = require('../lib/db/operational-payment');
+
+function safePaymentStateFromProjection(booking, money, authority) {
+  const due = money.remainingCents / 100;
+  const payAllowed = canPayBalance(booking);
+  const canPay = !!(payAllowed.ok && money.paymentStatus !== 'paid' && money.remainingCents > 0);
+  const piRef = money.stripeReference || money.paymentIntentIdPrefix || null;
+  return {
+    state: money.paymentStatus,
+    amountDueApproved: due,
+    approvedTotal: money.approvedCents / 100,
+    amountPaid: money.settledCents / 100,
+    remainingCents: money.remainingCents,
+    approvedCents: money.approvedCents,
+    settledCents: money.settledCents,
+    refundedCents: money.refundedCents || 0,
+    paymentStatus: money.paymentStatus,
+    paymentAttemptStatus: money.paymentAttemptStatus || null,
+    stripeReference: money.stripeReference || null,
+    paidAt: money.paidAt || null,
+    bookingVersion: booking.bookingVersion || 0,
+    quoteVersion: money.quoteVersion != null ? money.quoteVersion : (booking.quoteVersion || 0),
+    payLink: money.paymentStatus === 'paid' ? '' : (booking.payLink || ''),
+    payLinkAmount: booking.payLinkAmount != null ? Number(booking.payLinkAmount) : null,
+    canPay,
+    canCreatePayLink: canPay,
+    embeddedPayAvailable: authority === 'postgres' && canPay,
+    authority,
+    stripeCheckoutSessionIdPrefix: money.stripeCheckoutSessionIdPrefix || null,
+    paymentIntentIdPrefix: piRef && String(piRef).startsWith('pi_') ? String(piRef).slice(0, 12) : (money.paymentIntentIdPrefix || null),
+  };
+}
 
 function safePaymentState(booking) {
-  const phase = classifyStatus(booking);
-  const due = Number(booking.amountDueApproved || booking.balanceDue || 0);
-  let state = 'not_due';
-  if (booking.paymentWorkflowStatus === 'payment_succeeded' || phase === 'paid') state = 'paid';
-  else if (booking.paymentStatus === 'failed') state = 'failed';
-  else if (booking.paymentStatus === 'processing') state = 'processing';
-  else if (due > 0 && booking.payLink) state = 'due';
-  return { state, amountDueApproved: due > 0 ? due : 0, payLink: state === 'due' ? (booking.payLink || '') : '' };
+  const money = financialProjection(booking);
+  return safePaymentStateFromProjection(booking, money, 'blob');
+}
+
+async function safePaymentStateAsync(booking) {
+  if (postgresPaymentEnabled()) {
+    const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: true });
+    if (shared.ok && shared.projection) {
+      return safePaymentStateFromProjection(booking, shared.projection, 'postgres');
+    }
+  }
+  return safePaymentState(booking);
+}
+
+function isVisibleCustomerBooking(b) {
+  return isVisibleSubmittedBooking(b, { includeArchivedTest: false });
+}
+
+function upcomingSortKey(b) {
+  const date = String(b.preferredDate || b.confirmedDate || '');
+  const updated = String(b.updatedAt || b.createdAt || '');
+  return `${date}|${updated}|${b.id || ''}`;
+}
+
+function selectUpcoming(projected) {
+  // Paid invoice is NOT terminal for the appointment hub — customer must still see the job.
+  const terminalStatus = new Set(['Cancelled', 'Canceled', 'Completed']);
+  const terminalJob = new Set(['cancelled', 'completed_paid', 'archived_test']);
+  const active = projected
+    .filter((b) => !terminalStatus.has(String(b.status || '')))
+    .filter((b) => !terminalJob.has(String(b.jobStatus || '').toLowerCase()))
+    .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
+  return active[0] || projected[0] || null;
 }
 
 exports.handler = async (event) => {
@@ -34,6 +97,7 @@ exports.handler = async (event) => {
   catch { return jsonCors(400, { ok: false, error: 'validation_error' }); }
 
   const mode = String(body.mode || 'limited').toLowerCase();
+  const catalog = catalogForClient();
 
   if (mode === 'limited') {
     const auth = await authorizeBookingAccess(event, {
@@ -47,18 +111,28 @@ exports.handler = async (event) => {
         message: auth.message,
       });
     }
+    if (!isVisibleCustomerBooking(auth.booking)) {
+      const draftLike = auth.booking && (
+        auth.booking.isDraft === true
+        || String(auth.booking.kind || '').toLowerCase() === 'draft'
+      );
+      return jsonCors(200, {
+        ok: false,
+        error: 'booking_not_ready',
+        message: draftLike
+          ? 'This booking is still being finalized. Complete checkout first, or call/text 551-313-2956.'
+          : 'This booking is not available in My Garage yet. If Admin just created it, ask them to Confirm booking, or call/text 551-313-2956.',
+      });
+    }
     const projected = projectBookingForCustomer(auth.booking);
-    const payment = safePaymentState(auth.booking);
-    const payAllowed = canPayBalance(auth.booking);
+    const payment = await safePaymentStateAsync(auth.booking);
     return jsonCors(200, {
       ok: true,
       scope: 'booking',
       booking: projected,
-      payment: {
-        ...payment,
-        canPay: payAllowed.ok && payment.state === 'due',
-      },
-      changeRequests: await listRequestsForBooking(auth.booking.id || auth.booking.bookingId),
+      payment,
+      catalog,
+      changeRequests: await listVisibleRequestsForBooking(auth.booking),
     });
   }
 
@@ -70,15 +144,28 @@ exports.handler = async (event) => {
   const all = await listRawBookings();
   const phoneDigits = session.phoneDigits;
   const bookings = all.filter((b) => {
+    if (!isVisibleCustomerBooking(b)) return false;
     if (session.bookingIds?.length && session.bookingIds.includes(b.id || b.bookingId)) return true;
     const bPhone = normalizeUsPhoneDigits(b.phone || b.customerPhone || '');
     return phoneDigits && bPhone && phonesMatch(phoneDigits, bPhone);
   });
 
-  const projected = bookings.map((b) => projectBookingForCustomer(b));
+  const projected = bookings
+    .map((b) => projectBookingForCustomer(b))
+    .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
   const vehicles = phoneDigits ? await listVehiclesForOwner(phoneDigits) : [];
+  const upcoming = selectUpcoming(projected);
+  const payment = upcoming
+    ? await safePaymentStateAsync(bookings.find((b) => (b.id || b.bookingId) === upcoming.id) || {})
+    : { state: 'not_due', amountDueApproved: 0, canPay: false, payLink: '', authority: 'none' };
 
-  const upcoming = projected.find((b) => !['Paid', 'Cancelled', 'Canceled'].includes(b.status)) || projected[0] || null;
+  let changeRequests = [];
+  if (upcoming?.id) {
+    try {
+      const rawUpcoming = bookings.find((b) => (b.id || b.bookingId) === upcoming.id);
+      changeRequests = await listVisibleRequestsForBooking(rawUpcoming || upcoming);
+    } catch { changeRequests = []; }
+  }
 
   return jsonCors(200, {
     ok: true,
@@ -86,12 +173,15 @@ exports.handler = async (event) => {
     bookings: projected,
     upcoming,
     vehicles,
+    payment,
+    catalog,
+    changeRequests,
     sections: {
       appointments: projected.length > 0,
       vehicles: vehicles.length > 0,
       history: projected.some((b) => ['Paid', 'Completed'].includes(b.status)),
-      maintenancePlans: false,
-      payments: projected.some((b) => b.payLink || b.paymentWorkflowStatus?.includes('payment')),
+      maintenancePlans: projected.some((b) => b.maintenanceRequested || b.maintenancePeriod),
+      payments: !!(payment.canPay || payment.payLink || projected.some((b) => Number(b.amountDueApproved || 0) > 0)),
       communicationPreferences: false,
     },
   });

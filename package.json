@@ -5,10 +5,20 @@
   "description": "Cardetail1 — mobile detailing site (static) + Netlify functions",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "audit:pre-deploy": "node scripts/pre-deploy-audit.mjs"
+    "audit:pre-deploy": "node scripts/pre-deploy-audit.mjs",
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio"
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.22",
-    "@netlify/blobs": "10.7.9"
+    "@netlify/blobs": "10.7.9",
+    "@prisma/client": "^7.8.0",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "prisma": "^7.8.0"
   }
 }

@@ -14,9 +14,13 @@ const confirmSetupBlock = index.slice(
   index.indexOf('async function recheckCardStatus')
 );
 
-test('confirmSetup marks card saved optimistically then verifies in background', () => {
-  assert.match(confirmSetupBlock, /ST\.cardOnFileSaved\s*=\s*true/);
+test('confirmSetup requires SetupIntent succeeded before marking card saved', () => {
+  assert.match(confirmSetupBlock, /setupIntent\.status!=='succeeded'/);
   assert.match(confirmSetupBlock, /waitForVerifiedCardSave/);
+  assert.match(confirmSetupBlock, /ST\.cardOnFileSaved\s*=\s*true/);
+  // Must not mark saved before the succeeded-status gate.
+  const beforeGate = confirmSetupBlock.split("setupIntent.status!=='succeeded'")[0];
+  assert.doesNotMatch(beforeGate, /ST\.cardOnFileSaved\s*=\s*true/);
 });
 
 test('saved card gates continue; submit retries when server lags', () => {
@@ -82,8 +86,8 @@ test('submit-booking keeps strict saved check with Stripe reconcile fallback', (
   assert.match(submit, /reconcileCardOnFileFromStripe/);
   assert.match(submit, /existing\.cardOnFileStatus !== 'saved'/);
   assert.match(submit, /card_on_file_not_saved/);
-  assert.match(submit, /setup_intents/);
   assert.match(submit, /cardOnFileStatus:\s+existing\.cardOnFileStatus/);
+  assert.match(read('netlify/lib/card-on-file.js'), /setup_intents/);
 });
 
 test('no package pricing or public homepage drift in hardening diff scope', () => {

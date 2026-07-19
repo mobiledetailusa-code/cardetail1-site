@@ -23,6 +23,7 @@ const json = (status, body) => ({
 });
 
 const { verifyAdminKey } = require('../lib/tech-security');
+const { guardStripeOrReject } = require('../lib/stripe-mode');
 
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
@@ -41,8 +42,11 @@ exports.handler = async (event) => {
     return json(status, { ok: false, error: auth.error || 'unauthorized' });
   }
 
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return json(503, { ok: false, error: 'Stripe not configured on server' });
+  const stripeGuard = guardStripeOrReject(process.env, { purpose: 'capture_payment' });
+  if (stripeGuard.blocked) {
+    return json(stripeGuard.statusCode || 503, stripeGuard.body);
+  }
+  const secret = stripeGuard.secret;
 
   let p;
   try { p = JSON.parse(event.body || '{}'); } catch { return json(400, { ok: false, error: 'Invalid JSON' }); }

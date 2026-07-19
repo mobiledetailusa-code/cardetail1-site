@@ -5,10 +5,26 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const root = path.join(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const exists = (p) => fs.existsSync(path.join(root, p));
+
+/**
+ * True only if `p` is tracked by git (staged or committed) — i.e. it would
+ * actually ship. A secret-bearing file like a local `.env` that exists on
+ * disk but is gitignored/untracked is not a leak risk and must not fail
+ * this check; only a tracked copy is.
+ */
+function isGitTracked(p) {
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', p], { cwd: root, stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const PAGES = [
   { file: 'boats-detailing.html', cat: 'boats', label: 'Boats' },
@@ -149,12 +165,17 @@ test('no Communication Core / credential / QA screenshot artifacts introduced', 
   const stagedNoise = [
     'docs/qa-screenshots',
     '_qa',
-    '.env',
   ];
   for (const p of stagedNoise) {
     if (exists(p)) {
       assert.fail(`unexpected path present: ${p}`);
     }
+  }
+  // A local, gitignored .env is normal developer/agent setup and must not
+  // fail this check — only a *tracked* (staged or committed) secret-bearing
+  // env file is an actual leak risk.
+  if (isGitTracked('.env')) {
+    assert.fail('.env is tracked by git — a secret-bearing file must never be staged or committed');
   }
 });
 

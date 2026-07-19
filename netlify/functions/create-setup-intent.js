@@ -97,20 +97,17 @@ exports.handler = async (event) => {
     return json(403, { ok: false, error: routingCheck.error });
   }
 
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret || !(secret.startsWith('sk_test_') || secret.startsWith('sk_live_'))) {
-    console.log('[create-setup-intent] stripe key: not configured');
-    return json(503, { ok: false, error: 'stripe_not_configured', fallback: true });
+  const { guardStripeOrReject } = require('../lib/stripe-mode');
+  const stripeGuard = guardStripeOrReject(process.env, { purpose: 'setup_intent' });
+  if (stripeGuard.blocked) {
+    console.log('[create-setup-intent] blocked by stripe-mode guard:', stripeGuard.body?.error);
+    return json(stripeGuard.statusCode || 503, {
+      ...stripeGuard.body,
+      fallback: stripeGuard.body?.error === 'stripe_not_configured',
+    });
   }
-  const mode = secret.startsWith('sk_test_') ? 'test' : 'live';
-  const isLocalDev = process.env.NETLIFY_DEV === 'true';
-  const isDeployPreview =
-    process.env.CONTEXT === 'deploy-preview' ||
-    /^https:\/\/deploy-preview-\d+--/i.test(process.env.DEPLOY_PRIME_URL || '');
-  if ((isDeployPreview || isLocalDev) && mode !== 'test') {
-    console.log('[create-setup-intent] blocked: preview/local dev requires test mode, got live key');
-    return json(503, { ok: false, error: 'stripe_test_mode_required' });
-  }
+  const secret = stripeGuard.secret;
+  const mode = stripeGuard.mode;
 
   console.log('[create-setup-intent] bookingId present:', !!bookingId, '| mode:', mode);
 
@@ -143,7 +140,7 @@ exports.handler = async (event) => {
   const siForm = new URLSearchParams({
     customer:                           cust.id,
     usage:                              'off_session',
-    'automatic_payment_methods[enabled]': 'true',
+    'payment_method_types[0]':          'card',
     'metadata[bookingId]':              bookingId,
   });
 
@@ -163,9 +160,24 @@ exports.handler = async (event) => {
   }
   console.log('[create-setup-intent] SetupIntent created: yes | id prefix:', si.id ? si.id.slice(0, 15) : 'none', '| mode:', mode);
 
-  // Store setupIntentId on the draft so webhook can reconcile even if metadata lookup fails.
+  // Persist SetupIntent on the draft without dropping unrelated draft fields.
   try {
-    await store.setJSON(bookingId, { ...booking, setupIntentId: si.id, stripeCustomerId: cust.id });
+    const nextDraft = {
+      ...booking,
+      setupIntentId: si.id,
+      stripeCustomerId: cust.id,
+      // Keep prior payment-method / saved markers if webhook already applied.
+      stripePaymentMethodId: booking.stripePaymentMethodId,
+      cardOnFileStatus: booking.cardOnFileStatus || 'pending',
+      isDraft: true,
+      updatedAt: new Date().toISOString(),
+    };
+    await store.setJSON(bookingId, nextDraft);
+    console.log('[create-setup-intent] draft updated', {
+      draftBookingId: bookingId,
+      setupIntentIdPrefix: si.id ? String(si.id).slice(0, 15) : 'none',
+      cardOnFileStatus: nextDraft.cardOnFileStatus,
+    });
   } catch (e) {
     console.warn('[create-setup-intent] could not update draft with setupIntentId:', e.message);
   }
@@ -175,6 +187,7 @@ exports.handler = async (event) => {
     ok: true,
     clientSecret: si.client_secret,
     mode,
+    bookingId,
   });
 };
 

@@ -36,6 +36,7 @@ test('Step 5 gates preference, consent, saved card, and final terms', () => {
 });
 
 test('card-on-file uses SetupIntent with off-session usage and bookingId metadata', () => {
+  const stripeMode = fs.readFileSync(path.join(__dirname, '..', 'netlify', 'lib', 'stripe-mode.js'), 'utf8');
   assert.match(setup, /\/v1\/setup_intents/);
   assert.match(setup, /usage:\s+'off_session'/);
   assert.match(setup, /metadata\[bookingId\]/);
@@ -43,10 +44,12 @@ test('card-on-file uses SetupIntent with off-session usage and bookingId metadat
   assert.match(setup, /invalid_draft_token/);
   assert.doesNotMatch(setup, /\/v1\/payment_intents/);
   assert.doesNotMatch(setup, /capture_method/);
-  assert.match(setup, /CONTEXT === 'deploy-preview'/);
-  assert.match(setup, /DEPLOY_PRIME_URL/);
-  assert.match(setup, /stripe_test_mode_required/);
-  assert.match(setup, /NETLIFY_DEV/);
+  // Release A: local/preview live-key guard is centralized in stripe-mode.js
+  assert.match(setup, /guardStripeOrReject/);
+  assert.match(setup, /stripe-mode/);
+  assert.match(stripeMode, /deploy-preview/);
+  assert.match(stripeMode, /NETLIFY_DEV/);
+  assert.match(stripeMode, /stripe_test_mode_required/);
   assert.match(index, /IS_DEPLOY_PREVIEW/);
   assert.match(index, /isLocalPreview/);
   assert.match(index, /LOCAL_DEV_FUNCTIONS_HINT/);
@@ -68,7 +71,7 @@ test('server requires webhook-saved card and fixes booking statuses', () => {
   assert.match(submit, /getDraftTokenSecretStatus/);
   assert.match(submit, /paymentStatus:\s+'no_payment_required_yet'/);
   assert.match(submit, /appointmentStatus:\s+'pending_review'/);
-  assert.match(submit, /jobStatus:\s+'not_started'/);
+  assert.match(submit, /jobStatus:\s+'pending_review'/);
   assert.match(submit, /cardOnFileRequired:\s+true/);
   assert.match(submit, /online_after_service/);
 });
@@ -131,6 +134,10 @@ test('temporary webhook setup and secret-transfer function is absent', () => {
   assert.equal(fs.existsSync(path.join(root, 'netlify/functions/stripe-webhook-setup.js')), false);
   const names = fs.readdirSync(path.join(root, 'netlify/functions'));
   assert.equal(names.some(name => /webhook.*setup|secret.*transfer/i.test(name)), false);
+});
+
+test('temporary qa-webhook-admin function is absent (not for Production)', () => {
+  assert.equal(fs.existsSync(path.join(root, 'netlify/functions/qa-webhook-admin.js')), false);
 });
 
 test('missing and invalid webhook signatures are rejected', async () => {

@@ -1,44 +1,168 @@
 // Unified operational DB layer — all channels read/write cd1-bookings through here.
-const { blobsStore } = require('./tech-security');
+const { blobsStore, listAllBlobs, fetchBlobRecords } = require('./tech-security');
 const { BOOKINGS_STORE } = require('./ops-schema');
 const { appendEventLog, normalizeJobStatus, normalizePaymentWorkflowStatus } = require('./ops-workflow');
+const { isVisibleSubmittedBooking } = require('./booking-visibility');
+const { adaptHistoricalBooking } = require('./historical-adapter');
+
+let _opsStoreOverride = null;
+
+function setOpsStoreOverride(store) {
+  _opsStoreOverride = store || null;
+}
 
 async function bookingStore() {
+  if (_opsStoreOverride) return _opsStoreOverride;
   return blobsStore(BOOKINGS_STORE);
 }
 
+function normalizeBookingKey(raw) {
+  return String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '').slice(0, 48);
+}
+
+function healStickyDraftFlags(booking) {
+  if (!booking || typeof booking !== 'object') return booking;
+  const { hasSubmissionMarkers } = require('./booking-visibility');
+  if (!hasSubmissionMarkers(booking)) return booking;
+  if (booking.isDraft !== true && String(booking.kind || '').toLowerCase() !== 'draft') {
+    return booking;
+  }
+  // In-memory heal so Customer Portal can open Admin-pending / finalized jobs.
+  return {
+    ...booking,
+    isDraft: false,
+    kind: 'booking',
+  };
+}
+
+async function readBlobJson(store, key) {
+  if (!key) return null;
+  if (typeof store.getWithMetadata === 'function') {
+    const result = await store.getWithMetadata(key, {
+      type: 'json',
+      consistency: 'strong',
+    }).catch(() => null);
+    if (result && result.data) return result.data;
+  }
+  return store.get(key, { type: 'json' }).catch(() => null);
+}
+
+function finalizeBookingRead(raw, fallbackId) {
+  if (!raw) return null;
+  const adapted = adaptHistoricalBooking(raw);
+  const booking = healStickyDraftFlags(adapted.ok ? adapted.booking : raw);
+  if (!booking) return null;
+  const canonical = normalizeBookingKey(booking.id || booking.bookingId || fallbackId);
+  if (canonical) {
+    booking.id = booking.id || canonical;
+    booking.bookingId = booking.bookingId || booking.id;
+  }
+  return booking;
+}
+
+/**
+ * Resolve a booking by Blob key variants, then by scanning records where
+ * payload.id / bookingId matches (Admin list can show jobs whose Blob key ≠ id).
+ */
 async function getBooking(bookingId) {
   const store = await bookingStore();
-  return store.get(bookingId, { type: 'json' }).catch(() => null);
+  const id = normalizeBookingKey(bookingId);
+  if (!id) return null;
+
+  const keyVariants = [...new Set([
+    id,
+    String(bookingId || '').trim(),
+    String(bookingId || '').trim().toLowerCase(),
+  ])].filter(Boolean);
+
+  for (const key of keyVariants) {
+    const raw = await readBlobJson(store, key);
+    if (raw) return finalizeBookingRead(raw, id);
+  }
+
+  // Scan fallback — Admin feed uses list keys; Customer lookup uses booking.id.
+  try {
+    const blobs = await listAllBlobs(store, BOOKINGS_STORE);
+    for (let i = 0; i < blobs.length; i += 30) {
+      const chunk = blobs.slice(i, i + 30);
+      const rows = await Promise.all(chunk.map(async (b) => {
+        const raw = await readBlobJson(store, b.key);
+        return raw ? { key: b.key, raw } : null;
+      }));
+      for (const row of rows) {
+        if (!row) continue;
+        const rid = normalizeBookingKey(row.raw.id || row.raw.bookingId || '');
+        const rkey = normalizeBookingKey(row.key);
+        if (rid === id || rkey === id) {
+          console.log('[ops-db] getBooking resolved via scan', {
+            lookupId: id,
+            blobKey: String(row.key).slice(0, 48),
+            payloadId: rid || null,
+          });
+          return finalizeBookingRead(row.raw, id);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[ops-db] getBooking scan failed:', e.message);
+  }
+
+  // Fail-open Prisma fallback — helps intermittent Blob miss; never used for CAS writes.
+  try {
+    const { readBookingMirror } = require('./booking-prisma-mirror');
+    const mirrored = await readBookingMirror(id);
+    if (mirrored) return finalizeBookingRead(mirrored, id);
+  } catch { /* ignore */ }
+  return null;
 }
 
 async function patchBooking(bookingId, patches, eventEntry) {
-  const store = await bookingStore();
-  const booking = await getBooking(bookingId);
-  if (!booking) return null;
+  const { getBookingRecord, commitBooking } = require('./booking-repository');
+  const { buildNextAggregate, normalizeAggregate } = require('./booking-aggregate');
+  const current = await getBookingRecord(bookingId);
+  if (!current.exists) return null;
+  const { ok, aggregate } = normalizeAggregate(current.booking, { allowDraft: true });
+  const base = ok ? aggregate : current.booking;
   const now = new Date().toISOString();
-  const patched = {
-    ...booking,
+  const next = buildNextAggregate(base, {
     ...patches,
-    jobStatus: patches.jobStatus || booking.jobStatus,
+    jobStatus: patches.jobStatus || base.jobStatus,
+    eventLog: eventEntry ? appendEventLog(base, eventEntry) : (base.eventLog || []),
     updatedAt: now,
-    eventLog: eventEntry ? appendEventLog(booking, eventEntry) : (booking.eventLog || []),
-  };
-  patched.jobStatus = normalizeJobStatus(patched);
-  if (!patched.paymentWorkflowStatus && patches.paymentWorkflowStatus === undefined) {
-    patched.paymentWorkflowStatus = normalizePaymentWorkflowStatus(patched);
+  });
+  next.jobStatus = normalizeJobStatus(next);
+  if (!next.paymentWorkflowStatus && patches.paymentWorkflowStatus === undefined) {
+    next.paymentWorkflowStatus = normalizePaymentWorkflowStatus(next);
   }
-  await store.setJSON(bookingId, patched);
-  return patched;
+  const committed = await commitBooking({
+    bookingId,
+    expectedBookingVersion: base.bookingVersion || 0,
+    nextAggregate: next,
+  });
+  // Release A: never fall back to unconditional set — conflict must surface.
+  if (!committed.ok) return null;
+  return committed.booking;
 }
 
 async function listRawBookings() {
   const store = await bookingStore();
-  const listing = await store.list();
-  const blobs = (listing && listing.blobs) || [];
-  return (await Promise.all(
-    blobs.map(b => store.get(b.key, { type: 'json' }).catch(() => null))
-  )).filter(b => b && !b.isDraft);
+  const blobs = await listAllBlobs(store, 'cd1-bookings');
+  const records = await fetchBlobRecords(store, blobs);
+  const out = [];
+  for (const raw of records) {
+    if (!raw) continue;
+    const adapted = adaptHistoricalBooking(raw);
+    if (!adapted.ok || !adapted.booking) continue;
+    if (!isVisibleSubmittedBooking(adapted.booking, { includeArchivedTest: true })) continue;
+    out.push(healStickyDraftFlags(adapted.booking));
+  }
+  out.sort((a, b) => {
+    const ta = String(a.updatedAt || a.createdAt || '');
+    const tb = String(b.updatedAt || b.createdAt || '');
+    if (ta !== tb) return tb.localeCompare(ta);
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  });
+  return out;
 }
 
 const {
@@ -48,9 +172,11 @@ const {
 
 module.exports = {
   bookingStore,
+  setOpsStoreOverride,
   getBooking,
   patchBooking,
   listRawBookings,
+  normalizeBookingKey,
   normalizePhone,
   phonesMatch,
 };

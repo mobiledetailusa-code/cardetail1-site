@@ -40,8 +40,25 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac)}
 .btn.warn{background:rgba(245,158,11,.15);color:var(--warn);border:1px solid rgba(245,158,11,.25)}
 .chk{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mu);cursor:pointer;user-select:none}
 .chk input{accent-color:var(--ac)}
-.req-box{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
-.req-box h5{font-size:13px;margin-bottom:6px}
+.req-box{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.req-box h5{font-size:15px;font-weight:800;margin-bottom:4px}
+.req-pill{display:inline-block;font-size:11px;font-weight:700;padding:4px 8px;border-radius:999px;margin:0 0 10px}
+.req-pill.ok{background:rgba(74,222,128,.12);color:#4ade80}
+.req-pill.warn{background:rgba(251,191,36,.12);color:var(--warn,#fbbf24)}
+.req-money{font-size:14px;margin:0 0 10px}
+.req-warn{font-size:12px;color:var(--warn,#fbbf24);background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:8px 10px;margin:0 0 10px;line-height:1.4}
+.req-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+@media(max-width:720px){.req-cols{grid-template-columns:1fr}}
+.req-col{background:rgba(0,0,0,.18);border:1px solid var(--line);border-radius:8px;padding:10px}
+.req-col-new{border-color:rgba(77,163,255,.35)}
+.req-col-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);font-weight:700;margin-bottom:8px}
+.req-dl{margin:0}
+.req-dl > div{margin-bottom:8px}
+.req-dl dt{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu)}
+.req-dl dd{font-size:13px;font-weight:600;margin:2px 0 0;line-height:1.35;word-break:break-word}
+.req-tech{margin-top:10px;font-size:12px;color:var(--mu)}
+.req-tech summary{cursor:pointer;color:var(--ac,#4da3ff)}
+.req-pre{margin-top:8px;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:140px;overflow:auto;background:rgba(0,0,0,.25);padding:8px;border-radius:6px}
 .hint{font-size:12px;color:var(--mu);margin-bottom:12px;line-height:1.5}
 .op-grid{display:grid;gap:8px;margin-top:8px}
 .op-grid input,.op-grid select{margin-bottom:0}
@@ -170,7 +187,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   <section class="panel" id="p-requests">
     <h3 style="font-size:14px;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--ac)">Customer Change Requests</h3>
-    <p class="hint">Portal change requests awaiting admin review. Auto-apply supported for reschedule, address, and cancellation only; other types require manual confirmation after approval.</p>
+    <p class="hint">Read each card: current booking vs customer request. Approve applies reschedule, address, cancel, package, add-ons, and vehicle. After money changes, open the job drawer and click <strong>Generate Stripe link</strong> (Copy pay link only works if a link already exists).</p>
     <div id="requestsList"><div class="empty">Loading…</div></div>
   </section>
 
@@ -338,7 +355,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   if (!token) { location.replace('admin.html'); return; }
 
   const JOB_STATUSES = ['pending_review','confirmed','assigned','accepted','en_route','arrived','in_progress','issue_reported','completed_pending_admin_review','completed_pending_payment','completed_paid','reopened','cancelled'];
-  const PAY_STATUSES = ['no_payment_required_yet','pending_admin_review','awaiting_customer_payment','payment_action_required','payment_succeeded','payment_failed','cash_paid'];
+  const PAY_STATUSES = ['no_payment_required_yet','pending_admin_review','awaiting_customer_payment','payment_action_required','payment_succeeded','payment_failed','cash_paid','refunded'];
   const inviteCache = {};
 
   let jobs = [], techs = [], activeJob = null, activeTech = null;
@@ -402,7 +419,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     return badge(st, m[st]||'b-st');
   }
   function payBadge(st) {
-    const m = {payment_succeeded:'b-ok',payment_failed:'b-err',payment_action_required:'b-warn',pending_admin_review:'b-warn',cash_paid:'b-ok'};
+    const m = {payment_succeeded:'b-ok',payment_failed:'b-err',payment_action_required:'b-warn',pending_admin_review:'b-warn',cash_paid:'b-ok',refunded:'b-warn'};
     return badge(st, m[st]||'b-pay');
   }
   function cust(j) { return ((j.firstName||'')+' '+(j.lastName||'')).trim()||j.email||j.id; }
@@ -414,13 +431,26 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     return changeRequests;
   }
 
-  async function decideChangeRequest(requestId, decision, adminNote) {
-    return api('/.netlify/functions/admin-customer-requests', 'POST', {
+  async function decideChangeRequest(requestId, decision, adminNote, extra) {
+    const body = Object.assign({
       action: 'decide',
       requestId,
       decision,
       adminNote: adminNote || '',
-    });
+    }, extra || {});
+    try {
+      return await api('/.netlify/functions/admin-customer-requests', 'POST', body);
+    } catch (e) {
+      // Booking moved since the request — retry once with requote acceptance.
+      if (decision === 'approve' && String(e.message || '') === 'version_conflict' && !body.acceptRequote) {
+        if (confirm('Booking changed since this request. Approve using the updated quote?')) {
+          return api('/.netlify/functions/admin-customer-requests', 'POST', Object.assign({}, body, {
+            acceptRequote: true,
+          }));
+        }
+      }
+      throw e;
+    }
   }
 
   async function loadJobs(extra) {
@@ -652,6 +682,131 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     try { return JSON.stringify(o || {}); } catch { return '{}'; }
   }
 
+  function moneyLabel(n) {
+    if (n == null || n === '') return '';
+    const v = Number(n);
+    if (!Number.isFinite(v)) return '';
+    return '$' + v.toFixed(2);
+  }
+
+  function categoryLabel(id) {
+    const map = {
+      cars: 'Car / SUV / Truck',
+      boats: 'Boat / Marine',
+      rvs: 'RV / Trailer',
+      powersports: 'Powersports',
+      fleet: 'Fleet / Commercial',
+    };
+    return map[String(id || '').toLowerCase()] || (id || '—');
+  }
+
+  function requestTitle(r) {
+    const titles = {
+      package_change_request: 'Change package',
+      addon_request: 'Add service add-ons',
+      vehicle_add_request: 'Add a vehicle',
+      vehicle_replace_request: 'Replace vehicle',
+      reschedule_request: 'Reschedule appointment',
+      address_update: 'Update service address',
+      cancellation: 'Cancel appointment',
+      cancellation_request: 'Cancel appointment',
+      maintenance_request: 'Maintenance plan request',
+      discount_request: 'Discount request',
+    };
+    return titles[r.requestType] || r.typeLabel || r.requestType || 'Customer request';
+  }
+
+  function plainPrevious(r) {
+    const p = r.previousState || {};
+    const lines = [];
+    if (p.package || p.service) lines.push(['Current package', p.package || p.service]);
+    if (p.preferredDate) lines.push(['Current date', p.preferredDate + (p.preferredTime ? ' · ' + p.preferredTime : '')]);
+    if (p.address) lines.push(['Current address', p.address]);
+    if (p.vehicleLabel || p.vehicle) lines.push(['Current vehicle', p.vehicleLabel || p.vehicle]);
+    if (p.vehicleCount != null) lines.push(['Vehicles on booking', String(p.vehicleCount)]);
+    if (p.status) lines.push(['Booking status', p.status]);
+    if (p.approvedFinalAmount != null || p.totalPrice != null) {
+      lines.push(['Current total', moneyLabel(p.approvedFinalAmount != null ? p.approvedFinalAmount : p.totalPrice)]);
+    }
+    return lines;
+  }
+
+  function plainRequested(r) {
+    const rs = r.requestedState || {};
+    const t = r.requestType;
+    const lines = [];
+    const warnings = [];
+
+    if (t === 'package_change_request') {
+      lines.push(['Requested package', rs.packageName || rs.packageId || '—']);
+      if (rs.packageDescription) lines.push(['What it includes', rs.packageDescription]);
+      if (rs.lengthFt) lines.push(['Vehicle length', rs.lengthFt + ' ft']);
+      if (rs.vehicleCategory) lines.push(['Category', categoryLabel(rs.vehicleCategory)]);
+      if (rs.packagePrice != null) lines.push(['Package price', moneyLabel(rs.packagePrice)]);
+      if (rs.proposedTotal != null) lines.push(['New total if approved', moneyLabel(rs.proposedTotal)]);
+    } else if (t === 'addon_request') {
+      const names = (rs.addons || []).map(a => {
+        const price = a.price != null ? ' (' + moneyLabel(a.price) + ')' : '';
+        return (a.name || a.id || 'Add-on') + price;
+      });
+      lines.push(['Add-ons requested', names.length ? names.join(', ') : (rs.requestedAddons || '—')]);
+      if (rs.addonTotal != null) lines.push(['Add-ons subtotal', moneyLabel(rs.addonTotal)]);
+      if (rs.proposedTotal != null) lines.push(['New total if approved', moneyLabel(rs.proposedTotal)]);
+    } else if (t === 'vehicle_add_request' || t === 'vehicle_replace_request') {
+      const label = rs.vehicleLabel || [rs.year, rs.make, rs.model].filter(Boolean).join(' ') || '—';
+      lines.push([t === 'vehicle_replace_request' ? 'Replace with' : 'Add vehicle', label]);
+      if (rs.category) lines.push(['Category', categoryLabel(rs.category)]);
+      if (rs.year) lines.push(['Year', rs.year]);
+      if (rs.make) lines.push(['Make', rs.make]);
+      if (rs.model) lines.push(['Model', rs.model]);
+      if (rs.lengthFt) lines.push(['Length', rs.lengthFt + ' ft']);
+      const cat = String(rs.category || '').toLowerCase();
+      const hay = (label + ' ' + (rs.make || '') + ' ' + (rs.model || '')).toLowerCase();
+      if (cat === 'boats' && /civic|camry|accord|corolla|f-?150|silverado|rav4|cr-?v/i.test(hay)) {
+        warnings.push('Category is Boat, but the vehicle name looks like a car. Confirm with customer before approving.');
+      }
+      if (cat === 'rvs' && /civic|camry|accord|corolla/i.test(hay)) {
+        warnings.push('Category is RV, but the vehicle name looks like a car. Confirm with customer before approving.');
+      }
+      if ((cat === 'cars' || !cat) && /\b(ft|foot|yacht|pontoon|trailer|motorhome|class\s*[abc])\b/i.test(hay)) {
+        warnings.push('Vehicle name may not match a standard car category. Double-check size/type.');
+      }
+    } else if (t === 'maintenance_request') {
+      lines.push(['Frequency', rs.maintenancePeriodLabel || rs.periodLabel || rs.maintenancePeriod || rs.period || '—']);
+      lines.push(['Plan package', rs.packageName || rs.packageId || '—']);
+      if (rs.packagePrice != null) lines.push(['Package base', moneyLabel(rs.packagePrice)]);
+      if (rs.maintenanceNote || rs.note) lines.push(['Customer note', rs.maintenanceNote || rs.note]);
+    } else if (t === 'reschedule_request') {
+      lines.push(['New preferred date', rs.preferredDate || rs.newDate || '—']);
+      if (rs.preferredTime || rs.newTime) lines.push(['New preferred time', rs.preferredTime || rs.newTime]);
+    } else if (t === 'address_update') {
+      lines.push(['New address', rs.address || rs.newAddress || '—']);
+    } else if (t === 'cancellation' || t === 'cancellation_request') {
+      lines.push(['Reason', rs.reason || 'Customer requested cancellation']);
+    } else if (rs && Object.keys(rs).length) {
+      Object.keys(rs).forEach(k => {
+        const v = rs[k];
+        if (v == null || v === '' || typeof v === 'object') return;
+        lines.push([k, String(v)]);
+      });
+    } else {
+      lines.push(['Details', 'No structured details on this request']);
+    }
+    return { lines, warnings };
+  }
+
+  function dlRows(rows) {
+    if (!rows || !rows.length) return '<div class="hint" style="margin:0">No details on file.</div>';
+    return '<dl class="req-dl">' + rows.map(([k, v]) =>
+      '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>'
+    ).join('') + '</dl>';
+  }
+
+  function formatRequestSummary(r) {
+    const { lines } = plainRequested(r);
+    return lines.map(([k, v]) => k + ': ' + v).join(' · ');
+  }
+
   function renderRequests() {
     const el = $('#requestsList');
     const list = changeRequests || [];
@@ -659,37 +814,57 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       el.innerHTML = '<div class="empty">No pending customer change requests</div>';
       return;
     }
+    const autoApply = new Set([
+      'reschedule_request','address_update','cancellation','cancellation_request',
+      'package_change_request','addon_request','vehicle_add_request','vehicle_replace_request',
+    ]);
     el.innerHTML = list.map(r => {
-      const prev = esc(safeReqJson(r.previousState));
-      const next = esc(safeReqJson(r.requestedState));
-      const manual = !['reschedule_request','address_update','cancellation'].includes(r.requestType);
+      const prevRows = plainPrevious(r);
+      const req = plainRequested(r);
+      const manual = !autoApply.has(r.requestType);
+      const moneyChange = ['package_change_request','addon_request','discount_request'].includes(r.requestType);
+      const proposed = r.requestedState && r.requestedState.proposedTotal;
+      const title = requestTitle(r);
+      const techId = 'req-tech-' + String(r.id || '').replace(/[^\w-]/g, '');
       return '<div class="req-box" data-req="'+esc(r.id)+'">'+
-        '<h5>'+esc(r.typeLabel || r.requestType)+' · <span style="font-family:monospace;font-size:11px">'+esc(r.shortId || r.id)+'</span></h5>'+
-        '<div style="font-size:12px;color:var(--mu);margin-bottom:6px">Booking: <code>'+esc(r.bookingId)+'</code> · '+dt(r.createdAt)+' · '+esc(r.status)+'</div>'+
-        (manual ? '<div style="font-size:11px;color:var(--warn);margin-bottom:6px">Manual review required after approval</div>' : '')+
-        '<div style="font-size:11px;color:var(--mu);margin-bottom:4px"><b>Previous:</b> '+prev+'</div>'+
-        '<div style="font-size:11px;color:var(--mu);margin-bottom:8px"><b>Requested:</b> '+next+'</div>'+
-        (r.customerVisibleResult ? '<div style="font-size:11px;margin-bottom:8px">Customer: '+esc(r.customerVisibleResult)+'</div>' : '')+
-        '<div class="actions">'+
+        '<h5 style="font-size:15px;margin-bottom:4px">'+esc(title)+'</h5>'+
+        '<div style="font-size:12px;color:var(--mu);margin-bottom:8px">Booking <code>'+esc(r.bookingId)+'</code> · '+dt(r.createdAt)+' · '+esc(r.status || 'pending')+'</div>'+
+        (manual
+          ? '<div class="req-pill warn">Needs manual follow-up after approve</div>'
+          : '<div class="req-pill ok">Approving updates the booking automatically</div>')+
+        (moneyChange && proposed != null
+          ? '<div class="req-money">New total if approved: <strong>'+esc(moneyLabel(proposed))+'</strong></div>'
+          : '')+
+        (req.warnings || []).map(w => '<div class="req-warn">⚠ '+esc(w)+'</div>').join('')+
+        '<div class="req-cols">'+
+          '<div class="req-col"><div class="req-col-h">Currently on booking</div>'+dlRows(prevRows)+'</div>'+
+          '<div class="req-col req-col-new"><div class="req-col-h">Customer is asking for</div>'+dlRows(req.lines)+'</div>'+
+        '</div>'+
+        (r.customerVisibleResult ? '<div class="hint" style="margin-top:8px">Last customer message: '+esc(r.customerVisibleResult)+'</div>' : '')+
+        '<details class="req-tech"><summary>Technical details (optional)</summary>'+
+          '<div class="hint" style="margin-top:6px">Request ID: <code>'+esc(r.shortId || r.id)+'</code> · Type: <code>'+esc(r.requestType)+'</code></div>'+
+          '<pre class="req-pre">'+esc(safeReqJson({ previous: r.previousState, requested: r.requestedState }))+'</pre>'+
+        '</details>'+
+        '<div class="actions" style="margin-top:12px">'+
         '<button type="button" class="btn sm req-approve" data-id="'+esc(r.id)+'">Approve</button>'+
         '<button type="button" class="btn ghost sm req-reject" data-id="'+esc(r.id)+'">Reject</button>'+
-        '<button type="button" class="btn ghost sm req-clarify" data-id="'+esc(r.id)+'">Request clarification</button>'+
+        '<button type="button" class="btn ghost sm req-clarify" data-id="'+esc(r.id)+'">Ask customer for clarification</button>'+
         '<button type="button" class="btn ghost sm req-open" data-bid="'+esc(r.bookingId)+'">Open booking</button>'+
-        '<button type="button" class="btn ghost sm req-pay" data-bid="'+esc(r.bookingId)+'">Confirm pay link</button>'+
+        '<button type="button" class="btn ghost sm req-pay" data-bid="'+esc(r.bookingId)+'">Copy pay link if present</button>'+
         '</div></div>';
     }).join('');
 
     el.querySelectorAll('.req-approve').forEach(b => b.onclick = async () => {
       const id = b.dataset.id;
       const r = list.find(x => x.id === id);
-      const msg = r && !['reschedule_request','address_update','cancellation'].includes(r.requestType)
-        ? 'This request type requires manual follow-up after approval. Continue?'
-        : 'Approve this customer request?';
+      const msg = r && !autoApply.has(r.requestType)
+        ? 'This request still needs manual follow-up after approval. Continue?'
+        : 'Approve this request and update the booking?';
       if (!confirm(msg)) return;
       b.disabled = true;
       try {
         await decideChangeRequest(id, 'approve');
-        toast('Request approved');
+        toast('Request approved — booking updated');
         await refreshAll();
       } catch(e) { toast(e.message); b.disabled = false; }
     });
@@ -705,7 +880,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       } catch(e) { toast(e.message); b.disabled = false; }
     });
     el.querySelectorAll('.req-clarify').forEach(b => b.onclick = async () => {
-      const note = prompt('Clarification message:');
+      const note = prompt('Clarification message for the customer:');
       if (!note) return;
       b.disabled = true;
       try {
@@ -718,8 +893,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     el.querySelectorAll('.req-pay').forEach(b => b.onclick = async () => {
       try {
         const d = await api('/.netlify/functions/admin-customer-requests', 'POST', { action: 'generate_pay_link', bookingId: b.dataset.bid });
-        if (d.payLink) { await navigator.clipboard.writeText(d.payLink).catch(()=>{}); toast('Approved pay link copied'); }
-        else toast(d.message || 'No pay link on file');
+        if (d.payLink) { await navigator.clipboard.writeText(d.payLink).catch(()=>{}); toast('Existing pay link copied'); }
+        else toast(d.message || 'No link yet — open job drawer → Generate Stripe link');
       } catch(e) { toast(e.message); }
     });
   }
@@ -932,7 +1107,20 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     } catch(e) { toast('Action failed: '+e.message); throw e; }
   }
 
-  function openDrawer(id) {
+  async function openDrawer(id) {
+    // Strong read + provider reconcile so Admin money matches Customer after Stripe pay.
+    try {
+      const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'get_job',bookingId:id});
+      if (d && d.job) {
+        const idx = jobs.findIndex(x => x.id===id);
+        if (idx >= 0) jobs[idx] = d.job;
+        else jobs.unshift(d.job);
+        if (d.reconciled) {
+          toast('Payment reconciled from Stripe');
+          renderJobs(); renderOverview(); renderCompleted();
+        }
+      }
+    } catch (e) { /* fall back to list cache */ }
     const j = jobs.find(x => x.id===id);
     if (!j) return;
     activeJob = j;
@@ -1022,28 +1210,57 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     html += '<div class="sec"><h4>Dispatch</h4><div class="actions">'+
       '<button type="button" class="btn sm" id="dPostAuc">Post to auction</button>'+
       '<button type="button" class="btn ghost sm" id="dAssignWin">Assign auction winner</button></div></div>';
-    html += '<div class="sec"><h4>Payment workflow</h4><div style="margin-bottom:10px">'+payBadge(j.paymentWorkflowStatus)+
-      (j.payLink?' <a href="'+esc(j.payLink)+'" target="_blank" rel="noopener">Pay link</a>':'')+
+    const invPaid = !!(j.invoicePaid || j.financialPaymentStatus==='paid' || j.paymentWorkflowStatus==='payment_succeeded' || j.paymentWorkflowStatus==='cash_paid' || (Number(j.remainingCents||0)===0 && Number(j.settledCents||0)>0));
+    const balDue = invPaid ? 0 : Number(j.remainingCents!=null ? j.remainingCents/100 : (j.amountDueApproved||0));
+    const paidAmt = Number(j.amountPaid!=null ? j.amountPaid : ((j.settledCents||0)/100));
+    const canGenLink = !invPaid && balDue > 0 && j.canGeneratePayLink !== false;
+    const stripeRef = j.stripeCheckoutSessionIdPrefix || j.paymentIntentIdPrefix || '';
+    html += '<div class="sec"><h4>Invoice / Payment</h4>'+
+      '<div style="margin-bottom:10px">'+payBadge(invPaid?'payment_succeeded':j.paymentWorkflowStatus)+
+      (invPaid?' <strong style="color:var(--ok)">· PAID / CLOSED</strong>':' <strong>· Balance due</strong>')+
+      (j.payLink && !invPaid?' <a href="'+esc(j.payLink)+'" target="_blank" rel="noopener">Pay link</a>':'')+
       (j.policyChargeStatus?(' · Policy charge: '+esc(j.policyChargeStatus)+(j.policyChargeAmount?' $'+j.policyChargeAmount:'')):'' )+'</div>'+
+      '<div class="kv" style="margin-bottom:10px">'+
+      '<div><b>Approved total:</b> $'+esc(String(Number(j.approvedFinalAmount!=null?j.approvedFinalAmount:(j.approvedCents||0)/100).toFixed(2)))+'</div>'+
+      '<div><b>Paid:</b> $'+esc(String(paidAmt.toFixed(2)))+'</div>'+
+      '<div><b>Balance:</b> $'+esc(String(Math.max(0,balDue).toFixed(2)))+'</div>'+
+      (stripeRef?'<div><b>Stripe:</b> '+esc(stripeRef)+'…</div>':'')+
+      '</div>'+
+      (invPaid?'<p class="hint">Stripe settlement closed this invoice automatically. Do not generate another pay link.</p>':'')+
       '<div class="op-grid">'+
       '<div class="full"><label>Payment preference</label><select id="dPayPref">'+
       ['cash_on_site','card_on_site','online_after_service','card_on_file'].map(p=>'<option value="'+p+'"'+(j.paymentMethodPreference===p?' selected':'')+'>'+p.replace(/_/g,' ')+'</option>').join('')+
       '</select></div>'+
       '<div class="full"><button type="button" class="btn ghost sm" id="dSavePref" style="width:100%">Update payment preference</button></div>'+
-      '<div class="full"><label>Payment link URL (Stripe Checkout)</label><input type="url" id="dPayLink" placeholder="https://..." value="'+esc(j.payLink||'')+'"></div>'+
+      '<div class="full"><label>Authoritative Stripe Checkout URL</label><input type="url" id="dPayLink" placeholder="Generated by Stripe…" value="'+esc(j.payLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
+      '<div class="full"><label>Manual external reference (optional, not Checkout)</label><input type="url" id="dManualPayRef" placeholder="https://… external note only" value="'+esc(j.manualPayLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
       '<div class="full actions">'+
-      '<button type="button" class="btn sm" id="dGenPayLink">Generate Stripe link</button>'+
-      '<button type="button" class="btn ghost sm" id="dCopyPayLink">Copy link</button>'+
-      '<button type="button" class="btn ghost sm" id="dSetPayLink">Save manual link</button>'+
+      '<button type="button" class="btn sm" id="dGenPayLink"'+(canGenLink?'':' disabled title="Invoice paid or zero balance"')+'>Generate Stripe link</button>'+
+      '<button type="button" class="btn ghost sm" id="dReconcileStripe">Reconcile with Stripe</button>'+
+      '<button type="button" class="btn ghost sm" id="dCopyPayLink">Copy Stripe link</button>'+
+      '<button type="button" class="btn ghost sm" id="dSetPayLink"'+(canGenLink?'':' disabled')+'>Save manual reference</button>'+
       '</div>'+
+      '<p class="hint">Generate Stripe link creates Checkout for recovery. Reconcile with Stripe is idempotent and uses the same settlement path as the webhook. Manual reference is notes-only.</p>'+
+      (!canGenLink?'<p class="hint" id="dGenPayHint">'+(invPaid?'Generate link blocked — invoice already paid.':'Generate link blocked — no remaining balance.')+'</p>':'')+
       '<div class="full actions" style="margin-top:4px">'+
-      '<button type="button" class="btn warn sm" id="dChargeNoShow">Charge no-show ($75)</button>'+
-      '<button type="button" class="btn warn sm" id="dChargeLateCancel">Charge late cancel ($50)</button>'+
+      (() => {
+        const js = String(j.jobStatus||'');
+        const cancelled = js==='cancelled' || String(j.appointmentStatus||'').toLowerCase().indexOf('cancel')>=0 || String(j.cancellationRequestStatus||'')==='approved';
+        const completed = /completed_/.test(js);
+        const policyBlocked = cancelled || completed;
+        const title = policyBlocked ? (cancelled?'Blocked — appointment cancelled':'Blocked — job completed') : '';
+        return '<button type="button" class="btn warn sm" id="dChargeNoShow"'+(policyBlocked?' disabled title="'+title+'"':'')+'>Charge no-show ($75)</button>'+
+          '<button type="button" class="btn warn sm" id="dChargeLateCancel"'+(policyBlocked?' disabled title="'+title+'"':'')+'>Charge late cancel ($50)</button>';
+      })()+
       '</div>'+
-      '<p class="hint">Policy charges use card on file (off-session). Requires saved Stripe payment method on booking.</p>'+
+      '<p class="hint">Policy charges use card on file (off-session). Blocked after job completed or cancelled within terms.</p>'+
       '<div class="full"><label>Refund note</label><input type="text" id="dRefundNote" placeholder="Reason for refund request"></div>'+
       '<div><label>Refund amount ($)</label><input type="number" id="dRefundAmt" step="0.01"></div>'+
-      '<div class="full"><button type="button" class="btn warn sm" id="dRefund" style="width:100%">Log refund request</button></div>'+
+      '<div class="full actions">'+
+      '<button type="button" class="btn warn sm" id="dRefund">Log refund request</button>'+
+      '<button type="button" class="btn ghost sm" id="dMarkRefunded"'+(j.paymentWorkflowStatus==='refunded'?' disabled':'')+'>Mark refunded</button>'+
+      '</div>'+
+      (j.paymentWorkflowStatus==='refunded'||j.refundStatus==='refunded'?'<p class="hint">Payment status: refunded</p>':'')+
       '<div class="full actions" style="margin-top:8px">'+
       '<button type="button" class="btn ghost sm" id="dMarkCash">Mark cash received</button>'+
       '<button type="button" class="btn ghost sm" id="dMarkCardSite">Record card on-site</button>'+
@@ -1141,13 +1358,40 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const dpa = $('#dPostAuc'); if(dpa) dpa.onclick = () => jobAction(j.id,'post_to_auction');
     const daw = $('#dAssignWin'); if(daw) daw.onclick = () => jobAction(j.id,'assign_auction_winner');
     const dsp = $('#dSavePref'); if(dsp) dsp.onclick = () => jobAction(j.id,'update_payment_preference',{paymentMethodPreference:$('#dPayPref').value});
-    const dspl = $('#dSetPayLink'); if(dspl) dspl.onclick = () => jobAction(j.id,'set_payment_link',{payLink:$('#dPayLink').value.trim()});
+    const dspl = $('#dSetPayLink'); if(dspl) dspl.onclick = async () => {
+      try {
+        const url = ($('#dManualPayRef') && $('#dManualPayRef').value.trim()) || ($('#dPayLink').value||'').trim();
+        if(!url){ toast('Paste an external reference URL first'); return; }
+        const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'set_payment_link',bookingId:j.id,payLink:url});
+        toast(d.note || 'Manual reference saved (not authoritative)');
+        await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id);
+      } catch(e){ toast(e.message); }
+    };
     const dgpl = $('#dGenPayLink'); if(dgpl) dgpl.onclick = async () => {
       try {
-        const amt = prompt('Charge amount ($) — leave blank for booking total', j.totalPrice || '');
-        const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'generate_stripe_pay_link',bookingId:j.id,amount:amt?Number(amt):undefined});
-        if(d.url){ $('#dPayLink').value = d.url; await navigator.clipboard.writeText(d.url).catch(()=>{}); toast('Stripe link generated & copied'); await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id); }
-      } catch(e){ toast(e.message); }
+        if(dgpl.disabled){ toast('Invoice paid or zero balance — link not created.'); return; }
+        if(!confirm('Generate Stripe Checkout for the authoritative remaining balance? Amount cannot be overridden.')) return;
+        const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'generate_stripe_pay_link',bookingId:j.id});
+        if(d.reused){ toast('Reusing open Stripe link · $'+(d.amountDueApproved!=null?d.amountDueApproved:(d.remainingCents/100))); }
+        if(d.url){ $('#dPayLink').value = d.url; await navigator.clipboard.writeText(d.url).catch(()=>{}); toast((d.reused?'Existing':'Stripe')+' link ready · $'+(d.amountDueApproved!=null?d.amountDueApproved:(d.remainingCents/100))); await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id); }
+      } catch(e){ toast(e.message || 'Could not generate pay link'); }
+    };
+    const drec = $('#dReconcileStripe'); if(drec) drec.onclick = async () => {
+      try {
+        drec.disabled = true;
+        const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'reconcile_with_stripe',bookingId:j.id});
+        if(d.ok && d.projection && d.projection.paymentStatus==='paid'){
+          toast('Reconciled — invoice paid · remaining $0');
+        } else if(d.ok && d.skipped){
+          toast('Reconcile skipped: '+(d.reason||'no open payment'));
+        } else if(d.ok){
+          toast('Reconcile complete · status '+(d.projection&&d.projection.paymentStatus||'updated'));
+        } else {
+          toast(d.reason || d.error || 'Reconcile failed');
+        }
+        await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id);
+      } catch(e){ toast(e.message || 'Reconcile failed'); }
+      finally { drec.disabled = false; }
     };
     const dcpl = $('#dCopyPayLink'); if(dcpl) dcpl.onclick = async () => {
       const u = ($('#dPayLink').value||'').trim();
@@ -1155,14 +1399,30 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       try { await navigator.clipboard.writeText(u); toast('Link copied'); } catch(e){ prompt('Copy link:', u); }
     };
     const dcns = $('#dChargeNoShow'); if(dcns) dcns.onclick = async () => {
+      if(dcns.disabled){ toast('Policy fee blocked — job completed or cancelled.'); return; }
       if(!confirm('Charge $75 no-show fee to card on file?')) return;
       try { const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'charge_policy_fee',bookingId:j.id,feeType:'no_show',amount:75}); toast('Charge '+d.status+' · $'+d.amount); await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id); } catch(e){ toast(e.message); }
     };
     const dclc = $('#dChargeLateCancel'); if(dclc) dclc.onclick = async () => {
+      if(dclc.disabled){ toast('Policy fee blocked — job completed or cancelled.'); return; }
       if(!confirm('Charge $50 late-cancellation fee to card on file?')) return;
       try { const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'charge_policy_fee',bookingId:j.id,feeType:'late_cancel',amount:50}); toast('Charge '+d.status+' · $'+d.amount); await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id); } catch(e){ toast(e.message); }
     };
     const drf = $('#dRefund'); if(drf) drf.onclick = () => jobAction(j.id,'record_refund_request',{reason:$('#dRefundNote').value.trim(),amount:$('#dRefundAmt').value});
+    const dmr = $('#dMarkRefunded'); if(dmr) dmr.onclick = async () => {
+      if(!confirm('Mark this invoice as refunded? Payment badge will change from payment_succeeded to refunded.')) return;
+      try {
+        await api('/.netlify/functions/admin-ops-jobs','POST',{
+          action:'mark_refunded',
+          bookingId:j.id,
+          reason:($('#dRefundNote')&&$('#dRefundNote').value.trim())||'admin_marked_refunded',
+          amount:$('#dRefundAmt')&&$('#dRefundAmt').value,
+        });
+        toast('Marked refunded');
+        await refreshAll();
+        if(activeJob&&activeJob.id===j.id) openDrawer(j.id);
+      } catch(e){ toast(e.message); }
+    };
     const dsb = $('#dSaveBal'); if(dsb) dsb.onclick = () => jobAction(j.id,'record_job_balance',{finalAmount:$('#dFinalAmt').value,techPayoutAmount:$('#dTechPay').value});
     const doa = $('#dOfferApply'); if(doa) doa.onclick = () => { const r=prompt('Reason (required for override if ineligible):')||''; jobAction(j.id,'apply_welcome_offer',{reason:r,forceEligible:!!r}); };
     const dor = $('#dOfferRemove'); if(dor) dor.onclick = () => { const r=prompt('Reason for removing offer (required):'); if(r) jobAction(j.id,'remove_welcome_offer',{reason:r}); };

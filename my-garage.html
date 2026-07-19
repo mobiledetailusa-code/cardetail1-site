@@ -46,11 +46,33 @@ ul.clean li{padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}
 .bar h2{font-size:18px;font-weight:800}
 .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:3000;padding:16px}
 .modal-ov.open{display:flex}
-.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:22px;max-width:420px;width:100%}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:22px;max-width:520px;width:100%;max-height:90vh;overflow:auto}
 .modal h4{font-size:16px;margin-bottom:12px}
 .modal label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+.modal .hint,.hint{font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.45}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a2a3a;border:1px solid var(--border);padding:10px 16px;border-radius:10px;font-size:13px;z-index:4000;opacity:0;transition:opacity .2s}
 .toast.show{opacity:1}
+.toast.err{border-color:#f87171;color:#fecaca}
+.pack-desc{font-size:13px;color:var(--muted);margin:-6px 0 14px;line-height:1.45}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.modal-catalog{display:flex;flex-direction:column;gap:8px;margin:8px 0 12px;max-height:42vh;overflow:auto}
+.catalog-option{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;margin:0;color:var(--text)}
+.catalog-option:has(input:checked){border-color:var(--blue);background:rgba(77,163,255,.08)}
+.catalog-option input{margin-top:3px;flex-shrink:0}
+.opt-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.opt-name{font-size:14px;font-weight:700}
+.opt-price{font-size:13px;color:var(--blue);font-weight:600}
+.opt-meta,.opt-desc{font-size:12px;color:var(--muted);line-height:1.4}
+.modal-live-total{font-size:14px;font-weight:700;margin-top:8px;color:var(--text)}
+.pending-req .req-status{color:var(--blue);font-size:12px;text-transform:uppercase}
+.pending-req .req-detail,.pending-req .req-note{font-size:13px;color:var(--muted);margin-top:4px}
+.pay-card{margin-top:4px}
+#pay-balance-link.is-disabled{opacity:.45;pointer-events:none}
+.length-box{margin:10px 0 14px;padding:12px;border:1px solid var(--border);border-radius:10px;background:#0e0e14}
+.length-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.length-row input[type=range]{flex:1;min-width:140px}
+.length-num{width:88px;margin:0}
+.length-val{font-weight:700;color:var(--blue);min-width:52px}
 @media(max-width:430px){.wrap{padding:16px 12px 40px}.panel{padding:18px}}
 </style>
 <script>
@@ -75,12 +97,15 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
     <section class="panel" id="lookup">
       <h2>Find your booking</h2>
       <p class="sub">Limited access — view and manage one appointment with booking ID + phone.</p>
-      <form id="lk-form">
+      <form id="lk-form" autocomplete="off">
         <label for="lk-booking-id" class="sub">Booking ID</label>
-        <input class="inp" id="lk-booking-id" name="bookingId" autocomplete="off" placeholder="CD1-…" required>
+        <input class="inp" id="lk-booking-id" name="bookingId" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CD1-…" required>
         <label for="lk-phone" class="sub">Phone on booking</label>
-        <input class="inp" id="lk-phone" name="phone" type="tel" autocomplete="tel" placeholder="(551) 313-2956" required>
-        <button type="submit" class="btn primary">View booking</button>
+        <input class="inp" id="lk-phone" name="phone" type="tel" autocomplete="off" inputmode="tel" placeholder="(551) 313-2956" required>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px">
+          <button type="submit" class="btn primary">View booking</button>
+          <button type="button" class="btn ghost" id="lk-clear">Clear / different booking</button>
+        </div>
       </form>
       <p id="lk-error" class="msg err" hidden></p>
     </section>
@@ -103,7 +128,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
   <div id="post-auth" hidden style="display:none">
     <div class="bar">
       <h2>Dashboard</h2>
-      <button type="button" class="btn ghost" id="btn-logout">Sign out</button>
+      <button type="button" class="btn ghost" id="btn-logout">Sign out / switch booking</button>
     </div>
 
     <section class="section" aria-labelledby="upcoming-h">
@@ -124,6 +149,11 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
         <a class="btn ghost" href="index.html">Rebook Service</a>
         <a class="btn ghost" href="tel:5513132956">Contact Cardetail1</a>
       </div>
+    </section>
+
+    <section class="section" id="pending-requests-section" hidden>
+      <h3>Pending requests</h3>
+      <ul class="clean" id="pending-requests-list"></ul>
     </section>
 
     <section class="section" aria-labelledby="appt-h">
@@ -148,12 +178,25 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 
     <section class="section" aria-labelledby="maint-h">
       <h3 id="maint-h">Maintenance Plans</h3>
-      <p id="maintenance-empty" class="empty">No active maintenance plan on file. Ask about a Garage Plan when booking.</p>
+      <p id="maintenance-empty" class="empty">No active maintenance plan on file. Choose frequency + package to request a plan.</p>
+      <ul class="clean" id="maintenance-list"></ul>
     </section>
 
     <section class="section" id="payments" aria-labelledby="pay-h">
       <h3 id="pay-h">Payments &amp; Receipts</h3>
-      <p id="payments-empty" class="empty">No balance due. Approved payment links appear on your upcoming appointment when ready.</p>
+      <p id="payments-empty" class="empty">No balance due. When a balance is approved, Pay Balance opens secure card payment in this page (Stripe Payment Element).</p>
+      <div id="payments-panel"></div>
+      <div id="embedded-pay-panel" class="panel pay-card" hidden>
+        <p class="card-kicker">Secure payment</p>
+        <p class="sub" id="embedded-pay-amount">Pay the approved balance without leaving My Garage.</p>
+        <div id="payment-element"></div>
+        <div class="actions" style="margin-top:14px">
+          <button type="button" class="btn primary" id="embedded-pay-submit">Pay now</button>
+          <button type="button" class="btn ghost" id="embedded-pay-cancel">Cancel</button>
+          <button type="button" class="btn ghost" id="embedded-pay-checkout-fallback" hidden>Open hosted Checkout</button>
+        </div>
+        <p id="embedded-pay-msg" class="msg" hidden></p>
+      </div>
     </section>
 
     <section class="section" aria-labelledby="comm-h">
@@ -176,9 +219,10 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 </div>
 <div class="toast" id="portal-toast" role="status" aria-live="polite"></div>
 
+<script src="https://js.stripe.com/v3/"></script>
 <script src="assets/portal-analytics.js" defer></script>
 <script src="assets/operational-refresh.js" defer></script>
-<script src="assets/my-garage.js" defer></script>
+<script src="assets/my-garage.js?v=20260718-portal5" defer></script>
 <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>

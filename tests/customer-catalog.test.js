@@ -25,5 +25,7 @@ describe('customer-catalog', () => {
     const cat = catalogForClient();
     assert.equal(cat.subscriberDiscountPct, 10);
     assert.ok(cat.packages.some(p => p.id === 'full' && p.monthlyPrice === 270));
+    assert.ok(cat.packagesByCategory.boats.length >= 3);
+    assert.ok(cat.lengthPricing.rvs.defaultFt > 0);
   });
 });

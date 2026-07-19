@@ -291,7 +291,9 @@ test('create-setup-intent preserves rate limiting hook', () => {
 test('create-setup-intent preserves Stripe SetupIntent parameters', () => {
   const src = require('fs').readFileSync(SETUP_PATH, 'utf8');
   assert.match(src, /usage:\s+'off_session'/);
-  assert.match(src, /automatic_payment_methods\[enabled\]/);
+  // Release A: card-only contract (matches my-garage-portal.test.js) — no automatic_payment_methods
+  assert.match(src, /payment_method_types\[0\]/);
+  assert.doesNotMatch(src, /automatic_payment_methods/);
   assert.match(src, /metadata\[bookingId\]/);
   assert.doesNotMatch(src, /\/v1\/payment_intents/);
 });
@@ -338,7 +340,8 @@ test('create-setup-intent valid token + eligible draft reaches Stripe SetupInten
     const siCall = calls.find((c) => String(c.url).includes('/v1/setup_intents'));
     assert.ok(siCall);
     assert.match(String(siCall.body), /usage=off_session/);
-    assert.match(String(siCall.body), /automatic_payment_methods%5Benabled%5D=true/);
+    assert.match(String(siCall.body), /payment_method_types%5B0%5D=card/);
+    assert.doesNotMatch(String(siCall.body), /automatic_payment_methods/);
     assert.match(String(siCall.body), /metadata%5BbookingId%5D=CD1-OK/);
   } finally {
     global.fetch = originalFetch;
@@ -448,10 +451,22 @@ test('draft update issues a fresh valid token', () => {
   );
 });
 
-test('final booking response does not include draftSaveToken in handler source', () => {
+test('finalize requires draftSaveToken and response does not re-issue it', () => {
+  // Release A (PDA-14): finalize must verify scoped draftSaveToken; success body must not re-issue one.
   const src = require('fs').readFileSync(SUBMIT_PATH, 'utf8');
-  const finalizeBlock = src.slice(src.indexOf('// ── Draft finalization'), src.indexOf('// ── New booking'));
-  assert.doesNotMatch(finalizeBlock, /draftSaveToken/);
+  const finalizeStart = src.indexOf('// ── Draft finalization');
+  const newBookingStart = src.indexOf('// ── New booking');
+  assert.ok(finalizeStart >= 0 && newBookingStart > finalizeStart);
+  const finalizeBlock = src.slice(finalizeStart, newBookingStart);
+  assert.match(finalizeBlock, /verifyDraftSaveToken/);
+  assert.match(finalizeBlock, /draft_token_invalid/);
+  assert.match(finalizeBlock, /draftSaveTokenRevokedAt/);
+  // Success return in finalize path must not call issueDraftSaveResponse / return draftSaveToken fields
+  assert.doesNotMatch(finalizeBlock, /issueDraftSaveResponse/);
+  const successReturn = finalizeBlock.match(/return json\(200,\s*\{[\s\S]*?\}\);/g) || [];
+  for (const ret of successReturn) {
+    assert.doesNotMatch(ret, /draftSaveToken:/);
+  }
 });
 
 test('create-setup-intent verifies token against draft phone, not request phone', () => {

@@ -149,11 +149,15 @@ test('appointment status policy blocks in-progress changes', () => {
   assert.equal(result.requiresCall, true);
 });
 
-test('confirmed changes require approval flag', () => {
+test('confirmed pack/address/cancel auto-apply without admin approval', () => {
   const booking = { status: 'Confirmed', jobStatus: 'confirmed' };
-  const result = canRequestChange(booking, 'package_change');
-  assert.equal(result.ok, true);
-  assert.equal(result.pendingApproval, true);
+  assert.equal(canRequestChange(booking, 'package_change').pendingApproval, false);
+  assert.equal(canRequestChange(booking, 'addon').pendingApproval, false);
+  assert.equal(canRequestChange(booking, 'address').pendingApproval, false);
+  assert.equal(canRequestChange(booking, 'cancel').pendingApproval, false);
+  assert.equal(canRequestChange(booking, 'vehicle_replace').pendingApproval, false);
+  // Reschedule still admin-gated
+  assert.equal(canRequestChange(booking, 'reschedule').pendingApproval, true);
 });
 
 test('auth token verify rejects replay', async () => {
@@ -173,4 +177,48 @@ test('package catalog unchanged in customer action', () => {
   const src = read('netlify/functions/submit-customer-action.js');
   assert.match(src, /customer-catalog/);
   assert.doesNotMatch(src, /PRICING\s*=/);
+});
+
+test('my-garage uses catalog selectors and customer-portal-pay', () => {
+  const js = read('assets/my-garage.js');
+  assert.match(js, /customer-portal-pay/);
+  assert.match(js, /newPackId/);
+  assert.match(js, /addonIds/);
+  assert.match(js, /maintenancePeriods|renderMaintenanceModal/);
+  assert.match(js, /startPayBalance/);
+  assert.doesNotMatch(js, /requestedAddons.*type: 'text'/);
+});
+
+test('my-garage login form is not stuck on last booking id', () => {
+  const js = read('assets/my-garage.js');
+  const html = read('my-garage.html');
+  // Form submit must prefer typed fields over sticky verifyBookingId
+  assert.match(js, /loadLimited\(\{\s*fromForm:\s*true\s*\}\)/);
+  assert.match(js, /opts\.fromForm\s*\?\s*formId/);
+  assert.match(js, /function clearLookupCredentials/);
+  // Must not auto-login from sessionStorage alone (that re-locked the last ID)
+  assert.match(js, /Never auto-login from sessionStorage alone/);
+  assert.match(js, /urlHasBooking/);
+  // Explicit clear control on login
+  assert.match(html, /id="lk-clear"/);
+  assert.match(html, /my-garage\.js\?v=/);
+  // Sign-out / typing clears sessionStorage
+  assert.match(js, /sessionStorage\.removeItem\('cd1_garage_id'\)/);
+  assert.match(js, /lk-booking-id[\s\S]*addEventListener\('input'/);
+});
+
+test('portal data excludes drafts and returns catalog + payment', () => {
+  const src = read('netlify/functions/customer-portal-data.js');
+  // Release A: centralized draft visibility via booking-visibility
+  assert.match(src, /isVisibleSubmittedBooking|isVisibleCustomerBooking/);
+  assert.match(src, /catalogForClient/);
+  assert.match(src, /safePaymentState/);
+  assert.match(src, /changeRequests/);
+});
+
+test('stripe checkout paths are card-only', () => {
+  assert.match(read('netlify/functions/customer-portal-pay.js'), /payment_method_types\[0\].*card|card only/i);
+  assert.match(read('netlify/functions/create-setup-intent.js'), /payment_method_types\[0\]/);
+  assert.doesNotMatch(read('netlify/functions/create-setup-intent.js'), /automatic_payment_methods/);
+  assert.doesNotMatch(read('netlify/functions/create-payment-intent.js'), /automatic_payment_methods/);
 });

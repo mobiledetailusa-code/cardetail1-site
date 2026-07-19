@@ -49,6 +49,7 @@ const {
 } = require('../lib/public-rate-limit');
 const {
   issueDraftSaveToken,
+  verifyDraftSaveToken,
   getDraftTokenSecretStatus,
 } = require('../lib/draft-save-token');
 const {
@@ -64,6 +65,10 @@ const {
 } = require('../lib/booking-offers');
 const { setOfferDeployHost, clearOfferDeployHost } = require('../lib/revenue-offers');
 const { sendNotificationsDecoupled, attachDeliveryToBooking } = require('../lib/notification-delivery');
+const {
+  reconcileCardOnFileFromStripe,
+  siIdPrefix,
+} = require('../lib/card-on-file');
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const v = validateBookingSchedule(b.preferredDate, b.preferredTime);
@@ -77,47 +82,6 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
     }
   }
   return { ok: true };
-}
-
-// Safe server-side fallback when webhook is delayed: verify SetupIntent with Stripe API.
-// Never trusts client proof — only persisted setupIntentId on the server-owned draft.
-async function reconcileCardOnFileFromStripe(store, existing) {
-  if (!existing || existing.cardOnFileStatus === 'saved') return existing;
-  const setupIntentId = String(existing.setupIntentId || '').trim();
-  if (!setupIntentId) return existing;
-
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret || !(secret.startsWith('sk_test_') || secret.startsWith('sk_live_'))) {
-    return existing;
-  }
-
-  try {
-    const res = await fetch(
-      `https://api.stripe.com/v1/setup_intents/${encodeURIComponent(setupIntentId)}`,
-      { headers: { Authorization: `Bearer ${secret}` } }
-    );
-    if (!res.ok) return existing;
-    const si = await res.json().catch(() => null);
-    if (!si || si.status !== 'succeeded') return existing;
-
-    const metaBooking = si.metadata && (si.metadata.bookingId || si.metadata.booking_id);
-    if (metaBooking && String(metaBooking) !== String(existing.id)) return existing;
-
-    const savedAt = existing.cardOnFileSavedAt || new Date().toISOString();
-    const updated = {
-      ...existing,
-      cardOnFileStatus: 'saved',
-      setupIntentId: si.id,
-      stripeCustomerId: si.customer || existing.stripeCustomerId || null,
-      stripePaymentMethodId: si.payment_method || existing.stripePaymentMethodId || null,
-      cardOnFileSavedAt: savedAt,
-      updatedAt: new Date().toISOString(),
-    };
-    await store.setJSON(existing.id, updated);
-    return updated;
-  } catch {
-    return existing;
-  }
 }
 
 let blobsStoreOverride = null;
@@ -470,6 +434,15 @@ exports.handler = async (event) => {
       if (!existing || !existing.isDraft) {
         return json(404, { ok: false, error: 'Draft booking not found' });
       }
+      const tokenCheck = verifyDraftSaveToken({
+        token: b.draftSaveToken,
+        bookingId: rawUpdateId,
+        phone: existing.phone || b.phone,
+      });
+      delete b.draftSaveToken;
+      if (!tokenCheck.ok) {
+        return json(401, { ok: false, error: 'draft_token_invalid' });
+      }
       draftId = rawUpdateId;
     } else {
       draftId = await newUniqueId(store);
@@ -494,11 +467,52 @@ exports.handler = async (event) => {
     delete b.draftBookingId;
     let existing = await store.get(rawDraftId, { type: 'json' }).catch(() => null);
     if (!existing) return json(404, { ok: false, error: 'Draft booking not found' });
-    if (!existing.isDraft) return json(409, { ok: false, error: 'Booking already finalized' });
+    if (!existing.isDraft) {
+      // Idempotent finalize: already submitted booking returns same id/version
+      if (existing.finalizedAt || existing.bookingVersion >= 1) {
+        return json(200, {
+          ok: true,
+          id: existing.id,
+          bookingVersion: existing.bookingVersion || 1,
+          idempotent: true,
+        });
+      }
+      return json(409, { ok: false, error: 'Booking already finalized' });
+    }
+    const finalizeTokenPresent = !!String(b.draftSaveToken || '').trim();
+    const tokenCheck = verifyDraftSaveToken({
+      token: b.draftSaveToken,
+      bookingId: rawDraftId,
+      phone: existing.phone || b.phone,
+    });
+    delete b.draftSaveToken;
+    if (!tokenCheck.ok) {
+      console.log('[submit-booking] finalize draft_token_invalid', {
+        draftBookingId: rawDraftId,
+        setupIntentIdPrefix: siIdPrefix(existing.setupIntentId),
+        cardOnFileStatus: existing.cardOnFileStatus || null,
+        tokenPresent: finalizeTokenPresent,
+        responseCode: 401,
+      });
+      return json(401, { ok: false, error: 'draft_token_invalid' });
+    }
+    const cofBefore = existing.cardOnFileStatus || 'pending';
     if (existing.cardOnFileStatus !== 'saved') {
       existing = await reconcileCardOnFileFromStripe(store, existing);
     }
+    console.log('[submit-booking] finalize card-on-file gate', {
+      draftBookingId: rawDraftId,
+      setupIntentIdPrefix: siIdPrefix(existing.setupIntentId),
+      cardOnFileStatusBefore: cofBefore,
+      cardOnFileStatusAfter: existing.cardOnFileStatus || null,
+    });
     if (existing.cardOnFileStatus !== 'saved') {
+      console.log('[submit-booking] finalize rejected card_on_file_not_saved', {
+        draftBookingId: rawDraftId,
+        setupIntentIdPrefix: siIdPrefix(existing.setupIntentId),
+        cardOnFileStatus: existing.cardOnFileStatus || null,
+        responseCode: 409,
+      });
       return json(409, {
         ok: false,
         error: 'card_on_file_not_saved',
@@ -525,8 +539,13 @@ exports.handler = async (event) => {
       id: rawDraftId,
       status: 'Pending Review',
       isDraft: false,
+      kind: 'booking',
+      schemaVersion: 1,
+      bookingVersion: 1,
+      quoteVersion: 1,
       createdAt: existing.createdAt,
       finalizedAt,
+      draftSaveTokenRevokedAt: finalizedAt,
       paymentMethod: preference,
       paymentMethodPreference: preference,
       cardOnFileRequired: true,
@@ -538,7 +557,9 @@ exports.handler = async (event) => {
       // Payment fields: trust Blobs, not the browser
       paymentStatus:        'no_payment_required_yet',
       appointmentStatus:    'pending_review',
-      jobStatus:            'not_started',
+      // pending_review (not not_started) so Admin + Customer share the same submitted lifecycle
+      jobStatus:            'pending_review',
+      portalReleasedAt:     finalizedAt,
       // Card-on-file fields: set by stripe-webhook (setup_intent.succeeded)
       cardOnFileStatus:     existing.cardOnFileStatus,
       setupIntentId:        existing.setupIntentId,
@@ -554,6 +575,11 @@ exports.handler = async (event) => {
     } catch (e) {
       return json(500, { ok: false, error: 'booking_store_failed' });
     }
+    // Prisma dual-write AFTER Blob finalize — fail-open; never affects checkout response.
+    try {
+      const { scheduleBookingMirror } = require('../lib/booking-prisma-mirror');
+      scheduleBookingMirror(b);
+    } catch { /* ignore */ }
 
     const delivery = await sendNotificationsDecoupled(b, {
       adminEmail: (booking) => sendEmail(booking).catch((e) => ({ sent: false, reason: e.message })),
@@ -563,10 +589,21 @@ exports.handler = async (event) => {
     const withDelivery = attachDeliveryToBooking(b, delivery);
     try {
       await store.setJSON(rawDraftId, withDelivery);
+      try {
+        const { scheduleBookingMirror } = require('../lib/booking-prisma-mirror');
+        scheduleBookingMirror(withDelivery);
+      } catch { /* ignore */ }
     } catch (e) {
       console.warn('[submit-booking] notification delivery persist failed:', e.message);
     }
 
+    console.log('[submit-booking] finalize ok', {
+      draftBookingId: b.id,
+      setupIntentIdPrefix: siIdPrefix(b.setupIntentId),
+      cardOnFileStatus: b.cardOnFileStatus || null,
+      responseCode: 200,
+      bookingVersion: b.bookingVersion || 1,
+    });
     return json(200, {
       ok: true,
       id: b.id,
@@ -579,6 +616,7 @@ exports.handler = async (event) => {
       notificationDelivery: delivery,
       appointmentStatus: b.appointmentStatus,
       cardOnFileStatus: b.cardOnFileStatus,
+      bookingVersion: b.bookingVersion || 1,
       offer: b.offer || null,
       approvedFinalAmount: b.approvedFinalAmount || b.totalPrice,
     });
@@ -597,4 +635,5 @@ exports.__test = {
   },
   buildDraftRecord,
   issueDraftSaveResponse,
+  reconcileCardOnFileFromStripe,
 };

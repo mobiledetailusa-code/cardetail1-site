@@ -282,6 +282,21 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/evaluate-booking-offer.js',
     'netlify/functions/admin-ops-jobs.js',
     'netlify/functions/qa-opscore-lifecycle.js',
+    // Release A — canonical aggregate / payments
+    'netlify/functions/create-payment-intent.js',
+    'netlify/functions/create-payment-link.js',
+    'netlify/functions/capture-payment.js',
+    'netlify/functions/customer-subscription-checkout.js',
+    'netlify/functions/customer-bookings.js',
+    'netlify/functions/customer-portal-pay.js',
+    'netlify/functions/stripe-webhook.js',
+    'netlify/functions/list-bookings.js',
+    // Phase 2/3 Postgres foundation — additive, non-sensitive health endpoint.
+    'netlify/functions/db-health.js',
+    // Operational Postgres payment wiring.
+    'netlify/functions/customer-balance-payment-intent.js',
+    'netlify/functions/customer-portal-data.js',
+    'netlify/functions/admin-ops-jobs.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);

@@ -13,7 +13,7 @@ const JOB_STATUSES = [
 
 const PAYMENT_WORKFLOW_STATUSES = [
   'no_payment_required_yet', 'pending_admin_review', 'awaiting_customer_payment',
-  'payment_action_required', 'payment_succeeded', 'payment_failed', 'cash_paid',
+  'payment_action_required', 'payment_succeeded', 'payment_failed', 'cash_paid', 'refunded',
 ];
 
 const LEGACY_STATUS_TO_JOB = {
@@ -26,6 +26,7 @@ const LEGACY_STATUS_TO_JOB = {
   'Problem': 'issue_reported',
   'Completed': 'completed_pending_admin_review',
   'Paid': 'completed_paid',
+  'Closed': 'completed_paid',
   'Cancelled': 'cancelled',
   'Canceled': 'cancelled',
   'Cancellation Requested': 'pending_review',
@@ -65,6 +66,20 @@ function normalizeJobStatus(booking) {
 
 function normalizePaymentWorkflowStatus(booking) {
   const b = booking || {};
+  // Authoritative money projection beats a stale stored workflow label.
+  try {
+    const { financialProjection } = require('./payment-service');
+    const fp = financialProjection(b);
+    if (fp.paymentStatus === 'refunded') return 'refunded';
+    if (fp.paymentStatus === 'paid') {
+      return b.paymentWorkflowStatus === 'cash_paid' ? 'cash_paid' : 'payment_succeeded';
+    }
+    if (fp.paymentStatus === 'failed') return 'payment_failed';
+    if (fp.paymentStatus === 'processing' || fp.paymentStatus === 'due') {
+      return fp.paymentWorkflowStatus || 'awaiting_customer_payment';
+    }
+  } catch { /* fall through for non-aggregate records */ }
+
   if (b.paymentWorkflowStatus) return b.paymentWorkflowStatus;
   const js = normalizeJobStatus(b);
   if (js === 'completed_pending_admin_review') return 'pending_admin_review';
@@ -80,70 +95,123 @@ function legacyDisplayStatus(booking) {
 }
 
 function projectBookingForCustomer(b) {
-  const jobStatus = normalizeJobStatus(b);
-  const paymentWorkflowStatus = normalizePaymentWorkflowStatus(b);
-  const status = legacyDisplayStatus(b);
+  const { adaptHistoricalBooking } = require('./historical-adapter');
+  const { materialProjection, remainingCents } = require('./booking-aggregate');
+  const { computeDue } = require('./portal-money-sync');
+  const adapted = adaptHistoricalBooking(b);
+  const src = adapted.ok && adapted.booking ? adapted.booking : b;
+  const jobStatus = normalizeJobStatus(src);
+  const paymentWorkflowStatus = normalizePaymentWorkflowStatus(src);
+  const status = legacyDisplayStatus(src);
+  const pack = src.package
+    || (typeof src.service === 'string' ? src.service : '')
+    || src.serviceLabel
+    || '';
+  const paid = Number(src.amountPaid || src.paidAmount || 0);
+  const approved = Number(
+    src.approvedFinalAmount != null ? src.approvedFinalAmount : (src.totalPrice || src.total_price || 0)
+  );
+  const amountDueApproved = computeDue(src);
+  const material = materialProjection(src) || {};
+  const vehiclesArr = Array.isArray(src.vehicles) ? src.vehicles : [];
+  const addonsArr = Array.isArray(src.addons) ? src.addons : [];
   return {
-    id: b.id,
+    id: src.id || src.bookingId,
+    bookingVersion: material.bookingVersion ?? src.bookingVersion ?? 0,
+    schemaVersion: material.schemaVersion ?? src.schemaVersion ?? 0,
+    quoteVersion: material.quoteVersion ?? src.quoteVersion ?? 0,
+    approvedCents: material.approvedCents,
+    settledCents: material.settledCents,
+    remainingCents: material.remainingCents ?? remainingCents(src.ledger || {}),
     status,
     jobStatus,
     paymentWorkflowStatus,
-    appointmentStatus: b.appointmentStatus || (jobStatus === 'cancelled' ? 'canceled' : jobStatus === 'confirmed' ? 'confirmed' : 'pending_review'),
-    package: b.package || b.service || '',
-    service: b.package || b.service || '',
-    vehicle: b.vehicle || b.vehicleCategory || '',
-    vehicleLabel: b.vehicleLabel || b.vehicle || '',
-    vehicles: (b.vehicles || []).map(v => ({
+    appointmentStatus: src.appointmentStatus || (jobStatus === 'cancelled' ? 'canceled' : jobStatus === 'confirmed' ? 'confirmed' : 'pending_review'),
+    package: pack,
+    service: pack,
+    packageId: src.packageId || src.pkgId
+      || (vehiclesArr[0] && (vehiclesArr[0].packageId || vehiclesArr[0].pkgId)) || '',
+    packageDescription: src.packageDescription || src.pkgTag || src.packageTag || '',
+    packageDuration: src.packageDuration || src.pkgDuration || '',
+    vehicle: src.vehicle || src.vehicleCategory || '',
+    vehicleLabel: src.vehicleLabel || src.vehicle || '',
+    vehicleYear: src.vehicleYear || '',
+    vehicleMake: src.vehicleMake || src.make || '',
+    vehicleModel: src.vehicleModel || src.model || '',
+    vehicleCategory: src.vehicleCategory || src.cat
+      || (vehiclesArr[0] && (vehiclesArr[0].category || vehiclesArr[0].cat)) || '',
+    vehicleLengthFt: src.vehicleLengthFt || src.lengthFt
+      || (vehiclesArr[0] && vehiclesArr[0].lengthFt) || 0,
+    vehicles: vehiclesArr.map(v => ({
+      vehicleId: v.vehicleId || '',
       pkgName: v.pkgName || '',
       vehicleLabel: v.vehicleLabel || '',
       pkgIcon: v.pkgIcon || '🚗',
       subtotal: v.subtotal || 0,
-      addons: (v.addons || []).map(a => ({ name: a.name || '', qty: a.qty || 1 })),
+      addons: (Array.isArray(v.addons) ? v.addons : []).map(a => ({ name: a.name || '', qty: a.qty || 1, price: a.price || 0 })),
     })),
-    addons: (b.addons || []).map(a => ({ name: a.name || '', qty: a.qty || 1 })),
-    preferredDate: b.preferredDate || '',
-    preferredTime: b.preferredTime || '',
-    confirmedDate: b.confirmedDate || '',
-    confirmedTime: b.confirmedTime || '',
-    confirmedTimeWindow: b.confirmedTimeWindow || b.confirmedWindow || '',
-    address: b.address || '',
-    zipCode: b.zipCode || '',
-    zone: b.zone || '',
-    travelFeeMiles: b.travelFeeMiles ?? null,
-    travelFeeAmount: b.travelFeeAmount ?? b.zoneSurcharge ?? 0,
-    zoneSurcharge: b.zoneSurcharge ?? b.travelFeeAmount ?? 0,
-    totalPrice: b.totalPrice || b.total_price || 0,
-    tip: b.tip || 0,
-    payLink: b.payLink || '',
-    paymentMethodPreference: b.paymentMethodPreference || '',
-    cardOnFileStatus: b.cardOnFileStatus || 'pending',
-    cancellationRequestStatus: b.cancellationRequestStatus || '',
-    cancellationRequestedAt: b.cancellationRequestedAt || '',
-    rescheduledByClient: !!b.rescheduledByClient,
-    rescheduleRequestedDate: b.rescheduleRequestedDate || '',
-    addressChangedByClient: !!b.addressChangedByClient,
-    addonsRequested: !!b.addonsRequested,
-    requestedAddons: b.requestedAddons || '',
-    packageChangeRequested: !!b.packageChangeRequested,
-    requestedPackageName: b.requestedPackageName || '',
-    requestedPackageId: b.requestedPackageId || '',
-    policyChargeStatus: b.policyChargeStatus || '',
-    policyChargeAmount: b.policyChargeAmount || null,
-    assignedTechName: b.assignedTechName || '',
-    createdAt: b.createdAt || '',
-    customerNote: b.customerNote || '',
-    notes: b.customerNote || b.notes || '',
-    waterAvailable: b.waterAvailable || '',
-    electricityAvailable: b.electricityAvailable || '',
-    serviceLocation: b.serviceLocation || '',
-    accessNotes: b.accessNotes || '',
-    firstName: b.firstName || '',
-    lastName: b.lastName || '',
-    email: b.email || '',
-    phone: b.phone || '',
-    photosBefore: b.photosBefore || [],
-    photosAfter: b.photosAfter || [],
-    reviewLeft: !!b.reviewLeft,
+    addons: addonsArr.map(a => ({ id: a.id || '', name: a.name || '', qty: a.qty || 1, price: a.price || 0 })),
+    preferredDate: src.preferredDate || '',
+    preferredTime: src.preferredTime || '',
+    confirmedDate: src.confirmedDate || '',
+    confirmedTime: src.confirmedTime || '',
+    confirmedTimeWindow: src.confirmedTimeWindow || src.confirmedWindow || '',
+    address: src.address || (src.service && src.service.serviceAddress) || '',
+    zipCode: src.zipCode || '',
+    zone: src.zone || '',
+    travelFeeMiles: src.travelFeeMiles ?? null,
+    travelFeeAmount: src.travelFeeAmount ?? src.zoneSurcharge ?? 0,
+    zoneSurcharge: src.zoneSurcharge ?? src.travelFeeAmount ?? 0,
+    totalPrice: approved,
+    approvedFinalAmount: approved,
+    amountPaid: paid,
+    amountDueApproved: amountDueApproved > 0 ? amountDueApproved : 0,
+    tip: src.tip || 0,
+    payLink: src.payLink || '',
+    paymentMethodPreference: src.paymentMethodPreference || '',
+    cardOnFileStatus: src.cardOnFileStatus || 'pending',
+    customerApprovalStatus: src.customerApprovalStatus || '',
+    customerChangePending: !!src.customerChangePending,
+    cancellationRequestStatus: src.cancellationRequestStatus || '',
+    cancellationRequestedAt: src.cancellationRequestedAt || '',
+    rescheduledByClient: !!src.rescheduledByClient,
+    rescheduleRequestedDate: src.rescheduleRequestedDate || '',
+    addressChangedByClient: !!src.addressChangedByClient,
+    addonsRequested: !!src.addonsRequested,
+    requestedAddons: src.requestedAddons || '',
+    requestedAddonIds: src.requestedAddonIds || [],
+    requestedAddonTotal: src.requestedAddonTotal || 0,
+    packageChangeRequested: !!src.packageChangeRequested,
+    requestedPackageName: src.requestedPackageName || '',
+    requestedPackageId: src.requestedPackageId || '',
+    requestedPackagePrice: src.requestedPackagePrice || 0,
+    proposedTotal: src.proposedTotal || 0,
+    vehicleChangeRequested: !!src.vehicleChangeRequested,
+    requestedVehicleLabel: src.requestedVehicleLabel || '',
+    maintenanceRequested: !!src.maintenanceRequested,
+    maintenanceRequestNote: src.maintenanceRequestNote || '',
+    maintenancePeriod: src.maintenancePeriod || '',
+    maintenancePackageId: src.maintenancePackageId || '',
+    maintenancePackageName: src.maintenancePackageName || '',
+    policyChargeStatus: src.policyChargeStatus || '',
+    policyChargeAmount: src.policyChargeAmount || null,
+    assignedTechName: src.assignedTechName || '',
+    createdAt: src.createdAt || '',
+    customerNote: src.customerNote || '',
+    notes: src.customerNote || src.notes || '',
+    waterAvailable: src.waterAvailable || '',
+    electricityAvailable: src.electricityAvailable || '',
+    serviceLocation: src.serviceLocation || '',
+    accessNotes: src.accessNotes || '',
+    firstName: src.firstName || '',
+    lastName: src.lastName || '',
+    email: src.email || '',
+    phone: src.phone || '',
+    photosBefore: Array.isArray(src.photosBefore) ? src.photosBefore : [],
+    photosAfter: Array.isArray(src.photosAfter) ? src.photosAfter : [],
+    reviewLeft: !!src.reviewLeft,
+    offer: src.offer || src.welcomeOffer || null,
+    requestSummaries: material.requestSummaries || [],
   };
 }
 

@@ -86,8 +86,8 @@ test('approve reject clarify actions are wired with confirmation', () => {
 });
 
 test('manual-review request types are labeled in UI', () => {
-  assert.match(adminOps, /Manual review required after approval/);
-  assert.match(adminRequests, /manualReview: manualOnly/);
+  assert.match(adminOps, /Needs manual follow-up after approve/);
+  assert.match(adminRequests, /manualReview/);
   assert.match(adminRequests, /package_change_request/);
 });
 

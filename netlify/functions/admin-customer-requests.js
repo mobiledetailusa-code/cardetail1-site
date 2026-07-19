@@ -1,19 +1,20 @@
-// Admin review of customer change requests.
+// Admin review of customer change requests — Release A: index is rebuildable; booking is authority.
 
 const { jsonCors } = require('../lib/tech-security');
 const { verifyAdminRequest } = require('../lib/admin-security');
-const { blobsStore } = require('../lib/tech-security');
-const { getBooking, bookingStore } = require('../lib/ops-db');
-const { updateRequest } = require('../lib/customer-change-requests');
+const { blobsStore, listAllBlobs, fetchBlobRecords } = require('../lib/tech-security');
+const { getBooking } = require('../lib/ops-db');
+const { decideChangeRequestCommand, materialProjection } = require('../lib/booking-commands');
+const { getBookingRecord } = require('../lib/booking-repository');
 
 const REQUEST_STORE = 'cd1-customer-change-requests';
 const MAX_LIST = 50;
 
-const AUTO_APPLY_TYPES = new Set([
-  'reschedule_request',
-  'address_update',
-  'cancellation',
-]);
+/** @type {null | object} */
+let requestStoreOverride = null;
+function setRequestStoreOverride(store) {
+  requestStoreOverride = store || null;
+}
 
 const TYPE_LABELS = {
   reschedule_request: 'Reschedule',
@@ -27,14 +28,15 @@ const TYPE_LABELS = {
   maintenance_request: 'Maintenance request',
 };
 
-function safeJson(obj) {
-  try { return JSON.stringify(obj || {}, null, 0); } catch { return '{}'; }
-}
-
 function shortId(id) {
   const s = String(id || '');
   if (s.length <= 12) return s;
   return s.slice(0, 8) + '…';
+}
+
+async function getRequestStore() {
+  if (requestStoreOverride) return requestStoreOverride;
+  return blobsStore(REQUEST_STORE);
 }
 
 exports.handler = async (event) => {
@@ -53,21 +55,42 @@ exports.handler = async (event) => {
   );
 
   if (action === 'list') {
-    const store = await blobsStore(REQUEST_STORE);
-    const { blobs } = await store.list({ prefix: 'cr_' });
-    const items = await Promise.all(
-      (blobs || []).slice(0, 200).map((b) => store.get(b.key, { type: 'json' }).catch(() => null))
-    );
+    const store = await getRequestStore();
+    // Paginate ALL pages before filtering — never cap keys at 200 pre-filter (PDA-12)
+    const blobs = await listAllBlobs(store, REQUEST_STORE);
+    const items = await fetchBlobRecords(store, blobs);
+    const cursor = String(body.cursor || event.queryStringParameters?.cursor || '');
     const pending = items
       .filter((r) => r && (r.status === 'pending' || r.status === 'pending_approval'))
-      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
-      .slice(0, MAX_LIST)
-      .map((r) => ({
-        ...r,
-        typeLabel: TYPE_LABELS[r.requestType] || r.requestType,
-        shortId: shortId(r.id),
-      }));
-    return jsonCors(200, { ok: true, requests: pending, bounded: true, max: MAX_LIST });
+      .sort((a, b) => {
+        const ta = String(b.createdAt || '');
+        const tb = String(a.createdAt || '');
+        if (ta !== tb) return ta.localeCompare(tb);
+        return String(b.id || '').localeCompare(String(a.id || ''));
+      });
+
+    let start = 0;
+    if (cursor) {
+      const idx = pending.findIndex((r) => r.id === cursor);
+      start = idx >= 0 ? idx + 1 : 0;
+    }
+    const page = pending.slice(start, start + MAX_LIST).map((r) => ({
+      ...r,
+      typeLabel: TYPE_LABELS[r.requestType] || r.requestType,
+      shortId: shortId(r.id),
+    }));
+    const nextCursor = start + MAX_LIST < pending.length
+      ? page[page.length - 1]?.id || null
+      : null;
+
+    return jsonCors(200, {
+      ok: true,
+      requests: page,
+      bounded: true,
+      max: MAX_LIST,
+      totalPending: pending.length,
+      nextCursor,
+    });
   }
 
   if (action === 'decide') {
@@ -78,54 +101,58 @@ exports.handler = async (event) => {
       return jsonCors(400, { ok: false, error: 'validation_error' });
     }
 
-    const store = await blobsStore(REQUEST_STORE);
+    const store = await getRequestStore();
     const record = await store.get(requestId, { type: 'json' });
     if (!record) return jsonCors(404, { ok: false, error: 'not_found' });
+    if (!record.bookingId) return jsonCors(400, { ok: false, error: 'missing_booking' });
 
-    const now = new Date().toISOString();
-    const status = decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : 'needs_clarification';
-    const canAutoApply = decision === 'approve' && AUTO_APPLY_TYPES.has(record.requestType);
-    const manualOnly = decision === 'approve' && !canAutoApply;
-
-    const updated = await updateRequest(requestId, {
-      status,
-      adminDecision: decision,
+    const result = await decideChangeRequestCommand({
+      bookingId: record.bookingId,
+      requestId,
+      decision,
+      expectedBookingVersion: body.expectedBookingVersion,
+      expectedQuoteVersion: body.expectedQuoteVersion,
       adminNote,
-      decidedAt: now,
-      customerVisibleResult: decision === 'approve'
-        ? (manualOnly
-          ? 'Approved for manual review — our team will confirm details shortly.'
-          : 'Approved — our team will confirm details shortly.')
-        : decision === 'reject'
-          ? 'We could not approve this request. Please contact us.'
-          : 'We need more information. Please check your email or call us.',
-      notificationStatus: 'pending',
-      appliedAutomatically: canAutoApply,
+      acceptRequote: body.acceptRequote === true,
     });
 
-    if (canAutoApply && record.bookingId) {
-      const booking = await getBooking(record.bookingId);
-      if (booking) {
-        const bStore = await bookingStore();
-        const patch = { customerChangePending: false, updatedAt: now };
-        if (record.requestType === 'reschedule_request' && record.requestedState?.preferredDate) {
-          patch.preferredDate = record.requestedState.preferredDate;
-          patch.preferredTime = record.requestedState.preferredTime || booking.preferredTime;
-          patch.rescheduledByClient = false;
-        }
-        if (record.requestType === 'address_update' && record.requestedState?.address) {
-          patch.address = record.requestedState.address;
-          patch.addressChangedByClient = false;
-        }
-        if (record.requestType === 'cancellation') {
-          patch.cancellationRequestStatus = 'approved';
-          patch.status = 'Cancelled';
-        }
-        await bStore.setJSON(record.bookingId, { ...booking, ...patch });
-      }
+    if (!result.ok) {
+      return jsonCors(result.statusCode || 400, {
+        ok: false,
+        error: result.error,
+        message: result.message
+          || (result.error === 'invoice_paid'
+            ? 'Invoice paid — create an adjustment or new quote instead of approving this money change.'
+            : undefined),
+        requoteRequired: result.requoteRequired || false,
+        quote: result.quote || null,
+        actualBookingVersion: result.actualBookingVersion,
+      });
     }
 
-    return jsonCors(200, { ok: true, request: updated, manualReview: manualOnly });
+    const manualOnly = decision === 'approve' && result.noop !== true
+      && !['reschedule_request', 'address_update', 'cancellation', 'cancellation_request',
+        'package_change_request', 'addon_request', 'vehicle_add_request', 'vehicle_replace_request']
+        .includes(record.requestType);
+
+    return jsonCors(200, {
+      ok: true,
+      request: {
+        id: requestId,
+        status: decision === 'approve' ? (result.noop ? 'applied' : 'applied') : (decision === 'reject' ? 'rejected' : 'needs_clarification'),
+        adminDecision: decision,
+      },
+      booking: result.booking ? {
+        id: result.booking.id,
+        bookingVersion: result.booking.bookingVersion,
+        quoteVersion: result.booking.quoteVersion,
+        approvedFinalAmount: result.booking.approvedFinalAmount,
+        amountDueApproved: result.booking.amountDueApproved,
+      } : null,
+      projection: result.projection || materialProjection(result.booking),
+      manualReview: !!manualOnly,
+      expiredSessions: result.expiredAttemptIds || [],
+    });
   }
 
   if (action === 'generate_pay_link') {
@@ -137,7 +164,7 @@ exports.handler = async (event) => {
       return jsonCors(200, {
         ok: false,
         error: 'payment_link_unavailable',
-        message: 'No approved payment link on file. Generate one from the job drawer.',
+        message: 'No Stripe Checkout link on file yet. Open the job drawer and click Generate Stripe link.',
       });
     }
     return jsonCors(200, { ok: true, payLink: booking.payLink, bookingId });
@@ -145,3 +172,5 @@ exports.handler = async (event) => {
 
   return jsonCors(405, { ok: false, error: 'method_not_allowed' });
 };
+
+exports.setRequestStoreOverride = setRequestStoreOverride;

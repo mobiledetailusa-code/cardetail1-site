@@ -83,14 +83,25 @@ async function deterministicChecks() {
     `"${NODE}" --test tests/card-on-file-hardening.test.js tests/booking-flow.test.js`
   );
   sections.push(
-    "### Targeted tests\n",
+    "### Targeted tests (checkout)\n",
     testResult.ok
       ? "- [ok] card-on-file-hardening + booking-flow (all passed)"
       : `- [FAIL] tests:\n\`\`\`\n${testResult.output}\n\`\`\``,
     ""
   );
 
-  const allOk = testResult.ok && syncCheck.ok && syntaxLines.every(l => l.startsWith("- [ok]"));
+  const portalOps = run(
+    `"${NODE}" --test tests/portal-ops-smoke.test.js tests/booking-prisma-mirror.test.js tests/portal-payment-access-hardening.test.js`
+  );
+  sections.push(
+    "### Portal ops smoke (admin + customer)\n",
+    portalOps.ok
+      ? "- [ok] portal-ops-smoke + prisma-mirror + payment-hardening (all passed)"
+      : `- [FAIL] portal ops:\n\`\`\`\n${portalOps.output}\n\`\`\``,
+    ""
+  );
+
+  const allOk = testResult.ok && portalOps.ok && syncCheck.ok && syntaxLines.every(l => l.startsWith("- [ok]"));
   sections.push(
     "### Recommendation (deterministic only)\n",
     allOk

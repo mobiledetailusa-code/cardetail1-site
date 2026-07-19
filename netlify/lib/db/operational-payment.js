@@ -1,0 +1,272 @@
+/**
+ * Operational payment facade — Admin / My Garage / webhook recovery share
+ * one Postgres FinancialProjection + PaymentAuthorityService path.
+ *
+ * Blobs keep operational booking fields; money projection authority is
+ * Postgres after ensureBookingFinancial. When DATABASE_URL is unset,
+ * callers should fall back to Blob payment-service (compatibility).
+ */
+
+const { prismaConfigured } = require('../prisma');
+const { ensureBookingFinancial } = require('./ensure-booking-financial');
+const authority = require('./payment-authority-service');
+const { getBookingRecord, commitBooking } = require('../booking-repository');
+const { buildNextAggregate, normalizeAggregate } = require('../booking-aggregate');
+
+function postgresPaymentEnabled(env = process.env) {
+  if (env.CD1_POSTGRES_PAYMENT === '0' || env.CD1_POSTGRES_PAYMENT === 'false') return false;
+  return prismaConfigured();
+}
+
+function mapProjectionForPortals(projection) {
+  if (!projection) return null;
+  return {
+    bookingId: projection.bookingId,
+    quoteVersion: projection.quoteVersion,
+    approvedCents: projection.approvedCents,
+    settledCents: projection.settledCents,
+    refundedCents: projection.refundedCents,
+    remainingCents: projection.remainingCents,
+    paymentStatus: projection.paymentStatus,
+    paymentAttemptStatus: projection.paymentAttemptStatus,
+    stripeReference: projection.stripeReference,
+    paidAt: projection.paidAt,
+    refundableCents: projection.refundableCents,
+    authority: 'postgres',
+  };
+}
+
+/**
+ * Sync Blob compatibility money fields from Postgres projection so legacy
+ * readers do not contradict portals. Does not invent ledger credits.
+ */
+async function syncBlobCompatibilityFromProjection(bookingId, projection) {
+  if (!projection || !bookingId) return { ok: false, error: 'missing' };
+  const rec = await getBookingRecord(bookingId);
+  if (!rec.exists || !rec.booking) return { ok: false, error: 'blob_not_found' };
+  const { ok: normOk, aggregate } = normalizeAggregate(rec.booking);
+  const base = normOk ? aggregate : rec.booking;
+  const ledger = { ...(base.ledger || {}) };
+  ledger.approvedCents = projection.approvedCents;
+  ledger.settledCents = projection.settledCents;
+  ledger.refundedCents = projection.refundedCents || 0;
+  ledger.currency = ledger.currency || 'usd';
+
+  const dollarsApproved = projection.approvedCents / 100;
+  const dollarsSettled = projection.settledCents / 100;
+  const dollarsRemaining = projection.remainingCents / 100;
+
+  const patch = {
+    ledger,
+    quoteVersion: projection.quoteVersion,
+    amountDueApproved: dollarsRemaining,
+    balanceDue: dollarsRemaining,
+    totalPrice: dollarsApproved,
+    paymentStatus: projection.paymentStatus === 'paid'
+      ? 'paid'
+      : projection.paymentStatus === 'processing'
+        ? 'processing'
+        : projection.paymentStatus === 'refunded'
+          ? 'refunded'
+          : (base.paymentStatus || 'no_payment_required_yet'),
+    paymentWorkflowStatus: projection.paymentStatus === 'paid'
+      ? 'payment_succeeded'
+      : projection.paymentStatus === 'processing'
+        ? 'awaiting_customer_payment'
+        : projection.paymentStatus === 'due'
+          ? 'awaiting_customer_payment'
+          : (base.paymentWorkflowStatus || null),
+    paymentIntentId: projection.stripeReference || base.paymentIntentId || null,
+  };
+  if (projection.paymentStatus === 'paid' && projection.paidAt) {
+    patch.capturedAt = typeof projection.paidAt === 'string'
+      ? projection.paidAt
+      : new Date(projection.paidAt).toISOString();
+  }
+
+  const next = buildNextAggregate(base, patch);
+  const committed = await commitBooking({
+    bookingId,
+    expectedBookingVersion: base.bookingVersion || 0,
+    nextAggregate: next,
+  });
+  if (!committed.ok && committed.error === 'version_conflict') {
+    // One retry on race
+    const again = await getBookingRecord(bookingId);
+    if (!again.exists) return committed;
+    const { ok: ok2, aggregate: agg2 } = normalizeAggregate(again.booking);
+    const base2 = ok2 ? agg2 : again.booking;
+    const next2 = buildNextAggregate(base2, patch);
+    return commitBooking({
+      bookingId,
+      expectedBookingVersion: base2.bookingVersion || 0,
+      nextAggregate: next2,
+    });
+  }
+  return committed;
+}
+
+async function getSharedFinancialProjection(booking, { reconcileUncertain = false, env = process.env, fetchImpl = globalThis.fetch } = {}) {
+  if (!postgresPaymentEnabled(env)) {
+    return { ok: false, error: 'postgres_payment_disabled', authority: 'blob' };
+  }
+  const ensured = await ensureBookingFinancial(booking);
+  if (!ensured.ok) return { ok: false, error: ensured.error, authority: 'blob' };
+
+  let projection = await authority.getFinancialProjection(ensured.bookingId);
+  if (!projection) return { ok: false, error: 'projection_unavailable', authority: 'blob' };
+
+  const uncertain = projection.paymentStatus === 'processing'
+    || (projection.remainingCents > 0 && !!projection.stripeReference);
+
+  if (reconcileUncertain && uncertain) {
+    const reconciled = await authority.reconcileFromStripeProvider({
+      bookingId: ensured.bookingId,
+      env,
+      fetchImpl,
+    });
+    if (reconciled.ok && reconciled.projection) {
+      projection = reconciled.projection;
+      await syncBlobCompatibilityFromProjection(ensured.bookingId, projection).catch(() => {});
+    }
+  }
+
+  return {
+    ok: true,
+    authority: 'postgres',
+    projection: mapProjectionForPortals(projection),
+    bookingId: ensured.bookingId,
+  };
+}
+
+async function prepareEmbeddedPayment({
+  booking,
+  expectedQuoteVersion = null,
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+}) {
+  if (!postgresPaymentEnabled(env)) {
+    return { ok: false, error: 'postgres_payment_disabled', statusCode: 503 };
+  }
+  const ensured = await ensureBookingFinancial(booking);
+  if (!ensured.ok) return { ok: false, error: ensured.error, statusCode: 503 };
+
+  // Reconcile before create (mandate D)
+  await authority.reconcileFromStripeProvider({
+    bookingId: ensured.bookingId,
+    env,
+    fetchImpl,
+  }).catch(() => {});
+
+  let projection = await authority.getFinancialProjection(ensured.bookingId);
+  if (!projection) return { ok: false, error: 'not_found', statusCode: 404 };
+  if (projection.paymentStatus === 'paid') {
+    return { ok: false, error: 'already_paid', statusCode: 409, projection: mapProjectionForPortals(projection) };
+  }
+  if (!(projection.remainingCents > 0)) {
+    return { ok: false, error: 'zero_balance', statusCode: 409, projection: mapProjectionForPortals(projection) };
+  }
+
+  const quoteVersion = expectedQuoteVersion != null
+    ? Math.round(Number(expectedQuoteVersion) || 0)
+    : projection.quoteVersion;
+  if (quoteVersion !== projection.quoteVersion) {
+    return {
+      ok: false,
+      error: 'stale_quote_version',
+      statusCode: 409,
+      projection: mapProjectionForPortals(projection),
+    };
+  }
+
+  const stripeCustomerId = booking.stripeCustomerId || null;
+  const created = await authority.reserveAndCreatePaymentIntent({
+    bookingId: ensured.bookingId,
+    quoteVersion,
+    stripeCustomerId,
+    env,
+    fetchImpl,
+  });
+  if (!created.ok) {
+    return {
+      ok: false,
+      error: created.error,
+      statusCode: created.statusCode || 500,
+      projection: mapProjectionForPortals(created.projection || projection),
+    };
+  }
+
+  let clientSecret = created.clientSecret || null;
+  const piId = created.stripePaymentIntentId || created.paymentAttempt?.providerObjectId;
+  if (!clientSecret && piId) {
+    const retrieved = await authority.retrievePaymentIntentClientSecret({
+      paymentIntentId: piId,
+      env,
+      fetchImpl,
+    });
+    if (retrieved.ok) clientSecret = retrieved.clientSecret;
+  }
+  if (!clientSecret) {
+    return { ok: false, error: 'missing_client_secret', statusCode: 502 };
+  }
+
+  let customerSessionClientSecret = null;
+  if (stripeCustomerId) {
+    const cs = await authority.createCustomerSession({
+      stripeCustomerId,
+      env,
+      fetchImpl,
+    });
+    if (cs.ok) customerSessionClientSecret = cs.customerSessionClientSecret;
+  }
+
+  projection = created.projection || await authority.getFinancialProjection(ensured.bookingId);
+
+  return {
+    ok: true,
+    mode: 'payment_element',
+    clientSecret,
+    customerSessionClientSecret,
+    paymentIntentId: piId,
+    amountCents: projection.remainingCents,
+    quoteVersion: projection.quoteVersion,
+    bookingVersion: booking.bookingVersion || 0,
+    projection: mapProjectionForPortals(projection),
+    created: !!created.created,
+    recoveredFromTimeout: !!created.recoveredFromTimeout,
+  };
+}
+
+async function adminReconcileWithStripe({
+  booking,
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+}) {
+  if (!postgresPaymentEnabled(env)) {
+    return { ok: false, error: 'postgres_payment_disabled', statusCode: 503 };
+  }
+  const ensured = await ensureBookingFinancial(booking);
+  if (!ensured.ok) return { ok: false, error: ensured.error, statusCode: 503 };
+
+  const result = await authority.reconcileFromStripeProvider({
+    bookingId: ensured.bookingId,
+    env,
+    fetchImpl,
+  });
+  if (result.ok && result.projection) {
+    await syncBlobCompatibilityFromProjection(ensured.bookingId, result.projection).catch(() => {});
+  }
+  return {
+    ...result,
+    projection: mapProjectionForPortals(result.projection),
+  };
+}
+
+module.exports = {
+  postgresPaymentEnabled,
+  mapProjectionForPortals,
+  syncBlobCompatibilityFromProjection,
+  getSharedFinancialProjection,
+  prepareEmbeddedPayment,
+  adminReconcileWithStripe,
+};

@@ -2,6 +2,7 @@
 const { jsonCors } = require('../lib/tech-security');
 const { getBooking, normalizePhone, phonesMatch } = require('../lib/ops-db');
 const { projectBookingForCustomer } = require('../lib/ops-schema');
+const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
@@ -24,10 +25,11 @@ exports.handler = async (event) => {
 
   try {
     const booking = await getBooking(rawId);
-    if (!booking) {
+    if (!booking || !isVisibleSubmittedBooking(booking)) {
       return jsonCors(200, {
         ok: false,
         found: false,
+        error: booking && booking.isDraft ? 'booking_not_ready' : undefined,
         message: 'No booking found. Please check your booking ID and phone number.',
       });
     }

@@ -79,6 +79,29 @@ const FLEET_PLANS = [
   },
 ];
 
+const MAINTENANCE_PERIODS = [
+  { id: 'monthly', label: 'Monthly', months: 1 },
+  { id: 'bimonthly', label: 'Every 2 months', months: 2 },
+  { id: 'quarterly', label: 'Quarterly', months: 3 },
+  { id: 'semiannual', label: 'Every 6 months', months: 6 },
+  { id: 'annual', label: 'Annually', months: 12 },
+];
+
+const VEHICLE_CATEGORIES = [
+  { id: 'cars', label: 'Car / SUV / Truck' },
+  { id: 'rvs', label: 'RV / Camper' },
+  { id: 'boats', label: 'Boat' },
+  { id: 'powersports', label: 'Powersports' },
+  { id: 'fleet', label: 'Fleet / Commercial' },
+];
+
+const VEHICLE_YEARS = (() => {
+  const y = new Date().getFullYear() + 1;
+  const out = [];
+  for (let i = 0; i < 45; i++) out.push(String(y - i));
+  return out;
+})();
+
 function roundPrice(n) {
   return Math.round(Number(n) * 100) / 100;
 }
@@ -109,6 +132,12 @@ function matchPackFromBooking(booking) {
 }
 
 function catalogForClient() {
+  const {
+    LENGTH_PRICING,
+    BOAT_PACKAGES,
+    RV_PACKAGES,
+    lengthConfigForClient,
+  } = require('./length-pricing');
   return {
     subscriberDiscountPct: SUBSCRIBER_DISCOUNT * 100,
     maxDetailsPerMonth: MAX_DETAILS_PER_MONTH,
@@ -116,8 +145,37 @@ function catalogForClient() {
       ...p,
       monthlyPrice: subscriberPrice(p.basePrice),
       savings: roundPrice(p.basePrice - subscriberPrice(p.basePrice)),
+      category: 'cars',
     })),
+    packagesByCategory: {
+      cars: CAR_PACKAGES.map(p => ({
+        ...p,
+        monthlyPrice: subscriberPrice(p.basePrice),
+        savings: roundPrice(p.basePrice - subscriberPrice(p.basePrice)),
+        category: 'cars',
+      })),
+      boats: BOAT_PACKAGES.map(p => ({ ...p, category: 'boats', pricedByLength: true })),
+      rvs: RV_PACKAGES.map(p => ({ ...p, category: 'rvs', pricedByLength: true })),
+    },
+    lengthPricing: {
+      boats: lengthConfigForClient('boats'),
+      rvs: lengthConfigForClient('rvs'),
+      fleet: lengthConfigForClient('fleet'),
+    },
+    lengthPackageRules: {
+      boats: LENGTH_PRICING.boats.packages,
+      rvs: LENGTH_PRICING.rvs.packages,
+    },
     addons: ADDONS,
+    maintenancePeriods: MAINTENANCE_PERIODS,
+    vehicleCategories: VEHICLE_CATEGORIES,
+    vehicleYears: VEHICLE_YEARS,
+    carSizeTiers: [
+      { id: 'small', label: 'Small Car' },
+      { id: 'suv2', label: 'SUV 2-Row' },
+      { id: 'suv3', label: 'SUV 3-Row' },
+      { id: 'truck', label: 'Truck' },
+    ],
     fleetPlans: FLEET_PLANS.map(f => ({
       ...f,
       examplePrices: CAR_PACKAGES.map(p => ({
@@ -129,14 +187,34 @@ function catalogForClient() {
   };
 }
 
+function resolveAddonsByIds(ids) {
+  const set = new Set((ids || []).map((id) => String(id || '').trim()).filter(Boolean));
+  return ADDONS.filter((a) => set.has(a.id)).map((a) => ({
+    id: a.id,
+    name: a.name,
+    price: a.price,
+    qty: 1,
+  }));
+}
+
+function addonTotal(addons) {
+  return roundPrice((addons || []).reduce((s, a) => s + Number(a.price || 0) * Number(a.qty || 1), 0));
+}
+
 module.exports = {
   SUBSCRIBER_DISCOUNT,
   MAX_DETAILS_PER_MONTH,
   CAR_PACKAGES,
   ADDONS,
   FLEET_PLANS,
+  MAINTENANCE_PERIODS,
+  VEHICLE_CATEGORIES,
+  VEHICLE_YEARS,
   subscriberPrice,
   fleetMonthlyPrice,
   matchPackFromBooking,
   catalogForClient,
+  resolveAddonsByIds,
+  addonTotal,
+  roundPrice,
 };
