@@ -282,6 +282,7 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/evaluate-booking-offer.js',
     'netlify/functions/admin-ops-jobs.js',
     'netlify/functions/qa-opscore-lifecycle.js',
+    'netlify/functions/qa-webhook-admin.js', // TEMP QA — removed after webhook E2E closure
     // Release A — canonical aggregate / payments
     'netlify/functions/create-payment-intent.js',
     'netlify/functions/create-payment-link.js',

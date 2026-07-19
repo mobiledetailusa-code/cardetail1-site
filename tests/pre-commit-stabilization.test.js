@@ -223,6 +223,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/revenue-store.js',
     'netlify/lib/revops-dashboard.js',
     'netlify/functions/qa-opscore-lifecycle.js',
+    'netlify/functions/qa-webhook-admin.js', // TEMP QA — removed after webhook E2E closure
     'netlify/lib/booking-price-catalog.js',
     'netlify/lib/rv-type-catalog.js',
     'netlify/lib/travel-fee.js',
