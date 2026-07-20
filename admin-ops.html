@@ -98,7 +98,25 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--card);border:1px solid var(--line);padding:12px 16px;border-radius:10px;font-size:13px;z-index:100;opacity:0;pointer-events:none;transition:.2s}
 .toast.show{opacity:1}
 .empty{color:var(--mu);font-size:13px;padding:24px;text-align:center}
-@media(max-width:700px){.form-grid{grid-template-columns:1fr}}
+.job-chevron{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--card2);color:var(--fg);cursor:pointer;font-size:12px;line-height:1;padding:0}
+.job-chevron:focus-visible,.job-row:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.job-chevron[aria-expanded="true"]{transform:rotate(90deg)}
+.job-row.is-expanded td{background:rgba(77,163,255,.06)}
+.job-detail-row{cursor:default}
+.job-detail-row > td{padding:0;border-bottom:1px solid var(--line);background:rgba(12,21,32,.92)}
+.job-detail-panel{padding:16px 18px 18px;border-top:1px solid rgba(77,163,255,.25)}
+.job-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.job-detail-head h2{font-size:17px}
+.job-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.job-detail-grid .sec{margin-bottom:0}
+.job-detail-grid .sec.span-2{grid-column:span 2}
+.job-detail-grid .sec.span-3,.job-detail-grid .sec.full{grid-column:1/-1}
+.job-veh-card{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--card2);margin-bottom:10px}
+.job-veh-card h5{font-size:14px;font-weight:700;margin-bottom:6px}
+.job-detail-note{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.job-detail-holder{display:none}
+@media(max-width:960px){.job-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.form-grid{grid-template-columns:1fr}.job-detail-grid{grid-template-columns:1fr}.job-detail-grid .sec.span-2{grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -142,8 +160,28 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       <button type="button" class="btn sm" id="jobsCreate">Create appointment</button>
     </div>
     <div class="card" style="padding:0;overflow:auto"><table class="tbl" id="jobsTable"><thead><tr>
-      <th>Customer</th><th>Vehicle</th><th>Date</th><th>Status</th><th>Payment</th><th>Tech</th><th>Assign</th>
+      <th aria-label="Expand"></th><th>Customer</th><th>Vehicle</th><th>Date / Time</th><th>Status</th><th>Payment</th><th>Balance</th><th>Tech</th><th>Assign</th>
     </tr></thead><tbody></tbody></table></div>
+    <div class="job-detail-holder" id="jobDetailHolder" aria-hidden="true">
+      <table><tbody>
+        <tr id="activeJobDetailRow" class="job-detail-row" hidden>
+          <td colspan="9">
+            <section id="activeJobDetailPanel" class="job-detail-panel">
+              <div class="job-detail-head">
+                <div><h2 id="dTitle">Job</h2><div id="dBadges" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div></div>
+                <button type="button" class="btn ghost sm" id="dClose">Collapse</button>
+              </div>
+              <div id="dBody"></div>
+              <div class="job-detail-note">
+                <label>Admin note</label>
+                <textarea id="dNote" rows="3" placeholder="Internal note…" style="margin:6px 0 10px"></textarea>
+                <button type="button" class="btn" id="dSaveNote" style="width:100%">Save note</button>
+              </div>
+            </section>
+          </td>
+        </tr>
+      </tbody></table>
+    </div>
   </section>
 
   <section class="panel" id="p-techs">
@@ -289,19 +327,6 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   </section>
 </div>
 
-<div class="drawer-bg" id="drawerBg"></div>
-<aside class="drawer" id="drawer">
-  <div class="dh">
-    <div><h2 id="dTitle">Job</h2><div id="dBadges" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div></div>
-    <button type="button" class="btn ghost sm" id="dClose">✕</button>
-  </div>
-  <div class="db" id="dBody"></div>
-  <div class="ds">
-    <label>Admin note</label>
-    <textarea id="dNote" rows="3" placeholder="Internal note…" style="margin:6px 0 10px"></textarea>
-    <button type="button" class="btn" id="dSaveNote" style="width:100%">Save note</button>
-  </div>
-</aside>
 <div class="toast" id="toast"></div>
 
 <div class="drawer-bg" id="techDrawerBg"></div>
@@ -359,14 +384,21 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   const inviteCache = {};
 
   let jobs = [], techs = [], activeJob = null, activeTech = null;
-  // Stage 3 — canonical add-on data for the open drawer (server-provided only).
+  let expandedJobId = null;
+  // Stage 3 — canonical add-on data for the open job detail (server-provided only).
   // Catalog rows/prices and money figures come from get_job — never computed locally.
   let drawerAddonData = null;
   let showTest = false, platformSettings = {}, auctions = [], subscriptions = [], changeRequests = [];
 
   const $ = s => document.querySelector(s);
-  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const esc = s => String(s == null ? '' : s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
   const toast = msg => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); };
+  const JOBS_COLSPAN = 9;
 
   function adminLogout() {
     const t = CD1AdminSession.getToken();
@@ -649,6 +681,106 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     return j.vehicleLabel || j.vehicle || '—';
   }
 
+  function jobsBalanceLabel(j) {
+    if (j && j.remainingCents != null && Number.isFinite(Number(j.remainingCents))) {
+      return '$' + (Number(j.remainingCents) / 100).toFixed(2);
+    }
+    if (j && j.amountDueApproved != null && Number.isFinite(Number(j.amountDueApproved))) {
+      return '$' + Number(j.amountDueApproved).toFixed(2);
+    }
+    return '—';
+  }
+
+  function jobsDateTimeLabel(j) {
+    const d = j.confirmedDate || j.preferredDate || '';
+    const t = j.confirmedTime || j.confirmedTimeWindow || j.preferredTime || '';
+    const parts = [d, t].filter(Boolean);
+    return parts.length ? parts.join(' · ') : '—';
+  }
+
+  function ensureJobsTab() {
+    const panel = $('#p-jobs');
+    if (panel && !panel.classList.contains('on')) {
+      document.querySelectorAll('.tab').forEach(t => { t.classList.remove('on'); t.setAttribute('aria-selected','false'); });
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+      const tab = [...document.querySelectorAll('#tabs .tab')].find(t => t.dataset && t.dataset.tab === 'jobs');
+      if (tab) {
+        tab.classList.add('on');
+        tab.setAttribute('aria-selected','true');
+      }
+      panel.classList.add('on');
+    }
+  }
+
+  function getActiveDetailRow() {
+    return document.getElementById('activeJobDetailRow');
+  }
+
+  function parkActiveDetailRow() {
+    const row = getActiveDetailRow();
+    const holder = $('#jobDetailHolder');
+    if (row && holder) {
+      const tb = holder.querySelector('tbody') || holder;
+      if (row.parentNode !== tb) tb.appendChild(row);
+      row.hidden = true;
+    }
+  }
+
+  function placeActiveDetailRow(jobId) {
+    const row = getActiveDetailRow();
+    const summary = document.querySelector('#jobsTable tbody tr.job-row[data-id="'+CSS.escape(jobId)+'"]');
+    if (!row || !summary) {
+      parkActiveDetailRow();
+      return false;
+    }
+    const td = row.querySelector('td');
+    if (td) td.colSpan = JOBS_COLSPAN;
+    summary.insertAdjacentElement('afterend', row);
+    row.hidden = false;
+    return true;
+  }
+
+  function isInteractiveToggleTarget(el) {
+    if (!el || !el.closest) return false;
+    return !!el.closest('button, a, input, textarea, select, label, .assignSel, .job-detail-row');
+  }
+
+  function collapseJobDetail() {
+    expandedJobId = null;
+    activeJob = null;
+    drawerAddonData = null;
+    parkActiveDetailRow();
+    document.querySelectorAll('#jobsTable tbody tr.job-row.is-expanded').forEach(tr => {
+      tr.classList.remove('is-expanded');
+      const btn = tr.querySelector('.job-chevron');
+      if (btn) {
+        btn.setAttribute('aria-expanded', 'false');
+        btn.textContent = '▸';
+      }
+    });
+  }
+
+  function markExpandedRow(jobId) {
+    document.querySelectorAll('#jobsTable tbody tr.job-row').forEach(tr => {
+      const on = tr.dataset.id === jobId;
+      tr.classList.toggle('is-expanded', on);
+      const btn = tr.querySelector('.job-chevron');
+      if (btn) {
+        btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+        btn.textContent = on ? '▾' : '▸';
+      }
+    });
+  }
+
+  async function toggleJobExpand(jobId) {
+    if (!jobId) return;
+    if (expandedJobId === jobId) {
+      collapseJobDetail();
+      return;
+    }
+    await openDrawer(jobId);
+  }
+
   function filterJobs(search, status) {
     let list = jobs;
     if (status) list = list.filter(j => j.jobStatus === status);
@@ -664,16 +796,49 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const status = $('#jobsStatus').value;
     const list = filterJobs(search, status);
     const tb = $('#jobsTable tbody');
-    if (!list.length) { tb.innerHTML='<tr><td colspan="7" class="empty">No jobs found</td></tr>'; return; }
-    tb.innerHTML = list.map(j => '<tr data-id="'+esc(j.id)+'">'+
-      '<td>'+esc(cust(j))+'</td><td>'+esc(jobsVehicleSummary(j))+'</td>'+
-      '<td>'+esc(j.confirmedDate||j.preferredDate||'—')+'</td>'+
-      '<td>'+jobBadge(j.jobStatus)+'</td><td>'+payBadge(j.paymentWorkflowStatus)+'</td>'+
-      '<td>'+esc(j.assignedTechName||'—')+'</td>'+
-      '<td onclick="event.stopPropagation()"><select class="assignSel" data-id="'+esc(j.id)+'">'+techOptions(j.assignedTechId||j.assignedTech)+'</select></td>'+
-    '</tr>').join('');
-    tb.querySelectorAll('.assignSel').forEach(sel => sel.onchange = () => onAssign(sel.dataset.id, sel.value));
-    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => openDrawer(tr.dataset.id));
+    parkActiveDetailRow();
+    if (!list.length) {
+      tb.innerHTML = '<tr><td colspan="'+JOBS_COLSPAN+'" class="empty">No jobs found</td></tr>';
+      if (expandedJobId) collapseJobDetail();
+      return;
+    }
+    const stillVisible = expandedJobId && list.some(j => j.id === expandedJobId);
+    if (expandedJobId && !stillVisible) collapseJobDetail();
+    tb.innerHTML = list.map(j => {
+      const expanded = expandedJobId === j.id;
+      return '<tr class="job-row'+(expanded?' is-expanded':'')+'" data-id="'+esc(j.id)+'" tabindex="0" role="button" aria-expanded="'+(expanded?'true':'false')+'">'+
+        '<td><button type="button" class="job-chevron" data-id="'+esc(j.id)+'" aria-expanded="'+(expanded?'true':'false')+'" aria-controls="activeJobDetailPanel" title="Expand job details">'+(expanded?'▾':'▸')+'</button></td>'+
+        '<td>'+esc(cust(j))+'</td><td>'+esc(jobsVehicleSummary(j))+'</td>'+
+        '<td>'+esc(jobsDateTimeLabel(j))+'</td>'+
+        '<td>'+jobBadge(j.jobStatus)+'</td><td>'+payBadge(j.paymentWorkflowStatus)+'</td>'+
+        '<td>'+esc(jobsBalanceLabel(j))+'</td>'+
+        '<td>'+esc(j.assignedTechName||'—')+'</td>'+
+        '<td class="job-assign-cell"><select class="assignSel" data-id="'+esc(j.id)+'">'+techOptions(j.assignedTechId||j.assignedTech)+'</select></td>'+
+      '</tr>';
+    }).join('');
+    tb.querySelectorAll('.assignSel').forEach(sel => {
+      sel.onchange = () => onAssign(sel.dataset.id, sel.value);
+      sel.addEventListener('click', e => e.stopPropagation());
+    });
+    tb.querySelectorAll('.job-chevron').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        toggleJobExpand(btn.dataset.id);
+      });
+    });
+    tb.querySelectorAll('tr.job-row[data-id]').forEach(tr => {
+      tr.addEventListener('click', e => {
+        if (isInteractiveToggleTarget(e.target)) return;
+        toggleJobExpand(tr.dataset.id);
+      });
+      tr.addEventListener('keydown', e => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        if (isInteractiveToggleTarget(e.target) && e.target !== tr) return;
+        e.preventDefault();
+        toggleJobExpand(tr.dataset.id);
+      });
+    });
+    if (stillVisible) placeActiveDetailRow(expandedJobId);
   }
 
   function renderAssign() {
@@ -1128,13 +1293,70 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       const data = await api('/.netlify/functions/admin-ops-jobs','POST',{action,bookingId,...extra});
       toast('Saved');
       await refreshAll();
-      if (activeJob && activeJob.id===bookingId) openDrawer(bookingId);
+      if (action === 'archive_test' && expandedJobId === bookingId) {
+        collapseJobDetail();
+        return data;
+      }
+      if (expandedJobId === bookingId || (activeJob && activeJob.id === bookingId)) {
+        expandedJobId = bookingId;
+        await openDrawer(bookingId);
+      }
       return data;
     } catch(e) { toast('Action failed: '+e.message); throw e; }
   }
 
+  function fmtServerDollars(n) {
+    if (n == null || n === '') return '—';
+    const v = Number(n);
+    if (!Number.isFinite(v)) return '—';
+    return '$' + v.toFixed(2);
+  }
+
+  function renderVehiclesDetailSection(j) {
+    const vehs = jobVehicles(j);
+    let out = '<div class="sec full"><h4>Vehicles and services</h4>';
+    if (!vehs.length) {
+      out += '<div class="kv"><div><b>Vehicle:</b> '+esc(j.vehicleLabel||j.vehicle||'—')+'</div>'+
+        '<div><b>Package:</b> '+esc(j.package||j.service||'—')+'</div></div></div>';
+      return out;
+    }
+    vehs.forEach((v, idx) => {
+      const label = v.vehicleLabel || [v.year, v.make, v.model].filter(Boolean).join(' ').trim() || ('Vehicle '+(idx+1));
+      const pack = v.packageName || v.pkgName || '—';
+      const cat = v.category || v.cat || '';
+      const tier = v.tierLabel || v.tier || v.tierKey || '';
+      const len = Number(v.lengthFt) > 0 ? (Number(v.lengthFt) + ' ft') : '';
+      const addons = Array.isArray(v.addons) ? v.addons : [];
+      out += '<div class="job-veh-card">'+
+        '<h5>'+esc(label)+'</h5>'+
+        '<div class="kv">'+
+        (cat ? '<div><b>Category:</b> '+esc(cat)+'</div>' : '')+
+        (len ? '<div><b>Length:</b> '+esc(len)+'</div>' : '')+
+        (tier ? '<div><b>Tier:</b> '+esc(tier)+'</div>' : '')+
+        '<div><b>Package:</b> '+esc(pack)+'</div>'+
+        '<div><b>Package / base:</b> '+esc(fmtServerDollars(v.basePrice != null ? v.basePrice : v.packagePrice))+'</div>';
+      if (addons.length) {
+        out += '<div><b>Add-ons:</b><ul style="margin:4px 0 0 18px;padding:0">'+
+          addons.map(a => {
+            const name = (a && a.name) || 'Add-on';
+            const qty = Number(a && a.qty) > 0 ? Number(a.qty) : 1;
+            const price = fmtServerDollars(a && a.price);
+            return '<li>'+esc(name)+' × '+esc(String(qty))+' · '+esc(price)+'</li>';
+          }).join('')+
+          '</ul></div>';
+      } else {
+        out += '<div><b>Add-ons:</b> None</div>';
+      }
+      out += '<div><b>Vehicle subtotal:</b> '+esc(fmtServerDollars(v.subtotal))+'</div>'+
+        '</div></div>';
+    });
+    out += '</div>';
+    return out;
+  }
+
   async function openDrawer(id) {
     // Strong read + provider reconcile so Admin money matches Customer after Stripe pay.
+    ensureJobsTab();
     drawerAddonData = null;
     try {
       const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'get_job',bookingId:id});
@@ -1162,15 +1384,33 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const j = jobs.find(x => x.id===id);
     if (!j) return;
     activeJob = j;
+    expandedJobId = id;
+    if (!document.querySelector('#jobsTable tbody tr.job-row[data-id="'+CSS.escape(id)+'"]')) {
+      renderJobs();
+    }
+    placeActiveDetailRow(id);
+    markExpandedRow(id);
     $('#dTitle').textContent = cust(j)+' · '+id;
     $('#dBadges').innerHTML = jobBadge(j.jobStatus)+payBadge(j.paymentWorkflowStatus);
-    let html = '<div class="sec"><h4>Customer</h4><div class="op-grid">'+
+    let html = '<div class="job-detail-grid">';
+    html += '<div class="sec span-2"><h4>Customer and appointment</h4><div class="op-grid">'+
       '<div><label>First name</label><input type="text" id="dFirst" value="'+esc(j.firstName||'')+'"></div>'+
       '<div><label>Last name</label><input type="text" id="dLast" value="'+esc(j.lastName||'')+'"></div>'+
       '<div><label>Phone</label><input type="tel" id="dPhone" value="'+esc(j.phone||'')+'"></div>'+
       '<div><label>Email</label><input type="email" id="dEmail" value="'+esc(j.email||'')+'"></div>'+
       '<div class="full"><button type="button" class="btn ghost sm" id="dSaveCustomer" style="width:100%">Save customer contact</button></div>'+
-      '<div class="full"><label>Vehicle</label><input type="text" id="dVehicle" value="'+esc(j.vehicleLabel||j.vehicle||'')+'"></div>'+
+      '<div class="full kv"><div><b>Booking ID:</b> '+esc(j.id||'')+'</div>'+
+      '<div><b>Date:</b> '+esc(j.confirmedDate||j.preferredDate||'—')+'</div>'+
+      '<div><b>Time / window:</b> '+esc(j.confirmedTime||j.confirmedTimeWindow||j.preferredTime||'—')+'</div></div>'+
+      '</div></div>';
+    html += '<div class="sec"><h4>Service address</h4><div class="op-grid">'+
+      '<div class="full"><label>Service address</label><input type="text" id="dAddr" value="'+esc(j.address||'')+'"></div>'+
+      '<div><label>ZIP</label><input type="text" id="dZip" value="'+esc(j.zipCode||'')+'"></div>'+
+      '<div class="full"><button type="button" class="btn ghost sm" id="dSaveAddr" style="width:100%">Save address</button></div>'+
+      '</div></div>';
+    html += renderVehiclesDetailSection(j);
+    html += '<div class="sec"><h4>Service overrides</h4><div class="op-grid">'+
+      '<div class="full"><label>Primary vehicle label</label><input type="text" id="dVehicle" value="'+esc(j.vehicleLabel||j.vehicle||'')+'"></div>'+
       (function(){
         // Canonical package IDs only — never free-form labels as money input.
         const cat = (drawerAddonData && drawerAddonData.packageCatalog) || null;
@@ -1188,51 +1428,62 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           '</select></div>';
       })()+
       '<div class="full"><button type="button" class="btn ghost sm" id="dSaveService" style="width:100%">Recalculate service (server)</button></div>'+
-      '<div><b>Date:</b> '+esc(j.confirmedDate||j.preferredDate||'—')+' '+esc(j.confirmedTime||j.preferredTime||'')+'</div>'+
       '</div></div>';
-    html += (typeof SiteAccess !== 'undefined' ? SiteAccess.adminSection(j, esc) : '');
-    html += '<div class="sec"><h4>Assignment</h4><div class="kv"><div><b>Tech:</b> '+esc(j.assignedTechName||'Unassigned')+'</div>'+
-      '<div><b>Assigned:</b> '+dt(j.assignedAt)+'</div></div>'+
-      '<select id="dAssign" style="margin-top:8px">'+techOptions(j.assignedTechId||j.assignedTech)+'</select></div>';
-    html += '<div class="sec"><h4>Operations</h4>';
+    html += (typeof SiteAccess !== 'undefined' ? '<div class="sec full">'+SiteAccess.adminSection(j, esc)+'</div>' : '');
+    const invPaid = !!(j.invoicePaid || j.financialPaymentStatus==='paid' || j.paymentWorkflowStatus==='payment_succeeded' || j.paymentWorkflowStatus==='cash_paid' || (Number(j.remainingCents||0)===0 && Number(j.settledCents||0)>0));
+    const balDue = invPaid ? 0 : Number(j.remainingCents!=null ? j.remainingCents/100 : (j.amountDueApproved||0));
+    const paidAmt = Number(j.amountPaid!=null ? j.amountPaid : ((j.settledCents||0)/100));
+    const approvedDisp = Number(j.approvedFinalAmount!=null?j.approvedFinalAmount:(j.approvedCents||0)/100);
+    const creditedDisp = Number(j.creditedCents != null ? j.creditedCents/100 : (j.amountRefunded || 0));
+    html += '<div class="sec"><h4>Financial summary</h4><div class="kv">'+
+      '<div><b>Approved:</b> $'+esc(String(approvedDisp.toFixed(2)))+'</div>'+
+      '<div><b>Paid / settled:</b> $'+esc(String(paidAmt.toFixed(2)))+'</div>'+
+      (creditedDisp > 0 ? '<div><b>Refunded / credited:</b> $'+esc(String(creditedDisp.toFixed(2)))+'</div>' : '')+
+      '<div><b>Remaining:</b> $'+esc(String(Math.max(0,balDue).toFixed(2)))+'</div>'+
+      '<div><b>Payment status:</b> '+payBadge(invPaid?'payment_succeeded':j.paymentWorkflowStatus)+'</div>'+
+      '</div></div>';
+    html += '<div class="sec"><h4>Customer requests</h4>';
+    let hasReq = false;
     if (j.cancellationRequestStatus === 'requested') {
+      hasReq = true;
       html += '<div class="req-box"><strong>Cancellation requested</strong><div style="font-size:12px;color:var(--mu);margin:6px 0">'+esc(j.cancellationReason||'')+'</div>'+
         '<div class="actions"><button type="button" class="btn danger sm" id="dCancelYes">Approve cancel</button>'+
         '<button type="button" class="btn ghost sm" id="dCancelNo">Deny</button></div></div>';
     }
     if (j.rescheduledByClient) {
+      hasReq = true;
       html += '<div class="req-box"><strong>Reschedule requested</strong><div style="font-size:12px;margin:6px 0">'+esc(j.rescheduleRequestedDate||'')+' '+esc(j.rescheduleRequestedTime||'')+'</div>'+
         '<button type="button" class="btn sm" id="dApplyResched">Apply customer date</button></div>';
     }
     if (j.addressChangedByClient || j.requestedAddress) {
+      hasReq = true;
       html += '<div class="req-box"><strong>Address change requested</strong><div style="font-size:12px;margin:6px 0">'+esc(j.requestedAddress||'')+'</div>'+
         '<button type="button" class="btn sm" id="dApplyAddr">Apply new address</button></div>';
     }
-    html += '<div class="actions" style="margin-bottom:10px">';
+    if (!hasReq) html += '<p class="hint" style="margin:0">No pending customer requests on this booking.</p>';
+    html += '</div>';
+    html += '<div class="sec"><h4>Assignment and operations</h4><div class="kv"><div><b>Tech:</b> '+esc(j.assignedTechName||'Unassigned')+'</div>'+
+      '<div><b>Assigned:</b> '+dt(j.assignedAt)+'</div></div>'+
+      '<select id="dAssign" style="margin-top:8px">'+techOptions(j.assignedTechId||j.assignedTech)+'</select>'+
+      '<div class="actions" style="margin:10px 0">';
     if (j.jobStatus === 'pending_review') html += '<button type="button" class="btn sm" id="dConfirm">Confirm booking</button>';
     html += '<button type="button" class="btn ghost sm" id="dCancel">Cancel job</button>';
     html += '<button type="button" class="btn ghost sm" id="dReopenAppt">Reopen</button>';
-    html += '<button type="button" class="btn warn sm" id="dArchive">Archive as test</button></div>';
-    html += '<div class="sec"><h4>Technician proxy</h4><div class="actions">'+
+    html += '</div>'+
+      '<div class="op-grid">'+
+      '<div><label>Reschedule date</label><input type="date" id="dDate" value="'+esc((j.confirmedDate||j.preferredDate||'').slice(0,10))+'"></div>'+
+      '<div><label>Time / window</label><input type="text" id="dTime" placeholder="e.g. 10:00 AM or Morning" value="'+esc(j.confirmedTime||j.confirmedTimeWindow||j.preferredTime||'')+'"></div>'+
+      '<div class="full"><button type="button" class="btn ghost sm" id="dResched" style="width:100%">Save reschedule</button></div>'+
+      '</div>'+
+      '<h4 style="margin-top:12px">Technician status proxy</h4><div class="actions">'+
       '<button type="button" class="btn ghost sm" id="dTechEnRoute">En Route</button>'+
       '<button type="button" class="btn ghost sm" id="dTechStart">Start</button>'+
       '<button type="button" class="btn ghost sm" id="dTechPause">Pause</button>'+
       '<button type="button" class="btn ghost sm" id="dTechResume">Resume</button>'+
       '<button type="button" class="btn sm" id="dTechComplete">Complete service</button></div></div>';
-    html += '<div class="op-grid">'+
-      '<div><label>Reschedule date</label><input type="date" id="dDate" value="'+esc((j.confirmedDate||j.preferredDate||'').slice(0,10))+'"></div>'+
-      '<div><label>Time / window</label><input type="text" id="dTime" placeholder="e.g. 10:00 AM or Morning" value="'+esc(j.confirmedTime||j.confirmedTimeWindow||j.preferredTime||'')+'"></div>'+
-      '<div class="full"><button type="button" class="btn ghost sm" id="dResched" style="width:100%">Save reschedule</button></div>'+
-      '<div class="full"><label>Service address</label><input type="text" id="dAddr" value="'+esc(j.address||'')+'"></div>'+
-      '<div><label>ZIP</label><input type="text" id="dZip" value="'+esc(j.zipCode||'')+'"></div>'+
-      '<div class="full"><button type="button" class="btn ghost sm" id="dSaveAddr" style="width:100%">Save address</button></div>'+
-      '</div></div>';
-    html += '<div class="sec"><h4>Welcome offer (WELCOME10)</h4>';
+    html += '<div class="sec span-2"><h4>Offers and payment actions</h4>';
+    html += '<div class="sec" style="margin:0 0 12px"><h4>Welcome offer (WELCOME10)</h4>';
     const offer = j.offer || j.welcomeOffer || null;
-    const offerEnabled = true;
-    if (!offerEnabled) {
-      html += '<p class="hint">Feature disabled in production policy. Controls shown for branch QA.</p>';
-    }
     if (offer && offer.eligibility_status === 'eligible') {
       html += '<div class="kv">'+
         '<div><b>Status:</b> '+esc(offer.public_name || 'Welcome offer')+'</div>'+
@@ -1251,7 +1502,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     html += '<div class="actions" style="margin-top:10px">'+
       '<button type="button" class="btn sm" id="dOfferApply">Apply welcome offer</button>'+
       '<button type="button" class="btn ghost sm" id="dOfferRemove">Remove offer</button></div></div>';
-    html += '<div class="sec"><h4>Job balance</h4><div class="kv">'+
+    html += '<div class="sec" style="margin:0 0 12px"><h4>Job balance</h4><div class="kv">'+
       '<div><b>Customer total:</b> $'+(j.totalPrice!=null?j.totalPrice:'—')+'</div>'+
       '<div><b>Tech payout:</b> $'+(j.techPayoutAmount!=null?j.techPayoutAmount:'—')+'</div>'+
       '<div><b>Platform fee:</b> $'+(j.platformFeeAmount!=null?j.platformFeeAmount:(j.totalPrice!=null&&j.techPayoutAmount!=null?(j.totalPrice-j.techPayoutAmount).toFixed(2):'—'))+'</div>'+
@@ -1260,23 +1511,20 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div><label>Final amount ($)</label><input type="number" id="dFinalAmt" step="0.01" value="'+(j.finalAmount!=null?j.finalAmount:(j.totalPrice||''))+'"></div>'+
       '<div><label>Tech payout ($)</label><input type="number" id="dTechPay" step="0.01" value="'+(j.techPayoutAmount!=null?j.techPayoutAmount:'')+'"></div>'+
       '<div class="full"><button type="button" class="btn ghost sm" id="dSaveBal" style="width:100%">Save balance</button></div></div></div>';
-    html += '<div class="sec"><h4>Dispatch</h4><div class="actions">'+
+    html += '<div class="sec" style="margin:0 0 12px"><h4>Dispatch</h4><div class="actions">'+
       '<button type="button" class="btn sm" id="dPostAuc">Post to auction</button>'+
       '<button type="button" class="btn ghost sm" id="dAssignWin">Assign auction winner</button></div></div>';
-    const invPaid = !!(j.invoicePaid || j.financialPaymentStatus==='paid' || j.paymentWorkflowStatus==='payment_succeeded' || j.paymentWorkflowStatus==='cash_paid' || (Number(j.remainingCents||0)===0 && Number(j.settledCents||0)>0));
-    const balDue = invPaid ? 0 : Number(j.remainingCents!=null ? j.remainingCents/100 : (j.amountDueApproved||0));
-    const paidAmt = Number(j.amountPaid!=null ? j.amountPaid : ((j.settledCents||0)/100));
     const canGenLink = !invPaid && balDue > 0 && j.canGeneratePayLink !== false;
     const stripeRef = j.stripeCheckoutSessionIdPrefix || j.paymentIntentIdPrefix || '';
     html += renderAddonSection(j);
     html += renderPackageSection(j);
-    html += '<div class="sec"><h4>Invoice / Payment</h4>'+
+    html += '<div class="sec" style="margin:0"><h4>Invoice / Payment</h4>'+
       '<div style="margin-bottom:10px">'+payBadge(invPaid?'payment_succeeded':j.paymentWorkflowStatus)+
       (invPaid?' <strong style="color:var(--ok)">· PAID / CLOSED</strong>':' <strong>· Balance due</strong>')+
       (j.payLink && !invPaid?' <a href="'+esc(j.payLink)+'" target="_blank" rel="noopener">Pay link</a>':'')+
       (j.policyChargeStatus?(' · Policy charge: '+esc(j.policyChargeStatus)+(j.policyChargeAmount?' $'+j.policyChargeAmount:'')):'' )+'</div>'+
       '<div class="kv" style="margin-bottom:10px">'+
-      '<div><b>Approved total:</b> $'+esc(String(Number(j.approvedFinalAmount!=null?j.approvedFinalAmount:(j.approvedCents||0)/100).toFixed(2)))+'</div>'+
+      '<div><b>Approved total:</b> $'+esc(String(approvedDisp.toFixed(2)))+'</div>'+
       '<div><b>Paid:</b> $'+esc(String(paidAmt.toFixed(2)))+'</div>'+
       '<div><b>Balance:</b> $'+esc(String(Math.max(0,balDue).toFixed(2)))+'</div>'+
       (stripeRef?'<div><b>Stripe:</b> '+esc(stripeRef)+'…</div>':'')+
@@ -1322,8 +1570,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<button type="button" class="btn ghost sm" id="dApproveAdj">Approve adjustment</button>'+
       '<button type="button" class="btn ghost sm" id="dRejectAdj">Reject adjustment</button>'+
       '</div>'+
-      '</div></div>';
-    html += '<div class="sec"><h4>Customer links</h4><div class="actions">'+
+      '</div></div></div>';
+    html += '<div class="sec full"><h4>Notes and history</h4>';
+    html += '<div class="sec" style="margin:0 0 12px"><h4>Customer links</h4><div class="actions">'+
       '<button type="button" class="btn sm" id="dGenCompletion">Generate completion link</button>'+
       '<button type="button" class="btn ghost sm" id="dGenGarage">My Garage link</button>'+
       '<button type="button" class="btn ghost sm" id="dCopyCustomerLink">Copy last link</button></div>'+
@@ -1332,9 +1581,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       (j.notificationDelivery?'<p class="hint">Notifications — admin: '+esc((j.notificationDelivery.adminEmail&&j.notificationDelivery.adminEmail.status)||'—')+
         ' · customer: '+esc((j.notificationDelivery.customerEmail&&j.notificationDelivery.customerEmail.status)||'—')+'</p>':'')+
       '</div>';
-    if (j.adminNotes) html += '<div class="sec"><h4>Admin notes</h4><pre style="font-size:12px;white-space:pre-wrap;color:var(--mu)">'+esc(j.adminNotes)+'</pre></div>';
+    if (j.adminNotes) html += '<div class="sec" style="margin:0 0 12px"><h4>Admin notes</h4><pre style="font-size:12px;white-space:pre-wrap;color:var(--mu)">'+esc(j.adminNotes)+'</pre></div>';
     if (j.completionSubmitted || j.customerSignature) {
-      html += '<div class="sec"><h4>Completion</h4><div class="kv">'+
+      html += '<div class="sec" style="margin:0 0 12px"><h4>Completion</h4><div class="kv">'+
         '<div><b>Submitted:</b> '+dt(j.completedAt)+'</div>'+
         (j.completionNotes?'<div><b>Notes:</b> '+esc(j.completionNotes)+'</div>':'')+
         (j.issueNotes?'<div><b>Issue:</b> '+esc(j.issueNotes)+'</div>':'')+
@@ -1361,9 +1610,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         '<button type="button" class="btn ghost sm" id="dCorrect">Request correction</button></div></div>';
     }
     const evs = (j.eventLog||[]).slice().reverse();
-    html += '<div class="sec"><h4>Event log</h4>'+(evs.length?evs.map(e=>'<div class="ev"><time>'+dt(e.at)+'</time><strong>'+esc(e.action||'')+'</strong> '+
+    html += '<div class="sec" style="margin:0 0 12px"><h4>Event log</h4>'+(evs.length?evs.map(e=>'<div class="ev"><time>'+dt(e.at)+'</time><strong>'+esc(e.action||'')+'</strong> '+
       (e.by?'('+esc(e.by)+') ':'')+(e.note?esc(e.note):'')+(e.message?esc(e.message):'')+'</div>').join(''):'<div class="empty">No events</div>')+'</div>';
-    html += '<div class="sec" id="dAuditSec"><h4>Operational audit</h4><div class="empty">Loading audit…</div></div>';
+    html += '<div class="sec" id="dAuditSec" style="margin:0"><h4>Operational audit</h4><div class="empty">Loading audit…</div></div></div>';
+    html += '<div class="sec full"><h4>Destructive and archival actions</h4><div class="actions">'+
+      '<button type="button" class="btn warn sm" id="dArchive">Archive as test</button></div></div>';
+    html += '</div>';
     $('#dBody').innerHTML = html;
     $('#dNote').value = '';
     bindAddonSection(j);
@@ -1492,7 +1744,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const dsb = $('#dSaveBal'); if(dsb) dsb.onclick = () => jobAction(j.id,'record_job_balance',{finalAmount:$('#dFinalAmt').value,techPayoutAmount:$('#dTechPay').value});
     const doa = $('#dOfferApply'); if(doa) doa.onclick = () => { const r=prompt('Reason (required for override if ineligible):')||''; jobAction(j.id,'apply_welcome_offer',{reason:r,forceEligible:!!r}); };
     const dor = $('#dOfferRemove'); if(dor) dor.onclick = () => { const r=prompt('Reason for removing offer (required):'); if(r) jobAction(j.id,'remove_welcome_offer',{reason:r}); };
-    $('#drawerBg').classList.add('open'); $('#drawer').classList.add('open');
+    placeActiveDetailRow(j.id);
+    markExpandedRow(j.id);
   }
 
   // Stage 3 — canonical add-on controls. Catalog rows, prices, and selection all
@@ -1778,7 +2031,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     };
   }
 
-  function closeDrawer() { $('#drawerBg').classList.remove('open'); $('#drawer').classList.remove('open'); activeJob=null; drawerAddonData=null; }
+  function closeDrawer() { collapseJobDetail(); }
 
   // Tabs
   $('#tabs').onclick = e => {
@@ -1827,7 +2080,6 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   $('#btnRefresh').onclick = refreshAll;
   $('#btnLogout').onclick = () => { if (confirm('Sign out of Admin Ops?')) adminLogout(); };
   $('#dClose').onclick = closeDrawer;
-  $('#drawerBg').onclick = closeDrawer;
   $('#tdClose').onclick = closeTechDrawer;
   $('#techDrawerBg').onclick = closeTechDrawer;
   $('#tdSave').onclick = saveTechProfile;

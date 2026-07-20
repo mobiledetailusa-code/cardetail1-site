@@ -344,8 +344,116 @@ describe('Admin Ops Jobs Board multi-vehicle summary + search', () => {
       vm.compileFunction(src, [
         'CD1AdminSession', 'SiteAccess', 'document', 'window', 'location',
         'fetch', 'prompt', 'confirm', 'alert', 'navigator', 'setTimeout',
-        'clearTimeout', 'FormData',
+        'clearTimeout', 'FormData', 'CSS',
       ]);
     });
+  });
+});
+
+describe('Admin Ops inline expandable job details', () => {
+  const FORMER_DRAWER_ACTIONS = [
+    'dFirst', 'dLast', 'dPhone', 'dEmail', 'dSaveCustomer', 'dVehicle', 'dPackage', 'dSaveService',
+    'dAssign', 'dCancelYes', 'dCancelNo', 'dApplyResched', 'dApplyAddr', 'dConfirm', 'dCancel',
+    'dReopenAppt', 'dArchive', 'dTechEnRoute', 'dTechStart', 'dTechPause', 'dTechResume', 'dTechComplete',
+    'dDate', 'dTime', 'dResched', 'dAddr', 'dZip', 'dSaveAddr', 'dOfferApply', 'dOfferRemove',
+    'dFinalAmt', 'dTechPay', 'dSaveBal', 'dPostAuc', 'dAssignWin', 'dAddonSec', 'dPkgSec',
+    'dPayPref', 'dSavePref', 'dPayLink', 'dManualPayRef', 'dGenPayLink', 'dReconcileStripe',
+    'dCopyPayLink', 'dSetPayLink', 'dChargeNoShow', 'dChargeLateCancel', 'dRefundNote', 'dRefundAmt',
+    'dRefund', 'dMarkRefunded', 'dMarkCash', 'dMarkCardSite', 'dApproveAdj', 'dRejectAdj',
+    'dGenCompletion', 'dGenGarage', 'dCopyCustomerLink', 'dAuditSec', 'dNote', 'dSaveNote', 'dClose',
+  ];
+
+  it('uses one reusable activeJobDetailRow, not per-job detail forms', () => {
+    assert.match(adminOps, /id="activeJobDetailRow"/);
+    assert.match(adminOps, /id="activeJobDetailPanel"/);
+    assert.match(adminOps, /function placeActiveDetailRow\(/);
+    assert.match(adminOps, /function parkActiveDetailRow\(/);
+    assert.match(adminOps, /let expandedJobId = null/);
+    assert.equal((adminOps.match(/id="activeJobDetailRow"/g) || []).length, 1);
+    assert.equal((adminOps.match(/id="dSaveNote"/g) || []).length, 1);
+    assert.equal((adminOps.match(/id="dBody"/g) || []).length, 1);
+  });
+
+  it('jobs board no longer depends on side drawer backdrop', () => {
+    assert.doesNotMatch(adminOps, /id="drawerBg"/);
+    assert.doesNotMatch(adminOps, /id="drawer"/);
+    assert.doesNotMatch(adminOps, /\$\('#drawerBg'\)/);
+    assert.match(adminOps, /id="techDrawer"/);
+    assert.match(adminOps, /job-detail-panel/);
+    assert.match(adminOps, /job-detail-grid/);
+  });
+
+  it('summary row has chevron, balance, and expandable interaction', () => {
+    assert.match(adminOps, /class="job-chevron"/);
+    assert.match(adminOps, /aria-controls="activeJobDetailPanel"/);
+    assert.match(adminOps, /jobsBalanceLabel\(j\)/);
+    assert.match(adminOps, /function toggleJobExpand\(/);
+    assert.match(adminOps, /function isInteractiveToggleTarget\(/);
+    assert.match(adminOps, /e\.key !== 'Enter' && e\.key !== ' '/);
+    assert.match(adminOps, /button, a, input, textarea, select/);
+  });
+
+  it('same job toggles closed; only one expansion tracked', () => {
+    assert.match(adminOps, /if \(expandedJobId === jobId\) \{\s*collapseJobDetail\(\);/);
+    assert.match(adminOps, /function collapseJobDetail\(/);
+    assert.match(adminOps, /expandedJobId = id/);
+  });
+
+  it('renders vehicles section with package, add-ons, and server subtotals', () => {
+    assert.match(adminOps, /function renderVehiclesDetailSection\(/);
+    assert.match(adminOps, /Vehicles and services/);
+    assert.match(adminOps, /Vehicle subtotal/);
+    assert.match(adminOps, /fmtServerDollars\(v\.subtotal\)/);
+    assert.match(adminOps, /v\.packageName \|\| v\.pkgName/);
+    assert.match(adminOps, /a && a\.price/);
+  });
+
+  it('keeps approved/paid/remaining from server projection fields', () => {
+    assert.match(adminOps, /j\.remainingCents/);
+    assert.match(adminOps, /j\.approvedFinalAmount/);
+    assert.match(adminOps, /j\.amountPaid/);
+    assert.doesNotMatch(adminOps, /approvedFinalAmount\s*=\s*[^=].*\+.*basePrice/);
+    assert.doesNotMatch(adminOps, /remainingCents\s*=\s*[^=].*basePrice/);
+  });
+
+  it('panel stays open after mutation refresh via expandedJobId', () => {
+    assert.match(adminOps, /if \(expandedJobId === bookingId \|\| \(activeJob && activeJob\.id === bookingId\)\)/);
+    assert.match(adminOps, /await openDrawer\(bookingId\)/);
+    assert.match(adminOps, /action === 'archive_test' && expandedJobId === bookingId/);
+  });
+
+  it('escapes attribute-breaking quotes in customer and vehicle text', () => {
+    assert.match(adminOps, /replace\(\/"\/g,\s*'&quot;'\)/);
+    assert.match(adminOps, /replace\(\/'\/g,\s*'&#39;'\)/);
+  });
+
+  it('every former drawer action id remains reachable', () => {
+    for (const id of FORMER_DRAWER_ACTIONS) {
+      assert.match(adminOps, new RegExp('id="' + id + '"|' + id + '\\b'), `missing control ${id}`);
+    }
+    assert.match(adminOps, /jobAction\(j\.id,'update_customer'/);
+    assert.match(adminOps, /jobAction\(j\.id,'update_service'/);
+    assert.match(adminOps, /jobAction\(j\.id,'update_address'/);
+    assert.match(adminOps, /jobAction\(j\.id,'reschedule'/);
+    assert.match(adminOps, /jobAction\(activeJob\.id,'admin_note'/);
+    assert.match(adminOps, /jobAction\(j\.id,'mark_cash_received'/);
+    assert.match(adminOps, /action:\s*'change_package'/);
+    assert.match(adminOps, /renderAddonSection/);
+    assert.match(adminOps, /bindAddonSection/);
+    assert.match(adminOps, /renderPackageSection/);
+    assert.match(adminOps, /bindPackageSection/);
+  });
+
+  it('does not create duplicate fixed control IDs', () => {
+    for (const id of ['dTitle', 'dBody', 'dNote', 'dSaveNote', 'dClose', 'activeJobDetailPanel']) {
+      const re = new RegExp('id="' + id + '"', 'g');
+      assert.equal((adminOps.match(re) || []).length, 1, `duplicate id ${id}`);
+    }
+  });
+
+  it('openDrawer still used so other boards and tests keep feature parity entrypoint', () => {
+    assert.match(adminOps, /async function openDrawer\(/);
+    assert.match(adminOps, /openDrawer\(j\.id\)/);
+    assert.match(adminOps, /ensureJobsTab\(/);
   });
 });
