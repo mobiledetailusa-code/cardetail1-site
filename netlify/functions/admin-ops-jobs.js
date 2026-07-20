@@ -45,6 +45,7 @@ const {
 
 const MONEY_MUTATION_ACTIONS = new Set([
   'update_service',
+  'change_package',
   'update_vehicles',
   'approve_adjustment',
   'reject_adjustment',
@@ -249,6 +250,7 @@ async function persistMutation(store, bookingId, booking, previous, action, reas
     const priorApproved = Math.max(0, Math.round(Number(base.ledger?.approvedCents) || 0));
     const quoteChanged = approvedCents !== priorApproved
       || action === 'update_service'
+      || action === 'change_package'
       || action === 'update_vehicles'
       || action === 'approve_adjustment'
       || action === 'reject_adjustment'
@@ -267,8 +269,15 @@ async function persistMutation(store, bookingId, booking, previous, action, reas
       patches.payLinkAmount = null;
       patches.payLinkInvalidatedAt = new Date().toISOString();
       patches.quoteVersion = nextQuoteVersion;
+      // When the mutator minted a fresh canonical quote (quoteService), keep its
+      // line items; version/amount fields below stay authoritative either way.
+      const mintedQuote = mutated.quote
+        && Number(mutated.quote.quoteVersion) > Number(base.quote?.quoteVersion || 0)
+        ? mutated.quote
+        : null;
       patches.quote = {
         ...(base.quote || {}),
+        ...(mintedQuote || {}),
         quoteVersion: nextQuoteVersion,
         basedOnBookingVersion: expected,
         approvedCents,
@@ -334,6 +343,19 @@ function freeFormAddonBodyRejected(body) {
   if (body.addOnIdsToAdd != null || body.addOnIdsToRemove != null) return true;
   if (body.addonIds != null || body.addonId != null) return true;
   if (body.addonName != null || body.addonPrice != null || body.addonPriceCents != null) return true;
+  return false;
+}
+
+/**
+ * Package Stage 1 — any package identity field on update_service is a package
+ * mutation and must route through the shared Admin package adapter (never
+ * updateServicePackage / persistMutation as money authority).
+ */
+function bodyHasPackageMutation(body) {
+  if (!body || typeof body !== 'object') return false;
+  if (body.packageId != null && String(body.packageId).trim() !== '') return true;
+  if (body.pkgId != null && String(body.pkgId).trim() !== '') return true;
+  if (body.package != null && String(body.package).trim() !== '') return true;
   return false;
 }
 
@@ -412,6 +434,352 @@ function adminAddonCatalogForBooking(booking) {
 
 function buildAdminAddonAuditReason(facts) {
   return JSON.stringify(facts).slice(0, 500);
+}
+
+/**
+ * Package change flow — display names for canonical package IDs. Keys must
+ * exist in booking-price-catalog PRICING tiers / LENGTH_PRICING packages, and
+ * every name must round-trip through PKG_ID_ALIASES / inferPkgId back to the
+ * same id (legacy consumers re-infer pkgId from the name).
+ */
+const PACKAGE_DISPLAY = {
+  cars: {
+    maint: 'Maintenance Detail',
+    interior: 'Interior Detail',
+    full: 'Premium Full Detail',
+    refresh: 'Exterior Refresh & Protect',
+    premium: 'Paint Correction / Enhancement',
+  },
+  boats: {
+    maint: 'Marine Wash',
+    essential: 'Essential Marine Detail',
+    full: 'Full Marine Detail',
+    premium: 'Premium Marine Detail',
+  },
+  rvs: {
+    maint: 'Maintenance Wash',
+    maint_light: 'Exterior Wash & Protect',
+    interior: 'Interior Detail',
+    full_basic: 'Full RV Detail',
+    premium: 'Premium Exterior Detail',
+    full: 'Premium Complete Detail',
+  },
+  powersports: {
+    wash: 'Wash & Shine',
+    essential: 'Essential Detail',
+    full: 'Full Detail',
+    premium: 'Premium Detail',
+  },
+  fleet: {
+    maint: 'Fleet Maintenance Wash',
+    essential: 'Fleet Essential Detail',
+    full: 'Fleet Full Detail',
+    premium: 'Fleet Premium Protection',
+    custom: 'Custom Fleet Quote',
+  },
+};
+
+function packageDisplayName(category, id) {
+  const names = PACKAGE_DISPLAY[category] || {};
+  if (names[id]) return names[id];
+  return String(id || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Raw catalog-shaped vehicles for package pricing probes (keeps tier/length/rvType). */
+function adminRawVehiclesForControls(booking) {
+  const { ensureVehicleIds } = require('../lib/booking-aggregate');
+  const raw = (booking?.service && Array.isArray(booking.service.vehicles) && booking.service.vehicles.length)
+    ? booking.service.vehicles
+    : (Array.isArray(booking?.vehicles) ? booking.vehicles : []);
+  return ensureVehicleIds(raw.length
+    ? raw
+    : [{
+      vehicleLabel: booking?.vehicleLabel || booking?.vehicle || '',
+      category: booking?.vehicleCategory || booking?.cat || 'cars',
+      tierLabel: booking?.vehicleTier || booking?.tierLabel || '',
+      pkgId: booking?.packageId || booking?.pkgId || '',
+      pkgName: booking?.package || '',
+      lengthFt: booking?.vehicleLengthFt || booking?.lengthFt || 0,
+      rvType: booking?.rvType || '',
+      addOnIds: booking?.addOnIds || [],
+      addons: booking?.addons || [],
+    }]);
+}
+
+/**
+ * Server-side package options for one vehicle. Every option is priced through
+ * booking-price-catalog (computeVehicleSubtotal probe with add-ons stripped);
+ * unpriceable or zero-priced combinations are excluded. Browser prices are
+ * never read anywhere in this flow.
+ */
+function packageOptionsForVehicle(rawVehicle, booking) {
+  const {
+    PRICING,
+    LENGTH_PRICING,
+    computeVehicleSubtotal,
+  } = require('../lib/booking-price-catalog');
+  const zip = booking?.zipCode || booking?.zip || '';
+  const cat = String(rawVehicle?.cat || rawVehicle?.category || 'cars').trim() || 'cars';
+
+  const candidateIds = new Set();
+  for (const tier of Object.values(PRICING[cat]?.tiers || {})) {
+    for (const key of Object.keys(tier)) if (key !== 'label') candidateIds.add(key);
+  }
+  for (const key of Object.keys(LENGTH_PRICING[cat]?.packages || {})) candidateIds.add(key);
+
+  const current = computeVehicleSubtotal({ ...rawVehicle, cat, category: cat }, zip, booking);
+  const currentPackageId = current.ok
+    ? current.pkgId
+    : String(rawVehicle?.pkgId || rawVehicle?.packageId || '').trim();
+
+  const options = [];
+  for (const id of candidateIds) {
+    const probe = {
+      ...rawVehicle,
+      cat,
+      category: cat,
+      pkgId: id,
+      packageId: id,
+      pkgName: '',
+      packageName: '',
+      addons: [],
+      addOnIds: [],
+    };
+    const priced = computeVehicleSubtotal(probe, zip, booking);
+    if (!priced.ok || !(priced.basePrice > 0)) continue;
+    options.push({
+      id,
+      name: packageDisplayName(cat, id),
+      priceCents: Math.round(priced.basePrice * 100),
+      current: id === currentPackageId,
+    });
+  }
+  options.sort((a, b) => a.priceCents - b.priceCents);
+  return { category: cat, currentPackageId, options };
+}
+
+/** Canonical package catalog payload for the Admin job drawer — server-serialized only. */
+function adminPackageCatalogForBooking(booking) {
+  const vehicles = adminRawVehiclesForControls(booking).map((v) => {
+    const { category, currentPackageId, options } = packageOptionsForVehicle(v, booking);
+    return {
+      vehicleId: String(v.vehicleId || '').trim(),
+      label: String(v.vehicleLabel || v.vehicle || v.vehicleId || 'Vehicle').trim(),
+      category,
+      currentPackageId,
+      options,
+    };
+  }).filter((v) => v.vehicleId);
+  return { packageCatalog: { source: 'booking-price-catalog', vehicles } };
+}
+
+/**
+ * Package Stage 1 — Admin package mutation adapter.
+ *
+ * Canonical package IDs only. Money authority is always:
+ * applyPackageFinancialMutation → PaymentAuthorityService.createAdjustment
+ * → PostgreSQL FinancialProjection → Blob compatibility sync.
+ *
+ * Browser-supplied names/prices/totals/proposedTotal/approved dollars are
+ * never read. persistMutation is not package money authority.
+ */
+async function adminChangePackage({
+  bookingId,
+  body = {},
+  previousBooking = null,
+  env = process.env,
+  auditFn = null,
+}) {
+  const { applyPackageFinancialMutation } = require('../lib/package-financial-mutation');
+  const { financialProjection } = require('../lib/payment-service');
+
+  // Canonical IDs only — ignore display labels and free-form package names.
+  const packageId = sanitizeText(body.packageId || body.pkgId, 32);
+
+  const record = auditFn || ((entry) => appendAudit(entry));
+
+  async function writeAudit({
+    action,
+    prior,
+    resulting,
+    vehicleId,
+    projection,
+    result,
+    error,
+    noop,
+  }) {
+    const priorBookingVersion = Math.round(Number(prior?.bookingVersion) || 0);
+    const resultingBookingVersion = Math.round(Number(
+      resulting?.bookingVersion != null ? resulting.bookingVersion : priorBookingVersion
+    ) || 0);
+    const priorQuoteVersion = Math.round(Number(
+      prior?.quoteVersion || prior?.quote?.quoteVersion || 0
+    ) || 0);
+    const resultingQuoteVersion = Math.round(Number(
+      projection?.quoteVersion != null
+        ? projection.quoteVersion
+        : (resulting?.quoteVersion || resulting?.quote?.quoteVersion || priorQuoteVersion)
+    ) || 0);
+    await Promise.resolve(record(auditEntry({
+      bookingId,
+      actorType: 'admin',
+      actorId: 'admin',
+      action,
+      previousState: prior,
+      resultingState: resulting || prior,
+      reason: buildAdminAddonAuditReason({
+        op: 'change_package',
+        result: error || result || (noop ? 'noop' : 'ok'),
+        error: error || null,
+        noop: !!noop,
+        packageId: packageId || null,
+        vehicleId: vehicleId || null,
+        priorBookingVersion,
+        bookingVersion: resultingBookingVersion,
+        priorQuoteVersion,
+        quoteVersion: resultingQuoteVersion,
+        approvedCents: projection ? projection.approvedCents : null,
+        settledCents: projection ? projection.settledCents : null,
+        remainingCents: projection ? projection.remainingCents : null,
+      }),
+      sourcePortal: 'admin_ops',
+    }))).catch(() => null);
+  }
+
+  let prior = previousBooking;
+  if (!prior) {
+    const rec = await getBookingRecord(bookingId);
+    if (!rec.exists) return { ok: false, statusCode: 404, error: 'booking_not_found' };
+    prior = rec.booking;
+  }
+
+  if (!packageId) {
+    await writeAudit({
+      action: 'admin_package_denied',
+      prior,
+      resulting: prior,
+      vehicleId: body.vehicleId,
+      projection: financialProjection(prior),
+      error: 'package_id_required',
+    });
+    return { ok: false, statusCode: 400, error: 'package_id_required' };
+  }
+
+  if (body.expectedBookingVersion == null || body.expectedBookingVersion === '') {
+    await writeAudit({
+      action: 'admin_package_denied',
+      prior,
+      resulting: prior,
+      vehicleId: body.vehicleId,
+      projection: financialProjection(prior),
+      error: 'expected_booking_version_required',
+    });
+    return { ok: false, statusCode: 400, error: 'expected_booking_version_required' };
+  }
+
+  const expected = Math.round(Number(body.expectedBookingVersion));
+  const actualVersion = Math.round(Number(prior.bookingVersion) || 0);
+  if (!Number.isFinite(expected) || actualVersion !== expected) {
+    await writeAudit({
+      action: 'admin_package_denied',
+      prior,
+      resulting: prior,
+      vehicleId: body.vehicleId,
+      projection: financialProjection(prior),
+      error: 'version_conflict',
+    });
+    return {
+      ok: false,
+      statusCode: 409,
+      error: 'version_conflict',
+      actualBookingVersion: actualVersion,
+      financialProjection: financialProjection(prior),
+    };
+  }
+
+  const vehicles = adminRawVehiclesForControls(prior);
+  let vehicleId = body.vehicleId ? sanitizeText(body.vehicleId, 64) : '';
+  if (vehicles.length > 1 && !vehicleId) {
+    await writeAudit({
+      action: 'admin_package_denied',
+      prior,
+      resulting: prior,
+      vehicleId: null,
+      projection: financialProjection(prior),
+      error: 'vehicle_target_required',
+    });
+    return { ok: false, statusCode: 400, error: 'vehicle_target_required' };
+  }
+  if (!vehicleId && vehicles.length === 1) {
+    vehicleId = vehicles[0].vehicleId;
+  }
+
+  // Intentionally ignore body.price / amount / total / proposedTotal /
+  // approvedCents / approvedFinalAmount — catalog + Postgres are authority.
+  const result = await applyPackageFinancialMutation({
+    bookingId,
+    expectedBookingVersion: expected,
+    target: { vehicleId: vehicleId || undefined },
+    packageId,
+    adminNote: sanitizeText(body.reason, 300),
+    env,
+  });
+
+  if (!result.ok) {
+    await writeAudit({
+      action: 'admin_package_denied',
+      prior,
+      resulting: prior,
+      vehicleId,
+      projection: result.financialProjection || financialProjection(prior),
+      error: result.error || 'package_mutation_failed',
+    });
+    return {
+      ok: false,
+      statusCode: result.statusCode || 400,
+      error: result.error,
+      message: result.message,
+      actualBookingVersion: result.actualBookingVersion,
+      packageId: result.packageId,
+      validPackageIds: result.validPackageIds,
+      financialProjection: result.financialProjection || null,
+      projection: result.projection || null,
+    };
+  }
+
+  const projection = result.postgresProjection || result.financialProjection;
+  const approvedCents = projection
+    ? Math.max(0, Math.round(Number(projection.approvedCents) || 0))
+    : 0;
+  await writeAudit({
+    action: result.noop ? 'admin_package_noop' : 'admin_change_package',
+    prior,
+    resulting: result.booking,
+    vehicleId: result.vehicleId || vehicleId,
+    projection,
+    noop: !!result.noop,
+    result: result.reason || (result.noop ? 'noop' : 'ok'),
+  });
+
+  return {
+    ok: true,
+    statusCode: 200,
+    bookingId,
+    noop: !!result.noop,
+    reason: result.reason,
+    vehicleId: result.vehicleId || vehicleId || null,
+    packageId: result.packageId || packageId,
+    packageName: result.packageName,
+    priorPackageId: result.priorPackageId || null,
+    totalPrice: centsToDollars(approvedCents),
+    bookingVersion: result.booking?.bookingVersion,
+    quoteVersion: result.quoteVersion,
+    priorQuoteVersion: result.priorQuoteVersion,
+    projection,
+    postgresProjection: result.postgresProjection || null,
+    financialProjection: result.financialProjection,
+    remainingCents: result.remainingCents,
+  };
 }
 
 /**
@@ -740,11 +1108,18 @@ async function handleAdminAction(body) {
       reconcileSkipped: !!reconciled.skipped,
       reconcileReason: reconciled.reason || reconciled.error || null,
       ...adminAddonCatalogForBooking(booking),
+      ...adminPackageCatalogForBooking(booking),
     });
   }
 
   if (action === 'addon_mutation') {
     const result = await adminAddonMutation({ bookingId, body, previousBooking: booking });
+    const { statusCode, ...payload } = result;
+    return jsonCors(statusCode || (result.ok ? 200 : 400), payload);
+  }
+
+  if (action === 'change_package') {
+    const result = await adminChangePackage({ bookingId, body, previousBooking: booking });
     const { statusCode, ...payload } = result;
     return jsonCors(statusCode || (result.ok ? 200 : 400), payload);
   }
@@ -1555,6 +1930,14 @@ async function handleAdminAction(body) {
         message: 'Add-on changes must use action addon_mutation with canonical add-on IDs only.',
       });
     }
+    // Package-bearing update_service uses the same Postgres-authoritative
+    // adapter as change_package — never the legacy service-edit mutator or
+    // Blob persist as package money authority.
+    if (bodyHasPackageMutation(body)) {
+      const result = await adminChangePackage({ bookingId, body, previousBooking: booking });
+      const { statusCode, ...payload } = result;
+      return jsonCors(statusCode || (result.ok ? 200 : 400), payload);
+    }
     const result = await updateServicePackage(booking, body);
     if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
     const persisted = await persistMutation(store, bookingId, result.booking, booking, 'update_service', body.reason);
@@ -1706,6 +2089,10 @@ async function bulkArchiveTests(store, includeAlreadyArchived) {
 exports.adminAddonMutation = adminAddonMutation;
 exports.adminAddonCatalogForBooking = adminAddonCatalogForBooking;
 exports.freeFormAddonBodyRejected = freeFormAddonBodyRejected;
+exports.bodyHasPackageMutation = bodyHasPackageMutation;
+exports.adminChangePackage = adminChangePackage;
+exports.adminPackageCatalogForBooking = adminPackageCatalogForBooking;
+exports.packageOptionsForVehicle = packageOptionsForVehicle;
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});

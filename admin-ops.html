@@ -1115,9 +1115,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     drawerAddonData = null;
     try {
       const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'get_job',bookingId:id});
-      if (d && d.addonCatalog) {
+      if (d && (d.addonCatalog || d.packageCatalog)) {
         drawerAddonData = {
-          catalog: d.addonCatalog,
+          catalog: d.addonCatalog || null,
+          packageCatalog: d.packageCatalog || null,
           vehicles: d.vehicles || [],
           selected: d.selectedAddonIds || [],
           projection: d.projection || null,
@@ -1147,7 +1148,22 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div><label>Email</label><input type="email" id="dEmail" value="'+esc(j.email||'')+'"></div>'+
       '<div class="full"><button type="button" class="btn ghost sm" id="dSaveCustomer" style="width:100%">Save customer contact</button></div>'+
       '<div class="full"><label>Vehicle</label><input type="text" id="dVehicle" value="'+esc(j.vehicleLabel||j.vehicle||'')+'"></div>'+
-      '<div><label>Package</label><input type="text" id="dPackage" value="'+esc(j.package||'')+'"></div>'+
+      (function(){
+        // Canonical package IDs only — never free-form labels as money input.
+        const cat = (drawerAddonData && drawerAddonData.packageCatalog) || null;
+        const veh = cat && Array.isArray(cat.vehicles) && cat.vehicles.length
+          ? (cat.vehicles.length === 1 ? cat.vehicles[0]
+            : (cat.vehicles.find(v => v.vehicleId === (drawerAddonData && drawerAddonData.activePkgVehicleId)) || cat.vehicles[0]))
+          : null;
+        const opts = veh && Array.isArray(veh.options) ? veh.options : [];
+        const currentId = veh && veh.currentPackageId ? veh.currentPackageId : '';
+        if (!opts.length) {
+          return '<div><label>Package</label><input type="text" id="dPackage" value="'+esc(currentId || j.packageId || j.pkgId || '')+'" disabled title="Canonical catalog unavailable — use Service package section"></div>';
+        }
+        return '<div><label>Package</label><select id="dPackage">'+
+          opts.map(o => '<option value="'+esc(o.id)+'"'+(o.id===currentId?' selected':'')+'>'+esc(o.name)+'</option>').join('')+
+          '</select></div>';
+      })()+
       '<div class="full"><button type="button" class="btn ghost sm" id="dSaveService" style="width:100%">Recalculate service (server)</button></div>'+
       '<div><b>Date:</b> '+esc(j.confirmedDate||j.preferredDate||'—')+' '+esc(j.confirmedTime||j.preferredTime||'')+'</div>'+
       '</div></div>';
@@ -1230,6 +1246,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const canGenLink = !invPaid && balDue > 0 && j.canGeneratePayLink !== false;
     const stripeRef = j.stripeCheckoutSessionIdPrefix || j.paymentIntentIdPrefix || '';
     html += renderAddonSection(j);
+    html += renderPackageSection(j);
     html += '<div class="sec"><h4>Invoice / Payment</h4>'+
       '<div style="margin-bottom:10px">'+payBadge(invPaid?'payment_succeeded':j.paymentWorkflowStatus)+
       (invPaid?' <strong style="color:var(--ok)">· PAID / CLOSED</strong>':' <strong>· Balance due</strong>')+
@@ -1327,6 +1344,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     $('#dBody').innerHTML = html;
     $('#dNote').value = '';
     bindAddonSection(j);
+    bindPackageSection(j);
     const da = $('#dAssign');
     if (da) da.onchange = () => onAssign(j.id, da.value);
     const ap = $('#dApprove'); if(ap) ap.onclick = () => jobAction(j.id,'approve_completion');
@@ -1338,7 +1356,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const dr = $('#dResched'); if(dr) dr.onclick = () => jobAction(j.id,'reschedule',{confirmedDate:$('#dDate').value,confirmedTime:$('#dTime').value,confirmedTimeWindow:$('#dTime').value});
     const dsa = $('#dSaveAddr'); if(dsa) dsa.onclick = () => jobAction(j.id,'update_address',{address:$('#dAddr').value,zipCode:$('#dZip').value});
     const dsc = $('#dSaveCustomer'); if(dsc) dsc.onclick = () => jobAction(j.id,'update_customer',{firstName:$('#dFirst').value,lastName:$('#dLast').value,phone:$('#dPhone').value,email:$('#dEmail').value});
-    const dss = $('#dSaveService'); if(dss) dss.onclick = () => jobAction(j.id,'update_service',{package:$('#dPackage').value,vehicleLabel:$('#dVehicle').value});
+    const dss = $('#dSaveService'); if(dss) dss.onclick = () => {
+      const packageId = ($('#dPackage') && $('#dPackage').value) || '';
+      const data = drawerAddonData || {};
+      const expectedBookingVersion = data.bookingVersion != null ? data.bookingVersion : j.bookingVersion;
+      const body = { packageId: packageId, vehicleLabel: $('#dVehicle').value };
+      if (expectedBookingVersion != null && expectedBookingVersion !== '') body.expectedBookingVersion = expectedBookingVersion;
+      const vehEl = $('#dPkgVehicle');
+      if (vehEl && vehEl.value) body.vehicleId = vehEl.value;
+      jobAction(j.id,'update_service', body);
+    };
     const dro = $('#dReopenAppt'); if(dro) dro.onclick = () => { const r=prompt('Reopen reason:'); if(r) jobAction(j.id,'reopen_appointment',{reason:r}); };
     const dte = $('#dTechEnRoute'); if(dte) dte.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'en_route'});
     const dts = $('#dTechStart'); if(dts) dts.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'start'});
@@ -1598,6 +1625,134 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (!confirm('Remove this add-on? The canonical quote will be repriced by the server.')) return;
       runAddonMutation({ addOnIdsToRemove: [b.dataset.removeAddon] });
     });
+  }
+
+  // PR3 — canonical package change controls. Package options and prices all
+  // come from the server (get_job packageCatalog); the browser only ever sends
+  // packageId + expectedBookingVersion (+ vehicleId when multi-vehicle).
+  function renderPackageSection(j) {
+    const data = drawerAddonData || {};
+    const cat = data.packageCatalog;
+    let out = '<div class="sec" id="dPkgSec"><h4>Service package (canonical)</h4>';
+    if (!cat || !Array.isArray(cat.vehicles) || !cat.vehicles.length) {
+      return out + '<p class="hint">Canonical package catalog unavailable — reopen the job to reload.</p></div>';
+    }
+    const proj = data.projection || {};
+    const settledC = Number(proj.settledCents != null ? proj.settledCents : (j.settledCents || 0));
+    const money = c => '$' + (Number(c || 0) / 100).toFixed(2);
+    const vehicles = cat.vehicles;
+    const multiVehicle = vehicles.length > 1;
+    const activeVehicle = multiVehicle
+      ? (vehicles.find(v => v.vehicleId === (data.activePkgVehicleId || '')) || vehicles[0] || null)
+      : (vehicles[0] || null);
+    const activeVehicleId = activeVehicle ? activeVehicle.vehicleId : '';
+    const options = activeVehicle && Array.isArray(activeVehicle.options) ? activeVehicle.options : [];
+    const current = options.find(o => o.current) || null;
+    if (multiVehicle) {
+      out += '<div style="margin-bottom:8px"><label>Target vehicle</label>'+
+        '<select id="dPkgVehicle">'+
+        vehicles.map(v => '<option value="'+esc(v.vehicleId)+'"'+(v.vehicleId===activeVehicleId?' selected':'')+'>'+
+          esc(v.label || v.vehicleId)+'</option>').join('')+
+        '</select></div>';
+    } else if (activeVehicleId) {
+      out += '<input type="hidden" id="dPkgVehicle" value="'+esc(activeVehicleId)+'">';
+    }
+    out += '<div class="kv" style="margin-bottom:8px"><div><b>Current package:</b> '+
+      (current
+        ? esc(current.name)+' · '+money(current.priceCents)
+        : esc((activeVehicle && activeVehicle.currentPackageId) || 'Unknown'))+
+      '</div></div>';
+    if (settledC > 0) {
+      return out + '<p class="hint" style="margin:0">Paid — package changes unavailable after settlement.</p></div>';
+    }
+    const choices = options.filter(o => !o.current);
+    const canMutate = choices.length > 0 && !!activeVehicleId;
+    out += '<div class="op-grid">'+
+      '<div class="full"><label>Change package (price from catalog)</label>'+
+      '<select id="dPkgSelect"'+(canMutate ? '' : ' disabled')+'>'+
+      (choices.length
+        ? choices.map(o => '<option value="'+esc(o.id)+'">'+esc(o.name)+' · '+money(o.priceCents)+'</option>').join('')
+        : '<option value="">No alternative packages available</option>')+
+      '</select></div>'+
+      '<div class="full"><button type="button" class="btn sm" id="dPkgApply"'+(canMutate ? '' : ' disabled')+'>Change package</button></div>'+
+      '</div>'+
+      '<p class="hint" id="dPkgStatus" style="margin-top:6px;margin-bottom:0"></p></div>';
+    return out;
+  }
+
+  function bindPackageSection(j) {
+    let pkgPending = false;
+    const setPending = (on, msg) => {
+      pkgPending = on;
+      document.querySelectorAll('#dPkgSec button, #dPkgSec select').forEach(el => { el.disabled = on; });
+      const st = $('#dPkgStatus');
+      if (st && msg != null) st.textContent = msg;
+    };
+    const vehicleSelect = $('#dPkgVehicle');
+    if (vehicleSelect && vehicleSelect.tagName === 'SELECT') {
+      vehicleSelect.onchange = () => {
+        if (!drawerAddonData) return;
+        drawerAddonData.activePkgVehicleId = vehicleSelect.value;
+        const sec = $('#dPkgSec');
+        if (!sec) return;
+        sec.outerHTML = renderPackageSection(j);
+        bindPackageSection(j);
+      };
+    }
+    const dApply = $('#dPkgApply');
+    if (dApply) dApply.onclick = async () => {
+      if (pkgPending) return; // double-click → one effective mutation
+      const sel = $('#dPkgSelect');
+      const packageId = sel && sel.value;
+      if (!packageId) return;
+      const data = drawerAddonData || {};
+      const expectedBookingVersion = data.bookingVersion != null
+        ? data.bookingVersion
+        : j.bookingVersion;
+      if (expectedBookingVersion == null || expectedBookingVersion === '') {
+        const st = $('#dPkgStatus');
+        if (st) st.textContent = 'Missing booking version — reopen the job.';
+        return;
+      }
+      const vehEl = $('#dPkgVehicle');
+      const vehicleId = vehEl && vehEl.value ? vehEl.value : '';
+      const cat = data.packageCatalog || {};
+      if (Array.isArray(cat.vehicles) && cat.vehicles.length > 1 && !vehicleId) {
+        const st = $('#dPkgStatus');
+        if (st) st.textContent = 'Select a target vehicle before changing the package.';
+        return;
+      }
+      const label = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : packageId;
+      if (!confirm('Change the service package to "'+label+'"? The canonical quote will be repriced by the server.')) return;
+      setPending(true, 'Applying package change…');
+      try {
+        const body = {
+          action: 'change_package',
+          bookingId: j.id,
+          expectedBookingVersion: expectedBookingVersion,
+          packageId: packageId,
+        };
+        if (vehicleId) body.vehicleId = vehicleId;
+        const d = await api('/.netlify/functions/admin-ops-jobs','POST', body);
+        toast(d.noop
+          ? 'No change — '+(d.reason || 'already applied').replace(/_/g,' ')
+          : 'Package updated · total $'+Number(d.totalPrice || 0).toFixed(2));
+        await refreshAll();
+        // Rerender from the server projection — never from local math.
+        if (activeJob && activeJob.id === j.id) await openDrawer(j.id);
+      } catch(e) {
+        const err = String(e.message || '');
+        if (err === 'version_conflict') {
+          toast('Booking changed — reloading job…');
+          // Reload authoritative state; do not silently replay the mutation.
+          if (activeJob && activeJob.id === j.id) await openDrawer(j.id);
+          return;
+        }
+        // Preserve the open drawer on validation/server errors.
+        setPending(false, 'Package change failed: '+err);
+        toast('Package change failed: '+err);
+      }
+    };
   }
 
   function closeDrawer() { $('#drawerBg').classList.remove('open'); $('#drawer').classList.remove('open'); activeJob=null; drawerAddonData=null; }
