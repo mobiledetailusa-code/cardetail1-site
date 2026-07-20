@@ -45,6 +45,7 @@ const {
 
 const MONEY_MUTATION_ACTIONS = new Set([
   'update_service',
+  'change_package',
   'update_vehicles',
   'approve_adjustment',
   'reject_adjustment',
@@ -249,6 +250,7 @@ async function persistMutation(store, bookingId, booking, previous, action, reas
     const priorApproved = Math.max(0, Math.round(Number(base.ledger?.approvedCents) || 0));
     const quoteChanged = approvedCents !== priorApproved
       || action === 'update_service'
+      || action === 'change_package'
       || action === 'update_vehicles'
       || action === 'approve_adjustment'
       || action === 'reject_adjustment'
@@ -267,8 +269,15 @@ async function persistMutation(store, bookingId, booking, previous, action, reas
       patches.payLinkAmount = null;
       patches.payLinkInvalidatedAt = new Date().toISOString();
       patches.quoteVersion = nextQuoteVersion;
+      // When the mutator minted a fresh canonical quote (quoteService), keep its
+      // line items; version/amount fields below stay authoritative either way.
+      const mintedQuote = mutated.quote
+        && Number(mutated.quote.quoteVersion) > Number(base.quote?.quoteVersion || 0)
+        ? mutated.quote
+        : null;
       patches.quote = {
         ...(base.quote || {}),
+        ...(mintedQuote || {}),
         quoteVersion: nextQuoteVersion,
         basedOnBookingVersion: expected,
         approvedCents,
@@ -412,6 +421,312 @@ function adminAddonCatalogForBooking(booking) {
 
 function buildAdminAddonAuditReason(facts) {
   return JSON.stringify(facts).slice(0, 500);
+}
+
+/**
+ * Package change flow — display names for canonical package IDs. Keys must
+ * exist in booking-price-catalog PRICING tiers / LENGTH_PRICING packages, and
+ * every name must round-trip through PKG_ID_ALIASES / inferPkgId back to the
+ * same id (legacy consumers re-infer pkgId from the name).
+ */
+const PACKAGE_DISPLAY = {
+  cars: {
+    maint: 'Maintenance Detail',
+    interior: 'Interior Detail',
+    full: 'Premium Full Detail',
+    refresh: 'Exterior Refresh & Protect',
+    premium: 'Paint Correction / Enhancement',
+  },
+  boats: {
+    maint: 'Marine Wash',
+    essential: 'Essential Marine Detail',
+    full: 'Full Marine Detail',
+    premium: 'Premium Marine Detail',
+  },
+  rvs: {
+    maint: 'Maintenance Wash',
+    maint_light: 'Exterior Wash & Protect',
+    interior: 'Interior Detail',
+    full_basic: 'Full RV Detail',
+    premium: 'Premium Exterior Detail',
+    full: 'Premium Complete Detail',
+  },
+  powersports: {
+    wash: 'Wash & Shine',
+    essential: 'Essential Detail',
+    full: 'Full Detail',
+    premium: 'Premium Detail',
+  },
+  fleet: {
+    maint: 'Fleet Maintenance Wash',
+    essential: 'Fleet Essential Detail',
+    full: 'Fleet Full Detail',
+    premium: 'Fleet Premium Protection',
+    custom: 'Custom Fleet Quote',
+  },
+};
+
+function packageDisplayName(category, id) {
+  const names = PACKAGE_DISPLAY[category] || {};
+  if (names[id]) return names[id];
+  return String(id || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Raw catalog-shaped vehicles for package pricing probes (keeps tier/length/rvType). */
+function adminRawVehiclesForControls(booking) {
+  const { ensureVehicleIds } = require('../lib/booking-aggregate');
+  const raw = (booking?.service && Array.isArray(booking.service.vehicles) && booking.service.vehicles.length)
+    ? booking.service.vehicles
+    : (Array.isArray(booking?.vehicles) ? booking.vehicles : []);
+  return ensureVehicleIds(raw.length
+    ? raw
+    : [{
+      vehicleLabel: booking?.vehicleLabel || booking?.vehicle || '',
+      category: booking?.vehicleCategory || booking?.cat || 'cars',
+      tierLabel: booking?.vehicleTier || booking?.tierLabel || '',
+      pkgId: booking?.packageId || booking?.pkgId || '',
+      pkgName: booking?.package || '',
+      lengthFt: booking?.vehicleLengthFt || booking?.lengthFt || 0,
+      rvType: booking?.rvType || '',
+      addOnIds: booking?.addOnIds || [],
+      addons: booking?.addons || [],
+    }]);
+}
+
+/**
+ * Server-side package options for one vehicle. Every option is priced through
+ * booking-price-catalog (computeVehicleSubtotal probe with add-ons stripped);
+ * unpriceable or zero-priced combinations are excluded. Browser prices are
+ * never read anywhere in this flow.
+ */
+function packageOptionsForVehicle(rawVehicle, booking) {
+  const {
+    PRICING,
+    LENGTH_PRICING,
+    computeVehicleSubtotal,
+  } = require('../lib/booking-price-catalog');
+  const zip = booking?.zipCode || booking?.zip || '';
+  const cat = String(rawVehicle?.cat || rawVehicle?.category || 'cars').trim() || 'cars';
+
+  const candidateIds = new Set();
+  for (const tier of Object.values(PRICING[cat]?.tiers || {})) {
+    for (const key of Object.keys(tier)) if (key !== 'label') candidateIds.add(key);
+  }
+  for (const key of Object.keys(LENGTH_PRICING[cat]?.packages || {})) candidateIds.add(key);
+
+  const current = computeVehicleSubtotal({ ...rawVehicle, cat, category: cat }, zip, booking);
+  const currentPackageId = current.ok
+    ? current.pkgId
+    : String(rawVehicle?.pkgId || rawVehicle?.packageId || '').trim();
+
+  const options = [];
+  for (const id of candidateIds) {
+    const probe = {
+      ...rawVehicle,
+      cat,
+      category: cat,
+      pkgId: id,
+      packageId: id,
+      pkgName: '',
+      packageName: '',
+      addons: [],
+      addOnIds: [],
+    };
+    const priced = computeVehicleSubtotal(probe, zip, booking);
+    if (!priced.ok || !(priced.basePrice > 0)) continue;
+    options.push({
+      id,
+      name: packageDisplayName(cat, id),
+      priceCents: Math.round(priced.basePrice * 100),
+      current: id === currentPackageId,
+    });
+  }
+  options.sort((a, b) => a.priceCents - b.priceCents);
+  return { category: cat, currentPackageId, options };
+}
+
+/** Canonical package catalog payload for the Admin job drawer — server-serialized only. */
+function adminPackageCatalogForBooking(booking) {
+  const vehicles = adminRawVehiclesForControls(booking).map((v) => {
+    const { category, currentPackageId, options } = packageOptionsForVehicle(v, booking);
+    return {
+      vehicleId: String(v.vehicleId || '').trim(),
+      label: String(v.vehicleLabel || v.vehicle || v.vehicleId || 'Vehicle').trim(),
+      category,
+      currentPackageId,
+      options,
+    };
+  }).filter((v) => v.vehicleId);
+  return { packageCatalog: { source: 'booking-price-catalog', vehicles } };
+}
+
+/**
+ * PR3 — Admin package change adapter.
+ *
+ * Canonical package IDs only; the price resolves server-side through
+ * booking-price-catalog → applyServiceDelta → quoteService → persistMutation
+ * (quoteVersion bump, ledger approvedCents, pay-link invalidation, attempt
+ * supersede). Browser-supplied names/prices/totals in the body are never read.
+ */
+async function adminChangePackage({
+  bookingId,
+  body = {},
+  previousBooking = null,
+  store = null,
+}) {
+  const { applyServiceDelta, quoteService } = require('../lib/canonical-quote');
+  const { financialProjection } = require('../lib/payment-service');
+
+  const packageId = sanitizeText(body.packageId, 32);
+  if (!packageId) return { ok: false, statusCode: 400, error: 'package_id_required' };
+
+  let prior = previousBooking;
+  if (!prior) {
+    const rec = await getBookingRecord(bookingId);
+    if (!rec.exists) return { ok: false, statusCode: 404, error: 'booking_not_found' };
+    prior = rec.booking;
+  }
+
+  const record = (entry) => appendAudit(entry).catch(() => null);
+  const deny = async (error, statusCode, extra = {}) => {
+    await record(auditEntry({
+      bookingId,
+      actorType: 'admin',
+      actorId: 'admin',
+      action: 'admin_package_denied',
+      previousState: prior,
+      resultingState: prior,
+      reason: buildAdminAddonAuditReason({ op: 'change_package', packageId, error }),
+      sourcePortal: 'admin_ops',
+    }));
+    return { ok: false, statusCode, error, ...extra };
+  };
+
+  if (body.expectedBookingVersion == null || body.expectedBookingVersion === '') {
+    return deny('expected_booking_version_required', 400);
+  }
+  const expected = Math.round(Number(body.expectedBookingVersion));
+  const actualVersion = Math.round(Number(prior.bookingVersion) || 0);
+  if (!Number.isFinite(expected) || actualVersion !== expected) {
+    return deny('version_conflict', 409, {
+      actualBookingVersion: actualVersion,
+      financialProjection: financialProjection(prior),
+    });
+  }
+
+  const { ok: aggOk, aggregate } = normalizeAggregate(prior, { allowDraft: true });
+  const base = aggOk ? aggregate : prior;
+
+  const vehicles = adminRawVehiclesForControls(base);
+  let vehicleId = body.vehicleId ? sanitizeText(body.vehicleId, 64) : '';
+  if (vehicles.length > 1 && !vehicleId) {
+    return deny('vehicle_target_required', 400);
+  }
+  const vehicle = vehicleId
+    ? vehicles.find((v) => v.vehicleId === vehicleId)
+    : vehicles[0];
+  if (!vehicle) return deny('vehicle_not_found', 404);
+  vehicleId = vehicle.vehicleId;
+
+  // Package change reprices the whole quote (can lower it) — deny once any
+  // money has settled, mirroring the add-on removal rule. No refund rewrite.
+  const settled = Math.max(0, Math.round(Number(base.ledger?.settledCents) || 0));
+  if (settled > 0) {
+    return deny('settled_package_change_denied', 409, {
+      message: 'Package changes are denied after settlement. Use refund/adjustment flows instead.',
+      financialProjection: financialProjection(base),
+    });
+  }
+
+  const { currentPackageId, options } = packageOptionsForVehicle(vehicle, base);
+  const option = options.find((o) => o.id === packageId);
+  if (!option) {
+    return deny('unknown_package_id', 400, {
+      packageId,
+      category: vehicle.category,
+      validPackageIds: options.map((o) => o.id),
+    });
+  }
+
+  if (currentPackageId === packageId) {
+    const fp = financialProjection(base);
+    return {
+      ok: true,
+      statusCode: 200,
+      noop: true,
+      reason: 'package_unchanged',
+      bookingId,
+      vehicleId,
+      packageId,
+      bookingVersion: actualVersion,
+      quoteVersion: base.quoteVersion || base.quote?.quoteVersion || 0,
+      financialProjection: fp,
+    };
+  }
+
+  const applied = applyServiceDelta(
+    base.service,
+    { vehicleId },
+    { packageId, packageName: option.name }
+  );
+  if (!applied.ok) return deny(applied.error || 'invalid_delta', 400);
+
+  const travelCents = dollarsToCents(base.travelFeeAmount || base.zoneSurcharge || 0);
+  const quoted = quoteService(applied.service, {
+    basedOnBookingVersion: actualVersion,
+    previousQuoteVersion: base.quoteVersion || base.quote?.quoteVersion || 0,
+    travelCents,
+    bookingBase: base,
+  });
+  if (!quoted.ok) return deny(quoted.error || 'invalid_pricing', 400);
+
+  const now = new Date().toISOString();
+  const updated = {
+    ...base,
+    service: quoted.service,
+    quote: quoted.quote,
+    // normalizeAggregate re-derives approvedFinalAmount/totalPrice from the
+    // ledger, so the recomputed quote total must land there too.
+    ledger: { ...base.ledger, approvedCents: quoted.quote.approvedCents },
+    totalPrice: quoted.approvedDollars,
+    approvedFinalAmount: quoted.approvedDollars,
+    packageUpdatedByAdminAt: now,
+    updatedAt: now,
+    eventLog: appendEventLog(base, {
+      action: 'admin_change_package',
+      by: 'admin',
+      vehicleId,
+      fromPackageId: currentPackageId || null,
+      toPackageId: packageId,
+      packagePriceCents: option.priceCents,
+    }),
+  };
+
+  const targetStore = store || await blobsStore('cd1-bookings');
+  const reason = sanitizeText(body.reason, 300)
+    || `package:${currentPackageId || 'unknown'}->${packageId}`;
+  const persisted = await persistMutation(targetStore, bookingId, updated, prior, 'change_package', reason);
+  if (!persisted.ok) {
+    return {
+      ok: false,
+      statusCode: persisted.statusCode || 409,
+      error: persisted.error || 'version_conflict',
+    };
+  }
+
+  return {
+    ok: true,
+    statusCode: 200,
+    bookingId,
+    vehicleId,
+    packageId,
+    packageName: option.name,
+    priorPackageId: currentPackageId || null,
+    totalPrice: persisted.booking.totalPrice,
+    bookingVersion: persisted.bookingVersion,
+    quoteVersion: persisted.booking.quoteVersion,
+    financialProjection: financialProjection(persisted.booking),
+  };
 }
 
 /**
@@ -740,11 +1055,18 @@ async function handleAdminAction(body) {
       reconcileSkipped: !!reconciled.skipped,
       reconcileReason: reconciled.reason || reconciled.error || null,
       ...adminAddonCatalogForBooking(booking),
+      ...adminPackageCatalogForBooking(booking),
     });
   }
 
   if (action === 'addon_mutation') {
     const result = await adminAddonMutation({ bookingId, body, previousBooking: booking });
+    const { statusCode, ...payload } = result;
+    return jsonCors(statusCode || (result.ok ? 200 : 400), payload);
+  }
+
+  if (action === 'change_package') {
+    const result = await adminChangePackage({ bookingId, body, previousBooking: booking, store });
     const { statusCode, ...payload } = result;
     return jsonCors(statusCode || (result.ok ? 200 : 400), payload);
   }
@@ -1706,6 +2028,9 @@ async function bulkArchiveTests(store, includeAlreadyArchived) {
 exports.adminAddonMutation = adminAddonMutation;
 exports.adminAddonCatalogForBooking = adminAddonCatalogForBooking;
 exports.freeFormAddonBodyRejected = freeFormAddonBodyRejected;
+exports.adminChangePackage = adminChangePackage;
+exports.adminPackageCatalogForBooking = adminPackageCatalogForBooking;
+exports.packageOptionsForVehicle = packageOptionsForVehicle;
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
