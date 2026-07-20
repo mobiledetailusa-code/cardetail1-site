@@ -16,6 +16,7 @@
     verifyBookingId: '',
     actionToken: null,
     catalog: null,
+    packageCatalog: null,
     changeRequests: [],
     payment: null,
   };
@@ -25,6 +26,10 @@
   var modalFields = [];
   /** One in-flight mutation per modal action — client idempotency lock. */
   var mutationPending = false;
+  /** Focus restore target when the action modal closes. */
+  var modalOpenerEl = null;
+  /** Selected vehicleId inside the Change Package modal (multi-vehicle). */
+  var packageModalVehicleId = '';
 
   function $(id) { return document.getElementById(id); }
 
@@ -101,6 +106,77 @@
       return (data && data.message) || 'This change is not available after payment.';
     }
     return (data && data.message) || 'Unable to update add-ons. Call/text 551-313-2956.';
+  }
+
+  function mapPackageErrorMessage(data, status) {
+    var err = (data && data.error) || '';
+    if (status === 429 || err === 'too_many_requests') {
+      return 'Too many requests. Wait a moment and try again — your session is still active.';
+    }
+    if (status >= 500 || err === 'service_unavailable' || err === 'postgres_payment_disabled') {
+      return 'Temporary server error. Try again shortly — your session is still active.';
+    }
+    if (err === 'version_conflict') {
+      return 'This booking changed. Reloading the latest package options — review and try again if needed.';
+    }
+    if (err === 'settled_package_change_denied') {
+      return 'Package changes are unavailable after any payment has been recorded.';
+    }
+    if (err === 'invoice_paid') {
+      return (data && data.message)
+        || 'Package changes are unavailable after any payment has been recorded.';
+    }
+    if (err === 'vehicle_target_required') {
+      return 'Select which vehicle this package change applies to.';
+    }
+    if (err === 'unknown_package_id') {
+      return 'That package is not available for this vehicle.';
+    }
+    if (err === 'invalid_pricing') {
+      return 'Selected package could not be priced with your current add-ons. Your package and add-ons were not changed.';
+    }
+    if (err === 'package_unchanged') {
+      return 'That package is already on your booking — no change needed.';
+    }
+    if (err === 'request_pending' || err === 'mutation_pending') {
+      return 'A package change is already in progress. Wait for it to finish, then try again.';
+    }
+    return (data && data.message) || 'Unable to change package. Call/text 551-313-2956.';
+  }
+
+  function packageChangeUnavailableReason() {
+    if (settledCentsFromPayment(state.payment) > 0) {
+      return 'Package changes are unavailable after any payment has been recorded.';
+    }
+    if (invoiceIsPaid(state.payment)) {
+      return 'Package changes are unavailable after any payment has been recorded.';
+    }
+    var pending = (state.changeRequests || []).some(function (r) {
+      if (r.requestType !== 'package_change_request') return false;
+      var s = String(r.status || '').toLowerCase();
+      return s === 'pending' || s === 'pending_approval' || s === 'needs_clarification' || s === 'awaiting_admin';
+    });
+    if (pending) {
+      return 'A package change request is already pending. Wait for it to finish before submitting another.';
+    }
+    return '';
+  }
+
+  function getPackageCatalog() {
+    return state.packageCatalog || { source: '', vehicles: [], packageCatalogByVehicle: {} };
+  }
+
+  function packageVehicles() {
+    var cat = getPackageCatalog();
+    return Array.isArray(cat.vehicles) ? cat.vehicles : [];
+  }
+
+  function selectedPackageVehicle() {
+    var list = packageVehicles();
+    if (!list.length) return null;
+    if (list.length === 1) return list[0];
+    var id = packageModalVehicleId || '';
+    return list.find(function (v) { return v.vehicleId === id; }) || null;
   }
 
   function applyAuthoritativeMoney(data) {
@@ -317,6 +393,7 @@
 
   function applyPortalPayload(data) {
     state.catalog = data.catalog || state.catalog || null;
+    state.packageCatalog = data.packageCatalog || null;
     state.changeRequests = data.changeRequests || [];
     state.payment = data.payment || null;
   }
@@ -479,7 +556,7 @@
     state = {
       scope: null, booking: null, bookings: [], vehicles: [],
       session: false, verifyPhone: '', verifyBookingId: '',
-      catalog: null, changeRequests: [], payment: null, actionToken: null,
+      catalog: null, packageCatalog: null, changeRequests: [], payment: null, actionToken: null,
     };
     clearLookupCredentials();
     show($('pre-auth'), true);
@@ -566,6 +643,7 @@
 
   function syncMoneyActionButtons(pay) {
     var paid = invoiceIsPaid(pay);
+    var packageSettled = settledCentsFromPayment(pay) > 0 || paid;
     // Stage 2: additive add-ons remain available after payment; pack/vehicle stay locked.
     var moneyActionsLockedWhenPaid = {
       package_change_request: true,
@@ -586,11 +664,16 @@
         return;
       }
       if (!moneyActionsLockedWhenPaid[action]) return;
-      btn.disabled = !!paid;
-      btn.classList.toggle('is-disabled', !!paid);
-      btn.title = paid
-        ? 'Invoice paid — call/text Cardetail1 for a quote adjustment'
-        : '';
+      var lock = action === 'package_change_request' ? packageSettled : !!paid;
+      btn.disabled = !!lock;
+      btn.classList.toggle('is-disabled', !!lock);
+      if (action === 'package_change_request' && packageSettled) {
+        btn.title = 'Package changes are unavailable after any payment has been recorded.';
+      } else {
+        btn.title = paid
+          ? 'Invoice paid — call/text Cardetail1 for a quote adjustment'
+          : '';
+      }
     });
   }
 
@@ -800,22 +883,29 @@
       action: action,
       expectedBookingVersion: state.booking.bookingVersion,
     }, payload || {});
-    // Never send browser prices/totals as authoritative for add-on money.
+    // Never send browser prices/totals as authoritative for package/add-on money.
     delete body.price;
     delete body.priceCents;
     delete body.proposedTotal;
     delete body.approvedTotal;
+    delete body.approvedCents;
     delete body.total;
+    delete body.amount;
+    delete body.amountCents;
     if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.changeRequested();
     var r = await post('submit-customer-action', body);
 
     if (r.data && r.data.ok) {
-      if (r.data.noop && (r.data.reason === 'duplicate_addon' || action === 'addon_request')) {
+      if (r.data.noop && (r.data.reason === 'package_unchanged' || action === 'package_change_request')) {
+        showToast(r.data.message || 'That package is already on your booking — no change needed.');
+      } else if (r.data.noop && (r.data.reason === 'duplicate_addon' || action === 'addon_request')) {
         showToast(r.data.message || 'That add-on is already on your booking.');
       } else if (r.data.noop) {
         showToast(r.data.message || 'No change needed.');
       } else if (r.data.pendingApproval) {
-        showToast('Request submitted for admin review.');
+        showToast(action === 'package_change_request'
+          ? 'Package change submitted for review.'
+          : 'Request submitted for admin review.');
       } else if (r.data.applied) {
         applyAuthoritativeMoney(r.data);
         showToast('Appointment updated' + (
@@ -836,7 +926,9 @@
       return true;
     }
 
-    var msg = mapAddonErrorMessage(r.data, r.status);
+    var msg = action === 'package_change_request'
+      ? mapPackageErrorMessage(r.data, r.status)
+      : mapAddonErrorMessage(r.data, r.status);
     if (r.data && r.data.error === 'version_conflict') {
       showToast(msg, true);
       try {
@@ -1061,7 +1153,13 @@
     modalAction = null;
     modalMode = 'fields';
     modalFields = [];
+    packageModalVehicleId = '';
     setMsg($('modal-error'), '', false);
+    var opener = modalOpenerEl;
+    modalOpenerEl = null;
+    if (opener && typeof opener.focus === 'function') {
+      try { opener.focus(); } catch (e) { /* ignore */ }
+    }
   }
 
   function openModalShell(title) {
@@ -1069,66 +1167,171 @@
     var ov = $('action-modal');
     ov.hidden = false;
     ov.classList.add('open');
+    // Initial focus: first meaningful control inside the form, else the submit button.
+    setTimeout(function () {
+      var form = $('modal-form');
+      var first = form && form.querySelector(
+        'select:not([disabled]), input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), button:not([disabled])'
+      );
+      if (first && typeof first.focus === 'function') first.focus();
+      else if ($('modal-submit')) $('modal-submit').focus();
+    }, 0);
+  }
+
+  function currentAddonsPreservationHtml() {
+    var ids = currentBookingAddonIds();
+    if (!ids.length) {
+      return '<p class="hint">No add-ons on this booking. Compatible selected add-ons stay attached when you change package.</p>';
+    }
+    var names = ids.map(function (id) {
+      var fromBooking = ((state.booking && state.booking.addons) || []).find(function (a) {
+        return a && a.id === id;
+      });
+      return (fromBooking && fromBooking.name) || id;
+    });
+    return '<p class="hint"><strong>Current add-ons stay on the booking</strong> unless they are incompatible with the new package: '
+      + esc(names.join(', ')) + '.</p>';
   }
 
   function renderPackageModal() {
-    var packInfo = packagesForBooking();
-    var packs = packInfo.packages || [];
-    var category = packInfo.category;
-    if (!packs.length) {
+    var catalog = getPackageCatalog();
+    var vehicles = packageVehicles();
+    if (!vehicles.length || catalog.source !== 'booking-price-catalog') {
       showToast('Package list unavailable. Refresh and try again.', true);
       return false;
     }
-    var needsLength = !!lengthCfg(category);
-    var currentFt = Number((state.booking && (state.booking.vehicleLengthFt || state.booking.lengthFt)) || 0);
+
+    if (vehicles.length === 1) {
+      packageModalVehicleId = vehicles[0].vehicleId;
+    } else if (!packageModalVehicleId
+      || !vehicles.some(function (v) { return v.vehicleId === packageModalVehicleId; })) {
+      packageModalVehicleId = '';
+    }
+
+    var selected = selectedPackageVehicle();
     var form = $('modal-form');
+    var vehiclePicker = '';
+    if (vehicles.length > 1) {
+      vehiclePicker =
+        '<label for="mf-package-vehicle">Vehicle <span class="req">*</span></label>' +
+        '<select class="inp" id="mf-package-vehicle" name="vehicleId" required>' +
+        '<option value="">Select a vehicle</option>' +
+        vehicles.map(function (v) {
+          return '<option value="' + esc(v.vehicleId) + '"'
+            + (v.vehicleId === packageModalVehicleId ? ' selected' : '') + '>'
+            + esc(v.label || v.vehicleId)
+            + (v.currentPackageId ? ' · current: ' + esc(v.currentPackageId) : '')
+            + '</option>';
+        }).join('') +
+        '</select>';
+    }
+
+    if (!selected) {
+      form.innerHTML =
+        '<p class="hint">Choose which vehicle to update. Package prices come from the official booking catalog.</p>' +
+        vehiclePicker +
+        currentAddonsPreservationHtml() +
+        '<p class="hint" id="mf-package-proposed">Select a vehicle to see package options.</p>';
+      var vehSelEmpty = $('mf-package-vehicle');
+      if (vehSelEmpty) {
+        vehSelEmpty.addEventListener('change', function () {
+          packageModalVehicleId = String(vehSelEmpty.value || '').trim();
+          renderPackageModal();
+          openModalShell('Change package');
+        });
+      }
+      return true;
+    }
+
+    var packs = selected.options || [];
+    var category = selected.category || 'cars';
+    var needsLength = !!selected.lengthPriced || !!lengthCfg(category);
+    var currentFt = Number(
+      selected.lengthFt
+      || (state.booking && (state.booking.vehicleLengthFt || state.booking.lengthFt))
+      || 0
+    );
+    if (!packs.length) {
+      showToast('No package options available for this vehicle.', true);
+      return false;
+    }
+
     form.innerHTML =
-      '<p class="hint">Select a package' +
-      (needsLength ? ' and set length so pricing matches boat/RV size' : '') +
-      '. Proposed total updates live; admin approval applies it to your invoice.</p>' +
-      (needsLength ? lengthRulerHtml(category, currentFt) : '') +
-      '<div class="modal-catalog" role="radiogroup" aria-label="Packages">' +
-      packs.map(function (p) {
-        var priceLabel = p.basePrice != null ? fmtMoney(p.basePrice) : (p.pricedByLength ? 'By length' : '');
+      '<p class="hint">Select a package'
+      + (needsLength ? ' and confirm length. Length-based totals are finalized by the server after you submit' : '')
+      + '. Changes apply to your appointment when accepted — totals come from the server catalog, not a browser estimate.</p>'
+      + vehiclePicker
+      + currentAddonsPreservationHtml()
+      + (needsLength ? lengthRulerHtml(category, currentFt) : '')
+      + '<div class="modal-catalog" role="radiogroup" aria-label="Packages">'
+      + packs.map(function (p) {
+        var packId = p.packageId || p.id;
+        var priceLabel = p.priceCents != null
+          ? fmtCents(p.priceCents)
+          : (p.pricedByLength ? 'By length' : '');
+        var meta = [];
+        if (selected.tierKey) meta.push(selected.tierKey);
+        if (p.current) meta.push('current');
         return '<label class="catalog-option">' +
-          '<input type="radio" name="newPackId" value="' + esc(p.id) + '" required>' +
+          '<input type="radio" name="newPackId" value="' + esc(packId) + '"'
+          + (p.current ? ' data-current="1"' : '') + ' required>' +
           '<span class="opt-body">' +
-          '<span class="opt-name">' + esc(p.name) + '</span>' +
-          '<span class="opt-price" data-pack-price="' + esc(p.id) + '">' + esc(priceLabel) + '</span>' +
-          '<span class="opt-meta">' + esc(p.duration || '') + (p.tag ? ' · ' + esc(p.tag) : '') + '</span>' +
+          '<span class="opt-name">' + esc(p.label || p.name || packId) + '</span>' +
+          '<span class="opt-price" data-pack-price="' + esc(packId) + '">' + esc(priceLabel) + '</span>' +
+          (meta.length ? '<span class="opt-meta">' + esc(meta.join(' · ')) + '</span>' : '') +
           '<span class="opt-desc">' + esc(p.description || '') + '</span>' +
           '</span></label>';
       }).join('') +
       '</div>' +
-      '<p class="modal-live-total" id="mf-package-proposed">Proposed package price: —</p>';
+      '<p class="modal-live-total" id="mf-package-proposed">'
+      + (needsLength
+        ? 'Catalog price at current length shown above. If you change length, the authoritative total is confirmed after submit.'
+        : 'Catalog package price shown above. Final invoice total comes from the server after you submit.')
+      + '</p>';
 
     function refreshProposed() {
       var packEl = form.querySelector('input[name="newPackId"]:checked');
       var el = $('mf-package-proposed');
-      if (!packEl || !el) return;
-      var pack = packs.find(function (x) { return x.id === packEl.value; });
-      if (!pack) return;
+      if (!el) return;
       var ft = Number(($('mf-lengthFt') && $('mf-lengthFt').value) || currentFt || 0);
-      var priced = needsLength ? estimateLengthPrice(category, pack.id, ft) : Number(pack.basePrice || 0);
-      if (needsLength) {
-        form.querySelectorAll('[data-pack-price]').forEach(function (span) {
-          var id = span.getAttribute('data-pack-price');
-          var est = estimateLengthPrice(category, id, ft);
-          span.textContent = est != null ? fmtMoney(est) : 'By length';
-        });
+      var lengthChanged = needsLength && currentFt > 0 && ft !== currentFt;
+      if (!packEl) {
+        el.textContent = needsLength
+          ? 'Select a package. Length-based totals are confirmed by the server after submit.'
+          : 'Select a package. Final totals come from the server after you submit.';
+        return;
       }
-      if (priced != null) {
-        el.textContent = 'Proposed package price: ' + fmtMoney(priced) +
-          (needsLength ? ' · ' + ft + ' ft' : '') +
-          ' (+ travel/add-ons as approved)';
+      var pack = packs.find(function (x) { return (x.packageId || x.id) === packEl.value; });
+      if (!pack) return;
+      if (needsLength && lengthChanged) {
+        el.textContent = 'Length updated to ' + ft
+          + ' ft — authoritative package total will be confirmed by the server after submit'
+          + ' (+ travel/add-ons as approved).';
+        form.querySelectorAll('[data-pack-price]').forEach(function (span) {
+          span.textContent = 'By length';
+        });
+        return;
+      }
+      if (pack.priceCents != null) {
+        el.textContent = 'Catalog package price: ' + fmtCents(pack.priceCents)
+          + (needsLength && ft > 0 ? ' · ' + ft + ' ft' : '')
+          + ' (+ travel/add-ons as approved). Final invoice total comes from the server.';
       } else {
-        el.textContent = 'Proposed package price: —';
+        el.textContent = 'Catalog pricing basis shown. Final total comes from the server after you submit.';
       }
     }
 
     form.querySelectorAll('input[name="newPackId"]').forEach(function (inp) {
       inp.addEventListener('change', refreshProposed);
     });
+    var vehSel = $('mf-package-vehicle');
+    if (vehSel) {
+      vehSel.addEventListener('change', function () {
+        packageModalVehicleId = String(vehSel.value || '').trim();
+        renderPackageModal();
+        openModalShell('Change package');
+      });
+    }
     if (needsLength) bindLengthRuler(refreshProposed);
     refreshProposed();
     return true;
@@ -1384,15 +1587,24 @@
     return true;
   }
 
-  function openActionModal(action) {
+  function openActionModal(action, openerEl) {
+    modalOpenerEl = openerEl || document.activeElement || null;
     var moneyLocked = {
       package_change_request: true,
       vehicle_add_request: true,
       vehicle_replace_request: true,
       maintenance_request: true,
     };
-    if (moneyLocked[action] && invoiceIsPaid(state.payment)) {
+    if (action === 'package_change_request') {
+      var packageBlock = packageChangeUnavailableReason();
+      if (packageBlock) {
+        showToast(packageBlock, true);
+        modalOpenerEl = null;
+        return;
+      }
+    } else if (moneyLocked[action] && invoiceIsPaid(state.payment)) {
       showToast('Invoice paid — call/text Cardetail1 for a quote adjustment.', true);
+      modalOpenerEl = null;
       return;
     }
 
@@ -1419,7 +1631,8 @@
 
     if (action === 'package_change_request') {
       modalMode = 'package';
-      if (!renderPackageModal()) { modalAction = null; return; }
+      packageModalVehicleId = '';
+      if (!renderPackageModal()) { modalAction = null; modalOpenerEl = null; return; }
       openModalShell('Change package');
       return;
     }
@@ -1472,19 +1685,36 @@
   function collectCatalogPayload() {
     var form = $('modal-form');
     if (modalMode === 'package') {
+      var vehicles = packageVehicles();
+      var selected = selectedPackageVehicle();
+      if (vehicles.length > 1 && !selected) {
+        setMsg($('modal-error'), 'Select which vehicle this package change applies to.', true);
+        return null;
+      }
+      if (!selected) {
+        setMsg($('modal-error'), 'Package options unavailable. Refresh and try again.', true);
+        return null;
+      }
       var pack = form.querySelector('input[name="newPackId"]:checked');
       if (!pack) {
         setMsg($('modal-error'), 'Select a package.', true);
         return null;
       }
-      var packInfo = packagesForBooking();
-      // Only stamp length categories — do not rewrite a car booking to rvs/boats.
-      var payload = { newPackId: pack.value };
-      if (packInfo.category === 'boats' || packInfo.category === 'rvs') {
-        payload.vehicleCategory = packInfo.category;
+      // Identity only — never send browser prices/totals as authoritative.
+      var payload = {
+        newPackId: pack.value,
+        vehicleId: selected.vehicleId,
+      };
+      var category = selected.category || '';
+      if (category === 'boats' || category === 'rvs') {
+        payload.vehicleCategory = category;
       }
-      if (lengthCfg(packInfo.category)) {
-        var ft = Number(($('mf-lengthFt') && $('mf-lengthFt').value) || 0);
+      if (selected.tierKey) {
+        payload.tierKey = selected.tierKey;
+        payload.tier = selected.tierKey;
+      }
+      if (selected.lengthPriced || lengthCfg(category)) {
+        var ft = Number(($('mf-lengthFt') && $('mf-lengthFt').value) || selected.lengthFt || 0);
         if (!(ft > 0)) {
           setMsg($('modal-error'), 'Enter vessel / RV length in feet.', true);
           return null;
@@ -1668,7 +1898,7 @@
       actions.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-action]');
         if (!btn) return;
-        openActionModal(btn.getAttribute('data-action'));
+        openActionModal(btn.getAttribute('data-action'), btn);
       });
     }
     var maintEmpty = $('maintenance-empty');
@@ -1676,7 +1906,7 @@
       maintEmpty.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-action]');
         if (!btn) return;
-        openActionModal(btn.getAttribute('data-action'));
+        openActionModal(btn.getAttribute('data-action'), btn);
       });
     }
     var vehActions = $('vehicle-actions');
@@ -1690,9 +1920,24 @@
     var modalSubmit = $('modal-submit');
     if (modalSubmit) modalSubmit.addEventListener('click', submitModal);
     var modalCancel = $('modal-cancel');
-    if (modalCancel) modalCancel.addEventListener('click', closeModal);
+    if (modalCancel) modalCancel.addEventListener('click', function () {
+      if (mutationPending) return;
+      closeModal();
+    });
     var modalOv = $('action-modal');
-    if (modalOv) modalOv.addEventListener('click', function (e) { if (e.target === modalOv) closeModal(); });
+    if (modalOv) {
+      modalOv.addEventListener('click', function (e) {
+        if (e.target === modalOv && !mutationPending) closeModal();
+      });
+    }
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var ov = $('action-modal');
+      if (!ov || ov.hidden || !ov.classList.contains('open')) return;
+      if (mutationPending) return;
+      e.preventDefault();
+      closeModal();
+    });
     // Enter in address/fields must not GET-navigate away (?newAddress=…) and drop the hub session.
     var modalForm = $('modal-form');
     if (modalForm) {

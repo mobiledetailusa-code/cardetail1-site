@@ -132,7 +132,7 @@ describe('portal payment + access hardening', () => {
 
   it('pack change prefers canonical vehicle tier over stale top-level', () => {
     const src = fs.readFileSync(path.join(ROOT, 'netlify/functions/submit-customer-action.js'), 'utf8');
-    assert.match(src, /primaryVehicle\.tierKey/);
+    assert.match(src, /targetVehicle\.tierKey|primaryVehicle\.tierKey/);
     assert.match(src, /carTiers\[candidate\]/);
   });
 

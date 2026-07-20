@@ -274,6 +274,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/canonical-addon-catalog.js',
     // Package Stage 1 — authoritative pre-settlement package mutations
     'netlify/lib/package-financial-mutation.js',
+    // Package Stage 2 — customer package catalog serializer
+    'netlify/lib/canonical-package-catalog.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);
