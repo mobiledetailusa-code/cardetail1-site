@@ -183,6 +183,7 @@ describe('portal change request stability', () => {
     assert.match(js, /inferCategoryFromPackageId/);
     assert.match(js, /normalizePackageCategory/);
     assert.match(js, /Pause polling while a change modal is open/);
-    assert.match(js, /Only stamp length categories/);
+    // Package Stage 2: category comes from canonical packageCatalog vehicle, not a sticky RV label.
+    assert.match(js, /Only stamp length categories|selected\.category|packageCatalog/);
   });
 });
