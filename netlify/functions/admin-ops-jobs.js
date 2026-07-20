@@ -36,6 +36,7 @@ const {
   approveAdjustment,
   rejectAdjustment,
   setApprovedFinalAmount,
+  resolveAdminCashSettlement,
   markCashReceived,
   markRefunded,
   markCardOnSite,
@@ -200,11 +201,34 @@ async function persistMutation(store, bookingId, booking, previous, action, reas
     let creditedCents = Math.max(0, Math.round(Number(base.ledger?.creditedCents) || 0));
     const entries = Array.isArray(base.ledger?.entries) ? [...base.ledger.entries] : [];
 
-    if (action === 'mark_cash_received' || action === 'mark_card_on_site') {
+    if (action === 'mark_cash_received') {
+      // Full-balance only — handler validates amount === remaining before mutation.
+      // Credit exactly remainingCents; never clamp a partial cash amount into a close.
+      const remaining = Math.max(0, approvedCents - settledCents - creditedCents);
       const cashCents = dollarsToCents(
         mutated.cashReceivedAmount != null
           ? mutated.cashReceivedAmount
-          : (mutated.cardOnSiteAmount != null ? mutated.cardOnSiteAmount : centsToDollars(approvedCents))
+          : centsToDollars(remaining)
+      );
+      if (remaining > 0 && cashCents === remaining) {
+        settledCents += remaining;
+        entries.push({
+          entryId: `le_admin_${action}_${Date.now()}`,
+          kind: 'settlement',
+          amountCents: remaining,
+          currency: 'usd',
+          quoteVersion: Math.round(Number(base.quoteVersion) || 0),
+          bookingVersion: expected,
+          occurredAt: new Date().toISOString(),
+          recordedAt: new Date().toISOString(),
+          actor: `admin_${action}`,
+        });
+      }
+    } else if (action === 'mark_card_on_site') {
+      const cashCents = dollarsToCents(
+        mutated.cardOnSiteAmount != null
+          ? mutated.cardOnSiteAmount
+          : centsToDollars(approvedCents)
       );
       const remaining = Math.max(0, approvedCents - settledCents - creditedCents);
       const credit = Math.min(Math.max(0, cashCents), remaining);
@@ -2007,12 +2031,37 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'mark_cash_received') {
-    const result = markCashReceived(booking, body);
-    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'mark_cash_received', body.reference);
-    if (!persisted.ok) {
-      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    const result = await adminMarkCashReceived({
+      bookingId,
+      body,
+      previousBooking: booking,
+      store,
+    });
+    if (!result.ok) {
+      return jsonCors(result.statusCode || 400, {
+        ok: false,
+        error: result.error || 'cash_settlement_failed',
+        expectedAmountCents: result.expectedAmountCents,
+        receivedAmountCents: result.receivedAmountCents,
+        reason: result.reason || undefined,
+        projection: result.projection || undefined,
+        authority: result.authority || undefined,
+        postgresProjection: result.postgresProjection || undefined,
+        settlementRecorded: result.settlementRecorded || undefined,
+        syncError: result.syncError || undefined,
+      });
     }
-    return jsonCors(200, { ok: true, bookingId, paymentStatus: persisted.booking.paymentStatus, bookingVersion: persisted.bookingVersion });
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      paymentStatus: result.paymentStatus,
+      bookingVersion: result.bookingVersion,
+      projection: result.projection,
+      authority: result.authority || undefined,
+      postgresProjection: result.postgresProjection || undefined,
+      settledAmountCents: result.settledAmountCents,
+      noop: result.noop || undefined,
+    });
   }
 
   if (action === 'mark_card_on_site') {
@@ -2085,6 +2134,128 @@ async function bulkArchiveTests(store, includeAlreadyArchived) {
   return { archived, skipped, ids: ids.slice(0, 50) };
 }
 
+/**
+ * Admin "Mark cash received" — full remaining balance settlement only.
+ * When PostgreSQL payment authority is enabled, settle in Postgres first,
+ * then sync Blob compatibility + operational cash close (no second Blob money credit).
+ * When disabled, preserve the strict Blob full-balance fallback.
+ */
+async function adminMarkCashReceived({
+  bookingId,
+  body = {},
+  previousBooking = null,
+  store = null,
+  syncBlob = null,
+  env = process.env,
+} = {}) {
+  const { financialProjection } = require('../lib/payment-service');
+  const {
+    postgresPaymentEnabled,
+    settleAdminCashFullBalance,
+    syncBlobCompatibilityFromProjection,
+  } = require('../lib/db/operational-payment');
+  const id = String(bookingId || '').trim();
+  if (!id) return { ok: false, error: 'bookingId_required', statusCode: 400 };
+
+  let booking = previousBooking;
+  if (!booking) {
+    const rec = await getBookingRecord(id);
+    booking = rec.booking;
+  }
+  if (!booking) return { ok: false, error: 'booking_not_found', statusCode: 404 };
+
+  // Preserve CAS: optional client expectedBookingVersion must match before mutation.
+  if (body.expectedBookingVersion != null && body.expectedBookingVersion !== '') {
+    const expected = Math.round(Number(body.expectedBookingVersion));
+    const actual = Math.round(Number(booking.bookingVersion) || 0);
+    if (!Number.isFinite(expected) || expected !== actual) {
+      return {
+        ok: false,
+        error: 'version_conflict',
+        statusCode: 409,
+        expectedBookingVersion: expected,
+        actualBookingVersion: actual,
+        projection: financialProjection(booking),
+      };
+    }
+  }
+
+  if (store) setBookingStoreOverride(store);
+
+  if (postgresPaymentEnabled(env)) {
+    const result = await settleAdminCashFullBalance({
+      booking,
+      body,
+      env,
+      syncBlob: typeof syncBlob === 'function' ? syncBlob : syncBlobCompatibilityFromProjection,
+    });
+    if (!result.ok) {
+      return {
+        ...result,
+        bookingVersion: result.bookingVersion != null
+          ? result.bookingVersion
+          : Math.round(Number(booking.bookingVersion) || 0),
+        quoteVersion: result.quoteVersion != null
+          ? result.quoteVersion
+          : Math.round(Number(booking.quoteVersion || booking.quote?.quoteVersion) || 0),
+      };
+    }
+    return result;
+  }
+
+  const resolved = resolveAdminCashSettlement(booking, body);
+  if (!resolved.ok) {
+    return {
+      ok: false,
+      error: resolved.error,
+      statusCode: resolved.statusCode || 400,
+      expectedAmountCents: resolved.expectedAmountCents,
+      receivedAmountCents: resolved.receivedAmountCents,
+      reason: resolved.reason,
+      field: resolved.field,
+      projection: resolved.projection || financialProjection(booking),
+      bookingVersion: Math.round(Number(booking.bookingVersion) || 0),
+      quoteVersion: Math.round(Number(booking.quoteVersion || booking.quote?.quoteVersion) || 0),
+    };
+  }
+
+  const result = markCashReceived(booking, { amount: resolved.amountDollars, reference: body.reference });
+  const activeStore = store || (await blobsStore('cd1-bookings'));
+  const persisted = await persistMutation(
+    activeStore,
+    id,
+    result.booking,
+    booking,
+    'mark_cash_received',
+    body.reference
+  );
+  if (!persisted.ok) {
+    return {
+      ok: false,
+      error: persisted.error || 'version_conflict',
+      statusCode: persisted.statusCode || 409,
+      projection: financialProjection(booking),
+      bookingVersion: Math.round(Number(booking.bookingVersion) || 0),
+    };
+  }
+
+  const projection = financialProjection(persisted.booking);
+  return {
+    ok: true,
+    authority: 'blob',
+    bookingId: id,
+    paymentStatus: persisted.booking.paymentStatus,
+    jobStatus: persisted.booking.jobStatus,
+    serviceStatus: persisted.booking.serviceStatus,
+    bookingVersion: persisted.bookingVersion,
+    quoteVersion: Math.round(Number(persisted.booking.quoteVersion || persisted.booking.quote?.quoteVersion) || 0),
+    projection,
+    financialProjection: projection,
+    settledAmountCents: resolved.amountCents,
+    booking: persisted.booking,
+  };
+}
+
 /** Test / inspect seams — production traffic uses exports.handler only. */
 exports.adminAddonMutation = adminAddonMutation;
 exports.adminAddonCatalogForBooking = adminAddonCatalogForBooking;
@@ -2093,6 +2264,8 @@ exports.bodyHasPackageMutation = bodyHasPackageMutation;
 exports.adminChangePackage = adminChangePackage;
 exports.adminPackageCatalogForBooking = adminPackageCatalogForBooking;
 exports.packageOptionsForVehicle = packageOptionsForVehicle;
+exports.adminMarkCashReceived = adminMarkCashReceived;
+exports.resolveAdminCashSettlement = resolveAdminCashSettlement;
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
