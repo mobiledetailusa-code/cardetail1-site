@@ -94,6 +94,79 @@ function legacyDisplayStatus(booking) {
   return JOB_TO_LEGACY_DISPLAY[js] || booking.status || 'Pending Review';
 }
 
+/**
+ * Project one persisted booking vehicle for Customer Portal itemization.
+ * Monetary fields (basePrice, packagePrice, addonTotal, subtotal, addon.price)
+ * are server dollars — same units as booking-price-catalog / quoteService inputs.
+ * Do not mix with ledger *Cents fields.
+ */
+function projectVehicleForCustomer(v) {
+  if (!v || typeof v !== 'object') return null;
+  const year = v.year != null && v.year !== '' ? String(v.year) : (v.vehicleYear != null && v.vehicleYear !== '' ? String(v.vehicleYear) : '');
+  const make = v.make || v.vehicleMake || '';
+  const model = v.model || v.vehicleModel || '';
+  const category = v.category || v.cat || '';
+  const packageId = v.packageId || v.pkgId || '';
+  const packageName = v.pkgName || v.packageName || '';
+  const tierKey = v.tierKey || '';
+  const tierLabel = v.tierLabel || v.tier || '';
+  const lengthFt = Number(v.lengthFt != null ? v.lengthFt : v.vehicleLengthFt) || 0;
+  const composedLabel = [year, make, model].filter(Boolean).join(' ').trim();
+  const vehicleLabel = v.vehicleLabel || v.label || composedLabel || '';
+  const baseRaw = v.basePrice != null ? v.basePrice : v.packagePrice;
+  const basePrice = Number.isFinite(Number(baseRaw)) ? Number(baseRaw) : 0;
+  const addonTotal = Number.isFinite(Number(v.addonTotal)) ? Number(v.addonTotal) : 0;
+  const subtotalRaw = v.subtotal != null ? v.subtotal : (basePrice + addonTotal);
+  const subtotal = Number.isFinite(Number(subtotalRaw)) ? Number(subtotalRaw) : 0;
+  const addons = (Array.isArray(v.addons) ? v.addons : []).map((a) => {
+    const qty = Number(a && a.qty) > 0 ? Number(a.qty) : 1;
+    const price = Number.isFinite(Number(a && a.price)) ? Number(a.price) : 0;
+    return {
+      id: (a && (a.id || a.addonId)) || '',
+      name: (a && a.name) || '',
+      qty,
+      price,
+    };
+  });
+  return {
+    vehicleId: v.vehicleId || '',
+    year,
+    make,
+    model,
+    vehicleLabel,
+    category,
+    cat: category,
+    packageId,
+    pkgId: packageId,
+    packageName,
+    pkgName: packageName,
+    tierKey,
+    tierLabel,
+    tier: tierLabel || tierKey,
+    lengthFt,
+    // Dollars (not cents) — authoritative package/base and vehicle totals from persisted quote pricing
+    basePrice,
+    packagePrice: basePrice,
+    addonTotal,
+    subtotal,
+    pkgIcon: v.pkgIcon || '🚗',
+    addons,
+  };
+}
+
+function resolveCustomerVehicles(src, material) {
+  const materialVehicles = material && material.service && Array.isArray(material.service.vehicles)
+    ? material.service.vehicles
+    : [];
+  if (materialVehicles.length) return materialVehicles;
+  const top = Array.isArray(src.vehicles) ? src.vehicles : [];
+  if (top.length) return top;
+  if (src.service && typeof src.service === 'object' && Array.isArray(src.service.vehicles)) {
+    return src.service.vehicles;
+  }
+  return [];
+}
+
 function projectBookingForCustomer(b) {
   const { adaptHistoricalBooking } = require('./historical-adapter');
   const { materialProjection, remainingCents } = require('./booking-aggregate');
@@ -113,8 +186,11 @@ function projectBookingForCustomer(b) {
   );
   const amountDueApproved = computeDue(src);
   const material = materialProjection(src) || {};
-  const vehiclesArr = Array.isArray(src.vehicles) ? src.vehicles : [];
+  const vehiclesArr = resolveCustomerVehicles(src, material);
   const addonsArr = Array.isArray(src.addons) ? src.addons : [];
+  const projectedVehicles = vehiclesArr
+    .map(projectVehicleForCustomer)
+    .filter(Boolean);
   return {
     id: src.id || src.bookingId,
     bookingVersion: material.bookingVersion ?? src.bookingVersion ?? 0,
@@ -130,7 +206,7 @@ function projectBookingForCustomer(b) {
     package: pack,
     service: pack,
     packageId: src.packageId || src.pkgId
-      || (vehiclesArr[0] && (vehiclesArr[0].packageId || vehiclesArr[0].pkgId)) || '',
+      || (projectedVehicles[0] && projectedVehicles[0].packageId) || '',
     packageDescription: src.packageDescription || src.pkgTag || src.packageTag || '',
     packageDuration: src.packageDuration || src.pkgDuration || '',
     vehicle: src.vehicle || src.vehicleCategory || '',
@@ -139,17 +215,10 @@ function projectBookingForCustomer(b) {
     vehicleMake: src.vehicleMake || src.make || '',
     vehicleModel: src.vehicleModel || src.model || '',
     vehicleCategory: src.vehicleCategory || src.cat
-      || (vehiclesArr[0] && (vehiclesArr[0].category || vehiclesArr[0].cat)) || '',
+      || (projectedVehicles[0] && projectedVehicles[0].category) || '',
     vehicleLengthFt: src.vehicleLengthFt || src.lengthFt
-      || (vehiclesArr[0] && vehiclesArr[0].lengthFt) || 0,
-    vehicles: vehiclesArr.map(v => ({
-      vehicleId: v.vehicleId || '',
-      pkgName: v.pkgName || '',
-      vehicleLabel: v.vehicleLabel || '',
-      pkgIcon: v.pkgIcon || '🚗',
-      subtotal: v.subtotal || 0,
-      addons: (Array.isArray(v.addons) ? v.addons : []).map(a => ({ name: a.name || '', qty: a.qty || 1, price: a.price || 0 })),
-    })),
+      || (projectedVehicles[0] && projectedVehicles[0].lengthFt) || 0,
+    vehicles: projectedVehicles,
     addons: addonsArr.map(a => ({ id: a.id || '', name: a.name || '', qty: a.qty || 1, price: a.price || 0 })),
     preferredDate: src.preferredDate || '',
     preferredTime: src.preferredTime || '',
@@ -227,4 +296,5 @@ module.exports = {
   normalizePaymentWorkflowStatus,
   legacyDisplayStatus,
   projectBookingForCustomer,
+  projectVehicleForCustomer,
 };
