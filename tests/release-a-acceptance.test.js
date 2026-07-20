@@ -6,8 +6,33 @@ const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
 const fs = require('fs');
+const { prismaConfigured, getPrisma } = require('../netlify/lib/prisma');
 
 const ROOT = path.join(__dirname, '..');
+
+/**
+ * Package-change decide tests below now route through the authoritative
+ * Postgres mutation (Package Stage 1) and need DATABASE_URL/DIRECT_URL
+ * visible on process.env. Deliberately NOT a blanket `require('dotenv/config')`
+ * — .env also holds NETLIFY_AUTH_TOKEN/NETLIFY_SITE_ID, and several tests in
+ * this file (e.g. "cross-store index failure recovery") rely on the ambient
+ * Netlify Blobs client staying unconfigured so their failure-path mocks are
+ * actually exercised. Load only the Postgres keys, surgically, once.
+ */
+(function loadPostgresEnvOnly() {
+  if (process.env.DATABASE_URL) return;
+  try {
+    const raw = fs.readFileSync(path.join(ROOT, '.env'), 'utf8');
+    // .env is CRLF + may open with a UTF-8 BOM — strip both before matching.
+    for (const rawLine of raw.split('\n')) {
+      const line = rawLine.replace(/^﻿/, '').replace(/\r$/, '');
+      const m = line.match(/^(DATABASE_URL|DIRECT_URL)=(.*)$/);
+      if (m && !process.env[m[1]]) {
+        process.env[m[1]] = m[2].trim().replace(/^"(.*)"$/, '$1');
+      }
+    }
+  } catch { /* .env optional — CI environments set these directly */ }
+})();
 
 function createMemoryStore(seed = {}, { pageSize = 50 } = {}) {
   const data = new Map(Object.entries(seed).map(([k, v]) => [k, JSON.parse(JSON.stringify(v))]));
@@ -889,7 +914,18 @@ describe('Release A — decide applies canonical quote not proposedTotal (PDA-01
     setBookingStoreOverride(null);
   });
 
-  it('approve package change applies canonical cents and ignores inflated proposedTotal', async () => {
+  it('approve package change applies canonical cents, ignores inflated proposedTotal, and writes a Postgres adjustment (Package Stage 1)', async () => {
+    // Package Stage 1 routes package_change_request decide through the
+    // authoritative Postgres mutation (package-financial-mutation.js) —
+    // mirrors the frozen addon Stage 1 path. Requires DATABASE_URL/DIRECT_URL.
+    assert.equal(
+      prismaConfigured(),
+      true,
+      'DATABASE_URL/DIRECT_URL required — package decide now writes a Postgres adjustment'
+    );
+    const prisma = getPrisma();
+    const bookingId = `TESTDB-PKGDECIDE-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
+
     const { setBookingStoreOverride, getBookingRecord } = require('../netlify/lib/booking-repository');
     const {
       submitChangeRequestCommand,
@@ -897,8 +933,8 @@ describe('Release A — decide applies canonical quote not proposedTotal (PDA-01
     } = require('../netlify/lib/booking-commands');
 
     const store = createMemoryStore({
-      'CD1-DECIDE': {
-        id: 'CD1-DECIDE',
+      [bookingId]: {
+        id: bookingId,
         bookingVersion: 2,
         schemaVersion: 1,
         quoteVersion: 1,
@@ -923,43 +959,61 @@ describe('Release A — decide applies canonical quote not proposedTotal (PDA-01
     });
     setBookingStoreOverride(store);
 
-    const submitted = await submitChangeRequestCommand({
-      bookingId: 'CD1-DECIDE',
-      expectedBookingVersion: 2,
-      requestType: 'package_change_request',
-      target: { vehicleId: 'veh_1' },
-      delta: {
-        packageId: 'premium',
-        packageName: 'Signature Interior & Exterior Restoration',
-        vehicleCategory: 'cars',
-        tierKey: 'suv3',
-        // Inflated client total must be ignored on decide
-        proposedTotal: 9999,
-      },
-    });
-    assert.equal(submitted.ok, true);
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 63500);
+    try {
+      const submitted = await submitChangeRequestCommand({
+        bookingId,
+        expectedBookingVersion: 2,
+        requestType: 'package_change_request',
+        target: { vehicleId: 'veh_1' },
+        delta: {
+          packageId: 'premium',
+          packageName: 'Signature Interior & Exterior Restoration',
+          vehicleCategory: 'cars',
+          tierKey: 'suv3',
+          // Inflated client total must be ignored on decide
+          proposedTotal: 9999,
+        },
+      });
+      assert.equal(submitted.ok, true);
+      assert.equal(submitted.changeRequest.proposedApprovedCents, 63500);
 
-    const decided = await decideChangeRequestCommand({
-      bookingId: 'CD1-DECIDE',
-      requestId: submitted.changeRequest.requestId,
-      decision: 'approve',
-      expectedBookingVersion: submitted.booking.bookingVersion,
-    });
-    assert.equal(
-      decided.ok,
-      true,
-      `decide failed: ${decided.error || 'unknown'} ${decided.reason || ''} ${decided.statusCode || ''}`
-    );
-    assert.equal(decided.booking.ledger.approvedCents, 63500);
-    assert.equal(decided.booking.approvedFinalAmount, 635);
-    assert.notEqual(decided.booking.approvedFinalAmount, 9999);
+      const decided = await decideChangeRequestCommand({
+        bookingId,
+        requestId: submitted.changeRequest.requestId,
+        decision: 'approve',
+        expectedBookingVersion: submitted.booking.bookingVersion,
+      });
+      assert.equal(
+        decided.ok,
+        true,
+        `decide failed: ${decided.error || 'unknown'} ${decided.reason || ''} ${decided.statusCode || ''}`
+      );
+      assert.equal(decided.booking.ledger.approvedCents, 63500);
+      assert.equal(decided.booking.approvedFinalAmount, 635);
+      assert.notEqual(decided.booking.approvedFinalAmount, 9999);
+      // Package Stage 1 — this is the Postgres-authoritative projection, not a
+      // Blob-only figure; proves the adjustment was written to Postgres.
+      assert.ok(decided.postgresProjection, 'decide must return a Postgres projection for package changes');
+      assert.equal(decided.postgresProjection.approvedCents, 63500);
+      assert.notEqual(decided.postgresProjection.approvedCents, 999900, 'must ignore inflated proposedTotal (9999)');
 
-    const final = await getBookingRecord('CD1-DECIDE');
-    assert.equal(final.booking.bookingVersion, submitted.booking.bookingVersion + 1);
-    assert.equal(final.booking.changeRequests.some((r) => r.status === 'applied'), true);
-
-    setBookingStoreOverride(null);
+      const final = await getBookingRecord(bookingId);
+      // The authoritative path commits once for the mutation and once more for
+      // syncBlobCompatibilityFromProjection (same shared helper the frozen addon
+      // path uses) — assert forward progress, not an exact delta of 1.
+      assert.ok(
+        final.booking.bookingVersion > submitted.booking.bookingVersion,
+        `expected version to advance past ${submitted.booking.bookingVersion}, got ${final.booking.bookingVersion}`
+      );
+      assert.equal(final.booking.changeRequests.some((r) => r.status === 'applied'), true);
+    } finally {
+      setBookingStoreOverride(null);
+      try {
+        await prisma.paymentAttempt.deleteMany({ where: { bookingId } });
+        await prisma.quote.deleteMany({ where: { bookingId } });
+        await prisma.booking.delete({ where: { id: bookingId } });
+      } catch { /* ledger children (FK RESTRICT) keep the booking alive by design */ }
+    }
   });
 });
 
@@ -1127,14 +1181,24 @@ describe('Release A — stripe live-key rejection zero network (PDA-17)', () => 
 
 describe('Release A — cross-store index failure recovery', () => {
   it('approved booking version remains authoritative when index rebuild fails', async () => {
+    // Package Stage 1 — decide now writes a Postgres adjustment (see the
+    // "Package Stage 1" test above); this test's own DB requirement follows.
+    assert.equal(
+      prismaConfigured(),
+      true,
+      'DATABASE_URL/DIRECT_URL required — package decide now writes a Postgres adjustment'
+    );
+    const prisma = getPrisma();
+    const bookingId = `TESTDB-PKGIDX-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
+
     const { setBookingStoreOverride, getBookingRecord } = require('../netlify/lib/booking-repository');
     const { decideChangeRequestCommand, submitChangeRequestCommand } = require('../netlify/lib/booking-commands');
     const tech = require('../netlify/lib/tech-security');
     const origBlobs = tech.blobsStore;
 
     const bookingStore = createMemoryStore({
-      'CD1-IDX': {
-        id: 'CD1-IDX',
+      [bookingId]: {
+        id: bookingId,
         bookingVersion: 1,
         quoteVersion: 1,
         status: 'Confirmed',
@@ -1167,7 +1231,7 @@ describe('Release A — cross-store index failure recovery', () => {
 
     try {
       const submitted = await submitChangeRequestCommand({
-        bookingId: 'CD1-IDX',
+        bookingId,
         expectedBookingVersion: 1,
         requestType: 'package_change_request',
         target: { vehicleId: 'veh_1' },
@@ -1182,18 +1246,23 @@ describe('Release A — cross-store index failure recovery', () => {
       assert.equal(submitted.indexOk, false);
 
       const decided = await decideChangeRequestCommand({
-        bookingId: 'CD1-IDX',
+        bookingId,
         requestId: submitted.changeRequest.requestId,
         decision: 'approve',
         expectedBookingVersion: submitted.booking.bookingVersion,
       });
       assert.equal(decided.ok, true);
-      const final = await getBookingRecord('CD1-IDX');
+      const final = await getBookingRecord(bookingId);
       assert.equal(final.booking.changeRequests.some((r) => r.status === 'applied'), true);
       assert.equal(final.booking.ledger.approvedCents, 63500);
     } finally {
       tech.blobsStore = origBlobs;
       setBookingStoreOverride(null);
+      try {
+        await prisma.paymentAttempt.deleteMany({ where: { bookingId } });
+        await prisma.quote.deleteMany({ where: { bookingId } });
+        await prisma.booking.delete({ where: { id: bookingId } });
+      } catch { /* ledger children (FK RESTRICT) keep the booking alive by design */ }
     }
   });
 });

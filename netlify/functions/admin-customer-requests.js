@@ -150,6 +150,10 @@ exports.handler = async (event) => {
         amountDueApproved: result.booking.amountDueApproved,
       } : null,
       projection: result.projection || materialProjection(result.booking),
+      // Additive only — surfaces the same Postgres-authoritative projection the
+      // Customer portal already receives (Stage 1 addon/package money paths).
+      financialProjection: result.financialProjection || null,
+      postgresProjection: result.postgresProjection || null,
       manualReview: !!manualOnly,
       expiredSessions: result.expiredAttemptIds || [],
     });

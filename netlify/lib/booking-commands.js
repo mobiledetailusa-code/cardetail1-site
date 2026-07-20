@@ -376,6 +376,50 @@ async function decideChangeRequestCommand({
     }
   }
 
+  // Stage 1: package change money goes through authoritative Postgres adjustment
+  // — parallel to the addon branch above; the addon branch is untouched.
+  {
+    const rtPkg = cr.type || cr.requestType;
+    if (rtPkg === 'package_change_request') {
+      const { applyPackageFinancialMutation } = require('./package-financial-mutation');
+      const packageId = cr.delta?.packageId || cr.delta?.newPackId || cr.delta?.pkgId;
+      const pkgResult = await applyPackageFinancialMutation({
+        bookingId,
+        expectedBookingVersion: expected,
+        target: cr.target || {},
+        packageId,
+        changeRequest: cr,
+        adminNote,
+      });
+      if (!pkgResult.ok) return pkgResult;
+      await rebuildRequestIndex({
+        ...cr,
+        id: cr.requestId || cr.id,
+        bookingId,
+        status: 'applied',
+        adminDecision: 'approve',
+        adminNote,
+        decidedAt: new Date().toISOString(),
+        appliedAutomatically: true,
+        noop: !!pkgResult.noop,
+        reason: pkgResult.reason || null,
+        customerVisibleResult: pkgResult.noop
+          ? 'Already on booking — no price change.'
+          : 'Approved — your appointment details and totals were updated.',
+      });
+      return {
+        ok: true,
+        noop: !!pkgResult.noop,
+        reason: pkgResult.reason || undefined,
+        booking: pkgResult.booking,
+        projection: pkgResult.projection,
+        financialProjection: pkgResult.financialProjection,
+        postgresProjection: pkgResult.postgresProjection,
+        quoteVersion: pkgResult.quoteVersion,
+      };
+    }
+  }
+
   // True drift: booking moved past the version that embedded this pending request.
   // Legacy index rows without embeddedBookingVersion skip this check; CAS still applies.
   const moneyDelta = {
