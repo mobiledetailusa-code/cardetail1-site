@@ -297,4 +297,5 @@ module.exports = {
   legacyDisplayStatus,
   projectBookingForCustomer,
   projectVehicleForCustomer,
+  resolveCustomerVehicles,
 };

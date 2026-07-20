@@ -36,6 +36,66 @@ function appendEventLog(booking, entry) {
   return eventLog;
 }
 
+/**
+ * Display-ready Admin vehicle itemization from persisted booking data.
+ * Reuses Customer Portal field shape (dollars for vehicle money).
+ * Does not expose ledger rows, Stripe IDs, or payment secrets.
+ */
+function projectVehicleForAdmin(v) {
+  const { projectVehicleForCustomer } = require('./ops-schema');
+  return projectVehicleForCustomer(v);
+}
+
+function hasUsableAdminVehicles(list) {
+  if (!Array.isArray(list) || !list.length) return false;
+  return list.some((v) => {
+    if (!v || typeof v !== 'object') return false;
+    return !!(v.vehicleId || v.vehicleLabel || v.packageName || v.pkgName
+      || v.packageId || v.pkgId || v.year || v.make || v.model
+      || v.category || v.cat || v.subtotal != null || v.basePrice != null
+      || v.lengthFt);
+  });
+}
+
+/**
+ * Resolve and project all persisted vehicles for Admin Ops.
+ * Prefer material.service.vehicles → top-level vehicles → service.vehicles.
+ * When none are usable, synthesize a single legacy primary-vehicle row.
+ */
+function projectVehiclesForAdmin(b) {
+  const { resolveCustomerVehicles } = require('./ops-schema');
+  let material = null;
+  try {
+    const { materialProjection } = require('./booking-aggregate');
+    material = materialProjection(b);
+  } catch {
+    material = null;
+  }
+  const raw = resolveCustomerVehicles(b || {}, material || {});
+  const projected = raw.map(projectVehicleForAdmin).filter(Boolean);
+  if (hasUsableAdminVehicles(projected)) return projected;
+
+  // Legacy primary-vehicle fallback — preserve top-level compatibility fields.
+  const legacy = projectVehicleForAdmin({
+    vehicleId: (b && b.vehicleId) || 'primary',
+    year: b && b.vehicleYear,
+    make: b && (b.vehicleMake || b.make),
+    model: b && (b.vehicleModel || b.model),
+    vehicleLabel: (b && (b.vehicleLabel || b.vehicle || b.vehicleCategory)) || '',
+    category: (b && (b.vehicleCategory || b.cat)) || '',
+    packageId: (b && (b.packageId || b.pkgId)) || '',
+    packageName: (b && (b.package || b.service)) || '',
+    tierKey: (b && b.tierKey) || '',
+    tierLabel: (b && (b.tierLabel || b.tier)) || '',
+    lengthFt: (b && (b.vehicleLengthFt || b.lengthFt)) || 0,
+    basePrice: null,
+    addonTotal: 0,
+    subtotal: null,
+    addons: Array.isArray(b && b.addons) ? b.addons : [],
+  });
+  return legacy ? [legacy] : [];
+}
+
 function projectJobForAdmin(b) {
   const safe = { ...b };
   delete safe.passwordHash;
@@ -73,6 +133,8 @@ function projectJobForAdmin(b) {
   } catch {
     safe.paymentWorkflowStatus = normalizePaymentWorkflowStatus(safe);
   }
+  // Multi-vehicle display projection — server dollars; keep top-level primary fields.
+  safe.vehicles = projectVehiclesForAdmin(safe);
   return safe;
 }
 
@@ -166,6 +228,8 @@ module.exports = {
   normalizeJobStatus,
   normalizePaymentWorkflowStatus,
   suggestEquipmentForJob,
+  projectVehicleForAdmin,
+  projectVehiclesForAdmin,
   projectJobForAdmin,
   projectJobForTech,
   projectTechAccountForAdmin,

@@ -626,12 +626,35 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     ].map(([l,v])=>'<div class="card"><h3>'+l+'</h3><div class="stat">'+v+'</div></div>').join('');
   }
 
+  function jobVehicles(j) {
+    return Array.isArray(j && j.vehicles) ? j.vehicles.filter(v => v && typeof v === 'object') : [];
+  }
+
+  function vehicleSearchHaystack(j) {
+    const parts = [j.vehicle, j.vehicleLabel, j.package];
+    jobVehicles(j).forEach(v => {
+      parts.push(v.vehicleLabel, v.year, v.make, v.model, v.packageName, v.pkgName, v.category, v.cat);
+      (Array.isArray(v.addons) ? v.addons : []).forEach(a => parts.push(a && a.name));
+    });
+    return parts.filter(Boolean).join(' ');
+  }
+
+  function jobsVehicleSummary(j) {
+    const vehs = jobVehicles(j);
+    if (vehs.length > 1) return vehs.length + ' vehicles';
+    if (vehs.length === 1) {
+      const label = vehs[0].vehicleLabel || [vehs[0].year, vehs[0].make, vehs[0].model].filter(Boolean).join(' ').trim();
+      if (label) return label;
+    }
+    return j.vehicleLabel || j.vehicle || '—';
+  }
+
   function filterJobs(search, status) {
     let list = jobs;
     if (status) list = list.filter(j => j.jobStatus === status);
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter(j => [j.id,j.firstName,j.lastName,j.phone,j.email,j.vehicle,j.vehicleLabel,j.package,j.assignedTechName].join(' ').toLowerCase().includes(q));
+      list = list.filter(j => [j.id,j.firstName,j.lastName,j.phone,j.email,j.assignedTechName,vehicleSearchHaystack(j)].join(' ').toLowerCase().includes(q));
     }
     return list;
   }
@@ -643,7 +666,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const tb = $('#jobsTable tbody');
     if (!list.length) { tb.innerHTML='<tr><td colspan="7" class="empty">No jobs found</td></tr>'; return; }
     tb.innerHTML = list.map(j => '<tr data-id="'+esc(j.id)+'">'+
-      '<td>'+esc(cust(j))+'</td><td>'+esc(j.vehicleLabel||j.vehicle||'—')+'</td>'+
+      '<td>'+esc(cust(j))+'</td><td>'+esc(jobsVehicleSummary(j))+'</td>'+
       '<td>'+esc(j.confirmedDate||j.preferredDate||'—')+'</td>'+
       '<td>'+jobBadge(j.jobStatus)+'</td><td>'+payBadge(j.paymentWorkflowStatus)+'</td>'+
       '<td>'+esc(j.assignedTechName||'—')+'</td>'+
