@@ -274,6 +274,77 @@
     return (b.vehicleLabel || b.vehicle || '—') + (length > 0 ? ' · ' + length + ' ft' : '');
   }
 
+  /** True when booking.vehicles[] is usable for per-vehicle itemization. */
+  function hasUsableVehicleProjection(b) {
+    if (!b || !Array.isArray(b.vehicles) || !b.vehicles.length) return false;
+    return b.vehicles.some(function (v) {
+      if (!v || typeof v !== 'object') return false;
+      return !!(v.vehicleId || v.vehicleLabel || v.pkgName || v.packageName
+        || v.packageId || v.pkgId || v.year || v.make || v.model
+        || v.category || v.cat || v.subtotal != null || v.basePrice != null);
+    });
+  }
+
+  function projectedVehicleLabel(v) {
+    if (!v) return 'Vehicle';
+    var parts = [v.year, v.make, v.model].filter(Boolean).join(' ');
+    var length = Number(v.lengthFt || 0);
+    var cat = v.category || v.cat || '';
+    if (parts) {
+      return parts +
+        (cat ? ' · ' + cat : '') +
+        (length > 0 ? ' · ' + length + ' ft' : '');
+    }
+    var label = v.vehicleLabel || 'Vehicle';
+    return label +
+      (cat && label === 'Vehicle' ? ' · ' + cat : '') +
+      (length > 0 ? ' · ' + length + ' ft' : '');
+  }
+
+  function safeMoneyOrNull(n) {
+    var v = Number(n);
+    return Number.isFinite(v) ? v : null;
+  }
+
+  /**
+   * Itemized per-vehicle breakdown from server projection only.
+   * Formats server dollars; does not consult the client pricing catalog.
+   */
+  function renderVehicleBreakdownHtml(b) {
+    if (!hasUsableVehicleProjection(b)) return '';
+    return b.vehicles.map(function (v, idx) {
+      var label = projectedVehicleLabel(v);
+      var packName = v.pkgName || v.packageName || 'Package';
+      var base = safeMoneyOrNull(v.basePrice != null ? v.basePrice : v.packagePrice);
+      var sub = safeMoneyOrNull(v.subtotal);
+      var addons = Array.isArray(v.addons) ? v.addons : [];
+      var addonBlock;
+      if (!addons.length) {
+        addonBlock = '<div><dt>Add-ons</dt><dd>None</dd></div>';
+      } else {
+        addonBlock = '<div><dt>Add-ons</dt><dd><ul class="vehicle-addon-list">' +
+          addons.map(function (a) {
+            var name = a.name || a.id || 'Add-on';
+            var qty = Number(a.qty) > 0 ? Number(a.qty) : 1;
+            var price = safeMoneyOrNull(a.price);
+            var qtyBit = qty > 1 ? ' × ' + qty : '';
+            var priceBit = price != null ? ' · ' + fmtMoney(price) : '';
+            return '<li>' + esc(name) + qtyBit + priceBit + '</li>';
+          }).join('') +
+          '</ul></dd></div>';
+      }
+      return '<section class="vehicle-breakdown" aria-label="' + esc('Vehicle ' + (idx + 1)) + '">' +
+        '<h3 class="vehicle-breakdown-title">' + esc(label) + '</h3>' +
+        '<dl class="meta-grid">' +
+        '<div><dt>Package</dt><dd>' + esc(packName) + '</dd></div>' +
+        (base != null ? '<div><dt>Package price</dt><dd>' + fmtMoney(base) + '</dd></div>' : '') +
+        addonBlock +
+        (sub != null ? '<div><dt>Vehicle subtotal</dt><dd>' + fmtMoney(sub) + '</dd></div>' : '') +
+        '</dl>' +
+        '</section>';
+    }).join('');
+  }
+
   function normalizePackageCategory(raw) {
     var key = String(raw || '').toLowerCase().trim();
     if (!key) return '';
@@ -789,6 +860,11 @@
       var s = String(r.status || '').toLowerCase();
       return s === 'pending' || s === 'pending_approval' || s === 'needs_clarification';
     });
+    var vehicleSections = renderVehicleBreakdownHtml(b);
+    var legacyVehicleRows = vehicleSections
+      ? ''
+      : '<div><dt>Vehicle</dt><dd>' + esc(vehicleLine(b)) + '</dd></div>' +
+        '<div><dt>Add-ons</dt><dd>' + esc(addonLines(b)) + '</dd></div>';
 
     hero.innerHTML =
       '<div class="card">' +
@@ -798,14 +874,16 @@
       (packDesc ? '<p class="pack-desc">' + esc(packDesc) + (packDur ? ' · ' + esc(packDur) : '') + '</p>' : '') +
       '<dl class="meta-grid">' +
       '<div><dt>Booking ID</dt><dd class="mono">' + esc(b.id || '—') + '</dd></div>' +
-      '<div><dt>Vehicle</dt><dd>' + esc(vehicleLine(b)) + '</dd></div>' +
-      '<div><dt>Add-ons</dt><dd>' + esc(addonLines(b)) + '</dd></div>' +
+      legacyVehicleRows +
       '<div><dt>Date</dt><dd>' + esc(b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
       '<div><dt>Time</dt><dd>' + esc(b.confirmedTime || b.preferredTime || b.confirmedTimeWindow || '—') + '</dd></div>' +
       '<div><dt>Location</dt><dd>' + esc(b.address || b.serviceLocation || '—') + '</dd></div>' +
       (b.assignedTechName ? '<div><dt>Technician</dt><dd>' + esc(b.assignedTechName) + '</dd></div>' : '') +
       (b.travelFeeAmount ? '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>' : '') +
       offerHtml +
+      '</dl>' +
+      vehicleSections +
+      '<dl class="meta-grid booking-financial-summary" aria-label="Booking totals">' +
       '<div><dt>Total approved</dt><dd>' + (
         pay.approvedCents != null || pay.approvedTotal != null
           ? fmtCents(approvedCentsFromPayment(pay))
