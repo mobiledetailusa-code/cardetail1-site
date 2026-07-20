@@ -2045,6 +2045,10 @@ async function handleAdminAction(body) {
         receivedAmountCents: result.receivedAmountCents,
         reason: result.reason || undefined,
         projection: result.projection || undefined,
+        authority: result.authority || undefined,
+        postgresProjection: result.postgresProjection || undefined,
+        settlementRecorded: result.settlementRecorded || undefined,
+        syncError: result.syncError || undefined,
       });
     }
     return jsonCors(200, {
@@ -2053,6 +2057,10 @@ async function handleAdminAction(body) {
       paymentStatus: result.paymentStatus,
       bookingVersion: result.bookingVersion,
       projection: result.projection,
+      authority: result.authority || undefined,
+      postgresProjection: result.postgresProjection || undefined,
+      settledAmountCents: result.settledAmountCents,
+      noop: result.noop || undefined,
     });
   }
 
@@ -2128,15 +2136,24 @@ async function bulkArchiveTests(store, includeAlreadyArchived) {
 
 /**
  * Admin "Mark cash received" — full remaining balance settlement only.
- * Validates against financialProjection.remainingCents before any mutation.
+ * When PostgreSQL payment authority is enabled, settle in Postgres first,
+ * then sync Blob compatibility + operational cash close (no second Blob money credit).
+ * When disabled, preserve the strict Blob full-balance fallback.
  */
 async function adminMarkCashReceived({
   bookingId,
   body = {},
   previousBooking = null,
   store = null,
+  syncBlob = null,
+  env = process.env,
 } = {}) {
   const { financialProjection } = require('../lib/payment-service');
+  const {
+    postgresPaymentEnabled,
+    settleAdminCashFullBalance,
+    syncBlobCompatibilityFromProjection,
+  } = require('../lib/db/operational-payment');
   const id = String(bookingId || '').trim();
   if (!id) return { ok: false, error: 'bookingId_required', statusCode: 400 };
 
@@ -2163,6 +2180,29 @@ async function adminMarkCashReceived({
     }
   }
 
+  if (store) setBookingStoreOverride(store);
+
+  if (postgresPaymentEnabled(env)) {
+    const result = await settleAdminCashFullBalance({
+      booking,
+      body,
+      env,
+      syncBlob: typeof syncBlob === 'function' ? syncBlob : syncBlobCompatibilityFromProjection,
+    });
+    if (!result.ok) {
+      return {
+        ...result,
+        bookingVersion: result.bookingVersion != null
+          ? result.bookingVersion
+          : Math.round(Number(booking.bookingVersion) || 0),
+        quoteVersion: result.quoteVersion != null
+          ? result.quoteVersion
+          : Math.round(Number(booking.quoteVersion || booking.quote?.quoteVersion) || 0),
+      };
+    }
+    return result;
+  }
+
   const resolved = resolveAdminCashSettlement(booking, body);
   if (!resolved.ok) {
     return {
@@ -2181,7 +2221,6 @@ async function adminMarkCashReceived({
 
   const result = markCashReceived(booking, { amount: resolved.amountDollars, reference: body.reference });
   const activeStore = store || (await blobsStore('cd1-bookings'));
-  if (store) setBookingStoreOverride(store);
   const persisted = await persistMutation(
     activeStore,
     id,
@@ -2203,6 +2242,7 @@ async function adminMarkCashReceived({
   const projection = financialProjection(persisted.booking);
   return {
     ok: true,
+    authority: 'blob',
     bookingId: id,
     paymentStatus: persisted.booking.paymentStatus,
     jobStatus: persisted.booking.jobStatus,
@@ -2211,6 +2251,7 @@ async function adminMarkCashReceived({
     quoteVersion: Math.round(Number(persisted.booking.quoteVersion || persisted.booking.quote?.quoteVersion) || 0),
     projection,
     financialProjection: projection,
+    settledAmountCents: resolved.amountCents,
     booking: persisted.booking,
   };
 }

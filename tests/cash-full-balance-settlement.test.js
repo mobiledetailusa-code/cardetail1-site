@@ -1,7 +1,7 @@
 /**
  * Full-balance cash settlement enforcement.
  * Admin mark_cash_received must settle exactly remainingCents — never partial close.
- * Blob-authoritative; no live Stripe; Postgres optional for parity checks.
+ * Blob-authoritative fallback path (PostgreSQL payment authority forced off via env arg).
  */
 'use strict';
 
@@ -13,6 +13,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+const BLOB_ENV = { ...process.env, CD1_POSTGRES_PAYMENT: '0' };
 
 const RUN_ID = `CASH-FB-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
 let idCounter = 0;
@@ -177,6 +178,7 @@ describe('full-balance cash settlement', () => {
       body,
       previousBooking: store._snapshot(booking.id),
       store,
+      env: BLOB_ENV,
     });
   }
 

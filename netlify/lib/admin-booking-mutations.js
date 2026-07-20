@@ -389,12 +389,13 @@ const AMBIGUOUS_CASH_AMOUNT_KEYS = [
 /**
  * Authoritative full-balance cash settlement gate.
  * remainingCents comes from financialProjection — never settle approvedCents blindly.
+ * Pass opts.authoritativeProjection when PostgreSQL (or another authority) owns remaining.
  * Absent body.amount → settle exactly remainingCents.
  * Present body.amount → must equal remainingCents in cents after strict dollar parse.
  */
-function resolveAdminCashSettlement(booking, body = {}) {
+function resolveAdminCashSettlement(booking, body = {}, opts = {}) {
   const { financialProjection } = require('./payment-service');
-  const projection = financialProjection(booking);
+  const projection = opts.authoritativeProjection || financialProjection(booking);
   const remainingCents = Math.max(0, Math.round(Number(projection.remainingCents) || 0));
 
   const ambiguousKey = AMBIGUOUS_CASH_AMOUNT_KEYS.find((key) => (
