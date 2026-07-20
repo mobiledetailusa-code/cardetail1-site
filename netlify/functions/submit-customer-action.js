@@ -74,14 +74,64 @@ async function autoApplySubmittedRequest(bookingId, cmd) {
   return {
     ok: true,
     applied: true,
+    noop: !!decided.noop,
+    reason: decided.reason || undefined,
     pendingApproval: false,
     booking: decided.booking,
     projection: decided.projection,
+    financialProjection: decided.financialProjection || null,
+    postgresProjection: decided.postgresProjection || null,
+    quoteVersion: decided.quoteVersion,
     changeRequest: {
       ...cmd.changeRequest,
       status: 'applied',
     },
   };
+}
+
+function addonMutationResponse(appliedCmd, {
+  policy,
+  changeRequestId = null,
+  custName = '',
+  adminSubjectLocal = '',
+  adminTextLocal = '',
+}) {
+  const proj = appliedCmd.postgresProjection
+    || appliedCmd.financialProjection
+    || null;
+  const proposed = appliedCmd.changeRequest?.proposedApprovedCents != null
+    ? appliedCmd.changeRequest.proposedApprovedCents / 100
+    : (appliedCmd.booking?.approvedFinalAmount != null
+      ? Number(appliedCmd.booking.approvedFinalAmount)
+      : null);
+  const appliedTotal = appliedCmd.booking?.approvedFinalAmount != null
+    ? Number(appliedCmd.booking.approvedFinalAmount)
+    : proposed;
+  if (adminSubjectLocal) {
+    notifyAdmin(
+      adminSubjectLocal.replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
+      `${adminTextLocal}${appliedTotal != null ? `\nTotal: $${Number(appliedTotal).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
+    ).catch(() => {});
+  }
+  return json(200, {
+    ok: true,
+    changeRequestId: changeRequestId || appliedCmd.changeRequest?.requestId || null,
+    pendingApproval: !!policy.pendingApproval && !appliedCmd.applied,
+    applied: !!appliedCmd.applied,
+    noop: !!appliedCmd.noop,
+    reason: appliedCmd.reason || undefined,
+    bookingVersion: appliedCmd.booking?.bookingVersion,
+    quoteVersion: appliedCmd.quoteVersion || appliedCmd.booking?.quoteVersion
+      || appliedCmd.changeRequest?.quoteVersion,
+    proposedTotal: appliedTotal,
+    approvedFinalAmount: appliedCmd.booking?.approvedFinalAmount,
+    projection: appliedCmd.projection,
+    financialProjection: appliedCmd.financialProjection || null,
+    postgresProjection: appliedCmd.postgresProjection || null,
+    approvedCents: proj?.approvedCents ?? null,
+    settledCents: proj?.settledCents ?? null,
+    remainingCents: proj?.remainingCents ?? null,
+  });
 }
 
 const ALLOWED_ACTIONS = new Set(Object.keys(ACTION_MAP));
@@ -112,16 +162,63 @@ exports.handler = async (event) => {
 
   const booking = auth.booking;
   const policyAction = ACTION_MAP[action];
-  const policy = canRequestChange(booking, policyAction);
+  let policy = canRequestChange(booking, policyAction);
+  // Stage 2: narrow post-settlement carve-out for additive addon_request only.
+  // Does not loosen canRequestChange / isInvoicePaid globally.
   if (!policy.ok) {
-    return json(200, {
-      ok: false,
-      error: policy.error || 'action_not_allowed',
-      message: policy.message
-        || (policy.requiresCall
-          ? 'This appointment is in progress. Please call or text Cardetail1 for changes.'
-          : 'This change is not available for your appointment status.'),
-    });
+    const settledHint = Math.max(0, Math.round(Number(booking?.ledger?.settledCents) || 0));
+    if (
+      action === 'addon_remove_request'
+      && (settledHint > 0 || policy.error === 'invoice_paid')
+    ) {
+      return json(409, {
+        ok: false,
+        error: 'settled_addon_remove_denied',
+        message: 'Add-on removal is not available after payment.',
+      });
+    }
+    if (action === 'addon_request' && policy.error === 'invoice_paid') {
+      const {
+        evaluatePostPayAdditiveAddonCarveOut,
+      } = require('../lib/canonical-addon-catalog');
+      const carve = evaluatePostPayAdditiveAddonCarveOut(booking, p);
+      if (carve.ok) {
+        policy = { ok: true, pendingApproval: false, phase: 'paid', postPayAdditiveCarveOut: true };
+      } else if (carve.noop || carve.error === 'duplicate_addon') {
+        return json(200, {
+          ok: true,
+          noop: true,
+          reason: 'duplicate_addon',
+          message: carve.message || 'Selected add-on is already on this booking.',
+          changeRequestId: null,
+        });
+      } else if (carve.error) {
+        return json(carve.statusCode || 409, {
+          ok: false,
+          error: carve.error,
+          message: carve.message
+            || (carve.error === 'settled_addon_remove_denied'
+              ? 'Add-on removal is not available after payment.'
+              : 'Invoice paid — this change is not available online.'),
+        });
+      } else {
+        return json(200, {
+          ok: false,
+          error: policy.error || 'action_not_allowed',
+          message: policy.message
+            || 'Invoice is paid. Request a quote adjustment with Cardetail1 — pack/add-on/vehicle price changes are closed.',
+        });
+      }
+    } else {
+      return json(200, {
+        ok: false,
+        error: policy.error || 'action_not_allowed',
+        message: policy.message
+          || (policy.requiresCall
+            ? 'This appointment is in progress. Please call or text Cardetail1 for changes.'
+            : 'This change is not available for your appointment status.'),
+      });
+    }
   }
 
   const now = new Date().toISOString();
@@ -173,79 +270,119 @@ exports.handler = async (event) => {
     logEntry.requestedAddress = newAddress;
     adminSubject = `Cardetail1 — Address Update Request · ${bookingId}`;
     adminText = `Customer requested address change for booking ${bookingId}.\nRequested: ${newAddress}`;
-  } else if (action === 'addon_request' || action === 'package_change_request') {
+  } else if (action === 'addon_remove_request') {
+    // Stage 2: narrow remove — only when unsettled; empty/absent → safe noop.
+    const {
+      parseAddonIdList,
+      currentAddonIdsOnBooking,
+    } = require('../lib/canonical-addon-catalog');
+    const { submitChangeRequestCommand } = require('../lib/booking-commands');
+
+    const settled = Math.max(0, Math.round(Number(booking?.ledger?.settledCents) || 0));
+    if (settled > 0) {
+      return json(409, {
+        ok: false,
+        error: 'settled_addon_remove_denied',
+        message: 'Add-on removal is not available after payment.',
+      });
+    }
+
+    const requestedIds = parseAddonIdList(p.addonIds || p.addOnIdsToRemove || p.removeAddonIds);
+    if (!requestedIds.length) {
+      return json(200, {
+        ok: true,
+        noop: true,
+        reason: 'empty_remove',
+        message: 'No add-on to remove.',
+        changeRequestId: null,
+        quoteVersion: booking.quoteVersion || booking.quote?.quoteVersion || 0,
+        bookingVersion: booking.bookingVersion,
+      });
+    }
+
+    const onBooking = new Set(currentAddonIdsOnBooking(booking));
+    const addonIds = requestedIds.filter((id) => onBooking.has(id));
+    if (!addonIds.length) {
+      return json(200, {
+        ok: true,
+        noop: true,
+        reason: 'addon_not_present',
+        message: 'Selected add-on is not on this booking.',
+        changeRequestId: null,
+        quoteVersion: booking.quoteVersion || booking.quote?.quoteVersion || 0,
+        bookingVersion: booking.bookingVersion,
+      });
+    }
+
+    // Ignore browser price / label / total — IDs only.
+    const cmd = await submitChangeRequestCommand({
+      bookingId,
+      expectedBookingVersion: booking.bookingVersion,
+      requestType: 'addon_remove_request',
+      target: { vehicleId: p.vehicleId || undefined },
+      delta: { addOnIdsToRemove: addonIds, addonIds },
+      authorizedRef: auth.scope,
+    });
+    if (cmd.noop) {
+      return json(200, {
+        ok: true,
+        noop: true,
+        reason: cmd.reason || 'addon_not_present',
+        message: 'Selected add-on is not on this booking.',
+        changeRequestId: null,
+        quoteVersion: booking.quoteVersion || booking.quote?.quoteVersion || 0,
+        bookingVersion: booking.bookingVersion,
+      });
+    }
+    if (!cmd.ok) {
+      const status = cmd.statusCode || 400;
+      return json(status, {
+        ok: false,
+        error: cmd.error || 'request_failed',
+        message: cmd.error === 'version_conflict'
+          ? 'This booking changed. Refresh and try again.'
+          : (cmd.error === 'settled_addon_remove_denied'
+            ? 'Add-on removal is not available after payment.'
+            : undefined),
+      });
+    }
+
+    let appliedCmd = cmd;
+    if (!policy.pendingApproval) {
+      appliedCmd = await autoApplySubmittedRequest(bookingId, cmd);
+      if (!appliedCmd.ok) {
+        return json(appliedCmd.statusCode || 400, {
+          ok: false,
+          error: appliedCmd.error || 'apply_failed',
+          message: appliedCmd.message
+            || (appliedCmd.error === 'settled_addon_remove_denied'
+              ? 'Add-on removal is not available after payment.'
+              : undefined),
+          changeRequestId: cmd.changeRequest?.requestId || null,
+        });
+      }
+    }
+    return addonMutationResponse(appliedCmd, {
+      policy,
+      changeRequestId: appliedCmd.changeRequest?.requestId,
+      custName,
+      adminSubjectLocal: `Cardetail1 — Add-On Removal · ${bookingId}`,
+      adminTextLocal: `Customer removed add-ons for booking ${bookingId}.\n${addonIds.join(', ')}`,
+    });
+  } else if (action === 'addon_request') {
     // Release A: money requests go through versioned command + canonical quote (PDA-01/02/05/07)
     const { submitChangeRequestCommand } = require('../lib/booking-commands');
-    const { CAR_PACKAGES } = require('../lib/customer-catalog');
-    const {
-      usesLengthPricing,
-      packagesForCategory,
-      normalizeLengthCategory,
-    } = require('../lib/length-pricing');
+    const { parseAddonIdList } = require('../lib/canonical-addon-catalog');
 
-    let target = { vehicleId: p.vehicleId || undefined };
-    let delta = {};
-    let adminSubjectLocal = '';
-    let adminTextLocal = '';
-
-    if (action === 'addon_request') {
-      const rawIds = Array.isArray(p.addonIds) ? p.addonIds : String(p.addonIds || '').split(',');
-      const addonIds = rawIds.map((id) => String(id || '').trim()).filter(Boolean);
-      if (!addonIds.length && !String(p.requestedAddons || '').trim()) {
-        return json(400, { ok: false, error: 'validation_error', message: 'Please select at least one add-on.' });
-      }
-      delta = { addOnIdsToAdd: addonIds, addonIds, requestedAddons: addonIds.join(', ') };
-      adminSubjectLocal = `Cardetail1 — Add-On Request · ${bookingId}`;
-      adminTextLocal = `Customer requested add-ons for booking ${bookingId}.\n${addonIds.join(', ')}`;
-    } else {
-      const newPackId = String(p.newPackId || '').slice(0, 32).trim();
-      const vehicleCategory = normalizeLengthCategory(
-        p.vehicleCategory || booking.vehicleCategory || booking.cat || 'cars'
-      );
-      const lengthFt = Number(p.lengthFt || p.vehicleLengthFt || booking.vehicleLengthFt || booking.lengthFt || 0);
-      const lengthPacks = packagesForCategory(vehicleCategory);
-      const catalogPack = CAR_PACKAGES.find((cp) => cp.id === newPackId)
-        || (lengthPacks || []).find((cp) => cp.id === newPackId);
-      const newPackName = catalogPack ? catalogPack.name : String(p.newPackName || '').slice(0, 120).trim();
-      if (!newPackName) return json(400, { ok: false, error: 'validation_error', message: 'Please select a package.' });
-      if (usesLengthPricing(vehicleCategory) && !(lengthFt > 0)) {
-        return json(400, { ok: false, error: 'validation_error', message: 'Enter vessel / RV length in feet for accurate pricing.' });
-      }
-      const { PRICING } = require('../lib/booking-price-catalog');
-      const carTiers = (PRICING.cars && PRICING.cars.tiers) || {};
-      const primaryVehicle = (booking.service && Array.isArray(booking.service.vehicles)
-        ? booking.service.vehicles[0]
-        : null) || (Array.isArray(booking.vehicles) ? booking.vehicles[0] : null) || {};
-      const tierCandidates = [
-        p.tier, p.vehicleTier, p.tierKey,
-        primaryVehicle.tierKey, primaryVehicle.tier,
-        booking.vehicleTier, booking.tierKey,
-      ].map((t) => String(t || '').trim()).filter(Boolean);
-      let tierKey = '';
-      for (const candidate of tierCandidates) {
-        if (carTiers[candidate]) { tierKey = candidate; break; }
-      }
-      if (!tierKey) {
-        const tierLabel = String(p.tierLabel || primaryVehicle.tierLabel || booking.tierLabel || '').trim();
-        if (tierLabel) {
-          for (const [key, tier] of Object.entries(carTiers)) {
-            if (tier && tier.label === tierLabel) { tierKey = key; break; }
-          }
-        }
-      }
-      if (!tierKey) tierKey = 'suv3';
-      delta = {
-        packageId: newPackId,
-        newPackId,
-        packageName: newPackName,
-        vehicleCategory,
-        lengthFt: usesLengthPricing(vehicleCategory) ? lengthFt : 0,
-        tierKey,
-        tier: tierKey,
-      };
-      adminSubjectLocal = `Cardetail1 — Package Change Request · ${bookingId}`;
-      adminTextLocal = `Customer requested package change for booking ${bookingId}.\nRequested: ${newPackName}`;
+    const target = { vehicleId: p.vehicleId || undefined };
+    const addonIds = parseAddonIdList(p.addonIds || p.addOnIdsToAdd);
+    if (!addonIds.length && !String(p.requestedAddons || '').trim()) {
+      return json(400, { ok: false, error: 'validation_error', message: 'Please select at least one add-on.' });
     }
+    // Browser price/label/total ignored — IDs only; Stage 1 mutation prices from catalog.
+    const delta = { addOnIdsToAdd: addonIds, addonIds, requestedAddons: addonIds.join(', ') };
+    const adminSubjectLocal = `Cardetail1 — Add-On Request · ${bookingId}`;
+    const adminTextLocal = `Customer requested add-ons for booking ${bookingId}.\n${addonIds.join(', ')}`;
 
     const cmd = await submitChangeRequestCommand({
       bookingId,
@@ -271,7 +408,7 @@ exports.handler = async (event) => {
         error: cmd.error || 'request_failed',
         message: cmd.error === 'version_conflict'
           ? 'This booking changed. Refresh and try again.'
-          : (cmd.error === 'invalid_pricing' ? 'Selected package could not be priced.' : undefined),
+          : (cmd.error === 'invalid_pricing' ? 'Selected add-on could not be priced.' : undefined),
       });
     }
 
@@ -287,29 +424,245 @@ exports.handler = async (event) => {
         });
       }
     }
-    const proposed = appliedCmd.changeRequest?.proposedApprovedCents != null
-      ? appliedCmd.changeRequest.proposedApprovedCents / 100
-      : (appliedCmd.booking?.approvedFinalAmount != null
-        ? Number(appliedCmd.booking.approvedFinalAmount)
-        : null);
-    const appliedTotal = appliedCmd.booking?.approvedFinalAmount != null
-      ? Number(appliedCmd.booking.approvedFinalAmount)
-      : proposed;
-    notifyAdmin(
-      adminSubjectLocal.replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
-      `${adminTextLocal}${appliedTotal != null ? `\nTotal: $${Number(appliedTotal).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
-    ).catch(() => {});
+    return addonMutationResponse(appliedCmd, {
+      policy,
+      changeRequestId: appliedCmd.changeRequest?.requestId,
+      custName,
+      adminSubjectLocal,
+      adminTextLocal,
+    });
+  } else if (action === 'package_change_request') {
+    // Package Stage 2: honor browser expectedBookingVersion; money via Stage 1 mutator only.
+    const { submitChangeRequestCommand } = require('../lib/booking-commands');
+    const {
+      usesLengthPricing,
+      normalizeLengthCategory,
+    } = require('../lib/length-pricing');
+    const {
+      packageDisplayName,
+      packageOptionsForVehicle,
+      validatePackageIdForVehicle,
+    } = require('../lib/package-financial-mutation');
+    const { normalizeAggregate, ensureVehicleIds } = require('../lib/booking-aggregate');
 
-    return json(200, {
-      ok: true,
-      changeRequestId: appliedCmd.changeRequest.requestId,
-      pendingApproval: !!policy.pendingApproval && !appliedCmd.applied,
-      applied: !!appliedCmd.applied,
-      bookingVersion: appliedCmd.booking?.bookingVersion,
-      quoteVersion: appliedCmd.booking?.quoteVersion || appliedCmd.changeRequest?.quoteVersion,
-      proposedTotal: appliedTotal,
-      approvedFinalAmount: appliedCmd.booking?.approvedFinalAmount,
-      projection: appliedCmd.projection,
+    // Pre-settlement only — any recorded payment denies package changes (Stage 1 policy).
+    const settledHint = Math.max(0, Math.round(Number(booking?.ledger?.settledCents) || 0));
+    if (settledHint > 0) {
+      return json(409, {
+        ok: false,
+        error: 'settled_package_change_denied',
+        message: 'Package changes are unavailable after any payment has been recorded.',
+      });
+    }
+
+    // Require client version — do not silently substitute the freshly loaded bookingVersion.
+    if (p.expectedBookingVersion == null || p.expectedBookingVersion === '') {
+      return json(400, {
+        ok: false,
+        error: 'validation_error',
+        message: 'expectedBookingVersion is required.',
+      });
+    }
+    const expectedBookingVersion = Math.round(Number(p.expectedBookingVersion));
+    if (!Number.isFinite(expectedBookingVersion) || expectedBookingVersion < 0) {
+      return json(400, {
+        ok: false,
+        error: 'validation_error',
+        message: 'expectedBookingVersion is invalid.',
+      });
+    }
+
+    const newPackId = String(p.newPackId || p.packageId || '').slice(0, 32).trim();
+    if (!newPackId) {
+      return json(400, { ok: false, error: 'validation_error', message: 'Please select a package.' });
+    }
+
+    const { ok: aggOk, aggregate } = normalizeAggregate(booking);
+    if (!aggOk) {
+      return json(400, { ok: false, error: 'invalid_aggregate' });
+    }
+    const vehicles = ensureVehicleIds(aggregate.service?.vehicles || []);
+    let vehicleId = String(p.vehicleId || '').trim() || undefined;
+    if (!vehicleId && vehicles.length === 1) vehicleId = vehicles[0].vehicleId;
+    if (!vehicleId) {
+      return json(400, {
+        ok: false,
+        error: 'vehicle_target_required',
+        message: 'Select which vehicle this package change applies to.',
+      });
+    }
+
+    const validated = validatePackageIdForVehicle(
+      aggregate.service,
+      { vehicleId },
+      newPackId,
+      aggregate
+    );
+    if (!validated.ok) {
+      const err = validated.error || 'unknown_package_id';
+      return json(validated.statusCode || 400, {
+        ok: false,
+        error: err,
+        message: err === 'unknown_package_id'
+          ? 'That package is not available for this vehicle.'
+          : (err === 'vehicle_not_found'
+            ? 'Selected vehicle was not found on this booking.'
+            : 'Unable to change package for this vehicle.'),
+        validPackageIds: validated.validPackageIds,
+      });
+    }
+
+    const targetVehicle = vehicles.find((v) => v.vehicleId === vehicleId) || {};
+    const vehicleCategory = normalizeLengthCategory(
+      validated.category
+        || targetVehicle.category
+        || targetVehicle.cat
+        || p.vehicleCategory
+        || booking.vehicleCategory
+        || booking.cat
+        || 'cars'
+    );
+    const lengthFt = Number(
+      p.lengthFt || p.vehicleLengthFt || targetVehicle.lengthFt || booking.vehicleLengthFt || booking.lengthFt || 0
+    );
+    if (usesLengthPricing(vehicleCategory) && !(lengthFt > 0)) {
+      return json(400, {
+        ok: false,
+        error: 'validation_error',
+        message: 'Enter vessel / RV length in feet for accurate pricing.',
+      });
+    }
+
+    const newPackName = validated.option?.name
+      || packageDisplayName(vehicleCategory, newPackId);
+    const { PRICING } = require('../lib/booking-price-catalog');
+    const carTiers = (PRICING.cars && PRICING.cars.tiers) || {};
+    const tierCandidates = [
+      p.tier, p.vehicleTier, p.tierKey,
+      targetVehicle.tierKey, targetVehicle.tier,
+      booking.vehicleTier, booking.tierKey,
+    ].map((t) => String(t || '').trim()).filter(Boolean);
+    let tierKey = '';
+    for (const candidate of tierCandidates) {
+      if (carTiers[candidate]) { tierKey = candidate; break; }
+    }
+    if (!tierKey) {
+      const tierLabel = String(p.tierLabel || targetVehicle.tierLabel || booking.tierLabel || '').trim();
+      if (tierLabel) {
+        for (const [key, tier] of Object.entries(carTiers)) {
+          if (tier && tier.label === tierLabel) { tierKey = key; break; }
+        }
+      }
+    }
+    if (!tierKey && vehicleCategory === 'cars') {
+      // Preserve vehicle tier from catalog probe rather than inventing a default tier rewrite.
+      const probed = packageOptionsForVehicle(targetVehicle, aggregate);
+      tierKey = String(targetVehicle.tierKey || targetVehicle.tier || '').trim();
+      if (!tierKey && probed.category === 'cars') tierKey = 'suv3';
+    }
+
+    const delta = {
+      packageId: newPackId,
+      newPackId,
+      packageName: newPackName,
+      vehicleCategory,
+      lengthFt: usesLengthPricing(vehicleCategory) ? lengthFt : 0,
+      tierKey: tierKey || undefined,
+      tier: tierKey || undefined,
+    };
+    // Ignore any browser money fields — Stage 1 prices from booking-price-catalog only.
+    const adminSubjectLocal = `Cardetail1 — Package Change Request · ${bookingId}`;
+    const adminTextLocal = `Customer requested package change for booking ${bookingId}.\nRequested: ${newPackName}`;
+
+    const cmd = await submitChangeRequestCommand({
+      bookingId,
+      expectedBookingVersion,
+      requestType: 'package_change_request',
+      target: { vehicleId },
+      delta,
+      authorizedRef: auth.scope,
+    });
+    if (cmd.noop) {
+      return json(200, {
+        ok: true,
+        noop: true,
+        reason: cmd.reason || 'package_unchanged',
+        message: cmd.reason === 'package_unchanged'
+          ? 'That package is already on your booking — no change needed.'
+          : 'No package change needed.',
+        changeRequestId: null,
+        bookingVersion: booking.bookingVersion,
+        quoteVersion: booking.quoteVersion || booking.quote?.quoteVersion || 0,
+      });
+    }
+    if (!cmd.ok) {
+      const status = cmd.statusCode || 400;
+      const err = cmd.error || 'request_failed';
+      let message;
+      if (err === 'version_conflict') {
+        message = 'This booking changed. Refresh and try again.';
+      } else if (err === 'invalid_pricing') {
+        message = 'Selected package could not be priced with your current add-ons. Your package and add-ons were not changed.';
+      } else if (err === 'unknown_package_id') {
+        message = 'That package is not available for this vehicle.';
+      } else if (err === 'vehicle_target_required') {
+        message = 'Select which vehicle this package change applies to.';
+      } else if (err === 'settled_package_change_denied') {
+        message = 'Package changes are unavailable after any payment has been recorded.';
+      }
+      return json(status, {
+        ok: false,
+        error: err,
+        message,
+        actualBookingVersion: cmd.actualBookingVersion,
+      });
+    }
+
+    let appliedCmd = cmd;
+    if (!policy.pendingApproval) {
+      appliedCmd = await autoApplySubmittedRequest(bookingId, cmd);
+      if (!appliedCmd.ok) {
+        const err = appliedCmd.error || 'apply_failed';
+        let message = appliedCmd.message;
+        if (err === 'settled_package_change_denied') {
+          message = 'Package changes are unavailable after any payment has been recorded.';
+        } else if (err === 'invalid_pricing') {
+          message = 'Selected package could not be priced with your current add-ons. Your package and add-ons were not changed.';
+        } else if (err === 'version_conflict') {
+          message = 'This booking changed. Refresh and try again.';
+        } else if (err === 'unknown_package_id') {
+          message = 'That package is not available for this vehicle.';
+        } else if (err === 'package_unchanged') {
+          message = 'That package is already on your booking — no change needed.';
+        }
+        return json(appliedCmd.statusCode || 400, {
+          ok: false,
+          error: err,
+          message,
+          changeRequestId: cmd.changeRequest?.requestId || null,
+          actualBookingVersion: appliedCmd.actualBookingVersion,
+        });
+      }
+    }
+
+    if (appliedCmd.noop && appliedCmd.reason === 'package_unchanged') {
+      return json(200, {
+        ok: true,
+        noop: true,
+        reason: 'package_unchanged',
+        message: 'That package is already on your booking — no change needed.',
+        changeRequestId: appliedCmd.changeRequest?.requestId || null,
+        bookingVersion: appliedCmd.booking?.bookingVersion,
+        quoteVersion: appliedCmd.quoteVersion || appliedCmd.booking?.quoteVersion || 0,
+      });
+    }
+
+    return addonMutationResponse(appliedCmd, {
+      policy,
+      changeRequestId: appliedCmd.changeRequest?.requestId,
+      custName,
+      adminSubjectLocal,
+      adminTextLocal,
     });
   } else if (action === 'vehicle_add_request' || action === 'vehicle_replace_request') {
     const { usesLengthPricing } = require('../lib/length-pricing');
@@ -424,7 +777,7 @@ exports.handler = async (event) => {
   const { submitChangeRequestCommand } = require('../lib/booking-commands');
   const moneyish = new Set(['reschedule_request', 'address_update', 'cancellation_request']);
   if (moneyish.has(action) || action === 'vehicle_add_request' || action === 'vehicle_replace_request'
-    || action === 'maintenance_request' || action === 'addon_remove_request') {
+    || action === 'maintenance_request') {
     const cmdDelta = {
       ...requestedState,
       requestedDate: requestedState.preferredDate || requestedState.requestedDate,

@@ -10,6 +10,8 @@ const { listVehiclesForOwner } = require('../lib/customer-vehicles');
 const { listVisibleRequestsForBooking } = require('../lib/customer-change-requests');
 const { canPayBalance } = require('../lib/appointment-status-policy');
 const { catalogForClient } = require('../lib/customer-catalog');
+const { serializeCanonicalAddonCatalog } = require('../lib/canonical-addon-catalog');
+const { serializeCanonicalPackageCatalogForBooking } = require('../lib/canonical-package-catalog');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
 const { financialProjection } = require('../lib/payment-service');
@@ -17,6 +19,23 @@ const {
   postgresPaymentEnabled,
   getSharedFinancialProjection,
 } = require('../lib/db/operational-payment');
+
+/**
+ * Portal catalog: subscription/marketing packages remain in customer-catalog;
+ * live package quotes for Change Package come from booking-scoped packageCatalog
+ * (booking-price-catalog via Stage 1 helpers). Add-ons are always canonical.
+ */
+function portalCatalogForClient() {
+  const base = catalogForClient();
+  const canonical = serializeCanonicalAddonCatalog();
+  return {
+    ...base,
+    // Replace independently priced customer-catalog ADDONS — never authoritative.
+    addons: canonical.addons,
+    addonsByCategory: canonical.addonsByCategory,
+    addonCatalogSource: canonical.source,
+  };
+}
 
 function safePaymentStateFromProjection(booking, money, authority) {
   const due = money.remainingCents / 100;
@@ -85,6 +104,10 @@ function selectUpcoming(projected) {
   return active[0] || projected[0] || null;
 }
 
+/** Test / inspect seam — production traffic uses exports.handler only. */
+exports.portalCatalogForClient = portalCatalogForClient;
+exports.serializeCanonicalPackageCatalogForBooking = serializeCanonicalPackageCatalogForBooking;
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   if (event.httpMethod !== 'POST') return jsonCors(405, { ok: false, error: 'method_not_allowed' });
@@ -97,7 +120,7 @@ exports.handler = async (event) => {
   catch { return jsonCors(400, { ok: false, error: 'validation_error' }); }
 
   const mode = String(body.mode || 'limited').toLowerCase();
-  const catalog = catalogForClient();
+  const catalog = portalCatalogForClient();
 
   if (mode === 'limited') {
     const auth = await authorizeBookingAccess(event, {
@@ -126,12 +149,15 @@ exports.handler = async (event) => {
     }
     const projected = projectBookingForCustomer(auth.booking);
     const payment = await safePaymentStateAsync(auth.booking);
+    const packageCatalog = serializeCanonicalPackageCatalogForBooking(auth.booking);
     return jsonCors(200, {
       ok: true,
       scope: 'booking',
       booking: projected,
       payment,
       catalog,
+      packageCatalog,
+      packageCatalogByVehicle: packageCatalog.packageCatalogByVehicle,
       changeRequests: await listVisibleRequestsForBooking(auth.booking),
     });
   }
@@ -160,12 +186,17 @@ exports.handler = async (event) => {
     : { state: 'not_due', amountDueApproved: 0, canPay: false, payLink: '', authority: 'none' };
 
   let changeRequests = [];
+  let rawUpcoming = null;
   if (upcoming?.id) {
+    rawUpcoming = bookings.find((b) => (b.id || b.bookingId) === upcoming.id) || null;
     try {
-      const rawUpcoming = bookings.find((b) => (b.id || b.bookingId) === upcoming.id);
       changeRequests = await listVisibleRequestsForBooking(rawUpcoming || upcoming);
     } catch { changeRequests = []; }
   }
+
+  const packageCatalog = rawUpcoming
+    ? serializeCanonicalPackageCatalogForBooking(rawUpcoming)
+    : { source: 'booking-price-catalog', vehicles: [], packageCatalogByVehicle: {} };
 
   return jsonCors(200, {
     ok: true,
@@ -175,6 +206,8 @@ exports.handler = async (event) => {
     vehicles,
     payment,
     catalog,
+    packageCatalog,
+    packageCatalogByVehicle: packageCatalog.packageCatalogByVehicle,
     changeRequests,
     sections: {
       appointments: projected.length > 0,

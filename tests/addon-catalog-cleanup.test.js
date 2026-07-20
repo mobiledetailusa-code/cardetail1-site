@@ -150,7 +150,19 @@ test('client and server add-on ids/prices stay synced for cars', () => {
   const clientIds = [...read('index.html').matchAll(/cars:[\s\S]*?addons:\[([\s\S]*?)\],/g)][0][1]
     .matchAll(/id:'([^']+)'[^}]*price:(\d+)/g);
   const clientMap = Object.fromEntries([...clientIds].map((m) => [m[1], Number(m[2])]));
+  // Server-only Stage 1 financial fixture ($40 / 4000¢). Not exposed on public
+  // booking UI yet — Stage 1 deliberately does not edit customer-facing catalog HTML.
+  const serverOnlyStage1Fixtures = new Set(['ozone']);
   for (const a of PRICING.cars.addons) {
+    if (serverOnlyStage1Fixtures.has(a.id)) {
+      assert.equal(a.price, 40, 'ozone Stage 1 fixture must remain $40');
+      continue;
+    }
     assert.equal(clientMap[a.id], a.price, `cars.${a.id} price mismatch`);
+  }
+  for (const [id, price] of Object.entries(clientMap)) {
+    const server = PRICING.cars.addons.find((a) => a.id === id);
+    assert.ok(server, `client cars addon ${id} missing from booking-price-catalog`);
+    assert.equal(server.price, price, `cars.${id} server price must match client`);
   }
 });

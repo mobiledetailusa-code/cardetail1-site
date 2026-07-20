@@ -62,15 +62,22 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
     amountDueApproved: dollarsRemaining,
     balanceDue: dollarsRemaining,
     totalPrice: dollarsApproved,
+    amountPaid: dollarsSettled,
+    paidAmount: dollarsSettled,
+    approvedFinalAmount: dollarsApproved,
     paymentStatus: projection.paymentStatus === 'paid'
       ? 'paid'
       : projection.paymentStatus === 'processing'
         ? 'processing'
         : projection.paymentStatus === 'refunded'
           ? 'refunded'
-          : (base.paymentStatus || 'no_payment_required_yet'),
+          : projection.paymentStatus === 'due'
+            ? 'due'
+            : (base.paymentStatus || 'no_payment_required_yet'),
     paymentWorkflowStatus: projection.paymentStatus === 'paid'
-      ? 'payment_succeeded'
+      ? (String(base.paymentWorkflowStatus || '').toLowerCase() === 'cash_paid'
+        ? 'cash_paid'
+        : 'payment_succeeded')
       : projection.paymentStatus === 'processing'
         ? 'awaiting_customer_payment'
         : projection.paymentStatus === 'due'
@@ -78,6 +85,18 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
           : (base.paymentWorkflowStatus || null),
     paymentIntentId: projection.stripeReference || base.paymentIntentId || null,
   };
+
+  // Open remaining after quote adjustment must not keep historical Paid markers
+  // (adaptHistoricalBooking would clamp settledCents up to approvedCents).
+  if (projection.paymentStatus === 'due' || projection.remainingCents > 0) {
+    patch._historicalPaidClosed = false;
+    if (String(base.status || '') === 'Paid' || String(base.status || '') === 'Closed') {
+      patch.status = 'Confirmed';
+    }
+    if (String(base.jobStatus || '').toLowerCase() === 'completed_paid') {
+      patch.jobStatus = 'confirmed';
+    }
+  }
   if (projection.paymentStatus === 'paid' && projection.paidAt) {
     patch.capturedAt = typeof projection.paidAt === 'string'
       ? projection.paidAt
@@ -262,6 +281,212 @@ async function adminReconcileWithStripe({
   };
 }
 
+/**
+ * Status-only cash close after Postgres money authority has already settled.
+ * Does not invent Blob ledger settlement entries.
+ */
+async function applyCashOperationalClose({
+  bookingId,
+  cashAmountCents,
+  reference = null,
+}) {
+  const rec = await getBookingRecord(bookingId);
+  if (!rec.exists || !rec.booking) return { ok: false, error: 'blob_not_found' };
+
+  const now = new Date().toISOString();
+  const amountDollars = Math.max(0, Math.round(Number(cashAmountCents) || 0)) / 100;
+  const base = rec.booking;
+  const next = buildNextAggregate(base, {
+    paymentStatus: 'paid_cash',
+    paymentWorkflowStatus: 'cash_paid',
+    jobStatus: 'completed_paid',
+    serviceStatus: 'closed',
+    cashReceivedAt: base.cashReceivedAt || now,
+    cashReceivedAmount: amountDollars,
+    cashReceivedReference: reference || base.cashReceivedReference || null,
+    updatedAt: now,
+  });
+
+  const committed = await commitBooking({
+    bookingId,
+    expectedBookingVersion: Math.round(Number(base.bookingVersion) || 0),
+    nextAggregate: next,
+  });
+  if (!committed.ok && committed.error === 'version_conflict') {
+    const again = await getBookingRecord(bookingId);
+    if (!again.exists || !again.booking) return committed;
+    const next2 = buildNextAggregate(again.booking, {
+      paymentStatus: 'paid_cash',
+      paymentWorkflowStatus: 'cash_paid',
+      jobStatus: 'completed_paid',
+      serviceStatus: 'closed',
+      cashReceivedAt: again.booking.cashReceivedAt || now,
+      cashReceivedAmount: amountDollars,
+      cashReceivedReference: reference || again.booking.cashReceivedReference || null,
+      updatedAt: now,
+    });
+    return commitBooking({
+      bookingId,
+      expectedBookingVersion: Math.round(Number(again.booking.bookingVersion) || 0),
+      nextAggregate: next2,
+    });
+  }
+  return committed;
+}
+
+function blobNeedsCashClose(booking) {
+  if (!booking) return true;
+  const { financialProjection } = require('../payment-service');
+  const fp = financialProjection(booking);
+  if (fp.remainingCents > 0) return true;
+  const pay = String(booking.paymentStatus || '').toLowerCase();
+  const pwf = String(booking.paymentWorkflowStatus || '').toLowerCase();
+  const job = String(booking.jobStatus || '').toLowerCase();
+  const svc = String(booking.serviceStatus || '').toLowerCase();
+  if (pay !== 'paid_cash' && pay !== 'paid') return true;
+  if (pwf !== 'cash_paid' && pwf !== 'payment_succeeded') return true;
+  if (job !== 'completed_paid') return true;
+  if (svc !== 'closed') return true;
+  return false;
+}
+
+/**
+ * Admin full-balance cash when PostgreSQL payment authority is enabled.
+ * Money settles only in Postgres; Blob is compatibility + operational status.
+ */
+async function settleAdminCashFullBalance({
+  booking,
+  body = {},
+  env = process.env,
+  syncBlob = syncBlobCompatibilityFromProjection,
+} = {}) {
+  if (!postgresPaymentEnabled(env)) {
+    return { ok: false, error: 'postgres_payment_disabled', statusCode: 503 };
+  }
+
+  const ensured = await ensureBookingFinancial(booking);
+  if (!ensured.ok) {
+    return { ok: false, error: ensured.error || 'ensure_failed', statusCode: 503 };
+  }
+
+  const bookingId = ensured.bookingId;
+  const beforeBlobRec = await getBookingRecord(bookingId);
+  const needsCloseBefore = blobNeedsCashClose(beforeBlobRec.booking);
+
+  const settled = await authority.recordFullBalanceCashSettlement({
+    bookingId,
+    body,
+  });
+
+  if (!settled.ok) {
+    return {
+      ok: false,
+      error: settled.error || 'cash_settlement_failed',
+      statusCode: settled.statusCode || 400,
+      authority: 'postgres',
+      expectedAmountCents: settled.expectedAmountCents,
+      receivedAmountCents: settled.receivedAmountCents,
+      reason: settled.reason,
+      field: settled.field,
+      postgresProjection: mapProjectionForPortals(settled.projection),
+      projection: mapProjectionForPortals(settled.projection),
+      quoteVersion: settled.projection?.quoteVersion,
+    };
+  }
+
+  const pgMapped = mapProjectionForPortals(settled.projection);
+  const cashCents = Math.max(
+    0,
+    Math.round(Number(settled.settledAmountCents != null
+      ? settled.settledAmountCents
+      : settled.entry?.amountCents) || 0)
+  );
+
+  const syncResult = await syncBlob(bookingId, settled.projection);
+  if (!syncResult || syncResult.ok === false) {
+    return {
+      ok: false,
+      error: 'blob_sync_failed',
+      statusCode: 503,
+      authority: 'postgres',
+      postgresProjection: pgMapped,
+      projection: pgMapped,
+      settledAmountCents: cashCents,
+      settlementRecorded: true,
+      created: !!settled.created,
+      noop: !!(settled.noop || settled.duplicate),
+      syncError: syncResult?.error || 'blob_sync_failed',
+      quoteVersion: settled.projection.quoteVersion,
+    };
+  }
+
+  const closed = await applyCashOperationalClose({
+    bookingId,
+    cashAmountCents: cashCents,
+    reference: body.reference,
+  });
+  if (!closed.ok) {
+    return {
+      ok: false,
+      error: 'blob_status_close_failed',
+      statusCode: 503,
+      authority: 'postgres',
+      postgresProjection: pgMapped,
+      projection: pgMapped,
+      settledAmountCents: cashCents,
+      settlementRecorded: true,
+      syncOk: true,
+      created: !!settled.created,
+      noop: !!(settled.noop || settled.duplicate),
+      statusError: closed.error || 'blob_status_close_failed',
+      quoteVersion: settled.projection.quoteVersion,
+    };
+  }
+
+  const { financialProjection } = require('../payment-service');
+  const compat = financialProjection(closed.booking);
+  const noop = !!(settled.noop || settled.duplicate || !settled.created);
+
+  // Fully synchronized replay → already_paid (Blob fallback contract).
+  if (noop && !needsCloseBefore && !blobNeedsCashClose(closed.booking)) {
+    return {
+      ok: false,
+      error: 'already_paid',
+      statusCode: 409,
+      authority: 'postgres',
+      noop: true,
+      postgresProjection: pgMapped,
+      projection: pgMapped,
+      financialProjection: compat,
+      settledAmountCents: cashCents,
+      paymentStatus: closed.booking.paymentStatus,
+      jobStatus: closed.booking.jobStatus,
+      serviceStatus: closed.booking.serviceStatus,
+      bookingVersion: closed.bookingVersion,
+      quoteVersion: settled.projection.quoteVersion,
+      booking: closed.booking,
+    };
+  }
+
+  return {
+    ok: true,
+    authority: 'postgres',
+    bookingId,
+    postgresProjection: pgMapped,
+    projection: pgMapped,
+    financialProjection: compat,
+    settledAmountCents: cashCents,
+    created: !!settled.created,
+    noop,
+    paymentStatus: closed.booking.paymentStatus,
+    jobStatus: closed.booking.jobStatus,
+    serviceStatus: closed.booking.serviceStatus,
+    bookingVersion: closed.bookingVersion,
+    quoteVersion: settled.projection.quoteVersion,
+    booking: closed.booking,
+  };
+}
+
 module.exports = {
   postgresPaymentEnabled,
   mapProjectionForPortals,
@@ -269,4 +494,7 @@ module.exports = {
   getSharedFinancialProjection,
   prepareEmbeddedPayment,
   adminReconcileWithStripe,
+  applyCashOperationalClose,
+  settleAdminCashFullBalance,
+  blobNeedsCashClose,
 };

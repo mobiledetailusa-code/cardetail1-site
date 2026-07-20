@@ -462,6 +462,233 @@ async function createAdjustment({ bookingId, newApprovedCents, reason = null }) 
   return { ok: true, previousQuote, quote, before, after, reason };
 }
 
+function isCashSettlementEntry(entry) {
+  if (!entry || entry.kind !== 'settlement') return false;
+  if (String(entry.providerObjectId || '') === 'cash') return true;
+  return String(entry.providerEventId || '').startsWith('cash_full_balance:');
+}
+
+function buildCashFullBalanceProviderEventId({
+  bookingId,
+  quoteVersion,
+  settledCents,
+  remainingCents,
+}) {
+  return [
+    'cash_full_balance',
+    bookingId,
+    quoteVersion,
+    settledCents,
+    remainingCents,
+  ].join(':');
+}
+
+/**
+ * Full-balance Admin cash settlement against PostgreSQL ledger authority.
+ * Idempotent on providerEventId:
+ *   cash_full_balance:{bookingId}:{quoteVersion}:{settledCents}:{remainingCents}
+ * Does not mutate approvedCents or create a new quoteVersion.
+ */
+async function recordFullBalanceCashSettlement({ bookingId, body = {} }) {
+  const { getPrisma } = require('../prisma');
+  const { Prisma } = require('@prisma/client');
+  const { resolveAdminCashSettlement } = require('../admin-booking-mutations');
+
+  const id = String(bookingId || '').trim();
+  if (!id) return { ok: false, error: 'bookingId_required', statusCode: 400 };
+
+  const prisma = getPrisma();
+  if (!prisma) return { ok: false, error: 'database_not_configured', statusCode: 503 };
+
+  let providerEventIdForConflict = null;
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({ where: { id } });
+      const quote = await tx.quote.findFirst({
+        where: { bookingId: id },
+        orderBy: { quoteVersion: 'desc' },
+      });
+      if (!booking || !quote) {
+        return { ok: false, error: 'not_found', statusCode: 404 };
+      }
+
+      const ledgerEntries = await tx.ledgerEntry.findMany({
+        where: { bookingId: id },
+        orderBy: { recordedAt: 'asc' },
+      });
+      const paymentAttempts = await tx.paymentAttempt.findMany({
+        where: { bookingId: id },
+      });
+
+      const before = computeFinancialProjection({
+        booking,
+        quote,
+        paymentAttempts,
+        ledgerEntries,
+      });
+
+      const resolved = resolveAdminCashSettlement(
+        { id, paymentStatus: before.paymentStatus },
+        body,
+        { authoritativeProjection: before }
+      );
+
+      if (before.remainingCents <= 0) {
+        const existingCash = [...ledgerEntries].reverse().find(isCashSettlementEntry);
+        if (existingCash) {
+          return {
+            ok: true,
+            created: false,
+            noop: true,
+            duplicate: true,
+            projection: before,
+            entry: existingCash,
+            settledAmountCents: existingCash.amountCents,
+            quoteVersion: before.quoteVersion,
+          };
+        }
+        return {
+          ok: false,
+          error: resolved.error || (before.paymentStatus === 'paid' ? 'already_paid' : 'not_due'),
+          statusCode: 409,
+          projection: before,
+          expectedAmountCents: 0,
+          receivedAmountCents: resolved.receivedAmountCents,
+        };
+      }
+
+      if (!resolved.ok) {
+        return {
+          ok: false,
+          error: resolved.error,
+          statusCode: resolved.statusCode || 400,
+          projection: before,
+          expectedAmountCents: resolved.expectedAmountCents,
+          receivedAmountCents: resolved.receivedAmountCents,
+          reason: resolved.reason,
+          field: resolved.field,
+        };
+      }
+
+      // Re-check remaining inside the same transaction immediately before insert.
+      const remainingCents = Math.max(0, Math.round(Number(before.remainingCents) || 0));
+      const settledBefore = Math.max(0, Math.round(Number(before.settledCents) || 0));
+      if (remainingCents <= 0 || resolved.amountCents !== remainingCents) {
+        return {
+          ok: false,
+          error: 'cash_amount_mismatch',
+          statusCode: 400,
+          projection: before,
+          expectedAmountCents: remainingCents,
+          receivedAmountCents: resolved.amountCents,
+        };
+      }
+
+      const providerEventId = buildCashFullBalanceProviderEventId({
+        bookingId: id,
+        quoteVersion: before.quoteVersion,
+        settledCents: settledBefore,
+        remainingCents,
+      });
+      providerEventIdForConflict = providerEventId;
+
+      let entry;
+      try {
+        entry = await tx.ledgerEntry.create({
+          data: {
+            bookingId: id,
+            quoteId: quote.id,
+            kind: 'settlement',
+            amountCents: remainingCents,
+            quoteVersion: before.quoteVersion,
+            providerObjectId: 'cash',
+            providerEventId,
+            actor: 'admin_mark_cash_received',
+          },
+        });
+      } catch (err) {
+        if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== 'P2002') {
+          throw err;
+        }
+        // Failed statement aborts the interactive transaction — resolve outside.
+        const conflict = new Error('CASH_SETTLEMENT_IDEMPOTENT');
+        conflict.code = 'CASH_SETTLEMENT_IDEMPOTENT';
+        conflict.providerEventId = providerEventId;
+        throw conflict;
+      }
+
+      const afterEntries = [...ledgerEntries, entry];
+      const after = computeFinancialProjection({
+        booking,
+        quote,
+        paymentAttempts,
+        ledgerEntries: afterEntries,
+      });
+
+      if (after.remainingCents === 0 && quote.status !== 'settled') {
+        await tx.quote.update({
+          where: { bookingId_quoteVersion: { bookingId: id, quoteVersion: quote.quoteVersion } },
+          data: { status: 'settled' },
+        });
+      }
+
+      return {
+        ok: true,
+        created: true,
+        noop: false,
+        duplicate: false,
+        projection: after,
+        entry,
+        settledAmountCents: entry.amountCents,
+        quoteVersion: after.quoteVersion,
+        providerEventId,
+      };
+    });
+  } catch (err) {
+    if (err && err.code === 'CASH_SETTLEMENT_IDEMPOTENT') {
+      const providerEventId = err.providerEventId || providerEventIdForConflict;
+      const entry = providerEventId
+        ? await prisma.ledgerEntry.findUnique({ where: { providerEventId } })
+        : null;
+      const after = await getFinancialProjection(id);
+      if (entry) {
+        return {
+          ok: true,
+          created: false,
+          noop: true,
+          duplicate: true,
+          projection: after,
+          entry,
+          settledAmountCents: entry.amountCents,
+          quoteVersion: after?.quoteVersion,
+          providerEventId,
+        };
+      }
+      const existingCash = (await repo.listLedgerEntries(id)).filter(isCashSettlementEntry).pop();
+      if (existingCash) {
+        return {
+          ok: true,
+          created: false,
+          noop: true,
+          duplicate: true,
+          projection: after,
+          entry: existingCash,
+          settledAmountCents: existingCash.amountCents,
+          quoteVersion: after?.quoteVersion,
+        };
+      }
+      return {
+        ok: false,
+        error: 'duplicate_constraint',
+        statusCode: 500,
+        projection: after,
+      };
+    }
+    throw err;
+  }
+}
+
 module.exports = {
   buildIdempotencyKey,
   getFinancialProjection,
@@ -472,4 +699,7 @@ module.exports = {
   reconcilePaymentIntentEvent,
   createRefund,
   createAdjustment,
+  recordFullBalanceCashSettlement,
+  buildCashFullBalanceProviderEventId,
+  isCashSettlementEntry,
 };
