@@ -333,8 +333,148 @@ function setApprovedFinalAmount(booking, body) {
   return { ok: true, booking: patched };
 }
 
+/**
+ * Strict dollar → integer cents. Rejects malformed, non-finite, negative/zero,
+ * and more-than-2-decimal-place values. Does not accept cents-unit inputs.
+ */
+function parseStrictCashDollarsToCents(value) {
+  if (value === undefined || value === null || value === '') {
+    return { ok: false, error: 'absent' };
+  }
+  if (typeof value === 'boolean' || typeof value === 'object') {
+    return { ok: false, error: 'malformed', receivedAmountCents: null };
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed || /[eE]/.test(trimmed) || !/^-?\d+(\.\d+)?$/.test(trimmed)) {
+      return { ok: false, error: 'malformed', receivedAmountCents: null };
+    }
+    if (/\.\d{3,}$/.test(trimmed)) {
+      return { ok: false, error: 'excessive_precision', receivedAmountCents: null };
+    }
+    const num = Number(trimmed);
+    if (!Number.isFinite(num)) {
+      return { ok: false, error: 'malformed', receivedAmountCents: null };
+    }
+    if (num <= 0) {
+      return { ok: false, error: 'non_positive', receivedAmountCents: Math.round(num * 100) };
+    }
+    const amountCents = Math.round(num * 100);
+    if (Math.abs(num * 100 - amountCents) > 1e-8) {
+      return { ok: false, error: 'excessive_precision', receivedAmountCents: amountCents };
+    }
+    return { ok: true, amountCents };
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ok: false, error: 'malformed', receivedAmountCents: null };
+  }
+  if (value <= 0) {
+    return { ok: false, error: 'non_positive', receivedAmountCents: Math.round(value * 100) };
+  }
+  const amountCents = Math.round(value * 100);
+  if (Math.abs(value * 100 - amountCents) > 1e-8) {
+    return { ok: false, error: 'excessive_precision', receivedAmountCents: amountCents };
+  }
+  return { ok: true, amountCents };
+}
+
+const AMBIGUOUS_CASH_AMOUNT_KEYS = [
+  'amountCents',
+  'cashAmountCents',
+  'cashCents',
+  'settlementCents',
+  'cashCollectedAmount',
+];
+
+/**
+ * Authoritative full-balance cash settlement gate.
+ * remainingCents comes from financialProjection — never settle approvedCents blindly.
+ * Absent body.amount → settle exactly remainingCents.
+ * Present body.amount → must equal remainingCents in cents after strict dollar parse.
+ */
+function resolveAdminCashSettlement(booking, body = {}) {
+  const { financialProjection } = require('./payment-service');
+  const projection = financialProjection(booking);
+  const remainingCents = Math.max(0, Math.round(Number(projection.remainingCents) || 0));
+
+  const ambiguousKey = AMBIGUOUS_CASH_AMOUNT_KEYS.find((key) => (
+    Object.prototype.hasOwnProperty.call(body, key) && body[key] !== undefined
+  ));
+  if (ambiguousKey) {
+    return {
+      ok: false,
+      error: 'cash_amount_mismatch',
+      statusCode: 400,
+      expectedAmountCents: remainingCents,
+      receivedAmountCents: null,
+      projection,
+      reason: 'ambiguous_amount_field',
+      field: ambiguousKey,
+    };
+  }
+
+  if (remainingCents <= 0) {
+    const paid = projection.paymentStatus === 'paid' || projection.invoicePaid === true;
+    return {
+      ok: false,
+      error: paid ? 'already_paid' : 'not_due',
+      statusCode: 409,
+      expectedAmountCents: 0,
+      receivedAmountCents: body.amount != null && body.amount !== ''
+        ? (parseStrictCashDollarsToCents(body.amount).amountCents ?? null)
+        : null,
+      projection,
+    };
+  }
+
+  const amountAbsent = body.amount === undefined || body.amount === null || body.amount === '';
+  if (amountAbsent) {
+    return {
+      ok: true,
+      amountCents: remainingCents,
+      amountDollars: remainingCents / 100,
+      remainingCents,
+      projection,
+    };
+  }
+
+  const parsed = parseStrictCashDollarsToCents(body.amount);
+  if (!parsed.ok) {
+    return {
+      ok: false,
+      error: 'cash_amount_mismatch',
+      statusCode: 400,
+      expectedAmountCents: remainingCents,
+      receivedAmountCents: parsed.receivedAmountCents != null ? parsed.receivedAmountCents : null,
+      projection,
+      reason: parsed.error,
+    };
+  }
+
+  if (parsed.amountCents !== remainingCents) {
+    return {
+      ok: false,
+      error: 'cash_amount_mismatch',
+      statusCode: 400,
+      expectedAmountCents: remainingCents,
+      receivedAmountCents: parsed.amountCents,
+      projection,
+    };
+  }
+
+  return {
+    ok: true,
+    amountCents: remainingCents,
+    amountDollars: remainingCents / 100,
+    remainingCents,
+    projection,
+  };
+}
+
 function markCashReceived(booking, body) {
   const now = new Date().toISOString();
+  // Prefer caller-resolved full remaining (dollars). Fallback keeps unit-test seams
+  // that patch status without going through resolveAdminCashSettlement.
   const amount = body.amount != null
     ? Math.round(Number(body.amount) * 100) / 100
     : Math.round(Number(booking.approvedFinalAmount || booking.totalPrice) * 100) / 100;
@@ -447,6 +587,8 @@ module.exports = {
   approveAdjustment,
   rejectAdjustment,
   setApprovedFinalAmount,
+  parseStrictCashDollarsToCents,
+  resolveAdminCashSettlement,
   markCashReceived,
   markCardOnSite,
   markRefunded,
