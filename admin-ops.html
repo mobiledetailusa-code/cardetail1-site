@@ -1148,7 +1148,22 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div><label>Email</label><input type="email" id="dEmail" value="'+esc(j.email||'')+'"></div>'+
       '<div class="full"><button type="button" class="btn ghost sm" id="dSaveCustomer" style="width:100%">Save customer contact</button></div>'+
       '<div class="full"><label>Vehicle</label><input type="text" id="dVehicle" value="'+esc(j.vehicleLabel||j.vehicle||'')+'"></div>'+
-      '<div><label>Package</label><input type="text" id="dPackage" value="'+esc(j.package||'')+'"></div>'+
+      (function(){
+        // Canonical package IDs only — never free-form labels as money input.
+        const cat = (drawerAddonData && drawerAddonData.packageCatalog) || null;
+        const veh = cat && Array.isArray(cat.vehicles) && cat.vehicles.length
+          ? (cat.vehicles.length === 1 ? cat.vehicles[0]
+            : (cat.vehicles.find(v => v.vehicleId === (drawerAddonData && drawerAddonData.activePkgVehicleId)) || cat.vehicles[0]))
+          : null;
+        const opts = veh && Array.isArray(veh.options) ? veh.options : [];
+        const currentId = veh && veh.currentPackageId ? veh.currentPackageId : '';
+        if (!opts.length) {
+          return '<div><label>Package</label><input type="text" id="dPackage" value="'+esc(currentId || j.packageId || j.pkgId || '')+'" disabled title="Canonical catalog unavailable — use Service package section"></div>';
+        }
+        return '<div><label>Package</label><select id="dPackage">'+
+          opts.map(o => '<option value="'+esc(o.id)+'"'+(o.id===currentId?' selected':'')+'>'+esc(o.name)+'</option>').join('')+
+          '</select></div>';
+      })()+
       '<div class="full"><button type="button" class="btn ghost sm" id="dSaveService" style="width:100%">Recalculate service (server)</button></div>'+
       '<div><b>Date:</b> '+esc(j.confirmedDate||j.preferredDate||'—')+' '+esc(j.confirmedTime||j.preferredTime||'')+'</div>'+
       '</div></div>';
@@ -1341,7 +1356,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const dr = $('#dResched'); if(dr) dr.onclick = () => jobAction(j.id,'reschedule',{confirmedDate:$('#dDate').value,confirmedTime:$('#dTime').value,confirmedTimeWindow:$('#dTime').value});
     const dsa = $('#dSaveAddr'); if(dsa) dsa.onclick = () => jobAction(j.id,'update_address',{address:$('#dAddr').value,zipCode:$('#dZip').value});
     const dsc = $('#dSaveCustomer'); if(dsc) dsc.onclick = () => jobAction(j.id,'update_customer',{firstName:$('#dFirst').value,lastName:$('#dLast').value,phone:$('#dPhone').value,email:$('#dEmail').value});
-    const dss = $('#dSaveService'); if(dss) dss.onclick = () => jobAction(j.id,'update_service',{package:$('#dPackage').value,vehicleLabel:$('#dVehicle').value});
+    const dss = $('#dSaveService'); if(dss) dss.onclick = () => {
+      const packageId = ($('#dPackage') && $('#dPackage').value) || '';
+      const data = drawerAddonData || {};
+      const expectedBookingVersion = data.bookingVersion != null ? data.bookingVersion : j.bookingVersion;
+      const body = { packageId: packageId, vehicleLabel: $('#dVehicle').value };
+      if (expectedBookingVersion != null && expectedBookingVersion !== '') body.expectedBookingVersion = expectedBookingVersion;
+      const vehEl = $('#dPkgVehicle');
+      if (vehEl && vehEl.value) body.vehicleId = vehEl.value;
+      jobAction(j.id,'update_service', body);
+    };
     const dro = $('#dReopenAppt'); if(dro) dro.onclick = () => { const r=prompt('Reopen reason:'); if(r) jobAction(j.id,'reopen_appointment',{reason:r}); };
     const dte = $('#dTechEnRoute'); if(dte) dte.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'en_route'});
     const dts = $('#dTechStart'); if(dts) dts.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'start'});

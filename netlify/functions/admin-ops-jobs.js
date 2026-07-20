@@ -346,6 +346,19 @@ function freeFormAddonBodyRejected(body) {
   return false;
 }
 
+/**
+ * Package Stage 1 — any package identity field on update_service is a package
+ * mutation and must route through the shared Admin package adapter (never
+ * updateServicePackage / persistMutation as money authority).
+ */
+function bodyHasPackageMutation(body) {
+  if (!body || typeof body !== 'object') return false;
+  if (body.packageId != null && String(body.packageId).trim() !== '') return true;
+  if (body.pkgId != null && String(body.pkgId).trim() !== '') return true;
+  if (body.package != null && String(body.package).trim() !== '') return true;
+  return false;
+}
+
 /** Vehicles for Admin add-on controls — IDs/labels/selected IDs only (no money authority). */
 function adminVehiclesForAddonControls(booking) {
   const { ensureVehicleIds } = require('../lib/booking-aggregate');
@@ -561,24 +574,77 @@ function adminPackageCatalogForBooking(booking) {
 }
 
 /**
- * PR3 — Admin package change adapter.
+ * Package Stage 1 — Admin package mutation adapter.
  *
- * Canonical package IDs only; the price resolves server-side through
- * booking-price-catalog → applyServiceDelta → quoteService → persistMutation
- * (quoteVersion bump, ledger approvedCents, pay-link invalidation, attempt
- * supersede). Browser-supplied names/prices/totals in the body are never read.
+ * Canonical package IDs only. Money authority is always:
+ * applyPackageFinancialMutation → PaymentAuthorityService.createAdjustment
+ * → PostgreSQL FinancialProjection → Blob compatibility sync.
+ *
+ * Browser-supplied names/prices/totals/proposedTotal/approved dollars are
+ * never read. persistMutation is not package money authority.
  */
 async function adminChangePackage({
   bookingId,
   body = {},
   previousBooking = null,
-  store = null,
+  env = process.env,
+  auditFn = null,
 }) {
-  const { applyServiceDelta, quoteService } = require('../lib/canonical-quote');
+  const { applyPackageFinancialMutation } = require('../lib/package-financial-mutation');
   const { financialProjection } = require('../lib/payment-service');
 
-  const packageId = sanitizeText(body.packageId, 32);
-  if (!packageId) return { ok: false, statusCode: 400, error: 'package_id_required' };
+  // Canonical IDs only — ignore display labels and free-form package names.
+  const packageId = sanitizeText(body.packageId || body.pkgId, 32);
+
+  const record = auditFn || ((entry) => appendAudit(entry));
+
+  async function writeAudit({
+    action,
+    prior,
+    resulting,
+    vehicleId,
+    projection,
+    result,
+    error,
+    noop,
+  }) {
+    const priorBookingVersion = Math.round(Number(prior?.bookingVersion) || 0);
+    const resultingBookingVersion = Math.round(Number(
+      resulting?.bookingVersion != null ? resulting.bookingVersion : priorBookingVersion
+    ) || 0);
+    const priorQuoteVersion = Math.round(Number(
+      prior?.quoteVersion || prior?.quote?.quoteVersion || 0
+    ) || 0);
+    const resultingQuoteVersion = Math.round(Number(
+      projection?.quoteVersion != null
+        ? projection.quoteVersion
+        : (resulting?.quoteVersion || resulting?.quote?.quoteVersion || priorQuoteVersion)
+    ) || 0);
+    await Promise.resolve(record(auditEntry({
+      bookingId,
+      actorType: 'admin',
+      actorId: 'admin',
+      action,
+      previousState: prior,
+      resultingState: resulting || prior,
+      reason: buildAdminAddonAuditReason({
+        op: 'change_package',
+        result: error || result || (noop ? 'noop' : 'ok'),
+        error: error || null,
+        noop: !!noop,
+        packageId: packageId || null,
+        vehicleId: vehicleId || null,
+        priorBookingVersion,
+        bookingVersion: resultingBookingVersion,
+        priorQuoteVersion,
+        quoteVersion: resultingQuoteVersion,
+        approvedCents: projection ? projection.approvedCents : null,
+        settledCents: projection ? projection.settledCents : null,
+        remainingCents: projection ? projection.remainingCents : null,
+      }),
+      sourcePortal: 'admin_ops',
+    }))).catch(() => null);
+  }
 
   let prior = previousBooking;
   if (!prior) {
@@ -587,145 +653,132 @@ async function adminChangePackage({
     prior = rec.booking;
   }
 
-  const record = (entry) => appendAudit(entry).catch(() => null);
-  const deny = async (error, statusCode, extra = {}) => {
-    await record(auditEntry({
-      bookingId,
-      actorType: 'admin',
-      actorId: 'admin',
+  if (!packageId) {
+    await writeAudit({
       action: 'admin_package_denied',
-      previousState: prior,
-      resultingState: prior,
-      reason: buildAdminAddonAuditReason({ op: 'change_package', packageId, error }),
-      sourcePortal: 'admin_ops',
-    }));
-    return { ok: false, statusCode, error, ...extra };
-  };
+      prior,
+      resulting: prior,
+      vehicleId: body.vehicleId,
+      projection: financialProjection(prior),
+      error: 'package_id_required',
+    });
+    return { ok: false, statusCode: 400, error: 'package_id_required' };
+  }
 
   if (body.expectedBookingVersion == null || body.expectedBookingVersion === '') {
-    return deny('expected_booking_version_required', 400);
+    await writeAudit({
+      action: 'admin_package_denied',
+      prior,
+      resulting: prior,
+      vehicleId: body.vehicleId,
+      projection: financialProjection(prior),
+      error: 'expected_booking_version_required',
+    });
+    return { ok: false, statusCode: 400, error: 'expected_booking_version_required' };
   }
+
   const expected = Math.round(Number(body.expectedBookingVersion));
   const actualVersion = Math.round(Number(prior.bookingVersion) || 0);
   if (!Number.isFinite(expected) || actualVersion !== expected) {
-    return deny('version_conflict', 409, {
-      actualBookingVersion: actualVersion,
-      financialProjection: financialProjection(prior),
+    await writeAudit({
+      action: 'admin_package_denied',
+      prior,
+      resulting: prior,
+      vehicleId: body.vehicleId,
+      projection: financialProjection(prior),
+      error: 'version_conflict',
     });
-  }
-
-  const { ok: aggOk, aggregate } = normalizeAggregate(prior, { allowDraft: true });
-  const base = aggOk ? aggregate : prior;
-
-  const vehicles = adminRawVehiclesForControls(base);
-  let vehicleId = body.vehicleId ? sanitizeText(body.vehicleId, 64) : '';
-  if (vehicles.length > 1 && !vehicleId) {
-    return deny('vehicle_target_required', 400);
-  }
-  const vehicle = vehicleId
-    ? vehicles.find((v) => v.vehicleId === vehicleId)
-    : vehicles[0];
-  if (!vehicle) return deny('vehicle_not_found', 404);
-  vehicleId = vehicle.vehicleId;
-
-  // Package change reprices the whole quote (can lower it) — deny once any
-  // money has settled, mirroring the add-on removal rule. No refund rewrite.
-  const settled = Math.max(0, Math.round(Number(base.ledger?.settledCents) || 0));
-  if (settled > 0) {
-    return deny('settled_package_change_denied', 409, {
-      message: 'Package changes are denied after settlement. Use refund/adjustment flows instead.',
-      financialProjection: financialProjection(base),
-    });
-  }
-
-  const { currentPackageId, options } = packageOptionsForVehicle(vehicle, base);
-  const option = options.find((o) => o.id === packageId);
-  if (!option) {
-    return deny('unknown_package_id', 400, {
-      packageId,
-      category: vehicle.category,
-      validPackageIds: options.map((o) => o.id),
-    });
-  }
-
-  if (currentPackageId === packageId) {
-    const fp = financialProjection(base);
-    return {
-      ok: true,
-      statusCode: 200,
-      noop: true,
-      reason: 'package_unchanged',
-      bookingId,
-      vehicleId,
-      packageId,
-      bookingVersion: actualVersion,
-      quoteVersion: base.quoteVersion || base.quote?.quoteVersion || 0,
-      financialProjection: fp,
-    };
-  }
-
-  const applied = applyServiceDelta(
-    base.service,
-    { vehicleId },
-    { packageId, packageName: option.name }
-  );
-  if (!applied.ok) return deny(applied.error || 'invalid_delta', 400);
-
-  const travelCents = dollarsToCents(base.travelFeeAmount || base.zoneSurcharge || 0);
-  const quoted = quoteService(applied.service, {
-    basedOnBookingVersion: actualVersion,
-    previousQuoteVersion: base.quoteVersion || base.quote?.quoteVersion || 0,
-    travelCents,
-    bookingBase: base,
-  });
-  if (!quoted.ok) return deny(quoted.error || 'invalid_pricing', 400);
-
-  const now = new Date().toISOString();
-  const updated = {
-    ...base,
-    service: quoted.service,
-    quote: quoted.quote,
-    // normalizeAggregate re-derives approvedFinalAmount/totalPrice from the
-    // ledger, so the recomputed quote total must land there too.
-    ledger: { ...base.ledger, approvedCents: quoted.quote.approvedCents },
-    totalPrice: quoted.approvedDollars,
-    approvedFinalAmount: quoted.approvedDollars,
-    packageUpdatedByAdminAt: now,
-    updatedAt: now,
-    eventLog: appendEventLog(base, {
-      action: 'admin_change_package',
-      by: 'admin',
-      vehicleId,
-      fromPackageId: currentPackageId || null,
-      toPackageId: packageId,
-      packagePriceCents: option.priceCents,
-    }),
-  };
-
-  const targetStore = store || await blobsStore('cd1-bookings');
-  const reason = sanitizeText(body.reason, 300)
-    || `package:${currentPackageId || 'unknown'}->${packageId}`;
-  const persisted = await persistMutation(targetStore, bookingId, updated, prior, 'change_package', reason);
-  if (!persisted.ok) {
     return {
       ok: false,
-      statusCode: persisted.statusCode || 409,
-      error: persisted.error || 'version_conflict',
+      statusCode: 409,
+      error: 'version_conflict',
+      actualBookingVersion: actualVersion,
+      financialProjection: financialProjection(prior),
     };
   }
+
+  const vehicles = adminRawVehiclesForControls(prior);
+  let vehicleId = body.vehicleId ? sanitizeText(body.vehicleId, 64) : '';
+  if (vehicles.length > 1 && !vehicleId) {
+    await writeAudit({
+      action: 'admin_package_denied',
+      prior,
+      resulting: prior,
+      vehicleId: null,
+      projection: financialProjection(prior),
+      error: 'vehicle_target_required',
+    });
+    return { ok: false, statusCode: 400, error: 'vehicle_target_required' };
+  }
+  if (!vehicleId && vehicles.length === 1) {
+    vehicleId = vehicles[0].vehicleId;
+  }
+
+  // Intentionally ignore body.price / amount / total / proposedTotal /
+  // approvedCents / approvedFinalAmount — catalog + Postgres are authority.
+  const result = await applyPackageFinancialMutation({
+    bookingId,
+    expectedBookingVersion: expected,
+    target: { vehicleId: vehicleId || undefined },
+    packageId,
+    adminNote: sanitizeText(body.reason, 300),
+    env,
+  });
+
+  if (!result.ok) {
+    await writeAudit({
+      action: 'admin_package_denied',
+      prior,
+      resulting: prior,
+      vehicleId,
+      projection: result.financialProjection || financialProjection(prior),
+      error: result.error || 'package_mutation_failed',
+    });
+    return {
+      ok: false,
+      statusCode: result.statusCode || 400,
+      error: result.error,
+      message: result.message,
+      actualBookingVersion: result.actualBookingVersion,
+      packageId: result.packageId,
+      validPackageIds: result.validPackageIds,
+      financialProjection: result.financialProjection || null,
+      projection: result.projection || null,
+    };
+  }
+
+  const projection = result.postgresProjection || result.financialProjection;
+  const approvedCents = projection
+    ? Math.max(0, Math.round(Number(projection.approvedCents) || 0))
+    : 0;
+  await writeAudit({
+    action: result.noop ? 'admin_package_noop' : 'admin_change_package',
+    prior,
+    resulting: result.booking,
+    vehicleId: result.vehicleId || vehicleId,
+    projection,
+    noop: !!result.noop,
+    result: result.reason || (result.noop ? 'noop' : 'ok'),
+  });
 
   return {
     ok: true,
     statusCode: 200,
     bookingId,
-    vehicleId,
-    packageId,
-    packageName: option.name,
-    priorPackageId: currentPackageId || null,
-    totalPrice: persisted.booking.totalPrice,
-    bookingVersion: persisted.bookingVersion,
-    quoteVersion: persisted.booking.quoteVersion,
-    financialProjection: financialProjection(persisted.booking),
+    noop: !!result.noop,
+    reason: result.reason,
+    vehicleId: result.vehicleId || vehicleId || null,
+    packageId: result.packageId || packageId,
+    packageName: result.packageName,
+    priorPackageId: result.priorPackageId || null,
+    totalPrice: centsToDollars(approvedCents),
+    bookingVersion: result.booking?.bookingVersion,
+    quoteVersion: result.quoteVersion,
+    priorQuoteVersion: result.priorQuoteVersion,
+    projection,
+    postgresProjection: result.postgresProjection || null,
+    financialProjection: result.financialProjection,
+    remainingCents: result.remainingCents,
   };
 }
 
@@ -1066,7 +1119,7 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'change_package') {
-    const result = await adminChangePackage({ bookingId, body, previousBooking: booking, store });
+    const result = await adminChangePackage({ bookingId, body, previousBooking: booking });
     const { statusCode, ...payload } = result;
     return jsonCors(statusCode || (result.ok ? 200 : 400), payload);
   }
@@ -1877,6 +1930,14 @@ async function handleAdminAction(body) {
         message: 'Add-on changes must use action addon_mutation with canonical add-on IDs only.',
       });
     }
+    // Package-bearing update_service uses the same Postgres-authoritative
+    // adapter as change_package — never the legacy service-edit mutator or
+    // Blob persist as package money authority.
+    if (bodyHasPackageMutation(body)) {
+      const result = await adminChangePackage({ bookingId, body, previousBooking: booking });
+      const { statusCode, ...payload } = result;
+      return jsonCors(statusCode || (result.ok ? 200 : 400), payload);
+    }
     const result = await updateServicePackage(booking, body);
     if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
     const persisted = await persistMutation(store, bookingId, result.booking, booking, 'update_service', body.reason);
@@ -2028,6 +2089,7 @@ async function bulkArchiveTests(store, includeAlreadyArchived) {
 exports.adminAddonMutation = adminAddonMutation;
 exports.adminAddonCatalogForBooking = adminAddonCatalogForBooking;
 exports.freeFormAddonBodyRejected = freeFormAddonBodyRejected;
+exports.bodyHasPackageMutation = bodyHasPackageMutation;
 exports.adminChangePackage = adminChangePackage;
 exports.adminPackageCatalogForBooking = adminPackageCatalogForBooking;
 exports.packageOptionsForVehicle = packageOptionsForVehicle;
