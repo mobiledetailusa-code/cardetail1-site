@@ -151,3 +151,18 @@ test('tab buttons expose aria-selected state', () => {
   assert.match(adminOps, /aria-selected="true"/);
   assert.match(adminOps, /setAttribute\('aria-selected', 'true'\)/);
 });
+
+test('jobs board uses inline expandable detail row instead of side drawer', () => {
+  assert.match(adminOps, /id="activeJobDetailRow"/);
+  assert.match(adminOps, /id="activeJobDetailPanel"/);
+  assert.match(adminOps, /expandedJobId/);
+  assert.match(adminOps, /toggleJobExpand/);
+  assert.doesNotMatch(adminOps, /id="drawerBg"/);
+  assert.match(adminOps, /job-detail-grid/);
+});
+
+test('jobs summary exposes remaining balance from server fields', () => {
+  assert.match(adminOps, /jobsBalanceLabel/);
+  assert.match(adminOps, /remainingCents/);
+  assert.match(adminOps, /Balance/);
+});
