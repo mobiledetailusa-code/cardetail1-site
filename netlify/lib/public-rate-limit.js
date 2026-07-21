@@ -35,6 +35,7 @@ const DEFAULT_LIMITS = {
   'customer-portal-auth:start': { max: 8, windowMs: DEFAULT_WINDOW_MS },
   'customer-portal-auth:verify': { max: 12, windowMs: DEFAULT_WINDOW_MS },
   'booking-card-status': { max: 40, windowMs: DEFAULT_WINDOW_MS },
+  'customer-bookings': { max: 20, windowMs: DEFAULT_WINDOW_MS },
 };
 
 const ENV_SCOPE_BY_BUCKET = {
@@ -52,6 +53,7 @@ const ENV_SCOPE_BY_BUCKET = {
   'customer-portal-auth:start': 'CUSTOMER_PORTAL_AUTH_START',
   'customer-portal-auth:verify': 'CUSTOMER_PORTAL_AUTH_VERIFY',
   'booking-card-status': 'BOOKING_CARD_STATUS',
+  'customer-bookings': 'CUSTOMER_BOOKINGS',
 };
 
 let storeFactoryOverride = null;
@@ -125,15 +127,32 @@ function rateLimitNamespace(env = process.env) {
   return `${context}:${deployIdentity}`;
 }
 
-function deriveRateLimitKey(normalizedIp, endpoint, action, env = process.env) {
+function deriveRateLimitKey(normalizedIp, endpoint, action, env = process.env, subject = '') {
   const namespace = rateLimitNamespace(env);
   const ep = String(endpoint || '').trim();
   const act = String(action || '').trim();
+  const sub = String(subject || '').trim();
+  const material = sub
+    ? `${namespace}|${normalizedIp}|${ep}|${act}|${sub}`
+    : `${namespace}|${normalizedIp}|${ep}|${act}`;
   const digest = crypto
     .createHash('sha256')
-    .update(`${namespace}|${normalizedIp}|${ep}|${act}`)
+    .update(material)
     .digest('hex');
   return `rl-${digest.slice(0, 40)}`;
+}
+
+/**
+ * Hash a normalized lookup subject (booking id, phone digits, etc.) for rate-limit keys.
+ * Never stores or logs the raw identifier.
+ */
+function hashRateLimitSubject(...parts) {
+  const normalized = parts
+    .map((p) => String(p == null ? '' : p).trim().toLowerCase())
+    .filter(Boolean)
+    .join('|');
+  if (!normalized) return '';
+  return crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 32);
 }
 
 async function defaultBlobsStore(name) {
@@ -278,7 +297,7 @@ function failOpenDecision(reason, err) {
 /**
  * @returns {Promise<{ allowed: boolean, remaining?: number, retryAfterSec?: number, failOpen?: boolean, reason?: string }>}
  */
-async function checkPublicRateLimit(event, { endpoint, action = '', now = Date.now() } = {}) {
+async function checkPublicRateLimit(event, { endpoint, action = '', now = Date.now(), subject = '' } = {}) {
   if (isOptionsRequest(event)) {
     return { allowed: true, bypassed: true };
   }
@@ -292,7 +311,7 @@ async function checkPublicRateLimit(event, { endpoint, action = '', now = Date.n
   }
 
   const { max, windowMs, bucket } = getLimitConfig(endpoint, action);
-  const key = deriveRateLimitKey(normalizedIp, endpoint, action);
+  const key = deriveRateLimitKey(normalizedIp, endpoint, action, process.env, subject);
 
   try {
     const store = await resolveStore();
@@ -302,12 +321,18 @@ async function checkPublicRateLimit(event, { endpoint, action = '', now = Date.n
   }
 }
 
-async function enforcePublicRateLimit(event, { endpoint, action = '', cors = false, now = Date.now() } = {}) {
+async function enforcePublicRateLimit(event, {
+  endpoint,
+  action = '',
+  cors = false,
+  now = Date.now(),
+  subject = '',
+} = {}) {
   if (isOptionsRequest(event)) {
     return { blocked: false, allowed: true, bypassed: true };
   }
 
-  const decision = await checkPublicRateLimit(event, { endpoint, action, now });
+  const decision = await checkPublicRateLimit(event, { endpoint, action, now, subject });
   if (decision.allowed) {
     return { blocked: false, ...decision };
   }
@@ -341,6 +366,7 @@ module.exports = {
   normalizeClientIp,
   rateLimitNamespace,
   deriveRateLimitKey,
+  hashRateLimitSubject,
   getLimitConfig,
   parseEnvPositiveInt,
   identifySubmitBookingAction,

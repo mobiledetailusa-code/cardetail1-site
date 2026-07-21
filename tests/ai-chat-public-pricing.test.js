@@ -104,6 +104,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/capture-payment.js',
   'netlify/functions/customer-subscription-checkout.js',
   'netlify/functions/customer-bookings.js',
+  // Customer identity security prerequisites — revoke orphan public subscription actions.
+  'netlify/functions/subscriptions-ops.js',
   'netlify/functions/customer-portal-pay.js',
   'netlify/functions/stripe-webhook.js',
   'netlify/functions/list-bookings.js',
