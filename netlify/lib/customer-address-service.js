@@ -14,6 +14,7 @@ const { tryGetPrisma } = require('./prisma');
 const {
   emitIdentityAudit,
   loadCustomerAccountGraph,
+  assertCustomerPortalAccountActive,
 } = require('./customer-account-service');
 const {
   projectCustomerIdentity,
@@ -25,7 +26,6 @@ const VERSION_CONFLICT = 'version_conflict';
 const VALIDATION_ERROR = 'validation_error';
 const NOT_FOUND = 'not_found';
 const UNAVAILABLE = 'unavailable';
-const FORBIDDEN = 'forbidden';
 
 const MAX_LABEL = 60;
 const MAX_LINE = 120;
@@ -186,6 +186,10 @@ async function listAddresses(customerAccountId, opts = {}) {
   if (!customerAccountId) return { ok: false, error: NOT_FOUND };
   void opts.browserCustomerAccountId;
 
+  const graph = await loadCustomerAccountGraph(customerAccountId, { prisma });
+  const gate = assertCustomerPortalAccountActive(graph);
+  if (!gate.ok) return gate;
+
   const rows = await prisma.customerAddress.findMany({
     where: { customerAccountId: String(customerAccountId), archivedAt: null },
   });
@@ -195,7 +199,7 @@ async function listAddresses(customerAccountId, opts = {}) {
     return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
   });
 
-  const customer = await loadSafeProjection(customerAccountId, prisma);
+  const customer = assertSafeCustomerProjection(projectCustomerIdentity(graph));
   return {
     ok: true,
     addresses: projectAddresses(rows),
@@ -243,7 +247,10 @@ async function createAddress(input = {}, opts = {}) {
         return d.requestId === requestId && d.customerAccountId === customerAccountId;
       });
       if (hit?.detail?.addressId) {
-        const customer = await loadSafeProjection(customerAccountId, prisma);
+        const graph = await loadCustomerAccountGraph(customerAccountId, { prisma });
+        const gate = assertCustomerPortalAccountActive(graph);
+        if (!gate.ok) return gate;
+        const customer = assertSafeCustomerProjection(projectCustomerIdentity(graph));
         return {
           ok: true,
           idempotent: true,
@@ -262,9 +269,8 @@ async function createAddress(input = {}, opts = {}) {
   try {
     const result = await prisma.$transaction(async (tx) => {
       const account = await tx.customerAccount.findUnique({ where: { id: customerAccountId } });
-      if (!account || account.status === 'merged' || account.status === 'disabled') {
-        return { ok: false, error: NOT_FOUND };
-      }
+      const gate = assertCustomerPortalAccountActive(account);
+      if (!gate.ok) return gate;
       if (account.version !== expectedVersion) {
         throw versionConflictError(account.version);
       }
@@ -385,9 +391,8 @@ async function updateAddress(input = {}, opts = {}) {
   try {
     const result = await prisma.$transaction(async (tx) => {
       const account = await tx.customerAccount.findUnique({ where: { id: customerAccountId } });
-      if (!account || account.status === 'merged' || account.status === 'disabled') {
-        return { ok: false, error: NOT_FOUND };
-      }
+      const gate = assertCustomerPortalAccountActive(account);
+      if (!gate.ok) return gate;
       if (account.version !== expectedVersion) {
         throw versionConflictError(account.version);
       }
@@ -474,9 +479,8 @@ async function archiveAddress(input = {}, opts = {}) {
   try {
     const result = await prisma.$transaction(async (tx) => {
       const account = await tx.customerAccount.findUnique({ where: { id: customerAccountId } });
-      if (!account || account.status === 'merged' || account.status === 'disabled') {
-        return { ok: false, error: NOT_FOUND };
-      }
+      const gate = assertCustomerPortalAccountActive(account);
+      if (!gate.ok) return gate;
       if (account.version !== expectedVersion) {
         throw versionConflictError(account.version);
       }
@@ -571,9 +575,8 @@ async function setDefaultAddress(input = {}, opts = {}) {
   try {
     const result = await prisma.$transaction(async (tx) => {
       const account = await tx.customerAccount.findUnique({ where: { id: customerAccountId } });
-      if (!account || account.status === 'merged' || account.status === 'disabled') {
-        return { ok: false, error: NOT_FOUND };
-      }
+      const gate = assertCustomerPortalAccountActive(account);
+      if (!gate.ok) return gate;
       if (account.version !== expectedVersion) {
         throw versionConflictError(account.version);
       }
@@ -628,7 +631,6 @@ module.exports = {
   VALIDATION_ERROR,
   NOT_FOUND,
   UNAVAILABLE,
-  FORBIDDEN,
   normalizeAddressFields,
   listAddresses,
   createAddress,

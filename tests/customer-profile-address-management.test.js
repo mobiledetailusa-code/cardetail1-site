@@ -709,4 +709,221 @@ describe('customer profile & address management (Stage 2A)', () => {
     assert.match(src, /payload_too_large/);
     assert.match(src, /allowedBrowserOrigin/);
   });
+
+  function assertUniformNotFound(res) {
+    assert.equal(res.statusCode, 404);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+    assert.equal(body.error, 'not_found');
+    assert.equal(body.message, 'Resource not found.');
+    const raw = res.body;
+    assert.equal(/disabled|merged/i.test(raw), false);
+    assert.equal(/@example\.com|normalizedEmail|normalizedPhone/i.test(raw), false);
+    assert.equal(/line1|postalCode|Hoboken|cus_/i.test(raw), false);
+    assert.equal(/"status"\s*:/.test(raw), false);
+    assert.equal(/"email"\s*:|"phone"\s*:/.test(raw), false);
+    return body;
+  }
+
+  async function setAccountStatus(accountId, status) {
+    const row = prisma._db.customerAccount.get(accountId);
+    assert.ok(row, 'seeded account must exist');
+    row.status = status;
+    row.updatedAt = new Date().toISOString();
+  }
+
+  it('repair: get_profile rejects disabled account with uniform not_found', async () => {
+    const created = await seedAccount('dis-get@example.com', '2015552101', {
+      firstName: 'Disabled',
+      lastName: 'Get',
+    });
+    await setAccountStatus(created.customerAccountId, 'disabled');
+    const { token } = await sessionFor(created.customerAccountId, '2015552101');
+    const handler = require('../netlify/functions/customer-portal-profile');
+    const res = await handler.handler(cookieEvent(token, { action: 'get_profile' }));
+    assertUniformNotFound(res);
+
+    const profileSvc = require('../netlify/lib/customer-profile-service');
+    const svc = await profileSvc.getProfile(created.customerAccountId, { prisma });
+    assert.equal(svc.ok, false);
+    assert.equal(svc.error, 'not_found');
+    assert.equal(svc.status, undefined);
+  });
+
+  it('repair: get_profile rejects merged account with uniform not_found', async () => {
+    const created = await seedAccount('mer-get@example.com', '2015552102');
+    await setAccountStatus(created.customerAccountId, 'merged');
+    const { token } = await sessionFor(created.customerAccountId, '2015552102');
+    const handler = require('../netlify/functions/customer-portal-profile');
+    const missing = await seedAccount('missing-compare@example.com', '2015552199');
+    const missingToken = (await sessionFor('acct_does_not_exist', '2015552199')).token;
+
+    const disabledRes = await handler.handler(cookieEvent(token, { action: 'get_profile' }));
+    const missingRes = await handler.handler(cookieEvent(missingToken, { action: 'get_profile' }));
+    assertUniformNotFound(disabledRes);
+    assertUniformNotFound(missingRes);
+    assert.deepEqual(JSON.parse(disabledRes.body), JSON.parse(missingRes.body));
+    void missing;
+  });
+
+  it('repair: list_addresses rejects disabled and merged accounts uniformly', async () => {
+    const handler = require('../netlify/functions/customer-portal-profile');
+    const addressSvc = require('../netlify/lib/customer-address-service');
+
+    const disabled = await seedAccount('dis-list@example.com', '2015552103');
+    await addressSvc.createAddress({
+      customerAccountId: disabled.customerAccountId,
+      expectedVersion: 1,
+      address: { line1: '9 Secret St', city: 'Hoboken', state: 'NJ', postalCode: '07030' },
+    }, { prisma });
+    await setAccountStatus(disabled.customerAccountId, 'disabled');
+
+    const merged = await seedAccount('mer-list@example.com', '2015552104');
+    await setAccountStatus(merged.customerAccountId, 'merged');
+
+    const missingToken = (await sessionFor('acct_missing_list', '2015552105')).token;
+    const disTok = (await sessionFor(disabled.customerAccountId, '2015552103')).token;
+    const merTok = (await sessionFor(merged.customerAccountId, '2015552104')).token;
+
+    const disRes = await handler.handler(cookieEvent(disTok, { action: 'list_addresses' }));
+    const merRes = await handler.handler(cookieEvent(merTok, { action: 'list_addresses' }));
+    const missRes = await handler.handler(cookieEvent(missingToken, { action: 'list_addresses' }));
+    assertUniformNotFound(disRes);
+    assertUniformNotFound(merRes);
+    assertUniformNotFound(missRes);
+    assert.deepEqual(JSON.parse(disRes.body), JSON.parse(missRes.body));
+    assert.deepEqual(JSON.parse(merRes.body), JSON.parse(missRes.body));
+
+    const svcDis = await addressSvc.listAddresses(disabled.customerAccountId, { prisma });
+    const svcMer = await addressSvc.listAddresses(merged.customerAccountId, { prisma });
+    assert.equal(svcDis.ok, false);
+    assert.equal(svcDis.error, 'not_found');
+    assert.equal(svcMer.ok, false);
+    assert.equal(svcMer.error, 'not_found');
+  });
+
+  it('repair: active accounts still read profile and addresses; writes blocked when inactive', async () => {
+    const handler = require('../netlify/functions/customer-portal-profile');
+    const profileSvc = require('../netlify/lib/customer-profile-service');
+    const addressSvc = require('../netlify/lib/customer-address-service');
+
+    const active = await seedAccount('active-read@example.com', '2015552106', {
+      firstName: 'Active',
+      lastName: 'Reader',
+    });
+    await addressSvc.createAddress({
+      customerAccountId: active.customerAccountId,
+      expectedVersion: 1,
+      address: { line1: '1 Active Ave', city: 'Jersey City', state: 'NJ', postalCode: '07302', isDefault: true },
+    }, { prisma });
+
+    const { token } = await sessionFor(active.customerAccountId, '2015552106');
+    const profileRes = await handler.handler(cookieEvent(token, { action: 'get_profile' }));
+    assert.equal(profileRes.statusCode, 200);
+    const profileBody = JSON.parse(profileRes.body);
+    assert.equal(profileBody.ok, true);
+    assert.equal(profileBody.customer.profile.firstName, 'Active');
+
+    const listRes = await handler.handler(cookieEvent(token, { action: 'list_addresses' }));
+    assert.equal(listRes.statusCode, 200);
+    const listBody = JSON.parse(listRes.body);
+    assert.equal(listBody.ok, true);
+    assert.equal(listBody.addresses.length, 1);
+
+    await setAccountStatus(active.customerAccountId, 'disabled');
+    const write = await profileSvc.updateProfile({
+      customerAccountId: active.customerAccountId,
+      expectedVersion: 2,
+      patch: { firstName: 'Nope' },
+    }, { prisma });
+    assert.equal(write.ok, false);
+    assert.equal(write.error, 'not_found');
+
+    const createBlocked = await addressSvc.createAddress({
+      customerAccountId: active.customerAccountId,
+      expectedVersion: 2,
+      address: { line1: 'Should Fail', city: 'X', state: 'NJ', postalCode: '07030' },
+    }, { prisma });
+    assert.equal(createBlocked.ok, false);
+    assert.equal(createBlocked.error, 'not_found');
+
+    // Admin/internal graph load must still succeed for inactive accounts.
+    const graph = await require('../netlify/lib/customer-account-service')
+      .loadCustomerAccountGraph(active.customerAccountId, { prisma });
+    assert.ok(graph);
+    assert.equal(graph.status, 'disabled');
+  });
+
+  it('repair: handler rate-limit rejection maps to HTTP 429', async () => {
+    process.env.PUBLIC_RATE_LIMIT_CUSTOMER_PORTAL_PROFILE_READ_MAX = '1';
+    process.env.PUBLIC_RATE_LIMIT_CUSTOMER_PORTAL_PROFILE_WINDOW_SEC = '900';
+
+    // Conditional store matching public-rate-limit's onlyIfNew / onlyIfMatch protocol.
+    const data = new Map();
+    let etagCounter = 0;
+    const rate = require('../netlify/lib/public-rate-limit');
+    rate.setPublicRateLimitStoreFactory(() => ({
+      async getWithMetadata(key, { type } = {}) {
+        if (!data.has(key)) return null;
+        const entry = data.get(key);
+        return {
+          data: type === 'json' ? JSON.parse(entry.value) : entry.value,
+          etag: entry.etag,
+          metadata: {},
+        };
+      },
+      async setJSON(key, value, options = {}) {
+        const exists = data.has(key);
+        if (options.onlyIfNew && exists) return { modified: false };
+        if (options.onlyIfMatch) {
+          if (!exists || data.get(key).etag !== options.onlyIfMatch) return { modified: false };
+        }
+        const etag = `etag-${++etagCounter}`;
+        data.set(key, { value: JSON.stringify(value), etag });
+        return { modified: true, etag };
+      },
+    }));
+
+    delete require.cache[HANDLER_PATH];
+    delete require.cache[RATE_PATH];
+    // Re-bind rate factory after cache clear of rate module used by handler.
+    require('../netlify/lib/public-rate-limit').setPublicRateLimitStoreFactory(() => ({
+      async getWithMetadata(key, { type } = {}) {
+        if (!data.has(key)) return null;
+        const entry = data.get(key);
+        return {
+          data: type === 'json' ? JSON.parse(entry.value) : entry.value,
+          etag: entry.etag,
+          metadata: {},
+        };
+      },
+      async setJSON(key, value, options = {}) {
+        const exists = data.has(key);
+        if (options.onlyIfNew && exists) return { modified: false };
+        if (options.onlyIfMatch) {
+          if (!exists || data.get(key).etag !== options.onlyIfMatch) return { modified: false };
+        }
+        const etag = `etag-${++etagCounter}`;
+        data.set(key, { value: JSON.stringify(value), etag });
+        return { modified: true, etag };
+      },
+    }));
+    const handler = require('../netlify/functions/customer-portal-profile');
+    const created = await seedAccount('rl@example.com', '2015552107');
+    const { token } = await sessionFor(created.customerAccountId, '2015552107');
+    const evt = (body) => cookieEvent(token, body, {
+      'x-nf-client-connection-ip': '203.0.113.77',
+    });
+
+    const first = await handler.handler(evt({ action: 'get_profile' }));
+    assert.notEqual(first.statusCode, 429);
+    const blocked = await handler.handler(evt({ action: 'get_profile' }));
+    assert.equal(blocked.statusCode, 429);
+    const body = JSON.parse(blocked.body);
+    assert.equal(body.ok, false);
+    assert.equal(body.error, 'rate_limited');
+
+    delete process.env.PUBLIC_RATE_LIMIT_CUSTOMER_PORTAL_PROFILE_READ_MAX;
+    delete process.env.PUBLIC_RATE_LIMIT_CUSTOMER_PORTAL_PROFILE_WINDOW_SEC;
+  });
 });

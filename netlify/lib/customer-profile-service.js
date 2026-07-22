@@ -13,6 +13,7 @@ const { tryGetPrisma } = require('./prisma');
 const {
   emitIdentityAudit,
   loadCustomerAccountGraph,
+  assertCustomerPortalAccountActive,
 } = require('./customer-account-service');
 const {
   projectCustomerIdentity,
@@ -161,6 +162,7 @@ async function loadSafeProjection(customerAccountId, prisma) {
 
 /**
  * Load profile projection for the authenticated account only.
+ * Disabled and merged accounts return the same not_found as missing accounts.
  */
 async function getProfile(customerAccountId, opts = {}) {
   const prisma = prismaClient(opts.prisma);
@@ -171,8 +173,11 @@ async function getProfile(customerAccountId, opts = {}) {
   void opts.browserCustomerAccountId;
   void opts.requestedCustomerAccountId;
 
-  const customer = await loadSafeProjection(customerAccountId, prisma);
-  if (!customer) return { ok: false, error: NOT_FOUND };
+  const graph = await loadCustomerAccountGraph(customerAccountId, { prisma });
+  const gate = assertCustomerPortalAccountActive(graph);
+  if (!gate.ok) return gate;
+
+  const customer = assertSafeCustomerProjection(projectCustomerIdentity(graph));
   return { ok: true, customer };
 }
 
@@ -227,7 +232,10 @@ async function updateProfile(input = {}, opts = {}) {
         return d.requestId === requestId && d.customerAccountId === customerAccountId;
       });
       if (hit) {
-        const customer = await loadSafeProjection(customerAccountId, prisma);
+        const graph = await loadCustomerAccountGraph(customerAccountId, { prisma });
+        const gate = assertCustomerPortalAccountActive(graph);
+        if (!gate.ok) return gate;
+        const customer = assertSafeCustomerProjection(projectCustomerIdentity(graph));
         return {
           ok: true,
           idempotent: true,
@@ -250,9 +258,8 @@ async function updateProfile(input = {}, opts = {}) {
         where: { id: customerAccountId },
         include: { profile: true },
       });
-      if (!account || account.status === 'merged' || account.status === 'disabled') {
-        return { ok: false, error: NOT_FOUND };
-      }
+      const gate = assertCustomerPortalAccountActive(account);
+      if (!gate.ok) return gate;
       if (account.version !== expectedVersion) {
         return {
           ok: false,

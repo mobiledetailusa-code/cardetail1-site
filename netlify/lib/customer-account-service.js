@@ -729,6 +729,25 @@ async function loadCustomerAccountGraph(customerAccountId, opts = {}) {
   }
 }
 
+/**
+ * Customer-portal authorization gate for profile/address reads and writes.
+ *
+ * Only `active` accounts may continue. Missing, disabled, and merged accounts
+ * all return the same uniform `not_found` — no status oracle in API responses.
+ *
+ * Does NOT reject inside loadCustomerAccountGraph so Admin/internal callers
+ * can still load graphs for any account status.
+ *
+ * @param {{ status?: string }|null|undefined} accountOrGraph
+ * @returns {{ ok: true, account: object } | { ok: false, error: 'not_found' }}
+ */
+function assertCustomerPortalAccountActive(accountOrGraph) {
+  if (!accountOrGraph || accountOrGraph.status !== 'active') {
+    return { ok: false, error: 'not_found' };
+  }
+  return { ok: true, account: accountOrGraph };
+}
+
 module.exports = {
   AMBIGUOUS,
   CREATED,
@@ -742,6 +761,7 @@ module.exports = {
   backfillBookingsOnLogin,
   listBookingIdsForAccount,
   loadCustomerAccountGraph,
+  assertCustomerPortalAccountActive,
   emitIdentityAudit,
   classifyContactMatches,
 };

@@ -179,11 +179,6 @@ exports.handler = async (event) => {
     });
   }
 
-  // Signed session must agree with stored account id (already validated in session).
-  if (session.customerAccountId && customerAccountId !== session.customerAccountId) {
-    return jsonCors(401, { ok: false, error: 'authentication_failed' });
-  }
-
   const requestId = body.requestId ? String(body.requestId).trim().slice(0, 80) : null;
 
   if (action === 'get_profile') {
