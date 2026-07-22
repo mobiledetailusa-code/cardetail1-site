@@ -76,6 +76,9 @@ function createIdentityMemoryPrisma(options = {}) {
     failInsideTransactionRemaining: 0,
   };
 
+  /** Serialize interactive transactions so concurrent callers cannot corrupt shared Maps. */
+  let txnChain = Promise.resolve();
+
   const api = {
     _db: db,
     _meta: meta,
@@ -93,27 +96,31 @@ function createIdentityMemoryPrisma(options = {}) {
       meta.failInsideTransactionRemaining = meta.failInsideTransactionAfter.ops;
     },
     async $transaction(fn) {
-      meta.transactionCalls += 1;
-      if (meta.failNextTransaction) {
-        const err = meta.failNextTransaction;
-        meta.failNextTransaction = null;
-        throw err;
-      }
-      const snap = snapshotMaps(db);
-      const txMeta = {
-        opCount: 0,
-        failAfter: meta.failInsideTransactionAfter,
-      };
-      meta.failInsideTransactionAfter = null;
+      const run = async () => {
+        meta.transactionCalls += 1;
+        if (meta.failNextTransaction) {
+          const err = meta.failNextTransaction;
+          meta.failNextTransaction = null;
+          throw err;
+        }
+        const snap = snapshotMaps(db);
+        const txMeta = {
+          opCount: 0,
+          failAfter: meta.failInsideTransactionAfter,
+        };
+        meta.failInsideTransactionAfter = null;
 
-      const tx = wrapTransactionalClient(api, db, txMeta);
-      try {
-        const result = await fn(tx);
-        return result;
-      } catch (err) {
-        restoreMaps(db, snap);
-        throw err;
-      }
+        const tx = wrapTransactionalClient(api, db, txMeta);
+        try {
+          return await fn(tx);
+        } catch (err) {
+          restoreMaps(db, snap);
+          throw err;
+        }
+      };
+      const queued = txnChain.then(run, run);
+      txnChain = queued.then(() => undefined, () => undefined);
+      return queued;
     },
     async $executeRawUnsafe(sql) {
       const text = String(sql || '');
@@ -180,9 +187,25 @@ function createIdentityMemoryPrisma(options = {}) {
       }
     }
     if (include.addresses) {
+      const addrWhere = include.addresses.where || { archivedAt: null };
       out.addresses = [...db.customerAddress.values()]
-        .filter((a) => a.customerAccountId === row.id && !a.archivedAt)
+        .filter((a) => a.customerAccountId === row.id && matchesWhere(a, addrWhere))
         .map(clone);
+      const orderBy = include.addresses.orderBy;
+      if (Array.isArray(orderBy) && orderBy.length) {
+        out.addresses.sort((a, b) => {
+          for (const clause of orderBy) {
+            const [key, dir] = Object.entries(clause)[0] || [];
+            if (!key) continue;
+            const av = a[key];
+            const bv = b[key];
+            if (av === bv) continue;
+            const cmp = av > bv ? 1 : -1;
+            return dir === 'desc' ? -cmp : cmp;
+          }
+          return 0;
+        });
+      }
     }
     if (include.consents) {
       out.consents = [...db.customerConsent.values()]
@@ -231,6 +254,36 @@ function createIdentityMemoryPrisma(options = {}) {
             if (matchesWhere(row, where)) return hydrateAccount(row, include);
           }
           return null;
+        },
+        async update({ where, data }) {
+          onWrite(txMeta);
+          const row = database.customerAccount.get(where.id);
+          if (!row) {
+            const err = new Error('Record to update not found');
+            err.code = 'P2025';
+            throw err;
+          }
+          const next = {
+            ...row,
+            ...data,
+            updatedAt: data.updatedAt || new Date().toISOString(),
+          };
+          database.customerAccount.set(row.id, next);
+          return clone(next);
+        },
+        async updateMany({ where, data }) {
+          onWrite(txMeta);
+          let count = 0;
+          for (const [id, row] of database.customerAccount.entries()) {
+            if (!matchesWhere(row, where)) continue;
+            database.customerAccount.set(id, {
+              ...row,
+              ...data,
+              updatedAt: data.updatedAt || new Date().toISOString(),
+            });
+            count += 1;
+          }
+          return { count };
         },
         async count({ where } = {}) {
           let n = 0;
@@ -281,6 +334,43 @@ function createIdentityMemoryPrisma(options = {}) {
           }
           return out;
         },
+        async findUnique({ where }) {
+          if (where.id) {
+            const row = database.customerProfile.get(where.id);
+            return row ? clone(row) : null;
+          }
+          if (where.customerAccountId) {
+            for (const row of database.customerProfile.values()) {
+              if (row.customerAccountId === where.customerAccountId) return clone(row);
+            }
+          }
+          return null;
+        },
+        async update({ where, data }) {
+          onWrite(txMeta);
+          let row = null;
+          if (where.id) row = database.customerProfile.get(where.id);
+          else if (where.customerAccountId) {
+            for (const p of database.customerProfile.values()) {
+              if (p.customerAccountId === where.customerAccountId) {
+                row = p;
+                break;
+              }
+            }
+          }
+          if (!row) {
+            const err = new Error('Record to update not found');
+            err.code = 'P2025';
+            throw err;
+          }
+          const next = {
+            ...row,
+            ...data,
+            updatedAt: data.updatedAt || new Date().toISOString(),
+          };
+          database.customerProfile.set(row.id, next);
+          return clone(next);
+        },
         async count({ where } = {}) {
           let n = 0;
           for (const row of database.customerProfile.values()) {
@@ -295,7 +385,13 @@ function createIdentityMemoryPrisma(options = {}) {
           const id = data.id || cuid();
           const row = {
             id,
-            ...data,
+            customerAccountId: data.customerAccountId,
+            label: data.label || null,
+            line1: data.line1,
+            line2: data.line2 || null,
+            city: data.city || null,
+            state: data.state || null,
+            postalCode: data.postalCode || null,
             country: data.country || 'US',
             isDefault: !!data.isDefault,
             archivedAt: data.archivedAt || null,
@@ -305,8 +401,49 @@ function createIdentityMemoryPrisma(options = {}) {
           database.customerAddress.set(id, row);
           return clone(row);
         },
+        async findUnique({ where }) {
+          const row = database.customerAddress.get(where.id);
+          return row ? clone(row) : null;
+        },
         async findMany({ where }) {
           return [...database.customerAddress.values()].filter((r) => matchesWhere(r, where)).map(clone);
+        },
+        async update({ where, data }) {
+          onWrite(txMeta);
+          const row = database.customerAddress.get(where.id);
+          if (!row) {
+            const err = new Error('Record to update not found');
+            err.code = 'P2025';
+            throw err;
+          }
+          const next = {
+            ...row,
+            ...data,
+            updatedAt: data.updatedAt || new Date().toISOString(),
+          };
+          database.customerAddress.set(row.id, next);
+          return clone(next);
+        },
+        async updateMany({ where, data }) {
+          onWrite(txMeta);
+          let count = 0;
+          for (const [id, row] of database.customerAddress.entries()) {
+            if (!matchesWhere(row, where)) continue;
+            database.customerAddress.set(id, {
+              ...row,
+              ...data,
+              updatedAt: data.updatedAt || new Date().toISOString(),
+            });
+            count += 1;
+          }
+          return { count };
+        },
+        async count({ where } = {}) {
+          let n = 0;
+          for (const row of database.customerAddress.values()) {
+            if (matchesWhere(row, where || {})) n += 1;
+          }
+          return n;
         },
       },
       customerConsent: {

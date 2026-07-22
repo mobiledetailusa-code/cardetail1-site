@@ -36,6 +36,8 @@ const DEFAULT_LIMITS = {
   'customer-portal-auth:verify': { max: 12, windowMs: DEFAULT_WINDOW_MS },
   'booking-card-status': { max: 40, windowMs: DEFAULT_WINDOW_MS },
   'customer-bookings': { max: 20, windowMs: DEFAULT_WINDOW_MS },
+  'customer-portal-profile:read': { max: 60, windowMs: DEFAULT_WINDOW_MS },
+  'customer-portal-profile:mutate': { max: 30, windowMs: DEFAULT_WINDOW_MS },
 };
 
 const ENV_SCOPE_BY_BUCKET = {
@@ -54,6 +56,8 @@ const ENV_SCOPE_BY_BUCKET = {
   'customer-portal-auth:verify': 'CUSTOMER_PORTAL_AUTH_VERIFY',
   'booking-card-status': 'BOOKING_CARD_STATUS',
   'customer-bookings': 'CUSTOMER_BOOKINGS',
+  'customer-portal-profile:read': 'CUSTOMER_PORTAL_PROFILE_READ',
+  'customer-portal-profile:mutate': 'CUSTOMER_PORTAL_PROFILE_MUTATE',
 };
 
 let storeFactoryOverride = null;
