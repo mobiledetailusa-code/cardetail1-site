@@ -119,6 +119,10 @@ enum StripeEventStatus {
   failed
 }
 
+/// Legacy Phase 2 payment/booking join placeholder — NOT the permanent identity root.
+/// Production identity authority is CustomerAccount (+ CustomerProfile).
+/// Customer remains for gradual Stripe/payment compatibility only; do not treat it
+/// as competing with CustomerAccount. No runtime creates this row in Stage 1.
 model Customer {
   id               String   @id @default(cuid())
   phone            String?
@@ -135,17 +139,124 @@ model Customer {
   @@index([email])
 }
 
+/// Permanent authentication identity and ownership root (Stage 1).
+/// Phone/email are NOT primary keys and are NOT globally unique.
+enum CustomerAccountStatus {
+  active
+  disabled
+  merged
+}
+
+model CustomerAccount {
+  id                  String                @id @default(cuid())
+  status              CustomerAccountStatus @default(active)
+  version             Int                   @default(1)
+  stripeCustomerId    String?               @unique
+  mergedIntoAccountId String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  profile    CustomerProfile?
+  addresses  CustomerAddress[]
+  consents   CustomerConsent[]
+  bookings   Booking[]
+  mergedInto CustomerAccount?  @relation("AccountMerge", fields: [mergedIntoAccountId], references: [id])
+  mergedFrom CustomerAccount[] @relation("AccountMerge")
+
+  @@index([status])
+  @@index([mergedIntoAccountId])
+}
+
+/// Editable contact/profile data — one-to-one with CustomerAccount.
+model CustomerProfile {
+  id                      String   @id @default(cuid())
+  customerAccountId       String   @unique
+  firstName               String?
+  lastName                String?
+  displayName             String?
+  email                   String?
+  normalizedEmail         String?
+  phone                   String?
+  normalizedPhone         String?
+  preferredContactChannel String?
+  timezone                String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  account CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+
+  @@index([normalizedEmail])
+  @@index([normalizedPhone])
+}
+
+/// Service addresses owned by an account. Soft-archive via archivedAt — never hard-delete
+/// addresses that may be referenced historically.
+model CustomerAddress {
+  id                String    @id @default(cuid())
+  customerAccountId String
+  label             String?
+  line1             String
+  line2             String?
+  city              String?
+  state             String?
+  postalCode        String?
+  country           String    @default("US")
+  isDefault         Boolean   @default(false)
+  archivedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  account CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+
+  @@index([customerAccountId])
+  @@index([customerAccountId, isDefault])
+}
+
+enum ConsentChannel {
+  email_transactional
+  sms_transactional
+  email_marketing
+  sms_marketing
+}
+
+enum ConsentStatus {
+  granted
+  revoked
+  pending
+}
+
+/// Current-state consent per account+channel (one row per pair).
+model CustomerConsent {
+  id                 String         @id @default(cuid())
+  customerAccountId  String
+  channel            ConsentChannel
+  status             ConsentStatus  @default(pending)
+  grantedAt          DateTime?
+  revokedAt          DateTime?
+  source             String?
+  consentTextVersion String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  account CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([customerAccountId, channel])
+  @@index([customerAccountId])
+}
+
 model Booking {
-  id             String                  @id
-  customerId     String?
-  bookingVersion Int                     @default(0)
-  status         BookingLifecycleStatus  @default(draft)
-  isDraft        Boolean                 @default(true)
-  archived       Boolean                 @default(false)
-  createdAt      DateTime                @default(now())
-  updatedAt      DateTime                @updatedAt
+  id                String                  @id
+  customerId        String?
+  customerAccountId String?
+  bookingVersion    Int                     @default(0)
+  status            BookingLifecycleStatus  @default(draft)
+  isDraft           Boolean                 @default(true)
+  archived          Boolean                 @default(false)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
 
   customer        Customer?        @relation(fields: [customerId], references: [id])
+  customerAccount CustomerAccount? @relation(fields: [customerAccountId], references: [id])
   vehicles        Vehicle[]
   quotes          Quote[]
   changeRequests  ChangeRequest[]
@@ -154,6 +265,7 @@ model Booking {
   auditEvents     AuditEvent[]
 
   @@index([customerId])
+  @@index([customerAccountId])
   @@index([status])
 }
 
