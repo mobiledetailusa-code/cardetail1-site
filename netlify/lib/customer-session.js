@@ -139,6 +139,7 @@ async function validateCustomerSession(event) {
     ok: true,
     scope: payload.scope || record.scope || 'account',
     sessionId: payload.sid,
+    customerAccountId: payload.customerAccountId || record.customerAccountId || null,
     phoneDigits: payload.phoneDigits || record.phoneDigits || null,
     emailHash: payload.emailHash || record.emailHash || null,
     bookingIds: payload.bookingIds || record.bookingIds || [],
@@ -176,16 +177,25 @@ async function revokeCustomerSession(event) {
   }
 }
 
-async function createAccountSession({ phoneDigits, email, bookingIds = [] }) {
+async function createAccountSession({
+  phoneDigits,
+  email,
+  bookingIds = [],
+  customerAccountId = null,
+} = {}) {
   const sid = `cs_${crypto.randomBytes(12).toString('base64url')}`;
   const exp = Date.now() + SESSION_TTL_MS;
   const emailNorm = String(email || '').trim().toLowerCase();
   const emailHash = emailNorm
     ? crypto.createHash('sha256').update(emailNorm).digest('base64url')
     : null;
+  // Only the safe account id is stored in the signed cookie payload — never
+  // Stripe ids, raw email/phone, or auth metadata.
+  const safeAccountId = customerAccountId ? String(customerAccountId) : null;
   const payload = {
     sid,
     scope: 'account',
+    customerAccountId: safeAccountId,
     phoneDigits: phoneDigits || null,
     emailHash,
     bookingIds: Array.isArray(bookingIds) ? bookingIds.slice(0, 50) : [],

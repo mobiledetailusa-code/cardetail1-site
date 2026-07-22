@@ -19,6 +19,15 @@ const {
   postgresPaymentEnabled,
   getSharedFinancialProjection,
 } = require('../lib/db/operational-payment');
+const {
+  listBookingIdsForAccount,
+} = require('../lib/customer-account-service');
+const {
+  buildCustomerProjection,
+  assertSafeCustomerProjection,
+} = require('../lib/customer-identity-projection');
+const { tryGetPrisma } = require('../lib/prisma');
+const { normalizeBookingId } = require('../lib/booking-customer-auth');
 
 /**
  * Portal catalog: subscription/marketing packages remain in customer-catalog;
@@ -167,13 +176,89 @@ exports.handler = async (event) => {
     return jsonCors(401, { ok: false, error: 'authentication_failed', message: 'Sign in required.' });
   }
 
+  // Ignore any caller-supplied account id — session is authoritative.
+  void body.customerAccountId;
+  void body.browserCustomerAccountId;
+
   const all = await listRawBookings();
   const phoneDigits = session.phoneDigits;
+  const sessionBookingIds = new Set(
+    (session.bookingIds || []).map((id) => normalizeBookingId(id)).filter(Boolean)
+  );
+
+  // Dual-read order:
+  // 1) relational CustomerAccount / Booking.customerAccountId
+  // 2) session bookingIds
+  // 3) Blob phone/email scan fallback
+  let linkedAccountBookingIds = new Set();
+  if (session.customerAccountId) {
+    try {
+      const ids = await listBookingIdsForAccount(session.customerAccountId);
+      linkedAccountBookingIds = new Set(ids.map((id) => normalizeBookingId(id)).filter(Boolean));
+    } catch {
+      linkedAccountBookingIds = new Set();
+    }
+  }
+
+  // Candidate ids from Blob phone/session before ownership filter.
+  const phoneMatchedIds = [];
+  for (const b of all) {
+    if (!isVisibleCustomerBooking(b)) continue;
+    const bid = normalizeBookingId(b.id || b.bookingId);
+    if (!bid) continue;
+    if (sessionBookingIds.has(bid) || linkedAccountBookingIds.has(bid)) {
+      phoneMatchedIds.push(bid);
+      continue;
+    }
+    const bPhone = normalizeUsPhoneDigits(b.phone || b.customerPhone || '');
+    if (phoneDigits && bPhone && phonesMatch(phoneDigits, bPhone)) phoneMatchedIds.push(bid);
+  }
+
+  let bookingOwnerById = new Map();
+  try {
+    const prisma = tryGetPrisma();
+    if (prisma && phoneMatchedIds.length) {
+      const rows = await prisma.booking.findMany({
+        where: {
+          id: { in: [...new Set(phoneMatchedIds)] },
+          customerAccountId: { not: null },
+        },
+        select: { id: true, customerAccountId: true },
+      });
+      bookingOwnerById = new Map(
+        rows.map((r) => [normalizeBookingId(r.id), r.customerAccountId])
+      );
+    }
+  } catch {
+    bookingOwnerById = new Map();
+  }
+
   const bookings = all.filter((b) => {
     if (!isVisibleCustomerBooking(b)) return false;
-    if (session.bookingIds?.length && session.bookingIds.includes(b.id || b.bookingId)) return true;
+    const bid = normalizeBookingId(b.id || b.bookingId);
+    if (!bid) return false;
+
+    const ownerAccountId = bookingOwnerById.get(bid) || null;
+    // No account may access another account's booking.
+    if (ownerAccountId && session.customerAccountId && ownerAccountId !== session.customerAccountId) {
+      return false;
+    }
+
+    if (linkedAccountBookingIds.has(bid)) return true;
+    if (sessionBookingIds.has(bid)) {
+      // Session snapshot may still show legacy bookings; block if owned by another account.
+      if (ownerAccountId && session.customerAccountId && ownerAccountId !== session.customerAccountId) {
+        return false;
+      }
+      return true;
+    }
+
     const bPhone = normalizeUsPhoneDigits(b.phone || b.customerPhone || '');
-    return phoneDigits && bPhone && phonesMatch(phoneDigits, bPhone);
+    if (!(phoneDigits && bPhone && phonesMatch(phoneDigits, bPhone))) return false;
+    if (ownerAccountId && session.customerAccountId && ownerAccountId !== session.customerAccountId) {
+      return false;
+    }
+    return true;
   });
 
   const projected = bookings
@@ -198,9 +283,24 @@ exports.handler = async (event) => {
     ? serializeCanonicalPackageCatalogForBooking(rawUpcoming)
     : { source: 'booking-price-catalog', vehicles: [], packageCatalogByVehicle: {} };
 
+  let customer = null;
+  if (session.customerAccountId) {
+    try {
+      customer = assertSafeCustomerProjection(
+        await buildCustomerProjection(session.customerAccountId, {
+          linkedBookingCount: linkedAccountBookingIds.size || bookings.length,
+        })
+      );
+    } catch {
+      customer = null;
+    }
+  }
+
   return jsonCors(200, {
     ok: true,
     scope: 'account',
+    customerAccountId: session.customerAccountId || null,
+    customer,
     bookings: projected,
     upcoming,
     vehicles,

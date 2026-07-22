@@ -144,6 +144,37 @@ async function listJobs(q) {
     });
   }
   jobs.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+
+  // Attach shared CustomerAccount summaries so Admin can see linked bookings
+  // belong to the same permanent identity (fail-open if Prisma unavailable).
+  let accountByBookingId = new Map();
+  try {
+    const { tryGetPrisma } = require('../lib/prisma');
+    const { buildAdminCustomerAccountSummary } = require('../lib/customer-identity-projection');
+    const prisma = tryGetPrisma();
+    if (prisma) {
+      const ids = jobs.map((b) => String(b.id || b.bookingId || '').trim()).filter(Boolean);
+      if (ids.length) {
+        const rows = await prisma.booking.findMany({
+          where: { id: { in: ids }, customerAccountId: { not: null } },
+          select: { id: true, customerAccountId: true },
+        });
+        const uniqueAccountIds = [...new Set(rows.map((r) => r.customerAccountId).filter(Boolean))];
+        const summaryByAccount = new Map();
+        await Promise.all(uniqueAccountIds.map(async (accountId) => {
+          const summary = await buildAdminCustomerAccountSummary(accountId, { prisma });
+          if (summary) summaryByAccount.set(accountId, summary);
+        }));
+        for (const row of rows) {
+          const summary = summaryByAccount.get(row.customerAccountId);
+          if (summary) accountByBookingId.set(row.id, summary);
+        }
+      }
+    }
+  } catch {
+    accountByBookingId = new Map();
+  }
+
   return jobs.map(b => {
     try {
       const j = projectJobForAdmin(b);
@@ -159,6 +190,11 @@ async function listJobs(q) {
       delete j.amountAuthorizedCents;
       delete j.amountCapturedCents;
       delete j.cardOnFileStatus;
+      const accountSummary = accountByBookingId.get(j.id) || accountByBookingId.get(b.id) || null;
+      if (accountSummary) {
+        j.customerAccountId = accountSummary.customerAccountId;
+        j.customerAccount = accountSummary;
+      }
       return j;
     } catch (_) {
       // Never let one malformed record blank the entire admin feed.

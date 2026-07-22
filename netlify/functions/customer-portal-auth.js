@@ -18,6 +18,10 @@ const {
   MAGIC_LINK_TTL_MS,
 } = require('../lib/customer-session');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const {
+  resolveOrCreateCustomerAccount,
+  backfillBookingsOnLogin,
+} = require('../lib/customer-account-service');
 
 const CHALLENGE_STORE = 'cd1-customer-auth-tokens';
 
@@ -75,6 +79,8 @@ exports.handler = async (event) => {
       authenticated: true,
       scope: session.scope,
       exp: session.exp,
+      // Safe account id only — never Stripe / contact / session internals.
+      customerAccountId: session.customerAccountId || null,
     });
   }
 
@@ -129,10 +135,45 @@ exports.handler = async (event) => {
     const bookingIds = matches.map((b) => b.id || b.bookingId).filter(Boolean);
     const phoneDigits = challenge.phoneDigits || normalizeUsPhoneDigits(matches[0]?.phone || matches[0]?.customerPhone || '');
 
+    // Resolve/create CustomerAccount from verified challenge identity only.
+    // Never trust a browser-supplied customerAccountId (body is ignored).
+    let customerAccountId = null;
+    try {
+      const resolution = await resolveOrCreateCustomerAccount({
+        verifiedEmail: challenge.email,
+        verifiedPhone: phoneDigits,
+        bookingIds,
+        firstName: matches[0]?.firstName,
+        lastName: matches[0]?.lastName,
+        // Intentionally ignore body.customerAccountId / body.browserCustomerAccountId
+        browserCustomerAccountId: body.customerAccountId || body.browserCustomerAccountId || null,
+      }, {
+        allowPhoneOnly: false,
+        createIfMissing: true,
+        trustSessionAccountId: false,
+        acceptBrowserAccountId: false,
+      });
+      if (resolution.ok && resolution.customerAccountId) {
+        customerAccountId = resolution.customerAccountId;
+        await backfillBookingsOnLogin({
+          customerAccountId,
+          verifiedEmail: challenge.email,
+          verifiedPhone: phoneDigits,
+          bookingIds,
+          blobBookings: matches,
+        });
+      }
+      // Ambiguity: preserve legacy booking visibility via bookingIds; do not merge.
+    } catch {
+      // Fail-open for portal login when identity DB is unavailable.
+      customerAccountId = null;
+    }
+
     const { token: sessionToken } = await createAccountSession({
       phoneDigits,
       email: challenge.email,
       bookingIds,
+      customerAccountId,
     });
 
     return {
@@ -143,7 +184,12 @@ exports.handler = async (event) => {
         'Cache-Control': 'no-store',
         'Set-Cookie': sessionCookieHeader(sessionToken),
       },
-      body: JSON.stringify({ ok: true, authenticated: true, bookingCount: bookingIds.length }),
+      body: JSON.stringify({
+        ok: true,
+        authenticated: true,
+        bookingCount: bookingIds.length,
+        customerAccountId: customerAccountId || null,
+      }),
     };
   }
 
