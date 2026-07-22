@@ -71,7 +71,16 @@ async function authorizeBookingAccess(event, { bookingId, phone, requireSessionF
 function sessionBookingAllowed(session, booking) {
   if (!session || !booking) return false;
   const bid = booking.id || booking.bookingId;
-  if (session.bookingIds && session.bookingIds.some((x) => normalizeBookingId(x) === normalizeBookingId(bid))) {
+  const normalizedBid = normalizeBookingId(bid);
+
+  // Account isolation: never allow access to a booking owned by another account.
+  // (Owner check is applied by portal dual-read; here we still honor session ids / phone.)
+  if (session.customerAccountId && booking.customerAccountId
+    && String(session.customerAccountId) !== String(booking.customerAccountId)) {
+    return false;
+  }
+
+  if (session.bookingIds && session.bookingIds.some((x) => normalizeBookingId(x) === normalizedBid)) {
     return true;
   }
   const sessionPhone = session.phoneDigits;
@@ -82,6 +91,7 @@ function sessionBookingAllowed(session, booking) {
 module.exports = {
   normalizeBookingId,
   authorizeBookingAccess,
+  sessionBookingAllowed,
   AUTH_FAIL,
   NOT_FOUND,
 };
