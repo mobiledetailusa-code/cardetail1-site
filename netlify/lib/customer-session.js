@@ -1,4 +1,6 @@
 // HttpOnly customer portal sessions — no raw tokens stored server-side.
+// Server-side session records in cd1-customer-sessions are authoritative for
+// expiration and revocation. Cookie payloads alone are never sufficient.
 
 const crypto = require('crypto');
 const { blobsStore } = require('./tech-security');
@@ -13,6 +15,8 @@ const MAX_AUTH_ATTEMPTS = 5;
 
 const COOKIE_NAME = 'cd1_customer_session';
 
+let sessionStoreFactoryOverride = null;
+
 function sessionSecret() {
   const primary = String(process.env.CUSTOMER_SESSION_SECRET || process.env.ADMIN_SESSION_SECRET || '').trim();
   if (primary.length >= 32) return primary;
@@ -23,6 +27,13 @@ function sessionSecret() {
     if (fallback.length >= 32) return fallback;
   }
   return '';
+}
+
+async function resolveSessionStore() {
+  if (typeof sessionStoreFactoryOverride === 'function') {
+    return sessionStoreFactoryOverride(SESSION_STORE);
+  }
+  return blobsStore(SESSION_STORE);
 }
 
 function hashToken(token) {
@@ -39,7 +50,13 @@ function signSessionPayload(payload) {
   return `${body}.${sig}`;
 }
 
-function verifySessionToken(token) {
+/**
+ * Cryptographically verify a session cookie token.
+ * @param {string} token
+ * @param {{ allowExpired?: boolean }} [opts]
+ * @returns {object|null}
+ */
+function verifySessionToken(token, opts = {}) {
   const secret = sessionSecret();
   if (!secret || !token || typeof token !== 'string') return null;
   const parts = token.split('.');
@@ -53,7 +70,8 @@ function verifySessionToken(token) {
   }
   try {
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
-    if (!payload || !payload.exp || Date.now() > payload.exp) return null;
+    if (!payload || !payload.sid || !payload.exp) return null;
+    if (!opts.allowExpired && Date.now() > payload.exp) return null;
     return payload;
   } catch {
     return null;
@@ -93,20 +111,69 @@ function clearSessionCookieHeader() {
   return parts.join('; ');
 }
 
+/**
+ * Fail-closed session validation: signature, expiry, stored record, revoked state,
+ * and session-id match. Never logs raw cookies or tokens.
+ */
 async function validateCustomerSession(event) {
   const cookies = parseCookies(event);
   const token = cookies[COOKIE_NAME];
   const payload = verifySessionToken(token);
   if (!payload) return { ok: false, error: 'session_invalid' };
+
+  let record;
+  try {
+    const store = await resolveSessionStore();
+    record = await store.get(payload.sid, { type: 'json' });
+  } catch {
+    return { ok: false, error: 'session_invalid' };
+  }
+
+  if (!record) return { ok: false, error: 'session_invalid' };
+  if (record.revoked === true || record.revokedAt) return { ok: false, error: 'session_invalid' };
+  if (String(record.sid || '') !== String(payload.sid)) return { ok: false, error: 'session_invalid' };
+  const recordExp = Number(record.exp) || 0;
+  if (!recordExp || Date.now() > recordExp) return { ok: false, error: 'session_invalid' };
+
   return {
     ok: true,
-    scope: payload.scope || 'account',
+    scope: payload.scope || record.scope || 'account',
     sessionId: payload.sid,
-    phoneDigits: payload.phoneDigits || null,
-    emailHash: payload.emailHash || null,
-    bookingIds: payload.bookingIds || [],
+    phoneDigits: payload.phoneDigits || record.phoneDigits || null,
+    emailHash: payload.emailHash || record.emailHash || null,
+    bookingIds: payload.bookingIds || record.bookingIds || [],
     exp: payload.exp,
   };
+}
+
+/**
+ * Mark the server-side session revoked so a captured cookie cannot be reused.
+ * Clears nothing locally — callers must also send clearSessionCookieHeader().
+ */
+async function revokeCustomerSession(event) {
+  const cookies = parseCookies(event);
+  const token = cookies[COOKIE_NAME];
+  // Allow expired signatures so logout still revokes a lingering server record.
+  const payload = verifySessionToken(token, { allowExpired: true });
+  if (!payload || !payload.sid) return { ok: true, revoked: false };
+
+  try {
+    const store = await resolveSessionStore();
+    const record = await store.get(payload.sid, { type: 'json' }).catch(() => null);
+    if (!record) return { ok: true, revoked: false };
+    if (record.revoked === true || record.revokedAt) return { ok: true, revoked: true };
+
+    const remainingMs = Math.max(60_000, (Number(record.exp) || Date.now()) - Date.now());
+    await store.setJSON(payload.sid, {
+      ...record,
+      revoked: true,
+      revokedAt: new Date().toISOString(),
+    }, { ttl: remainingMs });
+    return { ok: true, revoked: true };
+  } catch {
+    // Logout still clears the browser cookie; fail soft on storage errors.
+    return { ok: true, revoked: false };
+  }
 }
 
 async function createAccountSession({ phoneDigits, email, bookingIds = [] }) {
@@ -125,9 +192,21 @@ async function createAccountSession({ phoneDigits, email, bookingIds = [] }) {
     exp,
   };
   const token = signSessionPayload(payload);
-  const store = await blobsStore(SESSION_STORE);
-  await store.setJSON(sid, { ...payload, createdAt: new Date().toISOString() }, { ttl: SESSION_TTL_MS });
+  const store = await resolveSessionStore();
+  await store.setJSON(sid, {
+    ...payload,
+    revoked: false,
+    createdAt: new Date().toISOString(),
+  }, { ttl: SESSION_TTL_MS });
   return { token, session: payload };
+}
+
+function setCustomerSessionStoreFactory(factory) {
+  sessionStoreFactoryOverride = typeof factory === 'function' ? factory : null;
+}
+
+function resetCustomerSessionStoreFactory() {
+  sessionStoreFactoryOverride = null;
 }
 
 async function storeAuthChallenge({ type, email, phoneDigits, codeOrTokenHash }) {
@@ -160,6 +239,7 @@ function twilioOtpEnabled() {
 
 module.exports = {
   COOKIE_NAME,
+  SESSION_STORE,
   SESSION_TTL_MS,
   MAGIC_LINK_TTL_MS,
   OTP_TTL_MS,
@@ -171,8 +251,11 @@ module.exports = {
   sessionCookieHeader,
   clearSessionCookieHeader,
   validateCustomerSession,
+  revokeCustomerSession,
   createAccountSession,
   storeAuthChallenge,
+  setCustomerSessionStoreFactory,
+  resetCustomerSessionStoreFactory,
   resendConfigured,
   twilioOtpEnabled,
   normalizeUsPhoneDigits,

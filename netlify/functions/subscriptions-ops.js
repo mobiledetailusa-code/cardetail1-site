@@ -1,16 +1,22 @@
 // Maintenance / recurring customer plans — cd1-subscriptions blob store.
 const { blobsStore, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const { MAINTENANCE_PLAN_TEMPLATES } = require('../lib/ops-config');
-const { listRawBookings, normalizePhone, phonesMatch } = require('../lib/ops-db');
 
 const SUBS_STORE = 'cd1-subscriptions';
+
+let blobsStoreOverride = null;
 
 function subId() {
   return 'SUB-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
 }
 
+async function resolveSubsStore() {
+  if (blobsStoreOverride) return blobsStoreOverride;
+  return blobsStore(SUBS_STORE);
+}
+
 async function listSubscriptions() {
-  const store = await blobsStore(SUBS_STORE);
+  const store = await resolveSubsStore();
   const listing = await store.list().catch(() => ({ blobs: [] }));
   const subs = (await Promise.all(
     ((listing && listing.blobs) || []).map(b => store.get(b.key, { type: 'json' }).catch(() => null))
@@ -33,87 +39,17 @@ exports.handler = async (event) => {
     return jsonCors(200, { ok: true, templates: MAINTENANCE_PLAN_TEMPLATES });
   }
 
-  if (action === 'customer_list') {
-    const email = sanitizeText(body.email, 200).toLowerCase();
-    const phone = String(body.phone || '').replace(/\D/g, '').slice(0, 15);
-    if (!email.includes('@') || phone.length < 7) {
-      return jsonCors(400, { ok: false, error: 'email_phone_required' });
-    }
-    const bookings = await listRawBookings().catch(() => []);
-    const verified = bookings.some(bk =>
-      !bk.isDraft && !bk.archived && bk.jobStatus !== 'archived_test' &&
-      String(bk.email || '').toLowerCase() === email &&
-      phonesMatch(phone, normalizePhone(bk.phone || bk.customerPhone || ''))
-    );
-    if (!verified) return jsonCors(403, { ok: false, error: 'no_verified_booking' });
-    const subs = await listSubscriptions();
-    const mine = subs.filter(s =>
-      String(s.email || '').toLowerCase() === email &&
-      phonesMatch(phone, String(s.phone || '').replace(/\D/g, ''))
-    );
-    return jsonCors(200, {
-      ok: true,
-      subscriptions: mine.map(s => ({
-        id: s.id, planName: s.planName, status: s.status, price: s.price,
-        vehicle: s.vehicle, billingCycle: s.billingCycle, nextVisitDate: s.nextVisitDate,
-        stripeSubscriptionId: s.stripeSubscriptionId ? 'active' : null,
-      })),
-    });
-  }
-
-  if (action === 'customer_signup') {
-    const email = sanitizeText(body.email, 200).toLowerCase();
-    const phone = String(body.phone || '').replace(/\D/g, '').slice(0, 15);
-    const customerName = sanitizeText(body.customerName, 120);
-    const planId = sanitizeText(body.planId, 48);
-    const tpl = MAINTENANCE_PLAN_TEMPLATES.find(p => p.id === planId);
-    if (!tpl) return jsonCors(400, { ok: false, error: 'invalid_plan' });
-    if (!email.includes('@')) return jsonCors(400, { ok: false, error: 'valid_email_required' });
-    if (!phone || phone.length < 7) return jsonCors(400, { ok: false, error: 'phone_required' });
-
-    const bookings = await listRawBookings().catch(() => []);
-    const verified = bookings.some(bk =>
-      !bk.isDraft && !bk.archived && bk.jobStatus !== 'archived_test' &&
-      String(bk.email || '').toLowerCase() === email &&
-      phonesMatch(phone, normalizePhone(bk.phone || bk.customerPhone || ''))
-    );
-    if (!verified) {
-      return jsonCors(403, { ok: false, error: 'no_verified_booking', message: 'Complete a booking with this email and phone before subscribing.' });
-    }
-
-    const intervalMonths = tpl.intervalMonths || 1;
-    const price = tpl.suggestedPrice || 0;
-
-    const store = await blobsStore(SUBS_STORE);
-    const now = new Date().toISOString();
-    const id = subId();
-    const sub = {
-      id,
-      customerName,
-      email,
-      phone,
-      planId: planId || 'custom',
-      planName: sanitizeText(body.planName || (tpl && tpl.name) || 'Maintenance', 80),
-      intervalMonths,
-      price,
-      billingCycle: sanitizeText(body.billingCycle || 'monthly', 16),
-      status: 'pending_activation',
-      maxDetailsPerMonth: 1,
-      address: sanitizeText(body.address, 300),
-      vehicle: sanitizeText(body.vehicle, 120),
-      nextVisitDate: sanitizeText(body.nextVisitDate, 32),
-      notes: 'Customer portal signup — pending admin activation',
-      createdAt: now,
-      updatedAt: now,
-    };
-    await store.setJSON(id, sub);
-    return jsonCors(200, { ok: true, subscription: { id: sub.id, planName: sub.planName, status: sub.status } });
+  // Obsolete public customer actions — no frontend/backend callers remain.
+  // Disabled (not deleted) so existing subscription blob data is preserved and
+  // accidental public create/list cannot write or enumerate customers.
+  if (action === 'customer_list' || action === 'customer_signup') {
+    return jsonCors(403, { ok: false, error: 'action_disabled' });
   }
 
   const auth = await verifyAdminKey(event.headers || {});
   if (!auth.ok) return jsonCors(auth.error === 'missing_admin_password_config' ? 503 : 401, { ok: false, error: auth.error });
 
-  const store = await blobsStore(SUBS_STORE);
+  const store = await resolveSubsStore();
 
   if (action === 'list') {
     const subs = await listSubscriptions();
@@ -185,4 +121,10 @@ exports.handler = async (event) => {
   }
 
   return jsonCors(400, { ok: false, error: 'unknown_action' });
+};
+
+exports.__test = {
+  setBlobsStoreOverride(store) {
+    blobsStoreOverride = store || null;
+  },
 };

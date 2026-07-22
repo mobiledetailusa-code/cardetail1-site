@@ -9,6 +9,7 @@ const {
   createAccountSession,
   storeAuthChallenge,
   validateCustomerSession,
+  revokeCustomerSession,
   sessionCookieHeader,
   clearSessionCookieHeader,
   resendConfigured,
@@ -78,6 +79,7 @@ exports.handler = async (event) => {
   }
 
   if (action === 'logout') {
+    await revokeCustomerSession(event);
     return {
       statusCode: 200,
       headers: {
@@ -166,12 +168,17 @@ exports.handler = async (event) => {
   }
 
   const matches = await bookingsForContact({ email, phoneDigits });
+  // Anti-enumeration: identical success shape whether or not a match exists.
+  // Never disclose account existence; never log raw tokens.
+  const genericStartOk = () => jsonCors(200, {
+    ok: true,
+    delivery: 'email',
+    expiresInSec: Math.floor(MAGIC_LINK_TTL_MS / 1000),
+    smsOtpAvailable: twilioOtpEnabled(),
+  });
+
   if (!matches.length) {
-    return jsonCors(200, {
-      ok: false,
-      error: 'authentication_failed',
-      message: 'We could not find an account with that email. Try booking lookup or call/text us.',
-    });
+    return genericStartOk();
   }
 
   const rawToken = crypto.randomBytes(24).toString('base64url');
@@ -193,11 +200,5 @@ exports.handler = async (event) => {
     });
   }
 
-  return jsonCors(200, {
-    ok: true,
-    challengeId,
-    delivery: 'email',
-    expiresInSec: Math.floor(MAGIC_LINK_TTL_MS / 1000),
-    smsOtpAvailable: twilioOtpEnabled(),
-  });
+  return genericStartOk();
 };

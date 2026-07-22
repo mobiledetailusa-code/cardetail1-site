@@ -324,6 +324,7 @@ test('each tracked in-scope function invokes the shared helper', () => {
   const targets = [
     'netlify/functions/submit-booking.js',
     'netlify/functions/lookup-booking.js',
+    'netlify/functions/customer-bookings.js',
     'netlify/functions/submit-inquiry.js',
     'netlify/functions/create-setup-intent.js',
     'netlify/functions/ai-chat.js',
