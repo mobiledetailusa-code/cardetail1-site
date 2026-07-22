@@ -1,6 +1,9 @@
 /**
  * In-memory Prisma-shaped store for Customer Identity Foundation unit tests.
  * Supports the subset of APIs used by customer-account-service.
+ *
+ * $transaction snapshots Maps and rolls back on throw so mid-transaction
+ * failures leave no partial CustomerAccount / Profile / Booking / Audit rows.
  */
 
 const crypto = require('crypto');
@@ -11,6 +14,23 @@ function cuid() {
 
 function clone(v) {
   return v == null ? v : JSON.parse(JSON.stringify(v));
+}
+
+function snapshotMaps(db) {
+  const out = {};
+  for (const [name, map] of Object.entries(db)) {
+    out[name] = new Map([...map.entries()].map(([k, v]) => [k, clone(v)]));
+  }
+  return out;
+}
+
+function restoreMaps(db, snap) {
+  for (const name of Object.keys(db)) {
+    db[name].clear();
+    for (const [k, v] of snap[name].entries()) {
+      db[name].set(k, clone(v));
+    }
+  }
 }
 
 function matchesWhere(row, where) {
@@ -35,7 +55,7 @@ function matchesWhere(row, where) {
   return true;
 }
 
-function createIdentityMemoryPrisma() {
+function createIdentityMemoryPrisma(options = {}) {
   const db = {
     customerAccount: new Map(),
     customerProfile: new Map(),
@@ -46,233 +66,106 @@ function createIdentityMemoryPrisma() {
     vehicle: new Map(),
   };
 
+  const meta = {
+    transactionCalls: 0,
+    advisoryLockCalls: 0,
+    advisoryLockIds: [],
+    resolveContactDirectCalls: 0,
+    failNextTransaction: null,
+    failInsideTransactionAfter: null,
+    failInsideTransactionRemaining: 0,
+  };
+
   const api = {
     _db: db,
-    async $transaction(fn) {
-      return fn(api);
+    _meta: meta,
+    /**
+     * Test hooks — inject next $transaction failure (outer) or mid-callback failure.
+     */
+    failNextTransactionWith(err) {
+      meta.failNextTransaction = err;
     },
-    async $executeRawUnsafe() {
+    failInsideNextTransactionAfter(opsBeforeThrow, err) {
+      meta.failInsideTransactionAfter = {
+        ops: Math.max(0, Number(opsBeforeThrow) || 0),
+        err: err || new Error('forced mid-transaction failure'),
+      };
+      meta.failInsideTransactionRemaining = meta.failInsideTransactionAfter.ops;
+    },
+    async $transaction(fn) {
+      meta.transactionCalls += 1;
+      if (meta.failNextTransaction) {
+        const err = meta.failNextTransaction;
+        meta.failNextTransaction = null;
+        throw err;
+      }
+      const snap = snapshotMaps(db);
+      const txMeta = {
+        opCount: 0,
+        failAfter: meta.failInsideTransactionAfter,
+      };
+      meta.failInsideTransactionAfter = null;
+
+      const tx = wrapTransactionalClient(api, db, txMeta);
+      try {
+        const result = await fn(tx);
+        return result;
+      } catch (err) {
+        restoreMaps(db, snap);
+        throw err;
+      }
+    },
+    async $executeRawUnsafe(sql) {
+      const text = String(sql || '');
+      if (/pg_advisory_xact_lock/i.test(text)) {
+        meta.advisoryLockCalls += 1;
+        const m = text.match(/pg_advisory_xact_lock\((-?\d+)\)/i);
+        if (m) meta.advisoryLockIds.push(m[1]);
+      }
       return 1;
     },
-    customerAccount: {
-      async create({ data }) {
-        const id = data.id || cuid();
-        const row = {
-          id,
-          status: data.status || 'active',
-          version: data.version == null ? 1 : data.version,
-          stripeCustomerId: data.stripeCustomerId || null,
-          mergedIntoAccountId: data.mergedIntoAccountId || null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        db.customerAccount.set(id, row);
-        return clone(row);
-      },
-      async findUnique({ where, include }) {
-        const row = db.customerAccount.get(where.id);
-        if (!row) return null;
-        return hydrateAccount(row, include);
-      },
-      async findFirst({ where, include }) {
-        for (const row of db.customerAccount.values()) {
-          if (matchesWhere(row, where)) return hydrateAccount(row, include);
-        }
-        return null;
-      },
-      async count({ where } = {}) {
-        let n = 0;
-        for (const row of db.customerAccount.values()) {
-          if (matchesWhere(row, where)) n += 1;
-        }
-        return n;
-      },
-    },
-    customerProfile: {
-      async create({ data }) {
-        const id = data.id || cuid();
-        const row = {
-          id,
-          customerAccountId: data.customerAccountId,
-          firstName: data.firstName || null,
-          lastName: data.lastName || null,
-          displayName: data.displayName || null,
-          email: data.email || null,
-          normalizedEmail: data.normalizedEmail || null,
-          phone: data.phone || null,
-          normalizedPhone: data.normalizedPhone || null,
-          preferredContactChannel: data.preferredContactChannel || null,
-          timezone: data.timezone || null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        // Enforce one profile per account
-        for (const existing of db.customerProfile.values()) {
-          if (existing.customerAccountId === row.customerAccountId) {
-            const err = new Error('Unique constraint failed on customerAccountId');
-            err.code = 'P2002';
-            throw err;
-          }
-        }
-        db.customerProfile.set(id, row);
-        return clone(row);
-      },
-      async findMany({ where, include }) {
-        const out = [];
-        for (const row of db.customerProfile.values()) {
-          if (!matchesWhere(row, where)) continue;
-          const item = clone(row);
-          if (include?.account) {
-            item.account = clone(db.customerAccount.get(row.customerAccountId) || null);
-          }
-          out.push(item);
-        }
-        return out;
-      },
-      async count({ where } = {}) {
-        let n = 0;
-        for (const row of db.customerProfile.values()) {
-          if (matchesWhere(row, where)) n += 1;
-        }
-        return n;
-      },
-    },
-    customerAddress: {
-      async create({ data }) {
-        const id = data.id || cuid();
-        const row = {
-          id,
-          ...data,
-          country: data.country || 'US',
-          isDefault: !!data.isDefault,
-          archivedAt: data.archivedAt || null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        db.customerAddress.set(id, row);
-        return clone(row);
-      },
-      async findMany({ where }) {
-        return [...db.customerAddress.values()].filter((r) => matchesWhere(r, where)).map(clone);
-      },
-    },
-    customerConsent: {
-      async create({ data }) {
-        const id = data.id || cuid();
-        for (const existing of db.customerConsent.values()) {
-          if (existing.customerAccountId === data.customerAccountId && existing.channel === data.channel) {
-            const err = new Error('Unique constraint failed on customerAccountId_channel');
-            err.code = 'P2002';
-            throw err;
-          }
-        }
-        const row = {
-          id,
-          status: data.status || 'pending',
-          grantedAt: data.grantedAt || null,
-          revokedAt: data.revokedAt || null,
-          source: data.source || null,
-          consentTextVersion: data.consentTextVersion || null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          customerAccountId: data.customerAccountId,
-          channel: data.channel,
-        };
-        db.customerConsent.set(id, row);
-        return clone(row);
-      },
-      async findMany({ where }) {
-        return [...db.customerConsent.values()].filter((r) => matchesWhere(r, where)).map(clone);
-      },
-    },
-    booking: {
-      async create({ data }) {
-        if (db.booking.has(data.id)) {
-          const err = new Error('Unique constraint failed on id');
-          err.code = 'P2002';
-          throw err;
-        }
-        const row = {
-          id: data.id,
-          customerId: data.customerId || null,
-          customerAccountId: data.customerAccountId || null,
-          bookingVersion: data.bookingVersion == null ? 0 : data.bookingVersion,
-          status: data.status || 'draft',
-          isDraft: data.isDraft == null ? true : data.isDraft,
-          archived: !!data.archived,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        db.booking.set(row.id, row);
-        return clone(row);
-      },
-      async findUnique({ where, select }) {
-        const row = db.booking.get(where.id);
-        if (!row) return null;
-        if (select) {
-          const out = {};
-          for (const k of Object.keys(select)) out[k] = row[k];
-          return out;
-        }
-        return clone(row);
-      },
-      async findMany({ where, select }) {
-        const out = [];
-        for (const row of db.booking.values()) {
-          if (!matchesWhere(row, where)) continue;
-          if (select) {
-            const item = {};
-            for (const k of Object.keys(select)) item[k] = row[k];
-            out.push(item);
-          } else out.push(clone(row));
-        }
-        return out;
-      },
-      async updateMany({ where, data }) {
-        let count = 0;
-        for (const [id, row] of db.booking.entries()) {
-          if (!matchesWhere(row, where)) continue;
-          db.booking.set(id, { ...row, ...data, updatedAt: new Date().toISOString() });
-          count += 1;
-        }
-        return { count };
-      },
-      async count({ where } = {}) {
-        let n = 0;
-        for (const row of db.booking.values()) {
-          if (matchesWhere(row, where)) n += 1;
-        }
-        return n;
-      },
-    },
-    auditEvent: {
-      async create({ data }) {
-        const id = data.id || cuid();
-        const row = {
-          id,
-          bookingId: data.bookingId || null,
-          actor: data.actor,
-          action: data.action,
-          detail: data.detail || null,
-          createdAt: new Date().toISOString(),
-        };
-        db.auditEvent.set(id, row);
-        return clone(row);
-      },
-      async findMany({ where } = {}) {
-        return [...db.auditEvent.values()].filter((r) => matchesWhere(r, where || {})).map(clone);
-      },
-    },
-    vehicle: {
-      async count({ where } = {}) {
-        let n = 0;
-        for (const row of db.vehicle.values()) {
-          if (matchesWhere(row, where)) n += 1;
-        }
-        return n;
-      },
-    },
+    customerAccount: modelHandlers('customerAccount'),
+    customerProfile: modelHandlers('customerProfile'),
+    customerAddress: modelHandlers('customerAddress'),
+    customerConsent: modelHandlers('customerConsent'),
+    booking: modelHandlers('booking'),
+    auditEvent: modelHandlers('auditEvent'),
+    vehicle: modelHandlers('vehicle'),
   };
+
+  function noteWriteOp(txMeta) {
+    if (!txMeta || !txMeta.failAfter) return;
+    txMeta.opCount += 1;
+    if (txMeta.opCount > txMeta.failAfter.ops) {
+      const err = txMeta.failAfter.err;
+      txMeta.failAfter = null;
+      throw err;
+    }
+  }
+
+  function modelHandlers(name) {
+    return buildModelApi(name, db, null, noteWriteOp);
+  }
+
+  function wrapTransactionalClient(root, database, txMeta) {
+    // Interactive tx client: no $transaction (mirrors Prisma). Writes share Maps
+    // until outer $transaction rolls back on throw.
+    return {
+      _db: database,
+      _meta: root._meta,
+      _txMeta: txMeta,
+      async $executeRawUnsafe(sql) {
+        return root.$executeRawUnsafe(sql);
+      },
+      customerAccount: buildModelApi('customerAccount', database, txMeta, noteWriteOp),
+      customerProfile: buildModelApi('customerProfile', database, txMeta, noteWriteOp),
+      customerAddress: buildModelApi('customerAddress', database, txMeta, noteWriteOp),
+      customerConsent: buildModelApi('customerConsent', database, txMeta, noteWriteOp),
+      booking: buildModelApi('booking', database, txMeta, noteWriteOp),
+      auditEvent: buildModelApi('auditEvent', database, txMeta, noteWriteOp),
+      vehicle: buildModelApi('vehicle', database, txMeta, noteWriteOp),
+    };
+  }
 
   function hydrateAccount(row, include) {
     const out = clone(row);
@@ -309,6 +202,256 @@ function createIdentityMemoryPrisma() {
     }
     return out;
   }
+
+  function buildModelApi(name, database, txMeta, onWrite) {
+    const handlers = {
+      customerAccount: {
+        async create({ data }) {
+          onWrite(txMeta);
+          const id = data.id || cuid();
+          const row = {
+            id,
+            status: data.status || 'active',
+            version: data.version == null ? 1 : data.version,
+            stripeCustomerId: data.stripeCustomerId || null,
+            mergedIntoAccountId: data.mergedIntoAccountId || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          database.customerAccount.set(id, row);
+          return clone(row);
+        },
+        async findUnique({ where, include }) {
+          const row = database.customerAccount.get(where.id);
+          if (!row) return null;
+          return hydrateAccount(row, include);
+        },
+        async findFirst({ where, include }) {
+          for (const row of database.customerAccount.values()) {
+            if (matchesWhere(row, where)) return hydrateAccount(row, include);
+          }
+          return null;
+        },
+        async count({ where } = {}) {
+          let n = 0;
+          for (const row of database.customerAccount.values()) {
+            if (matchesWhere(row, where)) n += 1;
+          }
+          return n;
+        },
+      },
+      customerProfile: {
+        async create({ data }) {
+          onWrite(txMeta);
+          const id = data.id || cuid();
+          const row = {
+            id,
+            customerAccountId: data.customerAccountId,
+            firstName: data.firstName || null,
+            lastName: data.lastName || null,
+            displayName: data.displayName || null,
+            email: data.email || null,
+            normalizedEmail: data.normalizedEmail || null,
+            phone: data.phone || null,
+            normalizedPhone: data.normalizedPhone || null,
+            preferredContactChannel: data.preferredContactChannel || null,
+            timezone: data.timezone || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          for (const existing of database.customerProfile.values()) {
+            if (existing.customerAccountId === row.customerAccountId) {
+              const err = new Error('Unique constraint failed on customerAccountId');
+              err.code = 'P2002';
+              throw err;
+            }
+          }
+          database.customerProfile.set(id, row);
+          return clone(row);
+        },
+        async findMany({ where, include }) {
+          const out = [];
+          for (const row of database.customerProfile.values()) {
+            if (!matchesWhere(row, where)) continue;
+            const item = clone(row);
+            if (include?.account) {
+              item.account = clone(database.customerAccount.get(row.customerAccountId) || null);
+            }
+            out.push(item);
+          }
+          return out;
+        },
+        async count({ where } = {}) {
+          let n = 0;
+          for (const row of database.customerProfile.values()) {
+            if (matchesWhere(row, where)) n += 1;
+          }
+          return n;
+        },
+      },
+      customerAddress: {
+        async create({ data }) {
+          onWrite(txMeta);
+          const id = data.id || cuid();
+          const row = {
+            id,
+            ...data,
+            country: data.country || 'US',
+            isDefault: !!data.isDefault,
+            archivedAt: data.archivedAt || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          database.customerAddress.set(id, row);
+          return clone(row);
+        },
+        async findMany({ where }) {
+          return [...database.customerAddress.values()].filter((r) => matchesWhere(r, where)).map(clone);
+        },
+      },
+      customerConsent: {
+        async create({ data }) {
+          onWrite(txMeta);
+          const id = data.id || cuid();
+          for (const existing of database.customerConsent.values()) {
+            if (existing.customerAccountId === data.customerAccountId && existing.channel === data.channel) {
+              const err = new Error('Unique constraint failed on customerAccountId_channel');
+              err.code = 'P2002';
+              throw err;
+            }
+          }
+          const row = {
+            id,
+            status: data.status || 'pending',
+            grantedAt: data.grantedAt || null,
+            revokedAt: data.revokedAt || null,
+            source: data.source || null,
+            consentTextVersion: data.consentTextVersion || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            customerAccountId: data.customerAccountId,
+            channel: data.channel,
+          };
+          database.customerConsent.set(id, row);
+          return clone(row);
+        },
+        async findMany({ where }) {
+          return [...database.customerConsent.values()].filter((r) => matchesWhere(r, where)).map(clone);
+        },
+      },
+      booking: {
+        async create({ data }) {
+          onWrite(txMeta);
+          if (database.booking.has(data.id)) {
+            const err = new Error('Unique constraint failed on id');
+            err.code = 'P2002';
+            throw err;
+          }
+          const row = {
+            id: data.id,
+            customerId: data.customerId || null,
+            customerAccountId: data.customerAccountId || null,
+            bookingVersion: data.bookingVersion == null ? 0 : data.bookingVersion,
+            status: data.status || 'draft',
+            isDraft: data.isDraft == null ? true : data.isDraft,
+            archived: !!data.archived,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          database.booking.set(row.id, row);
+          return clone(row);
+        },
+        async findUnique({ where, select }) {
+          const row = database.booking.get(where.id);
+          if (!row) return null;
+          if (select) {
+            const out = {};
+            for (const k of Object.keys(select)) out[k] = row[k];
+            return out;
+          }
+          return clone(row);
+        },
+        async findMany({ where, select }) {
+          const out = [];
+          for (const row of database.booking.values()) {
+            if (!matchesWhere(row, where)) continue;
+            if (select) {
+              const item = {};
+              for (const k of Object.keys(select)) item[k] = row[k];
+              out.push(item);
+            } else out.push(clone(row));
+          }
+          return out;
+        },
+        async updateMany({ where, data }) {
+          onWrite(txMeta);
+          let count = 0;
+          for (const [id, row] of database.booking.entries()) {
+            if (!matchesWhere(row, where)) continue;
+            database.booking.set(id, { ...row, ...data, updatedAt: new Date().toISOString() });
+            count += 1;
+          }
+          return { count };
+        },
+        async count({ where } = {}) {
+          let n = 0;
+          for (const row of database.booking.values()) {
+            if (matchesWhere(row, where)) n += 1;
+          }
+          return n;
+        },
+      },
+      auditEvent: {
+        async create({ data }) {
+          onWrite(txMeta);
+          const id = data.id || cuid();
+          const row = {
+            id,
+            bookingId: data.bookingId || null,
+            actor: data.actor,
+            action: data.action,
+            detail: data.detail || null,
+            createdAt: new Date().toISOString(),
+          };
+          database.auditEvent.set(id, row);
+          return clone(row);
+        },
+        async findMany({ where } = {}) {
+          return [...database.auditEvent.values()].filter((r) => matchesWhere(r, where || {})).map(clone);
+        },
+        async count({ where } = {}) {
+          let n = 0;
+          for (const row of database.auditEvent.values()) {
+            if (matchesWhere(row, where || {})) n += 1;
+          }
+          return n;
+        },
+        async deleteMany({ where } = {}) {
+          let count = 0;
+          for (const [id, row] of [...database.auditEvent.entries()]) {
+            if (!matchesWhere(row, where || {})) continue;
+            database.auditEvent.delete(id);
+            count += 1;
+          }
+          return { count };
+        },
+      },
+      vehicle: {
+        async count({ where } = {}) {
+          let n = 0;
+          for (const row of database.vehicle.values()) {
+            if (matchesWhere(row, where)) n += 1;
+          }
+          return n;
+        },
+      },
+    };
+    return handlers[name];
+  }
+
+  // Fix hydrateAccount to use the shared database reference from closure
+  // (already uses `db`). Expose options for future hooks.
+  void options;
 
   return api;
 }

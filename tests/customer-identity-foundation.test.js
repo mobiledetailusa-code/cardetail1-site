@@ -579,4 +579,154 @@ describe('customer identity foundation', () => {
     assert.equal(second.ok, true);
     assert.ok(second.linked.every((x) => x.alreadyLinked || x.linked));
   });
+
+  it('transaction failure: generic DB error fails closed with no account rows', async () => {
+    const svc = require('../netlify/lib/customer-account-service');
+    const beforeAccounts = await prisma.customerAccount.count();
+    const beforeProfiles = await prisma.customerProfile.count();
+    const beforeAudits = await prisma.auditEvent.count();
+    const beforeTxn = prisma._meta.transactionCalls;
+
+    prisma.failNextTransactionWith(new Error('connection terminated unexpectedly'));
+
+    await assert.rejects(
+      () => svc.resolveOrCreateCustomerAccount({
+        verifiedEmail: 'txn-fail@example.com',
+        verifiedPhone: '2015550301',
+      }, { prisma }),
+      (err) => {
+        assert.equal(err.code, 'customer_identity_transaction_failed');
+        assert.match(String(err.message), /customer_identity_transaction_failed/);
+        assert.doesNotMatch(String(err.message), /connection terminated/i);
+        return true;
+      }
+    );
+
+    assert.equal(prisma._meta.transactionCalls, beforeTxn + 1);
+    assert.equal(await prisma.customerAccount.count(), beforeAccounts);
+    assert.equal(await prisma.customerProfile.count(), beforeProfiles);
+    assert.equal(await prisma.auditEvent.count(), beforeAudits);
+    assert.equal(await prisma.booking.count({ where: { customerAccountId: { not: null } } }), 0);
+  });
+
+  it('transaction failure: message matching InteractiveTransaction still does not fall back', async () => {
+    const svc = require('../netlify/lib/customer-account-service');
+    const phrases = [
+      'InteractiveTransaction is not supported',
+      'transaction already closed',
+      'prisma.$transaction is not a function',
+    ];
+    for (const message of phrases) {
+      const beforeAccounts = await prisma.customerAccount.count();
+      const beforeProfiles = await prisma.customerProfile.count();
+      prisma.failNextTransactionWith(Object.assign(new Error(message), { code: 'P2028' }));
+      await assert.rejects(
+        () => svc.resolveOrCreateCustomerAccount({
+          verifiedEmail: `phrase-${phrases.indexOf(message)}@example.com`,
+          verifiedPhone: `20155503${10 + phrases.indexOf(message)}`,
+        }, { prisma }),
+        (err) => err.code === 'customer_identity_transaction_failed'
+      );
+      assert.equal(await prisma.customerAccount.count(), beforeAccounts, `must not create after: ${message}`);
+      assert.equal(await prisma.customerProfile.count(), beforeProfiles);
+    }
+  });
+
+  it('mid-transaction failure rolls back account, profile, booking link, and audits', async () => {
+    const svc = require('../netlify/lib/customer-account-service');
+    await prisma.booking.create({
+      data: { id: 'BK-TX-ROLL', customerAccountId: null, status: 'submitted', isDraft: false },
+    });
+    const beforeAccounts = await prisma.customerAccount.count();
+    const beforeProfiles = await prisma.customerProfile.count();
+    const beforeAudits = await prisma.auditEvent.count();
+
+    // Allow account create (1), then fail before profile create (2nd write).
+    prisma.failInsideNextTransactionAfter(
+      1,
+      Object.assign(new Error('forced mid-transaction disk full'), { code: 'P1001' })
+    );
+
+    await assert.rejects(
+      () => svc.resolveOrCreateCustomerAccount({
+        verifiedEmail: 'rollback@example.com',
+        verifiedPhone: '2015550320',
+      }, { prisma }),
+      (err) => err.code === 'customer_identity_transaction_failed'
+    );
+
+    assert.equal(await prisma.customerAccount.count(), beforeAccounts);
+    assert.equal(await prisma.customerProfile.count(), beforeProfiles);
+    assert.equal(await prisma.auditEvent.count(), beforeAudits);
+    const booking = await prisma.booking.findUnique({ where: { id: 'BK-TX-ROLL' } });
+    assert.equal(booking.customerAccountId, null);
+  });
+
+  it('successful retry after DB recovers creates exactly one account and profile', async () => {
+    const svc = require('../netlify/lib/customer-account-service');
+    prisma.failNextTransactionWith(new Error('temporary transaction outage'));
+    await assert.rejects(
+      () => svc.resolveOrCreateCustomerAccount({
+        verifiedEmail: 'recover@example.com',
+        verifiedPhone: '2015550330',
+      }, { prisma }),
+      (err) => err.code === 'customer_identity_transaction_failed'
+    );
+    assert.equal(await prisma.customerAccount.count(), 0);
+
+    const ok = await svc.resolveOrCreateCustomerAccount({
+      verifiedEmail: 'recover@example.com',
+      verifiedPhone: '2015550330',
+    }, { prisma });
+    assert.equal(ok.ok, true);
+    assert.equal(ok.status, 'created');
+    assert.equal(await prisma.customerAccount.count(), 1);
+    assert.equal(await prisma.customerProfile.count(), 1);
+
+    const again = await svc.resolveOrCreateCustomerAccount({
+      verifiedEmail: 'recover@example.com',
+      verifiedPhone: '2015550330',
+    }, { prisma });
+    assert.equal(again.customerAccountId, ok.customerAccountId);
+    assert.equal(await prisma.customerAccount.count(), 1);
+    assert.equal(await prisma.customerProfile.count(), 1);
+  });
+
+  it('concurrent transactional path still resolves to one account', async () => {
+    const svc = require('../netlify/lib/customer-account-service');
+    const input = { verifiedEmail: 'concurrent-tx@example.com', verifiedPhone: '2015550340' };
+    const results = await Promise.all([
+      svc.resolveOrCreateCustomerAccount(input, { prisma }),
+      svc.resolveOrCreateCustomerAccount(input, { prisma }),
+      svc.resolveOrCreateCustomerAccount(input, { prisma }),
+    ]);
+    assert.ok(results.every((r) => r.ok));
+    assert.equal(new Set(results.map((r) => r.customerAccountId)).size, 1);
+    assert.equal(await prisma.customerAccount.count(), 1);
+    assert.equal(await prisma.customerProfile.count(), 1);
+    assert.ok(prisma._meta.transactionCalls >= 1);
+    assert.ok(prisma._meta.advisoryLockCalls >= 1);
+  });
+
+  it('missing $transaction without allowNonTransactional fails closed', async () => {
+    const svc = require('../netlify/lib/customer-account-service');
+    const bare = createIdentityMemoryPrisma();
+    delete bare.$transaction;
+    const result = await svc.resolveOrCreateCustomerAccount({
+      verifiedEmail: 'no-tx@example.com',
+      verifiedPhone: '2015550350',
+    }, { prisma: bare });
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 'unavailable');
+    assert.equal(result.error, 'transaction_unavailable');
+    assert.equal(await bare.customerAccount.count(), 0);
+  });
+
+  it('schema documents Booking.customerAccountId identity-linkage writers', () => {
+    const schema = read('prisma/schema.prisma');
+    assert.match(schema, /identity-linkage field only/);
+    assert.match(schema, /backfill-on-login/);
+    assert.match(schema, /never overwritten/);
+    assert.match(schema, /Financial authority/);
+  });
 });

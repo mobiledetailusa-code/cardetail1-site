@@ -244,6 +244,10 @@ model CustomerConsent {
   @@index([customerAccountId])
 }
 
+/// Booking aggregate row. customerAccountId is an identity-linkage field only:
+/// backfill-on-login / linkBookingToAccount may set it when null so the account
+/// owns the booking. Financial authority (quotes, ledger, payments) is unchanged.
+/// Existing non-null links are never overwritten.
 model Booking {
   id                String                  @id
   customerId        String?

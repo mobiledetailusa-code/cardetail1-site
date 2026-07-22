@@ -6,8 +6,10 @@
  * a competing identity authority.
  *
  * Never trusts browser-supplied customerAccountId. Ambiguous matches never
- * auto-merge. Concurrent first-login uses an in-process identity lock plus
- * Postgres advisory locks when available so retries stay idempotent.
+ * auto-merge. Concurrent first-login holds pg_advisory_xact_lock inside
+ * prisma.$transaction for match+create. An in-process lock is only a
+ * same-process assist — production correctness requires the transactional
+ * advisory lock path. Transaction failures fail closed (no unlocked retry).
  */
 
 const crypto = require('crypto');
@@ -228,10 +230,21 @@ async function createAccountWithProfile(prisma, {
     return { account, profile };
   };
 
+  // When already inside an interactive transaction, the client has no
+  // $transaction — run directly on the same tx client.
   if (typeof prisma.$transaction === 'function') {
     return prisma.$transaction(run);
   }
   return run(prisma);
+}
+
+function sanitizedTransactionFailure(err) {
+  const code = String(err?.code || '').trim();
+  const safe = new Error('customer_identity_transaction_failed');
+  safe.code = 'customer_identity_transaction_failed';
+  safe.status = UNAVAILABLE;
+  safe.causeCode = code || undefined;
+  return safe;
 }
 
 /**
@@ -314,13 +327,11 @@ async function resolveContactWithClient(prisma, {
   createIfMissing,
   input,
 }) {
+  // Production concurrency: pg_advisory_xact_lock on a hash of normalized
+  // contact keys — never raw email/phone as the lock value.
   if (typeof prisma.$executeRawUnsafe === 'function' && (normalizedEmail || normalizedPhone)) {
     const lockId = advisoryLockSql(lockKeyForIdentity({ normalizedEmail, normalizedPhone }));
-    try {
-      await prisma.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${lockId})`);
-    } catch {
-      // Non-transactional client or non-Postgres — in-process lock still applies.
-    }
+    await prisma.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${lockId})`);
   }
 
   const matches = await findAccountsByContact(prisma, { normalizedEmail, normalizedPhone });
@@ -592,19 +603,28 @@ async function resolveOrCreateCustomerAccount(input = {}, opts = {}) {
   };
 
   const contactResult = await withIdentityLock(key, async () => {
-    // Hold pg_advisory_xact_lock for the duration of match+create.
+    // Hold pg_advisory_xact_lock for the duration of match+create inside one
+    // interactive transaction. Never downgrade to an unlocked path based on
+    // error-message heuristics.
     if (typeof prisma.$transaction === 'function') {
       try {
         return await prisma.$transaction((tx) => resolveContactWithClient(tx, args));
       } catch (err) {
-        // If the interactive transaction path is unavailable (test doubles),
-        // fall through to a direct call under the in-process lock.
-        if (!/transaction|InteractiveTransaction|not a function/i.test(String(err?.message || ''))) {
-          throw err;
-        }
+        throw sanitizedTransactionFailure(err);
       }
     }
-    return resolveContactWithClient(prisma, args);
+
+    // Explicit test-only adapter: production runtime must not silently skip
+    // transactional account creation.
+    if (opts.allowNonTransactional === true) {
+      return resolveContactWithClient(prisma, args);
+    }
+
+    return {
+      status: UNAVAILABLE,
+      error: 'transaction_unavailable',
+      customerAccountId: null,
+    };
   });
 
   return finish(contactResult);
