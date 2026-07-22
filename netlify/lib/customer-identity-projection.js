@@ -20,6 +20,10 @@ function projectProfile(profile) {
       phone: null,
       preferredContactChannel: null,
       timezone: null,
+      updatedAt: null,
+      // Stage 2A: email/phone are verified contact surfaces — read-only in portal.
+      emailReadOnly: true,
+      phoneReadOnly: true,
     };
   }
   return {
@@ -30,6 +34,9 @@ function projectProfile(profile) {
     phone: profile.phone || null,
     preferredContactChannel: profile.preferredContactChannel || null,
     timezone: profile.timezone || null,
+    updatedAt: profile.updatedAt || null,
+    emailReadOnly: true,
+    phoneReadOnly: true,
   };
 }
 
@@ -83,13 +90,18 @@ function projectCustomerIdentity(graph, {
     ? linkedBookingCount
     : (Array.isArray(graph.bookings) ? graph.bookings.length : 0);
 
+  const addresses = projectAddresses(graph.addresses);
+  const defaultAddressId = addresses.find((a) => a.isDefault)?.id || null;
+
   return {
     customerAccountId: graph.id,
     profile: projectProfile(graph.profile),
-    addresses: projectAddresses(graph.addresses),
+    addresses,
+    defaultAddressId,
     consents: projectConsents(graph.consents),
     accountVersion: graph.version,
     accountStatus: graph.status,
+    updatedAt: graph.updatedAt || null,
     migration: {
       linkStatus,
       linkedBookingCount: bookingCount,
@@ -99,7 +111,7 @@ function projectCustomerIdentity(graph, {
 
 function defaultAddressSummary(addresses) {
   const active = (addresses || []).filter((a) => !a.archivedAt);
-  const preferred = active.find((a) => a.isDefault) || active[0] || null;
+  const preferred = active.find((a) => a.isDefault) || null;
   if (!preferred) return null;
   const parts = [
     preferred.line1,
@@ -113,6 +125,7 @@ function defaultAddressSummary(addresses) {
     city: preferred.city || null,
     state: preferred.state || null,
     postalCode: preferred.postalCode || null,
+    isDefault: true,
   };
 }
 
@@ -128,6 +141,7 @@ function consentSummary(consents) {
 
 /**
  * Minimal Admin-safe account summary — same relational authority as Customer.
+ * Read-only for Stage 2A (no Admin profile/address editing).
  */
 function projectCustomerAccountForAdmin(graph, {
   linkedBookingIds = [],
@@ -151,12 +165,16 @@ function projectCustomerAccountForAdmin(graph, {
     derivedLastService = sorted[0]?.updatedAt || null;
   }
 
+  const activeAddresses = (graph.addresses || []).filter((a) => !a.archivedAt);
+
   return {
     customerAccountId: graph.id,
     name,
     email: profile.email || null,
     phone: profile.phone || null,
     defaultAddress: defaultAddressSummary(graph.addresses),
+    activeAddressCount: activeAddresses.length,
+    profileUpdatedAt: profile.updatedAt || null,
     linkedBookingCount: bookingIds.length,
     linkedBookingIds: bookingIds.slice(0, 100),
     linkedVehicleCount: linkedVehicleCount == null ? null : Number(linkedVehicleCount),

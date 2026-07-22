@@ -161,6 +161,71 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
       <ul class="clean" id="pending-requests-list"></ul>
     </section>
 
+    <section class="section" id="profile-section" aria-labelledby="profile-h" hidden>
+      <h3 id="profile-h">Profile</h3>
+      <p class="sub" id="profile-contact-note">Verified email and phone are read-only. Contact changes require verification.</p>
+      <div id="profile-view"></div>
+      <form id="profile-edit" hidden autocomplete="off">
+        <label for="pf-first" class="sub">First name</label>
+        <input class="inp" id="pf-first" name="firstName" maxlength="80" autocomplete="given-name">
+        <label for="pf-last" class="sub">Last name</label>
+        <input class="inp" id="pf-last" name="lastName" maxlength="80" autocomplete="family-name">
+        <label for="pf-display" class="sub">Display name (optional)</label>
+        <input class="inp" id="pf-display" name="displayName" maxlength="120" autocomplete="nickname">
+        <label for="pf-channel" class="sub">Preferred contact</label>
+        <select class="inp" id="pf-channel" name="preferredContactChannel">
+          <option value="">No preference</option>
+          <option value="email">Email</option>
+          <option value="phone">Phone</option>
+          <option value="sms">SMS</option>
+          <option value="any">Any</option>
+        </select>
+        <label for="pf-tz" class="sub">Timezone</label>
+        <input class="inp" id="pf-tz" name="timezone" maxlength="64" placeholder="America/New_York" autocomplete="off">
+        <div class="actions" style="margin-top:10px">
+          <button type="submit" class="btn primary" id="pf-save">Save</button>
+          <button type="button" class="btn ghost" id="pf-cancel">Cancel</button>
+        </div>
+      </form>
+      <div class="actions" id="profile-actions">
+        <button type="button" class="btn ghost" id="pf-edit-btn">Edit profile</button>
+      </div>
+      <p id="profile-msg" class="msg" hidden></p>
+    </section>
+
+    <section class="section" id="addresses-section" aria-labelledby="addr-h" hidden>
+      <h3 id="addr-h">Service Addresses</h3>
+      <p id="addresses-empty" class="empty" hidden>No saved service addresses yet.</p>
+      <ul class="clean" id="addresses-list"></ul>
+      <form id="address-form" hidden autocomplete="street-address">
+        <label for="ad-label" class="sub">Label (optional)</label>
+        <input class="inp" id="ad-label" name="label" maxlength="60" placeholder="Home">
+        <label for="ad-line1" class="sub">Street address</label>
+        <input class="inp" id="ad-line1" name="line1" maxlength="120" required autocomplete="address-line1">
+        <label for="ad-line2" class="sub">Apt / suite (optional)</label>
+        <input class="inp" id="ad-line2" name="line2" maxlength="120" autocomplete="address-line2">
+        <label for="ad-city" class="sub">City</label>
+        <input class="inp" id="ad-city" name="city" maxlength="80" autocomplete="address-level2">
+        <label for="ad-state" class="sub">State</label>
+        <input class="inp" id="ad-state" name="state" maxlength="40" autocomplete="address-level1">
+        <label for="ad-postal" class="sub">ZIP</label>
+        <input class="inp" id="ad-postal" name="postalCode" maxlength="20" autocomplete="postal-code">
+        <label for="ad-country" class="sub">Country</label>
+        <input class="inp" id="ad-country" name="country" maxlength="2" value="US" autocomplete="country">
+        <label class="sub" style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <input type="checkbox" id="ad-default" name="isDefault"> Set as default service address
+        </label>
+        <div class="actions" style="margin-top:10px">
+          <button type="submit" class="btn primary" id="ad-save">Save address</button>
+          <button type="button" class="btn ghost" id="ad-cancel">Cancel</button>
+        </div>
+      </form>
+      <div class="actions" id="address-actions">
+        <button type="button" class="btn ghost" id="ad-add-btn">Add address</button>
+      </div>
+      <p id="address-msg" class="msg" hidden></p>
+    </section>
+
     <section class="section" aria-labelledby="appt-h">
       <h3 id="appt-h">My Appointments</h3>
       <ul class="clean" id="appointments-list"></ul>
@@ -227,7 +292,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 <script src="https://js.stripe.com/v3/"></script>
 <script src="assets/portal-analytics.js" defer></script>
 <script src="assets/operational-refresh.js" defer></script>
-<script src="assets/my-garage.js?v=20260720-veh1" defer></script>
+<script src="assets/my-garage.js?v=20260722-profile1" defer></script>
 <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>
