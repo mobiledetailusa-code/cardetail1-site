@@ -123,6 +123,8 @@ describe(
         }
         for (const id of createdAccountIds) {
           try {
+            await prisma.customerVehicle.deleteMany({ where: { customerAccountId: id } });
+            await prisma.customerAddress.deleteMany({ where: { customerAccountId: id } });
             await prisma.customerProfile.deleteMany({ where: { customerAccountId: id } });
             await prisma.customerAccount.deleteMany({ where: { id } });
           } catch { /* best-effort */ }
@@ -311,6 +313,120 @@ describe(
         (row) => row.detail && row.detail.customerAccountId === first.customerAccountId
       ).length;
       assert.equal(after, 1);
+    });
+
+    it('Stage 2B: concurrent legacy vehicle imports create one marker and no duplicates', async () => {
+      delete require.cache[require.resolve('../netlify/lib/customer-vehicle-service')];
+      delete require.cache[require.resolve('../netlify/lib/customer-account-service')];
+      const accountSvc = require('../netlify/lib/customer-account-service');
+      const vehicleSvc = require('../netlify/lib/customer-vehicle-service');
+      const email = `vehimp.${RUN_ID.toLowerCase()}@example.test`;
+      const phone = '2015550410';
+
+      const created = await accountSvc.resolveOrCreateCustomerAccount(
+        { verifiedEmail: email, verifiedPhone: phone, firstName: 'Veh', lastName: 'Import' },
+        { prisma }
+      );
+      assert.equal(created.ok, true);
+      createdAccountIds.push(created.customerAccountId);
+
+      await prisma.customerAccount.update({
+        where: { id: created.customerAccountId },
+        data: { vehiclesImportedAt: null },
+      });
+
+      vehicleSvc.setLegacyReaderForTests(async () => ({
+        ok: true,
+        vehicles: [
+          {
+            id: `cv_${RUN_ID}_1`,
+            label: 'PG Import One',
+            category: 'car',
+            year: '2021',
+            make: 'Honda',
+            model: 'Civic',
+          },
+        ],
+      }));
+
+      const [a, b] = await Promise.all([
+        vehicleSvc.importLegacyVehiclesForAccount(created.customerAccountId, { prisma }),
+        vehicleSvc.importLegacyVehiclesForAccount(created.customerAccountId, { prisma }),
+      ]);
+      assert.equal(a.ok, true);
+      assert.equal(b.ok, true);
+
+      const count = await prisma.customerVehicle.count({
+        where: { customerAccountId: created.customerAccountId, archivedAt: null },
+      });
+      assert.equal(count, 1);
+      const account = await prisma.customerAccount.findUnique({
+        where: { id: created.customerAccountId },
+      });
+      assert.ok(account.vehiclesImportedAt);
+
+      vehicleSvc.setLegacyReaderForTests(null);
+    });
+
+    it('Stage 2B: concurrent set-default leaves exactly one active default', async () => {
+      delete require.cache[require.resolve('../netlify/lib/customer-vehicle-service')];
+      delete require.cache[require.resolve('../netlify/lib/customer-account-service')];
+      const accountSvc = require('../netlify/lib/customer-account-service');
+      const vehicleSvc = require('../netlify/lib/customer-vehicle-service');
+      const email = `vehdef.${RUN_ID.toLowerCase()}@example.test`;
+      const phone = '2015550411';
+
+      const created = await accountSvc.resolveOrCreateCustomerAccount(
+        { verifiedEmail: email, verifiedPhone: phone },
+        { prisma }
+      );
+      assert.equal(created.ok, true);
+      createdAccountIds.push(created.customerAccountId);
+
+      await prisma.customerAccount.update({
+        where: { id: created.customerAccountId },
+        data: { vehiclesImportedAt: new Date() },
+      });
+
+      const v1 = await vehicleSvc.createVehicle({
+        customerAccountId: created.customerAccountId,
+        expectedVersion: 1,
+        vehicle: { label: 'One', make: 'Toyota', model: 'Corolla' },
+      }, { prisma });
+      assert.equal(v1.ok, true);
+      const v2 = await vehicleSvc.createVehicle({
+        customerAccountId: created.customerAccountId,
+        expectedVersion: v1.accountVersion,
+        vehicle: { label: 'Two', make: 'Toyota', model: 'Camry' },
+      }, { prisma });
+      assert.equal(v2.ok, true);
+
+      // Refresh version then race set_default with same expectedVersion — one wins.
+      const account = await prisma.customerAccount.findUnique({
+        where: { id: created.customerAccountId },
+      });
+      const version = account.version;
+      const [d1, d2] = await Promise.all([
+        vehicleSvc.setDefaultVehicle({
+          customerAccountId: created.customerAccountId,
+          vehicleId: v1.vehicleId,
+          expectedVersion: version,
+        }, { prisma }),
+        vehicleSvc.setDefaultVehicle({
+          customerAccountId: created.customerAccountId,
+          vehicleId: v2.vehicleId,
+          expectedVersion: version,
+        }, { prisma }),
+      ]);
+      assert.equal([d1.ok, d2.ok].filter(Boolean).length >= 1, true);
+      const defaults = await prisma.customerVehicle.count({
+        where: {
+          customerAccountId: created.customerAccountId,
+          archivedAt: null,
+          isDefault: true,
+        },
+      });
+      assert.equal(defaults, 1);
     });
   }
 );

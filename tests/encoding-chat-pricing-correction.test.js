@@ -179,6 +179,9 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/admin-ops-jobs.js',
     // Stage 2A — authenticated profile + address management
     'netlify/functions/customer-portal-profile.js',
+    // Stage 2B — customer saved vehicles
+    'netlify/functions/customer-portal-vehicles.js',
+    'netlify/functions/customer-portal-data.js',
     // Post-release hardening — disabled-by-default identity smoke harness
     'netlify/functions/qa-customer-identity-smoke.js',
   ]);
