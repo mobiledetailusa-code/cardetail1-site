@@ -248,6 +248,33 @@
       .replace(/"/g, '&quot;');
   }
 
+  /** Stage 2B saved-vehicle card — prefers shared helper; falls back locally. */
+  function formatSavedVehicleCardHtml(vehicle, opts) {
+    var helper = (typeof CD1VehicleCard !== 'undefined' && CD1VehicleCard)
+      ? CD1VehicleCard
+      : null;
+    if (helper && typeof helper.renderSavedVehicleCardHtml === 'function') {
+      return helper.renderSavedVehicleCardHtml(vehicle, {
+        escapeHtml: esc,
+        includeActions: !(opts && opts.includeActions === false),
+      });
+    }
+    var v = vehicle || {};
+    var label = String(v.label || '').trim();
+    var identity = [v.year, v.make, v.model].filter(Boolean).join(' ');
+    var title = label || identity || v.category || 'Vehicle';
+    var metaParts = [];
+    if (v.category) metaParts.push(v.category);
+    if (v.color) metaParts.push(v.color);
+    var meta = metaParts.join(' · ');
+    var def = v.isDefault ? ' <span class="card-kicker">Default</span>' : '';
+    return '<li class="saved-vehicle-card"><div class="saved-vehicle-body">' +
+      '<div class="saved-vehicle-title"><strong>' + esc(title) + '</strong>' + def + '</div>' +
+      (label && identity ? '<div class="saved-vehicle-identity">' + esc(identity) + '</div>' : '') +
+      (meta ? '<div class="sub saved-vehicle-meta">' + esc(meta) + '</div>' : '') +
+      '</div></li>';
+  }
+
   function fmtMoney(n) {
     var v = Number(n) || 0;
     return '$' + v.toFixed(2);
@@ -962,8 +989,7 @@
             ' · ' + esc(item.service || item.package || '') + '</li>';
         });
         renderList('vehicles-list', state.vehicles || [], function (v) {
-          var label = v.label || [v.year, v.make, v.model].filter(Boolean).join(' ') || 'Vehicle';
-          return '<li>' + esc(label) + (v.category ? ' · ' + esc(v.category) : '') + '</li>';
+          return formatSavedVehicleCardHtml(v, { includeActions: true });
         });
         $('vehicle-actions') && show($('vehicle-actions'), true);
       }
@@ -1043,20 +1069,7 @@
     });
 
     renderList('vehicles-list', state.vehicles, function (v) {
-      var label = v.label || [v.year, v.make, v.model].filter(Boolean).join(' ') || 'Vehicle';
-      var def = v.isDefault ? ' <span class="card-kicker">Default</span>' : '';
-      var meta = [v.category, v.color].filter(Boolean).join(' · ');
-      return '<li>' +
-        '<div><strong>' + esc(label) + '</strong>' + def +
-        (meta ? '<div class="sub">' + esc(meta) + '</div>' : '') +
-        '</div>' +
-        '<div class="actions" style="margin-top:6px">' +
-        '<button type="button" class="btn ghost" data-vehicle-edit="' + esc(v.id) + '">Edit</button>' +
-        (!v.isDefault
-          ? '<button type="button" class="btn ghost" data-vehicle-default="' + esc(v.id) + '">Make default</button>'
-          : '') +
-        '<button type="button" class="btn ghost" data-vehicle-archive="' + esc(v.id) + '">Remove</button>' +
-        '</div></li>';
+      return formatSavedVehicleCardHtml(v, { includeActions: true });
     });
 
     var hist = (state.bookings.length ? state.bookings : [b]).filter(function (x) {

@@ -147,6 +147,7 @@ function projectVehicle(row) {
     color: row.color || null,
     notes: row.notes || null,
     isDefault: !!row.isDefault,
+    archivedAt: row.archivedAt || null,
     createdAt: row.createdAt || null,
     updatedAt: row.updatedAt || null,
   };

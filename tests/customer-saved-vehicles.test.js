@@ -414,8 +414,24 @@ describe('customer saved vehicles (Stage 2B)', () => {
     assert.match(js, /expectedVersion/);
     assert.match(js, /data-vehicle-archive/);
     assert.match(js, /openVehicleForm/);
+    assert.match(js, /formatSavedVehicleCardHtml/);
+    assert.match(js, /CD1VehicleCard/);
     assert.match(html, /id="vehicle-form"/);
     assert.match(html, /id="vh-default"/);
+    assert.match(html, /customer-vehicle-card\.js\?v=20260723-vehicles2/);
+    assert.match(html, /my-garage\.js\?v=20260723-vehicles2/);
+    // Create/edit field mapping — form controls write the API contract keys.
+    assert.match(js, /label:\s*\(\$\('vh-label'\)/);
+    assert.match(js, /category:\s*\(\$\('vh-category'\)/);
+    assert.match(js, /year:\s*\(\$\('vh-year'\)/);
+    assert.match(js, /make:\s*\(\$\('vh-make'\)/);
+    assert.match(js, /model:\s*\(\$\('vh-model'\)/);
+    assert.match(js, /color:\s*\(\$\('vh-color'\)/);
+    assert.match(js, /notes:\s*\(\$\('vh-notes'\)/);
+    assert.match(js, /\$\('vh-year'\)\.value = \(vehicle && vehicle\.year\)/);
+    assert.match(js, /\$\('vh-make'\)\.value = \(vehicle && vehicle\.make\)/);
+    assert.match(js, /\$\('vh-model'\)\.value = \(vehicle && vehicle\.model\)/);
+    assert.match(js, /\$\('vh-color'\)\.value = \(vehicle && vehicle\.color\)/);
   });
 
   it('18. native Date Sunday-before-Monday sorts chronologically first', () => {
@@ -625,5 +641,190 @@ describe('customer saved vehicles (Stage 2B)', () => {
     ]);
     assert.equal(sorted[0].id, 'cv_ok');
     assert.equal(sorted[1].id, 'cv_bad');
+  });
+
+  it('28. card HTML: label + complete identity + color + default', () => {
+    const card = require('../assets/customer-vehicle-card');
+    const html = card.renderSavedVehicleCardHtml({
+      id: 'cv_civic',
+      label: 'My Civic',
+      category: 'car',
+      year: '2020',
+      make: 'Honda',
+      model: 'Civic',
+      color: 'Black',
+      isDefault: true,
+    });
+    assert.match(html, /<strong>My Civic<\/strong>/);
+    assert.match(html, /saved-vehicle-identity[^>]*>2020 Honda Civic</);
+    assert.match(html, /saved-vehicle-meta[^>]*>Car · Black</);
+    assert.match(html, /card-kicker">Default</);
+    assert.doesNotMatch(html, />Color</);
+    assert.doesNotMatch(html, /undefined|null/);
+  });
+
+  it('29. card HTML: no label uses identity as title', () => {
+    const card = require('../assets/customer-vehicle-card');
+    const html = card.renderSavedVehicleCardHtml({
+      id: 'cv_1',
+      category: 'suv',
+      year: '2019',
+      make: 'Toyota',
+      model: 'RAV4',
+      color: 'Silver',
+      isDefault: false,
+    }, { includeActions: false });
+    assert.match(html, /<strong>2019 Toyota RAV4<\/strong>/);
+    assert.doesNotMatch(html, /saved-vehicle-identity/);
+    assert.match(html, /SUV · Silver/);
+  });
+
+  it('30. card HTML: partial identity and category-only fallback', () => {
+    const card = require('../assets/customer-vehicle-card');
+    const partial = card.renderSavedVehicleCardHtml({
+      id: 'cv_p',
+      make: 'Ford',
+      model: 'F-150',
+      category: 'truck',
+    }, { includeActions: false });
+    assert.match(partial, /<strong>Ford F-150<\/strong>/);
+    assert.match(partial, /Truck/);
+
+    const catOnly = card.renderSavedVehicleCardHtml({
+      id: 'cv_c',
+      category: 'boat',
+    }, { includeActions: false });
+    assert.match(catOnly, /<strong>Boat<\/strong>/);
+  });
+
+  it('31. card HTML: never shows Color label or helper-description leakage', () => {
+    const card = require('../assets/customer-vehicle-card');
+    const html = card.renderSavedVehicleCardHtml({
+      id: 'cv_x',
+      label: 'Daily',
+      category: 'Choose a vehicle category for accurate pricing',
+      color: '',
+      year: '2021',
+      make: 'Honda',
+      model: 'Accord',
+    }, { includeActions: false });
+    assert.match(html, /<strong>Daily<\/strong>/);
+    assert.match(html, /2021 Honda Accord/);
+    assert.doesNotMatch(html, /Choose a vehicle category/);
+    assert.doesNotMatch(html, />Color</);
+    assert.doesNotMatch(html, /accurate pricing/);
+  });
+
+  it('32. card HTML escapes label/make/model/color against XSS', () => {
+    const card = require('../assets/customer-vehicle-card');
+    const html = card.renderSavedVehicleCardHtml({
+      id: 'cv_xss',
+      label: '<img src=x onerror=alert(1)>',
+      year: '2020',
+      make: '<script>evil</script>',
+      model: 'X&Y',
+      color: '"Red"',
+      category: 'car',
+    }, { includeActions: false });
+    assert.doesNotMatch(html, /<img src=x/);
+    assert.doesNotMatch(html, /<script>evil/);
+    assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+    assert.match(html, /&lt;script&gt;evil&lt;\/script&gt;/);
+    assert.match(html, /X&amp;Y/);
+    assert.match(html, /&quot;Red&quot;/);
+  });
+
+  it('33. projectVehicle API contract includes identity fields without owner keys', async () => {
+    const svc = reloadService();
+    svc.setPrismaForTests(prisma);
+    const account = await seedAccount(prisma, {
+      email: 'card-api@example.test',
+      phone: '2015550188',
+    });
+    const created = await svc.createVehicle({
+      customerAccountId: account.id,
+      expectedVersion: 1,
+      vehicle: {
+        label: 'My Civic',
+        category: 'car',
+        year: '2020',
+        make: 'Honda',
+        model: 'Civic',
+        color: 'Black',
+        notes: 'QA STAGE2B SYNTHETIC',
+        isDefault: true,
+      },
+    });
+    assert.equal(created.ok, true);
+    const listed = await svc.listVehicles(account.id);
+    assert.equal(listed.ok, true);
+    assert.equal(listed.vehicles.length, 1);
+    const v = listed.vehicles[0];
+    for (const key of [
+      'id', 'label', 'category', 'year', 'make', 'model', 'color',
+      'notes', 'isDefault', 'archivedAt', 'createdAt', 'updatedAt',
+    ]) {
+      assert.ok(Object.prototype.hasOwnProperty.call(v, key), `missing ${key}`);
+    }
+    assert.equal(v.label, 'My Civic');
+    assert.equal(v.year, '2020');
+    assert.equal(v.make, 'Honda');
+    assert.equal(v.model, 'Civic');
+    assert.equal(v.color, 'Black');
+    assert.equal(v.archivedAt, null);
+    assert.equal(Object.prototype.hasOwnProperty.call(v, 'customerAccountId'), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(v, 'legacySourceId'), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(v, 'phone'), false);
+
+    const card = require('../assets/customer-vehicle-card');
+    const html = card.renderSavedVehicleCardHtml(v);
+    assert.match(html, /My Civic/);
+    assert.match(html, /2020 Honda Civic/);
+    assert.match(html, /Car · Black/);
+  });
+
+  it('34. create then update persists identity fields for card refresh', async () => {
+    const svc = reloadService();
+    svc.setPrismaForTests(prisma);
+    const account = await seedAccount(prisma, {
+      email: 'card-edit@example.test',
+      phone: '2015550187',
+    });
+    const created = await svc.createVehicle({
+      customerAccountId: account.id,
+      expectedVersion: 1,
+      vehicle: {
+        label: 'QA STAGE2B A',
+        category: 'car',
+        year: '2018',
+        make: 'Honda',
+        model: 'Fit',
+        color: 'Blue',
+      },
+    });
+    assert.equal(created.ok, true);
+    const updated = await svc.updateVehicle({
+      customerAccountId: account.id,
+      vehicleId: created.vehicleId,
+      expectedVersion: created.accountVersion,
+      vehicle: {
+        label: 'QA STAGE2B B',
+        year: '2022',
+        make: 'Honda',
+        model: 'Civic',
+        color: 'Black',
+      },
+    });
+    assert.equal(updated.ok, true);
+    const listed = await svc.listVehicles(account.id);
+    const v = listed.vehicles[0];
+    assert.equal(v.label, 'QA STAGE2B B');
+    assert.equal(v.year, '2022');
+    assert.equal(v.model, 'Civic');
+    assert.equal(v.color, 'Black');
+    const html = require('../assets/customer-vehicle-card').renderSavedVehicleCardHtml(v);
+    assert.match(html, /QA STAGE2B B/);
+    assert.match(html, /2022 Honda Civic/);
+    assert.match(html, /Black/);
   });
 });
