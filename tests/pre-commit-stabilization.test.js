@@ -286,6 +286,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/customer-address-service.js',
     'netlify/functions/customer-portal-profile.js',
     'netlify/lib/public-rate-limit.js',
+    // Post-release hardening — disabled-by-default identity smoke harness
+    'netlify/functions/qa-customer-identity-smoke.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);
