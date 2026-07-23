@@ -153,11 +153,15 @@ model CustomerAccount {
   version             Int                   @default(1)
   stripeCustomerId    String?               @unique
   mergedIntoAccountId String?
+  /// Set when legacy Blob vehicles have been imported (or confirmed empty).
+  /// Null means migrate-on-access has not completed yet.
+  vehiclesImportedAt  DateTime?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
   profile    CustomerProfile?
   addresses  CustomerAddress[]
+  vehicles   CustomerVehicle[]
   consents   CustomerConsent[]
   bookings   Booking[]
   mergedInto CustomerAccount?  @relation("AccountMerge", fields: [mergedIntoAccountId], references: [id])
@@ -209,6 +213,33 @@ model CustomerAddress {
   account CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
 
   @@index([customerAccountId])
+  @@index([customerAccountId, isDefault])
+}
+
+/// Account-owned saved garage vehicles (Stage 2B). Independent from booking/job Vehicle rows.
+/// Soft-archive via archivedAt. Exactly zero or one active default per account (app-enforced).
+/// legacySourceId uniquely identifies an imported Blob vehicle (`blob:<legacyId>`).
+model CustomerVehicle {
+  id                String    @id @default(cuid())
+  customerAccountId String
+  label             String?
+  category          String?
+  year              String?
+  make              String?
+  model             String?
+  color             String?
+  notes             String?
+  isDefault         Boolean   @default(false)
+  archivedAt        DateTime?
+  legacySourceId    String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  account CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([customerAccountId, legacySourceId])
+  @@index([customerAccountId])
+  @@index([customerAccountId, archivedAt])
   @@index([customerAccountId, isDefault])
 }
 
