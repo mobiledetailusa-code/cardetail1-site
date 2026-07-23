@@ -24,6 +24,7 @@ const {
 } = require('./customer-account-service');
 const {
   ALLOWED_CATEGORIES,
+  LEGACY_SOURCE_UNAVAILABLE,
   normalizeLegacyVehicleFields,
   readLegacyVehiclesForPhone,
 } = require('./customer-vehicles-legacy');
@@ -32,6 +33,7 @@ const VERSION_CONFLICT = 'version_conflict';
 const VALIDATION_ERROR = 'validation_error';
 const NOT_FOUND = 'not_found';
 const UNAVAILABLE = 'unavailable';
+const TEMPORARILY_UNAVAILABLE = 'temporarily_unavailable';
 
 const MAX_LABEL = 120;
 const MAX_COLOR = 40;
@@ -150,11 +152,32 @@ function projectVehicle(row) {
   };
 }
 
+/**
+ * Chronological compare for Prisma DateTime values (Date or ISO string).
+ * Invalid/unparseable timestamps sort last (never NaN-unstable).
+ * Tie-break: id ascending.
+ */
+function createdAtTimestamp(value) {
+  if (value == null || value === '') return Number.POSITIVE_INFINITY;
+  const ms = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
+}
+
+function compareCreatedAtAsc(a, b) {
+  const timeA = createdAtTimestamp(a?.createdAt);
+  const timeB = createdAtTimestamp(b?.createdAt);
+  if (timeA !== timeB) return timeA - timeB;
+  return String(a?.id || '').localeCompare(String(b?.id || ''));
+}
+
+/**
+ * Active list UI contract: default first, then createdAt ASC, id ASC.
+ */
 function sortActiveVehicles(rows) {
   const list = Array.isArray(rows) ? [...rows] : [];
   list.sort((a, b) => {
     if (!!a.isDefault !== !!b.isDefault) return a.isDefault ? -1 : 1;
-    return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+    return compareCreatedAtAsc(a, b);
   });
   return list;
 }
@@ -201,6 +224,13 @@ function mapTxnError(err, fallbackMessage) {
       message: 'Account changed elsewhere. Reload and try again.',
     };
   }
+  if (err && err.code === LEGACY_SOURCE_UNAVAILABLE) {
+    return {
+      ok: false,
+      error: TEMPORARILY_UNAVAILABLE,
+      message: 'Vehicle garage is temporarily unavailable. Try again shortly.',
+    };
+  }
   return { ok: false, error: UNAVAILABLE, message: fallbackMessage };
 }
 
@@ -223,18 +253,16 @@ async function clearOtherDefaults(tx, customerAccountId, exceptId) {
 
 /**
  * Promote oldest remaining active vehicle after default archive.
- * Deterministic: createdAt ASC, then id ASC.
+ * Deterministic: createdAt ASC, then id ASC (DB orderBy + in-memory safety net).
  */
 async function promoteOldestActiveDefault(tx, customerAccountId) {
   const remaining = await tx.customerVehicle.findMany({
     where: { customerAccountId, archivedAt: null },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
   if (!remaining.length) return null;
-  remaining.sort((a, b) => {
-    const c = String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
-    if (c !== 0) return c;
-    return String(a.id).localeCompare(String(b.id));
-  });
+  // Safety net for test doubles / drivers that ignore orderBy.
+  remaining.sort(compareCreatedAtAsc);
   const next = remaining[0];
   await clearOtherDefaults(tx, customerAccountId, null);
   await tx.customerVehicle.update({
@@ -311,8 +339,16 @@ async function importLegacyVehiclesForAccount(customerAccountId, opts = {}) {
 
       let legacyVehicles = [];
       if (phoneDigits) {
+        // Propagate Blob source failures so the transaction rolls back and
+        // vehiclesImportedAt is NOT committed (retry on next access).
         const legacy = await readLegacyForImport(phoneDigits);
-        legacyVehicles = Array.isArray(legacy?.vehicles) ? legacy.vehicles : [];
+        if (!legacy || legacy.ok === false) {
+          const err = new Error(LEGACY_SOURCE_UNAVAILABLE);
+          err.code = LEGACY_SOURCE_UNAVAILABLE;
+          err.causeCode = legacy?.error || 'legacy_reader_failed';
+          throw err;
+        }
+        legacyVehicles = Array.isArray(legacy.vehicles) ? legacy.vehicles : [];
       }
 
       let importedCount = 0;
@@ -430,6 +466,7 @@ async function listVehicles(customerAccountId, opts = {}) {
 
   const rows = await prisma.customerVehicle.findMany({
     where: { customerAccountId: String(customerAccountId), archivedAt: null },
+    orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
   });
   const vehicles = sortActiveVehicles(rows).map(projectVehicle);
   return {
@@ -817,11 +854,16 @@ module.exports = {
   VALIDATION_ERROR,
   NOT_FOUND,
   UNAVAILABLE,
+  TEMPORARILY_UNAVAILABLE,
+  LEGACY_SOURCE_UNAVAILABLE,
   ALLOWED_CATEGORIES,
   setPrismaForTests,
   setLegacyReaderForTests,
   normalizeVehicleFields,
   projectVehicle,
+  createdAtTimestamp,
+  compareCreatedAtAsc,
+  sortActiveVehicles,
   listVehicles,
   createVehicle,
   updateVehicle,
