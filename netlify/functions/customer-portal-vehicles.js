@@ -89,6 +89,16 @@ function mapServiceError(result) {
       },
     };
   }
+  if (err === vehicleService.TEMPORARILY_UNAVAILABLE || err === 'temporarily_unavailable') {
+    return {
+      status: 503,
+      body: {
+        ok: false,
+        error: 'temporarily_unavailable',
+        message: result.message || 'Vehicle garage is temporarily unavailable. Try again shortly.',
+      },
+    };
+  }
   return {
     status: 503,
     body: {
