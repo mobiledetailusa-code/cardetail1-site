@@ -16,10 +16,27 @@ const MAX_AUTH_ATTEMPTS = 5;
 const COOKIE_NAME = 'cd1_customer_session';
 
 let sessionStoreFactoryOverride = null;
+let productionCustomerSecretFallbackWarned = false;
 
 function sessionSecret() {
-  const primary = String(process.env.CUSTOMER_SESSION_SECRET || process.env.ADMIN_SESSION_SECRET || '').trim();
-  if (primary.length >= 32) return primary;
+  // Prefer a dedicated customer secret so customer cookies are cryptographically
+  // separated from admin sessions. Production should set CUSTOMER_SESSION_SECRET.
+  const customer = String(process.env.CUSTOMER_SESSION_SECRET || '').trim();
+  if (customer.length >= 32) return customer;
+
+  const admin = String(process.env.ADMIN_SESSION_SECRET || '').trim();
+  if (admin.length >= 32) {
+    const ctx = String(process.env.CONTEXT || '').toLowerCase();
+    if (ctx === 'production' && !productionCustomerSecretFallbackWarned) {
+      productionCustomerSecretFallbackWarned = true;
+      // Non-PII operational warning only — never log the secret value.
+      console.warn(
+        '[customer-session] CUSTOMER_SESSION_SECRET missing in production; falling back to ADMIN_SESSION_SECRET. Configure a dedicated CUSTOMER_SESSION_SECRET (32+ chars) for cryptographic separation.'
+      );
+    }
+    return admin;
+  }
+
   const ctx = String(process.env.CONTEXT || '').toLowerCase();
   const isProd = ctx === 'production';
   if (!isProd) {

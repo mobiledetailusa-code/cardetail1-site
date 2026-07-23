@@ -301,6 +301,8 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/admin-ops-jobs.js',
     // Stage 2A — authenticated profile + address management
     'netlify/functions/customer-portal-profile.js',
+    // Post-release hardening — disabled-by-default identity smoke harness
+    'netlify/functions/qa-customer-identity-smoke.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);

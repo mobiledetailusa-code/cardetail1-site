@@ -117,6 +117,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/admin-ops-jobs.js',
   // Stage 2A — authenticated profile + address management
   'netlify/functions/customer-portal-profile.js',
+  // Post-release hardening — disabled-by-default identity smoke harness
+  'netlify/functions/qa-customer-identity-smoke.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {
