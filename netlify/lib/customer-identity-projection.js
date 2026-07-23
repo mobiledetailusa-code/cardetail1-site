@@ -57,6 +57,23 @@ function projectAddresses(addresses) {
     }));
 }
 
+function projectVehicles(vehicles) {
+  if (!Array.isArray(vehicles)) return [];
+  return vehicles
+    .filter((v) => !v.archivedAt)
+    .map((v) => ({
+      id: v.id,
+      label: v.label || null,
+      category: v.category || null,
+      year: v.year || null,
+      make: v.make || null,
+      model: v.model || null,
+      color: v.color || null,
+      notes: v.notes || null,
+      isDefault: !!v.isDefault,
+    }));
+}
+
 function projectConsents(consents) {
   const channels = [
     'email_transactional',
@@ -92,12 +109,16 @@ function projectCustomerIdentity(graph, {
 
   const addresses = projectAddresses(graph.addresses);
   const defaultAddressId = addresses.find((a) => a.isDefault)?.id || null;
+  const vehicles = projectVehicles(graph.vehicles);
+  const defaultVehicleId = vehicles.find((v) => v.isDefault)?.id || null;
 
   return {
     customerAccountId: graph.id,
     profile: projectProfile(graph.profile),
     addresses,
     defaultAddressId,
+    vehicles,
+    defaultVehicleId,
     consents: projectConsents(graph.consents),
     accountVersion: graph.version,
     accountStatus: graph.status,
@@ -105,6 +126,7 @@ function projectCustomerIdentity(graph, {
     migration: {
       linkStatus,
       linkedBookingCount: bookingCount,
+      vehiclesImported: !!graph.vehiclesImportedAt,
     },
   };
 }
@@ -125,6 +147,21 @@ function defaultAddressSummary(addresses) {
     city: preferred.city || null,
     state: preferred.state || null,
     postalCode: preferred.postalCode || null,
+    isDefault: true,
+  };
+}
+
+function defaultVehicleSummary(vehicles) {
+  const active = (vehicles || []).filter((v) => !v.archivedAt);
+  const preferred = active.find((v) => v.isDefault) || null;
+  if (!preferred) return null;
+  const label = preferred.label
+    || [preferred.year, preferred.make, preferred.model].filter(Boolean).join(' ')
+    || null;
+  return {
+    id: preferred.id,
+    label,
+    category: preferred.category || null,
     isDefault: true,
   };
 }
@@ -166,6 +203,10 @@ function projectCustomerAccountForAdmin(graph, {
   }
 
   const activeAddresses = (graph.addresses || []).filter((a) => !a.archivedAt);
+  const activeVehicles = (graph.vehicles || []).filter((v) => !v.archivedAt);
+  const derivedVehicleCount = linkedVehicleCount == null
+    ? activeVehicles.length
+    : Number(linkedVehicleCount);
 
   return {
     customerAccountId: graph.id,
@@ -174,10 +215,12 @@ function projectCustomerAccountForAdmin(graph, {
     phone: profile.phone || null,
     defaultAddress: defaultAddressSummary(graph.addresses),
     activeAddressCount: activeAddresses.length,
+    defaultVehicle: defaultVehicleSummary(graph.vehicles),
+    activeVehicleCount: activeVehicles.length,
     profileUpdatedAt: profile.updatedAt || null,
     linkedBookingCount: bookingIds.length,
     linkedBookingIds: bookingIds.slice(0, 100),
-    linkedVehicleCount: linkedVehicleCount == null ? null : Number(linkedVehicleCount),
+    linkedVehicleCount: derivedVehicleCount,
     accountStatus: graph.status,
     accountVersion: graph.version,
     consents: consentSummary(graph.consents),
@@ -242,6 +285,7 @@ module.exports = {
   EXISTING_CUSTOMER_ROLE,
   projectProfile,
   projectAddresses,
+  projectVehicles,
   projectConsents,
   projectCustomerIdentity,
   projectCustomerAccountForAdmin,

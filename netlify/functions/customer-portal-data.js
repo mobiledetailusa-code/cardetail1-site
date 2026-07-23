@@ -6,7 +6,7 @@ const { projectBookingForCustomer } = require('../lib/ops-schema');
 const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
 const { validateCustomerSession } = require('../lib/customer-session');
 const { phonesMatch, normalizeUsPhoneDigits } = require('../lib/phone-auth');
-const { listVehiclesForOwner } = require('../lib/customer-vehicles');
+const { listVehicles } = require('../lib/customer-vehicle-service');
 const { listVisibleRequestsForBooking } = require('../lib/customer-change-requests');
 const { canPayBalance } = require('../lib/appointment-status-policy');
 const { catalogForClient } = require('../lib/customer-catalog');
@@ -264,7 +264,17 @@ exports.handler = async (event) => {
   const projected = bookings
     .map((b) => projectBookingForCustomer(b))
     .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
-  const vehicles = phoneDigits ? await listVehiclesForOwner(phoneDigits) : [];
+  let vehicles = [];
+  if (session.customerAccountId) {
+    try {
+      const vehicleList = await listVehicles(session.customerAccountId, {
+        phoneDigits: phoneDigits || null,
+      });
+      if (vehicleList.ok) vehicles = vehicleList.vehicles || [];
+    } catch {
+      vehicles = [];
+    }
+  }
   const upcoming = selectUpcoming(projected);
   const payment = upcoming
     ? await safePaymentStateAsync(bookings.find((b) => (b.id || b.bookingId) === upcoming.id) || {})
