@@ -35,6 +35,8 @@
   /** Profile / address edit UI state (account scope only). */
   var profileEditing = false;
   var addressEditingId = null;
+  var vehicleEditingId = null;
+  var vehicleFormPending = false;
   var profileAddressBusy = false;
 
   function $(id) { return document.getElementById(id); }
@@ -473,6 +475,7 @@
 
   function isAuthenticatedPortalCall(fn, body) {
     if (fn === 'customer-portal-profile') return true;
+    if (fn === 'customer-portal-vehicles') return true;
     if (fn === 'customer-portal-data' && body && String(body.mode || '').toLowerCase() === 'account') return true;
     if (fn === 'customer-portal-auth' && body && String(body.action || '') === 'session') return false;
     if (fn === 'customer-portal-auth' && body && String(body.action || '') === 'logout') return false;
@@ -488,6 +491,8 @@
     opts = opts || {};
     profileEditing = false;
     addressEditingId = null;
+    vehicleEditingId = null;
+    vehicleFormPending = false;
     profileAddressBusy = false;
     closeModalQuiet();
     state.scope = null;
@@ -1039,7 +1044,19 @@
 
     renderList('vehicles-list', state.vehicles, function (v) {
       var label = v.label || [v.year, v.make, v.model].filter(Boolean).join(' ') || 'Vehicle';
-      return '<li>' + esc(label) + (v.category ? ' · ' + esc(v.category) : '') + '</li>';
+      var def = v.isDefault ? ' <span class="card-kicker">Default</span>' : '';
+      var meta = [v.category, v.color].filter(Boolean).join(' · ');
+      return '<li>' +
+        '<div><strong>' + esc(label) + '</strong>' + def +
+        (meta ? '<div class="sub">' + esc(meta) + '</div>' : '') +
+        '</div>' +
+        '<div class="actions" style="margin-top:6px">' +
+        '<button type="button" class="btn ghost" data-vehicle-edit="' + esc(v.id) + '">Edit</button>' +
+        (!v.isDefault
+          ? '<button type="button" class="btn ghost" data-vehicle-default="' + esc(v.id) + '">Make default</button>'
+          : '') +
+        '<button type="button" class="btn ghost" data-vehicle-archive="' + esc(v.id) + '">Remove</button>' +
+        '</div></li>';
     });
 
     var hist = (state.bookings.length ? state.bookings : [b]).filter(function (x) {
@@ -1050,14 +1067,142 @@
         ' · ' + fmtMoney(item.approvedFinalAmount != null ? item.approvedFinalAmount : item.totalPrice) + '</li>';
     });
 
-    $('vehicles-empty') && show($('vehicles-empty'), !state.vehicles.length);
+    var vehFormOpen = !!(vehicleEditingId !== null || ($('vehicle-form') && !$('vehicle-form').hidden));
+    $('vehicles-empty') && show($('vehicles-empty'), !state.vehicles.length && !vehFormOpen);
     $('history-empty') && show($('history-empty'), !hist.length);
     $('comm-empty') && show($('comm-empty'), true);
-    $('vehicle-actions') && show($('vehicle-actions'), state.scope === 'account');
+    $('vehicle-actions') && show($('vehicle-actions'), state.scope === 'account' && !vehFormOpen);
     var approveBtn = $('btn-approve-completion');
     var issueBtn = $('btn-report-issue');
     if (approveBtn) show(approveBtn, b.customerApprovalStatus === 'pending' || b.jobStatus === 'completed_pending_payment');
     if (issueBtn) show(issueBtn, ['completed_pending_payment', 'completed_pending_admin_review', 'awaiting_customer_action'].indexOf(b.jobStatus) >= 0 || b.serviceStatus === 'awaiting_customer_action');
+  }
+
+  function setVehicleMsg(text, isErr) {
+    var el = $('vehicle-msg');
+    if (!el) return;
+    if (!text) {
+      el.hidden = true;
+      el.textContent = '';
+      el.classList.remove('err');
+      return;
+    }
+    el.hidden = false;
+    el.textContent = text;
+    el.classList.toggle('err', !!isErr);
+  }
+
+  function openVehicleForm(vehicle) {
+    vehicleEditingId = vehicle ? vehicle.id : '';
+    var form = $('vehicle-form');
+    if (!form) return;
+    form.hidden = false;
+    if ($('vh-id')) $('vh-id').value = vehicle ? vehicle.id : '';
+    if ($('vh-label')) $('vh-label').value = (vehicle && vehicle.label) || '';
+    if ($('vh-category')) $('vh-category').value = (vehicle && vehicle.category) || 'car';
+    if ($('vh-year')) $('vh-year').value = (vehicle && vehicle.year) || '';
+    if ($('vh-make')) $('vh-make').value = (vehicle && vehicle.make) || '';
+    if ($('vh-model')) $('vh-model').value = (vehicle && vehicle.model) || '';
+    if ($('vh-color')) $('vh-color').value = (vehicle && vehicle.color) || '';
+    if ($('vh-notes')) $('vh-notes').value = (vehicle && vehicle.notes) || '';
+    if ($('vh-default')) $('vh-default').checked = !!(vehicle && vehicle.isDefault);
+    show($('vehicle-actions'), false);
+    if ($('vehicles-empty')) show($('vehicles-empty'), false);
+    setVehicleMsg('', false);
+  }
+
+  function closeVehicleForm() {
+    vehicleEditingId = null;
+    var form = $('vehicle-form');
+    if (form) form.hidden = true;
+    show($('vehicle-actions'), state.scope === 'account');
+    if ($('vehicles-empty')) show($('vehicles-empty'), !(state.vehicles && state.vehicles.length));
+    setVehicleMsg('', false);
+  }
+
+  function accountVersionForMutation() {
+    return (state.customer && state.customer.accountVersion)
+      || state.accountVersion
+      || null;
+  }
+
+  async function saveVehicleForm(e) {
+    if (e) e.preventDefault();
+    if (vehicleFormPending) return;
+    var expectedVersion = accountVersionForMutation();
+    if (!expectedVersion) {
+      setVehicleMsg('Session outdated. Refresh and try again.', true);
+      return;
+    }
+    var payload = {
+      label: ($('vh-label') && $('vh-label').value.trim()) || '',
+      category: ($('vh-category') && $('vh-category').value) || 'car',
+      year: ($('vh-year') && $('vh-year').value.trim()) || '',
+      make: ($('vh-make') && $('vh-make').value.trim()) || '',
+      model: ($('vh-model') && $('vh-model').value.trim()) || '',
+      color: ($('vh-color') && $('vh-color').value.trim()) || '',
+      notes: ($('vh-notes') && $('vh-notes').value.trim()) || '',
+      isDefault: !!($('vh-default') && $('vh-default').checked),
+    };
+    if (!payload.label && !(payload.make && payload.model)) {
+      setVehicleMsg('Enter a label or make and model.', true);
+      return;
+    }
+    vehicleFormPending = true;
+    setVehicleMsg('Saving…', false);
+    try {
+      var action = vehicleEditingId ? 'update' : 'add';
+      var body = {
+        expectedVersion: expectedVersion,
+        vehicle: payload,
+      };
+      if (vehicleEditingId) body.vehicleId = vehicleEditingId;
+      var ok = await vehicleAction(action, body);
+      if (ok) {
+        closeVehicleForm();
+        setVehicleMsg('Vehicle saved.', false);
+      } else {
+        setVehicleMsg('Could not save vehicle. Try again.', true);
+      }
+    } finally {
+      vehicleFormPending = false;
+    }
+  }
+
+  async function setDefaultVehicle(vehicleId) {
+    if (vehicleFormPending) return;
+    var expectedVersion = accountVersionForMutation();
+    if (!expectedVersion) {
+      setVehicleMsg('Session outdated. Refresh and try again.', true);
+      return;
+    }
+    vehicleFormPending = true;
+    try {
+      await vehicleAction('set_default', {
+        vehicleId: vehicleId,
+        expectedVersion: expectedVersion,
+      });
+    } finally {
+      vehicleFormPending = false;
+    }
+  }
+
+  async function archiveSavedVehicle(vehicleId) {
+    if (vehicleFormPending) return;
+    var expectedVersion = accountVersionForMutation();
+    if (!expectedVersion) {
+      setVehicleMsg('Session outdated. Refresh and try again.', true);
+      return;
+    }
+    vehicleFormPending = true;
+    try {
+      await vehicleAction('archive', {
+        vehicleId: vehicleId,
+        expectedVersion: expectedVersion,
+      });
+    } finally {
+      vehicleFormPending = false;
+    }
   }
 
   function renderProfileAndAddresses() {
@@ -1415,12 +1560,27 @@
 
   async function vehicleAction(action, payload) {
     var r = await post('customer-portal-vehicles', Object.assign({ action: action }, payload || {}));
+    if (r.status === 401) {
+      setVehicleMsg('Sign in again to manage vehicles.', true);
+      return false;
+    }
     if (r.data && r.data.ok) {
+      if (r.data.accountVersion != null) {
+        state.accountVersion = r.data.accountVersion;
+        if (state.customer) state.customer.accountVersion = r.data.accountVersion;
+      }
+      if (Array.isArray(r.data.vehicles)) state.vehicles = r.data.vehicles;
       showToast('Vehicle updated.');
       await loadAccount();
       return true;
     }
+    if (r.data && r.data.error === 'version_conflict') {
+      setVehicleMsg('Account changed elsewhere. Reloading…', true);
+      await loadAccount();
+      return false;
+    }
     showToast((r.data && r.data.message) || 'Vehicle update failed.', true);
+    setVehicleMsg((r.data && r.data.message) || 'Vehicle update failed.', true);
     return false;
   }
 
@@ -2416,7 +2576,47 @@
       vehActions.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-vehicle-action]');
         if (!btn) return;
-        if (btn.getAttribute('data-vehicle-action') === 'add') openActionModal('vehicle_add');
+        if (btn.getAttribute('data-vehicle-action') === 'add') openVehicleForm(null);
+      });
+    }
+    var vehiclesList = $('vehicles-list');
+    if (vehiclesList) {
+      vehiclesList.addEventListener('click', function (e) {
+        var editBtn = e.target.closest('[data-vehicle-edit]');
+        if (editBtn) {
+          var editId = editBtn.getAttribute('data-vehicle-edit');
+          var found = (state.vehicles || []).find(function (v) { return v.id === editId; });
+          openVehicleForm(found || { id: editId });
+          return;
+        }
+        var defBtn = e.target.closest('[data-vehicle-default]');
+        if (defBtn) {
+          setDefaultVehicle(defBtn.getAttribute('data-vehicle-default'));
+          return;
+        }
+        var archBtn = e.target.closest('[data-vehicle-archive]');
+        if (archBtn) {
+          archiveSavedVehicle(archBtn.getAttribute('data-vehicle-archive'));
+        }
+      });
+    }
+    var vehicleForm = $('vehicle-form');
+    if (vehicleForm) {
+      vehicleForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        saveVehicleForm(e);
+      });
+    }
+    var vhCancel = $('vh-cancel');
+    if (vhCancel) {
+      vhCancel.addEventListener('click', function () {
+        closeVehicleForm();
+      });
+    }
+    var vhAddBtn = $('vh-add-btn');
+    if (vhAddBtn) {
+      vhAddBtn.addEventListener('click', function () {
+        openVehicleForm(null);
       });
     }
     var modalSubmit = $('modal-submit');

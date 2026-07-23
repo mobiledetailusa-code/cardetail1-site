@@ -235,9 +235,44 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
       <h3 id="veh-h">My Vehicles</h3>
       <p id="vehicles-empty" class="empty">No saved vehicles yet. After signing in, you can add vehicles for faster rebooking.</p>
       <ul class="clean" id="vehicles-list"></ul>
+      <form id="vehicle-form" hidden autocomplete="off">
+        <input type="hidden" id="vh-id" value="">
+        <label for="vh-label" class="sub">Label (optional)</label>
+        <input class="inp" id="vh-label" name="label" maxlength="120" placeholder="Daily driver">
+        <label for="vh-category" class="sub">Category</label>
+        <select class="inp" id="vh-category" name="category">
+          <option value="car">Car</option>
+          <option value="suv">SUV</option>
+          <option value="truck">Truck</option>
+          <option value="van">Van</option>
+          <option value="boat">Boat</option>
+          <option value="rv">RV</option>
+          <option value="motorcycle">Motorcycle</option>
+          <option value="atv">ATV</option>
+          <option value="other">Other</option>
+        </select>
+        <label for="vh-year" class="sub">Year</label>
+        <input class="inp" id="vh-year" name="year" maxlength="4" inputmode="numeric" placeholder="2020">
+        <label for="vh-make" class="sub">Make</label>
+        <input class="inp" id="vh-make" name="make" maxlength="60" placeholder="Honda">
+        <label for="vh-model" class="sub">Model</label>
+        <input class="inp" id="vh-model" name="model" maxlength="60" placeholder="Accord">
+        <label for="vh-color" class="sub">Color (optional)</label>
+        <input class="inp" id="vh-color" name="color" maxlength="40">
+        <label for="vh-notes" class="sub">Notes (optional)</label>
+        <input class="inp" id="vh-notes" name="notes" maxlength="500">
+        <label class="sub" style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <input type="checkbox" id="vh-default" name="isDefault"> Set as default vehicle
+        </label>
+        <div class="actions" style="margin-top:10px">
+          <button type="submit" class="btn primary" id="vh-save">Save vehicle</button>
+          <button type="button" class="btn ghost" id="vh-cancel">Cancel</button>
+        </div>
+      </form>
       <div class="actions" id="vehicle-actions" hidden>
-        <button type="button" class="btn ghost" data-vehicle-action="add">Add Vehicle</button>
+        <button type="button" class="btn ghost" id="vh-add-btn" data-vehicle-action="add">Add Vehicle</button>
       </div>
+      <p id="vehicle-msg" class="msg" hidden></p>
     </section>
 
     <section class="section" aria-labelledby="hist-h">
@@ -292,7 +327,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 <script src="https://js.stripe.com/v3/"></script>
 <script src="assets/portal-analytics.js" defer></script>
 <script src="assets/operational-refresh.js" defer></script>
-<script src="assets/my-garage.js?v=20260722-profile1" defer></script>
+<script src="assets/my-garage.js?v=20260723-vehicles1" defer></script>
 <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>
