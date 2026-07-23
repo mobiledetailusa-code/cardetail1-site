@@ -115,6 +115,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/customer-balance-payment-intent.js',
   'netlify/functions/customer-portal-data.js',
   'netlify/functions/admin-ops-jobs.js',
+  // Stage 2A — authenticated profile + address management
+  'netlify/functions/customer-portal-profile.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {

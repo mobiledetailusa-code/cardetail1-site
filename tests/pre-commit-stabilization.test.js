@@ -281,6 +281,11 @@ test('Netlify Function changes vs production master are limited to approved RevO
     // Customer Identity Foundation Stage 1 — account resolution + safe projections
     'netlify/lib/customer-account-service.js',
     'netlify/lib/customer-identity-projection.js',
+    // Stage 2A — authenticated profile + address management
+    'netlify/lib/customer-profile-service.js',
+    'netlify/lib/customer-address-service.js',
+    'netlify/functions/customer-portal-profile.js',
+    'netlify/lib/public-rate-limit.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

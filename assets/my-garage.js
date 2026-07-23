@@ -19,6 +19,8 @@
     packageCatalog: null,
     changeRequests: [],
     payment: null,
+    customer: null,
+    accountVersion: null,
   };
 
   var modalAction = null;
@@ -30,6 +32,10 @@
   var modalOpenerEl = null;
   /** Selected vehicleId inside the Change Package modal (multi-vehicle). */
   var packageModalVehicleId = '';
+  /** Profile / address edit UI state (account scope only). */
+  var profileEditing = false;
+  var addressEditingId = null;
+  var profileAddressBusy = false;
 
   function $(id) { return document.getElementById(id); }
 
@@ -459,7 +465,104 @@
       body: JSON.stringify(body || {}),
     });
     var data = await res.json().catch(function () { return {}; });
+    if (res.status === 401 && isAuthenticatedPortalCall(fn, body)) {
+      clearAuthenticatedCustomerState({ reason: 'http_401' });
+    }
     return { ok: res.ok, status: res.status, data: data };
+  }
+
+  function isAuthenticatedPortalCall(fn, body) {
+    if (fn === 'customer-portal-profile') return true;
+    if (fn === 'customer-portal-data' && body && String(body.mode || '').toLowerCase() === 'account') return true;
+    if (fn === 'customer-portal-auth' && body && String(body.action || '') === 'session') return false;
+    if (fn === 'customer-portal-auth' && body && String(body.action || '') === 'logout') return false;
+    return false;
+  }
+
+  /**
+   * Immediately clear rendered authenticated customer/profile/address/booking
+   * state. Does not clear unrelated public booking lookup form values unless
+   * switchToLogin is true (logout path).
+   */
+  function clearAuthenticatedCustomerState(opts) {
+    opts = opts || {};
+    profileEditing = false;
+    addressEditingId = null;
+    profileAddressBusy = false;
+    closeModalQuiet();
+    state.scope = null;
+    state.booking = null;
+    state.bookings = [];
+    state.vehicles = [];
+    state.session = false;
+    state.customer = null;
+    state.accountVersion = null;
+    state.catalog = null;
+    state.packageCatalog = null;
+    state.changeRequests = [];
+    state.payment = null;
+    state.actionToken = null;
+    if (opts.clearLookup !== false) {
+      state.verifyPhone = '';
+      state.verifyBookingId = '';
+    }
+    clearProfileAddressDom();
+    show($('pre-auth'), true);
+    show($('post-auth'), false);
+    var upcoming = $('upcoming-panel');
+    if (upcoming) upcoming.innerHTML = '';
+    var appts = $('appointments-list');
+    if (appts) appts.innerHTML = '';
+    var veh = $('vehicles-list');
+    if (veh) veh.innerHTML = '';
+    var hist = $('history-list');
+    if (hist) hist.innerHTML = '';
+    var payPanel = $('payments-panel');
+    if (payPanel) payPanel.innerHTML = '';
+    show($('profile-section'), false);
+    show($('addresses-section'), false);
+  }
+
+  function clearProfileAddressDom() {
+    var pv = $('profile-view');
+    if (pv) pv.innerHTML = '';
+    var pe = $('profile-edit');
+    if (pe) {
+      pe.hidden = true;
+      pe.reset && pe.reset();
+    }
+    show($('profile-actions'), true);
+    setMsg($('profile-msg'), '', false);
+    var al = $('addresses-list');
+    if (al) al.innerHTML = '';
+    var af = $('address-form');
+    if (af) {
+      af.hidden = true;
+      af.reset && af.reset();
+    }
+    show($('address-actions'), true);
+    setMsg($('address-msg'), '', false);
+  }
+
+  function closeModalQuiet() {
+    try {
+      var modal = $('action-modal');
+      if (modal) {
+        modal.hidden = true;
+        modal.style.display = 'none';
+      }
+      mutationPending = false;
+    } catch (e) { /* ignore */ }
+  }
+
+  function applyCustomerProjection(customer) {
+    if (!customer) {
+      state.customer = null;
+      state.accountVersion = null;
+      return;
+    }
+    state.customer = customer;
+    state.accountVersion = customer.accountVersion != null ? customer.accountVersion : state.accountVersion;
   }
 
   function applyPortalPayload(data) {
@@ -467,6 +570,7 @@
     state.packageCatalog = data.packageCatalog || null;
     state.changeRequests = data.changeRequests || [];
     state.payment = data.payment || null;
+    if (data.customer) applyCustomerProjection(data.customer);
   }
 
   async function checkSession() {
@@ -562,8 +666,13 @@
 
   async function loadAccount() {
     var r = await post('customer-portal-data', { mode: 'account' });
+    if (r.status === 401) {
+      clearAuthenticatedCustomerState({ reason: 'http_401' });
+      return false;
+    }
     if (!r.data || !r.data.ok) return false;
     state.scope = 'account';
+    state.session = true;
     state.bookings = r.data.bookings || [];
     state.booking = r.data.upcoming || state.bookings[0] || null;
     state.vehicles = r.data.vehicles || [];
@@ -623,15 +732,11 @@
   }
 
   async function logout() {
-    await post('customer-portal-auth', { action: 'logout' });
-    state = {
-      scope: null, booking: null, bookings: [], vehicles: [],
-      session: false, verifyPhone: '', verifyBookingId: '',
-      catalog: null, packageCatalog: null, changeRequests: [], payment: null, actionToken: null,
-    };
+    try {
+      await post('customer-portal-auth', { action: 'logout' });
+    } catch (e) { /* still clear local state */ }
+    clearAuthenticatedCustomerState({ reason: 'logout', clearLookup: true });
     clearLookupCredentials();
-    show($('pre-auth'), true);
-    show($('post-auth'), false);
     try {
       var clean = 'my-garage.html';
       if (global.location.search || global.location.hash) {
@@ -836,12 +941,27 @@
     var hero = $('upcoming-panel');
     var pay = (data && data.payment) || state.payment || {};
     state.payment = pay;
+    if (data && data.customer) applyCustomerProjection(data.customer);
+
+    renderProfileAndAddresses();
 
     if (!hero || !b) {
       if (hero) hero.innerHTML = '<p class="empty">No upcoming appointment. <a href="index.html">Book a service</a>.</p>';
       syncPayBalanceButton({});
       renderPaymentsPanel({});
       renderPendingRequests([]);
+      if (state.scope === 'account') {
+        renderList('appointments-list', state.bookings || [], function (item) {
+          return '<li><strong class="mono">' + esc(item.id || '') + '</strong> — ' +
+            esc(item.status || '') + ' · ' + esc(item.preferredDate || '—') +
+            ' · ' + esc(item.service || item.package || '') + '</li>';
+        });
+        renderList('vehicles-list', state.vehicles || [], function (v) {
+          var label = v.label || [v.year, v.make, v.model].filter(Boolean).join(' ') || 'Vehicle';
+          return '<li>' + esc(label) + (v.category ? ' · ' + esc(v.category) : '') + '</li>';
+        });
+        $('vehicle-actions') && show($('vehicle-actions'), true);
+      }
       return;
     }
 
@@ -938,6 +1058,266 @@
     var issueBtn = $('btn-report-issue');
     if (approveBtn) show(approveBtn, b.customerApprovalStatus === 'pending' || b.jobStatus === 'completed_pending_payment');
     if (issueBtn) show(issueBtn, ['completed_pending_payment', 'completed_pending_admin_review', 'awaiting_customer_action'].indexOf(b.jobStatus) >= 0 || b.serviceStatus === 'awaiting_customer_action');
+  }
+
+  function renderProfileAndAddresses() {
+    var accountScope = state.scope === 'account' && !!state.session;
+    var profileSection = $('profile-section');
+    var addrSection = $('addresses-section');
+    if (!accountScope || !state.customer) {
+      show(profileSection, false);
+      show(addrSection, false);
+      return;
+    }
+    show(profileSection, true);
+    show(addrSection, true);
+    renderProfileView();
+    renderAddressesView();
+  }
+
+  function renderProfileView() {
+    var c = state.customer || {};
+    var p = c.profile || {};
+    var view = $('profile-view');
+    var edit = $('profile-edit');
+    if (!view) return;
+
+    if (profileEditing) {
+      show(view, false);
+      if (edit) {
+        edit.hidden = false;
+        $('pf-first') && ($('pf-first').value = p.firstName || '');
+        $('pf-last') && ($('pf-last').value = p.lastName || '');
+        $('pf-display') && ($('pf-display').value = p.displayName || '');
+        $('pf-channel') && ($('pf-channel').value = p.preferredContactChannel || '');
+        $('pf-tz') && ($('pf-tz').value = p.timezone || '');
+      }
+      show($('profile-actions'), false);
+      return;
+    }
+
+    if (edit) edit.hidden = true;
+    show(view, true);
+    show($('profile-actions'), true);
+    var name = p.displayName || [p.firstName, p.lastName].filter(Boolean).join(' ') || '—';
+    view.innerHTML =
+      '<dl class="meta-grid">' +
+      '<div><dt>Name</dt><dd>' + esc(name) + '</dd></div>' +
+      '<div><dt>Email (verified)</dt><dd>' + esc(p.email || '—') + '</dd></div>' +
+      '<div><dt>Phone (verified)</dt><dd>' + esc(p.phone || '—') + '</dd></div>' +
+      '<div><dt>Preferred contact</dt><dd>' + esc(p.preferredContactChannel || '—') + '</dd></div>' +
+      '<div><dt>Timezone</dt><dd>' + esc(p.timezone || '—') + '</dd></div>' +
+      '</dl>';
+  }
+
+  function formatAddressLine(a) {
+    return [a.line1, a.line2, [a.city, a.state].filter(Boolean).join(', '), a.postalCode]
+      .filter(Boolean).join(' · ');
+  }
+
+  function renderAddressesView() {
+    var c = state.customer || {};
+    var list = Array.isArray(c.addresses) ? c.addresses : [];
+    var ul = $('addresses-list');
+    var empty = $('addresses-empty');
+    var form = $('address-form');
+    if (empty) show(empty, !list.length && !addressEditingId && !(form && !form.hidden));
+    if (!ul) return;
+
+    if (form && addressEditingId !== null) {
+      // Keep form visible while adding/editing; list still shown behind.
+    } else if (form) {
+      form.hidden = true;
+      show($('address-actions'), true);
+    }
+
+    ul.innerHTML = list.map(function (a) {
+      var def = a.isDefault ? ' <span class="card-kicker">Default</span>' : '';
+      var label = a.label ? '<strong>' + esc(a.label) + '</strong> · ' : '';
+      return '<li data-address-id="' + esc(a.id) + '">' +
+        label + esc(formatAddressLine(a)) + def +
+        '<div class="actions" style="margin-top:8px">' +
+        (!a.isDefault
+          ? '<button type="button" class="btn ghost" data-addr-action="default" data-address-id="' + esc(a.id) + '">Make default</button>'
+          : '') +
+        '<button type="button" class="btn ghost" data-addr-action="edit" data-address-id="' + esc(a.id) + '">Edit</button>' +
+        '<button type="button" class="btn ghost" data-addr-action="archive" data-address-id="' + esc(a.id) + '">Archive</button>' +
+        '</div></li>';
+    }).join('');
+  }
+
+  function requestId() {
+    return 'req_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+  }
+
+  async function portalProfileAction(action, payload) {
+    var body = Object.assign({
+      action: action,
+      expectedVersion: state.accountVersion,
+      requestId: requestId(),
+    }, payload || {});
+    return post('customer-portal-profile', body);
+  }
+
+  function mapProfileError(data, status) {
+    var err = (data && data.error) || '';
+    if (status === 409 || err === 'version_conflict') {
+      return 'Your profile was updated in another session. Reloading the latest version — please review and try again.';
+    }
+    if (err === 'contact_change_requires_verification') {
+      return 'Email and phone cannot be changed here. Contact changes require verification.';
+    }
+    if (status === 401 || err === 'authentication_failed') {
+      return 'Your session expired. Please sign in again.';
+    }
+    if (status === 429 || err === 'rate_limited' || err === 'too_many_requests') {
+      return 'Too many requests. Wait a moment and try again.';
+    }
+    return (data && data.message) || 'Unable to save. Call/text 551-313-2956.';
+  }
+
+  async function saveProfile(e) {
+    if (e) e.preventDefault();
+    if (profileAddressBusy) return;
+    profileAddressBusy = true;
+    setMsg($('profile-msg'), 'Saving…', false);
+    var r = await portalProfileAction('update_profile', {
+      patch: {
+        firstName: ($('pf-first') && $('pf-first').value) || '',
+        lastName: ($('pf-last') && $('pf-last').value) || '',
+        displayName: ($('pf-display') && $('pf-display').value) || '',
+        preferredContactChannel: ($('pf-channel') && $('pf-channel').value) || '',
+        timezone: ($('pf-tz') && $('pf-tz').value) || '',
+      },
+    });
+    profileAddressBusy = false;
+    if (r.status === 401) return;
+    if (!r.ok || !r.data || !r.data.ok) {
+      setMsg($('profile-msg'), mapProfileError(r.data, r.status), true);
+      if (r.status === 409) {
+        await loadAccount();
+        profileEditing = true;
+        renderProfileView();
+      }
+      return;
+    }
+    applyCustomerProjection(r.data.customer);
+    profileEditing = false;
+    setMsg($('profile-msg'), 'Profile saved.', false);
+    renderProfileAndAddresses();
+    showToast('Profile updated.', false);
+  }
+
+  function cancelProfileEdit() {
+    profileEditing = false;
+    setMsg($('profile-msg'), '', false);
+    renderProfileView();
+  }
+
+  function openAddressForm(address) {
+    var form = $('address-form');
+    if (!form) return;
+    addressEditingId = address ? address.id : '';
+    form.hidden = false;
+    show($('address-actions'), false);
+    $('ad-label') && ($('ad-label').value = (address && address.label) || '');
+    $('ad-line1') && ($('ad-line1').value = (address && address.line1) || '');
+    $('ad-line2') && ($('ad-line2').value = (address && address.line2) || '');
+    $('ad-city') && ($('ad-city').value = (address && address.city) || '');
+    $('ad-state') && ($('ad-state').value = (address && address.state) || '');
+    $('ad-postal') && ($('ad-postal').value = (address && address.postalCode) || '');
+    $('ad-country') && ($('ad-country').value = (address && address.country) || 'US');
+    $('ad-default') && ($('ad-default').checked = !!(address && address.isDefault));
+    setMsg($('address-msg'), '', false);
+    $('ad-line1') && $('ad-line1').focus();
+  }
+
+  function cancelAddressForm() {
+    addressEditingId = null;
+    var form = $('address-form');
+    if (form) {
+      form.hidden = true;
+      form.reset && form.reset();
+    }
+    show($('address-actions'), true);
+    setMsg($('address-msg'), '', false);
+    renderAddressesView();
+  }
+
+  async function saveAddress(e) {
+    if (e) e.preventDefault();
+    if (profileAddressBusy) return;
+    var line1 = ($('ad-line1') && $('ad-line1').value.trim()) || '';
+    if (!line1) {
+      setMsg($('address-msg'), 'Street address is required.', true);
+      return;
+    }
+    profileAddressBusy = true;
+    setMsg($('address-msg'), 'Saving…', false);
+    var payload = {
+      address: {
+        label: ($('ad-label') && $('ad-label').value) || '',
+        line1: line1,
+        line2: ($('ad-line2') && $('ad-line2').value) || '',
+        city: ($('ad-city') && $('ad-city').value) || '',
+        state: ($('ad-state') && $('ad-state').value) || '',
+        postalCode: ($('ad-postal') && $('ad-postal').value) || '',
+        country: ($('ad-country') && $('ad-country').value) || 'US',
+        isDefault: !!($('ad-default') && $('ad-default').checked),
+      },
+    };
+    var r;
+    if (addressEditingId) {
+      payload.addressId = addressEditingId;
+      r = await portalProfileAction('update_address', payload);
+    } else {
+      r = await portalProfileAction('create_address', payload);
+    }
+    profileAddressBusy = false;
+    if (r.status === 401) return;
+    if (!r.ok || !r.data || !r.data.ok) {
+      setMsg($('address-msg'), mapProfileError(r.data, r.status), true);
+      if (r.status === 409) await loadAccount();
+      return;
+    }
+    applyCustomerProjection(r.data.customer);
+    cancelAddressForm();
+    setMsg($('address-msg'), 'Address saved.', false);
+    renderProfileAndAddresses();
+    showToast('Address saved.', false);
+  }
+
+  async function setDefaultAddress(addressId) {
+    if (profileAddressBusy || !addressId) return;
+    profileAddressBusy = true;
+    var r = await portalProfileAction('set_default_address', { addressId: addressId });
+    profileAddressBusy = false;
+    if (r.status === 401) return;
+    if (!r.ok || !r.data || !r.data.ok) {
+      setMsg($('address-msg'), mapProfileError(r.data, r.status), true);
+      if (r.status === 409) await loadAccount();
+      return;
+    }
+    applyCustomerProjection(r.data.customer);
+    renderProfileAndAddresses();
+    showToast('Default address updated.', false);
+  }
+
+  async function archiveAddress(addressId) {
+    if (profileAddressBusy || !addressId) return;
+    if (!global.confirm('Archive this service address? It will no longer appear in your active list.')) return;
+    profileAddressBusy = true;
+    var r = await portalProfileAction('archive_address', { addressId: addressId });
+    profileAddressBusy = false;
+    if (r.status === 401) return;
+    if (!r.ok || !r.data || !r.data.ok) {
+      setMsg($('address-msg'), mapProfileError(r.data, r.status), true);
+      if (r.status === 409) await loadAccount();
+      return;
+    }
+    applyCustomerProjection(r.data.customer);
+    renderProfileAndAddresses();
+    showToast('Address archived.', false);
   }
 
   function renderList(id, items, mapFn) {
@@ -1962,6 +2342,50 @@
     }
     var out = $('btn-logout');
     if (out) out.addEventListener('click', logout);
+
+    var pfEdit = $('pf-edit-btn');
+    if (pfEdit) {
+      pfEdit.addEventListener('click', function () {
+        profileEditing = true;
+        setMsg($('profile-msg'), '', false);
+        renderProfileView();
+        $('pf-first') && $('pf-first').focus();
+      });
+    }
+    var pfCancel = $('pf-cancel');
+    if (pfCancel) pfCancel.addEventListener('click', cancelProfileEdit);
+    var pfForm = $('profile-edit');
+    if (pfForm) pfForm.addEventListener('submit', saveProfile);
+
+    var adAdd = $('ad-add-btn');
+    if (adAdd) {
+      adAdd.addEventListener('click', function () {
+        openAddressForm(null);
+      });
+    }
+    var adCancel = $('ad-cancel');
+    if (adCancel) adCancel.addEventListener('click', cancelAddressForm);
+    var adForm = $('address-form');
+    if (adForm) adForm.addEventListener('submit', saveAddress);
+    var addrList = $('addresses-list');
+    if (addrList) {
+      addrList.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-addr-action]');
+        if (!btn) return;
+        var id = btn.getAttribute('data-address-id');
+        var action = btn.getAttribute('data-addr-action');
+        if (action === 'default') setDefaultAddress(id);
+        else if (action === 'archive') archiveAddress(id);
+        else if (action === 'edit') {
+          var addresses = (state.customer && state.customer.addresses) || [];
+          var found = null;
+          for (var i = 0; i < addresses.length; i += 1) {
+            if (addresses[i].id === id) { found = addresses[i]; break; }
+          }
+          if (found) openAddressForm(found);
+        }
+      });
+    }
 
     var payLink = $('pay-balance-link');
     if (payLink) {

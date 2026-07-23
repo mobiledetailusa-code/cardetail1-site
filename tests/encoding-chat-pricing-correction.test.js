@@ -177,6 +177,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/customer-balance-payment-intent.js',
     'netlify/functions/customer-portal-data.js',
     'netlify/functions/admin-ops-jobs.js',
+    // Stage 2A — authenticated profile + address management
+    'netlify/functions/customer-portal-profile.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);
