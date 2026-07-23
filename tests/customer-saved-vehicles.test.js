@@ -153,9 +153,9 @@ describe('customer saved vehicles (Stage 2B)', () => {
       expectedVersion: 1,
       vehicle: { label: 'Older', make: 'Honda', model: 'Civic' },
     });
-    // Force older createdAt ordering deterministically via direct update.
+    // Native Date instances (Prisma DateTime fidelity), not ISO-string-only mocks.
     const olderRow = prisma._db.customerVehicle.get(older.vehicleId);
-    olderRow.createdAt = '2020-01-01T00:00:00.000Z';
+    olderRow.createdAt = new Date('2020-01-01T00:00:00.000Z');
     prisma._db.customerVehicle.set(older.vehicleId, olderRow);
 
     const newer = await svc.createVehicle({
@@ -163,6 +163,10 @@ describe('customer saved vehicles (Stage 2B)', () => {
       expectedVersion: older.accountVersion,
       vehicle: { label: 'Newer', make: 'Honda', model: 'Accord', isDefault: true },
     });
+    const newerRow = prisma._db.customerVehicle.get(newer.vehicleId);
+    newerRow.createdAt = new Date('2020-01-08T00:00:00.000Z');
+    prisma._db.customerVehicle.set(newer.vehicleId, newerRow);
+
     const arch = await svc.archiveVehicle({
       customerAccountId: account.id,
       vehicleId: newer.vehicleId,
@@ -412,5 +416,214 @@ describe('customer saved vehicles (Stage 2B)', () => {
     assert.match(js, /openVehicleForm/);
     assert.match(html, /id="vehicle-form"/);
     assert.match(html, /id="vh-default"/);
+  });
+
+  it('18. native Date Sunday-before-Monday sorts chronologically first', () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    // localeCompare on Date.toString() would put Monday before Sunday.
+    const sunday = {
+      id: 'cv_b',
+      isDefault: false,
+      createdAt: new Date('2026-07-12T15:00:00.000Z'), // Sunday
+    };
+    const monday = {
+      id: 'cv_a',
+      isDefault: false,
+      createdAt: new Date('2026-07-13T15:00:00.000Z'), // Monday
+    };
+    assert.equal(svc.compareCreatedAtAsc(sunday, monday) < 0, true);
+    const sorted = svc.sortActiveVehicles([monday, sunday]);
+    assert.equal(sorted[0].id, 'cv_b');
+    assert.equal(sorted[1].id, 'cv_a');
+  });
+
+  it('19. identical createdAt tie-breaks by id ascending', () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    const stamp = new Date('2026-07-01T12:00:00.000Z');
+    const a = { id: 'cv_zzz', isDefault: false, createdAt: stamp };
+    const b = { id: 'cv_aaa', isDefault: false, createdAt: new Date(stamp.getTime()) };
+    const sorted = svc.sortActiveVehicles([a, b]);
+    assert.equal(sorted[0].id, 'cv_aaa');
+    assert.equal(sorted[1].id, 'cv_zzz');
+  });
+
+  it('20. sortActiveVehicles keeps default first then chronological Date order', () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    const sorted = svc.sortActiveVehicles([
+      { id: 'cv_2', isDefault: false, createdAt: new Date('2026-01-02T00:00:00.000Z') },
+      { id: 'cv_def', isDefault: true, createdAt: new Date('2026-01-03T00:00:00.000Z') },
+      { id: 'cv_1', isDefault: false, createdAt: new Date('2026-01-01T00:00:00.000Z') },
+    ]);
+    assert.deepEqual(sorted.map((v) => v.id), ['cv_def', 'cv_1', 'cv_2']);
+  });
+
+  it('21. archive default promotes oldest by native Date createdAt', async () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    const account = await seedAccount(prisma, { email: 'dates@example.test', phone: '2015550188' });
+    const mid = await svc.createVehicle({
+      customerAccountId: account.id,
+      expectedVersion: 1,
+      vehicle: { label: 'Mid', make: 'Ford', model: 'Focus' },
+    });
+    const oldest = await svc.createVehicle({
+      customerAccountId: account.id,
+      expectedVersion: mid.accountVersion,
+      vehicle: { label: 'Oldest', make: 'Ford', model: 'Fiesta' },
+    });
+    const newest = await svc.createVehicle({
+      customerAccountId: account.id,
+      expectedVersion: oldest.accountVersion,
+      vehicle: { label: 'Newest', make: 'Ford', model: 'Mustang', isDefault: true },
+    });
+
+    prisma._db.customerVehicle.get(oldest.vehicleId).createdAt = new Date('2026-07-12T10:00:00.000Z'); // Sunday
+    prisma._db.customerVehicle.get(mid.vehicleId).createdAt = new Date('2026-07-13T10:00:00.000Z'); // Monday
+    prisma._db.customerVehicle.get(newest.vehicleId).createdAt = new Date('2026-07-14T10:00:00.000Z');
+
+    const arch = await svc.archiveVehicle({
+      customerAccountId: account.id,
+      vehicleId: newest.vehicleId,
+      expectedVersion: newest.accountVersion,
+    });
+    assert.equal(arch.ok, true);
+    assert.equal(arch.promotedDefaultId, oldest.vehicleId);
+  });
+
+  it('22. missing Blob key imports zero vehicles and sets marker', async () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    const account = await seedAccount(prisma, {
+      email: 'missing@example.test',
+      phone: '2015550177',
+      vehiclesImportedAt: null,
+    });
+    svc.setLegacyReaderForTests(async () => ({
+      ok: true,
+      missing: true,
+      vehicles: [],
+    }));
+    const first = await svc.importLegacyVehiclesForAccount(account.id);
+    assert.equal(first.ok, true);
+    assert.equal(first.importedCount, 0);
+    const refreshed = await prisma.customerAccount.findUnique({ where: { id: account.id } });
+    assert.ok(refreshed.vehiclesImportedAt);
+    assert.equal(await prisma.customerVehicle.count({ where: { customerAccountId: account.id } }), 0);
+    const second = await svc.importLegacyVehiclesForAccount(account.id);
+    assert.equal(second.alreadyImported, true);
+  });
+
+  it('23. Blob read transient failure leaves marker null and zero rows', async () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    const { LEGACY_SOURCE_UNAVAILABLE } = require('../netlify/lib/customer-vehicles-legacy');
+    const account = await seedAccount(prisma, {
+      email: 'blobfail@example.test',
+      phone: '2015550176',
+      vehiclesImportedAt: null,
+    });
+    svc.setLegacyReaderForTests(async () => {
+      const err = new Error(LEGACY_SOURCE_UNAVAILABLE);
+      err.code = LEGACY_SOURCE_UNAVAILABLE;
+      throw err;
+    });
+    const r = await svc.importLegacyVehiclesForAccount(account.id);
+    assert.equal(r.ok, false);
+    assert.equal(r.error, 'temporarily_unavailable');
+    const refreshed = await prisma.customerAccount.findUnique({ where: { id: account.id } });
+    assert.equal(refreshed.vehiclesImportedAt, null);
+    assert.equal(await prisma.customerVehicle.count({ where: { customerAccountId: account.id } }), 0);
+  });
+
+  it('24. retry after transient Blob failure imports and commits marker', async () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    const { LEGACY_SOURCE_UNAVAILABLE } = require('../netlify/lib/customer-vehicles-legacy');
+    const account = await seedAccount(prisma, {
+      email: 'retry@example.test',
+      phone: '2015550175',
+      vehiclesImportedAt: null,
+    });
+    let calls = 0;
+    svc.setLegacyReaderForTests(async () => {
+      calls += 1;
+      if (calls === 1) {
+        const err = new Error(LEGACY_SOURCE_UNAVAILABLE);
+        err.code = LEGACY_SOURCE_UNAVAILABLE;
+        throw err;
+      }
+      return {
+        ok: true,
+        vehicles: [
+          { id: 'cv_retry_1', label: 'Recovered', make: 'Tesla', model: 'Model 3' },
+        ],
+      };
+    });
+    const fail = await svc.importLegacyVehiclesForAccount(account.id);
+    assert.equal(fail.ok, false);
+    assert.equal(fail.error, 'temporarily_unavailable');
+    const ok = await svc.importLegacyVehiclesForAccount(account.id);
+    assert.equal(ok.ok, true);
+    assert.equal(ok.importedCount, 1);
+    const refreshed = await prisma.customerAccount.findUnique({ where: { id: account.id } });
+    assert.ok(refreshed.vehiclesImportedAt);
+    assert.equal(await prisma.customerVehicle.count({
+      where: { customerAccountId: account.id, archivedAt: null },
+    }), 1);
+  });
+
+  it('25. malformed Blob payload does not set vehiclesImportedAt', async () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    const account = await seedAccount(prisma, {
+      email: 'malformed@example.test',
+      phone: '2015550174',
+      vehiclesImportedAt: null,
+    });
+    svc.setLegacyReaderForTests(async () => ({
+      ok: false,
+      error: 'legacy_vehicle_source_unavailable',
+    }));
+    const r = await svc.importLegacyVehiclesForAccount(account.id);
+    assert.equal(r.ok, false);
+    assert.equal(r.error, 'temporarily_unavailable');
+    const refreshed = await prisma.customerAccount.findUnique({ where: { id: account.id } });
+    assert.equal(refreshed.vehiclesImportedAt, null);
+    assert.equal(await prisma.customerVehicle.count({ where: { customerAccountId: account.id } }), 0);
+  });
+
+  it('26. legacy reader distinguishes missing key from thrown Blob errors', async () => {
+    const legacy = require('../netlify/lib/customer-vehicles-legacy');
+    const missing = await legacy.readLegacyVehiclesForPhone('2015550173', {
+      store: {
+        async get() { return null; },
+      },
+    });
+    assert.equal(missing.ok, true);
+    assert.equal(missing.missing, true);
+    assert.deepEqual(missing.vehicles, []);
+
+    await assert.rejects(
+      () => legacy.readLegacyVehiclesForPhone('2015550173', {
+        store: {
+          async get() { throw new Error('upstream_timeout'); },
+        },
+      }),
+      (err) => err && err.code === legacy.LEGACY_SOURCE_UNAVAILABLE
+    );
+
+    await assert.rejects(
+      () => legacy.readLegacyVehiclesForPhone('2015550173', {
+        store: {
+          async get() { return { vehicles: 'not-an-array' }; },
+        },
+      }),
+      (err) => err && err.code === legacy.LEGACY_SOURCE_UNAVAILABLE
+    );
+  });
+
+  it('27. invalid createdAt sorts deterministically last (no NaN instability)', () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    const sorted = svc.sortActiveVehicles([
+      { id: 'cv_bad', isDefault: false, createdAt: 'not-a-date' },
+      { id: 'cv_ok', isDefault: false, createdAt: new Date('2026-01-01T00:00:00.000Z') },
+    ]);
+    assert.equal(sorted[0].id, 'cv_ok');
+    assert.equal(sorted[1].id, 'cv_bad');
   });
 });

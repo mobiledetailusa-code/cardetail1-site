@@ -19,8 +19,12 @@ Migrate My Garage saved vehicles from the legacy phone-keyed Netlify Blob store
 - Zero or one **active** default per account
 - First created vehicle becomes default
 - `set_default` clears other active defaults in the same transaction
-- Archiving the current default promotes the oldest remaining active vehicle
-  (`createdAt ASC`, then `id ASC`); if none remain, the account has no default
+- Archiving the current default promotes the oldest remaining active vehicle by:
+  1. `createdAt` ascending (numeric timestamp; native `Date` or ISO string)
+  2. `id` ascending as deterministic tie-breaker
+- If none remain, the account has no default
+- Active list UI contract: default first, then the chronological order above
+- Invalid/unparseable `createdAt` values sort last (never NaN-unstable)
 - Archived vehicles cannot be default and are omitted from active lists
 
 ## Legacy Blob import
@@ -30,8 +34,28 @@ Migrate My Garage saved vehicles from the legacy phone-keyed Netlify Blob store
 - Marker: `CustomerAccount.vehiclesImportedAt`
 - Dedup key: `legacySourceId = blob:<legacyVehicleId>` unique per account
 - Concurrency: `pg_advisory_xact_lock` on `vehicle-import:<customerAccountId>`
-- Idempotent: retry after success is a no-op; failed imports roll back fully
 - Blob records are **not** deleted or rewritten; TTL cleanup is deferred
+
+### Missing key vs unavailable source
+
+Netlify Blobs SDK returns `null` for a missing key (HTTP 404). That is treated
+as a successful empty garage:
+
+- zero vehicles imported;
+- `vehiclesImportedAt` may be set;
+- later access does not re-read Blob unnecessarily.
+
+Blob transport, auth, timeout, JSON parse, malformed payload, or other unexpected
+read failures are **not** treated as empty:
+
+- internal error: `legacy_vehicle_source_unavailable`
+- public error: `temporarily_unavailable` (HTTP 503)
+- transaction rolls back;
+- `vehiclesImportedAt` is **not** written;
+- next authenticated access retries the import.
+
+Raw Blob errors, stack traces, owner phone keys, and PII are not returned to
+customers.
 
 ## API
 
@@ -43,7 +67,8 @@ Actions: `list` | `add` | `update` | `archive` | `set_default`
 - Active account gate (`assertCustomerPortalAccountActive`)
 - Mutations require `expectedVersion` (account optimistic concurrency)
 - Stable errors: `authentication_failed`, `validation_error`, `not_found`,
-  `version_conflict`, `service_unavailable`, `rate_limited`
+  `version_conflict`, `temporarily_unavailable`, `service_unavailable`,
+  `rate_limited`
 
 ## Authorization
 

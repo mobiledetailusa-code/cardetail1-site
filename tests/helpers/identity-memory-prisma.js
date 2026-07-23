@@ -13,7 +13,13 @@ function cuid() {
 }
 
 function clone(v) {
-  return v == null ? v : JSON.parse(JSON.stringify(v));
+  if (v == null || typeof v !== 'object') return v;
+  // Preserve Prisma DateTime fidelity for chronological ordering tests.
+  if (v instanceof Date) return new Date(v.getTime());
+  if (Array.isArray(v)) return v.map(clone);
+  const out = {};
+  for (const [k, val] of Object.entries(v)) out[k] = clone(val);
+  return out;
 }
 
 function snapshotMaps(db) {
@@ -500,8 +506,9 @@ function createIdentityMemoryPrisma(options = {}) {
             isDefault: !!data.isDefault,
             archivedAt: data.archivedAt || null,
             legacySourceId: data.legacySourceId || null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            // Preserve native Date when provided (Prisma DateTime fidelity).
+            createdAt: data.createdAt != null ? data.createdAt : new Date(),
+            updatedAt: data.updatedAt != null ? data.updatedAt : new Date(),
           };
           database.customerVehicle.set(id, row);
           return clone(row);
@@ -516,8 +523,29 @@ function createIdentityMemoryPrisma(options = {}) {
           }
           return null;
         },
-        async findMany({ where }) {
-          return [...database.customerVehicle.values()].filter((r) => matchesWhere(r, where)).map(clone);
+        async findMany({ where, orderBy }) {
+          const rows = [...database.customerVehicle.values()]
+            .filter((r) => matchesWhere(r, where))
+            .map(clone);
+          if (Array.isArray(orderBy) && orderBy.length) {
+            rows.sort((a, b) => {
+              for (const clause of orderBy) {
+                const [key, dir] = Object.entries(clause)[0] || [];
+                if (!key) continue;
+                let av = a[key];
+                let bv = b[key];
+                if (key === 'createdAt' || key === 'updatedAt' || key === 'archivedAt') {
+                  av = av instanceof Date ? av.getTime() : new Date(av || 0).getTime();
+                  bv = bv instanceof Date ? bv.getTime() : new Date(bv || 0).getTime();
+                }
+                if (av === bv) continue;
+                const cmp = av > bv ? 1 : -1;
+                return dir === 'desc' ? -cmp : cmp;
+              }
+              return 0;
+            });
+          }
+          return rows;
         },
         async update({ where, data }) {
           onWrite(txMeta);
@@ -530,7 +558,7 @@ function createIdentityMemoryPrisma(options = {}) {
           const next = {
             ...row,
             ...data,
-            updatedAt: data.updatedAt || new Date().toISOString(),
+            updatedAt: data.updatedAt != null ? data.updatedAt : new Date(),
           };
           database.customerVehicle.set(row.id, next);
           return clone(next);
