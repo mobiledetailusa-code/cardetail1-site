@@ -99,12 +99,48 @@ function mapServiceError(result) {
       },
     };
   }
+  if (err === vehicleService.UNAVAILABLE || err === 'unavailable') {
+    return {
+      status: 503,
+      body: {
+        ok: false,
+        error: 'temporarily_unavailable',
+        message: result.message || 'Vehicle garage is temporarily unavailable. Try again shortly.',
+      },
+    };
+  }
+  if (err === vehicleService.SCHEMA_UNAVAILABLE || err === 'schema_unavailable') {
+    const correlationId = `veh_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    console.error(JSON.stringify({
+      scope: 'customer_portal_vehicles',
+      error: 'schema_unavailable',
+      correlationId,
+      causeCode: result.causeCode || null,
+    }));
+    return {
+      status: 500,
+      body: {
+        ok: false,
+        error: 'server_error',
+        message: 'Vehicle garage is temporarily unavailable. Try again shortly.',
+        correlationId,
+      },
+    };
+  }
+  const correlationId = `veh_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  console.error(JSON.stringify({
+    scope: 'customer_portal_vehicles',
+    error: 'unexpected_service_error',
+    correlationId,
+    serviceError: String(err || 'unknown').slice(0, 64),
+  }));
   return {
-    status: 503,
+    status: 500,
     body: {
       ok: false,
-      error: 'service_unavailable',
+      error: 'server_error',
       message: 'Unable to complete this request right now.',
+      correlationId,
     },
   };
 }

@@ -430,7 +430,7 @@ describe('customer saved vehicles (Stage 2B)', () => {
     assert.match(html, /id="vehicle-form"/);
     assert.match(html, /id="vh-default"/);
     assert.match(html, /customer-vehicle-card\.js\?v=20260723-vehicles2/);
-    assert.match(html, /my-garage\.js\?v=20260723-vehicles4/);
+    assert.match(html, /my-garage\.js\?v=20260723-vehicles5/);
     // accountVersion must be readable for create/update/archive mutations
     assert.match(js, /function accountVersionForMutation/);
     assert.match(js, /function ensureAccountVersionForMutation/);
@@ -564,7 +564,7 @@ describe('customer saved vehicles (Stage 2B)', () => {
     assert.equal(await prisma.customerVehicle.count({ where: { customerAccountId: account.id } }), 0);
   });
 
-  it('23b. createVehicle still works when legacy Blob import is temporarily down', async () => {
+  it('23b. Blob transport failure blocks list and mutations with retryable 503 semantics', async () => {
     const svc = require('../netlify/lib/customer-vehicle-service');
     const { LEGACY_SOURCE_UNAVAILABLE } = require('../netlify/lib/customer-vehicles-legacy');
     const account = await seedAccount(prisma, {
@@ -578,26 +578,163 @@ describe('customer saved vehicles (Stage 2B)', () => {
       throw err;
     });
     const listedBefore = await svc.listVehicles(account.id, { phoneDigits: '2015550166' });
-    assert.equal(listedBefore.ok, true, 'list remains usable during blob outage');
-    assert.equal((listedBefore.vehicles || []).length, 0);
-    assert.equal(listedBefore.import?.softSkipped, true);
+    assert.equal(listedBefore.ok, false);
+    assert.equal(listedBefore.error, 'temporarily_unavailable');
 
     const created = await svc.createVehicle({
       customerAccountId: account.id,
       expectedVersion: 1,
       vehicle: { label: 'New during outage', make: 'Honda', model: 'Civic' },
     });
-    assert.equal(created.ok, true, 'mutations must not brick when legacy import is down');
-    assert.ok(created.vehicleId);
+    assert.equal(created.ok, false);
+    assert.equal(created.error, 'temporarily_unavailable');
     assert.equal(await prisma.customerVehicle.count({
-      where: { customerAccountId: account.id, archivedAt: null },
-    }), 1);
-
-    const listedAfter = await svc.listVehicles(account.id, { phoneDigits: '2015550166' });
-    assert.equal(listedAfter.ok, true);
-    assert.equal((listedAfter.vehicles || []).length, 1);
+      where: { customerAccountId: account.id },
+    }), 0);
     const refreshed = await prisma.customerAccount.findUnique({ where: { id: account.id } });
     assert.equal(refreshed.vehiclesImportedAt, null, 'import marker stays unset for later retry');
+  });
+
+  it('23c. empty garage with no legacy Blob returns 200 and vehicles []', async () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    const account = await seedAccount(prisma, {
+      email: 'empty-garage@example.test',
+      phone: '2015550165',
+      vehiclesImportedAt: null,
+    });
+    svc.setLegacyReaderForTests(async () => ({
+      ok: true,
+      missing: true,
+      vehicles: [],
+    }));
+    const listed = await svc.listVehicles(account.id, { phoneDigits: '2015550165' });
+    assert.equal(listed.ok, true);
+    assert.deepEqual(listed.vehicles, []);
+    assert.equal(listed.import?.completed, true);
+    const refreshed = await prisma.customerAccount.findUnique({ where: { id: account.id } });
+    assert.ok(refreshed.vehiclesImportedAt);
+  });
+
+  it('23d. missing CustomerVehicle table maps to schema_unavailable not empty list', async () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    const account = await seedAccount(prisma, {
+      email: 'schema-drift@example.test',
+      phone: '2015550164',
+      vehiclesImportedAt: new Date().toISOString(),
+    });
+    const broken = {
+      customerAccount: {
+        findUnique: async () => ({
+          id: account.id,
+          status: 'active',
+          version: 1,
+          vehiclesImportedAt: new Date().toISOString(),
+        }),
+      },
+      customerVehicle: {
+        findMany: async () => {
+          const err = new Error('The table `public.CustomerVehicle` does not exist in the current database.');
+          err.code = 'P2021';
+          throw err;
+        },
+      },
+    };
+    // Minimal graph loader path: inject prisma override that fails on vehicle query.
+    svc.setPrismaForTests({
+      customerAccount: {
+        findUnique: async ({ where }) => {
+          if (where?.id === account.id) {
+            return {
+              id: account.id,
+              status: 'active',
+              version: 1,
+              vehiclesImportedAt: new Date().toISOString(),
+              profile: {
+                normalizedPhone: '2015550164',
+                phone: '2015550164',
+              },
+            };
+          }
+          return null;
+        },
+      },
+      customerVehicle: broken.customerVehicle,
+      customerProfile: prisma.customerProfile,
+      $transaction: prisma.$transaction,
+    });
+    const listed = await svc.listVehicles(account.id);
+    assert.equal(listed.ok, false);
+    assert.equal(listed.error, 'schema_unavailable');
+  });
+
+  it('23e. handler maps schema_unavailable to HTTP 500 server_error not empty vehicles', async () => {
+    clearModule(HANDLER_PATH);
+    clearModule(SESSION_PATH);
+    clearModule(RATE_PATH);
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    const account = await seedAccount(prisma, {
+      email: 'handler-schema@example.test',
+      phone: '2015550163',
+      vehiclesImportedAt: new Date().toISOString(),
+    });
+    svc.setPrismaForTests({
+      customerAccount: {
+        findUnique: async () => ({
+          id: account.id,
+          status: 'active',
+          version: 1,
+          vehiclesImportedAt: new Date().toISOString(),
+          profile: { normalizedPhone: '2015550163', phone: '2015550163' },
+        }),
+      },
+      customerVehicle: {
+        findMany: async () => {
+          const err = new Error('column vehiclesImportedAt does not exist');
+          err.code = 'P2022';
+          throw err;
+        },
+      },
+    });
+    require('../netlify/lib/customer-session').__test = {
+      // no-op; we stub validate below via cache rewrite
+    };
+    clearModule(SESSION_PATH);
+    const sessionMod = require('../netlify/lib/customer-session');
+    const origValidate = sessionMod.validateCustomerSession;
+    sessionMod.validateCustomerSession = async () => ({
+      ok: true,
+      scope: 'account',
+      customerAccountId: account.id,
+      phoneDigits: '2015550163',
+    });
+    const rateMod = require('../netlify/lib/public-rate-limit');
+    const origRate = rateMod.enforcePublicRateLimit;
+    rateMod.enforcePublicRateLimit = async () => ({ blocked: false });
+    try {
+      const handler = require('../netlify/functions/customer-portal-vehicles');
+      const res = await handler.handler({
+        httpMethod: 'POST',
+        headers: { origin: 'https://stage-2b-loading--cardetail1.netlify.app' },
+        body: JSON.stringify({ action: 'list' }),
+      });
+      assert.equal(res.statusCode, 500);
+      const body = JSON.parse(res.body);
+      assert.equal(body.ok, false);
+      assert.equal(body.error, 'server_error');
+      assert.ok(body.correlationId);
+      assert.equal(Array.isArray(body.vehicles), false);
+    } finally {
+      sessionMod.validateCustomerSession = origValidate;
+      rateMod.enforcePublicRateLimit = origRate;
+    }
+  });
+
+  it('23f. DB connection failure (no prisma) returns unavailable/503 path', async () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    svc.setPrismaForTests(null);
+    const listed = await svc.listVehicles('ca_any');
+    assert.equal(listed.ok, false);
+    assert.equal(listed.error, 'unavailable');
   });
 
   it('24. retry after transient Blob failure imports and commits marker', async () => {

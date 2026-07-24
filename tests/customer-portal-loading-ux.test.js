@@ -319,7 +319,7 @@ test('HTML: loading shell, aria-live/busy, spinner, boot class, mobile rules', (
   assert.match(html, /Return to sign in/);
   assert.match(html, /Signing you in\.\.\./);
   assert.match(html, /@media\(max-width:430px\)[\s\S]*portal-loading/);
-  assert.match(html, /my-garage\.js\?v=20260723-vehicles4/);
+  assert.match(html, /my-garage\.js\?v=20260723-vehicles5/);
   assert.doesNotMatch(html, /auth=|token=|&t=/);
 });
 

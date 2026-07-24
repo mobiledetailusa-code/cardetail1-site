@@ -34,6 +34,8 @@ const VALIDATION_ERROR = 'validation_error';
 const NOT_FOUND = 'not_found';
 const UNAVAILABLE = 'unavailable';
 const TEMPORARILY_UNAVAILABLE = 'temporarily_unavailable';
+/** Schema/migration drift — not a transient dependency blip; maps to HTTP 500. */
+const SCHEMA_UNAVAILABLE = 'schema_unavailable';
 
 const MAX_LABEL = 120;
 const MAX_COLOR = 40;
@@ -216,6 +218,14 @@ async function claimNextAccountVersion(tx, account) {
   return nextVersion;
 }
 
+function isSchemaDriftError(err) {
+  if (!err) return false;
+  const code = String(err.code || err.meta?.code || '');
+  if (code === 'P2021' || code === 'P2022' || code === '42703' || code === '42P01') return true;
+  const msg = String(err.message || '');
+  return /does not exist/i.test(msg) && /(relation|table|column|CustomerVehicle|vehiclesImportedAt)/i.test(msg);
+}
+
 function mapTxnError(err, fallbackMessage) {
   if (err && err.code === VERSION_CONFLICT) {
     return {
@@ -230,6 +240,14 @@ function mapTxnError(err, fallbackMessage) {
       ok: false,
       error: TEMPORARILY_UNAVAILABLE,
       message: 'Vehicle garage is temporarily unavailable. Try again shortly.',
+    };
+  }
+  if (isSchemaDriftError(err)) {
+    return {
+      ok: false,
+      error: SCHEMA_UNAVAILABLE,
+      message: 'Vehicle garage is not ready on this environment.',
+      causeCode: String(err.code || 'schema_drift').slice(0, 32),
     };
   }
   return { ok: false, error: UNAVAILABLE, message: fallbackMessage };
@@ -441,38 +459,27 @@ async function importLegacyVehiclesForAccount(customerAccountId, opts = {}) {
 async function ensureVehiclesImported(customerAccountId, opts = {}) {
   const prisma = prismaClient(opts.prisma);
   if (!prisma || !customerAccountId) return { ok: false, error: NOT_FOUND };
-  const account = await prisma.customerAccount.findUnique({
-    where: { id: String(customerAccountId) },
-  });
-  const gate = assertCustomerPortalAccountActive(account);
-  if (!gate.ok) return gate;
-  if (account.vehiclesImportedAt) {
-    return { ok: true, alreadyImported: true, accountVersion: account.version };
+  try {
+    const account = await prisma.customerAccount.findUnique({
+      where: { id: String(customerAccountId) },
+    });
+    const gate = assertCustomerPortalAccountActive(account);
+    if (!gate.ok) return gate;
+    if (account.vehiclesImportedAt) {
+      return { ok: true, alreadyImported: true, accountVersion: account.version };
+    }
+    return importLegacyVehiclesForAccount(customerAccountId, opts);
+  } catch (err) {
+    return mapTxnError(err, 'vehicle_import_guard_failed');
   }
-  return importLegacyVehiclesForAccount(customerAccountId, opts);
 }
 
 /**
- * Mutations must not be bricked when legacy Blob import is temporarily down.
- * Import remains best-effort migrate-on-access for list/read; writes may proceed
- * and import will retry on a later successful read.
+ * Mutations share the same migrate-on-access gate as list. Blob transport
+ * failures remain retryable (503) and must not be soft-skipped into writes.
  */
 async function ensureVehiclesImportedForMutation(customerAccountId, opts = {}) {
-  const ensured = await ensureVehiclesImported(customerAccountId, opts);
-  if (ensured.ok) return ensured;
-  if (
-    ensured.error === TEMPORARILY_UNAVAILABLE
-    || ensured.error === UNAVAILABLE
-    || ensured.error === 'temporarily_unavailable'
-    || ensured.error === 'unavailable'
-  ) {
-    return {
-      ok: true,
-      skippedImport: true,
-      accountVersion: ensured.accountVersion || null,
-    };
-  }
-  return ensured;
+  return ensureVehiclesImported(customerAccountId, opts);
 }
 
 async function listVehicles(customerAccountId, opts = {}) {
@@ -481,44 +488,35 @@ async function listVehicles(customerAccountId, opts = {}) {
   if (!customerAccountId) return { ok: false, error: NOT_FOUND };
   void opts.browserCustomerAccountId;
 
-  const ensured = await ensureVehiclesImported(customerAccountId, opts);
-  let importSoftSkipped = false;
-  if (!ensured.ok) {
-    // Blob import outage: still return PostgreSQL vehicles so the garage remains usable.
-    if (
-      ensured.error === TEMPORARILY_UNAVAILABLE
-      || ensured.error === UNAVAILABLE
-      || ensured.error === 'temporarily_unavailable'
-      || ensured.error === 'unavailable'
-    ) {
-      importSoftSkipped = true;
-    } else {
-      return ensured;
-    }
+  try {
+    const ensured = await ensureVehiclesImported(customerAccountId, opts);
+    if (!ensured.ok) return ensured;
+
+    const graph = await loadCustomerAccountGraph(customerAccountId, { prisma });
+    const gate = assertCustomerPortalAccountActive(graph);
+    if (!gate.ok) return gate;
+
+    const rows = await prisma.customerVehicle.findMany({
+      where: { customerAccountId: String(customerAccountId), archivedAt: null },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
+    });
+    const vehicles = sortActiveVehicles(rows).map(projectVehicle);
+    return {
+      ok: true,
+      vehicles,
+      defaultVehicleId: vehicles.find((v) => v.isDefault)?.id || null,
+      accountVersion: graph.version,
+      import: {
+        completed: !!(
+          graph.vehiclesImportedAt
+          || ensured.alreadyImported
+          || ensured.imported === true
+        ),
+      },
+    };
+  } catch (err) {
+    return mapTxnError(err, 'vehicle_list_failed');
   }
-
-  const graph = await loadCustomerAccountGraph(customerAccountId, { prisma });
-  const gate = assertCustomerPortalAccountActive(graph);
-  if (!gate.ok) return gate;
-
-  const rows = await prisma.customerVehicle.findMany({
-    where: { customerAccountId: String(customerAccountId), archivedAt: null },
-    orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
-  });
-  const vehicles = sortActiveVehicles(rows).map(projectVehicle);
-  return {
-    ok: true,
-    vehicles,
-    defaultVehicleId: vehicles.find((v) => v.isDefault)?.id || null,
-    accountVersion: graph.version,
-    import: {
-      completed: !importSoftSkipped && (
-        !!graph.vehiclesImportedAt || !!ensured.alreadyImported || ensured.imported === true
-        || ensured.alreadyImported === true
-      ),
-      softSkipped: importSoftSkipped || undefined,
-    },
-  };
 }
 
 async function createVehicle(input = {}, opts = {}) {
@@ -895,6 +893,7 @@ module.exports = {
   NOT_FOUND,
   UNAVAILABLE,
   TEMPORARILY_UNAVAILABLE,
+  SCHEMA_UNAVAILABLE,
   LEGACY_SOURCE_UNAVAILABLE,
   ALLOWED_CATEGORIES,
   setPrismaForTests,
@@ -913,4 +912,5 @@ module.exports = {
   setDefaultVehicle,
   importLegacyVehiclesForAccount,
   legacySourceIdFor,
+  isSchemaDriftError,
 };

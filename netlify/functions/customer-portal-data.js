@@ -265,6 +265,7 @@ exports.handler = async (event) => {
     .map((b) => projectBookingForCustomer(b))
     .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
   let vehicles = [];
+  let vehiclesError = null;
   let accountVersion = null;
   if (session.customerAccountId) {
     try {
@@ -274,9 +275,24 @@ exports.handler = async (event) => {
       if (vehicleList.ok) {
         vehicles = vehicleList.vehicles || [];
         if (vehicleList.accountVersion != null) accountVersion = vehicleList.accountVersion;
+      } else {
+        // Do not substitute an empty garage for dependency/schema failures.
+        vehiclesError = vehicleList.error === 'temporarily_unavailable'
+          || vehicleList.error === 'unavailable'
+          || vehicleList.error === 'schema_unavailable'
+          ? (vehicleList.error === 'schema_unavailable' ? 'server_error' : 'temporarily_unavailable')
+          : (vehicleList.error || 'temporarily_unavailable');
+        vehicles = [];
+        if (vehicleList.accountVersion != null) accountVersion = vehicleList.accountVersion;
       }
-    } catch {
+    } catch (err) {
       vehicles = [];
+      vehiclesError = 'temporarily_unavailable';
+      console.error(JSON.stringify({
+        scope: 'customer_portal_data',
+        error: 'vehicle_list_exception',
+        causeCode: String(err && err.code || 'exception').slice(0, 32),
+      }));
     }
   }
   const upcoming = selectUpcoming(projected);
@@ -337,6 +353,7 @@ exports.handler = async (event) => {
     bookings: projected,
     upcoming,
     vehicles,
+    vehiclesError,
     payment,
     catalog,
     packageCatalog,

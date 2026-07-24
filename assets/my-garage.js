@@ -916,6 +916,14 @@
     state.vehicles = r.data.vehicles || [];
     applyPortalPayload(r.data);
     renderDashboard(r.data);
+    if (r.data.vehiclesError === 'temporarily_unavailable'
+      || r.data.vehiclesError === 'server_error'
+      || r.data.vehiclesError === 'service_unavailable') {
+      setVehicleMsg('Vehicle garage is temporarily unavailable. Try again shortly.', true);
+      if ($('vehicles-empty')) show($('vehicles-empty'), false);
+    } else {
+      setVehicleMsg('', false);
+    }
     if (opts.managePhase !== false && portalHydration.phase !== PORTAL_PHASE.READY
       && !isBlockingPortalPhase(portalHydration.phase)
       && !isErrorPortalPhase(portalHydration.phase)) {
@@ -1981,6 +1989,8 @@
     var err = (r.data && r.data.error) || '';
     var msg = (r.data && r.data.message) || 'Vehicle update failed.';
     if (err === 'temporarily_unavailable' || err === 'service_unavailable' || r.status === 503) {
+      msg = 'Vehicle garage is temporarily unavailable. Try again shortly.';
+    } else if (err === 'server_error' || r.status === 500) {
       msg = 'Vehicle garage is temporarily unavailable. Try again shortly.';
     } else if (err === 'validation_error') {
       msg = (r.data && r.data.message) || 'Check the vehicle details and try again.';
