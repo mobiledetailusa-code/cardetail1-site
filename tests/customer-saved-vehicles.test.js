@@ -419,7 +419,7 @@ describe('customer saved vehicles (Stage 2B)', () => {
     assert.match(html, /id="vehicle-form"/);
     assert.match(html, /id="vh-default"/);
     assert.match(html, /customer-vehicle-card\.js\?v=20260723-vehicles2/);
-    assert.match(html, /my-garage\.js\?v=20260723-vehicles2/);
+    assert.match(html, /my-garage\.js\?v=20260723-loading1/);
     // Create/edit field mapping — form controls write the API contract keys.
     assert.match(js, /label:\s*\(\$\('vh-label'\)/);
     assert.match(js, /category:\s*\(\$\('vh-category'\)/);
