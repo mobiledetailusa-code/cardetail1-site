@@ -407,6 +407,17 @@ describe('customer saved vehicles (Stage 2B)', () => {
     assert.doesNotMatch(vehicleModel, /bookingId/);
   });
 
+  it('17a. portal-data exposes top-level accountVersion for vehicle mutations', () => {
+    const src = fs.readFileSync(
+      path.join(__dirname, '../netlify/functions/customer-portal-data.js'),
+      'utf8'
+    );
+    assert.match(src, /let accountVersion = null/);
+    assert.match(src, /vehicleList\.accountVersion/);
+    assert.match(src, /accountVersion,/);
+    assert.match(src, /select: \{ version: true \}/);
+  });
+
   it('17. My Garage UI wires default/edit/archive and expectedVersion', () => {
     const js = fs.readFileSync(path.join(__dirname, '../assets/my-garage.js'), 'utf8');
     const html = fs.readFileSync(path.join(__dirname, '../my-garage.html'), 'utf8');
@@ -419,7 +430,12 @@ describe('customer saved vehicles (Stage 2B)', () => {
     assert.match(html, /id="vehicle-form"/);
     assert.match(html, /id="vh-default"/);
     assert.match(html, /customer-vehicle-card\.js\?v=20260723-vehicles2/);
-    assert.match(html, /my-garage\.js\?v=20260723-loading2/);
+    assert.match(html, /my-garage\.js\?v=20260723-vehicles3/);
+    // accountVersion must be readable for create/update/archive mutations
+    assert.match(js, /function accountVersionForMutation/);
+    assert.match(js, /function ensureAccountVersionForMutation/);
+    assert.match(js, /data\.accountVersion/);
+    assert.doesNotMatch(js, /Session outdated\. Refresh and try again/);
     // Create/edit field mapping — form controls write the API contract keys.
     assert.match(js, /label:\s*\(\$\('vh-label'\)/);
     assert.match(js, /category:\s*\(\$\('vh-category'\)/);

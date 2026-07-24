@@ -265,12 +265,16 @@ exports.handler = async (event) => {
     .map((b) => projectBookingForCustomer(b))
     .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
   let vehicles = [];
+  let accountVersion = null;
   if (session.customerAccountId) {
     try {
       const vehicleList = await listVehicles(session.customerAccountId, {
         phoneDigits: phoneDigits || null,
       });
-      if (vehicleList.ok) vehicles = vehicleList.vehicles || [];
+      if (vehicleList.ok) {
+        vehicles = vehicleList.vehicles || [];
+        if (vehicleList.accountVersion != null) accountVersion = vehicleList.accountVersion;
+      }
     } catch {
       vehicles = [];
     }
@@ -301,8 +305,26 @@ exports.handler = async (event) => {
           linkedBookingCount: linkedAccountBookingIds.size || bookings.length,
         })
       );
+      if (customer && customer.accountVersion != null) accountVersion = customer.accountVersion;
     } catch {
       customer = null;
+    }
+  }
+
+  // Optimistic concurrency token for garage mutations — always expose when session has an account,
+  // even if the richer customer projection failed.
+  if (accountVersion == null && session.customerAccountId) {
+    try {
+      const prisma = tryGetPrisma();
+      if (prisma) {
+        const row = await prisma.customerAccount.findUnique({
+          where: { id: String(session.customerAccountId) },
+          select: { version: true },
+        });
+        if (row && row.version != null) accountVersion = row.version;
+      }
+    } catch {
+      /* leave null — client will ask the user to refresh */
     }
   }
 
@@ -310,6 +332,7 @@ exports.handler = async (event) => {
     ok: true,
     scope: 'account',
     customerAccountId: session.customerAccountId || null,
+    accountVersion,
     customer,
     bookings: projected,
     upcoming,

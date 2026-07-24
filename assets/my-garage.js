@@ -775,12 +775,13 @@
 
   function applyCustomerProjection(customer) {
     if (!customer) {
+      // Do not wipe accountVersion on a missing projection — vehicle mutations
+      // still need the optimistic concurrency token from portal-data.
       state.customer = null;
-      state.accountVersion = null;
       return;
     }
     state.customer = customer;
-    state.accountVersion = customer.accountVersion != null ? customer.accountVersion : state.accountVersion;
+    if (customer.accountVersion != null) state.accountVersion = customer.accountVersion;
   }
 
   function applyPortalPayload(data) {
@@ -789,6 +790,13 @@
     state.changeRequests = data.changeRequests || [];
     state.payment = data.payment || null;
     if (data.customer) applyCustomerProjection(data.customer);
+    // Top-level accountVersion is authoritative for garage mutations.
+    if (data && data.accountVersion != null) {
+      state.accountVersion = data.accountVersion;
+      if (state.customer && state.customer.accountVersion == null) {
+        state.customer.accountVersion = data.accountVersion;
+      }
+    }
   }
 
   async function checkSession() {
@@ -1501,17 +1509,29 @@
   }
 
   function accountVersionForMutation() {
-    return (state.customer && state.customer.accountVersion)
-      || state.accountVersion
-      || null;
+    var raw = null;
+    if (state.customer && state.customer.accountVersion != null) raw = state.customer.accountVersion;
+    else if (state.accountVersion != null) raw = state.accountVersion;
+    if (raw == null || raw === '') return null;
+    var n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  async function ensureAccountVersionForMutation() {
+    var current = accountVersionForMutation();
+    if (current != null) return current;
+    try {
+      await loadAccount({ managePhase: false });
+    } catch (e) { /* fall through */ }
+    return accountVersionForMutation();
   }
 
   async function saveVehicleForm(e) {
     if (e) e.preventDefault();
     if (vehicleFormPending) return;
-    var expectedVersion = accountVersionForMutation();
-    if (!expectedVersion) {
-      setVehicleMsg('Session outdated. Refresh and try again.', true);
+    var expectedVersion = await ensureAccountVersionForMutation();
+    if (expectedVersion == null) {
+      setVehicleMsg('Could not verify your account version. Refresh and try again.', true);
       return;
     }
     var payload = {
@@ -1551,9 +1571,9 @@
 
   async function setDefaultVehicle(vehicleId) {
     if (vehicleFormPending) return;
-    var expectedVersion = accountVersionForMutation();
-    if (!expectedVersion) {
-      setVehicleMsg('Session outdated. Refresh and try again.', true);
+    var expectedVersion = await ensureAccountVersionForMutation();
+    if (expectedVersion == null) {
+      setVehicleMsg('Could not verify your account version. Refresh and try again.', true);
       return;
     }
     vehicleFormPending = true;
@@ -1569,9 +1589,9 @@
 
   async function archiveSavedVehicle(vehicleId) {
     if (vehicleFormPending) return;
-    var expectedVersion = accountVersionForMutation();
-    if (!expectedVersion) {
-      setVehicleMsg('Session outdated. Refresh and try again.', true);
+    var expectedVersion = await ensureAccountVersionForMutation();
+    if (expectedVersion == null) {
+      setVehicleMsg('Could not verify your account version. Refresh and try again.', true);
       return;
     }
     vehicleFormPending = true;
