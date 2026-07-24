@@ -452,6 +452,29 @@ async function ensureVehiclesImported(customerAccountId, opts = {}) {
   return importLegacyVehiclesForAccount(customerAccountId, opts);
 }
 
+/**
+ * Mutations must not be bricked when legacy Blob import is temporarily down.
+ * Import remains best-effort migrate-on-access for list/read; writes may proceed
+ * and import will retry on a later successful read.
+ */
+async function ensureVehiclesImportedForMutation(customerAccountId, opts = {}) {
+  const ensured = await ensureVehiclesImported(customerAccountId, opts);
+  if (ensured.ok) return ensured;
+  if (
+    ensured.error === TEMPORARILY_UNAVAILABLE
+    || ensured.error === UNAVAILABLE
+    || ensured.error === 'temporarily_unavailable'
+    || ensured.error === 'unavailable'
+  ) {
+    return {
+      ok: true,
+      skippedImport: true,
+      accountVersion: ensured.accountVersion || null,
+    };
+  }
+  return ensured;
+}
+
 async function listVehicles(customerAccountId, opts = {}) {
   const prisma = prismaClient(opts.prisma);
   if (!prisma) return { ok: false, error: UNAVAILABLE };
@@ -459,7 +482,20 @@ async function listVehicles(customerAccountId, opts = {}) {
   void opts.browserCustomerAccountId;
 
   const ensured = await ensureVehiclesImported(customerAccountId, opts);
-  if (!ensured.ok) return ensured;
+  let importSoftSkipped = false;
+  if (!ensured.ok) {
+    // Blob import outage: still return PostgreSQL vehicles so the garage remains usable.
+    if (
+      ensured.error === TEMPORARILY_UNAVAILABLE
+      || ensured.error === UNAVAILABLE
+      || ensured.error === 'temporarily_unavailable'
+      || ensured.error === 'unavailable'
+    ) {
+      importSoftSkipped = true;
+    } else {
+      return ensured;
+    }
+  }
 
   const graph = await loadCustomerAccountGraph(customerAccountId, { prisma });
   const gate = assertCustomerPortalAccountActive(graph);
@@ -476,8 +512,11 @@ async function listVehicles(customerAccountId, opts = {}) {
     defaultVehicleId: vehicles.find((v) => v.isDefault)?.id || null,
     accountVersion: graph.version,
     import: {
-      completed: !!graph.vehiclesImportedAt || !!ensured.alreadyImported || ensured.imported === true
-        || ensured.alreadyImported === true,
+      completed: !importSoftSkipped && (
+        !!graph.vehiclesImportedAt || !!ensured.alreadyImported || ensured.imported === true
+        || ensured.alreadyImported === true
+      ),
+      softSkipped: importSoftSkipped || undefined,
     },
   };
 }
@@ -490,7 +529,7 @@ async function createVehicle(input = {}, opts = {}) {
   const customerAccountId = String(input.customerAccountId || '').trim();
   if (!customerAccountId) return { ok: false, error: NOT_FOUND };
 
-  const ensured = await ensureVehiclesImported(customerAccountId, opts);
+  const ensured = await ensureVehiclesImportedForMutation(customerAccountId, opts);
   if (!ensured.ok) return ensured;
 
   const normalized = normalizeVehicleFields(input.vehicle || input, { partial: false });
@@ -594,7 +633,7 @@ async function updateVehicle(input = {}, opts = {}) {
   const vehicleId = String(input.vehicleId || input.id || '').trim();
   if (!customerAccountId || !vehicleId) return { ok: false, error: NOT_FOUND };
 
-  const ensured = await ensureVehiclesImported(customerAccountId, opts);
+  const ensured = await ensureVehiclesImportedForMutation(customerAccountId, opts);
   if (!ensured.ok) return ensured;
 
   const normalized = normalizeVehicleFields(input.vehicle || input, { partial: true });
@@ -692,7 +731,7 @@ async function archiveVehicle(input = {}, opts = {}) {
   const vehicleId = String(input.vehicleId || input.id || '').trim();
   if (!customerAccountId || !vehicleId) return { ok: false, error: NOT_FOUND };
 
-  const ensured = await ensureVehiclesImported(customerAccountId, opts);
+  const ensured = await ensureVehiclesImportedForMutation(customerAccountId, opts);
   if (!ensured.ok) return ensured;
 
   const expectedVersion = Number(input.expectedVersion);
@@ -788,7 +827,7 @@ async function setDefaultVehicle(input = {}, opts = {}) {
   const vehicleId = String(input.vehicleId || input.id || '').trim();
   if (!customerAccountId || !vehicleId) return { ok: false, error: NOT_FOUND };
 
-  const ensured = await ensureVehiclesImported(customerAccountId, opts);
+  const ensured = await ensureVehiclesImportedForMutation(customerAccountId, opts);
   if (!ensured.ok) return ensured;
 
   const expectedVersion = Number(input.expectedVersion);
@@ -860,6 +899,8 @@ module.exports = {
   ALLOWED_CATEGORIES,
   setPrismaForTests,
   setLegacyReaderForTests,
+  ensureVehiclesImported,
+  ensureVehiclesImportedForMutation,
   normalizeVehicleFields,
   projectVehicle,
   createdAtTimestamp,
@@ -871,6 +912,5 @@ module.exports = {
   archiveVehicle,
   setDefaultVehicle,
   importLegacyVehiclesForAccount,
-  ensureVehiclesImported,
   legacySourceIdFor,
 };

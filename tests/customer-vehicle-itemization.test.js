@@ -518,6 +518,6 @@ describe('Customer UI vehicle itemization rendering', () => {
   });
 
   it('cache-busts my-garage.js for Production browsers', () => {
-    assert.match(myGarageHtml, /my-garage\.js\?v=20260723-vehicles3/);
+    assert.match(myGarageHtml, /my-garage\.js\?v=20260723-vehicles4/);
   });
 });

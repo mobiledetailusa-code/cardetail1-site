@@ -1561,9 +1561,8 @@
       if (ok) {
         closeVehicleForm();
         setVehicleMsg('Vehicle saved.', false);
-      } else {
-        setVehicleMsg('Could not save vehicle. Try again.', true);
       }
+      // vehicleAction already set a specific error message / toast on failure.
     } finally {
       vehicleFormPending = false;
     }
@@ -1971,16 +1970,27 @@
       }
       if (Array.isArray(r.data.vehicles)) state.vehicles = r.data.vehicles;
       showToast('Vehicle updated.');
-      await loadAccount();
+      try { await loadAccount({ managePhase: false }); } catch (e) { /* keep local list */ }
       return true;
     }
     if (r.data && r.data.error === 'version_conflict') {
       setVehicleMsg('Account changed elsewhere. Reloading…', true);
-      await loadAccount();
+      await loadAccount({ managePhase: false });
       return false;
     }
-    showToast((r.data && r.data.message) || 'Vehicle update failed.', true);
-    setVehicleMsg((r.data && r.data.message) || 'Vehicle update failed.', true);
+    var err = (r.data && r.data.error) || '';
+    var msg = (r.data && r.data.message) || 'Vehicle update failed.';
+    if (err === 'temporarily_unavailable' || err === 'service_unavailable' || r.status === 503) {
+      msg = 'Vehicle garage is temporarily unavailable. Try again shortly.';
+    } else if (err === 'validation_error') {
+      msg = (r.data && r.data.message) || 'Check the vehicle details and try again.';
+    } else if (err === 'not_found') {
+      msg = 'Vehicle not found. Refresh and try again.';
+    } else if (err === 'rate_limited' || r.status === 429) {
+      msg = 'Too many requests. Wait a moment and try again.';
+    }
+    showToast(msg, true);
+    setVehicleMsg(msg, true);
     return false;
   }
 

@@ -430,7 +430,7 @@ describe('customer saved vehicles (Stage 2B)', () => {
     assert.match(html, /id="vehicle-form"/);
     assert.match(html, /id="vh-default"/);
     assert.match(html, /customer-vehicle-card\.js\?v=20260723-vehicles2/);
-    assert.match(html, /my-garage\.js\?v=20260723-vehicles3/);
+    assert.match(html, /my-garage\.js\?v=20260723-vehicles4/);
     // accountVersion must be readable for create/update/archive mutations
     assert.match(js, /function accountVersionForMutation/);
     assert.match(js, /function ensureAccountVersionForMutation/);
@@ -562,6 +562,42 @@ describe('customer saved vehicles (Stage 2B)', () => {
     const refreshed = await prisma.customerAccount.findUnique({ where: { id: account.id } });
     assert.equal(refreshed.vehiclesImportedAt, null);
     assert.equal(await prisma.customerVehicle.count({ where: { customerAccountId: account.id } }), 0);
+  });
+
+  it('23b. createVehicle still works when legacy Blob import is temporarily down', async () => {
+    const svc = require('../netlify/lib/customer-vehicle-service');
+    const { LEGACY_SOURCE_UNAVAILABLE } = require('../netlify/lib/customer-vehicles-legacy');
+    const account = await seedAccount(prisma, {
+      email: 'write-during-blob-outage@example.test',
+      phone: '2015550166',
+      vehiclesImportedAt: null,
+    });
+    svc.setLegacyReaderForTests(async () => {
+      const err = new Error(LEGACY_SOURCE_UNAVAILABLE);
+      err.code = LEGACY_SOURCE_UNAVAILABLE;
+      throw err;
+    });
+    const listedBefore = await svc.listVehicles(account.id, { phoneDigits: '2015550166' });
+    assert.equal(listedBefore.ok, true, 'list remains usable during blob outage');
+    assert.equal((listedBefore.vehicles || []).length, 0);
+    assert.equal(listedBefore.import?.softSkipped, true);
+
+    const created = await svc.createVehicle({
+      customerAccountId: account.id,
+      expectedVersion: 1,
+      vehicle: { label: 'New during outage', make: 'Honda', model: 'Civic' },
+    });
+    assert.equal(created.ok, true, 'mutations must not brick when legacy import is down');
+    assert.ok(created.vehicleId);
+    assert.equal(await prisma.customerVehicle.count({
+      where: { customerAccountId: account.id, archivedAt: null },
+    }), 1);
+
+    const listedAfter = await svc.listVehicles(account.id, { phoneDigits: '2015550166' });
+    assert.equal(listedAfter.ok, true);
+    assert.equal((listedAfter.vehicles || []).length, 1);
+    const refreshed = await prisma.customerAccount.findUnique({ where: { id: account.id } });
+    assert.equal(refreshed.vehiclesImportedAt, null, 'import marker stays unset for later retry');
   });
 
   it('24. retry after transient Blob failure imports and commits marker', async () => {
