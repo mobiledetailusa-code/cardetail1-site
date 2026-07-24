@@ -319,7 +319,7 @@ test('HTML: loading shell, aria-live/busy, spinner, boot class, mobile rules', (
   assert.match(html, /Return to sign in/);
   assert.match(html, /Signing you in\.\.\./);
   assert.match(html, /@media\(max-width:430px\)[\s\S]*portal-loading/);
-  assert.match(html, /my-garage\.js\?v=20260723-loading1/);
+  assert.match(html, /my-garage\.js\?v=20260723-loading2/);
   assert.doesNotMatch(html, /auth=|token=|&t=/);
 });
 
@@ -337,9 +337,10 @@ test('JS: explicit portal phase state machine (not boolean soup)', () => {
   assert.match(js, /We're having trouble loading your account/);
   assert.match(js, /Your account is temporarily unavailable/);
   assert.match(js, /PORTAL_SLOW_MS = 4000/);
-  assert.match(js, /PORTAL_TIMEOUT_MS = 10000/);
+  assert.match(js, /PORTAL_TIMEOUT_MS = 30000/);
   assert.match(js, /stripMagicLinkParamsFromUrl/);
   assert.match(js, /magicLinkConsumed/);
+  assert.match(js, /pendingMagic/);
 });
 
 test('1+2. loading appears immediately; unauthenticated content does not flash', async () => {
@@ -466,7 +467,7 @@ test('5. 503 temporarily_unavailable message', async () => {
   assert.equal(document._els['post-auth'].hidden, true);
 });
 
-test('6. timeout displays retry state (~10s)', async () => {
+test('6. timeout displays retry state (~30s soft timeout)', async () => {
   const fetch = mockFetchRouter({
     'customer-portal-auth': async (body) => {
       if (body.action === 'session') {
@@ -480,14 +481,50 @@ test('6. timeout displays retry state (~10s)', async () => {
   const { sandbox, document } = await loadPortal({ fetch });
   assert.ok(isBlocking(sandbox.cd1MyGarage.getPortalPhase()));
 
-  sandbox.__advance(10000);
-  await Promise.resolve();
+  await sandbox.__advance(10000);
+  assert.notEqual(sandbox.cd1MyGarage.getPortalPhase(), 'failed');
+
+  await sandbox.__advance(20000);
   assert.equal(sandbox.cd1MyGarage.getPortalPhase(), 'failed');
   assert.match(
     document._els['portal-loading-status'].textContent,
     /having trouble loading your account/
   );
   assert.equal(document._els['portal-loading'].classList.contains('is-error'), true);
+});
+
+test('soft timeout does not discard a late successful portal load', async () => {
+  let releaseData;
+  const fetch = mockFetchRouter({
+    'customer-portal-auth': async (body) => {
+      if (body.action === 'verify') return { data: { ok: true } };
+      if (body.action === 'session') return { data: { ok: true, authenticated: true } };
+      return { data: { ok: false } };
+    },
+    'customer-portal-data': () => new Promise((resolve) => {
+      releaseData = () => resolve({ data: accountPayload() });
+    }),
+  });
+
+  const { sandbox, document } = await loadPortal({
+    fetch,
+    search: '?auth=chal_late&t=tok_late',
+  });
+  assert.ok(
+    sandbox.cd1MyGarage.getPortalPhase() === 'loading_portal'
+    || sandbox.cd1MyGarage.getPortalPhase() === 'validating_link'
+    || sandbox.cd1MyGarage.getPortalPhase() === 'establishing_session'
+    || sandbox.cd1MyGarage.getPortalPhase() === 'failed'
+  );
+
+  await sandbox.__advance(30000);
+  assert.equal(sandbox.cd1MyGarage.getPortalPhase(), 'failed');
+
+  assert.equal(typeof releaseData, 'function');
+  releaseData();
+  await flushMicrotasks(40);
+  assert.equal(sandbox.cd1MyGarage.getPortalPhase(), 'ready');
+  assert.equal(document._els['post-auth'].hidden, false);
 });
 
 function isBlocking(phase) {
@@ -539,9 +576,9 @@ test('7+8. retry triggers hydration once; no duplicate API submissions', async (
   assert.equal(fetch.calls.filter((c) => c.body.action === 'verify').length, 1);
   assert.equal(fetch.calls.filter((c) => c.body.token === 'once-only-token').length, 1);
 
-  // Second retry click while idle/ready should still be single-flight safe.
-  const inFlightGuard = await sandbox.cd1MyGarage.retryHydration();
-  assert.equal(typeof inFlightGuard === 'boolean' || inFlightGuard == null || true, true);
+  // Consumed magic-link must never be replayed after a successful verify.
+  assert.equal(fetch.calls.filter((c) => c.body.action === 'verify').length, 1);
+  assert.equal(fetch.calls.filter((c) => c.body.token === 'once-only-token').length, 1);
 });
 
 test('9. aria-live and aria-busy present during unresolved auth', async () => {

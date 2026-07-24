@@ -54,7 +54,8 @@
     FAILED: 'failed',
   };
   var PORTAL_SLOW_MS = 4000;
-  var PORTAL_TIMEOUT_MS = 10000;
+  /** Cold Netlify + portal-data often exceeds 10s; keep UI honest without killing success. */
+  var PORTAL_TIMEOUT_MS = 30000;
   var portalHydration = {
     phase: PORTAL_PHASE.IDLE,
     generation: 0,
@@ -62,8 +63,10 @@
     slowTimer: null,
     timeoutTimer: null,
     lastError: null,
-    /** True after a magic-link token was submitted — retry must not replay it. */
+    /** True only after verify succeeded (token consumed server-side). */
     magicLinkConsumed: false,
+    /** In-memory magic-link credentials until verify settles — never written to DOM/storage. */
+    pendingMagic: null,
   };
 
   function $(id) { return document.getElementById(id); }
@@ -167,12 +170,19 @@
     portalHydration.timeoutTimer = setTimeout(function () {
       if (generation !== portalHydration.generation) return;
       if (!isBlockingPortalPhase(portalHydration.phase)) return;
-      // Invalidate in-flight work so a late success cannot flip to ready.
-      portalHydration.generation += 1;
-      portalHydration.inFlight = false;
+      // Soft timeout: show recovery UI but do NOT bump generation.
+      // A late successful verify/loadAccount must still reach ready if the user
+      // has not started a newer retry / return-to-sign-in (those bump generation).
       portalHydration.lastError = 'timeout';
       setPortalPhase(PORTAL_PHASE.FAILED);
     }, PORTAL_TIMEOUT_MS);
+  }
+
+  function focusPortalRecoveryAction() {
+    try {
+      var btn = $('portal-retry');
+      if (btn && typeof btn.focus === 'function') btn.focus();
+    } catch (e) { /* ignore */ }
   }
 
   function setPortalPhase(phase, opts) {
@@ -184,9 +194,12 @@
       }
     } else {
       clearPortalHydrationTimers();
-      portalHydration.inFlight = false;
+      // Soft-timeout keeps inFlight so a late success can still settle to ready
+      // without a parallel retry racing the same magic-link/session request.
+      if (!opts.keepInFlight) portalHydration.inFlight = false;
     }
     renderPortalPhase(phase, opts);
+    if (isErrorPortalPhase(phase) && !opts.keepInFlight) focusPortalRecoveryAction();
     return phase;
   }
 
@@ -933,8 +946,10 @@
         return false;
       }
 
+      // Keep the same wall-clock timeout across session → garage load.
       setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, {
         message: 'Loading your garage...',
+        restartTimers: false,
       });
 
       var ok = await loadAccount({ generation: generation, managePhase: false });
@@ -963,21 +978,37 @@
     }
   }
 
-  function retryPortalHydration() {
-    if (portalHydration.inFlight) return Promise.resolve(false);
-    // Retry uses cookie session only — never resubmit a consumed magic-link token.
-    return hydrateAuthenticatedPortal({
+  async function retryPortalHydration() {
+    if (portalHydration.inFlight) return false;
+    // Snapshot pending magic before hydrate bumps generation / clears timers.
+    var pending = portalHydration.pendingMagic;
+
+    var ok = await hydrateAuthenticatedPortal({
       force: true,
       phase: PORTAL_PHASE.LOADING_PORTAL,
       message: 'Loading your garage...',
-      allowIdle: true,
+      allowIdle: false,
     });
+    if (ok) return true;
+    if (isErrorPortalPhase(portalHydration.phase)) return false;
+
+    // If verify never established a session (timeout/network before consume),
+    // retry the in-memory magic link once — never from the URL.
+    if (pending && pending.challengeId && pending.token && !portalHydration.magicLinkConsumed) {
+      return verifyMagicLink(pending.challengeId, pending.token);
+    }
+
+    if (portalHydration.phase !== PORTAL_PHASE.READY) {
+      setPortalPhase(PORTAL_PHASE.IDLE);
+    }
+    return false;
   }
 
   function returnToPortalSignIn() {
     portalHydration.generation += 1;
     portalHydration.inFlight = false;
     portalHydration.lastError = null;
+    portalHydration.pendingMagic = null;
     clearPortalHydrationTimers();
     stripMagicLinkParamsFromUrl();
     setPortalPhase(PORTAL_PHASE.IDLE);
@@ -1004,16 +1035,26 @@
     var generation = portalHydration.generation;
     portalHydration.inFlight = true;
     portalHydration.lastError = null;
-    portalHydration.magicLinkConsumed = true;
+    // Keep credentials in memory until verify settles; strip from URL immediately.
+    portalHydration.pendingMagic = { challengeId: String(challengeId || ''), token: String(token || '') };
+    portalHydration.magicLinkConsumed = false;
     setPortalPhase(PORTAL_PHASE.VALIDATING_LINK, { message: 'Signing you in...' });
-    // Remove token from the address bar before/while verifying — never render it in DOM.
     stripMagicLinkParamsFromUrl();
 
-    var r = await post('customer-portal-auth', {
-      action: 'verify',
-      challengeId: challengeId,
-      token: token,
-    });
+    var r;
+    try {
+      r = await post('customer-portal-auth', {
+        action: 'verify',
+        challengeId: challengeId,
+        token: token,
+      });
+    } catch (e) {
+      if (generation !== portalHydration.generation) return false;
+      portalHydration.inFlight = false;
+      portalHydration.lastError = 'load_failed';
+      setPortalPhase(PORTAL_PHASE.FAILED);
+      return false;
+    }
     if (generation !== portalHydration.generation) return false;
 
     if (isTemporarilyUnavailableResponse(r)) {
@@ -1023,12 +1064,14 @@
     }
 
     if (r.data && r.data.ok) {
+      // Token consumed server-side — do not replay on retry.
+      portalHydration.magicLinkConsumed = true;
+      portalHydration.pendingMagic = null;
       if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.authSucceeded();
       setPortalPhase(PORTAL_PHASE.ESTABLISHING_SESSION, {
         message: 'Signing you in...',
         restartTimers: false,
       });
-      // Cookie is on the verify response; continue same hydration clock into garage load.
       setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, {
         message: 'Loading your garage...',
         restartTimers: false,
@@ -1050,10 +1093,11 @@
       return false;
     }
 
+    // Definitive auth failure — drop pending token so retry does not hammer a dead link.
+    portalHydration.pendingMagic = null;
     portalHydration.inFlight = false;
     setPortalPhase(PORTAL_PHASE.IDLE);
     var failMsg = (r.data && r.data.message) || 'This link is invalid or expired.';
-    // Never surface raw tokens / internal codes.
     if (/token|challenge|stack|ECONN|prisma/i.test(String(failMsg))) {
       failMsg = 'This link is invalid or expired.';
     }
@@ -3031,8 +3075,11 @@
 
     var actionToken = params.get('action');
     if (actionToken) {
+      var actionGen = portalHydration.generation;
       setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, { message: 'Loading your garage...' });
+      actionGen = portalHydration.generation;
       var ar = await post('customer-portal-action', { action: 'view', token: actionToken });
+      if (actionGen !== portalHydration.generation) return;
       if (ar.data && ar.data.ok) {
         state.scope = 'booking';
         state.actionToken = actionToken; // retain in memory only for focus/poll refresh
@@ -3086,7 +3133,9 @@
     // Never auto-login from sessionStorage alone — that re-locked the last Booking ID on login.
     var urlHasBooking = !!(params.get('bookingId') || params.get('id') || params.get('booking'));
     if (urlHasBooking && preId) {
+      var bookingGen = portalHydration.generation;
       setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, { message: 'Loading your garage...' });
+      bookingGen = portalHydration.generation;
       if (!prePhone) {
         try { prePhone = sessionStorage.getItem('cd1_garage_phone') || ''; } catch (e) { prePhone = ''; }
       }
@@ -3095,6 +3144,7 @@
         state.verifyPhone = normalizePhoneInput(prePhone);
         var wasPaidReturn = params.get('paid') === '1';
         var autoOk = await loadLimited();
+        if (bookingGen !== portalHydration.generation) return;
         if (autoOk) {
           history.replaceState({}, '', 'my-garage.html' + (wasPaidReturn ? '?paid=1' : ''));
           setPortalPhase(PORTAL_PHASE.READY);
