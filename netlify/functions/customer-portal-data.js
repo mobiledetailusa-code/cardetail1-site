@@ -1,4 +1,5 @@
-// Authenticated customer portal data — bookings, vehicles, payments (safe fields only).
+// Authenticated customer portal data — bookings, profile, payments (safe fields only).
+// Saved-vehicle garage hydration is intentionally omitted from the current release.
 
 const { jsonCors } = require('../lib/tech-security');
 const { listRawBookings } = require('../lib/ops-db');
@@ -6,7 +7,6 @@ const { projectBookingForCustomer } = require('../lib/ops-schema');
 const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
 const { validateCustomerSession } = require('../lib/customer-session');
 const { phonesMatch, normalizeUsPhoneDigits } = require('../lib/phone-auth');
-const { listVehiclesForOwner } = require('../lib/customer-vehicles');
 const { listVisibleRequestsForBooking } = require('../lib/customer-change-requests');
 const { canPayBalance } = require('../lib/appointment-status-policy');
 const { catalogForClient } = require('../lib/customer-catalog');
@@ -264,7 +264,6 @@ exports.handler = async (event) => {
   const projected = bookings
     .map((b) => projectBookingForCustomer(b))
     .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
-  const vehicles = phoneDigits ? await listVehiclesForOwner(phoneDigits) : [];
   const upcoming = selectUpcoming(projected);
   const payment = upcoming
     ? await safePaymentStateAsync(bookings.find((b) => (b.id || b.bookingId) === upcoming.id) || {})
@@ -303,7 +302,6 @@ exports.handler = async (event) => {
     customer,
     bookings: projected,
     upcoming,
-    vehicles,
     payment,
     catalog,
     packageCatalog,
@@ -311,7 +309,6 @@ exports.handler = async (event) => {
     changeRequests,
     sections: {
       appointments: projected.length > 0,
-      vehicles: vehicles.length > 0,
       history: projected.some((b) => ['Paid', 'Completed'].includes(b.status)),
       maintenancePlans: projected.some((b) => b.maintenanceRequested || b.maintenancePeriod),
       payments: !!(payment.canPay || payment.payLink || projected.some((b) => Number(b.amountDueApproved || 0) > 0)),

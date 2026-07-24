@@ -10,7 +10,6 @@
     scope: null,
     booking: null,
     bookings: [],
-    vehicles: [],
     session: false,
     verifyPhone: '',
     verifyBookingId: '',
@@ -37,7 +36,188 @@
   var addressEditingId = null;
   var profileAddressBusy = false;
 
+  /**
+   * Portal boot / magic-link hydration — single state machine (avoid boolean soup).
+   * idle → validating_link → establishing_session → loading_portal → ready
+   *                                      ↘ temporarily_unavailable | failed
+   */
+  var PORTAL_PHASE = {
+    IDLE: 'idle',
+    VALIDATING_LINK: 'validating_link',
+    ESTABLISHING_SESSION: 'establishing_session',
+    LOADING_PORTAL: 'loading_portal',
+    READY: 'ready',
+    TEMPORARILY_UNAVAILABLE: 'temporarily_unavailable',
+    FAILED: 'failed',
+  };
+  var PORTAL_SLOW_MS = 4000;
+  /** Cold Netlify + portal-data often exceeds 10s; keep UI honest without killing success. */
+  var PORTAL_TIMEOUT_MS = 30000;
+  var portalHydration = {
+    phase: PORTAL_PHASE.IDLE,
+    generation: 0,
+    inFlight: false,
+    slowTimer: null,
+    timeoutTimer: null,
+    lastError: null,
+    /** True only after verify succeeded (token consumed server-side). */
+    magicLinkConsumed: false,
+    /** In-memory magic-link credentials until verify settles — never written to DOM/storage. */
+    pendingMagic: null,
+  };
+
   function $(id) { return document.getElementById(id); }
+
+  function isBlockingPortalPhase(phase) {
+    return phase === PORTAL_PHASE.VALIDATING_LINK
+      || phase === PORTAL_PHASE.ESTABLISHING_SESSION
+      || phase === PORTAL_PHASE.LOADING_PORTAL;
+  }
+
+  function isErrorPortalPhase(phase) {
+    return phase === PORTAL_PHASE.FAILED
+      || phase === PORTAL_PHASE.TEMPORARILY_UNAVAILABLE;
+  }
+
+  function clearPortalHydrationTimers() {
+    if (portalHydration.slowTimer) {
+      clearTimeout(portalHydration.slowTimer);
+      portalHydration.slowTimer = null;
+    }
+    if (portalHydration.timeoutTimer) {
+      clearTimeout(portalHydration.timeoutTimer);
+      portalHydration.timeoutTimer = null;
+    }
+  }
+
+  function setPortalLoadingMessage(text) {
+    var el = $('portal-loading-status');
+    if (el) el.textContent = text || '';
+  }
+
+  function defaultMessageForPhase(phase) {
+    if (phase === PORTAL_PHASE.VALIDATING_LINK || phase === PORTAL_PHASE.ESTABLISHING_SESSION) {
+      return 'Signing you in...';
+    }
+    if (phase === PORTAL_PHASE.LOADING_PORTAL) {
+      return 'Loading your garage...';
+    }
+    if (phase === PORTAL_PHASE.TEMPORARILY_UNAVAILABLE) {
+      return 'Your account is temporarily unavailable. Please try again.';
+    }
+    if (phase === PORTAL_PHASE.FAILED) {
+      return "We're having trouble loading your account.";
+    }
+    return '';
+  }
+
+  function renderPortalPhase(phase, opts) {
+    opts = opts || {};
+    var shell = $('portal-shell');
+    var loading = $('portal-loading');
+    var pre = $('pre-auth');
+    var post = $('post-auth');
+    var blocking = isBlockingPortalPhase(phase);
+    var errored = isErrorPortalPhase(phase);
+    var showLoading = blocking || errored;
+
+    if (shell) {
+      shell.setAttribute('data-portal-phase', phase);
+      if (blocking) shell.setAttribute('aria-busy', 'true');
+      else shell.removeAttribute('aria-busy');
+    }
+    if (loading) {
+      loading.classList.toggle('is-visible', showLoading);
+      loading.classList.toggle('is-error', errored);
+      loading.hidden = !showLoading;
+      loading.setAttribute('aria-busy', blocking ? 'true' : 'false');
+    }
+    if (post) {
+      post.setAttribute('aria-busy', blocking ? 'true' : 'false');
+    }
+
+    if (showLoading) {
+      show(pre, false);
+      show(post, false);
+    } else if (phase === PORTAL_PHASE.READY) {
+      show(pre, false);
+      show(post, true);
+    } else {
+      show(pre, true);
+      show(post, false);
+    }
+
+    if (opts.message != null) setPortalLoadingMessage(opts.message);
+    else if (showLoading) setPortalLoadingMessage(defaultMessageForPhase(phase));
+
+    if (blocking) {
+      try { document.documentElement.classList.add('cd1-portal-booting'); } catch (e) { /* ignore */ }
+    } else {
+      try { document.documentElement.classList.remove('cd1-portal-booting'); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function startPortalHydrationTimers(generation) {
+    clearPortalHydrationTimers();
+    portalHydration.slowTimer = setTimeout(function () {
+      if (generation !== portalHydration.generation) return;
+      if (!isBlockingPortalPhase(portalHydration.phase)) return;
+      setPortalLoadingMessage('Still loading your account...');
+    }, PORTAL_SLOW_MS);
+    portalHydration.timeoutTimer = setTimeout(function () {
+      if (generation !== portalHydration.generation) return;
+      if (!isBlockingPortalPhase(portalHydration.phase)) return;
+      // Soft timeout: show recovery UI but do NOT bump generation.
+      // A late successful verify/loadAccount must still reach ready if the user
+      // has not started a newer retry / return-to-sign-in (those bump generation).
+      portalHydration.lastError = 'timeout';
+      setPortalPhase(PORTAL_PHASE.FAILED);
+    }, PORTAL_TIMEOUT_MS);
+  }
+
+  function focusPortalRecoveryAction() {
+    try {
+      var btn = $('portal-retry');
+      if (btn && typeof btn.focus === 'function') btn.focus();
+    } catch (e) { /* ignore */ }
+  }
+
+  function setPortalPhase(phase, opts) {
+    opts = opts || {};
+    portalHydration.phase = phase;
+    if (isBlockingPortalPhase(phase)) {
+      if (opts.restartTimers !== false) {
+        startPortalHydrationTimers(portalHydration.generation);
+      }
+    } else {
+      clearPortalHydrationTimers();
+      // Soft-timeout keeps inFlight so a late success can still settle to ready
+      // without a parallel retry racing the same magic-link/session request.
+      if (!opts.keepInFlight) portalHydration.inFlight = false;
+    }
+    renderPortalPhase(phase, opts);
+    if (isErrorPortalPhase(phase) && !opts.keepInFlight) focusPortalRecoveryAction();
+    return phase;
+  }
+
+  function stripMagicLinkParamsFromUrl() {
+    try {
+      var params = new URLSearchParams(global.location.search);
+      if (!params.has('auth') && !params.has('t')) return;
+      params.delete('auth');
+      params.delete('t');
+      var cleaned = params.toString();
+      var next = 'my-garage.html' + (cleaned ? ('?' + cleaned) : '') + (global.location.hash || '');
+      history.replaceState({}, '', next);
+    } catch (e) { /* ignore */ }
+  }
+
+  function isTemporarilyUnavailableResponse(r) {
+    if (!r) return false;
+    if (r.status === 503) return true;
+    var err = r.data && r.data.error;
+    return err === 'temporarily_unavailable' || err === 'service_unavailable';
+  }
 
   function settledCentsFromPayment(pay) {
     var p = pay || state.payment || {};
@@ -493,7 +673,6 @@
     state.scope = null;
     state.booking = null;
     state.bookings = [];
-    state.vehicles = [];
     state.session = false;
     state.customer = null;
     state.accountVersion = null;
@@ -507,14 +686,17 @@
       state.verifyBookingId = '';
     }
     clearProfileAddressDom();
-    show($('pre-auth'), true);
-    show($('post-auth'), false);
+    // Hydration shell owns visibility during boot/error phases.
+    if (!isBlockingPortalPhase(portalHydration.phase) && !isErrorPortalPhase(portalHydration.phase)) {
+      show($('pre-auth'), true);
+      show($('post-auth'), false);
+    } else {
+      show($('post-auth'), false);
+    }
     var upcoming = $('upcoming-panel');
     if (upcoming) upcoming.innerHTML = '';
     var appts = $('appointments-list');
     if (appts) appts.innerHTML = '';
-    var veh = $('vehicles-list');
-    if (veh) veh.innerHTML = '';
     var hist = $('history-list');
     if (hist) hist.innerHTML = '';
     var payPanel = $('payments-panel');
@@ -664,23 +846,135 @@
     return true;
   }
 
-  async function loadAccount() {
+  async function loadAccount(opts) {
+    opts = opts || {};
+    var generation = opts.generation != null ? opts.generation : portalHydration.generation;
+    portalHydration.lastError = null;
     var r = await post('customer-portal-data', { mode: 'account' });
+    if (generation !== portalHydration.generation) return false;
     if (r.status === 401) {
       clearAuthenticatedCustomerState({ reason: 'http_401' });
+      portalHydration.lastError = 'authentication_failed';
       return false;
     }
-    if (!r.data || !r.data.ok) return false;
+    if (isTemporarilyUnavailableResponse(r)) {
+      portalHydration.lastError = 'temporarily_unavailable';
+      return false;
+    }
+    if (!r.data || !r.data.ok) {
+      portalHydration.lastError = (r.data && r.data.error) || 'load_failed';
+      return false;
+    }
     state.scope = 'account';
     state.session = true;
     state.bookings = r.data.bookings || [];
     state.booking = r.data.upcoming || state.bookings[0] || null;
-    state.vehicles = r.data.vehicles || [];
     applyPortalPayload(r.data);
     renderDashboard(r.data);
-    show($('pre-auth'), false);
-    show($('post-auth'), true);
+    if (opts.managePhase !== false && portalHydration.phase !== PORTAL_PHASE.READY
+      && !isBlockingPortalPhase(portalHydration.phase)
+      && !isErrorPortalPhase(portalHydration.phase)) {
+      // Non-boot reloads (profile/address mutations) keep the dashboard visible.
+      show($('pre-auth'), false);
+      show($('post-auth'), true);
+    }
     return true;
+  }
+
+  /**
+   * Session + account hydration for boot/retry. Never replays magic-link tokens.
+   */
+  async function hydrateAuthenticatedPortal(opts) {
+    opts = opts || {};
+    if (portalHydration.inFlight && opts.force !== true) return false;
+    portalHydration.generation += 1;
+    var generation = portalHydration.generation;
+    portalHydration.inFlight = true;
+    portalHydration.lastError = null;
+
+    var initialPhase = opts.phase || PORTAL_PHASE.LOADING_PORTAL;
+    var initialMessage = opts.message || defaultMessageForPhase(initialPhase);
+    setPortalPhase(initialPhase, { message: initialMessage });
+
+    try {
+      var authed = await checkSession();
+      if (generation !== portalHydration.generation) return false;
+      if (!authed) {
+        if (opts.allowIdle !== false) {
+          setPortalPhase(PORTAL_PHASE.IDLE);
+        } else {
+          clearPortalHydrationTimers();
+          portalHydration.inFlight = false;
+        }
+        return false;
+      }
+
+      // Keep the same wall-clock timeout across session → garage load.
+      setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, {
+        message: 'Loading your garage...',
+        restartTimers: false,
+      });
+
+      var ok = await loadAccount({ generation: generation, managePhase: false });
+      if (generation !== portalHydration.generation) return false;
+      if (ok) {
+        setPortalPhase(PORTAL_PHASE.READY);
+        return true;
+      }
+      if (portalHydration.lastError === 'temporarily_unavailable') {
+        setPortalPhase(PORTAL_PHASE.TEMPORARILY_UNAVAILABLE);
+      } else if (portalHydration.lastError === 'authentication_failed') {
+        setPortalPhase(PORTAL_PHASE.IDLE);
+      } else {
+        setPortalPhase(PORTAL_PHASE.FAILED);
+      }
+      return false;
+    } catch (e) {
+      if (generation !== portalHydration.generation) return false;
+      portalHydration.lastError = 'load_failed';
+      setPortalPhase(PORTAL_PHASE.FAILED);
+      return false;
+    } finally {
+      if (generation === portalHydration.generation) {
+        portalHydration.inFlight = false;
+      }
+    }
+  }
+
+  async function retryPortalHydration() {
+    if (portalHydration.inFlight) return false;
+    // Snapshot pending magic before hydrate bumps generation / clears timers.
+    var pending = portalHydration.pendingMagic;
+
+    var ok = await hydrateAuthenticatedPortal({
+      force: true,
+      phase: PORTAL_PHASE.LOADING_PORTAL,
+      message: 'Loading your garage...',
+      allowIdle: false,
+    });
+    if (ok) return true;
+    if (isErrorPortalPhase(portalHydration.phase)) return false;
+
+    // If verify never established a session (timeout/network before consume),
+    // retry the in-memory magic link once — never from the URL.
+    if (pending && pending.challengeId && pending.token && !portalHydration.magicLinkConsumed) {
+      return verifyMagicLink(pending.challengeId, pending.token);
+    }
+
+    if (portalHydration.phase !== PORTAL_PHASE.READY) {
+      setPortalPhase(PORTAL_PHASE.IDLE);
+    }
+    return false;
+  }
+
+  function returnToPortalSignIn() {
+    portalHydration.generation += 1;
+    portalHydration.inFlight = false;
+    portalHydration.lastError = null;
+    portalHydration.pendingMagic = null;
+    clearPortalHydrationTimers();
+    stripMagicLinkParamsFromUrl();
+    setPortalPhase(PORTAL_PHASE.IDLE);
   }
 
   async function startAccountAuth() {
@@ -700,14 +994,78 @@
   }
 
   async function verifyMagicLink(challengeId, token) {
-    var r = await post('customer-portal-auth', { action: 'verify', challengeId: challengeId, token: token });
-    if (r.data && r.data.ok) {
-      if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.authSucceeded();
-      history.replaceState({}, '', 'my-garage.html');
-      await loadAccount();
-    } else {
-      setMsg($('acct-error'), (r.data && r.data.message) || 'This link is invalid or expired.', true);
+    portalHydration.generation += 1;
+    var generation = portalHydration.generation;
+    portalHydration.inFlight = true;
+    portalHydration.lastError = null;
+    // Keep credentials in memory until verify settles; strip from URL immediately.
+    portalHydration.pendingMagic = { challengeId: String(challengeId || ''), token: String(token || '') };
+    portalHydration.magicLinkConsumed = false;
+    setPortalPhase(PORTAL_PHASE.VALIDATING_LINK, { message: 'Signing you in...' });
+    stripMagicLinkParamsFromUrl();
+
+    var r;
+    try {
+      r = await post('customer-portal-auth', {
+        action: 'verify',
+        challengeId: challengeId,
+        token: token,
+      });
+    } catch (e) {
+      if (generation !== portalHydration.generation) return false;
+      portalHydration.inFlight = false;
+      portalHydration.lastError = 'load_failed';
+      setPortalPhase(PORTAL_PHASE.FAILED);
+      return false;
     }
+    if (generation !== portalHydration.generation) return false;
+
+    if (isTemporarilyUnavailableResponse(r)) {
+      portalHydration.lastError = 'temporarily_unavailable';
+      setPortalPhase(PORTAL_PHASE.TEMPORARILY_UNAVAILABLE);
+      return false;
+    }
+
+    if (r.data && r.data.ok) {
+      // Token consumed server-side — do not replay on retry.
+      portalHydration.magicLinkConsumed = true;
+      portalHydration.pendingMagic = null;
+      if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.authSucceeded();
+      setPortalPhase(PORTAL_PHASE.ESTABLISHING_SESSION, {
+        message: 'Signing you in...',
+        restartTimers: false,
+      });
+      setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, {
+        message: 'Loading your garage...',
+        restartTimers: false,
+      });
+      var ok = await loadAccount({ generation: generation, managePhase: false });
+      if (generation !== portalHydration.generation) return false;
+      if (ok) {
+        setPortalPhase(PORTAL_PHASE.READY);
+        return true;
+      }
+      if (portalHydration.lastError === 'temporarily_unavailable') {
+        setPortalPhase(PORTAL_PHASE.TEMPORARILY_UNAVAILABLE);
+      } else if (portalHydration.lastError === 'authentication_failed') {
+        setPortalPhase(PORTAL_PHASE.IDLE);
+        setMsg($('acct-error'), 'Your session could not be established. Request a new sign-in link.', true);
+      } else {
+        setPortalPhase(PORTAL_PHASE.FAILED);
+      }
+      return false;
+    }
+
+    // Definitive auth failure — drop pending token so retry does not hammer a dead link.
+    portalHydration.pendingMagic = null;
+    portalHydration.inFlight = false;
+    setPortalPhase(PORTAL_PHASE.IDLE);
+    var failMsg = (r.data && r.data.message) || 'This link is invalid or expired.';
+    if (/token|challenge|stack|ECONN|prisma/i.test(String(failMsg))) {
+      failMsg = 'This link is invalid or expired.';
+    }
+    setMsg($('acct-error'), failMsg, true);
+    return false;
   }
 
   function clearLookupCredentials() {
@@ -735,6 +1093,9 @@
     try {
       await post('customer-portal-auth', { action: 'logout' });
     } catch (e) { /* still clear local state */ }
+    portalHydration.generation += 1;
+    portalHydration.inFlight = false;
+    clearPortalHydrationTimers();
     clearAuthenticatedCustomerState({ reason: 'logout', clearLookup: true });
     clearLookupCredentials();
     try {
@@ -743,6 +1104,7 @@
         history.replaceState({}, '', clean);
       }
     } catch (e) { /* ignore */ }
+    setPortalPhase(PORTAL_PHASE.IDLE);
   }
 
   function requestTypeLabel(type) {
@@ -956,11 +1318,6 @@
             esc(item.status || '') + ' · ' + esc(item.preferredDate || '—') +
             ' · ' + esc(item.service || item.package || '') + '</li>';
         });
-        renderList('vehicles-list', state.vehicles || [], function (v) {
-          var label = v.label || [v.year, v.make, v.model].filter(Boolean).join(' ') || 'Vehicle';
-          return '<li>' + esc(label) + (v.category ? ' · ' + esc(v.category) : '') + '</li>';
-        });
-        $('vehicle-actions') && show($('vehicle-actions'), true);
       }
       return;
     }
@@ -1037,11 +1394,6 @@
         ' · ' + esc(vehicleLine(item)) + '</li>';
     });
 
-    renderList('vehicles-list', state.vehicles, function (v) {
-      var label = v.label || [v.year, v.make, v.model].filter(Boolean).join(' ') || 'Vehicle';
-      return '<li>' + esc(label) + (v.category ? ' · ' + esc(v.category) : '') + '</li>';
-    });
-
     var hist = (state.bookings.length ? state.bookings : [b]).filter(function (x) {
       return x.status === 'Paid' || x.status === 'Completed' || x.jobStatus === 'completed';
     });
@@ -1050,14 +1402,18 @@
         ' · ' + fmtMoney(item.approvedFinalAmount != null ? item.approvedFinalAmount : item.totalPrice) + '</li>';
     });
 
-    $('vehicles-empty') && show($('vehicles-empty'), !state.vehicles.length);
     $('history-empty') && show($('history-empty'), !hist.length);
     $('comm-empty') && show($('comm-empty'), true);
-    $('vehicle-actions') && show($('vehicle-actions'), state.scope === 'account');
     var approveBtn = $('btn-approve-completion');
     var issueBtn = $('btn-report-issue');
     if (approveBtn) show(approveBtn, b.customerApprovalStatus === 'pending' || b.jobStatus === 'completed_pending_payment');
     if (issueBtn) show(issueBtn, ['completed_pending_payment', 'completed_pending_admin_review', 'awaiting_customer_action'].indexOf(b.jobStatus) >= 0 || b.serviceStatus === 'awaiting_customer_action');
+  }
+
+  function accountVersionForMutation() {
+    return (state.customer && state.customer.accountVersion)
+      || state.accountVersion
+      || null;
   }
 
   function renderProfileAndAddresses() {
@@ -1410,17 +1766,6 @@
       return true;
     }
     showToast((r.data && r.data.message) || 'Action unavailable.', true);
-    return false;
-  }
-
-  async function vehicleAction(action, payload) {
-    var r = await post('customer-portal-vehicles', Object.assign({ action: action }, payload || {}));
-    if (r.data && r.data.ok) {
-      showToast('Vehicle updated.');
-      await loadAccount();
-      return true;
-    }
-    showToast((r.data && r.data.message) || 'Vehicle update failed.', true);
     return false;
   }
 
@@ -2265,17 +2610,7 @@
     setModalSubmitPending(true);
     var ok = false;
     try {
-      if (modalAction === 'vehicle_add') {
-        ok = await vehicleAction('add', {
-          vehicle: {
-            label: [payload.year, payload.make, payload.model].join(' '),
-            category: payload.category,
-            year: payload.year,
-            make: payload.make,
-            model: payload.model,
-          },
-        });
-      } else if (modalAction === 'approve_completion') {
+      if (modalAction === 'approve_completion') {
         ok = await submitPortalAction('approve_completion', {
           bookingId: state.booking && state.booking.id,
           phone: state.verifyPhone || normalizePhoneInput(state.booking && state.booking.phone),
@@ -2411,14 +2746,6 @@
         openActionModal(btn.getAttribute('data-action'), btn);
       });
     }
-    var vehActions = $('vehicle-actions');
-    if (vehActions) {
-      vehActions.addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-vehicle-action]');
-        if (!btn) return;
-        if (btn.getAttribute('data-vehicle-action') === 'add') openActionModal('vehicle_add');
-      });
-    }
     var modalSubmit = $('modal-submit');
     if (modalSubmit) modalSubmit.addEventListener('click', submitModal);
     var modalCancel = $('modal-cancel');
@@ -2448,11 +2775,28 @@
         submitModal();
       });
     }
+
+    var portalRetry = $('portal-retry');
+    if (portalRetry) {
+      portalRetry.addEventListener('click', function () {
+        retryPortalHydration();
+      });
+    }
+    var portalReturn = $('portal-return-signin');
+    if (portalReturn) {
+      portalReturn.addEventListener('click', function (e) {
+        e.preventDefault();
+        returnToPortalSignIn();
+      });
+    }
   }
 
   async function boot() {
     bindUi();
     if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.opened();
+
+    // Block login/dashboard flash until auth/session resolution completes.
+    setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, { message: 'Signing you in...' });
 
     var params = new URLSearchParams(global.location.search);
     // Accidental modal GET submit left junk query keys — strip and recover session.
@@ -2478,7 +2822,11 @@
 
     var actionToken = params.get('action');
     if (actionToken) {
+      var actionGen = portalHydration.generation;
+      setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, { message: 'Loading your garage...' });
+      actionGen = portalHydration.generation;
       var ar = await post('customer-portal-action', { action: 'view', token: actionToken });
+      if (actionGen !== portalHydration.generation) return;
       if (ar.data && ar.data.ok) {
         state.scope = 'booking';
         state.actionToken = actionToken; // retain in memory only for focus/poll refresh
@@ -2500,8 +2848,7 @@
         applyPortalPayload(ar.data);
         history.replaceState({}, '', 'my-garage.html');
         renderDashboard({ payment: ar.data.payment || { canPay: ar.data.labels && ar.data.labels.canPay } });
-        show($('pre-auth'), false);
-        show($('post-auth'), true);
+        setPortalPhase(PORTAL_PHASE.READY);
         if (params.get('paid') === '1') pollPaymentSettlement();
         return;
       }
@@ -2514,9 +2861,18 @@
       return;
     }
 
-    if (await checkSession()) {
-      await loadAccount();
+    var hydrated = await hydrateAuthenticatedPortal({
+      force: true,
+      phase: PORTAL_PHASE.LOADING_PORTAL,
+      message: 'Signing you in...',
+      allowIdle: false,
+    });
+    if (hydrated) {
       if (params.get('paid') === '1') pollPaymentSettlement();
+      return;
+    }
+    if (portalHydration.phase === PORTAL_PHASE.TEMPORARILY_UNAVAILABLE
+      || portalHydration.phase === PORTAL_PHASE.FAILED) {
       return;
     }
 
@@ -2524,6 +2880,9 @@
     // Never auto-login from sessionStorage alone — that re-locked the last Booking ID on login.
     var urlHasBooking = !!(params.get('bookingId') || params.get('id') || params.get('booking'));
     if (urlHasBooking && preId) {
+      var bookingGen = portalHydration.generation;
+      setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, { message: 'Loading your garage...' });
+      bookingGen = portalHydration.generation;
       if (!prePhone) {
         try { prePhone = sessionStorage.getItem('cd1_garage_phone') || ''; } catch (e) { prePhone = ''; }
       }
@@ -2532,8 +2891,10 @@
         state.verifyPhone = normalizePhoneInput(prePhone);
         var wasPaidReturn = params.get('paid') === '1';
         var autoOk = await loadLimited();
+        if (bookingGen !== portalHydration.generation) return;
         if (autoOk) {
           history.replaceState({}, '', 'my-garage.html' + (wasPaidReturn ? '?paid=1' : ''));
+          setPortalPhase(PORTAL_PHASE.READY);
           if (wasPaidReturn) pollPaymentSettlement();
           return;
         }
@@ -2546,8 +2907,7 @@
       clearLookupCredentials();
     }
 
-    show($('pre-auth'), true);
-    show($('post-auth'), false);
+    setPortalPhase(PORTAL_PHASE.IDLE);
   }
 
   async function pollPaymentSettlement() {
@@ -2571,7 +2931,7 @@
   }
 
   function portalReload() {
-    if (state.scope === 'account') return loadAccount();
+    if (state.scope === 'account') return loadAccount({ managePhase: false });
     if (state.actionToken || state.booking) return loadLimited();
     return Promise.resolve();
   }
@@ -2581,6 +2941,12 @@
     openModal: openActionModal,
     reload: portalReload,
     startPayBalance: startPayBalance,
+    getPortalPhase: function () { return portalHydration.phase; },
+    retryHydration: retryPortalHydration,
+    returnToSignIn: returnToPortalSignIn,
+    // Test/release helpers — do not call vehicle garage APIs.
+    loadAccount: loadAccount,
+    hydrateAuthenticatedPortal: hydrateAuthenticatedPortal,
   };
 
   if (global.CD1OperationalRefresh) {
