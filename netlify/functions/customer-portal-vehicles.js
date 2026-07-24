@@ -255,7 +255,20 @@ exports.handler = async (event) => {
   }
 
   const mapped = mapServiceError(result);
-  if (mapped) return jsonCors(mapped.status, mapped.body);
+  if (mapped) {
+    if (mapped.status >= 500) {
+      console.error(JSON.stringify({
+        scope: 'customer_portal_vehicles',
+        action,
+        status: mapped.status,
+        error: mapped.body?.error || null,
+        serviceError: result?.error || null,
+        causeCode: result?.causeCode || null,
+        correlationId: mapped.body?.correlationId || null,
+      }));
+    }
+    return jsonCors(mapped.status, mapped.body);
+  }
 
   if (action === 'list') {
     return jsonCors(200, {
