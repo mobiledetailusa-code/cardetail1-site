@@ -87,6 +87,8 @@ async function emitIdentityAudit(prisma, {
   delete safe.token;
   delete safe.cookie;
   delete safe.address;
+  delete safe.notes;
+  delete safe.label;
   delete safe.normalizedEmail;
   delete safe.normalizedPhone;
   try {
@@ -717,6 +719,10 @@ async function loadCustomerAccountGraph(customerAccountId, opts = {}) {
       include: {
         profile: true,
         addresses: {
+          where: { archivedAt: null },
+          orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+        },
+        vehicles: {
           where: { archivedAt: null },
           orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
         },

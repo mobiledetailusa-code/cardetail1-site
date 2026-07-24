@@ -3,7 +3,8 @@
 # ou conecte este repositório Git no painel da Netlify.
 
 [build]
-  # Site estático: nada para "buildar", só publicar a raiz.
+  # Generate Prisma client so function bundles include Stage 2B models.
+  command = "npx prisma generate"
   publish = "."
   functions = "netlify/functions"
 

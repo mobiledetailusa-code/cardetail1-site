@@ -6,7 +6,7 @@ const { projectBookingForCustomer } = require('../lib/ops-schema');
 const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
 const { validateCustomerSession } = require('../lib/customer-session');
 const { phonesMatch, normalizeUsPhoneDigits } = require('../lib/phone-auth');
-const { listVehiclesForOwner } = require('../lib/customer-vehicles');
+const { listVehicles } = require('../lib/customer-vehicle-service');
 const { listVisibleRequestsForBooking } = require('../lib/customer-change-requests');
 const { canPayBalance } = require('../lib/appointment-status-policy');
 const { catalogForClient } = require('../lib/customer-catalog');
@@ -264,7 +264,37 @@ exports.handler = async (event) => {
   const projected = bookings
     .map((b) => projectBookingForCustomer(b))
     .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
-  const vehicles = phoneDigits ? await listVehiclesForOwner(phoneDigits) : [];
+  let vehicles = [];
+  let vehiclesError = null;
+  let accountVersion = null;
+  if (session.customerAccountId) {
+    try {
+      const vehicleList = await listVehicles(session.customerAccountId, {
+        phoneDigits: phoneDigits || null,
+      });
+      if (vehicleList.ok) {
+        vehicles = vehicleList.vehicles || [];
+        if (vehicleList.accountVersion != null) accountVersion = vehicleList.accountVersion;
+      } else {
+        // Do not substitute an empty garage for dependency/schema failures.
+        vehiclesError = vehicleList.error === 'temporarily_unavailable'
+          || vehicleList.error === 'unavailable'
+          || vehicleList.error === 'schema_unavailable'
+          ? (vehicleList.error === 'schema_unavailable' ? 'server_error' : 'temporarily_unavailable')
+          : (vehicleList.error || 'temporarily_unavailable');
+        vehicles = [];
+        if (vehicleList.accountVersion != null) accountVersion = vehicleList.accountVersion;
+      }
+    } catch (err) {
+      vehicles = [];
+      vehiclesError = 'temporarily_unavailable';
+      console.error(JSON.stringify({
+        scope: 'customer_portal_data',
+        error: 'vehicle_list_exception',
+        causeCode: String(err && err.code || 'exception').slice(0, 32),
+      }));
+    }
+  }
   const upcoming = selectUpcoming(projected);
   const payment = upcoming
     ? await safePaymentStateAsync(bookings.find((b) => (b.id || b.bookingId) === upcoming.id) || {})
@@ -291,8 +321,26 @@ exports.handler = async (event) => {
           linkedBookingCount: linkedAccountBookingIds.size || bookings.length,
         })
       );
+      if (customer && customer.accountVersion != null) accountVersion = customer.accountVersion;
     } catch {
       customer = null;
+    }
+  }
+
+  // Optimistic concurrency token for garage mutations — always expose when session has an account,
+  // even if the richer customer projection failed.
+  if (accountVersion == null && session.customerAccountId) {
+    try {
+      const prisma = tryGetPrisma();
+      if (prisma) {
+        const row = await prisma.customerAccount.findUnique({
+          where: { id: String(session.customerAccountId) },
+          select: { version: true },
+        });
+        if (row && row.version != null) accountVersion = row.version;
+      }
+    } catch {
+      /* leave null — client will ask the user to refresh */
     }
   }
 
@@ -300,10 +348,12 @@ exports.handler = async (event) => {
     ok: true,
     scope: 'account',
     customerAccountId: session.customerAccountId || null,
+    accountVersion,
     customer,
     bookings: projected,
     upcoming,
     vehicles,
+    vehiclesError,
     payment,
     catalog,
     packageCatalog,

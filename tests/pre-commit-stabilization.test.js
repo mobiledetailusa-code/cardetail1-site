@@ -285,6 +285,12 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/customer-profile-service.js',
     'netlify/lib/customer-address-service.js',
     'netlify/functions/customer-portal-profile.js',
+    // Stage 2B — customer saved vehicles
+    'netlify/lib/customer-vehicle-service.js',
+    'netlify/lib/customer-vehicles-legacy.js',
+    'netlify/lib/customer-vehicles.js',
+    'netlify/functions/customer-portal-vehicles.js',
+    'netlify/functions/customer-portal-data.js',
     'netlify/lib/public-rate-limit.js',
     // Post-release hardening — disabled-by-default identity smoke harness
     'netlify/functions/qa-customer-identity-smoke.js',

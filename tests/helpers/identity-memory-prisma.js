@@ -13,7 +13,13 @@ function cuid() {
 }
 
 function clone(v) {
-  return v == null ? v : JSON.parse(JSON.stringify(v));
+  if (v == null || typeof v !== 'object') return v;
+  // Preserve Prisma DateTime fidelity for chronological ordering tests.
+  if (v instanceof Date) return new Date(v.getTime());
+  if (Array.isArray(v)) return v.map(clone);
+  const out = {};
+  for (const [k, val] of Object.entries(v)) out[k] = clone(val);
+  return out;
 }
 
 function snapshotMaps(db) {
@@ -60,6 +66,7 @@ function createIdentityMemoryPrisma(options = {}) {
     customerAccount: new Map(),
     customerProfile: new Map(),
     customerAddress: new Map(),
+    customerVehicle: new Map(),
     customerConsent: new Map(),
     booking: new Map(),
     auditEvent: new Map(),
@@ -134,6 +141,7 @@ function createIdentityMemoryPrisma(options = {}) {
     customerAccount: modelHandlers('customerAccount'),
     customerProfile: modelHandlers('customerProfile'),
     customerAddress: modelHandlers('customerAddress'),
+    customerVehicle: modelHandlers('customerVehicle'),
     customerConsent: modelHandlers('customerConsent'),
     booking: modelHandlers('booking'),
     auditEvent: modelHandlers('auditEvent'),
@@ -167,6 +175,7 @@ function createIdentityMemoryPrisma(options = {}) {
       customerAccount: buildModelApi('customerAccount', database, txMeta, noteWriteOp),
       customerProfile: buildModelApi('customerProfile', database, txMeta, noteWriteOp),
       customerAddress: buildModelApi('customerAddress', database, txMeta, noteWriteOp),
+      customerVehicle: buildModelApi('customerVehicle', database, txMeta, noteWriteOp),
       customerConsent: buildModelApi('customerConsent', database, txMeta, noteWriteOp),
       booking: buildModelApi('booking', database, txMeta, noteWriteOp),
       auditEvent: buildModelApi('auditEvent', database, txMeta, noteWriteOp),
@@ -194,6 +203,27 @@ function createIdentityMemoryPrisma(options = {}) {
       const orderBy = include.addresses.orderBy;
       if (Array.isArray(orderBy) && orderBy.length) {
         out.addresses.sort((a, b) => {
+          for (const clause of orderBy) {
+            const [key, dir] = Object.entries(clause)[0] || [];
+            if (!key) continue;
+            const av = a[key];
+            const bv = b[key];
+            if (av === bv) continue;
+            const cmp = av > bv ? 1 : -1;
+            return dir === 'desc' ? -cmp : cmp;
+          }
+          return 0;
+        });
+      }
+    }
+    if (include.vehicles) {
+      const vehWhere = include.vehicles.where || { archivedAt: null };
+      out.vehicles = [...db.customerVehicle.values()]
+        .filter((v) => v.customerAccountId === row.id && matchesWhere(v, vehWhere))
+        .map(clone);
+      const orderBy = include.vehicles.orderBy;
+      if (Array.isArray(orderBy) && orderBy.length) {
+        out.vehicles.sort((a, b) => {
           for (const clause of orderBy) {
             const [key, dir] = Object.entries(clause)[0] || [];
             if (!key) continue;
@@ -238,6 +268,7 @@ function createIdentityMemoryPrisma(options = {}) {
             version: data.version == null ? 1 : data.version,
             stripeCustomerId: data.stripeCustomerId || null,
             mergedIntoAccountId: data.mergedIntoAccountId || null,
+            vehiclesImportedAt: data.vehiclesImportedAt || null,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
@@ -444,6 +475,124 @@ function createIdentityMemoryPrisma(options = {}) {
             if (matchesWhere(row, where || {})) n += 1;
           }
           return n;
+        },
+      },
+      customerVehicle: {
+        async create({ data }) {
+          onWrite(txMeta);
+          const id = data.id || cuid();
+          if (data.legacySourceId) {
+            for (const existing of database.customerVehicle.values()) {
+              if (
+                existing.customerAccountId === data.customerAccountId
+                && existing.legacySourceId === data.legacySourceId
+              ) {
+                const err = new Error('Unique constraint failed on customerAccountId_legacySourceId');
+                err.code = 'P2002';
+                throw err;
+              }
+            }
+          }
+          const row = {
+            id,
+            customerAccountId: data.customerAccountId,
+            label: data.label || null,
+            category: data.category || null,
+            year: data.year || null,
+            make: data.make || null,
+            model: data.model || null,
+            color: data.color || null,
+            notes: data.notes || null,
+            isDefault: !!data.isDefault,
+            archivedAt: data.archivedAt || null,
+            legacySourceId: data.legacySourceId || null,
+            // Preserve native Date when provided (Prisma DateTime fidelity).
+            createdAt: data.createdAt != null ? data.createdAt : new Date(),
+            updatedAt: data.updatedAt != null ? data.updatedAt : new Date(),
+          };
+          database.customerVehicle.set(id, row);
+          return clone(row);
+        },
+        async findUnique({ where }) {
+          const row = database.customerVehicle.get(where.id);
+          return row ? clone(row) : null;
+        },
+        async findFirst({ where }) {
+          for (const row of database.customerVehicle.values()) {
+            if (matchesWhere(row, where)) return clone(row);
+          }
+          return null;
+        },
+        async findMany({ where, orderBy }) {
+          const rows = [...database.customerVehicle.values()]
+            .filter((r) => matchesWhere(r, where))
+            .map(clone);
+          if (Array.isArray(orderBy) && orderBy.length) {
+            rows.sort((a, b) => {
+              for (const clause of orderBy) {
+                const [key, dir] = Object.entries(clause)[0] || [];
+                if (!key) continue;
+                let av = a[key];
+                let bv = b[key];
+                if (key === 'createdAt' || key === 'updatedAt' || key === 'archivedAt') {
+                  av = av instanceof Date ? av.getTime() : new Date(av || 0).getTime();
+                  bv = bv instanceof Date ? bv.getTime() : new Date(bv || 0).getTime();
+                }
+                if (av === bv) continue;
+                const cmp = av > bv ? 1 : -1;
+                return dir === 'desc' ? -cmp : cmp;
+              }
+              return 0;
+            });
+          }
+          return rows;
+        },
+        async update({ where, data }) {
+          onWrite(txMeta);
+          const row = database.customerVehicle.get(where.id);
+          if (!row) {
+            const err = new Error('Record to update not found');
+            err.code = 'P2025';
+            throw err;
+          }
+          const next = {
+            ...row,
+            ...data,
+            updatedAt: data.updatedAt != null ? data.updatedAt : new Date(),
+          };
+          database.customerVehicle.set(row.id, next);
+          return clone(next);
+        },
+        async updateMany({ where, data }) {
+          onWrite(txMeta);
+          let count = 0;
+          for (const [id, row] of database.customerVehicle.entries()) {
+            if (!matchesWhere(row, where)) continue;
+            database.customerVehicle.set(id, {
+              ...row,
+              ...data,
+              updatedAt: data.updatedAt || new Date().toISOString(),
+            });
+            count += 1;
+          }
+          return { count };
+        },
+        async count({ where } = {}) {
+          let n = 0;
+          for (const row of database.customerVehicle.values()) {
+            if (matchesWhere(row, where || {})) n += 1;
+          }
+          return n;
+        },
+        async deleteMany({ where } = {}) {
+          onWrite(txMeta);
+          let count = 0;
+          for (const [id, row] of [...database.customerVehicle.entries()]) {
+            if (!matchesWhere(row, where || {})) continue;
+            database.customerVehicle.delete(id);
+            count += 1;
+          }
+          return { count };
         },
       },
       customerConsent: {

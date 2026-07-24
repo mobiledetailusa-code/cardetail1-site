@@ -184,6 +184,9 @@ test('no Netlify Function files changed in this scope', () => {
     'netlify/functions/list-bookings.js',
     // Stage 2A — authenticated profile + address management
     'netlify/functions/customer-portal-profile.js',
+    // Stage 2B — customer saved vehicles
+    'netlify/functions/customer-portal-vehicles.js',
+    'netlify/functions/customer-portal-data.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);
