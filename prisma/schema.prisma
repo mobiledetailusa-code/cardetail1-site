@@ -424,3 +424,288 @@ model AuditEvent {
   @@index([bookingId])
   @@index([action])
 }
+
+// =====================================================================
+// Owner Studio Stage 1 — structured CMS + authoritative catalog foundation
+// Migration generated but NOT applied to production in Stage 1.
+// Requires isolated staging DB before migrate deploy.
+// =====================================================================
+
+model OsSite {
+  siteId    String   @id
+  name      String
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings              OsSiteSettings?
+  packages              OsPackage[]
+  addOns                OsAddOn[]
+  vehicleClasses        OsVehicleClass[]
+  drafts                OsCatalogDraft[]
+  revisions             OsCatalogRevision[]
+  releases              OsPublishedRelease[]
+  currentPointer        OsCurrentReleasePointer?
+  media                 OsMediaAsset[]
+  auditLogs             OsAuditLog[]
+}
+
+model OsSiteSettings {
+  siteId           String   @id
+  businessName     String?
+  legalEntityName  String?
+  phoneE164        String?
+  publicEmail      String?
+  logoMediaId      String?
+  announcement     String?
+  socialLinksJson  Json?
+  updatedAt        DateTime @updatedAt
+
+  site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+}
+
+model OsPackage {
+  siteId       String
+  packageId    String
+  legacyKey    String?
+  category     String
+  active       Boolean  @default(true)
+  featured     Boolean  @default(false)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  site       OsSite             @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+  revisions  OsPackageRevision[]
+  prices     OsPackagePrice[]
+  features   OsPackageFeature[]
+  availability OsPackageAvailability[]
+
+  @@id([siteId, packageId])
+  @@index([siteId, category])
+  @@index([siteId, active])
+}
+
+model OsPackageRevision {
+  packageRevisionId String   @id @default(cuid())
+  siteId            String
+  packageId         String
+  name              String
+  slug              String
+  description       String   @default("")
+  shortDescription  String   @default("")
+  durationMinutes   Int?
+  createdAt         DateTime @default(now())
+  createdBy         String?
+
+  package OsPackage @relation(fields: [siteId, packageId], references: [siteId, packageId], onDelete: Cascade)
+
+  @@index([siteId, packageId])
+}
+
+model OsPackagePrice {
+  packagePriceId   String   @id @default(cuid())
+  siteId           String
+  packageId        String
+  vehicleClassId   String?
+  currency         String   @default("usd")
+  amountCents      Int
+  priceModel       String   @default("flat")
+  perFootCents     Int?
+  minCents         Int?
+  baseCents        Int?
+  releaseId        String?
+  createdAt        DateTime @default(now())
+
+  package OsPackage @relation(fields: [siteId, packageId], references: [siteId, packageId], onDelete: Cascade)
+
+  @@index([siteId, packageId])
+  @@index([siteId, releaseId])
+}
+
+model OsPackageFeature {
+  id               String   @id @default(cuid())
+  siteId           String
+  packageId        String
+  packageRevisionId String?
+  kind             String
+  label            String
+  sortOrder        Int      @default(0)
+
+  package OsPackage @relation(fields: [siteId, packageId], references: [siteId, packageId], onDelete: Cascade)
+
+  @@index([siteId, packageId])
+}
+
+model OsPackageAvailability {
+  id        String  @id @default(cuid())
+  siteId    String
+  packageId String
+  channel   String  @default("public")
+  active    Boolean @default(true)
+  metaJson  Json?
+
+  package OsPackage @relation(fields: [siteId, packageId], references: [siteId, packageId], onDelete: Cascade)
+
+  @@index([siteId, packageId])
+}
+
+model OsVehicleClass {
+  siteId          String
+  vehicleClassId  String
+  legacyKey       String?
+  category        String
+  label           String
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+
+  @@id([siteId, vehicleClassId])
+  @@index([siteId, category])
+}
+
+model OsAddOn {
+  siteId        String
+  addOnId       String
+  legacyKey     String?
+  active        Boolean  @default(true)
+  allowQuantity Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  site           OsSite              @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+  revisions      OsAddOnRevision[]
+  prices         OsAddOnPrice[]
+  compatibility  OsAddOnCompatibility[]
+
+  @@id([siteId, addOnId])
+}
+
+model OsAddOnRevision {
+  addOnRevisionId String   @id @default(cuid())
+  siteId          String
+  addOnId         String
+  name            String
+  slug            String
+  description     String   @default("")
+  createdAt       DateTime @default(now())
+  createdBy       String?
+
+  addOn OsAddOn @relation(fields: [siteId, addOnId], references: [siteId, addOnId], onDelete: Cascade)
+
+  @@index([siteId, addOnId])
+}
+
+model OsAddOnPrice {
+  addOnPriceId String   @id @default(cuid())
+  siteId       String
+  addOnId      String
+  category     String?
+  currency     String   @default("usd")
+  amountCents  Int
+  releaseId    String?
+  createdAt    DateTime @default(now())
+
+  addOn OsAddOn @relation(fields: [siteId, addOnId], references: [siteId, addOnId], onDelete: Cascade)
+
+  @@index([siteId, addOnId])
+}
+
+model OsAddOnCompatibility {
+  id        String  @id @default(cuid())
+  siteId    String
+  addOnId   String
+  category  String?
+  packageId String?
+
+  addOn OsAddOn @relation(fields: [siteId, addOnId], references: [siteId, addOnId], onDelete: Cascade)
+
+  @@index([siteId, addOnId])
+}
+
+model OsMediaAsset {
+  mediaId     String    @id
+  siteId      String
+  path        String
+  alt         String    @default("")
+  caption     String    @default("")
+  contentType String    @default("image/webp")
+  published   Boolean   @default(false)
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+
+  @@index([siteId, published])
+}
+
+model OsCatalogDraft {
+  id        String   @id @default(cuid())
+  siteId    String
+  payload   Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+
+  @@index([siteId])
+}
+
+model OsCatalogRevision {
+  revisionId String   @id
+  siteId     String
+  payload    Json
+  validation Json?
+  createdAt  DateTime @default(now())
+  createdBy  String?
+
+  site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+
+  @@index([siteId])
+}
+
+model OsPublishedRelease {
+  releaseId     String   @id
+  siteId        String
+  schemaVersion Int      @default(1)
+  revisionId    String?
+  catalogJson   Json
+  contentJson   Json
+  manifestJson  Json
+  publishedAt   DateTime @default(now())
+  publishedBy   String?
+
+  site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+
+  @@index([siteId, publishedAt])
+}
+
+/// Atomic current-release pointer — rollback repoints this row.
+model OsCurrentReleasePointer {
+  siteId    String   @id
+  releaseId String
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+}
+
+model OsAuditLog {
+  id         String   @id @default(cuid())
+  siteId     String
+  actor      String
+  action     String
+  entityType String?
+  entityId   String?
+  releaseId  String?
+  detail     Json?
+  createdAt  DateTime @default(now())
+
+  site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+
+  @@index([siteId, createdAt])
+  @@index([siteId, action])
+}

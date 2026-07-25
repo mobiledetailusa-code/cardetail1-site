@@ -5,6 +5,8 @@
   "description": "Cardetail1 — mobile detailing site (static) + Netlify functions",
   "scripts": {
     "test": "node --test tests/*.test.js",
+    "test:owner-studio": "node --test tests/owner-studio-foundation.test.js",
+    "owner-studio:import": "node scripts/owner-studio-import.js",
     "audit:pre-deploy": "node scripts/pre-deploy-audit.mjs",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
