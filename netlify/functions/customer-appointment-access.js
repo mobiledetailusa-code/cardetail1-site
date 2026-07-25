@@ -11,8 +11,9 @@ const {
   loadTokenRecord,
   consumeAppointmentAccessToken,
   ensureAppointmentPublicRef,
-  buildPortalFocusUrl,
+  buildPortalFocusPath,
   PURPOSE_APPOINTMENT_ACCESS,
+  CONSUME_RESULT,
 } = require('../lib/appointment-access-token');
 const {
   createAccountSession,
@@ -132,44 +133,42 @@ function redirectWithSession(location, sessionToken) {
   };
 }
 
+async function redirectConsumedWithSession(event, booking, tokenRecord, cid, rawToken) {
+  const session = await validateCustomerSession(event);
+  const sameAccount = session.ok
+    && tokenRecord.customerAccountId
+    && session.customerAccountId === tokenRecord.customerAccountId;
+  const sameBooking = session.ok
+    && Array.isArray(session.bookingIds)
+    && session.bookingIds.map(String).includes(String(tokenRecord.bookingId));
+  if (sameAccount || sameBooking) {
+    const refResult = await ensureAppointmentPublicRef(booking);
+    if (refResult.created) await persistBooking(refResult.booking);
+    return {
+      statusCode: 302,
+      headers: {
+        Location: buildPortalFocusPath(refResult.focusRef),
+        'Cache-Control': 'no-store',
+        'Referrer-Policy': 'no-referrer',
+      },
+      body: '',
+    };
+  }
+  return expiredLinkPage(rawToken, cid);
+}
+
 async function exchangeToken(rawToken, event) {
   const cid = correlationId();
   const loaded = await loadTokenRecord(rawToken, { allowExpired: true, allowConsumed: true });
-  if (!loaded.ok && loaded.error === 'invalid_token') {
+  if (!loaded.record || loaded.classification === CONSUME_RESULT.INVALID) {
     return invalidLinkPage(cid);
   }
-  if (loaded.expired && !loaded.consumed) {
+  if (loaded.classification === CONSUME_RESULT.EXPIRED || (loaded.expired && !loaded.consumed)) {
     return expiredLinkPage(rawToken, cid);
   }
 
-  const booking = await loadBooking(loaded.record?.bookingId);
+  const booking = await loadBooking(loaded.record.bookingId);
   if (!booking) {
-    return invalidLinkPage(cid);
-  }
-
-  // Already consumed: try existing session for the same account/booking, else offer resend.
-  if (loaded.consumed) {
-    const session = await validateCustomerSession(event);
-    const sameAccount = session.ok
-      && loaded.record.customerAccountId
-      && session.customerAccountId === loaded.record.customerAccountId;
-    const sameBooking = session.ok
-      && Array.isArray(session.bookingIds)
-      && session.bookingIds.map(String).includes(String(loaded.record.bookingId));
-    if (sameAccount || sameBooking) {
-      const refResult = await ensureAppointmentPublicRef(booking);
-      if (refResult.created) await persistBooking(refResult.booking);
-      const focusUrl = buildPortalFocusUrl(refResult.focusRef, event);
-      return {
-        statusCode: 302,
-        headers: { Location: focusUrl, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' },
-        body: '',
-      };
-    }
-    return expiredLinkPage(rawToken, cid);
-  }
-
-  if (!loaded.ok) {
     return invalidLinkPage(cid);
   }
 
@@ -177,13 +176,49 @@ async function exchangeToken(rawToken, event) {
     return invalidLinkPage(cid);
   }
 
-  // Ownership: resolve account from verified booking contact; do not trust browser ids.
+  // Already consumed before this request — never mint another session.
+  if (loaded.consumed || loaded.classification === CONSUME_RESULT.ALREADY_CONSUMED) {
+    return redirectConsumedWithSession(event, booking, loaded.record, cid, rawToken);
+  }
+
+  // Atomic consume gate FIRST — only the CAS winner may establish a new session.
+  const consumed = await consumeAppointmentAccessToken(rawToken);
+  if (consumed.classification === CONSUME_RESULT.STORAGE_UNAVAILABLE) {
+    return htmlPage({
+      title: 'Temporarily unavailable',
+      statusCode: 503,
+      bodyHtml: `
+<h1>Please try again</h1>
+<p>We could not open this appointment link right now.</p>
+<p class="sub">Ref: ${cid}</p>
+<div class="actions">
+  <a class="btn" href="/my-garage">Return to portal sign in</a>
+</div>`,
+    });
+  }
+  if (consumed.classification === CONSUME_RESULT.EXPIRED) {
+    return expiredLinkPage(rawToken, cid);
+  }
+  if (consumed.classification === CONSUME_RESULT.ALREADY_CONSUMED) {
+    return redirectConsumedWithSession(
+      event,
+      booking,
+      consumed.record || loaded.record,
+      cid,
+      rawToken
+    );
+  }
+  if (consumed.classification !== CONSUME_RESULT.CONSUMED_SUCCESSFULLY || !consumed.ok) {
+    return invalidLinkPage(cid);
+  }
+
+  const tokenRecord = consumed.record || loaded.record;
   const phoneDigits = normalizeUsPhoneDigits(booking.phone || booking.customerPhone || '')
-    || loaded.record.phoneDigits
+    || tokenRecord.phoneDigits
     || null;
   const email = String(booking.email || '').trim().toLowerCase() || null;
 
-  let customerAccountId = loaded.record.customerAccountId || booking.customerAccountId || null;
+  let customerAccountId = tokenRecord.customerAccountId || booking.customerAccountId || null;
   try {
     const resolution = await resolveOrCreateCustomerAccount({
       verifiedEmail: email,
@@ -199,10 +234,9 @@ async function exchangeToken(rawToken, event) {
       acceptBrowserAccountId: false,
     });
     if (resolution.ok && resolution.customerAccountId) {
-      // If token was bound to a different account, refuse (cross-account).
       if (
-        loaded.record.customerAccountId
-        && loaded.record.customerAccountId !== resolution.customerAccountId
+        tokenRecord.customerAccountId
+        && tokenRecord.customerAccountId !== resolution.customerAccountId
       ) {
         return invalidLinkPage(cid);
       }
@@ -227,12 +261,6 @@ async function exchangeToken(rawToken, event) {
     }
   } catch {
     // Session can still be created from booking contact when Prisma is unavailable.
-  }
-
-  const consumed = await consumeAppointmentAccessToken(rawToken);
-  if (!consumed.ok) {
-    if (consumed.error === 'expired_token') return expiredLinkPage(rawToken, cid);
-    return invalidLinkPage(cid);
   }
 
   let bookingIds = [booking.id || booking.bookingId].filter(Boolean);
@@ -263,8 +291,7 @@ async function exchangeToken(rawToken, event) {
     }).catch(() => {});
   }
 
-  const focusUrl = buildPortalFocusUrl(refResult.focusRef, event);
-  return redirectWithSession(focusUrl, sessionToken);
+  return redirectWithSession(buildPortalFocusPath(refResult.focusRef), sessionToken);
 }
 
 async function resendFromToken(rawToken, event) {

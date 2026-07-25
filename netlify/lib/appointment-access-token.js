@@ -68,25 +68,53 @@ function bookingIndexKey(bookingId) {
   return `booking_${String(bookingId || '').trim()}`;
 }
 
-function siteBaseFromEnv(event) {
-  if (event) {
-    const host = event.headers?.['x-forwarded-host'] || event.headers?.Host || event.headers?.host;
-    if (host) {
-      const proto = String(event.headers?.['x-forwarded-proto'] || 'https').split(',')[0].trim();
-      return `${proto}://${String(host).split(',')[0].trim()}`.replace(/\/$/, '');
-    }
-  }
-  return String(process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://cardetail1.com').replace(/\/$/, '');
+const CONSUME_RESULT = {
+  CONSUMED_SUCCESSFULLY: 'consumed_successfully',
+  ALREADY_CONSUMED: 'already_consumed',
+  EXPIRED: 'expired',
+  INVALID: 'invalid',
+  STORAGE_UNAVAILABLE: 'storage_unavailable',
+};
+
+function siteBaseFromEnv(_event) {
+  // Outbound customer links must never use request Host / X-Forwarded-Host.
+  const { trustedSiteOrigin } = require('./trusted-site-origin');
+  return trustedSiteOrigin();
 }
 
-function buildAccessUrl(token, event) {
-  const base = siteBaseFromEnv(event);
+function buildAccessUrl(token, _event) {
+  const base = siteBaseFromEnv();
   return `${base}/.netlify/functions/customer-appointment-access?token=${encodeURIComponent(token)}`;
 }
 
-function buildPortalFocusUrl(focusRef, event) {
-  const base = siteBaseFromEnv(event);
-  return `${base}/my-garage?appointment=${encodeURIComponent(focusRef)}`;
+/** Relative portal focus path — avoids open redirects / Host poisoning on exchange. */
+function buildPortalFocusPath(focusRef) {
+  return `/my-garage?appointment=${encodeURIComponent(focusRef)}`;
+}
+
+function buildPortalFocusUrl(focusRef, _event) {
+  const base = siteBaseFromEnv();
+  return `${base}${buildPortalFocusPath(focusRef)}`;
+}
+
+function writeWasApplied(result) {
+  if (result == null) return true;
+  return result.modified !== false;
+}
+
+async function readTokenWithEtag(store, key) {
+  if (typeof store.getWithMetadata === 'function') {
+    const result = await store.getWithMetadata(key, {
+      type: 'json',
+      consistency: 'strong',
+    }).catch(() => null);
+    if (!result || !result.data) return { record: null, etag: null, exists: false };
+    return { record: result.data, etag: result.etag || null, exists: true };
+  }
+  const data = await store.get(key, { type: 'json' }).catch(() => null);
+  if (!data) return { record: null, etag: null, exists: false };
+  const etag = data.__etag || data._etag || null;
+  return { record: data, etag, exists: true };
 }
 
 /**
@@ -193,7 +221,16 @@ async function createAppointmentAccessToken({
     uses: 0,
   };
 
-  await store.setJSON(tokenKey(tokenHash), record, { ttl: ttlMs });
+  const key = tokenKey(tokenHash);
+  const writeResult = typeof store.setJSON === 'function'
+    ? await store.setJSON(key, { ...record, __etag: `v0:${record.createdAt}` }, {
+      ttl: ttlMs,
+      onlyIfNew: true,
+    })
+    : null;
+  if (!writeWasApplied(writeResult)) {
+    throw new Error('token_create_conflict');
+  }
   await indexTokenForBooking(store, bid, tokenHash);
 
   return {
@@ -209,49 +246,190 @@ async function createAppointmentAccessToken({
 async function loadTokenRecord(rawToken, { allowExpired = false, allowConsumed = false } = {}) {
   const t = String(rawToken || '').trim();
   if (!t.startsWith(TOKEN_PREFIX) || t.length < 24) {
-    return { ok: false, error: 'invalid_token' };
+    return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
   }
   let tokenHash;
   try {
     tokenHash = hashToken(t);
   } catch {
-    return { ok: false, error: 'invalid_token' };
+    return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
   }
 
   const store = await resolveTokenStore();
-  const record = await store.get(tokenKey(tokenHash), { type: 'json' }).catch(() => null);
+  const { record } = await readTokenWithEtag(store, tokenKey(tokenHash));
   if (!record || record.tokenHash !== tokenHash) {
-    return { ok: false, error: 'invalid_token' };
+    return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
   }
   if (record.revokedAt) {
-    return { ok: false, error: 'invalid_token', record };
+    return { ok: false, error: 'invalid_token', record, classification: CONSUME_RESULT.INVALID };
   }
   const expired = new Date(record.expiresAt).getTime() < Date.now();
   if (expired && !allowExpired) {
-    return { ok: false, error: 'expired_token', record, expired: true };
+    return {
+      ok: false,
+      error: 'expired_token',
+      record,
+      expired: true,
+      classification: CONSUME_RESULT.EXPIRED,
+    };
   }
   if (record.consumedAt && !allowConsumed) {
-    return { ok: false, error: 'consumed_token', record, consumed: true };
+    return {
+      ok: false,
+      error: 'consumed_token',
+      record,
+      consumed: true,
+      classification: CONSUME_RESULT.ALREADY_CONSUMED,
+    };
   }
   if (record.purpose !== PURPOSE_APPOINTMENT_ACCESS) {
-    return { ok: false, error: 'invalid_token', record };
+    return { ok: false, error: 'invalid_token', record, classification: CONSUME_RESULT.INVALID };
   }
-  return { ok: true, record, tokenHash, expired, consumed: !!record.consumedAt };
+  return {
+    ok: true,
+    record,
+    tokenHash,
+    expired,
+    consumed: !!record.consumedAt,
+    classification: record.consumedAt
+      ? CONSUME_RESULT.ALREADY_CONSUMED
+      : CONSUME_RESULT.CONSUMED_SUCCESSFULLY,
+  };
 }
 
+/**
+ * Atomically consume an appointment access token using Blob CAS (onlyIfMatch).
+ * At most one concurrent unauthenticated exchange may succeed.
+ */
 async function consumeAppointmentAccessToken(rawToken) {
-  const loaded = await loadTokenRecord(rawToken, { allowExpired: false, allowConsumed: false });
-  if (!loaded.ok) return loaded;
+  const t = String(rawToken || '').trim();
+  if (!t.startsWith(TOKEN_PREFIX) || t.length < 24) {
+    return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
+  }
 
-  const store = await resolveTokenStore();
-  const next = {
-    ...loaded.record,
-    consumedAt: new Date().toISOString(),
-    uses: (Number(loaded.record.uses) || 0) + 1,
+  let tokenHash;
+  try {
+    tokenHash = hashToken(t);
+  } catch {
+    return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
+  }
+
+  let store;
+  try {
+    store = await resolveTokenStore();
+  } catch {
+    return {
+      ok: false,
+      error: 'storage_unavailable',
+      classification: CONSUME_RESULT.STORAGE_UNAVAILABLE,
+    };
+  }
+
+  const key = tokenKey(tokenHash);
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    let read;
+    try {
+      read = await readTokenWithEtag(store, key);
+    } catch {
+      return {
+        ok: false,
+        error: 'storage_unavailable',
+        classification: CONSUME_RESULT.STORAGE_UNAVAILABLE,
+      };
+    }
+
+    if (!read.exists || !read.record || read.record.tokenHash !== tokenHash) {
+      return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
+    }
+    const record = read.record;
+    if (record.revokedAt || record.purpose !== PURPOSE_APPOINTMENT_ACCESS) {
+      return {
+        ok: false,
+        error: 'invalid_token',
+        record,
+        classification: CONSUME_RESULT.INVALID,
+      };
+    }
+    if (new Date(record.expiresAt).getTime() < Date.now()) {
+      return {
+        ok: false,
+        error: 'expired_token',
+        record,
+        expired: true,
+        classification: CONSUME_RESULT.EXPIRED,
+      };
+    }
+    if (record.consumedAt) {
+      return {
+        ok: false,
+        error: 'consumed_token',
+        record,
+        consumed: true,
+        classification: CONSUME_RESULT.ALREADY_CONSUMED,
+      };
+    }
+
+    // CAS precondition required — never unconditional read-then-write.
+    if (!read.etag && typeof store.getWithMetadata === 'function') {
+      return {
+        ok: false,
+        error: 'storage_unavailable',
+        classification: CONSUME_RESULT.STORAGE_UNAVAILABLE,
+      };
+    }
+    if (!read.etag && typeof store.getWithMetadata !== 'function') {
+      // Test/memory adapters without metadata: synthesize etag from record.
+      read.etag = record.__etag || record._etag || `v${Number(record.uses) || 0}:${record.createdAt}`;
+    }
+
+    const next = {
+      ...record,
+      consumedAt: new Date().toISOString(),
+      uses: (Number(record.uses) || 0) + 1,
+      __etag: `consumed:${Date.now()}`,
+    };
+    const remainingMs = Math.max(60_000, new Date(next.expiresAt).getTime() - Date.now());
+
+    let writeResult;
+    try {
+      writeResult = await store.setJSON(key, next, {
+        ttl: remainingMs,
+        onlyIfMatch: read.etag,
+      });
+    } catch {
+      return {
+        ok: false,
+        error: 'storage_unavailable',
+        classification: CONSUME_RESULT.STORAGE_UNAVAILABLE,
+      };
+    }
+
+    if (writeWasApplied(writeResult)) {
+      return {
+        ok: true,
+        record: next,
+        classification: CONSUME_RESULT.CONSUMED_SUCCESSFULLY,
+      };
+    }
+    // Lost CAS race — loop to classify winner state (already_consumed / etc).
+  }
+
+  const finalRead = await readTokenWithEtag(store, key).catch(() => null);
+  if (finalRead?.record?.consumedAt) {
+    return {
+      ok: false,
+      error: 'consumed_token',
+      record: finalRead.record,
+      consumed: true,
+      classification: CONSUME_RESULT.ALREADY_CONSUMED,
+    };
+  }
+  return {
+    ok: false,
+    error: 'storage_unavailable',
+    classification: CONSUME_RESULT.STORAGE_UNAVAILABLE,
   };
-  const remainingMs = Math.max(60_000, new Date(next.expiresAt).getTime() - Date.now());
-  await store.setJSON(tokenKey(loaded.tokenHash), next, { ttl: remainingMs });
-  return { ok: true, record: next };
 }
 
 async function revokeActiveTokensForBooking(bookingId, { store: storeArg = null, reason = 'revoked' } = {}) {
@@ -297,10 +475,12 @@ module.exports = {
   ACCESS_TOKEN_TTL_MS,
   FOCUS_REF_TTL_MS,
   PURPOSE_APPOINTMENT_ACCESS,
+  CONSUME_RESULT,
   hashToken,
   generateOpaqueToken,
   generateFocusRef,
   buildAccessUrl,
+  buildPortalFocusPath,
   buildPortalFocusUrl,
   ensureAppointmentPublicRef,
   resolveFocusRef,

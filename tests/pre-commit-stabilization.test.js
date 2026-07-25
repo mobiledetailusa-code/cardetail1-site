@@ -294,7 +294,10 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/appointment-access-token.js',
     'netlify/lib/booking-transactional-notifications.js',
     'netlify/lib/booking-customer-status.js',
+    'netlify/lib/booking-confirm.js',
+    'netlify/lib/trusted-site-origin.js',
     'netlify/lib/ops-schema.js',
+    'tests/helpers/cas-memory-store.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);
