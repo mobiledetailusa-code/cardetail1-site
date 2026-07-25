@@ -80,3 +80,13 @@ test('submit-booking and appointment tokens share tech-security blobsStore', () 
   assert.match(access, /require\('\.\/tech-security'\)/);
   assert.match(txn, /emitRequestReceived/);
 });
+
+test('qa-appointment-access-mint is admin-gated and disabled in production context', () => {
+  const src = read('netlify/functions/qa-appointment-access-mint.js');
+  assert.match(src, /verifyAdminKey/);
+  assert.match(src, /branch-deploy/);
+  assert.match(src, /deploy-preview/);
+  assert.match(src, /allowedContext/);
+  assert.match(src, /accessOrigin/);
+  assert.doesNotMatch(src, /CONTEXT === ['\"]production['\"]\s*\?\s*true/);
+});
