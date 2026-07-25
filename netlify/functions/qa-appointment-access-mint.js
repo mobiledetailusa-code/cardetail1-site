@@ -55,6 +55,26 @@ exports.handler = async (event) => {
       error: 'not_found',
       context: deployContext() || null,
       branch: String(process.env.BRANCH || '').trim() || null,
+      hasDeployUrl: Boolean(String(process.env.DEPLOY_URL || '').trim()),
+      hasDeployPrimeUrl: Boolean(String(process.env.DEPLOY_PRIME_URL || '').trim()),
+      hasUrl: Boolean(String(process.env.URL || '').trim()),
+      hasSiteUrl: Boolean(String(process.env.SITE_URL || '').trim()),
+      hasContextEnv: Object.prototype.hasOwnProperty.call(process.env, 'CONTEXT'),
+      hasBranchEnv: Object.prototype.hasOwnProperty.call(process.env, 'BRANCH'),
+      urlHost: (() => {
+        try {
+          return process.env.URL ? new URL(process.env.URL).hostname : null;
+        } catch {
+          return null;
+        }
+      })(),
+      deployUrlHost: (() => {
+        try {
+          return process.env.DEPLOY_URL ? new URL(process.env.DEPLOY_URL).hostname : null;
+        } catch {
+          return null;
+        }
+      })(),
     });
   }
 
