@@ -12,7 +12,16 @@ const { trustedSiteOrigin, deployContext } = require('../lib/trusted-site-origin
 
 function allowedContext() {
   const ctx = deployContext();
-  return ctx === 'branch-deploy' || ctx === 'deploy-preview' || ctx === 'dev';
+  if (ctx === 'branch-deploy' || ctx === 'deploy-preview' || ctx === 'dev') return true;
+  // Some branch aliases omit CONTEXT; allow non-production when BRANCH is set and
+  // the deploy is clearly not the primary production site.
+  if (ctx === 'production') return false;
+  const branch = String(process.env.BRANCH || '').trim();
+  const deployUrl = String(process.env.DEPLOY_URL || process.env.DEPLOY_PRIME_URL || '');
+  if (branch && /netlify\.app/i.test(deployUrl) && !/cardetail1\.com$/i.test(deployUrl)) {
+    return true;
+  }
+  return false;
 }
 
 function timingSafeEqualStr(a, b) {
@@ -40,7 +49,14 @@ async function authorize(event) {
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   if (event.httpMethod !== 'POST') return jsonCors(404, { ok: false, error: 'not_found' });
-  if (!allowedContext()) return jsonCors(404, { ok: false, error: 'not_found' });
+  if (!allowedContext()) {
+    return jsonCors(404, {
+      ok: false,
+      error: 'not_found',
+      context: deployContext() || null,
+      branch: String(process.env.BRANCH || '').trim() || null,
+    });
+  }
 
   const auth = await authorize(event);
   if (!auth.ok) return jsonCors(401, { ok: false, error: 'unauthorized' });

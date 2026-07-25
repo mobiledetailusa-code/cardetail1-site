@@ -7,7 +7,13 @@ const FALLBACK_ORIGIN = 'https://cardetail1.com';
 const PRODUCTION_HOSTS = new Set(['cardetail1.com', 'www.cardetail1.com']);
 
 function deployContext() {
-  return String(process.env.CONTEXT || '').trim().toLowerCase();
+  const raw = String(process.env.CONTEXT || '').trim().toLowerCase();
+  if (raw) return raw;
+  // Branch alias builds sometimes omit CONTEXT; infer from BRANCH + deploy URL.
+  const branch = String(process.env.BRANCH || '').trim();
+  const deployUrl = String(process.env.DEPLOY_URL || process.env.DEPLOY_PRIME_URL || '');
+  if (branch && /netlify\.app/i.test(deployUrl)) return 'branch-deploy';
+  return '';
 }
 
 function isProductionHost(hostname) {
