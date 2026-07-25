@@ -1348,7 +1348,7 @@ async function handleAdminAction(body) {
     if (booking.jobStatus !== 'completed_pending_admin_review') {
       return jsonCors(409, { ok: false, error: 'not_pending_admin_review' });
     }
-    const patched = {
+    let patched = {
       ...booking,
       adminReviewRequired: false,
       adminReviewedAt: now,
@@ -1359,6 +1359,16 @@ async function handleAdminAction(body) {
       eventLog: appendEventLog(booking, { action: 'completion_approved', by: 'admin' }),
     };
     await store.setJSON(bookingId, patched);
+    try {
+      const { emitCustomerActionRequired } = require('../lib/booking-transactional-notifications');
+      const txn = await emitCustomerActionRequired(patched, { event });
+      if (txn && txn.booking) {
+        patched = txn.booking;
+        await store.setJSON(bookingId, patched).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[admin-ops-jobs] action-required notify failed:', e.message);
+    }
     return jsonCors(200, { ok: true, bookingId, jobStatus: patched.jobStatus });
   }
 
@@ -1392,7 +1402,7 @@ async function handleAdminAction(body) {
 
   if (action === 'confirm_booking') {
     const { portalReleasePatch } = require('../lib/booking-visibility');
-    const patched = {
+    let patched = {
       ...booking,
       ...portalReleasePatch(now),
       jobStatus: 'confirmed',
@@ -1406,6 +1416,19 @@ async function handleAdminAction(body) {
       eventLog: appendEventLog(booking, { action: 'booking_confirmed', by: 'admin' }),
     };
     await store.setJSON(bookingId, patched);
+
+    // Customer confirmation notification (email + optional SMS). Failures must
+    // not roll back the confirmed booking — delivery is tracked for retry.
+    try {
+      const { emitConfirmed } = require('../lib/booking-transactional-notifications');
+      const txn = await emitConfirmed(patched, { event });
+      if (txn && txn.booking) {
+        patched = txn.booking;
+        await store.setJSON(bookingId, patched).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[admin-ops-jobs] confirm notify failed:', e.message);
+    }
 
     const settings = await getOpsSettings();
     let auctionResult = null;

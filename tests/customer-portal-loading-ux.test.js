@@ -319,7 +319,7 @@ test('HTML: loading shell, aria-live/busy, spinner, boot class, mobile rules', (
   assert.match(html, /Return to sign in/);
   assert.match(html, /Signing you in\.\.\./);
   assert.match(html, /@media\(max-width:430px\)[\s\S]*portal-loading/);
-  assert.match(html, /my-garage\.js\?v=20260724-nogarage1/);
+  assert.match(html, /my-garage\.js\?v=20260724-appt-access1/);
   assert.doesNotMatch(html, /auth=|token=|&t=/);
 });
 
@@ -609,6 +609,74 @@ test('10. mobile layout CSS remains usable (no fixed desktop-only width trap)', 
   assert.match(html, /@media\(max-width:430px\)/);
   assert.match(html, /\.portal-loading\{[^}]*min-height:280px/);
   assert.match(html, /width:100%/);
+});
+
+test('appointment focus: loads focused booking and strips opaque appointment param', async () => {
+  const focusRef = 'aptr_focus_test_opaque_ref_001';
+  let sawAppointment = null;
+  const fetch = mockFetchRouter({
+    'customer-portal-auth': async (body) => {
+      if (body.action === 'session') return { data: { ok: true, authenticated: true } };
+      return { data: { ok: false } };
+    },
+    'customer-portal-data': async (body) => {
+      sawAppointment = body.appointment || null;
+      const payload = accountPayload();
+      payload.upcoming = {
+        id: 'CD1-FOCUSED',
+        appointmentPublicRef: focusRef,
+        customerStatus: 'Pending Review',
+        status: 'Pending Review',
+        package: 'Interior',
+        preferredDate: '2026-08-01',
+      };
+      payload.bookings = [payload.upcoming];
+      payload.focusedAppointment = {
+        appointmentPublicRef: focusRef,
+        customerStatus: 'Pending Review',
+      };
+      return { data: payload };
+    },
+  });
+
+  const { sandbox, location, document } = await loadPortal({
+    fetch,
+    search: `?appointment=${focusRef}`,
+  });
+  assert.equal(sandbox.cd1MyGarage.getPortalPhase(), 'ready');
+  assert.equal(sawAppointment, focusRef);
+  assert.doesNotMatch(location.href, /appointment=/);
+  assert.doesNotMatch(location.search, /appointment=/);
+  assert.match(document._els['upcoming-panel'].innerHTML, /Pending Review/);
+  assert.match(document._els['upcoming-panel'].innerHTML, /appointment-focus/);
+});
+
+test('appointment focus: altered ref cannot surface another customer booking (server focusError)', async () => {
+  const fetch = mockFetchRouter({
+    'customer-portal-auth': async (body) => {
+      if (body.action === 'session') return { data: { ok: true, authenticated: true } };
+      return { data: { ok: false } };
+    },
+    'customer-portal-data': async (body) => {
+      const payload = accountPayload();
+      payload.focusError = 'invalid_focus';
+      payload.focusedAppointment = null;
+      return { data: payload };
+    },
+  });
+  const { sandbox, location } = await loadPortal({
+    fetch,
+    search: '?appointment=aptr_someone_elses_ref_xxx',
+  });
+  assert.equal(sandbox.cd1MyGarage.getPortalPhase(), 'ready');
+  assert.doesNotMatch(location.search, /appointment=/);
+});
+
+test('fallback lookup copy remains available without requiring code for direct-link users', () => {
+  const html = read('my-garage.html');
+  assert.match(html, /Already have an appointment code/);
+  assert.match(html, /Find your appointment/);
+  assert.match(html, /id="lk-form"/);
 });
 
 test('security: token not rendered; retry does not replay consumed token', async () => {

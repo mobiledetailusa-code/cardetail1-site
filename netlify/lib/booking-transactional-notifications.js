@@ -1,0 +1,546 @@
+// Transactional booking notifications — request_received / confirmed / action_required.
+// Delivery is decoupled from booking persistence and idempotent per channel.
+
+'use strict';
+
+const crypto = require('crypto');
+const {
+  createAppointmentAccessToken,
+  ensureAppointmentPublicRef,
+  buildAccessUrl,
+  ACCESS_TOKEN_TTL_MS,
+} = require('./appointment-access-token');
+const {
+  customerFacingStatusLabel,
+  isActionRequiredState,
+  actionRequiredStateKey,
+} = require('./booking-customer-status');
+const { normalizeUsPhoneDigits, normalizeUsPhoneE164 } = require('./phone-auth');
+
+const EVENT_REQUEST_RECEIVED = 'booking.request_received';
+const EVENT_CONFIRMED = 'booking.confirmed';
+const EVENT_ACTION_REQUIRED = 'booking.customer_action_required';
+
+const CHANNELS = ['email', 'sms'];
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function brandName() {
+  return 'Detailing Zone';
+}
+
+function siteUrl(event) {
+  if (event) {
+    const host = event.headers?.['x-forwarded-host'] || event.headers?.Host || event.headers?.host;
+    if (host) {
+      const proto = String(event.headers?.['x-forwarded-proto'] || 'https').split(',')[0].trim();
+      return `${proto}://${String(host).split(',')[0].trim()}`.replace(/\/$/, '');
+    }
+  }
+  return String(process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://cardetail1.com').replace(/\/$/, '');
+}
+
+function vehicleDescription(booking) {
+  const vehicles = Array.isArray(booking.vehicles) ? booking.vehicles : [];
+  if (vehicles.length) {
+    return vehicles.map((v) => {
+      const label = [v.year, v.make || v.vehicleMake, v.model || v.vehicleModel]
+        .filter(Boolean).join(' ').trim();
+      return label || v.vehicleLabel || v.label || '';
+    }).filter(Boolean).join('; ') || 'Vehicle on file';
+  }
+  return booking.vehicleLabel || booking.vehicle || booking.vehicleCategory || 'Vehicle on file';
+}
+
+function serviceDescription(booking) {
+  return booking.package || booking.service || booking.serviceLabel || 'Detailing service';
+}
+
+function approvedTotalLabel(booking) {
+  const cents = booking.approvedCents != null
+    ? Number(booking.approvedCents)
+    : Math.round(Number(booking.approvedFinalAmount != null
+      ? booking.approvedFinalAmount
+      : (booking.totalPrice || 0)) * 100);
+  if (!Number.isFinite(cents) || cents <= 0) return null;
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+function arrivalWindow(booking) {
+  return booking.confirmedTimeWindow
+    || booking.confirmedWindow
+    || booking.confirmedTime
+    || booking.preferredTime
+    || '';
+}
+
+function eventStateKey(eventType, booking) {
+  if (eventType === EVENT_REQUEST_RECEIVED) {
+    return `v${booking.bookingVersion || 1}:${booking.finalizedAt || booking.createdAt || '1'}`;
+  }
+  if (eventType === EVENT_CONFIRMED) {
+    return `v${booking.bookingVersion || 1}:${booking.confirmedAt || booking.adminReviewedAt || '1'}`;
+  }
+  if (eventType === EVENT_ACTION_REQUIRED) {
+    return actionRequiredStateKey(booking) || `v${booking.bookingVersion || 1}`;
+  }
+  return `v${booking.bookingVersion || 1}`;
+}
+
+function idempotencyKey(bookingId, eventType, stateKey, channel) {
+  return `${bookingId}:${eventType}:${stateKey}:${channel}`;
+}
+
+function getNotificationLedger(booking) {
+  const ledger = booking?.transactionalNotifications;
+  return ledger && typeof ledger === 'object' ? { ...ledger } : {};
+}
+
+function channelAlreadySent(ledger, key) {
+  const entry = ledger[key];
+  return entry && (entry.status === 'sent' || entry.status === 'delivered');
+}
+
+function channelTerminal(ledger, key) {
+  const entry = ledger[key];
+  // sent/delivered/suppressed are terminal for this idempotency key.
+  // failed remains retryable.
+  return entry && (
+    entry.status === 'sent'
+    || entry.status === 'delivered'
+    || entry.status === 'suppressed'
+  );
+}
+
+function markChannelResult(ledger, key, result) {
+  const now = new Date().toISOString();
+  const next = { ...ledger };
+  if (result && result.sent === true) {
+    next[key] = { status: 'sent', at: now, reason: null, providerId: result.providerId || null };
+  } else if (result && result.skipped) {
+    next[key] = { status: 'suppressed', at: now, reason: result.reason || 'skipped' };
+  } else {
+    next[key] = {
+      status: 'failed',
+      at: now,
+      reason: (result && result.reason) || 'send_failed',
+      retryable: true,
+    };
+  }
+  return next;
+}
+
+function customerTransactionalSmsEnabled() {
+  return String(process.env.CUSTOMER_TRANSACTIONAL_SMS_ENABLED || '').toLowerCase() === 'true'
+    && !!String(process.env.TWILIO_SID || '').trim()
+    && !!String(process.env.TWILIO_TOKEN || '').trim()
+    && !!String(process.env.TWILIO_FROM || '').trim();
+}
+
+function resendEmailConfigured() {
+  return !!String(process.env.RESEND_API_KEY || '').trim();
+}
+
+function buildEmailContent(eventType, booking, accessUrl) {
+  const name = [booking.firstName, booking.lastName].filter(Boolean).join(' ').trim() || 'there';
+  const first = escapeHtml(name.split(/\s+/)[0] || 'there');
+  const safeName = escapeHtml(name);
+  const service = escapeHtml(serviceDescription(booking));
+  const vehicle = escapeHtml(vehicleDescription(booking));
+  const date = escapeHtml(booking.confirmedDate || booking.preferredDate || '—');
+  const window = escapeHtml(arrivalWindow(booking) || '—');
+  const total = approvedTotalLabel(booking);
+  const status = escapeHtml(customerFacingStatusLabel(booking));
+  const link = escapeHtml(accessUrl);
+  const brand = escapeHtml(brandName());
+
+  if (eventType === EVENT_REQUEST_RECEIVED) {
+    const subject = 'We received your detailing request';
+    const cta = 'View Booking Status';
+    const text = [
+      `Hi ${name.split(/\s+/)[0] || 'there'},`,
+      '',
+      `We received your booking request. It is currently under review.`,
+      'This is not yet a confirmed appointment.',
+      '',
+      `Requested service: ${serviceDescription(booking)}`,
+      `Vehicle: ${vehicleDescription(booking)}`,
+      `Preferred date: ${booking.preferredDate || '—'}`,
+      '',
+      `${cta}:`,
+      accessUrl,
+      '',
+      'This secure link opens your Customer Portal appointment.',
+      '',
+      brandName(),
+      siteUrl(),
+    ].join('\n');
+    const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
+<p>Hi ${first},</p>
+<p>We received your booking request. It is currently under review.</p>
+<p><strong>This is not yet a confirmed appointment.</strong></p>
+<ul>
+<li>Service: ${service}</li>
+<li>Vehicle: ${vehicle}</li>
+<li>Preferred date: ${escapeHtml(booking.preferredDate || '—')}</li>
+<li>Status: ${status}</li>
+</ul>
+<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>
+<p style="font-size:13px;color:#555">If the button does not work, open:<br>${link}</p>
+<p>${brand}</p>
+</body></html>`;
+    return { subject, text, html, cta };
+  }
+
+  if (eventType === EVENT_CONFIRMED) {
+    const subject = 'Your detailing appointment is confirmed';
+    const cta = 'View Confirmed Appointment';
+    const textLines = [
+      `Hi ${name.split(/\s+/)[0] || 'there'},`,
+      '',
+      'Your appointment is confirmed.',
+      '',
+      `Date: ${booking.confirmedDate || booking.preferredDate || '—'}`,
+      `Arrival window: ${arrivalWindow(booking) || '—'}`,
+      `Vehicle: ${vehicleDescription(booking)}`,
+      `Service: ${serviceDescription(booking)}`,
+    ];
+    if (total) textLines.push(`Approved total: ${total}`);
+    textLines.push('', `${cta}:`, accessUrl, '', brandName(), siteUrl());
+    const text = textLines.join('\n');
+    const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
+<p>Hi ${first},</p>
+<p><strong>Your appointment is confirmed.</strong></p>
+<ul>
+<li>Date: ${date}</li>
+<li>Arrival window: ${window}</li>
+<li>Vehicle: ${vehicle}</li>
+<li>Service: ${service}</li>
+${total ? `<li>Approved total: ${escapeHtml(total)}</li>` : ''}
+</ul>
+<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>
+<p style="font-size:13px;color:#555">If the button does not work, open:<br>${link}</p>
+<p>${brand}</p>
+</body></html>`;
+    return { subject, text, html, cta };
+  }
+
+  // customer_action_required
+  const subject = 'Action needed for your detailing appointment';
+  const cta = 'Review Appointment';
+  const text = [
+    `Hi ${name.split(/\s+/)[0] || 'there'},`,
+    '',
+    'Action is needed for your detailing appointment.',
+    `Current status: ${customerFacingStatusLabel(booking)}`,
+    '',
+    `${cta}:`,
+    accessUrl,
+    '',
+    brandName(),
+    siteUrl(),
+  ].join('\n');
+  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
+<p>Hi ${first},</p>
+<p>Action is needed for your detailing appointment.</p>
+<p>Current status: <strong>${status}</strong></p>
+<p>Hi ${safeName}, please review your appointment for any required payment, schedule confirmation, or missing information.</p>
+<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>
+<p style="font-size:13px;color:#555">If the button does not work, open:<br>${link}</p>
+<p>${brand}</p>
+</body></html>`;
+  return { subject, text, html, cta };
+}
+
+function buildSmsBody(eventType, booking, accessUrl) {
+  const brand = brandName();
+  if (eventType === EVENT_REQUEST_RECEIVED) {
+    return `${brand}: We received your booking request and it is under review.\nView status: ${accessUrl}`;
+  }
+  if (eventType === EVENT_CONFIRMED) {
+    const when = [booking.confirmedDate || booking.preferredDate, arrivalWindow(booking)]
+      .filter(Boolean).join(' ')
+      || 'your scheduled window';
+    return `${brand}: Your appointment is confirmed for ${when}.\nView appointment: ${accessUrl}`;
+  }
+  return `${brand}: Action needed for your appointment.\nReview: ${accessUrl}`;
+}
+
+async function sendResendEmail({ to, subject, text, html }) {
+  const { RESEND_API_KEY, RESEND_FROM, ADMIN_EMAIL } = process.env;
+  if (!RESEND_API_KEY) return { sent: false, skipped: true, reason: 'email_not_configured' };
+  if (!to) return { sent: false, skipped: true, reason: 'no_customer_email' };
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM || 'Cardetail1 <onboarding@resend.dev>',
+        to: [to],
+        subject,
+        text,
+        html,
+        reply_to: ADMIN_EMAIL || undefined,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      return { sent: false, reason: `resend_${res.status}`, detail: String(err).slice(0, 120) };
+    }
+    const body = await res.json().catch(() => ({}));
+    return { sent: true, providerId: body.id || null };
+  } catch (e) {
+    return { sent: false, reason: 'email_send_error', detail: e.message };
+  }
+}
+
+async function sendCustomerSms(toE164, body) {
+  if (!customerTransactionalSmsEnabled()) {
+    return { sent: false, skipped: true, reason: 'customer_sms_not_enabled' };
+  }
+  if (!toE164) return { sent: false, skipped: true, reason: 'no_customer_phone' };
+  const { TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM } = process.env;
+  try {
+    const params = new URLSearchParams({ To: toE164, From: TWILIO_FROM, Body: body });
+    const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params,
+    });
+    if (!res.ok) {
+      return { sent: false, reason: `twilio_${res.status}` };
+    }
+    return { sent: true };
+  } catch (e) {
+    return { sent: false, reason: 'sms_send_error', detail: e.message };
+  }
+}
+
+async function resolveCustomerAccountForBooking(booking, opts = {}) {
+  try {
+    const { resolveOrCreateCustomerAccount, linkBookingToAccount } = require('./customer-account-service');
+    const resolution = await resolveOrCreateCustomerAccount({
+      verifiedEmail: booking.email,
+      email: booking.email,
+      verifiedPhone: booking.phone || booking.customerPhone,
+      phone: booking.phone || booking.customerPhone,
+      bookingIds: [booking.id || booking.bookingId].filter(Boolean),
+      stripeCustomerId: booking.stripeCustomerId || null,
+    }, {
+      allowPhoneOnly: false,
+      createIfMissing: true,
+      trustSessionAccountId: false,
+      acceptBrowserAccountId: false,
+      allowNonTransactional: opts.allowNonTransactional === true,
+      prisma: opts.prisma,
+    });
+    if (!resolution.ok || !resolution.customerAccountId) {
+      return { customerAccountId: booking.customerAccountId || null, resolution };
+    }
+    const bookingId = booking.id || booking.bookingId;
+    if (bookingId) {
+      const { tryGetPrisma } = require('./prisma');
+      const prisma = opts.prisma || tryGetPrisma();
+      if (prisma) {
+        await linkBookingToAccount(prisma, {
+          bookingId,
+          customerAccountId: resolution.customerAccountId,
+        }).catch(() => null);
+      }
+    }
+    return { customerAccountId: resolution.customerAccountId, resolution };
+  } catch {
+    return { customerAccountId: booking.customerAccountId || null, resolution: null };
+  }
+}
+
+/**
+ * Emit a transactional notification event. Never throws into the booking write path.
+ * Returns { booking, delivery, skipped, accessToken } — caller should persist booking patch.
+ */
+async function emitBookingNotification(booking, eventType, opts = {}) {
+  const correlationId = `ntf_${crypto.randomBytes(6).toString('hex')}`;
+  try {
+    if (!booking || !(booking.id || booking.bookingId)) {
+      return { ok: false, error: 'booking_required', correlationId };
+    }
+    if (
+      eventType !== EVENT_REQUEST_RECEIVED
+      && eventType !== EVENT_CONFIRMED
+      && eventType !== EVENT_ACTION_REQUIRED
+    ) {
+      return { ok: false, error: 'unknown_event', correlationId };
+    }
+
+    if (eventType === EVENT_ACTION_REQUIRED && !isActionRequiredState(booking)) {
+      return { ok: true, skipped: true, reason: 'not_actionable', correlationId, booking };
+    }
+
+    // Guard: never describe pending review as confirmed.
+    if (eventType === EVENT_CONFIRMED) {
+      const appt = String(booking.appointmentStatus || '').toLowerCase();
+      const js = String(booking.jobStatus || '').toLowerCase();
+      const st = String(booking.status || '').toLowerCase();
+      if (!(appt === 'confirmed' || js === 'confirmed' || st === 'confirmed')) {
+        return { ok: false, error: 'not_confirmed', correlationId, booking };
+      }
+    }
+
+    let working = { ...booking };
+    const refResult = await ensureAppointmentPublicRef(working);
+    working = refResult.booking;
+
+    const account = await resolveCustomerAccountForBooking(working, opts);
+    if (account.customerAccountId) {
+      working = { ...working, customerAccountId: account.customerAccountId };
+    }
+
+    const stateKey = eventStateKey(eventType, working);
+    const bookingId = working.id || working.bookingId;
+    let ledger = getNotificationLedger(working);
+
+    const emailKey = idempotencyKey(bookingId, eventType, stateKey, 'email');
+    const smsKey = idempotencyKey(bookingId, eventType, stateKey, 'sms');
+    const emailDone = channelAlreadySent(ledger, emailKey);
+    const smsDone = channelAlreadySent(ledger, smsKey);
+    const emailTerminal = channelTerminal(ledger, emailKey);
+    const smsTerminal = channelTerminal(ledger, smsKey);
+
+    if (emailTerminal && smsTerminal) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: 'already_sent',
+        correlationId,
+        booking: { ...working, transactionalNotifications: ledger },
+        delivery: { email: ledger[emailKey], sms: ledger[smsKey] },
+      };
+    }
+
+    const phoneDigits = normalizeUsPhoneDigits(working.phone || working.customerPhone || '');
+    // Do not revoke an already-emailed link when only retrying a failed SMS channel.
+    const supersede = !(emailDone || smsDone);
+    const access = await createAppointmentAccessToken({
+      bookingId,
+      customerAccountId: working.customerAccountId || null,
+      email: working.email,
+      phoneDigits: phoneDigits || null,
+      eventType,
+      ttlMs: ACCESS_TOKEN_TTL_MS,
+      supersede,
+      event: opts.event || null,
+    });
+
+    const accessUrl = access.accessUrl || buildAccessUrl(access.token, opts.event);
+    const emailContent = buildEmailContent(eventType, working, accessUrl);
+    const smsBody = buildSmsBody(eventType, working, accessUrl);
+
+    const delivery = { email: null, sms: null, accessTokenExpiresAt: access.expiresAt };
+
+    if (!emailTerminal) {
+      if (!resendEmailConfigured()) {
+        delivery.email = { sent: false, skipped: true, reason: 'email_not_configured' };
+      } else {
+        delivery.email = await sendResendEmail({
+          to: working.email,
+          subject: emailContent.subject,
+          text: emailContent.text,
+          html: emailContent.html,
+        });
+      }
+      ledger = markChannelResult(ledger, emailKey, delivery.email);
+    } else {
+      delivery.email = emailDone
+        ? { sent: true, skipped: true, reason: 'already_sent' }
+        : { sent: false, skipped: true, reason: ledger[emailKey]?.reason || 'suppressed' };
+    }
+
+    if (!smsTerminal) {
+      const e164 = normalizeUsPhoneE164(working.phone || working.customerPhone || '');
+      delivery.sms = await sendCustomerSms(e164, smsBody);
+      ledger = markChannelResult(ledger, smsKey, delivery.sms);
+    } else {
+      delivery.sms = smsDone
+        ? { sent: true, skipped: true, reason: 'already_sent' }
+        : { sent: false, skipped: true, reason: ledger[smsKey]?.reason || 'suppressed' };
+    }
+
+    // Never log raw tokens, emails, or phones.
+    console.log('[txn-notify]', {
+      eventType,
+      bookingIdPrefix: String(bookingId).slice(0, 12),
+      correlationId,
+      emailStatus: ledger[emailKey]?.status || null,
+      smsStatus: ledger[smsKey]?.status || null,
+    });
+
+    return {
+      ok: true,
+      correlationId,
+      eventType,
+      stateKey,
+      accessToken: access.token,
+      accessUrl,
+      focusRef: working.appointmentPublicRef || null,
+      delivery,
+      booking: {
+        ...working,
+        transactionalNotifications: ledger,
+        lastTransactionalNotificationAt: new Date().toISOString(),
+        lastTransactionalNotificationEvent: eventType,
+      },
+    };
+  } catch (e) {
+    console.warn('[txn-notify] unexpected', { correlationId, error: e.message });
+    return { ok: false, error: 'notify_failed', correlationId, booking };
+  }
+}
+
+async function emitRequestReceived(booking, opts) {
+  return emitBookingNotification(booking, EVENT_REQUEST_RECEIVED, opts);
+}
+
+async function emitConfirmed(booking, opts) {
+  return emitBookingNotification(booking, EVENT_CONFIRMED, opts);
+}
+
+async function emitCustomerActionRequired(booking, opts) {
+  return emitBookingNotification(booking, EVENT_ACTION_REQUIRED, opts);
+}
+
+module.exports = {
+  EVENT_REQUEST_RECEIVED,
+  EVENT_CONFIRMED,
+  EVENT_ACTION_REQUIRED,
+  CHANNELS,
+  escapeHtml,
+  brandName,
+  vehicleDescription,
+  serviceDescription,
+  eventStateKey,
+  idempotencyKey,
+  getNotificationLedger,
+  channelAlreadySent,
+  buildEmailContent,
+  buildSmsBody,
+  customerTransactionalSmsEnabled,
+  emitBookingNotification,
+  emitRequestReceived,
+  emitConfirmed,
+  emitCustomerActionRequired,
+  resolveCustomerAccountForBooking,
+};

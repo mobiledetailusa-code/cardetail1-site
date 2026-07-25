@@ -20,6 +20,8 @@
     payment: null,
     customer: null,
     accountVersion: null,
+    appointmentFocusRef: null,
+    focusedAppointment: null,
   };
 
   var modalAction = null;
@@ -210,6 +212,55 @@
       var next = 'my-garage.html' + (cleaned ? ('?' + cleaned) : '') + (global.location.hash || '');
       history.replaceState({}, '', next);
     } catch (e) { /* ignore */ }
+  }
+
+  function stripAppointmentFocusFromUrl() {
+    try {
+      var params = new URLSearchParams(global.location.search);
+      if (!params.has('appointment')) return;
+      params.delete('appointment');
+      // Never leave access tokens in the address bar.
+      params.delete('token');
+      var cleaned = params.toString();
+      var next = 'my-garage.html' + (cleaned ? ('?' + cleaned) : '') + (global.location.hash || '');
+      history.replaceState({}, '', next);
+    } catch (e) { /* ignore */ }
+  }
+
+  function appointmentStatusLabel(b) {
+    if (!b) return 'Status';
+    return b.customerStatus || b.status || 'Status';
+  }
+
+  function applyAppointmentFocus(data) {
+    if (!data) return;
+    state.focusedAppointment = data.focusedAppointment || null;
+    if (data.upcoming) state.booking = data.upcoming;
+    if (state.focusedAppointment || data.focusError === 'invalid_focus') {
+      // Consume opaque focus param after server resolution (success or safe miss).
+      stripAppointmentFocusFromUrl();
+      state.appointmentFocusRef = null;
+    }
+    if (data.focusError === 'invalid_focus') {
+      showToast('That appointment link could not be opened.', true);
+    }
+  }
+
+  function highlightFocusedAppointment() {
+    var hero = $('upcoming-panel');
+    if (!hero) return;
+    var card = hero.querySelector('.card');
+    if (!card) return;
+    if (state.focusedAppointment) {
+      card.classList.add('appointment-focus');
+      try {
+        card.setAttribute('tabindex', '-1');
+        card.focus({ preventScroll: true });
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) { /* ignore */ }
+    } else {
+      card.classList.remove('appointment-focus');
+    }
   }
 
   function isTemporarilyUnavailableResponse(r) {
@@ -850,7 +901,10 @@
     opts = opts || {};
     var generation = opts.generation != null ? opts.generation : portalHydration.generation;
     portalHydration.lastError = null;
-    var r = await post('customer-portal-data', { mode: 'account' });
+    var payload = { mode: 'account' };
+    var focusRef = opts.appointmentFocusRef || state.appointmentFocusRef;
+    if (focusRef) payload.appointment = focusRef;
+    var r = await post('customer-portal-data', payload);
     if (generation !== portalHydration.generation) return false;
     if (r.status === 401) {
       clearAuthenticatedCustomerState({ reason: 'http_401' });
@@ -869,8 +923,10 @@
     state.session = true;
     state.bookings = r.data.bookings || [];
     state.booking = r.data.upcoming || state.bookings[0] || null;
+    applyAppointmentFocus(r.data);
     applyPortalPayload(r.data);
     renderDashboard(r.data);
+    highlightFocusedAppointment();
     if (opts.managePhase !== false && portalHydration.phase !== PORTAL_PHASE.READY
       && !isBlockingPortalPhase(portalHydration.phase)
       && !isErrorPortalPhase(portalHydration.phase)) {
@@ -915,7 +971,11 @@
         restartTimers: false,
       });
 
-      var ok = await loadAccount({ generation: generation, managePhase: false });
+      var ok = await loadAccount({
+        generation: generation,
+        managePhase: false,
+        appointmentFocusRef: state.appointmentFocusRef || null,
+      });
       if (generation !== portalHydration.generation) return false;
       if (ok) {
         setPortalPhase(PORTAL_PHASE.READY);
@@ -1039,7 +1099,11 @@
         message: 'Loading your garage...',
         restartTimers: false,
       });
-      var ok = await loadAccount({ generation: generation, managePhase: false });
+      var ok = await loadAccount({
+        generation: generation,
+        managePhase: false,
+        appointmentFocusRef: state.appointmentFocusRef || null,
+      });
       if (generation !== portalHydration.generation) return false;
       if (ok) {
         setPortalPhase(PORTAL_PHASE.READY);
@@ -1343,17 +1407,21 @@
       : '<div><dt>Vehicle</dt><dd>' + esc(vehicleLine(b)) + '</dd></div>' +
         '<div><dt>Add-ons</dt><dd>' + esc(addonLines(b)) + '</dd></div>';
 
+    var statusLabel = appointmentStatusLabel(b);
+    var arrival = b.confirmedTimeWindow || b.confirmedTime || b.preferredTime || '—';
+    var focusClass = state.focusedAppointment ? ' appointment-focus' : '';
     hero.innerHTML =
-      '<div class="card">' +
-      '<div class="card-kicker">' + esc(b.status || 'Status') +
+      '<div class="card' + focusClass + '" id="focused-appointment-card">' +
+      '<div class="card-kicker">' + esc(statusLabel) +
       (pendingFlag ? ' · Change pending' : '') + '</div>' +
       '<h2 class="card-title">' + esc(b.service || b.package || 'Service') + '</h2>' +
       (packDesc ? '<p class="pack-desc">' + esc(packDesc) + (packDur ? ' · ' + esc(packDur) : '') + '</p>' : '') +
       '<dl class="meta-grid">' +
-      '<div><dt>Booking ID</dt><dd class="mono">' + esc(b.id || '—') + '</dd></div>' +
-      legacyVehicleRows +
+      '<div><dt>Status</dt><dd>' + esc(statusLabel) + '</dd></div>' +
       '<div><dt>Date</dt><dd>' + esc(b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
-      '<div><dt>Time</dt><dd>' + esc(b.confirmedTime || b.preferredTime || b.confirmedTimeWindow || '—') + '</dd></div>' +
+      '<div><dt>Arrival window</dt><dd>' + esc(arrival) + '</dd></div>' +
+      legacyVehicleRows +
+      '<div><dt>Service</dt><dd>' + esc(b.service || b.package || '—') + '</dd></div>' +
       '<div><dt>Location</dt><dd>' + esc(b.address || b.serviceLocation || '—') + '</dd></div>' +
       (b.assignedTechName ? '<div><dt>Technician</dt><dd>' + esc(b.assignedTechName) + '</dd></div>' : '') +
       (b.travelFeeAmount ? '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>' : '') +
@@ -1361,17 +1429,13 @@
       '</dl>' +
       vehicleSections +
       '<dl class="meta-grid booking-financial-summary" aria-label="Booking totals">' +
-      '<div><dt>Total approved</dt><dd>' + (
+      '<div><dt>Approved total</dt><dd>' + (
         pay.approvedCents != null || pay.approvedTotal != null
           ? fmtCents(approvedCentsFromPayment(pay))
           : fmtMoney(b.approvedFinalAmount != null ? b.approvedFinalAmount : b.totalPrice)
       ) + '</dd></div>' +
-      (settledCentsFromPayment(pay) > 0
-        ? '<div><dt>Amount paid</dt><dd>' + fmtCents(settledCentsFromPayment(pay)) + '</dd></div>'
-        : '') +
-      (remainingCentsFromPayment(pay) > 0
-        ? '<div><dt>Amount due</dt><dd>' + fmtCents(remainingCentsFromPayment(pay)) + '</dd></div>'
-        : '') +
+      '<div><dt>Paid amount</dt><dd>' + fmtCents(settledCentsFromPayment(pay)) + '</dd></div>' +
+      '<div><dt>Remaining balance</dt><dd>' + fmtCents(remainingCentsFromPayment(pay)) + '</dd></div>' +
       '</dl>' +
       ((pay.canPay || pay.canCreatePayLink)
         ? '<button type="button" class="btn primary" data-portal-pay>Pay Balance' +
@@ -1388,8 +1452,12 @@
     renderMaintenancePlans();
 
     renderList('appointments-list', state.bookings.length ? state.bookings : [b], function (item) {
-      return '<li><strong class="mono">' + esc(item.id || '') + '</strong> — ' +
-        esc(item.status || '') + ' · ' + esc(item.preferredDate || '—') +
+      var focused = state.focusedAppointment
+        && item.appointmentPublicRef
+        && state.focusedAppointment.appointmentPublicRef === item.appointmentPublicRef;
+      return '<li' + (focused ? ' class="appointment-focus"' : '') + '>' +
+        '<strong>' + esc(appointmentStatusLabel(item)) + '</strong> — ' +
+        esc(item.confirmedDate || item.preferredDate || '—') +
         ' · ' + esc(item.service || item.package || '') +
         ' · ' + esc(vehicleLine(item)) + '</li>';
     });
@@ -2810,6 +2878,8 @@
     }
     var preId = params.get('bookingId') || params.get('id') || params.get('booking');
     var prePhone = params.get('phone');
+    var appointmentFocus = params.get('appointment');
+    if (appointmentFocus) state.appointmentFocusRef = appointmentFocus;
     if (preId && $('lk-booking-id')) $('lk-booking-id').value = preId.toUpperCase();
     if (prePhone && $('lk-phone')) $('lk-phone').value = prePhone;
 

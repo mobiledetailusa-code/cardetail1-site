@@ -264,7 +264,44 @@ exports.handler = async (event) => {
   const projected = bookings
     .map((b) => projectBookingForCustomer(b))
     .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
-  const upcoming = selectUpcoming(projected);
+
+  // Opaque appointment focus — resolve server-side under authenticated ownership only.
+  // Never accept raw booking IDs / phones / emails as the focus parameter.
+  let focused = null;
+  let focusError = null;
+  const focusRef = String(body.appointment || body.appointmentFocus || '').trim();
+  if (focusRef) {
+    const { FOCUS_PREFIX, resolveFocusRef } = require('../lib/appointment-access-token');
+    if (!focusRef.startsWith(FOCUS_PREFIX)) {
+      focusError = 'invalid_focus';
+    } else {
+      let targetBookingId = null;
+      const resolved = await resolveFocusRef(focusRef);
+      if (resolved && resolved.bookingId) {
+        targetBookingId = normalizeBookingId(resolved.bookingId);
+        if (
+          resolved.customerAccountId
+          && session.customerAccountId
+          && resolved.customerAccountId !== session.customerAccountId
+        ) {
+          targetBookingId = null;
+          focusError = 'invalid_focus';
+        }
+      }
+      if (!targetBookingId) {
+        const byRef = bookings.find((b) => String(b.appointmentPublicRef || '') === focusRef);
+        if (byRef) targetBookingId = normalizeBookingId(byRef.id || byRef.bookingId);
+      }
+      if (targetBookingId) {
+        focused = projected.find((b) => normalizeBookingId(b.id) === targetBookingId) || null;
+        if (!focused) focusError = 'invalid_focus';
+      } else if (!focusError) {
+        focusError = 'invalid_focus';
+      }
+    }
+  }
+
+  const upcoming = focused || selectUpcoming(projected);
   const payment = upcoming
     ? await safePaymentStateAsync(bookings.find((b) => (b.id || b.bookingId) === upcoming.id) || {})
     : { state: 'not_due', amountDueApproved: 0, canPay: false, payLink: '', authority: 'none' };
@@ -302,6 +339,13 @@ exports.handler = async (event) => {
     customer,
     bookings: projected,
     upcoming,
+    focusedAppointment: focused
+      ? {
+        appointmentPublicRef: focused.appointmentPublicRef || focusRef,
+        customerStatus: focused.customerStatus || focused.status || null,
+      }
+      : null,
+    focusError,
     payment,
     catalog,
     packageCatalog,

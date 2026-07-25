@@ -28,6 +28,10 @@
   to = "/my-garage.html"
   status = 200
 [[redirects]]
+  from = "/appointment-access"
+  to = "/.netlify/functions/customer-appointment-access"
+  status = 200
+[[redirects]]
   from = "/technician"
   to = "/technician.html"
   status = 200

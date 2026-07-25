@@ -119,6 +119,9 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/customer-portal-profile.js',
   // Post-release hardening — disabled-by-default identity smoke harness
   'netlify/functions/qa-customer-identity-smoke.js',
+  // Appointment direct access + transactional notifications
+  'netlify/functions/customer-appointment-access.js',
+  'netlify/functions/update-booking.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {

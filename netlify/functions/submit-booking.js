@@ -581,12 +581,48 @@ exports.handler = async (event) => {
       scheduleBookingMirror(b);
     } catch { /* ignore */ }
 
+    // Admin channels stay on the legacy decoupled helper. Customer
+    // request-received email/SMS go through transactional events so they include
+    // a secure appointment-access link and stay idempotent by event+channel.
     const delivery = await sendNotificationsDecoupled(b, {
       adminEmail: (booking) => sendEmail(booking).catch((e) => ({ sent: false, reason: e.message })),
-      customerEmail: (booking) => sendCustomerEmail(booking).catch((e) => ({ sent: false, reason: e.message })),
       adminSms: (booking) => sendSms(booking).catch((e) => ({ sent: false, reason: e.message })),
     });
-    const withDelivery = attachDeliveryToBooking(b, delivery);
+    let withDelivery = attachDeliveryToBooking(b, delivery);
+
+    try {
+      const { emitRequestReceived } = require('../lib/booking-transactional-notifications');
+      const txn = await emitRequestReceived(withDelivery, { event });
+      if (txn && txn.booking) {
+        withDelivery = txn.booking;
+        const custEmailStatus = txn.delivery?.email?.sent
+          ? { status: 'sent', at: new Date().toISOString(), reason: null }
+          : {
+            status: txn.delivery?.email?.skipped ? 'suppressed' : 'failed',
+            at: new Date().toISOString(),
+            reason: txn.delivery?.email?.reason || null,
+          };
+        const custSmsStatus = txn.delivery?.sms?.sent
+          ? { status: 'sent', at: new Date().toISOString(), reason: null }
+          : {
+            status: txn.delivery?.sms?.skipped ? 'suppressed' : 'failed',
+            at: new Date().toISOString(),
+            reason: txn.delivery?.sms?.reason || 'customer_sms_not_enabled',
+          };
+        withDelivery = {
+          ...withDelivery,
+          notificationDelivery: {
+            ...(withDelivery.notificationDelivery || delivery),
+            customerEmail: custEmailStatus,
+            customerSms: custSmsStatus,
+            updatedAt: new Date().toISOString(),
+          },
+        };
+      }
+    } catch (e) {
+      console.warn('[submit-booking] transactional notify failed:', e.message);
+    }
+
     try {
       await store.setJSON(rawDraftId, withDelivery);
       try {
@@ -610,10 +646,10 @@ exports.handler = async (event) => {
       status: b.status,
       paymentStatus: b.paymentStatus,
       stored,
-      email: delivery.adminEmail,
-      customerEmail: delivery.customerEmail,
-      sms: delivery.adminSms,
-      notificationDelivery: delivery,
+      email: withDelivery.notificationDelivery?.adminEmail || delivery.adminEmail,
+      customerEmail: withDelivery.notificationDelivery?.customerEmail || { status: 'pending' },
+      sms: withDelivery.notificationDelivery?.adminSms || delivery.adminSms,
+      notificationDelivery: withDelivery.notificationDelivery || delivery,
       appointmentStatus: b.appointmentStatus,
       cardOnFileStatus: b.cardOnFileStatus,
       bookingVersion: b.bookingVersion || 1,

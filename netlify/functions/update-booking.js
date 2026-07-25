@@ -330,7 +330,17 @@ exports.handler = async (event) => {
       (newStatus === 'Confirmed' && prevStatus !== 'Confirmed');
 
     if (justConfirmed) {
-      emailResults.confirmationEmail = await sendConfirmationEmail(patched);
+      try {
+        const { emitConfirmed } = require('../lib/booking-transactional-notifications');
+        const txn = await emitConfirmed(patched, { event });
+        emailResults.confirmationEmail = txn?.delivery?.email || { sent: false, reason: 'notify_failed' };
+        if (txn && txn.booking) {
+          await store.setJSON(bookingId, txn.booking).catch(() => {});
+        }
+      } catch (e) {
+        // Fallback to legacy template if transactional path throws.
+        emailResults.confirmationEmail = await sendConfirmationEmail(patched);
+      }
     }
 
     return json(200, {
