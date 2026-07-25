@@ -126,13 +126,15 @@ function trustedSiteOrigin() {
       });
       if (origin) return origin;
     }
-    for (const raw of [readDeployEnv('DEPLOY_URL'), readDeployEnv('DEPLOY_PRIME_URL')]) {
+    // Prefer DEPLOY_PRIME_URL (stable branch/preview alias) over per-deploy DEPLOY_URL
+    // so email links survive subsequent redeploys of the same draft context.
+    for (const raw of [readDeployEnv('DEPLOY_PRIME_URL'), readDeployEnv('DEPLOY_URL')]) {
       const origin = normalizeOriginCandidate(raw, { requireHttps: true });
       if (origin) return origin;
     }
     // Last resort for preview contexts: never fall back to production primary.
     // Prefer an http local/preview only if https candidates were absent.
-    for (const raw of [readDeployEnv('DEPLOY_URL'), readDeployEnv('DEPLOY_PRIME_URL')]) {
+    for (const raw of [readDeployEnv('DEPLOY_PRIME_URL'), readDeployEnv('DEPLOY_URL')]) {
       const origin = normalizeOriginCandidate(raw, { requireHttps: false });
       if (origin && !isProductionHost(new URL(origin).hostname)) return origin;
     }
