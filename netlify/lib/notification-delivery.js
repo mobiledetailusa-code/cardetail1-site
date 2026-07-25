@@ -37,19 +37,29 @@ async function sendNotificationsDecoupled(booking, senders) {
   const delivery = initNotificationDelivery(booking);
   const tasks = [];
 
-  if (senders.adminEmail) {
+  function alreadySent(channel) {
+    const cur = delivery[channel];
+    return cur && (cur.status === 'sent' || cur.status === 'delivered');
+  }
+
+  if (senders.adminEmail && !alreadySent('adminEmail')) {
     tasks.push(senders.adminEmail(booking).then((r) => {
       Object.assign(delivery, applyDeliveryUpdate(delivery, 'adminEmail', r));
     }));
   }
-  if (senders.customerEmail) {
+  if (senders.customerEmail && !alreadySent('customerEmail')) {
     tasks.push(senders.customerEmail(booking).then((r) => {
       Object.assign(delivery, applyDeliveryUpdate(delivery, 'customerEmail', r));
     }));
   }
-  if (senders.adminSms) {
+  if (senders.adminSms && !alreadySent('adminSms')) {
     tasks.push(senders.adminSms(booking).then((r) => {
       Object.assign(delivery, applyDeliveryUpdate(delivery, 'adminSms', r));
+    }));
+  }
+  if (senders.customerSms && !alreadySent('customerSms')) {
+    tasks.push(senders.customerSms(booking).then((r) => {
+      Object.assign(delivery, applyDeliveryUpdate(delivery, 'customerSms', r));
     }));
   }
 

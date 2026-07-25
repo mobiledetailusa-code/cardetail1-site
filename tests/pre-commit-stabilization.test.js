@@ -288,6 +288,20 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/public-rate-limit.js',
     // Post-release hardening — disabled-by-default identity smoke harness
     'netlify/functions/qa-customer-identity-smoke.js',
+    // Appointment direct access + transactional notifications
+    'netlify/functions/customer-appointment-access.js',
+    'netlify/functions/update-booking.js',
+    'netlify/functions/qa-appointment-access-mint.js',
+    'netlify/functions/qa-blobs-health.js',
+    'netlify/lib/appointment-access-token.js',
+    'netlify/lib/appointment-booking-linkage.js',
+    'netlify/lib/booking-transactional-notifications.js',
+    'netlify/lib/booking-customer-status.js',
+    'netlify/lib/booking-confirm.js',
+    'netlify/lib/trusted-site-origin.js',
+    'netlify/lib/deploy-runtime-env.generated.js',
+    'netlify/lib/ops-schema.js',
+    'tests/helpers/cas-memory-store.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

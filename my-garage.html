@@ -42,6 +42,11 @@ a:hover{text-decoration:underline}
 .section h3{font-size:15px;font-weight:700;margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--blue)}
 .card-kicker{font-size:12px;color:var(--blue);font-weight:600;text-transform:uppercase;letter-spacing:.08em}
 .card-title{font-size:20px;font-weight:800;margin:6px 0 14px}
+.card.appointment-focus,#appointments-list li.appointment-focus{
+  outline:2px solid var(--blue);
+  box-shadow:0 0 0 4px rgba(14,90,138,.12);
+  scroll-margin-top:88px;
+}
 .meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
 .meta-grid dt{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.06em}
 .meta-grid dd{font-size:14px;font-weight:600;margin-top:2px}
@@ -135,15 +140,15 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 
   <div id="pre-auth" hidden style="display:none">
     <section class="panel" id="lookup">
-      <h2>Find your booking</h2>
-      <p class="sub">Limited access — view and manage one appointment with booking ID + phone.</p>
+      <h2>Already have an appointment code?</h2>
+      <p class="sub">Find your appointment — fallback access with appointment code + phone. Customers arriving from a secure email/SMS link do not need this form.</p>
       <form id="lk-form" autocomplete="off">
-        <label for="lk-booking-id" class="sub">Booking ID</label>
+        <label for="lk-booking-id" class="sub">Appointment code</label>
         <input class="inp" id="lk-booking-id" name="bookingId" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CD1-…" required>
         <label for="lk-phone" class="sub">Phone on booking</label>
         <input class="inp" id="lk-phone" name="phone" type="tel" autocomplete="off" inputmode="tel" placeholder="(551) 313-2956" required>
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px">
-          <button type="submit" class="btn primary">View booking</button>
+          <button type="submit" class="btn primary">Find your appointment</button>
           <button type="button" class="btn ghost" id="lk-clear">Clear / different booking</button>
         </div>
       </form>
@@ -319,7 +324,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 <script src="https://js.stripe.com/v3/"></script>
 <script src="assets/portal-analytics.js" defer></script>
 <script src="assets/operational-refresh.js" defer></script>
-<script src="assets/my-garage.js?v=20260724-nogarage1" defer></script>
+<script src="assets/my-garage.js?v=20260724-appt-access1" defer></script>
 <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>

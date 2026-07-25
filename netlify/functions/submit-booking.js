@@ -90,10 +90,19 @@ async function blobsStore(name) {
   if (typeof blobsStoreOverride === 'function') {
     return blobsStoreOverride(name);
   }
-  const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
+  // Prefer shared helper: runtime Blobs context first, then explicit siteID/token.
+  // Functions v1 often lack runtime context, so a valid NETLIFY_AUTH_TOKEN is required.
+  const { blobsStore: sharedBlobsStore } = require('../lib/tech-security');
+  return sharedBlobsStore(name);
+}
+
+function sanitizeBlobError(err) {
+  const raw = String(err && (err.message || err) || 'unknown');
+  return raw
+    .replace(/nf[cp]_[A-Za-z0-9]+/gi, '[REDACTED_TOKEN]')
+    .replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]')
+    .replace(/postgres(?:ql)?:\/\/[^\s"']+/gi, '[DB_URL]')
+    .slice(0, 240);
 }
 
 function buildDraftRecord(b, draftId, now, existing = null) {
@@ -452,6 +461,12 @@ exports.handler = async (event) => {
     try {
       await store.setJSON(draftId, draft);
     } catch (e) {
+      const detail = sanitizeBlobError(e);
+      console.error('[submit-booking] draft blob persist failed', {
+        stage: 'booking_persistence',
+        errorClass: e && e.name ? e.name : 'Error',
+        detail,
+      });
       return json(500, { ok: false, error: 'Failed to pre-register booking' });
     }
 
@@ -581,12 +596,48 @@ exports.handler = async (event) => {
       scheduleBookingMirror(b);
     } catch { /* ignore */ }
 
+    // Admin channels stay on the legacy decoupled helper. Customer
+    // request-received email/SMS go through transactional events so they include
+    // a secure appointment-access link and stay idempotent by event+channel.
     const delivery = await sendNotificationsDecoupled(b, {
       adminEmail: (booking) => sendEmail(booking).catch((e) => ({ sent: false, reason: e.message })),
-      customerEmail: (booking) => sendCustomerEmail(booking).catch((e) => ({ sent: false, reason: e.message })),
       adminSms: (booking) => sendSms(booking).catch((e) => ({ sent: false, reason: e.message })),
     });
-    const withDelivery = attachDeliveryToBooking(b, delivery);
+    let withDelivery = attachDeliveryToBooking(b, delivery);
+
+    try {
+      const { emitRequestReceived } = require('../lib/booking-transactional-notifications');
+      const txn = await emitRequestReceived(withDelivery, { event });
+      if (txn && txn.booking) {
+        withDelivery = txn.booking;
+        const custEmailStatus = txn.delivery?.email?.sent
+          ? { status: 'sent', at: new Date().toISOString(), reason: null }
+          : {
+            status: txn.delivery?.email?.skipped ? 'suppressed' : 'failed',
+            at: new Date().toISOString(),
+            reason: txn.delivery?.email?.reason || null,
+          };
+        const custSmsStatus = txn.delivery?.sms?.sent
+          ? { status: 'sent', at: new Date().toISOString(), reason: null }
+          : {
+            status: txn.delivery?.sms?.skipped ? 'suppressed' : 'failed',
+            at: new Date().toISOString(),
+            reason: txn.delivery?.sms?.reason || 'customer_sms_not_enabled',
+          };
+        withDelivery = {
+          ...withDelivery,
+          notificationDelivery: {
+            ...(withDelivery.notificationDelivery || delivery),
+            customerEmail: custEmailStatus,
+            customerSms: custSmsStatus,
+            updatedAt: new Date().toISOString(),
+          },
+        };
+      }
+    } catch (e) {
+      console.warn('[submit-booking] transactional notify failed:', e.message);
+    }
+
     try {
       await store.setJSON(rawDraftId, withDelivery);
       try {
@@ -610,10 +661,10 @@ exports.handler = async (event) => {
       status: b.status,
       paymentStatus: b.paymentStatus,
       stored,
-      email: delivery.adminEmail,
-      customerEmail: delivery.customerEmail,
-      sms: delivery.adminSms,
-      notificationDelivery: delivery,
+      email: withDelivery.notificationDelivery?.adminEmail || delivery.adminEmail,
+      customerEmail: withDelivery.notificationDelivery?.customerEmail || { status: 'pending' },
+      sms: withDelivery.notificationDelivery?.adminSms || delivery.adminSms,
+      notificationDelivery: withDelivery.notificationDelivery || delivery,
       appointmentStatus: b.appointmentStatus,
       cardOnFileStatus: b.cardOnFileStatus,
       bookingVersion: b.bookingVersion || 1,
