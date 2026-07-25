@@ -11,6 +11,7 @@ const { createCasMemoryStore } = require('./helpers/cas-memory-store');
 process.env.CUSTOMER_SESSION_SECRET = 'test-customer-session-secret-32chars-min';
 process.env.RESEND_API_KEY = 're_test';
 process.env.RESEND_FROM = 'test@example.com';
+process.env.CONTEXT = process.env.CONTEXT || 'production';
 process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
 process.env.CUSTOMER_TRANSACTIONAL_SMS_ENABLED = '';
 
@@ -293,7 +294,8 @@ test('spoofed Host header cannot change domain in customer email link', async ()
     now: '2026-07-24T22:00:00.000Z',
   });
 
-  process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
+  process.env.CONTEXT = process.env.CONTEXT || 'production';
+process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
   delete process.env.URL;
   delete process.env.DEPLOY_PRIME_URL;
 

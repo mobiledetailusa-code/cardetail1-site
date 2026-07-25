@@ -66,7 +66,12 @@ const {
 
 test.beforeEach(() => {
   process.env.CUSTOMER_SESSION_SECRET = 'test-customer-session-secret-32chars-min';
+  process.env.CONTEXT = 'production';
   process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
+  delete process.env.URL;
+  delete process.env.DEPLOY_URL;
+  delete process.env.DEPLOY_PRIME_URL;
+  delete process.env.BRANCH;
   process.env.RESEND_API_KEY = '';
   process.env.TWILIO_SID = '';
   process.env.CUSTOMER_TRANSACTIONAL_SMS_ENABLED = '';
@@ -525,13 +530,148 @@ test('access URL uses function exchange path — not raw PII query params', () =
     buildAccessUrl,
     buildPortalFocusUrl,
   } = require('../netlify/lib/appointment-access-token');
-  process.env.URL = 'https://cardetail1.com';
+  process.env.CONTEXT = 'production';
+  process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
+  delete process.env.URL;
   const access = buildAccessUrl('aat_testtokenvalue');
-  assert.match(access, /\/\.netlify\/functions\/customer-appointment-access\?token=/);
+  assert.match(access, /^https:\/\/cardetail1\.com\/\.netlify\/functions\/customer-appointment-access\?token=/);
   assert.doesNotMatch(access, /phone=|email=|bookingId=|customerAccountId=/i);
+  assert.doesNotMatch(access, /branch-deploy|CONTEXT|envBinding|DEPLOY_/i);
   const focus = buildPortalFocusUrl('aptr_abc');
   assert.match(focus, /\/my-garage\?appointment=aptr_/);
   assert.doesNotMatch(focus, /token=/);
+});
+
+test('branch-deploy request-received email uses branch-deploy origin', async () => {
+  const {
+    createAppointmentAccessToken,
+    setAppointmentAccessStoreFactories,
+    resetAppointmentAccessStoreFactories,
+  } = require('../netlify/lib/appointment-access-token');
+  const { emitRequestReceived } = require('../netlify/lib/booking-transactional-notifications');
+  const tokenStore = memoryStore();
+  setAppointmentAccessStoreFactories({
+    tokenStore: () => tokenStore,
+    focusStore: () => memoryStore(),
+  });
+  process.env.CONTEXT = 'branch-deploy';
+  process.env.BRANCH = 'appointment-access-final';
+  process.env.URL = 'https://cardetail1.com';
+  process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
+  process.env.DEPLOY_URL = 'https://appointment-access-final--cardetail1.netlify.app';
+  process.env.DEPLOY_PRIME_URL = 'https://appointment-access-final--cardetail1.netlify.app';
+  process.env.RESEND_API_KEY = 're_test';
+  const originalFetch = global.fetch;
+  let captured = '';
+  global.fetch = async (url, init) => {
+    if (String(url).includes('api.resend.com')) {
+      const body = JSON.parse(init.body);
+      captured = String(body.html || '') + String(body.text || '');
+      return { ok: true, json: async () => ({ id: 'em' }), text: async () => '' };
+    }
+    return { ok: false, status: 500, text: async () => '', json: async () => ({}) };
+  };
+  try {
+    const booking = baseBooking({ id: 'CD1-BRANCH-ORIGIN' });
+    const result = await emitRequestReceived(booking, {});
+    assert.equal(result.ok, true);
+    assert.match(captured, /https:\/\/appointment-access-final--cardetail1\.netlify\.app\/\.netlify\/functions\/customer-appointment-access\?token=/);
+    assert.doesNotMatch(captured, /https:\/\/cardetail1\.com\/\.netlify\/functions\/customer-appointment-access/);
+    const minted = await createAppointmentAccessToken({
+      bookingId: booking.id,
+      email: booking.email,
+      phoneDigits: '5513132956',
+    });
+    assert.match(minted.accessUrl, /^https:\/\/appointment-access-final--cardetail1\.netlify\.app\//);
+    assert.doesNotMatch(minted.accessUrl, /envBinding|branch-deploy:|CONTEXT=/);
+  } finally {
+    global.fetch = originalFetch;
+    resetAppointmentAccessStoreFactories();
+    delete process.env.RESEND_API_KEY;
+  }
+});
+
+test('draft token works on draft env and fails safely on production env', async () => {
+  const {
+    createAppointmentAccessToken,
+    consumeAppointmentAccessToken,
+    loadTokenRecord,
+    CONSUME_RESULT,
+    setAppointmentAccessStoreFactories,
+    resetAppointmentAccessStoreFactories,
+  } = require('../netlify/lib/appointment-access-token');
+  const tokenStore = memoryStore();
+  setAppointmentAccessStoreFactories({
+    tokenStore: () => tokenStore,
+    focusStore: () => memoryStore(),
+  });
+  try {
+    process.env.CONTEXT = 'branch-deploy';
+    process.env.BRANCH = 'appointment-access-final';
+    process.env.DEPLOY_URL = 'https://appointment-access-final--cardetail1.netlify.app';
+    const minted = await createAppointmentAccessToken({
+      bookingId: 'CD1-ENV-ISO-1',
+      email: 'iso@example.com',
+      phoneDigits: '5513132956',
+    });
+    assert.equal(minted.envBinding, 'branch-deploy:appointment-access-final');
+    const onDraft = await loadTokenRecord(minted.token);
+    assert.equal(onDraft.ok, true);
+    assert.equal(onDraft.record.envBinding, 'branch-deploy:appointment-access-final');
+    const consumedDraft = await consumeAppointmentAccessToken(minted.token);
+    assert.equal(consumedDraft.ok, true);
+    assert.equal(consumedDraft.classification, CONSUME_RESULT.CONSUMED_SUCCESSFULLY);
+
+    const minted2 = await createAppointmentAccessToken({
+      bookingId: 'CD1-ENV-ISO-2',
+      email: 'iso2@example.com',
+      phoneDigits: '5513132956',
+    });
+    process.env.CONTEXT = 'production';
+    process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
+    delete process.env.BRANCH;
+    delete process.env.DEPLOY_URL;
+    const prodLoad = await loadTokenRecord(minted2.token);
+    assert.equal(prodLoad.ok, false);
+    assert.equal(prodLoad.classification, CONSUME_RESULT.INVALID);
+    const prodConsume = await consumeAppointmentAccessToken(minted2.token);
+    assert.equal(prodConsume.ok, false);
+    assert.equal(prodConsume.classification, CONSUME_RESULT.INVALID);
+  } finally {
+    resetAppointmentAccessStoreFactories();
+  }
+});
+
+test('production token fails safely when evaluated in branch-deploy context', async () => {
+  const {
+    createAppointmentAccessToken,
+    loadTokenRecord,
+    CONSUME_RESULT,
+    setAppointmentAccessStoreFactories,
+    resetAppointmentAccessStoreFactories,
+  } = require('../netlify/lib/appointment-access-token');
+  const tokenStore = memoryStore();
+  setAppointmentAccessStoreFactories({
+    tokenStore: () => tokenStore,
+    focusStore: () => memoryStore(),
+  });
+  try {
+    process.env.CONTEXT = 'production';
+    process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
+    const minted = await createAppointmentAccessToken({
+      bookingId: 'CD1-ENV-ISO-PROD',
+      email: 'prod@example.com',
+      phoneDigits: '5513132956',
+    });
+    process.env.CONTEXT = 'branch-deploy';
+    process.env.BRANCH = 'appointment-access-final';
+    process.env.DEPLOY_URL = 'https://appointment-access-final--cardetail1.netlify.app';
+    const loaded = await loadTokenRecord(minted.token);
+    assert.equal(loaded.ok, false);
+    assert.equal(loaded.classification, CONSUME_RESULT.INVALID);
+  } finally {
+    resetAppointmentAccessStoreFactories();
+  }
 });
 
 test('no secrets or PII patterns in txn-notify log line template', () => {

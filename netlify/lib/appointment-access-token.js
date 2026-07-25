@@ -82,6 +82,26 @@ function siteBaseFromEnv(_event) {
   return trustedSiteOrigin();
 }
 
+function currentEnvBinding() {
+  const { deployEnvironmentKey } = require('./trusted-site-origin');
+  return deployEnvironmentKey();
+}
+
+/**
+ * Tokens are bound to the issuing deploy environment. A branch-deploy token
+ * must not authenticate through production (and vice versa), even when Blobs
+ * are site-scoped. Binding is server-side only — never placed in public URLs.
+ */
+function envBindingMatches(record) {
+  const expected = currentEnvBinding();
+  const actual = String(record?.envBinding || '').trim();
+  // Legacy records without binding: only acceptable in production (historical).
+  if (!actual) {
+    return expected === 'production';
+  }
+  return actual === expected;
+}
+
 function buildAccessUrl(token, _event) {
   const base = siteBaseFromEnv();
   return `${base}/.netlify/functions/customer-appointment-access?token=${encodeURIComponent(token)}`;
@@ -203,6 +223,7 @@ async function createAppointmentAccessToken({
   const tokenHash = hashToken(token);
   const now = Date.now();
   const emailNorm = String(email || '').trim().toLowerCase() || null;
+  const envBinding = currentEnvBinding();
   const record = {
     tokenHash,
     bookingId: bid,
@@ -213,6 +234,7 @@ async function createAppointmentAccessToken({
     phoneDigits: phoneDigits || null,
     purpose,
     eventType: String(eventType || ''),
+    envBinding,
     createdAt: new Date(now).toISOString(),
     expiresAt: new Date(now + ttlMs).toISOString(),
     consumedAt: null,
@@ -240,6 +262,7 @@ async function createAppointmentAccessToken({
     accessUrl: buildAccessUrl(token, event),
     purpose,
     eventType: record.eventType,
+    envBinding: record.envBinding,
   };
 }
 
@@ -258,6 +281,9 @@ async function loadTokenRecord(rawToken, { allowExpired = false, allowConsumed =
   const store = await resolveTokenStore();
   const { record } = await readTokenWithEtag(store, tokenKey(tokenHash));
   if (!record || record.tokenHash !== tokenHash) {
+    return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
+  }
+  if (!envBindingMatches(record)) {
     return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
   }
   if (record.revokedAt) {
@@ -343,6 +369,9 @@ async function consumeAppointmentAccessToken(rawToken) {
       return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
     }
     const record = read.record;
+    if (!envBindingMatches(record)) {
+      return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
+    }
     if (record.revokedAt || record.purpose !== PURPOSE_APPOINTMENT_ACCESS) {
       return {
         ok: false,
@@ -476,6 +505,8 @@ module.exports = {
   FOCUS_REF_TTL_MS,
   PURPOSE_APPOINTMENT_ACCESS,
   CONSUME_RESULT,
+  currentEnvBinding,
+  envBindingMatches,
   hashToken,
   generateOpaqueToken,
   generateFocusRef,

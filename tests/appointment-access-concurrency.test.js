@@ -10,6 +10,8 @@ const assert = require('node:assert/strict');
 const { createCasMemoryStore } = require('./helpers/cas-memory-store');
 
 process.env.CUSTOMER_SESSION_SECRET = 'test-customer-session-secret-32chars-min';
+process.env.CONTEXT = 'production';
+process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
 
 const {
   createAppointmentAccessToken,
@@ -21,6 +23,8 @@ const {
 } = require('../netlify/lib/appointment-access-token');
 
 function installStores() {
+  process.env.CONTEXT = 'production';
+  process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
   const tokenStore = createCasMemoryStore();
   const focusStore = createCasMemoryStore();
   setAppointmentAccessStoreFactories({
@@ -32,6 +36,7 @@ function installStores() {
 
 test.afterEach(() => {
   resetAppointmentAccessStoreFactories();
+  process.env.CONTEXT = 'production';
 });
 
 test('two simultaneous exchanges: exactly one consumed_successfully', async () => {
