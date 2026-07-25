@@ -90,10 +90,19 @@ async function blobsStore(name) {
   if (typeof blobsStoreOverride === 'function') {
     return blobsStoreOverride(name);
   }
-  const { getStore } = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token = process.env.NETLIFY_AUTH_TOKEN;
-  return (siteID && token) ? getStore({ name, siteID, token }) : getStore(name);
+  // Prefer shared helper: runtime Blobs context first, then explicit siteID/token.
+  // Functions v1 often lack runtime context, so a valid NETLIFY_AUTH_TOKEN is required.
+  const { blobsStore: sharedBlobsStore } = require('../lib/tech-security');
+  return sharedBlobsStore(name);
+}
+
+function sanitizeBlobError(err) {
+  const raw = String(err && (err.message || err) || 'unknown');
+  return raw
+    .replace(/nf[cp]_[A-Za-z0-9]+/gi, '[REDACTED_TOKEN]')
+    .replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]')
+    .replace(/postgres(?:ql)?:\/\/[^\s"']+/gi, '[DB_URL]')
+    .slice(0, 240);
 }
 
 function buildDraftRecord(b, draftId, now, existing = null) {
@@ -452,6 +461,12 @@ exports.handler = async (event) => {
     try {
       await store.setJSON(draftId, draft);
     } catch (e) {
+      const detail = sanitizeBlobError(e);
+      console.error('[submit-booking] draft blob persist failed', {
+        stage: 'booking_persistence',
+        errorClass: e && e.name ? e.name : 'Error',
+        detail,
+      });
       return json(500, { ok: false, error: 'Failed to pre-register booking' });
     }
 

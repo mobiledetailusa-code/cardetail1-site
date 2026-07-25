@@ -160,6 +160,35 @@ test('submit-booking draft with valid schedule issues draftSaveToken', async () 
   assert.equal(body.isDraft, true);
 });
 
+test('submit-booking draft blob persist failure returns Failed to pre-register booking', async () => {
+  delete require.cache[SUBMIT_PATH];
+  const { handler, __test } = require('../netlify/functions/submit-booking');
+  const failingStore = {
+    async get() { return null; },
+    async setJSON() {
+      const err = new Error('Netlify Blobs has generated an internal error (401 status code)');
+      err.name = 'BlobsInternalError';
+      throw err;
+    },
+  };
+  __test.setBlobsStoreOverride(() => failingStore);
+  const res = await handler({
+    httpMethod: 'POST',
+    headers: { 'x-forwarded-for': '203.0.113.83' },
+    body: JSON.stringify(validDraftBody()),
+  });
+  assert.equal(res.statusCode, 500);
+  assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'Failed to pre-register booking' });
+});
+
+test('submit-booking uses shared tech-security blobsStore helper', () => {
+  const src = read('netlify/functions/submit-booking.js');
+  assert.match(src, /require\('\.\.\/lib\/tech-security'\)/);
+  assert.match(src, /sharedBlobsStore/);
+  assert.match(src, /draft blob persist failed/);
+  assert.match(src, /stage:\s*'booking_persistence'/);
+});
+
 test('valid draft token reaches create-setup-intent eligibility check', async () => {
   delete require.cache[SUBMIT_PATH];
   const { handler: submitHandler, __test: submitTest } = require('../netlify/functions/submit-booking');

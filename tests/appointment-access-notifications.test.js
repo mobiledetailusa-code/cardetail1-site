@@ -506,6 +506,18 @@ test('wiring: submit emits request_received; confirm emits confirmed; no garage 
   assert.doesNotMatch(garageJs, /CustomerVehicle|savedVehicles|defaultVehicle/);
   assert.doesNotMatch(portalData, /listCustomerVehicles\s*\(/);
   assert.doesNotMatch(portalData, /require\(['"]\.\.\/lib\/customer-vehicles['"]\)/);
+
+  // Booking persistence completes before transactional notify; notify failures must not
+  // convert a stored booking into a failed submit-booking response.
+  const finalizeIdx = submit.indexOf('// ── Draft finalization');
+  const finalizeBlock = finalizeIdx >= 0 ? submit.slice(finalizeIdx) : submit;
+  assert.match(finalizeBlock, /await store\.setJSON\(rawDraftId, b\)/);
+  assert.match(finalizeBlock, /emitRequestReceived/);
+  assert.match(finalizeBlock, /transactional notify failed/);
+  const persistIdx = finalizeBlock.indexOf('await store.setJSON(rawDraftId, b)');
+  const notifyIdx = finalizeBlock.indexOf('emitRequestReceived');
+  const catchIdx = finalizeBlock.indexOf("transactional notify failed");
+  assert.ok(persistIdx >= 0 && notifyIdx > persistIdx && catchIdx > notifyIdx);
 });
 
 test('access URL uses function exchange path — not raw PII query params', () => {
