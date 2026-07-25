@@ -22,6 +22,105 @@ const EVENT_CONFIRMED = 'booking.confirmed';
 const EVENT_ACTION_REQUIRED = 'booking.customer_action_required';
 
 const CHANNELS = ['email', 'sms'];
+const CLAIM_STORE = 'cd1-notification-claims';
+
+let claimStoreFactoryOverride = null;
+
+function setNotificationClaimStoreFactory(factory) {
+  claimStoreFactoryOverride = typeof factory === 'function' ? factory : null;
+}
+
+function resetNotificationClaimStoreFactory() {
+  claimStoreFactoryOverride = null;
+}
+
+async function resolveClaimStore() {
+  if (typeof claimStoreFactoryOverride === 'function') {
+    return claimStoreFactoryOverride(CLAIM_STORE);
+  }
+  const { blobsStore } = require('./tech-security');
+  return blobsStore(CLAIM_STORE);
+}
+
+function claimKeyFor(idempotencyKeyValue) {
+  return `claim_${crypto.createHash('sha256').update(String(idempotencyKeyValue)).digest('hex').slice(0, 32)}`;
+}
+
+function writeWasApplied(result) {
+  if (result == null) return true;
+  return result.modified !== false;
+}
+
+/**
+ * Atomically claim a notification channel send (Blob onlyIfNew / CAS).
+ * Prevents duplicate provider calls when concurrent emitters share a stateKey.
+ */
+async function claimChannelSend(idempotencyKeyValue) {
+  const store = await resolveClaimStore();
+  const claimKey = claimKeyFor(idempotencyKeyValue);
+  const now = new Date().toISOString();
+
+  let existing = null;
+  let etag = null;
+  if (typeof store.getWithMetadata === 'function') {
+    const read = await store.getWithMetadata(claimKey, {
+      type: 'json',
+      consistency: 'strong',
+    }).catch(() => null);
+    if (read && read.data) {
+      existing = read.data;
+      etag = read.etag || null;
+    }
+  } else {
+    existing = await store.get(claimKey, { type: 'json' }).catch(() => null);
+    etag = existing?.__etag || null;
+  }
+
+  if (existing && (existing.status === 'sent' || existing.status === 'suppressed')) {
+    return { claimed: false, reason: existing.status, claimKey };
+  }
+
+  if (existing && existing.status === 'pending') {
+    const ageMs = Date.now() - new Date(existing.at || 0).getTime();
+    // Fresh in-flight claim — another worker owns the send.
+    if (Number.isFinite(ageMs) && ageMs >= 0 && ageMs < 60_000) {
+      return { claimed: false, reason: 'pending', claimKey };
+    }
+    // Stale pending (crashed worker) — reclaim via CAS when etag available.
+    if (etag) {
+      const next = { key: idempotencyKeyValue, status: 'pending', at: now, retry: true };
+      const writeResult = await store.setJSON(claimKey, next, { onlyIfMatch: etag });
+      return { claimed: writeWasApplied(writeResult), reason: 'stale_pending_reclaim', claimKey };
+    }
+    return { claimed: false, reason: 'pending', claimKey };
+  }
+
+  if (existing && existing.status === 'failed' && etag) {
+    const next = { key: idempotencyKeyValue, status: 'pending', at: now, retry: true };
+    const writeResult = await store.setJSON(claimKey, next, { onlyIfMatch: etag });
+    return { claimed: writeWasApplied(writeResult), reason: 'retry_claim', claimKey };
+  }
+
+  const writeResult = await store.setJSON(claimKey, {
+    key: idempotencyKeyValue,
+    status: 'pending',
+    at: now,
+  }, { onlyIfNew: true });
+  return { claimed: writeWasApplied(writeResult), reason: 'new_claim', claimKey };
+}
+
+async function completeChannelClaim(claimKey, status) {
+  if (!claimKey) return;
+  try {
+    const store = await resolveClaimStore();
+    await store.setJSON(claimKey, {
+      status,
+      at: new Date().toISOString(),
+    });
+  } catch {
+    // Claim completion is best-effort; ledger remains authoritative for retries.
+  }
+}
 
 function escapeHtml(value) {
   return String(value == null ? '' : value)
@@ -36,15 +135,9 @@ function brandName() {
   return 'Detailing Zone';
 }
 
-function siteUrl(event) {
-  if (event) {
-    const host = event.headers?.['x-forwarded-host'] || event.headers?.Host || event.headers?.host;
-    if (host) {
-      const proto = String(event.headers?.['x-forwarded-proto'] || 'https').split(',')[0].trim();
-      return `${proto}://${String(host).split(',')[0].trim()}`.replace(/\/$/, '');
-    }
-  }
-  return String(process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://cardetail1.com').replace(/\/$/, '');
+function siteUrl(_event) {
+  const { trustedSiteOrigin } = require('./trusted-site-origin');
+  return trustedSiteOrigin();
 }
 
 function vehicleDescription(booking) {
@@ -83,13 +176,22 @@ function arrivalWindow(booking) {
 
 function eventStateKey(eventType, booking) {
   if (eventType === EVENT_REQUEST_RECEIVED) {
-    return `v${booking.bookingVersion || 1}:${booking.finalizedAt || booking.createdAt || '1'}`;
+    // Stable for the finalize transition — not a request-time timestamp.
+    return `received:${booking.finalizedAt || booking.createdAt || '1'}`;
   }
   if (eventType === EVENT_CONFIRMED) {
-    return `v${booking.bookingVersion || 1}:${booking.confirmedAt || booking.adminReviewedAt || '1'}`;
+    // Prefer the CAS-authored confirmationEventId / confirmedAt written once
+    // by the winning confirmBookingTransition. Never invent a new timestamp here.
+    if (booking.confirmationEventId) {
+      return String(booking.confirmationEventId);
+    }
+    if (booking.confirmedAt) {
+      return `confirmed:${booking.id || booking.bookingId}:${booking.confirmedAt}`;
+    }
+    return 'confirmed:missing_identity';
   }
   if (eventType === EVENT_ACTION_REQUIRED) {
-    return actionRequiredStateKey(booking) || `v${booking.bookingVersion || 1}`;
+    return actionRequiredStateKey(booking) || `action:v${booking.bookingVersion || 1}`;
   }
   return `v${booking.bookingVersion || 1}`;
 }
@@ -452,8 +554,17 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
     const delivery = { email: null, sms: null, accessTokenExpiresAt: access.expiresAt };
 
     if (!emailTerminal) {
-      if (!resendEmailConfigured()) {
+      const emailClaim = await claimChannelSend(emailKey);
+      if (!emailClaim.claimed) {
+        delivery.email = { sent: true, skipped: true, reason: 'claim_' + (emailClaim.reason || 'held') };
+        // Do not overwrite a terminal ledger entry from a losing racer.
+        if (!channelTerminal(ledger, emailKey)) {
+          ledger = markChannelResult(ledger, emailKey, { skipped: true, reason: 'claim_held' });
+        }
+      } else if (!resendEmailConfigured()) {
         delivery.email = { sent: false, skipped: true, reason: 'email_not_configured' };
+        ledger = markChannelResult(ledger, emailKey, delivery.email);
+        await completeChannelClaim(emailClaim.claimKey, 'suppressed');
       } else {
         delivery.email = await sendResendEmail({
           to: working.email,
@@ -461,8 +572,12 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
           text: emailContent.text,
           html: emailContent.html,
         });
+        ledger = markChannelResult(ledger, emailKey, delivery.email);
+        await completeChannelClaim(
+          emailClaim.claimKey,
+          delivery.email.sent ? 'sent' : (delivery.email.skipped ? 'suppressed' : 'failed')
+        );
       }
-      ledger = markChannelResult(ledger, emailKey, delivery.email);
     } else {
       delivery.email = emailDone
         ? { sent: true, skipped: true, reason: 'already_sent' }
@@ -470,9 +585,21 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
     }
 
     if (!smsTerminal) {
-      const e164 = normalizeUsPhoneE164(working.phone || working.customerPhone || '');
-      delivery.sms = await sendCustomerSms(e164, smsBody);
-      ledger = markChannelResult(ledger, smsKey, delivery.sms);
+      const smsClaim = await claimChannelSend(smsKey);
+      if (!smsClaim.claimed) {
+        delivery.sms = { sent: true, skipped: true, reason: 'claim_' + (smsClaim.reason || 'held') };
+        if (!channelTerminal(ledger, smsKey)) {
+          ledger = markChannelResult(ledger, smsKey, { skipped: true, reason: 'claim_held' });
+        }
+      } else {
+        const e164 = normalizeUsPhoneE164(working.phone || working.customerPhone || '');
+        delivery.sms = await sendCustomerSms(e164, smsBody);
+        ledger = markChannelResult(ledger, smsKey, delivery.sms);
+        await completeChannelClaim(
+          smsClaim.claimKey,
+          delivery.sms.sent ? 'sent' : (delivery.sms.skipped ? 'suppressed' : 'failed')
+        );
+      }
     } else {
       delivery.sms = smsDone
         ? { sent: true, skipped: true, reason: 'already_sent' }
@@ -527,6 +654,7 @@ module.exports = {
   EVENT_CONFIRMED,
   EVENT_ACTION_REQUIRED,
   CHANNELS,
+  CLAIM_STORE,
   escapeHtml,
   brandName,
   vehicleDescription,
@@ -543,4 +671,7 @@ module.exports = {
   emitConfirmed,
   emitCustomerActionRequired,
   resolveCustomerAccountForBooking,
+  setNotificationClaimStoreFactory,
+  resetNotificationClaimStoreFactory,
+  claimChannelSend,
 };

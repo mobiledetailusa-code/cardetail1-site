@@ -298,50 +298,74 @@ exports.handler = async (event) => {
     }
 
     const now = new Date().toISOString();
+    const prevAppointmentStatus = booking.appointmentStatus || '';
+    const prevStatus = booking.status || '';
+    const newAppointmentStatus = validated.appointmentStatus || prevAppointmentStatus;
+    const newStatus = validated.status || prevStatus;
+    const wantsConfirm =
+      (newAppointmentStatus === 'confirmed' && prevAppointmentStatus !== 'confirmed') ||
+      (newStatus === 'Confirmed' && prevStatus !== 'Confirmed');
+
+    // Confirmation status fields must only be written by confirmBookingTransition CAS.
+    const nonConfirmValidated = { ...validated };
+    if (wantsConfirm) {
+      delete nonConfirmValidated.appointmentStatus;
+      delete nonConfirmValidated.status;
+      delete nonConfirmValidated.jobStatus;
+      delete nonConfirmValidated.confirmedAt;
+      delete nonConfirmValidated.adminReviewed;
+      delete nonConfirmValidated.adminReviewedAt;
+    }
+
     const eventLog = Array.isArray(booking.eventLog) ? [...booking.eventLog] : [];
     eventLog.push({ action: lastAction, at: now, by: 'admin', fields: Object.keys(validated) });
 
-    const patched = {
+    let patched = {
       ...booking,
-      ...validated,
-      updatedAt:      now,
-      updatedByRole:  'admin',
-      updatedBy:      'admin',
+      ...nonConfirmValidated,
+      updatedAt: now,
+      updatedByRole: 'admin',
+      updatedBy: 'admin',
       lastAction,
       eventLog,
     };
 
-    await store.setJSON(bookingId, patched);
+    const emailResults = {};
+    if (wantsConfirm) {
+      // Do not unconditional-write confirm fields — CAS owns the transition.
+      try {
+        const { confirmBookingTransition } = require('../lib/booking-confirm');
+        const transition = await confirmBookingTransition({
+          bookingId,
+          now,
+          by: 'admin',
+          extraPatch: {
+            ...nonConfirmValidated,
+            updatedByRole: 'admin',
+            updatedBy: 'admin',
+            lastAction,
+            eventLog,
+          },
+        });
+        const confirmedBooking = transition.ok ? transition.booking : patched;
+        patched = confirmedBooking;
+        const { emitConfirmed } = require('../lib/booking-transactional-notifications');
+        const txn = await emitConfirmed(confirmedBooking, { event });
+        emailResults.confirmationEmail = txn?.delivery?.email || { sent: false, reason: 'notify_failed' };
+        emailResults.confirmIdempotent = !!transition.idempotent;
+        if (txn && txn.booking) {
+          patched = txn.booking;
+          await store.setJSON(bookingId, patched).catch(() => {});
+        }
+      } catch (e) {
+        emailResults.confirmationEmail = await sendConfirmationEmail(patched);
+      }
+    } else {
+      await store.setJSON(bookingId, patched);
+    }
 
     // Log field names only — never values, never notes, never secrets.
     console.log('[update-booking] ok', bookingId, 'admin', JSON.stringify(Object.keys(validated)), lastAction);
-
-    // ── Confirmation email ────────────────────────────────────────────────
-    // Sent when admin transitions appointmentStatus → "confirmed" or
-    // legacy status → "Confirmed". Idempotent by prev-value check.
-    const emailResults = {};
-    const prevAppointmentStatus = booking.appointmentStatus || '';
-    const prevStatus            = booking.status || '';
-    const newAppointmentStatus  = validated.appointmentStatus || prevAppointmentStatus;
-    const newStatus             = validated.status || prevStatus;
-
-    const justConfirmed =
-      (newAppointmentStatus === 'confirmed' && prevAppointmentStatus !== 'confirmed') ||
-      (newStatus === 'Confirmed' && prevStatus !== 'Confirmed');
-
-    if (justConfirmed) {
-      try {
-        const { emitConfirmed } = require('../lib/booking-transactional-notifications');
-        const txn = await emitConfirmed(patched, { event });
-        emailResults.confirmationEmail = txn?.delivery?.email || { sent: false, reason: 'notify_failed' };
-        if (txn && txn.booking) {
-          await store.setJSON(bookingId, txn.booking).catch(() => {});
-        }
-      } catch (e) {
-        // Fallback to legacy template if transactional path throws.
-        emailResults.confirmationEmail = await sendConfirmationEmail(patched);
-      }
-    }
 
     return json(200, {
       ok: true,

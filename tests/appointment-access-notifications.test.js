@@ -13,23 +13,28 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 
+const { createCasMemoryStore } = require('./helpers/cas-memory-store');
+
 function memoryStore() {
-  const map = new Map();
-  return {
-    async get(key, opts) {
-      const v = map.get(String(key));
-      if (v == null) return null;
-      if (opts && opts.type === 'json') return JSON.parse(JSON.stringify(v));
-      return v;
+  // CAS-capable store — appointment token consume requires onlyIfMatch.
+  const store = createCasMemoryStore();
+  store._map = {
+    values() {
+      const out = [];
+      for (const [, entry] of store._data.entries()) {
+        out.push(JSON.parse(entry.value));
+      }
+      return out[Symbol.iterator]();
     },
-    async setJSON(key, value) {
-      map.set(String(key), JSON.parse(JSON.stringify(value)));
+    entries() {
+      const out = [];
+      for (const [k, entry] of store._data.entries()) {
+        out.push([k, JSON.parse(entry.value)]);
+      }
+      return out[Symbol.iterator]();
     },
-    async set(key, value) {
-      map.set(String(key), value);
-    },
-    _map: map,
   };
+  return store;
 }
 
 function baseBooking(overrides = {}) {
@@ -54,12 +59,24 @@ function baseBooking(overrides = {}) {
   };
 }
 
+const {
+  setNotificationClaimStoreFactory,
+  resetNotificationClaimStoreFactory,
+} = require('../netlify/lib/booking-transactional-notifications');
+
 test.beforeEach(() => {
   process.env.CUSTOMER_SESSION_SECRET = 'test-customer-session-secret-32chars-min';
+  process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
   process.env.RESEND_API_KEY = '';
   process.env.TWILIO_SID = '';
   process.env.CUSTOMER_TRANSACTIONAL_SMS_ENABLED = '';
   delete process.env.RESEND_API_KEY;
+  const claimStore = createCasMemoryStore();
+  setNotificationClaimStoreFactory(() => claimStore);
+});
+
+test.afterEach(() => {
+  resetNotificationClaimStoreFactory();
 });
 
 test('request-received copy is not described as confirmed', () => {
@@ -477,8 +494,10 @@ test('wiring: submit emits request_received; confirm emits confirmed; no garage 
   assert.match(admin, /emitCustomerActionRequired/);
   assert.match(access, /consumeAppointmentAccessToken/);
   assert.match(access, /createAccountSession/);
-  assert.match(access, /buildPortalFocusUrl/);
+  assert.match(access, /buildPortalFocusPath/);
+  assert.match(access, /CONSUME_RESULT/);
   assert.match(access, /This secure link has expired/);
+  assert.match(admin, /confirmBookingTransition/);
   assert.match(portalData, /appointmentPublicRef|resolveFocusRef/);
   assert.match(garageJs, /appointmentFocusRef|stripAppointmentFocusFromUrl/);
   assert.match(garageHtml, /Already have an appointment code/);

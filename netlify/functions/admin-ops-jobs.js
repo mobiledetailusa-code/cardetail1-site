@@ -1401,24 +1401,24 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'confirm_booking') {
-    const { portalReleasePatch } = require('../lib/booking-visibility');
-    let patched = {
-      ...booking,
-      ...portalReleasePatch(now),
-      jobStatus: 'confirmed',
-      appointmentStatus: 'confirmed',
-      status: 'Confirmed',
-      adminReviewed: true,
-      adminReviewedAt: now,
-      confirmedAt: booking.confirmedAt || now,
-      finalizedAt: booking.finalizedAt || now,
-      updatedAt: now,
-      eventLog: appendEventLog(booking, { action: 'booking_confirmed', by: 'admin' }),
-    };
-    await store.setJSON(bookingId, patched);
+    const { confirmBookingTransition } = require('../lib/booking-confirm');
+    const transition = await confirmBookingTransition({
+      bookingId,
+      now,
+      by: 'admin',
+    });
+    if (!transition.ok) {
+      return jsonCors(transition.statusCode || 409, {
+        ok: false,
+        error: transition.error || 'confirm_failed',
+      });
+    }
+
+    let patched = transition.booking;
 
     // Customer confirmation notification (email + optional SMS). Failures must
     // not roll back the confirmed booking — delivery is tracked for retry.
+    // Idempotent: already-confirmed retries share the same confirmationEventId.
     try {
       const { emitConfirmed } = require('../lib/booking-transactional-notifications');
       const txn = await emitConfirmed(patched, { event });
@@ -1432,12 +1432,22 @@ async function handleAdminAction(body) {
 
     const settings = await getOpsSettings();
     let auctionResult = null;
-    if (settings.autoPostToAuctionOnConfirm || settings.dispatchMode === 'auction') {
+    // Only auto-dispatch auction on the authoritative first transition.
+    if (
+      transition.transitioned
+      && (settings.autoPostToAuctionOnConfirm || settings.dispatchMode === 'auction')
+    ) {
       auctionResult = await createAuctionForBooking(patched, { notifySms: true, notifyEmail: true });
     }
     return jsonCors(200, {
-      ok: true, bookingId, jobStatus: patched.jobStatus,
-      auction: auctionResult && auctionResult.ok ? { posted: true, bidMax: auctionResult.bidMax, closesAt: auctionResult.closesAt } : null,
+      ok: true,
+      bookingId,
+      jobStatus: patched.jobStatus,
+      idempotent: !!transition.idempotent,
+      transitioned: !!transition.transitioned,
+      auction: auctionResult && auctionResult.ok
+        ? { posted: true, bidMax: auctionResult.bidMax, closesAt: auctionResult.closesAt }
+        : null,
     });
   }
 
