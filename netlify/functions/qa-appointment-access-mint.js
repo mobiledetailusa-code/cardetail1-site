@@ -3,6 +3,7 @@
 
 'use strict';
 
+const crypto = require('crypto');
 const { verifyAdminKey, jsonCors } = require('../lib/tech-security');
 const {
   createAppointmentAccessToken,
@@ -14,12 +15,34 @@ function allowedContext() {
   return ctx === 'branch-deploy' || ctx === 'deploy-preview' || ctx === 'dev';
 }
 
+function timingSafeEqualStr(a, b) {
+  const ba = Buffer.from(String(a || ''));
+  const bb = Buffer.from(String(b || ''));
+  if (!ba.length || ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+async function authorize(event) {
+  const headers = event.headers || {};
+  const admin = await verifyAdminKey(headers);
+  if (admin.ok) return { ok: true, via: 'admin' };
+
+  const expected = String(process.env.MY_GARAGE_QA_ADMIN_TOKEN || '').trim();
+  const provided = String(
+    headers['x-qa-admin-token'] || headers['X-Qa-Admin-Token'] || ''
+  ).trim();
+  if (expected && provided && timingSafeEqualStr(expected, provided)) {
+    return { ok: true, via: 'qa_token' };
+  }
+  return { ok: false };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   if (event.httpMethod !== 'POST') return jsonCors(404, { ok: false, error: 'not_found' });
   if (!allowedContext()) return jsonCors(404, { ok: false, error: 'not_found' });
 
-  const auth = await verifyAdminKey(event.headers || {});
+  const auth = await authorize(event);
   if (!auth.ok) return jsonCors(401, { ok: false, error: 'unauthorized' });
 
   let body;
