@@ -294,6 +294,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/qa-appointment-access-mint.js',
     'netlify/functions/qa-blobs-health.js',
     'netlify/lib/appointment-access-token.js',
+    'netlify/lib/appointment-booking-linkage.js',
     'netlify/lib/booking-transactional-notifications.js',
     'netlify/lib/booking-customer-status.js',
     'netlify/lib/booking-confirm.js',
