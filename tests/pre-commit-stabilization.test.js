@@ -291,11 +291,14 @@ test('Netlify Function changes vs production master are limited to approved RevO
     // Appointment direct access + transactional notifications
     'netlify/functions/customer-appointment-access.js',
     'netlify/functions/update-booking.js',
+    'netlify/functions/qa-appointment-access-mint.js',
+    'netlify/functions/qa-blobs-health.js',
     'netlify/lib/appointment-access-token.js',
     'netlify/lib/booking-transactional-notifications.js',
     'netlify/lib/booking-customer-status.js',
     'netlify/lib/booking-confirm.js',
     'netlify/lib/trusted-site-origin.js',
+    'netlify/lib/deploy-runtime-env.generated.js',
     'netlify/lib/ops-schema.js',
     'tests/helpers/cas-memory-store.js',
   ]);

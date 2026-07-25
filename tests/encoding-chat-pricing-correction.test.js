@@ -184,6 +184,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     // Appointment direct access + transactional notifications
     'netlify/functions/customer-appointment-access.js',
     'netlify/functions/update-booking.js',
+    'netlify/functions/qa-appointment-access-mint.js',
+    'netlify/functions/qa-blobs-health.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);

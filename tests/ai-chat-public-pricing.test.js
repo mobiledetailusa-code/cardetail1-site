@@ -122,6 +122,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   // Appointment direct access + transactional notifications
   'netlify/functions/customer-appointment-access.js',
   'netlify/functions/update-booking.js',
+  'netlify/functions/qa-appointment-access-mint.js',
+  'netlify/functions/qa-blobs-health.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {
