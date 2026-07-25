@@ -112,8 +112,18 @@ function parseCookies(event) {
   return out;
 }
 
+/**
+ * Secure by default. Every deployed context — production, branch-deploy and
+ * deploy-preview alike — is HTTPS-only, so the flag is dropped only for a local
+ * `netlify dev` server, which serves the portal over plain http.
+ */
+function cookieIsSecure() {
+  if (process.env.NETLIFY_DEV === 'true') return false;
+  const ctx = String(process.env.CONTEXT || '').toLowerCase();
+  return ctx !== 'dev';
+}
+
 function sessionCookieHeader(token, { maxAgeSec = SESSION_TTL_MS / 1000 } = {}) {
-  const secure = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
   const parts = [
     `${COOKIE_NAME}=${encodeURIComponent(token)}`,
     'HttpOnly',
@@ -121,14 +131,13 @@ function sessionCookieHeader(token, { maxAgeSec = SESSION_TTL_MS / 1000 } = {}) 
     'SameSite=Lax',
     `Max-Age=${Math.floor(maxAgeSec)}`,
   ];
-  if (secure) parts.push('Secure');
+  if (cookieIsSecure()) parts.push('Secure');
   return parts.join('; ');
 }
 
 function clearSessionCookieHeader() {
-  const secure = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
   const parts = [`${COOKIE_NAME}=`, 'HttpOnly', 'Path=/', 'SameSite=Lax', 'Max-Age=0'];
-  if (secure) parts.push('Secure');
+  if (cookieIsSecure()) parts.push('Secure');
   return parts.join('; ');
 }
 

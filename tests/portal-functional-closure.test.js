@@ -210,6 +210,29 @@ test('2. the device session outlives a browser restart (30-day server TTL and co
   assert.ok(record.exp - Date.now() > THIRTY_DAYS_MS - 60_000, 'server record honours the same TTL');
 });
 
+test('2b. every https deploy context marks the session cookie Secure', (t) => {
+  const original = process.env.CONTEXT;
+  const originalDev = process.env.NETLIFY_DEV;
+  t.after(() => {
+    process.env.CONTEXT = original;
+    if (originalDev === undefined) delete process.env.NETLIFY_DEV;
+    else process.env.NETLIFY_DEV = originalDev;
+  });
+
+  const cs = require('../netlify/lib/customer-session');
+  delete process.env.NETLIFY_DEV;
+  for (const ctx of ['production', 'branch-deploy', 'deploy-preview']) {
+    process.env.CONTEXT = ctx;
+    assert.match(cs.sessionCookieHeader('t'), /Secure/, `${ctx} session cookie`);
+    assert.match(cs.clearSessionCookieHeader(), /Secure/, `${ctx} logout cookie`);
+  }
+
+  // Local `netlify dev` serves over plain http, where Secure would drop the cookie.
+  process.env.NETLIFY_DEV = 'true';
+  process.env.CONTEXT = 'dev';
+  assert.doesNotMatch(cs.sessionCookieHeader('t'), /Secure/);
+});
+
 test('3. re-clicking a consumed link on the same device opens the appointment', async (t) => {
   const h = harness({ bookings: { 'CD1-SESS00003': baseBooking({ id: 'CD1-SESS00003' }) } });
   t.after(() => h.restore());
