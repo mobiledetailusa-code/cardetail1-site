@@ -7,6 +7,7 @@ const {
   trustedSiteOrigin,
   deployEnvironmentKey,
   FALLBACK_ORIGIN,
+  __setBakedDeployEnvForTests,
 } = require('../netlify/lib/trusted-site-origin');
 
 const ENV_KEYS = [
@@ -148,6 +149,53 @@ test('strips path query fragment and userinfo from candidates', () => {
     process.env.URL = 'https://cardetail1.com/path?q=1#frag';
     assert.equal(trustedSiteOrigin(), 'https://cardetail1.com');
   } finally {
+    restoreEnv(snap);
+  }
+});
+
+test('baked build-time DEPLOY_URL wins when Functions lack CONTEXT/DEPLOY_URL', () => {
+  const snap = snapEnv();
+  try {
+    clearOriginEnv();
+    // Simulate Functions runtime: URL/SITE_URL point at production; no CONTEXT.
+    process.env.URL = 'https://cardetail1.com';
+    process.env.SITE_URL = 'https://cardetail1.com';
+    __setBakedDeployEnvForTests({
+      CONTEXT: 'branch-deploy',
+      BRANCH: 'appointment-access-final',
+      DEPLOY_URL: 'https://appointment-access-final--cardetail1.netlify.app',
+      DEPLOY_PRIME_URL: 'https://appointment-access-final--cardetail1.netlify.app',
+      URL: 'https://cardetail1.com',
+    });
+    assert.equal(
+      trustedSiteOrigin(),
+      'https://appointment-access-final--cardetail1.netlify.app'
+    );
+    assert.equal(deployEnvironmentKey(), 'branch-deploy:appointment-access-final');
+  } finally {
+    __setBakedDeployEnvForTests(null);
+    restoreEnv(snap);
+  }
+});
+
+test('baked deploy-preview origin used when runtime env is production URL only', () => {
+  const snap = snapEnv();
+  try {
+    clearOriginEnv();
+    process.env.URL = 'https://cardetail1.com';
+    __setBakedDeployEnvForTests({
+      CONTEXT: 'deploy-preview',
+      REVIEW_ID: '136',
+      DEPLOY_URL: 'https://deploy-preview-136--cardetail1.netlify.app',
+      URL: 'https://cardetail1.com',
+    });
+    assert.equal(
+      trustedSiteOrigin(),
+      'https://deploy-preview-136--cardetail1.netlify.app'
+    );
+    assert.equal(deployEnvironmentKey(), 'deploy-preview:136');
+  } finally {
+    __setBakedDeployEnvForTests(null);
     restoreEnv(snap);
   }
 });

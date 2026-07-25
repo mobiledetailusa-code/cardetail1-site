@@ -13,14 +13,7 @@ const { trustedSiteOrigin, deployContext } = require('../lib/trusted-site-origin
 function allowedContext() {
   const ctx = deployContext();
   if (ctx === 'branch-deploy' || ctx === 'deploy-preview' || ctx === 'dev') return true;
-  // Some branch aliases omit CONTEXT; allow non-production when BRANCH is set and
-  // the deploy is clearly not the primary production site.
   if (ctx === 'production') return false;
-  const branch = String(process.env.BRANCH || '').trim();
-  const deployUrl = String(process.env.DEPLOY_URL || process.env.DEPLOY_PRIME_URL || '');
-  if (branch && /netlify\.app/i.test(deployUrl) && !/cardetail1\.com$/i.test(deployUrl)) {
-    return true;
-  }
   return false;
 }
 
@@ -49,34 +42,7 @@ async function authorize(event) {
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   if (event.httpMethod !== 'POST') return jsonCors(404, { ok: false, error: 'not_found' });
-  if (!allowedContext()) {
-    return jsonCors(404, {
-      ok: false,
-      error: 'not_found',
-      context: deployContext() || null,
-      branch: String(process.env.BRANCH || '').trim() || null,
-      hasDeployUrl: Boolean(String(process.env.DEPLOY_URL || '').trim()),
-      hasDeployPrimeUrl: Boolean(String(process.env.DEPLOY_PRIME_URL || '').trim()),
-      hasUrl: Boolean(String(process.env.URL || '').trim()),
-      hasSiteUrl: Boolean(String(process.env.SITE_URL || '').trim()),
-      hasContextEnv: Object.prototype.hasOwnProperty.call(process.env, 'CONTEXT'),
-      hasBranchEnv: Object.prototype.hasOwnProperty.call(process.env, 'BRANCH'),
-      urlHost: (() => {
-        try {
-          return process.env.URL ? new URL(process.env.URL).hostname : null;
-        } catch {
-          return null;
-        }
-      })(),
-      deployUrlHost: (() => {
-        try {
-          return process.env.DEPLOY_URL ? new URL(process.env.DEPLOY_URL).hostname : null;
-        } catch {
-          return null;
-        }
-      })(),
-    });
-  }
+  if (!allowedContext()) return jsonCors(404, { ok: false, error: 'not_found' });
 
   const auth = await authorize(event);
   if (!auth.ok) return jsonCors(401, { ok: false, error: 'unauthorized' });

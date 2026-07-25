@@ -6,12 +6,35 @@
 const FALLBACK_ORIGIN = 'https://cardetail1.com';
 const PRODUCTION_HOSTS = new Set(['cardetail1.com', 'www.cardetail1.com']);
 
+/** @type {null | Record<string, string>} */
+let bakedDeployEnvForTests = null;
+
+function loadBakedDeployEnv() {
+  if (bakedDeployEnvForTests) return bakedDeployEnvForTests;
+  try {
+    // Build-time snapshot — Functions on this site do not receive CONTEXT/DEPLOY_URL.
+    return require('./deploy-runtime-env.generated');
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Read a deploy identity value: live process.env first, then build-time bake.
+ */
+function readDeployEnv(key) {
+  const live = String(process.env[key] || '').trim();
+  if (live) return live;
+  const baked = loadBakedDeployEnv();
+  return String((baked && baked[key]) || '').trim();
+}
+
 function deployContext() {
-  const raw = String(process.env.CONTEXT || '').trim().toLowerCase();
+  const raw = readDeployEnv('CONTEXT').toLowerCase();
   if (raw) return raw;
   // Branch alias builds sometimes omit CONTEXT; infer from BRANCH + deploy URL.
-  const branch = String(process.env.BRANCH || '').trim();
-  const deployUrl = String(process.env.DEPLOY_URL || process.env.DEPLOY_PRIME_URL || '');
+  const branch = readDeployEnv('BRANCH');
+  const deployUrl = readDeployEnv('DEPLOY_URL') || readDeployEnv('DEPLOY_PRIME_URL');
   if (branch && /netlify\.app/i.test(deployUrl)) return 'branch-deploy';
   return '';
 }
@@ -51,11 +74,11 @@ function deployEnvironmentKey() {
   const ctx = deployContext() || 'dev';
   if (ctx === 'production') return 'production';
   if (ctx === 'deploy-preview') {
-    const review = String(process.env.REVIEW_ID || process.env.DEPLOY_ID || '').trim();
+    const review = readDeployEnv('REVIEW_ID') || readDeployEnv('DEPLOY_ID');
     return review ? `deploy-preview:${review}` : 'deploy-preview';
   }
   if (ctx === 'branch-deploy') {
-    const branch = String(process.env.BRANCH || '').trim();
+    const branch = readDeployEnv('BRANCH');
     return branch ? `branch-deploy:${branch}` : 'branch-deploy';
   }
   return 'dev';
@@ -82,7 +105,7 @@ function trustedSiteOrigin() {
     const candidates = [
       process.env.PUBLIC_SITE_URL,
       process.env.TRUSTED_PUBLIC_SITE_ORIGIN,
-      process.env.URL,
+      readDeployEnv('URL'),
     ];
     for (const raw of candidates) {
       const origin = normalizeOriginCandidate(raw, { requireHttps: true });
@@ -103,13 +126,13 @@ function trustedSiteOrigin() {
       });
       if (origin) return origin;
     }
-    for (const raw of [process.env.DEPLOY_URL, process.env.DEPLOY_PRIME_URL]) {
+    for (const raw of [readDeployEnv('DEPLOY_URL'), readDeployEnv('DEPLOY_PRIME_URL')]) {
       const origin = normalizeOriginCandidate(raw, { requireHttps: true });
       if (origin) return origin;
     }
     // Last resort for preview contexts: never fall back to production primary.
     // Prefer an http local/preview only if https candidates were absent.
-    for (const raw of [process.env.DEPLOY_URL, process.env.DEPLOY_PRIME_URL]) {
+    for (const raw of [readDeployEnv('DEPLOY_URL'), readDeployEnv('DEPLOY_PRIME_URL')]) {
       const origin = normalizeOriginCandidate(raw, { requireHttps: false });
       if (origin && !isProductionHost(new URL(origin).hostname)) return origin;
     }
@@ -120,9 +143,9 @@ function trustedSiteOrigin() {
   const candidates = [
     process.env.PUBLIC_SITE_URL,
     process.env.TRUSTED_PUBLIC_SITE_ORIGIN,
-    process.env.URL,
-    process.env.DEPLOY_URL,
-    process.env.DEPLOY_PRIME_URL,
+    readDeployEnv('URL'),
+    readDeployEnv('DEPLOY_URL'),
+    readDeployEnv('DEPLOY_PRIME_URL'),
   ];
   for (const raw of candidates) {
     const origin = normalizeOriginCandidate(raw, { requireHttps: false });
@@ -138,6 +161,11 @@ function buildTrustedAbsoluteUrl(pathnameAndQuery) {
   return `${origin}${path}`;
 }
 
+/** @param {null | Record<string, string>} value */
+function __setBakedDeployEnvForTests(value) {
+  bakedDeployEnvForTests = value;
+}
+
 module.exports = {
   FALLBACK_ORIGIN,
   PRODUCTION_HOSTS,
@@ -145,6 +173,8 @@ module.exports = {
   deployEnvironmentKey,
   isProductionHost,
   normalizeOriginCandidate,
+  readDeployEnv,
   trustedSiteOrigin,
   buildTrustedAbsoluteUrl,
+  __setBakedDeployEnvForTests,
 };
