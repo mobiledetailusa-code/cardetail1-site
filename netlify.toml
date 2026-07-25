@@ -41,8 +41,16 @@
   to = "/admin.html"
   status = 200
 [[redirects]]
+  from = "/admin/owner-studio"
+  to = "/admin-owner-studio.html"
+  status = 200
+[[redirects]]
   from = "/admin-ops"
   to = "/admin-ops.html"
+  status = 200
+[[redirects]]
+  from = "/admin-owner-studio"
+  to = "/admin-owner-studio.html"
   status = 200
 [[redirects]]
   from = "/terms-conditions"
@@ -67,6 +75,10 @@
     Cache-Control = "no-store, no-cache, must-revalidate"
 [[headers]]
   for = "/admin.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate"
+[[headers]]
+  for = "/admin-owner-studio.html"
   [headers.values]
     Cache-Control = "no-store, no-cache, must-revalidate"
 

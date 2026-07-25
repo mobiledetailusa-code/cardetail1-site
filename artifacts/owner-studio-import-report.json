@@ -1,0 +1,499 @@
+{
+  "siteId": "detailing-zone",
+  "dryRun": true,
+  "at": "2026-07-25T21:07:54.842Z",
+  "packages": [
+    {
+      "packageId": "pkg_maintenance_detail",
+      "legacyKey": "maint",
+      "category": "cars",
+      "priceRows": 4
+    },
+    {
+      "packageId": "pkg_interior_detail",
+      "legacyKey": "interior",
+      "category": "cars",
+      "priceRows": 4
+    },
+    {
+      "packageId": "pkg_full_detail",
+      "legacyKey": "full",
+      "category": "cars",
+      "priceRows": 4
+    },
+    {
+      "packageId": "pkg_paint_refresh",
+      "legacyKey": "refresh",
+      "category": "cars",
+      "priceRows": 4
+    },
+    {
+      "packageId": "pkg_premium_detail",
+      "legacyKey": "premium",
+      "category": "cars",
+      "priceRows": 4
+    },
+    {
+      "packageId": "pkg_boats_maint",
+      "legacyKey": "maint",
+      "category": "boats",
+      "priceRows": 5
+    },
+    {
+      "packageId": "pkg_boats_essential",
+      "legacyKey": "essential",
+      "category": "boats",
+      "priceRows": 5
+    },
+    {
+      "packageId": "pkg_boats_full",
+      "legacyKey": "full",
+      "category": "boats",
+      "priceRows": 5
+    },
+    {
+      "packageId": "pkg_boats_premium",
+      "legacyKey": "premium",
+      "category": "boats",
+      "priceRows": 5
+    },
+    {
+      "packageId": "pkg_rvs_maint",
+      "legacyKey": "maint",
+      "category": "rvs",
+      "priceRows": 8
+    },
+    {
+      "packageId": "pkg_rvs_maint_light",
+      "legacyKey": "maint_light",
+      "category": "rvs",
+      "priceRows": 8
+    },
+    {
+      "packageId": "pkg_rvs_interior",
+      "legacyKey": "interior",
+      "category": "rvs",
+      "priceRows": 8
+    },
+    {
+      "packageId": "pkg_rvs_full_basic",
+      "legacyKey": "full_basic",
+      "category": "rvs",
+      "priceRows": 8
+    },
+    {
+      "packageId": "pkg_rvs_premium",
+      "legacyKey": "premium",
+      "category": "rvs",
+      "priceRows": 8
+    },
+    {
+      "packageId": "pkg_rvs_full",
+      "legacyKey": "full",
+      "category": "rvs",
+      "priceRows": 8
+    },
+    {
+      "packageId": "pkg_powersports_wash",
+      "legacyKey": "wash",
+      "category": "powersports",
+      "priceRows": 4
+    },
+    {
+      "packageId": "pkg_powersports_essential",
+      "legacyKey": "essential",
+      "category": "powersports",
+      "priceRows": 4
+    },
+    {
+      "packageId": "pkg_powersports_full",
+      "legacyKey": "full",
+      "category": "powersports",
+      "priceRows": 4
+    },
+    {
+      "packageId": "pkg_powersports_premium",
+      "legacyKey": "premium",
+      "category": "powersports",
+      "priceRows": 4
+    },
+    {
+      "packageId": "pkg_fleet_maint",
+      "legacyKey": "maint",
+      "category": "fleet",
+      "priceRows": 5
+    },
+    {
+      "packageId": "pkg_fleet_essential",
+      "legacyKey": "essential",
+      "category": "fleet",
+      "priceRows": 5
+    },
+    {
+      "packageId": "pkg_fleet_full",
+      "legacyKey": "full",
+      "category": "fleet",
+      "priceRows": 5
+    },
+    {
+      "packageId": "pkg_fleet_premium",
+      "legacyKey": "premium",
+      "category": "fleet",
+      "priceRows": 5
+    },
+    {
+      "packageId": "pkg_fleet_custom",
+      "legacyKey": "custom",
+      "category": "fleet",
+      "priceRows": 5
+    }
+  ],
+  "addOns": [
+    {
+      "addOnId": "addon_pet_hair",
+      "legacyKey": "pethair",
+      "priceRows": 2
+    },
+    {
+      "addOnId": "addon_super_interior",
+      "legacyKey": "superint",
+      "priceRows": 2
+    },
+    {
+      "addOnId": "addon_odor",
+      "legacyKey": "odor",
+      "priceRows": 4
+    },
+    {
+      "addOnId": "addon_mold",
+      "legacyKey": "mold",
+      "priceRows": 2
+    },
+    {
+      "addOnId": "addon_sanitize",
+      "legacyKey": "sanitize",
+      "priceRows": 3
+    },
+    {
+      "addOnId": "addon_biohazard",
+      "legacyKey": "biohazard",
+      "priceRows": 4
+    },
+    {
+      "addOnId": "addon_engine",
+      "legacyKey": "engine",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_floor_mats",
+      "legacyKey": "floormats",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_rainx",
+      "legacyKey": "rainx",
+      "priceRows": 4
+    },
+    {
+      "addOnId": "addon_polymer",
+      "legacyKey": "polymer",
+      "priceRows": 5
+    },
+    {
+      "addOnId": "addon_wax_1yr",
+      "legacyKey": "wax1yr",
+      "priceRows": 4
+    },
+    {
+      "addOnId": "addon_clay_bar",
+      "legacyKey": "claybar",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_headlight",
+      "legacyKey": "headlight",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_baby_seat",
+      "legacyKey": "babyseat",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_stroller",
+      "legacyKey": "stroller",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_trashcans",
+      "legacyKey": "trashcans",
+      "priceRows": 4
+    },
+    {
+      "addOnId": "addon_ozone",
+      "legacyKey": "ozone",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_chrome",
+      "legacyKey": "chrome",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_awning",
+      "legacyKey": "awning",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_roof",
+      "legacyKey": "roof",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_cap_front",
+      "legacyKey": "capfront",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_heavy_mud",
+      "legacyKey": "heavymud",
+      "priceRows": 2
+    },
+    {
+      "addOnId": "addon_seat_deep",
+      "legacyKey": "seatdeep",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_storage",
+      "legacyKey": "storage",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_wheel_detail",
+      "legacyKey": "wheeldet",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_water_spot",
+      "legacyKey": "waterspot",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_salt_wash",
+      "legacyKey": "saltwash",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_trim_protectant",
+      "legacyKey": "trimprot",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_light_degrease",
+      "legacyKey": "lightdeg",
+      "priceRows": 1
+    },
+    {
+      "addOnId": "addon_disinfect",
+      "legacyKey": "disinfect",
+      "priceRows": 1
+    }
+  ],
+  "vehicleClasses": [
+    {
+      "vehicleClassId": "vc_sedan",
+      "legacyKey": "small"
+    },
+    {
+      "vehicleClassId": "vc_suv_2row",
+      "legacyKey": "suv2"
+    },
+    {
+      "vehicleClassId": "vc_suv_3row",
+      "legacyKey": "suv3"
+    },
+    {
+      "vehicleClassId": "vc_truck",
+      "legacyKey": "truck"
+    },
+    {
+      "vehicleClassId": "vc_boats_under20",
+      "legacyKey": "under20"
+    },
+    {
+      "vehicleClassId": "vc_boats_20to25",
+      "legacyKey": "20to25"
+    },
+    {
+      "vehicleClassId": "vc_boats_26to30",
+      "legacyKey": "26to30"
+    },
+    {
+      "vehicleClassId": "vc_boats_over30",
+      "legacyKey": "over30"
+    },
+    {
+      "vehicleClassId": "vc_rvs_travel",
+      "legacyKey": "travel"
+    },
+    {
+      "vehicleClassId": "vc_rvs_fifthwheel",
+      "legacyKey": "fifthwheel"
+    },
+    {
+      "vehicleClassId": "vc_rvs_classc",
+      "legacyKey": "classC"
+    },
+    {
+      "vehicleClassId": "vc_rvs_classa",
+      "legacyKey": "classA"
+    },
+    {
+      "vehicleClassId": "vc_rvs_classbc",
+      "legacyKey": "classBC"
+    },
+    {
+      "vehicleClassId": "vc_rvs_airstream",
+      "legacyKey": "airstream"
+    },
+    {
+      "vehicleClassId": "vc_rvs_specialty",
+      "legacyKey": "specialty"
+    },
+    {
+      "vehicleClassId": "vc_powersports_motorcycle",
+      "legacyKey": "motorcycle"
+    },
+    {
+      "vehicleClassId": "vc_powersports_atv",
+      "legacyKey": "atv"
+    },
+    {
+      "vehicleClassId": "vc_powersports_utv",
+      "legacyKey": "utv"
+    },
+    {
+      "vehicleClassId": "vc_powersports_jetski",
+      "legacyKey": "jetski"
+    },
+    {
+      "vehicleClassId": "vc_fleet_vehicle",
+      "legacyKey": "vehicle"
+    },
+    {
+      "vehicleClassId": "vc_fleet_commercial",
+      "legacyKey": "commercial"
+    },
+    {
+      "vehicleClassId": "vc_fleet_powersports",
+      "legacyKey": "powersports"
+    },
+    {
+      "vehicleClassId": "vc_fleet_marine_rv",
+      "legacyKey": "marine_rv"
+    }
+  ],
+  "duplicates": [],
+  "unresolved": [],
+  "priceConflicts": [
+    {
+      "file": "bergen-county-hub.html",
+      "field": "cars.tiers.small.full",
+      "htmlValue": 300,
+      "serverValue": 285,
+      "message": "Hub HTML full price differs from server catalog"
+    },
+    {
+      "file": "essex-county-hub.html",
+      "field": "cars.tiers.small.full",
+      "htmlValue": 300,
+      "serverValue": 285,
+      "message": "Hub HTML full price differs from server catalog"
+    },
+    {
+      "file": "hudson-county-hub.html",
+      "field": "cars.tiers.small.full",
+      "htmlValue": 300,
+      "serverValue": 285,
+      "message": "Hub HTML full price differs from server catalog"
+    },
+    {
+      "file": "newark-mobile-detailing.html",
+      "field": "cars.tiers.small.full",
+      "htmlValue": 300,
+      "serverValue": 285,
+      "message": "Hub HTML full price differs from server catalog"
+    },
+    {
+      "file": "passaic-county-hub.html",
+      "field": "cars.tiers.small.full",
+      "htmlValue": 300,
+      "serverValue": 285,
+      "message": "Hub HTML full price differs from server catalog"
+    },
+    {
+      "file": "template-city.html",
+      "field": "cars.tiers.small.full",
+      "htmlValue": 300,
+      "serverValue": 285,
+      "message": "Hub HTML full price differs from server catalog"
+    },
+    {
+      "file": "trenton-mobile-detailing.html",
+      "field": "cars.tiers.small.full",
+      "htmlValue": 300,
+      "serverValue": 285,
+      "message": "Hub HTML full price differs from server catalog"
+    },
+    {
+      "file": "westchester-mobile-detailing.html",
+      "field": "cars.tiers.small.full",
+      "htmlValue": 300,
+      "serverValue": 285,
+      "message": "Hub HTML full price differs from server catalog"
+    }
+  ],
+  "unmappedContent": [
+    {
+      "path": "index.html",
+      "reason": "Hero/FAQ/gallery HTML requires Stage 4–5 structured mapping"
+    },
+    {
+      "path": "assets/partials/specialty-public-footer.html",
+      "reason": "Footer mapped partially in draft; verify links"
+    },
+    {
+      "path": "*-hub.html",
+      "reason": "SEO hub copy not auto-imported in Stage 1"
+    },
+    {
+      "path": "terms-conditions.html",
+      "reason": "Legal page deferred"
+    }
+  ],
+  "errors": [],
+  "draft": {
+    "siteId": "detailing-zone",
+    "packageCount": 24,
+    "addOnCount": 30,
+    "vehicleClassCount": 23,
+    "samplePackageIds": [
+      "pkg_maintenance_detail",
+      "pkg_interior_detail",
+      "pkg_full_detail",
+      "pkg_paint_refresh",
+      "pkg_premium_detail"
+    ]
+  },
+  "stats": {
+    "packageCount": 24,
+    "addOnCount": 30,
+    "vehicleClassCount": 23,
+    "duplicateCount": 0,
+    "priceConflictCount": 8,
+    "unresolvedCount": 0,
+    "unmappedCount": 4,
+    "errorCount": 0
+  }
+}
