@@ -5,8 +5,14 @@
 'use strict';
 
 const crypto = require('crypto');
-const { jsonCors, blobsStore } = require('../lib/tech-security');
-const { BOOKINGS_STORE } = require('../lib/ops-schema');
+const { jsonCors } = require('../lib/tech-security');
+const { getBookingRecord } = require('../lib/booking-repository');
+const { patchBooking } = require('../lib/ops-db');
+const {
+  linkBookingToAccountDurably,
+  allocateResendGeneration,
+  LINK_RESULT,
+} = require('../lib/appointment-booking-linkage');
 const {
   loadTokenRecord,
   consumeAppointmentAccessToken,
@@ -33,7 +39,8 @@ const {
   EVENT_CONFIRMED,
   EVENT_ACTION_REQUIRED,
 } = require('../lib/booking-transactional-notifications');
-const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { enforcePublicRateLimit, hashRateLimitSubject } = require('../lib/public-rate-limit');
+const { isActionRequiredState } = require('../lib/booking-customer-status');
 
 function correlationId() {
   return `caa_${crypto.randomBytes(6).toString('hex')}`;
@@ -107,17 +114,20 @@ function expiredLinkPage(token, cid) {
 }
 
 async function loadBooking(bookingId) {
-  const store = await blobsStore(BOOKINGS_STORE);
   const id = String(bookingId || '').trim();
   if (!id) return null;
-  return store.get(id, { type: 'json' }).catch(() => null);
+  const record = await getBookingRecord(id).catch(() => null);
+  return record && record.exists ? record.booking : null;
 }
 
-async function persistBooking(booking) {
-  const store = await blobsStore(BOOKINGS_STORE);
-  const id = booking.id || booking.bookingId;
-  if (!id) return;
-  await store.setJSON(id, booking);
+/**
+ * Persist a booking patch through the versioned repository. Never an
+ * unconditional set — a lost update here would drop admin/ops state.
+ */
+async function patchBookingFields(bookingId, patches, eventEntry) {
+  const id = String(bookingId || '').trim();
+  if (!id) return null;
+  return patchBooking(id, patches, eventEntry).catch(() => null);
 }
 
 function redirectWithSession(location, sessionToken) {
@@ -143,7 +153,12 @@ async function redirectConsumedWithSession(event, booking, tokenRecord, cid, raw
     && session.bookingIds.map(String).includes(String(tokenRecord.bookingId));
   if (sameAccount || sameBooking) {
     const refResult = await ensureAppointmentPublicRef(booking);
-    if (refResult.created) await persistBooking(refResult.booking);
+    if (refResult.created) {
+      await patchBookingFields(booking.id || booking.bookingId, {
+        appointmentPublicRef: refResult.booking.appointmentPublicRef,
+        appointmentPublicRefAt: refResult.booking.appointmentPublicRefAt,
+      });
+    }
     return {
       statusCode: 302,
       headers: {
@@ -218,14 +233,27 @@ async function exchangeToken(rawToken, event) {
     || null;
   const email = String(booking.email || '').trim().toLowerCase() || null;
 
-  let customerAccountId = tokenRecord.customerAccountId || booking.customerAccountId || null;
+  const bookingId = booking.id || booking.bookingId;
+  const existingBookingAccountId = String(booking.customerAccountId || '').trim() || null;
+
+  // Token ownership binding: a token minted for one account must never open a
+  // booking that has since been claimed by a different account.
+  if (
+    tokenRecord.customerAccountId
+    && existingBookingAccountId
+    && tokenRecord.customerAccountId !== existingBookingAccountId
+  ) {
+    return invalidLinkPage(cid);
+  }
+
+  let customerAccountId = tokenRecord.customerAccountId || existingBookingAccountId;
   try {
     const resolution = await resolveOrCreateCustomerAccount({
       verifiedEmail: email,
       email,
       verifiedPhone: phoneDigits,
       phone: phoneDigits,
-      bookingIds: [booking.id || booking.bookingId],
+      bookingIds: [bookingId],
       stripeCustomerId: booking.stripeCustomerId || null,
     }, {
       allowPhoneOnly: !email && !!phoneDigits,
@@ -246,7 +274,7 @@ async function exchangeToken(rawToken, event) {
         const prisma = tryGetPrisma();
         if (prisma) {
           await linkBookingToAccount(prisma, {
-            bookingId: booking.id || booking.bookingId,
+            bookingId,
             customerAccountId,
           }).catch(() => null);
         }
@@ -255,7 +283,7 @@ async function exchangeToken(rawToken, event) {
         customerAccountId,
         verifiedEmail: email,
         verifiedPhone: phoneDigits,
-        bookingIds: [booking.id || booking.bookingId],
+        bookingIds: [bookingId],
         blobBookings: [booking],
       }).catch(() => null);
     }
@@ -263,7 +291,24 @@ async function exchangeToken(rawToken, event) {
     // Session can still be created from booking contact when Prisma is unavailable.
   }
 
-  let bookingIds = [booking.id || booking.bookingId].filter(Boolean);
+  // Durable ownership: the Blob aggregate is authoritative for the portal, so
+  // the link must survive independently of relational availability.
+  if (customerAccountId) {
+    const linkage = await linkBookingToAccountDurably({
+      bookingId,
+      customerAccountId,
+    });
+    if (!linkage.ok && linkage.result === LINK_RESULT.OWNED_BY_OTHER_ACCOUNT) {
+      console.warn('[customer-appointment-access] link refused', {
+        correlationId: cid,
+        bookingIdPrefix: String(bookingId).slice(0, 12),
+        reason: linkage.result,
+      });
+      return invalidLinkPage(cid);
+    }
+  }
+
+  let bookingIds = [bookingId].filter(Boolean);
   if (customerAccountId) {
     try {
       const linked = await listBookingIdsForAccount(customerAccountId);
@@ -280,58 +325,28 @@ async function exchangeToken(rawToken, event) {
     customerAccountId,
   });
 
-  const refResult = await ensureAppointmentPublicRef({
-    ...booking,
-    customerAccountId: customerAccountId || booking.customerAccountId || null,
-  });
-  if (refResult.created || customerAccountId) {
-    await persistBooking({
-      ...refResult.booking,
-      customerAccountId: customerAccountId || refResult.booking.customerAccountId || null,
-    }).catch(() => {});
+  const refResult = await ensureAppointmentPublicRef(await loadBooking(bookingId) || booking);
+  if (refResult.created) {
+    await patchBookingFields(bookingId, {
+      appointmentPublicRef: refResult.booking.appointmentPublicRef,
+      appointmentPublicRefAt: refResult.booking.appointmentPublicRefAt,
+    });
   }
 
   return redirectWithSession(buildPortalFocusPath(refResult.focusRef), sessionToken);
 }
 
-async function resendFromToken(rawToken, event) {
-  const cid = correlationId();
-  // Anti-enumeration: always return a generic success-shaped response for API callers.
-  const genericOk = {
-    ok: true,
-    message: 'If this link was valid, a new secure link has been sent when contact details are on file.',
-    correlationId: cid,
-  };
+const RESEND_GENERIC_MESSAGE =
+  'If this link was valid, a new secure link has been sent when contact details are on file.';
 
-  const loaded = await loadTokenRecord(rawToken, { allowExpired: true, allowConsumed: true });
-  if (!loaded.record || !loaded.record.bookingId) {
-    return jsonCors(200, genericOk);
-  }
-
-  const booking = await loadBooking(loaded.record.bookingId);
-  if (!booking) return jsonCors(200, genericOk);
-
-  // Choose event type based on current authoritative status.
-  const appt = String(booking.appointmentStatus || '').toLowerCase();
-  const js = String(booking.jobStatus || '').toLowerCase();
-  let eventType = EVENT_REQUEST_RECEIVED;
-  if (appt === 'confirmed' || js === 'confirmed' || String(booking.status || '').toLowerCase() === 'confirmed') {
-    eventType = EVENT_CONFIRMED;
-  } else if (
-    String(booking.paymentWorkflowStatus || '').includes('customer')
-    || booking.customerApprovalStatus === 'pending'
-  ) {
-    eventType = EVENT_ACTION_REQUIRED;
-  }
-
-  const result = await emitBookingNotification(booking, eventType, { event });
-  if (result.ok && result.booking) {
-    await persistBooking(result.booking).catch(() => {});
-  }
-
-  // HTML form posts get a friendly confirmation page.
+function wantsHtmlResponse(event) {
   const accept = String(event.headers?.accept || event.headers?.Accept || '');
-  if (accept.includes('text/html') || String(event.headers?.['content-type'] || '').includes('application/x-www-form-urlencoded')) {
+  const ctype = String(event.headers?.['content-type'] || event.headers?.['Content-Type'] || '');
+  return accept.includes('text/html') || ctype.includes('application/x-www-form-urlencoded');
+}
+
+function resendGenericResponse(event, cid) {
+  if (wantsHtmlResponse(event)) {
     return htmlPage({
       title: 'New link sent',
       bodyHtml: `
@@ -344,7 +359,152 @@ async function resendFromToken(rawToken, event) {
 <p class="sub">Ref: ${cid}</p>`,
     });
   }
-  return jsonCors(200, genericOk);
+  return jsonCors(200, { ok: true, message: RESEND_GENERIC_MESSAGE, correlationId: cid });
+}
+
+/**
+ * Event type for the resend body. Derived from the same customer-facing status
+ * the portal renders, so a resent link never contradicts what the portal shows.
+ */
+function resendEventTypeFor(booking) {
+  const appt = String(booking.appointmentStatus || '').toLowerCase();
+  const js = String(booking.jobStatus || '').toLowerCase();
+  const st = String(booking.status || '').toLowerCase();
+  if (appt === 'confirmed' || js === 'confirmed' || st === 'confirmed') {
+    return EVENT_CONFIRMED;
+  }
+  if (isActionRequiredState(booking)) {
+    return EVENT_ACTION_REQUIRED;
+  }
+  return EVENT_REQUEST_RECEIVED;
+}
+
+/**
+ * Resend a secure appointment link.
+ *
+ * Proof of ownership is required — either a token record we issued (expired or
+ * consumed is fine) or an authenticated session for the same account/booking.
+ * Raw booking IDs and email addresses from the browser are never accepted, and
+ * every outcome returns the same generic copy.
+ */
+async function resendFromToken(rawToken, event) {
+  const cid = correlationId();
+
+  const loaded = await loadTokenRecord(rawToken, { allowExpired: true, allowConsumed: true });
+  const tokenRecord = loaded.record && loaded.record.bookingId ? loaded.record : null;
+
+  const session = await validateCustomerSession(event);
+  const sessionProof = tokenRecord && session.ok && (
+    (tokenRecord.customerAccountId && session.customerAccountId === tokenRecord.customerAccountId)
+    || (Array.isArray(session.bookingIds)
+      && session.bookingIds.map(String).includes(String(tokenRecord.bookingId)))
+  );
+
+  if (!tokenRecord) {
+    console.log('[appointment-access-resend]', {
+      correlationId: cid,
+      proof: 'none',
+      outcome: 'generic_no_proof',
+    });
+    return resendGenericResponse(event, cid);
+  }
+
+  // Abuse controls beyond the endpoint-level IP limit: bind attempts to the
+  // token/booking and to the account/contact fingerprint.
+  const bookingFingerprint = hashRateLimitSubject('appointment-resend-booking', tokenRecord.bookingId);
+  const contactFingerprint = hashRateLimitSubject(
+    'appointment-resend-contact',
+    tokenRecord.customerAccountId || '',
+    tokenRecord.emailHash || '',
+    tokenRecord.phoneDigits || ''
+  );
+  for (const subject of [bookingFingerprint, contactFingerprint]) {
+    if (!subject) continue;
+    const limited = await enforcePublicRateLimit(event, {
+      endpoint: 'customer-appointment-access',
+      action: 'resend',
+      cors: true,
+      subject,
+      // Fingerprint buckets must survive IP rotation; the endpoint-level check
+      // above already covers per-source-IP abuse.
+      ipScoped: false,
+    });
+    if (limited.blocked) {
+      console.log('[appointment-access-resend]', {
+        correlationId: cid,
+        proof: sessionProof ? 'token+session' : 'token',
+        outcome: 'rate_limited',
+      });
+      return resendGenericResponse(event, cid);
+    }
+  }
+
+  const booking = await loadBooking(tokenRecord.bookingId);
+  if (!booking) {
+    console.log('[appointment-access-resend]', {
+      correlationId: cid,
+      proof: 'token',
+      outcome: 'generic_no_booking',
+    });
+    return resendGenericResponse(event, cid);
+  }
+
+  // A booking claimed by another account must not be re-notified through a
+  // stale token.
+  const bookingAccountId = String(booking.customerAccountId || '').trim() || null;
+  if (
+    tokenRecord.customerAccountId
+    && bookingAccountId
+    && tokenRecord.customerAccountId !== bookingAccountId
+  ) {
+    console.log('[appointment-access-resend]', {
+      correlationId: cid,
+      proof: 'token',
+      outcome: 'generic_ownership_mismatch',
+    });
+    return resendGenericResponse(event, cid);
+  }
+
+  const allocation = await allocateResendGeneration({ bookingId: tokenRecord.bookingId });
+  if (!allocation.ok || !allocation.generation) {
+    console.log('[appointment-access-resend]', {
+      correlationId: cid,
+      proof: sessionProof ? 'token+session' : 'token',
+      outcome: 'generation_unavailable',
+    });
+    return resendGenericResponse(event, cid);
+  }
+
+  const working = allocation.booking || booking;
+  const eventType = resendEventTypeFor(working);
+  const result = await emitBookingNotification(working, eventType, {
+    event,
+    resendGeneration: allocation.generation,
+  });
+
+  if (result.ok && result.booking) {
+    await patchBookingFields(tokenRecord.bookingId, {
+      transactionalNotifications: result.booking.transactionalNotifications,
+      lastTransactionalNotificationAt: result.booking.lastTransactionalNotificationAt,
+      lastTransactionalNotificationEvent: result.booking.lastTransactionalNotificationEvent,
+      appointmentPublicRef: result.booking.appointmentPublicRef,
+    });
+  }
+
+  console.log('[appointment-access-resend]', {
+    correlationId: cid,
+    proof: sessionProof ? 'token+session' : 'token',
+    eventType,
+    resendGeneration: allocation.generation,
+    generationReused: allocation.reused === true,
+    tokenIssued: !!result.accessToken,
+    emailOutcome: result.delivery?.email?.sent
+      ? 'sent'
+      : (result.delivery?.email?.reason || (result.skipped ? result.reason : 'not_attempted')),
+    outcome: 'processed',
+  });
+
+  return resendGenericResponse(event, cid);
 }
 
 function parseBody(event) {

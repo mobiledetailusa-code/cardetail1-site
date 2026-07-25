@@ -200,6 +200,20 @@ function idempotencyKey(bookingId, eventType, stateKey, channel) {
   return `${bookingId}:${eventType}:${stateKey}:${channel}`;
 }
 
+/**
+ * Resend is a distinct logical event from the original booking notification.
+ * The generation is server-authoritative so a terminal request_received ledger
+ * entry can never suppress a legitimate resend.
+ */
+function resendIdempotencyKey(bookingId, resendGeneration, channel) {
+  return `appointment_access.resend:${bookingId}:${resendGeneration}:${channel}`;
+}
+
+function normalizeResendGeneration(value) {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 function getNotificationLedger(booking) {
   const ledger = booking?.transactionalNotifications;
   return ledger && typeof ledger === 'object' ? { ...ledger } : {};
@@ -511,12 +525,19 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
       working = { ...working, customerAccountId: account.customerAccountId };
     }
 
-    const stateKey = eventStateKey(eventType, working);
+    const resendGeneration = normalizeResendGeneration(opts.resendGeneration);
+    const stateKey = resendGeneration
+      ? `resend:${resendGeneration}`
+      : eventStateKey(eventType, working);
     const bookingId = working.id || working.bookingId;
     let ledger = getNotificationLedger(working);
 
-    const emailKey = idempotencyKey(bookingId, eventType, stateKey, 'email');
-    const smsKey = idempotencyKey(bookingId, eventType, stateKey, 'sms');
+    const emailKey = resendGeneration
+      ? resendIdempotencyKey(bookingId, resendGeneration, 'email')
+      : idempotencyKey(bookingId, eventType, stateKey, 'email');
+    const smsKey = resendGeneration
+      ? resendIdempotencyKey(bookingId, resendGeneration, 'sms')
+      : idempotencyKey(bookingId, eventType, stateKey, 'sms');
     const emailDone = channelAlreadySent(ledger, emailKey);
     const smsDone = channelAlreadySent(ledger, smsKey);
     const emailTerminal = channelTerminal(ledger, emailKey);
@@ -611,6 +632,7 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
       eventType,
       bookingIdPrefix: String(bookingId).slice(0, 12),
       correlationId,
+      resendGeneration: resendGeneration || null,
       emailStatus: ledger[emailKey]?.status || null,
       smsStatus: ledger[smsKey]?.status || null,
     });
@@ -620,6 +642,7 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
       correlationId,
       eventType,
       stateKey,
+      resendGeneration: resendGeneration || null,
       accessToken: access.token,
       accessUrl,
       focusRef: working.appointmentPublicRef || null,
@@ -661,6 +684,7 @@ module.exports = {
   serviceDescription,
   eventStateKey,
   idempotencyKey,
+  resendIdempotencyKey,
   getNotificationLedger,
   channelAlreadySent,
   buildEmailContent,
