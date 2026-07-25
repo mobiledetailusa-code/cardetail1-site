@@ -85,7 +85,7 @@ test('customer portal has no public Admin tab', () => {
   const html = read('my-garage.html');
   assert.doesNotMatch(html, /id="ltab-admin"/);
   assert.doesNotMatch(html, /setLoginRole\('admin'\)/);
-  assert.match(html, /My Garage/);
+  assert.match(html, /My Detailing Portal/);
 });
 
 test('customer.html is a redirect handoff only', () => {

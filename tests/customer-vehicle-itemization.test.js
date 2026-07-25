@@ -518,6 +518,6 @@ describe('Customer UI vehicle itemization rendering', () => {
   });
 
   it('cache-busts my-garage.js for Production browsers', () => {
-    assert.match(myGarageHtml, /my-garage\.js\?v=20260724-appt-access1/);
+    assert.match(myGarageHtml, /my-garage\.js\?v=20260725-portal-closure1/);
   });
 });

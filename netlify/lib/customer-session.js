@@ -8,7 +8,11 @@ const { normalizeUsPhoneDigits, normalizeUsPhoneE164 } = require('./phone-auth')
 
 const SESSION_STORE = 'cd1-customer-sessions';
 const TOKEN_STORE = 'cd1-customer-auth-tokens';
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+// Device session. A customer who returns days later must still re-enter through
+// their (single-use) appointment link, so the session has to outlive a browser
+// restart. Cookie Max-Age, signed payload exp, and the Blob record TTL are all
+// derived from this one constant — the cookie must never outlive the record.
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 const OTP_TTL_MS = 10 * 60 * 1000;
 const MAX_AUTH_ATTEMPTS = 5;

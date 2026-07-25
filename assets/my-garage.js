@@ -1,5 +1,5 @@
 /**
- * Shared My Garage / customer portal frontend logic.
+ * Shared My Detailing Portal / customer portal frontend logic.
  * Server-side authorization is required for all protected reads/writes.
  */
 (function (global) {
@@ -230,6 +230,46 @@
   function appointmentStatusLabel(b) {
     if (!b) return 'Status';
     return b.customerStatus || b.status || 'Status';
+  }
+
+  var ACTIONABLE_JOB_STATUSES = [
+    'in_progress', 'en_route', 'on_site', 'awaiting_customer_action',
+    'completed_pending_payment', 'completed_pending_admin_review',
+  ];
+
+  function appointmentNeedsAttention(b) {
+    if (!b) return false;
+    if (ACTIONABLE_JOB_STATUSES.indexOf(String(b.jobStatus || '').toLowerCase()) >= 0) return true;
+    if (String(b.serviceStatus || '').toLowerCase() === 'awaiting_customer_action') return true;
+    return b.customerApprovalStatus === 'pending';
+  }
+
+  /** Past services are finished and need nothing from the customer. */
+  function appointmentIsPast(b) {
+    if (!b) return false;
+    if (appointmentNeedsAttention(b)) return false;
+    var status = String(b.status || '');
+    var job = String(b.jobStatus || '').toLowerCase();
+    return status === 'Paid' || status === 'Completed' || status === 'Cancelled' || status === 'Canceled'
+      || job === 'completed_paid' || job === 'completed' || job === 'cancelled';
+  }
+
+  /**
+   * One primary action per appointment state — everything else stays secondary
+   * so the customer never has to choose between equally loud buttons.
+   */
+  function primaryActionLabel(b, pay) {
+    if (!b) return 'View Details';
+    if (appointmentNeedsAttention(b) && !(pay && (pay.canPay || pay.canCreatePayLink))) {
+      return 'Review Required Action';
+    }
+    if (pay && (pay.canPay || pay.canCreatePayLink)) return 'Pay Balance';
+    var status = String(b.customerStatus || b.status || '');
+    if (/pending/i.test(status)) return 'View Request';
+    if (/confirm|reschedul/i.test(status)) return 'View Appointment';
+    if (/paid/i.test(status)) return 'View Details';
+    if (/complete/i.test(status)) return 'View Receipt';
+    return 'View Details';
   }
 
   function applyAppointmentFocus(data) {
@@ -856,7 +896,7 @@
       }
       if (!errMsg) {
         if (errCode === 'authentication_failed') errMsg = 'Phone does not match this booking.';
-        else if (errCode === 'booking_not_ready') errMsg = 'Booking is not ready in My Garage yet.';
+        else if (errCode === 'booking_not_ready') errMsg = 'Booking is not ready in your portal yet.';
         else errMsg = 'No booking found. Check your ID and phone.';
       }
       // Soft reload (poll / post-submit): never kick the customer out of the appointment hub.
@@ -1293,7 +1333,21 @@
     } else {
       link.textContent = invoiceIsPaid(pay) ? 'Invoice paid' : 'Pay Balance';
     }
+    syncStickyPayBar(can, due);
     syncMoneyActionButtons(pay);
+  }
+
+  /** Mobile-only affordance so a due balance is always one tap away. */
+  function syncStickyPayBar(canPay, due) {
+    var bar = $('pay-sticky-bar');
+    var btn = $('pay-sticky-btn');
+    if (!bar || !btn) return;
+    var on = !!canPay;
+    bar.hidden = !on;
+    if (btn) btn.textContent = on && due > 0 ? 'Pay Balance · ' + fmtMoney(due) : 'Pay Balance';
+    try {
+      document.body.classList.toggle('pay-sticky-on', on);
+    } catch (e) { /* ignore */ }
   }
 
   function renderPaymentsPanel(pay) {
@@ -1440,7 +1494,7 @@
       ((pay.canPay || pay.canCreatePayLink)
         ? '<button type="button" class="btn primary" data-portal-pay>Pay Balance' +
           (pay.amountDueApproved ? ' · ' + fmtMoney(pay.amountDueApproved) : '') + '</button>'
-        : '') +
+        : '<p class="hint" data-primary-action-label>' + esc(primaryActionLabel(b, pay)) + '</p>') +
       '</div>';
 
     var payBtn = hero.querySelector('[data-portal-pay]');
@@ -1451,25 +1505,24 @@
     renderPendingRequests(state.changeRequests);
     renderMaintenancePlans();
 
-    renderList('appointments-list', state.bookings.length ? state.bookings : [b], function (item) {
-      var focused = state.focusedAppointment
-        && item.appointmentPublicRef
-        && state.focusedAppointment.appointmentPublicRef === item.appointmentPublicRef;
-      return '<li' + (focused ? ' class="appointment-focus"' : '') + '>' +
-        '<strong>' + esc(appointmentStatusLabel(item)) + '</strong> — ' +
-        esc(item.confirmedDate || item.preferredDate || '—') +
-        ' · ' + esc(item.service || item.package || '') +
-        ' · ' + esc(vehicleLine(item)) + '</li>';
+    // Selection only decides which appointment is expanded above — every owned
+    // appointment stays reachable in one of the two collections below.
+    var owned = state.bookings.length ? state.bookings : [b];
+    var currentId = String(b.id || '');
+    var upcoming = owned.filter(function (x) {
+      return !appointmentIsPast(x) && String(x.id || '') !== currentId;
     });
+    var hist = owned.filter(appointmentIsPast);
 
-    var hist = (state.bookings.length ? state.bookings : [b]).filter(function (x) {
-      return x.status === 'Paid' || x.status === 'Completed' || x.jobStatus === 'completed';
+    renderList('appointments-list', upcoming, function (item) {
+      return appointmentRowHtml(item, { focusable: true });
     });
     renderList('history-list', hist, function (item) {
-      return '<li>' + esc(item.preferredDate || '—') + ' · ' + esc(item.service || item.package || '') +
-        ' · ' + fmtMoney(item.approvedFinalAmount != null ? item.approvedFinalAmount : item.totalPrice) + '</li>';
+      return appointmentRowHtml(item, { showTotal: true });
     });
+    bindAppointmentRowActions();
 
+    $('appointments-empty') && show($('appointments-empty'), !upcoming.length);
     $('history-empty') && show($('history-empty'), !hist.length);
     $('comm-empty') && show($('comm-empty'), true);
     var approveBtn = $('btn-approve-completion');
@@ -1744,6 +1797,56 @@
     showToast('Address archived.', false);
   }
 
+  /**
+   * Compact collapsed row. Money authority stays server-side, so the row shows
+   * the projected total only and defers to a reload for anything payable.
+   */
+  function appointmentRowHtml(item, opts) {
+    opts = opts || {};
+    var focused = opts.focusable
+      && state.focusedAppointment
+      && item.appointmentPublicRef
+      && state.focusedAppointment.appointmentPublicRef === item.appointmentPublicRef;
+    var date = item.confirmedDate || item.preferredDate || '—';
+    var total = item.approvedFinalAmount != null ? item.approvedFinalAmount : item.totalPrice;
+    var meta = [esc(item.service || item.package || 'Service'), esc(date)].join(' · ');
+    var tail = [esc(appointmentStatusLabel(item))];
+    if (opts.showTotal && total != null) tail.push(fmtMoney(total));
+    var ref = item.appointmentPublicRef || '';
+    return '<li class="appt-row' + (focused ? ' appointment-focus' : '') + '">' +
+      '<span class="appt-row-main">' + esc(vehicleLine(item)) + '</span>' +
+      '<span class="appt-row-action">' +
+      (ref
+        ? '<button type="button" class="btn ghost" data-appt-ref="' + esc(ref) + '">View Details</button>'
+        : '') +
+      '</span>' +
+      '<span class="appt-row-meta">' + meta + ' · ' + tail.join(' · ') + '</span>' +
+      '</li>';
+  }
+
+  function bindAppointmentRowActions() {
+    ['appointments-list', 'history-list'].forEach(function (id) {
+      var root = $(id);
+      if (!root) return;
+      root.querySelectorAll('[data-appt-ref]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          selectAppointmentByRef(btn.getAttribute('data-appt-ref'));
+        });
+      });
+    });
+  }
+
+  /**
+   * Re-select through the server so the expanded appointment carries its own
+   * authoritative payment state rather than the previous booking's.
+   */
+  async function selectAppointmentByRef(ref) {
+    if (!ref || state.scope !== 'account') return;
+    state.appointmentFocusRef = ref;
+    var ok = await loadAccount({ appointmentFocusRef: ref, managePhase: false });
+    if (!ok) showToast('Could not open that appointment.', true);
+  }
+
   function renderList(id, items, mapFn) {
     var el = $(id);
     if (!el) return;
@@ -1842,7 +1945,49 @@
     elements: null,
     paymentElement: null,
     clientSecret: null,
+    bookingId: null,
+    // Set for the whole duration of a start attempt so a double tap cannot
+    // request a second PaymentIntent or mount a second Payment Element.
+    starting: false,
   };
+
+  /**
+   * Bring the payment panel into view and hand the customer focus. Called on
+   * every Pay Balance entry point, including the reuse path.
+   */
+  function revealPaymentPanel() {
+    var panel = $('embedded-pay-panel');
+    if (!panel) return;
+    panel.hidden = false;
+    var reduceMotion = false;
+    try {
+      reduceMotion = !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    } catch (e) { /* ignore */ }
+    try {
+      panel.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    } catch (e) {
+      try { panel.scrollIntoView(); } catch (e2) { /* ignore */ }
+    }
+    var heading = $('embedded-pay-h');
+    var target = heading && typeof heading.focus === 'function' ? heading : panel;
+    if (target && !target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+    try { target.focus({ preventScroll: true }); } catch (e) {
+      try { target.focus(); } catch (e2) { /* ignore */ }
+    }
+  }
+
+  /** Keeps the appointment and amount visible next to the card fields. */
+  function setPaymentContext(cents) {
+    var ctx = $('embedded-pay-context');
+    if (!ctx) return;
+    var b = state.booking || {};
+    var parts = ['Balance due: ' + fmtMoney((Number(cents) || 0) / 100)];
+    var vehicle = vehicleLine(b);
+    if (vehicle && vehicle !== '—') parts.push(vehicle);
+    var service = b.service || b.package;
+    if (service) parts.push(service);
+    ctx.textContent = parts.join(' · ');
+  }
 
   function setEmbeddedPayMsg(text, isErr) {
     var el = $('embedded-pay-msg');
@@ -1866,6 +2011,7 @@
     embeddedPay.paymentElement = null;
     embeddedPay.elements = null;
     embeddedPay.clientSecret = null;
+    embeddedPay.bookingId = null;
     setEmbeddedPayMsg('', false);
   }
 
@@ -1896,6 +2042,7 @@
   }
 
   async function startPayBalance() {
+    if (embeddedPay.starting) return;
     if (!state.booking) {
       showToast('Open a booking first.', true);
       return;
@@ -1905,6 +2052,25 @@
       showToast('No balance is due yet, or payment is locked until approval.', true);
       return;
     }
+
+    // Already mounted for this booking: reveal it again rather than asking the
+    // server for a second PaymentIntent.
+    if (embeddedPay.paymentElement
+      && embeddedPay.clientSecret
+      && embeddedPay.bookingId === String(state.booking.id || '')) {
+      revealPaymentPanel();
+      return;
+    }
+
+    embeddedPay.starting = true;
+    try {
+      await startPayBalanceInner(pay);
+    } finally {
+      embeddedPay.starting = false;
+    }
+  }
+
+  async function startPayBalanceInner(pay) {
     var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
     showToast('Preparing secure payment…');
 
@@ -1914,6 +2080,13 @@
       phone: phone,
       expectedQuoteVersion: pay.quoteVersion,
     });
+
+    if (intent.data && intent.data.error === 'already_paid') {
+      showToast('This appointment is already paid.', true);
+      hideEmbeddedPay();
+      pollPaymentSettlement();
+      return;
+    }
 
     if (intent.data && intent.data.ok && intent.data.clientSecret) {
       if (typeof global.Stripe !== 'function') {
@@ -1926,8 +2099,11 @@
         return startHostedCheckoutFallback();
       }
 
+      // Tear down any prior element before creating another one.
+      hideEmbeddedPay();
       embeddedPay.stripe = global.Stripe(pk);
       embeddedPay.clientSecret = intent.data.clientSecret;
+      embeddedPay.bookingId = String(state.booking.id || '');
       var elementsOpts = { clientSecret: intent.data.clientSecret };
       if (intent.data.customerSessionClientSecret) {
         elementsOpts.customerSessionClientSecret = intent.data.customerSessionClientSecret;
@@ -1942,15 +2118,19 @@
       if (!mountEl || !panel) {
         return startHostedCheckoutFallback();
       }
+      var cents = intent.data.amountCents || pay.remainingCents || 0;
       if (amountEl) {
-        var cents = intent.data.amountCents || pay.remainingCents || 0;
         amountEl.textContent = 'Pay ' + fmtMoney(cents / 100) + ' securely without leaving this page.';
       }
+      setPaymentContext(cents);
+      var submitBtn = $('embedded-pay-submit');
+      if (submitBtn) submitBtn.textContent = 'Pay ' + fmtMoney(cents / 100);
       panel.hidden = false;
       embeddedPay.paymentElement.mount(mountEl);
       setEmbeddedPayMsg('Enter card details to pay. Saved cards appear only when Stripe allows redisplay.', false);
       var fallbackBtn = $('embedded-pay-checkout-fallback');
       if (fallbackBtn) fallbackBtn.hidden = false;
+      revealPaymentPanel();
       if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.paymentOpened();
       return;
     }
@@ -2001,9 +2181,11 @@
     var submit = $('embedded-pay-submit');
     var cancel = $('embedded-pay-cancel');
     var fallback = $('embedded-pay-checkout-fallback');
+    var sticky = $('pay-sticky-btn');
     if (submit) submit.addEventListener('click', function () { confirmEmbeddedPay(); });
     if (cancel) cancel.addEventListener('click', function () { hideEmbeddedPay(); });
     if (fallback) fallback.addEventListener('click', function () { startHostedCheckoutFallback(); });
+    if (sticky) sticky.addEventListener('click', function () { startPayBalance(); });
   }
   bindEmbeddedPayControls();
 
@@ -2285,7 +2467,7 @@
 
     var form = $('modal-form');
     form.innerHTML =
-      '<p class="hint">Prices shown are from the official catalog. After you submit, My Garage shows the server Total approved / Amount paid / Amount due.</p>' +
+      '<p class="hint">Prices shown are from the official catalog. After you submit, your portal shows the server Total approved / Amount paid / Amount due.</p>' +
       '<dl class="meta-grid" style="margin-bottom:12px">' +
       '<div><dt>Total approved</dt><dd>' + fmtCents(approvedCentsFromPayment(pay)) + '</dd></div>' +
       '<div><dt>Amount paid</dt><dd>' + fmtCents(settledCentsFromPayment(pay)) + '</dd></div>' +
@@ -2887,7 +3069,7 @@
       // Never treat ?paid=1 as verified settlement — show processing until ledger confirms
       showToast('Payment processing — refreshing your balance…');
     } else if (params.get('canceled') === '1') {
-      showToast('Checkout canceled. You can pay anytime from My Garage.', true);
+      showToast('Checkout canceled. You can pay anytime from your portal.', true);
     }
 
     var actionToken = params.get('action');
@@ -3017,6 +3199,11 @@
     // Test/release helpers — do not call vehicle garage APIs.
     loadAccount: loadAccount,
     hydrateAuthenticatedPortal: hydrateAuthenticatedPortal,
+    state: state,
+    renderDashboard: renderDashboard,
+    syncPayBalanceButton: syncPayBalanceButton,
+    primaryActionLabel: primaryActionLabel,
+    selectAppointmentByRef: selectAppointmentByRef,
   };
 
   if (global.CD1OperationalRefresh) {

@@ -105,7 +105,7 @@ test('admin and customer surfaces show required state without Stripe IDs', () =>
   assert.match(technician, /Pending Admin Review/);
   assert.match(technician, /complete-modal/);
   assert.match(technician, /tech-complete-job/);
-  assert.match(myGarage, /My Garage/);
+  assert.match(myGarage, /My Detailing Portal/);
   assert.match(myGarageJs, /submit-customer-action/);
   assert.match(myGarageJs, /request-cancellation|submitAction/);
   assert.match(read('netlify/lib/ops-schema.js'), /paymentMethodPreference/);

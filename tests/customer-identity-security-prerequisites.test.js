@@ -466,7 +466,7 @@ describe('customer identity security prerequisites', () => {
       assert.ok(fs.existsSync(path.join(ROOT, f)), f);
     }
     const sessionSrc = read('netlify/lib/customer-session.js');
-    assert.match(sessionSrc, /SESSION_TTL_MS = 8 \* 60 \* 60 \* 1000/);
+    assert.match(sessionSrc, /SESSION_TTL_MS = 30 \* 24 \* 60 \* 60 \* 1000/);
     assert.match(sessionSrc, /revokeCustomerSession/);
     assert.match(sessionSrc, /revokedAt/);
     assert.match(read('netlify/functions/customer-portal-auth.js'), /revokeCustomerSession/);

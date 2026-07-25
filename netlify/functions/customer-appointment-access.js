@@ -143,12 +143,28 @@ function redirectWithSession(location, sessionToken) {
   };
 }
 
+/**
+ * Same-device re-entry for a spent link.
+ *
+ * The raw token stays single-use — no session is minted here. A customer who
+ * still holds a valid session that owns this booking is simply sent to the
+ * appointment; everyone else gets the safe new-link page.
+ */
 async function redirectConsumedWithSession(event, booking, tokenRecord, cid, rawToken) {
   const session = await validateCustomerSession(event);
+  const bookingAccountId = String(booking.customerAccountId || '').trim() || null;
+  // A booking that has since been claimed by another account must not be
+  // reachable through an old token, however valid the visitor's own session is.
+  const ownerMismatch = session.ok
+    && bookingAccountId
+    && session.customerAccountId
+    && session.customerAccountId !== bookingAccountId;
   const sameAccount = session.ok
+    && !ownerMismatch
     && tokenRecord.customerAccountId
     && session.customerAccountId === tokenRecord.customerAccountId;
   const sameBooking = session.ok
+    && !ownerMismatch
     && Array.isArray(session.bookingIds)
     && session.bookingIds.map(String).includes(String(tokenRecord.bookingId));
   if (sameAccount || sameBooking) {
@@ -179,7 +195,13 @@ async function exchangeToken(rawToken, event) {
     return invalidLinkPage(cid);
   }
   if (loaded.classification === CONSUME_RESULT.EXPIRED || (loaded.expired && !loaded.consumed)) {
-    return expiredLinkPage(rawToken, cid);
+    // An expired link is as spent as a consumed one, so the same-device session
+    // is the only thing that can still admit the customer.
+    const expiredBooking = loaded.record.purpose === PURPOSE_APPOINTMENT_ACCESS
+      ? await loadBooking(loaded.record.bookingId)
+      : null;
+    if (!expiredBooking) return expiredLinkPage(rawToken, cid);
+    return redirectConsumedWithSession(event, expiredBooking, loaded.record, cid, rawToken);
   }
 
   const booking = await loadBooking(loaded.record.bookingId);
