@@ -115,8 +115,35 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 .job-veh-card h5{font-size:14px;font-weight:700;margin-bottom:6px}
 .job-detail-note{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
 .job-detail-holder{display:none}
+/* Review queue: triage counts first, so the board reads as a work list. */
+.queue-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.queue-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--fg);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.queue-chip:hover{border-color:var(--ac)}
+.queue-chip[aria-pressed="true"]{border-color:var(--ac);background:rgba(77,163,255,.14)}
+.queue-chip .qc-count{font-size:12px;font-weight:700;color:var(--mu);background:rgba(255,255,255,.07);border-radius:999px;padding:1px 7px}
+.queue-chip[aria-pressed="true"] .qc-count{color:var(--fg)}
+.job-warn{color:#fbbf24;font-weight:700;margin-right:6px}
+/* Persistent decision bar — Confirm/Decline/Edit stay reachable while scrolling. */
+.job-sticky-actions{position:sticky;bottom:0;z-index:5;display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;padding:12px 0 4px;background:linear-gradient(180deg,rgba(12,21,32,0) 0%,rgba(12,21,32,.96) 28%)}
+.job-sticky-actions .btn{flex:1 1 auto;min-width:120px}
+.job-sticky-actions[hidden]{display:none}
 @media(max-width:960px){.job-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:700px){.form-grid{grid-template-columns:1fr}.job-detail-grid{grid-template-columns:1fr}.job-detail-grid .sec.span-2{grid-column:1/-1}}
+@media(max-width:700px){
+  .form-grid{grid-template-columns:1fr}.job-detail-grid{grid-template-columns:1fr}.job-detail-grid .sec.span-2{grid-column:1/-1}
+  /* Compact review cards: the 9-column board is unusable on a phone. */
+  #jobsTable,#jobsTable tbody,#jobsTable tr,#jobsTable td{display:block;width:100%}
+  #jobsTable thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  #jobsTable tr.job-row{border:1px solid var(--line);border-radius:12px;background:var(--card2);padding:12px 14px;margin:0 0 10px}
+  #jobsTable tr.job-row.is-expanded{border-color:var(--ac)}
+  #jobsTable tr.job-row td{border:none;padding:2px 0}
+  #jobsTable tr.job-row td[data-label]::before{content:attr(data-label) " · ";color:var(--mu);font-size:12px}
+  #jobsTable tr.job-row td.job-cell-customer{font-size:15px;font-weight:700;padding-bottom:6px}
+  #jobsTable tr.job-row td.job-cell-customer::before{content:none}
+  #jobsTable tr.job-row td.job-cell-expand{position:absolute;right:14px;margin-top:-2px;width:auto}
+  #jobsTable tr.job-row td.job-assign-cell{padding-top:10px}
+  #jobsTable tr.job-detail-row td{padding:0}
+  .job-sticky-actions .btn{flex:1 1 100%}
+}
 </style>
 </head>
 <body>
@@ -152,6 +179,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   </section>
 
   <section class="panel" id="p-jobs">
+    <div class="queue-filters" id="jobsQueueFilters" role="group" aria-label="Review queue filters"></div>
     <div class="toolbar">
       <input class="srch" id="jobsSearch" type="search" placeholder="Search ID, customer, phone, email…">
       <select class="fsel" id="jobsStatus"><option value="">All statuses</option></select>
@@ -172,6 +200,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
                 <button type="button" class="btn ghost sm" id="dClose">Collapse</button>
               </div>
               <div id="dBody"></div>
+              <div class="job-sticky-actions" id="dStickyActions" hidden>
+                <button type="button" class="btn sm" id="dStickyConfirm" hidden>Confirm Booking</button>
+                <button type="button" class="btn ghost sm" id="dStickyEdit">Edit</button>
+                <button type="button" class="btn ghost sm" id="dStickyDecline">Decline</button>
+              </div>
               <div class="job-detail-note">
                 <label>Admin note</label>
                 <textarea id="dNote" rows="3" placeholder="Internal note…" style="margin:6px 0 10px"></textarea>
@@ -749,6 +782,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     expandedJobId = null;
     activeJob = null;
     drawerAddonData = null;
+    const stickyBar = $('#dStickyActions');
+    if (stickyBar) stickyBar.hidden = true;
     parkActiveDetailRow();
     document.querySelectorAll('#jobsTable tbody tr.job-row.is-expanded').forEach(tr => {
       tr.classList.remove('is-expanded');
@@ -781,8 +816,51 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     await openDrawer(jobId);
   }
 
+  // Review queue buckets. Business logic is untouched — these only group the
+  // jobStatus values the server already returns.
+  const NEEDS_ACTION_STATUSES = ['issue_reported','completed_pending_admin_review','completed_pending_payment','reopened'];
+  const CONFIRMED_STATUSES = ['confirmed','assigned','accepted','en_route','arrived','in_progress'];
+  const QUEUE_BUCKETS = [
+    { id:'all', label:'All', match: () => true },
+    { id:'pending_review', label:'Pending Review', match: j => j.jobStatus === 'pending_review' },
+    { id:'needs_action', label:'Needs Action', match: j => NEEDS_ACTION_STATUSES.includes(j.jobStatus) },
+    { id:'confirmed', label:'Confirmed', match: j => CONFIRMED_STATUSES.includes(j.jobStatus) },
+  ];
+  let queueFilter = 'all';
+
+  /** High-priority marker: something is blocked on a human decision. */
+  function jobNeedsAttention(j) {
+    if (!j) return false;
+    if (j.jobStatus === 'issue_reported') return true;
+    if (j.jobStatus === 'completed_pending_admin_review') return true;
+    if (j.customerChangePending) return true;
+    if (j.cancellationRequestStatus === 'requested') return true;
+    if (j.jobStatus === 'completed_pending_payment' && Number(j.remainingCents || 0) > 0) return true;
+    return false;
+  }
+
+  function renderQueueFilters() {
+    const host = $('#jobsQueueFilters');
+    if (!host) return;
+    host.innerHTML = QUEUE_BUCKETS.map(b => {
+      const count = jobs.filter(b.match).length;
+      const on = queueFilter === b.id;
+      return '<button type="button" class="queue-chip" data-queue="'+esc(b.id)+'" aria-pressed="'+(on?'true':'false')+'">'+
+        esc(b.label)+'<span class="qc-count">'+count+'</span></button>';
+    }).join('');
+    host.querySelectorAll('[data-queue]').forEach(btn => {
+      btn.onclick = () => {
+        queueFilter = btn.dataset.queue;
+        renderQueueFilters();
+        renderJobs();
+      };
+    });
+  }
+
   function filterJobs(search, status) {
     let list = jobs;
+    const bucket = QUEUE_BUCKETS.find(b => b.id === queueFilter);
+    if (bucket) list = list.filter(bucket.match);
     if (status) list = list.filter(j => j.jobStatus === status);
     if (search) {
       const q = search.toLowerCase();
@@ -796,6 +874,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const status = $('#jobsStatus').value;
     const list = filterJobs(search, status);
     const tb = $('#jobsTable tbody');
+    renderQueueFilters();
     parkActiveDetailRow();
     if (!list.length) {
       tb.innerHTML = '<tr><td colspan="'+JOBS_COLSPAN+'" class="empty">No jobs found</td></tr>';
@@ -806,13 +885,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (expandedJobId && !stillVisible) collapseJobDetail();
     tb.innerHTML = list.map(j => {
       const expanded = expandedJobId === j.id;
+      const warn = jobNeedsAttention(j)
+        ? '<span class="job-warn" title="Needs attention" aria-label="Needs attention">&#9888;</span>'
+        : '';
       return '<tr class="job-row'+(expanded?' is-expanded':'')+'" data-id="'+esc(j.id)+'" tabindex="0" role="button" aria-expanded="'+(expanded?'true':'false')+'">'+
-        '<td><button type="button" class="job-chevron" data-id="'+esc(j.id)+'" aria-expanded="'+(expanded?'true':'false')+'" aria-controls="activeJobDetailPanel" title="Expand job details">'+(expanded?'▾':'▸')+'</button></td>'+
-        '<td>'+esc(cust(j))+'</td><td>'+esc(jobsVehicleSummary(j))+'</td>'+
-        '<td>'+esc(jobsDateTimeLabel(j))+'</td>'+
-        '<td>'+jobBadge(j.jobStatus)+'</td><td>'+payBadge(j.paymentWorkflowStatus)+'</td>'+
-        '<td>'+esc(jobsBalanceLabel(j))+'</td>'+
-        '<td>'+esc(j.assignedTechName||'—')+'</td>'+
+        '<td class="job-cell-expand"><button type="button" class="job-chevron" data-id="'+esc(j.id)+'" aria-expanded="'+(expanded?'true':'false')+'" aria-controls="activeJobDetailPanel" title="Expand job details">'+(expanded?'▾':'▸')+'</button></td>'+
+        '<td class="job-cell-customer">'+warn+esc(cust(j))+'</td><td data-label="Vehicle">'+esc(jobsVehicleSummary(j))+'</td>'+
+        '<td data-label="When">'+esc(jobsDateTimeLabel(j))+'</td>'+
+        '<td data-label="Status">'+jobBadge(j.jobStatus)+'</td><td data-label="Payment">'+payBadge(j.paymentWorkflowStatus)+'</td>'+
+        '<td data-label="Balance">'+esc(jobsBalanceLabel(j))+'</td>'+
+        '<td data-label="Tech">'+esc(j.assignedTechName||'—')+'</td>'+
         '<td class="job-assign-cell"><select class="assignSel" data-id="'+esc(j.id)+'">'+techOptions(j.assignedTechId||j.assignedTech)+'</select></td>'+
       '</tr>';
     }).join('');
@@ -1288,6 +1370,58 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     } catch(e) { toast('Assign failed: '+e.message); }
   }
 
+  // Confirmation is idempotent server-side (CAS on bookingVersion), but a
+  // double tap still costs a round trip and can look like two confirmations.
+  let confirmInFlight = null;
+
+  async function confirmBookingOnce(bookingId, buttons) {
+    if (!bookingId || confirmInFlight) return;
+    if (!confirm('Confirm this booking and send the customer a confirmation email?')) return;
+    confirmInFlight = bookingId;
+    const list = (buttons || []).filter(Boolean);
+    list.forEach(b => { b.disabled = true; });
+    try {
+      await jobAction(bookingId, 'confirm_booking');
+    } finally {
+      confirmInFlight = null;
+      list.forEach(b => { if (b.isConnected) b.disabled = false; });
+    }
+  }
+
+  /**
+   * Mirror the primary decisions into a bar that stays on screen. On a phone the
+   * detail panel is long, so Confirm/Decline/Edit would otherwise be a scroll away.
+   */
+  function bindStickyJobActions(j, refs) {
+    const bar = $('#dStickyActions');
+    if (!bar) return;
+    const confirmBtn = $('#dStickyConfirm');
+    const editBtn = $('#dStickyEdit');
+    const declineBtn = $('#dStickyDecline');
+    const pending = j.jobStatus === 'pending_review';
+    bar.hidden = false;
+    if (confirmBtn) {
+      confirmBtn.hidden = !pending;
+      confirmBtn.disabled = false;
+      confirmBtn.onclick = () => confirmBookingOnce(j.id, [confirmBtn, refs && refs.confirmBtn]);
+    }
+    if (editBtn) {
+      editBtn.onclick = () => {
+        const target = $('#dSaveCustomer') || $('#dSaveService') || $('#dBody');
+        if (!target) return;
+        try { target.scrollIntoView({ behavior:'smooth', block:'center' }); } catch (e) { target.scrollIntoView(); }
+        const first = $('#dFirst');
+        if (first) { try { first.focus({ preventScroll:true }); } catch (e) { first.focus(); } }
+      };
+    }
+    if (declineBtn) {
+      declineBtn.onclick = () => {
+        const r = prompt('Decline / cancel reason:');
+        if (r !== null) jobAction(j.id, 'cancel_booking', { reason: r });
+      };
+    }
+  }
+
   async function jobAction(bookingId, action, extra) {
     try {
       const data = await api('/.netlify/functions/admin-ops-jobs','POST',{action,bookingId,...extra});
@@ -1625,8 +1759,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const ap = $('#dApprove'); if(ap) ap.onclick = () => jobAction(j.id,'approve_completion');
     const ro = $('#dReopen'); if(ro) ro.onclick = () => { const r=prompt('Reopen reason:'); if(r!==null) jobAction(j.id,'reopen_job',{reason:r}); };
     const co = $('#dCorrect'); if(co) co.onclick = () => { const m=prompt('Correction message:'); if(m) jobAction(j.id,'request_correction',{message:m}); };
-    const dc = $('#dConfirm'); if(dc) dc.onclick = () => jobAction(j.id,'confirm_booking');
-    const dca = $('#dCancel'); if(dca) dca.onclick = () => { const r=prompt('Cancel reason:'); if(r!==null) jobAction(j.id,'cancel_booking',{reason:r}); };
+    const dc = $('#dConfirm');
+    const dca = $('#dCancel');
+    const stickyConfirm = $('#dStickyConfirm');
+    if (dc) dc.onclick = () => confirmBookingOnce(j.id, [dc, stickyConfirm]);
+    if (dca) dca.onclick = () => { const r=prompt('Cancel reason:'); if(r!==null) jobAction(j.id,'cancel_booking',{reason:r}); };
+    bindStickyJobActions(j, { confirmBtn: dc, cancelBtn: dca });
     const da2 = $('#dArchive'); if(da2) da2.onclick = () => { if(confirm('Archive this booking as test?')) jobAction(j.id,'archive_test'); };
     const dr = $('#dResched'); if(dr) dr.onclick = () => jobAction(j.id,'reschedule',{confirmedDate:$('#dDate').value,confirmedTime:$('#dTime').value,confirmedTimeWindow:$('#dTime').value});
     const dsa = $('#dSaveAddr'); if(dsa) dsa.onclick = () => jobAction(j.id,'update_address',{address:$('#dAddr').value,zipCode:$('#dZip').value});
@@ -2057,7 +2195,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let searchT;
   $('#jobsSearch').oninput = () => { clearTimeout(searchT); searchT=setTimeout(renderJobs,250); };
   $('#jobsStatus').onchange = renderJobs;
-  $('#jobsClear').onclick = () => { $('#jobsSearch').value=''; $('#jobsStatus').value=''; renderJobs(); };
+  $('#jobsClear').onclick = () => { $('#jobsSearch').value=''; $('#jobsStatus').value=''; queueFilter='all'; renderJobs(); };
   $('#jobsShowTest').onchange = async e => { showTest = e.target.checked; await refreshAll(); };
   $('#evSearch').oninput = renderEvents;
   $('#btnPreviewTests').onclick = async () => {

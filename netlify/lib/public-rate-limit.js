@@ -38,6 +38,8 @@ const DEFAULT_LIMITS = {
   'customer-bookings': { max: 20, windowMs: DEFAULT_WINDOW_MS },
   'customer-portal-profile:read': { max: 60, windowMs: DEFAULT_WINDOW_MS },
   'customer-portal-profile:mutate': { max: 30, windowMs: DEFAULT_WINDOW_MS },
+  'customer-appointment-access': { max: 30, windowMs: DEFAULT_WINDOW_MS },
+  'customer-appointment-access:resend': { max: 5, windowMs: DEFAULT_WINDOW_MS },
 };
 
 const ENV_SCOPE_BY_BUCKET = {
@@ -58,6 +60,8 @@ const ENV_SCOPE_BY_BUCKET = {
   'customer-bookings': 'CUSTOMER_BOOKINGS',
   'customer-portal-profile:read': 'CUSTOMER_PORTAL_PROFILE_READ',
   'customer-portal-profile:mutate': 'CUSTOMER_PORTAL_PROFILE_MUTATE',
+  'customer-appointment-access': 'CUSTOMER_APPOINTMENT_ACCESS',
+  'customer-appointment-access:resend': 'CUSTOMER_APPOINTMENT_ACCESS_RESEND',
 };
 
 let storeFactoryOverride = null;
@@ -301,21 +305,33 @@ function failOpenDecision(reason, err) {
 /**
  * @returns {Promise<{ allowed: boolean, remaining?: number, retryAfterSec?: number, failOpen?: boolean, reason?: string }>}
  */
-async function checkPublicRateLimit(event, { endpoint, action = '', now = Date.now(), subject = '' } = {}) {
+async function checkPublicRateLimit(event, {
+  endpoint,
+  action = '',
+  now = Date.now(),
+  subject = '',
+  ipScoped = true,
+} = {}) {
   if (isOptionsRequest(event)) {
     return { allowed: true, bypassed: true };
   }
 
   const normalizedIp = normalizeClientIp(event);
-  if (!normalizedIp) {
+  if (ipScoped && !normalizedIp) {
     return failOpenDecision(
       'missing_client_ip',
       new Error('No trusted client IP in platform headers')
     );
   }
+  // A subject-scoped bucket without a subject would throttle every caller
+  // together, so it is skipped rather than collapsed into a global counter.
+  if (!ipScoped && !String(subject || '').trim()) {
+    return { allowed: true, bypassed: true, reason: 'missing_subject' };
+  }
 
   const { max, windowMs, bucket } = getLimitConfig(endpoint, action);
-  const key = deriveRateLimitKey(normalizedIp, endpoint, action, process.env, subject);
+  const scopeIdentity = ipScoped ? normalizedIp : 'subject-scope';
+  const key = deriveRateLimitKey(scopeIdentity, endpoint, action, process.env, subject);
 
   try {
     const store = await resolveStore();
@@ -331,12 +347,13 @@ async function enforcePublicRateLimit(event, {
   cors = false,
   now = Date.now(),
   subject = '',
+  ipScoped = true,
 } = {}) {
   if (isOptionsRequest(event)) {
     return { blocked: false, allowed: true, bypassed: true };
   }
 
-  const decision = await checkPublicRateLimit(event, { endpoint, action, now, subject });
+  const decision = await checkPublicRateLimit(event, { endpoint, action, now, subject, ipScoped });
   if (decision.allowed) {
     return { blocked: false, ...decision };
   }

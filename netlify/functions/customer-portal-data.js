@@ -1,12 +1,13 @@
-// Authenticated customer portal data — bookings, vehicles, payments (safe fields only).
+// Authenticated customer portal data — bookings, profile, payments (safe fields only).
+// Saved-vehicle garage hydration is intentionally omitted from the current release.
 
+const crypto = require('crypto');
 const { jsonCors } = require('../lib/tech-security');
 const { listRawBookings } = require('../lib/ops-db');
 const { projectBookingForCustomer } = require('../lib/ops-schema');
 const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
 const { validateCustomerSession } = require('../lib/customer-session');
 const { phonesMatch, normalizeUsPhoneDigits } = require('../lib/phone-auth');
-const { listVehiclesForOwner } = require('../lib/customer-vehicles');
 const { listVisibleRequestsForBooking } = require('../lib/customer-change-requests');
 const { canPayBalance } = require('../lib/appointment-status-policy');
 const { catalogForClient } = require('../lib/customer-catalog');
@@ -96,21 +97,114 @@ function isVisibleCustomerBooking(b) {
   return isVisibleSubmittedBooking(b, { includeArchivedTest: false });
 }
 
+/** Durable account link written to the booking aggregate at token exchange. */
+function blobAccountIdOf(b) {
+  const id = String((b && b.customerAccountId) || '').trim();
+  return id || null;
+}
+
+function emailHashOf(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized) return null;
+  return crypto.createHash('sha256').update(normalized).digest('base64url');
+}
+
+/**
+ * Legacy discovery only: normalized verified contact match used to surface
+ * bookings that predate account linkage. Never the primary authorization model.
+ */
+function contactMatchesSession(booking, session) {
+  const bookingPhone = normalizeUsPhoneDigits(booking.phone || booking.customerPhone || '');
+  if (session.phoneDigits && bookingPhone && phonesMatch(session.phoneDigits, bookingPhone)) {
+    return true;
+  }
+  const bookingEmailHash = emailHashOf(booking.email);
+  return !!(session.emailHash && bookingEmailHash && session.emailHash === bookingEmailHash);
+}
+
 function upcomingSortKey(b) {
   const date = String(b.preferredDate || b.confirmedDate || '');
   const updated = String(b.updatedAt || b.createdAt || '');
   return `${date}|${updated}|${b.id || ''}`;
 }
 
-function selectUpcoming(projected) {
-  // Paid invoice is NOT terminal for the appointment hub — customer must still see the job.
-  const terminalStatus = new Set(['Cancelled', 'Canceled', 'Completed']);
-  const terminalJob = new Set(['cancelled', 'completed_paid', 'archived_test']);
-  const active = projected
-    .filter((b) => !terminalStatus.has(String(b.status || '')))
-    .filter((b) => !terminalJob.has(String(b.jobStatus || '').toLowerCase()))
-    .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
-  return active[0] || projected[0] || null;
+// Paid invoice is NOT terminal for the appointment hub — customer must still see the job.
+const TERMINAL_STATUSES = new Set(['Cancelled', 'Canceled', 'Completed']);
+const TERMINAL_JOB_STATUSES = new Set(['cancelled', 'completed_paid', 'archived_test']);
+const ACTIONABLE_JOB_STATUSES = new Set([
+  'in_progress',
+  'en_route',
+  'on_site',
+  'awaiting_customer_action',
+  'completed_pending_payment',
+  'completed_pending_admin_review',
+]);
+
+function appointmentDate(b) {
+  return String(b.confirmedDate || b.preferredDate || '');
+}
+
+function isActionableAppointment(b) {
+  if (ACTIONABLE_JOB_STATUSES.has(String(b.jobStatus || '').toLowerCase())) return true;
+  if (String(b.serviceStatus || '').toLowerCase() === 'awaiting_customer_action') return true;
+  return b.customerApprovalStatus === 'pending';
+}
+
+/**
+ * A job awaiting customer payment or approval projects as "Completed" but is
+ * still live work, so actionable state is evaluated first.
+ */
+function isTerminalAppointment(b) {
+  if (isActionableAppointment(b)) return false;
+  return TERMINAL_STATUSES.has(String(b.status || ''))
+    || TERMINAL_JOB_STATUSES.has(String(b.jobStatus || '').toLowerCase());
+}
+
+function todayIsoDate(now) {
+  return new Date(now).toISOString().slice(0, 10);
+}
+
+/** Newest first when dates tie, so a freshly created booking is never buried. */
+function byDateAscending(a, b) {
+  const cmp = appointmentDate(a).localeCompare(appointmentDate(b));
+  if (cmp !== 0) return cmp;
+  return upcomingSortKey(b).localeCompare(upcomingSortKey(a));
+}
+
+function byDateDescending(a, b) {
+  const cmp = appointmentDate(b).localeCompare(appointmentDate(a));
+  if (cmp !== 0) return cmp;
+  return upcomingSortKey(b).localeCompare(upcomingSortKey(a));
+}
+
+/**
+ * Deterministic current-appointment selection.
+ *
+ * 1. actionable/current appointment
+ * 2. nearest upcoming pending-review or confirmed appointment
+ * 3. most recent non-terminal appointment already in the past
+ * 4. most recently completed/cancelled appointment
+ *
+ * Selection never removes an appointment from the returned collection.
+ */
+function selectUpcoming(projected, { now = Date.now() } = {}) {
+  if (!Array.isArray(projected) || !projected.length) return null;
+  const today = todayIsoDate(now);
+
+  const actionable = projected.filter(isActionableAppointment).sort(byDateAscending);
+  if (actionable.length) return actionable[0];
+
+  const active = projected.filter((b) => !isTerminalAppointment(b));
+
+  const future = active
+    .filter((b) => !appointmentDate(b) || appointmentDate(b) >= today)
+    .sort(byDateAscending);
+  if (future.length) return future[0];
+
+  const past = active.sort(byDateDescending);
+  if (past.length) return past[0];
+
+  return [...projected].sort(byDateDescending)[0] || null;
 }
 
 /** Test / inspect seam — production traffic uses exports.handler only. */
@@ -181,7 +275,6 @@ exports.handler = async (event) => {
   void body.browserCustomerAccountId;
 
   const all = await listRawBookings();
-  const phoneDigits = session.phoneDigits;
   const sessionBookingIds = new Set(
     (session.bookingIds || []).map((id) => normalizeBookingId(id)).filter(Boolean)
   );
@@ -200,27 +293,30 @@ exports.handler = async (event) => {
     }
   }
 
-  // Candidate ids from Blob phone/session before ownership filter.
-  const phoneMatchedIds = [];
+  // Candidate ids from Blob account link / session / phone before ownership filter.
+  const contactMatchedIds = [];
   for (const b of all) {
     if (!isVisibleCustomerBooking(b)) continue;
     const bid = normalizeBookingId(b.id || b.bookingId);
     if (!bid) continue;
-    if (sessionBookingIds.has(bid) || linkedAccountBookingIds.has(bid)) {
-      phoneMatchedIds.push(bid);
+    if (
+      sessionBookingIds.has(bid)
+      || linkedAccountBookingIds.has(bid)
+      || blobAccountIdOf(b)
+    ) {
+      contactMatchedIds.push(bid);
       continue;
     }
-    const bPhone = normalizeUsPhoneDigits(b.phone || b.customerPhone || '');
-    if (phoneDigits && bPhone && phonesMatch(phoneDigits, bPhone)) phoneMatchedIds.push(bid);
+    if (contactMatchesSession(b, session)) contactMatchedIds.push(bid);
   }
 
   let bookingOwnerById = new Map();
   try {
     const prisma = tryGetPrisma();
-    if (prisma && phoneMatchedIds.length) {
+    if (prisma && contactMatchedIds.length) {
       const rows = await prisma.booking.findMany({
         where: {
-          id: { in: [...new Set(phoneMatchedIds)] },
+          id: { in: [...new Set(contactMatchedIds)] },
           customerAccountId: { not: null },
         },
         select: { id: true, customerAccountId: true },
@@ -233,39 +329,67 @@ exports.handler = async (event) => {
     bookingOwnerById = new Map();
   }
 
+  // Ownership model: the durable customerAccountId link is authoritative.
+  // Verified contact matching only discovers older bookings that were never
+  // linked to any account.
   const bookings = all.filter((b) => {
     if (!isVisibleCustomerBooking(b)) return false;
     const bid = normalizeBookingId(b.id || b.bookingId);
     if (!bid) return false;
 
-    const ownerAccountId = bookingOwnerById.get(bid) || null;
-    // No account may access another account's booking.
-    if (ownerAccountId && session.customerAccountId && ownerAccountId !== session.customerAccountId) {
-      return false;
+    const ownerAccountId = bookingOwnerById.get(bid) || blobAccountIdOf(b);
+    if (ownerAccountId) {
+      if (session.customerAccountId) return ownerAccountId === session.customerAccountId;
+      // Sessions without an account id may only see their own snapshot ids.
+      return sessionBookingIds.has(bid);
     }
 
     if (linkedAccountBookingIds.has(bid)) return true;
-    if (sessionBookingIds.has(bid)) {
-      // Session snapshot may still show legacy bookings; block if owned by another account.
-      if (ownerAccountId && session.customerAccountId && ownerAccountId !== session.customerAccountId) {
-        return false;
-      }
-      return true;
-    }
-
-    const bPhone = normalizeUsPhoneDigits(b.phone || b.customerPhone || '');
-    if (!(phoneDigits && bPhone && phonesMatch(phoneDigits, bPhone))) return false;
-    if (ownerAccountId && session.customerAccountId && ownerAccountId !== session.customerAccountId) {
-      return false;
-    }
-    return true;
+    if (sessionBookingIds.has(bid)) return true;
+    return contactMatchesSession(b, session);
   });
 
   const projected = bookings
     .map((b) => projectBookingForCustomer(b))
     .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
-  const vehicles = phoneDigits ? await listVehiclesForOwner(phoneDigits) : [];
-  const upcoming = selectUpcoming(projected);
+
+  // Opaque appointment focus — resolve server-side under authenticated ownership only.
+  // Never accept raw booking IDs / phones / emails as the focus parameter.
+  let focused = null;
+  let focusError = null;
+  const focusRef = String(body.appointment || body.appointmentFocus || '').trim();
+  if (focusRef) {
+    const { FOCUS_PREFIX, resolveFocusRef } = require('../lib/appointment-access-token');
+    if (!focusRef.startsWith(FOCUS_PREFIX)) {
+      focusError = 'invalid_focus';
+    } else {
+      let targetBookingId = null;
+      const resolved = await resolveFocusRef(focusRef);
+      if (resolved && resolved.bookingId) {
+        targetBookingId = normalizeBookingId(resolved.bookingId);
+        if (
+          resolved.customerAccountId
+          && session.customerAccountId
+          && resolved.customerAccountId !== session.customerAccountId
+        ) {
+          targetBookingId = null;
+          focusError = 'invalid_focus';
+        }
+      }
+      if (!targetBookingId) {
+        const byRef = bookings.find((b) => String(b.appointmentPublicRef || '') === focusRef);
+        if (byRef) targetBookingId = normalizeBookingId(byRef.id || byRef.bookingId);
+      }
+      if (targetBookingId) {
+        focused = projected.find((b) => normalizeBookingId(b.id) === targetBookingId) || null;
+        if (!focused) focusError = 'invalid_focus';
+      } else if (!focusError) {
+        focusError = 'invalid_focus';
+      }
+    }
+  }
+
+  const upcoming = focused || selectUpcoming(projected);
   const payment = upcoming
     ? await safePaymentStateAsync(bookings.find((b) => (b.id || b.bookingId) === upcoming.id) || {})
     : { state: 'not_due', amountDueApproved: 0, canPay: false, payLink: '', authority: 'none' };
@@ -303,7 +427,13 @@ exports.handler = async (event) => {
     customer,
     bookings: projected,
     upcoming,
-    vehicles,
+    focusedAppointment: focused
+      ? {
+        appointmentPublicRef: focused.appointmentPublicRef || focusRef,
+        customerStatus: focused.customerStatus || focused.status || null,
+      }
+      : null,
+    focusError,
     payment,
     catalog,
     packageCatalog,
@@ -311,7 +441,6 @@ exports.handler = async (event) => {
     changeRequests,
     sections: {
       appointments: projected.length > 0,
-      vehicles: vehicles.length > 0,
       history: projected.some((b) => ['Paid', 'Completed'].includes(b.status)),
       maintenancePlans: projected.some((b) => b.maintenanceRequested || b.maintenancePeriod),
       payments: !!(payment.canPay || payment.payLink || projected.some((b) => Number(b.amountDueApproved || 0) > 0)),

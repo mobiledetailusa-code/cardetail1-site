@@ -1,5 +1,5 @@
 /**
- * Shared My Garage / customer portal frontend logic.
+ * Shared My Detailing Portal / customer portal frontend logic.
  * Server-side authorization is required for all protected reads/writes.
  */
 (function (global) {
@@ -10,7 +10,6 @@
     scope: null,
     booking: null,
     bookings: [],
-    vehicles: [],
     session: false,
     verifyPhone: '',
     verifyBookingId: '',
@@ -21,6 +20,8 @@
     payment: null,
     customer: null,
     accountVersion: null,
+    appointmentFocusRef: null,
+    focusedAppointment: null,
   };
 
   var modalAction = null;
@@ -37,7 +38,277 @@
   var addressEditingId = null;
   var profileAddressBusy = false;
 
+  /**
+   * Portal boot / magic-link hydration — single state machine (avoid boolean soup).
+   * idle → validating_link → establishing_session → loading_portal → ready
+   *                                      ↘ temporarily_unavailable | failed
+   */
+  var PORTAL_PHASE = {
+    IDLE: 'idle',
+    VALIDATING_LINK: 'validating_link',
+    ESTABLISHING_SESSION: 'establishing_session',
+    LOADING_PORTAL: 'loading_portal',
+    READY: 'ready',
+    TEMPORARILY_UNAVAILABLE: 'temporarily_unavailable',
+    FAILED: 'failed',
+  };
+  var PORTAL_SLOW_MS = 4000;
+  /** Cold Netlify + portal-data often exceeds 10s; keep UI honest without killing success. */
+  var PORTAL_TIMEOUT_MS = 30000;
+  var portalHydration = {
+    phase: PORTAL_PHASE.IDLE,
+    generation: 0,
+    inFlight: false,
+    slowTimer: null,
+    timeoutTimer: null,
+    lastError: null,
+    /** True only after verify succeeded (token consumed server-side). */
+    magicLinkConsumed: false,
+    /** In-memory magic-link credentials until verify settles — never written to DOM/storage. */
+    pendingMagic: null,
+  };
+
   function $(id) { return document.getElementById(id); }
+
+  function isBlockingPortalPhase(phase) {
+    return phase === PORTAL_PHASE.VALIDATING_LINK
+      || phase === PORTAL_PHASE.ESTABLISHING_SESSION
+      || phase === PORTAL_PHASE.LOADING_PORTAL;
+  }
+
+  function isErrorPortalPhase(phase) {
+    return phase === PORTAL_PHASE.FAILED
+      || phase === PORTAL_PHASE.TEMPORARILY_UNAVAILABLE;
+  }
+
+  function clearPortalHydrationTimers() {
+    if (portalHydration.slowTimer) {
+      clearTimeout(portalHydration.slowTimer);
+      portalHydration.slowTimer = null;
+    }
+    if (portalHydration.timeoutTimer) {
+      clearTimeout(portalHydration.timeoutTimer);
+      portalHydration.timeoutTimer = null;
+    }
+  }
+
+  function setPortalLoadingMessage(text) {
+    var el = $('portal-loading-status');
+    if (el) el.textContent = text || '';
+  }
+
+  function defaultMessageForPhase(phase) {
+    if (phase === PORTAL_PHASE.VALIDATING_LINK || phase === PORTAL_PHASE.ESTABLISHING_SESSION) {
+      return 'Signing you in...';
+    }
+    if (phase === PORTAL_PHASE.LOADING_PORTAL) {
+      return 'Loading your garage...';
+    }
+    if (phase === PORTAL_PHASE.TEMPORARILY_UNAVAILABLE) {
+      return 'Your account is temporarily unavailable. Please try again.';
+    }
+    if (phase === PORTAL_PHASE.FAILED) {
+      return "We're having trouble loading your account.";
+    }
+    return '';
+  }
+
+  function renderPortalPhase(phase, opts) {
+    opts = opts || {};
+    var shell = $('portal-shell');
+    var loading = $('portal-loading');
+    var pre = $('pre-auth');
+    var post = $('post-auth');
+    var blocking = isBlockingPortalPhase(phase);
+    var errored = isErrorPortalPhase(phase);
+    var showLoading = blocking || errored;
+
+    if (shell) {
+      shell.setAttribute('data-portal-phase', phase);
+      if (blocking) shell.setAttribute('aria-busy', 'true');
+      else shell.removeAttribute('aria-busy');
+    }
+    if (loading) {
+      loading.classList.toggle('is-visible', showLoading);
+      loading.classList.toggle('is-error', errored);
+      loading.hidden = !showLoading;
+      loading.setAttribute('aria-busy', blocking ? 'true' : 'false');
+    }
+    if (post) {
+      post.setAttribute('aria-busy', blocking ? 'true' : 'false');
+    }
+
+    if (showLoading) {
+      show(pre, false);
+      show(post, false);
+    } else if (phase === PORTAL_PHASE.READY) {
+      show(pre, false);
+      show(post, true);
+    } else {
+      show(pre, true);
+      show(post, false);
+    }
+
+    if (opts.message != null) setPortalLoadingMessage(opts.message);
+    else if (showLoading) setPortalLoadingMessage(defaultMessageForPhase(phase));
+
+    if (blocking) {
+      try { document.documentElement.classList.add('cd1-portal-booting'); } catch (e) { /* ignore */ }
+    } else {
+      try { document.documentElement.classList.remove('cd1-portal-booting'); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function startPortalHydrationTimers(generation) {
+    clearPortalHydrationTimers();
+    portalHydration.slowTimer = setTimeout(function () {
+      if (generation !== portalHydration.generation) return;
+      if (!isBlockingPortalPhase(portalHydration.phase)) return;
+      setPortalLoadingMessage('Still loading your account...');
+    }, PORTAL_SLOW_MS);
+    portalHydration.timeoutTimer = setTimeout(function () {
+      if (generation !== portalHydration.generation) return;
+      if (!isBlockingPortalPhase(portalHydration.phase)) return;
+      // Soft timeout: show recovery UI but do NOT bump generation.
+      // A late successful verify/loadAccount must still reach ready if the user
+      // has not started a newer retry / return-to-sign-in (those bump generation).
+      portalHydration.lastError = 'timeout';
+      setPortalPhase(PORTAL_PHASE.FAILED);
+    }, PORTAL_TIMEOUT_MS);
+  }
+
+  function focusPortalRecoveryAction() {
+    try {
+      var btn = $('portal-retry');
+      if (btn && typeof btn.focus === 'function') btn.focus();
+    } catch (e) { /* ignore */ }
+  }
+
+  function setPortalPhase(phase, opts) {
+    opts = opts || {};
+    portalHydration.phase = phase;
+    if (isBlockingPortalPhase(phase)) {
+      if (opts.restartTimers !== false) {
+        startPortalHydrationTimers(portalHydration.generation);
+      }
+    } else {
+      clearPortalHydrationTimers();
+      // Soft-timeout keeps inFlight so a late success can still settle to ready
+      // without a parallel retry racing the same magic-link/session request.
+      if (!opts.keepInFlight) portalHydration.inFlight = false;
+    }
+    renderPortalPhase(phase, opts);
+    if (isErrorPortalPhase(phase) && !opts.keepInFlight) focusPortalRecoveryAction();
+    return phase;
+  }
+
+  function stripMagicLinkParamsFromUrl() {
+    try {
+      var params = new URLSearchParams(global.location.search);
+      if (!params.has('auth') && !params.has('t')) return;
+      params.delete('auth');
+      params.delete('t');
+      var cleaned = params.toString();
+      var next = 'my-garage.html' + (cleaned ? ('?' + cleaned) : '') + (global.location.hash || '');
+      history.replaceState({}, '', next);
+    } catch (e) { /* ignore */ }
+  }
+
+  function stripAppointmentFocusFromUrl() {
+    try {
+      var params = new URLSearchParams(global.location.search);
+      if (!params.has('appointment')) return;
+      params.delete('appointment');
+      // Never leave access tokens in the address bar.
+      params.delete('token');
+      var cleaned = params.toString();
+      var next = 'my-garage.html' + (cleaned ? ('?' + cleaned) : '') + (global.location.hash || '');
+      history.replaceState({}, '', next);
+    } catch (e) { /* ignore */ }
+  }
+
+  function appointmentStatusLabel(b) {
+    if (!b) return 'Status';
+    return b.customerStatus || b.status || 'Status';
+  }
+
+  var ACTIONABLE_JOB_STATUSES = [
+    'in_progress', 'en_route', 'on_site', 'awaiting_customer_action',
+    'completed_pending_payment', 'completed_pending_admin_review',
+  ];
+
+  function appointmentNeedsAttention(b) {
+    if (!b) return false;
+    if (ACTIONABLE_JOB_STATUSES.indexOf(String(b.jobStatus || '').toLowerCase()) >= 0) return true;
+    if (String(b.serviceStatus || '').toLowerCase() === 'awaiting_customer_action') return true;
+    return b.customerApprovalStatus === 'pending';
+  }
+
+  /** Past services are finished and need nothing from the customer. */
+  function appointmentIsPast(b) {
+    if (!b) return false;
+    if (appointmentNeedsAttention(b)) return false;
+    var status = String(b.status || '');
+    var job = String(b.jobStatus || '').toLowerCase();
+    return status === 'Paid' || status === 'Completed' || status === 'Cancelled' || status === 'Canceled'
+      || job === 'completed_paid' || job === 'completed' || job === 'cancelled';
+  }
+
+  /**
+   * One primary action per appointment state — everything else stays secondary
+   * so the customer never has to choose between equally loud buttons.
+   */
+  function primaryActionLabel(b, pay) {
+    if (!b) return 'View Details';
+    if (appointmentNeedsAttention(b) && !(pay && (pay.canPay || pay.canCreatePayLink))) {
+      return 'Review Required Action';
+    }
+    if (pay && (pay.canPay || pay.canCreatePayLink)) return 'Pay Balance';
+    var status = String(b.customerStatus || b.status || '');
+    if (/pending/i.test(status)) return 'View Request';
+    if (/confirm|reschedul/i.test(status)) return 'View Appointment';
+    if (/paid/i.test(status)) return 'View Details';
+    if (/complete/i.test(status)) return 'View Receipt';
+    return 'View Details';
+  }
+
+  function applyAppointmentFocus(data) {
+    if (!data) return;
+    state.focusedAppointment = data.focusedAppointment || null;
+    if (data.upcoming) state.booking = data.upcoming;
+    if (state.focusedAppointment || data.focusError === 'invalid_focus') {
+      // Consume opaque focus param after server resolution (success or safe miss).
+      stripAppointmentFocusFromUrl();
+      state.appointmentFocusRef = null;
+    }
+    if (data.focusError === 'invalid_focus') {
+      showToast('That appointment link could not be opened.', true);
+    }
+  }
+
+  function highlightFocusedAppointment() {
+    var hero = $('upcoming-panel');
+    if (!hero) return;
+    var card = hero.querySelector('.card');
+    if (!card) return;
+    if (state.focusedAppointment) {
+      card.classList.add('appointment-focus');
+      try {
+        card.setAttribute('tabindex', '-1');
+        card.focus({ preventScroll: true });
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) { /* ignore */ }
+    } else {
+      card.classList.remove('appointment-focus');
+    }
+  }
+
+  function isTemporarilyUnavailableResponse(r) {
+    if (!r) return false;
+    if (r.status === 503) return true;
+    var err = r.data && r.data.error;
+    return err === 'temporarily_unavailable' || err === 'service_unavailable';
+  }
 
   function settledCentsFromPayment(pay) {
     var p = pay || state.payment || {};
@@ -493,7 +764,6 @@
     state.scope = null;
     state.booking = null;
     state.bookings = [];
-    state.vehicles = [];
     state.session = false;
     state.customer = null;
     state.accountVersion = null;
@@ -507,14 +777,17 @@
       state.verifyBookingId = '';
     }
     clearProfileAddressDom();
-    show($('pre-auth'), true);
-    show($('post-auth'), false);
+    // Hydration shell owns visibility during boot/error phases.
+    if (!isBlockingPortalPhase(portalHydration.phase) && !isErrorPortalPhase(portalHydration.phase)) {
+      show($('pre-auth'), true);
+      show($('post-auth'), false);
+    } else {
+      show($('post-auth'), false);
+    }
     var upcoming = $('upcoming-panel');
     if (upcoming) upcoming.innerHTML = '';
     var appts = $('appointments-list');
     if (appts) appts.innerHTML = '';
-    var veh = $('vehicles-list');
-    if (veh) veh.innerHTML = '';
     var hist = $('history-list');
     if (hist) hist.innerHTML = '';
     var payPanel = $('payments-panel');
@@ -623,7 +896,7 @@
       }
       if (!errMsg) {
         if (errCode === 'authentication_failed') errMsg = 'Phone does not match this booking.';
-        else if (errCode === 'booking_not_ready') errMsg = 'Booking is not ready in My Garage yet.';
+        else if (errCode === 'booking_not_ready') errMsg = 'Booking is not ready in your portal yet.';
         else errMsg = 'No booking found. Check your ID and phone.';
       }
       // Soft reload (poll / post-submit): never kick the customer out of the appointment hub.
@@ -664,23 +937,144 @@
     return true;
   }
 
-  async function loadAccount() {
-    var r = await post('customer-portal-data', { mode: 'account' });
+  async function loadAccount(opts) {
+    opts = opts || {};
+    var generation = opts.generation != null ? opts.generation : portalHydration.generation;
+    portalHydration.lastError = null;
+    var payload = { mode: 'account' };
+    var focusRef = opts.appointmentFocusRef || state.appointmentFocusRef;
+    if (focusRef) payload.appointment = focusRef;
+    var r = await post('customer-portal-data', payload);
+    if (generation !== portalHydration.generation) return false;
     if (r.status === 401) {
       clearAuthenticatedCustomerState({ reason: 'http_401' });
+      portalHydration.lastError = 'authentication_failed';
       return false;
     }
-    if (!r.data || !r.data.ok) return false;
+    if (isTemporarilyUnavailableResponse(r)) {
+      portalHydration.lastError = 'temporarily_unavailable';
+      return false;
+    }
+    if (!r.data || !r.data.ok) {
+      portalHydration.lastError = (r.data && r.data.error) || 'load_failed';
+      return false;
+    }
     state.scope = 'account';
     state.session = true;
     state.bookings = r.data.bookings || [];
     state.booking = r.data.upcoming || state.bookings[0] || null;
-    state.vehicles = r.data.vehicles || [];
+    applyAppointmentFocus(r.data);
     applyPortalPayload(r.data);
     renderDashboard(r.data);
-    show($('pre-auth'), false);
-    show($('post-auth'), true);
+    highlightFocusedAppointment();
+    if (opts.managePhase !== false && portalHydration.phase !== PORTAL_PHASE.READY
+      && !isBlockingPortalPhase(portalHydration.phase)
+      && !isErrorPortalPhase(portalHydration.phase)) {
+      // Non-boot reloads (profile/address mutations) keep the dashboard visible.
+      show($('pre-auth'), false);
+      show($('post-auth'), true);
+    }
     return true;
+  }
+
+  /**
+   * Session + account hydration for boot/retry. Never replays magic-link tokens.
+   */
+  async function hydrateAuthenticatedPortal(opts) {
+    opts = opts || {};
+    if (portalHydration.inFlight && opts.force !== true) return false;
+    portalHydration.generation += 1;
+    var generation = portalHydration.generation;
+    portalHydration.inFlight = true;
+    portalHydration.lastError = null;
+
+    var initialPhase = opts.phase || PORTAL_PHASE.LOADING_PORTAL;
+    var initialMessage = opts.message || defaultMessageForPhase(initialPhase);
+    setPortalPhase(initialPhase, { message: initialMessage });
+
+    try {
+      var authed = await checkSession();
+      if (generation !== portalHydration.generation) return false;
+      if (!authed) {
+        if (opts.allowIdle !== false) {
+          setPortalPhase(PORTAL_PHASE.IDLE);
+        } else {
+          clearPortalHydrationTimers();
+          portalHydration.inFlight = false;
+        }
+        return false;
+      }
+
+      // Keep the same wall-clock timeout across session → garage load.
+      setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, {
+        message: 'Loading your garage...',
+        restartTimers: false,
+      });
+
+      var ok = await loadAccount({
+        generation: generation,
+        managePhase: false,
+        appointmentFocusRef: state.appointmentFocusRef || null,
+      });
+      if (generation !== portalHydration.generation) return false;
+      if (ok) {
+        setPortalPhase(PORTAL_PHASE.READY);
+        return true;
+      }
+      if (portalHydration.lastError === 'temporarily_unavailable') {
+        setPortalPhase(PORTAL_PHASE.TEMPORARILY_UNAVAILABLE);
+      } else if (portalHydration.lastError === 'authentication_failed') {
+        setPortalPhase(PORTAL_PHASE.IDLE);
+      } else {
+        setPortalPhase(PORTAL_PHASE.FAILED);
+      }
+      return false;
+    } catch (e) {
+      if (generation !== portalHydration.generation) return false;
+      portalHydration.lastError = 'load_failed';
+      setPortalPhase(PORTAL_PHASE.FAILED);
+      return false;
+    } finally {
+      if (generation === portalHydration.generation) {
+        portalHydration.inFlight = false;
+      }
+    }
+  }
+
+  async function retryPortalHydration() {
+    if (portalHydration.inFlight) return false;
+    // Snapshot pending magic before hydrate bumps generation / clears timers.
+    var pending = portalHydration.pendingMagic;
+
+    var ok = await hydrateAuthenticatedPortal({
+      force: true,
+      phase: PORTAL_PHASE.LOADING_PORTAL,
+      message: 'Loading your garage...',
+      allowIdle: false,
+    });
+    if (ok) return true;
+    if (isErrorPortalPhase(portalHydration.phase)) return false;
+
+    // If verify never established a session (timeout/network before consume),
+    // retry the in-memory magic link once — never from the URL.
+    if (pending && pending.challengeId && pending.token && !portalHydration.magicLinkConsumed) {
+      return verifyMagicLink(pending.challengeId, pending.token);
+    }
+
+    if (portalHydration.phase !== PORTAL_PHASE.READY) {
+      setPortalPhase(PORTAL_PHASE.IDLE);
+    }
+    return false;
+  }
+
+  function returnToPortalSignIn() {
+    portalHydration.generation += 1;
+    portalHydration.inFlight = false;
+    portalHydration.lastError = null;
+    portalHydration.pendingMagic = null;
+    clearPortalHydrationTimers();
+    stripMagicLinkParamsFromUrl();
+    setPortalPhase(PORTAL_PHASE.IDLE);
   }
 
   async function startAccountAuth() {
@@ -700,14 +1094,82 @@
   }
 
   async function verifyMagicLink(challengeId, token) {
-    var r = await post('customer-portal-auth', { action: 'verify', challengeId: challengeId, token: token });
-    if (r.data && r.data.ok) {
-      if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.authSucceeded();
-      history.replaceState({}, '', 'my-garage.html');
-      await loadAccount();
-    } else {
-      setMsg($('acct-error'), (r.data && r.data.message) || 'This link is invalid or expired.', true);
+    portalHydration.generation += 1;
+    var generation = portalHydration.generation;
+    portalHydration.inFlight = true;
+    portalHydration.lastError = null;
+    // Keep credentials in memory until verify settles; strip from URL immediately.
+    portalHydration.pendingMagic = { challengeId: String(challengeId || ''), token: String(token || '') };
+    portalHydration.magicLinkConsumed = false;
+    setPortalPhase(PORTAL_PHASE.VALIDATING_LINK, { message: 'Signing you in...' });
+    stripMagicLinkParamsFromUrl();
+
+    var r;
+    try {
+      r = await post('customer-portal-auth', {
+        action: 'verify',
+        challengeId: challengeId,
+        token: token,
+      });
+    } catch (e) {
+      if (generation !== portalHydration.generation) return false;
+      portalHydration.inFlight = false;
+      portalHydration.lastError = 'load_failed';
+      setPortalPhase(PORTAL_PHASE.FAILED);
+      return false;
     }
+    if (generation !== portalHydration.generation) return false;
+
+    if (isTemporarilyUnavailableResponse(r)) {
+      portalHydration.lastError = 'temporarily_unavailable';
+      setPortalPhase(PORTAL_PHASE.TEMPORARILY_UNAVAILABLE);
+      return false;
+    }
+
+    if (r.data && r.data.ok) {
+      // Token consumed server-side — do not replay on retry.
+      portalHydration.magicLinkConsumed = true;
+      portalHydration.pendingMagic = null;
+      if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.authSucceeded();
+      setPortalPhase(PORTAL_PHASE.ESTABLISHING_SESSION, {
+        message: 'Signing you in...',
+        restartTimers: false,
+      });
+      setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, {
+        message: 'Loading your garage...',
+        restartTimers: false,
+      });
+      var ok = await loadAccount({
+        generation: generation,
+        managePhase: false,
+        appointmentFocusRef: state.appointmentFocusRef || null,
+      });
+      if (generation !== portalHydration.generation) return false;
+      if (ok) {
+        setPortalPhase(PORTAL_PHASE.READY);
+        return true;
+      }
+      if (portalHydration.lastError === 'temporarily_unavailable') {
+        setPortalPhase(PORTAL_PHASE.TEMPORARILY_UNAVAILABLE);
+      } else if (portalHydration.lastError === 'authentication_failed') {
+        setPortalPhase(PORTAL_PHASE.IDLE);
+        setMsg($('acct-error'), 'Your session could not be established. Request a new sign-in link.', true);
+      } else {
+        setPortalPhase(PORTAL_PHASE.FAILED);
+      }
+      return false;
+    }
+
+    // Definitive auth failure — drop pending token so retry does not hammer a dead link.
+    portalHydration.pendingMagic = null;
+    portalHydration.inFlight = false;
+    setPortalPhase(PORTAL_PHASE.IDLE);
+    var failMsg = (r.data && r.data.message) || 'This link is invalid or expired.';
+    if (/token|challenge|stack|ECONN|prisma/i.test(String(failMsg))) {
+      failMsg = 'This link is invalid or expired.';
+    }
+    setMsg($('acct-error'), failMsg, true);
+    return false;
   }
 
   function clearLookupCredentials() {
@@ -735,6 +1197,9 @@
     try {
       await post('customer-portal-auth', { action: 'logout' });
     } catch (e) { /* still clear local state */ }
+    portalHydration.generation += 1;
+    portalHydration.inFlight = false;
+    clearPortalHydrationTimers();
     clearAuthenticatedCustomerState({ reason: 'logout', clearLookup: true });
     clearLookupCredentials();
     try {
@@ -743,6 +1208,7 @@
         history.replaceState({}, '', clean);
       }
     } catch (e) { /* ignore */ }
+    setPortalPhase(PORTAL_PHASE.IDLE);
   }
 
   function requestTypeLabel(type) {
@@ -867,7 +1333,21 @@
     } else {
       link.textContent = invoiceIsPaid(pay) ? 'Invoice paid' : 'Pay Balance';
     }
+    syncStickyPayBar(can, due);
     syncMoneyActionButtons(pay);
+  }
+
+  /** Mobile-only affordance so a due balance is always one tap away. */
+  function syncStickyPayBar(canPay, due) {
+    var bar = $('pay-sticky-bar');
+    var btn = $('pay-sticky-btn');
+    if (!bar || !btn) return;
+    var on = !!canPay;
+    bar.hidden = !on;
+    if (btn) btn.textContent = on && due > 0 ? 'Pay Balance · ' + fmtMoney(due) : 'Pay Balance';
+    try {
+      document.body.classList.toggle('pay-sticky-on', on);
+    } catch (e) { /* ignore */ }
   }
 
   function renderPaymentsPanel(pay) {
@@ -956,11 +1436,6 @@
             esc(item.status || '') + ' · ' + esc(item.preferredDate || '—') +
             ' · ' + esc(item.service || item.package || '') + '</li>';
         });
-        renderList('vehicles-list', state.vehicles || [], function (v) {
-          var label = v.label || [v.year, v.make, v.model].filter(Boolean).join(' ') || 'Vehicle';
-          return '<li>' + esc(label) + (v.category ? ' · ' + esc(v.category) : '') + '</li>';
-        });
-        $('vehicle-actions') && show($('vehicle-actions'), true);
       }
       return;
     }
@@ -986,17 +1461,21 @@
       : '<div><dt>Vehicle</dt><dd>' + esc(vehicleLine(b)) + '</dd></div>' +
         '<div><dt>Add-ons</dt><dd>' + esc(addonLines(b)) + '</dd></div>';
 
+    var statusLabel = appointmentStatusLabel(b);
+    var arrival = b.confirmedTimeWindow || b.confirmedTime || b.preferredTime || '—';
+    var focusClass = state.focusedAppointment ? ' appointment-focus' : '';
     hero.innerHTML =
-      '<div class="card">' +
-      '<div class="card-kicker">' + esc(b.status || 'Status') +
+      '<div class="card' + focusClass + '" id="focused-appointment-card">' +
+      '<div class="card-kicker">' + esc(statusLabel) +
       (pendingFlag ? ' · Change pending' : '') + '</div>' +
       '<h2 class="card-title">' + esc(b.service || b.package || 'Service') + '</h2>' +
       (packDesc ? '<p class="pack-desc">' + esc(packDesc) + (packDur ? ' · ' + esc(packDur) : '') + '</p>' : '') +
       '<dl class="meta-grid">' +
-      '<div><dt>Booking ID</dt><dd class="mono">' + esc(b.id || '—') + '</dd></div>' +
-      legacyVehicleRows +
+      '<div><dt>Status</dt><dd>' + esc(statusLabel) + '</dd></div>' +
       '<div><dt>Date</dt><dd>' + esc(b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
-      '<div><dt>Time</dt><dd>' + esc(b.confirmedTime || b.preferredTime || b.confirmedTimeWindow || '—') + '</dd></div>' +
+      '<div><dt>Arrival window</dt><dd>' + esc(arrival) + '</dd></div>' +
+      legacyVehicleRows +
+      '<div><dt>Service</dt><dd>' + esc(b.service || b.package || '—') + '</dd></div>' +
       '<div><dt>Location</dt><dd>' + esc(b.address || b.serviceLocation || '—') + '</dd></div>' +
       (b.assignedTechName ? '<div><dt>Technician</dt><dd>' + esc(b.assignedTechName) + '</dd></div>' : '') +
       (b.travelFeeAmount ? '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>' : '') +
@@ -1004,22 +1483,18 @@
       '</dl>' +
       vehicleSections +
       '<dl class="meta-grid booking-financial-summary" aria-label="Booking totals">' +
-      '<div><dt>Total approved</dt><dd>' + (
+      '<div><dt>Approved total</dt><dd>' + (
         pay.approvedCents != null || pay.approvedTotal != null
           ? fmtCents(approvedCentsFromPayment(pay))
           : fmtMoney(b.approvedFinalAmount != null ? b.approvedFinalAmount : b.totalPrice)
       ) + '</dd></div>' +
-      (settledCentsFromPayment(pay) > 0
-        ? '<div><dt>Amount paid</dt><dd>' + fmtCents(settledCentsFromPayment(pay)) + '</dd></div>'
-        : '') +
-      (remainingCentsFromPayment(pay) > 0
-        ? '<div><dt>Amount due</dt><dd>' + fmtCents(remainingCentsFromPayment(pay)) + '</dd></div>'
-        : '') +
+      '<div><dt>Paid amount</dt><dd>' + fmtCents(settledCentsFromPayment(pay)) + '</dd></div>' +
+      '<div><dt>Remaining balance</dt><dd>' + fmtCents(remainingCentsFromPayment(pay)) + '</dd></div>' +
       '</dl>' +
       ((pay.canPay || pay.canCreatePayLink)
         ? '<button type="button" class="btn primary" data-portal-pay>Pay Balance' +
           (pay.amountDueApproved ? ' · ' + fmtMoney(pay.amountDueApproved) : '') + '</button>'
-        : '') +
+        : '<p class="hint" data-primary-action-label>' + esc(primaryActionLabel(b, pay)) + '</p>') +
       '</div>';
 
     var payBtn = hero.querySelector('[data-portal-pay]');
@@ -1030,34 +1505,36 @@
     renderPendingRequests(state.changeRequests);
     renderMaintenancePlans();
 
-    renderList('appointments-list', state.bookings.length ? state.bookings : [b], function (item) {
-      return '<li><strong class="mono">' + esc(item.id || '') + '</strong> — ' +
-        esc(item.status || '') + ' · ' + esc(item.preferredDate || '—') +
-        ' · ' + esc(item.service || item.package || '') +
-        ' · ' + esc(vehicleLine(item)) + '</li>';
+    // Selection only decides which appointment is expanded above — every owned
+    // appointment stays reachable in one of the two collections below.
+    var owned = state.bookings.length ? state.bookings : [b];
+    var currentId = String(b.id || '');
+    var upcoming = owned.filter(function (x) {
+      return !appointmentIsPast(x) && String(x.id || '') !== currentId;
     });
+    var hist = owned.filter(appointmentIsPast);
 
-    renderList('vehicles-list', state.vehicles, function (v) {
-      var label = v.label || [v.year, v.make, v.model].filter(Boolean).join(' ') || 'Vehicle';
-      return '<li>' + esc(label) + (v.category ? ' · ' + esc(v.category) : '') + '</li>';
-    });
-
-    var hist = (state.bookings.length ? state.bookings : [b]).filter(function (x) {
-      return x.status === 'Paid' || x.status === 'Completed' || x.jobStatus === 'completed';
+    renderList('appointments-list', upcoming, function (item) {
+      return appointmentRowHtml(item, { focusable: true });
     });
     renderList('history-list', hist, function (item) {
-      return '<li>' + esc(item.preferredDate || '—') + ' · ' + esc(item.service || item.package || '') +
-        ' · ' + fmtMoney(item.approvedFinalAmount != null ? item.approvedFinalAmount : item.totalPrice) + '</li>';
+      return appointmentRowHtml(item, { showTotal: true });
     });
+    bindAppointmentRowActions();
 
-    $('vehicles-empty') && show($('vehicles-empty'), !state.vehicles.length);
+    $('appointments-empty') && show($('appointments-empty'), !upcoming.length);
     $('history-empty') && show($('history-empty'), !hist.length);
     $('comm-empty') && show($('comm-empty'), true);
-    $('vehicle-actions') && show($('vehicle-actions'), state.scope === 'account');
     var approveBtn = $('btn-approve-completion');
     var issueBtn = $('btn-report-issue');
     if (approveBtn) show(approveBtn, b.customerApprovalStatus === 'pending' || b.jobStatus === 'completed_pending_payment');
     if (issueBtn) show(issueBtn, ['completed_pending_payment', 'completed_pending_admin_review', 'awaiting_customer_action'].indexOf(b.jobStatus) >= 0 || b.serviceStatus === 'awaiting_customer_action');
+  }
+
+  function accountVersionForMutation() {
+    return (state.customer && state.customer.accountVersion)
+      || state.accountVersion
+      || null;
   }
 
   function renderProfileAndAddresses() {
@@ -1320,6 +1797,56 @@
     showToast('Address archived.', false);
   }
 
+  /**
+   * Compact collapsed row. Money authority stays server-side, so the row shows
+   * the projected total only and defers to a reload for anything payable.
+   */
+  function appointmentRowHtml(item, opts) {
+    opts = opts || {};
+    var focused = opts.focusable
+      && state.focusedAppointment
+      && item.appointmentPublicRef
+      && state.focusedAppointment.appointmentPublicRef === item.appointmentPublicRef;
+    var date = item.confirmedDate || item.preferredDate || '—';
+    var total = item.approvedFinalAmount != null ? item.approvedFinalAmount : item.totalPrice;
+    var meta = [esc(item.service || item.package || 'Service'), esc(date)].join(' · ');
+    var tail = [esc(appointmentStatusLabel(item))];
+    if (opts.showTotal && total != null) tail.push(fmtMoney(total));
+    var ref = item.appointmentPublicRef || '';
+    return '<li class="appt-row' + (focused ? ' appointment-focus' : '') + '">' +
+      '<span class="appt-row-main">' + esc(vehicleLine(item)) + '</span>' +
+      '<span class="appt-row-action">' +
+      (ref
+        ? '<button type="button" class="btn ghost" data-appt-ref="' + esc(ref) + '">View Details</button>'
+        : '') +
+      '</span>' +
+      '<span class="appt-row-meta">' + meta + ' · ' + tail.join(' · ') + '</span>' +
+      '</li>';
+  }
+
+  function bindAppointmentRowActions() {
+    ['appointments-list', 'history-list'].forEach(function (id) {
+      var root = $(id);
+      if (!root) return;
+      root.querySelectorAll('[data-appt-ref]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          selectAppointmentByRef(btn.getAttribute('data-appt-ref'));
+        });
+      });
+    });
+  }
+
+  /**
+   * Re-select through the server so the expanded appointment carries its own
+   * authoritative payment state rather than the previous booking's.
+   */
+  async function selectAppointmentByRef(ref) {
+    if (!ref || state.scope !== 'account') return;
+    state.appointmentFocusRef = ref;
+    var ok = await loadAccount({ appointmentFocusRef: ref, managePhase: false });
+    if (!ok) showToast('Could not open that appointment.', true);
+  }
+
   function renderList(id, items, mapFn) {
     var el = $(id);
     if (!el) return;
@@ -1413,23 +1940,54 @@
     return false;
   }
 
-  async function vehicleAction(action, payload) {
-    var r = await post('customer-portal-vehicles', Object.assign({ action: action }, payload || {}));
-    if (r.data && r.data.ok) {
-      showToast('Vehicle updated.');
-      await loadAccount();
-      return true;
-    }
-    showToast((r.data && r.data.message) || 'Vehicle update failed.', true);
-    return false;
-  }
-
   var embeddedPay = {
     stripe: null,
     elements: null,
     paymentElement: null,
     clientSecret: null,
+    bookingId: null,
+    // Set for the whole duration of a start attempt so a double tap cannot
+    // request a second PaymentIntent or mount a second Payment Element.
+    starting: false,
   };
+
+  /**
+   * Bring the payment panel into view and hand the customer focus. Called on
+   * every Pay Balance entry point, including the reuse path.
+   */
+  function revealPaymentPanel() {
+    var panel = $('embedded-pay-panel');
+    if (!panel) return;
+    panel.hidden = false;
+    var reduceMotion = false;
+    try {
+      reduceMotion = !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    } catch (e) { /* ignore */ }
+    try {
+      panel.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    } catch (e) {
+      try { panel.scrollIntoView(); } catch (e2) { /* ignore */ }
+    }
+    var heading = $('embedded-pay-h');
+    var target = heading && typeof heading.focus === 'function' ? heading : panel;
+    if (target && !target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+    try { target.focus({ preventScroll: true }); } catch (e) {
+      try { target.focus(); } catch (e2) { /* ignore */ }
+    }
+  }
+
+  /** Keeps the appointment and amount visible next to the card fields. */
+  function setPaymentContext(cents) {
+    var ctx = $('embedded-pay-context');
+    if (!ctx) return;
+    var b = state.booking || {};
+    var parts = ['Balance due: ' + fmtMoney((Number(cents) || 0) / 100)];
+    var vehicle = vehicleLine(b);
+    if (vehicle && vehicle !== '—') parts.push(vehicle);
+    var service = b.service || b.package;
+    if (service) parts.push(service);
+    ctx.textContent = parts.join(' · ');
+  }
 
   function setEmbeddedPayMsg(text, isErr) {
     var el = $('embedded-pay-msg');
@@ -1453,6 +2011,7 @@
     embeddedPay.paymentElement = null;
     embeddedPay.elements = null;
     embeddedPay.clientSecret = null;
+    embeddedPay.bookingId = null;
     setEmbeddedPayMsg('', false);
   }
 
@@ -1483,6 +2042,7 @@
   }
 
   async function startPayBalance() {
+    if (embeddedPay.starting) return;
     if (!state.booking) {
       showToast('Open a booking first.', true);
       return;
@@ -1492,6 +2052,25 @@
       showToast('No balance is due yet, or payment is locked until approval.', true);
       return;
     }
+
+    // Already mounted for this booking: reveal it again rather than asking the
+    // server for a second PaymentIntent.
+    if (embeddedPay.paymentElement
+      && embeddedPay.clientSecret
+      && embeddedPay.bookingId === String(state.booking.id || '')) {
+      revealPaymentPanel();
+      return;
+    }
+
+    embeddedPay.starting = true;
+    try {
+      await startPayBalanceInner(pay);
+    } finally {
+      embeddedPay.starting = false;
+    }
+  }
+
+  async function startPayBalanceInner(pay) {
     var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
     showToast('Preparing secure payment…');
 
@@ -1501,6 +2080,13 @@
       phone: phone,
       expectedQuoteVersion: pay.quoteVersion,
     });
+
+    if (intent.data && intent.data.error === 'already_paid') {
+      showToast('This appointment is already paid.', true);
+      hideEmbeddedPay();
+      pollPaymentSettlement();
+      return;
+    }
 
     if (intent.data && intent.data.ok && intent.data.clientSecret) {
       if (typeof global.Stripe !== 'function') {
@@ -1513,8 +2099,11 @@
         return startHostedCheckoutFallback();
       }
 
+      // Tear down any prior element before creating another one.
+      hideEmbeddedPay();
       embeddedPay.stripe = global.Stripe(pk);
       embeddedPay.clientSecret = intent.data.clientSecret;
+      embeddedPay.bookingId = String(state.booking.id || '');
       var elementsOpts = { clientSecret: intent.data.clientSecret };
       if (intent.data.customerSessionClientSecret) {
         elementsOpts.customerSessionClientSecret = intent.data.customerSessionClientSecret;
@@ -1529,15 +2118,19 @@
       if (!mountEl || !panel) {
         return startHostedCheckoutFallback();
       }
+      var cents = intent.data.amountCents || pay.remainingCents || 0;
       if (amountEl) {
-        var cents = intent.data.amountCents || pay.remainingCents || 0;
         amountEl.textContent = 'Pay ' + fmtMoney(cents / 100) + ' securely without leaving this page.';
       }
+      setPaymentContext(cents);
+      var submitBtn = $('embedded-pay-submit');
+      if (submitBtn) submitBtn.textContent = 'Pay ' + fmtMoney(cents / 100);
       panel.hidden = false;
       embeddedPay.paymentElement.mount(mountEl);
       setEmbeddedPayMsg('Enter card details to pay. Saved cards appear only when Stripe allows redisplay.', false);
       var fallbackBtn = $('embedded-pay-checkout-fallback');
       if (fallbackBtn) fallbackBtn.hidden = false;
+      revealPaymentPanel();
       if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.paymentOpened();
       return;
     }
@@ -1588,9 +2181,11 @@
     var submit = $('embedded-pay-submit');
     var cancel = $('embedded-pay-cancel');
     var fallback = $('embedded-pay-checkout-fallback');
+    var sticky = $('pay-sticky-btn');
     if (submit) submit.addEventListener('click', function () { confirmEmbeddedPay(); });
     if (cancel) cancel.addEventListener('click', function () { hideEmbeddedPay(); });
     if (fallback) fallback.addEventListener('click', function () { startHostedCheckoutFallback(); });
+    if (sticky) sticky.addEventListener('click', function () { startPayBalance(); });
   }
   bindEmbeddedPayControls();
 
@@ -1872,7 +2467,7 @@
 
     var form = $('modal-form');
     form.innerHTML =
-      '<p class="hint">Prices shown are from the official catalog. After you submit, My Garage shows the server Total approved / Amount paid / Amount due.</p>' +
+      '<p class="hint">Prices shown are from the official catalog. After you submit, your portal shows the server Total approved / Amount paid / Amount due.</p>' +
       '<dl class="meta-grid" style="margin-bottom:12px">' +
       '<div><dt>Total approved</dt><dd>' + fmtCents(approvedCentsFromPayment(pay)) + '</dd></div>' +
       '<div><dt>Amount paid</dt><dd>' + fmtCents(settledCentsFromPayment(pay)) + '</dd></div>' +
@@ -2265,17 +2860,7 @@
     setModalSubmitPending(true);
     var ok = false;
     try {
-      if (modalAction === 'vehicle_add') {
-        ok = await vehicleAction('add', {
-          vehicle: {
-            label: [payload.year, payload.make, payload.model].join(' '),
-            category: payload.category,
-            year: payload.year,
-            make: payload.make,
-            model: payload.model,
-          },
-        });
-      } else if (modalAction === 'approve_completion') {
+      if (modalAction === 'approve_completion') {
         ok = await submitPortalAction('approve_completion', {
           bookingId: state.booking && state.booking.id,
           phone: state.verifyPhone || normalizePhoneInput(state.booking && state.booking.phone),
@@ -2411,14 +2996,6 @@
         openActionModal(btn.getAttribute('data-action'), btn);
       });
     }
-    var vehActions = $('vehicle-actions');
-    if (vehActions) {
-      vehActions.addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-vehicle-action]');
-        if (!btn) return;
-        if (btn.getAttribute('data-vehicle-action') === 'add') openActionModal('vehicle_add');
-      });
-    }
     var modalSubmit = $('modal-submit');
     if (modalSubmit) modalSubmit.addEventListener('click', submitModal);
     var modalCancel = $('modal-cancel');
@@ -2448,11 +3025,28 @@
         submitModal();
       });
     }
+
+    var portalRetry = $('portal-retry');
+    if (portalRetry) {
+      portalRetry.addEventListener('click', function () {
+        retryPortalHydration();
+      });
+    }
+    var portalReturn = $('portal-return-signin');
+    if (portalReturn) {
+      portalReturn.addEventListener('click', function (e) {
+        e.preventDefault();
+        returnToPortalSignIn();
+      });
+    }
   }
 
   async function boot() {
     bindUi();
     if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.opened();
+
+    // Block login/dashboard flash until auth/session resolution completes.
+    setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, { message: 'Signing you in...' });
 
     var params = new URLSearchParams(global.location.search);
     // Accidental modal GET submit left junk query keys — strip and recover session.
@@ -2466,6 +3060,8 @@
     }
     var preId = params.get('bookingId') || params.get('id') || params.get('booking');
     var prePhone = params.get('phone');
+    var appointmentFocus = params.get('appointment');
+    if (appointmentFocus) state.appointmentFocusRef = appointmentFocus;
     if (preId && $('lk-booking-id')) $('lk-booking-id').value = preId.toUpperCase();
     if (prePhone && $('lk-phone')) $('lk-phone').value = prePhone;
 
@@ -2473,12 +3069,16 @@
       // Never treat ?paid=1 as verified settlement — show processing until ledger confirms
       showToast('Payment processing — refreshing your balance…');
     } else if (params.get('canceled') === '1') {
-      showToast('Checkout canceled. You can pay anytime from My Garage.', true);
+      showToast('Checkout canceled. You can pay anytime from your portal.', true);
     }
 
     var actionToken = params.get('action');
     if (actionToken) {
+      var actionGen = portalHydration.generation;
+      setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, { message: 'Loading your garage...' });
+      actionGen = portalHydration.generation;
       var ar = await post('customer-portal-action', { action: 'view', token: actionToken });
+      if (actionGen !== portalHydration.generation) return;
       if (ar.data && ar.data.ok) {
         state.scope = 'booking';
         state.actionToken = actionToken; // retain in memory only for focus/poll refresh
@@ -2500,8 +3100,7 @@
         applyPortalPayload(ar.data);
         history.replaceState({}, '', 'my-garage.html');
         renderDashboard({ payment: ar.data.payment || { canPay: ar.data.labels && ar.data.labels.canPay } });
-        show($('pre-auth'), false);
-        show($('post-auth'), true);
+        setPortalPhase(PORTAL_PHASE.READY);
         if (params.get('paid') === '1') pollPaymentSettlement();
         return;
       }
@@ -2514,9 +3113,18 @@
       return;
     }
 
-    if (await checkSession()) {
-      await loadAccount();
+    var hydrated = await hydrateAuthenticatedPortal({
+      force: true,
+      phase: PORTAL_PHASE.LOADING_PORTAL,
+      message: 'Signing you in...',
+      allowIdle: false,
+    });
+    if (hydrated) {
       if (params.get('paid') === '1') pollPaymentSettlement();
+      return;
+    }
+    if (portalHydration.phase === PORTAL_PHASE.TEMPORARILY_UNAVAILABLE
+      || portalHydration.phase === PORTAL_PHASE.FAILED) {
       return;
     }
 
@@ -2524,6 +3132,9 @@
     // Never auto-login from sessionStorage alone — that re-locked the last Booking ID on login.
     var urlHasBooking = !!(params.get('bookingId') || params.get('id') || params.get('booking'));
     if (urlHasBooking && preId) {
+      var bookingGen = portalHydration.generation;
+      setPortalPhase(PORTAL_PHASE.LOADING_PORTAL, { message: 'Loading your garage...' });
+      bookingGen = portalHydration.generation;
       if (!prePhone) {
         try { prePhone = sessionStorage.getItem('cd1_garage_phone') || ''; } catch (e) { prePhone = ''; }
       }
@@ -2532,8 +3143,10 @@
         state.verifyPhone = normalizePhoneInput(prePhone);
         var wasPaidReturn = params.get('paid') === '1';
         var autoOk = await loadLimited();
+        if (bookingGen !== portalHydration.generation) return;
         if (autoOk) {
           history.replaceState({}, '', 'my-garage.html' + (wasPaidReturn ? '?paid=1' : ''));
+          setPortalPhase(PORTAL_PHASE.READY);
           if (wasPaidReturn) pollPaymentSettlement();
           return;
         }
@@ -2546,8 +3159,7 @@
       clearLookupCredentials();
     }
 
-    show($('pre-auth'), true);
-    show($('post-auth'), false);
+    setPortalPhase(PORTAL_PHASE.IDLE);
   }
 
   async function pollPaymentSettlement() {
@@ -2571,7 +3183,7 @@
   }
 
   function portalReload() {
-    if (state.scope === 'account') return loadAccount();
+    if (state.scope === 'account') return loadAccount({ managePhase: false });
     if (state.actionToken || state.booking) return loadLimited();
     return Promise.resolve();
   }
@@ -2581,6 +3193,17 @@
     openModal: openActionModal,
     reload: portalReload,
     startPayBalance: startPayBalance,
+    getPortalPhase: function () { return portalHydration.phase; },
+    retryHydration: retryPortalHydration,
+    returnToSignIn: returnToPortalSignIn,
+    // Test/release helpers — do not call vehicle garage APIs.
+    loadAccount: loadAccount,
+    hydrateAuthenticatedPortal: hydrateAuthenticatedPortal,
+    state: state,
+    renderDashboard: renderDashboard,
+    syncPayBalanceButton: syncPayBalanceButton,
+    primaryActionLabel: primaryActionLabel,
+    selectAppointmentByRef: selectAppointmentByRef,
   };
 
   if (global.CD1OperationalRefresh) {

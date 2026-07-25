@@ -60,13 +60,15 @@ describe('portal access for pending submitted bookings', () => {
   });
 
   it('confirm_booking releases portal flags', () => {
-    const src = fs.readFileSync(path.join(ROOT, 'netlify/functions/admin-ops-jobs.js'), 'utf8');
-    const idx = src.indexOf("action === 'confirm_booking'");
+    const ops = fs.readFileSync(path.join(ROOT, 'netlify/functions/admin-ops-jobs.js'), 'utf8');
+    const confirmLib = fs.readFileSync(path.join(ROOT, 'netlify/lib/booking-confirm.js'), 'utf8');
+    const idx = ops.indexOf("action === 'confirm_booking'");
     assert.ok(idx > 0);
-    const slice = src.slice(idx, idx + 700);
-    assert.match(slice, /portalReleasePatch/);
-    assert.match(slice, /isDraft:\s*false|portalReleasePatch/);
-    assert.match(slice, /finalizedAt/);
+    const slice = ops.slice(idx, idx + 900);
+    assert.match(slice, /confirmBookingTransition/);
+    assert.match(confirmLib, /portalReleasePatch/);
+    assert.match(confirmLib, /finalizedAt/);
+    assert.match(confirmLib, /confirmedAt/);
   });
 
   it('submit-booking finalize sets pending_review + portalReleasedAt', () => {

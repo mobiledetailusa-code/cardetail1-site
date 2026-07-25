@@ -100,7 +100,7 @@ test('shared back-to-top single implementation', () => {
 test('my-garage metadata and privacy', () => {
   const page = read('my-garage.html');
   assert.match(page, /noindex,nofollow/);
-  assert.match(page, /My Garage \| Manage Your Cardetail1 Booking/);
+  assert.match(page, /My Detailing Portal \| Manage Your Cardetail1 Booking/);
   assert.match(page, /clarity.*mask/i);
   assert.doesNotMatch(page, /5513132956.*booking/i);
 });

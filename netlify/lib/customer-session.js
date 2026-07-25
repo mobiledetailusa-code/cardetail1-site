@@ -8,7 +8,11 @@ const { normalizeUsPhoneDigits, normalizeUsPhoneE164 } = require('./phone-auth')
 
 const SESSION_STORE = 'cd1-customer-sessions';
 const TOKEN_STORE = 'cd1-customer-auth-tokens';
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+// Device session. A customer who returns days later must still re-enter through
+// their (single-use) appointment link, so the session has to outlive a browser
+// restart. Cookie Max-Age, signed payload exp, and the Blob record TTL are all
+// derived from this one constant — the cookie must never outlive the record.
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 const OTP_TTL_MS = 10 * 60 * 1000;
 const MAX_AUTH_ATTEMPTS = 5;
@@ -108,8 +112,18 @@ function parseCookies(event) {
   return out;
 }
 
+/**
+ * Secure by default. Every deployed context — production, branch-deploy and
+ * deploy-preview alike — is HTTPS-only, so the flag is dropped only for a local
+ * `netlify dev` server, which serves the portal over plain http.
+ */
+function cookieIsSecure() {
+  if (process.env.NETLIFY_DEV === 'true') return false;
+  const ctx = String(process.env.CONTEXT || '').toLowerCase();
+  return ctx !== 'dev';
+}
+
 function sessionCookieHeader(token, { maxAgeSec = SESSION_TTL_MS / 1000 } = {}) {
-  const secure = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
   const parts = [
     `${COOKIE_NAME}=${encodeURIComponent(token)}`,
     'HttpOnly',
@@ -117,14 +131,13 @@ function sessionCookieHeader(token, { maxAgeSec = SESSION_TTL_MS / 1000 } = {}) 
     'SameSite=Lax',
     `Max-Age=${Math.floor(maxAgeSec)}`,
   ];
-  if (secure) parts.push('Secure');
+  if (cookieIsSecure()) parts.push('Secure');
   return parts.join('; ');
 }
 
 function clearSessionCookieHeader() {
-  const secure = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
   const parts = [`${COOKIE_NAME}=`, 'HttpOnly', 'Path=/', 'SameSite=Lax', 'Max-Age=0'];
-  if (secure) parts.push('Secure');
+  if (cookieIsSecure()) parts.push('Secure');
   return parts.join('; ');
 }
 

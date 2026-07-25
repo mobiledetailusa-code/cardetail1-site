@@ -154,7 +154,7 @@ exports.handler = async (event) => {
     }
   }
 
-  const patched = syncLegacyFields({
+  let patched = syncLegacyFields({
     ...booking,
     serviceStatus,
     paymentStatus,
@@ -281,6 +281,23 @@ exports.handler = async (event) => {
     approvalStatus: adjustmentStatus,
     sourcePortal: 'technician',
   }));
+
+  if (
+    patched.paymentWorkflowStatus === 'payment_action_required'
+    || patched.jobStatus === 'completed_pending_payment'
+    || patched.serviceStatus === 'awaiting_customer_action'
+  ) {
+    try {
+      const { emitCustomerActionRequired } = require('../lib/booking-transactional-notifications');
+      const txn = await emitCustomerActionRequired(patched, { event });
+      if (txn && txn.booking) {
+        patched = txn.booking;
+        await store.setJSON(bookingId, patched).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[tech-complete-job] action-required notify failed:', e.message);
+    }
+  }
 
   return jsonCors(200, {
     ok: true,

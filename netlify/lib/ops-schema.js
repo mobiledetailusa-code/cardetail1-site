@@ -191,8 +191,12 @@ function projectBookingForCustomer(b) {
   const projectedVehicles = vehiclesArr
     .map(projectVehicleForCustomer)
     .filter(Boolean);
+  const { customerFacingStatusLabel, customerFacingStatusKey } = require('./booking-customer-status');
+  const customerStatusKey = customerFacingStatusKey(src);
+  const customerStatus = customerFacingStatusLabel(src);
   return {
     id: src.id || src.bookingId,
+    appointmentPublicRef: src.appointmentPublicRef || null,
     bookingVersion: material.bookingVersion ?? src.bookingVersion ?? 0,
     schemaVersion: material.schemaVersion ?? src.schemaVersion ?? 0,
     quoteVersion: material.quoteVersion ?? src.quoteVersion ?? 0,
@@ -200,6 +204,8 @@ function projectBookingForCustomer(b) {
     settledCents: material.settledCents,
     remainingCents: material.remainingCents ?? remainingCents(src.ledger || {}),
     status,
+    customerStatus,
+    customerStatusKey,
     jobStatus,
     paymentWorkflowStatus,
     appointmentStatus: src.appointmentStatus || (jobStatus === 'cancelled' ? 'canceled' : jobStatus === 'confirmed' ? 'confirmed' : 'pending_review'),

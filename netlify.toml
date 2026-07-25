@@ -3,7 +3,8 @@
 # ou conecte este repositório Git no painel da Netlify.
 
 [build]
-  # Site estático: nada para "buildar", só publicar a raiz.
+  # Bake deploy CONTEXT/BRANCH/DEPLOY_URL for Functions (not injected at runtime here).
+  command = "node scripts/generate-deploy-runtime-env.js"
   publish = "."
   functions = "netlify/functions"
 
@@ -26,6 +27,10 @@
 [[redirects]]
   from = "/my-garage"
   to = "/my-garage.html"
+  status = 200
+[[redirects]]
+  from = "/appointment-access"
+  to = "/.netlify/functions/customer-appointment-access"
   status = 200
 [[redirects]]
   from = "/technician"
