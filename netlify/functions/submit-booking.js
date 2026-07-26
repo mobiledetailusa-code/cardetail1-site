@@ -56,7 +56,7 @@ const {
   formatSiteAccessLines,
 } = require('../lib/site-access');
 const { validateBookingSchedule, hasSlotConflict } = require('../lib/booking-schedule');
-const { listRawBookings, normalizePhone } = require('../lib/ops-db');
+const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
 const { validateBookingRouting } = require('../lib/booking-routing-validation');
 const {
   applyServerOffersToBooking,
@@ -76,12 +76,36 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
   b.preferredDate = v.preferredDate;
   b.preferredTime = v.preferredTime;
   if (checkSlot) {
-    const bookings = await listRawBookings().catch(() => []);
+    const bookings = await listBookingsForSlotLock().catch(() => []);
     if (hasSlotConflict(bookings, v.preferredDate, v.preferredTime, excludeId)) {
       return { ok: false, error: 'booking_slot_unavailable' };
     }
   }
   return { ok: true };
+}
+
+function scheduleRejectResponse(status, error, meta = {}) {
+  const userMessage = error === 'booking_slot_unavailable'
+    ? 'That time slot is no longer available. Your card was not charged. Choose another date or time, then submit again — you do not need to re-save your card if it already shows as saved.'
+    : error === 'booking_date_unavailable'
+      ? 'That date is unavailable. Choose another day, then continue.'
+      : error === 'booking_time_unavailable'
+        ? 'That time is unavailable. Choose another slot, then continue.'
+        : 'Please choose an available date and time.';
+  console.log('[submit-booking] schedule rejected', {
+    error,
+    responseCode: status,
+    draftBookingId: meta.draftBookingId || null,
+    preferredDate: meta.preferredDate || null,
+    preferredTime: meta.preferredTime || null,
+    phase: meta.phase || null,
+  });
+  return json(status, {
+    ok: false,
+    bookingCreated: false,
+    error,
+    userMessage,
+  });
 }
 
 let blobsStoreOverride = null;
@@ -171,6 +195,7 @@ function issueDraftSaveResponse(draft) {
     status: 200,
     body: {
       ok: true,
+      bookingCreated: false,
       id: draft.id,
       isDraft: true,
       draftSaveToken: tokenResult.token,
@@ -420,10 +445,6 @@ exports.handler = async (event) => {
       return json(503, { ok: false, error: 'missing_draft_token_secret' });
     }
 
-    const scheduleDraft = await enforceScheduleFields(b);
-    if (!scheduleDraft.ok) {
-      return json(400, { ok: false, error: scheduleDraft.error });
-    }
     const preference = String(b.paymentMethodPreference || '');
     if (!PAYMENT_PREFERENCES.has(preference)) {
       return json(400, { ok: false, error: 'payment_preference_required' });
@@ -435,6 +456,22 @@ exports.handler = async (event) => {
     const now = new Date().toISOString();
     const rawUpdateId = String(b.draftBookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
     delete b.draftBookingId;
+
+    // Reject taken slots before SetupIntent / card save so customers never
+    // save a card against a time that cannot be finalized.
+    const scheduleDraft = await enforceScheduleFields(b, {
+      checkSlot: true,
+      excludeId: rawUpdateId || null,
+    });
+    if (!scheduleDraft.ok) {
+      const status = scheduleDraft.error === 'booking_slot_unavailable' ? 409 : 400;
+      return scheduleRejectResponse(status, scheduleDraft.error, {
+        draftBookingId: rawUpdateId || null,
+        preferredDate: b.preferredDate || null,
+        preferredTime: b.preferredTime || null,
+        phase: 'draft',
+      });
+    }
 
     let draftId;
     let existing = null;
@@ -487,9 +524,13 @@ exports.handler = async (event) => {
       if (existing.finalizedAt || existing.bookingVersion >= 1) {
         return json(200, {
           ok: true,
+          bookingCreated: true,
           id: existing.id,
+          status: existing.status || 'Pending Review',
           bookingVersion: existing.bookingVersion || 1,
           idempotent: true,
+          cardOnFileStatus: existing.cardOnFileStatus || null,
+          customerEmail: existing.notificationDelivery?.customerEmail || { status: 'pending' },
         });
       }
       return json(409, { ok: false, error: 'Booking already finalized' });
@@ -544,7 +585,12 @@ exports.handler = async (event) => {
     const scheduleFinal = await enforceScheduleFields(b, { checkSlot: true, excludeId: rawDraftId });
     if (!scheduleFinal.ok) {
       const status = scheduleFinal.error === 'booking_slot_unavailable' ? 409 : 400;
-      return json(status, { ok: false, error: scheduleFinal.error });
+      return scheduleRejectResponse(status, scheduleFinal.error, {
+        draftBookingId: rawDraftId,
+        preferredDate: b.preferredDate || null,
+        preferredTime: b.preferredTime || null,
+        phase: 'finalize',
+      });
     }
     const finalizedAt = new Date().toISOString();
 
@@ -657,6 +703,7 @@ exports.handler = async (event) => {
     });
     return json(200, {
       ok: true,
+      bookingCreated: true,
       id: b.id,
       status: b.status,
       paymentStatus: b.paymentStatus,

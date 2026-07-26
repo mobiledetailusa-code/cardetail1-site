@@ -165,6 +165,28 @@ async function listRawBookings() {
   return out;
 }
 
+/**
+ * Bookings + active card-save drafts that participate in slot locking.
+ * Unlike listRawBookings, this includes soft-held drafts so draft creation
+ * and finalize share the same conflict authority.
+ */
+async function listBookingsForSlotLock() {
+  const { isActiveBookingForSlotLock } = require('./booking-schedule');
+  const store = await bookingStore();
+  const blobs = await listAllBlobs(store, 'cd1-bookings');
+  const records = await fetchBlobRecords(store, blobs);
+  const out = [];
+  for (const raw of records) {
+    if (!raw) continue;
+    const adapted = adaptHistoricalBooking(raw);
+    if (!adapted.ok || !adapted.booking) continue;
+    const booking = healStickyDraftFlags(adapted.booking);
+    if (!isActiveBookingForSlotLock(booking)) continue;
+    out.push(booking);
+  }
+  return out;
+}
+
 const {
   normalizePhone,
   phonesMatch,
@@ -176,6 +198,7 @@ module.exports = {
   getBooking,
   patchBooking,
   listRawBookings,
+  listBookingsForSlotLock,
   normalizeBookingKey,
   normalizePhone,
   phonesMatch,
