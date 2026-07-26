@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Catalog Manager — Owner Studio</title>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --ink:#e2e8f0; --muted:#94a3b8; --line:#334155; --accent:#38bdf8; --warn:#fbbf24; --ok:#86efac; --bad:#fca5a5; --focus:#fde68a; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Georgia, "Times New Roman", serif; background: linear-gradient(160deg,#0f172a,#1e293b 45%,#0b1220); color:var(--ink); min-height:100vh; }
+    header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    h1 { margin:0; font-size:1.25rem; }
+    .sub { color:var(--muted); font-size:.88rem; margin-top:4px; }
+    nav { display:flex; gap:8px; flex-wrap:wrap; padding:12px 24px; border-bottom:1px solid var(--line); }
+    nav a { color:var(--muted); text-decoration:none; font-size:.85rem; padding:6px 10px; border:1px solid transparent; border-radius:6px; }
+    nav a[aria-current="page"] { color:var(--ink); border-color:var(--line); background:rgba(255,255,255,.04); }
+    main { padding:20px 24px 48px; max-width:1200px; }
+    .grid { display:grid; gap:14px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin-bottom:18px; }
+    .stat { background:rgba(30,41,59,.9); border:1px solid var(--line); border-radius:10px; padding:14px; }
+    .stat b { display:block; font-size:1.3rem; margin-top:6px; font-family: ui-monospace, Consolas, monospace; }
+    .panel { background:rgba(30,41,59,.9); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    label { display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px; }
+    input, select, textarea, button { font: inherit; }
+    input, select, textarea { width:100%; background:#0b1220; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+    input:focus, select:focus, textarea:focus, button:focus { outline:2px solid var(--focus); outline-offset:2px; }
+    textarea { min-height:80px; }
+    button { background:#0ea5e9; color:#082f49; border:0; border-radius:8px; padding:8px 14px; cursor:pointer; font-weight:600; }
+    button.secondary { background:transparent; color:var(--ink); border:1px solid var(--line); }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    button.warn { background:#854d0e; color:#fef9c3; }
+    .badge { display:inline-block; padding:3px 8px; border-radius:999px; font-size:.75rem; border:1px solid var(--line); }
+    .badge.warn { color:var(--warn); }
+    .badge.ok { color:var(--ok); }
+    .badge.bad { color:var(--bad); }
+    table { width:100%; border-collapse:collapse; font-size:.9rem; }
+    th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--muted); font-weight:600; }
+    .split { display:grid; gap:16px; grid-template-columns: 1fr; }
+    @media (min-width: 960px) { .split { grid-template-columns: 1.1fr .9fr; } }
+    .muted { color:var(--muted); }
+    .err { color:var(--bad); }
+    .okmsg { color:var(--ok); }
+    .list-btn { display:block; width:100%; text-align:left; background:transparent; color:var(--ink); border:1px solid var(--line); margin-bottom:6px; }
+    .list-btn[aria-current="true"] { border-color:var(--accent); }
+    .banner { background:#422006; color:#fde68a; border:1px solid #854d0e; border-radius:10px; padding:10px 12px; margin-bottom:14px; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+    .price-grid { display:grid; gap:8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+    a.back { color:var(--accent); text-decoration:none; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Catalog Manager</h1>
+      <div class="sub">Stage 2 draft editor — staging only · public source remains legacy</div>
+    </div>
+    <a class="back" href="/admin/owner-studio">← Owner Studio</a>
+  </header>
+  <nav aria-label="Owner Studio">
+    <a href="/admin/owner-studio">Overview</a>
+    <a href="/admin/owner-studio/catalog" aria-current="page">Catalog</a>
+    <a href="/admin/owner-studio/catalog#preview">Preview</a>
+    <a href="/admin/owner-studio/catalog#revisions">Revisions</a>
+  </nav>
+  <main>
+    <div id="auth-note" class="banner" hidden>Sign in via Admin first. Owner Studio reuses the Admin session.</div>
+    <div id="status-banner" class="banner" role="status" aria-live="polite"></div>
+
+    <section class="grid" aria-label="Catalog overview">
+      <div class="stat">Packages<b id="stat-packages">—</b></div>
+      <div class="stat">Add-ons<b id="stat-addons">—</b></div>
+      <div class="stat">Vehicle classes<b id="stat-vcs">—</b></div>
+      <div class="stat">Draft version<b id="stat-version">—</b></div>
+      <div class="stat">Conflicts<b id="stat-conflicts">—</b></div>
+      <div class="stat">Validation errors<b id="stat-errors">—</b></div>
+    </section>
+
+    <div class="row" style="margin-bottom:14px">
+      <button type="button" id="btn-save">Save Draft</button>
+      <button type="button" class="secondary" id="btn-reload">Reload</button>
+      <button type="button" class="secondary" id="btn-preview">Open draft preview</button>
+      <button type="button" disabled title="Publishing will be available after transactional release integration.">Publish (unavailable)</button>
+      <button type="button" disabled title="Rollback is not available in Stage 2.">Rollback (unavailable)</button>
+      <span id="save-state" class="muted" aria-live="polite"></span>
+    </div>
+
+    <div class="split">
+      <section class="panel" aria-labelledby="pkg-list-title">
+        <div class="row" style="justify-content:space-between;margin-bottom:10px">
+          <h2 id="pkg-list-title" style="margin:0;font-size:1rem">Packages</h2>
+          <span id="dirty" class="badge warn" hidden>Unsaved changes</span>
+        </div>
+        <div class="row" style="margin-bottom:10px">
+          <div style="flex:1;min-width:160px">
+            <label for="search">Search</label>
+            <input id="search" type="search" placeholder="Name or ID">
+          </div>
+          <div>
+            <label for="filter-active">Status</label>
+            <select id="filter-active">
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          <div>
+            <label for="filter-cat">Category</label>
+            <select id="filter-cat"><option value="all">All</option></select>
+          </div>
+        </div>
+        <div id="package-list" role="listbox" aria-label="Package list"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="editor-title">
+        <h2 id="editor-title" style="margin-top:0;font-size:1rem">Package editor</h2>
+        <p id="editor-empty" class="muted">Select a package to edit.</p>
+        <form id="editor" hidden>
+          <div class="row">
+            <div style="flex:1"><label for="f-name">Name</label><input id="f-name" required maxlength="80"></div>
+            <div style="flex:1"><label for="f-slug">Slug</label><input id="f-slug" required maxlength="80"></div>
+          </div>
+          <div style="margin-top:10px"><label for="f-short">Short description</label><textarea id="f-short" maxlength="280"></textarea></div>
+          <div style="margin-top:10px"><label for="f-desc">Full description</label><textarea id="f-desc" maxlength="2000"></textarea></div>
+          <div class="row" style="margin-top:10px">
+            <div><label for="f-order">Display order</label><input id="f-order" type="number" step="1"></div>
+            <div><label for="f-active">Active</label><select id="f-active"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+            <div class="muted" style="align-self:end">Stable ID: <code id="f-id"></code></div>
+          </div>
+          <div style="margin-top:12px">
+            <label for="f-features">Features (one per line, prefix - for excluded)</label>
+            <textarea id="f-features" placeholder="Included feature&#10;- Excluded feature"></textarea>
+          </div>
+          <div style="margin-top:12px">
+            <h3 style="font-size:.95rem;margin:0 0 8px">Vehicle-class pricing (USD)</h3>
+            <p class="muted" style="margin-top:0">Entered as dollars; saved as integer cents. No floating persistence.</p>
+            <div id="price-matrix" class="price-grid"></div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button type="button" id="btn-apply-pkg">Apply package changes</button>
+            <button type="button" class="secondary" id="btn-move-up">Move up</button>
+            <button type="button" class="secondary" id="btn-move-down">Move down</button>
+          </div>
+          <p id="editor-msg" class="muted" role="status"></p>
+        </form>
+      </section>
+    </div>
+
+    <section class="panel" id="addons" aria-labelledby="addon-title">
+      <h2 id="addon-title" style="margin-top:0;font-size:1rem">Add-ons</h2>
+      <div id="addon-list"></div>
+    </section>
+
+    <section class="panel" id="conflicts" aria-labelledby="conflict-title">
+      <h2 id="conflict-title" style="margin-top:0;font-size:1rem">Price conflicts</h2>
+      <p class="muted">Initial status remains unresolved. Resolving updates the draft only — not public HTML or booking prices.</p>
+      <div id="conflict-list"></div>
+    </section>
+
+    <section class="panel" id="revisions" aria-labelledby="rev-title">
+      <h2 id="rev-title" style="margin-top:0;font-size:1rem">Revision history</h2>
+      <div id="revision-list"></div>
+    </section>
+
+    <section class="panel" id="preview" aria-labelledby="preview-title">
+      <h2 id="preview-title" style="margin-top:0;font-size:1rem">Read-only draft preview</h2>
+      <div class="banner">DRAFT PREVIEW — NOT PUBLISHED</div>
+      <div id="preview-body" class="muted">Load preview to render draft cards.</div>
+    </section>
+  </main>
+
+  <script src="/netlify/lib/admin-session-client.js"></script>
+  <script>
+  (function () {
+    const state = {
+      csrf: '',
+      draft: null,
+      selectedId: null,
+      dirty: false,
+      saving: false,
+    };
+
+    const el = (id) => document.getElementById(id);
+
+    function token() {
+      return (window.CD1AdminSession && CD1AdminSession.getToken && CD1AdminSession.getToken()) || '';
+    }
+
+    function headers(mut) {
+      const h = { Accept: 'application/json' };
+      const t = token();
+      if (t) h['x-admin-key'] = t;
+      if (mut) {
+        h['Content-Type'] = 'application/json';
+        if (state.csrf) h['x-csrf-token'] = state.csrf;
+      }
+      return h;
+    }
+
+    function centsToUsd(cents) {
+      return (Number(cents || 0) / 100).toFixed(2);
+    }
+    function usdToCents(raw) {
+      const n = Number(String(raw).replace(/[^0-9.]/g, ''));
+      if (!Number.isFinite(n) || n < 0) throw new Error('invalid_usd');
+      return Math.round(n * 100);
+    }
+
+    function setDirty(v) {
+      state.dirty = !!v;
+      el('dirty').hidden = !state.dirty;
+    }
+
+    function setSaveState(msg, cls) {
+      const node = el('save-state');
+      node.textContent = msg || '';
+      node.className = cls || 'muted';
+    }
+
+    async function api(path, opts) {
+      const res = await fetch(path, { credentials: 'same-origin', ...opts });
+      const data = await res.json().catch(() => ({}));
+      return { res, data };
+    }
+
+    async function loadCsrf() {
+      const { res, data } = await api('/.netlify/functions/owner-studio-catalog?action=csrf', { headers: headers(false) });
+      if (res.status === 401) {
+        el('auth-note').hidden = false;
+        el('status-banner').textContent = 'Admin authentication required.';
+        return false;
+      }
+      if (!res.ok) throw new Error(data.error || 'csrf_failed');
+      state.csrf = data.csrfToken;
+      return true;
+    }
+
+    async function loadDraft() {
+      const { res, data } = await api('/.netlify/functions/owner-studio-catalog?action=get_draft', { headers: headers(false) });
+      if (res.status === 401) {
+        el('auth-note').hidden = false;
+        return;
+      }
+      if (!res.ok) {
+        el('status-banner').textContent = data.message || data.error || 'Failed to load draft';
+        return;
+      }
+      state.draft = data.draft;
+      if (!state.draft) {
+        el('status-banner').textContent = 'No draft yet. Seed staging catalog, then reload.';
+        return;
+      }
+      el('status-banner').textContent = 'Draft loaded. Public content source remains legacy. Publish/rollback unavailable.';
+      renderAll();
+      setDirty(false);
+    }
+
+    function overview() {
+      const d = state.draft;
+      if (!d) return;
+      el('stat-packages').textContent = d.packages.length;
+      el('stat-addons').textContent = d.addOns.length;
+      el('stat-vcs').textContent = d.vehicleClasses.length;
+      el('stat-version').textContent = d.version;
+      el('stat-conflicts').textContent = (d.priceConflicts || []).filter((c) => c.status === 'unresolved').length;
+    }
+
+    function filteredPackages() {
+      const q = el('search').value.trim().toLowerCase();
+      const active = el('filter-active').value;
+      const cat = el('filter-cat').value;
+      return (state.draft.packages || []).filter((p) => {
+        if (active === 'active' && !p.active) return false;
+        if (active === 'inactive' && p.active) return false;
+        if (cat !== 'all' && p.category !== cat) return false;
+        if (!q) return true;
+        return (p.name + ' ' + p.packageId).toLowerCase().includes(q);
+      }).sort((a, b) => (a.displayOrder - b.displayOrder) || a.name.localeCompare(b.name));
+    }
+
+    function renderPackageList() {
+      const cats = [...new Set((state.draft.packages || []).map((p) => p.category))].sort();
+      const sel = el('filter-cat');
+      const cur = sel.value;
+      sel.innerHTML = '<option value="all">All</option>' + cats.map((c) => `<option value="${c}">${c}</option>`).join('');
+      sel.value = cats.includes(cur) ? cur : 'all';
+      const box = el('package-list');
+      box.innerHTML = '';
+      for (const p of filteredPackages()) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'list-btn';
+        btn.setAttribute('role', 'option');
+        btn.setAttribute('aria-current', p.packageId === state.selectedId ? 'true' : 'false');
+        const conflict = (state.draft.priceConflicts || []).some((c) => c.status === 'unresolved' && String(c.entityId) === p.packageId);
+        btn.innerHTML = `<strong>${escapeHtml(p.name)}</strong> <span class="badge ${p.active ? 'ok' : 'bad'}">${p.active ? 'active' : 'inactive'}</span>${conflict ? ' <span class="badge warn">conflict</span>' : ''}<div class="muted">${escapeHtml(p.packageId)} · order ${p.displayOrder}</div>`;
+        btn.addEventListener('click', () => selectPackage(p.packageId));
+        box.appendChild(btn);
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function selectPackage(id) {
+      state.selectedId = id;
+      const p = state.draft.packages.find((x) => x.packageId === id);
+      el('editor-empty').hidden = !!p;
+      el('editor').hidden = !p;
+      if (!p) return;
+      el('f-id').textContent = p.packageId;
+      el('f-name').value = p.name || '';
+      el('f-slug').value = p.slug || '';
+      el('f-short').value = p.shortDescription || '';
+      el('f-desc').value = p.description || '';
+      el('f-order').value = p.displayOrder;
+      el('f-active').value = p.active ? 'true' : 'false';
+      el('f-features').value = (p.features || []).map((f) => (f.kind === 'excluded' ? '- ' : '') + f.label).join('\n');
+      renderPriceMatrix(p);
+      renderPackageList();
+      el('editor-msg').textContent = '';
+    }
+
+    function renderPriceMatrix(pkg) {
+      const vcs = (state.draft.vehicleClasses || []).filter((v) => v.category === pkg.category && v.active !== false);
+      const box = el('price-matrix');
+      box.innerHTML = '';
+      for (const vc of vcs) {
+        const price = (pkg.prices || []).find((pr) => pr.vehicleClassId === vc.vehicleClassId && pr.priceModel === 'flat');
+        const wrap = document.createElement('div');
+        const inputId = `price-${vc.vehicleClassId}`;
+        wrap.innerHTML = `<label for="${inputId}">${escapeHtml(vc.label)} (USD)</label><input id="${inputId}" data-vc="${vc.vehicleClassId}" inputmode="decimal" value="${price ? centsToUsd(price.amountCents) : ''}" aria-describedby="price-help">`;
+        box.appendChild(wrap);
+      }
+    }
+
+    function applyPackageEdits() {
+      const p = state.draft.packages.find((x) => x.packageId === state.selectedId);
+      if (!p) return;
+      try {
+        p.name = el('f-name').value.trim();
+        p.slug = el('f-slug').value.trim();
+        p.shortDescription = el('f-short').value;
+        p.description = el('f-desc').value;
+        p.displayOrder = parseInt(el('f-order').value, 10) || 0;
+        p.active = el('f-active').value === 'true';
+        p.features = el('f-features').value.split(/\r?\n/).map((line, i) => {
+          const t = line.trim();
+          if (!t) return null;
+          const excluded = t.startsWith('-');
+          return { kind: excluded ? 'excluded' : 'included', label: excluded ? t.slice(1).trim() : t, sortOrder: i };
+        }).filter(Boolean);
+        const flat = [];
+        for (const input of el('price-matrix').querySelectorAll('input[data-vc]')) {
+          const raw = input.value.trim();
+          if (!raw) continue;
+          flat.push({
+            packageId: p.packageId,
+            vehicleClassId: input.getAttribute('data-vc'),
+            currency: 'usd',
+            amountCents: usdToCents(raw),
+            priceModel: 'flat',
+          });
+        }
+        const nonFlat = (p.prices || []).filter((pr) => pr.priceModel !== 'flat');
+        p.prices = flat.concat(nonFlat);
+        setDirty(true);
+        el('editor-msg').textContent = 'Package changes applied locally. Save Draft to persist.';
+        el('editor-msg').className = 'okmsg';
+        renderAll();
+      } catch (e) {
+        el('editor-msg').textContent = e.message || 'Invalid price';
+        el('editor-msg').className = 'err';
+      }
+    }
+
+    function moveSelected(delta) {
+      const p = state.draft.packages.find((x) => x.packageId === state.selectedId);
+      if (!p) return;
+      p.displayOrder = (p.displayOrder || 0) + delta;
+      setDirty(true);
+      renderAll();
+      selectPackage(p.packageId);
+    }
+
+    function renderAddOns() {
+      const box = el('addon-list');
+      const rows = (state.draft.addOns || []).slice().sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      box.innerHTML = `<table><thead><tr><th>Name</th><th>Price (USD)</th><th>Order</th><th>Active</th></tr></thead><tbody>${
+        rows.map((a) => {
+          const cents = (a.prices && a.prices[0] && a.prices[0].amountCents) || 0;
+          return `<tr>
+            <td>${escapeHtml(a.name)}<div class="muted">${escapeHtml(a.addOnId)}</div></td>
+            <td><label class="sr-only" for="addon-price-${a.addOnId}">Price for ${escapeHtml(a.name)}</label>
+              <input id="addon-price-${a.addOnId}" data-addon="${a.addOnId}" value="${centsToUsd(cents)}" style="max-width:110px"></td>
+            <td><input data-addon-order="${a.addOnId}" type="number" value="${a.displayOrder || 0}" style="max-width:80px"></td>
+            <td><select data-addon-active="${a.addOnId}"><option value="true" ${a.active !== false ? 'selected' : ''}>Active</option><option value="false" ${a.active === false ? 'selected' : ''}>Inactive</option></select></td>
+          </tr>`;
+        }).join('')
+      }</tbody></table>
+      <button type="button" id="btn-apply-addons" style="margin-top:10px">Apply add-on changes</button>`;
+      el('btn-apply-addons').onclick = () => {
+        for (const a of state.draft.addOns) {
+          const priceInput = box.querySelector(`input[data-addon="${a.addOnId}"]`);
+          const orderInput = box.querySelector(`input[data-addon-order="${a.addOnId}"]`);
+          const activeSel = box.querySelector(`select[data-addon-active="${a.addOnId}"]`);
+          try {
+            if (priceInput && a.prices && a.prices[0]) a.prices[0].amountCents = usdToCents(priceInput.value);
+            if (orderInput) a.displayOrder = parseInt(orderInput.value, 10) || 0;
+            if (activeSel) a.active = activeSel.value === 'true';
+          } catch (_) {}
+        }
+        setDirty(true);
+        setSaveState('Add-on edits applied locally', 'okmsg');
+      };
+    }
+
+    function renderConflicts() {
+      const box = el('conflict-list');
+      const list = state.draft.priceConflicts || [];
+      if (!list.length) {
+        box.innerHTML = '<p class="muted">No conflicts recorded.</p>';
+        return;
+      }
+      box.innerHTML = list.map((c) => `
+        <div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px">
+          <div><strong>${escapeHtml(c.conflictId)}</strong> <span class="badge ${c.status === 'unresolved' ? 'warn' : 'ok'}">${escapeHtml(c.status)}</span></div>
+          <div class="muted">${escapeHtml(c.field)} · entity ${escapeHtml(c.entityId || '')}</div>
+          <div>Server/transactional: <code>${c.serverValue != null ? c.serverValue : '—'}</code> · Presentation: <code>${c.presentationValue != null ? c.presentationValue : '—'}</code></div>
+          <div class="muted">Sources: ${(c.sources || []).map(escapeHtml).join(', ') || '—'}</div>
+          ${c.status === 'unresolved' ? `<button type="button" class="secondary" data-resolve="${escapeHtml(c.conflictId)}">Mark resolved-in-draft (keep server value)</button>` : ''}
+        </div>`).join('');
+      box.querySelectorAll('button[data-resolve]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-resolve');
+          const c = state.draft.priceConflicts.find((x) => x.conflictId === id);
+          if (!c) return;
+          if (!confirm('Resolve this conflict in the draft only? Public HTML and booking prices will not change.')) return;
+          c.status = 'resolved-in-draft';
+          c.resolution = 'keep-server-value';
+          c.resolvedBy = 'owner';
+          c.resolvedAt = new Date().toISOString();
+          setDirty(true);
+          renderAll();
+        });
+      });
+    }
+
+    async function loadRevisions() {
+      const { res, data } = await api('/.netlify/functions/owner-studio-catalog?action=list_revisions&limit=20', { headers: headers(false) });
+      const box = el('revision-list');
+      if (!res.ok) {
+        box.innerHTML = `<p class="err">${escapeHtml(data.error || 'Failed')}</p>`;
+        return;
+      }
+      if (!data.items || !data.items.length) {
+        box.innerHTML = '<p class="muted">No revisions yet.</p>';
+        return;
+      }
+      box.innerHTML = `<table><thead><tr><th>When</th><th>Actor</th><th>Version</th><th>Summary</th><th></th></tr></thead><tbody>${
+        data.items.map((r) => `<tr>
+          <td>${escapeHtml(r.createdAt)}</td>
+          <td>${escapeHtml(r.createdBy || '')}</td>
+          <td>${escapeHtml(String(r.version || ''))}</td>
+          <td>${r.summary.packageCount} pkg · ${r.summary.addOnCount} addons · conflicts ${r.summary.unresolvedConflicts}</td>
+          <td><button type="button" class="secondary" data-restore="${escapeHtml(r.revisionId)}">Restore as new draft</button></td>
+        </tr>`).join('')
+      }</tbody></table>`;
+      box.querySelectorAll('button[data-restore]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          if (state.dirty && !confirm('Discard unsaved local edits and restore this revision as a new draft?')) return;
+          if (!confirm('Restore creates a NEW draft revision. Historical revision stays immutable.')) return;
+          setSaveState('Restoring…');
+          const { res: r2, data: d2 } = await api('/.netlify/functions/owner-studio-catalog', {
+            method: 'POST',
+            headers: headers(true),
+            body: JSON.stringify({
+              action: 'restore_revision',
+              revisionId: btn.getAttribute('data-restore'),
+              expectedVersion: state.draft.version,
+            }),
+          });
+          if (r2.status === 409) {
+            setSaveState('Stale draft (409). Reload and retry.', 'err');
+            return;
+          }
+          if (!r2.ok) {
+            setSaveState(d2.message || d2.error || 'Restore failed', 'err');
+            return;
+          }
+          state.draft = d2.draft;
+          setDirty(false);
+          setSaveState('Restored as new draft revision ' + d2.revisionId, 'okmsg');
+          renderAll();
+          loadRevisions();
+        });
+      });
+    }
+
+    async function loadPreview() {
+      const { res, data } = await api('/.netlify/functions/owner-studio-catalog?action=preview', { headers: headers(false) });
+      const box = el('preview-body');
+      if (!res.ok) {
+        box.innerHTML = `<p class="err">${escapeHtml(data.error || 'preview failed')}</p>`;
+        return;
+      }
+      const pkgs = (data.draft.packages || []).filter((p) => p.active).slice(0, 12);
+      box.innerHTML = `<p class="okmsg">${escapeHtml(data.previewBanner)}</p>
+        <p class="muted">Validation: ${data.validation.ok ? 'OK' : data.validation.errors.length + ' errors'} · unresolved conflicts ${(data.draft.priceConflicts || []).filter((c) => c.status === 'unresolved').length}</p>
+        <div class="grid">${pkgs.map((p) => {
+          const sample = (p.prices || []).find((pr) => pr.priceModel === 'flat');
+          return `<div class="stat"><div>${escapeHtml(p.name)}</div><b>${sample ? '$' + centsToUsd(sample.amountCents) : '—'}</b><div class="muted">${escapeHtml(p.category)}</div></div>`;
+        }).join('')}</div>`;
+    }
+
+    function renderAll() {
+      if (!state.draft) return;
+      overview();
+      const unresolved = (state.draft.priceConflicts || []).filter((c) => c.status === 'unresolved').length;
+      el('stat-conflicts').textContent = unresolved;
+      renderPackageList();
+      renderAddOns();
+      renderConflicts();
+      if (state.selectedId) selectPackage(state.selectedId);
+    }
+
+    async function saveDraft() {
+      if (!state.draft || state.saving) return;
+      state.saving = true;
+      setSaveState('Saving…');
+      el('btn-save').disabled = true;
+      try {
+        const { res, data } = await api('/.netlify/functions/owner-studio-catalog', {
+          method: 'POST',
+          headers: headers(true),
+          body: JSON.stringify({
+            action: 'save_draft',
+            expectedVersion: state.draft.version,
+            draft: state.draft,
+          }),
+        });
+        if (res.status === 409) {
+          setSaveState('Conflict 409: draft changed elsewhere. Reload, then re-apply edits.', 'err');
+          return;
+        }
+        if (!res.ok) {
+          setSaveState(data.message || data.error || 'Save failed', 'err');
+          return;
+        }
+        state.draft = data.draft;
+        setDirty(false);
+        setSaveState('Saved · revision ' + data.revisionId + (data.validation && !data.validation.ok ? ' (validation warnings)' : ''), 'okmsg');
+        renderAll();
+        loadRevisions();
+      } finally {
+        state.saving = false;
+        el('btn-save').disabled = false;
+      }
+    }
+
+    el('btn-save').addEventListener('click', saveDraft);
+    el('btn-reload').addEventListener('click', async () => {
+      if (state.dirty && !confirm('Reload and discard unsaved local edits?')) return;
+      await loadDraft();
+      await loadRevisions();
+    });
+    el('btn-preview').addEventListener('click', loadPreview);
+    el('btn-apply-pkg').addEventListener('click', applyPackageEdits);
+    el('btn-move-up').addEventListener('click', () => moveSelected(-1));
+    el('btn-move-down').addEventListener('click', () => moveSelected(1));
+    el('search').addEventListener('input', renderPackageList);
+    el('filter-active').addEventListener('change', renderPackageList);
+    el('filter-cat').addEventListener('change', renderPackageList);
+
+    (async function init() {
+      const ok = await loadCsrf();
+      if (!ok) return;
+      await loadDraft();
+      await loadRevisions();
+    })();
+  })();
+  </script>
+</body>
+</html>
