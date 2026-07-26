@@ -139,6 +139,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
   });
   const files = tracked.trim().split(/\r?\n/).filter(Boolean);
   const allowed = new Set([
+    // Owner Studio Stage 2 Phase A — shared HttpOnly admin session cookie (multi-tab fix).
+    'netlify/functions/admin-auth.js',
     'netlify/functions/ai-chat.js',
     'netlify/functions/submit-booking.js',
     'netlify/functions/create-setup-intent.js',
