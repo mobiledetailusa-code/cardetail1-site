@@ -139,6 +139,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
   });
   const files = tracked.trim().split(/\r?\n/).filter(Boolean);
   const allowed = new Set([
+    // Owner Studio Stage 2 Phase A — shared HttpOnly admin session cookie (multi-tab fix).
+    'netlify/functions/admin-auth.js',
     'netlify/functions/ai-chat.js',
     'netlify/functions/submit-booking.js',
     'netlify/functions/create-setup-intent.js',
@@ -188,6 +190,7 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/qa-blobs-health.js',
     // Owner Studio Stage 1 — protected read-only status endpoint (flags off by default)
     'netlify/functions/owner-studio-status.js',
+    'netlify/functions/owner-studio-catalog.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);

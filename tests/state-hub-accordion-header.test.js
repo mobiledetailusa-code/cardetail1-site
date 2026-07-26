@@ -261,6 +261,8 @@ test('no Netlify Function files changed in this UX scope', () => {
   const changed = diff.split('\n').filter(Boolean);
   const functionChanges = changed.filter((file) => /^netlify\/functions\//.test(file));
   const allowed = new Set([
+    // Owner Studio Stage 2 Phase A — shared HttpOnly admin session cookie (multi-tab fix).
+    'netlify/functions/admin-auth.js',
     'netlify/functions/ai-chat.js',
     'netlify/functions/submit-booking.js',
     'netlify/functions/create-setup-intent.js',
@@ -310,6 +312,7 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/qa-blobs-health.js',
     // Owner Studio Stage 1 — protected read-only status endpoint (flags off by default)
     'netlify/functions/owner-studio-status.js',
+    'netlify/functions/owner-studio-catalog.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);

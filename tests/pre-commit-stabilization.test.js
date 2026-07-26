@@ -293,12 +293,19 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/update-booking.js',
     'netlify/functions/qa-appointment-access-mint.js',
     'netlify/functions/qa-blobs-health.js',
+    // Owner Studio Stage 2 Phase A — browser-scoped admin session (HttpOnly cookie)
+    // so a second/new tab authenticates without the per-tab sessionStorage token.
+    'netlify/functions/admin-auth.js',
+    'netlify/lib/admin-session-client.js',
     // Owner Studio Stage 1 — protected read-only status endpoint (flags off by default)
     'netlify/functions/owner-studio-status.js',
+    'netlify/functions/owner-studio-catalog.js',
     'netlify/lib/owner-studio/audit.js',
     'netlify/lib/owner-studio/authorization.js',
     'netlify/lib/owner-studio/booking-snapshot.js',
     'netlify/lib/owner-studio/catalog-read.js',
+    'netlify/lib/owner-studio/catalog-repository.js',
+    'netlify/lib/owner-studio/catalog-schema-health.js',
     'netlify/lib/owner-studio/content-read.js',
     'netlify/lib/owner-studio/draft-service.js',
     'netlify/lib/owner-studio/flags.js',

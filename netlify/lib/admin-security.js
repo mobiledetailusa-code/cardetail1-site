@@ -11,6 +11,7 @@ const RATE_LOCK_MS = 15 * 60 * 1000;
 const TOKEN_PREFIX = 'v1.';
 const LEGACY_TOKEN_LEN = 64;
 const MIN_SESSION_SECRET_LEN = 32;
+const ADMIN_COOKIE_NAME = 'cd1_admin_session';
 let devSessionSecretFallbackWarned = false;
 
 function normalizeEnvValue(v) {
@@ -209,10 +210,62 @@ async function validateAdminToken(token) {
   return validateLegacyBlobToken(t);
 }
 
+/**
+ * The admin session is also carried in an HttpOnly cookie so that every tab of the
+ * same browser origin authenticates automatically (sessionStorage is per-tab and a
+ * newly opened tab would otherwise have no token). Secure on every deployed https
+ * context; dropped only for local `netlify dev` (plain http).
+ */
+function adminCookieIsSecure() {
+  if (process.env.NETLIFY_DEV === 'true') return false;
+  const ctx = String(process.env.CONTEXT || '').toLowerCase();
+  return ctx !== 'dev';
+}
+
+function parseAdminCookies(headers) {
+  const raw = String((headers && (headers.cookie || headers.Cookie)) || '');
+  const out = {};
+  raw.split(';').forEach((part) => {
+    const idx = part.indexOf('=');
+    if (idx < 0) return;
+    const k = part.slice(0, idx).trim();
+    const v = part.slice(idx + 1).trim();
+    if (k) out[k] = decodeURIComponent(v);
+  });
+  return out;
+}
+
+function adminSessionCookieHeader(token, { maxAgeSec = ADMIN_SESSION_TTL_MS / 1000 } = {}) {
+  const parts = [
+    `${ADMIN_COOKIE_NAME}=${encodeURIComponent(token)}`,
+    'HttpOnly',
+    'Path=/',
+    'SameSite=Lax',
+    `Max-Age=${Math.max(0, Math.floor(maxAgeSec))}`,
+  ];
+  if (adminCookieIsSecure()) parts.push('Secure');
+  return parts.join('; ');
+}
+
+function clearAdminSessionCookieHeader() {
+  const parts = [`${ADMIN_COOKIE_NAME}=`, 'HttpOnly', 'Path=/', 'SameSite=Lax', 'Max-Age=0'];
+  if (adminCookieIsSecure()) parts.push('Secure');
+  return parts.join('; ');
+}
+
+function readAdminTokenFromHeaders(headers) {
+  const h = headers || {};
+  const header = ((h['x-admin-key'] || h['X-Admin-Key']) || '').trim();
+  if (header) return header;
+  // Cross-tab fallback: the HttpOnly session cookie is shared across same-origin tabs.
+  const cookies = parseAdminCookies(h);
+  return String(cookies[ADMIN_COOKIE_NAME] || '').trim();
+}
+
 async function verifyAdminRequest(headers) {
   const cfg = getAdminConfig();
   if (!cfg.configured) return { ok: false, error: 'missing_admin_config' };
-  const token = ((headers && (headers['x-admin-key'] || headers['X-Admin-Key'])) || '').trim();
+  const token = readAdminTokenFromHeaders(headers);
   if (!token || token.length < 16) return { ok: false, error: 'unauthorized' };
   const session = await validateAdminToken(token);
   if (!session) return { ok: false, error: 'unauthorized' };
@@ -255,7 +308,12 @@ module.exports = {
   getSessionSecretStatus,
   isProductionRuntime,
   isDevOrPreviewRuntime,
+  adminSessionCookieHeader,
+  clearAdminSessionCookieHeader,
+  parseAdminCookies,
+  readAdminTokenFromHeaders,
   ADMIN_SESSION_TTL_MS,
+  ADMIN_COOKIE_NAME,
   TOKEN_PREFIX,
   MIN_SESSION_SECRET_LEN,
 };

@@ -189,6 +189,8 @@ test('no Netlify Function files changed in this scope', () => {
     'netlify/functions/update-booking.js',
     'netlify/functions/qa-appointment-access-mint.js',
     'netlify/functions/qa-blobs-health.js',
+    'netlify/functions/owner-studio-status.js',
+    'netlify/functions/owner-studio-catalog.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);
