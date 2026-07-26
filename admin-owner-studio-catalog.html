@@ -269,38 +269,58 @@
     }
 
     async function api(path, opts) {
-      const res = await fetch(path, { credentials: 'same-origin', ...opts });
-      const data = await res.json().catch(() => ({}));
-      return { res, data };
+      try {
+        const res = await fetch(path, { credentials: 'same-origin', ...opts });
+        const data = await res.json().catch(() => ({}));
+        return { res, data };
+      } catch (e) {
+        // Network failure — never mistaken for a valid empty response.
+        return { res: { ok: false, status: 0, headers: { get: () => '' } }, data: { error: 'network_error', message: String((e && e.message) || 'network') } };
+      }
+    }
+
+    // Map an HTTP failure to an explicit, differentiated UI state. A failed request must
+    // NEVER render as an empty catalog, and 429/500/network must NOT clear the session.
+    function classifyFailure(res, data) {
+      const status = res && res.status;
+      const rid = (data && (data.requestId || data.request_id)) || (res && res.headers && res.headers.get && res.headers.get('x-nf-request-id')) || '';
+      if (status === 401) return { authRequired: true, msg: 'Sign-in required — your admin session is missing or expired. Open /admin to sign in, then reopen this page.' };
+      if (status === 403) return { authRequired: false, msg: 'Permission denied — your account is not authorized for Owner Studio.' };
+      if (status === 409) return { authRequired: false, msg: 'Draft changed in another session (409). Reload the latest draft before saving.' };
+      if (status === 429) return { authRequired: false, keepSession: true, msg: 'Rate limited (429). Your session is still valid — wait a moment and retry.' };
+      if (status >= 500) return { authRequired: false, keepSession: true, msg: `Server/database error (${status})${rid ? ' · request ' + rid : ''}. Your session is still valid — retry shortly.` };
+      if (status === 0) return { authRequired: false, keepSession: true, network: true, msg: 'Network error — check your connection and retry.' };
+      return { authRequired: false, msg: (data && (data.message || data.error)) ? ('Request failed: ' + (data.message || data.error)) : ('Request failed (' + status + ')') };
+    }
+
+    function showFailure(res, data) {
+      const f = classifyFailure(res, data);
+      el('status-banner').textContent = f.msg;
+      el('status-banner').className = 'banner';
+      el('auth-note').hidden = !f.authRequired;
+      // Only an auth failure clears the loaded catalog; 429/500/network keep what we have.
+      if (f.authRequired) { state.draft = null; state.csrf = ''; }
+      return f;
     }
 
     async function loadCsrf() {
       const { res, data } = await api('/.netlify/functions/owner-studio-catalog?action=csrf', { headers: headers(false) });
-      if (res.status === 401) {
-        el('auth-note').hidden = false;
-        el('status-banner').textContent = 'Admin authentication required.';
-        return false;
-      }
-      if (!res.ok) throw new Error(data.error || 'csrf_failed');
-      state.csrf = data.csrfToken;
-      return true;
+      if (res.ok) { state.csrf = data.csrfToken; return true; }
+      showFailure(res, data);
+      return false;
     }
 
     async function loadDraft() {
       const { res, data } = await api('/.netlify/functions/owner-studio-catalog?action=get_draft', { headers: headers(false) });
-      if (res.status === 401) {
-        el('auth-note').hidden = false;
-        return;
-      }
-      if (!res.ok) {
-        el('status-banner').textContent = data.message || data.error || 'Failed to load draft';
+      if (!res.ok) { showFailure(res, data); return; }
+      // 200 with no draft object is a VALID empty state, not a failure.
+      if (!data.draft) {
+        state.draft = null;
+        el('status-banner').textContent = 'No catalog draft exists yet (empty). Seed the staging catalog, then reload.';
+        el('status-banner').className = 'banner';
         return;
       }
       state.draft = data.draft;
-      if (!state.draft) {
-        el('status-banner').textContent = 'No draft yet. Seed staging catalog, then reload.';
-        return;
-      }
       el('status-banner').textContent = 'Draft loaded. Public content source remains legacy. Publish/rollback unavailable.';
       state.addonDirty.clear();
       renderAll();
@@ -789,6 +809,19 @@
     el('filter-active').addEventListener('change', renderPackageList);
     el('filter-cat').addEventListener('change', renderPackageList);
     wireAddonControls();
+
+    // Cross-tab logout: if another tab signs out, drop this tab's editing session too.
+    if (window.CD1AdminSession && CD1AdminSession.onSessionEvent) {
+      CD1AdminSession.onSessionEvent((msg) => {
+        if (msg && msg.type === 'logout') {
+          CD1AdminSession.clearToken({ silent: true }); // silent: don't re-broadcast (avoids a loop)
+          state.draft = null; state.csrf = ''; state.dirty = false;
+          el('auth-note').hidden = false;
+          el('status-banner').textContent = 'Signed out in another tab. Sign in again at /admin, then reopen this page.';
+          el('btn-save').disabled = true;
+        }
+      });
+    }
 
     (async function init() {
       const ok = await loadCsrf();

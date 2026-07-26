@@ -18,6 +18,9 @@ const {
   clearLoginFailures,
   clientIp,
   getSessionSecretStatus,
+  adminSessionCookieHeader,
+  clearAdminSessionCookieHeader,
+  parseAdminCookies,
 } = require('../lib/admin-security');
 
 exports.handler = async (event) => {
@@ -30,18 +33,21 @@ exports.handler = async (event) => {
 
   const action = String(body.action || 'login').toLowerCase();
   const hdrToken = ((event.headers && (event.headers['x-admin-key'] || event.headers['X-Admin-Key'])) || '').trim();
+  const cookieToken = String(parseAdminCookies(event.headers)[require('../lib/admin-security').ADMIN_COOKIE_NAME] || '').trim();
 
   if (action === 'validate') {
-    const token = String(body.token || hdrToken || '').trim();
+    const token = String(body.token || hdrToken || cookieToken || '').trim();
     const session = await validateAdminToken(token);
     if (!session) return jsonCors(401, { ok: false, error: 'invalid_session' });
     return jsonCors(200, { ok: true, username: session.username, expiresAt: session.expiresAt });
   }
 
   if (action === 'logout') {
-    const token = String(body.token || hdrToken || '').trim();
+    const token = String(body.token || hdrToken || cookieToken || '').trim();
     await destroyAdminSession(token);
-    return jsonCors(200, { ok: true });
+    // Clear the shared HttpOnly session cookie so every tab of this browser loses auth
+    // on its next request. (Stateless v1 tokens still expire at their TTL.)
+    return jsonCors(200, { ok: true }, { 'Set-Cookie': clearAdminSessionCookieHeader() });
   }
 
   const cfg = getAdminConfig();
@@ -74,10 +80,14 @@ exports.handler = async (event) => {
   } catch {
     return jsonCors(503, { ok: false, error: 'missing_admin_session_secret' });
   }
+  // Set an HttpOnly, Secure, SameSite=Lax session cookie in addition to returning the
+  // token. The cookie is shared across all same-origin tabs, so a newly opened Admin /
+  // Owner Studio tab authenticates automatically without copying the sessionStorage token.
+  const maxAgeSec = Math.floor((sess.expiresAt - Date.now()) / 1000);
   return jsonCors(200, {
     ok: true,
     token: sess.token,
     expiresAt: sess.expiresAt,
     username: cfg.username,
-  });
+  }, { 'Set-Cookie': adminSessionCookieHeader(sess.token, { maxAgeSec }) });
 };
