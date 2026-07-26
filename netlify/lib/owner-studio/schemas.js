@@ -18,7 +18,7 @@ const MAX = {
 
 const UNSAFE_CONTENT_RE = /<\s*script|javascript:|data:text\/html|<\s*iframe|<\s*object|<\s*embed|expression\s*\(|@import|<\/?\s*style|on\w+\s*=/i;
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const SAFE_PATH_RE = /^\/[A-Za-z0-9._~/-]*$/;
+const SAFE_PATH_RE = /^\/[A-Za-z0-9._~\/?#&=%+-]*$/;
 const SAFE_HTTP_URL_RE = /^https:\/\/[A-Za-z0-9.-]+(?::\d+)?(?:\/[A-Za-z0-9._~:/?#[\]@!$&'()*+,;=%-]*)?$/;
 
 function rejectUnknown(input, allowed) {
@@ -114,11 +114,32 @@ function validatePackagePrice(input) {
   return out;
 }
 
+function validateVehicleClassDraft(input) {
+  rejectUnknown(input, new Set([
+    'siteId', 'vehicleClassId', 'legacyKey', 'category', 'label', 'active', 'displayOrder',
+  ]));
+  if (!SITE_ID_RE.test(String(input.siteId || ''))) {
+    const err = new Error('invalid_site_id');
+    err.code = 'invalid_site_id';
+    throw err;
+  }
+  assertStable(input.vehicleClassId, 'vehicleClassId');
+  return {
+    siteId: input.siteId,
+    vehicleClassId: input.vehicleClassId,
+    legacyKey: assertPlainText(String(input.legacyKey || ''), 'legacyKey', 64),
+    category: assertPlainText(String(input.category || ''), 'category', 40),
+    label: assertPlainText(input.label, 'label', MAX.label),
+    active: input.active !== false,
+    displayOrder: Number.isInteger(input.displayOrder) ? input.displayOrder : 0,
+  };
+}
+
 function validatePackageDraft(input) {
   rejectUnknown(input, new Set([
     'siteId', 'packageId', 'legacyKey', 'category', 'name', 'slug', 'description',
     'shortDescription', 'active', 'featured', 'displayOrder', 'durationMinutes',
-    'features', 'prices',
+    'features', 'prices', 'compatibleVehicleClassIds', 'compatibleAddOnIds',
   ]));
   if (!SITE_ID_RE.test(String(input.siteId || ''))) {
     const err = new Error('invalid_site_id');
@@ -164,6 +185,12 @@ function validatePackageDraft(input) {
     }
     durationMinutes = input.durationMinutes;
   }
+  const compatibleVehicleClassIds = Array.isArray(input.compatibleVehicleClassIds)
+    ? input.compatibleVehicleClassIds.map((id, i) => assertStable(id, `compatibleVehicleClassIds[${i}]`))
+    : [];
+  const compatibleAddOnIds = Array.isArray(input.compatibleAddOnIds)
+    ? input.compatibleAddOnIds.map((id, i) => assertStable(id, `compatibleAddOnIds[${i}]`))
+    : [];
   return {
     siteId: input.siteId,
     packageId: input.packageId,
@@ -179,13 +206,15 @@ function validatePackageDraft(input) {
     durationMinutes,
     features,
     prices,
+    compatibleVehicleClassIds,
+    compatibleAddOnIds,
   };
 }
 
 function validateAddOnDraft(input) {
   rejectUnknown(input, new Set([
     'siteId', 'addOnId', 'legacyKey', 'name', 'slug', 'description', 'active',
-    'allowQuantity', 'prices', 'compatibility',
+    'allowQuantity', 'prices', 'compatibility', 'displayOrder',
   ]));
   assertStable(input.addOnId, 'addOnId');
   const prices = Array.isArray(input.prices) ? input.prices.map((p) => {
@@ -212,6 +241,7 @@ function validateAddOnDraft(input) {
     description: assertPlainText(input.description || '', 'description', MAX.description),
     active: input.active !== false,
     allowQuantity: !!input.allowQuantity,
+    displayOrder: Number.isInteger(input.displayOrder) ? input.displayOrder : 0,
     prices,
     compatibility,
   };
@@ -364,12 +394,170 @@ function validateReleaseCandidate(catalogDraft, contentDraft) {
       errors.push({ code: e.code || 'addon_invalid', message: e.message, addOnId: a.addOnId });
     }
   }
+  for (const vc of catalogDraft?.vehicleClasses || []) {
+    try {
+      validateVehicleClassDraft(vc);
+    } catch (e) {
+      errors.push({ code: e.code || 'vehicle_class_invalid', message: e.message, vehicleClassId: vc.vehicleClassId });
+    }
+  }
   if (contentDraft?.navigation) {
     try { validateNavigation(contentDraft.navigation); } catch (e) {
       errors.push({ code: e.code || 'navigation_invalid', message: e.message });
     }
   }
   return { ok: errors.length === 0, errors };
+}
+
+/**
+ * Full Stage 2 catalog draft validation (authoritative for Save Draft).
+ */
+function validateCompleteCatalogDraft(input, options = {}) {
+  const maxBytes = options.maxBytes || 1_500_000;
+  const serialized = JSON.stringify(input || {});
+  if (Buffer.byteLength(serialized, 'utf8') > maxBytes) {
+    const err = new Error('payload_too_large');
+    err.code = 'payload_too_large';
+    err.statusCode = 413;
+    throw err;
+  }
+  rejectUnknown(input, new Set([
+    'siteId', 'status', 'draftVersion', 'version', 'packages', 'addOns', 'vehicleClasses',
+    'navigation', 'footer', 'pages', 'galleries', 'serviceAreas', 'media',
+    'priceConflicts', 'unmappedContent', 'updatedAt', 'updatedBy', 'lastSavedAt', 'lastSavedBy',
+  ]));
+  if (!SITE_ID_RE.test(String(input.siteId || ''))) {
+    const err = new Error('invalid_site_id');
+    err.code = 'invalid_site_id';
+    throw err;
+  }
+  const siteId = input.siteId;
+  const packages = (input.packages || []).map(validatePackageDraft);
+  const addOns = (input.addOns || []).map(validateAddOnDraft);
+  const vehicleClasses = (input.vehicleClasses || []).map(validateVehicleClassDraft);
+
+  const pkgIds = new Set();
+  for (const p of packages) {
+    if (pkgIds.has(p.packageId)) {
+      const err = new Error('duplicate_package_id');
+      err.code = 'duplicate_stable_id';
+      err.field = 'packageId';
+      throw err;
+    }
+    pkgIds.add(p.packageId);
+  }
+  const addOnIds = new Set();
+  for (const a of addOns) {
+    if (addOnIds.has(a.addOnId)) {
+      const err = new Error('duplicate_addon_id');
+      err.code = 'duplicate_stable_id';
+      err.field = 'addOnId';
+      throw err;
+    }
+    addOnIds.add(a.addOnId);
+  }
+  const vcIds = new Set();
+  for (const vc of vehicleClasses) {
+    if (vcIds.has(vc.vehicleClassId)) {
+      const err = new Error('duplicate_vehicle_class_id');
+      err.code = 'duplicate_stable_id';
+      err.field = 'vehicleClassId';
+      throw err;
+    }
+    vcIds.add(vc.vehicleClassId);
+  }
+
+  for (const p of packages) {
+    for (const id of p.compatibleVehicleClassIds || []) {
+      if (!vcIds.has(id)) {
+        const err = new Error(`missing_vehicle_class_ref:${id}`);
+        err.code = 'missing_entity_reference';
+        err.field = 'compatibleVehicleClassIds';
+        throw err;
+      }
+    }
+    for (const id of p.compatibleAddOnIds || []) {
+      if (!addOnIds.has(id)) {
+        const err = new Error(`missing_addon_ref:${id}`);
+        err.code = 'missing_entity_reference';
+        err.field = 'compatibleAddOnIds';
+        throw err;
+      }
+    }
+    for (const price of p.prices || []) {
+      if (price.vehicleClassId && !vcIds.has(price.vehicleClassId)) {
+        const err = new Error(`missing_price_vehicle_class:${price.vehicleClassId}`);
+        err.code = 'missing_entity_reference';
+        err.field = 'prices.vehicleClassId';
+        throw err;
+      }
+    }
+  }
+
+  const priceConflicts = Array.isArray(input.priceConflicts) ? input.priceConflicts.map((c) => {
+    rejectUnknown(c, new Set([
+      'conflictId', 'entityType', 'entityId', 'field', 'serverValue', 'presentationValue',
+      'serverCents', 'presentationCents', 'sources', 'status', 'resolution', 'resolvedBy', 'resolvedAt',
+      'file', 'htmlValue', 'message',
+    ]));
+    const status = String(c.status || 'unresolved');
+    if (!['unresolved', 'resolved-in-draft'].includes(status)) {
+      const err = new Error('invalid_conflict_status');
+      err.code = 'invalid_conflict_status';
+      throw err;
+    }
+    return {
+      conflictId: assertPlainText(String(c.conflictId || `${c.file || 'x'}:${c.field || 'f'}`), 'conflictId', 160),
+      entityType: assertPlainText(String(c.entityType || 'package_price'), 'entityType', 40),
+      entityId: c.entityId ? assertPlainText(String(c.entityId), 'entityId', 80) : null,
+      field: assertPlainText(String(c.field || ''), 'field', 120),
+      serverValue: c.serverValue != null ? Number(c.serverValue) : null,
+      presentationValue: c.presentationValue != null ? Number(c.presentationValue) : (c.htmlValue != null ? Number(c.htmlValue) : null),
+      serverCents: c.serverCents != null ? assertIntegerCents(c.serverCents, 'serverCents') : null,
+      presentationCents: c.presentationCents != null ? assertIntegerCents(c.presentationCents, 'presentationCents') : null,
+      sources: Array.isArray(c.sources)
+        ? c.sources.map((s, i) => assertPlainText(String(s), `sources[${i}]`, 200))
+        : (c.file ? [assertPlainText(String(c.file), 'file', 200)] : []),
+      status,
+      resolution: c.resolution ? assertPlainText(String(c.resolution), 'resolution', 80) : null,
+      resolvedBy: c.resolvedBy ? assertPlainText(String(c.resolvedBy), 'resolvedBy', 80) : null,
+      resolvedAt: c.resolvedAt ? assertPlainText(String(c.resolvedAt), 'resolvedAt', 40) : null,
+      message: c.message ? assertPlainText(String(c.message), 'message', 280) : '',
+    };
+  }) : [];
+
+  const unmappedContent = Array.isArray(input.unmappedContent) ? input.unmappedContent.map((u, i) => {
+    rejectUnknown(u, new Set(['path', 'reason', 'contentClass']));
+    return {
+      path: assertPlainText(String(u.path || ''), `unmapped[${i}].path`, 200),
+      reason: assertPlainText(String(u.reason || ''), `unmapped[${i}].reason`, 280),
+      contentClass: u.contentClass ? assertPlainText(String(u.contentClass), 'contentClass', 80) : null,
+    };
+  }) : [];
+
+  const navigation = input.navigation
+    ? validateNavigation({ ...input.navigation, siteId })
+    : { siteId, headerItems: [] };
+  const footer = input.footer
+    ? validateFooter({ ...input.footer, siteId })
+    : { siteId, tagline: '', groups: [], legalLinks: [], copyright: '' };
+  const pages = (input.pages || []).map((p) => validatePageContent({ ...p, siteId }));
+
+  return {
+    siteId,
+    status: 'draft',
+    packages,
+    addOns,
+    vehicleClasses,
+    navigation,
+    footer,
+    pages,
+    galleries: input.galleries || [],
+    serviceAreas: input.serviceAreas || [],
+    media: input.media || [],
+    priceConflicts,
+    unmappedContent,
+  };
 }
 
 module.exports = {
@@ -382,6 +570,7 @@ module.exports = {
   validatePackageDraft,
   validatePackagePrice,
   validateAddOnDraft,
+  validateVehicleClassDraft,
   validateNavigation,
   validateFooter,
   validatePageContent,
@@ -389,4 +578,5 @@ module.exports = {
   validateMediaMetadata,
   validateServiceArea,
   validateReleaseCandidate,
+  validateCompleteCatalogDraft,
 };
