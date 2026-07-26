@@ -6,7 +6,11 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "test:owner-studio": "node --test tests/owner-studio-foundation.test.js",
+    "test:owner-studio-staging-guard": "node --test tests/owner-studio-staging-guard.test.js",
     "owner-studio:import": "node scripts/owner-studio-import.js",
+    "owner-studio:staging:assert-db": "node scripts/assert-owner-studio-staging-db.js",
+    "owner-studio:staging:migrate": "node scripts/owner-studio-staging-migrate.js",
+    "owner-studio:staging:netlify-env": "node scripts/owner-studio-staging-netlify-env.js",
     "audit:pre-deploy": "node scripts/pre-deploy-audit.mjs",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
@@ -17,8 +21,10 @@
   "dependencies": {
     "@cursor/sdk": "^1.0.22",
     "@netlify/blobs": "10.7.9",
+    "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.8.0",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "prisma": "^7.8.0"
