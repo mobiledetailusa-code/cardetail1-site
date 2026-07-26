@@ -29,13 +29,13 @@
   <header>
     <div>
       <h1>Owner Studio</h1>
-      <div class="sub">Stage 1 foundation — read-only status shell</div>
+      <div class="sub">Stage 2 — status shell + Catalog Manager entry</div>
     </div>
     <a class="back" href="/admin">← Admin</a>
   </header>
   <nav aria-label="Owner Studio">
     <a href="#overview" aria-current="page">Overview</a>
-    <a href="#catalog">Catalog</a>
+    <a href="/admin/owner-studio/catalog">Catalog</a>
     <a href="#pages">Pages</a>
     <a href="#media">Media</a>
     <a href="#navigation">Navigation</a>
@@ -92,7 +92,7 @@
         if (!enabled) {
           note.textContent = 'OWNER_STUDIO_ENABLED is false. Public site uses PUBLIC_CONTENT_SOURCE=legacy. No incomplete editors are exposed.';
         } else {
-          note.textContent = 'Foundation status only. Draft/publish controls remain hidden until Stage 2+ UI gates pass.';
+          note.innerHTML = 'Owner Studio is enabled for staging. Public source remains <code>legacy</code>. Open <a class="back" href="/admin/owner-studio/catalog">Catalog Manager</a> for draft editing. Publish/rollback remain unavailable.';
         }
       } catch (e) {
         badge.textContent = 'Unavailable';
