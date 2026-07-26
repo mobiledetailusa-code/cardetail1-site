@@ -46,7 +46,7 @@ test('initial active tab and panel are aligned', () => {
 });
 
 test('refreshAll tracks settings and change requests independently', () => {
-  assert.match(adminOps, /const \[jobsR, techsR, settingsR, changeR\] = await Promise\.allSettled/);
+  assert.match(adminOps, /const \[jobsR, techsR, settingsR, changeR, incompleteR\] = await Promise\.allSettled/);
   assert.match(adminOps, /if \(changeR\.status === 'rejected'\) changeRequests = \[\]/);
   assert.doesNotMatch(adminOps, /if \(reqR\.status === 'rejected'\) changeRequests/);
   assert.match(adminOps, /settingsR\.status === 'rejected'\).*settings \(/);

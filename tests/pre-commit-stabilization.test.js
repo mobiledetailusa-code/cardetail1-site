@@ -237,6 +237,9 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/customer-portal-pay.js',
     'netlify/functions/stripe-webhook.js',
     'netlify/functions/list-bookings.js',
+    // Customer↔Admin communication audit — admin visibility for card-saved
+    // drafts that never finalized (otherwise silently lost to the admin).
+    'netlify/functions/admin-incomplete-bookings.js',
     'netlify/lib/booking-visibility.js',
     'netlify/lib/historical-adapter.js',
     'netlify/lib/booking-aggregate.js',

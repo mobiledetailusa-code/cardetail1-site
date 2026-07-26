@@ -176,6 +176,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   <section class="panel on" id="p-overview">
     <div class="grid g4" id="overviewStats"></div>
+    <div id="incompletePanel"></div>
   </section>
 
   <section class="panel" id="p-jobs">
@@ -422,6 +423,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   // Catalog rows/prices and money figures come from get_job — never computed locally.
   let drawerAddonData = null;
   let showTest = false, platformSettings = {}, auctions = [], subscriptions = [], changeRequests = [];
+  let incompleteBookings = [];
 
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s)
@@ -499,6 +501,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     return changeRequests;
   }
 
+  async function loadIncomplete() {
+    const data = await api('/.netlify/functions/admin-incomplete-bookings');
+    incompleteBookings = data.incomplete || [];
+    return incompleteBookings;
+  }
+
   async function decideChangeRequest(requestId, decision, adminNote, extra) {
     const body = Object.assign({
       action: 'decide',
@@ -572,13 +580,14 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
 
   async function refreshAll() {
-    const [jobsR, techsR, settingsR, changeR] = await Promise.allSettled([
-      loadJobs(), loadTechs(), loadSettings(), loadChangeRequests(),
+    const [jobsR, techsR, settingsR, changeR, incompleteR] = await Promise.allSettled([
+      loadJobs(), loadTechs(), loadSettings(), loadChangeRequests(), loadIncomplete(),
     ]);
     if (jobsR.status === 'rejected') jobs = [];
     if (techsR.status === 'rejected') techs = [];
     if (changeR.status === 'rejected') changeRequests = [];
-    renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
+    if (incompleteR.status === 'rejected') incompleteBookings = [];
+    renderOverview(); renderIncomplete(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
     renderSettingsForm();
     const failures = [];
     if (jobsR.status === 'rejected') failures.push('bookings (' + (jobsR.reason && jobsR.reason.message || jobsR.reason) + ')');
@@ -689,6 +698,44 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       ['Total jobs',c.total],['Pending / confirmed',c.pending],['Assigned',c.assigned],
       ['In field',c.active],['Awaiting review',c.review],['Issues',c.issues],['Unassigned',c.unassigned],['Technicians',techs.length]
     ].map(([l,v])=>'<div class="card"><h3>'+l+'</h3><div class="stat">'+v+'</div></div>').join('');
+  }
+
+  // Card-saved-but-not-submitted bookings. These never reach the Jobs Board
+  // (drafts are excluded there), so surfacing them here prevents a customer who
+  // saved a card but did not finalize from being silently lost.
+  function renderIncomplete() {
+    const el = $('#incompletePanel');
+    if (!el) return;
+    const rows = Array.isArray(incompleteBookings) ? incompleteBookings : [];
+    if (!rows.length) { el.innerHTML = ''; return; }
+    const savedCount = rows.filter(r => r.cardOnFileStatus === 'saved').length;
+    const body = rows.map(r => {
+      const name = ((r.firstName||'')+' '+(r.lastName||'')).trim() || r.email || r.id;
+      const when = [r.preferredDate, r.preferredTime].filter(Boolean).join(' · ') || '—';
+      const statusBadge = r.cardOnFileStatus === 'saved'
+        ? badge('card saved · not submitted', 'b-warn')
+        : badge('card step started', 'b-st');
+      return '<tr>'
+        + '<td>' + esc(name) + '</td>'
+        + '<td>' + esc(r.phone||'—') + (r.email ? '<br><span style="color:var(--mu)">'+esc(r.email)+'</span>' : '') + '</td>'
+        + '<td>' + esc(r.vehicle||'—') + (r.package ? '<br><span style="color:var(--mu)">'+esc(r.package)+'</span>' : '') + '</td>'
+        + '<td>' + esc(when) + '</td>'
+        + '<td>' + statusBadge + '</td>'
+        + '<td style="color:var(--mu)">' + dt(r.createdAt) + '</td>'
+        + '</tr>';
+    }).join('');
+    el.innerHTML =
+      '<div class="card" style="margin-top:16px;padding:16px;border-color:#7f5f1d">'
+      + '<h3 style="margin:0 0 4px">Incomplete bookings — follow up <span class="badge b-warn">' + rows.length + '</span></h3>'
+      + '<div style="font-size:13px;color:var(--mu);line-height:1.5;margin-bottom:12px">'
+      + 'Customers who reached the card-on-file step but did <strong>not</strong> submit the request. '
+      + savedCount + ' saved a card and never finished — reach out to complete their booking. '
+      + 'These do not appear on the Jobs Board because they were never finalized.'
+      + '</div>'
+      + '<div style="overflow:auto"><table class="tbl"><thead><tr>'
+      + '<th>Customer</th><th>Contact</th><th>Vehicle / Service</th><th>Preferred</th><th>Card</th><th>Started</th>'
+      + '</tr></thead><tbody>' + body + '</tbody></table></div>'
+      + '</div>';
   }
 
   function jobVehicles(j) {

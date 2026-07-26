@@ -4685,7 +4685,7 @@ async function waitForVerifiedCardSave(maxAttempts=20,delayMs=3000){
     if(attempt>0) await new Promise(resolve=>setTimeout(resolve,delayMs));
     const res=await fetch(BACKEND_BASE+'/booking-card-status',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bookingId:ST.bookingId,phone:(ST.phone||ST.customerPhone||''),draftSaveToken:(ST.draftSaveToken||draftSessionToken||'')})
+      body:JSON.stringify({bookingId:ST.bookingId,phone:(ST.phone||ST.customerPhone||''),draftSaveToken:(ST.draftSaveToken||'')})
     }).catch(()=>null);
     if(!res) continue;
     const data=await res.json().catch(()=>({}));
