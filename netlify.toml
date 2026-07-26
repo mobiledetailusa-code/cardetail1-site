@@ -10,7 +10,7 @@
 
 [functions]
   # Ensure Blobs is available to all Functions (Garage Plan / RevOps store helpers).
-  external_node_modules = ["@netlify/blobs"]
+  external_node_modules = ["@netlify/blobs", "@prisma/adapter-pg", "pg", "@prisma/client"]
 
 [dev]
   port = 8888
