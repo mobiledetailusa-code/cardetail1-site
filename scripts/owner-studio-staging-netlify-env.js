@@ -222,11 +222,16 @@ async function main() {
   delete toSet.TWILIO_TOKEN;
   delete toSet.TWILIO_FROM;
   delete toSet.CLAIM_URL;
-  // Prefer explicit staging safety URL for all DB vars unless pooled runtime is provided.
-  if (toSet.OWNER_STUDIO_STAGING_DATABASE_URL) {
-    if (!toSet.DATABASE_URL) toSet.DATABASE_URL = toSet.OWNER_STUDIO_STAGING_DATABASE_URL;
-    if (!toSet.DIRECT_URL) toSet.DIRECT_URL = toSet.OWNER_STUDIO_STAGING_DATABASE_URL;
+  // Staging runtime MUST use the same database identity as migrate/seed.
+  // Prefer DIRECT_URL / OWNER_STUDIO_STAGING_DATABASE_URL over a mismatched
+  // Accelerate pooled URL that can point at a different empty project.
+  const stagingDb = toSet.DIRECT_URL || toSet.OWNER_STUDIO_STAGING_DATABASE_URL || '';
+  if (!stagingDb) {
+    fail('missing_staging_database_url', 'DIRECT_URL or OWNER_STUDIO_STAGING_DATABASE_URL required');
   }
+  toSet.OWNER_STUDIO_STAGING_DATABASE_URL = toSet.OWNER_STUDIO_STAGING_DATABASE_URL || stagingDb;
+  toSet.DIRECT_URL = toSet.DIRECT_URL || stagingDb;
+  toSet.DATABASE_URL = stagingDb;
 
   for (const key of REQUIRED_KEYS) {
     if (!toSet[key]) {

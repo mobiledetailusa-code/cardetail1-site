@@ -12,10 +12,11 @@ const { SITE_ID } = require('../lib/owner-studio/ids');
 const {
   createMemoryCatalogRepository,
   createPostgresCatalogRepository,
-  getDefaultCatalogRepository,
 } = require('../lib/owner-studio/catalog-repository');
 const { validateCompleteCatalogDraft, validateReleaseCandidate } = require('../lib/owner-studio/schemas');
 const { trustedSiteOrigin } = require('../lib/trusted-site-origin');
+const { tryGetPrisma } = require('../lib/prisma');
+const { probeOwnerStudioCatalogSchema } = require('../lib/owner-studio/catalog-schema-health');
 
 const MAX_BODY_BYTES = 1_500_000;
 const MUTATION_WINDOW_MS = 60_000;
@@ -136,7 +137,26 @@ function requireCsrf(event, session) {
 }
 
 function getRepo() {
-  return getDefaultCatalogRepository();
+  const prisma = tryGetPrisma();
+  if (!prisma) {
+    const err = new Error('postgresql_required');
+    err.code = 'postgresql_required';
+    err.statusCode = 503;
+    throw err;
+  }
+  return createPostgresCatalogRepository(prisma);
+}
+
+async function assertCatalogSchemaReady() {
+  const schema = await probeOwnerStudioCatalogSchema(tryGetPrisma());
+  if (!schema.ready) {
+    const err = new Error(schema.error || 'owner_studio_catalog_schema_not_ready');
+    err.code = 'owner_studio_catalog_schema_not_ready';
+    err.statusCode = 503;
+    err.ownerStudioCatalogSchema = schema;
+    throw err;
+  }
+  return schema;
 }
 
 function overviewFromDraft(draft) {
@@ -181,6 +201,7 @@ function publicError(err) {
   };
   if (err.expectedVersion != null) body.expectedVersion = err.expectedVersion;
   if (err.currentVersion != null) body.currentVersion = err.currentVersion;
+  if (err.ownerStudioCatalogSchema) body.ownerStudioCatalogSchema = err.ownerStudioCatalogSchema;
   return json(status, body);
 }
 
@@ -221,6 +242,7 @@ exports.handler = async (event) => {
       if (!flags.enabled) {
         return json(403, { ok: false, error: 'owner_studio_disabled' });
       }
+      const schema = await assertCatalogSchemaReady();
       const repo = getRepo();
       if (action === 'get_draft' || action === 'overview') {
         const draft = await repo.getCatalogDraft(SITE_ID);
@@ -231,6 +253,8 @@ exports.handler = async (event) => {
           publicationControls: false,
           publishAvailable: false,
           rollbackAvailable: false,
+          persistence: 'postgresql',
+          ownerStudioCatalogSchema: schema,
           overview: overviewFromDraft(draft),
           draft: action === 'overview' ? null : draft,
         });
@@ -302,6 +326,7 @@ exports.handler = async (event) => {
           message: 'Publishing will be available after transactional release integration.',
         });
       }
+      await assertCatalogSchemaReady();
       const repo = getRepo();
       if (mutation === 'create_draft') {
         const draft = await repo.createCatalogDraft(SITE_ID, identity.username);
