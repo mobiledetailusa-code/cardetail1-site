@@ -295,10 +295,12 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/qa-blobs-health.js',
     // Owner Studio Stage 1 — protected read-only status endpoint (flags off by default)
     'netlify/functions/owner-studio-status.js',
+    'netlify/functions/owner-studio-catalog.js',
     'netlify/lib/owner-studio/audit.js',
     'netlify/lib/owner-studio/authorization.js',
     'netlify/lib/owner-studio/booking-snapshot.js',
     'netlify/lib/owner-studio/catalog-read.js',
+    'netlify/lib/owner-studio/catalog-repository.js',
     'netlify/lib/owner-studio/content-read.js',
     'netlify/lib/owner-studio/draft-service.js',
     'netlify/lib/owner-studio/flags.js',

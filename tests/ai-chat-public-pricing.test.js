@@ -126,6 +126,7 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/qa-blobs-health.js',
   // Owner Studio Stage 1 — protected read-only status endpoint (flags off by default)
   'netlify/functions/owner-studio-status.js',
+  'netlify/functions/owner-studio-catalog.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {
