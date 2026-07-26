@@ -23,6 +23,17 @@
     dt { color:var(--muted); } dd { margin:0; font-family: ui-monospace, Consolas, monospace; font-size:.9rem; }
     .note { margin-top:18px; color:var(--muted); line-height:1.5; font-size:.95rem; }
     a.back { color:var(--accent); text-decoration:none; font-size:.9rem; }
+    .modules { list-style:none; padding:0; margin:20px 0 0; display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
+    .module { border:1px solid var(--line); border-radius:10px; padding:16px; background:rgba(15,23,42,.5); }
+    .module h3 { margin:0 0 6px; font-size:1rem; }
+    .module p { margin:0 0 10px; color:var(--muted); font-size:.85rem; line-height:1.4; }
+    .module a.open { color:var(--accent); font-weight:600; text-decoration:none; }
+    .module a.open:hover { text-decoration:underline; }
+    .module .status { font-size:.72rem; padding:3px 9px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+    .module.available .status { color:#86efac; border-color:#166534; }
+    .module.available { border-color:rgba(56,189,248,.35); }
+    .module.planned { opacity:.72; }
+    .module .disabled { color:var(--muted); font-size:.82rem; }
   </style>
 </head>
 <body>
@@ -34,13 +45,9 @@
     <a class="back" href="/admin">← Admin</a>
   </header>
   <nav aria-label="Owner Studio">
+    <a href="/admin" >← Admin portal</a>
     <a href="#overview" aria-current="page">Overview</a>
-    <a href="/admin/owner-studio/catalog">Catalog</a>
-    <a href="#pages">Pages</a>
-    <a href="#media">Media</a>
-    <a href="#navigation">Navigation</a>
-    <a href="#footer">Footer</a>
-    <a href="#releases">Releases</a>
+    <a href="/admin/owner-studio/catalog">Catalog Manager</a>
   </nav>
   <main>
     <div class="panel" id="overview">
@@ -56,6 +63,52 @@
         services, authorization, and tests pass. With <code>OWNER_STUDIO_ENABLED=false</code>
         (default), the public website remains on legacy content.
       </p>
+    </div>
+
+    <div class="panel" id="modules" style="margin-top:22px">
+      <h2 style="margin:0;font-size:1.05rem">Control-plane modules</h2>
+      <p class="note" style="margin-top:6px">
+        Owner Studio is the authoritative control plane for the website's catalog, pricing and
+        content. Only modules that are actually implemented are openable — planned modules are
+        shown for roadmap context and are intentionally not navigable.
+      </p>
+      <ul class="modules">
+        <li class="module available">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <h3>Catalog</h3><span class="status">Available</span>
+          </div>
+          <p>Packages, add-ons, vehicle classes and integer-cent pricing. Draft → revision → restore, with conflict tracking.</p>
+          <a class="open" href="/admin/owner-studio/catalog">Open Catalog Manager →</a>
+        </li>
+        <li class="module planned">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <h3>Pricing &amp; Travel</h3><span class="status">Planned</span>
+          </div>
+          <p>Travel-distance pricing, free radius, per-mile charges and fixed zones. Contract defined; module not yet built.</p>
+          <span class="disabled" aria-disabled="true">Not yet available</span>
+        </li>
+        <li class="module planned">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <h3>Content &amp; Media</h3><span class="status">Planned</span>
+          </div>
+          <p>Cover images, galleries, alt text, page copy and SEO. Schema exists; editor not yet built.</p>
+          <span class="disabled" aria-disabled="true">Not yet available</span>
+        </li>
+        <li class="module planned">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <h3>Service Areas</h3><span class="status">Planned</span>
+          </div>
+          <p>State, city and ZIP availability. Schema exists; editor not yet built.</p>
+          <span class="disabled" aria-disabled="true">Not yet available</span>
+        </li>
+        <li class="module planned">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <h3>Publishing</h3><span class="status">Planned</span>
+          </div>
+          <p>Transactional publish of an immutable catalog release to the public site. Publish/rollback remain disabled in Stage 2.</p>
+          <span class="disabled" aria-disabled="true">Not yet available</span>
+        </li>
+      </ul>
     </div>
   </main>
   <script src="/netlify/lib/admin-session-client.js"></script>

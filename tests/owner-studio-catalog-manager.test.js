@@ -262,6 +262,102 @@ describe('owner-studio catalog manager unit', () => {
     assert.equal(p.draftVersion, 1);
   });
 
+  // --- Stage 2 write-path round-trip regression -------------------------------
+  // These reproduce the REAL Catalog Manager flow: the client holds the object
+  // returned by the API (sanitizeDraftResponse, which includes server-emitted
+  // metadata like `draftId`) and posts it back verbatim on Save Draft. The prior
+  // tests always built a hand-crafted clean payload, so the draftId round-trip
+  // failure (unknown_field:draftId → every save rejected) went undetected.
+
+  it('round-trips the exact API draft shape on save (draftId regression)', async () => {
+    // Establish a real saved draft, then read it back exactly as the UI would.
+    await repo.saveCatalogDraft(SITE_ID, 1, sampleDraft(), 'owner');
+    const asClientHoldsIt = await repo.getCatalogDraft(SITE_ID);
+    assert.ok('draftId' in asClientHoldsIt, 'API read shape must include draftId');
+
+    // The UI edits a package price and posts the WHOLE object back verbatim.
+    const edited = JSON.parse(JSON.stringify(asClientHoldsIt));
+    edited.packages[0].prices[0].amountCents = 31900; // $319.00
+    const saved = await repo.saveCatalogDraft(SITE_ID, edited.version, edited, 'owner');
+    assert.equal(saved.draft.packages[0].prices[0].amountCents, 31900);
+
+    // Persisted value survives a fresh read (simulates full browser reload).
+    const reread = await repo.getCatalogDraft(SITE_ID);
+    assert.equal(reread.packages[0].prices[0].amountCents, 31900);
+    assert.equal(reread.version, saved.draft.version);
+  });
+
+  it('persists an edited add-on price through a verbatim round-trip', async () => {
+    await repo.saveCatalogDraft(SITE_ID, 1, sampleDraft(), 'owner');
+    const held = await repo.getCatalogDraft(SITE_ID);
+    const edited = JSON.parse(JSON.stringify(held));
+    edited.addOns[0].prices[0].amountCents = 5500; // $55.00
+    const saved = await repo.saveCatalogDraft(SITE_ID, edited.version, edited, 'owner');
+    assert.equal(saved.draft.addOns[0].prices[0].amountCents, 5500);
+    const reread = await repo.getCatalogDraft(SITE_ID);
+    assert.equal(reread.addOns[0].prices[0].amountCents, 5500);
+  });
+
+  it('the completed-draft validator tolerates the server-emitted draftId echo', () => {
+    const withEcho = { ...sampleDraft(), draftId: 'draft_abc123', version: 7, updatedAt: new Date().toISOString(), updatedBy: 'owner', lastSavedAt: new Date().toISOString(), lastSavedBy: 'owner' };
+    const validated = validateCompleteCatalogDraft(withEcho);
+    // Tolerated on input, discarded on output (never trusted).
+    assert.equal(validated.draftId, undefined);
+    assert.equal(validated.packages[0].prices[0].amountCents, 28500);
+  });
+
+  it('increments version and records a revision on every price save', async () => {
+    const s1 = await repo.saveCatalogDraft(SITE_ID, 1, sampleDraft(), 'owner');
+    assert.equal(s1.draft.version, 2);
+    const held = await repo.getCatalogDraft(SITE_ID);
+    const edited = JSON.parse(JSON.stringify(held));
+    edited.packages[0].prices[0].amountCents = 29900;
+    const s2 = await repo.saveCatalogDraft(SITE_ID, edited.version, edited, 'owner');
+    assert.equal(s2.draft.version, 3);
+    const list = await repo.listCatalogRevisions(SITE_ID);
+    assert.equal(list.total, 2);
+  });
+
+  it('restore returns the previous price and creates a new revision', async () => {
+    const first = await repo.saveCatalogDraft(SITE_ID, 1, sampleDraft(), 'owner'); // price 28500, v2
+    const held = await repo.getCatalogDraft(SITE_ID);
+    const edited = JSON.parse(JSON.stringify(held));
+    edited.packages[0].prices[0].amountCents = 40000; // v3
+    await repo.saveCatalogDraft(SITE_ID, edited.version, edited, 'owner');
+    const current = await repo.getCatalogDraft(SITE_ID);
+    assert.equal(current.packages[0].prices[0].amountCents, 40000);
+    // Restore the first revision (price 28500) as a NEW draft.
+    const restored = await repo.restoreRevisionAsNewDraft(SITE_ID, first.revisionId, current.version, 'owner');
+    assert.equal(restored.draft.packages[0].prices[0].amountCents, 28500);
+    assert.ok(restored.draft.version > current.version);
+  });
+
+  it('rejects negative and non-integer price cents at the money boundary', () => {
+    assert.throws(() => validateCompleteCatalogDraft(sampleDraft({
+      packages: [{ ...SAMPLE_PKG, prices: [{ ...SAMPLE_PKG.prices[0], amountCents: -100 }] }],
+    })), /negative/i);
+    assert.throws(() => validateCompleteCatalogDraft(sampleDraft({
+      packages: [{ ...SAMPLE_PKG, prices: [{ ...SAMPLE_PKG.prices[0], amountCents: 199.99 }] }],
+    })), /float|integer/i);
+    assert.throws(() => validateCompleteCatalogDraft(sampleDraft({
+      packages: [{ ...SAMPLE_PKG, prices: [{ ...SAMPLE_PKG.prices[0], amountCents: '250' }] }],
+    })), /invalid|money/i);
+  });
+
+  it('allows a zero price where the schema permits it', async () => {
+    await repo.saveCatalogDraft(SITE_ID, 1, sampleDraft({
+      packages: [{ ...SAMPLE_PKG, prices: [{ ...SAMPLE_PKG.prices[0], amountCents: 0 }] }],
+    }), 'owner');
+    const reread = await repo.getCatalogDraft(SITE_ID);
+    assert.equal(reread.packages[0].prices[0].amountCents, 0);
+  });
+
+  it('save payload strips server-managed metadata (client hardening)', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'admin-owner-studio-catalog.html'), 'utf8');
+    assert.match(html, /serverManagedStrip/);
+    assert.match(html, /draft:\s*serverManagedStrip\(state\.draft\)/);
+  });
+
   it('overview helper counts conflicts', () => {
     const overview = catalogFn._test.overviewFromDraft({
       packages: [SAMPLE_PKG],
