@@ -301,6 +301,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/owner-studio/booking-snapshot.js',
     'netlify/lib/owner-studio/catalog-read.js',
     'netlify/lib/owner-studio/catalog-repository.js',
+    'netlify/lib/owner-studio/catalog-schema-health.js',
     'netlify/lib/owner-studio/content-read.js',
     'netlify/lib/owner-studio/draft-service.js',
     'netlify/lib/owner-studio/flags.js',

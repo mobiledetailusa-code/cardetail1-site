@@ -14,6 +14,7 @@ const contentRead = require('./content-read');
 const snapshot = require('./snapshot');
 const bookingSnapshot = require('./booking-snapshot');
 const catalogRepository = require('./catalog-repository');
+const catalogSchemaHealth = require('./catalog-schema-health');
 const importer = require('./importer');
 
 module.exports = {
@@ -31,5 +32,6 @@ module.exports = {
   ...snapshot,
   ...bookingSnapshot,
   ...catalogRepository,
+  ...catalogSchemaHealth,
   ...importer,
 };

@@ -5,6 +5,8 @@ const { resolveCurrentRelease } = require('../lib/owner-studio/release-service')
 const { validateReleaseCandidateFromDraft } = require('../lib/owner-studio/release-service');
 const { SITE_ID } = require('../lib/owner-studio/ids');
 const { verifyAdminRequest } = require('../lib/admin-security');
+const { tryGetPrisma } = require('../lib/prisma');
+const { probeOwnerStudioCatalogSchema } = require('../lib/owner-studio/catalog-schema-health');
 
 function json(statusCode, body) {
   return {
@@ -41,6 +43,11 @@ exports.handler = async (event) => {
   const flags = getOwnerStudioFlags();
   let currentReleaseId = null;
   let draftValidation = 'disabled';
+  let ownerStudioCatalogSchema = {
+    configured: false,
+    ready: false,
+    requiredTablesPresent: false,
+  };
 
   if (flags.enabled) {
     const release = resolveCurrentRelease(SITE_ID);
@@ -51,6 +58,7 @@ exports.handler = async (event) => {
     } catch (e) {
       draftValidation = `error:${e.code || e.message}`;
     }
+    ownerStudioCatalogSchema = await probeOwnerStudioCatalogSchema(tryGetPrisma());
   }
 
   return json(200, {
@@ -62,5 +70,6 @@ exports.handler = async (event) => {
     role: flags.role,
     editingControls: false,
     publicationControls: false,
+    ownerStudioCatalogSchema,
   });
 };
