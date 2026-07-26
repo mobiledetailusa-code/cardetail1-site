@@ -48,6 +48,17 @@
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
     .price-grid { display:grid; gap:8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
     a.back { color:var(--accent); text-decoration:none; }
+    .addon-row { border:1px solid var(--line); border-radius:8px; margin-bottom:8px; overflow:hidden; }
+    .addon-row.dirty { border-color:var(--warn); }
+    .addon-summary { display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:transparent; color:var(--ink); border:0; border-radius:0; padding:10px 12px; cursor:pointer; font-weight:600; }
+    .addon-summary:hover { background:rgba(255,255,255,.03); }
+    .addon-summary .chev { transition:transform .15s ease; color:var(--muted); }
+    .addon-summary[aria-expanded="true"] .chev { transform:rotate(90deg); }
+    .addon-summary .a-name { flex:1; min-width:0; }
+    .addon-summary .a-price { font-family: ui-monospace, Consolas, monospace; }
+    .addon-summary .muted { font-weight:400; }
+    .addon-editor { padding:12px; border-top:1px dashed var(--line); background:rgba(11,18,32,.5); }
+    .addon-editor .grid2 { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); }
   </style>
 </head>
 <body>
@@ -148,8 +159,45 @@
     </div>
 
     <section class="panel" id="addons" aria-labelledby="addon-title">
-      <h2 id="addon-title" style="margin-top:0;font-size:1rem">Add-ons</h2>
-      <div id="addon-list"></div>
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <h2 id="addon-title" style="margin:0;font-size:1rem">Add-ons</h2>
+        <span id="addon-count" class="muted" aria-live="polite"></span>
+      </div>
+      <p class="muted" style="margin-top:0">Collapsed by default. Search, filter, then expand a row to edit. Edits apply to the draft immediately; use <strong>Save Draft</strong> to persist.</p>
+      <div class="row" style="margin-bottom:10px">
+        <div style="flex:1;min-width:180px">
+          <label for="addon-search">Search</label>
+          <input id="addon-search" type="search" placeholder="Name, ID, category, or description">
+        </div>
+        <div>
+          <label for="addon-filter-status">Status</label>
+          <select id="addon-filter-status">
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+        <div>
+          <label for="addon-filter-cat">Category</label>
+          <select id="addon-filter-cat"><option value="all">All</option></select>
+        </div>
+        <div>
+          <label for="addon-filter-flag">Flag</label>
+          <select id="addon-filter-flag">
+            <option value="all">All</option>
+            <option value="conflicts">Conflicts</option>
+            <option value="missing-price">Missing price</option>
+            <option value="unsaved">Unsaved changes</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <button type="button" class="secondary" id="addon-expand-all">Expand all</button>
+        <button type="button" class="secondary" id="addon-collapse-all">Collapse all</button>
+        <button type="button" class="secondary" id="addon-clear-search">Clear search</button>
+        <span id="addon-msg" class="muted" aria-live="polite"></span>
+      </div>
+      <div id="addon-list" role="list"></div>
     </section>
 
     <section class="panel" id="conflicts" aria-labelledby="conflict-title">
@@ -179,6 +227,8 @@
       selectedId: null,
       dirty: false,
       saving: false,
+      addonExpanded: new Set(),
+      addonDirty: new Set(),
     };
 
     const el = (id) => document.getElementById(id);
@@ -252,6 +302,7 @@
         return;
       }
       el('status-banner').textContent = 'Draft loaded. Public content source remains legacy. Publish/rollback unavailable.';
+      state.addonDirty.clear();
       renderAll();
       setDirty(false);
     }
@@ -385,36 +436,187 @@
       selectPackage(p.packageId);
     }
 
+    // ---- Add-on management (searchable, filterable, collapsed accordion) ------
+    function addonCategories(a) {
+      const set = new Set();
+      for (const p of a.prices || []) if (p.category) set.add(p.category);
+      for (const c of a.compatibility || []) if (c.category) set.add(c.category);
+      return [...set];
+    }
+    function addonHasConflict(a) {
+      return (state.draft.priceConflicts || []).some(
+        (c) => c.status === 'unresolved' && String(c.entityId) === a.addOnId
+      );
+    }
+    function addonMissingPrice(a) {
+      return !(a.prices && a.prices.length) || a.prices.every((p) => !(Number(p.amountCents) > 0));
+    }
+    function addonSummaryPrice(a) {
+      if (!(a.prices && a.prices.length)) return '—';
+      const first = '$' + centsToUsd(a.prices[0].amountCents);
+      return a.prices.length > 1 ? `${first} +${a.prices.length - 1}` : first;
+    }
+
+    function filteredAddOns() {
+      const q = el('addon-search').value.trim().toLowerCase();
+      const status = el('addon-filter-status').value;
+      const cat = el('addon-filter-cat').value;
+      const flag = el('addon-filter-flag').value;
+      return (state.draft.addOns || []).filter((a) => {
+        if (status === 'active' && a.active === false) return false;
+        if (status === 'inactive' && a.active !== false) return false;
+        if (cat !== 'all' && !addonCategories(a).includes(cat)) return false;
+        if (flag === 'conflicts' && !addonHasConflict(a)) return false;
+        if (flag === 'missing-price' && !addonMissingPrice(a)) return false;
+        if (flag === 'unsaved' && !state.addonDirty.has(a.addOnId)) return false;
+        if (q) {
+          const hay = [a.name, a.addOnId, a.slug, a.description, addonCategories(a).join(' ')]
+            .join(' ').toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      }).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+    }
+
+    function markAddonDirty(a, row) {
+      state.addonDirty.add(a.addOnId);
+      setDirty(true);
+      if (row) row.classList.add('dirty');
+    }
+
+    function buildAddonEditor(a, row, priceSpan, badgeWrap) {
+      const ed = document.createElement('div');
+      ed.className = 'addon-editor';
+      const cats = addonCategories(a);
+      ed.innerHTML = `
+        <div class="grid2">
+          <div><label>Name</label><input data-f="name" maxlength="80" value="${escapeHtml(a.name)}"></div>
+          <div><label>Display order</label><input data-f="order" type="number" step="1" value="${a.displayOrder || 0}"></div>
+          <div><label>Active</label><select data-f="active">
+            <option value="true" ${a.active !== false ? 'selected' : ''}>Active</option>
+            <option value="false" ${a.active === false ? 'selected' : ''}>Inactive</option></select></div>
+        </div>
+        <div style="margin-top:10px"><label>Description</label><textarea data-f="desc" maxlength="2000">${escapeHtml(a.description || '')}</textarea></div>
+        <div style="margin-top:10px"><label>Price(s) — USD (saved as integer cents)</label>
+          <div class="price-grid" data-prices></div>
+        </div>
+        <p class="muted" data-editor-msg style="margin:8px 0 0"></p>`;
+      const priceBox = ed.querySelector('[data-prices]');
+      if (!(a.prices && a.prices.length)) {
+        priceBox.innerHTML = '<span class="muted">No price rows on this add-on.</span>';
+      } else {
+        a.prices.forEach((pr, i) => {
+          const wrap = document.createElement('div');
+          const label = pr.category ? `${escapeHtml(pr.category)} (USD)` : `Price ${i + 1} (USD)`;
+          wrap.innerHTML = `<label>${label}</label><input data-price-idx="${i}" inputmode="decimal" value="${centsToUsd(pr.amountCents)}">`;
+          priceBox.appendChild(wrap);
+        });
+      }
+      const msg = ed.querySelector('[data-editor-msg]');
+      const refreshSummary = () => {
+        priceSpan.textContent = addonSummaryPrice(a);
+        renderBadges(a, badgeWrap, row);
+      };
+      // Live-apply so edits are never silently discarded on collapse.
+      ed.querySelector('[data-f="name"]').addEventListener('input', (e) => {
+        a.name = e.target.value; markAddonDirty(a, row);
+        row.querySelector('.a-name').firstChild.textContent = a.name + ' ';
+      });
+      ed.querySelector('[data-f="desc"]').addEventListener('input', (e) => { a.description = e.target.value; markAddonDirty(a, row); });
+      ed.querySelector('[data-f="order"]').addEventListener('input', (e) => { a.displayOrder = parseInt(e.target.value, 10) || 0; markAddonDirty(a, row); });
+      ed.querySelector('[data-f="active"]').addEventListener('change', (e) => { a.active = e.target.value === 'true'; markAddonDirty(a, row); refreshSummary(); });
+      priceBox.querySelectorAll('input[data-price-idx]').forEach((inp) => {
+        inp.addEventListener('input', (e) => {
+          const idx = Number(e.target.getAttribute('data-price-idx'));
+          try {
+            a.prices[idx].amountCents = usdToCents(e.target.value);
+            msg.textContent = ''; msg.className = 'muted';
+            markAddonDirty(a, row);
+            refreshSummary();
+          } catch (_) {
+            msg.textContent = 'Enter a valid non-negative dollar amount.'; msg.className = 'err';
+          }
+        });
+      });
+      return ed;
+    }
+
+    function renderBadges(a, badgeWrap, row) {
+      const parts = [];
+      parts.push(`<span class="badge ${a.active !== false ? 'ok' : 'bad'}">${a.active !== false ? 'active' : 'inactive'}</span>`);
+      if (addonHasConflict(a)) parts.push('<span class="badge warn">conflict</span>');
+      if (addonMissingPrice(a)) parts.push('<span class="badge bad">no price</span>');
+      if (state.addonDirty.has(a.addOnId)) { parts.push('<span class="badge warn">unsaved</span>'); if (row) row.classList.add('dirty'); }
+      badgeWrap.innerHTML = parts.join(' ');
+    }
+
     function renderAddOns() {
       const box = el('addon-list');
-      const rows = (state.draft.addOns || []).slice().sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-      box.innerHTML = `<table><thead><tr><th>Name</th><th>Price (USD)</th><th>Order</th><th>Active</th></tr></thead><tbody>${
-        rows.map((a) => {
-          const cents = (a.prices && a.prices[0] && a.prices[0].amountCents) || 0;
-          return `<tr>
-            <td>${escapeHtml(a.name)}<div class="muted">${escapeHtml(a.addOnId)}</div></td>
-            <td><label class="sr-only" for="addon-price-${a.addOnId}">Price for ${escapeHtml(a.name)}</label>
-              <input id="addon-price-${a.addOnId}" data-addon="${a.addOnId}" value="${centsToUsd(cents)}" style="max-width:110px"></td>
-            <td><input data-addon-order="${a.addOnId}" type="number" value="${a.displayOrder || 0}" style="max-width:80px"></td>
-            <td><select data-addon-active="${a.addOnId}"><option value="true" ${a.active !== false ? 'selected' : ''}>Active</option><option value="false" ${a.active === false ? 'selected' : ''}>Inactive</option></select></td>
-          </tr>`;
-        }).join('')
-      }</tbody></table>
-      <button type="button" id="btn-apply-addons" style="margin-top:10px">Apply add-on changes</button>`;
-      el('btn-apply-addons').onclick = () => {
-        for (const a of state.draft.addOns) {
-          const priceInput = box.querySelector(`input[data-addon="${a.addOnId}"]`);
-          const orderInput = box.querySelector(`input[data-addon-order="${a.addOnId}"]`);
-          const activeSel = box.querySelector(`select[data-addon-active="${a.addOnId}"]`);
-          try {
-            if (priceInput && a.prices && a.prices[0]) a.prices[0].amountCents = usdToCents(priceInput.value);
-            if (orderInput) a.displayOrder = parseInt(orderInput.value, 10) || 0;
-            if (activeSel) a.active = activeSel.value === 'true';
-          } catch (_) {}
-        }
-        setDirty(true);
-        setSaveState('Add-on edits applied locally', 'okmsg');
-      };
+      // Category filter options
+      const allCats = [...new Set((state.draft.addOns || []).flatMap(addonCategories))].sort();
+      const catSel = el('addon-filter-cat');
+      const curCat = catSel.value;
+      catSel.innerHTML = '<option value="all">All</option>' + allCats.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      catSel.value = allCats.includes(curCat) ? curCat : 'all';
+
+      const total = (state.draft.addOns || []).length;
+      const rows = filteredAddOns();
+      el('addon-count').textContent = `Showing ${rows.length} of ${total} add-ons`;
+      box.innerHTML = '';
+      if (!rows.length) {
+        box.innerHTML = '<p class="muted">No add-ons match the current search / filters.</p>';
+        return;
+      }
+      for (const a of rows) {
+        const row = document.createElement('div');
+        row.className = 'addon-row' + (state.addonDirty.has(a.addOnId) ? ' dirty' : '');
+        const expanded = state.addonExpanded.has(a.addOnId);
+        const summary = document.createElement('button');
+        summary.type = 'button';
+        summary.className = 'addon-summary';
+        summary.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        const cats = addonCategories(a);
+        summary.innerHTML =
+          `<span class="chev">▶</span>` +
+          `<span class="a-name">${escapeHtml(a.name)} <span class="muted">· ${escapeHtml(a.addOnId)}</span></span>` +
+          `<span class="muted">${escapeHtml(cats.join(', ') || 'uncategorized')}</span>` +
+          `<span class="a-price">${addonSummaryPrice(a)}</span>` +
+          `<span class="a-badges"></span>`;
+        const priceSpan = summary.querySelector('.a-price');
+        const badgeWrap = summary.querySelector('.a-badges');
+        renderBadges(a, badgeWrap, row);
+        summary.addEventListener('click', () => {
+          if (state.addonExpanded.has(a.addOnId)) state.addonExpanded.delete(a.addOnId);
+          else state.addonExpanded.add(a.addOnId);
+          renderAddOns();
+        });
+        row.appendChild(summary);
+        if (expanded) row.appendChild(buildAddonEditor(a, row, priceSpan, badgeWrap)); // lazy: only build when open
+        box.appendChild(row);
+      }
+    }
+
+    function wireAddonControls() {
+      el('addon-search').addEventListener('input', renderAddOns);
+      el('addon-filter-status').addEventListener('change', renderAddOns);
+      el('addon-filter-cat').addEventListener('change', renderAddOns);
+      el('addon-filter-flag').addEventListener('change', renderAddOns);
+      el('addon-clear-search').addEventListener('click', () => {
+        el('addon-search').value = '';
+        el('addon-filter-status').value = 'all';
+        el('addon-filter-cat').value = 'all';
+        el('addon-filter-flag').value = 'all';
+        renderAddOns();
+      });
+      el('addon-expand-all').addEventListener('click', () => {
+        // Lazy-render guard: only expand the currently filtered set to avoid building every editor at once.
+        for (const a of filteredAddOns()) state.addonExpanded.add(a.addOnId);
+        renderAddOns();
+      });
+      el('addon-collapse-all').addEventListener('click', () => {
+        state.addonExpanded.clear();
+        renderAddOns();
+      });
     }
 
     function renderConflicts() {
@@ -526,8 +728,20 @@
       if (state.selectedId) selectPackage(state.selectedId);
     }
 
+    // Server-managed metadata that the API emits on read but derives itself on write.
+    // Sent-back values are ignored server-side; we strip them so the payload is the
+    // editable catalog model only (draftId, version, timestamps stay server-authoritative).
+    function serverManagedStrip(draft) {
+      const clean = { ...draft };
+      for (const k of ['draftId', 'updatedAt', 'updatedBy', 'lastSavedAt', 'lastSavedBy']) delete clean[k];
+      return clean;
+    }
+
     async function saveDraft() {
       if (!state.draft || state.saving) return;
+      // Auto-commit any pending edits in the open package editor so they are never
+      // silently discarded by saving before clicking "Apply package changes".
+      if (state.selectedId && !el('editor').hidden) applyPackageEdits();
       state.saving = true;
       setSaveState('Saving…');
       el('btn-save').disabled = true;
@@ -538,7 +752,7 @@
           body: JSON.stringify({
             action: 'save_draft',
             expectedVersion: state.draft.version,
-            draft: state.draft,
+            draft: serverManagedStrip(state.draft),
           }),
         });
         if (res.status === 409) {
@@ -550,6 +764,7 @@
           return;
         }
         state.draft = data.draft;
+        state.addonDirty.clear();
         setDirty(false);
         setSaveState('Saved · revision ' + data.revisionId + (data.validation && !data.validation.ok ? ' (validation warnings)' : ''), 'okmsg');
         renderAll();
@@ -573,6 +788,7 @@
     el('search').addEventListener('input', renderPackageList);
     el('filter-active').addEventListener('change', renderPackageList);
     el('filter-cat').addEventListener('change', renderPackageList);
+    wireAddonControls();
 
     (async function init() {
       const ok = await loadCsrf();

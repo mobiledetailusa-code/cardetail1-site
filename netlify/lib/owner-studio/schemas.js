@@ -422,7 +422,10 @@ function validateCompleteCatalogDraft(input, options = {}) {
     throw err;
   }
   rejectUnknown(input, new Set([
-    'siteId', 'status', 'draftVersion', 'version', 'packages', 'addOns', 'vehicleClasses',
+    // `draftId` is a server-emitted echo field returned by sanitizeDraftResponse. It is
+    // tolerated here (and discarded below — never trusted) so the read shape round-trips
+    // safely through Save Draft. Without it, every UI save fails with unknown_field:draftId.
+    'siteId', 'draftId', 'status', 'draftVersion', 'version', 'packages', 'addOns', 'vehicleClasses',
     'navigation', 'footer', 'pages', 'galleries', 'serviceAreas', 'media',
     'priceConflicts', 'unmappedContent', 'updatedAt', 'updatedBy', 'lastSavedAt', 'lastSavedBy',
   ]));
