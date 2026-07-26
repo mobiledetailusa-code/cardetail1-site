@@ -140,7 +140,11 @@ test('submit-booking draft with empty preferredTime returns booking_time_unavail
     body: JSON.stringify(validDraftBody({ preferredTime: '' })),
   });
   assert.equal(res.statusCode, 400);
-  assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'booking_time_unavailable' });
+  const body = JSON.parse(res.body);
+  assert.equal(body.ok, false);
+  assert.equal(body.bookingCreated, false);
+  assert.equal(body.error, 'booking_time_unavailable');
+  assert.match(String(body.userMessage || ''), /unavailable/i);
 });
 
 test('submit-booking draft with valid schedule issues draftSaveToken', async () => {

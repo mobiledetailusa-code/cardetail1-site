@@ -149,6 +149,38 @@ test('cancelled/rejected/archived/test booking does not block slot', () => {
   for (const b of bookings) assert.equal(isActiveBookingForSlotLock(b), false);
 });
 
+test('active card-save draft soft-holds the selected slot', () => {
+  const { DRAFT_SLOT_HOLD_MS, isActiveDraftSlotHold } = require('../netlify/lib/booking-schedule');
+  const now = Date.parse('2026-07-26T19:40:00.000Z');
+  const activeDraft = {
+    id: 'CD1-DRAFT-HOLD',
+    isDraft: true,
+    preferredDate: '2026-07-30',
+    preferredTime: '8:00 AM',
+    cardOnFileStatus: 'saved',
+    updatedAt: '2026-07-26T19:39:00.000Z',
+  };
+  const expiredDraft = {
+    ...activeDraft,
+    id: 'CD1-DRAFT-OLD',
+    updatedAt: new Date(now - DRAFT_SLOT_HOLD_MS - 1000).toISOString(),
+  };
+  const bareDraft = {
+    id: 'CD1-DRAFT-BARE',
+    isDraft: true,
+    preferredDate: '2026-07-30',
+    preferredTime: '8:00 AM',
+    updatedAt: '2026-07-26T19:39:00.000Z',
+  };
+  assert.equal(isActiveDraftSlotHold(activeDraft, now), true);
+  assert.equal(isActiveBookingForSlotLock(activeDraft, now), true);
+  assert.equal(hasSlotConflict([activeDraft], '2026-07-30', '8:00 AM', null, now), true);
+  assert.equal(hasSlotConflict([activeDraft], '2026-07-30', '8:00 AM', 'CD1-DRAFT-HOLD', now), false);
+  assert.equal(isActiveDraftSlotHold(expiredDraft, now), false);
+  assert.equal(hasSlotConflict([expiredDraft], '2026-07-30', '8:00 AM', null, now), false);
+  assert.equal(isActiveBookingForSlotLock(bareDraft, now), false);
+});
+
 test('all 13 booking pages use discrete slot labels', () => {
   for (const page of BOOKING_PAGES) {
     const html = read(page);
@@ -202,9 +234,15 @@ test('submit-booking imports and enforces booking-schedule', () => {
   assert.match(submit, /validateBookingSchedule/);
   assert.match(submit, /hasSlotConflict/);
   assert.match(submit, /enforceScheduleFields/);
+  assert.match(submit, /listBookingsForSlotLock/);
   assert.match(submit, /booking_slot_unavailable/);
-  assert.match(submit, /scheduleDraft\.error/);
-  assert.match(submit, /scheduleFinal\.error/);
+  assert.match(submit, /scheduleRejectResponse/);
+  assert.match(submit, /checkSlot:\s*true/);
+  assert.match(submit, /phase:\s*'draft'/);
+  assert.match(submit, /phase:\s*'finalize'/);
+  assert.match(submit, /bookingCreated:\s*true/);
+  assert.match(submit, /scheduleDraft\.error|scheduleRejectResponse/);
+  assert.match(submit, /scheduleFinal\.error|scheduleRejectResponse/);
 });
 
 test('no pricing files changed in this task scope', () => {

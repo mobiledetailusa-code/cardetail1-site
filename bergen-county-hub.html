@@ -3934,7 +3934,7 @@ async function waitForVerifiedCardSave(maxAttempts=20,delayMs=3000){
     if(attempt>0) await new Promise(resolve=>setTimeout(resolve,delayMs));
     const res=await fetch(BACKEND_BASE+'/booking-card-status',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bookingId:ST.bookingId,phone:(ST.phone||ST.customerPhone||''),draftSaveToken:(ST.draftSaveToken||draftSessionToken||'')})
+      body:JSON.stringify({bookingId:ST.bookingId,phone:(document.getElementById('f-phone')?.value||ST.phone||ST.customerPhone||'').trim(),draftSaveToken:(ST.draftSaveToken||'')})
     }).catch(()=>null);
     if(!res) continue;
     const data=await res.json().catch(()=>({}));
@@ -4077,6 +4077,7 @@ async function initCardOnFile(){
           price_mismatch:'Your total changed — go back one step and continue again.',
           booking_time_unavailable:'That time is unavailable on the selected date. Go back one step and choose another slot.',
           booking_date_unavailable:'That date is unavailable. Go back one step and choose another day.',
+          booking_slot_unavailable:'That time slot is already reserved. Go back one step and choose another date or time before saving your card.',
           rate_limited:'Too many attempts. Please wait a few minutes and try again.',
           invalid_phone:'Please enter a valid phone number (at least 7 digits).',
           missing_draft_token_secret:'Booking is temporarily unavailable. Please try again in a moment.',
@@ -4166,9 +4167,10 @@ async function confirmSetupIntent(){
       stripeMsg('stripe-status',COF_SAVED_MSG,true);
       if(window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onPaymentInfoSaved();
     } else {
+      // Stripe succeeded, but server verify timed out. Allow continue/retry without claiming booking success.
       ST.cardOnFileSaved=true;
-      btn.textContent='✓ Card saved';
-      stripeMsg('stripe-status','Stripe confirmed your card. Final server verification will run when you submit. '+COF_RETRY_BTN,true);
+      btn.textContent='✓ Card saved — verify on submit';
+      stripeMsg('stripe-status','Stripe confirmed your card. Server verification will finish when you submit the booking request. Your appointment is not submitted yet. '+COF_RETRY_BTN,true);
     }
     updateCofAuthButtonState();
   }catch(e){
@@ -4257,21 +4259,30 @@ async function submitBooking(){
       res=await postBooking();
       data=await res.json().catch(()=>({}));
     }
-    if(!res.ok||!data.ok){
+    if(!res.ok||!data.ok||!data.id||data.bookingCreated===false){
       if(data.error==='card_on_file_not_saved'){
         alert(data.userMessage||COF_VERIFY_TIMEOUT_MSG);
         return;
       }
+      if(data.error==='booking_slot_unavailable'||data.error==='booking_date_unavailable'||data.error==='booking_time_unavailable'){
+        alert(data.userMessage||'That time is unavailable. Choose another slot and submit again — your card stays saved and was not charged.');
+        return;
+      }
       throw new Error(data.error||data.message||('booking_submit_failed_'+res.status));
     }
+    if(data.bookingCreated!==true&&!data.idempotent){
+      throw new Error('booking_not_persisted');
+    }
     payload.id=data.id;
-    payload.status='Pending Review';
-    payload.paymentStatus='no_payment_required_yet';
-    payload.appointmentStatus='pending_review';
-    payload.jobStatus='not_started';
-    payload.cardOnFileStatus='saved';
+    payload.status=data.status||'Pending Review';
+    payload.paymentStatus=data.paymentStatus||'no_payment_required_yet';
+    payload.appointmentStatus=data.appointmentStatus||'pending_review';
+    payload.jobStatus='pending_review';
+    payload.cardOnFileStatus=data.cardOnFileStatus||'saved';
     payload.cardOnFileRequired=true;
     payload.cloudSaved=true;
+    payload.bookingCreated=true;
+    payload.notificationState=data.customerEmail||data.notificationDelivery?.customerEmail||null;
     saveLocalBooking(payload);
     showSuccess(payload);
   }catch(e){
@@ -4284,14 +4295,15 @@ async function submitBooking(){
       booking_policy_required:'Please accept the Terms and the card-on-file policy before submitting.',
       booking_store_unavailable:'Booking storage is temporarily unavailable. Please try again in a moment.',
       stripe_test_mode_required:'Card save is blocked in this preview environment. Use Stripe test keys on the deploy preview.',
-      booking_slot_unavailable:'That time slot is no longer available. Go back and choose another time.',
-      booking_time_unavailable:'That time is unavailable. Go back and choose another slot.',
-      booking_date_unavailable:'That date is unavailable. Go back and choose another day.',
+      booking_slot_unavailable:'That time slot is no longer available. Choose another date or time and submit again — your card stays saved and was not charged.',
+      booking_time_unavailable:'That time is unavailable. Choose another slot and submit again — your card stays saved.',
+      booking_date_unavailable:'That date is unavailable. Choose another day and submit again — your card stays saved.',
+      booking_not_persisted:'Your card may be saved, but the booking was not created. Please submit again or choose another time.',
       'Draft booking not found':'Your booking draft was not found. Go back to Secure Your Booking and save your card again.',
       card_on_file_required:'Please securely save a card before submitting.',
       rate_limited:'Too many attempts. Please wait a few minutes and try again.'
     };
-    alert(map[code]||('Your booking request was not submitted ('+code+'). Please verify the card-on-file step and try again.'));
+    alert(map[code]||('Your booking request was not submitted ('+code+'). Your card was not charged. Please verify the card-on-file step and try again.'));
   }finally{
     btn.classList.remove('loading'); btn.disabled=false;
   }
@@ -4438,8 +4450,14 @@ function showSuccess(payload){
   document.getElementById('ok-date').textContent=b.preferredDate||document.getElementById('f-date').value;
   const titleEl=document.getElementById('ok-title');
   const subEl=document.getElementById('ok-sub');
-  if(titleEl) titleEl.textContent='Card Saved - Booking Request Received';
-  if(subEl) subEl.textContent='Your card was securely saved with Stripe. No charge has been made today. Cardetail1 will review your location, schedule, and vehicle details before confirming the appointment.';
+  if(titleEl) titleEl.textContent='Booking Request Received';
+  if(subEl){
+    const ref=b.id?(' Reference: '+b.id+'.'):'';
+    const notify=b.notificationState&&b.notificationState.status==='failed'
+      ? ' We could not send the confirmation email automatically — your booking is still saved and our team can resend your access link.'
+      : ' Check your email for your appointment access link.';
+    subEl.textContent='Your booking request was submitted.'+ref+' Your card was saved securely with Stripe and no charge has been made today.'+notify+' Cardetail1 will review your location, schedule, and vehicle details before confirming the appointment.';
+  }
   const em=document.getElementById('ok-email'); if(em)em.href=mailtoForBooking(b);
   const sm=document.getElementById('ok-sms'); if(sm)sm.href=smsForBooking(b);
 }

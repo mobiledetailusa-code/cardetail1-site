@@ -5,6 +5,8 @@ const ALLOWED_WEEKDAY_SLOTS = ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'];
 const ALLOWED_SATURDAY_SLOTS = ['8:00 AM', '10:00 AM'];
 /** Minimum calendar days from today before a preferred date can be booked (route planning). */
 const MIN_ADVANCE_DAYS = 3;
+/** Active card-save drafts soft-hold a slot for the draft-token TTL window. */
+const DRAFT_SLOT_HOLD_MS = 2 * 60 * 60 * 1000;
 
 const LEGACY_TIME_PATTERNS = [
   /^any available/i,
@@ -147,9 +149,26 @@ function validateBookingSchedule(preferredDate, preferredTime, opts = {}) {
   };
 }
 
-function isActiveBookingForSlotLock(booking) {
-  if (!booking || booking.isDraft) return false;
+function isActiveDraftSlotHold(booking, nowMs = Date.now()) {
+  if (!booking || booking.isDraft !== true) return false;
   if (booking.archived || booking.isTest) return false;
+  const cof = String(booking.cardOnFileStatus || '').toLowerCase();
+  // Only drafts in an active card-save session hold the slot.
+  if (cof !== 'pending' && cof !== 'saved') return false;
+  const ts = Date.parse(booking.updatedAt || booking.createdAt || '');
+  if (!Number.isFinite(ts)) return false;
+  return (nowMs - ts) <= DRAFT_SLOT_HOLD_MS;
+}
+
+function isActiveBookingForSlotLock(booking, nowMs = Date.now()) {
+  if (!booking) return false;
+  if (booking.archived || booking.isTest) return false;
+
+  // Soft-hold: recent drafts with an active card-save session occupy the slot so
+  // customers cannot save a card against an already-claimed time, then fail finalize.
+  if (booking.isDraft === true || String(booking.kind || '').toLowerCase() === 'draft') {
+    return isActiveDraftSlotHold(booking, nowMs);
+  }
 
   const js = normalizeJobStatus(booking);
   if (js === 'cancelled' || js === 'archived_test') return false;
@@ -163,13 +182,13 @@ function isActiveBookingForSlotLock(booking) {
   return true;
 }
 
-function hasSlotConflict(bookings, preferredDate, preferredTime, excludeId) {
+function hasSlotConflict(bookings, preferredDate, preferredTime, excludeId, nowMs = Date.now()) {
   const time = normalizePreferredTime(preferredTime);
   const parts = isoDateParts(preferredDate);
   if (!parts || !time) return false;
 
   return (bookings || []).some(b => {
-    if (!isActiveBookingForSlotLock(b)) return false;
+    if (!isActiveBookingForSlotLock(b, nowMs)) return false;
     if (excludeId && String(b.id) === String(excludeId)) return false;
     const bParts = isoDateParts(b.preferredDate);
     const bTime = normalizePreferredTime(b.preferredTime);
@@ -182,7 +201,9 @@ module.exports = {
   ALLOWED_WEEKDAY_SLOTS,
   ALLOWED_SATURDAY_SLOTS,
   MIN_ADVANCE_DAYS,
+  DRAFT_SLOT_HOLD_MS,
   earliestBookableIso,
+  isActiveDraftSlotHold,
   getHolidaySet,
   isClosedHoliday,
   slotsForDate,
