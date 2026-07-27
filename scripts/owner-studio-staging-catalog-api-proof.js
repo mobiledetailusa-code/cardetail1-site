@@ -60,8 +60,36 @@ async function main() {
 
   const netlifyToken = readNetlifyToken();
   const env = await getSiteEnv(netlifyToken);
-  const username = env.ADMIN_USERNAME;
-  const password = env.ADMIN_DASH_PASSWORD || env.ADMIN_PASSWORD;
+  // Prefer gitignored local staging bootstrap credentials. Netlify env list often
+  // redacts secret values into unusable placeholders, which must not win.
+  let username = '';
+  let password = '';
+  const localCredPath = path.join(__dirname, '..', '.staging-db-repair', 'staging-admin-latest.json');
+  if (fs.existsSync(localCredPath)) {
+    const local = JSON.parse(fs.readFileSync(localCredPath, 'utf8'));
+    if (local.siteId && local.siteId !== STAGING_SITE_ID) {
+      fail('local_admin_site_mismatch', 'Local staging admin credentials are for a different site');
+    }
+    username = String(local.username || '').trim();
+    password = String(local.password || '').trim();
+  }
+  if (!username || !password) {
+    const envPath = path.join(__dirname, '..', '.env.owner-studio-staging');
+    if (fs.existsSync(envPath)) {
+      const map = {};
+      for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+        if (!line || line.startsWith('#') || !line.includes('=')) continue;
+        const i = line.indexOf('=');
+        map[line.slice(0, i).trim()] = line.slice(i + 1);
+      }
+      username = username || String(map.ADMIN_USERNAME || '').trim();
+      password = password || String(map.ADMIN_DASH_PASSWORD || map.ADMIN_PASSWORD || '').trim();
+    }
+  }
+  if (!username || !password) {
+    username = String(env.ADMIN_USERNAME || '').trim();
+    password = String(env.ADMIN_DASH_PASSWORD || env.ADMIN_PASSWORD || '').trim();
+  }
   if (!username || !password) {
     fail('admin_credentials_missing', 'ADMIN_USERNAME / ADMIN_DASH_PASSWORD missing on staging');
   }
