@@ -109,7 +109,7 @@ describe('owner-studio staging guard', () => {
     assert.equal(body.error, 'staging_site_id_equals_production');
   });
 
-  it('4. staging DB/site different passes', () => {
+  it('4. unreachable staging URL fails closed (live connection required)', () => {
     const url = makePostgresUrl({ user: 'staging-user-xyz', host: 'db.staging.test', db: 'os_staging' });
     const res = runAssert({
       OWNER_STUDIO_STAGING_DATABASE_URL: url,
@@ -120,14 +120,27 @@ describe('owner-studio staging guard', () => {
       STRIPE_SECRET_KEY: 'sk_test_example_not_real',
     });
     const body = parseJsonOut(res);
-    assert.equal(res.status, 0);
-    assert.equal(body.ok, true);
-    assert.equal(body.differentFromProduction, true);
-    assert.equal(body.stripeMode, 'test');
-    assert.equal(body.emailPolicy, 'disabled');
+    assert.equal(res.status, 1);
+    assert.equal(body.ok, false);
+    assert.equal(body.error, 'staging_direct_connection_failed');
+    assert.equal(body.differentFromProduction, false);
   });
 
-  it('5. output does not expose credentials', () => {
+  it('4b. placeholder URL fails before connect', () => {
+    const url = 'postgres://USER:PASSWORD@db.example.com:5432/postgres?sslmode=require';
+    const res = runAssert({
+      OWNER_STUDIO_STAGING_DATABASE_URL: url,
+      DIRECT_URL: url,
+      DATABASE_URL: url,
+      OWNER_STUDIO_PRODUCTION_DB_USER_HASH: sha12('production-user'),
+      NETLIFY_SITE_ID: STAGING_SITE_ID,
+    });
+    const body = parseJsonOut(res);
+    assert.equal(res.status, 1);
+    assert.equal(body.error, 'placeholder_staging_database_url');
+  });
+
+  it('5. failed assert output does not expose credentials', () => {
     const pass = 'super-secret-password-xyz';
     const url = makePostgresUrl({ user: 'staging-user-xyz', host: 'db.staging.test', db: 'os_staging', pass });
     const res = runAssert({
@@ -138,11 +151,45 @@ describe('owner-studio staging guard', () => {
       NETLIFY_SITE_ID: STAGING_SITE_ID,
     });
     const joined = `${res.stdout || ''}${res.stderr || ''}`;
-    assert.equal(res.status, 0);
+    assert.equal(res.status, 1);
     assert.equal(joined.includes(pass), false);
     assert.equal(joined.includes('staging-user-xyz'), false);
     assert.equal(joined.includes('postgres://'), false);
     assert.equal(joined.includes('db.staging.test'), false);
+  });
+
+  it('5b. invalid credentials against real Prisma host fail live connect', () => {
+    const url = makePostgresUrl({
+      user: 'definitely-invalid-staging-user-0001',
+      host: 'db.prisma.io',
+      db: 'postgres',
+      pass: 'not-a-real-password',
+    });
+    const res = runAssert({
+      OWNER_STUDIO_STAGING_DATABASE_URL: url,
+      DIRECT_URL: url,
+      DATABASE_URL: url,
+      OWNER_STUDIO_PRODUCTION_DB_USER_HASH: sha12('production-user'),
+      NETLIFY_SITE_ID: STAGING_SITE_ID,
+    });
+    const body = parseJsonOut(res);
+    assert.equal(res.status, 1);
+    assert.equal(body.error, 'staging_direct_connection_failed');
+  });
+
+  it('5c. runtime/direct credential mismatch fails before connect', () => {
+    const staging = makePostgresUrl({ user: 'staging-user-aaa', host: 'db.prisma.io', db: 'postgres' });
+    const other = makePostgresUrl({ user: 'staging-user-bbb', host: 'db.prisma.io', db: 'postgres' });
+    const res = runAssert({
+      OWNER_STUDIO_STAGING_DATABASE_URL: staging,
+      DIRECT_URL: staging,
+      DATABASE_URL: other,
+      OWNER_STUDIO_PRODUCTION_DB_USER_HASH: sha12('production-user'),
+      NETLIFY_SITE_ID: STAGING_SITE_ID,
+    });
+    const body = parseJsonOut(res);
+    assert.equal(res.status, 1);
+    assert.equal(body.error, 'runtime_staging_identity_mismatch');
   });
 
   it('6. migration command cannot execute before assertion', () => {
@@ -245,37 +292,66 @@ describe('owner-studio staging guard', () => {
     assert.equal(body.error, 'staging_db_not_permanent');
   });
 
+  function withUnlinkedNetlifyFolder(fn) {
+    const statePath = path.join(root, '.netlify', 'state.json');
+    const bakPath = path.join(root, '.netlify', `state.json.testbak-${process.pid}`);
+    let moved = false;
+    if (fs.existsSync(statePath)) {
+      fs.renameSync(statePath, bakPath);
+      moved = true;
+    }
+    try {
+      return fn();
+    } finally {
+      if (moved && fs.existsSync(bakPath)) fs.renameSync(bakPath, statePath);
+    }
+  }
+
   it('13. staging env script rejects production site ID without mutation', () => {
-    const res = spawnSync(process.execPath, [envScript, '--site', PRODUCTION_SITE_ID, '--confirm-staging-env-write'], {
-      cwd: root,
-      env: baseEnv(),
-      encoding: 'utf8',
+    withUnlinkedNetlifyFolder(() => {
+      const res = spawnSync(process.execPath, [envScript, '--site', PRODUCTION_SITE_ID, '--confirm-staging-env-write'], {
+        cwd: root,
+        env: baseEnv(),
+        encoding: 'utf8',
+      });
+      const body = parseJsonOut(res);
+      assert.equal(res.status, 1);
+      assert.equal(body.error, 'production_site_id_rejected');
     });
-    const body = parseJsonOut(res);
-    assert.equal(res.status, 1);
-    assert.equal(body.error, 'production_site_id_rejected');
   });
 
   it('14. staging env script requires explicit site ID', () => {
-    const res = spawnSync(process.execPath, [envScript, '--confirm-staging-env-write'], {
-      cwd: root,
-      env: baseEnv({ OWNER_STUDIO_STAGING_SITE_ID: '' }),
-      encoding: 'utf8',
+    withUnlinkedNetlifyFolder(() => {
+      const res = spawnSync(process.execPath, [envScript, '--confirm-staging-env-write'], {
+        cwd: root,
+        env: baseEnv({ OWNER_STUDIO_STAGING_SITE_ID: '' }),
+        encoding: 'utf8',
+      });
+      const body = parseJsonOut(res);
+      assert.equal(res.status, 1);
+      assert.equal(body.error, 'missing_staging_site_id');
     });
-    const body = parseJsonOut(res);
-    assert.equal(res.status, 1);
-    assert.equal(body.error, 'missing_staging_site_id');
   });
 
   it('15. staging env script requires confirmation flag', () => {
-    const res = spawnSync(process.execPath, [envScript, '--site', STAGING_SITE_ID], {
-      cwd: root,
-      env: baseEnv(),
-      encoding: 'utf8',
+    withUnlinkedNetlifyFolder(() => {
+      const res = spawnSync(process.execPath, [envScript, '--site', STAGING_SITE_ID], {
+        cwd: root,
+        env: baseEnv(),
+        encoding: 'utf8',
+      });
+      const body = parseJsonOut(res);
+      assert.equal(res.status, 1);
+      assert.equal(body.error, 'confirmation_required');
     });
-    const body = parseJsonOut(res);
-    assert.equal(res.status, 1);
-    assert.equal(body.error, 'confirmation_required');
+  });
+
+  it('17. assert script requires live connection (no URL-only success path)', () => {
+    const src = fs.readFileSync(script, 'utf8');
+    assert.match(src, /liveConnectionVerified|staging_direct_connection_failed/);
+    assert.match(src, /connectIdentity|current_database/);
+    assert.match(src, /--require-schema|OWNER_STUDIO_STAGING_REQUIRE_SCHEMA/);
+    assert.match(src, /OsCatalogDraft/);
   });
 
   it('16. prisma runtime helper supports adapter path for postgres URLs', () => {
