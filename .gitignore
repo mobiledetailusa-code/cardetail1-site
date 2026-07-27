@@ -45,3 +45,10 @@ Thumbs.db
 !.env.example
 /generated/prisma/
 
+
+# Staging DB repair local artifacts
+.staging-db-repair/
+tmp-*.cjs
+tmp-*.json
+tmp-*.err
+
