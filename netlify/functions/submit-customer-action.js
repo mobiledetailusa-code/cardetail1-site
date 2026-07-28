@@ -416,6 +416,24 @@ exports.handler = async (event) => {
       });
       return json(mapped.statusCode, mapped);
     }
+    // Compatibility before CR create — avoid orphan pending requests for known-incompatible IDs.
+    try {
+      const { validateAddonIdsAgainstCatalog } = require('../lib/addon-financial-mutation');
+      const { normalizeAggregate } = require('../lib/booking-aggregate');
+      const { ok: nOk, aggregate } = normalizeAggregate(booking, { allowDraft: true });
+      const service = nOk ? aggregate.service : booking.service;
+      const validated = validateAddonIdsAgainstCatalog(service || booking, target, addonIds);
+      if (!validated.ok) {
+        const mapped = mapAddonLifecycleError(validated.error || 'validation_failed', {
+          message: validated.error === 'addon_not_compatible'
+            ? 'That add-on is not compatible with the selected package.'
+            : undefined,
+        });
+        return json(mapped.statusCode, mapped);
+      }
+    } catch (_) {
+      /* fall through to command path */
+    }
     // Browser price/label/total ignored — IDs only; server prices from catalog.
     const delta = { addOnIdsToAdd: addonIds, addonIds, requestedAddons: addonIds.join(', ') };
     const adminSubjectLocal = `Cardetail1 — Add-On Request · ${bookingId}`;
