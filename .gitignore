@@ -45,3 +45,6 @@ Thumbs.db
 !.env.example
 /generated/prisma/
 
+
+# Local staging repair credentials and evidence
+.staging-db-repair/

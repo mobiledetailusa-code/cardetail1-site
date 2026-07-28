@@ -58,6 +58,7 @@ function canApplyAdditiveAddonAdjustment({ addOnIdsToAdd, addOnIdsToRemove }) {
 }
 
 function validateAddonIdsAgainstCatalog(service, target, addOnIds) {
+  const { evaluateAddonCompatibility } = require('./customer-lifecycle/addon-compatibility');
   const vehicles = ensureVehicleIds(service?.vehicles || []);
   let vehicleId = target?.vehicleId;
   if (!vehicleId && vehicles.length === 1) vehicleId = vehicles[0].vehicleId;
@@ -65,9 +66,38 @@ function validateAddonIdsAgainstCatalog(service, target, addOnIds) {
   const vehicle = vehicles.find((v) => v.vehicleId === vehicleId);
   if (!vehicle) return { ok: false, error: 'vehicle_not_found' };
   const { cat, ids } = catalogAddonIdsForVehicle(vehicle);
-  const unknown = normalizeAddonIds(addOnIds).filter((id) => !ids.has(id));
+  const normalized = normalizeAddonIds(addOnIds);
+  const unknown = normalized.filter((id) => !ids.has(id));
   if (unknown.length) {
     return { ok: false, error: 'unknown_addon_id', unknownAddonIds: unknown, category: cat };
+  }
+  const packageId = String(
+    vehicle.packageId || vehicle.packId || vehicle.selectedPackage || service?.packageId || ''
+  ).trim();
+  const catalogRows = PRICING[cat]?.addons || [];
+  const packageCompatibleAddOnIds = Array.isArray(vehicle.compatibleAddOnIds)
+    ? vehicle.compatibleAddOnIds
+    : (Array.isArray(service?.compatibleAddOnIds) ? service.compatibleAddOnIds : []);
+  for (const addonId of normalized) {
+    const catalogAddon = catalogRows.find((a) => a && a.id === addonId) || null;
+    const compat = evaluateAddonCompatibility({
+      addonId,
+      category: cat,
+      packageId,
+      vehicleClass: cat,
+      catalogAddon,
+      packageCompatibleAddOnIds,
+    });
+    if (!compat.ok) {
+      return {
+        ok: false,
+        error: 'addon_not_compatible',
+        addonId,
+        reason: compat.reason,
+        category: cat,
+        packageId: packageId || null,
+      };
+    }
   }
   return { ok: true, vehicleId, category: cat };
 }

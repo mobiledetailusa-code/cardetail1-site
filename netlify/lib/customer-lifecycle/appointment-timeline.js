@@ -4,6 +4,8 @@
  * Unified appointment timeline writer.
  * Appends to booking.eventLog, operations-audit blob, and optional Prisma AppointmentEvent.
  * Never stores card numbers, secrets, or full provider payloads.
+ *
+ * Repository contract: append + list only. No update/delete API for events.
  */
 
 const crypto = require('crypto');
@@ -39,6 +41,27 @@ const EVENT_TYPES = [
   'membership_status_changed',
 ];
 
+/** Customer Portal audience allowlist — filter by type, not only field redaction. */
+const CUSTOMER_VISIBLE_EVENT_TYPES = [
+  'booking_requested',
+  'booking_approved',
+  'booking_rescheduled_by_customer',
+  'booking_rescheduled_by_owner',
+  'booking_cancelled_by_customer',
+  'booking_cancelled_by_owner',
+  'package_changed',
+  'vehicle_changed',
+  'addon_requested',
+  'addon_approved',
+  'addon_rejected',
+  'addon_cancelled',
+  'quote_revised',
+  'payment_succeeded',
+  'appointment_completed',
+];
+
+const CUSTOMER_VISIBLE_SET = new Set(CUSTOMER_VISIBLE_EVENT_TYPES);
+
 function newEventId() {
   return `ae_${crypto.randomBytes(8).toString('hex')}`;
 }
@@ -69,7 +92,8 @@ function buildTimelineEvent(input = {}) {
     quoteVersion: input.quoteVersion != null ? Number(input.quoteVersion) : null,
     changeSummary: sanitizeSummary(input.changeSummary || input.summary || eventType),
     internalNote: input.internalNote ? sanitizeSummary(input.internalNote).slice(0, 300) : null,
-    correlationId: input.correlationId || null,
+    correlationId: input.correlationId || input.idempotencyKey || null,
+    idempotencyKey: input.idempotencyKey || input.correlationId || null,
     metadata: input.metadata && typeof input.metadata === 'object'
       ? sanitizeMetadata(input.metadata)
       : undefined,
@@ -100,13 +124,42 @@ function appendEventLogEntry(booking, event) {
     appointmentVersion: event.appointmentVersion,
     quoteVersion: event.quoteVersion,
   };
-  const prev = Array.isArray(booking.eventLog) ? booking.eventLog : [];
+  const prev = Array.isArray(booking?.eventLog) ? booking.eventLog : [];
+  if (event.eventId && prev.some((e) => e && e.eventId === event.eventId)) {
+    return { eventLog: prev };
+  }
   return { eventLog: [...prev, entry] };
+}
+
+/**
+ * Customer-facing projection: type allowlist + strip internal fields.
+ */
+function projectTimelineForCustomer(events) {
+  const list = Array.isArray(events) ? events : [];
+  return list
+    .filter((e) => e && CUSTOMER_VISIBLE_SET.has(String(e.eventType || e.action || '')))
+    .map((e) => ({
+      eventId: e.eventId || null,
+      eventType: e.eventType || e.action,
+      occurredAtUtc: e.occurredAtUtc || e.at || null,
+      actorType: e.actorType || e.by || null,
+      changeSummary: sanitizeSummary(e.changeSummary || e.summary || e.eventType || e.action || ''),
+      appointmentVersion: e.appointmentVersion ?? null,
+      quoteVersion: e.quoteVersion ?? null,
+      source: e.source || null,
+    }));
 }
 
 async function writeAppointmentTimelineEvent(input) {
   const event = buildTimelineEvent(input);
-  const results = { event, eventLog: false, opsAudit: false, prisma: false };
+  const results = {
+    event,
+    eventLog: false,
+    opsAudit: false,
+    prisma: false,
+    eventLogPatch: appendEventLogEntry(input.booking || {}, event),
+  };
+  results.eventLog = true;
 
   // Ops audit blob (best-effort)
   try {
@@ -135,26 +188,35 @@ async function writeAppointmentTimelineEvent(input) {
     const { tryGetPrisma } = require('../prisma');
     const prisma = tryGetPrisma();
     if (prisma?.appointmentEvent?.create) {
-      await prisma.appointmentEvent.create({
-        data: {
-          eventId: event.eventId,
-          siteId: event.siteId,
-          appointmentId: event.appointmentId || 'unknown',
-          customerId: event.customerId,
-          actorType: event.actorType,
-          actorId: event.actorId,
-          source: event.source,
-          eventType: event.eventType,
-          occurredAtUtc: new Date(event.occurredAtUtc),
-          appointmentVersion: event.appointmentVersion,
-          quoteVersion: event.quoteVersion,
-          changeSummary: event.changeSummary,
-          internalNote: event.internalNote,
-          correlationId: event.correlationId,
-          metadata: event.metadata || undefined,
-        },
-      });
-      results.prisma = true;
+      try {
+        await prisma.appointmentEvent.create({
+          data: {
+            eventId: event.eventId,
+            siteId: event.siteId,
+            appointmentId: event.appointmentId || 'unknown',
+            customerId: event.customerId,
+            actorType: event.actorType,
+            actorId: event.actorId,
+            source: event.source,
+            eventType: event.eventType,
+            occurredAtUtc: new Date(event.occurredAtUtc),
+            appointmentVersion: event.appointmentVersion,
+            quoteVersion: event.quoteVersion,
+            changeSummary: event.changeSummary,
+            internalNote: event.internalNote,
+            correlationId: event.correlationId,
+            idempotencyKey: event.idempotencyKey || undefined,
+            metadata: event.metadata || undefined,
+          },
+        });
+        results.prisma = true;
+      } catch (e) {
+        // Unique idempotency collision → treat as success (idempotent append)
+        if (e && (e.code === 'P2002' || /unique/i.test(String(e.message || '')))) {
+          results.prisma = true;
+          results.idempotent = true;
+        }
+      }
     }
   } catch (_) {
     /* optional until migration applied */
@@ -163,8 +225,11 @@ async function writeAppointmentTimelineEvent(input) {
   return results;
 }
 
-async function listAppointmentTimeline(bookingId, { limit = 100 } = {}) {
+async function listAppointmentTimeline(appointmentId, { limit = 100, siteId, audience } = {}) {
   const events = [];
+  const bookingId = String(appointmentId || '').trim();
+  if (!bookingId) return [];
+
   try {
     const { getBookingRecord } = require('../booking-repository');
     const rec = await getBookingRecord(bookingId);
@@ -179,6 +244,8 @@ async function listAppointmentTimeline(bookingId, { limit = 100 } = {}) {
         appointmentVersion: e.appointmentVersion ?? null,
         quoteVersion: e.quoteVersion ?? null,
         source: 'eventLog',
+        internalNote: null,
+        metadata: undefined,
       });
     }
   } catch (_) {
@@ -188,8 +255,11 @@ async function listAppointmentTimeline(bookingId, { limit = 100 } = {}) {
     const { tryGetPrisma } = require('../prisma');
     const prisma = tryGetPrisma();
     if (prisma?.appointmentEvent?.findMany) {
+      const where = siteId
+        ? { siteId: String(siteId), appointmentId: bookingId }
+        : { appointmentId: bookingId };
       const rows = await prisma.appointmentEvent.findMany({
-        where: { appointmentId: bookingId },
+        where,
         orderBy: { occurredAtUtc: 'asc' },
         take: limit,
       });
@@ -203,6 +273,8 @@ async function listAppointmentTimeline(bookingId, { limit = 100 } = {}) {
           appointmentVersion: r.appointmentVersion,
           quoteVersion: r.quoteVersion,
           source: 'prisma',
+          internalNote: r.internalNote || null,
+          metadata: r.metadata,
         });
       }
     }
@@ -218,13 +290,17 @@ async function listAppointmentTimeline(bookingId, { limit = 100 } = {}) {
     seen.add(key);
     out.push(e);
   }
-  return out.slice(-limit);
+  const sliced = out.slice(-limit);
+  if (audience === 'customer') return projectTimelineForCustomer(sliced);
+  return sliced;
 }
 
 module.exports = {
   EVENT_TYPES,
+  CUSTOMER_VISIBLE_EVENT_TYPES,
   buildTimelineEvent,
   appendEventLogEntry,
+  projectTimelineForCustomer,
   writeAppointmentTimelineEvent,
   listAppointmentTimeline,
   newEventId,

@@ -153,21 +153,9 @@ async function main() {
     return;
   }
 
-  // Refuse any linked-folder inference.
-  const statePath = path.join(__dirname, '..', '.netlify', 'state.json');
-  if (fs.existsSync(statePath)) {
-    try {
-      const st = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-      if (st.siteId) {
-        fail('linked_netlify_folder_forbidden', 'Repository is linked to a Netlify site; unlink before staging env writes', {
-          linkedSiteIdFingerprint: sha12(st.siteId),
-        });
-      }
-    } catch {
-      /* ignore parse errors */
-    }
-  }
-
+  // Validate explicit CLI args first so fail-closed codes are deterministic
+  // even when the local checkout is linked (linked-folder check runs next,
+  // before any mutation / Netlify API call).
   const siteId = args.siteId || process.env.OWNER_STUDIO_STAGING_SITE_ID || '';
   if (!siteId) {
     fail('missing_staging_site_id', 'Pass --site <staging-site-id> (required; no linked-folder inference)');
@@ -185,6 +173,21 @@ async function main() {
   }
   if (!args.confirm) {
     fail('confirmation_required', 'Pass --confirm-staging-env-write to mutate staging environment variables');
+  }
+
+  // Refuse any linked-folder inference before mutating staging env.
+  const statePath = path.join(__dirname, '..', '.netlify', 'state.json');
+  if (fs.existsSync(statePath)) {
+    try {
+      const st = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+      if (st.siteId) {
+        fail('linked_netlify_folder_forbidden', 'Repository is linked to a Netlify site; unlink before staging env writes', {
+          linkedSiteIdFingerprint: sha12(st.siteId),
+        });
+      }
+    } catch {
+      /* ignore parse errors */
+    }
   }
 
   const token = readToken();

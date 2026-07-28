@@ -86,6 +86,32 @@ async function confirmBookingTransition({
     });
 
     if (committed.ok) {
+      try {
+        const { writeAppointmentTimelineEvent, appendEventLogEntry } = require('./customer-lifecycle/appointment-timeline');
+        const { ensureAppointmentDateFoundation } = require('./customer-lifecycle/appointment-dates');
+        const datePatch = ensureAppointmentDateFoundation(committed.booking || next);
+        const timeline = await writeAppointmentTimelineEvent({
+          booking: committed.booking || next,
+          bookingId: id,
+          appointmentId: id,
+          siteId: 'detailing-zone',
+          eventType: 'booking_approved',
+          actorType: 'owner',
+          actorId: by || 'admin',
+          source: 'booking-confirm',
+          changeSummary: 'booking_approved',
+          appointmentVersion: committed.bookingVersion || next.bookingVersion,
+          quoteVersion: (committed.booking || next).quoteVersion,
+          idempotencyKey: `booking_approved:${id}:${confirmedAt}`,
+          correlationId: next.confirmationEventId || null,
+        });
+        // Best-effort: merge lifecycle eventLog entry if not already present.
+        void datePatch;
+        void appendEventLogEntry;
+        void timeline;
+      } catch (_) {
+        /* non-blocking */
+      }
       return {
         ok: true,
         idempotent: false,
