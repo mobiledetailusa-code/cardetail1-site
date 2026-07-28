@@ -5,7 +5,7 @@
  * Draft CRUD + revisions + simulator. No publish. No live Stripe billing.
  */
 
-const { verifyAdminRequest } = require('../lib/admin-security');
+const { verifyAdminRequest, readAdminTokenFromHeaders } = require('../lib/admin-security');
 const { getOwnerStudioFlags } = require('../lib/owner-studio/flags');
 const { authorizeOwnerStudio, createCsrfToken, verifyCsrfToken } = require('../lib/owner-studio/authorization');
 const { SITE_ID } = require('../lib/owner-studio/ids');
@@ -19,6 +19,10 @@ const MAX_BODY_BYTES = 800_000;
 const MUTATION_WINDOW_MS = 60_000;
 const MUTATION_MAX = 30;
 const mutationBuckets = new Map();
+
+function sessionSecret() {
+  return String(process.env.ADMIN_SESSION_SECRET || '').trim();
+}
 
 function json(statusCode, body, extraHeaders = {}) {
   return {
@@ -121,10 +125,12 @@ exports.handler = async (event) => {
     if (!admin.ok) {
       return json(admin.statusCode || 401, { ok: false, error: admin.error || 'unauthorized' });
     }
+    const adminToken = readAdminTokenFromHeaders(event.headers || {}) || admin.username;
     const identity = {
       authenticated: true,
       username: admin.username || admin.session?.username || 'admin',
       role: 'owner',
+      token: adminToken,
     };
 
     const authz = authorizeOwnerStudio(identity, 'edit_draft', flags);
@@ -137,7 +143,13 @@ exports.handler = async (event) => {
 
     if (event.httpMethod === 'GET') {
       if (action === 'csrf') {
-        return json(200, { ok: true, csrfToken: createCsrfToken(identity.username) });
+        const secret = sessionSecret();
+        if (!secret) return json(503, { ok: false, error: 'missing_admin_session_secret' });
+        return json(200, {
+          ok: true,
+          csrfToken: createCsrfToken(String(identity.token || identity.username), secret),
+          siteId: SITE_ID,
+        });
       }
       const repo = await getRepo();
       if (action === 'list_revisions') {
@@ -193,7 +205,8 @@ exports.handler = async (event) => {
     }
 
     const csrf = String(header(event.headers, 'x-csrf-token') || '');
-    if (!verifyCsrfToken(csrf, identity.username)) {
+    const secret = sessionSecret();
+    if (!secret || !verifyCsrfToken(String(identity.token || identity.username), secret, csrf)) {
       return json(403, { ok: false, error: 'csrf_invalid' });
     }
     checkMutationRate(identity.username, clientIp(event));
