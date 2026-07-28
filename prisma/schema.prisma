@@ -725,6 +725,7 @@ model OsCustomerLifecycleDraft {
 
   site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
 
+  @@unique([siteId])
   @@index([siteId])
 }
 
@@ -742,6 +743,7 @@ model OsCustomerLifecycleRevision {
 }
 
 /// Immutable appointment timeline events (Customer Lifecycle Phase 4).
+/// Application API is append/list only — no update/delete methods.
 model AppointmentEvent {
   eventId             String   @id
   siteId              String
@@ -757,11 +759,13 @@ model AppointmentEvent {
   changeSummary       String
   internalNote        String?
   correlationId       String?
+  idempotencyKey      String?
   metadata            Json?
   createdAt           DateTime @default(now())
 
   site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Restrict)
 
+  @@unique([siteId, appointmentId, idempotencyKey])
   @@index([siteId, appointmentId, occurredAtUtc])
   @@index([appointmentId, occurredAtUtc])
   @@index([siteId, eventType])

@@ -256,21 +256,51 @@ exports.handler = async (event) => {
     const { projectAppointmentDates } = require('../lib/customer-lifecycle/appointment-dates');
     const { evaluateMaintenanceEligibility } = require('../lib/customer-lifecycle/maintenance-eligibility');
     const { listAppointmentTimeline } = require('../lib/customer-lifecycle/appointment-timeline');
+    const { getCompletedServiceHistory } = require('../lib/customer-lifecycle/completed-service-history');
     const appointmentDates = projectAppointmentDates(auth.booking);
+    const customerId = auth.booking.customerAccountId || auth.booking.customerId || null;
+    const vehicleId = auth.booking.vehicleId
+      || auth.booking.service?.vehicles?.[0]?.vehicleId
+      || null;
+    let completedServiceHistory = Array.isArray(auth.booking.completedServiceHistory)
+      ? auth.booking.completedServiceHistory
+      : [];
+    try {
+      const fromRepo = await getCompletedServiceHistory({
+        siteId: 'detailing-zone',
+        customerId,
+        vehicleId,
+        beforeUtc: new Date().toISOString(),
+      });
+      if (fromRepo.length) {
+        const seen = new Set(completedServiceHistory.map((h) => h && (h.bookingId || `${h.completedAtUtc}:${h.vehicleId}`)));
+        for (const row of fromRepo) {
+          const key = row.bookingId || `${row.completedAtUtc}:${row.vehicleId}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          completedServiceHistory.push(row);
+        }
+      }
+    } catch {
+      /* keep booking-local history */
+    }
     const maintenanceEligibility = evaluateMaintenanceEligibility({
       siteId: 'detailing-zone',
-      customerId: auth.booking.customerAccountId || auth.booking.customerId || null,
-      vehicleId: auth.booking.vehicleId || null,
+      customerId,
+      vehicleId,
       requestedPackageId: auth.booking.packageId || auth.booking.packId || null,
       requestedAtUtc: new Date().toISOString(),
-      completedServiceHistory: Array.isArray(auth.booking.completedServiceHistory)
-        ? auth.booking.completedServiceHistory
-        : [],
+      completedServiceHistory,
       membershipStatus: auth.booking.membershipStatus || 'none',
     });
     let timeline = [];
-    try { timeline = await listAppointmentTimeline(auth.booking.bookingId || auth.booking.id); }
-    catch { timeline = []; }
+    try {
+      timeline = await listAppointmentTimeline(auth.booking.bookingId || auth.booking.id, {
+        siteId: 'detailing-zone',
+        audience: 'customer',
+        limit: 40,
+      });
+    } catch { timeline = []; }
     return jsonCors(200, {
       ok: true,
       scope: 'booking',

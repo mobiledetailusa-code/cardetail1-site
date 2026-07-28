@@ -313,6 +313,8 @@ test('no Netlify Function files changed in this UX scope', () => {
     // Owner Studio Stage 1 — protected read-only status endpoint (flags off by default)
     'netlify/functions/owner-studio-status.js',
     'netlify/functions/owner-studio-catalog.js',
+    // Customer Lifecycle — Owner Studio draft module + portal add-on CAS
+    'netlify/functions/owner-studio-customer-lifecycle.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);

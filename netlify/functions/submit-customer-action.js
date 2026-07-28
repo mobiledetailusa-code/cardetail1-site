@@ -877,6 +877,35 @@ exports.handler = async (event) => {
       (adminSubject || '').replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
       `${adminText}${appliedCmd.booking?.approvedFinalAmount != null ? `\nTotal: $${Number(appliedCmd.booking.approvedFinalAmount).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
     ).catch(() => {});
+    try {
+      const { writeAppointmentTimelineEvent } = require('../lib/customer-lifecycle/appointment-timeline');
+      const { ensureAppointmentDateFoundation } = require('../lib/customer-lifecycle/appointment-dates');
+      let lifecycleType = null;
+      if (action === 'reschedule_request') lifecycleType = 'booking_rescheduled_by_customer';
+      if (action === 'cancellation_request') lifecycleType = 'booking_cancelled_by_customer';
+      if (lifecycleType) {
+        const datePatch = ensureAppointmentDateFoundation(appliedCmd.booking || booking);
+        void datePatch;
+        await writeAppointmentTimelineEvent({
+          booking: appliedCmd.booking || booking,
+          bookingId,
+          appointmentId: bookingId,
+          siteId: 'detailing-zone',
+          eventType: lifecycleType,
+          actorType: 'customer',
+          source: 'submit-customer-action',
+          changeSummary: lifecycleType,
+          appointmentVersion: appliedCmd.booking?.bookingVersion || booking.bookingVersion,
+          quoteVersion: appliedCmd.booking?.quoteVersion || booking.quoteVersion,
+          correlationId: appliedCmd.changeRequest?.requestId || null,
+          idempotencyKey: appliedCmd.changeRequest?.requestId
+            ? `${lifecycleType}:${appliedCmd.changeRequest.requestId}`
+            : null,
+        });
+      }
+    } catch (_) {
+      /* non-blocking */
+    }
     return json(200, {
       ok: true,
       changeRequestId: appliedCmd.changeRequest.requestId,

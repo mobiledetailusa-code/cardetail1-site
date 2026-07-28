@@ -282,6 +282,48 @@ exports.handler = async (event) => {
     sourcePortal: 'technician',
   }));
 
+  try {
+    const { writeAppointmentTimelineEvent, appendEventLogEntry } = require('../lib/customer-lifecycle/appointment-timeline');
+    const { appendCompletedServiceRecord } = require('../lib/customer-lifecycle/completed-service-history');
+    const timeline = await writeAppointmentTimelineEvent({
+      booking: patched,
+      bookingId,
+      appointmentId: bookingId,
+      siteId: 'detailing-zone',
+      customerId: patched.customerAccountId || patched.customerId || null,
+      eventType: 'appointment_completed',
+      actorType: 'technician',
+      actorId: session.techId,
+      source: 'tech-complete-job',
+      changeSummary: 'appointment_completed',
+      appointmentVersion: patched.bookingVersion,
+      quoteVersion: patched.quoteVersion,
+      idempotencyKey: `appointment_completed:${bookingId}:${requestId || now}`,
+      correlationId: requestId || null,
+    });
+    const histPatch = appendCompletedServiceRecord(patched, {
+      completedAtUtc: now,
+      vehicleId: patched.vehicleId || patched.service?.vehicles?.[0]?.vehicleId || null,
+      packageId: patched.packageId || patched.packId || null,
+      bookingId,
+      status: 'completed',
+    });
+    const eventLogPatch = timeline.eventLogPatch || appendEventLogEntry(patched, timeline.event);
+    patched = {
+      ...patched,
+      ...histPatch,
+      eventLog: eventLogPatch.eventLog || patched.eventLog,
+      completedAtUtc: patched.completedAtUtc || now,
+    };
+    try {
+      if (typeof store?.setJSON === 'function') await store.setJSON(bookingId, patched);
+    } catch (_) {
+      /* best-effort history persistence */
+    }
+  } catch (e) {
+    console.warn('[tech-complete-job] lifecycle timeline failed:', e && e.message);
+  }
+
   if (
     patched.paymentWorkflowStatus === 'payment_action_required'
     || patched.jobStatus === 'completed_pending_payment'

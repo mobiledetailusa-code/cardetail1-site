@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Authoritative appointment date helpers (UTC + America/New_York).
+ * Authoritative appointment date helpers (UTC + site IANA timezone).
  * Never trust browser-local timestamps as authority.
  */
 
@@ -24,11 +24,64 @@ function toUtcIso(value) {
   return d.toISOString();
 }
 
+function assertValidTimeZone(tz) {
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone: tz }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Build a best-effort UTC instant from date (YYYY-MM-DD) + optional time label.
- * Uses noon America/New_York when time is missing to avoid DST midnight ambiguity.
+ * Read calendar parts of an instant as observed in `timeZone`.
+ */
+function zonedParts(ms, timeZone) {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const parts = dtf.formatToParts(new Date(ms));
+  const get = (type) => {
+    const p = parts.find((x) => x.type === type);
+    return p ? Number(p.value) : 0;
+  };
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    hour: get('hour') === 24 ? 0 : get('hour'),
+    minute: get('minute'),
+    second: get('second'),
+  };
+}
+
+function partsEqual(a, b) {
+  return a.year === b.year
+    && a.month === b.month
+    && a.day === b.day
+    && a.hour === b.hour
+    && a.minute === b.minute
+    && a.second === b.second;
+}
+
+/**
+ * Convert local wall-clock (date + hour:minute in `tz`) → UTC ISO.
+ *
+ * DST policy:
+ * - Spring-forward gap (nonexistent local time): return null (caller treats as invalid).
+ * - Fall-back overlap (ambiguous): prefer the EARLIER occurrence (still on DST).
  */
 function appointmentInstantFromLocalParts(dateStr, timeStr, tz = DEFAULT_BUSINESS_TZ) {
+  const timeZone = String(tz || DEFAULT_BUSINESS_TZ).trim() || DEFAULT_BUSINESS_TZ;
+  if (!assertValidTimeZone(timeZone)) return null;
+
   const date = String(dateStr || '').trim().slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   const time = String(timeStr || '').trim();
@@ -42,20 +95,49 @@ function appointmentInstantFromLocalParts(dateStr, timeStr, tz = DEFAULT_BUSINES
     if (ap === 'pm' && hour < 12) hour += 12;
     if (ap === 'am' && hour === 12) hour = 0;
   }
-  // Construct as ISO with explicit offset via Intl — fallback fixed -05:00/-04:00 not used;
-  // instead interpret as UTC wall then adjust with formatter (pragmatic staging approach).
-  const guess = new Date(`${date}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`);
-  if (Number.isNaN(guess.getTime())) return null;
-  // Format in business TZ to get offset-aware display; store the Instant as ISO.
-  void tz;
-  return guess.toISOString();
+  if (!Number.isFinite(hour) || !Number.isFinite(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  const [y, mo, d] = date.split('-').map(Number);
+  const want = { year: y, month: mo, day: d, hour, minute, second: 0 };
+
+  // Initial guess: treat wall time as UTC, then correct by observed TZ offset twice.
+  let guess = Date.UTC(y, mo - 1, d, hour, minute, 0);
+  for (let i = 0; i < 3; i += 1) {
+    const got = zonedParts(guess, timeZone);
+    const asUtc = Date.UTC(got.year, got.month - 1, got.day, got.hour, got.minute, got.second);
+    const wantUtc = Date.UTC(want.year, want.month - 1, want.day, want.hour, want.minute, want.second);
+    guess += wantUtc - asUtc;
+  }
+
+  if (partsEqual(zonedParts(guess, timeZone), want)) {
+    return new Date(guess).toISOString();
+  }
+
+  // Ambiguous fall-back: probe ±1h around guess; prefer EARLIER (DST) occurrence.
+  const candidates = [];
+  for (const delta of [-3600000, 0, 3600000, -7200000, 7200000]) {
+    const ms = guess + delta;
+    if (partsEqual(zonedParts(ms, timeZone), want)) candidates.push(ms);
+  }
+  const unique = [...new Set(candidates)].sort((a, b) => a - b);
+  if (unique.length >= 1) {
+    // Prefer earlier occurrence on overlap.
+    return new Date(unique[0]).toISOString();
+  }
+
+  // Nonexistent spring-forward local time.
+  return null;
 }
 
 function formatBusinessLocal(utcIso, tz = DEFAULT_BUSINESS_TZ) {
   if (!utcIso) return null;
+  const timeZone = String(tz || DEFAULT_BUSINESS_TZ);
+  if (!assertValidTimeZone(timeZone)) return utcIso;
   try {
     return new Intl.DateTimeFormat('en-US', {
-      timeZone: tz,
+      timeZone,
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -147,6 +229,7 @@ module.exports = {
   DEFAULT_BUSINESS_TZ,
   businessTimezone,
   toUtcIso,
+  assertValidTimeZone,
   appointmentInstantFromLocalParts,
   formatBusinessLocal,
   projectAppointmentDates,

@@ -23,6 +23,7 @@ const LEGACY_TO_PHASE2 = {
   unknown_addon: 'addon_not_found',
   unknown_addon_id: 'addon_not_found',
   invalid_pricing: 'addon_not_found',
+  addon_not_compatible: 'addon_not_compatible',
   duplicate_addon: 'addon_already_requested',
   action_not_allowed: 'appointment_not_modifiable',
   invoice_paid: 'appointment_not_modifiable',

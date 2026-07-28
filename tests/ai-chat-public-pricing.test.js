@@ -130,6 +130,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   // Owner Studio Stage 2 Phase A — admin login sets a shared HttpOnly session cookie
   // so a second/new tab authenticates (multi-tab catalog loading fix).
   'netlify/functions/admin-auth.js',
+  // Customer Lifecycle — Owner Studio draft module + portal add-on CAS
+  'netlify/functions/owner-studio-customer-lifecycle.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {
