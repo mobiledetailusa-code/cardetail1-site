@@ -166,7 +166,7 @@ async function writeAppointmentTimelineEvent(input) {
 async function listAppointmentTimeline(bookingId, { limit = 100 } = {}) {
   const events = [];
   try {
-    const { getBookingRecord } = require('../booking-store');
+    const { getBookingRecord } = require('../booking-repository');
     const rec = await getBookingRecord(bookingId);
     const log = Array.isArray(rec?.booking?.eventLog) ? rec.booking.eventLog : [];
     for (const e of log.slice(-limit)) {
