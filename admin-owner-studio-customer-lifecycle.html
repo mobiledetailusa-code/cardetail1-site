@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Customers, Maintenance &amp; Membership — Owner Studio</title>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --ink:#e2e8f0; --muted:#94a3b8; --line:#334155; --accent:#38bdf8; --ok:#86efac; --warn:#fbbf24; --bad:#fca5a5; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Georgia, "Times New Roman", serif; background: linear-gradient(160deg,#0f172a,#1e293b 45%,#0b1220); color:var(--ink); min-height:100vh; }
+    header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center; }
+    h1 { margin:0; font-size:1.25rem; }
+    .sub { color:var(--muted); font-size:.85rem; margin-top:4px; }
+    nav { display:flex; gap:8px; flex-wrap:wrap; padding:12px 24px; border-bottom:1px solid var(--line); }
+    nav a { color:var(--muted); text-decoration:none; font-size:.82rem; padding:6px 10px; border-radius:6px; border:1px solid transparent; }
+    nav a[aria-current="page"] { color:var(--ink); border-color:var(--line); background:rgba(255,255,255,.04); }
+    main { padding:22px 24px; max-width:980px; }
+    .panel { background:rgba(30,41,59,.88); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
+    h2 { margin:0 0 10px; font-size:1.05rem; }
+    .muted { color:var(--muted); font-size:.88rem; line-height:1.45; }
+    label { display:block; font-size:.8rem; color:var(--muted); margin:10px 0 4px; }
+    input, textarea, select { width:100%; max-width:420px; background:#0b1220; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; }
+    textarea { min-height:90px; max-width:100%; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+    button { background:var(--accent); color:#082f49; border:0; border-radius:8px; padding:8px 14px; font-weight:700; cursor:pointer; }
+    button.secondary { background:transparent; color:var(--ink); border:1px solid var(--line); }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .badge { display:inline-block; padding:3px 9px; border-radius:999px; border:1px solid var(--line); font-size:.75rem; color:var(--warn); }
+    .badge.ok { color:var(--ok); }
+    pre { background:#0b1220; border:1px solid var(--line); border-radius:8px; padding:12px; overflow:auto; font-size:.78rem; }
+    .err { color:var(--bad); }
+    .ok { color:var(--ok); }
+    table { width:100%; border-collapse:collapse; font-size:.85rem; }
+    th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Customers, Maintenance &amp; Membership</h1>
+      <div class="sub">Draft configuration only · no live Stripe billing · PUBLIC_CONTENT_SOURCE stays legacy</div>
+    </div>
+    <span class="badge" id="status-badge">Loading…</span>
+  </header>
+  <nav aria-label="Owner Studio">
+    <a href="/admin/owner-studio">Overview</a>
+    <a href="/admin/owner-studio/catalog">Catalog Manager</a>
+    <a href="/admin/owner-studio/customer-lifecycle" aria-current="page">Customer Lifecycle</a>
+  </nav>
+  <main>
+    <div class="panel">
+      <h2>A. Overview</h2>
+      <p class="muted">Maintenance pricing is based on completed-service history. Membership is an access fee ($9.99 proposal) and does not auto-grant maintenance pricing or free detailing.</p>
+      <dl style="display:grid;grid-template-columns:160px 1fr;gap:8px;margin:12px 0 0;font-size:.9rem">
+        <dt class="muted">Draft version</dt><dd id="draft-version">—</dd>
+        <dt class="muted">Plans</dt><dd id="plan-count">—</dd>
+        <dt class="muted">Live billing</dt><dd>Disabled</dd>
+        <dt class="muted">Publish</dt><dd>Not available</dd>
+      </dl>
+    </div>
+
+    <div class="panel">
+      <h2>B. Maintenance rules</h2>
+      <label>Eligible max days (0–N)</label>
+      <input id="eligible-days" type="number" min="1" max="365">
+      <label>Recurring max days</label>
+      <input id="recurring-days" type="number" min="1" max="365">
+      <label>Grace max days</label>
+      <input id="grace-days" type="number" min="1" max="365">
+      <label><input id="same-vehicle" type="checkbox"> Same vehicle required</label>
+      <label><input id="manual-grace" type="checkbox"> Manual review in grace period</label>
+    </div>
+
+    <div class="panel">
+      <h2>C. Membership plans</h2>
+      <div id="plans-table"></div>
+      <p class="muted" style="margin-top:10px">Staging proposal only. Do not create live Stripe Product/Price/Subscription from this screen.</p>
+    </div>
+
+    <div class="panel">
+      <h2>F. Strategy simulator</h2>
+      <p class="muted">Assumption-based estimates only — not a forecast guarantee.</p>
+      <div class="row">
+        <button type="button" id="btn-simulate" class="secondary">Run simulation</button>
+      </div>
+      <pre id="sim-out">—</pre>
+    </div>
+
+    <div class="panel">
+      <h2>Eligibility preview</h2>
+      <label>Days since last completed service</label>
+      <input id="preview-days" type="number" value="30" min="0" max="400">
+      <div class="row">
+        <button type="button" id="btn-preview" class="secondary">Evaluate</button>
+      </div>
+      <pre id="preview-out">—</pre>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <button type="button" id="btn-save">Save draft</button>
+        <button type="button" id="btn-reload" class="secondary">Reload</button>
+        <span id="save-msg" class="muted"></span>
+      </div>
+      <p class="muted" id="revisions-note" style="margin-top:10px"></p>
+    </div>
+  </main>
+  <script src="/netlify/lib/admin-session-client.js"></script>
+  <script>
+    (function () {
+      var draft = null;
+      var csrf = '';
+      var API = '/.netlify/functions/owner-studio-customer-lifecycle';
+
+      function token() {
+        return (window.CD1AdminSession && CD1AdminSession.getToken && CD1AdminSession.getToken()) || '';
+      }
+      function headers(mut) {
+        var h = { Accept: 'application/json' };
+        var t = token();
+        if (t) h['x-admin-key'] = t;
+        if (mut) {
+          h['Content-Type'] = 'application/json';
+          if (csrf) h['x-csrf-token'] = csrf;
+        }
+        return h;
+      }
+      function setMsg(text, ok) {
+        var el = document.getElementById('save-msg');
+        el.textContent = text || '';
+        el.className = ok ? 'ok' : (text ? 'err' : 'muted');
+      }
+      function fillForm() {
+        if (!draft) return;
+        document.getElementById('draft-version').textContent = String(draft.version || 1);
+        document.getElementById('plan-count').textContent = String((draft.membershipPlans || []).length);
+        var w = (draft.maintenanceRules && draft.maintenanceRules.windows) || {};
+        document.getElementById('eligible-days').value = w.eligibleMaxDays || 45;
+        document.getElementById('recurring-days').value = w.recurringMaxDays || 90;
+        document.getElementById('grace-days').value = w.graceMaxDays || 120;
+        document.getElementById('same-vehicle').checked = !!(draft.maintenanceRules && draft.maintenanceRules.sameVehicleRequired);
+        document.getElementById('manual-grace').checked = !!(draft.maintenanceRules && draft.maintenanceRules.manualReviewInGrace);
+        var plans = draft.membershipPlans || [];
+        var html = '<table><thead><tr><th>Plan</th><th>Type</th><th>Billing</th><th>Price</th><th>Active</th></tr></thead><tbody>';
+        plans.forEach(function (p) {
+          html += '<tr><td>' + (p.planName || p.planId) + '</td><td>' + (p.planType || '') + '</td><td>' + (p.billingModel || '') + '</td><td>$' + ((Number(p.priceCents)||0)/100).toFixed(2) + '/' + (p.interval || 'month') + '</td><td>' + (p.active ? 'yes' : 'no') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        document.getElementById('plans-table').innerHTML = html;
+      }
+      function readFormIntoDraft() {
+        draft.maintenanceRules = draft.maintenanceRules || {};
+        draft.maintenanceRules.windows = draft.maintenanceRules.windows || {};
+        draft.maintenanceRules.windows.eligibleMaxDays = Number(document.getElementById('eligible-days').value) || 45;
+        draft.maintenanceRules.windows.recurringMaxDays = Number(document.getElementById('recurring-days').value) || 90;
+        draft.maintenanceRules.windows.graceMaxDays = Number(document.getElementById('grace-days').value) || 120;
+        draft.maintenanceRules.sameVehicleRequired = !!document.getElementById('same-vehicle').checked;
+        draft.maintenanceRules.manualReviewInGrace = !!document.getElementById('manual-grace').checked;
+      }
+      async function load() {
+        var badge = document.getElementById('status-badge');
+        try {
+          var csrfRes = await fetch(API + '?action=csrf', { headers: headers(false) });
+          var csrfBody = await csrfRes.json();
+          csrf = (csrfBody && csrfBody.csrfToken) || '';
+          var res = await fetch(API + '?action=get_draft', { headers: headers(false) });
+          var data = await res.json();
+          if (!res.ok || !data.ok) throw new Error((data && data.error) || 'load_failed');
+          draft = data.draft;
+          badge.textContent = 'Draft v' + draft.version;
+          badge.className = 'badge ok';
+          fillForm();
+          var rev = await fetch(API + '?action=list_revisions', { headers: headers(false) });
+          var revBody = await rev.json();
+          document.getElementById('revisions-note').textContent = 'Revisions: ' + ((revBody.revisions || []).length);
+        } catch (e) {
+          badge.textContent = 'Error';
+          badge.className = 'badge';
+          setMsg(String(e.message || e), false);
+        }
+      }
+      document.getElementById('btn-reload').addEventListener('click', load);
+      document.getElementById('btn-save').addEventListener('click', async function () {
+        try {
+          readFormIntoDraft();
+          var res = await fetch(API, {
+            method: 'POST',
+            headers: headers(true),
+            body: JSON.stringify({ mutation: 'save_draft', expectedVersion: draft.version, draft: draft })
+          });
+          var data = await res.json();
+          if (!res.ok || !data.ok) {
+            if (data && data.error === 'stale_draft_version') {
+              setMsg('Stale draft (409). Reloading…', false);
+              await load();
+              return;
+            }
+            throw new Error((data && (data.message || data.error)) || 'save_failed');
+          }
+          draft = data.draft;
+          fillForm();
+          setMsg('Saved · revision ' + (data.revisionId || ''), true);
+        } catch (e) {
+          setMsg(String(e.message || e), false);
+        }
+      });
+      document.getElementById('btn-simulate').addEventListener('click', async function () {
+        var res = await fetch(API, {
+          method: 'POST',
+          headers: headers(true),
+          body: JSON.stringify({ mutation: 'simulate' })
+        });
+        var data = await res.json();
+        document.getElementById('sim-out').textContent = JSON.stringify(data, null, 2);
+      });
+      document.getElementById('btn-preview').addEventListener('click', async function () {
+        var days = document.getElementById('preview-days').value || '30';
+        var res = await fetch(API + '?action=evaluate_eligibility_preview&daysSinceCompleted=' + encodeURIComponent(days), { headers: headers(false) });
+        var data = await res.json();
+        document.getElementById('preview-out').textContent = JSON.stringify(data, null, 2);
+      });
+      load();
+    })();
+  </script>
+</body>
+</html>

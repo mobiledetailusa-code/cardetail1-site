@@ -155,6 +155,14 @@ exports.handler = async (event) => {
 
   const auth = await authorizeBookingAccess(event, { bookingId, phone: p.phone || p.customerPhone });
   if (!auth.ok) {
+    if (action === 'addon_request' || action === 'addon_remove_request') {
+      const { mapAddonLifecycleError } = require('../lib/customer-lifecycle/addon-error-map');
+      const mapped = mapAddonLifecycleError(auth.error || 'authentication_failed', {
+        message: auth.message,
+        statusCode: auth.statusCode,
+      });
+      return json(mapped.statusCode, mapped);
+    }
     const code = auth.error || 'authentication_failed';
     const statusCode = auth.statusCode || (code === 'validation_error' ? 400 : 200);
     return json(statusCode, { ok: false, error: code, message: auth.message });
@@ -370,60 +378,111 @@ exports.handler = async (event) => {
       adminTextLocal: `Customer removed add-ons for booking ${bookingId}.\n${addonIds.join(', ')}`,
     });
   } else if (action === 'addon_request') {
-    // Release A: money requests go through versioned command + canonical quote (PDA-01/02/05/07)
+    // Lifecycle Phase 2: honor client expectedBookingVersion; structured error codes; no client prices.
     const { submitChangeRequestCommand } = require('../lib/booking-commands');
     const { parseAddonIdList } = require('../lib/canonical-addon-catalog');
+    const { mapAddonLifecycleError } = require('../lib/customer-lifecycle/addon-error-map');
+    const {
+      writeAppointmentTimelineEvent,
+    } = require('../lib/customer-lifecycle/appointment-timeline');
+    const { ensureAppointmentDateFoundation } = require('../lib/customer-lifecycle/appointment-dates');
+
+    if (!policy.ok && !policy.postPayAdditiveCarveOut) {
+      const mapped = mapAddonLifecycleError(policy.error || 'action_not_allowed', {
+        message: policy.message,
+      });
+      return json(mapped.statusCode, mapped);
+    }
+
+    if (p.expectedBookingVersion == null || p.expectedBookingVersion === '') {
+      const mapped = mapAddonLifecycleError('validation_failed', {
+        message: 'expectedBookingVersion is required.',
+      });
+      return json(mapped.statusCode, mapped);
+    }
+    const expectedBookingVersion = Math.round(Number(p.expectedBookingVersion));
+    if (!Number.isFinite(expectedBookingVersion) || expectedBookingVersion < 0) {
+      const mapped = mapAddonLifecycleError('validation_failed', {
+        message: 'expectedBookingVersion is invalid.',
+      });
+      return json(mapped.statusCode, mapped);
+    }
 
     const target = { vehicleId: p.vehicleId || undefined };
     const addonIds = parseAddonIdList(p.addonIds || p.addOnIdsToAdd);
     if (!addonIds.length && !String(p.requestedAddons || '').trim()) {
-      return json(400, { ok: false, error: 'validation_error', message: 'Please select at least one add-on.' });
+      const mapped = mapAddonLifecycleError('validation_failed', {
+        message: 'Please select at least one add-on.',
+      });
+      return json(mapped.statusCode, mapped);
     }
-    // Browser price/label/total ignored — IDs only; Stage 1 mutation prices from catalog.
+    // Browser price/label/total ignored — IDs only; server prices from catalog.
     const delta = { addOnIdsToAdd: addonIds, addonIds, requestedAddons: addonIds.join(', ') };
     const adminSubjectLocal = `Cardetail1 — Add-On Request · ${bookingId}`;
     const adminTextLocal = `Customer requested add-ons for booking ${bookingId}.\n${addonIds.join(', ')}`;
+    const datePatch = ensureAppointmentDateFoundation(booking);
 
     const cmd = await submitChangeRequestCommand({
       bookingId,
-      expectedBookingVersion: booking.bookingVersion,
+      expectedBookingVersion,
       requestType: action,
       target,
       delta,
       authorizedRef: auth.scope,
+      extraPatches: {
+        ...datePatch,
+        lastCustomerChangeAtUtc: new Date().toISOString(),
+      },
     });
     if (cmd.noop) {
       return json(200, {
         ok: true,
         noop: true,
-        reason: cmd.reason || 'duplicate_addon',
-        message: 'Selected add-on is already on this booking.',
+        reason: cmd.reason || 'addon_already_requested',
+        message: 'Selected add-on is already on your booking or already requested.',
         changeRequestId: null,
       });
     }
     if (!cmd.ok) {
-      const status = cmd.statusCode || 400;
-      return json(status, {
-        ok: false,
-        error: cmd.error || 'request_failed',
-        message: cmd.error === 'version_conflict'
-          ? 'This booking changed. Refresh and try again.'
-          : (cmd.error === 'invalid_pricing' ? 'Selected add-on could not be priced.' : undefined),
+      const mapped = mapAddonLifecycleError(cmd.error || 'request_failed', {
+        statusCode: cmd.statusCode,
+        actualBookingVersion: cmd.actualBookingVersion,
+        message: cmd.message,
       });
+      return json(mapped.statusCode, mapped);
     }
 
     let appliedCmd = cmd;
     if (!policy.pendingApproval) {
       appliedCmd = await autoApplySubmittedRequest(bookingId, cmd);
       if (!appliedCmd.ok) {
-        return json(appliedCmd.statusCode || 400, {
-          ok: false,
-          error: appliedCmd.error || 'apply_failed',
+        const mapped = mapAddonLifecycleError(appliedCmd.error || 'apply_failed', {
+          statusCode: appliedCmd.statusCode,
           message: appliedCmd.message,
           changeRequestId: cmd.changeRequest?.requestId || null,
         });
+        return json(mapped.statusCode, mapped);
       }
     }
+
+    try {
+      const eventType = policy.pendingApproval ? 'addon_requested' : 'addon_approved';
+      await writeAppointmentTimelineEvent({
+        bookingId,
+        appointmentId: bookingId,
+        eventType,
+        actorType: 'customer',
+        source: 'submit-customer-action',
+        changeSummary: `${eventType}: ${addonIds.join(', ')}`,
+        appointmentVersion: expectedBookingVersion,
+        quoteVersion: appliedCmd.booking?.quoteVersion || booking.quoteVersion,
+        correlationId: appliedCmd.changeRequest?.requestId || null,
+        metadata: { addonIds },
+      });
+    } catch (_) {
+      /* non-blocking */
+    }
+
     return addonMutationResponse(appliedCmd, {
       policy,
       changeRequestId: appliedCmd.changeRequest?.requestId,

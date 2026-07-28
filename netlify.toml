@@ -49,6 +49,10 @@
   to = "/admin-owner-studio-catalog.html"
   status = 200
 [[redirects]]
+  from = "/admin/owner-studio/customer-lifecycle"
+  to = "/admin-owner-studio-customer-lifecycle.html"
+  status = 200
+[[redirects]]
   from = "/admin-ops"
   to = "/admin-ops.html"
   status = 200
@@ -59,6 +63,10 @@
 [[redirects]]
   from = "/admin-owner-studio-catalog"
   to = "/admin-owner-studio-catalog.html"
+  status = 200
+[[redirects]]
+  from = "/admin-owner-studio-customer-lifecycle"
+  to = "/admin-owner-studio-customer-lifecycle.html"
   status = 200
 [[redirects]]
   from = "/terms-conditions"

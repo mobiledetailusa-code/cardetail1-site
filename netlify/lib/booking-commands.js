@@ -60,7 +60,14 @@ async function submitChangeRequestCommand({
     ? Math.round(Number(expectedBookingVersion))
     : actualVersion;
   if (actualVersion !== expected) {
-    return { ok: false, error: 'version_conflict', statusCode: 409, actualBookingVersion: actualVersion };
+    return {
+      ok: false,
+      error: requestType === 'addon_request' || requestType === 'addon_remove_request'
+        ? 'stale_appointment_version'
+        : 'version_conflict',
+      statusCode: 409,
+      actualBookingVersion: actualVersion,
+    };
   }
 
   let service = aggregate.service;
@@ -84,15 +91,41 @@ async function submitChangeRequestCommand({
         };
       }
     }
+    // Pending add-on request dedupe (Phase 2) — avoid duplicate pending CRs from double-clicks.
+    if (requestType === 'addon_request') {
+      const requestedIds = new Set(
+        asArray(delta?.addOnIdsToAdd || delta?.addonIds).map((id) => String(id || '').trim()).filter(Boolean)
+      );
+      const pendingDup = asArray(aggregate.changeRequests).some((cr) => {
+        if (!cr || (cr.status !== 'pending' && cr.status !== 'pending_approval')) return false;
+        if (cr.kind !== 'addon' && cr.requestType !== 'addon_request' && cr.type !== 'addon_request') return false;
+        const pendingIds = asArray(cr.payload?.addOnIdsToAdd || cr.payload?.addonIds || cr.delta?.addonIds);
+        return pendingIds.some((id) => requestedIds.has(String(id || '').trim()));
+      });
+      if (pendingDup) {
+        return {
+          ok: true,
+          noop: true,
+          reason: 'addon_already_requested',
+          booking: aggregate,
+          projection: materialProjection(aggregate),
+        };
+      }
+    }
     // Proposal only — compute quote from a tentative service delta, but do NOT mutate
     // live service/quote until Admin approve. Premature apply caused approve noop → version_conflict.
     const applied = applyServiceDelta(service, target, delta);
-    if (!applied.ok) return { ok: false, error: applied.error, statusCode: 400 };
+    if (!applied.ok) {
+      const err = applied.error === 'unknown_addon' || applied.error === 'unknown_addon_id'
+        ? 'addon_not_found'
+        : applied.error;
+      return { ok: false, error: err, statusCode: 400 };
+    }
     if (applied.noop) {
       return {
         ok: true,
         noop: true,
-        reason: applied.reason || 'duplicate_addon',
+        reason: applied.reason || 'addon_already_requested',
         booking: aggregate,
         projection: materialProjection(aggregate),
       };

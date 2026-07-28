@@ -96,6 +96,39 @@ exports.handler = async (event) => {
   }
 
   if (action === 'create_checkout') {
+    const { getCustomerFeatureFlags } = require('../lib/customer-feature-flags');
+    const { assertNoLiveMembershipBilling } = require('../lib/customer-lifecycle/membership-foundation');
+    const flags = getCustomerFeatureFlags();
+    // Service subscriptions remain distinct from access-fee membership, but live recurring
+    // must stay hard-denied in production and when CUSTOMER_SUBSCRIPTIONS_ENABLED is off.
+    if (!flags.subscriptions) {
+      return jsonCors(403, {
+        ok: false,
+        error: 'subscriptions_disabled',
+        message: 'Customer subscriptions are disabled.',
+      });
+    }
+    const billingGate = assertNoLiveMembershipBilling({
+      appEnv: process.env.APP_ENV || process.env.CONTEXT,
+      allowLiveBilling: false,
+    });
+    if (!billingGate.ok) {
+      return jsonCors(billingGate.statusCode || 403, {
+        ok: false,
+        error: billingGate.error,
+        message: billingGate.message,
+      });
+    }
+    // Extra production hard-deny for any recurring Stripe Checkout.
+    const appEnv = String(process.env.APP_ENV || process.env.CONTEXT || '').toLowerCase();
+    if (appEnv === 'production' || appEnv === 'prod') {
+      return jsonCors(403, {
+        ok: false,
+        error: 'live_recurring_billing_denied',
+        message: 'Live recurring billing is not enabled in this stage.',
+      });
+    }
+
     const priceReject = rejectClientPriceFields(body);
     if (!priceReject.ok) {
       return jsonCors(400, { ok: false, error: priceReject.error, field: priceReject.field });
