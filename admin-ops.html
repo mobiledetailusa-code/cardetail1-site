@@ -1746,9 +1746,17 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         '<button type="button" class="btn ghost sm" id="dReopen">Reopen job</button>'+
         '<button type="button" class="btn ghost sm" id="dCorrect">Request correction</button></div></div>';
     }
+    html += '<div class="sec" style="margin:0 0 12px"><h4>Appointment dates</h4><div class="kv">'+
+      '<div><b>Request submitted:</b> '+dt(j.requestSubmittedAtUtc||j.createdAt)+'</div>'+
+      '<div><b>Preferred:</b> '+esc(j.preferredDate||'—')+' '+esc(j.preferredTime||'')+'</div>'+
+      '<div><b>Confirmed:</b> '+esc(j.confirmedDate||'—')+' '+esc(j.confirmedTime||'')+'</div>'+
+      '<div><b>Timezone:</b> '+esc(j.bookingTimezone||'America/New_York')+'</div>'+
+      '<div><b>Booking / quote version:</b> '+esc(String(j.bookingVersion!=null?j.bookingVersion:'—'))+' / '+esc(String(j.quoteVersion!=null?j.quoteVersion:(j.quote&&j.quote.quoteVersion)||'—'))+'</div>'+
+      '<div><b>Pending add-ons:</b> '+esc(String((j.changeRequests||[]).filter(function(cr){return cr && (cr.status==='pending'||cr.status==='pending_approval') && (cr.kind==='addon'||cr.requestType==='addon_request'||cr.type==='addon_request');}).length))+'</div>'+
+      '</div></div>';
     const evs = (j.eventLog||[]).slice().reverse();
-    html += '<div class="sec" style="margin:0 0 12px"><h4>Event log</h4>'+(evs.length?evs.map(e=>'<div class="ev"><time>'+dt(e.at)+'</time><strong>'+esc(e.action||'')+'</strong> '+
-      (e.by?'('+esc(e.by)+') ':'')+(e.note?esc(e.note):'')+(e.message?esc(e.message):'')+'</div>').join(''):'<div class="empty">No events</div>')+'</div>';
+    html += '<div class="sec" style="margin:0 0 12px"><h4>Event log / timeline</h4>'+(evs.length?evs.map(e=>'<div class="ev"><time>'+dt(e.at)+'</time><strong>'+esc(e.action||'')+'</strong> '+
+      (e.by?'('+esc(e.by)+') ':'')+(e.summary?esc(e.summary):'')+(e.note?esc(e.note):'')+(e.message?esc(e.message):'')+'</div>').join(''):'<div class="empty">No events</div>')+'</div>';
     html += '<div class="sec" id="dAuditSec" style="margin:0"><h4>Operational audit</h4><div class="empty">Loading audit…</div></div></div>';
     html += '<div class="sec full"><h4>Destructive and archival actions</h4><div class="actions">'+
       '<button type="button" class="btn warn sm" id="dArchive">Archive as test</button></div></div>';

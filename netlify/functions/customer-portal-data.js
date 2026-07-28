@@ -253,6 +253,24 @@ exports.handler = async (event) => {
     const projected = projectBookingForCustomer(auth.booking);
     const payment = await safePaymentStateAsync(auth.booking);
     const packageCatalog = serializeCanonicalPackageCatalogForBooking(auth.booking);
+    const { projectAppointmentDates } = require('../lib/customer-lifecycle/appointment-dates');
+    const { evaluateMaintenanceEligibility } = require('../lib/customer-lifecycle/maintenance-eligibility');
+    const { listAppointmentTimeline } = require('../lib/customer-lifecycle/appointment-timeline');
+    const appointmentDates = projectAppointmentDates(auth.booking);
+    const maintenanceEligibility = evaluateMaintenanceEligibility({
+      siteId: 'detailing-zone',
+      customerId: auth.booking.customerAccountId || auth.booking.customerId || null,
+      vehicleId: auth.booking.vehicleId || null,
+      requestedPackageId: auth.booking.packageId || auth.booking.packId || null,
+      requestedAtUtc: new Date().toISOString(),
+      completedServiceHistory: Array.isArray(auth.booking.completedServiceHistory)
+        ? auth.booking.completedServiceHistory
+        : [],
+      membershipStatus: auth.booking.membershipStatus || 'none',
+    });
+    let timeline = [];
+    try { timeline = await listAppointmentTimeline(auth.booking.bookingId || auth.booking.id); }
+    catch { timeline = []; }
     return jsonCors(200, {
       ok: true,
       scope: 'booking',
@@ -262,6 +280,10 @@ exports.handler = async (event) => {
       packageCatalog,
       packageCatalogByVehicle: packageCatalog.packageCatalogByVehicle,
       changeRequests: await listVisibleRequestsForBooking(auth.booking),
+      appointmentDates,
+      maintenanceEligibility,
+      membershipStatus: auth.booking.membershipStatus || 'none',
+      timeline: timeline.slice(-40),
     });
   }
 

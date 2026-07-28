@@ -448,6 +448,9 @@ model OsSite {
   currentPointer        OsCurrentReleasePointer?
   media                 OsMediaAsset[]
   auditLogs             OsAuditLog[]
+  lifecycleDrafts       OsCustomerLifecycleDraft[]
+  lifecycleRevisions    OsCustomerLifecycleRevision[]
+  appointmentEvents     AppointmentEvent[]
 }
 
 model OsSiteSettings {
@@ -709,4 +712,57 @@ model OsAuditLog {
 
   @@index([siteId, createdAt])
   @@index([siteId, action])
+}
+
+/// Customer Lifecycle draft (maintenance rules + membership plans). Never published publicly.
+model OsCustomerLifecycleDraft {
+  id        String   @id @default(cuid())
+  siteId    String
+  payload   Json
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+
+  @@index([siteId])
+}
+
+model OsCustomerLifecycleRevision {
+  revisionId String   @id
+  siteId     String
+  payload    Json
+  validation Json?
+  createdAt  DateTime @default(now())
+  createdBy  String?
+
+  site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+
+  @@index([siteId])
+}
+
+/// Immutable appointment timeline events (Customer Lifecycle Phase 4).
+model AppointmentEvent {
+  eventId             String   @id
+  siteId              String
+  appointmentId       String
+  customerId          String?
+  actorType           String
+  actorId             String?
+  source              String
+  eventType           String
+  occurredAtUtc       DateTime
+  appointmentVersion  Int?
+  quoteVersion        Int?
+  changeSummary       String
+  internalNote        String?
+  correlationId       String?
+  metadata            Json?
+  createdAt           DateTime @default(now())
+
+  site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Restrict)
+
+  @@index([siteId, appointmentId, occurredAtUtc])
+  @@index([appointmentId, occurredAtUtc])
+  @@index([siteId, eventType])
 }

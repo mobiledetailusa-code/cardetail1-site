@@ -361,26 +361,35 @@
 
   function mapAddonErrorMessage(data, status) {
     var err = (data && data.error) || '';
-    if (status === 429 || err === 'too_many_requests') {
+    if (status === 429 || err === 'too_many_requests' || err === 'rate_limited') {
       return 'Too many requests. Wait a moment and try again — your session is still active.';
     }
     if (status >= 500 || err === 'service_unavailable' || err === 'postgres_payment_disabled') {
       return 'Temporary server error. Try again shortly — your session is still active.';
     }
-    if (err === 'version_conflict') {
+    if (err === 'version_conflict' || err === 'stale_appointment_version' || err === 'stale_quote_version') {
       return 'This booking changed. Reloading the latest totals — please review and try again if needed.';
     }
-    if (err === 'unknown_addon' || err === 'unknown_addon_id') {
+    if (err === 'unknown_addon' || err === 'unknown_addon_id' || err === 'addon_not_found') {
       return 'That add-on is not available for this vehicle.';
     }
-    if (err === 'duplicate_addon') {
-      return 'That add-on is already on your booking.';
+    if (err === 'addon_not_compatible') {
+      return 'That add-on is not compatible with your package.';
+    }
+    if (err === 'duplicate_addon' || err === 'addon_already_requested') {
+      return 'That add-on is already on your booking or already requested.';
+    }
+    if (err === 'appointment_not_modifiable' || err === 'invoice_paid' || err === 'action_not_allowed') {
+      return (data && data.message) || 'This appointment cannot be modified online right now.';
+    }
+    if (err === 'unauthorized_appointment' || err === 'authentication_failed') {
+      return 'Please sign in again to manage this appointment.';
+    }
+    if (err === 'validation_failed' || err === 'validation_error') {
+      return (data && data.message) || 'Please check your selection and try again.';
     }
     if (err === 'settled_addon_remove_denied') {
       return 'Paid add-ons cannot be removed online.';
-    }
-    if (err === 'invoice_paid') {
-      return (data && data.message) || 'This change is not available after payment.';
     }
     return (data && data.message) || 'Unable to update add-ons. Call/text 551-313-2956.';
   }
