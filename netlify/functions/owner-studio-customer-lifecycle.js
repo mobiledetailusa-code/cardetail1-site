@@ -117,7 +117,7 @@ exports.handler = async (event) => {
       return json(403, { ok: false, error: 'owner_studio_disabled' });
     }
 
-    const admin = verifyAdminRequest(event, { requireCsrf: false });
+    const admin = await verifyAdminRequest(event.headers || {});
     if (!admin.ok) {
       return json(admin.statusCode || 401, { ok: false, error: admin.error || 'unauthorized' });
     }
