@@ -170,7 +170,7 @@ describe('Phase A — concurrent tabs: stale save is rejected, no overwrite', ()
     bEdit.packages[0].prices[0].amountCents = 99999; // would clobber tab A
     await assert.rejects(
       () => repo.saveCatalogDraft(SITE_ID, N, bEdit, 'tabB'),
-      (err) => err.code === 'stale_draft_version' && err.statusCode === 409
+      (err) => err.code === 'stale_catalog_draft_version' && err.statusCode === 409
     );
 
     // Tab A's value remains authoritative — tab B did not auto-merge/overwrite.

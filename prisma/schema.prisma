@@ -655,6 +655,7 @@ model OsCatalogDraft {
 
   site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
 
+  @@unique([siteId])
   @@index([siteId])
 }
 

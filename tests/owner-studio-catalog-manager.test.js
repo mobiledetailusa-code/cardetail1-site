@@ -164,7 +164,7 @@ describe('owner-studio catalog manager unit', () => {
     await repo.saveCatalogDraft(SITE_ID, 1, sampleDraft(), 'owner-a');
     await assert.rejects(
       () => repo.saveCatalogDraft(SITE_ID, 1, sampleDraft({ packages: [{ ...SAMPLE_PKG, name: 'Stale' }] }), 'owner-b'),
-      (err) => err.code === 'stale_draft_version' && err.statusCode === 409
+      (err) => err.code === 'stale_catalog_draft_version' && err.statusCode === 409
     );
   });
 

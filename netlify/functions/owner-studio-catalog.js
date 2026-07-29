@@ -193,7 +193,9 @@ function overviewFromDraft(draft) {
 }
 
 function publicError(err) {
-  const status = err.statusCode || (err.code === 'stale_draft_version' ? 409 : 400);
+  const status = err.statusCode || (
+    err.code === 'stale_catalog_draft_version' || err.code === 'stale_draft_version' ? 409 : 400
+  );
   const body = {
     ok: false,
     error: err.code || 'request_failed',
