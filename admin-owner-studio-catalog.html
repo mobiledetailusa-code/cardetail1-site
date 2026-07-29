@@ -89,8 +89,9 @@
     </section>
 
     <div class="row" style="margin-bottom:14px">
-      <button type="button" id="btn-save">Save Draft</button>
+      <button type="button" id="btn-save" disabled>Save Draft</button>
       <button type="button" class="secondary" id="btn-reload">Reload</button>
+      <button type="button" class="secondary warn" id="btn-reload-latest" hidden>Reload latest version</button>
       <button type="button" class="secondary" id="btn-preview">Open draft preview</button>
       <button type="button" disabled title="Publishing will be available after transactional release integration.">Publish (unavailable)</button>
       <button type="button" disabled title="Rollback is not available in Stage 2.">Rollback (unavailable)</button>
@@ -101,6 +102,7 @@
       <section class="panel" aria-labelledby="pkg-list-title">
         <div class="row" style="justify-content:space-between;margin-bottom:10px">
           <h2 id="pkg-list-title" style="margin:0;font-size:1rem">Packages</h2>
+          <span id="pkg-count" class="muted" aria-live="polite"></span>
           <span id="dirty" class="badge warn" hidden>Unsaved changes</span>
         </div>
         <div class="row" style="margin-bottom:10px">
@@ -120,6 +122,9 @@
             <label for="filter-cat">Category</label>
             <select id="filter-cat"><option value="all">All</option></select>
           </div>
+        </div>
+        <div class="row" style="margin-bottom:10px">
+          <button type="button" class="secondary" id="clear-package-search">Clear search</button>
         </div>
         <div id="package-list" role="listbox" aria-label="Package list"></div>
       </section>
@@ -219,6 +224,7 @@
   </main>
 
   <script src="/netlify/lib/admin-session-client.js"></script>
+  <script src="/netlify/lib/owner-studio-catalog-ux-logic.js"></script>
   <script>
   (function () {
     const state = {
@@ -229,7 +235,22 @@
       saving: false,
       addonExpanded: new Set(),
       addonDirty: new Set(),
+      // Canonical baseline signature from the last successful GET / SAVE; dirty is a
+      // deterministic diff against this, so reverting edits returns to clean and a
+      // server version bump alone never reads as dirty.
+      baselineSig: null,
+      // Explicit, closed page state (see CatalogUxLogic.PAGE_STATES). Minimal — not a
+      // generic state framework — but enough to forbid contradictory visual states.
+      page: 'loading',
+      // A newer version exists server-side (HTTP 409 stale_catalog_draft_version).
+      conflict: false,
+      // Keys of price fields currently holding invalid input; Save is blocked while non-empty.
+      invalidPrices: new Set(),
     };
+
+    // Pure, DOM-free UX logic shared with the Node test-suite (strict price parser,
+    // dirty diff, package search, canonical-response guard, page-state predicates).
+    const Ux = window.CatalogUxLogic;
 
     const el = (id) => document.getElementById(id);
 
@@ -251,15 +272,49 @@
     function centsToUsd(cents) {
       return (Number(cents || 0) / 100).toFixed(2);
     }
-    function usdToCents(raw) {
-      const n = Number(String(raw).replace(/[^0-9.]/g, ''));
-      if (!Number.isFinite(n) || n < 0) throw new Error('invalid_usd');
-      return Math.round(n * 100);
+    // Baseline / dirty ------------------------------------------------------
+    function setBaseline() {
+      state.baselineSig = state.draft ? Ux.editableCatalogSignature(state.draft) : null;
+    }
+    function recomputeDirty() {
+      if (!state.draft || state.baselineSig == null) { setDirty(false); return; }
+      setDirty(Ux.editableCatalogSignature(state.draft) !== state.baselineSig);
+    }
+
+    // Price-field validity --------------------------------------------------
+    function pricesValid() { return state.invalidPrices.size === 0; }
+    function markPriceField(key, ok) {
+      if (ok) state.invalidPrices.delete(key);
+      else state.invalidPrices.add(key);
+      updateSaveButton();
+    }
+    function clearPriceFields(prefix) {
+      for (const k of [...state.invalidPrices]) if (k.indexOf(prefix) === 0) state.invalidPrices.delete(k);
+    }
+
+    // Explicit page-state model --------------------------------------------
+    function updateSaveButton() {
+      el('btn-save').disabled = !Ux.isSaveEnabled({
+        state: state.page, dirty: state.dirty, valid: pricesValid(), saving: state.saving,
+      });
+    }
+    function setPageState(name) {
+      state.page = name;
+      // The conflict-recovery action is visible only in the stale-conflict state.
+      el('btn-reload-latest').hidden = (name !== 'stale-conflict');
+      updateSaveButton();
     }
 
     function setDirty(v) {
       state.dirty = !!v;
       el('dirty').hidden = !state.dirty;
+      // Keep the ready/saved states coherent with dirty so we can never show
+      // "Saved" while dirty or "clean" while holding edits. Error/loading/saving/
+      // conflict states are left untouched — dirty is orthogonal to them.
+      if (state.page === 'ready-clean' || state.page === 'ready-dirty' || state.page === 'saved') {
+        state.page = state.dirty ? 'ready-dirty' : 'ready-clean';
+      }
+      updateSaveButton();
     }
 
     function setSaveState(msg, cls) {
@@ -281,16 +336,20 @@
 
     // Map an HTTP failure to an explicit, differentiated UI state. A failed request must
     // NEVER render as an empty catalog, and 429/500/network must NOT clear the session.
+    // `state` is one of CatalogUxLogic.PAGE_STATES; every mutation path routes through here
+    // so classification (and the "keep the loaded draft" rule) stays consistent.
     function classifyFailure(res, data) {
       const status = res && res.status;
+      const code = data && (data.error || data.code);
       const rid = (data && (data.requestId || data.request_id)) || (res && res.headers && res.headers.get && res.headers.get('x-nf-request-id')) || '';
-      if (status === 401) return { authRequired: true, msg: 'Sign-in required — your admin session is missing or expired. Open /admin to sign in, then reopen this page.' };
-      if (status === 403) return { authRequired: false, msg: 'Permission denied — your account is not authorized for Owner Studio.' };
-      if (status === 409) return { authRequired: false, msg: 'Draft changed in another session (409). Reload the latest draft before saving.' };
-      if (status === 429) return { authRequired: false, keepSession: true, msg: 'Rate limited (429). Your session is still valid — wait a moment and retry.' };
-      if (status >= 500) return { authRequired: false, keepSession: true, msg: `Server/database error (${status})${rid ? ' · request ' + rid : ''}. Your session is still valid — retry shortly.` };
-      if (status === 0) return { authRequired: false, keepSession: true, network: true, msg: 'Network error — check your connection and retry.' };
-      return { authRequired: false, msg: (data && (data.message || data.error)) ? ('Request failed: ' + (data.message || data.error)) : ('Request failed (' + status + ')') };
+      if (status === 401) return { state: 'authentication-error', authRequired: true, msg: 'Sign-in required — your admin session is missing or expired. Open /admin to sign in, then reopen this page.' };
+      if (status === 403) return { state: 'authorization-error', authRequired: false, msg: 'Permission denied — your account is not authorized for Owner Studio.' };
+      if (status === 409) return { state: 'stale-conflict', authRequired: false, keepSession: true, stale: code === 'stale_catalog_draft_version' || code === 'stale_draft_version', currentVersion: data && data.currentVersion, msg: 'Another tab or session saved a newer catalog version (409). Your unsaved edits are kept — use “Reload latest version” to pull the newest draft (this discards local edits) before saving.' };
+      if (status === 429) return { state: 'rate-limit', authRequired: false, keepSession: true, msg: 'Rate limited (429). Your session is still valid — wait a moment and retry.' };
+      if (status >= 500) return { state: 'catalog-unavailable', authRequired: false, keepSession: true, msg: `Server/database error (${status})${rid ? ' · request ' + rid : ''}. Your session is still valid — retry shortly.` };
+      if (status === 400) return { state: 'validation-error', authRequired: false, keepSession: true, msg: (data && (data.message || data.error)) ? ('Validation error (400): ' + (data.message || data.error)) : 'Validation error (400). Your edits are preserved — fix the highlighted values and retry.' };
+      if (status === 0) return { state: 'network-error', authRequired: false, keepSession: true, network: true, msg: 'Network error — check your connection and retry.' };
+      return { state: 'catalog-unavailable', authRequired: false, keepSession: true, msg: (data && (data.message || data.error)) ? ('Request failed: ' + (data.message || data.error)) : ('Request failed (' + status + ')') };
     }
 
     function showFailure(res, data) {
@@ -299,7 +358,18 @@
       el('status-banner').className = 'banner';
       el('auth-note').hidden = !f.authRequired;
       // Only an auth failure clears the loaded catalog; 429/500/network keep what we have.
-      if (f.authRequired) { state.draft = null; state.csrf = ''; }
+      if (f.authRequired) { state.draft = null; state.csrf = ''; state.baselineSig = null; }
+      state.conflict = (f.state === 'stale-conflict');
+      setPageState(f.state || 'catalog-unavailable');
+      return f;
+    }
+
+    // Every mutation path (save / restore / reload) reports failures through here so
+    // classification is consistent and a later failure NEVER discards the loaded draft
+    // or the user's local edits (dirty is left intact for non-auth failures).
+    function reportMutationFailure(res, data, fallbackMsg) {
+      const f = showFailure(res, data);
+      setSaveState(f.msg || fallbackMsg || 'Request failed', 'err');
       return f;
     }
 
@@ -311,20 +381,37 @@
     }
 
     async function loadDraft() {
+      setPageState('loading');
       const { res, data } = await api('/.netlify/functions/owner-studio-catalog?action=get_draft', { headers: headers(false) });
       if (!res.ok) { showFailure(res, data); return; }
       // 200 with no draft object is a VALID empty state, not a failure.
       if (!data.draft) {
         state.draft = null;
+        state.baselineSig = null;
+        state.addonDirty.clear();
+        state.invalidPrices.clear();
         el('status-banner').textContent = 'No catalog draft exists yet (empty). Seed the staging catalog, then reload.';
         el('status-banner').className = 'banner';
+        setDirty(false);
+        setPageState('ready-clean');
+        return;
+      }
+      // A 200 with a malformed payload is a failure, never an "empty" catalog.
+      if (!Ux.isCanonicalDraftResponse(data)) {
+        el('status-banner').textContent = 'The server returned an unreadable catalog payload. Retry; do not edit until it loads cleanly.';
+        el('status-banner').className = 'banner';
+        setPageState('catalog-unavailable');
         return;
       }
       state.draft = data.draft;
       el('status-banner').textContent = 'Draft loaded. Public content source remains legacy. Publish/rollback unavailable.';
       state.addonDirty.clear();
+      state.invalidPrices.clear();
+      state.conflict = false;
+      setBaseline();
       renderAll();
       setDirty(false);
+      setPageState('ready-clean');
     }
 
     function overview() {
@@ -338,15 +425,17 @@
     }
 
     function filteredPackages() {
-      const q = el('search').value.trim().toLowerCase();
+      const q = el('search').value;
       const active = el('filter-active').value;
       const cat = el('filter-cat').value;
+      const ctx = { vehicleClasses: state.draft.vehicleClasses || [] };
       return (state.draft.packages || []).filter((p) => {
         if (active === 'active' && !p.active) return false;
         if (active === 'inactive' && p.active) return false;
         if (cat !== 'all' && p.category !== cat) return false;
-        if (!q) return true;
-        return (p.name + ' ' + p.packageId).toLowerCase().includes(q);
+        // Client-side only; searches name, id, slug, description, category and
+        // compatible vehicle classes. Never mutates the draft, never marks dirty.
+        return Ux.packageMatchesQuery(p, q, ctx);
       }).sort((a, b) => (a.displayOrder - b.displayOrder) || a.name.localeCompare(b.name));
     }
 
@@ -354,11 +443,20 @@
       const cats = [...new Set((state.draft.packages || []).map((p) => p.category))].sort();
       const sel = el('filter-cat');
       const cur = sel.value;
-      sel.innerHTML = '<option value="all">All</option>' + cats.map((c) => `<option value="${c}">${c}</option>`).join('');
+      // Category is catalog-controlled text — escape it in BOTH the option value and the
+      // label so a hostile value can never break out of the attribute or inject markup.
+      sel.innerHTML = '<option value="all">All</option>' + cats.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
       sel.value = cats.includes(cur) ? cur : 'all';
       const box = el('package-list');
       box.innerHTML = '';
-      for (const p of filteredPackages()) {
+      const rows = filteredPackages();
+      const total = (state.draft.packages || []).length;
+      el('pkg-count').textContent = `Showing ${rows.length} of ${total} packages`;
+      if (!rows.length) {
+        box.innerHTML = '<p class="muted">No packages match the current search / filters.</p>';
+        return;
+      }
+      for (const p of rows) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'list-btn';
@@ -394,7 +492,32 @@
       el('editor-msg').textContent = '';
     }
 
+    // Live field-level price validation shared by the package matrix and add-on editors.
+    // Returns the parsed result. Empty is allowed only where opts.allowEmpty (a package
+    // vehicle-class price may be left blank to mean "no price row for this class").
+    function validatePriceInput(input, errEl, key, opts) {
+      const raw = input.value.trim();
+      if (opts && opts.allowEmpty && raw === '') {
+        if (errEl) errEl.hidden = true;
+        input.removeAttribute('aria-invalid');
+        markPriceField(key, true);
+        return { ok: true, empty: true };
+      }
+      const parsed = Ux.parsePriceToCents(raw, opts);
+      if (!parsed.ok) {
+        if (errEl) { errEl.textContent = Ux.priceErrorMessage(parsed.error); errEl.hidden = false; }
+        input.setAttribute('aria-invalid', 'true');
+        markPriceField(key, false);
+        return parsed;
+      }
+      if (errEl) errEl.hidden = true;
+      input.removeAttribute('aria-invalid');
+      markPriceField(key, true);
+      return parsed;
+    }
+
     function renderPriceMatrix(pkg) {
+      clearPriceFields('pkg:');
       const vcs = (state.draft.vehicleClasses || []).filter((v) => v.category === pkg.category && v.active !== false);
       const box = el('price-matrix');
       box.innerHTML = '';
@@ -402,7 +525,11 @@
         const price = (pkg.prices || []).find((pr) => pr.vehicleClassId === vc.vehicleClassId && pr.priceModel === 'flat');
         const wrap = document.createElement('div');
         const inputId = `price-${vc.vehicleClassId}`;
-        wrap.innerHTML = `<label for="${inputId}">${escapeHtml(vc.label)} (USD)</label><input id="${inputId}" data-vc="${vc.vehicleClassId}" inputmode="decimal" value="${price ? centsToUsd(price.amountCents) : ''}" aria-describedby="price-help">`;
+        wrap.innerHTML = `<label for="${escapeHtml(inputId)}">${escapeHtml(vc.label)} (USD)</label><input id="${escapeHtml(inputId)}" data-vc="${escapeHtml(vc.vehicleClassId)}" inputmode="decimal" value="${price ? centsToUsd(price.amountCents) : ''}" aria-describedby="price-help"><small class="err" data-price-err hidden></small>`;
+        const input = wrap.querySelector('input');
+        const errEl = wrap.querySelector('[data-price-err]');
+        const key = 'pkg:' + pkg.packageId + ':' + vc.vehicleClassId;
+        input.addEventListener('input', () => validatePriceInput(input, errEl, key, { allowEmpty: true }));
         box.appendChild(wrap);
       }
     }
@@ -410,48 +537,60 @@
     function applyPackageEdits() {
       const p = state.draft.packages.find((x) => x.packageId === state.selectedId);
       if (!p) return;
-      try {
-        p.name = el('f-name').value.trim();
-        p.slug = el('f-slug').value.trim();
-        p.shortDescription = el('f-short').value;
-        p.description = el('f-desc').value;
-        p.displayOrder = parseInt(el('f-order').value, 10) || 0;
-        p.active = el('f-active').value === 'true';
-        p.features = el('f-features').value.split(/\r?\n/).map((line, i) => {
-          const t = line.trim();
-          if (!t) return null;
-          const excluded = t.startsWith('-');
-          return { kind: excluded ? 'excluded' : 'included', label: excluded ? t.slice(1).trim() : t, sortOrder: i };
-        }).filter(Boolean);
-        const flat = [];
-        for (const input of el('price-matrix').querySelectorAll('input[data-vc]')) {
-          const raw = input.value.trim();
-          if (!raw) continue;
-          flat.push({
-            packageId: p.packageId,
-            vehicleClassId: input.getAttribute('data-vc'),
-            currency: 'usd',
-            amountCents: usdToCents(raw),
-            priceModel: 'flat',
-          });
+      // Validate every price field FIRST. A single invalid field blocks the entire apply,
+      // so an invalid/negative/NaN entry is never coerced to zero and never partially saved.
+      const flat = [];
+      let priceError = false;
+      for (const input of el('price-matrix').querySelectorAll('input[data-vc]')) {
+        const errEl = input.parentElement.querySelector('[data-price-err]');
+        const vcId = input.getAttribute('data-vc');
+        const key = 'pkg:' + p.packageId + ':' + vcId;
+        const raw = input.value.trim();
+        if (raw === '') { if (errEl) errEl.hidden = true; input.removeAttribute('aria-invalid'); markPriceField(key, true); continue; }
+        const parsed = Ux.parsePriceToCents(raw);
+        if (!parsed.ok) {
+          priceError = true;
+          if (errEl) { errEl.textContent = Ux.priceErrorMessage(parsed.error); errEl.hidden = false; }
+          input.setAttribute('aria-invalid', 'true');
+          markPriceField(key, false);
+          continue;
         }
-        const nonFlat = (p.prices || []).filter((pr) => pr.priceModel !== 'flat');
-        p.prices = flat.concat(nonFlat);
-        setDirty(true);
-        el('editor-msg').textContent = 'Package changes applied locally. Save Draft to persist.';
-        el('editor-msg').className = 'okmsg';
-        renderAll();
-      } catch (e) {
-        el('editor-msg').textContent = e.message || 'Invalid price';
-        el('editor-msg').className = 'err';
+        if (errEl) errEl.hidden = true;
+        input.removeAttribute('aria-invalid');
+        markPriceField(key, true);
+        // Converted to integer cents at the UI boundary — no floating dollars persisted.
+        flat.push({ packageId: p.packageId, vehicleClassId: vcId, currency: 'usd', amountCents: parsed.cents, priceModel: 'flat' });
       }
+      if (priceError) {
+        el('editor-msg').textContent = 'Fix the highlighted price fields before applying.';
+        el('editor-msg').className = 'err';
+        return;
+      }
+      p.name = el('f-name').value.trim();
+      p.slug = el('f-slug').value.trim();
+      p.shortDescription = el('f-short').value;
+      p.description = el('f-desc').value;
+      p.displayOrder = parseInt(el('f-order').value, 10) || 0;
+      p.active = el('f-active').value === 'true';
+      p.features = el('f-features').value.split(/\r?\n/).map((line, i) => {
+        const t = line.trim();
+        if (!t) return null;
+        const excluded = t.startsWith('-');
+        return { kind: excluded ? 'excluded' : 'included', label: excluded ? t.slice(1).trim() : t, sortOrder: i };
+      }).filter(Boolean);
+      const nonFlat = (p.prices || []).filter((pr) => pr.priceModel !== 'flat');
+      p.prices = flat.concat(nonFlat);
+      recomputeDirty();
+      el('editor-msg').textContent = 'Package changes applied locally. Save Draft to persist.';
+      el('editor-msg').className = 'okmsg';
+      renderAll();
     }
 
     function moveSelected(delta) {
       const p = state.draft.packages.find((x) => x.packageId === state.selectedId);
       if (!p) return;
       p.displayOrder = (p.displayOrder || 0) + delta;
-      setDirty(true);
+      recomputeDirty();
       renderAll();
       selectPackage(p.packageId);
     }
@@ -500,7 +639,7 @@
 
     function markAddonDirty(a, row) {
       state.addonDirty.add(a.addOnId);
-      setDirty(true);
+      recomputeDirty();
       if (row) row.classList.add('dirty');
     }
 
@@ -528,7 +667,7 @@
         a.prices.forEach((pr, i) => {
           const wrap = document.createElement('div');
           const label = pr.category ? `${escapeHtml(pr.category)} (USD)` : `Price ${i + 1} (USD)`;
-          wrap.innerHTML = `<label>${label}</label><input data-price-idx="${i}" inputmode="decimal" value="${centsToUsd(pr.amountCents)}">`;
+          wrap.innerHTML = `<label>${label}</label><input data-price-idx="${i}" inputmode="decimal" value="${centsToUsd(pr.amountCents)}"><small class="err" data-price-err hidden></small>`;
           priceBox.appendChild(wrap);
         });
       }
@@ -546,14 +685,18 @@
       ed.querySelector('[data-f="order"]').addEventListener('input', (e) => { a.displayOrder = parseInt(e.target.value, 10) || 0; markAddonDirty(a, row); });
       ed.querySelector('[data-f="active"]').addEventListener('change', (e) => { a.active = e.target.value === 'true'; markAddonDirty(a, row); refreshSummary(); });
       priceBox.querySelectorAll('input[data-price-idx]').forEach((inp) => {
-        inp.addEventListener('input', (e) => {
-          const idx = Number(e.target.getAttribute('data-price-idx'));
-          try {
-            a.prices[idx].amountCents = usdToCents(e.target.value);
+        const idx = Number(inp.getAttribute('data-price-idx'));
+        const errEl = inp.parentElement.querySelector('[data-price-err]');
+        const key = 'addon:' + a.addOnId + ':' + idx;
+        inp.addEventListener('input', () => {
+          const parsed = validatePriceInput(inp, errEl, key, { allowEmpty: false });
+          if (parsed.ok && !parsed.empty) {
+            a.prices[idx].amountCents = parsed.cents; // integer cents only — never a float dollar
             msg.textContent = ''; msg.className = 'muted';
             markAddonDirty(a, row);
             refreshSummary();
-          } catch (_) {
+          } else {
+            // Invalid entry: leave the previously-applied cents untouched (never coerce to 0).
             msg.textContent = 'Enter a valid non-negative dollar amount.'; msg.className = 'err';
           }
         });
@@ -571,6 +714,9 @@
     }
 
     function renderAddOns() {
+      // Rebuilding the list recreates every expanded editor from the last-applied
+      // (valid) values, so drop any stale per-field invalid markers first.
+      clearPriceFields('addon:');
       const box = el('addon-list');
       // Category filter options
       const allCats = [...new Set((state.draft.addOns || []).flatMap(addonCategories))].sort();
@@ -664,7 +810,7 @@
           c.resolution = 'keep-server-value';
           c.resolvedBy = 'owner';
           c.resolvedAt = new Date().toISOString();
-          setDirty(true);
+          recomputeDirty();
           renderAll();
         });
       });
@@ -674,7 +820,10 @@
       const { res, data } = await api('/.netlify/functions/owner-studio-catalog?action=list_revisions&limit=20', { headers: headers(false) });
       const box = el('revision-list');
       if (!res.ok) {
-        box.innerHTML = `<p class="err">${escapeHtml(data.error || 'Failed')}</p>`;
+        // Read-side panel: classify for a consistent message but keep the loaded catalog.
+        const f = classifyFailure(res, data);
+        box.innerHTML = `<p class="err">${escapeHtml(f.msg || data.error || 'Failed')}</p>`;
+        if (f.authRequired) showFailure(res, data);
         return;
       }
       if (!data.items || !data.items.length) {
@@ -704,16 +853,24 @@
               expectedVersion: state.draft.version,
             }),
           });
-          if (r2.status === 409) {
-            setSaveState('Stale draft (409). Reload and retry.', 'err');
+          if (!r2.ok) {
+            // Reuse classifyFailure on the restore path too; a 409 enters the same
+            // stale-conflict workflow and never discards the local draft.
+            reportMutationFailure(r2, d2, 'Restore failed');
             return;
           }
-          if (!r2.ok) {
-            setSaveState(d2.message || d2.error || 'Restore failed', 'err');
+          if (!Ux.isCanonicalDraftResponse(d2)) {
+            setPageState('catalog-unavailable');
+            setSaveState('Restore returned an invalid response. Your edits are preserved — retry.', 'err');
             return;
           }
           state.draft = d2.draft;
+          state.addonDirty.clear();
+          state.invalidPrices.clear();
+          state.conflict = false;
+          setBaseline();
           setDirty(false);
+          setPageState('ready-clean');
           setSaveState('Restored as new draft revision ' + d2.revisionId, 'okmsg');
           renderAll();
           loadRevisions();
@@ -725,7 +882,13 @@
       const { res, data } = await api('/.netlify/functions/owner-studio-catalog?action=preview', { headers: headers(false) });
       const box = el('preview-body');
       if (!res.ok) {
-        box.innerHTML = `<p class="err">${escapeHtml(data.error || 'preview failed')}</p>`;
+        const f = classifyFailure(res, data);
+        box.innerHTML = `<p class="err">${escapeHtml(f.msg || data.error || 'preview failed')}</p>`;
+        if (f.authRequired) showFailure(res, data);
+        return;
+      }
+      if (!Ux.isCanonicalDraftResponse(data)) {
+        box.innerHTML = '<p class="err">Preview returned an invalid response. Reload the draft and retry.</p>';
         return;
       }
       const pkgs = (data.draft.packages || []).filter((p) => p.active).slice(0, 12);
@@ -758,13 +921,16 @@
     }
 
     async function saveDraft() {
-      if (!state.draft || state.saving) return;
+      if (!state.draft || state.saving) return; // duplicate-click / concurrency guard
       // Auto-commit any pending edits in the open package editor so they are never
       // silently discarded by saving before clicking "Apply package changes".
       if (state.selectedId && !el('editor').hidden) applyPackageEdits();
+      // Never fire a request with a locally-invalid price, and never when there is nothing to save.
+      if (!pricesValid()) { setSaveState('Fix the highlighted price fields before saving.', 'err'); return; }
+      if (!state.dirty) { setSaveState('No changes to save.'); return; }
       state.saving = true;
+      setPageState('saving'); // disables the Save button for the duration of the request
       setSaveState('Saving…');
-      el('btn-save').disabled = true;
       try {
         const { res, data } = await api('/.netlify/functions/owner-studio-catalog', {
           method: 'POST',
@@ -775,24 +941,64 @@
             draft: serverManagedStrip(state.draft),
           }),
         });
-        if (res.status === 409) {
-          setSaveState('Conflict 409: draft changed elsewhere. Reload, then re-apply edits.', 'err');
-          return;
-        }
         if (!res.ok) {
-          setSaveState(data.message || data.error || 'Save failed', 'err');
+          // Failed save keeps local edits AND dirty state; a 409 enters the stale-conflict
+          // workflow (Reload latest version) and never overwrites the newer server draft.
+          reportMutationFailure(res, data, 'Save failed');
           return;
         }
+        // A malformed 2xx body is treated as failure — never reported as Saved, edits kept.
+        if (!Ux.isCanonicalDraftResponse(data)) {
+          setPageState('catalog-unavailable');
+          el('status-banner').textContent = 'Save returned an invalid response. Your edits are preserved — retry.';
+          el('status-banner').className = 'banner';
+          setSaveState('Save failed (invalid response)', 'err');
+          return;
+        }
+        // Success: the canonical server draft replaces BOTH the working draft and the
+        // baseline, and its version replaces the local version.
         state.draft = data.draft;
         state.addonDirty.clear();
+        state.invalidPrices.clear();
+        state.conflict = false;
+        setBaseline();
         setDirty(false);
+        setPageState('saved');
         setSaveState('Saved · revision ' + data.revisionId + (data.validation && !data.validation.ok ? ' (validation warnings)' : ''), 'okmsg');
         renderAll();
         loadRevisions();
       } finally {
         state.saving = false;
-        el('btn-save').disabled = false;
+        updateSaveButton();
       }
+    }
+
+    // Conflict recovery: pull the newest server draft, discarding local unsaved edits.
+    // Only reachable from the stale-conflict state via the "Reload latest version" button.
+    async function reloadLatest() {
+      if (!confirm('Reload the latest saved catalog? Your unsaved local changes will be discarded.')) return;
+      setSaveState('Reloading latest…');
+      const { res, data } = await api('/.netlify/functions/owner-studio-catalog?action=get_draft', { headers: headers(false) });
+      if (!res.ok) { reportMutationFailure(res, data, 'Reload failed'); return; } // preserve local draft on failure
+      if (!Ux.isCanonicalDraftResponse(data)) {
+        setPageState('catalog-unavailable');
+        el('status-banner').textContent = 'Reload returned an invalid response. Your local changes are preserved.';
+        el('status-banner').className = 'banner';
+        setSaveState('Reload failed (invalid response)', 'err');
+        return;
+      }
+      state.draft = data.draft;
+      state.addonDirty.clear();
+      state.invalidPrices.clear();
+      state.conflict = false;
+      setBaseline();
+      setDirty(false);
+      setPageState('ready-clean');
+      el('status-banner').textContent = 'Reloaded the latest saved catalog (version ' + data.draft.version + ').';
+      el('status-banner').className = 'banner';
+      setSaveState('Latest draft loaded', 'okmsg');
+      renderAll();
+      loadRevisions();
     }
 
     el('btn-save').addEventListener('click', saveDraft);
@@ -808,7 +1014,38 @@
     el('search').addEventListener('input', renderPackageList);
     el('filter-active').addEventListener('change', renderPackageList);
     el('filter-cat').addEventListener('change', renderPackageList);
+    el('btn-reload-latest').addEventListener('click', reloadLatest);
+    el('clear-package-search').addEventListener('click', () => {
+      el('search').value = '';
+      el('filter-active').value = 'all';
+      el('filter-cat').value = 'all';
+      renderPackageList();
+    });
     wireAddonControls();
+
+    // Unsaved-change protection: warn before the browser unloads the page while dirty.
+    // Only while genuinely dirty; uses the browser-supported event contract (no custom
+    // copy, which modern browsers ignore anyway).
+    window.addEventListener('beforeunload', (e) => {
+      if (!state.dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+
+    // Guard in-app navigation AWAY from the Catalog Manager while dirty. Same-page catalog
+    // routes (including #preview / #revisions) never warn; only routes that leave the page
+    // (Overview, ← Owner Studio, Admin) prompt before discarding unsaved changes.
+    function guardRouteNavigation() {
+      document.querySelectorAll('a[href^="/admin"]').forEach((a) => {
+        const href = a.getAttribute('href') || '';
+        if (href.indexOf('/admin/owner-studio/catalog') === 0) return; // stays on this page
+        a.addEventListener('click', (e) => {
+          if (!state.dirty) return;
+          if (!confirm('You have unsaved catalog changes. Leave this page and discard them?')) e.preventDefault();
+        });
+      });
+    }
+    guardRouteNavigation();
 
     // Cross-tab logout: if another tab signs out, drop this tab's editing session too.
     if (window.CD1AdminSession && CD1AdminSession.onSessionEvent) {
@@ -816,14 +1053,24 @@
         if (msg && msg.type === 'logout') {
           CD1AdminSession.clearToken({ silent: true }); // silent: don't re-broadcast (avoids a loop)
           state.draft = null; state.csrf = ''; state.dirty = false;
+          state.baselineSig = null; state.conflict = false; state.invalidPrices.clear();
+          el('dirty').hidden = true;
           el('auth-note').hidden = false;
           el('status-banner').textContent = 'Signed out in another tab. Sign in again at /admin, then reopen this page.';
+          setPageState('authentication-error');
           el('btn-save').disabled = true;
         }
       });
     }
 
     (async function init() {
+      if (!Ux) {
+        // Hard dependency (like admin-session-client.js) — fail safe, not silently broken.
+        el('status-banner').textContent = 'A required script failed to load (catalog UX logic). Refresh the page.';
+        el('status-banner').className = 'banner';
+        el('btn-save').disabled = true;
+        return;
+      }
       const ok = await loadCsrf();
       if (!ok) return;
       await loadDraft();
