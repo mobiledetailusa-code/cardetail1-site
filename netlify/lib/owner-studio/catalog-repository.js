@@ -125,7 +125,7 @@ function createMemoryCatalogRepository(seed = {}) {
     }
     const currentVersion = Number(existing.version) || 1;
     if (Number(expectedVersion) !== currentVersion) {
-      throw conflictError('stale_draft_version', 'Draft was modified by another session', {
+      throw conflictError('stale_catalog_draft_version', 'Draft was modified by another session', {
         expectedVersion: Number(expectedVersion),
         currentVersion,
       });
@@ -287,9 +287,9 @@ function createPostgresCatalogRepository(prismaClient) {
   }
 
   async function findDraftRow(siteId, tx = prisma) {
-    return tx.osCatalogDraft.findFirst({
+    // One authoritative draft per site (@@unique([siteId])).
+    return tx.osCatalogDraft.findUnique({
       where: { siteId },
-      orderBy: { updatedAt: 'desc' },
     });
   }
 
@@ -347,9 +347,8 @@ function createPostgresCatalogRepository(prismaClient) {
     const validated = validateCompleteCatalogDraft({ ...payloadInput, siteId: id });
 
     return prisma.$transaction(async (tx) => {
-      const existing = await tx.osCatalogDraft.findFirst({
+      const existing = await tx.osCatalogDraft.findUnique({
         where: { siteId: id },
-        orderBy: { updatedAt: 'desc' },
       });
       if (!existing) {
         const err = new Error('draft_not_found');
@@ -358,7 +357,7 @@ function createPostgresCatalogRepository(prismaClient) {
         throw err;
       }
       if (Number(existing.version) !== expected) {
-        throw conflictError('stale_draft_version', 'Draft was modified by another session', {
+        throw conflictError('stale_catalog_draft_version', 'Draft was modified by another session', {
           expectedVersion: expected,
           currentVersion: Number(existing.version),
         });
@@ -396,7 +395,7 @@ function createPostgresCatalogRepository(prismaClient) {
         },
       });
       if (updated.count !== 1) {
-        throw conflictError('stale_draft_version', 'Draft was modified by another session', {
+        throw conflictError('stale_catalog_draft_version', 'Draft was modified by another session', {
           expectedVersion: expected,
         });
       }

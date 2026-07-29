@@ -8,6 +8,7 @@
     "test:owner-studio": "node --test tests/owner-studio-foundation.test.js",
     "test:owner-studio-staging-guard": "node --test tests/owner-studio-staging-guard.test.js",
     "test:owner-studio-catalog": "node --test tests/owner-studio-catalog-manager.test.js tests/owner-studio-catalog-staging.integration.test.js",
+    "test:owner-studio-catalog-e2e": "node scripts/staging-owner-studio-catalog-e2e.cjs",
     "owner-studio:import": "node scripts/owner-studio-import.js",
     "owner-studio:staging:assert-db": "node scripts/assert-owner-studio-staging-db.js",
     "owner-studio:staging:migrate": "node scripts/owner-studio-staging-migrate.js",

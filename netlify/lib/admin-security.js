@@ -269,7 +269,9 @@ async function verifyAdminRequest(headers) {
   if (!token || token.length < 16) return { ok: false, error: 'unauthorized' };
   const session = await validateAdminToken(token);
   if (!session) return { ok: false, error: 'unauthorized' };
-  return { ok: true, username: session.username };
+  // Echo the validated token so Owner Studio CSRF can bind to the session
+  // (not only username). Cookie-authenticated tabs and header tabs share this.
+  return { ok: true, username: session.username, token };
 }
 
 async function destroyAdminSession(token) {
