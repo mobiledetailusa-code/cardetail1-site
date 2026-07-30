@@ -14,7 +14,11 @@ const {
   createPostgresCatalogRepository,
 } = require('../lib/owner-studio/catalog-repository');
 const { validateCompleteCatalogDraft, validateReleaseCandidate } = require('../lib/owner-studio/schemas');
-const { trustedSiteOrigin } = require('../lib/trusted-site-origin');
+const {
+  normalizeOriginCandidate,
+  mutationOriginAllowlist,
+  readDeployEnv,
+} = require('../lib/trusted-site-origin');
 const { tryGetPrisma } = require('../lib/prisma');
 const { probeOwnerStudioCatalogSchema } = require('../lib/owner-studio/catalog-schema-health');
 
@@ -106,22 +110,50 @@ function buildIdentity(session) {
   };
 }
 
-function assertTrustedOrigin(event) {
-  const origin = String(header(event.headers, 'origin') || '');
-  if (!origin) return;
-  let trusted;
-  try {
-    trusted = trustedSiteOrigin();
-  } catch {
-    return;
+// Owner Studio browser mutations must originate from an exact, pre-approved
+// deployment origin (see mutationOriginAllowlist). A cookie-authenticated browser
+// MUST carry a matching Origin; server-to-server automation (x-admin-key) has no
+// browser Origin and may omit it — CSRF is still enforced separately below.
+function assertTrustedOrigin(event, authViaHeader) {
+  const origin = normalizeOriginCandidate(header(event.headers, 'origin'), { requireHttps: false });
+  if (!origin) {
+    if (authViaHeader) return;
+    const err = new Error('origin_required');
+    err.code = 'origin_required';
+    err.statusCode = 403;
+    throw err;
   }
-  if (trusted && origin.replace(/\/$/, '') !== String(trusted).replace(/\/$/, '')) {
-    // Allow staging netlify.app when TRUSTED points there; otherwise reject mismatches.
+  if (!mutationOriginAllowlist().includes(origin)) {
     const err = new Error('untrusted_origin');
     err.code = 'untrusted_origin';
     err.statusCode = 403;
     throw err;
   }
+}
+
+// Server-computed UI hint: may the browser that loaded this page mutate? Uses the
+// request Origin when present (mutation POST / cross-origin GET); on a same-origin
+// GET (no Origin header) falls back to this deploy's own primary browser origins.
+// Never the security authority — every mutation is re-checked in assertTrustedOrigin.
+function evaluateMutationOrigin(event) {
+  const allow = mutationOriginAllowlist();
+  const reqOrigin = normalizeOriginCandidate(header(event.headers, 'origin'), { requireHttps: false });
+  if (reqOrigin) return { allowed: allow.includes(reqOrigin), policy: 'exact-origin' };
+  const selfOrigins = [readDeployEnv('DEPLOY_PRIME_URL'), readDeployEnv('DEPLOY_URL'), readDeployEnv('URL')]
+    .map((v) => normalizeOriginCandidate(v, { requireHttps: false }))
+    .filter(Boolean);
+  return { allowed: selfOrigins.some((o) => allow.includes(o)), policy: 'exact-origin' };
+}
+
+function buildCapabilities(mutationAllowed) {
+  const canMutate = !!mutationAllowed;
+  return {
+    canRead: true,
+    canEdit: canMutate,
+    canSave: canMutate,
+    canResolveConflicts: canMutate,
+    canRestoreRevision: canMutate,
+  };
 }
 
 function requireCsrf(event, session) {
@@ -248,6 +280,7 @@ exports.handler = async (event) => {
       const repo = getRepo();
       if (action === 'get_draft' || action === 'overview') {
         const draft = await repo.getCatalogDraft(SITE_ID);
+        const mutationOrigin = evaluateMutationOrigin(event);
         return json(200, {
           ok: true,
           siteId: SITE_ID,
@@ -257,6 +290,8 @@ exports.handler = async (event) => {
           rollbackAvailable: false,
           persistence: 'postgresql',
           ownerStudioCatalogSchema: schema,
+          capabilities: buildCapabilities(mutationOrigin.allowed),
+          mutationOrigin,
           overview: overviewFromDraft(draft),
           draft: action === 'overview' ? null : draft,
         });
@@ -314,7 +349,8 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'POST' || event.httpMethod === 'PUT') {
       authorizeOwnerStudio(identity, 'edit_draft');
       if (!flags.enabled) return json(403, { ok: false, error: 'owner_studio_disabled' });
-      assertTrustedOrigin(event);
+      const authViaHeader = !!String(header(event.headers, 'x-admin-key') || '').trim();
+      assertTrustedOrigin(event, authViaHeader);
       assertJsonContentType(event);
       requireCsrf(event, session);
       checkMutationRate(identity.username, clientIp(event));
@@ -386,5 +422,8 @@ exports._test = {
   createMemoryCatalogRepository,
   createPostgresCatalogRepository,
   overviewFromDraft,
+  assertTrustedOrigin,
+  evaluateMutationOrigin,
+  buildCapabilities,
   MAX_BODY_BYTES,
 };

@@ -47,6 +47,7 @@
     .list-btn { display:block; width:100%; text-align:left; background:transparent; color:var(--ink); border:1px solid var(--line); margin-bottom:6px; }
     .list-btn[aria-current="true"] { border-color:var(--accent); }
     .banner { background:#422006; color:#fde68a; border:1px solid #854d0e; border-radius:10px; padding:10px 12px; margin-bottom:14px; }
+    .banner.readonly { border-left:4px solid var(--warn); font-weight:600; }
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
     .price-grid { display:grid; gap:8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
     a.back { color:var(--accent); text-decoration:none; }
@@ -80,6 +81,7 @@
   <main>
     <div id="auth-note" class="banner" hidden>Sign in via Admin first. Owner Studio reuses the Admin session.</div>
     <div id="status-banner" class="banner" role="status" aria-live="polite"></div>
+    <div id="readonly-banner" class="banner readonly" role="status" hidden></div>
 
     <section class="grid" aria-label="Catalog overview">
       <div class="stat">Packages<b id="stat-packages">—</b></div>
@@ -235,6 +237,11 @@
       selectedId: null,
       dirty: false,
       saving: false,
+      // Server-reported mutation capability for THIS browser context (origin/deploy).
+      // When locked, edit controls are disabled and a read-only banner shows the reason;
+      // the server still re-validates every mutation independently.
+      mutationLocked: false,
+      mutationLockReason: '',
       addonExpanded: new Set(),
       addonDirty: new Set(),
       // Canonical baseline signature from the last successful GET / SAVE; dirty is a
@@ -296,7 +303,7 @@
 
     // Explicit page-state model --------------------------------------------
     function updateSaveButton() {
-      el('btn-save').disabled = !Ux.isSaveEnabled({
+      el('btn-save').disabled = state.mutationLocked || !Ux.isSaveEnabled({
         state: state.page, dirty: state.dirty, valid: pricesValid(), saving: state.saving,
       });
     }
@@ -317,6 +324,35 @@
         state.page = state.dirty ? 'ready-dirty' : 'ready-clean';
       }
       updateSaveButton();
+    }
+
+    // Read-only capability lock -------------------------------------------------
+    // Apply the server's mutation-capability verdict for THIS browser context:
+    // disable every edit control (package fields, add-on fields, Apply, Save,
+    // conflict-resolution, Restore) while KEEPING search, filters, accordions,
+    // draft preview and revision-history viewing. Re-applied after each render so
+    // dynamically-created controls inherit the lock. Never the security authority —
+    // the server re-validates every mutation regardless.
+    function applyMutationLock() {
+      const locked = state.mutationLocked;
+      document.querySelectorAll('#editor input, #editor textarea, #editor select, #editor button')
+        .forEach((n) => { n.disabled = locked; });
+      document.querySelectorAll('#addon-list input, #addon-list textarea, #addon-list select')
+        .forEach((n) => { n.disabled = locked; });
+      document.querySelectorAll('#conflict-list button[data-resolve], #revision-list button[data-restore]')
+        .forEach((n) => { n.disabled = locked; });
+      const banner = el('readonly-banner');
+      banner.hidden = !locked;
+      if (locked) banner.textContent = state.mutationLockReason;
+      updateSaveButton();
+    }
+    function readCapabilities(data) {
+      const caps = data && data.capabilities;
+      const mo = data && data.mutationOrigin;
+      const canSave = !(caps && caps.canSave === false) && !(mo && mo.allowed === false);
+      state.mutationLocked = !canSave;
+      state.mutationLockReason = canSave ? '' :
+        'Read-only: this address is not approved for saving. You can view the catalog, search, filter, preview and revision history, but editing and saving are disabled here. Open the approved Catalog Manager address or contact the administrator.';
     }
 
     function setSaveState(msg, cls) {
@@ -344,8 +380,14 @@
       const status = res && res.status;
       const code = data && (data.error || data.code);
       const rid = (data && (data.requestId || data.request_id)) || (res && res.headers && res.headers.get && res.headers.get('x-nf-request-id')) || '';
-      if (status === 401) return { state: 'authentication-error', authRequired: true, msg: 'Sign-in required — your admin session is missing or expired. Open /admin to sign in, then reopen this page.' };
-      if (status === 403) return { state: 'authorization-error', authRequired: false, msg: 'Permission denied — your account is not authorized for Owner Studio.' };
+      // Map by EXACT error code first — a 403 is NOT automatically an account-permission
+      // denial. Origin / CSRF / disabled are distinct, separately-actionable conditions.
+      if (code === 'untrusted_origin') return { state: 'authorization-error', authRequired: false, keepSession: true, msg: 'This staging address is not approved for saving. Open the approved Catalog Manager address or contact the administrator.' };
+      if (code === 'origin_required') return { state: 'authorization-error', authRequired: false, keepSession: true, msg: 'This session cannot save because the request origin could not be verified.' };
+      if (code === 'csrf_missing' || code === 'csrf_invalid' || code === 'csrf_secret_missing') return { state: 'authentication-error', authRequired: true, msg: 'Your secure session expired. Reload the page and sign in again.' };
+      if (code === 'owner_studio_disabled') return { state: 'authorization-error', authRequired: false, keepSession: true, msg: 'Owner Studio editing is disabled in this environment.' };
+      if (status === 401 || code === 'unauthorized' || code === 'invalid_admin_session') return { state: 'authentication-error', authRequired: true, msg: 'Sign-in required — your admin session is missing or expired. Open /admin to sign in, then reopen this page.' };
+      if (status === 403) return { state: 'authorization-error', authRequired: false, keepSession: true, msg: 'Your Admin session is not authorized for Owner Studio.' };
       if (status === 409) return { state: 'stale-conflict', authRequired: false, keepSession: true, stale: code === 'stale_catalog_draft_version' || code === 'stale_draft_version', currentVersion: data && data.currentVersion, msg: 'Another tab or session saved a newer catalog version (409). Your unsaved edits are kept — use “Reload latest version” to pull the newest draft (this discards local edits) before saving.' };
       if (status === 429) return { state: 'rate-limit', authRequired: false, keepSession: true, msg: 'Rate limited (429). Your session is still valid — wait a moment and retry.' };
       if (status >= 500) return { state: 'catalog-unavailable', authRequired: false, keepSession: true, msg: `Server/database error (${status})${rid ? ' · request ' + rid : ''}. Your session is still valid — retry shortly.` };
@@ -394,6 +436,8 @@
         state.invalidPrices.clear();
         el('status-banner').textContent = 'No catalog draft exists yet (empty). Seed the staging catalog, then reload.';
         el('status-banner').className = 'banner';
+        readCapabilities(data);
+        applyMutationLock();
         setDirty(false);
         setPageState('ready-clean');
         return;
@@ -410,6 +454,7 @@
       state.addonDirty.clear();
       state.invalidPrices.clear();
       state.conflict = false;
+      readCapabilities(data);
       setBaseline();
       renderAll();
       setDirty(false);
@@ -878,6 +923,7 @@
           loadRevisions();
         });
       });
+      applyMutationLock();
     }
 
     async function loadPreview() {
@@ -911,6 +957,7 @@
       renderAddOns();
       renderConflicts();
       if (state.selectedId) selectPackage(state.selectedId);
+      applyMutationLock();
     }
 
     // Server-managed metadata that the API emits on read but derives itself on write.

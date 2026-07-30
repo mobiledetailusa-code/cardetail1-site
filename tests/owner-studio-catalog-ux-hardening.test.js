@@ -304,6 +304,31 @@ describe('classifyFailure (extracted from the shipped page) maps every mutation 
     assert.equal(f.authRequired, false);
     assert.ok(f.msg && f.msg.length > 0);
   });
+  it('15. untrusted_origin is NOT an account-authorization denial (distinct message)', () => {
+    const f = classifyFailure(resp(403), { error: 'untrusted_origin' });
+    assert.equal(f.state, 'authorization-error');
+    assert.equal(f.authRequired, false);
+    assert.equal(f.keepSession, true);
+    assert.doesNotMatch(f.msg, /not authorized for Owner Studio/i);
+    assert.match(f.msg, /not approved for saving/i);
+  });
+  it('16. csrf_invalid / csrf_missing map to session-expired guidance', () => {
+    for (const code of ['csrf_invalid', 'csrf_missing']) {
+      const f = classifyFailure(resp(403), { error: code });
+      assert.equal(f.state, 'authentication-error');
+      assert.equal(f.authRequired, true);
+      assert.match(f.msg, /session expired|Reload the page/i);
+    }
+  });
+  it('17. a genuine Owner Studio authorization denial still shows the permission message', () => {
+    const f = classifyFailure(resp(403), { error: 'owner_studio_edit_denied' });
+    assert.equal(f.state, 'authorization-error');
+    assert.match(f.msg, /not authorized for Owner Studio/i);
+  });
+  it('origin_required and owner_studio_disabled map to their own specific messages', () => {
+    assert.match(classifyFailure(resp(403), { error: 'origin_required' }).msg, /origin could not be verified/i);
+    assert.match(classifyFailure(resp(403), { error: 'owner_studio_disabled' }).msg, /disabled in this environment/i);
+  });
 });
 
 // ===========================================================================
@@ -390,6 +415,28 @@ describe('shipped Catalog Manager page wires the hardened behaviours', () => {
     assert.equal(Ux.isContradictoryModel({ state: 'saved', dirty: true }), true);   // Saved while dirty
     assert.equal(Ux.isContradictoryModel({ state: 'ready-clean', dirty: true }), true); // clean while dirty
     assert.equal(Ux.isContradictoryModel({ state: 'saved', dirty: false }), false);  // the only coherent "saved"
+  });
+  it('13. read-only lock disables package + add-on fields, apply, resolve, restore and Save', () => {
+    assert.match(catalogHtml, /function applyMutationLock\(\)/);
+    assert.match(catalogHtml, /#editor input, #editor textarea, #editor select, #editor button/);
+    assert.match(catalogHtml, /#addon-list input, #addon-list textarea, #addon-list select/);
+    assert.match(catalogHtml, /#conflict-list button\[data-resolve\], #revision-list button\[data-restore\]/);
+    assert.match(catalogHtml, /el\('btn-save'\)\.disabled = state\.mutationLocked \|\|/);
+    assert.match(catalogHtml, /id="readonly-banner"/);
+    // The verdict is read from the server capability payload, not invented client-side.
+    assert.match(catalogHtml, /readCapabilities\(data\)/);
+    assert.match(catalogHtml, /mo\.allowed === false/);
+  });
+  it('14. read-only keeps search, filters, accordions, preview and history usable', () => {
+    const lock = catalogHtml.slice(
+      catalogHtml.indexOf('function applyMutationLock()'),
+      catalogHtml.indexOf('function readCapabilities(')
+    );
+    assert.ok(lock.length > 0, 'applyMutationLock body not found');
+    // The lock targets only mutation regions — never read/navigation controls.
+    assert.doesNotMatch(lock, /#search|#addon-search|addon-summary|#btn-preview|#btn-reload\b|f-status|f-category/);
+    assert.match(catalogHtml, /id="addon-search"/);
+    assert.match(catalogHtml, /id="btn-preview"/);
   });
   it('package search shows a count, a clear action and an empty-results state', () => {
     assert.match(catalogHtml, /id="pkg-count"/);
