@@ -277,6 +277,116 @@
     return false;
   }
 
+  // -- Add-on edit buffer (Apply/Cancel gate; never mutates draft on keystroke) --
+  /**
+   * Deep-clone editable add-on fields into a local buffer. Price rows keep both
+   * the last-known integer cents and a raw USD string for the input. Typing must
+   * update only this buffer — never the canonical draft — until Apply succeeds.
+   */
+  function cloneAddonEditBuffer(addon) {
+    const a = addon || {};
+    return {
+      addOnId: a.addOnId,
+      name: String(a.name == null ? '' : a.name),
+      description: String(a.description == null ? '' : a.description),
+      displayOrder: Number(a.displayOrder) || 0,
+      active: a.active !== false,
+      prices: (a.prices || []).map(function (pr) {
+        const cents = Number(pr.amountCents);
+        return {
+          category: pr.category || null,
+          currency: pr.currency || 'usd',
+          amountCents: Number.isFinite(cents) ? cents : 0,
+          rawUsd: centsToUsd(Number.isFinite(cents) ? cents : 0),
+        };
+      }),
+    };
+  }
+
+  /**
+   * Validate every price rawUsd on a buffer. Does not mutate the draft.
+   * @returns {{ok: true, prices: Array} | {ok: false, errors: Array<{index:number, error:string}>}}
+   */
+  function validateAddonBufferPrices(buffer, opts) {
+    const options = opts || {};
+    const allowZero = options.allowZero !== false;
+    const buf = buffer || {};
+    const prices = Array.isArray(buf.prices) ? buf.prices : [];
+    const errors = [];
+    const validated = [];
+    for (let i = 0; i < prices.length; i++) {
+      const row = prices[i] || {};
+      const parsed = parsePriceToCents(row.rawUsd, { allowZero: allowZero });
+      if (!parsed.ok) {
+        errors.push({ index: i, error: parsed.error });
+        continue;
+      }
+      validated.push({
+        category: row.category || null,
+        currency: row.currency || 'usd',
+        amountCents: parsed.cents,
+      });
+    }
+    if (errors.length) return { ok: false, errors: errors };
+    return { ok: true, prices: validated };
+  }
+
+  /**
+   * Apply a validated buffer onto the matching add-on inside `draft`. Mutates
+   * that one add-on only. Returns false when the add-on is missing or prices
+   * fail validation (draft untouched on failure).
+   */
+  function applyAddonBufferToDraft(draft, buffer, opts) {
+    if (!draft || !Array.isArray(draft.addOns) || !buffer || !buffer.addOnId) return { ok: false, error: 'missing' };
+    const target = draft.addOns.find(function (a) { return a && a.addOnId === buffer.addOnId; });
+    if (!target) return { ok: false, error: 'missing_addon' };
+    const checked = validateAddonBufferPrices(buffer, opts);
+    if (!checked.ok) return { ok: false, error: 'invalid_price', errors: checked.errors };
+    target.name = String(buffer.name == null ? '' : buffer.name);
+    target.description = String(buffer.description == null ? '' : buffer.description);
+    target.displayOrder = Number(buffer.displayOrder) || 0;
+    target.active = buffer.active !== false;
+    target.prices = checked.prices.map(function (pr) {
+      return { category: pr.category, currency: pr.currency, amountCents: pr.amountCents };
+    });
+    return { ok: true, addOn: target };
+  }
+
+  /** Collapsed-row summary cents (first price), or null when no price rows. */
+  function addonSummaryAmountCents(addon) {
+    const prices = addon && Array.isArray(addon.prices) ? addon.prices : [];
+    if (!prices.length) return null;
+    const cents = Number(prices[0].amountCents);
+    return Number.isFinite(cents) ? cents : null;
+  }
+
+  /**
+   * True when the local edit buffer differs from the canonical add-on (unapplied
+   * keystrokes, including invalid price text that cannot yet commit).
+   * Does not mutate either side.
+   */
+  function addonBufferHasUnappliedChanges(buffer, addon) {
+    if (!buffer || !addon) return false;
+    if (String(buffer.name == null ? '' : buffer.name) !== String(addon.name == null ? '' : addon.name)) return true;
+    if (String(buffer.description == null ? '' : buffer.description) !== String(addon.description == null ? '' : addon.description)) return true;
+    if ((Number(buffer.displayOrder) || 0) !== (Number(addon.displayOrder) || 0)) return true;
+    if ((buffer.active !== false) !== (addon.active !== false)) return true;
+    const bPrices = Array.isArray(buffer.prices) ? buffer.prices : [];
+    const aPrices = Array.isArray(addon.prices) ? addon.prices : [];
+    if (bPrices.length !== aPrices.length) return true;
+    for (let i = 0; i < bPrices.length; i++) {
+      const row = bPrices[i] || {};
+      const canonical = aPrices[i] || {};
+      if ((row.category || null) !== (canonical.category || null)) return true;
+      if ((row.currency || 'usd') !== (canonical.currency || 'usd')) return true;
+      const parsed = parsePriceToCents(row.rawUsd, { allowZero: true });
+      // Invalid / incomplete input still counts as unapplied (must Apply or Cancel).
+      if (!parsed.ok) return true;
+      if (parsed.cents !== Number(canonical.amountCents)) return true;
+    }
+    return false;
+  }
+
   return {
     MONEY_MIN_CENTS: MONEY_MIN_CENTS,
     PRICE_RE: PRICE_RE,
@@ -291,5 +401,10 @@
     PAGE_STATES: PAGE_STATES,
     isSaveEnabled: isSaveEnabled,
     isContradictoryModel: isContradictoryModel,
+    cloneAddonEditBuffer: cloneAddonEditBuffer,
+    validateAddonBufferPrices: validateAddonBufferPrices,
+    applyAddonBufferToDraft: applyAddonBufferToDraft,
+    addonSummaryAmountCents: addonSummaryAmountCents,
+    addonBufferHasUnappliedChanges: addonBufferHasUnappliedChanges,
   };
 });

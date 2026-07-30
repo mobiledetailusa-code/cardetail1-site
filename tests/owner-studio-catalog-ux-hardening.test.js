@@ -392,11 +392,12 @@ describe('shipped Catalog Manager page wires the hardened behaviours', () => {
     assert.match(catalogHtml, /Your unsaved local changes will be discarded/);
     assert.match(catalogHtml, /setBaseline\(\);[\s\S]{0,120}setPageState\('ready-clean'\)/);
   });
-  it('warns on unload and on route navigation ONLY while dirty', () => {
+  it('warns on unload and on route navigation while dirty or unapplied buffer', () => {
     assert.match(catalogHtml, /addEventListener\('beforeunload'/);
-    assert.match(catalogHtml, /if \(!state\.dirty\) return;\s*\n\s*e\.preventDefault\(\)/);
+    assert.match(catalogHtml, /if \(!hasPendingLocalEdits\(\)\) return;\s*\r?\n\s*e\.preventDefault\(\)/);
     assert.match(catalogHtml, /function guardRouteNavigation\(\)/);
     assert.match(catalogHtml, /unsaved catalog changes\. Leave this page/);
+    assert.match(catalogHtml, /function hasPendingLocalEdits\(/);
   });
   it('the "Unsaved changes" badge is hidden while clean and shown only while genuinely dirty', () => {
     // Badge ships with the [hidden] attribute and is toggled purely through el('dirty').hidden.
@@ -419,7 +420,7 @@ describe('shipped Catalog Manager page wires the hardened behaviours', () => {
   it('13. read-only lock disables package + add-on fields, apply, resolve, restore and Save', () => {
     assert.match(catalogHtml, /function applyMutationLock\(\)/);
     assert.match(catalogHtml, /#editor input, #editor textarea, #editor select, #editor button/);
-    assert.match(catalogHtml, /#addon-list input, #addon-list textarea, #addon-list select/);
+    assert.match(catalogHtml, /#addon-list input, #addon-list textarea, #addon-list select, #addon-list button/);
     assert.match(catalogHtml, /#conflict-list button\[data-resolve\], #revision-list button\[data-restore\]/);
     assert.match(catalogHtml, /el\('btn-save'\)\.disabled = state\.mutationLocked \|\|/);
     assert.match(catalogHtml, /id="readonly-banner"/);
@@ -434,9 +435,46 @@ describe('shipped Catalog Manager page wires the hardened behaviours', () => {
     );
     assert.ok(lock.length > 0, 'applyMutationLock body not found');
     // The lock targets only mutation regions — never read/navigation controls.
-    assert.doesNotMatch(lock, /#search|#addon-search|addon-summary|#btn-preview|#btn-reload\b|f-status|f-category/);
+    assert.doesNotMatch(lock, /#search|#addon-search|#btn-preview|#btn-reload\b|f-status|f-category/);
+    // Accordion summaries are explicitly re-enabled for read-only inspection.
+    assert.match(lock, /#addon-list \.addon-summary/);
     assert.match(catalogHtml, /id="addon-search"/);
     assert.match(catalogHtml, /id="btn-preview"/);
+  });
+  it('ships a sticky Catalog action bar with version, status, Discard and Save', () => {
+    assert.match(catalogHtml, /id="catalog-action-bar"/);
+    assert.match(catalogHtml, /\.catalog-action-bar\s*\{[^}]*position:\s*sticky/);
+    assert.match(catalogHtml, /id="bar-version"/);
+    assert.match(catalogHtml, /id="bar-status"/);
+    assert.match(catalogHtml, /id="btn-discard"/);
+    assert.match(catalogHtml, /Discard draft changes/);
+    assert.match(catalogHtml, /function discardDraftChanges\(\)/);
+    assert.match(catalogHtml, /baselineDraft/);
+  });
+  it('add-on editor uses Apply/Cancel with a local edit buffer (no live draft mutation)', () => {
+    assert.match(catalogHtml, /addonEditBuffers/);
+    assert.match(catalogHtml, /Ux\.cloneAddonEditBuffer/);
+    assert.match(catalogHtml, /Ux\.applyAddonBufferToDraft/);
+    assert.match(catalogHtml, /Ux\.addonBufferHasUnappliedChanges/);
+    assert.match(catalogHtml, /data-addon-apply/);
+    assert.match(catalogHtml, /data-addon-cancel/);
+    assert.match(catalogHtml, /Apply add-on changes/);
+    assert.match(catalogHtml, /function applyAddonEdits\(/);
+    assert.match(catalogHtml, /function cancelAddonEdits\(/);
+    assert.match(catalogHtml, /function hasUnappliedAddonChanges\(/);
+    assert.match(catalogHtml, /function blockForUnappliedAddonBuffer\(/);
+    assert.match(catalogHtml, /function requestAddonExpand\(/);
+    assert.match(catalogHtml, /Apply or cancel the open add-on changes before saving\./);
+    assert.doesNotMatch(catalogHtml, /function flushOpenAddonEditors\(/);
+    assert.doesNotMatch(catalogHtml, /a\.prices\[idx\]\.amountCents = parsed\.cents/);
+    assert.match(catalogHtml, /buf\.prices\[idx\]\.rawUsd = inp\.value/);
+    // Typing must never trigger a network save.
+    assert.doesNotMatch(catalogHtml, /addEventListener\('input',\s*\(\)\s*=>\s*\{[^}]*saveDraft/);
+  });
+  it('package Apply / save auto-flush behaviour remains unchanged', () => {
+    assert.match(catalogHtml, /id="btn-apply-pkg"/);
+    assert.match(catalogHtml, /function applyPackageEdits\(\)/);
+    assert.match(catalogHtml, /if \(state\.selectedId && !el\('editor'\)\.hidden\) applyPackageEdits\(\);/);
   });
   it('package search shows a count, a clear action and an empty-results state', () => {
     assert.match(catalogHtml, /id="pkg-count"/);
@@ -450,5 +488,244 @@ describe('shipped Catalog Manager page wires the hardened behaviours', () => {
     assert.doesNotMatch(catalogHtml, /[?&](token|adminKey|x-admin-key)=/i);
     assert.match(catalogHtml, /onSessionEvent/);
     assert.match(catalogHtml, /Signed out in another tab/);
+  });
+});
+
+// ===========================================================================
+describe('add-on edit buffer (Apply/Cancel gate)', () => {
+  const ORIGINAL = 4500;
+  const TEMP = 9511;
+
+  /** Simulated server store — only mutates on successful Save Draft. */
+  function makeServer(initialDraft) {
+    let stored = JSON.parse(JSON.stringify(initialDraft));
+    return {
+      get() { return JSON.parse(JSON.stringify(stored)); },
+      save(draftPayload) {
+        stored = JSON.parse(JSON.stringify(draftPayload));
+        stored.version = (stored.version || 0) + 1;
+        return JSON.parse(JSON.stringify(stored));
+      },
+    };
+  }
+
+  function draftWithTwoAddons() {
+    const d = sampleDraft();
+    d.addOns.push({
+      addOnId: 'addon_other', name: 'Other', slug: 'other', description: 'Other',
+      active: true, allowQuantity: false, displayOrder: 1,
+      prices: [{ category: 'cars', currency: 'usd', amountCents: 1200 }],
+      compatibility: [{ category: 'cars' }],
+    });
+    return d;
+  }
+
+  it('1. Server/canonical draft remains 4500 during typing (buffer only)', () => {
+    const server = makeServer(sampleDraft());
+    const draft = server.get();
+    const beforeSig = Ux.editableCatalogSignature(draft);
+    const buf = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    buf.prices[0].rawUsd = '95.11';
+    assert.equal(draft.addOns[0].prices[0].amountCents, ORIGINAL);
+    assert.equal(server.get().addOns[0].prices[0].amountCents, ORIGINAL);
+    assert.equal(Ux.editableCatalogSignature(draft), beforeSig);
+    assert.equal(Ux.addonBufferHasUnappliedChanges(buf, draft.addOns[0]), true);
+  });
+
+  it('2. Apply changes local canonical draft to 9511', () => {
+    const draft = sampleDraft();
+    const buf = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    buf.prices[0].rawUsd = '95.11';
+    const r = Ux.applyAddonBufferToDraft(draft, buf);
+    assert.equal(r.ok, true);
+    assert.equal(draft.addOns[0].prices[0].amountCents, TEMP);
+    assert.ok(Number.isInteger(draft.addOns[0].prices[0].amountCents));
+    assert.equal(Ux.addonBufferHasUnappliedChanges(Ux.cloneAddonEditBuffer(draft.addOns[0]), draft.addOns[0]), false);
+  });
+
+  it('3. Server remains 4500 before Save Draft (Apply is local only)', () => {
+    const server = makeServer(sampleDraft());
+    const working = server.get();
+    const buf = Ux.cloneAddonEditBuffer(working.addOns[0]);
+    buf.prices[0].rawUsd = '95.11';
+    Ux.applyAddonBufferToDraft(working, buf);
+    assert.equal(working.addOns[0].prices[0].amountCents, TEMP);
+    assert.equal(server.get().addOns[0].prices[0].amountCents, ORIGINAL, 'no server write until Save Draft');
+  });
+
+  it('4. Save Draft payload contains 9511', () => {
+    const draft = sampleDraft();
+    const buf = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    buf.prices[0].rawUsd = '95.11';
+    Ux.applyAddonBufferToDraft(draft, buf);
+    const clean = { ...draft };
+    for (const k of ['draftId', 'updatedAt', 'updatedBy', 'lastSavedAt', 'lastSavedBy']) delete clean[k];
+    assert.equal(clean.addOns[0].prices[0].amountCents, TEMP);
+  });
+
+  it('5. Fresh GET after successful save returns 9511', () => {
+    const server = makeServer(sampleDraft());
+    const working = server.get();
+    const buf = Ux.cloneAddonEditBuffer(working.addOns[0]);
+    buf.prices[0].rawUsd = '95.11';
+    Ux.applyAddonBufferToDraft(working, buf);
+    // Fresh GET after Apply (before Save) must still be 4500 — wording trap, not a product defect.
+    assert.equal(server.get().addOns[0].prices[0].amountCents, ORIGINAL);
+    const saved = server.save(working);
+    assert.equal(saved.addOns[0].prices[0].amountCents, TEMP);
+    assert.equal(server.get().addOns[0].prices[0].amountCents, TEMP);
+  });
+
+  it('6–7. Restore + Save returns 4500; final fresh GET returns 4500', () => {
+    const server = makeServer(sampleDraft());
+    let working = server.get();
+    let buf = Ux.cloneAddonEditBuffer(working.addOns[0]);
+    buf.prices[0].rawUsd = '95.11';
+    Ux.applyAddonBufferToDraft(working, buf);
+    server.save(working);
+    working = server.get();
+    assert.equal(working.addOns[0].prices[0].amountCents, TEMP);
+    const restoreBuf = Ux.cloneAddonEditBuffer(working.addOns[0]);
+    restoreBuf.prices[0].rawUsd = Ux.centsToUsd(ORIGINAL);
+    assert.equal(Ux.applyAddonBufferToDraft(working, restoreBuf).ok, true);
+    assert.equal(working.addOns[0].prices[0].amountCents, ORIGINAL);
+    server.save(working);
+    assert.equal(server.get().addOns[0].prices[0].amountCents, ORIGINAL);
+  });
+
+  it('8. Save is blocked while buffer is unapplied (page wiring + pure predicate)', () => {
+    const draft = sampleDraft();
+    const buf = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    buf.prices[0].rawUsd = '95.11';
+    assert.equal(Ux.addonBufferHasUnappliedChanges(buf, draft.addOns[0]), true);
+    assert.equal(draft.addOns[0].prices[0].amountCents, ORIGINAL);
+    assert.match(catalogHtml, /if \(hasUnappliedAddonChanges\(\)\) \{\s*blockForUnappliedAddonBuffer\(\);\s*return;/);
+    assert.match(catalogHtml, /Apply or cancel the open add-on changes before saving\./);
+    assert.doesNotMatch(catalogHtml, /flushOpenAddonEditors/);
+  });
+
+  it('9. Switching add-ons cannot silently lose the buffer', () => {
+    assert.match(catalogHtml, /function requestAddonExpand\(/);
+    assert.match(catalogHtml, /if \(unapplied && unapplied !== targetId\)/);
+    assert.match(catalogHtml, /blockForUnappliedAddonBuffer\(\)/);
+    const draft = draftWithTwoAddons();
+    const buffers = Object.create(null);
+    buffers.addon_pet = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    buffers.addon_pet.prices[0].rawUsd = '95.11';
+    assert.equal(Ux.addonBufferHasUnappliedChanges(buffers.addon_pet, draft.addOns[0]), true);
+    // Policy: keep the unapplied buffer; do not replace it with another add-on's buffer.
+    assert.equal(Object.keys(buffers).length, 1);
+    assert.equal(buffers.addon_pet.prices[0].rawUsd, '95.11');
+  });
+
+  it('10. Closing/collapsing cannot silently lose the buffer', () => {
+    assert.match(catalogHtml, /if \(unapplied && unapplied === targetId && state\.addonExpanded\.has\(targetId\)\)/);
+    assert.match(catalogHtml, /addon-collapse-all[\s\S]*hasUnappliedAddonChanges\(\)/);
+    const draft = sampleDraft();
+    const buf = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    buf.prices[0].rawUsd = '95.11';
+    assert.equal(Ux.addonBufferHasUnappliedChanges(buf, draft.addOns[0]), true);
+    // Collapse is refused while unapplied — buffer object remains.
+    assert.equal(buf.prices[0].rawUsd, '95.11');
+    assert.equal(draft.addOns[0].prices[0].amountCents, ORIGINAL);
+  });
+
+  it('11. Search/filter/navigation cannot silently lose the buffer', () => {
+    assert.match(catalogHtml, /syncOpenAddonEditorsToBuffers\(\)/);
+    assert.match(catalogHtml, /search\/filter\/rebuild never silently discards/);
+    assert.match(catalogHtml, /hasPendingLocalEdits\(\)/);
+    assert.match(catalogHtml, /beforeunload[\s\S]*hasPendingLocalEdits/);
+    assert.match(catalogHtml, /function selectPackage\(id\) \{\s*\/\/ Switching into the Packages editor[\s\S]*hasUnappliedAddonChanges/);
+    const draft = sampleDraft();
+    const buffers = { addon_pet: Ux.cloneAddonEditBuffer(draft.addOns[0]) };
+    buffers.addon_pet.prices[0].rawUsd = '95.11';
+    // Simulated filter rebuild: buffers map is not cleared.
+    const afterFilter = buffers;
+    assert.equal(afterFilter.addon_pet.prices[0].rawUsd, '95.11');
+    assert.equal(Ux.addonBufferHasUnappliedChanges(afterFilter.addon_pet, draft.addOns[0]), true);
+  });
+
+  it('12. Cancel does not dirty the canonical draft', () => {
+    const draft = sampleDraft();
+    const baseline = Ux.editableCatalogSignature(draft);
+    let buf = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    buf.name = 'CHANGED';
+    buf.prices[0].rawUsd = '99.99';
+    assert.equal(Ux.addonBufferHasUnappliedChanges(buf, draft.addOns[0]), true);
+    // Cancel = drop buffer and re-clone from canonical draft (no apply).
+    buf = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    assert.equal(Ux.editableCatalogSignature(draft), baseline);
+    assert.equal(Ux.isCatalogDirty(draft, sampleDraft()), false);
+    assert.equal(Ux.addonBufferHasUnappliedChanges(buf, draft.addOns[0]), false);
+    assert.equal(draft.addOns[0].prices[0].amountCents, ORIGINAL);
+  });
+
+  it('13. Failed server save retains the applied draft', () => {
+    const server = makeServer(sampleDraft());
+    const working = server.get();
+    const buf = Ux.cloneAddonEditBuffer(working.addOns[0]);
+    buf.prices[0].rawUsd = '95.11';
+    Ux.applyAddonBufferToDraft(working, buf);
+    assert.equal(working.addOns[0].prices[0].amountCents, TEMP);
+    // Simulate network/5xx — server store untouched; local applied draft kept.
+    assert.equal(server.get().addOns[0].prices[0].amountCents, ORIGINAL);
+    assert.equal(Ux.isCatalogDirty(working, sampleDraft()), true);
+    assert.equal(Ux.isSaveEnabled({ state: 'network-error', dirty: true, valid: true, saving: false }), true);
+  });
+
+  it('14. Stale 409 retains the applied draft', () => {
+    const working = sampleDraft();
+    const buf = Ux.cloneAddonEditBuffer(working.addOns[0]);
+    buf.prices[0].rawUsd = '95.11';
+    Ux.applyAddonBufferToDraft(working, buf);
+    const f = classifyFailure(resp(409, { error: 'stale_catalog_draft_version', currentVersion: 9 }), { error: 'stale_catalog_draft_version', currentVersion: 9 });
+    assert.equal(f.state, 'stale-conflict');
+    assert.equal(f.stale, true);
+    assert.equal(working.addOns[0].prices[0].amountCents, TEMP, 'local edit survives 409 classification');
+    assert.match(catalogHtml, /reportMutationFailure\(res, data, 'Save failed'\)/);
+  });
+
+  it('15. Package editing remains unchanged', () => {
+    assert.equal(typeof Ux.parsePriceToCents, 'function');
+    assert.equal(typeof Ux.editableCatalogSignature, 'function');
+    assert.match(catalogHtml, /function applyPackageEdits\(\)/);
+    assert.match(catalogHtml, /id="btn-apply-pkg"/);
+    assert.match(catalogHtml, /input\.addEventListener\('input', \(\) => validatePriceInput\(input, errEl, key, \{ allowEmpty: true \}\)\)/);
+    assert.match(catalogHtml, /if \(state\.selectedId && !el\('editor'\)\.hidden\) applyPackageEdits\(\);/);
+  });
+
+  it('malformed / negative price is rejected and draft is untouched', () => {
+    const draft = sampleDraft();
+    const bad = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    bad.prices[0].rawUsd = '12.345';
+    assert.equal(Ux.applyAddonBufferToDraft(draft, bad).ok, false);
+    assert.equal(draft.addOns[0].prices[0].amountCents, ORIGINAL);
+    const neg = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    neg.prices[0].rawUsd = '-5';
+    assert.equal(Ux.applyAddonBufferToDraft(draft, neg).ok, false);
+    assert.equal(draft.addOns[0].prices[0].amountCents, ORIGINAL);
+  });
+
+  it('valid zero remains zero when allowed; Apply updates collapsed summary cents', () => {
+    const draft = sampleDraft();
+    assert.equal(Ux.addonSummaryAmountCents(draft.addOns[0]), ORIGINAL);
+    const zeroBuf = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    zeroBuf.prices[0].rawUsd = '0';
+    assert.equal(Ux.applyAddonBufferToDraft(draft, zeroBuf, { allowZero: true }).ok, true);
+    assert.equal(draft.addOns[0].prices[0].amountCents, 0);
+    const tempBuf = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    tempBuf.prices[0].rawUsd = '95.11';
+    Ux.applyAddonBufferToDraft(draft, tempBuf);
+    assert.equal(Ux.addonSummaryAmountCents(draft.addOns[0]), TEMP);
+  });
+
+  it('one add-on edit does not change another add-on', () => {
+    const draft = draftWithTwoAddons();
+    const otherBefore = draft.addOns[1].prices[0].amountCents;
+    const buf = Ux.cloneAddonEditBuffer(draft.addOns[0]);
+    buf.prices[0].rawUsd = '95.11';
+    Ux.applyAddonBufferToDraft(draft, buf);
+    assert.equal(draft.addOns[0].prices[0].amountCents, TEMP);
+    assert.equal(draft.addOns[1].prices[0].amountCents, otherBefore);
   });
 });

@@ -62,6 +62,16 @@
     .addon-summary .muted { font-weight:400; }
     .addon-editor { padding:12px; border-top:1px dashed var(--line); background:rgba(11,18,32,.5); }
     .addon-editor .grid2 { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); }
+    .catalog-action-bar {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      margin: 0 0 14px; padding: 10px 12px;
+      background: rgba(15, 23, 42, 0.96); border: 1px solid var(--line); border-radius: 10px;
+      backdrop-filter: blur(6px);
+    }
+    .catalog-action-bar .bar-version { font-family: ui-monospace, Consolas, monospace; color: var(--muted); font-size: .85rem; }
+    .catalog-action-bar .bar-status { flex: 1; min-width: 140px; font-size: .9rem; }
+    .catalog-action-bar .bar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
   </style>
 </head>
 <body>
@@ -92,14 +102,19 @@
       <div class="stat">Validation errors<b id="stat-errors">—</b></div>
     </section>
 
-    <div class="row" style="margin-bottom:14px">
-      <button type="button" id="btn-save" disabled>Save Draft</button>
-      <button type="button" class="secondary" id="btn-reload">Reload</button>
-      <button type="button" class="secondary warn" id="btn-reload-latest" hidden>Reload latest version</button>
-      <button type="button" class="secondary" id="btn-preview">Open draft preview</button>
-      <button type="button" disabled title="Publishing will be available after transactional release integration.">Publish (unavailable)</button>
-      <button type="button" disabled title="Rollback is not available in Stage 2.">Rollback (unavailable)</button>
-      <span id="save-state" class="muted" aria-live="polite"></span>
+    <div id="catalog-action-bar" class="catalog-action-bar" role="region" aria-label="Catalog draft actions">
+      <span class="bar-version">Draft version <b id="bar-version">—</b></span>
+      <span id="bar-status" class="bar-status muted" aria-live="polite">Loading…</span>
+      <div class="bar-actions">
+        <button type="button" class="secondary" id="btn-discard" disabled>Discard draft changes</button>
+        <button type="button" id="btn-save" disabled>Save Draft</button>
+        <button type="button" class="secondary" id="btn-reload">Reload</button>
+        <button type="button" class="secondary warn" id="btn-reload-latest" hidden>Reload latest version</button>
+        <button type="button" class="secondary" id="btn-preview">Open draft preview</button>
+        <button type="button" disabled title="Publishing will be available after transactional release integration.">Publish (unavailable)</button>
+        <button type="button" disabled title="Rollback is not available in Stage 2.">Rollback (unavailable)</button>
+      </div>
+      <span id="save-state" class="sr-only" aria-live="polite"></span>
     </div>
 
     <div class="split">
@@ -172,7 +187,7 @@
         <h2 id="addon-title" style="margin:0;font-size:1rem">Add-ons</h2>
         <span id="addon-count" class="muted" aria-live="polite"></span>
       </div>
-      <p class="muted" style="margin-top:0">Collapsed by default. Search, filter, then expand a row to edit. Edits apply to the draft immediately; use <strong>Save Draft</strong> to persist.</p>
+      <p class="muted" style="margin-top:0">Collapsed by default. Search, filter, then expand a row to edit. Use <strong>Apply add-on changes</strong> to commit the local buffer into the draft (marks unsaved), then <strong>Save Draft</strong> to persist. <strong>Cancel</strong> discards the buffer without dirtying the draft.</p>
       <div class="row" style="margin-bottom:10px">
         <div style="flex:1;min-width:180px">
           <label for="addon-search">Search</label>
@@ -244,10 +259,16 @@
       mutationLockReason: '',
       addonExpanded: new Set(),
       addonDirty: new Set(),
+      // Per-add-on local edit buffers (keyed by addOnId). Keystrokes update the buffer
+      // only; Apply commits into state.draft. Cancel drops the buffer.
+      addonEditBuffers: Object.create(null),
       // Canonical baseline signature from the last successful GET / SAVE; dirty is a
       // deterministic diff against this, so reverting edits returns to clean and a
       // server version bump alone never reads as dirty.
       baselineSig: null,
+      // Deep clone of the last clean draft (GET/SAVE). Discard restores from this —
+      // not just the signature — without a network round-trip.
+      baselineDraft: null,
       // Explicit, closed page state (see CatalogUxLogic.PAGE_STATES). Minimal — not a
       // generic state framework — but enough to forbid contradictory visual states.
       page: 'loading',
@@ -284,6 +305,7 @@
     // Baseline / dirty ------------------------------------------------------
     function setBaseline() {
       state.baselineSig = state.draft ? Ux.editableCatalogSignature(state.draft) : null;
+      state.baselineDraft = state.draft ? JSON.parse(JSON.stringify(state.draft)) : null;
     }
     function recomputeDirty() {
       if (!state.draft || state.baselineSig == null) { setDirty(false); return; }
@@ -302,10 +324,31 @@
     }
 
     // Explicit page-state model --------------------------------------------
+    function syncActionBar() {
+      const ver = state.draft && state.draft.version != null ? String(state.draft.version) : '—';
+      el('bar-version').textContent = ver;
+      if (el('stat-version')) el('stat-version').textContent = ver;
+      const statusEl = el('bar-status');
+      let label = 'Saved';
+      let cls = 'bar-status okmsg';
+      if (state.page === 'loading') { label = 'Loading…'; cls = 'bar-status muted'; }
+      else if (state.page === 'saving' || state.saving) { label = 'Saving…'; cls = 'bar-status muted'; }
+      else if (state.page === 'authentication-error' || state.page === 'authorization-error'
+        || state.page === 'network-error' || state.page === 'validation-error'
+        || state.page === 'catalog-unavailable' || state.page === 'rate-limit'
+        || state.page === 'stale-conflict') {
+        label = 'Error'; cls = 'bar-status err';
+      } else if (state.dirty) { label = 'Unsaved changes'; cls = 'bar-status'; }
+      statusEl.className = cls;
+      statusEl.style.color = (label === 'Unsaved changes') ? 'var(--warn)' : '';
+      statusEl.textContent = label;
+      el('btn-discard').disabled = state.mutationLocked || !state.dirty || state.saving || !state.baselineDraft;
+    }
     function updateSaveButton() {
       el('btn-save').disabled = state.mutationLocked || !Ux.isSaveEnabled({
         state: state.page, dirty: state.dirty, valid: pricesValid(), saving: state.saving,
       });
+      syncActionBar();
     }
     function setPageState(name) {
       state.page = name;
@@ -337,8 +380,11 @@
       const locked = state.mutationLocked;
       document.querySelectorAll('#editor input, #editor textarea, #editor select, #editor button')
         .forEach((n) => { n.disabled = locked; });
-      document.querySelectorAll('#addon-list input, #addon-list textarea, #addon-list select')
+      document.querySelectorAll('#addon-list input, #addon-list textarea, #addon-list select, #addon-list button')
         .forEach((n) => { n.disabled = locked; });
+      // Accordion expand/collapse stays usable while locked (read-only inspection).
+      document.querySelectorAll('#addon-list .addon-summary')
+        .forEach((n) => { n.disabled = false; });
       document.querySelectorAll('#conflict-list button[data-resolve], #revision-list button[data-restore]')
         .forEach((n) => { n.disabled = locked; });
       const banner = el('readonly-banner');
@@ -359,6 +405,16 @@
       const node = el('save-state');
       node.textContent = msg || '';
       node.className = cls || 'muted';
+      // Mirror error/saving cues onto the sticky bar status without inventing a second state machine.
+      if (cls === 'err') {
+        el('bar-status').textContent = 'Error';
+        el('bar-status').className = 'bar-status err';
+      } else if (state.saving || state.page === 'saving') {
+        el('bar-status').textContent = 'Saving…';
+        el('bar-status').className = 'bar-status muted';
+      } else {
+        syncActionBar();
+      }
     }
 
     async function api(path, opts) {
@@ -432,7 +488,9 @@
       if (!data.draft) {
         state.draft = null;
         state.baselineSig = null;
+        state.baselineDraft = null;
         state.addonDirty.clear();
+        state.addonEditBuffers = Object.create(null);
         state.invalidPrices.clear();
         el('status-banner').textContent = 'No catalog draft exists yet (empty). Seed the staging catalog, then reload.';
         el('status-banner').className = 'banner';
@@ -452,6 +510,7 @@
       state.draft = data.draft;
       el('status-banner').textContent = 'Draft loaded. Public content source remains legacy. Publish/rollback unavailable.';
       state.addonDirty.clear();
+      state.addonEditBuffers = Object.create(null);
       state.invalidPrices.clear();
       state.conflict = false;
       readCapabilities(data);
@@ -521,6 +580,8 @@
     }
 
     function selectPackage(id) {
+      // Switching into the Packages editor must not silently abandon an unapplied add-on buffer.
+      if (hasUnappliedAddonChanges()) { blockForUnappliedAddonBuffer(); return; }
       state.selectedId = id;
       const p = state.draft.packages.find((x) => x.packageId === id);
       el('editor-empty').hidden = !!p;
@@ -690,63 +751,242 @@
       if (row) row.classList.add('dirty');
     }
 
+    function ensureAddonBuffer(a) {
+      if (!state.addonEditBuffers[a.addOnId]) {
+        state.addonEditBuffers[a.addOnId] = Ux.cloneAddonEditBuffer(a);
+      }
+      return state.addonEditBuffers[a.addOnId];
+    }
+
+    function dropAddonBuffer(addOnId) {
+      delete state.addonEditBuffers[addOnId];
+      clearPriceFields('addon:' + addOnId + ':');
+    }
+
+    function syncBufferFromEditorDom(ed, buf) {
+      const nameEl = ed.querySelector('[data-f="name"]');
+      const descEl = ed.querySelector('[data-f="desc"]');
+      const orderEl = ed.querySelector('[data-f="order"]');
+      const activeEl = ed.querySelector('[data-f="active"]');
+      if (nameEl) buf.name = nameEl.value;
+      if (descEl) buf.description = descEl.value;
+      if (orderEl) buf.displayOrder = parseInt(orderEl.value, 10) || 0;
+      if (activeEl) buf.active = activeEl.value === 'true';
+      ed.querySelectorAll('input[data-price-idx]').forEach((inp) => {
+        const idx = Number(inp.getAttribute('data-price-idx'));
+        if (buf.prices[idx]) buf.prices[idx].rawUsd = inp.value;
+      });
+    }
+
+    /** Sync every mounted add-on editor into its buffer before DOM rebuilds. */
+    function syncOpenAddonEditorsToBuffers() {
+      document.querySelectorAll('#addon-list .addon-editor[data-addon-id]').forEach((ed) => {
+        const id = ed.getAttribute('data-addon-id');
+        const buf = state.addonEditBuffers[id];
+        if (buf) syncBufferFromEditorDom(ed, buf);
+      });
+    }
+
+    /** First add-on id whose buffer differs from the canonical draft (unapplied). */
+    function findUnappliedAddonId() {
+      if (!state.draft) return null;
+      syncOpenAddonEditorsToBuffers();
+      for (const id of Object.keys(state.addonEditBuffers)) {
+        const a = (state.draft.addOns || []).find((x) => x.addOnId === id);
+        if (Ux.addonBufferHasUnappliedChanges(state.addonEditBuffers[id], a)) return id;
+      }
+      return null;
+    }
+
+    function hasUnappliedAddonChanges() {
+      return !!findUnappliedAddonId();
+    }
+
+    /** Session has pending local work: applied draft dirty OR unapplied buffer. */
+    function hasPendingLocalEdits() {
+      return !!(state.dirty || hasUnappliedAddonChanges());
+    }
+
+    /**
+     * Unapplied-buffer policy: never silently discard. Block the action, show the
+     * canonical message, and focus/scroll the open add-on editor.
+     * @returns {false} always (caller should abort).
+     */
+    function blockForUnappliedAddonBuffer() {
+      const id = findUnappliedAddonId();
+      setSaveState('Apply or cancel the open add-on changes before saving.', 'err');
+      const addonMsg = el('addon-msg');
+      if (addonMsg) {
+        addonMsg.textContent = 'Apply or cancel the open add-on changes before saving.';
+        addonMsg.className = 'err';
+      }
+      if (id) {
+        // Keep exactly one editor open on the unapplied add-on.
+        state.addonExpanded = new Set([id]);
+        renderAddOns();
+        applyMutationLock();
+        const ed = document.querySelector('#addon-list .addon-editor[data-addon-id="' + CSS.escape(id) + '"]');
+        if (ed) {
+          ed.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          const focusEl = ed.querySelector('input[aria-invalid="true"], input[data-price-idx], input, textarea, select');
+          if (focusEl && typeof focusEl.focus === 'function') focusEl.focus();
+        }
+      }
+      return false;
+    }
+
+    /** Apply local buffer → canonical draft. Returns false when validation fails. */
+    function applyAddonEdits(addOnId, opts) {
+      const a = (state.draft.addOns || []).find((x) => x.addOnId === addOnId);
+      if (!a) return false;
+      const buf = state.addonEditBuffers[addOnId];
+      if (!buf) return true; // nothing pending
+      const ed = document.querySelector('#addon-list .addon-editor[data-addon-id="' + CSS.escape(addOnId) + '"]');
+      if (ed) syncBufferFromEditorDom(ed, buf);
+      // Field-level invalid markers before the pure apply helper runs.
+      let priceError = false;
+      if (ed) {
+        ed.querySelectorAll('input[data-price-idx]').forEach((inp) => {
+          const idx = Number(inp.getAttribute('data-price-idx'));
+          const errEl = inp.parentElement.querySelector('[data-price-err]');
+          const key = 'addon:' + addOnId + ':' + idx;
+          const parsed = validatePriceInput(inp, errEl, key, { allowEmpty: false });
+          if (!parsed.ok) priceError = true;
+          else if (buf.prices[idx]) buf.prices[idx].rawUsd = inp.value.trim();
+        });
+      }
+      if (priceError) {
+        if (ed) {
+          const msg = ed.querySelector('[data-editor-msg]');
+          if (msg) { msg.textContent = 'Fix the highlighted price fields before applying.'; msg.className = 'err'; }
+        }
+        return false;
+      }
+      const result = Ux.applyAddonBufferToDraft(state.draft, buf, opts);
+      if (!result.ok) {
+        if (ed) {
+          const msg = ed.querySelector('[data-editor-msg]');
+          if (msg) { msg.textContent = 'Fix the highlighted price fields before applying.'; msg.className = 'err'; }
+        }
+        return false;
+      }
+      // Refresh buffer from the committed canonical values so Cancel after Apply
+      // restores the applied (not pre-edit) snapshot until the next open.
+      state.addonEditBuffers[addOnId] = Ux.cloneAddonEditBuffer(a);
+      markAddonDirty(a, ed && ed.closest('.addon-row'));
+      if (ed) {
+        const msg = ed.querySelector('[data-editor-msg]');
+        if (msg) { msg.textContent = 'Add-on changes applied locally. Save Draft to persist.'; msg.className = 'okmsg'; }
+      }
+      const addonMsg = el('addon-msg');
+      if (addonMsg) { addonMsg.textContent = ''; addonMsg.className = 'muted'; }
+      return true;
+    }
+
+    function cancelAddonEdits(addOnId) {
+      dropAddonBuffer(addOnId);
+      // Re-open with a fresh buffer cloned from the current canonical draft.
+      // Cancel never mutates state.draft and never marks dirty by itself.
+      if (state.addonExpanded.has(addOnId)) {
+        const a = (state.draft.addOns || []).find((x) => x.addOnId === addOnId);
+        if (a) state.addonEditBuffers[addOnId] = Ux.cloneAddonEditBuffer(a);
+      }
+      const addonMsg = el('addon-msg');
+      if (addonMsg) { addonMsg.textContent = ''; addonMsg.className = 'muted'; }
+      renderAddOns();
+      applyMutationLock();
+    }
+
+    /**
+     * Single-buffer rule: only one add-on may be expanded/edited at a time.
+     * Returns false when an unapplied buffer blocks the transition.
+     */
+    function requestAddonExpand(targetId) {
+      const unapplied = findUnappliedAddonId();
+      if (unapplied && unapplied !== targetId) {
+        blockForUnappliedAddonBuffer();
+        return false;
+      }
+      // Closing the open editor with unapplied changes is also blocked.
+      if (unapplied && unapplied === targetId && state.addonExpanded.has(targetId)) {
+        blockForUnappliedAddonBuffer();
+        return false;
+      }
+      // Drop clean buffers for any other add-on — only one active buffer.
+      for (const id of Object.keys(state.addonEditBuffers)) {
+        if (id !== targetId) dropAddonBuffer(id);
+      }
+      if (state.addonExpanded.has(targetId)) {
+        // Collapse only when buffer matches canonical (no silent discard).
+        dropAddonBuffer(targetId);
+        state.addonExpanded.clear();
+      } else {
+        state.addonExpanded = new Set([targetId]);
+      }
+      return true;
+    }
+
     function buildAddonEditor(a, row, priceSpan, badgeWrap) {
+      const buf = ensureAddonBuffer(a);
       const ed = document.createElement('div');
       ed.className = 'addon-editor';
-      const cats = addonCategories(a);
+      ed.setAttribute('data-addon-id', a.addOnId);
       ed.innerHTML = `
         <div class="grid2">
-          <div><label>Name</label><input data-f="name" maxlength="80" value="${escapeHtml(a.name)}"></div>
-          <div><label>Display order</label><input data-f="order" type="number" step="1" value="${a.displayOrder || 0}"></div>
+          <div><label>Name</label><input data-f="name" maxlength="80" value="${escapeHtml(buf.name)}"></div>
+          <div><label>Display order</label><input data-f="order" type="number" step="1" value="${buf.displayOrder || 0}"></div>
           <div><label>Active</label><select data-f="active">
-            <option value="true" ${a.active !== false ? 'selected' : ''}>Active</option>
-            <option value="false" ${a.active === false ? 'selected' : ''}>Inactive</option></select></div>
+            <option value="true" ${buf.active !== false ? 'selected' : ''}>Active</option>
+            <option value="false" ${buf.active === false ? 'selected' : ''}>Inactive</option></select></div>
         </div>
-        <div style="margin-top:10px"><label>Description</label><textarea data-f="desc" maxlength="2000">${escapeHtml(a.description || '')}</textarea></div>
+        <div style="margin-top:10px"><label>Description</label><textarea data-f="desc" maxlength="2000">${escapeHtml(buf.description || '')}</textarea></div>
         <div style="margin-top:10px"><label>Price(s) — USD (saved as integer cents)</label>
           <div class="price-grid" data-prices></div>
         </div>
+        <div class="row" style="margin-top:12px">
+          <button type="button" data-addon-apply>Apply add-on changes</button>
+          <button type="button" class="secondary" data-addon-cancel>Cancel</button>
+        </div>
         <p class="muted" data-editor-msg style="margin:8px 0 0"></p>`;
       const priceBox = ed.querySelector('[data-prices]');
-      if (!(a.prices && a.prices.length)) {
+      if (!(buf.prices && buf.prices.length)) {
         priceBox.innerHTML = '<span class="muted">No price rows on this add-on.</span>';
       } else {
-        a.prices.forEach((pr, i) => {
+        buf.prices.forEach((pr, i) => {
           const wrap = document.createElement('div');
           const label = pr.category ? `${escapeHtml(pr.category)} (USD)` : `Price ${i + 1} (USD)`;
-          wrap.innerHTML = `<label>${label}</label><input data-price-idx="${i}" inputmode="decimal" value="${centsToUsd(pr.amountCents)}"><small class="err" data-price-err hidden></small>`;
+          wrap.innerHTML = `<label>${label}</label><input data-price-idx="${i}" inputmode="decimal" value="${escapeHtml(pr.rawUsd)}"><small class="err" data-price-err hidden></small>`;
           priceBox.appendChild(wrap);
         });
       }
       const msg = ed.querySelector('[data-editor-msg]');
-      const refreshSummary = () => {
-        priceSpan.textContent = addonSummaryPrice(a);
-        renderBadges(a, badgeWrap, row);
-      };
-      // Live-apply so edits are never silently discarded on collapse.
-      ed.querySelector('[data-f="name"]').addEventListener('input', (e) => {
-        a.name = e.target.value; markAddonDirty(a, row);
-        row.querySelector('.a-name').firstChild.textContent = a.name + ' ';
-      });
-      ed.querySelector('[data-f="desc"]').addEventListener('input', (e) => { a.description = e.target.value; markAddonDirty(a, row); });
-      ed.querySelector('[data-f="order"]').addEventListener('input', (e) => { a.displayOrder = parseInt(e.target.value, 10) || 0; markAddonDirty(a, row); });
-      ed.querySelector('[data-f="active"]').addEventListener('change', (e) => { a.active = e.target.value === 'true'; markAddonDirty(a, row); refreshSummary(); });
+      // Keystrokes update the local buffer only — never state.draft.
+      ed.querySelector('[data-f="name"]').addEventListener('input', (e) => { buf.name = e.target.value; });
+      ed.querySelector('[data-f="desc"]').addEventListener('input', (e) => { buf.description = e.target.value; });
+      ed.querySelector('[data-f="order"]').addEventListener('input', (e) => { buf.displayOrder = parseInt(e.target.value, 10) || 0; });
+      ed.querySelector('[data-f="active"]').addEventListener('change', (e) => { buf.active = e.target.value === 'true'; });
       priceBox.querySelectorAll('input[data-price-idx]').forEach((inp) => {
         const idx = Number(inp.getAttribute('data-price-idx'));
         const errEl = inp.parentElement.querySelector('[data-price-err]');
         const key = 'addon:' + a.addOnId + ':' + idx;
         inp.addEventListener('input', () => {
-          const parsed = validatePriceInput(inp, errEl, key, { allowEmpty: false });
-          if (parsed.ok && !parsed.empty) {
-            a.prices[idx].amountCents = parsed.cents; // integer cents only — never a float dollar
-            msg.textContent = ''; msg.className = 'muted';
-            markAddonDirty(a, row);
-            refreshSummary();
-          } else {
-            // Invalid entry: leave the previously-applied cents untouched (never coerce to 0).
-            msg.textContent = 'Enter a valid non-negative dollar amount.'; msg.className = 'err';
-          }
+          if (buf.prices[idx]) buf.prices[idx].rawUsd = inp.value;
+          validatePriceInput(inp, errEl, key, { allowEmpty: false });
+          msg.textContent = '';
+          msg.className = 'muted';
         });
+      });
+      ed.querySelector('[data-addon-apply]').addEventListener('click', () => {
+        if (!applyAddonEdits(a.addOnId)) return;
+        // Refresh summary / badges from the committed canonical add-on; keep open.
+        priceSpan.textContent = addonSummaryPrice(a);
+        renderBadges(a, badgeWrap, row);
+        // Update name in the collapsed header without a full list rebuild.
+        const nameNode = row.querySelector('.a-name');
+        if (nameNode) nameNode.innerHTML = `${escapeHtml(a.name)} <span class="muted">· ${escapeHtml(a.addOnId)}</span>`;
+      });
+      ed.querySelector('[data-addon-cancel]').addEventListener('click', () => {
+        cancelAddonEdits(a.addOnId);
       });
       return ed;
     }
@@ -761,8 +1001,11 @@
     }
 
     function renderAddOns() {
-      // Rebuilding the list recreates every expanded editor from the last-applied
-      // (valid) values, so drop any stale per-field invalid markers first.
+      // Persist in-progress keystrokes into buffers before wiping the list DOM so
+      // search/filter/rebuild never silently discards an unapplied edit buffer.
+      syncOpenAddonEditorsToBuffers();
+      // Rebuilding the list recreates every expanded editor from the buffer, so drop
+      // any stale per-field invalid markers first.
       clearPriceFields('addon:');
       const box = el('addon-list');
       // Category filter options
@@ -799,8 +1042,7 @@
         const badgeWrap = summary.querySelector('.a-badges');
         renderBadges(a, badgeWrap, row);
         summary.addEventListener('click', () => {
-          if (state.addonExpanded.has(a.addOnId)) state.addonExpanded.delete(a.addOnId);
-          else state.addonExpanded.add(a.addOnId);
+          if (!requestAddonExpand(a.addOnId)) return;
           renderAddOns();
         });
         row.appendChild(summary);
@@ -810,6 +1052,7 @@
     }
 
     function wireAddonControls() {
+      // Search/filter rebuild the list from buffers — never clear addonEditBuffers here.
       el('addon-search').addEventListener('input', renderAddOns);
       el('addon-filter-status').addEventListener('change', renderAddOns);
       el('addon-filter-cat').addEventListener('change', renderAddOns);
@@ -822,11 +1065,21 @@
         renderAddOns();
       });
       el('addon-expand-all').addEventListener('click', () => {
-        // Lazy-render guard: only expand the currently filtered set to avoid building every editor at once.
-        for (const a of filteredAddOns()) state.addonExpanded.add(a.addOnId);
+        // Single-buffer rule: open only the first filtered row (never many editors).
+        const rows = filteredAddOns();
+        if (!rows.length) return;
+        const id = rows[0].addOnId;
+        const unapplied = findUnappliedAddonId();
+        if (unapplied && unapplied !== id) { blockForUnappliedAddonBuffer(); return; }
+        for (const k of Object.keys(state.addonEditBuffers)) {
+          if (k !== id && k !== unapplied) dropAddonBuffer(k);
+        }
+        state.addonExpanded = new Set([id]);
         renderAddOns();
       });
       el('addon-collapse-all').addEventListener('click', () => {
+        if (hasUnappliedAddonChanges()) { blockForUnappliedAddonBuffer(); return; }
+        for (const id of Object.keys(state.addonEditBuffers)) dropAddonBuffer(id);
         state.addonExpanded.clear();
         renderAddOns();
       });
@@ -913,6 +1166,7 @@
           }
           state.draft = d2.draft;
           state.addonDirty.clear();
+          state.addonEditBuffers = Object.create(null);
           state.invalidPrices.clear();
           state.conflict = false;
           setBaseline();
@@ -974,6 +1228,11 @@
       // Auto-commit any pending edits in the open package editor so they are never
       // silently discarded by saving before clicking "Apply package changes".
       if (state.selectedId && !el('editor').hidden) applyPackageEdits();
+      // Unapplied add-on buffer policy: never auto-flush. Block Save until Apply or Cancel.
+      if (hasUnappliedAddonChanges()) {
+        blockForUnappliedAddonBuffer();
+        return;
+      }
       // Never fire a request with a locally-invalid price, and never when there is nothing to save.
       if (!pricesValid()) { setSaveState('Fix the highlighted price fields before saving.', 'err'); return; }
       if (!state.dirty) { setSaveState('No changes to save.'); return; }
@@ -1008,6 +1267,7 @@
         // baseline, and its version replaces the local version.
         state.draft = data.draft;
         state.addonDirty.clear();
+        state.addonEditBuffers = Object.create(null);
         state.invalidPrices.clear();
         state.conflict = false;
         setBaseline();
@@ -1020,6 +1280,22 @@
         state.saving = false;
         updateSaveButton();
       }
+    }
+
+    function discardDraftChanges() {
+      if (!state.baselineDraft) return;
+      if (!state.dirty) return;
+      if (!confirm('Discard unsaved catalog draft changes and restore the last saved version?')) return;
+      state.draft = JSON.parse(JSON.stringify(state.baselineDraft));
+      state.addonDirty.clear();
+      state.addonEditBuffers = Object.create(null);
+      state.invalidPrices.clear();
+      state.conflict = false;
+      setBaseline();
+      setDirty(false);
+      setPageState('ready-clean');
+      setSaveState('Local draft changes discarded.', 'okmsg');
+      renderAll();
     }
 
     // Conflict recovery: pull the newest server draft, discarding local unsaved edits.
@@ -1038,6 +1314,7 @@
       }
       state.draft = data.draft;
       state.addonDirty.clear();
+      state.addonEditBuffers = Object.create(null);
       state.invalidPrices.clear();
       state.conflict = false;
       setBaseline();
@@ -1051,8 +1328,9 @@
     }
 
     el('btn-save').addEventListener('click', saveDraft);
+    el('btn-discard').addEventListener('click', discardDraftChanges);
     el('btn-reload').addEventListener('click', async () => {
-      if (state.dirty && !confirm('Reload and discard unsaved local edits?')) return;
+      if (hasPendingLocalEdits() && !confirm('Reload and discard unsaved local edits?')) return;
       await loadDraft();
       await loadRevisions();
     });
@@ -1072,24 +1350,24 @@
     });
     wireAddonControls();
 
-    // Unsaved-change protection: warn before the browser unloads the page while dirty.
-    // Only while genuinely dirty; uses the browser-supported event contract (no custom
-    // copy, which modern browsers ignore anyway).
+    // Unsaved-change protection: warn before the browser unloads the page while dirty
+    // OR while an add-on edit buffer has unapplied keystrokes (not yet in state.draft).
+    // Uses the browser-supported event contract (no custom copy, which modern browsers ignore).
     window.addEventListener('beforeunload', (e) => {
-      if (!state.dirty) return;
+      if (!hasPendingLocalEdits()) return;
       e.preventDefault();
       e.returnValue = '';
     });
 
-    // Guard in-app navigation AWAY from the Catalog Manager while dirty. Same-page catalog
-    // routes (including #preview / #revisions) never warn; only routes that leave the page
-    // (Overview, ← Owner Studio, Admin) prompt before discarding unsaved changes.
+    // Guard in-app navigation AWAY from the Catalog Manager while dirty or unapplied.
+    // Same-page catalog routes (including #preview / #revisions) never warn; only routes
+    // that leave the page (Overview, ← Owner Studio, Admin) prompt before discarding.
     function guardRouteNavigation() {
       document.querySelectorAll('a[href^="/admin"]').forEach((a) => {
         const href = a.getAttribute('href') || '';
         if (href.indexOf('/admin/owner-studio/catalog') === 0) return; // stays on this page
         a.addEventListener('click', (e) => {
-          if (!state.dirty) return;
+          if (!hasPendingLocalEdits()) return;
           if (!confirm('You have unsaved catalog changes. Leave this page and discard them?')) e.preventDefault();
         });
       });
@@ -1102,12 +1380,14 @@
         if (msg && msg.type === 'logout') {
           CD1AdminSession.clearToken({ silent: true }); // silent: don't re-broadcast (avoids a loop)
           state.draft = null; state.csrf = ''; state.dirty = false;
-          state.baselineSig = null; state.conflict = false; state.invalidPrices.clear();
+          state.baselineSig = null; state.baselineDraft = null; state.conflict = false; state.invalidPrices.clear();
+          state.addonEditBuffers = Object.create(null); state.addonDirty.clear();
           el('dirty').hidden = true;
           el('auth-note').hidden = false;
           el('status-banner').textContent = 'Signed out in another tab. Sign in again at /admin, then reopen this page.';
           setPageState('authentication-error');
           el('btn-save').disabled = true;
+          el('btn-discard').disabled = true;
         }
       });
     }
