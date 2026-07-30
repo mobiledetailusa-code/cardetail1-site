@@ -319,6 +319,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/deploy-runtime-env.generated.js',
     'netlify/lib/ops-schema.js',
     'tests/helpers/cas-memory-store.js',
+    // Twilio production readiness — admin/inquiry provider error redaction
+    'netlify/functions/submit-inquiry.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

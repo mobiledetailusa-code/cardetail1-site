@@ -188,6 +188,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/qa-blobs-health.js',
     // Owner Studio Stage 1 — protected read-only status endpoint (flags off by default)
     'netlify/functions/owner-studio-status.js',
+    // Twilio production readiness — admin/inquiry provider error redaction
+    'netlify/functions/submit-inquiry.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);

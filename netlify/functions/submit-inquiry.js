@@ -63,16 +63,28 @@ async function sendSms(q) {
     Body: `New question from ${q.name || 'customer'} (${q.phone || ''}): ${(q.message || '').slice(0, 240)}`,
   });
   const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
-    method: 'POST',
-    headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-  if (!res.ok) {
-    const err = await res.text().catch(() => '');
-    return { sent: false, reason: `twilio ${res.status}: ${err}` };
+  try {
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
+      method: 'POST',
+      headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    if (!res.ok) {
+      // Never return raw Twilio response bodies to API clients or store them.
+      await res.text().catch(() => '');
+      const status = Number(res.status) || 0;
+      return {
+        sent: false,
+        reason: status ? `twilio_http_${status}` : 'twilio_http_error',
+        httpStatus: status || null,
+      };
+    }
+    const payload = await res.json().catch(() => ({}));
+    const sid = typeof payload.sid === 'string' ? payload.sid : '';
+    return { sent: true, correlationId: sid ? `SM${sid.slice(-8)}` : null };
+  } catch (_e) {
+    return { sent: false, reason: 'twilio_network_error' };
   }
-  return { sent: true };
 }
 
 exports.handler = async (event) => {

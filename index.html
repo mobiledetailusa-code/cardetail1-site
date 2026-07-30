@@ -743,6 +743,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .terms-check{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--tx);line-height:1.5;cursor:pointer}
 .terms-check input{margin-top:3px;width:18px;height:18px;accent-color:var(--blue);flex-shrink:0}
 .terms-check a{color:var(--blue);text-decoration:underline;text-underline-offset:3px}
+.bk-sms-consent{margin:8px 0 0;font-size:11.5px;color:var(--mu);line-height:1.5}
 
 /* SQUARE */
 .pay-box{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--r);padding:20px;margin-bottom:16px}
@@ -2557,7 +2558,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="bsec" id="bs4">
         <div class="beye">Step 04 — Info</div>
         <div class="btitle">YOUR DETAILS</div>
-        <div class="bdesc">We'll confirm your appointment by text or call within a few hours.</div>
+        <div class="bdesc">We'll text or call about this booking request within a few hours.</div>
         <div class="strip show" id="strip5">
           <div class="strip-info"><strong id="s5-pkg">—</strong> · <span id="s5-car">—</span></div>
           <div class="strip-price" id="s5-total">$0</div>
@@ -2565,7 +2566,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="fgrid">
           <div class="fg"><div class="fl">First Name *</div><input class="fi" id="f-first" type="text" placeholder="John" required></div>
           <div class="fg"><div class="fl">Last Name *</div><input class="fi" id="f-last" type="text" placeholder="Smith" required></div>
-          <div class="fg"><div class="fl">Phone / Text *</div><input class="fi" id="f-phone" type="tel" placeholder="(201) 555-0100" required></div>
+          <div class="fg"><div class="fl">Phone / Text *</div><input class="fi" id="f-phone" type="tel" placeholder="(201) 555-0100" required>
+            <p class="bk-sms-consent" id="bk-sms-consent-info" data-consent-version="dz-txn-sms-v1">By providing your mobile number, you agree to receive transactional text messages from Detailing Zone about this booking. Message and data rates may apply. Reply STOP to opt out. This is not marketing consent.</p>
+          </div>
           <div class="fg"><div class="fl">Email *</div><input class="fi" id="f-email" type="email" placeholder="john@email.com" required></div>
           <div class="fg full"><div class="fl">Service Address *</div><input class="fi" id="f-addr" type="text" placeholder="123 Main St, Hoboken, NJ 07030" required></div>
           <div class="fg full bk-advance-notice" role="note">
@@ -2731,6 +2734,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
         <div class="oc">
           <div class="oc-t">Terms & Conditions</div>
+          <p class="bk-sms-consent" id="bk-sms-consent-confirm" data-consent-version="dz-txn-sms-v1">By providing your mobile number, you agree to receive transactional text messages from Detailing Zone about this booking. Message and data rates may apply. Reply STOP to opt out. This is not marketing consent.</p>
           <label class="terms-check">
             <input type="checkbox" id="terms-ok">
             <span>I have read and agree to the booking, cancellation, no-show, access, and card-on-file policy. <a href="/terms-conditions" target="_blank" rel="noopener noreferrer">Read Full Terms</a></span>
@@ -5206,6 +5210,11 @@ function buildBookingPayload(){
     acceptedCardOnFilePolicy: !!document.getElementById('cof-policy-ok')?.checked,
     acceptedCardOnFilePolicyAt: document.getElementById('cof-policy-ok')?.checked ? new Date().toISOString() : null,
     policyVersion: '2026-06-card-on-file',
+    // Transactional SMS consent evidence (booking payload only — no schema migration).
+    transactionalSmsConsentAccepted: true,
+    transactionalSmsConsentTextVersion: 'dz-txn-sms-v1',
+    acceptedTransactionalSmsConsentAt: new Date().toISOString(),
+    marketingSmsConsentAccepted: false,
     source:'Cardetail1 static booking flow',
     zipCode:document.getElementById('bk-zip')?.value.trim()||'',
     zone:activeZone?activeZone.label:'',

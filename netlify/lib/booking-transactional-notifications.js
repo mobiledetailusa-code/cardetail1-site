@@ -375,18 +375,64 @@ ${total ? `<li>Approved total: ${escapeHtml(total)}</li>` : ''}
   return { subject, text, html, cta };
 }
 
+const REQUEST_RECEIVED_SMS_OPT_OUT = 'Reply STOP to opt out.';
+
+/**
+ * GSM-7 segment estimate for outbound SMS bodies.
+ * Uses UCS-2 (70/67) when any non-GSM character is present.
+ */
+function smsSegmentInfo(body) {
+  const text = String(body || '');
+  const gsmBasic =
+    '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ ÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?'
+    + '¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà';
+  const gsmExt = new Set(['^', '{', '}', '\\', '[', '~', ']', '|', '€']);
+  let encoding = 'GSM-7';
+  for (const ch of text) {
+    if (!gsmBasic.includes(ch) && !gsmExt.has(ch)) {
+      encoding = 'UCS-2';
+      break;
+    }
+  }
+  const len = [...text].length;
+  let segments = 1;
+  if (encoding === 'UCS-2') {
+    segments = len <= 70 ? 1 : Math.ceil(len / 67);
+  } else {
+    let septets = 0;
+    for (const ch of text) septets += gsmExt.has(ch) ? 2 : 1;
+    segments = septets <= 160 ? 1 : Math.ceil(septets / 153);
+  }
+  return { length: len, encoding, segments };
+}
+
 function buildSmsBody(eventType, booking, accessUrl) {
   const brand = brandName();
   if (eventType === EVENT_REQUEST_RECEIVED) {
-    return `${brand}: We received your booking request and it is under review.\nView status: ${accessUrl}`;
+    // First transactional SMS must identify brand, state request/under review
+    // (not confirmed), include status link, and include STOP opt-out.
+    return [
+      `${brand}: We received your booking request and it is under review.`,
+      `View status: ${accessUrl}`,
+      REQUEST_RECEIVED_SMS_OPT_OUT,
+    ].join('\n');
   }
   if (eventType === EVENT_CONFIRMED) {
     const when = [booking.confirmedDate || booking.preferredDate, arrivalWindow(booking)]
       .filter(Boolean).join(' ')
       || 'your scheduled window';
+    // Later messages omit STOP footer; first-message disclosure is sufficient.
     return `${brand}: Your appointment is confirmed for ${when}.\nView appointment: ${accessUrl}`;
   }
   return `${brand}: Action needed for your appointment.\nReview: ${accessUrl}`;
+}
+
+function redactTwilioHttpReason(status) {
+  const code = Number(status);
+  if (Number.isFinite(code) && code >= 100 && code <= 599) {
+    return `twilio_http_${code}`;
+  }
+  return 'twilio_http_error';
 }
 
 async function sendResendEmail({ to, subject, text, html }) {
@@ -438,11 +484,21 @@ async function sendCustomerSms(toE164, body) {
       body: params,
     });
     if (!res.ok) {
-      return { sent: false, reason: `twilio_${res.status}` };
+      // Never surface raw Twilio response bodies to callers or logs.
+      await res.text().catch(() => '');
+      return {
+        sent: false,
+        reason: redactTwilioHttpReason(res.status),
+        httpStatus: Number(res.status) || null,
+      };
     }
-    return { sent: true };
-  } catch (e) {
-    return { sent: false, reason: 'sms_send_error', detail: e.message };
+    const payload = await res.json().catch(() => ({}));
+    const sid = typeof payload.sid === 'string' ? payload.sid : '';
+    // Correlation only — never return/log the full Message SID.
+    const correlationId = sid ? `SM${sid.slice(-8)}` : null;
+    return { sent: true, correlationId };
+  } catch (_e) {
+    return { sent: false, reason: 'twilio_network_error' };
   }
 }
 
@@ -678,6 +734,7 @@ module.exports = {
   EVENT_ACTION_REQUIRED,
   CHANNELS,
   CLAIM_STORE,
+  REQUEST_RECEIVED_SMS_OPT_OUT,
   escapeHtml,
   brandName,
   vehicleDescription,
@@ -689,7 +746,10 @@ module.exports = {
   channelAlreadySent,
   buildEmailContent,
   buildSmsBody,
+  smsSegmentInfo,
+  redactTwilioHttpReason,
   customerTransactionalSmsEnabled,
+  sendCustomerSms,
   emitBookingNotification,
   emitRequestReceived,
   emitConfirmed,
