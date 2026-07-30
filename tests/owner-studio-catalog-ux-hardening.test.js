@@ -373,6 +373,24 @@ describe('shipped Catalog Manager page wires the hardened behaviours', () => {
     assert.match(catalogHtml, /function guardRouteNavigation\(\)/);
     assert.match(catalogHtml, /unsaved catalog changes\. Leave this page/);
   });
+  it('the "Unsaved changes" badge is hidden while clean and shown only while genuinely dirty', () => {
+    // Badge ships with the [hidden] attribute and is toggled purely through el('dirty').hidden.
+    assert.match(catalogHtml, /<span id="dirty" class="badge warn" hidden>Unsaved changes<\/span>/);
+    // Regression guard: .badge sets display:inline-block, which defeats the bare [hidden]
+    // default. A .badge[hidden] rule (higher specificity) MUST restore display:none, else the
+    // badge is stuck visible in every state — clean, saved and signed-out.
+    assert.match(catalogHtml, /\.badge\[hidden\]\s*\{[^}]*display\s*:\s*none/);
+    // Visible only when the real dirty flag is set …
+    assert.match(catalogHtml, /el\('dirty'\)\.hidden = !state\.dirty;/);
+    // … and force-hidden on authentication failure, so "Unsaved changes" never sits over a
+    // signed-out page.
+    assert.match(catalogHtml, /el\('dirty'\)\.hidden = true;\s*\n\s*el\('auth-note'\)\.hidden = false;/);
+  });
+  it('the page-state model forbids "Saved" and "Unsaved changes" appearing together', () => {
+    assert.equal(Ux.isContradictoryModel({ state: 'saved', dirty: true }), true);   // Saved while dirty
+    assert.equal(Ux.isContradictoryModel({ state: 'ready-clean', dirty: true }), true); // clean while dirty
+    assert.equal(Ux.isContradictoryModel({ state: 'saved', dirty: false }), false);  // the only coherent "saved"
+  });
   it('package search shows a count, a clear action and an empty-results state', () => {
     assert.match(catalogHtml, /id="pkg-count"/);
     assert.match(catalogHtml, /Showing \$\{rows\.length\} of \$\{total\} packages/);
