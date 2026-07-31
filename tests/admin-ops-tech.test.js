@@ -23,7 +23,7 @@ const setup = read('netlify/functions/create-setup-intent.js');
 test('public index.html unchanged by admin/tech ops work', () => {
   assert.doesNotMatch(index, /tech-complete-job/);
   assert.doesNotMatch(index, /tech-jobs/);
-  assert.match(index, /const PRICING\s*=/);
+  assert.match(index, /\b(?:const|let) PRICING\s*=/); // 4B-2: reassignable for saved-draft preview
 });
 
 test('admin-ops has sign out and technician portal link with bypass', () => {
@@ -140,7 +140,7 @@ test('tech auth stores hashed passwords not plain text', () => {
 });
 
 test('protected public surfaces unchanged vs card-on-file base', () => {
-  const pricing = index.match(/const PRICING\s*=\s*\{[\s\S]*?\n\};/);
+  const pricing = index.match(/\b(?:const|let) PRICING\s*=\s*\{[\s\S]*?\n\};/);
   assert.ok(pricing, 'PRICING block exists');
   assert.doesNotMatch(index, /tech-complete-job/);
   assert.doesNotMatch(index, /tech-jobs/);

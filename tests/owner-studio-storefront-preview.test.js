@@ -228,7 +228,10 @@ describe('owner-studio storefront catalog preview API (4B-1)', () => {
     const body = parseBody(res);
     assert.equal(body.packages[0].packageId, 'pkg_full_detail');
     assert.equal(body.packages[0].name, draft.packages.find((p) => p.active).name);
+    // legacyKey is the stable mapping id used by the storefront adapter (Stage 4B-2).
+    assert.equal(body.packages[0].legacyKey, 'full');
     assert.equal(body.addOns[0].addOnId, 'addon_pet_hair');
+    assert.equal(body.addOns[0].legacyKey, 'pethair');
     assert.equal(body.addOns[0].prices[0].amountCents, 4500);
   });
 
@@ -350,9 +353,11 @@ describe('owner-studio storefront catalog preview API (4B-1)', () => {
     const flags = fs.readFileSync(path.join(ROOT, 'netlify', 'lib', 'owner-studio', 'flags.js'), 'utf8');
     assert.match(flags, /PUBLIC_CONTENT_SOURCE/);
     const index = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-    assert.match(index, /const PRICING\s*=/);
-    // Preview function must not be wired into index yet (4B-1 scope).
-    assert.doesNotMatch(index, /owner-studio-catalog-preview/);
+    // 4B-2: PRICING is reassignable (let) so the saved draft replaces it before init.
+    assert.match(index, /\blet PRICING\s*=/);
+    // 4B-2: preview IS wired, but only behind the ?os_preview=1 gate — no request otherwise.
+    assert.match(index, /if\(osPreviewRequested\(\)\)\{\s*osBootstrapPreview\(\)/);
+    assert.equal((index.match(/owner-studio-catalog-preview/g) || []).length, 1);
   });
 
   it('12. missing draft returns stable 404; empty valid draft is previewable', async () => {

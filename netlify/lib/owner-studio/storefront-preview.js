@@ -74,6 +74,7 @@ function sanitizePackage(pkg) {
     : [];
   return {
     packageId: pkg.packageId,
+    legacyKey: pkg.legacyKey || '',
     slug: pkg.slug,
     name: pkg.name,
     description: pkg.description || '',
@@ -113,6 +114,7 @@ function sanitizeAddOn(addon) {
     : [];
   return {
     addOnId: addon.addOnId,
+    legacyKey: addon.legacyKey || '',
     slug: addon.slug,
     name: addon.name,
     description: addon.description || '',
