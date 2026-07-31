@@ -18,6 +18,7 @@ const {
 const { validateBookingRouting } = require('../lib/booking-routing-validation');
 
 let blobsStoreOverride = null;
+let previewTransactionGuardOverride = null;
 
 async function blobsStore(name) {
   if (typeof blobsStoreOverride === 'function') {
@@ -42,6 +43,19 @@ exports.handler = async (event) => {
   console.log('[create-setup-intent] called: yes');
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
+
+  const previewCheck = await (previewTransactionGuardOverride
+    || require('../lib/owner-studio/preview-transaction-guard').checkPreviewTransactionRequest)(event);
+  if (previewCheck.previewRequest) {
+    if (!previewCheck.authorized) {
+      return json(403, { ok: false, error: previewCheck.error || 'preview_request_denied' });
+    }
+    return json(403, {
+      ok: false,
+      error: 'preview_transactions_disabled',
+      message: 'Preview mode does not allow bookings or payments.',
+    });
+  }
 
   const rateLimit = await enforcePublicRateLimit(event, {
     endpoint: 'create-setup-intent',
@@ -192,6 +206,9 @@ exports.handler = async (event) => {
 };
 
 exports.__test = {
+  setPreviewTransactionGuardOverride(fn) {
+    previewTransactionGuardOverride = typeof fn === 'function' ? fn : null;
+  },
   setBlobsStoreOverride(fn) {
     blobsStoreOverride = typeof fn === 'function' ? fn : null;
   },

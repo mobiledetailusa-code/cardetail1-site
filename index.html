@@ -4817,6 +4817,11 @@ function cofCheckboxChanged(){
 }
 
 function clearDraftSaveTokenState(){ST.draftSaveToken=null;ST.draftSaveTokenExp=null;}
+function bookingRequestHeaders(){
+  const headers={'Content-Type':'application/json'};
+  if(OS_PREVIEW_ACTIVE) headers['X-Owner-Studio-Preview']='1';
+  return headers;
+}
 function clearDraftRegistrationState(){
   ST.draftRegistered=false;
   ST.bookingId='';
@@ -4892,7 +4897,7 @@ async function initCardOnFile(){
       const draftPayload=buildBookingPayload();
       draftPayload.isDraft=true;
       draftPayload.acceptedCardOnFilePolicy=true;
-      const draftRes=await fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(draftPayload)});
+      const draftRes=await fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:bookingRequestHeaders(),body:JSON.stringify(draftPayload)});
       const draftCt=(draftRes.headers.get('content-type')||'').toLowerCase();
       if(!draftCt.includes('json')) throw new Error(isLocalPreview?LOCAL_DEV_FUNCTIONS_HINT:'Booking backend returned an invalid response. Try again.');
       const draftData=await draftRes.json();
@@ -4924,7 +4929,7 @@ async function initCardOnFile(){
     destroyStripePaymentUI();
     if(isStale()) return;
     if(!draftSessionBookingId||!draftSessionToken){throw new Error('We could not securely verify this booking session. Please go back one step and try again.');}
-    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:draftSessionBookingId,draftSaveToken:draftSessionToken})});
+    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:bookingRequestHeaders(),body:JSON.stringify({bookingId:draftSessionBookingId,draftSaveToken:draftSessionToken})});
     const siCt=(siRes.headers.get('content-type')||'').toLowerCase();
     if(!siCt.includes('json')) throw new Error(isLocalPreview?LOCAL_DEV_FUNCTIONS_HINT:'Secure card saving is temporarily unavailable.');
     const siData=await siRes.json();
@@ -5081,7 +5086,7 @@ async function submitBooking(){
   btn.classList.add('loading'); btn.disabled=true;
   const payload=buildBookingPayload();
   async function postBooking(){
-    return fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    return fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:bookingRequestHeaders(),body:JSON.stringify(payload)});
   }
   try{
     let res=await postBooking();
