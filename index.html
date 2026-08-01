@@ -2873,6 +2873,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script src="https://js.stripe.com/v3/"></script>
 <script src="/netlify/lib/admin-session-client.js"></script>
 <script src="assets/car-pkg-detail-modal.js"></script>
+<script src="/netlify/lib/owner-studio/storefront-preview-adapter.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════
@@ -3133,7 +3134,11 @@ function renderPkgDetailPanel(){
   requestAnimationFrame(()=>{ try{ panel.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(_){} });
 }
 
-const PRICING = {
+// Owner Studio saved-draft preview: when active, PRICING/LENGTH_PRICING are REPLACED
+// (before any pricing-dependent init) with the authenticated draft, and booking/payment
+// submission is blocked. Declared early so authoritative entry points can guard on it.
+let OS_PREVIEW_ACTIVE = false;
+let PRICING = {
   cars: {
     tiers: {
       small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:285, refresh:375, premium:450},
@@ -3339,7 +3344,7 @@ const PRICING = {
 
 
 // ── LENGTH PRICING FOR BOATS / RVs / TRAVEL TRAILERS ─────────────────────────
-const LENGTH_PRICING = {
+let LENGTH_PRICING = {
   boats: {
     min: 12, max: 60, defaultFt: 22, estimateOver: 36,
     packages: {
@@ -4812,6 +4817,11 @@ function cofCheckboxChanged(){
 }
 
 function clearDraftSaveTokenState(){ST.draftSaveToken=null;ST.draftSaveTokenExp=null;}
+function bookingRequestHeaders(){
+  const headers={'Content-Type':'application/json'};
+  if(OS_PREVIEW_ACTIVE) headers['X-Owner-Studio-Preview']='1';
+  return headers;
+}
 function clearDraftRegistrationState(){
   ST.draftRegistered=false;
   ST.bookingId='';
@@ -4834,6 +4844,7 @@ function captureDraftSaveResponse(draftData){
 }
 
 async function initCardOnFile(){
+  if(OS_PREVIEW_ACTIVE){ return; }
   if(cardInitInProgress) return;
   if(!ST.payMethod){
     stripeMsg('stripe-status','Choose a payment preference first.',false);
@@ -4886,7 +4897,7 @@ async function initCardOnFile(){
       const draftPayload=buildBookingPayload();
       draftPayload.isDraft=true;
       draftPayload.acceptedCardOnFilePolicy=true;
-      const draftRes=await fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(draftPayload)});
+      const draftRes=await fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:bookingRequestHeaders(),body:JSON.stringify(draftPayload)});
       const draftCt=(draftRes.headers.get('content-type')||'').toLowerCase();
       if(!draftCt.includes('json')) throw new Error(isLocalPreview?LOCAL_DEV_FUNCTIONS_HINT:'Booking backend returned an invalid response. Try again.');
       const draftData=await draftRes.json();
@@ -4918,7 +4929,7 @@ async function initCardOnFile(){
     destroyStripePaymentUI();
     if(isStale()) return;
     if(!draftSessionBookingId||!draftSessionToken){throw new Error('We could not securely verify this booking session. Please go back one step and try again.');}
-    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:draftSessionBookingId,draftSaveToken:draftSessionToken})});
+    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:bookingRequestHeaders(),body:JSON.stringify({bookingId:draftSessionBookingId,draftSaveToken:draftSessionToken})});
     const siCt=(siRes.headers.get('content-type')||'').toLowerCase();
     if(!siCt.includes('json')) throw new Error(isLocalPreview?LOCAL_DEV_FUNCTIONS_HINT:'Secure card saving is temporarily unavailable.');
     const siData=await siRes.json();
@@ -4965,6 +4976,7 @@ function selectPaymentPreference(preference,activeId){
 }
 
 async function confirmSetupIntent(){
+  if(OS_PREVIEW_ACTIVE){ alert('Preview mode — bookings and payments are disabled.'); return; }
   const cb=document.getElementById('cof-policy-ok');
   const err=document.getElementById('pay-err'); err.classList.remove('show');
   if(!cb||!cb.checked){ err.textContent='Please check the authorization box to continue.'; err.classList.add('show'); return; }
@@ -5064,6 +5076,7 @@ function fillConfirm(){
 
 // ── SUBMIT ────────────────────────────────────────────────────────────────────
 async function submitBooking(){
+  if(OS_PREVIEW_ACTIVE){ alert('Preview mode — bookings and payments are disabled.'); return; }
   const termsOk=document.getElementById('terms-ok');
   if(termsOk && !termsOk.checked){alert('Please agree to the Terms & Conditions before submitting your booking request.');return;}
   if(!ST.payMethod){alert('Please select a payment preference before submitting.');return;}
@@ -5073,7 +5086,7 @@ async function submitBooking(){
   btn.classList.add('loading'); btn.disabled=true;
   const payload=buildBookingPayload();
   async function postBooking(){
-    return fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    return fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:bookingRequestHeaders(),body:JSON.stringify(payload)});
   }
   try{
     let res=await postBooking();
@@ -6788,13 +6801,87 @@ function openBookingFromHome(cat){
 // ═══════════════════════════════════════════════════════
 renderReviews();
 renderLocationCarousel('default');
-renderHomeAddons();
-_updateHomeFromPrices();
-updateBkFromPrices();
 renderActivityFeed();
 // seedDefaultTechs exists on hub pages only — never block specialty embed booking
 try{ if(typeof seedDefaultTechs==='function') seedDefaultTechs(); }catch(e){}
-try{ if(typeof initCarPkgDetailModal==='function') initCarPkgDetailModal(); }catch(e){}
+
+// ── Owner Studio saved-draft preview (?os_preview=1) ─────────────────────────
+// Absent the flag the homepage behaves exactly as before. When present, PRICING /
+// LENGTH_PRICING are REPLACED with the authenticated saved draft BEFORE any
+// pricing-dependent booking UI initializes; a draft-preview banner is shown and
+// booking + payment submission is blocked. No secret is ever placed in the URL.
+function osPreviewRequested(){
+  try{ return new URLSearchParams(window.location.search||'').get('os_preview')==='1'; }catch(e){ return false; }
+}
+function osRunBookingPricingInit(){
+  renderHomeAddons();
+  _updateHomeFromPrices();
+  updateBkFromPrices();
+  try{ if(typeof initCarPkgDetailModal==='function') initCarPkgDetailModal(); }catch(e){}
+}
+function osPreviewBanner(html, kind){
+  let el=document.getElementById('os-preview-banner');
+  if(!el){ el=document.createElement('div'); el.id='os-preview-banner'; el.setAttribute('role','status');
+    el.style.cssText='position:sticky;top:0;z-index:99999;padding:10px 14px;text-align:center;font-weight:700;font-size:14px;line-height:1.4;';
+    document.body.insertBefore(el, document.body.firstChild); }
+  el.style.background = (kind==='error') ? '#7f1d1d' : '#78350f';
+  el.style.color = '#fef3c7';
+  el.innerHTML = html;
+}
+function osDisableBookingButtons(){
+  try{
+    document.querySelectorAll('button,[role=button]').forEach(function(b){
+      var sig=((b.getAttribute && b.getAttribute('onclick'))||'')+' '+(b.id||'');
+      if(/submitBooking|confirmSetupIntent|initCardOnFile|stripe-auth-btn/.test(sig)){
+        b.disabled=true; b.style.opacity='0.5'; b.style.cursor='not-allowed';
+      }
+    });
+  }catch(e){}
+}
+// Homepage decorative shell defaults — kept OUT of the pure adapter. Prices, names
+// and ordering come ONLY from the adapted draft (never mixed with legacy prices);
+// these are neutral placeholders so renderers never read undefined fields.
+function osApplyPreviewShell(pricing){
+  ['cars','boats','rvs','powersports'].forEach(function(cat){
+    if(!pricing[cat]) pricing[cat]={tiers:{},packages:[],addons:[]};
+    var c=pricing[cat];
+    Object.keys(c.tiers||{}).forEach(function(k){ var t=c.tiers[k]; if(t.icon==null)t.icon=''; if(t.desc==null)t.desc=''; });
+    (c.packages||[]).forEach(function(p){ if(p.icon==null)p.icon=''; if(p.tag==null)p.tag=p.shortDescription||''; if(p.dur==null)p.dur=''; if(p.scope==null)p.scope='both'; if(!Array.isArray(p.ext))p.ext=[]; if(!Array.isArray(p.int))p.int=[]; if(p.note==null)p.note=''; });
+    (c.addons||[]).forEach(function(a){ if(a.scope==null)a.scope='any'; });
+  });
+  return pricing;
+}
+function osPreviewFail(){
+  OS_PREVIEW_ACTIVE=true;
+  var admin=window.location.origin+'/admin/owner-studio/catalog';
+  osPreviewBanner('Draft preview unavailable — the saved catalog draft could not be loaded. '
+    +'Legacy prices shown here are NOT the saved draft, and bookings are disabled. '
+    +'<a href="'+admin+'" style="color:#fde68a;text-decoration:underline">Open Catalog Manager</a>.','error');
+  osDisableBookingButtons();
+}
+async function osBootstrapPreview(){
+  OS_PREVIEW_ACTIVE=true; // fail closed: block booking until adaptation succeeds
+  osPreviewBanner('Loading saved draft preview…','info');
+  let res, data;
+  try{
+    res=await fetch('/.netlify/functions/owner-studio-catalog-preview',{credentials:'same-origin',headers:{'Accept':'application/json'}});
+    data=await res.json().catch(function(){return null;});
+  }catch(e){ return osPreviewFail(); }
+  if(!res.ok || !data || data.preview!==true){ return osPreviewFail(); }
+  let adapted;
+  try{
+    if(!window.StorefrontPreviewAdapter) throw new Error('adapter_unavailable');
+    adapted=window.StorefrontPreviewAdapter.adaptStorefrontPreview(data);
+  }catch(e){ return osPreviewFail(); }
+  PRICING=osApplyPreviewShell(adapted.PRICING);
+  LENGTH_PRICING=adapted.LENGTH_PRICING||{};
+  var ver=(adapted.meta && adapted.meta.draftVersion!=null) ? (' · draft v'+adapted.meta.draftVersion) : '';
+  var when=(adapted.meta && adapted.meta.savedAt) ? (' · saved '+String(adapted.meta.savedAt).slice(0,19).replace('T',' ')) : '';
+  osRunBookingPricingInit();
+  osPreviewBanner('DRAFT PREVIEW — NOT PUBLISHED'+ver+when+' · Preview mode — bookings and payments are disabled.','preview');
+  osDisableBookingButtons();
+}
+if(osPreviewRequested()){ osBootstrapPreview(); } else { osRunBookingPricingInit(); }
 
 (function openBookingFromQuery(){
   try{

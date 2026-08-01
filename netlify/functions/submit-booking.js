@@ -109,6 +109,7 @@ function scheduleRejectResponse(status, error, meta = {}) {
 }
 
 let blobsStoreOverride = null;
+let previewTransactionGuardOverride = null;
 
 async function blobsStore(name) {
   if (typeof blobsStoreOverride === 'function') {
@@ -380,6 +381,18 @@ async function sendSms(b) {
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  const previewCheck = await (previewTransactionGuardOverride
+    || require('../lib/owner-studio/preview-transaction-guard').checkPreviewTransactionRequest)(event);
+  if (previewCheck.previewRequest) {
+    if (!previewCheck.authorized) {
+      return json(403, { ok: false, error: previewCheck.error || 'preview_request_denied' });
+    }
+    return json(403, {
+      ok: false,
+      error: 'preview_transactions_disabled',
+      message: 'Preview mode does not allow bookings or payments.',
+    });
+  }
   setOfferDeployHost(event.headers?.['x-forwarded-host'] || event.headers?.Host || event.headers?.host || '');
   try {
   let b;
@@ -728,6 +741,9 @@ exports.handler = async (event) => {
 };
 
 exports.__test = {
+  setPreviewTransactionGuardOverride(fn) {
+    previewTransactionGuardOverride = typeof fn === 'function' ? fn : null;
+  },
   setBlobsStoreOverride(fn) {
     blobsStoreOverride = typeof fn === 'function' ? fn : null;
   },

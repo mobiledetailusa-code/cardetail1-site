@@ -16,6 +16,7 @@ const bookingSnapshot = require('./booking-snapshot');
 const catalogRepository = require('./catalog-repository');
 const catalogSchemaHealth = require('./catalog-schema-health');
 const importer = require('./importer');
+const storefrontPreview = require('./storefront-preview');
 
 module.exports = {
   ...ids,
@@ -34,4 +35,5 @@ module.exports = {
   ...catalogRepository,
   ...catalogSchemaHealth,
   ...importer,
+  ...storefrontPreview,
 };

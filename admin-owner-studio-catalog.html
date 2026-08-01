@@ -108,6 +108,7 @@
       <div class="bar-actions">
         <button type="button" class="secondary" id="btn-discard" disabled>Discard draft changes</button>
         <button type="button" id="btn-save" disabled>Save Draft</button>
+        <button type="button" class="secondary" id="btn-preview-site" disabled title="Save or discard your draft changes before opening storefront preview.">Preview saved draft on website</button>
         <button type="button" class="secondary" id="btn-reload">Reload</button>
         <button type="button" class="secondary warn" id="btn-reload-latest" hidden>Reload latest version</button>
         <button type="button" class="secondary" id="btn-preview">Open draft preview</button>
@@ -343,6 +344,17 @@
       statusEl.style.color = (label === 'Unsaved changes') ? 'var(--warn)' : '';
       statusEl.textContent = label;
       el('btn-discard').disabled = state.mutationLocked || !state.dirty || state.saving || !state.baselineDraft;
+      const pv = el('btn-preview-site');
+      if (pv) {
+        // Available only after a saved draft has loaded and there is no pending work
+        // (dirty draft OR an unapplied add-on buffer). Opens the same-origin storefront
+        // with ?os_preview=1 — never a secret in the URL.
+        const canPreview = !!state.draft && !!state.baselineDraft && !hasPendingLocalEdits() && !state.mutationLocked && !state.saving;
+        pv.disabled = !canPreview;
+        pv.title = canPreview
+          ? 'Open the saved draft in the storefront (opens a new tab)'
+          : 'Save or discard your draft changes before opening storefront preview.';
+      }
     }
     function updateSaveButton() {
       el('btn-save').disabled = state.mutationLocked || !Ux.isSaveEnabled({
@@ -1329,6 +1341,12 @@
 
     el('btn-save').addEventListener('click', saveDraft);
     el('btn-discard').addEventListener('click', discardDraftChanges);
+    el('btn-preview-site') && el('btn-preview-site').addEventListener('click', () => {
+      const pv = el('btn-preview-site');
+      if (!pv || pv.disabled) return;
+      // Same-origin storefront preview; the flag carries no token/secret.
+      window.open(window.location.origin + '/?os_preview=1', '_blank', 'noopener');
+    });
     el('btn-reload').addEventListener('click', async () => {
       if (hasPendingLocalEdits() && !confirm('Reload and discard unsaved local edits?')) return;
       await loadDraft();
