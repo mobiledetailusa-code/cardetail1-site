@@ -95,9 +95,12 @@ describe('Catalog Manager "Preview saved draft on website" button (4B-2)', () =>
     assert.match(catalog, /id="btn-preview-site"[^>]*>Preview saved draft on website<\/button>/);
   });
 
-  it('16/17. disabled while dirty or while an add-on buffer is unapplied (hasPendingWork)', () => {
-    assert.match(catalog, /const canPreview = !!state\.draft && !!state\.baselineDraft && !hasPendingWork\(\)/);
-    // hasPendingWork is dirty OR unapplied add-on buffer.
+  it('16/17. disabled while dirty or while an add-on buffer is unapplied (hasPendingLocalEdits)', () => {
+    assert.match(catalog, /const canPreview = !!state\.draft && !!state\.baselineDraft && !hasPendingLocalEdits\(\)/);
+    // The gate MUST call a defined predicate — hasPendingLocalEdits (dirty OR unapplied
+    // add-on buffer). A prior revision called an undefined hasPendingWork(), which threw a
+    // ReferenceError in syncActionBar() and broke every Apply/Save. Never reintroduce it.
+    assert.doesNotMatch(catalog, /hasPendingWork/);
     assert.match(catalog, /return !!\(state\.dirty \|\| hasUnappliedAddonChanges\(\)\)/);
     assert.match(catalog, /Save or discard your draft changes before opening storefront preview\./);
   });

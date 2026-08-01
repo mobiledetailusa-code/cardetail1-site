@@ -349,7 +349,7 @@
         // Available only after a saved draft has loaded and there is no pending work
         // (dirty draft OR an unapplied add-on buffer). Opens the same-origin storefront
         // with ?os_preview=1 — never a secret in the URL.
-        const canPreview = !!state.draft && !!state.baselineDraft && !hasPendingWork() && !state.mutationLocked && !state.saving;
+        const canPreview = !!state.draft && !!state.baselineDraft && !hasPendingLocalEdits() && !state.mutationLocked && !state.saving;
         pv.disabled = !canPreview;
         pv.title = canPreview
           ? 'Open the saved draft in the storefront (opens a new tab)'
