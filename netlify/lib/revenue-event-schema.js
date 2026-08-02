@@ -15,6 +15,11 @@ const APPROVED_EVENTS = Object.freeze([
   'service_completed', 'maintenance_interest', 'rebooking_started',
   'rebooking_completed', 'referral_interest', 'gift_card_interest',
   'flexible_payment_interest',
+  // Booking conversion funnel (non-PII)
+  'utilities_completed', 'date_selected', 'flexibility_selected',
+  'weekend_date_selected', 'selected_slot_unavailable', 'nearby_slots_opened',
+  'booking_review_reached', 'setup_intent_started',
+  'booking_submit_attempted', 'booking_submit_succeeded', 'booking_submit_failed',
 ]);
 
 const APPROVED_PROPERTIES = Object.freeze([
@@ -24,6 +29,8 @@ const APPROVED_PROPERTIES = Object.freeze([
   'vehicle_type', 'device_type', 'utm_source', 'utm_medium', 'utm_campaign',
   'utm_content', 'referrer_domain', 'lead_temperature', 'household_segment',
   'error_code', 'offer_id', 'multi_vehicle_band',
+  'flexibility_mode', 'weekend_selected', 'funnel_step', 'failure_code',
+  'service_category',
 ]);
 
 const PII_PROPERTY_KEYS = Object.freeze([

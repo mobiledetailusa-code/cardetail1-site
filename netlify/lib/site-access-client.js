@@ -1,16 +1,19 @@
-// Browser helper for admin + technician portals (mirrors netlify/lib/site-access.js).
+/**
+ * Browser mirror of site-access labels for Admin Ops / Tech portals.
+ * Keep enum values yes | no | unsure.
+ */
 (function (root) {
-  var WATER = {
-    yes: 'Yes, water spigot/hose access available',
-    no: 'No water available',
+  const WATER = {
+    yes: 'Available — outdoor faucet or hose connection',
+    no: 'Not available',
     unsure: 'Not sure',
   };
-  var ELECTRIC = {
-    yes: 'Yes, outlet available',
-    no: 'No electricity available',
+  const ELECTRIC = {
+    yes: 'Available — standard outlet nearby',
+    no: 'Not available',
     unsure: 'Not sure',
   };
-  var LOC = {
+  const LOC = {
     driveway: 'Driveway',
     street: 'Street parking',
     garage: 'Garage / parking deck',
@@ -21,38 +24,44 @@
   };
 
   function lines(job) {
-    job = job || {};
-    var out = [];
-    if (job.waterAvailable) out.push(['Water', WATER[job.waterAvailable] || job.waterAvailable]);
-    if (job.electricityAvailable) out.push(['Electricity', ELECTRIC[job.electricityAvailable] || job.electricityAvailable]);
-    if (job.serviceLocation) out.push(['Location', LOC[job.serviceLocation] || job.serviceLocation]);
-    if (job.accessNotes) out.push(['Access notes', job.accessNotes]);
+    const b = job || {};
+    const out = [];
+    if (b.waterAvailable) out.push('Water: ' + (WATER[b.waterAvailable] || b.waterAvailable));
+    if (b.electricityAvailable) out.push('Electricity: ' + (ELECTRIC[b.electricityAvailable] || b.electricityAvailable));
+    if (b.serviceLocation) out.push('Location: ' + (LOC[b.serviceLocation] || b.serviceLocation));
+    if (b.accessNotes) out.push('Access notes: ' + b.accessNotes);
     return out;
   }
 
   function hasAny(job) {
-    job = job || {};
-    return !!(job.waterAvailable || job.electricityAvailable || job.serviceLocation || job.accessNotes);
+    const b = job || {};
+    return !!(b.waterAvailable || b.electricityAvailable || b.serviceLocation || b.accessNotes);
   }
 
   function adminSection(job, esc) {
     if (!hasAny(job)) return '';
-    var e = esc || function (s) { return String(s == null ? '' : s); };
-    return '<div class="sec"><h4>Site access</h4><div class="kv">' +
-      lines(job).map(function (pair) {
-        return '<div><b>' + e(pair[0]) + ':</b> ' + e(pair[1]) + '</div>';
-      }).join('') +
-      '</div></div>';
+    const e = typeof esc === 'function' ? esc : (s) => String(s == null ? '' : s);
+    const rows = lines(job).map((line) => {
+      const i = line.indexOf(':');
+      const k = i >= 0 ? line.slice(0, i) : 'Info';
+      const v = i >= 0 ? line.slice(i + 1).trim() : line;
+      return '<div class="kv"><span>' + e(k) + '</span><strong>' + e(v) + '</strong></div>';
+    }).join('');
+    return '<div class="sec-title">Site access</div><div class="kv-grid">' + rows + '</div>';
   }
 
   function techCells(job, esc, fullCell) {
     if (!hasAny(job)) return '';
-    var e = esc || function (s) { return String(s == null ? '' : s); };
-    var fc = fullCell || function (k, v) {
-      return '<div class="ro-full"><div class="jfl">' + e(k) + '</div><div class="jfv">' + e(v) + '</div></div>';
-    };
-    return lines(job).map(function (pair) { return fc(pair[0], pair[1]); }).join('');
+    const e = typeof esc === 'function' ? esc : (s) => String(s == null ? '' : s);
+    const fc = typeof fullCell === 'function' ? fullCell : (label, val) =>
+      '<div class="cell full"><div class="lab">' + e(label) + '</div><div class="val">' + e(val) + '</div></div>';
+    return lines(job).map((line) => {
+      const i = line.indexOf(':');
+      const k = i >= 0 ? line.slice(0, i) : 'Info';
+      const v = i >= 0 ? line.slice(i + 1).trim() : line;
+      return fc(k, v);
+    }).join('');
   }
 
-  root.SiteAccess = { lines: lines, hasAny: hasAny, adminSection: adminSection, techCells: techCells };
-})(typeof globalThis !== 'undefined' ? globalThis : window);
+  root.SiteAccess = { lines, hasAny, adminSection, techCells, WATER, ELECTRIC, LOC };
+})(typeof window !== 'undefined' ? window : globalThis);

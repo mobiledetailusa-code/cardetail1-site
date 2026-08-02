@@ -24,7 +24,7 @@ const required = [
   'electricityAvailable',
   'serviceLocation',
   'accessNotes',
-  'water spigot/hose access available',
+  'outdoor faucet or hose connection',
   'Garage / parking deck',
   'Gate code, parking instructions',
 ];
@@ -56,8 +56,8 @@ test('formatSiteAccessLines renders booking site access', () => {
     serviceLocation: 'driveway',
     accessNotes: 'Gate code 1234',
   });
-  assert.match(lines.join('\n'), /Water:.*spigot/i);
-  assert.match(lines.join('\n'), /Electricity:.*No electricity/i);
+  assert.match(lines.join('\n'), /Water:.*faucet|hose/i);
+  assert.match(lines.join('\n'), /Electricity:.*Not available/i);
   assert.match(lines.join('\n'), /Service location: Driveway/);
   assert.match(lines.join('\n'), /Access notes: Gate code 1234/);
 });

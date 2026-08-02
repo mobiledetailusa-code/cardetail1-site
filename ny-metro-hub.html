@@ -3488,19 +3488,19 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </div>
           <div class="fg full" id="f-schedule-msg" style="display:none;font-size:12.5px;color:var(--am);line-height:1.55;margin-top:-4px"></div>
           <div class="fg full bk-rush-note">Need a rush appointment or same-day service? <a href="tel:5513132956">Call or Text Us</a> to check for route cancellations.</div>
-          <div class="fg"><div class="fl">Water available?</div>
+          <div class="fg"><div class="fl">Water access at the service location</div>
             <select class="fsel" id="f-water">
               <option value="">Select…</option>
-              <option value="yes">Yes, water spigot/hose access available</option>
-              <option value="no">No water available</option>
+              <option value="yes">Available — outdoor faucet or hose connection</option>
+              <option value="no">Not available</option>
               <option value="unsure">Not sure</option>
             </select>
           </div>
-          <div class="fg"><div class="fl">Electricity available?</div>
+          <div class="fg"><div class="fl">Electricity access at the service location</div>
             <select class="fsel" id="f-electric">
               <option value="">Select…</option>
-              <option value="yes">Yes, outlet available</option>
-              <option value="no">No electricity available</option>
+              <option value="yes">Available — standard outlet nearby</option>
+              <option value="no">Not available</option>
               <option value="unsure">Not sure</option>
             </select>
           </div>
@@ -5635,8 +5635,8 @@ function readSiteAccessFields(){
   };
 }
 function formatSiteAccessForText(b){
-  const water={yes:'Yes, water spigot/hose access available',no:'No water available',unsure:'Not sure'};
-  const electric={yes:'Yes, outlet available',no:'No electricity available',unsure:'Not sure'};
+  const water={yes:'Available — outdoor faucet or hose connection',no:'Not available',unsure:'Not sure'};
+  const electric={yes:'Available — standard outlet nearby',no:'Not available',unsure:'Not sure'};
   const loc={driveway:'Driveway',street:'Street parking',garage:'Garage / parking deck',apartment:'Apartment / condo',marina:'Marina / dock',commercial:'Commercial lot',other:'Other'};
   const lines=[];
   if(b.waterAvailable) lines.push('Water: '+(water[b.waterAvailable]||b.waterAvailable));
@@ -7445,6 +7445,8 @@ initCarPkgDetailModal();
 <script src="assets/garage-plan.js"></script>
 <script src="assets/revops-booking-hooks.js"></script>
 <script src="assets/revops-init.js"></script>
+<script src="assets/booking-conversion-ux.js"></script>
+<script src="assets/booking-availability-client.js"></script>
   <script src="assets/back-to-top.js" defer></script>
   <script src="assets/hub-booking-bridge.js" defer></script>
 </body>

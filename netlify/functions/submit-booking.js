@@ -71,17 +71,19 @@ const {
 } = require('../lib/card-on-file');
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
-  const v = validateBookingSchedule(b.preferredDate, b.preferredTime);
+  const { getOperationalAvailability } = require('../lib/ops-config');
+  const config = await getOperationalAvailability().catch(() => null);
+  const v = validateBookingSchedule(b.preferredDate, b.preferredTime, { config });
   if (!v.ok) return { ok: false, error: v.error };
   b.preferredDate = v.preferredDate;
   b.preferredTime = v.preferredTime;
   if (checkSlot) {
     const bookings = await listBookingsForSlotLock().catch(() => []);
-    if (hasSlotConflict(bookings, v.preferredDate, v.preferredTime, excludeId)) {
+    if (hasSlotConflict(bookings, v.preferredDate, v.preferredTime, excludeId, Date.now(), config)) {
       return { ok: false, error: 'booking_slot_unavailable' };
     }
   }
-  return { ok: true };
+  return { ok: true, weekendMode: v.weekendMode || null, isWeekend: !!v.isWeekend };
 }
 
 function scheduleRejectResponse(status, error, meta = {}) {
@@ -167,6 +169,10 @@ function buildDraftRecord(b, draftId, now, existing = null) {
     vehicles: b.vehicles || [],
     preferredDate: b.preferredDate || '',
     preferredTime: b.preferredTime || '',
+    scheduleFlexibility: (() => {
+      const { normalizeScheduleFlexibility } = require('../lib/schedule-flexibility');
+      return normalizeScheduleFlexibility(b.scheduleFlexibility);
+    })(),
     waterAvailable: b.waterAvailable || '',
     electricityAvailable: b.electricityAvailable || '',
     serviceLocation: b.serviceLocation || '',
@@ -263,6 +269,14 @@ function bookingText(b) {
     `Address:  ${b.address || ''}`,
     `ZIP/Zone: ${b.zipCode || ''} ${b.zone ? '· ' + b.zone : ''}`,
     `Date:     ${b.preferredDate || ''} ${b.preferredTime || ''}`,
+    `Flexibility: ${(() => {
+      try {
+        const { scheduleFlexibilityLabel } = require('../lib/schedule-flexibility');
+        return scheduleFlexibilityLabel(b.scheduleFlexibility);
+      } catch (_) {
+        return b.scheduleFlexibility || 'exact';
+      }
+    })()}`,
     ``,
     `Service:  ${b.package || b.service || ''}`,
     vehicles ? `Vehicles:\n${vehicles}` : '',
@@ -399,6 +413,12 @@ exports.handler = async (event) => {
   // C-3: Ignore any client-submitted ID entirely.
   delete b.id;
   delete b.bookingId;
+
+  // Schedule flexibility is preference-only (never auto-changes the date).
+  {
+    const { normalizeScheduleFlexibility } = require('../lib/schedule-flexibility');
+    b.scheduleFlexibility = normalizeScheduleFlexibility(b.scheduleFlexibility);
+  }
 
   if (!b.firstName || !b.phone) return json(400, { ok: false, error: 'Missing customer name or phone' });
   if (normalizePhone(b.phone).length < 7) {

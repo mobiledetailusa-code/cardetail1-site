@@ -1,152 +1,34 @@
-// Booking schedule rules — server-authoritative slot validation + duplicate lock.
+/**
+ * Booking schedule rules — server-authoritative slot validation + duplicate lock.
+ *
+ * Schedule/weekend resolution delegates to operational-availability (canonical
+ * contract). Slot occupancy / draft soft-holds remain here.
+ */
 const { normalizeJobStatus } = require('./ops-schema');
+const availability = require('./operational-availability');
 
-const ALLOWED_WEEKDAY_SLOTS = ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'];
-const ALLOWED_SATURDAY_SLOTS = ['8:00 AM', '10:00 AM'];
-/** Minimum calendar days from today before a preferred date can be booked (route planning). */
-const MIN_ADVANCE_DAYS = 3;
+const ALLOWED_WEEKDAY_SLOTS = availability.ALLOWED_WEEKDAY_SLOTS;
+const ALLOWED_SATURDAY_SLOTS = availability.ALLOWED_SATURDAY_SLOTS;
+const MIN_ADVANCE_DAYS = availability.MIN_ADVANCE_DAYS;
 /** Active card-save drafts soft-hold a slot for the draft-token TTL window. */
 const DRAFT_SLOT_HOLD_MS = 2 * 60 * 60 * 1000;
 
-const LEGACY_TIME_PATTERNS = [
-  /^any available/i,
-  /^morning\s*\(/i,
-  /^midday\s*\(/i,
-  /^afternoon\s*\(/i,
-];
+const earliestBookableIso = availability.earliestBookableIso;
+const getHolidaySet = availability.getHolidaySet;
+const isClosedHoliday = availability.isClosedHoliday;
+const normalizePreferredTime = availability.normalizePreferredTime;
 
-function isoDateParts(iso) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || '').trim());
-  if (!m) return null;
-  const y = +m[1];
-  const mo = +m[2];
-  const d = +m[3];
-  const date = new Date(y, mo - 1, d);
-  if (date.getFullYear() !== y || date.getMonth() !== mo - 1 || date.getDate() !== d) return null;
-  return { y, mo, d, day: date.getDay(), iso: `${m[1]}-${m[2]}-${m[3]}` };
-}
-
-function toIsoLocal(date) {
-  const y = date.getFullYear();
-  const mo = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${mo}-${d}`;
-}
-
-function addLocalDays(date, days) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
-}
-
-/** Earliest selectable preferred date (local calendar day + MIN_ADVANCE_DAYS). */
-function earliestBookableIso(now = new Date()) {
-  return toIsoLocal(addLocalDays(now, MIN_ADVANCE_DAYS));
-}
-
-function computeEasterSunday(year) {
-  const a = year % 19;
-  const b = Math.floor(year / 100);
-  const c = year % 100;
-  const d = Math.floor(b / 4);
-  const e = b % 4;
-  const f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4);
-  const k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const month = Math.floor((h + l - 7 * m + 114) / 31);
-  const day = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(year, month - 1, day);
-}
-
-function nthWeekdayInMonth(year, monthIndex, weekday, n) {
-  let count = 0;
-  for (let day = 1; day <= 31; day++) {
-    const dt = new Date(year, monthIndex, day);
-    if (dt.getMonth() !== monthIndex) break;
-    if (dt.getDay() === weekday) {
-      count++;
-      if (count === n) return toIsoLocal(dt);
-    }
-  }
-  return null;
-}
-
-function lastWeekdayInMonth(year, monthIndex, weekday) {
-  for (let day = 31; day >= 1; day--) {
-    const dt = new Date(year, monthIndex, day);
-    if (dt.getMonth() !== monthIndex) continue;
-    if (dt.getDay() === weekday) return toIsoLocal(dt);
-  }
-  return null;
-}
-
-function getHolidaySet(year) {
-  const easter = computeEasterSunday(year);
-  return new Set([
-    `${year}-01-01`,
-    toIsoLocal(easter),
-    lastWeekdayInMonth(year, 4, 1),
-    `${year}-07-04`,
-    nthWeekdayInMonth(year, 8, 1, 1),
-    nthWeekdayInMonth(year, 10, 4, 4),
-    `${year}-12-24`,
-    `${year}-12-25`,
-    `${year}-12-31`,
-  ]);
-}
-
-function isClosedHoliday(iso) {
-  const parts = isoDateParts(iso);
-  if (!parts) return false;
-  return getHolidaySet(parts.y).has(parts.iso);
-}
-
-function slotsForDate(iso) {
-  const parts = isoDateParts(iso);
-  if (!parts) return [];
-  if (parts.day === 0) return [];
-  if (isClosedHoliday(parts.iso)) return [];
-  if (parts.day === 6) return [...ALLOWED_SATURDAY_SLOTS];
-  return [...ALLOWED_WEEKDAY_SLOTS];
-}
-
-function normalizePreferredTime(raw) {
-  const t = String(raw || '').trim();
-  if (!t) return null;
-  if (LEGACY_TIME_PATTERNS.some(p => p.test(t))) return null;
-  const found = ALLOWED_WEEKDAY_SLOTS.find(
-    s => s.toLowerCase() === t.replace(/\s+/g, ' ').toLowerCase()
-  );
-  return found || null;
+/** Legacy-compatible: optional config; missing/invalid → complete legacy behavior. */
+function slotsForDate(iso, config, now) {
+  return availability.slotsForDate(iso, config, now);
 }
 
 function validateBookingSchedule(preferredDate, preferredTime, opts = {}) {
-  const parts = isoDateParts(preferredDate);
-  if (!parts) return { ok: false, error: 'booking_date_unavailable' };
-  if (parts.day === 0) return { ok: false, error: 'booking_date_unavailable' };
-  if (isClosedHoliday(parts.iso)) return { ok: false, error: 'booking_date_unavailable' };
+  return availability.validateBookingSchedule(preferredDate, preferredTime, opts);
+}
 
-  const now = opts.now instanceof Date ? opts.now : new Date();
-  const minIso = earliestBookableIso(now);
-  if (parts.iso < minIso) {
-    return { ok: false, error: 'booking_date_unavailable' };
-  }
-
-  const normalizedTime = normalizePreferredTime(preferredTime);
-  if (!normalizedTime) return { ok: false, error: 'booking_time_unavailable' };
-
-  const allowed = slotsForDate(parts.iso);
-  if (!allowed.includes(normalizedTime)) {
-    return { ok: false, error: 'booking_time_unavailable' };
-  }
-
-  return {
-    ok: true,
-    preferredDate: parts.iso,
-    preferredTime: normalizedTime,
-  };
+function capacityForSlot(iso, preferredTime, config, now) {
+  return availability.capacityForSlot(iso, preferredTime, config, now);
 }
 
 function isActiveDraftSlotHold(booking, nowMs = Date.now()) {
@@ -182,19 +64,54 @@ function isActiveBookingForSlotLock(booking, nowMs = Date.now()) {
   return true;
 }
 
-function hasSlotConflict(bookings, preferredDate, preferredTime, excludeId, nowMs = Date.now()) {
+function countSlotOccupancy(bookings, preferredDate, preferredTime, excludeId, nowMs = Date.now()) {
   const time = normalizePreferredTime(preferredTime);
-  const parts = isoDateParts(preferredDate);
-  if (!parts || !time) return false;
+  const parts = availability.isoDateParts(preferredDate);
+  if (!parts || !time) return 0;
 
-  return (bookings || []).some(b => {
-    if (!isActiveBookingForSlotLock(b, nowMs)) return false;
-    if (excludeId && String(b.id) === String(excludeId)) return false;
-    const bParts = isoDateParts(b.preferredDate);
+  let count = 0;
+  for (const b of bookings || []) {
+    if (!isActiveBookingForSlotLock(b, nowMs)) continue;
+    if (excludeId && String(b.id) === String(excludeId)) continue;
+    const bParts = availability.isoDateParts(b.preferredDate);
     const bTime = normalizePreferredTime(b.preferredTime);
-    if (!bParts || !bTime) return false;
-    return bParts.iso === parts.iso && bTime === time;
-  });
+    if (!bParts || !bTime) continue;
+    if (bParts.iso === parts.iso && bTime === time) count += 1;
+  }
+  return count;
+}
+
+/**
+ * Slot conflict respecting per-date override capacity (default 1).
+ * Signature remains backward compatible; optional config is 6th arg or opts object.
+ */
+function hasSlotConflict(bookings, preferredDate, preferredTime, excludeId, nowMs = Date.now(), config) {
+  let cfg = config;
+  let ts = nowMs;
+  if (nowMs && typeof nowMs === 'object' && !(nowMs instanceof Date) && !Array.isArray(nowMs)) {
+    // hasSlotConflict(bookings, date, time, excludeId, { nowMs, config })
+    cfg = nowMs.config;
+    ts = nowMs.nowMs != null ? nowMs.nowMs : Date.now();
+  }
+  const time = normalizePreferredTime(preferredTime);
+  const parts = availability.isoDateParts(preferredDate);
+  if (!parts || !time) return false;
+  const capacity = capacityForSlot(parts.iso, time, cfg, new Date(ts));
+  const used = countSlotOccupancy(bookings, parts.iso, time, excludeId, ts);
+  return used >= capacity;
+}
+
+function buildOccupancyMap(bookings, nowMs = Date.now()) {
+  const map = {};
+  for (const b of bookings || []) {
+    if (!isActiveBookingForSlotLock(b, nowMs)) continue;
+    const parts = availability.isoDateParts(b.preferredDate);
+    const time = normalizePreferredTime(b.preferredTime);
+    if (!parts || !time) continue;
+    const key = `${parts.iso}|${time}`;
+    map[key] = (map[key] || 0) + 1;
+  }
+  return map;
 }
 
 module.exports = {
@@ -211,4 +128,7 @@ module.exports = {
   validateBookingSchedule,
   isActiveBookingForSlotLock,
   hasSlotConflict,
+  countSlotOccupancy,
+  capacityForSlot,
+  buildOccupancyMap,
 };

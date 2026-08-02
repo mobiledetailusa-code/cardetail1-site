@@ -174,6 +174,30 @@ function arrivalWindow(booking) {
     || '';
 }
 
+/** Fields reserved for future Twilio / scheduling messages (not always SMS-emitted). */
+function schedulingMessageFields(booking) {
+  const b = booking || {};
+  let site = null;
+  try {
+    site = require('./site-access').siteAccessForMessaging(b);
+  } catch (_) {
+    site = null;
+  }
+  let flexLabel = 'Exact date only';
+  try {
+    flexLabel = require('./schedule-flexibility').scheduleFlexibilityLabel(b.scheduleFlexibility);
+  } catch (_) { /* */ }
+  return {
+    preferredDate: b.preferredDate || '',
+    preferredTime: b.preferredTime || '',
+    confirmedDate: b.confirmedDate || '',
+    arrivalWindow: arrivalWindow(b),
+    scheduleFlexibility: b.scheduleFlexibility || 'exact',
+    scheduleFlexibilityLabel: flexLabel,
+    siteAccess: site,
+  };
+}
+
 function eventStateKey(eventType, booking) {
   if (eventType === EVENT_REQUEST_RECEIVED) {
     // Stable for the finalize transition — not a request-time timestamp.
@@ -682,6 +706,8 @@ module.exports = {
   brandName,
   vehicleDescription,
   serviceDescription,
+  arrivalWindow,
+  schedulingMessageFields,
   eventStateKey,
   idempotencyKey,
   resendIdempotencyKey,

@@ -1463,6 +1463,36 @@
 
     var statusLabel = appointmentStatusLabel(b);
     var arrival = b.confirmedTimeWindow || b.confirmedTime || b.preferredTime || '—';
+    var waterLabels = {
+      yes: 'Available — outdoor faucet or hose connection',
+      no: 'Not available',
+      unsure: 'Not sure',
+    };
+    var electricLabels = {
+      yes: 'Available — standard outlet nearby',
+      no: 'Not available',
+      unsure: 'Not sure',
+    };
+    var flexLabels = {
+      exact: 'Exact date only',
+      within_3_days: 'Flexible within 3 days',
+      earliest_after_date: 'First available on or after selected date',
+    };
+    var flex = b.scheduleFlexibility || 'exact';
+    var siteRows = '';
+    if (b.waterAvailable) {
+      siteRows += '<div><dt>Water</dt><dd>' + esc(waterLabels[b.waterAvailable] || b.waterAvailable) + '</dd></div>';
+    }
+    if (b.electricityAvailable) {
+      siteRows += '<div><dt>Electricity</dt><dd>' + esc(electricLabels[b.electricityAvailable] || b.electricityAvailable) + '</dd></div>';
+    }
+    if (b.accessNotes) {
+      siteRows += '<div><dt>Access notes</dt><dd>' + esc(b.accessNotes) + '</dd></div>';
+    }
+    siteRows += '<div><dt>Date flexibility</dt><dd>' + esc(flexLabels[flex] || flex) + '</dd></div>';
+    if (flex !== 'exact') {
+      siteRows += '<div><dt>Preferred date</dt><dd>' + esc(b.preferredDate || '—') + ' (alternatives require confirmation)</dd></div>';
+    }
     var focusClass = state.focusedAppointment ? ' appointment-focus' : '';
     hero.innerHTML =
       '<div class="card' + focusClass + '" id="focused-appointment-card">' +
@@ -1477,6 +1507,7 @@
       legacyVehicleRows +
       '<div><dt>Service</dt><dd>' + esc(b.service || b.package || '—') + '</dd></div>' +
       '<div><dt>Location</dt><dd>' + esc(b.address || b.serviceLocation || '—') + '</dd></div>' +
+      siteRows +
       (b.assignedTechName ? '<div><dt>Technician</dt><dd>' + esc(b.assignedTechName) + '</dd></div>' : '') +
       (b.travelFeeAmount ? '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>' : '') +
       offerHtml +

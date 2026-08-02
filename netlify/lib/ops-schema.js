@@ -278,6 +278,14 @@ function projectBookingForCustomer(b) {
     electricityAvailable: src.electricityAvailable || '',
     serviceLocation: src.serviceLocation || '',
     accessNotes: src.accessNotes || '',
+    scheduleFlexibility: (() => {
+      try {
+        const { normalizeScheduleFlexibility } = require('./schedule-flexibility');
+        return normalizeScheduleFlexibility(src.scheduleFlexibility);
+      } catch (_) {
+        return src.scheduleFlexibility || 'exact';
+      }
+    })(),
     firstName: src.firstName || '',
     lastName: src.lastName || '',
     email: src.email || '',
