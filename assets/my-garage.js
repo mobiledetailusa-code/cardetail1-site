@@ -1462,7 +1462,65 @@
         '<div><dt>Add-ons</dt><dd>' + esc(addonLines(b)) + '</dd></div>';
 
     var statusLabel = appointmentStatusLabel(b);
-    var arrival = b.confirmedTimeWindow || b.confirmedTime || b.preferredTime || '—';
+    var arrivalLabels = {
+      '08:00-11:00': '8:00 AM – 11:00 AM',
+      '09:00-12:00': '9:00 AM – 12:00 PM',
+      '10:00-13:00': '10:00 AM – 1:00 PM',
+      '11:00-14:00': '11:00 AM – 2:00 PM',
+      '12:00-15:00': '12:00 PM – 3:00 PM',
+      '13:00-16:00': '1:00 PM – 4:00 PM',
+      '14:00-17:00': '2:00 PM – 5:00 PM',
+      '15:00-18:00': '3:00 PM – 6:00 PM',
+      '16:00-19:00': '4:00 PM – 7:00 PM',
+      anytime: 'Any time that day — Best availability',
+    };
+    var confirmedArrival = b.confirmedTimeWindow || b.confirmedTime || '';
+    var preferredArrival = b.preferredArrivalWindow
+      ? (arrivalLabels[b.preferredArrivalWindow] || b.preferredArrivalWindow)
+      : (b.preferredTime || '—');
+    var arrivalDisplay = confirmedArrival
+      ? confirmedArrival
+      : 'Pending confirmation';
+    var waterLabels = {
+      yes: 'Yes — outdoor faucet or hose connection',
+      no: 'No',
+      unsure: 'Not sure',
+    };
+    var electricLabels = {
+      yes: 'Yes — standard outlet nearby',
+      no: 'No',
+      unsure: 'Not sure',
+    };
+    var flexLabels = {
+      exact: 'Exact date only',
+      alternate_date: 'Has alternate date',
+      within_3_days: 'Flexible within 3 days',
+      earliest_after_date: 'First available on or after selected date',
+    };
+    var flex = b.scheduleFlexibility || 'exact';
+    var siteRows = '';
+    siteRows += '<div><dt>Preferred date</dt><dd>' + esc(b.preferredDate || '—') + '</dd></div>';
+    siteRows += '<div><dt>Preferred arrival window</dt><dd>' + esc(preferredArrival) + '</dd></div>';
+    if (b.alternatePreferredDate) {
+      siteRows += '<div><dt>Alternate date</dt><dd>' + esc(b.alternatePreferredDate) +
+        (b.alternateArrivalWindow ? ' · ' + esc(arrivalLabels[b.alternateArrivalWindow] || b.alternateArrivalWindow) : '') +
+        '</dd></div>';
+    }
+    siteRows += '<div><dt>Confirmed date / window</dt><dd>' + esc(b.confirmedDate || '—') +
+      (confirmedArrival ? ' · ' + esc(confirmedArrival) : ' · ' + esc(arrivalDisplay)) + '</dd></div>';
+    if (b.waterAvailable) {
+      siteRows += '<div><dt>Water</dt><dd>' + esc(waterLabels[b.waterAvailable] || b.waterAvailable) + '</dd></div>';
+    }
+    if (b.electricityAvailable) {
+      siteRows += '<div><dt>Electricity</dt><dd>' + esc(electricLabels[b.electricityAvailable] || b.electricityAvailable) + '</dd></div>';
+    }
+    if (b.accessNotes) {
+      siteRows += '<div><dt>Access notes (legacy)</dt><dd>' + esc(b.accessNotes) + '</dd></div>';
+    }
+    if (b.notes || b.customerNote) {
+      siteRows += '<div><dt>Additional notes</dt><dd>' + esc(b.notes || b.customerNote) + '</dd></div>';
+    }
+    siteRows += '<div><dt>Date flexibility</dt><dd>' + esc(flexLabels[flex] || flex) + '</dd></div>';
     var focusClass = state.focusedAppointment ? ' appointment-focus' : '';
     hero.innerHTML =
       '<div class="card' + focusClass + '" id="focused-appointment-card">' +
@@ -1473,10 +1531,11 @@
       '<dl class="meta-grid">' +
       '<div><dt>Status</dt><dd>' + esc(statusLabel) + '</dd></div>' +
       '<div><dt>Date</dt><dd>' + esc(b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
-      '<div><dt>Arrival window</dt><dd>' + esc(arrival) + '</dd></div>' +
+      '<div><dt>Arrival window</dt><dd>' + esc(arrivalDisplay) + '</dd></div>' +
       legacyVehicleRows +
       '<div><dt>Service</dt><dd>' + esc(b.service || b.package || '—') + '</dd></div>' +
       '<div><dt>Location</dt><dd>' + esc(b.address || b.serviceLocation || '—') + '</dd></div>' +
+      siteRows +
       (b.assignedTechName ? '<div><dt>Technician</dt><dd>' + esc(b.assignedTechName) + '</dd></div>' : '') +
       (b.travelFeeAmount ? '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>' : '') +
       offerHtml +

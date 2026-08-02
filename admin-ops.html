@@ -299,6 +299,54 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         <div class="full"><button type="button" class="btn" id="btnSaveSettings">Save settings</button></div>
       </div>
     </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3 style="margin-bottom:8px">Operational availability</h3>
+      <p class="hint">Central schedule authority for weekends. <strong>Legacy mode</strong> keeps today’s behavior (Saturday open, Sunday closed). <strong>Supervised mode</strong> closes weekends by default and only opens dates you enable — it will not activate until the effective date you set.</p>
+      <div class="form-grid" id="availabilityForm">
+        <div><label>Business timezone</label>
+          <input type="text" id="avTimezone" placeholder="America/New_York">
+        </div>
+        <div><label>Weekend mode</label>
+          <select id="avWeekendMode">
+            <option value="legacy">Legacy (Sat open / Sun closed)</option>
+            <option value="supervised">Supervised weekends</option>
+          </select>
+        </div>
+        <div><label>Supervised effective date</label>
+          <input type="date" id="avEffectiveDate">
+        </div>
+        <div class="full"><p class="hint" id="avModeHint" style="margin:0"></p></div>
+        <div class="full"><button type="button" class="btn" id="btnSaveAvailability">Save availability mode</button></div>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--bd,#333);margin:16px 0">
+      <h4 style="margin:0 0 8px;font-size:14px">Weekend / date override</h4>
+      <p class="hint">Open an individual Saturday or Sunday (or close a specific date). Capacity is per arrival window. Customer label when supervised: <em>Limited weekend availability</em>.</p>
+      <div class="form-grid">
+        <div><label>Date</label><input type="date" id="avOverrideDate"></div>
+        <div><label>Enabled</label>
+          <select id="avOverrideEnabled"><option value="true">Open / bookable</option><option value="false">Closed</option></select>
+        </div>
+        <div><label>Capacity (per window)</label><input type="number" id="avOverrideCapacity" min="1" max="20" value="1"></div>
+        <div><label>Operational windows</label>
+          <select id="avOverrideWindows">
+            <option value="sat">8:00 AM, 10:00 AM (weekend default)</option>
+            <option value="weekday">8:00 AM, 10:00 AM, 12:00 PM, 2:00 PM (weekday default)</option>
+            <option value="weekday_late">Weekday + 4:00 PM</option>
+            <option value="sat_late">Weekend + 4:00 PM</option>
+            <option value="custom">Custom (comma-separated)</option>
+          </select>
+        </div>
+        <div class="full"><label>Custom windows</label><input type="text" id="avOverrideCustom" placeholder="e.g. 8:00 AM, 10:00 AM, 4:00 PM"></div>
+        <p class="hint full" style="margin:0">4:00 PM is optional and only applies on dates where you include it here. It is not enabled on every date by default.</p>
+        <div class="full"><label>Internal note (optional)</label><input type="text" id="avOverrideNote" placeholder="Owner-only note"></div>
+        <div class="full" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn" id="btnUpsertOverride">Save date override</button>
+          <button type="button" class="btn ghost" id="btnRemoveOverride">Remove override</button>
+        </div>
+      </div>
+      <div id="avOverridesList" style="margin-top:12px;font-size:12px;color:var(--mu)"></div>
+    </div>
   </section>
 
   <section class="panel" id="p-maintenance">
@@ -421,7 +469,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   // Stage 3 — canonical add-on data for the open job detail (server-provided only).
   // Catalog rows/prices and money figures come from get_job — never computed locally.
   let drawerAddonData = null;
-  let showTest = false, platformSettings = {}, auctions = [], subscriptions = [], changeRequests = [];
+  let showTest = false, platformSettings = {}, platformAvailability = null, auctions = [], subscriptions = [], changeRequests = [];
 
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s)
@@ -538,6 +586,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   async function loadSettings() {
     const data = await api('/.netlify/functions/ops-settings');
     platformSettings = data.settings || {};
+    platformAvailability = data.availability || null;
     return platformSettings;
   }
 
@@ -618,6 +667,61 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     $('#setBidWinRv').value = s.bidWindowMinutesBoatRv != null ? s.bidWindowMinutesBoatRv : 90;
     $('#setMinRating').value = s.minTechRatingToBid != null ? s.minTechRatingToBid : 0;
     $('#setCompound').checked = s.requireCompoundExperience !== false;
+    renderAvailabilityForm();
+  }
+
+  function renderAvailabilityForm() {
+    const a = platformAvailability || {};
+    const tz = $('#avTimezone');
+    const mode = $('#avWeekendMode');
+    const eff = $('#avEffectiveDate');
+    const hint = $('#avModeHint');
+    if (!tz || !mode) return;
+    tz.value = a.businessTimezone || 'America/New_York';
+    mode.value = a.weekendMode || 'legacy';
+    eff.value = a.supervisedEffectiveDate || '';
+    if (hint) {
+      if ((a.weekendMode || 'legacy') === 'legacy') {
+        hint.textContent = 'Legacy mode active: Saturdays remain bookable with default weekend slots; Sundays stay closed unless you add an override.';
+      } else if (!a.supervisedEffectiveDate) {
+        hint.textContent = 'Supervised mode needs an effective date before it can activate.';
+      } else {
+        hint.textContent = 'Supervised mode configured. Activation on/after ' + a.supervisedEffectiveDate +
+          ' closes weekends by default; only enabled overrides are bookable. Not auto-activated by deploy.';
+      }
+    }
+    const list = $('#avOverridesList');
+    if (list) {
+      const ov = a.dateOverrides || {};
+      const keys = Object.keys(ov).sort();
+      if (!keys.length) {
+        list.innerHTML = '<div class="empty" style="padding:8px 0">No date overrides yet.</div>';
+      } else {
+        list.innerHTML = '<div class="sec-title">Saved overrides</div>' + keys.map((d) => {
+          const o = ov[d];
+          return '<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,.06)">' +
+            '<strong>' + esc(d) + '</strong> · ' + (o.enabled ? 'open' : 'closed') +
+            ' · cap ' + esc(o.capacity || 1) +
+            (o.arrivalWindows ? ' · ' + esc((o.arrivalWindows || []).join(', ')) : '') +
+            (o.note ? ' · note: ' + esc(o.note) : '') +
+            '</div>';
+        }).join('');
+      }
+    }
+  }
+
+  function resolveOverrideWindows() {
+    const mode = $('#avOverrideWindows')?.value || 'sat';
+    if (mode === 'weekday') return ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'];
+    if (mode === 'weekday_late') return ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM', '4:00 PM'];
+    if (mode === 'sat_late') return ['8:00 AM', '10:00 AM', '4:00 PM'];
+    if (mode === 'custom') {
+      return String($('#avOverrideCustom')?.value || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    return ['8:00 AM', '10:00 AM'];
   }
 
   function renderAuctions() {
@@ -1564,6 +1668,45 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div class="full"><button type="button" class="btn ghost sm" id="dSaveService" style="width:100%">Recalculate service (server)</button></div>'+
       '</div></div>';
     html += (typeof SiteAccess !== 'undefined' ? '<div class="sec full">'+SiteAccess.adminSection(j, esc)+'</div>' : '');
+    if (j.scheduleFlexibility || j.preferredArrivalWindow || j.alternatePreferredDate) {
+      const flexLabels = {
+        exact: 'Exact date only',
+        alternate_date: 'Has alternate date',
+        within_3_days: 'Flexible within 3 days',
+        earliest_after_date: 'First available on or after selected date',
+      };
+      const arrivalLabels = {
+        '08:00-11:00': '8:00 AM – 11:00 AM',
+        '09:00-12:00': '9:00 AM – 12:00 PM',
+        '10:00-13:00': '10:00 AM – 1:00 PM',
+        '11:00-14:00': '11:00 AM – 2:00 PM',
+        '12:00-15:00': '12:00 PM – 3:00 PM',
+        '13:00-16:00': '1:00 PM – 4:00 PM',
+        '14:00-17:00': '2:00 PM – 5:00 PM',
+        '15:00-18:00': '3:00 PM – 6:00 PM',
+        '16:00-19:00': '4:00 PM – 7:00 PM',
+        anytime: 'Any time that day — Best availability',
+      };
+      html += '<div class="sec full"><div class="sec-title">Schedule preference</div><div class="kv-grid">' +
+        '<div class="kv"><span>Preferred date</span><strong>' + esc(j.preferredDate || '—') + '</strong></div>' +
+        '<div class="kv"><span>Preferred arrival window</span><strong>' + esc(arrivalLabels[j.preferredArrivalWindow] || j.preferredArrivalWindow || '—') + '</strong></div>' +
+        (j.alternatePreferredDate
+          ? '<div class="kv"><span>Alternate date</span><strong>' + esc(j.alternatePreferredDate) + '</strong></div>'
+          : '') +
+        (j.alternateArrivalWindow
+          ? '<div class="kv"><span>Alternate arrival window</span><strong>' + esc(arrivalLabels[j.alternateArrivalWindow] || j.alternateArrivalWindow) + '</strong></div>'
+          : '') +
+        '<div class="kv"><span>Date flexibility</span><strong>' + esc(flexLabels[j.scheduleFlexibility] || j.scheduleFlexibility || 'exact') + '</strong></div>' +
+        '<div class="kv"><span>Confirmed date</span><strong>' + esc(j.confirmedDate || '—') + '</strong></div>' +
+        '<div class="kv"><span>Confirmed arrival window</span><strong>' + esc(j.confirmedTimeWindow || j.confirmedTime || '—') + '</strong></div>' +
+        '<div class="kv"><span>Operational slot</span><strong>' + esc(j.preferredTime || '—') + '</strong></div>' +
+        '</div></div>';
+    }
+    if (j.notes || j.customerNote) {
+      html += '<div class="sec full"><div class="sec-title">Additional notes</div><div class="kv-grid">' +
+        '<div class="kv"><span>Notes</span><strong>' + esc(j.notes || j.customerNote || '') + '</strong></div>' +
+        '</div></div>';
+    }
     const invPaid = !!(j.invoicePaid || j.financialPaymentStatus==='paid' || j.paymentWorkflowStatus==='payment_succeeded' || j.paymentWorkflowStatus==='cash_paid' || (Number(j.remainingCents||0)===0 && Number(j.settledCents||0)>0));
     const balDue = invPaid ? 0 : Number(j.remainingCents!=null ? j.remainingCents/100 : (j.amountDueApproved||0));
     const paidAmt = Number(j.amountPaid!=null ? j.amountPaid : ((j.settledCents||0)/100));
@@ -2248,8 +2391,60 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       });
       toast('Settings saved');
       await loadSettings();
+      renderSettingsForm();
     } catch(e) { toast('Save failed: '+e.message); }
   };
+
+  $('#btnSaveAvailability').onclick = async () => {
+    try {
+      const data = await api('/.netlify/functions/ops-settings', 'POST', {
+        action: 'update_availability',
+        businessTimezone: $('#avTimezone').value.trim() || 'America/New_York',
+        weekendMode: $('#avWeekendMode').value,
+        supervisedEffectiveDate: $('#avEffectiveDate').value || null,
+        expectedUpdatedAt: (platformAvailability && platformAvailability.updatedAt) || null,
+      });
+      platformAvailability = data.availability || platformAvailability;
+      toast('Availability mode saved');
+      renderAvailabilityForm();
+    } catch (e) { toast('Availability save failed: ' + e.message); }
+  };
+
+  $('#btnUpsertOverride').onclick = async () => {
+    try {
+      const date = $('#avOverrideDate').value;
+      if (!date) return toast('Choose a date');
+      const data = await api('/.netlify/functions/ops-settings', 'POST', {
+        action: 'upsert_date_override',
+        date,
+        expectedUpdatedAt: (platformAvailability && platformAvailability.updatedAt) || null,
+        override: {
+          enabled: $('#avOverrideEnabled').value === 'true',
+          capacity: Number($('#avOverrideCapacity').value) || 1,
+          arrivalWindows: resolveOverrideWindows(),
+          note: $('#avOverrideNote').value.trim(),
+        },
+      });
+      platformAvailability = data.availability || platformAvailability;
+      toast('Date override saved');
+      renderAvailabilityForm();
+    } catch (e) { toast('Override save failed: ' + e.message); }
+  };
+
+  $('#btnRemoveOverride').onclick = async () => {
+    try {
+      const date = $('#avOverrideDate').value;
+      if (!date) return toast('Choose a date to remove');
+      const data = await api('/.netlify/functions/ops-settings', 'POST', {
+        action: 'remove_date_override',
+        date,
+      });
+      platformAvailability = data.availability || platformAvailability;
+      toast('Override removed');
+      renderAvailabilityForm();
+    } catch (e) { toast('Remove failed: ' + e.message); }
+  };
+
   $('#btnSyncRoster').onclick = async () => {
     try { const d = await api('/.netlify/functions/ops-settings','POST',{action:'sync_tech_roster'}); toast('Synced '+d.count+' tech(s)'); } catch(e){ toast(e.message); }
   };

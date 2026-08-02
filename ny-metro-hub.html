@@ -3470,40 +3470,130 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="strip-info"><strong id="s5-pkg">-</strong> · <span id="s5-car">-</span></div>
           <div class="strip-price" id="s5-total">$0</div>
         </div>
-        <div class="fgrid">
-          <div class="fg"><div class="fl">First Name *</div><input class="fi" id="f-first" type="text" placeholder="John" required></div>
-          <div class="fg"><div class="fl">Last Name *</div><input class="fi" id="f-last" type="text" placeholder="Smith" required></div>
-          <div class="fg"><div class="fl">Phone / Text *</div><input class="fi" id="f-phone" type="tel" placeholder="(201) 555-0100" required></div>
-          <div class="fg"><div class="fl">Email *</div><input class="fi" id="f-email" type="email" placeholder="john@email.com" required></div>
-          <div class="fg full"><div class="fl">Service Address *</div><input class="fi" id="f-addr" type="text" placeholder="123 Main St, Hoboken, NJ 07030" required></div>
+        <!-- BK_DETAILS_FORM_START -->
+        <div class="fgrid bk-details-compact">
+          <div class="fg"><div class="fl">First Name *</div><input class="fi" id="f-first" type="text" placeholder="John" autocomplete="given-name" required></div>
+          <div class="fg"><div class="fl">Last Name *</div><input class="fi" id="f-last" type="text" placeholder="Smith" autocomplete="family-name" required></div>
+          <div class="fg"><div class="fl">Phone / Text *</div><input class="fi" id="f-phone" type="tel" placeholder="(201) 555-0100" autocomplete="tel" required></div>
+          <div class="fg"><div class="fl">Email *</div><input class="fi" id="f-email" type="email" placeholder="john@email.com" autocomplete="email" required></div>
+          <div class="fg full"><div class="fl">Service Address *</div><input class="fi" id="f-addr" type="text" placeholder="123 Main St, Hoboken, NJ 07030" autocomplete="street-address" required></div>
           <div class="fg full bk-advance-notice" role="note">
             <span class="bk-advance-notice-ico" aria-hidden="true">📅</span>
-            <span>Due to high demand and route planning, our next available appointments are typically 3 days out.</span>
+            <span>Next available appointments are typically 3 days out.</span>
           </div>
-          <div class="fg"><div class="fl">Preferred Date *</div><input class="fi" id="f-date" type="date" required></div>
-          <div class="fg"><div class="fl">Preferred Time *</div>
-            <select class="fsel" id="f-time" required>
+          <div class="fg"><div class="fl">Preferred date *</div><input class="fi" id="f-date" type="date" required></div>
+          <div class="fg full bk-arrival-pref" data-arrival-pref="primary">
+            <div class="fl" id="f-arrival-heading">Preferred arrival window *</div>
+            <div class="bk-arrival-choices" role="radiogroup" aria-labelledby="f-arrival-heading" aria-describedby="f-arrival-error f-arrival-anytime-help f-arrival-specific-help f-arrival-compat-msg f-arrival-closed-msg" aria-required="true">
+              <label class="bk-arrival-choice">
+                <input type="radio" name="f-arrival-mode" id="f-arrival-mode-anytime" value="anytime">
+                <span class="bk-arrival-choice-inner">
+                  <span class="bk-arrival-choice-row">
+                    <span class="bk-arrival-choice-label">Any time that day</span>
+                    <span class="bk-arrival-badge">Recommended</span>
+                  </span>
+                  <span class="bk-arrival-choice-sub">Best chance of confirming your preferred date.</span>
+                </span>
+              </label>
+              <label class="bk-arrival-choice">
+                <input type="radio" name="f-arrival-mode" id="f-arrival-mode-specific" value="specific">
+                <span class="bk-arrival-choice-inner">
+                  <span class="bk-arrival-choice-label">Choose a 3-hour arrival window</span>
+                </span>
+              </label>
+            </div>
+            <div class="bk-arrival-specific" id="bk-arrival-specific" hidden>
+              <label class="fl" for="f-arrival-window-select">Available arrival window</label>
+              <select class="fsel" id="f-arrival-window-select" aria-describedby="f-arrival-specific-help f-arrival-compat-msg f-arrival-closed-msg f-arrival-error">
+                <option value="">Select an available arrival window</option>
+                <option value="08:00-11:00">8:00 AM – 11:00 AM</option>
+                <option value="09:00-12:00">9:00 AM – 12:00 PM</option>
+                <option value="10:00-13:00">10:00 AM – 1:00 PM</option>
+                <option value="11:00-14:00">11:00 AM – 2:00 PM</option>
+                <option value="12:00-15:00">12:00 PM – 3:00 PM</option>
+                <option value="13:00-16:00">1:00 PM – 4:00 PM</option>
+                <option value="14:00-17:00">2:00 PM – 5:00 PM</option>
+                <option value="15:00-18:00">3:00 PM – 6:00 PM</option>
+                <option value="16:00-19:00">4:00 PM – 7:00 PM</option>
+              </select>
+              <p class="bk-field-help" id="f-arrival-specific-help" hidden>We may arrive at any time during this window. This is not the service duration.</p>
+            </div>
+            <p class="bk-field-help" id="f-arrival-anytime-help" hidden>We’ll confirm your arrival window before the appointment.</p>
+            <p class="bk-field-help" id="f-arrival-compat-msg" hidden role="status">That arrival window isn’t available on the new date. Please choose another.</p>
+            <p class="bk-field-help" id="f-arrival-closed-msg" hidden role="status">No arrival windows are available on this date. Please choose another date.</p>
+            <p class="bk-field-help" id="f-arrival-error" hidden role="alert"></p>
+            <input type="hidden" id="f-arrival-window" value="" required>
+            <select class="fsel" id="f-time" hidden aria-hidden="true" tabindex="-1">
               <option value="">Select a time</option>
             </select>
           </div>
-          <div class="fg full" id="f-schedule-msg" style="display:none;font-size:12.5px;color:var(--am);line-height:1.55;margin-top:-4px"></div>
-          <div class="fg full bk-rush-note">Need a rush appointment or same-day service? <a href="tel:5513132956">Call or Text Us</a> to check for route cancellations.</div>
-          <div class="fg"><div class="fl">Water available?</div>
+          <div class="fg full" id="f-schedule-msg" style="display:none;font-size:12.5px;color:var(--am);line-height:1.55;margin-top:-4px" role="alert"></div>
+          <div class="fg full bk-rush-note">Need sooner? <a href="tel:5513132956">Call or Text Us</a> for cancellations.</div>
+          <div class="fg full bk-alt-section">
+            <label class="bk-alt-check"><input type="checkbox" id="f-has-alternate" value="1"> I have an alternate date</label>
+            <div class="bk-alt-fields" id="bk-alt-fields" hidden>
+              <p class="bk-field-help">Adding an alternate date may help us confirm your appointment sooner. We will always confirm the final date with you.</p>
+              <div class="fg"><div class="fl">Alternate date</div><input class="fi" id="f-alt-date" type="date"></div>
+              <div class="fg full bk-arrival-pref" data-arrival-pref="alt">
+                <div class="fl" id="f-alt-arrival-heading">Alternate arrival preference</div>
+                <div class="bk-arrival-choices" role="radiogroup" aria-labelledby="f-alt-arrival-heading" aria-describedby="f-alt-arrival-error f-alt-arrival-anytime-help f-alt-arrival-specific-help f-alt-arrival-compat-msg f-alt-arrival-closed-msg">
+                  <label class="bk-arrival-choice">
+                    <input type="radio" name="f-alt-arrival-mode" id="f-alt-arrival-mode-anytime" value="anytime">
+                    <span class="bk-arrival-choice-inner">
+                      <span class="bk-arrival-choice-row">
+                        <span class="bk-arrival-choice-label">Any time that day</span>
+                      </span>
+                    </span>
+                  </label>
+                  <label class="bk-arrival-choice">
+                    <input type="radio" name="f-alt-arrival-mode" id="f-alt-arrival-mode-specific" value="specific">
+                    <span class="bk-arrival-choice-inner">
+                      <span class="bk-arrival-choice-label">Choose a 3-hour arrival window</span>
+                    </span>
+                  </label>
+                </div>
+                <div class="bk-arrival-specific" id="bk-alt-arrival-specific" hidden>
+                  <label class="fl" for="f-alt-arrival-window-select">Available arrival window</label>
+                  <select class="fsel" id="f-alt-arrival-window-select" aria-describedby="f-alt-arrival-specific-help f-alt-arrival-compat-msg f-alt-arrival-closed-msg f-alt-arrival-error">
+                    <option value="">Select an available arrival window</option>
+                    <option value="08:00-11:00">8:00 AM – 11:00 AM</option>
+                    <option value="09:00-12:00">9:00 AM – 12:00 PM</option>
+                    <option value="10:00-13:00">10:00 AM – 1:00 PM</option>
+                    <option value="11:00-14:00">11:00 AM – 2:00 PM</option>
+                    <option value="12:00-15:00">12:00 PM – 3:00 PM</option>
+                    <option value="13:00-16:00">1:00 PM – 4:00 PM</option>
+                    <option value="14:00-17:00">2:00 PM – 5:00 PM</option>
+                    <option value="15:00-18:00">3:00 PM – 6:00 PM</option>
+                    <option value="16:00-19:00">4:00 PM – 7:00 PM</option>
+                  </select>
+                  <p class="bk-field-help" id="f-alt-arrival-specific-help" hidden>We may arrive at any time during this window. This is not the service duration.</p>
+                </div>
+                <p class="bk-field-help" id="f-alt-arrival-anytime-help" hidden>We’ll confirm your arrival window before the appointment.</p>
+                <p class="bk-field-help" id="f-alt-arrival-compat-msg" hidden role="status">That arrival window isn’t available on the new date. Please choose another.</p>
+                <p class="bk-field-help" id="f-alt-arrival-closed-msg" hidden role="status">No arrival windows are available on this date. Please choose another date.</p>
+                <p class="bk-field-help" id="f-alt-arrival-error" hidden role="alert"></p>
+                <input type="hidden" id="f-alt-arrival-window" value="">
+              </div>
+            </div>
+            <input type="hidden" id="f-flexibility" value="exact">
+          </div>
+          <div class="fg"><div class="fl">Water access</div>
             <select class="fsel" id="f-water">
               <option value="">Select…</option>
-              <option value="yes">Yes, water spigot/hose access available</option>
-              <option value="no">No water available</option>
+              <option value="yes">Yes — outdoor faucet or hose connection</option>
+              <option value="no">No</option>
               <option value="unsure">Not sure</option>
             </select>
           </div>
-          <div class="fg"><div class="fl">Electricity available?</div>
+          <div class="fg"><div class="fl">Electricity access</div>
             <select class="fsel" id="f-electric">
               <option value="">Select…</option>
-              <option value="yes">Yes, outlet available</option>
-              <option value="no">No electricity available</option>
+              <option value="yes">Yes — standard outlet nearby</option>
+              <option value="no">No</option>
               <option value="unsure">Not sure</option>
             </select>
           </div>
+          <div class="fg full"><p class="bk-field-help" id="f-util-help">This helps us prepare the correct mobile setup.</p></div>
           <div class="fg full"><div class="fl">Service location / access</div>
             <select class="fsel" id="f-location">
               <option value="">Select…</option>
@@ -3516,9 +3606,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <option value="other">Other</option>
             </select>
           </div>
-          <div class="fg full"><div class="fl">Access notes (optional)</div><textarea class="fta" id="f-access-notes" placeholder="Gate code, parking instructions, hose location, power outlet location, restrictions…"></textarea></div>
-          <div class="fg full"><div class="fl">Notes (optional)</div><textarea class="fta" id="f-notes" placeholder="Specific stains, pet hair, vehicle condition…"></textarea></div>
+          <div class="fg full"><div class="fl">Additional notes — Optional</div>
+            <textarea class="fta" id="f-notes" rows="3" placeholder="Gate code, parking instructions, water or power details, pets, vehicle condition, or anything else we should know."></textarea>
+          </div>
         </div>
+        <!-- BK_DETAILS_FORM_END -->
         <div class="btn-row">
           <button type="button" class="btn-b" onclick="bkGoTo(3)">← Back</button>
           <button type="button" class="btn-n" onclick="goToPayment()">Review Terms →</button>
@@ -5635,8 +5727,8 @@ function readSiteAccessFields(){
   };
 }
 function formatSiteAccessForText(b){
-  const water={yes:'Yes, water spigot/hose access available',no:'No water available',unsure:'Not sure'};
-  const electric={yes:'Yes, outlet available',no:'No electricity available',unsure:'Not sure'};
+  const water={yes:'Available — outdoor faucet or hose connection',no:'Not available',unsure:'Not sure'};
+  const electric={yes:'Available — standard outlet nearby',no:'Not available',unsure:'Not sure'};
   const loc={driveway:'Driveway',street:'Street parking',garage:'Garage / parking deck',apartment:'Apartment / condo',marina:'Marina / dock',commercial:'Commercial lot',other:'Other'};
   const lines=[];
   if(b.waterAvailable) lines.push('Water: '+(water[b.waterAvailable]||b.waterAvailable));
@@ -7445,6 +7537,8 @@ initCarPkgDetailModal();
 <script src="assets/garage-plan.js"></script>
 <script src="assets/revops-booking-hooks.js"></script>
 <script src="assets/revops-init.js"></script>
+<script src="assets/booking-conversion-ux.js"></script>
+<script src="assets/booking-availability-client.js"></script>
   <script src="assets/back-to-top.js" defer></script>
   <script src="assets/hub-booking-bridge.js" defer></script>
 </body>

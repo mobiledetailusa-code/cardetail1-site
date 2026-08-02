@@ -174,6 +174,46 @@ function arrivalWindow(booking) {
     || '';
 }
 
+/** Fields reserved for future Twilio / scheduling messages (not always SMS-emitted). */
+function schedulingMessageFields(booking) {
+  const b = booking || {};
+  let site = null;
+  try {
+    site = require('./site-access').siteAccessForMessaging(b);
+  } catch (_) {
+    site = null;
+  }
+  let flexLabel = 'Exact date only';
+  try {
+    flexLabel = require('./schedule-flexibility').scheduleFlexibilityLabel(b.scheduleFlexibility);
+  } catch (_) { /* */ }
+  let preferredArrivalWindowLabel = '';
+  let alternateArrivalWindowLabel = '';
+  let confirmedTimeWindowLabel = '';
+  try {
+    const { arrivalWindowLabel } = require('./arrival-windows');
+    preferredArrivalWindowLabel = arrivalWindowLabel(b.preferredArrivalWindow);
+    alternateArrivalWindowLabel = arrivalWindowLabel(b.alternateArrivalWindow);
+  } catch (_) { /* */ }
+  confirmedTimeWindowLabel = arrivalWindow(b);
+  return {
+    preferredDate: b.preferredDate || '',
+    preferredTime: b.preferredTime || '',
+    preferredArrivalWindow: b.preferredArrivalWindow || '',
+    preferredArrivalWindowLabel,
+    alternatePreferredDate: b.alternatePreferredDate || null,
+    alternateArrivalWindow: b.alternateArrivalWindow || null,
+    alternateArrivalWindowLabel,
+    confirmedDate: b.confirmedDate || '',
+    confirmedTimeWindowLabel,
+    arrivalWindow: arrivalWindow(b),
+    scheduleFlexibility: b.scheduleFlexibility || 'exact',
+    scheduleFlexibilityLabel: flexLabel,
+    notes: b.notes || b.customerNote || '',
+    siteAccess: site,
+  };
+}
+
 function eventStateKey(eventType, booking) {
   if (eventType === EVENT_REQUEST_RECEIVED) {
     // Stable for the finalize transition — not a request-time timestamp.
@@ -682,6 +722,8 @@ module.exports = {
   brandName,
   vehicleDescription,
   serviceDescription,
+  arrivalWindow,
+  schedulingMessageFields,
   eventStateKey,
   idempotencyKey,
   resendIdempotencyKey,

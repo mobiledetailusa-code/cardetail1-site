@@ -2562,40 +2562,130 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="strip-info"><strong id="s5-pkg">—</strong> · <span id="s5-car">—</span></div>
           <div class="strip-price" id="s5-total">$0</div>
         </div>
-        <div class="fgrid">
-          <div class="fg"><div class="fl">First Name *</div><input class="fi" id="f-first" type="text" placeholder="John" required></div>
-          <div class="fg"><div class="fl">Last Name *</div><input class="fi" id="f-last" type="text" placeholder="Smith" required></div>
-          <div class="fg"><div class="fl">Phone / Text *</div><input class="fi" id="f-phone" type="tel" placeholder="(201) 555-0100" required></div>
-          <div class="fg"><div class="fl">Email *</div><input class="fi" id="f-email" type="email" placeholder="john@email.com" required></div>
-          <div class="fg full"><div class="fl">Service Address *</div><input class="fi" id="f-addr" type="text" placeholder="123 Main St, Hoboken, NJ 07030" required></div>
+        <!-- BK_DETAILS_FORM_START -->
+        <div class="fgrid bk-details-compact">
+          <div class="fg"><div class="fl">First Name *</div><input class="fi" id="f-first" type="text" placeholder="John" autocomplete="given-name" required></div>
+          <div class="fg"><div class="fl">Last Name *</div><input class="fi" id="f-last" type="text" placeholder="Smith" autocomplete="family-name" required></div>
+          <div class="fg"><div class="fl">Phone / Text *</div><input class="fi" id="f-phone" type="tel" placeholder="(201) 555-0100" autocomplete="tel" required></div>
+          <div class="fg"><div class="fl">Email *</div><input class="fi" id="f-email" type="email" placeholder="john@email.com" autocomplete="email" required></div>
+          <div class="fg full"><div class="fl">Service Address *</div><input class="fi" id="f-addr" type="text" placeholder="123 Main St, Hoboken, NJ 07030" autocomplete="street-address" required></div>
           <div class="fg full bk-advance-notice" role="note">
             <span class="bk-advance-notice-ico" aria-hidden="true">📅</span>
-            <span>Due to high demand and route planning, our next available appointments are typically 3 days out.</span>
+            <span>Next available appointments are typically 3 days out.</span>
           </div>
-          <div class="fg"><div class="fl">Preferred Date *</div><input class="fi" id="f-date" type="date" required></div>
-          <div class="fg"><div class="fl">Preferred Time *</div>
-            <select class="fsel" id="f-time" required>
+          <div class="fg"><div class="fl">Preferred date *</div><input class="fi" id="f-date" type="date" required></div>
+          <div class="fg full bk-arrival-pref" data-arrival-pref="primary">
+            <div class="fl" id="f-arrival-heading">Preferred arrival window *</div>
+            <div class="bk-arrival-choices" role="radiogroup" aria-labelledby="f-arrival-heading" aria-describedby="f-arrival-error f-arrival-anytime-help f-arrival-specific-help f-arrival-compat-msg f-arrival-closed-msg" aria-required="true">
+              <label class="bk-arrival-choice">
+                <input type="radio" name="f-arrival-mode" id="f-arrival-mode-anytime" value="anytime">
+                <span class="bk-arrival-choice-inner">
+                  <span class="bk-arrival-choice-row">
+                    <span class="bk-arrival-choice-label">Any time that day</span>
+                    <span class="bk-arrival-badge">Recommended</span>
+                  </span>
+                  <span class="bk-arrival-choice-sub">Best chance of confirming your preferred date.</span>
+                </span>
+              </label>
+              <label class="bk-arrival-choice">
+                <input type="radio" name="f-arrival-mode" id="f-arrival-mode-specific" value="specific">
+                <span class="bk-arrival-choice-inner">
+                  <span class="bk-arrival-choice-label">Choose a 3-hour arrival window</span>
+                </span>
+              </label>
+            </div>
+            <div class="bk-arrival-specific" id="bk-arrival-specific" hidden>
+              <label class="fl" for="f-arrival-window-select">Available arrival window</label>
+              <select class="fsel" id="f-arrival-window-select" aria-describedby="f-arrival-specific-help f-arrival-compat-msg f-arrival-closed-msg f-arrival-error">
+                <option value="">Select an available arrival window</option>
+                <option value="08:00-11:00">8:00 AM – 11:00 AM</option>
+                <option value="09:00-12:00">9:00 AM – 12:00 PM</option>
+                <option value="10:00-13:00">10:00 AM – 1:00 PM</option>
+                <option value="11:00-14:00">11:00 AM – 2:00 PM</option>
+                <option value="12:00-15:00">12:00 PM – 3:00 PM</option>
+                <option value="13:00-16:00">1:00 PM – 4:00 PM</option>
+                <option value="14:00-17:00">2:00 PM – 5:00 PM</option>
+                <option value="15:00-18:00">3:00 PM – 6:00 PM</option>
+                <option value="16:00-19:00">4:00 PM – 7:00 PM</option>
+              </select>
+              <p class="bk-field-help" id="f-arrival-specific-help" hidden>We may arrive at any time during this window. This is not the service duration.</p>
+            </div>
+            <p class="bk-field-help" id="f-arrival-anytime-help" hidden>We’ll confirm your arrival window before the appointment.</p>
+            <p class="bk-field-help" id="f-arrival-compat-msg" hidden role="status">That arrival window isn’t available on the new date. Please choose another.</p>
+            <p class="bk-field-help" id="f-arrival-closed-msg" hidden role="status">No arrival windows are available on this date. Please choose another date.</p>
+            <p class="bk-field-help" id="f-arrival-error" hidden role="alert"></p>
+            <input type="hidden" id="f-arrival-window" value="" required>
+            <select class="fsel" id="f-time" hidden aria-hidden="true" tabindex="-1">
               <option value="">Select a time</option>
             </select>
           </div>
-          <div class="fg full" id="f-schedule-msg" style="display:none;font-size:12.5px;color:var(--am);line-height:1.55;margin-top:-4px"></div>
-          <div class="fg full bk-rush-note">Need a rush appointment or same-day service? <a href="tel:5513132956">Call or Text Us</a> to check for route cancellations.</div>
-          <div class="fg"><div class="fl">Water available?</div>
+          <div class="fg full" id="f-schedule-msg" style="display:none;font-size:12.5px;color:var(--am);line-height:1.55;margin-top:-4px" role="alert"></div>
+          <div class="fg full bk-rush-note">Need sooner? <a href="tel:5513132956">Call or Text Us</a> for cancellations.</div>
+          <div class="fg full bk-alt-section">
+            <label class="bk-alt-check"><input type="checkbox" id="f-has-alternate" value="1"> I have an alternate date</label>
+            <div class="bk-alt-fields" id="bk-alt-fields" hidden>
+              <p class="bk-field-help">Adding an alternate date may help us confirm your appointment sooner. We will always confirm the final date with you.</p>
+              <div class="fg"><div class="fl">Alternate date</div><input class="fi" id="f-alt-date" type="date"></div>
+              <div class="fg full bk-arrival-pref" data-arrival-pref="alt">
+                <div class="fl" id="f-alt-arrival-heading">Alternate arrival preference</div>
+                <div class="bk-arrival-choices" role="radiogroup" aria-labelledby="f-alt-arrival-heading" aria-describedby="f-alt-arrival-error f-alt-arrival-anytime-help f-alt-arrival-specific-help f-alt-arrival-compat-msg f-alt-arrival-closed-msg">
+                  <label class="bk-arrival-choice">
+                    <input type="radio" name="f-alt-arrival-mode" id="f-alt-arrival-mode-anytime" value="anytime">
+                    <span class="bk-arrival-choice-inner">
+                      <span class="bk-arrival-choice-row">
+                        <span class="bk-arrival-choice-label">Any time that day</span>
+                      </span>
+                    </span>
+                  </label>
+                  <label class="bk-arrival-choice">
+                    <input type="radio" name="f-alt-arrival-mode" id="f-alt-arrival-mode-specific" value="specific">
+                    <span class="bk-arrival-choice-inner">
+                      <span class="bk-arrival-choice-label">Choose a 3-hour arrival window</span>
+                    </span>
+                  </label>
+                </div>
+                <div class="bk-arrival-specific" id="bk-alt-arrival-specific" hidden>
+                  <label class="fl" for="f-alt-arrival-window-select">Available arrival window</label>
+                  <select class="fsel" id="f-alt-arrival-window-select" aria-describedby="f-alt-arrival-specific-help f-alt-arrival-compat-msg f-alt-arrival-closed-msg f-alt-arrival-error">
+                    <option value="">Select an available arrival window</option>
+                    <option value="08:00-11:00">8:00 AM – 11:00 AM</option>
+                    <option value="09:00-12:00">9:00 AM – 12:00 PM</option>
+                    <option value="10:00-13:00">10:00 AM – 1:00 PM</option>
+                    <option value="11:00-14:00">11:00 AM – 2:00 PM</option>
+                    <option value="12:00-15:00">12:00 PM – 3:00 PM</option>
+                    <option value="13:00-16:00">1:00 PM – 4:00 PM</option>
+                    <option value="14:00-17:00">2:00 PM – 5:00 PM</option>
+                    <option value="15:00-18:00">3:00 PM – 6:00 PM</option>
+                    <option value="16:00-19:00">4:00 PM – 7:00 PM</option>
+                  </select>
+                  <p class="bk-field-help" id="f-alt-arrival-specific-help" hidden>We may arrive at any time during this window. This is not the service duration.</p>
+                </div>
+                <p class="bk-field-help" id="f-alt-arrival-anytime-help" hidden>We’ll confirm your arrival window before the appointment.</p>
+                <p class="bk-field-help" id="f-alt-arrival-compat-msg" hidden role="status">That arrival window isn’t available on the new date. Please choose another.</p>
+                <p class="bk-field-help" id="f-alt-arrival-closed-msg" hidden role="status">No arrival windows are available on this date. Please choose another date.</p>
+                <p class="bk-field-help" id="f-alt-arrival-error" hidden role="alert"></p>
+                <input type="hidden" id="f-alt-arrival-window" value="">
+              </div>
+            </div>
+            <input type="hidden" id="f-flexibility" value="exact">
+          </div>
+          <div class="fg"><div class="fl">Water access</div>
             <select class="fsel" id="f-water">
               <option value="">Select…</option>
-              <option value="yes">Yes, water spigot/hose access available</option>
-              <option value="no">No water available</option>
+              <option value="yes">Yes — outdoor faucet or hose connection</option>
+              <option value="no">No</option>
               <option value="unsure">Not sure</option>
             </select>
           </div>
-          <div class="fg"><div class="fl">Electricity available?</div>
+          <div class="fg"><div class="fl">Electricity access</div>
             <select class="fsel" id="f-electric">
               <option value="">Select…</option>
-              <option value="yes">Yes, outlet available</option>
-              <option value="no">No electricity available</option>
+              <option value="yes">Yes — standard outlet nearby</option>
+              <option value="no">No</option>
               <option value="unsure">Not sure</option>
             </select>
           </div>
+          <div class="fg full"><p class="bk-field-help" id="f-util-help">This helps us prepare the correct mobile setup.</p></div>
           <div class="fg full"><div class="fl">Service location / access</div>
             <select class="fsel" id="f-location">
               <option value="">Select…</option>
@@ -2608,12 +2698,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <option value="other">Other</option>
             </select>
           </div>
-          <div class="fg full"><div class="fl">Access notes (optional)</div><textarea class="fta" id="f-access-notes" placeholder="Gate code, parking instructions, hose location, power outlet location, restrictions…"></textarea></div>
-          <div class="fg full"><div class="fl">Notes (optional)</div><textarea class="fta" id="f-notes" placeholder="Specific stains, pet hair, vehicle condition…"></textarea></div>
+          <div class="fg full"><div class="fl">Additional notes — Optional</div>
+            <textarea class="fta" id="f-notes" rows="3" placeholder="Gate code, parking instructions, water or power details, pets, vehicle condition, or anything else we should know."></textarea>
+          </div>
         </div>
+        <!-- BK_DETAILS_FORM_END -->
         <div class="btn-row">
           <button type="button" class="btn-b" onclick="bkGoTo(3)">← Back</button>
-          <button type="button" class="btn-n" onclick="goToPayment()">Review Terms →</button>
+          <button type="button" class="btn-n" onclick="goToPayment()">Review details →</button>
         </div>
       </div>
 
@@ -3968,7 +4060,7 @@ function bkContinueFromPackage() {
 }
 
 function bkContinueFromContact() {
-  const req = ['f-first', 'f-last', 'f-phone', 'f-email', 'f-addr', 'f-date', 'f-time'];
+  const req = ['f-first', 'f-last', 'f-phone', 'f-email', 'f-addr', 'f-date', 'f-arrival-window'];
   const missing = req.find(id => !document.getElementById(id)?.value?.trim());
   if (missing) {
     if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(4, 'required_fields');
@@ -3983,6 +4075,7 @@ function bkContinueFromContact() {
     alert(phone.message);
     return;
   }
+  if (typeof window.bkSyncOperationalSlot === 'function') window.bkSyncOperationalSlot();
   const sched = bkValidateScheduleSelection();
   if (!sched.ok) {
     if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(4, 'invalid_schedule');
@@ -4633,11 +4726,16 @@ function bkHolidays(y){return new Set([y+'-01-01',bkToIso(bkEaster(y)),bkLastWd(
 function bkIsoParts(iso){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||'').trim());if(!m)return null;const y=+m[1],mo=+m[2],d=+m[3],dt=new Date(y,mo-1,d);if(dt.getFullYear()!==y||dt.getMonth()!==mo-1||dt.getDate()!==d)return null;return{iso:m[1]+'-'+m[2]+'-'+m[3],day:dt.getDay()};}
 function bkSlotsFor(iso){const p=bkIsoParts(iso);if(!p)return[];if(p.day===0)return[];if(bkHolidays(+p.iso.slice(0,4)).has(p.iso))return[];return p.day===6?BK_SAT_SLOTS.slice():BK_SLOTS.slice();}
 function bkShowScheduleMsg(msg){const el=document.getElementById('f-schedule-msg');if(!el)return;if(msg){el.textContent=msg;el.style.display='block';}else{el.textContent='';el.style.display='none';}}
-function bkRefreshTimeSlots(){const dateEl=document.getElementById('f-date');const timeEl=document.getElementById('f-time');if(!dateEl||!timeEl)return;const iso=dateEl.value;const prev=timeEl.value;bkShowScheduleMsg('');timeEl.querySelectorAll('option[data-slot]').forEach(o=>o.remove());if(!iso)return;const p=bkIsoParts(iso);if(!p)return;if(p.day===0){bkShowScheduleMsg('Unavailable — please choose another date.');timeEl.value='';return;}if(bkHolidays(+p.iso.slice(0,4)).has(p.iso)){bkShowScheduleMsg('Closed for the holiday. Please choose another date.');timeEl.value='';return;}if(p.iso<bkEarliestBookable()){bkShowScheduleMsg('Due to route planning, please choose a date at least 3 days out. Need sooner? Call or text us.');timeEl.value='';return;}const allowed=bkSlotsFor(iso);for(const slot of allowed){const opt=document.createElement('option');opt.value=slot;opt.textContent=slot;opt.dataset.slot='1';timeEl.appendChild(opt);}if(prev&&allowed.includes(prev))timeEl.value=prev;else timeEl.value='';}
-function bkValidateScheduleSelection(){const iso=document.getElementById('f-date')?.value||'';const time=document.getElementById('f-time')?.value||'';if(!iso)return{ok:false,message:'Please select a preferred date.'};const p=bkIsoParts(iso);if(!p)return{ok:false,message:'Please select a valid date.'};if(p.day===0)return{ok:false,message:'Unavailable — please choose another date.'};if(bkHolidays(+p.iso.slice(0,4)).has(p.iso))return{ok:false,message:'Closed for the holiday. Please choose another date.'};const minIso=bkEarliestBookable();if(p.iso<minIso)return{ok:false,message:'Due to route planning, please choose a date at least 3 days out. Need sooner? Call or text us.'};if(!time)return{ok:false,message:'Please select a preferred time.'};const allowed=bkSlotsFor(iso);if(!allowed.includes(time))return{ok:false,message:'That time is unavailable on the selected date. Please choose another slot.'};return{ok:true};}
+const BK_ARRIVAL_BOUNDS={'08:00-11:00':[480,660],'09:00-12:00':[540,720],'10:00-13:00':[600,780],'11:00-14:00':[660,840],'12:00-15:00':[720,900],'13:00-16:00':[780,960],'14:00-17:00':[840,1020],'15:00-18:00':[900,1080],'16:00-19:00':[960,1140]};
+const BK_SLOT_MINUTES={'8:00 AM':480,'10:00 AM':600,'12:00 PM':720,'2:00 PM':840,'4:00 PM':960};
+function bkEligibleSlotsForWindow(windowVal,allowed){if(windowVal==='anytime')return(allowed||[]).slice();const bounds=BK_ARRIVAL_BOUNDS[windowVal];if(!bounds)return[];return(allowed||[]).filter(s=>{const m=BK_SLOT_MINUTES[s];return m!=null&&m>=bounds[0]&&m<=bounds[1];});}
+function bkResolveOperationalSlot(iso,windowVal){const allowed=bkSlotsFor(iso);if(!allowed.length)return{ok:false,message:'That date is unavailable. Please choose another day.'};const eligible=bkEligibleSlotsForWindow(windowVal,allowed);if(!eligible.length)return{ok:false,message:'That arrival window is unavailable on the selected date.'};return{ok:true,preferredTime:eligible[0],eligible};}
+function bkSyncOperationalSlot(){const dateEl=document.getElementById('f-date');const timeEl=document.getElementById('f-time');const winEl=document.getElementById('f-arrival-window');if(!dateEl||!timeEl)return;const iso=dateEl.value;const win=winEl?.value||'';if(!iso||!win){timeEl.value='';return;}const r=bkResolveOperationalSlot(iso,win);if(!r.ok){timeEl.value='';return;}if(timeEl.tagName==='SELECT'){let opt=[...timeEl.options].find(o=>o.value===r.preferredTime);if(!opt){opt=document.createElement('option');opt.value=r.preferredTime;opt.textContent=r.preferredTime;opt.dataset.slot='1';timeEl.appendChild(opt);}timeEl.value=r.preferredTime;}else{timeEl.value=r.preferredTime;}}
+function bkRefreshTimeSlots(){const dateEl=document.getElementById('f-date');const timeEl=document.getElementById('f-time');if(!dateEl||!timeEl)return;const iso=dateEl.value;bkShowScheduleMsg('');if(timeEl.tagName==='SELECT'){timeEl.querySelectorAll('option[data-slot]').forEach(o=>o.remove());}if(!iso){timeEl.value='';return;}const p=bkIsoParts(iso);if(!p)return;if(p.day===0){bkShowScheduleMsg('Unavailable — please choose another date.');timeEl.value='';return;}if(bkHolidays(+p.iso.slice(0,4)).has(p.iso)){bkShowScheduleMsg('Closed for the holiday. Please choose another date.');timeEl.value='';return;}if(p.iso<bkEarliestBookable()){bkShowScheduleMsg('Due to route planning, please choose a date at least 3 days out. Need sooner? Call or text us.');timeEl.value='';return;}if(timeEl.tagName==='SELECT'){const allowed=bkSlotsFor(iso);for(const slot of allowed){const opt=document.createElement('option');opt.value=slot;opt.textContent=slot;opt.dataset.slot='1';timeEl.appendChild(opt);}}bkSyncOperationalSlot();}
+function bkValidateScheduleSelection(){const iso=document.getElementById('f-date')?.value||'';const win=document.getElementById('f-arrival-window')?.value||'';if(!iso)return{ok:false,message:'Please select a preferred date.'};const p=bkIsoParts(iso);if(!p)return{ok:false,message:'Please select a valid date.'};if(p.day===0)return{ok:false,message:'Unavailable — please choose another date.'};if(bkHolidays(+p.iso.slice(0,4)).has(p.iso))return{ok:false,message:'Closed for the holiday. Please choose another date.'};const minIso=bkEarliestBookable();if(p.iso<minIso)return{ok:false,message:'Due to route planning, please choose a date at least 3 days out. Need sooner? Call or text us.'};if(!win)return{ok:false,message:'Please select a preferred arrival window.'};if(!(win==="anytime"||BK_ARRIVAL_BOUNDS[win]))return{ok:false,message:'Please select a valid arrival window.'};bkSyncOperationalSlot();const time=document.getElementById('f-time')?.value||'';if(!time)return{ok:false,message:'That arrival window is unavailable on the selected date. Please choose another window.'};const allowed=bkSlotsFor(iso);if(!allowed.includes(time))return{ok:false,message:'That time is unavailable on the selected date. Please choose another slot.'};const hasAlt=!!document.getElementById('f-has-alternate')?.checked;if(hasAlt){const altDate=document.getElementById('f-alt-date')?.value||'';const altWin=document.getElementById('f-alt-arrival-window')?.value||'';if(!altDate)return{ok:false,message:'Please enter an alternate date, or uncheck the alternate date option.'};if(altDate===iso)return{ok:false,message:'Alternate date must be different from your preferred date.'};const ap=bkIsoParts(altDate);if(!ap)return{ok:false,message:'Please select a valid alternate date.'};if(ap.day===0)return{ok:false,message:'Alternate date is unavailable — please choose another day.'};if(bkHolidays(+ap.iso.slice(0,4)).has(ap.iso))return{ok:false,message:'Alternate date is closed for the holiday.'};if(ap.iso<minIso)return{ok:false,message:'Alternate date must also be at least 3 days out.'};if(!bkSlotsFor(altDate).length)return{ok:false,message:'Alternate date is unavailable. Please choose another day.'};if(!altWin||!(altWin==="anytime"||BK_ARRIVAL_BOUNDS[altWin]))return{ok:false,message:'Please select an alternate arrival window.'};}return{ok:true};}
 function bkNormalizePhoneDigits(v){const d=String(v||'').replace(/\D/g,'');return d.length===11&&d.charAt(0)==='1'?d.slice(1):d;}
 function bkValidateContactPhone(){const digits=bkNormalizePhoneDigits(document.getElementById('f-phone')?.value||'');if(digits.length<7)return{ok:false,message:'Please enter a valid phone number (at least 7 digits).'};return{ok:true};}
-function bkInitSchedulePicker(){const dateEl=document.getElementById('f-date');if(!dateEl)return;dateEl.min=bkEarliestBookable();dateEl.addEventListener('change',bkRefreshTimeSlots);const timeEl=document.getElementById('f-time');if(timeEl)timeEl.addEventListener('change',()=>bkShowScheduleMsg(''));}
+function bkInitSchedulePicker(){const dateEl=document.getElementById('f-date');if(!dateEl)return;dateEl.min=bkEarliestBookable();dateEl.addEventListener('change',bkRefreshTimeSlots);const winEl=document.getElementById('f-arrival-window');if(winEl)winEl.addEventListener('change',()=>{bkShowScheduleMsg('');bkSyncOperationalSlot();});}
 
 // ── STEP 5: INFO ──────────────────────────────────────────────────────────────
 function fillStrip5(){
@@ -5140,18 +5238,19 @@ function readSiteAccessFields(){
     waterAvailable: document.getElementById('f-water')?.value || '',
     electricityAvailable: document.getElementById('f-electric')?.value || '',
     serviceLocation: document.getElementById('f-location')?.value || '',
-    accessNotes: document.getElementById('f-access-notes')?.value.trim() || '',
+    // New bookings consolidate into notes; do not duplicate accessNotes.
+    accessNotes: '',
   };
 }
 function formatSiteAccessForText(b){
-  const water={yes:'Yes, water spigot/hose access available',no:'No water available',unsure:'Not sure'};
-  const electric={yes:'Yes, outlet available',no:'No electricity available',unsure:'Not sure'};
+  const water={yes:'Yes — outdoor faucet or hose connection',no:'No',unsure:'Not sure'};
+  const electric={yes:'Yes — standard outlet nearby',no:'No',unsure:'Not sure'};
   const loc={driveway:'Driveway',street:'Street parking',garage:'Garage / parking deck',apartment:'Apartment / condo',marina:'Marina / dock',commercial:'Commercial lot',other:'Other'};
   const lines=[];
   if(b.waterAvailable) lines.push('Water: '+(water[b.waterAvailable]||b.waterAvailable));
   if(b.electricityAvailable) lines.push('Electricity: '+(electric[b.electricityAvailable]||b.electricityAvailable));
   if(b.serviceLocation) lines.push('Service location: '+(loc[b.serviceLocation]||b.serviceLocation));
-  if(b.accessNotes) lines.push('Access notes: '+b.accessNotes);
+  if(b.accessNotes) lines.push('Access notes (legacy): '+b.accessNotes);
   return lines.join('\n');
 }
 
@@ -5193,7 +5292,11 @@ function buildBookingPayload(){
     email:document.getElementById('f-email').value.trim(),
     address:document.getElementById('f-addr').value.trim(),
     preferredDate:document.getElementById('f-date').value,
+    preferredArrivalWindow:document.getElementById('f-arrival-window')?.value||'',
     preferredTime:document.getElementById('f-time').value,
+    scheduleFlexibility:document.getElementById('f-has-alternate')?.checked?'alternate_date':(document.getElementById('f-flexibility')?.value||'exact'),
+    alternatePreferredDate:document.getElementById('f-has-alternate')?.checked?(document.getElementById('f-alt-date')?.value||null):null,
+    alternateArrivalWindow:document.getElementById('f-has-alternate')?.checked?(document.getElementById('f-alt-arrival-window')?.value||null):null,
         ...readSiteAccessFields(),
     notes:document.getElementById('f-notes').value.trim(),
     termsAccepted:true,
@@ -7141,6 +7244,8 @@ body.cd1-booking-embed #cd-chat{display:none!important}
 <script src="assets/garage-plan.js"></script>
 <script src="assets/revops-booking-hooks.js"></script>
 <script src="assets/revops-init.js"></script>
+<script src="assets/booking-conversion-ux.js"></script>
+<script src="assets/booking-availability-client.js"></script>
 
   <script src="assets/back-to-top.js" defer></script>
 </body>

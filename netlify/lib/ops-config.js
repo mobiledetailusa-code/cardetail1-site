@@ -1,8 +1,16 @@
 // Platform operational settings — single blob `cd1-ops-settings` / key `platform`.
+// Operational availability lives in the same store under key `availability`
+// (UI-independent contract; not OsCatalogDraft).
 const { blobsStore } = require('./tech-security');
+const {
+  LEGACY_AVAILABILITY,
+  normalizeAvailabilityConfig,
+  projectAdminAvailability,
+} = require('./operational-availability');
 
 const SETTINGS_STORE = 'cd1-ops-settings';
 const SETTINGS_KEY = 'platform';
+const AVAILABILITY_KEY = 'availability';
 
 const DEFAULT_SETTINGS = {
   // Auto-confirm: recommended OFF until rules mature (zone, card on file, fraud checks).
@@ -62,13 +70,46 @@ function bidWindowForJob(booking, settings) {
   return Number(settings.bidWindowMinutes) || 60;
 }
 
+/**
+ * Load operational availability. Missing/invalid → complete legacy defaults.
+ * Never partially merges invalid rules.
+ */
+async function getOperationalAvailability() {
+  try {
+    const store = await blobsStore(SETTINGS_STORE);
+    const raw = await store.get(AVAILABILITY_KEY, { type: 'json' }).catch(() => null);
+    return normalizeAvailabilityConfig(raw || LEGACY_AVAILABILITY);
+  } catch (_) {
+    return normalizeAvailabilityConfig(null);
+  }
+}
+
+/**
+ * Persist availability after normalization. Rejects invalid payloads by
+ * falling back to legacy (caller should validate intent first).
+ */
+async function saveOperationalAvailability(nextRaw, meta = {}) {
+  const normalized = normalizeAvailabilityConfig({
+    ...(nextRaw || {}),
+    updatedAt: new Date().toISOString(),
+    updatedBy: meta.updatedBy || nextRaw?.updatedBy || null,
+  });
+  // If caller intended supervised but normalize demoted due to bad input, surface it.
+  const store = await blobsStore(SETTINGS_STORE);
+  await store.setJSON(AVAILABILITY_KEY, normalized);
+  return projectAdminAvailability(normalized);
+}
+
 module.exports = {
   SETTINGS_STORE,
   SETTINGS_KEY,
+  AVAILABILITY_KEY,
   DEFAULT_SETTINGS,
   MAINTENANCE_PLAN_TEMPLATES,
   getOpsSettings,
   saveOpsSettings,
+  getOperationalAvailability,
+  saveOperationalAvailability,
   calcBidMax,
   bidWindowForJob,
 };

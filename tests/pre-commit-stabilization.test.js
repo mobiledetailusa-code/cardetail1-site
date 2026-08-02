@@ -319,6 +319,15 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/deploy-runtime-env.generated.js',
     'netlify/lib/ops-schema.js',
     'tests/helpers/cas-memory-store.js',
+    // Booking conversion production readiness — operational availability + flexibility
+    'netlify/functions/booking-availability.js',
+    'netlify/functions/ops-settings.js',
+    'netlify/lib/operational-availability.js',
+    'netlify/lib/schedule-flexibility.js',
+    'netlify/lib/arrival-windows.js',
+    'netlify/lib/ops-config.js',
+    'netlify/lib/site-access.js',
+    'netlify/lib/site-access-client.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

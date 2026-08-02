@@ -228,6 +228,9 @@ function projectBookingForCustomer(b) {
     addons: addonsArr.map(a => ({ id: a.id || '', name: a.name || '', qty: a.qty || 1, price: a.price || 0 })),
     preferredDate: src.preferredDate || '',
     preferredTime: src.preferredTime || '',
+    preferredArrivalWindow: src.preferredArrivalWindow || '',
+    alternatePreferredDate: src.alternatePreferredDate || null,
+    alternateArrivalWindow: src.alternateArrivalWindow || null,
     confirmedDate: src.confirmedDate || '',
     confirmedTime: src.confirmedTime || '',
     confirmedTimeWindow: src.confirmedTimeWindow || src.confirmedWindow || '',
@@ -278,6 +281,14 @@ function projectBookingForCustomer(b) {
     electricityAvailable: src.electricityAvailable || '',
     serviceLocation: src.serviceLocation || '',
     accessNotes: src.accessNotes || '',
+    scheduleFlexibility: (() => {
+      try {
+        const { normalizeScheduleFlexibility } = require('./schedule-flexibility');
+        return normalizeScheduleFlexibility(src.scheduleFlexibility);
+      } catch (_) {
+        return src.scheduleFlexibility || 'exact';
+      }
+    })(),
     firstName: src.firstName || '',
     lastName: src.lastName || '',
     email: src.email || '',

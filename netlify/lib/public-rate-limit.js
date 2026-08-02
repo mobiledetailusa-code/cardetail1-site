@@ -40,6 +40,7 @@ const DEFAULT_LIMITS = {
   'customer-portal-profile:mutate': { max: 30, windowMs: DEFAULT_WINDOW_MS },
   'customer-appointment-access': { max: 30, windowMs: DEFAULT_WINDOW_MS },
   'customer-appointment-access:resend': { max: 5, windowMs: DEFAULT_WINDOW_MS },
+  'booking-availability': { max: 90, windowMs: DEFAULT_WINDOW_MS },
 };
 
 const ENV_SCOPE_BY_BUCKET = {
