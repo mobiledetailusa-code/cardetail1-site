@@ -4,6 +4,9 @@
 'use strict';
 
 const crypto = require('crypto');
+// Shared with the booking pages so Review, confirmation and email itemize
+// a multi-vehicle booking identically.
+const lineItems = require('../../assets/booking-line-items.js');
 const {
   createAppointmentAccessToken,
   ensureAppointmentPublicRef,
@@ -154,6 +157,27 @@ function vehicleDescription(booking) {
 
 function serviceDescription(booking) {
   return booking.package || booking.service || booking.serviceLabel || 'Detailing service';
+}
+
+/**
+ * Per-vehicle itemization for multi-vehicle bookings, from the same shared
+ * projection the Review & Submit and confirmation screens use — so a booking
+ * never reaches the customer showing one vehicle and a combined package price.
+ *
+ * Returns null for single-vehicle bookings, which keep their existing copy.
+ */
+function serviceItemization(booking) {
+  const { items } = lineItems.projectBooking(booking);
+  if (items.length <= 1) return null;
+  return {
+    items,
+    text: [
+      `Vehicles on this booking: ${items.length}`,
+      '',
+      ...lineItems.summaryTextLines(items),
+    ],
+    html: `<p><strong>Vehicles on this booking: ${items.length}</strong></p>\n${lineItems.summaryEmailHtml(items)}`,
+  };
 }
 
 function approvedTotalLabel(booking) {
@@ -316,6 +340,7 @@ function buildEmailContent(eventType, booking, accessUrl) {
   const status = escapeHtml(customerFacingStatusLabel(booking));
   const link = escapeHtml(accessUrl);
   const brand = escapeHtml(brandName());
+  const itemization = serviceItemization(booking);
 
   if (eventType === EVENT_REQUEST_RECEIVED) {
     const subject = 'We received your detailing request';
@@ -326,8 +351,11 @@ function buildEmailContent(eventType, booking, accessUrl) {
       `We received your booking request. It is currently under review.`,
       'This is not yet a confirmed appointment.',
       '',
-      `Requested service: ${serviceDescription(booking)}`,
-      `Vehicle: ${vehicleDescription(booking)}`,
+      ...(itemization ? itemization.text : [
+        `Requested service: ${serviceDescription(booking)}`,
+        `Vehicle: ${vehicleDescription(booking)}`,
+      ]),
+      '',
       `Preferred date: ${booking.preferredDate || '—'}`,
       '',
       `${cta}:`,
@@ -342,10 +370,11 @@ function buildEmailContent(eventType, booking, accessUrl) {
 <p>Hi ${first},</p>
 <p>We received your booking request. It is currently under review.</p>
 <p><strong>This is not yet a confirmed appointment.</strong></p>
+${itemization ? itemization.html : ''}
 <ul>
-<li>Service: ${service}</li>
+${itemization ? '' : `<li>Service: ${service}</li>
 <li>Vehicle: ${vehicle}</li>
-<li>Preferred date: ${escapeHtml(booking.preferredDate || '—')}</li>
+`}<li>Preferred date: ${escapeHtml(booking.preferredDate || '—')}</li>
 <li>Status: ${status}</li>
 </ul>
 <p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>
@@ -365,8 +394,10 @@ function buildEmailContent(eventType, booking, accessUrl) {
       '',
       `Date: ${booking.confirmedDate || booking.preferredDate || '—'}`,
       `Arrival window: ${arrivalWindow(booking) || '—'}`,
-      `Vehicle: ${vehicleDescription(booking)}`,
-      `Service: ${serviceDescription(booking)}`,
+      ...(itemization ? ['', ...itemization.text, ''] : [
+        `Vehicle: ${vehicleDescription(booking)}`,
+        `Service: ${serviceDescription(booking)}`,
+      ]),
     ];
     if (total) textLines.push(`Approved total: ${total}`);
     textLines.push('', `${cta}:`, accessUrl, '', brandName(), siteUrl());
@@ -377,10 +408,11 @@ function buildEmailContent(eventType, booking, accessUrl) {
 <ul>
 <li>Date: ${date}</li>
 <li>Arrival window: ${window}</li>
-<li>Vehicle: ${vehicle}</li>
+${itemization ? '' : `<li>Vehicle: ${vehicle}</li>
 <li>Service: ${service}</li>
-${total ? `<li>Approved total: ${escapeHtml(total)}</li>` : ''}
+`}${total ? `<li>Approved total: ${escapeHtml(total)}</li>` : ''}
 </ul>
+${itemization ? itemization.html : ''}
 <p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>
 <p style="font-size:13px;color:#555">If the button does not work, open:<br>${link}</p>
 <p>${brand}</p>
@@ -722,6 +754,7 @@ module.exports = {
   brandName,
   vehicleDescription,
   serviceDescription,
+  serviceItemization,
   arrivalWindow,
   schedulingMessageFields,
   eventStateKey,
