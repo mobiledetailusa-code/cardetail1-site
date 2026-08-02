@@ -538,17 +538,31 @@
     return Number(b.totalPrice || b.finalAmount || 0) || 0;
   }
 
+  /**
+   * True when the label already states this length, so we never render the
+   * duplicated "22 ft · 22 ft". Digit boundaries keep a model number like
+   * "222S" from matching a 22 ft boat.
+   */
+  function labelStatesLength(label, len) {
+    if (!len) return false;
+    return new RegExp('(^|[^0-9.])' + len + "\\s*(ft\\b|ft\\.|feet\\b|')", 'i').test(String(label || ''));
+  }
+
+  /** Append a dimension only when the label does not already carry it. */
+  function withDimensions(label, cat, length) {
+    var out = String(label || '');
+    if (cat && out.toLowerCase().indexOf(String(cat).toLowerCase()) === -1) out += ' · ' + cat;
+    if (length > 0 && !labelStatesLength(out, length)) out += ' · ' + length + ' ft';
+    return out;
+  }
+
   function vehicleLine(b) {
     if (!b) return '—';
     var parts = [b.vehicleYear, b.vehicleMake, b.vehicleModel].filter(Boolean).join(' ');
     var length = Number(b.vehicleLengthFt || b.lengthFt || 0);
     var cat = b.vehicleCategory || '';
-    if (parts) {
-      return parts +
-        (cat ? ' · ' + cat : '') +
-        (length > 0 ? ' · ' + length + ' ft' : '');
-    }
-    return (b.vehicleLabel || b.vehicle || '—') + (length > 0 ? ' · ' + length + ' ft' : '');
+    if (parts) return withDimensions(parts, cat, length);
+    return withDimensions(b.vehicleLabel || b.vehicle || '—', '', length);
   }
 
   /** True when booking.vehicles[] is usable for per-vehicle itemization. */
@@ -567,15 +581,9 @@
     var parts = [v.year, v.make, v.model].filter(Boolean).join(' ');
     var length = Number(v.lengthFt || 0);
     var cat = v.category || v.cat || '';
-    if (parts) {
-      return parts +
-        (cat ? ' · ' + cat : '') +
-        (length > 0 ? ' · ' + length + ' ft' : '');
-    }
+    if (parts) return withDimensions(parts, cat, length);
     var label = v.vehicleLabel || 'Vehicle';
-    return label +
-      (cat && label === 'Vehicle' ? ' · ' + cat : '') +
-      (length > 0 ? ' · ' + length + ' ft' : '');
+    return withDimensions(label, label === 'Vehicle' ? cat : '', length);
   }
 
   function safeMoneyOrNull(n) {

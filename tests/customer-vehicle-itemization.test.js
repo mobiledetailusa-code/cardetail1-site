@@ -70,6 +70,9 @@ function buildRenderSandbox() {
     'esc',
     'fmtMoney',
     'hasUsableVehicleProjection',
+    // Dimension de-duplication helpers the label builders depend on.
+    'labelStatesLength',
+    'withDimensions',
     'projectedVehicleLabel',
     'safeMoneyOrNull',
     'renderVehicleBreakdownHtml',

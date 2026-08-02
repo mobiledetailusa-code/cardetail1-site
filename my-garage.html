@@ -47,9 +47,14 @@ a:hover{text-decoration:underline}
   box-shadow:0 0 0 4px rgba(14,90,138,.12);
   scroll-margin-top:88px;
 }
+/* min-width:0 lets a grid cell shrink below its content: without it a long
+   verified email widens its track, pushing the phone cell out of the grid and
+   forcing the page to scroll sideways. */
 .meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
-.meta-grid dt{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.06em}
-.meta-grid dd{font-size:14px;font-weight:600;margin-top:2px}
+.meta-grid>div{min-width:0}
+.meta-grid dt{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;overflow-wrap:anywhere}
+.meta-grid dd{font-size:14px;font-weight:600;margin-top:2px;min-width:0;overflow-wrap:anywhere;word-break:break-word}
+@media(max-width:480px){.meta-grid{grid-template-columns:1fr}}
 .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .empty{font-size:13px;color:var(--muted);padding:12px 0}
 .saved-vehicle-card{padding:10px 0}
@@ -125,6 +130,9 @@ body.pay-sticky-on .pay-sticky{display:block}
 body.pay-sticky-on{padding-bottom:76px}
 @media(prefers-reduced-motion:reduce){.portal-spinner{animation:none;border-top-color:var(--blue);opacity:.85}}
 @media(min-width:721px){body.pay-sticky-on .pay-sticky{display:none}body.pay-sticky-on{padding-bottom:0}}
+/* Exactly one Pay Balance primary action at any viewport: below 721px the
+   sticky bar is the primary, so the inline CTA stands down. */
+@media(max-width:720px){body.pay-sticky-on #pay-balance-link{display:none}}
 @media(max-width:430px){.wrap{padding:16px 12px 40px}.panel{padding:18px}.portal-loading-panel{padding:22px 16px}.portal-loading{min-height:240px}.card-title{font-size:18px}.actions .btn{flex:1 1 100%}.actions .btn.primary{flex:1 1 100%}}
 </style>
 <noscript><style>html.cd1-portal-booting #pre-auth{display:block!important}html.cd1-portal-booting #portal-loading{display:none!important}</style></noscript>

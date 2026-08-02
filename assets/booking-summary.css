@@ -1,0 +1,87 @@
+/* Cardetail1 — multi-vehicle booking summary (Review & Submit + confirmation).
+ *
+ * Colors are literal hex, not theme vars. The booking modal remaps --white to
+ * #ffffff on a light surface, so any var(--white) label here would render
+ * white-on-light and disappear (the production "Estimated total" defect).
+ * Dark-page defaults first, light modal overrides second.
+ */
+
+.bkli-vehicle {
+  padding: 10px 0 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.bkli-vehicle:last-of-type {
+  border-bottom: none;
+}
+
+.bkli-vehicle-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #f1f5f9;
+}
+
+.bkli-vehicle-index {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.18);
+  border: 1px solid rgba(37, 99, 235, 0.4);
+  color: #93c5fd;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* min-width:0 + overflow-wrap keeps long vehicle labels from forcing the
+   summary card to scroll horizontally. */
+.bkli-vehicle-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.bkli-subtotal {
+  font-weight: 600;
+}
+.bkli-subtotal .ol {
+  color: #cbd5e1;
+}
+
+.bkli-none {
+  opacity: 0.75;
+}
+
+/* Grand total row — the label must never inherit var(--white). */
+.bkli-total-label {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+
+/* ── Light booking modal ──────────────────────────────────────────────────── */
+.booking-modal .bkli-vehicle {
+  border-bottom-color: rgba(15, 23, 42, 0.1);
+}
+.booking-modal .bkli-vehicle-title {
+  color: #0f172a;
+}
+.booking-modal .bkli-vehicle-index {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.28);
+  color: #1d4ed8;
+}
+.booking-modal .bkli-subtotal .ol {
+  color: #334155;
+}
+.booking-modal .bkli-total-label {
+  color: #0f172a;
+}

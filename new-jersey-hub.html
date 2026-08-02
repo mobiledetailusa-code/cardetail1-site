@@ -2293,6 +2293,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <link rel="stylesheet" href="assets/luxury-theme.css">
 <link rel="stylesheet" href="assets/specialty-service-nav.css">
 <link rel="stylesheet" href="assets/booking-modal-light.css">
+<link rel="stylesheet" href="assets/booking-summary.css">
+<script src="assets/booking-line-items.js" defer></script>
 <link rel="stylesheet" href="assets/public-surface-contrast.css">
 <link rel="stylesheet" href="assets/button-states.css">
 <link rel="stylesheet" href="assets/car-pkg-detail-modal.css">
@@ -3765,14 +3767,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="btitle">REVIEW &<br>SUBMIT</div>
         <div class="bdesc">Give it a quick look, then send your request - we'll text you to confirm.</div>
         <div class="oc">
-          <div class="oc-t">Service</div>
+          <div class="oc-t" id="c-service-title">Service</div>
           <div class="confirm-vehicle-visual" id="c-visual"></div>
-          <div class="or"><span class="ol">Category</span><span class="ov" id="c-cat">-</span></div>
-          <div class="or"><span class="ol">Vehicle</span><span class="ov" id="c-veh">-</span></div>
-          <div class="or"><span class="ol">Package</span><span class="ov" id="c-pkg">-</span></div>
-          <div class="or"><span class="ol">Pkg price</span><span class="ov" id="c-pprice">-</span></div>
-          <div id="c-addon-rows"></div>
-          <div class="or"><span class="ol" style="color:var(--white);font-weight:600">Total</span><span class="oc-total" id="c-total">-</span></div>
+          <div id="c-vehicle-cards"></div>
+          <div class="or"><span class="ol bkli-total-label">Estimated total</span><span class="oc-total" id="c-total">-</span></div>
           <div class="oc-note">Final price confirmed on-site. Add-ons are starting prices.</div>
         </div>
         <div class="oc">
@@ -3814,9 +3812,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <p class="suc-sub" id="ok-sub">You're all set! We'll review your details and text you to confirm your appointment - usually within a few hours.</p>
           <div class="suc-card">
             <div class="or"><span class="ol">Status</span><span class="ov" style="color:var(--gr);font-weight:700">Under Review</span></div>
-            <div class="or"><span class="ol">Package</span><span class="ov" id="ok-pkg">-</span></div>
-            <div class="or"><span class="ol">Vehicle</span><span class="ov" id="ok-veh">-</span></div>
-            <div class="or"><span class="ol">Total</span><span class="ov" id="ok-total" style="color:var(--blue);font-weight:700">-</span></div>
+            <div id="ok-vehicle-cards"></div>
+            <div class="or"><span class="ol bkli-total-label">Total</span><span class="ov" id="ok-total" style="color:var(--blue);font-weight:700">-</span></div>
             <div class="or" style="border:none"><span class="ol">Date</span><span class="ov" id="ok-date">-</span></div>
           </div>
           <p style="font-size:12.5px;color:var(--mu);margin-bottom:10px">Questions? Call / text <strong style="color:var(--white)">551-313-2956</strong> · Mon–Fri 8AM–5PM</p>
@@ -5700,20 +5697,70 @@ function goToConfirmFromTerms(){
 }
 
 // ── STEP 7: CONFIRM ───────────────────────────────────────────────────────────
+// ── Multi-vehicle line items (Release A) ─────────────────────────────────────
+// Single source of truth: assets/booking-line-items.js, shared with the
+// confirmation email so Review, confirmation and email itemize identically.
+function bkliMoney(n){ return '$' + (Number(n) || 0).toFixed(2); }
+function bkliEsc(v){
+  return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function bkProjectVehicles(source){
+  if (window.Cardetail1LineItems) return window.Cardetail1LineItems.projectBooking(source);
+  const raw = Array.isArray(source) ? source : (source && source.vehicles);
+  const list = Array.isArray(raw) ? raw.filter(Boolean) : [];
+  const items = list.map((v,i)=>{
+    const addons=(Array.isArray(v.addons)?v.addons:[]).map(a=>({
+      name:String(a.name||'Add-on'), qty:Number(a.qty)>0?Number(a.qty):1,
+      price:Number(a.price)||0, lineTotal:(Number(a.price)||0)*(Number(a.qty)>0?Number(a.qty):1),
+    }));
+    const addonTotal = v.addonTotal!=null?Number(v.addonTotal):addons.reduce((s,a)=>s+a.lineTotal,0);
+    const packagePrice = v.basePrice!=null?Number(v.basePrice):null;
+    return {
+      key:String(v.vehicleId||v.id||('vehicle-'+i)), index:i,
+      label:String(v.vehicleLabel||'Vehicle'),
+      packageName:String(v.pkgName||v.packageName||'Package'),
+      packagePrice, addons, addonTotal,
+      subtotal:v.subtotal!=null?Number(v.subtotal):((packagePrice||0)+addonTotal),
+    };
+  });
+  return {items, itemsSubtotal:items.reduce((s,i)=>s+(i.subtotal||0),0), vehicleCount:items.length};
+}
+function bkRenderVehicleSummary(items){
+  if (window.Cardetail1LineItems) return window.Cardetail1LineItems.renderSummaryHtml(items);
+  const list = Array.isArray(items)?items:[];
+  const multi = list.length>1;
+  return list.map((it,idx)=>{
+    let rows='<div class="or"><span class="ol">'+bkliEsc(it.packageName)+'</span><span class="ov">'+(it.packagePrice==null?'Estimate':bkliMoney(it.packagePrice))+'</span></div>';
+    rows += it.addons.length
+      ? it.addons.map(a=>'<div class="or"><span class="ol">+ '+bkliEsc(a.name)+(a.qty>1?' × '+a.qty:'')+'</span><span class="ov">+'+bkliMoney(a.lineTotal)+'</span></div>').join('')
+      : '<div class="or"><span class="ol">Add-ons</span><span class="ov bkli-none">None</span></div>';
+    if(multi) rows+='<div class="or bkli-subtotal"><span class="ol">Vehicle subtotal</span><span class="ov">'+bkliMoney(it.subtotal)+'</span></div>';
+    return '<section class="bkli-vehicle" aria-label="Vehicle '+(idx+1)+' of '+list.length+'">'+
+      '<h4 class="bkli-vehicle-title">'+(multi?'<span class="bkli-vehicle-index">'+(idx+1)+'</span>':'')+
+      '<span class="bkli-vehicle-name">'+bkliEsc(it.label)+'</span></h4>'+rows+'</section>';
+  }).join('');
+}
+
 function fillConfirm(){
   const fee = getTravelFeeAmount();
   const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
   const cartBase = vehicles.reduce((s,v)=>s+(v.subtotal||0),0);
   const total = cartBase + fee;
   const tsel=document.getElementById('f-time').value;
-  const catLabels={cars:'Cars & Trucks',boats:'Boats & Marine',rvs:'RVs & Trailers',powersports:'Powersports',fleet:'Fleet Services'};
-  const visual=VEHICLE_VISUALS[getVehicleVisualKey()]||CATEGORY_VISUALS[ST.cat]||VEHICLE_VISUALS.sedan;
+  // Every booked vehicle itemizes here — never the current single-vehicle
+  // selection with a cart-wide package price pinned to it.
+  const projection=bkProjectVehicles(vehicles);
+  const firstVeh=vehicles[0]||{};
+  const visual=VEHICLE_VISUALS[(vehicles.length===1&&firstVeh.visualKey)||getVehicleVisualKey()]||CATEGORY_VISUALS[firstVeh.cat||ST.cat]||VEHICLE_VISUALS.sedan;
   const visualEl=document.getElementById('c-visual');
-  if(visualEl) visualEl.innerHTML=`<img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async">`;
-  document.getElementById('c-cat').textContent=catLabels[ST.cat]||ST.cat;
-  document.getElementById('c-veh').textContent=ST.vehicleLabel;
-  document.getElementById('c-pkg').textContent=(ST.pkg?.name||'-')+' Package';
-  document.getElementById('c-pprice').textContent=ST.basePrice ? '$'+(ST.basePrice+fee) : 'Estimate';
+  if(visualEl){
+    visualEl.style.display=vehicles.length>1?'none':'';
+    visualEl.innerHTML=vehicles.length>1?'':`<img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async">`;
+  }
+  const serviceTitleEl=document.getElementById('c-service-title');
+  if(serviceTitleEl) serviceTitleEl.textContent=vehicles.length>1?('Service · '+vehicles.length+' vehicles'):'Service';
+  const cardsEl=document.getElementById('c-vehicle-cards');
+  if(cardsEl) cardsEl.innerHTML=bkRenderVehicleSummary(projection.items);
   document.getElementById('c-total').textContent=total ? '$'+total : 'Estimate';
   document.getElementById('c-name').textContent=document.getElementById('f-first').value+' '+document.getElementById('f-last').value;
   document.getElementById('c-phone').textContent=document.getElementById('f-phone').value;
@@ -5722,9 +5769,6 @@ function fillConfirm(){
   document.getElementById('c-date').textContent=document.getElementById('f-date').value+' · '+tsel;
   const payLabels={'card_onsite':'Card on-site','cash_onsite':'Cash on-site','online_after_service':'Online after service'};
   const pmEl=document.getElementById('c-pay-method'); if(pmEl) pmEl.textContent=payLabels[ST.payMethod]||'Not selected';
-  document.getElementById('c-addon-rows').innerHTML=ST.addons.length
-    ?ST.addons.map(a=>`<div class="or"><span class="ol">+ ${a.name}${a.qty>1?' Ã—'+a.qty:''}</span><span class="ov">+$${a.price*(a.qty||1)}</span></div>`).join('')
-    :'<div class="or"><span class="ol">Add-ons</span><span class="ov" style="color:var(--mu)">None</span></div>';
 }
 
 // ── SUBMIT ────────────────────────────────────────────────────────────────────
@@ -5934,8 +5978,10 @@ function showSuccess(payload){
   document.querySelectorAll('.bsec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.bpt').forEach(t=>t.classList.add('done'));
   document.getElementById('bs-ok').classList.add('on');
-  document.getElementById('ok-pkg').textContent=(ST.pkg?.name||b.package||'-')+' Package';
-  document.getElementById('ok-veh').textContent=ST.vehicleLabel||b.vehicle||'-';
+  // Itemize from the submitted payload's authoritative vehicles[], not from the
+  // leftover single-vehicle selection state.
+  const okCards=document.getElementById('ok-vehicle-cards');
+  if(okCards) okCards.innerHTML=bkRenderVehicleSummary(bkProjectVehicles(b).items);
   document.getElementById('ok-total').textContent=(b.totalPrice||0)?'$'+b.totalPrice:'Estimate';
   document.getElementById('ok-date').textContent=b.preferredDate||document.getElementById('f-date').value;
   const titleEl=document.getElementById('ok-title');

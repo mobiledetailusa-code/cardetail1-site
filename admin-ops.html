@@ -1550,6 +1550,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     return '$' + v.toFixed(2);
   }
 
+  /**
+   * True when the label already states this length, so Admin does not repeat it
+   * in the Length row ("Yamaha 222S — 22 ft" + "Length: 22 ft"). Digit
+   * boundaries keep a model number like "222S" from matching a 22 ft boat.
+   */
+  function labelStatesLength(label, len) {
+    if (!len) return false;
+    return new RegExp('(^|[^0-9.])' + len + "\\s*(ft\\b|ft\\.|feet\\b|')", 'i').test(String(label || ''));
+  }
+
   function renderVehiclesDetailSection(j) {
     const vehs = jobVehicles(j);
     let out = '<div class="sec full"><h4>Vehicles and services</h4>';
@@ -1563,12 +1573,14 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       const pack = v.packageName || v.pkgName || '—';
       const cat = v.category || v.cat || '';
       const tier = v.tierLabel || v.tier || v.tierKey || '';
-      const len = Number(v.lengthFt) > 0 ? (Number(v.lengthFt) + ' ft') : '';
+      const lenFt = Number(v.lengthFt);
+      const len = lenFt > 0 && !labelStatesLength(label, lenFt) ? (lenFt + ' ft') : '';
+      const showCat = cat && label.toLowerCase().indexOf(String(cat).toLowerCase()) === -1;
       const addons = Array.isArray(v.addons) ? v.addons : [];
       out += '<div class="job-veh-card">'+
         '<h5>'+esc(label)+'</h5>'+
         '<div class="kv">'+
-        (cat ? '<div><b>Category:</b> '+esc(cat)+'</div>' : '')+
+        (showCat ? '<div><b>Category:</b> '+esc(cat)+'</div>' : '')+
         (len ? '<div><b>Length:</b> '+esc(len)+'</div>' : '')+
         (tier ? '<div><b>Tier:</b> '+esc(tier)+'</div>' : '')+
         '<div><b>Package:</b> '+esc(pack)+'</div>'+
