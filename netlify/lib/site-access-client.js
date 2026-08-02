@@ -4,13 +4,13 @@
  */
 (function (root) {
   const WATER = {
-    yes: 'Available — outdoor faucet or hose connection',
-    no: 'Not available',
+    yes: 'Yes — outdoor faucet or hose connection',
+    no: 'No',
     unsure: 'Not sure',
   };
   const ELECTRIC = {
-    yes: 'Available — standard outlet nearby',
-    no: 'Not available',
+    yes: 'Yes — standard outlet nearby',
+    no: 'No',
     unsure: 'Not sure',
   };
   const LOC = {
@@ -29,7 +29,7 @@
     if (b.waterAvailable) out.push('Water: ' + (WATER[b.waterAvailable] || b.waterAvailable));
     if (b.electricityAvailable) out.push('Electricity: ' + (ELECTRIC[b.electricityAvailable] || b.electricityAvailable));
     if (b.serviceLocation) out.push('Location: ' + (LOC[b.serviceLocation] || b.serviceLocation));
-    if (b.accessNotes) out.push('Access notes: ' + b.accessNotes);
+    if (b.accessNotes) out.push('Access notes (legacy): ' + b.accessNotes);
     return out;
   }
 

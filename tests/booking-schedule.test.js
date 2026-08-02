@@ -181,22 +181,28 @@ test('active card-save draft soft-holds the selected slot', () => {
   assert.equal(isActiveBookingForSlotLock(bareDraft, now), false);
 });
 
-test('all 13 booking pages use discrete slot labels', () => {
+test('all 13 booking pages use preferred arrival windows with operational slot coupling', () => {
   for (const page of BOOKING_PAGES) {
     const html = read(page);
     assert.match(html, /id="f-time"/);
+    assert.match(html, /id="f-arrival-window"/);
+    assert.match(html, /id="f-arrival-window-select"/);
     assert.match(html, /8:00 AM/);
     assert.match(html, /10:00 AM/);
     assert.match(html, /12:00 PM/);
     assert.match(html, /2:00 PM/);
-    assert.match(html, /Select a time/);
+    assert.match(html, /Select an available arrival window/);
+    assert.match(html, /Preferred arrival window/);
+    assert.match(html, /Any time that day/);
+    assert.match(html, /Choose a 3-hour arrival window/);
   }
 });
 
 test('all 13 booking pages no longer contain legacy window labels in Step 4', () => {
   for (const page of BOOKING_PAGES) {
     const html = read(page);
-    const step4 = html.slice(html.indexOf('id="f-time"'), html.indexOf('id="f-time"') + 600);
+    const start = html.indexOf('id="f-arrival-window"');
+    const step4 = html.slice(start, start + 1200);
     assert.doesNotMatch(step4, /Any available \(Mon/);
     assert.doesNotMatch(step4, /Morning \(8AM/);
     assert.doesNotMatch(step4, /Midday \(11AM/);

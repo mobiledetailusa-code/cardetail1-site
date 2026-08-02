@@ -18,7 +18,7 @@ const required = [
   'id="f-water"',
   'id="f-electric"',
   'id="f-location"',
-  'id="f-access-notes"',
+  'id="f-notes"',
   'readSiteAccessFields',
   'waterAvailable',
   'electricityAvailable',
@@ -33,6 +33,11 @@ for (const page of bookingPages) {
   test(`${page} includes site access fields in Step 4`, () => {
     const html = read(page);
     for (const s of required) assert.match(html, new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    // New bookings consolidate notes; Access notes field must not appear in Step 4.
+    const bs4Start = html.indexOf('id="bs4"');
+    const bs5Start = html.indexOf('id="bs5"', bs4Start);
+    const bs4 = html.slice(bs4Start, bs5Start > 0 ? bs5Start : bs4Start + 12000);
+    assert.doesNotMatch(bs4, /id="f-access-notes"/);
   });
 }
 
@@ -57,9 +62,9 @@ test('formatSiteAccessLines renders booking site access', () => {
     accessNotes: 'Gate code 1234',
   });
   assert.match(lines.join('\n'), /Water:.*faucet|hose/i);
-  assert.match(lines.join('\n'), /Electricity:.*Not available/i);
+  assert.match(lines.join('\n'), /Electricity:.*\bNo\b/i);
   assert.match(lines.join('\n'), /Service location: Driveway/);
-  assert.match(lines.join('\n'), /Access notes: Gate code 1234/);
+  assert.match(lines.join('\n'), /Access notes \(legacy\): Gate code 1234/);
 });
 
 test('projectJobForTech exposes site access for technician portal', () => {

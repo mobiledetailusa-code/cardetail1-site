@@ -324,6 +324,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/ops-settings.js',
     'netlify/lib/operational-availability.js',
     'netlify/lib/schedule-flexibility.js',
+    'netlify/lib/arrival-windows.js',
     'netlify/lib/ops-config.js',
     'netlify/lib/site-access.js',
     'netlify/lib/site-access-client.js',

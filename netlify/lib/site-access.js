@@ -2,14 +2,14 @@
 // Enum values remain yes | no | unsure (legacy-compatible). Labels are customer-facing.
 
 const WATER_LABELS = {
-  yes: 'Available — outdoor faucet or hose connection',
-  no: 'Not available',
+  yes: 'Yes — outdoor faucet or hose connection',
+  no: 'No',
   unsure: 'Not sure',
 };
 
 const ELECTRIC_LABELS = {
-  yes: 'Available — standard outlet nearby',
-  no: 'Not available',
+  yes: 'Yes — standard outlet nearby',
+  no: 'No',
   unsure: 'Not sure',
 };
 
@@ -51,7 +51,7 @@ function formatSiteAccessLines(b) {
     lines.push(`Service location: ${LOCATION_LABELS[booking.serviceLocation] || booking.serviceLocation}`);
   }
   if (booking.accessNotes) {
-    lines.push(`Access notes: ${booking.accessNotes}`);
+    lines.push(`Access notes (legacy): ${booking.accessNotes}`);
   }
   return lines;
 }

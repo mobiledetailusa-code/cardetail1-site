@@ -187,13 +187,29 @@ function schedulingMessageFields(booking) {
   try {
     flexLabel = require('./schedule-flexibility').scheduleFlexibilityLabel(b.scheduleFlexibility);
   } catch (_) { /* */ }
+  let preferredArrivalWindowLabel = '';
+  let alternateArrivalWindowLabel = '';
+  let confirmedTimeWindowLabel = '';
+  try {
+    const { arrivalWindowLabel } = require('./arrival-windows');
+    preferredArrivalWindowLabel = arrivalWindowLabel(b.preferredArrivalWindow);
+    alternateArrivalWindowLabel = arrivalWindowLabel(b.alternateArrivalWindow);
+  } catch (_) { /* */ }
+  confirmedTimeWindowLabel = arrivalWindow(b);
   return {
     preferredDate: b.preferredDate || '',
     preferredTime: b.preferredTime || '',
+    preferredArrivalWindow: b.preferredArrivalWindow || '',
+    preferredArrivalWindowLabel,
+    alternatePreferredDate: b.alternatePreferredDate || null,
+    alternateArrivalWindow: b.alternateArrivalWindow || null,
+    alternateArrivalWindowLabel,
     confirmedDate: b.confirmedDate || '',
+    confirmedTimeWindowLabel,
     arrivalWindow: arrivalWindow(b),
     scheduleFlexibility: b.scheduleFlexibility || 'exact',
     scheduleFlexibilityLabel: flexLabel,
+    notes: b.notes || b.customerNote || '',
     siteAccess: site,
   };
 }

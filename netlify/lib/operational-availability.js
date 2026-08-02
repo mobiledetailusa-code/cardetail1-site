@@ -12,6 +12,8 @@
 
 const ALLOWED_WEEKDAY_SLOTS = Object.freeze(['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM']);
 const ALLOWED_SATURDAY_SLOTS = Object.freeze(['8:00 AM', '10:00 AM']);
+/** Full inventory the owner may enable per date (includes optional late 4:00 PM). */
+const KNOWN_OPERATIONAL_SLOTS = Object.freeze(['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM', '4:00 PM']);
 const MIN_ADVANCE_DAYS = 3;
 const DEFAULT_BUSINESS_TIMEZONE = 'America/New_York';
 const CONTRACT_VERSION = 1;
@@ -272,13 +274,16 @@ function resolveActiveWeekendMode(config, now = new Date()) {
 }
 
 function normalizePreferredTime(raw) {
-  const t = String(raw || '').trim();
+  const t = String(raw || '').trim().replace(/\s+/g, ' ');
   if (!t) return null;
   if (LEGACY_TIME_PATTERNS.some((p) => p.test(t))) return null;
-  const found = ALLOWED_WEEKDAY_SLOTS.find(
-    (s) => s.toLowerCase() === t.replace(/\s+/g, ' ').toLowerCase()
+  const found = KNOWN_OPERATIONAL_SLOTS.find(
+    (s) => s.toLowerCase() === t.toLowerCase()
   );
-  return found || null;
+  if (found) return found;
+  // Accept 24h admin shorthand for the optional late slot
+  if (/^16:00$/.test(t) || /^4:00\s*pm$/i.test(t)) return '4:00 PM';
+  return null;
 }
 
 function getDateOverride(config, iso) {
@@ -486,6 +491,7 @@ module.exports = {
   CONTRACT_VERSION,
   ALLOWED_WEEKDAY_SLOTS,
   ALLOWED_SATURDAY_SLOTS,
+  KNOWN_OPERATIONAL_SLOTS,
   MIN_ADVANCE_DAYS,
   DEFAULT_BUSINESS_TIMEZONE,
   LEGACY_AVAILABILITY,

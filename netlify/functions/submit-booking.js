@@ -72,14 +72,91 @@ const {
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const { getOperationalAvailability } = require('../lib/ops-config');
+  const { slotsForDate } = require('../lib/booking-schedule');
+  const {
+    normalizeArrivalWindow,
+    resolveOperationalSlot,
+    eligibleOperationalSlots,
+    ERROR_ARRIVAL_WINDOW_UNAVAILABLE,
+  } = require('../lib/arrival-windows');
+  const { normalizeScheduleFlexibility } = require('../lib/schedule-flexibility');
+
   const config = await getOperationalAvailability().catch(() => null);
+  let bookingsForLock = null;
+
+  async function pickFreeEligibleSlot(dateIso, eligible) {
+    if (!checkSlot) return eligible[0] || null;
+    if (!bookingsForLock) {
+      bookingsForLock = await listBookingsForSlotLock().catch(() => []);
+    }
+    for (const slot of eligible) {
+      if (!hasSlotConflict(bookingsForLock, dateIso, slot, excludeId, Date.now(), config)) {
+        return slot;
+      }
+    }
+    return null;
+  }
+
+  // Customer arrival window is preference; internal preferredTime is one operational slot.
+  const rawWindow = b.preferredArrivalWindow;
+  if (rawWindow != null && String(rawWindow).trim() !== '') {
+    const window = normalizeArrivalWindow(rawWindow);
+    if (!window) return { ok: false, error: ERROR_ARRIVAL_WINDOW_UNAVAILABLE };
+    const slots = slotsForDate(b.preferredDate, config);
+    const resolved = resolveOperationalSlot(b.preferredDate, window, slots);
+    if (!resolved.ok) return { ok: false, error: resolved.error || ERROR_ARRIVAL_WINDOW_UNAVAILABLE };
+    const free = await pickFreeEligibleSlot(b.preferredDate, resolved.eligible || [resolved.preferredTime]);
+    if (!free) {
+      return {
+        ok: false,
+        error: checkSlot ? 'booking_slot_unavailable' : ERROR_ARRIVAL_WINDOW_UNAVAILABLE,
+      };
+    }
+    b.preferredArrivalWindow = window;
+    b.preferredTime = free;
+  } else {
+    // Legacy path: preferredTime remains the customer + operational value.
+    b.preferredArrivalWindow = b.preferredArrivalWindow || '';
+  }
+
   const v = validateBookingSchedule(b.preferredDate, b.preferredTime, { config });
   if (!v.ok) return { ok: false, error: v.error };
   b.preferredDate = v.preferredDate;
   b.preferredTime = v.preferredTime;
+
+  const flex = normalizeScheduleFlexibility(b.scheduleFlexibility);
+  b.scheduleFlexibility = flex;
+
+  if (flex === 'alternate_date') {
+    const altDate = String(b.alternatePreferredDate || '').trim();
+    const altWinRaw = b.alternateArrivalWindow;
+    if (!altDate) return { ok: false, error: 'booking_alternate_date_required' };
+    if (altDate === b.preferredDate) return { ok: false, error: 'booking_alternate_date_same' };
+    const altWin = normalizeArrivalWindow(altWinRaw);
+    if (!altWin) return { ok: false, error: 'booking_alternate_arrival_window_required' };
+    // Structural + calendar only — never a second hold or occupancy reservation.
+    const altSlots = slotsForDate(altDate, config);
+    if (!altSlots.length) return { ok: false, error: 'booking_alternate_date_unavailable' };
+    const altEligible = eligibleOperationalSlots(altWin, altSlots);
+    if (!altEligible.length) return { ok: false, error: ERROR_ARRIVAL_WINDOW_UNAVAILABLE };
+    const altV = validateBookingSchedule(altDate, altEligible[0], { config });
+    if (!altV.ok) return { ok: false, error: 'booking_alternate_date_unavailable' };
+    b.alternatePreferredDate = altV.preferredDate;
+    b.alternateArrivalWindow = altWin;
+  } else if (flex === 'exact') {
+    b.alternatePreferredDate = null;
+    b.alternateArrivalWindow = null;
+  } else {
+    // Legacy flexible enums: keep readable; do not invent alternate fields.
+    if (!b.alternatePreferredDate) b.alternatePreferredDate = null;
+    if (!b.alternateArrivalWindow) b.alternateArrivalWindow = null;
+  }
+
   if (checkSlot) {
-    const bookings = await listBookingsForSlotLock().catch(() => []);
-    if (hasSlotConflict(bookings, v.preferredDate, v.preferredTime, excludeId, Date.now(), config)) {
+    if (!bookingsForLock) {
+      bookingsForLock = await listBookingsForSlotLock().catch(() => []);
+    }
+    if (hasSlotConflict(bookingsForLock, v.preferredDate, v.preferredTime, excludeId, Date.now(), config)) {
       return { ok: false, error: 'booking_slot_unavailable' };
     }
   }
@@ -93,13 +170,22 @@ function scheduleRejectResponse(status, error, meta = {}) {
       ? 'That date is unavailable. Choose another day, then continue.'
       : error === 'booking_time_unavailable'
         ? 'That time is unavailable. Choose another slot, then continue.'
-        : 'Please choose an available date and time.';
+        : (error === 'arrival_window_unavailable' || error === 'booking_arrival_window_unavailable')
+          ? 'That arrival window is no longer available for the selected date. Choose another window, then continue.'
+          : error === 'booking_alternate_date_same'
+            ? 'Your alternate date must be different from your preferred date.'
+            : error === 'booking_alternate_date_required' || error === 'booking_alternate_arrival_window_required'
+              ? 'Please complete your alternate date and arrival window, or uncheck the alternate date option.'
+              : error === 'booking_alternate_date_unavailable'
+                ? 'That alternate date is unavailable. Choose another day or window.'
+                : 'Please choose an available date and time.';
   console.log('[submit-booking] schedule rejected', {
     error,
     responseCode: status,
     draftBookingId: meta.draftBookingId || null,
     preferredDate: meta.preferredDate || null,
     preferredTime: meta.preferredTime || null,
+    preferredArrivalWindow: meta.preferredArrivalWindow || null,
     phase: meta.phase || null,
   });
   return json(status, {
@@ -169,14 +255,19 @@ function buildDraftRecord(b, draftId, now, existing = null) {
     vehicles: b.vehicles || [],
     preferredDate: b.preferredDate || '',
     preferredTime: b.preferredTime || '',
+    preferredArrivalWindow: b.preferredArrivalWindow || '',
     scheduleFlexibility: (() => {
       const { normalizeScheduleFlexibility } = require('../lib/schedule-flexibility');
       return normalizeScheduleFlexibility(b.scheduleFlexibility);
     })(),
+    alternatePreferredDate: b.alternatePreferredDate || null,
+    alternateArrivalWindow: b.alternateArrivalWindow || null,
     waterAvailable: b.waterAvailable || '',
     electricityAvailable: b.electricityAvailable || '',
     serviceLocation: b.serviceLocation || '',
     accessNotes: b.accessNotes || '',
+    notes: b.notes || b.customerNote || '',
+    customerNote: b.notes || b.customerNote || '',
     offer: b.offer || existing?.offer || null,
     welcomeOffer: b.welcomeOffer || existing?.welcomeOffer || null,
     approvedFinalAmount: b.approvedFinalAmount ?? existing?.approvedFinalAmount ?? null,
@@ -269,6 +360,14 @@ function bookingText(b) {
     `Address:  ${b.address || ''}`,
     `ZIP/Zone: ${b.zipCode || ''} ${b.zone ? '· ' + b.zone : ''}`,
     `Date:     ${b.preferredDate || ''} ${b.preferredTime || ''}`,
+    `Arrival:  ${(() => {
+      try {
+        const { arrivalWindowLabel } = require('../lib/arrival-windows');
+        return arrivalWindowLabel(b.preferredArrivalWindow) || b.preferredArrivalWindow || '—';
+      } catch (_) {
+        return b.preferredArrivalWindow || '—';
+      }
+    })()}`,
     `Flexibility: ${(() => {
       try {
         const { scheduleFlexibilityLabel } = require('../lib/schedule-flexibility');
@@ -277,6 +376,16 @@ function bookingText(b) {
         return b.scheduleFlexibility || 'exact';
       }
     })()}`,
+    ...(b.alternatePreferredDate ? [
+      `Alternate: ${b.alternatePreferredDate} ${(() => {
+        try {
+          const { arrivalWindowLabel } = require('../lib/arrival-windows');
+          return arrivalWindowLabel(b.alternateArrivalWindow) || b.alternateArrivalWindow || '';
+        } catch (_) {
+          return b.alternateArrivalWindow || '';
+        }
+      })()}`,
+    ] : []),
     ``,
     `Service:  ${b.package || b.service || ''}`,
     vehicles ? `Vehicles:\n${vehicles}` : '',

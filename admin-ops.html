@@ -328,14 +328,17 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           <select id="avOverrideEnabled"><option value="true">Open / bookable</option><option value="false">Closed</option></select>
         </div>
         <div><label>Capacity (per window)</label><input type="number" id="avOverrideCapacity" min="1" max="20" value="1"></div>
-        <div><label>Arrival windows</label>
+        <div><label>Operational windows</label>
           <select id="avOverrideWindows">
             <option value="sat">8:00 AM, 10:00 AM (weekend default)</option>
-            <option value="weekday">8:00 AM, 10:00 AM, 12:00 PM, 2:00 PM</option>
+            <option value="weekday">8:00 AM, 10:00 AM, 12:00 PM, 2:00 PM (weekday default)</option>
+            <option value="weekday_late">Weekday + 4:00 PM</option>
+            <option value="sat_late">Weekend + 4:00 PM</option>
             <option value="custom">Custom (comma-separated)</option>
           </select>
         </div>
-        <div class="full"><label>Custom windows</label><input type="text" id="avOverrideCustom" placeholder="8:00 AM, 10:00 AM"></div>
+        <div class="full"><label>Custom windows</label><input type="text" id="avOverrideCustom" placeholder="e.g. 8:00 AM, 10:00 AM, 4:00 PM"></div>
+        <p class="hint full" style="margin:0">4:00 PM is optional and only applies on dates where you include it here. It is not enabled on every date by default.</p>
         <div class="full"><label>Internal note (optional)</label><input type="text" id="avOverrideNote" placeholder="Owner-only note"></div>
         <div class="full" style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn" id="btnUpsertOverride">Save date override</button>
@@ -710,6 +713,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   function resolveOverrideWindows() {
     const mode = $('#avOverrideWindows')?.value || 'sat';
     if (mode === 'weekday') return ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'];
+    if (mode === 'weekday_late') return ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM', '4:00 PM'];
+    if (mode === 'sat_late') return ['8:00 AM', '10:00 AM', '4:00 PM'];
     if (mode === 'custom') {
       return String($('#avOverrideCustom')?.value || '')
         .split(',')
@@ -1663,16 +1668,43 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div class="full"><button type="button" class="btn ghost sm" id="dSaveService" style="width:100%">Recalculate service (server)</button></div>'+
       '</div></div>';
     html += (typeof SiteAccess !== 'undefined' ? '<div class="sec full">'+SiteAccess.adminSection(j, esc)+'</div>' : '');
-    if (j.scheduleFlexibility) {
+    if (j.scheduleFlexibility || j.preferredArrivalWindow || j.alternatePreferredDate) {
       const flexLabels = {
         exact: 'Exact date only',
+        alternate_date: 'Has alternate date',
         within_3_days: 'Flexible within 3 days',
         earliest_after_date: 'First available on or after selected date',
       };
+      const arrivalLabels = {
+        '08:00-11:00': '8:00 AM – 11:00 AM',
+        '09:00-12:00': '9:00 AM – 12:00 PM',
+        '10:00-13:00': '10:00 AM – 1:00 PM',
+        '11:00-14:00': '11:00 AM – 2:00 PM',
+        '12:00-15:00': '12:00 PM – 3:00 PM',
+        '13:00-16:00': '1:00 PM – 4:00 PM',
+        '14:00-17:00': '2:00 PM – 5:00 PM',
+        '15:00-18:00': '3:00 PM – 6:00 PM',
+        '16:00-19:00': '4:00 PM – 7:00 PM',
+        anytime: 'Any time that day — Best availability',
+      };
       html += '<div class="sec full"><div class="sec-title">Schedule preference</div><div class="kv-grid">' +
         '<div class="kv"><span>Preferred date</span><strong>' + esc(j.preferredDate || '—') + '</strong></div>' +
-        '<div class="kv"><span>Preferred window</span><strong>' + esc(j.preferredTime || '—') + '</strong></div>' +
-        '<div class="kv"><span>Flexibility</span><strong>' + esc(flexLabels[j.scheduleFlexibility] || j.scheduleFlexibility) + '</strong></div>' +
+        '<div class="kv"><span>Preferred arrival window</span><strong>' + esc(arrivalLabels[j.preferredArrivalWindow] || j.preferredArrivalWindow || '—') + '</strong></div>' +
+        (j.alternatePreferredDate
+          ? '<div class="kv"><span>Alternate date</span><strong>' + esc(j.alternatePreferredDate) + '</strong></div>'
+          : '') +
+        (j.alternateArrivalWindow
+          ? '<div class="kv"><span>Alternate arrival window</span><strong>' + esc(arrivalLabels[j.alternateArrivalWindow] || j.alternateArrivalWindow) + '</strong></div>'
+          : '') +
+        '<div class="kv"><span>Date flexibility</span><strong>' + esc(flexLabels[j.scheduleFlexibility] || j.scheduleFlexibility || 'exact') + '</strong></div>' +
+        '<div class="kv"><span>Confirmed date</span><strong>' + esc(j.confirmedDate || '—') + '</strong></div>' +
+        '<div class="kv"><span>Confirmed arrival window</span><strong>' + esc(j.confirmedTimeWindow || j.confirmedTime || '—') + '</strong></div>' +
+        '<div class="kv"><span>Operational slot</span><strong>' + esc(j.preferredTime || '—') + '</strong></div>' +
+        '</div></div>';
+    }
+    if (j.notes || j.customerNote) {
+      html += '<div class="sec full"><div class="sec-title">Additional notes</div><div class="kv-grid">' +
+        '<div class="kv"><span>Notes</span><strong>' + esc(j.notes || j.customerNote || '') + '</strong></div>' +
         '</div></div>';
     }
     const invPaid = !!(j.invoicePaid || j.financialPaymentStatus==='paid' || j.paymentWorkflowStatus==='payment_succeeded' || j.paymentWorkflowStatus==='cash_paid' || (Number(j.remainingCents||0)===0 && Number(j.settledCents||0)>0));

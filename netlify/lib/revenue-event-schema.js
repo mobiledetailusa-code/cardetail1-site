@@ -20,6 +20,7 @@ const APPROVED_EVENTS = Object.freeze([
   'weekend_date_selected', 'selected_slot_unavailable', 'nearby_slots_opened',
   'booking_review_reached', 'setup_intent_started',
   'booking_submit_attempted', 'booking_submit_succeeded', 'booking_submit_failed',
+  'arrival_window_selected',
 ]);
 
 const APPROVED_PROPERTIES = Object.freeze([

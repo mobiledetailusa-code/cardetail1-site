@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Sync / verify booking conversion labels + script includes across booking pages.
+ * Sync / verify booking conversion Step-4 form + script includes across booking pages.
  *
- * Canonical source of booking UX scripts: assets/booking-*-client|ux.js
- * Canonical page for full booking modal: index.html (mirrors share Step-4 fields).
+ * Canonical source: index.html (BK_DETAILS_FORM_START … BK_DETAILS_FORM_END)
+ * Canonical UX scripts: assets/booking-*-client|ux.js
  *
  * Usage:
  *   node scripts/sync-booking-conversion-pages.js          # apply
@@ -31,15 +31,8 @@ const pages = [
   'template-city.html',
 ];
 
-/** Only replace these exact option/label strings inside booking markup — not SEO copy. */
-const replacements = [
-  ['<div class="fl">Water available?</div>', '<div class="fl">Water access at the service location</div>'],
-  ['<div class="fl">Electricity available?</div>', '<div class="fl">Electricity access at the service location</div>'],
-  ['Yes, water spigot/hose access available', 'Available — outdoor faucet or hose connection'],
-  ['No water available', 'Not available'],
-  ['Yes, outlet available', 'Available — standard outlet nearby'],
-  ['No electricity available', 'Not available'],
-];
+const FORM_START = '<!-- BK_DETAILS_FORM_START -->';
+const FORM_END = '<!-- BK_DETAILS_FORM_END -->';
 
 const scripts = [
   '<script src="assets/booking-availability-client.js"></script>',
@@ -49,6 +42,18 @@ const scripts = [
 const requiredMarkers = [
   'id="f-water"',
   'id="f-electric"',
+  'id="f-arrival-window"',
+  'id="f-arrival-window-select"',
+  'id="f-arrival-mode-anytime"',
+  'id="f-has-alternate"',
+  'id="f-notes"',
+  'BK_DETAILS_FORM_START',
+  'Preferred arrival window',
+  'Any time that day',
+  'Choose a 3-hour arrival window',
+  'Alternate arrival preference',
+  'I have an alternate date',
+  'Additional notes — Optional',
   'value="yes"',
   'value="no"',
   'value="unsure"',
@@ -56,16 +61,35 @@ const requiredMarkers = [
   'standard outlet nearby',
   'assets/booking-availability-client.js',
   'assets/booking-conversion-ux.js',
-  'bkInitSchedulePicker',
   'bkValidateScheduleSelection',
   'bkEarliestBookable',
 ];
 
-function applyTransforms(html) {
-  let next = html;
-  for (const [from, to] of replacements) {
-    next = next.split(from).join(to);
+function extractFormBlock(html) {
+  const a = html.indexOf(FORM_START);
+  const b = html.indexOf(FORM_END);
+  if (a < 0 || b < 0 || b < a) return null;
+  return html.slice(a, b + FORM_END.length);
+}
+
+function replaceOrInsertForm(html, canonicalBlock) {
+  const existing = extractFormBlock(html);
+  if (existing) {
+    return html.replace(existing, canonicalBlock);
   }
+
+  // Legacy pages: replace from first fgrid inside #bs4 through Access/Notes textareas.
+  const bs4 = html.indexOf('id="bs4"');
+  if (bs4 < 0) return html;
+  const fgrid = html.indexOf('<div class="fgrid"', bs4);
+  const btnRow = html.indexOf('<div class="btn-row">', fgrid);
+  if (fgrid < 0 || btnRow < 0) return html;
+  // Walk back to include any prior form start; replace fgrid… before btn-row
+  return html.slice(0, fgrid) + canonicalBlock + '\n        ' + html.slice(btnRow);
+}
+
+function ensureScripts(html) {
+  let next = html;
   for (const s of scripts) {
     if (next.includes(s)) continue;
     if (next.includes('<script src="assets/revops-init.js"></script>')) {
@@ -85,11 +109,29 @@ function applyTransforms(html) {
   return next;
 }
 
+function applyTransforms(html, canonicalForm) {
+  let next = replaceOrInsertForm(html, canonicalForm);
+  next = ensureScripts(next);
+  // Drop obsolete access-notes field if somehow left outside the synced block.
+  next = next.replace(
+    /<div class="fg full"><div class="fl">Access notes \(optional\)<\/div><textarea class="fta" id="f-access-notes"[^<]*<\/textarea><\/div>\s*/g,
+    ''
+  );
+  return next;
+}
+
+const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const canonicalForm = extractFormBlock(indexHtml);
+if (!canonicalForm) {
+  console.error('Canonical BK_DETAILS_FORM block missing from index.html');
+  process.exit(1);
+}
+
 let drift = 0;
 for (const page of pages) {
   const file = path.join(root, page);
   const before = fs.readFileSync(file, 'utf8');
-  const after = applyTransforms(before);
+  const after = applyTransforms(before, canonicalForm);
 
   if (checkOnly) {
     const missing = requiredMarkers.filter((m) => !before.includes(m));
