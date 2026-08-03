@@ -190,18 +190,21 @@ describe('admin-ops renderer wiring', () => {
 
   it('uses compact appointment panels with one open at a time', () => {
     assert.match(adminOps, /appt-panel-tabs/);
-    assert.match(adminOps, /data-appt-panel="overview"/);
+    // Admin Lite panel set: Summary · Services · Schedule · Payment · Notes · More.
+    // The requests panel is retained but reached from the pending alert / More.
+    assert.match(adminOps, /data-appt-panel="summary"/);
     assert.match(adminOps, /data-appt-panel="requests"/);
-    assert.match(adminOps, /data-appt-panel="vehicles"/);
+    assert.match(adminOps, /data-appt-panel="services"/);
     assert.match(adminOps, /data-appt-panel="schedule"/);
     assert.match(adminOps, /data-appt-panel="payment"/);
+    assert.match(adminOps, /data-appt-panel="notes"/);
     assert.match(adminOps, /data-appt-panel="more"/);
     assert.match(adminOps, /function setApptPanel/);
     assert.match(adminOps, /\.appt-panel\.on|classList\.toggle\('on'/);
   });
 
   it('defaults to Requests panel when pending requests exist', () => {
-    assert.match(adminOps, /defaultPanel = \(openDrawerFocusRequests \|\| pendingCRs\.length \|\| legacyPending\) \? 'requests' : 'overview'/);
+    assert.match(adminOps, /defaultPanel = \(openDrawerFocusRequests \|\| pendingCRs\.length \|\| legacyPending\) \? 'requests' : 'summary'/);
   });
 
   it('global requests tab has filters and pending badge', () => {

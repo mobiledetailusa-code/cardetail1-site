@@ -237,7 +237,8 @@ test('admin ops supports operational actions', () => {
 });
 
 test('admin-ops UI has maintenance and requests tabs', () => {
-  assert.match(adminOps, /Customer Requests/);
+  // Admin Lite: the tab is now primary nav labelled "Requests"; Maintenance moved under More.
+  assert.match(adminOps, /data-tab="requests"[^>]*>Requests</);
   assert.match(adminOps, /Maintenance/);
   assert.match(adminOps, /btnArchiveTests/);
   assert.match(adminOps, /confirm_booking/);
