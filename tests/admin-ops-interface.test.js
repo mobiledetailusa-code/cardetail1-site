@@ -70,7 +70,8 @@ test('empty request list renders empty state copy', () => {
 
 test('authenticated list uses admin session header', () => {
   assert.match(adminOps, /headers: \{ 'x-admin-key': CD1AdminSession\.getToken\(\) \}/);
-  assert.match(adminOps, /admin-customer-requests\?action=list/);
+  assert.match(adminOps, /admin-customer-requests/);
+  assert.match(adminOps, /action:\s*'list'|action=list/);
 });
 
 test('admin-customer-requests returns 401 when unauthenticated', () => {

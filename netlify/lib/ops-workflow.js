@@ -135,6 +135,21 @@ function projectJobForAdmin(b) {
   }
   // Multi-vehicle display projection — server dollars; keep top-level primary fields.
   safe.vehicles = projectVehiclesForAdmin(safe);
+  // Canonical change-request projection so Admin appointment + badges see
+  // vehicle_remove_request (and peers), not only legacy reschedule/address flags.
+  try {
+    const {
+      projectChangeRequestsForAdmin,
+    } = require('./admin-change-request-projection');
+    const cr = projectChangeRequestsForAdmin(safe);
+    safe.changeRequests = cr.changeRequests;
+    safe.pendingChangeRequests = cr.pendingChangeRequests;
+    safe.pendingChangeRequestCount = cr.pendingChangeRequestCount;
+    if (cr.pendingChangeRequestCount > 0) safe.customerChangePending = true;
+  } catch {
+    safe.pendingChangeRequests = [];
+    safe.pendingChangeRequestCount = 0;
+  }
   return safe;
 }
 

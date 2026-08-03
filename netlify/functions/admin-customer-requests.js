@@ -60,36 +60,80 @@ exports.handler = async (event) => {
     // Paginate ALL pages before filtering — never cap keys at 200 pre-filter (PDA-12)
     const blobs = await listAllBlobs(store, REQUEST_STORE);
     const items = await fetchBlobRecords(store, blobs);
-    const cursor = String(body.cursor || event.queryStringParameters?.cursor || '');
-    const pending = items
-      .filter((r) => r && (r.status === 'pending' || r.status === 'pending_approval'))
-      .sort((a, b) => {
-        const ta = String(b.createdAt || '');
-        const tb = String(a.createdAt || '');
-        if (ta !== tb) return ta.localeCompare(tb);
-        return String(b.id || '').localeCompare(String(a.id || ''));
-      });
+    const statusFilter = String(
+      body.status || event.queryStringParameters?.status || 'pending'
+    ).toLowerCase();
+    const {
+      projectChangeRequestForAdmin,
+      isOpenStatus,
+    } = require('../lib/admin-change-request-projection');
 
+    const enriched = [];
+    for (const r of items) {
+      if (!r) continue;
+      let booking = null;
+      if (r.bookingId) {
+        try { booking = await getBooking(r.bookingId); } catch { booking = null; }
+      }
+      const projected = projectChangeRequestForAdmin({
+        ...r,
+        id: r.id || r.requestId,
+        requestId: r.requestId || r.id,
+        bookingId: r.bookingId,
+      }, booking || {});
+      if (!projected) continue;
+      projected.typeLabel = TYPE_LABELS[projected.requestType] || projected.requestType;
+      projected.customerName = booking
+        ? [booking.firstName, booking.lastName].filter(Boolean).join(' ').trim()
+        : '';
+      projected.vehicleLabel = projected.requestedState?.vehicleSnapshot?.vehicleLabel
+        || projected.previousState?.vehicle?.vehicleLabel
+        || projected.vehicleId
+        || '';
+      enriched.push(projected);
+    }
+
+    const filtered = enriched.filter((r) => {
+      const st = String(r.status || '').toLowerCase();
+      if (statusFilter === 'all') return true;
+      if (statusFilter === 'pending') return isOpenStatus(st);
+      if (statusFilter === 'needs_payment_adjustment' || statusFilter === 'payment_adjustment') {
+        return isOpenStatus(st) && r.paymentImpact === 'payment_adjustment_required';
+      }
+      if (statusFilter === 'approved' || statusFilter === 'applied') {
+        return st === 'applied' || st === 'approved';
+      }
+      if (statusFilter === 'declined' || statusFilter === 'rejected') {
+        return st === 'rejected' || st === 'declined';
+      }
+      return isOpenStatus(st);
+    }).sort((a, b) => {
+      const ta = String(b.createdAt || b.submittedAt || '');
+      const tb = String(a.createdAt || a.submittedAt || '');
+      if (ta !== tb) return ta.localeCompare(tb);
+      return String(b.id || '').localeCompare(String(a.id || ''));
+    });
+
+    const cursor = String(body.cursor || event.queryStringParameters?.cursor || '');
     let start = 0;
     if (cursor) {
-      const idx = pending.findIndex((r) => r.id === cursor);
+      const idx = filtered.findIndex((r) => r.id === cursor);
       start = idx >= 0 ? idx + 1 : 0;
     }
-    const page = pending.slice(start, start + MAX_LIST).map((r) => ({
-      ...r,
-      typeLabel: TYPE_LABELS[r.requestType] || r.requestType,
-      shortId: shortId(r.id),
-    }));
-    const nextCursor = start + MAX_LIST < pending.length
+    const page = filtered.slice(start, start + MAX_LIST);
+    const nextCursor = start + MAX_LIST < filtered.length
       ? page[page.length - 1]?.id || null
       : null;
+    const pendingCount = enriched.filter((r) => isOpenStatus(r.status)).length;
 
     return jsonCors(200, {
       ok: true,
       requests: page,
       bounded: true,
       max: MAX_LIST,
-      totalPending: pending.length,
+      totalPending: pendingCount,
+      totalFiltered: filtered.length,
+      statusFilter,
       nextCursor,
     });
   }
