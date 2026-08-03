@@ -220,6 +220,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/customer-completion-link.js',
     'netlify/lib/customer-feature-flags.js',
     'netlify/lib/ops-workflow.js',
+    'netlify/lib/tech-list-modes.js',
+    'netlify/functions/tech-accounts.js',
     'netlify/lib/revenue-store.js',
     'netlify/lib/revops-dashboard.js',
     'netlify/functions/qa-opscore-lifecycle.js',

@@ -3,13 +3,18 @@ const {
   blobsStore, listAllBlobs, fetchBlobRecords, jsonCors, verifyAdminKey, generateInviteToken, generateTechId,
   sanitizeText, INVITE_TTL_MS, hashPassword, isWeakPassword,
 } = require('../lib/tech-security');
-const { projectTechAccountForAdmin } = require('../lib/ops-workflow');
+const { projectTechAccountForAdmin, projectTechAssignOption } = require('../lib/ops-workflow');
+const {
+  resolveTechListMode,
+  shouldAttachAssignedJobCounts,
+} = require('../lib/tech-list-modes');
 
 async function attachAssignedJobCounts(technicians) {
   try {
     const bookings = await blobsStore('cd1-bookings');
     const blobs = await listAllBlobs(bookings, 'cd1-bookings');
     const counts = {};
+    // One shared scan for all technicians — never N scans per tech.
     const records = await fetchBlobRecords(bookings, blobs, 25);
     for (const bk of records) {
       if (!bk || bk.isDraft) continue;
@@ -56,25 +61,34 @@ exports.handler = async (event) => {
       return store.get('tech-' + techId, { type: 'json' }).catch(() => null);
     }
 
-    async function listTechs() {
+    async function listTechs(mode) {
       if (!store) return [];
       const blobs = await listAllBlobs(store, 'cd1-tech-accounts');
       const techBlobs = blobs.filter(b => b.key.startsWith('tech-'));
       const records = await fetchBlobRecords(store, techBlobs, 15);
       const out = [];
+      const lean = mode === 'assign_options';
       for (const t of records) {
-        try { out.push(projectTechAccountForAdmin(t)); }
-        catch (e) { console.warn('[tech-accounts] skip malformed tech record:', e.message); }
+        try {
+          out.push(lean ? projectTechAssignOption(t) : projectTechAccountForAdmin(t));
+        } catch (e) {
+          console.warn('[tech-accounts] skip malformed tech record:', e.message);
+        }
       }
       out.sort((a, b) => String(a.fullName).localeCompare(String(b.fullName)));
       return out;
     }
 
     if (action === 'list') {
-      const technicians = await listTechs();
-      if (store) await attachAssignedJobCounts(technicians);
+      const mode = resolveTechListMode(body);
+      const wantCounts = shouldAttachAssignedJobCounts(body, mode);
+      const technicians = await listTechs(mode);
+      // Lightweight Assign choices never pay for a full bookings scan.
+      if (wantCounts && store) await attachAssignedJobCounts(technicians);
       return jsonCors(200, {
         ok: true,
+        mode,
+        includeAssignedCounts: wantCounts,
         technicians,
         ...(store ? {} : { warning: 'tech_store_unavailable' }),
       });
@@ -96,7 +110,7 @@ exports.handler = async (event) => {
       if (!fullName) return jsonCors(400, { ok: false, error: 'fullName_required' });
       if (!email.includes('@')) return jsonCors(400, { ok: false, error: 'valid_email_required' });
 
-      const existing = await listTechs();
+      const existing = await listTechs('management');
       if (existing.some(t => t.email === email)) return jsonCors(409, { ok: false, error: 'email_already_exists' });
 
       const techId = generateTechId();
