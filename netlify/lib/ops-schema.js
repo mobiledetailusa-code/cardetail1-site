@@ -128,7 +128,7 @@ function projectVehicleForCustomer(v) {
       price,
     };
   });
-  return {
+  const projected = {
     vehicleId: v.vehicleId || '',
     year,
     make,
@@ -152,6 +152,17 @@ function projectVehicleForCustomer(v) {
     pkgIcon: v.pkgIcon || '🚗',
     addons,
   };
+  // Preserve optional snapshot for detail resolution without inventing catalog data.
+  if (v.packageSnapshot && typeof v.packageSnapshot === 'object') {
+    projected.packageSnapshot = v.packageSnapshot;
+  }
+  try {
+    const { resolvePackageDetailsForCustomerView } = require('./package-details-resolve');
+    projected.packageDetails = resolvePackageDetailsForCustomerView({ ...v, ...projected });
+  } catch (_) {
+    projected.packageDetails = null;
+  }
+  return projected;
 }
 
 function resolveCustomerVehicles(src, material) {

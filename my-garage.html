@@ -77,6 +77,24 @@ ul.clean li{padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}
 .pack-desc{font-size:13px;color:var(--muted);margin:-6px 0 14px;line-height:1.45}
 .vehicle-breakdown{margin:0 0 16px;padding:14px 0 0;border-top:1px solid var(--border)}
 .vehicle-breakdown-title{font-size:15px;font-weight:700;margin:0 0 10px;color:var(--text)}
+.package-row dd{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.package-name-text{font-weight:600}
+.package-details-toggle{min-height:44px;min-width:44px;padding:8px 12px;font-size:13px}
+.package-details-panel{margin:10px 0 12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(0,0,0,.02)}
+.package-details-name{font-weight:700;margin:0 0 6px}
+.package-details-desc{margin:0 0 10px;font-size:13px;color:var(--muted);line-height:1.45}
+.package-details-h{font-size:12px;text-transform:uppercase;letter-spacing:.04em;margin:12px 0 6px;color:var(--muted)}
+.package-details-list{margin:0;padding-left:1.15rem;font-size:14px;line-height:1.45}
+.package-details-list li{margin:0 0 4px}
+.package-details-money{display:flex;justify-content:space-between;gap:12px;margin:8px 0 0;font-size:14px}
+.package-details-unavailable{margin:0;font-size:13px;color:var(--muted)}
+.vehicle-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.vehicle-actions .btn{min-height:44px}
+.vehicle-removal-pending{display:inline-flex;align-items:center;min-height:44px;padding:6px 10px;font-size:13px;font-weight:600;color:#8a5a00;background:#fff6e5;border-radius:8px}
+@media(max-width:480px){
+  .vehicle-actions{flex-direction:column;align-items:stretch}
+  .package-row dd{flex-direction:column;align-items:flex-start}
+}
 .vehicle-addon-list{list-style:none;padding:0;margin:0}
 .vehicle-addon-list li{font-size:14px;font-weight:600;padding:2px 0}
 .booking-financial-summary{margin-top:4px;padding-top:14px;border-top:1px solid var(--border)}

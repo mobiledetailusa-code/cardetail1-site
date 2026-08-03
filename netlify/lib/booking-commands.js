@@ -110,6 +110,79 @@ async function submitChangeRequestCommand({
     // Keep live service + quote unchanged until decide(approve)
     service = aggregate.service;
     quote = aggregate.quote;
+  } else if (requestType === 'vehicle_remove_request') {
+    const vehicles = ensureVehicleIds(service.vehicles || []);
+    let vehicleId = String(target?.vehicleId || '').trim();
+    if (!vehicleId && vehicles.length === 1) vehicleId = vehicles[0].vehicleId;
+    if (!vehicleId) {
+      return { ok: false, error: 'vehicle_target_required', statusCode: 400 };
+    }
+    const idx = vehicles.findIndex((v) => String(v.vehicleId) === vehicleId);
+    if (idx < 0) {
+      return { ok: false, error: 'vehicle_not_found', statusCode: 400 };
+    }
+    if (vehicles.length <= 1) {
+      return {
+        ok: false,
+        error: 'last_vehicle_denied',
+        statusCode: 409,
+        message: 'To remove the final vehicle, cancel the appointment or contact us.',
+      };
+    }
+    const openDup = asArray(aggregate.changeRequests).some((r) => {
+      const st = String(r.status || '').toLowerCase();
+      if (!['pending', 'pending_approval', 'needs_clarification', 'awaiting_admin'].includes(st)) {
+        return false;
+      }
+      const rt = r.type || r.requestType;
+      if (rt !== 'vehicle_remove_request') return false;
+      return String(r.target?.vehicleId || '') === vehicleId;
+    });
+    if (openDup) {
+      return {
+        ok: false,
+        error: 'duplicate_pending_request',
+        statusCode: 409,
+        message: 'A removal request for this vehicle is already pending review.',
+      };
+    }
+    const removed = vehicles[idx];
+    const remaining = vehicles.filter((_, i) => i !== idx);
+    const travelCents = dollarsToCents(aggregate.travelFeeAmount || aggregate.zoneSurcharge || 0);
+    const quoted = quoteService({ ...service, vehicles: remaining }, {
+      basedOnBookingVersion: actualVersion,
+      previousQuoteVersion: aggregate.quoteVersion || aggregate.quote?.quoteVersion || 0,
+      travelCents,
+      bookingBase: aggregate,
+    });
+    if (!quoted.ok) return { ok: false, error: quoted.error || 'invalid_pricing', statusCode: 400 };
+    proposedApprovedCents = quoted.quote.approvedCents;
+    proposedQuoteVersion = quoted.quote.quoteVersion;
+    // Attach proposal snapshot onto delta for admin / customer UI (live booking unchanged)
+    delta = {
+      ...(delta && typeof delta === 'object' ? delta : {}),
+      operation: 'vehicle_remove',
+      vehicleSnapshot: {
+        vehicleId,
+        year: removed.year || '',
+        make: removed.make || '',
+        model: removed.model || '',
+        vehicleLabel: removed.vehicleLabel || removed.label
+          || [removed.year, removed.make, removed.model].filter(Boolean).join(' '),
+        packageId: removed.packageId || removed.pkgId || '',
+        packageName: removed.pkgName || removed.packageName || '',
+        addons: Array.isArray(removed.addons) ? removed.addons : [],
+        basePrice: removed.basePrice != null ? removed.basePrice : removed.packagePrice,
+        subtotal: removed.subtotal,
+      },
+      currentApprovedCents: Math.round(Number(aggregate.ledger?.approvedCents)
+        || dollarsToCents(aggregate.approvedFinalAmount || aggregate.totalPrice || 0) || 0),
+      proposedApprovedCents,
+    };
+    target = { vehicleId };
+    service = aggregate.service;
+    quote = aggregate.quote;
+    schedulePatch = { customerChangePending: true };
   } else if (requestType === 'reschedule_request') {
     schedulePatch = {
       rescheduledByClient: true,
@@ -163,7 +236,8 @@ async function submitChangeRequestCommand({
     ...(extraPatches && typeof extraPatches === 'object' ? extraPatches : {}),
   };
 
-  if (moneyTypes.has(requestType) && proposedApprovedCents != null) {
+  if ((moneyTypes.has(requestType) || requestType === 'vehicle_remove_request')
+    && proposedApprovedCents != null) {
     // Proposal only — do not change ledger until Admin applies
     patches.proposedTotal = (proposedApprovedCents || 0) / 100;
   }
@@ -179,7 +253,26 @@ async function submitChangeRequestCommand({
   const indexResult = await rebuildRequestIndex({
     ...changeRequest,
     bookingId,
-    previousState: { bookingVersion: actualVersion },
+    previousState: requestType === 'vehicle_remove_request'
+      ? {
+        bookingVersion: actualVersion,
+        vehicle: (delta && delta.vehicleSnapshot) || {},
+        vehicleSubtotal: delta?.vehicleSnapshot?.subtotal,
+        packageName: delta?.vehicleSnapshot?.packageName,
+        addons: delta?.vehicleSnapshot?.addons || [],
+        approvedFinalAmount: (delta?.currentApprovedCents != null
+          ? delta.currentApprovedCents / 100
+          : undefined),
+        paidAmount: Math.max(0, Math.round(Number(aggregate.ledger?.settledCents) || 0)) / 100,
+        remainingBalance: Math.max(
+          0,
+          Math.round(Number(aggregate.ledger?.approvedCents) || 0)
+            - Math.round(Number(aggregate.ledger?.settledCents) || 0)
+            - Math.round(Number(aggregate.ledger?.creditedCents) || 0)
+        ) / 100,
+        vehicleCount: ensureVehicleIds(aggregate.service?.vehicles || []).length,
+      }
+      : { bookingVersion: actualVersion },
     requestedState: {
       ...delta,
       target,
@@ -188,6 +281,10 @@ async function submitChangeRequestCommand({
         : undefined,
       quoteVersion: changeRequest.quoteVersion,
       baseBookingVersion: changeRequest.baseBookingVersion,
+      priceDifference: changeRequest.proposedApprovedCents != null
+        && delta?.currentApprovedCents != null
+        ? (changeRequest.proposedApprovedCents - delta.currentApprovedCents) / 100
+        : undefined,
     },
     status: 'pending',
     authorizedRef,
@@ -304,9 +401,31 @@ async function decideChangeRequestCommand({
     const { canApplyAdditiveAddonAdjustment } = require('./addon-financial-mutation');
     const moneyOrVehicle = new Set([
       'package_change_request', 'addon_request', 'addon_remove_request',
-      'vehicle_replace_request', 'vehicle_add_request',
+      'vehicle_replace_request', 'vehicle_add_request', 'vehicle_remove_request',
     ]);
     const rtEarly = cr.type || cr.requestType;
+    const settledCents = Math.max(0, Math.round(Number(aggregate.ledger?.settledCents) || 0));
+    const hasPaymentActivity = settledCents > 0 || isInvoicePaid(aggregate);
+    if (rtEarly === 'vehicle_remove_request' && hasPaymentActivity) {
+      const currentApproved = Math.round(Number(aggregate.ledger?.approvedCents)
+        || dollarsToCents(aggregate.approvedFinalAmount || aggregate.totalPrice || 0) || 0);
+      const proposed = cr.proposedApprovedCents != null
+        ? Math.round(Number(cr.proposedApprovedCents))
+        : null;
+      return {
+        ok: false,
+        error: 'payment_adjustment_required',
+        statusCode: 409,
+        message: 'Payment adjustment required. This booking has payment activity — do not auto-remove the vehicle or rewrite ledger history.',
+        paymentAdjustmentRequired: true,
+        potentialRefundOrCreditCents: proposed != null
+          ? Math.max(0, settledCents - proposed)
+          : Math.max(0, settledCents),
+        currentApprovedCents: currentApproved,
+        settledCents,
+        proposedApprovedCents: proposed,
+      };
+    }
     if (moneyOrVehicle.has(rtEarly) && isInvoicePaid(aggregate)) {
       const addOnIdsToAdd = cr.delta?.addOnIdsToAdd || cr.delta?.addonIds || asArray(cr.delta?.addons).map((a) => a.id);
       const addOnIdsToRemove = cr.delta?.addOnIdsToRemove || [];
@@ -481,7 +600,7 @@ async function decideChangeRequestCommand({
   }
 
   const moneyTypes = new Set(['package_change_request', 'addon_request']);
-  const vehicleTypes = new Set(['vehicle_replace_request', 'vehicle_add_request']);
+  const vehicleTypes = new Set(['vehicle_replace_request', 'vehicle_add_request', 'vehicle_remove_request']);
   let service = aggregate.service;
   let quote = aggregate.quote;
   let ledger = aggregate.ledger;
@@ -518,6 +637,44 @@ async function decideChangeRequestCommand({
         approvedCents: quote.approvedCents,
       };
     }
+  } else if (rtDecide === 'vehicle_remove_request') {
+    const vehicles = ensureVehicleIds(service.vehicles || []);
+    let vehicleId = String(cr.target?.vehicleId || '').trim();
+    if (!vehicleId && vehicles.length === 1) vehicleId = vehicles[0].vehicleId;
+    if (!vehicleId) return { ok: false, error: 'vehicle_target_required', statusCode: 400 };
+    const idx = vehicles.findIndex((v) => String(v.vehicleId) === vehicleId);
+    if (idx < 0) return { ok: false, error: 'vehicle_not_found', statusCode: 400 };
+    if (vehicles.length <= 1) {
+      return {
+        ok: false,
+        error: 'last_vehicle_denied',
+        statusCode: 409,
+        message: 'To remove the final vehicle, cancel the appointment or contact us.',
+      };
+    }
+    const remaining = vehicles.filter((_, i) => i !== idx);
+    service = { ...service, vehicles: remaining };
+    const travelCents = dollarsToCents(aggregate.travelFeeAmount || aggregate.zoneSurcharge || 0);
+    const quoted = quoteService(service, {
+      basedOnBookingVersion: actualVersion,
+      previousQuoteVersion: aggregate.quoteVersion || aggregate.quote?.quoteVersion || 0,
+      travelCents,
+      bookingBase: aggregate,
+    });
+    if (!quoted.ok) {
+      return {
+        ok: false,
+        error: quoted.error || 'invalid_pricing',
+        statusCode: 400,
+        message: 'Could not reprice booking after vehicle removal.',
+      };
+    }
+    quote = quoted.quote;
+    service = quoted.service;
+    ledger = {
+      ...ledger,
+      approvedCents: quote.approvedCents,
+    };
   } else if (vehicleTypes.has(rtDecide)) {
     const { normalizeLengthCategory } = require('./length-pricing');
     const { coerceVehicleForCategory } = require('./booking-price-catalog');

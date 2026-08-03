@@ -42,6 +42,7 @@ const ACTION_MAP = {
   package_change_request: 'package_change',
   vehicle_add_request: 'vehicle_add',
   vehicle_replace_request: 'vehicle_replace',
+  vehicle_remove_request: 'vehicle_remove',
   addon_remove_request: 'addon',
   maintenance_request: 'maintenance',
   cancellation_request: 'cancel',
@@ -663,6 +664,96 @@ exports.handler = async (event) => {
       custName,
       adminSubjectLocal,
       adminTextLocal,
+    });
+  } else if (action === 'vehicle_remove_request') {
+    const { submitChangeRequestCommand } = require('../lib/booking-commands');
+    const { ensureVehicleIds } = require('../lib/booking-aggregate');
+
+    if (p.expectedBookingVersion == null || p.expectedBookingVersion === '') {
+      return json(400, {
+        ok: false,
+        error: 'validation_error',
+        message: 'expectedBookingVersion is required.',
+      });
+    }
+    const expectedBookingVersion = Math.round(Number(p.expectedBookingVersion));
+    if (!Number.isFinite(expectedBookingVersion) || expectedBookingVersion < 0) {
+      return json(400, {
+        ok: false,
+        error: 'validation_error',
+        message: 'expectedBookingVersion is invalid.',
+      });
+    }
+    const vehicleId = String(p.vehicleId || '').trim();
+    if (!vehicleId) {
+      return json(400, {
+        ok: false,
+        error: 'validation_error',
+        message: 'vehicleId is required.',
+      });
+    }
+    const vehicles = ensureVehicleIds(
+      booking.service?.vehicles || booking.vehicles || []
+    );
+    const targetVehicle = vehicles.find((v) => String(v.vehicleId) === vehicleId);
+    if (!targetVehicle) {
+      return json(400, { ok: false, error: 'vehicle_not_found', message: 'That vehicle is not on this booking.' });
+    }
+    if (vehicles.length <= 1) {
+      return json(409, {
+        ok: false,
+        error: 'last_vehicle_denied',
+        message: 'To remove the final vehicle, cancel the appointment or contact us.',
+      });
+    }
+
+    const cmd = await submitChangeRequestCommand({
+      bookingId,
+      expectedBookingVersion,
+      requestType: 'vehicle_remove_request',
+      target: { vehicleId },
+      delta: {},
+      authorizedRef: auth.scope,
+    });
+    if (!cmd.ok) {
+      return json(cmd.statusCode || 400, {
+        ok: false,
+        error: cmd.error || 'submit_failed',
+        message: cmd.message
+          || (cmd.error === 'duplicate_pending_request'
+            ? 'A removal request for this vehicle is already pending review.'
+            : cmd.error === 'last_vehicle_denied'
+              ? 'To remove the final vehicle, cancel the appointment or contact us.'
+              : cmd.error === 'version_conflict'
+                ? 'This booking changed. Refresh My Garage and try again.'
+                : 'Could not submit vehicle removal request.'),
+        actualBookingVersion: cmd.actualBookingVersion,
+      });
+    }
+
+    // Never auto-apply — admin must approve (policy.pendingApproval should be true).
+    const proposedCents = cmd.changeRequest?.proposedApprovedCents;
+    const vehicleLabel = targetVehicle.vehicleLabel || targetVehicle.label
+      || [targetVehicle.year, targetVehicle.make, targetVehicle.model].filter(Boolean).join(' ')
+      || 'Vehicle';
+    await notifyAdmin(
+      `Cardetail1 — Vehicle removal request · ${bookingId}`,
+      `Customer requested removal of ${vehicleLabel} (${vehicleId}) from booking ${bookingId}.`
+    );
+
+    return json(200, {
+      ok: true,
+      pendingApproval: true,
+      applied: false,
+      changeRequestId: cmd.changeRequest?.requestId || cmd.changeRequest?.id,
+      bookingVersion: cmd.booking?.bookingVersion,
+      proposedTotal: proposedCents != null ? proposedCents / 100 : null,
+      proposedApprovedCents: proposedCents,
+      vehicleId,
+      vehicleLabel,
+      vehicleSubtotal: targetVehicle.subtotal,
+      projection: cmd.projection,
+      message: 'Removal requested — Pending review',
     });
   } else if (action === 'vehicle_add_request' || action === 'vehicle_replace_request') {
     const { usesLengthPricing } = require('../lib/length-pricing');
