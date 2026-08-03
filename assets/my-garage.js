@@ -263,12 +263,14 @@
     if (appointmentNeedsAttention(b) && !(pay && (pay.canPay || pay.canCreatePayLink))) {
       return 'Review Required Action';
     }
-    if (pay && (pay.canPay || pay.canCreatePayLink)) return 'Pay Balance';
+    if (pay && (pay.canPay || pay.canCreatePayLink)) return 'Pay securely';
     var status = String(b.customerStatus || b.status || '');
     if (/pending/i.test(status)) return 'View Request';
     if (/confirm|reschedul/i.test(status)) return 'View Appointment';
     if (/paid/i.test(status)) return 'View Details';
-    if (/complete/i.test(status)) return 'View Receipt';
+    // No receipt label until receipt authority exists (Slice 3) — a customer must
+    // never be offered a receipt action that resolves to nothing.
+    if (/complete/i.test(status)) return 'View Details';
     return 'View Details';
   }
 
@@ -738,7 +740,7 @@
           '<button type="button" class="btn ghost sm package-details-toggle" ' +
           'aria-expanded="false" aria-controls="' + esc(panelId) + '" ' +
           'data-panel="' + esc(panelId) + '">' +
-          '<span class="package-toggle-label">View package details</span> ▾</button>' +
+          '<span class="package-toggle-label">View services</span> ▾</button>' +
         '</dd></div>' +
         (base != null ? '<div><dt>Package price</dt><dd>' + fmtMoney(base) + '</dd></div>' : '') +
         addonBlock +
@@ -1447,20 +1449,15 @@
     });
   }
 
+  /**
+   * Portal Lite: there is exactly one primary payment action per viewport —
+   * the inline "Pay securely" button in Payment & Receipts on desktop, and the
+   * sticky bar on phones. Both call the same startPayBalance() controller, so
+   * this only decides which one is on screen and what it says.
+   */
   function syncPayBalanceButton(pay) {
-    var link = $('pay-balance-link');
-    if (!link) return;
     var due = Number(pay.amountDueApproved || 0);
     var can = !!(pay.canPay || pay.canCreatePayLink);
-    link.classList.toggle('is-disabled', !can);
-    link.setAttribute('aria-disabled', can ? 'false' : 'true');
-    if (can && due > 0) {
-      link.textContent = 'Pay Balance · ' + fmtMoney(due);
-    } else if (can) {
-      link.textContent = 'Pay Balance';
-    } else {
-      link.textContent = invoiceIsPaid(pay) ? 'Invoice paid' : 'Pay Balance';
-    }
     syncStickyPayBar(can, due);
     syncMoneyActionButtons(pay);
   }
@@ -1472,10 +1469,17 @@
     if (!bar || !btn) return;
     var on = !!canPay;
     bar.hidden = !on;
-    if (btn) btn.textContent = on && due > 0 ? 'Pay Balance · ' + fmtMoney(due) : 'Pay Balance';
+    if (btn) btn.textContent = payCtaLabel(on, due);
     try {
       document.body.classList.toggle('pay-sticky-on', on);
     } catch (e) { /* ignore */ }
+  }
+
+  /** Single source of truth for what the one payment CTA says. */
+  function payCtaLabel(can, due) {
+    if (embeddedPay && embeddedPay.starting) return 'Processing payment…';
+    if (!can) return 'Pay securely';
+    return due > 0 ? 'Pay securely · ' + fmtMoney(due) : 'Pay securely';
   }
 
   function renderPaymentsPanel(pay) {
@@ -1503,11 +1507,12 @@
       '<div><dt>Amount due</dt><dd>' + dueLabel + '</dd></div>' +
       '</dl>' +
       (can
-        ? '<button type="button" class="btn primary" id="btn-pay-balance">Pay ' +
-          (due > 0 ? dueLabel : 'Balance') + ' securely</button>' +
-          '<p class="hint">Secure Stripe Checkout (card only). After payment your invoice closes automatically.</p>'
+        ? '<button type="button" class="btn primary" id="btn-pay-balance">' +
+          esc(payCtaLabel(true, due)) + '</button>' +
+          '<p class="hint">Secure Stripe payment (card only). After payment your invoice closes automatically.</p>'
         : (paid
-          ? '<p class="hint">Invoice paid. You can still add services — any new balance appears here. Package and vehicle changes stay closed.</p>'
+          ? '<p class="pay-settled" data-pay-settled><strong>Paid</strong></p>' +
+            '<p class="hint">Invoice paid. You can still add services — any new balance appears here. Package and vehicle changes stay closed.</p>'
           : '<p class="hint">No balance is due yet, or payment is locked until admin approval.</p>')) +
       '</div>';
     var btn = $('btn-pay-balance');
@@ -1517,6 +1522,15 @@
   function renderMaintenancePlans() {
     var empty = $('maintenance-empty');
     var list = $('maintenance-list');
+    // Portal Lite: the Maintenance Plans module is hidden until it is
+    // operational. Skip rendering entirely so it cannot inject a customer-facing
+    // "Start a plan" action into a section nobody can see.
+    var section = $('maintenance-section');
+    if (section && section.hidden) {
+      if (list) list.innerHTML = '';
+      if (empty) empty.innerHTML = '';
+      return;
+    }
     var cat = getCatalog();
     var pendingMaint = (state.changeRequests || []).filter(function (r) {
       return r.requestType === 'maintenance_request';
@@ -1678,14 +1692,13 @@
       '<div><dt>Paid amount</dt><dd>' + fmtCents(settledCentsFromPayment(pay)) + '</dd></div>' +
       '<div><dt>Remaining balance</dt><dd>' + fmtCents(remainingCentsFromPayment(pay)) + '</dd></div>' +
       '</dl>' +
+      // Portal Lite: the appointment header states the balance but carries no
+      // payment button — the single primary CTA lives in Payment & Receipts
+      // (or the mobile sticky bar), so the customer never sees two.
       ((pay.canPay || pay.canCreatePayLink)
-        ? '<button type="button" class="btn primary" data-portal-pay>Pay Balance' +
-          (pay.amountDueApproved ? ' · ' + fmtMoney(pay.amountDueApproved) : '') + '</button>'
+        ? ''
         : '<p class="hint" data-primary-action-label>' + esc(primaryActionLabel(b, pay)) + '</p>') +
       '</div>';
-
-    var payBtn = hero.querySelector('[data-portal-pay]');
-    if (payBtn) payBtn.addEventListener('click', startPayBalance);
 
     syncPayBalanceButton(pay);
     renderPaymentsPanel(pay);
@@ -1709,8 +1722,12 @@
     });
     bindAppointmentRowActions();
 
-    $('appointments-empty') && show($('appointments-empty'), !upcoming.length);
-    $('history-empty') && show($('history-empty'), !hist.length);
+    // Portal Lite: an empty list is not a card. Hide the whole section rather
+    // than showing an empty-state placeholder the customer cannot act on.
+    $('appointments-empty') && show($('appointments-empty'), false);
+    $('history-empty') && show($('history-empty'), false);
+    $('appointments-section') && show($('appointments-section'), !!upcoming.length);
+    $('history-section') && show($('history-section'), !!hist.length);
     $('comm-empty') && show($('comm-empty'), true);
     var approveBtn = $('btn-approve-completion');
     var issueBtn = $('btn-report-issue');
@@ -2252,11 +2269,30 @@
     }
 
     embeddedPay.starting = true;
+    refreshPayCtaLabels(pay);
     try {
       await startPayBalanceInner(pay);
     } finally {
       embeddedPay.starting = false;
+      refreshPayCtaLabels(pay);
     }
+  }
+
+  /**
+   * Keep whichever payment CTA is on screen in step with the controller state.
+   * Re-entry is already blocked by embeddedPay.starting; this only makes that
+   * visible, and disables the control so a second tap cannot queue a request.
+   */
+  function refreshPayCtaLabels(pay) {
+    var due = Number((pay && pay.amountDueApproved) || 0);
+    var can = !!(pay && (pay.canPay || pay.canCreatePayLink));
+    var busy = !!(embeddedPay && embeddedPay.starting);
+    [$('btn-pay-balance'), $('pay-sticky-btn')].forEach(function (el) {
+      if (!el) return;
+      el.textContent = payCtaLabel(can, due);
+      el.disabled = busy;
+      el.setAttribute('aria-busy', busy ? 'true' : 'false');
+    });
   }
 
   async function startPayBalanceInner(pay) {
@@ -3246,14 +3282,6 @@
       });
     }
 
-    var payLink = $('pay-balance-link');
-    if (payLink) {
-      payLink.addEventListener('click', function (e) {
-        e.preventDefault();
-        startPayBalance();
-      });
-    }
-
     var actions = $('customer-actions');
     if (actions) {
       actions.addEventListener('click', function (e) {
@@ -3276,9 +3304,9 @@
         if (next) panel.removeAttribute('hidden');
         else panel.setAttribute('hidden', '');
         var labelEl = toggle.querySelector('.package-toggle-label');
-        if (labelEl) labelEl.textContent = next ? 'Hide package details' : 'View package details';
+        if (labelEl) labelEl.textContent = next ? 'Hide services' : 'View services';
         else {
-          toggle.textContent = next ? 'Hide package details ▴' : 'View package details ▾';
+          toggle.textContent = next ? 'Hide services ▴' : 'View services ▾';
         }
         return;
       }

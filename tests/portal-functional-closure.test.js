@@ -592,7 +592,7 @@ test('14. the mobile sticky Pay CTA follows the authoritative balance', async ()
 
   sandbox.cd1MyGarage.syncPayBalanceButton({ canPay: true, amountDueApproved: 125 });
   assert.equal(els['pay-sticky-bar'].hidden, false);
-  assert.match(els['pay-sticky-btn'].textContent, /Pay Balance · \$125\.00/);
+  assert.match(els['pay-sticky-btn'].textContent, /Pay securely · \$125\.00/);
   assert.ok(bodyClasses.has('pay-sticky-on'));
 
   sandbox.cd1MyGarage.syncPayBalanceButton({ canPay: false, state: 'paid', amountPaid: 125 });
@@ -675,10 +675,11 @@ test('19. the primary action follows the appointment state', async () => {
 
   assert.equal(label({ status: 'Pending Review' }, {}), 'View Request');
   assert.equal(label({ status: 'Confirmed' }, {}), 'View Appointment');
-  assert.equal(label({ status: 'Confirmed' }, { canPay: true }), 'Pay Balance');
+  assert.equal(label({ status: 'Confirmed' }, { canPay: true }), 'Pay securely');
   assert.equal(label({ status: 'Confirmed', jobStatus: 'awaiting_customer_action' }, {}), 'Review Required Action');
   assert.equal(label({ status: 'Paid' }, {}), 'View Details');
-  assert.equal(label({ status: 'Completed' }, {}), 'View Receipt');
+  // Portal Lite: no receipt label until receipt authority ships in Slice 3.
+  assert.equal(label({ status: 'Completed' }, {}), 'View Details');
 });
 
 /* ------------------------------------------------------------------ *
