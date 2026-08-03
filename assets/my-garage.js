@@ -1514,9 +1514,41 @@
           ? '<p class="pay-settled" data-pay-settled><strong>Paid</strong></p>' +
             '<p class="hint">Invoice paid. You can still add services — any new balance appears here. Package and vehicle changes stay closed.</p>'
           : '<p class="hint">No balance is due yet, or payment is locked until admin approval.</p>')) +
+      receiptActionsHtml(pay) +
       '</div>';
     var btn = $('btn-pay-balance');
     if (btn) btn.addEventListener('click', startPayBalance);
+  }
+
+  /** True once the appointment is completed through the established status authority. */
+  function serviceIsCompleted(b) {
+    if (!b) return false;
+    if (b.completedAt) return true;
+    var key = String(b.customerStatusKey || '').toLowerCase();
+    if (key === 'completed' || key === 'completed_paid') return true;
+    return /complete/i.test(String(b.customerStatus || b.jobStatus || b.status || ''));
+  }
+
+  /**
+   * Receipt actions mirror the server's eligibility rules so the customer is
+   * never offered a receipt that does not exist. The server re-derives and
+   * enforces eligibility and ownership — this only decides what to show.
+   */
+  function receiptActionsHtml(pay) {
+    var b = state.booking;
+    if (!b || !b.id) return '';
+    var settled = settledCentsFromPayment(pay);
+    if (!(settled > 0)) return '';
+
+    var remaining = remainingCentsFromPayment(pay);
+    var links = '<a class="btn ghost" data-receipt-link href="receipt.html?bookingId=' +
+      encodeURIComponent(b.id) + '&type=payment">View payment receipt</a>';
+
+    if (serviceIsCompleted(b) && remaining === 0) {
+      links += '<a class="btn ghost" data-receipt-link href="receipt.html?bookingId=' +
+        encodeURIComponent(b.id) + '&type=final">View final receipt</a>';
+    }
+    return '<div class="actions receipt-actions" style="margin-top:12px">' + links + '</div>';
   }
 
   function renderMaintenancePlans() {
