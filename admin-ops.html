@@ -151,6 +151,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 .job-sticky-actions{position:sticky;bottom:0;z-index:5;display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;padding:12px 0 4px;background:linear-gradient(180deg,rgba(12,21,32,0) 0%,rgba(12,21,32,.96) 28%)}
 .job-sticky-actions .btn{flex:1 1 auto;min-width:120px}
 .job-sticky-actions[hidden]{display:none}
+.assign-tech-status{display:block;margin-top:6px;font-size:12px;color:var(--mu);line-height:1.35;max-width:100%;overflow-wrap:anywhere}
+.assign-tech-status.is-error{color:#fecaca}
+.assign-tech-status .assignRetry{margin-top:6px;min-height:44px}
 @media(max-width:960px){.job-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){
   .form-grid{grid-template-columns:1fr}.job-detail-grid{grid-template-columns:1fr}.job-detail-grid .sec.span-2{grid-column:1/-1}
@@ -167,6 +170,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   #jobsTable tr.job-row td.job-assign-cell{padding-top:10px}
   #jobsTable tr.job-detail-row td{padding:0}
   .job-sticky-actions .btn{flex:1 1 100%}
+  .assign-tech-status{display:block;margin-top:6px;font-size:12px;color:var(--mu);line-height:1.35;max-width:100%;overflow-wrap:anywhere}
+  .assign-tech-status.is-error{color:#fecaca}
+  .assign-tech-status .assignRetry{margin-top:6px;min-height:44px}
 }
 </style>
 </head>
@@ -511,6 +517,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let jobsMeta = SS ? SS.createSourceMeta() : { hasLoaded:false, isLoading:false, error:null, lastSuccessAt:null, generation:0 };
   let techsMeta = SS ? SS.createSourceMeta() : { hasLoaded:false, isLoading:false, error:null, lastSuccessAt:null, generation:0 };
   let changeRequestsMeta = SS ? SS.createSourceMeta() : { hasLoaded:false, isLoading:false, error:null, lastSuccessAt:null, generation:0 };
+  /** 'assign_options' | 'management' | null — session cache projection level */
+  let techsLoadMode = null;
+  let techsCacheStale = false;
+  let techsInflight = null;
   let refreshAllInflight = null;
   let sourceAbort = { jobs: null, techs: null, changeRequests: null };
   let pendingOpenBookingId = null;
@@ -877,7 +887,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     }
   }
 
-  async function loadTechs(fetchOpts) {
+  async function loadTechs(fetchOpts, loadOpts) {
+    const opts = loadOpts || {};
+    const mode = opts.mode === 'management' ? 'management' : 'assign_options';
+    const includeAssignedCounts = opts.includeAssignedCounts === true || mode === 'management';
     const started = SS ? SS.beginSourceLoad(techsMeta) : { meta: techsMeta, generation: (techsMeta.generation||0)+1 };
     techsMeta = started.meta;
     const generation = started.generation;
@@ -885,9 +898,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     sourceAbort.techs = ctrl;
     try {
-      const data = await api('/.netlify/functions/tech-accounts', 'POST', { action:'list' }, Object.assign({ signal: ctrl && ctrl.signal }, fetchOpts || {}));
+      const data = await api('/.netlify/functions/tech-accounts', 'POST', {
+        action: 'list',
+        mode: mode,
+        includeAssignedCounts: includeAssignedCounts,
+      }, Object.assign({ signal: ctrl && ctrl.signal }, fetchOpts || {}));
       if (SS && !SS.shouldApplyGeneration(techsMeta, generation)) return techs;
       techs = data.technicians || [];
+      techsLoadMode = mode;
+      techsCacheStale = false;
       if (SS) techsMeta = SS.applySourceSuccess(techsMeta, generation).meta;
       else { techsMeta.hasLoaded = true; techsMeta.isLoading = false; techsMeta.error = null; techsMeta.lastSuccessAt = Date.now(); }
       return techs;
@@ -898,6 +917,60 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       else { techsMeta.isLoading = false; techsMeta.error = e && e.message; }
       throw e;
     }
+  }
+
+  function invalidateTechsSessionCache() {
+    // Force a fresh fetch on next ensure* call; keep last-good arrays until then.
+    techsCacheStale = true;
+  }
+
+  function techsCacheSatisfies(mode) {
+    if (techsCacheStale) return false;
+    if (!techsMeta.hasLoaded) return false;
+    if (!Array.isArray(techs)) return false;
+    if (mode === 'management') return techsLoadMode === 'management';
+    // assign_options can reuse management cache (superset).
+    return techsLoadMode === 'assign_options' || techsLoadMode === 'management';
+  }
+
+  async function ensureTechsForAssign() {
+    if (techsCacheSatisfies('assign_options')) return techs;
+    if (techsInflight) return techsInflight;
+    techsInflight = (async () => {
+      try {
+        await loadTechs(null, { mode: 'assign_options', includeAssignedCounts: false });
+        return techs;
+      } finally {
+        techsInflight = null;
+      }
+    })();
+    return techsInflight;
+  }
+
+  async function ensureTechsForManagement() {
+    if (techsCacheSatisfies('management')) return techs;
+    if (techsInflight) {
+      await techsInflight;
+      if (techsCacheSatisfies('management')) return techs;
+    }
+    techsInflight = (async () => {
+      try {
+        await loadTechs(null, { mode: 'management', includeAssignedCounts: true });
+        return techs;
+      } finally {
+        techsInflight = null;
+      }
+    })();
+    return techsInflight;
+  }
+
+  function assignedTechLabel(techId) {
+    const id = String(techId || '');
+    if (!id) return '';
+    const fromCache = techs.find((t) => t && String(t.techId) === id);
+    if (fromCache && fromCache.fullName) return fromCache.fullName;
+    const fromJob = jobs.find((j) => j && String(j.assignedTechId || j.assignedTech || '') === id);
+    return (fromJob && fromJob.assignedTechName) || id;
   }
 
   async function loadSettings() {
@@ -968,8 +1041,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderEvents();
         maybeOpenPendingDirectLink();
       } else if (key === 'technicians' || key === 'techs') {
-        await loadTechs();
+        await ensureTechsForAssign();
         renderTechs(); renderAssign(); renderOverview();
+        refreshAssignSelectsInDom();
       } else if (key === 'requests' || key === 'changeRequests' || key === 'change requests') {
         await loadChangeRequests();
         renderRequests();
@@ -1017,11 +1091,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   async function refreshAll() {
     if (refreshAllInflight) return refreshAllInflight;
     refreshAllInflight = (async () => {
-      // Preserve last-successful arrays on reject — loaders already leave data untouched on failure.
-      const [jobsR, techsR, settingsR, changeR] = await Promise.allSettled([
-        loadJobs(), loadTechs(), loadSettings(), loadChangeRequests(),
+      // Jobs refresh must NOT pull the full technician roster (lazy-loaded on Assign / Techs tab).
+      // Preserve any session-cached techs across jobs/requests refresh.
+      const [jobsR, settingsR, changeR] = await Promise.allSettled([
+        loadJobs(), loadSettings(), loadChangeRequests(),
       ]);
       // Intentionally do NOT assign jobs=[], techs=[], or changeRequests=[] on rejection.
+      // Intentionally do NOT call loadTechs() here.
       renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
       updateRequestsTabBadge();
       renderSettingsForm();
@@ -1030,12 +1106,6 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         failures.push(sourceFailureEntry('jobs', jobsMeta, 'Jobs') || {
           source: 'jobs',
           message: 'Jobs could not be refreshed. Showing the last loaded data. (' + ((jobsR.reason && jobsR.reason.message) || jobsR.reason) + ')',
-        });
-      }
-      if (techsR.status === 'rejected') {
-        failures.push(sourceFailureEntry('technicians', techsMeta, 'Technicians') || {
-          source: 'technicians',
-          message: 'Technicians could not be refreshed. Showing the last loaded data. (' + ((techsR.reason && techsR.reason.message) || techsR.reason) + ')',
         });
       }
       if (settingsR.status === 'rejected') {
@@ -1048,12 +1118,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         });
       }
       // Successful sources clear their own error inside loaders; rebuild banner from current meta + settings.
+      // Technicians errors only appear after an explicit tech load attempt (Assign / Techs tab / Retry).
       const fromMeta = [];
       const j = sourceFailureEntry('jobs', jobsMeta, 'Jobs');
       const t = sourceFailureEntry('technicians', techsMeta, 'Technicians');
       const c = sourceFailureEntry('requests', changeRequestsMeta, 'Change requests');
       if (j) fromMeta.push(j);
-      if (t) fromMeta.push(t);
+      if (t && techsMeta.hasLoaded) fromMeta.push(t);
       if (c) fromMeta.push(c);
       failures.filter((f) => f && !f.source).forEach((f) => fromMeta.push(f));
       showLoadBanner(fromMeta.length ? fromMeta : failures.filter(Boolean));
@@ -1220,9 +1291,122 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
 
   function techOptions(sel) {
-    return '<option value="">— Unassigned —</option>' + techs.filter(t=>t.active).map(t =>
-      '<option value="'+esc(t.techId)+'"'+(sel===t.techId?' selected':'')+'>'+esc(t.fullName)+'</option>'
-    ).join('');
+    const selected = String(sel || '');
+    let html = '<option value="">— Unassigned —</option>';
+    if (techsMeta.hasLoaded && Array.isArray(techs)) {
+      const active = techs.filter((t) => t && t.active !== false);
+      html += active.map((t) =>
+        '<option value="'+esc(t.techId)+'"'+(selected === String(t.techId) ? ' selected' : '')+'>'+esc(t.fullName)+'</option>'
+      ).join('');
+      // Keep an inactive / missing assigned tech visible.
+      if (selected && !active.some((t) => String(t.techId) === selected)) {
+        html += '<option value="'+esc(selected)+'" selected>'+esc(assignedTechLabel(selected))+'</option>';
+      }
+      return html;
+    }
+    if (selected) {
+      html += '<option value="'+esc(selected)+'" selected>'+esc(assignedTechLabel(selected))+'</option>';
+    }
+    if (techsMeta.isLoading) {
+      html += '<option value="" disabled>Loading technicians…</option>';
+    } else if (techsMeta.error && !techsMeta.hasLoaded) {
+      html += '<option value="" disabled>Technicians unavailable</option>';
+    } else {
+      html += '<option value="" disabled>Open to load technicians…</option>';
+    }
+    return html;
+  }
+
+  function assignStatusHtml() {
+    if (techsMeta.isLoading) {
+      return '<span class="assign-tech-status">Loading technicians…</span>';
+    }
+    if (techsMeta.error && !techsMeta.hasLoaded) {
+      return '<span class="assign-tech-status is-error">Technicians could not be loaded. <button type="button" class="btn ghost sm assignRetry" style="min-height:44px">Retry</button></span>';
+    }
+    return '';
+  }
+
+  function bindAssignSelect(sel) {
+    if (!sel) return;
+    const kick = () => { ensureAssignOptionsLoaded(sel); };
+    sel.addEventListener('mousedown', kick);
+    sel.addEventListener('focus', kick);
+    sel.addEventListener('touchstart', kick, { passive: true });
+    sel.onchange = () => onAssign(sel.dataset.id, sel.value);
+    sel.addEventListener('click', (e) => e.stopPropagation());
+  }
+
+  async function ensureAssignOptionsLoaded(selEl) {
+    if (techsCacheSatisfies('assign_options')) return;
+    const cells = [];
+    if (selEl && selEl.parentElement) cells.push(selEl.parentElement);
+    document.querySelectorAll('.job-assign-cell, td').forEach((td) => {
+      if (td.querySelector && td.querySelector('.assignSel, .assignSel2, #dAssign')) cells.push(td);
+    });
+    cells.forEach((cell) => {
+      let note = cell.querySelector('.assign-tech-status');
+      if (!note) {
+        note = document.createElement('span');
+        note.className = 'assign-tech-status';
+        cell.appendChild(note);
+      }
+      note.classList.remove('is-error');
+      note.textContent = 'Loading technicians…';
+    });
+    // Re-render selects into loading state without wiping jobs.
+    try {
+      await ensureTechsForAssign();
+      refreshAssignSelectsInDom();
+      renderOverview();
+    } catch (e) {
+      cells.forEach((cell) => {
+        let note = cell.querySelector('.assign-tech-status');
+        if (!note) {
+          note = document.createElement('span');
+          note.className = 'assign-tech-status is-error';
+          cell.appendChild(note);
+        }
+        note.className = 'assign-tech-status is-error';
+        note.innerHTML = 'Technicians could not be loaded. <button type="button" class="btn ghost sm assignRetry" style="min-height:44px">Retry</button>';
+        const btn = note.querySelector('.assignRetry');
+        if (btn) btn.onclick = (ev) => {
+          ev.stopPropagation();
+          techsCacheStale = true;
+          ensureAssignOptionsLoaded(selEl);
+        };
+      });
+      // Do not refresh Jobs/Requests/Payment; keep selected job open.
+    }
+  }
+
+  function refreshAssignSelectsInDom() {
+    document.querySelectorAll('select.assignSel, select.assignSel2').forEach((sel) => {
+      const cur = sel.value;
+      const bookingId = sel.dataset.id;
+      const job = jobs.find((j) => j && j.id === bookingId);
+      const preferred = cur || (job && (job.assignedTechId || job.assignedTech)) || '';
+      sel.innerHTML = techOptions(preferred);
+      sel.value = preferred;
+      const cell = sel.parentElement;
+      if (cell) {
+        cell.querySelectorAll('.assign-tech-status').forEach((n) => n.remove());
+        const extra = assignStatusHtml();
+        if (extra) cell.insertAdjacentHTML('beforeend', extra);
+        const retry = cell.querySelector('.assignRetry');
+        if (retry) retry.onclick = (ev) => {
+          ev.stopPropagation();
+          techsCacheStale = true;
+          ensureAssignOptionsLoaded(sel);
+        };
+      }
+    });
+    const da = $('#dAssign');
+    if (da && activeJob) {
+      const preferred = activeJob.assignedTechId || activeJob.assignedTech || da.value || '';
+      da.innerHTML = techOptions(preferred);
+      da.value = preferred;
+    }
   }
 
   function renderOverview() {
@@ -1236,9 +1420,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (s==='issue_reported') c.issues++;
       if (!j.assignedTechId && !j.assignedTech) c.unassigned++;
     });
+    const techStat = techsMeta.hasLoaded ? techs.length : '—';
     $('#overviewStats').innerHTML = [
       ['Total jobs',c.total],['Pending / confirmed',c.pending],['Assigned',c.assigned],
-      ['In field',c.active],['Awaiting review',c.review],['Issues',c.issues],['Unassigned',c.unassigned],['Technicians',techs.length]
+      ['In field',c.active],['Awaiting review',c.review],['Issues',c.issues],['Unassigned',c.unassigned],['Technicians',techStat]
     ].map(([l,v])=>'<div class="card"><h3>'+l+'</h3><div class="stat">'+v+'</div></div>').join('');
   }
 
@@ -1474,12 +1659,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         '<td data-label="Status">'+jobBadge(j.jobStatus)+'</td><td data-label="Payment">'+payBadge(j.paymentWorkflowStatus)+'</td>'+
         '<td data-label="Balance">'+esc(jobsBalanceLabel(j))+'</td>'+
         '<td data-label="Tech">'+esc(j.assignedTechName||'—')+'</td>'+
-        '<td class="job-assign-cell"><select class="assignSel" data-id="'+esc(j.id)+'">'+techOptions(j.assignedTechId||j.assignedTech)+'</select></td>'+
+        '<td class="job-assign-cell"><select class="assignSel" data-id="'+esc(j.id)+'">'+techOptions(j.assignedTechId||j.assignedTech)+'</select>'+assignStatusHtml()+'</td>'+
       '</tr>';
     }).join('');
-    tb.querySelectorAll('.assignSel').forEach(sel => {
-      sel.onchange = () => onAssign(sel.dataset.id, sel.value);
-      sel.addEventListener('click', e => e.stopPropagation());
+    tb.querySelectorAll('.assignSel').forEach(sel => bindAssignSelect(sel));
+    tb.querySelectorAll('.assignRetry').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        techsCacheStale = true;
+        ensureAssignOptionsLoaded(btn.closest('td') && btn.closest('td').querySelector('select'));
+      };
     });
     tb.querySelectorAll('.job-chevron').forEach(btn => {
       btn.addEventListener('click', e => {
@@ -1511,9 +1700,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (!list.length) { tb.innerHTML='<tr><td colspan="4" class="empty">All jobs assigned</td></tr>'; return; }
     tb.innerHTML = list.map(j => '<tr data-id="'+esc(j.id)+'">'+
       '<td>'+esc(cust(j))+'</td><td>'+esc(j.package||'—')+'</td><td>'+jobBadge(j.jobStatus)+'</td>'+
-      '<td><select class="assignSel2" data-id="'+esc(j.id)+'">'+techOptions('')+'</select></td></tr>').join('');
-    tb.querySelectorAll('.assignSel2').forEach(sel => sel.onchange = () => onAssign(sel.dataset.id, sel.value));
-    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => { if(e.target.tagName!=='SELECT') openDrawer(tr.dataset.id); });
+      '<td><select class="assignSel2" data-id="'+esc(j.id)+'">'+techOptions('')+'</select>'+assignStatusHtml()+'</td></tr>').join('');
+    tb.querySelectorAll('.assignSel2').forEach(sel => bindAssignSelect(sel));
+    tb.querySelectorAll('.assignRetry').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        techsCacheStale = true;
+        ensureAssignOptionsLoaded(btn.closest('td') && btn.closest('td').querySelector('select'));
+      };
+    });
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => { if(e.target.tagName!=='SELECT' && !e.target.closest('button')) openDrawer(tr.dataset.id); });
   }
 
   function renderCompleted() {
@@ -1828,18 +2024,37 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   function renderTechs() {
     const el = $('#techList');
+    if (techsMeta.isLoading && !techsMeta.hasLoaded) {
+      el.innerHTML = '<div class="empty">Loading technicians…</div>';
+      return;
+    }
+    if (techsMeta.error && !techsMeta.hasLoaded) {
+      el.innerHTML = '<div class="empty">Technicians could not be loaded. <button type="button" class="btn ghost sm" id="techsPageRetry" style="min-height:44px;margin-left:8px">Retry</button></div>';
+      const rb = $('#techsPageRetry');
+      if (rb) rb.onclick = async () => {
+        techsCacheStale = true;
+        try {
+          await ensureTechsForManagement();
+          renderTechs(); renderOverview();
+        } catch (e) {
+          toast((e && e.message) || 'Retry failed');
+          renderTechs();
+        }
+      };
+      return;
+    }
     if (!techs.length) { el.innerHTML='<div class="empty">No technicians yet — create one above</div>'; return; }
     el.innerHTML = '<table class="tbl"><thead><tr>'+
       '<th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Rating</th><th>Onboarding</th><th>Jobs</th><th>Login</th><th>Actions</th>'+
       '</tr></thead><tbody>'+
       techs.map(t => '<tr data-tid="'+esc(t.techId)+'">'+
         '<td><strong>'+esc(t.fullName)+'</strong><div class="tech-meta">'+esc(t.techId)+'</div></td>'+
-        '<td>'+esc(t.email)+'</td>'+
+        '<td>'+esc(t.email||'—')+'</td>'+
         '<td>'+esc(t.phone||'—')+'</td>'+
         '<td>'+(t.active?badge('active','b-ok'):badge('inactive','b-st'))+'</td>'+
         '<td>'+(t.ratingAverage?('⭐ '+t.ratingAverage+' ('+t.ratingCount+')'):'—')+'</td>'+
         '<td>'+(t.onboardingComplete?badge('onboarded','b-ok'):badge('onboarding pending','b-warn'))+'</td>'+
-        '<td>'+(t.assignedJobsCount||0)+'</td>'+
+        '<td>'+(t.assignedJobsCount!=null?t.assignedJobsCount:(techsLoadMode==='management'?0:'—'))+'</td>'+
         '<td>'+(t.hasPassword?badge('password set','b-ok'):badge('invite pending','b-warn'))+
           (t.lastLoginAt?'<div class="tech-meta">Last: '+dt(t.lastLoginAt)+'</div>':'')+'</td>'+
         '<td onclick="event.stopPropagation()"><div class="actions">'+
@@ -1920,10 +2135,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         },
       });
       toast('Profile saved');
-      await loadTechs();
+      invalidateTechsSessionCache();
+      await ensureTechsForManagement();
       activeTech = techs.find(x => x.techId === $('#tdId').value) || activeTech;
       openTechDrawer($('#tdId').value);
       renderOverview();
+      renderTechs();
+      refreshAssignSelectsInDom();
     } catch (e) { toast('Save failed: ' + e.message); }
   }
 
@@ -1940,7 +2158,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       toast('Password set');
       $('#tdPass').value = '';
       $('#tdPass2').value = '';
-      await loadTechs();
+      invalidateTechsSessionCache();
+      await ensureTechsForManagement();
       openTechDrawer(activeTech.techId);
     } catch (e) {
       toast(e.message === 'weak_password' ? 'Password too weak (8+ chars, upper, lower, number)' : ('Failed: ' + e.message));
@@ -1958,7 +2177,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       await copyInviteLink(activeTech.email, inviteCache[activeTech.techId]);
       $('#tdInvLink').textContent = link;
       toast('Invite link copied');
-      await loadTechs();
+      invalidateTechsSessionCache();
+      await ensureTechsForManagement();
     } catch (e) { toast('Invite failed: ' + e.message); }
   }
 
@@ -1971,7 +2191,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       const link = buildInviteLink(activeTech.email, d.inviteToken);
       $('#tdInvLink').textContent = link;
       toast('Invite reset');
-      await loadTechs();
+      invalidateTechsSessionCache();
+      await ensureTechsForManagement();
       openTechDrawer(activeTech.techId);
     } catch (e) { toast('Reset failed: ' + e.message); }
   }
@@ -1983,7 +2204,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     try {
       await api('/.netlify/functions/tech-accounts', 'POST', { action, techId: activeTech.techId });
       toast(action === 'deactivate' ? 'Deactivated' : 'Activated');
-      await loadTechs();
+      invalidateTechsSessionCache();
+      await ensureTechsForManagement();
       openTechDrawer(activeTech.techId);
       renderOverview();
     } catch (e) { toast('Failed: ' + e.message); }
@@ -2496,7 +2718,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     bindAddonSection(j);
     bindPackageSection(j);
     const da = $('#dAssign');
-    if (da) da.onchange = () => onAssign(j.id, da.value);
+    if (da) {
+      da.onchange = () => onAssign(j.id, da.value);
+      const kick = () => { ensureAssignOptionsLoaded(da); };
+      da.addEventListener('mousedown', kick);
+      da.addEventListener('focus', kick);
+      da.addEventListener('touchstart', kick, { passive: true });
+    }
     const ap = $('#dApprove'); if(ap) ap.onclick = () => jobAction(j.id,'approve_completion');
     const ro = $('#dReopen'); if(ro) ro.onclick = () => { const r=prompt('Reopen reason:'); if(r!==null) jobAction(j.id,'reopen_job',{reason:r}); };
     const co = $('#dCorrect'); if(co) co.onclick = () => { const m=prompt('Correction message:'); if(m) jobAction(j.id,'request_correction',{message:m}); };
@@ -2928,6 +3156,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (b.dataset.tab === 'settings') loadSettings().then(renderSettingsForm).catch(()=>{});
     if (b.dataset.tab === 'requests') refreshRequestsTab();
     if (b.dataset.tab === 'revops') refreshRevopsTab();
+    if (b.dataset.tab === 'techs') {
+      ensureTechsForManagement()
+        .then(() => { renderTechs(); renderOverview(); })
+        .catch(() => { renderTechs(); });
+    }
+    if (b.dataset.tab === 'assign') {
+      ensureTechsForAssign()
+        .then(() => { renderAssign(); refreshAssignSelectsInDom(); })
+        .catch(() => { renderAssign(); });
+    }
   };
   document.querySelectorAll('#requestsFilters [data-req-filter]').forEach((btn) => {
     btn.onclick = async () => {
@@ -3103,7 +3341,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         toast('Technician created');
       }
       e.target.reset();
-      await loadTechs(); renderTechs(); renderOverview();
+      invalidateTechsSessionCache();
+      await ensureTechsForManagement(); renderTechs(); renderOverview(); refreshAssignSelectsInDom();
     } catch(err) { toast('Create failed: '+err.message); }
   };
 

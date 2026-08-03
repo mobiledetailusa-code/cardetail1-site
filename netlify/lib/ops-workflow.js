@@ -234,6 +234,18 @@ function projectTechAccountForAdmin(t) {
   };
 }
 
+/** Lightweight Assign dropdown row — no PII beyond display name. */
+function projectTechAssignOption(t) {
+  if (!t || typeof t !== 'object') {
+    return { techId: '', fullName: '', active: false };
+  }
+  return {
+    techId: String(t.techId || t.id || ''),
+    fullName: String(t.fullName || t.name || ''),
+    active: t.active !== false,
+  };
+}
+
 module.exports = {
   JOB_STATUSES,
   PAYMENT_WORKFLOW_STATUSES,
@@ -248,4 +260,5 @@ module.exports = {
   projectJobForAdmin,
   projectJobForTech,
   projectTechAccountForAdmin,
+  projectTechAssignOption,
 };

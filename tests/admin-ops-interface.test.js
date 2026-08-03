@@ -46,7 +46,9 @@ test('initial active tab and panel are aligned', () => {
 });
 
 test('refreshAll tracks settings and change requests independently', () => {
-  assert.match(adminOps, /const \[jobsR, techsR, settingsR, changeR\] = await Promise\.allSettled/);
+  assert.match(adminOps, /const \[jobsR, settingsR, changeR\] = await Promise\.allSettled/);
+  assert.doesNotMatch(adminOps, /loadJobs\(\),\s*loadTechs\(\)/);
+  assert.match(adminOps, /Intentionally do NOT call loadTechs\(\) here/);
   // Last-good preservation: rejected feeds must NOT wipe arrays.
   assert.doesNotMatch(adminOps, /if \(changeR\.status === 'rejected'\) changeRequests = \[\]/);
   assert.doesNotMatch(adminOps, /if \(jobsR\.status === 'rejected'\) jobs = \[\]/);
