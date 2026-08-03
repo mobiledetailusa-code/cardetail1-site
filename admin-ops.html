@@ -60,6 +60,30 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac)}
 .req-tech summary{cursor:pointer;color:var(--ac,#4da3ff)}
 .req-pre{margin-top:8px;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:140px;overflow:auto;background:rgba(0,0,0,.25);padding:8px;border-radius:6px}
 .hint{font-size:12px;color:var(--mu);margin-bottom:12px;line-height:1.5}
+.tab-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 6px;margin-left:6px;border-radius:999px;background:var(--warn);color:#1a1200;font-size:11px;font-weight:800}
+.job-req-badge{display:inline-block;margin-left:6px;padding:3px 8px;border-radius:999px;background:rgba(245,158,11,.18);color:var(--warn);font-size:11px;font-weight:700;white-space:nowrap}
+.appt-workspace{display:flex;flex-direction:column;gap:12px;max-width:100%;overflow-x:hidden}
+.appt-sticky-summary{position:sticky;top:0;z-index:5;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.appt-sticky-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px 12px;font-size:12px}
+.appt-sticky-grid span{display:block;color:var(--mu);font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+.appt-sticky-grid strong{display:block;font-size:13px;margin-top:2px;word-break:break-word}
+.appt-pending-alert{border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.1);border-radius:10px;padding:12px 14px}
+.appt-pending-alert strong{display:block;margin-bottom:6px}
+.appt-panel-tabs{display:flex;flex-wrap:wrap;gap:6px;position:sticky;top:0;z-index:4;padding:4px 0;background:linear-gradient(var(--card),var(--card))}
+.appt-panel-tab{min-height:44px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--mu);font-size:12px;font-weight:700;cursor:pointer}
+.appt-panel-tab[aria-selected="true"]{background:rgba(77,163,255,.12);border-color:rgba(77,163,255,.4);color:var(--ac)}
+.appt-panel{display:none}.appt-panel.on{display:block}
+.appt-edit-actions{display:none}.appt-edit-mode .appt-edit-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.appt-readonly input:not([data-edit-enabled]),.appt-readonly select:not([data-edit-enabled]),.appt-readonly textarea:not([data-edit-enabled]){opacity:.85;pointer-events:none}
+.appt-danger-zone{border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.06);border-radius:10px;padding:12px;margin-top:12px}
+.req-filter-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.req-filter-btn{min-height:44px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--mu);font-size:12px;font-weight:700;cursor:pointer}
+.req-filter-btn[aria-pressed="true"]{border-color:rgba(77,163,255,.45);background:rgba(77,163,255,.12);color:var(--ac)}
+@media(max-width:430px){
+  .appt-panel-tabs{flex-direction:column}
+  .appt-panel-tab,.req-filter-btn,.btn{width:100%}
+  .job-detail-panel{padding:12px}
+}
 .op-grid{display:grid;gap:8px;margin-top:8px}
 .op-grid input,.op-grid select{margin-bottom:0}
 .tbl{width:100%;border-collapse:collapse;font-size:13px}
@@ -257,8 +281,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   </section>
 
   <section class="panel" id="p-requests">
-    <h3 style="font-size:14px;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--ac)">Customer Change Requests</h3>
-    <p class="hint">Read each card: current booking vs customer request. Approve applies reschedule, address, cancel, package, add-ons, and vehicle. After money changes, open the job drawer and click <strong>Generate Stripe link</strong> (Copy pay link only works if a link already exists).</p>
+    <h3 style="font-size:14px;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--ac)">Customer Change Requests <span class="tab-badge" id="requestsPendingBadge" hidden>0</span></h3>
+    <p class="hint">Pending requests from My Garage. Click a request to open the appointment on the Requests panel. Approve applies when safe; paid vehicle removals return payment adjustment required.</p>
+    <div class="req-filter-bar" id="requestsFilters" role="group" aria-label="Request status filters">
+      <button type="button" class="req-filter-btn" data-req-filter="pending" aria-pressed="true">Pending</button>
+      <button type="button" class="req-filter-btn" data-req-filter="needs_payment_adjustment" aria-pressed="false">Needs payment adjustment</button>
+      <button type="button" class="req-filter-btn" data-req-filter="approved" aria-pressed="false">Approved</button>
+      <button type="button" class="req-filter-btn" data-req-filter="declined" aria-pressed="false">Declined</button>
+      <button type="button" class="req-filter-btn" data-req-filter="all" aria-pressed="false">All</button>
+    </div>
     <div id="requestsList"><div class="empty">Loading…</div></div>
   </section>
 
@@ -470,6 +501,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   // Catalog rows/prices and money figures come from get_job — never computed locally.
   let drawerAddonData = null;
   let showTest = false, platformSettings = {}, platformAvailability = null, auctions = [], subscriptions = [], changeRequests = [];
+  let requestsStatusFilter = 'pending';
+  let jobDetailPanel = 'overview';
+  let jobDetailDirty = false;
+  let openDrawerFocusRequests = false;
 
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s)
@@ -542,9 +577,196 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   function dt(s) { if(!s) return '—'; try { return new Date(s).toLocaleString(); } catch { return s; } }
 
   async function loadChangeRequests() {
-    const data = await api('/.netlify/functions/admin-customer-requests?action=list');
+    const q = new URLSearchParams({ action: 'list', status: requestsStatusFilter || 'pending' });
+    const data = await api('/.netlify/functions/admin-customer-requests?' + q.toString());
     changeRequests = data.requests || [];
     return changeRequests;
+  }
+
+  function isOpenChangeRequest(r) {
+    const st = String((r && r.status) || '').toLowerCase();
+    return st === 'pending' || st === 'pending_approval' || st === 'needs_clarification' || st === 'awaiting_admin';
+  }
+
+  function pendingChangeRequestsOf(j) {
+    if (!j) return [];
+    if (Array.isArray(j.pendingChangeRequests) && j.pendingChangeRequests.length) {
+      return j.pendingChangeRequests.filter(isOpenChangeRequest);
+    }
+    return (Array.isArray(j.changeRequests) ? j.changeRequests : []).filter(isOpenChangeRequest);
+  }
+
+  function pendingRequestCountOf(j) {
+    if (!j) return 0;
+    const fromCr = pendingChangeRequestsOf(j).length;
+    if (fromCr > 0) return fromCr;
+    let legacy = 0;
+    if (j.cancellationRequestStatus === 'requested') legacy += 1;
+    if (j.rescheduledByClient) legacy += 1;
+    if (j.addressChangedByClient || j.requestedAddress) legacy += 1;
+    return legacy;
+  }
+
+  function renderEmbeddedChangeRequestCards(j) {
+    const pending = pendingChangeRequestsOf(j);
+    if (!pending.length) return '';
+    return pending.map((r) => {
+      const t = r.requestType || r.type;
+      const prev = plainPrevious(r);
+      const req = plainRequested(r);
+      const rid = r.id || r.requestId;
+      let actions = '';
+      if (t === 'vehicle_remove_request') {
+        actions = '<div class="actions" style="margin-top:10px">'+
+          '<button type="button" class="btn sm emb-cr-approve" data-id="'+esc(rid)+'">Approve removal</button>'+
+          '<button type="button" class="btn ghost sm emb-cr-reject" data-id="'+esc(rid)+'">Decline</button></div>';
+      } else {
+        actions = '<div class="actions" style="margin-top:10px">'+
+          '<button type="button" class="btn sm emb-cr-approve" data-id="'+esc(rid)+'">Approve</button>'+
+          '<button type="button" class="btn ghost sm emb-cr-reject" data-id="'+esc(rid)+'">Decline</button></div>';
+      }
+      return '<div class="req-box" data-emb-req="'+esc(rid)+'">'+
+        '<strong>'+esc(requestTitle(r))+'</strong>'+
+        '<div style="font-size:12px;color:var(--mu);margin:6px 0">'+esc(r.status||'pending')+' · '+dt(r.createdAt||r.submittedAt)+
+        (r.vehicleId ? ' · vehicle <code>'+esc(r.vehicleId)+'</code>' : '')+'</div>'+
+        (r.paymentImpact === 'payment_adjustment_required'
+          ? '<div class="req-warn">Payment-impact warning: paid/partial booking — approval blocked until adjustment authority exists.</div>'
+          : '')+
+        (req.warnings||[]).map(w => '<div class="req-warn">⚠ '+esc(w)+'</div>').join('')+
+        '<div class="req-cols">'+
+          '<div class="req-col"><div class="req-col-h">CURRENT</div>'+dlRows(prev)+'</div>'+
+          '<div class="req-col req-col-new"><div class="req-col-h">REQUESTED</div>'+dlRows(req.lines)+'</div>'+
+        '</div>'+actions+'</div>';
+    }).join('');
+  }
+
+  function bindEmbeddedChangeRequestActions(j) {
+    const root = $('#dBody');
+    if (!root) return;
+    root.querySelectorAll('.emb-cr-approve').forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm('Approve this customer request?')) return;
+        b.disabled = true;
+        try {
+          await decideChangeRequest(b.dataset.id, 'approve');
+          toast('Request approved');
+          await refreshAll();
+          if (expandedJobId === j.id) openDrawer(j.id);
+        } catch (e) {
+          toast(e.message);
+          b.disabled = false;
+        }
+      };
+    });
+    root.querySelectorAll('.emb-cr-reject').forEach((b) => {
+      b.onclick = async () => {
+        const note = prompt('Decline note (optional):');
+        if (note === null) return;
+        b.disabled = true;
+        try {
+          await decideChangeRequest(b.dataset.id, 'reject', note);
+          toast('Request declined');
+          await refreshAll();
+          if (expandedJobId === j.id) openDrawer(j.id);
+        } catch (e) {
+          toast(e.message);
+          b.disabled = false;
+        }
+      };
+    });
+  }
+
+  function setApptPanel(panelId) {
+    const root = $('#dBody');
+    if (!root) return;
+    const next = String(panelId || 'overview');
+    if (jobDetailDirty && next !== jobDetailPanel) {
+      if (!confirm('You have unsaved edits in this appointment. Switch panels and discard local changes?')) return;
+      jobDetailDirty = false;
+    }
+    jobDetailPanel = next;
+    root.querySelectorAll('.appt-panel-tab').forEach((tab) => {
+      const on = tab.dataset.workspaceTab === next;
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    root.querySelectorAll('.appt-panel').forEach((panel) => {
+      const on = panel.dataset.apptPanel === next;
+      panel.classList.toggle('on', on);
+      if (on) panel.removeAttribute('hidden');
+      else panel.setAttribute('hidden', 'hidden');
+    });
+  }
+
+  function bindApptWorkspace(j, defaultPanel) {
+    const root = $('#dBody');
+    if (!root) return;
+    root.querySelectorAll('.appt-panel-tab').forEach((tab) => {
+      tab.onclick = () => setApptPanel(tab.dataset.workspaceTab);
+    });
+    const editBtn = $('#dEnableEdit');
+    if (editBtn) {
+      editBtn.onclick = () => {
+        root.classList.add('appt-edit-mode');
+        root.classList.remove('appt-readonly');
+        root.querySelectorAll('input,select,textarea').forEach((el) => {
+          el.setAttribute('data-edit-enabled', '1');
+        });
+        jobDetailDirty = true;
+        toast('Edit mode on — save buttons are available in each panel');
+      };
+    }
+    root.querySelectorAll('input,select,textarea').forEach((el) => {
+      el.addEventListener('input', () => { jobDetailDirty = true; });
+      el.addEventListener('change', () => { jobDetailDirty = true; });
+    });
+    setApptPanel(defaultPanel);
+  }
+
+  /** Booking authority may hold CRs the blob index missed — merge into global tab. */
+  function mergeRequestsWithJobs(list) {
+    const byId = new Map();
+    (list || []).forEach((r) => {
+      const id = String((r && (r.id || r.requestId)) || '').trim();
+      if (id) byId.set(id, r);
+    });
+    (jobs || []).forEach((j) => {
+      pendingChangeRequestsOf(j).forEach((r) => {
+        const id = String(r.id || r.requestId || '').trim();
+        if (!id) return;
+        const prev = byId.get(id) || {};
+        byId.set(id, {
+          ...prev,
+          ...r,
+          id,
+          bookingId: r.bookingId || j.id,
+          customerName: r.customerName || cust(j),
+          typeLabel: r.typeLabel || requestTitle(r),
+        });
+      });
+    });
+    return [...byId.values()].sort((a, b) =>
+      String(b.createdAt || b.submittedAt || '').localeCompare(String(a.createdAt || a.submittedAt || ''))
+    );
+  }
+
+  function updateRequestsTabBadge() {
+    const n = mergeRequestsWithJobs(changeRequests).filter(isOpenChangeRequest).length;
+    const badge = $('#requestsPendingBadge');
+    const reqTab = [...document.querySelectorAll('#tabs .tab')].find((t) => t.getAttribute('data-tab') === 'requests');
+    if (badge) {
+      badge.textContent = String(n);
+      badge.hidden = n < 1;
+    }
+    if (reqTab) {
+      let tb = reqTab.querySelector('.tab-badge');
+      if (!tb) {
+        tb = document.createElement('span');
+        tb.className = 'tab-badge';
+        reqTab.appendChild(tb);
+      }
+      tb.textContent = String(n);
+      tb.hidden = n < 1;
+    }
   }
 
   async function decideChangeRequest(requestId, decision, adminNote, extra) {
@@ -628,6 +850,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (techsR.status === 'rejected') techs = [];
     if (changeR.status === 'rejected') changeRequests = [];
     renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
+    updateRequestsTabBadge();
     renderSettingsForm();
     const failures = [];
     if (jobsR.status === 'rejected') failures.push('bookings (' + (jobsR.reason && jobsR.reason.message || jobsR.reason) + ')');
@@ -938,6 +1161,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (j.jobStatus === 'issue_reported') return true;
     if (j.jobStatus === 'completed_pending_admin_review') return true;
     if (j.customerChangePending) return true;
+    if (pendingRequestCountOf(j) > 0) return true;
     if (j.cancellationRequestStatus === 'requested') return true;
     if (j.jobStatus === 'completed_pending_payment' && Number(j.remainingCents || 0) > 0) return true;
     return false;
@@ -992,9 +1216,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       const warn = jobNeedsAttention(j)
         ? '<span class="job-warn" title="Needs attention" aria-label="Needs attention">&#9888;</span>'
         : '';
+      const pendingN = pendingRequestCountOf(j);
+      const reqBadge = pendingN > 0
+        ? '<span class="job-req-badge">' + pendingN + ' request' + (pendingN === 1 ? '' : 's') + ' pending</span>'
+        : '';
       return '<tr class="job-row'+(expanded?' is-expanded':'')+'" data-id="'+esc(j.id)+'" tabindex="0" role="button" aria-expanded="'+(expanded?'true':'false')+'">'+
         '<td class="job-cell-expand"><button type="button" class="job-chevron" data-id="'+esc(j.id)+'" aria-expanded="'+(expanded?'true':'false')+'" aria-controls="activeJobDetailPanel" title="Expand job details">'+(expanded?'▾':'▸')+'</button></td>'+
-        '<td class="job-cell-customer">'+warn+esc(cust(j))+'</td><td data-label="Vehicle">'+esc(jobsVehicleSummary(j))+'</td>'+
+        '<td class="job-cell-customer">'+warn+esc(cust(j))+reqBadge+'</td><td data-label="Vehicle">'+esc(jobsVehicleSummary(j))+'</td>'+
         '<td data-label="When">'+esc(jobsDateTimeLabel(j))+'</td>'+
         '<td data-label="Status">'+jobBadge(j.jobStatus)+'</td><td data-label="Payment">'+payBadge(j.paymentWorkflowStatus)+'</td>'+
         '<td data-label="Balance">'+esc(jobsBalanceLabel(j))+'</td>'+
@@ -1216,7 +1444,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   function renderRequests() {
     const el = $('#requestsList');
-    const list = changeRequests || [];
+    const list = mergeRequestsWithJobs(changeRequests || []);
+    updateRequestsTabBadge();
     if (!list.length) {
       el.innerHTML = '<div class="empty">No pending customer change requests</div>';
       return;
@@ -1233,10 +1462,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       const moneyChange = ['package_change_request','addon_request','discount_request','vehicle_remove_request'].includes(r.requestType);
       const proposed = r.requestedState && r.requestedState.proposedTotal;
       const title = requestTitle(r);
-      const techId = 'req-tech-' + String(r.id || '').replace(/[^\w-]/g, '');
+      const vehicleBit = r.vehicleLabel || (r.requestedState && r.requestedState.vehicleSnapshot && r.requestedState.vehicleSnapshot.vehicleLabel) || r.vehicleId || '';
       return '<div class="req-box" data-req="'+esc(r.id)+'">'+
         '<h5 style="font-size:15px;margin-bottom:4px">'+esc(title)+'</h5>'+
-        '<div style="font-size:12px;color:var(--mu);margin-bottom:8px">Booking <code>'+esc(r.bookingId)+'</code> · '+dt(r.createdAt)+' · '+esc(r.status || 'pending')+'</div>'+
+        '<div style="font-size:12px;color:var(--mu);margin-bottom:8px">Booking <code>'+esc(r.bookingId)+'</code>'+
+        (r.customerName ? ' · '+esc(r.customerName) : '')+
+        (vehicleBit ? ' · Vehicle '+esc(vehicleBit) : '')+
+        ' · '+dt(r.createdAt || r.submittedAt)+' · '+esc(r.status || 'pending')+'</div>'+
+        (r.paymentImpact === 'payment_adjustment_required'
+          ? '<div class="req-warn">Payment adjustment required — do not auto-remove or rewrite ledger.</div>'
+          : '')+
         (manual
           ? '<div class="req-pill warn">Needs manual follow-up after approve</div>'
           : '<div class="req-pill ok">Approving updates the booking automatically</div>')+
@@ -1254,10 +1489,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           '<pre class="req-pre">'+esc(safeReqJson({ previous: r.previousState, requested: r.requestedState }))+'</pre>'+
         '</details>'+
         '<div class="actions" style="margin-top:12px">'+
-        '<button type="button" class="btn sm req-approve" data-id="'+esc(r.id)+'">Approve</button>'+
-        '<button type="button" class="btn ghost sm req-reject" data-id="'+esc(r.id)+'">Reject</button>'+
-        '<button type="button" class="btn ghost sm req-clarify" data-id="'+esc(r.id)+'">Ask customer for clarification</button>'+
-        '<button type="button" class="btn ghost sm req-open" data-bid="'+esc(r.bookingId)+'">Open booking</button>'+
+        (isOpenChangeRequest(r) ? '<button type="button" class="btn sm req-approve" data-id="'+esc(r.id)+'">Approve</button>'+
+        '<button type="button" class="btn ghost sm req-reject" data-id="'+esc(r.id)+'">Decline</button>'+
+        '<button type="button" class="btn ghost sm req-clarify" data-id="'+esc(r.id)+'">Ask customer for clarification</button>' : '')+
+        '<button type="button" class="btn ghost sm req-open" data-bid="'+esc(r.bookingId)+'">Open appointment</button>'+
         '<button type="button" class="btn ghost sm req-pay" data-bid="'+esc(r.bookingId)+'">Copy pay link if present</button>'+
         '</div></div>';
     }).join('');
@@ -1267,23 +1502,28 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       const r = list.find(x => x.id === id);
       const msg = r && !autoApply.has(r.requestType)
         ? 'This request still needs manual follow-up after approval. Continue?'
-        : 'Approve this request and update the booking?';
+        : (r && r.requestType === 'vehicle_remove_request'
+          ? 'Approve vehicle removal and reprice the booking on the server?'
+          : 'Approve this request and update the booking?');
       if (!confirm(msg)) return;
       b.disabled = true;
       try {
         await decideChangeRequest(id, 'approve');
         toast('Request approved — booking updated');
         await refreshAll();
-      } catch(e) { toast(e.message); b.disabled = false; }
+      } catch(e) {
+        toast(e.message);
+        b.disabled = false;
+      }
     });
     el.querySelectorAll('.req-reject').forEach(b => b.onclick = async () => {
       const note = prompt('Rejection note for customer (optional):');
       if (note === null) return;
-      if (!confirm('Reject this request?')) return;
+      if (!confirm('Decline this request?')) return;
       b.disabled = true;
       try {
         await decideChangeRequest(b.dataset.id, 'reject', note);
-        toast('Request rejected');
+        toast('Request declined');
         await refreshAll();
       } catch(e) { toast(e.message); b.disabled = false; }
     });
@@ -1297,7 +1537,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         await refreshAll();
       } catch(e) { toast(e.message); b.disabled = false; }
     });
-    el.querySelectorAll('.req-open').forEach(b => b.onclick = () => openDrawer(b.dataset.bid));
+    el.querySelectorAll('.req-open').forEach(b => b.onclick = () => {
+      openDrawerFocusRequests = true;
+      openDrawer(b.dataset.bid);
+    });
     el.querySelectorAll('.req-pay').forEach(b => b.onclick = async () => {
       try {
         const d = await api('/.netlify/functions/admin-customer-requests', 'POST', { action: 'generate_pay_link', bookingId: b.dataset.bid });
@@ -1673,13 +1916,48 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     markExpandedRow(id);
     $('#dTitle').textContent = cust(j)+' · '+id;
     $('#dBadges').innerHTML = jobBadge(j.jobStatus)+payBadge(j.paymentWorkflowStatus);
-    let html = '<div class="job-detail-grid">';
+    const pendingCRs = pendingChangeRequestsOf(j);
+    const pendingCount = pendingRequestCountOf(j);
+    const legacyPending = !!(j.cancellationRequestStatus === 'requested' || j.rescheduledByClient || j.addressChangedByClient || j.requestedAddress);
+    const defaultPanel = (openDrawerFocusRequests || pendingCRs.length || legacyPending) ? 'requests' : 'overview';
+    openDrawerFocusRequests = false;
+    jobDetailDirty = false;
+    const invPaidEarly = !!(j.invoicePaid || j.financialPaymentStatus==='paid' || j.paymentWorkflowStatus==='payment_succeeded' || j.paymentWorkflowStatus==='cash_paid' || (Number(j.remainingCents||0)===0 && Number(j.settledCents||0)>0));
+    const balDueEarly = invPaidEarly ? 0 : Number(j.remainingCents!=null ? j.remainingCents/100 : (j.amountDueApproved||0));
+    const paidAmtEarly = Number(j.amountPaid!=null ? j.amountPaid : ((j.settledCents||0)/100));
+    const approvedEarly = Number(j.approvedFinalAmount!=null?j.approvedFinalAmount:(j.approvedCents||0)/100);
+    let html = '<div class="appt-workspace appt-readonly" id="apptWorkspace">';
+    html += '<div class="appt-sticky-summary"><div class="appt-sticky-grid">'+
+      '<div><span>Customer</span><strong>'+esc(cust(j))+'</strong></div>'+
+      '<div><span>Reference</span><strong>'+esc(j.id||'')+'</strong></div>'+
+      '<div><span>Status</span><strong>'+esc(String(j.jobStatus||'—').replace(/_/g,' '))+'</strong></div>'+
+      '<div><span>Date / window</span><strong>'+esc(jobsDateTimeLabel(j))+'</strong></div>'+
+      '<div><span>Vehicles</span><strong>'+esc(String((Array.isArray(j.vehicles) && j.vehicles.length) ? j.vehicles.length : (typeof jobVehicles === 'function' ? (jobVehicles(j).length || 1) : 1)))+'</strong></div>'+
+      '<div><span>Approved</span><strong>$'+esc(approvedEarly.toFixed(2))+'</strong></div>'+
+      '<div><span>Paid / balance</span><strong>$'+esc(paidAmtEarly.toFixed(2))+' / $'+esc(Math.max(0,balDueEarly).toFixed(2))+'</strong></div>'+
+      '<div><span>Technician</span><strong>'+esc(j.assignedTechName||'Unassigned')+'</strong></div>'+
+      '</div>'+
+      '<div class="actions" style="margin-top:10px">'+
+      '<button type="button" class="btn ghost sm" id="dEnableEdit" style="min-height:44px">Edit details</button>'+
+      (j.jobStatus === 'pending_review' ? '<button type="button" class="btn sm" id="dConfirmHeader" style="min-height:44px">Confirm booking</button>' : '')+
+      '</div></div>';
+    if (pendingCount > 0) {
+      html += '<div class="appt-pending-alert" role="status"><strong>'+pendingCount+' customer request'+(pendingCount===1?'':'s')+' pending</strong>'+
+        '<div class="hint" style="margin:0">Open the Requests panel to approve or decline. Pending requests stay above payment and history.</div></div>';
+    }
+    html += '<div class="appt-panel-tabs" role="tablist" aria-label="Appointment panels">'+
+      [['overview','Overview'],['vehicles','Vehicles & Services'],['requests','Requests'],['schedule','Schedule'],['payment','Payment'],['more','More']].map(([id,label]) =>
+        '<button type="button" class="appt-panel-tab" role="tab" data-workspace-tab="'+id+'" aria-selected="false" aria-controls="appt-panel-'+id+'">'+label+
+        (id==='requests' && pendingCount ? ' <span class="tab-badge">'+pendingCount+'</span>' : '')+
+        '</button>'
+      ).join('')+'</div>';
+    html += '<div class="appt-panel" data-appt-panel="overview" id="appt-panel-overview" role="tabpanel" hidden><div class="job-detail-grid">';
     html += '<div class="sec span-2"><h4>Customer and appointment</h4><div class="op-grid">'+
       '<div><label>First name</label><input type="text" id="dFirst" value="'+esc(j.firstName||'')+'"></div>'+
       '<div><label>Last name</label><input type="text" id="dLast" value="'+esc(j.lastName||'')+'"></div>'+
       '<div><label>Phone</label><input type="tel" id="dPhone" value="'+esc(j.phone||'')+'"></div>'+
       '<div><label>Email</label><input type="email" id="dEmail" value="'+esc(j.email||'')+'"></div>'+
-      '<div class="full"><button type="button" class="btn ghost sm" id="dSaveCustomer" style="width:100%">Save customer contact</button></div>'+
+      '<div class="full appt-edit-actions"><button type="button" class="btn ghost sm" id="dSaveCustomer" style="width:100%;min-height:44px">Save customer contact</button></div>'+
       '<div class="full kv"><div><b>Booking ID:</b> '+esc(j.id||'')+'</div>'+
       '<div><b>Date:</b> '+esc(j.confirmedDate||j.preferredDate||'—')+'</div>'+
       '<div><b>Time / window:</b> '+esc(j.confirmedTime||j.confirmedTimeWindow||j.preferredTime||'—')+'</div></div>'+
@@ -1687,8 +1965,29 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     html += '<div class="sec"><h4>Service address</h4><div class="op-grid">'+
       '<div class="full"><label>Service address</label><input type="text" id="dAddr" value="'+esc(j.address||'')+'"></div>'+
       '<div><label>ZIP</label><input type="text" id="dZip" value="'+esc(j.zipCode||'')+'"></div>'+
-      '<div class="full"><button type="button" class="btn ghost sm" id="dSaveAddr" style="width:100%">Save address</button></div>'+
+      '<div class="full appt-edit-actions"><button type="button" class="btn ghost sm" id="dSaveAddr" style="width:100%;min-height:44px">Save address</button></div>'+
       '</div></div>';
+    html += (typeof SiteAccess !== 'undefined' ? '<div class="sec full">'+SiteAccess.adminSection(j, esc)+'</div>' : '');
+    if (j.notes || j.customerNote) {
+      html += '<div class="sec full"><div class="sec-title">Additional notes</div><div class="kv-grid">' +
+        '<div class="kv"><span>Notes</span><strong>' + esc(j.notes || j.customerNote || '') + '</strong></div>' +
+        '</div></div>';
+    }
+    const invPaid = invPaidEarly;
+    const balDue = balDueEarly;
+    const paidAmt = paidAmtEarly;
+    const approvedDisp = approvedEarly;
+    const creditedDisp = Number(j.creditedCents != null ? j.creditedCents/100 : (j.amountRefunded || 0));
+    html += '<div class="sec"><h4>Financial / status summary</h4><div class="kv">'+
+      '<div><b>Approved:</b> $'+esc(String(approvedDisp.toFixed(2)))+'</div>'+
+      '<div><b>Paid / settled:</b> $'+esc(String(paidAmt.toFixed(2)))+'</div>'+
+      (creditedDisp > 0 ? '<div><b>Refunded / credited:</b> $'+esc(String(creditedDisp.toFixed(2)))+'</div>' : '')+
+      '<div><b>Remaining:</b> $'+esc(String(Math.max(0,balDue).toFixed(2)))+'</div>'+
+      '<div><b>Payment status:</b> '+payBadge(invPaid?'payment_succeeded':j.paymentWorkflowStatus)+'</div>'+
+      '</div></div>';
+    html += '</div></div>'; // end overview panel
+
+    html += '<div class="appt-panel" data-appt-panel="vehicles" id="appt-panel-vehicles" role="tabpanel" hidden><div class="job-detail-grid">';
     html += renderVehiclesDetailSection(j);
     html += '<div class="sec"><h4>Service overrides</h4><div class="op-grid">'+
       '<div class="full"><label>Primary vehicle label</label><input type="text" id="dVehicle" value="'+esc(j.vehicleLabel||j.vehicle||'')+'"></div>'+
@@ -1708,9 +2007,43 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           opts.map(o => '<option value="'+esc(o.id)+'"'+(o.id===currentId?' selected':'')+'>'+esc(o.name)+'</option>').join('')+
           '</select></div>';
       })()+
-      '<div class="full"><button type="button" class="btn ghost sm" id="dSaveService" style="width:100%">Recalculate service (server)</button></div>'+
+      '<div class="full appt-edit-actions"><button type="button" class="btn ghost sm" id="dSaveService" style="width:100%;min-height:44px">Recalculate service (server)</button></div>'+
       '</div></div>';
-    html += (typeof SiteAccess !== 'undefined' ? '<div class="sec full">'+SiteAccess.adminSection(j, esc)+'</div>' : '');
+    html += renderAddonSection(j);
+    html += renderPackageSection(j);
+    html += '</div></div>'; // end vehicles panel
+
+    html += '<div class="appt-panel" data-appt-panel="requests" id="appt-panel-requests" role="tabpanel" hidden><div class="job-detail-grid">';
+    html += '<div class="sec full"><h4>Customer requests</h4>';
+    let hasReq = false;
+    const embCards = renderEmbeddedChangeRequestCards(j);
+    if (embCards) { hasReq = true; html += embCards; }
+    if (j.cancellationRequestStatus === 'requested') {
+      hasReq = true;
+      html += '<div class="req-box"><strong>Cancellation requested</strong><div style="font-size:12px;color:var(--mu);margin:6px 0">'+esc(j.cancellationReason||'')+'</div>'+
+        '<div class="actions"><button type="button" class="btn danger sm" id="dCancelYes" style="min-height:44px">Approve cancel</button>'+
+        '<button type="button" class="btn ghost sm" id="dCancelNo" style="min-height:44px">Deny</button></div></div>';
+    }
+    if (j.rescheduledByClient) {
+      hasReq = true;
+      html += '<div class="req-box"><strong>Reschedule requested</strong><div style="font-size:12px;margin:6px 0">'+esc(j.rescheduleRequestedDate||'')+' '+esc(j.rescheduleRequestedTime||'')+'</div>'+
+        '<button type="button" class="btn sm" id="dApplyResched" style="min-height:44px">Apply customer date</button></div>';
+    }
+    if (j.addressChangedByClient || j.requestedAddress) {
+      hasReq = true;
+      html += '<div class="req-box"><strong>Address change requested</strong><div style="font-size:12px;margin:6px 0">'+esc(j.requestedAddress||'')+'</div>'+
+        '<button type="button" class="btn sm" id="dApplyAddr" style="min-height:44px">Apply new address</button></div>';
+    }
+    if (!hasReq) html += '<p class="hint" style="margin:0">No pending customer requests on this booking.</p>';
+    const resolved = (Array.isArray(j.changeRequests) ? j.changeRequests : []).filter((r) => !isOpenChangeRequest(r));
+    if (resolved.length) {
+      html += '<details style="margin-top:12px"><summary style="cursor:pointer;color:var(--ac);min-height:44px;display:flex;align-items:center">Resolved request history ('+resolved.length+')</summary>'+
+        resolved.map((r) => '<div class="ev" style="margin-top:8px"><strong>'+esc(requestTitle(r))+'</strong> · '+esc(r.status||'')+' · '+dt(r.decidedAt||r.createdAt)+'</div>').join('')+
+        '</details>';
+    }
+    html += '</div></div></div>'; // end requests panel
+
+    html += '<div class="appt-panel" data-appt-panel="schedule" id="appt-panel-schedule" role="tabpanel" hidden><div class="job-detail-grid">';
     if (j.scheduleFlexibility || j.preferredArrivalWindow || j.alternatePreferredDate) {
       const flexLabels = {
         exact: 'Exact date only',
@@ -1745,62 +2078,28 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         '<div class="kv"><span>Operational slot</span><strong>' + esc(j.preferredTime || '—') + '</strong></div>' +
         '</div></div>';
     }
-    if (j.notes || j.customerNote) {
-      html += '<div class="sec full"><div class="sec-title">Additional notes</div><div class="kv-grid">' +
-        '<div class="kv"><span>Notes</span><strong>' + esc(j.notes || j.customerNote || '') + '</strong></div>' +
-        '</div></div>';
-    }
-    const invPaid = !!(j.invoicePaid || j.financialPaymentStatus==='paid' || j.paymentWorkflowStatus==='payment_succeeded' || j.paymentWorkflowStatus==='cash_paid' || (Number(j.remainingCents||0)===0 && Number(j.settledCents||0)>0));
-    const balDue = invPaid ? 0 : Number(j.remainingCents!=null ? j.remainingCents/100 : (j.amountDueApproved||0));
-    const paidAmt = Number(j.amountPaid!=null ? j.amountPaid : ((j.settledCents||0)/100));
-    const approvedDisp = Number(j.approvedFinalAmount!=null?j.approvedFinalAmount:(j.approvedCents||0)/100);
-    const creditedDisp = Number(j.creditedCents != null ? j.creditedCents/100 : (j.amountRefunded || 0));
-    html += '<div class="sec"><h4>Financial summary</h4><div class="kv">'+
-      '<div><b>Approved:</b> $'+esc(String(approvedDisp.toFixed(2)))+'</div>'+
-      '<div><b>Paid / settled:</b> $'+esc(String(paidAmt.toFixed(2)))+'</div>'+
-      (creditedDisp > 0 ? '<div><b>Refunded / credited:</b> $'+esc(String(creditedDisp.toFixed(2)))+'</div>' : '')+
-      '<div><b>Remaining:</b> $'+esc(String(Math.max(0,balDue).toFixed(2)))+'</div>'+
-      '<div><b>Payment status:</b> '+payBadge(invPaid?'payment_succeeded':j.paymentWorkflowStatus)+'</div>'+
-      '</div></div>';
-    html += '<div class="sec"><h4>Customer requests</h4>';
-    let hasReq = false;
-    if (j.cancellationRequestStatus === 'requested') {
-      hasReq = true;
-      html += '<div class="req-box"><strong>Cancellation requested</strong><div style="font-size:12px;color:var(--mu);margin:6px 0">'+esc(j.cancellationReason||'')+'</div>'+
-        '<div class="actions"><button type="button" class="btn danger sm" id="dCancelYes">Approve cancel</button>'+
-        '<button type="button" class="btn ghost sm" id="dCancelNo">Deny</button></div></div>';
-    }
-    if (j.rescheduledByClient) {
-      hasReq = true;
-      html += '<div class="req-box"><strong>Reschedule requested</strong><div style="font-size:12px;margin:6px 0">'+esc(j.rescheduleRequestedDate||'')+' '+esc(j.rescheduleRequestedTime||'')+'</div>'+
-        '<button type="button" class="btn sm" id="dApplyResched">Apply customer date</button></div>';
-    }
-    if (j.addressChangedByClient || j.requestedAddress) {
-      hasReq = true;
-      html += '<div class="req-box"><strong>Address change requested</strong><div style="font-size:12px;margin:6px 0">'+esc(j.requestedAddress||'')+'</div>'+
-        '<button type="button" class="btn sm" id="dApplyAddr">Apply new address</button></div>';
-    }
-    if (!hasReq) html += '<p class="hint" style="margin:0">No pending customer requests on this booking.</p>';
-    html += '</div>';
-    html += '<div class="sec"><h4>Assignment and operations</h4><div class="kv"><div><b>Tech:</b> '+esc(j.assignedTechName||'Unassigned')+'</div>'+
+    html += '<div class="sec"><h4>Assignment and schedule</h4><div class="kv"><div><b>Tech:</b> '+esc(j.assignedTechName||'Unassigned')+'</div>'+
       '<div><b>Assigned:</b> '+dt(j.assignedAt)+'</div></div>'+
       '<select id="dAssign" style="margin-top:8px">'+techOptions(j.assignedTechId||j.assignedTech)+'</select>'+
       '<div class="actions" style="margin:10px 0">';
-    if (j.jobStatus === 'pending_review') html += '<button type="button" class="btn sm" id="dConfirm">Confirm booking</button>';
-    html += '<button type="button" class="btn ghost sm" id="dCancel">Cancel job</button>';
-    html += '<button type="button" class="btn ghost sm" id="dReopenAppt">Reopen</button>';
+    if (j.jobStatus === 'pending_review') html += '<button type="button" class="btn sm" id="dConfirm" style="min-height:44px">Confirm booking</button>';
+    html += '<button type="button" class="btn ghost sm" id="dCancel" style="min-height:44px">Cancel job</button>';
+    html += '<button type="button" class="btn ghost sm" id="dReopenAppt" style="min-height:44px">Reopen</button>';
     html += '</div>'+
       '<div class="op-grid">'+
       '<div><label>Reschedule date</label><input type="date" id="dDate" value="'+esc((j.confirmedDate||j.preferredDate||'').slice(0,10))+'"></div>'+
       '<div><label>Time / window</label><input type="text" id="dTime" placeholder="e.g. 10:00 AM or Morning" value="'+esc(j.confirmedTime||j.confirmedTimeWindow||j.preferredTime||'')+'"></div>'+
-      '<div class="full"><button type="button" class="btn ghost sm" id="dResched" style="width:100%">Save reschedule</button></div>'+
+      '<div class="full appt-edit-actions"><button type="button" class="btn ghost sm" id="dResched" style="width:100%;min-height:44px">Save reschedule</button></div>'+
       '</div>'+
       '<h4 style="margin-top:12px">Technician status proxy</h4><div class="actions">'+
-      '<button type="button" class="btn ghost sm" id="dTechEnRoute">En Route</button>'+
-      '<button type="button" class="btn ghost sm" id="dTechStart">Start</button>'+
-      '<button type="button" class="btn ghost sm" id="dTechPause">Pause</button>'+
-      '<button type="button" class="btn ghost sm" id="dTechResume">Resume</button>'+
-      '<button type="button" class="btn sm" id="dTechComplete">Complete service</button></div></div>';
+      '<button type="button" class="btn ghost sm" id="dTechEnRoute" style="min-height:44px">En Route</button>'+
+      '<button type="button" class="btn ghost sm" id="dTechStart" style="min-height:44px">Start</button>'+
+      '<button type="button" class="btn ghost sm" id="dTechPause" style="min-height:44px">Pause</button>'+
+      '<button type="button" class="btn ghost sm" id="dTechResume" style="min-height:44px">Resume</button>'+
+      '<button type="button" class="btn sm" id="dTechComplete" style="min-height:44px">Complete service</button></div></div>';
+    html += '</div></div>'; // end schedule panel
+
+    html += '<div class="appt-panel" data-appt-panel="payment" id="appt-panel-payment" role="tabpanel" hidden><div class="job-detail-grid">';
     html += '<div class="sec span-2"><h4>Offers and payment actions</h4>';
     html += '<div class="sec" style="margin:0 0 12px"><h4>Welcome offer (WELCOME10)</h4>';
     const offer = j.offer || j.welcomeOffer || null;
@@ -1820,8 +2119,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       html += '<div style="font-size:11px;color:var(--mu);margin-top:8px">Audit: '+j.offerAudit.slice(-3).map(a=>esc(a.action+' · '+a.at)).join(' · ')+'</div>';
     }
     html += '<div class="actions" style="margin-top:10px">'+
-      '<button type="button" class="btn sm" id="dOfferApply">Apply welcome offer</button>'+
-      '<button type="button" class="btn ghost sm" id="dOfferRemove">Remove offer</button></div></div>';
+      '<button type="button" class="btn sm" id="dOfferApply" style="min-height:44px">Apply welcome offer</button>'+
+      '<button type="button" class="btn ghost sm" id="dOfferRemove" style="min-height:44px">Remove offer</button></div></div>';
     html += '<div class="sec" style="margin:0 0 12px"><h4>Job balance</h4><div class="kv">'+
       '<div><b>Customer total:</b> $'+(j.totalPrice!=null?j.totalPrice:'—')+'</div>'+
       '<div><b>Tech payout:</b> $'+(j.techPayoutAmount!=null?j.techPayoutAmount:'—')+'</div>'+
@@ -1830,14 +2129,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div class="op-grid" style="margin-top:8px">'+
       '<div><label>Final amount ($)</label><input type="number" id="dFinalAmt" step="0.01" value="'+(j.finalAmount!=null?j.finalAmount:(j.totalPrice||''))+'"></div>'+
       '<div><label>Tech payout ($)</label><input type="number" id="dTechPay" step="0.01" value="'+(j.techPayoutAmount!=null?j.techPayoutAmount:'')+'"></div>'+
-      '<div class="full"><button type="button" class="btn ghost sm" id="dSaveBal" style="width:100%">Save balance</button></div></div></div>';
-    html += '<div class="sec" style="margin:0 0 12px"><h4>Dispatch</h4><div class="actions">'+
-      '<button type="button" class="btn sm" id="dPostAuc">Post to auction</button>'+
-      '<button type="button" class="btn ghost sm" id="dAssignWin">Assign auction winner</button></div></div>';
+      '<div class="full appt-edit-actions"><button type="button" class="btn ghost sm" id="dSaveBal" style="width:100%;min-height:44px">Save balance</button></div></div></div>';
     const canGenLink = !invPaid && balDue > 0 && j.canGeneratePayLink !== false;
     const stripeRef = j.stripeCheckoutSessionIdPrefix || j.paymentIntentIdPrefix || '';
-    html += renderAddonSection(j);
-    html += renderPackageSection(j);
     html += '<div class="sec" style="margin:0"><h4>Invoice / Payment</h4>'+
       '<div style="margin-bottom:10px">'+payBadge(invPaid?'payment_succeeded':j.paymentWorkflowStatus)+
       (invPaid?' <strong style="color:var(--ok)">· PAID / CLOSED</strong>':' <strong>· Balance due</strong>')+
@@ -1854,14 +2148,14 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div class="full"><label>Payment preference</label><select id="dPayPref">'+
       ['cash_on_site','card_on_site','online_after_service','card_on_file'].map(p=>'<option value="'+p+'"'+(j.paymentMethodPreference===p?' selected':'')+'>'+p.replace(/_/g,' ')+'</option>').join('')+
       '</select></div>'+
-      '<div class="full"><button type="button" class="btn ghost sm" id="dSavePref" style="width:100%">Update payment preference</button></div>'+
+      '<div class="full appt-edit-actions"><button type="button" class="btn ghost sm" id="dSavePref" style="width:100%;min-height:44px">Update payment preference</button></div>'+
       '<div class="full"><label>Authoritative Stripe Checkout URL</label><input type="url" id="dPayLink" placeholder="Generated by Stripe…" value="'+esc(j.payLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
       '<div class="full"><label>Manual external reference (optional, not Checkout)</label><input type="url" id="dManualPayRef" placeholder="https://… external note only" value="'+esc(j.manualPayLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
       '<div class="full actions">'+
-      '<button type="button" class="btn sm" id="dGenPayLink"'+(canGenLink?'':' disabled title="Invoice paid or zero balance"')+'>Generate Stripe link</button>'+
-      '<button type="button" class="btn ghost sm" id="dReconcileStripe">Reconcile with Stripe</button>'+
-      '<button type="button" class="btn ghost sm" id="dCopyPayLink">Copy Stripe link</button>'+
-      '<button type="button" class="btn ghost sm" id="dSetPayLink"'+(canGenLink?'':' disabled')+'>Save manual reference</button>'+
+      '<button type="button" class="btn sm" id="dGenPayLink" style="min-height:44px"'+(canGenLink?'':' disabled title="Invoice paid or zero balance"')+'>Generate Stripe link</button>'+
+      '<button type="button" class="btn ghost sm" id="dReconcileStripe" style="min-height:44px">Reconcile with Stripe</button>'+
+      '<button type="button" class="btn ghost sm" id="dCopyPayLink" style="min-height:44px">Copy Stripe link</button>'+
+      '<button type="button" class="btn ghost sm" id="dSetPayLink" style="min-height:44px"'+(canGenLink?'':' disabled')+'>Save manual reference</button>'+
       '</div>'+
       '<p class="hint">Generate Stripe link creates Checkout for recovery. Reconcile with Stripe is idempotent and uses the same settlement path as the webhook. Manual reference is notes-only.</p>'+
       (!canGenLink?'<p class="hint" id="dGenPayHint">'+(invPaid?'Generate link blocked — invoice already paid.':'Generate link blocked — no remaining balance.')+'</p>':'')+
@@ -1872,30 +2166,36 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         const completed = /completed_/.test(js);
         const policyBlocked = cancelled || completed;
         const title = policyBlocked ? (cancelled?'Blocked — appointment cancelled':'Blocked — job completed') : '';
-        return '<button type="button" class="btn warn sm" id="dChargeNoShow"'+(policyBlocked?' disabled title="'+title+'"':'')+'>Charge no-show ($75)</button>'+
-          '<button type="button" class="btn warn sm" id="dChargeLateCancel"'+(policyBlocked?' disabled title="'+title+'"':'')+'>Charge late cancel ($50)</button>';
+        return '<button type="button" class="btn warn sm" id="dChargeNoShow" style="min-height:44px"'+(policyBlocked?' disabled title="'+title+'"':'')+'>Charge no-show ($75)</button>'+
+          '<button type="button" class="btn warn sm" id="dChargeLateCancel" style="min-height:44px"'+(policyBlocked?' disabled title="'+title+'"':'')+'>Charge late cancel ($50)</button>';
       })()+
       '</div>'+
       '<p class="hint">Policy charges use card on file (off-session). Blocked after job completed or cancelled within terms.</p>'+
       '<div class="full"><label>Refund note</label><input type="text" id="dRefundNote" placeholder="Reason for refund request"></div>'+
       '<div><label>Refund amount ($)</label><input type="number" id="dRefundAmt" step="0.01"></div>'+
       '<div class="full actions">'+
-      '<button type="button" class="btn warn sm" id="dRefund">Log refund request</button>'+
-      '<button type="button" class="btn ghost sm" id="dMarkRefunded"'+(j.paymentWorkflowStatus==='refunded'?' disabled':'')+'>Mark refunded</button>'+
+      '<button type="button" class="btn warn sm" id="dRefund" style="min-height:44px">Log refund request</button>'+
+      '<button type="button" class="btn ghost sm" id="dMarkRefunded" style="min-height:44px"'+(j.paymentWorkflowStatus==='refunded'?' disabled':'')+'>Mark refunded</button>'+
       '</div>'+
       (j.paymentWorkflowStatus==='refunded'||j.refundStatus==='refunded'?'<p class="hint">Payment status: refunded</p>':'')+
       '<div class="full actions" style="margin-top:8px">'+
-      '<button type="button" class="btn ghost sm" id="dMarkCash">Mark cash received</button>'+
-      '<button type="button" class="btn ghost sm" id="dMarkCardSite">Record card on-site</button>'+
-      '<button type="button" class="btn ghost sm" id="dApproveAdj">Approve adjustment</button>'+
-      '<button type="button" class="btn ghost sm" id="dRejectAdj">Reject adjustment</button>'+
+      '<button type="button" class="btn ghost sm" id="dMarkCash" style="min-height:44px">Mark cash received</button>'+
+      '<button type="button" class="btn ghost sm" id="dMarkCardSite" style="min-height:44px">Record card on-site</button>'+
+      '<button type="button" class="btn ghost sm" id="dApproveAdj" style="min-height:44px">Approve adjustment</button>'+
+      '<button type="button" class="btn ghost sm" id="dRejectAdj" style="min-height:44px">Reject adjustment</button>'+
       '</div>'+
       '</div></div></div>';
+    html += '</div></div>'; // end payment panel
+
+    html += '<div class="appt-panel" data-appt-panel="more" id="appt-panel-more" role="tabpanel" hidden><div class="job-detail-grid">';
+    html += '<div class="sec" style="margin:0 0 12px"><h4>Dispatch</h4><div class="actions">'+
+      '<button type="button" class="btn sm" id="dPostAuc" style="min-height:44px">Post to auction</button>'+
+      '<button type="button" class="btn ghost sm" id="dAssignWin" style="min-height:44px">Assign auction winner</button></div></div>';
     html += '<div class="sec full"><h4>Notes and history</h4>';
     html += '<div class="sec" style="margin:0 0 12px"><h4>Customer links</h4><div class="actions">'+
-      '<button type="button" class="btn sm" id="dGenCompletion">Generate completion link</button>'+
-      '<button type="button" class="btn ghost sm" id="dGenGarage">My Garage link</button>'+
-      '<button type="button" class="btn ghost sm" id="dCopyCustomerLink">Copy last link</button></div>'+
+      '<button type="button" class="btn sm" id="dGenCompletion" style="min-height:44px">Generate completion link</button>'+
+      '<button type="button" class="btn ghost sm" id="dGenGarage" style="min-height:44px">My Garage link</button>'+
+      '<button type="button" class="btn ghost sm" id="dCopyCustomerLink" style="min-height:44px">Copy last link</button></div>'+
       (j.completionLinkUrl?'<p class="hint">Completion: '+esc(j.completionLinkUrl)+'</p>':'')+
       (j.myGarageLinkUrl?'<p class="hint">My Garage: '+esc(j.myGarageLinkUrl)+'</p>':'')+
       (j.notificationDelivery?'<p class="hint">Notifications — admin: '+esc((j.notificationDelivery.adminEmail&&j.notificationDelivery.adminEmail.status)||'—')+
@@ -1925,18 +2225,23 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (j.technicianPrintedName) html += '<div style="margin-top:8px"><b>Technician:</b> '+esc(j.technicianPrintedName)+
         (j.technicianSignature&&j.technicianSignature.startsWith('data:')?'<img class="sig" src="'+j.technicianSignature+'" alt="Tech signature">':'')+'</div>';
       html += '<div class="actions" style="margin-top:12px">'+
-        (j.jobStatus==='completed_pending_admin_review'?'<button type="button" class="btn sm" id="dApprove">Approve completion</button>':'')+
-        '<button type="button" class="btn ghost sm" id="dReopen">Reopen job</button>'+
-        '<button type="button" class="btn ghost sm" id="dCorrect">Request correction</button></div></div>';
+        (j.jobStatus==='completed_pending_admin_review'?'<button type="button" class="btn sm" id="dApprove" style="min-height:44px">Approve completion</button>':'')+
+        '<button type="button" class="btn ghost sm" id="dReopen" style="min-height:44px">Reopen job</button>'+
+        '<button type="button" class="btn ghost sm" id="dCorrect" style="min-height:44px">Request correction</button></div></div>';
     }
     const evs = (j.eventLog||[]).slice().reverse();
-    html += '<div class="sec" style="margin:0 0 12px"><h4>Event log</h4>'+(evs.length?evs.map(e=>'<div class="ev"><time>'+dt(e.at)+'</time><strong>'+esc(e.action||'')+'</strong> '+
-      (e.by?'('+esc(e.by)+') ':'')+(e.note?esc(e.note):'')+(e.message?esc(e.message):'')+'</div>').join(''):'<div class="empty">No events</div>')+'</div>';
-    html += '<div class="sec" id="dAuditSec" style="margin:0"><h4>Operational audit</h4><div class="empty">Loading audit…</div></div></div>';
-    html += '<div class="sec full"><h4>Destructive and archival actions</h4><div class="actions">'+
-      '<button type="button" class="btn warn sm" id="dArchive">Archive as test</button></div></div>';
-    html += '</div>';
+    html += '<details open style="margin:0 0 12px"><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;font-size:11px;font-weight:700">Event log</summary><div class="sec" style="margin:8px 0 0">'+(evs.length?evs.map(e=>'<div class="ev"><time>'+dt(e.at)+'</time><strong>'+esc(e.action||'')+'</strong> '+
+      (e.by?'('+esc(e.by)+') ':'')+(e.note?esc(e.note):'')+(e.message?esc(e.message):'')+'</div>').join(''):'<div class="empty">No events</div>')+'</div></details>';
+    html += '<details style="margin:0 0 12px"><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;font-size:11px;font-weight:700">Operational audit</summary><div class="sec" id="dAuditSec" style="margin:8px 0 0"><div class="empty">Loading audit…</div></div></details>';
+    html += '<div class="appt-danger-zone"><h4 style="margin:0 0 8px">Destructive and archival actions</h4><div class="actions">'+
+      '<button type="button" class="btn warn sm" id="dArchive" style="min-height:44px">Archive as test</button></div></div>';
+    html += '</div></div>'; // end more panel
+    html += '</div>'; // end workspace
     $('#dBody').innerHTML = html;
+    bindApptWorkspace(j, defaultPanel);
+    bindEmbeddedChangeRequestActions(j);
+    const dConfirmHeader = $('#dConfirmHeader');
+    if (dConfirmHeader) dConfirmHeader.onclick = () => confirmBookingOnce(j.id, [dConfirmHeader, $('#dConfirm'), $('#dStickyConfirm')]);
     $('#dNote').value = '';
     bindAddonSection(j);
     bindPackageSection(j);
@@ -1991,7 +2296,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       const sec = $('#dAuditSec');
       if(!sec) return;
       const rows = (d.audit||[]).slice().reverse();
-      sec.innerHTML = '<h4>Operational audit</h4>'+(rows.length?rows.map(a=>'<div class="ev"><time>'+dt(a.timestamp)+'</time><strong>'+esc(a.action)+'</strong> · '+esc(a.actor_type)+' · '+esc(a.reason||'')+'</div>').join(''):'<div class="empty">No audit entries</div>');
+      sec.innerHTML = (rows.length?rows.map(a=>'<div class="ev"><time>'+dt(a.timestamp)+'</time><strong>'+esc(a.action)+'</strong> · '+esc(a.actor_type)+' · '+esc(a.reason||'')+'</div>').join(''):'<div class="empty">No audit entries</div>');
     }).catch(()=>{});
     const dcy = $('#dCancelYes'); if(dcy) dcy.onclick = () => jobAction(j.id,'resolve_cancellation',{decision:'approved'});
     const dcn = $('#dCancelNo'); if(dcn) dcn.onclick = () => { const n=prompt('Denial note:'); if(n!==null) jobAction(j.id,'resolve_cancellation',{decision:'denied',note:n}); };
@@ -2374,6 +2679,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (b.dataset.tab === 'requests') refreshRequestsTab();
     if (b.dataset.tab === 'revops') refreshRevopsTab();
   };
+  document.querySelectorAll('#requestsFilters [data-req-filter]').forEach((btn) => {
+    btn.onclick = async () => {
+      requestsStatusFilter = btn.dataset.reqFilter || 'pending';
+      document.querySelectorAll('#requestsFilters [data-req-filter]').forEach((b) => {
+        b.setAttribute('aria-pressed', b.dataset.reqFilter === requestsStatusFilter ? 'true' : 'false');
+      });
+      await refreshRequestsTab();
+    };
+  });
 
   // Status filter options
   $('#jobsStatus').innerHTML = '<option value="">All statuses</option>'+JOB_STATUSES.map(s=>'<option value="'+s+'">'+s.replace(/_/g,' ')+'</option>').join('');
