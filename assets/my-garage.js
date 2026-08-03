@@ -595,6 +595,114 @@
    * Itemized per-vehicle breakdown from server projection only.
    * Formats server dollars; does not consult the client pricing catalog.
    */
+  function pendingRemovalForVehicle(vehicleId) {
+    var vid = String(vehicleId || '');
+    if (!vid) return null;
+    return (state.changeRequests || []).find(function (r) {
+      if ((r.requestType || r.type) !== 'vehicle_remove_request') return false;
+      var st = String(r.status || '').toLowerCase();
+      if (st !== 'pending' && st !== 'pending_approval' && st !== 'needs_clarification' && st !== 'awaiting_admin') {
+        return false;
+      }
+      var targetId = (r.target && r.target.vehicleId)
+        || (r.requestedState && r.requestedState.target && r.requestedState.target.vehicleId)
+        || (r.requestedState && r.requestedState.vehicleSnapshot && r.requestedState.vehicleSnapshot.vehicleId)
+        || '';
+      return String(targetId) === vid;
+    }) || null;
+  }
+
+  function renderPackageDetailsPanel(v, panelId) {
+    var details = v.packageDetails || null;
+    var packName = (details && details.name) || v.pkgName || v.packageName || 'Package';
+    if (!details || details.available === false) {
+      var msg = (details && details.unavailableMessage)
+        || 'Package details are unavailable for this older booking. Contact us if you need clarification.';
+      return '<div id="' + esc(panelId) + '" class="package-details-panel" hidden>' +
+        '<p class="package-details-unavailable">' + esc(msg) + '</p>' +
+        '</div>';
+    }
+    var included = Array.isArray(details.includedServices) ? details.includedServices : [];
+    var includedHtml = included.length
+      ? '<ul class="package-details-list">' + included.map(function (s) {
+        return '<li>' + esc(s) + '</li>';
+      }).join('') + '</ul>'
+      : '<p class="hint">No itemized inclusion list is on file for this package.</p>';
+    var addons = Array.isArray(details.addons) ? details.addons : [];
+    var addonHtml;
+    if (!addons.length) {
+      addonHtml = '<p class="hint">None</p>';
+    } else {
+      addonHtml = '<ul class="package-details-list">' + addons.map(function (a) {
+        var priceBit = a.price != null && Number.isFinite(Number(a.price))
+          ? ' · ' + fmtMoney(a.price) : '';
+        var qtyBit = Number(a.qty) > 1 ? ' × ' + Number(a.qty) : '';
+        return '<li>' + esc(a.name || 'Add-on') + qtyBit + priceBit + '</li>';
+      }).join('') + '</ul>';
+    }
+    var pkgPrice = details.packagePrice != null ? details.packagePrice
+      : (v.basePrice != null ? v.basePrice : v.packagePrice);
+    var sub = details.vehicleSubtotal != null ? details.vehicleSubtotal : v.subtotal;
+    return '<div id="' + esc(panelId) + '" class="package-details-panel" hidden>' +
+      '<p class="package-details-name">' + esc(packName) + '</p>' +
+      (details.description
+        ? '<p class="package-details-desc">' + esc(details.description) + '</p>' : '') +
+      '<h4 class="package-details-h">What\'s included</h4>' + includedHtml +
+      (function () {
+        var limits = Array.isArray(details.limitations)
+          ? details.limitations
+          : (details.limitations ? [String(details.limitations)] : []);
+        if (!limits.length) return '';
+        return '<h4 class="package-details-h">Important details</h4><ul class="package-details-list">' +
+          limits.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') +
+          '</ul>';
+      }()) +
+      '<h4 class="package-details-h">Selected add-ons</h4>' + addonHtml +
+      (pkgPrice != null
+        ? '<p class="package-details-money"><span>Package price</span><strong>' + fmtMoney(pkgPrice) + '</strong></p>'
+        : '') +
+      (sub != null
+        ? '<p class="package-details-money"><span>Vehicle subtotal</span><strong>' + fmtMoney(sub) + '</strong></p>'
+        : '') +
+      '</div>';
+  }
+
+  function renderVehicleActionsHtml(b, v, idx) {
+    var vehicleId = String(v.vehicleId || '');
+    var label = projectedVehicleLabel(v);
+    var pending = pendingRemovalForVehicle(vehicleId);
+    var vehicleCount = (b.vehicles || []).length;
+    var actions = [];
+    actions.push(
+      '<button type="button" class="btn ghost sm vehicle-action" data-action="package_change_request" data-vehicle-id="' +
+      esc(vehicleId) + '" data-vehicle-label="' + esc(label) + '">Change package</button>'
+    );
+    actions.push(
+      '<button type="button" class="btn ghost sm vehicle-action" data-action="addon_request" data-vehicle-id="' +
+      esc(vehicleId) + '" data-vehicle-label="' + esc(label) + '">Manage add-ons</button>'
+    );
+    if (pending) {
+      actions.push(
+        '<span class="vehicle-removal-pending" role="status">Removal requested — Pending review</span>'
+      );
+    } else if (vehicleCount <= 1) {
+      actions.push(
+        '<button type="button" class="btn ghost sm vehicle-action" data-action="vehicle_remove_request" data-vehicle-id="' +
+        esc(vehicleId) + '" data-vehicle-label="' + esc(label) +
+        '" data-last-vehicle="1">Request vehicle removal</button>'
+      );
+    } else {
+      actions.push(
+        '<button type="button" class="btn ghost sm vehicle-action" data-action="vehicle_remove_request" data-vehicle-id="' +
+        esc(vehicleId) + '" data-vehicle-label="' + esc(label) +
+        '" data-subtotal="' + esc(String(v.subtotal != null ? v.subtotal : '')) +
+        '">Request vehicle removal</button>'
+      );
+    }
+    return '<div class="vehicle-actions" aria-label="Actions for ' + esc(label) + '">' +
+      actions.join('') + '</div>';
+  }
+
   function renderVehicleBreakdownHtml(b) {
     if (!hasUsableVehicleProjection(b)) return '';
     return b.vehicles.map(function (v, idx) {
@@ -603,6 +711,9 @@
       var base = safeMoneyOrNull(v.basePrice != null ? v.basePrice : v.packagePrice);
       var sub = safeMoneyOrNull(v.subtotal);
       var addons = Array.isArray(v.addons) ? v.addons : [];
+      var vehicleId = String(v.vehicleId || ('idx-' + idx));
+      var panelId = 'pkg-details-' + String(b.id || 'booking').replace(/[^\w-]/g, '') + '-' +
+        vehicleId.replace(/[^\w-]/g, '');
       var addonBlock;
       if (!addons.length) {
         addonBlock = '<div><dt>Add-ons</dt><dd>None</dd></div>';
@@ -618,14 +729,23 @@
           }).join('') +
           '</ul></dd></div>';
       }
-      return '<section class="vehicle-breakdown" aria-label="' + esc('Vehicle ' + (idx + 1)) + '">' +
+      return '<section class="vehicle-breakdown" data-vehicle-id="' + esc(vehicleId) +
+        '" aria-label="' + esc('Vehicle ' + (idx + 1) + ': ' + label) + '">' +
         '<h3 class="vehicle-breakdown-title">' + esc(label) + '</h3>' +
         '<dl class="meta-grid">' +
-        '<div><dt>Package</dt><dd>' + esc(packName) + '</dd></div>' +
+        '<div class="package-row"><dt>Package</dt><dd>' +
+          '<span class="package-name-text">' + esc(packName) + '</span> ' +
+          '<button type="button" class="btn ghost sm package-details-toggle" ' +
+          'aria-expanded="false" aria-controls="' + esc(panelId) + '" ' +
+          'data-panel="' + esc(panelId) + '">' +
+          '<span class="package-toggle-label">View package details</span> ▾</button>' +
+        '</dd></div>' +
         (base != null ? '<div><dt>Package price</dt><dd>' + fmtMoney(base) + '</dd></div>' : '') +
         addonBlock +
         (sub != null ? '<div><dt>Vehicle subtotal</dt><dd>' + fmtMoney(sub) + '</dd></div>' : '') +
         '</dl>' +
+        renderPackageDetailsPanel(v, panelId) +
+        renderVehicleActionsHtml(b, v, idx) +
         '</section>';
     }).join('');
   }
@@ -1957,7 +2077,9 @@
       } else if (r.data.pendingApproval) {
         showToast(action === 'package_change_request'
           ? 'Package change submitted for review.'
-          : 'Request submitted for admin review.');
+          : action === 'vehicle_remove_request'
+            ? (r.data.message || 'Removal requested — Pending review')
+            : 'Request submitted for admin review.');
       } else if (r.data.applied) {
         applyAuthoritativeMoney(r.data);
         showToast('Appointment updated' + (
@@ -2275,6 +2397,10 @@
     modalFields = [];
     packageModalVehicleId = '';
     setMsg($('modal-error'), '', false);
+    var submitBtn = $('modal-submit');
+    if (submitBtn) submitBtn.textContent = 'Submit request';
+    var cancelBtn = $('modal-cancel');
+    if (cancelBtn) cancelBtn.textContent = 'Cancel';
     var opener = modalOpenerEl;
     modalOpenerEl = null;
     if (opener && typeof opener.focus === 'function') {
@@ -2707,6 +2833,68 @@
     return true;
   }
 
+  async function openVehicleRemovalConfirm(openerEl) {
+    modalOpenerEl = openerEl || document.activeElement || null;
+    var vehicleId = openerEl && openerEl.getAttribute
+      ? String(openerEl.getAttribute('data-vehicle-id') || '').trim()
+      : '';
+    var vehicleLabel = openerEl && openerEl.getAttribute
+      ? String(openerEl.getAttribute('data-vehicle-label') || 'this vehicle').trim()
+      : 'this vehicle';
+    var isLast = openerEl && openerEl.getAttribute
+      && openerEl.getAttribute('data-last-vehicle') === '1';
+    if (!vehicleId) {
+      showToast('Could not identify which vehicle to remove.', true);
+      return;
+    }
+    if (isLast) {
+      showToast('To remove the final vehicle, cancel the appointment or contact us.', true);
+      return;
+    }
+    if (pendingRemovalForVehicle(vehicleId)) {
+      showToast('A removal request for this vehicle is already pending review.');
+      return;
+    }
+    var b = state.booking || {};
+    var vehicles = Array.isArray(b.vehicles) ? b.vehicles : [];
+    var target = null;
+    for (var i = 0; i < vehicles.length; i += 1) {
+      if (String(vehicles[i].vehicleId || '') === vehicleId) { target = vehicles[i]; break; }
+    }
+    var vehicleSubtotal = target && target.subtotal != null ? Number(target.subtotal) : null;
+    var bookingTotal = Number(
+      b.approvedFinalAmount != null ? b.approvedFinalAmount
+        : (b.totalPrice != null ? b.totalPrice : (b.finalAmount != null ? b.finalAmount : 0))
+    );
+    var estimateRemaining = (Number.isFinite(bookingTotal) && vehicleSubtotal != null)
+      ? Math.max(0, bookingTotal - vehicleSubtotal)
+      : null;
+
+    modalAction = 'vehicle_remove_request';
+    modalMode = 'fields';
+    modalFields = [];
+    var form = $('modal-form');
+    if (!form) return;
+    form.innerHTML =
+      '<p><strong>Remove ' + esc(vehicleLabel) + ' from this appointment?</strong></p>' +
+      '<p class="hint">This will also remove the selected package and every add-on attached to that vehicle.</p>' +
+      '<dl class="meta-grid" style="margin:12px 0">' +
+        (vehicleSubtotal != null
+          ? '<div><dt>Current vehicle subtotal</dt><dd>' + fmtMoney(vehicleSubtotal) + '</dd></div>'
+          : '') +
+        (estimateRemaining != null
+          ? '<div><dt>Estimated booking total after removal</dt><dd>' + fmtMoney(estimateRemaining) + '</dd></div>'
+          : '') +
+      '</dl>' +
+      '<p class="hint">The estimate above is informational only. The server recalculates the official total if approved.</p>' +
+      '<input type="hidden" id="mf-remove-vehicle-id" value="' + esc(vehicleId) + '">';
+    var submitBtn = $('modal-submit');
+    if (submitBtn) submitBtn.textContent = 'Request removal';
+    var cancelBtn = $('modal-cancel');
+    if (cancelBtn) cancelBtn.textContent = 'Keep vehicle';
+    openModalShell('Request vehicle removal');
+  }
+
   function openActionModal(action, openerEl) {
     modalOpenerEl = openerEl || document.activeElement || null;
     var moneyLocked = {
@@ -2752,14 +2940,26 @@
     if (action === 'package_change_request') {
       modalMode = 'package';
       packageModalVehicleId = '';
+      if (openerEl && openerEl.getAttribute) {
+        packageModalVehicleId = String(openerEl.getAttribute('data-vehicle-id') || '').trim();
+      }
       if (!renderPackageModal()) { modalAction = null; modalOpenerEl = null; return; }
       openModalShell('Change package');
       return;
     }
     if (action === 'addon_request') {
       modalMode = 'addons';
+      if (openerEl && openerEl.getAttribute) {
+        // Prefer targeted vehicle when opened from a vehicle card.
+        var addonVid = String(openerEl.getAttribute('data-vehicle-id') || '').trim();
+        if (addonVid) packageModalVehicleId = addonVid;
+      }
       if (!renderAddonModal()) { modalAction = null; return; }
       openModalShell('Modify service / add-ons');
+      return;
+    }
+    if (action === 'vehicle_remove_request') {
+      openVehicleRemovalConfirm(openerEl);
       return;
     }
     if (action === 'vehicle_add_request' || action === 'vehicle_replace_request' || action === 'vehicle_add') {
@@ -2927,7 +3127,14 @@
     setModalSubmitPending(true);
     var ok = false;
     try {
-      if (modalAction === 'approve_completion') {
+      if (modalAction === 'vehicle_remove_request') {
+        var removeId = ($('mf-remove-vehicle-id') && $('mf-remove-vehicle-id').value) || '';
+        if (!removeId) {
+          setMsg($('modal-error'), 'Missing vehicle id.', true);
+          return;
+        }
+        ok = await submitAction('vehicle_remove_request', { vehicleId: removeId }, { fromModal: true });
+      } else if (modalAction === 'approve_completion') {
         ok = await submitPortalAction('approve_completion', {
           bookingId: state.booking && state.booking.id,
           phone: state.verifyPhone || normalizePhoneInput(state.booking && state.booking.phone),
@@ -3055,6 +3262,32 @@
         openActionModal(btn.getAttribute('data-action'), btn);
       });
     }
+    // Per-vehicle package accordion + vehicle-scoped actions (hero / upcoming card)
+    document.addEventListener('click', function (e) {
+      var toggle = e.target.closest('.package-details-toggle');
+      if (toggle) {
+        e.preventDefault();
+        var panelId = toggle.getAttribute('data-panel') || toggle.getAttribute('aria-controls');
+        var panel = panelId ? document.getElementById(panelId) : null;
+        if (!panel) return;
+        var expanded = toggle.getAttribute('aria-expanded') === 'true';
+        var next = !expanded;
+        toggle.setAttribute('aria-expanded', next ? 'true' : 'false');
+        if (next) panel.removeAttribute('hidden');
+        else panel.setAttribute('hidden', '');
+        var labelEl = toggle.querySelector('.package-toggle-label');
+        if (labelEl) labelEl.textContent = next ? 'Hide package details' : 'View package details';
+        else {
+          toggle.textContent = next ? 'Hide package details ▴' : 'View package details ▾';
+        }
+        return;
+      }
+      var vBtn = e.target.closest('.vehicle-action[data-action]');
+      if (vBtn) {
+        e.preventDefault();
+        openActionModal(vBtn.getAttribute('data-action'), vBtn);
+      }
+    });
     var maintEmpty = $('maintenance-empty');
     if (maintEmpty) {
       maintEmpty.addEventListener('click', function (e) {

@@ -51,9 +51,10 @@ function classifyStatus(booking) {
 function canRequestChange(booking, action) {
   const phase = classifyStatus(booking);
   const blocked = {
-    in_progress: new Set(['reschedule', 'cancel', 'package_change', 'addon', 'address', 'vehicle_add', 'vehicle_replace', 'maintenance']),
-    cancelled: new Set(['reschedule', 'cancel', 'package_change', 'addon', 'address', 'vehicle_add', 'vehicle_replace', 'maintenance']),
+    in_progress: new Set(['reschedule', 'cancel', 'package_change', 'addon', 'address', 'vehicle_add', 'vehicle_replace', 'vehicle_remove', 'maintenance']),
+    cancelled: new Set(['reschedule', 'cancel', 'package_change', 'addon', 'address', 'vehicle_add', 'vehicle_replace', 'vehicle_remove', 'maintenance']),
     // Paid invoice (Jobber): allow address / reschedule / cancel message; block money/catalog mutations.
+    // vehicle_remove stays requestable so admin can mark payment_adjustment_required on approve.
     paid: new Set(['package_change', 'addon', 'vehicle_add', 'vehicle_replace', 'maintenance']),
   };
   if (blocked[phase] && blocked[phase].has(action)) {
@@ -67,9 +68,9 @@ function canRequestChange(booking, action) {
         : undefined,
     };
   }
-  // Ops policy: pack / add-on / address / cancel / vehicle changes auto-apply
-  // (update totals + notify). Only reschedule + maintenance stay admin-gated.
-  const needsAdminReview = new Set(['reschedule', 'maintenance']);
+  // Ops policy: pack / add-on / address / cancel / vehicle add|replace auto-apply.
+  // Reschedule, maintenance, and vehicle removal stay admin-gated (pending review).
+  const needsAdminReview = new Set(['reschedule', 'maintenance', 'vehicle_remove']);
   if (
     (phase === 'confirmed' || phase === 'draft' || phase === 'paid' || phase === 'payment_due')
     && needsAdminReview.has(action)

@@ -64,7 +64,7 @@ function extractFn(src, name) {
 }
 
 function buildRenderSandbox() {
-  const ctx = {};
+  const ctx = { state: { changeRequests: [] } };
   vm.createContext(ctx);
   for (const name of [
     'esc',
@@ -75,6 +75,9 @@ function buildRenderSandbox() {
     'withDimensions',
     'projectedVehicleLabel',
     'safeMoneyOrNull',
+    'pendingRemovalForVehicle',
+    'renderPackageDetailsPanel',
+    'renderVehicleActionsHtml',
     'renderVehicleBreakdownHtml',
     'vehicleLine',
     'addonLines',

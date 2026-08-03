@@ -1083,6 +1083,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       addon_request: 'Add service add-ons',
       vehicle_add_request: 'Add a vehicle',
       vehicle_replace_request: 'Replace vehicle',
+      vehicle_remove_request: 'Remove a vehicle',
       reschedule_request: 'Reschedule appointment',
       address_update: 'Update service address',
       cancellation: 'Cancel appointment',
@@ -1100,11 +1101,27 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (p.preferredDate) lines.push(['Current date', p.preferredDate + (p.preferredTime ? ' · ' + p.preferredTime : '')]);
     if (p.address) lines.push(['Current address', p.address]);
     if (p.vehicleLabel || p.vehicle) lines.push(['Current vehicle', p.vehicleLabel || p.vehicle]);
+    if (p.vehicle && typeof p.vehicle === 'object') {
+      const vl = p.vehicle.vehicleLabel || [p.vehicle.year, p.vehicle.make, p.vehicle.model].filter(Boolean).join(' ');
+      if (vl) lines.push(['Vehicle', vl]);
+      if (p.vehicle.packageName) lines.push(['Package', p.vehicle.packageName]);
+      const ads = Array.isArray(p.vehicle.addons) ? p.vehicle.addons : [];
+      if (ads.length) {
+        lines.push(['Add-ons', ads.map(a => a.name || a.id || 'Add-on').join(', ')]);
+      } else {
+        lines.push(['Add-ons', 'None']);
+      }
+      if (p.vehicle.subtotal != null) lines.push(['Vehicle subtotal', moneyLabel(p.vehicle.subtotal)]);
+    }
+    if (p.packageName && !p.vehicle) lines.push(['Package', p.packageName]);
+    if (p.vehicleSubtotal != null && !p.vehicle) lines.push(['Vehicle subtotal', moneyLabel(p.vehicleSubtotal)]);
     if (p.vehicleCount != null) lines.push(['Vehicles on booking', String(p.vehicleCount)]);
     if (p.status) lines.push(['Booking status', p.status]);
     if (p.approvedFinalAmount != null || p.totalPrice != null) {
-      lines.push(['Current total', moneyLabel(p.approvedFinalAmount != null ? p.approvedFinalAmount : p.totalPrice)]);
+      lines.push(['Approved booking total', moneyLabel(p.approvedFinalAmount != null ? p.approvedFinalAmount : p.totalPrice)]);
     }
+    if (p.paidAmount != null) lines.push(['Paid amount', moneyLabel(p.paidAmount)]);
+    if (p.remainingBalance != null) lines.push(['Remaining balance', moneyLabel(p.remainingBalance)]);
     return lines;
   }
 
@@ -1129,6 +1146,19 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       lines.push(['Add-ons requested', names.length ? names.join(', ') : (rs.requestedAddons || '—')]);
       if (rs.addonTotal != null) lines.push(['Add-ons subtotal', moneyLabel(rs.addonTotal)]);
       if (rs.proposedTotal != null) lines.push(['New total if approved', moneyLabel(rs.proposedTotal)]);
+    } else if (t === 'vehicle_remove_request') {
+      const snap = rs.vehicleSnapshot || {};
+      const label = snap.vehicleLabel || [snap.year, snap.make, snap.model].filter(Boolean).join(' ') || 'Vehicle';
+      lines.push(['Remove vehicle and attached services', label]);
+      if (snap.packageName) lines.push(['Package removed', snap.packageName]);
+      const ads = Array.isArray(snap.addons) ? snap.addons : [];
+      lines.push(['Add-ons removed', ads.length ? ads.map(a => a.name || a.id || 'Add-on').join(', ') : 'None']);
+      if (snap.subtotal != null) lines.push(['Vehicle subtotal removed', moneyLabel(snap.subtotal)]);
+      if (rs.proposedTotal != null) lines.push(['Authoritatively recalculated proposed total', moneyLabel(rs.proposedTotal)]);
+      if (rs.priceDifference != null) lines.push(['Price difference', moneyLabel(rs.priceDifference)]);
+      if (Number(rs.currentApprovedCents) > 0 && Number(rs.proposedApprovedCents) < Number(rs.currentApprovedCents)) {
+        warnings.push('Payment-impact warning: approving may require a refund/credit adjustment if payment was collected.');
+      }
     } else if (t === 'vehicle_add_request' || t === 'vehicle_replace_request') {
       const label = rs.vehicleLabel || [rs.year, rs.make, rs.model].filter(Boolean).join(' ') || '—';
       lines.push([t === 'vehicle_replace_request' ? 'Replace with' : 'Add vehicle', label]);
@@ -1194,12 +1224,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const autoApply = new Set([
       'reschedule_request','address_update','cancellation','cancellation_request',
       'package_change_request','addon_request','vehicle_add_request','vehicle_replace_request',
+      'vehicle_remove_request',
     ]);
     el.innerHTML = list.map(r => {
       const prevRows = plainPrevious(r);
       const req = plainRequested(r);
       const manual = !autoApply.has(r.requestType);
-      const moneyChange = ['package_change_request','addon_request','discount_request'].includes(r.requestType);
+      const moneyChange = ['package_change_request','addon_request','discount_request','vehicle_remove_request'].includes(r.requestType);
       const proposed = r.requestedState && r.requestedState.proposedTotal;
       const title = requestTitle(r);
       const techId = 'req-tech-' + String(r.id || '').replace(/[^\w-]/g, '');

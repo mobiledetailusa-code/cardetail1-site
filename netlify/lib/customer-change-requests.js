@@ -13,6 +13,7 @@ const MONEY_REQUEST_TYPES = new Set([
   'addon_remove_request',
   'vehicle_add_request',
   'vehicle_replace_request',
+  'vehicle_remove_request',
 ]);
 
 function requestId() {

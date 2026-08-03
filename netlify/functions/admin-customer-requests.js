@@ -25,6 +25,7 @@ const TYPE_LABELS = {
   addon_remove_request: 'Add-on removal',
   vehicle_add_request: 'Vehicle addition',
   vehicle_replace_request: 'Vehicle replacement',
+  vehicle_remove_request: 'Vehicle removal',
   maintenance_request: 'Maintenance request',
 };
 
@@ -121,9 +122,13 @@ exports.handler = async (event) => {
         ok: false,
         error: result.error,
         message: result.message
-          || (result.error === 'invoice_paid'
+          || (result.error === 'payment_adjustment_required'
+            ? 'Payment adjustment required — do not auto-remove. Create a refund/credit adjustment first.'
+            : result.error === 'invoice_paid'
             ? 'Invoice paid — create an adjustment or new quote instead of approving this money change.'
             : undefined),
+        paymentAdjustmentRequired: !!result.paymentAdjustmentRequired,
+        potentialRefundOrCreditCents: result.potentialRefundOrCreditCents,
         requoteRequired: result.requoteRequired || false,
         quote: result.quote || null,
         actualBookingVersion: result.actualBookingVersion,
@@ -132,7 +137,8 @@ exports.handler = async (event) => {
 
     const manualOnly = decision === 'approve' && result.noop !== true
       && !['reschedule_request', 'address_update', 'cancellation', 'cancellation_request',
-        'package_change_request', 'addon_request', 'vehicle_add_request', 'vehicle_replace_request']
+        'package_change_request', 'addon_request', 'vehicle_add_request', 'vehicle_replace_request',
+        'vehicle_remove_request']
         .includes(record.requestType);
 
     return jsonCors(200, {
