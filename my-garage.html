@@ -111,7 +111,8 @@ ul.clean li{padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}
 .pending-req .req-status{color:var(--blue);font-size:12px;text-transform:uppercase}
 .pending-req .req-detail,.pending-req .req-note{font-size:13px;color:var(--muted);margin-top:4px}
 .pay-card{margin-top:4px}
-#pay-balance-link.is-disabled{opacity:.45;pointer-events:none}
+#btn-pay-balance{min-height:44px}
+#btn-pay-balance[disabled]{opacity:.45;pointer-events:none}
 .length-box{margin:10px 0 14px;padding:12px;border:1px solid var(--border);border-radius:10px;background:#0e0e14}
 .length-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .length-row input[type=range]{flex:1;min-width:140px}
@@ -148,9 +149,10 @@ body.pay-sticky-on .pay-sticky{display:block}
 body.pay-sticky-on{padding-bottom:76px}
 @media(prefers-reduced-motion:reduce){.portal-spinner{animation:none;border-top-color:var(--blue);opacity:.85}}
 @media(min-width:721px){body.pay-sticky-on .pay-sticky{display:none}body.pay-sticky-on{padding-bottom:0}}
-/* Exactly one Pay Balance primary action at any viewport: below 721px the
-   sticky bar is the primary, so the inline CTA stands down. */
-@media(max-width:720px){body.pay-sticky-on #pay-balance-link{display:none}}
+/* Exactly one "Pay securely" primary action at any viewport: below 721px the
+   sticky bar is the primary, so the inline CTA stands down. Above 720px the
+   sticky bar is hidden and the inline CTA in Payment & Receipts is the primary. */
+@media(max-width:720px){body.pay-sticky-on #btn-pay-balance{display:none}}
 @media(max-width:430px){.wrap{padding:16px 12px 40px}.panel{padding:18px}.portal-loading-panel{padding:22px 16px}.portal-loading{min-height:240px}.card-title{font-size:18px}.actions .btn{flex:1 1 100%}.actions .btn.primary{flex:1 1 100%}}
 </style>
 <noscript><style>html.cd1-portal-booting #pre-auth{display:block!important}html.cd1-portal-booting #portal-loading{display:none!important}</style></noscript>
@@ -226,7 +228,6 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
       <h3 id="upcoming-h">Current appointment</h3>
       <div id="upcoming-panel"></div>
       <div class="actions is-secondary" id="customer-actions">
-        <a class="btn primary" href="#payments" id="pay-balance-link">Pay Balance</a>
         <button type="button" class="btn ghost" data-action="reschedule_request">Request New Date</button>
         <button type="button" class="btn ghost" data-action="addon_request">Modify Service / Add-ons</button>
         <button type="button" class="btn ghost" data-action="package_change_request">Change Package</button>
@@ -234,7 +235,6 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
         <button type="button" class="btn ghost" data-action="vehicle_replace_request">Replace Vehicle</button>
         <button type="button" class="btn ghost" data-action="address_update">Update Address</button>
         <button type="button" class="btn ghost" data-action="cancellation_request">Cancel Appointment</button>
-        <button type="button" class="btn ghost" data-action="maintenance_request">Maintenance Plan</button>
         <button type="button" class="btn ghost" data-action="approve_completion" id="btn-approve-completion" hidden>Approve Completion</button>
         <button type="button" class="btn ghost" data-action="report_issue" id="btn-report-issue" hidden>Report Issue</button>
         <a class="btn ghost" href="index.html">Rebook Service</a>
@@ -247,13 +247,13 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
       <ul class="clean" id="pending-requests-list"></ul>
     </section>
 
-    <section class="section" aria-labelledby="appt-h">
+    <section class="section" id="appointments-section" aria-labelledby="appt-h" hidden>
       <h3 id="appt-h">Upcoming appointments</h3>
       <p id="appointments-empty" class="empty" hidden>No other upcoming appointments.</p>
       <ul class="clean" id="appointments-list"></ul>
     </section>
 
-    <section class="section" aria-labelledby="hist-h">
+    <section class="section" id="history-section" aria-labelledby="hist-h" hidden>
       <h3 id="hist-h">Past services</h3>
       <p id="history-empty" class="empty">Completed services will appear here.</p>
       <ul class="clean" id="history-list"></ul>
@@ -261,7 +261,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 
     <section class="section" id="payments" aria-labelledby="pay-h">
       <h3 id="pay-h">Payments &amp; Receipts</h3>
-      <p id="payments-empty" class="empty">No balance due. When a balance is approved, Pay Balance opens secure card payment in this page (Stripe Payment Element).</p>
+      <p id="payments-empty" class="empty">No balance due. When a balance is approved, Pay securely opens card payment in this page (Stripe Payment Element).</p>
       <div id="payments-panel"></div>
       <div id="embedded-pay-panel" class="panel pay-card" role="region" aria-labelledby="embedded-pay-h" tabindex="-1" hidden>
         <p class="card-kicker">Secure payment</p>
@@ -287,18 +287,24 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
         <input class="inp" id="pf-first" name="firstName" maxlength="80" autocomplete="given-name">
         <label for="pf-last" class="sub">Last name</label>
         <input class="inp" id="pf-last" name="lastName" maxlength="80" autocomplete="family-name">
-        <label for="pf-display" class="sub">Display name (optional)</label>
-        <input class="inp" id="pf-display" name="displayName" maxlength="120" autocomplete="nickname">
-        <label for="pf-channel" class="sub">Preferred contact</label>
-        <select class="inp" id="pf-channel" name="preferredContactChannel">
-          <option value="">No preference</option>
-          <option value="email">Email</option>
-          <option value="phone">Phone</option>
-          <option value="sms">SMS</option>
-          <option value="any">Any</option>
-        </select>
-        <label for="pf-tz" class="sub">Timezone</label>
-        <input class="inp" id="pf-tz" name="timezone" maxlength="64" placeholder="America/New_York" autocomplete="off">
+        <!-- Portal Lite: profile is name, email and phone only. Display name,
+             preferred contact and timezone stay in the DOM so the existing
+             profile save path and stored values are untouched, but they are
+             hidden from the customer until they are part of the product. -->
+        <div id="pf-extended-fields" hidden>
+          <label for="pf-display" class="sub">Display name (optional)</label>
+          <input class="inp" id="pf-display" name="displayName" maxlength="120" autocomplete="nickname">
+          <label for="pf-channel" class="sub">Preferred contact</label>
+          <select class="inp" id="pf-channel" name="preferredContactChannel">
+            <option value="">No preference</option>
+            <option value="email">Email</option>
+            <option value="phone">Phone</option>
+            <option value="sms">SMS</option>
+            <option value="any">Any</option>
+          </select>
+          <label for="pf-tz" class="sub">Timezone</label>
+          <input class="inp" id="pf-tz" name="timezone" maxlength="64" placeholder="America/New_York" autocomplete="off">
+        </div>
         <div class="actions" style="margin-top:10px">
           <button type="submit" class="btn primary" id="pf-save">Save</button>
           <button type="button" class="btn ghost" id="pf-cancel">Cancel</button>
@@ -343,13 +349,16 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
       <p id="address-msg" class="msg" hidden></p>
     </section>
 
-    <section class="section" aria-labelledby="maint-h">
+    <!-- Portal Lite: Maintenance Plans and Communication Preferences are hidden from the
+         primary customer UI until they are operational. The markup and their backends are
+         retained so no stored data or capability is lost. -->
+    <section class="section" aria-labelledby="maint-h" id="maintenance-section" hidden>
       <h3 id="maint-h">Maintenance Plans</h3>
       <p id="maintenance-empty" class="empty">No active maintenance plan on file. Choose frequency + package to request a plan.</p>
       <ul class="clean" id="maintenance-list"></ul>
     </section>
 
-    <section class="section" aria-labelledby="comm-h">
+    <section class="section" aria-labelledby="comm-h" id="comm-section" hidden>
       <h3 id="comm-h">Communication Preferences</h3>
       <p id="comm-empty" class="empty">Preference management is coming soon. Call or text us to update how we reach you.</p>
     </section>
@@ -370,7 +379,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 </div>
 <div class="toast" id="portal-toast" role="status" aria-live="polite"></div>
 <div class="pay-sticky" id="pay-sticky-bar" hidden>
-  <button type="button" class="btn primary" id="pay-sticky-btn">Pay Balance</button>
+  <button type="button" class="btn primary" id="pay-sticky-btn">Pay securely</button>
 </div>
 
 <script src="https://js.stripe.com/v3/"></script>

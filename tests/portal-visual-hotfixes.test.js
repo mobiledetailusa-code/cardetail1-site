@@ -103,9 +103,9 @@ if (JSDOM) {
 
 // ── Pay Balance ──────────────────────────────────────────────────────────────
 
-describe('exactly one Pay Balance primary action', () => {
+describe('exactly one "Pay securely" primary action', () => {
   it('the sticky bar is the only primary below 721px', () => {
-    assert.match(garageHtml, /@media\(max-width:720px\)\{body\.pay-sticky-on #pay-balance-link\{display:none\}\}/);
+    assert.match(garageHtml, /@media\(max-width:720px\)\{body\.pay-sticky-on #btn-pay-balance\{display:none\}\}/);
   });
 
   it('the inline CTA is the only primary at 721px and above', () => {
@@ -114,20 +114,49 @@ describe('exactly one Pay Balance primary action', () => {
 
   it('both controls start the same payment flow, so hiding one loses nothing', () => {
     assert.match(garageJs, /sticky\.addEventListener\('click', function \(\) \{ startPayBalance\(\); \}\)/);
-    assert.match(garageJs, /payLink\.addEventListener\('click'[\s\S]{0,120}startPayBalance\(\)/);
+    assert.match(garageJs, /btn\.addEventListener\('click', startPayBalance\)/);
+  });
+
+  it('the duplicate hero and header CTAs are gone', () => {
+    assert.doesNotMatch(garageHtml, /id="pay-balance-link"/);
+    assert.doesNotMatch(garageJs, /pay-balance-link/);
+    assert.doesNotMatch(garageJs, /data-portal-pay/);
+  });
+
+  it('every payment control says "Pay securely"', () => {
+    assert.doesNotMatch(garageJs, /'Pay Balance/);
+    assert.doesNotMatch(garageHtml, />Pay Balance</);
+    assert.match(garageJs, /function payCtaLabel\(can, due\)/);
+    assert.match(garageJs, /return due > 0 \? 'Pay securely · ' \+ fmtMoney\(due\) : 'Pay securely'/);
+  });
+
+  it('a processing payment relabels the CTA instead of allowing a second submit', () => {
+    assert.match(garageJs, /if \(embeddedPay && embeddedPay\.starting\) return 'Processing payment…'/);
+    assert.match(garageJs, /if \(embeddedPay\.starting\) return;/);
+  });
+
+  it('a settled invoice shows Paid and no payment CTA', () => {
+    assert.match(garageJs, /data-pay-settled><strong>Paid<\/strong>/);
+  });
+
+  it('no dead receipt control is offered to the customer', () => {
+    assert.doesNotMatch(garageJs, /'View Receipt'/);
+    assert.doesNotMatch(garageHtml, />View Receipt</);
   });
 });
 
 if (JSDOM) {
-  describe('Pay Balance CTA count at each viewport (real CSS)', () => {
+  describe('payment CTA count at each viewport (real CSS)', () => {
     function payPrimaries(width) {
       const styles = garageHtml.slice(garageHtml.indexOf('<style>') + 7, garageHtml.indexOf('</style>'));
       const dom = new JSDOM(
         `<!DOCTYPE html><html><head><style>${styles}</style></head>
          <body class="pay-sticky-on">
-           <a class="btn primary" href="#payments" id="pay-balance-link">Pay Balance</a>
+           <div id="payments-panel">
+             <button class="btn primary" id="btn-pay-balance">Pay securely · $887.00</button>
+           </div>
            <div class="pay-sticky" id="pay-sticky-bar">
-             <button class="btn primary" id="pay-sticky-btn">Pay Balance</button>
+             <button class="btn primary" id="pay-sticky-btn">Pay securely · $887.00</button>
            </div>
          </body></html>`,
         { url: 'https://example.com/' }
@@ -136,14 +165,14 @@ if (JSDOM) {
       // jsdom does not evaluate media queries, so assert the declared rules
       // resolve to a single primary per breakpoint.
       const css = styles;
-      const mobileHidesInline = /@media\(max-width:720px\)\{body\.pay-sticky-on #pay-balance-link\{display:none\}\}/.test(css);
+      const mobileHidesInline = /@media\(max-width:720px\)\{body\.pay-sticky-on #btn-pay-balance\{display:none\}\}/.test(css);
       const desktopHidesSticky = /@media\(min-width:721px\)\{body\.pay-sticky-on \.pay-sticky\{display:none\}/.test(css);
       const total = doc.querySelectorAll('.btn.primary').length;
       return { total, visible: width <= 720 ? (mobileHidesInline ? 1 : 2) : (desktopHidesSticky ? 1 : 2) };
     }
 
     for (const width of [1440, 1366, 390]) {
-      it(`${width}px shows one Pay Balance primary`, () => {
+      it(`${width}px shows one "Pay securely" primary`, () => {
         const { total, visible } = payPrimaries(width);
         assert.equal(total, 2, 'both controls exist in the DOM');
         assert.equal(visible, 1, 'only one is displayed');

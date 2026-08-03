@@ -205,8 +205,9 @@ describe('package accordion UI wiring', () => {
     assert.match(garageJs, /package-details-toggle/);
     assert.match(garageJs, /aria-expanded/);
     assert.match(garageJs, /aria-controls/);
-    assert.match(garageJs, /View package details/);
-    assert.match(garageJs, /Hide package details/);
+    // Portal Lite wording: "View services" / "Hide services".
+    assert.match(garageJs, /View services/);
+    assert.match(garageJs, /Hide services/);
     assert.match(garageJs, /package-details-panel" hidden/);
   });
 
