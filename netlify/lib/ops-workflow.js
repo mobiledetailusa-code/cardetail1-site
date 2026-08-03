@@ -96,6 +96,175 @@ function projectVehiclesForAdmin(b) {
   return legacy ? [legacy] : [];
 }
 
+/**
+ * Concise vehicle summary for Jobs table / search — no vehicle objects or add-ons.
+ */
+function listVehicleSummary(b) {
+  const raw = Array.isArray(b && b.vehicles) ? b.vehicles.filter((v) => v && typeof v === 'object') : [];
+  let vehicleCount = raw.length;
+  if (!vehicleCount && (b && (b.vehicleLabel || b.vehicle || b.vehicleCategory))) {
+    vehicleCount = 1;
+  }
+  let vehicleLabel = '';
+  if (vehicleCount > 1) {
+    vehicleLabel = vehicleCount + ' vehicles';
+  } else if (raw.length === 1) {
+    vehicleLabel = String(
+      raw[0].vehicleLabel
+      || [raw[0].year, raw[0].make, raw[0].model].filter(Boolean).join(' ').trim()
+      || (b && (b.vehicleLabel || b.vehicle))
+      || ''
+    );
+  } else {
+    vehicleLabel = String((b && (b.vehicleLabel || b.vehicle || b.vehicleCategory)) || '');
+  }
+  return {
+    vehicleCount,
+    vehicleLabel,
+    vehicle: vehicleLabel,
+  };
+}
+
+/**
+ * Pending-request count for Jobs badges without embedding full request records.
+ * Counts open booking.changeRequests (incl. vehicle_remove_request) + legacy flags.
+ */
+function listPendingRequestSummary(b) {
+  const { isOpenStatus } = require('./admin-change-request-projection');
+  const rows = Array.isArray(b && b.changeRequests) ? b.changeRequests : [];
+  let pendingChangeRequestCount = 0;
+  let hasPendingVehicleRemoval = false;
+  for (let i = 0; i < rows.length; i += 1) {
+    const r = rows[i];
+    if (!r || !isOpenStatus(r.status)) continue;
+    pendingChangeRequestCount += 1;
+    const t = String(r.requestType || r.type || '');
+    if (t === 'vehicle_remove_request') hasPendingVehicleRemoval = true;
+  }
+  if (pendingChangeRequestCount === 0) {
+    if (b && b.cancellationRequestStatus === 'requested') pendingChangeRequestCount += 1;
+    if (b && b.rescheduledByClient) pendingChangeRequestCount += 1;
+    if (b && (b.addressChangedByClient || b.requestedAddress)) pendingChangeRequestCount += 1;
+  }
+  const customerChangePending = pendingChangeRequestCount > 0 || !!(b && b.customerChangePending);
+  return {
+    pendingChangeRequestCount,
+    customerChangePending,
+    hasPendingVehicleRemoval,
+  };
+}
+
+/**
+ * Authoritative money summary for Jobs list rows.
+ * Reuses financialProjection — does not invent a second ledger.
+ */
+function listMoneySummary(b) {
+  try {
+    const { materialProjection } = require('./booking-aggregate');
+    const { computeDue } = require('./portal-money-sync');
+    const { financialProjection } = require('./payment-service');
+    const material = materialProjection(b);
+    const money = financialProjection(b);
+    let amountDueApproved = money.remainingCents / 100;
+    if (money.paymentStatus !== 'paid') {
+      amountDueApproved = computeDue(b);
+    }
+    return {
+      bookingVersion: material ? material.bookingVersion : (b && b.bookingVersion),
+      quoteVersion: material ? material.quoteVersion : (b && b.quoteVersion),
+      approvedCents: money.approvedCents,
+      settledCents: money.settledCents,
+      remainingCents: money.remainingCents,
+      amountDueApproved,
+      amountPaid: (money.settledCents || 0) / 100,
+      approvedFinalAmount: money.approvedCents != null ? money.approvedCents / 100 : null,
+      invoicePaid: money.invoicePaid,
+      paymentWorkflowStatus: money.paymentWorkflowStatus,
+      financialPaymentStatus: money.paymentStatus,
+    };
+  } catch {
+    return {
+      bookingVersion: b && b.bookingVersion,
+      quoteVersion: b && b.quoteVersion,
+      approvedCents: null,
+      settledCents: null,
+      remainingCents: null,
+      amountDueApproved: null,
+      amountPaid: null,
+      approvedFinalAmount: b && b.approvedFinalAmount != null ? b.approvedFinalAmount : null,
+      invoicePaid: false,
+      paymentWorkflowStatus: normalizePaymentWorkflowStatus(b || {}),
+      financialPaymentStatus: null,
+    };
+  }
+}
+
+/**
+ * Lightweight Admin Jobs list/poll row.
+ * Full appointment detail remains projectJobForAdmin via get_job.
+ */
+function projectJobForAdminList(b) {
+  if (!b || typeof b !== 'object') {
+    return {
+      id: 'unknown',
+      jobStatus: 'pending_review',
+      paymentWorkflowStatus: 'no_payment_required_yet',
+      _projection: 'admin_list',
+      _malformed: true,
+    };
+  }
+  const money = listMoneySummary(b);
+  const vehicles = listVehicleSummary(b);
+  const requests = listPendingRequestSummary(b);
+  const techId = String(b.assignedTechId || b.assignedTech || '');
+  return {
+    id: String(b.id || b.bookingId || ''),
+    bookingId: String(b.bookingId || b.id || ''),
+    bookingVersion: money.bookingVersion != null ? money.bookingVersion : b.bookingVersion,
+    quoteVersion: money.quoteVersion != null ? money.quoteVersion : b.quoteVersion,
+    createdAt: b.createdAt || '',
+    updatedAt: b.updatedAt || '',
+    firstName: b.firstName || '',
+    lastName: b.lastName || '',
+    email: b.email || '',
+    phone: b.phone || '',
+    preferredDate: b.preferredDate || '',
+    preferredTime: b.preferredTime || '',
+    confirmedDate: b.confirmedDate || '',
+    confirmedTime: b.confirmedTime || '',
+    confirmedTimeWindow: b.confirmedTimeWindow || '',
+    jobStatus: normalizeJobStatus(b),
+    package: b.package || b.service || '',
+    vehicleCount: vehicles.vehicleCount,
+    vehicleLabel: vehicles.vehicleLabel,
+    vehicle: vehicles.vehicle,
+    approvedCents: money.approvedCents,
+    settledCents: money.settledCents,
+    remainingCents: money.remainingCents,
+    amountDueApproved: money.amountDueApproved,
+    amountPaid: money.amountPaid,
+    approvedFinalAmount: money.approvedFinalAmount,
+    invoicePaid: money.invoicePaid,
+    paymentWorkflowStatus: money.paymentWorkflowStatus,
+    financialPaymentStatus: money.financialPaymentStatus,
+    assignedTechId: techId,
+    assignedTech: techId,
+    assignedTechName: b.assignedTechName || '',
+    pendingChangeRequestCount: requests.pendingChangeRequestCount,
+    customerChangePending: requests.customerChangePending,
+    hasPendingVehicleRemoval: requests.hasPendingVehicleRemoval,
+    cancellationRequestStatus: b.cancellationRequestStatus || '',
+    rescheduledByClient: !!b.rescheduledByClient,
+    addressChangedByClient: !!b.addressChangedByClient,
+    requestedAddress: b.requestedAddress ? String(b.requestedAddress).slice(0, 200) : '',
+    issueNotes: b.issueNotes ? String(b.issueNotes).slice(0, 240) : '',
+    completedAt: b.completedAt || '',
+    isTest: !!b.isTest,
+    archived: !!b.archived,
+    _projection: 'admin_list',
+  };
+}
+
 function projectJobForAdmin(b) {
   const safe = { ...b };
   delete safe.passwordHash;
@@ -150,6 +319,7 @@ function projectJobForAdmin(b) {
     safe.pendingChangeRequests = [];
     safe.pendingChangeRequestCount = 0;
   }
+  safe._projection = 'admin_full';
   return safe;
 }
 
@@ -257,6 +427,10 @@ module.exports = {
   suggestEquipmentForJob,
   projectVehicleForAdmin,
   projectVehiclesForAdmin,
+  listVehicleSummary,
+  listPendingRequestSummary,
+  listMoneySummary,
+  projectJobForAdminList,
   projectJobForAdmin,
   projectJobForTech,
   projectTechAccountForAdmin,

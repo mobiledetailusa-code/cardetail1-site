@@ -122,9 +122,15 @@ test('assignment writes assignedTechId and eventLog', () => {
 });
 
 test('admin ops jobs strips stripe fields from response', () => {
-  assert.match(adminOpsJobs, /delete j\.stripeCustomerId/);
+  // Lean list projection never includes Stripe secrets; full get_job still uses projectJobForAdmin.
+  assert.match(adminOpsJobs, /projectJobForAdminList/);
+  assert.doesNotMatch(adminOpsJobs, /stripeCustomerId:\s/);
   assert.match(adminOpsJobs, /approve_completion/);
   assert.match(adminOpsJobs, /reopen_job/);
+  const lean = read('netlify/lib/ops-workflow.js').match(/function projectJobForAdminList[\s\S]*?^function projectJobForAdmin/m);
+  assert.ok(lean, 'lean projector present');
+  assert.doesNotMatch(lean[0], /stripeCustomerId/);
+  assert.doesNotMatch(lean[0], /paymentIntentId/);
 });
 
 test('no payment charge regression in protected stripe files', () => {

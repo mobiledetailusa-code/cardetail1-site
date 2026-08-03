@@ -64,7 +64,7 @@ describe('payment financial parity', () => {
     reconcileOpenCheckoutFromProvider,
     canCreatePayment,
   } = require('../netlify/lib/payment-service');
-  const { projectJobForAdmin } = require('../netlify/lib/ops-workflow');
+  const { projectJobForAdmin, projectJobForAdminList } = require('../netlify/lib/ops-workflow');
   const { normalizePaymentWorkflowStatus } = require('../netlify/lib/ops-schema');
   const { normalizeAggregate } = require('../netlify/lib/booking-aggregate');
 
@@ -267,8 +267,11 @@ describe('payment financial parity', () => {
     const listFn = listSrc.slice(listSrc.indexOf('async function listJobs'), listSrc.indexOf('async function persistMutation') > 0
       ? listSrc.indexOf('async function persistMutation')
       : listSrc.indexOf('Persist Admin mutations'));
-    assert.match(listFn, /projectJobForAdmin/);
+    assert.match(listFn, /projectJobForAdminList/);
     assert.doesNotMatch(listFn, /j\.paymentWorkflowStatus\s*=\s*normalizePaymentWorkflowStatus/);
+    const lean = projectJobForAdminList(staleLabel);
+    assert.equal(lean.paymentWorkflowStatus, 'payment_succeeded');
+    assert.equal(lean.invoicePaid, true);
   });
 
   it('Customer safePaymentState uses financialProjection fields', () => {

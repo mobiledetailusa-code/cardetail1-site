@@ -667,6 +667,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   function pendingRequestCountOf(j) {
     if (!j) return 0;
+    // Lean list rows expose a server count; full get_job may also include arrays.
+    if (j.pendingChangeRequestCount != null && Number.isFinite(Number(j.pendingChangeRequestCount))) {
+      const n = Math.max(0, Math.round(Number(j.pendingChangeRequestCount)));
+      if (n > 0) return n;
+    }
     const fromCr = pendingChangeRequestsOf(j).length;
     if (fromCr > 0) return fromCr;
     let legacy = 0;
@@ -874,7 +879,43 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (showTest) q.set('showTest', '1');
       const data = await api('/.netlify/functions/admin-ops-jobs?'+q, 'GET', null, Object.assign({ signal: ctrl && ctrl.signal }, fetchOpts || {}));
       if (SS && !SS.shouldApplyGeneration(jobsMeta, generation)) return jobs;
-      jobs = data.jobs || [];
+      const incoming = Array.isArray(data.jobs) ? data.jobs : [];
+      // Poll/list returns lean rows. Preserve in-memory full detail for the open job.
+      if (expandedJobId && activeJob && activeJob.id === expandedJobId && activeJob._projection === 'admin_full') {
+        const i = incoming.findIndex((j) => j && j.id === expandedJobId);
+        if (i >= 0) {
+          const lean = incoming[i];
+          incoming[i] = Object.assign({}, activeJob, {
+            jobStatus: lean.jobStatus,
+            paymentWorkflowStatus: lean.paymentWorkflowStatus,
+            financialPaymentStatus: lean.financialPaymentStatus,
+            remainingCents: lean.remainingCents,
+            amountDueApproved: lean.amountDueApproved,
+            amountPaid: lean.amountPaid,
+            approvedCents: lean.approvedCents,
+            settledCents: lean.settledCents,
+            approvedFinalAmount: lean.approvedFinalAmount,
+            invoicePaid: lean.invoicePaid,
+            assignedTechId: lean.assignedTechId,
+            assignedTech: lean.assignedTech,
+            assignedTechName: lean.assignedTechName,
+            pendingChangeRequestCount: lean.pendingChangeRequestCount,
+            customerChangePending: lean.customerChangePending,
+            hasPendingVehicleRemoval: lean.hasPendingVehicleRemoval,
+            cancellationRequestStatus: lean.cancellationRequestStatus,
+            rescheduledByClient: lean.rescheduledByClient,
+            addressChangedByClient: lean.addressChangedByClient,
+            vehicleCount: lean.vehicleCount,
+            vehicleLabel: lean.vehicleLabel,
+            vehicle: lean.vehicle,
+            package: lean.package,
+            updatedAt: lean.updatedAt,
+            _projection: 'admin_full',
+          });
+          activeJob = incoming[i];
+        }
+      }
+      jobs = incoming;
       if (SS) jobsMeta = SS.applySourceSuccess(jobsMeta, generation).meta;
       else { jobsMeta.hasLoaded = true; jobsMeta.isLoading = false; jobsMeta.error = null; jobsMeta.lastSuccessAt = Date.now(); }
       return jobs;
@@ -1432,7 +1473,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
 
   function vehicleSearchHaystack(j) {
-    const parts = [j.vehicle, j.vehicleLabel, j.package];
+    const parts = [j.vehicle, j.vehicleLabel, j.package, j.vehicleCount];
     jobVehicles(j).forEach(v => {
       parts.push(v.vehicleLabel, v.year, v.make, v.model, v.packageName, v.pkgName, v.category, v.cat);
       (Array.isArray(v.addons) ? v.addons : []).forEach(a => parts.push(a && a.name));
@@ -1441,6 +1482,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
 
   function jobsVehicleSummary(j) {
+    if (j && j.vehicleCount != null && Number(j.vehicleCount) > 1) {
+      return Number(j.vehicleCount) + ' vehicles';
+    }
+    if (j && j.vehicleLabel) return j.vehicleLabel;
     const vehs = jobVehicles(j);
     if (vehs.length > 1) return vehs.length + ' vehicles';
     if (vehs.length === 1) {
@@ -2009,11 +2054,22 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   function renderEvents() {
     const q = ($('#evSearch').value||'').toLowerCase();
     const evs = [];
-    jobs.forEach(j => (j.eventLog||[]).forEach(e => evs.push({...e, bookingId:j.id, customer:cust(j)})));
+    // Lean Jobs list omits eventLog. Show history from jobs that already have full detail
+    // (opened via get_job) and from the currently open appointment.
+    const sources = [];
+    jobs.forEach((j) => { if (j && Array.isArray(j.eventLog) && j.eventLog.length) sources.push(j); });
+    if (activeJob && Array.isArray(activeJob.eventLog) && activeJob.eventLog.length
+      && !sources.some((j) => j.id === activeJob.id)) {
+      sources.push(activeJob);
+    }
+    sources.forEach(j => (j.eventLog||[]).forEach(e => evs.push({...e, bookingId:j.id, customer:cust(j)})));
     evs.sort((a,b) => String(b.at||'').localeCompare(String(a.at||'')));
     const filtered = q ? evs.filter(e => JSON.stringify(e).toLowerCase().includes(q)) : evs;
     const el = $('#evList');
-    if (!filtered.length) { el.innerHTML='<div class="empty">No events</div>'; return; }
+    if (!filtered.length) {
+      el.innerHTML = '<div class="empty">No loaded event history yet. Open a job to load its full detail (history lives on the appointment, not the Jobs list).</div>';
+      return;
+    }
     el.innerHTML = filtered.slice(0,200).map(e =>
       '<div class="ev"><time>'+dt(e.at)+' · '+esc(e.bookingId)+' · '+esc(e.customer)+'</time>'+
       '<strong>'+esc(e.action||e.by||'event')+'</strong>'+
@@ -2368,6 +2424,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         };
       }
       if (d && d.job) {
+        d.job._projection = 'admin_full';
         const idx = jobs.findIndex(x => x.id===id);
         if (idx >= 0) jobs[idx] = d.job;
         else jobs.unshift(d.job);
@@ -2376,7 +2433,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           renderJobs(); renderOverview(); renderCompleted();
         }
       }
-    } catch (e) { /* fall back to list cache */ }
+    } catch (e) { /* fall back to list cache — do not clear jobs */ }
     const j = jobs.find(x => x.id===id);
     if (!j) return;
     activeJob = j;
@@ -2404,7 +2461,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div><span>Reference</span><strong>'+esc(j.id||'')+'</strong></div>'+
       '<div><span>Status</span><strong>'+esc(String(j.jobStatus||'—').replace(/_/g,' '))+'</strong></div>'+
       '<div><span>Date / window</span><strong>'+esc(jobsDateTimeLabel(j))+'</strong></div>'+
-      '<div><span>Vehicles</span><strong>'+esc(String((Array.isArray(j.vehicles) && j.vehicles.length) ? j.vehicles.length : (typeof jobVehicles === 'function' ? (jobVehicles(j).length || 1) : 1)))+'</strong></div>'+
+      '<div><span>Vehicles</span><strong>'+esc(String(
+        (j.vehicleCount != null && Number(j.vehicleCount) > 0)
+          ? Number(j.vehicleCount)
+          : ((Array.isArray(j.vehicles) && j.vehicles.length) ? j.vehicles.length : (typeof jobVehicles === 'function' ? (jobVehicles(j).length || 1) : 1))
+      ))+'</strong></div>'+
       '<div><span>Approved</span><strong>$'+esc(approvedEarly.toFixed(2))+'</strong></div>'+
       '<div><span>Paid / balance</span><strong>$'+esc(paidAmtEarly.toFixed(2))+' / $'+esc(Math.max(0,balDueEarly).toFixed(2))+'</strong></div>'+
       '<div><span>Technician</span><strong>'+esc(j.assignedTechName||'Unassigned')+'</strong></div>'+
