@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Receipt | Detailing Zone L.L.C.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0f;--bg2:#14141c;--border:rgba(255,255,255,.1);--text:#f1f1f3;--muted:rgba(255,255,255,.5);--blue:#4da3ff;--r:14px}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+a{color:var(--blue)}
+.wrap{max-width:760px;margin:0 auto;padding:24px 16px 48px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 20px}
+.btn{min-height:44px;padding:10px 16px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font:inherit;font-size:14px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+.btn:hover{border-color:var(--blue)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#05050a;font-weight:600}
+.btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.doc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:28px}
+.brand{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:20px}
+.brand h1{font-size:20px;font-weight:800}
+.brand .sub{color:var(--muted);font-size:13px}
+.brand .num{text-align:right;font-size:13px;color:var(--muted)}
+.brand .num strong{display:block;color:var(--text);font-size:15px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.status{display:inline-block;padding:6px 12px;border-radius:999px;border:1px solid var(--blue);color:var(--blue);font-size:13px;font-weight:600;margin-bottom:20px}
+h2{font-size:15px;font-weight:700;margin:22px 0 10px}
+dl.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 20px}
+dl.meta div{min-width:0}
+dl.meta dt{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+dl.meta dd{font-size:15px;word-break:break-word}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+td.amt,th.amt{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.veh{border:1px solid var(--border);border-radius:10px;padding:14px;margin:0 0 12px;break-inside:avoid;page-break-inside:avoid}
+.veh h3{font-size:15px;font-weight:700;margin-bottom:8px}
+.totals{margin-top:18px;border-top:2px solid var(--border);padding-top:14px}
+.totals table td{border-bottom:none;padding:5px 10px}
+.totals .grand td{font-size:17px;font-weight:800;border-top:1px solid var(--border);padding-top:10px}
+.foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+.msg{padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--bg2)}
+.tblwrap{overflow-x:auto}
+@media(max-width:520px){.wrap{padding:16px 12px 40px}.doc{padding:18px}.brand .num{text-align:left}.actions .btn{flex:1 1 100%;justify-content:center}}
+@media print{
+  @page{margin:0.5in}
+  body{background:#fff;color:#000}
+  .wrap{max-width:none;padding:0}
+  .actions,.no-print{display:none!important}
+  .doc{background:#fff;border:none;border-radius:0;padding:0}
+  .brand,.veh,.totals,.foot,th,td{border-color:#999}
+  .veh{border:1px solid #999}
+  .status{border-color:#000;color:#000}
+  dl.meta dt,th,.foot{color:#333}
+  a{color:#000;text-decoration:none}
+  .tblwrap{overflow:visible}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="actions no-print">
+    <button type="button" class="btn primary" id="btn-print">Print / Save as PDF</button>
+    <a class="btn" href="my-garage.html" id="btn-back">Back to My Garage</a>
+  </div>
+  <main id="receipt-root" aria-live="polite">
+    <p class="msg" id="loading">Loading your receipt…</p>
+  </main>
+</div>
+<script src="assets/receipt.js"></script>
+</body>
+</html>
