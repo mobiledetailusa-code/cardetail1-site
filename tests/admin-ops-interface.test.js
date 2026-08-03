@@ -47,10 +47,13 @@ test('initial active tab and panel are aligned', () => {
 
 test('refreshAll tracks settings and change requests independently', () => {
   assert.match(adminOps, /const \[jobsR, techsR, settingsR, changeR\] = await Promise\.allSettled/);
-  assert.match(adminOps, /if \(changeR\.status === 'rejected'\) changeRequests = \[\]/);
-  assert.doesNotMatch(adminOps, /if \(reqR\.status === 'rejected'\) changeRequests/);
-  assert.match(adminOps, /settingsR\.status === 'rejected'\).*settings \(/);
-  assert.match(adminOps, /changeR\.status === 'rejected'\).*change requests \(/);
+  // Last-good preservation: rejected feeds must NOT wipe arrays.
+  assert.doesNotMatch(adminOps, /if \(changeR\.status === 'rejected'\) changeRequests = \[\]/);
+  assert.doesNotMatch(adminOps, /if \(jobsR\.status === 'rejected'\) jobs = \[\]/);
+  assert.doesNotMatch(adminOps, /if \(techsR\.status === 'rejected'\) techs = \[\]/);
+  assert.match(adminOps, /Intentionally do NOT assign jobs=\[\], techs=\[\], or changeRequests=\[\] on rejection/);
+  assert.match(adminOps, /settingsR\.status === 'rejected'/);
+  assert.match(adminOps, /changeR\.status === 'rejected'/);
 });
 
 test('customer requests tab has isolated refresh handler', () => {

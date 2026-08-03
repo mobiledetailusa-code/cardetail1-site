@@ -485,6 +485,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 <script src="/netlify/lib/admin-session-client.js"></script>
 <script src="/netlify/lib/site-access-client.js"></script>
 <script src="assets/operational-refresh.js"></script>
+<script src="assets/admin-source-state.js"></script>
 <script>
 (function(){
   const KEY = CD1AdminSession.SESS_KEY;
@@ -505,6 +506,22 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let jobDetailPanel = 'overview';
   let jobDetailDirty = false;
   let openDrawerFocusRequests = false;
+  // Per-source load meta — data arrays above remain the single authority for records.
+  const SS = window.CD1AdminSourceState || null;
+  let jobsMeta = SS ? SS.createSourceMeta() : { hasLoaded:false, isLoading:false, error:null, lastSuccessAt:null, generation:0 };
+  let techsMeta = SS ? SS.createSourceMeta() : { hasLoaded:false, isLoading:false, error:null, lastSuccessAt:null, generation:0 };
+  let changeRequestsMeta = SS ? SS.createSourceMeta() : { hasLoaded:false, isLoading:false, error:null, lastSuccessAt:null, generation:0 };
+  let refreshAllInflight = null;
+  let sourceAbort = { jobs: null, techs: null, changeRequests: null };
+  let pendingOpenBookingId = null;
+  try {
+    const u = new URL(location.href);
+    const fromQuery = u.searchParams.get('bookingId') || u.searchParams.get('job');
+    const fromHash = (u.hash.match(/^#(?:booking|job)=([^&]+)/i) || [])[1];
+    const raw = fromQuery || (fromHash ? decodeURIComponent(fromHash) : '');
+    if (raw && String(raw).trim()) pendingOpenBookingId = String(raw).trim();
+  } catch (_) {}
+  const SOURCE_FETCH_TIMEOUT_MS = 25000;
 
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s)
@@ -548,20 +565,45 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     }
   }
 
-  async function api(url, method, body) {
-    const opts = { method: method||'GET', headers: { 'x-admin-key': CD1AdminSession.getToken() } };
+  async function api(url, method, body, extraOpts) {
+    const opts = Object.assign({ method: method||'GET', headers: { 'x-admin-key': CD1AdminSession.getToken() } }, extraOpts || {});
+    if (!opts.headers) opts.headers = { 'x-admin-key': CD1AdminSession.getToken() };
+    if (!opts.headers['x-admin-key']) opts.headers['x-admin-key'] = CD1AdminSession.getToken();
     if (body) { opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
-    const res = await fetch(url, opts);
-    const data = await res.json().catch(()=>({}));
-    if (!res.ok || data.ok === false) {
-      const err = data.error || ('HTTP '+res.status);
-      if (err === 'unauthorized' || res.status === 401) {
-        CD1AdminSession.clearToken();
-        throw new Error('Session expired — log in again at admin.html');
+    let timeoutId = null;
+    let timedOut = false;
+    const outerSignal = opts.signal || null;
+    if (SOURCE_FETCH_TIMEOUT_MS > 0 && typeof AbortController !== 'undefined') {
+      const ctrl = new AbortController();
+      opts.signal = ctrl.signal;
+      if (outerSignal) {
+        if (outerSignal.aborted) {
+          try { ctrl.abort(); } catch (_) {}
+        } else {
+          outerSignal.addEventListener('abort', () => { try { ctrl.abort(); } catch (_) {} }, { once: true });
+        }
       }
-      throw new Error(err);
+      timeoutId = setTimeout(() => { timedOut = true; try { ctrl.abort(); } catch (_) {} }, SOURCE_FETCH_TIMEOUT_MS);
     }
-    return data;
+    try {
+      const res = await fetch(url, opts);
+      const data = await res.json().catch(()=>({}));
+      if (!res.ok || data.ok === false) {
+        const err = data.error || ('HTTP '+res.status);
+        if (err === 'unauthorized' || res.status === 401) {
+          CD1AdminSession.clearToken();
+          throw new Error('Session expired — log in again at admin.html');
+        }
+        throw new Error(err);
+      }
+      return data;
+    } catch (e) {
+      if (timedOut) throw new Error('timeout');
+      if (e && e.name === 'AbortError') throw new Error('aborted');
+      throw e;
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
   }
 
   function badge(text, cls) { return '<span class="badge '+cls+'">'+esc(text.replace(/_/g,' '))+'</span>'; }
@@ -576,11 +618,28 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   function cust(j) { return ((j.firstName||'')+' '+(j.lastName||'')).trim()||j.email||j.id; }
   function dt(s) { if(!s) return '—'; try { return new Date(s).toLocaleString(); } catch { return s; } }
 
-  async function loadChangeRequests() {
-    const q = new URLSearchParams({ action: 'list', status: requestsStatusFilter || 'pending' });
-    const data = await api('/.netlify/functions/admin-customer-requests?' + q.toString());
-    changeRequests = data.requests || [];
-    return changeRequests;
+  async function loadChangeRequests(fetchOpts) {
+    const started = SS ? SS.beginSourceLoad(changeRequestsMeta) : { meta: changeRequestsMeta, generation: (changeRequestsMeta.generation||0)+1 };
+    changeRequestsMeta = started.meta;
+    const generation = started.generation;
+    if (sourceAbort.changeRequests) { try { sourceAbort.changeRequests.abort(); } catch (_) {} }
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    sourceAbort.changeRequests = ctrl;
+    try {
+      const q = new URLSearchParams({ action: 'list', status: requestsStatusFilter || 'pending' });
+      const data = await api('/.netlify/functions/admin-customer-requests?' + q.toString(), 'GET', null, Object.assign({ signal: ctrl && ctrl.signal }, fetchOpts || {}));
+      if (SS && !SS.shouldApplyGeneration(changeRequestsMeta, generation)) return changeRequests;
+      changeRequests = data.requests || [];
+      if (SS) changeRequestsMeta = SS.applySourceSuccess(changeRequestsMeta, generation).meta;
+      else { changeRequestsMeta.hasLoaded = true; changeRequestsMeta.isLoading = false; changeRequestsMeta.error = null; changeRequestsMeta.lastSuccessAt = Date.now(); }
+      return changeRequests;
+    } catch (e) {
+      if (String(e && e.message) === 'aborted') return changeRequests;
+      if (SS && !SS.shouldApplyGeneration(changeRequestsMeta, generation)) return changeRequests;
+      if (SS) changeRequestsMeta = SS.applySourceFailure(changeRequestsMeta, generation, e && e.message).meta;
+      else { changeRequestsMeta.isLoading = false; changeRequestsMeta.error = e && e.message; }
+      throw e;
+    }
   }
 
   function isOpenChangeRequest(r) {
@@ -705,7 +764,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     });
     const editBtn = $('#dEnableEdit');
     if (editBtn) {
+      // Edit toggles local UI only — must not call refreshAll or clear jobs/filters/selection.
       editBtn.onclick = () => {
+        if (SS && SS.editShouldTriggerRefreshAll && SS.editShouldTriggerRefreshAll()) return;
         root.classList.add('appt-edit-mode');
         root.classList.remove('appt-readonly');
         root.querySelectorAll('input,select,textarea').forEach((el) => {
@@ -791,18 +852,52 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     }
   }
 
-  async function loadJobs(extra) {
-    const q = new URLSearchParams(extra||{});
-    if (showTest) q.set('showTest', '1');
-    const data = await api('/.netlify/functions/admin-ops-jobs?'+q);
-    jobs = data.jobs || [];
-    return jobs;
+  async function loadJobs(extra, fetchOpts) {
+    const started = SS ? SS.beginSourceLoad(jobsMeta) : { meta: jobsMeta, generation: (jobsMeta.generation||0)+1 };
+    jobsMeta = started.meta;
+    const generation = started.generation;
+    if (sourceAbort.jobs) { try { sourceAbort.jobs.abort(); } catch (_) {} }
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    sourceAbort.jobs = ctrl;
+    try {
+      const q = new URLSearchParams(extra||{});
+      if (showTest) q.set('showTest', '1');
+      const data = await api('/.netlify/functions/admin-ops-jobs?'+q, 'GET', null, Object.assign({ signal: ctrl && ctrl.signal }, fetchOpts || {}));
+      if (SS && !SS.shouldApplyGeneration(jobsMeta, generation)) return jobs;
+      jobs = data.jobs || [];
+      if (SS) jobsMeta = SS.applySourceSuccess(jobsMeta, generation).meta;
+      else { jobsMeta.hasLoaded = true; jobsMeta.isLoading = false; jobsMeta.error = null; jobsMeta.lastSuccessAt = Date.now(); }
+      return jobs;
+    } catch (e) {
+      if (String(e && e.message) === 'aborted') return jobs;
+      if (SS && !SS.shouldApplyGeneration(jobsMeta, generation)) return jobs;
+      if (SS) jobsMeta = SS.applySourceFailure(jobsMeta, generation, e && e.message).meta;
+      else { jobsMeta.isLoading = false; jobsMeta.error = e && e.message; }
+      throw e;
+    }
   }
 
-  async function loadTechs() {
-    const data = await api('/.netlify/functions/tech-accounts', 'POST', { action:'list' });
-    techs = data.technicians || [];
-    return techs;
+  async function loadTechs(fetchOpts) {
+    const started = SS ? SS.beginSourceLoad(techsMeta) : { meta: techsMeta, generation: (techsMeta.generation||0)+1 };
+    techsMeta = started.meta;
+    const generation = started.generation;
+    if (sourceAbort.techs) { try { sourceAbort.techs.abort(); } catch (_) {} }
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    sourceAbort.techs = ctrl;
+    try {
+      const data = await api('/.netlify/functions/tech-accounts', 'POST', { action:'list' }, Object.assign({ signal: ctrl && ctrl.signal }, fetchOpts || {}));
+      if (SS && !SS.shouldApplyGeneration(techsMeta, generation)) return techs;
+      techs = data.technicians || [];
+      if (SS) techsMeta = SS.applySourceSuccess(techsMeta, generation).meta;
+      else { techsMeta.hasLoaded = true; techsMeta.isLoading = false; techsMeta.error = null; techsMeta.lastSuccessAt = Date.now(); }
+      return techs;
+    } catch (e) {
+      if (String(e && e.message) === 'aborted') return techs;
+      if (SS && !SS.shouldApplyGeneration(techsMeta, generation)) return techs;
+      if (SS) techsMeta = SS.applySourceFailure(techsMeta, generation, e && e.message).meta;
+      else { techsMeta.isLoading = false; techsMeta.error = e && e.message; }
+      throw e;
+    }
   }
 
   async function loadSettings() {
@@ -830,44 +925,173 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'loadBanner';
-      bar.style.cssText = 'position:sticky;top:0;z-index:50;background:#3a1212;border:1px solid #7f1d1d;color:#fecaca;padding:10px 16px;font-size:13px;line-height:1.5';
+      bar.setAttribute('role', 'status');
+      bar.style.cssText = 'position:sticky;top:0;z-index:50;background:#3a1212;border:1px solid #7f1d1d;color:#fecaca;padding:10px 16px;font-size:13px;line-height:1.5;max-width:100%;overflow-wrap:anywhere';
       document.body.insertBefore(bar, document.body.firstChild);
     }
-    const sessionExpired = failures.some(f => /session expired/i.test(f));
-    bar.innerHTML = 'Some admin data failed to load: ' + esc(failures.join(' · ')) +
+    const sessionExpired = failures.some(f => /session expired/i.test(f.message || f));
+    const lines = failures.map((f) => {
+      const msg = typeof f === 'string' ? f : (f.message || '');
+      const source = typeof f === 'object' && f.source ? f.source : '';
+      const retryAttr = source ? ' data-retry-source="'+esc(source)+'"' : '';
+      return '<div style="margin:4px 0">'+esc(msg)+
+        (source ? ' <button type="button" class="loadRetrySource"'+retryAttr+' style="margin-left:8px;background:#7f1d1d;color:#fff;border:none;border-radius:5px;padding:3px 10px;cursor:pointer;min-height:44px">Retry '+esc(source)+'</button>' : '')+
+        '</div>';
+    }).join('');
+    bar.innerHTML = lines +
       (sessionExpired
         ? ' — <a href="admin.html" style="color:#fff;text-decoration:underline">log in again</a>'
-        : ' <button type="button" id="loadRetry" style="margin-left:8px;background:#7f1d1d;color:#fff;border:none;border-radius:5px;padding:3px 10px;cursor:pointer">Retry</button>');
+        : ' <button type="button" id="loadRetry" style="margin-left:8px;background:#7f1d1d;color:#fff;border:none;border-radius:5px;padding:3px 10px;cursor:pointer;min-height:44px">Retry all</button>');
     const rb = document.getElementById('loadRetry');
     if (rb) rb.onclick = () => refreshAll();
+    bar.querySelectorAll('.loadRetrySource').forEach((btn) => {
+      btn.onclick = () => retrySource(btn.getAttribute('data-retry-source'));
+    });
+  }
+
+  function sourceFailureEntry(source, meta, label) {
+    if (!meta || !meta.error) return null;
+    const hasLoaded = !!meta.hasLoaded;
+    const message = SS
+      ? SS.refreshFailureMessage(label, hasLoaded)
+      : (hasLoaded
+        ? (label + ' could not be refreshed. Showing the last loaded data.')
+        : (label + ' could not be loaded.'));
+    return { source: source, message: message + ' (' + meta.error + ')', hasLoaded: hasLoaded };
+  }
+
+  async function retrySource(source) {
+    const key = String(source || '');
+    try {
+      if (key === 'jobs' || key === 'bookings') {
+        await loadJobs();
+        renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderEvents();
+        maybeOpenPendingDirectLink();
+      } else if (key === 'technicians' || key === 'techs') {
+        await loadTechs();
+        renderTechs(); renderAssign(); renderOverview();
+      } else if (key === 'requests' || key === 'changeRequests' || key === 'change requests') {
+        await loadChangeRequests();
+        renderRequests();
+        updateRequestsTabBadge();
+      } else {
+        await refreshAll();
+        return;
+      }
+      renderSourceBannersOnly();
+    } catch (e) {
+      renderSourceBannersOnly();
+      toast((e && e.message) || 'Retry failed');
+    }
+  }
+
+  function renderSourceBannersOnly() {
+    const failures = [];
+    const j = sourceFailureEntry('jobs', jobsMeta, 'Jobs');
+    const t = sourceFailureEntry('technicians', techsMeta, 'Technicians');
+    const c = sourceFailureEntry('requests', changeRequestsMeta, 'Change requests');
+    if (j) failures.push(j);
+    if (t) failures.push(t);
+    if (c) failures.push(c);
+    showLoadBanner(failures);
+  }
+
+  function maybeOpenPendingDirectLink() {
+    if (!pendingOpenBookingId) return;
+    const verdict = SS
+      ? SS.resolveDirectLink(pendingOpenBookingId, jobs, jobsMeta)
+      : (jobs.some((j) => j && j.id === pendingOpenBookingId) ? 'open'
+        : (jobsMeta.hasLoaded && !jobsMeta.error ? 'missing' : 'wait'));
+    if (verdict === 'open') {
+      const id = pendingOpenBookingId;
+      pendingOpenBookingId = null;
+      openDrawer(id);
+    } else if (verdict === 'missing') {
+      const id = pendingOpenBookingId;
+      pendingOpenBookingId = null;
+      toast('Appointment not found: ' + id);
+    }
+    // 'wait' — keep pendingOpenBookingId for a later successful jobs load
   }
 
   async function refreshAll() {
-    const [jobsR, techsR, settingsR, changeR] = await Promise.allSettled([
-      loadJobs(), loadTechs(), loadSettings(), loadChangeRequests(),
-    ]);
-    if (jobsR.status === 'rejected') jobs = [];
-    if (techsR.status === 'rejected') techs = [];
-    if (changeR.status === 'rejected') changeRequests = [];
-    renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
-    updateRequestsTabBadge();
-    renderSettingsForm();
-    const failures = [];
-    if (jobsR.status === 'rejected') failures.push('bookings (' + (jobsR.reason && jobsR.reason.message || jobsR.reason) + ')');
-    if (techsR.status === 'rejected') failures.push('technicians (' + (techsR.reason && techsR.reason.message || techsR.reason) + ')');
-    if (settingsR.status === 'rejected') failures.push('settings (' + (settingsR.reason && settingsR.reason.message || settingsR.reason) + ')');
-    if (changeR.status === 'rejected') failures.push('change requests (' + (changeR.reason && changeR.reason.message || changeR.reason) + ')');
-    showLoadBanner(failures);
+    if (refreshAllInflight) return refreshAllInflight;
+    refreshAllInflight = (async () => {
+      // Preserve last-successful arrays on reject — loaders already leave data untouched on failure.
+      const [jobsR, techsR, settingsR, changeR] = await Promise.allSettled([
+        loadJobs(), loadTechs(), loadSettings(), loadChangeRequests(),
+      ]);
+      // Intentionally do NOT assign jobs=[], techs=[], or changeRequests=[] on rejection.
+      renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
+      updateRequestsTabBadge();
+      renderSettingsForm();
+      const failures = [];
+      if (jobsR.status === 'rejected') {
+        failures.push(sourceFailureEntry('jobs', jobsMeta, 'Jobs') || {
+          source: 'jobs',
+          message: 'Jobs could not be refreshed. Showing the last loaded data. (' + ((jobsR.reason && jobsR.reason.message) || jobsR.reason) + ')',
+        });
+      }
+      if (techsR.status === 'rejected') {
+        failures.push(sourceFailureEntry('technicians', techsMeta, 'Technicians') || {
+          source: 'technicians',
+          message: 'Technicians could not be refreshed. Showing the last loaded data. (' + ((techsR.reason && techsR.reason.message) || techsR.reason) + ')',
+        });
+      }
+      if (settingsR.status === 'rejected') {
+        failures.push({ source: '', message: 'settings (' + ((settingsR.reason && settingsR.reason.message) || settingsR.reason) + ')' });
+      }
+      if (changeR.status === 'rejected') {
+        failures.push(sourceFailureEntry('requests', changeRequestsMeta, 'Change requests') || {
+          source: 'requests',
+          message: 'Change requests could not be refreshed. Showing the last loaded data. (' + ((changeR.reason && changeR.reason.message) || changeR.reason) + ')',
+        });
+      }
+      // Successful sources clear their own error inside loaders; rebuild banner from current meta + settings.
+      const fromMeta = [];
+      const j = sourceFailureEntry('jobs', jobsMeta, 'Jobs');
+      const t = sourceFailureEntry('technicians', techsMeta, 'Technicians');
+      const c = sourceFailureEntry('requests', changeRequestsMeta, 'Change requests');
+      if (j) fromMeta.push(j);
+      if (t) fromMeta.push(t);
+      if (c) fromMeta.push(c);
+      failures.filter((f) => f && !f.source).forEach((f) => fromMeta.push(f));
+      showLoadBanner(fromMeta.length ? fromMeta : failures.filter(Boolean));
+      maybeOpenPendingDirectLink();
+      // Keep selected job open when it still exists locally after a partial failure.
+      if (expandedJobId && jobs.some((j) => j && j.id === expandedJobId) && activeJob) {
+        /* leave drawer as-is — renderJobs preserves expansion when the job remains in memory */
+      }
+    })();
+    try {
+      await refreshAllInflight;
+    } finally {
+      refreshAllInflight = null;
+    }
   }
 
   async function refreshRequestsTab() {
     const el = $('#requestsList');
-    if (el) el.innerHTML = '<div class="empty">Loading customer requests…</div>';
+    const hadCache = !!(changeRequestsMeta.hasLoaded && changeRequests && changeRequests.length);
+    if (el && !hadCache) el.innerHTML = '<div class="empty">Loading customer requests…</div>';
     try {
       await loadChangeRequests();
       renderRequests();
+      renderSourceBannersOnly();
     } catch (e) {
-      if (el) el.innerHTML = '<div class="empty">Could not load customer requests: ' + esc(e.message) + '</div>';
+      if (hadCache) {
+        renderRequests();
+        if (el) {
+          const note = document.createElement('div');
+          note.className = 'req-warn';
+          note.style.marginBottom = '10px';
+          note.textContent = (SS ? SS.refreshFailureMessage('Change requests', true) : 'Change requests could not be refreshed. Showing the last loaded data.') + ' (' + ((e && e.message) || 'error') + ')';
+          el.insertBefore(note, el.firstChild);
+        }
+      } else if (el) {
+        el.innerHTML = '<div class="empty">Could not load customer requests: ' + esc(e.message) + '</div>';
+      }
+      renderSourceBannersOnly();
     }
   }
 
@@ -1204,14 +1428,37 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const tb = $('#jobsTable tbody');
     renderQueueFilters();
     parkActiveDetailRow();
+    const jobsStale = !!(jobsMeta && jobsMeta.error && jobsMeta.hasLoaded);
+    const jobsInitialFail = !!(jobsMeta && jobsMeta.error && !jobsMeta.hasLoaded);
     if (!list.length) {
-      tb.innerHTML = '<tr><td colspan="'+JOBS_COLSPAN+'" class="empty">No jobs found</td></tr>';
-      if (expandedJobId) collapseJobDetail();
+      let emptyMsg = 'No jobs found';
+      if (jobsInitialFail) {
+        emptyMsg = 'Jobs could not be loaded. Use Retry to try again.';
+      } else if (jobsStale && !jobs.length) {
+        emptyMsg = 'Jobs could not be refreshed and no local data is available.';
+      }
+      tb.innerHTML = '<tr><td colspan="'+JOBS_COLSPAN+'" class="empty">'+esc(emptyMsg)+
+        (jobsStale || jobsInitialFail
+          ? ' <button type="button" class="btn ghost sm jobsRetryBtn" style="min-height:44px;margin-left:8px">Retry jobs</button>'
+          : '')+
+        '</td></tr>';
+      const retryBtn = tb.querySelector('.jobsRetryBtn');
+      if (retryBtn) retryBtn.onclick = () => retrySource('jobs');
+      // Only collapse when the selected job is truly gone from memory — not on a failed refresh
+      // that still holds last-good rows filtered out of the current view.
+      if (expandedJobId && !jobs.some((j) => j && j.id === expandedJobId)) collapseJobDetail();
       return;
     }
     const stillVisible = expandedJobId && list.some(j => j.id === expandedJobId);
-    if (expandedJobId && !stillVisible) collapseJobDetail();
-    tb.innerHTML = list.map(j => {
+    if (expandedJobId && !stillVisible && !jobs.some((j) => j && j.id === expandedJobId)) collapseJobDetail();
+    // If filters hide the selected job but it still exists, keep it open (do not wipe).
+    let staleBanner = '';
+    if (jobsStale) {
+      staleBanner = '<tr class="job-stale-banner"><td colspan="'+JOBS_COLSPAN+'" style="background:rgba(245,158,11,.1);color:var(--warn);font-size:12px;padding:8px 12px">'+
+        esc(SS ? SS.refreshFailureMessage('Jobs', true) : 'Jobs could not be refreshed. Showing the last loaded data.')+
+        ' <button type="button" class="btn ghost sm jobsRetryBtn" style="min-height:44px;margin-left:8px">Retry jobs</button></td></tr>';
+    }
+    tb.innerHTML = staleBanner + list.map(j => {
       const expanded = expandedJobId === j.id;
       const warn = jobNeedsAttention(j)
         ? '<span class="job-warn" title="Needs attention" aria-label="Needs attention">&#9888;</span>'
@@ -1251,6 +1498,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         e.preventDefault();
         toggleJobExpand(tr.dataset.id);
       });
+    });
+    tb.querySelectorAll('.jobsRetryBtn').forEach((btn) => {
+      btn.onclick = (e) => { e.stopPropagation(); retrySource('jobs'); };
     });
     if (stillVisible) placeActiveDetailRow(expandedJobId);
   }
@@ -2695,7 +2945,14 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let searchT;
   $('#jobsSearch').oninput = () => { clearTimeout(searchT); searchT=setTimeout(renderJobs,250); };
   $('#jobsStatus').onchange = renderJobs;
-  $('#jobsClear').onclick = () => { $('#jobsSearch').value=''; $('#jobsStatus').value=''; queueFilter='all'; renderJobs(); };
+  // Clear filters operates only on in-memory jobs — no network reload.
+  $('#jobsClear').onclick = () => {
+    const cleared = SS && SS.clearedJobFilters ? SS.clearedJobFilters() : { search:'', status:'', queueFilter:'all' };
+    $('#jobsSearch').value = cleared.search;
+    $('#jobsStatus').value = cleared.status;
+    queueFilter = cleared.queueFilter;
+    renderJobs();
+  };
   $('#jobsShowTest').onchange = async e => { showTest = e.target.checked; await refreshAll(); };
   $('#evSearch').oninput = renderEvents;
   $('#btnPreviewTests').onclick = async () => {
