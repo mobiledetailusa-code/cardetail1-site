@@ -2159,7 +2159,7 @@
 
   /**
    * Bring the payment panel into view and hand the customer focus. Called on
-   * every Pay Balance entry point, including the reuse path.
+   * every "Pay securely" entry point, including the reuse path.
    */
   function revealPaymentPanel() {
     var panel = $('embedded-pay-panel');
