@@ -1,7 +1,7 @@
 // Admin-only jobs feed + admin ops actions for Admin Ops dashboard.
 const { blobsStore, listAllBlobs, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const {
-  projectJobForAdmin, normalizeJobStatus, appendEventLog,
+  projectJobForAdmin, projectJobForAdminList, normalizeJobStatus, appendEventLog,
 } = require('../lib/ops-workflow');
 const { getOpsSettings } = require('../lib/ops-config');
 const { createAuctionForBooking, assignAuctionWinnerToBooking } = require('../lib/auction-ops');
@@ -145,56 +145,18 @@ async function listJobs(q) {
   }
   jobs.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
 
-  // Attach shared CustomerAccount summaries so Admin can see linked bookings
-  // belong to the same permanent identity (fail-open if Prisma unavailable).
-  let accountByBookingId = new Map();
-  try {
-    const { tryGetPrisma } = require('../lib/prisma');
-    const { buildAdminCustomerAccountSummary } = require('../lib/customer-identity-projection');
-    const prisma = tryGetPrisma();
-    if (prisma) {
-      const ids = jobs.map((b) => String(b.id || b.bookingId || '').trim()).filter(Boolean);
-      if (ids.length) {
-        const rows = await prisma.booking.findMany({
-          where: { id: { in: ids }, customerAccountId: { not: null } },
-          select: { id: true, customerAccountId: true },
-        });
-        const uniqueAccountIds = [...new Set(rows.map((r) => r.customerAccountId).filter(Boolean))];
-        const summaryByAccount = new Map();
-        await Promise.all(uniqueAccountIds.map(async (accountId) => {
-          const summary = await buildAdminCustomerAccountSummary(accountId, { prisma });
-          if (summary) summaryByAccount.set(accountId, summary);
-        }));
-        for (const row of rows) {
-          const summary = summaryByAccount.get(row.customerAccountId);
-          if (summary) accountByBookingId.set(row.id, summary);
-        }
-      }
-    }
-  } catch {
-    accountByBookingId = new Map();
-  }
+  // Lean list path: skip Prisma customer-account graph enrichment (no Jobs-table consumer).
+  // Full identity remains available through get_job / customer portal authorities.
 
   return jobs.map(b => {
     try {
-      const j = projectJobForAdmin(b);
+      const j = projectJobForAdminList(b);
       // Prefer payload id; if missing, use Blob key so Admin copy/paste matches Customer lookup.
       j.id = normalizeBookingKey(j.id || j.bookingId || b.__blobKey) || j.id;
+      j.bookingId = j.bookingId || j.id;
       j.jobStatus = normalizeJobStatus(b);
-      // paymentWorkflowStatus / remainingCents come from financialProjection via projectJobForAdmin.
+      // paymentWorkflowStatus / remainingCents come from financialProjection via projectJobForAdminList.
       // Do not overwrite with normalizePaymentWorkflowStatus(raw) — that reintroduces stale Pending.
-      delete j.stripeCustomerId;
-      delete j.stripePaymentMethodId;
-      delete j.setupIntentId;
-      delete j.paymentIntentId;
-      delete j.amountAuthorizedCents;
-      delete j.amountCapturedCents;
-      delete j.cardOnFileStatus;
-      const accountSummary = accountByBookingId.get(j.id) || accountByBookingId.get(b.id) || null;
-      if (accountSummary) {
-        j.customerAccountId = accountSummary.customerAccountId;
-        j.customerAccount = accountSummary;
-      }
       return j;
     } catch (_) {
       // Never let one malformed record blank the entire admin feed.
@@ -204,6 +166,9 @@ async function listJobs(q) {
         lastName: (b && b.lastName) || '',
         jobStatus: 'pending_review',
         paymentWorkflowStatus: 'no_payment_required_yet',
+        pendingChangeRequestCount: 0,
+        vehicleCount: 0,
+        _projection: 'admin_list',
         _malformed: true,
       };
     }
