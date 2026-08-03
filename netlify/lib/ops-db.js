@@ -116,6 +116,98 @@ async function getBooking(bookingId) {
   return null;
 }
 
+// Matches fetchBlobRecords' default — same Blobs backend, same tested ceiling.
+const BOOKING_LOOKUP_CONCURRENCY = 20;
+
+/**
+ * Batch-resolve bookings for a bounded set of ids (one Admin page).
+ *
+ * Same resolution order as getBooking — direct key variants, then scan, then the
+ * fail-open Prisma mirror — but deduplicated and bounded:
+ *   - each unique id is read once, never once per referencing row;
+ *   - direct-key reads run in bounded-concurrency chunks instead of serially;
+ *   - ids that miss every key variant share ONE scan pass rather than each
+ *     triggering its own full store scan.
+ *
+ * @returns {Promise<Map<string, object|null>>} keyed by normalizeBookingKey(id)
+ */
+async function getBookingsByIds(bookingIds) {
+  const resolved = new Map();
+  const wanted = new Map();
+  for (const raw of bookingIds || []) {
+    const id = normalizeBookingKey(raw);
+    if (id && !wanted.has(id)) wanted.set(id, raw);
+  }
+  if (!wanted.size) return resolved;
+
+  const store = await bookingStore();
+  const ids = [...wanted.keys()];
+
+  // Pass 1 — direct key variants, bounded concurrency.
+  for (let i = 0; i < ids.length; i += BOOKING_LOOKUP_CONCURRENCY) {
+    const chunk = ids.slice(i, i + BOOKING_LOOKUP_CONCURRENCY);
+    await Promise.all(chunk.map(async (id) => {
+      const original = wanted.get(id);
+      const keyVariants = [...new Set([
+        id,
+        String(original || '').trim(),
+        String(original || '').trim().toLowerCase(),
+      ])].filter(Boolean);
+      for (const key of keyVariants) {
+        const raw = await readBlobJson(store, key);
+        if (raw) { resolved.set(id, finalizeBookingRead(raw, id)); return; }
+      }
+      resolved.set(id, null);
+    }));
+  }
+
+  // Pass 2 — one shared scan resolves every remaining id at once.
+  const pending = new Set(ids.filter((id) => !resolved.get(id)));
+  if (pending.size) {
+    try {
+      const blobs = await listAllBlobs(store, BOOKINGS_STORE);
+      for (let i = 0; i < blobs.length && pending.size; i += 30) {
+        const chunk = blobs.slice(i, i + 30);
+        const rows = await Promise.all(chunk.map(async (b) => {
+          const raw = await readBlobJson(store, b.key);
+          return raw ? { key: b.key, raw } : null;
+        }));
+        for (const row of rows) {
+          if (!row || !pending.size) continue;
+          const rid = normalizeBookingKey(row.raw.id || row.raw.bookingId || '');
+          const rkey = normalizeBookingKey(row.key);
+          for (const id of pending) {
+            if (rid === id || rkey === id) {
+              resolved.set(id, finalizeBookingRead(row.raw, id));
+              pending.delete(id);
+              break;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[ops-db] getBookingsByIds scan failed:', e.message);
+    }
+  }
+
+  // Pass 3 — fail-open mirror read, same as getBooking. Bounded, never for writes.
+  if (pending.size) {
+    const rest = [...pending];
+    for (let i = 0; i < rest.length; i += BOOKING_LOOKUP_CONCURRENCY) {
+      const chunk = rest.slice(i, i + BOOKING_LOOKUP_CONCURRENCY);
+      await Promise.all(chunk.map(async (id) => {
+        try {
+          const { readBookingMirror } = require('./booking-prisma-mirror');
+          const mirrored = await readBookingMirror(id);
+          if (mirrored) resolved.set(id, finalizeBookingRead(mirrored, id));
+        } catch { /* ignore */ }
+      }));
+    }
+  }
+
+  return resolved;
+}
+
 async function patchBooking(bookingId, patches, eventEntry) {
   const { getBookingRecord, commitBooking } = require('./booking-repository');
   const { buildNextAggregate, normalizeAggregate } = require('./booking-aggregate');
@@ -196,6 +288,8 @@ module.exports = {
   bookingStore,
   setOpsStoreOverride,
   getBooking,
+  getBookingsByIds,
+  BOOKING_LOOKUP_CONCURRENCY,
   patchBooking,
   listRawBookings,
   listBookingsForSlotLock,

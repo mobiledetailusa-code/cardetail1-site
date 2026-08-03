@@ -3,7 +3,7 @@
 const { jsonCors } = require('../lib/tech-security');
 const { verifyAdminRequest } = require('../lib/admin-security');
 const { blobsStore, listAllBlobs, fetchBlobRecords } = require('../lib/tech-security');
-const { getBooking } = require('../lib/ops-db');
+const { getBooking, getBookingsByIds, normalizeBookingKey } = require('../lib/ops-db');
 const { decideChangeRequestCommand, materialProjection } = require('../lib/booking-commands');
 const { getBookingRecord } = require('../lib/booking-repository');
 
@@ -68,63 +68,111 @@ exports.handler = async (event) => {
       isOpenStatus,
     } = require('../lib/admin-change-request-projection');
 
-    const enriched = [];
+    // Booking enrichment is the expensive step, so it runs LAST and only for the
+    // rows actually returned. Everything above it is request-native.
+    const records = [];
     for (const r of items) {
       if (!r) continue;
-      let booking = null;
-      if (r.bookingId) {
-        try { booking = await getBooking(r.bookingId); } catch { booking = null; }
-      }
-      const projected = projectChangeRequestForAdmin({
-        ...r,
-        id: r.id || r.requestId,
-        requestId: r.requestId || r.id,
-        bookingId: r.bookingId,
-      }, booking || {});
-      if (!projected) continue;
-      projected.typeLabel = TYPE_LABELS[projected.requestType] || projected.requestType;
-      projected.customerName = booking
-        ? [booking.firstName, booking.lastName].filter(Boolean).join(' ').trim()
-        : '';
-      projected.vehicleLabel = projected.requestedState?.vehicleSnapshot?.vehicleLabel
-        || projected.previousState?.vehicle?.vehicleLabel
-        || projected.vehicleId
-        || '';
-      enriched.push(projected);
+      const id = r.id || r.requestId;
+      if (!id) continue;
+      records.push({ ...r, id, requestId: r.requestId || r.id, bookingId: r.bookingId });
     }
 
-    const filtered = enriched.filter((r) => {
+    // Request-native — never needs a booking read.
+    const pendingCount = records.filter((r) => isOpenStatus(r.status)).length;
+
+    const wantsPaymentAdjustment = statusFilter === 'needs_payment_adjustment'
+      || statusFilter === 'payment_adjustment';
+
+    const statusMatched = records.filter((r) => {
       const st = String(r.status || '').toLowerCase();
       if (statusFilter === 'all') return true;
-      if (statusFilter === 'pending') return isOpenStatus(st);
-      if (statusFilter === 'needs_payment_adjustment' || statusFilter === 'payment_adjustment') {
-        return isOpenStatus(st) && r.paymentImpact === 'payment_adjustment_required';
-      }
       if (statusFilter === 'approved' || statusFilter === 'applied') {
         return st === 'applied' || st === 'approved';
       }
       if (statusFilter === 'declined' || statusFilter === 'rejected') {
         return st === 'rejected' || st === 'declined';
       }
+      // 'pending' and the payment-adjustment prefilter share the open-status gate.
       return isOpenStatus(st);
-    }).sort((a, b) => {
+    });
+
+    // Unchanged comparator — createdAt desc, id desc as tiebreak.
+    const byRecency = (a, b) => {
       const ta = String(b.createdAt || b.submittedAt || '');
       const tb = String(a.createdAt || a.submittedAt || '');
       if (ta !== tb) return ta.localeCompare(tb);
       return String(b.id || '').localeCompare(String(a.id || ''));
-    });
+    };
+    const sorted = statusMatched.slice().sort(byRecency);
+
+    // One batched, de-duplicated booking read for the supplied rows.
+    const enrich = async (rows) => {
+      // A booking-store outage must degrade the rows, never fail the page.
+      let bookings = new Map();
+      try {
+        bookings = await getBookingsByIds(rows.map((r) => r.bookingId));
+      } catch (e) {
+        console.warn('[admin-customer-requests] booking lookup unavailable:', e.message);
+        bookings = new Map();
+      }
+      const out = [];
+      for (const r of rows) {
+        const key = r.bookingId ? normalizeBookingKey(r.bookingId) : '';
+        const booking = key ? bookings.get(key) || null : null;
+        if (r.bookingId && !booking) {
+          // Opaque server-side diagnostic — no storage internals, no stack.
+          console.warn('[admin-customer-requests] booking unavailable for request', {
+            requestId: String(r.id).slice(0, 24),
+          });
+        }
+        const projected = projectChangeRequestForAdmin(r, booking || {});
+        if (!projected) continue;
+        projected.typeLabel = TYPE_LABELS[projected.requestType] || projected.requestType;
+        projected.customerName = booking
+          ? [booking.firstName, booking.lastName].filter(Boolean).join(' ').trim()
+          : '';
+        projected.vehicleLabel = projected.requestedState?.vehicleSnapshot?.vehicleLabel
+          || projected.previousState?.vehicle?.vehicleLabel
+          || projected.vehicleId
+          || '';
+        projected.bookingUnavailable = !!(r.bookingId && !booking);
+        out.push(projected);
+      }
+      return out;
+    };
 
     const cursor = String(body.cursor || event.queryStringParameters?.cursor || '');
-    let start = 0;
-    if (cursor) {
-      const idx = filtered.findIndex((r) => r.id === cursor);
-      start = idx >= 0 ? idx + 1 : 0;
+    const sliceFrom = (list) => {
+      let start = 0;
+      if (cursor) {
+        const idx = list.findIndex((r) => r.id === cursor);
+        start = idx >= 0 ? idx + 1 : 0;
+      }
+      return { start, page: list.slice(start, start + MAX_LIST) };
+    };
+
+    let page;
+    let totalFiltered;
+    let start;
+
+    if (wantsPaymentAdjustment) {
+      // paymentImpact is derived from booking.ledger, so this one filter cannot be
+      // answered without enrichment. Cost stays bounded by the number of UNIQUE
+      // bookings among open requests — not by total request history.
+      const enrichedOpen = await enrich(sorted);
+      const matching = enrichedOpen.filter((r) => r.paymentImpact === 'payment_adjustment_required');
+      ({ start, page } = sliceFrom(matching));
+      totalFiltered = matching.length;
+    } else {
+      ({ start, page } = sliceFrom(sorted));
+      page = await enrich(page);
+      totalFiltered = sorted.length;
     }
-    const page = filtered.slice(start, start + MAX_LIST);
-    const nextCursor = start + MAX_LIST < filtered.length
+
+    const nextCursor = start + MAX_LIST < totalFiltered
       ? page[page.length - 1]?.id || null
       : null;
-    const pendingCount = enriched.filter((r) => isOpenStatus(r.status)).length;
 
     return jsonCors(200, {
       ok: true,
@@ -132,7 +180,7 @@ exports.handler = async (event) => {
       bounded: true,
       max: MAX_LIST,
       totalPending: pendingCount,
-      totalFiltered: filtered.length,
+      totalFiltered,
       statusFilter,
       nextCursor,
     });
