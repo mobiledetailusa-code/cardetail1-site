@@ -41,8 +41,47 @@ test('every tab button maps to exactly one existing panel', () => {
 });
 
 test('initial active tab and panel are aligned', () => {
-  assert.match(adminOps, /class="tab on"[^>]*data-tab="overview"/);
-  assert.match(adminOps, /class="panel on" id="p-overview"/);
+  assert.match(adminOps, /class="tab on"[^>]*data-tab="jobs"/);
+  assert.match(adminOps, /class="panel on" id="p-jobs"/);
+});
+
+test('Admin Lite exposes exactly four primary tabs', () => {
+  const nav = adminOps.slice(adminOps.indexOf('<nav class="tabs"'), adminOps.indexOf('</nav>'));
+  const primary = nav.slice(0, nav.indexOf('<div class="tabs-more"'));
+  const ids = [...primary.matchAll(/data-tab="([a-z]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(ids, ['jobs', 'requests', 'payments', 'settings']);
+});
+
+test('secondary Admin tabs are preserved under a collapsed More disclosure', () => {
+  const more = adminOps.slice(adminOps.indexOf('<div class="tabs-more"'), adminOps.indexOf('</nav>'));
+  const ids = [...more.matchAll(/data-tab="([a-z]+)"/g)].map((m) => m[1]);
+  // No capability is deleted — every legacy tab still exists, just not as primary nav.
+  for (const id of ['overview', 'techs', 'assign', 'completed', 'issues', 'auctions', 'subscriptions', 'maintenance', 'events', 'revops']) {
+    assert.ok(ids.includes(id), `secondary tab ${id} was dropped`);
+  }
+  assert.match(adminOps, /<div class="tabs-more" id="tabsMore" hidden>/);
+  assert.match(adminOps, /id="tabsMoreToggle" aria-expanded="false" aria-controls="tabsMore"/);
+});
+
+test('job workspace uses the approved six panels', () => {
+  assert.match(adminOps, /\[\['summary','Summary'\],\['services','Services'\],\['schedule','Schedule'\],\['payment','Payment'\],\['notes','Notes'\],\['more','More'\]\]/);
+  for (const id of ['summary', 'services', 'schedule', 'payment', 'notes', 'more']) {
+    assert.ok(adminOps.includes(`data-appt-panel="${id}"`), `missing workspace panel ${id}`);
+  }
+});
+
+test('in-job requests panel is retained and reachable without a primary tab', () => {
+  assert.ok(adminOps.includes('data-appt-panel="requests"'), 'requests panel was deleted');
+  assert.match(adminOps, /data-open-requests-panel/);
+  assert.match(adminOps, /btn\.onclick = \(\) => setApptPanel\('requests'\)/);
+});
+
+test('Payments view derives from in-memory lean jobs without a new fetch', () => {
+  assert.match(adminOps, /function renderPayments\(\)/);
+  assert.match(adminOps, /if \(b\.dataset\.tab === 'payments'\) renderPayments\(\)/);
+  const body = adminOps.slice(adminOps.indexOf('function renderPayments()'), adminOps.indexOf('function renderJobs()'));
+  assert.doesNotMatch(body, /api\(|fetch\(/, 'Payments must not call the backend');
+  assert.match(body, /jobs\.filter\(/);
 });
 
 test('refreshAll tracks settings and change requests independently', () => {

@@ -20,6 +20,13 @@ a{color:var(--ac);text-decoration:none}a:hover{text-decoration:underline}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
 .tab{padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--mu);font-size:13px;font-weight:600;cursor:pointer}
 .tab.on{background:rgba(77,163,255,.12);border-color:rgba(77,163,255,.35);color:var(--ac)}
+.tab,.tab-more{min-height:44px}
+.tab-more{padding:9px 14px;border-radius:10px;border:1px dashed var(--line);background:transparent;color:var(--mu);font-size:13px;font-weight:600;cursor:pointer}
+.tab-more[aria-expanded="true"]{border-style:solid;color:var(--ac);border-color:rgba(77,163,255,.35)}
+.tab-more:focus-visible,.tab:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.tabs-more{display:flex;gap:6px;flex-wrap:wrap;flex-basis:100%;padding:8px;margin-top:2px;border:1px solid var(--line);border-radius:10px;background:var(--card2)}
+.tabs-more[hidden]{display:none}
+@media(max-width:520px){.tabs{flex-direction:column}.tab,.tab-more{width:100%}.tabs-more{flex-direction:column}}
 .panel{display:none}.panel.on{display:block}
 .grid{display:grid;gap:12px}
 .g4{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
@@ -189,26 +196,46 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 </header>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist">
-    <button type="button" class="tab on" data-tab="overview" role="tab" aria-selected="true">Overview</button>
-    <button type="button" class="tab" data-tab="jobs" role="tab" aria-selected="false">Jobs Board</button>
-    <button type="button" class="tab" data-tab="techs" role="tab" aria-selected="false">Technician Management</button>
-    <button type="button" class="tab" data-tab="assign" role="tab" aria-selected="false">Assignments</button>
-    <button type="button" class="tab" data-tab="completed" role="tab" aria-selected="false">Completed / Review</button>
-    <button type="button" class="tab" data-tab="issues" role="tab" aria-selected="false">Issues</button>
-    <button type="button" class="tab" data-tab="requests" role="tab" aria-selected="false">Customer Requests</button>
-    <button type="button" class="tab" data-tab="auctions" role="tab" aria-selected="false">Auctions</button>
-    <button type="button" class="tab" data-tab="subscriptions" role="tab" aria-selected="false">Subscriptions</button>
+    <button type="button" class="tab on" data-tab="jobs" role="tab" aria-selected="true">Jobs</button>
+    <button type="button" class="tab" data-tab="requests" role="tab" aria-selected="false">Requests</button>
+    <button type="button" class="tab" data-tab="payments" role="tab" aria-selected="false">Payments</button>
     <button type="button" class="tab" data-tab="settings" role="tab" aria-selected="false">Settings</button>
-    <button type="button" class="tab" data-tab="maintenance" role="tab" aria-selected="false">Maintenance</button>
-    <button type="button" class="tab" data-tab="events" role="tab" aria-selected="false">Event Log</button>
-    <button type="button" class="tab" data-tab="revops" role="tab" aria-selected="false">Revenue Ops</button>
+    <button type="button" class="tab-more" id="tabsMoreToggle" aria-expanded="false" aria-controls="tabsMore">More</button>
+    <div class="tabs-more" id="tabsMore" hidden>
+      <button type="button" class="tab" data-tab="overview" role="tab" aria-selected="false">Overview</button>
+      <button type="button" class="tab" data-tab="techs" role="tab" aria-selected="false">Technician Management</button>
+      <button type="button" class="tab" data-tab="assign" role="tab" aria-selected="false">Assignments</button>
+      <button type="button" class="tab" data-tab="completed" role="tab" aria-selected="false">Completed / Review</button>
+      <button type="button" class="tab" data-tab="issues" role="tab" aria-selected="false">Issues</button>
+      <button type="button" class="tab" data-tab="auctions" role="tab" aria-selected="false">Auctions</button>
+      <button type="button" class="tab" data-tab="subscriptions" role="tab" aria-selected="false">Subscriptions</button>
+      <button type="button" class="tab" data-tab="maintenance" role="tab" aria-selected="false">Maintenance</button>
+      <button type="button" class="tab" data-tab="events" role="tab" aria-selected="false">Event Log</button>
+      <button type="button" class="tab" data-tab="revops" role="tab" aria-selected="false">Revenue Ops</button>
+    </div>
   </nav>
 
-  <section class="panel on" id="p-overview">
+  <section class="panel" id="p-overview">
     <div class="grid g4" id="overviewStats"></div>
   </section>
 
-  <section class="panel" id="p-jobs">
+  <section class="panel" id="p-payments">
+    <div class="toolbar">
+      <input class="srch" id="paymentsSearch" type="search" placeholder="Search ID, customer, phone, email…">
+      <select class="fsel" id="paymentsStatus">
+        <option value="">All payment states</option>
+        <option value="due">Balance due</option>
+        <option value="paid">Settled</option>
+      </select>
+      <button type="button" class="btn ghost sm" id="paymentsClear">Clear filters</button>
+    </div>
+    <div class="card" style="padding:0;overflow:auto"><table class="tbl" id="paymentsTable"><thead><tr>
+      <th>Customer</th><th>Booking</th><th>Date</th><th>Payment</th><th>Approved</th><th>Paid</th><th>Balance</th><th></th>
+    </tr></thead><tbody></tbody></table></div>
+    <p class="hint" id="paymentsHint" style="margin:8px 0 0">Derived from the Jobs list already in memory — no additional backend load.</p>
+  </section>
+
+  <section class="panel on" id="p-jobs">
     <div class="queue-filters" id="jobsQueueFilters" role="group" aria-label="Review queue filters"></div>
     <div class="toolbar">
       <input class="srch" id="jobsSearch" type="search" placeholder="Search ID, customer, phone, email…">
@@ -509,7 +536,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let drawerAddonData = null;
   let showTest = false, platformSettings = {}, platformAvailability = null, auctions = [], subscriptions = [], changeRequests = [];
   let requestsStatusFilter = 'pending';
-  let jobDetailPanel = 'overview';
+  let jobDetailPanel = 'summary';
   let jobDetailDirty = false;
   let openDrawerFocusRequests = false;
   // Per-source load meta — data arrays above remain the single authority for records.
@@ -753,7 +780,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   function setApptPanel(panelId) {
     const root = $('#dBody');
     if (!root) return;
-    const next = String(panelId || 'overview');
+    const next = String(panelId || 'summary');
     if (jobDetailDirty && next !== jobDetailPanel) {
       if (!confirm('You have unsaved edits in this appointment. Switch panels and discard local changes?')) return;
       jobDetailDirty = false;
@@ -776,6 +803,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (!root) return;
     root.querySelectorAll('.appt-panel-tab').forEach((tab) => {
       tab.onclick = () => setApptPanel(tab.dataset.workspaceTab);
+    });
+    // Requests are a primary Admin destination, so they are not a workspace tab.
+    // The above-the-fold alert and the More panel both open the in-job panel.
+    root.querySelectorAll('[data-open-requests-panel]').forEach((btn) => {
+      btn.onclick = () => setApptPanel('requests');
     });
     const editBtn = $('#dEnableEdit');
     if (editBtn) {
@@ -1651,6 +1683,63 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     return list;
   }
 
+  // Admin Lite Payments: a read-only projection over the lean Jobs rows already in
+  // memory. It never fetches — money comes from the same financialProjection fields
+  // the Jobs list uses, so Admin has exactly one money authority.
+  function centsLabel(cents, fallbackDollars) {
+    if (cents != null && Number.isFinite(Number(cents))) return '$' + (Number(cents) / 100).toFixed(2);
+    if (fallbackDollars != null && Number.isFinite(Number(fallbackDollars))) return '$' + Number(fallbackDollars).toFixed(2);
+    return '—';
+  }
+
+  function paymentIsSettled(j) {
+    return !!(j && (j.invoicePaid || j.financialPaymentStatus === 'paid'
+      || j.paymentWorkflowStatus === 'payment_succeeded' || j.paymentWorkflowStatus === 'cash_paid'
+      || (Number(j.remainingCents || 0) === 0 && Number(j.settledCents || 0) > 0)));
+  }
+
+  function renderPayments() {
+    const tb = $('#paymentsTable tbody');
+    if (!tb) return;
+    const search = ($('#paymentsSearch') && $('#paymentsSearch').value.trim().toLowerCase()) || '';
+    const state = ($('#paymentsStatus') && $('#paymentsStatus').value) || '';
+    const stale = !!(jobsMeta && jobsMeta.error && jobsMeta.hasLoaded);
+    const list = jobs.filter((j) => {
+      if (!j || j.archived) return false;
+      if (search) {
+        const hay = [j.id, j.bookingId, j.firstName, j.lastName, j.email, j.phone]
+          .filter(Boolean).join(' ').toLowerCase();
+        if (hay.indexOf(search) === -1) return false;
+      }
+      if (state === 'due') return !paymentIsSettled(j) && Number(j.remainingCents || 0) > 0;
+      if (state === 'paid') return paymentIsSettled(j);
+      return true;
+    });
+    if (!list.length) {
+      tb.innerHTML = '<tr><td colspan="8" class="empty">No payments found</td></tr>';
+      return;
+    }
+    const banner = stale
+      ? '<tr><td colspan="8" style="background:rgba(245,158,11,.1);color:var(--warn);font-size:12px;padding:8px 12px">'+
+        esc(SS ? SS.refreshFailureMessage('Jobs', true) : 'Payments could not be refreshed. Showing the last loaded data.')+
+        '</td></tr>'
+      : '';
+    tb.innerHTML = banner + list.map((j) => {
+      const name = [j.firstName, j.lastName].filter(Boolean).join(' ') || '—';
+      const settled = paymentIsSettled(j);
+      return '<tr data-payment-row data-id="'+esc(j.id)+'">'+
+        '<td data-label="Customer">'+esc(name)+'</td>'+
+        '<td data-label="Booking">'+esc(j.bookingId || j.id || '—')+'</td>'+
+        '<td data-label="Date">'+esc(jobsDateTimeLabel(j))+'</td>'+
+        '<td data-label="Payment">'+payBadge(settled ? 'payment_succeeded' : j.paymentWorkflowStatus)+'</td>'+
+        '<td data-label="Approved">'+esc(centsLabel(j.approvedCents, j.approvedFinalAmount))+'</td>'+
+        '<td data-label="Paid">'+esc(centsLabel(j.settledCents, j.amountPaid))+'</td>'+
+        '<td data-label="Balance">'+esc(jobsBalanceLabel(j))+'</td>'+
+        '<td><button type="button" class="btn ghost sm" data-payment-open="'+esc(j.id)+'" style="min-height:44px">Open job</button></td>'+
+        '</tr>';
+    }).join('');
+  }
+
   function renderJobs() {
     const search = $('#jobsSearch').value.trim();
     const status = $('#jobsStatus').value;
@@ -2448,7 +2537,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const pendingCRs = pendingChangeRequestsOf(j);
     const pendingCount = pendingRequestCountOf(j);
     const legacyPending = !!(j.cancellationRequestStatus === 'requested' || j.rescheduledByClient || j.addressChangedByClient || j.requestedAddress);
-    const defaultPanel = (openDrawerFocusRequests || pendingCRs.length || legacyPending) ? 'requests' : 'overview';
+    const defaultPanel = (openDrawerFocusRequests || pendingCRs.length || legacyPending) ? 'requests' : 'summary';
     openDrawerFocusRequests = false;
     jobDetailDirty = false;
     const invPaidEarly = !!(j.invoicePaid || j.financialPaymentStatus==='paid' || j.paymentWorkflowStatus==='payment_succeeded' || j.paymentWorkflowStatus==='cash_paid' || (Number(j.remainingCents||0)===0 && Number(j.settledCents||0)>0));
@@ -2476,15 +2565,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '</div></div>';
     if (pendingCount > 0) {
       html += '<div class="appt-pending-alert" role="status"><strong>'+pendingCount+' customer request'+(pendingCount===1?'':'s')+' pending</strong>'+
-        '<div class="hint" style="margin:0">Open the Requests panel to approve or decline. Pending requests stay above payment and history.</div></div>';
+        '<div class="hint" style="margin:0 0 8px">Review to approve or decline. Pending requests stay above payment and history.</div>'+
+        '<button type="button" class="btn sm" data-open-requests-panel style="min-height:44px">Review requests</button></div>';
     }
     html += '<div class="appt-panel-tabs" role="tablist" aria-label="Appointment panels">'+
-      [['overview','Overview'],['vehicles','Vehicles & Services'],['requests','Requests'],['schedule','Schedule'],['payment','Payment'],['more','More']].map(([id,label]) =>
+      [['summary','Summary'],['services','Services'],['schedule','Schedule'],['payment','Payment'],['notes','Notes'],['more','More']].map(([id,label]) =>
         '<button type="button" class="appt-panel-tab" role="tab" data-workspace-tab="'+id+'" aria-selected="false" aria-controls="appt-panel-'+id+'">'+label+
-        (id==='requests' && pendingCount ? ' <span class="tab-badge">'+pendingCount+'</span>' : '')+
+        (id==='more' && pendingCount ? ' <span class="tab-badge">'+pendingCount+'</span>' : '')+
         '</button>'
       ).join('')+'</div>';
-    html += '<div class="appt-panel" data-appt-panel="overview" id="appt-panel-overview" role="tabpanel" hidden><div class="job-detail-grid">';
+    html += '<div class="appt-panel" data-appt-panel="summary" id="appt-panel-summary" role="tabpanel" hidden><div class="job-detail-grid">';
     html += '<div class="sec span-2"><h4>Customer and appointment</h4><div class="op-grid">'+
       '<div><label>First name</label><input type="text" id="dFirst" value="'+esc(j.firstName||'')+'"></div>'+
       '<div><label>Last name</label><input type="text" id="dLast" value="'+esc(j.lastName||'')+'"></div>'+
@@ -2501,11 +2591,6 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div class="full appt-edit-actions"><button type="button" class="btn ghost sm" id="dSaveAddr" style="width:100%;min-height:44px">Save address</button></div>'+
       '</div></div>';
     html += (typeof SiteAccess !== 'undefined' ? '<div class="sec full">'+SiteAccess.adminSection(j, esc)+'</div>' : '');
-    if (j.notes || j.customerNote) {
-      html += '<div class="sec full"><div class="sec-title">Additional notes</div><div class="kv-grid">' +
-        '<div class="kv"><span>Notes</span><strong>' + esc(j.notes || j.customerNote || '') + '</strong></div>' +
-        '</div></div>';
-    }
     const invPaid = invPaidEarly;
     const balDue = balDueEarly;
     const paidAmt = paidAmtEarly;
@@ -2520,7 +2605,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '</div></div>';
     html += '</div></div>'; // end overview panel
 
-    html += '<div class="appt-panel" data-appt-panel="vehicles" id="appt-panel-vehicles" role="tabpanel" hidden><div class="job-detail-grid">';
+    html += '<div class="appt-panel" data-appt-panel="services" id="appt-panel-services" role="tabpanel" hidden><div class="job-detail-grid">';
     html += renderVehiclesDetailSection(j);
     html += '<div class="sec"><h4>Service overrides</h4><div class="op-grid">'+
       '<div class="full"><label>Primary vehicle label</label><input type="text" id="dVehicle" value="'+esc(j.vehicleLabel||j.vehicle||'')+'"></div>'+
@@ -2720,6 +2805,18 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '</div></div></div>';
     html += '</div></div>'; // end payment panel
 
+    html += '<div class="appt-panel" data-appt-panel="notes" id="appt-panel-notes" role="tabpanel" hidden><div class="job-detail-grid">';
+    html += '<div class="sec full"><h4>Customer notes</h4>'+
+      (j.notes || j.customerNote
+        ? '<pre style="font-size:12px;white-space:pre-wrap;color:var(--mu);margin:0">'+esc(j.notes || j.customerNote)+'</pre>'
+        : '<p class="hint" style="margin:0">No customer notes on this appointment.</p>')+
+      '</div>';
+    html += '<div class="sec full"><h4>Internal notes</h4>'+
+      (j.adminNotes
+        ? '<pre style="font-size:12px;white-space:pre-wrap;color:var(--mu);margin:0">'+esc(j.adminNotes)+'</pre>'
+        : '<p class="hint" style="margin:0">No internal notes on this appointment.</p>')+
+      '</div>';
+    html += '</div></div>';
     html += '<div class="appt-panel" data-appt-panel="more" id="appt-panel-more" role="tabpanel" hidden><div class="job-detail-grid">';
     html += '<div class="sec" style="margin:0 0 12px"><h4>Dispatch</h4><div class="actions">'+
       '<button type="button" class="btn sm" id="dPostAuc" style="min-height:44px">Post to auction</button>'+
@@ -2734,7 +2831,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       (j.notificationDelivery?'<p class="hint">Notifications — admin: '+esc((j.notificationDelivery.adminEmail&&j.notificationDelivery.adminEmail.status)||'—')+
         ' · customer: '+esc((j.notificationDelivery.customerEmail&&j.notificationDelivery.customerEmail.status)||'—')+'</p>':'')+
       '</div>';
-    if (j.adminNotes) html += '<div class="sec" style="margin:0 0 12px"><h4>Admin notes</h4><pre style="font-size:12px;white-space:pre-wrap;color:var(--mu)">'+esc(j.adminNotes)+'</pre></div>';
+    html += '<div class="sec" style="margin:0 0 12px"><h4>Customer requests</h4>'+
+      '<p class="hint" style="margin:0 0 8px">Approve or decline change requests for this appointment.</p>'+
+      '<button type="button" class="btn ghost sm" data-open-requests-panel style="min-height:44px">Open requests</button></div>';
     if (j.completionSubmitted || j.customerSignature) {
       html += '<div class="sec" style="margin:0 0 12px"><h4>Completion</h4><div class="kv">'+
         '<div><b>Submitted:</b> '+dt(j.completedAt)+'</div>'+
@@ -3201,6 +3300,42 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   function closeDrawer() { collapseJobDetail(); }
 
+  // Admin Lite: secondary navigation stays collapsed until opened. Opening the
+  // disclosure only reveals the buttons; each secondary tab still loads its own
+  // data lazily on click, so More costs nothing until it is actually used.
+  const tabsMoreToggle = $('#tabsMoreToggle');
+  const tabsMore = $('#tabsMore');
+  if (tabsMoreToggle && tabsMore) {
+    tabsMoreToggle.addEventListener('click', () => {
+      const open = tabsMoreToggle.getAttribute('aria-expanded') === 'true';
+      tabsMoreToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+      tabsMore.hidden = open;
+    });
+  }
+
+  ['#paymentsSearch', '#paymentsStatus'].forEach((sel) => {
+    const el = $(sel);
+    if (el) el.oninput = el.onchange = () => renderPayments();
+  });
+  if ($('#paymentsClear')) {
+    $('#paymentsClear').onclick = () => {
+      if ($('#paymentsSearch')) $('#paymentsSearch').value = '';
+      if ($('#paymentsStatus')) $('#paymentsStatus').value = '';
+      renderPayments();
+    };
+  }
+  if ($('#paymentsTable')) {
+    $('#paymentsTable').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-payment-open]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-payment-open');
+      const jobsTab = [...document.querySelectorAll('#tabs .tab')].find((t) => t.dataset && t.dataset.tab === 'jobs');
+      if (jobsTab) jobsTab.click();
+      expandedJobId = id;
+      openDrawer(id).catch(() => {});
+    });
+  }
+
   // Tabs
   $('#tabs').onclick = e => {
     const b = e.target.closest('.tab'); if(!b) return;
@@ -3212,6 +3347,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     b.classList.add('on');
     b.setAttribute('aria-selected', 'true');
     $('#p-'+b.dataset.tab).classList.add('on');
+    if (b.dataset.tab === 'payments') renderPayments();
     if (b.dataset.tab === 'auctions') refreshAuctionsTab();
     if (b.dataset.tab === 'subscriptions') refreshSubsTab();
     if (b.dataset.tab === 'settings') loadSettings().then(renderSettingsForm).catch(()=>{});

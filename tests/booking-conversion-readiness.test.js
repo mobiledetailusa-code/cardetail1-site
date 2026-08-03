@@ -505,7 +505,9 @@ test('admin-ops displays arrival windows and alternate fields', () => {
   assert.match(html, /Alternate date/);
   assert.match(html, /Alternate arrival window/);
   assert.match(html, /Confirmed arrival window/);
-  assert.match(html, /Additional notes/);
+  // Admin Lite moved notes out of Summary into the dedicated Notes panel.
+  assert.match(html, /<h4>Customer notes<\/h4>/);
+  assert.match(html, /<h4>Internal notes<\/h4>/);
   assert.match(html, /Operational availability/);
 });
 
