@@ -29,6 +29,8 @@ const {
 } = require('../lib/customer-identity-projection');
 const { tryGetPrisma } = require('../lib/prisma');
 const { normalizeBookingId } = require('../lib/booking-customer-auth');
+const { postServiceState } = require('../lib/post-service-experience');
+const { adjustmentStatement } = require('../lib/price-adjustments');
 
 /**
  * Portal catalog: subscription/marketing packages remain in customer-catalog;
@@ -262,6 +264,10 @@ exports.handler = async (event) => {
       packageCatalog,
       packageCatalogByVehicle: packageCatalog.packageCatalogByVehicle,
       changeRequests: await listVisibleRequestsForBooking(auth.booking),
+      // Server-decided review / issue-window availability. My Garage renders the
+      // actions from this and never computes the 48-hour deadline itself.
+      postService: postServiceState(auth.booking),
+      priceAdjustments: adjustmentStatement(auth.booking),
     });
   }
 
@@ -439,6 +445,15 @@ exports.handler = async (event) => {
     packageCatalog,
     packageCatalogByVehicle: packageCatalog.packageCatalogByVehicle,
     changeRequests,
+    postService: rawUpcoming ? postServiceState(rawUpcoming) : null,
+    priceAdjustments: rawUpcoming ? adjustmentStatement(rawUpcoming) : null,
+    // Every owned booking carries its own window state so a completed job further
+    // down the list still shows the right action after a refresh.
+    postServiceByBooking: Object.fromEntries(
+      bookings
+        .map((b) => [String(b.id || b.bookingId || ''), postServiceState(b)])
+        .filter(([id]) => !!id)
+    ),
     sections: {
       appointments: projected.length > 0,
       history: projected.some((b) => ['Paid', 'Completed'].includes(b.status)),

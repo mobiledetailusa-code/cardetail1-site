@@ -238,10 +238,12 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
         <button type="button" class="btn ghost" data-action="address_update">Update Address</button>
         <button type="button" class="btn ghost" data-action="cancellation_request">Cancel Appointment</button>
         <button type="button" class="btn ghost" data-action="approve_completion" id="btn-approve-completion" hidden>Approve Completion</button>
-        <button type="button" class="btn ghost" data-action="report_issue" id="btn-report-issue" hidden>Report Issue</button>
+        <button type="button" class="btn ghost" data-action="leave_review" id="btn-leave-review" hidden>Leave a review</button>
+        <button type="button" class="btn ghost" data-action="report_issue" id="btn-report-issue" hidden>Report a service issue</button>
         <a class="btn ghost" href="index.html">Rebook Service</a>
         <a class="btn ghost" href="tel:5513132956">Contact Cardetail1</a>
       </div>
+      <p class="hint" id="post-service-note" hidden></p>
     </section>
 
     <section class="section" id="pending-requests-section" hidden>
