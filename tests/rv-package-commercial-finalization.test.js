@@ -139,13 +139,13 @@ test('ADD-ONS: historical Mold Treatment records remain display-safe', () => {
 
 test('PRICING: six-package hierarchy and base+ratePerFoot math', () => {
   const lp = LENGTH_PRICING.rvs.packages;
-  assert.equal(lp.maint.base, 150);
+  assert.equal(lp.maint.base, 120);
   assert.equal(lp.maint.ratePerFoot, 10);
-  assert.equal(lp.maint_light.base, 250);
-  assert.equal(lp.interior.base, 250);
-  assert.equal(lp.full_basic.base, 300);
-  assert.equal(lp.premium.base, 300);
-  assert.equal(lp.full.base, 400);
+  assert.equal(lp.maint_light.base, 200);
+  assert.equal(lp.interior.base, 200);
+  assert.equal(lp.full_basic.base, 240);
+  assert.equal(lp.premium.base, 240);
+  assert.equal(lp.full.base, 255);
   assert.equal(Object.keys(lp).sort().join(','), FINAL_IDS.slice().sort().join(','));
 
   assert.ok(lp.maint_light.base > lp.maint.base);
@@ -156,15 +156,15 @@ test('PRICING: six-package hierarchy and base+ratePerFoot math', () => {
   assert.equal(prices.maint, 390);
   assert.equal(prices.maint_light, 634);
   assert.equal(prices.interior, 682);
-  assert.equal(prices.full_basic, 900);
+  assert.equal(prices.full_basic, 720);
   assert.equal(prices.premium, 972);
   assert.equal(prices.full, 1264);
   assert.ok(prices.maint < prices.maint_light);
   assert.ok(prices.full > prices.premium);
 
   const lengthBlock = extractRvLength(read('index.html'));
-  assert.match(lengthBlock, /maint_light:\s*\{ base: 250, ratePerFoot: 16 \}/);
-  assert.match(lengthBlock, /full:\s*\{ base: 400, ratePerFoot: 36 \}/);
+  assert.match(lengthBlock, /maint_light:\s*\{ base: 200, ratePerFoot: 16 \}/);
+  assert.match(lengthBlock, /full:\s*\{ base: 255, ratePerFoot: 36 \}/);
 });
 
 test('DISPLAY: single-price cards and booking CTAs; no funnel', () => {
@@ -174,7 +174,7 @@ test('DISPLAY: single-price cards and booking CTAs; no funnel', () => {
   assert.match(page, /Select This RV Package|Book This Package/);
   assert.doesNotMatch(page, /rv-pricing-funnel/);
   assert.doesNotMatch(page, /CHECK PRICE &amp; AVAILABILITY/);
-  assert.doesNotMatch(page, /From \$899\b|From \$1,?199/);
+  assert.doesNotMatch(page, /From \$899\b|From \$1,?160/);
 });
 
 test('REGRESSION: no membership; galleries untouched', () => {

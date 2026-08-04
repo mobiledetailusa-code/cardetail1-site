@@ -76,10 +76,10 @@ function twoVehicleFixture(overrides) {
         packageName: 'Maintenance Detail',
         pkgName: 'Maintenance Detail',
         tierKey: 'suv2',
-        basePrice: 175,
-        packagePrice: 175,
-        addonTotal: 225,
-        subtotal: 400,
+        basePrice: 140,
+        packagePrice: 140,
+        addonTotal: 180,
+        subtotal: 255,
         addons: [
           { id: 'pethair', name: 'Pet Hair Removal', qty: 1, price: 95 },
           { id: 'odor', name: 'Odor Treatment & Sanitize', qty: 1, price: 149 },
@@ -120,8 +120,8 @@ describe('package details resolution', () => {
       packageId: 'maint',
       packageName: 'Maintenance Detail',
       category: 'cars',
-      basePrice: 175,
-      subtotal: 400,
+      basePrice: 140,
+      subtotal: 255,
       addons: [{ id: 'pethair', name: 'Pet Hair Removal', qty: 1, price: 95 }],
     });
     assert.equal(details.available, true);
@@ -129,8 +129,8 @@ describe('package details resolution', () => {
     assert.ok(details.includedServices.length >= 3);
     assert.match(details.includedServices.join(' '), /Exterior hand wash/i);
     assert.equal(details.addons[0].name, 'Pet Hair Removal');
-    assert.equal(details.packagePrice, 175);
-    assert.equal(details.vehicleSubtotal, 400);
+    assert.equal(details.packagePrice, 140);
+    assert.equal(details.vehicleSubtotal, 255);
   });
 
   it('resolves Essential Marine description from length catalog', () => {
@@ -167,12 +167,12 @@ describe('package details resolution', () => {
         limitations: 'Snap limit',
         priceCents: 19900,
       },
-      basePrice: 175,
+      basePrice: 140,
     });
     assert.equal(details.source, 'snapshot');
     assert.equal(details.name, 'Snap Pack');
     assert.deepEqual(details.includedServices, ['Snap wash', 'Snap vacuum']);
-    assert.equal(details.packagePrice, 199);
+    assert.equal(details.packagePrice, 160);
   });
 
   it('projectVehicleForCustomer attaches customer-safe packageDetails', () => {
@@ -184,8 +184,8 @@ describe('package details resolution', () => {
       category: 'cars',
       packageId: 'maint',
       packageName: 'Maintenance Detail',
-      basePrice: 175,
-      subtotal: 400,
+      basePrice: 140,
+      subtotal: 255,
       addons: [{ id: 'pethair', name: 'Pet Hair Removal', price: 95, qty: 1 }],
     });
     assert.ok(projected.packageDetails);
@@ -305,8 +305,8 @@ describe('vehicle_remove_request policy + commands', () => {
       'CD1-ONE': twoVehicleFixture({
         id: 'CD1-ONE',
         vehicles: [twoVehicleFixture().vehicles[0]],
-        approvedFinalAmount: 400,
-        totalPrice: 400,
+        approvedFinalAmount: 255,
+        totalPrice: 255,
         ledger: { approvedCents: 40000, settledCents: 0, creditedCents: 0, entries: [] },
       }),
     });
@@ -379,7 +379,7 @@ describe('vehicle_remove_request policy + commands', () => {
     assert.ok(after.booking.bookingVersion > submitted.booking.bookingVersion);
   });
 
-  it('admin approval removing boat leaves Bronco at $400', async () => {
+  it('admin approval removing boat leaves Bronco at $255', async () => {
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,

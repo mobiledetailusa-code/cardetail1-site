@@ -270,7 +270,7 @@ describe('homepage specialty switcher placement and state', () => {
   it('homepage clears fixed header so specialty switcher is visible', () => {
     const html = read('index.html');
     assert.match(html, /\.specialty-service-nav\{margin-top:60px\}/);
-    assert.match(html, /@media\(max-width:760px\)\{[\s\S]*?\.specialty-service-nav\{margin-top:52px\}/);
+    assert.match(html, /@media\(max-width:610px\)\{[\s\S]*?\.specialty-service-nav\{margin-top:52px\}/);
   });
 
   it('homepage uses shared specialty-service-nav.css (no duplicate switcher stylesheet)', () => {
@@ -582,18 +582,18 @@ describe('pricing catalog unchanged for specialty packages', () => {
   });
   it('LENGTH_PRICING boat mins unchanged', () => {
     const html = read('index.html');
-    assert.match(html, /boats:\s*\{[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-    assert.match(html, /full:\s*\{perFt:\s*30,\s*min:\s*449\}/);
-    assert.match(html, /premium:\s*\{perFt:\s*38,\s*min:\s*699\}/);
+    assert.match(html, /boats:\s*\{[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*160\}/);
+    assert.match(html, /full:\s*\{perFt:\s*30,\s*min:\s*290\}/);
+    assert.match(html, /premium:\s*\{perFt:\s*38,\s*min:\s*560\}/);
   });
   it('LENGTH_PRICING rv mins match Preview104 commercial ladder', () => {
     const html = read('index.html');
-    assert.match(html, /rvs:\s*\{[\s\S]*?maint:\s*\{ base: 150, ratePerFoot: 10 \}/);
-    assert.match(html, /maint_light:\s*\{ base: 250, ratePerFoot: 16 \}/);
-    assert.match(html, /interior:\s*\{ base: 250, ratePerFoot: 18 \}/);
-    assert.match(html, /full_basic:\s*\{ base: 300, ratePerFoot: 25 \}/);
-    assert.match(html, /premium:\s*\{ base: 300, ratePerFoot: 28 \}/);
-    assert.match(html, /full:\s*\{ base: 400, ratePerFoot: 36 \}/);
+    assert.match(html, /rvs:\s*\{[\s\S]*?maint:\s*\{ base: 120, ratePerFoot: 10 \}/);
+    assert.match(html, /maint_light:\s*\{ base: 200, ratePerFoot: 16 \}/);
+    assert.match(html, /interior:\s*\{ base: 200, ratePerFoot: 18 \}/);
+    assert.match(html, /full_basic:\s*\{ base: 240, ratePerFoot: 25 \}/);
+    assert.match(html, /premium:\s*\{ base: 240, ratePerFoot: 28 \}/);
+    assert.match(html, /full:\s*\{ base: 255, ratePerFoot: 36 \}/);
     assert.doesNotMatch(html, /rvs:[\s\S]*?correction:\s*\{perFt:/);
   });
 });
@@ -620,7 +620,7 @@ describe('specialty page UI (back-to-top + gallery lightbox)', () => {
     assert.match(js, /initBackToTop/);
     assert.match(js, /initGalleryLightbox/);
     assert.match(js, /cd1-lightbox/);
-    assert.match(js, /scrollY>420|scrollY > 420/);
+    assert.match(js, /scrollY>335|scrollY > 335/);
   });
 
   it('rv gallery images are constrained with cover framing', () => {

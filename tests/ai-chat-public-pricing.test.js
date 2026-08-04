@@ -22,31 +22,31 @@ function extractPricingGuidance(prompt) {
   return m[1];
 }
 
-test('AI chat prompt does not describe general Cars detailing as starting at $175', () => {
+test('AI chat prompt does not describe general Cars detailing as starting at $140', () => {
   const prompt = extractBusinessSystem(read('netlify/functions/ai-chat.js'));
   const pricing = extractPricingGuidance(prompt);
-  assert.doesNotMatch(pricing, /Cars[^$\n]*\$175|general[^$\n]*Cars[^$\n]*\$175/i);
-  assert.doesNotMatch(prompt, /Cars \$175/);
+  assert.doesNotMatch(pricing, /Cars[^$\n]*\$140|general[^$\n]*Cars[^$\n]*\$140/i);
+  assert.doesNotMatch(prompt, /Cars \$140/);
 });
 
-test('AI chat prompt describes public Cars starting price as $225 Interior Detail', () => {
+test('AI chat prompt describes public Cars starting price as $180 Interior Detail', () => {
   const prompt = extractBusinessSystem(read('netlify/functions/ai-chat.js'));
   const pricing = extractPricingGuidance(prompt);
-  assert.match(pricing, /\$225/);
+  assert.match(pricing, /\$180/);
   assert.match(pricing, /Interior Detail/i);
 });
 
-test('AI chat prompt treats Maintenance Detail as separate $175 tier not public Cars minimum', () => {
+test('AI chat prompt treats Maintenance Detail as separate $140 tier not public Cars minimum', () => {
   const prompt = extractBusinessSystem(read('netlify/functions/ai-chat.js'));
   const pricing = extractPricingGuidance(prompt);
-  assert.match(pricing, /Maintenance Detail[^$\n]*\$175|\$175[^$\n]*Maintenance Detail/i);
+  assert.match(pricing, /Maintenance Detail[^$\n]*\$140|\$140[^$\n]*Maintenance Detail/i);
   assert.match(pricing, /not as the general Cars starting price|not.*general Cars starting price/i);
 });
 
-test('booking catalog still has maint at $175 and interior at $225', () => {
+test('booking catalog still has maint at $140 and interior at $180', () => {
   const html = read('index.html');
-  assert.match(html, /maint:175/);
-  assert.match(html, /interior:225/);
+  assert.match(html, /maint:140/);
+  assert.match(html, /interior:180/);
   assert.match(html, /id:'maint'[\s\S]*?Maintenance Detail/);
   assert.match(html, /id:'interior'[\s\S]*?Interior Detail/);
 });
@@ -58,11 +58,11 @@ test('client chat and server AI prompt agree on public category starting prices'
 
   assert.match(index, /function chatStartingPricesReply\(\)/);
   assert.match(index, /applyRichPrice\(b\.cars\)/);
-  assert.doesNotMatch(index, /Cars & Trucks — from <b>\$175/);
+  assert.doesNotMatch(index, /Cars & Trucks — from <b>\$140/);
 
-  assert.match(pricing, /Boats from \$199/);
+  assert.match(pricing, /Boats from \$160/);
   assert.match(pricing, /\$349/);
-  assert.match(pricing, /Powersports from \$119/);
+  assert.match(pricing, /Powersports from \$95/);
   assert.match(pricing, /Fleet[^$\n]*quote-only|quote-only[^$\n]*Fleet/i);
   assert.doesNotMatch(pricing, /\$60\/unit|\$60 per unit/i);
 });
@@ -73,7 +73,7 @@ test('ai-chat.js change is pricing guidance only with runtime logic intact', () 
   assert.match(source, /enforcePublicRateLimit/);
   assert.match(source, /ANTHROPIC_API_KEY/);
   assert.match(source, /system: BUSINESS_SYSTEM/);
-  assert.doesNotMatch(source, /Cars \$175/);
+  assert.doesNotMatch(source, /Cars \$140/);
 });
 
 const REVOPS_FUNCTION_ALLOWLIST = new Set([
@@ -147,8 +147,8 @@ test('revops index changes do not alter package IDs or pricing formulas', () => 
   const html = read('index.html');
   assert.match(html, /boats:[\s\S]*?id:'maint'/);
   assert.match(html, /rvs:[\s\S]*?id:'maint_light'/);
-  assert.match(html, /interior:225/);
-  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
+  assert.match(html, /interior:180/);
+  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*160\}/);
 });
 
 test('ai-chat source and tests contain no credential literals', () => {

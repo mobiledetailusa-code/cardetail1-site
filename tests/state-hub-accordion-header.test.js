@@ -318,8 +318,8 @@ test('no Netlify Function files changed in this UX scope', () => {
 
 test('package IDs and prices remain unchanged on index', () => {
   const index = read('index.html');
-  assert.ok(index.includes('refresh:375, premium:450'));
-  assert.ok(index.includes('refresh:425, premium:550'));
+  assert.ok(index.includes('refresh:240, premium:290'));
+  assert.ok(index.includes('refresh:270, premium:440'));
 });
 
 test('fleet-removal behavior remains on hub pages', () => {

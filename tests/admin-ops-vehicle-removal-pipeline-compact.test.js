@@ -81,10 +81,10 @@ function twoVehicleFixture(overrides) {
         pkgId: 'maint',
         pkgName: 'Maintenance Detail',
         packageName: 'Maintenance Detail',
-        basePrice: 175,
-        packagePrice: 175,
-        addonTotal: 225,
-        subtotal: 400,
+        basePrice: 140,
+        packagePrice: 140,
+        addonTotal: 180,
+        subtotal: 255,
         addons: [
           { id: 'pethair', name: 'Pet Hair Removal', qty: 1, price: 95 },
           { id: 'odor', name: 'Odor Treatment & Sanitize', qty: 1, price: 149 },
@@ -134,7 +134,7 @@ describe('admin change-request projection', () => {
             vehicleLabel: '2025 Ford Bronco',
             packageName: 'Maintenance Detail',
             addons: [{ name: 'Pet Hair Removal' }],
-            subtotal: 400,
+            subtotal: 255,
           },
           currentApprovedCents: 88700,
           proposedApprovedCents: 48700,
@@ -255,7 +255,7 @@ describe('vehicle_remove approval path (server)', () => {
     setBookingStoreOverride(null);
   });
 
-  it('submit + admin projection + approve Bronco → $487; boat path → $400', async () => {
+  it('submit + admin projection + approve Bronco → $487; boat path → $255', async () => {
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,

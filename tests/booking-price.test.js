@@ -19,16 +19,16 @@ test('car tier maintenance detail at standard zip', () => {
   };
   const r = computeVehicleSubtotal(vehicle, '07601');
   assert.equal(r.ok, true);
-  assert.equal(r.basePrice, 175);
-  assert.equal(r.subtotal, 175);
+  assert.equal(r.basePrice, 140);
+  assert.equal(r.subtotal, 140);
 });
 
 // ── Exterior Refresh (P0 hotfix: refresh package must validate server-side) ──
 const REFRESH_PRICES = {
-  small: 375,
-  suv2: 425,
-  suv3: 475,
-  truck: 465,
+  small: 240,
+  suv2: 270,
+  suv3: 245,
+  truck: 370,
 };
 const REFRESH_TIER_LABELS = {
   small: 'Small Car',
@@ -66,13 +66,13 @@ test('refresh resolves from package name alias without explicit pkgId', () => {
   const r = computeVehicleSubtotal(vehicle, '07601');
   assert.equal(r.ok, true);
   assert.equal(r.pkgId, 'refresh');
-  assert.equal(r.basePrice, 375);
+  assert.equal(r.basePrice, 240);
 });
 
 test('refresh booking validates server-side with no invalid_pricing', () => {
   const booking = {
     zipCode: '07601',
-    totalPrice: 475,
+    totalPrice: 245,
     vehicles: [{
       cat: 'cars',
       pkgId: 'refresh',
@@ -86,8 +86,8 @@ test('refresh booking validates server-side with no invalid_pricing', () => {
   const r = applyServerTravelAndTotal(booking);
   assert.equal(r.ok, true);
   assert.notEqual(r.error, 'invalid_pricing');
-  assert.equal(booking.vehicles[0].subtotal, 475);
-  assert.equal(booking.totalPrice, 475);
+  assert.equal(booking.vehicles[0].subtotal, 245);
+  assert.equal(booking.totalPrice, 245);
 });
 
 test('refresh with addon sums base + addon', () => {
@@ -100,7 +100,7 @@ test('refresh with addon sums base + addon', () => {
   };
   const r = computeVehicleSubtotal(vehicle, '07601');
   assert.equal(r.ok, true);
-  assert.equal(r.basePrice, 465);
+  assert.equal(r.basePrice, 370);
   assert.equal(r.addonTotal, 90);
   assert.equal(r.subtotal, 555);
 });
@@ -116,15 +116,15 @@ test('paint correction / enhancement still maps to premium, not refresh', () => 
   const r = computeVehicleSubtotal(vehicle, '07601');
   assert.equal(r.ok, true);
   assert.equal(r.pkgId, 'premium');
-  assert.equal(r.basePrice, 450);
+  assert.equal(r.basePrice, 290);
 });
 
 test('existing car packages still validate (maint/interior/full/premium)', () => {
   const cases = [
-    { pkgId: 'maint', expected: 175 },
-    { pkgId: 'interior', expected: 225 },
-    { pkgId: 'full', expected: 285 },
-    { pkgId: 'premium', expected: 450 },
+    { pkgId: 'maint', expected: 140 },
+    { pkgId: 'interior', expected: 180 },
+    { pkgId: 'full', expected: 230 },
+    { pkgId: 'premium', expected: 290 },
   ];
   for (const c of cases) {
     const r = computeVehicleSubtotal(
@@ -137,10 +137,10 @@ test('existing car packages still validate (maint/interior/full/premium)', () =>
 });
 
 const FULL_DETAIL_CAPS = {
-  small: 285,
-  suv2: 305,
-  suv3: 315,
-  truck: 325,
+  small: 230,
+  suv2: 245,
+  suv3: 200,
+  truck: 260,
 };
 const FULL_TIER_LABELS = {
   small: 'Small Car',
@@ -171,21 +171,21 @@ for (const [tierKey, expected] of Object.entries(FULL_DETAIL_CAPS)) {
 test('Signature/premium booking still validates server-side', () => {
   const booking = {
     zipCode: '07601',
-    totalPrice: 615,
+    totalPrice: 490,
     vehicles: [{
       cat: 'cars',
       pkgId: 'premium',
       tierKey: 'truck',
       tierLabel: 'Truck',
-      vehicleLabel: '2022 Ford F-150',
+      vehicleLabel: '2022 Ford F-120',
       subtotal: 999,
       addons: [],
     }],
   };
   const r = applyServerTravelAndTotal(booking);
   assert.equal(r.ok, true);
-  assert.equal(booking.vehicles[0].subtotal, 615);
-  assert.equal(booking.totalPrice, 615);
+  assert.equal(booking.vehicles[0].subtotal, 490);
+  assert.equal(booking.totalPrice, 490);
 });
 
 test('tampered refresh total is rejected as price_mismatch', () => {
@@ -213,7 +213,7 @@ test('rich zip applies 5% premium to car base price', () => {
     addons: [],
   };
   assert.equal(getRichMultiplier('07620'), 1.05);
-  assert.equal(applyRichPrice(175, '07620'), 184);
+  assert.equal(applyRichPrice(140, '07620'), 184);
   const r = computeVehicleSubtotal(vehicle, '07620');
   assert.equal(r.basePrice, 184);
 });
@@ -240,13 +240,13 @@ test('booking service subtotal sums multiple vehicles', () => {
   };
   const r = computeBookingServiceSubtotal(booking);
   assert.equal(r.ok, true);
-  assert.equal(r.serviceSubtotal, 175 + 119);
+  assert.equal(r.serviceSubtotal, 140 + 95);
 });
 
 test('applyServerTravelAndTotal recalculates total with travel fee', () => {
   const booking = {
     zipCode: '07601',
-    totalPrice: 175,
+    totalPrice: 140,
     vehicles: [{
       cat: 'cars',
       pkgId: 'maint',
@@ -260,8 +260,8 @@ test('applyServerTravelAndTotal recalculates total with travel fee', () => {
   const r = applyServerTravelAndTotal(booking);
   assert.equal(r.ok, true);
   assert.equal(booking.travelFeeAmount, 0);
-  assert.equal(booking.vehicles[0].subtotal, 175);
-  assert.equal(booking.totalPrice, 175);
+  assert.equal(booking.vehicles[0].subtotal, 140);
+  assert.equal(booking.totalPrice, 140);
 });
 
 test('applyServerTravelAndTotal rejects tampered client total', () => {

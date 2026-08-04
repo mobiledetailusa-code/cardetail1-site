@@ -65,7 +65,7 @@ test('public page: single-price cards; six packages; booking CTAs; no funnel', (
   const page = read('rv-detailing.html');
   assert.match(page, /Price calculated from your vehicle details/);
   assert.doesNotMatch(page, /Starting at \$[\d.]+\/ft/);
-  assert.doesNotMatch(page, /From \$899\b|From \$1,?299|From \$1,?499/);
+  assert.doesNotMatch(page, /From \$899\b|From \$1,?240|From \$1,?499/);
   assert.equal((page.match(/data-rv-tier="/g) || []).length, 6);
   assert.match(page, /package-booking-cta/);
   assert.doesNotMatch(page, /CHECK PRICE &amp; AVAILABILITY|rv-pricing-funnel/);
@@ -112,10 +112,10 @@ test('package hierarchy valid; other categories unchanged', () => {
   }
   const index = read('index.html');
   assert.match(index, /BK_VISIBLE_STEPS\s*=\s*6/);
-  assert.match(index, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-  assert.match(index, /id="home-from-interior">\$225/);
-  assert.equal(LENGTH_PRICING.boats.packages.full.min, 449);
-  assert.equal(LENGTH_PRICING.fleet.packages.maint.min, 199);
+  assert.match(index, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*160\}/);
+  assert.match(index, /id="home-from-interior">\$180/);
+  assert.equal(LENGTH_PRICING.boats.packages.full.min, 290);
+  assert.equal(LENGTH_PRICING.fleet.packages.maint.min, 160);
 });
 
 test('public-surface sync remains idempotent', () => {

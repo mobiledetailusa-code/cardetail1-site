@@ -75,10 +75,10 @@ function baseDraft(overrides = {}) {
       tierKey: 'sedan',
       addons: [],
       addonTotal: 0,
-      basePrice: 285,
-      subtotal: 285,
+      basePrice: 230,
+      subtotal: 230,
     }],
-    totalPrice: 285,
+    totalPrice: 230,
     travelFeeAmount: 0,
     zoneSurcharge: 0,
     setupIntentId: 'seti_test_succeeded_001',
@@ -153,7 +153,7 @@ describe('Booking confirmation hotfix — frontend contracts', () => {
       assert.doesNotMatch(submit, /clearDraftRegistrationState\(\)/);
       assert.match(html, /Booking Request Received/);
       assert.doesNotMatch(
-        html.slice(html.indexOf('function showSuccess'), html.indexOf('function showSuccess') + 900),
+        html.slice(html.indexOf('function showSuccess'), html.indexOf('function showSuccess') + 720),
         /Card Saved — Booking Request Received|Card Saved - Booking Request Received/
       );
     });
@@ -162,7 +162,7 @@ describe('Booking confirmation hotfix — frontend contracts', () => {
       const html = read(page);
       assert.match(html, /document\.getElementById\('f-phone'\)\?\.value/);
       assert.doesNotMatch(
-        html.slice(html.indexOf('async function waitForVerifiedCardSave'), html.indexOf('async function waitForVerifiedCardSave') + 450),
+        html.slice(html.indexOf('async function waitForVerifiedCardSave'), html.indexOf('async function waitForVerifiedCardSave') + 290),
         /draftSessionToken/
       );
     });

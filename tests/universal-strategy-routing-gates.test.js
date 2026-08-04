@@ -270,7 +270,7 @@ test('backend accepts valid standard bookings', () => {
   const r = validateBookingRouting({
     zipCode: '07650',
     vehicleCategory: 'cars',
-    vehicles: [{ cat: 'cars', pkgId: 'full', vehicleLabel: 'Small Car', basePrice: 285 }],
+    vehicles: [{ cat: 'cars', pkgId: 'full', vehicleLabel: 'Small Car', basePrice: 230 }],
   });
   assert.equal(r.ok, true);
   assert.equal(r.route, 'standard_booking');
@@ -280,7 +280,7 @@ test('backend accepts valid specialty bookings', () => {
   const r = validateBookingRouting({
     zipCode: '07650',
     vehicleCategory: 'boats',
-    vehicles: [{ cat: 'boats', pkgId: 'full', vehicleLabel: '24 ft boat', basePrice: 399 }],
+    vehicles: [{ cat: 'boats', pkgId: 'full', vehicleLabel: '24 ft boat', basePrice: 255 }],
   });
   assert.equal(r.ok, true);
 });
@@ -349,7 +349,7 @@ test('package prices and IDs remain unchanged in index PRICING', () => {
   assert.match(html, /boats:[\s\S]*?id:'maint'/);
   assert.match(html, /rvs:[\s\S]*?id:'maint_light'/);
   assert.match(html, /powersports:[\s\S]*?id:'wash'/);
-  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
+  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*160\}/);
 });
 
 test('Stripe functions unchanged aside from routing guard injection', () => {

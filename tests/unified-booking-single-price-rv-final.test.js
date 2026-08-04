@@ -23,10 +23,10 @@ const { RV_TYPES, RV_RATE_TABLE, computeRvServicePrice } = require('../netlify/l
 const PKG_IDS = ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
 
 const FIXTURES = {
-  19: [340, 554, 592, 775, 832, 1084],
-  23: [380, 618, 664, 875, 944, 1228],
-  30: [450, 730, 790, 1050, 1140, 1480],
-  40: [550, 890, 970, 1300, 1420, 1840],
+  19: [270, 554, 592, 775, 832, 1084],
+  23: [245, 618, 664, 875, 944, 1228],
+  30: [290, 730, 790, 840, 1140, 1480],
+  40: [440, 890, 970, 1300, 1420, 1840],
 };
 
 test('authoritative RV fixtures: travel, no addons, no travel fee', () => {
@@ -98,12 +98,12 @@ test('Super Interior blocks overlapping pethair/odor for RVs', () => {
 });
 
 test('non-RV prices unchanged', () => {
-  assert.equal(LENGTH_PRICING.boats.packages.maint.min, 199);
+  assert.equal(LENGTH_PRICING.boats.packages.maint.min, 160);
   assert.equal(LENGTH_PRICING.boats.packages.maint.perFt, 12);
-  assert.equal(LENGTH_PRICING.fleet.packages.maint.min, 199);
-  assert.equal(PRICING.cars.tiers.small.interior, 225);
+  assert.equal(LENGTH_PRICING.fleet.packages.maint.min, 160);
+  assert.equal(PRICING.cars.tiers.small.interior, 180);
   const boat = getLengthPrice('boats', 'maint', 22, null);
-  assert.equal(boat, Math.max(199, Math.round(12 * 22)));
+  assert.equal(boat, Math.max(160, Math.round(12 * 22)));
   const hacked = computeVehicleSubtotal({
     cat: 'rvs',
     pkgId: 'full',

@@ -7,10 +7,10 @@ const LENGTH_PRICING = {
     defaultFt: 22,
     estimateOver: 36,
     packages: {
-      maint: { perFt: 12, min: 199 },
-      essential: { perFt: 21, min: 299 },
-      full: { perFt: 30, min: 449 },
-      premium: { perFt: 38, min: 699 },
+      maint: { perFt: 10, min: 160 },
+      essential: { perFt: 17, min: 240 },
+      full: { perFt: 24, min: 360 },
+      premium: { perFt: 30, min: 560 },
     },
   },
   rvs: {
@@ -19,12 +19,12 @@ const LENGTH_PRICING = {
     defaultFt: 20,
     estimateOver: 40,
     packages: {
-      maint: { base: 150, ratePerFoot: 10 },
-      maint_light: { base: 250, ratePerFoot: 16 },
-      interior: { base: 250, ratePerFoot: 18 },
-      full_basic: { base: 300, ratePerFoot: 25 },
-      premium: { base: 300, ratePerFoot: 28 },
-      full: { base: 400, ratePerFoot: 36 },
+      maint: { base: 120, ratePerFoot: 8 },
+      maint_light: { base: 200, ratePerFoot: 13 },
+      interior: { base: 200, ratePerFoot: 14 },
+      full_basic: { base: 240, ratePerFoot: 20 },
+      premium: { base: 240, ratePerFoot: 22 },
+      full: { base: 320, ratePerFoot: 29 },
     },
   },
   fleet: {
@@ -33,10 +33,10 @@ const LENGTH_PRICING = {
     defaultFt: 24,
     estimateOver: 36,
     packages: {
-      maint: { perFt: 13, min: 199 },
-      essential: { perFt: 19, min: 332 },
-      full: { perFt: 27, min: 599 },
-      premium: { perFt: 35, min: 800 },
+      maint: { perFt: 10, min: 160 },
+      essential: { perFt: 15, min: 265 },
+      full: { perFt: 22, min: 480 },
+      premium: { perFt: 28, min: 640 },
     },
   },
 };
