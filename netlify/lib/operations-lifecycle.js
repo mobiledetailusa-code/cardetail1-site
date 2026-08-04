@@ -3,7 +3,7 @@ const crypto = require('crypto');
 
 const SERVICE_STATUSES = [
   'requested', 'under_review', 'confirmed', 'assigned', 'en_route', 'in_progress', 'paused',
-  'service_completed', 'awaiting_customer_action', 'closed', 'cancelled', 'disputed',
+  'service_completed', 'awaiting_customer_action', 'closed', 'reopened', 'cancelled', 'disputed',
 ];
 
 const PAYMENT_STATUSES = [
@@ -27,7 +27,7 @@ const LEGACY_JOB_TO_SERVICE = {
   completed_pending_admin_review: 'service_completed',
   completed_pending_payment: 'awaiting_customer_action',
   completed_paid: 'closed',
-  reopened: 'in_progress',
+  reopened: 'reopened',
   cancelled: 'cancelled',
   archived_test: 'cancelled',
 };
@@ -43,6 +43,7 @@ const SERVICE_TO_LEGACY_JOB = {
   service_completed: 'completed_pending_admin_review',
   awaiting_customer_action: 'completed_pending_payment',
   closed: 'completed_paid',
+  reopened: 'reopened',
   cancelled: 'cancelled',
   disputed: 'issue_reported',
 };
@@ -133,12 +134,24 @@ const ALLOWED_SERVICE_TRANSITIONS = {
   en_route: ['in_progress', 'paused', 'cancelled'],
   in_progress: ['paused', 'service_completed', 'disputed', 'cancelled'],
   paused: ['in_progress', 'cancelled'],
-  service_completed: ['awaiting_customer_action', 'closed', 'disputed'],
-  awaiting_customer_action: ['closed', 'disputed', 'cancelled'],
-  closed: ['reopen'],
+  service_completed: ['awaiting_customer_action', 'closed', 'reopened', 'disputed'],
+  awaiting_customer_action: ['closed', 'reopened', 'disputed', 'cancelled'],
+  closed: ['reopened'],
+  // Operational reopen is its own state: work resumes without erasing the
+  // completion/payment record that produced it.
+  reopened: ['in_progress', 'paused', 'service_completed', 'disputed', 'cancelled'],
   cancelled: ['under_review'],
   disputed: ['in_progress', 'awaiting_customer_action', 'cancelled'],
 };
+
+/** Operational states a job must already be in before Reopen is meaningful. */
+const REOPENABLE_SERVICE_STATUSES = new Set([
+  'service_completed', 'awaiting_customer_action', 'closed', 'disputed',
+]);
+
+function canReopenService(booking) {
+  return REOPENABLE_SERVICE_STATUSES.has(normalizeServiceStatus(booking));
+}
 
 function canTransitionService(from, to) {
   const allowed = ALLOWED_SERVICE_TRANSITIONS[from] || [];
@@ -204,6 +217,8 @@ module.exports = {
   CUSTOMER_APPROVAL_STATUSES,
   LEGACY_JOB_TO_SERVICE,
   SERVICE_TO_LEGACY_JOB,
+  REOPENABLE_SERVICE_STATUSES,
+  canReopenService,
   normalizeServiceStatus,
   normalizePaymentStatus,
   normalizeCustomerApprovalStatus,

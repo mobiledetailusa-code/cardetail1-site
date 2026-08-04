@@ -29,7 +29,25 @@ const UNAVAILABLE = Object.freeze({
   final: 'The final receipt is available once the service is completed and the balance is paid in full.',
 });
 
+const RECEIPT_FOOTER = 'Thank you for choosing Detailing Zone.';
+
 function asArray(v) { return Array.isArray(v) ? v : []; }
+
+/**
+ * Cash is recognised from whichever marker the settling path left behind:
+ * the Blob ledger writes `method`, the Postgres authority writes
+ * `providerObjectId: 'cash'`, and both name the actor. A settlement that
+ * carries none of them was taken by card.
+ */
+function settlementMethodLabel(entry) {
+  if (!entry) return 'Card';
+  const method = String(entry.method || '').toLowerCase();
+  if (method === 'cash') return 'Cash';
+  if (method) return 'Card';
+  if (String(entry.providerObjectId || '').toLowerCase() === 'cash') return 'Cash';
+  if (/cash/i.test(String(entry.actor || ''))) return 'Cash';
+  return 'Card';
+}
 
 function centsToAmount(cents) {
   const n = Math.round(Number(cents) || 0);
@@ -59,7 +77,7 @@ function settledPayments(booking) {
     out.push({
       date: String(entry.recordedAt || entry.settledAt || '').slice(0, 10),
       amount: centsToAmount(cents),
-      method: entry.method === 'cash' ? 'Cash' : 'Card',
+      method: settlementMethodLabel(entry),
     });
   }
 
@@ -91,9 +109,12 @@ function paymentMethodLabel(booking, fin) {
   const pwf = String((fin && fin.paymentWorkflowStatus) || (booking && booking.paymentWorkflowStatus) || '').toLowerCase();
   if (pwf === 'cash_paid') return 'Cash';
   const payments = settledPayments(booking);
-  if (payments.length && payments.every((p) => p.method === 'Cash')) return 'Cash';
-  if (payments.length) return 'Card';
-  return '';
+  if (!payments.length) return '';
+  const cash = payments.filter((p) => p.method === 'Cash').length;
+  if (cash === payments.length) return 'Cash';
+  if (cash === 0) return 'Card';
+  // A booking settled across both methods must not claim to be either one.
+  return 'Cash and card';
 }
 
 function isServiceCompleted(booking) {
@@ -203,12 +224,15 @@ function buildReceiptProjection(booking, requestedType) {
     : String(el.paidCents);
 
   const projectedBooking = projectBookingForCustomer(booking) || {};
+  const receiptId = receiptNumber(booking.id || booking.bookingId, type, anchor);
+  const lastPayment = el.settled[el.settled.length - 1] || null;
 
   return {
     ok: true,
     receipt: {
       receiptType: type,
-      receiptNumber: receiptNumber(booking.id || booking.bookingId, type, anchor),
+      receiptNumber: receiptId,
+      receiptId,
       bookingReference: String(booking.id || booking.bookingId || ''),
       business: { ...BUSINESS },
       customer: {
@@ -227,7 +251,12 @@ function buildReceiptProjection(booking, requestedType) {
       },
       payments: el.settled,
       paymentMethod: paymentMethodLabel(booking, el.fin),
+      paymentDate: lastPayment ? lastPayment.date : '',
       status: type === 'final' ? 'Paid · Service completed' : 'Payment received',
+      // Never let a receipt for a part-payment read as settled.
+      balanceStatus: el.remainingCents > 0 ? 'Balance outstanding' : 'Paid in full',
+      paidInFull: el.remainingCents === 0,
+      footer: RECEIPT_FOOTER,
       issuedAt: String(projectedBooking.updatedAt || booking.updatedAt || '').slice(0, 10),
     },
   };
@@ -236,7 +265,9 @@ function buildReceiptProjection(booking, requestedType) {
 module.exports = {
   BUSINESS,
   RECEIPT_TYPES,
+  RECEIPT_FOOTER,
   UNAVAILABLE,
+  settlementMethodLabel,
   settledPayments,
   paymentMethodLabel,
   isServiceCompleted,

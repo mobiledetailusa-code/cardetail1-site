@@ -7,6 +7,7 @@ const { validateAndRecalculateBookingPricing } = require('./booking-price-catalo
 const {
   syncLegacyFields,
   canTransitionService,
+  canReopenService,
   normalizeServiceStatus,
   evaluateTechAdjustment,
   getApprovedAmountCents,
@@ -274,6 +275,12 @@ function adminTechStatus(booking, body) {
     completionSubmitted: statusAction === 'complete_service' ? true : booking.completionSubmitted,
     adminReviewRequired: statusAction === 'complete_service' ? true : booking.adminReviewRequired,
     techCompletedAt: statusAction === 'complete_service' ? now : booking.techCompletedAt,
+    // Write-once completion anchor. It starts the customer's 48-hour issue
+    // window, so a second completion (or a reopen-then-complete) must not move
+    // it and hand out a fresh window.
+    completedAt: statusAction === 'complete_service'
+      ? (booking.completedAt || now)
+      : booking.completedAt,
     completedByAdminProxy: true,
     updatedAt: now,
     eventLog: appendEventLog(booking, { action: 'admin_tech_' + statusAction, by: 'admin' }),
@@ -559,21 +566,66 @@ async function generateCustomerLinks(booking, body, siteUrl) {
   return { ok: false, error: 'invalid_link_type' };
 }
 
+/**
+ * Reopen a finished job — operationally only.
+ *
+ * Everything financial is deliberately absent from this patch. The ledger,
+ * settled amount, remaining balance, receipts, payment attempts and Stripe
+ * objects are untouched, and the caller must not route this through the money
+ * mutation path. Reopening means "we are going back on site", not "the customer
+ * owes it again".
+ *
+ * The completion record survives too: `completedAt` stays put (it anchors the
+ * customer's 48-hour issue window, which a reopen must not silently restart)
+ * and the prior value is copied into the reopen history as evidence.
+ */
 function reopenAppointment(booking, body) {
   const reason = sanitizeText(body.reason, 500);
+  if (!reason) return { ok: false, error: 'reason_required', statusCode: 400 };
+
+  if (!canReopenService(booking)) {
+    return {
+      ok: false,
+      error: 'invalid_transition',
+      statusCode: 409,
+      from: normalizeServiceStatus(booking),
+      message: 'Only a completed, closed or disputed job can be reopened.',
+    };
+  }
+
   const now = new Date().toISOString();
+  const previousCompletedAt = booking.completedAt || booking.jobCompletedAt || booking.techCompletedAt || null;
+  const history = Array.isArray(booking.reopenHistory) ? booking.reopenHistory : [];
+
   const patched = syncLegacyFields({
     ...booking,
+    // 'reopened' is a first-class service status, so syncLegacyFields keeps it
+    // instead of collapsing the job back to a plain in_progress.
+    serviceStatus: 'reopened',
     jobStatus: 'reopened',
-    serviceStatus: 'in_progress',
     completionSubmitted: false,
     adminReviewRequired: true,
     reopenedAt: now,
     reopenReason: reason,
+    reopenedBy: sanitizeText(body.actorId, 64) || 'admin',
+    previousCompletedAt,
+    reopenCount: Math.max(0, Math.round(Number(booking.reopenCount) || 0)) + 1,
+    reopenHistory: [
+      ...history,
+      {
+        reopenedAt: now,
+        reason,
+        by: sanitizeText(body.actorId, 64) || 'admin',
+        previousJobStatus: booking.jobStatus || '',
+        previousServiceStatus: normalizeServiceStatus(booking),
+        previousCompletedAt,
+        notifyCustomer: body.notifyCustomer === true,
+      },
+    ].slice(-50),
     updatedAt: now,
     eventLog: appendEventLog(booking, { action: 'job_reopened', by: 'admin', reason }),
   });
-  return { ok: true, booking: patched };
+  return { ok: true, booking: patched, previousCompletedAt, notifyCustomer: body.notifyCustomer === true };
 }
 
 module.exports = {

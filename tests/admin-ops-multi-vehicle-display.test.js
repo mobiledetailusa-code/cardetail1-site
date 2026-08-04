@@ -357,7 +357,11 @@ describe('Admin Ops inline expandable job details', () => {
     'dReopenAppt', 'dArchive', 'dTechEnRoute', 'dTechStart', 'dTechPause', 'dTechResume', 'dTechComplete',
     'dDate', 'dTime', 'dResched', 'dAddr', 'dZip', 'dSaveAddr', 'dOfferApply', 'dOfferRemove',
     'dFinalAmt', 'dTechPay', 'dSaveBal', 'dPostAuc', 'dAssignWin', 'dAddonSec', 'dPkgSec',
-    'dPayPref', 'dSavePref', 'dPayLink', 'dManualPayRef', 'dGenPayLink', 'dReconcileStripe',
+    // dPayPref/dSavePref were replaced by dPayMethod/dSavePayMethod, which carry
+    // the same capability plus the reason, expected version and paid-in-full lock
+    // the old pair had no concept of.
+    'dPayMethod', 'dSavePayMethod', 'dPayMethodReason',
+    'dPayLink', 'dManualPayRef', 'dGenPayLink', 'dReconcileStripe',
     'dCopyPayLink', 'dSetPayLink', 'dChargeNoShow', 'dChargeLateCancel', 'dRefundNote', 'dRefundAmt',
     'dRefund', 'dMarkRefunded', 'dMarkCash', 'dMarkCardSite', 'dApproveAdj', 'dRejectAdj',
     'dGenCompletion', 'dGenGarage', 'dCopyCustomerLink', 'dAuditSec', 'dNote', 'dSaveNote', 'dClose',

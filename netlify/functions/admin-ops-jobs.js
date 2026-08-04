@@ -216,6 +216,8 @@ async function persistMutation(store, bookingId, booking, previous, action, reas
         entries.push({
           entryId: `le_admin_${action}_${Date.now()}`,
           kind: 'settlement',
+          // The receipt reads this to say "Cash" rather than defaulting to Card.
+          method: 'cash',
           amountCents: remaining,
           currency: 'usd',
           quoteVersion: Math.round(Number(base.quoteVersion) || 0),
@@ -238,6 +240,7 @@ async function persistMutation(store, bookingId, booking, previous, action, reas
         entries.push({
           entryId: `le_admin_${action}_${Date.now()}`,
           kind: 'settlement',
+          method: 'card',
           amountCents: credit,
           currency: 'usd',
           quoteVersion: Math.round(Number(base.quoteVersion) || 0),
@@ -1041,6 +1044,78 @@ async function adminAddonMutation({
   };
 }
 
+/**
+ * One place that answers "what can Admin do to this job right now, and if not,
+ * why not". Buttons render from this rather than re-deriving rules client-side,
+ * so a disabled control always carries the server's actual reason.
+ */
+function adminOperationalControls(booking, projection = null) {
+  const { financialProjection } = require('../lib/payment-service');
+  const { paymentMethodCapability } = require('../lib/payment-method-policy');
+  const { adjustmentStatement } = require('../lib/price-adjustments');
+  const { postServiceState } = require('../lib/post-service-experience');
+  const { canReopenService, normalizeServiceStatus } = require('../lib/operations-lifecycle');
+
+  const fin = projection && projection.remainingCents != null
+    ? projection
+    : financialProjection(booking);
+  const remainingCents = Math.max(0, Math.round(Number(fin.remainingCents) || 0));
+  const settledCents = Math.max(0, Math.round(Number(fin.settledCents) || 0));
+  const reopenable = canReopenService(booking);
+  const post = postServiceState(booking);
+
+  return {
+    jobStatus: booking.jobStatus || '',
+    serviceStatus: normalizeServiceStatus(booking),
+    paymentStatus: fin.paymentStatus || '',
+    approvedCents: Math.max(0, Math.round(Number(fin.approvedCents) || 0)),
+    settledCents,
+    remainingCents,
+    reopen: {
+      enabled: reopenable,
+      requiresReason: true,
+      explanation: reopenable
+        ? 'Reopens the job operationally. Payments, receipts and the balance are left exactly as they are.'
+        : `This job is ${normalizeServiceStatus(booking).replace(/_/g, ' ')} — only a completed, closed or disputed job can be reopened.`,
+    },
+    paymentMethod: paymentMethodCapability(booking, { authoritativeProjection: fin }),
+    recordCash: {
+      enabled: remainingCents > 0,
+      requiresAmount: true,
+      requiresConfirmation: true,
+      expectedAmountCents: remainingCents,
+      // Part-payment is refused rather than silently rounded up: crediting a
+      // partial amount would run the operational close that full settlement
+      // owns. See docs/audit/admin-payment-operations-audit.md.
+      partialSupported: false,
+      explanation: remainingCents > 0
+        ? `Records cash against the ledger and emails the customer a confirmation. No Stripe object is created or changed. The amount must settle the full remaining balance of ${(remainingCents / 100).toFixed(2)}.`
+        : 'There is no remaining balance to collect.',
+    },
+    priceAdjustment: {
+      enabled: true,
+      requiresAdjustmentRecord: settledCents > 0,
+      explanation: settledCents > 0
+        ? 'A payment has been recorded, so the price changes through an adjustment with a reason and an approval trail.'
+        : 'No payment recorded yet — an approved adjustment revises the total directly.',
+      statement: adjustmentStatement(booking, { authoritativeProjection: fin }),
+    },
+    completeJob: {
+      enabled: !post.completed,
+      consequences: [
+        'Sets the completion time, which starts the customer’s 48-hour service issue window.',
+        'Makes the review action available to the customer.',
+        'Sends the completion email once.',
+      ],
+    },
+    postService: post,
+    receipts: {
+      paymentReceiptAvailable: settledCents > 0,
+      finalReceiptAvailable: post.completed && settledCents > 0 && remainingCents === 0,
+    },
+  };
+}
+
 async function handleAdminAction(body) {
   const action = sanitizeText(body.action, 40);
 
@@ -1132,6 +1207,9 @@ async function handleAdminAction(body) {
       reconciled: !reconciled.skipped && !!reconciled.ok,
       reconcileSkipped: !!reconciled.skipped,
       reconcileReason: reconciled.reason || reconciled.error || null,
+      // Capability state travels with the job so every Admin button reflects what
+      // the server would actually allow, instead of guessing from a status string.
+      operationalControls: adminOperationalControls(booking, projection),
       ...adminAddonCatalogForBooking(booking),
       ...adminPackageCatalogForBooking(booking),
     });
@@ -1313,6 +1391,7 @@ async function handleAdminAction(body) {
     if (booking.jobStatus !== 'completed_pending_admin_review') {
       return jsonCors(409, { ok: false, error: 'not_pending_admin_review' });
     }
+    const { postServiceState } = require('../lib/post-service-experience');
     let patched = {
       ...booking,
       adminReviewRequired: false,
@@ -1320,34 +1399,47 @@ async function handleAdminAction(body) {
       adminReviewed: true,
       jobStatus: 'completed_pending_payment',
       paymentWorkflowStatus: 'payment_action_required',
+      // Write-once. This is the anchor for the review action and the 48-hour
+      // service-issue window, so re-approving a completion cannot restart it.
+      completedAt: booking.completedAt || booking.techCompletedAt || now,
       updatedAt: now,
       eventLog: appendEventLog(booking, { action: 'completion_approved', by: 'admin' }),
     };
-    await store.setJSON(bookingId, patched);
+    let persisted = await persistMutation(store, bookingId, patched, booking, 'approve_completion', 'admin_review');
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    patched = persisted.booking;
+    // Idempotent by the notification ledger: a second approve_completion for the
+    // same state key does not send a second completion email.
     try {
       const { emitCustomerActionRequired } = require('../lib/booking-transactional-notifications');
       const txn = await emitCustomerActionRequired(patched, { event });
       if (txn && txn.booking) {
-        patched = txn.booking;
-        await store.setJSON(bookingId, patched).catch(() => {});
+        const after = await persistMutation(
+          store, bookingId, txn.booking, patched, 'completion_notification', 'completion_notify'
+        ).catch(() => null);
+        if (after && after.ok) patched = after.booking;
       }
     } catch (e) {
       console.warn('[admin-ops-jobs] action-required notify failed:', e.message);
     }
-    return jsonCors(200, { ok: true, bookingId, jobStatus: patched.jobStatus });
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      jobStatus: patched.jobStatus,
+      completedAt: patched.completedAt,
+      bookingVersion: patched.bookingVersion,
+      postService: postServiceState(patched),
+    });
   }
 
-  if (action === 'reopen_job') {
-    await store.setJSON(bookingId, {
-      ...booking,
-      jobStatus: 'reopened',
-      completionSubmitted: false,
-      adminReviewRequired: true,
-      reopenedAt: now,
-      updatedAt: now,
-      eventLog: appendEventLog(booking, { action: 'job_reopened', by: 'admin', reason: sanitizeText(body.reason, 500) }),
-    });
-    return jsonCors(200, { ok: true, bookingId, jobStatus: 'reopened' });
+  // `reopen_job` and `reopen_appointment` are the same operation reached from two
+  // Admin surfaces. Both go through the versioned, audited path — the older
+  // unconditional setJSON here silently lost concurrent writes and never moved
+  // bookingVersion, so neither portal learned the job had reopened.
+  if (action === 'reopen_job' || action === 'reopen_appointment') {
+    return handleReopen({ store, bookingId, booking, body });
   }
 
   if (action === 'request_correction') {
@@ -1435,18 +1527,84 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'update_payment_preference') {
-    const pref = sanitizeText(body.paymentMethodPreference, 64);
-    const ALLOWED_PREF = ['cash_on_site', 'card_on_site', 'online_after_service', 'card_on_file'];
-    if (!ALLOWED_PREF.includes(pref)) return jsonCors(400, { ok: false, error: 'invalid_preference' });
-    await store.setJSON(bookingId, {
+    const { resolvePaymentMethodChange } = require('../lib/payment-method-policy');
+    const resolved = resolvePaymentMethodChange(booking, body);
+    if (!resolved.ok) {
+      return jsonCors(resolved.statusCode || 400, {
+        ok: false,
+        error: resolved.error,
+        message: resolved.message,
+        capability: resolved.capability,
+        supportedMethods: resolved.supportedMethods,
+        expectedBookingVersion: resolved.expectedBookingVersion,
+        actualBookingVersion: resolved.actualBookingVersion,
+      });
+    }
+    const patched = {
       ...booking,
-      paymentMethodPreference: pref,
-      paymentPreferenceUpdatedAt: now,
-      paymentPreferenceUpdatedBy: 'admin',
+      ...resolved.patch,
       updatedAt: now,
-      eventLog: appendEventLog(booking, { action: 'payment_preference_updated', by: 'admin', preference: pref }),
+      eventLog: appendEventLog(booking, {
+        action: 'payment_preference_updated',
+        by: 'admin',
+        preference: resolved.method,
+        scope: resolved.scope,
+      }),
+    };
+    // Not a money mutation: the ledger and every settled entry keep the method
+    // they were actually taken with.
+    const persisted = await persistMutation(
+      store, bookingId, patched, booking, 'update_payment_preference', body.reason
+    );
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      bookingVersion: persisted.bookingVersion,
+      paymentMethodPreference: resolved.method,
+      scope: resolved.scope,
+      capability: resolved.capability,
     });
-    return jsonCors(200, { ok: true, bookingId });
+  }
+
+  if (action === 'correct_payment_method') {
+    const { resolvePaymentMethodCorrection } = require('../lib/payment-method-policy');
+    const resolved = resolvePaymentMethodCorrection(booking, body);
+    if (!resolved.ok) {
+      return jsonCors(resolved.statusCode || 400, {
+        ok: false,
+        error: resolved.error,
+        message: resolved.message,
+        supportedMethods: resolved.supportedMethods,
+        expectedBookingVersion: resolved.expectedBookingVersion,
+        actualBookingVersion: resolved.actualBookingVersion,
+      });
+    }
+    const patched = {
+      ...booking,
+      ...resolved.patch,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, {
+        action: 'payment_method_corrected',
+        by: 'admin',
+        correctedMethod: resolved.method,
+      }),
+    };
+    const persisted = await persistMutation(
+      store, bookingId, patched, booking, 'correct_payment_method', body.reason
+    );
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      bookingVersion: persisted.bookingVersion,
+      correctedMethod: resolved.method,
+      note: 'Recorded as a correction alongside the original settlement. The ledger entry itself is unchanged.',
+    });
   }
 
   if (action === 'set_payment_link') {
@@ -2048,7 +2206,88 @@ async function handleAdminAction(body) {
     return jsonCors(200, { ok: true, bookingId, bookingVersion: persisted.bookingVersion });
   }
 
+  if (action === 'price_adjustment') {
+    const {
+      createAdjustment, decideAdjustment, applyAdjustment, adjustmentStatement,
+    } = require('../lib/price-adjustments');
+    const op = sanitizeText(body.op, 32) || 'create';
+    const handlers = { create: createAdjustment, decide: decideAdjustment, apply: applyAdjustment };
+    const handler = handlers[op];
+    if (!handler) {
+      return jsonCors(400, { ok: false, error: 'invalid_adjustment_op', ops: Object.keys(handlers) });
+    }
+
+    const result = handler(booking, body);
+    if (!result.ok) {
+      return jsonCors(result.statusCode || 400, {
+        ok: false,
+        error: result.error,
+        message: result.message,
+        status: result.status,
+        types: result.types,
+        approvedCents: result.approvedCents,
+        expectedBookingVersion: result.expectedBookingVersion,
+        actualBookingVersion: result.actualBookingVersion,
+      });
+    }
+    if (result.alreadyApplied) {
+      return jsonCors(200, {
+        ok: true,
+        bookingId,
+        idempotent: true,
+        adjustment: result.adjustment,
+        statement: adjustmentStatement(booking),
+      });
+    }
+
+    const patched = {
+      ...booking,
+      ...result.patch,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, {
+        action: `price_adjustment_${op}`,
+        by: 'admin',
+        adjustmentId: result.adjustment.adjustmentId,
+        type: result.adjustment.type,
+        amountCents: result.adjustment.amountCents,
+      }),
+    };
+    // Only `apply` moves the approved total, so only `apply` runs the money path
+    // that re-derives the ledger and mints a new quote version.
+    const persistAction = op === 'apply' ? 'set_approved_final_amount' : 'price_adjustment';
+    const persisted = await persistMutation(
+      store, bookingId, patched, booking, persistAction,
+      result.adjustment.reason || sanitizeText(body.reason, 500)
+    );
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      bookingVersion: persisted.bookingVersion,
+      quoteVersion: persisted.booking.quoteVersion,
+      adjustment: result.adjustment,
+      outcome: result.outcome || result.adjustment.projectedOutcome,
+      supplementalDueCents: result.supplementalDueCents || 0,
+      refundReviewRequired: !!persisted.booking.refundReviewRequired,
+      statement: adjustmentStatement(persisted.booking),
+    });
+  }
+
   if (action === 'set_approved_final_amount') {
+    const { guardDirectTotalMutation } = require('../lib/price-adjustments');
+    // Typing a new total over settled money loses the reason and the approval.
+    const guard = guardDirectTotalMutation(booking, body);
+    if (!guard.ok) {
+      return jsonCors(guard.statusCode || 409, {
+        ok: false,
+        error: guard.error,
+        message: guard.message,
+        status: guard.status,
+        settledCents: guard.settledCents,
+      });
+    }
     const result = setApprovedFinalAmount(booking, body);
     if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
     const persisted = await persistMutation(store, bookingId, result.booking, booking, 'set_approved_final_amount', body.reason);
@@ -2094,6 +2333,9 @@ async function handleAdminAction(body) {
       authority: result.authority || undefined,
       postgresProjection: result.postgresProjection || undefined,
       settledAmountCents: result.settledAmountCents,
+      // Delivery outcome is surfaced, not swallowed: Admin must be able to see
+      // that the money landed but the email did not.
+      notification: result.notification || undefined,
       noop: result.noop || undefined,
     });
   }
@@ -2131,24 +2373,91 @@ async function handleAdminAction(body) {
     return jsonCors(200, { ok: true, bookingId, url: result.url, linkType: result.linkType, expiresAt: result.expiresAt || null, bookingVersion: persisted.bookingVersion });
   }
 
-  if (action === 'reopen_appointment') {
-    const reason = sanitizeText(body.reason, 500);
-    if (!reason) return jsonCors(400, { ok: false, error: 'reason_required' });
-    const result = reopenAppointment(booking, body);
-    if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
-    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'reopen_appointment', reason);
-    if (!persisted.ok) {
-      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
-    }
-    return jsonCors(200, {
-      ok: true,
-      bookingId,
-      jobStatus: persisted.booking.jobStatus,
-      bookingVersion: persisted.bookingVersion,
+  return jsonCors(400, { ok: false, error: 'unknown_action' });
+}
+
+/**
+ * Operational reopen.
+ *
+ * Deliberately routed through persistMutation with an action name that is NOT in
+ * MONEY_MUTATION_ACTIONS: the ledger, settled total, remaining balance, payment
+ * attempts, receipts and Stripe objects are copied forward untouched. A reopen
+ * that resurrected the original balance would be indistinguishable from billing
+ * the customer twice.
+ */
+async function handleReopen({ store, bookingId, booking, body }) {
+  const reason = sanitizeText(body.reason, 500);
+  if (!reason) {
+    return jsonCors(400, {
+      ok: false,
+      error: 'reason_required',
+      message: 'Record why this job is being reopened.',
     });
   }
 
-  return jsonCors(400, { ok: false, error: 'unknown_action' });
+  if (body.expectedBookingVersion != null && body.expectedBookingVersion !== '') {
+    const expected = Math.round(Number(body.expectedBookingVersion));
+    const actual = Math.round(Number(booking.bookingVersion) || 0);
+    if (!Number.isFinite(expected) || expected !== actual) {
+      return jsonCors(409, {
+        ok: false,
+        error: 'version_conflict',
+        expectedBookingVersion: expected,
+        actualBookingVersion: actual,
+      });
+    }
+  }
+
+  const result = reopenAppointment(booking, body);
+  if (!result.ok) {
+    return jsonCors(result.statusCode || 400, {
+      ok: false,
+      error: result.error,
+      from: result.from,
+      message: result.message,
+    });
+  }
+
+  const persisted = await persistMutation(store, bookingId, result.booking, booking, 'reopen_appointment', reason);
+  if (!persisted.ok) {
+    return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+  }
+
+  // Customer is told only when Admin asks for it — a reopen is often an internal
+  // correction the customer neither expects nor needs to hear about.
+  let customerNotified = false;
+  let notifyError = null;
+  if (body.notifyCustomer === true) {
+    try {
+      const { emitCustomerActionRequired } = require('../lib/booking-transactional-notifications');
+      const txn = await emitCustomerActionRequired(persisted.booking, {});
+      customerNotified = !!(txn && txn.delivery && txn.delivery.email && txn.delivery.email.sent);
+      if (txn && txn.booking) {
+        await persistMutation(
+          store, bookingId, txn.booking, persisted.booking, 'reopen_notification', 'reopen_notify'
+        ).catch(() => null);
+      }
+    } catch (e) {
+      notifyError = 'notification_failed';
+      console.warn('[admin-ops-jobs] reopen notify failed:', e.message);
+    }
+  }
+
+  const { financialProjection } = require('../lib/payment-service');
+  return jsonCors(200, {
+    ok: true,
+    bookingId,
+    jobStatus: persisted.booking.jobStatus,
+    serviceStatus: persisted.booking.serviceStatus,
+    bookingVersion: persisted.bookingVersion,
+    reopenedAt: persisted.booking.reopenedAt,
+    previousCompletedAt: persisted.booking.previousCompletedAt || null,
+    reopenCount: persisted.booking.reopenCount || 1,
+    // Returned so the caller can assert the money did not move.
+    projection: financialProjection(persisted.booking),
+    customerNotified,
+    notifyError,
+  });
 }
 
 async function bulkArchiveTests(store, includeAlreadyArchived) {
@@ -2166,6 +2475,77 @@ async function bulkArchiveTests(store, includeAlreadyArchived) {
     ids.push(blob.key);
   }
   return { archived, skipped, ids: ids.slice(0, 50) };
+}
+
+/**
+ * Customer payment confirmation after a settlement has been recorded.
+ *
+ * Called only once the money is committed, and it can only ever fail *forward*:
+ * a bounced email, a missing Resend key or a Blob write error is reported in the
+ * response and recorded on the booking, never converted into a rollback. The
+ * customer has paid; that fact does not depend on our mail provider.
+ */
+async function notifyPaymentReceived({
+  store,
+  bookingId,
+  booking,
+  method = 'cash',
+  amountCents,
+  projection,
+}) {
+  const status = { attempted: true, sent: false, reason: null, channel: 'email' };
+  try {
+    const { emitPaymentReceived } = require('../lib/booking-transactional-notifications');
+    const { receiptEligibility } = require('../lib/receipt-projection');
+
+    let receiptUrl = '';
+    try {
+      const el = receiptEligibility(booking);
+      if (el.payment) {
+        const base = String(process.env.DEPLOY_PRIME_URL || process.env.URL || '').replace(/\/$/, '');
+        const type = el.final ? 'final' : 'payment';
+        receiptUrl = base
+          ? `${base}/receipt.html?bookingId=${encodeURIComponent(bookingId)}&type=${type}`
+          : '';
+      }
+    } catch { /* receipt link is a nicety, not a precondition */ }
+
+    const txn = await emitPaymentReceived(booking, {
+      method,
+      amountCents: Math.max(0, Math.round(Number(amountCents) || 0)),
+      approvedCents: Math.max(0, Math.round(Number(projection?.approvedCents) || 0)),
+      remainingCents: Math.max(0, Math.round(Number(projection?.remainingCents) || 0)),
+      settledCentsAfter: Math.max(0, Math.round(Number(projection?.settledCents) || 0)),
+      recordedAt: new Date().toISOString(),
+      settlementId: `${bookingId}:${projection?.settledCents || 0}:${method}`,
+      receiptUrl,
+    });
+
+    if (txn && txn.delivery && txn.delivery.email) {
+      status.sent = !!txn.delivery.email.sent;
+      status.reason = txn.delivery.email.reason || null;
+      status.skipped = !!txn.delivery.email.skipped;
+    } else {
+      status.reason = (txn && txn.error) || 'notify_failed';
+    }
+
+    if (txn && txn.booking && store) {
+      const persisted = await persistMutation(
+        store, bookingId, txn.booking, booking, 'payment_notification', 'cash_receipt_email'
+      ).catch(() => null);
+      if (!persisted || !persisted.ok) {
+        // Delivery already happened; only the ledger of *what we sent* is stale.
+        status.ledgerPersisted = false;
+      } else {
+        status.ledgerPersisted = true;
+        status.booking = persisted.booking;
+      }
+    }
+  } catch (e) {
+    status.reason = 'notify_failed';
+    console.warn('[admin-ops-jobs] payment notification failed:', e.message);
+  }
+  return status;
 }
 
 /**
@@ -2234,7 +2614,16 @@ async function adminMarkCashReceived({
           : Math.round(Number(booking.quoteVersion || booking.quote?.quoteVersion) || 0),
       };
     }
-    return result;
+    // Settlement is committed in Postgres before we go anywhere near email.
+    const pgNotification = await notifyPaymentReceived({
+      store,
+      bookingId: id,
+      booking: result.booking || booking,
+      method: 'cash',
+      amountCents: result.settledAmountCents,
+      projection: result.postgresProjection || result.projection,
+    });
+    return { ...result, notification: pgNotification };
   }
 
   const resolved = resolveAdminCashSettlement(booking, body);
@@ -2274,6 +2663,18 @@ async function adminMarkCashReceived({
   }
 
   const projection = financialProjection(persisted.booking);
+
+  // Money is already committed above. Everything after this point is best-effort
+  // and reported, so a mail outage can never undo a recorded payment.
+  const notification = await notifyPaymentReceived({
+    store: activeStore,
+    bookingId: id,
+    booking: persisted.booking,
+    method: 'cash',
+    amountCents: resolved.amountCents,
+    projection,
+  });
+
   return {
     ok: true,
     authority: 'blob',
@@ -2286,7 +2687,8 @@ async function adminMarkCashReceived({
     projection,
     financialProjection: projection,
     settledAmountCents: resolved.amountCents,
-    booking: persisted.booking,
+    notification,
+    booking: notification.booking || persisted.booking,
   };
 }
 

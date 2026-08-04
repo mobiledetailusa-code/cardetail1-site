@@ -23,6 +23,7 @@ const { normalizeUsPhoneDigits, normalizeUsPhoneE164 } = require('./phone-auth')
 const EVENT_REQUEST_RECEIVED = 'booking.request_received';
 const EVENT_CONFIRMED = 'booking.confirmed';
 const EVENT_ACTION_REQUIRED = 'booking.customer_action_required';
+const EVENT_PAYMENT_RECEIVED = 'booking.payment_received';
 
 const CHANNELS = ['email', 'sms'];
 const CLAIM_STORE = 'cd1-notification-claims';
@@ -257,6 +258,15 @@ function eventStateKey(eventType, booking) {
   if (eventType === EVENT_ACTION_REQUIRED) {
     return actionRequiredStateKey(booking) || `action:v${booking.bookingVersion || 1}`;
   }
+  if (eventType === EVENT_PAYMENT_RECEIVED) {
+    // Keyed to the settlement itself, so a retried Admin click, a webhook replay
+    // and a Blob/Postgres double-write all resolve to one email — while a second,
+    // genuinely different payment still gets its own.
+    const p = booking.__paymentEvent || {};
+    const settlementRef = String(p.settlementId || p.entryId || p.providerEventId || '').trim();
+    if (settlementRef) return `payment:${settlementRef}`;
+    return `payment:${p.method || 'unknown'}:${p.amountCents || 0}:${p.settledCentsAfter || 0}`;
+  }
   return `v${booking.bookingVersion || 1}`;
 }
 
@@ -420,6 +430,10 @@ ${itemization ? itemization.html : ''}
     return { subject, text, html, cta };
   }
 
+  if (eventType === EVENT_PAYMENT_RECEIVED) {
+    return buildPaymentReceivedEmail(booking, accessUrl);
+  }
+
   // customer_action_required
   const subject = 'Action needed for your detailing appointment';
   const cta = 'Review Appointment';
@@ -445,6 +459,84 @@ ${itemization ? itemization.html : ''}
 <p>${brand}</p>
 </body></html>`;
   return { subject, text, html, cta };
+}
+
+const PAYMENT_METHOD_LABELS = Object.freeze({
+  cash: 'Cash',
+  card: 'Card',
+  card_on_site: 'Card',
+  online: 'Card',
+  stripe: 'Card',
+});
+
+function money(cents) {
+  return `$${(Math.max(0, Math.round(Number(cents) || 0)) / 100).toFixed(2)}`;
+}
+
+/**
+ * Payment confirmation. Strictly transactional: what was received, against what
+ * total, what is left, and where the receipt is. No offers, no upsell, no
+ * "while you're here" — a receipt email that sells is not a receipt.
+ */
+function buildPaymentReceivedEmail(booking, accessUrl) {
+  const p = (booking && booking.__paymentEvent) || {};
+  const name = [booking.firstName, booking.lastName].filter(Boolean).join(' ').trim() || 'there';
+  const first = name.split(/\s+/)[0] || 'there';
+  const brand = brandName();
+  const reference = String(booking.id || booking.bookingId || '');
+  const methodKey = String(p.method || '').toLowerCase();
+  const methodLabel = PAYMENT_METHOD_LABELS[methodKey] || 'Card';
+  const amount = money(p.amountCents);
+  const total = money(p.approvedCents);
+  const remaining = money(p.remainingCents);
+  const recordedAt = String(p.recordedAt || new Date().toISOString()).slice(0, 10);
+  const receiptUrl = String(p.receiptUrl || '').trim();
+  const fullyPaid = Math.max(0, Math.round(Number(p.remainingCents) || 0)) === 0;
+  const thanks = 'Thank you for choosing Detailing Zone.';
+
+  const subject = 'Payment received for your Detailing Zone appointment';
+  const cta = 'View your appointment';
+
+  const textLines = [
+    `Hi ${first},`,
+    '',
+    `We have recorded your payment for booking ${reference}.`,
+    '',
+    `Booking reference: ${reference}`,
+    `Amount received: ${amount}`,
+    `Payment method: ${methodLabel}`,
+    `Total: ${total}`,
+    `Remaining balance: ${remaining}`,
+    `Date recorded: ${recordedAt}`,
+  ];
+  if (!fullyPaid) {
+    textLines.push('', `A balance of ${remaining} is still outstanding on this appointment.`);
+  }
+  if (receiptUrl) textLines.push('', `Receipt: ${receiptUrl}`);
+  if (accessUrl) textLines.push('', `${cta}:`, accessUrl);
+  textLines.push('', thanks, brand, siteUrl());
+
+  const link = escapeHtml(accessUrl || '');
+  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
+<p>Hi ${escapeHtml(first)},</p>
+<p><strong>We have recorded your payment.</strong></p>
+<ul>
+<li>Booking reference: ${escapeHtml(reference)}</li>
+<li>Amount received: ${escapeHtml(amount)}</li>
+<li>Payment method: ${escapeHtml(methodLabel)}</li>
+<li>Total: ${escapeHtml(total)}</li>
+<li>Remaining balance: ${escapeHtml(remaining)}</li>
+<li>Date recorded: ${escapeHtml(recordedAt)}</li>
+</ul>
+${fullyPaid ? '' : `<p>A balance of ${escapeHtml(remaining)} is still outstanding on this appointment.</p>`}
+${receiptUrl ? `<p><a href="${escapeHtml(receiptUrl)}">View your receipt</a></p>` : ''}
+${accessUrl ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>
+<p style="font-size:13px;color:#555">If the button does not work, open:<br>${link}</p>` : ''}
+<p>${escapeHtml(thanks)}</p>
+<p>${escapeHtml(brand)}</p>
+</body></html>`;
+
+  return { subject, text: textLines.join('\n'), html, cta };
 }
 
 function buildSmsBody(eventType, booking, accessUrl) {
@@ -570,6 +662,7 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
       eventType !== EVENT_REQUEST_RECEIVED
       && eventType !== EVENT_CONFIRMED
       && eventType !== EVENT_ACTION_REQUIRED
+      && eventType !== EVENT_PAYMENT_RECEIVED
     ) {
       return { ok: false, error: 'unknown_event', correlationId };
     }
@@ -677,7 +770,12 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
         : { sent: false, skipped: true, reason: ledger[emailKey]?.reason || 'suppressed' };
     }
 
-    if (!smsTerminal) {
+    if (eventType === EVENT_PAYMENT_RECEIVED) {
+      // Payment confirmation is email-only: an SMS here would spend Twilio credit
+      // on a message the receipt already carries in full.
+      delivery.sms = { sent: false, skipped: true, reason: 'sms_not_enabled_for_event' };
+      ledger = markChannelResult(ledger, smsKey, delivery.sms);
+    } else if (!smsTerminal) {
       const smsClaim = await claimChannelSend(smsKey);
       if (!smsClaim.claimed) {
         delivery.sms = { sent: true, skipped: true, reason: 'claim_' + (smsClaim.reason || 'held') };
@@ -709,6 +807,15 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
       smsStatus: ledger[smsKey]?.status || null,
     });
 
+    const nextBooking = {
+      ...working,
+      transactionalNotifications: ledger,
+      lastTransactionalNotificationAt: new Date().toISOString(),
+      lastTransactionalNotificationEvent: eventType,
+    };
+    // Per-emit context is an argument, not booking state — never persist it.
+    delete nextBooking.__paymentEvent;
+
     return {
       ok: true,
       correlationId,
@@ -719,12 +826,7 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
       accessUrl,
       focusRef: working.appointmentPublicRef || null,
       delivery,
-      booking: {
-        ...working,
-        transactionalNotifications: ledger,
-        lastTransactionalNotificationAt: new Date().toISOString(),
-        lastTransactionalNotificationEvent: eventType,
-      },
+      booking: nextBooking,
     };
   } catch (e) {
     console.warn('[txn-notify] unexpected', { correlationId, error: e.message });
@@ -744,10 +846,34 @@ async function emitCustomerActionRequired(booking, opts) {
   return emitBookingNotification(booking, EVENT_ACTION_REQUIRED, opts);
 }
 
+/**
+ * Payment confirmation for a recorded settlement.
+ *
+ * `payment` describes the settlement that just happened — it is passed through
+ * as emit context and is never written to the booking. Delivery failure is
+ * reported, not thrown: the money is already recorded and must not be unwound
+ * because an email bounced.
+ */
+async function emitPaymentReceived(booking, payment = {}, opts = {}) {
+  const result = await emitBookingNotification(
+    { ...booking, __paymentEvent: payment },
+    EVENT_PAYMENT_RECEIVED,
+    opts
+  );
+  // Strip on every path, including the early returns and the failure path — the
+  // caller persists this booking, and emit context is not booking state.
+  if (result && result.booking && result.booking.__paymentEvent) {
+    const { __paymentEvent, ...clean } = result.booking;
+    return { ...result, booking: clean };
+  }
+  return result;
+}
+
 module.exports = {
   EVENT_REQUEST_RECEIVED,
   EVENT_CONFIRMED,
   EVENT_ACTION_REQUIRED,
+  EVENT_PAYMENT_RECEIVED,
   CHANNELS,
   CLAIM_STORE,
   escapeHtml,
@@ -763,12 +889,14 @@ module.exports = {
   getNotificationLedger,
   channelAlreadySent,
   buildEmailContent,
+  buildPaymentReceivedEmail,
   buildSmsBody,
   customerTransactionalSmsEnabled,
   emitBookingNotification,
   emitRequestReceived,
   emitConfirmed,
   emitCustomerActionRequired,
+  emitPaymentReceived,
   resolveCustomerAccountForBooking,
   setNotificationClaimStoreFactory,
   resetNotificationClaimStoreFactory,

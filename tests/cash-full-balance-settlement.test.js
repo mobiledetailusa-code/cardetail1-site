@@ -406,15 +406,36 @@ describe('full-balance cash settlement', () => {
     assert.equal(result.financialProjection.remainingCents, fp.remainingCents);
   });
 
-  it('12) Admin empty-payload button contract remains supported', () => {
+  // The Admin control now collects an amount and an explicit confirmation
+  // (operational-controls requirement: "Record cash payment requires amount and
+  // confirmation"). The safety that the old empty-payload contract provided is
+  // unchanged and still enforced server-side: an amount that is not the full
+  // remaining balance is rejected with the expected figure, so an operator can
+  // never key a wrong number into a settlement.
+  it('12) Admin cash button collects an amount, and the server still owns the figure', () => {
     const src = read('admin-ops.html');
-    assert.match(src, /mark_cash_received',\s*\{\}/);
-    assert.doesNotMatch(src, /mark_cash_received',\s*\{[^}]*amount/);
+    assert.match(src, /mark_cash_received'/);
+    assert.match(src, /Cash amount received/);
+    assert.match(src, /confirm\(/);
 
     const booking = baseBooking(nextId('UI'));
-    const resolved = resolveAdminCashSettlement(booking, {});
-    assert.equal(resolved.ok, true);
-    assert.equal(resolved.amountCents, 17500);
+
+    // Absent amount still settles the full remaining balance.
+    const derived = resolveAdminCashSettlement(booking, {});
+    assert.equal(derived.ok, true);
+    assert.equal(derived.amountCents, 17500);
+
+    // A correct amount is accepted.
+    const exact = resolveAdminCashSettlement(booking, { amount: '175.00' });
+    assert.equal(exact.ok, true);
+    assert.equal(exact.amountCents, 17500);
+
+    // A wrong amount is refused, with the authoritative figure returned.
+    const wrong = resolveAdminCashSettlement(booking, { amount: '100.00' });
+    assert.equal(wrong.ok, false);
+    assert.equal(wrong.error, 'cash_amount_mismatch');
+    assert.equal(wrong.expectedAmountCents, 17500);
+    assert.equal(wrong.receivedAmountCents, 10000);
   });
 
   it('13) Technician exact-cash mismatch contract remains green', () => {
