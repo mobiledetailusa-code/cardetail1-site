@@ -115,7 +115,15 @@ describe('price calculation invariant', () => {
 
   it('server travel fee and RV pricing formulas are unchanged', () => {
     const t = require('../netlify/lib/travel-fee');
-    assert.deepEqual(t.TRAVEL_FEE_TIERS.map((x) => x.fee), [0, 15, 25, 35, 40, 55]);
+    // Pins the travel model so it cannot drift silently. The old fixed tiers
+    // ([0,15,25,35,40,55] over a ZIP-prefix distance guess) were replaced by a
+    // free radius plus a per-mile rate over real coordinate distance.
+    assert.equal(t.FREE_RADIUS_MI, 50);
+    assert.equal(t.RATE_PER_MILE, 1.0);
+    assert.equal(t.TRAVEL_MAX_MILES, 120);
+    assert.equal(t.travelFeeFromMiles(50), 0);
+    assert.equal(t.travelFeeFromMiles(70), 20);
+    assert.equal(t.travelFeeFromMiles(121), null);
     const c = require('../netlify/lib/booking-price-catalog');
     const r = c.validateAndRecalculateBookingPricing({
       zipCode: '06850',
