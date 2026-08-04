@@ -649,6 +649,116 @@ test('reopening after completion does not hand out a second issue window', () =>
   assert.equal(state.serviceIssue.windowOpen, false);
 });
 
+// ── Admin drawer rendering ─────────────────────────────────────────────────
+//
+// The new controls are built by string concatenation inside a 200 KB HTML file,
+// where a missing field renders as "undefined" rather than failing. These cases
+// drive the real page function with the real server projection so a broken
+// capability state is caught here and not in the Admin's browser.
+
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const { JSDOM } = require('jsdom');
+const { adminOperationalControls } = require('../netlify/functions/admin-ops-jobs');
+
+const ADMIN_OPS = fs.readFileSync(path.join(__dirname, '..', 'admin-ops.html'), 'utf8');
+
+function extractFunction(source, name) {
+  const start = source.indexOf(`function ${name}(`);
+  assert.ok(start >= 0, `admin-ops.html no longer defines ${name}()`);
+  let depth = 0;
+  let open = false;
+  for (let i = start; i < source.length; i += 1) {
+    if (source[i] === '{') { depth += 1; open = true; } else if (source[i] === '}') {
+      depth -= 1;
+      if (open && depth === 0) return source.slice(start, i + 1);
+    }
+  }
+  throw new Error(`unbalanced braces in ${name}()`);
+}
+
+function renderControls(booking) {
+  const inline = ADMIN_OPS.match(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/)[1];
+  const sandbox = {
+    esc: (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    )),
+    drawerControls: adminOperationalControls(booking),
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(`${extractFunction(inline, 'money')}\n${extractFunction(inline, 'operationalControlsHtml')}`, sandbox);
+  return vm.runInContext('operationalControlsHtml()', sandbox);
+}
+
+test('admin-ops.html inline script parses', () => {
+  const blocks = [...ADMIN_OPS.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  assert.ok(blocks.length > 0);
+  for (const block of blocks) {
+    assert.doesNotThrow(() => new vm.Script(block));
+  }
+});
+
+test('every capability state renders real controls with no leaked placeholders', () => {
+  const states = {
+    unpaid: bookingFixture(),
+    partPaid: bookingFixture({ settledCents: 10000, entries: [cashEntry(10000)] }),
+    paidAndCompleted: bookingFixture({
+      settledCents: 31000,
+      entries: [cashEntry(31000)],
+      jobStatus: 'completed_paid',
+      serviceStatus: 'closed',
+      paymentWorkflowStatus: 'cash_paid',
+      completedAt: new Date().toISOString(),
+    }),
+    // A record missing almost everything must degrade, not throw or render junk.
+    malformed: { id: 'CD1-EMPTY' },
+  };
+
+  for (const [name, booking] of Object.entries(states)) {
+    const html = renderControls(booking);
+    const doc = new JSDOM(`<div id="root">${html}</div>`).window.document;
+    assert.ok(doc.querySelector('#root').children.length > 0, `${name} rendered nothing`);
+    assert.doesNotMatch(html, /undefined|NaN|\[object Object\]/, `${name} leaked a placeholder`);
+  }
+});
+
+test('the drawer offers the method control only when the server allows a change', () => {
+  const unpaid = new JSDOM(`<div>${renderControls(bookingFixture())}</div>`).window.document;
+  assert.ok(unpaid.querySelector('#dSavePayMethod'), 'unpaid must offer a method change');
+  assert.ok(unpaid.querySelector('#dPayMethodReason'), 'a reason field is mandatory');
+  assert.equal(unpaid.querySelector('#dCorrectMethodBtn'), null);
+
+  const paid = bookingFixture({ settledCents: 31000, entries: [cashEntry(31000)] });
+  const paidDoc = new JSDOM(`<div>${renderControls(paid)}</div>`).window.document;
+  assert.equal(paidDoc.querySelector('#dSavePayMethod'), null, 'paid must not offer an ordinary change');
+  assert.ok(paidDoc.querySelector('#dCorrectMethodBtn'), 'paid must offer the evidence-backed correction');
+  assert.ok(paidDoc.querySelector('#dCorrectEvidence'));
+  assert.ok(paidDoc.querySelector('button[disabled]'), 'the blocked action stays visible but disabled');
+});
+
+test('a disabled control always carries the server’s reason', () => {
+  const unpaid = adminOperationalControls(bookingFixture());
+  assert.equal(unpaid.reopen.enabled, false);
+  assert.match(unpaid.reopen.explanation, /only a completed, closed or disputed job/i);
+
+  const paid = adminOperationalControls(
+    bookingFixture({ settledCents: 31000, entries: [cashEntry(31000)] })
+  );
+  assert.equal(paid.recordCash.enabled, false);
+  assert.match(paid.recordCash.explanation, /no remaining balance/i);
+  assert.equal(paid.paymentMethod.canChange, false);
+  assert.match(paid.paymentMethod.explanation, /paid in full/i);
+});
+
+test('the cash control states the exact amount the server will accept', () => {
+  const controls = adminOperationalControls(bookingFixture({ settledCents: 10000, entries: [cashEntry(10000)] }));
+  assert.equal(controls.recordCash.enabled, true);
+  assert.equal(controls.recordCash.expectedAmountCents, 21000);
+  assert.equal(controls.recordCash.partialSupported, false);
+  assert.match(controls.recordCash.explanation, /full remaining balance of 210\.00/);
+});
+
 test('completing a job twice does not move the completion anchor', () => {
   const first = mutations.adminTechStatus(
     bookingFixture({ jobStatus: 'in_progress', serviceStatus: 'in_progress' }),

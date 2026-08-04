@@ -2702,6 +2702,8 @@ exports.adminPackageCatalogForBooking = adminPackageCatalogForBooking;
 exports.packageOptionsForVehicle = packageOptionsForVehicle;
 exports.adminMarkCashReceived = adminMarkCashReceived;
 exports.resolveAdminCashSettlement = resolveAdminCashSettlement;
+exports.adminOperationalControls = adminOperationalControls;
+exports.notifyPaymentReceived = notifyPaymentReceived;
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
