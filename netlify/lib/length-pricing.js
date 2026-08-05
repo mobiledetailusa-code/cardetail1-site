@@ -1,45 +1,6 @@
-// Shared length-based pricing for boats / RVs (mirrors booking flow LENGTH_PRICING).
-
-const LENGTH_PRICING = {
-  boats: {
-    min: 12,
-    max: 60,
-    defaultFt: 22,
-    estimateOver: 36,
-    packages: {
-      maint: { perFt: 12, min: 199 },
-      essential: { perFt: 21, min: 299 },
-      full: { perFt: 30, min: 449 },
-      premium: { perFt: 38, min: 699 },
-    },
-  },
-  rvs: {
-    min: 12,
-    max: 45,
-    defaultFt: 20,
-    estimateOver: 40,
-    packages: {
-      maint: { base: 150, ratePerFoot: 10 },
-      maint_light: { base: 250, ratePerFoot: 16 },
-      interior: { base: 250, ratePerFoot: 18 },
-      full_basic: { base: 300, ratePerFoot: 25 },
-      premium: { base: 300, ratePerFoot: 28 },
-      full: { base: 400, ratePerFoot: 36 },
-    },
-  },
-  fleet: {
-    min: 10,
-    max: 60,
-    defaultFt: 24,
-    estimateOver: 36,
-    packages: {
-      maint: { perFt: 13, min: 199 },
-      essential: { perFt: 19, min: 332 },
-      full: { perFt: 27, min: 599 },
-      premium: { perFt: 35, min: 800 },
-    },
-  },
-};
+// The booking catalog is the single server authority. This module keeps the
+// length helpers and display metadata, but no longer carries a second rate table.
+const { LENGTH_PRICING } = require('./booking-price-catalog');
 
 const RV_TYPE_MULTIPLIERS = {
   travel: 1, fifthwheel: 1, classA: 1, classB: 1, classC: 1, classBC: 1,

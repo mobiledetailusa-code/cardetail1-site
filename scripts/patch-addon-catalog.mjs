@@ -131,6 +131,12 @@ for (const file of HTML_FILES) {
   console.log("patched catalog", file);
 }
 
+// Package prices are owned by booking-price-catalog.js. This legacy add-on
+// patcher must never replace server tiers; use apply-package-price-change.mjs
+// --sync-only after changing the authoritative catalog.
+console.log("server package catalog left unchanged (authoritative)");
+process.exit(0);
+
 const serverPath = path.join(root, "netlify/lib/booking-price-catalog.js");
 let server = fs.readFileSync(serverPath, "utf8");
 

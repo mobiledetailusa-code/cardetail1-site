@@ -1991,19 +1991,19 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="svc-ico-photo"><img src="assets/vehicles/premium/marine.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Boats</div>
             <div class="svc-desc" style="font-size:12px">All vessels · Priced by length</div>
-            <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $199</div>
+            <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $170</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
             <span class="svc-ico-photo"><img src="assets/vehicles/premium/rv-trailer.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
-            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">From $8/ft</div>
+            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">Price calculated from your vehicle details.</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
             <span class="svc-ico-photo"><img src="assets/vehicles/premium/powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
             <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
-            <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $119</div>
+            <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $100</div>
           </div>
 
         </div>
@@ -2786,10 +2786,10 @@ async function makeWebhookSend(payload){
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:175, interior:225, full:300, refresh:375, premium:450},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:215, interior:250, full:325, refresh:425, premium:550},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:250, interior:275, full:325, refresh:475, premium:635},
-      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:250, interior:275, full:325, refresh:465, premium:615},
+      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:150, interior:190, full:240, refresh:320, premium:385},
+      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:185, interior:215, full:260, refresh:360, premium:470},
+      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:215, interior:235, full:270, refresh:405, premium:540},
+      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:215, interior:235, full:275, refresh:395, premium:525},
     },
     packages:[
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
@@ -2839,10 +2839,10 @@ const PRICING = {
   },
   boats: {
     tiers: {
-      under20:  {label:'Under 20 ft', icon:'⛵', desc:'Runabout · Jon · Small PWC trailer',    maint:266, essential:399, full:599, premium:933},
-      '20to25': {label:'20–25 ft',    icon:'🚤', desc:'Bowrider · Center console · Deck boat', maint:367, essential:533, full:800, premium:1200},
-      '26to30': {label:'26–30 ft',    icon:'🚥️️️️', desc:'Cuddy cabin · Walkaround · Express',    maint:466, essential:666, full:1000, premium:1467},
-      over30:   {label:'30+ ft',      icon:'🛳️', desc:'Sport cruiser · Cabin cruiser · Yacht', maint:599, essential:866, full:1334, premium:2001},
+      under20:  {label:'Under 20 ft', icon:'⛵', desc:'Runabout · Jon · Small PWC trailer',    maint:225, essential:340, full:510, premium:795},
+      '20to25': {label:'20–25 ft',    icon:'🚤', desc:'Bowrider · Center console · Deck boat', maint:310, essential:455, full:680, premium:1020},
+      '26to30': {label:'26–30 ft',    icon:'🚥️️️️', desc:'Cuddy cabin · Walkaround · Express',    maint:395, essential:565, full:850, premium:1245},
+      over30:   {label:'30+ ft',      icon:'🛳️', desc:'Sport cruiser · Cabin cruiser · Yacht', maint:510, essential:735, full:1135, premium:1700},
     },
     packages:[
       {id:'maint',    name:'Marine Wash',        icon:'🪣', tag:'Regular upkeep - hull, deck & glass',        dur:'~1.5–2h', popular:false,
@@ -2872,13 +2872,13 @@ const PRICING = {
   },
   rvs: {
     tiers: {
-      travel:     {label:'Travel Trailer', icon:'🏕️', desc:'Bumper-pull travel trailer',  maint:320, maint_light:466, interior:460, full_basic:900, premium:1133, full:1400},
-      fifthwheel: {label:'Fifth Wheel',    icon:'🚛', desc:'Fifth wheel trailer',        maint:360, maint_light:599, interior:576, full_basic:1050, premium:1334, full:1680},
-      classBC:    {label:'Class B / Class C Motorhome', icon:'🚐', desc:'Class B vans and Class C coaches', maint:380, maint_light:666, interior:620, full_basic:1120, premium:1534, full:1860},
-      classC:     {label:'Class C',        icon:'🚐', desc:'Class C motorhome',       maint:380, maint_light:666, interior:620, full_basic:1120, premium:1534, full:1860},
-      classA:     {label:'Class A Motorhome', icon:'🚌', desc:'Class A motorhome',          maint:420, maint_light:866, interior:760, full_basic:1280, premium:1934, full:2280},
-      airstream:  {label:'Airstream', icon:'✨', desc:'Polished aluminum — surface-aware', maint:340, maint_light:500, interior:500, full_basic:980, premium:1200, full:1500},
-      specialty:  {label:'Cargo, Horse or Custom Trailer', icon:'📦', desc:'Living quarters required for interior packages', maint:300, maint_light:0, interior:0, full_basic:0, premium:1050, full:0},
+      travel:     {label:'Travel Trailer', icon:'🏕️', desc:'Bumper-pull travel trailer',  maint:270, maint_light:395, interior:390, full_basic:765, premium:965, full:1190},
+      fifthwheel: {label:'Fifth Wheel',    icon:'🚛', desc:'Fifth wheel trailer',        maint:305, maint_light:510, interior:490, full_basic:895, premium:1135, full:1430},
+      classBC:    {label:'Class B / Class C Motorhome', icon:'🚐', desc:'Class B vans and Class C coaches', maint:325, maint_light:565, interior:525, full_basic:950, premium:1305, full:1580},
+      classC:     {label:'Class C',        icon:'🚐', desc:'Class C motorhome',       maint:325, maint_light:565, interior:525, full_basic:950, premium:1305, full:1580},
+      classA:     {label:'Class A Motorhome', icon:'🚌', desc:'Class A motorhome',          maint:355, maint_light:735, interior:645, full_basic:1090, premium:1645, full:1940},
+      airstream:  {label:'Airstream', icon:'✨', desc:'Polished aluminum — surface-aware', maint:290, maint_light:425, interior:425, full_basic:835, premium:1020, full:1275},
+      specialty:  {label:'Cargo, Horse or Custom Trailer', icon:'📦', desc:'Living quarters required for interior packages', maint:255, maint_light:0, interior:0, full_basic:0, premium:895, full:0},
     },
     packages:[
       {id:'maint', name:'Maintenance Wash', icon:'🪣', tag:'Keep your RV clean, protected and ready for the road.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
@@ -2917,10 +2917,10 @@ const PRICING = {
   },
   powersports: {
     tiers: {
-      motorcycle: {label:'Motorcycle',         icon:'🏍️', desc:'Street · Cruiser · Sport · Touring',  wash:119,  essential:186, full:266, premium:372},
-      atv:        {label:'ATV',                icon:'🏎️', desc:'All-Terrain Vehicle · Quad',           wash:119,  essential:186, full:266, premium:372},
-      utv:        {label:'UTV / Side-by-Side', icon:'🚜', desc:'Side-by-side · Sport UTV · Crew cab',  wash:146, essential:226, full:332, premium:466},
-      jetski:     {label:'Jet Ski / PWC',      icon:'🌊', desc:'PWC · Sea-Doo · Yamaha · Kawasaki',   wash:119,  essential:186, full:266, premium:367},
+      motorcycle: {label:'Motorcycle',         icon:'🏍️', desc:'Street · Cruiser · Sport · Touring',  wash:100,  essential:160, full:225, premium:315},
+      atv:        {label:'ATV',                icon:'🏎️', desc:'All-Terrain Vehicle · Quad',           wash:100,  essential:160, full:225, premium:315},
+      utv:        {label:'UTV / Side-by-Side', icon:'🚜', desc:'Side-by-side · Sport UTV · Crew cab',  wash:125, essential:190, full:280, premium:395},
+      jetski:     {label:'Jet Ski / PWC',      icon:'🌊', desc:'PWC · Sea-Doo · Yamaha · Kawasaki',   wash:100,  essential:160, full:225, premium:310},
     },
     packages:[
       {id:'wash',     name:'Wash & Shine',     icon:'🪣', tag:'Quick refresh + UV protection',               dur:'~45–75 min', popular:false,
@@ -2952,9 +2952,9 @@ const PRICING = {
   },
   fleet: {
     tiers: {
-      vehicle:     {label:'Cars / SUVs / Trucks Fleet',     icon:'🚗', desc:'3+ passenger vehicles. Per-unit pricing on car-style packages.',              maint:79,  essential:132, full:212, premium:306, custom:0},
-      commercial:  {label:'Vans / Trucks / Buses',          icon:'🚚', desc:'Sprinters, cargo vans, box trucks, work trucks, school buses & shuttles.',    maint:119, essential:199, full:319, premium:0,   custom:0},
-      powersports: {label:'Golf Carts / Powersports Fleet', icon:'⛳', desc:'Golf carts, motorcycles, ATVs, UTVs, quads. Per-unit pricing.',               maint:60,  essential:92,  full:154, premium:234, custom:0},
+      vehicle:     {label:'Cars / SUVs / Trucks Fleet',     icon:'🚗', desc:'3+ passenger vehicles. Per-unit pricing on car-style packages.',              maint:65,  essential:110, full:180, premium:260, custom:0},
+      commercial:  {label:'Vans / Trucks / Buses',          icon:'🚚', desc:'Sprinters, cargo vans, box trucks, work trucks, school buses & shuttles.',    maint:100, essential:170, full:270, premium:0,   custom:0},
+      powersports: {label:'Golf Carts / Powersports Fleet', icon:'⛳', desc:'Golf carts, motorcycles, ATVs, UTVs, quads. Per-unit pricing.',               maint:50,  essential:80,  full:130, premium:200, custom:0},
       marine_rv:   {label:'Boat / RV / Trailer Fleet',      icon:'🚥️️️️', desc:'Fleet boats, RVs, campers, trailers - quoted by average length Ã— unit count.',maint:0,   essential:0,   full:0,   premium:0,   custom:0}
     },
     packages:[
@@ -2992,30 +2992,30 @@ const LENGTH_PRICING = {
   boats: {
     min: 12, max: 60, defaultFt: 22, estimateOver: 36,
     packages: {
-      maint:     {perFt: 12, min: 199},
-      essential: {perFt: 21, min: 299},
-      full:      {perFt: 30, min: 449},
-      premium:   {perFt: 38, min: 699}
+      maint:     {perFt: 10, min: 170},
+      essential: {perFt: 18, min: 255},
+      full:      {perFt: 26, min: 380},
+      premium:   {perFt: 32, min: 595}
     }
   },
   rvs: {
     min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
-      maint:       { base: 150, ratePerFoot: 10 },
-      maint_light: { base: 250, ratePerFoot: 16 },
-      interior:    { base: 250, ratePerFoot: 18 },
-      full_basic:  { base: 300, ratePerFoot: 25 },
-      premium:     { base: 300, ratePerFoot: 28 },
-      full:        { base: 400, ratePerFoot: 36 },
+      maint:       { base: 130, ratePerFoot: 9 },
+      maint_light: { base: 215, ratePerFoot: 14 },
+      interior:    { base: 215, ratePerFoot: 15 },
+      full_basic:  { base: 255, ratePerFoot: 21 },
+      premium:     { base: 255, ratePerFoot: 24 },
+      full:        { base: 340, ratePerFoot: 31 },
     }
   },
   fleet: {
     min: 10, max: 60, defaultFt: 24, estimateOver: 36,
     packages: {
-      maint:     {perFt: 13, min: 199},
-      essential: {perFt: 19, min: 332},
-      full:      {perFt: 27, min: 599},
-      premium:   {perFt: 35, min: 800},
+      maint:     {perFt: 11, min: 170},
+      essential: {perFt: 16, min: 280},
+      full:      {perFt: 23, min: 510},
+      premium:   {perFt: 30, min: 680},
       custom:    {perFt: 0,  min: 0}
     }
   }
@@ -5124,10 +5124,10 @@ const ZONE_POPULAR = {
 };
 
 const LOC_DISPLAY = {
-  cars:       { ico:'🚗', name:'Cars & Trucks',    desc:'Most requested in your area', from:'From $225' },
-  boats:      { ico:'🚥️️️️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $199' },
+  cars:       { ico:'🚗', name:'Cars & Trucks',    desc:'Most requested in your area', from:'From $190' },
+  boats:      { ico:'🚥️️️️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $170' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $8/ft' },
-  powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $119' },
+  powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $100' },
 
 };
 
@@ -5844,7 +5844,7 @@ function _updateHomeFromPrices(){
   const BASE = {
     cars:        { price: Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.maint)), suffix:' · by vehicle size' },
     boats:       { price: LENGTH_PRICING.boats.packages.maint.min,     suffix:' · by vessel length' },
-    rvs:         { price: LENGTH_PRICING.rvs.packages.exterior.min,    suffix:' · by RV length' },
+    rvs:         { price: getLengthPrice('rvs','maint',LENGTH_PRICING.rvs.min,'travel'),    suffix:' · by RV length' },
     powersports: { price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=> Object.values(t).filter(v=>typeof v==='number')[0]||89)), suffix:' · by vehicle type' },
 
   };
