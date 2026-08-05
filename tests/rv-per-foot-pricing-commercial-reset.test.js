@@ -112,10 +112,10 @@ test('package hierarchy valid; other categories unchanged', () => {
   }
   const index = read('index.html');
   assert.match(index, /BK_VISIBLE_STEPS\s*=\s*6/);
-  assert.match(index, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-  assert.match(index, /id="home-from-interior">\$225/);
-  assert.equal(LENGTH_PRICING.boats.packages.full.min, 449);
-  assert.equal(LENGTH_PRICING.fleet.packages.maint.min, 199);
+  assert.match(index, /boats:[\s\S]*?maint:\s*\{perFt:\s*10,\s*min:\s*170\}/);
+  assert.match(index, /id="home-from-interior">\$190/);
+  assert.equal(LENGTH_PRICING.boats.packages.full.min, 380);
+  assert.equal(LENGTH_PRICING.fleet.packages.maint.min, 170);
 });
 
 test('public-surface sync remains idempotent', () => {

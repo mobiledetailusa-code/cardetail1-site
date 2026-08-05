@@ -60,7 +60,7 @@ function createMemoryStore(seed = {}) {
 }
 
 function baseBooking(id, {
-  approvedCents = 17500,
+  approvedCents = 15000,
   settledCents = 0,
   paymentWorkflowStatus = null,
   addOnIds = [],
@@ -178,7 +178,7 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
     });
   }
 
-  it('1) Admin add before payment: 17500/0/17500 → 21500/0/21500', async () => {
+  it('1) Admin add before payment: 15000/0/15000 → 19000/0/19000', async () => {
     const id = nextId('BP-ADD');
     await seedBlob(baseBooking(id));
 
@@ -189,19 +189,19 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
     });
     assert.equal(result.ok, true, result.error);
     assert.equal(result.noop, false);
-    assert.equal(result.projection.approvedCents, 21500);
+    assert.equal(result.projection.approvedCents, 19000);
     assert.equal(result.projection.settledCents, 0);
-    assert.equal(result.projection.remainingCents, 21500);
-    assert.equal(result.financialProjection.approvedCents, 21500);
-    assert.equal(result.financialProjection.remainingCents, 21500);
+    assert.equal(result.projection.remainingCents, 19000);
+    assert.equal(result.financialProjection.approvedCents, 19000);
+    assert.equal(result.financialProjection.remainingCents, 19000);
     assert.equal(result.quoteVersion, result.priorQuoteVersion + 1);
     assert.deepEqual(result.selectedAddonIds, ['ozone']);
   });
 
-  it('2) Admin remove before payment: 21500/0/21500 → 17500/0/17500', async () => {
+  it('2) Admin remove before payment: 19000/0/19000 → 15000/0/15000', async () => {
     const id = nextId('BP-RM');
     await seedBlob(baseBooking(id, {
-      approvedCents: 21500,
+      approvedCents: 19000,
       addOnIds: ['ozone'],
       quoteVersion: 2,
     }));
@@ -213,19 +213,19 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
     });
     assert.equal(result.ok, true, result.error);
     assert.equal(result.noop, false);
-    assert.equal(result.projection.approvedCents, 17500);
+    assert.equal(result.projection.approvedCents, 15000);
     assert.equal(result.projection.settledCents, 0);
-    assert.equal(result.projection.remainingCents, 17500);
-    assert.equal(result.financialProjection.remainingCents, 17500);
+    assert.equal(result.projection.remainingCents, 15000);
+    assert.equal(result.financialProjection.remainingCents, 15000);
     assert.deepEqual(result.selectedAddonIds, []);
   });
 
-  it('3) Admin add after payment: 17500/17500/0 → 21500/17500/4000 (unpaid delta only)', async () => {
+  it('3) Admin add after payment: 15000/15000/0 → 19000/15000/4000 (unpaid delta only)', async () => {
     const { financialProjection } = require('../netlify/lib/payment-service');
     const id = nextId('AP-ADD');
     await seedBlob(baseBooking(id, {
-      approvedCents: 17500,
-      settledCents: 17500,
+      approvedCents: 15000,
+      settledCents: 15000,
       paymentWorkflowStatus: 'payment_succeeded',
     }));
 
@@ -235,11 +235,11 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
       vehicleId: 'veh_1',
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.projection.approvedCents, 21500);
-    assert.equal(result.projection.settledCents, 17500);
+    assert.equal(result.projection.approvedCents, 19000);
+    assert.equal(result.projection.settledCents, 15000);
     assert.equal(result.projection.remainingCents, 4000);
-    assert.equal(result.financialProjection.approvedCents, 21500);
-    assert.equal(result.financialProjection.settledCents, 17500);
+    assert.equal(result.financialProjection.approvedCents, 19000);
+    assert.equal(result.financialProjection.settledCents, 15000);
     assert.equal(result.financialProjection.remainingCents, 4000);
     assert.equal(result.financialProjection.invoicePaid, false);
 
@@ -255,8 +255,8 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
     const id = nextId('PARITY');
     await seedBlob(baseBooking(id, {
-      approvedCents: 17500,
-      settledCents: 17500,
+      approvedCents: 15000,
+      settledCents: 15000,
       paymentWorkflowStatus: 'payment_succeeded',
     }));
 
@@ -271,7 +271,7 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
     const refreshed = await getBookingRecord(id);
     const blob = financialProjection(refreshed.booking);
     // Postgres authority, Blob compatibility, and the Admin response all agree.
-    assert.equal(pg.approvedCents, 21500);
+    assert.equal(pg.approvedCents, 19000);
     assert.equal(pg.approvedCents, blob.approvedCents);
     assert.equal(pg.settledCents, blob.settledCents);
     assert.equal(pg.remainingCents, blob.remainingCents);
@@ -292,7 +292,7 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
     const id = nextId('DUP');
     await seedBlob(baseBooking(id, {
-      approvedCents: 21500,
+      approvedCents: 19000,
       addOnIds: ['ozone'],
       quoteVersion: 2,
     }));
@@ -345,8 +345,8 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
     const id = nextId('RM-DENY');
     const seeded = baseBooking(id, {
-      approvedCents: 21500,
-      settledCents: 17500,
+      approvedCents: 19000,
+      settledCents: 15000,
       addOnIds: ['ozone'],
       paymentWorkflowStatus: 'awaiting_customer_payment',
       quoteVersion: 2,
@@ -367,8 +367,8 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
     assert.equal(denied.error, 'settled_addon_remove_denied');
 
     const after = await getBookingRecord(id);
-    assert.equal(after.booking.ledger.approvedCents, 21500);
-    assert.equal(after.booking.ledger.settledCents, 17500);
+    assert.equal(after.booking.ledger.approvedCents, 19000);
+    assert.equal(after.booking.ledger.settledCents, 15000);
     assert.equal(after.booking.bookingVersion, 1, 'denied removal must not mutate booking');
     assert.equal(auditLog.length, 1);
     assert.equal(auditLog[0].action, 'admin_addon_denied');
@@ -404,8 +404,8 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
       addon: { id: 'ozone', name: 'Cheap', price: 0.01 },
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.projection.approvedCents, 21500, 'catalog ozone=$40 must win over any client price');
-    assert.equal(result.projection.remainingCents, 21500);
+    assert.equal(result.projection.approvedCents, 19000, 'catalog ozone=$40 must win over any client price');
+    assert.equal(result.projection.remainingCents, 19000);
   });
 
   it('10) expectedBookingVersion conflict creates no mutation', async () => {
@@ -426,7 +426,7 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
 
     const after = await getBookingRecord(id);
     assert.equal(after.booking.bookingVersion, 1);
-    assert.equal(after.booking.ledger.approvedCents, 17500);
+    assert.equal(after.booking.ledger.approvedCents, 15000);
     assert.equal(await prisma.quote.count({ where: { bookingId: id } }), 0);
     assert.equal((await repo.listLedgerEntries(id)).length, 0);
     assert.equal((await repo.listPaymentAttempts(id)).length, 0);
@@ -538,9 +538,9 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
     assert.equal(facts.priorBookingVersion, 1);
     assert.equal(facts.bookingVersion, result.bookingVersion);
     assert.equal(facts.quoteVersion, facts.priorQuoteVersion + 1);
-    assert.equal(facts.approvedCents, 21500);
+    assert.equal(facts.approvedCents, 19000);
     assert.equal(facts.settledCents, 0);
-    assert.equal(facts.remainingCents, 21500);
+    assert.equal(facts.remainingCents, 19000);
     assert.equal(facts.result, 'ok');
     assert.equal(facts.noop, false);
     const raw = JSON.stringify(entry);

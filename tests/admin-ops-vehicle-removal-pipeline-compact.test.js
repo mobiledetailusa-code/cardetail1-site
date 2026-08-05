@@ -62,9 +62,9 @@ function twoVehicleFixture(overrides) {
     jobStatus: 'confirmed',
     zipCode: '07102',
     travelFeeAmount: 0,
-    approvedFinalAmount: 887,
+    approvedFinalAmount: 791,
     amountPaid: 0,
-    ledger: { approvedCents: 88700, settledCents: 0, creditedCents: 0, entries: [] },
+    ledger: { approvedCents: 79100, settledCents: 0, creditedCents: 0, entries: [] },
     rescheduledByClient: true,
     rescheduleRequestedDate: '2026-12-19',
     vehicles: [
@@ -81,13 +81,13 @@ function twoVehicleFixture(overrides) {
         pkgId: 'maint',
         pkgName: 'Maintenance Detail',
         packageName: 'Maintenance Detail',
-        basePrice: 175,
-        packagePrice: 175,
-        addonTotal: 225,
-        subtotal: 400,
+        basePrice: 185,
+        packagePrice: 185,
+        addonTotal: 185,
+        subtotal: 370,
         addons: [
           { id: 'pethair', name: 'Pet Hair Removal', qty: 1, price: 95 },
-          { id: 'odor', name: 'Odor Treatment & Sanitize', qty: 1, price: 149 },
+          { id: 'odor', name: 'Odor Treatment & Sanitize', qty: 1, price: 90 },
         ],
         addOnIds: ['pethair', 'odor'],
       },
@@ -104,10 +104,10 @@ function twoVehicleFixture(overrides) {
         pkgName: 'Essential Marine',
         packageName: 'Essential Marine',
         lengthFt: 22,
-        basePrice: 462,
-        packagePrice: 462,
+        basePrice: 396,
+        packagePrice: 396,
         addonTotal: 25,
-        subtotal: 487,
+        subtotal: 421,
         addons: [{ id: 'rainx', name: 'Rain-X Glass Treatment', qty: 1, price: 25 }],
         addOnIds: ['rainx'],
       },
@@ -125,7 +125,7 @@ describe('admin change-request projection', () => {
         requestType: 'vehicle_remove_request',
         status: 'pending',
         baseBookingVersion: 5,
-        proposedApprovedCents: 48700,
+        proposedApprovedCents: 42100,
         target: { vehicleId: 'veh_bronco' },
         delta: {
           operation: 'vehicle_remove',
@@ -134,10 +134,10 @@ describe('admin change-request projection', () => {
             vehicleLabel: '2025 Ford Bronco',
             packageName: 'Maintenance Detail',
             addons: [{ name: 'Pet Hair Removal' }],
-            subtotal: 400,
+            subtotal: 370,
           },
-          currentApprovedCents: 88700,
-          proposedApprovedCents: 48700,
+          currentApprovedCents: 79100,
+          proposedApprovedCents: 42100,
         },
         submittedAt: '2026-08-03T12:00:00.000Z',
       }],
@@ -146,8 +146,8 @@ describe('admin change-request projection', () => {
     assert.equal(pendingChangeRequestCount, 1);
     assert.equal(pendingChangeRequests[0].requestType, 'vehicle_remove_request');
     assert.equal(pendingChangeRequests[0].vehicleId, 'veh_bronco');
-    assert.equal(pendingChangeRequests[0].proposedApprovedCents, 48700);
-    assert.equal(pendingChangeRequests[0].requestedState.proposedTotal, 487);
+    assert.equal(pendingChangeRequests[0].proposedApprovedCents, 42100);
+    assert.equal(pendingChangeRequests[0].requestedState.proposedTotal, 421);
   });
 
   it('projectJobForAdmin surfaces pendingChangeRequests (not only legacy flags)', () => {
@@ -157,10 +157,10 @@ describe('admin change-request projection', () => {
         requestType: 'vehicle_remove_request',
         status: 'pending',
         target: { vehicleId: 'veh_boat' },
-        proposedApprovedCents: 40000,
+        proposedApprovedCents: 37000,
         delta: {
-          vehicleSnapshot: { vehicleId: 'veh_boat', packageName: 'Essential Marine', subtotal: 487 },
-          currentApprovedCents: 88700,
+          vehicleSnapshot: { vehicleId: 'veh_boat', packageName: 'Essential Marine', subtotal: 421 },
+          currentApprovedCents: 79100,
         },
       }],
     }));
@@ -255,7 +255,7 @@ describe('vehicle_remove approval path (server)', () => {
     setBookingStoreOverride(null);
   });
 
-  it('submit + admin projection + approve Bronco → $487; boat path → $400', async () => {
+  it('submit + admin projection + approve Bronco → $421; boat path → $370', async () => {
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,
@@ -271,7 +271,7 @@ describe('vehicle_remove approval path (server)', () => {
     });
     assert.equal(submitted.ok, true, submitted.error);
     assert.ok(submitted.changeRequest.requestId);
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 48700);
+    assert.equal(submitted.changeRequest.proposedApprovedCents, 42100);
     assert.equal((await getBookingRecord('CD1-MSC8D3IS-9NPP')).booking.vehicles.length, 2);
 
     const job = projectJobForAdmin((await getBookingRecord('CD1-MSC8D3IS-9NPP')).booking);
@@ -308,7 +308,7 @@ describe('vehicle_remove approval path (server)', () => {
     const after = await getBookingRecord('CD1-MSC8D3IS-9NPP');
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_boat');
-    assert.equal(after.booking.ledger.approvedCents, 48700);
+    assert.equal(after.booking.ledger.approvedCents, 42100);
 
     store = createMemoryStore({ 'CD1-MSC8D3IS-9NPP': twoVehicleFixture() });
     setBookingStoreOverride(store);
@@ -319,13 +319,13 @@ describe('vehicle_remove approval path (server)', () => {
       target: { vehicleId: 'veh_boat' },
       delta: {},
     });
-    assert.equal(subBoat.changeRequest.proposedApprovedCents, 40000);
+    assert.equal(subBoat.changeRequest.proposedApprovedCents, 37000);
   });
 
   it('paid booking approve returns payment_adjustment_required', async () => {
     store = createMemoryStore({
       'CD1-MSC8D3IS-9NPP': twoVehicleFixture({
-        ledger: { approvedCents: 88700, settledCents: 88700, creditedCents: 0, entries: [] },
+        ledger: { approvedCents: 79100, settledCents: 79100, creditedCents: 0, entries: [] },
         paymentStatus: 'paid',
         paymentWorkflowStatus: 'payment_succeeded',
       }),

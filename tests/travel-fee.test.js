@@ -101,7 +101,7 @@ test('applyServerTravelAndTotal rejects out-of-area zip', () => {
 test('applyServerTravelAndTotal ignores inflated client travel fee', () => {
   const b = {
     zipCode: '07601',
-    totalPrice: 175,
+    totalPrice: 150,
     zoneSurcharge: 100,
     vehicles: [{
       cat: 'cars',
@@ -116,7 +116,7 @@ test('applyServerTravelAndTotal ignores inflated client travel fee', () => {
   const r = applyServerTravelAndTotal(b);
   assert.equal(r.ok, true);
   assert.equal(b.travelFeeAmount, 0);
-  assert.equal(b.totalPrice, 175);
+  assert.equal(b.totalPrice, 150);
 });
 
 /* ── Browser and server must quote the same number ───────────────────────── */

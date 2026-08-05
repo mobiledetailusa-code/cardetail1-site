@@ -139,13 +139,13 @@ test('ADD-ONS: historical Mold Treatment records remain display-safe', () => {
 
 test('PRICING: six-package hierarchy and base+ratePerFoot math', () => {
   const lp = LENGTH_PRICING.rvs.packages;
-  assert.equal(lp.maint.base, 150);
-  assert.equal(lp.maint.ratePerFoot, 10);
-  assert.equal(lp.maint_light.base, 250);
-  assert.equal(lp.interior.base, 250);
-  assert.equal(lp.full_basic.base, 300);
-  assert.equal(lp.premium.base, 300);
-  assert.equal(lp.full.base, 400);
+  assert.equal(lp.maint.base, 130);
+  assert.equal(lp.maint.ratePerFoot, 9);
+  assert.equal(lp.maint_light.base, 215);
+  assert.equal(lp.interior.base, 215);
+  assert.equal(lp.full_basic.base, 255);
+  assert.equal(lp.premium.base, 255);
+  assert.equal(lp.full.base, 340);
   assert.equal(Object.keys(lp).sort().join(','), FINAL_IDS.slice().sort().join(','));
 
   assert.ok(lp.maint_light.base > lp.maint.base);
@@ -153,18 +153,18 @@ test('PRICING: six-package hierarchy and base+ratePerFoot math', () => {
 
   const ft = 24;
   const prices = Object.fromEntries(FINAL_IDS.map((id) => [id, getLengthPrice('rvs', id, ft, 'travel')]));
-  assert.equal(prices.maint, 390);
-  assert.equal(prices.maint_light, 634);
-  assert.equal(prices.interior, 682);
-  assert.equal(prices.full_basic, 900);
-  assert.equal(prices.premium, 972);
-  assert.equal(prices.full, 1264);
+  assert.equal(prices.maint, 346);
+  assert.equal(prices.maint_light, 551);
+  assert.equal(prices.interior, 575);
+  assert.equal(prices.full_basic, 759);
+  assert.equal(prices.premium, 831);
+  assert.equal(prices.full, 1084);
   assert.ok(prices.maint < prices.maint_light);
   assert.ok(prices.full > prices.premium);
 
   const lengthBlock = extractRvLength(read('index.html'));
-  assert.match(lengthBlock, /maint_light:\s*\{ base: 250, ratePerFoot: 16 \}/);
-  assert.match(lengthBlock, /full:\s*\{ base: 400, ratePerFoot: 36 \}/);
+  assert.match(lengthBlock, /maint_light:\s*\{ base: 215, ratePerFoot: 14 \}/);
+  assert.match(lengthBlock, /full:\s*\{ base: 340, ratePerFoot: 31 \}/);
 });
 
 test('DISPLAY: single-price cards and booking CTAs; no funnel', () => {

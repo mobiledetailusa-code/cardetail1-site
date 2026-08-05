@@ -75,9 +75,9 @@ describe('portal change request stability', () => {
         jobStatus: 'confirmed',
         zipCode: '07102',
         travelFeeAmount: 0,
-        approvedFinalAmount: 315,
+        approvedFinalAmount: 270,
         amountPaid: 0,
-        ledger: { approvedCents: 31500, settledCents: 0, creditedCents: 0, entries: [] },
+        ledger: { approvedCents: 27000, settledCents: 0, creditedCents: 0, entries: [] },
         vehicles: [{
           vehicleId: 'veh_1',
           cat: 'cars',
@@ -142,7 +142,7 @@ describe('portal change request stability', () => {
         jobStatus: 'confirmed',
         zipCode: '07102',
         travelFeeAmount: 0,
-        ledger: { approvedCents: 34000, settledCents: 0, creditedCents: 0, entries: [] },
+        ledger: { approvedCents: 36000, settledCents: 0, creditedCents: 0, entries: [] },
         vehicles: [{
           vehicleId: 'veh_1',
           category: 'cars',
@@ -161,7 +161,7 @@ describe('portal change request stability', () => {
           target: { vehicleId: 'veh_1' },
           delta: { addOnIdsToAdd: ['odor'], addonIds: ['odor'] },
           quoteVersion: 2,
-          proposedApprovedCents: 34000,
+          proposedApprovedCents: 36000,
         }],
       },
     });

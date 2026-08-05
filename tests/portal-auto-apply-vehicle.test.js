@@ -152,7 +152,7 @@ describe('portal auto-apply + vehicle coerce', () => {
         jobStatus: 'confirmed',
         zipCode: '07102',
         travelFeeAmount: 0,
-        ledger: { approvedCents: 31500, settledCents: 0, creditedCents: 0, entries: [] },
+        ledger: { approvedCents: 27000, settledCents: 0, creditedCents: 0, entries: [] },
         vehicles: [{
           vehicleId: 'veh_1',
           category: 'cars',
@@ -184,7 +184,7 @@ describe('portal auto-apply + vehicle coerce', () => {
     });
     assert.equal(decided.ok, true, decided.error);
     const final = await getBookingRecord(bookingId);
-    assert.ok(Number(final.booking.ledger.approvedCents) > 31500);
-    assert.equal(Number(final.booking.approvedFinalAmount) > 315, true);
+    assert.ok(Number(final.booking.ledger.approvedCents) > 27000);
+    assert.equal(Number(final.booking.approvedFinalAmount) > 270, true);
   });
 });

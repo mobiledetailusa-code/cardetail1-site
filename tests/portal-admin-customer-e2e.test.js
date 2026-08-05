@@ -121,8 +121,8 @@ describe('e2e simulate: customer package change → admin approve → customer p
       }],
     }, { travelCents: 1000, basedOnBookingVersion: 1 });
     assert.equal(quoted.ok, true);
-    // SUV3 Premium $635 + $10 travel
-    assert.equal(quoted.quote.approvedCents, 64500);
+    // SUV3 Premium $540 + $10 travel
+    assert.equal(quoted.quote.approvedCents, 55000);
     const proposedTotal = quoted.approvedDollars;
 
     const after = simulateAdminApproveMoney(booking, proposedTotal, {
@@ -139,15 +139,15 @@ describe('e2e simulate: customer package change → admin approve → customer p
 
     const projected = projectBookingForCustomer(after);
     assert.equal(projected.package, 'Signature Interior & Exterior Restoration');
-    assert.equal(projected.approvedFinalAmount, 645);
-    assert.equal(projected.totalPrice, 645);
-    assert.equal(projected.amountDueApproved, 645);
+    assert.equal(projected.approvedFinalAmount, 550);
+    assert.equal(projected.totalPrice, 550);
+    assert.equal(projected.amountDueApproved, 550);
     assert.equal(projected.payLink, '');
     assert.equal(projected.customerChangePending, false);
 
     const pay = canPayBalance(after);
     assert.equal(pay.ok, true);
-    assert.equal(computeDue(after), 645);
+    assert.equal(computeDue(after), 550);
     assert.equal(detectMoneyConflict(after).ok, true);
   });
 
@@ -177,8 +177,8 @@ describe('e2e simulate: customer package change → admin approve → customer p
     assert.ok(portalOdor.price !== 90, 'portal catalog remains non-authoritative for odor');
 
     const booking = baseBooking({
-      approvedFinalAmount: 315,
-      amountDueApproved: 315,
+      approvedFinalAmount: 270,
+      amountDueApproved: 270,
       travelFeeAmount: 0,
       zipCode: '07102',
       vehicles: [{
@@ -203,8 +203,8 @@ describe('e2e simulate: customer package change → admin approve → customer p
       }],
     });
     assert.equal(quoted.ok, true);
-    // SUV3 Full $315 + pet $95 + odor $90 = $500
-    assert.equal(quoted.quote.approvedCents, 50000);
+    // SUV3 Full $270 + pet $95 + odor $90 = $455
+    assert.equal(quoted.quote.approvedCents, 45500);
     const proposedTotal = quoted.approvedDollars;
     const selected = resolveAddonsByIds(['pethair', 'odor']).map((a) => ({
       ...a,
@@ -217,8 +217,8 @@ describe('e2e simulate: customer package change → admin approve → customer p
     });
     const projected = projectBookingForCustomer(after);
     assert.equal(projected.addons.length, 2);
-    assert.equal(projected.approvedFinalAmount, 500);
-    assert.equal(projected.amountDueApproved, 500);
+    assert.equal(projected.approvedFinalAmount, 455);
+    assert.equal(projected.amountDueApproved, 455);
     assert.equal(projected.payLink, '');
   });
 });
@@ -228,7 +228,7 @@ describe('e2e simulate: boats & RVs length pricing modes', () => {
     assert.equal(usesLengthPricing('boats'), true);
     const price22 = getLengthPrice('boats', 'full', 22);
     const price40 = getLengthPrice('boats', 'full', 40);
-    assert.ok(price22 >= 449);
+    assert.ok(price22 >= 380);
     assert.ok(price40 > price22);
     assert.ok(packagesForCategory('boats').some((p) => p.id === 'premium'));
   });

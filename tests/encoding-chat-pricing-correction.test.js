@@ -78,7 +78,7 @@ test('updateBkFromPrices remains syntactically complete on all public pages with
   }
 });
 
-test('getCategoryFromBases public Cars minimum is Interior Detail at 225', () => {
+test('getCategoryFromBases public Cars minimum is Interior Detail at 190', () => {
   const html = read('index.html');
   assert.match(html, /function getCategoryFromBases\(\)\{[\s\S]*?\.interior\)/);
   assert.match(html, /cars:Math\.min\(\.\.\.Object\.values\(PRICING\.cars\.tiers\)\.map\(t=>t\.interior\)\)/);
@@ -86,18 +86,18 @@ test('getCategoryFromBases public Cars minimum is Interior Detail at 225', () =>
   assert.ok(carsBlock, 'cars pricing block missing');
   const interiors = [...carsBlock[0].matchAll(/interior:(\d+)/g)].map((m) => Number(m[1]));
   assert.ok(interiors.length >= 4, 'expected interior tier prices');
-  assert.equal(Math.min(...interiors), 225);
+  assert.equal(Math.min(...interiors), 190);
 });
 
-test('chat public Cars starting price uses getCategoryFromBases not hardcoded 175', () => {
+test('chat public Cars starting price uses getCategoryFromBases not hardcoded 150', () => {
   for (const page of CHAT_PAGES) {
     const html = read(page);
     assert.match(html, /function chatStartingPricesReply\(\)/, `${page} missing chatStartingPricesReply`);
     assert.match(html, /getCategoryFromBases\(\)/, `${page} missing getCategoryFromBases`);
     assert.match(html, /applyRichPrice\(b\.cars\)/, `${page} chat cars price not derived from category bases`);
     assert.match(html, /reply:chatStartingPricesReply\(\)/, `${page} pricing intent not wired to chatStartingPricesReply`);
-    assert.doesNotMatch(html, /Cars & Trucks — from <b>\$175/, `${page} hardcoded chat cars $175`);
-    assert.doesNotMatch(html, /from <b>\$175<\/b> \(Interior Detail\)/, `${page} hardcoded $175 interior promo`);
+    assert.doesNotMatch(html, /Cars & Trucks — from <b>\$150/, `${page} hardcoded chat cars $150`);
+    assert.doesNotMatch(html, /from <b>\$150<\/b> \(Interior Detail\)/, `${page} hardcoded $150 interior promo`);
   }
 });
 
@@ -106,29 +106,29 @@ test('chat does not use maint tier as promotional Cars minimum', () => {
     const html = read(page);
     const helper = html.match(/function chatStartingPricesReply\(\)\{[\s\S]*?\n\}/);
     assert.ok(helper, `${page} missing chat helper`);
-    assert.doesNotMatch(helper[0], /maint|175/, `${page} chat helper references maint/175`);
+    assert.doesNotMatch(helper[0], /maint|150/, `${page} chat helper references maint/150`);
     assert.match(helper[0], /Interior Detail/, `${page} chat helper should identify Interior Detail`);
   }
 });
 
-test('booking still contains Maintenance Detail at 175 and Interior Detail at 225', () => {
+test('booking still contains Maintenance Detail at 150 and Interior Detail at 190', () => {
   const html = read('index.html');
-  assert.match(html, /maint:175/);
-  assert.match(html, /interior:225/);
+  assert.match(html, /maint:150/);
+  assert.match(html, /interior:190/);
   assert.match(html, /id:'maint'[\s\S]*?Maintenance Detail/);
   assert.match(html, /id:'interior'[\s\S]*?Interior Detail/);
 });
 
-test('public homepage Cars price remains 225', () => {
+test('public homepage Cars price remains 190', () => {
   const html = read('index.html');
-  assert.match(html, /id="home-from-interior">\$225/);
+  assert.match(html, /id="home-from-interior">\$190/);
 });
 
 test('specialty public prices unchanged', () => {
   const html = read('index.html');
-  assert.match(html, /id="bkfrom-boats"[\s\S]*?From \$199/);
+  assert.match(html, /id="bkfrom-boats"[\s\S]*?From \$170/);
   assert.match(html, /id="bkfrom-rvs"[\s\S]*?Price calculated from your vehicle details/);
-  assert.match(html, /id="bkfrom-powersports"[\s\S]*?From \$119/);
+  assert.match(html, /id="bkfrom-powersports"[\s\S]*?From \$100/);
   assert.ok(fs.existsSync(path.join(root, 'fleet-services.html')));
 });
 
@@ -188,6 +188,12 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/qa-blobs-health.js',
     // Owner Studio Stage 1 — protected read-only status endpoint (flags off by default)
     'netlify/functions/owner-studio-status.js',
+    // Existing PR #157 operational surfaces.
+    'netlify/functions/booking-availability.js',
+    'netlify/functions/customer-receipt.js',
+    'netlify/functions/ops-settings.js',
+    'netlify/functions/submit-review.js',
+    'netlify/functions/tech-accounts.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);
@@ -196,8 +202,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
 
 test('cars pricing formulas remain stable while RV ladder may update', () => {
   const html = read('index.html');
-  assert.match(html, /small:\s*\{label:'Small Car'[\s\S]*?maint:175,\s*interior:225/);
-  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 250, ratePerFoot: 16 \}/);
-  assert.match(html, /rvs:[\s\S]*?full:\s*\{ base: 400, ratePerFoot: 36 \}/);
+  assert.match(html, /small:\s*\{label:'Small Car'[\s\S]*?maint:150,\s*interior:190/);
+  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*10,\s*min:\s*170\}/);
+  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 215, ratePerFoot: 14 \}/);
+  assert.match(html, /rvs:[\s\S]*?full:\s*\{ base: 340, ratePerFoot: 31 \}/);
 });

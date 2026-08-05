@@ -29,9 +29,9 @@ test('Package CTAs use package-booking-cta into six-step booking', () => {
 });
 
 test('Maint uses base+ratePerFoot authoritative table', () => {
-  assert.equal(LENGTH_PRICING.rvs.packages.maint.base, 150);
-  assert.equal(LENGTH_PRICING.rvs.packages.maint.ratePerFoot, 10);
-  assert.equal(getLengthPrice('rvs', 'maint', 19, 'travel'), 340);
+  assert.equal(LENGTH_PRICING.rvs.packages.maint.base, 130);
+  assert.equal(LENGTH_PRICING.rvs.packages.maint.ratePerFoot, 9);
+  assert.equal(getLengthPrice('rvs', 'maint', 19, 'travel'), 301);
   assert.notEqual(getLengthPrice('rvs', 'maint', 19, 'travel'), Math.max(129, Math.round(8.5 * 19)));
 });
 

@@ -582,18 +582,18 @@ describe('pricing catalog unchanged for specialty packages', () => {
   });
   it('LENGTH_PRICING boat mins unchanged', () => {
     const html = read('index.html');
-    assert.match(html, /boats:\s*\{[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-    assert.match(html, /full:\s*\{perFt:\s*30,\s*min:\s*449\}/);
-    assert.match(html, /premium:\s*\{perFt:\s*38,\s*min:\s*699\}/);
+    assert.match(html, /boats:\s*\{[\s\S]*?maint:\s*\{perFt:\s*10,\s*min:\s*170\}/);
+    assert.match(html, /full:\s*\{perFt:\s*26,\s*min:\s*380\}/);
+    assert.match(html, /premium:\s*\{perFt:\s*32,\s*min:\s*595\}/);
   });
   it('LENGTH_PRICING rv mins match Preview104 commercial ladder', () => {
     const html = read('index.html');
-    assert.match(html, /rvs:\s*\{[\s\S]*?maint:\s*\{ base: 150, ratePerFoot: 10 \}/);
-    assert.match(html, /maint_light:\s*\{ base: 250, ratePerFoot: 16 \}/);
-    assert.match(html, /interior:\s*\{ base: 250, ratePerFoot: 18 \}/);
-    assert.match(html, /full_basic:\s*\{ base: 300, ratePerFoot: 25 \}/);
-    assert.match(html, /premium:\s*\{ base: 300, ratePerFoot: 28 \}/);
-    assert.match(html, /full:\s*\{ base: 400, ratePerFoot: 36 \}/);
+    assert.match(html, /rvs:\s*\{[\s\S]*?maint:\s*\{ base: 130, ratePerFoot: 9 \}/);
+    assert.match(html, /maint_light:\s*\{ base: 215, ratePerFoot: 14 \}/);
+    assert.match(html, /interior:\s*\{ base: 215, ratePerFoot: 15 \}/);
+    assert.match(html, /full_basic:\s*\{ base: 255, ratePerFoot: 21 \}/);
+    assert.match(html, /premium:\s*\{ base: 255, ratePerFoot: 24 \}/);
+    assert.match(html, /full:\s*\{ base: 340, ratePerFoot: 31 \}/);
     assert.doesNotMatch(html, /rvs:[\s\S]*?correction:\s*\{perFt:/);
   });
 });

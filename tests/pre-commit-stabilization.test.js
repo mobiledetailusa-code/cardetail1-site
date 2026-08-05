@@ -165,6 +165,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
   }
   const changed = diff.trim().split(/\r?\n/).filter(Boolean);
   const allowed = new Set([
+    'netlify/functions/ai-chat.js',
     'netlify/functions/revenue-event.js',
     'netlify/functions/garage-plan-submit.js',
     'netlify/functions/revenue-admin.js',
@@ -324,12 +325,23 @@ test('Netlify Function changes vs production master are limited to approved RevO
     // Booking conversion production readiness — operational availability + flexibility
     'netlify/functions/booking-availability.js',
     'netlify/functions/ops-settings.js',
+    'netlify/functions/customer-receipt.js',
+    'netlify/functions/submit-review.js',
     'netlify/lib/operational-availability.js',
     'netlify/lib/schedule-flexibility.js',
     'netlify/lib/arrival-windows.js',
     'netlify/lib/ops-config.js',
     'netlify/lib/site-access.js',
     'netlify/lib/site-access-client.js',
+    // Existing PR #157 Admin/payment/post-service implementation.
+    'netlify/lib/admin-change-request-projection.js',
+    'netlify/lib/data/service-area-zip-coords.js',
+    'netlify/lib/package-details-resolve.js',
+    'netlify/lib/payment-method-policy.js',
+    'netlify/lib/post-service-experience.js',
+    'netlify/lib/price-adjustments.js',
+    'netlify/lib/receipt-projection.js',
+    'netlify/lib/service-issue-notifications.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);
@@ -343,12 +355,12 @@ test('package IDs in index PRICING unchanged for specialty categories', () => {
   assert.match(html, /powersports:[\s\S]*?id:'wash'/);
 });
 
-test('LENGTH_PRICING formulas (boat maint min 199, rv maint_light min 229)', () => {
+test('LENGTH_PRICING formulas (boat maint min 170, rv maint_light min 383)', () => {
   const html = read('index.html');
-  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 250, ratePerFoot: 16 \}/);
-  assert.match(html, /rvs:[\s\S]*?maint:\s*\{ base: 150, ratePerFoot: 10 \}/);
-  assert.match(html, /rvs:[\s\S]*?full:\s*\{ base: 400, ratePerFoot: 36 \}/);
+  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*10,\s*min:\s*170\}/);
+  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 215, ratePerFoot: 14 \}/);
+  assert.match(html, /rvs:[\s\S]*?maint:\s*\{ base: 130, ratePerFoot: 9 \}/);
+  assert.match(html, /rvs:[\s\S]*?full:\s*\{ base: 340, ratePerFoot: 31 \}/);
 });
 
 test('no secrets in public HTML/JS specialty surface', () => {

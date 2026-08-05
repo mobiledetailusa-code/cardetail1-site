@@ -60,7 +60,7 @@ function createMemoryStore(seed = {}) {
 }
 
 function baseBooking(id, {
-  approvedCents = 17500,
+  approvedCents = 15000,
   settledCents = 0,
   creditedCents = 0,
   bookingVersion = 1,
@@ -192,39 +192,39 @@ describe('PostgreSQL cash settlement authority', {
     return rows.filter((e) => authority.isCashSettlementEntry(e));
   }
 
-  it('1) omitted amount: PG 17500/0/17500 → 17500/17500/0', async () => {
+  it('1) omitted amount: PG 15000/0/15000 → 15000/15000/0', async () => {
     const id = nextId('OMIT');
     const booking = baseBooking(id);
     const store = await seed(booking);
     const before = await pgSnapshot(id);
-    assert.equal(before.approvedCents, 17500);
+    assert.equal(before.approvedCents, 15000);
     assert.equal(before.settledCents, 0);
-    assert.equal(before.remainingCents, 17500);
+    assert.equal(before.remainingCents, 15000);
 
     const result = await settle(store, booking, {});
     assert.equal(result.ok, true, result.error);
     assert.equal(result.authority, 'postgres');
-    assert.equal(result.postgresProjection.approvedCents, 17500);
-    assert.equal(result.postgresProjection.settledCents, 17500);
+    assert.equal(result.postgresProjection.approvedCents, 15000);
+    assert.equal(result.postgresProjection.settledCents, 15000);
     assert.equal(result.postgresProjection.remainingCents, 0);
-    assert.equal(result.settledAmountCents, 17500);
+    assert.equal(result.settledAmountCents, 15000);
     assert.equal(result.paymentStatus, 'paid_cash');
     assert.equal(result.jobStatus, 'completed_paid');
     assert.equal(result.serviceStatus, 'closed');
 
     const after = await pgSnapshot(id);
     assert.equal(after.remainingCents, 0);
-    assert.equal(after.settledCents, 17500);
+    assert.equal(after.settledCents, 15000);
   });
 
-  it('2) amount 175 dollars succeeds once', async () => {
+  it('2) amount 150 dollars succeeds once', async () => {
     const id = nextId('EXACT');
     const booking = baseBooking(id);
     const store = await seed(booking);
 
-    const result = await settle(store, booking, { amount: 175 });
+    const result = await settle(store, booking, { amount: 150 });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.settledAmountCents, 17500);
+    assert.equal(result.settledAmountCents, 15000);
     assert.equal((await cashEntries(id)).length, 1);
   });
 
@@ -239,7 +239,7 @@ describe('PostgreSQL cash settlement authority', {
     assert.equal(result.ok, false);
     assert.equal(result.error, 'cash_amount_mismatch');
     assert.equal(result.statusCode, 400);
-    assert.equal(result.expectedAmountCents, 17500);
+    assert.equal(result.expectedAmountCents, 15000);
     assert.equal(result.receivedAmountCents, 5000);
 
     const afterPg = await pgSnapshot(id);
@@ -256,8 +256,8 @@ describe('PostgreSQL cash settlement authority', {
   it('4+5) stale Blob remaining ignored — PG delta 4000 settles exactly 4000; portals agree', async () => {
     const id = nextId('DELTA');
     const booking = baseBooking(id, {
-      approvedCents: 17500,
-      settledCents: 17500,
+      approvedCents: 15000,
+      settledCents: 15000,
       paymentStatus: 'paid',
       paymentWorkflowStatus: 'payment_succeeded',
       jobStatus: 'completed_paid',
@@ -265,24 +265,24 @@ describe('PostgreSQL cash settlement authority', {
     });
     const store = await seed(booking);
 
-    // Authoritative post-pay add-on delta on Postgres (approved 21500, remaining 4000).
+    // Authoritative post-pay add-on delta on Postgres (approved 19000, remaining 4000).
     const adjusted = await authority.createAdjustment({
       bookingId: id,
-      newApprovedCents: 21500,
+      newApprovedCents: 19000,
       reason: 'addon_add',
     });
     assert.equal(adjusted.ok, true, adjusted.error);
     const pgMid = await pgSnapshot(id);
-    assert.equal(pgMid.approvedCents, 21500);
-    assert.equal(pgMid.settledCents, 17500);
+    assert.equal(pgMid.approvedCents, 19000);
+    assert.equal(pgMid.settledCents, 15000);
     assert.equal(pgMid.remainingCents, 4000);
     const quoteBeforeCash = pgMid.quoteVersion;
 
-    // Intentionally stale Blob — looks like full unpaid 21500, not 4000 remaining.
+    // Intentionally stale Blob — looks like full unpaid 19000, not 4000 remaining.
     const stale = store._snapshot(id);
     stale.ledger = {
       currency: 'usd',
-      approvedCents: 21500,
+      approvedCents: 19000,
       settledCents: 0,
       creditedCents: 0,
       entries: [],
@@ -297,30 +297,30 @@ describe('PostgreSQL cash settlement authority', {
     stale.serviceStatus = 'confirmed';
     stale.quoteVersion = quoteBeforeCash;
     await store.setJSON(id, stale);
-    assert.equal(financialProjection(store._snapshot(id)).remainingCents, 21500);
+    assert.equal(financialProjection(store._snapshot(id)).remainingCents, 19000);
 
     const result = await settle(store, stale, { amount: 40 });
     assert.equal(result.ok, true, result.error);
     assert.equal(result.authority, 'postgres');
     assert.equal(result.settledAmountCents, 4000);
     assert.equal(result.postgresProjection.remainingCents, 0);
-    assert.equal(result.postgresProjection.settledCents, 21500);
-    assert.equal(result.postgresProjection.approvedCents, 21500);
+    assert.equal(result.postgresProjection.settledCents, 19000);
+    assert.equal(result.postgresProjection.approvedCents, 19000);
 
     const pgAfter = await pgSnapshot(id);
     assert.equal(pgAfter.remainingCents, 0);
-    assert.equal(pgAfter.settledCents, 21500);
+    assert.equal(pgAfter.settledCents, 19000);
     assert.equal(pgAfter.quoteVersion, quoteBeforeCash, 'cash must not bump quoteVersion');
 
     const blobAfter = store._snapshot(id);
     const blobFp = financialProjection(blobAfter);
     assert.equal(blobFp.remainingCents, 0);
-    assert.equal(blobFp.settledCents, 21500);
-    assert.equal(blobFp.approvedCents, 21500);
+    assert.equal(blobFp.settledCents, 19000);
+    assert.equal(blobFp.approvedCents, 19000);
 
     const admin = projectJobForAdmin(blobAfter);
     assert.equal(admin.remainingCents, 0);
-    assert.equal(admin.settledCents, 21500);
+    assert.equal(admin.settledCents, 19000);
     assert.equal(result.financialProjection.remainingCents, 0);
 
     const cash = await cashEntries(id);
@@ -371,9 +371,9 @@ describe('PostgreSQL cash settlement authority', {
 
     const cash = await cashEntries(id);
     assert.equal(cash.length, 1);
-    assert.equal(cash[0].amountCents, 17500);
+    assert.equal(cash[0].amountCents, 15000);
     const pg = await pgSnapshot(id);
-    assert.equal(pg.settledCents, 17500);
+    assert.equal(pg.settledCents, 15000);
     assert.equal(pg.remainingCents, 0);
 
     // Compatibility close once after concurrent money settle.
@@ -414,7 +414,7 @@ describe('PostgreSQL cash settlement authority', {
     assert.equal(first.settlementRecorded, true);
     assert.equal(first.postgresProjection.remainingCents, 0);
     assert.equal((await cashEntries(id)).length, 1);
-    assert.equal(financialProjection(store._snapshot(id)).remainingCents, 17500);
+    assert.equal(financialProjection(store._snapshot(id)).remainingCents, 15000);
 
     const second = await settle(store, store._snapshot(id), {});
     assert.equal(second.ok, true, second.error);
@@ -431,13 +431,13 @@ describe('PostgreSQL cash settlement authority', {
     const store = await seed(booking);
 
     const result = await settle(store, booking, {
-      amount: 175,
+      amount: 150,
       expectedBookingVersion: 2,
     });
     assert.equal(result.ok, false);
     assert.equal(result.error, 'version_conflict');
     assert.equal((await cashEntries(id)).length, 0);
-    assert.equal((await pgSnapshot(id)).remainingCents, 17500);
+    assert.equal((await pgSnapshot(id)).remainingCents, 15000);
   });
 
   it('12) rejected amount changes no PG quote/settlement/PaymentAttempt/Blob status', async () => {
@@ -494,24 +494,24 @@ describe('PostgreSQL cash settlement authority', {
     assert.equal(result.ok, true, result.error);
     assert.equal(result.authority, 'blob');
     assert.equal(result.projection.remainingCents, 0);
-    assert.equal(result.settledAmountCents, 17500);
+    assert.equal(result.settledAmountCents, 15000);
   });
 
-  it('14) Admin empty payload remains supported', () => {
+  it('14) Admin submits the entered amount with booking-version CAS', () => {
     const src = read('admin-ops.html');
-    assert.match(src, /mark_cash_received',\s*\{\}/);
+    assert.match(src, /mark_cash_received',\s*\{\s*amount:\s*String\(amt\)\.trim\(\),\s*expectedBookingVersion:\s*j\.bookingVersion/);
   });
 
   it('15) omitted amount also works after stale-blob delta (no amount field)', async () => {
     const id = nextId('OMITD');
     const booking = baseBooking(id, {
-      approvedCents: 17500,
-      settledCents: 17500,
+      approvedCents: 15000,
+      settledCents: 15000,
       paymentStatus: 'paid',
       paymentWorkflowStatus: 'payment_succeeded',
     });
     const store = await seed(booking);
-    await authority.createAdjustment({ bookingId: id, newApprovedCents: 21500 });
+    await authority.createAdjustment({ bookingId: id, newApprovedCents: 19000 });
     const stale = store._snapshot(id);
     stale.ledger = {
       currency: 'usd',

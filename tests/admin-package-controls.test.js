@@ -62,7 +62,7 @@ function createMemoryStore(seed = {}) {
 }
 
 function baseBooking(id, {
-  approvedCents = 17500,
+  approvedCents = 15000,
   settledCents = 0,
   packageId = 'maint',
   pkgName = 'Maintenance Detail',
@@ -198,10 +198,10 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
     assert.equal(result.ok, true, result.error);
     assert.equal(result.noop, false);
     assert.equal(result.packageId, 'full');
-    assert.equal(result.postgresProjection.approvedCents, 28500);
+    assert.equal(result.postgresProjection.approvedCents, 24000);
     assert.equal(result.postgresProjection.settledCents, 0);
-    assert.equal(result.financialProjection.approvedCents, 28500);
-    assert.equal(result.financialProjection.remainingCents, 28500);
+    assert.equal(result.financialProjection.approvedCents, 24000);
+    assert.equal(result.financialProjection.remainingCents, 24000);
     assert.equal(result.quoteVersion, result.priorQuoteVersion + 1);
     const pgQuotes = await prisma.quote.findMany({ where: { bookingId: id }, orderBy: { quoteVersion: 'asc' } });
     assert.ok(pgQuotes.length >= 1, 'createAdjustment must create PG quote rows');
@@ -210,7 +210,7 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
   it('2) Admin change_package unpaid downgrade uses PostgreSQL createAdjustment', async () => {
     const id = nextId('DOWN');
     await seedBlob(baseBooking(id, {
-      approvedCents: 28500,
+      approvedCents: 24000,
       packageId: 'full',
       pkgName: 'Premium Full Detail',
       quoteVersion: 2,
@@ -221,8 +221,8 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
       vehicleId: 'veh_1',
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 17500);
-    assert.equal(result.financialProjection.approvedCents, 17500);
+    assert.equal(result.postgresProjection.approvedCents, 15000);
+    assert.equal(result.financialProjection.approvedCents, 15000);
     assert.equal(result.quoteVersion, result.priorQuoteVersion + 1);
   });
 
@@ -251,7 +251,7 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
       vehicleId: 'veh_1',
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 22500);
+    assert.equal(result.postgresProjection.approvedCents, 19000);
     assert.ok(result.postgresProjection);
     assert.ok(result.financialProjection);
     assert.equal(result.postgresProjection.approvedCents, result.financialProjection.approvedCents);
@@ -310,14 +310,14 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
       approvedFinalAmount: 0.01,
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 28500, 'catalog/Postgres price must win');
+    assert.equal(result.postgresProjection.approvedCents, 24000, 'catalog/Postgres price must win');
   });
 
   it('7) full settlement denies change_package', async () => {
     const id = nextId('FULLPAY');
     const store = await seedBlob(baseBooking(id, {
-      approvedCents: 17500,
-      settledCents: 17500,
+      approvedCents: 15000,
+      settledCents: 15000,
       paymentWorkflowStatus: 'payment_succeeded',
     }));
     const result = await mutate(id, {
@@ -338,7 +338,7 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
   it('8) partial settlement denies both Admin package actions', async () => {
     const id = nextId('PARTIAL');
     const store = await seedBlob(baseBooking(id, {
-      approvedCents: 28500,
+      approvedCents: 24000,
       settledCents: 5000,
       packageId: 'full',
       pkgName: 'Premium Full Detail',
@@ -361,7 +361,7 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
   it('9) denied calls create no PG quote/ledger/PI and no Blob money mutation', async () => {
     const id = nextId('DENY');
     const store = await seedBlob(baseBooking(id, {
-      approvedCents: 17500,
+      approvedCents: 15000,
       settledCents: 100,
     }));
     const before = await store.get(id);

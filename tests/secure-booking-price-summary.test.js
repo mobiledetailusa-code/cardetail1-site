@@ -64,25 +64,25 @@ function contrast(fg, bg) {
 describe('price calculation invariant', () => {
   it('estimated total = service + add-ons + adjustment - discount', () => {
     const ctx = buildSandbox();
-    const total = render(ctx, { servicePrice: 538, addonTotal: 0, travelFee: 25, discount: 0 });
-    assert.equal(total, 563);
-    assert.equal(ctx.els['bk-total-amount'].textContent, '$563.00');
+    const total = render(ctx, { servicePrice: 467, addonTotal: 0, travelFee: 25, discount: 0 });
+    assert.equal(total, 492);
+    assert.equal(ctx.els['bk-total-amount'].textContent, '$492.00');
   });
 
-  it('reference RV fixture renders $538.00 + $25.00 = $563.00 in details', () => {
+  it('reference RV fixture renders $467.00 + $25.00 = $492.00 in details', () => {
     const ctx = buildSandbox();
-    render(ctx, { servicePrice: 538, addonTotal: 0, travelFee: 25, discount: 0 });
+    render(ctx, { servicePrice: 467, addonTotal: 0, travelFee: 25, discount: 0 });
     const lines = ctx.els['bk-financial-lines'].innerHTML;
-    assert.match(lines, /Service price<\/span><span>\$538\.00/);
+    assert.match(lines, /Service price<\/span><span>\$467\.00/);
     assert.match(lines, /Mobile service adjustment<\/span><span>\$25\.00/);
-    assert.match(lines, /Estimated total<\/span><span>\$563\.00/);
+    assert.match(lines, /Estimated total<\/span><span>\$492\.00/);
   });
 
   it('expanded detail rows always sum to the displayed total', () => {
     const ctx = buildSandbox();
     const cases = [
       { servicePrice: 225, addonTotal: 45, travelFee: 0, discount: 0 },
-      { servicePrice: 538, addonTotal: 0, travelFee: 25, discount: 0 },
+      { servicePrice: 467, addonTotal: 0, travelFee: 25, discount: 0 },
       { servicePrice: 300, addonTotal: 135, travelFee: 55, discount: 22.5 },
     ];
     for (const c of cases) {
@@ -107,13 +107,13 @@ describe('price calculation invariant', () => {
 
   it('adjustment presence controls the supporting sentence', () => {
     const ctx = buildSandbox();
-    render(ctx, { servicePrice: 538, addonTotal: 0, travelFee: 25, discount: 0 });
+    render(ctx, { servicePrice: 467, addonTotal: 0, travelFee: 25, discount: 0 });
     assert.equal(ctx.els['bk-total-incl'].textContent, 'Includes the mobile service adjustment for your location.');
     render(ctx, { servicePrice: 225, addonTotal: 0, travelFee: 0, discount: 0 });
     assert.equal(ctx.els['bk-total-incl'].textContent, 'Mobile service included.');
   });
 
-  it('server travel fee and RV pricing formulas are unchanged', () => {
+  it('server travel fee and RV pricing formulas remain canonical', () => {
     const t = require('../netlify/lib/travel-fee');
     // Pins the travel model so it cannot drift silently. The old fixed tiers
     // ([0,15,25,35,40,55] over a ZIP-prefix distance guess) were replaced by a
@@ -128,10 +128,10 @@ describe('price calculation invariant', () => {
     const r = c.validateAndRecalculateBookingPricing({
       zipCode: '06850',
       vehicleCategory: 'rvs',
-      vehicles: [{ cat: 'rvs', pkgId: 'maint_light', subtotal: 538, lengthFt: 18, rvType: 'travel' }],
+      vehicles: [{ cat: 'rvs', pkgId: 'maint_light', subtotal: 467, lengthFt: 18, rvType: 'travel' }],
     });
     assert.equal(r.ok, true);
-    assert.equal(r.serviceSubtotal, 538);
+    assert.equal(r.serviceSubtotal, 467);
   });
 });
 
