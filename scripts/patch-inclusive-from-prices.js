@@ -39,12 +39,12 @@ function getCategoryFromBases(){
   return {
     cars:Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.maint)),
     boats:LENGTH_PRICING.boats.packages.maint.min,
-    rvs:LENGTH_PRICING.rvs.packages.exterior.min,
+    rvs:getLengthPrice('rvs','maint',LENGTH_PRICING.rvs.min),
     powersports:Math.min(...Object.values(PRICING.powersports.tiers).map(t=>Object.values(t).filter(v=>typeof v==='number')[0]||99)),
   };
 }
 function formatLocFrom(cat){
-  if(cat==='fleet') return 'From $60/unit';
+  if(cat==='fleet') return 'From $50/unit';
   syncTravelFromKnownZip();
   const fee=getKnownZip5()&&activeZone?getTravelFeeAmount():0;
   return 'From $'+(applyRichPrice(getCategoryFromBases()[cat])+fee);
@@ -57,9 +57,9 @@ const updateBkFromPricesOld = `function updateBkFromPrices(){
   const BASE = {
     cars:       {label:'From $', price: Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.maint))},
     boats:      {label:'From $', price: LENGTH_PRICING.boats.packages.maint.min},
-    rvs:        {label:'From $', price: LENGTH_PRICING.rvs.packages.exterior.min},
+    rvs:        {label:'From $', price: getLengthPrice('rvs','maint',LENGTH_PRICING.rvs.min)},
     powersports:{label:'From $', price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=>Object.values(t).filter(v=>typeof v==='number')[0]||99))},
-    fleet:      {label:'From $', price: null, fixed:'From $60/unit'},
+    fleet:      {label:'From $', price: null, fixed:'From $50/unit'},
   };
   Object.entries(BASE).forEach(([cat, info])=>{
     const el = document.getElementById('bkfrom-'+cat);
@@ -74,9 +74,9 @@ const updateBkFromPricesNew = `function updateBkFromPrices(){
   const BASE = {
     cars:       {label:'From $', price: Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.maint))},
     boats:      {label:'From $', price: LENGTH_PRICING.boats.packages.maint.min},
-    rvs:        {label:'From $', price: LENGTH_PRICING.rvs.packages.exterior.min},
+    rvs:        {label:'From $', price: getLengthPrice('rvs','maint',LENGTH_PRICING.rvs.min)},
     powersports:{label:'From $', price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=>Object.values(t).filter(v=>typeof v==='number')[0]||99))},
-    fleet:      {label:'From $', price: null, fixed:'From $60/unit'},
+    fleet:      {label:'From $', price: null, fixed:'From $50/unit'},
   };
   const bkZip=document.getElementById('bk-zip');
   const zip5=bkZip?String(bkZip.value||'').replace(/\\D/g,'').slice(0,5):'';
@@ -93,9 +93,9 @@ const updateHomeFromPricesOld = `function _updateHomeFromPrices(){
   const BASE = {
     cars:        { price: Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.maint)), suffix:' · by vehicle size' },
     boats:       { price: LENGTH_PRICING.boats.packages.maint.min,     suffix:' · by vessel length' },
-    rvs:         { price: LENGTH_PRICING.rvs.packages.exterior.min,    suffix:' · by RV length' },
+    rvs:         { price: getLengthPrice('rvs','maint',LENGTH_PRICING.rvs.min), suffix:' · by RV length' },
     powersports: { price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=> Object.values(t).filter(v=>typeof v==='number')[0]||89)), suffix:' · by vehicle type' },
-    fleet:       { price: null, fixed:'From $60/unit · Fleet quote available' },
+    fleet:       { price: null, fixed:'From $50/unit · Fleet quote available' },
   };
   Object.entries(BASE).forEach(([cat, info])=>{
     const el = document.getElementById('hfrom-'+cat);
@@ -112,9 +112,9 @@ const updateHomeFromPricesNew = `function _updateHomeFromPrices(){
   const BASE = {
     cars:        { price: Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.maint)), suffix:' · by vehicle size' },
     boats:       { price: LENGTH_PRICING.boats.packages.maint.min,     suffix:' · by vessel length' },
-    rvs:         { price: LENGTH_PRICING.rvs.packages.exterior.min,    suffix:' · by RV length' },
+    rvs:         { price: getLengthPrice('rvs','maint',LENGTH_PRICING.rvs.min), suffix:' · by RV length' },
     powersports: { price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=> Object.values(t).filter(v=>typeof v==='number')[0]||89)), suffix:' · by vehicle type' },
-    fleet:       { price: null, fixed:'From $60/unit · Fleet quote available' },
+    fleet:       { price: null, fixed:'From $50/unit · Fleet quote available' },
   };
   Object.entries(BASE).forEach(([cat, info])=>{
     const el = document.getElementById('hfrom-'+cat);

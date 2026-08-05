@@ -71,7 +71,7 @@ function createMemoryStore(seed = {}) {
 }
 
 function baseBooking(id, {
-  approvedCents = 17500,
+  approvedCents = 15000,
   settledCents = 0,
   packageId = 'maint',
   pkgName = 'Maintenance Detail',
@@ -159,7 +159,7 @@ describe('Customer package catalog — booking-price-catalog source', () => {
 
     const full = vehicle.options.find((o) => o.packageId === 'full');
     assert.ok(full, 'full package must be present');
-    assert.equal(full.priceCents, 28500);
+    assert.equal(full.priceCents, 24000);
     assert.equal(full.label, 'Premium Full Detail');
     assert.ok(full.description);
 
@@ -175,10 +175,10 @@ describe('Customer package catalog — booking-price-catalog source', () => {
     const flat = CAR_PACKAGES.find((p) => p.id === 'full');
     assert.ok(flat, 'fixture: customer-catalog still has flat full');
     assert.equal(flat.basePrice, 300);
-    assert.equal(full.priceCents, 28500);
+    assert.equal(full.priceCents, 24000);
     assert.notEqual(full.priceCents, Math.round(flat.basePrice * 100));
 
-    // suv3 tier would be $315 — also not the flat $300
+    // suv3 tier is $270 — also not the legacy flat $300 metadata value.
     const suvBooking = baseBooking('CAT-SUV3', {
       vehicles: [{
         vehicleId: 'veh_suv',
@@ -195,7 +195,7 @@ describe('Customer package catalog — booking-price-catalog source', () => {
     });
     const suvCat = serializeCanonicalPackageCatalogForBooking(suvBooking);
     const suvFull = suvCat.vehicles[0].options.find((o) => o.packageId === 'full');
-    assert.equal(suvFull.priceCents, 31500);
+    assert.equal(suvFull.priceCents, 27000);
     assert.notEqual(suvFull.priceCents, 30000);
   });
 
@@ -232,8 +232,8 @@ describe('Customer package catalog — booking-price-catalog source', () => {
     assert.ok(catalog.packageCatalogByVehicle.veh_b);
     const smallFull = catalog.packageCatalogByVehicle.veh_a.options.find((o) => o.packageId === 'full');
     const truckFull = catalog.packageCatalogByVehicle.veh_b.options.find((o) => o.packageId === 'full');
-    assert.equal(smallFull.priceCents, 28500);
-    assert.equal(truckFull.priceCents, 32500);
+    assert.equal(smallFull.priceCents, 24000);
+    assert.equal(truckFull.priceCents, 27500);
     assert.notEqual(smallFull.priceCents, truckFull.priceCents);
   });
 
@@ -437,7 +437,7 @@ describe('Customer package Stage 1 authority still enforced (settlement + versio
     const id = nextId('SET');
     // Partial settlement still denies (settledCents > 0).
     await seedBlob(baseBooking(id, {
-      approvedCents: 28500,
+      approvedCents: 24000,
       settledCents: 10000,
       packageId: 'full',
       pkgName: 'Premium Full Detail',
@@ -518,7 +518,7 @@ describe('display metadata helper', () => {
   });
 
   it('canonical cars price table still has tier-aware full (not flat 300)', () => {
-    assert.equal(PRICING.cars.tiers.small.full, 285);
-    assert.equal(PRICING.cars.tiers.suv3.full, 315);
+    assert.equal(PRICING.cars.tiers.small.full, 240);
+    assert.equal(PRICING.cars.tiers.suv3.full, 270);
   });
 });

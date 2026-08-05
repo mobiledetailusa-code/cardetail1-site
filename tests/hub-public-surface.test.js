@@ -89,6 +89,12 @@ for (const page of hubPages) {
     assert.match(html, /location\.replace\s*\(\s*['"]\/admin['"]\s*\)/);
     assert.doesNotMatch(html, /location\.hash\s*===?\s*['"]#admin['"]\)[^;]*openLogin/);
   });
+
+  test(`${page} does not abort public initialization when legacy tech seeding is absent`, () => {
+    const html = read(page);
+    assert.match(html, /try\{ if\(typeof seedDefaultTechs==='function'\) seedDefaultTechs\(\); \}catch\(e\)\{\}/);
+    assert.doesNotMatch(html, /(?:^|\n)\s*seedDefaultTechs\(\);/);
+  });
 }
 
 test('index.html was not modified by hub strip (still has public booking)', () => {

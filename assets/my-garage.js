@@ -901,6 +901,9 @@
     state.packageCatalog = null;
     state.changeRequests = [];
     state.payment = null;
+    state.postService = null;
+    state.postServiceByBooking = null;
+    state.priceAdjustments = null;
     state.actionToken = null;
     if (opts.clearLookup !== false) {
       state.verifyPhone = '';
@@ -973,6 +976,9 @@
     state.packageCatalog = data.packageCatalog || null;
     state.changeRequests = data.changeRequests || [];
     state.payment = data.payment || null;
+    state.postService = data.postService || null;
+    state.postServiceByBooking = data.postServiceByBooking || null;
+    state.priceAdjustments = data.priceAdjustments || null;
     if (data.customer) applyCustomerProjection(data.customer);
   }
 
@@ -1762,9 +1768,55 @@
     $('history-section') && show($('history-section'), !!hist.length);
     $('comm-empty') && show($('comm-empty'), true);
     var approveBtn = $('btn-approve-completion');
-    var issueBtn = $('btn-report-issue');
     if (approveBtn) show(approveBtn, b.customerApprovalStatus === 'pending' || b.jobStatus === 'completed_pending_payment');
-    if (issueBtn) show(issueBtn, ['completed_pending_payment', 'completed_pending_admin_review', 'awaiting_customer_action'].indexOf(b.jobStatus) >= 0 || b.serviceStatus === 'awaiting_customer_action');
+    renderPostServiceActions(b);
+  }
+
+  /**
+   * Review and service-issue actions are rendered from the server's decision,
+   * never from a locally computed deadline — the 48-hour window is measured on
+   * server time, so a device with a wrong clock still sees the truth.
+   */
+  function postServiceFor(booking) {
+    var id = String((booking && booking.id) || '');
+    if (state.postServiceByBooking && id && state.postServiceByBooking[id]) {
+      return state.postServiceByBooking[id];
+    }
+    return state.postService || null;
+  }
+
+  function renderPostServiceActions(booking) {
+    var reviewBtn = $('btn-leave-review');
+    var issueBtn = $('btn-report-issue');
+    var note = $('post-service-note');
+    var ps = postServiceFor(booking);
+
+    if (!ps) {
+      if (reviewBtn) show(reviewBtn, false);
+      if (issueBtn) show(issueBtn, false);
+      if (note) show(note, false);
+      return;
+    }
+
+    if (reviewBtn) show(reviewBtn, !!(ps.review && ps.review.available));
+    if (issueBtn) show(issueBtn, !!(ps.serviceIssue && ps.serviceIssue.available));
+
+    if (!note) return;
+    var text = '';
+    if (ps.serviceIssue && ps.serviceIssue.available) {
+      var hrs = Number(ps.serviceIssue.hoursRemaining) || 0;
+      text = hrs > 0
+        ? 'You have ' + hrs + (hrs === 1 ? ' hour' : ' hours') + ' left to report a service issue online.'
+        : 'Less than an hour left to report a service issue online.';
+    } else if (ps.serviceIssue && ps.serviceIssue.submitted) {
+      text = 'We have your service issue report and will be in touch.';
+    } else if (ps.serviceIssue && ps.serviceIssue.closedMessage) {
+      text = ps.serviceIssue.closedMessage;
+    } else if (ps.review && ps.review.submitted) {
+      text = 'Thanks for your review.';
+    }
+    if (text) { note.textContent = text; show(note, true); }
+    else show(note, false);
   }
 
   function accountVersionForMutation() {
@@ -2163,6 +2215,27 @@
     }
     if (opts.fromModal) setMsg($('modal-error'), msg, true);
     else showToast(msg, true);
+    return false;
+  }
+
+  /**
+   * Review submission. Eligibility and the one-per-booking rule are the server's
+   * call — this only reports what it says back.
+   */
+  async function submitReview(payload) {
+    var r = await post('submit-review', {
+      bookingId: state.booking && state.booking.id,
+      phone: state.verifyPhone || normalizePhoneInput(state.booking && state.booking.phone),
+      stars: Number(payload.stars),
+      comment: payload.comment || '',
+    });
+    if (r.data && r.data.ok) {
+      showToast('Thanks for your review.');
+      if (state.scope === 'account') await loadAccount();
+      else await loadLimited();
+      return true;
+    }
+    setMsg($('modal-error'), (r.data && r.data.message) || 'Review unavailable.', true);
     return false;
   }
 
@@ -2996,8 +3069,13 @@
         { name: 'reason', label: 'Cancellation reason', type: 'textarea', required: true },
       ]},
       approve_completion: { title: 'Approve completed service', fields: [], confirmOnly: true },
-      report_issue: { title: 'Report an issue', fields: [
-        { name: 'message', label: 'Describe the issue', type: 'textarea', required: true },
+      leave_review: { title: 'Leave a review', fields: [
+        { name: 'stars', label: 'Rating (1–5)', type: 'text', required: true },
+        { name: 'comment', label: 'What stood out? (optional)', type: 'textarea' },
+      ]},
+      report_issue: { title: 'Report a service issue', fields: [
+        { name: 'category', label: 'What is the issue about? (quality, damage, missed_area, timeliness, billing, conduct, other)', type: 'text', required: true },
+        { name: 'description', label: 'Describe the issue', type: 'textarea', required: true },
       ]},
     };
 
@@ -3211,8 +3289,11 @@
         ok = await submitPortalAction('report_issue', {
           bookingId: state.booking && state.booking.id,
           phone: state.verifyPhone || normalizePhoneInput(state.booking && state.booking.phone),
-          note: payload.message,
+          category: String(payload.category || '').trim().toLowerCase(),
+          description: payload.description,
         });
+      } else if (modalAction === 'leave_review') {
+        ok = await submitReview(payload);
       } else if (modalAction === 'addon_request') {
         ok = await submitAction(modalAction, payload, { fromModal: true });
         if (ok) {

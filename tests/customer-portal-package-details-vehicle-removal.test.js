@@ -59,9 +59,9 @@ function twoVehicleFixture(overrides) {
     jobStatus: 'confirmed',
     zipCode: '07102',
     travelFeeAmount: 0,
-    approvedFinalAmount: 887,
-    totalPrice: 887,
-    ledger: { approvedCents: 88700, settledCents: 0, creditedCents: 0, entries: [] },
+    approvedFinalAmount: 791,
+    totalPrice: 791,
+    ledger: { approvedCents: 79100, settledCents: 0, creditedCents: 0, entries: [] },
     vehicles: [
       {
         vehicleId: 'veh_bronco',
@@ -76,13 +76,13 @@ function twoVehicleFixture(overrides) {
         packageName: 'Maintenance Detail',
         pkgName: 'Maintenance Detail',
         tierKey: 'suv2',
-        basePrice: 175,
-        packagePrice: 175,
-        addonTotal: 225,
-        subtotal: 400,
+        basePrice: 185,
+        packagePrice: 185,
+        addonTotal: 185,
+        subtotal: 370,
         addons: [
           { id: 'pethair', name: 'Pet Hair Removal', qty: 1, price: 95 },
-          { id: 'odor', name: 'Odor Treatment & Sanitize', qty: 1, price: 149 },
+          { id: 'odor', name: 'Odor Treatment & Sanitize', qty: 1, price: 90 },
         ],
         addOnIds: ['pethair', 'odor'],
       },
@@ -99,10 +99,10 @@ function twoVehicleFixture(overrides) {
         packageName: 'Essential Marine',
         pkgName: 'Essential Marine',
         lengthFt: 22,
-        basePrice: 462,
-        packagePrice: 462,
+        basePrice: 396,
+        packagePrice: 396,
         addonTotal: 25,
-        subtotal: 487,
+        subtotal: 421,
         addons: [
           { id: 'rainx', name: 'Rain-X Glass Treatment', qty: 1, price: 25 },
         ],
@@ -120,8 +120,8 @@ describe('package details resolution', () => {
       packageId: 'maint',
       packageName: 'Maintenance Detail',
       category: 'cars',
-      basePrice: 175,
-      subtotal: 400,
+      basePrice: 185,
+      subtotal: 370,
       addons: [{ id: 'pethair', name: 'Pet Hair Removal', qty: 1, price: 95 }],
     });
     assert.equal(details.available, true);
@@ -129,8 +129,8 @@ describe('package details resolution', () => {
     assert.ok(details.includedServices.length >= 3);
     assert.match(details.includedServices.join(' '), /Exterior hand wash/i);
     assert.equal(details.addons[0].name, 'Pet Hair Removal');
-    assert.equal(details.packagePrice, 175);
-    assert.equal(details.vehicleSubtotal, 400);
+    assert.equal(details.packagePrice, 185);
+    assert.equal(details.vehicleSubtotal, 370);
   });
 
   it('resolves Essential Marine description from length catalog', () => {
@@ -138,8 +138,8 @@ describe('package details resolution', () => {
       packageId: 'essential',
       packageName: 'Essential Marine',
       category: 'boats',
-      basePrice: 462,
-      subtotal: 487,
+      basePrice: 396,
+      subtotal: 421,
     });
     assert.equal(details.available, true);
     assert.match(details.description || details.name, /Marine|marine|Essential/);
@@ -167,7 +167,7 @@ describe('package details resolution', () => {
         limitations: 'Snap limit',
         priceCents: 19900,
       },
-      basePrice: 175,
+      basePrice: 185,
     });
     assert.equal(details.source, 'snapshot');
     assert.equal(details.name, 'Snap Pack');
@@ -184,8 +184,8 @@ describe('package details resolution', () => {
       category: 'cars',
       packageId: 'maint',
       packageName: 'Maintenance Detail',
-      basePrice: 175,
-      subtotal: 400,
+      basePrice: 185,
+      subtotal: 370,
       addons: [{ id: 'pethair', name: 'Pet Hair Removal', price: 95, qty: 1 }],
     });
     assert.ok(projected.packageDetails);
@@ -258,7 +258,7 @@ describe('vehicle_remove_request policy + commands', () => {
     assert.equal(submitted.ok, true, submitted.error + ' ' + (submitted.message || ''));
     assert.equal(submitted.changeRequest.status, 'pending');
     assert.equal(submitted.changeRequest.target.vehicleId, 'veh_bronco');
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 48700);
+    assert.equal(submitted.changeRequest.proposedApprovedCents, 42100);
 
     const after = await getBookingRecord('CD1-B1-MULTI');
     assert.equal(after.booking.vehicles.length, 2, 'authoritative booking not mutated on submit');
@@ -305,9 +305,9 @@ describe('vehicle_remove_request policy + commands', () => {
       'CD1-ONE': twoVehicleFixture({
         id: 'CD1-ONE',
         vehicles: [twoVehicleFixture().vehicles[0]],
-        approvedFinalAmount: 400,
-        totalPrice: 400,
-        ledger: { approvedCents: 40000, settledCents: 0, creditedCents: 0, entries: [] },
+        approvedFinalAmount: 370,
+        totalPrice: 370,
+        ledger: { approvedCents: 37000, settledCents: 0, creditedCents: 0, entries: [] },
       }),
     });
     setBookingStoreOverride(store);
@@ -349,7 +349,7 @@ describe('vehicle_remove_request policy + commands', () => {
     assert.ok(['rejected', 'declined'].includes(String(cr.status)) || cr.decision === 'reject' || cr.adminDecision === 'reject' || cr.status === 'rejected');
   });
 
-  it('admin approval removes only Bronco and reprices to $487', async () => {
+  it('admin approval removes only Bronco and reprices to $421', async () => {
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,
@@ -362,7 +362,7 @@ describe('vehicle_remove_request policy + commands', () => {
       target: { vehicleId: 'veh_bronco' },
       delta: {},
     });
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 48700);
+    assert.equal(submitted.changeRequest.proposedApprovedCents, 42100);
 
     const decided = await decideChangeRequestCommand({
       bookingId: 'CD1-B1-MULTI',
@@ -375,11 +375,11 @@ describe('vehicle_remove_request policy + commands', () => {
     const after = await getBookingRecord('CD1-B1-MULTI');
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_boat');
-    assert.equal(after.booking.ledger.approvedCents, 48700);
+    assert.equal(after.booking.ledger.approvedCents, 42100);
     assert.ok(after.booking.bookingVersion > submitted.booking.bookingVersion);
   });
 
-  it('admin approval removing boat leaves Bronco at $400', async () => {
+  it('admin approval removing boat leaves Bronco at $370', async () => {
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,
@@ -392,7 +392,7 @@ describe('vehicle_remove_request policy + commands', () => {
       target: { vehicleId: 'veh_boat' },
       delta: {},
     });
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 40000);
+    assert.equal(submitted.changeRequest.proposedApprovedCents, 37000);
     const decided = await decideChangeRequestCommand({
       bookingId: 'CD1-B1-MULTI',
       requestId: submitted.changeRequest.requestId,
@@ -404,13 +404,13 @@ describe('vehicle_remove_request policy + commands', () => {
     const after = await getBookingRecord('CD1-B1-MULTI');
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_bronco');
-    assert.equal(after.booking.ledger.approvedCents, 40000);
+    assert.equal(after.booking.ledger.approvedCents, 37000);
   });
 
   it('paid booking approve returns payment_adjustment_required without mutating', async () => {
     store = createMemoryStore({
       'CD1-B1-MULTI': twoVehicleFixture({
-        ledger: { approvedCents: 88700, settledCents: 88700, creditedCents: 0, entries: [] },
+        ledger: { approvedCents: 79100, settledCents: 79100, creditedCents: 0, entries: [] },
         paymentStatus: 'paid',
         paymentWorkflowStatus: 'payment_succeeded',
       }),
@@ -444,7 +444,7 @@ describe('vehicle_remove_request policy + commands', () => {
 
     const after = await getBookingRecord('CD1-B1-MULTI');
     assert.equal(after.booking.vehicles.length, 2);
-    assert.equal(after.booking.ledger.settledCents, 88700);
+    assert.equal(after.booking.ledger.settledCents, 79100);
   });
 });
 

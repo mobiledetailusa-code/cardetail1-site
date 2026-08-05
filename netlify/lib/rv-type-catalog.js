@@ -101,15 +101,9 @@ const RV_TYPES = {
   },
 };
 
-/** Authoritative RV service price: base + exactLength × ratePerFoot (no mins, no blanket %). */
-const RV_RATE_TABLE = {
-  maint: { base: 150, ratePerFoot: 10 },
-  maint_light: { base: 250, ratePerFoot: 16 },
-  interior: { base: 250, ratePerFoot: 18 },
-  full_basic: { base: 300, ratePerFoot: 25 },
-  premium: { base: 300, ratePerFoot: 28 },
-  full: { base: 400, ratePerFoot: 36 },
-};
+/** Authoritative RV service price: base + exactLength × ratePerFoot. */
+const { LENGTH_PRICING } = require('./booking-price-catalog');
+const RV_RATE_TABLE = LENGTH_PRICING.rvs.packages;
 
 const ADJUSTED_RATES = Object.fromEntries(
   Object.entries(RV_RATE_TABLE).map(([k, v]) => [k, v.ratePerFoot]),

@@ -534,6 +534,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   // Stage 3 — canonical add-on data for the open job detail (server-provided only).
   // Catalog rows/prices and money figures come from get_job — never computed locally.
   let drawerAddonData = null;
+  // Server-declared capability state for the open job (see get_job.operationalControls).
+  let drawerControls = null;
   let showTest = false, platformSettings = {}, platformAvailability = null, auctions = [], subscriptions = [], changeRequests = [];
   let requestsStatusFilter = 'pending';
   let jobDetailPanel = 'summary';
@@ -1859,7 +1861,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '</div></td></tr>').join('');
     tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => { if(!e.target.closest('button')) openDrawer(tr.dataset.id); });
     tb.querySelectorAll('.approve').forEach(b => b.onclick = () => jobAction(b.dataset.id,'approve_completion'));
-    tb.querySelectorAll('.reopen').forEach(b => b.onclick = () => { const r=prompt('Reopen reason (optional):'); if(r!==null) jobAction(b.dataset.id,'reopen_job',{reason:r}); });
+    tb.querySelectorAll('.reopen').forEach(b => b.onclick = () => {
+      const r = prompt('Reopen reason (required):');
+      if (!r || !r.trim()) { if (r !== null) toast('A reopen reason is required'); return; }
+      jobAction(b.dataset.id,'reopen_job', { reason: r.trim() });
+    });
     tb.querySelectorAll('.correct').forEach(b => b.onclick = () => { const m=prompt('Correction message:'); if(m) jobAction(b.dataset.id,'request_correction',{message:m}); });
   }
 
@@ -2412,7 +2418,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (declineBtn) {
       declineBtn.onclick = () => {
         const r = prompt('Decline / cancel reason:');
-        if (r !== null) jobAction(j.id, 'cancel_booking', { reason: r });
+        if (r !== null) jobAction(j.id,'cancel_booking', { reason: r });
       };
     }
   }
@@ -2495,12 +2501,90 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     return out;
   }
 
+  function money(cents){ return '$'+((Math.max(0,Math.round(Number(cents)||0)))/100).toFixed(2); }
+
+  /**
+   * Payment method, price adjustments, receipts and the post-service window,
+   * each as its own named section. Every control states what the server would
+   * allow and, when it would refuse, why — so a greyed-out button is never a
+   * mystery.
+   */
+  function operationalControlsHtml() {
+    const c = drawerControls;
+    if (!c) return '';
+    let h = '<div class="job-detail-grid" style="margin-top:12px">';
+
+    const pm = c.paymentMethod || {};
+    h += '<div class="sec full"><h4>Payment method</h4>';
+    h += '<p class="hint" style="margin:0 0 8px">'+esc(pm.explanation||'')+'</p>';
+    if (pm.canChange) {
+      h += '<div class="full"><label>Method for remaining balance</label><select id="dPayMethod">'+
+        (pm.supportedMethods||[]).map(m=>'<option value="'+esc(m)+'"'+(pm.currentMethod===m?' selected':'')+'>'+esc(m.replace(/_/g,' '))+'</option>').join('')+
+        '</select></div>'+
+        '<div class="full"><label>Reason (required)</label><input type="text" id="dPayMethodReason" placeholder="Why is the method changing?"></div>'+
+        '<div class="full actions"><button type="button" class="btn ghost sm" id="dSavePayMethod" style="min-height:44px">Change remaining payment method</button></div>';
+    } else {
+      h += '<div class="full actions"><button type="button" class="btn ghost sm" disabled style="min-height:44px">Change remaining payment method</button></div>';
+      if (pm.correctionAvailable) {
+        h += '<div class="full"><label>Corrected method</label><select id="dCorrectMethod">'+
+          ['cash_on_site','card_on_site','online_after_service','card_on_file']
+            .map(m=>'<option value="'+m+'">'+m.replace(/_/g,' ')+'</option>').join('')+
+          '</select></div>'+
+          '<div class="full"><label>Reason</label><input type="text" id="dCorrectReason"></div>'+
+          '<div class="full"><label>Evidence (receipt no., deposit reference, ticket)</label><input type="text" id="dCorrectEvidence"></div>'+
+          '<div class="full actions"><button type="button" class="btn warn sm" id="dCorrectMethodBtn" style="min-height:44px">Correct recorded payment method</button></div>'+
+          '<p class="hint">The original settlement is left intact — the correction is recorded alongside it.</p>';
+      }
+    }
+    h += '</div>';
+
+    const pa = c.priceAdjustment || {};
+    const st = pa.statement || {};
+    h += '<div class="sec full"><h4>Price adjustments</h4>';
+    h += '<p class="hint" style="margin:0 0 8px">'+esc(pa.explanation||'')+'</p>';
+    h += '<div class="hint">Original '+money(st.originalTotalCents)+' · Adjustment '+money(st.adjustmentCents)+
+      ' · Revised '+money(st.revisedTotalCents)+' · Paid '+money(st.paidCents)+' · Remaining '+money(st.remainingCents)+'</div>';
+    if (st.adjustmentReason) h += '<p class="hint">Reason: '+esc(st.adjustmentReason)+'</p>';
+    (st.pendingAdjustments||[]).forEach(a=>{
+      h += '<p class="hint">Pending '+esc(a.type)+' '+money(a.amountCents)+' — '+esc(a.status)+
+        ' ('+esc(a.projectedOutcome||'')+')</p>';
+    });
+    if (st.refundReview) {
+      h += '<p class="hint">Refund/credit review open: '+money(st.refundReview.amountCents)+' — '+esc(st.refundReview.status)+'</p>';
+    }
+    h += '<div><label>Type</label><select id="dAdjType"><option value="increase">increase</option><option value="decrease">decrease</option></select></div>'+
+      '<div><label>Amount (cents)</label><input type="number" id="dAdjAmount" step="1" min="1"></div>'+
+      '<div class="full"><label>Reason (required)</label><input type="text" id="dAdjReason"></div>'+
+      '<div class="full actions"><button type="button" class="btn ghost sm" id="dAdjPrice" style="min-height:44px">Adjust price</button></div>';
+    h += '</div>';
+
+    const r = c.receipts || {};
+    h += '<div class="sec"><h4>Receipts</h4><p class="hint" style="margin:0">'+
+      'Payment receipt: '+(r.paymentReceiptAvailable?'available':'not yet')+'<br>'+
+      'Final receipt: '+(r.finalReceiptAvailable?'available':'not yet')+'</p></div>';
+
+    const ps = c.postService || {};
+    const rev = ps.review || {};
+    const iss = ps.serviceIssue || {};
+    h += '<div class="sec"><h4>Review / service issue</h4><p class="hint" style="margin:0">'+
+      'Resolution: '+esc(ps.customerResolutionStatus||'none')+'<br>'+
+      'Review: '+(rev.submitted?('submitted · '+(rev.stars||0)+'★'):(rev.available?'available to customer':'not available'))+'<br>'+
+      'Service issue: '+(iss.submitted?('reported ('+(iss.count||0)+')'):(iss.windowOpen?('window open · '+(iss.hoursRemaining||0)+'h left'):'window closed'))+
+      '</p></div>';
+
+    return h + '</div>';
+  }
+
   async function openDrawer(id) {
     // Strong read + provider reconcile so Admin money matches Customer after Stripe pay.
     ensureJobsTab();
     drawerAddonData = null;
+    drawerControls = null;
     try {
       const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'get_job',bookingId:id});
+      // Capability state is the server's answer to "what is allowed here" —
+      // buttons render from it instead of re-deriving rules in the browser.
+      drawerControls = (d && d.operationalControls) || null;
       if (d && (d.addonCatalog || d.packageCatalog)) {
         drawerAddonData = {
           catalog: d.addonCatalog || null,
@@ -2763,10 +2847,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '</div>'+
       (invPaid?'<p class="hint">Stripe settlement closed this invoice automatically. Do not generate another pay link.</p>':'')+
       '<div class="op-grid">'+
-      '<div class="full"><label>Payment preference</label><select id="dPayPref">'+
-      ['cash_on_site','card_on_site','online_after_service','card_on_file'].map(p=>'<option value="'+p+'"'+(j.paymentMethodPreference===p?' selected':'')+'>'+p.replace(/_/g,' ')+'</option>').join('')+
-      '</select></div>'+
-      '<div class="full appt-edit-actions"><button type="button" class="btn ghost sm" id="dSavePref" style="width:100%;min-height:44px">Update payment preference</button></div>'+
+      // Payment method has one home: the Payment method section below, which
+      // knows whether a change is allowed here and says why when it is not.
+      '<div class="full"><label>Payment preference</label>'+
+      '<p class="hint" style="margin:0">'+esc(String(j.paymentMethodPreference||'not set').replace(/_/g,' '))+
+      ' — change it in the Payment method section below.</p></div>'+
       '<div class="full"><label>Authoritative Stripe Checkout URL</label><input type="url" id="dPayLink" placeholder="Generated by Stripe…" value="'+esc(j.payLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
       '<div class="full"><label>Manual external reference (optional, not Checkout)</label><input type="url" id="dManualPayRef" placeholder="https://… external note only" value="'+esc(j.manualPayLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
       '<div class="full actions">'+
@@ -2797,12 +2882,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '</div>'+
       (j.paymentWorkflowStatus==='refunded'||j.refundStatus==='refunded'?'<p class="hint">Payment status: refunded</p>':'')+
       '<div class="full actions" style="margin-top:8px">'+
-      '<button type="button" class="btn ghost sm" id="dMarkCash" style="min-height:44px">Mark cash received</button>'+
+      '<button type="button" class="btn ghost sm" id="dMarkCash" style="min-height:44px">Record cash payment</button>'+
       '<button type="button" class="btn ghost sm" id="dMarkCardSite" style="min-height:44px">Record card on-site</button>'+
       '<button type="button" class="btn ghost sm" id="dApproveAdj" style="min-height:44px">Approve adjustment</button>'+
       '<button type="button" class="btn ghost sm" id="dRejectAdj" style="min-height:44px">Reject adjustment</button>'+
       '</div>'+
       '</div></div></div>';
+    html += operationalControlsHtml();
     html += '</div></div>'; // end payment panel
 
     html += '<div class="appt-panel" data-appt-panel="notes" id="appt-panel-notes" role="tabpanel" hidden><div class="job-detail-grid">';
@@ -2886,7 +2972,25 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       da.addEventListener('touchstart', kick, { passive: true });
     }
     const ap = $('#dApprove'); if(ap) ap.onclick = () => jobAction(j.id,'approve_completion');
-    const ro = $('#dReopen'); if(ro) ro.onclick = () => { const r=prompt('Reopen reason:'); if(r!==null) jobAction(j.id,'reopen_job',{reason:r}); };
+    const ro = $('#dReopen');
+    if (ro) {
+      const canReopen = !drawerControls || (drawerControls.reopen && drawerControls.reopen.enabled);
+      if (!canReopen) {
+        ro.disabled = true;
+        ro.title = (drawerControls.reopen && drawerControls.reopen.explanation) || 'Reopen is not available for this job.';
+      } else {
+        // A reason is mandatory server-side; an empty prompt is not a reopen.
+        ro.onclick = () => {
+          const r = prompt('Reopen reason (required):');
+          if (!r || !r.trim()) { if (r !== null) toast('A reopen reason is required'); return; }
+          jobAction(j.id,'reopen_job', {
+            reason: r.trim(),
+            expectedBookingVersion: j.bookingVersion,
+            notifyCustomer: confirm('Notify the customer that this job has reopened?'),
+          });
+        };
+      }
+    }
     const co = $('#dCorrect'); if(co) co.onclick = () => { const m=prompt('Correction message:'); if(m) jobAction(j.id,'request_correction',{message:m}); };
     const dc = $('#dConfirm');
     const dca = $('#dCancel');
@@ -2908,13 +3012,80 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (vehEl && vehEl.value) body.vehicleId = vehEl.value;
       jobAction(j.id,'update_service', body);
     };
-    const dro = $('#dReopenAppt'); if(dro) dro.onclick = () => { const r=prompt('Reopen reason:'); if(r) jobAction(j.id,'reopen_appointment',{reason:r}); };
+    const dro = $('#dReopenAppt');
+    if (dro) dro.onclick = () => {
+      const r = prompt('Reopen reason (required):');
+      if (!r || !r.trim()) { if (r !== null) toast('A reopen reason is required'); return; }
+      jobAction(j.id,'reopen_appointment', {
+        reason: r.trim(),
+        expectedBookingVersion: j.bookingVersion,
+        notifyCustomer: confirm('Notify the customer that this job has reopened?'),
+      });
+    };
     const dte = $('#dTechEnRoute'); if(dte) dte.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'en_route'});
     const dts = $('#dTechStart'); if(dts) dts.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'start'});
     const dtp = $('#dTechPause'); if(dtp) dtp.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'pause'});
     const dtr = $('#dTechResume'); if(dtr) dtr.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'resume'});
     const dtc = $('#dTechComplete'); if(dtc) dtc.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'complete_service'});
-    const dmc = $('#dMarkCash'); if(dmc) dmc.onclick = () => jobAction(j.id,'mark_cash_received',{});
+    const dmc = $('#dMarkCash');
+    if (dmc) {
+      const cashCap = drawerControls && drawerControls.recordCash;
+      if (cashCap && !cashCap.enabled) {
+        dmc.disabled = true;
+        dmc.title = cashCap.explanation || 'No remaining balance to collect.';
+      } else {
+        // Amount and an explicit confirmation, both required — recording cash is
+        // a financial statement, not a one-tap toggle.
+        dmc.onclick = () => {
+          const expected = cashCap ? Number(cashCap.expectedAmountCents) || 0 : 0;
+          const suggested = expected ? (expected / 100).toFixed(2) : '';
+          const amt = prompt('Cash amount received ($):', suggested);
+          if (amt === null) return;
+          if (!String(amt).trim()) { toast('Enter the cash amount received'); return; }
+          if (!confirm('Record ' + '$' + Number(amt).toFixed(2) + ' cash against this booking? The customer is emailed a confirmation.')) return;
+          jobAction(j.id,'mark_cash_received', {
+            amount: String(amt).trim(),
+            expectedBookingVersion: j.bookingVersion,
+          });
+        };
+      }
+    }
+    const dspm = $('#dSavePayMethod');
+    if (dspm) dspm.onclick = () => {
+      const reason = ($('#dPayMethodReason') && $('#dPayMethodReason').value || '').trim();
+      if (!reason) { toast('A reason is required to change the payment method'); return; }
+      jobAction(j.id,'update_payment_preference', {
+        paymentMethodPreference: $('#dPayMethod').value,
+        reason,
+        expectedBookingVersion: j.bookingVersion,
+      });
+    };
+    const dcm = $('#dCorrectMethodBtn');
+    if (dcm) dcm.onclick = () => {
+      const reason = ($('#dCorrectReason') && $('#dCorrectReason').value || '').trim();
+      const evidence = ($('#dCorrectEvidence') && $('#dCorrectEvidence').value || '').trim();
+      if (!reason || evidence.length < 10) { toast('A reason and supporting evidence are required'); return; }
+      jobAction(j.id,'correct_payment_method', {
+        correctedMethod: $('#dCorrectMethod').value,
+        reason,
+        evidence,
+        expectedBookingVersion: j.bookingVersion,
+      });
+    };
+    const dap = $('#dAdjPrice');
+    if (dap) dap.onclick = () => {
+      const reason = ($('#dAdjReason') && $('#dAdjReason').value || '').trim();
+      const amountCents = Number($('#dAdjAmount') && $('#dAdjAmount').value);
+      if (!reason) { toast('A reason is required for a price adjustment'); return; }
+      if (!(amountCents > 0)) { toast('Enter the adjustment amount in cents'); return; }
+      jobAction(j.id,'price_adjustment', {
+        op: 'create',
+        type: $('#dAdjType').value,
+        amountCents,
+        reason,
+        expectedBookingVersion: j.bookingVersion,
+      });
+    };
     const dmcs = $('#dMarkCardSite'); if(dmcs) dmcs.onclick = () => { const ref=prompt('Card-on-site reference:'); if(ref) jobAction(j.id,'mark_card_on_site',{reference:ref}); };
     const daa2 = $('#dApproveAdj'); if(daa2) daa2.onclick = () => jobAction(j.id,'approve_adjustment',{approvedFinalAmount:$('#dFinalAmt').value});
     const dra = $('#dRejectAdj'); if(dra) dra.onclick = () => { const r=prompt('Rejection reason:'); if(r) jobAction(j.id,'reject_adjustment',{reason:r}); };
@@ -2942,7 +3113,6 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const daa = $('#dApplyAddr'); if(daa) daa.onclick = () => jobAction(j.id,'apply_customer_request',{requestType:'address'});
     const dpa = $('#dPostAuc'); if(dpa) dpa.onclick = () => jobAction(j.id,'post_to_auction');
     const daw = $('#dAssignWin'); if(daw) daw.onclick = () => jobAction(j.id,'assign_auction_winner');
-    const dsp = $('#dSavePref'); if(dsp) dsp.onclick = () => jobAction(j.id,'update_payment_preference',{paymentMethodPreference:$('#dPayPref').value});
     const dspl = $('#dSetPayLink'); if(dspl) dspl.onclick = async () => {
       try {
         const url = ($('#dManualPayRef') && $('#dManualPayRef').value.trim()) || ($('#dPayLink').value||'').trim();

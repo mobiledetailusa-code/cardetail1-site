@@ -20,9 +20,9 @@ const PAGES = [
 ];
 
 const PRICES = {
-  'boats-detailing.html': ['From $199', 'From $449', 'From $699'],
+  'boats-detailing.html': ['From $170', 'From $380', 'From $595'],
   'rv-detailing.html': ['Select This RV Package', 'Full RV Detail', 'MOST POPULAR', 'BEST FINISH'],
-  'powersports-detailing.html': ['From $119', 'From $266', 'From $367'],
+  'powersports-detailing.html': ['From $100', 'From $225', 'From $310'],
 };
 
 test('specialty pages exist with unique SEO essentials', () => {
@@ -78,7 +78,7 @@ test('category media stays scoped and dimensioned', () => {
   assert.doesNotMatch(ps, /boats\/gallery|momentum-gclass|luxury-urus/i);
 });
 
-test('package IDs and listed prices remain unchanged', () => {
+test('package IDs and listed prices match the canonical catalog', () => {
   assert.match(read('boats-detailing.html'), /data-booking-package="maint"/);
   assert.match(read('boats-detailing.html'), /data-booking-package="full"/);
   assert.match(read('boats-detailing.html'), /data-booking-package="premium"/);

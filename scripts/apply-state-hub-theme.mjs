@@ -372,7 +372,7 @@ function patchFile(filename, cfg) {
 
   // Booking step 1 cars category
   html = html.replace(
-    /<div class="svc-from" id="bkfrom-cars" style="font-size:12px">From \$175<\/div>/,
+    /<div class="svc-from" id="bkfrom-cars" style="font-size:12px">From \$150<\/div>/,
     '<div class="svc-cat-note" id="bkfrom-cars">Packages shown after ZIP check</div>'
   );
 
@@ -392,12 +392,6 @@ function patchFile(filename, cfg) {
       '<button type="button" class="btn-n" id="next2" disabled onclick="bkGoTo(3)">Continue to vehicle →</button>'
     );
   }
-
-  // Pricing caps
-  html = html.replace(/full:300,/g, 'full:285,');
-  html = html.replace(/full:325, refresh:425/g, 'full:305, refresh:425');
-  html = html.replace(/full:325, refresh:475/g, 'full:315, refresh:475');
-  html = html.replace(/full:325, refresh:465/g, 'full:325, refresh:465'); // truck unchanged
 
   // CAR_PKG_DETAILS + helpers
   if (!html.includes('const CAR_PKG_DETAILS')) {

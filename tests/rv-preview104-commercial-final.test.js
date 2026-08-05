@@ -35,12 +35,12 @@ const {
 
 const PKG_IDS = ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
 const RATES = {
-  maint: { base: 150, ratePerFoot: 10 },
-  maint_light: { base: 250, ratePerFoot: 16 },
-  interior: { base: 250, ratePerFoot: 18 },
-  full_basic: { base: 300, ratePerFoot: 25 },
-  premium: { base: 300, ratePerFoot: 28 },
-  full: { base: 400, ratePerFoot: 36 },
+  maint: { base: 130, ratePerFoot: 9 },
+  maint_light: { base: 215, ratePerFoot: 14 },
+  interior: { base: 215, ratePerFoot: 15 },
+  full_basic: { base: 255, ratePerFoot: 21 },
+  premium: { base: 255, ratePerFoot: 24 },
+  full: { base: 340, ratePerFoot: 31 },
 };
 
 function extractRvLength(html) {
@@ -121,7 +121,7 @@ test('authoritative LENGTH_PRICING.rvs rates', () => {
     assert.equal(rule.ratePerFoot, RATES[id].ratePerFoot, id);
     assert.equal(ADJUSTED_RATES[id], RATES[id].ratePerFoot, id);
   }
-  assert.equal(getLengthPrice('rvs', 'maint', 19, 'travel'), 340);
+  assert.equal(getLengthPrice('rvs', 'maint', 19, 'travel'), 301);
 });
 
 test('client and server LENGTH_PRICING.rvs synced', () => {
@@ -133,7 +133,7 @@ test('client and server LENGTH_PRICING.rvs synced', () => {
 });
 
 test('full_basic rate is bundle-efficient vs maint+interior per-ft sum', () => {
-  assert.equal(ADJUSTED_RATES.full_basic, 25);
+  assert.equal(ADJUSTED_RATES.full_basic, 21);
   assert.ok(ADJUSTED_RATES.full_basic < ADJUSTED_RATES.maint + ADJUSTED_RATES.interior);
 });
 
@@ -179,10 +179,10 @@ test('specialty bridge uses openCategoryPackageBooking only', () => {
   assert.match(bridge, /maint_light: 1, interior: 1, full_basic: 1/);
 });
 
-test('other categories unchanged', () => {
-  assert.equal(LENGTH_PRICING.boats.packages.maint.min, 199);
-  assert.equal(PRICING.cars.tiers.small.interior, 225);
-  assert.equal(PRICING.powersports.tiers.motorcycle.wash, 119);
+test('other affected categories use the repriced catalog', () => {
+  assert.equal(LENGTH_PRICING.boats.packages.maint.min, 170);
+  assert.equal(PRICING.cars.tiers.small.interior, 190);
+  assert.equal(PRICING.powersports.tiers.motorcycle.wash, 100);
 });
 
 test('SYNC: rv pricing blocks idempotent', () => {

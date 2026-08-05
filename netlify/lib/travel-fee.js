@@ -1,101 +1,125 @@
-// Mile-based travel fee — flat per appointment location (not per vehicle).
-// Base: Bergen County, NJ (076xx). Service radius up to 120 miles.
+// Distance-based travel fee — flat per appointment location (not per vehicle).
+// Base: Hackensack, Bergen County NJ (07601).
+//
+// Distance comes from real ZIP centroid coordinates, not from a ZIP-prefix lookup
+// table. The previous model assumed a higher ZIP3 prefix meant a longer drive
+// (070 → 089), which is geographically false: USPS assigns prefixes by sorting
+// facility, not by distance. That assumption put Edison NJ at 75 miles when it is
+// 43, and Vineland NJ at 58 when it is 148 — overcharging the closest dense
+// markets while quoting loss-making jobs at the far edge.
+//
+// Fee model: free inside FREE_RADIUS_MI, then a flat rate per road mile beyond it,
+// rounded to the nearest $5 so quotes stay legible. Linear beyond the free radius
+// means no cliff edge — two neighbours never differ by $15 because a boundary runs
+// between them.
 
+const COORDS = require('./data/service-area-zip-coords');
+
+/** Straight-line miles under-state a drive; this is the usual planar correction. */
+const ROAD_FACTOR = 1.25;
+
+/** Road miles. Beyond this the location is out of the service area. */
 const TRAVEL_MAX_MILES = 120;
 
-const TRAVEL_FEE_TIERS = [
-  { maxMi: 30, fee: 0 },
-  { maxMi: 50, fee: 15 },
-  { maxMi: 65, fee: 25 },
-  { maxMi: 85, fee: 35 },
-  { maxMi: 100, fee: 40 },
-  { maxMi: 120, fee: 55 }, // 101–120 mi same tier
-];
+/** No travel fee at or inside this road distance. */
+const FREE_RADIUS_MI = 50;
 
-const ZONE_DEFAULT_MILES = {
-  nj_a: 12, nj_b: 38, nyc: 22, ny_s: 42, ct: 58,
-  pa_e: 68, pa_p: 78, pa_ph: 98, pa_b: 72, extended: 90,
-};
+/** Dollars per road mile beyond the free radius. */
+const RATE_PER_MILE = 1.0;
 
-const ZIP3_EST_MILES = {
-  '070': 12, '071': 18, '072': 14, '073': 16, '074': 10, '075': 8, '076': 6, '077': 20,
-  '078': 32, '079': 36, '080': 48, '081': 52, '082': 55, '083': 58, '084': 62, '085': 65,
-  '086': 68, '087': 72, '088': 75, '089': 78,
-  '100': 22, '101': 24, '102': 25, '103': 28, '104': 26, '111': 26, '112': 30, '113': 34, '114': 36,
-  '105': 35, '106': 38, '107': 42, '108': 44, '109': 48, '115': 40, '116': 38, '117': 46, '118': 50, '119': 54,
-  '120': 88, '121': 92, '122': 95, '123': 98, '124': 102, '125': 108, '126': 112, '127': 118, '128': 122,
-  '130': 125, '131': 128, '132': 132, '133': 135, '134': 138, '136': 140, '137': 142, '138': 145, '139': 148,
-  '060': 55, '061': 58, '062': 62, '063': 65, '064': 68, '065': 72, '066': 58, '067': 60, '068': 52, '069': 48,
-  '180': 65, '181': 68, '183': 75, '189': 70, '190': 95, '191': 98,
-  '170': 110, '171': 115, '172': 118, '173': 122, '174': 126, '175': 130, '176': 135, '177': 138, '178': 142,
-  '195': 120, '196': 125,
-};
+/** Fees round to this increment so a quote never reads $17.43. */
+const FEE_ROUNDING = 5;
 
-const ZIP_ZONE_PREFIXES = {
-  nj_a: ['070', '071', '072', '073', '074', '075', '076', '077'],
-  nj_b: ['078', '079', '080', '081', '082', '083', '084', '085', '086', '087', '088', '089'],
-  nyc: ['100', '101', '102', '103', '104', '111', '112', '113', '114'],
-  ny_s: ['105', '106', '107', '108', '109', '115', '116', '117', '118', '119', '120', '121', '122', '123'],
-  ct: ['060', '061', '062', '063', '064', '065', '066', '067', '068', '069'],
-  pa_e: ['180', '181'],
-  pa_p: ['183'],
-  pa_ph: ['190', '191'],
-  pa_b: ['189'],
-};
+const EARTH_RADIUS_MI = 3958.8;
 
-const ZIP_ZONE_LABELS = {
-  nj_a: 'NJ — Bergen / Hudson / Essex',
-  nj_b: 'NJ — Other Areas',
-  nyc: 'New York City',
-  ny_s: 'NY — Suburbs / Long Island',
-  ct: 'Connecticut',
-  pa_e: 'PA — Eastern / Lehigh Valley',
-  pa_p: 'PA — Pocono / Stroudsburg',
-  pa_ph: 'PA — Philadelphia Metro',
-  pa_b: 'PA — Bucks County',
-  extended: 'Extended Service Area',
-};
+let coordIndex = null;
 
+/** Parsed lazily: the packed table costs nothing until a ZIP is actually priced. */
+function zipCoordIndex() {
+  if (coordIndex) return coordIndex;
+  const index = new Map();
+  for (const entry of String(COORDS.packed || '').split(';')) {
+    if (!entry) continue;
+    const colon = entry.indexOf(':');
+    if (colon < 0) continue;
+    const zip = entry.slice(0, colon);
+    const comma = entry.indexOf(',', colon);
+    if (comma < 0) continue;
+    const lat = Number(entry.slice(colon + 1, comma));
+    const lon = Number(entry.slice(comma + 1));
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    index.set(zip, { lat, lon });
+  }
+  coordIndex = index;
+  return index;
+}
+
+function toRadians(deg) {
+  return (deg * Math.PI) / 180;
+}
+
+function haversineMiles(a, b) {
+  const dLat = toRadians(b.lat - a.lat);
+  const dLon = toRadians(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRadians(a.lat)) * Math.cos(toRadians(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_MI * Math.asin(Math.sqrt(h));
+}
+
+function normalizeZip(zip) {
+  const z = String(zip == null ? '' : zip).replace(/\D/g, '').slice(0, 5);
+  return z.length === 5 ? z : null;
+}
+
+/**
+ * Estimated road miles from base, or null when the ZIP is unknown.
+ * Unknown is deliberately null rather than a guessed default: quoting a distance
+ * we cannot compute is how the previous model went wrong.
+ */
+function estimateMilesForZip(zip) {
+  const z = normalizeZip(zip);
+  if (!z) return null;
+  const point = zipCoordIndex().get(z);
+  if (!point) return null;
+  const straight = haversineMiles(COORDS.base, point);
+  return Math.round(straight * ROAD_FACTOR);
+}
+
+/**
+ * Fee for a road distance. Free inside the radius, linear beyond it, null when
+ * the distance is outside the service area entirely.
+ */
 function travelFeeFromMiles(mi) {
-  if (mi == null || mi < 0 || mi > TRAVEL_MAX_MILES) return null;
-  for (const t of TRAVEL_FEE_TIERS) {
-    if (mi <= t.maxMi) return t.fee;
-  }
-  return 55;
+  const miles = Number(mi);
+  if (!Number.isFinite(miles) || miles < 0 || miles > TRAVEL_MAX_MILES) return null;
+  if (miles <= FREE_RADIUS_MI) return 0;
+  const billable = (miles - FREE_RADIUS_MI) * RATE_PER_MILE;
+  return Math.round(billable / FEE_ROUNDING) * FEE_ROUNDING;
 }
 
-function zoneKeyForZip3(p3) {
-  for (const [key, prefixes] of Object.entries(ZIP_ZONE_PREFIXES)) {
-    if (prefixes.includes(p3)) return key;
-  }
-  return null;
-}
-
-function estimateMilesForZip(zip, zoneKey) {
-  const z = String(zip || '').replace(/\D/g, '').slice(0, 5);
-  if (z.length < 5) return null;
-  const p3 = z.slice(0, 3);
-  if (ZIP3_EST_MILES[p3] != null) return Number(ZIP3_EST_MILES[p3]);
-  const zk = zoneKey || zoneKeyForZip3(p3);
-  if (zk && ZONE_DEFAULT_MILES[zk] != null) return ZONE_DEFAULT_MILES[zk];
-  return null;
+/** Human-readable band, for display only — never an input to the fee. */
+function zoneLabelForMiles(miles) {
+  if (miles <= FREE_RADIUS_MI) return 'Included — no travel fee';
+  if (miles <= 75) return 'Extended area';
+  if (miles <= 100) return 'Long distance';
+  return 'Maximum range';
 }
 
 function resolveTravelForZip(zip) {
-  const z = String(zip || '').replace(/\D/g, '').slice(0, 5);
-  if (z.length < 5) return null;
-  const zoneKey = zoneKeyForZip3(z.slice(0, 3));
-  const miles = estimateMilesForZip(z, zoneKey);
+  const z = normalizeZip(zip);
+  if (!z) return null;
+  const miles = estimateMilesForZip(z);
   if (miles == null || miles > TRAVEL_MAX_MILES) return null;
   const fee = travelFeeFromMiles(miles);
   if (fee == null) return null;
-  const key = zoneKey || 'extended';
   return {
     miles,
     fee,
-    zoneKey: key,
-    zoneLabel: ZIP_ZONE_LABELS[key] || ZIP_ZONE_LABELS.extended,
+    zoneKey: fee === 0 ? 'included' : 'extended',
+    zoneLabel: zoneLabelForMiles(miles),
     inRange: true,
+    freeRadiusMi: FREE_RADIUS_MI,
+    ratePerMile: RATE_PER_MILE,
   };
 }
 
@@ -147,10 +171,13 @@ function applyServerTravelAndTotal(booking, opts = {}) {
 
 module.exports = {
   TRAVEL_MAX_MILES,
-  TRAVEL_FEE_TIERS,
+  FREE_RADIUS_MI,
+  RATE_PER_MILE,
+  ROAD_FACTOR,
   travelFeeFromMiles,
   estimateMilesForZip,
   resolveTravelForZip,
   normalizeTravelFields,
   applyServerTravelAndTotal,
+  zipCoordIndex,
 };

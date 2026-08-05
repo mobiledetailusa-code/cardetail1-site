@@ -1,5 +1,9 @@
 // Customer completion / action link verification and actions (booking-scoped token or portal auth).
+const crypto = require('crypto');
 const { jsonCors, blobsStore } = require('../lib/tech-security');
+const { setBookingStoreOverride, getBookingRecord, commitBooking } = require('../lib/booking-repository');
+const { buildNextAggregate } = require('../lib/booking-aggregate');
+const { evaluateIssueSubmission, postServiceState } = require('../lib/post-service-experience');
 const { syncLegacyFields, portalLabel } = require('../lib/operations-lifecycle');
 const { auditEntry, appendAudit } = require('../lib/operations-audit');
 const { projectBookingForCustomer } = require('../lib/ops-schema');
@@ -77,6 +81,7 @@ exports.handler = async (event) => {
       approvedAmount: synced.approvedFinalAmount != null ? synced.approvedFinalAmount : synced.totalPrice,
       customerVisibleNotes: synced.customerVisibleNotes || '',
       completedAt: synced.completedAt || '',
+      postService: postServiceState(synced),
     });
   }
 
@@ -108,30 +113,101 @@ exports.handler = async (event) => {
   }
 
   if (action === 'report_issue') {
-    const note = String(body.note || body.message || '').trim().slice(0, 1000);
-    if (!note) return jsonCors(400, { ok: false, error: 'note_required' });
-    const prev = { ...synced };
-    const patched = syncLegacyFields({
-      ...synced,
-      customerApprovalStatus: 'disputed',
-      serviceStatus: 'disputed',
-      customerIssueNote: note,
-      updatedAt: new Date().toISOString(),
+    // Server time is the only clock that counts here. A browser reporting an
+    // issue at "47h59m" on a machine set back a day gets the same answer as
+    // everyone else.
+    const gate = evaluateIssueSubmission(synced, {
+      category: body.category,
+      description: body.description || body.note || body.message,
     });
+    if (!gate.ok) {
+      return jsonCors(gate.statusCode || 400, {
+        ok: false,
+        error: gate.error,
+        message: gate.message,
+        categories: gate.categories,
+        postService: gate.state,
+      });
+    }
+
+    const nowIso = new Date().toISOString();
+    const issue = {
+      issueId: `iss_${crypto.randomBytes(6).toString('hex')}`,
+      bookingId,
+      category: gate.category,
+      description: gate.description,
+      createdAt: nowIso,
+      // Reporting a problem opens a conversation. It is never an instruction to
+      // refund or reverse a charge — that stays a separate, authorised decision.
+      status: 'open',
+      submittedBy: ctx.actorId,
+      completedAt: gate.state.completedAt,
+      windowClosesAt: gate.state.serviceIssue.windowClosesAt,
+    };
+
     const store = await blobsStore('cd1-bookings');
-    await store.setJSON(bookingId, patched);
+    setBookingStoreOverride(store);
+    const rec = await getBookingRecord(bookingId);
+    const current = rec.exists ? rec.booking : synced;
+
+    // Operational and payment status are deliberately untouched: a reported
+    // issue must not erase the record that the job was completed and paid.
+    const next = buildNextAggregate(current, {
+      serviceIssues: [...(Array.isArray(current.serviceIssues) ? current.serviceIssues : []), issue].slice(-50),
+      serviceIssueOpen: true,
+      lastServiceIssueAt: nowIso,
+      customerIssueNote: gate.description,
+      updatedAt: nowIso,
+    });
+
+    const committed = await commitBooking({
+      bookingId,
+      expectedBookingVersion: Math.round(Number(current.bookingVersion) || 0),
+      nextAggregate: next,
+    });
+    if (!committed.ok) {
+      return jsonCors(committed.statusCode || 409, {
+        ok: false,
+        error: committed.error || 'version_conflict',
+        message: 'This appointment changed while you were writing. Reload and try again.',
+      });
+    }
+
     await appendAudit(auditEntry({
       bookingId,
       actorType: 'customer',
       actorId: ctx.actorId,
-      action: 'report_issue',
+      action: 'service_issue_submitted',
       requestId: body.requestId,
-      previousState: prev,
-      resultingState: patched,
-      reason: note,
+      previousState: current,
+      resultingState: committed.booking,
+      reason: `${gate.category}: ${gate.description}`.slice(0, 500),
       sourcePortal: 'customer',
-    }));
-    return jsonCors(200, { ok: true });
+    })).catch(() => null);
+
+    // Admin notification is best-effort — the issue is already recorded and
+    // visible in Admin regardless of whether the alert email goes out.
+    let adminNotified = false;
+    try {
+      const { notifyAdminOfServiceIssue } = require('../lib/service-issue-notifications');
+      const res = await notifyAdminOfServiceIssue(committed.booking, issue);
+      adminNotified = !!(res && res.sent);
+    } catch (e) {
+      console.warn('[customer-portal-action] admin issue notify failed:', e.message);
+    }
+
+    return jsonCors(200, {
+      ok: true,
+      issueId: issue.issueId,
+      status: issue.status,
+      adminNotified,
+      bookingVersion: committed.bookingVersion,
+      postService: postServiceState(committed.booking),
+    });
+  }
+
+  if (action === 'post_service_state') {
+    return jsonCors(200, { ok: true, bookingId, postService: postServiceState(synced) });
   }
 
   return jsonCors(400, { ok: false, error: 'unknown_action' });

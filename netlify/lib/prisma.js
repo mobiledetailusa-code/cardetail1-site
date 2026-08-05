@@ -27,9 +27,9 @@ function tryGetPrisma() {
     if (url.startsWith('prisma+postgres://') || url.includes('accelerate.prisma-data.net')) {
       _prisma = new PrismaClient({ accelerateUrl: url });
     } else {
-      _prisma = new PrismaClient({
-        datasources: { db: { url } },
-      });
+      // Prisma 7 requires a driver adapter for direct PostgreSQL URLs.
+      const { PrismaPg } = require('@prisma/adapter-pg');
+      _prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
     }
     return _prisma;
   } catch (err) {
