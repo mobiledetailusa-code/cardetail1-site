@@ -9,8 +9,7 @@
  *
  * Step 2 is a sync, not a second multiplication, and that distinction matters.
  * The pages each carry their own copy of the price table, and eight of them had
- * silently drifted from the server on the Full Detail row — advertising $300 and
- * $325 where the server charged $285, $305 and $315. Multiplying both sides
+ * silently drifted from the server on the Full Detail row. Multiplying both sides
  * independently would have preserved that drift at the new price level. Deriving
  * the pages from the catalog removes it and cannot reintroduce it.
  *

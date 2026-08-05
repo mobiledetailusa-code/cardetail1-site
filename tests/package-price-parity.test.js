@@ -232,9 +232,10 @@ test('AI chat starting prices are derived from the same catalog', () => {
 
 test('legacy patch scripts cannot restore stale package prices', () => {
   const addonPatcher = read('scripts/patch-addon-catalog.mjs');
-  assert.ok(
-    addonPatcher.indexOf('process.exit(0)') < addonPatcher.indexOf('const serverPath'),
-    'legacy add-on patcher must stop before its historical server-tier payload',
+  assert.doesNotMatch(
+    addonPatcher,
+    /const serverPath|server\.replace\(/,
+    'legacy add-on patcher must not contain a historical server-tier payload',
   );
 
   for (const file of ['scripts/patch-inclusive-from-prices.js', 'scripts/patch-inclusive-from-prices.ps1']) {
