@@ -4059,6 +4059,7 @@ function clearDraftSaveTokenState(){ST.draftSaveToken=null;ST.draftSaveTokenExp=
 function clearDraftRegistrationState(){
   ST.draftRegistered=false;
   ST.bookingId='';
+  ST.draftBookingVersion=0;
   clearDraftSaveTokenState();
   cardInitNonce++;
   cardInitInProgress=false;
@@ -4074,7 +4075,8 @@ function captureDraftSaveResponse(draftData){
   ST.draftRegistered=true;
   ST.draftSaveToken=draftData.draftSaveToken;
   ST.draftSaveTokenExp=draftData.draftSaveTokenExp;
-  return {bookingId:draftData.id,draftSaveToken:draftData.draftSaveToken};
+  ST.draftBookingVersion=Number(draftData.bookingVersion)||0;
+  return {bookingId:draftData.id,draftSaveToken:draftData.draftSaveToken,bookingVersion:ST.draftBookingVersion};
 }
 
 async function initCardOnFile(){
@@ -4116,6 +4118,7 @@ async function initCardOnFile(){
     if(ST.draftRegistered&&!ST.draftSaveToken){ST.draftRegistered=false;ST.bookingId='';clearDraftSaveTokenState();}
     let draftSessionBookingId=ST.draftRegistered?ST.bookingId:'';
     let draftSessionToken=ST.draftSaveToken||'';
+    let draftSessionBookingVersion=Number(ST.draftBookingVersion)||0;
     if(!ST.draftRegistered){
       const sched=bkValidateScheduleSelection();
       if(!sched.ok){
@@ -4158,14 +4161,16 @@ async function initCardOnFile(){
       const session=captureDraftSaveResponse(draftData);
       draftSessionBookingId=session.bookingId;
       draftSessionToken=session.draftSaveToken;
+      draftSessionBookingVersion=session.bookingVersion;
     }
     destroyStripePaymentUI();
     if(isStale()) return;
     if(!draftSessionBookingId||!draftSessionToken){throw new Error('We could not securely verify this booking session. Please go back one step and try again.');}
-    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:draftSessionBookingId,draftSaveToken:draftSessionToken})});
+    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:draftSessionBookingId,draftSaveToken:draftSessionToken,expectedBookingVersion:draftSessionBookingVersion})});
     const siCt=(siRes.headers.get('content-type')||'').toLowerCase();
     if(!siCt.includes('json')) throw new Error(isLocalPreview?LOCAL_DEV_FUNCTIONS_HINT:'Secure card saving is temporarily unavailable.');
     const siData=await siRes.json();
+    if(siData&&siData.bookingVersion!=null) ST.draftBookingVersion=Number(siData.bookingVersion)||0;
     if(isStale()) return;
     if(!siData.ok||siData.fallback){
       const errMap={

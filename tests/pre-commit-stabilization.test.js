@@ -260,7 +260,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/prisma.js',
     'netlify/lib/card-on-file.js',
     'netlify/lib/tech-security.js',
-    // Phase 2/3 Postgres foundation — additive, not wired into live traffic.
+    // PostgreSQL payment authority and minimized Stripe webhook inbox.
     'netlify/functions/db-health.js',
     'netlify/functions/customer-balance-payment-intent.js',
     'netlify/functions/customer-portal-data.js',
@@ -270,6 +270,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/db/foundation-services.js',
     'netlify/lib/db/financial-projection.js',
     'netlify/lib/db/payment-authority-service.js',
+    'netlify/lib/db/stripe-event-data.js',
     'netlify/lib/db/webhook-inbox.js',
     'netlify/lib/db/ensure-booking-financial.js',
     'netlify/lib/db/operational-payment.js',

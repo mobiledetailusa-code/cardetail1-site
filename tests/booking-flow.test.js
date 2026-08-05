@@ -102,11 +102,17 @@ test('trusted webhook writes only card-on-file fields for SetupIntent success', 
     webhook.indexOf("case 'setup_intent.succeeded'"),
     webhook.indexOf("case 'setup_intent.setup_failed'")
   );
-  assert.match(succeeded, /cardOnFileStatus:\s+'saved'/);
-  assert.match(succeeded, /setupIntentId:\s+si\.id/);
-  assert.match(succeeded, /stripeCustomerId/);
-  assert.match(succeeded, /stripePaymentMethodId/);
-  assert.match(succeeded, /cardOnFileSavedAt/);
+  assert.match(succeeded, /updateSetupIntentState\(evt,\s*si,\s*'saved'\)/);
+  const updater = webhook.slice(
+    webhook.indexOf('async function updateSetupIntentState'),
+    webhook.indexOf('function signBid')
+  );
+  assert.match(updater, /cardOnFileStatus:\s*'saved'/);
+  assert.match(updater, /setupIntentId:\s+setupIntent\.id/);
+  assert.match(updater, /stripeCustomerId/);
+  assert.match(updater, /stripePaymentMethodId/);
+  assert.match(updater, /cardOnFileSavedAt/);
+  assert.match(updater, /expectedBookingVersion/);
   assert.doesNotMatch(succeeded, /paymentStatus:/);
   assert.doesNotMatch(succeeded, /appointmentStatus:/);
   assert.doesNotMatch(succeeded, /triggerAuction/);

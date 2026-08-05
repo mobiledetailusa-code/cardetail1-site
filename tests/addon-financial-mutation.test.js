@@ -26,16 +26,24 @@ function fakePaymentIntentCreateFetch({ id = 'pi_fake', amountCents = null, call
     if (calls) calls.push({ url, method: opts?.method, body: opts?.body });
     if (String(url).includes('/payment_intents')) {
       let amount = amountCents;
+      const params = new URLSearchParams(String(opts?.body || ''));
       if (amount == null && opts?.body) {
-        const params = new URLSearchParams(String(opts.body));
         amount = Number(params.get('amount') || 0);
       }
       return {
         ok: true,
         json: async () => ({
-          id,
+          id: String(id).startsWith('pi_') ? id : `pi_${id}`,
           status: 'requires_payment_method',
           amount: amount || 0,
+          currency: 'usd',
+          customer: params.get('customer'),
+          metadata: {
+            bookingId: params.get('metadata[bookingId]'),
+            booking_id: params.get('metadata[booking_id]'),
+            quoteVersion: params.get('metadata[quoteVersion]'),
+            purpose: params.get('metadata[purpose]'),
+          },
           client_secret: `${id}_secret`,
         }),
       };

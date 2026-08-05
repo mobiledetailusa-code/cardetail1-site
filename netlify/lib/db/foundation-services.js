@@ -12,6 +12,7 @@
 
 const { getPrisma } = require('../prisma');
 const { Prisma } = require('@prisma/client');
+const { sanitizeStripeEventPayload } = require('./stripe-event-data');
 
 function isUniqueConstraintError(err) {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
@@ -34,6 +35,8 @@ async function reservePaymentObligation({
   amountCents,
   providerObjectType,
   providerObjectId = null,
+  providerCustomerId = null,
+  purpose = 'customer_balance',
   idempotencyKey,
   generation = 1,
 }) {
@@ -45,6 +48,8 @@ async function reservePaymentObligation({
         quoteId,
         quoteVersion,
         amountCents,
+        purpose,
+        providerCustomerId,
         providerObjectType,
         providerObjectId,
         idempotencyKey,
@@ -77,9 +82,10 @@ async function reservePaymentObligation({
  */
 async function recordStripeEvent({ stripeEventId, type, bookingId = null, payload }) {
   const prisma = getPrisma();
+  const minimizedPayload = sanitizeStripeEventPayload(payload);
   try {
     const event = await prisma.stripeEvent.create({
-      data: { stripeEventId, type, bookingId, payload, status: 'received' },
+      data: { stripeEventId, type, bookingId, payload: minimizedPayload, status: 'received' },
     });
     return { ok: true, created: true, duplicate: false, event };
   } catch (err) {

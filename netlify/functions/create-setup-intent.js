@@ -16,6 +16,10 @@ const {
   getDraftTokenSecretStatus,
 } = require('../lib/draft-save-token');
 const { validateBookingRouting } = require('../lib/booking-routing-validation');
+const {
+  commitBooking,
+} = require('../lib/booking-repository');
+const { buildNextAggregate } = require('../lib/booking-aggregate');
 
 let blobsStoreOverride = null;
 
@@ -39,7 +43,6 @@ const CORS = {
 const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.stringify(body) });
 
 exports.handler = async (event) => {
-  console.log('[create-setup-intent] called: yes');
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
 
@@ -86,10 +89,28 @@ exports.handler = async (event) => {
     return json(403, { ok: false, error: 'invalid_draft_token' });
   }
 
-  console.log('[create-setup-intent] booking found:', !!booking);
+  // Authenticate ownership before exposing version state for this booking.
+  const expectedBookingVersion = Math.round(Number(p.expectedBookingVersion));
+  const actualBookingVersion = Math.round(Number(booking.bookingVersion) || 0);
+  const idempotentRetry = !!booking.setupIntentId
+    && Number.isFinite(expectedBookingVersion)
+    && expectedBookingVersion + 1 === actualBookingVersion;
+  if (p.expectedBookingVersion == null || p.expectedBookingVersion === ''
+    || !Number.isFinite(expectedBookingVersion)
+    || (expectedBookingVersion !== actualBookingVersion && !idempotentRetry)) {
+    return json(409, {
+      ok: false,
+      error: 'version_conflict',
+      expectedBookingVersion: Number.isFinite(expectedBookingVersion) ? expectedBookingVersion : null,
+      actualBookingVersion,
+    });
+  }
+
   if (!booking.isDraft || booking.cardOnFileRequired !== true || booking.cardOnFileStatus !== 'pending') {
-    console.log('[create-setup-intent] booking not eligible: isDraft=%s status=%s', booking.isDraft, booking.cardOnFileStatus);
     return json(409, { ok: false, error: 'booking_not_eligible_for_card_save' });
+  }
+  if (booking.acceptedCardOnFilePolicy !== true || !booking.acceptedCardOnFilePolicyAt) {
+    return json(409, { ok: false, error: 'card_on_file_consent_required' });
   }
 
   const routingCheck = validateBookingRouting(booking);
@@ -100,7 +121,6 @@ exports.handler = async (event) => {
   const { guardStripeOrReject } = require('../lib/stripe-mode');
   const stripeGuard = guardStripeOrReject(process.env, { purpose: 'setup_intent' });
   if (stripeGuard.blocked) {
-    console.log('[create-setup-intent] blocked by stripe-mode guard:', stripeGuard.body?.error);
     return json(stripeGuard.statusCode || 503, {
       ...stripeGuard.body,
       fallback: stripeGuard.body?.error === 'stripe_not_configured',
@@ -109,14 +129,13 @@ exports.handler = async (event) => {
   const secret = stripeGuard.secret;
   const mode = stripeGuard.mode;
 
-  console.log('[create-setup-intent] bookingId present:', !!bookingId, '| mode:', mode);
-
   const stripeHeaders = {
     Authorization: `Bearer ${secret}`,
     'Content-Type': 'application/x-www-form-urlencoded',
   };
 
   // ── Create Stripe Customer ─────────────────────────────────────────────────
+  const policyVersion = String(booking.policyVersion || 'card-on-file-policy-v1').slice(0, 64);
   const custForm = new URLSearchParams();
   const email = String(booking.email || '');
   if (email.includes('@')) custForm.append('email', email.slice(0, 120));
@@ -124,70 +143,103 @@ exports.handler = async (event) => {
   if (name) custForm.append('name', name.slice(0, 120));
   custForm.append('metadata[booking_id]', bookingId);
 
-  const custRes = await fetch('https://api.stripe.com/v1/customers', {
-    method: 'POST',
-    headers: stripeHeaders,
-    body: custForm,
-  });
-  if (!custRes.ok) {
-    console.error('[create-setup-intent] customer creation failed: HTTP', custRes.status);
+  let customerId = String(booking.stripeCustomerId || '').trim();
+  if (!/^cus_[A-Za-z0-9]+$/.test(customerId)) {
+    const custRes = await fetch('https://api.stripe.com/v1/customers', {
+      method: 'POST',
+      headers: {
+        ...stripeHeaders,
+        'Idempotency-Key': `setup_customer_${bookingId}_${policyVersion}`,
+      },
+      body: custForm,
+    });
+    if (!custRes.ok) {
+      return json(502, { ok: false, error: 'card_save_unavailable', fallback: true });
+    }
+    const customer = await custRes.json().catch(() => ({}));
+    customerId = String(customer.id || '').trim();
+  }
+  if (!/^cus_[A-Za-z0-9]+$/.test(customerId)) {
     return json(502, { ok: false, error: 'card_save_unavailable', fallback: true });
   }
-  const cust = await custRes.json().catch(() => ({}));
-  console.log('[create-setup-intent] stripe customer created: yes');
 
   // ── Create SetupIntent (off_session = card can be used for future charges) ──
   const siForm = new URLSearchParams({
-    customer:                           cust.id,
+    customer:                           customerId,
     usage:                              'off_session',
     'payment_method_types[0]':          'card',
     'metadata[bookingId]':              bookingId,
+    'metadata[purpose]':                'card_on_file',
+    'metadata[consent_version]':        policyVersion,
   });
 
   const siRes = await fetch('https://api.stripe.com/v1/setup_intents', {
     method: 'POST',
-    headers: stripeHeaders,
+    headers: {
+      ...stripeHeaders,
+      'Idempotency-Key': `setup_intent_${bookingId}_${policyVersion}`,
+    },
     body: siForm,
   });
   if (!siRes.ok) {
-    console.error('[create-setup-intent] SetupIntent creation failed: HTTP', siRes.status);
     return json(502, { ok: false, error: 'card_save_unavailable', fallback: true });
   }
   const si = await siRes.json().catch(() => ({}));
   if (!si.client_secret) {
-    console.error('[create-setup-intent] SetupIntent missing client_secret');
     return json(502, { ok: false, error: 'card_save_unavailable', fallback: true });
   }
-  console.log('[create-setup-intent] SetupIntent created: yes | id prefix:', si.id ? si.id.slice(0, 15) : 'none', '| mode:', mode);
+  if (!/^seti_[A-Za-z0-9]+$/.test(String(si.id || '')) || si.customer !== customerId) {
+    return json(502, { ok: false, error: 'card_save_unavailable', fallback: true });
+  }
+
+  if (idempotentRetry && booking.setupIntentId === si.id) {
+    return json(200, {
+      ok: true,
+      clientSecret: si.client_secret,
+      mode,
+      bookingId,
+      bookingVersion: actualBookingVersion,
+      reused: true,
+    });
+  }
 
   // Persist SetupIntent on the draft without dropping unrelated draft fields.
   try {
-    const nextDraft = {
-      ...booking,
+    const nextDraft = buildNextAggregate(booking, {
       setupIntentId: si.id,
-      stripeCustomerId: cust.id,
+      stripeCustomerId: customerId,
+      cardOnFileConsentVersion: policyVersion,
+      cardOnFileConsentGrantedAt: booking.acceptedCardOnFilePolicyAt,
       // Keep prior payment-method / saved markers if webhook already applied.
       stripePaymentMethodId: booking.stripePaymentMethodId,
       cardOnFileStatus: booking.cardOnFileStatus || 'pending',
       isDraft: true,
       updatedAt: new Date().toISOString(),
-    };
-    await store.setJSON(bookingId, nextDraft);
-    console.log('[create-setup-intent] draft updated', {
-      draftBookingId: bookingId,
-      setupIntentIdPrefix: si.id ? String(si.id).slice(0, 15) : 'none',
-      cardOnFileStatus: nextDraft.cardOnFileStatus,
     });
+    const committed = await commitBooking({
+      bookingId,
+      expectedBookingVersion: actualBookingVersion,
+      nextAggregate: nextDraft,
+      storeOverride: store,
+    });
+    if (!committed.ok) {
+      return json(409, {
+        ok: false,
+        error: 'version_conflict',
+        expectedBookingVersion,
+        actualBookingVersion: committed.actualBookingVersion,
+      });
+    }
   } catch (e) {
-    console.warn('[create-setup-intent] could not update draft with setupIntentId:', e.message);
+    return json(503, { ok: false, error: 'booking_store_unavailable', fallback: true });
   }
 
-  console.log('[create-setup-intent] clientSecret returned to browser: yes');
   return json(200, {
     ok: true,
     clientSecret: si.client_secret,
     mode,
     bookingId,
+    bookingVersion: actualBookingVersion + 1,
   });
 };
 

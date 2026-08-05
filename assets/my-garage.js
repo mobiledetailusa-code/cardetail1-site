@@ -2338,18 +2338,8 @@
 
   async function startHostedCheckoutFallback() {
     var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
-    showToast('Opening hosted Checkout…');
-    var r = await post('customer-portal-pay', {
-      bookingId: state.booking.id,
-      phone: phone,
-      expectedQuoteVersion: state.payment && state.payment.quoteVersion,
-    });
-    if (r.data && r.data.ok && r.data.url) {
-      if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.paymentOpened();
-      global.location.href = r.data.url;
-      return;
-    }
-    showToast((r.data && r.data.message) || 'Hosted Checkout is not available.', true);
+    if (phone) { /* keep the verified-session read on this recovery path */ }
+    showToast('Secure payment could not load. Check your connection and try again.', true);
   }
 
   async function startPayBalance() {
@@ -2409,6 +2399,7 @@
       bookingId: state.booking.id,
       phone: phone,
       expectedQuoteVersion: pay.quoteVersion,
+      expectedBookingVersion: state.booking.bookingVersion,
     });
 
     if (intent.data && intent.data.error === 'already_paid') {
@@ -2420,12 +2411,12 @@
 
     if (intent.data && intent.data.ok && intent.data.clientSecret) {
       if (typeof global.Stripe !== 'function') {
-        showToast('Stripe.js failed to load — using hosted Checkout.', true);
+        showToast('Stripe.js failed to load. Check your connection and try again.', true);
         return startHostedCheckoutFallback();
       }
       var pk = await loadStripePublishableKey();
       if (!pk) {
-        showToast('Payment config unavailable — using hosted Checkout.', true);
+        showToast('Payment config is temporarily unavailable. Try again shortly.', true);
         return startHostedCheckoutFallback();
       }
 
@@ -2458,17 +2449,11 @@
       panel.hidden = false;
       embeddedPay.paymentElement.mount(mountEl);
       setEmbeddedPayMsg('Enter card details to pay. Saved cards appear only when Stripe allows redisplay.', false);
-      var fallbackBtn = $('embedded-pay-checkout-fallback');
-      if (fallbackBtn) fallbackBtn.hidden = false;
       revealPaymentPanel();
       if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.paymentOpened();
       return;
     }
 
-    // Controlled recovery: hosted Checkout when embedded path unavailable.
-    if (intent.data && (intent.data.fallback === 'checkout' || intent.data.error === 'postgres_payment_disabled')) {
-      return startHostedCheckoutFallback();
-    }
     showToast((intent.data && intent.data.message) || 'Payment is not available yet.', true);
   }
 
@@ -2490,7 +2475,7 @@
     });
     if (submitBtn) submitBtn.disabled = false;
     if (result.error) {
-      setEmbeddedPayMsg(result.error.message || 'Payment failed. Try again or use hosted Checkout.', true);
+      setEmbeddedPayMsg(result.error.message || 'Payment failed. Try again.', true);
       return;
     }
     var status = result.paymentIntent && result.paymentIntent.status;
@@ -2510,11 +2495,9 @@
   function bindEmbeddedPayControls() {
     var submit = $('embedded-pay-submit');
     var cancel = $('embedded-pay-cancel');
-    var fallback = $('embedded-pay-checkout-fallback');
     var sticky = $('pay-sticky-btn');
     if (submit) submit.addEventListener('click', function () { confirmEmbeddedPay(); });
     if (cancel) cancel.addEventListener('click', function () { hideEmbeddedPay(); });
-    if (fallback) fallback.addEventListener('click', function () { startHostedCheckoutFallback(); });
     if (sticky) sticky.addEventListener('click', function () { startPayBalance(); });
   }
   bindEmbeddedPayControls();
@@ -3284,6 +3267,7 @@
         ok = await submitPortalAction('approve_completion', {
           bookingId: state.booking && state.booking.id,
           phone: state.verifyPhone || normalizePhoneInput(state.booking && state.booking.phone),
+          expectedBookingVersion: state.booking && state.booking.bookingVersion,
         });
       } else if (modalAction === 'report_issue') {
         ok = await submitPortalAction('report_issue', {

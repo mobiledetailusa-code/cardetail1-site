@@ -28,8 +28,8 @@ function writeWasApplied(result) {
   return result.modified !== false;
 }
 
-async function getBookingRecord(bookingId) {
-  const store = await getStore();
+async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
+  const store = storeOverride || await getStore();
   const id = String(bookingId || '').trim();
   if (!id) return { exists: false, booking: null, etag: null, raw: null };
 
@@ -75,12 +75,13 @@ async function commitBooking({
   expectedBookingVersion,
   nextAggregate,
   createIfMissing = false,
+  storeOverride = null,
 }) {
-  const store = await getStore();
+  const store = storeOverride || await getStore();
   const id = String(bookingId || nextAggregate?.id || '').trim();
   if (!id) return { ok: false, error: 'missing_booking_id' };
 
-  const current = await getBookingRecord(id);
+  const current = await getBookingRecord(id, { storeOverride: store });
   const expected = Math.max(0, Math.round(Number(expectedBookingVersion)));
 
   if (!current.exists) {
@@ -128,7 +129,7 @@ async function commitBooking({
     writeResult = await store.setJSON(id, toWrite, { onlyIfMatch: current.etag });
   } else if (typeof store.setJSON === 'function') {
     // Test memory stores: simulate CAS via __etag / bookingVersion re-read
-    const fresh = await getBookingRecord(id);
+    const fresh = await getBookingRecord(id, { storeOverride: store });
     const freshVersion = Math.max(0, Math.round(Number(fresh.booking?.bookingVersion) || 0));
     if (freshVersion !== expected) {
       return {

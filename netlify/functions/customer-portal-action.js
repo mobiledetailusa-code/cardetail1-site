@@ -1,7 +1,7 @@
 // Customer completion / action link verification and actions (booking-scoped token or portal auth).
 const crypto = require('crypto');
 const { jsonCors, blobsStore } = require('../lib/tech-security');
-const { setBookingStoreOverride, getBookingRecord, commitBooking } = require('../lib/booking-repository');
+const { getBookingRecord, commitBooking } = require('../lib/booking-repository');
 const { buildNextAggregate } = require('../lib/booking-aggregate');
 const { evaluateIssueSubmission, postServiceState } = require('../lib/post-service-experience');
 const { syncLegacyFields, portalLabel } = require('../lib/operations-lifecycle');
@@ -90,15 +90,36 @@ exports.handler = async (event) => {
       return jsonCors(409, { ok: false, error: 'adjustment_under_review' });
     }
     const prev = { ...synced };
+    const expectedBookingVersion = Math.round(Number(body.expectedBookingVersion));
+    const actualBookingVersion = Math.round(Number(synced.bookingVersion) || 0);
+    if (body.expectedBookingVersion == null || body.expectedBookingVersion === ''
+      || !Number.isFinite(expectedBookingVersion)
+      || expectedBookingVersion !== actualBookingVersion) {
+      return jsonCors(409, {
+        ok: false,
+        error: 'version_conflict',
+        expectedBookingVersion: Number.isFinite(expectedBookingVersion) ? expectedBookingVersion : null,
+        actualBookingVersion,
+      });
+    }
     const patched = syncLegacyFields({
       ...synced,
       customerApprovalStatus: 'approved',
-      serviceStatus: synced.paymentStatus === 'paid_cash' || synced.paymentStatus === 'paid_card_on_site'
-        ? 'closed' : 'awaiting_customer_action',
+      // Service approval is operational. It closes the service regardless of
+      // whether the independent invoice was paid before or will be paid after.
+      serviceStatus: 'closed',
       updatedAt: new Date().toISOString(),
     });
     const store = await blobsStore('cd1-bookings');
-    await store.setJSON(bookingId, patched);
+    const committed = await commitBooking({
+      bookingId,
+      expectedBookingVersion,
+      nextAggregate: buildNextAggregate(synced, patched),
+      storeOverride: store,
+    });
+    if (!committed.ok) {
+      return jsonCors(409, { ok: false, error: 'version_conflict' });
+    }
     await appendAudit(auditEntry({
       bookingId,
       actorType: 'customer',
@@ -106,10 +127,18 @@ exports.handler = async (event) => {
       action: 'approve_completion',
       requestId: body.requestId,
       previousState: prev,
-      resultingState: patched,
+      resultingState: committed.booking,
       sourcePortal: 'customer',
     }));
-    return jsonCors(200, { ok: true, labels: portalLabel(patched.serviceStatus, patched.paymentStatus, patched.customerApprovalStatus) });
+    return jsonCors(200, {
+      ok: true,
+      bookingVersion: committed.bookingVersion,
+      labels: portalLabel(
+        committed.booking.serviceStatus,
+        committed.booking.paymentStatus,
+        committed.booking.customerApprovalStatus
+      ),
+    });
   }
 
   if (action === 'report_issue') {
@@ -146,8 +175,7 @@ exports.handler = async (event) => {
     };
 
     const store = await blobsStore('cd1-bookings');
-    setBookingStoreOverride(store);
-    const rec = await getBookingRecord(bookingId);
+    const rec = await getBookingRecord(bookingId, { storeOverride: store });
     const current = rec.exists ? rec.booking : synced;
 
     // Operational and payment status are deliberately untouched: a reported
@@ -164,6 +192,7 @@ exports.handler = async (event) => {
       bookingId,
       expectedBookingVersion: Math.round(Number(current.bookingVersion) || 0),
       nextAggregate: next,
+      storeOverride: store,
     });
     if (!committed.ok) {
       return jsonCors(committed.statusCode || 409, {

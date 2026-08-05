@@ -16,18 +16,25 @@ const { reconcilePaymentIntentEvent } = require('./payment-authority-service');
 
 function verifyStripeSignature(rawBody, sigHeader, secret) {
   if (!sigHeader || !secret) return false;
-  const parts = {};
-  sigHeader.split(',').forEach((kv) => {
-    const [k, v] = kv.split('=');
-    parts[k] = v;
+  let timestamp = null;
+  const signatures = [];
+  sigHeader.split(',').forEach((part) => {
+    const index = part.indexOf('=');
+    if (index < 1) return;
+    const key = part.slice(0, index).trim();
+    const value = part.slice(index + 1).trim();
+    if (key === 't' && timestamp == null) timestamp = value;
+    if (key === 'v1' && value) signatures.push(value);
   });
-  if (!parts.t || !parts.v1) return false;
-  const age = Math.abs(Math.floor(Date.now() / 1000) - Number(parts.t));
+  if (!timestamp || !signatures.length || !/^\d+$/.test(timestamp)) return false;
+  const age = Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp));
   if (age > 300) return false;
-  const expected = crypto.createHmac('sha256', secret).update(`${parts.t}.${rawBody}`, 'utf8').digest('hex');
+  const expected = crypto.createHmac('sha256', secret).update(`${timestamp}.${rawBody}`, 'utf8').digest('hex');
   const a = Buffer.from(expected);
-  const b = Buffer.from(parts.v1);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  return signatures.some((signature) => {
+    const b = Buffer.from(signature);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  });
 }
 
 /**
@@ -56,8 +63,15 @@ async function handleWebhookDelivery({ rawBody, sigHeader, secret }) {
   }
 
   if (type.startsWith('payment_intent.')) {
-    const result = await reconcilePaymentIntentEvent({ stripeEventId, type, paymentIntent: obj });
-    return { ok: true, statusCode: 200, dispatched: 'payment_intent', result };
+    const result = await reconcilePaymentIntentEvent({
+      stripeEventId,
+      type,
+      paymentIntent: obj,
+      eventCreatedAt: event.created,
+    });
+    return result.ok
+      ? { ok: true, statusCode: 200, dispatched: 'payment_intent', result }
+      : { ok: false, statusCode: result.statusCode || 500, dispatched: 'payment_intent', result };
   }
 
   // Unrecognized event types are acknowledged (200), not treated as errors —

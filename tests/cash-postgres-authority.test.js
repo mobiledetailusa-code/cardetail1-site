@@ -126,6 +126,7 @@ describe('PostgreSQL cash settlement authority', {
   let prisma;
   let setBookingStoreOverride;
   let adminMarkCashReceived;
+  let adminMarkCardOnSite;
   let financialProjection;
   let projectJobForAdmin;
   let authority;
@@ -134,7 +135,7 @@ describe('PostgreSQL cash settlement authority', {
   before(() => {
     prisma = getPrisma();
     ({ setBookingStoreOverride } = require('../netlify/lib/booking-repository'));
-    ({ adminMarkCashReceived } = require('../netlify/functions/admin-ops-jobs'));
+    ({ adminMarkCashReceived, adminMarkCardOnSite } = require('../netlify/functions/admin-ops-jobs'));
     ({ financialProjection } = require('../netlify/lib/payment-service'));
     ({ projectJobForAdmin } = require('../netlify/lib/ops-workflow'));
     authority = require('../netlify/lib/db/payment-authority-service');
@@ -172,7 +173,11 @@ describe('PostgreSQL cash settlement authority', {
   async function settle(store, booking, body = {}, extra = {}) {
     return adminMarkCashReceived({
       bookingId: booking.id,
-      body,
+      body: {
+        reason: 'Test cash settlement',
+        expectedBookingVersion: booking.bookingVersion,
+        ...body,
+      },
       previousBooking: store._snapshot(booking.id),
       store,
       env: PG_ENV,
@@ -209,8 +214,8 @@ describe('PostgreSQL cash settlement authority', {
     assert.equal(result.postgresProjection.remainingCents, 0);
     assert.equal(result.settledAmountCents, 15000);
     assert.equal(result.paymentStatus, 'paid_cash');
-    assert.equal(result.jobStatus, 'completed_paid');
-    assert.equal(result.serviceStatus, 'closed');
+    assert.equal(result.jobStatus, 'confirmed');
+    assert.equal(result.serviceStatus, 'confirmed');
 
     const after = await pgSnapshot(id);
     assert.equal(after.remainingCents, 0);
@@ -361,8 +366,8 @@ describe('PostgreSQL cash settlement authority', {
     const store = await seed(booking);
 
     const [a, b] = await Promise.all([
-      authority.recordFullBalanceCashSettlement({ bookingId: id, body: {} }),
-      authority.recordFullBalanceCashSettlement({ bookingId: id, body: {} }),
+      authority.recordFullBalanceCashSettlement({ bookingId: id, body: { reason: 'Concurrent test' } }),
+      authority.recordFullBalanceCashSettlement({ bookingId: id, body: { reason: 'Concurrent test' } }),
     ]);
 
     assert.ok(a.ok && b.ok, JSON.stringify({ a, b }));
@@ -376,7 +381,7 @@ describe('PostgreSQL cash settlement authority', {
     assert.equal(pg.settledCents, 15000);
     assert.equal(pg.remainingCents, 0);
 
-    // Compatibility close once after concurrent money settle.
+    // Compatibility projection sync after concurrent money settle; service remains independent.
     const closed = await settle(store, store._snapshot(id), {});
     assert.ok(closed.ok || closed.error === 'already_paid', closed.error);
     assert.equal(financialProjection(store._snapshot(id)).remainingCents, 0);
@@ -478,7 +483,7 @@ describe('PostgreSQL cash settlement authority', {
     assert.equal(afterBlob.jobStatus, beforeBlob.jobStatus);
   });
 
-  it('13) PostgreSQL-disabled fallback retains Blob full-balance path', async () => {
+  it('13) PostgreSQL-disabled settlement fails closed without mutating Blob money', async () => {
     const id = nextId('BLOB');
     const booking = baseBooking(id);
     const store = createMemoryStore({ [id]: booking });
@@ -486,20 +491,20 @@ describe('PostgreSQL cash settlement authority', {
 
     const result = await adminMarkCashReceived({
       bookingId: id,
-      body: {},
+      body: { reason: 'Fail-closed test', expectedBookingVersion: booking.bookingVersion },
       previousBooking: booking,
       store,
       env: BLOB_ENV,
     });
-    assert.equal(result.ok, true, result.error);
-    assert.equal(result.authority, 'blob');
-    assert.equal(result.projection.remainingCents, 0);
-    assert.equal(result.settledAmountCents, 15000);
+    assert.equal(result.ok, false);
+    assert.equal(result.error, 'postgres_payment_disabled');
+    assert.equal(result.statusCode, 503);
+    assert.equal(financialProjection(store._snapshot(id)).remainingCents, 15000);
   });
 
   it('14) Admin submits the entered amount with booking-version CAS', () => {
     const src = read('admin-ops.html');
-    assert.match(src, /mark_cash_received',\s*\{\s*amount:\s*String\(amt\)\.trim\(\),\s*expectedBookingVersion:\s*j\.bookingVersion/);
+    assert.match(src, /mark_cash_received',\s*\{\s*amount:\s*String\(amt\)\.trim\(\),\s*reason:\s*reason\.trim\(\),\s*expectedBookingVersion:\s*j\.bookingVersion/);
   });
 
   it('15) omitted amount also works after stale-blob delta (no amount field)', async () => {
@@ -527,5 +532,100 @@ describe('PostgreSQL cash settlement authority', {
     assert.equal(result.ok, true, result.error);
     assert.equal(result.settledAmountCents, 4000);
     assert.equal((await pgSnapshot(id)).remainingCents, 0);
+  });
+
+  it('16) card-on-site settles Postgres with evidence without closing service', async () => {
+    const id = nextId('CARD');
+    const booking = baseBooking(id);
+    const store = await seed(booking);
+    const result = await adminMarkCardOnSite({
+      bookingId: id,
+      previousBooking: booking,
+      store,
+      env: PG_ENV,
+      body: {
+        amount: 150,
+        reference: 'terminal-TXN-A42',
+        reason: 'Customer paid on the mobile terminal',
+        expectedBookingVersion: booking.bookingVersion,
+      },
+    });
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.paymentStatus, 'paid_card_on_site');
+    assert.equal(result.jobStatus, 'confirmed');
+    assert.equal(result.serviceStatus, 'confirmed');
+    assert.equal(result.postgresProjection.remainingCents, 0);
+
+    const entries = await prisma.ledgerEntry.findMany({ where: { bookingId: id } });
+    const cardEntries = entries.filter((entry) => entry.providerObjectId === 'card_on_site');
+    assert.equal(cardEntries.length, 1);
+    assert.equal(cardEntries[0].amountCents, 15000);
+    const audit = await prisma.auditEvent.findFirst({
+      where: { bookingId: id, action: 'mark_card_on_site' },
+      orderBy: { createdAt: 'desc' },
+    });
+    assert.ok(audit);
+    assert.equal(audit.detail.reason, 'Customer paid on the mobile terminal');
+    assert.equal(audit.detail.reference, 'terminal-TXN-A42');
+  });
+
+  it('17) card-on-site rejects a reference that resembles full card data', async () => {
+    const id = nextId('CARDPAN');
+    const booking = baseBooking(id);
+    const store = await seed(booking);
+    const result = await adminMarkCardOnSite({
+      bookingId: id,
+      previousBooking: booking,
+      store,
+      env: PG_ENV,
+      body: {
+        amount: 150,
+        reference: '4242 4242 4242 4242',
+        reason: 'Unsafe evidence test',
+        expectedBookingVersion: booking.bookingVersion,
+      },
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.error, 'unsafe_card_reference');
+    assert.equal((await pgSnapshot(id)).settledCents, 0);
+  });
+
+  it('18) on-site settlement is blocked while a Stripe obligation is active', async () => {
+    const id = nextId('ACTIVEPI');
+    const booking = baseBooking(id);
+    const store = await seed(booking);
+    const foundation = require('../netlify/lib/db/foundation-services');
+    const reserved = await foundation.reservePaymentObligation({
+      bookingId: id,
+      quoteVersion: 1,
+      amountCents: 15000,
+      purpose: 'customer_balance',
+      providerObjectType: 'payment_intent',
+      idempotencyKey: `active_${id}`,
+      generation: 1,
+    });
+    assert.equal(reserved.ok, true);
+    const result = await settle(store, booking, {});
+    assert.equal(result.ok, false);
+    assert.equal(result.error, 'payment_attempt_in_progress');
+    assert.equal((await pgSnapshot(id)).settledCents, 0);
+  });
+
+  it('19) repeated compatibility sync is a no-op and does not bump bookingVersion', async () => {
+    const id = nextId('SYNCNOOP');
+    const booking = baseBooking(id);
+    const store = await seed(booking);
+    const settled = await settle(store, booking, {});
+    assert.equal(settled.ok, true, settled.error);
+    const before = store._snapshot(id);
+    const { syncBlobCompatibilityFromProjection } = require('../netlify/lib/db/operational-payment');
+    const projection = await pgSnapshot(id);
+    const first = await syncBlobCompatibilityFromProjection(id, projection);
+    const second = await syncBlobCompatibilityFromProjection(id, projection);
+    assert.equal(first.ok, true);
+    assert.equal(first.noop, true);
+    assert.equal(second.ok, true);
+    assert.equal(second.noop, true);
+    assert.equal(store._snapshot(id).bookingVersion, before.bookingVersion);
   });
 });

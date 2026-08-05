@@ -213,7 +213,14 @@ test('valid draft token reaches create-setup-intent eligibility check', async ()
       return { ok: true, json: async () => ({ id: 'cus_test' }) };
     }
     if (String(url).includes('/v1/setup_intents')) {
-      return { ok: true, json: async () => ({ id: 'seti_test', client_secret: 'seti_test_secret' }) };
+      return {
+        ok: true,
+        json: async () => ({
+          id: 'seti_test',
+          customer: 'cus_test',
+          client_secret: 'seti_test_secret',
+        }),
+      };
     }
     return { ok: false, status: 404, json: async () => ({}) };
   };
@@ -227,7 +234,11 @@ test('valid draft token reaches create-setup-intent eligibility check', async ()
     const setupRes = await setupHandler({
       httpMethod: 'POST',
       headers: { 'x-forwarded-for': '203.0.113.82' },
-      body: JSON.stringify({ bookingId: draft.id, draftSaveToken: draft.draftSaveToken }),
+      body: JSON.stringify({
+        bookingId: draft.id,
+        draftSaveToken: draft.draftSaveToken,
+        expectedBookingVersion: draft.bookingVersion,
+      }),
     });
     assert.equal(setupRes.statusCode, 200);
     const setupBody = JSON.parse(setupRes.body);
@@ -261,5 +272,12 @@ for (const page of BOOKING_PAGES) {
     const html = read(page);
     assert.match(html, /booking_time_unavailable:'That time is unavailable on the selected date/);
     assert.match(html, /invalid_phone:'Please enter a valid phone number/);
+  });
+
+  test(`${page} carries booking-version CAS into SetupIntent creation`, () => {
+    const html = read(page);
+    assert.match(html, /draftBookingVersion/);
+    assert.match(html, /expectedBookingVersion:draftSessionBookingVersion/);
+    assert.match(html, /siData&&siData\.bookingVersion!=null/);
   });
 }

@@ -1,10 +1,8 @@
 // netlify/functions/stripe-webhook.js
-// Validates Stripe webhook signatures, persists payment status to Blobs,
-// and triggers technician dispatch when a card hold is confirmed.
-//
-// When DATABASE_URL is configured, payment_intent.* events (and Checkout
-// sessions that produce a PI) are also reconciled through
-// PaymentAuthorityService — same idempotent path as Admin Reconcile.
+// Validates Stripe webhook signatures. Customer-balance PaymentIntent events
+// are reconciled transactionally through Postgres; legacy Checkout money
+// events are isolated. Non-balance operational events retain their existing
+// compatibility handlers.
 //
 // Canonical paymentStatus enum:
 //   no_payment_required_yet | authorization_pending | authorized |
@@ -21,8 +19,10 @@
 //   SITE_URL    (required for bid magic links)
 
 const crypto = require('crypto');
+let blobsStoreOverride = null;
 
 async function blobsStore(name) {
+  if (typeof blobsStoreOverride === 'function') return blobsStoreOverride(name);
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
   const token = process.env.NETLIFY_AUTH_TOKEN;
@@ -98,18 +98,28 @@ async function cancelSubscriptionByStripeId(stripeSubId) {
 
 function verifyStripeSignature(rawBody, sigHeader, secret) {
   if (!sigHeader || !secret) return false;
-  const parts = {};
-  sigHeader.split(',').forEach(kv => { const [k, v] = kv.split('='); parts[k] = v; });
-  if (!parts.t || !parts.v1) return false;
-  const age = Math.abs(Math.floor(Date.now() / 1000) - Number(parts.t));
+  let timestamp = null;
+  const signatures = [];
+  sigHeader.split(',').forEach((part) => {
+    const index = part.indexOf('=');
+    if (index < 1) return;
+    const key = part.slice(0, index).trim();
+    const value = part.slice(index + 1).trim();
+    if (key === 't' && timestamp == null) timestamp = value;
+    if (key === 'v1' && value) signatures.push(value);
+  });
+  if (!timestamp || !signatures.length || !/^\d+$/.test(timestamp)) return false;
+  const age = Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp));
   if (age > 300) return false;
   const expected = crypto
     .createHmac('sha256', secret)
-    .update(`${parts.t}.${rawBody}`, 'utf8')
+    .update(`${timestamp}.${rawBody}`, 'utf8')
     .digest('hex');
   const a = Buffer.from(expected);
-  const b = Buffer.from(parts.v1);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  return signatures.some((signature) => {
+    const b = Buffer.from(signature);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  });
 }
 
 /**
@@ -117,7 +127,7 @@ function verifyStripeSignature(rawBody, sigHeader, secret) {
  * { handled:true } when customer_balance was settled in Postgres so the
  * legacy Blob money write can be skipped (compatibility sync already ran).
  */
-async function reconcilePostgresPaymentIntent(evt, paymentIntent) {
+async function reconcilePostgresPaymentIntentLegacy(evt, paymentIntent) {
   try {
     const { postgresPaymentEnabled, syncBlobCompatibilityFromProjection } = require('../lib/db/operational-payment');
     if (!postgresPaymentEnabled()) return { handled: false, skipped: true, reason: 'postgres_disabled' };
@@ -164,6 +174,69 @@ async function reconcilePostgresPaymentIntent(evt, paymentIntent) {
 }
 
 // ── Read booking, apply updates, write back to Blobs ──
+async function reconcilePostgresPaymentIntent(evt, paymentIntent) {
+  const meta = paymentIntent && typeof paymentIntent.metadata === 'object'
+    ? paymentIntent.metadata
+    : {};
+  const purpose = String(meta.purpose || '').trim();
+  const bookingId = String(meta.bookingId || meta.booking_id || '').trim();
+  if (purpose !== 'customer_balance') {
+    return { handled: false, skipped: true, reason: 'non_balance_purpose' };
+  }
+
+  try {
+    const {
+      postgresPaymentEnabled,
+      syncBlobCompatibilityFromProjection,
+    } = require('../lib/db/operational-payment');
+    if (!postgresPaymentEnabled()) {
+      return { handled: false, error: 'postgres_payment_disabled', bookingId };
+    }
+
+    const {
+      reconcilePaymentIntentEvent,
+      getFinancialProjection,
+    } = require('../lib/db/payment-authority-service');
+    const result = await reconcilePaymentIntentEvent({
+      stripeEventId: evt.id,
+      type: evt.type,
+      paymentIntent,
+      eventCreatedAt: evt.created,
+    });
+    if (!result.ok) {
+      return {
+        handled: false,
+        error: result.error || 'postgres_reconcile_failed',
+        retryable: true,
+        failureRecorded: !!result.failureRecorded,
+        bookingId,
+      };
+    }
+
+    const projection = result.projection || await getFinancialProjection(bookingId);
+    const sync = projection
+      ? await syncBlobCompatibilityFromProjection(bookingId, projection).catch(() => ({ ok: false }))
+      : { ok: false };
+    return {
+      handled: !!projection && sync?.ok !== false,
+      retryable: !projection || sync?.ok === false,
+      error: !projection
+        ? 'projection_unavailable'
+        : (sync?.ok === false ? 'compatibility_sync_failed' : null),
+      result: {
+        ok: true,
+        duplicate: !!result.duplicate,
+        ignored: !!result.ignored,
+        terminal: result.terminal || null,
+      },
+      projection,
+      bookingId,
+    };
+  } catch {
+    return { handled: false, error: 'postgres_reconcile_failed', retryable: true, bookingId };
+  }
+}
+
 async function updateBookingPayment(bookingId, updates) {
   if (!bookingId || bookingId === '—') {
     return { updated: false, reason: 'no booking_id in Stripe metadata' };
@@ -177,6 +250,76 @@ async function updateBookingPayment(bookingId, updates) {
     return { updated: true, booking: updated };
   } catch (e) {
     return { updated: false, reason: e.message };
+  }
+}
+
+async function updateSetupIntentState(evt, setupIntent, status) {
+  const metadata = setupIntent && typeof setupIntent.metadata === 'object'
+    ? setupIntent.metadata
+    : {};
+  const bookingId = String(metadata.bookingId || metadata.booking_id || '').trim();
+  const purpose = String(metadata.purpose || '').trim();
+  if (!bookingId || !setupIntent?.id || purpose !== 'card_on_file') {
+    return { updated: false, retryable: false, reason: 'setup_intent_binding_missing' };
+  }
+  try {
+    const store = await blobsStore('cd1-bookings');
+    const {
+      getBookingRecord,
+      commitBooking,
+    } = require('../lib/booking-repository');
+    const { buildNextAggregate } = require('../lib/booking-aggregate');
+    const rec = await getBookingRecord(bookingId, { storeOverride: store });
+    if (!rec.exists || !rec.booking) {
+      return { updated: false, retryable: true, reason: 'booking_not_found' };
+    }
+    const booking = rec.booking;
+    if (booking.setupIntentId !== setupIntent.id) {
+      return { updated: false, retryable: true, reason: 'setup_intent_mismatch' };
+    }
+    if (!booking.stripeCustomerId
+      || !setupIntent.customer
+      || booking.stripeCustomerId !== setupIntent.customer) {
+      return { updated: false, retryable: false, reason: 'stripe_customer_mismatch' };
+    }
+    if (status === 'saved' && !/^pm_[A-Za-z0-9]+$/.test(String(setupIntent.payment_method || ''))) {
+      return { updated: false, retryable: false, reason: 'payment_method_binding_missing' };
+    }
+    if (booking.lastSetupIntentEventId === evt.id
+      || (status === 'saved'
+        && booking.cardOnFileStatus === 'saved'
+        && booking.stripePaymentMethodId === setupIntent.payment_method)
+      || (status !== 'saved' && booking.cardOnFileStatus === 'saved')) {
+      return { updated: true, duplicate: true };
+    }
+
+    const now = new Date().toISOString();
+    const patch = status === 'saved'
+      ? {
+          cardOnFileStatus: 'saved',
+          setupIntentId: setupIntent.id,
+          stripeCustomerId: setupIntent.customer || booking.stripeCustomerId || null,
+          stripePaymentMethodId: setupIntent.payment_method || null,
+          cardOnFileSavedAt: now,
+          lastSetupIntentEventId: evt.id,
+          updatedAt: now,
+        }
+      : {
+          cardOnFileStatus: 'failed',
+          lastSetupIntentEventId: evt.id,
+          updatedAt: now,
+        };
+    const committed = await commitBooking({
+      bookingId,
+      expectedBookingVersion: Math.round(Number(booking.bookingVersion) || 0),
+      nextAggregate: buildNextAggregate(booking, patch),
+      storeOverride: store,
+    });
+    return committed.ok
+      ? { updated: true, duplicate: false }
+      : { updated: false, retryable: true, reason: committed.error || 'version_conflict' };
+  } catch {
+    return { updated: false, retryable: true, reason: 'setup_intent_state_failed' };
   }
 }
 
@@ -278,7 +421,7 @@ exports.handler = async (event) => {
     return { statusCode: 503, body: 'Webhook secret not configured' };
   }
   const sigValid = verifyStripeSignature(raw, sig, webhookSecret);
-  console.log('[stripe-webhook] received | body-length:', raw.length, '| sig-header:', sig ? sig.slice(0, 20) + '…' : 'MISSING', '| sig-valid:', sigValid);
+  console.log('[stripe-webhook] received', { bodyLength: raw.length, signatureValid: sigValid });
   if (!sigValid) {
     console.error('[stripe-webhook] signature verification FAILED — check STRIPE_WEBHOOK_SECRET matches the endpoint signing secret in Stripe Dashboard');
     return { statusCode: 400, body: 'Invalid signature' };
@@ -292,6 +435,62 @@ exports.handler = async (event) => {
   const bookingId = (pi.metadata && pi.metadata.booking_id) || '—';
   const dollars = pi.amount != null ? (pi.amount / 100).toFixed(2) : '?';
   const results = {};
+
+  // Booking-balance PaymentIntents have exactly one authority. Never fall
+  // through to the legacy Blob money writes below when PostgreSQL processing
+  // fails; a non-2xx response asks Stripe to retry the durable inbox path.
+  if (String(evt.type || '').startsWith('payment_intent.')) {
+    const purpose = String(pi.metadata?.purpose || '').trim();
+    if (purpose !== 'customer_balance') {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ received: true, ignored: true, reason: 'non_balance_payment_intent' }),
+      };
+    }
+    const postgres = await reconcilePostgresPaymentIntent(evt, pi);
+    if (!postgres.handled) {
+      console.warn('[stripe-webhook] authoritative payment retry requested', {
+        type: evt.type,
+        error: postgres.error || 'processing_failed',
+        failureRecorded: !!postgres.failureRecorded,
+      });
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          received: false,
+          retryable: true,
+          error: postgres.error || 'processing_failed',
+        }),
+      };
+    }
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        received: true,
+        type: evt.type,
+        duplicate: !!postgres.result?.duplicate,
+      }),
+    };
+  }
+
+  // Hosted Checkout never settles a booking balance. Old sessions are
+  // acknowledged and isolated so they cannot become a second ledger writer.
+  if (evt.type === 'checkout.session.completed'
+    && String(pi.metadata?.purpose || '') === 'customer_balance') {
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ received: true, ignored: true, reason: 'legacy_checkout_isolated' }),
+    };
+  }
+
+  // Refund execution and webhook ledgering are introduced together in PR 2.
+  // Until then, no refund event may perform a Blob-only financial status flip.
+  if (evt.type === 'charge.refunded' || evt.type === 'refund.updated') {
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ received: true, ignored: true, reason: 'refund_ledger_pending_pr2' }),
+    };
+  }
 
   switch (evt.type) {
 
@@ -380,19 +579,17 @@ exports.handler = async (event) => {
       // Admin may charge the saved card only according to the cancellation/no-show policy.
       const si = evt.data.object;
       const siBookingId = (si.metadata && (si.metadata.bookingId || si.metadata.booking_id)) || '—';
-      console.log('[stripe-webhook] setup_intent.succeeded | siId prefix:', si.id ? si.id.slice(0, 15) : 'none', '| bookingId:', siBookingId);
-      results.update = await updateBookingPayment(siBookingId, {
-        cardOnFileStatus: 'saved',
-        setupIntentId: si.id,
-        stripeCustomerId: si.customer || null,
-        stripePaymentMethodId: si.payment_method || null,
-        cardOnFileSavedAt: new Date().toISOString(),
-      });
-      console.log('[stripe-webhook] updateBookingPayment result:', JSON.stringify(results.update));
+      console.log('[stripe-webhook] setup_intent.succeeded received');
+      results.update = await updateSetupIntentState(evt, si, 'saved');
+      if (!results.update.updated) {
+        return {
+          statusCode: results.update.retryable ? 500 : 400,
+          body: JSON.stringify({ received: false, error: results.update.reason }),
+        };
+      }
       await notifyAdmin(
         `Cardetail1 — card on file saved · ${siBookingId}`,
         `Customer saved card on file for booking ${siBookingId}.\n` +
-        `Stripe Customer: ${si.customer || '—'}\n` +
         `Payment method reference stored. No charge applied.\n` +
         `Admin may only charge per the posted cancellation/no-show policy.`
       );
@@ -402,10 +599,14 @@ exports.handler = async (event) => {
     case 'setup_intent.setup_failed': {
       const si = evt.data.object;
       const siBookingId = (si.metadata && (si.metadata.bookingId || si.metadata.booking_id)) || '—';
-      results.update = await updateBookingPayment(siBookingId, {
-        cardOnFileStatus: 'failed',
-      });
-      console.log('[stripe-webhook] setup_intent.setup_failed', siBookingId);
+      results.update = await updateSetupIntentState(evt, si, 'failed');
+      if (!results.update.updated) {
+        return {
+          statusCode: results.update.retryable ? 500 : 400,
+          body: JSON.stringify({ received: false, error: results.update.reason }),
+        };
+      }
+      console.log('[stripe-webhook] setup_intent.setup_failed received');
       break;
     }
 
@@ -576,6 +777,18 @@ exports.handler = async (event) => {
       break;
   }
 
-  console.log('[stripe-webhook]', evt.type, bookingId, JSON.stringify(results));
-  return { statusCode: 200, body: JSON.stringify({ received: true, ...results }) };
+  console.log('[stripe-webhook] processed', {
+    type: evt.type,
+    bookingMutation: !!results.update?.updated,
+    subscriptionMutation: !!results.subscription,
+  });
+  return { statusCode: 200, body: JSON.stringify({ received: true, type: evt.type }) };
+};
+
+exports.__test = {
+  verifyStripeSignature,
+  updateSetupIntentState,
+  setBlobsStoreOverride(fn) {
+    blobsStoreOverride = typeof fn === 'function' ? fn : null;
+  },
 };

@@ -1,7 +1,7 @@
 /**
  * Full-balance cash settlement enforcement.
  * Admin mark_cash_received must settle exactly remainingCents — never partial close.
- * Blob-authoritative fallback path (PostgreSQL payment authority forced off via env arg).
+ * Runs through PostgreSQL authority; Blob is compatibility projection only.
  */
 'use strict';
 
@@ -13,7 +13,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
-const BLOB_ENV = { ...process.env, CD1_POSTGRES_PAYMENT: '0' };
+const PG_ENV = { ...process.env, CD1_POSTGRES_PAYMENT: '1' };
 
 const RUN_ID = `CASH-FB-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
 let idCounter = 0;
@@ -169,16 +169,23 @@ describe('full-balance cash settlement', () => {
   async function seed(booking) {
     const store = createMemoryStore({ [booking.id]: booking });
     setBookingStoreOverride(store);
+    const { ensureBookingFinancial } = require('../netlify/lib/db/ensure-booking-financial');
+    const ensured = await ensureBookingFinancial(booking);
+    assert.equal(ensured.ok, true, ensured.error);
     return store;
   }
 
   async function settle(store, booking, body = {}) {
     return adminMarkCashReceived({
       bookingId: booking.id,
-      body,
+      body: {
+        reason: 'Test cash settlement',
+        expectedBookingVersion: booking.bookingVersion,
+        ...body,
+      },
       previousBooking: store._snapshot(booking.id),
       store,
-      env: BLOB_ENV,
+      env: PG_ENV,
     });
   }
 
@@ -193,14 +200,13 @@ describe('full-balance cash settlement', () => {
     assert.equal(result.projection.settledCents, 17500);
     assert.equal(result.projection.remainingCents, 0);
     assert.equal(result.projection.paymentStatus, 'paid');
-    assert.equal(result.jobStatus, 'completed_paid');
-    assert.equal(result.serviceStatus, 'closed');
+    assert.equal(result.jobStatus, 'confirmed');
+    assert.equal(result.serviceStatus, 'confirmed');
     assert.equal(result.paymentStatus, 'paid_cash');
 
     const after = store._snapshot(id);
     const settlements = (after.ledger.entries || []).filter((e) => e.kind === 'settlement');
-    assert.equal(settlements.length, 1);
-    assert.equal(settlements[0].amountCents, 17500);
+    assert.equal(settlements.length, 0, 'Postgres ledger entries are not duplicated into Blob');
   });
 
   it('2) amount 175 (exact dollars): settles full balance once', async () => {
@@ -216,8 +222,7 @@ describe('full-balance cash settlement', () => {
 
     const after = store._snapshot(id);
     const settlements = (after.ledger.entries || []).filter((e) => e.kind === 'settlement');
-    assert.equal(settlements.length, 1);
-    assert.equal(settlements[0].amountCents, 17500);
+    assert.equal(settlements.length, 0, 'Postgres ledger entries are not duplicated into Blob');
   });
 
   it('3) amount 50 (partial): cash_amount_mismatch and no mutation', async () => {
@@ -319,8 +324,7 @@ describe('full-balance cash settlement', () => {
     const cashEntries = (after.ledger.entries || []).filter(
       (e) => e.kind === 'settlement' && e.actor === 'admin_mark_cash_received'
     );
-    assert.equal(cashEntries.length, 1);
-    assert.equal(cashEntries[0].amountCents, 4000);
+    assert.equal(cashEntries.length, 0, 'Postgres ledger entries are not duplicated into Blob');
     assert.equal(after.cashReceivedAmount, 40);
   });
 
@@ -344,8 +348,7 @@ describe('full-balance cash settlement', () => {
     const cashEntries = (store._snapshot(id).ledger.entries || []).filter(
       (e) => e.kind === 'settlement' && e.actor === 'admin_mark_cash_received'
     );
-    assert.equal(cashEntries.length, 1);
-    assert.equal(cashEntries[0].amountCents, 4000);
+    assert.equal(cashEntries.length, 0, 'Postgres ledger entries are not duplicated into Blob');
   });
 
   it('9) repeated full settlement creates no second credit (already_paid)', async () => {

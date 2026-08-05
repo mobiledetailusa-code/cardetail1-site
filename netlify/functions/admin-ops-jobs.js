@@ -1049,6 +1049,21 @@ async function adminAddonMutation({
  * why not". Buttons render from this rather than re-deriving rules client-side,
  * so a disabled control always carries the server's actual reason.
  */
+function reconcileRecoveryCapability(projection, nowMs = Date.now()) {
+  const updatedMs = Date.parse(projection?.paymentAttemptUpdatedAt || '');
+  const ageMs = Number.isFinite(updatedMs) ? Math.max(0, nowMs - updatedMs) : 0;
+  const delayed = projection?.paymentStatus === 'processing'
+    && !!projection?.stripeReference
+    && ageMs >= 30_000;
+  return {
+    enabled: delayed,
+    ageMs,
+    explanation: delayed
+      ? 'A Stripe payment has remained unresolved for at least 30 seconds. Recovery reconcile is available.'
+      : 'Webhook delivery is authoritative. Reconcile appears only for a demonstrably delayed in-flight payment.',
+  };
+}
+
 function adminOperationalControls(booking, projection = null) {
   const { financialProjection } = require('../lib/payment-service');
   const { paymentMethodCapability } = require('../lib/payment-method-policy');
@@ -1092,6 +1107,7 @@ function adminOperationalControls(booking, projection = null) {
         ? `Records cash against the ledger and emails the customer a confirmation. No Stripe object is created or changed. The amount must settle the full remaining balance of ${(remainingCents / 100).toFixed(2)}.`
         : 'There is no remaining balance to collect.',
     },
+    reconcileStripe: reconcileRecoveryCapability(fin),
     priceAdjustment: {
       enabled: true,
       requiresAdjustmentRecord: settledCents > 0,
@@ -1170,32 +1186,22 @@ async function handleAdminAction(body) {
     let authority = 'blob';
 
     if (postgresPaymentEnabled()) {
-      const pgReconcile = await adminReconcileWithStripe({ booking });
       const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: false });
       if (shared.ok && shared.projection) {
         projection = shared.projection;
         authority = 'postgres';
         reconciled = {
-          ok: !!pgReconcile.ok,
-          skipped: !!pgReconcile.skipped,
-          reason: pgReconcile.reason || pgReconcile.error || null,
+          ok: true,
+          skipped: true,
+          reason: 'webhook_authority_normal_flow',
         };
-        // Refresh blob booking after compatibility sync
-        const refreshed = await getBookingRecord(bookingId);
-        if (refreshed.exists) booking = refreshed.booking;
       }
     }
 
     if (!projection) {
-      reconciled = await reconcileOpenCheckoutFromProvider({
-        booking,
-        bookingId,
-        getBookingRecord,
-        commitBooking,
-      });
-      booking = reconciled.booking || booking;
-      projection = reconciled.projection || financialProjection(booking);
-      authority = 'blob';
+      projection = financialProjection(booking);
+      reconciled = { ok: false, skipped: true, reason: 'postgres_payment_unavailable' };
+      authority = 'unavailable';
     }
 
     const job = projectJobForAdmin(booking);
@@ -1239,10 +1245,41 @@ async function handleAdminAction(body) {
     } = require('../lib/payment-service');
 
     if (postgresPaymentEnabled()) {
+      const expected = Math.round(Number(body.expectedBookingVersion));
+      const actual = Math.round(Number(booking.bookingVersion) || 0);
+      if (body.expectedBookingVersion == null || body.expectedBookingVersion === ''
+        || !Number.isFinite(expected) || expected !== actual) {
+        return jsonCors(409, {
+          ok: false,
+          error: 'version_conflict',
+          expectedBookingVersion: Number.isFinite(expected) ? expected : null,
+          actualBookingVersion: actual,
+        });
+      }
+      const before = await getSharedFinancialProjection(booking, { reconcileUncertain: false });
+      const capability = reconcileRecoveryCapability(before.projection);
+      if (!before.ok || !capability.enabled) {
+        return jsonCors(409, {
+          ok: false,
+          error: 'reconcile_not_recommended',
+          reason: before.error || capability.explanation,
+          projection: before.projection || null,
+        });
+      }
       const result = await adminReconcileWithStripe({ booking });
       const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: false });
       const refreshed = await getBookingRecord(bookingId);
       if (refreshed.exists) booking = refreshed.booking;
+      await appendAudit(auditEntry({
+        bookingId,
+        actorType: 'admin',
+        actorId: 'admin',
+        action: 'reconcile_with_stripe',
+        previousState: { payment: before.projection },
+        resultingState: { payment: shared.projection || result.projection || null },
+        reason: sanitizeText(body.reason, 300) || 'delayed_webhook_recovery',
+        sourcePortal: 'admin_ops',
+      })).catch(() => null);
       return jsonCors(200, {
         ok: !!result.ok,
         action: 'reconcile_with_stripe',
@@ -1253,6 +1290,12 @@ async function handleAdminAction(body) {
         job: projectJobForAdmin(booking),
       });
     }
+
+    return jsonCors(503, {
+      ok: false,
+      error: 'postgres_payment_disabled',
+      reason: 'Reconcile requires the PostgreSQL payment authority.',
+    });
 
     const reconciled = await reconcileOpenCheckoutFromProvider({
       booking,
@@ -1647,6 +1690,11 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'generate_stripe_pay_link') {
+    return jsonCors(410, {
+      ok: false,
+      error: 'legacy_checkout_disabled',
+      message: 'Hosted Checkout is isolated. The customer pays with Payment Element in My Garage.',
+    });
     const stripeGuard = guardStripeOrReject(process.env, { purpose: 'admin_pay_link' });
     if (stripeGuard.blocked) {
       return jsonCors(stripeGuard.statusCode, stripeGuard.body);
@@ -1784,6 +1832,11 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'charge_policy_fee') {
+    return jsonCors(410, {
+      ok: false,
+      error: 'policy_charge_pending_authoritative_ledger',
+      message: 'Off-session policy charges are disabled until they use the PostgreSQL payment authority.',
+    });
     const stripeGuard = guardStripeOrReject(process.env, { purpose: 'policy_charge' });
     if (stripeGuard.blocked) {
       return jsonCors(stripeGuard.statusCode, stripeGuard.body);
@@ -1891,6 +1944,11 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'mark_refunded') {
+    return jsonCors(410, {
+      ok: false,
+      error: 'refund_execution_pending_authoritative_webhook',
+      message: 'Refund execution is disabled until PR 2 adds webhook-confirmed PostgreSQL refund ledger entries.',
+    });
     const result = markRefunded(booking, body);
     const persisted = await persistMutation(store, bookingId, result.booking, booking, 'mark_refunded', body.reason);
     if (!persisted.ok) {
@@ -2341,14 +2399,33 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'mark_card_on_site') {
-    const reference = sanitizeText(body.reference, 120);
-    if (!reference) return jsonCors(400, { ok: false, error: 'reference_required' });
-    const result = markCardOnSite(booking, body);
-    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'mark_card_on_site', reference);
-    if (!persisted.ok) {
-      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    const result = await adminMarkCardOnSite({
+      bookingId,
+      body,
+      previousBooking: booking,
+      store,
+    });
+    if (!result.ok) {
+      return jsonCors(result.statusCode || 400, {
+        ok: false,
+        error: result.error || 'card_on_site_settlement_failed',
+        expectedAmountCents: result.expectedAmountCents,
+        receivedAmountCents: result.receivedAmountCents,
+        projection: result.projection || undefined,
+        authority: result.authority || undefined,
+      });
     }
-    return jsonCors(200, { ok: true, bookingId, paymentStatus: persisted.booking.paymentStatus, bookingVersion: persisted.bookingVersion });
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      paymentStatus: result.paymentStatus,
+      bookingVersion: result.bookingVersion,
+      projection: result.projection,
+      authority: result.authority,
+      settledAmountCents: result.settledAmountCents,
+      notification: result.notification || undefined,
+      noop: result.noop || undefined,
+    });
   }
 
   if (action === 'generate_customer_link') {
@@ -2551,8 +2628,8 @@ async function notifyPaymentReceived({
 /**
  * Admin "Mark cash received" — full remaining balance settlement only.
  * When PostgreSQL payment authority is enabled, settle in Postgres first,
- * then sync Blob compatibility + operational cash close (no second Blob money credit).
- * When disabled, preserve the strict Blob full-balance fallback.
+ * then sync only Blob payment compatibility (no second Blob money credit and
+ * no implicit service/job close). When Postgres is disabled, fail closed.
  */
 async function adminMarkCashReceived({
   bookingId,
@@ -2570,6 +2647,8 @@ async function adminMarkCashReceived({
   } = require('../lib/db/operational-payment');
   const id = String(bookingId || '').trim();
   if (!id) return { ok: false, error: 'bookingId_required', statusCode: 400 };
+  const reason = sanitizeText(body.reason, 500);
+  if (!reason) return { ok: false, error: 'reason_required', statusCode: 400 };
 
   let booking = previousBooking;
   if (!booking) {
@@ -2578,23 +2657,32 @@ async function adminMarkCashReceived({
   }
   if (!booking) return { ok: false, error: 'booking_not_found', statusCode: 404 };
 
-  // Preserve CAS: optional client expectedBookingVersion must match before mutation.
-  if (body.expectedBookingVersion != null && body.expectedBookingVersion !== '') {
-    const expected = Math.round(Number(body.expectedBookingVersion));
-    const actual = Math.round(Number(booking.bookingVersion) || 0);
-    if (!Number.isFinite(expected) || expected !== actual) {
-      return {
-        ok: false,
-        error: 'version_conflict',
-        statusCode: 409,
-        expectedBookingVersion: expected,
-        actualBookingVersion: actual,
-        projection: financialProjection(booking),
-      };
-    }
+  // Financial mutations always require an explicit version from the caller.
+  const expected = Math.round(Number(body.expectedBookingVersion));
+  const actual = Math.round(Number(booking.bookingVersion) || 0);
+  if (body.expectedBookingVersion == null || body.expectedBookingVersion === ''
+    || !Number.isFinite(expected) || expected !== actual) {
+    return {
+      ok: false,
+      error: 'version_conflict',
+      statusCode: 409,
+      expectedBookingVersion: Number.isFinite(expected) ? expected : null,
+      actualBookingVersion: actual,
+      projection: financialProjection(booking),
+    };
   }
 
   if (store) setBookingStoreOverride(store);
+
+  if (!postgresPaymentEnabled(env)) {
+    return {
+      ok: false,
+      error: 'postgres_payment_disabled',
+      statusCode: 503,
+      authority: 'unavailable',
+      projection: financialProjection(booking),
+    };
+  }
 
   if (postgresPaymentEnabled(env)) {
     const result = await settleAdminCashFullBalance({
@@ -2626,73 +2714,72 @@ async function adminMarkCashReceived({
     return { ...result, notification: pgNotification };
   }
 
-  const resolved = resolveAdminCashSettlement(booking, body);
-  if (!resolved.ok) {
-    return {
-      ok: false,
-      error: resolved.error,
-      statusCode: resolved.statusCode || 400,
-      expectedAmountCents: resolved.expectedAmountCents,
-      receivedAmountCents: resolved.receivedAmountCents,
-      reason: resolved.reason,
-      field: resolved.field,
-      projection: resolved.projection || financialProjection(booking),
-      bookingVersion: Math.round(Number(booking.bookingVersion) || 0),
-      quoteVersion: Math.round(Number(booking.quoteVersion || booking.quote?.quoteVersion) || 0),
-    };
-  }
-
-  const result = markCashReceived(booking, { amount: resolved.amountDollars, reference: body.reference });
-  const activeStore = store || (await blobsStore('cd1-bookings'));
-  const persisted = await persistMutation(
-    activeStore,
-    id,
-    result.booking,
-    booking,
-    'mark_cash_received',
-    body.reference
-  );
-  if (!persisted.ok) {
-    return {
-      ok: false,
-      error: persisted.error || 'version_conflict',
-      statusCode: persisted.statusCode || 409,
-      projection: financialProjection(booking),
-      bookingVersion: Math.round(Number(booking.bookingVersion) || 0),
-    };
-  }
-
-  const projection = financialProjection(persisted.booking);
-
-  // Money is already committed above. Everything after this point is best-effort
-  // and reported, so a mail outage can never undo a recorded payment.
-  const notification = await notifyPaymentReceived({
-    store: activeStore,
-    bookingId: id,
-    booking: persisted.booking,
-    method: 'cash',
-    amountCents: resolved.amountCents,
-    projection,
-  });
-
-  return {
-    ok: true,
-    authority: 'blob',
-    bookingId: id,
-    paymentStatus: persisted.booking.paymentStatus,
-    jobStatus: persisted.booking.jobStatus,
-    serviceStatus: persisted.booking.serviceStatus,
-    bookingVersion: persisted.bookingVersion,
-    quoteVersion: Math.round(Number(persisted.booking.quoteVersion || persisted.booking.quote?.quoteVersion) || 0),
-    projection,
-    financialProjection: projection,
-    settledAmountCents: resolved.amountCents,
-    notification,
-    booking: notification.booking || persisted.booking,
-  };
+  return { ok: false, error: 'postgres_payment_disabled', statusCode: 503 };
 }
 
 /** Test / inspect seams — production traffic uses exports.handler only. */
+async function adminMarkCardOnSite({
+  bookingId,
+  body = {},
+  previousBooking = null,
+  store = null,
+  env = process.env,
+} = {}) {
+  const id = String(bookingId || '').trim();
+  const reason = sanitizeText(body.reason, 500);
+  const reference = sanitizeText(body.reference, 120);
+  if (!id) return { ok: false, error: 'bookingId_required', statusCode: 400 };
+  if (!reference) return { ok: false, error: 'reference_required', statusCode: 400 };
+  if (!reason) return { ok: false, error: 'reason_required', statusCode: 400 };
+
+  let booking = previousBooking;
+  if (!booking) {
+    const rec = await getBookingRecord(id);
+    booking = rec.booking;
+  }
+  if (!booking) return { ok: false, error: 'booking_not_found', statusCode: 404 };
+
+  const expected = Math.round(Number(body.expectedBookingVersion));
+  const actual = Math.round(Number(booking.bookingVersion) || 0);
+  if (body.expectedBookingVersion == null || body.expectedBookingVersion === ''
+    || !Number.isFinite(expected) || expected !== actual) {
+    return {
+      ok: false,
+      error: 'version_conflict',
+      statusCode: 409,
+      expectedBookingVersion: Number.isFinite(expected) ? expected : null,
+      actualBookingVersion: actual,
+    };
+  }
+
+  if (store) setBookingStoreOverride(store);
+  const {
+    postgresPaymentEnabled,
+    settleAdminOnSiteFullBalance,
+  } = require('../lib/db/operational-payment');
+  if (!postgresPaymentEnabled(env)) {
+    return { ok: false, error: 'postgres_payment_disabled', statusCode: 503, authority: 'unavailable' };
+  }
+
+  const result = await settleAdminOnSiteFullBalance({
+    booking,
+    body: { ...body, reason, reference },
+    method: 'card_on_site',
+    env,
+  });
+  if (!result.ok) return result;
+
+  const notification = await notifyPaymentReceived({
+    store,
+    bookingId: id,
+    booking: result.booking || booking,
+    method: 'card',
+    amountCents: result.settledAmountCents,
+    projection: result.postgresProjection || result.projection,
+  });
+  return { ...result, notification };
+}
+
 exports.adminAddonMutation = adminAddonMutation;
 exports.adminAddonCatalogForBooking = adminAddonCatalogForBooking;
 exports.freeFormAddonBodyRejected = freeFormAddonBodyRejected;
@@ -2701,8 +2788,10 @@ exports.adminChangePackage = adminChangePackage;
 exports.adminPackageCatalogForBooking = adminPackageCatalogForBooking;
 exports.packageOptionsForVehicle = packageOptionsForVehicle;
 exports.adminMarkCashReceived = adminMarkCashReceived;
+exports.adminMarkCardOnSite = adminMarkCardOnSite;
 exports.resolveAdminCashSettlement = resolveAdminCashSettlement;
 exports.adminOperationalControls = adminOperationalControls;
+exports.reconcileRecoveryCapability = reconcileRecoveryCapability;
 exports.notifyPaymentReceived = notifyPaymentReceived;
 
 exports.handler = async (event) => {

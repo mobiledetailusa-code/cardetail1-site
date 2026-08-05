@@ -191,10 +191,11 @@ describe('portal payment + access hardening', () => {
     assert.match(src, /Invoice paid/);
   });
 
-  it('Jobber: admin drawer shows PAID CLOSED and disables generate', () => {
+  it('Jobber: admin drawer shows PAID independently and disables hosted generation', () => {
     const src = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8');
-    assert.match(src, /PAID \/ CLOSED/);
-    assert.match(src, /canGenLink/);
+    assert.match(src, /· PAID/);
+    assert.match(src, /const canGenLink = false/);
+    assert.match(src, /Hosted Checkout and manual policy charges are isolated/);
     assert.match(src, /Invoice \/ Payment/);
   });
 });

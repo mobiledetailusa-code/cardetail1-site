@@ -37,7 +37,6 @@ exports.handler = async (event) => {
       ok: false,
       error: 'postgres_payment_disabled',
       message: 'Embedded payment requires the Postgres payment foundation.',
-      fallback: 'checkout',
     });
   }
 
@@ -67,27 +66,70 @@ exports.handler = async (event) => {
     return json(200, { ok: false, error: 'booking_not_ready', message: 'Finalize your booking request first.' });
   }
 
-  const policy = canPayBalance(booking);
+  const expectedBookingVersion = Math.round(Number(p.expectedBookingVersion));
+  const actualBookingVersion = Math.round(Number(booking.bookingVersion) || 0);
+  if (p.expectedBookingVersion == null || p.expectedBookingVersion === ''
+    || !Number.isFinite(expectedBookingVersion)
+    || expectedBookingVersion !== actualBookingVersion) {
+    return json(409, {
+      ok: false,
+      error: 'version_conflict',
+      expectedBookingVersion: Number.isFinite(expectedBookingVersion) ? expectedBookingVersion : null,
+      actualBookingVersion,
+    });
+  }
+
+  const shared = await getSharedFinancialProjection(booking);
+  if (!shared.ok || !shared.projection) {
+    return json(503, {
+      ok: false,
+      error: shared.error || 'financial_projection_unavailable',
+      message: 'Payment status is temporarily unavailable. Please retry.',
+    });
+  }
+  const projection = shared.projection;
+  const expectedQuoteVersion = Math.round(Number(p.expectedQuoteVersion));
+  if (p.expectedQuoteVersion == null || p.expectedQuoteVersion === ''
+    || !Number.isFinite(expectedQuoteVersion)
+    || expectedQuoteVersion !== projection.quoteVersion) {
+    return json(409, {
+      ok: false,
+      error: 'stale_quote_version',
+      expectedQuoteVersion: Number.isFinite(expectedQuoteVersion) ? expectedQuoteVersion : null,
+      actualQuoteVersion: projection.quoteVersion,
+      projection,
+    });
+  }
+  const policy = canPayBalance({
+    ...booking,
+    paymentStatus: projection.paymentStatus,
+    paymentWorkflowStatus: projection.paymentStatus === 'paid' ? 'payment_succeeded' : 'due',
+    ledger: {
+      approvedCents: projection.approvedCents,
+      settledCents: projection.settledCents,
+      creditedCents: 0,
+    },
+  });
   if (!policy.ok) {
-    const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: true });
-    if (shared.ok && shared.projection?.paymentStatus === 'paid') {
+    if (projection.paymentStatus === 'paid') {
       return json(200, {
         ok: false,
         error: 'already_paid',
-        projection: shared.projection,
+        projection,
         message: 'This invoice is already paid.',
       });
     }
     return json(200, {
       ok: false,
       error: policy.error || 'payment_not_due',
+      projection,
       message: 'No balance is due for this appointment.',
     });
   }
 
   const prepared = await prepareEmbeddedPayment({
     booking,
-    expectedQuoteVersion: p.expectedQuoteVersion,
+    expectedQuoteVersion,
   });
   if (!prepared.ok) {
     return json(prepared.statusCode || 200, {
@@ -107,7 +149,6 @@ exports.handler = async (event) => {
     mode: 'payment_element',
     clientSecret: prepared.clientSecret,
     customerSessionClientSecret: prepared.customerSessionClientSecret,
-    paymentIntentId: prepared.paymentIntentId,
     amountCents: prepared.amountCents,
     quoteVersion: prepared.quoteVersion,
     bookingVersion: prepared.bookingVersion,

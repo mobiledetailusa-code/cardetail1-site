@@ -354,12 +354,16 @@ model PaymentAttempt {
   quoteVersion       Int
   generation         Int                   @default(1)
   provider           String                @default("stripe")
+  purpose            String                @default("customer_balance")
+  providerCustomerId String?
   providerObjectType ProviderObjectType
   providerObjectId   String?               @unique
   status             PaymentAttemptStatus  @default(creating)
   amountCents        Int
   currency           String                @default("usd")
   idempotencyKey     String                @unique
+  lastProviderEventId        String?
+  lastProviderEventCreatedAt DateTime?
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 
@@ -398,17 +402,25 @@ model LedgerEntry {
 
 /// Idempotent webhook inbox — insert-first-then-process pattern (Phase 3).
 model StripeEvent {
-  id            String            @id @default(cuid())
-  stripeEventId String            @unique
-  type          String
-  bookingId     String?
-  payload       Json
-  status        StripeEventStatus @default(received)
-  processedAt   DateTime?
-  createdAt     DateTime          @default(now())
+  id                String            @id @default(cuid())
+  stripeEventId     String            @unique
+  type              String
+  bookingId         String?
+  /// Deliberately minimized provider summary. Never store client_secret,
+  /// payment method details, billing details, charges, or the raw event.
+  payload           Json
+  status            StripeEventStatus @default(received)
+  attemptCount      Int               @default(0)
+  errorCode         String?
+  providerCreatedAt DateTime?
+  lastAttemptAt     DateTime?
+  processedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@index([bookingId])
   @@index([type])
+  @@index([status])
 }
 
 model AuditEvent {
