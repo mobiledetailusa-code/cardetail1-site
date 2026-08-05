@@ -213,11 +213,15 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            .github/netlify-build/package-lock.json
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
+      - name: Install locked Netlify build tool
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix .github/netlify-build
       - name: Build Netlify preview without project credentials
-        run: npm exec --yes --package=netlify-cli@27.1.0 -- netlify build --offline --context deploy-preview
+        run: .github/netlify-build/node_modules/.bin/netlify build --offline --context deploy-preview
       - name: Assert preview cannot enable Twilio provider
         run: >-
           node -e "const assert=require('node:assert/strict');

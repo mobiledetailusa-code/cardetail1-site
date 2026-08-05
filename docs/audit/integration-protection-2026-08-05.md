@@ -3,7 +3,7 @@
 Date: 2026-08-05
 Branch: `ci/integration-protection`
 Base: PR5 `feat/twilio-readiness-pr5` (`916e46fd8fe77fecbf1cc9025b2893d822d9cae9`)
-Scope: workflow and release documentation only
+Scope: workflow, deterministic CI build-tool lock and release documentation only
 Production/deploy: not performed
 
 ## Protection supplied
@@ -18,11 +18,11 @@ The workflow uses:
 - all migrations from zero, migration status and a database/schema drift check;
 - the complete test suite;
 - dedicated financial-invariant and Admin/Customer parity suites;
-- an offline Netlify deploy-preview build with an exact Netlify CLI version;
+- an offline Netlify deploy-preview build with exact Netlify CLI version `27.1.0` and its full dependency graph isolated under `.github/netlify-build/package-lock.json`;
 - read-only repository permissions and checkout credentials disabled after checkout;
 - stable job/check names for branch protection.
 
-Stripe and Twilio live values are deliberately empty. Twilio send/consent flags are explicitly false, runtime context is `deploy-preview`, and the build has no Netlify project credential. The workflow therefore cannot charge, deploy or send an SMS. If a future CI-only secret becomes necessary, it must be added through GitHub Actions secrets and must never be a live Stripe/Twilio credential.
+The Netlify CLI is installed from a separate CI-only lockfile and used solely by the build check; the application `package.json` and `package-lock.json` remain unchanged, and the CLI is not bundled into Functions or browser assets. Its install scripts are disabled. Stripe and Twilio live values are deliberately empty. Twilio send/consent flags are explicitly false, runtime context is `deploy-preview`, and the build has no Netlify project credential. The workflow therefore cannot charge, deploy or send an SMS. If a future CI-only secret becomes necessary, it must be added through GitHub Actions secrets and must never be a live Stripe/Twilio credential.
 
 ## Required checks — owner action
 
@@ -44,7 +44,7 @@ Rollback is a revert of the isolated CI commit. If the owner has already made th
 
 ## Review checklist
 
-- Confirm the PR diff contains only `.github/workflows/integration.yml` and this document.
+- Confirm the PR diff contains only `.github/workflows/integration.yml`, `.github/netlify-build/package.json`, `.github/netlify-build/package-lock.json` and this document; root application manifests must be byte-for-byte unchanged.
 - Confirm the base and head match the immutable SHAs recorded in the PR evidence.
 - Confirm all five checks complete on GitHub-hosted runners.
 - Inspect a failed migration-drift experiment in a disposable branch if the owner wants an additional negative test.

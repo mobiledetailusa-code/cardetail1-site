@@ -1,0 +1,8 @@
+{
+  "name": "cardetail1-netlify-build-tool",
+  "private": true,
+  "version": "1.0.0",
+  "devDependencies": {
+    "netlify-cli": "27.1.0"
+  }
+}
