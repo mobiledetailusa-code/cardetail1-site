@@ -269,12 +269,12 @@ describe('admin-ops wiring contracts', () => {
     });
   });
 
-  it('refreshAll dedupes simultaneous executions', () => {
-    assert.match(adminOps, /if \(refreshAllInflight\) return refreshAllInflight/);
+  it('refreshAll dedupes simultaneous executions unless the prior request was superseded', () => {
+    assert.match(adminOps, /if \(refreshAllInflight && !\(requestSignal && refreshAllSignal && refreshAllSignal\.aborted\)\)/);
   });
 
   it('operational refresh still dedupes inflight', () => {
-    assert.match(opsRefresh, /if \(inflight\) return inflight/);
+    assert.match(opsRefresh, /if \(inflight && !supersede\) return inflight/);
   });
 
   it('captures bookingId query\/hash for direct links', () => {

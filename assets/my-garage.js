@@ -22,6 +22,8 @@
     accountVersion: null,
     appointmentFocusRef: null,
     focusedAppointment: null,
+    syncVersion: '',
+    serverTime: null,
   };
 
   var modalAction = null;
@@ -37,6 +39,9 @@
   var profileEditing = false;
   var addressEditingId = null;
   var profileAddressBusy = false;
+  var portalRefresh = null;
+  var portalLastLoadOutcome = { ok: true, status: 0 };
+  var paymentConfirmationPending = false;
 
   /**
    * Portal boot / magic-link hydration — single state machine (avoid boolean soup).
@@ -307,9 +312,12 @@
 
   function isTemporarilyUnavailableResponse(r) {
     if (!r) return false;
-    if (r.status === 503) return true;
+    if (r.status === 0 || r.status === 408 || r.status === 429 || r.status >= 500) return true;
     var err = r.data && r.data.error;
-    return err === 'temporarily_unavailable' || err === 'service_unavailable';
+    return err === 'temporarily_unavailable'
+      || err === 'service_unavailable'
+      || err === 'rate_limited'
+      || err === 'timeout';
   }
 
   function settledCentsFromPayment(pay) {
@@ -858,18 +866,35 @@
     }).join(', ');
   }
 
-  async function post(fn, body) {
+  function retryAfterMs(res, data) {
+    var fromBody = Number(data && data.retryAfterSec);
+    if (Number.isFinite(fromBody) && fromBody > 0) return Math.round(fromBody * 1000);
+    var raw = res && res.headers && typeof res.headers.get === 'function'
+      ? res.headers.get('Retry-After')
+      : '';
+    var seconds = Number(raw);
+    return Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 1000) : 0;
+  }
+
+  async function post(fn, body, opts) {
+    opts = opts || {};
     var res = await fetch(API + fn, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify(body || {}),
+      signal: opts.signal || undefined,
     });
     var data = await res.json().catch(function () { return {}; });
     if (res.status === 401 && isAuthenticatedPortalCall(fn, body)) {
       clearAuthenticatedCustomerState({ reason: 'http_401' });
     }
-    return { ok: res.ok, status: res.status, data: data };
+    return {
+      ok: res.ok,
+      status: res.status,
+      data: data,
+      retryAfterMs: retryAfterMs(res, data),
+    };
   }
 
   function isAuthenticatedPortalCall(fn, body) {
@@ -905,6 +930,9 @@
     state.postServiceByBooking = null;
     state.priceAdjustments = null;
     state.actionToken = null;
+    state.syncVersion = '';
+    state.serverTime = null;
+    if (portalRefresh) portalRefresh.stopPolling();
     if (opts.clearLookup !== false) {
       state.verifyPhone = '';
       state.verifyBookingId = '';
@@ -979,7 +1007,23 @@
     state.postService = data.postService || null;
     state.postServiceByBooking = data.postServiceByBooking || null;
     state.priceAdjustments = data.priceAdjustments || null;
+    if (data.syncVersion) state.syncVersion = data.syncVersion;
+    if (data.serverTime) state.serverTime = data.serverTime;
     if (data.customer) applyCustomerProjection(data.customer);
+  }
+
+  function applyCanonicalBookingProjection(booking) {
+    if (!booking || !booking.id) return false;
+    state.booking = booking;
+    var found = false;
+    state.bookings = (state.bookings || []).map(function (item) {
+      if (String(item && item.id) !== String(booking.id)) return item;
+      found = true;
+      return booking;
+    });
+    if (!found) state.bookings.push(booking);
+    renderDashboard({ payment: state.payment || {} });
+    return true;
   }
 
   async function checkSession() {
@@ -994,9 +1038,11 @@
     if (state.actionToken && !opts.fromForm) {
       var ar = await post('customer-portal-action', { action: 'view', token: state.actionToken });
       if (ar.data && ar.data.ok) {
+        portalLastLoadOutcome = { ok: true, status: ar.status, notModified: false };
         state.booking = ar.data.booking;
         applyPortalPayload(ar.data);
         renderDashboard({ payment: ar.data.payment || { canPay: ar.data.labels && ar.data.labels.canPay } });
+        if (portalRefresh) portalRefresh.startPolling();
         return true;
       }
       // Token expired — clear and fall through
@@ -1018,7 +1064,22 @@
       if (opts.fromForm) setMsg($('lk-error'), 'Enter your booking ID and phone number.', true);
       return false;
     }
-    var r = await post('customer-portal-data', { mode: 'limited', bookingId: id, phone: phone });
+    var requestBody = { mode: 'limited', bookingId: id, phone: phone };
+    if (!opts.fromForm && state.syncVersion) requestBody.ifSyncVersion = state.syncVersion;
+    var r = await post('customer-portal-data', requestBody, { signal: opts.signal });
+    portalLastLoadOutcome = {
+      ok: !!(r.ok && r.data && r.data.ok),
+      status: r.status,
+      retryAfterMs: r.retryAfterMs,
+      error: r.data && r.data.error,
+      notModified: !!(r.data && r.data.notModified),
+    };
+    if (r.ok && r.data && r.data.notModified) {
+      if (r.data.syncVersion) state.syncVersion = r.data.syncVersion;
+      if (r.data.serverTime) state.serverTime = r.data.serverTime;
+      if (portalRefresh) portalRefresh.startPolling();
+      return true;
+    }
     if (!r.data || !r.data.ok) {
       var errCode = (r.data && r.data.error) || '';
       var errMsg = (r.data && r.data.message) || '';
@@ -1027,7 +1088,13 @@
       // session over it (that was forcing a real re-login after a burst of
       // legitimate polling, e.g. right after paying).
       if (r.status === 429 || errCode === 'rate_limited') {
-        showToast('Too many requests — please wait a moment and try again.', true);
+        showToast('Updates are temporarily slowed — your current appointment remains available.', true);
+        return false;
+      }
+      if (isTemporarilyUnavailableResponse(r)) {
+        var transientMsg = 'Could not refresh right now. Showing your last update and retrying automatically.';
+        if (opts.fromForm) setMsg($('lk-error'), transientMsg, true);
+        else showToast(transientMsg, true);
         return false;
       }
       if (!errMsg) {
@@ -1070,6 +1137,7 @@
     renderDashboard(r.data);
     show($('pre-auth'), false);
     show($('post-auth'), true);
+    if (portalRefresh) portalRefresh.startPolling();
     return true;
   }
 
@@ -1080,8 +1148,22 @@
     var payload = { mode: 'account' };
     var focusRef = opts.appointmentFocusRef || state.appointmentFocusRef;
     if (focusRef) payload.appointment = focusRef;
-    var r = await post('customer-portal-data', payload);
+    if (state.syncVersion) payload.ifSyncVersion = state.syncVersion;
+    var r = await post('customer-portal-data', payload, { signal: opts.signal });
+    portalLastLoadOutcome = {
+      ok: !!(r.ok && r.data && r.data.ok),
+      status: r.status,
+      retryAfterMs: r.retryAfterMs,
+      error: r.data && r.data.error,
+      notModified: !!(r.data && r.data.notModified),
+    };
     if (generation !== portalHydration.generation) return false;
+    if (r.ok && r.data && r.data.notModified) {
+      if (r.data.syncVersion) state.syncVersion = r.data.syncVersion;
+      if (r.data.serverTime) state.serverTime = r.data.serverTime;
+      if (portalRefresh) portalRefresh.startPolling();
+      return true;
+    }
     if (r.status === 401) {
       clearAuthenticatedCustomerState({ reason: 'http_401' });
       portalHydration.lastError = 'authentication_failed';
@@ -1110,6 +1192,7 @@
       show($('pre-auth'), false);
       show($('post-auth'), true);
     }
+    if (portalRefresh) portalRefresh.startPolling();
     return true;
   }
 
@@ -1312,6 +1395,8 @@
     state.verifyPhone = '';
     state.verifyBookingId = '';
     state.actionToken = null;
+    state.syncVersion = '';
+    state.serverTime = null;
     try {
       sessionStorage.removeItem('cd1_garage_id');
       sessionStorage.removeItem('cd1_garage_phone');
@@ -2169,6 +2254,10 @@
     var r = await post('submit-customer-action', body);
 
     if (r.data && r.data.ok) {
+      // Mutations return a safe canonical booking projection. Paint it now,
+      // then use the shared poller to converge secondary projections.
+      if (r.data.booking) applyCanonicalBookingProjection(r.data.booking);
+      if (portalRefresh) portalRefresh.markPending(30000);
       if (r.data.noop && (r.data.reason === 'package_unchanged' || action === 'package_change_request')) {
         showToast(r.data.message || 'That package is already on your booking — no change needed.');
       } else if (r.data.noop && (r.data.reason === 'duplicate_addon' || action === 'addon_request')) {
@@ -2206,6 +2295,7 @@
       : mapAddonErrorMessage(r.data, r.status);
     if (r.data && r.data.error === 'version_conflict') {
       showToast(msg, true);
+      if (portalRefresh) portalRefresh.markPending(15000);
       try {
         if (state.scope === 'account') await loadAccount();
         else await loadLimited({ soft: true });
@@ -3588,29 +3678,75 @@
   }
 
   async function pollPaymentSettlement() {
-    var tries = 0;
-    async function tick() {
-      tries += 1;
-      await portalReload();
-      var pay = state.payment || {};
-      var settled = pay.state === 'paid' || !(pay.canPay || pay.amountDueApproved > 0);
-      if (settled) {
-        showToast('Payment confirmed — thank you!');
-        return;
-      }
-      if (tries < 6) {
-        setTimeout(tick, 2000);
-      } else {
-        showToast('Still confirming payment with the server. Tap Refresh — do not pay again.', true);
-      }
+    paymentConfirmationPending = true;
+    showToast('Confirming payment with the server — do not pay again.');
+    if (portalRefresh) {
+      portalRefresh.markPending(20000);
+      return portalRefresh.refresh('payment_settlement', { supersede: true });
     }
-    setTimeout(tick, 1500);
+    return portalReload();
   }
 
-  function portalReload() {
-    if (state.scope === 'account') return loadAccount({ managePhase: false });
-    if (state.actionToken || state.booking) return loadLimited();
+  function portalReload(context) {
+    context = context || {};
+    if (state.scope === 'account') return loadAccount({ managePhase: false, signal: context.signal });
+    if (state.actionToken || state.booking) return loadLimited({ signal: context.signal });
     return Promise.resolve();
+  }
+
+  function portalHasPendingState() {
+    var pay = state.payment || {};
+    var paymentPending = paymentConfirmationPending
+      || ['creating', 'open', 'processing', 'pending_webhook'].indexOf(String(pay.paymentAttemptStatus || '')) >= 0
+      || Number(pay.pendingRefundCents || 0) > 0;
+    var requestPending = (state.changeRequests || []).some(function (request) {
+      return ['pending', 'pending_approval', 'needs_clarification', 'awaiting_admin']
+        .indexOf(String(request && request.status || '').toLowerCase()) >= 0;
+    });
+    return paymentPending || requestPending || mutationPending;
+  }
+
+  function portalSyncState(info) {
+    var el = $('portal-sync-status');
+    if (!el || !info) return;
+    el.setAttribute('data-state', info.state || 'idle');
+    if (info.state === 'updating') {
+      el.textContent = 'Updating…';
+    } else if (info.state === 'current') {
+      el.textContent = info.lastUpdated
+        ? ('Last updated ' + info.lastUpdated.toLocaleTimeString())
+        : 'Up to date';
+    } else if (info.state === 'retrying') {
+      el.textContent = info.status === 429
+        ? 'Updates slowed by the server — retrying automatically.'
+        : 'Could not refresh — showing the last update and retrying.';
+    } else if (info.state === 'offline') {
+      el.textContent = 'Offline — showing the last update. Reconnect to refresh.';
+    } else if (info.state === 'unauthorized') {
+      el.textContent = 'Session expired — sign in again.';
+    } else if (info.state === 'paused') {
+      el.textContent = 'Updates paused.';
+    }
+  }
+
+  async function refreshPortalProjection(context) {
+    var ok = await portalReload(context);
+    if (ok === undefined && !state.booking && !state.session && !state.actionToken) {
+      return { ok: true, notModified: true, pending: false };
+    }
+    if (!ok) {
+      var outcome = portalLastLoadOutcome || {};
+      var err = new Error(outcome.error || (outcome.status === 429 ? 'rate_limited' : 'refresh_failed'));
+      err.status = outcome.status || 0;
+      err.retryAfterMs = outcome.retryAfterMs || 0;
+      throw err;
+    }
+    return {
+      ok: true,
+      notModified: !!portalLastLoadOutcome.notModified,
+      changed: !portalLastLoadOutcome.notModified,
+      pending: portalHasPendingState(),
+    };
   }
 
   global.cd1MyGarage = {
@@ -3632,12 +3768,22 @@
   };
 
   if (global.CD1OperationalRefresh) {
-    var portalRefresh = global.CD1OperationalRefresh.createRefreshController({
-      onRefresh: function () { return portalReload(); },
-      onUpdated: function (d) {
-        var el = $('portal-last-updated');
-        if (el) el.textContent = 'Updated ' + d.toLocaleTimeString();
+    portalRefresh = global.CD1OperationalRefresh.createRefreshController({
+      controllerKey: 'my-garage',
+      activePollMs: 2500,
+      stablePollMs: 4000,
+      maxBackoffMs: 60000,
+      onRefresh: refreshPortalProjection,
+      onUpdated: function () {
+        var pay = state.payment || {};
+        var settled = pay.state === 'paid' || !(pay.canPay || Number(pay.amountDueApproved || 0) > 0);
+        if (paymentConfirmationPending && settled) {
+          paymentConfirmationPending = false;
+          showToast('Payment confirmed — thank you!');
+        }
       },
+      onStateChange: portalSyncState,
+      isPending: portalHasPendingState,
       // Pause polling while a change modal is open so refresh cannot yank the appointment away.
       shouldPoll: function () {
         var modal = $('action-modal');

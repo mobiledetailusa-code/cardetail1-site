@@ -517,7 +517,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
 <script src="/netlify/lib/admin-session-client.js"></script>
 <script src="/netlify/lib/site-access-client.js"></script>
-<script src="assets/operational-refresh.js"></script>
+<script src="assets/operational-refresh.js?v=20260805-sync-pr3"></script>
 <script src="assets/admin-source-state.js"></script>
 <script>
 (function(){
@@ -552,6 +552,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let techsCacheStale = false;
   let techsInflight = null;
   let refreshAllInflight = null;
+  let refreshAllSignal = null;
+  let jobsSyncVersion = '';
+  let requestsSyncVersion = '';
+  let opsRefresh = null;
   let sourceAbort = { jobs: null, techs: null, changeRequests: null };
   let pendingOpenBookingId = null;
   try {
@@ -636,7 +640,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         }
         var requestError = new Error(err);
         requestError.retryable = data.retryable === true;
+        requestError.status = res.status;
+        requestError.statusCode = res.status;
+        const retryHeader = Number(res.headers && res.headers.get && res.headers.get('Retry-After'));
+        requestError.retryAfterMs = Number(data.retryAfterSec) > 0
+          ? Number(data.retryAfterSec) * 1000
+          : (retryHeader > 0 ? retryHeader * 1000 : 0);
         throw requestError;
+      }
+      if (method && method !== 'GET' && body && body.action && opsRefresh) {
+        opsRefresh.markPending(30000);
       }
       return data;
     } catch (e) {
@@ -669,8 +682,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     sourceAbort.changeRequests = ctrl;
     try {
       const q = new URLSearchParams({ action: 'list', status: requestsStatusFilter || 'pending' });
+      if (requestsSyncVersion) q.set('ifSyncVersion', requestsSyncVersion);
       const data = await api('/.netlify/functions/admin-customer-requests?' + q.toString(), 'GET', null, Object.assign({ signal: ctrl && ctrl.signal }, fetchOpts || {}));
       if (SS && !SS.shouldApplyGeneration(changeRequestsMeta, generation)) return changeRequests;
+      if (data.syncVersion) requestsSyncVersion = data.syncVersion;
+      if (data.notModified === true) {
+        if (SS) changeRequestsMeta = SS.applySourceSuccess(changeRequestsMeta, generation).meta;
+        else { changeRequestsMeta.hasLoaded = true; changeRequestsMeta.isLoading = false; changeRequestsMeta.error = null; changeRequestsMeta.lastSuccessAt = Date.now(); }
+        return changeRequests;
+      }
       changeRequests = data.requests || [];
       if (SS) changeRequestsMeta = SS.applySourceSuccess(changeRequestsMeta, generation).meta;
       else { changeRequestsMeta.hasLoaded = true; changeRequestsMeta.isLoading = false; changeRequestsMeta.error = null; changeRequestsMeta.lastSuccessAt = Date.now(); }
@@ -914,8 +934,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     try {
       const q = new URLSearchParams(extra||{});
       if (showTest) q.set('showTest', '1');
+      if (jobsSyncVersion) q.set('ifSyncVersion', jobsSyncVersion);
       const data = await api('/.netlify/functions/admin-ops-jobs?'+q, 'GET', null, Object.assign({ signal: ctrl && ctrl.signal }, fetchOpts || {}));
       if (SS && !SS.shouldApplyGeneration(jobsMeta, generation)) return jobs;
+      if (data.syncVersion) jobsSyncVersion = data.syncVersion;
+      if (data.notModified === true) {
+        if (SS) jobsMeta = SS.applySourceSuccess(jobsMeta, generation).meta;
+        else { jobsMeta.hasLoaded = true; jobsMeta.isLoading = false; jobsMeta.error = null; jobsMeta.lastSuccessAt = Date.now(); }
+        return jobs;
+      }
       const incoming = Array.isArray(data.jobs) ? data.jobs : [];
       // Poll/list returns lean rows. Preserve in-memory full detail for the open job.
       if (expandedJobId && activeJob && activeJob.id === expandedJobId && activeJob._projection === 'admin_full') {
@@ -1166,13 +1193,34 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     // 'wait' — keep pendingOpenBookingId for a later successful jobs load
   }
 
-  async function refreshAll() {
-    if (refreshAllInflight) return refreshAllInflight;
-    refreshAllInflight = (async () => {
+  function adminSyncPending() {
+    const pendingJob = jobs.some((j) => {
+      const pay = String(j && (j.paymentAttemptStatus || j.paymentWorkflowStatus) || '').toLowerCase();
+      return pendingRequestCountOf(j) > 0
+        || ['creating','open','processing','pending_webhook','awaiting_customer_payment'].includes(pay);
+    });
+    return pendingJob || mergeRequestsWithJobs(changeRequests).some(isOpenChangeRequest);
+  }
+
+  async function refreshAll(refreshContext) {
+    const reason = typeof refreshContext === 'string'
+      ? refreshContext
+      : String((refreshContext && refreshContext.reason) || 'manual');
+    const requestSignal = refreshContext && refreshContext.signal;
+    // The shared controller aborts an obsolete request before a focus/online
+    // refresh. Let that replacement start immediately instead of deduping it
+    // onto the already-aborted promise.
+    if (refreshAllInflight && !(requestSignal && refreshAllSignal && refreshAllSignal.aborted)) {
+      return refreshAllInflight;
+    }
+    const syncOnly = ['poll','focus','visibility','online','payment_settlement'].includes(reason);
+    const run = (async () => {
       // Jobs refresh must NOT pull the full technician roster (lazy-loaded on Assign / Techs tab).
       // Preserve any session-cached techs across jobs/requests refresh.
       const [jobsR, settingsR, changeR] = await Promise.allSettled([
-        loadJobs(), loadSettings(), loadChangeRequests(),
+        loadJobs(null, { signal: requestSignal }),
+        syncOnly ? Promise.resolve(platformSettings) : loadSettings(),
+        loadChangeRequests({ signal: requestSignal }),
       ]);
       // Intentionally do NOT assign jobs=[], techs=[], or changeRequests=[] on rejection.
       // Intentionally do NOT call loadTechs() here.
@@ -1211,11 +1259,25 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (expandedJobId && jobs.some((j) => j && j.id === expandedJobId) && activeJob) {
         /* leave drawer as-is — renderJobs preserves expansion when the job remains in memory */
       }
+      const syncFailure = jobsR.status === 'rejected' ? jobsR.reason
+        : (changeR.status === 'rejected' ? changeR.reason : null);
+      return {
+        ok: !syncFailure,
+        error: syncFailure && (syncFailure.message || String(syncFailure)),
+        status: syncFailure && (syncFailure.status || syncFailure.statusCode || 0),
+        retryAfterMs: syncFailure && syncFailure.retryAfterMs,
+        pending: adminSyncPending(),
+      };
     })();
+    refreshAllInflight = run;
+    refreshAllSignal = requestSignal || null;
     try {
-      await refreshAllInflight;
+      return await run;
     } finally {
-      refreshAllInflight = null;
+      if (refreshAllInflight === run) {
+        refreshAllInflight = null;
+        refreshAllSignal = null;
+      }
     }
   }
 
@@ -3616,6 +3678,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   document.querySelectorAll('#requestsFilters [data-req-filter]').forEach((btn) => {
     btn.onclick = async () => {
       requestsStatusFilter = btn.dataset.reqFilter || 'pending';
+      requestsSyncVersion = '';
       document.querySelectorAll('#requestsFilters [data-req-filter]').forEach((b) => {
         b.setAttribute('aria-pressed', b.dataset.reqFilter === requestsStatusFilter ? 'true' : 'false');
       });
@@ -3656,7 +3719,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     } catch(e) { toast('Archive failed: '+e.message); }
   };
   $('#completedRefresh').onclick = async () => { await loadJobs({jobStatus:'completed_pending_admin_review'}); await loadJobs(); renderCompleted(); };
-  $('#btnRefresh').onclick = refreshAll;
+  $('#btnRefresh').onclick = () => opsRefresh
+    ? opsRefresh.refresh('manual', { supersede: true })
+    : refreshAll('manual');
   $('#btnLogout').onclick = () => { if (confirm('Sign out of Admin Ops?')) adminLogout(); };
   $('#dClose').onclick = closeDrawer;
   $('#tdClose').onclick = closeTechDrawer;
@@ -3817,10 +3882,28 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     } catch(e) { toast('Create failed: '+e.message); }
   };
 
+  function renderAdminSyncState(info) {
+    const el = $('#lastUpdated');
+    if (!el || !info) return;
+    if (info.state === 'updating') el.textContent = 'Updating…';
+    else if (info.state === 'current') {
+      el.textContent = info.lastUpdated ? 'Last updated '+info.lastUpdated.toLocaleTimeString() : 'Up to date';
+    } else if (info.state === 'retrying') {
+      el.textContent = info.status === 429 ? 'Rate limited · retrying…' : 'Refresh delayed · retrying…';
+    } else if (info.state === 'offline') el.textContent = 'Offline · showing last update';
+    else if (info.state === 'unauthorized') el.textContent = 'Session expired';
+    else if (info.state === 'paused') el.textContent = 'Updates paused';
+  }
+
   if (window.CD1OperationalRefresh) {
-    const opsRefresh = window.CD1OperationalRefresh.createRefreshController({
-      onRefresh: async () => { await refreshAll(); },
-      onUpdated: (d) => { const el = $('#lastUpdated'); if (el) el.textContent = 'Updated '+d.toLocaleTimeString(); },
+    opsRefresh = window.CD1OperationalRefresh.createRefreshController({
+      controllerKey: 'admin-ops',
+      activePollMs: 2500,
+      stablePollMs: 4000,
+      maxBackoffMs: 60000,
+      onRefresh: refreshAll,
+      onStateChange: renderAdminSyncState,
+      isPending: adminSyncPending,
       shouldPoll: () => document.visibilityState !== 'hidden',
     });
     opsRefresh.bindLifecycle();
@@ -3828,7 +3911,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   ensureAdminSession().then(ok => {
     if (!ok) return;
-    refreshAll().catch(e => toast('Load error: '+e.message));
+    if (opsRefresh) opsRefresh.refresh('initial').catch(e => toast('Load error: '+e.message));
+    else refreshAll('initial').catch(e => toast('Load error: '+e.message));
   });
 
   let revopsInflight = null;

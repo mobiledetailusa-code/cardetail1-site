@@ -343,7 +343,7 @@ describe('operational payment — pure guards', () => {
     const fs = require('fs');
     const path = require('path');
     const js = fs.readFileSync(path.join(__dirname, '../assets/my-garage.js'), 'utf8');
-    const loadLimitedSrc = js.slice(js.indexOf('async function loadLimited'), js.indexOf('async function loadLimited') + 4000);
+    const loadLimitedSrc = js.slice(js.indexOf('async function loadLimited'), js.indexOf('async function loadLimited') + 7000);
     assert.match(loadLimitedSrc, /429/);
     assert.match(loadLimitedSrc, /rate_limited/);
     // The 429 branch must return before the session-clearing code runs.

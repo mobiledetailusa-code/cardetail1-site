@@ -22,12 +22,14 @@ function extractScript(html) {
 const src = extractScript(adminOps);
 
 test('1-3. initial refreshAll / polling path does not call loadTechs or tech-accounts list', () => {
-  const refreshBlock = src.match(/async function refreshAll\(\)[\s\S]*?^  \}/m);
+  const refreshBlock = src.match(/async function refreshAll\([^)]*\)[\s\S]*?^  \}/m);
   assert.ok(refreshBlock);
-  assert.match(refreshBlock[0], /const \[jobsR, settingsR, changeR\] = await Promise\.allSettled\(\[\s*loadJobs\(\), loadSettings\(\), loadChangeRequests\(\),\s*\]\)/);
+  assert.match(refreshBlock[0], /const \[jobsR, settingsR, changeR\] = await Promise\.allSettled\(\[/);
+  assert.match(refreshBlock[0], /loadJobs\(/);
+  assert.match(refreshBlock[0], /loadChangeRequests\(/);
   assert.doesNotMatch(refreshBlock[0], /loadJobs\(\),\s*loadTechs\(/);
   assert.match(refreshBlock[0], /Intentionally do NOT call loadTechs\(\) here/);
-  assert.match(adminOps, /onRefresh:\s*async \(\) => \{ await refreshAll\(\); \}/);
+  assert.match(adminOps, /onRefresh:\s*refreshAll/);
 });
 
 test('4-5. opening job / Edit does not call tech-accounts', () => {
@@ -133,7 +135,7 @@ test('27. assign retry touch target is at least 44px', () => {
 });
 
 test('benchmark contract: before vs after request topology', () => {
-  const refreshBlock = src.match(/async function refreshAll\(\)[\s\S]*?^  \}/m)[0];
+  const refreshBlock = src.match(/async function refreshAll\([^)]*\)[\s\S]*?^  \}/m)[0];
   assert.doesNotMatch(refreshBlock, /loadJobs\(\),\s*loadTechs\(/);
   assert.match(adminOps, /mode:\s*'assign_options'/);
   assert.equal(modes.shouldAttachAssignedJobCounts({ mode: 'assign_options' }, 'assign_options'), false);

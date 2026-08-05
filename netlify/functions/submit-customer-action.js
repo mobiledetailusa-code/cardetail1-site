@@ -6,6 +6,11 @@ const { authorizeBookingAccess, normalizeBookingId } = require('../lib/booking-c
 const { canRequestChange } = require('../lib/appointment-status-policy');
 const { createChangeRequest, sanitizeSnapshot } = require('../lib/customer-change-requests');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { projectBookingForCustomer } = require('../lib/ops-schema');
+
+function safeBooking(booking) {
+  return booking ? projectBookingForCustomer(booking) : null;
+}
 
 async function notifyAdmin(subject, text) {
   const { ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM } = process.env;
@@ -132,6 +137,7 @@ function addonMutationResponse(appliedCmd, {
     approvedCents: proj?.approvedCents ?? null,
     settledCents: proj?.settledCents ?? null,
     remainingCents: proj?.remainingCents ?? null,
+    booking: safeBooking(appliedCmd.booking),
   });
 }
 
@@ -192,6 +198,7 @@ exports.handler = async (event) => {
           reason: 'duplicate_addon',
           message: carve.message || 'Selected add-on is already on this booking.',
           changeRequestId: null,
+          booking: safeBooking(booking),
         });
       } else if (carve.error) {
         return json(carve.statusCode || 409, {
@@ -298,6 +305,7 @@ exports.handler = async (event) => {
         changeRequestId: null,
         quoteVersion: booking.quoteVersion || booking.quote?.quoteVersion || 0,
         bookingVersion: booking.bookingVersion,
+        booking: safeBooking(booking),
       });
     }
 
@@ -312,6 +320,7 @@ exports.handler = async (event) => {
         changeRequestId: null,
         quoteVersion: booking.quoteVersion || booking.quote?.quoteVersion || 0,
         bookingVersion: booking.bookingVersion,
+        booking: safeBooking(booking),
       });
     }
 
@@ -333,6 +342,7 @@ exports.handler = async (event) => {
         changeRequestId: null,
         quoteVersion: booking.quoteVersion || booking.quote?.quoteVersion || 0,
         bookingVersion: booking.bookingVersion,
+        booking: safeBooking(booking),
       });
     }
     if (!cmd.ok) {
@@ -400,6 +410,7 @@ exports.handler = async (event) => {
         reason: cmd.reason || 'duplicate_addon',
         message: 'Selected add-on is already on this booking.',
         changeRequestId: null,
+        booking: safeBooking(booking),
       });
     }
     if (!cmd.ok) {
@@ -594,6 +605,7 @@ exports.handler = async (event) => {
         changeRequestId: null,
         bookingVersion: booking.bookingVersion,
         quoteVersion: booking.quoteVersion || booking.quote?.quoteVersion || 0,
+        booking: safeBooking(booking),
       });
     }
     if (!cmd.ok) {
@@ -655,6 +667,7 @@ exports.handler = async (event) => {
         changeRequestId: appliedCmd.changeRequest?.requestId || null,
         bookingVersion: appliedCmd.booking?.bookingVersion,
         quoteVersion: appliedCmd.quoteVersion || appliedCmd.booking?.quoteVersion || 0,
+        booking: safeBooking(appliedCmd.booking),
       });
     }
 
@@ -754,6 +767,7 @@ exports.handler = async (event) => {
       vehicleSubtotal: targetVehicle.subtotal,
       projection: cmd.projection,
       message: 'Removal requested — Pending review',
+      booking: safeBooking(cmd.booking),
     });
   } else if (action === 'vehicle_add_request' || action === 'vehicle_replace_request') {
     const { usesLengthPricing } = require('../lib/length-pricing');
@@ -917,6 +931,7 @@ exports.handler = async (event) => {
       bookingVersion: appliedCmd.booking?.bookingVersion,
       approvedFinalAmount: appliedCmd.booking?.approvedFinalAmount,
       projection: appliedCmd.projection,
+      booking: safeBooking(appliedCmd.booking),
     });
   }
 
@@ -932,6 +947,7 @@ exports.handler = async (event) => {
   const eventLog = Array.isArray(booking.eventLog) ? [...booking.eventLog] : [];
   eventLog.push({ ...logEntry, changeRequestId: changeRecord.id });
 
+  let committedBooking = null;
   try {
     const { getBookingRecord, commitBooking } = require('../lib/booking-repository');
     const { buildNextAggregate, normalizeAggregate } = require('../lib/booking-aggregate');
@@ -954,6 +970,7 @@ exports.handler = async (event) => {
         message: 'This booking changed. Refresh and try again.',
       });
     }
+    committedBooking = committed.booking;
   } catch {
     return json(503, { ok: false, error: 'service_unavailable', message: 'Failed to save request. Please try again.' });
   }
@@ -964,5 +981,6 @@ exports.handler = async (event) => {
     ok: true,
     changeRequestId: changeRecord.id,
     pendingApproval: !!policy.pendingApproval,
+    booking: safeBooking(committedBooking),
   });
 };

@@ -17,7 +17,7 @@ describe('customer vehicle garage removed from release', () => {
     const html = fs.readFileSync(HTML_PATH, 'utf8');
     assert.doesNotMatch(html, /id="veh-h"|My Vehicles|vehicles-list|vehicle-form|vh-add-btn|vehicles-empty/);
     assert.doesNotMatch(html, /customer-vehicle-card\.js/);
-    assert.match(html, /my-garage\.js\?v=20260725-portal-closure1/);
+    assert.match(html, /my-garage\.js\?v=20260805-sync-pr3/);
   });
 
   it('2. frontend never calls customer-portal-vehicles and never shows garage unavailable copy', () => {
