@@ -103,12 +103,12 @@ const RV_TYPES = {
 
 /** Authoritative RV service price: base + exactLength × ratePerFoot (no mins, no blanket %). */
 const RV_RATE_TABLE = {
-  maint: { base: 150, ratePerFoot: 10 },
-  maint_light: { base: 250, ratePerFoot: 16 },
-  interior: { base: 250, ratePerFoot: 18 },
-  full_basic: { base: 300, ratePerFoot: 25 },
-  premium: { base: 300, ratePerFoot: 28 },
-  full: { base: 400, ratePerFoot: 36 },
+  maint: { base: 130, ratePerFoot: 9 },
+  maint_light: { base: 215, ratePerFoot: 14 },
+  interior: { base: 215, ratePerFoot: 15 },
+  full_basic: { base: 255, ratePerFoot: 21 },
+  premium: { base: 255, ratePerFoot: 24 },
+  full: { base: 340, ratePerFoot: 31 },
 };
 
 const ADJUSTED_RATES = Object.fromEntries(

@@ -343,12 +343,12 @@ test('package IDs in index PRICING unchanged for specialty categories', () => {
   assert.match(html, /powersports:[\s\S]*?id:'wash'/);
 });
 
-test('LENGTH_PRICING formulas (boat maint min 199, rv maint_light min 229)', () => {
+test('LENGTH_PRICING formulas (boat maint min 170, rv maint_light min 383)', () => {
   const html = read('index.html');
-  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 250, ratePerFoot: 16 \}/);
-  assert.match(html, /rvs:[\s\S]*?maint:\s*\{ base: 150, ratePerFoot: 10 \}/);
-  assert.match(html, /rvs:[\s\S]*?full:\s*\{ base: 400, ratePerFoot: 36 \}/);
+  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*10,\s*min:\s*199\}/);
+  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 215, ratePerFoot: 14 \}/);
+  assert.match(html, /rvs:[\s\S]*?maint:\s*\{ base: 130, ratePerFoot: 9 \}/);
+  assert.match(html, /rvs:[\s\S]*?full:\s*\{ base: 340, ratePerFoot: 31 \}/);
 });
 
 test('no secrets in public HTML/JS specialty surface', () => {

@@ -81,9 +81,9 @@ describe('price calculation invariant', () => {
   it('expanded detail rows always sum to the displayed total', () => {
     const ctx = buildSandbox();
     const cases = [
-      { servicePrice: 225, addonTotal: 45, travelFee: 0, discount: 0 },
+      { servicePrice: 190, addonTotal: 45, travelFee: 0, discount: 0 },
       { servicePrice: 538, addonTotal: 0, travelFee: 25, discount: 0 },
-      { servicePrice: 300, addonTotal: 135, travelFee: 55, discount: 22.5 },
+      { servicePrice: 255, addonTotal: 135, travelFee: 55, discount: 22.5 },
     ];
     for (const c of cases) {
       const total = render(ctx, c);
@@ -97,7 +97,7 @@ describe('price calculation invariant', () => {
 
   it('zero-value rows are omitted from the breakdown', () => {
     const ctx = buildSandbox();
-    render(ctx, { servicePrice: 225, addonTotal: 0, travelFee: 0, discount: 0 });
+    render(ctx, { servicePrice: 190, addonTotal: 0, travelFee: 0, discount: 0 });
     const lines = ctx.els['bk-financial-lines'].innerHTML;
     assert.doesNotMatch(lines, /Selected add-ons/);
     assert.doesNotMatch(lines, /Mobile service adjustment/);
@@ -109,7 +109,7 @@ describe('price calculation invariant', () => {
     const ctx = buildSandbox();
     render(ctx, { servicePrice: 538, addonTotal: 0, travelFee: 25, discount: 0 });
     assert.equal(ctx.els['bk-total-incl'].textContent, 'Includes the mobile service adjustment for your location.');
-    render(ctx, { servicePrice: 225, addonTotal: 0, travelFee: 0, discount: 0 });
+    render(ctx, { servicePrice: 190, addonTotal: 0, travelFee: 0, discount: 0 });
     assert.equal(ctx.els['bk-total-incl'].textContent, 'Mobile service included.');
   });
 

@@ -285,7 +285,7 @@ describe('Stage 2 My Garage customer UI (wiring guards)', () => {
   it('429 and 5xx messages preserve session (no credential clear in error path)', () => {
     const mapStart = js.indexOf('function mapAddonErrorMessage');
     assert.ok(mapStart >= 0);
-    const mapFn = js.slice(mapStart, mapStart + 1200);
+    const mapFn = js.slice(mapStart, mapStart + 1020);
     assert.match(mapFn, /429|too_many_requests/);
     assert.match(mapFn, /Temporary server error|5xx|service_unavailable|postgres_payment_disabled/);
     assert.match(mapFn, /session is still active/);

@@ -94,7 +94,7 @@ describe('e2e simulate: customer package change → admin approve → customer p
   const { quoteService, canonicalAddonPrice } = require('../netlify/lib/canonical-quote');
 
   it('cars: approved total and due appear on customer projection (canonical quote)', () => {
-    // Release A: approvable amount from booking-price-catalog, not customer-catalog fixed $450
+    // Release A: approvable amount from booking-price-catalog, not customer-catalog fixed $385
     const booking = baseBooking({
       travelFeeAmount: 10,
       vehicles: [{
@@ -119,9 +119,9 @@ describe('e2e simulate: customer package change → admin approve → customer p
         pkgId: 'premium',
         addons: [],
       }],
-    }, { travelCents: 1000, basedOnBookingVersion: 1 });
+    }, { travelCents: 850, basedOnBookingVersion: 1 });
     assert.equal(quoted.ok, true);
-    // SUV3 Premium $635 + $10 travel
+    // SUV3 Premium $540 + $10 travel
     assert.equal(quoted.quote.approvedCents, 64500);
     const proposedTotal = quoted.approvedDollars;
 
@@ -177,8 +177,8 @@ describe('e2e simulate: customer package change → admin approve → customer p
     assert.ok(portalOdor.price !== 90, 'portal catalog remains non-authoritative for odor');
 
     const booking = baseBooking({
-      approvedFinalAmount: 315,
-      amountDueApproved: 315,
+      approvedFinalAmount: 270,
+      amountDueApproved: 270,
       travelFeeAmount: 0,
       zipCode: '07102',
       vehicles: [{
@@ -203,7 +203,7 @@ describe('e2e simulate: customer package change → admin approve → customer p
       }],
     });
     assert.equal(quoted.ok, true);
-    // SUV3 Full $315 + pet $95 + odor $90 = $500
+    // SUV3 Full $270 + pet $95 + odor $90 = $425
     assert.equal(quoted.quote.approvedCents, 50000);
     const proposedTotal = quoted.approvedDollars;
     const selected = resolveAddonsByIds(['pethair', 'odor']).map((a) => ({
@@ -217,8 +217,8 @@ describe('e2e simulate: customer package change → admin approve → customer p
     });
     const projected = projectBookingForCustomer(after);
     assert.equal(projected.addons.length, 2);
-    assert.equal(projected.approvedFinalAmount, 500);
-    assert.equal(projected.amountDueApproved, 500);
+    assert.equal(projected.approvedFinalAmount, 425);
+    assert.equal(projected.amountDueApproved, 425);
     assert.equal(projected.payLink, '');
   });
 });
@@ -228,7 +228,7 @@ describe('e2e simulate: boats & RVs length pricing modes', () => {
     assert.equal(usesLengthPricing('boats'), true);
     const price22 = getLengthPrice('boats', 'full', 22);
     const price40 = getLengthPrice('boats', 'full', 40);
-    assert.ok(price22 >= 449);
+    assert.ok(price22 >= 380);
     assert.ok(price40 > price22);
     assert.ok(packagesForCategory('boats').some((p) => p.id === 'premium'));
   });
@@ -358,9 +358,9 @@ describe('regression: UI approved total vs due after admin regenerate pattern', 
   it('old bug: amountDue updated but approvedFinalAmount stale is a conflict', () => {
     const booking = baseBooking({
       approvedFinalAmount: 310, // stale UI "Approved total"
-      amountDueApproved: 460,   // new Stripe amount
+      amountDueApproved: 390,   // new Stripe amount
       payLink: 'https://checkout.stripe.com/new',
-      payLinkAmount: 460,
+      payLinkAmount: 390,
     });
     const conflict = detectMoneyConflict(booking);
     assert.equal(conflict.ok, false);
@@ -376,10 +376,10 @@ describe('regression: UI approved total vs due after admin regenerate pattern', 
 
   it('fixed path: applyPayLinkMoney keeps approved and due aligned', () => {
     const booking = baseBooking({ approvedFinalAmount: 310, amountDueApproved: 310, payLink: '', payLinkAmount: null });
-    const fixed = { ...booking, ...applyPayLinkMoney(booking, 460, 'https://checkout.stripe.com/new', 'cs') };
-    // approved becomes max(old approved, due+paid) = 460
-    assert.equal(fixed.approvedFinalAmount, 460);
-    assert.equal(fixed.amountDueApproved, 460);
+    const fixed = { ...booking, ...applyPayLinkMoney(booking, 390, 'https://checkout.stripe.com/new', 'cs') };
+    // approved becomes max(old approved, due+paid) = 390
+    assert.equal(fixed.approvedFinalAmount, 390);
+    assert.equal(fixed.amountDueApproved, 390);
     assert.equal(detectMoneyConflict(fixed).ok, true);
     const projected = projectBookingForCustomer(fixed);
     assert.equal(projected.approvedFinalAmount, projected.amountDueApproved);

@@ -59,10 +59,10 @@ test('index updateBkFromPrices derives specialty mins from LENGTH_PRICING / PRIC
 
 test('booking category starting prices align with catalog minimums', () => {
   const html = read('index.html');
-  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*199\}/);
-  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 250, ratePerFoot: 16 \}/);
-  assert.match(html, /rvs:[\s\S]*?maint:\s*\{ base: 150, ratePerFoot: 10 \}/);
-  assert.match(html, /rvs:[\s\S]*?full_basic:\s*\{ base: 300, ratePerFoot: 25 \}/);
+  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*10,\s*min:\s*199\}/);
+  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 215, ratePerFoot: 14 \}/);
+  assert.match(html, /rvs:[\s\S]*?maint:\s*\{ base: 130, ratePerFoot: 9 \}/);
+  assert.match(html, /rvs:[\s\S]*?full_basic:\s*\{ base: 255, ratePerFoot: 21 \}/);
   assert.match(html, /motorcycle:\s*\{[\s\S]*?wash:119/);
   assert.match(html, /id="bkfrom-boats"[\s\S]*?From \$199/);
   assert.match(html, /id="bkfrom-rvs"[\s\S]*?Price calculated from your vehicle details/);

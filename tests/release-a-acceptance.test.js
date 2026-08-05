@@ -203,7 +203,7 @@ describe('Release A — visibility & drafts (PDA-13, PDA-14)', () => {
       vehicleCategory: 'cars',
       package: 'Premium Detail',
       packageId: 'full',
-      totalPrice: 285,
+      totalPrice: 240,
       vehicles: [{
         cat: 'cars',
         pkgId: 'full',
@@ -266,7 +266,7 @@ describe('Release A — visibility & drafts (PDA-13, PDA-14)', () => {
           vehicleCategory: 'cars',
           package: 'Premium Detail',
           packageId: 'full',
-          totalPrice: 285,
+          totalPrice: 240,
           vehicles: base.vehicles,
         }),
         headers: {},
@@ -295,7 +295,7 @@ describe('Release A — historical adapter (PDA-04, PDA-16)', () => {
   const { projectBookingForCustomer } = require('../netlify/lib/ops-schema');
 
   it('Paid fixture is completed with zero due and not payable', () => {
-    const adapted = adaptHistoricalBooking({ status: 'Paid', totalPrice: 225, id: 'H1' });
+    const adapted = adaptHistoricalBooking({ status: 'Paid', totalPrice: 190, id: 'H1' });
     assert.equal(adapted.ok, true);
     assert.equal(computeDue(adapted.booking), 0);
     const pay = canCreatePayment(adapted.booking);
@@ -306,7 +306,7 @@ describe('Release A — historical adapter (PDA-04, PDA-16)', () => {
   });
 
   it('Closed fixture maps to completed paid with zero due', () => {
-    const adapted = adaptHistoricalBooking({ status: 'Closed', totalPrice: 225, id: 'H2' });
+    const adapted = adaptHistoricalBooking({ status: 'Closed', totalPrice: 190, id: 'H2' });
     assert.equal(adapted.ok, true);
     assert.equal(computeDue(adapted.booking), 0);
     assert.equal(canCreatePayment(adapted.booking).ok, false);
@@ -334,8 +334,8 @@ describe('Release A — canonical quote (PDA-01, PDA-07)', () => {
     canonicalAddonPrice,
   } = require('../netlify/lib/canonical-quote');
 
-  it('SUV3 Premium is $635 at audited catalog baseline', () => {
-    assert.equal(canonicalCarPackagePrice('suv3', 'premium'), 635);
+  it('SUV3 Premium is $540 at audited catalog baseline', () => {
+    assert.equal(canonicalCarPackagePrice('suv3', 'premium'), 540);
     // Use a non-rich ZIP so the audited catalog baseline is not multiplied.
     const quoted = quoteService({
       zip: '07102',
@@ -448,14 +448,14 @@ describe('Release A — list pagination & historical multi-page (PDA-16)', () =>
     seed['CD1-B'] = {
       id: 'CD1-B', status: 'Confirmed', isDraft: false,
       updatedAt: '2026-01-02T00:00:00.000Z', createdAt: '2026-01-01T00:00:00.000Z',
-      totalPrice: 150, addons: 'not-an-array', vehicles: 'bad',
+      totalPrice: 130, addons: 'not-an-array', vehicles: 'bad',
     };
     seed['CD1-DRAFT'] = {
       id: 'CD1-DRAFT', isDraft: true, status: 'saved', phone: '5513132956', totalPrice: 99,
     };
     seed['CD1-BAD'] = null; // skipped by fetch
     seed['CD1-PAID'] = {
-      id: 'CD1-PAID', status: 'Paid', totalPrice: 225, amountPaid: 225,
+      id: 'CD1-PAID', status: 'Paid', totalPrice: 190, amountPaid: 190,
       updatedAt: '2026-01-04T00:00:00.000Z',
     };
 
@@ -490,7 +490,7 @@ describe('Release A — money ledger (PDA-09)', () => {
 
   it('stale stored due is ignored; derives approved − paid', () => {
     const booking = {
-      approvedFinalAmount: 460,
+      approvedFinalAmount: 390,
       amountPaid: 50,
       amountDueApproved: 260, // stale
       balanceDue: 260,
@@ -739,7 +739,7 @@ describe('Release A — discounted remaining never uses catalog total (PDA-18)',
       status: 'Confirmed',
       appointmentStatus: 'confirmed',
       jobStatus: 'confirmed',
-      totalPrice: 285,
+      totalPrice: 240,
       approvedFinalAmount: 256.5,
       amountPaid: 0,
       ledger: { approvedCents: 25650, settledCents: 0, creditedCents: 0 },
@@ -761,7 +761,7 @@ describe('Release A — quote change remaining + supersede sessions (PDA-09)', (
     prepareBalanceCheckout,
   } = require('../netlify/lib/payment-service');
 
-  it('approved $310/paid $50 then approved $460 → remaining $410; old session superseded', () => {
+  it('approved $310/paid $50 then approved $390 → remaining $410; old session superseded', () => {
     const ledger = { approvedCents: 46000, settledCents: 5000, creditedCents: 0 };
     assert.equal(remainingCents(ledger), 41000);
     const attempts = supersedeOpenAttempts([
@@ -847,7 +847,7 @@ describe('Release A — material projection parity', () => {
       bookingVersion: 5,
       quoteVersion: 3,
       schemaVersion: 1,
-      approvedFinalAmount: 460,
+      approvedFinalAmount: 390,
       amountPaid: 50,
       ledger: { approvedCents: 46000, settledCents: 5000, creditedCents: 0 },
       vehicles: [{ vehicleId: 'v1', pkgId: 'premium', cat: 'cars' }],
@@ -869,7 +869,7 @@ describe('Release A — material projection parity', () => {
       status: 'Confirmed',
       appointmentStatus: 'confirmed',
       jobStatus: 'confirmed',
-      approvedFinalAmount: 460,
+      approvedFinalAmount: 390,
       amountPaid: 50,
       ledger: { approvedCents: 46000, settledCents: 5000, creditedCents: 0 },
       vehicles: [{ vehicleId: 'v1', pkgId: 'premium', cat: 'cars', tierLabel: 'SUV 3-Row' }],
@@ -942,7 +942,7 @@ describe('Release A — decide applies canonical quote not proposedTotal (PDA-01
         appointmentStatus: 'pending_review',
         zipCode: '07102',
         travelFeeAmount: 0,
-        approvedFinalAmount: 315,
+        approvedFinalAmount: 270,
         amountPaid: 0,
         ledger: { approvedCents: 31500, settledCents: 0, creditedCents: 0 },
         vehicles: [{
@@ -989,7 +989,7 @@ describe('Release A — decide applies canonical quote not proposedTotal (PDA-01
         `decide failed: ${decided.error || 'unknown'} ${decided.reason || ''} ${decided.statusCode || ''}`
       );
       assert.equal(decided.booking.ledger.approvedCents, 63500);
-      assert.equal(decided.booking.approvedFinalAmount, 635);
+      assert.equal(decided.booking.approvedFinalAmount, 540);
       assert.notEqual(decided.booking.approvedFinalAmount, 9999);
       // Package Stage 1 — this is the Postgres-authoritative projection, not a
       // Blob-only figure; proves the adjustment was written to Postgres.
@@ -1025,7 +1025,7 @@ describe('Release A — pending request pagination beyond 200 (PDA-12)', () => {
       const id = `cr_${String(i).padStart(4, '0')}`;
       seed[id] = {
         id,
-        status: i === 215 ? 'pending' : 'applied',
+        status: i === 185 ? 'pending' : 'applied',
         createdAt: `2026-01-01T00:${String(i % 60).padStart(2, '0')}:00.000Z`,
         requestType: 'package_change_request',
         bookingId: 'CD1-X',
@@ -1353,9 +1353,9 @@ describe('Final readiness remediation — Admin CAS + overpayment', () => {
       status: 'Paid',
       appointmentStatus: 'paid',
       jobStatus: 'completed_paid',
-      totalPrice: 225,
-      amountDueApproved: 225,
-      balanceDue: 225,
+      totalPrice: 190,
+      amountDueApproved: 190,
+      balanceDue: 190,
       ledger: { approvedCents: 22500, settledCents: 22500, creditedCents: 0 },
       _historicalPaidClosed: true,
     };
@@ -1366,7 +1366,7 @@ describe('Final readiness remediation — Admin CAS + overpayment', () => {
       status: 'Confirmed',
       appointmentStatus: 'confirmed',
       jobStatus: 'confirmed',
-      approvedFinalAmount: 460,
+      approvedFinalAmount: 390,
       amountDueApproved: 260,
       balanceDue: 260,
       amountPaid: 50,
