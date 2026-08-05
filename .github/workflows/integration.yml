@@ -1,0 +1,231 @@
+name: Integration protection
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+  NODE_VERSION: '22'
+  DATABASE_URL: postgresql://cardetail1_ci:cardetail1_ci@127.0.0.1:5432/cardetail1_ci?schema=public
+  POSTGRES_PAYMENT_AUTHORITY: 'true'
+  CONTEXT: deploy-preview
+  BRANCH: ${{ github.head_ref || github.ref_name }}
+  DEPLOY_URL: https://deploy-preview-ci.invalid
+  DEPLOY_PRIME_URL: https://deploy-preview-ci.invalid
+  TWILIO_OUTBOX_ENABLED: 'false'
+  TWILIO_ENABLED: 'false'
+  TWILIO_PRODUCTION_SENDS_ENABLED: 'false'
+  CUSTOMER_TRANSACTIONAL_SMS_ENABLED: 'false'
+  ADMIN_SMS_CONSENT_GRANTED: 'false'
+  STRIPE_SECRET_KEY: ''
+  STRIPE_WEBHOOK_SECRET: ''
+  TWILIO_ACCOUNT_SID: ''
+  TWILIO_API_KEY: ''
+  TWILIO_API_SECRET: ''
+  TWILIO_AUTH_TOKEN: ''
+  TWILIO_MESSAGING_SERVICE_SID: ''
+  TWILIO_WORKER_SECRET: ''
+
+jobs:
+  migrations:
+    name: integration / migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cardetail1_ci
+          POSTGRES_PASSWORD: cardetail1_ci
+          POSTGRES_DB: cardetail1_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cardetail1_ci -d cardetail1_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node.js from lockfile cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Apply every migration from zero
+        run: npx --no-install prisma migrate deploy
+      - name: Audit migration status
+        run: npx --no-install prisma migrate status
+      - name: Reject schema drift after migrations
+        run: npx --no-install prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+
+  full_test:
+    name: integration / full-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cardetail1_ci
+          POSTGRES_PASSWORD: cardetail1_ci
+          POSTGRES_DB: cardetail1_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cardetail1_ci -d cardetail1_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node.js from lockfile cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Apply database migrations
+        run: npx --no-install prisma migrate deploy
+      - name: Run complete test suite
+        run: npm test
+
+  financial_invariants:
+    name: integration / financial-invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cardetail1_ci
+          POSTGRES_PASSWORD: cardetail1_ci
+          POSTGRES_DB: cardetail1_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cardetail1_ci -d cardetail1_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node.js from lockfile cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Apply database migrations
+        run: npx --no-install prisma migrate deploy
+      - name: Run financial invariant contract
+        run: >-
+          node --test
+          tests/payment-authority-service.test.js
+          tests/cash-postgres-authority.test.js
+          tests/addon-financial-mutation.test.js
+          tests/package-financial-mutation.test.js
+          tests/admin-payment-operations.test.js
+          tests/refund-adjustment-receipts-pr2.test.js
+          tests/payment-financial-parity.test.js
+
+  portal_parity:
+    name: integration / portal-parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cardetail1_ci
+          POSTGRES_PASSWORD: cardetail1_ci
+          POSTGRES_DB: cardetail1_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cardetail1_ci -d cardetail1_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node.js from lockfile cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Apply database migrations
+        run: npx --no-install prisma migrate deploy
+      - name: Run Admin and Customer parity contract
+        run: >-
+          node --test
+          tests/portal-synchronization-pr3.test.js
+          tests/customer-admin-operations-pr4.test.js
+          tests/portal-admin-customer-e2e.test.js
+          tests/checkout-parity.test.js
+          tests/customer-receipt-functional.test.js
+          tests/customer-receipt-security.test.js
+
+  netlify_build:
+    name: integration / netlify-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node.js from lockfile cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build Netlify preview without project credentials
+        run: npm exec --yes --package=netlify-cli@27.1.0 -- netlify build --offline --context deploy-preview
+      - name: Assert preview cannot enable Twilio provider
+        run: >-
+          node -e "const assert=require('node:assert/strict');
+          const {outboundTwilioPolicy}=require('./netlify/lib/twilio-runtime-policy');
+          const result=outboundTwilioPolicy({...process.env,
+          CONTEXT:'deploy-preview',TWILIO_OUTBOX_ENABLED:'true',TWILIO_ENABLED:'true',
+          TWILIO_PRODUCTION_SENDS_ENABLED:'true',TWILIO_ACCOUNT_SID:'AC0000000000',
+          TWILIO_API_KEY:'SK0000000000',TWILIO_API_SECRET:'ci-only-inert',
+          TWILIO_MESSAGING_SERVICE_SID:'MG0000000000',
+          TWILIO_STATUS_CALLBACK_URL:'https://ci.invalid/status'});
+          assert.equal(result.ok,false);assert.equal(result.reason,'non_production_context');"
