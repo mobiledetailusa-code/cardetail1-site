@@ -16,13 +16,13 @@ The workflow uses:
 - Node.js 22 and an npm download cache keyed by `package-lock.json` (never a cached `node_modules` tree);
 - PostgreSQL 16 with a fresh service database per database job;
 - all migrations from zero, migration status and a database/schema drift check;
-- the complete test suite;
+- the complete test suite with full Git history for its historical containment assertions and a Linux-compatible directory for its legacy performance artifact;
 - dedicated financial-invariant and Admin/Customer parity suites;
 - an offline Netlify deploy-preview build with exact Netlify CLI version `27.1.0` and its full dependency graph isolated under `.github/netlify-build/package-lock.json`;
 - read-only repository permissions and checkout credentials disabled after checkout;
 - stable job/check names for branch protection.
 
-The Netlify CLI is installed from a separate CI-only lockfile and used solely by the build check; the application `package.json` and `package-lock.json` remain unchanged, and the CLI is not bundled into Functions or browser assets. Its install scripts are disabled. Stripe and Twilio live values are deliberately empty. Twilio send/consent flags are explicitly false, runtime context is `deploy-preview`, and the build has no Netlify project credential. The workflow therefore cannot charge, deploy or send an SMS. If a future CI-only secret becomes necessary, it must be added through GitHub Actions secrets and must never be a live Stripe/Twilio credential.
+The Netlify CLI is installed from a separate CI-only lockfile and used solely by the build check; the application `package.json` and `package-lock.json` remain unchanged, and the CLI is not bundled into Functions or browser assets. Its install scripts are disabled. Deploy-preview identity variables are scoped only to the build job so they cannot distort runtime-origin tests in the complete suite. Stripe and Twilio live values are deliberately empty. Twilio send/consent flags are explicitly false, and the build has no Netlify project credential. The workflow therefore cannot charge, deploy or send an SMS. If a future CI-only secret becomes necessary, it must be added through GitHub Actions secrets and must never be a live Stripe/Twilio credential.
 
 ## Required checks — owner action
 

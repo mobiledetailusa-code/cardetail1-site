@@ -19,10 +19,6 @@ env:
   NODE_VERSION: '22'
   DATABASE_URL: postgresql://cardetail1_ci:cardetail1_ci@127.0.0.1:5432/cardetail1_ci?schema=public
   POSTGRES_PAYMENT_AUTHORITY: 'true'
-  CONTEXT: deploy-preview
-  BRANCH: ${{ github.head_ref || github.ref_name }}
-  DEPLOY_URL: https://deploy-preview-ci.invalid
-  DEPLOY_PRIME_URL: https://deploy-preview-ci.invalid
   TWILIO_OUTBOX_ENABLED: 'false'
   TWILIO_ENABLED: 'false'
   TWILIO_PRODUCTION_SENDS_ENABLED: 'false'
@@ -99,6 +95,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Use Node.js from lockfile cache
         uses: actions/setup-node@v4
         with:
@@ -109,6 +106,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Apply database migrations
         run: npx --no-install prisma migrate deploy
+      - name: Prepare legacy performance-artifact path
+        run: mkdir -p 'C:/Projects/Cardetail1/artifacts/temp'
       - name: Run complete test suite
         run: npm test
 
@@ -203,6 +202,11 @@ jobs:
     name: integration / netlify-build
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      CONTEXT: deploy-preview
+      BRANCH: ${{ github.head_ref || github.ref_name }}
+      DEPLOY_URL: https://deploy-preview-ci.invalid
+      DEPLOY_PRIME_URL: https://deploy-preview-ci.invalid
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@v4
