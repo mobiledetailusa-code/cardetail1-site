@@ -1,12 +1,12 @@
 /**
- * Package Stage 1 — authoritative pre-settlement package mutations.
+ * Authoritative package financial mutations.
  *
  * Money authority: Postgres PaymentAuthorityService.createAdjustment.
  * Blob is updated as a compatibility projection from that result.
  *
- * Pre-settlement only: any settled money denies the change (no refund or
- * balance rewrite is ever performed here). Post-payment package changes are
- * explicitly out of Stage 1 scope.
+ * Post-settlement upgrades create only the unpaid delta. Downgrades preserve
+ * settlements and expose explicit outstanding credit for the PR2 refund
+ * workflow; they never issue a refund from this mutation.
  *
  * Canonical package IDs only; identity and price resolve server-side through
  * booking-price-catalog. Browser/operator-supplied names, prices, and totals
@@ -36,6 +36,13 @@ const {
 } = require('./db/operational-payment');
 const { ensureBookingFinancial } = require('./db/ensure-booking-financial');
 const authority = require('./db/payment-authority-service');
+const {
+  normalizeIdempotencyKey,
+  mutationFingerprint,
+  adjustmentIdFromKey,
+  replayResult,
+  appendOperationReceipt,
+} = require('./operation-idempotency');
 
 function settledCentsOf(aggregate) {
   return Math.max(0, Math.round(Number(aggregate?.ledger?.settledCents) || 0));
@@ -175,6 +182,8 @@ async function applyPackageFinancialMutation({
   /** Optional: mark this change-request applied in the same Blob commit */
   changeRequest = null,
   adminNote = '',
+  idempotencyKey = '',
+  actor = '',
   env = process.env,
 }) {
   const requestedPackageId = String(packageId || '').trim();
@@ -188,26 +197,39 @@ async function applyPackageFinancialMutation({
   const { ok, aggregate } = normalizeAggregate(current.booking);
   if (!ok) return { ok: false, error: 'invalid_aggregate', statusCode: 400 };
 
+  const operationKey = normalizeIdempotencyKey(idempotencyKey);
+  if (idempotencyKey && !operationKey) {
+    return { ok: false, error: 'invalid_idempotency_key', statusCode: 400 };
+  }
+  const fingerprint = mutationFingerprint({
+    bookingId,
+    action: 'package_change',
+    target: target || {},
+    packageId: requestedPackageId,
+  });
+  if (operationKey) {
+    const replay = replayResult(aggregate, operationKey, fingerprint);
+    if (replay) {
+      if (!replay.ok) return replay;
+      return {
+        ok: true,
+        noop: true,
+        idempotent: true,
+        reason: 'idempotent_replay',
+        booking: aggregate,
+        projection: materialProjection(aggregate),
+        financialProjection: financialProjection(aggregate),
+        quoteVersion: aggregate.quoteVersion || aggregate.quote?.quoteVersion || 0,
+      };
+    }
+  }
+
   const actualVersion = Math.round(Number(aggregate.bookingVersion) || 0);
   const expected = expectedBookingVersion != null
     ? Math.round(Number(expectedBookingVersion))
     : actualVersion;
   if (actualVersion !== expected) {
     return { ok: false, error: 'version_conflict', statusCode: 409, actualBookingVersion: actualVersion };
-  }
-
-  // Pre-settlement only. A package change reprices the whole quote in either
-  // direction, so any settled money denies it — no refund or balance rewrite.
-  const settled = settledCentsOf(aggregate);
-  if (settled > 0) {
-    return {
-      ok: false,
-      error: 'settled_package_change_denied',
-      statusCode: 409,
-      message: 'Package changes are denied after settlement. No refund or balance rewrite is performed.',
-      projection: materialProjection(aggregate),
-      financialProjection: financialProjection(aggregate),
-    };
   }
 
   const validated = validatePackageIdForVehicle(
@@ -303,7 +325,8 @@ async function applyPackageFinancialMutation({
     bookingId,
     newApprovedCents: quoted.quote.approvedCents,
     reason: 'package_change',
-    adjustmentId: `pkg_${bookingId}_${actualVersion}_${quoted.quote.approvedCents}`.slice(0, 96),
+    adjustmentId: adjustmentIdFromKey('pkgop', bookingId, operationKey)
+      || `pkg_${bookingId}_${actualVersion}_${quoted.quote.approvedCents}`.slice(0, 96),
     expectedQuoteVersion: priorQuoteVersion,
     approvedBy: changeRequest ? 'customer_request_approved' : 'admin',
   });
@@ -391,6 +414,13 @@ async function applyPackageFinancialMutation({
       openDeltaPatches.jobStatus = 'confirmed';
     }
   }
+  const paidAtPatches = pgProjection.paymentStatus === 'paid' && pgProjection.paidAt
+    ? {
+      capturedAt: typeof pgProjection.paidAt === 'string'
+        ? pgProjection.paidAt
+        : new Date(pgProjection.paidAt).toISOString(),
+    }
+    : {};
 
   const next = buildNextAggregate(aggregate, {
     service: quoted.service,
@@ -406,6 +436,15 @@ async function applyPackageFinancialMutation({
     paymentStatus: compatPaymentStatus,
     paymentWorkflowStatus: compatWorkflow,
     packageUpdatedAt: new Date().toISOString(),
+    operationReceipts: appendOperationReceipt(aggregate, {
+      idempotencyKey: operationKey,
+      fingerprint,
+      action: 'package_change',
+      actor: actor || (changeRequest ? 'customer' : 'admin'),
+      bookingVersion: appliedBookingVersion,
+      quoteVersion: nextQuoteVersion,
+    }),
+    ...paidAtPatches,
     ...openDeltaPatches,
   });
 
@@ -414,7 +453,28 @@ async function applyPackageFinancialMutation({
     expectedBookingVersion: expected,
     nextAggregate: next,
   });
-  if (!committed.ok) return committed;
+  if (!committed.ok) {
+    if (operationKey && committed.error === 'version_conflict') {
+      const concurrent = await getBookingRecord(bookingId);
+      if (concurrent.exists) {
+        const normalized = normalizeAggregate(concurrent.booking);
+        const replay = normalized.ok ? replayResult(normalized.aggregate, operationKey, fingerprint) : null;
+        if (replay?.ok) {
+          return {
+            ok: true,
+            noop: true,
+            idempotent: true,
+            reason: 'idempotent_replay',
+            booking: normalized.aggregate,
+            projection: materialProjection(normalized.aggregate),
+            financialProjection: financialProjection(normalized.aggregate),
+            quoteVersion: normalized.aggregate.quoteVersion || normalized.aggregate.quote?.quoteVersion || 0,
+          };
+        }
+      }
+    }
+    return committed;
+  }
 
   await syncBlobCompatibilityFromProjection(bookingId, pgProjection).catch(() => {});
 
@@ -440,6 +500,7 @@ async function applyPackageFinancialMutation({
     financialProjection: blobFp,
     remainingCents: remainingCents(booking.ledger || nextLedger),
     adjustment,
+    outstandingCreditCents: Math.max(0, Math.round(Number(pgProjection.outstandingCreditCents) || 0)),
   };
 }
 

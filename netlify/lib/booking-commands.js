@@ -17,6 +17,11 @@ const { dollarsToCents, asArray } = require('./historical-adapter');
 const { blobsStore } = require('./tech-security');
 const { REQUEST_STORE } = require('./customer-change-requests');
 const { supersedeOpenAttempts, expireSupersededAttempts } = require('./payment-service');
+const {
+  normalizeIdempotencyKey,
+  mutationFingerprint,
+  requestIdFromKey,
+} = require('./operation-idempotency');
 
 function requestId() {
   return `cr_${crypto.randomBytes(10).toString('base64url')}`;
@@ -48,12 +53,34 @@ async function submitChangeRequestCommand({
   delta,
   authorizedRef,
   extraPatches = {},
+  idempotencyKey = '',
 }) {
   const current = await getBookingRecord(bookingId);
   if (!current.exists) return { ok: false, error: 'not_found', statusCode: 404 };
 
   const { ok, aggregate } = normalizeAggregate(current.booking);
   if (!ok) return { ok: false, error: 'invalid_aggregate' };
+
+  const operationKey = normalizeIdempotencyKey(idempotencyKey);
+  const fingerprint = mutationFingerprint({ bookingId, requestType, target: target || {}, delta: delta || {} });
+  if (idempotencyKey && !operationKey) {
+    return { ok: false, error: 'invalid_idempotency_key', statusCode: 400 };
+  }
+  if (operationKey) {
+    const replay = asArray(aggregate.changeRequests).find((row) => row?.idempotencyKey === operationKey);
+    if (replay) {
+      if (replay.requestFingerprint !== fingerprint) {
+        return { ok: false, error: 'idempotency_conflict', statusCode: 409 };
+      }
+      return {
+        ok: true,
+        idempotent: true,
+        booking: aggregate,
+        changeRequest: replay,
+        projection: materialProjection(aggregate),
+      };
+    }
+  }
 
   const actualVersion = Math.round(Number(aggregate.bookingVersion) || 0);
   const expected = expectedBookingVersion != null
@@ -71,19 +98,6 @@ async function submitChangeRequestCommand({
 
   const moneyTypes = new Set(['package_change_request', 'addon_request', 'addon_remove_request']);
   if (moneyTypes.has(requestType)) {
-    // Stage 1: deny remove proposals after any settlement (no fake refund path).
-    if (requestType === 'addon_remove_request' || asArray(delta?.addOnIdsToRemove).length) {
-      const settled = Math.max(0, Math.round(Number(aggregate.ledger?.settledCents) || 0));
-      if (settled > 0) {
-        return {
-          ok: false,
-          error: 'settled_addon_remove_denied',
-          statusCode: 409,
-          message: 'Add-on removal is denied after settlement.',
-          projection: materialProjection(aggregate),
-        };
-      }
-    }
     // Proposal only — compute quote from a tentative service delta, but do NOT mutate
     // live service/quote until Admin approve. Premature apply caused approve noop → version_conflict.
     const applied = applyServiceDelta(service, target, delta);
@@ -183,6 +197,35 @@ async function submitChangeRequestCommand({
     service = aggregate.service;
     quote = aggregate.quote;
     schedulePatch = { customerChangePending: true };
+  } else if (requestType === 'vehicle_add_request' || requestType === 'vehicle_replace_request') {
+    const { applyVehicleOperation } = require('./vehicle-financial-mutation');
+    const op = requestType === 'vehicle_add_request' ? 'add' : 'replace';
+    const applied = applyVehicleOperation(service, {
+      op,
+      target: target || {},
+      vehicle: delta || {},
+    });
+    if (!applied.ok) return applied;
+    const travelCents = dollarsToCents(aggregate.travelFeeAmount || aggregate.zoneSurcharge || 0);
+    const quoted = quoteService(applied.service, {
+      basedOnBookingVersion: actualVersion,
+      previousQuoteVersion: aggregate.quoteVersion || aggregate.quote?.quoteVersion || 0,
+      travelCents,
+      bookingBase: aggregate,
+    });
+    if (!quoted.ok) return { ok: false, error: quoted.error || 'invalid_pricing', statusCode: 400 };
+    proposedApprovedCents = quoted.quote.approvedCents;
+    proposedQuoteVersion = quoted.quote.quoteVersion;
+    delta = {
+      ...(delta && typeof delta === 'object' ? delta : {}),
+      operation: op === 'add' ? 'vehicle_add' : 'vehicle_replace',
+      currentApprovedCents: Math.round(Number(aggregate.ledger?.approvedCents)
+        || dollarsToCents(aggregate.approvedFinalAmount || aggregate.totalPrice || 0) || 0),
+      proposedApprovedCents,
+    };
+    service = aggregate.service;
+    quote = aggregate.quote;
+    schedulePatch = { customerChangePending: true };
   } else if (requestType === 'reschedule_request') {
     schedulePatch = {
       rescheduledByClient: true,
@@ -203,7 +246,7 @@ async function submitChangeRequestCommand({
 
   const reqVersion = asArray(aggregate.changeRequests).length + 1;
   const changeRequest = {
-    requestId: requestId(),
+    requestId: requestIdFromKey(bookingId, operationKey) || requestId(),
     id: null, // set below
     requestVersion: reqVersion,
     // Service/quote basis (before this write)
@@ -218,6 +261,8 @@ async function submitChangeRequestCommand({
     status: 'pending',
     submittedBy: authorizedRef || 'customer',
     submittedAt: new Date().toISOString(),
+    idempotencyKey: operationKey || undefined,
+    requestFingerprint: operationKey ? fingerprint : undefined,
     proposedApprovedCents: proposedApprovedCents != null
       ? proposedApprovedCents
       : (quote?.approvedCents ?? null),
@@ -234,9 +279,21 @@ async function submitChangeRequestCommand({
     customerChangePending: true,
     ...schedulePatch,
     ...(extraPatches && typeof extraPatches === 'object' ? extraPatches : {}),
+    eventLog: [
+      ...asArray(aggregate.eventLog),
+      {
+        action: 'customer_change_requested',
+        requestType,
+        requestId: changeRequest.requestId,
+        at: changeRequest.submittedAt,
+        by: 'customer',
+        bookingVersion: actualVersion,
+      },
+    ],
   };
 
-  if ((moneyTypes.has(requestType) || requestType === 'vehicle_remove_request')
+  if ((moneyTypes.has(requestType)
+      || ['vehicle_add_request', 'vehicle_replace_request', 'vehicle_remove_request'].includes(requestType))
     && proposedApprovedCents != null) {
     // Proposal only — do not change ledger until Admin applies
     patches.proposedTotal = (proposedApprovedCents || 0) / 100;
@@ -248,7 +305,27 @@ async function submitChangeRequestCommand({
     expectedBookingVersion: expected,
     nextAggregate: next,
   });
-  if (!committed.ok) return committed;
+  if (!committed.ok) {
+    if (operationKey && committed.error === 'version_conflict') {
+      const refreshed = await getBookingRecord(bookingId);
+      if (refreshed.exists) {
+        const normalized = normalizeAggregate(refreshed.booking);
+        const replay = normalized.ok
+          ? asArray(normalized.aggregate.changeRequests).find((row) => row?.idempotencyKey === operationKey)
+          : null;
+        if (replay && replay.requestFingerprint === fingerprint) {
+          return {
+            ok: true,
+            idempotent: true,
+            booking: normalized.aggregate,
+            changeRequest: replay,
+            projection: materialProjection(normalized.aggregate),
+          };
+        }
+      }
+    }
+    return committed;
+  }
 
   const indexResult = await rebuildRequestIndex({
     ...changeRequest,
@@ -311,6 +388,7 @@ async function decideChangeRequestCommand({
   expectedQuoteVersion,
   adminNote,
   acceptRequote = false,
+  idempotencyKey = '',
 }) {
   const current = await getBookingRecord(bookingId);
   if (!current.exists) return { ok: false, error: 'not_found', statusCode: 404 };
@@ -353,15 +431,50 @@ async function decideChangeRequestCommand({
   }
   if (!cr) return { ok: false, error: 'request_not_found', statusCode: 404 };
 
-  if (cr.status === 'applied' && decision === 'approve') {
-    return { ok: true, idempotent: true, booking: aggregate, projection: materialProjection(aggregate) };
+  const decisionKey = normalizeIdempotencyKey(idempotencyKey);
+  if (idempotencyKey && !decisionKey) {
+    return { ok: false, error: 'invalid_idempotency_key', statusCode: 400 };
   }
+  const decisionFingerprint = mutationFingerprint({
+    bookingId,
+    requestId: reqId,
+    decision,
+    adminNote: String(adminNote || ''),
+    acceptRequote: !!acceptRequote,
+  });
+  if (decisionKey && cr.decisionIdempotencyKey === decisionKey) {
+    if (cr.decisionFingerprint !== decisionFingerprint) {
+      return { ok: false, error: 'idempotency_conflict', statusCode: 409 };
+    }
+    return {
+      ok: true,
+      idempotent: true,
+      booking: aggregate,
+      projection: materialProjection(aggregate),
+    };
+  }
+
+  const terminalStatus = String(cr.status || '').toLowerCase();
+  if (['applied', 'approved', 'rejected', 'declined'].includes(terminalStatus)) {
+    const sameDecision = (decision === 'approve' && ['applied', 'approved'].includes(terminalStatus))
+      || (decision === 'reject' && ['rejected', 'declined'].includes(terminalStatus));
+    if (sameDecision) {
+      return { ok: true, idempotent: true, booking: aggregate, projection: materialProjection(aggregate) };
+    }
+    return { ok: false, error: 'request_already_decided', statusCode: 409 };
+  }
+
+  cr = {
+    ...cr,
+    decisionIdempotencyKey: decisionKey || undefined,
+    decisionFingerprint: decisionKey ? decisionFingerprint : undefined,
+  };
 
   if (decision === 'reject' || decision === 'clarify') {
     const status = decision === 'reject' ? 'rejected' : 'needs_clarification';
     const nextRequests = requests.length
       ? requests.map((r) => ((r.requestId || r.id) === reqId
-        ? { ...r, status, decision, adminNote, decidedAt: new Date().toISOString() }
+        ? { ...r, ...cr, status, decision, adminNote, decidedAt: new Date().toISOString() }
         : r))
       : [{ ...cr, status, decision, adminNote, decidedAt: new Date().toISOString() }];
     const next = buildNextAggregate(aggregate, {
@@ -393,59 +506,6 @@ async function decideChangeRequestCommand({
     return { ok: false, error: 'version_conflict', statusCode: 409, actualBookingVersion: actualVersion };
   }
 
-  // Jobber/HCP: paid invoice cannot auto-apply pack/vehicle money mutations.
-  // Stage 1 narrow exception: additive addon_request may create an unpaid delta
-  // via applyAddonFinancialMutation (does not redefine isInvoicePaid()).
-  {
-    const { isInvoicePaid } = require('./appointment-status-policy');
-    const { canApplyAdditiveAddonAdjustment } = require('./addon-financial-mutation');
-    const moneyOrVehicle = new Set([
-      'package_change_request', 'addon_request', 'addon_remove_request',
-      'vehicle_replace_request', 'vehicle_add_request', 'vehicle_remove_request',
-    ]);
-    const rtEarly = cr.type || cr.requestType;
-    const settledCents = Math.max(0, Math.round(Number(aggregate.ledger?.settledCents) || 0));
-    const hasPaymentActivity = settledCents > 0 || isInvoicePaid(aggregate);
-    if (rtEarly === 'vehicle_remove_request' && hasPaymentActivity) {
-      const currentApproved = Math.round(Number(aggregate.ledger?.approvedCents)
-        || dollarsToCents(aggregate.approvedFinalAmount || aggregate.totalPrice || 0) || 0);
-      const proposed = cr.proposedApprovedCents != null
-        ? Math.round(Number(cr.proposedApprovedCents))
-        : null;
-      return {
-        ok: false,
-        error: 'payment_adjustment_required',
-        statusCode: 409,
-        message: 'Payment adjustment required. This booking has payment activity — do not auto-remove the vehicle or rewrite ledger history.',
-        paymentAdjustmentRequired: true,
-        potentialRefundOrCreditCents: proposed != null
-          ? Math.max(0, settledCents - proposed)
-          : Math.max(0, settledCents),
-        currentApprovedCents: currentApproved,
-        settledCents,
-        proposedApprovedCents: proposed,
-      };
-    }
-    if (moneyOrVehicle.has(rtEarly) && isInvoicePaid(aggregate)) {
-      const addOnIdsToAdd = cr.delta?.addOnIdsToAdd || cr.delta?.addonIds || asArray(cr.delta?.addons).map((a) => a.id);
-      const addOnIdsToRemove = cr.delta?.addOnIdsToRemove || [];
-      const additiveAddonOk = rtEarly === 'addon_request'
-        && canApplyAdditiveAddonAdjustment({ addOnIdsToAdd, addOnIdsToRemove });
-      if (!additiveAddonOk) {
-        return {
-          ok: false,
-          error: rtEarly === 'addon_remove_request' || asArray(addOnIdsToRemove).length
-            ? 'settled_addon_remove_denied'
-            : 'invoice_paid',
-          statusCode: 409,
-          message: rtEarly === 'addon_remove_request' || asArray(addOnIdsToRemove).length
-            ? 'Add-on removal is denied after settlement.'
-            : 'Invoice paid — create an adjustment or new quote instead of approving this money change.',
-        };
-      }
-    }
-  }
-
   // Stage 1: addon add/remove money goes through authoritative Postgres adjustment.
   {
     const rtAddon = cr.type || cr.requestType;
@@ -465,6 +525,8 @@ async function decideChangeRequestCommand({
         addOnIdsToRemove,
         changeRequest: cr,
         adminNote,
+        idempotencyKey: cr.idempotencyKey || '',
+        actor: 'customer_request_approved',
       });
       if (!addonResult.ok) return addonResult;
       await rebuildRequestIndex({
@@ -485,12 +547,14 @@ async function decideChangeRequestCommand({
       return {
         ok: true,
         noop: !!addonResult.noop,
+        idempotent: !!addonResult.idempotent,
         reason: addonResult.reason || undefined,
         booking: addonResult.booking,
         projection: addonResult.projection,
         financialProjection: addonResult.financialProjection,
         postgresProjection: addonResult.postgresProjection,
         quoteVersion: addonResult.quoteVersion,
+        outstandingCreditCents: addonResult.outstandingCreditCents || 0,
       };
     }
   }
@@ -509,6 +573,8 @@ async function decideChangeRequestCommand({
         packageId,
         changeRequest: cr,
         adminNote,
+        idempotencyKey: cr.idempotencyKey || '',
+        actor: 'customer_request_approved',
       });
       if (!pkgResult.ok) return pkgResult;
       await rebuildRequestIndex({
@@ -529,12 +595,67 @@ async function decideChangeRequestCommand({
       return {
         ok: true,
         noop: !!pkgResult.noop,
+        idempotent: !!pkgResult.idempotent,
         reason: pkgResult.reason || undefined,
         booking: pkgResult.booking,
         projection: pkgResult.projection,
         financialProjection: pkgResult.financialProjection,
         postgresProjection: pkgResult.postgresProjection,
         quoteVersion: pkgResult.quoteVersion,
+        outstandingCreditCents: pkgResult.outstandingCreditCents || 0,
+      };
+    }
+  }
+
+  // Vehicle add/edit/remove uses the same immutable quote/delta/credit authority.
+  {
+    const rtVehicle = cr.type || cr.requestType;
+    const opByType = {
+      vehicle_add_request: 'add',
+      vehicle_replace_request: 'replace',
+      vehicle_remove_request: 'remove',
+    };
+    const vehicleOp = opByType[rtVehicle];
+    if (vehicleOp) {
+      const { applyVehicleFinancialMutation } = require('./vehicle-financial-mutation');
+      const vehicleResult = await applyVehicleFinancialMutation({
+        bookingId,
+        expectedBookingVersion: expected,
+        op: vehicleOp,
+        target: cr.target || {},
+        vehicle: cr.delta || {},
+        changeRequest: cr,
+        adminNote,
+        idempotencyKey: cr.idempotencyKey || '',
+        actor: 'customer_request_approved',
+      });
+      if (!vehicleResult.ok) return vehicleResult;
+      await rebuildRequestIndex({
+        ...cr,
+        id: cr.requestId || cr.id,
+        bookingId,
+        status: 'applied',
+        adminDecision: 'approve',
+        adminNote,
+        decidedAt: new Date().toISOString(),
+        appliedAutomatically: true,
+        noop: !!vehicleResult.noop,
+        reason: vehicleResult.reason || null,
+        customerVisibleResult: vehicleResult.noop
+          ? 'Already applied — no duplicate change.'
+          : 'Approved — your vehicle, appointment details, and totals were updated.',
+      });
+      return {
+        ok: true,
+        noop: !!vehicleResult.noop,
+        idempotent: !!vehicleResult.idempotent,
+        reason: vehicleResult.reason || undefined,
+        booking: vehicleResult.booking,
+        projection: vehicleResult.projection,
+        financialProjection: vehicleResult.financialProjection,
+        postgresProjection: vehicleResult.postgresProjection,
+        quoteVersion: vehicleResult.quoteVersion,
+        outstandingCreditCents: vehicleResult.outstandingCreditCents || 0,
       };
     }
   }

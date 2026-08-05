@@ -136,7 +136,7 @@ describe('portal payment + access hardening', () => {
     assert.match(src, /carTiers\[candidate\]/);
   });
 
-  it('Jobber: paid invoice blocks money change requests but allows address', () => {
+  it('Jobber: paid invoice routes catalog changes to Admin review and allows address', () => {
     const { canRequestChange, isInvoicePaid, classifyStatus } = require('../netlify/lib/appointment-status-policy');
     const paid = {
       status: 'Confirmed',
@@ -147,10 +147,12 @@ describe('portal payment + access hardening', () => {
     };
     assert.equal(isInvoicePaid(paid), true);
     assert.equal(classifyStatus(paid), 'paid');
-    assert.equal(canRequestChange(paid, 'package_change').ok, false);
-    assert.equal(canRequestChange(paid, 'package_change').error, 'invoice_paid');
-    assert.equal(canRequestChange(paid, 'addon').ok, false);
-    assert.equal(canRequestChange(paid, 'vehicle_replace').ok, false);
+    assert.equal(canRequestChange(paid, 'package_change').ok, true);
+    assert.equal(canRequestChange(paid, 'package_change').pendingApproval, true);
+    assert.equal(canRequestChange(paid, 'addon').ok, true);
+    assert.equal(canRequestChange(paid, 'addon').pendingApproval, true);
+    assert.equal(canRequestChange(paid, 'vehicle_replace').ok, true);
+    assert.equal(canRequestChange(paid, 'vehicle_replace').pendingApproval, true);
     assert.equal(canRequestChange(paid, 'address').ok, true);
     assert.equal(canRequestChange(paid, 'reschedule').ok, true);
   });
@@ -175,10 +177,12 @@ describe('portal payment + access hardening', () => {
     assert.equal(job.remainingCents, 0);
   });
 
-  it('Jobber: admin approve money path rejects invoice_paid', () => {
+  it('Jobber: Admin approval routes paid catalog changes through authoritative adjustments', () => {
     const src = fs.readFileSync(path.join(ROOT, 'netlify/lib/booking-commands.js'), 'utf8');
-    assert.match(src, /invoice_paid/);
-    assert.match(src, /create an adjustment or new quote/);
+    assert.match(src, /applyPackageFinancialMutation/);
+    assert.match(src, /applyAddonFinancialMutation/);
+    assert.match(src, /applyVehicleFinancialMutation/);
+    assert.match(src, /outstandingCreditCents/);
   });
 
   it('Jobber: my-garage prevents modal GET navigate and strips newAddress junk', () => {

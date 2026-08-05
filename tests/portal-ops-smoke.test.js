@@ -30,7 +30,7 @@ describe('portal ops smoke — customer + admin real ops', () => {
     assert.match(read('netlify/functions/customer-portal-pay.js'), /legacy_checkout_disabled/);
   });
 
-  it('canPayBalance denies settled invoice even with stale payLink', () => {
+  it('canPayBalance denies a settled invoice while catalog changes remain Admin-reviewed', () => {
     const { canPayBalance, isInvoicePaid, canRequestChange } = require('../netlify/lib/appointment-status-policy');
     const paid = {
       status: 'Confirmed',
@@ -42,7 +42,9 @@ describe('portal ops smoke — customer + admin real ops', () => {
     };
     assert.equal(isInvoicePaid(paid), true);
     assert.equal(canPayBalance(paid).ok, false);
-    assert.equal(canRequestChange(paid, 'package_change').ok, false);
+    const packageChange = canRequestChange(paid, 'package_change');
+    assert.equal(packageChange.ok, true);
+    assert.equal(packageChange.pendingApproval, true);
     const addr = canRequestChange(paid, 'address');
     assert.equal(addr.ok, true);
     assert.equal(addr.pendingApproval, false);

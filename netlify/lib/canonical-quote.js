@@ -8,6 +8,7 @@ const {
   validateAndRecalculateBookingPricing,
   computeBookingServiceSubtotal,
   PRICING,
+  includedAddonIds,
 } = require('./booking-price-catalog');
 const { ensureVehicleIds, newVehicleId } = require('./booking-aggregate');
 const { dollarsToCents, centsToDollars, asArray } = require('./historical-adapter');
@@ -127,6 +128,19 @@ function applyServiceDelta(service, target, delta) {
   );
 
   const toAdd = asArray(d.addOnIdsToAdd);
+  const category = vehicle.category || vehicle.cat || 'cars';
+  const packageId = vehicle.packageId || vehicle.pkgId || '';
+  const includedIds = new Set(includedAddonIds(category, packageId));
+  existingIds = new Set([...existingIds].filter((id) => !includedIds.has(id)));
+  const includedOnly = toAdd.length > 0 && toAdd.every((id) => includedIds.has(id));
+  if (includedOnly && !d.addOnIdsToRemove?.length) {
+    return {
+      ok: true,
+      noop: true,
+      service: { ...service, vehicles },
+      reason: 'addon_included_in_package',
+    };
+  }
   const duplicateOnly = toAdd.length > 0 && toAdd.every((id) => existingIds.has(id));
   if (duplicateOnly && !d.packageId && !d.addOnIdsToRemove?.length) {
     return {
@@ -138,7 +152,7 @@ function applyServiceDelta(service, target, delta) {
   }
 
   for (const id of toAdd) {
-    if (!existingIds.has(id)) existingIds.add(id);
+    if (!includedIds.has(id) && !existingIds.has(id)) existingIds.add(id);
   }
 
   if (Array.isArray(d.addOnIdsToRemove) && d.addOnIdsToRemove.length) {

@@ -152,8 +152,11 @@ test('two concurrent emitConfirmed after one CAS confirm: one email terminal sen
       emitConfirmed(transition.booking, {}),
     ]);
     assert.equal(emailCalls, 1, 'atomic claim must admit exactly one provider send');
-    const winner = a.delivery?.email?.sent ? a : b;
-    const loser = a.delivery?.email?.sent ? b : a;
+    // A losing claimant reports sent+skipped because the peer owns the terminal
+    // send. Identify the provider caller by the absence of the skipped marker;
+    // scheduler order is intentionally nondeterministic under the full suite.
+    const winner = a.delivery?.email?.sent && !a.delivery?.email?.skipped ? a : b;
+    const loser = winner === a ? b : a;
     assert.equal(winner.delivery.email.sent, true);
     assert.equal(!!loser.delivery.email.skipped || !!loser.skipped, true);
     const before = emailCalls;

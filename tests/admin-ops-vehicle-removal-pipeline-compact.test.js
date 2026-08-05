@@ -244,10 +244,14 @@ describe('admin-ops renderer wiring', () => {
 describe('vehicle_remove approval path (server)', () => {
   let setBookingStoreOverride;
   let store;
+  let bookingId;
+  let bookingSequence = 0;
 
   beforeEach(() => {
     ({ setBookingStoreOverride } = require('../netlify/lib/booking-repository'));
-    store = createMemoryStore({ 'CD1-MSC8D3IS-9NPP': twoVehicleFixture() });
+    bookingSequence += 1;
+    bookingId = `CD1-PR4-VEH-${process.pid}-${Date.now()}-${bookingSequence}`;
+    store = createMemoryStore({ [bookingId]: twoVehicleFixture({ id: bookingId }) });
     setBookingStoreOverride(store);
   });
 
@@ -263,7 +267,7 @@ describe('vehicle_remove approval path (server)', () => {
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
 
     const submitted = await submitChangeRequestCommand({
-      bookingId: 'CD1-MSC8D3IS-9NPP',
+      bookingId,
       expectedBookingVersion: 5,
       requestType: 'vehicle_remove_request',
       target: { vehicleId: 'veh_bronco' },
@@ -272,48 +276,48 @@ describe('vehicle_remove approval path (server)', () => {
     assert.equal(submitted.ok, true, submitted.error);
     assert.ok(submitted.changeRequest.requestId);
     assert.equal(submitted.changeRequest.proposedApprovedCents, 42100);
-    assert.equal((await getBookingRecord('CD1-MSC8D3IS-9NPP')).booking.vehicles.length, 2);
+    assert.equal((await getBookingRecord(bookingId)).booking.vehicles.length, 2);
 
-    const job = projectJobForAdmin((await getBookingRecord('CD1-MSC8D3IS-9NPP')).booking);
+    const job = projectJobForAdmin((await getBookingRecord(bookingId)).booking);
     assert.equal(job.pendingChangeRequestCount, 1);
     assert.equal(job.pendingChangeRequests[0].vehicleId, 'veh_bronco');
 
     const declined = await decideChangeRequestCommand({
-      bookingId: 'CD1-MSC8D3IS-9NPP',
+      bookingId,
       requestId: submitted.changeRequest.requestId,
       decision: 'reject',
       expectedBookingVersion: submitted.booking.bookingVersion,
     });
     assert.equal(declined.ok, true, declined.error);
-    assert.equal((await getBookingRecord('CD1-MSC8D3IS-9NPP')).booking.vehicles.length, 2);
+    assert.equal((await getBookingRecord(bookingId)).booking.vehicles.length, 2);
 
     // Fresh fixture for approve path
-    store = createMemoryStore({ 'CD1-MSC8D3IS-9NPP': twoVehicleFixture() });
+    store = createMemoryStore({ [bookingId]: twoVehicleFixture({ id: bookingId }) });
     setBookingStoreOverride(store);
     const sub2 = await submitChangeRequestCommand({
-      bookingId: 'CD1-MSC8D3IS-9NPP',
+      bookingId,
       expectedBookingVersion: 5,
       requestType: 'vehicle_remove_request',
       target: { vehicleId: 'veh_bronco' },
       delta: {},
     });
     const approved = await decideChangeRequestCommand({
-      bookingId: 'CD1-MSC8D3IS-9NPP',
+      bookingId,
       requestId: sub2.changeRequest.requestId,
       decision: 'approve',
       expectedBookingVersion: sub2.booking.bookingVersion,
       acceptRequote: true,
     });
     assert.equal(approved.ok, true, `${approved.error} ${approved.message || ''}`);
-    const after = await getBookingRecord('CD1-MSC8D3IS-9NPP');
+    const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_boat');
     assert.equal(after.booking.ledger.approvedCents, 42100);
 
-    store = createMemoryStore({ 'CD1-MSC8D3IS-9NPP': twoVehicleFixture() });
+    store = createMemoryStore({ [bookingId]: twoVehicleFixture({ id: bookingId }) });
     setBookingStoreOverride(store);
     const subBoat = await submitChangeRequestCommand({
-      bookingId: 'CD1-MSC8D3IS-9NPP',
+      bookingId,
       expectedBookingVersion: 5,
       requestType: 'vehicle_remove_request',
       target: { vehicleId: 'veh_boat' },
@@ -322,9 +326,10 @@ describe('vehicle_remove approval path (server)', () => {
     assert.equal(subBoat.changeRequest.proposedApprovedCents, 37000);
   });
 
-  it('paid booking approve returns payment_adjustment_required', async () => {
+  it('paid booking approval records credit due without auto-refund', async () => {
     store = createMemoryStore({
-      'CD1-MSC8D3IS-9NPP': twoVehicleFixture({
+      [bookingId]: twoVehicleFixture({
+        id: bookingId,
         ledger: { approvedCents: 79100, settledCents: 79100, creditedCents: 0, entries: [] },
         paymentStatus: 'paid',
         paymentWorkflowStatus: 'payment_succeeded',
@@ -336,20 +341,23 @@ describe('vehicle_remove approval path (server)', () => {
       decideChangeRequestCommand,
     } = require('../netlify/lib/booking-commands');
     const sub = await submitChangeRequestCommand({
-      bookingId: 'CD1-MSC8D3IS-9NPP',
+      bookingId,
       expectedBookingVersion: 5,
       requestType: 'vehicle_remove_request',
       target: { vehicleId: 'veh_bronco' },
       delta: {},
     });
     const decided = await decideChangeRequestCommand({
-      bookingId: 'CD1-MSC8D3IS-9NPP',
+      bookingId,
       requestId: sub.changeRequest.requestId,
       decision: 'approve',
       expectedBookingVersion: sub.booking.bookingVersion,
       acceptRequote: true,
     });
-    assert.equal(decided.ok, false);
-    assert.equal(decided.error, 'payment_adjustment_required');
+    assert.equal(decided.ok, true, decided.error);
+    assert.equal(decided.outstandingCreditCents, 37000);
+    assert.equal(decided.booking.ledger.approvedCents, 42100);
+    assert.equal(decided.booking.ledger.settledCents, 79100);
+    assert.equal(decided.booking.ledger.refundedCents || 0, 0);
   });
 });

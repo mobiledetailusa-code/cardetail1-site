@@ -551,12 +551,13 @@ function isRetryableTransactionConflict(error) {
   const codes = [
     error?.code,
     error?.cause?.code,
+    error?.cause?.originalCode,
     error?.meta?.code,
     error?.meta?.driverAdapterError?.cause?.originalCode,
   ].filter(Boolean).map(String);
   if (codes.some((code) => code === 'P2034' || code === '40001' || code === '40P01')) return true;
   const message = String(error?.message || error?.cause?.message || '');
-  return /serialization|write conflict|deadlock detected|SQLSTATE\s*40001/i.test(message);
+  return /serialization|write[\s_-]*conflict|TransactionWriteConflict|deadlock detected|SQLSTATE\s*40001/i.test(message);
 }
 
 async function runSerializableWithRetry(operation, maxAttempts = 7) {

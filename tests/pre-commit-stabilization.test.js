@@ -280,6 +280,9 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/canonical-addon-catalog.js',
     // Package Stage 1 — authoritative pre-settlement package mutations
     'netlify/lib/package-financial-mutation.js',
+    // Customer/Admin PR4 — stable retries and authoritative vehicle operations.
+    'netlify/lib/operation-idempotency.js',
+    'netlify/lib/vehicle-financial-mutation.js',
     // Package Stage 2 — customer package catalog serializer
     'netlify/lib/canonical-package-catalog.js',
     // Customer Identity Foundation Stage 1 — account resolution + safe projections
@@ -334,6 +337,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/ops-config.js',
     'netlify/lib/site-access.js',
     'netlify/lib/site-access-client.js',
+    'netlify/lib/sync-response.js',
     // Existing PR #157 Admin/payment/post-service implementation.
     'netlify/lib/admin-change-request-projection.js',
     'netlify/lib/data/service-area-zip-coords.js',

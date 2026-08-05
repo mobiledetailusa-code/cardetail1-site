@@ -7,6 +7,7 @@ const { getBooking, getBookingsByIds, normalizeBookingKey } = require('../lib/op
 const { decideChangeRequestCommand, materialProjection } = require('../lib/booking-commands');
 const { getBookingRecord } = require('../lib/booking-repository');
 const { buildSyncEnvelope, syncHeaders } = require('../lib/sync-response');
+const { normalizeIdempotencyKey } = require('../lib/operation-idempotency');
 
 const REQUEST_STORE = 'cd1-customer-change-requests';
 const MAX_LIST = 50;
@@ -199,6 +200,13 @@ exports.handler = async (event) => {
     if (!requestId || !['approve', 'reject', 'clarify'].includes(decision)) {
       return jsonCors(400, { ok: false, error: 'validation_error' });
     }
+    if (body.expectedBookingVersion == null || body.expectedBookingVersion === '') {
+      return jsonCors(400, { ok: false, error: 'expected_booking_version_required' });
+    }
+    const idempotencyKey = normalizeIdempotencyKey(body.idempotencyKey || body.requestKey);
+    if (!idempotencyKey) {
+      return jsonCors(400, { ok: false, error: 'idempotency_key_required' });
+    }
 
     const store = await getRequestStore();
     const record = await store.get(requestId, { type: 'json' });
@@ -213,6 +221,7 @@ exports.handler = async (event) => {
       expectedQuoteVersion: body.expectedQuoteVersion,
       adminNote,
       acceptRequote: body.acceptRequote === true,
+      idempotencyKey,
     });
 
     if (!result.ok) {

@@ -131,6 +131,9 @@ function projectChangeRequestForAdmin(raw, booking = {}) {
       : (raw.embeddedBookingVersion != null ? raw.embeddedBookingVersion - 1 : null),
     baseBookingVersion: raw.baseBookingVersion ?? null,
     embeddedBookingVersion: raw.embeddedBookingVersion ?? null,
+    currentBookingVersion: booking.bookingVersion != null
+      ? Math.max(0, Math.round(Number(booking.bookingVersion) || 0))
+      : null,
     quoteVersion: raw.quoteVersion ?? null,
     proposedApprovedCents,
     previousState: enrichedPrevious,

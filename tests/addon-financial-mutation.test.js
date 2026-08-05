@@ -370,22 +370,18 @@ describe('Stage 1 addon financial mutations', () => {
     assert.deepEqual(ids.filter((x) => x === 'ozone'), ['ozone']);
   });
 
-  it('7) remove with settledCents > 0 returns settled_addon_remove_denied and changes nothing', async () => {
+  it('7) removing a fully paid add-on creates explicit credit without auto-refund', async () => {
     const { applyAddonFinancialMutation } = require('../netlify/lib/addon-financial-mutation');
     const repo = require('../netlify/lib/db/repositories');
     const id = nextId('RM-DENY');
     // After a prior post-pay add-on: open delta exists (not fully historically closed).
     const seeded = baseBooking(id, {
       approvedCents: 19000,
-      settledCents: 15000,
+      settledCents: 19000,
       addOnIds: ['ozone'],
-      paymentWorkflowStatus: 'awaiting_customer_payment',
+      paymentWorkflowStatus: 'payment_succeeded',
       quoteVersion: 2,
     });
-    seeded.status = 'Confirmed';
-    seeded.jobStatus = 'confirmed';
-    seeded.paymentStatus = 'due';
-    seeded._historicalPaidClosed = false;
     await seedBlob(seeded);
 
     const { ensureBookingFinancial } = require('../netlify/lib/db/ensure-booking-financial');
@@ -394,23 +390,26 @@ describe('Stage 1 addon financial mutations', () => {
     await ensureBookingFinancial(beforeRec.booking);
     const quotesBefore = await prisma.quote.count({ where: { bookingId: id } });
     const ledgerBefore = await repo.listLedgerEntries(id);
-    const approvedBefore = beforeRec.booking.ledger.approvedCents;
     const settledBefore = beforeRec.booking.ledger.settledCents;
 
-    const denied = await applyAddonFinancialMutation({
+    const result = await applyAddonFinancialMutation({
       bookingId: id,
       expectedBookingVersion: 1,
       target: { vehicleId: 'veh_1' },
       addOnIdsToRemove: ['ozone'],
       env: FAKE_ENV,
     });
-    assert.equal(denied.ok, false);
-    assert.equal(denied.error, 'settled_addon_remove_denied');
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.postgresProjection.approvedCents, 15000);
+    assert.equal(result.postgresProjection.settledCents, 19000);
+    assert.equal(result.postgresProjection.remainingCents, 0);
+    assert.equal(result.outstandingCreditCents, 4000);
 
     const afterRec = await getBookingRecord(id);
-    assert.equal(afterRec.booking.ledger.approvedCents, approvedBefore);
+    assert.equal(afterRec.booking.ledger.approvedCents, 15000);
     assert.equal(afterRec.booking.ledger.settledCents, settledBefore);
-    assert.equal(await prisma.quote.count({ where: { bookingId: id } }), quotesBefore);
+    assert.equal(afterRec.booking.ledger.refundedCents || 0, 0);
+    assert.equal(await prisma.quote.count({ where: { bookingId: id } }), quotesBefore + 1);
     assert.equal((await repo.listLedgerEntries(id)).length, ledgerBefore.length);
   });
 

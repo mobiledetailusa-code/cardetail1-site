@@ -6,7 +6,7 @@
  * for quote or PaymentIntent amounts.
  */
 
-const { PRICING } = require('./booking-price-catalog');
+const { PRICING, PACKAGE_INCLUDED_ADDONS } = require('./booking-price-catalog');
 const { asArray } = require('./historical-adapter');
 
 /** Display-only labels (no prices). Keys must exist in PRICING[*].addons. */
@@ -157,6 +157,9 @@ function serializeCategoryAddons(category) {
     const id = String(def.id || '').trim();
     const disp = displayFor(id);
     const priceDollars = Math.round(Number(def.price) || 0);
+    const includedInPackageIds = Object.entries(PACKAGE_INCLUDED_ADDONS[cat] || {})
+      .filter(([, ids]) => asArray(ids).includes(id))
+      .map(([packageId]) => packageId);
     return {
       id,
       name: disp.name,
@@ -165,6 +168,7 @@ function serializeCategoryAddons(category) {
       categories: [cat],
       available: true,
       qtyAllowed: !!def.qty,
+      includedInPackageIds,
     };
   }).filter((a) => a.id);
 }
@@ -226,12 +230,14 @@ function bookingVehicleCategory(booking) {
   return 'cars';
 }
 
-function currentAddonIdsOnBooking(booking) {
-  const v = (booking?.service && Array.isArray(booking.service.vehicles)
-    ? booking.service.vehicles[0]
-    : null)
-    || (Array.isArray(booking?.vehicles) ? booking.vehicles[0] : null)
-    || {};
+function currentAddonIdsOnBooking(booking, vehicleId = '') {
+  const vehicles = booking?.service && Array.isArray(booking.service.vehicles)
+    ? booking.service.vehicles
+    : (Array.isArray(booking?.vehicles) ? booking.vehicles : []);
+  const targetId = String(vehicleId || '').trim();
+  const v = (targetId
+    ? vehicles.find((vehicle) => String(vehicle?.vehicleId || '') === targetId)
+    : vehicles[0]) || {};
   const fromIds = asArray(v.addOnIds).map((id) => String(id || '').trim()).filter(Boolean);
   if (fromIds.length) return fromIds;
   const fromObjs = asArray(v.addons || booking?.addons)

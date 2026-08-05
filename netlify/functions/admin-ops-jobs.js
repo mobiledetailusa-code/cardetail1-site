@@ -28,6 +28,7 @@ const {
   expireSupersededAttempts,
 } = require('../lib/payment-service');
 const { dollarsToCents, centsToDollars } = require('../lib/historical-adapter');
+const { normalizeIdempotencyKey } = require('../lib/operation-idempotency');
 const {
   createAdminAppointment,
   updateCustomerContact,
@@ -368,6 +369,7 @@ function adminVehiclesForAddonControls(booking) {
   const { ensureVehicleIds } = require('../lib/booking-aggregate');
   const { asArray } = require('../lib/historical-adapter');
   const { bookingVehicleCategory } = require('../lib/canonical-addon-catalog');
+  const { inferPkgId } = require('../lib/booking-price-catalog');
   const raw = (booking?.service && Array.isArray(booking.service.vehicles) && booking.service.vehicles.length)
     ? booking.service.vehicles
     : (Array.isArray(booking?.vehicles) ? booking.vehicles : []);
@@ -394,6 +396,7 @@ function adminVehiclesForAddonControls(booking) {
       vehicleId: String(v.vehicleId || '').trim(),
       label: String(v.vehicleLabel || v.vehicle || v.vehicleId || 'Vehicle').trim(),
       category,
+      currentPackageId: inferPkgId(v, booking) || String(v.packageId || v.pkgId || '').trim(),
       selectedAddonIds,
     };
   }).filter((v) => v.vehicleId);
@@ -577,6 +580,41 @@ function adminPackageCatalogForBooking(booking) {
   return { packageCatalog: { source: 'booking-price-catalog', vehicles } };
 }
 
+function adminVehicleMutationCatalog() {
+  const { PRICING, LENGTH_PRICING } = require('../lib/booking-price-catalog');
+  const { VEHICLE_CATEGORIES, VEHICLE_YEARS } = require('../lib/customer-catalog');
+  const categories = VEHICLE_CATEGORIES.map((category) => ({ ...category }));
+  const tiersByCategory = {};
+  const packagesByCategory = {};
+  for (const category of categories) {
+    const categoryId = category.id;
+    const tiers = PRICING[categoryId]?.tiers || {};
+    tiersByCategory[categoryId] = Object.entries(tiers).map(([id, tier]) => ({
+      id,
+      label: tier.label || id,
+    }));
+    const ids = new Set();
+    for (const tier of Object.values(tiers)) {
+      for (const [id, price] of Object.entries(tier || {})) {
+        if (id !== 'label' && Number(price) >= 0) ids.add(id);
+      }
+    }
+    for (const id of Object.keys(LENGTH_PRICING[categoryId]?.packages || {})) ids.add(id);
+    packagesByCategory[categoryId] = [...ids].map((id) => ({
+      id,
+      name: packageDisplayName(categoryId, id),
+    }));
+  }
+  return {
+    source: 'booking-price-catalog',
+    categories,
+    years: VEHICLE_YEARS,
+    tiersByCategory,
+    packagesByCategory,
+    lengthCategories: Object.keys(LENGTH_PRICING),
+  };
+}
+
 /**
  * Package Stage 1 — Admin package mutation adapter.
  *
@@ -669,6 +707,24 @@ async function adminChangePackage({
     return { ok: false, statusCode: 400, error: 'package_id_required' };
   }
 
+  const adminReason = sanitizeText(body.reason, 300);
+  if (!adminReason) {
+    return { ok: false, statusCode: 400, error: 'reason_required' };
+  }
+
+  const idempotencyKey = normalizeIdempotencyKey(body.idempotencyKey || body.requestKey);
+  if (!idempotencyKey) {
+    await writeAudit({
+      action: 'admin_package_denied',
+      prior,
+      resulting: prior,
+      vehicleId: body.vehicleId,
+      projection: financialProjection(prior),
+      error: 'idempotency_key_required',
+    });
+    return { ok: false, statusCode: 400, error: 'idempotency_key_required' };
+  }
+
   if (body.expectedBookingVersion == null || body.expectedBookingVersion === '') {
     await writeAudit({
       action: 'admin_package_denied',
@@ -683,7 +739,7 @@ async function adminChangePackage({
 
   const expected = Math.round(Number(body.expectedBookingVersion));
   const actualVersion = Math.round(Number(prior.bookingVersion) || 0);
-  if (!Number.isFinite(expected) || actualVersion !== expected) {
+  if (!Number.isFinite(expected)) {
     await writeAudit({
       action: 'admin_package_denied',
       prior,
@@ -725,7 +781,9 @@ async function adminChangePackage({
     expectedBookingVersion: expected,
     target: { vehicleId: vehicleId || undefined },
     packageId,
-    adminNote: sanitizeText(body.reason, 300),
+    adminNote: adminReason,
+    idempotencyKey,
+    actor: 'admin',
     env,
   });
 
@@ -755,21 +813,24 @@ async function adminChangePackage({
   const approvedCents = projection
     ? Math.max(0, Math.round(Number(projection.approvedCents) || 0))
     : 0;
-  await writeAudit({
-    action: result.noop ? 'admin_package_noop' : 'admin_change_package',
-    prior,
-    resulting: result.booking,
-    vehicleId: result.vehicleId || vehicleId,
-    projection,
-    noop: !!result.noop,
-    result: result.reason || (result.noop ? 'noop' : 'ok'),
-  });
+  if (!result.idempotent) {
+    await writeAudit({
+      action: result.noop ? 'admin_package_noop' : 'admin_change_package',
+      prior,
+      resulting: result.booking,
+      vehicleId: result.vehicleId || vehicleId,
+      projection,
+      noop: !!result.noop,
+      result: result.reason || (result.noop ? 'noop' : 'ok'),
+    });
+  }
 
   return {
     ok: true,
     statusCode: 200,
     bookingId,
     noop: !!result.noop,
+    idempotent: !!result.idempotent,
     reason: result.reason,
     vehicleId: result.vehicleId || vehicleId || null,
     packageId: result.packageId || packageId,
@@ -783,6 +844,7 @@ async function adminChangePackage({
     postgresProjection: result.postgresProjection || null,
     financialProjection: result.financialProjection,
     remainingCents: result.remainingCents,
+    outstandingCreditCents: result.outstandingCreditCents || 0,
   };
 }
 
@@ -877,6 +939,24 @@ async function adminAddonMutation({
     prior = rec.booking;
   }
 
+  const adminReason = sanitizeText(body.reason, 300);
+  if (!adminReason) {
+    return { ok: false, statusCode: 400, error: 'reason_required' };
+  }
+
+  const idempotencyKey = normalizeIdempotencyKey(body.idempotencyKey || body.requestKey);
+  if (!idempotencyKey) {
+    await writeAudit({
+      action: 'admin_addon_denied',
+      prior,
+      resulting: prior,
+      vehicleId: body.vehicleId,
+      projection: financialProjection(prior),
+      error: 'idempotency_key_required',
+    });
+    return { ok: false, statusCode: 400, error: 'idempotency_key_required' };
+  }
+
   if (body.expectedBookingVersion == null || body.expectedBookingVersion === '') {
     await writeAudit({
       action: 'admin_addon_denied',
@@ -891,7 +971,7 @@ async function adminAddonMutation({
 
   const expected = Math.round(Number(body.expectedBookingVersion));
   const actualVersion = Math.round(Number(prior.bookingVersion) || 0);
-  if (!Number.isFinite(expected) || actualVersion !== expected) {
+  if (!Number.isFinite(expected)) {
     await writeAudit({
       action: 'admin_addon_denied',
       prior,
@@ -967,7 +1047,9 @@ async function adminAddonMutation({
     target: { vehicleId: vehicleId || undefined },
     addOnIdsToAdd,
     addOnIdsToRemove,
-    adminNote: sanitizeText(body.reason, 300),
+    adminNote: adminReason,
+    idempotencyKey,
+    actor: 'admin',
     env,
   });
 
@@ -992,21 +1074,24 @@ async function adminAddonMutation({
   }
 
   const projection = result.postgresProjection || result.financialProjection;
-  await writeAudit({
-    action: result.noop ? 'admin_addon_noop' : `admin_addon_${op}`,
-    prior,
-    resulting: result.booking,
-    vehicleId,
-    projection,
-    noop: !!result.noop,
-    result: result.reason || (result.noop ? 'noop' : 'ok'),
-  });
+  if (!result.idempotent) {
+    await writeAudit({
+      action: result.noop ? 'admin_addon_noop' : `admin_addon_${op}`,
+      prior,
+      resulting: result.booking,
+      vehicleId,
+      projection,
+      noop: !!result.noop,
+      result: result.reason || (result.noop ? 'noop' : 'ok'),
+    });
+  }
 
   return {
     ok: true,
     statusCode: 200,
     bookingId,
     noop: !!result.noop,
+    idempotent: !!result.idempotent,
     reason: result.reason,
     op,
     vehicleId: vehicleId || null,
@@ -1017,6 +1102,110 @@ async function adminAddonMutation({
     postgresProjection: result.postgresProjection || null,
     financialProjection: result.financialProjection,
     selectedAddonIds: selectedAddonIdsForVehicle(result.booking || prior, vehicleId),
+    outstandingCreditCents: result.outstandingCreditCents || 0,
+  };
+}
+
+/** Canonical Admin add/edit/remove vehicle operation over PR2 money authority. */
+async function adminVehicleMutation({
+  bookingId,
+  body = {},
+  previousBooking = null,
+  env = process.env,
+  auditFn = null,
+}) {
+  const { applyVehicleFinancialMutation } = require('../lib/vehicle-financial-mutation');
+  const { financialProjection } = require('../lib/payment-service');
+  let prior = previousBooking;
+  if (!prior) {
+    const rec = await getBookingRecord(bookingId);
+    if (!rec.exists) return { ok: false, statusCode: 404, error: 'booking_not_found' };
+    prior = rec.booking;
+  }
+  const op = sanitizeText(body.vehicleOp || body.op, 16).toLowerCase();
+  if (!['add', 'replace', 'remove'].includes(op)) {
+    return { ok: false, statusCode: 400, error: 'invalid_vehicle_op' };
+  }
+  const reason = sanitizeText(body.reason, 300);
+  if (!reason) return { ok: false, statusCode: 400, error: 'reason_required' };
+  const idempotencyKey = normalizeIdempotencyKey(body.idempotencyKey || body.requestKey);
+  if (!idempotencyKey) {
+    return { ok: false, statusCode: 400, error: 'idempotency_key_required' };
+  }
+  if (body.expectedBookingVersion == null || body.expectedBookingVersion === '') {
+    return { ok: false, statusCode: 400, error: 'expected_booking_version_required' };
+  }
+  const expected = Math.round(Number(body.expectedBookingVersion));
+  const actual = Math.round(Number(prior.bookingVersion) || 0);
+  if (!Number.isFinite(expected)) {
+    return {
+      ok: false,
+      statusCode: 409,
+      error: 'version_conflict',
+      actualBookingVersion: actual,
+      financialProjection: financialProjection(prior),
+    };
+  }
+
+  const result = await applyVehicleFinancialMutation({
+    bookingId,
+    expectedBookingVersion: expected,
+    op,
+    target: { vehicleId: sanitizeText(body.vehicleId || body.targetVehicleId, 64) || undefined },
+    vehicle: body.vehicle && typeof body.vehicle === 'object' ? body.vehicle : body,
+    adminNote: reason,
+    idempotencyKey,
+    actor: 'admin',
+    env,
+  });
+
+  if (!(result.ok && result.idempotent)) {
+    const record = auditFn || ((entry) => appendAudit(entry));
+    await Promise.resolve(record(auditEntry({
+      bookingId,
+      actorType: 'admin',
+      actorId: 'admin',
+      action: result.ok ? `admin_vehicle_${op}` : 'admin_vehicle_denied',
+      previousState: prior,
+      resultingState: result.booking || prior,
+      reason: JSON.stringify({
+        reason,
+        result: result.ok ? (result.reason || 'ok') : (result.error || 'failed'),
+        vehicleId: result.vehicleId || body.vehicleId || null,
+        priorBookingVersion: actual,
+        bookingVersion: result.booking?.bookingVersion ?? actual,
+        quoteVersion: result.quoteVersion || prior.quoteVersion || 0,
+        outstandingCreditCents: result.outstandingCreditCents || 0,
+      }),
+      sourcePortal: 'admin_ops',
+    }))).catch(() => null);
+  }
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      statusCode: result.statusCode || 400,
+      error: result.error,
+      message: result.message,
+      actualBookingVersion: result.actualBookingVersion,
+      financialProjection: result.financialProjection || null,
+    };
+  }
+  return {
+    ok: true,
+    statusCode: 200,
+    bookingId,
+    op,
+    vehicleId: result.vehicleId,
+    noop: !!result.noop,
+    idempotent: !!result.idempotent,
+    bookingVersion: result.booking?.bookingVersion,
+    quoteVersion: result.quoteVersion,
+    projection: result.postgresProjection || result.financialProjection,
+    postgresProjection: result.postgresProjection || null,
+    financialProjection: result.financialProjection,
+    remainingCents: result.remainingCents,
+    outstandingCreditCents: result.outstandingCreditCents || 0,
   };
 }
 
@@ -1213,6 +1402,7 @@ async function handleAdminAction(body) {
       operationalControls: adminOperationalControls(booking, projection),
       ...adminAddonCatalogForBooking(booking),
       ...adminPackageCatalogForBooking(booking),
+      vehicleCatalog: adminVehicleMutationCatalog(),
     });
   }
 
@@ -1974,6 +2164,12 @@ async function handleAdminAction(body) {
     });
   }
 
+  if (action === 'vehicle_mutation') {
+    const result = await adminVehicleMutation({ bookingId, body, previousBooking: booking });
+    const { statusCode, ...payload } = result;
+    return jsonCors(statusCode || (result.ok ? 200 : 400), payload);
+  }
+
   if (action === 'mark_refunded') {
     return jsonCors(410, {
       ok: false,
@@ -2200,18 +2396,10 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'update_vehicles') {
-    const result = mutateVehicles(booking, body);
-    if (!result.ok) return jsonCors(400, { ok: false, error: result.error });
-    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'update_vehicles', body.reason);
-    if (!persisted.ok) {
-      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
-    }
-    return jsonCors(200, {
-      ok: true,
-      bookingId,
-      totalPrice: persisted.booking.totalPrice,
-      bookingVersion: persisted.bookingVersion,
-      quoteVersion: persisted.booking.quoteVersion,
+    return jsonCors(410, {
+      ok: false,
+      error: 'legacy_vehicle_mutation_disabled',
+      message: 'Use vehicle_mutation with a stable vehicleId, expectedBookingVersion, and idempotencyKey.',
     });
   }
 
@@ -2858,6 +3046,7 @@ async function adminMarkCardOnSite({
 }
 
 exports.adminAddonMutation = adminAddonMutation;
+exports.adminVehicleMutation = adminVehicleMutation;
 exports.adminAddonCatalogForBooking = adminAddonCatalogForBooking;
 exports.freeFormAddonBodyRejected = freeFormAddonBodyRejected;
 exports.bodyHasPackageMutation = bodyHasPackageMutation;

@@ -170,9 +170,15 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
   }
 
   function mutate(bookingId, body) {
+    const operationBody = {
+      ...body,
+      reason: body.reason || 'PR4 automated add-on operation',
+      idempotencyKey: body.idempotencyKey
+        || `pr4-addon-${bookingId}-${Date.now()}-${Math.random().toString(16).slice(2)}`.slice(0, 96),
+    };
     return adminAddonMutation({
       bookingId,
-      body,
+      body: operationBody,
       env: FAKE_ENV,
       auditFn: captureAudit,
     });
@@ -341,7 +347,7 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
       'noop must not create Postgres quote rows');
   });
 
-  it('7) removal after settlement is denied (server rule, no refund implied)', async () => {
+  it('7) removal after partial settlement reduces only the unpaid balance', async () => {
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
     const id = nextId('RM-DENY');
     const seeded = baseBooking(id, {
@@ -357,22 +363,23 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
     seeded._historicalPaidClosed = false;
     await seedBlob(seeded);
 
-    const denied = await mutate(id, {
+    const result = await mutate(id, {
       addOnIdsToRemove: ['ozone'],
       expectedBookingVersion: 1,
       vehicleId: 'veh_1',
     });
-    assert.equal(denied.ok, false);
-    assert.equal(denied.statusCode, 409);
-    assert.equal(denied.error, 'settled_addon_remove_denied');
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.projection.approvedCents, 15000);
+    assert.equal(result.projection.settledCents, 15000);
+    assert.equal(result.projection.remainingCents, 0);
+    assert.equal(result.outstandingCreditCents, 0);
 
     const after = await getBookingRecord(id);
-    assert.equal(after.booking.ledger.approvedCents, 19000);
+    assert.equal(after.booking.ledger.approvedCents, 15000);
     assert.equal(after.booking.ledger.settledCents, 15000);
-    assert.equal(after.booking.bookingVersion, 1, 'denied removal must not mutate booking');
+    assert.equal(after.booking.bookingVersion, 2);
     assert.equal(auditLog.length, 1);
-    assert.equal(auditLog[0].action, 'admin_addon_denied');
-    assert.equal(JSON.parse(auditLog[0].reason).error, 'settled_addon_remove_denied');
+    assert.equal(auditLog[0].action, 'admin_addon_remove');
   });
 
   it('8) unknown add-on id is rejected server-side', async () => {
@@ -609,7 +616,7 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
     assert.match(html, /addOnIdsToRemove:\s*\[b\.dataset\.removeAddon\]/);
     assert.match(html, /data-remove-addon/);
     assert.match(html, /expectedBookingVersion/);
-    assert.match(html, /Paid — removal unavailable/);
+    assert.match(html, /decreases become credit\/refund due/);
     assert.doesNotMatch(html, /Ozone Odor Treatment|Pet Hair Removal|Rain-X Glass Treatment/);
     assert.doesNotMatch(html, /priceCents\s*:\s*\d/);
     assert.doesNotMatch(html, /addonOp/);
