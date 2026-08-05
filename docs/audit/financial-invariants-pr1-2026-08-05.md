@@ -1,6 +1,6 @@
 # PR1 — Financial invariants and Stripe authority
 
-Status: **READY FOR OWNER REVIEW**
+Status: **BLOCKED — PRODUCTION-LIKE DATABASE CLONE REQUIRED**
 
 Audit date: **2026-08-05 (America/New_York)**
 
@@ -14,13 +14,13 @@ Production deploy/merge/migration: **not performed**
 
 PR1 makes PostgreSQL the fail-closed money authority for customer balance payments, on-site cash/card settlements, and Stripe webhook reconciliation. It removes competing browser payment paths, stops read requests from mutating payment state, separates payment completion from service completion, minimizes provider event data, and adds optimistic-concurrency requirements to customer/admin mutations.
 
-The branch passed the complete repository suite, a real PostgreSQL 16 migration rehearsal, Prisma history/schema parity, the deterministic pre-deploy audit, a Netlify deploy-preview build, and desktop/mobile browser inspection. Refund execution remains intentionally disabled until PR2 supplies a signed-webhook-authoritative refund state machine.
+The remediated branch passed the complete repository suite against an isolated PostgreSQL 16 database, a fresh migration rehearsal, Prisma history/schema parity, and the deterministic pre-deploy audit. The required provider backup/clone could not be obtained: Netlify confirms both production database variables exist but returns them as secure/redacted, and no provider clone credential or authorized clone URL is available in the workspace. This report therefore does not claim production-like upgrade readiness.
 
 ## Scope and isolation
 
 - No Owner Studio source file changed.
 - No commit was added to PR #157; this branch starts at its exact head SHA.
-- No production database, Stripe account, SMS destination, Netlify deploy, merge, or live secret was used.
+- No production migration, Stripe charge, SMS destination, Netlify deploy, or merge was performed. Production environment values were queried only for presence and remained secure/redacted.
 - Hosted Checkout and legacy capture/payment endpoints return fail-closed tombstones. Customer balance payment uses the embedded Stripe Payment Element path only.
 - Existing Booking/Blob operational fields remain compatibility data. They are not a second ledger.
 
@@ -99,16 +99,16 @@ flowchart LR
 Migration: `prisma/migrations/20260805090000_financial_invariants_pr1/migration.sql`
 
 - `PaymentAttempt`: purpose, provider customer, last provider event ID/time; positive-amount check.
-- `StripeEvent`: attempt/error/provider timestamps, processing status index, minimized JSON object check.
-- Historical `StripeEvent.payload`: rewritten to a strict reconciliation summary; `client_secret`, billing/payment-method/card/charge/error/raw fields are discarded.
+- `StripeEvent`: attempt/error/provider timestamps, processing status index, JSON object check.
+- Historical `StripeEvent.payload`: preserved byte-for-byte by the migration; there is no `UPDATE` or `DELETE`. New application writes continue through `sanitizeStripeEventPayload`.
 - Existing `LedgerEntry`: non-adjustment amount must be positive. Ledger rows are not rewritten.
 - Checks are introduced `NOT VALID`: they protect new rows immediately while allowing an owner-controlled preflight and later validation on production data.
 
 ### Real PostgreSQL 16 evidence
 
-Isolated local cluster: PostgreSQL **16.14**, port 55432, trust limited to the disposable local test cluster.
+Isolated local cluster: PostgreSQL **16.14** on localhost. Production was not used.
 
-Fresh database `cardetail1_pr1_empty_b`:
+Fresh database `cardetail1_pr158_remediation_20260805_172535`:
 
 ```text
 5 migrations found
@@ -116,19 +116,7 @@ Database schema is up to date!
 No difference detected.
 ```
 
-Representative four-migration upgrade copy `cardetail1_pr1_upgrade_a`:
-
-```text
-16.14|1|1|t|MIG-REP-1|3
-LedgerEntry_financial_amount_nonzero=true
-PaymentAttempt_amount_positive=true
-StripeEvent_payload_is_object=true
-attempt_issues=0
-ledger_issues=0
-payload_issues=0
-```
-
-The representative row retained its booking/provider binding and lost the seeded secret/billing/card material. All three constraints were then validated successfully in the rehearsal copy.
+The earlier synthetic-upgrade evidence is invalidated because it exercised the destructive historical payload rewrite that has now been removed. It is not reused as evidence. A current production-like provider clone is still required before owner merge review.
 
 ### Owner production preflight (do not skip)
 
@@ -150,7 +138,7 @@ FROM "StripeEvent"
 WHERE "payload"::text ~* 'client_secret|billing_details|payment_method_details|card|charges|raw';
 ```
 
-Expected result: zero in every query. Review any nonzero result manually; do not “fix” ledger history in place.
+Run `npm run financial:preflight` with `CD1_PREFLIGHT_DATABASE_URL` pointing to the authorized clone. The script starts a `READ ONLY` transaction and reports only aggregate counts, type counts, relation sizes, duplicates, invalid values, active locks, and non-reversible fingerprints; it never prints payloads or connection data. Review any nonzero result manually and do not “fix” ledger or inbox history in place.
 
 After owner approval, backup, and successful preflight:
 
@@ -172,17 +160,33 @@ ALTER TABLE "StripeEvent" VALIDATE CONSTRAINT "StripeEvent_payload_is_object";
 | Gate | Result |
 |---|---|
 | Prisma client generation | pass, Prisma 7.8.0 |
-| Full test suite | **2,156 passed; 0 failed; 0 skipped; 133 suites; 54.338 s** |
+| Full test suite | **2,165 passed; 0 failed; 0 skipped; 133 suites; 89.896 s**, PostgreSQL 16.14, file concurrency 4 |
 | Fresh migration history | pass, 5/5 migrations |
 | Migration/schema diff | pass, `No difference detected` |
-| Representative upgrade | pass, zero invariant violations, sensitive event fields removed |
+| Fresh preflight | pass; 0 StripeEvent, 0 PaymentAttempt, 0 LedgerEntry, no invalid/duplicate rows |
+| Production-like upgrade clone | **blocked; authorized provider clone URL/backup unavailable** |
 | Deterministic pre-deploy audit | pass, syntax and targeted release checks green |
-| Netlify build | pass, `deploy-preview`, offline, @netlify/build 36.3.0, 2m26.6s |
+| Netlify build | pass, offline `deploy-preview`, @netlify/build 36.3.0, 1m26.9s; nothing published |
 | Stripe calls in tests | fake/injected only; no live Stripe call |
 | SMS/Twilio | no message sent |
 | Owner Studio | no changed file |
 
-High-value regression coverage includes duplicate/signed/out-of-order webhooks; repeated replay; timeout recovery; provider binding mismatch; exact amount/currency; secret minimization; concurrent/idempotent settlement; on-site cash/card replay; no service auto-close; SetupIntent consent/version/CAS; legacy endpoint tombstones; and Admin/My Garage projection parity.
+High-value regression coverage includes duplicate/signed/out-of-order webhooks; repeated replay; timeout recovery; provider binding mismatch; exact amount/currency; secret minimization for new writes; concurrent/idempotent settlement; on-site cash/card replay; completed-job preservation across delta reopen/settle; legacy endpoint tombstones; and Admin/My Garage/receipt projection parity.
+
+### Auction/legacy dispatch decision
+
+No owner decision disabling auction was supplied. The remediated webhook therefore preserves the `master` operational flow. `purpose=customer_balance` is processed only by PostgreSQL and returns before legacy handlers. `purpose=authoritative_balance` and the bounded pre-purpose compatibility path retain `amount_capturable_updated`, `succeeded`, `payment_failed`, `canceled`, and `requires_action`; unknown purposes are acknowledged with an explicit ignored reason and mutate neither authority. Replay coverage proves only one auction is created.
+
+Removed dead authority footguns after `rg` and static-test proof of zero callers:
+
+- `reconcilePostgresPaymentIntentLegacy`
+- `reconcilePaymentIntentEventLegacy`
+
+### Dependency audit
+
+- `fast-uri` resolves to **3.1.5** through a root override; the previous high finding is gone.
+- `@cursor/sdk` is a devDependency and is imported only by `scripts/pre-deploy-audit.mjs`; the deterministic audit runs successfully after `npm ci` without a Cursor key.
+- `npm audit --omit=dev`: **10 moderate, 0 high, 0 critical**. Runtime-reachable findings are the `@netlify/blobs@10.7.9 → @netlify/otel@6.0.3 → OpenTelemetry 2.7.1` chain. The remaining Prisma/Hono/Valibot findings are tooling/CLI paths, although npm also reports Prisma through the optional peer relationship from `@prisma/client`. No forced or unnecessary major update was applied.
 
 ## Browser evidence
 
@@ -214,7 +218,7 @@ Authenticated Admin/My Garage data states are covered by deterministic integrati
 1. Roll back the application bundle/commit first. The migration is additive to the operational schema and old application code can ignore the added columns.
 2. Do **not** delete or reverse ledger entries to roll back an application release. Correct financial history only with explicit compensating entries after owner/provider verification.
 3. Do **not** run an automatic down migration in production. Retain the added columns, inbox metadata, indexes, and constraints while the application is rolled back.
-4. Historical Stripe event minimization is intentionally irreversible from the live database. Restore the pre-migration backup to an isolated forensic database only if the removed provider payload is legally/operationally required.
+4. The migration does not rewrite historical Stripe events, so application rollback does not require payload restoration. Keep the provider backup/clone requirement because DDL itself still needs production-like rehearsal.
 5. If webhook processing fails, preserve the `StripeEvent` row and return non-2xx so Stripe retries. Investigate the sanitized `errorCode`; do not copy raw events or secrets into logs/tickets.
 
 ## Canary/smoke checklist for the owner
@@ -243,7 +247,7 @@ No remote p50/p95 latency is claimed in PR1 because this task explicitly forbids
 
 - [ ] Confirm PR #157 remains the intended stacked base.
 - [ ] Review financial invariant and webhook state-machine tests.
-- [ ] Approve historical StripeEvent payload minimization.
+- [ ] Confirm the migration contains no historical `StripeEvent` rewrite.
 - [ ] Run backup/clone preflight and review any nonzero row personally.
 - [ ] Confirm PR2 owns refund execution before enabling any refund control.
 - [ ] Approve deploy-preview/canary plan; do not merge or deploy directly from this audit.
