@@ -5929,7 +5929,7 @@ function openBookingFromHome(cat){
 renderReviews();
 renderLocationCarousel('default');
 renderActivityFeed();
-seedDefaultTechs();
+try{ if(typeof seedDefaultTechs==='function') seedDefaultTechs(); }catch(e){}
 </script>
 
 <!-- ════════════════════════════════════════════ -->
