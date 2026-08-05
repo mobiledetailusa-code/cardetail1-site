@@ -536,6 +536,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let drawerAddonData = null;
   // Server-declared capability state for the open job (see get_job.operationalControls).
   let drawerControls = null;
+  const refundRequestKeys = {};
   let showTest = false, platformSettings = {}, platformAvailability = null, auctions = [], subscriptions = [], changeRequests = [];
   let requestsStatusFilter = 'pending';
   let jobDetailPanel = 'summary';
@@ -633,7 +634,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           CD1AdminSession.clearToken();
           throw new Error('Session expired — log in again at admin.html');
         }
-        throw new Error(err);
+        var requestError = new Error(err);
+        requestError.retryable = data.retryable === true;
+        throw requestError;
       }
       return data;
     } catch (e) {
@@ -2538,8 +2541,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       ' · Revised '+money(st.revisedTotalCents)+' · Paid '+money(st.paidCents)+' · Remaining '+money(st.remainingCents)+'</div>';
     if (st.adjustmentReason) h += '<p class="hint">Reason: '+esc(st.adjustmentReason)+'</p>';
     (st.pendingAdjustments||[]).forEach(a=>{
-      h += '<p class="hint">Pending '+esc(a.type)+' '+money(a.amountCents)+' — '+esc(a.status)+
-        ' ('+esc(a.projectedOutcome||'')+')</p>';
+      h += '<div class="req-box"><p class="hint">Pending '+esc(a.type)+' '+money(a.amountCents)+' — '+esc(a.status)+
+        ' ('+esc(a.projectedOutcome||'')+')</p><div class="actions">'+
+        ((a.status==='pending_customer'||a.status==='draft')
+          ? '<button type="button" class="btn sm adj-decide" data-id="'+esc(a.adjustmentId)+'" data-decision="approve">Record customer approval</button>'+
+            '<button type="button" class="btn ghost sm adj-decide" data-id="'+esc(a.adjustmentId)+'" data-decision="decline">Decline</button>'
+          : '')+
+        (a.status==='approved'
+          ? '<button type="button" class="btn sm adj-apply" data-id="'+esc(a.adjustmentId)+'">Apply approved adjustment</button>'
+          : '')+
+        '</div></div>';
     });
     if (st.refundReview) {
       h += '<p class="hint">Refund/credit review open: '+money(st.refundReview.amountCents)+' — '+esc(st.refundReview.status)+'</p>';
@@ -2866,8 +2877,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div class="full"><label>Refund note</label><input type="text" id="dRefundNote" placeholder="Reason for refund request"></div>'+
       '<div><label>Refund amount ($)</label><input type="number" id="dRefundAmt" step="0.01"></div>'+
       '<div class="full actions">'+
-      '<button type="button" class="btn warn sm" id="dRefund" style="min-height:44px">Log refund request</button>'+
-      '<button type="button" class="btn ghost sm" id="dMarkRefunded" style="min-height:44px" disabled title="Pending webhook-confirmed refund ledger">Mark refunded</button>'+
+      '<button type="button" class="btn warn sm" id="dRefund" style="min-height:44px">Issue Stripe refund</button>'+
+      '<button type="button" class="btn ghost sm" id="dMarkRefunded" style="min-height:44px" disabled title="Only a signed Stripe webhook can mark a refund">Manual mark refunded disabled</button>'+
       '</div>'+
       (j.paymentWorkflowStatus==='refunded'||j.refundStatus==='refunded'?'<p class="hint">Payment status: refunded</p>':'')+
       '<div class="full actions" style="margin-top:8px">'+
@@ -3089,6 +3100,31 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         expectedBookingVersion:j.bookingVersion,
       });
     };
+    document.querySelectorAll('.adj-decide').forEach((btn) => {
+      btn.onclick = () => {
+        const decision = btn.dataset.decision;
+        if (decision === 'approve' && !confirm('Confirm that the customer approved this adjustment?')) return;
+        const reason = decision === 'decline' ? (prompt('Decline reason:') || '').trim() : '';
+        if (decision === 'decline' && !reason) { toast('A decline reason is required'); return; }
+        jobAction(j.id, 'price_adjustment', {
+          op: 'decide',
+          adjustmentId: btn.dataset.id,
+          decision,
+          reason,
+          expectedBookingVersion: j.bookingVersion,
+        });
+      };
+    });
+    document.querySelectorAll('.adj-apply').forEach((btn) => {
+      btn.onclick = () => {
+        if (!confirm('Apply this approved adjustment and create a new immutable quote version?')) return;
+        jobAction(j.id, 'price_adjustment', {
+          op: 'apply',
+          adjustmentId: btn.dataset.id,
+          expectedBookingVersion: j.bookingVersion,
+        });
+      };
+    });
     const daa2 = $('#dApproveAdj'); if(daa2) daa2.onclick = () => jobAction(j.id,'approve_adjustment',{approvedFinalAmount:$('#dFinalAmt').value});
     const dra = $('#dRejectAdj'); if(dra) dra.onclick = () => { const r=prompt('Rejection reason:'); if(r) jobAction(j.id,'reject_adjustment',{reason:r}); };
     let lastCustomerLink = '';
@@ -3177,7 +3213,36 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if(!confirm('Charge $50 late-cancellation fee to card on file?')) return;
       try { const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'charge_policy_fee',bookingId:j.id,feeType:'late_cancel',amount:50}); toast('Charge '+d.status+' · $'+d.amount); await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id); } catch(e){ toast(e.message); }
     };
-    const drf = $('#dRefund'); if(drf) drf.onclick = () => jobAction(j.id,'record_refund_request',{reason:$('#dRefundNote').value.trim(),amount:$('#dRefundAmt').value});
+    const drf = $('#dRefund'); if(drf) {
+      const refundCapability = (drawerControls && drawerControls.refund) || {};
+      drf.disabled = refundCapability.enabled === false;
+      drf.title = refundCapability.explanation || '';
+      drf.onclick = async () => {
+        const reason = ($('#dRefundNote') && $('#dRefundNote').value || '').trim();
+        const amount = Number($('#dRefundAmt') && $('#dRefundAmt').value);
+        if (!reason) { toast('A refund reason is required'); return; }
+        if (!(amount > 0)) { toast('Enter a positive refund amount'); return; }
+        if (!confirm('Issue a $'+amount.toFixed(2)+' Stripe refund? The ledger will update only after Stripe confirms it.')) return;
+        const requestKey = refundRequestKeys[j.id]
+          || ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('req_'+Date.now()+'_'+Math.random().toString(36).slice(2)));
+        refundRequestKeys[j.id] = requestKey;
+        try {
+          await jobAction(j.id,'record_refund_request',{
+            reason,
+            amount,
+            requestKey,
+            expectedBookingVersion:j.bookingVersion,
+            expectedQuoteVersion:(drawerAddonData&&drawerAddonData.quoteVersion)||j.quoteVersion,
+          });
+          delete refundRequestKeys[j.id];
+        } catch (error) {
+          // Keep the same key only for unknown/network outcomes, where Stripe
+          // may already have accepted the refund. A deterministic rejection
+          // gets a fresh key after the operator corrects the request.
+          if (error && error.retryable === false) delete refundRequestKeys[j.id];
+        }
+      };
+    }
     const dmr = $('#dMarkRefunded'); if(dmr) dmr.onclick = async () => {
       if(!confirm('Mark this invoice as refunded? Payment badge will change from payment_succeeded to refunded.')) return;
       try {

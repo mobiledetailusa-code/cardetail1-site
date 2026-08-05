@@ -13,6 +13,7 @@
  * Tests never hit real Stripe; they pass a fake fetchImpl.
  */
 
+const crypto = require('node:crypto');
 const { guardStripeOrReject } = require('../stripe-mode');
 const { getPrisma } = require('../prisma');
 const { Prisma } = require('@prisma/client');
@@ -34,14 +35,15 @@ function buildIdempotencyKey({ bookingId, quoteVersion, amountCents, generation 
  * for a booking, then compute it. Read-only.
  */
 async function getFinancialProjection(bookingId) {
-  const [booking, quote, paymentAttempts, ledgerEntries] = await Promise.all([
+  const [booking, quote, paymentAttempts, ledgerEntries, refundRequests] = await Promise.all([
     repo.getBooking(bookingId),
     repo.getLatestQuote(bookingId),
     repo.listPaymentAttempts(bookingId),
     repo.listLedgerEntries(bookingId),
+    getPrisma().refundRequest.findMany({ where: { bookingId }, orderBy: { createdAt: 'asc' } }),
   ]);
   if (!booking || !quote) return null;
-  return computeFinancialProjection({ booking, quote, paymentAttempts, ledgerEntries });
+  return computeFinancialProjection({ booking, quote, paymentAttempts, ledgerEntries, refundRequests });
 }
 
 /**
@@ -402,6 +404,30 @@ async function reconcilePaymentIntentEventLegacy({ stripeEventId, type, paymentI
   return { ok: true, duplicate: false, ignored: true, status: paymentIntent.status };
 }
 
+async function getReceiptAuthorityData(bookingId) {
+  const prisma = getPrisma();
+  const [booking, quote, paymentAttempts, ledgerEntries, refundRequests] = await Promise.all([
+    prisma.booking.findUnique({ where: { id: bookingId }, include: { vehicles: true } }),
+    prisma.quote.findFirst({
+      where: { bookingId },
+      orderBy: { quoteVersion: 'desc' },
+      include: { items: { orderBy: { createdAt: 'asc' } } },
+    }),
+    prisma.paymentAttempt.findMany({ where: { bookingId }, orderBy: { createdAt: 'asc' } }),
+    prisma.ledgerEntry.findMany({ where: { bookingId }, orderBy: { recordedAt: 'asc' } }),
+    prisma.refundRequest.findMany({ where: { bookingId }, orderBy: { createdAt: 'asc' } }),
+  ]);
+  if (!booking || !quote) return null;
+  return {
+    booking,
+    quote,
+    paymentAttempts,
+    ledgerEntries,
+    refundRequests,
+    projection: computeFinancialProjection({ booking, quote, paymentAttempts, ledgerEntries, refundRequests }),
+  };
+}
+
 class PaymentEventInvariantError extends Error {
   constructor(code) {
     super(code);
@@ -466,14 +492,16 @@ function assertPaymentIntentBinding(attempt, paymentIntent, type) {
 }
 
 async function projectionInTransaction(tx, bookingId) {
-  const [booking, quote, paymentAttempts, ledgerEntries] = await Promise.all([
-    tx.booking.findUnique({ where: { id: bookingId } }),
-    tx.quote.findFirst({ where: { bookingId }, orderBy: { quoteVersion: 'desc' } }),
-    tx.paymentAttempt.findMany({ where: { bookingId }, orderBy: { createdAt: 'asc' } }),
-    tx.ledgerEntry.findMany({ where: { bookingId }, orderBy: { recordedAt: 'asc' } }),
-  ]);
+  // Interactive transactions use one PostgreSQL connection. Keep statements
+  // sequential; concurrent client.query() calls can cross-wire results under
+  // load (and pg explicitly deprecates that usage).
+  const booking = await tx.booking.findUnique({ where: { id: bookingId } });
+  const quote = await tx.quote.findFirst({ where: { bookingId }, orderBy: { quoteVersion: 'desc' } });
+  const paymentAttempts = await tx.paymentAttempt.findMany({ where: { bookingId }, orderBy: { createdAt: 'asc' } });
+  const ledgerEntries = await tx.ledgerEntry.findMany({ where: { bookingId }, orderBy: { recordedAt: 'asc' } });
+  const refundRequests = await tx.refundRequest.findMany({ where: { bookingId }, orderBy: { createdAt: 'asc' } });
   return booking && quote
-    ? computeFinancialProjection({ booking, quote, paymentAttempts, ledgerEntries })
+    ? computeFinancialProjection({ booking, quote, paymentAttempts, ledgerEntries, refundRequests })
     : null;
 }
 
@@ -519,7 +547,19 @@ async function persistFailedStripeEvent({
   }
 }
 
-async function runSerializableWithRetry(operation, maxAttempts = 3) {
+function isRetryableTransactionConflict(error) {
+  const codes = [
+    error?.code,
+    error?.cause?.code,
+    error?.meta?.code,
+    error?.meta?.driverAdapterError?.cause?.originalCode,
+  ].filter(Boolean).map(String);
+  if (codes.some((code) => code === 'P2034' || code === '40001' || code === '40P01')) return true;
+  const message = String(error?.message || error?.cause?.message || '');
+  return /serialization|write conflict|deadlock detected|SQLSTATE\s*40001/i.test(message);
+}
+
+async function runSerializableWithRetry(operation, maxAttempts = 7) {
   const prisma = getPrisma();
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
@@ -527,7 +567,12 @@ async function runSerializableWithRetry(operation, maxAttempts = 3) {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       });
     } catch (error) {
-      if (error?.code === 'P2034' && attempt < maxAttempts) continue;
+      if (isRetryableTransactionConflict(error) && attempt < maxAttempts) {
+        // A short bounded backoff prevents immediately colliding with the same
+        // concurrent tab/webhook transaction on every retry.
+        await new Promise((resolve) => setTimeout(resolve, attempt * 10));
+        continue;
+      }
       throw error;
     }
   }
@@ -596,6 +641,23 @@ async function reconcilePaymentIntentEvent({
           lastAttemptAt: new Date(),
         },
       });
+      const failInvariant = async (errorCode) => {
+        await tx.stripeEvent.update({
+          where: { stripeEventId: eventId },
+          data: {
+            status: 'failed',
+            errorCode: sanitizeStripeErrorCode(errorCode),
+            lastAttemptAt: new Date(),
+          },
+        });
+        return {
+          ok: false,
+          error: errorCode,
+          statusCode: 500,
+          quarantined: true,
+          failureRecorded: true,
+        };
+      };
 
       const lockedAttempts = await tx.$queryRaw`
         SELECT "id"
@@ -604,14 +666,19 @@ async function reconcilePaymentIntentEvent({
         FOR UPDATE
       `;
       if (!lockedAttempts.length) {
-        throw new PaymentEventInvariantError('no_matching_payment_attempt');
+        return failInvariant('no_matching_payment_attempt');
       }
       const attempt = await tx.paymentAttempt.findUnique({
         where: { id: lockedAttempts[0].id },
       });
-      if (!attempt) throw new PaymentEventInvariantError('no_matching_payment_attempt');
+      if (!attempt) return failInvariant('no_matching_payment_attempt');
 
-      assertPaymentIntentBinding(attempt, paymentIntent, eventType);
+      try {
+        assertPaymentIntentBinding(attempt, paymentIntent, eventType);
+      } catch (error) {
+        if (error instanceof PaymentEventInvariantError) return failInvariant(error.code);
+        throw error;
+      }
 
       const finishEvent = async () => tx.stripeEvent.update({
         where: { stripeEventId: eventId },
@@ -648,7 +715,7 @@ async function reconcilePaymentIntentEvent({
           paymentIntent.amount_received != null ? paymentIntent.amount_received : paymentIntent.amount
         ) || 0);
         if (!(amountCents > 0) || amountCents !== attempt.amountCents) {
-          throw new PaymentEventInvariantError('payment_amount_mismatch');
+          return failInvariant('payment_amount_mismatch');
         }
 
         const providerEventId = `settlement_${paymentIntent.id}`;
@@ -751,58 +818,641 @@ async function reconcilePaymentIntentEvent({
   }
 }
 
+function buildRefundIdempotencyKey({ bookingId, requestKey }) {
+  const raw = `${String(bookingId || '').trim()}|${String(requestKey || '').trim()}`;
+  const digest = crypto.createHash('sha256').update(raw).digest('hex').slice(0, 32);
+  return `refund_${digest}_${String(requestKey || '').trim()}`.slice(0, 240);
+}
+
+function refundBinding(refund = {}) {
+  const metadata = refund && typeof refund.metadata === 'object' && refund.metadata
+    ? refund.metadata
+    : {};
+  return {
+    bookingId: String(metadata.bookingId || metadata.booking_id || '').trim(),
+    quoteVersion: Math.round(Number(metadata.quoteVersion || metadata.quote_version) || 0),
+    purpose: String(metadata.purpose || '').trim(),
+    refundRequestId: String(metadata.refundRequestId || metadata.refund_request_id || '').trim(),
+    paymentIntentId: typeof refund.payment_intent === 'string'
+      ? refund.payment_intent
+      : String(refund.payment_intent?.id || '').trim(),
+    currency: String(refund.currency || '').trim().toLowerCase(),
+  };
+}
+
+function normalizedRefundStatus(refund = {}, eventType = '') {
+  if (eventType === 'refund.failed') return 'failed';
+  const status = String(refund.status || '').trim().toLowerCase();
+  if (status === 'succeeded') return 'succeeded';
+  if (status === 'failed') return 'failed';
+  if (status === 'canceled') return 'canceled';
+  if (status === 'requires_action') return 'requires_action';
+  return 'pending_webhook';
+}
+
+function assertRefundBinding(request, attempt, refund) {
+  const binding = refundBinding(refund);
+  if (!refund?.id || !String(refund.id).startsWith('re_')) {
+    throw new PaymentEventInvariantError('invalid_refund_object');
+  }
+  if (request.providerRefundId && request.providerRefundId !== refund.id) {
+    throw new PaymentEventInvariantError('refund_provider_object_mismatch');
+  }
+  if (!binding.refundRequestId || binding.refundRequestId !== request.id) {
+    throw new PaymentEventInvariantError('refund_request_mismatch');
+  }
+  if (!binding.bookingId || binding.bookingId !== request.bookingId) {
+    throw new PaymentEventInvariantError('refund_booking_mismatch');
+  }
+  if (!binding.quoteVersion || binding.quoteVersion !== request.quoteVersion) {
+    throw new PaymentEventInvariantError('refund_quote_mismatch');
+  }
+  if (binding.purpose !== 'customer_refund') {
+    throw new PaymentEventInvariantError('refund_purpose_mismatch');
+  }
+  if (!binding.paymentIntentId || binding.paymentIntentId !== attempt.providerObjectId) {
+    throw new PaymentEventInvariantError('refund_payment_intent_mismatch');
+  }
+  if (binding.currency !== String(request.currency || '').toLowerCase()) {
+    throw new PaymentEventInvariantError('refund_currency_mismatch');
+  }
+  if (Math.round(Number(refund.amount) || 0) !== request.amountCents) {
+    throw new PaymentEventInvariantError('refund_amount_mismatch');
+  }
+}
+
 /**
- * PR1 refund boundary: fail closed until PR2 adds a request state machine and
- * signed refund-webhook authority. No Stripe request is issued here.
+ * Reserve and issue one idempotent Stripe refund. The provider response never
+ * writes the ledger; only a signed refund webhook is financial authority.
  */
 async function createRefund({
   bookingId,
   amountCents,
-  reason = 'requested_by_customer',
+  reason,
+  requestKey,
+  expectedQuoteVersion,
+  requestedBy = 'admin',
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
-  void bookingId;
-  void amountCents;
-  void reason;
-  void env;
-  void fetchImpl;
-  // PR1 fail-closed boundary. PR2 will create a refund request and let the
-  // signed Stripe refund webhook append the authoritative ledger entry.
-  return { ok: false, error: 'refund_execution_pending_pr2', statusCode: 501 };
+  const id = String(bookingId || '').trim();
+  const cents = Math.round(Number(amountCents) || 0);
+  const note = String(reason || '').trim().slice(0, 500);
+  const clientRequestKey = String(requestKey || '').trim().slice(0, 96);
+  const expectedVersion = Math.round(Number(expectedQuoteVersion) || 0);
+  if (!id) return { ok: false, error: 'bookingId_required', statusCode: 400 };
+  if (!(cents > 0)) return { ok: false, error: 'invalid_refund_amount', statusCode: 400 };
+  if (!note) return { ok: false, error: 'reason_required', statusCode: 400 };
+  if (!/^[A-Za-z0-9_-]{8,96}$/.test(clientRequestKey)) {
+    return { ok: false, error: 'refund_request_key_required', statusCode: 400 };
+  }
+  if (!(expectedVersion > 0)) {
+    return { ok: false, error: 'expected_quote_version_required', statusCode: 400 };
+  }
+
+  const requestGroupKey = buildRefundIdempotencyKey({ bookingId: id, requestKey: clientRequestKey });
+  const actor = String(requestedBy || 'admin').trim().slice(0, 96) || 'admin';
+  const matchesRequestGroup = (requests) => (
+    requests.length > 0
+    && requests.every((request) => (
+      request.bookingId === id
+      && request.quoteVersion === expectedVersion
+      && request.reason === note
+    ))
+    && requests.reduce((sum, request) => sum + request.amountCents, 0) === cents
+  );
+  let reserved;
+  try {
+    reserved = await runSerializableWithRetry(async (tx) => {
+      const existing = await tx.refundRequest.findMany({
+        where: { requestGroupKey },
+        orderBy: { partIndex: 'asc' },
+      });
+      if (existing.length) {
+        return matchesRequestGroup(existing)
+          ? { requests: existing, created: false }
+          : { error: 'refund_request_conflict', statusCode: 409 };
+      }
+
+      const locked = await tx.$queryRaw`
+        SELECT "id" FROM "Booking" WHERE "id" = ${id} FOR UPDATE
+      `;
+      if (!locked.length) return { error: 'not_found', statusCode: 404 };
+      const replayAfterLock = await tx.refundRequest.findMany({
+        where: { requestGroupKey },
+        orderBy: { partIndex: 'asc' },
+      });
+      if (replayAfterLock.length) {
+        return matchesRequestGroup(replayAfterLock)
+          ? { requests: replayAfterLock, created: false }
+          : { error: 'refund_request_conflict', statusCode: 409 };
+      }
+      const quote = await tx.quote.findFirst({ where: { bookingId: id }, orderBy: { quoteVersion: 'desc' } });
+      if (!quote) return { error: 'not_found', statusCode: 404 };
+      if (quote.quoteVersion !== expectedVersion) {
+        return { error: 'stale_quote_version', statusCode: 409, actualQuoteVersion: quote.quoteVersion };
+      }
+
+      const attempts = await tx.paymentAttempt.findMany({
+        where: { bookingId: id, status: 'succeeded', providerObjectType: 'payment_intent' },
+        orderBy: { createdAt: 'desc' },
+      });
+      const ledgerEntries = await tx.ledgerEntry.findMany({ where: { bookingId: id } });
+      const pendingRefunds = await tx.refundRequest.findMany({
+        where: { bookingId: id, status: { in: ['creating', 'pending_webhook', 'requires_action'] } },
+      });
+      let remainingToReserve = cents;
+      const allocations = [];
+      for (const attempt of attempts) {
+        if (!attempt.providerObjectId || !String(attempt.providerObjectId).startsWith('pi_')) continue;
+        const settledForAttempt = ledgerEntries
+          .filter((entry) => entry.kind === 'settlement' && entry.paymentAttemptId === attempt.id)
+          .reduce((sum, entry) => sum + Math.max(0, Math.round(Number(entry.amountCents) || 0)), 0);
+        const refundedForAttempt = ledgerEntries
+          .filter((entry) => entry.kind === 'refund' && entry.paymentAttemptId === attempt.id)
+          .reduce((sum, entry) => sum + Math.max(0, Math.round(Number(entry.amountCents) || 0)), 0);
+        const reservedForAttempt = pendingRefunds
+          .filter((entry) => entry.paymentAttemptId === attempt.id)
+          .reduce((sum, entry) => sum + Math.max(0, Math.round(Number(entry.amountCents) || 0)), 0);
+        const availableCents = Math.max(0, settledForAttempt - refundedForAttempt - reservedForAttempt);
+        const allocatedCents = Math.min(availableCents, remainingToReserve);
+        if (allocatedCents > 0) allocations.push({ attempt, amountCents: allocatedCents });
+        remainingToReserve -= allocatedCents;
+        if (remainingToReserve === 0) break;
+      }
+      if (remainingToReserve > 0) {
+        return { error: 'refund_exceeds_available_payment', statusCode: 409 };
+      }
+
+      const requests = [];
+      for (let partIndex = 0; partIndex < allocations.length; partIndex += 1) {
+        const allocation = allocations[partIndex];
+        const request = await tx.refundRequest.create({
+          data: {
+            bookingId: id,
+            paymentAttemptId: allocation.attempt.id,
+            quoteVersion: quote.quoteVersion,
+            amountCents: allocation.amountCents,
+            currency: String(allocation.attempt.currency || 'usd').toLowerCase(),
+            reason: note,
+            requestedBy: actor,
+            requestGroupKey,
+            partIndex,
+            idempotencyKey: `${requestGroupKey}_p${partIndex}`,
+          },
+        });
+        requests.push(request);
+        await tx.auditEvent.create({
+          data: {
+            bookingId: id,
+            actor,
+            action: 'refund_requested',
+            detail: {
+              refundRequestId: request.id,
+              requestGroupKey,
+              partIndex,
+              partCount: allocations.length,
+              amountCents: allocation.amountCents,
+              totalRequestedCents: cents,
+              quoteVersion: quote.quoteVersion,
+            },
+          },
+        });
+      }
+      return { requests, created: true };
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: error?.code === 'P2034' ? 'version_conflict' : 'refund_reservation_failed',
+      statusCode: 409,
+    };
+  }
+  if (reserved.error) return { ok: false, ...reserved };
+
+  const guard = guardStripeOrReject(env, { purpose: 'refund_create' });
+  if (guard.blocked) {
+    return { ok: false, error: guard.body?.error || 'stripe_unavailable', statusCode: guard.statusCode };
+  }
+  const prisma = getPrisma();
+  const attempts = await prisma.paymentAttempt.findMany({
+    where: { id: { in: reserved.requests.map((request) => request.paymentAttemptId) } },
+  });
+  const attemptById = new Map(attempts.map((attempt) => [attempt.id, attempt]));
+  const accepted = [];
+
+  for (const request of reserved.requests) {
+    if (request.status === 'failed' || request.status === 'canceled') {
+      return {
+        ok: false,
+        error: `refund_${request.status}`,
+        statusCode: 409,
+        refundRequest: request,
+        refundRequests: reserved.requests,
+      };
+    }
+    if (request.providerRefundId && request.status !== 'creating') {
+      accepted.push(request);
+      continue;
+    }
+    const attempt = attemptById.get(request.paymentAttemptId);
+    if (!attempt?.providerObjectId) {
+      return { ok: false, error: 'refund_payment_attempt_missing', statusCode: 409 };
+    }
+    const form = new URLSearchParams({
+      payment_intent: attempt.providerObjectId,
+      amount: String(request.amountCents),
+      reason: 'requested_by_customer',
+      'metadata[bookingId]': id,
+      'metadata[booking_id]': id,
+      'metadata[quoteVersion]': String(request.quoteVersion),
+      'metadata[purpose]': 'customer_refund',
+      'metadata[refundRequestId]': request.id,
+      'metadata[refund_request_id]': request.id,
+    });
+    let stripeRefund;
+    try {
+      const response = await fetchImpl('https://api.stripe.com/v1/refunds', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${guard.secret}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Idempotency-Key': request.idempotencyKey,
+        },
+        body: form.toString(),
+      });
+      stripeRefund = await response.json();
+      if (!response.ok) {
+        await prisma.refundRequest.update({
+          where: { id: request.id },
+          data: {
+            status: 'failed',
+            failureCode: sanitizeStripeErrorCode(stripeRefund?.error?.code || 'stripe_refund_failed'),
+          },
+        }).catch(() => {});
+        await prisma.refundRequest.updateMany({
+          where: {
+            requestGroupKey,
+            status: 'creating',
+            providerRefundId: null,
+            id: { not: request.id },
+          },
+          data: { status: 'canceled', failureCode: 'refund_group_part_failed' },
+        }).catch(() => {});
+        return {
+          ok: false,
+          error: stripeRefund?.error?.code || 'stripe_refund_failed',
+          statusCode: 502,
+          retryable: false,
+        };
+      }
+    } catch {
+      return {
+        ok: false,
+        error: 'stripe_network_error',
+        statusCode: 502,
+        retryable: true,
+        refundRequest: request,
+        refundRequests: [...accepted, request],
+      };
+    }
+
+    try {
+      assertRefundBinding(request, attempt, stripeRefund);
+    } catch (error) {
+      return {
+        ok: false,
+        error: error.code || 'stripe_refund_invariant_failed',
+        statusCode: 502,
+        retryable: false,
+      };
+    }
+    const providerStatus = normalizedRefundStatus(stripeRefund);
+    const requestStatus = providerStatus === 'succeeded' ? 'pending_webhook' : providerStatus;
+    const updated = await prisma.refundRequest.update({
+      where: { id: request.id },
+      data: {
+        providerRefundId: stripeRefund.id,
+        status: requestStatus,
+        failureCode: requestStatus === 'failed'
+          ? sanitizeStripeErrorCode(stripeRefund.failure_reason || 'provider_failed')
+          : null,
+      },
+    });
+    if (requestStatus === 'failed' || requestStatus === 'canceled') {
+      return {
+        ok: false,
+        error: `refund_${requestStatus}`,
+        statusCode: 409,
+        retryable: false,
+        refundRequest: updated,
+        refundRequests: [...accepted, updated],
+      };
+    }
+    accepted.push(updated);
+  }
+
+  const refundRequest = accepted[0];
+  return {
+    ok: true,
+    created: reserved.created,
+    refundRequest,
+    refundRequests: accepted,
+    splitAcrossPayments: accepted.length > 1,
+    awaitingWebhook: accepted.some((request) => request.status !== 'succeeded'),
+  };
+}
+
+/** Signed-webhook authority for refund request state and ledger debits. */
+async function reconcileRefundEvent({ stripeEventId, type, refund, eventCreatedAt = null }) {
+  const eventId = String(stripeEventId || '').trim();
+  const eventType = String(type || '').trim();
+  if (!eventId || !eventType || !refund?.id) {
+    return { ok: false, error: 'malformed_event', statusCode: 400, quarantined: true };
+  }
+  if (!['refund.created', 'refund.updated', 'refund.failed'].includes(eventType)) {
+    return { ok: false, error: 'unsupported_event_type', statusCode: 400, quarantined: false };
+  }
+  const payload = sanitizeStripeEventPayload(refund);
+  const providerCreatedAt = normalizedEventDate(eventCreatedAt);
+  try {
+    return await runSerializableWithRetry(async (tx) => {
+      await tx.stripeEvent.upsert({
+        where: { stripeEventId: eventId },
+        create: {
+          stripeEventId: eventId,
+          type: eventType,
+          bookingId: payload.bookingId || null,
+          payload,
+          status: 'received',
+          providerCreatedAt,
+        },
+        update: { type: eventType, bookingId: payload.bookingId || null, payload, providerCreatedAt },
+      });
+      const inboxRows = await tx.$queryRaw`
+        SELECT "status"::text AS "status" FROM "StripeEvent"
+        WHERE "stripeEventId" = ${eventId} FOR UPDATE
+      `;
+      if (inboxRows[0]?.status === 'processed') {
+        return { ok: true, duplicate: true, reason: 'event_already_processed' };
+      }
+      await tx.stripeEvent.update({
+        where: { stripeEventId: eventId },
+        data: { status: 'processing', attemptCount: { increment: 1 }, errorCode: null, lastAttemptAt: new Date() },
+      });
+
+      const binding = refundBinding(refund);
+      let request = await tx.refundRequest.findUnique({ where: { providerRefundId: refund.id } });
+      if (!request && binding.refundRequestId) {
+        request = await tx.refundRequest.findUnique({ where: { id: binding.refundRequestId } });
+      }
+      if (!request) throw new PaymentEventInvariantError('no_matching_refund_request');
+      const lockedRequests = await tx.$queryRaw`
+        SELECT "id" FROM "RefundRequest" WHERE "id" = ${request.id} FOR UPDATE
+      `;
+      if (!lockedRequests.length) throw new PaymentEventInvariantError('no_matching_refund_request');
+      request = await tx.refundRequest.findUnique({ where: { id: request.id } });
+      const attempt = await tx.paymentAttempt.findUnique({ where: { id: request.paymentAttemptId } });
+      if (!attempt) throw new PaymentEventInvariantError('refund_payment_attempt_missing');
+      assertRefundBinding(request, attempt, refund);
+
+      const finishEvent = () => tx.stripeEvent.update({
+        where: { stripeEventId: eventId },
+        data: { status: 'processed', processedAt: new Date(), errorCode: null },
+      });
+      const nextStatus = normalizedRefundStatus(refund, eventType);
+      const incomingIsOlder = providerCreatedAt
+        && request.lastProviderEventCreatedAt
+        && providerCreatedAt.getTime() < request.lastProviderEventCreatedAt.getTime();
+      const terminalWouldRegress = request.status === 'succeeded' && nextStatus !== 'succeeded';
+      if (incomingIsOlder || terminalWouldRegress) {
+        await finishEvent();
+        return {
+          ok: true,
+          ignored: true,
+          reason: incomingIsOlder ? 'out_of_order_event' : 'terminal_state_preserved',
+          projection: await projectionInTransaction(tx, request.bookingId),
+        };
+      }
+
+      let ledger = null;
+      let ledgerCreated = false;
+      if (nextStatus === 'succeeded') {
+        const providerEventId = `refund_${refund.id}`;
+        ledger = await tx.ledgerEntry.findUnique({ where: { providerEventId } });
+        if (!ledger) {
+          const quote = await tx.quote.findUnique({
+            where: { bookingId_quoteVersion: { bookingId: request.bookingId, quoteVersion: request.quoteVersion } },
+          });
+          ledger = await tx.ledgerEntry.create({
+            data: {
+              bookingId: request.bookingId,
+              quoteId: quote?.id || null,
+              paymentAttemptId: attempt.id,
+              kind: 'refund',
+              amountCents: request.amountCents,
+              currency: request.currency,
+              quoteVersion: request.quoteVersion,
+              providerObjectId: refund.id,
+              providerEventId,
+              stripeEventId: eventId,
+              occurredAt: providerCreatedAt || new Date(),
+              actor: 'stripe_webhook',
+            },
+          });
+          ledgerCreated = true;
+        }
+      }
+      await tx.refundRequest.update({
+        where: { id: request.id },
+        data: {
+          providerRefundId: refund.id,
+          status: nextStatus,
+          lastProviderEventId: eventId,
+          ...(providerCreatedAt ? { lastProviderEventCreatedAt: providerCreatedAt } : {}),
+          failureCode: nextStatus === 'failed'
+            ? sanitizeStripeErrorCode(refund.failure_reason || 'provider_failed')
+            : null,
+          ...(nextStatus === 'succeeded' ? { succeededAt: providerCreatedAt || new Date() } : {}),
+        },
+      });
+      await finishEvent();
+      const projection = await projectionInTransaction(tx, request.bookingId);
+      return {
+        ok: true,
+        duplicate: nextStatus === 'succeeded' ? !ledgerCreated : false,
+        status: nextStatus,
+        ledger: nextStatus === 'succeeded' ? { created: ledgerCreated, entry: ledger } : null,
+        projection,
+      };
+    });
+  } catch (error) {
+    const errorCode = error instanceof PaymentEventInvariantError ? error.code : 'processing_failed';
+    const failureRecorded = await persistFailedStripeEvent({
+      stripeEventId: eventId,
+      type: eventType,
+      paymentIntent: refund,
+      eventCreatedAt,
+      errorCode,
+    });
+    return { ok: false, error: errorCode, statusCode: 500, quarantined: true, failureRecorded };
+  }
 }
 
 /**
- * Post-payment (or pre-payment) financial adjustment: creates a new quote
- * version with the new total. Never mutates the prior quote — settled
- * quote versions are immutable. The new remaining balance is
- * automatically just the delta, because getFinancialProjection sums
- * settled/refunded cents across the whole booking, not per quote version.
+ * Approve one immutable quote adjustment under serializable quote-version CAS.
+ * Settled money is never rewritten: increases become a remaining delta and
+ * decreases expose outstandingCreditCents for a separate refund request.
  */
-async function createAdjustment({ bookingId, newApprovedCents, reason = null }) {
-  const before = await getFinancialProjection(bookingId);
-  if (!before) return { ok: false, error: 'not_found', statusCode: 404 };
-  const attempts = await repo.listPaymentAttempts(bookingId);
-  const activeAttempt = attempts.find((attempt) => (
-    ['creating', 'open', 'requires_action'].includes(attempt.status)
-  ));
-  if (activeAttempt) {
-    return {
-      ok: false,
-      error: 'payment_attempt_in_progress',
-      statusCode: 409,
-      projection: before,
-    };
+async function createAdjustment({
+  bookingId,
+  newApprovedCents,
+  reason,
+  adjustmentId,
+  expectedQuoteVersion = null,
+  approvedBy = 'admin',
+}) {
+  const id = String(bookingId || '').trim();
+  const cents = Math.round(Number(newApprovedCents));
+  const note = String(reason || '').trim().slice(0, 500);
+  const adjustmentKey = String(adjustmentId || '').trim().slice(0, 96);
+  const expectedVersion = expectedQuoteVersion == null
+    ? null
+    : Math.round(Number(expectedQuoteVersion));
+  if (!id) return { ok: false, error: 'bookingId_required', statusCode: 400 };
+  if (!Number.isFinite(cents) || cents < 0) {
+    return { ok: false, error: 'invalid_approved_amount', statusCode: 400 };
+  }
+  if (!note) return { ok: false, error: 'reason_required', statusCode: 400 };
+  if (!/^[A-Za-z0-9_-]{6,96}$/.test(adjustmentKey)) {
+    return { ok: false, error: 'adjustment_id_required', statusCode: 400 };
   }
 
-  const { previousQuote, quote } = await repo.createAdjustmentQuote({
-    bookingId,
-    approvedCents: newApprovedCents,
-    status: 'approved',
-  });
+  try {
+    return await runSerializableWithRetry(async (tx) => {
+      const existing = await tx.quote.findUnique({ where: { adjustmentId: adjustmentKey } });
+      if (existing) {
+        if (existing.bookingId !== id
+          || existing.approvedCents !== cents
+          || existing.adjustmentReason !== note) {
+          return { ok: false, error: 'adjustment_id_conflict', statusCode: 409 };
+        }
+        return {
+          ok: true,
+          created: false,
+          idempotent: true,
+          quote: existing,
+          after: await projectionInTransaction(tx, id),
+        };
+      }
 
-  const after = await getFinancialProjection(bookingId);
-  return { ok: true, previousQuote, quote, before, after, reason };
+      const locked = await tx.$queryRaw`
+        SELECT "id" FROM "Booking" WHERE "id" = ${id} FOR UPDATE
+      `;
+      if (!locked.length) return { ok: false, error: 'not_found', statusCode: 404 };
+      const replayAfterLock = await tx.quote.findUnique({ where: { adjustmentId: adjustmentKey } });
+      if (replayAfterLock) {
+        if (replayAfterLock.bookingId !== id
+          || replayAfterLock.approvedCents !== cents
+          || replayAfterLock.adjustmentReason !== note) {
+          return { ok: false, error: 'adjustment_id_conflict', statusCode: 409 };
+        }
+        return {
+          ok: true,
+          created: false,
+          idempotent: true,
+          quote: replayAfterLock,
+          after: await projectionInTransaction(tx, id),
+        };
+      }
+      const previousQuote = await tx.quote.findFirst({
+        where: { bookingId: id },
+        orderBy: { quoteVersion: 'desc' },
+        include: { items: true },
+      });
+      if (!previousQuote) return { ok: false, error: 'not_found', statusCode: 404 };
+      if (expectedVersion != null && previousQuote.quoteVersion !== expectedVersion) {
+        return {
+          ok: false,
+          error: 'stale_quote_version',
+          statusCode: 409,
+          expectedQuoteVersion: expectedVersion,
+          actualQuoteVersion: previousQuote.quoteVersion,
+        };
+      }
+      const activeAttempt = await tx.paymentAttempt.findFirst({
+        where: { bookingId: id, status: { in: ['creating', 'open', 'requires_action'] } },
+      });
+      if (activeAttempt) {
+        return { ok: false, error: 'payment_attempt_in_progress', statusCode: 409 };
+      }
+
+      const before = await projectionInTransaction(tx, id);
+      const deltaCents = cents - previousQuote.approvedCents;
+      const copiedItems = previousQuote.items.map((item) => ({
+        vehicleId: item.vehicleId,
+        kind: item.kind,
+        label: item.label,
+        amountCents: item.amountCents,
+      }));
+      if (deltaCents !== 0) {
+        copiedItems.push({
+          kind: deltaCents > 0 ? 'adjustment_increase' : 'adjustment_decrease',
+          label: `Price adjustment — ${note}`.slice(0, 220),
+          amountCents: deltaCents,
+        });
+      }
+      const quote = await tx.quote.create({
+        data: {
+          bookingId: id,
+          quoteVersion: previousQuote.quoteVersion + 1,
+          approvedCents: cents,
+          currency: previousQuote.currency,
+          status: 'approved',
+          adjustmentId: adjustmentKey,
+          adjustmentReason: note,
+          approvedBy: String(approvedBy || 'admin').trim().slice(0, 96) || 'admin',
+          approvedAt: new Date(),
+          ...(copiedItems.length ? { items: { create: copiedItems } } : {}),
+        },
+        include: { items: true },
+      });
+      if (previousQuote.status !== 'settled') {
+        await tx.quote.update({ where: { id: previousQuote.id }, data: { status: 'superseded' } });
+      }
+      await tx.auditEvent.create({
+        data: {
+          bookingId: id,
+          actor: quote.approvedBy || 'admin',
+          action: 'quote_adjustment_approved',
+          detail: {
+            adjustmentId: adjustmentKey,
+            reason: note,
+            previousQuoteVersion: previousQuote.quoteVersion,
+            quoteVersion: quote.quoteVersion,
+            previousApprovedCents: previousQuote.approvedCents,
+            approvedCents: cents,
+            deltaCents,
+          },
+        },
+      });
+      const after = await projectionInTransaction(tx, id);
+      return {
+        ok: true,
+        created: true,
+        previousQuote,
+        quote,
+        before,
+        after,
+        deltaCents,
+        outstandingCreditCents: Math.max(0, (after?.settledCents || 0) - (after?.approvedCents || 0)),
+        reason: note,
+      };
+    });
+  } catch (error) {
+    if (error?.code === 'P2002') return { ok: false, error: 'version_conflict', statusCode: 409 };
+    throw error;
+  }
 }
 
 function isOnSiteSettlementEntry(entry, method = null) {
@@ -1100,13 +1750,17 @@ async function recordFullBalanceCashSettlement(args) {
 module.exports = {
   buildIdempotencyKey,
   getFinancialProjection,
+  getReceiptAuthorityData,
   reserveAndCreatePaymentIntent,
   retrievePaymentIntentClientSecret,
   createCustomerSession,
   reconcileFromStripeProvider,
   reconcilePaymentIntentEvent,
   createRefund,
+  reconcileRefundEvent,
   createAdjustment,
+  buildRefundIdempotencyKey,
+  refundBinding,
   recordFullBalanceOnSiteSettlement,
   recordFullBalanceCashSettlement,
   buildOnSiteFullBalanceProviderEventId,

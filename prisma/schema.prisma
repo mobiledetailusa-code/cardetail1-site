@@ -21,21 +21,21 @@ model PrismaHealth {
 
 /// Future booking aggregate mirror (JSON payload = Release A booking shape)
 model BookingRecord {
-  id                      String   @id
-  bookingVersion          Int      @default(0)
-  quoteVersion            Int      @default(0)
-  schemaVersion           Int      @default(1)
-  kind                    String   @default("booking")
-  jobStatus               String?
-  paymentWorkflowStatus   String?
-  paymentStatus           String?
-  phone                   String?
-  email                   String?
-  preferredDate           String?
+  id                    String   @id
+  bookingVersion        Int      @default(0)
+  quoteVersion          Int      @default(0)
+  schemaVersion         Int      @default(1)
+  kind                  String   @default("booking")
+  jobStatus             String?
+  paymentWorkflowStatus String?
+  paymentStatus         String?
+  phone                 String?
+  email                 String?
+  preferredDate         String?
   /// Full Release A aggregate / historical blob JSON
-  payload                 Json
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  payload               Json
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@index([phone])
   @@index([email])
@@ -117,6 +117,15 @@ enum StripeEventStatus {
   processing
   processed
   failed
+}
+
+enum RefundRequestStatus {
+  creating
+  pending_webhook
+  requires_action
+  succeeded
+  failed
+  canceled
 }
 
 /// Legacy Phase 2 payment/booking join placeholder — NOT the permanent identity root.
@@ -249,15 +258,15 @@ model CustomerConsent {
 /// owns the booking. Financial authority (quotes, ledger, payments) is unchanged.
 /// Existing non-null links are never overwritten.
 model Booking {
-  id                String                  @id
+  id                String                 @id
   customerId        String?
   customerAccountId String?
-  bookingVersion    Int                     @default(0)
-  status            BookingLifecycleStatus  @default(draft)
-  isDraft           Boolean                 @default(true)
-  archived          Boolean                 @default(false)
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
+  bookingVersion    Int                    @default(0)
+  status            BookingLifecycleStatus @default(draft)
+  isDraft           Boolean                @default(true)
+  archived          Boolean                @default(false)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
   customer        Customer?        @relation(fields: [customerId], references: [id])
   customerAccount CustomerAccount? @relation(fields: [customerAccountId], references: [id])
@@ -265,6 +274,7 @@ model Booking {
   quotes          Quote[]
   changeRequests  ChangeRequest[]
   paymentAttempts PaymentAttempt[]
+  refundRequests  RefundRequest[]
   ledgerEntries   LedgerEntry[]
   auditEvents     AuditEvent[]
 
@@ -292,14 +302,18 @@ model Vehicle {
 
 /// Immutable once status = settled (application-layer + trigger enforced; see migration.sql).
 model Quote {
-  id            String      @id @default(cuid())
-  bookingId     String
-  quoteVersion  Int
-  approvedCents Int         @default(0)
-  currency      String      @default("usd")
-  status        QuoteStatus @default(draft)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id               String      @id @default(cuid())
+  bookingId        String
+  quoteVersion     Int
+  approvedCents    Int         @default(0)
+  currency         String      @default("usd")
+  status           QuoteStatus @default(draft)
+  adjustmentId     String?     @unique
+  adjustmentReason String?
+  approvedBy       String?
+  approvedAt       DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   booking         Booking          @relation(fields: [bookingId], references: [id])
   items           QuoteItem[]
@@ -327,17 +341,17 @@ model QuoteItem {
 }
 
 model ChangeRequest {
-  id                  String               @id @default(cuid())
+  id                  String              @id @default(cuid())
   bookingId           String
   quoteVersion        Int?
   kind                ChangeRequestKind
-  status              ChangeRequestStatus  @default(pending)
+  status              ChangeRequestStatus @default(pending)
   payload             Json
-  requiresAdminReview Boolean              @default(false)
+  requiresAdminReview Boolean             @default(false)
   decidedAt           DateTime?
   decidedBy           String?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
 
   booking Booking @relation(fields: [bookingId], references: [id])
 
@@ -348,31 +362,66 @@ model ChangeRequest {
 /// One active (creating|open|requires_action) obligation per bookingId+quoteVersion —
 /// enforced by a partial unique index in migration.sql (not expressible in schema.prisma).
 model PaymentAttempt {
-  id                 String                @id @default(cuid())
-  bookingId          String
-  quoteId            String?
-  quoteVersion       Int
-  generation         Int                   @default(1)
-  provider           String                @default("stripe")
-  purpose            String                @default("customer_balance")
-  providerCustomerId String?
-  providerObjectType ProviderObjectType
-  providerObjectId   String?               @unique
-  status             PaymentAttemptStatus  @default(creating)
-  amountCents        Int
-  currency           String                @default("usd")
-  idempotencyKey     String                @unique
+  id                         String               @id @default(cuid())
+  bookingId                  String
+  quoteId                    String?
+  quoteVersion               Int
+  generation                 Int                  @default(1)
+  provider                   String               @default("stripe")
+  purpose                    String               @default("customer_balance")
+  providerCustomerId         String?
+  providerObjectType         ProviderObjectType
+  providerObjectId           String?              @unique
+  status                     PaymentAttemptStatus @default(creating)
+  amountCents                Int
+  currency                   String               @default("usd")
+  idempotencyKey             String               @unique
   lastProviderEventId        String?
   lastProviderEventCreatedAt DateTime?
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @updatedAt
 
-  booking       Booking       @relation(fields: [bookingId], references: [id])
-  quote         Quote?        @relation(fields: [quoteId], references: [id])
-  ledgerEntries LedgerEntry[]
+  booking        Booking         @relation(fields: [bookingId], references: [id])
+  quote          Quote?          @relation(fields: [quoteId], references: [id])
+  ledgerEntries  LedgerEntry[]
+  refundRequests RefundRequest[]
 
   @@index([bookingId])
   @@index([quoteVersion])
+}
+
+/// Provider refund request state. Money is never debited from the ledger when
+/// this row is created; only a signed, invariant-checked refund webhook may
+/// append the corresponding LedgerEntry(kind=refund).
+model RefundRequest {
+  id                         String              @id @default(cuid())
+  bookingId                  String
+  paymentAttemptId           String
+  quoteVersion               Int
+  amountCents                Int
+  currency                   String              @default("usd")
+  reason                     String
+  requestedBy                String
+  status                     RefundRequestStatus @default(creating)
+  requestGroupKey            String
+  partIndex                  Int                 @default(0)
+  idempotencyKey             String              @unique
+  providerRefundId           String?             @unique
+  lastProviderEventId        String?
+  lastProviderEventCreatedAt DateTime?
+  failureCode                String?
+  succeededAt                DateTime?
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+
+  booking        Booking        @relation(fields: [bookingId], references: [id])
+  paymentAttempt PaymentAttempt @relation(fields: [paymentAttemptId], references: [id])
+
+  @@unique([requestGroupKey, partIndex])
+  @@index([bookingId])
+  @@index([paymentAttemptId])
+  @@index([requestGroupKey])
+  @@index([status])
 }
 
 /// Append-only: UPDATE/DELETE are blocked at the database level (see migration.sql trigger).
@@ -450,28 +499,28 @@ model OsSite {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  settings              OsSiteSettings?
-  packages              OsPackage[]
-  addOns                OsAddOn[]
-  vehicleClasses        OsVehicleClass[]
-  drafts                OsCatalogDraft[]
-  revisions             OsCatalogRevision[]
-  releases              OsPublishedRelease[]
-  currentPointer        OsCurrentReleasePointer?
-  media                 OsMediaAsset[]
-  auditLogs             OsAuditLog[]
+  settings       OsSiteSettings?
+  packages       OsPackage[]
+  addOns         OsAddOn[]
+  vehicleClasses OsVehicleClass[]
+  drafts         OsCatalogDraft[]
+  revisions      OsCatalogRevision[]
+  releases       OsPublishedRelease[]
+  currentPointer OsCurrentReleasePointer?
+  media          OsMediaAsset[]
+  auditLogs      OsAuditLog[]
 }
 
 model OsSiteSettings {
-  siteId           String   @id
-  businessName     String?
-  legalEntityName  String?
-  phoneE164        String?
-  publicEmail      String?
-  logoMediaId      String?
-  announcement     String?
-  socialLinksJson  Json?
-  updatedAt        DateTime @updatedAt
+  siteId          String   @id
+  businessName    String?
+  legalEntityName String?
+  phoneE164       String?
+  publicEmail     String?
+  logoMediaId     String?
+  announcement    String?
+  socialLinksJson Json?
+  updatedAt       DateTime @updatedAt
 
   site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
 }
@@ -487,10 +536,10 @@ model OsPackage {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  site       OsSite             @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
-  revisions  OsPackageRevision[]
-  prices     OsPackagePrice[]
-  features   OsPackageFeature[]
+  site         OsSite                  @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+  revisions    OsPackageRevision[]
+  prices       OsPackagePrice[]
+  features     OsPackageFeature[]
   availability OsPackageAvailability[]
 
   @@id([siteId, packageId])
@@ -516,18 +565,18 @@ model OsPackageRevision {
 }
 
 model OsPackagePrice {
-  packagePriceId   String   @id @default(cuid())
-  siteId           String
-  packageId        String
-  vehicleClassId   String?
-  currency         String   @default("usd")
-  amountCents      Int
-  priceModel       String   @default("flat")
-  perFootCents     Int?
-  minCents         Int?
-  baseCents        Int?
-  releaseId        String?
-  createdAt        DateTime @default(now())
+  packagePriceId String   @id @default(cuid())
+  siteId         String
+  packageId      String
+  vehicleClassId String?
+  currency       String   @default("usd")
+  amountCents    Int
+  priceModel     String   @default("flat")
+  perFootCents   Int?
+  minCents       Int?
+  baseCents      Int?
+  releaseId      String?
+  createdAt      DateTime @default(now())
 
   package OsPackage @relation(fields: [siteId, packageId], references: [siteId, packageId], onDelete: Cascade)
 
@@ -536,13 +585,13 @@ model OsPackagePrice {
 }
 
 model OsPackageFeature {
-  id               String   @id @default(cuid())
-  siteId           String
-  packageId        String
+  id                String  @id @default(cuid())
+  siteId            String
+  packageId         String
   packageRevisionId String?
-  kind             String
-  label            String
-  sortOrder        Int      @default(0)
+  kind              String
+  label             String
+  sortOrder         Int     @default(0)
 
   package OsPackage @relation(fields: [siteId, packageId], references: [siteId, packageId], onDelete: Cascade)
 
@@ -563,14 +612,14 @@ model OsPackageAvailability {
 }
 
 model OsVehicleClass {
-  siteId          String
-  vehicleClassId  String
-  legacyKey       String?
-  category        String
-  label           String
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  siteId         String
+  vehicleClassId String
+  legacyKey      String?
+  category       String
+  label          String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
 
@@ -587,10 +636,10 @@ model OsAddOn {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  site           OsSite              @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
-  revisions      OsAddOnRevision[]
-  prices         OsAddOnPrice[]
-  compatibility  OsAddOnCompatibility[]
+  site          OsSite                 @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+  revisions     OsAddOnRevision[]
+  prices        OsAddOnPrice[]
+  compatibility OsAddOnCompatibility[]
 
   @@id([siteId, addOnId])
 }

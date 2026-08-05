@@ -38,7 +38,6 @@ const {
   setApprovedFinalAmount,
   resolveAdminCashSettlement,
   markCashReceived,
-  markRefunded,
   markCardOnSite,
   generateCustomerLinks,
   reopenAppointment,
@@ -53,7 +52,6 @@ const MONEY_MUTATION_ACTIONS = new Set([
   'set_approved_final_amount',
   'mark_cash_received',
   'mark_card_on_site',
-  'mark_refunded',
   'apply_welcome_offer',
   'remove_welcome_offer',
   'record_job_balance',
@@ -248,29 +246,6 @@ async function persistMutation(store, bookingId, booking, previous, action, reas
           occurredAt: new Date().toISOString(),
           recordedAt: new Date().toISOString(),
           actor: `admin_${action}`,
-        });
-      }
-    }
-
-    if (action === 'mark_refunded') {
-      // Never a bare status flip: clamp to what is actually settled and
-      // record a real ledger debit + audit entry, same as a cash credit
-      // but in reverse. Never allow refunding more than was paid.
-      const requestedCents = dollarsToCents(mutated.refundRequestAmount);
-      const netSettled = Math.max(0, settledCents - creditedCents);
-      const refundCents = Math.min(Math.max(0, requestedCents), netSettled);
-      if (refundCents > 0) {
-        settledCents = Math.max(0, settledCents - refundCents);
-        entries.push({
-          entryId: `le_admin_${action}_${Date.now()}`,
-          kind: 'refund',
-          amountCents: refundCents,
-          currency: 'usd',
-          quoteVersion: Math.round(Number(base.quoteVersion) || 0),
-          bookingVersion: expected,
-          occurredAt: new Date().toISOString(),
-          recordedAt: new Date().toISOString(),
-          actor: 'admin_mark_refunded',
         });
       }
     }
@@ -1076,6 +1051,8 @@ function adminOperationalControls(booking, projection = null) {
     : financialProjection(booking);
   const remainingCents = Math.max(0, Math.round(Number(fin.remainingCents) || 0));
   const settledCents = Math.max(0, Math.round(Number(fin.settledCents) || 0));
+  const refundableCents = Math.max(0, Math.round(Number(fin.refundableCents) || 0));
+  const pendingRefundCents = Math.max(0, Math.round(Number(fin.pendingRefundCents) || 0));
   const reopenable = canReopenService(booking);
   const post = postServiceState(booking);
 
@@ -1108,6 +1085,17 @@ function adminOperationalControls(booking, projection = null) {
         : 'There is no remaining balance to collect.',
     },
     reconcileStripe: reconcileRecoveryCapability(fin),
+    refund: {
+      enabled: refundableCents > 0 && pendingRefundCents === 0,
+      refundableCents,
+      pendingRefundCents,
+      status: fin.refundRequestStatus || null,
+      explanation: pendingRefundCents > 0
+        ? 'A Stripe refund is already awaiting webhook confirmation.'
+        : (refundableCents > 0
+          ? 'Issues an idempotent Stripe refund. The ledger changes only after the signed webhook.'
+          : 'There is no refundable Stripe payment balance.'),
+    },
     priceAdjustment: {
       enabled: true,
       requiresAdjustmentRecord: settledCents > 0,
@@ -1921,45 +1909,69 @@ async function handleAdminAction(body) {
   }
 
   if (action === 'record_refund_request') {
-    // Logging only — never a status-only "mark refunded" shortcut. Marking
-    // an invoice as actually refunded must go through the mark_refunded
-    // action below, which records a real ledger debit, not just this note.
     const reason = sanitizeText(body.reason, 500);
-    const amount = body.amount != null ? Math.round(Number(body.amount) * 100) / 100 : null;
-    await store.setJSON(bookingId, {
-      ...booking,
-      refundRequestedAt: now,
-      refundRequestReason: reason,
-      refundRequestAmount: amount,
-      refundStatus: 'pending_admin',
-      updatedAt: now,
-      eventLog: appendEventLog(booking, { action: 'refund_requested', by: 'admin', reason, amount }),
+    const amountNumber = Number(body.amount);
+    const amountCents = Math.round(amountNumber * 100);
+    const expectedBookingVersion = Math.round(Number(body.expectedBookingVersion));
+    const actualBookingVersion = Math.round(Number(booking.bookingVersion) || 0);
+    if (!reason) return jsonCors(400, { ok: false, error: 'reason_required' });
+    if (!Number.isFinite(amountNumber) || !(amountCents > 0)) {
+      return jsonCors(400, { ok: false, error: 'invalid_refund_amount' });
+    }
+    if (body.expectedBookingVersion == null
+      || !Number.isFinite(expectedBookingVersion)
+      || expectedBookingVersion !== actualBookingVersion) {
+      return jsonCors(409, {
+        ok: false,
+        error: 'version_conflict',
+        expectedBookingVersion: Number.isFinite(expectedBookingVersion) ? expectedBookingVersion : null,
+        actualBookingVersion,
+      });
+    }
+    const { postgresPaymentEnabled } = require('../lib/db/operational-payment');
+    if (!postgresPaymentEnabled()) {
+      return jsonCors(503, { ok: false, error: 'postgres_payment_disabled' });
+    }
+    const { ensureBookingFinancial } = require('../lib/db/ensure-booking-financial');
+    const ensured = await ensureBookingFinancial(booking);
+    if (!ensured.ok) return jsonCors(503, { ok: false, error: ensured.error || 'ensure_failed' });
+    const authority = require('../lib/db/payment-authority-service');
+    const projection = await authority.getFinancialProjection(bookingId);
+    const result = await authority.createRefund({
+      bookingId,
+      amountCents,
+      reason,
+      requestKey: sanitizeText(body.requestKey, 96),
+      expectedQuoteVersion: body.expectedQuoteVersion || projection?.quoteVersion,
+      requestedBy: 'admin',
     });
-    return jsonCors(200, {
+    if (!result.ok) {
+      return jsonCors(result.statusCode || 400, {
+        ok: false,
+        error: result.error,
+        retryable: !!result.retryable,
+        actualQuoteVersion: result.actualQuoteVersion,
+      });
+    }
+    return jsonCors(202, {
       ok: true,
       bookingId,
-      refundStatus: 'pending_admin',
-      note: 'Refund logged — use Mark refunded once the money has actually moved (Stripe or cash) to record it against the ledger.',
+      refundStatus: result.refundRequest.status,
+      refundRequestId: result.refundRequest.id,
+      refundRequestIds: (result.refundRequests || [result.refundRequest]).map((request) => request.id),
+      amountCents: (result.refundRequests || [result.refundRequest])
+        .reduce((sum, request) => sum + request.amountCents, 0),
+      splitAcrossPayments: !!result.splitAcrossPayments,
+      awaitingWebhook: !!result.awaitingWebhook,
+      note: 'Stripe accepted the request. The ledger changes only after the signed refund webhook.',
     });
   }
 
   if (action === 'mark_refunded') {
     return jsonCors(410, {
       ok: false,
-      error: 'refund_execution_pending_authoritative_webhook',
-      message: 'Refund execution is disabled until PR 2 adds webhook-confirmed PostgreSQL refund ledger entries.',
-    });
-    const result = markRefunded(booking, body);
-    const persisted = await persistMutation(store, bookingId, result.booking, booking, 'mark_refunded', body.reason);
-    if (!persisted.ok) {
-      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
-    }
-    return jsonCors(200, {
-      ok: true,
-      bookingId,
-      refundStatus: persisted.booking.refundStatus,
-      amountDueApproved: persisted.booking.amountDueApproved,
-      bookingVersion: persisted.bookingVersion,
+      error: 'manual_refund_status_disabled',
+      message: 'Use Issue Stripe refund. Only the signed Stripe webhook can record a refund in the ledger.',
     });
   }
 
@@ -2275,7 +2287,7 @@ async function handleAdminAction(body) {
       return jsonCors(400, { ok: false, error: 'invalid_adjustment_op', ops: Object.keys(handlers) });
     }
 
-    const result = handler(booking, body);
+    const result = handler(booking, { ...body, actorId: 'admin' });
     if (!result.ok) {
       return jsonCors(result.statusCode || 400, {
         ok: false,
@@ -2298,6 +2310,63 @@ async function handleAdminAction(body) {
       });
     }
 
+    let authoritativeAdjustment = null;
+    if (op === 'apply') {
+      const { postgresPaymentEnabled } = require('../lib/db/operational-payment');
+      const { ensureBookingFinancial } = require('../lib/db/ensure-booking-financial');
+      const authority = require('../lib/db/payment-authority-service');
+      if (!postgresPaymentEnabled()) {
+        return jsonCors(503, { ok: false, error: 'postgres_payment_disabled' });
+      }
+      const ensured = await ensureBookingFinancial(booking);
+      if (!ensured.ok) {
+        return jsonCors(503, { ok: false, error: ensured.error || 'ensure_failed' });
+      }
+      authoritativeAdjustment = await authority.createAdjustment({
+        bookingId,
+        newApprovedCents: result.approvedCents,
+        reason: result.adjustment.reason,
+        adjustmentId: result.adjustment.adjustmentId,
+        expectedQuoteVersion: result.adjustment.quoteVersion,
+        approvedBy: result.adjustment.decidedBy || 'admin',
+      });
+      if (!authoritativeAdjustment.ok) {
+        return jsonCors(authoritativeAdjustment.statusCode || 409, {
+          ok: false,
+          error: authoritativeAdjustment.error || 'adjustment_failed',
+          expectedQuoteVersion: authoritativeAdjustment.expectedQuoteVersion,
+          actualQuoteVersion: authoritativeAdjustment.actualQuoteVersion,
+        });
+      }
+      const pg = authoritativeAdjustment.after;
+      result.patch = {
+        ...result.patch,
+        quoteVersion: pg.quoteVersion,
+        quote: {
+          ...(booking.quote || {}),
+          quoteVersion: pg.quoteVersion,
+          approvedCents: pg.approvedCents,
+          currency: 'usd',
+          adjustmentId: result.adjustment.adjustmentId,
+          adjustmentReason: result.adjustment.reason,
+        },
+        ledger: {
+          ...(booking.ledger || {}),
+          currency: 'usd',
+          approvedCents: pg.approvedCents,
+          settledCents: pg.settledCents,
+          refundedCents: pg.refundedCents,
+        },
+        approvedFinalAmount: pg.approvedCents / 100,
+        finalAmount: pg.approvedCents / 100,
+        totalPrice: pg.approvedCents / 100,
+        amountPaid: pg.settledCents / 100,
+        paidAmount: pg.settledCents / 100,
+        amountDueApproved: pg.remainingCents / 100,
+        balanceDue: pg.remainingCents / 100,
+      };
+    }
+
     const patched = {
       ...booking,
       ...result.patch,
@@ -2310,9 +2379,9 @@ async function handleAdminAction(body) {
         amountCents: result.adjustment.amountCents,
       }),
     };
-    // Only `apply` moves the approved total, so only `apply` runs the money path
-    // that re-derives the ledger and mints a new quote version.
-    const persistAction = op === 'apply' ? 'set_approved_final_amount' : 'price_adjustment';
+    // PostgreSQL already minted the immutable quote for apply. This Blob write
+    // is compatibility state only and must not create a second quote.
+    const persistAction = 'price_adjustment';
     const persisted = await persistMutation(
       store, bookingId, patched, booking, persistAction,
       result.adjustment.reason || sanitizeText(body.reason, 500)
@@ -2329,6 +2398,7 @@ async function handleAdminAction(body) {
       outcome: result.outcome || result.adjustment.projectedOutcome,
       supplementalDueCents: result.supplementalDueCents || 0,
       refundReviewRequired: !!persisted.booking.refundReviewRequired,
+      outstandingCreditCents: authoritativeAdjustment?.outstandingCreditCents || 0,
       statement: adjustmentStatement(persisted.booking),
     });
   }

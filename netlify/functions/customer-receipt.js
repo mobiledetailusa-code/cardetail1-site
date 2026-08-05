@@ -6,9 +6,9 @@
  * bookingId + the phone on file. A booking id alone is never sufficient, and no
  * new token system is introduced.
  *
- * The response is an explicit allowlist built by receipt-projection. Stripe ids,
- * client secrets, portal tokens, raw ledger entries and Admin notes are never
- * returned.
+ * The response is an explicit allowlist built from the approved PostgreSQL
+ * quote version and ledger. Client secrets, portal tokens, raw rows and Admin
+ * notes are never returned.
  */
 
 const { jsonCors } = require('../lib/tech-security');
@@ -56,7 +56,33 @@ exports.handler = async (event) => {
   }
 
   try {
-    const result = buildReceiptProjection(auth.booking, receiptType);
+    const { postgresPaymentEnabled } = require('../lib/db/operational-payment');
+    const { ensureBookingFinancial } = require('../lib/db/ensure-booking-financial');
+    const { getReceiptAuthorityData } = require('../lib/db/payment-authority-service');
+    if (!postgresPaymentEnabled()) {
+      return jsonCors(503, {
+        ok: false,
+        error: 'financial_authority_unavailable',
+        message: 'Receipt could not be verified against the payment ledger.',
+      });
+    }
+    const ensured = await ensureBookingFinancial(auth.booking);
+    if (!ensured.ok) {
+      return jsonCors(503, {
+        ok: false,
+        error: 'financial_authority_unavailable',
+        message: 'Receipt could not be verified against the payment ledger.',
+      });
+    }
+    const authority = await getReceiptAuthorityData(ensured.bookingId);
+    if (!authority) {
+      return jsonCors(503, {
+        ok: false,
+        error: 'financial_authority_unavailable',
+        message: 'Receipt could not be verified against the payment ledger.',
+      });
+    }
+    const result = buildReceiptProjection(auth.booking, receiptType, authority);
     if (!result.ok) {
       return jsonCors(result.statusCode || 200, {
         ok: false,
@@ -85,6 +111,18 @@ exports.availability = async (event) => {
     bookingId: (event && event.bookingId) || '',
   });
   if (!auth.ok) return { payment: false, final: false };
-  const el = receiptEligibility(auth.booking);
-  return { payment: el.payment, final: el.final };
+  try {
+    const { postgresPaymentEnabled } = require('../lib/db/operational-payment');
+    const { ensureBookingFinancial } = require('../lib/db/ensure-booking-financial');
+    const { getReceiptAuthorityData } = require('../lib/db/payment-authority-service');
+    if (!postgresPaymentEnabled()) return { payment: false, final: false };
+    const ensured = await ensureBookingFinancial(auth.booking);
+    if (!ensured.ok) return { payment: false, final: false };
+    const authority = await getReceiptAuthorityData(ensured.bookingId);
+    if (!authority) return { payment: false, final: false };
+    const el = receiptEligibility(auth.booking, authority);
+    return { payment: el.payment, final: el.final };
+  } catch {
+    return { payment: false, final: false };
+  }
 };

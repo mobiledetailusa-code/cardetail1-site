@@ -58,15 +58,33 @@ function dollarsToCents(dollars) {
   return Math.round((Number(dollars) || 0) * 100);
 }
 
+function safeProviderReference(value) {
+  const text = String(value || '').trim();
+  if (!/^(pi|re)_[A-Za-z0-9]+$/.test(text)) return '';
+  const prefix = text.slice(0, 3);
+  return `${prefix}••••${text.slice(-6)}`;
+}
+
+function dateOnly(value) {
+  if (!value) return '';
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? String(value).slice(0, 10) : parsed.toISOString().slice(0, 10);
+}
+
 /**
  * Settled payments only. Open, creating, failed, cancelled and pending attempts
  * are never counted toward "amount received".
  */
-function settledPayments(booking) {
+function settledPayments(booking, opts = {}) {
   const out = [];
   const seen = new Set();
+  const authoritativeEntries = asArray(opts.ledgerEntries);
+  const entries = authoritativeEntries.length
+    ? authoritativeEntries
+    : asArray(booking && booking.ledger && booking.ledger.entries);
 
-  for (const entry of asArray(booking && booking.ledger && booking.ledger.entries)) {
+  for (const entry of entries) {
     if (!entry || entry.kind !== 'settlement') continue;
     const cents = Math.round(Number(entry.amountCents != null ? entry.amountCents : entry.cents) || 0);
     if (cents <= 0) continue;
@@ -75,9 +93,10 @@ function settledPayments(booking) {
     if (key && seen.has(key)) continue;
     if (key) seen.add(key);
     out.push({
-      date: String(entry.recordedAt || entry.settledAt || '').slice(0, 10),
+      date: dateOnly(entry.recordedAt || entry.settledAt),
       amount: centsToAmount(cents),
       method: settlementMethodLabel(entry),
+      reference: safeProviderReference(entry.providerObjectId),
     });
   }
 
@@ -90,7 +109,7 @@ function settledPayments(booking) {
       if (key && seen.has(key)) continue;
       if (key) seen.add(key);
       out.push({
-        date: String(a.settledAt || '').slice(0, 10),
+        date: dateOnly(a.settledAt),
         amount: centsToAmount(cents),
         method: 'Card',
       });
@@ -100,15 +119,29 @@ function settledPayments(booking) {
   return out;
 }
 
+function refundedPayments(booking, opts = {}) {
+  const entries = asArray(opts.ledgerEntries).length
+    ? asArray(opts.ledgerEntries)
+    : asArray(booking && booking.ledger && booking.ledger.entries);
+  return entries
+    .filter((entry) => entry && entry.kind === 'refund' && Number(entry.amountCents) > 0)
+    .map((entry) => ({
+      date: dateOnly(entry.recordedAt || entry.occurredAt),
+      amount: centsToAmount(entry.amountCents),
+      method: 'Original payment method',
+      reference: safeProviderReference(entry.providerObjectId),
+    }));
+}
+
 /**
  * Truthful payment method type. Brand and last four digits are never captured
  * server-side (they exist only in transient browser checkout state), so the
  * receipt states the method type rather than inventing masked digits.
  */
-function paymentMethodLabel(booking, fin) {
+function paymentMethodLabel(booking, fin, opts = {}) {
   const pwf = String((fin && fin.paymentWorkflowStatus) || (booking && booking.paymentWorkflowStatus) || '').toLowerCase();
   if (pwf === 'cash_paid') return 'Cash';
-  const payments = settledPayments(booking);
+  const payments = settledPayments(booking, opts);
   if (!payments.length) return '';
   const cash = payments.filter((p) => p.method === 'Cash').length;
   if (cash === payments.length) return 'Cash';
@@ -129,23 +162,32 @@ function isServiceCompleted(booking) {
  * Eligibility is derived server-side only. The browser never decides whether a
  * receipt exists.
  */
-function receiptEligibility(booking) {
-  const fin = financialProjection(booking) || {};
-  const settled = settledPayments(booking);
+function receiptEligibility(booking, opts = {}) {
+  const fin = opts.projection || financialProjection(booking) || {};
+  const settled = settledPayments(booking, opts);
+  const refunds = refundedPayments(booking, opts);
   const totalSettledCents = settled.reduce((s, p) => s + p.amount.cents, 0);
-  const paidCents = Math.max(Number(fin.settledCents) || 0, totalSettledCents);
+  const grossPaidCents = Math.max(Number(fin.grossSettledCents) || 0, totalSettledCents);
+  const refundedCents = Math.max(
+    Number(fin.refundedCents) || 0,
+    refunds.reduce((sum, row) => sum + row.amount.cents, 0)
+  );
+  const paidCents = Math.max(0, grossPaidCents - refundedCents);
   const remaining = Math.max(0, Number(fin.remainingCents) || 0);
   const completed = isServiceCompleted(booking);
 
   return {
-    payment: paidCents > 0,
-    final: completed && remaining === 0 && paidCents > 0,
+    payment: grossPaidCents > 0,
+    final: completed && remaining === 0 && grossPaidCents > 0,
     completed,
     paidCents,
+    grossPaidCents,
+    refundedCents,
     remainingCents: remaining,
     approvedCents: Math.max(0, Number(fin.approvedCents) || 0),
     fin,
     settled,
+    refunds,
   };
 }
 
@@ -165,26 +207,31 @@ function receiptNumber(bookingId, type, anchor) {
   return `${type === 'final' ? 'FR' : 'PR'}-${id}-${digest}`;
 }
 
-function projectVehicles(booking) {
+function projectVehicles(booking, { includeMoney = true } = {}) {
   const projected = projectBookingForCustomer(booking) || {};
   return asArray(projected.vehicles).map((v) => {
     const addons = asArray(v.addons)
       .filter((a) => a && a.name)
-      .map((a) => ({
-        name: String(a.name),
-        qty: Number(a.qty) > 0 ? Number(a.qty) : 1,
-        price: centsToAmount(dollarsToCents(a.price)),
-      }));
-    return {
-      vehicleId: String(v.vehicleId || ''),
+      .map((a) => {
+        const addon = {
+          name: String(a.name),
+          qty: Number(a.qty) > 0 ? Number(a.qty) : 1,
+        };
+        if (includeMoney) addon.price = centsToAmount(dollarsToCents(a.price));
+        return addon;
+      });
+    const vehicle = {
       label: String(v.vehicleLabel || [v.year, v.make, v.model].filter(Boolean).join(' ')).trim(),
       package: {
         name: String(v.packageName || v.package || ''),
-        price: centsToAmount(dollarsToCents(v.basePrice)),
       },
       addons,
-      subtotal: centsToAmount(dollarsToCents(v.subtotal)),
     };
+    if (includeMoney) {
+      vehicle.package.price = centsToAmount(dollarsToCents(v.basePrice));
+      vehicle.subtotal = centsToAmount(dollarsToCents(v.subtotal));
+    }
+    return vehicle;
   });
 }
 
@@ -193,7 +240,7 @@ function projectVehicles(booking) {
  * requested receipt is not yet available — the caller maps that to a safe
  * business-level response, never a 500.
  */
-function buildReceiptProjection(booking, requestedType) {
+function buildReceiptProjection(booking, requestedType, opts = {}) {
   const type = String(requestedType || '').toLowerCase();
   if (!RECEIPT_TYPES.includes(type)) {
     return { ok: false, error: 'invalid_receipt_type', message: 'Unknown receipt type.', statusCode: 400 };
@@ -202,26 +249,65 @@ function buildReceiptProjection(booking, requestedType) {
     return { ok: false, error: 'booking_not_found', message: 'No booking found.', statusCode: 404 };
   }
 
-  const el = receiptEligibility(booking);
+  const el = receiptEligibility(booking, opts);
   if (!el[type]) {
     return { ok: false, error: 'receipt_unavailable', message: UNAVAILABLE[type], statusCode: 200 };
   }
 
-  const vehicles = projectVehicles(booking);
-  const lineTotalCents = vehicles.reduce((s, v) => s + v.subtotal.cents, 0);
   const approvedCents = el.approvedCents;
+  const quote = opts.quote || null;
+  const quoteLines = asArray(quote && quote.items).map((item) => ({
+    kind: String(item.kind || 'service').toLowerCase(),
+    name: String(item.label || 'Service'),
+    amount: centsToAmount(item.amountCents),
+  }));
+  const hasAuthoritativeLines = !!quote && quoteLines.length > 0;
+  // Vehicle labels/package names remain useful customer context, but once the
+  // approved PostgreSQL quote is present none of the Blob-stored vehicle prices
+  // are returned. Every displayed dollar then comes from QuoteItem or ledger.
+  const vehicles = projectVehicles(booking, { includeMoney: !hasAuthoritativeLines });
+  const storedLineTotalCents = vehicles.reduce((sum, vehicle) => (
+    sum + Math.round(Number(vehicle.subtotal?.cents) || 0)
+  ), 0);
+  const nonServiceKinds = new Set([
+    'travel', 'travel_fee', 'discount', 'offer', 'tax', 'taxes', 'adjustment',
+    'adjustment_increase', 'adjustment_decrease', 'credit',
+  ]);
+  const quoteLineTotalCents = quoteLines.reduce((sum, item) => sum + item.amount.cents, 0);
+  const serviceLineTotalCents = hasAuthoritativeLines
+    ? quoteLines
+      .filter((item) => !nonServiceKinds.has(item.kind))
+      .reduce((sum, item) => sum + item.amount.cents, 0)
+    : storedLineTotalCents;
 
-  // Never force the total to match. When the authoritative approved total differs
-  // from the sum of service lines (legitimate historical adjustments, travel fees,
-  // taxes), surface the difference as a named line instead of hiding it.
-  const adjustmentCents = approvedCents - lineTotalCents;
-  const adjustments = (vehicles.length && adjustmentCents !== 0)
-    ? [{ name: 'Adjustments, fees and taxes', amount: centsToAmount(adjustmentCents) }]
-    : [];
+  let adjustments;
+  if (hasAuthoritativeLines) {
+    adjustments = quoteLines
+      .filter((item) => nonServiceKinds.has(item.kind))
+      .map((item) => ({ name: item.name, amount: item.amount }));
+    // A malformed historical quote must never be silently forced to match.
+    const residual = approvedCents - quoteLineTotalCents;
+    if (residual !== 0) {
+      adjustments.push({ name: 'Approved quote residual', amount: centsToAmount(residual) });
+    }
+  } else {
+    const travelCents = dollarsToCents(booking.travelFeeAmount ?? booking.zoneSurcharge ?? 0);
+    const discountCents = dollarsToCents(booking.discountAmount ?? booking.offer?.discountAmount ?? 0);
+    const taxCents = Math.round(Number(booking.taxCents) || dollarsToCents(booking.taxAmount || 0));
+    adjustments = [];
+    if (travelCents) adjustments.push({ name: 'Travel fee', amount: centsToAmount(travelCents) });
+    if (discountCents) adjustments.push({ name: 'Discount', amount: centsToAmount(-discountCents) });
+    if (taxCents) adjustments.push({ name: 'Taxes', amount: centsToAmount(taxCents) });
+    const namedCents = travelCents - discountCents + taxCents;
+    const adjustmentCents = approvedCents - storedLineTotalCents - namedCents;
+    if (vehicles.length && adjustmentCents !== 0) {
+      adjustments.push({ name: 'Approved price adjustment', amount: centsToAmount(adjustmentCents) });
+    }
+  }
 
-  const anchor = el.settled.length
-    ? el.settled.map((p) => `${p.date}:${p.amount.cents}`).join(',')
-    : String(el.paidCents);
+  const anchor = el.settled.length || el.refunds.length
+    ? [...el.settled, ...el.refunds].map((p) => `${p.date}:${p.amount.cents}:${p.reference || ''}`).join(',')
+    : String(el.grossPaidCents);
 
   const projectedBooking = projectBookingForCustomer(booking) || {};
   const receiptId = receiptNumber(booking.id || booking.bookingId, type, anchor);
@@ -242,22 +328,36 @@ function buildReceiptProjection(booking, requestedType) {
       serviceDate: String(booking.confirmedDate || booking.preferredDate || '').slice(0, 10),
       completionDate: type === 'final' ? String(booking.completedAt || '').slice(0, 10) : '',
       vehicles,
+      quoteVersion: Number(quote?.quoteVersion || el.fin.quoteVersion || 0) || null,
+      lineItems: quoteLines,
       adjustments,
       financialSummary: {
         approvedTotal: centsToAmount(approvedCents),
-        amountPaid: centsToAmount(el.paidCents),
+        amountPaid: centsToAmount(el.grossPaidCents),
+        amountRefunded: centsToAmount(el.refundedCents),
+        netPaid: centsToAmount(el.paidCents),
         remainingBalance: centsToAmount(el.remainingCents),
-        serviceLinesTotal: centsToAmount(lineTotalCents),
+        creditDue: centsToAmount(el.fin.outstandingCreditCents),
+        refundPending: centsToAmount(el.fin.pendingRefundCents),
+        serviceLinesTotal: centsToAmount(serviceLineTotalCents),
       },
       payments: el.settled,
-      paymentMethod: paymentMethodLabel(booking, el.fin),
+      refunds: el.refunds,
+      paymentMethod: paymentMethodLabel(booking, el.fin, opts),
       paymentDate: lastPayment ? lastPayment.date : '',
-      status: type === 'final' ? 'Paid · Service completed' : 'Payment received',
+      status: el.refundedCents >= el.grossPaidCents && el.grossPaidCents > 0
+        ? 'Refunded'
+        : (el.remainingCents > 0 ? 'Partially Paid' : 'Paid'),
       // Never let a receipt for a part-payment read as settled.
-      balanceStatus: el.remainingCents > 0 ? 'Balance outstanding' : 'Paid in full',
+      balanceStatus: Number(el.fin.pendingRefundCents) > 0
+        ? 'Refund pending'
+        : (Number(el.fin.outstandingCreditCents) > 0
+          ? 'Credit/refund due'
+          : (el.remainingCents > 0 ? 'Balance outstanding' : 'Paid in full')),
       paidInFull: el.remainingCents === 0,
       footer: RECEIPT_FOOTER,
-      issuedAt: String(projectedBooking.updatedAt || booking.updatedAt || '').slice(0, 10),
+      terms: 'Payments and refunds are recorded only after provider confirmation.',
+      issuedAt: dateOnly(quote?.updatedAt || projectedBooking.updatedAt || booking.updatedAt || lastPayment?.date),
     },
   };
 }
@@ -269,6 +369,8 @@ module.exports = {
   UNAVAILABLE,
   settlementMethodLabel,
   settledPayments,
+  refundedPayments,
+  safeProviderReference,
   paymentMethodLabel,
   isServiceCompleted,
   receiptEligibility,

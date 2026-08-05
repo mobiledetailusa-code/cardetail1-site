@@ -99,20 +99,18 @@ test('markRefunded clamps to net settled and never exceeds what was actually pai
   assert.equal(nothingSettled.amount, 0, 'nothing was ever paid — refund amount must be zero, not the requested amount');
 });
 
-test('mark_refunded is routed through the authoritative ledger, never a bare status flip', () => {
+test('refund execution is webhook-authoritative, never a manual status flip', () => {
   const src = read('netlify/functions/admin-ops-jobs.js');
-  assert.match(src, /'mark_refunded',\s*\n?\s*\]\)|'mark_cash_received',\s*\n\s*'mark_card_on_site',\s*\n\s*'mark_refunded'/);
-  // mark_refunded must call persistMutation (CAS + ledger), not a bare store.setJSON.
-  // (lastIndexOf, not indexOf: the ledger-computation branch inside
-  // persistMutation also matches this string earlier in the file.)
+  assert.match(src, /authority\.createRefund\(/);
+  assert.match(src, /requestKey:/);
+  assert.match(src, /expectedQuoteVersion:/);
   const handlerStart = src.lastIndexOf("if (action === 'mark_refunded') {");
-  const handlerBlock = src.slice(handlerStart, handlerStart + 400);
-  assert.match(handlerBlock, /markRefunded\(booking, body\)/);
-  assert.match(handlerBlock, /persistMutation\(/);
+  const handlerBlock = src.slice(handlerStart, handlerStart + 320);
+  assert.match(handlerBlock, /manual_refund_status_disabled/);
+  assert.doesNotMatch(handlerBlock, /markRefunded\(|persistMutation\(/);
   assert.doesNotMatch(handlerBlock, /store\.setJSON/);
-  // record_refund_request must no longer offer a "markDone" bypass to refunded status.
   const requestStart = src.indexOf("if (action === 'record_refund_request') {");
-  const requestBlock = src.slice(requestStart, requestStart + 700);
+  const requestBlock = src.slice(requestStart, requestStart + 2600);
   assert.doesNotMatch(requestBlock, /markRefunded\s*===\s*true|markDone/);
 });
 

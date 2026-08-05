@@ -44,9 +44,17 @@ async function casUpdateBooking({ id, expectedVersion, data = {} }) {
   return { ok: true, booking };
 }
 
-async function createQuote({ bookingId, quoteVersion, approvedCents, status = 'draft' }) {
+async function createQuote({ bookingId, quoteVersion, approvedCents, status = 'draft', items = [] }) {
   const prisma = getPrisma();
-  return prisma.quote.create({ data: { bookingId, quoteVersion, approvedCents, status } });
+  return prisma.quote.create({
+    data: {
+      bookingId,
+      quoteVersion,
+      approvedCents,
+      status,
+      ...(items.length ? { items: { create: items } } : {}),
+    },
+  });
 }
 
 async function getQuote({ bookingId, quoteVersion }) {
@@ -67,15 +75,43 @@ async function getLatestQuote(bookingId) {
  * place). Errors if a quote already exists at the target version (caller
  * raced another adjustment) rather than silently overwriting.
  */
-async function createAdjustmentQuote({ bookingId, approvedCents, status = 'approved' }) {
+async function createAdjustmentQuote({ bookingId, approvedCents, status = 'approved', items = [] }) {
   const prisma = getPrisma();
   return prisma.$transaction(async (tx) => {
     const current = await tx.quote.findFirst({ where: { bookingId }, orderBy: { quoteVersion: 'desc' } });
     const nextVersion = (current?.quoteVersion || 0) + 1;
     const quote = await tx.quote.create({
-      data: { bookingId, quoteVersion: nextVersion, approvedCents, status },
+      data: {
+        bookingId,
+        quoteVersion: nextVersion,
+        approvedCents,
+        status,
+        ...(items.length ? { items: { create: items } } : {}),
+      },
     });
     return { previousQuote: current, quote };
+  });
+}
+
+/**
+ * Backfill an immutable quote's missing item snapshot exactly once. The quote
+ * total/status are untouched; the row lock prevents concurrent receipt loads
+ * from duplicating children.
+ */
+async function ensureQuoteItems({ quoteId, items = [] }) {
+  if (!quoteId || !items.length) return { created: 0 };
+  const prisma = getPrisma();
+  return prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw`
+      SELECT "id" FROM "Quote" WHERE "id" = ${quoteId} FOR UPDATE
+    `;
+    if (!locked.length) return { created: 0 };
+    const count = await tx.quoteItem.count({ where: { quoteId } });
+    if (count > 0) return { created: 0 };
+    const created = await tx.quoteItem.createMany({
+      data: items.map((item) => ({ ...item, quoteId })),
+    });
+    return { created: created.count };
   });
 }
 
@@ -143,6 +179,7 @@ module.exports = {
   getQuote,
   getLatestQuote,
   createAdjustmentQuote,
+  ensureQuoteItems,
   createBookingWithInitialQuote,
   createVehicle,
   createChangeRequest,

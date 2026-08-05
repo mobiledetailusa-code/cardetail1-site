@@ -275,6 +275,8 @@ describe('PostgreSQL cash settlement authority', {
       bookingId: id,
       newApprovedCents: 19000,
       reason: 'addon_add',
+      adjustmentId: nextId('ADJ'),
+      expectedQuoteVersion: 1,
     });
     assert.equal(adjusted.ok, true, adjusted.error);
     const pgMid = await pgSnapshot(id);
@@ -516,7 +518,13 @@ describe('PostgreSQL cash settlement authority', {
       paymentWorkflowStatus: 'payment_succeeded',
     });
     const store = await seed(booking);
-    await authority.createAdjustment({ bookingId: id, newApprovedCents: 19000 });
+    await authority.createAdjustment({
+      bookingId: id,
+      newApprovedCents: 19000,
+      reason: 'addon_add',
+      adjustmentId: nextId('ADJ'),
+      expectedQuoteVersion: 1,
+    });
     const stale = store._snapshot(id);
     stale.ledger = {
       currency: 'usd',
