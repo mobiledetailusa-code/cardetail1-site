@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const { blobsStore } = require('./tech-security');
 const { getOpsSettings, calcBidMax, bidWindowForJob } = require('./ops-config');
 const { appendEventLog } = require('./ops-workflow');
+const { enqueueSms } = require('./sms-outbox');
+const { TEMPLATE_KEYS } = require('./sms-templates');
 
 function signBid(jobId, techId, secret) {
   return crypto.createHmac('sha256', secret).update(String(jobId) + '|' + String(techId)).digest('hex');
@@ -36,6 +38,7 @@ async function syncTechRosterFromAccounts() {
       name: t.fullName || t.name || '',
       phone: String(t.phone || '').replace(/\D/g, ''),
       email: t.email || '',
+      smsConsent: t.smsConsent === true,
     }));
   const store = await blobsStore('cd1-techs');
   await store.setJSON('roster', roster);
@@ -91,26 +94,30 @@ async function createAuctionForBooking(booking, options = {}) {
   const rosterSync = await syncTechRosterFromAccounts();
   const roster = rosterSync.roster || [];
   const base = process.env.SITE_URL || '';
-  const { TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, RESEND_API_KEY, RESEND_FROM, ADMIN_EMAIL } = process.env;
+  const { RESEND_API_KEY, RESEND_FROM, ADMIN_EMAIL } = process.env;
 
   let notifiedSms = 0;
   let notifiedEmail = 0;
 
-  if (options.notifySms !== false && TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM && base && roster.length) {
-    const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
-    await Promise.all(roster.map(t => {
+  if (options.notifySms !== false && base && roster.length) {
+    await Promise.all(roster.map(async (t) => {
       const sig = signBid(jobId, t.id, secret);
-      const portalLink = `${base}/technician.html?portal=tech`;
       const bidLink = `${base}/bid.html?job=${encodeURIComponent(jobId)}&tech=${encodeURIComponent(t.id)}&sig=${sig}`;
-      const body = new URLSearchParams({
-        To: t.phone, From: TWILIO_FROM,
-        Body: `Cardetail1 job: ${job.package} · ${job.date} · ${job.area}. Bid in portal or: ${bidLink}`,
+      const queued = await enqueueSms({
+        idempotencyKey: `tech.auction:${jobId}:${t.id}`,
+        audience: 'technician',
+        consentGranted: t.smsConsent === true,
+        toE164: t.phone,
+        bookingId: jobId,
+        templateKey: TEMPLATE_KEYS.TECH_AUCTION,
+        templateData: {
+          service: job.package,
+          date: job.date,
+          area: job.area,
+          url: bidLink,
+        },
       });
-      return fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
-        method: 'POST',
-        headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-      }).then(r => { if (r.ok) notifiedSms++; }).catch(() => {});
+      if (queued.ok && queued.queued) notifiedSms += 1;
     }));
   }
 

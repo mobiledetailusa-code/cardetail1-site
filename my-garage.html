@@ -41,6 +41,10 @@ a:hover{text-decoration:underline}
 .msg.err{color:#f87171}
 .section{margin-top:28px}
 .section h3{font-size:15px;font-weight:700;margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--blue)}
+.sms-consent-card{margin-top:18px;padding:14px;border:1px solid var(--border);border-radius:12px;background:#0e0e14}
+.sms-consent-card h4{font-size:15px;margin-bottom:6px}
+.sms-consent-label{display:flex;align-items:flex-start;gap:10px;min-height:44px;margin-top:10px;font-size:13px;color:var(--text);line-height:1.45;cursor:pointer}
+.sms-consent-label input{width:20px;height:20px;min-width:20px;margin-top:2px;accent-color:var(--blue)}
 .card-kicker{font-size:12px;color:var(--blue);font-weight:600;text-transform:uppercase;letter-spacing:.08em}
 .card-title{font-size:20px;font-weight:800;margin:6px 0 14px}
 .card.appointment-focus,#appointments-list li.appointment-focus{
@@ -326,6 +330,16 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
         <button type="button" class="btn ghost" id="pf-edit-btn">Edit profile</button>
       </div>
       <p id="profile-msg" class="msg" hidden></p>
+      <div class="sms-consent-card" id="sms-consent-card">
+        <h4>Appointment text messages</h4>
+        <p class="sub">Choose whether Detailing Zone may send transactional texts about your appointments and payments. Marketing texts require separate consent.</p>
+        <label class="sms-consent-label" for="sms-consent-toggle">
+          <input type="checkbox" id="sms-consent-toggle">
+          <span>I agree to receive transactional SMS from Detailing Zone. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for help.</span>
+        </label>
+        <button type="button" class="btn ghost" id="sms-consent-save">Save text preference</button>
+        <p id="sms-consent-msg" class="msg" role="status" aria-live="polite" hidden></p>
+      </div>
     </section>
 
     <section class="section" id="addresses-section" aria-labelledby="addr-h" hidden>

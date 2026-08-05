@@ -1,6 +1,9 @@
 // Recovery communication adapters — Resend email and Twilio SMS (dry-run by default).
 
 const { recoveryDryRun, isOptOutMessage } = require('./revenue-recovery');
+const crypto = require('crypto');
+const { enqueueSms } = require('./sms-outbox');
+const { TEMPLATE_KEYS } = require('./sms-templates');
 
 async function sendRecoveryEmail({ to, subject, html, text }) {
   if (!to) return { sent: false, reason: 'missing_recipient' };
@@ -25,26 +28,29 @@ async function sendRecoveryEmail({ to, subject, html, text }) {
   return { sent: true };
 }
 
-async function sendRecoverySms({ to, body }) {
+async function sendRecoverySms({ to, body, idempotencyKey, consentGranted, url = '' }) {
   if (!to) return { sent: false, reason: 'missing_recipient' };
   if (isOptOutMessage(body)) return { sent: false, reason: 'opt_out_keyword' };
   if (recoveryDryRun()) {
     console.info('[recovery-sms] dry_run', { to: '[redacted]' });
     return { sent: false, reason: 'dry_run', simulated: true };
   }
-  const { TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM } = process.env;
-  if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
-    return { sent: false, reason: 'twilio_not_configured' };
-  }
-  const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
-  const params = new URLSearchParams({ To: to, From: TWILIO_FROM, Body: body });
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
-    method: 'POST',
-    headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString(),
+  const stableKey = idempotencyKey || `recovery:${crypto
+    .createHash('sha256')
+    .update(`${to}:${body}`)
+    .digest('hex')
+    .slice(0, 48)}`;
+  const queued = await enqueueSms({
+    idempotencyKey: stableKey,
+    audience: 'lead',
+    consentGranted: consentGranted === true,
+    toE164: to,
+    templateKey: TEMPLATE_KEYS.RECOVERY,
+    templateData: { message: body, url },
   });
-  if (!res.ok) return { sent: false, reason: `twilio_${res.status}` };
-  return { sent: true };
+  if (!queued.ok) return { sent: false, reason: queued.error || 'sms_outbox_failed' };
+  if (!queued.queued) return { sent: false, skipped: true, reason: queued.reason || 'sms_not_queued' };
+  return { sent: false, accepted: true, queued: true, outboxId: queued.outbox?.id || null };
 }
 
 module.exports = {

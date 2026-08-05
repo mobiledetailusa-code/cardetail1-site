@@ -108,6 +108,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac)}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-grid .full{grid-column:1/-1}
 label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
+.sms-consent-control{display:flex;align-items:flex-start;gap:10px;min-height:44px;line-height:1.45;cursor:pointer}
+.sms-consent-control input{width:20px;height:20px;min-width:20px;padding:0;margin-top:1px;accent-color:var(--ac)}
 .tech-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .tech-row:last-child{border-bottom:0}
 .tech-meta{font-size:12px;color:var(--mu);margin-top:3px}
@@ -285,6 +287,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         <div><label>Phone</label><input name="phone" type="tel"></div>
         <div><label>Service area</label><input name="serviceArea"></div>
         <div class="full"><label>Capabilities (comma-separated)</label><input name="capabilities" placeholder="Interior, Exterior, Ceramic"></div>
+        <div class="full"><label class="sms-consent-control"><input name="smsConsent" type="checkbox" value="yes"> <span>Technician explicitly agreed to receive job-related SMS from Detailing Zone</span></label></div>
         <div class="full"><button type="submit" class="btn">Create &amp; generate invite</button></div>
       </form>
     </div>
@@ -490,6 +493,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         <div><label>Phone</label><input id="tdPhone" type="tel"></div>
         <div class="full"><label>Service area</label><input id="tdArea"></div>
         <div class="full"><label>Capabilities (comma-separated)</label><input id="tdCaps"></div>
+        <div class="full"><label class="sms-consent-control"><input id="tdSmsConsent" type="checkbox"> <span>Technician explicitly agreed to receive job-related SMS from Detailing Zone</span></label></div>
       </div>
       <button type="button" class="btn sm" id="tdSave" style="margin-top:10px;width:100%">Save profile</button>
     </div>
@@ -2334,6 +2338,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     $('#tdPhone').value = t.phone || '';
     $('#tdArea').value = t.serviceArea || '';
     $('#tdCaps').value = (t.capabilities || []).join(', ');
+    $('#tdSmsConsent').checked = t.smsConsent === true;
     $('#tdPass').value = '';
     $('#tdPass2').value = '';
     $('#tdPwStatus').textContent = t.hasPassword
@@ -2386,6 +2391,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           phone: $('#tdPhone').value.trim(),
           serviceArea: $('#tdArea').value.trim(),
           capabilities: caps,
+          smsConsent: $('#tdSmsConsent').checked,
         },
       });
       toast('Profile saved');
@@ -4061,7 +4067,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     try {
       const d = await api('/.netlify/functions/tech-accounts','POST',{
         action:'create', fullName:fd.get('fullName'), email:fd.get('email'),
-        phone:fd.get('phone'), serviceArea:fd.get('serviceArea'), capabilities:caps
+        phone:fd.get('phone'), serviceArea:fd.get('serviceArea'), capabilities:caps,
+        smsConsent:fd.get('smsConsent') === 'yes'
       });
       if (d.inviteToken && d.technician) inviteCache[d.technician.techId] = d.inviteToken;
       const email = fd.get('email');

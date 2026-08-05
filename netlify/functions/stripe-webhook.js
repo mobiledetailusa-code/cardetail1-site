@@ -19,6 +19,8 @@
 //   SITE_URL    (required for bid magic links)
 
 const crypto = require('crypto');
+const { enqueueSms } = require('../lib/sms-outbox');
+const { TEMPLATE_KEYS } = require('../lib/sms-templates');
 let blobsStoreOverride = null;
 
 async function blobsStore(name) {
@@ -419,22 +421,26 @@ async function triggerAuction(b) {
     });
 
     const base = process.env.SITE_URL || '';
-    const { TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM } = process.env;
     let notified = 0;
-    if (TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM && base && roster.length) {
-      const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
-      await Promise.all(roster.map(t => {
+    if (base && roster.length) {
+      await Promise.all(roster.map(async (t) => {
         const sig = signBid(b.id, t.id, secret);
         const link = `${base}/bid.html?job=${encodeURIComponent(b.id)}&tech=${encodeURIComponent(t.id)}&sig=${sig}`;
-        const body = new URLSearchParams({
-          To: t.phone, From: TWILIO_FROM,
-          Body: `New Cardetail1 job: ${job.package} · ${job.date} · ${job.area}. Place your bid (lowest wins): ${link}`,
+        const queued = await enqueueSms({
+          idempotencyKey: `tech.auction:${b.id}:${t.id}`,
+          audience: 'technician',
+          consentGranted: t.smsConsent === true,
+          toE164: t.phone,
+          bookingId: b.id,
+          templateKey: TEMPLATE_KEYS.TECH_AUCTION,
+          templateData: {
+            service: job.package,
+            date: job.date,
+            area: job.area,
+            url: link,
+          },
         });
-        return fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
-          method: 'POST',
-          headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-          body,
-        }).then(r => { if (r.ok) notified++; }).catch(() => {});
+        if (queued.ok && queued.queued) notified += 1;
       }));
     }
     return { posted: true, techs: roster.length, notified };

@@ -347,6 +347,25 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/price-adjustments.js',
     'netlify/lib/receipt-projection.js',
     'netlify/lib/service-issue-notifications.js',
+    // PR5 Twilio readiness — post-commit outbox and signed webhooks.
+    'netlify/functions/customer-portal-profile.js',
+    'netlify/functions/stripe-webhook.js',
+    'netlify/functions/submit-booking.js',
+    'netlify/functions/submit-inquiry.js',
+    'netlify/functions/twilio-inbound.js',
+    'netlify/functions/twilio-outbox-worker.js',
+    'netlify/functions/twilio-status-callback.js',
+    'netlify/lib/auction-ops.js',
+    'netlify/lib/booking-transactional-notifications.js',
+    'netlify/lib/customer-session.js',
+    'netlify/lib/notification-delivery.js',
+    'netlify/lib/recovery-communications.js',
+    'netlify/lib/sms-consent-service.js',
+    'netlify/lib/sms-outbox.js',
+    'netlify/lib/sms-templates.js',
+    'netlify/lib/twilio-provider.js',
+    'netlify/lib/twilio-runtime-policy.js',
+    'netlify/lib/twilio-webhook.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

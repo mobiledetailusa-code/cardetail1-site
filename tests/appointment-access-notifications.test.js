@@ -355,7 +355,7 @@ test('idempotent confirmed notification does not duplicate channel sends', async
   }
 });
 
-test('SMS failure does not roll back booking and remains independently tracked', async () => {
+test('legacy Twilio credentials stay fail-closed and do not roll back booking', async () => {
   const tokenStore = memoryStore();
   const focusStore = memoryStore();
   const {
@@ -370,11 +370,13 @@ test('SMS failure does not roll back booking and remains independently tracked',
   });
 
   const originalFetch = global.fetch;
+  let twilioCalls = 0;
   global.fetch = async (url) => {
     if (String(url).includes('api.resend.com')) {
       return { ok: true, json: async () => ({ id: 'email_ok' }), text: async () => '' };
     }
     if (String(url).includes('twilio.com')) {
+      twilioCalls += 1;
       return { ok: false, status: 500, text: async () => 'twilio down', json: async () => ({}) };
     }
     return { ok: false, status: 500, text: async () => '', json: async () => ({}) };
@@ -394,11 +396,13 @@ test('SMS failure does not roll back booking and remains independently tracked',
     assert.equal(result.booking.status, 'Pending Review');
     assert.equal(result.delivery.email.sent, true);
     assert.equal(result.delivery.sms.sent, false);
-    // Email success + SMS failure recorded independently in ledger.
+    assert.equal(twilioCalls, 0);
+    assert.equal(result.delivery.sms.reason, 'customer_sms_not_enabled');
+    // Email success + fail-closed SMS suppression are tracked independently.
     const ledger = result.booking.transactionalNotifications;
     const values = Object.values(ledger);
     assert.ok(values.some((v) => v.status === 'sent'));
-    assert.ok(values.some((v) => v.status === 'failed' && v.retryable === true));
+    assert.ok(values.some((v) => v.status === 'suppressed' && v.reason === 'customer_sms_not_enabled'));
   } finally {
     global.fetch = originalFetch;
     resetAppointmentAccessStoreFactories();

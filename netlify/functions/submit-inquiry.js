@@ -6,7 +6,11 @@
 //   ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM, TWILIO_SID, TWILIO_TOKEN,
 //   TWILIO_FROM, ADMIN_SMS
 
+const crypto = require('crypto');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { enqueueSms } = require('../lib/sms-outbox');
+const { TEMPLATE_KEYS } = require('../lib/sms-templates');
+const { enabled } = require('../lib/twilio-runtime-policy');
 
 const json = (status, body) => ({
   statusCode: status,
@@ -55,24 +59,22 @@ async function sendEmail(q) {
 }
 
 async function sendSms(q) {
-  const { TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, ADMIN_SMS } = process.env;
-  if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM || !ADMIN_SMS) return { sent: false, reason: 'sms not configured' };
-  const body = new URLSearchParams({
-    To: ADMIN_SMS,
-    From: TWILIO_FROM,
-    Body: `New question from ${q.name || 'customer'} (${q.phone || ''}): ${(q.message || '').slice(0, 240)}`,
+  const inquiryKey = crypto.createHash('sha256').update(String(q.id || '')).digest('hex').slice(0, 40);
+  const queued = await enqueueSms({
+    idempotencyKey: `admin.inquiry:${inquiryKey}`,
+    audience: 'admin',
+    consentGranted: enabled(process.env.ADMIN_SMS_CONSENT_GRANTED),
+    toE164: process.env.ADMIN_SMS,
+    templateKey: TEMPLATE_KEYS.ADMIN_INQUIRY,
+    templateData: {
+      customerName: q.name || 'Customer',
+      customerPhone: q.phone || '',
+      message: q.message || '',
+    },
   });
-  const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
-    method: 'POST',
-    headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-  if (!res.ok) {
-    const err = await res.text().catch(() => '');
-    return { sent: false, reason: `twilio ${res.status}: ${err}` };
-  }
-  return { sent: true };
+  if (!queued.ok) return { sent: false, reason: queued.error || 'sms_outbox_failed' };
+  if (!queued.queued) return { sent: false, skipped: true, reason: queued.reason || 'sms_not_queued' };
+  return { sent: false, accepted: true, queued: true, outboxId: queued.outbox?.id || null };
 }
 
 exports.handler = async (event) => {
