@@ -85,3 +85,50 @@
 .booking-modal .bkli-total-label {
   color: #0f172a;
 }
+
+/* Card-on-file policy must read as a deliberate notice, not a transparent
+   extension of the checkout surface. Literal colors keep contrast stable
+   across the dark page, light modal, and embedded specialty-service flow. */
+.card-save-notice {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #2563eb;
+  border-radius: 10px;
+  background: #f8fafc;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+  color: #1e293b;
+}
+
+.card-save-notice-copy {
+  margin-bottom: 12px;
+  color: #1e293b;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.card-save-notice-title {
+  display: block;
+  margin-bottom: 6px;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.card-save-notice ul {
+  margin: 6px 0 0 18px;
+  padding: 0;
+}
+
+.card-save-notice li::marker {
+  color: #2563eb;
+}
+
+.card-save-notice .terms-check {
+  color: #1e293b;
+}
+
+.card-save-notice ::selection {
+  background: #bfdbfe;
+  color: #0f172a;
+}

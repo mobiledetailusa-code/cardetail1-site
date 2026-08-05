@@ -28,6 +28,27 @@ test('Step 5 has final copy and all payment preferences', () => {
   assert.match(index, /A card on file is still required to secure the booking\./);
 });
 
+test('card-save policy notice has an opaque high-contrast treatment on every booking page', () => {
+  const pages = fs.readdirSync(root)
+    .filter(file => file.endsWith('.html'))
+    .filter(file => read(file).includes('Before saving your card, please note:'));
+  const noticeCss = read('assets/booking-summary.css');
+
+  assert.equal(pages.length, 13, 'expected the notice on all 13 booking pages');
+  for (const page of pages) {
+    const html = read(page);
+    assert.match(html, /class="card-save-notice"/);
+    assert.match(html, /class="card-save-notice-copy"/);
+    assert.match(html, /class="card-save-notice-title"/);
+    assert.doesNotMatch(html, /background:rgba\(255,255,255,\.04\)/,
+      `${page} still has the transparent policy notice`);
+  }
+  assert.match(noticeCss, /\.card-save-notice\s*\{[\s\S]*background:\s*#f8fafc/);
+  assert.match(noticeCss, /\.card-save-notice-copy\s*\{[\s\S]*color:\s*#1e293b/);
+  assert.match(noticeCss, /\.card-save-notice-title\s*\{[\s\S]*color:\s*#0f172a/);
+  assert.match(noticeCss, /\.card-save-notice ::selection\s*\{[\s\S]*background:\s*#bfdbfe/);
+});
+
 test('Step 5 gates preference, consent, saved card, and final terms', () => {
   assert.match(index, /Please select a payment preference before continuing/);
   assert.match(index, /Please accept the card-on-file policy before continuing/);
