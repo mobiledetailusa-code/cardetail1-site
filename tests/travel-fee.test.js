@@ -157,3 +157,20 @@ test('no booking page carries its own copy of the distance table', () => {
     .filter((f) => /ZIP3_EST_MILES|TRAVEL_FEE_TIERS/.test(fs.readFileSync(path.join(root, f), 'utf8')));
   assert.deepEqual(offenders, [], 'these pages still duplicate the travel table');
 });
+
+test('every booking page loads the shared travel module before using CD1Travel', () => {
+  const root = path.join(__dirname, '..');
+  const pages = fs.readdirSync(root)
+    .filter((file) => file.endsWith('.html'))
+    .filter((file) => fs.readFileSync(path.join(root, file), 'utf8').includes('CD1Travel.TRAVEL_MAX_MILES'));
+
+  assert.equal(pages.length, 13, 'expected all 13 booking pages');
+  for (const page of pages) {
+    const html = fs.readFileSync(path.join(root, page), 'utf8');
+    const moduleTag = '<script src="assets/travel-fee-client.js"></script>';
+    assert.equal((html.match(/assets\/travel-fee-client\.js/g) || []).length, 2,
+      `${page} must have one script tag plus the explanatory source comment`);
+    assert.ok(html.indexOf(moduleTag) < html.indexOf('CD1Travel.TRAVEL_MAX_MILES'),
+      `${page} must load the travel module before the booking script executes`);
+  }
+});
