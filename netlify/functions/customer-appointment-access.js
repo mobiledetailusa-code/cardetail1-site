@@ -1,5 +1,6 @@
 // Exchange opaque appointment access tokens for a normal Customer Portal session.
-// GET  ?token=...  → validate, session cookie, redirect to /my-garage?appointment=<focusRef>
+// GET  ?token=...  → validate only (prefetch-safe confirm page, or same-device re-entry)
+// POST { action:'exchange', token } → consume + session cookie + redirect
 // POST { action:'resend', token } → supersede token + re-send notification (anti-enumeration)
 
 'use strict';
@@ -46,6 +47,13 @@ function correlationId() {
   return `caa_${crypto.randomBytes(6).toString('hex')}`;
 }
 
+function htmlAttr(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+}
+
 function htmlPage({ title, bodyHtml, statusCode = 200 }) {
   const html = `<!doctype html>
 <html lang="en"><head>
@@ -74,6 +82,15 @@ a.ghost,button.ghost{background:transparent;color:#0b3d2e;border:1px solid #0b3d
   };
 }
 
+function resendForm(token) {
+  return `
+<form method="POST" action="/.netlify/functions/customer-appointment-access" style="display:inline">
+  <input type="hidden" name="action" value="resend"/>
+  <input type="hidden" name="token" value="${htmlAttr(token)}"/>
+  <button class="btn" type="submit">Send me a new link</button>
+</form>`;
+}
+
 function invalidLinkPage(cid) {
   return htmlPage({
     title: 'Invalid link',
@@ -90,10 +107,6 @@ function invalidLinkPage(cid) {
 }
 
 function expiredLinkPage(token, cid) {
-  const safeAttr = String(token || '')
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;');
   return htmlPage({
     title: 'Link expired',
     statusCode: 410,
@@ -102,12 +115,80 @@ function expiredLinkPage(token, cid) {
 <p>For your security, appointment links expire after a limited time.</p>
 <p class="sub">Ref: ${cid}</p>
 <div class="actions">
-  <form method="POST" action="/.netlify/functions/customer-appointment-access" style="display:inline">
-    <input type="hidden" name="action" value="resend"/>
-    <input type="hidden" name="token" value="${safeAttr}"/>
-    <button class="btn" type="submit">Send me a new link</button>
-  </form>
+  ${resendForm(token)}
   <a class="btn ghost" href="/my-garage#lookup">Find appointment using code and phone</a>
+  <a class="btn ghost" href="/my-garage">Return to portal sign in</a>
+</div>`,
+  });
+}
+
+/**
+ * Spent (consumed) link without a matching device session.
+ * Distinct from TTL expiry so customers are not told a fresh link "expired".
+ */
+function usedLinkPage(token, cid) {
+  return htmlPage({
+    title: 'Link already used',
+    statusCode: 410,
+    bodyHtml: `
+<h1>This secure link was already used</h1>
+<p>For your security, each appointment link opens once. After the first successful open, return via My Garage on this device — or request a new link below.</p>
+<p class="sub">Ref: ${cid}</p>
+<div class="actions">
+  ${resendForm(token)}
+  <a class="btn ghost" href="/my-garage">Return to portal sign in</a>
+  <a class="btn ghost" href="/my-garage#lookup">Find appointment using code and phone</a>
+</div>`,
+  });
+}
+
+/**
+ * Prefetch-safe gate: GET never consumes. Real humans POST from this form.
+ * Email scanners that only fetch the URL leave the token usable.
+ */
+function confirmOpenPage(token, cid) {
+  return htmlPage({
+    title: 'Open appointment',
+    statusCode: 200,
+    bodyHtml: `
+<h1>Open your appointment</h1>
+<p>Confirm below to continue to your booking. This extra step protects your link from automatic email scanners.</p>
+<p class="sub">Ref: ${cid}</p>
+<div class="actions">
+  <form method="POST" action="/.netlify/functions/customer-appointment-access" style="display:inline">
+    <input type="hidden" name="action" value="exchange"/>
+    <input type="hidden" name="token" value="${htmlAttr(token)}"/>
+    <button class="btn" type="submit">View my appointment</button>
+  </form>
+  <a class="btn ghost" href="/my-garage">Return to portal sign in</a>
+</div>`,
+  });
+}
+
+function temporaryUnavailablePage(cid) {
+  return htmlPage({
+    title: 'Temporarily unavailable',
+    statusCode: 503,
+    bodyHtml: `
+<h1>Please try again</h1>
+<p>We could not open this appointment link right now. Your link was not used up — try again in a moment.</p>
+<p class="sub">Ref: ${cid}</p>
+<div class="actions">
+  <a class="btn" href="/my-garage">Return to portal sign in</a>
+</div>`,
+  });
+}
+
+function sessionFailedPage(token, cid) {
+  return htmlPage({
+    title: 'Could not open appointment',
+    statusCode: 503,
+    bodyHtml: `
+<h1>Could not open your appointment</h1>
+<p>Something went wrong while signing you in. Request a new secure link below.</p>
+<p class="sub">Ref: ${cid}</p>
+<div class="actions">
+  ${resendForm(token)}
   <a class="btn ghost" href="/my-garage">Return to portal sign in</a>
 </div>`,
   });
@@ -144,13 +225,13 @@ function redirectWithSession(location, sessionToken) {
 }
 
 /**
- * Same-device re-entry for a spent link.
+ * Same-device re-entry for a spent or expired link.
  *
  * The raw token stays single-use — no session is minted here. A customer who
  * still holds a valid session that owns this booking is simply sent to the
- * appointment; everyone else gets the safe new-link page.
+ * appointment; everyone else gets the matching recovery page.
  */
-async function redirectConsumedWithSession(event, booking, tokenRecord, cid, rawToken) {
+async function redirectSpentWithSession(event, booking, tokenRecord, cid, rawToken, { reason }) {
   const session = await validateCustomerSession(event);
   const bookingAccountId = String(booking.customerAccountId || '').trim() || null;
   // A booking that has since been claimed by another account must not be
@@ -185,9 +266,60 @@ async function redirectConsumedWithSession(event, booking, tokenRecord, cid, raw
       body: '',
     };
   }
-  return expiredLinkPage(rawToken, cid);
+  return reason === 'expired'
+    ? expiredLinkPage(rawToken, cid)
+    : usedLinkPage(rawToken, cid);
 }
 
+/**
+ * GET entry: never consume. Live tokens get a confirm form; spent/expired
+ * tokens may still re-enter on the same device session.
+ */
+async function beginAccess(rawToken, event) {
+  const cid = correlationId();
+  const loaded = await loadTokenRecord(rawToken, { allowExpired: true, allowConsumed: true });
+  if (!loaded.record || loaded.classification === CONSUME_RESULT.INVALID) {
+    return invalidLinkPage(cid);
+  }
+
+  if (loaded.classification === CONSUME_RESULT.EXPIRED || (loaded.expired && !loaded.consumed)) {
+    const expiredBooking = loaded.record.purpose === PURPOSE_APPOINTMENT_ACCESS
+      ? await loadBooking(loaded.record.bookingId)
+      : null;
+    if (!expiredBooking) return expiredLinkPage(rawToken, cid);
+    return redirectSpentWithSession(
+      event,
+      expiredBooking,
+      loaded.record,
+      cid,
+      rawToken,
+      { reason: 'expired' }
+    );
+  }
+
+  const booking = await loadBooking(loaded.record.bookingId);
+  if (!booking || loaded.record.purpose !== PURPOSE_APPOINTMENT_ACCESS) {
+    return invalidLinkPage(cid);
+  }
+
+  if (loaded.consumed || loaded.classification === CONSUME_RESULT.ALREADY_CONSUMED) {
+    return redirectSpentWithSession(
+      event,
+      booking,
+      loaded.record,
+      cid,
+      rawToken,
+      { reason: 'used' }
+    );
+  }
+
+  return confirmOpenPage(rawToken, cid);
+}
+
+/**
+ * POST exchange: ownership checks first, then atomic consume, then session.
+ * Consume stays the concurrency gate so two POSTs cannot mint two sessions.
+ */
 async function exchangeToken(rawToken, event) {
   const cid = correlationId();
   const loaded = await loadTokenRecord(rawToken, { allowExpired: true, allowConsumed: true });
@@ -195,13 +327,18 @@ async function exchangeToken(rawToken, event) {
     return invalidLinkPage(cid);
   }
   if (loaded.classification === CONSUME_RESULT.EXPIRED || (loaded.expired && !loaded.consumed)) {
-    // An expired link is as spent as a consumed one, so the same-device session
-    // is the only thing that can still admit the customer.
     const expiredBooking = loaded.record.purpose === PURPOSE_APPOINTMENT_ACCESS
       ? await loadBooking(loaded.record.bookingId)
       : null;
     if (!expiredBooking) return expiredLinkPage(rawToken, cid);
-    return redirectConsumedWithSession(event, expiredBooking, loaded.record, cid, rawToken);
+    return redirectSpentWithSession(
+      event,
+      expiredBooking,
+      loaded.record,
+      cid,
+      rawToken,
+      { reason: 'expired' }
+    );
   }
 
   const booking = await loadBooking(loaded.record.bookingId);
@@ -215,41 +352,17 @@ async function exchangeToken(rawToken, event) {
 
   // Already consumed before this request — never mint another session.
   if (loaded.consumed || loaded.classification === CONSUME_RESULT.ALREADY_CONSUMED) {
-    return redirectConsumedWithSession(event, booking, loaded.record, cid, rawToken);
-  }
-
-  // Atomic consume gate FIRST — only the CAS winner may establish a new session.
-  const consumed = await consumeAppointmentAccessToken(rawToken);
-  if (consumed.classification === CONSUME_RESULT.STORAGE_UNAVAILABLE) {
-    return htmlPage({
-      title: 'Temporarily unavailable',
-      statusCode: 503,
-      bodyHtml: `
-<h1>Please try again</h1>
-<p>We could not open this appointment link right now.</p>
-<p class="sub">Ref: ${cid}</p>
-<div class="actions">
-  <a class="btn" href="/my-garage">Return to portal sign in</a>
-</div>`,
-    });
-  }
-  if (consumed.classification === CONSUME_RESULT.EXPIRED) {
-    return expiredLinkPage(rawToken, cid);
-  }
-  if (consumed.classification === CONSUME_RESULT.ALREADY_CONSUMED) {
-    return redirectConsumedWithSession(
+    return redirectSpentWithSession(
       event,
       booking,
-      consumed.record || loaded.record,
+      loaded.record,
       cid,
-      rawToken
+      rawToken,
+      { reason: 'used' }
     );
   }
-  if (consumed.classification !== CONSUME_RESULT.CONSUMED_SUCCESSFULLY || !consumed.ok) {
-    return invalidLinkPage(cid);
-  }
 
-  const tokenRecord = consumed.record || loaded.record;
+  const tokenRecord = loaded.record;
   const phoneDigits = normalizeUsPhoneDigits(booking.phone || booking.customerPhone || '')
     || tokenRecord.phoneDigits
     || null;
@@ -258,8 +371,7 @@ async function exchangeToken(rawToken, event) {
   const bookingId = booking.id || booking.bookingId;
   const existingBookingAccountId = String(booking.customerAccountId || '').trim() || null;
 
-  // Token ownership binding: a token minted for one account must never open a
-  // booking that has since been claimed by a different account.
+  // Ownership binding BEFORE consume so a refused exchange does not burn the link.
   if (
     tokenRecord.customerAccountId
     && existingBookingAccountId
@@ -313,8 +425,7 @@ async function exchangeToken(rawToken, event) {
     // Session can still be created from booking contact when Prisma is unavailable.
   }
 
-  // Durable ownership: the Blob aggregate is authoritative for the portal, so
-  // the link must survive independently of relational availability.
+  // Durable ownership before consume — refused links must remain reusable.
   if (customerAccountId) {
     const linkage = await linkBookingToAccountDurably({
       bookingId,
@@ -340,12 +451,43 @@ async function exchangeToken(rawToken, event) {
     } catch { /* ignore */ }
   }
 
-  const { token: sessionToken } = await createAccountSession({
-    phoneDigits,
-    email,
-    bookingIds,
-    customerAccountId,
-  });
+  // Atomic consume gate — only the CAS winner may establish a new session.
+  const consumed = await consumeAppointmentAccessToken(rawToken);
+  if (consumed.classification === CONSUME_RESULT.STORAGE_UNAVAILABLE) {
+    return temporaryUnavailablePage(cid);
+  }
+  if (consumed.classification === CONSUME_RESULT.EXPIRED) {
+    return expiredLinkPage(rawToken, cid);
+  }
+  if (consumed.classification === CONSUME_RESULT.ALREADY_CONSUMED) {
+    return redirectSpentWithSession(
+      event,
+      booking,
+      consumed.record || loaded.record,
+      cid,
+      rawToken,
+      { reason: 'used' }
+    );
+  }
+  if (consumed.classification !== CONSUME_RESULT.CONSUMED_SUCCESSFULLY || !consumed.ok) {
+    return invalidLinkPage(cid);
+  }
+
+  let sessionToken;
+  try {
+    ({ token: sessionToken } = await createAccountSession({
+      phoneDigits,
+      email,
+      bookingIds,
+      customerAccountId,
+    }));
+  } catch (e) {
+    console.warn('[customer-appointment-access] session create failed after consume', {
+      correlationId: cid,
+      error: String(e && e.message || e).slice(0, 160),
+    });
+    return sessionFailedPage(rawToken, cid);
+  }
 
   const refResult = await ensureAppointmentPublicRef(await loadBooking(bookingId) || booking);
   if (refResult.created) {
@@ -557,7 +699,7 @@ exports.handler = async (event) => {
       const token = event.queryStringParameters?.token
         || new URLSearchParams(event.rawQuery || '').get('token');
       if (!token) return invalidLinkPage(cid);
-      return exchangeToken(token, event);
+      return beginAccess(token, event);
     }
 
     if (event.httpMethod === 'POST') {
@@ -591,8 +733,11 @@ exports.handler = async (event) => {
 
 // Test seam
 exports.__test = {
+  beginAccess,
   exchangeToken,
   resendFromToken,
   invalidLinkPage,
   expiredLinkPage,
+  usedLinkPage,
+  confirmOpenPage,
 };

@@ -160,9 +160,12 @@ function harness({ bookings = {}, emailFails = false } = {}) {
 
 async function exchange(h, token, ip = '203.0.113.10') {
   return h.accessFn.handler({
-    httpMethod: 'GET',
-    headers: { 'x-nf-client-connection-ip': ip },
-    queryStringParameters: { token },
+    httpMethod: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      'x-nf-client-connection-ip': ip,
+    },
+    body: `action=exchange&token=${encodeURIComponent(token)}`,
   });
 }
 
