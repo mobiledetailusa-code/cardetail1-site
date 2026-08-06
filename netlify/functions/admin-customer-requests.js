@@ -6,6 +6,7 @@ const { blobsStore, listAllBlobs, fetchBlobRecords } = require('../lib/tech-secu
 const { getBooking, getBookingsByIds, normalizeBookingKey } = require('../lib/ops-db');
 const { decideChangeRequestCommand, materialProjection } = require('../lib/booking-commands');
 const { getBookingRecord } = require('../lib/booking-repository');
+const { buildSyncEnvelope, syncHeaders } = require('../lib/sync-response');
 
 const REQUEST_STORE = 'cd1-customer-change-requests';
 const MAX_LIST = 50;
@@ -174,7 +175,7 @@ exports.handler = async (event) => {
       ? page[page.length - 1]?.id || null
       : null;
 
-    return jsonCors(200, {
+    const payload = {
       ok: true,
       requests: page,
       bounded: true,
@@ -183,7 +184,12 @@ exports.handler = async (event) => {
       totalFiltered,
       statusFilter,
       nextCursor,
-    });
+    };
+    const ifSyncVersion = String(
+      body.ifSyncVersion || event.queryStringParameters?.ifSyncVersion || ''
+    );
+    const envelope = buildSyncEnvelope(payload, { ifSyncVersion });
+    return jsonCors(200, envelope.body, syncHeaders(envelope.syncVersion));
   }
 
   if (action === 'decide') {

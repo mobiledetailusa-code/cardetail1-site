@@ -36,6 +36,11 @@ const DEFAULT_LIMITS = {
   'customer-portal-auth:verify': { max: 12, windowMs: DEFAULT_WINDOW_MS },
   'booking-card-status': { max: 40, windowMs: DEFAULT_WINDOW_MS },
   'customer-bookings': { max: 20, windowMs: DEFAULT_WINDOW_MS },
+  // Read-only portal synchronization after booking/session authorization.
+  // Four authenticated tabs at the 2.5 s active cadence consume 1,440 reads
+  // per 15 minutes. Keep headroom for focus/online refreshes while preserving
+  // a bounded subject+IP bucket; failed lookups remain on the strict bucket.
+  'customer-portal-sync': { max: 1800, windowMs: DEFAULT_WINDOW_MS },
   'customer-portal-profile:read': { max: 60, windowMs: DEFAULT_WINDOW_MS },
   'customer-portal-profile:mutate': { max: 30, windowMs: DEFAULT_WINDOW_MS },
   'customer-appointment-access': { max: 30, windowMs: DEFAULT_WINDOW_MS },
@@ -59,6 +64,7 @@ const ENV_SCOPE_BY_BUCKET = {
   'customer-portal-auth:verify': 'CUSTOMER_PORTAL_AUTH_VERIFY',
   'booking-card-status': 'BOOKING_CARD_STATUS',
   'customer-bookings': 'CUSTOMER_BOOKINGS',
+  'customer-portal-sync': 'CUSTOMER_PORTAL_SYNC',
   'customer-portal-profile:read': 'CUSTOMER_PORTAL_PROFILE_READ',
   'customer-portal-profile:mutate': 'CUSTOMER_PORTAL_PROFILE_MUTATE',
   'customer-appointment-access': 'CUSTOMER_APPOINTMENT_ACCESS',

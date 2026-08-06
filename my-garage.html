@@ -127,6 +127,13 @@ ul.clean li{padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}
 .portal-spinner{width:36px;height:36px;margin:0 auto 16px;border:3px solid rgba(255,255,255,.12);border-top-color:var(--blue);border-radius:50%;animation:portal-spin .8s linear infinite}
 .portal-loading.is-error .portal-spinner{display:none}
 .portal-loading-status{font-size:15px;font-weight:600;color:var(--text);line-height:1.45;min-height:1.45em}
+.portal-sync{display:flex;align-items:center;justify-content:center;gap:7px;min-height:22px;margin-top:10px;color:var(--muted);font-size:12px}
+.portal-sync::before{content:'';width:7px;height:7px;border-radius:50%;background:#6b7280;flex:0 0 auto}
+.portal-sync[data-state="updating"]::before{background:var(--blue);box-shadow:0 0 0 3px rgba(77,163,255,.14)}
+.portal-sync[data-state="current"]::before{background:#22c55e}
+.portal-sync[data-state="retrying"]::before{background:#f59e0b}
+.portal-sync[data-state="offline"],.portal-sync[data-state="unauthorized"]{color:#fca5a5}
+.portal-sync[data-state="offline"]::before,.portal-sync[data-state="unauthorized"]::before{background:#ef4444}
 .portal-loading-actions{display:none;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:18px}
 .portal-loading.is-error .portal-loading-actions{display:flex}
 @keyframes portal-spin{to{transform:rotate(360deg)}}
@@ -174,6 +181,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
       <a href="index.html">Book Another Service</a>
       <a href="tel:5513132956">Call / Text</a>
     </nav>
+    <p class="portal-sync" id="portal-sync-status" data-state="idle" role="status" aria-live="polite">Updates automatically while this page is open.</p>
   </header>
 
   <div id="portal-shell" class="portal-shell" data-portal-phase="idle">
@@ -387,8 +395,8 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 
 <script src="https://js.stripe.com/v3/"></script>
 <script src="assets/portal-analytics.js" defer></script>
-<script src="assets/operational-refresh.js" defer></script>
-<script src="assets/my-garage.js?v=20260725-portal-closure1" defer></script>
+<script src="assets/operational-refresh.js?v=20260805-sync-pr3" defer></script>
+<script src="assets/my-garage.js?v=20260805-sync-pr3" defer></script>
 <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>

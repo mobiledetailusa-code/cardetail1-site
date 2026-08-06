@@ -13,7 +13,7 @@ const { canPayBalance } = require('../lib/appointment-status-policy');
 const { catalogForClient } = require('../lib/customer-catalog');
 const { serializeCanonicalAddonCatalog } = require('../lib/canonical-addon-catalog');
 const { serializeCanonicalPackageCatalogForBooking } = require('../lib/canonical-package-catalog');
-const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { enforcePublicRateLimit, hashRateLimitSubject } = require('../lib/public-rate-limit');
 const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
 const { financialProjection } = require('../lib/payment-service');
 const {
@@ -31,6 +31,20 @@ const { tryGetPrisma } = require('../lib/prisma');
 const { normalizeBookingId } = require('../lib/booking-customer-auth');
 const { postServiceState } = require('../lib/post-service-experience');
 const { adjustmentStatement } = require('../lib/price-adjustments');
+const { buildSyncEnvelope, syncHeaders } = require('../lib/sync-response');
+
+function syncJson(payload, ifSyncVersion) {
+  const envelope = buildSyncEnvelope(payload, { ifSyncVersion });
+  return jsonCors(200, envelope.body, syncHeaders(envelope.syncVersion));
+}
+
+async function enforcePortalSyncLimit(event, subject) {
+  return enforcePublicRateLimit(event, {
+    endpoint: 'customer-portal-sync',
+    cors: true,
+    subject: hashRateLimitSubject('portal-sync', subject),
+  });
+}
 
 /**
  * Portal catalog: subscription/marketing packages remain in customer-catalog;
@@ -63,6 +77,8 @@ function safePaymentStateFromProjection(booking, money, authority) {
     approvedCents: money.approvedCents,
     settledCents: money.settledCents,
     refundedCents: money.refundedCents || 0,
+    pendingRefundCents: money.pendingRefundCents || 0,
+    refundRequestStatus: money.refundRequestStatus || null,
     paymentStatus: money.paymentStatus,
     paymentAttemptStatus: money.paymentAttemptStatus || null,
     stripeReference: money.stripeReference || null,
@@ -217,9 +233,6 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   if (event.httpMethod !== 'POST') return jsonCors(405, { ok: false, error: 'method_not_allowed' });
 
-  const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'lookup-booking', cors: true });
-  if (rateLimit.blocked) return rateLimit.response;
-
   let body;
   try { body = JSON.parse(event.body || '{}'); }
   catch { return jsonCors(400, { ok: false, error: 'validation_error' }); }
@@ -233,12 +246,21 @@ exports.handler = async (event) => {
       phone: body.phone || body.customerPhone,
     });
     if (!auth.ok) {
+      // Failed credential guesses use the strict lookup bucket. Successfully
+      // authorized refreshes use a separate, subject-scoped read bucket below.
+      const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'lookup-booking', cors: true });
+      if (rateLimit.blocked) return rateLimit.response;
       return jsonCors(auth.statusCode || 200, {
         ok: false,
         error: auth.error || 'authentication_failed',
         message: auth.message,
       });
     }
+    const syncLimit = await enforcePortalSyncLimit(
+      event,
+      `booking:${normalizeBookingId(auth.booking.id || auth.booking.bookingId)}`
+    );
+    if (syncLimit.blocked) return syncLimit.response;
     if (!isVisibleCustomerBooking(auth.booking)) {
       const draftLike = auth.booking && (
         auth.booking.isDraft === true
@@ -255,7 +277,7 @@ exports.handler = async (event) => {
     const projected = projectBookingForCustomer(auth.booking);
     const payment = await safePaymentStateAsync(auth.booking);
     const packageCatalog = serializeCanonicalPackageCatalogForBooking(auth.booking);
-    return jsonCors(200, {
+    return syncJson({
       ok: true,
       scope: 'booking',
       booking: projected,
@@ -268,13 +290,17 @@ exports.handler = async (event) => {
       // actions from this and never computes the 48-hour deadline itself.
       postService: postServiceState(auth.booking),
       priceAdjustments: adjustmentStatement(auth.booking),
-    });
+    }, body.ifSyncVersion);
   }
 
   const session = await validateCustomerSession(event);
   if (!session.ok) {
+    const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'lookup-booking', cors: true });
+    if (rateLimit.blocked) return rateLimit.response;
     return jsonCors(401, { ok: false, error: 'authentication_failed', message: 'Sign in required.' });
   }
+  const syncLimit = await enforcePortalSyncLimit(event, `session:${session.sessionId}`);
+  if (syncLimit.blocked) return syncLimit.response;
 
   // Ignore any caller-supplied account id — session is authoritative.
   void body.customerAccountId;
@@ -426,7 +452,7 @@ exports.handler = async (event) => {
     }
   }
 
-  return jsonCors(200, {
+  return syncJson({
     ok: true,
     scope: 'account',
     customerAccountId: session.customerAccountId || null,
@@ -461,5 +487,7 @@ exports.handler = async (event) => {
       payments: !!(payment.canPay || payment.payLink || projected.some((b) => Number(b.amountDueApproved || 0) > 0)),
       communicationPreferences: false,
     },
-  });
+  }, body.ifSyncVersion);
 };
+
+exports.syncJson = syncJson;

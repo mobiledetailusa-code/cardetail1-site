@@ -22,6 +22,7 @@ const {
   buildNextAggregate,
   normalizeAggregate,
 } = require('../lib/booking-aggregate');
+const { buildSyncEnvelope, syncHeaders } = require('../lib/sync-response');
 const {
   supersedeOpenAttempts,
   expireSupersededAttempts,
@@ -1037,6 +1038,12 @@ function reconcileRecoveryCapability(projection, nowMs = Date.now()) {
       ? 'A Stripe payment has remained unresolved for at least 30 seconds. Recovery reconcile is available.'
       : 'Webhook delivery is authoritative. Reconcile appears only for a demonstrably delayed in-flight payment.',
   };
+}
+
+function jobsSyncResponse(jobs, cursor) {
+  const payload = { ok: true, count: jobs.length, jobs };
+  const envelope = buildSyncEnvelope(payload, { ifSyncVersion: cursor });
+  return jsonCors(200, envelope.body, syncHeaders(envelope.syncVersion));
 }
 
 function adminOperationalControls(booking, projection = null) {
@@ -2863,6 +2870,7 @@ exports.resolveAdminCashSettlement = resolveAdminCashSettlement;
 exports.adminOperationalControls = adminOperationalControls;
 exports.reconcileRecoveryCapability = reconcileRecoveryCapability;
 exports.notifyPaymentReceived = notifyPaymentReceived;
+exports.jobsSyncResponse = jobsSyncResponse;
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
@@ -2912,7 +2920,7 @@ exports.handler = async (event) => {
     }
     try {
       const jobs = await listJobs(body);
-      return jsonCors(200, { ok: true, count: jobs.length, jobs });
+      return jobsSyncResponse(jobs, body.ifSyncVersion || body.cursor);
     } catch (e) {
       console.error('[admin-ops-jobs] failed_to_load_jobs (POST):', e.message, e.stack);
       return jsonCors(500, { ok: false, error: 'failed_to_load_jobs' });
@@ -2921,7 +2929,8 @@ exports.handler = async (event) => {
 
   try {
     const jobs = await listJobs(event.queryStringParameters || {});
-    return jsonCors(200, { ok: true, count: jobs.length, jobs });
+    const query = event.queryStringParameters || {};
+    return jobsSyncResponse(jobs, query.ifSyncVersion || query.cursor);
   } catch (e) {
     console.error('[admin-ops-jobs] failed_to_load_jobs (GET):', e.message, e.stack);
     return jsonCors(500, { ok: false, error: 'failed_to_load_jobs' });
