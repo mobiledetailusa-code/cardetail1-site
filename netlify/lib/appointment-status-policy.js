@@ -53,9 +53,10 @@ function canRequestChange(booking, action) {
   const blocked = {
     in_progress: new Set(['reschedule', 'cancel', 'package_change', 'addon', 'address', 'vehicle_add', 'vehicle_replace', 'vehicle_remove', 'maintenance']),
     cancelled: new Set(['reschedule', 'cancel', 'package_change', 'addon', 'address', 'vehicle_add', 'vehicle_replace', 'vehicle_remove', 'maintenance']),
-    // Paid invoice (Jobber): allow address / reschedule / cancel message; block money/catalog mutations.
-    // vehicle_remove stays requestable so admin can mark payment_adjustment_required on approve.
-    paid: new Set(['package_change', 'addon', 'vehicle_add', 'vehicle_replace', 'maintenance']),
+    // Paid catalog/vehicle changes remain requestable, but are Admin-gated below.
+    // The approved change becomes a new immutable quote: increase => delta due;
+    // decrease => explicit credit/refund due through the PR2 authority.
+    paid: new Set(['maintenance']),
   };
   if (blocked[phase] && blocked[phase].has(action)) {
     return {
@@ -71,9 +72,11 @@ function canRequestChange(booking, action) {
   // Ops policy: pack / add-on / address / cancel / vehicle add|replace auto-apply.
   // Reschedule, maintenance, and vehicle removal stay admin-gated (pending review).
   const needsAdminReview = new Set(['reschedule', 'maintenance', 'vehicle_remove']);
+  const paidCatalogChange = phase === 'paid'
+    && new Set(['package_change', 'addon', 'vehicle_add', 'vehicle_replace']).has(action);
   if (
     (phase === 'confirmed' || phase === 'draft' || phase === 'paid' || phase === 'payment_due')
-    && needsAdminReview.has(action)
+    && (needsAdminReview.has(action) || paidCatalogChange)
   ) {
     return { ok: true, pendingApproval: true, phase };
   }

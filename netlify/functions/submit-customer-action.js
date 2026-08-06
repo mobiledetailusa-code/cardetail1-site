@@ -7,6 +7,7 @@ const { canRequestChange } = require('../lib/appointment-status-policy');
 const { createChangeRequest, sanitizeSnapshot } = require('../lib/customer-change-requests');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 const { projectBookingForCustomer } = require('../lib/ops-schema');
+const { normalizeIdempotencyKey } = require('../lib/operation-idempotency');
 
 function safeBooking(booking) {
   return booking ? projectBookingForCustomer(booking) : null;
@@ -80,6 +81,7 @@ async function autoApplySubmittedRequest(bookingId, cmd) {
   return {
     ok: true,
     applied: true,
+    idempotent: !!cmd.idempotent || !!decided.idempotent,
     noop: !!decided.noop,
     reason: decided.reason || undefined,
     pendingApproval: false,
@@ -113,7 +115,7 @@ function addonMutationResponse(appliedCmd, {
   const appliedTotal = appliedCmd.booking?.approvedFinalAmount != null
     ? Number(appliedCmd.booking.approvedFinalAmount)
     : proposed;
-  if (adminSubjectLocal) {
+  if (adminSubjectLocal && !appliedCmd.idempotent) {
     notifyAdmin(
       adminSubjectLocal.replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
       `${adminTextLocal}${appliedTotal != null ? `\nTotal: $${Number(appliedTotal).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
@@ -124,6 +126,7 @@ function addonMutationResponse(appliedCmd, {
     changeRequestId: changeRequestId || appliedCmd.changeRequest?.requestId || null,
     pendingApproval: !!policy.pendingApproval && !appliedCmd.applied,
     applied: !!appliedCmd.applied,
+    idempotent: !!appliedCmd.idempotent,
     noop: !!appliedCmd.noop,
     reason: appliedCmd.reason || undefined,
     bookingVersion: appliedCmd.booking?.bookingVersion,
@@ -137,6 +140,9 @@ function addonMutationResponse(appliedCmd, {
     approvedCents: proj?.approvedCents ?? null,
     settledCents: proj?.settledCents ?? null,
     remainingCents: proj?.remainingCents ?? null,
+    outstandingCreditCents: appliedCmd.outstandingCreditCents
+      ?? proj?.outstandingCreditCents
+      ?? 0,
     booking: safeBooking(appliedCmd.booking),
   });
 }
@@ -168,65 +174,40 @@ exports.handler = async (event) => {
   }
 
   const booking = auth.booking;
+  if (p.expectedBookingVersion == null || p.expectedBookingVersion === '') {
+    return json(400, {
+      ok: false,
+      error: 'expected_booking_version_required',
+      message: 'expectedBookingVersion is required.',
+    });
+  }
+  const expectedBookingVersion = Math.round(Number(p.expectedBookingVersion));
+  if (!Number.isFinite(expectedBookingVersion) || expectedBookingVersion < 0) {
+    return json(400, {
+      ok: false,
+      error: 'validation_error',
+      message: 'expectedBookingVersion is invalid.',
+    });
+  }
+  const idempotencyKey = normalizeIdempotencyKey(p.idempotencyKey || p.requestKey);
+  if (!idempotencyKey) {
+    return json(400, {
+      ok: false,
+      error: 'idempotency_key_required',
+      message: 'A valid idempotency key is required.',
+    });
+  }
   const policyAction = ACTION_MAP[action];
-  let policy = canRequestChange(booking, policyAction);
-  // Stage 2: narrow post-settlement carve-out for additive addon_request only.
-  // Does not loosen canRequestChange / isInvoicePaid globally.
+  const policy = canRequestChange(booking, policyAction);
   if (!policy.ok) {
-    const settledHint = Math.max(0, Math.round(Number(booking?.ledger?.settledCents) || 0));
-    if (
-      action === 'addon_remove_request'
-      && (settledHint > 0 || policy.error === 'invoice_paid')
-    ) {
-      return json(409, {
-        ok: false,
-        error: 'settled_addon_remove_denied',
-        message: 'Add-on removal is not available after payment.',
-      });
-    }
-    if (action === 'addon_request' && policy.error === 'invoice_paid') {
-      const {
-        evaluatePostPayAdditiveAddonCarveOut,
-      } = require('../lib/canonical-addon-catalog');
-      const carve = evaluatePostPayAdditiveAddonCarveOut(booking, p);
-      if (carve.ok) {
-        policy = { ok: true, pendingApproval: false, phase: 'paid', postPayAdditiveCarveOut: true };
-      } else if (carve.noop || carve.error === 'duplicate_addon') {
-        return json(200, {
-          ok: true,
-          noop: true,
-          reason: 'duplicate_addon',
-          message: carve.message || 'Selected add-on is already on this booking.',
-          changeRequestId: null,
-          booking: safeBooking(booking),
-        });
-      } else if (carve.error) {
-        return json(carve.statusCode || 409, {
-          ok: false,
-          error: carve.error,
-          message: carve.message
-            || (carve.error === 'settled_addon_remove_denied'
-              ? 'Add-on removal is not available after payment.'
-              : 'Invoice paid — this change is not available online.'),
-        });
-      } else {
-        return json(200, {
-          ok: false,
-          error: policy.error || 'action_not_allowed',
-          message: policy.message
-            || 'Invoice is paid. Request a quote adjustment with Cardetail1 — pack/add-on/vehicle price changes are closed.',
-        });
-      }
-    } else {
-      return json(200, {
-        ok: false,
-        error: policy.error || 'action_not_allowed',
-        message: policy.message
-          || (policy.requiresCall
-            ? 'This appointment is in progress. Please call or text Cardetail1 for changes.'
-            : 'This change is not available for your appointment status.'),
-      });
-    }
+    return json(200, {
+      ok: false,
+      error: policy.error || 'action_not_allowed',
+      message: policy.message
+        || (policy.requiresCall
+          ? 'This appointment is in progress. Please call or text Cardetail1 for changes.'
+          : 'This change is not available for your appointment status.'),
+    });
   }
 
   const now = new Date().toISOString();
@@ -279,21 +260,12 @@ exports.handler = async (event) => {
     adminSubject = `Cardetail1 — Address Update Request · ${bookingId}`;
     adminText = `Customer requested address change for booking ${bookingId}.\nRequested: ${newAddress}`;
   } else if (action === 'addon_remove_request') {
-    // Stage 2: narrow remove — only when unsettled; empty/absent → safe noop.
+    // Remove only IDs actually present on the selected vehicle; empty/absent is a safe noop.
     const {
       parseAddonIdList,
       currentAddonIdsOnBooking,
     } = require('../lib/canonical-addon-catalog');
     const { submitChangeRequestCommand } = require('../lib/booking-commands');
-
-    const settled = Math.max(0, Math.round(Number(booking?.ledger?.settledCents) || 0));
-    if (settled > 0) {
-      return json(409, {
-        ok: false,
-        error: 'settled_addon_remove_denied',
-        message: 'Add-on removal is not available after payment.',
-      });
-    }
 
     const requestedIds = parseAddonIdList(p.addonIds || p.addOnIdsToRemove || p.removeAddonIds);
     if (!requestedIds.length) {
@@ -309,7 +281,7 @@ exports.handler = async (event) => {
       });
     }
 
-    const onBooking = new Set(currentAddonIdsOnBooking(booking));
+    const onBooking = new Set(currentAddonIdsOnBooking(booking, p.vehicleId));
     const addonIds = requestedIds.filter((id) => onBooking.has(id));
     if (!addonIds.length) {
       return json(200, {
@@ -327,11 +299,12 @@ exports.handler = async (event) => {
     // Ignore browser price / label / total — IDs only.
     const cmd = await submitChangeRequestCommand({
       bookingId,
-      expectedBookingVersion: booking.bookingVersion,
+      expectedBookingVersion,
       requestType: 'addon_remove_request',
       target: { vehicleId: p.vehicleId || undefined },
       delta: { addOnIdsToRemove: addonIds, addonIds },
       authorizedRef: auth.scope,
+      idempotencyKey,
     });
     if (cmd.noop) {
       return json(200, {
@@ -352,9 +325,7 @@ exports.handler = async (event) => {
         error: cmd.error || 'request_failed',
         message: cmd.error === 'version_conflict'
           ? 'This booking changed. Refresh and try again.'
-          : (cmd.error === 'settled_addon_remove_denied'
-            ? 'Add-on removal is not available after payment.'
-            : undefined),
+          : undefined,
       });
     }
 
@@ -365,10 +336,7 @@ exports.handler = async (event) => {
         return json(appliedCmd.statusCode || 400, {
           ok: false,
           error: appliedCmd.error || 'apply_failed',
-          message: appliedCmd.message
-            || (appliedCmd.error === 'settled_addon_remove_denied'
-              ? 'Add-on removal is not available after payment.'
-              : undefined),
+          message: appliedCmd.message,
           changeRequestId: cmd.changeRequest?.requestId || null,
         });
       }
@@ -397,18 +365,22 @@ exports.handler = async (event) => {
 
     const cmd = await submitChangeRequestCommand({
       bookingId,
-      expectedBookingVersion: booking.bookingVersion,
+      expectedBookingVersion,
       requestType: action,
       target,
       delta,
       authorizedRef: auth.scope,
+      idempotencyKey,
     });
     if (cmd.noop) {
+      const included = cmd.reason === 'addon_included_in_package';
       return json(200, {
         ok: true,
         noop: true,
         reason: cmd.reason || 'duplicate_addon',
-        message: 'Selected add-on is already on this booking.',
+        message: included
+          ? 'That treatment is already included in the selected package.'
+          : 'Selected add-on is already on this booking.',
         changeRequestId: null,
         booking: safeBooking(booking),
       });
@@ -457,33 +429,8 @@ exports.handler = async (event) => {
     } = require('../lib/package-financial-mutation');
     const { normalizeAggregate, ensureVehicleIds } = require('../lib/booking-aggregate');
 
-    // Pre-settlement only — any recorded payment denies package changes (Stage 1 policy).
-    const settledHint = Math.max(0, Math.round(Number(booking?.ledger?.settledCents) || 0));
-    if (settledHint > 0) {
-      return json(409, {
-        ok: false,
-        error: 'settled_package_change_denied',
-        message: 'Package changes are unavailable after any payment has been recorded.',
-      });
-    }
-
-    // Require client version — do not silently substitute the freshly loaded bookingVersion.
-    if (p.expectedBookingVersion == null || p.expectedBookingVersion === '') {
-      return json(400, {
-        ok: false,
-        error: 'validation_error',
-        message: 'expectedBookingVersion is required.',
-      });
-    }
-    const expectedBookingVersion = Math.round(Number(p.expectedBookingVersion));
-    if (!Number.isFinite(expectedBookingVersion) || expectedBookingVersion < 0) {
-      return json(400, {
-        ok: false,
-        error: 'validation_error',
-        message: 'expectedBookingVersion is invalid.',
-      });
-    }
-
+    // Post-payment requests remain Admin-reviewed; the financial mutator creates
+    // an immutable delta or explicit outstanding credit after approval.
     const newPackId = String(p.newPackId || p.packageId || '').slice(0, 32).trim();
     if (!newPackId) {
       return json(400, { ok: false, error: 'validation_error', message: 'Please select a package.' });
@@ -593,6 +540,7 @@ exports.handler = async (event) => {
       target: { vehicleId },
       delta,
       authorizedRef: auth.scope,
+      idempotencyKey,
     });
     if (cmd.noop) {
       return json(200, {
@@ -620,8 +568,6 @@ exports.handler = async (event) => {
         message = 'That package is not available for this vehicle.';
       } else if (err === 'vehicle_target_required') {
         message = 'Select which vehicle this package change applies to.';
-      } else if (err === 'settled_package_change_denied') {
-        message = 'Package changes are unavailable after any payment has been recorded.';
       }
       return json(status, {
         ok: false,
@@ -637,9 +583,7 @@ exports.handler = async (event) => {
       if (!appliedCmd.ok) {
         const err = appliedCmd.error || 'apply_failed';
         let message = appliedCmd.message;
-        if (err === 'settled_package_change_denied') {
-          message = 'Package changes are unavailable after any payment has been recorded.';
-        } else if (err === 'invalid_pricing') {
+        if (err === 'invalid_pricing') {
           message = 'Selected package could not be priced with your current add-ons. Your package and add-ons were not changed.';
         } else if (err === 'version_conflict') {
           message = 'This booking changed. Refresh and try again.';
@@ -682,21 +626,6 @@ exports.handler = async (event) => {
     const { submitChangeRequestCommand } = require('../lib/booking-commands');
     const { ensureVehicleIds } = require('../lib/booking-aggregate');
 
-    if (p.expectedBookingVersion == null || p.expectedBookingVersion === '') {
-      return json(400, {
-        ok: false,
-        error: 'validation_error',
-        message: 'expectedBookingVersion is required.',
-      });
-    }
-    const expectedBookingVersion = Math.round(Number(p.expectedBookingVersion));
-    if (!Number.isFinite(expectedBookingVersion) || expectedBookingVersion < 0) {
-      return json(400, {
-        ok: false,
-        error: 'validation_error',
-        message: 'expectedBookingVersion is invalid.',
-      });
-    }
     const vehicleId = String(p.vehicleId || '').trim();
     if (!vehicleId) {
       return json(400, {
@@ -727,6 +656,7 @@ exports.handler = async (event) => {
       target: { vehicleId },
       delta: {},
       authorizedRef: auth.scope,
+      idempotencyKey,
     });
     if (!cmd.ok) {
       return json(cmd.statusCode || 400, {
@@ -749,15 +679,18 @@ exports.handler = async (event) => {
     const vehicleLabel = targetVehicle.vehicleLabel || targetVehicle.label
       || [targetVehicle.year, targetVehicle.make, targetVehicle.model].filter(Boolean).join(' ')
       || 'Vehicle';
-    await notifyAdmin(
-      `Cardetail1 — Vehicle removal request · ${bookingId}`,
-      `Customer requested removal of ${vehicleLabel} (${vehicleId}) from booking ${bookingId}.`
-    );
+    if (!cmd.idempotent) {
+      await notifyAdmin(
+        `Cardetail1 — Vehicle removal request · ${bookingId}`,
+        `Customer requested removal of ${vehicleLabel} (${vehicleId}) from booking ${bookingId}.`
+      );
+    }
 
     return json(200, {
       ok: true,
       pendingApproval: true,
       applied: false,
+      idempotent: !!cmd.idempotent,
       changeRequestId: cmd.changeRequest?.requestId || cmd.changeRequest?.id,
       bookingVersion: cmd.booking?.bookingVersion,
       proposedTotal: proposedCents != null ? proposedCents / 100 : null,
@@ -772,6 +705,7 @@ exports.handler = async (event) => {
   } else if (action === 'vehicle_add_request' || action === 'vehicle_replace_request') {
     const { usesLengthPricing } = require('../lib/length-pricing');
     const { normalizeLengthCategory } = require('../lib/length-pricing');
+    const { ensureVehicleIds } = require('../lib/booking-aggregate');
     const category = normalizeLengthCategory(String(p.category || p.vehicleCategory || 'cars').slice(0, 32).trim());
     const year = String(p.year || p.vehicleYear || '').slice(0, 8).trim();
     const make = String(p.make || p.vehicleMake || '').slice(0, 60).trim();
@@ -804,6 +738,25 @@ exports.handler = async (event) => {
         message: 'Select vehicle size (Small Car, SUV 2-Row, SUV 3-Row, or Truck).',
       });
     }
+    let targetVehicleId = String(p.vehicleId || p.targetVehicleId || '').slice(0, 64).trim();
+    if (action === 'vehicle_replace_request') {
+      const vehicles = ensureVehicleIds(booking.service?.vehicles || booking.vehicles || []);
+      if (!targetVehicleId && vehicles.length === 1) targetVehicleId = vehicles[0].vehicleId;
+      if (!targetVehicleId) {
+        return json(400, {
+          ok: false,
+          error: 'vehicle_target_required',
+          message: 'Select which vehicle to replace.',
+        });
+      }
+      if (!vehicles.some((vehicle) => String(vehicle.vehicleId) === targetVehicleId)) {
+        return json(404, {
+          ok: false,
+          error: 'vehicle_not_found',
+          message: 'That vehicle is not on this booking.',
+        });
+      }
+    }
     requestedState = {
       vehicleLabel: label,
       category,
@@ -816,6 +769,7 @@ exports.handler = async (event) => {
       packageName,
       tierKey,
       tier: tierKey,
+      targetVehicleId: targetVehicleId || undefined,
     };
     updates = {
       vehicleChangeRequested: true,
@@ -891,12 +845,15 @@ exports.handler = async (event) => {
     };
     const cmd = await submitChangeRequestCommand({
       bookingId,
-      expectedBookingVersion: booking.bookingVersion,
+      expectedBookingVersion,
       requestType: action === 'cancellation_request' ? 'cancellation' : action,
-      target: {},
+      target: action === 'vehicle_replace_request'
+        ? { vehicleId: requestedState.targetVehicleId }
+        : {},
       delta: cmdDelta,
       authorizedRef: auth.scope,
       extraPatches: updates,
+      idempotencyKey,
     });
     if (!cmd.ok) {
       return json(cmd.statusCode || 400, {
@@ -919,15 +876,18 @@ exports.handler = async (event) => {
         });
       }
     }
-    notifyAdmin(
-      (adminSubject || '').replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
-      `${adminText}${appliedCmd.booking?.approvedFinalAmount != null ? `\nTotal: $${Number(appliedCmd.booking.approvedFinalAmount).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
-    ).catch(() => {});
+    if (!appliedCmd.idempotent) {
+      notifyAdmin(
+        (adminSubject || '').replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
+        `${adminText}${appliedCmd.booking?.approvedFinalAmount != null ? `\nTotal: $${Number(appliedCmd.booking.approvedFinalAmount).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
+      ).catch(() => {});
+    }
     return json(200, {
       ok: true,
       changeRequestId: appliedCmd.changeRequest.requestId,
       pendingApproval: !!policy.pendingApproval && !appliedCmd.applied,
       applied: !!appliedCmd.applied,
+      idempotent: !!appliedCmd.idempotent,
       bookingVersion: appliedCmd.booking?.bookingVersion,
       approvedFinalAmount: appliedCmd.booking?.approvedFinalAmount,
       projection: appliedCmd.projection,

@@ -31,6 +31,8 @@
   var modalFields = [];
   /** One in-flight mutation per modal action — client idempotency lock. */
   var mutationPending = false;
+  /** Retain a key across timeout/5xx so an uncertain retry cannot duplicate a write. */
+  var mutationRequestKeys = Object.create(null);
   /** Focus restore target when the action modal closes. */
   var modalOpenerEl = null;
   /** Selected vehicleId inside the Change Package modal (multi-vehicle). */
@@ -342,16 +344,41 @@
     return fmtMoney((Number(cents) || 0) / 100);
   }
 
+  function bookingVehiclesForActions() {
+    var b = state.booking || {};
+    if (b.service && Array.isArray(b.service.vehicles) && b.service.vehicles.length) {
+      return b.service.vehicles;
+    }
+    return Array.isArray(b.vehicles) ? b.vehicles : [];
+  }
+
+  function selectedAddonVehicle() {
+    var vehicles = bookingVehiclesForActions();
+    if (!vehicles.length) return null;
+    if (vehicles.length === 1) return vehicles[0];
+    return vehicles.find(function (v) {
+      return String(v.vehicleId || '') === String(packageModalVehicleId || '');
+    }) || null;
+  }
+
   function currentBookingAddonIds() {
     var b = state.booking || {};
-    var list = Array.isArray(b.addons) ? b.addons : [];
+    var vehicle = selectedAddonVehicle();
+    var ids = vehicle && Array.isArray(vehicle.addOnIds) ? vehicle.addOnIds : [];
+    if (ids.length) return ids.map(function (id) { return String(id || '').trim(); }).filter(Boolean);
+    var list = vehicle && Array.isArray(vehicle.addons)
+      ? vehicle.addons
+      : (Array.isArray(b.addons) ? b.addons : []);
     return list.map(function (a) { return String(a.id || '').trim(); }).filter(Boolean);
   }
 
   function addonsForBookingCategory() {
     var cat = getCatalog();
+    var vehicle = selectedAddonVehicle();
     var key = normalizePackageCategory(
-      (state.booking && (state.booking.vehicleCategory || state.booking.cat)) || 'cars'
+      (vehicle && (vehicle.category || vehicle.cat))
+        || (state.booking && (state.booking.vehicleCategory || state.booking.cat))
+        || 'cars'
     ) || 'cars';
     if (cat.addonsByCategory && cat.addonsByCategory[key] && cat.addonsByCategory[key].length) {
       return cat.addonsByCategory[key];
@@ -432,12 +459,6 @@
   }
 
   function packageChangeUnavailableReason() {
-    if (settledCentsFromPayment(state.payment) > 0) {
-      return 'Package changes are unavailable after any payment has been recorded.';
-    }
-    if (invoiceIsPaid(state.payment)) {
-      return 'Package changes are unavailable after any payment has been recorded.';
-    }
     var pending = (state.changeRequests || []).some(function (r) {
       if (r.requestType !== 'package_change_request') return false;
       var s = String(r.status || '').toLowerCase();
@@ -690,6 +711,10 @@
     actions.push(
       '<button type="button" class="btn ghost sm vehicle-action" data-action="addon_request" data-vehicle-id="' +
       esc(vehicleId) + '" data-vehicle-label="' + esc(label) + '">Manage add-ons</button>'
+    );
+    actions.push(
+      '<button type="button" class="btn ghost sm vehicle-action" data-action="vehicle_replace_request" data-vehicle-id="' +
+      esc(vehicleId) + '" data-vehicle-label="' + esc(label) + '">Edit / replace vehicle</button>'
     );
     if (pending) {
       actions.push(
@@ -1506,12 +1531,8 @@
 
   function syncMoneyActionButtons(pay) {
     var paid = invoiceIsPaid(pay);
-    var packageSettled = settledCentsFromPayment(pay) > 0 || paid;
-    // Stage 2: additive add-ons remain available after payment; pack/vehicle stay locked.
+    // Paid catalog/vehicle changes remain available as Admin-reviewed requests.
     var moneyActionsLockedWhenPaid = {
-      package_change_request: true,
-      vehicle_add_request: true,
-      vehicle_replace_request: true,
       maintenance_request: true,
     };
     var root = $('customer-actions');
@@ -1527,16 +1548,10 @@
         return;
       }
       if (!moneyActionsLockedWhenPaid[action]) return;
-      var lock = action === 'package_change_request' ? packageSettled : !!paid;
+      var lock = !!paid;
       btn.disabled = !!lock;
       btn.classList.toggle('is-disabled', !!lock);
-      if (action === 'package_change_request' && packageSettled) {
-        btn.title = 'Package changes are unavailable after any payment has been recorded.';
-      } else {
-        btn.title = paid
-          ? 'Invoice paid — call/text Cardetail1 for a quote adjustment'
-          : '';
-      }
+      btn.title = paid ? 'Maintenance plan changes require direct support after payment.' : '';
     });
   }
 
@@ -2235,11 +2250,21 @@
     if (!state.booking) return false;
     if (mutationPending && !opts.fromModal) return false;
     var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
+    var signatureKeys = Object.keys(payload || {}).sort();
+    var requestSignature = action + ':' + JSON.stringify(payload || {}, signatureKeys);
+    var idempotencyKey = mutationRequestKeys[requestSignature];
+    if (!idempotencyKey) {
+      idempotencyKey = global.crypto && typeof global.crypto.randomUUID === 'function'
+        ? global.crypto.randomUUID()
+        : ('op_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+      mutationRequestKeys[requestSignature] = idempotencyKey;
+    }
     var body = Object.assign({
       bookingId: state.booking.id,
       phone: phone,
       action: action,
       expectedBookingVersion: state.booking.bookingVersion,
+      idempotencyKey: idempotencyKey,
     }, payload || {});
     // Never send browser prices/totals as authoritative for package/add-on money.
     delete body.price;
@@ -2251,9 +2276,18 @@
     delete body.amount;
     delete body.amountCents;
     if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.changeRequested();
-    var r = await post('submit-customer-action', body);
+    var r;
+    try {
+      r = await post('submit-customer-action', body);
+    } catch (networkError) {
+      var uncertain = 'Connection interrupted. Your request may have reached the server. Reconnect and retry to safely check it.';
+      if (opts.fromModal) setMsg($('modal-error'), uncertain, true);
+      else showToast(uncertain, true);
+      return false;
+    }
 
     if (r.data && r.data.ok) {
+      delete mutationRequestKeys[requestSignature];
       // Mutations return a safe canonical booking projection. Paint it now,
       // then use the shared poller to converge secondary projections.
       if (r.data.booking) applyCanonicalBookingProjection(r.data.booking);
@@ -2294,6 +2328,7 @@
       ? mapPackageErrorMessage(r.data, r.status)
       : mapAddonErrorMessage(r.data, r.status);
     if (r.data && r.data.error === 'version_conflict') {
+      delete mutationRequestKeys[requestSignature];
       showToast(msg, true);
       if (portalRefresh) portalRefresh.markPending(15000);
       try {
@@ -2302,6 +2337,9 @@
       } catch (e) { /* session preserved */ }
       // Do not silently replay the mutation.
       return false;
+    }
+    if (!isTemporarilyUnavailableResponse(r)) {
+      delete mutationRequestKeys[requestSignature];
     }
     if (opts.fromModal) setMsg($('modal-error'), msg, true);
     else showToast(msg, true);
@@ -2823,14 +2861,13 @@
 
   async function removeAddonFromBooking(addonId) {
     if (mutationPending) return;
-    if (settledCentsFromPayment(state.payment) > 0) {
-      showToast('Paid add-ons cannot be removed online.', true);
-      return;
-    }
     setModalSubmitPending(true);
     setMsg($('modal-error'), '', false);
     try {
-      var ok = await submitAction('addon_remove_request', { addonIds: [addonId] }, { fromModal: true });
+      var ok = await submitAction('addon_remove_request', {
+        addonIds: [addonId],
+        vehicleId: packageModalVehicleId || undefined,
+      }, { fromModal: true });
       if (ok) {
         if (!renderAddonModal()) closeModal();
         else openModalShell('Modify service / add-ons');
@@ -2841,6 +2878,29 @@
   }
 
   function renderAddonModal() {
+    var targetVehicles = bookingVehiclesForActions();
+    if (targetVehicles.length === 1) packageModalVehicleId = String(targetVehicles[0].vehicleId || '');
+    var multiVehicle = targetVehicles.length > 1;
+    var vehicleSelectorHtml = multiVehicle
+      ? '<div><label for="mf-addon-vehicle">Vehicle</label><select id="mf-addon-vehicle">' +
+        '<option value="">Select a vehicle</option>' +
+        targetVehicles.map(function (vehicle) {
+          var id = String(vehicle.vehicleId || '');
+          return '<option value="' + esc(id) + '"' + (id === packageModalVehicleId ? ' selected' : '') + '>' +
+            esc(projectedVehicleLabel(vehicle)) + '</option>';
+        }).join('') + '</select></div>'
+      : '';
+    var form = $('modal-form');
+    if (multiVehicle && !selectedAddonVehicle()) {
+      form.innerHTML = vehicleSelectorHtml + '<p class="hint">Select which vehicle you want to update.</p>';
+      var emptySelector = $('mf-addon-vehicle');
+      if (emptySelector) emptySelector.addEventListener('change', function () {
+        packageModalVehicleId = String(emptySelector.value || '').trim();
+        renderAddonModal();
+        openModalShell('Modify service / add-ons');
+      });
+      return true;
+    }
     var addons = addonsForBookingCategory();
     if (!addons.length) {
       showToast('Add-on list unavailable. Refresh and try again.', true);
@@ -2849,8 +2909,6 @@
     var selectedIds = currentBookingAddonIds();
     var selectedSet = {};
     selectedIds.forEach(function (id) { selectedSet[id] = true; });
-    var settled = settledCentsFromPayment(state.payment);
-    var canRemove = settled === 0;
     var pay = state.payment || {};
 
     var onBooking = addons.filter(function (a) { return selectedSet[a.id]; });
@@ -2868,12 +2926,18 @@
         });
       }
     });
+    var targetVehicle = selectedAddonVehicle() || {};
+    var targetPackageId = String(targetVehicle.packageId || targetVehicle.pkgId || '').trim();
+    var included = addons.filter(function (a) {
+      return Array.isArray(a.includedInPackageIds)
+        && a.includedInPackageIds.indexOf(targetPackageId) >= 0;
+    });
     var available = addons.filter(function (a) {
-      return a.available !== false && !selectedSet[a.id];
+      return a.available !== false && !selectedSet[a.id] && included.indexOf(a) < 0;
     });
 
-    var form = $('modal-form');
     form.innerHTML =
+      vehicleSelectorHtml +
       '<p class="hint">Prices shown are from the official catalog. After you submit, your portal shows the server Total approved / Amount paid / Amount due.</p>' +
       '<dl class="meta-grid" style="margin-bottom:12px">' +
       '<div><dt>Total approved</dt><dd>' + fmtCents(approvedCentsFromPayment(pay)) + '</dd></div>' +
@@ -2887,10 +2951,8 @@
             '<span><strong>' + esc(a.name || a.id) + '</strong>' +
             (a.priceCents != null ? ' · ' + fmtCents(a.priceCents) : '') +
             '</span>' +
-            (canRemove
-              ? '<button type="button" class="btn ghost" data-remove-addon="' + esc(a.id) + '"'
-                + (mutationPending ? ' disabled' : '') + '>Remove</button>'
-              : '<span class="hint">Paid — removal unavailable</span>') +
+            '<button type="button" class="btn ghost" data-remove-addon="' + esc(a.id) + '"'
+              + (mutationPending ? ' disabled' : '') + '>Remove</button>' +
             '</li>';
         }).join('') + '</ul>'
         : '<p class="hint">No add-ons on this booking yet.</p>') +
@@ -2909,9 +2971,18 @@
             '<span class="opt-desc">' + esc(a.description || a.desc || '') + '</span>' +
             '</span></label>';
         }).join('') + '</div>'
-        : '<p class="hint">All catalog add-ons for this vehicle are already on the booking.</p>') +
+        : '<p class="hint">All separately billable add-ons for this vehicle are already selected.</p>') +
+      (included.length
+        ? '<p class="hint">Already included in this package: ' + included.map(function (a) { return esc(a.name); }).join(', ') + '.</p>'
+        : '') +
       '<p class="modal-live-total" id="mf-addon-total">Preview only (catalog): +$0.00 · Final totals come from the server after you submit</p>';
 
+    var targetSelector = $('mf-addon-vehicle');
+    if (targetSelector) targetSelector.addEventListener('change', function () {
+      packageModalVehicleId = String(targetSelector.value || '').trim();
+      renderAddonModal();
+      openModalShell('Modify service / add-ons');
+    });
     form.querySelectorAll('input[name="addonIds"]').forEach(function (inp) {
       inp.addEventListener('change', updateAddonLiveTotal);
     });
@@ -3112,9 +3183,6 @@
   function openActionModal(action, openerEl) {
     modalOpenerEl = openerEl || document.activeElement || null;
     var moneyLocked = {
-      package_change_request: true,
-      vehicle_add_request: true,
-      vehicle_replace_request: true,
       maintenance_request: true,
     };
     if (action === 'package_change_request') {
@@ -3182,6 +3250,15 @@
       return;
     }
     if (action === 'vehicle_add_request' || action === 'vehicle_replace_request' || action === 'vehicle_add') {
+      if (action === 'vehicle_replace_request' && (!openerEl || !openerEl.getAttribute('data-vehicle-id'))) {
+        var selectableVehicles = state.booking && Array.isArray(state.booking.vehicles)
+          ? state.booking.vehicles : [];
+        if (selectableVehicles.length > 1) {
+          showToast('Choose Edit / replace vehicle on the vehicle you want to change.', true);
+          modalOpenerEl = null;
+          return;
+        }
+      }
       modalMode = 'vehicle';
       renderVehicleModal(
         action === 'vehicle_replace_request'
@@ -3271,7 +3348,7 @@
         setMsg($('modal-error'), 'Select at least one add-on.', true);
         return null;
       }
-      return { addonIds: ids };
+      return { addonIds: ids, vehicleId: packageModalVehicleId || undefined };
     }
     if (modalMode === 'vehicle') {
       var category = ($('mf-category') && $('mf-category').value) || '';
@@ -3283,6 +3360,9 @@
         return null;
       }
       var vehiclePayload = { category: category, year: year, make: make, model: model };
+      if (modalAction === 'vehicle_replace_request' && modalOpenerEl && modalOpenerEl.getAttribute) {
+        vehiclePayload.vehicleId = String(modalOpenerEl.getAttribute('data-vehicle-id') || '').trim();
+      }
       if (category === 'cars') {
         var tierKey = ($('mf-tierKey') && $('mf-tierKey').value) || '';
         if (!tierKey) {

@@ -103,6 +103,23 @@ const PRICING = {
   },
 };
 
+// Add-ons whose named treatment is already part of the canonical package.
+// Keeping this beside PRICING prevents Customer/Admin clients from creating a
+// second billable line for work the selected package already includes.
+const PACKAGE_INCLUDED_ADDONS = Object.freeze({
+  cars: Object.freeze({
+    full: Object.freeze(['claybar']),
+    refresh: Object.freeze(['claybar', 'rainx']),
+    premium: Object.freeze(['claybar', 'rainx']),
+  }),
+});
+
+function includedAddonIds(category, packageId) {
+  const cat = String(category || '').trim();
+  const pkg = String(packageId || '').trim();
+  return [...(PACKAGE_INCLUDED_ADDONS[cat]?.[pkg] || [])];
+}
+
 const LENGTH_PRICING = {
   boats: {
     min: 12, max: 60, defaultFt: 22, estimateOver: 36,
@@ -331,9 +348,11 @@ function parseUnits(vehicle, booking) {
 function computeAddonTotal(vehicle) {
   const cat = vehicle.cat;
   const catalog = PRICING[cat]?.addons || [];
+  const included = new Set(includedAddonIds(cat, vehicle.packageId || vehicle.pkgId));
   let total = 0;
   const normalized = [];
   for (const a of (vehicle.addons || [])) {
+    if (included.has(a.id)) continue;
     const def = catalog.find((x) => x.id === a.id);
     if (!def) return { ok: false, error: 'invalid_pricing' };
     const qty = Math.max(1, Number(a.qty) || 1);
@@ -533,11 +552,14 @@ function coerceVehicleForCategory(vehicle, category, opts = {}) {
 
 module.exports = {
   PRICING,
+  PACKAGE_INCLUDED_ADDONS,
+  includedAddonIds,
   LENGTH_PRICING,
   RICH_ZIPS,
   getRichMultiplier,
   applyRichPrice,
   getLengthPrice,
+  inferPkgId,
   resolveRvTypeKey,
   computeAddonTotal,
   computeVehicleSubtotal,

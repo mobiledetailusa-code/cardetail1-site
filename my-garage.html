@@ -15,6 +15,7 @@ document.documentElement.classList.add('cd1-portal-booting');
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#0a0a0f;--bg2:#14141c;--border:rgba(255,255,255,.1);--text:#f1f1f3;--muted:rgba(255,255,255,.5);--blue:#4da3ff;--r:14px}
+html,body{max-width:100%;overflow-x:hidden}
 body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
 html.cd1-portal-booting #pre-auth,
 html.cd1-portal-booting #post-auth{display:none!important}
@@ -26,14 +27,14 @@ a:hover{text-decoration:underline}
 .hero h1{font-size:clamp(1.75rem,4vw,2.25rem);font-weight:800;margin-bottom:8px}
 .hero p{color:var(--muted);font-size:15px;max-width:520px;margin:0 auto}
 .top-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:20px 0 28px}
-.top-nav a,.top-nav button{font-size:13px;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);cursor:pointer;font-family:inherit}
+.top-nav a,.top-nav button{min-height:44px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);cursor:pointer;font-family:inherit}
 .top-nav a:hover,.top-nav button:hover{border-color:var(--blue)}
 .panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:24px;margin-bottom:20px}
 .panel h2{font-size:17px;font-weight:700;margin-bottom:6px}
 .panel .sub{font-size:13px;color:var(--muted);margin-bottom:16px}
 .inp{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:#0e0e14;color:var(--text);font:inherit;margin-bottom:10px}
 .inp:focus{outline:2px solid var(--blue);border-color:transparent}
-.btn{display:inline-block;padding:12px 18px;border-radius:10px;border:none;font-weight:700;font:inherit;cursor:pointer}
+.btn{display:inline-block;min-height:44px;min-width:44px;padding:12px 18px;border-radius:10px;border:none;font-weight:700;font:inherit;cursor:pointer}
 .btn.primary{background:var(--blue);color:#fff}
 .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
 .msg{font-size:13px;margin-top:10px}
@@ -162,7 +163,7 @@ body.pay-sticky-on{padding-bottom:76px}
    sticky bar is the primary, so the inline CTA stands down. Above 720px the
    sticky bar is hidden and the inline CTA in Payment & Receipts is the primary. */
 @media(max-width:720px){body.pay-sticky-on #btn-pay-balance{display:none}}
-@media(max-width:430px){.wrap{padding:16px 12px 40px}.panel{padding:18px}.portal-loading-panel{padding:22px 16px}.portal-loading{min-height:240px}.card-title{font-size:18px}.actions .btn{flex:1 1 100%}.actions .btn.primary{flex:1 1 100%}}
+@media(max-width:430px){.wrap{padding:16px 12px 40px}.panel{padding:18px}.portal-loading-panel{padding:22px 16px}.portal-loading{min-height:240px}.card-title{font-size:18px}.actions .btn{flex:1 1 100%}.actions .btn.primary{flex:1 1 100%}.inp,input,select,textarea{font-size:16px}}
 </style>
 <noscript><style>html.cd1-portal-booting #pre-auth{display:block!important}html.cd1-portal-booting #portal-loading{display:none!important}</style></noscript>
 <script>

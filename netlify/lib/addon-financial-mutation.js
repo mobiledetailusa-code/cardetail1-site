@@ -4,8 +4,9 @@
  * Money authority: Postgres PaymentAuthorityService.createAdjustment.
  * Blob is updated as a compatibility projection from that result.
  *
- * Does not redefine isInvoicePaid(). Post-settlement ADD is a narrow
- * additive adjustment path only; removal after any settlement is denied.
+ * Does not redefine isInvoicePaid(). Post-settlement additions create an
+ * unpaid delta; reductions create explicit outstanding credit for the PR2
+ * refund workflow and never issue a refund from this mutation.
  */
 
 const { getBookingRecord, commitBooking } = require('./booking-repository');
@@ -27,6 +28,13 @@ const {
 } = require('./db/operational-payment');
 const { ensureBookingFinancial } = require('./db/ensure-booking-financial');
 const authority = require('./db/payment-authority-service');
+const {
+  normalizeIdempotencyKey,
+  mutationFingerprint,
+  adjustmentIdFromKey,
+  replayResult,
+  appendOperationReceipt,
+} = require('./operation-idempotency');
 
 function settledCentsOf(aggregate) {
   return Math.max(0, Math.round(Number(aggregate?.ledger?.settledCents) || 0));
@@ -87,6 +95,8 @@ async function applyAddonFinancialMutation({
   /** Optional: mark this change-request applied in the same Blob commit */
   changeRequest = null,
   adminNote = '',
+  idempotencyKey = '',
+  actor = '',
   env = process.env,
 }) {
   const toAdd = normalizeAddonIds(addOnIdsToAdd);
@@ -101,24 +111,40 @@ async function applyAddonFinancialMutation({
   const { ok, aggregate } = normalizeAggregate(current.booking);
   if (!ok) return { ok: false, error: 'invalid_aggregate', statusCode: 400 };
 
+  const operationKey = normalizeIdempotencyKey(idempotencyKey);
+  if (idempotencyKey && !operationKey) {
+    return { ok: false, error: 'invalid_idempotency_key', statusCode: 400 };
+  }
+  const fingerprint = mutationFingerprint({
+    bookingId,
+    action: 'addon_mutation',
+    target: target || {},
+    addOnIdsToAdd: toAdd,
+    addOnIdsToRemove: toRemove,
+  });
+  if (operationKey) {
+    const replay = replayResult(aggregate, operationKey, fingerprint);
+    if (replay) {
+      if (!replay.ok) return replay;
+      return {
+        ok: true,
+        noop: true,
+        idempotent: true,
+        reason: 'idempotent_replay',
+        booking: aggregate,
+        projection: materialProjection(aggregate),
+        financialProjection: financialProjection(aggregate),
+        quoteVersion: aggregate.quoteVersion || aggregate.quote?.quoteVersion || 0,
+      };
+    }
+  }
+
   const actualVersion = Math.round(Number(aggregate.bookingVersion) || 0);
   const expected = expectedBookingVersion != null
     ? Math.round(Number(expectedBookingVersion))
     : actualVersion;
   if (actualVersion !== expected) {
     return { ok: false, error: 'version_conflict', statusCode: 409, actualBookingVersion: actualVersion };
-  }
-
-  const settled = settledCentsOf(aggregate);
-  if (toRemove.length && settled > 0) {
-    return {
-      ok: false,
-      error: 'settled_addon_remove_denied',
-      statusCode: 409,
-      message: 'Add-on removal is denied after settlement. No refund or balance rewrite is performed.',
-      projection: materialProjection(aggregate),
-      financialProjection: financialProjection(aggregate),
-    };
   }
 
   const idsForValidation = [...toAdd, ...toRemove];
@@ -210,7 +236,8 @@ async function applyAddonFinancialMutation({
     bookingId,
     newApprovedCents: quoted.quote.approvedCents,
     reason: toRemove.length ? 'addon_remove' : 'addon_add',
-    adjustmentId: `addon_${bookingId}_${actualVersion}_${quoted.quote.approvedCents}`.slice(0, 96),
+    adjustmentId: adjustmentIdFromKey('addonop', bookingId, operationKey)
+      || `addon_${bookingId}_${actualVersion}_${quoted.quote.approvedCents}`.slice(0, 96),
     expectedQuoteVersion: priorQuoteVersion,
     approvedBy: changeRequest ? 'customer_request_approved' : 'admin',
   });
@@ -298,6 +325,13 @@ async function applyAddonFinancialMutation({
       openDeltaPatches.jobStatus = 'confirmed';
     }
   }
+  const paidAtPatches = pgProjection.paymentStatus === 'paid' && pgProjection.paidAt
+    ? {
+      capturedAt: typeof pgProjection.paidAt === 'string'
+        ? pgProjection.paidAt
+        : new Date(pgProjection.paidAt).toISOString(),
+    }
+    : {};
 
   const next = buildNextAggregate(aggregate, {
     service: quoted.service,
@@ -313,6 +347,15 @@ async function applyAddonFinancialMutation({
     paymentStatus: compatPaymentStatus,
     paymentWorkflowStatus: compatWorkflow,
     addonsRequested: false,
+    operationReceipts: appendOperationReceipt(aggregate, {
+      idempotencyKey: operationKey,
+      fingerprint,
+      action: 'addon_mutation',
+      actor: actor || (changeRequest ? 'customer' : 'admin'),
+      bookingVersion: appliedBookingVersion,
+      quoteVersion: nextQuoteVersion,
+    }),
+    ...paidAtPatches,
     ...openDeltaPatches,
   });
 
@@ -321,7 +364,28 @@ async function applyAddonFinancialMutation({
     expectedBookingVersion: expected,
     nextAggregate: next,
   });
-  if (!committed.ok) return committed;
+  if (!committed.ok) {
+    if (operationKey && committed.error === 'version_conflict') {
+      const concurrent = await getBookingRecord(bookingId);
+      if (concurrent.exists) {
+        const normalized = normalizeAggregate(concurrent.booking);
+        const replay = normalized.ok ? replayResult(normalized.aggregate, operationKey, fingerprint) : null;
+        if (replay?.ok) {
+          return {
+            ok: true,
+            noop: true,
+            idempotent: true,
+            reason: 'idempotent_replay',
+            booking: normalized.aggregate,
+            projection: materialProjection(normalized.aggregate),
+            financialProjection: financialProjection(normalized.aggregate),
+            quoteVersion: normalized.aggregate.quoteVersion || normalized.aggregate.quote?.quoteVersion || 0,
+          };
+        }
+      }
+    }
+    return committed;
+  }
 
   await syncBlobCompatibilityFromProjection(bookingId, pgProjection).catch(() => {});
 
@@ -343,6 +407,7 @@ async function applyAddonFinancialMutation({
     financialProjection: blobFp,
     remainingCents: remainingCents(booking.ledger || nextLedger),
     adjustment,
+    outstandingCreditCents: Math.max(0, Math.round(Number(pgProjection.outstandingCreditCents) || 0)),
     priorAttemptCount,
   };
 }

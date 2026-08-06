@@ -228,9 +228,13 @@ describe('package accordion UI wiring', () => {
 
 describe('vehicle_remove_request policy + commands', () => {
   let store;
+  let bookingId;
+  let bookingSequence = 0;
 
   beforeEach(() => {
-    store = createMemoryStore({ 'CD1-B1-MULTI': twoVehicleFixture() });
+    bookingSequence += 1;
+    bookingId = `CD1-B1-MULTI-${process.pid}-${Date.now()}-${bookingSequence}`;
+    store = createMemoryStore({ [bookingId]: twoVehicleFixture({ id: bookingId }) });
     setBookingStoreOverride(store);
   });
 
@@ -249,7 +253,7 @@ describe('vehicle_remove_request policy + commands', () => {
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
 
     const submitted = await submitChangeRequestCommand({
-      bookingId: 'CD1-B1-MULTI',
+      bookingId,
       expectedBookingVersion: 3,
       requestType: 'vehicle_remove_request',
       target: { vehicleId: 'veh_bronco' },
@@ -260,7 +264,7 @@ describe('vehicle_remove_request policy + commands', () => {
     assert.equal(submitted.changeRequest.target.vehicleId, 'veh_bronco');
     assert.equal(submitted.changeRequest.proposedApprovedCents, 42100);
 
-    const after = await getBookingRecord('CD1-B1-MULTI');
+    const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 2, 'authoritative booking not mutated on submit');
     assert.equal(after.booking.bookingVersion, 4);
     assert.equal(after.booking.changeRequests.length, 1);
@@ -269,7 +273,7 @@ describe('vehicle_remove_request policy + commands', () => {
   it('rejects duplicate pending removal for same vehicle', async () => {
     const { submitChangeRequestCommand } = require('../netlify/lib/booking-commands');
     const first = await submitChangeRequestCommand({
-      bookingId: 'CD1-B1-MULTI',
+      bookingId,
       expectedBookingVersion: 3,
       requestType: 'vehicle_remove_request',
       target: { vehicleId: 'veh_bronco' },
@@ -277,7 +281,7 @@ describe('vehicle_remove_request policy + commands', () => {
     });
     assert.equal(first.ok, true);
     const second = await submitChangeRequestCommand({
-      bookingId: 'CD1-B1-MULTI',
+      bookingId,
       expectedBookingVersion: first.booking.bookingVersion,
       requestType: 'vehicle_remove_request',
       target: { vehicleId: 'veh_bronco' },
@@ -290,7 +294,7 @@ describe('vehicle_remove_request policy + commands', () => {
   it('rejects stale booking version', async () => {
     const { submitChangeRequestCommand } = require('../netlify/lib/booking-commands');
     const submitted = await submitChangeRequestCommand({
-      bookingId: 'CD1-B1-MULTI',
+      bookingId,
       expectedBookingVersion: 1,
       requestType: 'vehicle_remove_request',
       target: { vehicleId: 'veh_bronco' },
@@ -330,20 +334,20 @@ describe('vehicle_remove_request policy + commands', () => {
     } = require('../netlify/lib/booking-commands');
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
     const submitted = await submitChangeRequestCommand({
-      bookingId: 'CD1-B1-MULTI',
+      bookingId,
       expectedBookingVersion: 3,
       requestType: 'vehicle_remove_request',
       target: { vehicleId: 'veh_bronco' },
       delta: {},
     });
     const decided = await decideChangeRequestCommand({
-      bookingId: 'CD1-B1-MULTI',
+      bookingId,
       requestId: submitted.changeRequest.requestId,
       decision: 'reject',
       expectedBookingVersion: submitted.booking.bookingVersion,
     });
     assert.equal(decided.ok, true, decided.error);
-    const after = await getBookingRecord('CD1-B1-MULTI');
+    const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 2);
     const cr = after.booking.changeRequests.find((r) => r.requestId === submitted.changeRequest.requestId);
     assert.ok(['rejected', 'declined'].includes(String(cr.status)) || cr.decision === 'reject' || cr.adminDecision === 'reject' || cr.status === 'rejected');
@@ -356,7 +360,7 @@ describe('vehicle_remove_request policy + commands', () => {
     } = require('../netlify/lib/booking-commands');
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
     const submitted = await submitChangeRequestCommand({
-      bookingId: 'CD1-B1-MULTI',
+      bookingId,
       expectedBookingVersion: 3,
       requestType: 'vehicle_remove_request',
       target: { vehicleId: 'veh_bronco' },
@@ -365,14 +369,14 @@ describe('vehicle_remove_request policy + commands', () => {
     assert.equal(submitted.changeRequest.proposedApprovedCents, 42100);
 
     const decided = await decideChangeRequestCommand({
-      bookingId: 'CD1-B1-MULTI',
+      bookingId,
       requestId: submitted.changeRequest.requestId,
       decision: 'approve',
       expectedBookingVersion: submitted.booking.bookingVersion,
       acceptRequote: true,
     });
     assert.equal(decided.ok, true, `${decided.error} ${decided.message || ''}`);
-    const after = await getBookingRecord('CD1-B1-MULTI');
+    const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_boat');
     assert.equal(after.booking.ledger.approvedCents, 42100);
@@ -386,7 +390,7 @@ describe('vehicle_remove_request policy + commands', () => {
     } = require('../netlify/lib/booking-commands');
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
     const submitted = await submitChangeRequestCommand({
-      bookingId: 'CD1-B1-MULTI',
+      bookingId,
       expectedBookingVersion: 3,
       requestType: 'vehicle_remove_request',
       target: { vehicleId: 'veh_boat' },
@@ -394,22 +398,23 @@ describe('vehicle_remove_request policy + commands', () => {
     });
     assert.equal(submitted.changeRequest.proposedApprovedCents, 37000);
     const decided = await decideChangeRequestCommand({
-      bookingId: 'CD1-B1-MULTI',
+      bookingId,
       requestId: submitted.changeRequest.requestId,
       decision: 'approve',
       expectedBookingVersion: submitted.booking.bookingVersion,
       acceptRequote: true,
     });
     assert.equal(decided.ok, true, `${decided.error} ${decided.message || ''}`);
-    const after = await getBookingRecord('CD1-B1-MULTI');
+    const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_bronco');
     assert.equal(after.booking.ledger.approvedCents, 37000);
   });
 
-  it('paid booking approve returns payment_adjustment_required without mutating', async () => {
+  it('paid booking approval records an explicit credit without auto-refunding', async () => {
     store = createMemoryStore({
-      'CD1-B1-MULTI': twoVehicleFixture({
+      [bookingId]: twoVehicleFixture({
+        id: bookingId,
         ledger: { approvedCents: 79100, settledCents: 79100, creditedCents: 0, entries: [] },
         paymentStatus: 'paid',
         paymentWorkflowStatus: 'payment_succeeded',
@@ -423,7 +428,7 @@ describe('vehicle_remove_request policy + commands', () => {
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
 
     const submitted = await submitChangeRequestCommand({
-      bookingId: 'CD1-B1-MULTI',
+      bookingId,
       expectedBookingVersion: 3,
       requestType: 'vehicle_remove_request',
       target: { vehicleId: 'veh_bronco' },
@@ -432,19 +437,23 @@ describe('vehicle_remove_request policy + commands', () => {
     assert.equal(submitted.ok, true, submitted.error);
 
     const decided = await decideChangeRequestCommand({
-      bookingId: 'CD1-B1-MULTI',
+      bookingId,
       requestId: submitted.changeRequest.requestId,
       decision: 'approve',
       expectedBookingVersion: submitted.booking.bookingVersion,
       acceptRequote: true,
     });
-    assert.equal(decided.ok, false);
-    assert.equal(decided.error, 'payment_adjustment_required');
-    assert.equal(decided.paymentAdjustmentRequired, true);
+    assert.equal(decided.ok, true, decided.error);
+    assert.equal(decided.outstandingCreditCents, 37000);
 
-    const after = await getBookingRecord('CD1-B1-MULTI');
-    assert.equal(after.booking.vehicles.length, 2);
+    const after = await getBookingRecord(bookingId);
+    assert.equal(after.booking.vehicles.length, 1);
+    assert.equal(after.booking.vehicles[0].vehicleId, 'veh_boat');
+    assert.equal(after.booking.ledger.approvedCents, 42100);
     assert.equal(after.booking.ledger.settledCents, 79100);
+    assert.equal(after.booking.ledger.refundedCents || 0, 0);
+    assert.equal(after.booking.vehicleHistory.length, 1);
+    assert.equal(after.booking.vehicleHistory[0].vehicleId, 'veh_bronco');
   });
 });
 

@@ -156,7 +156,7 @@ describe('Stage 2 post-pay additive carve-out', () => {
   });
 });
 
-describe('Stage 2 policy remains globally paid-locked (execution)', () => {
+describe('PR4 paid catalog changes remain Admin-reviewed (execution)', () => {
   function paidInvoiceBooking() {
     return {
       status: 'Paid',
@@ -166,25 +166,24 @@ describe('Stage 2 policy remains globally paid-locked (execution)', () => {
     };
   }
 
-  it('canRequestChange still blocks package, vehicle, and addon at policy layer', () => {
+  it('allows package, vehicle, and add-on requests without auto-applying', () => {
     const paid = paidInvoiceBooking();
     assert.equal(isInvoicePaid(paid), true);
-    assert.equal(canRequestChange(paid, 'package_change').ok, false);
-    assert.equal(canRequestChange(paid, 'package_change').error, 'invoice_paid');
-    assert.equal(canRequestChange(paid, 'vehicle_replace').ok, false);
-    assert.equal(canRequestChange(paid, 'vehicle_add').ok, false);
-    assert.equal(canRequestChange(paid, 'addon').ok, false);
-    assert.equal(canRequestChange(paid, 'addon').error, 'invoice_paid');
-    // Address / reschedule remain available (global paid policy unchanged)
+    for (const action of ['package_change', 'vehicle_replace', 'vehicle_add', 'vehicle_remove', 'addon']) {
+      const policy = canRequestChange(paid, action);
+      assert.equal(policy.ok, true, action);
+      assert.equal(policy.pendingApproval, true, action);
+    }
     assert.equal(canRequestChange(paid, 'address').ok, true);
   });
 
-  it('carve-out is additive-only; policy itself is not loosened', () => {
+  it('legacy additive evaluator remains strict while PR4 policy requires Admin review', () => {
     const policySrc = read('netlify/lib/appointment-status-policy.js');
     assert.doesNotMatch(policySrc, /postPayAdditive|canApplyAdditive|addon_request/);
     const paid = paidInvoiceBooking();
     // Policy still says no — submit path must use carve-out evaluator, not a policy edit
-    assert.equal(canRequestChange(paid, 'addon').ok, false);
+    assert.equal(canRequestChange(paid, 'addon').ok, true);
+    assert.equal(canRequestChange(paid, 'addon').pendingApproval, true);
     const carve = evaluatePostPayAdditiveAddonCarveOut({
       ...paid,
       bookingVersion: 1,
@@ -223,17 +222,16 @@ describe('Stage 2 empty / absent remove (execution helpers)', () => {
 describe('Stage 2 submit-customer-action wiring guards', () => {
   const src = read('netlify/functions/submit-customer-action.js');
 
-  it('wires addon_remove_request with settled deny and empty noop', () => {
+  it('wires add-on removal with empty and absent noops', () => {
     assert.match(src, /action === 'addon_remove_request'/);
-    assert.match(src, /settled_addon_remove_denied/);
     assert.match(src, /empty_remove/);
     assert.match(src, /addon_not_present/);
     assert.match(src, /addOnIdsToRemove/);
   });
 
-  it('post-pay carve-out uses evaluatePostPayAdditiveAddonCarveOut before auto-apply', () => {
-    assert.match(src, /evaluatePostPayAdditiveAddonCarveOut/);
-    assert.match(src, /postPayAdditiveCarveOut/);
+  it('post-pay add-ons follow policy and remain pending for Admin approval', () => {
+    assert.doesNotMatch(src, /postPayAdditiveCarveOut/);
+    assert.match(src, /policy\.pendingApproval/);
   });
 
   it('returns authoritative projection cents on addon mutation response', () => {
@@ -258,10 +256,10 @@ describe('Stage 2 submit-customer-action wiring guards', () => {
 describe('Stage 2 My Garage customer UI (wiring guards)', () => {
   const js = read('assets/my-garage.js');
 
-  it('keeps add-on available after payment and hides remove when settled', () => {
+  it('keeps add-on additions and removals available after payment', () => {
     assert.match(js, /settledCentsFromPayment/);
     assert.match(js, /data-remove-addon/);
-    assert.match(js, /Paid — removal unavailable|settled === 0/);
+    assert.doesNotMatch(js, /Paid — removal unavailable/);
     assert.match(js, /addon_remove_request/);
     assert.match(js, /moneyActionsLockedWhenPaid/);
     assert.doesNotMatch(

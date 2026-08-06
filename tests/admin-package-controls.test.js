@@ -172,9 +172,15 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
   }
 
   function mutate(bookingId, body) {
+    const operationBody = {
+      ...body,
+      reason: body.reason || 'PR4 automated package operation',
+      idempotencyKey: body.idempotencyKey
+        || `pr4-package-${bookingId}-${Date.now()}-${Math.random().toString(16).slice(2)}`.slice(0, 96),
+    };
     return adminChangePackage({
       bookingId,
-      body,
+      body: operationBody,
       env: FAKE_ENV,
       auditFn: captureAudit,
     });
@@ -313,7 +319,7 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
     assert.equal(result.postgresProjection.approvedCents, 24000, 'catalog/Postgres price must win');
   });
 
-  it('7) full settlement denies change_package', async () => {
+  it('7) full settlement allows an upgrade and exposes only the delta due', async () => {
     const id = nextId('FULLPAY');
     const store = await seedBlob(baseBooking(id, {
       approvedCents: 15000,
@@ -325,58 +331,70 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
       expectedBookingVersion: 1,
       vehicleId: 'veh_1',
     });
-    assert.equal(result.ok, false);
-    assert.equal(result.statusCode, 409);
-    assert.equal(result.error, 'settled_package_change_denied');
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.postgresProjection.approvedCents, 24000);
+    assert.equal(result.postgresProjection.settledCents, 15000);
+    assert.equal(result.postgresProjection.remainingCents, 9000);
     const after = await store.get(id);
-    assert.equal(after.bookingVersion, 1);
-    assert.equal(after.vehicles[0].pkgId, 'maint');
+    assert.equal(after.bookingVersion, 2);
+    assert.equal(after.vehicles[0].pkgId, 'full');
     const pgQuotes = await prisma.quote.findMany({ where: { bookingId: id } });
-    assert.equal(pgQuotes.length, 0);
+    assert.ok(pgQuotes.length >= 2);
   });
 
-  it('8) partial settlement denies both Admin package actions', async () => {
+  it('8) partial settlement allows downgrade and keeps settled money immutable', async () => {
     const id = nextId('PARTIAL');
-    const store = await seedBlob(baseBooking(id, {
+    const seeded = baseBooking(id, {
       approvedCents: 24000,
       settledCents: 5000,
       packageId: 'full',
       pkgName: 'Premium Full Detail',
-    }));
+    });
+    seeded.status = 'Confirmed';
+    seeded.jobStatus = 'confirmed';
+    seeded.paymentStatus = 'due';
+    seeded._historicalPaidClosed = false;
+    const store = await seedBlob(seeded);
     const result = await mutate(id, {
       packageId: 'maint',
       expectedBookingVersion: 1,
       vehicleId: 'veh_1',
     });
-    assert.equal(result.ok, false);
-    assert.equal(result.statusCode, 409);
-    assert.equal(result.error, 'settled_package_change_denied');
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.postgresProjection.approvedCents, 15000);
+    assert.equal(result.postgresProjection.settledCents, 5000);
+    assert.equal(result.postgresProjection.remainingCents, 10000);
+    assert.equal(result.outstandingCreditCents, 0);
     const after = await store.get(id);
-    assert.equal(after.bookingVersion, 1);
-    assert.equal(after.vehicles[0].pkgId, 'full');
+    assert.equal(after.bookingVersion, 2);
+    assert.equal(after.vehicles[0].pkgId, 'maint');
     const pgQuotes = await prisma.quote.findMany({ where: { bookingId: id } });
-    assert.equal(pgQuotes.length, 0);
+    assert.ok(pgQuotes.length >= 2);
   });
 
-  it('9) denied calls create no PG quote/ledger/PI and no Blob money mutation', async () => {
+  it('9) post-payment changes preserve settled cents and create an immutable quote', async () => {
     const id = nextId('DENY');
-    const store = await seedBlob(baseBooking(id, {
+    const seeded = baseBooking(id, {
       approvedCents: 15000,
       settledCents: 100,
-    }));
-    const before = await store.get(id);
+    });
+    seeded.status = 'Confirmed';
+    seeded.jobStatus = 'confirmed';
+    seeded.paymentStatus = 'due';
+    seeded._historicalPaidClosed = false;
+    const store = await seedBlob(seeded);
     const result = await mutate(id, {
       packageId: 'full',
       expectedBookingVersion: 1,
       vehicleId: 'veh_1',
     });
-    assert.equal(result.error, 'settled_package_change_denied');
+    assert.equal(result.ok, true, result.error);
     const after = await store.get(id);
-    assert.equal(after.ledger.approvedCents, before.ledger.approvedCents);
-    assert.equal(after.ledger.settledCents, before.ledger.settledCents);
-    assert.equal(after.bookingVersion, before.bookingVersion);
-    assert.equal(after.vehicles[0].pkgId, 'maint');
-    assert.equal((await prisma.quote.findMany({ where: { bookingId: id } })).length, 0);
+    assert.equal(after.ledger.approvedCents, 24000);
+    assert.equal(after.ledger.settledCents, 100);
+    assert.equal(after.bookingVersion, 2);
+    assert.equal(after.vehicles[0].pkgId, 'full');
+    assert.ok((await prisma.quote.findMany({ where: { bookingId: id } })).length >= 2);
     assert.equal((await prisma.paymentAttempt.findMany({ where: { bookingId: id } })).length, 0);
   });
 

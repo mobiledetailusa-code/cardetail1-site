@@ -38,7 +38,7 @@ input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px
 input:focus,select:focus,textarea:focus{border-color:var(--ac)}
 .srch{max-width:260px}
 .fsel{max-width:200px}
-.btn{padding:9px 14px;border-radius:10px;border:0;background:var(--ac);color:#06121f;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn{min-height:44px;min-width:44px;padding:9px 14px;border-radius:10px;border:0;background:var(--ac);color:#06121f;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
 .btn:active{transform:translateY(1px)}
 .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
 .btn.sm{padding:6px 10px;font-size:12px}
@@ -87,6 +87,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac)}
 .req-filter-btn{min-height:44px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--mu);font-size:12px;font-weight:700;cursor:pointer}
 .req-filter-btn[aria-pressed="true"]{border-color:rgba(77,163,255,.45);background:rgba(77,163,255,.12);color:var(--ac)}
 @media(max-width:430px){
+  input,select,textarea{font-size:16px}
   .appt-panel-tabs{flex-direction:column}
   .appt-panel-tab,.req-filter-btn,.btn{width:100%}
   .job-detail-panel{padding:12px}
@@ -537,6 +538,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   // Server-declared capability state for the open job (see get_job.operationalControls).
   let drawerControls = null;
   const refundRequestKeys = {};
+  const adminMutationKeys = Object.create(null);
   let showTest = false, platformSettings = {}, platformAvailability = null, auctions = [], subscriptions = [], changeRequests = [];
   let requestsStatusFilter = 'pending';
   let jobDetailPanel = 'summary';
@@ -577,6 +579,22 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   const toast = msg => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); };
   const JOBS_COLSPAN = 9;
 
+  function newOperationKey() {
+    return window.crypto && typeof window.crypto.randomUUID === 'function'
+      ? window.crypto.randomUUID()
+      : ('op_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+  }
+
+  function mutationSignature(url, body) {
+    const clean = Object.assign({}, body || {});
+    delete clean.idempotencyKey;
+    delete clean.requestKey;
+    delete clean.expectedBookingVersion;
+    const sorted = {};
+    Object.keys(clean).sort().forEach((key) => { sorted[key] = clean[key]; });
+    return url + ':' + JSON.stringify(sorted);
+  }
+
   function adminLogout() {
     const t = CD1AdminSession.getToken();
     if (t) {
@@ -610,6 +628,21 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
 
   async function api(url, method, body, extraOpts) {
+    let mutationKeySignature = '';
+    const readActions = new Set(['get_job', 'list_audit', 'list']);
+    if (method === 'POST' && body && body.action && !readActions.has(String(body.action))) {
+      if (body.bookingId && (body.expectedBookingVersion == null || body.expectedBookingVersion === '')) {
+        const current = activeJob && activeJob.id === body.bookingId
+          ? activeJob
+          : jobs.find((job) => job && job.id === body.bookingId);
+        if (current && current.bookingVersion != null) body.expectedBookingVersion = current.bookingVersion;
+      }
+      mutationKeySignature = mutationSignature(url, body);
+      if (!body.idempotencyKey) {
+        body.idempotencyKey = adminMutationKeys[mutationKeySignature]
+          || (adminMutationKeys[mutationKeySignature] = newOperationKey());
+      }
+    }
     const opts = Object.assign({ method: method||'GET', headers: { 'x-admin-key': CD1AdminSession.getToken() } }, extraOpts || {});
     if (!opts.headers) opts.headers = { 'x-admin-key': CD1AdminSession.getToken() };
     if (!opts.headers['x-admin-key']) opts.headers['x-admin-key'] = CD1AdminSession.getToken();
@@ -642,6 +675,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         requestError.retryable = data.retryable === true;
         requestError.status = res.status;
         requestError.statusCode = res.status;
+        requestError.data = data;
         const retryHeader = Number(res.headers && res.headers.get && res.headers.get('Retry-After'));
         requestError.retryAfterMs = Number(data.retryAfterSec) > 0
           ? Number(data.retryAfterSec) * 1000
@@ -651,8 +685,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (method && method !== 'GET' && body && body.action && opsRefresh) {
         opsRefresh.markPending(30000);
       }
+      if (mutationKeySignature) delete adminMutationKeys[mutationKeySignature];
       return data;
     } catch (e) {
+      if (mutationKeySignature && e && e.status && e.status < 500 && e.status !== 429) {
+        delete adminMutationKeys[mutationKeySignature];
+      }
       if (timedOut) throw new Error('timeout');
       if (e && e.name === 'AbortError') throw new Error('aborted');
       throw e;
@@ -903,11 +941,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
 
   async function decideChangeRequest(requestId, decision, adminNote, extra) {
+    const request = mergeRequestsWithJobs(changeRequests).find((row) => row && row.id === requestId);
     const body = Object.assign({
       action: 'decide',
       requestId,
       decision,
       adminNote: adminNote || '',
+      expectedBookingVersion: request && request.currentBookingVersion != null
+        ? request.currentBookingVersion
+        : (request && request.embeddedBookingVersion),
+      expectedQuoteVersion: request && request.quoteVersion != null ? request.quoteVersion : undefined,
     }, extra || {});
     try {
       return await api('/.netlify/functions/admin-customer-requests', 'POST', body);
@@ -917,6 +960,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         if (confirm('Booking changed since this request. Approve using the updated quote?')) {
           return api('/.netlify/functions/admin-customer-requests', 'POST', Object.assign({}, body, {
             acceptRequote: true,
+            expectedBookingVersion: e.data && e.data.actualBookingVersion != null
+              ? e.data.actualBookingVersion
+              : body.expectedBookingVersion,
           }));
         }
       }
@@ -2514,6 +2560,35 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     return new RegExp('(^|[^0-9.])' + len + "\\s*(ft\\b|ft\\.|feet\\b|')", 'i').test(String(label || ''));
   }
 
+  function vehicleMutationFormHtml() {
+    const catalog = drawerAddonData && drawerAddonData.vehicleCatalog;
+    if (!catalog || !Array.isArray(catalog.categories)) {
+      return '<p class="hint">Vehicle catalog unavailable — reopen this booking.</p>';
+    }
+    const categoryOptions = catalog.categories.map((row) =>
+      '<option value="'+esc(row.id)+'">'+esc(row.label || row.id)+'</option>'
+    ).join('');
+    const yearOptions = (catalog.years || []).map((year) =>
+      '<option value="'+esc(year)+'">'+esc(year)+'</option>'
+    ).join('');
+    return '<details id="dVehicleMutation" style="margin-top:10px">'+
+      '<summary style="cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--ac);font-weight:700">Add vehicle</summary>'+
+      '<div class="op-grid" style="margin-top:8px">'+
+      '<input type="hidden" id="dVehicleOp" value="add"><input type="hidden" id="dVehicleId" value="">'+
+      '<div><label>Category</label><select id="dVehicleCategory">'+categoryOptions+'</select></div>'+
+      '<div><label>Year</label><select id="dVehicleYear">'+yearOptions+'</select></div>'+
+      '<div><label>Make</label><input id="dVehicleMake" maxlength="60"></div>'+
+      '<div><label>Model</label><input id="dVehicleModel" maxlength="60"></div>'+
+      '<div><label>Size / tier</label><select id="dVehicleTier"></select></div>'+
+      '<div><label>Package</label><select id="dVehiclePackage"></select></div>'+
+      '<div><label>Length (ft, when required)</label><input type="number" id="dVehicleLength" min="1" step="1"></div>'+
+      '<div class="full"><label>Reason (required)</label><input id="dVehicleReason" maxlength="300" placeholder="Why is this appointment vehicle changing?"></div>'+
+      '<div class="full actions"><button type="button" class="btn sm" id="dVehicleSave">Apply vehicle change</button> '+
+      '<button type="button" class="btn ghost sm" id="dVehicleReset">Reset to Add</button></div>'+
+      '<p class="hint full" id="dVehicleStatus">Server pricing is authoritative. Paid increases become a delta; decreases become credit/refund due.</p>'+
+      '</div></details>';
+  }
+
   function renderVehiclesDetailSection(j) {
     const vehs = jobVehicles(j);
     let out = '<div class="sec full"><h4>Vehicles and services</h4>';
@@ -2552,10 +2627,145 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         out += '<div><b>Add-ons:</b> None</div>';
       }
       out += '<div><b>Vehicle subtotal:</b> '+esc(fmtServerDollars(v.subtotal))+'</div>'+
+        '</div><div class="actions" style="margin-top:8px">'+
+        '<button type="button" class="btn ghost sm admin-vehicle-edit" data-vehicle-index="'+idx+'">Edit / replace</button>'+
+        (vehs.length > 1
+          ? '<button type="button" class="btn danger sm admin-vehicle-remove" data-vehicle-index="'+idx+'">Remove</button>'
+          : '<span class="hint" style="margin:0">Final vehicle cannot be removed; cancel the appointment instead.</span>')+
         '</div></div>';
     });
-    out += '</div>';
+    out += vehicleMutationFormHtml()+'</div>';
     return out;
+  }
+
+  function bindVehicleMutationSection(j) {
+    const root = $('#dVehicleMutation');
+    const catalog = drawerAddonData && drawerAddonData.vehicleCatalog;
+    if (!root || !catalog) return;
+    const vehicles = jobVehicles(j);
+    const category = $('#dVehicleCategory');
+    const tier = $('#dVehicleTier');
+    const pack = $('#dVehiclePackage');
+    const length = $('#dVehicleLength');
+    const summary = root.querySelector('summary');
+    let pending = false;
+
+    const options = (rows, selected) => (rows || []).map((row) =>
+      '<option value="'+esc(row.id)+'"'+(String(row.id)===String(selected||'')?' selected':'')+'>'+esc(row.label || row.name || row.id)+'</option>'
+    ).join('');
+    function syncCatalog(selectedTier, selectedPackage) {
+      const cat = category.value;
+      const tiers = catalog.tiersByCategory && catalog.tiersByCategory[cat] || [];
+      const packages = catalog.packagesByCategory && catalog.packagesByCategory[cat] || [];
+      tier.innerHTML = options(tiers, selectedTier);
+      tier.disabled = !tiers.length;
+      pack.innerHTML = options(packages, selectedPackage);
+      pack.disabled = !packages.length;
+      const needsLength = (catalog.lengthCategories || []).includes(cat);
+      length.disabled = !needsLength;
+      if (!needsLength) length.value = '';
+    }
+    function reset() {
+      $('#dVehicleOp').value = 'add';
+      $('#dVehicleId').value = '';
+      $('#dVehicleMake').value = '';
+      $('#dVehicleModel').value = '';
+      $('#dVehicleReason').value = '';
+      category.selectedIndex = 0;
+      if ($('#dVehicleYear')) $('#dVehicleYear').selectedIndex = 0;
+      if (summary) summary.textContent = 'Add vehicle';
+      syncCatalog('', '');
+    }
+    category.onchange = () => syncCatalog('', '');
+    const resetBtn = $('#dVehicleReset');
+    if (resetBtn) resetBtn.onclick = reset;
+
+    document.querySelectorAll('.admin-vehicle-edit').forEach((button) => {
+      button.onclick = () => {
+        const vehicle = vehicles[Number(button.dataset.vehicleIndex)];
+        if (!vehicle) return;
+        $('#dVehicleOp').value = 'replace';
+        $('#dVehicleId').value = vehicle.vehicleId || '';
+        category.value = vehicle.category || vehicle.cat || 'cars';
+        $('#dVehicleYear').value = String(vehicle.year || '');
+        $('#dVehicleMake').value = vehicle.make || '';
+        $('#dVehicleModel').value = vehicle.model || '';
+        $('#dVehicleLength').value = Number(vehicle.lengthFt) > 0 ? Number(vehicle.lengthFt) : '';
+        syncCatalog(vehicle.tierKey || vehicle.tier, vehicle.packageId || vehicle.pkgId);
+        $('#dVehicleReason').value = '';
+        if (summary) summary.textContent = 'Edit / replace '+(vehicle.vehicleLabel || vehicle.make || 'vehicle');
+        root.open = true;
+        root.scrollIntoView({ behavior:'smooth', block:'start' });
+      };
+    });
+    document.querySelectorAll('.admin-vehicle-remove').forEach((button) => {
+      button.onclick = async () => {
+        if (pending) return;
+        const vehicle = vehicles[Number(button.dataset.vehicleIndex)];
+        if (!vehicle || !confirm('Remove this vehicle from the current appointment? Historical quotes and receipts will be preserved.')) return;
+        const reason = (prompt('Removal reason (required):') || '').trim();
+        if (!reason) { toast('A removal reason is required'); return; }
+        pending = true;
+        button.disabled = true;
+        try {
+          const result = await jobAction(j.id, 'vehicle_mutation', {
+            vehicleOp: 'remove',
+            vehicleId: vehicle.vehicleId,
+            reason,
+            expectedBookingVersion: j.bookingVersion,
+          });
+          if (result.outstandingCreditCents > 0) {
+            toast('Vehicle removed · credit/refund due '+money(result.outstandingCreditCents));
+          }
+        } finally {
+          pending = false;
+          button.disabled = false;
+        }
+      };
+    });
+
+    const save = $('#dVehicleSave');
+    if (save) save.onclick = async () => {
+      if (pending) return;
+      const reason = ($('#dVehicleReason').value || '').trim();
+      if (!reason) { toast('A reason is required'); return; }
+      if (!$('#dVehicleMake').value.trim() || !$('#dVehicleModel').value.trim() || !pack.value) {
+        toast('Complete make, model, and package');
+        return;
+      }
+      pending = true;
+      save.disabled = true;
+      const status = $('#dVehicleStatus');
+      if (status) status.textContent = 'Applying server-side quote and vehicle change…';
+      try {
+        const result = await jobAction(j.id, 'vehicle_mutation', {
+          vehicleOp: $('#dVehicleOp').value,
+          vehicleId: $('#dVehicleId').value || undefined,
+          reason,
+          expectedBookingVersion: j.bookingVersion,
+          vehicle: {
+            category: category.value,
+            year: $('#dVehicleYear').value,
+            make: $('#dVehicleMake').value.trim(),
+            model: $('#dVehicleModel').value.trim(),
+            tierKey: tier.value,
+            packageId: pack.value,
+            lengthFt: length.disabled ? 0 : Number(length.value || 0),
+          },
+        });
+        if (result.outstandingCreditCents > 0) {
+          toast('Vehicle updated · credit/refund due '+money(result.outstandingCreditCents));
+        }
+      } catch (error) {
+        if (status) status.textContent = error.message === 'version_conflict'
+          ? 'Booking changed in another tab. Latest state was loaded; review before retrying.'
+          : 'Vehicle change failed: '+error.message;
+      } finally {
+        pending = false;
+        save.disabled = false;
+      }
+    };
+    reset();
   }
 
   function money(cents){ return '$'+((Math.max(0,Math.round(Number(cents)||0)))/100).toFixed(2); }
@@ -2654,6 +2864,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         drawerAddonData = {
           catalog: d.addonCatalog || null,
           packageCatalog: d.packageCatalog || null,
+          vehicleCatalog: d.vehicleCatalog || null,
           vehicles: d.vehicles || [],
           selected: d.selectedAddonIds || [],
           projection: d.projection || null,
@@ -3025,6 +3236,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     $('#dNote').value = '';
     bindAddonSection(j);
     bindPackageSection(j);
+    bindVehicleMutationSection(j);
     const da = $('#dAssign');
     if (da) {
       da.onchange = () => onAssign(j.id, da.value);
@@ -3381,13 +3593,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       const a = byId[id] || { id: id, name: id, priceCents: null };
       out += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;padding:4px 0;border-bottom:1px solid var(--line)">'+
         '<span>'+esc(a.name || id)+(a.priceCents != null ? ' · '+money(a.priceCents) : '')+'</span>'+
-        (settledC === 0
-          ? '<button type="button" class="btn ghost sm addon-remove" data-remove-addon="'+esc(id)+'">Remove</button>'
-          : '<span class="hint" style="margin:0">Paid — removal unavailable</span>')+
+        '<button type="button" class="btn ghost sm addon-remove" data-remove-addon="'+esc(id)+'">Remove</button>'+
         '</div>';
     });
     out += '</div>';
-    const available = catalogRows.filter(a => selected.indexOf(a.id) < 0);
+    const included = catalogRows.filter(a => (a.includedInPackageIds || []).indexOf(activeVehicle && activeVehicle.currentPackageId) >= 0);
+    const available = catalogRows.filter(a => selected.indexOf(a.id) < 0 && included.indexOf(a) < 0);
+    if (included.length) {
+      out += '<p class="hint">Already included in this package: '+included.map(a => esc(a.name)).join(', ')+'</p>';
+    }
     const canMutate = !multiVehicle || !!activeVehicleId;
     out += '<div class="op-grid">'+
       '<div class="full"><label>Add canonical add-on (price from catalog)</label>'+
@@ -3440,12 +3654,19 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         if (st) st.textContent = 'Select a target vehicle before changing add-ons.';
         return;
       }
+      const reason = (prompt('Reason for this add-on change (required):') || '').trim();
+      if (!reason) {
+        const st = $('#dAddonStatus');
+        if (st) st.textContent = 'A reason is required.';
+        return;
+      }
       setPending(true, 'Applying add-on change…');
       try {
         const body = Object.assign({
           action: 'addon_mutation',
           bookingId: j.id,
           expectedBookingVersion: expectedBookingVersion,
+          reason: reason,
         }, payload);
         if (vehicleId) body.vehicleId = vehicleId;
         const d = await api('/.netlify/functions/admin-ops-jobs','POST', body);
@@ -3516,9 +3737,6 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         ? esc(current.name)+' · '+money(current.priceCents)
         : esc((activeVehicle && activeVehicle.currentPackageId) || 'Unknown'))+
       '</div></div>';
-    if (settledC > 0) {
-      return out + '<p class="hint" style="margin:0">Paid — package changes unavailable after settlement.</p></div>';
-    }
     const choices = options.filter(o => !o.current);
     const canMutate = choices.length > 0 && !!activeVehicleId;
     out += '<div class="op-grid">'+
@@ -3578,6 +3796,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       }
       const label = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : packageId;
       if (!confirm('Change the service package to "'+label+'"? The canonical quote will be repriced by the server.')) return;
+      const reason = (prompt('Reason for this package change (required):') || '').trim();
+      if (!reason) {
+        const st = $('#dPkgStatus');
+        if (st) st.textContent = 'A reason is required.';
+        return;
+      }
       setPending(true, 'Applying package change…');
       try {
         const body = {
@@ -3585,6 +3809,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           bookingId: j.id,
           expectedBookingVersion: expectedBookingVersion,
           packageId: packageId,
+          reason: reason,
         };
         if (vehicleId) body.vehicleId = vehicleId;
         const d = await api('/.netlify/functions/admin-ops-jobs','POST', body);

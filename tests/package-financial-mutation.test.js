@@ -242,7 +242,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     assert.ok(kinds.includes('addon:ozone'), `missing addon line item in ${kinds}`);
   });
 
-  it('4) any settlement denies the change — pre-settlement only, no PG adjustment', async () => {
+  it('4) a fully settled upgrade creates only the unpaid delta', async () => {
     const { applyPackageFinancialMutation } = require('../netlify/lib/package-financial-mutation');
     const id = nextId('SETTLED');
     const store = await seedBlob(baseBooking(id, {
@@ -258,27 +258,31 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
       packageId: 'full',
       env: FAKE_ENV,
     });
-    assert.equal(result.ok, false);
-    assert.equal(result.statusCode, 409);
-    assert.equal(result.error, 'settled_package_change_denied');
-    // Nothing was mutated in the Blob.
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.postgresProjection.approvedCents, 24000);
+    assert.equal(result.postgresProjection.settledCents, 15000);
+    assert.equal(result.postgresProjection.remainingCents, 9000);
     const after = await store.get(id);
-    assert.equal(after.bookingVersion, 1);
-    assert.equal(after.vehicles[0].pkgId, 'maint');
-    // Nothing landed in Postgres for this booking (denial happened pre-ensure).
+    assert.equal(after.bookingVersion, 2);
+    assert.equal(after.vehicles[0].pkgId, 'full');
     const pgQuotes = await prisma.quote.findMany({ where: { bookingId: id } });
-    assert.equal(pgQuotes.length, 0, 'settled denial must not create PG rows');
+    assert.ok(pgQuotes.length >= 2);
   });
 
-  it('5) partial settlement also denies (no proration/refund path in Stage 1)', async () => {
+  it('5) a partial-settlement downgrade preserves settlement and reduces the due amount', async () => {
     const { applyPackageFinancialMutation } = require('../netlify/lib/package-financial-mutation');
     const id = nextId('PARTIAL');
-    await seedBlob(baseBooking(id, {
+    const seeded = baseBooking(id, {
       approvedCents: 24000,
       settledCents: 5000,
       packageId: 'full',
       pkgName: 'Premium Full Detail',
-    }));
+    });
+    seeded.status = 'Confirmed';
+    seeded.jobStatus = 'confirmed';
+    seeded.paymentStatus = 'due';
+    seeded._historicalPaidClosed = false;
+    await seedBlob(seeded);
 
     const result = await applyPackageFinancialMutation({
       bookingId: id,
@@ -287,8 +291,11 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
       packageId: 'maint',
       env: FAKE_ENV,
     });
-    assert.equal(result.ok, false);
-    assert.equal(result.error, 'settled_package_change_denied');
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.postgresProjection.approvedCents, 15000);
+    assert.equal(result.postgresProjection.settledCents, 5000);
+    assert.equal(result.postgresProjection.remainingCents, 10000);
+    assert.equal(result.outstandingCreditCents, 0);
   });
 
   it('6) expectedBookingVersion conflict creates no mutation', async () => {

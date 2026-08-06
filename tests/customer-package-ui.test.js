@@ -277,13 +277,14 @@ describe('Customer portal data + submit wiring', () => {
     const pkgStart = src.indexOf("action === 'package_change_request'");
     assert.ok(pkgStart >= 0);
     const pkgBlock = src.slice(pkgStart, pkgStart + 12000);
-    assert.match(pkgBlock, /expectedBookingVersion is required/);
-    assert.match(pkgBlock, /Math\.round\(Number\(p\.expectedBookingVersion\)\)/);
+    assert.match(src, /expectedBookingVersion is required/);
+    assert.match(src, /Math\.round\(Number\(p\.expectedBookingVersion\)\)/);
     assert.match(pkgBlock, /expectedBookingVersion,/);
     // Must not silently substitute the loaded booking version for package CAS.
     const beforeSubmit = pkgBlock.slice(0, pkgBlock.indexOf('submitChangeRequestCommand'));
     assert.doesNotMatch(beforeSubmit, /expectedBookingVersion:\s*booking\.bookingVersion/);
-    assert.match(pkgBlock, /settled_package_change_denied/);
+    assert.doesNotMatch(pkgBlock, /settled_package_change_denied/);
+    assert.match(pkgBlock, /Post-payment requests remain Admin-reviewed/);
     assert.match(pkgBlock, /vehicle_target_required/);
     assert.match(pkgBlock, /package_unchanged/);
     assert.match(pkgBlock, /invalid_pricing/);
@@ -323,14 +324,13 @@ describe('Customer My Garage package UI wiring', () => {
     assert.match(js, /Current add-ons stay on the booking|compatible selected add-ons/i);
   });
 
-  it('11) settledCents > 0 disables package changes in Customer UI', () => {
+  it('11) package changes remain available after payment but pending requests lock duplicates', () => {
     assert.match(js, /packageChangeUnavailableReason/);
-    assert.match(js, /settledCentsFromPayment\(.*\) > 0/);
-    assert.match(js, /Package changes are unavailable after any payment has been recorded/);
+    assert.match(js, /A package change request is already pending/);
     const syncStart = js.indexOf('function syncMoneyActionButtons');
     const syncFn = js.slice(syncStart, syncStart + 1600);
-    assert.match(syncFn, /packageSettled/);
-    assert.match(syncFn, /package_change_request/);
+    assert.doesNotMatch(syncFn, /packageSettled/);
+    assert.match(syncFn, /maintenance_request/);
   });
 
   it('15–17) pending lock, package_unchanged, package-specific errors', () => {
@@ -429,7 +429,7 @@ describe('Customer package Stage 1 authority still enforced (settlement + versio
     assert.equal(after.booking.service.vehicles[0].packageId, beforePkg);
   });
 
-  it('12) server bypass after settlement remains denied', async (t) => {
+  it('12) server applies a post-payment downgrade without changing settled cents', async (t) => {
     if (!dbConfigured) {
       t.skip('DATABASE_URL required');
       return;
@@ -449,9 +449,11 @@ describe('Customer package Stage 1 authority still enforced (settlement + versio
       target: { vehicleId: 'veh_1' },
       env: FAKE_ENV,
     });
-    assert.equal(result.ok, false);
-    assert.equal(result.error, 'settled_package_change_denied');
-    assert.equal(result.statusCode, 409);
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.postgresProjection.approvedCents, 15000);
+    assert.equal(result.postgresProjection.settledCents, 10000);
+    assert.equal(result.postgresProjection.remainingCents, 5000);
+    assert.equal(result.outstandingCreditCents, 0);
   });
 
   it('13–14) compatible add-ons preserved; invalid path does not silently delete', async (t) => {
