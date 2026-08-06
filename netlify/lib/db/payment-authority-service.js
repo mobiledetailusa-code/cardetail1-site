@@ -33,12 +33,12 @@ function buildIdempotencyKey({ bookingId, quoteVersion, amountCents, generation 
  * Load every row needed to compute the current authoritative projection
  * for a booking, then compute it. Read-only.
  */
-async function getFinancialProjection(bookingId) {
+async function getFinancialProjection(bookingId, prismaOverride = null) {
   const [booking, quote, paymentAttempts, ledgerEntries] = await Promise.all([
-    repo.getBooking(bookingId),
-    repo.getLatestQuote(bookingId),
-    repo.listPaymentAttempts(bookingId),
-    repo.listLedgerEntries(bookingId),
+    repo.getBooking(bookingId, prismaOverride),
+    repo.getLatestQuote(bookingId, prismaOverride),
+    repo.listPaymentAttempts(bookingId, prismaOverride),
+    repo.listLedgerEntries(bookingId, prismaOverride),
   ]);
   if (!booking || !quote) return null;
   return computeFinancialProjection({ booking, quote, paymentAttempts, ledgerEntries });
@@ -66,10 +66,45 @@ async function reserveAndCreatePaymentIntent({
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
+  const prisma = getPrisma();
+  const lockKey = ['payment_intent_create', bookingId, quoteVersion].join(':');
+
+  // The unique indexes prevent duplicate PaymentAttempt rows, but they do not
+  // by themselves prevent two workers from observing the same freshly-created
+  // `creating` row before its providerObjectId is attached. Serialize that
+  // short critical section across processes with a transaction-scoped advisory
+  // lock. This also preserves timeout recovery: a later caller retries Stripe
+  // with the exact same Idempotency-Key after the first transaction commits.
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRawUnsafe(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))::text AS lock_acquired',
+      lockKey,
+    );
+    return reserveAndCreatePaymentIntentLocked({
+      bookingId,
+      quoteVersion,
+      generation,
+      stripeCustomerId,
+      env,
+      fetchImpl,
+      prisma: tx,
+    });
+  }, { maxWait: 10_000, timeout: 30_000 });
+}
+
+async function reserveAndCreatePaymentIntentLocked({
+  bookingId,
+  quoteVersion,
+  generation,
+  stripeCustomerId,
+  env,
+  fetchImpl,
+  prisma,
+}) {
   if (stripeCustomerId && !/^cus_[A-Za-z0-9]+$/.test(String(stripeCustomerId))) {
     return { ok: false, error: 'invalid_stripe_customer', statusCode: 400 };
   }
-  const projection = await getFinancialProjection(bookingId);
+  const projection = await getFinancialProjection(bookingId, prisma);
   if (!projection) return { ok: false, error: 'not_found', statusCode: 404 };
   if (projection.quoteVersion !== quoteVersion) {
     return { ok: false, error: 'stale_quote_version', statusCode: 409, projection };
@@ -94,6 +129,8 @@ async function reserveAndCreatePaymentIntent({
     providerObjectId: null,
     idempotencyKey,
     generation,
+    prisma,
+    prelocked: true,
   });
   if (!reserved.ok) return { ok: false, error: reserved.error, statusCode: 500 };
 
@@ -168,7 +205,7 @@ async function reserveAndCreatePaymentIntent({
   const paymentAttempt = await repo.updatePaymentAttempt(reserved.attempt.id, {
     providerObjectId: stripePaymentIntent.id,
     status: 'open',
-  });
+  }, prisma);
 
   return {
     ok: true,
