@@ -68,6 +68,25 @@ function parseAmountCents(value) {
   return { ok: true, amountCents: cents };
 }
 
+function validateExpectedBookingVersion(booking, body = {}) {
+  const expected = body.expectedBookingVersion;
+  const actualBookingVersion = Math.round(Number(booking && booking.bookingVersion) || 0);
+  if (expected == null || expected === '') {
+    return { ok: false, error: 'expected_version_required', statusCode: 400, actualBookingVersion };
+  }
+  const expectedBookingVersion = Math.round(Number(expected));
+  if (!Number.isFinite(expectedBookingVersion) || expectedBookingVersion !== actualBookingVersion) {
+    return {
+      ok: false,
+      error: 'version_conflict',
+      statusCode: 409,
+      expectedBookingVersion: Number.isFinite(expectedBookingVersion) ? expectedBookingVersion : null,
+      actualBookingVersion,
+    };
+  }
+  return { ok: true, expectedBookingVersion, actualBookingVersion };
+}
+
 /**
  * Which outcome an adjustment of this type would produce against the current
  * ledger. Computed up front so Admin sees the consequence before confirming and
@@ -164,6 +183,8 @@ function createAdjustment(booking, body = {}, opts = {}) {
 
 /** Customer or Admin decision on a pending adjustment. */
 function decideAdjustment(booking, body = {}, opts = {}) {
+  const version = validateExpectedBookingVersion(booking, body);
+  if (!version.ok) return version;
   const record = findAdjustment(booking, body.adjustmentId);
   if (!record) return { ok: false, error: 'adjustment_not_found', statusCode: 404 };
   if (record.status !== 'pending_customer' && record.status !== 'draft') {
@@ -199,6 +220,8 @@ function decideAdjustment(booking, body = {}, opts = {}) {
  * settled/credited figures — those belong to real settlements and refunds.
  */
 function applyAdjustment(booking, body = {}, opts = {}) {
+  const version = validateExpectedBookingVersion(booking, body);
+  if (!version.ok) return version;
   const projection = opts.authoritativeProjection || financialProjection(booking);
   const record = findAdjustment(booking, body.adjustmentId);
   if (!record) return { ok: false, error: 'adjustment_not_found', statusCode: 404 };
@@ -368,6 +391,7 @@ module.exports = {
   listAdjustments,
   findAdjustment,
   parseAmountCents,
+  validateExpectedBookingVersion,
   projectedOutcome,
   createAdjustment,
   decideAdjustment,

@@ -34,6 +34,8 @@ function sanitizeStripeEventPayload(object = {}) {
     purpose: cleanText(metadata.purpose, 64),
     bookingId: cleanText(metadata.bookingId || metadata.booking_id, 64),
     quoteVersion: integerOrNull(metadata.quoteVersion || metadata.quote_version),
+    refundRequestId: cleanText(metadata.refundRequestId || metadata.refund_request_id, 64),
+    paymentIntentId: cleanText(object.payment_intent, 128),
     livemode: object.livemode === true,
   };
 }

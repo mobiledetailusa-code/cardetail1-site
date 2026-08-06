@@ -390,7 +390,9 @@ test('increase before payment simply revises the total', () => {
   assert.equal(created.adjustment.projectedOutcome, 'total_revised');
 
   const withAdj = { ...booking, ...created.patch };
-  const applied = adjustments.applyAdjustment(withAdj, { adjustmentId: created.adjustment.adjustmentId });
+  const applied = adjustments.applyAdjustment(withAdj, {
+    adjustmentId: created.adjustment.adjustmentId, expectedBookingVersion: 4,
+  });
   assert.equal(applied.ok, true);
   assert.equal(applied.approvedCents, 36000);
   assert.equal(applied.remainingCents, 36000);
@@ -405,12 +407,15 @@ test('an increase defaults to needing the customer to accept it', () => {
   assert.equal(created.adjustment.status, 'pending_customer');
 
   const withAdj = { ...bookingFixture(), ...created.patch };
-  const blocked = adjustments.applyAdjustment(withAdj, { adjustmentId: created.adjustment.adjustmentId });
+  const blocked = adjustments.applyAdjustment(withAdj, {
+    adjustmentId: created.adjustment.adjustmentId, expectedBookingVersion: 4,
+  });
   assert.equal(blocked.ok, false);
   assert.equal(blocked.error, 'customer_approval_required');
 
   const decided = adjustments.decideAdjustment(withAdj, {
     adjustmentId: created.adjustment.adjustmentId, decision: 'approve', actorId: 'customer',
+    expectedBookingVersion: 4,
   });
   assert.equal(decided.ok, true);
   assert.equal(decided.adjustment.status, 'approved');
@@ -425,7 +430,9 @@ test('increase after full payment creates a new balance, not a rewritten one', (
   assert.equal(created.adjustment.projectedOutcome, 'supplemental_balance_due');
 
   const withAdj = { ...paid, ...created.patch };
-  const applied = adjustments.applyAdjustment(withAdj, { adjustmentId: created.adjustment.adjustmentId });
+  const applied = adjustments.applyAdjustment(withAdj, {
+    adjustmentId: created.adjustment.adjustmentId, expectedBookingVersion: 4,
+  });
   assert.equal(applied.outcome, 'supplemental_balance_due');
   assert.equal(applied.approvedCents, 35000);
   assert.equal(applied.remainingCents, 4000);
@@ -441,7 +448,9 @@ test('decrease after full payment opens a refund review and pays nothing', () =>
     customerApprovalRequired: false,
   });
   const withAdj = { ...paid, ...created.patch };
-  const applied = adjustments.applyAdjustment(withAdj, { adjustmentId: created.adjustment.adjustmentId });
+  const applied = adjustments.applyAdjustment(withAdj, {
+    adjustmentId: created.adjustment.adjustmentId, expectedBookingVersion: 4,
+  });
 
   assert.equal(applied.outcome, 'refund_or_credit_review');
   assert.equal(applied.patch.refundReview.status, 'pending_review');
@@ -456,9 +465,13 @@ test('applying the same adjustment twice does not move the price twice', () => {
     type: 'increase', amountCents: 5000, reason: 'x', expectedBookingVersion: 4, customerApprovalRequired: false,
   });
   const withAdj = { ...booking, ...created.patch };
-  const first = adjustments.applyAdjustment(withAdj, { adjustmentId: created.adjustment.adjustmentId });
+  const first = adjustments.applyAdjustment(withAdj, {
+    adjustmentId: created.adjustment.adjustmentId, expectedBookingVersion: 4,
+  });
   const afterFirst = { ...withAdj, ...first.patch };
-  const second = adjustments.applyAdjustment(afterFirst, { adjustmentId: created.adjustment.adjustmentId });
+  const second = adjustments.applyAdjustment(afterFirst, {
+    adjustmentId: created.adjustment.adjustmentId, expectedBookingVersion: 4,
+  });
   assert.equal(second.ok, true);
   assert.equal(second.alreadyApplied, true);
   assert.deepEqual(second.patch, {});
@@ -471,7 +484,9 @@ test('the customer statement shows original, adjustment, revised, paid and remai
     customerApprovalRequired: false,
   });
   const withAdj = { ...paid, ...created.patch };
-  const applied = adjustments.applyAdjustment(withAdj, { adjustmentId: created.adjustment.adjustmentId });
+  const applied = adjustments.applyAdjustment(withAdj, {
+    adjustmentId: created.adjustment.adjustmentId, expectedBookingVersion: 4,
+  });
   const after = {
     ...withAdj,
     ...applied.patch,

@@ -12,7 +12,7 @@
  */
 
 const crypto = require('crypto');
-const { reconcilePaymentIntentEvent } = require('./payment-authority-service');
+const { reconcilePaymentIntentEvent, reconcileRefundEvent } = require('./payment-authority-service');
 
 function verifyStripeSignature(rawBody, sigHeader, secret) {
   if (!sigHeader || !secret) return false;
@@ -72,6 +72,18 @@ async function handleWebhookDelivery({ rawBody, sigHeader, secret }) {
     return result.ok
       ? { ok: true, statusCode: 200, dispatched: 'payment_intent', result }
       : { ok: false, statusCode: result.statusCode || 500, dispatched: 'payment_intent', result };
+  }
+
+  if (type === 'refund.created' || type === 'refund.updated' || type === 'refund.failed') {
+    const result = await reconcileRefundEvent({
+      stripeEventId,
+      type,
+      refund: obj,
+      eventCreatedAt: event.created,
+    });
+    return result.ok
+      ? { ok: true, statusCode: 200, dispatched: 'refund', result }
+      : { ok: false, statusCode: result.statusCode || 500, dispatched: 'refund', result };
   }
 
   // Unrecognized event types are acknowledged (200), not treated as errors —

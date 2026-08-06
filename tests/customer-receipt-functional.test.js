@@ -99,7 +99,7 @@ test('20. pending, open and failed attempts never qualify or count', () => {
 test('21-24. a settled payment qualifies with authoritative figures', () => {
   const r = buildReceiptProjection(fixtureBooking(), 'payment');
   assert.equal(r.ok, true);
-  assert.equal(r.receipt.status, 'Payment received');
+  assert.equal(r.receipt.status, 'Paid');
   assert.equal(r.receipt.financialSummary.approvedTotal.display, '$887.00');
   assert.equal(r.receipt.financialSummary.amountPaid.display, '$887.00');
   assert.equal(r.receipt.financialSummary.remainingBalance.display, '$0.00');
@@ -188,14 +188,14 @@ test('30-36. a completed, fully paid booking produces a correct final receipt', 
   const r = buildReceiptProjection(fixtureBooking(), 'final');
   assert.equal(r.ok, true);
   const rec = r.receipt;
-  assert.equal(rec.status, 'Paid · Service completed');
+  assert.equal(rec.status, 'Paid');
 
   // 31 every vehicle exactly once
   assert.equal(rec.vehicles.length, 2);
-  assert.deepEqual(rec.vehicles.map((v) => v.vehicleId).sort(), ['veh-bronco', 'veh-yamaha']);
+  assert.deepEqual(rec.vehicles.map((v) => v.label).sort(), ['2023 Yamaha Boats 222S', '2025 Ford Bronco']);
 
-  const bronco = rec.vehicles.find((v) => v.vehicleId === 'veh-bronco');
-  const boat = rec.vehicles.find((v) => v.vehicleId === 'veh-yamaha');
+  const bronco = rec.vehicles.find((v) => v.label === '2025 Ford Bronco');
+  const boat = rec.vehicles.find((v) => v.label === '2023 Yamaha Boats 222S');
 
   // 32 correct package per vehicle
   assert.equal(bronco.package.name, 'Maintenance Detail');
@@ -246,7 +246,7 @@ test('38. a later catalog change cannot alter a historical receipt', () => {
   const b = fixtureBooking();
   b.vehicles[0].basePrice = 215;
   const before = buildReceiptProjection(b, 'final').receipt;
-  assert.equal(before.vehicles.find((v) => v.vehicleId === 'veh-bronco').package.price.display, '$215.00');
+  assert.equal(before.vehicles.find((v) => v.label === '2025 Ford Bronco').package.price.display, '$215.00');
 
   const src = fs.readFileSync(path.join(ROOT, 'netlify/lib/receipt-projection.js'), 'utf8');
   assert.doesNotMatch(src, /canonical-package-catalog|canonical-addon-catalog|customer-catalog|quoteService/,
@@ -314,6 +314,16 @@ test('43. the print button calls the intended print path', () => {
   // No heavy PDF dependency, no canvas screenshot, no server Chromium.
   assert.doesNotMatch(receiptHtml, /jspdf|html2canvas|pdfmake|puppeteer/i);
   assert.doesNotMatch(receiptJs, /jspdf|html2canvas|pdfmake|puppeteer/i);
+});
+
+test('the rendered receipt shows authoritative quote rows, safe references, refunds, and credits', () => {
+  assert.match(receiptJs, /quoteItemsHtml\(r\)/);
+  assert.match(receiptJs, /Approved quote/);
+  assert.match(receiptJs, /Reference/);
+  assert.match(receiptJs, /refundsHtml\(r\.refunds\)/);
+  assert.match(receiptJs, /Refund pending/);
+  assert.match(receiptJs, /Credit\/refund due/);
+  assert.match(receiptJs, /Net paid/);
 });
 
 test('44. print CSS hides controls and prints readable black text', () => {

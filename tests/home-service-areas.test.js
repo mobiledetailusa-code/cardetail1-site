@@ -184,6 +184,7 @@ test('no Netlify Function files changed in this scope', () => {
     'netlify/functions/customer-portal-pay.js',
     'netlify/functions/customer-balance-payment-intent.js',
     'netlify/functions/stripe-webhook.js',
+    'netlify/functions/customer-receipt.js',
     'netlify/functions/list-bookings.js',
     // Stage 2A — authenticated profile + address management
     'netlify/functions/customer-portal-profile.js',

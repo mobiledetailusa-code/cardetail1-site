@@ -137,7 +137,9 @@ describe('portal post-pay ops', () => {
   it('stripe-webhook handles refund events', () => {
     const src = fs.readFileSync(path.join(ROOT, 'netlify/functions/stripe-webhook.js'), 'utf8');
     assert.match(src, /charge\.refunded/);
-    assert.match(src, /paymentWorkflowStatus:\s*'refunded'/);
+    assert.match(src, /reconcilePostgresRefund/);
+    assert.match(src, /refund\.created/);
+    assert.doesNotMatch(src, /paymentWorkflowStatus:\s*'refunded'/);
   });
 
   it('customer portal keeps paid appointments accessible', () => {

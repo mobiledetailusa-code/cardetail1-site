@@ -225,6 +225,59 @@ async function reconcilePostgresPaymentIntent(evt, paymentIntent) {
   }
 }
 
+async function reconcilePostgresRefund(evt, refund) {
+  const meta = refund && typeof refund.metadata === 'object' ? refund.metadata : {};
+  const purpose = String(meta.purpose || '').trim();
+  const bookingId = String(meta.bookingId || meta.booking_id || '').trim();
+  if (purpose !== 'customer_refund') {
+    return { handled: false, skipped: true, reason: 'non_customer_refund', bookingId };
+  }
+  try {
+    const {
+      postgresPaymentEnabled,
+      syncBlobCompatibilityFromProjection,
+    } = require('../lib/db/operational-payment');
+    if (!postgresPaymentEnabled()) {
+      return { handled: false, error: 'postgres_payment_disabled', retryable: true, bookingId };
+    }
+    const {
+      reconcileRefundEvent,
+      getFinancialProjection,
+    } = require('../lib/db/payment-authority-service');
+    const result = await reconcileRefundEvent({
+      stripeEventId: evt.id,
+      type: evt.type,
+      refund,
+      eventCreatedAt: evt.created,
+    });
+    if (!result.ok) {
+      return {
+        handled: false,
+        error: result.error || 'refund_reconcile_failed',
+        retryable: true,
+        failureRecorded: !!result.failureRecorded,
+        bookingId,
+      };
+    }
+    const projection = result.projection || await getFinancialProjection(bookingId);
+    const sync = projection
+      ? await syncBlobCompatibilityFromProjection(bookingId, projection).catch(() => ({ ok: false }))
+      : { ok: false };
+    return {
+      handled: !!projection && sync?.ok !== false,
+      retryable: !projection || sync?.ok === false,
+      error: !projection
+        ? 'projection_unavailable'
+        : (sync?.ok === false ? 'compatibility_sync_failed' : null),
+      result,
+      projection,
+      bookingId,
+    };
+  } catch {
+    return { handled: false, error: 'refund_reconcile_failed', retryable: true, bookingId };
+  }
+}
+
 async function updateBookingPayment(bookingId, updates) {
   if (!bookingId || bookingId === '—') {
     return { updated: false, reason: 'no booking_id in Stripe metadata' };
@@ -482,12 +535,41 @@ exports.handler = async (event) => {
     };
   }
 
-  // Refund execution and webhook ledgering are introduced together in PR 2.
-  // Until then, no refund event may perform a Blob-only financial status flip.
-  if (evt.type === 'charge.refunded' || evt.type === 'refund.updated') {
+  if (['refund.created', 'refund.updated', 'refund.failed'].includes(evt.type)) {
+    const refund = evt.data?.object || {};
+    const postgres = await reconcilePostgresRefund(evt, refund);
+    if (!postgres.handled) {
+      if (postgres.skipped) {
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ received: true, ignored: true, reason: postgres.reason }),
+        };
+      }
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          received: false,
+          retryable: true,
+          error: postgres.error || 'refund_reconcile_failed',
+        }),
+      };
+    }
     return {
       statusCode: 200,
-      body: JSON.stringify({ received: true, ignored: true, reason: 'refund_ledger_pending_pr2' }),
+      body: JSON.stringify({
+        received: true,
+        type: evt.type,
+        duplicate: !!postgres.result?.duplicate,
+      }),
+    };
+  }
+
+  // charge.refunded is only a summary and can represent multiple partial
+  // refunds. Stripe recommends refund.created for refund-level information.
+  if (evt.type === 'charge.refunded') {
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ received: true, ignored: true, reason: 'refund_detail_event_preferred' }),
     };
   }
 
@@ -708,59 +790,6 @@ exports.handler = async (event) => {
     case 'customer.subscription.deleted': {
       const stripeSub = evt.data.object;
       results.subscription = await cancelSubscriptionByStripeId(stripeSub.id);
-      break;
-    }
-
-    case 'charge.refunded':
-    case 'refund.updated': {
-      const obj = evt.data.object || {};
-      const charge = evt.type === 'charge.refunded' ? obj : null;
-      const refund = evt.type === 'refund.updated' ? obj : null;
-      const meta = (charge && charge.metadata) || (refund && refund.metadata) || {};
-      let refundBookingId = String(meta.booking_id || meta.bookingId || bookingId || '').trim();
-      const piId = String(
-        (charge && charge.payment_intent)
-        || (refund && refund.payment_intent)
-        || ''
-      ).trim();
-      const refunded = charge
-        ? (Number(charge.amount_refunded || 0) > 0)
-        : (String(refund.status || '').toLowerCase() === 'succeeded');
-      if (refunded && refundBookingId && refundBookingId !== '—') {
-        results.update = await updateBookingPayment(refundBookingId, {
-          paymentStatus: 'refunded',
-          paymentWorkflowStatus: 'refunded',
-          refundStatus: 'refunded',
-          refundedAt: new Date().toISOString(),
-          stripeRefundId: (refund && refund.id) || (charge && charge.refunds && charge.refunds.data && charge.refunds.data[0] && charge.refunds.data[0].id) || null,
-          stripeRefundPaymentIntentId: piId || null,
-        });
-      } else if (refunded && piId) {
-        // Best-effort: locate booking by stored PaymentIntent / policy charge id.
-        try {
-          const { listAllBlobs, fetchBlobRecords } = require('../lib/tech-security');
-          const store = await blobsStore('cd1-bookings');
-          const blobs = await listAllBlobs(store, 'cd1-bookings');
-          const rows = await fetchBlobRecords(store, blobs);
-          const match = rows.find((b) => b && (
-            b.paymentIntentId === piId
-            || b.policyPaymentIntentId === piId
-            || b.stripeRefundPaymentIntentId === piId
-          ));
-          if (match && (match.id || match.bookingId)) {
-            refundBookingId = match.id || match.bookingId;
-            results.update = await updateBookingPayment(refundBookingId, {
-              paymentStatus: 'refunded',
-              paymentWorkflowStatus: 'refunded',
-              refundStatus: 'refunded',
-              refundedAt: new Date().toISOString(),
-              stripeRefundPaymentIntentId: piId,
-            });
-          }
-        } catch (e) {
-          console.warn('[stripe-webhook] refund booking lookup failed', e.message);
-        }
-      }
       break;
     }
 

@@ -45,9 +45,26 @@ function fakePaymentIntentCreateFetch({ id = 'pi_fake', calls } = {}) {
       };
     }
     if (String(url).includes('/refunds')) {
-      // Unique per call — a static id would collide with the global
-      // providerEventId uniqueness constraint across unrelated tests.
-      return { ok: true, json: async () => ({ id: nextId('rf') }) };
+      const params = new URLSearchParams(opts?.body || '');
+      return {
+        ok: true,
+        json: async () => ({
+          id: `re_${nextId('RF')}`,
+          object: 'refund',
+          status: 'succeeded',
+          amount: Number(params.get('amount')),
+          currency: 'usd',
+          payment_intent: params.get('payment_intent'),
+          metadata: {
+            bookingId: params.get('metadata[bookingId]'),
+            booking_id: params.get('metadata[booking_id]'),
+            quoteVersion: params.get('metadata[quoteVersion]'),
+            purpose: params.get('metadata[purpose]'),
+            refundRequestId: params.get('metadata[refundRequestId]'),
+            refund_request_id: params.get('metadata[refund_request_id]'),
+          },
+        }),
+      };
     }
     return { ok: false, json: async () => ({ error: { message: 'unexpected_url' } }) };
   };
@@ -84,6 +101,7 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
   after(async () => {
     for (const id of createdBookingIds) {
       try {
+        await prisma.refundRequest.deleteMany({ where: { bookingId: id } });
         await prisma.paymentAttempt.deleteMany({ where: { bookingId: id } });
         await prisma.quote.deleteMany({ where: { bookingId: id } });
         await prisma.booking.delete({ where: { id } });
@@ -376,7 +394,7 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     assert.equal(active, 1, 'exactly one active obligation after the retry — the failed one does not linger as active');
   });
 
-  test('refund execution is isolated until the webhook-authoritative PR2 flow', async () => {
+  test('refund API response reserves state but only the webhook debits the ledger', async () => {
     const svc = require('../netlify/lib/db/payment-authority-service');
     const { bookingId } = await makeBookingWithQuote(10000);
     const piId = nextId('pi');
@@ -388,18 +406,60 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
       paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 10000 }),
     });
 
-    const refund = await svc.createRefund({ bookingId, amountCents: 3000, env: FAKE_ENV, fetchImpl: fakePaymentIntentCreateFetch() });
-    assert.equal(refund.ok, false);
-    assert.equal(refund.error, 'refund_execution_pending_pr2');
-    assert.equal(refund.statusCode, 501);
+    const refund = await svc.createRefund({
+      bookingId,
+      amountCents: 3000,
+      reason: 'approved goodwill credit',
+      requestKey: nextId('REQ'),
+      expectedQuoteVersion: 1,
+      env: FAKE_ENV,
+      fetchImpl: fakePaymentIntentCreateFetch(),
+    });
+    assert.equal(refund.ok, true);
+    assert.equal(refund.refundRequest.status, 'pending_webhook');
 
+    const beforeWebhook = await svc.getFinancialProjection(bookingId);
+    assert.equal(beforeWebhook.refundedCents, 0);
+    assert.equal(beforeWebhook.pendingRefundCents, 3000);
+
+    const request = refund.refundRequest;
+    const refundObject = {
+      id: request.providerRefundId,
+      object: 'refund',
+      status: 'succeeded',
+      amount: 3000,
+      currency: 'usd',
+      payment_intent: piId,
+      metadata: {
+        bookingId,
+        booking_id: bookingId,
+        quoteVersion: '1',
+        purpose: 'customer_refund',
+        refundRequestId: request.id,
+        refund_request_id: request.id,
+      },
+    };
+    const reconciled = await svc.reconcileRefundEvent({
+      stripeEventId: nextId('EVT'),
+      type: 'refund.created',
+      refund: refundObject,
+    });
+    assert.equal(reconciled.ok, true);
+    assert.equal(reconciled.ledger.created, true);
+    const duplicate = await svc.reconcileRefundEvent({
+      stripeEventId: nextId('EVT'),
+      type: 'refund.updated',
+      refund: refundObject,
+    });
+    assert.equal(duplicate.ok, true);
+    assert.equal(duplicate.ledger.created, false);
     const projection = await svc.getFinancialProjection(bookingId);
-    assert.equal(projection.refundedCents, 0);
-    assert.equal(projection.settledCents, 10000);
-    assert.equal(projection.remainingCents, 0);
+    assert.equal(projection.refundedCents, 3000);
+    assert.equal(projection.settledCents, 7000);
+    assert.equal(await prisma.ledgerEntry.count({ where: { bookingId, kind: 'refund' } }), 1);
   });
 
-  test('refund isolation makes no Stripe call even for an excessive caller amount', async () => {
+  test('refund ceiling rejects an excessive caller amount before any Stripe call', async () => {
     const svc = require('../netlify/lib/db/payment-authority-service');
     const { bookingId } = await makeBookingWithQuote(1000);
     const piId = nextId('pi');
@@ -414,11 +474,14 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     const refund = await svc.createRefund({
       bookingId,
       amountCents: 999999,
+      reason: 'invalid excessive request',
+      requestKey: nextId('REQ'),
+      expectedQuoteVersion: 1,
       env: FAKE_ENV,
       fetchImpl: async () => { networkCalls += 1; throw new Error('must not call Stripe'); },
     });
     assert.equal(refund.ok, false);
-    assert.equal(refund.error, 'refund_execution_pending_pr2');
+    assert.equal(refund.error, 'refund_exceeds_available_payment');
     assert.equal(networkCalls, 0);
     const projection = await svc.getFinancialProjection(bookingId);
     assert.equal(projection.refundedCents, 0);
@@ -439,7 +502,13 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     const paidProjection = await svc.getFinancialProjection(bookingId);
     assert.equal(paidProjection.paymentStatus, 'paid');
 
-    const adjustment = await svc.createAdjustment({ bookingId, newApprovedCents: 8000, reason: 'added add-on after service began' });
+    const adjustment = await svc.createAdjustment({
+      bookingId,
+      newApprovedCents: 8000,
+      reason: 'added add-on after service began',
+      adjustmentId: nextId('ADJ'),
+      expectedQuoteVersion: 1,
+    });
     assert.equal(adjustment.ok, true);
     assert.equal(adjustment.quote.quoteVersion, 2);
     assert.equal(adjustment.after.approvedCents, 8000);
@@ -463,7 +532,13 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
       stripeEventId: nextId('EVT'), type: 'payment_intent.succeeded',
       paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 2000 }),
     });
-    await svc.createAdjustment({ bookingId, newApprovedCents: 2750 });
+    await svc.createAdjustment({
+      bookingId,
+      newApprovedCents: 2750,
+      reason: 'approved add-on',
+      adjustmentId: nextId('ADJ'),
+      expectedQuoteVersion: 1,
+    });
 
     const deltaAttempt = await svc.reserveAndCreatePaymentIntent({
       bookingId, quoteVersion: 2, env: FAKE_ENV, fetchImpl: fakePaymentIntentCreateFetch({ id: nextId('pi') }),

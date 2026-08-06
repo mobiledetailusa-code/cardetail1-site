@@ -50,6 +50,54 @@ function quoteVersionFromBlob(booking) {
   return v > 0 ? v : 1;
 }
 
+function quoteItemsFromBooking(booking, approvedCents) {
+  const snapshot = booking?.quote && typeof booking.quote === 'object' ? booking.quote : {};
+  const rawItems = Array.isArray(snapshot.lineItems) ? snapshot.lineItems : [];
+  const vehicles = Array.isArray(booking?.service?.vehicles)
+    ? booking.service.vehicles
+    : (Array.isArray(booking?.vehicles) ? booking.vehicles : []);
+  const vehicleById = new Map(vehicles
+    .filter((vehicle) => vehicle && vehicle.vehicleId)
+    .map((vehicle) => [String(vehicle.vehicleId), vehicle]));
+
+  const items = rawItems.map((item) => {
+    const amountCents = Math.round(Number(item?.amountCents));
+    if (!item || !Number.isFinite(amountCents) || amountCents === 0) return null;
+    const kind = String(item.kind || 'service').trim().toLowerCase() || 'service';
+    const vehicle = item.vehicleId ? vehicleById.get(String(item.vehicleId)) : null;
+    const vehicleLabel = String(
+      vehicle?.vehicleLabel
+      || vehicle?.label
+      || [vehicle?.year, vehicle?.make, vehicle?.model].filter(Boolean).join(' ')
+      || ''
+    ).trim();
+    let label = String(item.label || '').trim();
+    if (!label && kind === 'package') {
+      label = String(vehicle?.packageName || vehicle?.pkgName || item.packageId || 'Package');
+    }
+    if (!label && kind === 'addon') {
+      const addon = (Array.isArray(vehicle?.addons) ? vehicle.addons : [])
+        .find((entry) => String(entry?.id || '') === String(item.addonId || ''));
+      label = String(addon?.name || item.addonId || 'Add-on');
+    }
+    if (!label && (kind === 'travel' || kind === 'travel_fee')) label = 'Travel fee';
+    if (!label && (kind === 'offer' || kind === 'discount')) label = 'Discount';
+    if (!label && (kind === 'tax' || kind === 'taxes')) label = 'Taxes';
+    if (!label && kind.startsWith('adjustment')) label = 'Approved price adjustment';
+    if (!label) label = 'Service';
+    if (vehicleLabel && (kind === 'package' || kind === 'addon')) label += ` — ${vehicleLabel}`;
+    return { kind, label: label.slice(0, 220), amountCents };
+  }).filter(Boolean);
+
+  const snapshotTotal = items.reduce((sum, item) => sum + item.amountCents, 0);
+  if (items.length && snapshotTotal === approvedCents) return items;
+  // Older Blob bookings may have no item snapshot. Preserve the approved total
+  // exactly and label the limitation instead of re-pricing from today's catalog.
+  return approvedCents > 0
+    ? [{ kind: 'service', label: 'Approved booking total (legacy snapshot)', amountCents: approvedCents }]
+    : [];
+}
+
 /**
  * @param {object} booking Blob aggregate
  * @returns {Promise<{ ok: boolean, bookingId?: string, ensured?: boolean, seededSettlement?: boolean, error?: string }>}
@@ -64,6 +112,7 @@ async function ensureBookingFinancial(booking) {
   const approvedCents = approvedCentsFromBlob(booking);
   const quoteVersion = quoteVersionFromBlob(booking);
   const settledBlob = settledCentsFromBlob(booking);
+  const quoteItems = quoteItemsFromBooking(booking, approvedCents);
 
   let row = await repo.getBooking(bookingId);
   if (!row) {
@@ -83,6 +132,7 @@ async function ensureBookingFinancial(booking) {
       quoteVersion,
       approvedCents,
       status: settledBlob > 0 && settledBlob >= approvedCents && approvedCents > 0 ? 'settled' : 'approved',
+      items: quoteItems,
     });
   } else if (
     quote.quoteVersion === quoteVersion
@@ -95,6 +145,7 @@ async function ensureBookingFinancial(booking) {
         bookingId,
         approvedCents,
         status: 'approved',
+        items: quoteItems,
       });
       quote = next;
     }
@@ -106,11 +157,16 @@ async function ensureBookingFinancial(booking) {
         quoteVersion,
         approvedCents,
         status: 'approved',
+        items: quoteItems,
       });
     } else {
       quote = existing;
     }
   }
+
+  // PR1 databases may already have Quote rows created before item snapshots
+  // became mandatory. Backfill only when the quote has no children.
+  await repo.ensureQuoteItems({ quoteId: quote.id, items: quoteItems });
 
   let seededSettlement = false;
   const ledger = await repo.listLedgerEntries(bookingId);
@@ -144,4 +200,5 @@ module.exports = {
   approvedCentsFromBlob,
   settledCentsFromBlob,
   quoteVersionFromBlob,
+  quoteItemsFromBooking,
 };

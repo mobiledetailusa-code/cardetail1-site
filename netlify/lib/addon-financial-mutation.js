@@ -210,6 +210,9 @@ async function applyAddonFinancialMutation({
     bookingId,
     newApprovedCents: quoted.quote.approvedCents,
     reason: toRemove.length ? 'addon_remove' : 'addon_add',
+    adjustmentId: `addon_${bookingId}_${actualVersion}_${quoted.quote.approvedCents}`.slice(0, 96),
+    expectedQuoteVersion: priorQuoteVersion,
+    approvedBy: changeRequest ? 'customer_request_approved' : 'admin',
   });
   if (!adjustment.ok) {
     return { ok: false, error: adjustment.error || 'adjustment_failed', statusCode: 500 };
