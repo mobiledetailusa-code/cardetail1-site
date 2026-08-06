@@ -234,6 +234,13 @@ enum ConsentStatus {
   pending
 }
 
+enum SmsOutboxStatus {
+  accepted
+  sent
+  delivered
+  failed
+}
+
 /// Current-state consent per account+channel (one row per pair).
 model CustomerConsent {
   id                 String         @id @default(cuid())
@@ -251,6 +258,40 @@ model CustomerConsent {
 
   @@unique([customerAccountId, channel])
   @@index([customerAccountId])
+}
+
+/// Post-commit SMS outbox. Financial transactions never call Twilio directly.
+/// Recipient/template data is retained only for delivery and is never logged.
+model SmsOutbox {
+  id                   String          @id @default(cuid())
+  idempotencyKey       String          @unique
+  payloadHash          String
+  audience             String
+  bookingId            String?
+  customerAccountId    String?
+  toE164               String
+  templateKey          String
+  templateVersion      String
+  templateData         Json
+  status               SmsOutboxStatus @default(accepted)
+  providerMessageSid   String?         @unique
+  providerStatus       String?
+  attemptCount         Int             @default(0)
+  maxAttempts          Int             @default(5)
+  availableAt          DateTime        @default(now())
+  leaseToken           String?
+  leaseExpiresAt       DateTime?
+  lastErrorCode        String?
+  acceptedAt           DateTime        @default(now())
+  sentAt               DateTime?
+  deliveredAt          DateTime?
+  failedAt             DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@index([status, availableAt])
+  @@index([customerAccountId, status])
+  @@index([bookingId])
 }
 
 /// Booking aggregate row. customerAccountId is an identity-linkage field only:

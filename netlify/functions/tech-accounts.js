@@ -116,9 +116,12 @@ exports.handler = async (event) => {
       const techId = generateTechId();
       const inviteToken = generateInviteToken();
       const now = new Date().toISOString();
+      const smsConsent = body.smsConsent === true;
       const technician = {
         techId, id: techId, fullName, name: fullName, email, phone,
-        active: true, capabilities, serviceArea,
+        active: true, capabilities, serviceArea, smsConsent,
+        smsConsentUpdatedAt: smsConsent ? now : null,
+        smsConsentSource: smsConsent ? 'admin_attestation' : null,
         passwordHash: null, inviteToken, inviteUsed: false,
         inviteExpiresAt: new Date(Date.now() + INVITE_TTL_MS).toISOString(),
         createdAt: now, updatedAt: now, lastLoginAt: null,
@@ -132,13 +135,18 @@ exports.handler = async (event) => {
       const tech = await getTech(techId);
       if (!tech) return jsonCors(404, { ok: false, error: 'technician_not_found' });
       const updates = body.updates || {};
-      const ALLOWED = ['fullName', 'name', 'email', 'phone', 'active', 'capabilities', 'serviceArea'];
+      const ALLOWED = ['fullName', 'name', 'email', 'phone', 'active', 'capabilities', 'serviceArea', 'smsConsent'];
       for (const [k, v] of Object.entries(updates)) {
         if (!ALLOWED.includes(k)) continue;
         if (k === 'fullName' || k === 'name') { tech.fullName = sanitizeText(v, 100); tech.name = tech.fullName; }
         else if (k === 'email') tech.email = sanitizeText(v, 200).toLowerCase();
         else if (k === 'phone') tech.phone = String(v).replace(/\D/g, '').slice(0, 15);
         else if (k === 'active') tech.active = !!v;
+        else if (k === 'smsConsent') {
+          tech.smsConsent = v === true;
+          tech.smsConsentUpdatedAt = new Date().toISOString();
+          tech.smsConsentSource = 'admin_attestation';
+        }
         else if (k === 'serviceArea') tech.serviceArea = sanitizeText(v, 200);
         else if (k === 'capabilities') {
           tech.capabilities = Array.isArray(v)

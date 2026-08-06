@@ -1946,6 +1946,10 @@
     var view = $('profile-view');
     var edit = $('profile-edit');
     if (!view) return;
+    var smsConsent = (Array.isArray(c.consents) ? c.consents : []).find(function (row) {
+      return row && row.channel === 'sms_transactional';
+    });
+    if ($('sms-consent-toggle')) $('sms-consent-toggle').checked = smsConsent && smsConsent.status === 'granted';
 
     if (profileEditing) {
       show(view, false);
@@ -2468,6 +2472,35 @@
     var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
     if (phone) { /* keep the verified-session read on this recovery path */ }
     showToast('Secure payment could not load. Check your connection and try again.', true);
+  }
+
+  async function saveSmsConsent() {
+    if (profileAddressBusy) return;
+    profileAddressBusy = true;
+    var button = $('sms-consent-save');
+    if (button) button.disabled = true;
+    setMsg($('sms-consent-msg'), 'Saving…', false);
+    var r = await portalProfileAction('update_sms_consent', {
+      granted: !!($('sms-consent-toggle') && $('sms-consent-toggle').checked),
+    });
+    profileAddressBusy = false;
+    if (button) button.disabled = false;
+    if (r.status === 401) return;
+    if (!r.ok || !r.data || !r.data.ok) {
+      setMsg($('sms-consent-msg'), mapProfileError(r.data, r.status), true);
+      if (r.status === 409) await loadAccount();
+      renderProfileView();
+      return;
+    }
+    applyCustomerProjection(r.data.customer);
+    setMsg(
+      $('sms-consent-msg'),
+      $('sms-consent-toggle') && $('sms-consent-toggle').checked
+        ? 'Transactional text consent saved.'
+        : 'Transactional text consent revoked.',
+      false
+    );
+    renderProfileAndAddresses();
   }
 
   async function startPayBalance() {
@@ -3518,6 +3551,8 @@
     if (pfCancel) pfCancel.addEventListener('click', cancelProfileEdit);
     var pfForm = $('profile-edit');
     if (pfForm) pfForm.addEventListener('submit', saveProfile);
+    var smsConsentSave = $('sms-consent-save');
+    if (smsConsentSave) smsConsentSave.addEventListener('click', saveSmsConsent);
 
     var adAdd = $('ad-add-btn');
     if (adAdd) {

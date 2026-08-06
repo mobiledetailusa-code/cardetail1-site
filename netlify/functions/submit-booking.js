@@ -65,6 +65,9 @@ const {
 } = require('../lib/booking-offers');
 const { setOfferDeployHost, clearOfferDeployHost } = require('../lib/revenue-offers');
 const { sendNotificationsDecoupled, attachDeliveryToBooking } = require('../lib/notification-delivery');
+const { enqueueSms } = require('../lib/sms-outbox');
+const { TEMPLATE_KEYS } = require('../lib/sms-templates');
+const { enabled } = require('../lib/twilio-runtime-policy');
 const {
   reconcileCardOnFileFromStripe,
   siIdPrefix,
@@ -485,24 +488,22 @@ async function sendCustomerEmail(b) {
 }
 
 async function sendSms(b) {
-  const { TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, ADMIN_SMS } = process.env;
-  if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM || !ADMIN_SMS) return { sent: false, reason: 'sms not configured' };
-  const body = new URLSearchParams({
-    To: ADMIN_SMS,
-    From: TWILIO_FROM,
-    Body: `New booking ${b.id}: ${b.firstName || ''} ${b.lastName || ''} · ${b.package || b.service || ''} · $${b.totalPrice || 0} · ${b.preferredDate || ''} · pay:${b.paymentStatus || 'unknown'} · ${b.phone || ''}`,
+  const queued = await enqueueSms({
+    idempotencyKey: `admin.booking:${b.id}`,
+    audience: 'admin',
+    consentGranted: enabled(process.env.ADMIN_SMS_CONSENT_GRANTED),
+    toE164: process.env.ADMIN_SMS,
+    bookingId: b.id,
+    templateKey: TEMPLATE_KEYS.ADMIN_BOOKING,
+    templateData: {
+      bookingRef: b.id,
+      customerName: [b.firstName, b.lastName].filter(Boolean).join(' '),
+      customerPhone: b.phone || '',
+    },
   });
-  const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
-    method: 'POST',
-    headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-  if (!res.ok) {
-    const err = await res.text().catch(() => '');
-    return { sent: false, reason: `twilio ${res.status}: ${err}` };
-  }
-  return { sent: true };
+  if (!queued.ok) return { sent: false, reason: queued.error || 'sms_outbox_failed' };
+  if (!queued.queued) return { sent: false, skipped: true, reason: queued.reason || 'sms_not_queued' };
+  return { sent: false, accepted: true, queued: true, outboxId: queued.outbox?.id || null };
 }
 
 exports.handler = async (event) => {
@@ -796,13 +797,20 @@ exports.handler = async (event) => {
             at: new Date().toISOString(),
             reason: txn.delivery?.email?.reason || null,
           };
-        const custSmsStatus = txn.delivery?.sms?.sent
-          ? { status: 'sent', at: new Date().toISOString(), reason: null }
-          : {
-            status: txn.delivery?.sms?.skipped ? 'suppressed' : 'failed',
+        const custSmsStatus = txn.delivery?.sms?.accepted || txn.delivery?.sms?.queued
+          ? {
+            status: 'accepted',
             at: new Date().toISOString(),
-            reason: txn.delivery?.sms?.reason || 'customer_sms_not_enabled',
-          };
+            reason: null,
+            outboxId: txn.delivery?.sms?.outboxId || null,
+          }
+          : txn.delivery?.sms?.sent
+            ? { status: 'sent', at: new Date().toISOString(), reason: null }
+            : {
+              status: txn.delivery?.sms?.skipped ? 'suppressed' : 'failed',
+              at: new Date().toISOString(),
+              reason: txn.delivery?.sms?.reason || 'customer_sms_not_enabled',
+            };
         withDelivery = {
           ...withDelivery,
           notificationDelivery: {

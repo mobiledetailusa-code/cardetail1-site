@@ -1,0 +1,101 @@
+'use strict';
+
+function enabled(value) {
+  return String(value || '').trim().toLowerCase() === 'true';
+}
+
+function clean(value) {
+  return String(value || '').trim();
+}
+
+function runtimeIdentity(env = process.env) {
+  const context = clean(env.CONTEXT || env.DEPLOY_CONTEXT).toLowerCase();
+  const branch = clean(env.BRANCH || env.HEAD).toLowerCase();
+  let host = '';
+  try {
+    host = new URL(clean(env.URL || env.PUBLIC_SITE_URL)).hostname.toLowerCase();
+  } catch {
+    host = '';
+  }
+  return { context, branch, host };
+}
+
+function productionRuntimeAllowed(env = process.env) {
+  const identity = runtimeIdentity(env);
+  const allowedBranch = clean(env.TWILIO_ALLOWED_BRANCH || 'master').toLowerCase();
+  const allowedHost = clean(env.TWILIO_ALLOWED_HOST || 'cardetail1.com').toLowerCase();
+  if (identity.context !== 'production') return { ok: false, reason: 'non_production_context' };
+  if (!identity.branch || identity.branch !== allowedBranch) {
+    return { ok: false, reason: 'non_production_branch' };
+  }
+  if (!identity.host || ![allowedHost, `www.${allowedHost}`].includes(identity.host)) {
+    return { ok: false, reason: 'non_production_host' };
+  }
+  return { ok: true, identity };
+}
+
+function smsOutboxPolicy(env = process.env) {
+  if (!enabled(env.TWILIO_OUTBOX_ENABLED)) return { ok: false, reason: 'outbox_disabled' };
+  if (!enabled(env.TWILIO_ENABLED)) return { ok: false, reason: 'twilio_disabled' };
+  return productionRuntimeAllowed(env);
+}
+
+function outboundTwilioPolicy(env = process.env) {
+  const outbox = smsOutboxPolicy(env);
+  if (!outbox.ok) return outbox;
+  if (!enabled(env.TWILIO_PRODUCTION_SENDS_ENABLED)) {
+    return { ok: false, reason: 'production_sends_disabled' };
+  }
+  const accountSid = clean(env.TWILIO_ACCOUNT_SID || env.TWILIO_SID);
+  const apiKey = clean(env.TWILIO_API_KEY);
+  const apiSecret = clean(env.TWILIO_API_SECRET);
+  const messagingServiceSid = clean(env.TWILIO_MESSAGING_SERVICE_SID);
+  const statusCallbackUrl = clean(env.TWILIO_STATUS_CALLBACK_URL);
+  if (!/^AC[a-zA-Z0-9]{8,}$/.test(accountSid)) return { ok: false, reason: 'account_sid_missing' };
+  if (!/^SK[a-zA-Z0-9]{8,}$/.test(apiKey) || !apiSecret) {
+    return { ok: false, reason: 'api_key_missing' };
+  }
+  if (!/^MG[a-zA-Z0-9]{8,}$/.test(messagingServiceSid)) {
+    return { ok: false, reason: 'messaging_service_missing' };
+  }
+  try {
+    const callback = new URL(statusCallbackUrl);
+    if (callback.protocol !== 'https:') throw new Error('https_required');
+  } catch {
+    return { ok: false, reason: 'status_callback_invalid' };
+  }
+  return {
+    ok: true,
+    accountSid,
+    apiKey,
+    apiSecret,
+    messagingServiceSid,
+    statusCallbackUrl,
+  };
+}
+
+function webhookPolicy(kind, env = process.env) {
+  const runtime = productionRuntimeAllowed(env);
+  if (!runtime.ok) return runtime;
+  const authToken = clean(env.TWILIO_AUTH_TOKEN || env.TWILIO_TOKEN);
+  const url = clean(kind === 'inbound'
+    ? env.TWILIO_INBOUND_WEBHOOK_URL
+    : env.TWILIO_STATUS_CALLBACK_URL);
+  if (!authToken) return { ok: false, reason: 'auth_token_missing' };
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') throw new Error('https_required');
+  } catch {
+    return { ok: false, reason: 'webhook_url_invalid' };
+  }
+  return { ok: true, authToken, url };
+}
+
+module.exports = {
+  enabled,
+  runtimeIdentity,
+  productionRuntimeAllowed,
+  smsOutboxPolicy,
+  outboundTwilioPolicy,
+  webhookPolicy,
+};

@@ -3,6 +3,7 @@
 // expiration and revocation. Cookie payloads alone are never sufficient.
 
 const crypto = require('crypto');
+const { enabled, smsOutboxPolicy } = require('./twilio-runtime-policy');
 const { blobsStore } = require('./tech-security');
 const { normalizeUsPhoneDigits, normalizeUsPhoneE164 } = require('./phone-auth');
 
@@ -271,10 +272,8 @@ function resendConfigured() {
 }
 
 function twilioOtpEnabled() {
-  return String(process.env.CUSTOMER_PORTAL_SMS_OTP_ENABLED || '').toLowerCase() === 'true'
-    && !!String(process.env.TWILIO_SID || '').trim()
-    && !!String(process.env.TWILIO_TOKEN || '').trim()
-    && !!String(process.env.TWILIO_FROM || '').trim();
+  return enabled(process.env.CUSTOMER_PORTAL_SMS_OTP_ENABLED)
+    && smsOutboxPolicy(process.env).ok;
 }
 
 module.exports = {

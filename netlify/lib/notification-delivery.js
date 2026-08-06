@@ -1,9 +1,12 @@
 // Notification delivery tracking — decoupled from booking persistence.
-const DELIVERY_STATUSES = ['pending', 'sent', 'delivered', 'failed', 'suppressed'];
+const DELIVERY_STATUSES = ['pending', 'accepted', 'sent', 'delivered', 'failed', 'suppressed'];
 
 function normalizeDeliveryResult(result, channel) {
   const now = new Date().toISOString();
   if (!result) return { channel, status: 'suppressed', at: now, reason: 'not_configured' };
+  if (result.accepted === true || result.queued === true) {
+    return { channel, status: 'accepted', at: now, reason: null, outboxId: result.outboxId || null };
+  }
   if (result.sent === true) return { channel, status: 'sent', at: now, reason: null };
   if (result.skipped) return { channel, status: 'suppressed', at: now, reason: result.reason || 'skipped' };
   return { channel, status: 'failed', at: now, reason: result.reason || 'send_failed' };
@@ -39,7 +42,7 @@ async function sendNotificationsDecoupled(booking, senders) {
 
   function alreadySent(channel) {
     const cur = delivery[channel];
-    return cur && (cur.status === 'sent' || cur.status === 'delivered');
+    return cur && (cur.status === 'accepted' || cur.status === 'sent' || cur.status === 'delivered');
   }
 
   if (senders.adminEmail && !alreadySent('adminEmail')) {

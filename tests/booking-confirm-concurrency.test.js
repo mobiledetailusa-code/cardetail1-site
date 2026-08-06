@@ -329,7 +329,7 @@ process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
   }
 });
 
-test('SMS-enabled concurrent confirm: one SMS terminal send', async () => {
+test('legacy Twilio credentials cannot bypass the outbox during concurrent confirm', async () => {
   process.env.CUSTOMER_TRANSACTIONAL_SMS_ENABLED = 'true';
   process.env.TWILIO_SID = 'ACtest';
   process.env.TWILIO_TOKEN = 'token';
@@ -360,7 +360,8 @@ test('SMS-enabled concurrent confirm: one SMS terminal send', async () => {
     const first = await emitConfirmed(transition.booking, {});
     const second = await emitConfirmed(first.booking, {});
     assert.equal(emailCalls, 1);
-    assert.equal(smsCalls, 1);
+    assert.equal(smsCalls, 0);
+    assert.equal(first.delivery.sms.reason, 'customer_sms_not_enabled');
     assert.equal(second.skipped, true);
   } finally {
     global.fetch = originalFetch;

@@ -195,6 +195,11 @@ test('no Netlify Function files changed in this scope', () => {
     'netlify/functions/qa-blobs-health.js',
     // Admin technicians lazy-load — lightweight list mode + skip booking scan
     'netlify/functions/tech-accounts.js',
+    // PR5 Twilio readiness: all provider traffic is isolated behind the outbox.
+    'netlify/functions/submit-inquiry.js',
+    'netlify/functions/twilio-inbound.js',
+    'netlify/functions/twilio-outbox-worker.js',
+    'netlify/functions/twilio-status-callback.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);

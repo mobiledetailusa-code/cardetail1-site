@@ -10,10 +10,12 @@ const { validateCustomerSession } = require('../lib/customer-session');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 const profileService = require('../lib/customer-profile-service');
 const addressService = require('../lib/customer-address-service');
+const smsConsentService = require('../lib/sms-consent-service');
 
 const MAX_BODY_BYTES = 16 * 1024;
 const MUTATING_ACTIONS = new Set([
   'update_profile',
+  'update_sms_consent',
   'create_address',
   'update_address',
   'archive_address',
@@ -217,6 +219,24 @@ exports.handler = async (event) => {
       accountVersion: result.accountVersion,
       unchanged: !!result.unchanged,
       idempotent: !!result.idempotent,
+    });
+  }
+
+  if (action === 'update_sms_consent') {
+    const result = await smsConsentService.updateSmsConsent({
+      customerAccountId,
+      expectedVersion: body.expectedVersion,
+      granted: body.granted === true,
+      requestId,
+      source: 'customer_portal',
+    });
+    const mapped = mapServiceError(result);
+    if (mapped) return jsonCors(mapped.status, mapped.body);
+    return jsonCors(200, {
+      ok: true,
+      customer: result.customer,
+      accountVersion: result.accountVersion,
+      unchanged: !!result.unchanged,
     });
   }
 

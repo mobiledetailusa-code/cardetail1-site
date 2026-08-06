@@ -19,6 +19,9 @@ const {
   actionRequiredStateKey,
 } = require('./booking-customer-status');
 const { normalizeUsPhoneDigits, normalizeUsPhoneE164 } = require('./phone-auth');
+const { smsOutboxPolicy, enabled } = require('./twilio-runtime-policy');
+const { enqueueSms } = require('./sms-outbox');
+const { renderSmsTemplate, bookingTemplateData } = require('./sms-templates');
 
 const EVENT_REQUEST_RECEIVED = 'booking.request_received';
 const EVENT_CONFIRMED = 'booking.confirmed';
@@ -295,15 +298,16 @@ function getNotificationLedger(booking) {
 
 function channelAlreadySent(ledger, key) {
   const entry = ledger[key];
-  return entry && (entry.status === 'sent' || entry.status === 'delivered');
+  return entry && (entry.status === 'accepted' || entry.status === 'sent' || entry.status === 'delivered');
 }
 
 function channelTerminal(ledger, key) {
   const entry = ledger[key];
-  // sent/delivered/suppressed are terminal for this idempotency key.
+  // accepted/sent/delivered/suppressed are terminal for enqueue idempotency.
   // failed remains retryable.
   return entry && (
-    entry.status === 'sent'
+    entry.status === 'accepted'
+    || entry.status === 'sent'
     || entry.status === 'delivered'
     || entry.status === 'suppressed'
   );
@@ -312,7 +316,9 @@ function channelTerminal(ledger, key) {
 function markChannelResult(ledger, key, result) {
   const now = new Date().toISOString();
   const next = { ...ledger };
-  if (result && result.sent === true) {
+  if (result && (result.accepted === true || result.queued === true)) {
+    next[key] = { status: 'accepted', at: now, reason: null, outboxId: result.outboxId || null };
+  } else if (result && result.sent === true) {
     next[key] = { status: 'sent', at: now, reason: null, providerId: result.providerId || null };
   } else if (result && result.skipped) {
     next[key] = { status: 'suppressed', at: now, reason: result.reason || 'skipped' };
@@ -328,10 +334,8 @@ function markChannelResult(ledger, key, result) {
 }
 
 function customerTransactionalSmsEnabled() {
-  return String(process.env.CUSTOMER_TRANSACTIONAL_SMS_ENABLED || '').toLowerCase() === 'true'
-    && !!String(process.env.TWILIO_SID || '').trim()
-    && !!String(process.env.TWILIO_TOKEN || '').trim()
-    && !!String(process.env.TWILIO_FROM || '').trim();
+  return enabled(process.env.CUSTOMER_TRANSACTIONAL_SMS_ENABLED)
+    && smsOutboxPolicy(process.env).ok;
 }
 
 function resendEmailConfigured() {
@@ -540,17 +544,8 @@ ${accessUrl ? `<p><a href="${link}" style="display:inline-block;background:#0b3d
 }
 
 function buildSmsBody(eventType, booking, accessUrl) {
-  const brand = brandName();
-  if (eventType === EVENT_REQUEST_RECEIVED) {
-    return `${brand}: We received your booking request and it is under review.\nView status: ${accessUrl}`;
-  }
-  if (eventType === EVENT_CONFIRMED) {
-    const when = [booking.confirmedDate || booking.preferredDate, arrivalWindow(booking)]
-      .filter(Boolean).join(' ')
-      || 'your scheduled window';
-    return `${brand}: Your appointment is confirmed for ${when}.\nView appointment: ${accessUrl}`;
-  }
-  return `${brand}: Action needed for your appointment.\nReview: ${accessUrl}`;
+  const rendered = renderSmsTemplate(eventType, bookingTemplateData(eventType, booking, accessUrl));
+  return rendered.ok ? rendered.body : '';
 }
 
 async function sendResendEmail({ to, subject, text, html }) {
@@ -584,30 +579,29 @@ async function sendResendEmail({ to, subject, text, html }) {
   }
 }
 
-async function sendCustomerSms(toE164, body) {
+async function sendCustomerSms(toE164, _body, metadata = {}) {
   if (!customerTransactionalSmsEnabled()) {
     return { sent: false, skipped: true, reason: 'customer_sms_not_enabled' };
   }
   if (!toE164) return { sent: false, skipped: true, reason: 'no_customer_phone' };
-  const { TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM } = process.env;
-  try {
-    const params = new URLSearchParams({ To: toE164, From: TWILIO_FROM, Body: body });
-    const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
-    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${auth}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params,
-    });
-    if (!res.ok) {
-      return { sent: false, reason: `twilio_${res.status}` };
-    }
-    return { sent: true };
-  } catch (e) {
-    return { sent: false, reason: 'sms_send_error', detail: e.message };
-  }
+  const queued = await enqueueSms({
+    idempotencyKey: metadata.idempotencyKey,
+    audience: 'customer',
+    customerAccountId: metadata.customerAccountId,
+    bookingId: metadata.bookingId,
+    toE164,
+    templateKey: metadata.eventType,
+    templateData: bookingTemplateData(metadata.eventType, metadata.booking, metadata.accessUrl),
+  });
+  if (!queued.ok) return { sent: false, reason: queued.error || 'sms_outbox_failed' };
+  if (!queued.queued) return { sent: false, skipped: true, reason: queued.reason || 'sms_not_queued' };
+  return {
+    sent: false,
+    accepted: true,
+    queued: true,
+    idempotent: !!queued.idempotent,
+    outboxId: queued.outbox?.id || null,
+  };
 }
 
 async function resolveCustomerAccountForBooking(booking, opts = {}) {
@@ -776,21 +770,16 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
       delivery.sms = { sent: false, skipped: true, reason: 'sms_not_enabled_for_event' };
       ledger = markChannelResult(ledger, smsKey, delivery.sms);
     } else if (!smsTerminal) {
-      const smsClaim = await claimChannelSend(smsKey);
-      if (!smsClaim.claimed) {
-        delivery.sms = { sent: true, skipped: true, reason: 'claim_' + (smsClaim.reason || 'held') };
-        if (!channelTerminal(ledger, smsKey)) {
-          ledger = markChannelResult(ledger, smsKey, { skipped: true, reason: 'claim_held' });
-        }
-      } else {
-        const e164 = normalizeUsPhoneE164(working.phone || working.customerPhone || '');
-        delivery.sms = await sendCustomerSms(e164, smsBody);
-        ledger = markChannelResult(ledger, smsKey, delivery.sms);
-        await completeChannelClaim(
-          smsClaim.claimKey,
-          delivery.sms.sent ? 'sent' : (delivery.sms.skipped ? 'suppressed' : 'failed')
-        );
-      }
+      const e164 = normalizeUsPhoneE164(working.phone || working.customerPhone || '');
+      delivery.sms = await sendCustomerSms(e164, smsBody, {
+        idempotencyKey: smsKey,
+        customerAccountId: working.customerAccountId || null,
+        bookingId,
+        eventType,
+        booking: working,
+        accessUrl,
+      });
+      ledger = markChannelResult(ledger, smsKey, delivery.sms);
     } else {
       delivery.sms = smsDone
         ? { sent: true, skipped: true, reason: 'already_sent' }
