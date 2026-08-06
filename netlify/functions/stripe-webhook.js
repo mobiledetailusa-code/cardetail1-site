@@ -19,8 +19,15 @@
 //   SITE_URL    (required for bid magic links)
 
 const crypto = require('crypto');
-const { enqueueSms } = require('../lib/sms-outbox');
-const { TEMPLATE_KEYS } = require('../lib/sms-templates');
+// Loaded lazily at the call site: the SMS outbox pulls Prisma and the Twilio
+// dependency graph, and a cold-start failure there returns a non-JSON 500 that
+// the checkout cannot parse. Notifications must never gate the booking itself.
+function smsOutbox() {
+  return {
+    enqueueSms: require('../lib/sms-outbox').enqueueSms,
+    TEMPLATE_KEYS: require('../lib/sms-templates').TEMPLATE_KEYS,
+  };
+}
 let blobsStoreOverride = null;
 
 async function blobsStore(name) {
@@ -411,6 +418,7 @@ async function triggerAuction(b) {
     const base = process.env.SITE_URL || '';
     let notified = 0;
     if (base && roster.length) {
+      const { enqueueSms, TEMPLATE_KEYS } = smsOutbox();
       await Promise.all(roster.map(async (t) => {
         const sig = signBid(b.id, t.id, secret);
         const link = `${base}/bid.html?job=${encodeURIComponent(b.id)}&tech=${encodeURIComponent(t.id)}&sig=${sig}`;

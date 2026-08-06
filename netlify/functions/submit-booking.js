@@ -65,8 +65,15 @@ const {
 } = require('../lib/booking-offers');
 const { setOfferDeployHost, clearOfferDeployHost } = require('../lib/revenue-offers');
 const { sendNotificationsDecoupled, attachDeliveryToBooking } = require('../lib/notification-delivery');
-const { enqueueSms } = require('../lib/sms-outbox');
-const { TEMPLATE_KEYS } = require('../lib/sms-templates');
+// Loaded lazily at the call site: the SMS outbox pulls Prisma and the Twilio
+// dependency graph, and a cold-start failure there returns a non-JSON 500 that
+// the checkout cannot parse. Notifications must never gate the booking itself.
+function smsOutbox() {
+  return {
+    enqueueSms: require('../lib/sms-outbox').enqueueSms,
+    TEMPLATE_KEYS: require('../lib/sms-templates').TEMPLATE_KEYS,
+  };
+}
 const { enabled } = require('../lib/twilio-runtime-policy');
 const {
   reconcileCardOnFileFromStripe,
@@ -239,7 +246,10 @@ function buildDraftRecord(b, draftId, now, existing = null) {
     appointmentStatus: existing ? existing.appointmentStatus : 'pending_review',
     jobStatus: existing ? existing.jobStatus : 'not_started',
     acceptedCardOnFilePolicy: true,
-    acceptedCardOnFilePolicyAt: existing ? existing.acceptedCardOnFilePolicyAt : now,
+    // Backfill: drafts pre-registered before this field existed carry no consent
+    // timestamp. Re-registration re-affirms the policy, so stamp it rather than
+    // propagating undefined — create-setup-intent hard-rejects a missing stamp.
+    acceptedCardOnFilePolicyAt: (existing && existing.acceptedCardOnFilePolicyAt) || now,
     policyVersion: '2026-06-card-on-file',
     setupIntentId: existing ? existing.setupIntentId : undefined,
     stripeCustomerId: existing ? existing.stripeCustomerId : undefined,
@@ -488,6 +498,7 @@ async function sendCustomerEmail(b) {
 }
 
 async function sendSms(b) {
+  const { enqueueSms, TEMPLATE_KEYS } = smsOutbox();
   const queued = await enqueueSms({
     idempotencyKey: `admin.booking:${b.id}`,
     audience: 'admin',

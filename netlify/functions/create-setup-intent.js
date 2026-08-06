@@ -109,9 +109,16 @@ exports.handler = async (event) => {
   if (!booking.isDraft || booking.cardOnFileRequired !== true || booking.cardOnFileStatus !== 'pending') {
     return json(409, { ok: false, error: 'booking_not_eligible_for_card_save' });
   }
-  if (booking.acceptedCardOnFilePolicy !== true || !booking.acceptedCardOnFilePolicyAt) {
+  if (booking.acceptedCardOnFilePolicy !== true) {
     return json(409, { ok: false, error: 'card_on_file_consent_required' });
   }
+  // The timestamp is consent *evidence*; acceptedCardOnFilePolicy is the authority.
+  // Drafts pre-registered before the stamp was recorded still carry explicit
+  // consent, so derive and persist one instead of dead-ending the card save.
+  const consentGrantedAt = booking.acceptedCardOnFilePolicyAt
+    || booking.updatedAt
+    || booking.createdAt
+    || new Date().toISOString();
 
   const routingCheck = validateBookingRouting(booking);
   if (!routingCheck.ok) {
@@ -173,11 +180,19 @@ exports.handler = async (event) => {
     'metadata[consent_version]':        policyVersion,
   });
 
+  // Scope the idempotency key to the booking version this attempt is based on.
+  // Same version → duplicate submits replay one SetupIntent (double-click safe).
+  // Advanced version → a fresh, confirmable SetupIntent, instead of Stripe
+  // replaying an already-terminal one and leaving the customer unable to retry.
+  // An idempotent retry deliberately re-keys to the prior attempt's version so
+  // Stripe returns the exact SetupIntent already recorded on the draft.
+  const attemptVersion = idempotentRetry ? actualBookingVersion - 1 : actualBookingVersion;
+
   const siRes = await fetch('https://api.stripe.com/v1/setup_intents', {
     method: 'POST',
     headers: {
       ...stripeHeaders,
-      'Idempotency-Key': `setup_intent_${bookingId}_${policyVersion}`,
+      'Idempotency-Key': `setup_intent_${bookingId}_${policyVersion}_v${attemptVersion}`,
     },
     body: siForm,
   });
@@ -209,7 +224,8 @@ exports.handler = async (event) => {
       setupIntentId: si.id,
       stripeCustomerId: customerId,
       cardOnFileConsentVersion: policyVersion,
-      cardOnFileConsentGrantedAt: booking.acceptedCardOnFilePolicyAt,
+      acceptedCardOnFilePolicyAt: consentGrantedAt,
+      cardOnFileConsentGrantedAt: consentGrantedAt,
       // Keep prior payment-method / saved markers if webhook already applied.
       stripePaymentMethodId: booking.stripePaymentMethodId,
       cardOnFileStatus: booking.cardOnFileStatus || 'pending',

@@ -47,7 +47,10 @@ for (const page of pages) {
     assert.match(initBlock, /captureDraftSaveResponse\(draftData\)/);
     assert.match(initBlock, /draftSessionBookingId=session\.bookingId/);
     assert.match(initBlock, /draftSessionToken=session\.draftSaveToken/);
-    assert.match(initBlock, /bookingId:draftSessionBookingId,draftSaveToken:draftSessionToken/);
+    // The SetupIntent request must be built from the freshly captured draft
+    // session, never from possibly-stale ST fields.
+    assert.match(initBlock, /requestSetupIntentWithVersionSync\(draftSessionBookingId,draftSessionToken,draftSessionBookingVersion\)/);
+    assert.doesNotMatch(initBlock, /requestSetupIntentWithVersionSync\(ST\.bookingId/);
     assert.doesNotMatch(initBlock, /bookingId:ST\.bookingId,draftSaveToken:ST\.draftSaveToken/);
   });
 
