@@ -34,13 +34,14 @@ function buildIdempotencyKey({ bookingId, quoteVersion, amountCents, generation 
  * Load every row needed to compute the current authoritative projection
  * for a booking, then compute it. Read-only.
  */
-async function getFinancialProjection(bookingId) {
+async function getFinancialProjection(bookingId, prismaOverride = null) {
+  const prisma = prismaOverride || getPrisma();
   const [booking, quote, paymentAttempts, ledgerEntries, refundRequests] = await Promise.all([
-    repo.getBooking(bookingId),
-    repo.getLatestQuote(bookingId),
-    repo.listPaymentAttempts(bookingId),
-    repo.listLedgerEntries(bookingId),
-    getPrisma().refundRequest.findMany({ where: { bookingId }, orderBy: { createdAt: 'asc' } }),
+    repo.getBooking(bookingId, prismaOverride),
+    repo.getLatestQuote(bookingId, prismaOverride),
+    repo.listPaymentAttempts(bookingId, prismaOverride),
+    repo.listLedgerEntries(bookingId, prismaOverride),
+    prisma.refundRequest.findMany({ where: { bookingId }, orderBy: { createdAt: 'asc' } }),
   ]);
   if (!booking || !quote) return null;
   return computeFinancialProjection({ booking, quote, paymentAttempts, ledgerEntries, refundRequests });
@@ -68,10 +69,45 @@ async function reserveAndCreatePaymentIntent({
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
+  const prisma = getPrisma();
+  const lockKey = ['payment_intent_create', bookingId, quoteVersion].join(':');
+
+  // The unique indexes prevent duplicate PaymentAttempt rows, but they do not
+  // by themselves prevent two workers from observing the same freshly-created
+  // `creating` row before its providerObjectId is attached. Serialize that
+  // short critical section across processes with a transaction-scoped advisory
+  // lock. This also preserves timeout recovery: a later caller retries Stripe
+  // with the exact same Idempotency-Key after the first transaction commits.
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRawUnsafe(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))::text AS lock_acquired',
+      lockKey,
+    );
+    return reserveAndCreatePaymentIntentLocked({
+      bookingId,
+      quoteVersion,
+      generation,
+      stripeCustomerId,
+      env,
+      fetchImpl,
+      prisma: tx,
+    });
+  }, { maxWait: 10_000, timeout: 30_000 });
+}
+
+async function reserveAndCreatePaymentIntentLocked({
+  bookingId,
+  quoteVersion,
+  generation,
+  stripeCustomerId,
+  env,
+  fetchImpl,
+  prisma,
+}) {
   if (stripeCustomerId && !/^cus_[A-Za-z0-9]+$/.test(String(stripeCustomerId))) {
     return { ok: false, error: 'invalid_stripe_customer', statusCode: 400 };
   }
-  const projection = await getFinancialProjection(bookingId);
+  const projection = await getFinancialProjection(bookingId, prisma);
   if (!projection) return { ok: false, error: 'not_found', statusCode: 404 };
   if (projection.quoteVersion !== quoteVersion) {
     return { ok: false, error: 'stale_quote_version', statusCode: 409, projection };
@@ -96,6 +132,8 @@ async function reserveAndCreatePaymentIntent({
     providerObjectId: null,
     idempotencyKey,
     generation,
+    prisma,
+    prelocked: true,
   });
   if (!reserved.ok) return { ok: false, error: reserved.error, statusCode: 500 };
 
@@ -170,7 +208,7 @@ async function reserveAndCreatePaymentIntent({
   const paymentAttempt = await repo.updatePaymentAttempt(reserved.attempt.id, {
     providerObjectId: stripePaymentIntent.id,
     status: 'open',
-  });
+  }, prisma);
 
   return {
     ok: true,
@@ -319,89 +357,6 @@ async function reconcileFromStripeProvider({
   });
   const after = await getFinancialProjection(bookingId);
   return { ok: true, skipped: false, result, projection: after, providerState: { id: pi.id, status: pi.status } };
-}
-
-/**
- * Idempotent reconciliation of one Stripe PaymentIntent event. Used by the
- * webhook, and by an Admin/Customer "reconcile with Stripe" recovery
- * action — same path either way, per the target architecture.
- *
- * Insert-first-then-process: the StripeEvent row is inserted before any
- * ledger mutation, so a duplicate delivery of the same event is detected
- * and short-circuited before it can double-credit.
- */
-async function reconcilePaymentIntentEventLegacy({ stripeEventId, type, paymentIntent }) {
-  const eventResult = await foundation.recordStripeEvent({
-    stripeEventId,
-    type,
-    payload: paymentIntent,
-  });
-  if (eventResult.duplicate) {
-    return { ok: true, duplicate: true };
-  }
-
-  const attempt = await repo.findPaymentAttemptByProviderObjectId(paymentIntent.id);
-  if (!attempt) {
-    return { ok: false, error: 'no_matching_payment_attempt', quarantined: true };
-  }
-
-  if (paymentIntent.status === 'succeeded') {
-    // One ledger credit per PaymentIntent — not per Stripe event id — so a
-    // checkout.session.completed and a later payment_intent.succeeded for the
-    // same PI cannot double-settle.
-    if (attempt.status === 'succeeded') {
-      const projection = await getFinancialProjection(attempt.bookingId);
-      return { ok: true, duplicate: true, reason: 'attempt_already_succeeded', projection };
-    }
-    const amountCents = Math.round(Number(paymentIntent.amount_received ?? paymentIntent.amount) || 0);
-    const ledgerResult = await foundation.appendLedgerEntry({
-      bookingId: attempt.bookingId,
-      paymentAttemptId: attempt.id,
-      kind: 'settlement',
-      amountCents,
-      quoteVersion: attempt.quoteVersion,
-      providerObjectId: paymentIntent.id,
-      providerEventId: `settlement_${paymentIntent.id}`,
-      stripeEventId,
-      actor: 'stripe_webhook',
-    });
-    await repo.updatePaymentAttempt(attempt.id, { status: 'succeeded' });
-
-    const projection = await getFinancialProjection(attempt.bookingId);
-    if (projection && projection.remainingCents === 0 && projection.quoteVersion === attempt.quoteVersion) {
-      await repo.markQuoteStatus({ bookingId: attempt.bookingId, quoteVersion: attempt.quoteVersion, status: 'settled' }).catch(() => {});
-    }
-
-    return { ok: true, duplicate: false, ledger: ledgerResult, projection };
-  }
-
-  if (paymentIntent.status === 'canceled') {
-    await repo.updatePaymentAttempt(attempt.id, { status: 'canceled' });
-    return { ok: true, duplicate: false, terminal: 'canceled' };
-  }
-
-  if (paymentIntent.status === 'requires_action') {
-    await repo.updatePaymentAttempt(attempt.id, { status: 'requires_action' });
-    return { ok: true, duplicate: false, terminal: 'requires_action' };
-  }
-
-  if (paymentIntent.status === 'requires_payment_method') {
-    // Fresh PaymentIntents are often `requires_payment_method` before the
-    // customer confirms. Only mark failed on an explicit failure event (or
-    // when Stripe reports a last_payment_error during recovery reconcile).
-    const isFailure = type === 'payment_intent.payment_failed'
-      || !!(paymentIntent.last_payment_error);
-    if (isFailure) {
-      await repo.updatePaymentAttempt(attempt.id, { status: 'failed' });
-      return { ok: true, duplicate: false, terminal: 'failed' };
-    }
-    if (attempt.status === 'creating') {
-      await repo.updatePaymentAttempt(attempt.id, { status: 'open' });
-    }
-    return { ok: true, duplicate: false, status: 'requires_payment_method' };
-  }
-
-  return { ok: true, duplicate: false, ignored: true, status: paymentIntent.status };
 }
 
 async function getReceiptAuthorityData(bookingId) {
