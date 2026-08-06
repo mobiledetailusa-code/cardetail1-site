@@ -506,7 +506,7 @@ model StripeEvent {
   lastAttemptAt     DateTime?
   processedAt       DateTime?
   createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  updatedAt         DateTime          @default(now()) @updatedAt
 
   @@index([bookingId])
   @@index([type])
