@@ -360,7 +360,9 @@ test('create-setup-intent valid token + eligible draft reaches Stripe SetupInten
     assert.match(String(siCall.body), /metadata%5BbookingId%5D=CD1-OK/);
     const customerCall = calls.find((c) => String(c.url).includes('/v1/customers'));
     assert.equal(customerCall.headers['Idempotency-Key'], 'setup_customer_CD1-OK_card-on-file-policy-v1');
-    assert.equal(siCall.headers['Idempotency-Key'], 'setup_intent_CD1-OK_card-on-file-policy-v1');
+    // Key is scoped to the booking version the attempt is based on, so a later
+    // attempt gets a fresh SetupIntent instead of a replay of a terminal one.
+    assert.equal(siCall.headers['Idempotency-Key'], 'setup_intent_CD1-OK_card-on-file-policy-v1_v0');
 
     const retry = await handler({
       httpMethod: 'POST',

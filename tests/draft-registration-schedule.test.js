@@ -277,7 +277,27 @@ for (const page of BOOKING_PAGES) {
   test(`${page} carries booking-version CAS into SetupIntent creation`, () => {
     const html = read(page);
     assert.match(html, /draftBookingVersion/);
-    assert.match(html, /expectedBookingVersion:draftSessionBookingVersion/);
-    assert.match(html, /siData&&siData\.bookingVersion!=null/);
+    assert.match(html, /requestSetupIntentWithVersionSync\(draftSessionBookingId,draftSessionToken,draftSessionBookingVersion\)/);
+    assert.match(html, /data&&data\.bookingVersion!=null/);
+  });
+
+  test(`${page} resyncs and retries once on a stale booking version`, () => {
+    const html = read(page);
+    const helper = html.slice(
+      html.indexOf('async function requestSetupIntentWithVersionSync'),
+      html.indexOf('async function initCardOnFile')
+    );
+    assert.ok(helper.length > 0, 'version-sync helper must be present');
+    // Server reports actualBookingVersion so the client can resync — a stale
+    // version must never surface a raw version_conflict to the customer.
+    assert.match(helper, /attempt<2/);
+    assert.match(helper, /data\.error==='version_conflict'/);
+    assert.match(helper, /ST\.draftBookingVersion=expected/);
+  });
+
+  test(`${page} maps the card-save 409 codes to customer-readable copy`, () => {
+    const html = read(page);
+    assert.match(html, /version_conflict:'Your booking changed while this page was open/);
+    assert.match(html, /card_on_file_consent_required:'Please re-accept the card-on-file authorization/);
   });
 }

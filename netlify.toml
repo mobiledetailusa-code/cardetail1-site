@@ -10,7 +10,10 @@
 
 [functions]
   # Ensure Blobs is available to all Functions (Garage Plan / RevOps store helpers).
-  external_node_modules = ["@netlify/blobs"]
+  # twilio resolves sub-modules dynamically and does not survive esbuild bundling;
+  # it must be installed as a real node_module or the functions that reach it fail
+  # to load at cold start and return a non-JSON 500.
+  external_node_modules = ["@netlify/blobs", "twilio"]
 
 [dev]
   port = 8888
