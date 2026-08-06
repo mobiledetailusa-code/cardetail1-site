@@ -42,15 +42,11 @@ function mapProjectionForPortals(projection) {
 }
 
 /**
- * Sync Blob compatibility money fields from Postgres projection so legacy
- * readers do not contradict portals. Does not invent ledger credits.
+ * Build the compatibility-only financial patch applied to the Blob aggregate.
+ * Operational lifecycle fields are intentionally absent: reopening a balance
+ * does not reopen an appointment, service, or completed job.
  */
-async function syncBlobCompatibilityFromProjection(bookingId, projection) {
-  if (!projection || !bookingId) return { ok: false, error: 'missing' };
-  const rec = await getBookingRecord(bookingId);
-  if (!rec.exists || !rec.booking) return { ok: false, error: 'blob_not_found' };
-  const { ok: normOk, aggregate } = normalizeAggregate(rec.booking);
-  const base = normOk ? aggregate : rec.booking;
+function buildPaymentCompatibilityPatch(base, projection) {
   const ledger = { ...(base.ledger || {}) };
   ledger.approvedCents = projection.approvedCents;
   ledger.settledCents = projection.settledCents;
@@ -60,7 +56,6 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
   const dollarsApproved = projection.approvedCents / 100;
   const dollarsSettled = projection.settledCents / 100;
   const dollarsRemaining = projection.remainingCents / 100;
-
   const patch = {
     ledger,
     quoteVersion: projection.quoteVersion,
@@ -93,22 +88,31 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
     paymentIntentId: projection.stripeReference || base.paymentIntentId || null,
   };
 
-  // Open remaining after quote adjustment must not keep historical Paid markers
-  // (adaptHistoricalBooking would clamp settledCents up to approvedCents).
+  // Prevent historical paid markers from clamping a newly reopened financial
+  // balance. This is a financial compatibility marker, not a lifecycle state.
   if (projection.paymentStatus === 'due' || projection.remainingCents > 0) {
     patch._historicalPaidClosed = false;
-    if (String(base.status || '') === 'Paid' || String(base.status || '') === 'Closed') {
-      patch.status = 'Confirmed';
-    }
-    if (String(base.jobStatus || '').toLowerCase() === 'completed_paid') {
-      patch.jobStatus = 'confirmed';
-    }
   }
   if (projection.paymentStatus === 'paid' && projection.paidAt) {
     patch.capturedAt = typeof projection.paidAt === 'string'
       ? projection.paidAt
       : new Date(projection.paidAt).toISOString();
   }
+  return patch;
+}
+
+/**
+ * Sync Blob compatibility money fields from Postgres projection so legacy
+ * readers do not contradict portals. Does not invent ledger credits.
+ */
+async function syncBlobCompatibilityFromProjection(bookingId, projection) {
+  if (!projection || !bookingId) return { ok: false, error: 'missing' };
+  const rec = await getBookingRecord(bookingId);
+  if (!rec.exists || !rec.booking) return { ok: false, error: 'blob_not_found' };
+  const { ok: normOk, aggregate } = normalizeAggregate(rec.booking);
+  const base = normOk ? aggregate : rec.booking;
+  const patch = buildPaymentCompatibilityPatch(base, projection);
+  const ledger = patch.ledger;
 
   const sameJsonValue = (left, right) => JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
   const alreadySynchronized = Object.entries(patch).every(([key, value]) => {
@@ -556,6 +560,7 @@ async function settleAdminCashFullBalance(args) {
 module.exports = {
   postgresPaymentEnabled,
   mapProjectionForPortals,
+  buildPaymentCompatibilityPatch,
   syncBlobCompatibilityFromProjection,
   getSharedFinancialProjection,
   prepareEmbeddedPayment,
