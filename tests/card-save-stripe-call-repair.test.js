@@ -260,6 +260,19 @@ for (const fn of CHECKOUT_FUNCTIONS) {
     );
     assert.match(src, /function smsOutbox\(\)/, 'lazy accessor must exist');
   });
+
+  test(`${fn} resolves enqueueSms via smsOutbox at every call site`, () => {
+    const fs = require('node:fs');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'netlify', 'functions', fn), 'utf8');
+    const destructures = (src.match(/const \{ enqueueSms, TEMPLATE_KEYS \} = smsOutbox\(\);/g) || []).length;
+    const calls = (src.match(/enqueueSms\(/g) || []).length;
+    assert.ok(calls >= 1, `${fn} must enqueue at least once`);
+    assert.equal(
+      destructures,
+      calls,
+      `${fn}: each enqueueSms(...) must be preceded by const { enqueueSms, TEMPLATE_KEYS } = smsOutbox()`
+    );
+  });
 }
 
 test('twilio SDK is required lazily, behind the runtime policy gate', () => {

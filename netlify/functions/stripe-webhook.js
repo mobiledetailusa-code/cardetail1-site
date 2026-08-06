@@ -418,6 +418,7 @@ async function triggerAuction(b) {
     const base = process.env.SITE_URL || '';
     let notified = 0;
     if (base && roster.length) {
+      const { enqueueSms, TEMPLATE_KEYS } = smsOutbox();
       await Promise.all(roster.map(async (t) => {
         const sig = signBid(b.id, t.id, secret);
         const link = `${base}/bid.html?job=${encodeURIComponent(b.id)}&tech=${encodeURIComponent(t.id)}&sig=${sig}`;

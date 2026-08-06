@@ -66,6 +66,7 @@ async function sendEmail(q) {
 }
 
 async function sendSms(q) {
+  const { enqueueSms, TEMPLATE_KEYS } = smsOutbox();
   const inquiryKey = crypto.createHash('sha256').update(String(q.id || '')).digest('hex').slice(0, 40);
   const queued = await enqueueSms({
     idempotencyKey: `admin.inquiry:${inquiryKey}`,
