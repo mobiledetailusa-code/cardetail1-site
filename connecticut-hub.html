@@ -5334,6 +5334,26 @@ function captureDraftSaveResponse(draftData){
   return {bookingId:draftData.id,draftSaveToken:draftData.draftSaveToken,bookingVersion:ST.draftBookingVersion};
 }
 
+// A stale draftBookingVersion must not dead-end card save: the server reports
+// actualBookingVersion precisely so the client can resync and retry once.
+async function requestSetupIntentWithVersionSync(bookingId,draftSaveToken,bookingVersion){
+  let expected=Number(bookingVersion)||0;
+  for(let attempt=0;attempt<2;attempt++){
+    const res=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId,draftSaveToken,expectedBookingVersion:expected})});
+    const ct=(res.headers.get('content-type')||'').toLowerCase();
+    if(!ct.includes('json')) return {__nonJson:true};
+    const data=await res.json();
+    if(data&&data.bookingVersion!=null) ST.draftBookingVersion=Number(data.bookingVersion)||0;
+    const actual=Number(data&&data.actualBookingVersion);
+    if(attempt===0&&data&&!data.ok&&data.error==='version_conflict'&&Number.isFinite(actual)&&actual!==expected){
+      expected=actual;
+      ST.draftBookingVersion=expected;
+      continue;
+    }
+    return data;
+  }
+}
+
 async function initCardOnFile(){
   if(cardInitInProgress) return;
   if(!ST.payMethod){
@@ -5421,11 +5441,8 @@ async function initCardOnFile(){
     destroyStripePaymentUI();
     if(isStale()) return;
     if(!draftSessionBookingId||!draftSessionToken){throw new Error('We could not securely verify this booking session. Please go back one step and try again.');}
-    const siRes=await fetch(BACKEND_BASE+'/create-setup-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:draftSessionBookingId,draftSaveToken:draftSessionToken,expectedBookingVersion:draftSessionBookingVersion})});
-    const siCt=(siRes.headers.get('content-type')||'').toLowerCase();
-    if(!siCt.includes('json')) throw new Error(isLocalPreview?LOCAL_DEV_FUNCTIONS_HINT:'Secure card saving is temporarily unavailable.');
-    const siData=await siRes.json();
-    if(siData&&siData.bookingVersion!=null) ST.draftBookingVersion=Number(siData.bookingVersion)||0;
+    const siData=await requestSetupIntentWithVersionSync(draftSessionBookingId,draftSessionToken,draftSessionBookingVersion);
+    if(siData&&siData.__nonJson) throw new Error(isLocalPreview?LOCAL_DEV_FUNCTIONS_HINT:'Secure card saving is temporarily unavailable.');
     if(isStale()) return;
     if(!siData.ok||siData.fallback){
       const errMap={
@@ -5437,6 +5454,8 @@ async function initCardOnFile(){
         stripe_not_configured:'Card saving is not configured on the server yet. Add STRIPE_SECRET_KEY to .env and run netlify dev.',
         booking_store_unavailable:'Booking storage is unavailable locally - run netlify dev (not a static file server).',
         card_save_unavailable:'Stripe could not start card save. Try again in a moment.',
+        card_on_file_consent_required:'Please re-accept the card-on-file authorization above, then try saving your card again.',
+        version_conflict:'Your booking changed while this page was open. Go back one step and continue again to save your card.',
       };
       throw new Error(errMap[siData.error]||siData.error||'Secure card saving is temporarily unavailable.');
     }

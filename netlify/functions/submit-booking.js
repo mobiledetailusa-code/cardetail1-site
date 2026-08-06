@@ -239,7 +239,10 @@ function buildDraftRecord(b, draftId, now, existing = null) {
     appointmentStatus: existing ? existing.appointmentStatus : 'pending_review',
     jobStatus: existing ? existing.jobStatus : 'not_started',
     acceptedCardOnFilePolicy: true,
-    acceptedCardOnFilePolicyAt: existing ? existing.acceptedCardOnFilePolicyAt : now,
+    // Backfill: drafts pre-registered before this field existed carry no consent
+    // timestamp. Re-registration re-affirms the policy, so stamp it rather than
+    // propagating undefined — create-setup-intent hard-rejects a missing stamp.
+    acceptedCardOnFilePolicyAt: (existing && existing.acceptedCardOnFilePolicyAt) || now,
     policyVersion: '2026-06-card-on-file',
     setupIntentId: existing ? existing.setupIntentId : undefined,
     stripeCustomerId: existing ? existing.stripeCustomerId : undefined,
