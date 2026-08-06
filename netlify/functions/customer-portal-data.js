@@ -102,11 +102,18 @@ function safePaymentState(booking) {
 }
 
 async function safePaymentStateAsync(booking) {
-  if (postgresPaymentEnabled()) {
-    const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: false });
-    if (shared.ok && shared.projection) {
-      return safePaymentStateFromProjection(booking, shared.projection, 'postgres');
+  try {
+    if (postgresPaymentEnabled()) {
+      const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: false });
+      if (shared.ok && shared.projection) {
+        return safePaymentStateFromProjection(booking, shared.projection, 'postgres');
+      }
     }
+  } catch (e) {
+    console.warn('[customer-portal-data] payment_projection_fallback', {
+      bookingIdPrefix: String(booking?.id || booking?.bookingId || '').slice(0, 12),
+      error: String(e && e.message || e).slice(0, 160),
+    });
   }
   return safePaymentState(booking);
 }
@@ -237,6 +244,21 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); }
   catch { return jsonCors(400, { ok: false, error: 'validation_error' }); }
 
+  try {
+    return await handlePortalData(event, body);
+  } catch (e) {
+    console.warn('[customer-portal-data] unhandled', {
+      error: String(e && e.message || e).slice(0, 200),
+    });
+    return jsonCors(503, {
+      ok: false,
+      error: 'service_unavailable',
+      message: 'Your account is temporarily unavailable. Please try again.',
+    });
+  }
+};
+
+async function handlePortalData(event, body) {
   const mode = String(body.mode || 'limited').toLowerCase();
   const catalog = portalCatalogForClient();
 
@@ -488,6 +510,10 @@ exports.handler = async (event) => {
       communicationPreferences: false,
     },
   }, body.ifSyncVersion);
-};
+}
 
 exports.syncJson = syncJson;
+exports.__test = {
+  safePaymentStateAsync,
+  handlePortalData,
+};
