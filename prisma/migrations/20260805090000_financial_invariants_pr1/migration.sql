@@ -18,11 +18,9 @@ ALTER TABLE "StripeEvent"
 
 CREATE INDEX "StripeEvent_status_idx" ON "StripeEvent"("status");
 
--- The temporary default above backfills existing rows. Runtime writes use
--- Prisma's @updatedAt behavior, so drop it to keep migration history and the
--- declarative schema identical.
-ALTER TABLE "StripeEvent"
-  ALTER COLUMN "updatedAt" DROP DEFAULT;
+-- Keep the database default after backfill so the previously deployed
+-- application bundle, whose Prisma model does not know about updatedAt, can
+-- still insert StripeEvent rows during an application rollback.
 
 -- NOT VALID keeps the migration deployable when historical rows need a
 -- preflight audit. PostgreSQL still enforces these checks for every new row.
