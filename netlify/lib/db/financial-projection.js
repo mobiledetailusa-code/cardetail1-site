@@ -32,7 +32,8 @@ function computeFinancialProjection({ booking, quote, paymentAttempts = [], ledg
   const netSettledCents = Math.max(0, settledCents + adjustmentCents - refundedCents);
   const remainingCents = Math.max(0, approvedCents - netSettledCents);
 
-  const activeAttempt = paymentAttempts.find((a) => ACTIVE_ATTEMPT_STATUSES.has(a.status));
+  const activeAttempt = [...paymentAttempts].reverse()
+    .find((a) => ACTIVE_ATTEMPT_STATUSES.has(a.status));
   const lastSucceeded = [...paymentAttempts].reverse().find((a) => a.status === 'succeeded');
 
   let paymentStatus;
@@ -59,6 +60,7 @@ function computeFinancialProjection({ booking, quote, paymentAttempts = [], ledg
     remainingCents,
     paymentStatus,
     paymentAttemptStatus: activeAttempt?.status || lastSucceeded?.status || null,
+    paymentAttemptUpdatedAt: activeAttempt?.updatedAt || lastSucceeded?.updatedAt || null,
     stripeReference: activeAttempt?.providerObjectId || lastSucceeded?.providerObjectId || null,
     paidAt: paymentStatus === 'paid' ? (lastSettlement?.recordedAt || null) : null,
     refundableCents: paymentStatus === 'paid' ? netSettledCents : 0,

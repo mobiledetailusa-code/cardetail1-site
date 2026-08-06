@@ -1,6 +1,6 @@
 /**
  * Portal ops smoke — real Admin / Customer operation contracts.
- * Blobs stay authoritative; Prisma optional; checkout must remain untouched.
+ * PostgreSQL is financial authority; hosted Checkout stays isolated.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
@@ -18,15 +18,16 @@ describe('portal ops smoke — customer + admin real ops', () => {
     assert.match(src, /projectBookingForCustomer/);
   });
 
-  it('customer pay uses ledger remaining and customer_balance purpose', () => {
-    const src = read('netlify/functions/customer-portal-pay.js');
-    assert.match(src, /prepareBalanceCheckout/);
-    assert.match(src, /purpose.*customer_balance|customer_balance/);
-    assert.match(src, /canPayBalance/);
+  it('customer pay uses embedded authoritative customer_balance PaymentIntent', () => {
+    const src = read('netlify/functions/customer-balance-payment-intent.js');
+    assert.match(src, /prepareEmbeddedPayment/);
+    assert.match(read('netlify/lib/db/payment-authority-service.js'), /metadata\[purpose\].*customer_balance|customer_balance/);
+    assert.match(src, /authorizeBookingAccess/);
     assert.doesNotMatch(
       src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''),
       /body\.amountCents|p\.amountCents/
     );
+    assert.match(read('netlify/functions/customer-portal-pay.js'), /legacy_checkout_disabled/);
   });
 
   it('canPayBalance denies settled invoice even with stale payLink', () => {
@@ -147,13 +148,14 @@ describe('portal ops smoke — customer + admin real ops', () => {
     assert.match(src, /Never treat \?paid=1|paid === '1'/);
   });
 
-  it('admin drawer: PAID CLOSED, Generate Stripe, manual reference labeled', () => {
+  it('admin drawer separates paid/service state and disables hosted generation', () => {
     const src = read('admin-ops.html');
-    assert.match(src, /PAID \/ CLOSED/);
-    assert.match(src, /Generate Stripe link/);
-    assert.match(src, /Copy pay link if present/);
+    assert.match(src, /· PAID/);
+    assert.match(src, /const canGenLink = false/);
+    assert.doesNotMatch(src, />Generate Stripe link</);
+    assert.doesNotMatch(src, />Copy pay link if present</);
     assert.match(src, /Manual external reference|manual reference/i);
-    assert.match(src, /Manual reference is notes-only|never opens Pay Balance/i);
+    assert.match(src, /Hosted Checkout and manual policy charges are isolated/);
     assert.match(src, /Reconcile with Stripe|reconcile_with_stripe/);
     assert.doesNotMatch(src, /create-payment-link\.js|\/\.netlify\/functions\/create-payment-link/);
   });

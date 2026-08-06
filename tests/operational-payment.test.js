@@ -19,6 +19,8 @@ const dbConfigured = prismaConfigured();
 
 function fakeStripeFetch({
   piId,
+  bookingId = null,
+  quoteVersion = 1,
   calls,
   clientSecret = 'pi_secret_fake',
   getStatus = 'requires_payment_method',
@@ -28,12 +30,21 @@ function fakeStripeFetch({
     if (calls) calls.push({ url: String(url), method: opts?.method });
     const u = String(url);
     if (u.includes('/payment_intents') && opts?.method === 'POST') {
+      const params = new URLSearchParams(opts?.body || '');
       return {
         ok: true,
         json: async () => ({
           id: piId,
           status: 'requires_payment_method',
-          amount,
+          amount: Number(params.get('amount')),
+          currency: params.get('currency'),
+          customer: params.get('customer'),
+          metadata: {
+            bookingId: params.get('metadata[bookingId]'),
+            booking_id: params.get('metadata[booking_id]'),
+            quoteVersion: params.get('metadata[quoteVersion]'),
+            purpose: params.get('metadata[purpose]'),
+          },
           client_secret: clientSecret,
         }),
       };
@@ -46,6 +57,13 @@ function fakeStripeFetch({
           status: getStatus,
           amount,
           amount_received: getStatus === 'succeeded' ? amount : 0,
+          currency: 'usd',
+          metadata: {
+            bookingId,
+            booking_id: bookingId,
+            quoteVersion: String(quoteVersion),
+            purpose: 'customer_balance',
+          },
           client_secret: clientSecret,
         }),
       };
@@ -60,6 +78,22 @@ function fakeStripeFetch({
       return { ok: true, json: async () => ({ id: nextId('rf') }) };
     }
     return { ok: false, json: async () => ({ error: { message: 'unexpected_url' } }) };
+  };
+}
+
+function boundPaymentIntent({ bookingId, id, status, amount }) {
+  return {
+    id,
+    status,
+    amount,
+    amount_received: status === 'succeeded' ? amount : 0,
+    currency: 'usd',
+    metadata: {
+      bookingId,
+      booking_id: bookingId,
+      quoteVersion: '1',
+      purpose: 'customer_balance',
+    },
   };
 }
 
@@ -122,13 +156,13 @@ describe('operational payment wiring (Postgres)', { skip: !dbConfigured && 'DATA
       bookingId,
       quoteVersion: 1,
       env: FAKE_ENV,
-      fetchImpl: fakeStripeFetch({ piId }),
+      fetchImpl: fakeStripeFetch({ piId, bookingId }),
     });
     assert.equal(created.ok, true);
     await authority.reconcilePaymentIntentEvent({
       stripeEventId: nextId('EVT'),
       type: 'payment_intent.succeeded',
-      paymentIntent: { id: piId, status: 'succeeded', amount_received: 4200 },
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 4200 }),
     });
     const customerView = await getSharedFinancialProjection(blob, { reconcileUncertain: false });
     const adminView = await getSharedFinancialProjection(blob, { reconcileUncertain: false });
@@ -152,7 +186,7 @@ describe('operational payment wiring (Postgres)', { skip: !dbConfigured && 'DATA
     );
   });
 
-  test('checkout.session event + payment_intent.succeeded cannot double-credit same PI', async () => {
+  test('hosted Checkout is rejected as a money event; duplicate PaymentIntent events credit once', async () => {
     const authority = require('../netlify/lib/db/payment-authority-service');
     const { ensureBookingFinancial } = require('../netlify/lib/db/ensure-booking-financial');
     const bookingId = nextId('BK');
@@ -164,19 +198,26 @@ describe('operational payment wiring (Postgres)', { skip: !dbConfigured && 'DATA
     });
     const piId = `pi_${nextId('x')}`;
     await authority.reserveAndCreatePaymentIntent({
-      bookingId, quoteVersion: 1, env: FAKE_ENV, fetchImpl: fakeStripeFetch({ piId }),
+      bookingId, quoteVersion: 1, env: FAKE_ENV, fetchImpl: fakeStripeFetch({ piId, bookingId }),
     });
-    const first = await authority.reconcilePaymentIntentEvent({
+    const checkout = await authority.reconcilePaymentIntentEvent({
       stripeEventId: nextId('EVT'),
       type: 'checkout.session.completed',
-      paymentIntent: { id: piId, status: 'succeeded', amount_received: 3000 },
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 3000 }),
+    });
+    assert.equal(checkout.ok, false);
+    assert.equal(checkout.error, 'unsupported_event_type');
+    const first = await authority.reconcilePaymentIntentEvent({
+      stripeEventId: nextId('EVT'),
+      type: 'payment_intent.succeeded',
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 3000 }),
     });
     const second = await authority.reconcilePaymentIntentEvent({
       stripeEventId: nextId('EVT'),
       type: 'payment_intent.succeeded',
-      paymentIntent: { id: piId, status: 'succeeded', amount_received: 3000 },
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 3000 }),
     });
-    assert.equal(first.ok, true);
+    assert.equal(first.ok, true, JSON.stringify(first));
     assert.equal(second.ok, true);
     assert.equal(second.duplicate, true);
     const projection = await authority.getFinancialProjection(bookingId);
@@ -198,13 +239,13 @@ describe('operational payment wiring (Postgres)', { skip: !dbConfigured && 'DATA
       quoteVersion: 1,
       bookingVersion: 2,
       ledger: { approvedCents: 5500, settledCents: 0 },
-      stripeCustomerId: 'cus_test_fake',
+      stripeCustomerId: 'cus_testfake',
     };
     await ensureBookingFinancial(blob);
     const piId = `pi_${nextId('x')}`;
-    const fetchImpl = fakeStripeFetch({ piId });
+    const fetchImpl = fakeStripeFetch({ piId, bookingId });
     const first = await prepareEmbeddedPayment({ booking: blob, env: FAKE_ENV, fetchImpl });
-    assert.equal(first.ok, true);
+    assert.equal(first.ok, true, JSON.stringify(first));
     assert.ok(first.clientSecret);
     assert.equal(first.paymentIntentId, piId);
     assert.equal(first.customerSessionClientSecret, 'cuss_test_fake');
@@ -228,14 +269,14 @@ describe('operational payment wiring (Postgres)', { skip: !dbConfigured && 'DATA
     });
     const piId = `pi_${nextId('x')}`;
     const created = await authority.reserveAndCreatePaymentIntent({
-      bookingId, quoteVersion: 1, env: FAKE_ENV, fetchImpl: fakeStripeFetch({ piId }),
+      bookingId, quoteVersion: 1, env: FAKE_ENV, fetchImpl: fakeStripeFetch({ piId, bookingId }),
     });
     assert.equal(created.ok, true);
     // Missing webhook — Admin reconcile retrieves succeeded PI from Stripe.
     const reconciled = await authority.reconcileFromStripeProvider({
       bookingId,
       env: FAKE_ENV,
-      fetchImpl: fakeStripeFetch({ piId, getStatus: 'succeeded', amount: 5000 }),
+      fetchImpl: fakeStripeFetch({ piId, bookingId, getStatus: 'succeeded', amount: 5000 }),
     });
     assert.equal(reconciled.ok, true);
     assert.equal(reconciled.skipped, false);
@@ -268,6 +309,78 @@ describe('operational payment wiring (Postgres)', { skip: !dbConfigured && 'DATA
 });
 
 describe('operational payment — pure guards', () => {
+  test('a paid completed job keeps its lifecycle while a positive adjustment reopens and settles only the balance', () => {
+    const { buildPaymentCompatibilityPatch } = require('../netlify/lib/db/operational-payment');
+    const { buildReceiptProjection } = require('../netlify/lib/receipt-projection');
+    const completed = {
+      id: 'CD1-COMPLETED-DELTA',
+      status: 'Closed',
+      jobStatus: 'completed_paid',
+      serviceStatus: 'completed',
+      completedAt: '2026-08-05T12:00:00.000Z',
+      updatedAt: '2026-08-05T12:00:00.000Z',
+      paymentStatus: 'paid',
+      paymentWorkflowStatus: 'payment_succeeded',
+      quoteVersion: 1,
+      ledger: {
+        approvedCents: 5000,
+        settledCents: 5000,
+        refundedCents: 0,
+        currency: 'usd',
+        entries: [{
+          kind: 'settlement',
+          amountCents: 5000,
+          providerObjectId: 'pi_original',
+          occurredAt: '2026-08-05T11:00:00.000Z',
+        }],
+      },
+    };
+
+    const reopenedPatch = buildPaymentCompatibilityPatch(completed, {
+      quoteVersion: 2,
+      approvedCents: 8000,
+      settledCents: 5000,
+      refundedCents: 0,
+      remainingCents: 3000,
+      paymentStatus: 'due',
+      stripeReference: 'pi_delta',
+    });
+    const reopened = { ...completed, ...reopenedPatch };
+    assert.equal(reopened.status, 'Closed');
+    assert.equal(reopened.jobStatus, 'completed_paid');
+    assert.equal(reopened.serviceStatus, 'completed');
+    assert.equal(reopened.paymentStatus, 'due');
+    assert.equal(reopened.ledger.approvedCents, 8000);
+    assert.equal(reopened.ledger.settledCents, 5000);
+    assert.equal(reopened.balanceDue, 30);
+
+    const settledPatch = buildPaymentCompatibilityPatch(reopened, {
+      quoteVersion: 2,
+      approvedCents: 8000,
+      settledCents: 8000,
+      refundedCents: 0,
+      remainingCents: 0,
+      paymentStatus: 'paid',
+      stripeReference: 'pi_delta',
+      paidAt: '2026-08-05T13:00:00.000Z',
+    });
+    const settled = { ...reopened, ...settledPatch };
+    assert.equal(settled.status, 'Closed');
+    assert.equal(settled.jobStatus, 'completed_paid');
+    assert.equal(settled.serviceStatus, 'completed');
+    assert.equal(settled.paymentStatus, 'paid');
+    assert.equal(settled.ledger.approvedCents, 8000);
+    assert.equal(settled.ledger.settledCents, 8000);
+    assert.equal(settled.balanceDue, 0);
+
+    const receipt = buildReceiptProjection(settled, 'final');
+    assert.equal(receipt.ok, true);
+    assert.equal(receipt.receipt.financialSummary.approvedTotal.cents, 8000);
+    assert.equal(receipt.receipt.financialSummary.amountPaid.cents, 8000);
+    assert.equal(receipt.receipt.financialSummary.remainingBalance.cents, 0);
+    assert.equal(receipt.receipt.paidInFull, true);
+  });
+
   test('postgresPaymentEnabled respects explicit disable flag', () => {
     const { postgresPaymentEnabled } = require('../netlify/lib/db/operational-payment');
     assert.equal(postgresPaymentEnabled({ CD1_POSTGRES_PAYMENT: '0', DATABASE_URL: 'postgres://x' }), false);

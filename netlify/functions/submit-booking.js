@@ -222,6 +222,9 @@ function buildDraftRecord(b, draftId, now, existing = null) {
   return {
     id: draftId,
     isDraft: true,
+    bookingVersion: existing
+      ? Math.max(0, Math.round(Number(existing.bookingVersion) || 0)) + 1
+      : 0,
     createdAt: existing ? existing.createdAt : now,
     updatedAt: now,
     totalPrice: Number(b.totalPrice) || 0,
@@ -297,6 +300,7 @@ function issueDraftSaveResponse(draft) {
       isDraft: true,
       draftSaveToken: tokenResult.token,
       draftSaveTokenExp: tokenResult.draftSaveTokenExp,
+      bookingVersion: Math.max(0, Math.round(Number(draft.bookingVersion) || 0)),
     },
   };
 }

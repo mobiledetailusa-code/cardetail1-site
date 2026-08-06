@@ -62,7 +62,7 @@ test('tech security delegates admin verify to admin-security', () => {
 test('protected admin endpoints require verifyAdminKey', () => {
   for (const fn of protectedFns) {
     const src = read(`netlify/functions/${fn}`);
-    assert.match(src, /verifyAdminKey|endpoint_disabled/, `${fn} should be protected or disabled`);
+    assert.match(src, /verifyAdminKey|endpoint_disabled|legacy_[a-z_]+_disabled/, `${fn} should be protected or disabled`);
   }
 });
 

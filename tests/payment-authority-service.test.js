@@ -16,7 +16,8 @@ const RUN_ID = `TESTDB-PAY-${Date.now().toString(36)}-${Math.random().toString(3
 let idCounter = 0;
 function nextId(label) {
   idCounter += 1;
-  return `${RUN_ID}-${label}-${idCounter}`;
+  const id = `${RUN_ID}-${label}-${idCounter}`;
+  return label === 'pi' ? `pi_${id}` : id;
 }
 
 const FAKE_ENV = { STRIPE_SECRET_KEY: 'sk_test_fake000000000000000000' };
@@ -25,7 +26,23 @@ function fakePaymentIntentCreateFetch({ id = 'pi_fake', calls } = {}) {
   return async (url, opts) => {
     if (calls) calls.push({ url, method: opts?.method, body: opts?.body });
     if (String(url).includes('/payment_intents')) {
-      return { ok: true, json: async () => ({ id, status: 'requires_payment_method', amount: 0 }) };
+      const params = new URLSearchParams(opts?.body || '');
+      return {
+        ok: true,
+        json: async () => ({
+          id,
+          status: 'requires_payment_method',
+          amount: Number(params.get('amount')),
+          currency: params.get('currency'),
+          customer: params.get('customer'),
+          metadata: {
+            bookingId: params.get('metadata[bookingId]'),
+            booking_id: params.get('metadata[booking_id]'),
+            quoteVersion: params.get('metadata[quoteVersion]'),
+            purpose: params.get('metadata[purpose]'),
+          },
+        }),
+      };
     }
     if (String(url).includes('/refunds')) {
       // Unique per call — a static id would collide with the global
@@ -33,6 +50,24 @@ function fakePaymentIntentCreateFetch({ id = 'pi_fake', calls } = {}) {
       return { ok: true, json: async () => ({ id: nextId('rf') }) };
     }
     return { ok: false, json: async () => ({ error: { message: 'unexpected_url' } }) };
+  };
+}
+
+function boundPaymentIntent({ bookingId, id, status, amount, customer = null, extra = {} }) {
+  return {
+    id,
+    status,
+    amount,
+    amount_received: status === 'succeeded' ? amount : 0,
+    currency: 'usd',
+    customer,
+    metadata: {
+      bookingId,
+      booking_id: bookingId,
+      quoteVersion: '1',
+      purpose: 'customer_balance',
+    },
+    ...extra,
   };
 }
 
@@ -105,7 +140,7 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     assert.equal(count, 1, 'exactly one PaymentAttempt row must exist — no duplicate obligation');
 
     const retry = await svc.reserveAndCreatePaymentIntent({ bookingId, quoteVersion: 1, env: FAKE_ENV, fetchImpl });
-    assert.equal(retry.ok, true);
+    assert.equal(retry.ok, true, JSON.stringify(retry));
     assert.equal(retry.created, false);
     assert.equal(retry.paymentAttempt.id, [...attemptIds][0]);
   });
@@ -147,7 +182,7 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     const stripeEventId = nextId('EVT');
     const result = await svc.reconcilePaymentIntentEvent({
       stripeEventId, type: 'payment_intent.succeeded',
-      paymentIntent: { id: piId, status: 'succeeded', amount_received: 4200 },
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 4200 }),
     });
     assert.equal(result.ok, true);
     assert.equal(result.duplicate, false);
@@ -169,7 +204,7 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
       bookingId, quoteVersion: 1, env: FAKE_ENV, fetchImpl: fakePaymentIntentCreateFetch({ id: piId }),
     });
     const stripeEventId = nextId('EVT');
-    const payload = { id: piId, status: 'succeeded', amount_received: 1000 };
+    const payload = boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 1000 });
 
     const first = await svc.reconcilePaymentIntentEvent({ stripeEventId, type: 'payment_intent.succeeded', paymentIntent: payload });
     const second = await svc.reconcilePaymentIntentEvent({ stripeEventId, type: 'payment_intent.succeeded', paymentIntent: payload });
@@ -178,6 +213,99 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
 
     const projection = await svc.getFinancialProjection(bookingId);
     assert.equal(projection.settledCents, 1000, 'duplicate delivery must not double the settled amount');
+  });
+
+  test('failed inbox event is minimized and reprocessable after the local attempt catches up', async () => {
+    const svc = require('../netlify/lib/db/payment-authority-service');
+    const { bookingId } = await makeBookingWithQuote(2600);
+    const piId = nextId('pi');
+    const stripeEventId = nextId('EVT');
+    const payload = boundPaymentIntent({
+      bookingId,
+      id: piId,
+      status: 'succeeded',
+      amount: 2600,
+      extra: {
+        client_secret: 'must_never_be_persisted',
+        billing_details: { name: 'Never Persist' },
+        charges: { data: [{ payment_method_details: { card: { last4: '4242' } } }] },
+      },
+    });
+
+    const beforeAttempt = await svc.reconcilePaymentIntentEvent({
+      stripeEventId,
+      type: 'payment_intent.succeeded',
+      paymentIntent: payload,
+      eventCreatedAt: 1_780_000_000,
+    });
+    assert.equal(beforeAttempt.ok, false);
+    assert.equal(beforeAttempt.error, 'no_matching_payment_attempt');
+    assert.equal(beforeAttempt.failureRecorded, true);
+
+    const failedInbox = await prisma.stripeEvent.findUnique({ where: { stripeEventId } });
+    assert.equal(failedInbox.status, 'failed');
+    assert.equal(failedInbox.attemptCount, 1);
+    const stored = JSON.stringify(failedInbox.payload);
+    assert.doesNotMatch(stored, /client_secret|billing_details|payment_method_details|4242|Never Persist/);
+    assert.match(stored, /customer_balance/);
+
+    const created = await svc.reserveAndCreatePaymentIntent({
+      bookingId,
+      quoteVersion: 1,
+      env: FAKE_ENV,
+      fetchImpl: fakePaymentIntentCreateFetch({ id: piId }),
+    });
+    assert.equal(created.ok, true, JSON.stringify(created));
+
+    const retried = await svc.reconcilePaymentIntentEvent({
+      stripeEventId,
+      type: 'payment_intent.succeeded',
+      paymentIntent: payload,
+      eventCreatedAt: 1_780_000_000,
+    });
+    assert.equal(retried.ok, true, JSON.stringify(retried));
+    assert.equal(retried.duplicate, false);
+    const processedInbox = await prisma.stripeEvent.findUnique({ where: { stripeEventId } });
+    assert.equal(processedInbox.status, 'processed');
+    assert.equal(processedInbox.attemptCount, 2);
+    assert.equal(processedInbox.errorCode, null);
+    assert.equal((await svc.getFinancialProjection(bookingId)).remainingCents, 0);
+  });
+
+  test('wrong purpose, booking, quote, currency, customer, status, or amount cannot settle', async () => {
+    const svc = require('../netlify/lib/db/payment-authority-service');
+    const { bookingId } = await makeBookingWithQuote(4100);
+    const piId = nextId('pi');
+    const customer = 'cus_bindingtest';
+    const created = await svc.reserveAndCreatePaymentIntent({
+      bookingId,
+      quoteVersion: 1,
+      stripeCustomerId: customer,
+      env: FAKE_ENV,
+      fetchImpl: fakePaymentIntentCreateFetch({ id: piId }),
+    });
+    assert.equal(created.ok, true, JSON.stringify(created));
+
+    const valid = boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 4100, customer });
+    const invalidCases = [
+      ['payment_purpose_mismatch', { ...valid, metadata: { ...valid.metadata, purpose: 'policy_fee' } }],
+      ['payment_booking_mismatch', { ...valid, metadata: { ...valid.metadata, bookingId: 'OTHER', booking_id: 'OTHER' } }],
+      ['payment_quote_mismatch', { ...valid, metadata: { ...valid.metadata, quoteVersion: '2' } }],
+      ['payment_currency_mismatch', { ...valid, currency: 'eur' }],
+      ['payment_customer_mismatch', { ...valid, customer: 'cus_wrongcustomer' }],
+      ['payment_event_status_mismatch', { ...valid, status: 'requires_action' }],
+      ['payment_amount_mismatch', { ...valid, amount: 4000, amount_received: 4000 }],
+    ];
+    for (const [expectedError, paymentIntent] of invalidCases) {
+      const result = await svc.reconcilePaymentIntentEvent({
+        stripeEventId: nextId('EVT'),
+        type: 'payment_intent.succeeded',
+        paymentIntent,
+      });
+      assert.equal(result.ok, false, expectedError);
+      assert.equal(result.error, expectedError);
+      assert.equal((await svc.getFinancialProjection(bookingId)).settledCents, 0);
+    }
   });
 
   test('reconcilePaymentIntentEvent: out-of-order delivery (a stale requires_action after succeeded) does not un-settle', async () => {
@@ -189,12 +317,14 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     });
     await svc.reconcilePaymentIntentEvent({
       stripeEventId: nextId('EVT'), type: 'payment_intent.succeeded',
-      paymentIntent: { id: piId, status: 'succeeded', amount_received: 1500 },
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 1500 }),
+      eventCreatedAt: 1_780_000_200,
     });
     // A late/out-of-order requires_action event for the same (now-succeeded) PI.
     const stale = await svc.reconcilePaymentIntentEvent({
       stripeEventId: nextId('EVT'), type: 'payment_intent.requires_action',
-      paymentIntent: { id: piId, status: 'requires_action' },
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'requires_action', amount: 1500 }),
+      eventCreatedAt: 1_780_000_100,
     });
     assert.equal(stale.ok, true);
     // The attempt row's status can move, but the ledger is append-only and
@@ -224,7 +354,13 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     });
     await svc.reconcilePaymentIntentEvent({
       stripeEventId: nextId('EVT'), type: 'payment_intent.payment_failed',
-      paymentIntent: { id: piId, status: 'requires_payment_method' },
+      paymentIntent: boundPaymentIntent({
+        bookingId,
+        id: piId,
+        status: 'requires_payment_method',
+        amount: 6000,
+        extra: { last_payment_error: { code: 'card_declined' } },
+      }),
     });
 
     const retry = await svc.reserveAndCreatePaymentIntent({
@@ -240,7 +376,7 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     assert.equal(active, 1, 'exactly one active obligation after the retry — the failed one does not linger as active');
   });
 
-  test('partial refund reduces settled and reopens the correct remaining amount', async () => {
+  test('refund execution is isolated until the webhook-authoritative PR2 flow', async () => {
     const svc = require('../netlify/lib/db/payment-authority-service');
     const { bookingId } = await makeBookingWithQuote(10000);
     const piId = nextId('pi');
@@ -249,19 +385,21 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     });
     await svc.reconcilePaymentIntentEvent({
       stripeEventId: nextId('EVT'), type: 'payment_intent.succeeded',
-      paymentIntent: { id: piId, status: 'succeeded', amount_received: 10000 },
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 10000 }),
     });
 
     const refund = await svc.createRefund({ bookingId, amountCents: 3000, env: FAKE_ENV, fetchImpl: fakePaymentIntentCreateFetch() });
-    assert.equal(refund.ok, true);
+    assert.equal(refund.ok, false);
+    assert.equal(refund.error, 'refund_execution_pending_pr2');
+    assert.equal(refund.statusCode, 501);
 
     const projection = await svc.getFinancialProjection(bookingId);
-    assert.equal(projection.refundedCents, 3000);
-    assert.equal(projection.settledCents, 7000);
-    assert.equal(projection.remainingCents, 3000);
+    assert.equal(projection.refundedCents, 0);
+    assert.equal(projection.settledCents, 10000);
+    assert.equal(projection.remainingCents, 0);
   });
 
-  test('refund amount is clamped to the refundable ceiling, never trusts a caller-supplied excess', async () => {
+  test('refund isolation makes no Stripe call even for an excessive caller amount', async () => {
     const svc = require('../netlify/lib/db/payment-authority-service');
     const { bookingId } = await makeBookingWithQuote(1000);
     const piId = nextId('pi');
@@ -270,12 +408,21 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     });
     await svc.reconcilePaymentIntentEvent({
       stripeEventId: nextId('EVT'), type: 'payment_intent.succeeded',
-      paymentIntent: { id: piId, status: 'succeeded', amount_received: 1000 },
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 1000 }),
     });
-    const refund = await svc.createRefund({ bookingId, amountCents: 999999, env: FAKE_ENV, fetchImpl: fakePaymentIntentCreateFetch() });
-    assert.equal(refund.ok, true);
+    let networkCalls = 0;
+    const refund = await svc.createRefund({
+      bookingId,
+      amountCents: 999999,
+      env: FAKE_ENV,
+      fetchImpl: async () => { networkCalls += 1; throw new Error('must not call Stripe'); },
+    });
+    assert.equal(refund.ok, false);
+    assert.equal(refund.error, 'refund_execution_pending_pr2');
+    assert.equal(networkCalls, 0);
     const projection = await svc.getFinancialProjection(bookingId);
-    assert.equal(projection.refundedCents, 1000, 'refund must be clamped to what was actually settled');
+    assert.equal(projection.refundedCents, 0);
+    assert.equal(projection.settledCents, 1000);
   });
 
   test('booking paid then financial adjustment: new quote version, remaining is only the delta', async () => {
@@ -287,7 +434,7 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     });
     await svc.reconcilePaymentIntentEvent({
       stripeEventId: nextId('EVT'), type: 'payment_intent.succeeded',
-      paymentIntent: { id: piId, status: 'succeeded', amount_received: 5000 },
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 5000 }),
     });
     const paidProjection = await svc.getFinancialProjection(bookingId);
     assert.equal(paidProjection.paymentStatus, 'paid');
@@ -314,7 +461,7 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     });
     await svc.reconcilePaymentIntentEvent({
       stripeEventId: nextId('EVT'), type: 'payment_intent.succeeded',
-      paymentIntent: { id: piId, status: 'succeeded', amount_received: 2000 },
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 2000 }),
     });
     await svc.createAdjustment({ bookingId, newApprovedCents: 2750 });
 
@@ -341,7 +488,21 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
       }
       // Second call: Stripe idempotency returns the same PI that was created
       // on the timed-out request (same Idempotency-Key).
-      return { ok: true, json: async () => ({ id: piId, status: 'requires_payment_method', amount: 3300 }) };
+      return {
+        ok: true,
+        json: async () => ({
+          id: piId,
+          status: 'requires_payment_method',
+          amount: 3300,
+          currency: 'usd',
+          metadata: {
+            bookingId,
+            booking_id: bookingId,
+            quoteVersion: '1',
+            purpose: 'customer_balance',
+          },
+        }),
+      };
     };
 
     const first = await svc.reserveAndCreatePaymentIntent({
@@ -358,7 +519,7 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     const retry = await svc.reserveAndCreatePaymentIntent({
       bookingId, quoteVersion: 1, env: FAKE_ENV, fetchImpl: timeoutThenSucceedFetch,
     });
-    assert.equal(retry.ok, true);
+    assert.equal(retry.ok, true, JSON.stringify(retry));
     assert.equal(retry.recoveredFromTimeout, true);
     assert.equal(retry.stripePaymentIntentId, piId);
     assert.equal(retry.paymentAttempt.id, stuck.id, 'must attach to the same attempt row, not create a second');
@@ -381,7 +542,7 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
 
     const authRequired = await svc.reconcilePaymentIntentEvent({
       stripeEventId: nextId('EVT'), type: 'payment_intent.requires_action',
-      paymentIntent: { id: piId, status: 'requires_action' },
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'requires_action', amount: 4800 }),
     });
     assert.equal(authRequired.ok, true);
     assert.equal(authRequired.terminal, 'requires_action');
@@ -400,7 +561,7 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
 
     const settled = await svc.reconcilePaymentIntentEvent({
       stripeEventId: nextId('EVT'), type: 'payment_intent.succeeded',
-      paymentIntent: { id: piId, status: 'succeeded', amount_received: 4800 },
+      paymentIntent: boundPaymentIntent({ bookingId, id: piId, status: 'succeeded', amount: 4800 }),
     });
     assert.equal(settled.ok, true);
     assert.equal(settled.duplicate, false);
@@ -414,6 +575,79 @@ describe('Phase 3 payment-authority-service (Postgres, fake Stripe)', { skip: !d
     assert.equal(attempt.status, 'succeeded');
     const count = await prisma.paymentAttempt.count({ where: { bookingId, quoteVersion: 1 } });
     assert.equal(count, 1);
+  });
+
+  test('signed webhook commits once, retries neutrally, and persists only minimized event data', async () => {
+    const crypto = require('crypto');
+    const svc = require('../netlify/lib/db/payment-authority-service');
+    const operational = require('../netlify/lib/db/operational-payment');
+    const { bookingId } = await makeBookingWithQuote(3700);
+    const piId = nextId('pi');
+    const created = await svc.reserveAndCreatePaymentIntent({
+      bookingId,
+      quoteVersion: 1,
+      env: FAKE_ENV,
+      fetchImpl: fakePaymentIntentCreateFetch({ id: piId }),
+    });
+    assert.equal(created.ok, true, JSON.stringify(created));
+
+    const eventId = nextId('EVT');
+    const event = {
+      id: eventId,
+      type: 'payment_intent.succeeded',
+      created: Math.floor(Date.now() / 1000),
+      data: {
+        object: boundPaymentIntent({
+          bookingId,
+          id: piId,
+          status: 'succeeded',
+          amount: 3700,
+          extra: {
+            object: 'payment_intent',
+            client_secret: 'pi_secret_never_store',
+            billing_details: { name: 'Private Name' },
+          },
+        }),
+      },
+    };
+    const raw = JSON.stringify(event);
+    const secret = 'whsec_pr1_test';
+    const timestamp = Math.floor(Date.now() / 1000);
+    const valid = crypto.createHmac('sha256', secret).update(`${timestamp}.${raw}`, 'utf8').digest('hex');
+    const previousSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const originalSync = operational.syncBlobCompatibilityFromProjection;
+    operational.syncBlobCompatibilityFromProjection = async () => ({ ok: true, noop: true });
+    process.env.STRIPE_WEBHOOK_SECRET = secret;
+    try {
+      delete require.cache[require.resolve('../netlify/functions/stripe-webhook')];
+      const { handler } = require('../netlify/functions/stripe-webhook');
+      const request = {
+        httpMethod: 'POST',
+        headers: { 'stripe-signature': `t=${timestamp},v1=invalid,v1=${valid}` },
+        body: raw,
+      };
+      const first = await handler(request);
+      const second = await handler(request);
+      assert.equal(first.statusCode, 200, first.body);
+      assert.equal(second.statusCode, 200, second.body);
+      assert.equal(JSON.parse(first.body).duplicate, false);
+      assert.equal(JSON.parse(second.body).duplicate, true);
+    } finally {
+      operational.syncBlobCompatibilityFromProjection = originalSync;
+      if (previousSecret == null) delete process.env.STRIPE_WEBHOOK_SECRET;
+      else process.env.STRIPE_WEBHOOK_SECRET = previousSecret;
+      delete require.cache[require.resolve('../netlify/functions/stripe-webhook')];
+    }
+
+    const ledger = await prisma.ledgerEntry.findMany({ where: { bookingId, kind: 'settlement' } });
+    assert.equal(ledger.length, 1);
+    assert.equal(ledger[0].amountCents, 3700);
+    const inbox = await prisma.stripeEvent.findUnique({ where: { stripeEventId: eventId } });
+    assert.equal(inbox.status, 'processed');
+    assert.equal(inbox.attemptCount, 1);
+    const stored = JSON.stringify(inbox.payload);
+    assert.doesNotMatch(stored, /client_secret|Private Name|billing_details/);
+    assert.match(stored, /customer_balance/);
   });
 });
 

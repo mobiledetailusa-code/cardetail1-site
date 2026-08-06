@@ -12,6 +12,7 @@
 
 const { getPrisma } = require('../prisma');
 const { Prisma } = require('@prisma/client');
+const { sanitizeStripeEventPayload } = require('./stripe-event-data');
 
 function isUniqueConstraintError(err) {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
@@ -34,10 +35,32 @@ async function reservePaymentObligation({
   amountCents,
   providerObjectType,
   providerObjectId = null,
+  providerCustomerId = null,
+  purpose = 'customer_balance',
   idempotencyKey,
   generation = 1,
+  prisma: prismaOverride = null,
+  prelocked = false,
 }) {
-  const prisma = getPrisma();
+  const prisma = prismaOverride || getPrisma();
+
+  // Callers holding the booking+quote advisory lock must avoid deliberately
+  // tripping a unique constraint: PostgreSQL marks the whole surrounding
+  // transaction aborted before Prisma can query the winning row. The lock
+  // makes these reads authoritative for this reservation key.
+  if (prelocked) {
+    const byKey = await prisma.paymentAttempt.findUnique({ where: { idempotencyKey } });
+    if (byKey) return { ok: true, created: false, reason: 'idempotent_replay', attempt: byKey };
+
+    const existing = await prisma.paymentAttempt.findFirst({
+      where: { bookingId, quoteVersion, status: { in: ['creating', 'open', 'requires_action'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (existing) {
+      return { ok: true, created: false, reason: 'existing_active_obligation', attempt: existing };
+    }
+  }
+
   try {
     const attempt = await prisma.paymentAttempt.create({
       data: {
@@ -45,6 +68,8 @@ async function reservePaymentObligation({
         quoteId,
         quoteVersion,
         amountCents,
+        purpose,
+        providerCustomerId,
         providerObjectType,
         providerObjectId,
         idempotencyKey,
@@ -77,9 +102,10 @@ async function reservePaymentObligation({
  */
 async function recordStripeEvent({ stripeEventId, type, bookingId = null, payload }) {
   const prisma = getPrisma();
+  const minimizedPayload = sanitizeStripeEventPayload(payload);
   try {
     const event = await prisma.stripeEvent.create({
-      data: { stripeEventId, type, bookingId, payload, status: 'received' },
+      data: { stripeEventId, type, bookingId, payload: minimizedPayload, status: 'received' },
     });
     return { ok: true, created: true, duplicate: false, event };
   } catch (err) {

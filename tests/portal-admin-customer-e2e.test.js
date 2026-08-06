@@ -319,12 +319,12 @@ describe('source smoke: admin approve + customer UI wiring', () => {
     assert.doesNotMatch(src, /\.slice\(0,\s*200\)/);
   });
 
-  it('customer-portal-pay uses authoritative payment-service', () => {
-    const src = read('netlify/functions/customer-portal-pay.js');
-    assert.match(src, /prepareBalanceCheckout/);
-    assert.match(src, /applyPayLinkMoney/);
-    assert.match(src, /commitBooking/);
-    assert.doesNotMatch(src, /Number\(booking\.amountDueApproved\) === due/);
+  it('customer balance uses embedded authoritative PaymentIntent service', () => {
+    const src = read('netlify/functions/customer-balance-payment-intent.js');
+    assert.match(src, /prepareEmbeddedPayment/);
+    assert.match(src, /authorizeBookingAccess/);
+    assert.doesNotMatch(src, /checkout\.stripe\.com|prepareBalanceCheckout/);
+    assert.match(read('netlify/functions/customer-portal-pay.js'), /legacy_checkout_disabled/);
   });
 
   it('admin stripe generate syncs via applyPayLinkMoney and getBooking', () => {
@@ -334,11 +334,13 @@ describe('source smoke: admin approve + customer UI wiring', () => {
     assert.match(src, /amount_override_rejected/);
   });
 
-  it('my-garage has length ruler and always pays via customer-portal-pay', () => {
+  it('my-garage has length ruler and always pays through embedded Payment Element', () => {
     const js = read('assets/my-garage.js');
     assert.match(js, /lengthRulerHtml|mf-length-range/);
     assert.match(js, /packagesByCategory|packagesForBooking/);
-    assert.match(js, /customer-portal-pay/);
+    assert.match(js, /customer-balance-payment-intent/);
+    assert.match(js, /confirmPayment/);
+    assert.doesNotMatch(js, /customer-portal-pay/);
     // Must not short-circuit to stale payLink before server validation
     assert.doesNotMatch(js, /if \(pay\.payLink && pay\.canPay\) \{\s*\n\s*if \(global\.cd1PortalAnalytics\) global\.cd1PortalAnalytics\.paymentOpened\(\);\s*\n\s*global\.location\.href = pay\.payLink/);
   });

@@ -20,8 +20,8 @@ async function createBooking({ id, customerId = null, status = 'draft', isDraft 
   return prisma.booking.create({ data: { id, customerId, status, isDraft } });
 }
 
-async function getBooking(id) {
-  const prisma = getPrisma();
+async function getBooking(id, prismaOverride = null) {
+  const prisma = prismaOverride || getPrisma();
   return prisma.booking.findUnique({ where: { id } });
 }
 
@@ -55,8 +55,8 @@ async function getQuote({ bookingId, quoteVersion }) {
 }
 
 /** Highest quoteVersion for a booking — the currently active quote. */
-async function getLatestQuote(bookingId) {
-  const prisma = getPrisma();
+async function getLatestQuote(bookingId, prismaOverride = null) {
+  const prisma = prismaOverride || getPrisma();
   return prisma.quote.findFirst({ where: { bookingId }, orderBy: { quoteVersion: 'desc' } });
 }
 
@@ -79,13 +79,13 @@ async function createAdjustmentQuote({ bookingId, approvedCents, status = 'appro
   });
 }
 
-async function listPaymentAttempts(bookingId) {
-  const prisma = getPrisma();
+async function listPaymentAttempts(bookingId, prismaOverride = null) {
+  const prisma = prismaOverride || getPrisma();
   return prisma.paymentAttempt.findMany({ where: { bookingId }, orderBy: { createdAt: 'asc' } });
 }
 
-async function listLedgerEntries(bookingId) {
-  const prisma = getPrisma();
+async function listLedgerEntries(bookingId, prismaOverride = null) {
+  const prisma = prismaOverride || getPrisma();
   return prisma.ledgerEntry.findMany({ where: { bookingId }, orderBy: { recordedAt: 'asc' } });
 }
 
@@ -94,8 +94,8 @@ async function findPaymentAttemptByProviderObjectId(providerObjectId) {
   return prisma.paymentAttempt.findUnique({ where: { providerObjectId } });
 }
 
-async function updatePaymentAttempt(id, data) {
-  const prisma = getPrisma();
+async function updatePaymentAttempt(id, data, prismaOverride = null) {
+  const prisma = prismaOverride || getPrisma();
   return prisma.paymentAttempt.update({ where: { id }, data });
 }
 

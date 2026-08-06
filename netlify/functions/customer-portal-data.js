@@ -87,7 +87,7 @@ function safePaymentState(booking) {
 
 async function safePaymentStateAsync(booking) {
   if (postgresPaymentEnabled()) {
-    const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: true });
+    const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: false });
     if (shared.ok && shared.projection) {
       return safePaymentStateFromProjection(booking, shared.projection, 'postgres');
     }

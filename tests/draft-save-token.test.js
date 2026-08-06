@@ -307,6 +307,10 @@ test('create-setup-intent valid token + eligible draft reaches Stripe SetupInten
     phone: '5513132956',
     cardOnFileRequired: true,
     cardOnFileStatus: 'pending',
+    bookingVersion: 0,
+    acceptedCardOnFilePolicy: true,
+    acceptedCardOnFilePolicyAt: new Date().toISOString(),
+    policyVersion: 'card-on-file-policy-v1',
     firstName: 'Test',
     email: 'test@example.com',
   };
@@ -314,12 +318,19 @@ test('create-setup-intent valid token + eligible draft reaches Stripe SetupInten
   const originalFetch = global.fetch;
   const calls = [];
   global.fetch = async (url, opts) => {
-    calls.push({ url, body: opts && opts.body });
+    calls.push({ url, body: opts && opts.body, headers: opts && opts.headers });
     if (String(url).includes('/v1/customers')) {
       return { ok: true, json: async () => ({ id: 'cus_test' }) };
     }
     if (String(url).includes('/v1/setup_intents')) {
-      return { ok: true, json: async () => ({ id: 'seti_test', client_secret: 'seti_test_secret' }) };
+      return {
+        ok: true,
+        json: async () => ({
+          id: 'seti_test',
+          customer: 'cus_test',
+          client_secret: 'seti_test_secret',
+        }),
+      };
     }
     return { ok: false, status: 404, json: async () => ({}) };
   };
@@ -331,7 +342,11 @@ test('create-setup-intent valid token + eligible draft reaches Stripe SetupInten
     const res = await handler({
       httpMethod: 'POST',
       headers: { 'x-forwarded-for': '203.0.113.7' },
-      body: JSON.stringify({ bookingId: 'CD1-OK', draftSaveToken: issued.token }),
+      body: JSON.stringify({
+        bookingId: 'CD1-OK',
+        draftSaveToken: issued.token,
+        expectedBookingVersion: 0,
+      }),
     });
     assert.equal(res.statusCode, 200);
     const body = JSON.parse(res.body);
@@ -343,6 +358,26 @@ test('create-setup-intent valid token + eligible draft reaches Stripe SetupInten
     assert.match(String(siCall.body), /payment_method_types%5B0%5D=card/);
     assert.doesNotMatch(String(siCall.body), /automatic_payment_methods/);
     assert.match(String(siCall.body), /metadata%5BbookingId%5D=CD1-OK/);
+    const customerCall = calls.find((c) => String(c.url).includes('/v1/customers'));
+    assert.equal(customerCall.headers['Idempotency-Key'], 'setup_customer_CD1-OK_card-on-file-policy-v1');
+    assert.equal(siCall.headers['Idempotency-Key'], 'setup_intent_CD1-OK_card-on-file-policy-v1');
+
+    const retry = await handler({
+      httpMethod: 'POST',
+      headers: { 'x-forwarded-for': '203.0.113.7' },
+      body: JSON.stringify({
+        bookingId: 'CD1-OK',
+        draftSaveToken: issued.token,
+        expectedBookingVersion: 0,
+      }),
+    });
+    assert.equal(retry.statusCode, 200);
+    const retryBody = JSON.parse(retry.body);
+    assert.equal(retryBody.reused, true);
+    assert.equal(retryBody.bookingVersion, 1);
+    const afterRetry = await store.get('CD1-OK', { type: 'json' });
+    assert.equal(afterRetry.bookingVersion, 1, 'idempotent retry must not bump version');
+    assert.equal(afterRetry.setupIntentId, 'seti_test');
   } finally {
     global.fetch = originalFetch;
   }
@@ -361,7 +396,7 @@ test('create-setup-intent valid token + ineligible draft returns 409 after auth'
   const res = await handler({
     httpMethod: 'POST',
     headers: { 'x-forwarded-for': '203.0.113.6' },
-    body: JSON.stringify({ bookingId: 'CD1-5', draftSaveToken: issued.token }),
+    body: JSON.stringify({ bookingId: 'CD1-5', draftSaveToken: issued.token, expectedBookingVersion: 0 }),
   });
   assert.equal(res.statusCode, 409);
   assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'booking_not_eligible_for_card_save' });
@@ -371,6 +406,84 @@ test('stripe webhook remains unchanged by draft token work', () => {
   const webhook = require('fs').readFileSync(require.resolve('../netlify/functions/stripe-webhook.js'), 'utf8');
   assert.doesNotMatch(webhook, /draft-save-token/);
   assert.doesNotMatch(webhook, /draftSaveToken/);
+});
+
+test('SetupIntent webhook changes only saved-card state and stale failure cannot regress success', async () => {
+  const WEBHOOK_PATH = require.resolve('../netlify/functions/stripe-webhook');
+  delete require.cache[WEBHOOK_PATH];
+  const { __test } = require('../netlify/functions/stripe-webhook');
+  const store = createMemoryStore({
+    'CD1-SI': {
+      id: 'CD1-SI',
+      bookingVersion: 1,
+      isDraft: true,
+      setupIntentId: 'seti_bound',
+      stripeCustomerId: 'cus_bound',
+      cardOnFileStatus: 'pending',
+      paymentStatus: 'no_payment_required_yet',
+      paymentWorkflowStatus: 'not_due',
+      appointmentStatus: 'pending_review',
+      serviceStatus: 'pending_review',
+      ledger: { approvedCents: 12000, settledCents: 0, entries: [] },
+    },
+  });
+  __test.setBlobsStoreOverride(() => store);
+  try {
+    const saved = await __test.updateSetupIntentState(
+      { id: 'evt_setup_saved' },
+      {
+        id: 'seti_bound',
+        customer: 'cus_bound',
+        payment_method: 'pm_savedcard',
+        metadata: { bookingId: 'CD1-SI', purpose: 'card_on_file' },
+      },
+      'saved'
+    );
+    assert.equal(saved.updated, true);
+    assert.equal(saved.duplicate, false);
+    const afterSaved = await store.get('CD1-SI', { type: 'json' });
+    assert.equal(afterSaved.bookingVersion, 2);
+    assert.equal(afterSaved.cardOnFileStatus, 'saved');
+    assert.equal(afterSaved.stripePaymentMethodId, 'pm_savedcard');
+    assert.equal(afterSaved.paymentStatus, 'no_payment_required_yet');
+    assert.equal(afterSaved.appointmentStatus, 'pending_review');
+    assert.equal(afterSaved.serviceStatus, 'pending_review');
+    assert.equal(afterSaved.ledger.approvedCents, 12000);
+    assert.equal(afterSaved.ledger.settledCents, 0);
+    assert.deepEqual(afterSaved.ledger.entries, []);
+
+    const staleFailure = await __test.updateSetupIntentState(
+      { id: 'evt_setup_failed_late' },
+      {
+        id: 'seti_bound',
+        customer: 'cus_bound',
+        metadata: { bookingId: 'CD1-SI', purpose: 'card_on_file' },
+      },
+      'failed'
+    );
+    assert.equal(staleFailure.updated, true);
+    assert.equal(staleFailure.duplicate, true);
+    const afterFailure = await store.get('CD1-SI', { type: 'json' });
+    assert.equal(afterFailure.bookingVersion, 2);
+    assert.equal(afterFailure.cardOnFileStatus, 'saved');
+
+    const wrongCustomer = await __test.updateSetupIntentState(
+      { id: 'evt_setup_wrong_customer' },
+      {
+        id: 'seti_bound',
+        customer: 'cus_other',
+        payment_method: 'pm_othercard',
+        metadata: { bookingId: 'CD1-SI', purpose: 'card_on_file' },
+      },
+      'saved'
+    );
+    assert.equal(wrongCustomer.updated, false);
+    assert.equal(wrongCustomer.retryable, false);
+    assert.equal(wrongCustomer.reason, 'stripe_customer_mismatch');
+  } finally {
+    __test.setBlobsStoreOverride(null);
+    delete require.cache[WEBHOOK_PATH];
+  }
 });
 
 test('submit-booking draft response includes token fields via issue helper', () => {

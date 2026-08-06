@@ -1136,7 +1136,7 @@ describe('Release A — stripe live-key rejection zero network (PDA-17)', () => 
     }
   });
 
-  it('capture-payment blocks live key before Stripe capture', async () => {
+  it('legacy capture-payment is tombstoned before any Stripe network call', async () => {
     const prev = {
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
       CONTEXT: process.env.CONTEXT,
@@ -1168,8 +1168,8 @@ describe('Release A — stripe live-key rejection zero network (PDA-17)', () => 
         headers: { 'x-admin-key': sess.token },
         body: JSON.stringify({ paymentIntentId: 'pi_test_123' }),
       });
-      assert.equal(res.statusCode, 503);
-      assert.equal(JSON.parse(res.body).error, 'stripe_test_mode_required');
+      assert.equal(res.statusCode, 410);
+      assert.equal(JSON.parse(res.body).error, 'legacy_manual_capture_disabled');
       assert.equal(networkCalls, 0);
     } finally {
       globalThis.fetch = origFetch;

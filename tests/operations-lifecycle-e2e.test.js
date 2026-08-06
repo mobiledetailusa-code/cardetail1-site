@@ -62,10 +62,11 @@ test('approveAdjustment sets approved final amount', () => {
   assert.equal(r.booking.adjustmentStatus, 'approved');
 });
 
-test('markCashReceived closes payment as cash', () => {
+test('markCashReceived settles payment without closing service lifecycle', () => {
   const r = markCashReceived(baseBooking, {});
   assert.equal(r.booking.paymentStatus, 'paid_cash');
-  assert.equal(r.booking.serviceStatus, 'closed');
+  assert.equal(r.booking.serviceStatus, 'confirmed');
+  assert.equal(r.booking.jobStatus, 'confirmed');
 });
 
 test('admin-ops-jobs exposes operational mutations', () => {

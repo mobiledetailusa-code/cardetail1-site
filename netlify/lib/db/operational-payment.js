@@ -3,8 +3,8 @@
  * one Postgres FinancialProjection + PaymentAuthorityService path.
  *
  * Blobs keep operational booking fields; money projection authority is
- * Postgres after ensureBookingFinancial. When DATABASE_URL is unset,
- * callers should fall back to Blob payment-service (compatibility).
+ * Postgres after ensureBookingFinancial. Read compatibility may still project
+ * legacy fields, but financial mutations fail closed when Postgres is absent.
  */
 
 const { prismaConfigured } = require('../prisma');
@@ -29,6 +29,7 @@ function mapProjectionForPortals(projection) {
     remainingCents: projection.remainingCents,
     paymentStatus: projection.paymentStatus,
     paymentAttemptStatus: projection.paymentAttemptStatus,
+    paymentAttemptUpdatedAt: projection.paymentAttemptUpdatedAt,
     stripeReference: projection.stripeReference,
     paidAt: projection.paidAt,
     refundableCents: projection.refundableCents,
@@ -37,15 +38,11 @@ function mapProjectionForPortals(projection) {
 }
 
 /**
- * Sync Blob compatibility money fields from Postgres projection so legacy
- * readers do not contradict portals. Does not invent ledger credits.
+ * Build the compatibility-only financial patch applied to the Blob aggregate.
+ * Operational lifecycle fields are intentionally absent: reopening a balance
+ * does not reopen an appointment, service, or completed job.
  */
-async function syncBlobCompatibilityFromProjection(bookingId, projection) {
-  if (!projection || !bookingId) return { ok: false, error: 'missing' };
-  const rec = await getBookingRecord(bookingId);
-  if (!rec.exists || !rec.booking) return { ok: false, error: 'blob_not_found' };
-  const { ok: normOk, aggregate } = normalizeAggregate(rec.booking);
-  const base = normOk ? aggregate : rec.booking;
+function buildPaymentCompatibilityPatch(base, projection) {
   const ledger = { ...(base.ledger || {}) };
   ledger.approvedCents = projection.approvedCents;
   ledger.settledCents = projection.settledCents;
@@ -55,7 +52,6 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
   const dollarsApproved = projection.approvedCents / 100;
   const dollarsSettled = projection.settledCents / 100;
   const dollarsRemaining = projection.remainingCents / 100;
-
   const patch = {
     ledger,
     quoteVersion: projection.quoteVersion,
@@ -66,7 +62,9 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
     paidAmount: dollarsSettled,
     approvedFinalAmount: dollarsApproved,
     paymentStatus: projection.paymentStatus === 'paid'
-      ? 'paid'
+      ? (['paid_cash', 'paid_card_on_site'].includes(String(base.paymentStatus || '').toLowerCase())
+        ? base.paymentStatus
+        : 'paid')
       : projection.paymentStatus === 'processing'
         ? 'processing'
         : projection.paymentStatus === 'refunded'
@@ -86,21 +84,49 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
     paymentIntentId: projection.stripeReference || base.paymentIntentId || null,
   };
 
-  // Open remaining after quote adjustment must not keep historical Paid markers
-  // (adaptHistoricalBooking would clamp settledCents up to approvedCents).
+  // Prevent historical paid markers from clamping a newly reopened financial
+  // balance. This is a financial compatibility marker, not a lifecycle state.
   if (projection.paymentStatus === 'due' || projection.remainingCents > 0) {
     patch._historicalPaidClosed = false;
-    if (String(base.status || '') === 'Paid' || String(base.status || '') === 'Closed') {
-      patch.status = 'Confirmed';
-    }
-    if (String(base.jobStatus || '').toLowerCase() === 'completed_paid') {
-      patch.jobStatus = 'confirmed';
-    }
   }
   if (projection.paymentStatus === 'paid' && projection.paidAt) {
     patch.capturedAt = typeof projection.paidAt === 'string'
       ? projection.paidAt
       : new Date(projection.paidAt).toISOString();
+  }
+  return patch;
+}
+
+/**
+ * Sync Blob compatibility money fields from Postgres projection so legacy
+ * readers do not contradict portals. Does not invent ledger credits.
+ */
+async function syncBlobCompatibilityFromProjection(bookingId, projection) {
+  if (!projection || !bookingId) return { ok: false, error: 'missing' };
+  const rec = await getBookingRecord(bookingId);
+  if (!rec.exists || !rec.booking) return { ok: false, error: 'blob_not_found' };
+  const { ok: normOk, aggregate } = normalizeAggregate(rec.booking);
+  const base = normOk ? aggregate : rec.booking;
+  const patch = buildPaymentCompatibilityPatch(base, projection);
+  const ledger = patch.ledger;
+
+  const sameJsonValue = (left, right) => JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+  const alreadySynchronized = Object.entries(patch).every(([key, value]) => {
+    if (key !== 'ledger') return sameJsonValue(base[key], value);
+    return (
+      Math.round(Number(base.ledger?.approvedCents) || 0) === projection.approvedCents
+      && Math.round(Number(base.ledger?.settledCents) || 0) === projection.settledCents
+      && Math.round(Number(base.ledger?.refundedCents) || 0) === (projection.refundedCents || 0)
+      && String(base.ledger?.currency || 'usd').toLowerCase() === String(ledger.currency || 'usd').toLowerCase()
+    );
+  });
+  if (alreadySynchronized) {
+    return {
+      ok: true,
+      noop: true,
+      booking: base,
+      bookingVersion: Math.round(Number(base.bookingVersion) || 0),
+    };
   }
 
   const next = buildNextAggregate(base, patch);
@@ -125,7 +151,7 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
   return committed;
 }
 
-async function getSharedFinancialProjection(booking, { reconcileUncertain = false, env = process.env, fetchImpl = globalThis.fetch } = {}) {
+async function getSharedFinancialProjection(booking, { env = process.env } = {}) {
   if (!postgresPaymentEnabled(env)) {
     return { ok: false, error: 'postgres_payment_disabled', authority: 'blob' };
   }
@@ -134,21 +160,6 @@ async function getSharedFinancialProjection(booking, { reconcileUncertain = fals
 
   let projection = await authority.getFinancialProjection(ensured.bookingId);
   if (!projection) return { ok: false, error: 'projection_unavailable', authority: 'blob' };
-
-  const uncertain = projection.paymentStatus === 'processing'
-    || (projection.remainingCents > 0 && !!projection.stripeReference);
-
-  if (reconcileUncertain && uncertain) {
-    const reconciled = await authority.reconcileFromStripeProvider({
-      bookingId: ensured.bookingId,
-      env,
-      fetchImpl,
-    });
-    if (reconciled.ok && reconciled.projection) {
-      projection = reconciled.projection;
-      await syncBlobCompatibilityFromProjection(ensured.bookingId, projection).catch(() => {});
-    }
-  }
 
   return {
     ok: true,
@@ -169,13 +180,6 @@ async function prepareEmbeddedPayment({
   }
   const ensured = await ensureBookingFinancial(booking);
   if (!ensured.ok) return { ok: false, error: ensured.error, statusCode: 503 };
-
-  // Reconcile before create (mandate D)
-  await authority.reconcileFromStripeProvider({
-    bookingId: ensured.bookingId,
-    env,
-    fetchImpl,
-  }).catch(() => {});
 
   let projection = await authority.getFinancialProjection(ensured.bookingId);
   if (!projection) return { ok: false, error: 'not_found', statusCode: 404 };
@@ -233,6 +237,7 @@ async function prepareEmbeddedPayment({
   if (stripeCustomerId) {
     const cs = await authority.createCustomerSession({
       stripeCustomerId,
+      paymentIntentId: piId,
       env,
       fetchImpl,
     });
@@ -285,25 +290,36 @@ async function adminReconcileWithStripe({
  * Status-only cash close after Postgres money authority has already settled.
  * Does not invent Blob ledger settlement entries.
  */
-async function applyCashOperationalClose({
+async function applyOnSitePaymentCompatibility({
   bookingId,
-  cashAmountCents,
+  amountCents,
+  method = 'cash',
   reference = null,
 }) {
   const rec = await getBookingRecord(bookingId);
   if (!rec.exists || !rec.booking) return { ok: false, error: 'blob_not_found' };
 
   const now = new Date().toISOString();
-  const amountDollars = Math.max(0, Math.round(Number(cashAmountCents) || 0)) / 100;
+  const amountDollars = Math.max(0, Math.round(Number(amountCents) || 0)) / 100;
+  const isCash = method === 'cash';
   const base = rec.booking;
+  const paymentPatch = isCash
+    ? {
+        paymentStatus: 'paid_cash',
+        paymentWorkflowStatus: 'cash_paid',
+        cashReceivedAt: base.cashReceivedAt || now,
+        cashReceivedAmount: amountDollars,
+        cashReceivedReference: reference || base.cashReceivedReference || null,
+      }
+    : {
+        paymentStatus: 'paid_card_on_site',
+        paymentWorkflowStatus: 'payment_succeeded',
+        cardOnSiteAt: base.cardOnSiteAt || now,
+        cardOnSiteAmount: amountDollars,
+        cardOnSiteReference: reference || base.cardOnSiteReference || null,
+      };
   const next = buildNextAggregate(base, {
-    paymentStatus: 'paid_cash',
-    paymentWorkflowStatus: 'cash_paid',
-    jobStatus: 'completed_paid',
-    serviceStatus: 'closed',
-    cashReceivedAt: base.cashReceivedAt || now,
-    cashReceivedAmount: amountDollars,
-    cashReceivedReference: reference || base.cashReceivedReference || null,
+    ...paymentPatch,
     updatedAt: now,
   });
 
@@ -315,16 +331,22 @@ async function applyCashOperationalClose({
   if (!committed.ok && committed.error === 'version_conflict') {
     const again = await getBookingRecord(bookingId);
     if (!again.exists || !again.booking) return committed;
-    const next2 = buildNextAggregate(again.booking, {
-      paymentStatus: 'paid_cash',
-      paymentWorkflowStatus: 'cash_paid',
-      jobStatus: 'completed_paid',
-      serviceStatus: 'closed',
-      cashReceivedAt: again.booking.cashReceivedAt || now,
-      cashReceivedAmount: amountDollars,
-      cashReceivedReference: reference || again.booking.cashReceivedReference || null,
-      updatedAt: now,
-    });
+    const retryPatch = isCash
+      ? {
+          paymentStatus: 'paid_cash',
+          paymentWorkflowStatus: 'cash_paid',
+          cashReceivedAt: again.booking.cashReceivedAt || now,
+          cashReceivedAmount: amountDollars,
+          cashReceivedReference: reference || again.booking.cashReceivedReference || null,
+        }
+      : {
+          paymentStatus: 'paid_card_on_site',
+          paymentWorkflowStatus: 'payment_succeeded',
+          cardOnSiteAt: again.booking.cardOnSiteAt || now,
+          cardOnSiteAmount: amountDollars,
+          cardOnSiteReference: reference || again.booking.cardOnSiteReference || null,
+        };
+    const next2 = buildNextAggregate(again.booking, { ...retryPatch, updatedAt: now });
     return commitBooking({
       bookingId,
       expectedBookingVersion: Math.round(Number(again.booking.bookingVersion) || 0),
@@ -334,29 +356,46 @@ async function applyCashOperationalClose({
   return committed;
 }
 
-function blobNeedsCashClose(booking) {
+async function applyCashOperationalClose({ bookingId, cashAmountCents, reference = null }) {
+  return applyOnSitePaymentCompatibility({
+    bookingId,
+    amountCents: cashAmountCents,
+    method: 'cash',
+    reference,
+  });
+}
+
+function blobNeedsOnSitePaymentSync(booking, method = 'cash') {
   if (!booking) return true;
   const { financialProjection } = require('../payment-service');
   const fp = financialProjection(booking);
   if (fp.remainingCents > 0) return true;
   const pay = String(booking.paymentStatus || '').toLowerCase();
   const pwf = String(booking.paymentWorkflowStatus || '').toLowerCase();
-  const job = String(booking.jobStatus || '').toLowerCase();
-  const svc = String(booking.serviceStatus || '').toLowerCase();
-  if (pay !== 'paid_cash' && pay !== 'paid') return true;
-  if (pwf !== 'cash_paid' && pwf !== 'payment_succeeded') return true;
-  if (job !== 'completed_paid') return true;
-  if (svc !== 'closed') return true;
+  if (method === 'cash') {
+    if (pay !== 'paid_cash' && pay !== 'paid') return true;
+    if (pwf !== 'cash_paid' && pwf !== 'payment_succeeded') return true;
+    if (!(Number(booking.cashReceivedAmount) > 0)) return true;
+  } else {
+    if (pay !== 'paid_card_on_site' && pay !== 'paid') return true;
+    if (pwf !== 'payment_succeeded') return true;
+    if (!(Number(booking.cardOnSiteAmount) > 0)) return true;
+  }
   return false;
+}
+
+function blobNeedsCashClose(booking) {
+  return blobNeedsOnSitePaymentSync(booking, 'cash');
 }
 
 /**
  * Admin full-balance cash when PostgreSQL payment authority is enabled.
  * Money settles only in Postgres; Blob is compatibility + operational status.
  */
-async function settleAdminCashFullBalance({
+async function settleAdminOnSiteFullBalance({
   booking,
   body = {},
+  method = 'cash',
   env = process.env,
   syncBlob = syncBlobCompatibilityFromProjection,
 } = {}) {
@@ -371,10 +410,11 @@ async function settleAdminCashFullBalance({
 
   const bookingId = ensured.bookingId;
   const beforeBlobRec = await getBookingRecord(bookingId);
-  const needsCloseBefore = blobNeedsCashClose(beforeBlobRec.booking);
+  const needsSyncBefore = blobNeedsOnSitePaymentSync(beforeBlobRec.booking, method);
 
-  const settled = await authority.recordFullBalanceCashSettlement({
+  const settled = await authority.recordFullBalanceOnSiteSettlement({
     bookingId,
+    method,
     body,
   });
 
@@ -395,12 +435,33 @@ async function settleAdminCashFullBalance({
   }
 
   const pgMapped = mapProjectionForPortals(settled.projection);
-  const cashCents = Math.max(
+  const settledCents = Math.max(
     0,
     Math.round(Number(settled.settledAmountCents != null
       ? settled.settledAmountCents
       : settled.entry?.amountCents) || 0)
   );
+
+  // A fully synchronized replay is a no-op. Return before either compatibility
+  // writer so an already-paid retry cannot bump bookingVersion or append noise.
+  if ((settled.noop || settled.duplicate || !settled.created) && !needsSyncBefore) {
+    return {
+      ok: false,
+      error: 'already_paid',
+      statusCode: 409,
+      authority: 'postgres',
+      noop: true,
+      postgresProjection: pgMapped,
+      projection: pgMapped,
+      settledAmountCents: settledCents,
+      paymentStatus: beforeBlobRec.booking?.paymentStatus,
+      jobStatus: beforeBlobRec.booking?.jobStatus,
+      serviceStatus: beforeBlobRec.booking?.serviceStatus,
+      bookingVersion: Math.round(Number(beforeBlobRec.booking?.bookingVersion) || 0),
+      quoteVersion: settled.projection.quoteVersion,
+      booking: beforeBlobRec.booking,
+    };
+  }
 
   const syncResult = await syncBlob(bookingId, settled.projection);
   if (!syncResult || syncResult.ok === false) {
@@ -411,7 +472,7 @@ async function settleAdminCashFullBalance({
       authority: 'postgres',
       postgresProjection: pgMapped,
       projection: pgMapped,
-      settledAmountCents: cashCents,
+      settledAmountCents: settledCents,
       settlementRecorded: true,
       created: !!settled.created,
       noop: !!(settled.noop || settled.duplicate),
@@ -420,9 +481,10 @@ async function settleAdminCashFullBalance({
     };
   }
 
-  const closed = await applyCashOperationalClose({
+  const closed = await applyOnSitePaymentCompatibility({
     bookingId,
-    cashAmountCents: cashCents,
+    amountCents: settledCents,
+    method,
     reference: body.reference,
   });
   if (!closed.ok) {
@@ -433,7 +495,7 @@ async function settleAdminCashFullBalance({
       authority: 'postgres',
       postgresProjection: pgMapped,
       projection: pgMapped,
-      settledAmountCents: cashCents,
+      settledAmountCents: settledCents,
       settlementRecorded: true,
       syncOk: true,
       created: !!settled.created,
@@ -448,7 +510,7 @@ async function settleAdminCashFullBalance({
   const noop = !!(settled.noop || settled.duplicate || !settled.created);
 
   // Fully synchronized replay → already_paid (Blob fallback contract).
-  if (noop && !needsCloseBefore && !blobNeedsCashClose(closed.booking)) {
+  if (noop && !needsSyncBefore && !blobNeedsOnSitePaymentSync(closed.booking, method)) {
     return {
       ok: false,
       error: 'already_paid',
@@ -458,7 +520,7 @@ async function settleAdminCashFullBalance({
       postgresProjection: pgMapped,
       projection: pgMapped,
       financialProjection: compat,
-      settledAmountCents: cashCents,
+      settledAmountCents: settledCents,
       paymentStatus: closed.booking.paymentStatus,
       jobStatus: closed.booking.jobStatus,
       serviceStatus: closed.booking.serviceStatus,
@@ -475,7 +537,7 @@ async function settleAdminCashFullBalance({
     postgresProjection: pgMapped,
     projection: pgMapped,
     financialProjection: compat,
-    settledAmountCents: cashCents,
+    settledAmountCents: settledCents,
     created: !!settled.created,
     noop,
     paymentStatus: closed.booking.paymentStatus,
@@ -487,14 +549,22 @@ async function settleAdminCashFullBalance({
   };
 }
 
+async function settleAdminCashFullBalance(args) {
+  return settleAdminOnSiteFullBalance({ ...args, method: 'cash' });
+}
+
 module.exports = {
   postgresPaymentEnabled,
   mapProjectionForPortals,
+  buildPaymentCompatibilityPatch,
   syncBlobCompatibilityFromProjection,
   getSharedFinancialProjection,
   prepareEmbeddedPayment,
   adminReconcileWithStripe,
+  applyOnSitePaymentCompatibility,
   applyCashOperationalClose,
+  settleAdminOnSiteFullBalance,
   settleAdminCashFullBalance,
+  blobNeedsOnSitePaymentSync,
   blobNeedsCashClose,
 };
