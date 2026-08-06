@@ -148,10 +148,23 @@ function harness({ bookings = {} } = {}) {
   };
 }
 
-function exchange(h, token, cookie) {
+function openLink(h, token, cookie) {
   const headers = { 'x-nf-client-connection-ip': '203.0.113.10' };
   if (cookie) headers.cookie = `cd1_customer_session=${cookie}`;
   return h.accessFn.handler({ httpMethod: 'GET', headers, queryStringParameters: { token } });
+}
+
+function exchange(h, token, cookie) {
+  const headers = {
+    'x-nf-client-connection-ip': '203.0.113.10',
+    'content-type': 'application/x-www-form-urlencoded',
+  };
+  if (cookie) headers.cookie = `cd1_customer_session=${cookie}`;
+  return h.accessFn.handler({
+    httpMethod: 'POST',
+    headers,
+    body: `action=exchange&token=${encodeURIComponent(token)}`,
+  });
 }
 
 function sessionTokenFrom(response) {
@@ -179,6 +192,17 @@ test('1. first click on a secure link creates exactly one session', async (t) =>
   t.after(() => h.restore());
 
   const minted = await mint(h, 'CD1-SESS00001');
+
+  const preview = await openLink(h, minted.token);
+  assert.equal(preview.statusCode, 200);
+  assert.match(preview.body, /View my appointment/i);
+  assert.match(preview.body, /action" value="exchange"/);
+  const previewRecord = await h.accessToken.loadTokenRecord(minted.token, {
+    allowExpired: true,
+    allowConsumed: true,
+  });
+  assert.equal(previewRecord.record.consumedAt, null, 'GET must not consume the token');
+
   const res = await exchange(h, minted.token);
 
   assert.equal(res.statusCode, 302);
@@ -259,8 +283,14 @@ test('4. re-clicking a consumed link without a session asks for a new link', asy
 
   const second = await exchange(h, minted.token);
   assert.equal(second.statusCode, 410);
+  assert.match(second.body, /already used/i);
   assert.match(second.body, /Send me a new link/i);
+  assert.doesNotMatch(second.body, /has expired/i);
   assert.equal(second.headers['Set-Cookie'], undefined);
+
+  const viaGet = await openLink(h, minted.token);
+  assert.equal(viaGet.statusCode, 410);
+  assert.match(viaGet.body, /already used/i);
 });
 
 test('5. a different account session cannot ride a consumed link', async (t) => {
@@ -364,7 +394,11 @@ test('9. an expired link also re-enters on the same device, and not otherwise', 
     expiresAt: new Date(Date.now() - 1000).toISOString(),
   });
 
-  assert.equal((await exchange(h, stale.token)).statusCode, 410, 'no session: new-link page');
+  const noSession = await exchange(h, stale.token);
+  assert.equal(noSession.statusCode, 410, 'no session: expired page');
+  assert.match(noSession.body, /has expired/i);
+  assert.doesNotMatch(noSession.body, /already used/i);
+
   const withSession = await exchange(h, stale.token, cookie);
   assert.equal(withSession.statusCode, 302);
   assert.equal(withSession.headers['Set-Cookie'], undefined);
