@@ -235,3 +235,71 @@ test('draft re-registration stamps a consent timestamp when the draft lacks one'
   );
   assert.equal(require.resolve('../netlify/functions/submit-booking'), SUBMIT_PATH);
 });
+
+// ── Cold-start containment ────────────────────────────────────────────────────
+// The checkout functions must not pull the Twilio SDK (or the SMS outbox's
+// Prisma graph) at module load. A resolution failure there is not catchable by
+// the handler: Netlify returns a plain-text 500 and the browser reports
+// "Booking backend returned an invalid response."
+
+const CHECKOUT_FUNCTIONS = [
+  'submit-booking.js',
+  'submit-inquiry.js',
+  'stripe-webhook.js',
+];
+
+for (const fn of CHECKOUT_FUNCTIONS) {
+  test(`${fn} does not load the SMS outbox at module scope`, () => {
+    const fs = require('node:fs');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'netlify', 'functions', fn), 'utf8');
+    const topLevel = src.split(/\nexports\.handler|\nasync function handler/)[0];
+    assert.doesNotMatch(
+      topLevel,
+      /^const \{[^}]*\} = require\('\.\.\/lib\/sms-(outbox|templates)'\);/m,
+      'sms-outbox must be required at the call site, not at module scope'
+    );
+    assert.match(src, /function smsOutbox\(\)/, 'lazy accessor must exist');
+  });
+}
+
+test('twilio SDK is required lazily, behind the runtime policy gate', () => {
+  const fs = require('node:fs');
+  for (const lib of ['twilio-provider.js', 'twilio-webhook.js']) {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'netlify', 'lib', lib), 'utf8');
+    assert.doesNotMatch(
+      src,
+      /^const twilio = require\('twilio'\);/m,
+      `${lib} must not require the Twilio SDK at module scope`
+    );
+    assert.match(src, /require\('twilio'\)/, `${lib} still needs the SDK at call time`);
+    assert.match(src, /twilio_sdk_unavailable/, `${lib} must degrade instead of throwing`);
+  }
+});
+
+test('loading the checkout functions never resolves the twilio package', () => {
+  // Proven by resolution, not by inspection: a stub Module._load that throws on
+  // 'twilio' must not be reached while the checkout functions load.
+  const Module = require('node:module');
+  const originalLoad = Module._load;
+  let touched = null;
+  Module._load = function (request, parent, isMain) {
+    if (request === 'twilio') { touched = parent && parent.filename; throw new Error('twilio loaded at cold start'); }
+    return originalLoad.call(this, request, parent, isMain);
+  };
+  try {
+    for (const fn of CHECKOUT_FUNCTIONS) {
+      const p = require.resolve(`../netlify/functions/${fn.replace(/\.js$/, '')}`);
+      delete require.cache[p];
+      require(p);
+    }
+  } finally {
+    Module._load = originalLoad;
+  }
+  assert.equal(touched, null, `twilio was loaded at cold start by ${touched}`);
+});
+
+test('netlify.toml keeps twilio out of the function bundle', () => {
+  const fs = require('node:fs');
+  const toml = fs.readFileSync(path.join(__dirname, '..', 'netlify.toml'), 'utf8');
+  assert.match(toml, /external_node_modules\s*=\s*\[[^\]]*"twilio"/);
+});

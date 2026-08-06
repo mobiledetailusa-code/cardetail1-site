@@ -1,6 +1,5 @@
 'use strict';
 
-const twilio = require('twilio');
 const { webhookPolicy } = require('./twilio-runtime-policy');
 
 function header(event, name) {
@@ -26,6 +25,13 @@ function validateTwilioWebhook(event, kind, env = process.env) {
   const signature = header(event, 'x-twilio-signature');
   if (!signature) return { ok: false, reason: 'signature_missing', statusCode: 403 };
   const params = parseForm(event);
+  // Loaded lazily, behind the policy gate — see twilio-provider.js.
+  let twilio;
+  try {
+    twilio = require('twilio');
+  } catch (e) {
+    return { ok: false, reason: 'twilio_sdk_unavailable', statusCode: 503 };
+  }
   const valid = twilio.validateRequest(policy.authToken, signature, policy.url, params);
   if (!valid) return { ok: false, reason: 'invalid_signature', statusCode: 403 };
   return { ok: true, params, url: policy.url };

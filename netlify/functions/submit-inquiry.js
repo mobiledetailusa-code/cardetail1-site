@@ -8,8 +8,15 @@
 
 const crypto = require('crypto');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
-const { enqueueSms } = require('../lib/sms-outbox');
-const { TEMPLATE_KEYS } = require('../lib/sms-templates');
+// Loaded lazily at the call site: the SMS outbox pulls Prisma and the Twilio
+// dependency graph, and a cold-start failure there returns a non-JSON 500 that
+// the checkout cannot parse. Notifications must never gate the booking itself.
+function smsOutbox() {
+  return {
+    enqueueSms: require('../lib/sms-outbox').enqueueSms,
+    TEMPLATE_KEYS: require('../lib/sms-templates').TEMPLATE_KEYS,
+  };
+}
 const { enabled } = require('../lib/twilio-runtime-policy');
 
 const json = (status, body) => ({
