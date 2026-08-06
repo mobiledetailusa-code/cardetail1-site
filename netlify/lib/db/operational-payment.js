@@ -159,18 +159,29 @@ async function getSharedFinancialProjection(booking, { env = process.env } = {})
   if (!postgresPaymentEnabled(env)) {
     return { ok: false, error: 'postgres_payment_disabled', authority: 'blob' };
   }
-  const ensured = await ensureBookingFinancial(booking);
-  if (!ensured.ok) return { ok: false, error: ensured.error, authority: 'blob' };
+  try {
+    const ensured = await ensureBookingFinancial(booking);
+    if (!ensured.ok) return { ok: false, error: ensured.error, authority: 'blob' };
 
-  let projection = await authority.getFinancialProjection(ensured.bookingId);
-  if (!projection) return { ok: false, error: 'projection_unavailable', authority: 'blob' };
+    let projection = await authority.getFinancialProjection(ensured.bookingId);
+    if (!projection) return { ok: false, error: 'projection_unavailable', authority: 'blob' };
 
-  return {
-    ok: true,
-    authority: 'postgres',
-    projection: mapProjectionForPortals(projection),
-    bookingId: ensured.bookingId,
-  };
+    return {
+      ok: true,
+      authority: 'postgres',
+      projection: mapProjectionForPortals(projection),
+      bookingId: ensured.bookingId,
+    };
+  } catch (e) {
+    // DATABASE_URL may be set while the DB/adapter is unreachable (common on
+    // deploy-preview). Never throw into customer/admin portal reads — callers
+    // fall back to Blob projection.
+    console.warn('[operational-payment] shared_projection_failed', {
+      bookingIdPrefix: String(booking?.id || booking?.bookingId || '').slice(0, 12),
+      error: String(e && e.message || e).slice(0, 160),
+    });
+    return { ok: false, error: 'projection_unavailable', authority: 'blob' };
+  }
 }
 
 async function prepareEmbeddedPayment({
