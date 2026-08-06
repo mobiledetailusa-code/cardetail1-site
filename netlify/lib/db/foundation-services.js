@@ -39,8 +39,28 @@ async function reservePaymentObligation({
   purpose = 'customer_balance',
   idempotencyKey,
   generation = 1,
+  prisma: prismaOverride = null,
+  prelocked = false,
 }) {
-  const prisma = getPrisma();
+  const prisma = prismaOverride || getPrisma();
+
+  // Callers holding the booking+quote advisory lock must avoid deliberately
+  // tripping a unique constraint: PostgreSQL marks the whole surrounding
+  // transaction aborted before Prisma can query the winning row. The lock
+  // makes these reads authoritative for this reservation key.
+  if (prelocked) {
+    const byKey = await prisma.paymentAttempt.findUnique({ where: { idempotencyKey } });
+    if (byKey) return { ok: true, created: false, reason: 'idempotent_replay', attempt: byKey };
+
+    const existing = await prisma.paymentAttempt.findFirst({
+      where: { bookingId, quoteVersion, status: { in: ['creating', 'open', 'requires_action'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (existing) {
+      return { ok: true, created: false, reason: 'existing_active_obligation', attempt: existing };
+    }
+  }
+
   try {
     const attempt = await prisma.paymentAttempt.create({
       data: {
