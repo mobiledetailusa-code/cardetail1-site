@@ -16,6 +16,20 @@ test('financial migration preserves every historical StripeEvent payload', () =>
   assert.match(read('netlify/lib/db/stripe-event-data.js'), /sanitizeStripeEventPayload/);
 });
 
+test('financial migration preserves application-bundle rollback compatibility', () => {
+  const migration = read('prisma/migrations/20260805090000_financial_invariants_pr1/migration.sql');
+  const schema = read('prisma/schema.prisma');
+  assert.match(
+    migration,
+    /ADD COLUMN "updatedAt" TIMESTAMP\(3\) NOT NULL DEFAULT CURRENT_TIMESTAMP/
+  );
+  assert.doesNotMatch(migration, /ALTER COLUMN "updatedAt" DROP DEFAULT/);
+  assert.match(
+    schema,
+    /model StripeEvent \{[\s\S]*?updatedAt\s+DateTime\s+@default\(now\(\)\) @updatedAt/
+  );
+});
+
 test('database preflight is read-only and emits aggregate evidence only', () => {
   const preflight = read('scripts/financial-preflight.mjs');
   assert.match(preflight, /BEGIN READ ONLY/);
