@@ -122,55 +122,43 @@ function verifyStripeSignature(rawBody, sigHeader, secret) {
   });
 }
 
-/**
- * Postgres-authoritative reconcile for PaymentIntent events. Returns
- * { handled:true } when customer_balance was settled in Postgres so the
- * legacy Blob money write can be skipped (compatibility sync already ran).
- */
-async function reconcilePostgresPaymentIntentLegacy(evt, paymentIntent) {
-  try {
-    const { postgresPaymentEnabled, syncBlobCompatibilityFromProjection } = require('../lib/db/operational-payment');
-    if (!postgresPaymentEnabled()) return { handled: false, skipped: true, reason: 'postgres_disabled' };
+const CUSTOMER_BALANCE_PAYMENT_INTENT_EVENTS = new Set([
+  'payment_intent.succeeded',
+  'payment_intent.payment_failed',
+  'payment_intent.canceled',
+  'payment_intent.requires_action',
+]);
+const LEGACY_OPERATIONAL_PAYMENT_INTENT_EVENTS = new Set([
+  'payment_intent.amount_capturable_updated',
+  'payment_intent.succeeded',
+  'payment_intent.payment_failed',
+  'payment_intent.canceled',
+  'payment_intent.requires_action',
+]);
 
-    const { reconcilePaymentIntentEvent, getFinancialProjection } = require('../lib/db/payment-authority-service');
-    const { ensureBookingFinancial } = require('../lib/db/ensure-booking-financial');
-    const meta = paymentIntent.metadata || {};
-    const bookingId = String(meta.bookingId || meta.booking_id || '').trim();
-    if (bookingId) {
-      try {
-        const { getBookingRecord } = require('../lib/booking-repository');
-        const rec = await getBookingRecord(bookingId);
-        if (rec.exists) await ensureBookingFinancial(rec.booking);
-      } catch { /* best-effort ensure */ }
-    }
-
-    const result = await reconcilePaymentIntentEvent({
-      stripeEventId: evt.id,
-      type: evt.type,
-      paymentIntent,
-    });
-
-    let projection = null;
-    if (result.ok && !result.duplicate && bookingId) {
-      projection = result.projection || await getFinancialProjection(bookingId);
-      if (projection) {
-        await syncBlobCompatibilityFromProjection(bookingId, projection).catch(() => {});
-      }
-    } else if (result.ok && bookingId) {
-      projection = await getFinancialProjection(bookingId);
-    }
-
-    const purpose = String(meta.purpose || '');
-    const handled = purpose === 'customer_balance'
-      && result.ok
-      && !result.quarantined
-      && (result.duplicate || projection?.paymentStatus === 'paid' || result.terminal);
-
-    return { handled: !!handled, result, projection, bookingId };
-  } catch (e) {
-    console.warn('[stripe-webhook] postgres reconcile failed', e && e.message ? e.message : e);
-    return { handled: false, error: e && e.message ? e.message : 'postgres_reconcile_failed' };
+function classifyPaymentIntentRoute(evt, paymentIntent) {
+  const type = String(evt?.type || '').trim();
+  const purpose = String(paymentIntent?.metadata?.purpose || '').trim();
+  if (!type.startsWith('payment_intent.')) return { route: 'not_payment_intent', purpose };
+  if (purpose === 'customer_balance') {
+    return CUSTOMER_BALANCE_PAYMENT_INTENT_EVENTS.has(type)
+      ? { route: 'customer_balance', purpose }
+      : { route: 'unsupported_customer_balance_event', purpose };
   }
+  if (purpose === 'authoritative_balance') {
+    return LEGACY_OPERATIONAL_PAYMENT_INTENT_EVENTS.has(type)
+      ? { route: 'legacy_operational', purpose }
+      : { route: 'unsupported_legacy_event', purpose };
+  }
+  // PaymentIntents created before purpose metadata existed remain eligible for
+  // the preexisting operational handler. This compatibility path is explicit,
+  // bounded to the known legacy event set, and never touches PostgreSQL money.
+  if (!purpose) {
+    return LEGACY_OPERATIONAL_PAYMENT_INTENT_EVENTS.has(type)
+      ? { route: 'legacy_operational_unmarked', purpose }
+      : { route: 'unsupported_legacy_event', purpose };
+  }
+  return { route: 'unknown_purpose', purpose };
 }
 
 // ── Read booking, apply updates, write back to Blobs ──
@@ -485,45 +473,56 @@ exports.handler = async (event) => {
   catch { return { statusCode: 400, body: 'Invalid JSON' }; }
 
   const pi = (evt.data && evt.data.object) ? evt.data.object : {};
-  const bookingId = (pi.metadata && pi.metadata.booking_id) || '—';
+  const bookingId = (pi.metadata && (pi.metadata.booking_id || pi.metadata.bookingId)) || '—';
   const dollars = pi.amount != null ? (pi.amount / 100).toFixed(2) : '?';
   const results = {};
 
-  // Booking-balance PaymentIntents have exactly one authority. Never fall
-  // through to the legacy Blob money writes below when PostgreSQL processing
-  // fails; a non-2xx response asks Stripe to retry the durable inbox path.
+  // Route every PaymentIntent exactly once. Customer balances use PostgreSQL;
+  // the explicitly identified legacy operational/auction flow stays on its
+  // preexisting Blob handler until all in-flight legacy intents have expired.
   if (String(evt.type || '').startsWith('payment_intent.')) {
-    const purpose = String(pi.metadata?.purpose || '').trim();
-    if (purpose !== 'customer_balance') {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ received: true, ignored: true, reason: 'non_balance_payment_intent' }),
-      };
-    }
-    const postgres = await reconcilePostgresPaymentIntent(evt, pi);
-    if (!postgres.handled) {
-      console.warn('[stripe-webhook] authoritative payment retry requested', {
+    const paymentRoute = classifyPaymentIntentRoute(evt, pi);
+    if (paymentRoute.route === 'unknown_purpose'
+      || paymentRoute.route === 'unsupported_customer_balance_event'
+      || paymentRoute.route === 'unsupported_legacy_event') {
+      console.warn('[stripe-webhook] PaymentIntent ignored by explicit router', {
         type: evt.type,
-        error: postgres.error || 'processing_failed',
-        failureRecorded: !!postgres.failureRecorded,
+        route: paymentRoute.route,
+        purpose: paymentRoute.purpose || 'missing',
       });
       return {
-        statusCode: 500,
-        body: JSON.stringify({
-          received: false,
-          retryable: true,
+        statusCode: 200,
+        body: JSON.stringify({ received: true, ignored: true, reason: paymentRoute.route }),
+      };
+    }
+    if (paymentRoute.route === 'customer_balance') {
+      const postgres = await reconcilePostgresPaymentIntent(evt, pi);
+      if (!postgres.handled) {
+        console.warn('[stripe-webhook] authoritative payment retry requested', {
+          type: evt.type,
           error: postgres.error || 'processing_failed',
+          failureRecorded: !!postgres.failureRecorded,
+        });
+        return {
+          statusCode: 500,
+          body: JSON.stringify({
+            received: false,
+            retryable: true,
+            error: postgres.error || 'processing_failed',
+          }),
+        };
+      }
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          received: true,
+          type: evt.type,
+          route: paymentRoute.route,
+          duplicate: !!postgres.result?.duplicate,
         }),
       };
     }
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        received: true,
-        type: evt.type,
-        duplicate: !!postgres.result?.duplicate,
-      }),
-    };
+    results.paymentIntentRoute = paymentRoute.route;
   }
 
   // Hosted Checkout never settles a booking balance. Old sessions are
@@ -599,16 +598,12 @@ exports.handler = async (event) => {
     }
 
     case 'payment_intent.succeeded': {
-      results.postgres = await reconcilePostgresPaymentIntent(evt, pi);
-      if (!results.postgres.handled) {
-        // Legacy hold/capture path (not a Postgres customer_balance obligation).
-        results.update = await updateBookingPayment(bookingId, {
-          paymentStatus: 'paid',
-          paymentIntentId: pi.id,
-          amountCapturedCents: pi.amount_received != null ? pi.amount_received : pi.amount,
-          capturedAt: new Date().toISOString(),
-        });
-      }
+      results.update = await updateBookingPayment(bookingId, {
+        paymentStatus: 'paid',
+        paymentIntentId: pi.id,
+        amountCapturedCents: pi.amount_received != null ? pi.amount_received : pi.amount,
+        capturedAt: new Date().toISOString(),
+      });
       await notifyAdmin(
         `Cardetail1 — payment captured $${dollars} · ${bookingId}`,
         `Payment of $${dollars} captured for booking ${bookingId}.\nPaymentIntent: ${pi.id}`
@@ -617,15 +612,12 @@ exports.handler = async (event) => {
     }
 
     case 'payment_intent.payment_failed': {
-      results.postgres = await reconcilePostgresPaymentIntent(evt, pi);
-      if (!results.postgres.handled) {
-        const reason = (pi.last_payment_error && pi.last_payment_error.message) || 'unknown';
-        results.update = await updateBookingPayment(bookingId, {
-          paymentStatus: 'authorization_failed',
-          paymentIntentId: pi.id,
-          paymentFailureReason: reason,
-        });
-      }
+      const reason = (pi.last_payment_error && pi.last_payment_error.message) || 'unknown';
+      results.update = await updateBookingPayment(bookingId, {
+        paymentStatus: 'authorization_failed',
+        paymentIntentId: pi.id,
+        paymentFailureReason: reason,
+      });
       await notifyAdmin(
         `Cardetail1 — payment FAILED · ${bookingId}`,
         `Payment failed for booking ${bookingId}.\nPaymentIntent: ${pi.id}`
@@ -634,15 +626,12 @@ exports.handler = async (event) => {
     }
 
     case 'payment_intent.canceled': {
-      results.postgres = await reconcilePostgresPaymentIntent(evt, pi);
-      if (!results.postgres.handled) {
-        const cancelReason = pi.cancellation_reason || 'unknown';
-        results.update = await updateBookingPayment(bookingId, {
-          paymentStatus: 'canceled',
-          paymentIntentId: pi.id,
-          paymentCancelReason: cancelReason,
-        });
-      }
+      const cancelReason = pi.cancellation_reason || 'unknown';
+      results.update = await updateBookingPayment(bookingId, {
+        paymentStatus: 'canceled',
+        paymentIntentId: pi.id,
+        paymentCancelReason: cancelReason,
+      });
       await notifyAdmin(
         `Cardetail1 — payment CANCELED · ${bookingId}`,
         `PaymentIntent canceled for booking ${bookingId}.\nPaymentIntent: ${pi.id}`
@@ -651,7 +640,11 @@ exports.handler = async (event) => {
     }
 
     case 'payment_intent.requires_action': {
-      results.postgres = await reconcilePostgresPaymentIntent(evt, pi);
+      results.update = await updateBookingPayment(bookingId, {
+        paymentStatus: 'authorization_pending',
+        paymentWorkflowStatus: 'payment_action_required',
+        paymentIntentId: pi.id,
+      });
       break;
     }
 
@@ -811,11 +804,19 @@ exports.handler = async (event) => {
     bookingMutation: !!results.update?.updated,
     subscriptionMutation: !!results.subscription,
   });
-  return { statusCode: 200, body: JSON.stringify({ received: true, type: evt.type }) };
+  return {
+    statusCode: 200,
+    body: JSON.stringify({
+      received: true,
+      type: evt.type,
+      ...(results.paymentIntentRoute ? { route: results.paymentIntentRoute } : {}),
+    }),
+  };
 };
 
 exports.__test = {
   verifyStripeSignature,
+  classifyPaymentIntentRoute,
   updateSetupIntentState,
   setBlobsStoreOverride(fn) {
     blobsStoreOverride = typeof fn === 'function' ? fn : null;

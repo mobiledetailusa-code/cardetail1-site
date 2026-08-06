@@ -309,6 +309,78 @@ describe('operational payment wiring (Postgres)', { skip: !dbConfigured && 'DATA
 });
 
 describe('operational payment — pure guards', () => {
+  test('a paid completed job keeps its lifecycle while a positive adjustment reopens and settles only the balance', () => {
+    const { buildPaymentCompatibilityPatch } = require('../netlify/lib/db/operational-payment');
+    const { buildReceiptProjection } = require('../netlify/lib/receipt-projection');
+    const completed = {
+      id: 'CD1-COMPLETED-DELTA',
+      status: 'Closed',
+      jobStatus: 'completed_paid',
+      serviceStatus: 'completed',
+      completedAt: '2026-08-05T12:00:00.000Z',
+      updatedAt: '2026-08-05T12:00:00.000Z',
+      paymentStatus: 'paid',
+      paymentWorkflowStatus: 'payment_succeeded',
+      quoteVersion: 1,
+      ledger: {
+        approvedCents: 5000,
+        settledCents: 5000,
+        refundedCents: 0,
+        currency: 'usd',
+        entries: [{
+          kind: 'settlement',
+          amountCents: 5000,
+          providerObjectId: 'pi_original',
+          occurredAt: '2026-08-05T11:00:00.000Z',
+        }],
+      },
+    };
+
+    const reopenedPatch = buildPaymentCompatibilityPatch(completed, {
+      quoteVersion: 2,
+      approvedCents: 8000,
+      settledCents: 5000,
+      refundedCents: 0,
+      remainingCents: 3000,
+      paymentStatus: 'due',
+      stripeReference: 'pi_delta',
+    });
+    const reopened = { ...completed, ...reopenedPatch };
+    assert.equal(reopened.status, 'Closed');
+    assert.equal(reopened.jobStatus, 'completed_paid');
+    assert.equal(reopened.serviceStatus, 'completed');
+    assert.equal(reopened.paymentStatus, 'due');
+    assert.equal(reopened.ledger.approvedCents, 8000);
+    assert.equal(reopened.ledger.settledCents, 5000);
+    assert.equal(reopened.balanceDue, 30);
+
+    const settledPatch = buildPaymentCompatibilityPatch(reopened, {
+      quoteVersion: 2,
+      approvedCents: 8000,
+      settledCents: 8000,
+      refundedCents: 0,
+      remainingCents: 0,
+      paymentStatus: 'paid',
+      stripeReference: 'pi_delta',
+      paidAt: '2026-08-05T13:00:00.000Z',
+    });
+    const settled = { ...reopened, ...settledPatch };
+    assert.equal(settled.status, 'Closed');
+    assert.equal(settled.jobStatus, 'completed_paid');
+    assert.equal(settled.serviceStatus, 'completed');
+    assert.equal(settled.paymentStatus, 'paid');
+    assert.equal(settled.ledger.approvedCents, 8000);
+    assert.equal(settled.ledger.settledCents, 8000);
+    assert.equal(settled.balanceDue, 0);
+
+    const receipt = buildReceiptProjection(settled, 'final');
+    assert.equal(receipt.ok, true);
+    assert.equal(receipt.receipt.financialSummary.approvedTotal.cents, 8000);
+    assert.equal(receipt.receipt.financialSummary.amountPaid.cents, 8000);
+    assert.equal(receipt.receipt.financialSummary.remainingBalance.cents, 0);
+    assert.equal(receipt.receipt.paidInFull, true);
+  });
+
   test('postgresPaymentEnabled respects explicit disable flag', () => {
     const { postgresPaymentEnabled } = require('../netlify/lib/db/operational-payment');
     assert.equal(postgresPaymentEnabled({ CD1_POSTGRES_PAYMENT: '0', DATABASE_URL: 'postgres://x' }), false);

@@ -167,9 +167,21 @@ function receiptEligibility(booking, opts = {}) {
   const settled = settledPayments(booking, opts);
   const refunds = refundedPayments(booking, opts);
   const totalSettledCents = settled.reduce((s, p) => s + p.amount.cents, 0);
-  const grossPaidCents = Math.max(Number(fin.grossSettledCents) || 0, totalSettledCents);
+  const compatibilityRefundedCents = Math.max(
+    0,
+    Math.round(Number(booking?.ledger?.refundedCents) || 0)
+  );
+  // PostgreSQL projections expose grossSettledCents explicitly. Legacy Blob
+  // projections expose only net settledCents, while the compatibility ledger
+  // carries refundedCents separately. Reconstruct gross only for that legacy
+  // shape so a paid delta is not lost and a refund is not subtracted twice.
+  const projectedGrossCents = fin.grossSettledCents != null
+    ? Math.max(0, Math.round(Number(fin.grossSettledCents) || 0))
+    : Math.max(0, Math.round(Number(fin.settledCents) || 0)) + compatibilityRefundedCents;
+  const grossPaidCents = Math.max(projectedGrossCents, totalSettledCents);
   const refundedCents = Math.max(
     Number(fin.refundedCents) || 0,
+    compatibilityRefundedCents,
     refunds.reduce((sum, row) => sum + row.amount.cents, 0)
   );
   const paidCents = Math.max(0, grossPaidCents - refundedCents);

@@ -347,6 +347,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/price-adjustments.js',
     'netlify/lib/receipt-projection.js',
     'netlify/lib/service-issue-notifications.js',
+    // PR3 — conditional Admin/Customer synchronization envelopes.
+    'netlify/lib/sync-response.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);
