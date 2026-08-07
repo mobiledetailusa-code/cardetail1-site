@@ -285,13 +285,22 @@
     if (!data) return;
     state.focusedAppointment = data.focusedAppointment || null;
     if (data.upcoming) state.booking = data.upcoming;
-    if (state.focusedAppointment || data.focusError === 'invalid_focus') {
-      // Consume opaque focus param after server resolution (success or safe miss).
+    if (data.focusError === 'invalid_focus') {
+      // Consume opaque focus param after a safe miss — do not keep a bad ref.
       stripAppointmentFocusFromUrl();
       state.appointmentFocusRef = null;
-    }
-    if (data.focusError === 'invalid_focus') {
+      state.focusedAppointment = null;
       showToast('That appointment link could not be opened.', true);
+      return;
+    }
+    if (state.focusedAppointment) {
+      // Strip from the address bar only. Keep the opaque ref in memory so soft
+      // reloads / polling cannot replace this appointment with selectUpcoming().
+      var retainedRef = state.focusedAppointment.appointmentPublicRef
+        || state.appointmentFocusRef
+        || null;
+      if (retainedRef) state.appointmentFocusRef = retainedRef;
+      stripAppointmentFocusFromUrl();
     }
   }
 
@@ -955,6 +964,8 @@
     state.postServiceByBooking = null;
     state.priceAdjustments = null;
     state.actionToken = null;
+    state.appointmentFocusRef = null;
+    state.focusedAppointment = null;
     state.syncVersion = '';
     state.serverTime = null;
     if (portalRefresh) portalRefresh.stopPolling();
@@ -3804,7 +3815,14 @@
 
   function portalReload(context) {
     context = context || {};
-    if (state.scope === 'account') return loadAccount({ managePhase: false, signal: context.signal });
+    if (state.scope === 'account') {
+      return loadAccount({
+        managePhase: false,
+        signal: context.signal,
+        // Re-send retained focus so auto-refresh cannot swap the hero booking.
+        appointmentFocusRef: state.appointmentFocusRef || null,
+      });
+    }
     if (state.actionToken || state.booking) return loadLimited({ signal: context.signal });
     return Promise.resolve();
   }

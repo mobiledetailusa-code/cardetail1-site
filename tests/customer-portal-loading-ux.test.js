@@ -649,6 +649,76 @@ test('appointment focus: loads focused booking and strips opaque appointment par
   assert.doesNotMatch(location.search, /appointment=/);
   assert.match(document._els['upcoming-panel'].innerHTML, /Pending Review/);
   assert.match(document._els['upcoming-panel'].innerHTML, /appointment-focus/);
+  assert.equal(sandbox.cd1MyGarage.state.appointmentFocusRef, focusRef);
+});
+
+test('appointment focus: soft reload keeps the email-link appointment (does not swap to selectUpcoming)', async () => {
+  const focusRef = 'aptr_focus_retain_after_poll_001';
+  const otherRef = 'aptr_other_upcoming_preview_002';
+  const appointmentCalls = [];
+  const fetch = mockFetchRouter({
+    'customer-portal-auth': async (body) => {
+      if (body.action === 'session') return { data: { ok: true, authenticated: true } };
+      return { data: { ok: false } };
+    },
+    'customer-portal-data': async (body) => {
+      appointmentCalls.push(body.appointment || null);
+      const focused = {
+        id: 'CD1-FOCUSED',
+        appointmentPublicRef: focusRef,
+        customerStatus: 'Pending Review',
+        status: 'Pending Review',
+        package: 'Interior Detail',
+        preferredDate: '2099-09-01',
+        vehicleYear: '2026',
+        vehicleMake: 'Acura',
+        vehicleModel: 'MDX',
+      };
+      const other = {
+        id: 'CD1-OTHER',
+        appointmentPublicRef: otherRef,
+        customerStatus: 'Confirmed',
+        status: 'Confirmed',
+        package: 'Maintenance Detail',
+        preferredDate: '2099-08-01',
+        vehicleYear: '2025',
+        vehicleMake: 'Ford',
+        vehicleModel: 'Bronco',
+      };
+      const payload = accountPayload();
+      payload.bookings = [focused, other];
+      if (body.appointment === focusRef) {
+        payload.upcoming = focused;
+        payload.focusedAppointment = {
+          appointmentPublicRef: focusRef,
+          customerStatus: 'Pending Review',
+        };
+      } else {
+        // Server default without focus — nearest upcoming (would steal the hero).
+        payload.upcoming = other;
+        payload.focusedAppointment = null;
+      }
+      return { data: payload };
+    },
+  });
+
+  const { sandbox, document } = await loadPortal({
+    fetch,
+    search: `?appointment=${focusRef}`,
+  });
+  assert.equal(sandbox.cd1MyGarage.getPortalPhase(), 'ready');
+  assert.equal(appointmentCalls[0], focusRef);
+  assert.match(document._els['upcoming-panel'].innerHTML, /Acura/);
+  assert.match(document._els['upcoming-panel'].innerHTML, /Interior Detail/);
+
+  // Simulate operational poll / soft reload after the URL focus param was stripped.
+  await sandbox.cd1MyGarage.reload();
+  assert.equal(appointmentCalls.length >= 2, true);
+  assert.equal(appointmentCalls[appointmentCalls.length - 1], focusRef);
+  assert.equal(sandbox.cd1MyGarage.state.appointmentFocusRef, focusRef);
+  assert.equal(sandbox.cd1MyGarage.state.booking && sandbox.cd1MyGarage.state.booking.id, 'CD1-FOCUSED');
+  assert.match(document._els['upcoming-panel'].innerHTML, /Acura/);
+  assert.doesNotMatch(document._els['upcoming-panel'].innerHTML, /Bronco/);
 });
 
 test('appointment focus: altered ref cannot surface another customer booking (server focusError)', async () => {
@@ -670,6 +740,7 @@ test('appointment focus: altered ref cannot surface another customer booking (se
   });
   assert.equal(sandbox.cd1MyGarage.getPortalPhase(), 'ready');
   assert.doesNotMatch(location.search, /appointment=/);
+  assert.equal(sandbox.cd1MyGarage.state.appointmentFocusRef, null);
 });
 
 test('fallback lookup copy remains available without requiring code for direct-link users', () => {
