@@ -1883,16 +1883,25 @@
       earliest_after_date: 'First available on or after selected date',
     };
     var flex = b.scheduleFlexibility || 'exact';
+    var shownDate = b.confirmedDate || b.preferredDate || '—';
     var siteRows = '';
-    siteRows += '<div><dt>Preferred date</dt><dd>' + esc(b.preferredDate || '—') + '</dd></div>';
-    siteRows += '<div><dt>Preferred arrival window</dt><dd>' + esc(preferredArrival) + '</dd></div>';
+    // What you asked for is only worth its own row once it differs from what is
+    // actually scheduled. Until a date is confirmed, "Date" and "Preferred date"
+    // print the same value, and repeating it reads as two separate facts.
+    if (b.preferredDate && b.preferredDate !== shownDate) {
+      siteRows += '<div><dt>Preferred date</dt><dd>' + esc(b.preferredDate) + '</dd></div>';
+    }
+    if (preferredArrival && preferredArrival !== '—' && preferredArrival !== arrivalDisplay) {
+      siteRows += '<div><dt>Preferred arrival window</dt><dd>' + esc(preferredArrival) + '</dd></div>';
+    }
     if (b.alternatePreferredDate) {
       siteRows += '<div><dt>Alternate date</dt><dd>' + esc(b.alternatePreferredDate) +
         (b.alternateArrivalWindow ? ' · ' + esc(arrivalLabels[b.alternateArrivalWindow] || b.alternateArrivalWindow) : '') +
         '</dd></div>';
     }
-    siteRows += '<div><dt>Confirmed date / window</dt><dd>' + esc(b.confirmedDate || '—') +
-      (confirmedArrival ? ' · ' + esc(confirmedArrival) : ' · ' + esc(arrivalDisplay)) + '</dd></div>';
+    // "Confirmed date / window" restated Date + Arrival window in one row —
+    // as "— · Pending confirmation" before confirmation, and as the same two
+    // values again after it. Both facts already have their own rows above.
     if (b.waterAvailable) {
       siteRows += '<div><dt>Water</dt><dd>' + esc(waterLabels[b.waterAvailable] || b.waterAvailable) + '</dd></div>';
     }
@@ -1914,19 +1923,22 @@
       '<h2 class="card-title">' + esc(b.service || b.package || 'Service') + '</h2>' +
       (packDesc ? '<p class="pack-desc">' + esc(packDesc) + (packDur ? ' · ' + esc(packDur) : '') + '</p>' : '') +
       '<dl class="meta-grid">' +
-      '<div><dt>Status</dt><dd>' + esc(statusLabel) + '</dd></div>' +
-      '<div><dt>Date</dt><dd>' + esc(b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
+      // Status and Service are not repeated here — the kicker and the card title
+      // directly above render the same two values from the same expressions.
+      '<div><dt>Date</dt><dd>' + esc(shownDate) + '</dd></div>' +
       '<div><dt>Arrival window</dt><dd>' + esc(arrivalDisplay) + '</dd></div>' +
       legacyVehicleRows +
-      '<div><dt>Service</dt><dd>' + esc(b.service || b.package || '—') + '</dd></div>' +
       '<div><dt>Location</dt><dd>' + esc(b.address || b.serviceLocation || '—') + '</dd></div>' +
       siteRows +
       (b.assignedTechName ? '<div><dt>Technician</dt><dd>' + esc(b.assignedTechName) + '</dd></div>' : '') +
-      (b.travelFeeAmount ? '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>' : '') +
       offerHtml +
       '</dl>' +
       vehicleSections +
+      // Travel fee belongs next to the total it is part of, not stranded among
+      // the scheduling rows. Every figure here is still server-derived — the
+      // browser shows the parts beside the sum, it never computes the sum.
       '<dl class="meta-grid booking-financial-summary" aria-label="Booking totals">' +
+      (b.travelFeeAmount ? '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>' : '') +
       '<div><dt>Approved total</dt><dd>' + (
         pay.approvedCents != null || pay.approvedTotal != null
           ? fmtCents(approvedCentsFromPayment(pay))
@@ -2307,8 +2319,15 @@
     var date = item.confirmedDate || item.preferredDate || '—';
     var total = item.approvedFinalAmount != null ? item.approvedFinalAmount : item.totalPrice;
     var meta = [esc(item.service || item.package || 'Service'), esc(date)].join(' · ');
-    var tail = [esc(appointmentStatusLabel(item))];
-    if (opts.showTotal && total != null) tail.push(fmtMoney(total));
+    var statusLabel = appointmentStatusLabel(item);
+    var tail = [esc(statusLabel)];
+    // A bare price beside "Cancelled" reads as a charge. This row carries the
+    // approved quote only — it has no settlement data — so it says which figure
+    // it is showing and claims nothing about what was or was not charged.
+    var cancelled = /cancel/i.test(String(statusLabel)) || /cancel/i.test(String(item.jobStatus || ''));
+    if (opts.showTotal && total != null) {
+      tail.push(cancelled ? 'Quoted ' + fmtMoney(total) : fmtMoney(total));
+    }
     var ref = item.appointmentPublicRef || '';
     return '<li class="appt-row' + (focused ? ' appointment-focus' : '') + '">' +
       '<span class="appt-row-main">' + esc(vehicleLine(item)) + '</span>' +
@@ -3957,6 +3976,11 @@
     if (!el || !info) return;
     el.setAttribute('data-state', info.state || 'idle');
     if (info.state === 'updating') {
+      // A background poll announcing itself every few seconds is what makes a
+      // page feel like it is reloading on its own — the customer's print of this
+      // portal even captured the word mid-poll. Only a refresh they triggered
+      // says so; automatic ones keep showing the last-updated time.
+      if (info.reason === 'poll') return;
       el.textContent = 'Updating…';
     } else if (info.state === 'current') {
       el.textContent = info.lastUpdated
@@ -4016,8 +4040,12 @@
   if (global.CD1OperationalRefresh) {
     portalRefresh = global.CD1OperationalRefresh.createRefreshController({
       controllerKey: 'my-garage',
+      // Fast while something is genuinely in flight — a payment settling, a
+      // change request awaiting review (portalHasPendingState decides). A
+      // customer just reading their appointment does not need a request every
+      // four seconds.
       activePollMs: 2500,
-      stablePollMs: 4000,
+      stablePollMs: 20000,
       maxBackoffMs: 60000,
       onRefresh: refreshPortalProjection,
       onUpdated: function () {
