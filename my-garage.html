@@ -116,6 +116,13 @@ ul.clean li{padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}
 .pending-req .req-status{color:var(--blue);font-size:12px;text-transform:uppercase}
 .pending-req .req-detail,.pending-req .req-note{font-size:13px;color:var(--muted);margin-top:4px}
 .pay-card{margin-top:4px}
+.pay-state-note{margin-top:-4px}
+.pay-activity{margin:4px 0 14px;padding:12px;border:1px solid var(--border);border-radius:10px}
+.pay-activity h4{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:8px}
+.pay-activity ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.pay-activity li{display:flex;flex-direction:column;gap:2px}
+.pay-row-main{font-size:14px;font-weight:600}
+.pay-row-sub{font-size:12px;color:var(--muted);line-height:1.45}
 #btn-pay-balance{min-height:44px}
 .receipt-actions{display:flex;flex-wrap:wrap;gap:8px}
 .receipt-actions .btn{min-height:44px}
@@ -271,8 +278,11 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
     </section>
 
     <section class="section" id="history-section" aria-labelledby="hist-h" hidden>
-      <h3 id="hist-h">Past services</h3>
-      <p id="history-empty" class="empty">Completed services will appear here.</p>
+      <!-- "Past services" read as work performed, but this list also holds
+           cancelled appointments — including ones dated in the future, which
+           made the heading contradict its own rows. -->
+      <h3 id="hist-h">Service history</h3>
+      <p id="history-empty" class="empty">Completed and cancelled appointments appear here.</p>
       <ul class="clean" id="history-list"></ul>
     </section>
 

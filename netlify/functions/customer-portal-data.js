@@ -76,6 +76,13 @@ function safePaymentStateFromProjection(booking, money, authority) {
     remainingCents: money.remainingCents,
     approvedCents: money.approvedCents,
     settledCents: money.settledCents,
+    // Gross (pre-refund) settlement is what the receipt endpoint keys eligibility
+    // off. Exposing only the net figure made the portal hide the receipt button
+    // on a fully refunded booking whose receipt the server would still serve.
+    grossSettledCents: money.grossSettledCents != null
+      ? Math.max(0, Math.round(Number(money.grossSettledCents) || 0))
+      : Math.max(0, Math.round(Number(money.settledCents) || 0))
+        + Math.max(0, Math.round(Number(money.refundedCents) || 0)),
     refundedCents: money.refundedCents || 0,
     pendingRefundCents: money.pendingRefundCents || 0,
     refundRequestStatus: money.refundRequestStatus || null,

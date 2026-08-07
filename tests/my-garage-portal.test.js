@@ -224,3 +224,42 @@ test('normal payment is embedded and legacy hosted Checkout is tombstoned', () =
   assert.doesNotMatch(read('netlify/functions/create-setup-intent.js'), /automatic_payment_methods/);
   assert.match(read('netlify/functions/create-payment-intent.js'), /legacy_payment_intent_disabled/);
 });
+
+/* ── Payment legibility ──────────────────────────────────────────────────────
+ *
+ * A card authorized in person creates an in-flight payment attempt but no
+ * settlement, so every figure on the Payments panel legitimately reads $0.00
+ * while the invoice state reads the raw projection word "processing". With no
+ * other signal on screen, that is indistinguishable from "my payment never
+ * registered" — the panel has to say what it knows.
+ */
+
+test('invoice states are shown in customer language, not projection vocabulary', () => {
+  const js = read('assets/my-garage.js');
+  assert.match(js, /var INVOICE_STATE_COPY = \{/);
+  ['paid', 'processing', 'due', 'not_due', 'failed', 'refunded']
+    .forEach((state) => assert.match(js, new RegExp(`\\b${state}: \\{`), `${state} needs customer copy`));
+  // The panel renders the mapped label, never the raw projection state.
+  assert.match(js, /var stateCopy = invoiceStateCopy\(pay, paid\);/);
+  assert.match(js, /<dt>Invoice status<\/dt><dd>' \+ esc\(stateCopy\.label\)/);
+  assert.doesNotMatch(js, /<dt>Invoice status<\/dt><dd>' \+ esc\(paid \? 'paid'/);
+});
+
+test('an authorized-but-unsettled card is stated instead of showing a silent $0.00', () => {
+  const js = read('assets/my-garage.js');
+  assert.match(js, /function paymentActivityHtml\(pay\)/);
+  assert.match(js, /var IN_FLIGHT_ATTEMPT_STATUSES = /);
+  ['creating', 'open', 'requires_action', 'pending_webhook']
+    .forEach((s) => assert.match(js, new RegExp(`'${s}'`), `${s} is an in-flight attempt state`));
+  assert.match(js, /Card authorization in progress/);
+  assert.match(js, /A card attempt was declined/);
+  assert.match(js, /paymentActivityHtml\(pay\) \+/);
+});
+
+test('the portal payload carries gross settlement so receipt gating matches the server', () => {
+  const src = read('netlify/functions/customer-portal-data.js');
+  assert.match(src, /grossSettledCents: money\.grossSettledCents != null/);
+  // Blob-authority projections expose only net settlement; reconstruct gross
+  // there rather than silently under-reporting it.
+  assert.match(src, /Number\(money\.refundedCents\) \|\| 0\)/);
+});

@@ -211,3 +211,48 @@ test('jobs summary exposes remaining balance from server fields', () => {
   assert.match(adminOps, /remainingCents/);
   assert.match(adminOps, /Balance/);
 });
+
+/* ── Poll quietness ──────────────────────────────────────────────────────────
+ *
+ * The board polls continuously so a settling payment or an incoming change
+ * request lands without a manual reload. It used to repaint every tab's markup
+ * on every one of those polls even when the sync came back unchanged, which
+ * reset scroll position, cleared text selection, closed open <select> menus and
+ * re-stamped the settings inputs over whatever the admin was typing. To the
+ * person using it, that is a page reloading itself on a timer.
+ */
+
+test('an unchanged poll does not repaint the board', () => {
+  assert.match(adminOps, /let dataRevision = 0;/);
+  assert.match(adminOps, /let lastRenderedRevision = -1;/);
+  // Only a loader that actually replaced its records advances the revision.
+  assert.match(adminOps, /jobs = incoming;\s*\n\s*dataRevision \+= 1;/);
+  assert.match(adminOps, /changeRequests = data\.requests \|\| \[\];\s*\n\s*dataRevision \+= 1;/);
+  assert.match(adminOps, /const dataChanged = dataRevision !== lastRenderedRevision;/);
+  assert.match(adminOps, /if \(dataChanged \|\| !syncOnly\) \{/);
+});
+
+test('a user-initiated refresh always repaints', () => {
+  // syncOnly covers the automatic reasons only; manual/initial/tab work must
+  // never be gated on a revision bump or a filter change could show stale rows.
+  assert.match(adminOps, /const syncOnly = \['poll','focus','visibility','online','payment_settlement'\]\.includes\(reason\);/);
+  const gate = adminOps.slice(adminOps.indexOf('const dataChanged = dataRevision'));
+  assert.match(gate.slice(0, 600), /lastRenderedRevision = dataRevision;/);
+});
+
+test('settings inputs are never re-stamped by a background poll', () => {
+  assert.match(adminOps, /if \(!syncOnly\) renderSettingsForm\(\);/);
+});
+
+test('a background poll does not flash the sync indicator', () => {
+  const fn = adminOps.slice(adminOps.indexOf('function renderAdminSyncState('));
+  assert.match(fn.slice(0, 700), /if \(info\.reason === 'poll'\) return;/);
+});
+
+test('the idle poll interval is calm and the active interval stays responsive', () => {
+  const cfg = adminOps.slice(adminOps.indexOf("controllerKey: 'admin-ops'"));
+  const active = Number((cfg.match(/activePollMs: (\d+)/) || [])[1]);
+  const stable = Number((cfg.match(/stablePollMs: (\d+)/) || [])[1]);
+  assert.ok(active <= 3000, 'pending work must still refresh quickly');
+  assert.ok(stable >= 15000, `an idle board polled every ${stable}ms reads as self-reloading`);
+});

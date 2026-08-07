@@ -561,6 +561,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let refreshAllSignal = null;
   let jobsSyncVersion = '';
   let requestsSyncVersion = '';
+  // Bumped only when a loader actually replaces its records. The polling refresh
+  // compares it against the last rendered value so an unchanged sync (the common
+  // case, several times a minute) does not rebuild every tab's markup — that
+  // rebuild is what made the page look like it was reloading on a timer, and it
+  // reset scroll position, text selection and open <select> menus with it.
+  let dataRevision = 0;
+  let lastRenderedRevision = -1;
   let opsRefresh = null;
   let sourceAbort = { jobs: null, techs: null, changeRequests: null };
   let pendingOpenBookingId = null;
@@ -734,6 +741,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         return changeRequests;
       }
       changeRequests = data.requests || [];
+      dataRevision += 1;
       if (SS) changeRequestsMeta = SS.applySourceSuccess(changeRequestsMeta, generation).meta;
       else { changeRequestsMeta.hasLoaded = true; changeRequestsMeta.isLoading = false; changeRequestsMeta.error = null; changeRequestsMeta.lastSuccessAt = Date.now(); }
       return changeRequests;
@@ -1030,6 +1038,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         }
       }
       jobs = incoming;
+      dataRevision += 1;
       if (SS) jobsMeta = SS.applySourceSuccess(jobsMeta, generation).meta;
       else { jobsMeta.hasLoaded = true; jobsMeta.isLoading = false; jobsMeta.error = null; jobsMeta.lastSuccessAt = Date.now(); }
       return jobs;
@@ -1274,9 +1283,19 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       ]);
       // Intentionally do NOT assign jobs=[], techs=[], or changeRequests=[] on rejection.
       // Intentionally do NOT call loadTechs() here.
-      renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
-      updateRequestsTabBadge();
-      renderSettingsForm();
+
+      // An automatic poll that came back unchanged has nothing to repaint. User-
+      // initiated refreshes always repaint, so a filter or tab change can never
+      // be left showing stale markup.
+      const dataChanged = dataRevision !== lastRenderedRevision;
+      if (dataChanged || !syncOnly) {
+        lastRenderedRevision = dataRevision;
+        renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
+        updateRequestsTabBadge();
+      }
+      // Settings inputs are only reloaded on a non-poll refresh. Re-stamping them
+      // every few seconds overwrote whatever the admin was in the middle of typing.
+      if (!syncOnly) renderSettingsForm();
       const failures = [];
       if (jobsR.status === 'rejected') {
         failures.push(sourceFailureEntry('jobs', jobsMeta, 'Jobs') || {
@@ -4117,7 +4136,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   function renderAdminSyncState(info) {
     const el = $('#lastUpdated');
     if (!el || !info) return;
-    if (info.state === 'updating') el.textContent = 'Updating…';
+    if (info.state === 'updating') {
+      // A background poll flashing "Updating…" every few seconds is the most
+      // visible symptom of a page that looks like it reloads on its own. Only a
+      // refresh the admin asked for announces itself.
+      if (info.reason === 'poll') return;
+      el.textContent = 'Updating…';
+    }
     else if (info.state === 'current') {
       el.textContent = info.lastUpdated ? 'Last updated '+info.lastUpdated.toLocaleTimeString() : 'Up to date';
     } else if (info.state === 'retrying') {
@@ -4130,8 +4155,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   if (window.CD1OperationalRefresh) {
     opsRefresh = window.CD1OperationalRefresh.createRefreshController({
       controllerKey: 'admin-ops',
+      // Fast only while something is genuinely in flight (a payment settling, an
+      // open change request). An idle board does not need a request every four
+      // seconds — the sync-version short-circuit makes those round trips pure
+      // noise, and they are what the 10-second "keeps refreshing" feel came from.
       activePollMs: 2500,
-      stablePollMs: 4000,
+      stablePollMs: 20000,
       maxBackoffMs: 60000,
       onRefresh: refreshAll,
       onStateChange: renderAdminSyncState,

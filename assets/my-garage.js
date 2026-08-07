@@ -251,7 +251,12 @@
     return b.customerApprovalStatus === 'pending';
   }
 
-  /** Past services are finished and need nothing from the customer. */
+  /**
+   * Service history holds appointments that are closed out and need nothing
+   * from the customer — completed, paid or cancelled. Membership is decided by
+   * status, not by date: an appointment cancelled for next week is finished
+   * business even though its date has not arrived.
+   */
   function appointmentIsPast(b) {
     if (!b) return false;
     if (appointmentNeedsAttention(b)) return false;
@@ -1592,6 +1597,83 @@
     } catch (e) { /* ignore */ }
   }
 
+  /**
+   * The projection's payment states are engineering vocabulary — "processing",
+   * "not_due", "due". Customers read them literally and cannot tell whether
+   * "processing" means their card was charged. Every state gets plain wording
+   * plus one sentence saying what happens next.
+   */
+  var INVOICE_STATE_COPY = {
+    paid: { label: 'Paid in full', note: '' },
+    processing: {
+      label: 'Payment processing',
+      note: 'Your card was authorized. The charge settles within a few minutes and the amount paid updates here automatically — no action needed.',
+    },
+    due: { label: 'Balance due', note: '' },
+    not_due: { label: 'No balance due yet', note: '' },
+    failed: {
+      label: 'Payment did not go through',
+      note: 'Your card was not charged. You can try again below or call/text us.',
+    },
+    refunded: { label: 'Refunded', note: '' },
+  };
+
+  function invoiceStateCopy(pay, paid) {
+    if (paid) return INVOICE_STATE_COPY.paid;
+    var key = String((pay && pay.state) || '').toLowerCase();
+    return INVOICE_STATE_COPY[key] || { label: key ? key.replace(/_/g, ' ') : '—', note: '' };
+  }
+
+  function fmtDateOnly(value) {
+    if (!value) return '';
+    var d = new Date(value);
+    if (isNaN(d.getTime())) return String(value).slice(0, 10);
+    return d.toISOString().slice(0, 10);
+  }
+
+  /**
+   * A card authorized in person leaves an in-flight attempt on the booking but
+   * no settlement, so every figure on this panel legitimately reads $0.00. With
+   * no trail, that looks to the customer like the payment never happened. This
+   * states the attempt explicitly instead of leaving a silent gap.
+   */
+  var IN_FLIGHT_ATTEMPT_STATUSES = ['creating', 'open', 'requires_action', 'pending_webhook', 'processing'];
+
+  function paymentActivityHtml(pay) {
+    var rows = [];
+    var settled = settledCentsFromPayment(pay);
+    if (settled > 0) {
+      var ref = pay.stripeReference || pay.paymentIntentIdPrefix || '';
+      rows.push(
+        '<li><span class="pay-row-main">' + fmtCents(settled) + ' received</span>' +
+        '<span class="pay-row-sub">' +
+        (pay.paidAt ? esc(fmtDateOnly(pay.paidAt)) + ' · ' : '') +
+        'Card' + (ref ? ' · ' + esc(String(ref).slice(0, 12)) + '…' : '') +
+        '</span></li>'
+      );
+    }
+    var attempt = String(pay.paymentAttemptStatus || '').toLowerCase();
+    if (attempt && IN_FLIGHT_ATTEMPT_STATUSES.indexOf(attempt) >= 0) {
+      rows.push(
+        '<li><span class="pay-row-main">Card authorization in progress</span>' +
+        '<span class="pay-row-sub">Confirmed by your bank. It appears above as received once it settles.</span></li>'
+      );
+    } else if (attempt === 'failed') {
+      rows.push(
+        '<li><span class="pay-row-main">A card attempt was declined</span>' +
+        '<span class="pay-row-sub">No charge was made. Try again or use a different card.</span></li>'
+      );
+    }
+    if (Number(pay.refundedCents || 0) > 0) {
+      rows.push(
+        '<li><span class="pay-row-main">' + fmtCents(pay.refundedCents) + ' refunded</span>' +
+        '<span class="pay-row-sub">Returned to your original payment method.</span></li>'
+      );
+    }
+    if (!rows.length) return '';
+    return '<div class="pay-activity"><h4>Payment activity</h4><ul>' + rows.join('') + '</ul></div>';
+  }
+
   /** Single source of truth for what the one payment CTA says. */
   function payCtaLabel(can, due) {
     if (embeddedPay && embeddedPay.starting) return 'Processing payment…';
@@ -1603,10 +1685,15 @@
     var panel = $('payments-panel');
     var empty = $('payments-empty');
     if (!panel) return;
+    // Dollars — payCtaLabel formats this one with fmtMoney.
     var due = Number(pay.amountDueApproved || 0);
     var can = !!(pay.canPay || pay.canCreatePayLink);
     var paid = invoiceIsPaid(pay);
-    if (!can && !(due > 0) && !(Number(pay.approvedTotal || 0) > 0) && !paid) {
+    // Decide visibility from the same accessors the panel body renders from.
+    // Testing only the dollars fields meant a projection carrying cents alone
+    // blanked the whole panel instead of showing the invoice.
+    if (!can && !(remainingCentsFromPayment(pay) > 0)
+      && !(approvedCentsFromPayment(pay) > 0) && !paid) {
       panel.innerHTML = '';
       if (empty) show(empty, true);
       return;
@@ -1615,14 +1702,17 @@
     var approvedLabel = fmtCents(approvedCentsFromPayment(pay));
     var paidLabel = fmtCents(settledCentsFromPayment(pay));
     var dueLabel = fmtCents(remainingCentsFromPayment(pay));
+    var stateCopy = invoiceStateCopy(pay, paid);
     panel.innerHTML =
       '<div class="card pay-card">' +
       '<dl class="meta-grid">' +
-      '<div><dt>Invoice status</dt><dd>' + esc(paid ? 'paid' : (pay.state || '—')) + '</dd></div>' +
+      '<div><dt>Invoice status</dt><dd>' + esc(stateCopy.label) + '</dd></div>' +
       '<div><dt>Total approved</dt><dd>' + approvedLabel + '</dd></div>' +
       '<div><dt>Amount paid</dt><dd>' + paidLabel + '</dd></div>' +
       '<div><dt>Amount due</dt><dd>' + dueLabel + '</dd></div>' +
       '</dl>' +
+      (stateCopy.note ? '<p class="hint pay-state-note">' + esc(stateCopy.note) + '</p>' : '') +
+      paymentActivityHtml(pay) +
       (can
         ? '<button type="button" class="btn primary" id="btn-pay-balance">' +
           esc(payCtaLabel(true, due)) + '</button>' +
@@ -1654,8 +1744,12 @@
   function receiptActionsHtml(pay) {
     var b = state.booking;
     if (!b || !b.id) return '';
-    var settled = settledCentsFromPayment(pay);
-    if (!(settled > 0)) return '';
+    // Mirror the server's eligibility input exactly: gross (pre-refund)
+    // settlement, so a refunded booking still shows the receipt the server has.
+    var gross = pay && pay.grossSettledCents != null
+      ? Math.max(0, Math.round(Number(pay.grossSettledCents) || 0))
+      : settledCentsFromPayment(pay);
+    if (!(gross > 0)) return '';
 
     var remaining = remainingCentsFromPayment(pay);
     var links = '<a class="btn ghost" data-receipt-link href="receipt.html?bookingId=' +
@@ -3603,6 +3697,25 @@
         openActionModal(btn.getAttribute('data-action'), btn);
       });
     }
+    // Receipt links navigate away from the portal, so the credentials this
+    // session was authorized with have to travel with them. An account cookie
+    // does that on its own; a Booking ID + phone lookup or an email action link
+    // does not, and without this handoff receipt.html could only fall back to
+    // phone auth it had no phone for.
+    document.addEventListener('click', function (e) {
+      var link = e.target.closest('[data-receipt-link]');
+      if (!link) return;
+      var id = state.verifyBookingId || (state.booking && state.booking.id) || '';
+      var phone = normalizePhoneInput(
+        state.verifyPhone || (state.booking && state.booking.phone) || ''
+      );
+      if (!id || phone.length < 10) return;
+      try {
+        sessionStorage.setItem('cd1_garage_id', String(id).toUpperCase());
+        sessionStorage.setItem('cd1_garage_phone', phone);
+      } catch (err) { /* receipt page falls back to the account session */ }
+    });
+
     // Per-vehicle package accordion + vehicle-scoped actions (hero / upcoming card)
     document.addEventListener('click', function (e) {
       var toggle = e.target.closest('.package-details-toggle');

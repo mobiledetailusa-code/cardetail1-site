@@ -42,6 +42,7 @@ td.amt,th.amt{text-align:right;white-space:nowrap;font-variant-numeric:tabular-n
 .totals .grand td{font-size:17px;font-weight:800;border-top:1px solid var(--border);padding-top:10px}
 .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
 .msg{padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--bg2)}
+.msg-hint{display:inline-block;margin-top:6px;color:var(--muted);font-size:14px}
 .tblwrap{overflow-x:auto}
 @media(max-width:520px){.wrap{padding:16px 12px 40px}.doc{padding:18px}.brand .num{text-align:left}.actions .btn{flex:1 1 100%;justify-content:center}}
 @media print{
@@ -62,7 +63,9 @@ td.amt,th.amt{text-align:right;white-space:nowrap;font-variant-numeric:tabular-n
 <body>
 <div class="wrap">
   <div class="actions no-print">
-    <button type="button" class="btn primary" id="btn-print">Print / Save as PDF</button>
+    <!-- Print stays hidden until a receipt actually renders, so a failed load
+         never offers to "Save as PDF" what is really an error message. -->
+    <button type="button" class="btn primary" id="btn-print" hidden>Print / Save as PDF</button>
     <a class="btn" href="my-garage.html" id="btn-back">Back to My Garage</a>
   </div>
   <main id="receipt-root" aria-live="polite">
