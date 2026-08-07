@@ -15,6 +15,19 @@ describe('portal access for pending submitted bookings', () => {
     hasSubmissionMarkers,
   } = require('../netlify/lib/booking-visibility');
 
+  it('status submitted is a submission marker (Postgres/admin path)', () => {
+    const submitted = {
+      id: 'CD1-SUB',
+      isDraft: true,
+      kind: 'draft',
+      status: 'submitted',
+      phone: '5513132956',
+    };
+    assert.equal(hasSubmissionMarkers(submitted), true);
+    assert.equal(isDraftRecord(submitted), false);
+    assert.equal(isVisibleSubmittedBooking(submitted), true);
+  });
+
   it('true checkout drafts stay hidden', () => {
     const draft = {
       id: 'CD1-DRAFT',

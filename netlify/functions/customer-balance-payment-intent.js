@@ -132,17 +132,20 @@ exports.handler = async (event) => {
     expectedQuoteVersion,
   });
   if (!prepared.ok) {
+    const prepareMessages = {
+      stale_quote_version: 'Your quote was updated. Refresh and try again.',
+      already_paid: 'This invoice is already paid.',
+      zero_balance: 'No balance is due for this appointment.',
+      payment_prepare_failed: 'Payment is temporarily unavailable. Please retry.',
+      missing_client_secret: 'Payment is temporarily unavailable. Please retry.',
+      postgres_payment_disabled: 'Payment is temporarily unavailable. Please retry.',
+      not_found: 'Payment is not available for this appointment.',
+    };
     return json(prepared.statusCode || 200, {
       ok: false,
       error: prepared.error,
       projection: prepared.projection || null,
-      message: prepared.error === 'stale_quote_version'
-        ? 'Your quote was updated. Refresh and try again.'
-        : prepared.error === 'already_paid'
-          ? 'This invoice is already paid.'
-          : prepared.error === 'payment_prepare_failed'
-            ? 'Payment is temporarily unavailable. Please retry.'
-          : 'Payment is not available yet.',
+      message: prepareMessages[prepared.error] || 'Payment is not available yet.',
     });
   }
 

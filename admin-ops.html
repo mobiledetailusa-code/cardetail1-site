@@ -561,6 +561,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let refreshAllSignal = null;
   let jobsSyncVersion = '';
   let requestsSyncVersion = '';
+  let lastJobsNotModified = false;
+  let lastRequestsNotModified = false;
   let opsRefresh = null;
   let sourceAbort = { jobs: null, techs: null, changeRequests: null };
   let pendingOpenBookingId = null;
@@ -729,10 +731,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (SS && !SS.shouldApplyGeneration(changeRequestsMeta, generation)) return changeRequests;
       if (data.syncVersion) requestsSyncVersion = data.syncVersion;
       if (data.notModified === true) {
+        lastRequestsNotModified = true;
         if (SS) changeRequestsMeta = SS.applySourceSuccess(changeRequestsMeta, generation).meta;
         else { changeRequestsMeta.hasLoaded = true; changeRequestsMeta.isLoading = false; changeRequestsMeta.error = null; changeRequestsMeta.lastSuccessAt = Date.now(); }
         return changeRequests;
       }
+      lastRequestsNotModified = false;
       changeRequests = data.requests || [];
       if (SS) changeRequestsMeta = SS.applySourceSuccess(changeRequestsMeta, generation).meta;
       else { changeRequestsMeta.hasLoaded = true; changeRequestsMeta.isLoading = false; changeRequestsMeta.error = null; changeRequestsMeta.lastSuccessAt = Date.now(); }
@@ -989,10 +993,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (SS && !SS.shouldApplyGeneration(jobsMeta, generation)) return jobs;
       if (data.syncVersion) jobsSyncVersion = data.syncVersion;
       if (data.notModified === true) {
+        lastJobsNotModified = true;
         if (SS) jobsMeta = SS.applySourceSuccess(jobsMeta, generation).meta;
         else { jobsMeta.hasLoaded = true; jobsMeta.isLoading = false; jobsMeta.error = null; jobsMeta.lastSuccessAt = Date.now(); }
         return jobs;
       }
+      lastJobsNotModified = false;
       const incoming = Array.isArray(data.jobs) ? data.jobs : [];
       // Poll/list returns lean rows. Preserve in-memory full detail for the open job.
       if (expandedJobId && activeJob && activeJob.id === expandedJobId && activeJob._projection === 'admin_full') {
@@ -1246,8 +1252,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   function adminSyncPending() {
     const pendingJob = jobs.some((j) => {
       const pay = String(j && (j.paymentAttemptStatus || j.paymentWorkflowStatus) || '').toLowerCase();
+      // awaiting_customer_payment is a steady unpaid state — do not force 2.5s
+      // polling forever for every open balance. Boost only while a PI is live
+      // or a webhook settle is in flight.
       return pendingRequestCountOf(j) > 0
-        || ['creating','open','processing','pending_webhook','awaiting_customer_payment'].includes(pay);
+        || ['creating','open','processing','pending_webhook'].includes(pay);
     });
     return pendingJob || mergeRequestsWithJobs(changeRequests).some(isOpenChangeRequest);
   }
@@ -1267,6 +1276,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const run = (async () => {
       // Jobs refresh must NOT pull the full technician roster (lazy-loaded on Assign / Techs tab).
       // Preserve any session-cached techs across jobs/requests refresh.
+      lastJobsNotModified = false;
+      lastRequestsNotModified = false;
       const [jobsR, settingsR, changeR] = await Promise.allSettled([
         loadJobs(null, { signal: requestSignal }),
         syncOnly ? Promise.resolve(platformSettings) : loadSettings(),
@@ -1274,9 +1285,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       ]);
       // Intentionally do NOT assign jobs=[], techs=[], or changeRequests=[] on rejection.
       // Intentionally do NOT call loadTechs() here.
-      renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
-      updateRequestsTabBadge();
-      renderSettingsForm();
+      const bothUnchanged = syncOnly && lastJobsNotModified && lastRequestsNotModified
+        && jobsR.status === 'fulfilled' && changeR.status === 'fulfilled';
+      if (!bothUnchanged) {
+        renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
+        updateRequestsTabBadge();
+        renderSettingsForm();
+      }
       const failures = [];
       if (jobsR.status === 'rejected') {
         failures.push(sourceFailureEntry('jobs', jobsMeta, 'Jobs') || {
@@ -1317,6 +1332,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         status: syncFailure && (syncFailure.status || syncFailure.statusCode || 0),
         retryAfterMs: syncFailure && syncFailure.retryAfterMs,
         pending: adminSyncPending(),
+        notModified: bothUnchanged,
+        changed: !bothUnchanged,
       };
     })();
     refreshAllInflight = run;
@@ -4131,7 +4148,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     opsRefresh = window.CD1OperationalRefresh.createRefreshController({
       controllerKey: 'admin-ops',
       activePollMs: 2500,
-      stablePollMs: 4000,
+      stablePollMs: 15000,
       maxBackoffMs: 60000,
       onRefresh: refreshAll,
       onStateChange: renderAdminSyncState,

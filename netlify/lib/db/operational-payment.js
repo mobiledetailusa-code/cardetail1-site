@@ -12,6 +12,7 @@ const { ensureBookingFinancial } = require('./ensure-booking-financial');
 const authority = require('./payment-authority-service');
 const { getBookingRecord, commitBooking } = require('../booking-repository');
 const { buildNextAggregate, normalizeAggregate } = require('../booking-aggregate');
+const { isDraftRecord, portalReleasePatch } = require('../booking-visibility');
 
 function postgresPaymentEnabled(env = process.env) {
   if (env.CD1_POSTGRES_PAYMENT === '0' || env.CD1_POSTGRES_PAYMENT === 'false') return false;
@@ -112,6 +113,12 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
   const { ok: normOk, aggregate } = normalizeAggregate(rec.booking);
   const base = normOk ? aggregate : rec.booking;
   const patch = buildPaymentCompatibilityPatch(base, projection);
+  // Card settlement is proof the appointment is real — clear sticky draft flags
+  // so My Garage / receipt visibility catch up with the Postgres ledger.
+  const needsPortalRelease = projection.paymentStatus === 'paid' && isDraftRecord(base);
+  if (needsPortalRelease) {
+    Object.assign(patch, portalReleasePatch());
+  }
   const ledger = patch.ledger;
 
   const sameJsonValue = (left, right) => JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
@@ -124,7 +131,7 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
       && String(base.ledger?.currency || 'usd').toLowerCase() === String(ledger.currency || 'usd').toLowerCase()
     );
   });
-  if (alreadySynchronized) {
+  if (alreadySynchronized && !needsPortalRelease) {
     return {
       ok: true,
       noop: true,
@@ -357,6 +364,7 @@ async function applyOnSitePaymentCompatibility({
       };
   const next = buildNextAggregate(base, {
     ...paymentPatch,
+    ...(isDraftRecord(base) ? portalReleasePatch(now) : {}),
     updatedAt: now,
   });
 
@@ -383,7 +391,11 @@ async function applyOnSitePaymentCompatibility({
           cardOnSiteAmount: amountDollars,
           cardOnSiteReference: reference || again.booking.cardOnSiteReference || null,
         };
-    const next2 = buildNextAggregate(again.booking, { ...retryPatch, updatedAt: now });
+    const next2 = buildNextAggregate(again.booking, {
+      ...retryPatch,
+      ...(isDraftRecord(again.booking) ? portalReleasePatch(now) : {}),
+      updatedAt: now,
+    });
     return commitBooking({
       bookingId,
       expectedBookingVersion: Math.round(Number(again.booking.bookingVersion) || 0),
