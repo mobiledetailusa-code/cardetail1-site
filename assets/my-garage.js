@@ -286,27 +286,38 @@
     return 'View Details';
   }
 
-  function applyAppointmentFocus(data) {
+  function applyAppointmentFocus(data, opts) {
     if (!data) return;
+    opts = opts || {};
     state.focusedAppointment = data.focusedAppointment || null;
     if (data.upcoming) state.booking = data.upcoming;
     if (data.focusError === 'invalid_focus') {
-      // Consume opaque focus param after a safe miss — do not keep a bad ref.
-      stripAppointmentFocusFromUrl();
-      state.appointmentFocusRef = null;
-      state.focusedAppointment = null;
-      showToast('That appointment link could not be opened.', true);
+      // A focus ref resolves through a Blob lookup that can miss transiently.
+      // Dropping the focus on a background poll because of one miss moved the
+      // customer to a different appointment mid-read — and told them a link had
+      // failed when they had not clicked anything. Only a focus the customer
+      // just asked for is allowed to fail loudly.
+      if (opts.userInitiated) {
+        stripAppointmentFocusFromUrl();
+        state.appointmentFocusRef = null;
+        state.focusedAppointment = null;
+        showToast('That appointment link could not be opened.', true);
+      }
       return;
     }
-    if (state.focusedAppointment) {
-      // Strip from the address bar only. Keep the opaque ref in memory so soft
-      // reloads / polling cannot replace this appointment with selectUpcoming().
-      var retainedRef = state.focusedAppointment.appointmentPublicRef
-        || state.appointmentFocusRef
-        || null;
-      if (retainedRef) state.appointmentFocusRef = retainedRef;
-      stripAppointmentFocusFromUrl();
-    }
+    // Strip from the address bar only. Keep the opaque ref in memory so soft
+    // reloads / polling cannot replace this appointment with selectUpcoming().
+    var retainedRef = (state.focusedAppointment && state.focusedAppointment.appointmentPublicRef)
+      || state.appointmentFocusRef
+      // Nothing was explicitly focused, so pin whatever is on screen. Otherwise
+      // every poll re-runs selectUpcoming(), and any change to the shown booking
+      // — settling its payment moves it from actionable to terminal — silently
+      // swapped the customer onto a different appointment than the one they
+      // were looking at, including the one they had just paid for.
+      || (data.upcoming && data.upcoming.appointmentPublicRef)
+      || null;
+    if (retainedRef) state.appointmentFocusRef = retainedRef;
+    if (state.focusedAppointment) stripAppointmentFocusFromUrl();
   }
 
   function highlightFocusedAppointment() {
@@ -1222,7 +1233,11 @@
     state.session = true;
     state.bookings = r.data.bookings || [];
     state.booking = r.data.upcoming || state.bookings[0] || null;
-    applyAppointmentFocus(r.data);
+    // Only a load the customer triggered (opening an appointment link, clicking
+    // View Details) may surface a focus miss; a poll must stay silent. The poll
+    // path re-sends the retained ref too, so this cannot be inferred from the
+    // ref's presence — the caller has to say so.
+    applyAppointmentFocus(r.data, { userInitiated: opts.userInitiated === true });
     applyPortalPayload(r.data);
     renderDashboard(r.data);
     highlightFocusedAppointment();
@@ -1275,6 +1290,9 @@
         generation: generation,
         managePhase: false,
         appointmentFocusRef: state.appointmentFocusRef || null,
+        // Follows an explicit navigation, so an unresolvable focus ref should
+        // tell the customer instead of quietly showing a different appointment.
+        userInitiated: true,
       });
       if (generation !== portalHydration.generation) return false;
       if (ok) {
@@ -1403,6 +1421,9 @@
         generation: generation,
         managePhase: false,
         appointmentFocusRef: state.appointmentFocusRef || null,
+        // Follows an explicit navigation, so an unresolvable focus ref should
+        // tell the customer instead of quietly showing a different appointment.
+        userInitiated: true,
       });
       if (generation !== portalHydration.generation) return false;
       if (ok) {
@@ -1543,6 +1564,14 @@
     var due = Number(p.amountDueApproved || 0);
     var paid = Number(p.amountPaid || 0);
     return paid > 0 && !(due > 0) && !(p.canPay || p.canCreatePayLink);
+  }
+
+  function showLegacyVehicleActions(on) {
+    var root = $('customer-actions');
+    if (!root) return;
+    root.querySelectorAll('[data-legacy-vehicle-action]').forEach(function (btn) {
+      btn.hidden = !on;
+    });
   }
 
   function syncMoneyActionButtons(pay) {
@@ -1845,6 +1874,10 @@
       ? ''
       : '<div><dt>Vehicle</dt><dd>' + esc(vehicleLine(b)) + '</dd></div>' +
         '<div><dt>Add-ons</dt><dd>' + esc(addonLines(b)) + '</dd></div>';
+    // Vehicle-scoped actions normally live on the vehicle cards. A legacy
+    // booking with no per-vehicle projection renders none, so the appointment
+    // -level copies are revealed to keep those actions reachable.
+    showLegacyVehicleActions(!vehicleSections);
 
     var statusLabel = appointmentStatusLabel(b);
     var arrivalLabels = {
@@ -2359,7 +2392,7 @@
   async function selectAppointmentByRef(ref) {
     if (!ref || state.scope !== 'account') return;
     state.appointmentFocusRef = ref;
-    var ok = await loadAccount({ appointmentFocusRef: ref, managePhase: false });
+    var ok = await loadAccount({ appointmentFocusRef: ref, managePhase: false, userInitiated: true });
     if (!ok) showToast('Could not open that appointment.', true);
   }
 

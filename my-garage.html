@@ -249,12 +249,23 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
     <section class="section" aria-labelledby="upcoming-h">
       <h3 id="upcoming-h">Current appointment</h3>
       <div id="upcoming-panel"></div>
+      <!-- Per-vehicle actions (change package, manage add-ons, edit/replace,
+           request removal) live on each vehicle card, where they already know
+           which vehicle they apply to. They were duplicated here under different
+           names firing the same data-action, and the appointment-level
+           "Replace Vehicle" could not even complete on a multi-vehicle booking —
+           it only told the customer to go press the vehicle button instead.
+
+           The copies below are kept for legacy bookings that carry no per-vehicle
+           projection and therefore render no vehicle cards. renderDashboard
+           reveals them only in that case, so they are a fallback, never a
+           second way to do the same thing. -->
       <div class="actions is-secondary" id="customer-actions">
         <button type="button" class="btn ghost" data-action="reschedule_request">Request New Date</button>
-        <button type="button" class="btn ghost" data-action="addon_request">Modify Service / Add-ons</button>
-        <button type="button" class="btn ghost" data-action="package_change_request">Change Package</button>
+        <button type="button" class="btn ghost" data-action="addon_request" data-legacy-vehicle-action hidden>Modify Service / Add-ons</button>
+        <button type="button" class="btn ghost" data-action="package_change_request" data-legacy-vehicle-action hidden>Change Package</button>
         <button type="button" class="btn ghost" data-action="vehicle_add_request">Add Vehicle</button>
-        <button type="button" class="btn ghost" data-action="vehicle_replace_request">Replace Vehicle</button>
+        <button type="button" class="btn ghost" data-action="vehicle_replace_request" data-legacy-vehicle-action hidden>Replace Vehicle</button>
         <button type="button" class="btn ghost" data-action="address_update">Update Address</button>
         <button type="button" class="btn ghost" data-action="cancellation_request">Cancel Appointment</button>
         <button type="button" class="btn ghost" data-action="approve_completion" id="btn-approve-completion" hidden>Approve Completion</button>

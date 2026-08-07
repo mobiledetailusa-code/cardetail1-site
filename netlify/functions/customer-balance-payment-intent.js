@@ -22,6 +22,35 @@ const CORS = {
 };
 const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.stringify(body) });
 
+/**
+ * Every failure to prepare a payment used to fall through to "Payment is not
+ * available yet." That sentence tells the customer to wait, which is wrong for
+ * most of the conditions that reach it: a zero balance means there is nothing
+ * to pay, and an unreachable ledger or Stripe means our side is down and a
+ * retry is the right move. Each cause now says what it actually is, and says
+ * what the customer should do.
+ */
+const PREPARATION_MESSAGES = Object.freeze({
+  already_paid: 'This invoice is already paid.',
+  zero_balance: 'There is no balance left to pay on this appointment.',
+  stale_quote_version: 'Your quote was updated. Refresh and try again.',
+  not_found: 'We could not find this appointment’s invoice.',
+  // Our infrastructure, not the customer's problem — say so and invite a retry.
+  postgres_payment_disabled: 'Card payment is temporarily unavailable. Please try again shortly, or call/text 551-313-2956.',
+  payment_prepare_failed: 'Payment is temporarily unavailable. Please retry.',
+  projection_unavailable: 'Payment is temporarily unavailable. Please retry.',
+  missing_client_secret: 'Payment could not be started. Please retry.',
+  stripe_network_error: 'We could not reach the payment processor. Please try again shortly.',
+  stripe_payment_intent_invariant_failed: 'Payment could not be started. Please call/text 551-313-2956.',
+  invalid_stripe_customer: 'Payment could not be started for this account. Please call/text 551-313-2956.',
+});
+
+function preparationMessage(error) {
+  return PREPARATION_MESSAGES[String(error || '')]
+    // An unmapped cause is still ours, not a "come back later".
+    || 'Payment could not be started right now. Please retry, or call/text 551-313-2956.';
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
@@ -136,13 +165,7 @@ exports.handler = async (event) => {
       ok: false,
       error: prepared.error,
       projection: prepared.projection || null,
-      message: prepared.error === 'stale_quote_version'
-        ? 'Your quote was updated. Refresh and try again.'
-        : prepared.error === 'already_paid'
-          ? 'This invoice is already paid.'
-          : prepared.error === 'payment_prepare_failed'
-            ? 'Payment is temporarily unavailable. Please retry.'
-          : 'Payment is not available yet.',
+      message: preparationMessage(prepared.error),
     });
   }
 
