@@ -140,6 +140,8 @@ exports.handler = async (event) => {
         ? 'Your quote was updated. Refresh and try again.'
         : prepared.error === 'already_paid'
           ? 'This invoice is already paid.'
+          : prepared.error === 'payment_prepare_failed'
+            ? 'Payment is temporarily unavailable. Please retry.'
           : 'Payment is not available yet.',
     });
   }

@@ -190,6 +190,28 @@ async function prepareEmbeddedPayment({
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
+  try {
+    return await prepareEmbeddedPaymentInner({
+      booking,
+      expectedQuoteVersion,
+      env,
+      fetchImpl,
+    });
+  } catch (e) {
+    console.warn('[operational-payment] prepare_embedded_failed', {
+      bookingIdPrefix: String(booking?.id || booking?.bookingId || '').slice(0, 12),
+      error: String(e && e.message || e).slice(0, 200),
+    });
+    return { ok: false, error: 'payment_prepare_failed', statusCode: 503 };
+  }
+}
+
+async function prepareEmbeddedPaymentInner({
+  booking,
+  expectedQuoteVersion = null,
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+}) {
   if (!postgresPaymentEnabled(env)) {
     return { ok: false, error: 'postgres_payment_disabled', statusCode: 503 };
   }

@@ -78,6 +78,11 @@ async function reserveAndCreatePaymentIntent({
   // short critical section across processes with a transaction-scoped advisory
   // lock. This also preserves timeout recovery: a later caller retries Stripe
   // with the exact same Idempotency-Key after the first transaction commits.
+  // Prisma Accelerate / Prisma Postgres free+starter reject interactive
+  // transaction timeouts above 15s (invalid parameter → payment never starts).
+  // Keep this under that ceiling; Stripe work inside the lock must stay short.
+  const ACCELERATE_SAFE_TX_TIMEOUT_MS = 14_000;
+  const ACCELERATE_SAFE_TX_MAX_WAIT_MS = 5_000;
   return prisma.$transaction(async (tx) => {
     await tx.$queryRawUnsafe(
       'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))::text AS lock_acquired',
@@ -92,7 +97,7 @@ async function reserveAndCreatePaymentIntent({
       fetchImpl,
       prisma: tx,
     });
-  }, { maxWait: 10_000, timeout: 30_000 });
+  }, { maxWait: ACCELERATE_SAFE_TX_MAX_WAIT_MS, timeout: ACCELERATE_SAFE_TX_TIMEOUT_MS });
 }
 
 async function reserveAndCreatePaymentIntentLocked({

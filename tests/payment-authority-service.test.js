@@ -759,6 +759,16 @@ describe('Phase 3 webhook-inbox signature verification', () => {
     assert.equal(verifyStripeSignature(rawBody, `t=${t},v1=${v1}`, secret), false);
   });
 
+  test('reserveAndCreatePaymentIntent uses Accelerate-safe interactive transaction timeouts', () => {
+    const src = require('node:fs').readFileSync(
+      require('node:path').join(__dirname, '../netlify/lib/db/payment-authority-service.js'),
+      'utf8'
+    );
+    assert.match(src, /ACCELERATE_SAFE_TX_TIMEOUT_MS\s*=\s*14_000/);
+    assert.match(src, /ACCELERATE_SAFE_TX_MAX_WAIT_MS\s*=\s*5_000/);
+    assert.doesNotMatch(src, /timeout:\s*30_000/);
+  });
+
   test('missing signature header is rejected', () => {
     const { verifyStripeSignature } = require('../netlify/lib/db/webhook-inbox');
     assert.equal(verifyStripeSignature('{}', null, 'whsec_test'), false);
