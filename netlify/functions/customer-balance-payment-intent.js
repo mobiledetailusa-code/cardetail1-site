@@ -76,6 +76,9 @@ exports.handler = async (event) => {
       error: 'version_conflict',
       expectedBookingVersion: Number.isFinite(expectedBookingVersion) ? expectedBookingVersion : null,
       actualBookingVersion,
+      // Without this the portal falls through to "Payment is not available yet",
+      // which reads as a hard block for what is a recoverable stale snapshot.
+      message: 'Your appointment was updated. Refresh this page and try again.',
     });
   }
 
@@ -98,6 +101,7 @@ exports.handler = async (event) => {
       expectedQuoteVersion: Number.isFinite(expectedQuoteVersion) ? expectedQuoteVersion : null,
       actualQuoteVersion: projection.quoteVersion,
       projection,
+      message: 'Your quote was updated. Refresh and try again.',
     });
   }
   const policy = canPayBalance({

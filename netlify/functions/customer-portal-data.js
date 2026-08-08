@@ -66,7 +66,12 @@ function portalCatalogForClient() {
 function safePaymentStateFromProjection(booking, money, authority) {
   const due = money.remainingCents / 100;
   const payAllowed = canPayBalance(booking);
-  const canPay = !!(payAllowed.ok && money.paymentStatus !== 'paid' && money.remainingCents > 0);
+  // Postgres is the money authority the payment endpoint validates against.
+  // When it is enabled but unreachable, the Blob mirror's quoteVersion is not
+  // that authority — offering it as payable produces a permanent 409, so the
+  // balance is reported as temporarily unpayable instead.
+  const degraded = authority === 'blob_degraded';
+  const canPay = !!(payAllowed.ok && money.paymentStatus !== 'paid' && money.remainingCents > 0 && !degraded);
   const piRef = money.stripeReference || money.paymentIntentIdPrefix || null;
   return {
     state: money.paymentStatus,
@@ -90,32 +95,38 @@ function safePaymentStateFromProjection(booking, money, authority) {
     canPay,
     canCreatePayLink: canPay,
     embeddedPayAvailable: authority === 'postgres' && canPay,
-    authority,
+    paymentAuthorityDegraded: degraded,
+    authority: degraded ? 'blob' : authority,
     stripeCheckoutSessionIdPrefix: money.stripeCheckoutSessionIdPrefix || null,
     paymentIntentIdPrefix: piRef && String(piRef).startsWith('pi_') ? String(piRef).slice(0, 12) : (money.paymentIntentIdPrefix || null),
   };
 }
 
-function safePaymentState(booking) {
+function safePaymentState(booking, { degraded = false } = {}) {
   const money = financialProjection(booking);
-  return safePaymentStateFromProjection(booking, money, 'blob');
+  return safePaymentStateFromProjection(booking, money, degraded ? 'blob_degraded' : 'blob');
 }
 
 async function safePaymentStateAsync(booking) {
+  let degraded = false;
   try {
     if (postgresPaymentEnabled()) {
       const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: false });
       if (shared.ok && shared.projection) {
         return safePaymentStateFromProjection(booking, shared.projection, 'postgres');
       }
+      // Blob quoteVersion is a mirror, not the authority the PaymentIntent
+      // endpoint checks — do not present it as a payable quote.
+      degraded = true;
     }
   } catch (e) {
+    degraded = postgresPaymentEnabled();
     console.warn('[customer-portal-data] payment_projection_fallback', {
       bookingIdPrefix: String(booking?.id || booking?.bookingId || '').slice(0, 12),
       error: String(e && e.message || e).slice(0, 160),
     });
   }
-  return safePaymentState(booking);
+  return safePaymentState(booking, { degraded });
 }
 
 function isVisibleCustomerBooking(b) {
@@ -175,6 +186,28 @@ function isActionableAppointment(b) {
   return b.customerApprovalStatus === 'pending';
 }
 
+/** Open balance / payment pending — prefer as hero over an older settled-paid Confirmed. */
+function hasOpenPayableBalance(b) {
+  const remaining = Number(b.remainingCents != null ? b.remainingCents : Math.round(Number(b.amountDueApproved || 0) * 100));
+  if (Number.isFinite(remaining) && remaining > 0) return true;
+  const pwf = String(b.paymentWorkflowStatus || '').toLowerCase();
+  return pwf === 'due' || pwf === 'awaiting_customer_payment' || pwf === 'pending_webhook';
+}
+
+/**
+ * Settled paid invoice stays in the list but must not steal the hero from a
+ * sibling that still needs payment or action.
+ */
+function isSettledPaidHero(b) {
+  if (isActionableAppointment(b)) return false;
+  if (hasOpenPayableBalance(b)) return false;
+  const pwf = String(b.paymentWorkflowStatus || '').toLowerCase();
+  if (pwf === 'payment_succeeded' || pwf === 'cash_paid' || pwf === 'paid') return true;
+  const remaining = Number(b.remainingCents != null ? b.remainingCents : Math.round(Number(b.amountDueApproved || 0) * 100));
+  const settled = Number(b.settledCents != null ? b.settledCents : Math.round(Number(b.amountPaid || 0) * 100));
+  return Number.isFinite(remaining) && remaining <= 0 && settled > 0;
+}
+
 /**
  * A job awaiting customer payment or approval projects as "Completed" but is
  * still live work, so actionable state is evaluated first.
@@ -206,9 +239,16 @@ function byDateDescending(a, b) {
  * Deterministic current-appointment selection.
  *
  * 1. actionable/current appointment
- * 2. nearest upcoming pending-review or confirmed appointment
- * 3. most recent non-terminal appointment already in the past
- * 4. most recently completed/cancelled appointment
+ * 2. nearest upcoming appointment with an open balance
+ * 3. nearest upcoming non-settled appointment
+ * 4. most recent past appointment with an open balance
+ * 5. most recent non-terminal past appointment
+ * 6. settled-paid only when nothing else competes
+ * 7. most recently completed/cancelled appointment
+ *
+ * The date horizon outranks the balance: an open balance decides between
+ * siblings on the same side of today, but a years-old unpaid invoice never
+ * displaces the customer's next appointment.
  *
  * Selection never removes an appointment from the returned collection.
  */
@@ -220,14 +260,18 @@ function selectUpcoming(projected, { now = Date.now() } = {}) {
   if (actionable.length) return actionable[0];
 
   const active = projected.filter((b) => !isTerminalAppointment(b));
+  const isUpcoming = (b) => !appointmentDate(b) || appointmentDate(b) >= today;
 
-  const future = active
-    .filter((b) => !appointmentDate(b) || appointmentDate(b) >= today)
-    .sort(byDateAscending);
-  if (future.length) return future[0];
-
-  const past = active.sort(byDateDescending);
-  if (past.length) return past[0];
+  const ranked = [
+    active.filter((b) => isUpcoming(b) && hasOpenPayableBalance(b)).sort(byDateAscending),
+    active.filter((b) => isUpcoming(b) && !isSettledPaidHero(b)).sort(byDateAscending),
+    active.filter((b) => !isUpcoming(b) && hasOpenPayableBalance(b)).sort(byDateDescending),
+    active.filter((b) => !isUpcoming(b) && !isSettledPaidHero(b)).sort(byDateDescending),
+    active.filter(isSettledPaidHero).sort(byDateDescending),
+  ];
+  for (const bucket of ranked) {
+    if (bucket.length) return bucket[0];
+  }
 
   return [...projected].sort(byDateDescending)[0] || null;
 }
@@ -337,12 +381,17 @@ async function handlePortalData(event, body) {
   // 1) relational CustomerAccount / Booking.customerAccountId
   // 2) session bookingIds
   // 3) Blob phone/email scan fallback
+  // A partially resolved ownership set still answers 200/ok. The client must be
+  // able to tell that apart from a real removal, or a transient Postgres outage
+  // silently deletes the customer's history from the rendered portal.
+  let ownershipComplete = true;
   let linkedAccountBookingIds = new Set();
   if (session.customerAccountId) {
     try {
       const ids = await listBookingIdsForAccount(session.customerAccountId);
       linkedAccountBookingIds = new Set(ids.map((id) => normalizeBookingId(id)).filter(Boolean));
     } catch {
+      ownershipComplete = false;
       linkedAccountBookingIds = new Set();
     }
   }
@@ -380,6 +429,7 @@ async function handlePortalData(event, body) {
       );
     }
   } catch {
+    ownershipComplete = false;
     bookingOwnerById = new Map();
   }
 
@@ -480,6 +530,9 @@ async function handlePortalData(event, body) {
     customerAccountId: session.customerAccountId || null,
     customer,
     bookings: projected,
+    // False when an ownership source failed: the collection may be short, so the
+    // client must merge it into its cache instead of replacing it.
+    bookingsComplete: ownershipComplete,
     upcoming,
     focusedAppointment: focused
       ? {
@@ -515,5 +568,12 @@ async function handlePortalData(event, body) {
 exports.syncJson = syncJson;
 exports.__test = {
   safePaymentStateAsync,
+  safePaymentState,
+  safePaymentStateFromProjection,
   handlePortalData,
+  selectUpcoming,
+  hasOpenPayableBalance,
+  isSettledPaidHero,
+  isTerminalAppointment,
+  isActionableAppointment,
 };
