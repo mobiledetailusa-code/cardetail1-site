@@ -223,21 +223,26 @@ test('jobs summary exposes remaining balance from server fields', () => {
  */
 
 test('an unchanged poll does not repaint the board', () => {
-  assert.match(adminOps, /let dataRevision = 0;/);
-  assert.match(adminOps, /let lastRenderedRevision = -1;/);
-  // Only a loader that actually replaced its records advances the revision.
-  assert.match(adminOps, /jobs = incoming;\s*\n\s*dataRevision \+= 1;/);
-  assert.match(adminOps, /changeRequests = data\.requests \|\| \[\];\s*\n\s*dataRevision \+= 1;/);
-  assert.match(adminOps, /const dataChanged = dataRevision !== lastRenderedRevision;/);
-  assert.match(adminOps, /if \(dataChanged \|\| !syncOnly\) \{/);
+  // Each loader records whether its own sync came back unchanged...
+  assert.match(adminOps, /let lastJobsNotModified = false;/);
+  assert.match(adminOps, /let lastRequestsNotModified = false;/);
+  // ...both are cleared at the top of every refresh, so a stale true cannot
+  // suppress a repaint after a failed or aborted load.
+  const refresh = adminOps.slice(adminOps.indexOf('async function refreshAll('));
+  assert.match(refresh.slice(0, 1200), /lastJobsNotModified = false;\s*\n\s*lastRequestsNotModified = false;/);
+  // ...and the repaint is skipped only when both agree nothing changed.
+  assert.match(adminOps, /const bothUnchanged = syncOnly && lastJobsNotModified && lastRequestsNotModified/);
+  assert.match(adminOps, /if \(!bothUnchanged\) \{/);
 });
 
 test('a user-initiated refresh always repaints', () => {
   // syncOnly covers the automatic reasons only; manual/initial/tab work must
-  // never be gated on a revision bump or a filter change could show stale rows.
+  // never be gated on the unchanged check, or a filter change could show stale rows.
   assert.match(adminOps, /const syncOnly = \['poll','focus','visibility','online','payment_settlement'\]\.includes\(reason\);/);
-  const gate = adminOps.slice(adminOps.indexOf('const dataChanged = dataRevision'));
-  assert.match(gate.slice(0, 600), /lastRenderedRevision = dataRevision;/);
+  const gate = adminOps.slice(adminOps.indexOf('const bothUnchanged = syncOnly'));
+  assert.match(gate.slice(0, 200), /syncOnly &&/, 'a non-poll reason can never be "unchanged"');
+  // A rejected source must repaint too — last-good data still has to render.
+  assert.match(gate.slice(0, 300), /jobsR\.status === 'fulfilled' && changeR\.status === 'fulfilled'/);
 });
 
 test('settings inputs are never re-stamped by a background poll', () => {

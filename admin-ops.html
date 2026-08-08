@@ -561,13 +561,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let refreshAllSignal = null;
   let jobsSyncVersion = '';
   let requestsSyncVersion = '';
-  // Bumped only when a loader actually replaces its records. The polling refresh
-  // compares it against the last rendered value so an unchanged sync (the common
-  // case, several times a minute) does not rebuild every tab's markup — that
-  // rebuild is what made the page look like it was reloading on a timer, and it
-  // reset scroll position, text selection and open <select> menus with it.
-  let dataRevision = 0;
-  let lastRenderedRevision = -1;
+  // Set by each loader from its own notModified short-circuit. A poll where both
+  // sources came back unchanged has nothing to repaint — that rebuild is what
+  // made the board look like it reloaded on a timer, resetting scroll position,
+  // text selection and open <select> menus with it.
+  let lastJobsNotModified = false;
+  let lastRequestsNotModified = false;
   let opsRefresh = null;
   let sourceAbort = { jobs: null, techs: null, changeRequests: null };
   let pendingOpenBookingId = null;
@@ -736,12 +735,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (SS && !SS.shouldApplyGeneration(changeRequestsMeta, generation)) return changeRequests;
       if (data.syncVersion) requestsSyncVersion = data.syncVersion;
       if (data.notModified === true) {
+        lastRequestsNotModified = true;
         if (SS) changeRequestsMeta = SS.applySourceSuccess(changeRequestsMeta, generation).meta;
         else { changeRequestsMeta.hasLoaded = true; changeRequestsMeta.isLoading = false; changeRequestsMeta.error = null; changeRequestsMeta.lastSuccessAt = Date.now(); }
         return changeRequests;
       }
+      lastRequestsNotModified = false;
       changeRequests = data.requests || [];
-      dataRevision += 1;
       if (SS) changeRequestsMeta = SS.applySourceSuccess(changeRequestsMeta, generation).meta;
       else { changeRequestsMeta.hasLoaded = true; changeRequestsMeta.isLoading = false; changeRequestsMeta.error = null; changeRequestsMeta.lastSuccessAt = Date.now(); }
       return changeRequests;
@@ -997,10 +997,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (SS && !SS.shouldApplyGeneration(jobsMeta, generation)) return jobs;
       if (data.syncVersion) jobsSyncVersion = data.syncVersion;
       if (data.notModified === true) {
+        lastJobsNotModified = true;
         if (SS) jobsMeta = SS.applySourceSuccess(jobsMeta, generation).meta;
         else { jobsMeta.hasLoaded = true; jobsMeta.isLoading = false; jobsMeta.error = null; jobsMeta.lastSuccessAt = Date.now(); }
         return jobs;
       }
+      lastJobsNotModified = false;
       const incoming = Array.isArray(data.jobs) ? data.jobs : [];
       // Poll/list returns lean rows. Preserve in-memory full detail for the open job.
       if (expandedJobId && activeJob && activeJob.id === expandedJobId && activeJob._projection === 'admin_full') {
@@ -1038,7 +1040,6 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         }
       }
       jobs = incoming;
-      dataRevision += 1;
       if (SS) jobsMeta = SS.applySourceSuccess(jobsMeta, generation).meta;
       else { jobsMeta.hasLoaded = true; jobsMeta.isLoading = false; jobsMeta.error = null; jobsMeta.lastSuccessAt = Date.now(); }
       return jobs;
@@ -1255,8 +1256,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   function adminSyncPending() {
     const pendingJob = jobs.some((j) => {
       const pay = String(j && (j.paymentAttemptStatus || j.paymentWorkflowStatus) || '').toLowerCase();
+      // awaiting_customer_payment is a steady unpaid state — do not force 2.5s
+      // polling forever for every open balance. Boost only while a PI is live
+      // or a webhook settle is in flight.
       return pendingRequestCountOf(j) > 0
-        || ['creating','open','processing','pending_webhook','awaiting_customer_payment'].includes(pay);
+        || ['creating','open','processing','pending_webhook'].includes(pay);
     });
     return pendingJob || mergeRequestsWithJobs(changeRequests).some(isOpenChangeRequest);
   }
@@ -1276,6 +1280,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const run = (async () => {
       // Jobs refresh must NOT pull the full technician roster (lazy-loaded on Assign / Techs tab).
       // Preserve any session-cached techs across jobs/requests refresh.
+      lastJobsNotModified = false;
+      lastRequestsNotModified = false;
       const [jobsR, settingsR, changeR] = await Promise.allSettled([
         loadJobs(null, { signal: requestSignal }),
         syncOnly ? Promise.resolve(platformSettings) : loadSettings(),
@@ -1283,18 +1289,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       ]);
       // Intentionally do NOT assign jobs=[], techs=[], or changeRequests=[] on rejection.
       // Intentionally do NOT call loadTechs() here.
-
-      // An automatic poll that came back unchanged has nothing to repaint. User-
-      // initiated refreshes always repaint, so a filter or tab change can never
-      // be left showing stale markup.
-      const dataChanged = dataRevision !== lastRenderedRevision;
-      if (dataChanged || !syncOnly) {
-        lastRenderedRevision = dataRevision;
+      const bothUnchanged = syncOnly && lastJobsNotModified && lastRequestsNotModified
+        && jobsR.status === 'fulfilled' && changeR.status === 'fulfilled';
+      if (!bothUnchanged) {
         renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
         updateRequestsTabBadge();
       }
-      // Settings inputs are only reloaded on a non-poll refresh. Re-stamping them
-      // every few seconds overwrote whatever the admin was in the middle of typing.
+      // Settings inputs are reloaded only on a refresh the admin asked for.
+      // Re-stamping them inside the block above meant any poll that happened to
+      // carry a job change — the common case on a busy board — overwrote whatever
+      // was being typed into Settings.
       if (!syncOnly) renderSettingsForm();
       const failures = [];
       if (jobsR.status === 'rejected') {
@@ -1336,6 +1340,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         status: syncFailure && (syncFailure.status || syncFailure.statusCode || 0),
         retryAfterMs: syncFailure && syncFailure.retryAfterMs,
         pending: adminSyncPending(),
+        notModified: bothUnchanged,
+        changed: !bothUnchanged,
       };
     })();
     refreshAllInflight = run;
@@ -4160,7 +4166,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       // seconds — the sync-version short-circuit makes those round trips pure
       // noise, and they are what the 10-second "keeps refreshing" feel came from.
       activePollMs: 2500,
-      stablePollMs: 20000,
+      // Both branches slowed the idle poll (20s here, 15s on master). Take the
+      // shorter — already well past the "keeps reloading" threshold, and the
+      // more conservative of the two changes.
+      stablePollMs: 15000,
       maxBackoffMs: 60000,
       onRefresh: refreshAll,
       onStateChange: renderAdminSyncState,

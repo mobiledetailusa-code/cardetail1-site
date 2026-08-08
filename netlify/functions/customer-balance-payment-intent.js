@@ -161,6 +161,10 @@ exports.handler = async (event) => {
     expectedQuoteVersion,
   });
   if (!prepared.ok) {
+    // Both branches replaced the old nested ternary with a lookup. PREPARATION_MESSAGES
+    // above is the superset — it covers every code the local map did, plus the Stripe
+    // and projection failures, and its fallback owns the problem instead of telling
+    // the customer to come back later.
     return json(prepared.statusCode || 200, {
       ok: false,
       error: prepared.error,

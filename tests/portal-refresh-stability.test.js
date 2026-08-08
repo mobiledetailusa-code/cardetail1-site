@@ -122,14 +122,66 @@ test('settling a payment reassigns the hero when nothing is pinned', () => {
   assert.equal(selectUpcoming([paid, civic]).id, 'CD1-CIVIC', 'fixture assumption');
 });
 
-test('the portal pins the appointment on screen so polls cannot swap it', () => {
-  const fn = garageJs.slice(garageJs.indexOf('function applyAppointmentFocus('));
-  const body = fn.slice(0, fn.indexOf('\n  function '));
-  // With no explicit focus, the shown appointment becomes the retained ref.
-  assert.match(body, /data\.upcoming && data\.upcoming\.appointmentPublicRef/);
-  assert.match(body, /if \(retainedRef\) state\.appointmentFocusRef = retainedRef;/);
-  // And that ref is re-sent on every automatic refresh.
-  assert.match(garageJs, /Re-send retained focus so auto-refresh cannot swap the hero booking/);
+/**
+ * Behavioural, not source-text: drive the real loadAccount() with a stubbed
+ * account payload that carries no explicit focus, then assert the appointment
+ * it landed on is now pinned. Asserting the implementation instead of the effect
+ * is what made the previous version of this test break during a merge.
+ */
+test('the portal pins the appointment on screen so polls cannot swap it', async () => {
+  const { JSDOM } = require('jsdom');
+  const dom = new JSDOM(read('my-garage.html').replace(/<script src="[^"]*"><\/script>/g, ''), {
+    url: 'https://cardetail1.com/my-garage.html',
+    runScripts: 'outside-only',
+  });
+
+  const subaru = {
+    id: 'CD1-SUBARU', appointmentPublicRef: 'aptr_subaru', status: 'Confirmed',
+    customerStatus: 'Confirmed', service: 'Full Detail', preferredDate: '2026-08-14',
+  };
+  const sent = [];
+  dom.window.fetch = async (url, opts) => {
+    const body = JSON.parse((opts && opts.body) || '{}');
+    sent.push({ url: String(url), body });
+    if (String(url).includes('customer-portal-auth')) {
+      return { ok: true, status: 200, json: async () => ({ ok: true, authenticated: false }) };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        scope: 'account',
+        bookings: [subaru],
+        upcoming: subaru,
+        focusedAppointment: null,   // the customer clicked nothing
+        payment: {},
+      }),
+    };
+  };
+  dom.window.eval(garageJs);
+  const api = dom.window.cd1MyGarage;
+
+  // boot() runs on load and bumps the hydration generation; a loadAccount issued
+  // underneath it is discarded as stale. Let it settle before driving the portal.
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.equal(api.state.appointmentFocusRef, null, 'nothing pinned before an account load');
+
+  const ok = await api.loadAccount({ managePhase: false });
+  assert.equal(ok, true, 'the stubbed account payload must load');
+
+  assert.equal(
+    api.state.appointmentFocusRef,
+    'aptr_subaru',
+    'an unfocused load must pin the appointment it showed, or the next poll can swap it'
+  );
+  assert.equal(api.state.booking.id, 'CD1-SUBARU');
+
+  // And the pinned ref is what the next refresh sends back to the server.
+  sent.length = 0;
+  await api.loadAccount({ managePhase: false });
+  const portalCall = sent.find((c) => c.url.includes('customer-portal-data'));
+  assert.equal(portalCall.body.appointment, 'aptr_subaru', 'the retained ref must travel on every refresh');
 });
 
 /* ── 3. A transient focus miss must not evict the customer ───────────────── */

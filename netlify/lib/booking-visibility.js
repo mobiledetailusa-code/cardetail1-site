@@ -13,7 +13,7 @@ function hasSubmissionMarkers(booking) {
   // Finalized marketing bookings use this display status; true drafts omit it.
   if (status === 'Pending Review' || status === 'Confirmed' || status === 'Scheduled'
     || status === 'Assigned' || status === 'Paid' || status === 'Closed'
-    || status === 'Rescheduled') {
+    || status === 'Rescheduled' || status === 'submitted' || status === 'Submitted') {
     return true;
   }
   const js = String(booking.jobStatus || '').toLowerCase();

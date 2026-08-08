@@ -14,7 +14,7 @@
 const { jsonCors } = require('../lib/tech-security');
 const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
-const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
+const { isVisibleSubmittedBooking, isArchivedOrTest } = require('../lib/booking-visibility');
 const { buildReceiptProjection, receiptEligibility } = require('../lib/receipt-projection');
 
 exports.handler = async (event) => {
@@ -47,13 +47,19 @@ exports.handler = async (event) => {
     });
   }
 
-  if (!isVisibleSubmittedBooking(auth.booking)) {
+  // Archived/test bookings never get a customer receipt surface.
+  if (isArchivedOrTest(auth.booking)) {
     return jsonCors(200, {
       ok: false,
       error: 'booking_not_ready',
       message: 'This booking is not available in My Garage yet.',
     });
   }
+
+  // Draft-looking Blob rows can still have a settled Postgres ledger (card paid
+  // before portal release). Defer the visibility deny until after authority
+  // confirms there is no paid money — payment is proof of a real booking.
+  const portalVisible = isVisibleSubmittedBooking(auth.booking);
 
   try {
     const { postgresPaymentEnabled } = require('../lib/db/operational-payment');
@@ -80,6 +86,17 @@ exports.handler = async (event) => {
         ok: false,
         error: 'financial_authority_unavailable',
         message: 'Receipt could not be verified against the payment ledger.',
+      });
+    }
+    const projection = authority.projection || {};
+    const ledgerPaid = projection.paymentStatus === 'paid'
+      || Math.max(0, Math.round(Number(projection.grossSettledCents) || 0)) > 0
+      || Math.max(0, Math.round(Number(projection.settledCents) || 0)) > 0;
+    if (!portalVisible && !ledgerPaid) {
+      return jsonCors(200, {
+        ok: false,
+        error: 'booking_not_ready',
+        message: 'This booking is not available in My Garage yet.',
       });
     }
     const result = buildReceiptProjection(auth.booking, receiptType, authority);

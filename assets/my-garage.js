@@ -262,6 +262,20 @@
     if (appointmentNeedsAttention(b)) return false;
     var status = String(b.status || '');
     var job = String(b.jobStatus || '').toLowerCase();
+    var pwf = String(b.paymentWorkflowStatus || '').toLowerCase();
+    var paySt = String(b.paymentStatus || '').toLowerCase();
+    // Settled invoices belong in History even when the operational status label
+    // still says Confirmed/submitted (common after card_on_site / webhook lag).
+    if (paySt === 'paid' || paySt === 'paid_cash' || paySt === 'paid_card_on_site'
+      || pwf === 'payment_succeeded' || pwf === 'cash_paid' || pwf === 'paid') {
+      return true;
+    }
+    if (b.invoicePaid === true) return true;
+    var settled = Number(b.amountPaid || b.paidAmount || 0);
+    var due = Number(b.amountDueApproved != null ? b.amountDueApproved : b.balanceDue);
+    if (settled > 0 && !(due > 0) && (job === 'completed' || job === 'completed_paid' || /paid|complete/i.test(status))) {
+      return true;
+    }
     return status === 'Paid' || status === 'Completed' || status === 'Cancelled' || status === 'Canceled'
       || job === 'completed_paid' || job === 'completed' || job === 'cancelled';
   }
@@ -290,7 +304,6 @@
     if (!data) return;
     opts = opts || {};
     state.focusedAppointment = data.focusedAppointment || null;
-    if (data.upcoming) state.booking = data.upcoming;
     if (data.focusError === 'invalid_focus') {
       // A focus ref resolves through a Blob lookup that can miss transiently.
       // Dropping the focus on a background poll because of one miss moved the
@@ -305,19 +318,56 @@
       }
       return;
     }
-    // Strip from the address bar only. Keep the opaque ref in memory so soft
-    // reloads / polling cannot replace this appointment with selectUpcoming().
-    var retainedRef = (state.focusedAppointment && state.focusedAppointment.appointmentPublicRef)
-      || state.appointmentFocusRef
-      // Nothing was explicitly focused, so pin whatever is on screen. Otherwise
-      // every poll re-runs selectUpcoming(), and any change to the shown booking
-      // — settling its payment moves it from actionable to terminal — silently
-      // swapped the customer onto a different appointment than the one they
-      // were looking at, including the one they had just paid for.
-      || (data.upcoming && data.upcoming.appointmentPublicRef)
-      || null;
-    if (retainedRef) state.appointmentFocusRef = retainedRef;
-    if (state.focusedAppointment) stripAppointmentFocusFromUrl();
+    if (state.focusedAppointment) {
+      // Sticky selection: never let selectUpcoming()'s default replace the hero.
+      // focusedAppointment from the server is intentionally sparse (ref + status) —
+      // resolve the full booking from upcoming/bookings so the hero keeps vehicles.
+      var retainedRef = state.focusedAppointment.appointmentPublicRef
+        || state.appointmentFocusRef
+        || null;
+      if (retainedRef) state.appointmentFocusRef = retainedRef;
+      function matchesFocusRef(row) {
+        if (!row || !retainedRef) return false;
+        var ref = String(retainedRef);
+        return String(row.appointmentPublicRef || '') === ref
+          || String(row.id || '') === ref
+          || String(row.bookingId || '') === ref;
+      }
+      var full = null;
+      if (matchesFocusRef(data.upcoming)) full = data.upcoming;
+      else if (Array.isArray(state.bookings)) {
+        full = state.bookings.find(matchesFocusRef) || null;
+      }
+      if (full) state.booking = full;
+      // Strip from the address bar only. Keep the opaque ref in memory so soft
+      // reloads / polling cannot replace this appointment with selectUpcoming().
+      stripAppointmentFocusFromUrl();
+      return;
+    }
+    if (state.appointmentFocusRef && Array.isArray(state.bookings) && state.bookings.length) {
+      var ref = String(state.appointmentFocusRef);
+      var match = state.bookings.find(function (row) {
+        if (!row) return false;
+        return String(row.appointmentPublicRef || '') === ref
+          || String(row.id || '') === ref
+          || String(row.bookingId || '') === ref;
+      });
+      if (match) {
+        state.booking = match;
+        return;
+      }
+    }
+    if (data.upcoming) {
+      state.booking = data.upcoming;
+      // Nothing was explicitly focused, so pin whatever landed on screen. Without
+      // this, every poll re-runs selectUpcoming() server-side, and any change to
+      // the shown booking — settling its payment moves it from actionable to
+      // terminal — silently swapped the customer onto a different appointment
+      // than the one they were reading, including the one they had just paid for.
+      if (!state.appointmentFocusRef && data.upcoming.appointmentPublicRef) {
+        state.appointmentFocusRef = data.upcoming.appointmentPublicRef;
+      }
+    }
   }
 
   function highlightFocusedAppointment() {
@@ -1232,12 +1282,15 @@
     state.scope = 'account';
     state.session = true;
     state.bookings = r.data.bookings || [];
-    state.booking = r.data.upcoming || state.bookings[0] || null;
+    // Apply sticky focus before falling back to server selectUpcoming().
     // Only a load the customer triggered (opening an appointment link, clicking
     // View Details) may surface a focus miss; a poll must stay silent. The poll
     // path re-sends the retained ref too, so this cannot be inferred from the
     // ref's presence — the caller has to say so.
     applyAppointmentFocus(r.data, { userInitiated: opts.userInitiated === true });
+    if (!state.booking) {
+      state.booking = r.data.upcoming || state.bookings[0] || null;
+    }
     applyPortalPayload(r.data);
     renderDashboard(r.data);
     highlightFocusedAppointment();
@@ -1608,7 +1661,7 @@
    */
   function syncPayBalanceButton(pay) {
     var due = Number(pay.amountDueApproved || 0);
-    var can = !!(pay.canPay || pay.canCreatePayLink);
+    var can = !!(pay.canPay || pay.canCreatePayLink) && due > 0;
     syncStickyPayBar(can, due);
     syncMoneyActionButtons(pay);
   }
@@ -1716,7 +1769,7 @@
     if (!panel) return;
     // Dollars — payCtaLabel formats this one with fmtMoney.
     var due = Number(pay.amountDueApproved || 0);
-    var can = !!(pay.canPay || pay.canCreatePayLink);
+    var can = !!(pay.canPay || pay.canCreatePayLink) && due > 0;
     var paid = invoiceIsPaid(pay);
     // Decide visibility from the same accessors the panel body renders from.
     // Testing only the dollars fields meant a projection carrying cents alone
@@ -2667,7 +2720,8 @@
       return;
     }
     var pay = state.payment || {};
-    if (!pay.canPay && !pay.canCreatePayLink) {
+    var due = Number(pay.amountDueApproved || 0);
+    if ((!pay.canPay && !pay.canCreatePayLink) || !(due > 0)) {
       showToast('No balance is due yet, or payment is locked until approval.', true);
       return;
     }
@@ -2772,7 +2826,14 @@
       return;
     }
 
-    showToast((intent.data && intent.data.message) || 'Payment is not available yet.', true);
+    showToast(
+      (intent.data && intent.data.message)
+        || (intent.data && intent.data.error === 'stale_quote_version' && 'Your quote was updated. Refresh and try again.')
+        || (intent.data && intent.data.error === 'already_paid' && 'This invoice is already paid.')
+        || (intent.data && intent.data.error === 'zero_balance' && 'No balance is due for this appointment.')
+        || 'Payment is not available yet.',
+      true
+    );
   }
 
   async function confirmEmbeddedPay() {
@@ -4078,7 +4139,10 @@
       // customer just reading their appointment does not need a request every
       // four seconds.
       activePollMs: 2500,
-      stablePollMs: 20000,
+      // Both branches slowed the idle poll (20s here, 15s on master). Take the
+      // shorter of the two — it is already well past the "keeps reloading"
+      // threshold, and the shorter interval is the more conservative change.
+      stablePollMs: 15000,
       maxBackoffMs: 60000,
       onRefresh: refreshPortalProjection,
       onUpdated: function () {
