@@ -63,9 +63,9 @@ test('secondary Admin tabs are preserved under a collapsed More disclosure', () 
   assert.match(adminOps, /id="tabsMoreToggle" aria-expanded="false" aria-controls="tabsMore"/);
 });
 
-test('job workspace uses the approved six panels', () => {
-  assert.match(adminOps, /\[\['summary','Summary'\],\['services','Services'\],\['schedule','Schedule'\],\['payment','Payment'\],\['notes','Notes'\],\['more','More'\]\]/);
-  for (const id of ['summary', 'services', 'schedule', 'payment', 'notes', 'more']) {
+test('job workspace uses Admin authority panels', () => {
+  assert.match(adminOps, /\[\['resolve','Resolve'\],\['services','Services'\],\['schedule','Schedule'\],\['payment','Money'\],\['create','Create'\],\['notes','Notes'\],\['more','More'\]\]/);
+  for (const id of ['resolve', 'services', 'schedule', 'payment', 'create', 'notes', 'more']) {
     assert.ok(adminOps.includes(`data-appt-panel="${id}"`), `missing workspace panel ${id}`);
   }
 });

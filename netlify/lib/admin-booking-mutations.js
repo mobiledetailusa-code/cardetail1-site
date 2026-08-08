@@ -575,6 +575,58 @@ async function generateCustomerLinks(booking, body, siteUrl) {
  * customer's 48-hour issue window, which a reopen must not silently restart)
  * and the prior value is copied into the reopen history as evidence.
  */
+/**
+ * Lifecycle close after money is already settled. Does not invent ledger entries.
+ */
+function closeJobWhenPaid(booking, body = {}) {
+  const { isInvoicePaid } = require('./appointment-status-policy');
+  const { financialProjection } = require('./payment-service');
+  let paid = isInvoicePaid(booking);
+  if (!paid) {
+    try {
+      const fin = financialProjection(booking);
+      paid = fin.paymentStatus === 'paid'
+        || (Math.max(0, Math.round(Number(fin.remainingCents) || 0)) <= 0
+          && Math.max(0, Math.round(Number(fin.settledCents) || 0)) > 0);
+    } catch (_) {
+      paid = false;
+    }
+  }
+  if (!paid) {
+    return {
+      ok: false,
+      error: 'balance_remaining',
+      statusCode: 409,
+      message: 'Close job only after the invoice is paid (cash, card on-site, or Stripe).',
+    };
+  }
+  const js = String(booking.jobStatus || '').toLowerCase();
+  if (js === 'cancelled' || js === 'archived_test') {
+    return { ok: false, error: 'invalid_transition', statusCode: 409, message: 'Cancelled or archived jobs cannot be closed as paid.' };
+  }
+  if (js === 'completed_paid') {
+    return {
+      ok: true,
+      noop: true,
+      booking: booking,
+    };
+  }
+  const now = new Date().toISOString();
+  return {
+    ok: true,
+    booking: syncLegacyFields({
+      ...booking,
+      jobStatus: 'completed_paid',
+      serviceStatus: 'closed',
+      status: 'Paid',
+      closedAt: booking.closedAt || now,
+      closedBy: sanitizeText(body.actorId, 64) || 'admin',
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'close_job', by: 'admin' }),
+    }),
+  };
+}
+
 function reopenAppointment(booking, body) {
   const reason = sanitizeText(body.reason, 500);
   if (!reason) return { ok: false, error: 'reason_required', statusCode: 400 };
@@ -643,6 +695,7 @@ module.exports = {
   markRefunded,
   generateCustomerLinks,
   reopenAppointment,
+  closeJobWhenPaid,
   evaluateTechAdjustment,
   getApprovedAmountCents,
 };

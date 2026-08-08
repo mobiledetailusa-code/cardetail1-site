@@ -2552,7 +2552,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   async function jobAction(bookingId, action, extra) {
     try {
       const data = await api('/.netlify/functions/admin-ops-jobs','POST',{action,bookingId,...extra});
-      toast('Saved');
+      toast(action === 'close_job' ? (data.noop ? 'Already closed as paid' : 'Job closed as paid') : 'Saved');
       await refreshAll();
       if (action === 'archive_test' && expandedJobId === bookingId) {
         collapseJobDetail();
@@ -2563,7 +2563,40 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         await openDrawer(bookingId);
       }
       return data;
-    } catch(e) { toast('Action failed: '+e.message); throw e; }
+    } catch(e) {
+      toast('Action failed: ' + formatActionError(e));
+      throw e;
+    }
+  }
+
+  function formatActionError(e) {
+    const data = (e && e.data) || {};
+    const parts = [];
+    const err = data.error || (e && e.message) || 'unknown_error';
+    parts.push(err);
+    if (data.message && String(data.message) !== String(err)) parts.push(data.message);
+    if (data.reason) parts.push('reason: ' + data.reason);
+    if (data.expectedAmountCents != null && Number.isFinite(Number(data.expectedAmountCents))) {
+      parts.push('expected $' + (Number(data.expectedAmountCents) / 100).toFixed(2));
+    }
+    if (data.receivedAmountCents != null && Number.isFinite(Number(data.receivedAmountCents))) {
+      parts.push('got $' + (Number(data.receivedAmountCents) / 100).toFixed(2));
+    }
+    if (err === 'payment_attempt_in_progress') {
+      return 'payment_attempt_in_progress — a Stripe payment is already in progress for this booking';
+    }
+    return parts.join(' · ');
+  }
+
+  /** Strip $ / commas; reject NaN. Prefer omitting amount when it matches remaining. */
+  function parseCashAmountInput(raw) {
+    if (raw == null) return { ok: false, error: 'empty' };
+    const s = String(raw).trim().replace(/^\$/, '').replace(/,/g, '').trim();
+    if (!s) return { ok: false, error: 'empty' };
+    if (!/^\d+(\.\d{1,2})?$/.test(s)) return { ok: false, error: 'invalid' };
+    const n = Number(s);
+    if (!Number.isFinite(n) || n <= 0) return { ok: false, error: 'invalid' };
+    return { ok: true, dollars: n, cents: Math.round(n * 100), text: s };
   }
 
   function fmtServerDollars(n) {
@@ -2920,7 +2953,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const pendingCRs = pendingChangeRequestsOf(j);
     const pendingCount = pendingRequestCountOf(j);
     const legacyPending = !!(j.cancellationRequestStatus === 'requested' || j.rescheduledByClient || j.addressChangedByClient || j.requestedAddress);
-    const defaultPanel = (openDrawerFocusRequests || pendingCRs.length || legacyPending) ? 'requests' : 'summary';
+    const defaultPanel = (openDrawerFocusRequests || pendingCRs.length || legacyPending) ? 'requests' : 'resolve';
     openDrawerFocusRequests = false;
     jobDetailDirty = false;
     const invPaidEarly = !!(j.invoicePaid || j.financialPaymentStatus==='paid' || j.paymentWorkflowStatus==='payment_succeeded' || j.paymentWorkflowStatus==='cash_paid' || (Number(j.remainingCents||0)===0 && Number(j.settledCents||0)>0));
@@ -2952,12 +2985,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         '<button type="button" class="btn sm" data-open-requests-panel style="min-height:44px">Review requests</button></div>';
     }
     html += '<div class="appt-panel-tabs" role="tablist" aria-label="Appointment panels">'+
-      [['summary','Summary'],['services','Services'],['schedule','Schedule'],['payment','Payment'],['notes','Notes'],['more','More']].map(([id,label]) =>
+      [['resolve','Resolve'],['services','Services'],['schedule','Schedule'],['payment','Money'],['create','Create'],['notes','Notes'],['more','More']].map(([id,label]) =>
         '<button type="button" class="appt-panel-tab" role="tab" data-workspace-tab="'+id+'" aria-selected="false" aria-controls="appt-panel-'+id+'">'+label+
         (id==='more' && pendingCount ? ' <span class="tab-badge">'+pendingCount+'</span>' : '')+
         '</button>'
       ).join('')+'</div>';
-    html += '<div class="appt-panel" data-appt-panel="summary" id="appt-panel-summary" role="tabpanel" hidden><div class="job-detail-grid">';
+    html += '<div class="appt-panel" data-appt-panel="resolve" id="appt-panel-resolve" role="tabpanel" hidden><div class="job-detail-grid">';
     html += '<div class="sec span-2"><h4>Customer and appointment</h4><div class="op-grid">'+
       '<div><label>First name</label><input type="text" id="dFirst" value="'+esc(j.firstName||'')+'"></div>'+
       '<div><label>Last name</label><input type="text" id="dLast" value="'+esc(j.lastName||'')+'"></div>'+
@@ -2986,7 +3019,32 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div><b>Remaining:</b> $'+esc(String(Math.max(0,balDue).toFixed(2)))+'</div>'+
       '<div><b>Payment status:</b> '+payBadge(invPaid?'payment_succeeded':j.paymentWorkflowStatus)+'</div>'+
       '</div></div>';
-    html += '</div></div>'; // end overview panel
+    // Status & resolve — Admin authority lifecycle (confirm → assign → tech → complete → close)
+    html += '<div class="sec span-2"><h4>Status and resolve</h4><div class="kv"><div><b>Tech:</b> '+esc(j.assignedTechName||'Unassigned')+'</div>'+
+      '<div><b>Assigned:</b> '+dt(j.assignedAt)+'</div></div>'+
+      '<select id="dAssign" style="margin-top:8px">'+techOptions(j.assignedTechId||j.assignedTech)+'</select>'+
+      '<div class="actions" style="margin:10px 0">';
+    if (j.jobStatus === 'pending_review') html += '<button type="button" class="btn sm" id="dConfirm" style="min-height:44px">Confirm booking</button>';
+    html += '<button type="button" class="btn ghost sm" id="dCancel" style="min-height:44px">Cancel job</button>';
+    html += '<button type="button" class="btn ghost sm" id="dReopenAppt" style="min-height:44px">Reopen</button>';
+    if (j.jobStatus==='completed_pending_admin_review') html += '<button type="button" class="btn sm" id="dApprove" style="min-height:44px">Approve completion</button>';
+    html += '</div>'+
+      '<h4 style="margin-top:12px">Technician status</h4><div class="actions">'+
+      '<button type="button" class="btn ghost sm" id="dTechEnRoute" style="min-height:44px">En Route</button>'+
+      '<button type="button" class="btn ghost sm" id="dTechStart" style="min-height:44px">Start</button>'+
+      '<button type="button" class="btn ghost sm" id="dTechPause" style="min-height:44px">Pause</button>'+
+      '<button type="button" class="btn ghost sm" id="dTechResume" style="min-height:44px">Resume</button>'+
+      '<button type="button" class="btn sm" id="dTechComplete" style="min-height:44px">Complete service</button>';
+    const closeCap = drawerControls && drawerControls.closeWhenPaid;
+    if (closeCap && closeCap.enabled) {
+      html += '<button type="button" class="btn sm" id="dCloseWhenPaid" style="min-height:44px" title="'+esc(closeCap.explanation||'')+'">Close job when paid</button>';
+    } else if (invPaid && String(j.jobStatus||'') !== 'completed_paid') {
+      html += '<button type="button" class="btn ghost sm" id="dCloseWhenPaid" style="min-height:44px">Close job when paid</button>';
+    }
+    html += '</div>'+
+      '<p class="hint" style="margin:8px 0 0">1) Complete service (work done) · 2) Record cash/card under Money · 3) Close job when paid (lifecycle only — does not change the ledger).</p>'+
+      '</div>';
+    html += '</div></div>'; // end resolve panel
 
     html += '<div class="appt-panel" data-appt-panel="services" id="appt-panel-services" role="tabpanel" hidden><div class="job-detail-grid">';
     html += renderVehiclesDetailSection(j);
@@ -3079,25 +3137,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         '<div class="kv"><span>Operational slot</span><strong>' + esc(j.preferredTime || '—') + '</strong></div>' +
         '</div></div>';
     }
-    html += '<div class="sec"><h4>Assignment and schedule</h4><div class="kv"><div><b>Tech:</b> '+esc(j.assignedTechName||'Unassigned')+'</div>'+
-      '<div><b>Assigned:</b> '+dt(j.assignedAt)+'</div></div>'+
-      '<select id="dAssign" style="margin-top:8px">'+techOptions(j.assignedTechId||j.assignedTech)+'</select>'+
-      '<div class="actions" style="margin:10px 0">';
-    if (j.jobStatus === 'pending_review') html += '<button type="button" class="btn sm" id="dConfirm" style="min-height:44px">Confirm booking</button>';
-    html += '<button type="button" class="btn ghost sm" id="dCancel" style="min-height:44px">Cancel job</button>';
-    html += '<button type="button" class="btn ghost sm" id="dReopenAppt" style="min-height:44px">Reopen</button>';
-    html += '</div>'+
+    html += '<div class="sec"><h4>Schedule</h4>'+
       '<div class="op-grid">'+
       '<div><label>Reschedule date</label><input type="date" id="dDate" value="'+esc((j.confirmedDate||j.preferredDate||'').slice(0,10))+'"></div>'+
       '<div><label>Time / window</label><input type="text" id="dTime" placeholder="e.g. 10:00 AM or Morning" value="'+esc(j.confirmedTime||j.confirmedTimeWindow||j.preferredTime||'')+'"></div>'+
       '<div class="full appt-edit-actions"><button type="button" class="btn ghost sm" id="dResched" style="width:100%;min-height:44px">Save reschedule</button></div>'+
       '</div>'+
-      '<h4 style="margin-top:12px">Technician status proxy</h4><div class="actions">'+
-      '<button type="button" class="btn ghost sm" id="dTechEnRoute" style="min-height:44px">En Route</button>'+
-      '<button type="button" class="btn ghost sm" id="dTechStart" style="min-height:44px">Start</button>'+
-      '<button type="button" class="btn ghost sm" id="dTechPause" style="min-height:44px">Pause</button>'+
-      '<button type="button" class="btn ghost sm" id="dTechResume" style="min-height:44px">Resume</button>'+
-      '<button type="button" class="btn sm" id="dTechComplete" style="min-height:44px">Complete service</button></div></div>';
+      '<p class="hint">Lifecycle actions (confirm, assign, complete, close) live under Resolve.</p></div>';
     html += '</div></div>'; // end schedule panel
 
     html += '<div class="appt-panel" data-appt-panel="payment" id="appt-panel-payment" role="tabpanel" hidden><div class="job-detail-grid">';
@@ -3133,6 +3179,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div class="full appt-edit-actions"><button type="button" class="btn ghost sm" id="dSaveBal" style="width:100%;min-height:44px">Save balance</button></div></div></div>';
     const canGenLink = false;
     const stripeRef = j.stripeCheckoutSessionIdPrefix || j.paymentIntentIdPrefix || '';
+    const cashCapPay = drawerControls && drawerControls.recordCash;
+    const cardCapPay = drawerControls && drawerControls.recordCardOnSite;
+    const expectedCash = cashCapPay ? Number(cashCapPay.expectedAmountCents) || 0 : Math.round(Math.max(0, balDue) * 100);
     html += '<div class="sec" style="margin:0"><h4>Invoice / Payment</h4>'+
       '<div style="margin-bottom:10px">'+payBadge(invPaid?'payment_succeeded':j.paymentWorkflowStatus)+
       (invPaid?' <strong style="color:var(--ok)">· PAID</strong>':' <strong>· Balance due</strong>')+
@@ -3144,48 +3193,59 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<div><b>Balance:</b> $'+esc(String(Math.max(0,balDue).toFixed(2)))+'</div>'+
       (stripeRef?'<div><b>Stripe:</b> '+esc(stripeRef)+'…</div>':'')+
       '</div>'+
-      (invPaid?'<p class="hint">Stripe settlement paid the invoice. Service status remains independent.</p>':'')+
+      (invPaid?'<p class="hint">Settlement paid the invoice. Service status remains independent — use Close job when paid under Resolve after work is done.</p>':'')+
       '<div class="op-grid">'+
-      // Payment method has one home: the Payment method section below, which
-      // knows whether a change is allowed here and says why when it is not.
       '<div class="full"><label>Payment preference</label>'+
       '<p class="hint" style="margin:0">'+esc(String(j.paymentMethodPreference||'not set').replace(/_/g,' '))+
       ' — change it in the Payment method section below.</p></div>'+
-      '<div class="full"><label>Legacy hosted Checkout (disabled)</label><input type="url" id="dPayLink" value="'+esc(j.payLink||'')+'" disabled></div>'+
-      '<div class="full"><label>Manual external reference (optional, not Checkout)</label><input type="url" id="dManualPayRef" placeholder="https://… external note only" value="'+esc(j.manualPayLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
+      '<div class="full" hidden aria-hidden="true"><label>Legacy hosted Checkout (disabled)</label><input type="url" id="dPayLink" value="'+esc(j.payLink||'')+'" disabled></div>'+
+      '<div class="full"><label>Manual external reference (optional)</label><input type="url" id="dManualPayRef" placeholder="https://… external note only" value="'+esc(j.manualPayLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
       '<div class="full actions">'+
       '<button type="button" class="btn ghost sm" id="dReconcileStripe" style="min-height:44px">Reconcile with Stripe</button>'+
-      '<button type="button" class="btn ghost sm" id="dSetPayLink" style="min-height:44px"'+(canGenLink?'':' disabled')+'>Save manual reference</button>'+
+      '<button type="button" class="btn ghost sm" id="dSetPayLink" style="min-height:44px"'+(canGenLink?'':' disabled')+' hidden>Save manual reference</button>'+
       '</div>'+
-      '<p class="hint">Customers pay with the embedded Payment Element in My Garage. Hosted Checkout and manual policy charges are isolated. Reconcile is exceptional recovery only.</p>'+
-      '<div class="full actions" style="margin-top:4px">'+
-      (() => {
-        const js = String(j.jobStatus||'');
-        const cancelled = js==='cancelled' || String(j.appointmentStatus||'').toLowerCase().indexOf('cancel')>=0 || String(j.cancellationRequestStatus||'')==='approved';
-        const completed = /completed_/.test(js);
-        const policyBlocked = cancelled || completed;
-        const title = policyBlocked ? (cancelled?'Blocked — appointment cancelled':'Blocked — job completed') : '';
-        return '<button type="button" class="btn warn sm" id="dChargeNoShow" style="min-height:44px" disabled title="Pending PostgreSQL ledger integration">Charge no-show ($75)</button>'+
-          '<button type="button" class="btn warn sm" id="dChargeLateCancel" style="min-height:44px" disabled title="Pending PostgreSQL ledger integration">Charge late cancel ($50)</button>';
-      })()+
+      '<p class="hint">Customers pay with the embedded Payment Element in My Garage. Reconcile is exceptional recovery only.</p>'+
+      '<div class="full" style="margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:8px">'+
+      '<h4 style="margin:0 0 8px">Record cash / card on-site</h4>'+
+      (cashCapPay && cashCapPay.blockedByPaymentAttempt
+        ? '<p class="hint" style="color:var(--warn)">'+esc(cashCapPay.explanation||'Payment attempt in progress')+'</p>'
+        : '')+
+      '<div class="op-grid">'+
+      '<div><label>Cash amount ($)</label><input type="text" id="dCashAmt" data-edit-enabled="1" inputmode="decimal" placeholder="'+(expectedCash?(expectedCash/100).toFixed(2):'')+'" value="'+(expectedCash?(expectedCash/100).toFixed(2):'')+'"'+(cashCapPay&&!cashCapPay.enabled?' disabled':'')+'></div>'+
+      '<div class="full"><label>Cash reason / evidence</label><input type="text" id="dCashReason" data-edit-enabled="1" placeholder="Cash received in person" value="Cash received in person"'+(cashCapPay&&!cashCapPay.enabled?' disabled':'')+'></div>'+
+      '<div class="full actions"><button type="button" class="btn sm" id="dMarkCash" style="min-height:44px"'+(cashCapPay&&!cashCapPay.enabled?' disabled':'')+'>Record cash payment</button></div>'+
+      '<div class="full"><label>Card terminal reference (no card number)</label><input type="text" id="dCardRef" data-edit-enabled="1" placeholder="Terminal / auth reference"'+(cardCapPay&&!cardCapPay.enabled?' disabled':'')+'></div>'+
+      '<div class="full"><label>Card reason / evidence</label><input type="text" id="dCardReason" data-edit-enabled="1" placeholder="Card payment received on site" value="Card payment received on site"'+(cardCapPay&&!cardCapPay.enabled?' disabled':'')+'></div>'+
+      '<div class="full actions"><button type="button" class="btn sm" id="dMarkCardSite" style="min-height:44px"'+(cardCapPay&&!cardCapPay.enabled?' disabled':'')+'>Record card on-site</button></div>'+
       '</div>'+
-      '<p class="hint">Policy charges use card on file (off-session). Blocked after job completed or cancelled within terms.</p>'+
+      '<p class="hint">Leave cash amount blank to settle the full remaining balance on the server. Cash/card settle money only — they do not close the job.</p>'+
+      '</div>'+
       '<div class="full"><label>Refund note</label><input type="text" id="dRefundNote" placeholder="Reason for refund request"></div>'+
       '<div><label>Refund amount ($)</label><input type="number" id="dRefundAmt" step="0.01"></div>'+
       '<div class="full actions">'+
       '<button type="button" class="btn warn sm" id="dRefund" style="min-height:44px">Issue Stripe refund</button>'+
-      '<button type="button" class="btn ghost sm" id="dMarkRefunded" style="min-height:44px" disabled title="Only a signed Stripe webhook can mark a refund">Manual mark refunded disabled</button>'+
       '</div>'+
       (j.paymentWorkflowStatus==='refunded'||j.refundStatus==='refunded'?'<p class="hint">Payment status: refunded</p>':'')+
       '<div class="full actions" style="margin-top:8px">'+
-      '<button type="button" class="btn ghost sm" id="dMarkCash" style="min-height:44px">Record cash payment</button>'+
-      '<button type="button" class="btn ghost sm" id="dMarkCardSite" style="min-height:44px">Record card on-site</button>'+
       '<button type="button" class="btn ghost sm" id="dApproveAdj" style="min-height:44px">Approve adjustment</button>'+
       '<button type="button" class="btn ghost sm" id="dRejectAdj" style="min-height:44px">Reject adjustment</button>'+
       '</div>'+
       '</div></div></div>';
     html += operationalControlsHtml();
     html += '</div></div>'; // end payment panel
+
+    html += '<div class="appt-panel" data-appt-panel="create" id="appt-panel-create" role="tabpanel" hidden><div class="job-detail-grid">';
+    html += '<div class="sec full"><h4>New appointment from this booking</h4>'+
+      '<p class="hint">Creates a new booking prefilled with this customer, address, and vehicle package. Does not copy payments or lifecycle status.</p>'+
+      '<div class="kv" style="margin:8px 0">'+
+      '<div><b>Customer:</b> '+esc(cust(j))+'</div>'+
+      '<div><b>Phone:</b> '+esc(j.phone||'—')+'</div>'+
+      '<div><b>Email:</b> '+esc(j.email||'—')+'</div>'+
+      '<div><b>Address:</b> '+esc(j.address||'—')+' · '+esc(j.zipCode||'')+'</div>'+
+      '<div><b>Package:</b> '+esc(j.packageId||j.package||'—')+'</div>'+
+      '</div>'+
+      '<div class="actions"><button type="button" class="btn sm" id="dCreateFromBooking" style="min-height:44px">Create appointment from this booking</button></div>'+
+      '</div></div></div>'; // end create panel
 
     html += '<div class="appt-panel" data-appt-panel="notes" id="appt-panel-notes" role="tabpanel" hidden><div class="job-detail-grid">';
     html += '<div class="sec full"><h4>Customer notes</h4>'+
@@ -3204,15 +3264,6 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<button type="button" class="btn sm" id="dPostAuc" style="min-height:44px">Post to auction</button>'+
       '<button type="button" class="btn ghost sm" id="dAssignWin" style="min-height:44px">Assign auction winner</button></div></div>';
     html += '<div class="sec full"><h4>Notes and history</h4>';
-    html += '<div class="sec" style="margin:0 0 12px"><h4>Customer links</h4><div class="actions">'+
-      '<button type="button" class="btn sm" id="dGenCompletion" style="min-height:44px">Generate completion link</button>'+
-      '<button type="button" class="btn ghost sm" id="dGenGarage" style="min-height:44px">My Garage link</button>'+
-      '<button type="button" class="btn ghost sm" id="dCopyCustomerLink" style="min-height:44px">Copy last link</button></div>'+
-      (j.completionLinkUrl?'<p class="hint">Completion: '+esc(j.completionLinkUrl)+'</p>':'')+
-      (j.myGarageLinkUrl?'<p class="hint">My Garage: '+esc(j.myGarageLinkUrl)+'</p>':'')+
-      (j.notificationDelivery?'<p class="hint">Notifications — admin: '+esc((j.notificationDelivery.adminEmail&&j.notificationDelivery.adminEmail.status)||'—')+
-        ' · customer: '+esc((j.notificationDelivery.customerEmail&&j.notificationDelivery.customerEmail.status)||'—')+'</p>':'')+
-      '</div>';
     html += '<div class="sec" style="margin:0 0 12px"><h4>Customer requests</h4>'+
       '<p class="hint" style="margin:0 0 8px">Approve or decline change requests for this appointment.</p>'+
       '<button type="button" class="btn ghost sm" data-open-requests-panel style="min-height:44px">Open requests</button></div>';
@@ -3239,7 +3290,6 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (j.technicianPrintedName) html += '<div style="margin-top:8px"><b>Technician:</b> '+esc(j.technicianPrintedName)+
         (j.technicianSignature&&j.technicianSignature.startsWith('data:')?'<img class="sig" src="'+j.technicianSignature+'" alt="Tech signature">':'')+'</div>';
       html += '<div class="actions" style="margin-top:12px">'+
-        (j.jobStatus==='completed_pending_admin_review'?'<button type="button" class="btn sm" id="dApprove" style="min-height:44px">Approve completion</button>':'')+
         '<button type="button" class="btn ghost sm" id="dReopen" style="min-height:44px">Reopen job</button>'+
         '<button type="button" class="btn ghost sm" id="dCorrect" style="min-height:44px">Request correction</button></div></div>';
     }
@@ -3249,6 +3299,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     html += '<details style="margin:0 0 12px"><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;font-size:11px;font-weight:700">Operational audit</summary><div class="sec" id="dAuditSec" style="margin:8px 0 0"><div class="empty">Loading audit…</div></div></details>';
     html += '<div class="appt-danger-zone"><h4 style="margin:0 0 8px">Destructive and archival actions</h4><div class="actions">'+
       '<button type="button" class="btn warn sm" id="dArchive" style="min-height:44px">Archive as test</button></div></div>';
+    // Customer access last — Admin-first hub; portal follows Admin.
+    html += '<div class="sec" style="margin:16px 0 0"><h4>Customer access</h4><div class="actions">'+
+      '<button type="button" class="btn sm" id="dGenCompletion" style="min-height:44px">Generate completion link</button>'+
+      '<button type="button" class="btn ghost sm" id="dGenGarage" style="min-height:44px">My Garage link</button>'+
+      '<button type="button" class="btn ghost sm" id="dCopyCustomerLink" style="min-height:44px">Copy last link</button></div>'+
+      (j.completionLinkUrl?'<p class="hint">Completion: '+esc(j.completionLinkUrl)+'</p>':'')+
+      (j.myGarageLinkUrl?'<p class="hint">My Garage: '+esc(j.myGarageLinkUrl)+'</p>':'')+
+      (j.notificationDelivery?'<p class="hint">Notifications — admin: '+esc((j.notificationDelivery.adminEmail&&j.notificationDelivery.adminEmail.status)||'—')+
+        ' · customer: '+esc((j.notificationDelivery.customerEmail&&j.notificationDelivery.customerEmail.status)||'—')+'</p>':'')+
+      '</div>';
     html += '</div></div>'; // end more panel
     html += '</div>'; // end workspace
     $('#dBody').innerHTML = html;
@@ -3324,6 +3384,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const dtp = $('#dTechPause'); if(dtp) dtp.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'pause'});
     const dtr = $('#dTechResume'); if(dtr) dtr.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'resume'});
     const dtc = $('#dTechComplete'); if(dtc) dtc.onclick = () => jobAction(j.id,'admin_tech_status',{statusAction:'complete_service'});
+    const dcwp = $('#dCloseWhenPaid');
+    if (dcwp) {
+      dcwp.onclick = () => {
+        if (!confirm('Close this job as paid? Money is already settled — this only updates lifecycle status.')) return;
+        jobAction(j.id, 'close_job', { expectedBookingVersion: j.bookingVersion });
+      };
+    }
     const dmc = $('#dMarkCash');
     if (dmc) {
       const cashCap = drawerControls && drawerControls.recordCash;
@@ -3331,22 +3398,34 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         dmc.disabled = true;
         dmc.title = cashCap.explanation || 'No remaining balance to collect.';
       } else {
-        // Amount and an explicit confirmation, both required — recording cash is
-        // a financial statement, not a one-tap toggle.
         dmc.onclick = () => {
+          if (cashCap && cashCap.blockedByPaymentAttempt) {
+            toast(cashCap.explanation || 'payment_attempt_in_progress');
+            return;
+          }
           const expected = cashCap ? Number(cashCap.expectedAmountCents) || 0 : 0;
-          const suggested = expected ? (expected / 100).toFixed(2) : '';
-          const amt = prompt('Cash amount received ($):', suggested);
-          if (amt === null) return;
-          if (!String(amt).trim()) { toast('Enter the cash amount received'); return; }
-          const reason = prompt('Reason / evidence for this financial entry:', 'Cash received in person');
-          if (!reason || !reason.trim()) { toast('A reason is required'); return; }
-          if (!confirm('Record ' + '$' + Number(amt).toFixed(2) + ' cash against this booking? The customer is emailed a confirmation.')) return;
-          jobAction(j.id,'mark_cash_received', {
-            amount: String(amt).trim(),
-            reason: reason.trim(),
+          const rawAmt = ($('#dCashAmt') && $('#dCashAmt').value) || '';
+          const reason = (($('#dCashReason') && $('#dCashReason').value) || '').trim();
+          if (!reason) { toast('A reason is required'); return; }
+          const payload = {
+            reason,
             expectedBookingVersion: j.bookingVersion,
-          });
+          };
+          if (String(rawAmt).trim()) {
+            const parsed = parseCashAmountInput(rawAmt);
+            if (!parsed.ok) { toast('Enter a valid cash amount (e.g. 175.00) — $ and commas are stripped'); return; }
+            if (expected > 0 && parsed.cents !== expected) {
+              toast('Cash must equal remaining $' + (expected / 100).toFixed(2) + ' (got $' + parsed.text + ')');
+              return;
+            }
+            // Prefer omit when exact — server settles remainingCents from Postgres.
+            if (!(expected > 0 && parsed.cents === expected)) {
+              payload.amount = parsed.text;
+            }
+          }
+          // Blank amount → omit amount; server liquidates remainingCents.
+          if (!confirm('Record cash against this booking? The customer is emailed a confirmation.')) return;
+          jobAction(j.id, 'mark_cash_received', payload);
         };
       }
     }
@@ -3387,16 +3466,73 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       });
     };
     const dmcs = $('#dMarkCardSite'); if(dmcs) dmcs.onclick = () => {
-      const ref=prompt('Card-on-site terminal reference (no card number):');
-      if(!ref||!ref.trim()) return;
-      const reason=prompt('Reason / evidence for this financial entry:','Card payment received on site');
-      if(!reason||!reason.trim()){ toast('A reason is required'); return; }
+      const cardCap = drawerControls && drawerControls.recordCardOnSite;
+      if (cardCap && cardCap.blockedByPaymentAttempt) {
+        toast(cardCap.explanation || 'payment_attempt_in_progress');
+        return;
+      }
+      if (cardCap && !cardCap.enabled) {
+        toast(cardCap.explanation || 'No remaining balance to collect.');
+        return;
+      }
+      const ref = (($('#dCardRef') && $('#dCardRef').value) || '').trim();
+      if (!ref) { toast('Enter the card terminal reference'); return; }
+      const reason = (($('#dCardReason') && $('#dCardReason').value) || '').trim();
+      if (!reason) { toast('A reason is required'); return; }
+      if (!confirm('Record card on-site for the remaining balance?')) return;
       jobAction(j.id,'mark_card_on_site',{
-        reference:ref.trim(),
-        reason:reason.trim(),
-        expectedBookingVersion:j.bookingVersion,
+        reference: ref,
+        reason,
+        expectedBookingVersion: j.bookingVersion,
       });
     };
+    const dcfb = $('#dCreateFromBooking');
+    if (dcfb) {
+      dcfb.onclick = async () => {
+        if (!confirm('Create a new appointment from this booking’s customer and service details?')) return;
+        const packageId = j.packageId || j.pkgId || 'interior';
+        const vehicles = Array.isArray(j.vehicles) && j.vehicles.length
+          ? j.vehicles.map((v) => ({
+            cat: v.category || v.cat || j.vehicleCategory || 'cars',
+            pkgId: v.packageId || v.pkgId || packageId,
+            tierKey: v.tierKey || 'small',
+            tierLabel: v.tierLabel || v.tier || j.vehicleTier || 'Small Car',
+            year: v.year || '',
+            make: v.make || '',
+            model: v.model || '',
+            lengthFt: v.lengthFt || v.vehicleLengthFt || undefined,
+          }))
+          : [{
+            cat: j.vehicleCategory || 'cars',
+            pkgId: packageId,
+            tierKey: 'small',
+            tierLabel: j.vehicleTier || 'Small Car',
+          }];
+        try {
+          const d = await api('/.netlify/functions/admin-ops-jobs', 'POST', {
+            action: 'create_appointment',
+            firstName: j.firstName || cust(j).split(' ')[0] || 'Customer',
+            lastName: j.lastName || '',
+            phone: j.phone || '',
+            email: j.email || '',
+            address: j.address || '',
+            zipCode: j.zipCode || '',
+            packageId,
+            package: j.package || j.service || '',
+            vehicleCategory: j.vehicleCategory || 'cars',
+            vehicleTier: j.vehicleTier || vehicles[0].tierLabel,
+            vehicleLabel: j.vehicleLabel || j.vehicle || '',
+            vehicles,
+            reason: 'fork_from_' + (j.id || 'booking'),
+          });
+          toast('Appointment created: ' + d.bookingId);
+          await refreshAll();
+          if (d.bookingId) openDrawer(d.bookingId);
+        } catch (e) {
+          toast('Create failed: ' + formatActionError(e));
+        }
+      };
+    }
     document.querySelectorAll('.adj-decide').forEach((btn) => {
       btn.onclick = () => {
         const decision = btn.dataset.decision;

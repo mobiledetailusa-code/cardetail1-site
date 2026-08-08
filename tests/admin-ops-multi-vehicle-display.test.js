@@ -362,8 +362,9 @@ describe('Admin Ops inline expandable job details', () => {
     // the old pair had no concept of.
     'dPayMethod', 'dSavePayMethod', 'dPayMethodReason',
     'dPayLink', 'dManualPayRef', 'dGenPayLink', 'dReconcileStripe',
-    'dCopyPayLink', 'dSetPayLink', 'dChargeNoShow', 'dChargeLateCancel', 'dRefundNote', 'dRefundAmt',
-    'dRefund', 'dMarkRefunded', 'dMarkCash', 'dMarkCardSite', 'dApproveAdj', 'dRejectAdj',
+    'dCopyPayLink', 'dSetPayLink', 'dRefundNote', 'dRefundAmt',
+    'dRefund', 'dMarkCash', 'dMarkCardSite', 'dCashAmt', 'dCardRef', 'dCloseWhenPaid', 'dCreateFromBooking',
+    'dApproveAdj', 'dRejectAdj',
     'dGenCompletion', 'dGenGarage', 'dCopyCustomerLink', 'dAuditSec', 'dNote', 'dSaveNote', 'dClose',
   ];
 
@@ -440,7 +441,7 @@ describe('Admin Ops inline expandable job details', () => {
     assert.match(adminOps, /jobAction\(j\.id,'update_address'/);
     assert.match(adminOps, /jobAction\(j\.id,'reschedule'/);
     assert.match(adminOps, /jobAction\(activeJob\.id,'admin_note'/);
-    assert.match(adminOps, /jobAction\(j\.id,'mark_cash_received'/);
+    assert.match(adminOps, /jobAction\(j\.id,\s*'mark_cash_received'/);
     assert.match(adminOps, /action:\s*'change_package'/);
     assert.match(adminOps, /renderAddonSection/);
     assert.match(adminOps, /bindAddonSection/);

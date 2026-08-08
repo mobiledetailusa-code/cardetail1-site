@@ -175,6 +175,28 @@ function isActionableAppointment(b) {
   return b.customerApprovalStatus === 'pending';
 }
 
+/** Open balance or in-flight payment — prefer as hero over an older unpaid Confirmed. */
+function hasOpenPayableBalance(b) {
+  const remaining = Number(b.remainingCents != null ? b.remainingCents : Math.round(Number(b.amountDueApproved || 0) * 100));
+  if (Number.isFinite(remaining) && remaining > 0) return true;
+  const pwf = String(b.paymentWorkflowStatus || '').toLowerCase();
+  return pwf === 'due' || pwf === 'awaiting_customer_payment' || pwf === 'pending_webhook';
+}
+
+/**
+ * Settled paid invoice — still visible in the list, but must not steal the hero
+ * from a sibling booking that still needs action or payment.
+ */
+function isSettledPaidHero(b) {
+  if (isActionableAppointment(b)) return false;
+  if (hasOpenPayableBalance(b)) return false;
+  const pwf = String(b.paymentWorkflowStatus || '').toLowerCase();
+  if (pwf === 'payment_succeeded' || pwf === 'cash_paid' || pwf === 'paid') return true;
+  const remaining = Number(b.remainingCents != null ? b.remainingCents : Math.round(Number(b.amountDueApproved || 0) * 100));
+  const settled = Number(b.settledCents != null ? b.settledCents : Math.round(Number(b.amountPaid || 0) * 100));
+  return Number.isFinite(remaining) && remaining <= 0 && settled > 0;
+}
+
 /**
  * A job awaiting customer payment or approval projects as "Completed" but is
  * still live work, so actionable state is evaluated first.
@@ -206,9 +228,11 @@ function byDateDescending(a, b) {
  * Deterministic current-appointment selection.
  *
  * 1. actionable/current appointment
- * 2. nearest upcoming pending-review or confirmed appointment
- * 3. most recent non-terminal appointment already in the past
- * 4. most recently completed/cancelled appointment
+ * 2. open balance / payment pending (before nearest-date-only)
+ * 3. nearest upcoming non-settled appointment
+ * 4. most recent non-terminal appointment already in the past
+ * 5. settled-paid only when nothing else competes
+ * 6. most recently completed/cancelled appointment
  *
  * Selection never removes an appointment from the returned collection.
  */
@@ -220,14 +244,21 @@ function selectUpcoming(projected, { now = Date.now() } = {}) {
   if (actionable.length) return actionable[0];
 
   const active = projected.filter((b) => !isTerminalAppointment(b));
+  const payable = active.filter(hasOpenPayableBalance).sort(byDateAscending);
+  if (payable.length) return payable[0];
 
-  const future = active
+  const unsettledActive = active.filter((b) => !isSettledPaidHero(b));
+
+  const future = unsettledActive
     .filter((b) => !appointmentDate(b) || appointmentDate(b) >= today)
     .sort(byDateAscending);
   if (future.length) return future[0];
 
-  const past = active.sort(byDateDescending);
+  const past = unsettledActive.sort(byDateDescending);
   if (past.length) return past[0];
+
+  const settled = active.filter(isSettledPaidHero).sort(byDateDescending);
+  if (settled.length) return settled[0];
 
   return [...projected].sort(byDateDescending)[0] || null;
 }
@@ -516,4 +547,9 @@ exports.syncJson = syncJson;
 exports.__test = {
   safePaymentStateAsync,
   handlePortalData,
+  selectUpcoming,
+  hasOpenPayableBalance,
+  isSettledPaidHero,
+  isTerminalAppointment,
+  isActionableAppointment,
 };

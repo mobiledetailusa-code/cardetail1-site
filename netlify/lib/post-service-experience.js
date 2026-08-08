@@ -174,13 +174,13 @@ function postServiceState(booking, now = Date.now()) {
       windowClosesAt: issueWindowClosesAtMs != null
         ? new Date(issueWindowClosesAtMs).toISOString()
         : null,
-      msRemaining: issueWindowMsRemaining,
+      // hoursRemaining is stable enough for sync hashing; avoid msRemaining /
+      // nested serverTime which poison notModified on every poll.
       hoursRemaining: Math.floor(issueWindowMsRemaining / 3600000),
       submitted: issues.length > 0,
       count: issues.length,
       closedMessage: (completed && !issueWindowOpen) ? ISSUE_WINDOW_CLOSED_MESSAGE : '',
     },
-    serverTime: new Date(at).toISOString(),
   };
 }
 

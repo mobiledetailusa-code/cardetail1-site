@@ -2709,6 +2709,12 @@
     if (status === 'succeeded' || status === 'processing') {
       setEmbeddedPayMsg(status === 'processing' ? 'Payment processing — confirming…' : 'Payment succeeded — confirming…', false);
       hideEmbeddedPay();
+      // Pin the paid booking so multi-email selectUpcoming cannot swap the hero.
+      if (state.booking) {
+        state.appointmentFocusRef = state.booking.appointmentPublicRef
+          || state.booking.id
+          || state.appointmentFocusRef;
+      }
       pollPaymentSettlement();
       return;
     }
@@ -3899,7 +3905,9 @@
     if (!el || !info) return;
     el.setAttribute('data-state', info.state || 'idle');
     if (info.state === 'updating') {
-      el.textContent = 'Updating…';
+      // Idle background polls stay quiet — only show "Updating…" when something
+      // is actually pending (payment settle, mutation, open request).
+      if (portalHasPendingState()) el.textContent = 'Updating…';
     } else if (info.state === 'current') {
       el.textContent = info.lastUpdated
         ? ('Last updated ' + info.lastUpdated.toLocaleTimeString())
@@ -3967,6 +3975,11 @@
         var settled = pay.state === 'paid' || !(pay.canPay || Number(pay.amountDueApproved || 0) > 0);
         if (paymentConfirmationPending && settled) {
           paymentConfirmationPending = false;
+          if (state.booking) {
+            state.appointmentFocusRef = state.booking.appointmentPublicRef
+              || state.booking.id
+              || state.appointmentFocusRef;
+          }
           showToast('Payment confirmed — thank you!');
         }
       },
