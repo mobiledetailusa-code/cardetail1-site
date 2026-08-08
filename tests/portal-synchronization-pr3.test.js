@@ -280,13 +280,31 @@ describe('PR3 portal integration contracts', () => {
     assert.match(client, /delete body\.amountCents/);
   });
 
-  it('uses a 4-second steady cadence, satisfying the 2–5 second normal visibility target', () => {
-    const cadenceMs = 4000;
+  it('uses a 15-second stable cadence with 2.5s active pending boost', () => {
+    const garage = read('assets/my-garage.js');
+    const admin = read('admin-ops.html');
+    assert.match(garage, /stablePollMs:\s*15000/);
+    assert.match(garage, /activePollMs:\s*2500/);
+    assert.match(admin, /stablePollMs:\s*15000/);
+    assert.match(admin, /activePollMs:\s*2500/);
+    const pendingFn = admin.slice(
+      admin.indexOf('function adminSyncPending'),
+      admin.indexOf('function adminSyncPending') + 700
+    );
+    assert.match(pendingFn, /\['creating','open','processing','pending_webhook'\]/);
+    assert.doesNotMatch(pendingFn, /\['creating','open','processing','pending_webhook','awaiting_customer_payment'\]/);
+    const cadenceMs = 15000;
     const samples = Array.from({ length: 1000 }, (_, i) => (i + 0.5) * cadenceMs / 1000).sort((a, b) => a - b);
     const p50 = samples[Math.floor(samples.length * 0.50)];
     const p95 = samples[Math.floor(samples.length * 0.95)];
-    assert.ok(p50 >= 1900 && p50 <= 2100);
-    assert.ok(p95 >= 3700 && p95 <= 3900);
-    assert.ok(p95 < 5000);
+    assert.ok(p50 >= 7400 && p50 <= 7600);
+    assert.ok(p95 >= 14200 && p95 <= 14800);
+  });
+
+  it('skips Admin DOM rewrite when jobs and requests are notModified', () => {
+    const admin = read('admin-ops.html');
+    assert.match(admin, /bothUnchanged/);
+    assert.match(admin, /lastJobsNotModified/);
+    assert.match(admin, /lastRequestsNotModified/);
   });
 });

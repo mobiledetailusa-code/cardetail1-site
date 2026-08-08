@@ -257,6 +257,20 @@
     if (appointmentNeedsAttention(b)) return false;
     var status = String(b.status || '');
     var job = String(b.jobStatus || '').toLowerCase();
+    var pwf = String(b.paymentWorkflowStatus || '').toLowerCase();
+    var paySt = String(b.paymentStatus || '').toLowerCase();
+    // Settled invoices belong in History even when the operational status label
+    // still says Confirmed/submitted (common after card_on_site / webhook lag).
+    if (paySt === 'paid' || paySt === 'paid_cash' || paySt === 'paid_card_on_site'
+      || pwf === 'payment_succeeded' || pwf === 'cash_paid' || pwf === 'paid') {
+      return true;
+    }
+    if (b.invoicePaid === true) return true;
+    var settled = Number(b.amountPaid || b.paidAmount || 0);
+    var due = Number(b.amountDueApproved != null ? b.amountDueApproved : b.balanceDue);
+    if (settled > 0 && !(due > 0) && (job === 'completed' || job === 'completed_paid' || /paid|complete/i.test(status))) {
+      return true;
+    }
     return status === 'Paid' || status === 'Completed' || status === 'Cancelled' || status === 'Canceled'
       || job === 'completed_paid' || job === 'completed' || job === 'cancelled';
   }
@@ -284,7 +298,6 @@
   function applyAppointmentFocus(data) {
     if (!data) return;
     state.focusedAppointment = data.focusedAppointment || null;
-    if (data.upcoming) state.booking = data.upcoming;
     if (data.focusError === 'invalid_focus') {
       // Consume opaque focus param after a safe miss — do not keep a bad ref.
       stripAppointmentFocusFromUrl();
@@ -294,14 +307,45 @@
       return;
     }
     if (state.focusedAppointment) {
-      // Strip from the address bar only. Keep the opaque ref in memory so soft
-      // reloads / polling cannot replace this appointment with selectUpcoming().
+      // Sticky selection: never let selectUpcoming()'s default replace the hero.
+      // focusedAppointment from the server is intentionally sparse (ref + status) —
+      // resolve the full booking from upcoming/bookings so the hero keeps vehicles.
       var retainedRef = state.focusedAppointment.appointmentPublicRef
         || state.appointmentFocusRef
         || null;
       if (retainedRef) state.appointmentFocusRef = retainedRef;
+      function matchesFocusRef(row) {
+        if (!row || !retainedRef) return false;
+        var ref = String(retainedRef);
+        return String(row.appointmentPublicRef || '') === ref
+          || String(row.id || '') === ref
+          || String(row.bookingId || '') === ref;
+      }
+      var full = null;
+      if (matchesFocusRef(data.upcoming)) full = data.upcoming;
+      else if (Array.isArray(state.bookings)) {
+        full = state.bookings.find(matchesFocusRef) || null;
+      }
+      if (full) state.booking = full;
+      // Strip from the address bar only. Keep the opaque ref in memory so soft
+      // reloads / polling cannot replace this appointment with selectUpcoming().
       stripAppointmentFocusFromUrl();
+      return;
     }
+    if (state.appointmentFocusRef && Array.isArray(state.bookings) && state.bookings.length) {
+      var ref = String(state.appointmentFocusRef);
+      var match = state.bookings.find(function (row) {
+        if (!row) return false;
+        return String(row.appointmentPublicRef || '') === ref
+          || String(row.id || '') === ref
+          || String(row.bookingId || '') === ref;
+      });
+      if (match) {
+        state.booking = match;
+        return;
+      }
+    }
+    if (data.upcoming) state.booking = data.upcoming;
   }
 
   function highlightFocusedAppointment() {
@@ -1216,8 +1260,11 @@
     state.scope = 'account';
     state.session = true;
     state.bookings = r.data.bookings || [];
-    state.booking = r.data.upcoming || state.bookings[0] || null;
+    // Apply sticky focus before falling back to server selectUpcoming().
     applyAppointmentFocus(r.data);
+    if (!state.booking) {
+      state.booking = r.data.upcoming || state.bookings[0] || null;
+    }
     applyPortalPayload(r.data);
     renderDashboard(r.data);
     highlightFocusedAppointment();
@@ -1574,7 +1621,7 @@
    */
   function syncPayBalanceButton(pay) {
     var due = Number(pay.amountDueApproved || 0);
-    var can = !!(pay.canPay || pay.canCreatePayLink);
+    var can = !!(pay.canPay || pay.canCreatePayLink) && due > 0;
     syncStickyPayBar(can, due);
     syncMoneyActionButtons(pay);
   }
@@ -1604,7 +1651,7 @@
     var empty = $('payments-empty');
     if (!panel) return;
     var due = Number(pay.amountDueApproved || 0);
-    var can = !!(pay.canPay || pay.canCreatePayLink);
+    var can = !!(pay.canPay || pay.canCreatePayLink) && due > 0;
     var paid = invoiceIsPaid(pay);
     if (!can && !(due > 0) && !(Number(pay.approvedTotal || 0) > 0) && !paid) {
       panel.innerHTML = '';
@@ -2521,7 +2568,8 @@
       return;
     }
     var pay = state.payment || {};
-    if (!pay.canPay && !pay.canCreatePayLink) {
+    var due = Number(pay.amountDueApproved || 0);
+    if ((!pay.canPay && !pay.canCreatePayLink) || !(due > 0)) {
       showToast('No balance is due yet, or payment is locked until approval.', true);
       return;
     }
@@ -2626,7 +2674,14 @@
       return;
     }
 
-    showToast((intent.data && intent.data.message) || 'Payment is not available yet.', true);
+    showToast(
+      (intent.data && intent.data.message)
+        || (intent.data && intent.data.error === 'stale_quote_version' && 'Your quote was updated. Refresh and try again.')
+        || (intent.data && intent.data.error === 'already_paid' && 'This invoice is already paid.')
+        || (intent.data && intent.data.error === 'zero_balance' && 'No balance is due for this appointment.')
+        || 'Payment is not available yet.',
+      true
+    );
   }
 
   async function confirmEmbeddedPay() {
@@ -3904,7 +3959,7 @@
     portalRefresh = global.CD1OperationalRefresh.createRefreshController({
       controllerKey: 'my-garage',
       activePollMs: 2500,
-      stablePollMs: 4000,
+      stablePollMs: 15000,
       maxBackoffMs: 60000,
       onRefresh: refreshPortalProjection,
       onUpdated: function () {

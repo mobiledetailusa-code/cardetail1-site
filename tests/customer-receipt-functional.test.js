@@ -387,3 +387,19 @@ test('51. the payment element and its authority are untouched', () => {
   // Receipts must not initialize Stripe or create a payment.
   assert.doesNotMatch(receiptJs, /stripe|payment-intent|startPayBalance/i);
 });
+
+test('settled ledger unlocks receipt even when Blob still looks draft', () => {
+  const src = read('netlify/functions/customer-receipt.js');
+  assert.match(src, /ledgerPaid/);
+  assert.match(src, /portalVisible/);
+  assert.match(src, /grossSettledCents/);
+  assert.match(src, /isArchivedOrTest/);
+});
+
+test('My Garage keeps sticky appointment focus across polls and treats paid invoices as history', () => {
+  assert.match(garageJs, /Sticky selection/);
+  assert.match(garageJs, /if \(!state\.booking\)/);
+  assert.match(garageJs, /paid_card_on_site/);
+  assert.match(garageJs, /stablePollMs:\s*15000/);
+  assert.match(garageJs, /due > 0/);
+});
