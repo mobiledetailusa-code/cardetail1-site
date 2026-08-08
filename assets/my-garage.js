@@ -308,13 +308,27 @@
     }
     if (state.focusedAppointment) {
       // Sticky selection: never let selectUpcoming()'s default replace the hero.
-      state.booking = state.focusedAppointment;
-      // Strip from the address bar only. Keep the opaque ref in memory so soft
-      // reloads / polling cannot replace this appointment with selectUpcoming().
+      // focusedAppointment from the server is intentionally sparse (ref + status) —
+      // resolve the full booking from upcoming/bookings so the hero keeps vehicles.
       var retainedRef = state.focusedAppointment.appointmentPublicRef
         || state.appointmentFocusRef
         || null;
       if (retainedRef) state.appointmentFocusRef = retainedRef;
+      function matchesFocusRef(row) {
+        if (!row || !retainedRef) return false;
+        var ref = String(retainedRef);
+        return String(row.appointmentPublicRef || '') === ref
+          || String(row.id || '') === ref
+          || String(row.bookingId || '') === ref;
+      }
+      var full = null;
+      if (matchesFocusRef(data.upcoming)) full = data.upcoming;
+      else if (Array.isArray(state.bookings)) {
+        full = state.bookings.find(matchesFocusRef) || null;
+      }
+      if (full) state.booking = full;
+      // Strip from the address bar only. Keep the opaque ref in memory so soft
+      // reloads / polling cannot replace this appointment with selectUpcoming().
       stripAppointmentFocusFromUrl();
       return;
     }
