@@ -20,6 +20,8 @@
     payment: null,
     customer: null,
     accountVersion: null,
+    /** Account the cached bookings belong to — guards the degraded-poll merge. */
+    customerAccountId: null,
     appointmentFocusRef: null,
     focusedAppointment: null,
     syncVersion: '',
@@ -1000,6 +1002,7 @@
     state.session = false;
     state.customer = null;
     state.accountVersion = null;
+    state.customerAccountId = null;
     state.catalog = null;
     state.packageCatalog = null;
     state.changeRequests = [];
@@ -1079,17 +1082,72 @@
     state.accountVersion = customer.accountVersion != null ? customer.accountVersion : state.accountVersion;
   }
 
-  function applyPortalPayload(data) {
+  /**
+   * opts.retainBookingScoped keeps the last good appointment-scoped projection
+   * when a degraded poll resolved no current booking to describe.
+   */
+  function applyPortalPayload(data, opts) {
+    opts = opts || {};
     state.catalog = data.catalog || state.catalog || null;
-    state.packageCatalog = data.packageCatalog || null;
-    state.changeRequests = data.changeRequests || [];
-    state.payment = data.payment || null;
-    state.postService = data.postService || null;
-    state.postServiceByBooking = data.postServiceByBooking || null;
-    state.priceAdjustments = data.priceAdjustments || null;
+    if (!opts.retainBookingScoped) {
+      state.packageCatalog = data.packageCatalog || null;
+      state.changeRequests = data.changeRequests || [];
+      state.payment = data.payment || null;
+      state.postService = data.postService || null;
+      state.postServiceByBooking = data.postServiceByBooking || null;
+      state.priceAdjustments = data.priceAdjustments || null;
+    }
     if (data.syncVersion) state.syncVersion = data.syncVersion;
     if (data.serverTime) state.serverTime = data.serverTime;
     if (data.customer) applyCustomerProjection(data.customer);
+  }
+
+  /**
+   * Authoritative-collection merge for the account bookings list.
+   *
+   * A complete payload replaces the cache outright — including an authoritative
+   * empty list — so real removals still apply. A payload the server flagged
+   * incomplete, or a legacy empty list without that flag for an account that
+   * already had bookings, updates only the rows it returned and keeps the rest.
+   * Cache is dropped whenever the payload belongs to a different account.
+   */
+  function mergePortalBookings(incoming, complete, accountId) {
+    var next = Array.isArray(incoming) ? incoming : [];
+    var cached = Array.isArray(state.bookings) ? state.bookings : [];
+    var sameAccount = String(state.customerAccountId || '') === String(accountId || '');
+    if (!sameAccount) return next;
+    // Explicit complete always replaces. Incomplete (or legacy empty-with-cache)
+    // merges so a transient ownership failure cannot erase valid history.
+    if (complete === true) return next;
+    if (complete !== false && (next.length || !cached.length)) return next;
+    var merged = cached.slice();
+    for (var i = 0; i < next.length; i += 1) {
+      var row = next[i];
+      if (!row || !row.id) continue;
+      var at = -1;
+      for (var j = 0; j < merged.length; j += 1) {
+        if (merged[j] && String(merged[j].id) === String(row.id)) { at = j; break; }
+      }
+      if (at >= 0) merged[at] = row;
+      else merged.push(row);
+    }
+    return merged;
+  }
+
+  /** Only the server-issued opaque ref is a valid focus parameter. */
+  function isOpaqueFocusRef(ref) {
+    return /^aptr_[A-Za-z0-9_-]{10,}$/.test(String(ref || ''));
+  }
+
+  /**
+   * Keep the appointment the customer just acted on as the hero across polls.
+   * Bookings issued before opaque refs existed have nothing pinnable — leaving
+   * the ref unset is correct there, because a raw id is rejected as
+   * invalid_focus and would clear the pin on the very next poll.
+   */
+  function pinCurrentAppointment() {
+    var ref = state.booking && state.booking.appointmentPublicRef;
+    if (isOpaqueFocusRef(ref)) state.appointmentFocusRef = ref;
   }
 
   function applyCanonicalBookingProjection(booking) {
@@ -1227,7 +1285,9 @@
     portalHydration.lastError = null;
     var payload = { mode: 'account' };
     var focusRef = opts.appointmentFocusRef || state.appointmentFocusRef;
-    if (focusRef) payload.appointment = focusRef;
+    // A raw booking id is rejected server-side as invalid_focus, which drops the
+    // pin and toasts an error on every poll — only send the opaque ref.
+    if (isOpaqueFocusRef(focusRef)) payload.appointment = focusRef;
     if (state.syncVersion) payload.ifSyncVersion = state.syncVersion;
     var r = await post('customer-portal-data', payload, { signal: opts.signal });
     portalLastLoadOutcome = {
@@ -1259,13 +1319,27 @@
     }
     state.scope = 'account';
     state.session = true;
-    state.bookings = r.data.bookings || [];
+    var accountId = r.data.customerAccountId || null;
+    // Degraded = incomplete ownership, or a legacy empty list without an
+    // explicit complete flag. An explicit bookingsComplete:true empty list is
+    // authoritative and must clear the cache.
+    var degraded = r.data.bookingsComplete === false
+      || (r.data.bookingsComplete !== true
+        && !(r.data.bookings || []).length
+        && (state.bookings || []).length > 0);
+    state.bookings = mergePortalBookings(r.data.bookings, r.data.bookingsComplete, accountId);
+    state.customerAccountId = accountId;
     // Apply sticky focus before falling back to server selectUpcoming().
     applyAppointmentFocus(r.data);
     if (!state.booking) {
       state.booking = r.data.upcoming || state.bookings[0] || null;
     }
-    applyPortalPayload(r.data);
+    applyPortalPayload(r.data, {
+      retainBookingScoped: degraded && !r.data.upcoming && !!state.payment,
+    });
+    // Never cache a degraded snapshot's cursor — the next poll must re-resolve
+    // instead of being answered notModified against a short list.
+    if (degraded) state.syncVersion = '';
     renderDashboard(r.data);
     highlightFocusedAppointment();
     if (opts.managePhase !== false && portalHydration.phase !== PORTAL_PHASE.READY
@@ -1677,7 +1751,11 @@
         : (paid
           ? '<p class="pay-settled" data-pay-settled><strong>Paid</strong></p>' +
             '<p class="hint">Invoice paid. You can still add services — any new balance appears here. Package and vehicle changes stay closed.</p>'
-          : '<p class="hint">No balance is due yet, or payment is locked until admin approval.</p>')) +
+          : (pay.paymentAuthorityDegraded
+            // A balance is genuinely open; the payment authority just cannot
+            // confirm it right now. Saying "no balance is due" would be false.
+            ? '<p class="hint" data-pay-degraded>Payment is temporarily unavailable while we confirm your balance. Nothing was charged — this page retries automatically.</p>'
+            : '<p class="hint">No balance is due yet, or payment is locked until admin approval.</p>'))) +
       receiptActionsHtml(pay) +
       '</div>';
     var btn = $('btn-pay-balance');
@@ -2709,6 +2787,8 @@
     if (status === 'succeeded' || status === 'processing') {
       setEmbeddedPayMsg(status === 'processing' ? 'Payment processing — confirming…' : 'Payment succeeded — confirming…', false);
       hideEmbeddedPay();
+      // Pin paid booking so multi-booking selectUpcoming cannot swap the hero.
+      pinCurrentAppointment();
       pollPaymentSettlement();
       return;
     }
@@ -3757,7 +3837,10 @@
     var preId = params.get('bookingId') || params.get('id') || params.get('booking');
     var prePhone = params.get('phone');
     var appointmentFocus = params.get('appointment');
-    if (appointmentFocus) state.appointmentFocusRef = appointmentFocus;
+    // Only the opaque server-issued ref is a focus; anything else (a raw
+    // booking id in a hand-edited URL) would resolve the hero locally while the
+    // server-side payment projection still described a different appointment.
+    if (isOpaqueFocusRef(appointmentFocus)) state.appointmentFocusRef = appointmentFocus;
     if (preId && $('lk-booking-id')) $('lk-booking-id').value = preId.toUpperCase();
     if (prePhone && $('lk-phone')) $('lk-phone').value = prePhone;
 
@@ -3899,7 +3982,8 @@
     if (!el || !info) return;
     el.setAttribute('data-state', info.state || 'idle');
     if (info.state === 'updating') {
-      el.textContent = 'Updating…';
+      // Idle background polls stay quiet — only show Updating… when pending.
+      if (portalHasPendingState()) el.textContent = 'Updating…';
     } else if (info.state === 'current') {
       el.textContent = info.lastUpdated
         ? ('Last updated ' + info.lastUpdated.toLocaleTimeString())
@@ -3967,6 +4051,7 @@
         var settled = pay.state === 'paid' || !(pay.canPay || Number(pay.amountDueApproved || 0) > 0);
         if (paymentConfirmationPending && settled) {
           paymentConfirmationPending = false;
+          pinCurrentAppointment();
           showToast('Payment confirmed — thank you!');
         }
       },
