@@ -251,7 +251,12 @@
     return b.customerApprovalStatus === 'pending';
   }
 
-  /** Past services are finished and need nothing from the customer. */
+  /**
+   * Service history holds appointments that are closed out and need nothing
+   * from the customer — completed, paid or cancelled. Membership is decided by
+   * status, not by date: an appointment cancelled for next week is finished
+   * business even though its date has not arrived.
+   */
   function appointmentIsPast(b) {
     if (!b) return false;
     if (appointmentNeedsAttention(b)) return false;
@@ -295,15 +300,22 @@
     return 'View Details';
   }
 
-  function applyAppointmentFocus(data) {
+  function applyAppointmentFocus(data, opts) {
     if (!data) return;
+    opts = opts || {};
     state.focusedAppointment = data.focusedAppointment || null;
     if (data.focusError === 'invalid_focus') {
-      // Consume opaque focus param after a safe miss — do not keep a bad ref.
-      stripAppointmentFocusFromUrl();
-      state.appointmentFocusRef = null;
-      state.focusedAppointment = null;
-      showToast('That appointment link could not be opened.', true);
+      // A focus ref resolves through a Blob lookup that can miss transiently.
+      // Dropping the focus on a background poll because of one miss moved the
+      // customer to a different appointment mid-read — and told them a link had
+      // failed when they had not clicked anything. Only a focus the customer
+      // just asked for is allowed to fail loudly.
+      if (opts.userInitiated) {
+        stripAppointmentFocusFromUrl();
+        state.appointmentFocusRef = null;
+        state.focusedAppointment = null;
+        showToast('That appointment link could not be opened.', true);
+      }
       return;
     }
     if (state.focusedAppointment) {
@@ -345,7 +357,17 @@
         return;
       }
     }
-    if (data.upcoming) state.booking = data.upcoming;
+    if (data.upcoming) {
+      state.booking = data.upcoming;
+      // Nothing was explicitly focused, so pin whatever landed on screen. Without
+      // this, every poll re-runs selectUpcoming() server-side, and any change to
+      // the shown booking — settling its payment moves it from actionable to
+      // terminal — silently swapped the customer onto a different appointment
+      // than the one they were reading, including the one they had just paid for.
+      if (!state.appointmentFocusRef && data.upcoming.appointmentPublicRef) {
+        state.appointmentFocusRef = data.upcoming.appointmentPublicRef;
+      }
+    }
   }
 
   function highlightFocusedAppointment() {
@@ -1261,7 +1283,11 @@
     state.session = true;
     state.bookings = r.data.bookings || [];
     // Apply sticky focus before falling back to server selectUpcoming().
-    applyAppointmentFocus(r.data);
+    // Only a load the customer triggered (opening an appointment link, clicking
+    // View Details) may surface a focus miss; a poll must stay silent. The poll
+    // path re-sends the retained ref too, so this cannot be inferred from the
+    // ref's presence — the caller has to say so.
+    applyAppointmentFocus(r.data, { userInitiated: opts.userInitiated === true });
     if (!state.booking) {
       state.booking = r.data.upcoming || state.bookings[0] || null;
     }
@@ -1317,6 +1343,9 @@
         generation: generation,
         managePhase: false,
         appointmentFocusRef: state.appointmentFocusRef || null,
+        // Follows an explicit navigation, so an unresolvable focus ref should
+        // tell the customer instead of quietly showing a different appointment.
+        userInitiated: true,
       });
       if (generation !== portalHydration.generation) return false;
       if (ok) {
@@ -1445,6 +1474,9 @@
         generation: generation,
         managePhase: false,
         appointmentFocusRef: state.appointmentFocusRef || null,
+        // Follows an explicit navigation, so an unresolvable focus ref should
+        // tell the customer instead of quietly showing a different appointment.
+        userInitiated: true,
       });
       if (generation !== portalHydration.generation) return false;
       if (ok) {
@@ -1587,6 +1619,14 @@
     return paid > 0 && !(due > 0) && !(p.canPay || p.canCreatePayLink);
   }
 
+  function showLegacyVehicleActions(on) {
+    var root = $('customer-actions');
+    if (!root) return;
+    root.querySelectorAll('[data-legacy-vehicle-action]').forEach(function (btn) {
+      btn.hidden = !on;
+    });
+  }
+
   function syncMoneyActionButtons(pay) {
     var paid = invoiceIsPaid(pay);
     // Paid catalog/vehicle changes remain available as Admin-reviewed requests.
@@ -1639,6 +1679,83 @@
     } catch (e) { /* ignore */ }
   }
 
+  /**
+   * The projection's payment states are engineering vocabulary — "processing",
+   * "not_due", "due". Customers read them literally and cannot tell whether
+   * "processing" means their card was charged. Every state gets plain wording
+   * plus one sentence saying what happens next.
+   */
+  var INVOICE_STATE_COPY = {
+    paid: { label: 'Paid in full', note: '' },
+    processing: {
+      label: 'Payment processing',
+      note: 'Your card was authorized. The charge settles within a few minutes and the amount paid updates here automatically — no action needed.',
+    },
+    due: { label: 'Balance due', note: '' },
+    not_due: { label: 'No balance due yet', note: '' },
+    failed: {
+      label: 'Payment did not go through',
+      note: 'Your card was not charged. You can try again below or call/text us.',
+    },
+    refunded: { label: 'Refunded', note: '' },
+  };
+
+  function invoiceStateCopy(pay, paid) {
+    if (paid) return INVOICE_STATE_COPY.paid;
+    var key = String((pay && pay.state) || '').toLowerCase();
+    return INVOICE_STATE_COPY[key] || { label: key ? key.replace(/_/g, ' ') : '—', note: '' };
+  }
+
+  function fmtDateOnly(value) {
+    if (!value) return '';
+    var d = new Date(value);
+    if (isNaN(d.getTime())) return String(value).slice(0, 10);
+    return d.toISOString().slice(0, 10);
+  }
+
+  /**
+   * A card authorized in person leaves an in-flight attempt on the booking but
+   * no settlement, so every figure on this panel legitimately reads $0.00. With
+   * no trail, that looks to the customer like the payment never happened. This
+   * states the attempt explicitly instead of leaving a silent gap.
+   */
+  var IN_FLIGHT_ATTEMPT_STATUSES = ['creating', 'open', 'requires_action', 'pending_webhook', 'processing'];
+
+  function paymentActivityHtml(pay) {
+    var rows = [];
+    var settled = settledCentsFromPayment(pay);
+    if (settled > 0) {
+      var ref = pay.stripeReference || pay.paymentIntentIdPrefix || '';
+      rows.push(
+        '<li><span class="pay-row-main">' + fmtCents(settled) + ' received</span>' +
+        '<span class="pay-row-sub">' +
+        (pay.paidAt ? esc(fmtDateOnly(pay.paidAt)) + ' · ' : '') +
+        'Card' + (ref ? ' · ' + esc(String(ref).slice(0, 12)) + '…' : '') +
+        '</span></li>'
+      );
+    }
+    var attempt = String(pay.paymentAttemptStatus || '').toLowerCase();
+    if (attempt && IN_FLIGHT_ATTEMPT_STATUSES.indexOf(attempt) >= 0) {
+      rows.push(
+        '<li><span class="pay-row-main">Card authorization in progress</span>' +
+        '<span class="pay-row-sub">Confirmed by your bank. It appears above as received once it settles.</span></li>'
+      );
+    } else if (attempt === 'failed') {
+      rows.push(
+        '<li><span class="pay-row-main">A card attempt was declined</span>' +
+        '<span class="pay-row-sub">No charge was made. Try again or use a different card.</span></li>'
+      );
+    }
+    if (Number(pay.refundedCents || 0) > 0) {
+      rows.push(
+        '<li><span class="pay-row-main">' + fmtCents(pay.refundedCents) + ' refunded</span>' +
+        '<span class="pay-row-sub">Returned to your original payment method.</span></li>'
+      );
+    }
+    if (!rows.length) return '';
+    return '<div class="pay-activity"><h4>Payment activity</h4><ul>' + rows.join('') + '</ul></div>';
+  }
+
   /** Single source of truth for what the one payment CTA says. */
   function payCtaLabel(can, due) {
     if (embeddedPay && embeddedPay.starting) return 'Processing payment…';
@@ -1650,10 +1767,15 @@
     var panel = $('payments-panel');
     var empty = $('payments-empty');
     if (!panel) return;
+    // Dollars — payCtaLabel formats this one with fmtMoney.
     var due = Number(pay.amountDueApproved || 0);
     var can = !!(pay.canPay || pay.canCreatePayLink) && due > 0;
     var paid = invoiceIsPaid(pay);
-    if (!can && !(due > 0) && !(Number(pay.approvedTotal || 0) > 0) && !paid) {
+    // Decide visibility from the same accessors the panel body renders from.
+    // Testing only the dollars fields meant a projection carrying cents alone
+    // blanked the whole panel instead of showing the invoice.
+    if (!can && !(remainingCentsFromPayment(pay) > 0)
+      && !(approvedCentsFromPayment(pay) > 0) && !paid) {
       panel.innerHTML = '';
       if (empty) show(empty, true);
       return;
@@ -1662,14 +1784,17 @@
     var approvedLabel = fmtCents(approvedCentsFromPayment(pay));
     var paidLabel = fmtCents(settledCentsFromPayment(pay));
     var dueLabel = fmtCents(remainingCentsFromPayment(pay));
+    var stateCopy = invoiceStateCopy(pay, paid);
     panel.innerHTML =
       '<div class="card pay-card">' +
       '<dl class="meta-grid">' +
-      '<div><dt>Invoice status</dt><dd>' + esc(paid ? 'paid' : (pay.state || '—')) + '</dd></div>' +
+      '<div><dt>Invoice status</dt><dd>' + esc(stateCopy.label) + '</dd></div>' +
       '<div><dt>Total approved</dt><dd>' + approvedLabel + '</dd></div>' +
       '<div><dt>Amount paid</dt><dd>' + paidLabel + '</dd></div>' +
       '<div><dt>Amount due</dt><dd>' + dueLabel + '</dd></div>' +
       '</dl>' +
+      (stateCopy.note ? '<p class="hint pay-state-note">' + esc(stateCopy.note) + '</p>' : '') +
+      paymentActivityHtml(pay) +
       (can
         ? '<button type="button" class="btn primary" id="btn-pay-balance">' +
           esc(payCtaLabel(true, due)) + '</button>' +
@@ -1701,8 +1826,12 @@
   function receiptActionsHtml(pay) {
     var b = state.booking;
     if (!b || !b.id) return '';
-    var settled = settledCentsFromPayment(pay);
-    if (!(settled > 0)) return '';
+    // Mirror the server's eligibility input exactly: gross (pre-refund)
+    // settlement, so a refunded booking still shows the receipt the server has.
+    var gross = pay && pay.grossSettledCents != null
+      ? Math.max(0, Math.round(Number(pay.grossSettledCents) || 0))
+      : settledCentsFromPayment(pay);
+    if (!(gross > 0)) return '';
 
     var remaining = remainingCentsFromPayment(pay);
     var links = '<a class="btn ghost" data-receipt-link href="receipt.html?bookingId=' +
@@ -1798,6 +1927,10 @@
       ? ''
       : '<div><dt>Vehicle</dt><dd>' + esc(vehicleLine(b)) + '</dd></div>' +
         '<div><dt>Add-ons</dt><dd>' + esc(addonLines(b)) + '</dd></div>';
+    // Vehicle-scoped actions normally live on the vehicle cards. A legacy
+    // booking with no per-vehicle projection renders none, so the appointment
+    // -level copies are revealed to keep those actions reachable.
+    showLegacyVehicleActions(!vehicleSections);
 
     var statusLabel = appointmentStatusLabel(b);
     var arrivalLabels = {
@@ -1836,16 +1969,25 @@
       earliest_after_date: 'First available on or after selected date',
     };
     var flex = b.scheduleFlexibility || 'exact';
+    var shownDate = b.confirmedDate || b.preferredDate || '—';
     var siteRows = '';
-    siteRows += '<div><dt>Preferred date</dt><dd>' + esc(b.preferredDate || '—') + '</dd></div>';
-    siteRows += '<div><dt>Preferred arrival window</dt><dd>' + esc(preferredArrival) + '</dd></div>';
+    // What you asked for is only worth its own row once it differs from what is
+    // actually scheduled. Until a date is confirmed, "Date" and "Preferred date"
+    // print the same value, and repeating it reads as two separate facts.
+    if (b.preferredDate && b.preferredDate !== shownDate) {
+      siteRows += '<div><dt>Preferred date</dt><dd>' + esc(b.preferredDate) + '</dd></div>';
+    }
+    if (preferredArrival && preferredArrival !== '—' && preferredArrival !== arrivalDisplay) {
+      siteRows += '<div><dt>Preferred arrival window</dt><dd>' + esc(preferredArrival) + '</dd></div>';
+    }
     if (b.alternatePreferredDate) {
       siteRows += '<div><dt>Alternate date</dt><dd>' + esc(b.alternatePreferredDate) +
         (b.alternateArrivalWindow ? ' · ' + esc(arrivalLabels[b.alternateArrivalWindow] || b.alternateArrivalWindow) : '') +
         '</dd></div>';
     }
-    siteRows += '<div><dt>Confirmed date / window</dt><dd>' + esc(b.confirmedDate || '—') +
-      (confirmedArrival ? ' · ' + esc(confirmedArrival) : ' · ' + esc(arrivalDisplay)) + '</dd></div>';
+    // "Confirmed date / window" restated Date + Arrival window in one row —
+    // as "— · Pending confirmation" before confirmation, and as the same two
+    // values again after it. Both facts already have their own rows above.
     if (b.waterAvailable) {
       siteRows += '<div><dt>Water</dt><dd>' + esc(waterLabels[b.waterAvailable] || b.waterAvailable) + '</dd></div>';
     }
@@ -1867,19 +2009,22 @@
       '<h2 class="card-title">' + esc(b.service || b.package || 'Service') + '</h2>' +
       (packDesc ? '<p class="pack-desc">' + esc(packDesc) + (packDur ? ' · ' + esc(packDur) : '') + '</p>' : '') +
       '<dl class="meta-grid">' +
-      '<div><dt>Status</dt><dd>' + esc(statusLabel) + '</dd></div>' +
-      '<div><dt>Date</dt><dd>' + esc(b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
+      // Status and Service are not repeated here — the kicker and the card title
+      // directly above render the same two values from the same expressions.
+      '<div><dt>Date</dt><dd>' + esc(shownDate) + '</dd></div>' +
       '<div><dt>Arrival window</dt><dd>' + esc(arrivalDisplay) + '</dd></div>' +
       legacyVehicleRows +
-      '<div><dt>Service</dt><dd>' + esc(b.service || b.package || '—') + '</dd></div>' +
       '<div><dt>Location</dt><dd>' + esc(b.address || b.serviceLocation || '—') + '</dd></div>' +
       siteRows +
       (b.assignedTechName ? '<div><dt>Technician</dt><dd>' + esc(b.assignedTechName) + '</dd></div>' : '') +
-      (b.travelFeeAmount ? '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>' : '') +
       offerHtml +
       '</dl>' +
       vehicleSections +
+      // Travel fee belongs next to the total it is part of, not stranded among
+      // the scheduling rows. Every figure here is still server-derived — the
+      // browser shows the parts beside the sum, it never computes the sum.
       '<dl class="meta-grid booking-financial-summary" aria-label="Booking totals">' +
+      (b.travelFeeAmount ? '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>' : '') +
       '<div><dt>Approved total</dt><dd>' + (
         pay.approvedCents != null || pay.approvedTotal != null
           ? fmtCents(approvedCentsFromPayment(pay))
@@ -2260,8 +2405,15 @@
     var date = item.confirmedDate || item.preferredDate || '—';
     var total = item.approvedFinalAmount != null ? item.approvedFinalAmount : item.totalPrice;
     var meta = [esc(item.service || item.package || 'Service'), esc(date)].join(' · ');
-    var tail = [esc(appointmentStatusLabel(item))];
-    if (opts.showTotal && total != null) tail.push(fmtMoney(total));
+    var statusLabel = appointmentStatusLabel(item);
+    var tail = [esc(statusLabel)];
+    // A bare price beside "Cancelled" reads as a charge. This row carries the
+    // approved quote only — it has no settlement data — so it says which figure
+    // it is showing and claims nothing about what was or was not charged.
+    var cancelled = /cancel/i.test(String(statusLabel)) || /cancel/i.test(String(item.jobStatus || ''));
+    if (opts.showTotal && total != null) {
+      tail.push(cancelled ? 'Quoted ' + fmtMoney(total) : fmtMoney(total));
+    }
     var ref = item.appointmentPublicRef || '';
     return '<li class="appt-row' + (focused ? ' appointment-focus' : '') + '">' +
       '<span class="appt-row-main">' + esc(vehicleLine(item)) + '</span>' +
@@ -2293,7 +2445,7 @@
   async function selectAppointmentByRef(ref) {
     if (!ref || state.scope !== 'account') return;
     state.appointmentFocusRef = ref;
-    var ok = await loadAccount({ appointmentFocusRef: ref, managePhase: false });
+    var ok = await loadAccount({ appointmentFocusRef: ref, managePhase: false, userInitiated: true });
     if (!ok) showToast('Could not open that appointment.', true);
   }
 
@@ -3658,6 +3810,25 @@
         openActionModal(btn.getAttribute('data-action'), btn);
       });
     }
+    // Receipt links navigate away from the portal, so the credentials this
+    // session was authorized with have to travel with them. An account cookie
+    // does that on its own; a Booking ID + phone lookup or an email action link
+    // does not, and without this handoff receipt.html could only fall back to
+    // phone auth it had no phone for.
+    document.addEventListener('click', function (e) {
+      var link = e.target.closest('[data-receipt-link]');
+      if (!link) return;
+      var id = state.verifyBookingId || (state.booking && state.booking.id) || '';
+      var phone = normalizePhoneInput(
+        state.verifyPhone || (state.booking && state.booking.phone) || ''
+      );
+      if (!id || phone.length < 10) return;
+      try {
+        sessionStorage.setItem('cd1_garage_id', String(id).toUpperCase());
+        sessionStorage.setItem('cd1_garage_phone', phone);
+      } catch (err) { /* receipt page falls back to the account session */ }
+    });
+
     // Per-vehicle package accordion + vehicle-scoped actions (hero / upcoming card)
     document.addEventListener('click', function (e) {
       var toggle = e.target.closest('.package-details-toggle');
@@ -3899,6 +4070,11 @@
     if (!el || !info) return;
     el.setAttribute('data-state', info.state || 'idle');
     if (info.state === 'updating') {
+      // A background poll announcing itself every few seconds is what makes a
+      // page feel like it is reloading on its own — the customer's print of this
+      // portal even captured the word mid-poll. Only a refresh they triggered
+      // says so; automatic ones keep showing the last-updated time.
+      if (info.reason === 'poll') return;
       el.textContent = 'Updating…';
     } else if (info.state === 'current') {
       el.textContent = info.lastUpdated
@@ -3958,7 +4134,14 @@
   if (global.CD1OperationalRefresh) {
     portalRefresh = global.CD1OperationalRefresh.createRefreshController({
       controllerKey: 'my-garage',
+      // Fast while something is genuinely in flight — a payment settling, a
+      // change request awaiting review (portalHasPendingState decides). A
+      // customer just reading their appointment does not need a request every
+      // four seconds.
       activePollMs: 2500,
+      // Both branches slowed the idle poll (20s here, 15s on master). Take the
+      // shorter of the two — it is already well past the "keeps reloading"
+      // threshold, and the shorter interval is the more conservative change.
       stablePollMs: 15000,
       maxBackoffMs: 60000,
       onRefresh: refreshPortalProjection,

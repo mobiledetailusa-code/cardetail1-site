@@ -174,13 +174,20 @@ function postServiceState(booking, now = Date.now()) {
       windowClosesAt: issueWindowClosesAtMs != null
         ? new Date(issueWindowClosesAtMs).toISOString()
         : null,
-      msRemaining: issueWindowMsRemaining,
+      // Deliberately coarse. This object is hashed into the portal's sync
+      // version, so anything derived from the current clock at finer grain
+      // changes the hash on every single request — `notModified` can then never
+      // be true and the portal re-renders itself on every poll. An absolute
+      // windowClosesAt plus an hour-grained countdown carry the same meaning
+      // while staying stable between polls. (A millisecond `msRemaining` used
+      // to sit here, along with a `serverTime` echo; both were unread by any
+      // caller and did nothing but bust the cache. The envelope still returns
+      // an authoritative top-level serverTime, added after the hash.)
       hoursRemaining: Math.floor(issueWindowMsRemaining / 3600000),
       submitted: issues.length > 0,
       count: issues.length,
       closedMessage: (completed && !issueWindowOpen) ? ISSUE_WINDOW_CLOSED_MESSAGE : '',
     },
-    serverTime: new Date(at).toISOString(),
   };
 }
 

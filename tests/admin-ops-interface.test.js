@@ -211,3 +211,53 @@ test('jobs summary exposes remaining balance from server fields', () => {
   assert.match(adminOps, /remainingCents/);
   assert.match(adminOps, /Balance/);
 });
+
+/* ── Poll quietness ──────────────────────────────────────────────────────────
+ *
+ * The board polls continuously so a settling payment or an incoming change
+ * request lands without a manual reload. It used to repaint every tab's markup
+ * on every one of those polls even when the sync came back unchanged, which
+ * reset scroll position, cleared text selection, closed open <select> menus and
+ * re-stamped the settings inputs over whatever the admin was typing. To the
+ * person using it, that is a page reloading itself on a timer.
+ */
+
+test('an unchanged poll does not repaint the board', () => {
+  // Each loader records whether its own sync came back unchanged...
+  assert.match(adminOps, /let lastJobsNotModified = false;/);
+  assert.match(adminOps, /let lastRequestsNotModified = false;/);
+  // ...both are cleared at the top of every refresh, so a stale true cannot
+  // suppress a repaint after a failed or aborted load.
+  const refresh = adminOps.slice(adminOps.indexOf('async function refreshAll('));
+  assert.match(refresh.slice(0, 1200), /lastJobsNotModified = false;\s*\n\s*lastRequestsNotModified = false;/);
+  // ...and the repaint is skipped only when both agree nothing changed.
+  assert.match(adminOps, /const bothUnchanged = syncOnly && lastJobsNotModified && lastRequestsNotModified/);
+  assert.match(adminOps, /if \(!bothUnchanged\) \{/);
+});
+
+test('a user-initiated refresh always repaints', () => {
+  // syncOnly covers the automatic reasons only; manual/initial/tab work must
+  // never be gated on the unchanged check, or a filter change could show stale rows.
+  assert.match(adminOps, /const syncOnly = \['poll','focus','visibility','online','payment_settlement'\]\.includes\(reason\);/);
+  const gate = adminOps.slice(adminOps.indexOf('const bothUnchanged = syncOnly'));
+  assert.match(gate.slice(0, 200), /syncOnly &&/, 'a non-poll reason can never be "unchanged"');
+  // A rejected source must repaint too — last-good data still has to render.
+  assert.match(gate.slice(0, 300), /jobsR\.status === 'fulfilled' && changeR\.status === 'fulfilled'/);
+});
+
+test('settings inputs are never re-stamped by a background poll', () => {
+  assert.match(adminOps, /if \(!syncOnly\) renderSettingsForm\(\);/);
+});
+
+test('a background poll does not flash the sync indicator', () => {
+  const fn = adminOps.slice(adminOps.indexOf('function renderAdminSyncState('));
+  assert.match(fn.slice(0, 700), /if \(info\.reason === 'poll'\) return;/);
+});
+
+test('the idle poll interval is calm and the active interval stays responsive', () => {
+  const cfg = adminOps.slice(adminOps.indexOf("controllerKey: 'admin-ops'"));
+  const active = Number((cfg.match(/activePollMs: (\d+)/) || [])[1]);
+  const stable = Number((cfg.match(/stablePollMs: (\d+)/) || [])[1]);
+  assert.ok(active <= 3000, 'pending work must still refresh quickly');
+  assert.ok(stable >= 15000, `an idle board polled every ${stable}ms reads as self-reloading`);
+});

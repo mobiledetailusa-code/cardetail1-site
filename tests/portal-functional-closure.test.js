@@ -676,7 +676,9 @@ test('17. operational sections outrank profile in the portal hierarchy', () => {
   }
   assert.match(html, /<h3 id="upcoming-h">Current appointment<\/h3>/);
   assert.match(html, /<h3 id="appt-h">Upcoming appointments<\/h3>/);
-  assert.match(html, /<h3 id="hist-h">Past services<\/h3>/);
+  // The section also carries cancelled appointments, some dated in the future,
+  // so it is named for what it contains rather than "Past services".
+  assert.match(html, /<h3 id="hist-h">Service history<\/h3>/);
 });
 
 test('18. every owned appointment stays reachable when one is selected', async () => {

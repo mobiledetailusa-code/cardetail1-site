@@ -23,8 +23,77 @@
     catch (e) { return ''; }
   }
 
-  function message(text) {
-    root.innerHTML = '<p class="msg">' + esc(text) + '</p>';
+  function message(text, hint) {
+    root.innerHTML = '<p class="msg">' + esc(text) +
+      (hint ? '<br><span class="msg-hint">' + esc(hint) + '</span>' : '') + '</p>';
+  }
+
+  /**
+   * My Garage authenticates in three ways: an account cookie session, a
+   * booking-scoped lookup (Booking ID + phone) and a single-use email action
+   * link. Only the first of those travels on a plain link to this page, so a
+   * receipt opened from the other two used to fail with the portal's raw
+   * "valid US mobile number" validation error. My Garage stores the lookup
+   * credentials it verified in sessionStorage; replay them here so the receipt
+   * is authorized the same way the portal that offered it was.
+   *
+   * The server still re-verifies ownership on every request — this only decides
+   * which credential to present, never whether access is granted.
+   */
+  function storedPhoneFor(bookingId) {
+    var storedId = '';
+    var storedPhone = '';
+    try {
+      storedId = sessionStorage.getItem('cd1_garage_id') || '';
+      storedPhone = sessionStorage.getItem('cd1_garage_phone') || '';
+    } catch (e) { return ''; }
+    if (!storedId || !storedPhone) return '';
+    if (String(storedId).trim().toUpperCase() !== String(bookingId).trim().toUpperCase()) return '';
+    return String(storedPhone).replace(/\D/g, '').slice(-10);
+  }
+
+  var RETURN_HINT = 'Open it again from My Garage — the button there signs the request for you.';
+
+  /**
+   * Denials raised by the shared booking authorization are phrased for the My
+   * Garage login form, which has a phone field on screen ("A valid US mobile
+   * number is required (10 digits)."). There is no such field here, so that
+   * wording is restated as something the customer can act on from this page.
+   */
+  var AUTH_ERRORS = {
+    validation_error: 'This receipt link is missing the sign-in details it needs.',
+    authentication_failed: 'This receipt could not be verified for your account.',
+    phone_not_on_file: 'This booking has no phone number on file.',
+  };
+
+  var CODE_ERRORS = {
+    booking_not_found: 'We could not find that booking.',
+    booking_not_ready: 'This booking is not available in My Garage yet.',
+    invalid_receipt_type: 'That receipt type does not exist.',
+    financial_authority_unavailable: 'Receipt records are temporarily unavailable.',
+    rate_limited: 'Too many requests. Wait a moment and try again.',
+  };
+
+  function describeFailure(data, status) {
+    var code = String((data && data.error) || '').toLowerCase();
+    var serverMessage = String((data && data.message) || '').trim();
+
+    if (AUTH_ERRORS[code]) return { text: AUTH_ERRORS[code], hint: RETURN_HINT };
+
+    // A 200 with ok:false is the server's deliberate business answer — most
+    // usefully "a payment receipt is available once a payment has been
+    // received." Its own wording beats anything generic written here.
+    if (status === 200 && serverMessage) return { text: serverMessage, hint: '' };
+
+    if (code === 'receipt_unavailable') {
+      return { text: 'This receipt could not be generated.', hint: 'Please try again in a moment.' };
+    }
+    if (CODE_ERRORS[code]) return { text: CODE_ERRORS[code], hint: RETURN_HINT };
+    if (status === 429) return { text: CODE_ERRORS.rate_limited, hint: '' };
+    if (status === 0 || status === 408 || status >= 500) {
+      return { text: 'This receipt could not be loaded right now.', hint: 'Please try again in a moment.' };
+    }
+    return { text: 'This receipt is not available.', hint: RETURN_HINT };
   }
 
   function vehicleHtml(v) {
@@ -148,30 +217,64 @@
       '</article>';
   }
 
+  function showActions(on) {
+    var btn = document.getElementById('btn-print');
+    if (btn) btn.hidden = !on;
+  }
+
+  async function requestReceipt(bookingId, type, phone) {
+    var body = { bookingId: bookingId, receiptType: type };
+    if (phone) body.phone = phone;
+    var res = await fetch('/.netlify/functions/customer-receipt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    });
+    var data = await res.json().catch(function () { return null; });
+    return { status: res.status, data: data };
+  }
+
+  function isTransient(status) {
+    return status === 0 || status === 408 || status >= 500;
+  }
+
   async function load() {
     var bookingId = param('bookingId');
     var type = param('type') === 'final' ? 'final' : 'payment';
     if (!bookingId) {
-      message('No booking was specified. Open your receipt from My Garage.');
+      message('No booking was specified.', 'Open your receipt from My Garage.');
       return;
     }
+
+    // The account cookie, when present, always wins server-side; the stored phone
+    // is only consulted when there is no account session to check.
+    var phone = storedPhoneFor(bookingId);
+
+    var attempt;
     try {
-      var res = await fetch('/.netlify/functions/customer-receipt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ bookingId: bookingId, receiptType: type }),
-      });
-      var data = await res.json().catch(function () { return null; });
-      if (!data || !data.ok || !data.receipt) {
-        message((data && data.message)
-          || 'This receipt is not available. Open it from My Garage while signed in.');
-        return;
-      }
-      render(data.receipt);
+      attempt = await requestReceipt(bookingId, type, phone);
     } catch (e) {
-      message('This receipt could not be loaded. Please try again from My Garage.');
+      attempt = { status: 0, data: null };
     }
+
+    // One quiet retry for a transient failure — a cold Function or a brief
+    // ledger hiccup should not read to the customer as "no receipt exists".
+    if (isTransient(attempt.status)) {
+      await new Promise(function (r) { setTimeout(r, 1200); });
+      try {
+        attempt = await requestReceipt(bookingId, type, phone);
+      } catch (e) { /* keep the first outcome */ }
+    }
+
+    var data = attempt.data;
+    if (!data || !data.ok || !data.receipt) {
+      var failure = describeFailure(data, attempt.status);
+      message(failure.text, failure.hint);
+      return;
+    }
+    render(data.receipt);
+    showActions(true);
   }
 
   var printBtn = document.getElementById('btn-print');

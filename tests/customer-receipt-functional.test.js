@@ -295,7 +295,10 @@ test('Phase 11: two bookings project independently with no bleed', () => {
 
 test('40/41. receipt actions appear only when the server rules are met', () => {
   assert.match(garageJs, /function receiptActionsHtml\(pay\)/);
-  assert.match(garageJs, /if \(!\(settled > 0\)\) return '';/);
+  // Gross (pre-refund) settlement is the server's own eligibility input, so the
+  // button and the endpoint agree even after a refund nets the balance to zero.
+  assert.match(garageJs, /pay\.grossSettledCents/);
+  assert.match(garageJs, /if \(!\(gross > 0\)\) return '';/);
   assert.match(garageJs, /serviceIsCompleted\(b\) && remaining === 0/);
   assert.match(garageJs, /View payment receipt/);
   assert.match(garageJs, /View final receipt/);
@@ -306,6 +309,65 @@ test('42. receipts open from My Garage on the receipt route', () => {
   assert.match(garageJs, /&type=payment/);
   assert.match(garageJs, /&type=final/);
   assert.match(garageJs, /encodeURIComponent\(b\.id\)/);
+});
+
+/**
+ * The regression this guards: My Garage authorizes three ways (account cookie,
+ * Booking ID + phone, single-use email action link) but only the cookie rides
+ * along on a plain link to receipt.html. Receipts opened from the other two
+ * modes reached the endpoint with no credential at all and were rejected with
+ * the portal login form's "A valid US mobile number is required (10 digits)."
+ */
+test('the receipt page replays the lookup credentials My Garage verified', () => {
+  assert.match(receiptJs, /function storedPhoneFor\(bookingId\)/);
+  assert.match(receiptJs, /sessionStorage\.getItem\('cd1_garage_id'\)/);
+  assert.match(receiptJs, /sessionStorage\.getItem\('cd1_garage_phone'\)/);
+  // Only ever for the booking those credentials belong to.
+  assert.match(receiptJs, /toUpperCase\(\) !== String\(bookingId\)\.trim\(\)\.toUpperCase\(\)/);
+  // And it is sent as the documented phone field the endpoint already accepts.
+  assert.match(receiptJs, /if \(phone\) body\.phone = phone;/);
+});
+
+test('My Garage hands its credentials to the receipt page before navigating', () => {
+  assert.match(garageJs, /\[data-receipt-link\]/);
+  const handoff = garageJs.slice(garageJs.indexOf("e.target.closest('[data-receipt-link]')"));
+  assert.match(handoff.slice(0, 800), /sessionStorage\.setItem\('cd1_garage_id'/);
+  assert.match(handoff.slice(0, 800), /sessionStorage\.setItem\('cd1_garage_phone'/);
+  // Never write a partial credential the receipt page would send and fail on.
+  assert.match(handoff.slice(0, 800), /phone\.length < 10/);
+});
+
+test('receipt failures are restated for the page the customer is actually on', () => {
+  // The portal's phone-validation copy is meaningless here — there is no phone
+  // field on the receipt page to act on.
+  assert.doesNotMatch(receiptJs, /A valid US mobile number/);
+  assert.match(receiptJs, /var AUTH_ERRORS = \{/);
+  ['validation_error', 'authentication_failed', 'phone_not_on_file']
+    .forEach((code) => assert.match(receiptJs, new RegExp(`${code}:`), `${code} needs customer-facing copy`));
+  ['booking_not_found', 'booking_not_ready', 'financial_authority_unavailable']
+    .forEach((code) => assert.match(receiptJs, new RegExp(`${code}:`), `${code} needs customer-facing copy`));
+  // Every recoverable failure points back to the one place that can fix it.
+  assert.match(receiptJs, /Open it again from My Garage/);
+});
+
+test('a deliberate 200 business answer keeps the server wording', () => {
+  // "A payment receipt is available once a payment has been received." is more
+  // useful than any generic failure copy this page could substitute for it —
+  // but it must not shadow the login-form phrasing of an auth denial.
+  const fn = receiptJs.slice(receiptJs.indexOf('function describeFailure('));
+  const body = fn.slice(0, fn.indexOf('\n  }'));
+  assert.match(body, /if \(AUTH_ERRORS\[code\]\) return/);
+  assert.match(body, /if \(status === 200 && serverMessage\) return \{ text: serverMessage/);
+  assert.ok(
+    body.indexOf('AUTH_ERRORS[code]') < body.indexOf('status === 200 && serverMessage'),
+    'auth denials must be reworded before the pass-through branch can catch them'
+  );
+});
+
+test('a transient receipt failure retries once before declaring the receipt missing', () => {
+  assert.match(receiptJs, /function isTransient\(status\)/);
+  assert.match(receiptJs, /status === 0 \|\| status === 408 \|\| status >= 500/);
+  assert.match(receiptJs, /if \(isTransient\(attempt\.status\)\) \{/);
 });
 
 test('43. the print button calls the intended print path', () => {
@@ -362,7 +424,19 @@ test('accessibility: semantic structure and keyboard-reachable actions', () => {
   assert.match(receiptJs, /document\.title =/);
   assert.match(receiptJs, /<th scope="col">/);
   // Buttons and links, not click-handlers on divs.
-  assert.match(receiptHtml, /<button type="button" class="btn primary" id="btn-print">/);
+  assert.match(receiptHtml, /<button type="button" class="btn primary" id="btn-print" hidden>/);
+});
+
+test('print is offered only once a receipt actually rendered', () => {
+  // A failed load must not present "Save as PDF" over an error message.
+  assert.match(receiptHtml, /id="btn-print" hidden>/);
+  assert.match(receiptJs, /showActions\(true\);/);
+  const failurePath = receiptJs.slice(receiptJs.indexOf('var data = attempt.data;'));
+  assert.doesNotMatch(
+    failurePath.slice(0, failurePath.indexOf('render(data.receipt)')),
+    /showActions\(true\)/,
+    'the print button must stay hidden on the failure path'
+  );
 });
 
 test('the browser performs no authoritative money arithmetic', () => {

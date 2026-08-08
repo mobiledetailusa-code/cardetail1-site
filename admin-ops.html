@@ -561,6 +561,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let refreshAllSignal = null;
   let jobsSyncVersion = '';
   let requestsSyncVersion = '';
+  // Set by each loader from its own notModified short-circuit. A poll where both
+  // sources came back unchanged has nothing to repaint — that rebuild is what
+  // made the board look like it reloaded on a timer, resetting scroll position,
+  // text selection and open <select> menus with it.
   let lastJobsNotModified = false;
   let lastRequestsNotModified = false;
   let opsRefresh = null;
@@ -1290,8 +1294,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (!bothUnchanged) {
         renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
         updateRequestsTabBadge();
-        renderSettingsForm();
       }
+      // Settings inputs are reloaded only on a refresh the admin asked for.
+      // Re-stamping them inside the block above meant any poll that happened to
+      // carry a job change — the common case on a busy board — overwrote whatever
+      // was being typed into Settings.
+      if (!syncOnly) renderSettingsForm();
       const failures = [];
       if (jobsR.status === 'rejected') {
         failures.push(sourceFailureEntry('jobs', jobsMeta, 'Jobs') || {
@@ -4134,7 +4142,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   function renderAdminSyncState(info) {
     const el = $('#lastUpdated');
     if (!el || !info) return;
-    if (info.state === 'updating') el.textContent = 'Updating…';
+    if (info.state === 'updating') {
+      // A background poll flashing "Updating…" every few seconds is the most
+      // visible symptom of a page that looks like it reloads on its own. Only a
+      // refresh the admin asked for announces itself.
+      if (info.reason === 'poll') return;
+      el.textContent = 'Updating…';
+    }
     else if (info.state === 'current') {
       el.textContent = info.lastUpdated ? 'Last updated '+info.lastUpdated.toLocaleTimeString() : 'Up to date';
     } else if (info.state === 'retrying') {
@@ -4147,7 +4161,14 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   if (window.CD1OperationalRefresh) {
     opsRefresh = window.CD1OperationalRefresh.createRefreshController({
       controllerKey: 'admin-ops',
+      // Fast only while something is genuinely in flight (a payment settling, an
+      // open change request). An idle board does not need a request every four
+      // seconds — the sync-version short-circuit makes those round trips pure
+      // noise, and they are what the 10-second "keeps refreshing" feel came from.
       activePollMs: 2500,
+      // Both branches slowed the idle poll (20s here, 15s on master). Take the
+      // shorter — already well past the "keeps reloading" threshold, and the
+      // more conservative of the two changes.
       stablePollMs: 15000,
       maxBackoffMs: 60000,
       onRefresh: refreshAll,
