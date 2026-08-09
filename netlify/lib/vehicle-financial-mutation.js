@@ -85,6 +85,44 @@ function validateVehicleInput(vehicle) {
   return { ok: true };
 }
 
+/**
+ * Semantic identity for duplicate detection on vehicle_add.
+ * Length-priced (boats/RVs/etc.): category + package + lengthFt.
+ * Cars/powersports: category + package + year/make/model.
+ */
+function vehicleSemanticKey(vehicle = {}) {
+  const input = normalizedVehicleInput(vehicle);
+  const cat = input.category || 'cars';
+  const pkg = String(input.packageId || '').toLowerCase();
+  if (usesLengthPricing(cat)) {
+    const length = Math.round(Number(input.lengthFt) || 0);
+    return ['len', cat, pkg, length].join('|');
+  }
+  return [
+    'ymm',
+    cat,
+    pkg,
+    String(input.year || '').toLowerCase(),
+    String(input.make || '').toLowerCase(),
+    String(input.model || '').toLowerCase(),
+  ].join('|');
+}
+
+function findSemanticDuplicateVehicle(vehicles, candidate) {
+  const key = vehicleSemanticKey(candidate);
+  // Require package id and a concrete identity (length > 0 or year/make/model).
+  if (!key || /\|$/.test(key) || /\|0$/.test(key) || /\|\|\|/.test(key)) return null;
+  const parts = key.split('|');
+  if (parts[0] === 'len' && !(Number(parts[3]) > 0)) return null;
+  if (parts[0] === 'ymm' && !(parts[3] && parts[4] && parts[5])) return null;
+  if (!parts[2]) return null;
+  const list = ensureVehicleIds(vehicles || []);
+  for (const existing of list) {
+    if (vehicleSemanticKey(existing) === key) return existing;
+  }
+  return null;
+}
+
 function resolveTargetVehicle(vehicles, target = {}) {
   let vehicleId = String(target.vehicleId || target.targetVehicleId || '').trim();
   if (!vehicleId && vehicles.length === 1) vehicleId = vehicles[0].vehicleId;
@@ -118,6 +156,16 @@ function applyVehicleOperation(service, { op, target = {}, vehicle: rawVehicle =
   if (op === 'add') {
     const coerced = coerceVehicleForCategory(input, input.category, input);
     const nextVehicle = { ...coerced, ...input, vehicleId: newVehicleId(), addons: [], addOnIds: [] };
+    const duplicate = findSemanticDuplicateVehicle(vehicles, nextVehicle);
+    if (duplicate) {
+      return {
+        ok: false,
+        error: 'duplicate_vehicle',
+        statusCode: 409,
+        existingVehicleId: duplicate.vehicleId || null,
+        message: 'This booking already has a vehicle with the same size/service. Edit or replace that vehicle instead of adding another identical line.',
+      };
+    }
     return {
       ok: true,
       service: { ...service, vehicles: [...vehicles, nextVehicle] },
@@ -431,6 +479,8 @@ module.exports = {
   VEHICLE_OPS,
   normalizedVehicleInput,
   validateVehicleInput,
+  vehicleSemanticKey,
+  findSemanticDuplicateVehicle,
   applyVehicleOperation,
   applyVehicleFinancialMutation,
 };

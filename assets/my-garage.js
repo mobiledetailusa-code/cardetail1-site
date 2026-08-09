@@ -466,6 +466,14 @@
     if (err === 'duplicate_addon') {
       return 'That add-on is already on your booking.';
     }
+    if (err === 'duplicate_vehicle') {
+      return (data && data.message)
+        || 'This booking already has a vehicle with the same size and service. Edit that vehicle instead of adding another identical one.';
+    }
+    if (err === 'duplicate_pending_request') {
+      return (data && data.message)
+        || 'A request for this change is already pending review.';
+    }
     if (err === 'settled_addon_remove_denied') {
       return 'Paid add-ons cannot be removed online.';
     }
@@ -2349,7 +2357,11 @@
     }
 
     if (r.data && r.data.ok) {
-      delete mutationRequestKeys[requestSignature];
+      // Keep vehicle_add fingerprint for this session so an identical resubmit
+      // reuses the same idempotency key (server replay) instead of appending twins.
+      if (action !== 'vehicle_add_request') {
+        delete mutationRequestKeys[requestSignature];
+      }
       // Mutations return a safe canonical booking projection. Paint it now,
       // then use the shared poller to converge secondary projections.
       if (r.data.booking) applyCanonicalBookingProjection(r.data.booking);

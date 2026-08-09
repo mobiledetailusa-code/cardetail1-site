@@ -149,13 +149,15 @@ async function listJobs(q) {
   // Lean list path: skip Prisma customer-account graph enrichment (no Jobs-table consumer).
   // Full identity remains available through get_job / customer portal authorities.
 
-  return jobs.map(b => {
+  const projected = jobs.map(b => {
     try {
       const j = projectJobForAdminList(b);
       // Prefer payload id; if missing, use Blob key so Admin copy/paste matches Customer lookup.
       j.id = normalizeBookingKey(j.id || j.bookingId || b.__blobKey) || j.id;
       j.bookingId = j.bookingId || j.id;
       j.jobStatus = normalizeJobStatus(b);
+      j.__blobKey = b.__blobKey || null;
+      j.__updatedAt = String(b.updatedAt || b.createdAt || '');
       // paymentWorkflowStatus / remainingCents come from financialProjection via projectJobForAdminList.
       // Do not overwrite with normalizePaymentWorkflowStatus(raw) — that reintroduces stale Pending.
       return j;
@@ -169,10 +171,42 @@ async function listJobs(q) {
         paymentWorkflowStatus: 'no_payment_required_yet',
         pendingChangeRequestCount: 0,
         vehicleCount: 0,
+        __blobKey: (b && b.__blobKey) || null,
+        __updatedAt: String((b && (b.updatedAt || b.createdAt)) || ''),
         _projection: 'admin_list',
         _malformed: true,
       };
     }
+  });
+
+  // Collapse twin Blob keys that share the same logical booking id (key ≠ payload.id).
+  // Prefer the newest updatedAt/createdAt. Distinct bookings (different ids) stay separate.
+  const byLogicalId = new Map();
+  for (const j of projected) {
+    const logical = normalizeBookingKey(j.id || j.bookingId) || String(j.id || '');
+    if (!logical) {
+      byLogicalId.set(`__orphan__${j.__blobKey || Math.random()}`, j);
+      continue;
+    }
+    const prev = byLogicalId.get(logical);
+    if (!prev) {
+      byLogicalId.set(logical, j);
+      continue;
+    }
+    const preferNext = String(j.__updatedAt || '') >= String(prev.__updatedAt || '');
+    const kept = preferNext ? j : prev;
+    const dropped = preferNext ? prev : j;
+    kept._dedupedBlobKeys = [
+      ...(kept._dedupedBlobKeys || []),
+      ...(dropped._dedupedBlobKeys || []),
+      dropped.__blobKey,
+    ].filter(Boolean);
+    byLogicalId.set(logical, kept);
+  }
+
+  return [...byLogicalId.values()].map((j) => {
+    const { __blobKey, __updatedAt, ...rest } = j;
+    return rest;
   });
 }
 
