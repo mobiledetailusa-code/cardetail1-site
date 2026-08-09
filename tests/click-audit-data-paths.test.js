@@ -110,8 +110,8 @@ describe('click audit — Prisma client vs booking mirror env', () => {
 
 describe('click audit — cache bust on touched assets', () => {
   it('HTML loads click-audit asset versions', () => {
-    assert.match(adminHtml, /admin-ops\.js\?v=20260809-click-audit/);
-    assert.match(garageHtml, /my-garage\.js\?v=20260809-click-audit/);
+    assert.match(adminHtml, /admin-ops\.js\?v=20260809-tech-tip/);
+    assert.match(garageHtml, /my-garage\.js\?v=20260809-tech-tip/);
     assert.match(receiptHtml, /receipt\.js\?v=20260809-click-audit/);
   });
 });

@@ -219,6 +219,20 @@ ul.clean li{padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:14p
 #embedded-pay-panel{scroll-margin-top:16px}
 #embedded-pay-panel:focus{outline:none}
 #embedded-pay-panel:focus-visible{outline:2px solid var(--accent)}
+.tip-panel{margin:12px 0 14px;padding:12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2)}
+.tip-heading{font-size:14px;font-weight:700;margin:0 0 4px}
+.tip-sub{margin:0 0 10px}
+.tip-row{display:flex;gap:8px;flex-wrap:wrap}
+.tip-btn{
+  flex:1;min-width:68px;min-height:44px;padding:10px 8px;border-radius:var(--r-sm);
+  border:1px solid var(--line);background:var(--surface);color:var(--text);
+  font:600 13px/1.2 var(--font-ui);cursor:pointer;text-align:center
+}
+.tip-btn:hover{border-color:rgba(77,163,255,.45);color:var(--accent)}
+.tip-btn.sel{border-color:var(--accent);background:var(--accent-dim);color:var(--accent)}
+.tip-custom{margin-top:10px}
+.tip-custom .inp{margin-top:4px}
+#tech-tip-summary{margin:10px 0 0}
 .pay-sticky{position:fixed;left:0;right:0;bottom:0;z-index:2500;display:none;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(10,10,15,.96);border-top:1px solid var(--line)}
 .pay-sticky .btn{width:100%;display:block;text-align:center}
 body.pay-sticky-on .pay-sticky{display:block}
@@ -350,6 +364,16 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
         <p class="card-kicker">Secure payment</p>
         <h4 class="pay-heading" id="embedded-pay-h">Pay balance</h4>
         <p class="pay-context" id="embedded-pay-context"></p>
+        <div id="tech-tip-panel" class="tip-panel" hidden>
+          <p class="tip-heading">Add a tip for your technician?</p>
+          <p class="hint tip-sub">Optional. 100% goes to the technician who did the work. Suggested amounts are based on your balance due.</p>
+          <div class="tip-row" id="tech-tip-row" role="group" aria-label="Technician tip"></div>
+          <div class="tip-custom" id="tech-tip-custom-wrap" hidden>
+            <label for="tech-tip-custom" class="sub">Custom tip ($)</label>
+            <input class="inp" id="tech-tip-custom" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+          </div>
+          <p class="hint" id="tech-tip-summary" aria-live="polite"></p>
+        </div>
         <p class="sub" id="embedded-pay-amount">Pay the approved balance without leaving this page.</p>
         <div id="payment-element"></div>
         <div class="actions" style="margin-top:14px">
@@ -477,7 +501,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 <script src="https://js.stripe.com/v3/"></script>
 <script src="assets/portal-analytics.js" defer></script>
 <script src="assets/operational-refresh.js?v=20260805-sync-pr3" defer></script>
-<script src="assets/my-garage.js?v=20260809-click-audit" defer></script>
+<script src="assets/my-garage.js?v=20260809-tech-tip" defer></script>
 <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>

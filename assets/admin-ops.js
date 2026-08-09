@@ -2419,7 +2419,7 @@
       h += '<p class="hint">Refund/credit review open: '+money(st.refundReview.amountCents)+' — '+esc(st.refundReview.status)+'</p>';
     }
     h += '<div><label>Type</label><select id="dAdjType"><option value="increase">increase</option><option value="decrease">decrease</option></select></div>'+
-      '<div><label>Amount (cents)</label><input type="number" id="dAdjAmount" step="1" min="1"></div>'+
+      '<div><label>Amount ($)</label><input type="number" id="dAdjAmount" step="0.01" min="0.01" placeholder="e.g. 25.00"></div>'+
       '<div class="full"><label>Reason (required)</label><input type="text" id="dAdjReason"></div>'+
       '<div class="full actions"><button type="button" class="btn ghost sm" id="dAdjPrice" style="min-height:44px">Adjust price</button></div>';
     h += '</div>';
@@ -2735,6 +2735,10 @@
       '<div><b>Approved total:</b> $'+esc(String(approvedDisp.toFixed(2)))+'</div>'+
       '<div><b>Paid:</b> $'+esc(String(paidAmt.toFixed(2)))+'</div>'+
       '<div><b>Balance:</b> $'+esc(String(Math.max(0,balDue).toFixed(2)))+'</div>'+
+      (Number(j.technicianTipCents || j.tipCents || (j.tip != null ? Math.round(Number(j.tip) * 100) : 0)) > 0
+        ? '<div><b>Technician tip:</b> $'+esc((Number(j.technicianTipCents || j.tipCents || Math.round(Number(j.tip) * 100)) / 100).toFixed(2))+
+          (j.technicianTipPercent ? ' ('+esc(String(j.technicianTipPercent))+'%)' : '')+'</div>'
+        : '')+
       (stripeRef?'<div><b>Stripe:</b> '+esc(stripeRef)+'…</div>':'')+
       '</div>'+
       (invPaid?'<p class="hint">Settlement paid the invoice. Service status remains independent — use Close job when paid under Resolve after work is done.</p>':'')+
@@ -2998,9 +3002,11 @@
     const dap = $('#dAdjPrice');
     if (dap) dap.onclick = () => {
       const reason = ($('#dAdjReason') && $('#dAdjReason').value || '').trim();
-      const amountCents = Number($('#dAdjAmount') && $('#dAdjAmount').value);
+      const dollars = Number($('#dAdjAmount') && $('#dAdjAmount').value);
       if (!reason) { toast('A reason is required for a price adjustment'); return; }
-      if (!(amountCents > 0)) { toast('Enter the adjustment amount in cents'); return; }
+      if (!(dollars > 0)) { toast('Enter the adjustment amount in dollars'); return; }
+      const amountCents = Math.round(dollars * 100);
+      if (!(amountCents > 0)) { toast('Enter a valid dollar amount'); return; }
       jobAction(j.id,'price_adjustment', {
         op: 'create',
         type: $('#dAdjType').value,
@@ -3798,30 +3804,81 @@
     } catch(err) { toast('Create failed: '+err.message); }
   };
 
-  $('#jobsCreate').onclick = async () => {
-    const firstName = prompt('Customer first name:');
-    if (!firstName) return;
-    const phone = prompt('Phone (10 digits):');
-    if (!phone) return;
-    const email = prompt('Email (optional):') || '';
-    const zipCode = prompt('ZIP code:');
-    if (!zipCode) return;
-    const packageId = prompt('Package ID (interior, full, exterior, maintenance):', 'interior') || 'interior';
+  function openCreateApptModal() {
+    const modal = $('#createApptModal');
+    const bg = $('#createApptBg');
+    if (!modal) return;
+    modal.hidden = false;
+    if (bg) bg.hidden = false;
+    if (bg) bg.classList.add('open');
+    modal.classList.add('open');
+    const first = $('#caFirst');
+    if (first) setTimeout(() => first.focus(), 30);
+  }
+
+  function closeCreateApptModal() {
+    const modal = $('#createApptModal');
+    const bg = $('#createApptBg');
+    if (modal) {
+      modal.classList.remove('open');
+      modal.hidden = true;
+    }
+    if (bg) {
+      bg.classList.remove('open');
+      bg.hidden = true;
+    }
+  }
+
+  async function submitCreateAppt(ev) {
+    if (ev && ev.preventDefault) ev.preventDefault();
+    const firstName = (($('#caFirst') && $('#caFirst').value) || '').trim();
+    const lastName = (($('#caLast') && $('#caLast').value) || '').trim();
+    const phone = (($('#caPhone') && $('#caPhone').value) || '').trim();
+    const email = (($('#caEmail') && $('#caEmail').value) || '').trim();
+    const zipCode = (($('#caZip') && $('#caZip').value) || '').trim();
+    const packageId = (($('#caPkg') && $('#caPkg').value) || 'interior').trim() || 'interior';
+    if (!firstName) { toast('First name is required'); return; }
+    if (!phone) { toast('Phone is required'); return; }
+    if (!zipCode) { toast('ZIP is required'); return; }
+    const submit = $('#createApptSubmit');
+    if (submit) submit.disabled = true;
     try {
       const d = await api('/.netlify/functions/admin-ops-jobs','POST',{
         action:'create_appointment',
-        firstName, phone, email, zipCode,
+        firstName,
+        lastName,
+        phone,
+        email,
+        zipCode,
         packageId,
-        package: packageId === 'full' ? 'Premium Full Detail' : 'Interior Detail',
+        package: packageId === 'full' ? 'Premium Full Detail'
+          : packageId === 'exterior' ? 'Exterior Detail'
+          : packageId === 'maintenance' ? 'Maintenance Detail'
+          : 'Interior Detail',
         vehicleCategory:'cars',
         vehicleTier:'Small Car',
         vehicles:[{cat:'cars',pkgId:packageId,tierKey:'small',tierLabel:'Small Car'}],
       });
       toast('Appointment created: '+d.bookingId);
+      closeCreateApptModal();
+      const form = $('#createApptForm');
+      if (form) form.reset();
       await refreshAll();
       if (d.bookingId) openDrawer(d.bookingId);
     } catch(e) { toast('Create failed: '+e.message); }
-  };
+    finally { if (submit) submit.disabled = false; }
+  }
+
+  const jobsCreateBtn = $('#jobsCreate');
+  if (jobsCreateBtn) jobsCreateBtn.onclick = () => openCreateApptModal();
+  const createApptForm = $('#createApptForm');
+  if (createApptForm) createApptForm.addEventListener('submit', submitCreateAppt);
+  const createApptClose = $('#createApptClose');
+  if (createApptClose) createApptClose.onclick = closeCreateApptModal;
+  const createApptCancel = $('#createApptCancel');
+  if (createApptCancel) createApptCancel.onclick = closeCreateApptModal;
+  const createApptBg = $('#createApptBg');
+  if (createApptBg) createApptBg.onclick = closeCreateApptModal;
 
   function renderAdminSyncState(info) {
     const el = $('#lastUpdated');

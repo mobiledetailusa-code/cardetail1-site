@@ -214,6 +214,15 @@ async function reconcilePostgresPaymentIntent(evt, paymentIntent) {
     const sync = projection
       ? await syncBlobCompatibilityFromProjection(bookingId, projection).catch(() => ({ ok: false }))
       : { ok: false };
+    if (result.tip && result.tip.tipCents > 0 && bookingId) {
+      try {
+        const { applyTechnicianTipToBlob } = require('../lib/db/operational-payment');
+        await applyTechnicianTipToBlob(bookingId, {
+          tipCents: result.tip.tipCents,
+          tipPercent: result.tip.tipPercent,
+        });
+      } catch (_) { /* tip display is secondary to settlement */ }
+    }
     return {
       handled: !!projection && sync?.ok !== false,
       retryable: !projection || sync?.ok === false,
@@ -225,6 +234,7 @@ async function reconcilePostgresPaymentIntent(evt, paymentIntent) {
         duplicate: !!result.duplicate,
         ignored: !!result.ignored,
         terminal: result.terminal || null,
+        tipCents: result.tip ? result.tip.tipCents : 0,
       },
       projection,
       bookingId,

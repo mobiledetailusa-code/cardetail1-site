@@ -7,7 +7,7 @@
 <title>Cardetail1 — Ops Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/admin-ops.css?v=20260809-click-audit">
+<link rel="stylesheet" href="assets/admin-ops.css?v=20260809-tech-tip">
 </head>
 <body>
 <aside class="side" aria-label="Ops navigation">
@@ -314,6 +314,39 @@
 <div class="toast" id="toast"></div>
 </div><!-- /.main -->
 
+<!-- Create appointment modal (Jobs Board) — replaces brittle prompt() chain -->
+<div class="drawer-bg" id="createApptBg" hidden></div>
+<aside class="drawer" id="createApptModal" hidden aria-labelledby="createApptTitle" role="dialog" aria-modal="true">
+  <div class="dh">
+    <div><h2 id="createApptTitle">Create appointment</h2></div>
+    <button type="button" class="btn ghost sm" id="createApptClose" aria-label="Close">✕</button>
+  </div>
+  <div class="db">
+    <form id="createApptForm" class="sec">
+      <p class="hint" style="margin-top:0">Creates a real booking in the board. Phone and ZIP are required.</p>
+      <div class="op-grid">
+        <div><label for="caFirst">First name</label><input id="caFirst" name="firstName" required autocomplete="given-name"></div>
+        <div><label for="caLast">Last name</label><input id="caLast" name="lastName" autocomplete="family-name"></div>
+        <div><label for="caPhone">Phone</label><input id="caPhone" name="phone" required inputmode="tel" autocomplete="tel" placeholder="10 digits"></div>
+        <div><label for="caEmail">Email (optional)</label><input id="caEmail" name="email" type="email" autocomplete="email"></div>
+        <div><label for="caZip">ZIP</label><input id="caZip" name="zipCode" required inputmode="numeric" maxlength="10"></div>
+        <div><label for="caPkg">Package</label>
+          <select id="caPkg" name="packageId">
+            <option value="interior">Interior Detail</option>
+            <option value="full">Premium Full Detail</option>
+            <option value="exterior">Exterior Detail</option>
+            <option value="maintenance">Maintenance Detail</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:14px">
+        <button type="submit" class="btn" id="createApptSubmit">Create appointment</button>
+        <button type="button" class="btn ghost" id="createApptCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</aside>
+
 <div class="drawer-bg" id="techDrawerBg"></div>
 <aside class="drawer" id="techDrawer">
   <div class="dh">
@@ -360,6 +393,6 @@
 <script src="/netlify/lib/site-access-client.js"></script>
 <script src="assets/operational-refresh.js?v=20260805-sync-pr3"></script>
 <script src="assets/admin-source-state.js"></script>
-<script src="assets/admin-ops.js?v=20260809-click-audit"></script>
+<script src="assets/admin-ops.js?v=20260809-tech-tip"></script>
 </body>
 </html>

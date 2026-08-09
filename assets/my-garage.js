@@ -1757,7 +1757,7 @@
       (can
         ? '<button type="button" class="btn primary" id="btn-pay-balance">' +
           esc(payCtaLabel(true, due)) + '</button>' +
-          '<p class="hint">Secure Stripe payment (card only). After payment your invoice closes automatically.</p>'
+          '<p class="hint">Optional tip for your technician appears before card details. Secure Stripe payment (card only).</p>'
         : (paid
           ? '<p class="pay-settled" data-pay-settled><strong>Paid</strong></p>' +
             '<p class="hint">Invoice paid. You can still add services — any new balance appears here. Package and vehicle changes go through Admin review.</p>'
@@ -1770,6 +1770,10 @@
       '</div>';
     var btn = $('btn-pay-balance');
     if (btn) btn.addEventListener('click', startPayBalance);
+    if (can) {
+      embeddedPay.balanceCents = remainingCentsFromPayment(pay);
+      bindTipControls();
+    }
   }
 
   /** True once the appointment is completed through the established status authority. */
@@ -2542,7 +2546,138 @@
     // Set for the whole duration of a start attempt so a double tap cannot
     // request a second PaymentIntent or mount a second Payment Element.
     starting: false,
+    tipCents: 0,
+    tipPercent: 0,
+    tipMode: 'none', // none | percent | custom
+    balanceCents: 0,
   };
+
+  var SUGGESTED_TIP_PERCENTS = [15, 18, 20];
+
+  function selectedTipCents(balanceCents) {
+    var balance = Math.max(0, Math.round(Number(balanceCents) || 0));
+    if (embeddedPay.tipMode === 'percent') {
+      return Math.round(balance * ((Number(embeddedPay.tipPercent) || 0) / 100));
+    }
+    if (embeddedPay.tipMode === 'custom') {
+      return Math.max(0, Math.round(Number(embeddedPay.tipCents) || 0));
+    }
+    return 0;
+  }
+
+  function refreshTipSummary() {
+    var summary = $('tech-tip-summary');
+    var balance = Math.max(0, Math.round(Number(embeddedPay.balanceCents) || 0));
+    var tip = selectedTipCents(balance);
+    embeddedPay.tipCents = tip;
+    if (summary) {
+      if (!(balance > 0)) {
+        summary.textContent = '';
+      } else if (tip > 0) {
+        summary.textContent = 'Technician tip ' + fmtMoney(tip / 100)
+          + ' · Total charge ' + fmtMoney((balance + tip) / 100);
+      } else {
+        summary.textContent = 'No tip · Charge ' + fmtMoney(balance / 100) + ' (invoice balance only)';
+      }
+    }
+    var amountEl = $('embedded-pay-amount');
+    var submitBtn = $('embedded-pay-submit');
+    var total = balance + tip;
+    if (amountEl && balance > 0) {
+      amountEl.textContent = tip > 0
+        ? ('Pay ' + fmtMoney(total / 100) + ' (balance ' + fmtMoney(balance / 100)
+          + ' + tip ' + fmtMoney(tip / 100) + ') without leaving this page.')
+        : ('Pay ' + fmtMoney(balance / 100) + ' securely without leaving this page.');
+    }
+    if (submitBtn && balance > 0) {
+      submitBtn.textContent = 'Pay ' + fmtMoney(total / 100);
+    }
+    setPaymentContext(total || balance);
+  }
+
+  function renderTipSelector(balanceCents) {
+    var panel = $('tech-tip-panel');
+    var row = $('tech-tip-row');
+    var customWrap = $('tech-tip-custom-wrap');
+    if (!panel || !row) return;
+    var balance = Math.max(0, Math.round(Number(balanceCents) || 0));
+    embeddedPay.balanceCents = balance;
+    if (!(balance > 0)) {
+      panel.hidden = true;
+      row.innerHTML = '';
+      return;
+    }
+    panel.hidden = false;
+    var buttons = [
+      { mode: 'none', label: 'No tip', tipCents: 0, percent: 0 },
+    ].concat(SUGGESTED_TIP_PERCENTS.map(function (p) {
+      return {
+        mode: 'percent',
+        percent: p,
+        tipCents: Math.round(balance * (p / 100)),
+        label: p + '%',
+      };
+    })).concat([{ mode: 'custom', label: 'Custom', tipCents: 0, percent: 0 }]);
+
+    row.innerHTML = buttons.map(function (opt) {
+      var selected = embeddedPay.tipMode === opt.mode
+        && (opt.mode !== 'percent' || Number(embeddedPay.tipPercent) === opt.percent);
+      var money = opt.mode === 'percent' && opt.tipCents > 0
+        ? '<span class="tip-amt">' + esc(fmtMoney(opt.tipCents / 100)) + '</span>'
+        : '';
+      return '<button type="button" class="tip-btn' + (selected ? ' sel' : '') + '"'
+        + ' data-tip-mode="' + esc(opt.mode) + '"'
+        + ' data-tip-percent="' + esc(String(opt.percent || 0)) + '"'
+        + ' aria-pressed="' + (selected ? 'true' : 'false') + '">'
+        + esc(opt.label)
+        + (money ? '<br>' + money : '')
+        + '</button>';
+    }).join('');
+
+    if (customWrap) customWrap.hidden = embeddedPay.tipMode !== 'custom';
+    refreshTipSummary();
+  }
+
+  function bindTipControls() {
+    var row = $('tech-tip-row');
+    var custom = $('tech-tip-custom');
+    if (row && !row._tipBound) {
+      row._tipBound = true;
+      row.addEventListener('click', function (ev) {
+        var btn = ev.target && ev.target.closest ? ev.target.closest('[data-tip-mode]') : null;
+        if (!btn) return;
+        var mode = btn.getAttribute('data-tip-mode') || 'none';
+        var percent = Number(btn.getAttribute('data-tip-percent') || 0);
+        var prevKey = embeddedPay.tipMode + ':' + embeddedPay.tipCents + ':' + embeddedPay.tipPercent;
+        embeddedPay.tipMode = mode;
+        embeddedPay.tipPercent = mode === 'percent' ? percent : 0;
+        if (mode !== 'custom') embeddedPay.tipCents = selectedTipCents(embeddedPay.balanceCents);
+        renderTipSelector(embeddedPay.balanceCents);
+        var nextKey = embeddedPay.tipMode + ':' + selectedTipCents(embeddedPay.balanceCents) + ':' + embeddedPay.tipPercent;
+        // Tip change after a PaymentIntent is mounted requires a fresh Intent.
+        if (embeddedPay.paymentElement && prevKey !== nextKey) {
+          hideEmbeddedPay({ keepTip: true });
+          showToast('Tip updated — tap Pay securely again to continue.');
+        }
+      });
+    }
+    if (custom && !custom._tipBound) {
+      custom._tipBound = true;
+      custom.addEventListener('input', function () {
+        var dollars = Number(custom.value);
+        embeddedPay.tipMode = 'custom';
+        embeddedPay.tipPercent = 0;
+        embeddedPay.tipCents = Number.isFinite(dollars) && dollars > 0
+          ? Math.round(dollars * 100)
+          : 0;
+        refreshTipSummary();
+        if (embeddedPay.paymentElement) {
+          hideEmbeddedPay({ keepTip: true });
+          showToast('Custom tip updated — tap Pay securely again to continue.');
+        }
+      });
+    }
+  }
 
   /**
    * Bring the payment panel into view and hand the customer focus. Called on
@@ -2595,7 +2730,8 @@
     el.classList.toggle('err', !!isErr);
   }
 
-  function hideEmbeddedPay() {
+  function hideEmbeddedPay(opts) {
+    opts = opts || {};
     var panel = $('embedded-pay-panel');
     if (panel) panel.hidden = true;
     if (embeddedPay.paymentElement) {
@@ -2605,6 +2741,10 @@
     embeddedPay.elements = null;
     embeddedPay.clientSecret = null;
     embeddedPay.bookingId = null;
+    if (!opts.keepTip) {
+      var tipPanel = $('tech-tip-panel');
+      if (tipPanel) tipPanel.hidden = true;
+    }
     setEmbeddedPayMsg('', false);
   }
 
@@ -2704,7 +2844,14 @@
 
   async function startPayBalanceInner(pay) {
     var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
-    showToast('Preparing secure payment…');
+    var balance = remainingCentsFromPayment(pay);
+    embeddedPay.balanceCents = balance;
+    bindTipControls();
+    renderTipSelector(balance);
+    var tipCents = selectedTipCents(balance);
+    showToast(tipCents > 0
+      ? ('Preparing secure payment with ' + fmtMoney(tipCents / 100) + ' technician tip…')
+      : 'Preparing secure payment…');
 
     // Prefer in-page Payment Element (Postgres authority) when available.
     var intent = await post('customer-balance-payment-intent', {
@@ -2712,6 +2859,8 @@
       phone: phone,
       expectedQuoteVersion: pay.quoteVersion,
       expectedBookingVersion: state.booking.bookingVersion,
+      tipCents: tipCents,
+      tipPercent: embeddedPay.tipMode === 'percent' ? embeddedPay.tipPercent : undefined,
     });
 
     if (intent.data && intent.data.error === 'already_paid') {
@@ -2733,10 +2882,12 @@
       }
 
       // Tear down any prior element before creating another one.
-      hideEmbeddedPay();
+      hideEmbeddedPay({ keepTip: true });
       embeddedPay.stripe = global.Stripe(pk);
       embeddedPay.clientSecret = intent.data.clientSecret;
       embeddedPay.bookingId = String(state.booking.id || '');
+      embeddedPay.tipCents = Math.round(Number(intent.data.tipCents) || tipCents || 0);
+      embeddedPay.balanceCents = Math.round(Number(intent.data.balanceCents) || balance || 0);
       var elementsOpts = { clientSecret: intent.data.clientSecret };
       if (intent.data.customerSessionClientSecret) {
         elementsOpts.customerSessionClientSecret = intent.data.customerSessionClientSecret;
@@ -2747,20 +2898,21 @@
       });
       var mountEl = $('payment-element');
       var panel = $('embedded-pay-panel');
-      var amountEl = $('embedded-pay-amount');
       if (!mountEl || !panel) {
         return startHostedCheckoutFallback();
       }
-      var cents = intent.data.amountCents || pay.remainingCents || 0;
-      if (amountEl) {
-        amountEl.textContent = 'Pay ' + fmtMoney(cents / 100) + ' securely without leaving this page.';
-      }
+      renderTipSelector(embeddedPay.balanceCents);
+      refreshTipSummary();
+      var cents = intent.data.amountCents || (embeddedPay.balanceCents + embeddedPay.tipCents) || 0;
       setPaymentContext(cents);
-      var submitBtn = $('embedded-pay-submit');
-      if (submitBtn) submitBtn.textContent = 'Pay ' + fmtMoney(cents / 100);
       panel.hidden = false;
       embeddedPay.paymentElement.mount(mountEl);
-      setEmbeddedPayMsg('Enter card details to pay. Saved cards appear only when Stripe allows redisplay.', false);
+      setEmbeddedPayMsg(
+        embeddedPay.tipCents > 0
+          ? 'Tip goes to your technician. Enter card details to pay.'
+          : 'Enter card details to pay. Saved cards appear only when Stripe allows redisplay.',
+        false
+      );
       revealPaymentPanel();
       if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.paymentOpened();
       return;
