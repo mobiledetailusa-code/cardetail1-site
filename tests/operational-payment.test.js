@@ -403,7 +403,7 @@ describe('operational payment — pure guards', () => {
   test('admin-ops exposes Reconcile with Stripe action', () => {
     const fs = require('fs');
     const path = require('path');
-    const html = fs.readFileSync(path.join(__dirname, '../admin-ops.html'), 'utf8');
+    const html = fs.readFileSync(path.join(__dirname, '../admin-ops.html'), 'utf8') + fs.readFileSync(path.join(__dirname, '../assets/admin-ops.css'), 'utf8') + fs.readFileSync(path.join(__dirname, '../assets/admin-ops.js'), 'utf8');
     assert.match(html, /dReconcileStripe/);
     assert.match(html, /reconcile_with_stripe/);
   });

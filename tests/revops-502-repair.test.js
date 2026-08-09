@@ -166,7 +166,7 @@ test('revenue-admin sets Cache-Control no-store', async () => {
 });
 
 test('admin UI uses single dashboard loader with loading and error states', () => {
-  const ui = read('admin-ops.html');
+  const ui = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
   assert.match(ui, /view=dashboard/);
   assert.match(ui, /revopsLoading/);
   assert.match(ui, /revopsError/);

@@ -7,15 +7,17 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 
-const adminOps = read('admin-ops.html');
+const adminOps = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
 const adminRequests = read('netlify/functions/admin-customer-requests.js');
 const adminSecurity = read('netlify/lib/admin-security.js');
 const rateLimit = read('netlify/lib/public-rate-limit.js');
 const catalog = read('netlify/lib/customer-catalog.js');
 
+/** The Admin script now lives in assets/admin-ops.js, not inline in the page. */
 function extractInlineScript(html) {
   const m = html.match(/<script>\s*\(function\(\)\{[\s\S]*\}\)\(\);\s*<\/script>/);
-  return m ? m[0].replace(/<\/?script>/g, '') : '';
+  if (m) return m[0].replace(/<\/?script>/g, '');
+  return read('assets/admin-ops.js');
 }
 
 function tabPanelMap(html) {

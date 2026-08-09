@@ -152,7 +152,7 @@ describe('portal post-pay ops', () => {
   });
 
   it('admin UI hides isolated 410 money affordances and keeps refund badge styling', () => {
-    const html = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8');
+    const html = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8') + fs.readFileSync(path.join(ROOT, 'assets/admin-ops.css'), 'utf8') + fs.readFileSync(path.join(ROOT, 'assets/admin-ops.js'), 'utf8');
     assert.doesNotMatch(html, /id="dChargeNoShow"/);
     assert.doesNotMatch(html, /id="dMarkRefunded"/);
     assert.match(html, /dCloseWhenPaid|Close job when paid/);

@@ -151,7 +151,7 @@ describe('portal ops smoke — customer + admin real ops', () => {
   });
 
   it('admin drawer separates paid/service state and disables hosted generation', () => {
-    const src = read('admin-ops.html');
+    const src = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
     assert.match(src, /· PAID/);
     assert.match(src, /const canGenLink = false/);
     assert.doesNotMatch(src, />Generate Stripe link</);

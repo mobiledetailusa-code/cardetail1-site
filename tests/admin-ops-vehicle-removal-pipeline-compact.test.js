@@ -20,7 +20,7 @@ const {
 } = require('../netlify/lib/admin-change-request-projection');
 const { projectJobForAdmin } = require('../netlify/lib/ops-workflow');
 
-const adminOps = read('admin-ops.html');
+const adminOps = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
 const adminRequests = read('netlify/functions/admin-customer-requests.js');
 
 function createMemoryStore(seed = {}) {
@@ -230,9 +230,9 @@ describe('admin-ops renderer wiring', () => {
   });
 
   it('inline script still parses', () => {
-    const m = adminOps.match(/<script>\s*\(function\(\)\{[\s\S]*\}\)\(\);\s*<\/script>/);
-    assert.ok(m, 'inline script missing');
-    const src = m[0].replace(/<\/?script>/g, '');
+    // The Admin script now lives in assets/admin-ops.js, not inline in the page.
+    const src = read('assets/admin-ops.js');
+    assert.ok(src.length > 0, 'admin-ops.js missing');
     assert.doesNotThrow(() => {
       vm.compileFunction(src, [
         'CD1AdminSession', 'SiteAccess', 'document', 'window', 'location',

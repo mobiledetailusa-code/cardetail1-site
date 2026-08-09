@@ -1293,7 +1293,7 @@ describe('Final readiness remediation — Admin CAS + overpayment', () => {
   });
 
   it('Admin Generate Stripe UI does not send amount override', () => {
-    const src = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8');
+    const src = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8') + fs.readFileSync(path.join(ROOT, 'assets/admin-ops.css'), 'utf8') + fs.readFileSync(path.join(ROOT, 'assets/admin-ops.js'), 'utf8');
     assert.match(src, /generate_stripe_pay_link/);
     assert.doesNotMatch(src, /prompt\('Charge amount/);
     assert.match(src, /authoritative remaining balance/);

@@ -127,7 +127,7 @@ describe('Admin authority stabilize — clock-poison + UI seams', () => {
   });
 
   it('admin-ops wires cash parse, close when paid, create-from-booking, and authority tabs', () => {
-    const html = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8');
+    const html = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8') + fs.readFileSync(path.join(ROOT, 'assets/admin-ops.css'), 'utf8') + fs.readFileSync(path.join(ROOT, 'assets/admin-ops.js'), 'utf8');
     assert.match(html, /function parseCashAmountInput/);
     assert.match(html, /function formatActionError/);
     assert.match(html, /close_job/);

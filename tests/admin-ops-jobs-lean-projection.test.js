@@ -234,7 +234,7 @@ describe('Admin Jobs lean projection', () => {
   });
 
   it('Admin UI prefers pendingChangeRequestCount and preserves open full detail on poll', () => {
-    const html = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8');
+    const html = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8') + fs.readFileSync(path.join(ROOT, 'assets/admin-ops.css'), 'utf8') + fs.readFileSync(path.join(ROOT, 'assets/admin-ops.js'), 'utf8');
     assert.match(html, /pendingChangeRequestCount/);
     assert.match(html, /_projection === 'admin_full'/);
     assert.match(html, /action:'get_job'|action:\s*'get_job'/);

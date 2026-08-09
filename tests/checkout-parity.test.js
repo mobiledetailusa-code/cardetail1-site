@@ -50,7 +50,7 @@ test('specialty pages use specialty-booking-bridge not legacy six-step labels', 
 
 test('admin offer controls exist in admin ops', () => {
   const jobs = read('netlify/functions/admin-ops-jobs.js');
-  const ui = read('admin-ops.html');
+  const ui = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
   assert.match(jobs, /apply_welcome_offer/);
   assert.match(jobs, /remove_welcome_offer/);
   assert.match(jobs, /reason_required/);
