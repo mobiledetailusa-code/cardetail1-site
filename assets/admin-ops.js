@@ -343,6 +343,33 @@
     });
   }
 
+  /**
+   * Unlock the appointment workspace for editing.
+   *
+   * Shared by "Edit details" in the sticky summary and "Edit" in the sticky
+   * footer. Both said Edit; only one of them unlocked anything, which is why
+   * operators reported that Edit does not edit.
+   *
+   * Local UI only — never refreshAll, never clear jobs/filters/selection.
+   * Returns false when the source-state guard says a refresh is pending.
+   */
+  function enableApptEditMode() {
+    const root = $('#dBody');
+    if (!root) return false;
+    if (SS && SS.editShouldTriggerRefreshAll && SS.editShouldTriggerRefreshAll()) return false;
+    if (root.classList.contains('appt-edit-mode')) return true;
+    root.classList.add('appt-edit-mode');
+    root.classList.remove('appt-readonly');
+    const workspace = root.querySelector('.appt-workspace');
+    if (workspace) workspace.classList.remove('appt-readonly');
+    root.querySelectorAll('input,select,textarea').forEach((el) => {
+      el.setAttribute('data-edit-enabled', '1');
+    });
+    jobDetailDirty = true;
+    toast('Edit mode on — save buttons are available in each panel');
+    return true;
+  }
+
   function bindApptWorkspace(j, defaultPanel) {
     const root = $('#dBody');
     if (!root) return;
@@ -357,16 +384,7 @@
     const editBtn = $('#dEnableEdit');
     if (editBtn) {
       // Edit toggles local UI only — must not call refreshAll or clear jobs/filters/selection.
-      editBtn.onclick = () => {
-        if (SS && SS.editShouldTriggerRefreshAll && SS.editShouldTriggerRefreshAll()) return;
-        root.classList.add('appt-edit-mode');
-        root.classList.remove('appt-readonly');
-        root.querySelectorAll('input,select,textarea').forEach((el) => {
-          el.setAttribute('data-edit-enabled', '1');
-        });
-        jobDetailDirty = true;
-        toast('Edit mode on — save buttons are available in each panel');
-      };
+      editBtn.onclick = () => { enableApptEditMode(); };
     }
     root.querySelectorAll('input,select,textarea').forEach((el) => {
       el.addEventListener('input', () => { jobDetailDirty = true; });
@@ -2008,6 +2026,9 @@
     }
     if (editBtn) {
       editBtn.onclick = () => {
+        // This button said Edit but only scrolled; the unlock lived on
+        // "Edit details" in the sticky summary. Same verb, same behaviour now.
+        enableApptEditMode();
         const target = $('#dSaveCustomer') || $('#dSaveService') || $('#dBody');
         if (!target) return;
         try { target.scrollIntoView({ behavior:'smooth', block:'center' }); } catch (e) { target.scrollIntoView(); }
@@ -2440,6 +2461,11 @@
     const paidAmtEarly = Number(j.amountPaid!=null ? j.amountPaid : ((j.settledCents||0)/100));
     const approvedEarly = Number(j.approvedFinalAmount!=null?j.approvedFinalAmount:(j.approvedCents||0)/100);
     let html = '<div class="appt-workspace appt-readonly" id="apptWorkspace">';
+    // Say the workspace is locked, once, before the controls it locks.
+    html += '<p class="appt-lock-hint" id="apptLockHint">'
+      + '<span aria-hidden="true">🔒</span>'
+      + '<span>Fields are locked. Use <strong>Edit</strong> to change this job.</span>'
+      + '</p>';
     html += '<div class="appt-sticky-summary"><div class="appt-sticky-grid">'+
       '<div><span>Customer</span><strong>'+esc(cust(j))+'</strong></div>'+
       '<div><span>Reference</span><strong>'+esc(j.id||'')+'</strong></div>'+

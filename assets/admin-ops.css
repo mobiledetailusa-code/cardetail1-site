@@ -130,7 +130,21 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 .appt-panel-tab[aria-selected="true"]{background:var(--accent-dim);border-color:rgba(77,163,255,.4);color:var(--accent)}
 .appt-panel{display:none}.appt-panel.on{display:block}
 .appt-edit-actions{display:none}.appt-edit-mode .appt-edit-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.appt-readonly input:not([data-edit-enabled]),.appt-readonly select:not([data-edit-enabled]),.appt-readonly textarea:not([data-edit-enabled]){opacity:.85;pointer-events:none}
+/* Locked until Edit. At opacity .85 these read as ordinary controls, so an
+   operator clicks them and nothing happens — the "useless buttons" report.
+   Make the locked state legible instead of silent. */
+.appt-readonly input:not([data-edit-enabled]),.appt-readonly select:not([data-edit-enabled]),.appt-readonly textarea:not([data-edit-enabled]){
+  opacity:.55;pointer-events:none;cursor:not-allowed;
+  background:var(--surface-3);border-style:dashed;color:var(--muted);
+}
+/* The whole locked workspace says so once, above the controls. */
+.appt-readonly .appt-lock-hint{display:flex}
+.appt-edit-mode .appt-lock-hint{display:none}
+.appt-lock-hint{
+  display:none;align-items:center;gap:8px;margin:0 0 10px;padding:9px 12px;
+  border:1px dashed var(--line);border-radius:var(--r-sm);background:var(--surface-2);
+  font-size:12px;color:var(--muted);
+}
 .appt-danger-zone{border:1px solid rgba(255,122,92,.35);background:var(--blocked-dim);border-radius:10px;padding:12px;margin-top:12px}
 .req-filter-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
 .req-filter-btn{min-height:44px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer}
