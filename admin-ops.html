@@ -3008,9 +3008,14 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
         const idx = jobs.findIndex(x => x.id===id);
         if (idx >= 0) jobs[idx] = d.job;
         else jobs.unshift(d.job);
+        // Always refresh money surfaces — get_job may overlay Postgres paid
+        // state that the lean Blob list still showed as Balance due.
+        renderJobs();
+        if (typeof renderPayments === 'function') renderPayments();
+        if (typeof renderOverview === 'function') renderOverview();
+        if (typeof renderCompleted === 'function') renderCompleted();
         if (d.reconciled) {
           toast('Payment reconciled from Stripe');
-          renderJobs(); renderOverview(); renderCompleted();
         }
       }
     } catch (e) { /* fall back to list cache — do not clear jobs */ }

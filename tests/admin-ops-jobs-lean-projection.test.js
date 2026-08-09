@@ -198,8 +198,39 @@ describe('Admin Jobs lean projection', () => {
     assert.doesNotMatch(listFn, /projectJobForAdmin\(/);
     assert.doesNotMatch(listFn, /buildAdminCustomerAccountSummary/);
     assert.match(src, /action === 'get_job'/);
-    const getJobSlice = src.slice(src.indexOf("action === 'get_job'"), src.indexOf("action === 'get_job'") + 2500);
+    const getJobSlice = src.slice(src.indexOf("action === 'get_job'"), src.indexOf("action === 'get_job'") + 2800);
     assert.match(getJobSlice, /projectJobForAdmin\(/);
+    assert.match(getJobSlice, /applySharedProjectionToAdminJob/);
+  });
+
+  it('applySharedProjectionToAdminJob overlays Postgres paid onto Blob-stale job', () => {
+    const { applySharedProjectionToAdminJob } = require('../netlify/lib/ops-workflow');
+    const stale = {
+      id: 'CD1-PAY',
+      remainingCents: 88700,
+      settledCents: 0,
+      amountPaid: 0,
+      amountDueApproved: 887,
+      invoicePaid: false,
+      paymentWorkflowStatus: 'awaiting_customer_payment',
+      financialPaymentStatus: 'due',
+    };
+    applySharedProjectionToAdminJob(stale, {
+      approvedCents: 88700,
+      settledCents: 88700,
+      remainingCents: 0,
+      paymentStatus: 'paid',
+      authority: 'postgres',
+      paidAt: '2026-08-09T01:00:00.000Z',
+      stripeReference: 'pi_test_abc123',
+    });
+    assert.equal(stale.remainingCents, 0);
+    assert.equal(stale.settledCents, 88700);
+    assert.equal(stale.amountPaid, 887);
+    assert.equal(stale.invoicePaid, true);
+    assert.equal(stale.paymentWorkflowStatus, 'payment_succeeded');
+    assert.equal(stale.financialPaymentStatus, 'paid');
+    assert.equal(stale._moneyAuthority, 'postgres');
   });
 
   it('Admin UI prefers pendingChangeRequestCount and preserves open full detail on poll', () => {

@@ -323,6 +323,47 @@ function projectJobForAdmin(b) {
   return safe;
 }
 
+/**
+ * Overlay shared Postgres financial projection onto an Admin job row.
+ * Customer Portal already reads Postgres; Admin list/drawer historically used
+ * Blob financialProjection and could show Balance due after Stripe pay until
+ * Blob compatibility sync caught up. Prefer Postgres when present.
+ */
+function applySharedProjectionToAdminJob(job, projection) {
+  if (!job || !projection || typeof projection !== 'object') return job;
+  const approved = Math.max(0, Math.round(Number(projection.approvedCents) || 0));
+  const settled = Math.max(0, Math.round(Number(projection.settledCents) || 0));
+  const remaining = Math.max(0, Math.round(Number(projection.remainingCents) || 0));
+  const status = String(projection.paymentStatus || '').toLowerCase();
+  const paid = status === 'paid' || (remaining === 0 && settled > 0);
+
+  job.approvedCents = approved;
+  job.settledCents = settled;
+  job.remainingCents = remaining;
+  job.amountDueApproved = remaining / 100;
+  job.balanceDue = remaining / 100;
+  job.amountPaid = settled / 100;
+  job.paidAmount = settled / 100;
+  if (approved > 0) job.approvedFinalAmount = approved / 100;
+  job.invoicePaid = paid;
+  job.financialPaymentStatus = status || job.financialPaymentStatus;
+  if (paid) {
+    const prior = String(job.paymentWorkflowStatus || '').toLowerCase();
+    job.paymentWorkflowStatus = prior === 'cash_paid' ? 'cash_paid' : 'payment_succeeded';
+  } else if (status === 'processing') {
+    job.paymentWorkflowStatus = 'awaiting_customer_payment';
+  } else if (status === 'due' && remaining > 0) {
+    job.paymentWorkflowStatus = job.paymentWorkflowStatus || 'awaiting_customer_payment';
+  }
+  if (projection.quoteVersion != null) job.quoteVersion = projection.quoteVersion;
+  if (projection.stripeReference) {
+    job.paymentIntentIdPrefix = String(projection.stripeReference).slice(0, 12);
+  }
+  if (projection.paidAt) job.paidAt = projection.paidAt;
+  job._moneyAuthority = projection.authority || 'postgres';
+  return job;
+}
+
 function projectJobForTech(b) {
   const first = b.firstName || '';
   const last = b.lastName || '';
@@ -432,6 +473,7 @@ module.exports = {
   listMoneySummary,
   projectJobForAdminList,
   projectJobForAdmin,
+  applySharedProjectionToAdminJob,
   projectJobForTech,
   projectTechAccountForAdmin,
   projectTechAssignOption,

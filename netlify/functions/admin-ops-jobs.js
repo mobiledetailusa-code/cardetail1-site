@@ -1,7 +1,7 @@
 // Admin-only jobs feed + admin ops actions for Admin Ops dashboard.
 const { blobsStore, listAllBlobs, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const {
-  projectJobForAdmin, projectJobForAdminList, normalizeJobStatus, appendEventLog,
+  projectJobForAdmin, projectJobForAdminList, applySharedProjectionToAdminJob, normalizeJobStatus, appendEventLog,
 } = require('../lib/ops-workflow');
 const { getOpsSettings } = require('../lib/ops-config');
 const { createAuctionForBooking, assignAuctionWinnerToBooking } = require('../lib/auction-ops');
@@ -1426,6 +1426,11 @@ async function handleAdminAction(body) {
     }
 
     const job = projectJobForAdmin(booking);
+    // Customer Portal money is Postgres. Overlay so Admin drawer/Payments match
+    // immediately after Stripe pay — even when Blob compatibility sync lags.
+    if (authority === 'postgres' && projection) {
+      applySharedProjectionToAdminJob(job, projection);
+    }
     return jsonCors(200, {
       ok: true,
       job,
@@ -1502,14 +1507,17 @@ async function handleAdminAction(body) {
         reason: sanitizeText(body.reason, 300) || 'delayed_webhook_recovery',
         sourcePortal: 'admin_ops',
       })).catch(() => null);
+      const proj = shared.projection || result.projection || null;
+      const job = projectJobForAdmin(booking);
+      if (proj) applySharedProjectionToAdminJob(job, proj);
       return jsonCors(200, {
         ok: !!result.ok,
         action: 'reconcile_with_stripe',
         authority: 'postgres',
-        projection: shared.projection || result.projection || null,
+        projection: proj,
         skipped: !!result.skipped,
         reason: result.reason || result.error || null,
-        job: projectJobForAdmin(booking),
+        job,
       });
     }
 
