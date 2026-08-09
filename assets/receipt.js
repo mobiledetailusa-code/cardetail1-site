@@ -155,12 +155,28 @@
       message('No booking was specified. Open your receipt from My Garage.');
       return;
     }
+    // Account sessions authenticate via cookie. Limited (booking+phone) sessions
+    // store phone in sessionStorage when opening My Garage — reuse it here so
+    // receipt links work without putting phone in the URL.
+    var phone = param('phone');
+    if (!phone) {
+      try {
+        var storedId = sessionStorage.getItem('cd1_garage_id') || '';
+        var storedPhone = sessionStorage.getItem('cd1_garage_phone') || '';
+        if (storedPhone && storedId
+          && String(storedId).toUpperCase() === String(bookingId).toUpperCase()) {
+          phone = storedPhone;
+        }
+      } catch (e) { phone = ''; }
+    }
     try {
+      var payload = { bookingId: bookingId, receiptType: type };
+      if (phone) payload.phone = phone;
       var res = await fetch('/.netlify/functions/customer-receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ bookingId: bookingId, receiptType: type }),
+        body: JSON.stringify(payload),
       });
       var data = await res.json().catch(function () { return null; });
       if (!data || !data.ok || !data.receipt) {

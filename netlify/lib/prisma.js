@@ -18,9 +18,10 @@ function tryGetPrisma() {
   if (_prisma) return _prisma;
   if (_initFailed) return null;
   if (!prismaConfigured()) return null;
-  if (process.env.PRISMA_BOOKING_MIRROR === '0' || process.env.PRISMA_BOOKING_MIRROR === 'false') {
-    return null;
-  }
+  // PRISMA_BOOKING_MIRROR only gates Blob→Prisma dual-write in booking-prisma-mirror.
+  // It must NOT disable the Prisma client itself — payment authority uses getPrisma()
+  // whenever DATABASE_URL is set (postgresPaymentEnabled), and coupling mirror=0 to
+  // a null client made money mutations throw while ops still believed Postgres was on.
   try {
     const { PrismaClient } = require('@prisma/client');
     const url = String(process.env.DATABASE_URL).trim();

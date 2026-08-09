@@ -103,7 +103,9 @@
       CD1AdminSession.syncWindowKey();
       return true;
     } catch {
-      return true;
+      // Network failure must not pretend the session is valid.
+      toast('Could not verify Admin session — check your connection and refresh.');
+      return false;
     }
   }
 
@@ -1652,12 +1654,50 @@
     return lines.map(([k, v]) => k + ': ' + v).join(' · ');
   }
 
+  function filterMergedRequestsForStatus(list) {
+    const f = String(requestsStatusFilter || 'pending').toLowerCase();
+    const rows = Array.isArray(list) ? list : [];
+    if (f === 'all') return rows;
+    if (f === 'approved' || f === 'applied') {
+      return rows.filter((r) => {
+        const st = String(r && r.status || '').toLowerCase();
+        return st === 'applied' || st === 'approved';
+      });
+    }
+    if (f === 'declined' || f === 'rejected') {
+      return rows.filter((r) => {
+        const st = String(r && r.status || '').toLowerCase();
+        return st === 'rejected' || st === 'declined';
+      });
+    }
+    if (f === 'needs_clarification') {
+      return rows.filter((r) => String(r && r.status || '').toLowerCase() === 'needs_clarification');
+    }
+    if (f === 'needs_payment_adjustment' || f === 'payment_adjustment') {
+      return rows.filter((r) => r && r.paymentImpact === 'payment_adjustment_required' && isOpenChangeRequest(r));
+    }
+    // pending (default): open only — do not re-inject closed rows from jobs.
+    return rows.filter(isOpenChangeRequest);
+  }
+
+  function requestsEmptyCopy() {
+    const f = String(requestsStatusFilter || 'pending');
+    if (f === 'approved') return 'No approved customer change requests';
+    if (f === 'declined' || f === 'rejected') return 'No declined customer change requests';
+    if (f === 'needs_clarification') return 'No requests waiting on customer clarification';
+    if (f === 'needs_payment_adjustment') return 'No open requests that need payment adjustment';
+    if (f === 'all') return 'No customer change requests';
+    return 'No pending customer change requests';
+  }
+
   function renderRequests() {
     const el = $('#requestsList');
-    const list = mergeRequestsWithJobs(changeRequests || []);
+    // Merge keeps in-job open CRs visible, then re-apply the active status filter
+    // so Approved/Declined views are not polluted by every open job CR.
+    const list = filterMergedRequestsForStatus(mergeRequestsWithJobs(changeRequests || []));
     updateRequestsTabBadge();
     if (!list.length) {
-      el.innerHTML = '<div class="empty">No pending customer change requests</div>';
+      el.innerHTML = '<div class="empty">'+esc(requestsEmptyCopy())+'</div>';
       return;
     }
     const autoApply = new Set([
@@ -2682,7 +2722,6 @@
       '<div><label>Final amount ($)</label><input type="number" id="dFinalAmt" step="0.01" value="'+(j.finalAmount!=null?j.finalAmount:(j.totalPrice||''))+'"></div>'+
       '<div><label>Tech payout ($)</label><input type="number" id="dTechPay" step="0.01" value="'+(j.techPayoutAmount!=null?j.techPayoutAmount:'')+'"></div>'+
       '<div class="full appt-edit-actions"><button type="button" class="btn ghost sm" id="dSaveBal" style="width:100%;min-height:44px">Save balance</button></div></div></div>';
-    const canGenLink = false;
     const stripeRef = j.stripeCheckoutSessionIdPrefix || j.paymentIntentIdPrefix || '';
     const cashCapPay = drawerControls && drawerControls.recordCash;
     const cardCapPay = drawerControls && drawerControls.recordCardOnSite;
@@ -2707,7 +2746,7 @@
       '<div class="full"><label>Manual external reference (optional)</label><input type="url" id="dManualPayRef" placeholder="https://… external note only" value="'+esc(j.manualPayLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
       '<div class="full actions">'+
       '<button type="button" class="btn ghost sm" id="dReconcileStripe" style="min-height:44px">Reconcile with Stripe</button>'+
-      '<button type="button" class="btn ghost sm" id="dSetPayLink" style="min-height:44px"'+(canGenLink?'':' disabled')+' hidden>Save manual reference</button>'+
+      '<button type="button" class="btn ghost sm" id="dSetPayLink" style="min-height:44px"'+(invPaid?' disabled':'')+'>Save manual reference</button>'+
       '</div>'+
       '<p class="hint">Customers pay with the embedded Payment Element in My Garage. Hosted Checkout and manual policy charges are isolated. Reconcile is exceptional recovery only.</p>'+
       '<div class="full" style="margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:8px">'+
@@ -3067,10 +3106,22 @@
     const dra = $('#dRejectAdj'); if(dra) dra.onclick = () => { const r=prompt('Rejection reason:'); if(r) jobAction(j.id,'reject_adjustment',{reason:r}); };
     let lastCustomerLink = '';
     const dgc = $('#dGenCompletion'); if(dgc) dgc.onclick = async () => {
-      try { const d = await jobAction(j.id,'generate_customer_link',{linkType:'completion'}); lastCustomerLink = d.url||''; if(lastCustomerLink) await navigator.clipboard.writeText(lastCustomerLink).catch(()=>{}); toast('Completion link copied'); } catch(e){}
+      try {
+        const d = await jobAction(j.id,'generate_customer_link',{linkType:'completion'});
+        lastCustomerLink = d.url||'';
+        if (!lastCustomerLink) { toast('Completion link was empty — try again or check token secrets'); return; }
+        await navigator.clipboard.writeText(lastCustomerLink).catch(()=>{});
+        toast('Completion link copied');
+      } catch(e) { toast('Completion link failed: ' + formatActionError(e)); }
     };
     const dgg = $('#dGenGarage'); if(dgg) dgg.onclick = async () => {
-      try { const d = await jobAction(j.id,'generate_customer_link',{linkType:'my_garage'}); lastCustomerLink = d.url||''; if(lastCustomerLink) await navigator.clipboard.writeText(lastCustomerLink).catch(()=>{}); toast('My Garage link copied'); } catch(e){}
+      try {
+        const d = await jobAction(j.id,'generate_customer_link',{linkType:'my_garage'});
+        lastCustomerLink = d.url||'';
+        if (!lastCustomerLink) { toast('My Garage link was empty — try again or check site URL / secrets'); return; }
+        await navigator.clipboard.writeText(lastCustomerLink).catch(()=>{});
+        toast('My Garage link copied');
+      } catch(e) { toast('My Garage link failed: ' + formatActionError(e)); }
     };
     const dcl = $('#dCopyCustomerLink'); if(dcl) dcl.onclick = async () => {
       const u = lastCustomerLink || j.completionLinkUrl || j.myGarageLinkUrl || '';

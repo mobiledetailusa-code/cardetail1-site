@@ -785,16 +785,18 @@
       );
     } else if (vehicleCount <= 1) {
       actions.push(
-        '<button type="button" class="btn ghost sm vehicle-action" data-action="vehicle_remove_request" data-vehicle-id="' +
+        '<button type="button" class="btn ghost sm vehicle-action" data-action="cancellation_request" data-vehicle-id="' +
         esc(vehicleId) + '" data-vehicle-label="' + esc(label) +
-        '" data-last-vehicle="1">Request vehicle removal</button>'
+        '">Cancel appointment</button>' +
+        '<span class="hint" style="display:block;margin-top:6px">Last vehicle cannot be removed — cancel the appointment instead.</span>'
       );
     } else {
       actions.push(
         '<button type="button" class="btn ghost sm vehicle-action" data-action="vehicle_remove_request" data-vehicle-id="' +
         esc(vehicleId) + '" data-vehicle-label="' + esc(label) +
         '" data-subtotal="' + esc(String(v.subtotal != null ? v.subtotal : '')) +
-        '">Request vehicle removal</button>'
+        '">Request vehicle removal</button>' +
+        '<span class="hint" style="display:block;margin-top:6px">Admin must approve before vehicles change.</span>'
       );
     }
     return '<div class="vehicle-actions" aria-label="Actions for ' + esc(label) + '">' +
@@ -1758,7 +1760,7 @@
           '<p class="hint">Secure Stripe payment (card only). After payment your invoice closes automatically.</p>'
         : (paid
           ? '<p class="pay-settled" data-pay-settled><strong>Paid</strong></p>' +
-            '<p class="hint">Invoice paid. You can still add services — any new balance appears here. Package and vehicle changes stay closed.</p>'
+            '<p class="hint">Invoice paid. You can still add services — any new balance appears here. Package and vehicle changes go through Admin review.</p>'
           : (pay.paymentAuthorityDegraded
             // A balance is genuinely open; the payment authority just cannot
             // confirm it right now. Saying "no balance is due" would be false.
@@ -2617,9 +2619,9 @@
   }
 
   async function startHostedCheckoutFallback() {
-    var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
-    if (phone) { /* keep the verified-session read on this recovery path */ }
-    showToast('Secure payment could not load. Check your connection and try again.', true);
+    // Hosted Checkout is intentionally retired (customer-portal-pay → 410).
+    // Do not offer a dead button — tell the customer what still works.
+    showToast('Card payment could not start in this page. Refresh and try again, or call/text 551-313-2956.', true);
   }
 
   async function saveSmsConsent() {
@@ -3895,6 +3897,12 @@
         if (params.get('paid') === '1') pollPaymentSettlement();
         return;
       }
+      showToast(
+        (ar.data && (ar.data.message || ar.data.error))
+          || 'This appointment link could not be opened. Ask Admin for a fresh link, or sign in below.',
+        true
+      );
+      history.replaceState({}, '', 'my-garage.html');
     }
 
     var challengeId = params.get('auth');
