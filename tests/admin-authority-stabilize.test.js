@@ -139,7 +139,12 @@ describe('Admin authority stabilize — clock-poison + UI seams', () => {
 
   it('my-garage pins focus after pay and silences idle Updating…', () => {
     const js = fs.readFileSync(path.join(ROOT, 'assets/my-garage.js'), 'utf8');
-    assert.match(js, /appointmentFocusRef = state\.booking\.appointmentPublicRef/);
+    // The pin moved into pinCurrentAppointment(), which stores only the opaque
+    // server ref. The old inline form fell back to the raw booking id, which the
+    // server rejects as invalid_focus — clearing the pin and toasting an error
+    // on every poll.
+    assert.match(js, /function pinCurrentAppointment\(\)/);
+    assert.match(js, /if \(isOpaqueFocusRef\(ref\)\) state\.appointmentFocusRef = ref;/);
     assert.match(js, /if \(portalHasPendingState\(\)\) el\.textContent = 'Updating…'/);
     assert.doesNotMatch(js, /Confirmed by your bank/);
   });

@@ -192,7 +192,9 @@ describe('admin-ops renderer wiring', () => {
     assert.match(adminOps, /appt-panel-tabs/);
     // Admin Lite panel set: Summary · Services · Schedule · Payment · Notes · More.
     // The requests panel is retained but reached from the pending alert / More.
-    assert.match(adminOps, /data-appt-panel="summary"/);
+    // The Admin authority pass renamed the summary panel to "resolve" and added
+    // a "create" panel; the guard follows the rename.
+    assert.match(adminOps, /data-appt-panel="resolve"/);
     assert.match(adminOps, /data-appt-panel="requests"/);
     assert.match(adminOps, /data-appt-panel="services"/);
     assert.match(adminOps, /data-appt-panel="schedule"/);
@@ -204,7 +206,7 @@ describe('admin-ops renderer wiring', () => {
   });
 
   it('defaults to Requests panel when pending requests exist', () => {
-    assert.match(adminOps, /defaultPanel = \(openDrawerFocusRequests \|\| pendingCRs\.length \|\| legacyPending\) \? 'requests' : 'summary'/);
+    assert.match(adminOps, /defaultPanel = \(openDrawerFocusRequests \|\| pendingCRs\.length \|\| legacyPending\) \? 'requests' : 'resolve'/);
   });
 
   it('global requests tab has filters and pending badge', () => {
