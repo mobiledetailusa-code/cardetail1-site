@@ -366,6 +366,19 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/twilio-provider.js',
     'netlify/lib/twilio-runtime-policy.js',
     'netlify/lib/twilio-webhook.js',
+    // Booking-store scan removal: indexed lookups on the request paths that
+    // outgrew a full cd1-bookings hydration (offer history, slot occupancy,
+    // customer portal, booking resolution by id).
+    'netlify/functions/customer-portal-auth.js',
+    'netlify/functions/customer-portal-data.js',
+    'netlify/functions/customer-subscription-checkout.js',
+    'netlify/lib/booking-history.js',
+    'netlify/lib/booking-offers.js',
+    'netlify/lib/booking-prisma-mirror.js',
+    'netlify/lib/booking-repository.js',
+    'netlify/lib/ops-db.js',
+    'netlify/lib/slot-index.js',
+    'netlify/lib/tech-security.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

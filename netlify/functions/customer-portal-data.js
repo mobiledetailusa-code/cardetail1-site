@@ -3,7 +3,6 @@
 
 const crypto = require('crypto');
 const { jsonCors } = require('../lib/tech-security');
-const { listRawBookings } = require('../lib/ops-db');
 const { projectBookingForCustomer } = require('../lib/ops-schema');
 const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
 const { validateCustomerSession } = require('../lib/customer-session');
@@ -156,6 +155,37 @@ function contactMatchesSession(booking, session) {
   }
   const bookingEmailHash = emailHashOf(booking.email);
   return !!(session.emailHash && bookingEmailHash && session.emailHash === bookingEmailHash);
+}
+
+/**
+ * Bookings this session could own, without hydrating the whole store:
+ * verified-contact matches (phone / session email hash) unioned with the ids
+ * the session and its CustomerAccount already reference. Deduplicated by id.
+ */
+async function buildCandidateBookings(session, sessionBookingIds, linkedAccountBookingIds) {
+  const { listBookingsForIdentity } = require('../lib/booking-history');
+  const { getBookingsByIds } = require('../lib/ops-db');
+
+  const byId = new Map();
+  const add = (booking) => {
+    const bid = normalizeBookingId(booking && (booking.id || booking.bookingId));
+    if (bid && !byId.has(bid)) byId.set(bid, booking);
+  };
+
+  const contact = await listBookingsForIdentity({
+    phone: session.phoneDigits,
+    emailHash: session.emailHash,
+  }).catch(() => ({ bookings: [] }));
+  for (const booking of contact.bookings || []) add(booking);
+
+  const ids = [...new Set([...sessionBookingIds, ...linkedAccountBookingIds])]
+    .filter((id) => !byId.has(id));
+  if (ids.length) {
+    const resolved = await getBookingsByIds(ids).catch(() => new Map());
+    for (const booking of resolved.values()) if (booking) add(booking);
+  }
+
+  return [...byId.values()];
 }
 
 function upcomingSortKey(b) {
@@ -372,7 +402,6 @@ async function handlePortalData(event, body) {
   void body.customerAccountId;
   void body.browserCustomerAccountId;
 
-  const all = await listRawBookings();
   const sessionBookingIds = new Set(
     (session.bookingIds || []).map((id) => normalizeBookingId(id)).filter(Boolean)
   );
@@ -395,6 +424,12 @@ async function handlePortalData(event, body) {
       linkedAccountBookingIds = new Set();
     }
   }
+
+  // Candidate set, scoped instead of scanning cd1-bookings: everything this
+  // session could possibly own is reachable by verified contact (phone or the
+  // session's email hash) or by an id it already carries. The ownership filter
+  // below is unchanged, so a narrower candidate set can never widen access.
+  const all = await buildCandidateBookings(session, sessionBookingIds, linkedAccountBookingIds);
 
   // Candidate ids from Blob account link / session / phone before ownership filter.
   const contactMatchedIds = [];

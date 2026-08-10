@@ -42,6 +42,19 @@ function safeError(status, error) {
   return publicJson(status, { ok: false, error });
 }
 
+/** The ISO days findNearbyOpenings can reach, so the slot index is read once per day. */
+function horizonDates(fromDate, horizonDays) {
+  const start = isoDateParts(fromDate);
+  if (!start) return [];
+  const dates = [];
+  const cursor = new Date(Date.UTC(start.y, start.mo - 1, start.d));
+  for (let i = 0; i <= horizonDays; i += 1) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+}
+
 exports.handler = async (event) => {
   try {
     if (event.httpMethod === 'OPTIONS') return publicJson(204, {});
@@ -95,8 +108,14 @@ exports.handler = async (event) => {
       });
       let occupancy = {};
       try {
-        const bookings = await listBookingsForSlotLock().catch(() => []);
-        occupancy = buildOccupancyMap(bookings);
+        const { indexedOccupancyForDates } = require('../lib/slot-index');
+        const indexed = await indexedOccupancyForDates(horizonDates(fromDate, horizonDays));
+        if (indexed.ok) {
+          occupancy = indexed.occupancy;
+        } else {
+          const bookings = await listBookingsForSlotLock().catch(() => []);
+          occupancy = buildOccupancyMap(bookings);
+        }
       } catch (_) { /* recovery still works without occupancy */ }
       const openings = findNearbyOpenings(fromDate, config, {
         limit,
@@ -116,15 +135,24 @@ exports.handler = async (event) => {
       }
       let conflict = false;
       try {
-        const bookings = await listBookingsForSlotLock().catch(() => []);
-        conflict = hasSlotConflict(
-          bookings,
-          v.preferredDate,
-          v.preferredTime,
-          q.excludeId || null,
-          Date.now(),
-          config
-        );
+        const { indexedSlotConflict } = require('../lib/slot-index');
+        const indexed = await indexedSlotConflict(v.preferredDate, v.preferredTime, {
+          excludeId: q.excludeId || null,
+          config,
+        });
+        if (indexed.ok) {
+          conflict = indexed.conflict;
+        } else {
+          const bookings = await listBookingsForSlotLock().catch(() => []);
+          conflict = hasSlotConflict(
+            bookings,
+            v.preferredDate,
+            v.preferredTime,
+            q.excludeId || null,
+            Date.now(),
+            config
+          );
+        }
       } catch (_) { /* soft */ }
       return publicJson(200, {
         ok: true,

@@ -128,6 +128,32 @@ async function readBookingMirror(bookingId) {
   }
 }
 
+/**
+ * Batch form of readBookingMirror — one indexed query instead of one round trip
+ * per id. Returns an empty Map on any miss/error, same fail-open contract.
+ *
+ * @returns {Promise<Map<string, object>>} keyed by the id as stored
+ */
+async function readBookingMirrors(bookingIds) {
+  const out = new Map();
+  try {
+    if (!readFallbackEnabled()) return out;
+    const ids = [...new Set((bookingIds || []).map((id) => String(id || '').trim()).filter(Boolean))];
+    if (!ids.length) return out;
+    const prisma = tryGetPrisma();
+    if (!prisma) return out;
+    const rows = await prisma.bookingRecord.findMany({ where: { id: { in: ids } } });
+    for (const row of rows || []) {
+      if (row && row.payload && typeof row.payload === 'object') out.set(row.id, row.payload);
+    }
+    return out;
+  } catch (err) {
+    const message = err && err.message ? err.message : String(err);
+    console.warn('[booking-prisma-mirror] batch_read_failed', message);
+    return out;
+  }
+}
+
 module.exports = {
   mirrorEnabled,
   readFallbackEnabled,
@@ -136,4 +162,5 @@ module.exports = {
   upsertBookingMirror,
   scheduleBookingMirror,
   readBookingMirror,
+  readBookingMirrors,
 };

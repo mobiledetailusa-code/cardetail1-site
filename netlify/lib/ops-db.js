@@ -1,5 +1,5 @@
 // Unified operational DB layer — all channels read/write cd1-bookings through here.
-const { blobsStore, listAllBlobs, fetchBlobRecords } = require('./tech-security');
+const { blobsStore, listAllBlobs, fetchBlobRecords, bookingRef } = require('./tech-security');
 const { BOOKINGS_STORE } = require('./ops-schema');
 const { appendEventLog, normalizeJobStatus, normalizePaymentWorkflowStatus } = require('./ops-workflow');
 const { isVisibleSubmittedBooking } = require('./booking-visibility');
@@ -80,6 +80,21 @@ async function getBooking(bookingId) {
     if (raw) return finalizeBookingRead(raw, id);
   }
 
+  // Prisma on Blob miss, before the scan — Blobs remain primary, so this runs
+  // only once every direct key variant above has missed. The id is
+  // BookingRecord's primary key, so it answers in milliseconds; running it
+  // after the scan (as it used to) meant any booking whose Blob key ≠
+  // payload.id sent stripe-webhook and booking-card-status through a
+  // full-store hydration that no longer fits in a function timeout.
+  try {
+    const { readBookingMirror } = require('./booking-prisma-mirror');
+    const mirrored = await readBookingMirror(id);
+    if (mirrored) {
+      console.log('[ops-db] getBooking resolved via mirror', { bookingRef: bookingRef(id) });
+      return finalizeBookingRead(mirrored, id);
+    }
+  } catch { /* ignore — the scan below is still authoritative */ }
+
   // Scan fallback — Admin feed uses list keys; Customer lookup uses booking.id.
   try {
     const blobs = await listAllBlobs(store, BOOKINGS_STORE);
@@ -94,10 +109,13 @@ async function getBooking(bookingId) {
         const rid = normalizeBookingKey(row.raw.id || row.raw.bookingId || '');
         const rkey = normalizeBookingKey(row.key);
         if (rid === id || rkey === id) {
+          // Refs, not ids: this line used to print the lookup id, the Blob key
+          // and the payload id verbatim. Which side matched is the diagnostic
+          // value; the id itself is PII the logs must not carry.
           console.log('[ops-db] getBooking resolved via scan', {
-            lookupId: id,
-            blobKey: String(row.key).slice(0, 48),
-            payloadId: rid || null,
+            bookingRef: bookingRef(id),
+            blobKeyRef: bookingRef(row.key),
+            matchedOn: rid === id ? 'payload_id' : 'blob_key',
           });
           return finalizeBookingRead(row.raw, id);
         }
@@ -107,12 +125,6 @@ async function getBooking(bookingId) {
     console.warn('[ops-db] getBooking scan failed:', e.message);
   }
 
-  // Fail-open Prisma fallback — helps intermittent Blob miss; never used for CAS writes.
-  try {
-    const { readBookingMirror } = require('./booking-prisma-mirror');
-    const mirrored = await readBookingMirror(id);
-    if (mirrored) return finalizeBookingRead(mirrored, id);
-  } catch { /* ignore */ }
   return null;
 }
 
@@ -161,7 +173,22 @@ async function getBookingsByIds(bookingIds) {
     }));
   }
 
-  // Pass 2 — one shared scan resolves every remaining id at once.
+  // Pass 2 — one indexed batch read for everything the direct keys missed.
+  // Same reordering as getBooking: the mirror answers before, not after, a scan
+  // that no longer fits in a function timeout.
+  const missedKeys = new Set(ids.filter((id) => !resolved.get(id)));
+  if (missedKeys.size) {
+    try {
+      const { readBookingMirrors } = require('./booking-prisma-mirror');
+      const mirrored = await readBookingMirrors([...missedKeys]);
+      for (const [mirroredId, payload] of mirrored) {
+        const id = normalizeBookingKey(mirroredId);
+        if (id && missedKeys.has(id)) resolved.set(id, finalizeBookingRead(payload, id));
+      }
+    } catch { /* ignore — the scan below is still authoritative */ }
+  }
+
+  // Pass 3 — one shared scan resolves every remaining id at once.
   const pending = new Set(ids.filter((id) => !resolved.get(id)));
   if (pending.size) {
     try {
@@ -187,21 +214,6 @@ async function getBookingsByIds(bookingIds) {
       }
     } catch (e) {
       console.warn('[ops-db] getBookingsByIds scan failed:', e.message);
-    }
-  }
-
-  // Pass 3 — fail-open mirror read, same as getBooking. Bounded, never for writes.
-  if (pending.size) {
-    const rest = [...pending];
-    for (let i = 0; i < rest.length; i += BOOKING_LOOKUP_CONCURRENCY) {
-      const chunk = rest.slice(i, i + BOOKING_LOOKUP_CONCURRENCY);
-      await Promise.all(chunk.map(async (id) => {
-        try {
-          const { readBookingMirror } = require('./booking-prisma-mirror');
-          const mirrored = await readBookingMirror(id);
-          if (mirrored) resolved.set(id, finalizeBookingRead(mirrored, id));
-        } catch { /* ignore */ }
-      }));
     }
   }
 

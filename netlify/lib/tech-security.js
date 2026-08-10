@@ -9,6 +9,16 @@ const MAX_TECH_SESSIONS = 3;
 const INVITE_TTL_MS = 72 * 60 * 60 * 1000;
 const MIN_PASSWORD_LENGTH = 8;
 
+/**
+ * Booking ids never reach logs in this codebase — customer-appointment-access
+ * emits a correlation id instead, and a test asserts no raw id shows up on
+ * console. Use this where a log line still needs a stable, non-reversible
+ * handle to correlate the same booking across entries.
+ */
+function bookingRef(bookingId) {
+  return crypto.createHash('sha256').update(String(bookingId || '')).digest('hex').slice(0, 8);
+}
+
 let _blobsGetStore = null;
 async function getBlobsGetStore() {
   if (_blobsGetStore) return _blobsGetStore;
@@ -228,6 +238,7 @@ module.exports = {
   blobsStore,
   listAllBlobs,
   fetchBlobRecords,
+  bookingRef,
   jsonCors,
   verifyAdminKey,
   hashPassword,

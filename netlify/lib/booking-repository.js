@@ -104,6 +104,10 @@ async function commitBooking({
       const { scheduleBookingMirror } = require('./booking-prisma-mirror');
       scheduleBookingMirror(toWrite);
     } catch { /* never block Blob authority */ }
+    try {
+      const { syncSlotIndex } = require('./slot-index');
+      await syncSlotIndex(toWrite);
+    } catch { /* never block Blob authority */ }
     return { ok: true, booking: toWrite, bookingVersion: toWrite.bookingVersion };
   }
 
@@ -160,6 +164,14 @@ async function commitBooking({
   try {
     const { scheduleBookingMirror } = require('./booking-prisma-mirror');
     scheduleBookingMirror(toWrite);
+  } catch { /* never block Blob authority */ }
+
+  // Slot index (fail-open, awaited): this is the choke point every Admin/portal
+  // reschedule and cancellation goes through, so keeping it here is what stops
+  // the index from drifting. syncSlotIndex never throws.
+  try {
+    const { syncSlotIndex } = require('./slot-index');
+    await syncSlotIndex(toWrite, { previous: current.booking });
   } catch { /* never block Blob authority */ }
 
   return { ok: true, booking: toWrite, bookingVersion: toWrite.bookingVersion };

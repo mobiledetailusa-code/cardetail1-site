@@ -15,7 +15,8 @@
 //     STRIPE_PRICE_SUB_FLEET_2_MAINT … STRIPE_PRICE_SUB_FLEET_3_PREMIUM (5 packs × 3 tiers = 15 total)
 
 const { blobsStore, jsonCors, sanitizeText } = require('../lib/tech-security');
-const { listRawBookings, phonesMatch } = require('../lib/ops-db');
+const { phonesMatch } = require('../lib/ops-db');
+const { listBookingsForIdentity } = require('../lib/booking-history');
 const { catalogForClient } = require('../lib/customer-catalog');
 const {
   rejectClientPriceFields, verifyCustomer, findOwnedBooking, hasVerifiedBooking,
@@ -109,7 +110,10 @@ exports.handler = async (event) => {
       return jsonCors(400, { ok: false, error: 'booking_id_required', message: 'bookingId is required for subscription checkout.' });
     }
 
-    const bookings = await listRawBookings().catch(() => []);
+    // findOwnedBooking / hasVerifiedBooking both re-check email and phone on
+    // every record, so scoping the candidate set cannot widen access.
+    const { bookings } = await listBookingsForIdentity({ email: auth.email, phone: auth.phone })
+      .catch(() => ({ bookings: [] }));
     const bound = findOwnedBooking(bookingId, auth.email, auth.phone, bookings);
     if (!bound) {
       return jsonCors(403, {
