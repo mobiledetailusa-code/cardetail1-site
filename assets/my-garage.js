@@ -1897,6 +1897,13 @@
     var arrivalDisplay = confirmedArrival
       ? confirmedArrival
       : 'Pending confirmation';
+    // One arrival row instead of three: while unconfirmed the customer still
+    // needs to see the window they asked for, not just that it is pending.
+    var arrivalPrimary = confirmedArrival
+      ? confirmedArrival
+      : (preferredArrival && preferredArrival !== '—'
+        ? preferredArrival + ' · Pending confirmation'
+        : arrivalDisplay);
     var waterLabels = {
       yes: 'Yes — outdoor faucet or hose connection',
       no: 'No',
@@ -1914,6 +1921,10 @@
       earliest_after_date: 'First available on or after selected date',
     };
     var flex = b.scheduleFlexibility || 'exact';
+    // Secondary detail: what the customer asked for and what the crew needs to
+    // know on site. It is real information, but it is not what someone opening
+    // the portal is looking for, so it sits behind a disclosure instead of
+    // pushing the appointment actions off the screen.
     var siteRows = '';
     siteRows += '<div><dt>Preferred date</dt><dd>' + esc(b.preferredDate || '—') + '</dd></div>';
     siteRows += '<div><dt>Preferred arrival window</dt><dd>' + esc(preferredArrival) + '</dd></div>';
@@ -1922,8 +1933,6 @@
         (b.alternateArrivalWindow ? ' · ' + esc(arrivalLabels[b.alternateArrivalWindow] || b.alternateArrivalWindow) : '') +
         '</dd></div>';
     }
-    siteRows += '<div><dt>Confirmed date / window</dt><dd>' + esc(b.confirmedDate || '—') +
-      (confirmedArrival ? ' · ' + esc(confirmedArrival) : ' · ' + esc(arrivalDisplay)) + '</dd></div>';
     if (b.waterAvailable) {
       siteRows += '<div><dt>Water</dt><dd>' + esc(waterLabels[b.waterAvailable] || b.waterAvailable) + '</dd></div>';
     }
@@ -1937,6 +1946,22 @@
       siteRows += '<div><dt>Additional notes</dt><dd>' + esc(b.notes || b.customerNote) + '</dd></div>';
     }
     siteRows += '<div><dt>Date flexibility</dt><dd>' + esc(flexLabels[flex] || flex) + '</dd></div>';
+    if (b.travelFeeAmount) {
+      siteRows += '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>';
+    }
+    siteRows += offerHtml;
+
+    // What the customer opened the portal for: when, where, what, who, and the
+    // money. Status lives in the kicker and the service name in the title, so
+    // neither is repeated here. Everything else moved into the disclosure
+    // below, which is what brings the appointment actions back above the fold.
+    var essentialRows =
+      '<div><dt>Date</dt><dd>' + esc(b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
+      '<div><dt>Arrival window</dt><dd>' + esc(arrivalPrimary) + '</dd></div>' +
+      '<div><dt>Location</dt><dd>' + esc(b.address || b.serviceLocation || '—') + '</dd></div>' +
+      legacyVehicleRows +
+      (b.assignedTechName ? '<div><dt>Technician</dt><dd>' + esc(b.assignedTechName) + '</dd></div>' : '');
+
     var focusClass = state.focusedAppointment ? ' appointment-focus' : '';
     hero.innerHTML =
       '<div class="card' + focusClass + '" id="focused-appointment-card">' +
@@ -1944,19 +1969,7 @@
       (pendingFlag ? ' · Change pending' : '') + '</div>' +
       '<h2 class="card-title">' + esc(b.service || b.package || 'Service') + '</h2>' +
       (packDesc ? '<p class="pack-desc">' + esc(packDesc) + (packDur ? ' · ' + esc(packDur) : '') + '</p>' : '') +
-      '<dl class="meta-grid">' +
-      '<div><dt>Status</dt><dd>' + esc(statusLabel) + '</dd></div>' +
-      '<div><dt>Date</dt><dd>' + esc(b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
-      '<div><dt>Arrival window</dt><dd>' + esc(arrivalDisplay) + '</dd></div>' +
-      legacyVehicleRows +
-      '<div><dt>Service</dt><dd>' + esc(b.service || b.package || '—') + '</dd></div>' +
-      '<div><dt>Location</dt><dd>' + esc(b.address || b.serviceLocation || '—') + '</dd></div>' +
-      siteRows +
-      (b.assignedTechName ? '<div><dt>Technician</dt><dd>' + esc(b.assignedTechName) + '</dd></div>' : '') +
-      (b.travelFeeAmount ? '<div><dt>Travel fee</dt><dd>' + fmtMoney(b.travelFeeAmount) + '</dd></div>' : '') +
-      offerHtml +
-      '</dl>' +
-      vehicleSections +
+      '<dl class="meta-grid">' + essentialRows + '</dl>' +
       '<dl class="meta-grid booking-financial-summary" aria-label="Booking totals">' +
       '<div><dt>Approved total</dt><dd>' + (
         pay.approvedCents != null || pay.approvedTotal != null
@@ -1972,6 +1985,11 @@
       ((pay.canPay || pay.canCreatePayLink)
         ? ''
         : '<p class="hint" data-primary-action-label>' + esc(primaryActionLabel(b, pay)) + '</p>') +
+      vehicleSections +
+      '<details class="appt-details" id="appt-details">' +
+      '<summary>Scheduling preferences and site details</summary>' +
+      '<dl class="meta-grid">' + siteRows + '</dl>' +
+      '</details>' +
       '</div>';
 
     syncPayBalanceButton(pay);
