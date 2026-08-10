@@ -60,6 +60,15 @@ a:hover{text-decoration:underline}
 .meta-grid dt{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;overflow-wrap:anywhere}
 .meta-grid dd{font-size:14px;font-weight:600;margin-top:2px;min-width:0;overflow-wrap:anywhere;word-break:break-word}
 @media(max-width:480px){.meta-grid{grid-template-columns:1fr}}
+/* Secondary appointment detail — collapsed so the appointment actions stay
+   reachable without scrolling past scheduling preferences and site notes. */
+.appt-details{margin-top:4px;border-top:1px solid var(--border);padding-top:4px}
+.appt-details>summary{cursor:pointer;list-style:none;min-height:44px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted)}
+.appt-details>summary::-webkit-details-marker{display:none}
+.appt-details>summary::after{content:'▾';font-size:11px;transition:transform .15s ease}
+.appt-details[open]>summary::after{transform:rotate(180deg)}
+.appt-details>summary:hover{color:var(--text)}
+.appt-details[open]>.meta-grid{margin-top:8px}
 .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .empty{font-size:13px;color:var(--muted);padding:12px 0}
 .saved-vehicle-card{padding:10px 0}
