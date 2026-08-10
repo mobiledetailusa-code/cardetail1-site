@@ -963,6 +963,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     try {
       return await api('/.netlify/functions/admin-customer-requests', 'POST', body);
     } catch (e) {
+      // A bare payment_attempt_in_progress left the operator with nothing to
+      // act on. The server now says which attempt, how old, and what Stripe
+      // reports — surface that instead of the code.
+      if (String(e.message || '') === 'payment_attempt_in_progress') {
+        const d = e.data || {};
+        const detail = d.message
+          || 'A payment attempt on this booking is still open, so the amount cannot change yet.';
+        const age = d.attemptAgeMinutes != null ? ' (open ' + d.attemptAgeMinutes + ' min)' : '';
+        e.message = detail + age;
+      }
       // Booking moved since the request — retry once with requote acceptance.
       if (decision === 'approve' && String(e.message || '') === 'version_conflict' && !body.acceptRequote) {
         if (confirm('Booking changed since this request. Approve using the updated quote?')) {

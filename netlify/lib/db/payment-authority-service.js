@@ -259,6 +259,141 @@ async function retrievePaymentIntentClientSecret({
   }
 }
 
+/** A payment attempt only blocks money mutations while it is in one of these. */
+const ACTIVE_ATTEMPT_STATUSES = ['creating', 'open', 'requires_action'];
+
+/** Long enough that a payment genuinely in flight is never disturbed. */
+const ATTEMPT_STALE_AFTER_MS = 2 * 60 * 1000;
+
+/** Stripe's terminal states, and what the local attempt becomes. */
+const STRIPE_TERMINAL_STATUS = {
+  succeeded: 'succeeded',
+  canceled: 'canceled',
+};
+
+function attemptAgeMs(attempt, nowMs) {
+  const at = Date.parse(attempt?.updatedAt || attempt?.createdAt || '');
+  return Number.isFinite(at) ? nowMs - at : Infinity;
+}
+
+/**
+ * Close payment attempts Stripe has already finished with.
+ *
+ * An attempt leaves 'creating' / 'open' / 'requires_action' only when a Stripe
+ * webhook terminalises it. Nothing expires one, so a webhook that never arrived
+ * — or timed out — leaves the attempt open forever, and every later add-on
+ * approval or package change on that booking is refused with
+ * payment_attempt_in_progress. The guard is right; its input goes stale.
+ *
+ * So before refusing, ask Stripe what actually happened. Anything Stripe
+ * reports as terminal is closed locally and stops blocking. Anything Stripe
+ * still considers live keeps blocking, which is the point of the guard.
+ *
+ * Runs OUTSIDE the mutation transaction — it makes network calls, and holding
+ * a serializable transaction open across them would be far worse than the
+ * staleness it fixes. Never throws: an unreachable Stripe leaves the guard
+ * exactly as strict as it is today.
+ *
+ * @returns {Promise<{ closed: number, active: number, checked: number, blocked: object|null }>}
+ */
+async function reconcileStalePaymentAttempts({
+  bookingId,
+  nowMs = Date.now(),
+  staleAfterMs = ATTEMPT_STALE_AFTER_MS,
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) {
+  const summary = { closed: 0, active: 0, checked: 0, blocked: null };
+  try {
+    const id = String(bookingId || '').trim();
+    if (!id) return summary;
+    const prisma = tryGetPrisma();
+    if (!prisma) return summary;
+
+    const attempts = await prisma.paymentAttempt.findMany({
+      where: { bookingId: id, status: { in: ACTIVE_ATTEMPT_STATUSES } },
+    });
+
+    for (const attempt of attempts) {
+      const ageMs = attemptAgeMs(attempt, nowMs);
+      const providerObjectId = String(attempt.providerObjectId || '');
+      // A young attempt is presumed live; only an aged one is worth a round trip.
+      if (ageMs < staleAfterMs || !providerObjectId.startsWith('pi_')) {
+        summary.active += 1;
+        summary.blocked = summary.blocked || { attempt, ageMs, stripeStatus: null };
+        continue;
+      }
+
+      summary.checked += 1;
+      const retrieved = await retrievePaymentIntentClientSecret({
+        paymentIntentId: providerObjectId,
+        env,
+        fetchImpl,
+      });
+      if (!retrieved.ok) {
+        // Stripe could not answer — leave the guard strict rather than guess.
+        summary.active += 1;
+        summary.blocked = summary.blocked || { attempt, ageMs, stripeStatus: null };
+        continue;
+      }
+
+      const terminal = STRIPE_TERMINAL_STATUS[String(retrieved.status || '')];
+      if (!terminal) {
+        summary.active += 1;
+        summary.blocked = summary.blocked || { attempt, ageMs, stripeStatus: retrieved.status };
+        continue;
+      }
+
+      await prisma.paymentAttempt.update({
+        where: { id: attempt.id },
+        data: { status: terminal, failureCode: terminal === 'canceled' ? 'stripe_reported_canceled' : null },
+      });
+      summary.closed += 1;
+      console.log('[payment-authority] stale attempt reconciled', {
+        attemptId: attempt.id,
+        stripeStatus: retrieved.status,
+        closedAs: terminal,
+        ageMinutes: Math.round(ageMs / 60000),
+      });
+    }
+    return summary;
+  } catch (err) {
+    console.warn('[payment-authority] attempt reconcile failed', err && err.message ? err.message : err);
+    return summary;
+  }
+}
+
+/**
+ * The 409 body for a booking whose money mutations are genuinely blocked.
+ * Says which attempt, how old, and what Stripe thinks — a bare error code left
+ * an operator with nothing to act on.
+ */
+function paymentAttemptInProgressResponse(blocked) {
+  const body = {
+    ok: false,
+    error: 'payment_attempt_in_progress',
+    statusCode: 409,
+    message: 'A payment attempt on this booking is still open, so the amount cannot change yet.',
+  };
+  if (!blocked || !blocked.attempt) return body;
+  const ageMinutes = Number.isFinite(blocked.ageMs) ? Math.round(blocked.ageMs / 60000) : null;
+  return {
+    ...body,
+    attemptId: blocked.attempt.id,
+    attemptStatus: blocked.attempt.status,
+    attemptAgeMinutes: ageMinutes,
+    stripeStatus: blocked.stripeStatus || null,
+    message: blocked.stripeStatus
+      ? `Stripe still reports this payment as "${blocked.stripeStatus}"`
+        + (ageMinutes != null ? `, ${ageMinutes} minutes old` : '')
+        + '. The amount cannot change until it settles or is canceled.'
+      : 'A payment attempt on this booking is still open, so the amount cannot change yet.'
+        + (ageMinutes != null && ageMinutes > 10
+          ? ` It has been open for ${ageMinutes} minutes — if the customer abandoned it, cancel it in Stripe and retry.`
+          : ''),
+  };
+}
+
 /**
  * Create a Stripe Customer Session so Payment Element can redisplay eligible
  * saved payment methods (respecting Stripe allow_redisplay / consent rules).
@@ -1289,6 +1424,11 @@ async function createAdjustment({
     return { ok: false, error: 'adjustment_id_required', statusCode: 400 };
   }
 
+  // Before the transaction, and before the guard inside it can refuse: close
+  // any attempt Stripe has already finished with. Without this, one webhook
+  // that never landed blocks every add-on approval on this booking forever.
+  const reconciled = await reconcileStalePaymentAttempts({ bookingId: id });
+
   try {
     return await runSerializableWithRetry(async (tx) => {
       const existing = await tx.quote.findUnique({ where: { adjustmentId: adjustmentKey } });
@@ -1342,10 +1482,16 @@ async function createAdjustment({
         };
       }
       const activeAttempt = await tx.paymentAttempt.findFirst({
-        where: { bookingId: id, status: { in: ['creating', 'open', 'requires_action'] } },
+        where: { bookingId: id, status: { in: ACTIVE_ATTEMPT_STATUSES } },
       });
       if (activeAttempt) {
-        return { ok: false, error: 'payment_attempt_in_progress', statusCode: 409 };
+        // Reconciliation above already closed whatever Stripe had finished, so
+        // anything still here is genuinely live — say which one and how old.
+        return paymentAttemptInProgressResponse(
+          reconciled.blocked && reconciled.blocked.attempt?.id === activeAttempt.id
+            ? reconciled.blocked
+            : { attempt: activeAttempt, ageMs: attemptAgeMs(activeAttempt, Date.now()), stripeStatus: null }
+        );
       }
 
       const before = await projectionInTransaction(tx, id);
@@ -1709,6 +1855,10 @@ async function recordFullBalanceCashSettlement(args) {
 }
 
 module.exports = {
+  ACTIVE_ATTEMPT_STATUSES,
+  ATTEMPT_STALE_AFTER_MS,
+  reconcileStalePaymentAttempts,
+  paymentAttemptInProgressResponse,
   buildIdempotencyKey,
   getFinancialProjection,
   getReceiptAuthorityData,
