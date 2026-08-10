@@ -58,6 +58,8 @@ const {
 const { validateBookingSchedule, hasSlotConflict } = require('../lib/booking-schedule');
 const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
 const { indexedSlotConflict, syncSlotIndex } = require('../lib/slot-index');
+const { findDuplicateBooking } = require('../lib/booking-history');
+const { bookingRef } = require('../lib/tech-security');
 const { validateBookingRouting } = require('../lib/booking-routing-validation');
 const {
   applyServerOffersToBooking,
@@ -780,6 +782,37 @@ exports.handler = async (event) => {
       stripePaymentMethodId: existing.stripePaymentMethodId,
       cardOnFileSavedAt:    existing.cardOnFileSavedAt,
     };
+
+    // Last gate before the write: this customer may already hold this slot.
+    // The slot lock above fails open — an errored or timed-out store scan reads
+    // as "every slot free" — so a finalize that wrote the booking and then died
+    // before responding leaves the customer believing it failed, and their
+    // second attempt sails through as a separate appointment. Answering with
+    // the booking they already have is the confirmation they were owed.
+    const duplicate = await findDuplicateBooking({
+      phone: b.phone || existing.phone,
+      email: b.email || existing.email,
+      preferredDate: b.preferredDate,
+      preferredTime: b.preferredTime,
+      excludeId: rawDraftId,
+    }).catch(() => null);
+    if (duplicate) {
+      console.log('[submit-booking] finalize duplicate suppressed', {
+        bookingRef: bookingRef(duplicate.id),
+        preferredDate: b.preferredDate,
+      });
+      return json(200, {
+        ok: true,
+        bookingCreated: true,
+        id: duplicate.id,
+        status: duplicate.status || 'Pending Review',
+        bookingVersion: duplicate.bookingVersion || 1,
+        idempotent: true,
+        duplicateSuppressed: true,
+        cardOnFileStatus: duplicate.cardOnFileStatus || null,
+        customerEmail: duplicate.notificationDelivery?.customerEmail || { status: 'pending' },
+      });
+    }
 
     let stored = { saved: false };
     try {

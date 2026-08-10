@@ -131,8 +131,51 @@ async function listBookingHistoryForBooking(booking) {
   return listBookingsForIdentity(identityKeys(booking));
 }
 
+/**
+ * An active booking this customer already holds for the same slot.
+ *
+ * The slot lock is supposed to prevent this, but it fails open by design: when
+ * the booking-store scan errors or times out it yields an empty list, every
+ * slot reads as free, and a repeat submission goes straight through. That is
+ * how a finalize that wrote the booking and then died — telling the customer it
+ * failed — turns into two identical appointments when they try again.
+ *
+ * This check does not share that failure mode: it asks the indexed mirror for
+ * one customer's bookings, and a booking created minutes ago is exactly what
+ * the mirror has. Returns null when it cannot answer, so it can only ever
+ * suppress a duplicate, never block a legitimate booking.
+ *
+ * @returns {Promise<object|null>} the existing booking, or null
+ */
+async function findDuplicateBooking({ phone, email, preferredDate, preferredTime, excludeId } = {}) {
+  const { normalizePreferredTime, isActiveBookingForSlotLock } = require('./booking-schedule');
+  const { isoDateParts } = require('./operational-availability');
+
+  const parts = isoDateParts(preferredDate);
+  const time = normalizePreferredTime(preferredTime);
+  if (!parts || !time) return null;
+
+  const identity = normalizeIdentity({ phone, email });
+  if (!identity.phone && !identity.email) return null;
+
+  const { bookings } = await listBookingsForIdentity(identity);
+  const skip = String(excludeId || '').trim().toUpperCase();
+
+  for (const booking of bookings || []) {
+    if (!booking) continue;
+    if (skip && String(booking.id || '').trim().toUpperCase() === skip) continue;
+    if (!isActiveBookingForSlotLock(booking)) continue;
+    const bookingParts = isoDateParts(booking.confirmedDate || booking.preferredDate);
+    const bookingTime = normalizePreferredTime(booking.confirmedTime || booking.preferredTime);
+    if (!bookingParts || !bookingTime) continue;
+    if (bookingParts.iso === parts.iso && bookingTime === time) return booking;
+  }
+  return null;
+}
+
 module.exports = {
   HISTORY_LOOKUP_LIMIT,
+  findDuplicateBooking,
   fastLookupDisabled,
   normalizeIdentity,
   identityKeys,
