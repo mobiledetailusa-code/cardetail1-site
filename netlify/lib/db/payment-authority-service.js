@@ -134,9 +134,17 @@ async function cancelActiveAttemptsForTipChange({
         });
       } catch (_) { /* best-effort cancel; attempt row still closed below */ }
     }
+    // 'superseded', not 'canceled'. The Stripe cancel above is best-effort, so
+    // the PaymentIntent may still be live; the customer can pay it from an
+    // Element that was mounted before the tip changed. A 'canceled' row makes
+    // the webhook refuse that money (terminalWouldRegress) — captured by
+    // Stripe, never credited, invoice still due. 'superseded' is outside the
+    // active set the partial unique index guards, so the replacement attempt
+    // still reserves, and it is not a terminal state the webhook protects, so
+    // real money on the retired Intent still settles.
     await prisma.paymentAttempt.update({
       where: { id: attempt.id },
-      data: { status: 'canceled' },
+      data: { status: 'superseded' },
     });
   }
 }

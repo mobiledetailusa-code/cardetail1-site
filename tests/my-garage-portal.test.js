@@ -182,7 +182,10 @@ test('package catalog unchanged in customer action', () => {
 test('my-garage uses catalog selectors and embedded balance PaymentIntent', () => {
   const js = read('assets/my-garage.js');
   assert.match(js, /customer-balance-payment-intent/);
-  assert.doesNotMatch(js, /customer-portal-pay/);
+  // The contract is that the retired endpoint is never called. Naming it in a
+  // comment that explains why it is retired is documentation, not a call.
+  assert.doesNotMatch(js, /post\(\s*['"`]customer-portal-pay/);
+  assert.doesNotMatch(js, /fetch\([^)]*customer-portal-pay/);
   assert.match(js, /newPackId/);
   assert.match(js, /addonIds/);
   assert.match(js, /maintenancePeriods|renderMaintenanceModal/);

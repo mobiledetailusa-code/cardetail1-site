@@ -18,6 +18,10 @@ function tryGetPrisma() {
   if (_prisma) return _prisma;
   if (_initFailed) return null;
   if (!prismaConfigured()) return null;
+  // Inside a test process only: never hand back a client aimed at production.
+  // Sixteen suites write and delete money rows; the repository .env points at
+  // db.prisma.io. No effect on production runtime.
+  require('./db-safety').assertNotProductionDatabase();
   // PRISMA_BOOKING_MIRROR only gates Blob→Prisma dual-write in booking-prisma-mirror.
   // It must NOT disable the Prisma client itself — payment authority uses getPrisma()
   // whenever DATABASE_URL is set (postgresPaymentEnabled), and coupling mirror=0 to

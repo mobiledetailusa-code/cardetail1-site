@@ -319,7 +319,9 @@ test('HTML: loading shell, aria-live/busy, spinner, boot class, mobile rules', (
   assert.match(html, /Return to sign in/);
   assert.match(html, /Signing you in\.\.\./);
   assert.match(html, /@media\(max-width:430px\)[\s\S]*portal-loading/);
-  assert.match(html, /my-garage\.js\?v=20260805-sync-pr3/);
+  // The contract is that the script is cache-busted, not which stamp it carries.
+  // Pinning the literal value broke this on every deploy that bumped it.
+  assert.match(html, /my-garage\.js\?v=[A-Za-z0-9._-]+/);
   assert.doesNotMatch(html, /auth=|token=|&t=/);
 });
 
