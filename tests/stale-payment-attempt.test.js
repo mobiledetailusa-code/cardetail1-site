@@ -166,6 +166,21 @@ describe('reconcileStalePaymentAttempts', () => {
     assert.equal(out.active, 1);
   });
 
+  it('actually reaches Prisma rather than swallowing a missing import', async () => {
+    // The first cut called tryGetPrisma() without importing it. The ReferenceError
+    // landed in the catch, every reconcile returned "nothing to do", and the guard
+    // stayed stale in exactly the case this exists to fix.
+    let asked = false;
+    fakePrisma = {
+      paymentAttempt: {
+        findMany: () => { asked = true; return Promise.resolve([]); },
+        update: () => Promise.resolve({}),
+      },
+    };
+    await reconcileStalePaymentAttempts({ bookingId: 'CD1-STUCK', env: ENV });
+    assert.equal(asked, true, 'reconciliation must query the attempts, not fail silently');
+  });
+
   it('waits a couple of minutes before calling an attempt stale', () => {
     assert.ok(ATTEMPT_STALE_AFTER_MS >= 60 * 1000);
     assert.ok(ATTEMPT_STALE_AFTER_MS <= 10 * 60 * 1000);

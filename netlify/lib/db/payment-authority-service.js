@@ -15,7 +15,7 @@
 
 const crypto = require('node:crypto');
 const { guardStripeOrReject } = require('../stripe-mode');
-const { getPrisma } = require('../prisma');
+const { getPrisma, tryGetPrisma } = require('../prisma');
 const { Prisma } = require('@prisma/client');
 const { computeFinancialProjection } = require('./financial-projection');
 const repo = require('./repositories');
