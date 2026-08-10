@@ -39,7 +39,7 @@ const EXISTING = {
   phone: PHONE,
   email: 'customer@example.com',
   status: 'Pending Review',
-  finalizedAt: '2026-08-10T18:00:00.000Z',
+  finalizedAt: new Date().toISOString(),
   preferredDate: DATE,
   preferredTime: TIME,
 };
@@ -113,6 +113,30 @@ describe('findDuplicateBooking', () => {
       phone: PHONE, preferredDate: DATE, preferredTime: TIME, excludeId: 'X',
     });
     assert.equal(dupe && dupe.id, 'CD1-FIRST');
+  });
+
+  it('leaves an older booking on that slot to Admin', async () => {
+    // A retry arrives in minutes. Anything older sharing the slot is a
+    // scheduling situation, and swallowing a submission over it would be worse
+    // than the duplicate this guard exists to stop.
+    fakePrisma = mirrorReturning([{
+      ...EXISTING,
+      finalizedAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+    }]);
+    const dupe = await findDuplicateBooking({
+      phone: PHONE, preferredDate: DATE, preferredTime: TIME, excludeId: 'X',
+    });
+    assert.equal(dupe, null);
+  });
+
+  it('treats an undated record as not recent rather than guessing', async () => {
+    const { finalizedAt, ...noTimestamps } = EXISTING;
+    fakePrisma = mirrorReturning([noTimestamps]);
+    const dupe = await findDuplicateBooking({
+      phone: PHONE, preferredDate: DATE, preferredTime: TIME, excludeId: 'X',
+    });
+    assert.equal(dupe, null);
   });
 
   it('answers null rather than guessing when it cannot identify the customer', async () => {
