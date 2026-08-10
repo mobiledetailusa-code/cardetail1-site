@@ -253,10 +253,35 @@
     return b.customerApprovalStatus === 'pending';
   }
 
+  /** Local calendar day as yyyy-mm-dd — appointments carry dates, not instants. */
+  function todayIso() {
+    var d = new Date();
+    var m = String(d.getMonth() + 1);
+    var day = String(d.getDate());
+    return d.getFullYear() + '-' + (m.length < 2 ? '0' + m : m) + '-' + (day.length < 2 ? '0' + day : day);
+  }
+
+  /**
+   * A service date that has already passed.
+   *
+   * Classification used to read the operational status only, so an appointment
+   * that was served but never closed out — still labelled Pending review or
+   * Confirmed — stayed in Upcoming forever. That is what makes the customer's
+   * upcoming list grow without bound. Today still counts as upcoming, and an
+   * unparseable or missing date never archives itself.
+   */
+  function appointmentDatePassed(b) {
+    var iso = String((b && (b.confirmedDate || b.preferredDate)) || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+    return iso < todayIso();
+  }
+
   /** Past services are finished and need nothing from the customer. */
   function appointmentIsPast(b) {
     if (!b) return false;
+    // Anything still waiting on the customer stays visible regardless of date.
     if (appointmentNeedsAttention(b)) return false;
+    if (appointmentDatePassed(b)) return true;
     var status = String(b.status || '');
     var job = String(b.jobStatus || '').toLowerCase();
     var pwf = String(b.paymentWorkflowStatus || '').toLowerCase();
