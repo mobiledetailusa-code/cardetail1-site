@@ -2,7 +2,6 @@
 
 const crypto = require('crypto');
 const { jsonCors, blobsStore } = require('../lib/tech-security');
-const { listRawBookings } = require('../lib/ops-db');
 const { phonesMatch, normalizeUsPhoneDigits } = require('../lib/phone-auth');
 const {
   hashToken,
@@ -44,7 +43,10 @@ async function sendMagicLinkEmail(email, linkUrl) {
 
 function bookingsForContact({ email, phoneDigits }) {
   const emailNorm = String(email || '').trim().toLowerCase();
-  return listRawBookings().then((all) =>
+  // Scoped to this contact instead of hydrating cd1-bookings; the filter below
+  // still re-checks every record, so a wider fallback set stays correct.
+  const { listBookingsForIdentity } = require('../lib/booking-history');
+  return listBookingsForIdentity({ email: emailNorm, phone: phoneDigits }).then(({ bookings: all }) =>
     all.filter((b) => {
       const bPhone = normalizeUsPhoneDigits(b.phone || b.customerPhone || '');
       const bEmail = String(b.email || '').trim().toLowerCase();

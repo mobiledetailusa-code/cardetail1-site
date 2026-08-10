@@ -57,6 +57,7 @@ const {
 } = require('../lib/site-access');
 const { validateBookingSchedule, hasSlotConflict } = require('../lib/booking-schedule');
 const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
+const { indexedSlotConflict, syncSlotIndex } = require('../lib/slot-index');
 const { validateBookingRouting } = require('../lib/booking-routing-validation');
 const {
   applyServerOffersToBooking,
@@ -94,15 +95,22 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
   const config = await getOperationalAvailability().catch(() => null);
   let bookingsForLock = null;
 
-  async function pickFreeEligibleSlot(dateIso, eligible) {
-    if (!checkSlot) return eligible[0] || null;
+  // Prefer the slot index; the full-store scan stays as the fallback authority
+  // whenever the index cannot answer. See netlify/lib/slot-index.js.
+  async function slotTaken(dateIso, slot) {
+    const nowMs = Date.now();
+    const indexed = await indexedSlotConflict(dateIso, slot, { excludeId, nowMs, config });
+    if (indexed.ok) return indexed.conflict;
     if (!bookingsForLock) {
       bookingsForLock = await listBookingsForSlotLock().catch(() => []);
     }
+    return hasSlotConflict(bookingsForLock, dateIso, slot, excludeId, nowMs, config);
+  }
+
+  async function pickFreeEligibleSlot(dateIso, eligible) {
+    if (!checkSlot) return eligible[0] || null;
     for (const slot of eligible) {
-      if (!hasSlotConflict(bookingsForLock, dateIso, slot, excludeId, Date.now(), config)) {
-        return slot;
-      }
+      if (!(await slotTaken(dateIso, slot))) return slot;
     }
     return null;
   }
@@ -162,13 +170,8 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
     if (!b.alternateArrivalWindow) b.alternateArrivalWindow = null;
   }
 
-  if (checkSlot) {
-    if (!bookingsForLock) {
-      bookingsForLock = await listBookingsForSlotLock().catch(() => []);
-    }
-    if (hasSlotConflict(bookingsForLock, v.preferredDate, v.preferredTime, excludeId, Date.now(), config)) {
-      return { ok: false, error: 'booking_slot_unavailable' };
-    }
+  if (checkSlot && await slotTaken(v.preferredDate, v.preferredTime)) {
+    return { ok: false, error: 'booking_slot_unavailable' };
   }
   return { ok: true, weekendMode: v.weekendMode || null, isWeekend: !!v.isWeekend };
 }
@@ -640,6 +643,10 @@ exports.handler = async (event) => {
     }
 
     const draft = buildDraftRecord(b, draftId, now, existing);
+    // Index-first for drafts: an entry with no record makes the slot look busy
+    // (fail-closed) and expires on its own; a record with no entry would let a
+    // second customer save a card against the same time.
+    await syncSlotIndex(draft, { previous: existing });
     try {
       await store.setJSON(draftId, draft);
     } catch (e) {
@@ -781,6 +788,9 @@ exports.handler = async (event) => {
     } catch (e) {
       return json(500, { ok: false, error: 'booking_store_failed' });
     }
+    // Index-after for submitted holds: they never expire, so an orphan entry
+    // would block a real slot forever. Drift is reported by verify-slot-index.
+    await syncSlotIndex(b, { previous: existing });
     // Prisma dual-write AFTER Blob finalize — fail-open; never affects checkout response.
     try {
       const { scheduleBookingMirror } = require('../lib/booking-prisma-mirror');

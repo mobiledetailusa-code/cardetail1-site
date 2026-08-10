@@ -1,7 +1,8 @@
 // Server-authoritative booking offer application — WELCOME10 / first_booking_welcome.
 
 const { evaluateOffers, getOfferConfig, isEligiblePackage } = require('./revenue-offers');
-const { listRawBookings, normalizePhone } = require('./ops-db');
+const { normalizePhone } = require('./ops-db');
+const { listBookingHistoryForBooking } = require('./booking-history');
 
 const OFFER_VERSION = 'WELCOME10-v1';
 const WELCOME_OFFER_ID = 'first_booking_welcome';
@@ -137,7 +138,10 @@ function stripClientOfferFields(booking) {
 }
 
 async function buildOfferEvaluationContext(booking) {
-  const bookings = await listRawBookings().catch(() => []);
+  // Customer-scoped: hydrating the whole booking store here used to push
+  // submit-booking past the Netlify function timeout. See booking-history.js.
+  const history = await listBookingHistoryForBooking(booking).catch(() => ({ bookings: [] }));
+  const bookings = history.bookings || [];
   const eligibleSubtotalCents = computeEligibleServiceSubtotalCents(booking);
   const pv = primaryVehicle(booking);
   const vehicleCount = Array.isArray(booking.vehicles) && booking.vehicles.length
