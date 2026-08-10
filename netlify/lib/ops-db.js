@@ -134,16 +134,20 @@ const BOOKING_LOOKUP_CONCURRENCY = 20;
 /**
  * Batch-resolve bookings for a bounded set of ids (one Admin page).
  *
- * Same resolution order as getBooking — direct key variants, then scan, then the
- * fail-open Prisma mirror — but deduplicated and bounded:
+ * Same resolution order as getBooking — direct key variants, then the indexed
+ * mirror, then a shared scan — but deduplicated and bounded:
  *   - each unique id is read once, never once per referencing row;
  *   - direct-key reads run in bounded-concurrency chunks instead of serially;
  *   - ids that miss every key variant share ONE scan pass rather than each
  *     triggering its own full store scan.
  *
+ * @param {object} [opts]
+ * @param {boolean} [opts.allowScan=true] Set false where a page of rows must
+ *   never pay a full-store hydration to enrich a booking it can render without.
+ *   One unresolvable id would otherwise cost the whole endpoint ~10-18s.
  * @returns {Promise<Map<string, object|null>>} keyed by normalizeBookingKey(id)
  */
-async function getBookingsByIds(bookingIds) {
+async function getBookingsByIds(bookingIds, { allowScan = true } = {}) {
   const resolved = new Map();
   const wanted = new Map();
   for (const raw of bookingIds || []) {
@@ -190,7 +194,10 @@ async function getBookingsByIds(bookingIds) {
 
   // Pass 3 — one shared scan resolves every remaining id at once.
   const pending = new Set(ids.filter((id) => !resolved.get(id)));
-  if (pending.size) {
+  if (pending.size && !allowScan) {
+    console.warn('[ops-db] getBookingsByIds unresolved without scan', { count: pending.size });
+  }
+  if (pending.size && allowScan) {
     try {
       const blobs = await listAllBlobs(store, BOOKINGS_STORE);
       for (let i = 0; i < blobs.length && pending.size; i += 30) {
