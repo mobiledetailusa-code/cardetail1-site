@@ -254,6 +254,28 @@ describe('keeping the index in sync', () => {
     assert.match(result.error, /blobs down/);
   });
 
+  it('logs a ref, never the raw booking id, when the store fails', async () => {
+    // appointment-persistence-and-resend asserts no raw booking id reaches
+    // console during a portal flow, and commitBooking calls this on that path.
+    const lines = [];
+    const originalWarn = console.warn;
+    console.warn = (...args) => lines.push(JSON.stringify(args));
+    try {
+      setSlotIndexStoreOverride({
+        list() { throw new Error('blobs down'); },
+        setJSON() { throw new Error('blobs down'); },
+        delete() { throw new Error('blobs down'); },
+      });
+      await syncSlotIndex(draftBooking({ id: 'CD1-PRIVAT001' }));
+    } finally {
+      console.warn = originalWarn;
+    }
+    const logged = lines.join('\n');
+    assert.ok(logged.includes('sync_failed'), 'the failure is still reported');
+    assert.ok(!logged.includes('CD1-PRIVAT001'), 'raw booking id must not reach console');
+    assert.match(logged, /bookingRef/);
+  });
+
   it('rejects a record with no id instead of writing a bad key', async () => {
     const store = fakeIndexStore([]);
     setSlotIndexStoreOverride(store);

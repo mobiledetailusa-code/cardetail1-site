@@ -33,6 +33,7 @@
 
 const { DRAFT_SLOT_HOLD_MS, normalizePreferredTime, capacityForSlot } = require('./booking-schedule');
 const { isoDateParts } = require('./operational-availability');
+const { bookingRef } = require('./tech-security');
 
 const SLOT_INDEX_STORE = 'cd1-slot-index';
 const STATE_BOOKED = 'booked';
@@ -274,7 +275,7 @@ async function syncSlotIndex(booking, { previous = null } = {}) {
     return { ok: true, wrote: key };
   } catch (err) {
     const message = err && err.message ? err.message : String(err);
-    console.warn('[slot-index] sync_failed', { bookingId, message });
+    console.warn('[slot-index] sync_failed', { bookingRef: bookingRef(bookingId), message });
     return { ok: false, error: message };
   }
 }

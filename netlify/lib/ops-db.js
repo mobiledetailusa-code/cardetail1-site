@@ -1,5 +1,5 @@
 // Unified operational DB layer — all channels read/write cd1-bookings through here.
-const { blobsStore, listAllBlobs, fetchBlobRecords } = require('./tech-security');
+const { blobsStore, listAllBlobs, fetchBlobRecords, bookingRef } = require('./tech-security');
 const { BOOKINGS_STORE } = require('./ops-schema');
 const { appendEventLog, normalizeJobStatus, normalizePaymentWorkflowStatus } = require('./ops-workflow');
 const { isVisibleSubmittedBooking } = require('./booking-visibility');
@@ -80,16 +80,17 @@ async function getBooking(bookingId) {
     if (raw) return finalizeBookingRead(raw, id);
   }
 
-  // Mirror before scan — the id is BookingRecord's primary key, so this answers
-  // in milliseconds. It used to run only after the scan, which meant a booking
-  // whose Blob key ≠ payload.id sent stripe-webhook / booking-card-status
-  // through a full-store hydration that no longer fits in a function timeout.
-  // Blobs stay authoritative: this only runs once every key variant has missed.
+  // Prisma on Blob miss, before the scan — Blobs remain primary, so this runs
+  // only once every direct key variant above has missed. The id is
+  // BookingRecord's primary key, so it answers in milliseconds; running it
+  // after the scan (as it used to) meant any booking whose Blob key ≠
+  // payload.id sent stripe-webhook and booking-card-status through a
+  // full-store hydration that no longer fits in a function timeout.
   try {
     const { readBookingMirror } = require('./booking-prisma-mirror');
     const mirrored = await readBookingMirror(id);
     if (mirrored) {
-      console.log('[ops-db] getBooking resolved via mirror', { lookupId: id });
+      console.log('[ops-db] getBooking resolved via mirror', { bookingRef: bookingRef(id) });
       return finalizeBookingRead(mirrored, id);
     }
   } catch { /* ignore — the scan below is still authoritative */ }
@@ -108,10 +109,13 @@ async function getBooking(bookingId) {
         const rid = normalizeBookingKey(row.raw.id || row.raw.bookingId || '');
         const rkey = normalizeBookingKey(row.key);
         if (rid === id || rkey === id) {
+          // Refs, not ids: this line used to print the lookup id, the Blob key
+          // and the payload id verbatim. Which side matched is the diagnostic
+          // value; the id itself is PII the logs must not carry.
           console.log('[ops-db] getBooking resolved via scan', {
-            lookupId: id,
-            blobKey: String(row.key).slice(0, 48),
-            payloadId: rid || null,
+            bookingRef: bookingRef(id),
+            blobKeyRef: bookingRef(row.key),
+            matchedOn: rid === id ? 'payload_id' : 'blob_key',
           });
           return finalizeBookingRead(row.raw, id);
         }
