@@ -113,7 +113,11 @@ exports.handler = async (event) => {
       // A booking-store outage must degrade the rows, never fail the page.
       let bookings = new Map();
       try {
-        bookings = await getBookingsByIds(rows.map((r) => r.bookingId));
+        // No scan fallback here. Every row already renders without its booking
+        // (bookingUnavailable below), so a single stale bookingId must not cost
+        // this page a full-store hydration — that is what pushed the Admin
+        // change-request source past its 25s client timeout.
+        bookings = await getBookingsByIds(rows.map((r) => r.bookingId), { allowScan: false });
       } catch (e) {
         console.warn('[admin-customer-requests] booking lookup unavailable:', e.message);
         bookings = new Map();
