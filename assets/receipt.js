@@ -125,6 +125,14 @@
       (fs.creditDue && fs.creditDue.cents > 0
         ? '<tr><td>Credit/refund due</td><td class="amt">' + esc(fs.creditDue.display) + '</td></tr>' : '') +
       '<tr><td>Remaining balance</td><td class="amt">' + esc(fs.remainingBalance ? fs.remainingBalance.display : '') + '</td></tr>' +
+      // The tip is charged on the same card but is not part of the invoice, so
+      // it sits below the balance and is followed by what actually left the
+      // customer's account. Without this the receipt understates the charge.
+      (fs.technicianTip && fs.technicianTip.cents > 0
+        ? '<tr><td>Technician tip</td><td class="amt">' + esc(fs.technicianTip.display) + '</td></tr>' +
+          '<tr class="grand"><td>Total charged</td><td class="amt">' +
+          esc(fs.totalCharged ? fs.totalCharged.display : '') + '</td></tr>'
+        : '') +
       '</tbody></table></div></div>';
 
     root.innerHTML =
@@ -155,12 +163,28 @@
       message('No booking was specified. Open your receipt from My Garage.');
       return;
     }
+    // Account sessions authenticate via cookie. Limited (booking+phone) sessions
+    // store phone in sessionStorage when opening My Garage — reuse it here so
+    // receipt links work without putting phone in the URL.
+    var phone = param('phone');
+    if (!phone) {
+      try {
+        var storedId = sessionStorage.getItem('cd1_garage_id') || '';
+        var storedPhone = sessionStorage.getItem('cd1_garage_phone') || '';
+        if (storedPhone && storedId
+          && String(storedId).toUpperCase() === String(bookingId).toUpperCase()) {
+          phone = storedPhone;
+        }
+      } catch (e) { phone = ''; }
+    }
     try {
+      var payload = { bookingId: bookingId, receiptType: type };
+      if (phone) payload.phone = phone;
       var res = await fetch('/.netlify/functions/customer-receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ bookingId: bookingId, receiptType: type }),
+        body: JSON.stringify(payload),
       });
       var data = await res.json().catch(function () { return null; });
       if (!data || !data.ok || !data.receipt) {

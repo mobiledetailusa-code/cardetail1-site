@@ -188,6 +188,24 @@ function receiptEligibility(booking, opts = {}) {
   const remaining = Math.max(0, Number(fin.remainingCents) || 0);
   const completed = isServiceCompleted(booking);
 
+  // A technician tip rides on the same PaymentIntent but is deliberately kept
+  // out of the invoice: it is ledgered as kind:'fee' with providerEventId
+  // tip_<pi>, so it never reaches approvedCents, settledCents or remaining.
+  // The customer was still charged it, so the receipt has to say so — matched
+  // on the tip_ prefix rather than on kind alone, so a future fee of another
+  // nature cannot silently be relabelled as a tip.
+  const tipFromLedger = asArray(opts.ledgerEntries)
+    .filter((entry) => entry
+      && entry.kind === 'fee'
+      && String(entry.providerEventId || '').startsWith('tip_'))
+    .reduce((sum, entry) => sum + Math.max(0, Math.round(Number(entry.amountCents) || 0)), 0);
+  // Blob mirror fallback for bookings read without authoritative ledger rows.
+  const tipFromBooking = Math.max(
+    0,
+    Math.round(Number(booking?.technicianTipCents ?? booking?.tipCents ?? 0) || 0)
+  );
+  const technicianTipCents = tipFromLedger > 0 ? tipFromLedger : tipFromBooking;
+
   return {
     payment: grossPaidCents > 0,
     final: completed && remaining === 0 && grossPaidCents > 0,
@@ -197,6 +215,7 @@ function receiptEligibility(booking, opts = {}) {
     refundedCents,
     remainingCents: remaining,
     approvedCents: Math.max(0, Number(fin.approvedCents) || 0),
+    technicianTipCents,
     fin,
     settled,
     refunds,
@@ -352,6 +371,11 @@ function buildReceiptProjection(booking, requestedType, opts = {}) {
         creditDue: centsToAmount(el.fin.outstandingCreditCents),
         refundPending: centsToAmount(el.fin.pendingRefundCents),
         serviceLinesTotal: centsToAmount(serviceLineTotalCents),
+        // Charged on the same card, held outside the invoice. Shown separately
+        // so approvedTotal + technicianTip is what actually left the customer's
+        // account — otherwise the receipt understates the charge.
+        technicianTip: centsToAmount(el.technicianTipCents),
+        totalCharged: centsToAmount(el.grossPaidCents + el.technicianTipCents),
       },
       payments: el.settled,
       refunds: el.refunds,

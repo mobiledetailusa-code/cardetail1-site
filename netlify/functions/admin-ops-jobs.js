@@ -1,7 +1,7 @@
 // Admin-only jobs feed + admin ops actions for Admin Ops dashboard.
 const { blobsStore, listAllBlobs, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const {
-  projectJobForAdmin, projectJobForAdminList, normalizeJobStatus, appendEventLog,
+  projectJobForAdmin, projectJobForAdminList, applySharedProjectionToAdminJob, normalizeJobStatus, appendEventLog,
 } = require('../lib/ops-workflow');
 const { getOpsSettings } = require('../lib/ops-config');
 const { createAuctionForBooking, assignAuctionWinnerToBooking } = require('../lib/auction-ops');
@@ -43,6 +43,7 @@ const {
   markCardOnSite,
   generateCustomerLinks,
   reopenAppointment,
+  closeJobWhenPaid,
 } = require('../lib/admin-booking-mutations');
 
 const MONEY_MUTATION_ACTIONS = new Set([
@@ -148,13 +149,15 @@ async function listJobs(q) {
   // Lean list path: skip Prisma customer-account graph enrichment (no Jobs-table consumer).
   // Full identity remains available through get_job / customer portal authorities.
 
-  return jobs.map(b => {
+  const projected = jobs.map(b => {
     try {
       const j = projectJobForAdminList(b);
       // Prefer payload id; if missing, use Blob key so Admin copy/paste matches Customer lookup.
       j.id = normalizeBookingKey(j.id || j.bookingId || b.__blobKey) || j.id;
       j.bookingId = j.bookingId || j.id;
       j.jobStatus = normalizeJobStatus(b);
+      j.__blobKey = b.__blobKey || null;
+      j.__updatedAt = String(b.updatedAt || b.createdAt || '');
       // paymentWorkflowStatus / remainingCents come from financialProjection via projectJobForAdminList.
       // Do not overwrite with normalizePaymentWorkflowStatus(raw) — that reintroduces stale Pending.
       return j;
@@ -168,10 +171,42 @@ async function listJobs(q) {
         paymentWorkflowStatus: 'no_payment_required_yet',
         pendingChangeRequestCount: 0,
         vehicleCount: 0,
+        __blobKey: (b && b.__blobKey) || null,
+        __updatedAt: String((b && (b.updatedAt || b.createdAt)) || ''),
         _projection: 'admin_list',
         _malformed: true,
       };
     }
+  });
+
+  // Collapse twin Blob keys that share the same logical booking id (key ≠ payload.id).
+  // Prefer the newest updatedAt/createdAt. Distinct bookings (different ids) stay separate.
+  const byLogicalId = new Map();
+  for (const j of projected) {
+    const logical = normalizeBookingKey(j.id || j.bookingId) || String(j.id || '');
+    if (!logical) {
+      byLogicalId.set(`__orphan__${j.__blobKey || Math.random()}`, j);
+      continue;
+    }
+    const prev = byLogicalId.get(logical);
+    if (!prev) {
+      byLogicalId.set(logical, j);
+      continue;
+    }
+    const preferNext = String(j.__updatedAt || '') >= String(prev.__updatedAt || '');
+    const kept = preferNext ? j : prev;
+    const dropped = preferNext ? prev : j;
+    kept._dedupedBlobKeys = [
+      ...(kept._dedupedBlobKeys || []),
+      ...(dropped._dedupedBlobKeys || []),
+      dropped.__blobKey,
+    ].filter(Boolean);
+    byLogicalId.set(logical, kept);
+  }
+
+  return [...byLogicalId.values()].map((j) => {
+    const { __blobKey, __updatedAt, ...rest } = j;
+    return rest;
   });
 }
 
@@ -1251,6 +1286,19 @@ function adminOperationalControls(booking, projection = null) {
   const pendingRefundCents = Math.max(0, Math.round(Number(fin.pendingRefundCents) || 0));
   const reopenable = canReopenService(booking);
   const post = postServiceState(booking);
+  const attempts = Array.isArray(booking.paymentAttempts) ? booking.paymentAttempts : [];
+  const activeAttempt = attempts.find((a) => a && ['creating', 'open', 'requires_action', 'processing']
+    .includes(String(a.status || '').toLowerCase()));
+  const jobStatus = String(booking.jobStatus || '').toLowerCase();
+  const settleBlocked = !!activeAttempt;
+  const settleBlockMsg = settleBlocked
+    ? 'A Stripe payment attempt is already in progress. Wait for it to finish (or expire) before recording cash or card on-site.'
+    : '';
+  const canCloseWhenPaid = remainingCents === 0
+    && settledCents > 0
+    && jobStatus !== 'completed_paid'
+    && jobStatus !== 'cancelled'
+    && jobStatus !== 'archived_test';
 
   return {
     jobStatus: booking.jobStatus || '',
@@ -1268,17 +1316,40 @@ function adminOperationalControls(booking, projection = null) {
     },
     paymentMethod: paymentMethodCapability(booking, { authoritativeProjection: fin }),
     recordCash: {
-      enabled: remainingCents > 0,
+      enabled: remainingCents > 0 && !settleBlocked,
       requiresAmount: true,
       requiresConfirmation: true,
       expectedAmountCents: remainingCents,
+      blockedByPaymentAttempt: settleBlocked,
       // Part-payment is refused rather than silently rounded up: crediting a
       // partial amount would run the operational close that full settlement
       // owns. See docs/audit/admin-payment-operations-audit.md.
       partialSupported: false,
-      explanation: remainingCents > 0
-        ? `Records cash against the ledger and emails the customer a confirmation. No Stripe object is created or changed. The amount must settle the full remaining balance of ${(remainingCents / 100).toFixed(2)}.`
-        : 'There is no remaining balance to collect.',
+      explanation: settleBlocked
+        ? settleBlockMsg
+        : (remainingCents > 0
+          ? `Records cash against the ledger and emails the customer a confirmation. No Stripe object is created or changed. The amount must settle the full remaining balance of ${(remainingCents / 100).toFixed(2)}.`
+          : 'There is no remaining balance to collect.'),
+    },
+    recordCardOnSite: {
+      enabled: remainingCents > 0 && !settleBlocked,
+      blockedByPaymentAttempt: settleBlocked,
+      expectedAmountCents: remainingCents,
+      explanation: settleBlocked
+        ? settleBlockMsg
+        : (remainingCents > 0
+          ? `Records a terminal card payment against the ledger for the remaining ${(remainingCents / 100).toFixed(2)}. No Stripe Checkout object is created.`
+          : 'There is no remaining balance to collect.'),
+    },
+    closeWhenPaid: {
+      enabled: canCloseWhenPaid,
+      explanation: canCloseWhenPaid
+        ? 'Marks the job completed/paid after money is already settled. Does not change the ledger.'
+        : (remainingCents > 0
+          ? 'Close when paid is available only after the remaining balance is zero.'
+          : (jobStatus === 'completed_paid'
+            ? 'This job is already closed as paid.'
+            : 'Close when paid requires a settled invoice with no remaining balance.')),
     },
     reconcileStripe: reconcileRecoveryCapability(fin),
     refund: {
@@ -1389,6 +1460,11 @@ async function handleAdminAction(body) {
     }
 
     const job = projectJobForAdmin(booking);
+    // Customer Portal money is Postgres. Overlay so Admin drawer/Payments match
+    // immediately after Stripe pay — even when Blob compatibility sync lags.
+    if (authority === 'postgres' && projection) {
+      applySharedProjectionToAdminJob(job, projection);
+    }
     return jsonCors(200, {
       ok: true,
       job,
@@ -1465,14 +1541,17 @@ async function handleAdminAction(body) {
         reason: sanitizeText(body.reason, 300) || 'delayed_webhook_recovery',
         sourcePortal: 'admin_ops',
       })).catch(() => null);
+      const proj = shared.projection || result.projection || null;
+      const job = projectJobForAdmin(booking);
+      if (proj) applySharedProjectionToAdminJob(job, proj);
       return jsonCors(200, {
         ok: !!result.ok,
         action: 'reconcile_with_stripe',
         authority: 'postgres',
-        projection: shared.projection || result.projection || null,
+        projection: proj,
         skipped: !!result.skipped,
         reason: result.reason || result.error || null,
-        job: projectJobForAdmin(booking),
+        job,
       });
     }
 
@@ -1668,6 +1747,56 @@ async function handleAdminAction(body) {
   // bookingVersion, so neither portal learned the job had reopened.
   if (action === 'reopen_job' || action === 'reopen_appointment') {
     return handleReopen({ store, bookingId, booking, body });
+  }
+
+  if (action === 'close_job') {
+    const result = closeJobWhenPaid(booking, { actorId: 'admin' });
+    if (!result.ok) {
+      return jsonCors(result.statusCode || 409, {
+        ok: false,
+        error: result.error || 'close_failed',
+        message: result.message,
+      });
+    }
+    if (result.noop) {
+      return jsonCors(200, {
+        ok: true,
+        noop: true,
+        bookingId,
+        booking: projectJobForAdmin(booking),
+        bookingVersion: booking.bookingVersion,
+      });
+    }
+    const expected = body.expectedBookingVersion != null
+      ? Math.round(Number(body.expectedBookingVersion) || 0)
+      : Math.round(Number(booking.bookingVersion) || 0);
+    const committed = await commitBooking({
+      bookingId,
+      expectedBookingVersion: expected,
+      nextAggregate: result.booking,
+    });
+    if (!committed.ok) {
+      return jsonCors(committed.error === 'version_conflict' ? 409 : 500, {
+        ok: false,
+        error: committed.error || 'commit_failed',
+      });
+    }
+    await appendAudit(auditEntry({
+      bookingId,
+      actorType: 'admin',
+      actorId: 'admin',
+      action: 'close_job',
+      previousState: { jobStatus: booking.jobStatus, serviceStatus: booking.serviceStatus },
+      resultingState: { jobStatus: committed.booking.jobStatus, serviceStatus: committed.booking.serviceStatus },
+      reason: 'admin_close_when_paid',
+      sourcePortal: 'admin_ops',
+    })).catch(() => null);
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      booking: projectJobForAdmin(committed.booking),
+      bookingVersion: committed.booking.bookingVersion,
+    });
   }
 
   if (action === 'request_correction') {
@@ -2634,9 +2763,13 @@ async function handleAdminAction(body) {
       store,
     });
     if (!result.ok) {
+      const attemptMsg = result.error === 'payment_attempt_in_progress'
+        ? 'A Stripe payment attempt is already in progress. Wait for it to finish before recording cash.'
+        : undefined;
       return jsonCors(result.statusCode || 400, {
         ok: false,
         error: result.error || 'cash_settlement_failed',
+        message: attemptMsg || result.message || undefined,
         expectedAmountCents: result.expectedAmountCents,
         receivedAmountCents: result.receivedAmountCents,
         reason: result.reason || undefined,
@@ -2671,11 +2804,16 @@ async function handleAdminAction(body) {
       store,
     });
     if (!result.ok) {
+      const attemptMsg = result.error === 'payment_attempt_in_progress'
+        ? 'A Stripe payment attempt is already in progress. Wait for it to finish before recording card on-site.'
+        : undefined;
       return jsonCors(result.statusCode || 400, {
         ok: false,
         error: result.error || 'card_on_site_settlement_failed',
+        message: attemptMsg || result.message || undefined,
         expectedAmountCents: result.expectedAmountCents,
         receivedAmountCents: result.receivedAmountCents,
+        reason: result.reason || undefined,
         projection: result.projection || undefined,
         authority: result.authority || undefined,
       });

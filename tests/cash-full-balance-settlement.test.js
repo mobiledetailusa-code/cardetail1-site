@@ -416,9 +416,10 @@ describe('full-balance cash settlement', () => {
   // remaining balance is rejected with the expected figure, so an operator can
   // never key a wrong number into a settlement.
   it('12) Admin cash button collects an amount, and the server still owns the figure', () => {
-    const src = read('admin-ops.html');
+    const src = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
     assert.match(src, /mark_cash_received'/);
-    assert.match(src, /Cash amount received/);
+    assert.match(src, /dCashAmt|parseCashAmountInput/);
+    assert.match(src, /Record cash payment/);
     assert.match(src, /confirm\(/);
 
     const booking = baseBooking(nextId('UI'));

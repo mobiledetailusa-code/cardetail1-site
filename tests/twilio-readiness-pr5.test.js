@@ -449,7 +449,7 @@ describe('PR5 source containment and sanitized logs', () => {
     assert.match(html, /transactional SMS from Detailing Zone/);
     assert.match(html, /Reply STOP to opt out or HELP for help/);
     assert.match(js, /update_sms_consent/);
-    const adminHtml = fs.readFileSync(path.join(root, 'admin-ops.html'), 'utf8');
+    const adminHtml = fs.readFileSync(path.join(root, 'admin-ops.html'), 'utf8') + fs.readFileSync(path.join(root, 'assets/admin-ops.css'), 'utf8') + fs.readFileSync(path.join(root, 'assets/admin-ops.js'), 'utf8');
     const techAccounts = fs.readFileSync(path.join(root, 'netlify/functions/tech-accounts.js'), 'utf8');
     assert.match(adminHtml, /Technician explicitly agreed to receive job-related SMS/);
     assert.match(techAccounts, /smsConsentSource: smsConsent \? 'admin_attestation' : null/);

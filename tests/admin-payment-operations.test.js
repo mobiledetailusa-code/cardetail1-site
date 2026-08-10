@@ -677,7 +677,7 @@ const vm = require('node:vm');
 const { JSDOM } = require('jsdom');
 const { adminOperationalControls } = require('../netlify/functions/admin-ops-jobs');
 
-const ADMIN_OPS = fs.readFileSync(path.join(__dirname, '..', 'admin-ops.html'), 'utf8');
+const ADMIN_OPS = fs.readFileSync(path.join(__dirname, '..', 'admin-ops.html'), 'utf8') + fs.readFileSync(path.join(__dirname, '..', 'assets/admin-ops.css'), 'utf8') + fs.readFileSync(path.join(__dirname, '..', 'assets/admin-ops.js'), 'utf8');
 
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}(`);
@@ -694,7 +694,8 @@ function extractFunction(source, name) {
 }
 
 function renderControls(booking) {
-  const inline = ADMIN_OPS.match(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/)[1];
+  // The Admin script now lives in assets/admin-ops.js, not inline in the page.
+  const inline = fs.readFileSync(path.join(__dirname, '..', 'assets/admin-ops.js'), 'utf8');
   const sandbox = {
     esc: (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
       { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
@@ -706,8 +707,10 @@ function renderControls(booking) {
   return vm.runInContext('operationalControlsHtml()', sandbox);
 }
 
-test('admin-ops.html inline script parses', () => {
+test('admin-ops script parses', () => {
+  // Extracted out of the page; any inline block that comes back must still parse.
   const blocks = [...ADMIN_OPS.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  blocks.push(fs.readFileSync(path.join(__dirname, '..', 'assets/admin-ops.js'), 'utf8'));
   assert.ok(blocks.length > 0);
   for (const block of blocks) {
     assert.doesNotThrow(() => new vm.Script(block));

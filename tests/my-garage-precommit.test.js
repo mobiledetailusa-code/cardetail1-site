@@ -100,7 +100,7 @@ test('index openPortal redirects to My Garage', () => {
 });
 
 test('admin-ops wires customer change requests endpoint', () => {
-  const html = read('admin-ops.html');
+  const html = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
   assert.match(html, /admin-customer-requests/, 'admin-ops must call admin-customer-requests');
   assert.match(html, /Customer Change Requests/, 'admin-ops section title');
   assert.match(html, /req-approve/, 'approve action');

@@ -134,6 +134,8 @@ exports.handler = async (event) => {
   const prepared = await prepareEmbeddedPayment({
     booking,
     expectedQuoteVersion,
+    tipCents: p.tipCents,
+    tipPercent: p.tipPercent,
   });
   if (!prepared.ok) {
     const prepareMessages = {
@@ -144,6 +146,12 @@ exports.handler = async (event) => {
       missing_client_secret: 'Payment is temporarily unavailable. Please retry.',
       postgres_payment_disabled: 'Payment is temporarily unavailable. Please retry.',
       not_found: 'Payment is not available for this appointment.',
+      invalid_tip_percent: 'Choose a valid tip percentage.',
+      tip_percent_too_high: 'That tip percentage is too high.',
+      tip_too_high: 'That tip amount is too high.',
+      tip_exceeds_balance_cap: 'That tip amount is too high for this balance.',
+      invalid_tip_cents: 'Choose a valid tip amount.',
+      invalid_tip: 'Choose a valid tip amount.',
     };
     return json(prepared.statusCode || 200, {
       ok: false,
@@ -153,12 +161,17 @@ exports.handler = async (event) => {
     });
   }
 
+  const { suggestedTipOptions } = require('../lib/technician-tip');
   return json(200, {
     ok: true,
     mode: 'payment_element',
     clientSecret: prepared.clientSecret,
     customerSessionClientSecret: prepared.customerSessionClientSecret,
     amountCents: prepared.amountCents,
+    balanceCents: prepared.balanceCents,
+    tipCents: prepared.tipCents,
+    tipPercent: prepared.tipPercent,
+    tipOptions: suggestedTipOptions(prepared.balanceCents),
     quoteVersion: prepared.quoteVersion,
     bookingVersion: prepared.bookingVersion,
     projection: prepared.projection,

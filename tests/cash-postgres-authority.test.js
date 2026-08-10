@@ -505,7 +505,7 @@ describe('PostgreSQL cash settlement authority', {
   });
 
   it('14) Admin submits the entered amount with booking-version CAS', () => {
-    const src = read('admin-ops.html');
+    const src = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
     assert.match(src, /mark_cash_received',\s*\{\s*amount:\s*String\(amt\)\.trim\(\),\s*reason:\s*reason\.trim\(\),\s*expectedBookingVersion:\s*j\.bookingVersion/);
   });
 

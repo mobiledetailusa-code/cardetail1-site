@@ -115,7 +115,7 @@ test('Garage Plan Admin plumbing remains available server-side when deferred fro
   const submit = read('netlify/functions/garage-plan-submit.js');
   assert.match(submit, /gpReference/);
   assert.match(submit, /customerName/);
-  const admin = read('admin-ops.html');
+  const admin = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
   assert.match(admin, /revopsGarage/);
   assert.match(admin, /gpReference|Garage Plan/i);
   const household = read('netlify/lib/revenue-household.js');

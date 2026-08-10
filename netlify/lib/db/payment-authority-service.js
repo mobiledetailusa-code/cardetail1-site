@@ -65,6 +65,8 @@ async function reserveAndCreatePaymentIntent({
   bookingId,
   quoteVersion,
   generation = 1,
+  tipCents = 0,
+  tipPercent = 0,
   stripeCustomerId = null,
   env = process.env,
   fetchImpl = globalThis.fetch,
@@ -92,6 +94,8 @@ async function reserveAndCreatePaymentIntent({
       bookingId,
       quoteVersion,
       generation,
+      tipCents,
+      tipPercent,
       stripeCustomerId,
       env,
       fetchImpl,
@@ -100,10 +104,57 @@ async function reserveAndCreatePaymentIntent({
   }, { maxWait: ACCELERATE_SAFE_TX_MAX_WAIT_MS, timeout: ACCELERATE_SAFE_TX_TIMEOUT_MS });
 }
 
+async function cancelActiveAttemptsForTipChange({
+  bookingId,
+  quoteVersion,
+  desiredAmountCents,
+  env,
+  fetchImpl,
+  prisma,
+}) {
+  const active = await prisma.paymentAttempt.findMany({
+    where: {
+      bookingId,
+      quoteVersion,
+      status: { in: ['creating', 'open', 'requires_action'] },
+    },
+  });
+  const guard = guardStripeOrReject(env, { purpose: 'payment_intent_cancel' });
+  for (const attempt of active) {
+    if (Math.round(Number(attempt.amountCents) || 0) === desiredAmountCents) continue;
+    if (attempt.providerObjectId && !guard.blocked) {
+      try {
+        await fetchImpl(`https://api.stripe.com/v1/payment_intents/${attempt.providerObjectId}/cancel`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${guard.secret}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({ cancellation_reason: 'requested_by_customer' }).toString(),
+        });
+      } catch (_) { /* best-effort cancel; attempt row still closed below */ }
+    }
+    // 'superseded', not 'canceled'. The Stripe cancel above is best-effort, so
+    // the PaymentIntent may still be live; the customer can pay it from an
+    // Element that was mounted before the tip changed. A 'canceled' row makes
+    // the webhook refuse that money (terminalWouldRegress) — captured by
+    // Stripe, never credited, invoice still due. 'superseded' is outside the
+    // active set the partial unique index guards, so the replacement attempt
+    // still reserves, and it is not a terminal state the webhook protects, so
+    // real money on the retired Intent still settles.
+    await prisma.paymentAttempt.update({
+      where: { id: attempt.id },
+      data: { status: 'superseded' },
+    });
+  }
+}
+
 async function reserveAndCreatePaymentIntentLocked({
   bookingId,
   quoteVersion,
   generation,
+  tipCents = 0,
+  tipPercent = 0,
   stripeCustomerId,
   env,
   fetchImpl,
@@ -124,7 +175,31 @@ async function reserveAndCreatePaymentIntentLocked({
     return { ok: false, error: 'zero_balance', statusCode: 409, projection };
   }
 
-  const amountCents = projection.remainingCents;
+  const { resolveTechnicianTip } = require('../technician-tip');
+  const tip = resolveTechnicianTip({
+    balanceCents: projection.remainingCents,
+    tipCents,
+    tipPercent,
+  });
+  if (!tip.ok) {
+    return { ok: false, error: tip.error || 'invalid_tip', statusCode: 400, tip };
+  }
+  const balanceCents = tip.balanceCents;
+  const resolvedTipCents = tip.tipCents;
+  const resolvedTipPercent = tip.tipPercent;
+  const amountCents = tip.chargeCents;
+
+  // Tip selection changes the charge amount. Retire any open obligation for a
+  // different amount so the customer cannot pay a stale tip-less Intent.
+  await cancelActiveAttemptsForTipChange({
+    bookingId,
+    quoteVersion,
+    desiredAmountCents: amountCents,
+    env,
+    fetchImpl,
+    prisma,
+  });
+
   const idempotencyKey = buildIdempotencyKey({ bookingId, quoteVersion, amountCents, generation });
 
   const reserved = await foundation.reservePaymentObligation({
@@ -156,7 +231,16 @@ async function reserveAndCreatePaymentIntentLocked({
   if (!reserved.created && !stuckCreatingWithoutProvider) {
     // Concurrent reservation or a completed attempt — return as-is, never
     // create a second Stripe object for the same bookingId+quoteVersion.
-    return { ok: true, created: false, paymentAttempt: reserved.attempt, projection };
+    return {
+      ok: true,
+      created: false,
+      paymentAttempt: reserved.attempt,
+      projection,
+      tipCents: resolvedTipCents,
+      tipPercent: resolvedTipPercent,
+      balanceCents,
+      amountCents: Math.round(Number(reserved.attempt?.amountCents) || amountCents),
+    };
   }
 
   const guard = guardStripeOrReject(env, { purpose: 'payment_intent_create' });
@@ -172,6 +256,9 @@ async function reserveAndCreatePaymentIntentLocked({
     'metadata[booking_id]': bookingId,
     'metadata[quoteVersion]': String(quoteVersion),
     'metadata[purpose]': 'customer_balance',
+    'metadata[balanceCents]': String(balanceCents),
+    'metadata[tipCents]': String(resolvedTipCents),
+    'metadata[tipPercent]': String(resolvedTipPercent),
   });
   if (stripeCustomerId) body.set('customer', stripeCustomerId);
 
@@ -205,6 +292,8 @@ async function reserveAndCreatePaymentIntentLocked({
     || providerBinding.bookingId !== bookingId
     || providerBinding.quoteVersion !== quoteVersion
     || providerBinding.purpose !== 'customer_balance'
+    || Math.round(Number(providerBinding.tipCents) || 0) !== resolvedTipCents
+    || Math.round(Number(providerBinding.balanceCents) || 0) !== balanceCents
     || (stripeCustomerId && providerBinding.customerId !== stripeCustomerId)
   ) {
     return { ok: false, error: 'stripe_payment_intent_invariant_failed', statusCode: 502 };
@@ -223,6 +312,10 @@ async function reserveAndCreatePaymentIntentLocked({
     stripePaymentIntentId: stripePaymentIntent.id,
     clientSecret: stripePaymentIntent.client_secret || null,
     projection,
+    tipCents: resolvedTipCents,
+    tipPercent: resolvedTipPercent,
+    balanceCents,
+    amountCents,
   };
 }
 
@@ -409,6 +502,9 @@ function paymentIntentBinding(paymentIntent = {}) {
     bookingId: String(metadata.bookingId || metadata.booking_id || '').trim(),
     quoteVersion: Math.round(Number(metadata.quoteVersion || metadata.quote_version) || 0),
     purpose: String(metadata.purpose || '').trim(),
+    tipCents: Math.round(Number(metadata.tipCents || metadata.tip_cents) || 0),
+    balanceCents: Math.round(Number(metadata.balanceCents || metadata.balance_cents) || 0),
+    tipPercent: Number(metadata.tipPercent || metadata.tip_percent) || 0,
     currency: String(paymentIntent.currency || '').trim().toLowerCase(),
     customerId: typeof paymentIntent.customer === 'string'
       ? paymentIntent.customer
@@ -679,6 +775,22 @@ async function reconcilePaymentIntentEvent({
           return failInvariant('payment_amount_mismatch');
         }
 
+        const { tipFromPaymentIntentMetadata } = require('../technician-tip');
+        const tipMeta = tipFromPaymentIntentMetadata(paymentIntent);
+        let tipCents = tipMeta.tipCents;
+        let balanceCents = tipMeta.balanceCents;
+        if (balanceCents > 0 && tipCents >= 0 && balanceCents + tipCents === amountCents) {
+          // metadata is authoritative when it partitions the charge cleanly
+        } else if (tipCents > 0 && tipCents < amountCents) {
+          balanceCents = amountCents - tipCents;
+        } else {
+          tipCents = 0;
+          balanceCents = amountCents;
+        }
+        if (balanceCents + tipCents !== amountCents || balanceCents <= 0) {
+          return failInvariant('payment_tip_partition_mismatch');
+        }
+
         const providerEventId = `settlement_${paymentIntent.id}`;
         let ledger = await tx.ledgerEntry.findUnique({ where: { providerEventId } });
         let ledgerCreated = false;
@@ -689,7 +801,7 @@ async function reconcilePaymentIntentEvent({
               quoteId: attempt.quoteId,
               paymentAttemptId: attempt.id,
               kind: 'settlement',
-              amountCents,
+              amountCents: balanceCents,
               currency: attempt.currency,
               quoteVersion: attempt.quoteVersion,
               providerObjectId: paymentIntent.id,
@@ -700,6 +812,32 @@ async function reconcilePaymentIntentEvent({
             },
           });
           ledgerCreated = true;
+        }
+
+        let tipLedger = null;
+        let tipLedgerCreated = false;
+        if (tipCents > 0) {
+          const tipEventId = `tip_${paymentIntent.id}`;
+          tipLedger = await tx.ledgerEntry.findUnique({ where: { providerEventId: tipEventId } });
+          if (!tipLedger) {
+            tipLedger = await tx.ledgerEntry.create({
+              data: {
+                bookingId: attempt.bookingId,
+                quoteId: attempt.quoteId,
+                paymentAttemptId: attempt.id,
+                kind: 'fee',
+                amountCents: tipCents,
+                currency: attempt.currency,
+                quoteVersion: attempt.quoteVersion,
+                providerObjectId: paymentIntent.id,
+                providerEventId: tipEventId,
+                stripeEventId: eventId,
+                occurredAt: providerCreatedAt || new Date(),
+                actor: 'stripe_webhook_tip',
+              },
+            });
+            tipLedgerCreated = true;
+          }
         }
 
         await tx.paymentAttempt.update({
@@ -721,8 +859,11 @@ async function reconcilePaymentIntentEvent({
         await finishEvent();
         return {
           ok: true,
-          duplicate: !ledgerCreated,
+          duplicate: !ledgerCreated && !tipLedgerCreated,
           ledger: { created: ledgerCreated, entry: ledger },
+          tip: tipCents > 0
+            ? { created: tipLedgerCreated, tipCents, tipPercent: tipMeta.tipPercent, entry: tipLedger }
+            : null,
           projection,
         };
       }

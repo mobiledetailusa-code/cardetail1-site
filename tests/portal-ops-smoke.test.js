@@ -151,12 +151,13 @@ describe('portal ops smoke — customer + admin real ops', () => {
   });
 
   it('admin drawer separates paid/service state and disables hosted generation', () => {
-    const src = read('admin-ops.html');
+    const src = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
     assert.match(src, /· PAID/);
-    assert.match(src, /const canGenLink = false/);
+    assert.match(src, /Legacy hosted Checkout \(disabled\)/);
     assert.doesNotMatch(src, />Generate Stripe link</);
     assert.doesNotMatch(src, />Copy pay link if present</);
     assert.match(src, /Manual external reference|manual reference/i);
+    assert.match(src, /id="dSetPayLink"[^>]*>Save manual reference/);
     assert.match(src, /Hosted Checkout and manual policy charges are isolated/);
     assert.match(src, /Reconcile with Stripe|reconcile_with_stripe/);
     assert.doesNotMatch(src, /create-payment-link\.js|\/\.netlify\/functions\/create-payment-link/);

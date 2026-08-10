@@ -7,15 +7,17 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 
-const adminOps = read('admin-ops.html');
+const adminOps = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
 const adminRequests = read('netlify/functions/admin-customer-requests.js');
 const adminSecurity = read('netlify/lib/admin-security.js');
 const rateLimit = read('netlify/lib/public-rate-limit.js');
 const catalog = read('netlify/lib/customer-catalog.js');
 
+/** The Admin script now lives in assets/admin-ops.js, not inline in the page. */
 function extractInlineScript(html) {
   const m = html.match(/<script>\s*\(function\(\)\{[\s\S]*\}\)\(\);\s*<\/script>/);
-  return m ? m[0].replace(/<\/?script>/g, '') : '';
+  if (m) return m[0].replace(/<\/?script>/g, '');
+  return read('assets/admin-ops.js');
 }
 
 function tabPanelMap(html) {
@@ -63,9 +65,9 @@ test('secondary Admin tabs are preserved under a collapsed More disclosure', () 
   assert.match(adminOps, /id="tabsMoreToggle" aria-expanded="false" aria-controls="tabsMore"/);
 });
 
-test('job workspace uses the approved six panels', () => {
-  assert.match(adminOps, /\[\['summary','Summary'\],\['services','Services'\],\['schedule','Schedule'\],\['payment','Payment'\],\['notes','Notes'\],\['more','More'\]\]/);
-  for (const id of ['summary', 'services', 'schedule', 'payment', 'notes', 'more']) {
+test('job workspace uses Admin authority panels', () => {
+  assert.match(adminOps, /\[\['resolve','Resolve'\],\['services','Services'\],\['schedule','Schedule'\],\['payment','Money'\],\['create','Create'\],\['notes','Notes'\],\['more','More'\]\]/);
+  for (const id of ['resolve', 'services', 'schedule', 'payment', 'create', 'notes', 'more']) {
     assert.ok(adminOps.includes(`data-appt-panel="${id}"`), `missing workspace panel ${id}`);
   }
 });

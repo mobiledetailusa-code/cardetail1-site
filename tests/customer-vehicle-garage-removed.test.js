@@ -17,7 +17,8 @@ describe('customer vehicle garage removed from release', () => {
     const html = fs.readFileSync(HTML_PATH, 'utf8');
     assert.doesNotMatch(html, /id="veh-h"|My Vehicles|vehicles-list|vehicle-form|vh-add-btn|vehicles-empty/);
     assert.doesNotMatch(html, /customer-vehicle-card\.js/);
-    assert.match(html, /my-garage\.js\?v=20260805-sync-pr3/);
+    // Cache-busted is the contract; the stamp itself is not.
+    assert.match(html, /my-garage\.js\?v=[A-Za-z0-9._-]+/);
   });
 
   it('2. frontend never calls customer-portal-vehicles and never shows garage unavailable copy', () => {

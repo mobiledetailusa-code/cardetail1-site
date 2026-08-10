@@ -40,6 +40,9 @@ function fakePaymentIntentCreateFetch({ id = 'pi_fake', calls } = {}) {
             booking_id: params.get('metadata[booking_id]'),
             quoteVersion: params.get('metadata[quoteVersion]'),
             purpose: params.get('metadata[purpose]'),
+            tipCents: params.get('metadata[tipCents]') || '0',
+            tipPercent: params.get('metadata[tipPercent]') || '0',
+            balanceCents: params.get('metadata[balanceCents]') || params.get('amount') || '0',
           },
         }),
       };
@@ -70,7 +73,10 @@ function fakePaymentIntentCreateFetch({ id = 'pi_fake', calls } = {}) {
   };
 }
 
-function boundPaymentIntent({ bookingId, id, status, amount, customer = null, extra = {} }) {
+function boundPaymentIntent({ bookingId, id, status, amount, customer = null, tipCents = 0, extra = {} }) {
+  const tip = Math.round(Number(tipCents) || 0);
+  const balance = Math.max(0, Math.round(Number(amount) || 0) - tip);
+  const { metadata: extraMeta, ...restExtra } = extra;
   return {
     id,
     status,
@@ -83,8 +89,12 @@ function boundPaymentIntent({ bookingId, id, status, amount, customer = null, ex
       booking_id: bookingId,
       quoteVersion: '1',
       purpose: 'customer_balance',
+      tipCents: String(tip),
+      tipPercent: tip > 0 ? String(Math.round((tip / Math.max(1, balance)) * 100)) : '0',
+      balanceCents: String(balance),
+      ...(extraMeta || {}),
     },
-    ...extra,
+    ...restExtra,
   };
 }
 

@@ -265,7 +265,7 @@ describe('PR3 portal integration contracts', () => {
   });
 
   it('does not dedupe an Admin focus refresh onto an already-aborted poll', () => {
-    const admin = read('admin-ops.html');
+    const admin = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
     assert.match(admin, /refreshAllSignal && refreshAllSignal\.aborted/);
     assert.match(admin, /if \(refreshAllInflight === run\)/);
     assert.match(admin, /onRefresh:\s*refreshAll/);
@@ -282,7 +282,7 @@ describe('PR3 portal integration contracts', () => {
 
   it('uses a 15-second stable cadence with 2.5s active pending boost', () => {
     const garage = read('assets/my-garage.js');
-    const admin = read('admin-ops.html');
+    const admin = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
     assert.match(garage, /stablePollMs:\s*15000/);
     assert.match(garage, /activePollMs:\s*2500/);
     assert.match(admin, /stablePollMs:\s*15000/);
@@ -302,7 +302,7 @@ describe('PR3 portal integration contracts', () => {
   });
 
   it('skips Admin DOM rewrite when jobs and requests are notModified', () => {
-    const admin = read('admin-ops.html');
+    const admin = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
     assert.match(admin, /bothUnchanged/);
     assert.match(admin, /lastJobsNotModified/);
     assert.match(admin, /lastRequestsNotModified/);
