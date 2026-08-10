@@ -20,7 +20,7 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 
 const garageHtml = read('my-garage.html');
 const garageJs = read('assets/my-garage.js');
-const adminHtml = read('admin-ops.html');
+const adminHtml = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
 
 // ── Contrast ─────────────────────────────────────────────────────────────────
 

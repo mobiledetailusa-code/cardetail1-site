@@ -196,7 +196,7 @@ describe('portal payment + access hardening', () => {
   });
 
   it('Jobber: admin drawer shows PAID independently and disables hosted generation', () => {
-    const src = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8');
+    const src = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8') + fs.readFileSync(path.join(ROOT, 'assets/admin-ops.css'), 'utf8') + fs.readFileSync(path.join(ROOT, 'assets/admin-ops.js'), 'utf8');
     assert.match(src, /· PAID/);
     assert.match(src, /const canGenLink = false/);
     assert.match(src, /Hosted Checkout and manual policy charges are isolated/);

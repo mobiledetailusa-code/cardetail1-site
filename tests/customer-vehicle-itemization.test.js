@@ -524,6 +524,7 @@ describe('Customer UI vehicle itemization rendering', () => {
   });
 
   it('cache-busts my-garage.js for Production browsers', () => {
-    assert.match(myGarageHtml, /my-garage\.js\?v=20260805-sync-pr3/);
+    // Cache-busted is the contract; the stamp itself is not.
+    assert.match(myGarageHtml, /my-garage\.js\?v=[A-Za-z0-9._-]+/);
   });
 });

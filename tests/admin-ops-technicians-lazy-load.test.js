@@ -7,16 +7,17 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 
-const adminOps = read('admin-ops.html');
+const adminOps = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
 const techAccounts = read('netlify/functions/tech-accounts.js');
 const modes = require('../netlify/lib/tech-list-modes');
 const { projectTechAssignOption, projectTechAccountForAdmin } = require('../netlify/lib/ops-workflow');
 const SS = require('../assets/admin-source-state.js');
 
+/** The Admin script now lives in assets/admin-ops.js, not inline in the page. */
 function extractScript(html) {
   const m = html.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/i);
-  assert.ok(m, 'admin-ops inline script');
-  return m[1];
+  if (m) return m[1];
+  return read('assets/admin-ops.js');
 }
 
 const src = extractScript(adminOps);

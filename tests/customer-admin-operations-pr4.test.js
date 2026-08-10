@@ -357,7 +357,7 @@ describe('PR4 browser resilience and accessibility wiring', () => {
   const garageJs = fs.readFileSync(path.join(root, 'assets/my-garage.js'), 'utf8');
   const garageHtml = fs.readFileSync(path.join(root, 'my-garage.html'), 'utf8');
   const adminLoginHtml = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
-  const adminHtml = fs.readFileSync(path.join(root, 'admin-ops.html'), 'utf8');
+  const adminHtml = fs.readFileSync(path.join(root, 'admin-ops.html'), 'utf8') + fs.readFileSync(path.join(root, 'assets/admin-ops.css'), 'utf8') + fs.readFileSync(path.join(root, 'assets/admin-ops.js'), 'utf8');
 
   it('retains mutation keys across recoverable network/server failures and handles conflicts', () => {
     assert.match(garageJs, /mutationRequestKeys/);

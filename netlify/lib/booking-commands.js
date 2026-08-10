@@ -198,8 +198,28 @@ async function submitChangeRequestCommand({
     quote = aggregate.quote;
     schedulePatch = { customerChangePending: true };
   } else if (requestType === 'vehicle_add_request' || requestType === 'vehicle_replace_request') {
-    const { applyVehicleOperation } = require('./vehicle-financial-mutation');
+    const { applyVehicleOperation, vehicleSemanticKey } = require('./vehicle-financial-mutation');
     const op = requestType === 'vehicle_add_request' ? 'add' : 'replace';
+    if (op === 'add') {
+      const candidateKey = vehicleSemanticKey(delta || {});
+      const openAddDup = asArray(aggregate.changeRequests).some((r) => {
+        const st = String(r.status || '').toLowerCase();
+        if (!['pending', 'pending_approval', 'needs_clarification', 'awaiting_admin'].includes(st)) {
+          return false;
+        }
+        const rt = r.type || r.requestType;
+        if (rt !== 'vehicle_add_request') return false;
+        return vehicleSemanticKey(r.delta || {}) === candidateKey;
+      });
+      if (openAddDup) {
+        return {
+          ok: false,
+          error: 'duplicate_pending_request',
+          statusCode: 409,
+          message: 'A request to add this same vehicle/service is already pending review.',
+        };
+      }
+    }
     const applied = applyVehicleOperation(service, {
       op,
       target: target || {},
@@ -829,33 +849,24 @@ async function decideChangeRequestCommand({
       };
       service = { ...service, vehicles: nextVehicles };
     } else {
-      // vehicle_add_request — append a new priced vehicle
-      const vehicles = ensureVehicleIds(service.vehicles || []);
-      const primary = vehicles[0] || {};
-      const coerced = coerceVehicleForCategory({
-        category,
-        year: d.year || '',
-        make: d.make || '',
-        model: d.model || '',
-        vehicleLabel: label,
-        packageId: d.packageId || d.newPackId || primary.packageId || primary.pkgId || '',
-        packageName: packageName || primary.pkgName || primary.packageName || '',
-        tierKey: d.tierKey || d.tier || primary.tierKey || '',
-        lengthFt: d.lengthFt,
-        addOnIds: [],
-        addons: [],
-      }, category, {
-        packageId: d.packageId || d.newPackId || primary.packageId || primary.pkgId,
-        packageName: packageName || primary.pkgName || primary.packageName,
-        tierKey: d.tierKey || d.tier || primary.tierKey,
-        lengthFt: d.lengthFt,
-        vehicleLabel: label,
+      // vehicle_add_request — append a new priced vehicle (legacy path)
+      const { applyVehicleOperation } = require('./vehicle-financial-mutation');
+      const applied = applyVehicleOperation(service, {
+        op: 'add',
+        vehicle: {
+          category,
+          year: d.year || '',
+          make: d.make || '',
+          model: d.model || '',
+          vehicleLabel: label,
+          packageId: d.packageId || d.newPackId || '',
+          packageName: packageName || '',
+          tierKey: d.tierKey || d.tier || '',
+          lengthFt: d.lengthFt,
+        },
       });
-      vehicles.push({
-        ...coerced,
-        vehicleId: newVehicleId(),
-      });
-      service = { ...service, vehicles };
+      if (!applied.ok) return applied;
+      service = applied.service;
     }
     const travelCents = dollarsToCents(aggregate.travelFeeAmount || aggregate.zoneSurcharge || 0);
     const quoted = quoteService(service, {

@@ -11,12 +11,14 @@ const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
 const SS = require('../assets/admin-source-state.js');
-const adminOps = fs.readFileSync(path.join(root, 'admin-ops.html'), 'utf8');
+const adminOps = fs.readFileSync(path.join(root, 'admin-ops.html'), 'utf8') + fs.readFileSync(path.join(root, 'assets/admin-ops.css'), 'utf8') + fs.readFileSync(path.join(root, 'assets/admin-ops.js'), 'utf8');
 const opsRefresh = fs.readFileSync(path.join(root, 'assets/operational-refresh.js'), 'utf8');
 
+/** The Admin script now lives in assets/admin-ops.js, not inline in the page. */
 function extractInlineScript(html) {
   const m = html.match(/<script>\s*\(function\(\)\{[\s\S]*\}\)\(\);\s*<\/script>/);
-  return m ? m[0].replace(/<\/?script>/g, '') : '';
+  if (m) return m[0].replace(/<\/?script>/g, '');
+  return fs.readFileSync(path.join(root, 'assets/admin-ops.js'), 'utf8');
 }
 
 describe('admin-source-state helpers', () => {

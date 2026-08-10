@@ -475,7 +475,7 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
   });
 
   it('14) admin-ops.html sends canonical packageId (not free-form price authority)', () => {
-    const html = read('admin-ops.html');
+    const html = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
     assert.match(html, /action:\s*'change_package'/);
     assert.match(html, /packageId:\s*packageId/);
     assert.match(html, /expectedBookingVersion/);

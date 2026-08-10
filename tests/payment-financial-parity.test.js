@@ -293,7 +293,7 @@ describe('payment financial parity', () => {
     assert.match(wh, /statusCode:\s*500/);
     assert.match(wh, /retryable/);
 
-    const html = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8');
+    const html = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8') + fs.readFileSync(path.join(ROOT, 'assets/admin-ops.css'), 'utf8') + fs.readFileSync(path.join(ROOT, 'assets/admin-ops.js'), 'utf8');
     assert.match(html, /action:'get_job'|action:\s*'get_job'/);
   });
 

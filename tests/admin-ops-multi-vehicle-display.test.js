@@ -18,7 +18,7 @@ const {
   projectVehicleForAdmin,
 } = require('../netlify/lib/ops-workflow');
 
-const adminOps = read('admin-ops.html');
+const adminOps = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
 
 function twoVehicleBooking() {
   return {
@@ -337,9 +337,9 @@ describe('Admin Ops Jobs Board multi-vehicle summary + search', () => {
   });
 
   it('inline script still parses after multi-vehicle summary helpers', () => {
-    const m = adminOps.match(/<script>\s*\(function\(\)\{[\s\S]*\}\)\(\);\s*<\/script>/);
-    assert.ok(m, 'inline script missing');
-    const src = m[0].replace(/<\/?script>/g, '');
+    // The Admin script now lives in assets/admin-ops.js, not inline in the page.
+    const src = read('assets/admin-ops.js');
+    assert.ok(src.length > 0, 'admin-ops.js missing');
     assert.doesNotThrow(() => {
       vm.compileFunction(src, [
         'CD1AdminSession', 'SiteAccess', 'document', 'window', 'location',
@@ -362,8 +362,9 @@ describe('Admin Ops inline expandable job details', () => {
     // the old pair had no concept of.
     'dPayMethod', 'dSavePayMethod', 'dPayMethodReason',
     'dPayLink', 'dManualPayRef', 'dGenPayLink', 'dReconcileStripe',
-    'dCopyPayLink', 'dSetPayLink', 'dChargeNoShow', 'dChargeLateCancel', 'dRefundNote', 'dRefundAmt',
-    'dRefund', 'dMarkRefunded', 'dMarkCash', 'dMarkCardSite', 'dApproveAdj', 'dRejectAdj',
+    'dCopyPayLink', 'dSetPayLink', 'dRefundNote', 'dRefundAmt',
+    'dRefund', 'dMarkCash', 'dMarkCardSite', 'dCashAmt', 'dCardRef', 'dCloseWhenPaid', 'dCreateFromBooking',
+    'dApproveAdj', 'dRejectAdj',
     'dGenCompletion', 'dGenGarage', 'dCopyCustomerLink', 'dAuditSec', 'dNote', 'dSaveNote', 'dClose',
   ];
 
@@ -440,7 +441,7 @@ describe('Admin Ops inline expandable job details', () => {
     assert.match(adminOps, /jobAction\(j\.id,'update_address'/);
     assert.match(adminOps, /jobAction\(j\.id,'reschedule'/);
     assert.match(adminOps, /jobAction\(activeJob\.id,'admin_note'/);
-    assert.match(adminOps, /jobAction\(j\.id,'mark_cash_received'/);
+    assert.match(adminOps, /jobAction\(j\.id,\s*'mark_cash_received'/);
     assert.match(adminOps, /action:\s*'change_package'/);
     assert.match(adminOps, /renderAddonSection/);
     assert.match(adminOps, /bindAddonSection/);

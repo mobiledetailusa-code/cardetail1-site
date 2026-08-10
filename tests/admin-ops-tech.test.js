@@ -8,7 +8,7 @@ const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 
 const index = read('index.html');
 const admin = read('admin.html');
-const adminOps = read('admin-ops.html');
+const adminOps = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
 const tech = read('technician.html');
 const techAuth = read('netlify/functions/tech-auth.js');
 const techAccounts = read('netlify/functions/tech-accounts.js');
@@ -252,6 +252,11 @@ test('technician portal has directions link', () => {
 test('inline portal scripts compile', () => {
   const jsScripts = html => [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)]
     .filter(m => !/type\s*=\s*["']application\/ld\+json["']/i.test(m[0]));
+  // admin-ops.js is now an external asset; compile it alongside any inline block.
+  assert.doesNotThrow(
+    () => new Function(read('assets/admin-ops.js')),
+    'assets/admin-ops.js should compile'
+  );
   for (const [file, html] of [['admin-ops.html', adminOps], ['technician.html', tech]]) {
     jsScripts(html).forEach((m, i) => {
       assert.doesNotThrow(() => new Function(m[1]), `${file} script ${i + 1} should compile`);

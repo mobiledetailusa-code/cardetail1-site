@@ -556,7 +556,7 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
   });
 
   it('14) pending/double-click control produces one effective request (UI wiring)', () => {
-    const html = read('admin-ops.html');
+    const html = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
     assert.match(html, /addonPending/);
     assert.match(html, /double-click → one effective mutation/);
     assert.match(html, /if \(addonPending\) return/);
@@ -607,7 +607,7 @@ describe('Stage 3 Admin add-on controls (authoritative path)', () => {
   });
 
   it('admin-ops.html drawer wires canonical controls without copying the catalog', () => {
-    const html = read('admin-ops.html');
+    const html = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
     assert.match(html, /renderAddonSection/);
     assert.match(html, /dAddonSelect/);
     assert.match(html, /dAddonVehicle/);

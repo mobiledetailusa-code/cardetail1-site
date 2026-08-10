@@ -477,7 +477,7 @@ test('conversion UX preserves recovery CTAs and does not inject radio cards', ()
 });
 
 test('admin-ops supports optional 4:00 PM operational windows', () => {
-  const html = read('admin-ops.html');
+  const html = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
   assert.match(html, /weekday_late/);
   assert.match(html, /4:00 PM/);
   assert.match(html, /not enabled on every date by default/i);
@@ -500,7 +500,7 @@ test('my-garage renders preferred arrival + alternate + utilities', () => {
 });
 
 test('admin-ops displays arrival windows and alternate fields', () => {
-  const html = read('admin-ops.html');
+  const html = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
   assert.match(html, /Preferred arrival window/);
   assert.match(html, /Alternate date/);
   assert.match(html, /Alternate arrival window/);

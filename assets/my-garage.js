@@ -468,6 +468,14 @@
     if (err === 'duplicate_addon') {
       return 'That add-on is already on your booking.';
     }
+    if (err === 'duplicate_vehicle') {
+      return (data && data.message)
+        || 'This booking already has a vehicle with the same size and service. Edit that vehicle instead of adding another identical one.';
+    }
+    if (err === 'duplicate_pending_request') {
+      return (data && data.message)
+        || 'A request for this change is already pending review.';
+    }
     if (err === 'settled_addon_remove_denied') {
       return 'Paid add-ons cannot be removed online.';
     }
@@ -777,16 +785,18 @@
       );
     } else if (vehicleCount <= 1) {
       actions.push(
-        '<button type="button" class="btn ghost sm vehicle-action" data-action="vehicle_remove_request" data-vehicle-id="' +
+        '<button type="button" class="btn ghost sm vehicle-action" data-action="cancellation_request" data-vehicle-id="' +
         esc(vehicleId) + '" data-vehicle-label="' + esc(label) +
-        '" data-last-vehicle="1">Request vehicle removal</button>'
+        '">Cancel appointment</button>' +
+        '<span class="hint" style="display:block;margin-top:6px">Last vehicle cannot be removed — cancel the appointment instead.</span>'
       );
     } else {
       actions.push(
         '<button type="button" class="btn ghost sm vehicle-action" data-action="vehicle_remove_request" data-vehicle-id="' +
         esc(vehicleId) + '" data-vehicle-label="' + esc(label) +
         '" data-subtotal="' + esc(String(v.subtotal != null ? v.subtotal : '')) +
-        '">Request vehicle removal</button>'
+        '">Request vehicle removal</button>' +
+        '<span class="hint" style="display:block;margin-top:6px">Admin must approve before vehicles change.</span>'
       );
     }
     return '<div class="vehicle-actions" aria-label="Actions for ' + esc(label) + '">' +
@@ -1747,10 +1757,10 @@
       (can
         ? '<button type="button" class="btn primary" id="btn-pay-balance">' +
           esc(payCtaLabel(true, due)) + '</button>' +
-          '<p class="hint">Secure Stripe payment (card only). After payment your invoice closes automatically.</p>'
+          '<p class="hint">Optional tip for your technician appears before card details. Secure Stripe payment (card only).</p>'
         : (paid
           ? '<p class="pay-settled" data-pay-settled><strong>Paid</strong></p>' +
-            '<p class="hint">Invoice paid. You can still add services — any new balance appears here. Package and vehicle changes stay closed.</p>'
+            '<p class="hint">Invoice paid. You can still add services — any new balance appears here. Package and vehicle changes go through Admin review.</p>'
           : (pay.paymentAuthorityDegraded
             // A balance is genuinely open; the payment authority just cannot
             // confirm it right now. Saying "no balance is due" would be false.
@@ -1760,6 +1770,10 @@
       '</div>';
     var btn = $('btn-pay-balance');
     if (btn) btn.addEventListener('click', startPayBalance);
+    if (can) {
+      embeddedPay.balanceCents = remainingCentsFromPayment(pay);
+      bindTipControls();
+    }
   }
 
   /** True once the appointment is completed through the established status authority. */
@@ -2427,7 +2441,11 @@
     }
 
     if (r.data && r.data.ok) {
-      delete mutationRequestKeys[requestSignature];
+      // Keep vehicle_add fingerprint for this session so an identical resubmit
+      // reuses the same idempotency key (server replay) instead of appending twins.
+      if (action !== 'vehicle_add_request') {
+        delete mutationRequestKeys[requestSignature];
+      }
       // Mutations return a safe canonical booking projection. Paint it now,
       // then use the shared poller to converge secondary projections.
       if (r.data.booking) applyCanonicalBookingProjection(r.data.booking);
@@ -2528,7 +2546,138 @@
     // Set for the whole duration of a start attempt so a double tap cannot
     // request a second PaymentIntent or mount a second Payment Element.
     starting: false,
+    tipCents: 0,
+    tipPercent: 0,
+    tipMode: 'none', // none | percent | custom
+    balanceCents: 0,
   };
+
+  var SUGGESTED_TIP_PERCENTS = [15, 18, 20];
+
+  function selectedTipCents(balanceCents) {
+    var balance = Math.max(0, Math.round(Number(balanceCents) || 0));
+    if (embeddedPay.tipMode === 'percent') {
+      return Math.round(balance * ((Number(embeddedPay.tipPercent) || 0) / 100));
+    }
+    if (embeddedPay.tipMode === 'custom') {
+      return Math.max(0, Math.round(Number(embeddedPay.tipCents) || 0));
+    }
+    return 0;
+  }
+
+  function refreshTipSummary() {
+    var summary = $('tech-tip-summary');
+    var balance = Math.max(0, Math.round(Number(embeddedPay.balanceCents) || 0));
+    var tip = selectedTipCents(balance);
+    embeddedPay.tipCents = tip;
+    if (summary) {
+      if (!(balance > 0)) {
+        summary.textContent = '';
+      } else if (tip > 0) {
+        summary.textContent = 'Technician tip ' + fmtMoney(tip / 100)
+          + ' · Total charge ' + fmtMoney((balance + tip) / 100);
+      } else {
+        summary.textContent = 'No tip · Charge ' + fmtMoney(balance / 100) + ' (invoice balance only)';
+      }
+    }
+    var amountEl = $('embedded-pay-amount');
+    var submitBtn = $('embedded-pay-submit');
+    var total = balance + tip;
+    if (amountEl && balance > 0) {
+      amountEl.textContent = tip > 0
+        ? ('Pay ' + fmtMoney(total / 100) + ' (balance ' + fmtMoney(balance / 100)
+          + ' + tip ' + fmtMoney(tip / 100) + ') without leaving this page.')
+        : ('Pay ' + fmtMoney(balance / 100) + ' securely without leaving this page.');
+    }
+    if (submitBtn && balance > 0) {
+      submitBtn.textContent = 'Pay ' + fmtMoney(total / 100);
+    }
+    setPaymentContext(total || balance);
+  }
+
+  function renderTipSelector(balanceCents) {
+    var panel = $('tech-tip-panel');
+    var row = $('tech-tip-row');
+    var customWrap = $('tech-tip-custom-wrap');
+    if (!panel || !row) return;
+    var balance = Math.max(0, Math.round(Number(balanceCents) || 0));
+    embeddedPay.balanceCents = balance;
+    if (!(balance > 0)) {
+      panel.hidden = true;
+      row.innerHTML = '';
+      return;
+    }
+    panel.hidden = false;
+    var buttons = [
+      { mode: 'none', label: 'No tip', tipCents: 0, percent: 0 },
+    ].concat(SUGGESTED_TIP_PERCENTS.map(function (p) {
+      return {
+        mode: 'percent',
+        percent: p,
+        tipCents: Math.round(balance * (p / 100)),
+        label: p + '%',
+      };
+    })).concat([{ mode: 'custom', label: 'Custom', tipCents: 0, percent: 0 }]);
+
+    row.innerHTML = buttons.map(function (opt) {
+      var selected = embeddedPay.tipMode === opt.mode
+        && (opt.mode !== 'percent' || Number(embeddedPay.tipPercent) === opt.percent);
+      var money = opt.mode === 'percent' && opt.tipCents > 0
+        ? '<span class="tip-amt">' + esc(fmtMoney(opt.tipCents / 100)) + '</span>'
+        : '';
+      return '<button type="button" class="tip-btn' + (selected ? ' sel' : '') + '"'
+        + ' data-tip-mode="' + esc(opt.mode) + '"'
+        + ' data-tip-percent="' + esc(String(opt.percent || 0)) + '"'
+        + ' aria-pressed="' + (selected ? 'true' : 'false') + '">'
+        + esc(opt.label)
+        + (money ? '<br>' + money : '')
+        + '</button>';
+    }).join('');
+
+    if (customWrap) customWrap.hidden = embeddedPay.tipMode !== 'custom';
+    refreshTipSummary();
+  }
+
+  function bindTipControls() {
+    var row = $('tech-tip-row');
+    var custom = $('tech-tip-custom');
+    if (row && !row._tipBound) {
+      row._tipBound = true;
+      row.addEventListener('click', function (ev) {
+        var btn = ev.target && ev.target.closest ? ev.target.closest('[data-tip-mode]') : null;
+        if (!btn) return;
+        var mode = btn.getAttribute('data-tip-mode') || 'none';
+        var percent = Number(btn.getAttribute('data-tip-percent') || 0);
+        var prevKey = embeddedPay.tipMode + ':' + embeddedPay.tipCents + ':' + embeddedPay.tipPercent;
+        embeddedPay.tipMode = mode;
+        embeddedPay.tipPercent = mode === 'percent' ? percent : 0;
+        if (mode !== 'custom') embeddedPay.tipCents = selectedTipCents(embeddedPay.balanceCents);
+        renderTipSelector(embeddedPay.balanceCents);
+        var nextKey = embeddedPay.tipMode + ':' + selectedTipCents(embeddedPay.balanceCents) + ':' + embeddedPay.tipPercent;
+        // Tip change after a PaymentIntent is mounted requires a fresh Intent.
+        if (embeddedPay.paymentElement && prevKey !== nextKey) {
+          hideEmbeddedPay({ keepTip: true });
+          showToast('Tip updated — tap Pay securely again to continue.');
+        }
+      });
+    }
+    if (custom && !custom._tipBound) {
+      custom._tipBound = true;
+      custom.addEventListener('input', function () {
+        var dollars = Number(custom.value);
+        embeddedPay.tipMode = 'custom';
+        embeddedPay.tipPercent = 0;
+        embeddedPay.tipCents = Number.isFinite(dollars) && dollars > 0
+          ? Math.round(dollars * 100)
+          : 0;
+        refreshTipSummary();
+        if (embeddedPay.paymentElement) {
+          hideEmbeddedPay({ keepTip: true });
+          showToast('Custom tip updated — tap Pay securely again to continue.');
+        }
+      });
+    }
+  }
 
   /**
    * Bring the payment panel into view and hand the customer focus. Called on
@@ -2581,7 +2730,8 @@
     el.classList.toggle('err', !!isErr);
   }
 
-  function hideEmbeddedPay() {
+  function hideEmbeddedPay(opts) {
+    opts = opts || {};
     var panel = $('embedded-pay-panel');
     if (panel) panel.hidden = true;
     if (embeddedPay.paymentElement) {
@@ -2591,6 +2741,10 @@
     embeddedPay.elements = null;
     embeddedPay.clientSecret = null;
     embeddedPay.bookingId = null;
+    if (!opts.keepTip) {
+      var tipPanel = $('tech-tip-panel');
+      if (tipPanel) tipPanel.hidden = true;
+    }
     setEmbeddedPayMsg('', false);
   }
 
@@ -2605,9 +2759,9 @@
   }
 
   async function startHostedCheckoutFallback() {
-    var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
-    if (phone) { /* keep the verified-session read on this recovery path */ }
-    showToast('Secure payment could not load. Check your connection and try again.', true);
+    // Hosted Checkout is intentionally retired (customer-portal-pay → 410).
+    // Do not offer a dead button — tell the customer what still works.
+    showToast('Card payment could not start in this page. Refresh and try again, or call/text 551-313-2956.', true);
   }
 
   async function saveSmsConsent() {
@@ -2690,7 +2844,14 @@
 
   async function startPayBalanceInner(pay) {
     var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
-    showToast('Preparing secure payment…');
+    var balance = remainingCentsFromPayment(pay);
+    embeddedPay.balanceCents = balance;
+    bindTipControls();
+    renderTipSelector(balance);
+    var tipCents = selectedTipCents(balance);
+    showToast(tipCents > 0
+      ? ('Preparing secure payment with ' + fmtMoney(tipCents / 100) + ' technician tip…')
+      : 'Preparing secure payment…');
 
     // Prefer in-page Payment Element (Postgres authority) when available.
     var intent = await post('customer-balance-payment-intent', {
@@ -2698,6 +2859,8 @@
       phone: phone,
       expectedQuoteVersion: pay.quoteVersion,
       expectedBookingVersion: state.booking.bookingVersion,
+      tipCents: tipCents,
+      tipPercent: embeddedPay.tipMode === 'percent' ? embeddedPay.tipPercent : undefined,
     });
 
     if (intent.data && intent.data.error === 'already_paid') {
@@ -2719,10 +2882,12 @@
       }
 
       // Tear down any prior element before creating another one.
-      hideEmbeddedPay();
+      hideEmbeddedPay({ keepTip: true });
       embeddedPay.stripe = global.Stripe(pk);
       embeddedPay.clientSecret = intent.data.clientSecret;
       embeddedPay.bookingId = String(state.booking.id || '');
+      embeddedPay.tipCents = Math.round(Number(intent.data.tipCents) || tipCents || 0);
+      embeddedPay.balanceCents = Math.round(Number(intent.data.balanceCents) || balance || 0);
       var elementsOpts = { clientSecret: intent.data.clientSecret };
       if (intent.data.customerSessionClientSecret) {
         elementsOpts.customerSessionClientSecret = intent.data.customerSessionClientSecret;
@@ -2733,20 +2898,21 @@
       });
       var mountEl = $('payment-element');
       var panel = $('embedded-pay-panel');
-      var amountEl = $('embedded-pay-amount');
       if (!mountEl || !panel) {
         return startHostedCheckoutFallback();
       }
-      var cents = intent.data.amountCents || pay.remainingCents || 0;
-      if (amountEl) {
-        amountEl.textContent = 'Pay ' + fmtMoney(cents / 100) + ' securely without leaving this page.';
-      }
+      renderTipSelector(embeddedPay.balanceCents);
+      refreshTipSummary();
+      var cents = intent.data.amountCents || (embeddedPay.balanceCents + embeddedPay.tipCents) || 0;
       setPaymentContext(cents);
-      var submitBtn = $('embedded-pay-submit');
-      if (submitBtn) submitBtn.textContent = 'Pay ' + fmtMoney(cents / 100);
       panel.hidden = false;
       embeddedPay.paymentElement.mount(mountEl);
-      setEmbeddedPayMsg('Enter card details to pay. Saved cards appear only when Stripe allows redisplay.', false);
+      setEmbeddedPayMsg(
+        embeddedPay.tipCents > 0
+          ? 'Tip goes to your technician. Enter card details to pay.'
+          : 'Enter card details to pay. Saved cards appear only when Stripe allows redisplay.',
+        false
+      );
       revealPaymentPanel();
       if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.paymentOpened();
       return;
@@ -3883,6 +4049,12 @@
         if (params.get('paid') === '1') pollPaymentSettlement();
         return;
       }
+      showToast(
+        (ar.data && (ar.data.message || ar.data.error))
+          || 'This appointment link could not be opened. Ask Admin for a fresh link, or sign in below.',
+        true
+      );
+      history.replaceState({}, '', 'my-garage.html');
     }
 
     var challengeId = params.get('auth');

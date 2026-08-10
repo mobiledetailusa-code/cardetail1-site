@@ -8,14 +8,30 @@ const { JSDOM } = (() => {
 })();
 
 const root = path.resolve(__dirname, '..');
-const html = fs.readFileSync(path.join(root, 'admin-ops.html'), 'utf8');
+const htmlFile = fs.readFileSync(path.join(root, 'admin-ops.html'), 'utf8');
+const cssFile = fs.readFileSync(path.join(root, 'assets/admin-ops.css'), 'utf8');
+const jsFile = fs.readFileSync(path.join(root, 'assets/admin-ops.js'), 'utf8');
+
+/** Whole Admin surface, for source-text assertions. */
+const html = htmlFile + cssFile + jsFile;
+
+/**
+ * jsdom does not fetch external assets, so the extracted stylesheet and script
+ * are folded back inline purely for the boot below. The page itself keeps them
+ * as separate files.
+ */
+// Replacer functions, not strings: the extracted JS contains `$&`/`$'`
+// sequences that String.replace would otherwise treat as substitution patterns.
+const bootHtml = htmlFile
+  .replace(/<link rel="stylesheet" href="assets\/admin-ops\.css[^"]*">/, () => `<style>${cssFile}</style>`)
+  .replace(/<script src="assets\/admin-ops\.js[^"]*"><\/script>/, () => `<script>${jsFile}</script>`);
 
 // Boot admin-ops.html far enough to bind the navigation handlers, without any
 // network. The inline IIFE needs CD1AdminSession/SiteAccess to exist before it
 // runs, and every backend call is stubbed so this asserts UI wiring only.
 function boot() {
   const errors = [];
-  const dom = new JSDOM(html, {
+  const dom = new JSDOM(bootHtml, {
     runScripts: 'dangerously',
     url: 'https://example.test/admin-ops.html',
     beforeParse(window) {

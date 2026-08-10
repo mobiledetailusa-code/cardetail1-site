@@ -721,7 +721,7 @@ test('19. the primary action follows the appointment state', async () => {
  * ------------------------------------------------------------------ */
 
 test('20. admin jobs board exposes a review queue with live counts', () => {
-  const html = read('admin-ops.html');
+  const html = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
   assert.match(html, /id="jobsQueueFilters"/);
   assert.match(html, /QUEUE_BUCKETS/);
   assert.match(html, /Pending Review/);
@@ -735,7 +735,7 @@ test('20. admin jobs board exposes a review queue with live counts', () => {
 });
 
 test('21. compact rows carry a priority indicator without extra requests', () => {
-  const html = read('admin-ops.html');
+  const html = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
   assert.match(html, /function jobNeedsAttention/);
   assert.match(html, /class="job-warn"/);
   assert.match(html, /job-cell-customer/);
@@ -744,7 +744,7 @@ test('21. compact rows carry a priority indicator without extra requests', () =>
 });
 
 test('22. admin review is usable on a phone', () => {
-  const html = read('admin-ops.html');
+  const html = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
   const mobile = html.slice(html.indexOf('@media(max-width:700px)'));
   assert.match(mobile, /#jobsTable tr\.job-row\{[^}]*border-radius/, 'rows become cards');
   assert.match(mobile, /#jobsTable thead\{[^}]*clip:rect\(0 0 0 0\)/, 'table headers are visually hidden');
@@ -757,7 +757,7 @@ test('22. admin review is usable on a phone', () => {
 });
 
 test('23. confirmation cannot be double-submitted from the browser', () => {
-  const html = read('admin-ops.html');
+  const html = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
   assert.match(html, /let confirmInFlight = null/);
   assert.match(html, /async function confirmBookingOnce/);
   assert.match(html, /if \(!bookingId \|\| confirmInFlight\) return;/);

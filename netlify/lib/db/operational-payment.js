@@ -162,6 +162,36 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
   return committed;
 }
 
+/**
+ * Persist technician tip onto the Blob booking for Admin / receipt display.
+ * Tip is already recorded as LedgerEntry(kind=fee) in Postgres; this is the
+ * compatibility mirror only.
+ */
+async function applyTechnicianTipToBlob(bookingId, { tipCents = 0, tipPercent = 0 } = {}) {
+  const cents = Math.max(0, Math.round(Number(tipCents) || 0));
+  if (!(cents > 0) || !bookingId) return { ok: true, noop: true };
+  const rec = await getBookingRecord(bookingId);
+  if (!rec.exists || !rec.booking) return { ok: false, error: 'blob_not_found' };
+  const { ok: normOk, aggregate } = normalizeAggregate(rec.booking);
+  const base = normOk ? aggregate : rec.booking;
+  if (Math.round(Number(base.tipCents || base.tip || 0) || 0) === cents) {
+    return { ok: true, noop: true };
+  }
+  const dollars = cents / 100;
+  const patch = {
+    tip: dollars,
+    tipCents: cents,
+    technicianTipCents: cents,
+    technicianTipPercent: Number(tipPercent) || 0,
+  };
+  const next = buildNextAggregate(base, patch);
+  return commitBooking({
+    bookingId,
+    expectedBookingVersion: base.bookingVersion || 0,
+    nextAggregate: next,
+  });
+}
+
 async function getSharedFinancialProjection(booking, { env = process.env } = {}) {
   if (!postgresPaymentEnabled(env)) {
     return { ok: false, error: 'postgres_payment_disabled', authority: 'blob' };
@@ -194,6 +224,8 @@ async function getSharedFinancialProjection(booking, { env = process.env } = {})
 async function prepareEmbeddedPayment({
   booking,
   expectedQuoteVersion = null,
+  tipCents = 0,
+  tipPercent = 0,
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
@@ -201,6 +233,8 @@ async function prepareEmbeddedPayment({
     return await prepareEmbeddedPaymentInner({
       booking,
       expectedQuoteVersion,
+      tipCents,
+      tipPercent,
       env,
       fetchImpl,
     });
@@ -216,6 +250,8 @@ async function prepareEmbeddedPayment({
 async function prepareEmbeddedPaymentInner({
   booking,
   expectedQuoteVersion = null,
+  tipCents = 0,
+  tipPercent = 0,
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
@@ -250,6 +286,8 @@ async function prepareEmbeddedPaymentInner({
   const created = await authority.reserveAndCreatePaymentIntent({
     bookingId: ensured.bookingId,
     quoteVersion,
+    tipCents,
+    tipPercent,
     stripeCustomerId,
     env,
     fetchImpl,
@@ -260,6 +298,7 @@ async function prepareEmbeddedPaymentInner({
       error: created.error,
       statusCode: created.statusCode || 500,
       projection: mapProjectionForPortals(created.projection || projection),
+      tip: created.tip || null,
     };
   }
 
@@ -289,6 +328,13 @@ async function prepareEmbeddedPaymentInner({
   }
 
   projection = created.projection || await authority.getFinancialProjection(ensured.bookingId);
+  const chargeCents = Math.round(Number(created.amountCents)
+    || Number(created.paymentAttempt?.amountCents)
+    || projection.remainingCents
+    || 0);
+  const resolvedTipCents = Math.round(Number(created.tipCents) || 0);
+  const balanceCents = Math.round(Number(created.balanceCents)
+    || Math.max(0, chargeCents - resolvedTipCents));
 
   return {
     ok: true,
@@ -296,7 +342,10 @@ async function prepareEmbeddedPaymentInner({
     clientSecret,
     customerSessionClientSecret,
     paymentIntentId: piId,
-    amountCents: projection.remainingCents,
+    amountCents: chargeCents,
+    balanceCents,
+    tipCents: resolvedTipCents,
+    tipPercent: Number(created.tipPercent) || 0,
     quoteVersion: projection.quoteVersion,
     bookingVersion: booking.bookingVersion || 0,
     projection: mapProjectionForPortals(projection),
@@ -607,6 +656,7 @@ module.exports = {
   mapProjectionForPortals,
   buildPaymentCompatibilityPatch,
   syncBlobCompatibilityFromProjection,
+  applyTechnicianTipToBlob,
   getSharedFinancialProjection,
   prepareEmbeddedPayment,
   adminReconcileWithStripe,

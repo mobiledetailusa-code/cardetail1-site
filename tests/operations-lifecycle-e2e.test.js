@@ -122,7 +122,7 @@ test('technician cash/card-on-site completion is routed through the ledger + CAS
 });
 
 test('admin ops UI wires customer edit and audit', () => {
-  const ui = read('admin-ops.html');
+  const ui = read('admin-ops.html') + read('assets/admin-ops.css') + read('assets/admin-ops.js');
   assert.match(ui, /dSaveCustomer/);
   assert.match(ui, /dTechComplete/);
   assert.match(ui, /dGenCompletion/);
