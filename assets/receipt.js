@@ -125,6 +125,14 @@
       (fs.creditDue && fs.creditDue.cents > 0
         ? '<tr><td>Credit/refund due</td><td class="amt">' + esc(fs.creditDue.display) + '</td></tr>' : '') +
       '<tr><td>Remaining balance</td><td class="amt">' + esc(fs.remainingBalance ? fs.remainingBalance.display : '') + '</td></tr>' +
+      // The tip is charged on the same card but is not part of the invoice, so
+      // it sits below the balance and is followed by what actually left the
+      // customer's account. Without this the receipt understates the charge.
+      (fs.technicianTip && fs.technicianTip.cents > 0
+        ? '<tr><td>Technician tip</td><td class="amt">' + esc(fs.technicianTip.display) + '</td></tr>' +
+          '<tr class="grand"><td>Total charged</td><td class="amt">' +
+          esc(fs.totalCharged ? fs.totalCharged.display : '') + '</td></tr>'
+        : '') +
       '</tbody></table></div></div>';
 
     root.innerHTML =
