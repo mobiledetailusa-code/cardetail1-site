@@ -423,6 +423,7 @@ async function cancelPaymentIntentAtStripe({ paymentIntentId, env, fetchImpl }) 
 async function supersedeOutdatedAttempts({
   bookingId,
   currentQuoteVersion,
+  includeCurrentVersion = false,
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) {
@@ -442,7 +443,13 @@ async function supersedeOutdatedAttempts({
       where: {
         bookingId: id,
         status: { in: ACTIVE_ATTEMPT_STATUSES },
-        quoteVersion: { not: version },
+        // The amount being changed is itself an obligation nobody has met yet,
+        // so an unpaid attempt against the CURRENT version is retired too when
+        // the caller is about to change that amount. Without this, a customer
+        // who once opened the pay screen locks their own booking against every
+        // later add-on: the attempt sits open, Stripe rightly reports it live,
+        // and no version ever advances to make it outdated.
+        ...(includeCurrentVersion ? {} : { quoteVersion: { not: version } }),
       },
     });
 
@@ -477,6 +484,15 @@ async function supersedeOutdatedAttempts({
           data: { status: 'canceled' },
         });
         summary.superseded += 1;
+        continue;
+      }
+      // Money already in flight or captured cannot be voided to make room for a
+      // new amount. These are the only states that genuinely must block.
+      if (retrieved.ok && (retrieved.status === 'processing' || retrieved.status === 'requires_capture')) {
+        summary.failed += 1;
+        console.warn('[payment-authority] attempt not retirable — payment in flight', {
+          attemptId: attempt.id, stripeStatus: retrieved.status,
+        });
         continue;
       }
 
@@ -1579,7 +1595,13 @@ async function createAdjustment({
   //     at Stripe so a stale amount can never be paid.
   const reconciled = await reconcileStalePaymentAttempts({ bookingId: id });
   if (expectedVersion != null) {
-    await supersedeOutdatedAttempts({ bookingId: id, currentQuoteVersion: expectedVersion });
+    await supersedeOutdatedAttempts({
+      bookingId: id,
+      currentQuoteVersion: expectedVersion,
+      // Changing the amount voids any unpaid obligation to the old amount,
+      // including one raised against the version being replaced.
+      includeCurrentVersion: true,
+    });
   }
 
   try {

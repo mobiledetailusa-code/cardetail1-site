@@ -291,6 +291,54 @@ describe('supersedeOutdatedAttempts', () => {
     assert.equal(prisma.updates[0].data.failureCode, 'quote_version_superseded');
   });
 
+  it('retires an unpaid attempt against the version being replaced', async () => {
+    // The attempt that actually blocked production: raised against the CURRENT
+    // amount, so no version ever advances to make it outdated, and Stripe
+    // rightly reports it live. Changing the amount voids that obligation.
+    const prisma = prismaWith([attempt({ quoteVersion: 2 })]);
+    fakePrisma = prisma;
+    const fetchImpl = stripe({ retrieveStatus: 'requires_payment_method' });
+
+    const out = await supersedeOutdatedAttempts({
+      bookingId: 'CD1-STUCK', currentQuoteVersion: 2, includeCurrentVersion: true, env: ENV, fetchImpl,
+    });
+
+    assert.equal(out.superseded, 1);
+    assert.ok(fetchImpl.calls.some((c) => c.url.endsWith('/cancel')));
+    assert.equal(prisma.updates[0].data.status, 'superseded');
+  });
+
+  it('leaves the current version alone unless the caller is replacing it', async () => {
+    const prisma = prismaWith([attempt({ quoteVersion: 2 })]);
+    fakePrisma = prisma;
+    const fetchImpl = stripe();
+
+    const out = await supersedeOutdatedAttempts({
+      bookingId: 'CD1-STUCK', currentQuoteVersion: 2, env: ENV, fetchImpl,
+    });
+
+    assert.deepEqual(out, { superseded: 0, settled: 0, failed: 0 });
+    assert.equal(fetchImpl.calls.length, 0);
+  });
+
+  it('will not void a payment already in flight to make room for a new amount', async () => {
+    for (const live of ['processing', 'requires_capture']) {
+      const prisma = prismaWith([attempt({ quoteVersion: 2 })]);
+      fakePrisma = prisma;
+      const fetchImpl = stripe({ retrieveStatus: live });
+
+      const out = await supersedeOutdatedAttempts({
+        bookingId: 'CD1-STUCK', currentQuoteVersion: 2, includeCurrentVersion: true, env: ENV, fetchImpl,
+      });
+
+      assert.equal(out.failed, 1, `${live} must keep blocking`);
+      assert.equal(out.superseded, 0);
+      assert.ok(!fetchImpl.calls.some((c) => c.url.endsWith('/cancel')),
+        `${live} must never be canceled`);
+      assert.equal(prisma.updates.length, 0);
+    }
+  });
+
   it('does nothing without a usable current version', async () => {
     // Number(null) and Number('') are both 0. Coercing an absent version would
     // read as version 0 and supersede every attempt on the booking, so the
@@ -324,9 +372,24 @@ describe('the guard only blocks on the amount being changed', () => {
   });
 
   it('retires outdated attempts before the transaction opens', () => {
-    const call = svc.indexOf('await supersedeOutdatedAttempts({ bookingId: id');
+    const call = svc.indexOf('await supersedeOutdatedAttempts({');
     const tx = svc.indexOf('runSerializableWithRetry', call);
     assert.ok(call > -1 && tx > call);
+  });
+
+  it('an amount change also voids the unpaid obligation to the old amount', () => {
+    const call = svc.slice(svc.indexOf('await supersedeOutdatedAttempts({'));
+    assert.match(call.slice(0, 400), /includeCurrentVersion: true/);
+  });
+
+  it('the add-on wrapper keeps the authority status and explanation', () => {
+    const addon = fs.readFileSync(
+      path.join(__dirname, '..', 'netlify', 'lib', 'addon-financial-mutation.js'),
+      'utf8'
+    );
+    const block = addon.slice(addon.indexOf('if (!adjustment.ok) {'), addon.indexOf('const pgProjection'));
+    assert.match(block, /\.\.\.adjustment/, 'the detail must reach Admin, not be flattened to a 500');
+    assert.match(block, /adjustment\.statusCode \|\| 500/);
   });
 });
 
