@@ -424,6 +424,23 @@ describe('the refusal tells the operator what is blocking', () => {
     assert.match(body.message, /cancel it in Stripe/i);
   });
 
+  it('says when Stripe could not confirm, instead of looking like a live payment', () => {
+    const body = paymentAttemptInProgressResponse({
+      attempt: attempt(),
+      ageMs: 452 * 60 * 1000,
+      stripeStatus: null,
+      stripeError: "No such payment_intent: 'pi_123'",
+      stripeMode: 'test',
+    });
+    assert.equal(body.stripeMode, 'test');
+    assert.match(body.message, /could not confirm/i);
+    assert.match(body.message, /No such payment_intent/);
+    // The trap that cost hours: a test-key deploy sharing production's database
+    // asking about a live payment intent. It is unresolvable there, and it must
+    // not read as "a payment is in progress".
+    assert.match(body.message, /production site/i);
+  });
+
   it('still answers without detail when there is none', () => {
     const body = paymentAttemptInProgressResponse(null);
     assert.equal(body.error, 'payment_attempt_in_progress');

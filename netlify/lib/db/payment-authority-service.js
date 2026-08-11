@@ -352,8 +352,19 @@ async function reconcileStalePaymentAttempts({
       });
       if (!retrieved.ok) {
         // Stripe could not answer — leave the guard strict rather than guess.
+        // Carry WHY: the usual cause is a key-mode mismatch, where a deploy
+        // preview running test keys asks about an intent created with live
+        // keys against the same database. Nothing can resolve there, and
+        // without saying so the refusal looks identical to a live payment.
         summary.active += 1;
-        summary.blocked = summary.blocked || { attempt, ageMs, stripeStatus: null };
+        summary.blocked = summary.blocked || {
+          attempt,
+          ageMs,
+          stripeStatus: null,
+          stripeError: retrieved.error || 'stripe_unavailable',
+          stripeMode: String(env.STRIPE_SECRET_KEY || '').startsWith('sk_live_') ? 'live'
+            : String(env.STRIPE_SECRET_KEY || '').startsWith('sk_test_') ? 'test' : 'unknown',
+        };
         continue;
       }
 
@@ -541,20 +552,37 @@ function paymentAttemptInProgressResponse(blocked) {
   };
   if (!blocked || !blocked.attempt) return body;
   const ageMinutes = Number.isFinite(blocked.ageMs) ? Math.round(blocked.ageMs / 60000) : null;
+  const age = ageMinutes != null ? ` It has been open for ${ageMinutes} minutes.` : '';
+
+  let message;
+  if (blocked.stripeStatus) {
+    message = `Stripe still reports this payment as "${blocked.stripeStatus}"`
+      + (ageMinutes != null ? `, ${ageMinutes} minutes old` : '')
+      + '. The amount cannot change until it settles or is canceled.';
+  } else if (blocked.stripeError) {
+    // Distinguishing this from a live payment matters: they look identical from
+    // the outside, and one of them cannot be resolved in this environment at all.
+    message = `Stripe (${blocked.stripeMode || 'unknown'} mode) could not confirm this payment, `
+      + `so it cannot be retired safely: ${blocked.stripeError}.${age}`
+      + (blocked.stripeMode === 'test'
+        ? ' A test-mode deploy cannot see a payment created with live keys — approve this on the production site.'
+        : ' Check the payment in Stripe, then retry.');
+  } else {
+    message = 'A payment attempt on this booking is still open, so the amount cannot change yet.'
+      + (ageMinutes != null && ageMinutes > 10
+        ? ` It has been open for ${ageMinutes} minutes — if the customer abandoned it, cancel it in Stripe and retry.`
+        : '');
+  }
+
   return {
     ...body,
     attemptId: blocked.attempt.id,
     attemptStatus: blocked.attempt.status,
     attemptAgeMinutes: ageMinutes,
     stripeStatus: blocked.stripeStatus || null,
-    message: blocked.stripeStatus
-      ? `Stripe still reports this payment as "${blocked.stripeStatus}"`
-        + (ageMinutes != null ? `, ${ageMinutes} minutes old` : '')
-        + '. The amount cannot change until it settles or is canceled.'
-      : 'A payment attempt on this booking is still open, so the amount cannot change yet.'
-        + (ageMinutes != null && ageMinutes > 10
-          ? ` It has been open for ${ageMinutes} minutes — if the customer abandoned it, cancel it in Stripe and retry.`
-          : ''),
+    stripeError: blocked.stripeError || null,
+    stripeMode: blocked.stripeMode || null,
+    message,
   };
 }
 
