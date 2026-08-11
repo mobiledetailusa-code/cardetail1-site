@@ -429,6 +429,10 @@ async function supersedeOutdatedAttempts({
   const summary = { superseded: 0, settled: 0, failed: 0 };
   try {
     const id = String(bookingId || '').trim();
+    // Number(null) and Number('') are both 0, so an absent version would read
+    // as version 0 and supersede EVERY attempt on the booking. Reject it before
+    // the coercion can turn "unknown" into a real-looking version.
+    if (currentQuoteVersion == null || currentQuoteVersion === '') return summary;
     const version = Math.round(Number(currentQuoteVersion));
     if (!id || !Number.isFinite(version)) return summary;
     const prisma = tryGetPrisma();

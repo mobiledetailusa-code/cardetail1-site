@@ -292,13 +292,23 @@ describe('supersedeOutdatedAttempts', () => {
   });
 
   it('does nothing without a usable current version', async () => {
-    const prisma = prismaWith([attempt({ quoteVersion: 1 })]);
-    fakePrisma = prisma;
-    assert.deepEqual(
-      await supersedeOutdatedAttempts({ bookingId: 'CD1-STUCK', currentQuoteVersion: null, env: ENV }),
-      { superseded: 0, settled: 0, failed: 0 }
-    );
-    assert.equal(prisma.updates.length, 0);
+    // Number(null) and Number('') are both 0. Coercing an absent version would
+    // read as version 0 and supersede every attempt on the booking, so the
+    // absent case has to be rejected before the coercion.
+    const fetchImpl = stripe();
+    for (const version of [null, undefined, '', 'not-a-number']) {
+      const prisma = prismaWith([attempt({ quoteVersion: 1 })]);
+      fakePrisma = prisma;
+      assert.deepEqual(
+        await supersedeOutdatedAttempts({
+          bookingId: 'CD1-STUCK', currentQuoteVersion: version, env: ENV, fetchImpl,
+        }),
+        { superseded: 0, settled: 0, failed: 0 },
+        `version ${JSON.stringify(version)} must be treated as unknown`
+      );
+      assert.equal(prisma.updates.length, 0);
+    }
+    assert.equal(fetchImpl.calls.length, 0, 'nothing may be canceled at Stripe on an unknown version');
   });
 });
 
