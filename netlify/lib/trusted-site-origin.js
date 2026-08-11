@@ -156,6 +156,51 @@ function trustedSiteOrigin() {
   return FALLBACK_ORIGIN;
 }
 
+/**
+ * Exact-origin allowlist authorized to perform Owner Studio browser mutations.
+ *
+ * Built ONLY from this runtime's own deployment configuration — never from a
+ * request Host/Origin. Every candidate is normalized to scheme://host[:port]
+ * and deduplicated; empty, malformed, non-http(s) and userinfo-bearing values
+ * are dropped. Matching is exact — no substring, suffix, or wildcard.
+ *
+ * On a branch-deploy / deploy-preview runtime this yields the configured main
+ * origin (TRUSTED_PUBLIC_SITE_ORIGIN / PUBLIC_SITE_URL) AND the deploy's own
+ * primary alias (DEPLOY_PRIME_URL) + immutable per-deploy URL (DEPLOY_URL), so
+ * the exact branch-deploy origin can mutate while the configured main-staging
+ * origin stays authorized. On production it yields cardetail1.com and only the
+ * exact approved origins produced by production's own runtime environment.
+ */
+function mutationOriginAllowlist() {
+  const ctx = deployContext();
+  const requireHttps = ctx === 'production' || ctx === 'branch-deploy' || ctx === 'deploy-preview';
+  const candidates = [
+    process.env.TRUSTED_PUBLIC_SITE_ORIGIN,
+    process.env.PUBLIC_SITE_URL,
+    readDeployEnv('URL'),
+    readDeployEnv('DEPLOY_PRIME_URL'),
+    readDeployEnv('DEPLOY_URL'),
+  ];
+  const origins = new Set();
+  for (const raw of candidates) {
+    const origin = normalizeOriginCandidate(raw, { requireHttps });
+    if (origin) origins.add(origin);
+  }
+  return [...origins];
+}
+
+/**
+ * Exact-match a request Origin against the mutation allowlist. A missing or
+ * malformed Origin returns false — the caller decides whether that is allowed
+ * (server-to-server automation using x-admin-key) or rejected (browser cookie
+ * auth). Never derives trust from the request Host.
+ */
+function isMutationOriginAllowed(rawOrigin) {
+  const origin = normalizeOriginCandidate(rawOrigin, { requireHttps: false });
+  if (!origin) return false;
+  return mutationOriginAllowlist().includes(origin);
+}
+
 function buildTrustedAbsoluteUrl(pathnameAndQuery) {
   const origin = trustedSiteOrigin();
   const path = String(pathnameAndQuery || '');
@@ -177,6 +222,8 @@ module.exports = {
   normalizeOriginCandidate,
   readDeployEnv,
   trustedSiteOrigin,
+  mutationOriginAllowlist,
+  isMutationOriginAllowed,
   buildTrustedAbsoluteUrl,
   __setBakedDeployEnvForTests,
 };

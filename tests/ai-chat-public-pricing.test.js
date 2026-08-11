@@ -148,6 +148,13 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/twilio-inbound.js',
   'netlify/functions/twilio-outbox-worker.js',
   'netlify/functions/twilio-status-callback.js',
+  // Owner Studio Stage 2 — protected catalog draft API (flags off by default).
+  'netlify/functions/owner-studio-catalog.js',
+  // Owner Studio Stage 4B — authenticated storefront draft preview.
+  'netlify/functions/owner-studio-catalog-preview.js',
+  // Owner Studio Stage 2 Phase A — admin login sets a shared HttpOnly session cookie
+  // so a second/new tab authenticates (multi-tab catalog loading fix).
+  'netlify/functions/admin-auth.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {

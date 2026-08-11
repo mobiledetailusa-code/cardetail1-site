@@ -13,7 +13,9 @@
   # twilio resolves sub-modules dynamically and does not survive esbuild bundling;
   # it must be installed as a real node_module or the functions that reach it fail
   # to load at cold start and return a non-JSON 500.
-  external_node_modules = ["@netlify/blobs", "twilio"]
+  # The Prisma driver adapter and pg carry native/dynamic resolution and need the
+  # same treatment for the Owner Studio catalog functions.
+  external_node_modules = ["@netlify/blobs", "twilio", "@prisma/adapter-pg", "pg", "@prisma/client"]
 
 [dev]
   port = 8888
@@ -48,12 +50,20 @@
   to = "/admin-owner-studio.html"
   status = 200
 [[redirects]]
+  from = "/admin/owner-studio/catalog"
+  to = "/admin-owner-studio-catalog.html"
+  status = 200
+[[redirects]]
   from = "/admin-ops"
   to = "/admin-ops.html"
   status = 200
 [[redirects]]
   from = "/admin-owner-studio"
   to = "/admin-owner-studio.html"
+  status = 200
+[[redirects]]
+  from = "/admin-owner-studio-catalog"
+  to = "/admin-owner-studio-catalog.html"
   status = 200
 [[redirects]]
   from = "/terms-conditions"

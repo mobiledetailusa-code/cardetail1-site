@@ -93,5 +93,5 @@ test('submit-booking keeps strict saved check with Stripe reconcile fallback', (
 test('no package pricing or public homepage drift in hardening diff scope', () => {
   assert.doesNotMatch(index.slice(0, index.indexOf('id="bk-ov"')), /cardInitInProgress/);
   assert.doesNotMatch(index.slice(0, index.indexOf('id="bk-ov"')), /verifyCardOnFileWithServer/);
-  assert.match(index, /const PRICING\s*=/);
+  assert.match(index, /\b(?:const|let) PRICING\s*=/); // 4B-2: reassignable for saved-draft preview
 });
