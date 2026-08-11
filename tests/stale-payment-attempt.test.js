@@ -51,12 +51,23 @@ function attempt(overrides = {}) {
   };
 }
 
+/**
+ * Honours the quoteVersion filter, because whether a query carries it is the
+ * behaviour under test — a double that returns everything regardless cannot
+ * tell "retire the current version" from "leave it alone".
+ */
 function prismaWith(attempts) {
   const updates = [];
   return {
     updates,
     paymentAttempt: {
-      findMany: () => Promise.resolve(attempts),
+      findMany: (args) => {
+        const not = args?.where?.quoteVersion?.not;
+        const rows = not == null
+          ? attempts
+          : attempts.filter((a) => Math.round(Number(a.quoteVersion)) !== Math.round(Number(not)));
+        return Promise.resolve(rows);
+      },
       update: (args) => { updates.push(args); return Promise.resolve({}); },
     },
   };
