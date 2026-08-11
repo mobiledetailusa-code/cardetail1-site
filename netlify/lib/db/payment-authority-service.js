@@ -383,6 +383,130 @@ async function reconcileStalePaymentAttempts({
   }
 }
 
+/** Cancel a payment intent at Stripe so a stale amount can never be paid. */
+async function cancelPaymentIntentAtStripe({ paymentIntentId, env, fetchImpl }) {
+  const guard = guardStripeOrReject(env, { purpose: 'payment_intent_cancel' });
+  if (guard.blocked) return { ok: false, error: 'stripe_unavailable' };
+  try {
+    const res = await fetchImpl(
+      `https://api.stripe.com/v1/payment_intents/${encodeURIComponent(paymentIntentId)}/cancel`,
+      { method: 'POST', headers: { Authorization: `Bearer ${guard.secret}` } }
+    );
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true, status: body.status || 'canceled' };
+    return { ok: false, error: body?.error?.message || `stripe_${res.status}` };
+  } catch {
+    return { ok: false, error: 'stripe_network_error' };
+  }
+}
+
+/**
+ * Retire attempts that belong to a superseded quote version.
+ *
+ * PaymentAttempt carries a quoteVersion and the status enum has 'superseded',
+ * because an attempt is an obligation to pay ONE amount: once the amount
+ * changes, the old attempt is meaningless. payment-service.supersedeOpenAttempts
+ * already expresses this — but it maps the Blob aggregate's array and never
+ * touches Postgres, while the guard in createAdjustment reads Postgres and does
+ * not filter by quoteVersion. So an attempt for a stale amount stayed 'open'
+ * and blocked every later amount change on that booking, permanently.
+ *
+ * Retiring it is not only a local status change: the payment intent is canceled
+ * at Stripe first, so the customer can never pay an amount that no longer
+ * applies. An intent Stripe reports as already succeeded is NOT canceled —
+ * money moved, and that is a settlement to record, not an obligation to void.
+ *
+ * Runs outside the mutation transaction. Never throws.
+ *
+ * @returns {Promise<{ superseded: number, settled: number, failed: number }>}
+ */
+async function supersedeOutdatedAttempts({
+  bookingId,
+  currentQuoteVersion,
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) {
+  const summary = { superseded: 0, settled: 0, failed: 0 };
+  try {
+    const id = String(bookingId || '').trim();
+    const version = Math.round(Number(currentQuoteVersion));
+    if (!id || !Number.isFinite(version)) return summary;
+    const prisma = tryGetPrisma();
+    if (!prisma) return summary;
+
+    const outdated = await prisma.paymentAttempt.findMany({
+      where: {
+        bookingId: id,
+        status: { in: ACTIVE_ATTEMPT_STATUSES },
+        quoteVersion: { not: version },
+      },
+    });
+
+    for (const attempt of outdated) {
+      const providerObjectId = String(attempt.providerObjectId || '');
+      if (!providerObjectId.startsWith('pi_')) {
+        // Never reached Stripe: nothing to cancel, nothing at risk.
+        await prisma.paymentAttempt.update({
+          where: { id: attempt.id },
+          data: { status: 'superseded', failureCode: 'quote_version_superseded' },
+        });
+        summary.superseded += 1;
+        continue;
+      }
+
+      const retrieved = await retrievePaymentIntentClientSecret({
+        paymentIntentId: providerObjectId, env, fetchImpl,
+      });
+      if (retrieved.ok && retrieved.status === 'succeeded') {
+        // The customer already paid this amount. Superseding it would erase a
+        // real settlement — record it and leave the money alone.
+        await prisma.paymentAttempt.update({
+          where: { id: attempt.id },
+          data: { status: 'succeeded' },
+        });
+        summary.settled += 1;
+        continue;
+      }
+      if (retrieved.ok && retrieved.status === 'canceled') {
+        await prisma.paymentAttempt.update({
+          where: { id: attempt.id },
+          data: { status: 'canceled' },
+        });
+        summary.superseded += 1;
+        continue;
+      }
+
+      const canceled = await cancelPaymentIntentAtStripe({
+        paymentIntentId: providerObjectId, env, fetchImpl,
+      });
+      if (!canceled.ok) {
+        // Stripe still owns a live intent for the old amount. Leave the attempt
+        // open — blocking the change is safer than letting two amounts stand.
+        summary.failed += 1;
+        console.warn('[payment-authority] outdated attempt cancel failed', {
+          attemptId: attempt.id, reason: canceled.error,
+        });
+        continue;
+      }
+
+      await prisma.paymentAttempt.update({
+        where: { id: attempt.id },
+        data: { status: 'superseded', failureCode: 'quote_version_superseded' },
+      });
+      summary.superseded += 1;
+      console.log('[payment-authority] outdated attempt superseded', {
+        attemptId: attempt.id,
+        attemptQuoteVersion: attempt.quoteVersion,
+        currentQuoteVersion: version,
+      });
+    }
+    return summary;
+  } catch (err) {
+    console.warn('[payment-authority] supersede failed', err && err.message ? err.message : err);
+    return summary;
+  }
+}
+
 /**
  * The 409 body for a booking whose money mutations are genuinely blocked.
  * Says which attempt, how old, and what Stripe thinks — a bare error code left
@@ -1444,10 +1568,15 @@ async function createAdjustment({
     return { ok: false, error: 'adjustment_id_required', statusCode: 400 };
   }
 
-  // Before the transaction, and before the guard inside it can refuse: close
-  // any attempt Stripe has already finished with. Without this, one webhook
-  // that never landed blocks every add-on approval on this booking forever.
+  // Before the transaction, and before the guard inside it can refuse:
+  //  1. close attempts Stripe has already finished with — a webhook that never
+  //     landed must not block every future add-on approval on this booking;
+  //  2. retire attempts owed against a previous amount, canceling their intent
+  //     at Stripe so a stale amount can never be paid.
   const reconciled = await reconcileStalePaymentAttempts({ bookingId: id });
+  if (expectedVersion != null) {
+    await supersedeOutdatedAttempts({ bookingId: id, currentQuoteVersion: expectedVersion });
+  }
 
   try {
     return await runSerializableWithRetry(async (tx) => {
@@ -1501,8 +1630,17 @@ async function createAdjustment({
           actualQuoteVersion: previousQuote.quoteVersion,
         };
       }
+      // Scoped to the CURRENT quote version. An attempt is an obligation to pay
+      // one amount, so only an attempt against the amount being changed can
+      // legitimately block the change — that protection is intact. An attempt
+      // left over from a previous amount used to block here forever; those are
+      // retired above instead.
       const activeAttempt = await tx.paymentAttempt.findFirst({
-        where: { bookingId: id, status: { in: ACTIVE_ATTEMPT_STATUSES } },
+        where: {
+          bookingId: id,
+          status: { in: ACTIVE_ATTEMPT_STATUSES },
+          quoteVersion: previousQuote.quoteVersion,
+        },
       });
       if (activeAttempt) {
         // Reconciliation above already closed whatever Stripe had finished, so
@@ -1878,6 +2016,7 @@ module.exports = {
   ACTIVE_ATTEMPT_STATUSES,
   ATTEMPT_STALE_AFTER_MS,
   reconcileStalePaymentAttempts,
+  supersedeOutdatedAttempts,
   paymentAttemptInProgressResponse,
   buildIdempotencyKey,
   getFinancialProjection,

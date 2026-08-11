@@ -214,6 +214,112 @@ describe('reconcileStalePaymentAttempts', () => {
   });
 });
 
+describe('supersedeOutdatedAttempts', () => {
+  const { supersedeOutdatedAttempts } = require('../netlify/lib/db/payment-authority-service');
+
+  /** Stripe double that answers retrieve and cancel differently. */
+  function stripe({ retrieveStatus = 'requires_payment_method', cancelOk = true } = {}) {
+    const calls = [];
+    const impl = (url, opts) => {
+      calls.push({ url: String(url), method: (opts && opts.method) || 'GET' });
+      if (String(url).endsWith('/cancel')) {
+        return Promise.resolve({
+          ok: cancelOk,
+          json: () => Promise.resolve(cancelOk ? { status: 'canceled' } : { error: { message: 'nope' } }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: retrieveStatus }) });
+    };
+    impl.calls = calls;
+    return impl;
+  }
+
+  it('cancels the stale intent at Stripe before retiring the attempt', async () => {
+    const prisma = prismaWith([attempt({ quoteVersion: 1 })]);
+    fakePrisma = prisma;
+    const fetchImpl = stripe();
+
+    const out = await supersedeOutdatedAttempts({
+      bookingId: 'CD1-STUCK', currentQuoteVersion: 2, env: ENV, fetchImpl,
+    });
+
+    assert.equal(out.superseded, 1);
+    assert.ok(fetchImpl.calls.some((c) => c.url.endsWith('/cancel') && c.method === 'POST'),
+      'the customer must not be able to pay an amount that no longer applies');
+    assert.equal(prisma.updates[0].data.status, 'superseded');
+  });
+
+  it('never voids an intent Stripe already settled', async () => {
+    const prisma = prismaWith([attempt({ quoteVersion: 1 })]);
+    fakePrisma = prisma;
+    const fetchImpl = stripe({ retrieveStatus: 'succeeded' });
+
+    const out = await supersedeOutdatedAttempts({
+      bookingId: 'CD1-STUCK', currentQuoteVersion: 2, env: ENV, fetchImpl,
+    });
+
+    assert.equal(out.settled, 1);
+    assert.equal(out.superseded, 0);
+    assert.ok(!fetchImpl.calls.some((c) => c.url.endsWith('/cancel')),
+      'money that moved is a settlement to record, never an obligation to void');
+    assert.equal(prisma.updates[0].data.status, 'succeeded');
+  });
+
+  it('keeps the attempt open when Stripe refuses the cancel', async () => {
+    const prisma = prismaWith([attempt({ quoteVersion: 1 })]);
+    fakePrisma = prisma;
+
+    const out = await supersedeOutdatedAttempts({
+      bookingId: 'CD1-STUCK', currentQuoteVersion: 2, env: ENV, fetchImpl: stripe({ cancelOk: false }),
+    });
+
+    assert.equal(out.failed, 1);
+    assert.equal(prisma.updates.length, 0, 'two live amounts is worse than a blocked change');
+  });
+
+  it('retires an outdated attempt that never reached Stripe without calling out', async () => {
+    const prisma = prismaWith([attempt({ quoteVersion: 1, providerObjectId: null, status: 'creating' })]);
+    fakePrisma = prisma;
+    const fetchImpl = stripe();
+
+    const out = await supersedeOutdatedAttempts({
+      bookingId: 'CD1-STUCK', currentQuoteVersion: 2, env: ENV, fetchImpl,
+    });
+
+    assert.equal(out.superseded, 1);
+    assert.equal(fetchImpl.calls.length, 0);
+    assert.equal(prisma.updates[0].data.failureCode, 'quote_version_superseded');
+  });
+
+  it('does nothing without a usable current version', async () => {
+    const prisma = prismaWith([attempt({ quoteVersion: 1 })]);
+    fakePrisma = prisma;
+    assert.deepEqual(
+      await supersedeOutdatedAttempts({ bookingId: 'CD1-STUCK', currentQuoteVersion: null, env: ENV }),
+      { superseded: 0, settled: 0, failed: 0 }
+    );
+    assert.equal(prisma.updates.length, 0);
+  });
+});
+
+describe('the guard only blocks on the amount being changed', () => {
+  const svc = fs.readFileSync(
+    path.join(__dirname, '..', 'netlify', 'lib', 'db', 'payment-authority-service.js'),
+    'utf8'
+  );
+
+  it('scopes the active-attempt query to the current quote version', () => {
+    const guard = svc.slice(svc.indexOf('const activeAttempt = await tx.paymentAttempt.findFirst'));
+    assert.match(guard.slice(0, 400), /quoteVersion: previousQuote\.quoteVersion/);
+  });
+
+  it('retires outdated attempts before the transaction opens', () => {
+    const call = svc.indexOf('await supersedeOutdatedAttempts({ bookingId: id');
+    const tx = svc.indexOf('runSerializableWithRetry', call);
+    assert.ok(call > -1 && tx > call);
+  });
+});
+
 describe('the refusal tells the operator what is blocking', () => {
   it('names the attempt, its age and what Stripe reports', () => {
     const body = paymentAttemptInProgressResponse({
