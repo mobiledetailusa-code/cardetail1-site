@@ -25,6 +25,10 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 const Ux = require('../netlify/lib/owner-studio-catalog-ux-logic');
 const catalogHtml = read('admin-owner-studio-catalog.html');
+// Presentation moved out of the page into the shared Owner Studio design system.
+// Rules asserted below are behavioural (a badge that must hide, a bar that must
+// stick), so they follow the CSS to wherever it now lives.
+const studioCss = read('assets/owner-studio/studio.css');
 const adminOps = read('admin-ops.html');
 const toml = read('netlify.toml');
 
@@ -405,7 +409,7 @@ describe('shipped Catalog Manager page wires the hardened behaviours', () => {
     // Regression guard: .badge sets display:inline-block, which defeats the bare [hidden]
     // default. A .badge[hidden] rule (higher specificity) MUST restore display:none, else the
     // badge is stuck visible in every state — clean, saved and signed-out.
-    assert.match(catalogHtml, /\.badge\[hidden\]\s*\{[^}]*display\s*:\s*none/);
+    assert.match(studioCss, /\.badge\[hidden\]\s*\{[^}]*display\s*:\s*none/);
     // Visible only when the real dirty flag is set …
     assert.match(catalogHtml, /el\('dirty'\)\.hidden = !state\.dirty;/);
     // … and force-hidden on authentication failure, so "Unsaved changes" never sits over a
@@ -443,7 +447,8 @@ describe('shipped Catalog Manager page wires the hardened behaviours', () => {
   });
   it('ships a sticky Catalog action bar with version, status, Discard and Save', () => {
     assert.match(catalogHtml, /id="catalog-action-bar"/);
-    assert.match(catalogHtml, /\.catalog-action-bar\s*\{[^}]*position:\s*sticky/);
+    assert.match(studioCss, /\.catalog-action-bar\s*\{[^}]*position:\s*sticky/);
+    assert.match(catalogHtml, /rel="stylesheet" href="\/assets\/owner-studio\/studio\.css"/);
     assert.match(catalogHtml, /id="bar-version"/);
     assert.match(catalogHtml, /id="bar-status"/);
     assert.match(catalogHtml, /id="btn-discard"/);

@@ -5,90 +5,61 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Catalog Manager — Owner Studio</title>
-  <style>
-    :root { --bg:#0f172a; --card:#1e293b; --ink:#e2e8f0; --muted:#94a3b8; --line:#334155; --accent:#38bdf8; --warn:#fbbf24; --ok:#86efac; --bad:#fca5a5; --focus:#fde68a; }
-    * { box-sizing: border-box; }
-    body { margin:0; font-family: Georgia, "Times New Roman", serif; background: linear-gradient(160deg,#0f172a,#1e293b 45%,#0b1220); color:var(--ink); min-height:100vh; }
-    header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
-    h1 { margin:0; font-size:1.25rem; }
-    .sub { color:var(--muted); font-size:.88rem; margin-top:4px; }
-    nav { display:flex; gap:8px; flex-wrap:wrap; padding:12px 24px; border-bottom:1px solid var(--line); }
-    nav a { color:var(--muted); text-decoration:none; font-size:.85rem; padding:6px 10px; border:1px solid transparent; border-radius:6px; }
-    nav a[aria-current="page"] { color:var(--ink); border-color:var(--line); background:rgba(255,255,255,.04); }
-    main { padding:20px 24px 48px; max-width:1200px; }
-    .grid { display:grid; gap:14px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin-bottom:18px; }
-    .stat { background:rgba(30,41,59,.9); border:1px solid var(--line); border-radius:10px; padding:14px; }
-    .stat b { display:block; font-size:1.3rem; margin-top:6px; font-family: ui-monospace, Consolas, monospace; }
-    .panel { background:rgba(30,41,59,.9); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    label { display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px; }
-    input, select, textarea, button { font: inherit; }
-    input, select, textarea { width:100%; background:#0b1220; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
-    input:focus, select:focus, textarea:focus, button:focus { outline:2px solid var(--focus); outline-offset:2px; }
-    textarea { min-height:80px; }
-    button { background:#0ea5e9; color:#082f49; border:0; border-radius:8px; padding:8px 14px; cursor:pointer; font-weight:600; }
-    button.secondary { background:transparent; color:var(--ink); border:1px solid var(--line); }
-    button:disabled { opacity:.5; cursor:not-allowed; }
-    button.warn { background:#854d0e; color:#fef9c3; }
-    .badge { display:inline-block; padding:3px 8px; border-radius:999px; font-size:.75rem; border:1px solid var(--line); }
-    .badge.warn { color:var(--warn); }
-    .badge.ok { color:var(--ok); }
-    .badge.bad { color:var(--bad); }
-    /* The [hidden] attribute must beat .badge's display, or the toggled "Unsaved changes" badge never hides. */
-    .badge[hidden] { display:none; }
-    table { width:100%; border-collapse:collapse; font-size:.9rem; }
-    th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
-    th { color:var(--muted); font-weight:600; }
-    .split { display:grid; gap:16px; grid-template-columns: 1fr; }
-    @media (min-width: 960px) { .split { grid-template-columns: 1.1fr .9fr; } }
-    .muted { color:var(--muted); }
-    .err { color:var(--bad); }
-    .okmsg { color:var(--ok); }
-    .list-btn { display:block; width:100%; text-align:left; background:transparent; color:var(--ink); border:1px solid var(--line); margin-bottom:6px; }
-    .list-btn[aria-current="true"] { border-color:var(--accent); }
-    .banner { background:#422006; color:#fde68a; border:1px solid #854d0e; border-radius:10px; padding:10px 12px; margin-bottom:14px; }
-    .banner.readonly { border-left:4px solid var(--warn); font-weight:600; }
-    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
-    .price-grid { display:grid; gap:8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-    a.back { color:var(--accent); text-decoration:none; }
-    .addon-row { border:1px solid var(--line); border-radius:8px; margin-bottom:8px; overflow:hidden; }
-    .addon-row.dirty { border-color:var(--warn); }
-    .addon-summary { display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:transparent; color:var(--ink); border:0; border-radius:0; padding:10px 12px; cursor:pointer; font-weight:600; }
-    .addon-summary:hover { background:rgba(255,255,255,.03); }
-    .addon-summary .chev { transition:transform .15s ease; color:var(--muted); }
-    .addon-summary[aria-expanded="true"] .chev { transform:rotate(90deg); }
-    .addon-summary .a-name { flex:1; min-width:0; }
-    .addon-summary .a-price { font-family: ui-monospace, Consolas, monospace; }
-    .addon-summary .muted { font-weight:400; }
-    .addon-editor { padding:12px; border-top:1px dashed var(--line); background:rgba(11,18,32,.5); }
-    .addon-editor .grid2 { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); }
-    .catalog-action-bar {
-      position: sticky; top: 0; z-index: 40;
-      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-      margin: 0 0 14px; padding: 10px 12px;
-      background: rgba(15, 23, 42, 0.96); border: 1px solid var(--line); border-radius: 10px;
-      backdrop-filter: blur(6px);
-    }
-    .catalog-action-bar .bar-version { font-family: ui-monospace, Consolas, monospace; color: var(--muted); font-size: .85rem; }
-    .catalog-action-bar .bar-status { flex: 1; min-width: 140px; font-size: .9rem; }
-    .catalog-action-bar .bar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
-  </style>
+  <link rel="stylesheet" href="/assets/owner-studio/studio.css">
 </head>
 <body>
-  <header>
-    <div>
-      <h1>Catalog Manager</h1>
-      <div class="sub">Stage 2 draft editor — staging only · public source remains legacy</div>
+<div class="studio">
+
+  <aside class="studio-rail">
+    <div class="rail-brand">
+      <span class="rail-mark" aria-hidden="true">CD</span>
+      <span>
+        <b>Owner Studio</b>
+        <span>Control plane</span>
+      </span>
     </div>
-    <a class="back" href="/admin/owner-studio">← Owner Studio</a>
-  </header>
-  <nav aria-label="Owner Studio">
-    <a href="/admin/owner-studio">Overview</a>
-    <a href="/admin/owner-studio/catalog" aria-current="page">Catalog</a>
-    <a href="/admin/owner-studio/catalog#preview">Preview</a>
-    <a href="/admin/owner-studio/catalog#revisions">Revisions</a>
-  </nav>
-  <main>
+
+    <nav class="rail-nav" aria-label="Owner Studio modules">
+      <span class="rail-heading">Workspace</span>
+      <a class="rail-link is-ready" href="/admin/owner-studio">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Overview</span>
+      </a>
+      <a class="rail-link is-ready" href="/admin/owner-studio/catalog" aria-current="page">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Catalog</span>
+      </a>
+
+      <span class="rail-heading">On this page</span>
+      <a class="rail-link" href="#addons"><span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Add-ons</span></a>
+      <a class="rail-link" href="#conflicts"><span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Price conflicts</span></a>
+      <a class="rail-link" href="#revisions"><span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Revisions</span></a>
+      <a class="rail-link" href="#preview"><span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Draft preview</span></a>
+    </nav>
+
+    <div class="rail-foot">
+      <div class="rail-state">
+        Draft
+        <dl>
+          <dt>Site</dt><dd>detailing-zone</dd>
+          <dt>Version</dt><dd id="rail-version">—</dd>
+          <dt>Serving</dt><dd>legacy</dd>
+        </dl>
+      </div>
+      <a class="rail-back" href="/admin">← Admin portal</a>
+    </div>
+  </aside>
+
+  <div class="studio-main">
+    <div class="topbar">
+      <div>
+        <h1>Catalog Manager</h1>
+        <div class="sub">Draft editor — staging only · the public site keeps serving legacy prices</div>
+      </div>
+      <div class="topbar-meta">
+        <span class="env-pill is-staging">Draft — not published</span>
+      </div>
+    </div>
+
+  <main class="page">
     <div id="auth-note" class="banner" hidden>Sign in via Admin first. Owner Studio reuses the Admin session.</div>
     <div id="status-banner" class="banner" role="status" aria-live="polite"></div>
     <div id="readonly-banner" class="banner readonly" role="status" hidden></div>
@@ -105,15 +76,18 @@
     <div id="catalog-action-bar" class="catalog-action-bar" role="region" aria-label="Catalog draft actions">
       <span class="bar-version">Draft version <b id="bar-version">—</b></span>
       <span id="bar-status" class="bar-status muted" aria-live="polite">Loading…</span>
+      <!-- Ordered by consequence: review, then discard, then the one write action.
+           Read-only controls sit after a separator so Save is never a mis-click away
+           from Reload. Publish/rollback are deliberately NOT here — an operator should
+           not scan past two permanently dead buttons to reach the live ones. -->
       <div class="bar-actions">
-        <button type="button" class="secondary" id="btn-discard" disabled>Discard draft changes</button>
-        <button type="button" id="btn-save" disabled>Save Draft</button>
+        <button type="button" class="secondary" id="btn-preview">Open draft preview</button>
         <button type="button" class="secondary" id="btn-preview-site" disabled title="Save or discard your draft changes before opening storefront preview.">Preview saved draft on website</button>
+        <span class="bar-sep" aria-hidden="true"></span>
         <button type="button" class="secondary" id="btn-reload">Reload</button>
         <button type="button" class="secondary warn" id="btn-reload-latest" hidden>Reload latest version</button>
-        <button type="button" class="secondary" id="btn-preview">Open draft preview</button>
-        <button type="button" disabled title="Publishing will be available after transactional release integration.">Publish (unavailable)</button>
-        <button type="button" disabled title="Rollback is not available in Stage 2.">Rollback (unavailable)</button>
+        <button type="button" class="secondary" id="btn-discard" disabled>Discard draft changes</button>
+        <button type="button" id="btn-save" disabled>Save Draft</button>
       </div>
       <span id="save-state" class="sr-only" aria-live="polite"></span>
     </div>
@@ -236,12 +210,29 @@
       <div id="revision-list"></div>
     </section>
 
+    <section class="panel" id="release" aria-labelledby="release-title">
+      <h2 id="release-title" style="margin-top:0;font-size:1rem">Release</h2>
+      <p class="muted" style="margin-top:0">
+        Saving a draft never changes the public website. The storefront keeps reading the legacy
+        booking catalog until a release is published <em>and</em>
+        <code>PUBLIC_CONTENT_SOURCE=owner-studio</code>. Transactional release integration is not
+        built yet, so both controls below are inert by design rather than by permission.
+      </p>
+      <div class="row">
+        <button type="button" disabled title="Publishing will be available after transactional release integration.">Publish (unavailable)</button>
+        <button type="button" disabled title="Rollback is not available in Stage 2.">Rollback (unavailable)</button>
+        <span class="badge">Serving: legacy</span>
+      </div>
+    </section>
+
     <section class="panel" id="preview" aria-labelledby="preview-title">
       <h2 id="preview-title" style="margin-top:0;font-size:1rem">Read-only draft preview</h2>
       <div class="banner">DRAFT PREVIEW — NOT PUBLISHED</div>
       <div id="preview-body" class="muted">Load preview to render draft cards.</div>
     </section>
-  </main>
+    </main>
+  </div>
+</div>
 
   <script src="/netlify/lib/admin-session-client.js"></script>
   <script src="/netlify/lib/owner-studio-catalog-ux-logic.js"></script>
@@ -329,6 +320,9 @@
       const ver = state.draft && state.draft.version != null ? String(state.draft.version) : '—';
       el('bar-version').textContent = ver;
       if (el('stat-version')) el('stat-version').textContent = ver;
+      // The rail mirrors the version so it stays legible once the sticky bar
+      // scrolls behind a long add-on list.
+      if (el('rail-version')) el('rail-version').textContent = ver;
       const statusEl = el('bar-status');
       let label = 'Saved';
       let cls = 'bar-status okmsg';
