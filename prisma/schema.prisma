@@ -748,11 +748,13 @@ model OsCatalogDraft {
   id        String   @id @default(cuid())
   siteId    String
   payload   Json
+  version   Int      @default(1)
   updatedAt DateTime @updatedAt
   updatedBy String?
 
   site OsSite @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
 
+  @@unique([siteId])
   @@index([siteId])
 }
 

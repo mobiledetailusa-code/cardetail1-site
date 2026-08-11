@@ -40,10 +40,13 @@ function read(file) {
 }
 
 function extractAssignedObject(source, name) {
-  const marker = `const ${name} =`;
-  const markerAt = source.indexOf(marker);
-  assert.notEqual(markerAt, -1, `${name} assignment missing`);
-  const start = source.indexOf('{', markerAt + marker.length);
+  // `let` is used on index.html for PRICING / LENGTH_PRICING because the Owner Studio
+  // saved-draft preview replaces them at runtime; both declaration forms are valid here.
+  const declaration = new RegExp(`(?:const|let)\\s+${name}\\s*=`);
+  const declarationMatch = declaration.exec(source);
+  assert.notEqual(declarationMatch, null, `${name} assignment missing`);
+  const markerAt = declarationMatch.index;
+  const start = source.indexOf('{', markerAt + declarationMatch[0].length);
   assert.notEqual(start, -1, `${name} opening brace missing`);
 
   let depth = 0;
@@ -98,7 +101,7 @@ function catalogPriceEntries() {
 test('13 booking pages match all 144 authoritative package values (1,872 comparisons)', () => {
   const discovered = fs.readdirSync(ROOT)
     .filter((file) => file.endsWith('.html'))
-    .filter((file) => /const PRICING\s*=/.test(read(file)))
+    .filter((file) => /(?:const|let)\s+PRICING\s*=/.test(read(file)))
     .sort();
   assert.deepEqual(discovered, BOOKING_PAGES.slice().sort());
 

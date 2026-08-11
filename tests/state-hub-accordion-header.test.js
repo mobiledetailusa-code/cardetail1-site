@@ -265,6 +265,8 @@ test('no Netlify Function files changed in this UX scope', () => {
   const changed = diff.split('\n').filter(Boolean);
   const functionChanges = changed.filter((file) => /^netlify\/functions\//.test(file));
   const allowed = new Set([
+    // Owner Studio Stage 2 Phase A — shared HttpOnly admin session cookie (multi-tab fix).
+    'netlify/functions/admin-auth.js',
     'netlify/functions/ai-chat.js',
     'netlify/functions/submit-booking.js',
     'netlify/functions/create-setup-intent.js',
@@ -325,6 +327,10 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/twilio-inbound.js',
     'netlify/functions/twilio-outbox-worker.js',
     'netlify/functions/twilio-status-callback.js',
+    // Owner Studio Stage 2 / 4B — protected catalog draft + preview APIs.
+    'netlify/functions/owner-studio-catalog.js',
+    'netlify/functions/owner-studio-catalog-preview.js',
+    'netlify/functions/admin-auth.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);

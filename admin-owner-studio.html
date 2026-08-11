@@ -5,102 +5,201 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Owner Studio — Cardetail1</title>
-  <style>
-    :root { --bg:#0f172a; --card:#1e293b; --ink:#e2e8f0; --muted:#94a3b8; --line:#334155; --accent:#38bdf8; --warn:#fbbf24; }
-    * { box-sizing: border-box; }
-    body { margin:0; font-family: Georgia, "Times New Roman", serif; background: linear-gradient(160deg,#0f172a,#1e293b 45%,#0b1220); color:var(--ink); min-height:100vh; }
-    header { padding:20px 28px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
-    h1 { margin:0; font-size:1.35rem; letter-spacing:.02em; }
-    .sub { color:var(--muted); font-size:.9rem; margin-top:4px; }
-    nav { display:flex; gap:10px; flex-wrap:wrap; padding:14px 28px; border-bottom:1px solid var(--line); }
-    nav a { color:var(--muted); text-decoration:none; font-size:.85rem; padding:6px 10px; border:1px solid transparent; border-radius:6px; }
-    nav a[aria-current="page"] { color:var(--ink); border-color:var(--line); background:rgba(255,255,255,.04); }
-    main { padding:28px; max-width:920px; }
-    .panel { background:rgba(30,41,59,.85); border:1px solid var(--line); border-radius:12px; padding:22px; }
-    .badge { display:inline-block; padding:4px 10px; border-radius:999px; font-size:.75rem; border:1px solid var(--line); color:var(--warn); }
-    .badge.on { color:#86efac; }
-    dl { display:grid; grid-template-columns:180px 1fr; gap:10px 16px; margin:18px 0 0; }
-    dt { color:var(--muted); } dd { margin:0; font-family: ui-monospace, Consolas, monospace; font-size:.9rem; }
-    .note { margin-top:18px; color:var(--muted); line-height:1.5; font-size:.95rem; }
-    a.back { color:var(--accent); text-decoration:none; font-size:.9rem; }
-  </style>
+  <link rel="stylesheet" href="/assets/owner-studio/studio.css">
 </head>
 <body>
-  <header>
-    <div>
-      <h1>Owner Studio</h1>
-      <div class="sub">Stage 1 foundation — read-only status shell</div>
+<div class="studio">
+
+  <aside class="studio-rail">
+    <div class="rail-brand">
+      <span class="rail-mark" aria-hidden="true">CD</span>
+      <span>
+        <b>Owner Studio</b>
+        <span>Control plane</span>
+      </span>
     </div>
-    <a class="back" href="/admin">← Admin</a>
-  </header>
-  <nav aria-label="Owner Studio">
-    <a href="#overview" aria-current="page">Overview</a>
-    <a href="#catalog">Catalog</a>
-    <a href="#pages">Pages</a>
-    <a href="#media">Media</a>
-    <a href="#navigation">Navigation</a>
-    <a href="#footer">Footer</a>
-    <a href="#releases">Releases</a>
-  </nav>
-  <main>
-    <div class="panel" id="overview">
-      <span class="badge" id="enabled-badge">Checking…</span>
-      <dl>
-        <dt>Content source</dt><dd id="content-source">—</dd>
-        <dt>Current release</dt><dd id="release-id">—</dd>
-        <dt>Draft validation</dt><dd id="draft-validation">—</dd>
-        <dt>Site ID</dt><dd>detailing-zone</dd>
-      </dl>
-      <p class="note" id="status-note">
-        Editing and publication controls are intentionally unavailable in Stage 1 until
-        services, authorization, and tests pass. With <code>OWNER_STUDIO_ENABLED=false</code>
-        (default), the public website remains on legacy content.
-      </p>
+
+    <nav class="rail-nav" aria-label="Owner Studio modules">
+      <span class="rail-heading">Workspace</span>
+      <a class="rail-link is-ready" href="/admin/owner-studio" aria-current="page">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Overview</span>
+      </a>
+      <a class="rail-link is-ready" href="/admin/owner-studio/catalog">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Catalog</span>
+      </a>
+
+      <span class="rail-heading">Planned</span>
+      <span class="rail-link is-planned" aria-disabled="true">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Pricing &amp; Travel</span>
+      </span>
+      <span class="rail-link is-planned" aria-disabled="true">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Content &amp; Media</span>
+      </span>
+      <span class="rail-link is-planned" aria-disabled="true">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Service Areas</span>
+      </span>
+      <span class="rail-link is-planned" aria-disabled="true">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Publishing</span>
+      </span>
+    </nav>
+
+    <div class="rail-foot">
+      <div class="rail-state">
+        Runtime
+        <dl>
+          <dt>Site</dt><dd>detailing-zone</dd>
+          <dt>Serving</dt><dd id="rail-source">—</dd>
+          <dt>Release</dt><dd id="rail-release">—</dd>
+        </dl>
+      </div>
+      <a class="rail-back" href="/admin">← Admin portal</a>
     </div>
-  </main>
-  <script src="/netlify/lib/admin-session-client.js"></script>
-  <script>
-    (async function () {
-      const badge = document.getElementById('enabled-badge');
-      const sourceEl = document.getElementById('content-source');
-      const releaseEl = document.getElementById('release-id');
-      const draftEl = document.getElementById('draft-validation');
-      const note = document.getElementById('status-note');
-      try {
-        const token = (window.CD1AdminSession && CD1AdminSession.getToken && CD1AdminSession.getToken()) || '';
-        const headers = { Accept: 'application/json' };
-        if (token) headers['x-admin-key'] = token;
-        const res = await fetch('/.netlify/functions/owner-studio-status', {
-          credentials: 'same-origin',
-          headers,
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 401 || res.status === 403) {
-          badge.textContent = 'Auth required';
-          note.textContent = 'Sign in via Admin first. Owner Studio reuses the Admin session — no separate password.';
-          sourceEl.textContent = 'legacy (default)';
-          releaseEl.textContent = 'n/a';
-          draftEl.textContent = 'n/a';
-          return;
-        }
-        const enabled = !!data.enabled;
-        badge.textContent = enabled ? 'Enabled (staging)' : 'Feature disabled';
-        badge.classList.toggle('on', enabled);
-        sourceEl.textContent = data.publicContentSource || 'legacy';
-        releaseEl.textContent = data.currentReleaseId || '(none — legacy)';
-        draftEl.textContent = data.draftValidation || (enabled ? 'No draft loaded' : 'Disabled');
-        if (!enabled) {
-          note.textContent = 'OWNER_STUDIO_ENABLED is false. Public site uses PUBLIC_CONTENT_SOURCE=legacy. No incomplete editors are exposed.';
-        } else {
-          note.textContent = 'Foundation status only. Draft/publish controls remain hidden until Stage 2+ UI gates pass.';
-        }
-      } catch (e) {
-        badge.textContent = 'Unavailable';
+  </aside>
+
+  <div class="studio-main">
+    <div class="topbar">
+      <div>
+        <h1>Overview</h1>
+        <div class="sub">What the public website is serving right now</div>
+      </div>
+      <div class="topbar-meta">
+        <span class="env-pill" id="enabled-badge">Checking…</span>
+      </div>
+    </div>
+
+    <main class="page">
+      <section class="grid" aria-label="Runtime state">
+        <div class="stat">Public content<b id="content-source">—</b></div>
+        <div class="stat">Current release<b id="release-id">—</b></div>
+        <div class="stat">Draft validation<b id="draft-validation">—</b></div>
+        <div class="stat">Site ID<b>detailing-zone</b></div>
+      </section>
+
+      <div class="panel">
+        <h2>Runtime</h2>
+        <p class="note" id="status-note">
+          Editing and publication controls are intentionally unavailable until services,
+          authorization, and tests pass. With <code>OWNER_STUDIO_ENABLED=false</code>
+          (default), the public website remains on legacy content.
+        </p>
+      </div>
+
+      <div class="panel" id="modules">
+        <h2>Control-plane modules</h2>
+        <p class="note" style="margin-top:6px">
+          Owner Studio is the authoritative control plane for the website's catalog, pricing and
+          content. Only modules that are actually implemented are openable — planned modules are
+          shown for roadmap context and are intentionally not navigable.
+        </p>
+        <ul class="modules">
+          <li class="module available">
+            <div class="m-head"><h3>Catalog</h3><span class="status">Available</span></div>
+            <p>Packages, add-ons, vehicle classes and integer-cent pricing. Draft → revision → restore, with conflict tracking.</p>
+            <div class="m-foot"><a class="open" href="/admin/owner-studio/catalog">Open Catalog Manager →</a></div>
+          </li>
+          <li class="module planned">
+            <div class="m-head"><h3>Pricing &amp; Travel</h3><span class="status">Planned</span></div>
+            <p>Travel-distance pricing, free radius, per-mile charges and fixed zones. Contract defined; module not yet built.</p>
+            <div class="m-foot"><span class="disabled" aria-disabled="true">Not yet available</span></div>
+          </li>
+          <li class="module planned">
+            <div class="m-head"><h3>Content &amp; Media</h3><span class="status">Planned</span></div>
+            <p>Cover images, galleries, alt text, page copy and SEO. Schema exists; editor not yet built.</p>
+            <div class="m-foot"><span class="disabled" aria-disabled="true">Not yet available</span></div>
+          </li>
+          <li class="module planned">
+            <div class="m-head"><h3>Service Areas</h3><span class="status">Planned</span></div>
+            <p>State, city and ZIP availability. Schema exists; editor not yet built.</p>
+            <div class="m-foot"><span class="disabled" aria-disabled="true">Not yet available</span></div>
+          </li>
+          <li class="module planned">
+            <div class="m-head"><h3>Publishing</h3><span class="status">Planned</span></div>
+            <p>Transactional publish of an immutable catalog release to the public site. Publish/rollback remain disabled.</p>
+            <div class="m-foot"><span class="disabled" aria-disabled="true">Not yet available</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>Delivery stages</h2>
+        <p class="note" style="margin-top:6px">
+          Owner Studio never becomes the runtime authority for any domain until a catalog version
+          is published <em>and</em> <code>PUBLIC_CONTENT_SOURCE=owner-studio</code>. Stage 6 is the
+          gate for that cutover.
+        </p>
+        <ul class="stages">
+          <li class="stage done"><span class="s-num">1</span><span class="s-name">Foundation — contracts, schema, services, flags</span><span class="badge ok">Shipped</span></li>
+          <li class="stage active"><span class="s-num">2</span><span class="s-name">Catalog Manager — packages, add-ons, prices</span><span class="badge ok">Shipped</span></li>
+          <li class="stage"><span class="s-num">3</span><span class="s-name">Media Library — uploads, alt text, references</span><span class="badge">Schema only</span></li>
+          <li class="stage active"><span class="s-num">4</span><span class="s-name">Global content editor — draft storefront preview</span><span class="badge warn">Preview only</span></li>
+          <li class="stage"><span class="s-num">5</span><span class="s-name">Page sections and gallery editor</span><span class="badge">Not started</span></li>
+          <li class="stage"><span class="s-num">6</span><span class="s-name">Publish, release history and rollback</span><span class="badge">Not started</span></li>
+        </ul>
+      </div>
+    </main>
+  </div>
+
+</div>
+
+<script src="/netlify/lib/admin-session-client.js"></script>
+<script>
+  (async function () {
+    const badge = document.getElementById('enabled-badge');
+    const sourceEl = document.getElementById('content-source');
+    const releaseEl = document.getElementById('release-id');
+    const draftEl = document.getElementById('draft-validation');
+    const note = document.getElementById('status-note');
+    const railSource = document.getElementById('rail-source');
+    const railRelease = document.getElementById('rail-release');
+
+    // The environment pill carries the answer to "am I about to change the live
+    // site?" — it must reflect one of three states and never sit on a stale one.
+    function setEnv(text, state) {
+      badge.textContent = text;
+      badge.className = 'env-pill' + (state ? ' is-' + state : '');
+    }
+
+    try {
+      const token = (window.CD1AdminSession && CD1AdminSession.getToken && CD1AdminSession.getToken()) || '';
+      const headers = { Accept: 'application/json' };
+      if (token) headers['x-admin-key'] = token;
+      const res = await fetch('/.netlify/functions/owner-studio-status', {
+        credentials: 'same-origin',
+        headers,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401 || res.status === 403) {
+        setEnv('Auth required', 'off');
+        note.textContent = 'Sign in via Admin first. Owner Studio reuses the Admin session — no separate password.';
         sourceEl.textContent = 'legacy';
-        releaseEl.textContent = '(none)';
-        draftEl.textContent = 'status endpoint error';
+        releaseEl.textContent = 'n/a';
+        draftEl.textContent = 'n/a';
+        railSource.textContent = 'legacy';
+        railRelease.textContent = 'n/a';
+        return;
       }
-    })();
-  </script>
+      const enabled = !!data.enabled;
+      const source = data.publicContentSource || 'legacy';
+      setEnv(enabled ? 'Studio enabled — staging' : 'Studio disabled', enabled ? 'staging' : 'off');
+      sourceEl.textContent = source;
+      releaseEl.textContent = data.currentReleaseId || 'none';
+      draftEl.textContent = data.draftValidation || (enabled ? 'No draft' : 'Disabled');
+      railSource.textContent = source;
+      railRelease.textContent = data.currentReleaseId || 'none';
+      if (!enabled) {
+        note.textContent = 'OWNER_STUDIO_ENABLED is false. Public site uses PUBLIC_CONTENT_SOURCE=legacy. No incomplete editors are exposed.';
+      } else {
+        note.innerHTML = 'Owner Studio is enabled for staging. Public source remains <code>legacy</code>. Open <a class="back" href="/admin/owner-studio/catalog">Catalog Manager</a> for draft editing. Publish/rollback remain unavailable.';
+      }
+    } catch (e) {
+      setEnv('Status unavailable', 'off');
+      sourceEl.textContent = 'legacy';
+      releaseEl.textContent = 'none';
+      draftEl.textContent = 'endpoint error';
+      railSource.textContent = 'legacy';
+      railRelease.textContent = 'none';
+    }
+  })();
+</script>
 </body>
 </html>

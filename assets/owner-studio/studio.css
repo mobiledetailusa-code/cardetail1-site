@@ -1,0 +1,559 @@
+/* ============================================================================
+   Owner Studio — shared design system
+   ----------------------------------------------------------------------------
+   One stylesheet for every Owner Studio surface, so the control plane reads as
+   a single product rather than a set of one-off admin pages.
+
+   Tokens derive from the public site's brand (index.html :root) — warm charcoal
+   surfaces, gold rules, blue for action — so the back office looks like it
+   belongs to the same business as the storefront.
+
+   Fonts are named, never fetched: DM Sans matches the storefront when the
+   operator's machine has it and degrades to the system UI stack otherwise. An
+   internal tool must not block first paint on a third-party font host.
+
+   Legacy class names (.panel, .stat, .row, .badge, .list-btn, .addon-*, …) are
+   preserved verbatim because page JavaScript generates markup against them.
+   ========================================================================== */
+
+:root {
+  /* Surfaces — low to high elevation */
+  --os-bg: #0d1218;
+  --os-surface: #141b24;
+  --os-surface-2: #1a232e;
+  --os-surface-3: #212c39;
+  --os-sunken: #0a0f14;
+
+  /* Ink */
+  --os-ink: #e8e4dd;
+  --os-ink-soft: #a7b3c1;
+  --os-muted: #8b97a8;
+
+  /* Brand */
+  --os-gold: #c4a574;
+  --os-gold-dim: rgba(196, 165, 116, 0.12);
+  --os-blue: #4d8fd9;
+  --os-blue-hover: #5c9ce4;
+  --os-blue-dim: rgba(77, 143, 217, 0.14);
+
+  /* Semantic */
+  --os-ok: #34c759;
+  --os-ok-dim: rgba(52, 199, 89, 0.12);
+  --os-warn: #d4a054;
+  --os-warn-dim: rgba(212, 160, 84, 0.12);
+  --os-bad: #ef4444;
+  --os-bad-dim: rgba(239, 68, 68, 0.12);
+
+  /* Rules */
+  --os-line: rgba(196, 165, 116, 0.12);
+  --os-line-strong: rgba(196, 165, 116, 0.22);
+  --os-line-plain: rgba(255, 255, 255, 0.07);
+
+  /* Shape + depth */
+  --os-r: 10px;
+  --os-r-sm: 7px;
+  --os-r-lg: 14px;
+  --os-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+  --os-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
+
+  /* Type */
+  --os-font: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --os-mono: ui-monospace, 'Cascadia Mono', Consolas, 'SF Mono', monospace;
+
+  --os-rail: 244px;
+  /* Height of the sticky top bar. The catalog action bar sticks directly beneath
+     it, so both must read the same number or the bar slides under the header. */
+  --os-topbar: 76px;
+
+  /* Compatibility aliases — the catalog page's inline styles and generated
+     markup still reference the original Stage 2 variable names. */
+  --bg: var(--os-bg);
+  --card: var(--os-surface);
+  --ink: var(--os-ink);
+  --muted: var(--os-muted);
+  --line: var(--os-line);
+  --accent: var(--os-blue);
+  --warn: var(--os-warn);
+  --ok: var(--os-ok);
+  --bad: var(--os-bad);
+  --focus: var(--os-gold);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--os-bg);
+  color: var(--os-ink);
+  font-family: var(--os-font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every focusable surface gets the same visible ring — this is an internal tool
+   operated largely by keyboard, and a lost focus ring costs real time. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--os-gold);
+  outline-offset: 2px;
+  border-radius: var(--os-r-sm);
+}
+
+/* ── Shell ─────────────────────────────────────────────────────────────── */
+
+.studio {
+  display: grid;
+  grid-template-columns: var(--os-rail) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.studio-rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 14px;
+  background: var(--os-sunken);
+  border-right: 1px solid var(--os-line);
+}
+
+.rail-brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
+
+.rail-mark {
+  width: 30px; height: 30px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  background: linear-gradient(150deg, var(--os-gold), #8d7444);
+  color: #1a1206;
+  font-weight: 700; font-size: .82rem; letter-spacing: .04em;
+}
+
+.rail-brand b { display: block; font-size: .95rem; letter-spacing: .01em; }
+.rail-brand span { display: block; color: var(--os-muted); font-size: .72rem; }
+
+.rail-nav { display: flex; flex-direction: column; gap: 2px; }
+
+.rail-heading {
+  padding: 10px 10px 4px;
+  color: var(--os-muted);
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.rail-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--os-r-sm);
+  color: var(--os-ink-soft);
+  font-size: .875rem;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.rail-link:hover { background: rgba(255, 255, 255, 0.04); color: var(--os-ink); }
+
+.rail-link[aria-current="page"] {
+  background: var(--os-blue-dim);
+  border-color: rgba(77, 143, 217, 0.3);
+  color: var(--os-ink);
+  font-weight: 600;
+}
+
+.rail-link .rl-name { flex: 1; min-width: 0; }
+
+/* Planned modules stay visible for roadmap context but must never look
+   clickable — an operator should be able to tell at a glance what exists. */
+.rail-link.is-planned {
+  color: var(--os-muted);
+  cursor: not-allowed;
+  opacity: .72;
+}
+.rail-link.is-planned:hover { background: transparent; color: var(--os-muted); }
+
+.rail-dot {
+  width: 6px; height: 6px; flex: none;
+  border-radius: 50%;
+  background: var(--os-muted);
+}
+.rail-link.is-ready .rail-dot { background: var(--os-ok); box-shadow: 0 0 0 3px var(--os-ok-dim); }
+.rail-link.is-planned .rail-dot { background: transparent; border: 1px solid var(--os-muted); }
+
+.rail-foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+
+.rail-state {
+  padding: 10px;
+  border: 1px solid var(--os-line);
+  border-radius: var(--os-r-sm);
+  background: var(--os-surface);
+  font-size: .74rem;
+  color: var(--os-muted);
+}
+.rail-state dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; margin: 6px 0 0; }
+.rail-state dt { color: var(--os-muted); }
+.rail-state dd { margin: 0; color: var(--os-ink-soft); font-family: var(--os-mono); text-align: right; }
+
+.rail-back { color: var(--os-muted); font-size: .8rem; text-decoration: none; padding: 0 10px; }
+.rail-back:hover { color: var(--os-ink); }
+
+.studio-main { display: flex; flex-direction: column; min-width: 0; }
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-height: var(--os-topbar);
+  padding: 14px 26px;
+  background: rgba(13, 18, 24, 0.92);
+  border-bottom: 1px solid var(--os-line);
+  backdrop-filter: blur(8px);
+}
+
+.topbar h1 { margin: 0; font-size: 1.08rem; font-weight: 600; letter-spacing: .01em; }
+.topbar .sub { margin-top: 2px; color: var(--os-muted); font-size: .8rem; }
+.topbar-meta { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Environment pill — the single most important thing on screen. An operator
+   must never wonder whether they are editing staging or production. */
+.env-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--os-line-strong);
+  background: var(--os-surface);
+  font-size: .76rem;
+  font-weight: 600;
+  color: var(--os-ink-soft);
+}
+.env-pill::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--os-muted);
+}
+.env-pill.is-live::before { background: var(--os-ok); box-shadow: 0 0 0 3px var(--os-ok-dim); }
+.env-pill.is-staging::before { background: var(--os-warn); box-shadow: 0 0 0 3px var(--os-warn-dim); }
+.env-pill.is-off::before { background: var(--os-bad); box-shadow: 0 0 0 3px var(--os-bad-dim); }
+
+.page { padding: 22px 26px 64px; max-width: 1280px; width: 100%; }
+
+/* ── Surfaces ──────────────────────────────────────────────────────────── */
+
+.panel {
+  background: var(--os-surface);
+  border: 1px solid var(--os-line);
+  border-radius: var(--os-r);
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--os-shadow);
+}
+
+.panel > h2 { font-size: .95rem; font-weight: 600; letter-spacing: .01em; }
+.panel > h2:first-child { margin-top: 0; }
+
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 18px; }
+
+.stat {
+  background: var(--os-surface);
+  border: 1px solid var(--os-line);
+  border-radius: var(--os-r);
+  padding: 13px 15px;
+  color: var(--os-muted);
+  font-size: .76rem;
+  font-weight: 500;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.stat b {
+  display: block;
+  margin-top: 5px;
+  color: var(--os-ink);
+  font-family: var(--os-mono);
+  font-size: 1.45rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+
+.split { display: grid; gap: 16px; grid-template-columns: 1fr; }
+@media (min-width: 1040px) { .split { grid-template-columns: 1.15fr .85fr; align-items: start; } }
+
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+/* ── Controls ──────────────────────────────────────────────────────────── */
+
+label { display: block; margin-bottom: 4px; color: var(--os-muted); font-size: .76rem; font-weight: 500; }
+
+input, select, textarea, button { font: inherit; }
+
+input, select, textarea {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--os-sunken);
+  color: var(--os-ink);
+  border: 1px solid var(--os-line-plain);
+  border-radius: var(--os-r-sm);
+}
+input:hover, select:hover, textarea:hover { border-color: var(--os-line-strong); }
+textarea { min-height: 84px; resize: vertical; }
+
+/* Money and identifiers are compared column-wise; tabular figures make a
+   mistyped digit visible instead of merely present. */
+input[type="number"], #f-id, code { font-family: var(--os-mono); font-variant-numeric: tabular-nums; }
+
+button {
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--os-r-sm);
+  background: var(--os-blue);
+  color: #06192c;
+  font-weight: 600;
+  font-size: .85rem;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { background: var(--os-blue-hover); }
+
+button.secondary {
+  background: var(--os-surface-2);
+  color: var(--os-ink);
+  border-color: var(--os-line-plain);
+}
+button.secondary:hover:not(:disabled) { background: var(--os-surface-3); border-color: var(--os-line-strong); }
+
+button.warn { background: var(--os-warn-dim); color: var(--os-warn); border-color: rgba(212, 160, 84, 0.4); }
+button.warn:hover:not(:disabled) { background: rgba(212, 160, 84, 0.2); }
+
+button:disabled { opacity: .42; cursor: not-allowed; }
+
+.list-btn {
+  display: block;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 9px 11px;
+  text-align: left;
+  background: transparent;
+  color: var(--os-ink);
+  border: 1px solid var(--os-line-plain);
+  font-weight: 500;
+}
+.list-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.04); border-color: var(--os-line-strong); }
+.list-btn[aria-current="true"] {
+  background: var(--os-blue-dim);
+  border-color: rgba(77, 143, 217, 0.45);
+  font-weight: 600;
+}
+
+/* ── Status vocabulary ─────────────────────────────────────────────────── */
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--os-line-plain);
+  background: var(--os-surface-2);
+  color: var(--os-ink-soft);
+  font-size: .72rem;
+  font-weight: 600;
+}
+.badge.warn { color: var(--os-warn); border-color: rgba(212, 160, 84, 0.35); background: var(--os-warn-dim); }
+.badge.ok { color: var(--os-ok); border-color: rgba(52, 199, 89, 0.35); background: var(--os-ok-dim); }
+.badge.bad { color: var(--os-bad); border-color: rgba(239, 68, 68, 0.35); background: var(--os-bad-dim); }
+/* [hidden] must beat .badge's display, or the toggled "Unsaved changes" badge never hides. */
+.badge[hidden] { display: none; }
+
+.muted { color: var(--os-muted); }
+.err { color: var(--os-bad); }
+.okmsg { color: var(--os-ok); }
+
+.banner {
+  margin-bottom: 14px;
+  padding: 10px 13px;
+  border: 1px solid rgba(212, 160, 84, 0.35);
+  border-radius: var(--os-r-sm);
+  background: var(--os-warn-dim);
+  color: #f0d9a8;
+  font-size: .86rem;
+}
+.banner:empty { display: none; }
+.banner.readonly { border-left: 3px solid var(--os-warn); font-weight: 600; }
+
+/* ── Tables ────────────────────────────────────────────────────────────── */
+
+table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+th, td { padding: 9px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--os-line-plain); }
+th { color: var(--os-muted); font-weight: 600; font-size: .74rem; letter-spacing: .04em; text-transform: uppercase; }
+tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+/* ── Catalog: add-on accordion ─────────────────────────────────────────── */
+
+.addon-row {
+  margin-bottom: 7px;
+  border: 1px solid var(--os-line-plain);
+  border-radius: var(--os-r-sm);
+  background: var(--os-surface-2);
+  overflow: hidden;
+}
+.addon-row.dirty { border-color: rgba(212, 160, 84, 0.5); }
+
+.addon-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: transparent;
+  color: var(--os-ink);
+  border: 0;
+  border-radius: 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+.addon-summary:hover { background: rgba(255, 255, 255, 0.04); }
+.addon-summary .chev { color: var(--os-muted); transition: transform .15s ease; }
+.addon-summary[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.addon-summary .a-name { flex: 1; min-width: 0; }
+.addon-summary .a-price { font-family: var(--os-mono); font-variant-numeric: tabular-nums; }
+.addon-summary .muted { font-weight: 400; }
+
+.addon-editor { padding: 13px; border-top: 1px solid var(--os-line-plain); background: var(--os-sunken); }
+.addon-editor .grid2 { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+
+.price-grid { display: grid; gap: 9px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+
+/* ── Catalog: draft action bar ─────────────────────────────────────────── */
+
+.catalog-action-bar {
+  position: sticky;
+  top: var(--os-topbar);
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 16px;
+  padding: 11px 14px;
+  background: rgba(20, 27, 36, 0.96);
+  border: 1px solid var(--os-line);
+  border-radius: var(--os-r);
+  box-shadow: var(--os-shadow);
+  backdrop-filter: blur(8px);
+}
+.catalog-action-bar .bar-version { color: var(--os-muted); font-size: .8rem; }
+.catalog-action-bar .bar-version b { color: var(--os-ink); font-family: var(--os-mono); font-variant-numeric: tabular-nums; }
+.catalog-action-bar .bar-status { flex: 1; min-width: 150px; font-size: .85rem; }
+.catalog-action-bar .bar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+.catalog-action-bar .bar-sep { width: 1px; align-self: stretch; margin: 0 2px; background: var(--os-line-plain); }
+
+/* ── Dashboard modules ─────────────────────────────────────────────────── */
+
+.modules {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
+}
+
+.module {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--os-line-plain);
+  border-radius: var(--os-r);
+  background: var(--os-surface-2);
+}
+.module h3 { margin: 0; font-size: .95rem; font-weight: 600; }
+.module p { margin: 0; color: var(--os-muted); font-size: .82rem; line-height: 1.45; }
+.module .m-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.module .status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--os-line-plain);
+  color: var(--os-muted);
+  font-size: .7rem;
+  font-weight: 600;
+}
+.module .m-foot { margin-top: auto; padding-top: 4px; }
+.module.available { border-color: rgba(77, 143, 217, 0.3); }
+.module.available .status { color: var(--os-ok); border-color: rgba(52, 199, 89, 0.35); background: var(--os-ok-dim); }
+.module.planned { opacity: .74; }
+.module a.open { color: var(--os-blue); font-weight: 600; text-decoration: none; }
+.module a.open:hover { text-decoration: underline; }
+.module .disabled { color: var(--os-muted); font-size: .8rem; }
+
+/* Stage ledger — the roadmap as shipped state, not a document to go read. */
+.stages { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 6px; }
+.stage {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--os-line-plain);
+  border-radius: var(--os-r-sm);
+  background: var(--os-surface-2);
+  font-size: .85rem;
+}
+.stage .s-num { color: var(--os-muted); font-family: var(--os-mono); font-size: .78rem; }
+.stage .s-name { color: var(--os-ink-soft); }
+.stage.done { border-color: rgba(52, 199, 89, 0.25); }
+.stage.done .s-name { color: var(--os-ink); }
+.stage.active { border-color: rgba(77, 143, 217, 0.35); background: var(--os-blue-dim); }
+.stage.active .s-name { color: var(--os-ink); font-weight: 600; }
+
+dl.facts { display: grid; grid-template-columns: 172px 1fr; gap: 9px 16px; margin: 16px 0 0; }
+dl.facts dt { color: var(--os-muted); font-size: .84rem; }
+dl.facts dd { margin: 0; font-family: var(--os-mono); font-size: .84rem; }
+
+.note { margin-top: 16px; color: var(--os-muted); font-size: .875rem; line-height: 1.55; }
+a.back { color: var(--os-blue); text-decoration: none; }
+a.back:hover { text-decoration: underline; }
+code { padding: 1px 5px; border-radius: 4px; background: var(--os-sunken); font-size: .86em; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); border: 0;
+}
+
+/* ── Narrow viewports ──────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .studio { grid-template-columns: 1fr; }
+  .studio-rail {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 12px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--os-line);
+  }
+  .rail-nav { flex-direction: row; gap: 6px; }
+  .rail-heading, .rail-state { display: none; }
+  .rail-foot { margin: 0; }
+  .rail-link { white-space: nowrap; }
+  .topbar { top: 0; padding: 12px 16px; }
+  .catalog-action-bar { position: static; }
+  .page { padding: 16px 16px 48px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
