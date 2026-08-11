@@ -349,10 +349,11 @@ describe('owner-studio storefront catalog preview API (4B-1)', () => {
 
   it('11. legacy storefront behavior remains unchanged', () => {
     const booking = fs.readFileSync(path.join(ROOT, 'netlify', 'lib', 'booking-price-catalog.js'), 'utf8');
-    // Amount-agnostic: asserts the legacy file still carries the car tier prices inline,
-    // without freezing a business price that master reprices on its own cadence.
-    const { PRICING } = require('../netlify/lib/booking-price-catalog');
-    assert.match(booking, new RegExp(`small:[\\s\\S]*full:\\s*${PRICING.cars.tiers.small.full}\\b`));
+    // Amount-agnostic: the legacy file must still own the car tier prices as inline
+    // literals and never read them back from Owner Studio. Freezing the amount here only
+    // breaks the next legitimate repricing; parity is covered in package-price-parity.
+    assert.match(booking, /small:\s*\{[^}]*full:\s*\d+/);
+    assert.doesNotMatch(booking, /owner-studio|ownerStudio/);
     const flags = fs.readFileSync(path.join(ROOT, 'netlify', 'lib', 'owner-studio', 'flags.js'), 'utf8');
     assert.match(flags, /PUBLIC_CONTENT_SOURCE/);
     const index = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');

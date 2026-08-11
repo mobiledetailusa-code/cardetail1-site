@@ -244,10 +244,13 @@ describe('owner-studio catalog manager unit', () => {
 
   it('legacy booking catalog source remains authority file', () => {
     const booking = fs.readFileSync(path.join(__dirname, '..', 'netlify', 'lib', 'booking-price-catalog.js'), 'utf8');
-    // The invariant is that the legacy file still literally carries the car tier prices —
-    // not any specific amount, which the business reprices independently of Owner Studio.
-    const { PRICING } = require('../netlify/lib/booking-price-catalog');
-    assert.match(booking, new RegExp(`small:[\\s\\S]*full:\\s*${PRICING.cars.tiers.small.full}\\b`));
+    // Structure, not amount. The invariant is that the legacy file still owns the car
+    // tier prices as inline literals and never defers to Owner Studio for them; the
+    // specific amount is a business decision repriced on its own cadence, and pinning it
+    // here only produces a false failure the next time marketing changes a price.
+    // Legacy-vs-page price parity is enforced properly in package-price-parity.test.js.
+    assert.match(booking, /small:\s*\{[^}]*full:\s*\d+/);
+    assert.doesNotMatch(booking, /owner-studio|ownerStudio/);
     const flags = fs.readFileSync(path.join(__dirname, '..', 'netlify', 'lib', 'owner-studio', 'flags.js'), 'utf8');
     assert.match(flags, /PUBLIC_CONTENT_SOURCE/);
   });
