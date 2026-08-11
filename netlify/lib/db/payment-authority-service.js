@@ -317,10 +317,30 @@ async function reconcileStalePaymentAttempts({
     for (const attempt of attempts) {
       const ageMs = attemptAgeMs(attempt, nowMs);
       const providerObjectId = String(attempt.providerObjectId || '');
+
       // A young attempt is presumed live; only an aged one is worth a round trip.
-      if (ageMs < staleAfterMs || !providerObjectId.startsWith('pi_')) {
+      if (ageMs < staleAfterMs) {
         summary.active += 1;
         summary.blocked = summary.blocked || { attempt, ageMs, stripeStatus: null };
+        continue;
+      }
+
+      // No payment intent and old enough that no request could still be running:
+      // this attempt never reached Stripe, so no money exists behind it and
+      // there is nothing that could ever close it. Leaving it open blocks every
+      // future amount change on the booking forever — the exact trap the first
+      // cut of this function walked into by skipping these.
+      if (!providerObjectId.startsWith('pi_')) {
+        await prisma.paymentAttempt.update({
+          where: { id: attempt.id },
+          data: { status: 'canceled', failureCode: 'never_reached_stripe' },
+        });
+        summary.closed += 1;
+        console.log('[payment-authority] attempt closed — never reached Stripe', {
+          attemptId: attempt.id,
+          previousStatus: attempt.status,
+          ageMinutes: Math.round(ageMs / 60000),
+        });
         continue;
       }
 

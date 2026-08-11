@@ -156,14 +156,41 @@ describe('reconcileStalePaymentAttempts', () => {
     assert.equal(out.closed, 0);
   });
 
-  it('ignores an attempt with no Stripe object to ask about', async () => {
+  it('closes an aged attempt that never reached Stripe', async () => {
+    // No payment intent and old enough that no request could still be running:
+    // nothing exists at Stripe to close it, so leaving it open blocks every
+    // future amount change on the booking permanently. This is the case the
+    // first cut skipped, and the one that kept blocking add-on approvals in
+    // production after the fix shipped.
     const prisma = prismaWith([attempt({ providerObjectId: null, status: 'creating' })]);
     fakePrisma = prisma;
+    let asked = false;
+
     const out = await reconcileStalePaymentAttempts({
-      bookingId: 'CD1-STUCK', env: ENV, fetchImpl: stripeReturning('succeeded'),
+      bookingId: 'CD1-STUCK',
+      env: ENV,
+      fetchImpl: () => { asked = true; return stripeReturning('succeeded')(); },
     });
-    assert.equal(out.checked, 0);
+
+    assert.equal(asked, false, 'there is no payment intent to ask about');
+    assert.equal(out.closed, 1);
+    assert.equal(out.active, 0);
+    assert.equal(prisma.updates[0].data.status, 'canceled');
+    assert.equal(prisma.updates[0].data.failureCode, 'never_reached_stripe');
+  });
+
+  it('leaves a young attempt without a payment intent alone', async () => {
+    // Mid-creation: the request that reserved it may still be running.
+    const prisma = prismaWith([attempt({
+      providerObjectId: null, status: 'creating', createdAt: FRESH, updatedAt: FRESH,
+    })]);
+    fakePrisma = prisma;
+
+    const out = await reconcileStalePaymentAttempts({ bookingId: 'CD1-STUCK', env: ENV });
+
+    assert.equal(out.closed, 0);
     assert.equal(out.active, 1);
+    assert.equal(prisma.updates.length, 0);
   });
 
   it('actually reaches Prisma rather than swallowing a missing import', async () => {
