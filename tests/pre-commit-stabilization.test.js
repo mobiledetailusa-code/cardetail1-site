@@ -326,6 +326,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/owner-studio/ids.js',
     'netlify/lib/owner-studio/importer.js',
     'netlify/lib/owner-studio/index.js',
+    'netlify/lib/owner-studio/media/media-references.js',
     'netlify/lib/owner-studio/money.js',
     'netlify/lib/owner-studio/preview-transaction-guard.js',
     'netlify/lib/owner-studio/release-repository.js',
