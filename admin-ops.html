@@ -530,9 +530,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 <script src="assets/admin-source-state.js"></script>
 <script>
 (function(){
-  const KEY = CD1AdminSession.SESS_KEY;
-  const token = CD1AdminSession.getToken();
-  if (!token) { location.replace('admin.html'); return; }
+  // No synchronous sign-in check here. The token lives in sessionStorage, which is
+  // per-tab, while the server also accepts the HttpOnly admin cookie shared across
+  // same-origin tabs — and JS cannot read an HttpOnly cookie, so "signed in?" is only
+  // answerable by asking the server. Bouncing on an empty local token logged out every
+  // tab opened via ctrl-click, bookmark or pasted URL. ensureAdminSession() below is
+  // the single gate; everything between here and it only binds DOM handlers.
 
   const JOB_STATUSES = ['pending_review','confirmed','assigned','accepted','en_route','arrived','in_progress','issue_reported','completed_pending_admin_review','completed_pending_payment','completed_paid','reopened','cancelled'];
   const PAY_STATUSES = ['no_payment_required_yet','pending_admin_review','awaiting_customer_payment','payment_action_required','payment_succeeded','payment_failed','cash_paid','refunded'];
@@ -620,13 +623,20 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
 
   async function ensureAdminSession() {
+    // An empty token is not "signed out" — a tab authenticated by the shared HttpOnly
+    // cookie has none. Ask the server with credentials and let it decide; admin-auth's
+    // validate falls back through body.token || x-admin-key || cookie.
     const t = CD1AdminSession.getToken();
-    if (!t) { location.replace('admin.html'); return false; }
+    const headers = { 'Content-Type': 'application/json' };
+    if (t) headers['x-admin-key'] = t;
+    const payload = { action: 'validate' };
+    if (t) payload.token = t;
     try {
       const res = await fetch('/.netlify/functions/admin-auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': t },
-        body: JSON.stringify({ action: 'validate', token: t }),
+        credentials: 'same-origin',
+        headers,
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!data.ok) { CD1AdminSession.clearToken(); location.replace('admin.html'); return false; }

@@ -5,7 +5,9 @@ $tcp.Server.SetSocketOption([System.Net.Sockets.SocketOptionLevel]::Socket, [Sys
 $tcp.Start()
 Write-Host "Ready on http://localhost:5500"
 
-$root = 'C:\Users\magno\Desktop\dz project'
+# Repo root = this script's parent's parent (.claude/serve.ps1 -> repo). Derived rather
+# than hardcoded so the preview works from any clone or worktree, not one Desktop path.
+$root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $homePage = 'index.html'
 
 $mime = @{

@@ -4,7 +4,7 @@
     {
       "name": "cardetail1",
       "runtimeExecutable": "powershell",
-      "runtimeArgs": ["-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", "C:\\Users\\magno\\Desktop\\dz project\\.claude\\serve.ps1"],
+      "runtimeArgs": ["-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ".claude/serve.ps1"],
       "port": 5500
     }
   ]

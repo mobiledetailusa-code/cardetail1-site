@@ -235,6 +235,7 @@
 </div>
 
   <script src="/netlify/lib/admin-session-client.js"></script>
+  <script src="/assets/owner-studio/session-gate.js"></script>
   <script src="/netlify/lib/owner-studio-catalog-ux-logic.js"></script>
   <script>
   (function () {
@@ -872,7 +873,12 @@
       if (!result.ok) {
         if (ed) {
           const msg = ed.querySelector('[data-editor-msg]');
-          if (msg) { msg.textContent = 'Fix the highlighted price fields before applying.'; msg.className = 'err'; }
+          if (msg) {
+            msg.textContent = result.error === 'category_without_price'
+              ? `Add a price row for ${(result.categories || []).join(', ')} before offering this add-on there.`
+              : 'Fix the highlighted price fields before applying.';
+            msg.className = 'err';
+          }
         }
         return false;
       }
@@ -932,6 +938,55 @@
       return true;
     }
 
+    // Categories an add-on can be offered in. Derived from the draft rather than
+    // hardcoded, plus whatever the add-on already carries, so a category that exists
+    // in the catalog but not in this list can never be silently dropped on save.
+    function catalogCategories(buf) {
+      const fromDraft = (state.draft.packages || []).map((p) => p.category).filter(Boolean);
+      const fromVcs = (state.draft.vehicleClasses || []).map((v) => v.category).filter(Boolean);
+      const current = (buf && buf.categories) || [];
+      return [...new Set([...fromDraft, ...fromVcs, ...current])].sort();
+    }
+
+    function renderAddonCompatibility(ed, buf) {
+      const box = ed.querySelector('[data-compat]');
+      if (!box) return;
+      box.innerHTML = '';
+      for (const cat of catalogCategories(buf)) {
+        const checked = (buf.categories || []).indexOf(cat) >= 0;
+        const priced = (buf.prices || []).some((pr) => pr && pr.category === cat);
+        const label = document.createElement('label');
+        label.style.cssText = 'display:flex;align-items:center;gap:6px;margin:0;font-size:.85rem;color:var(--os-ink)';
+        label.innerHTML = `<input type="checkbox" data-compat-cat="${escapeHtml(cat)}" ${checked ? 'checked' : ''} style="width:auto">`
+          + `<span>${escapeHtml(cat)}</span>`
+          + (priced ? '' : ' <span class="badge warn" title="No price row for this category">no price</span>');
+        box.appendChild(label);
+      }
+      box.querySelectorAll('input[data-compat-cat]').forEach((cb) => {
+        cb.addEventListener('change', () => {
+          const cat = cb.getAttribute('data-compat-cat');
+          const set = new Set(buf.categories || []);
+          if (cb.checked) set.add(cat); else set.delete(cat);
+          buf.categories = [...set];
+          const err = ed.querySelector('[data-compat-err]');
+          const missing = Ux.addonCategoriesMissingPrice(buf);
+          if (err) {
+            err.hidden = !missing.length;
+            err.textContent = missing.length
+              ? `Add a price row for ${missing.join(', ')} before offering this add-on there.`
+              : '';
+          }
+          markAddonDirty(a_for(ed), ed.closest('.addon-row'));
+        });
+      });
+    }
+
+    /** Resolve the canonical add-on an open editor belongs to. */
+    function a_for(ed) {
+      const id = ed.getAttribute('data-addon-id');
+      return (state.draft.addOns || []).find((x) => x.addOnId === id);
+    }
+
     function buildAddonEditor(a, row, priceSpan, badgeWrap) {
       const buf = ensureAddonBuffer(a);
       const ed = document.createElement('div');
@@ -949,6 +1004,12 @@
         <div style="margin-top:10px"><label>Price(s) — USD (saved as integer cents)</label>
           <div class="price-grid" data-prices></div>
         </div>
+        <div style="margin-top:12px">
+          <label>Offered on</label>
+          <p class="muted" style="margin:0 0 6px;font-size:.8rem">Which booking categories show this add-on. A category needs its own price row above — otherwise the storefront would fall back to another category's amount.</p>
+          <div class="row" data-compat></div>
+          <small class="err" data-compat-err hidden></small>
+        </div>
         <div class="row" style="margin-top:12px">
           <button type="button" data-addon-apply>Apply add-on changes</button>
           <button type="button" class="secondary" data-addon-cancel>Cancel</button>
@@ -965,6 +1026,7 @@
           priceBox.appendChild(wrap);
         });
       }
+      renderAddonCompatibility(ed, buf);
       const msg = ed.querySelector('[data-editor-msg]');
       // Keystrokes update the local buffer only — never state.draft.
       ed.querySelector('[data-f="name"]').addEventListener('input', (e) => { buf.name = e.target.value; });

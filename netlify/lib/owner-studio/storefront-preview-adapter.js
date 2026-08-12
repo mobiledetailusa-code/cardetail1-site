@@ -138,8 +138,19 @@
         const addonId = String(a.legacyKey || '');
         if (!addonId) throw adapterError('preview_unmapped_addon', 'add-on missing legacyKey: ' + a.addOnId);
         const prices = Array.isArray(a.prices) ? a.prices : [];
-        const priceRow = prices.find((pr) => pr.category === cat) || prices[0];
-        if (!priceRow) throw adapterError('preview_addon_no_price', 'add-on missing price: ' + a.addOnId);
+        // Exact category match only. This used to fall back to prices[0], which meant
+        // an add-on offered in a category it had no price for silently inherited
+        // another category's amount — a $40 cars add-on billing $40 on an RV. An
+        // ambiguous price on a money surface must fail, never be guessed: the importer
+        // always writes a price row alongside each compatibility row, so a missing one
+        // is a hand-edited draft, not a supported shape.
+        const priceRow = prices.find((pr) => pr.category === cat);
+        if (!priceRow) {
+          throw adapterError(
+            'preview_addon_no_price',
+            'add-on ' + a.addOnId + ' is offered in "' + cat + '" but has no price row for it',
+          );
+        }
         outAddOns.push({
           id: addonId,
           name: a.name || addonId,
