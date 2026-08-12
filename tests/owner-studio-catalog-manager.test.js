@@ -231,15 +231,20 @@ describe('owner-studio catalog manager unit', () => {
     assert.ok(body.includes('publish'));
   });
 
-  it('UI and route exist without active publish controls', () => {
+  it('the Catalog Manager carries no publish control of its own', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'admin-owner-studio-catalog.html'), 'utf8');
-    assert.match(html, /Publish \(unavailable\)/);
-    assert.match(html, /Rollback \(unavailable\)/);
+    // Publish and rollback moved to the Publishing module. The invariant this test has
+    // always guarded — the draft editor cannot publish — is now that it holds no
+    // publish action at all, only a link to the screen that does.
+    assert.doesNotMatch(html, /action:\s*'publish'/);
+    assert.doesNotMatch(html, /action:\s*'rollback'/);
+    assert.doesNotMatch(html, /owner-studio-release/, 'the draft editor must not call the release API');
+    assert.match(html, /href="\/admin\/owner-studio\/publishing"/);
     assert.match(html, /DRAFT PREVIEW — NOT PUBLISHED/);
     assert.match(html, /noindex/);
-    assert.doesNotMatch(html, /action:\s*'publish'/);
     const toml = fs.readFileSync(path.join(__dirname, '..', 'netlify.toml'), 'utf8');
     assert.match(toml, /\/admin\/owner-studio\/catalog/);
+    assert.match(toml, /\/admin\/owner-studio\/publishing/);
   });
 
   it('legacy booking catalog source remains authority file', () => {
