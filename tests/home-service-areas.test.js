@@ -203,6 +203,7 @@ test('no Netlify Function files changed in this scope', () => {
     // Owner Studio — protected status + catalog draft APIs (flags off by default).
     'netlify/functions/owner-studio-status.js',
     'netlify/functions/owner-studio-catalog.js',
+    'netlify/functions/owner-studio-release.js',
     'netlify/functions/owner-studio-catalog-preview.js',
     'netlify/functions/admin-auth.js',
   ]);
