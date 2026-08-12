@@ -283,14 +283,53 @@
    * the last-known integer cents and a raw USD string for the input. Typing must
    * update only this buffer — never the canonical draft — until Apply succeeds.
    */
+  /**
+   * Split an add-on's compatibility rows into the category memberships the editor
+   * owns and everything else (package-scoped rows), which is round-tripped
+   * untouched so editing categories can never drop a rule the UI cannot show.
+   */
+  function splitAddonCompatibility(addon) {
+    const rows = addon && Array.isArray(addon.compatibility) ? addon.compatibility : [];
+    const categories = [];
+    const other = [];
+    for (const row of rows) {
+      if (row && typeof row.category === 'string' && row.category && !row.packageId) {
+        if (categories.indexOf(row.category) < 0) categories.push(row.category);
+      } else if (row) {
+        other.push(row);
+      }
+    }
+    return { categories: categories, other: other };
+  }
+
+  /**
+   * Categories a buffer is offered in but has no exact price row for.
+   *
+   * The storefront adapter resolves an add-on's price with
+   * `prices.find(pr => pr.category === cat) || prices[0]`, so a category enabled
+   * without its own price row does not fail — it silently inherits the first
+   * price on the add-on. That is how a cars price ends up displayed on an RV.
+   * Callers must block the apply on a non-empty result.
+   */
+  function addonCategoriesMissingPrice(buffer) {
+    const cats = (buffer && Array.isArray(buffer.categories)) ? buffer.categories : [];
+    const prices = (buffer && Array.isArray(buffer.prices)) ? buffer.prices : [];
+    return cats.filter(function (cat) {
+      return !prices.some(function (pr) { return pr && pr.category === cat; });
+    });
+  }
+
   function cloneAddonEditBuffer(addon) {
     const a = addon || {};
+    const compat = splitAddonCompatibility(a);
     return {
       addOnId: a.addOnId,
       name: String(a.name == null ? '' : a.name),
       description: String(a.description == null ? '' : a.description),
       displayOrder: Number(a.displayOrder) || 0,
       active: a.active !== false,
+      categories: compat.categories,
+      compatibilityOther: compat.other,
       prices: (a.prices || []).map(function (pr) {
         const cents = Number(pr.amountCents);
         return {
@@ -342,6 +381,10 @@
     if (!target) return { ok: false, error: 'missing_addon' };
     const checked = validateAddonBufferPrices(buffer, opts);
     if (!checked.ok) return { ok: false, error: 'invalid_price', errors: checked.errors };
+    // Refuse a category the add-on has no price for: the adapter would fall back to
+    // prices[0] and quietly bill another category's amount.
+    const unpriced = addonCategoriesMissingPrice(buffer);
+    if (unpriced.length) return { ok: false, error: 'category_without_price', categories: unpriced };
     target.name = String(buffer.name == null ? '' : buffer.name);
     target.description = String(buffer.description == null ? '' : buffer.description);
     target.displayOrder = Number(buffer.displayOrder) || 0;
@@ -349,6 +392,11 @@
     target.prices = checked.prices.map(function (pr) {
       return { category: pr.category, currency: pr.currency, amountCents: pr.amountCents };
     });
+    if (Array.isArray(buffer.categories)) {
+      target.compatibility = buffer.categories
+        .map(function (c) { return { category: c }; })
+        .concat(buffer.compatibilityOther || []);
+    }
     return { ok: true, addOn: target };
   }
 
@@ -384,6 +432,12 @@
       if (!parsed.ok) return true;
       if (parsed.cents !== Number(canonical.amountCents)) return true;
     }
+    // Category membership is part of the buffer, so toggling it must mark the row
+    // unsaved like any other edit — order-insensitive, it is a set.
+    const bCats = (Array.isArray(buffer.categories) ? buffer.categories : []).slice().sort();
+    const aCats = splitAddonCompatibility(addon).categories.slice().sort();
+    if (bCats.length !== aCats.length) return true;
+    for (let i = 0; i < bCats.length; i++) if (bCats[i] !== aCats[i]) return true;
     return false;
   }
 
@@ -402,6 +456,8 @@
     isSaveEnabled: isSaveEnabled,
     isContradictoryModel: isContradictoryModel,
     cloneAddonEditBuffer: cloneAddonEditBuffer,
+    splitAddonCompatibility: splitAddonCompatibility,
+    addonCategoriesMissingPrice: addonCategoriesMissingPrice,
     validateAddonBufferPrices: validateAddonBufferPrices,
     applyAddonBufferToDraft: applyAddonBufferToDraft,
     addonSummaryAmountCents: addonSummaryAmountCents,
