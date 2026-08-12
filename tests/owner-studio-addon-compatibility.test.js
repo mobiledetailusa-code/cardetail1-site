@@ -100,13 +100,21 @@ describe('a category can never be offered without its own price', () => {
   });
 
   /**
-   * The regression this guard exists for: the adapter resolves an add-on price with
-   * `prices.find(cat) || prices[0]`, so an unpriced category inherits another
-   * category's amount rather than failing. This proves the fallback is real, which
-   * is why applyAddonBufferToDraft must refuse to create that state.
+   * Defence in depth. The buffer guard stops the Catalog Manager creating this state;
+   * the adapter refuses to render it whatever produced it (hand-edited draft, seed
+   * script, direct DB write). It previously resolved the price with
+   * `prices.find(cat) || prices[0]` and silently billed another category's amount.
    */
-  it('demonstrates the adapter fallback the guard prevents', () => {
-    const out = adaptStorefrontPreview({
+  it('refuses to render an add-on offered in a category it has no price for', () => {
+    assert.throws(() => adaptStorefrontPreview(previewWithUnpricedRvAddon()), (err) => {
+      assert.equal(err.code, 'preview_addon_no_price');
+      assert.match(err.message, /addon_ozone.*rvs/);
+      return true;
+    });
+  });
+
+  function previewWithUnpricedRvAddon() {
+    return {
       preview: true,
       vehicleClasses: [
         { vehicleClassId: 'vc_small', legacyKey: 'small', category: 'cars', label: 'Small', active: true, displayOrder: 1 },
@@ -118,9 +126,15 @@ describe('a category can never be offered without its own price', () => {
       ],
       // Offered on rvs but priced only for cars.
       addOns: [addon({ compatibility: [{ category: 'cars' }, { category: 'rvs' }] })],
-    });
+    };
+  }
+
+  it('still renders normally once every offered category carries its own price', () => {
+    const payload = previewWithUnpricedRvAddon();
+    payload.addOns[0].prices.push({ category: 'rvs', currency: 'usd', amountCents: 9000 });
+    const out = adaptStorefrontPreview(payload);
     assert.equal(out.PRICING.cars.addons[0].price, 40);
-    assert.equal(out.PRICING.rvs.addons[0].price, 40, 'RV inherits the cars price — the bug being guarded');
+    assert.equal(out.PRICING.rvs.addons[0].price, 90, 'each category bills its own amount');
   });
 });
 
