@@ -101,6 +101,26 @@ describe('Owner Studio session gate', () => {
     assert.equal(calls.redirected, null, 'a transient blip must not bounce a signed-in operator');
   });
 
+  /**
+   * admin-ops.html carried the same defect: a synchronous `if (!token) redirect`
+   * gating its whole IIFE, plus a tokenless short-circuit inside
+   * ensureAdminSession. A tab opened by ctrl-click, bookmark or pasted URL has no
+   * sessionStorage token and is authenticated by the shared HttpOnly cookie, which
+   * JS cannot read — so only the server can answer "signed in?".
+   */
+  it('admin-ops has no synchronous tokenless bounce and validates with credentials', () => {
+    const html = read('admin-ops.html');
+    assert.doesNotMatch(html, /if \(!token\) \{ location\.replace\('admin\.html'\); return; \}/,
+      'the synchronous guard bounced cookie-authenticated tabs before any check');
+    assert.doesNotMatch(html, /const t = CD1AdminSession\.getToken\(\);\s*\n\s*if \(!t\) \{ location\.replace/,
+      'ensureAdminSession must not short-circuit on an empty local token');
+    const fn = html.match(/async function ensureAdminSession\(\)[\s\S]*?\n  \}/);
+    assert.ok(fn, 'ensureAdminSession not found');
+    assert.match(fn[0], /credentials: 'same-origin'/, 'the cookie must be sent');
+    // Still redirects — but only once the server has rejected the session.
+    assert.match(fn[0], /if \(!data\.ok\) \{ CD1AdminSession\.clearToken\(\); location\.replace/);
+  });
+
   it('never hides the document, which would blank the page if the script failed', () => {
     assert.doesNotMatch(GATE, /visibility\s*[:=]\s*['"]?hidden/);
     assert.doesNotMatch(read('assets/owner-studio/studio.css'), /data-os-gate/);
