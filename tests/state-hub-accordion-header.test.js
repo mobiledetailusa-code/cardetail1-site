@@ -329,6 +329,7 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/twilio-status-callback.js',
     // Owner Studio Stage 2 / 4B — protected catalog draft + preview APIs.
     'netlify/functions/owner-studio-catalog.js',
+    'netlify/functions/owner-studio-release.js',
     'netlify/functions/owner-studio-catalog-preview.js',
     'netlify/functions/admin-auth.js',
   ]);
