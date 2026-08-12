@@ -53,11 +53,29 @@ describe('Owner Studio session gate', () => {
     }
   });
 
-  it('redirects to the login page when no token is present, without calling the API', async () => {
-    const calls = runGate({ token: '' });
+  /**
+   * Regression guard. sessionStorage is per-tab but the server also accepts the
+   * shared HttpOnly admin cookie, so a second tab holds no local token and is
+   * still signed in — the exact case the browser-scoped session cookie exists for.
+   * An earlier version of this gate short-circuited on the empty token and called
+   * clearToken(), which broadcasts a logout: opening Owner Studio in a new tab
+   * signed the operator out of every other tab.
+   */
+  it('validates against the server when the tab has no local token, instead of assuming signed out', async () => {
+    const calls = runGate({ token: '', validateResponse: { ok: true } });
+    await new Promise((r) => setImmediate(r));
+    assert.equal(calls.fetches.length, 1, 'a cookie-authenticated tab must still be checked');
+    assert.equal(calls.fetches[0].init.credentials, 'same-origin', 'the cookie must be sent');
+    assert.equal(calls.fetches[0].init.headers['x-admin-key'], undefined,
+      'no token means no header — the request rides on the cookie');
+    assert.equal(calls.redirected, null, 'a cookie-only session must not be bounced');
+    assert.equal(calls.cleared, false, 'must never broadcast a logout to sibling tabs');
+  });
+
+  it('redirects a tokenless tab only when the server also rejects it', async () => {
+    const calls = runGate({ token: '', validateResponse: { ok: false } });
     await new Promise((r) => setImmediate(r));
     assert.equal(calls.redirected, '/admin');
-    assert.equal(calls.fetches.length, 0, 'a missing token needs no round trip');
   });
 
   it('redirects and clears the token when the session is rejected', async () => {
