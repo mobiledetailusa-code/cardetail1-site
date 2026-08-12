@@ -194,6 +194,13 @@ function normalizeAggregate(raw, opts = {}) {
     address: service.serviceAddress || b.address || '',
   };
 
+  // Carried explicitly rather than relying on the `...b` spread, so that narrowing
+  // the spread later cannot silently drop priced history. Absent on legacy bookings
+  // by design — resolveBookingCommercial falls back to the aggregate for those.
+  if (b.bookingCatalogSnapshot) {
+    aggregate.bookingCatalogSnapshot = b.bookingCatalogSnapshot;
+  }
+
   // Legacy consumers still read booking.service as package name string
   if (typeof b.service === 'string' && b.service && !compat.package) {
     aggregate.package = b.service;
@@ -219,6 +226,18 @@ function buildNextAggregate(previous, patches, { incrementVersion = true } = {})
     kind: 'booking',
     updatedAt: patches.updatedAt || new Date().toISOString(),
   };
+
+  // The booking catalog snapshot records which catalog priced this booking. It is
+  // written once, when the booking is quoted, and is the reason a later catalog
+  // publish cannot retroactively change what a customer agreed to pay. Nothing may
+  // overwrite or drop it: a patch carrying its own snapshot is ignored rather than
+  // trusted, so no mutation path — admin edit, add-on change, webhook replay — can
+  // rewrite priced history by including the field.
+  if (base.bookingCatalogSnapshot) {
+    merged.bookingCatalogSnapshot = base.bookingCatalogSnapshot;
+  } else if (!patches.bookingCatalogSnapshot) {
+    delete merged.bookingCatalogSnapshot;
+  }
 
   // Re-derive service/money if ledger or service provided
   if (patches.ledger) {
