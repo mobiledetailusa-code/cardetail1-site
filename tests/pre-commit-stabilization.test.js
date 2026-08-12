@@ -307,6 +307,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     // Owner Studio Stage 1 — protected read-only status endpoint (flags off by default)
     'netlify/functions/owner-studio-status.js',
     'netlify/functions/owner-studio-catalog.js',
+    'netlify/functions/owner-studio-release.js',
     // Owner Studio Stage 4B storefront preview (authenticated, presentation-only).
     'netlify/functions/owner-studio-catalog-preview.js',
     'netlify/lib/owner-studio/storefront-preview.js',

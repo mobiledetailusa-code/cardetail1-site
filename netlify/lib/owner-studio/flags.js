@@ -30,6 +30,13 @@ function getOwnerStudioFlags() {
     publicContentSource,
     role: role === 'admin' ? 'admin' : 'owner',
     adminCanPublish: flag('OWNER_STUDIO_ADMIN_CAN_PUBLISH', false),
+    // Dedicated kill switch for the release path, independent of OWNER_STUDIO_ENABLED.
+    // Being the owner on an enabled site is not by itself consent to publish: the
+    // roadmap names "accidental production publish" as a migration risk, and this is
+    // the switch that has to be thrown deliberately, per environment, to allow it.
+    // Publish is also refused outright whenever publicContentSource is owner-studio
+    // without this flag, so enabling the read path can never imply the write path.
+    publishEnabled: flag('OWNER_STUDIO_PUBLISH_ENABLED', false),
   };
 }
 
