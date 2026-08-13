@@ -1,6 +1,20 @@
 # Conversion Funnel — Safe Repair (P1)
 
-**Status: READY FOR INDEPENDENT REVIEW** — not merged, not deployed, Production untouched.
+**Status: READY FOR INDEPENDENT REVIEW** — not merged by this work.
+
+> **Update 2026-08-13: shipped.** PR
+> [#193](https://github.com/mobiledetailusa-code/cardetail1-site/pull/193) was merged
+> into `master` at 14:01Z and Netlify deployed it, so `cardetail1.com` now serves this
+> work. Verified against the production origin: "Check Price & Availability",
+> "card saved, not charged", "Water access — Optional", and no "holds your slot" /
+> "Lock Your Slot" anywhere. Owner confirmed the live funnel tested clean.
+>
+> *(An earlier revision of this note claimed production was serving an unmerged branch
+> and that `master` had diverged. That was wrong — it compared against stale local
+> remote-tracking refs instead of fetching first. PR #193 had already landed.)*
+>
+> Two later commits — the trust-stats removal `f9e04ad` and this report — are **not yet
+> in `master`**. See §10.
 
 | | |
 |---|---|
@@ -87,6 +101,37 @@ regex, and every rule's total was verified: `card-gate-title` 12, `pay-pref-desc
 `electric-label` 12, `util-help` 12, `login-staff-hidden` 12.
 
 ---
+
+## 3b. Hero proof bar (replaces the removed stats band)
+
+The stats band was removed because its headline figure was fabricated. The trust signals
+that were **true** were worth keeping, so they were rebuilt in the hero — earlier in the
+page, where cold traffic decides — as `.hero-proof-bar` in `index.html`:
+
+| Tile | Claim | Why it is defensible |
+|---|---|---|
+| ★★★★★ **5.0 Google** | "Read real reviews" | Links to `#reviews`, the real testimonial carousel — the visitor can check it |
+| 📅 **5+ years** | "Serving NJ · NY · CT" | Tenure already claimed on the page |
+| 🌤️ **All year** | "Every season, not just summer" | The year-round claim already on the page |
+| 🚐 **Water & power** | "We bring our own — no hookup" | Matches the marketing promise *and* the reframed Step 4 question |
+| ✓ **$0 today** | "Card saved, not charged" | Word-for-word the promise the card step keeps |
+
+**Deliberately absent: any vehicle count.** A test asserts the bar contains no `k+`-style
+figure and no "vehicles/detailed" tally, so the fabricated counter cannot return by a
+different name.
+
+Layout: the hero column is capped at 520px, so the bar is a 2-column grid with the
+`$0 today` card spanning both as a banner — it is the anti-friction message and earns the
+emphasis. Verified at 1280×800 and 375×812.
+
+**Generator fix caught by this work:** `scripts/apply-state-hub-theme.mjs` used
+`(function initTrustedStatsCounter()` as a *positional marker* to slice `_updateHomeFromPrices`
+out of `index.html`. Deleting that function would have made the next hub regeneration throw
+`marker not found`. The marker now points at `(function initTrustSeasonIcon()`, which is
+present in `index.html` and all 12 hub pages.
+
+**Not yet propagated:** the proof bar is on `index.html` only. The hub/city heroes have a
+different structure and each needs its own placement pass.
 
 ## 4. Behavioural changes
 
@@ -230,11 +275,24 @@ generator family. Out of scope.
 
 ## 10. Production readiness verdict
 
-### READY FOR INDEPENDENT REVIEW
+### SHIPPED (copy repair) · READY FOR INDEPENDENT REVIEW (stats removal)
 
-Not merged. Not deployed. Not pushed.
+| Commit | What | State |
+|---|---|---|
+| `f91d833` | Trust-copy alignment | **merged via PR #193, live** |
+| `02bf00e` | This report | merged via PR #193 |
+| `f9e04ad` | Trust-stats band + fabricated counter removed | **pushed, not merged** |
+| `8faeb82` + this revision | Report updates | pushed, not merged |
 
-Before merge: push `fix/conversion-funnel-safe`, take the Netlify **branch preview**, and
-compare it side-by-side against Production for the hero, Step 4 and Step 5 on desktop and
-mobile — the local smoke could not exercise Netlify functions, so the Stripe element and ZIP
-lookup are unverified in a real deploy context by this report.
+**Outstanding:**
+
+1. Merge `f9e04ad` into `master` so the fabricated "Vehicles detailed" counter stops
+   shipping. It is still live on production until then.
+2. **Verify on the live origin what the local smoke could not:** the Stripe Payment Element
+   mounting at Step 5, the ZIP/service-area lookup, and `create-setup-intent` — all three need
+   Netlify functions and were inert in the static smoke. Use Stripe **test fixtures**, never a
+   live customer card.
+
+Risk of the outstanding change: LOW — a pure 1077-line deletion with no additions, full suite
+unchanged against baseline. Nothing on this branch can alter a booking, payment, total,
+receipt or schedule.
