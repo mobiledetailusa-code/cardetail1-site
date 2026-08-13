@@ -1,6 +1,16 @@
 # Conversion Funnel — Safe Repair (P1)
 
-**Status: READY FOR INDEPENDENT REVIEW** — not merged, not deployed, Production untouched.
+**Status: READY FOR INDEPENDENT REVIEW** — not merged by this work.
+
+> ⚠️ **Superseded on 2026-08-13: this branch is LIVE on `cardetail1.com`.**
+> Verified by fetching the production origin: it serves "Check Price & Availability",
+> "card saved, not charged" and "Water access — Optional", and contains no
+> "holds your slot" / "Lock Your Slot". This deploy was **not** performed by this
+> work — the branch was pushed, and the deploy was published from the Netlify UI.
+> `origin/master` does **not** contain these commits, so production and `master`
+> now disagree; the next deploy built from `master` will silently revert all of it.
+> **Action required: merge `fix/conversion-funnel-safe` into `master`** so the two
+> agree. See §10.
 
 | | |
 |---|---|
@@ -232,9 +242,19 @@ generator family. Out of scope.
 
 ### READY FOR INDEPENDENT REVIEW
 
-Not merged. Not deployed. Not pushed.
+Branch pushed. **Deployed to production from the Netlify UI, outside this work.** Not merged.
 
-Before merge: push `fix/conversion-funnel-safe`, take the Netlify **branch preview**, and
-compare it side-by-side against Production for the hero, Step 4 and Step 5 on desktop and
-mobile — the local smoke could not exercise Netlify functions, so the Stripe element and ZIP
-lookup are unverified in a real deploy context by this report.
+**Outstanding — in priority order:**
+
+1. **Merge `fix/conversion-funnel-safe` into `master`.** Production is currently serving a
+   deploy built from a branch that `master` does not contain. Any later deploy from `master`
+   reverts every change in this report without warning. This is the only urgent item.
+2. **Verify on the live origin what the local smoke could not:** the Stripe Payment Element
+   mounting at Step 5, the ZIP/service-area lookup, and `create-setup-intent` — all three need
+   Netlify functions and were inert in the static smoke. Use Stripe **test fixtures**, never a
+   live customer card.
+3. Confirm the deployed commit is `f9e04ad` (or later on this branch) and not an older one.
+
+The changes themselves remain LOW risk — copy plus one defensive markup default plus a pure
+deletion. Nothing on this branch can alter a booking, payment, total, receipt or schedule.
+The risk here is release-process drift, not code.
