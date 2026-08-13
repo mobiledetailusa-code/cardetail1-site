@@ -649,9 +649,11 @@
       }
     }
 
+    // Returns TRUE only when the edits actually reached the draft. saveDraft relies
+    // on this: an apply that bailed must never be mistaken for one that committed.
     function applyPackageEdits() {
       const p = state.draft.packages.find((x) => x.packageId === state.selectedId);
-      if (!p) return;
+      if (!p) return false;
       // Validate every price field FIRST. A single invalid field blocks the entire apply,
       // so an invalid/negative/NaN entry is never coerced to zero and never partially saved.
       const flat = [];
@@ -679,7 +681,7 @@
       if (priceError) {
         el('editor-msg').textContent = 'Fix the highlighted price fields before applying.';
         el('editor-msg').className = 'err';
-        return;
+        return false;
       }
       p.name = el('f-name').value.trim();
       p.slug = el('f-slug').value.trim();
@@ -699,6 +701,7 @@
       el('editor-msg').textContent = 'Package changes applied locally. Save Draft to persist.';
       el('editor-msg').className = 'okmsg';
       renderAll();
+      return true;
     }
 
     function moveSelected(delta) {
@@ -1295,7 +1298,13 @@
       if (!state.draft || state.saving) return; // duplicate-click / concurrency guard
       // Auto-commit any pending edits in the open package editor so they are never
       // silently discarded by saving before clicking "Apply package changes".
-      if (state.selectedId && !el('editor').hidden) applyPackageEdits();
+      // If the auto-commit cannot apply (an invalid price field), saving would persist
+      // a draft WITHOUT the edit and report "Saved" — silent data loss. Refuse instead,
+      // the same policy the add-on buffer already had.
+      if (state.selectedId && !el('editor').hidden && !applyPackageEdits()) {
+        setPageState('error', 'Package edits could not be applied. Fix the highlighted price fields, then Save Draft.');
+        return;
+      }
       // Unapplied add-on buffer policy: never auto-flush. Block Save until Apply or Cancel.
       if (hasUnappliedAddonChanges()) {
         blockForUnappliedAddonBuffer();
