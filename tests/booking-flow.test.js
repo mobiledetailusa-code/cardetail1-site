@@ -25,7 +25,7 @@ test('Step 5 has final copy and all payment preferences', () => {
   assert.match(index, /Card on-site/);
   assert.match(index, /Online after service/);
   assert.match(index, /Card on File Required/);
-  assert.match(index, /A card on file is still required to secure the booking\./);
+  assert.match(index, /A card on file is still required to submit the booking request\./);
 });
 
 test('card-save policy notice has an opaque high-contrast treatment on every booking page', () => {

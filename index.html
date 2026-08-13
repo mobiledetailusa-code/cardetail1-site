@@ -1493,7 +1493,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <a class="nav-link" onclick="openBooking(null);document.getElementById('nav-links').classList.remove('open')">Services</a>
     <a class="nav-link" href="my-garage.html">My Garage</a>
     <a class="nav-link" href="tel:5513132956">Call / Text</a>
-    <a class="nav-cta booking-popup-trigger" onclick="openBooking(null)">Book online</a>
+    <a class="nav-cta booking-popup-trigger" onclick="openBooking(null)">Check Price</a>
   </div>
   <a class="nav-book-mobile" href="my-garage.html">My Garage</a>
   <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
@@ -1524,7 +1524,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <p class="hero-sub hero-sub--short">Interior, exterior and full detailing for cars, SUVs, trucks, vans, boats, RVs and powersports across Bergen County and nearby NJ/NY/CT.</p>
 
     <div class="hero-btns">
-      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
+      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Check Price &amp; Availability</button>
       <button type="button" class="btn-outline" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'})">See Packages</button>
     </div>
 
@@ -1984,7 +1984,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="sdb">We bring the gear</div>
         <div class="sdb">Text confirmation</div>
         <div class="sdb">No charge today</div>
-        <div class="sdb">Card holds your slot</div>
+        <div class="sdb">Card saved, not charged</div>
       </div>
     </div>
   </div>
@@ -2016,7 +2016,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="section">
     <div class="sec-eye">How it works</div>
     <div class="sec-title">Book in six steps</div>
-    <div class="sec-desc">Request your appointment in six clear steps — we confirm by text. No charge today; your card holds your booking request.</div>
+    <div class="sec-desc">Request your appointment in six clear steps — we confirm by text. No charge today; your card is securely saved on file when you send the request.</div>
     <div class="how-grid">
       <div class="how-card">
         <div class="how-ico">📱</div>
@@ -2025,8 +2025,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       </div>
       <div class="how-card">
         <div class="how-ico">🔒</div>
-        <div class="how-title">Hold your slot</div>
-        <div class="how-desc">No charge today — card holds your slot. Final payment after the detail.</div>
+        <div class="how-title">Send your request</div>
+        <div class="how-desc">No charge today — your card is saved on file, not charged. We text you to confirm the appointment. Final payment after the detail.</div>
       </div>
       <div class="how-card">
         <div class="how-ico">🚐</div>
@@ -2068,7 +2068,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="cred-item"><span>🚐</span><span><b>Mobile service</b> — we come to you</span></div>
       <div class="cred-item"><span>📋</span><span><b>Clear packages</b> — know what you're booking</span></div>
       <div class="cred-item"><span>📍</span><span><b>Bergen County</b> &amp; nearby NJ/NY</span></div>
-      <div class="cred-item"><span>✓</span><span><b>No charge today</b> — card holds your slot</span></div>
+      <div class="cred-item"><span>✓</span><span><b>No charge today</b> — card saved, not charged</span></div>
     </div>
     <div class="results-cta">
       <button class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
@@ -2083,7 +2083,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="trust-row">
       <div class="trust-item"><div class="trust-ico">🚐</div><div class="trust-val">Mobile</div><div class="trust-lbl">We come to you</div></div>
       <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">Local</div><div class="trust-lbl">Bergen &amp; nearby NJ/NY</div></div>
-      <div class="trust-item"><div class="trust-ico">✓</div><div class="trust-val">No charge today</div><div class="trust-lbl">Card holds your slot</div></div>
+      <div class="trust-item"><div class="trust-ico">✓</div><div class="trust-val">No charge today</div><div class="trust-lbl">Card saved, not charged</div></div>
       <div class="trust-item"><div class="trust-ico">📋</div><div class="trust-val">Clear pricing</div><div class="trust-lbl">By package &amp; size</div></div>
       <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val">Book online</div><div class="trust-lbl">Anytime</div></div>
     </div>
@@ -2230,7 +2230,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <!-- BACK TO TOP -->
 <!-- MOBILE STICKY CTA -->
 <div class="mobile-sticky-cta" id="mobile-sticky-cta">
-  <button class="msc-book booking-popup-trigger" onclick="openBooking(null)">Book detail</button>
+  <button class="msc-book booking-popup-trigger" onclick="openBooking(null)">Check price</button>
   <button class="msc-portal" onclick="openPortal()">Your booking</button>
   <a class="msc-call" href="tel:5513132956">📞 Call</a>
 </div>
@@ -2295,8 +2295,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <button class="login-tab active" id="ltab-customer" onclick="setLoginRole('customer')">👤 My Booking</button>
     </div>
 
-    <!-- Admin — username + password sign-in -->
-    <div id="login-staff">
+    <!-- Admin — username + password sign-in. Hidden by default: the customer
+         surface must never paint the staff credential form first. setLoginRole()
+         is the only thing that reveals it, and openLogin() always opens as 'customer'. -->
+    <div id="login-staff" style="display:none">
       <div class="fg">
         <div class="fl">Username</div>
         <input class="fi" id="login-user" type="text" placeholder="admin" autocomplete="username">
@@ -2669,7 +2671,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             </div>
             <input type="hidden" id="f-flexibility" value="exact">
           </div>
-          <div class="fg"><div class="fl">Water access</div>
+          <div class="fg"><div class="fl">Water access — Optional</div>
             <select class="fsel" id="f-water">
               <option value="">Select…</option>
               <option value="yes">Yes — outdoor faucet or hose connection</option>
@@ -2677,7 +2679,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <option value="unsure">Not sure</option>
             </select>
           </div>
-          <div class="fg"><div class="fl">Electricity access</div>
+          <div class="fg"><div class="fl">Electricity access — Optional</div>
             <select class="fsel" id="f-electric">
               <option value="">Select…</option>
               <option value="yes">Yes — standard outlet nearby</option>
@@ -2685,7 +2687,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <option value="unsure">Not sure</option>
             </select>
           </div>
-          <div class="fg full"><p class="bk-field-help" id="f-util-help">This helps us prepare the correct mobile setup.</p></div>
+          <div class="fg full"><p class="bk-field-help" id="f-util-help"><strong>We bring our own water and power</strong> — you don't need either. Answering just helps us plan the setup, and "No" or "Not sure" is perfectly fine.</p></div>
           <div class="fg full"><div class="fl">Service location / access</div>
             <select class="fsel" id="f-location">
               <option value="">Select…</option>
@@ -2732,7 +2734,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
         <div class="bdesc">This sends a booking request — we'll review your location, vehicle, weather, and access, then text you to confirm. Nothing charged today.</div>
         <div class="card-gate">
-          <div class="card-gate-title">Lock Your Slot</div>
+          <div class="card-gate-title">Save Your Card</div>
           <div class="stripe-pay" aria-label="Secure checkout">
             <div class="fl" style="margin-bottom:8px">Payment Preference</div>
             <div class="pay-choice-row">
@@ -2740,9 +2742,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <button type="button" class="pay-choice" id="pc-onsite" onclick="selectPaymentPreference('card_onsite','pc-onsite')">💳 Card on-site</button>
               <button type="button" class="pay-choice" id="pc-online" onclick="selectPaymentPreference('online_after_service','pc-online')">🔗 Online after service</button>
             </div>
-            <div id="pc-cash-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Pay cash after the service is completed. A card on file is still required to secure the booking.</div>
-            <div id="pc-onsite-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Pay by card after the service is completed. A card on file is still required to secure the booking.</div>
-            <div id="pc-online-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Receive a secure online payment request after the service is completed. A card on file is still required to secure the booking.</div>
+            <div id="pc-cash-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Pay cash after the service is completed. A card on file is still required to submit the booking request.</div>
+            <div id="pc-onsite-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Pay by card after the service is completed. A card on file is still required to submit the booking request.</div>
+            <div id="pc-online-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Receive a secure online payment request after the service is completed. A card on file is still required to submit the booking request.</div>
             <div id="cof-wrap" style="margin-top:18px">
               <div class="fl" style="margin-bottom:8px">Card on File Required</div>
               <div style="font-size:13px;color:var(--mu);line-height:1.6;margin-bottom:12px">No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy.</div>
@@ -2775,7 +2777,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="pay-box">
           <div class="pay-t">Booking Policy · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
           <ul style="list-style:none;padding:0;margin:0 0 14px">
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">No charge today</strong> — saving your card secures the booking request only.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">No charge today</strong> — saving your card lets us process your booking request. It does not confirm the appointment; we text you once it is confirmed.</li>
             <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Card saved by Stripe</strong> — your card details are encrypted and never stored by Cardetail1.</li>
             <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Late cancellation fee</strong> — cancellations within 24 hours, no-shows, or inaccessible vehicles may incur a fee per our posted policy.</li>
             <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Final payment after service</strong> — collected on-site by card or cash, or online if approved in advance.</li>

@@ -1254,9 +1254,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <a class="nav-link" href="my-garage.html">My Garage</a>
     <a class="nav-link" onclick="openPortal();document.getElementById('nav-links').classList.remove('open')">My Booking</a>
     <a class="nav-link" href="tel:5513132956">Call / Text</a>
-    <a class="nav-cta booking-popup-trigger" onclick="openBooking(null)">Book Now</a>
+    <a class="nav-cta booking-popup-trigger" onclick="openBooking(null)">Check Price</a>
   </div>
-  <a class="nav-book-mobile booking-popup-trigger" onclick="openBooking(null)">Book Now</a>
+  <a class="nav-book-mobile booking-popup-trigger" onclick="openBooking(null)">Check Price</a>
   <a class="nav-portal-mobile" onclick="openPortal()">My Booking</a>
   <a class="nav-book-mobile" href="my-garage.html">My Garage</a>
   <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
@@ -1306,7 +1306,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         oninput="onHeroZipInput(this.value)"
         onkeydown="if(event.key==='Enter')onHeroZipSubmit()"
       >
-      <button class="hero-zip-btn" onclick="onHeroZipSubmit()">BOOK NOW</button>
+      <button class="hero-zip-btn" onclick="onHeroZipSubmit()">CHECK ZIP</button>
     </div>
     <div class="hero-zip-feedback" id="hero-zip-feedback">
       <span style="font-size:12px;color:var(--mu)">Based in Palisades Park - we serve Bergen County neighbors and the wider Tri-State. Pop in your ZIP to check coverage.</span>
@@ -1686,7 +1686,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <h2 class="sec-title" style="font-size:clamp(32px,5vw,52px);margin-bottom:14px">Car Detailing Services in Bergen County<br>BOATS · RVS · FLEET</h2>
     <div class="sec-desc" style="max-width:540px;margin:0 auto 32px">We are a local, hard-working team proud to serve our Bergen County neighbors. Pick your vehicle, see packages and pricing, and lock in your driveway service - all from your phone.</div>
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-      <button class="btn-primary booking-popup-trigger" style="font-size:15px;padding:16px 36px" onclick="openBooking(null)">Book Now →</button>
+      <button class="btn-primary booking-popup-trigger" style="font-size:15px;padding:16px 36px" onclick="openBooking(null)">Check Price &amp; Availability →</button>
       <button class="btn-outline" onclick="openPortal()">My Booking</button>
     </div>
   </div>
@@ -1853,7 +1853,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <!-- BACK TO TOP -->
 <!-- MOBILE STICKY CTA -->
 <div class="mobile-sticky-cta" id="mobile-sticky-cta">
-  <button class="msc-book booking-popup-trigger" onclick="openBooking(null)">Book Now</button>
+  <button class="msc-book booking-popup-trigger" onclick="openBooking(null)">Check price</button>
   <button class="msc-portal" onclick="openPortal()">My Booking</button>
   <a class="msc-call" href="tel:5513132956">📍ž Call</a>
 </div>
@@ -1919,7 +1919,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </div>
 
     <!-- Admin - username + password sign-in -->
-    <div id="login-staff">
+    <div id="login-staff" style="display:none">
       <div class="fg">
         <div class="fl">Username</div>
         <input class="fi" id="login-user" type="text" placeholder="admin" autocomplete="username">
@@ -2260,7 +2260,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             </div>
             <input type="hidden" id="f-flexibility" value="exact">
           </div>
-          <div class="fg"><div class="fl">Water access</div>
+          <div class="fg"><div class="fl">Water access — Optional</div>
             <select class="fsel" id="f-water">
               <option value="">Select…</option>
               <option value="yes">Yes — outdoor faucet or hose connection</option>
@@ -2268,7 +2268,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <option value="unsure">Not sure</option>
             </select>
           </div>
-          <div class="fg"><div class="fl">Electricity access</div>
+          <div class="fg"><div class="fl">Electricity access — Optional</div>
             <select class="fsel" id="f-electric">
               <option value="">Select…</option>
               <option value="yes">Yes — standard outlet nearby</option>
@@ -2276,7 +2276,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <option value="unsure">Not sure</option>
             </select>
           </div>
-          <div class="fg full"><p class="bk-field-help" id="f-util-help">This helps us prepare the correct mobile setup.</p></div>
+          <div class="fg full"><p class="bk-field-help" id="f-util-help"><strong>We bring our own water and power</strong> — you don't need either. Answering just helps us plan the setup, and "No" or "Not sure" is perfectly fine.</p></div>
           <div class="fg full"><div class="fl">Service location / access</div>
             <select class="fsel" id="f-location">
               <option value="">Select…</option>
@@ -2306,7 +2306,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="btitle">SECURE YOUR<br>BOOKING</div>
         <div class="bdesc">This sends a booking request - we'll review your location, vehicle, weather, and access, then text you to confirm. Nothing charged today.</div>
         <div class="card-gate">
-          <div class="card-gate-title">Lock Your Slot</div>
+          <div class="card-gate-title">Save Your Card</div>
           <div class="stripe-pay" aria-label="Secure checkout">
             <div class="fl" style="margin-bottom:8px">Payment Preference</div>
             <div class="pay-choice-row">
@@ -2314,9 +2314,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <button type="button" class="pay-choice" id="pc-onsite" onclick="selectPaymentPreference('card_onsite','pc-onsite')">💳 Card on-site</button>
               <button type="button" class="pay-choice" id="pc-online" onclick="selectPaymentPreference('online_after_service','pc-online')">🔗 Online after service</button>
             </div>
-            <div id="pc-cash-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Pay cash after the service is completed. A card on file is still required to secure the booking.</div>
-            <div id="pc-onsite-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Pay by card after the service is completed. A card on file is still required to secure the booking.</div>
-            <div id="pc-online-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Receive a secure online payment request after the service is completed. A card on file is still required to secure the booking.</div>
+            <div id="pc-cash-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Pay cash after the service is completed. A card on file is still required to submit the booking request.</div>
+            <div id="pc-onsite-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Pay by card after the service is completed. A card on file is still required to submit the booking request.</div>
+            <div id="pc-online-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Receive a secure online payment request after the service is completed. A card on file is still required to submit the booking request.</div>
             <div id="cof-wrap" style="margin-top:18px">
               <div class="fl" style="margin-bottom:8px">Card on File Required</div>
               <div style="font-size:13px;color:var(--mu);line-height:1.6;margin-bottom:12px">No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy.</div>
