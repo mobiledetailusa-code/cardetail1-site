@@ -2961,6 +2961,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script src="/netlify/lib/admin-session-client.js"></script>
 <script src="assets/car-pkg-detail-modal.js"></script>
 <script src="/netlify/lib/owner-studio/storefront-preview-adapter.js"></script>
+<script src="/netlify/lib/owner-studio/legacy-presentation-bridge.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════
@@ -6980,12 +6981,42 @@ function osDisableBookingButtons(){
 // Homepage decorative shell defaults — kept OUT of the pure adapter. Prices, names
 // and ordering come ONLY from the adapted draft (never mixed with legacy prices);
 // these are neutral placeholders so renderers never read undefined fields.
+// Snapshot of the legacy merchandising metadata, taken while PRICING still holds the
+// shipped catalog. Presentation only — prices are never read from here.
+var OS_LEGACY_PRESENTATION = (function(){
+  try{ return JSON.parse(JSON.stringify(PRICING)); }catch(e){ return null; }
+})();
+function osBridgeLegacyPresentation(adaptedPricing, legacyPricing){
+  try{
+    if(!window.OwnerStudioLegacyBridge || !legacyPricing) return adaptedPricing;
+    var r = window.OwnerStudioLegacyBridge.bridgePresentationMetadata(adaptedPricing, legacyPricing);
+    if(r.report && (r.report.unmatched.length || r.report.duplicates.length)){
+      // Visible, not silent: a package with no legacy twin keeps the renderer fallback.
+      try{ console.warn("[owner-studio] legacy presentation bridge incomplete", r.report); }catch(_){ }
+    }
+    return r.pricing;
+  }catch(e){ return adaptedPricing; }
+}
 function osApplyPreviewShell(pricing){
   ['cars','boats','rvs','powersports'].forEach(function(cat){
     if(!pricing[cat]) pricing[cat]={tiers:{},packages:[],addons:[]};
     var c=pricing[cat];
     Object.keys(c.tiers||{}).forEach(function(k){ var t=c.tiers[k]; if(t.icon==null)t.icon=''; if(t.desc==null)t.desc=''; });
-    (c.packages||[]).forEach(function(p){ if(p.icon==null)p.icon=''; if(p.tag==null)p.tag=p.shortDescription||''; if(p.dur==null)p.dur=''; if(p.scope==null)p.scope='both'; if(!Array.isArray(p.ext))p.ext=[]; if(!Array.isArray(p.int))p.int=[]; if(p.note==null)p.note=''; });
+    // Presentation/behaviour metadata comes from the legacy catalog through the
+    // identity-matched bridge (osLegacyPresentation), NOT from blanket defaults.
+    // The old shim set note='' (falsy -> generic fallback text), tag=shortDescription
+    // (wrong content), and scope='both' — which opened EVERY add-on to every package
+    // and, with empty ext/int, disabled the guard that stops an add-on already
+    // included in a package being sold again.
+    (c.packages||[]).forEach(function(p){
+      if(p.icon==null)p.icon='';
+      if(p.dur==null)p.dur='';
+      if(p.note==null)p.note='';
+      if(p.tag==null)p.tag='';
+      if(!Array.isArray(p.ext))p.ext=[];
+      if(!Array.isArray(p.int))p.int=[];
+      // scope is deliberately NOT defaulted here — see osBridgeLegacyPresentation.
+    });
     (c.addons||[]).forEach(function(a){ if(a.scope==null)a.scope='any'; });
   });
   return pricing;
@@ -7012,7 +7043,11 @@ async function osBootstrapPreview(){
     if(!window.StorefrontPreviewAdapter) throw new Error('adapter_unavailable');
     adapted=window.StorefrontPreviewAdapter.adaptStorefrontPreview(data);
   }catch(e){ return osPreviewFail(); }
-  PRICING=osApplyPreviewShell(adapted.PRICING);
+  // Legacy merchandising metadata is merged by stable package id BEFORE the shell
+  // defaults run, so a default can only ever fill a gap the legacy catalog also has.
+  // Money, ordering, names and availability stay exactly as Owner Studio adapted them.
+  var bridged = osBridgeLegacyPresentation(adapted.PRICING, OS_LEGACY_PRESENTATION);
+  PRICING=osApplyPreviewShell(bridged);
   LENGTH_PRICING=adapted.LENGTH_PRICING||{};
   var ver=(adapted.meta && adapted.meta.draftVersion!=null) ? (' · draft v'+adapted.meta.draftVersion) : '';
   var when=(adapted.meta && adapted.meta.savedAt) ? (' · saved '+String(adapted.meta.savedAt).slice(0,19).replace('T',' ')) : '';
