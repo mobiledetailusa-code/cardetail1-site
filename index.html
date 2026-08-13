@@ -1363,6 +1363,32 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .hero-proof{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 auto 8px}
 .hero-proof span{border:1px solid var(--line);background:var(--bg1);color:var(--ink-soft);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:500}
 .review-source{display:inline-flex;align-items:center;gap:7px;margin-top:8px;color:var(--mu);font-size:11px}
+/* ── HERO PROOF BAR ──
+   Replaces the removed trust-stats band. Every figure here is verifiable:
+   the Google rating links to the real reviews, the tenure and year-round
+   claims are the ones already made on this page, and the $0-today line is
+   the same promise the booking flow keeps. No derived or synthetic counts. */
+/* The hero column is capped at 520px, so two columns is the widest that keeps
+   every label on a readable line; the $0-today card spans both as a banner
+   because it is the anti-friction message and earns the emphasis. */
+.hero-proof-bar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 auto 24px}
+.hpb-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:12px 10px;background:var(--bg1);border:1px solid var(--line);border-radius:var(--rs);box-shadow:var(--shadow-sm);text-align:center}
+.hpb-item--link{text-decoration:none;transition:.2s}
+.hpb-item--link:hover,.hpb-item--link:focus-visible{border-color:var(--bbr);background:var(--bg2)}
+.hpb-item--accent{border-color:var(--bbr);background:var(--bdim)}
+.hpb-ico{font-size:16px;line-height:1}
+.hpb-stars{font-size:12px;color:var(--blue);letter-spacing:1.5px;line-height:1}
+.hpb-val{font-family:var(--fb);font-size:14px;font-weight:700;color:var(--ink);line-height:1.2}
+.hpb-lbl{font-size:10.5px;color:var(--mu);line-height:1.35}
+.hpb-item--accent{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;gap:8px;padding:11px 14px}
+.hpb-item--accent .hpb-lbl{font-size:11.5px}
+@media(max-width:640px){
+  .hero-proof-bar{gap:8px;margin-bottom:20px}
+  .hpb-item{padding:10px 8px;gap:2px}
+  .hpb-val{font-size:12.5px}
+  .hpb-lbl{font-size:10px}
+  .hpb-item--accent .hpb-lbl{font-size:11px}
+}
 #services{content-visibility:auto;contain-intrinsic-size:900px;scroll-margin-top:76px}
 @media(max-width:640px){#services{scroll-margin-top:68px}}
 .section-full,.results-section,.ba-section,#reviews,#how{content-visibility:auto;contain-intrinsic-size:900px}
@@ -1526,6 +1552,34 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="hero-btns">
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Check Price &amp; Availability</button>
       <button type="button" class="btn-outline" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'})">See Packages</button>
+    </div>
+
+    <div class="hero-proof-bar" role="list" aria-label="Why customers book Cardetail1">
+      <a class="hpb-item hpb-item--link" role="listitem" href="#reviews">
+        <span class="hpb-stars" aria-hidden="true">★★★★★</span>
+        <span class="hpb-val">5.0 Google</span>
+        <span class="hpb-lbl">Read real reviews</span>
+      </a>
+      <div class="hpb-item" role="listitem">
+        <span class="hpb-ico" aria-hidden="true">📅</span>
+        <span class="hpb-val">5+ years</span>
+        <span class="hpb-lbl">Serving NJ · NY · CT</span>
+      </div>
+      <div class="hpb-item" role="listitem">
+        <span class="hpb-ico" aria-hidden="true">🌤️</span>
+        <span class="hpb-val">All year</span>
+        <span class="hpb-lbl">Every season, not just summer</span>
+      </div>
+      <div class="hpb-item" role="listitem">
+        <span class="hpb-ico" aria-hidden="true">🚐</span>
+        <span class="hpb-val">Water &amp; power</span>
+        <span class="hpb-lbl">We bring our own — no hookup</span>
+      </div>
+      <div class="hpb-item hpb-item--accent" role="listitem">
+        <span class="hpb-ico" aria-hidden="true">✓</span>
+        <span class="hpb-val">$0 today</span>
+        <span class="hpb-lbl">Card saved, not charged</span>
+      </div>
     </div>
 
     <div id="zip-section" aria-label="Check service area by ZIP code">

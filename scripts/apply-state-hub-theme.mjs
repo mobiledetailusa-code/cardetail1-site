@@ -33,7 +33,7 @@ const bkCatNoteCss = sliceBetween(indexHtml, '#bk-cat-grid .svc-cat-note{', '#bk
 
 const updateHomeBlock = indexHtml.slice(
   indexHtml.indexOf('function _updateHomeFromPrices(){'),
-  indexHtml.indexOf('(function initTrustedStatsCounter()')
+  indexHtml.indexOf('(function initTrustSeasonIcon()')
 ).trim();
 
 const openBookingCarPkgFn = `function openBookingCarPkg(pkgId){
@@ -58,8 +58,8 @@ function replaceOldUpdateHome(html) {
   if (html.includes("setPkgAmt('home-from-interior'")) return html;
   const start = html.indexOf('function _updateHomeFromPrices(){');
   if (start === -1) throw new Error('_updateHomeFromPrices not found');
-  const fnStart = html.indexOf('(function initTrustedStatsCounter()', start);
-  if (fnStart === -1) throw new Error('initTrustedStatsCounter marker not found after _updateHomeFromPrices');
+  const fnStart = html.indexOf('(function initTrustSeasonIcon()', start);
+  if (fnStart === -1) throw new Error('initTrustSeasonIcon marker not found after _updateHomeFromPrices');
   return html.slice(0, start) + updateHomeBlock + '\n\n' + html.slice(fnStart);
 }
 

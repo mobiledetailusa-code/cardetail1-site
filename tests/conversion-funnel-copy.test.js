@@ -182,6 +182,46 @@ test('the "days out" notice matches the enforced minimum advance', () => {
   }
 });
 
+// ── D2. Hero proof bar: verifiable signals only ──────────────────────────────
+
+test('the fabricated vehicle counter is gone from every public page', () => {
+  for (const file of publicSources) {
+    const src = read(file);
+    assert.doesNotMatch(src, /initTrustedStatsCounter/, `${file} still has the counter`);
+    assert.doesNotMatch(src, /cd1_page_visits/, `${file} still reads the visit counter`);
+    assert.doesNotMatch(src, /trust-row--stats"/, `${file} still renders the stats band`);
+    assert.doesNotMatch(src, /Vehicles detailed/, `${file} still claims a vehicle count`);
+  }
+});
+
+test('the hero proof bar carries only claims that can be checked', () => {
+  const index = read('index.html');
+  assert.match(index, /class="hero-proof-bar"/, 'hero proof bar missing');
+
+  const bar = /<div class="hero-proof-bar"[\s\S]*?\n    <\/div>/.exec(index);
+  assert.ok(bar, 'could not isolate the hero proof bar');
+  const html = bar[0];
+
+  for (const claim of ['5.0 Google', '5+ years', 'All year', 'Water &amp; power', '$0 today']) {
+    assert.ok(html.includes(claim), `hero proof bar lost "${claim}"`);
+  }
+
+  // Nothing derived from a counter, a visit count or an invented total.
+  assert.doesNotMatch(html, /\d+(\.\d+)?k\+/, 'hero proof bar shows a k+ style count');
+  assert.doesNotMatch(html, /detailed|vehicles/i, 'hero proof bar claims a vehicle tally');
+
+  // The rating must lead somewhere the visitor can verify it.
+  assert.match(html, /href="#reviews"/, 'the rating does not link to the reviews');
+  assert.match(index, /id="reviews"/, 'the reviews anchor target is missing');
+});
+
+test('the proof bar repeats the same $0-today promise the card step makes', () => {
+  const index = read('index.html');
+  assert.match(index, /class="hpb-val">\$0 today<\/span>/);
+  assert.match(index, /Card saved, not charged/);
+  assert.match(index, /Charged today/); // Step 5 financial summary
+});
+
 // ── E. Customer / Admin separation ───────────────────────────────────────────
 
 test('the staff credential form never paints first on a customer page', () => {

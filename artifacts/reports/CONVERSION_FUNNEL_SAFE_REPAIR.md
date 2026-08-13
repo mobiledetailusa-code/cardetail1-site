@@ -102,6 +102,37 @@ regex, and every rule's total was verified: `card-gate-title` 12, `pay-pref-desc
 
 ---
 
+## 3b. Hero proof bar (replaces the removed stats band)
+
+The stats band was removed because its headline figure was fabricated. The trust signals
+that were **true** were worth keeping, so they were rebuilt in the hero — earlier in the
+page, where cold traffic decides — as `.hero-proof-bar` in `index.html`:
+
+| Tile | Claim | Why it is defensible |
+|---|---|---|
+| ★★★★★ **5.0 Google** | "Read real reviews" | Links to `#reviews`, the real testimonial carousel — the visitor can check it |
+| 📅 **5+ years** | "Serving NJ · NY · CT" | Tenure already claimed on the page |
+| 🌤️ **All year** | "Every season, not just summer" | The year-round claim already on the page |
+| 🚐 **Water & power** | "We bring our own — no hookup" | Matches the marketing promise *and* the reframed Step 4 question |
+| ✓ **$0 today** | "Card saved, not charged" | Word-for-word the promise the card step keeps |
+
+**Deliberately absent: any vehicle count.** A test asserts the bar contains no `k+`-style
+figure and no "vehicles/detailed" tally, so the fabricated counter cannot return by a
+different name.
+
+Layout: the hero column is capped at 520px, so the bar is a 2-column grid with the
+`$0 today` card spanning both as a banner — it is the anti-friction message and earns the
+emphasis. Verified at 1280×800 and 375×812.
+
+**Generator fix caught by this work:** `scripts/apply-state-hub-theme.mjs` used
+`(function initTrustedStatsCounter()` as a *positional marker* to slice `_updateHomeFromPrices`
+out of `index.html`. Deleting that function would have made the next hub regeneration throw
+`marker not found`. The marker now points at `(function initTrustSeasonIcon()`, which is
+present in `index.html` and all 12 hub pages.
+
+**Not yet propagated:** the proof bar is on `index.html` only. The hub/city heroes have a
+different structure and each needs its own placement pass.
+
 ## 4. Behavioural changes
 
 **Customer-visible:** the copy above; the two utility selects are labelled Optional (they
