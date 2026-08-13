@@ -2,15 +2,19 @@
 
 **Status: READY FOR INDEPENDENT REVIEW** — not merged by this work.
 
-> ⚠️ **Superseded on 2026-08-13: this branch is LIVE on `cardetail1.com`.**
-> Verified by fetching the production origin: it serves "Check Price & Availability",
-> "card saved, not charged" and "Water access — Optional", and contains no
-> "holds your slot" / "Lock Your Slot". This deploy was **not** performed by this
-> work — the branch was pushed, and the deploy was published from the Netlify UI.
-> `origin/master` does **not** contain these commits, so production and `master`
-> now disagree; the next deploy built from `master` will silently revert all of it.
-> **Action required: merge `fix/conversion-funnel-safe` into `master`** so the two
-> agree. See §10.
+> **Update 2026-08-13: shipped.** PR
+> [#193](https://github.com/mobiledetailusa-code/cardetail1-site/pull/193) was merged
+> into `master` at 14:01Z and Netlify deployed it, so `cardetail1.com` now serves this
+> work. Verified against the production origin: "Check Price & Availability",
+> "card saved, not charged", "Water access — Optional", and no "holds your slot" /
+> "Lock Your Slot" anywhere. Owner confirmed the live funnel tested clean.
+>
+> *(An earlier revision of this note claimed production was serving an unmerged branch
+> and that `master` had diverged. That was wrong — it compared against stale local
+> remote-tracking refs instead of fetching first. PR #193 had already landed.)*
+>
+> Two later commits — the trust-stats removal `f9e04ad` and this report — are **not yet
+> in `master`**. See §10.
 
 | | |
 |---|---|
@@ -240,21 +244,24 @@ generator family. Out of scope.
 
 ## 10. Production readiness verdict
 
-### READY FOR INDEPENDENT REVIEW
+### SHIPPED (copy repair) · READY FOR INDEPENDENT REVIEW (stats removal)
 
-Branch pushed. **Deployed to production from the Netlify UI, outside this work.** Not merged.
+| Commit | What | State |
+|---|---|---|
+| `f91d833` | Trust-copy alignment | **merged via PR #193, live** |
+| `02bf00e` | This report | merged via PR #193 |
+| `f9e04ad` | Trust-stats band + fabricated counter removed | **pushed, not merged** |
+| `8faeb82` + this revision | Report updates | pushed, not merged |
 
-**Outstanding — in priority order:**
+**Outstanding:**
 
-1. **Merge `fix/conversion-funnel-safe` into `master`.** Production is currently serving a
-   deploy built from a branch that `master` does not contain. Any later deploy from `master`
-   reverts every change in this report without warning. This is the only urgent item.
+1. Merge `f9e04ad` into `master` so the fabricated "Vehicles detailed" counter stops
+   shipping. It is still live on production until then.
 2. **Verify on the live origin what the local smoke could not:** the Stripe Payment Element
    mounting at Step 5, the ZIP/service-area lookup, and `create-setup-intent` — all three need
    Netlify functions and were inert in the static smoke. Use Stripe **test fixtures**, never a
    live customer card.
-3. Confirm the deployed commit is `f9e04ad` (or later on this branch) and not an older one.
 
-The changes themselves remain LOW risk — copy plus one defensive markup default plus a pure
-deletion. Nothing on this branch can alter a booking, payment, total, receipt or schedule.
-The risk here is release-process drift, not code.
+Risk of the outstanding change: LOW — a pure 1077-line deletion with no additions, full suite
+unchanged against baseline. Nothing on this branch can alter a booking, payment, total,
+receipt or schedule.
