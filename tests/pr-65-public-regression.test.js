@@ -36,7 +36,7 @@ test('reviews cred-row no longer advertises placeholder gallery line', () => {
 });
 
 test('Step 5 uses short booking policy bullets, not collapsible long terms', () => {
-  assert.match(index, /No charge today<\/strong> — saving your card secures the booking request only/);
+  assert.match(index, /No charge today<\/strong> — saving your card lets us process your booking request/);
   assert.match(index, /Read Full Terms →/);
   assert.doesNotMatch(index, /<details class="checkout-terms-disclosure"/);
   assert.doesNotMatch(index, /Suggested Booking Terms Summary/);

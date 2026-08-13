@@ -21,7 +21,7 @@ for (const page of pages) {
       assert.match(html, /hub-booking-bridge\.js/);
       return;
     }
-    assert.match(html, /No charge today<\/strong> — saving your card secures the booking request only/);
+    assert.match(html, /No charge today<\/strong> — saving your card lets us process your booking request/);
     assert.match(html, /Read Full Terms →/);
     assert.doesNotMatch(html, /<details class="checkout-terms-disclosure"/);
     assert.doesNotMatch(html, /Suggested Booking Terms Summary/);

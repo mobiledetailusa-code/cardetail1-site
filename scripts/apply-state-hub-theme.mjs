@@ -91,7 +91,7 @@ const howHtml3Step = `<!-- HOW IT WORKS -->
   <div class="section">
     <div class="sec-eye">How it works</div>
     <div class="sec-title">Three simple steps</div>
-    <div class="sec-desc">No charge today — card holds your slot. Final payment after service. Long-distance appointments may require quote approval.</div>
+    <div class="sec-desc">No charge today — your card is saved on file, not charged. Final payment after service. Long-distance appointments may require quote approval.</div>
     <div class="how-grid how-grid--three">
       <div class="how-card">
         <div class="how-ico">📍</div>
@@ -250,7 +250,7 @@ function heroHtml(cfg) {
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Mobile Detail</button>
       <a class="btn-outline" href="tel:5513132956">Call / Text</a>
     </div>
-    <p class="hero-trust-line">No charge today — your card holds your slot. Final payment after service.</p>
+    <p class="hero-trust-line">No charge today — your card is saved on file, not charged. Final payment after service.</p>
     <div id="zip-section" aria-label="Check service area by ZIP code">
       <details class="hero-zip-details">
         <summary>Check ZIP for local pricing</summary>
@@ -360,7 +360,7 @@ function patchFile(filename, cfg) {
     <div class="trust-row">
       <div class="trust-item"><div class="trust-ico">🚐</div><div class="trust-val">Mobile</div><div class="trust-lbl">We come to you</div></div>
       <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">Local</div><div class="trust-lbl">By appointment</div></div>
-      <div class="trust-item"><div class="trust-ico">✓</div><div class="trust-val">No charge today</div><div class="trust-lbl">Card holds your slot</div></div>
+      <div class="trust-item"><div class="trust-ico">✓</div><div class="trust-val">No charge today</div><div class="trust-lbl">Card saved, not charged</div></div>
       <div class="trust-item"><div class="trust-ico">📋</div><div class="trust-val">Clear packages</div><div class="trust-lbl">Interior · Full · Exterior</div></div>
       <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val">Book online</div><div class="trust-lbl">Anytime</div></div>
     </div>
