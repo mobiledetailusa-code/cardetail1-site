@@ -1,6 +1,19 @@
 /**
- * Hub/city pages delegate booking to the authoritative index.html four-step modal.
- * Legacy inline checkout DOM remains for parity scripts but is not customer-visible.
+ * Hub/city pages delegate booking to the authoritative index.html modal, which
+ * has SIX customer-visible steps: 1 Category · 2 Package · 3 Vehicle · 4 Info ·
+ * 5 Secure Your Booking · 6 Confirm. This header previously documented a
+ * different step count; 6 is the value verified against BK_VISIBLE_STEPS in
+ * index.html, and tests/booking-copy-drift.test.js keeps the two in sync.
+ *
+ * Each delegated page still carries its own inline checkout DOM (#bk-ov). When
+ * this bridge takes control it hides that DOM via .cd1-hub-booking-delegated and
+ * iframes index.html instead, so the inline copy is not customer-visible. It is
+ * NOT dead: if this script fails to load, #bk-ov is never hidden and the inline
+ * modal remains the degradation path. See
+ * artifacts/reports/LEGACY_BOOKING_FALLBACK.md before changing or removing it.
+ *
+ * Documentation only — no runtime behavior is described here that the code does
+ * not already do.
  */
 (function (global) {
   'use strict';

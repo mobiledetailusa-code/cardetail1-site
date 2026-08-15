@@ -1,0 +1,162 @@
+{
+  "$schema": "none — plain data consumed only by tests/booking-copy-drift.test.js",
+  "$purpose": [
+    "Canonical PRESENTATION COPY for the booking surface.",
+    "",
+    "This file is NOT loaded at runtime and is NOT a source of business authority.",
+    "It carries no price, no total, no fee, no booking state, no payment state and",
+    "no confirmation semantics. Pricing authority stays in the catalog/server,",
+    "payment authority stays in the Postgres ledger, booking state stays in the",
+    "Blob CAS store. Nothing here may be imported by page or function code.",
+    "",
+    "Its only job is to stop the same customer-facing sentence from drifting into",
+    "13 different versions across the authoritative page and its compatibility",
+    "copies. See artifacts/reports/PRODUCTION_SAFE_NORMALIZATION.md."
+  ],
+
+  "surfaces": {
+    "authoritative": ["index.html"],
+    "compatibility": [
+      "bergen-county-hub.html",
+      "connecticut-hub.html",
+      "essex-county-hub.html",
+      "hudson-county-hub.html",
+      "new-jersey-hub.html",
+      "newark-mobile-detailing.html",
+      "ny-metro-hub.html",
+      "passaic-county-hub.html",
+      "pennsylvania-hub.html",
+      "template-city.html",
+      "trenton-mobile-detailing.html",
+      "westchester-mobile-detailing.html"
+    ],
+    "$note": "compatibility surfaces hide their inline modal behind assets/hub-booking-bridge.js and iframe the authoritative page; the copy must still match because the inline DOM is the degradation path."
+  },
+
+  "required": [
+    {
+      "id": "card-gate-title",
+      "text": "<div class=\"card-gate-title\">Save Your Card</div>",
+      "why": "Neutral title. The earlier 'Lock Your Slot' promised a reservation the system does not make."
+    },
+    {
+      "id": "card-required-reason",
+      "text": "A card on file is still required to submit the booking request.",
+      "why": "States what the card enables (submitting a request), not what it reserves."
+    },
+    {
+      "id": "card-custody",
+      "text": "No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy.",
+      "why": "Custody + the exhaustive list of what can trigger a charge."
+    },
+    {
+      "id": "card-required-label",
+      "text": "Card on File Required",
+      "why": "The card is mandatory for every payment preference; the label must not imply it is optional."
+    },
+    {
+      "id": "card-policy-preamble",
+      "text": "Before saving your card, please note:",
+      "why": "Opens the pre-consent disclosure block."
+    },
+    {
+      "id": "card-consent",
+      "text": "I have read and agree to the booking, cancellation, no-show, access, and card-on-file policy.",
+      "why": "The consent sentence recorded against the booking. Changing it changes what customers agreed to."
+    },
+    {
+      "id": "request-only-total",
+      "text": "booking request only",
+      "why": "The confirm step must label the charged-today row as a request, not a payment. The amount itself is rendered by the page, never stored here."
+    },
+    {
+      "id": "submit-label",
+      "text": "Submit Booking Request",
+      "why": "Request terminology at the moment of submission."
+    },
+    {
+      "id": "processor-attribution",
+      "text": "Powered by Stripe",
+      "why": "Processor disclosure."
+    },
+    {
+      "id": "pci-note",
+      "text": "PCI-secure · no raw card data stored",
+      "why": "Custody claim; must stay true and identical everywhere."
+    },
+    {
+      "id": "utilities-reassurance",
+      "text": "<strong>We bring our own water and power</strong>",
+      "why": "Resolves the contradiction between the marketing promise and the access questions."
+    },
+    {
+      "id": "water-optional",
+      "text": "<div class=\"fl\">Water access — Optional</div>",
+      "why": "The field is genuinely optional; the label must say so."
+    },
+    {
+      "id": "power-optional",
+      "text": "<div class=\"fl\">Electricity access — Optional</div>",
+      "why": "Same as water-optional."
+    },
+    {
+      "id": "arrival-anytime",
+      "text": "Any time that day",
+      "why": "Arrival-window wording feeds the operational slot resolver."
+    },
+    {
+      "id": "arrival-window",
+      "text": "Choose a 3-hour arrival window",
+      "why": "The window length must match BK_ARRIVAL_BOUNDS."
+    },
+    {
+      "id": "advance-notice",
+      "text": "Next available appointments are typically 3 days out.",
+      "why": "Must equal MIN_ADVANCE_DAYS in netlify/lib/operational-availability.js. tests/conversion-funnel-copy.test.js pins the number to the constant; this entry pins the sentence across surfaces."
+    },
+    {
+      "id": "step5-label",
+      "text": "Secure Your Booking",
+      "why": "Step 5 label. 'Secure' means made safe, not reserved — the surrounding copy carries the request semantics."
+    }
+  ],
+
+  "forbidden": [
+    {
+      "id": "slot-hold-promise",
+      "pattern": "holds? your slot",
+      "flags": "i",
+      "why": "Promised a reservation. Submitting produces a request that Cardetail1 reviews before confirming."
+    },
+    {
+      "id": "slot-lock-promise",
+      "pattern": "Lock Your Slot",
+      "flags": "i",
+      "why": "Same false reservation promise, in the card gate title."
+    },
+    {
+      "id": "card-secures-booking",
+      "pattern": "required to secure the booking\\.",
+      "flags": "i",
+      "why": "Implied the card secures the appointment rather than enabling the request."
+    },
+    {
+      "id": "fabricated-vehicle-count",
+      "pattern": "Vehicles detailed",
+      "flags": "",
+      "why": "The figure was BASE 2800 plus the visitor's own localStorage visit count, not a real total."
+    },
+    {
+      "id": "fabricated-counter-impl",
+      "pattern": "cd1_page_visits",
+      "flags": "",
+      "why": "The storage key behind the fabricated counter."
+    }
+  ],
+
+  "flowShape": {
+    "visibleSteps": 6,
+    "stepsConstant": "BK_VISIBLE_STEPS",
+    "why": "Documentation and copy must not describe a four-step flow; the modal renders six tabs."
+  }
+}
