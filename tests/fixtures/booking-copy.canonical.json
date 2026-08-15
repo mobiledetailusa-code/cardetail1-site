@@ -25,7 +25,39 @@
     "$note": "Classification is structural, not by literal string, so a new booking page cannot escape coverage.",
     "bookingRootSelector": "#bk-ov",
     "fallbackMarker": "assets/hub-booking-bridge.js",
-    "rule": "A page containing bookingRootSelector is a booking surface. If it also loads fallbackMarker it is FALLBACK; otherwise it is AUTHORITATIVE and must be listed below."
+    "rule": "A page containing bookingRootSelector is a booking surface. If it also loads fallbackMarker it is FALLBACK; otherwise it is AUTHORITATIVE and must be listed below.",
+
+    "publishRoot": ".",
+    "$publishRoot": "netlify.toml sets publish = \".\", so every .html under the repo root is served, at any depth. Discovery therefore walks recursively; a root-only readdir let a nested page such as cities/boston-hub.html ship outside the guard.",
+
+    "scanExcludedDirs": [
+      "node_modules",
+      "netlify",
+      "prisma",
+      "scripts",
+      "shared",
+      "tests",
+      "docs",
+      "artifacts",
+      "reports",
+      "archive"
+    ],
+    "$scanExcludedDirs": [
+      "Structural exclusions only — each is a directory that by ROLE cannot hold an",
+      "authored public page, never a list of known page names:",
+      "  node_modules  dependency tree (also gitignored, so never deployed)",
+      "  netlify       server-side root; netlify.toml declares functions = 'netlify/functions'",
+      "  prisma        schema and migrations",
+      "  scripts       build and maintenance tooling",
+      "  shared        shared modules, not a document root",
+      "  tests         the test tree, including this suite's own scratch fixtures",
+      "  docs artifacts reports archive   documentation and audit output",
+      "Entries are matched against the path RELATIVE TO THE PUBLISH ROOT, so only the",
+      "top-level directory of that role is skipped — a nested 'cities/tests/' is still",
+      "scanned. Dot-directories (.git, .netlify, .claude) are skipped structurally.",
+      "assets/ is deliberately NOT excluded: it is served, so a booking page placed",
+      "there must still be classified."
+    ]
   },
 
   "surfaces": {
@@ -44,7 +76,8 @@
       "westchester-mobile-detailing.html"
     ],
     "fallbackTemplate": ["template-city.html"],
-    "$counts": "1 authoritative + 11 public fallback = 12 runtime/public HTML surfaces, plus 1 non-runtime template."
+    "$counts": "1 authoritative + 11 public fallback = 12 runtime/public HTML surfaces, plus 1 non-runtime template.",
+    "$paths": "Entries are paths relative to the publish root, POSIX-separated. All current surfaces sit at the root; a nested surface would be listed as e.g. 'cities/boston-hub.html'."
   },
 
   "authoritative": {
@@ -73,100 +106,160 @@
       }
     ],
 
-    "visibleText": [
+    "$anchoredText": [
+      "Every entry is ANCHORED: `anchor` is resolved inside the parsed #bk-ov DOM and",
+      "must match exactly as many elements as `texts` has entries, compared in document",
+      "order. This replaces whole-modal substring containment, under which a decoy such",
+      "as <div style=\"display:none\">Card on File Required</div> could satisfy the",
+      "contract while the real element drifted.",
+      "",
+      "Why anchoring rather than computed visibility: the booking modal is a wizard.",
+      "Inactive steps and the .pay-choice-desc panels are display:none until the",
+      "customer reaches them, so they ARE customer-visible copy. Requiring computed",
+      "visibility would delete real coverage. Anchoring closes the decoy hole without",
+      "that cost: a decoy that does not match the anchor is ignored, and one that does",
+      "match changes the element count and fails.",
+      "",
+      "match: 'exact'    normalised text of the element equals the expected string",
+      "match: 'contains' normalised text of the element contains the expected string,",
+      "                  used where the element legitimately carries extra copy."
+    ],
+    "anchoredText": [
       {
         "id": "card-mandatory",
-        "text": "Card on File Required",
+        "anchor": "#cof-wrap > div.fl",
+        "match": "exact",
+        "texts": ["Card on File Required"],
         "why": "The card is mandatory for every payment preference; the label must not imply it is optional."
       },
       {
         "id": "card-enables-request",
-        "text": "A card on file is still required to submit the booking request.",
-        "why": "States what the card enables (submitting a request), not what it reserves."
+        "anchor": ".pay-choice-desc",
+        "match": "contains",
+        "texts": [
+          "A card on file is still required to submit the booking request.",
+          "A card on file is still required to submit the booking request.",
+          "A card on file is still required to submit the booking request."
+        ],
+        "why": "States what the card enables (submitting a request), not what it reserves. All three payment-preference panels must carry it, or one preference would read as card-optional."
       },
       {
         "id": "card-saved-not-charged",
-        "text": "No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy.",
+        "anchor": "#cof-wrap > div:nth-child(2)",
+        "match": "exact",
+        "texts": ["No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy."],
         "why": "Saved-vs-charged wording plus the exhaustive list of what can trigger a charge."
       },
       {
         "id": "charged-today-label",
-        "text": "Charged today",
-        "why": "The zero-amount row must be labelled; the amount itself is rendered by the page and never stored here."
+        "anchor": ".bk-charged-row > span:first-child",
+        "match": "exact",
+        "texts": ["Charged today"],
+        "why": "The zero-amount row on step 5 must be labelled; the amount itself is rendered by the page and never stored here."
       },
       {
         "id": "nothing-collected-today",
-        "text": "No payment is collected today.",
+        "anchor": "p.bk-charged-copy",
+        "match": "contains",
+        "texts": ["No payment is collected today."],
         "why": "Explicit statement that nothing is charged at request time."
       },
       {
         "id": "request-not-appointment",
-        "text": "This sends a booking request",
+        "anchor": "#bs5 > .bdesc",
+        "match": "contains",
+        "texts": ["This sends a booking request"],
         "why": "Booking-request vs confirmed-appointment semantics, stated where the card is asked for."
       },
       {
         "id": "request-only-row",
-        "text": "booking request only",
-        "why": "The confirm step labels the charged-today row as a request, not a payment."
+        "anchor": "#bs6 .oc:has(#c-pay-method) > .or:nth-of-type(2) > span",
+        "match": "contains",
+        "texts": ["Charged today", "booking request only"],
+        "why": "The confirm step labels the charged-today row as a request, not a payment. Label and value are pinned as an ordered pair so the value cannot be relabelled. The amount rendered in that value is deliberately NOT pinned — see zeroChargeSemantics."
       },
       {
         "id": "submit-label",
-        "text": "Submit Booking Request",
+        "anchor": "span.bl",
+        "match": "contains",
+        "texts": ["Submit Booking Request"],
         "why": "Request terminology at the moment of submission."
       },
       {
         "id": "success-status-under-review",
-        "text": "Under Review",
+        "anchor": "#bs-ok .suc-card > .or:first-child > .ov",
+        "match": "exact",
+        "texts": ["Under Review"],
         "why": "Post-submit status is explicitly under review, not confirmed."
       },
       {
         "id": "card-policy-preamble",
-        "text": "Before saving your card, please note:",
+        "anchor": "strong.card-save-notice-title",
+        "match": "exact",
+        "texts": ["Before saving your card, please note:"],
         "why": "Opens the pre-consent disclosure block."
       },
       {
         "id": "card-consent",
-        "text": "I have read and agree to the booking, cancellation, no-show, access, and card-on-file policy.",
+        "anchor": "label.terms-check:has(#terms-ok) > span",
+        "match": "contains",
+        "texts": ["I have read and agree to the booking, cancellation, no-show, access, and card-on-file policy."],
         "why": "The consent sentence recorded against the booking. Changing it changes what customers agreed to."
       },
       {
         "id": "utilities-reassurance",
-        "text": "We bring our own water and power",
+        "anchor": "#f-util-help > strong",
+        "match": "exact",
+        "texts": ["We bring our own water and power"],
         "why": "Resolves the contradiction between the marketing promise and the access questions."
       },
       {
         "id": "water-optional",
-        "text": "Water access — Optional",
-        "why": "The field is genuinely optional; the label must say so."
+        "anchor": ".fg:has(> #f-water) > .fl",
+        "match": "exact",
+        "texts": ["Water access — Optional"],
+        "why": "The field is genuinely optional; the label must say so. Anchored to the field group that owns the #f-water control, so the label cannot be satisfied by another field's label."
       },
       {
         "id": "power-optional",
-        "text": "Electricity access — Optional",
-        "why": "Same as water-optional."
+        "anchor": ".fg:has(> #f-electric) > .fl",
+        "match": "exact",
+        "texts": ["Electricity access — Optional"],
+        "why": "Same as water-optional, anchored to the #f-electric control."
       },
       {
         "id": "availability-notice",
-        "text": "Next available appointments are typically 3 days out.",
+        "anchor": ".bk-advance-notice > span:not(.bk-advance-notice-ico)",
+        "match": "exact",
+        "texts": ["Next available appointments are typically 3 days out."],
         "why": "Availability wording. tests/conversion-funnel-copy.test.js pins the number to MIN_ADVANCE_DAYS; this entry pins the sentence to the authoritative UI."
       },
       {
         "id": "arrival-anytime",
-        "text": "Any time that day",
-        "why": "Arrival-window wording feeds the operational slot resolver."
+        "anchor": ".bk-arrival-choices > .bk-arrival-choice:nth-child(1) .bk-arrival-choice-label",
+        "match": "exact",
+        "texts": ["Any time that day", "Any time that day"],
+        "why": "Arrival-window wording feeds the operational slot resolver. Two occurrences: the preferred date block and the alternate date block; both must agree."
       },
       {
         "id": "arrival-window",
-        "text": "Choose a 3-hour arrival window",
-        "why": "The window length must match BK_ARRIVAL_BOUNDS."
+        "anchor": ".bk-arrival-choices > .bk-arrival-choice:nth-child(2) .bk-arrival-choice-label",
+        "match": "exact",
+        "texts": ["Choose a 3-hour arrival window", "Choose a 3-hour arrival window"],
+        "why": "The window length must match BK_ARRIVAL_BOUNDS. Preferred and alternate blocks must agree."
       },
       {
         "id": "processor-attribution",
-        "text": "Powered by Stripe",
+        "anchor": ".processor-pill-row > .processor-pill:nth-child(1)",
+        "match": "exact",
+        "texts": ["Powered by Stripe"],
         "why": "Processor disclosure."
       },
       {
         "id": "pci-note",
-        "text": "PCI-secure · no raw card data stored",
+        "anchor": ".processor-pill-row > .processor-pill:nth-child(2)",
+        "match": "exact",
+        "texts": ["PCI-secure · no raw card data stored"],
         "why": "Custody claim; must stay true."
       }
     ],
@@ -189,6 +282,27 @@
         }
       ]
     }
+  },
+
+  "zeroChargeSemantics": {
+    "$note": [
+      "The hero proof bar carries a literal currency string ('$0 today') that sits",
+      "OUTSIDE #bk-ov. That amount is deliberately NOT pinned anywhere in this file:",
+      "the manifest must never become a pricing contract, and 'the manifest stays",
+      "presentation-only' rejects any canonical string matching /\\$\\d/.",
+      "",
+      "What IS guarded is the PROMISE attached to that amount — that the card is saved",
+      "and not charged. If the amount ever changes, this assertion will not catch it,",
+      "and that is intentional: a commercial amount is the catalog's authority, not a",
+      "copy fixture's. The corresponding in-modal statements are pinned by the",
+      "anchoredText entries nothing-collected-today, card-saved-not-charged and",
+      "request-only-row."
+    ],
+    "id": "hero-zero-charge-promise",
+    "anchor": ".hpb-item--accent .hpb-lbl",
+    "match": "exact",
+    "text": "Card saved, not charged",
+    "why": "The hero states a zero charge today. This pins the saved-vs-charged promise next to it without pinning the amount."
   },
 
   "fallbackParity": {

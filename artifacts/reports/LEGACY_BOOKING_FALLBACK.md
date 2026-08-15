@@ -29,8 +29,15 @@ input to `scripts/generate-hub-pages.js`, not a page the business links to.)
 
 Classification is structural, not by string match: a file owning `#bk-ov` is a booking
 surface; if it also loads `assets/hub-booking-bridge.js` it is fallback, otherwise
-authoritative. `tests/booking-copy-drift.test.js` enforces exactly this rule, so a new
-booking page cannot be added without being classified.
+authoritative. `tests/booking-copy-drift.test.js` enforces exactly this rule over a
+**recursive** walk of the publish root, so a new booking page cannot be added at any depth
+without being classified.
+
+> **Correction.** Until the B-1 fix, discovery read only the top level of the repo. Since
+> `publish = "."` serves every depth, a page such as `cities/boston-hub.html` carrying
+> `#bk-ov` passed the whole suite. The walk is now recursive, with role-based directory
+> exclusions matched relative to the publish root; `assets/` is deliberately scanned. A
+> regression test creates a nested unclassified page and asserts it is reported by path.
 
 Measured at `bb4cbfd`:
 
