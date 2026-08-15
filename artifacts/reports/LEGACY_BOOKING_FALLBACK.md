@@ -33,11 +33,18 @@ authoritative. `tests/booking-copy-drift.test.js` enforces exactly this rule ove
 **recursive** walk of the publish root, so a new booking page cannot be added at any depth
 without being classified.
 
-> **Correction.** Until the B-1 fix, discovery read only the top level of the repo. Since
-> `publish = "."` serves every depth, a page such as `cities/boston-hub.html` carrying
+> **Correction (two rounds).** Discovery originally read only the top level of the repo.
+> Since `publish = "."` serves every depth, a page such as `cities/boston-hub.html` carrying
 > `#bk-ov` passed the whole suite. The walk is now recursive, with role-based directory
-> exclusions matched relative to the publish root; `assets/` is deliberately scanned. A
-> regression test creates a nested unclassified page and asserts it is reported by path.
+> exclusions matched relative to the publish root; `assets/` is deliberately scanned.
+>
+> A second round replaced the remaining raw-substring test with **DOM-structural**
+> detection. A page is a surface when the parsed document renders an *element* with the
+> booking id, and it delegates when a real `<script src>` loads the bridge. Quoting style
+> is resolved by the parser; a modal or a bridge path appearing in a comment, in `<script>`
+> text or inside `<template>` classifies nothing. The regression tests build synthetic
+> publish roots under `fs.mkdtempSync` — **nothing is written inside the checkout**, and
+> concurrent runs never share a path.
 
 Measured at `bb4cbfd`:
 

@@ -1,6 +1,10 @@
 # Production-safe reorganization & optimization pass
 
-**Verdict: READY FOR FINAL PRE-MERGE REVIEW** — not merged, not deployed. **[C2]**
+**Verdict: READY FOR INDEPENDENT DELTA AUDIT** — not merged, not deployed. **[C3]**
+
+> The last SHA to carry an *independent* verdict is `d67003b`. Everything after it —
+> `9dee289` and this revision — was written and verified by the same agent. That is
+> implementer self-verification, not an audit, and this report does not claim otherwise.
 
 > **Correction round.** An independent audit returned NEEDS CORRECTION on candidate
 > `7215e25`. This revision corrects the drift-test architecture, completes the manifest,
@@ -41,8 +45,10 @@ subtests of those suites. **6 skips** are explicit `DATABASE_URL not configured`
 
 ### B1. Surfaces **[C]**
 
-Classification is **structural**: a file owning `#bk-ov` is a booking surface; if it also
-loads `assets/hub-booking-bridge.js` it is fallback, otherwise authoritative.
+Classification is **DOM-structural** **[C3]**: a page that renders an *element* with id
+`bk-ov` is a booking surface; if it also loads `assets/hub-booking-bridge.js` as a real
+`<script src>` it is fallback, otherwise authoritative. Neither half is decided on raw bytes
+— see §C1c.
 
 | Class | Count | Note |
 |---|---|---|
@@ -102,7 +108,12 @@ counted JS string characters after consuming trailing CRLF and reported them as 
 | `index.html` + 12 others (13 files) | −55 lines each: dead trust-stats CSS | LOW |
 | `assets/hub-booking-bridge.js` | Header: corrected step count; documents both bridge failure modes **[C]** | NONE — comment only |
 | `tests/fixtures/booking-copy.canonical.json` | Rewritten: authoritative/fallback split, 6 step labels + order, entry CTA, card/saved-vs-charged/request-vs-confirmed/water-power/availability/success-state semantics **[C2]** | NONE — not runtime |
-| `tests/booking-copy-drift.test.js` | Rewritten on jsdom; anchored copy assertions; recursive publish-root discovery **[C2]** | NONE — test only |
+| `tests/booking-copy-drift.test.js` | Rewritten on jsdom; anchored copy assertions; recursive publish-root discovery **[C2]**; DOM-structural classification, physical step order, no writes inside the checkout **[C3]** | NONE — test only |
+
+> **[C3] Third correction round.** An independent audit of the `9dee289` delta found four
+> blockers: the suite mutated the checkout, classification was still a raw substring match,
+> step order was not physically enforced, and the zero-charge promise was under-pinned. All
+> four are closed below. Statements corrected in that round are marked **[C3]**.
 
 > **[C2] Second correction round.** A second independent audit of `d67003b` returned
 > APPROVE FOR PREVIEW with three bounded follow-ups (B-1 nested surface discovery, B-2
@@ -161,6 +172,44 @@ root** so only the top-level directory of that role is skipped: `node_modules`, 
 it is served, so a booking page placed there must still be classified. They are not a list of
 known page names.
 
+#### C1c. DOM-structural classification **[C3]**
+
+The `[C2]` round still decided both halves of the classification on raw bytes —
+`read(f).includes('id="bk-ov"')` and `read(page).includes(bridgePath)`. That is wrong in
+both directions, and an independent audit called it:
+
+| Input | Old behaviour | Now |
+|---|---|---|
+| `id='bk-ov'` (single-quoted, valid HTML) | **not** a surface — missed entirely | surface |
+| `<!-- <div id="bk-ov"> -->` | surface | not a surface |
+| booking root inside `<script>` text or `<template>` | surface | not a surface |
+| bridge path inside a comment or a JS string | **fallback** | authoritative (it does not delegate) |
+
+Both halves now read the parsed document: `getElementById(bookingRootId)` for the surface,
+and real `script[src]` elements for delegation. Quoting never reaches the decision because
+the parser has already resolved it. A byte prefilter still narrows the candidate set before
+parsing, but it is a **superset only** — every candidate is confirmed by parsing, so no page
+is classified on a raw match.
+
+The three roles — authoritative public, fallback public, template — are asserted mutually
+disjoint, and their union must equal the discovered surface set exactly.
+
+#### C1d. Physical step order **[C3]**
+
+The step test looked each `tabId` up with `getElementById` **in manifest order**. That
+imposes the manifest's own order on the result, so swapping two tab elements in the DOM
+still compared equal. Steps are now read from `#bprog > .bpt` in document order, and both
+the id sequence and the exact count are asserted. Mutations N4 (swap tabs 3/4) and N5 (add a
+seventh tab) both fail; N4 failed to fail before this change.
+
+#### C1e. The suite no longer writes inside the checkout **[C3]**
+
+The `[C2]` nested-discovery regression created and deleted `cities/` **in the real repo
+root** during `npm test` — a side-effecting test inside a mandatory CI gate. Synthetic
+publish roots are now built under `fs.mkdtempSync(os.tmpdir())`, with the root and the
+manifest injected into `classifyBookingSurfaces()`. Two concurrent focused runs were
+verified to pass simultaneously with zero leaked temp directories and a clean `git status`.
+
 Negative control — identifiers present in raw source, absent from customer-visible text:
 
 | Probe | In raw source | Customer-visible |
@@ -208,17 +257,18 @@ the publish root, at any depth, without being classified. **[C2]**
 | Baseline `bb4cbfd` | 2633 | 2523 | 29 | 75 | 6 |
 | Previous candidate `7215e25` | 2638 | 2528 | 29 | 75 | 6 |
 | Candidate `d67003b` | 2643 | 2533 | 29 | 75 | 6 |
-| **B-1/B-2/B-3 corrections** **[C2]** | **2646** | **2536** | **29** | **75** | **6** |
+| B-1/B-2/B-3 corrections `9dee289` **[C2]** | 2646 | 2536 | 29 | 75 | 6 |
+| **Independent-audit blockers** **[C3]** | **2648** | **2538** | **29** | **75** | **6** |
 
-Failure identities were set-differenced between `d67003b` and this revision: **zero added,
-zero removed**. Skip identities are byte-identical. The +3 are the three new guard tests
-(nested discovery, hidden-decoy detection, hero zero-charge promise). Failure identities are
-listed in §A and are unchanged throughout.
+Failure identities were set-differenced at every step. Between `d67003b` → `9dee289` → this
+revision: **zero added, zero removed**, and skip identities are byte-identical throughout.
+The test-count growth is entirely new guard tests — +3 in `[C2]`, +2 in `[C3]` (role
+distinctness, physical step reorder); the decoy test was widened from one shape to five
+without adding a case. Failure identities are listed in §A and are unchanged.
 
-* Focused drift suite: **13 / 13 pass** **[C2]** (was 10).
+* Focused drift suite: **15 / 15 pass** **[C3]** (10 → 13 → 15).
 * Focused related suites (drift · conversion copy · hub public surface · index public
-  surface · hub booking conversion · booking flow · PR-65 regression · booking conversion
-  readiness): **206 / 206 pass**.
+  surface · hub booking conversion): **132 / 132 pass**.
 
 ### `audit:pre-deploy` — corrected **[C2]**
 
@@ -229,6 +279,7 @@ the claim is withdrawn.
 |---|---|
 | `bb4cbfd` (baseline), pristine export | **2** |
 | `d67003b` (candidate), pristine export | **2** |
+| `9dee289`, pristine export | **2** |
 | This revision, pristine export | **2** |
 
 Identical cause at all three:
@@ -318,6 +369,34 @@ M10, M11 and M12 exist because anchoring introduces its own failure mode: an anc
 too loose would let a decoy in through the front door, and a multi-occurrence anchor could
 hide a partial drift. Both are closed by comparing the ordered element list, not a set.
 
+### H2. Third adversarial round — the independent-audit blockers **[C3]**
+
+Thirteen mutations against a disposable export of the working tree, tree restored after
+each. **All 13 caught.** N4 is the one that did **not** fail before this round.
+
+| # | Mutation | Caught by |
+|---|---|---|
+| N1 | nested rogue surface using **single-quoted** `id='bk-ov'` | discovery — `assets/landing/boston-hub.html` |
+| N2 | real fallback page: its bridge `<script src>` turned into a **comment** | misclassification — "does not load … as a `<script src>`, so it is authoritative" |
+| N3 | booking root id renamed on a declared surface | "manifest lists surfaces that no longer render the booking root" |
+| **N4** | **physical swap of step tabs 3 and 4** (elements moved, labels travel with them) | physical DOM order + the dedicated reorder test |
+| N5 | a seventh step tab added | exact step count and order |
+| N6 | drift + `display:none` decoy | anchored `[card-mandatory]` |
+| N7 | drift + `hidden` attribute decoy | anchored `[card-mandatory]` |
+| N8 | drift + `<script>` decoy | anchored `[card-mandatory]` |
+| N9 | drift + HTML comment decoy | anchored `[card-mandatory]` |
+| N10 | drift + decoy that **matches the anchor** | anchored — `expected 1 element(s), found 2` |
+| N11 | `$0 today` → `$49 today` | zero-charge promise — "must render as zero" |
+| N12 | `Card saved, not charged` → `Card charged today` | zero-charge promise — label drift |
+| N13 | `$0 today` → `$0` | zero-charge promise — "must still say when" |
+
+N1–N3 run against the **real** recursive walk over the checkout, not a synthetic root, so
+they exercise the same code path the guard uses in CI.
+
+**Isolation, verified rather than asserted:** two focused runs executed concurrently against
+the same worktree — both 15/15, **0** leaked `cd1-drift-*` temp directories, `git status`
+empty, no `cities/` anywhere in the checkout.
+
 ## I. Remaining risks
 
 | Risk | Level |
@@ -338,35 +417,57 @@ hide a partial drift. Both are closed by comparing the ordered element list, not
 | **OOS-5** | LOW | `scripts/` | ~33 one-shot historical patch scripts with no applied-state manifest |
 | **OOS-6** **[C2]** | MEDIUM | `assets/universal-customer-strategy.generated.js`, `netlify/lib/universal-customer-strategy-config.json` | Committed generated files are stale against their shared config, so `audit:pre-deploy` exits 2 on any clean checkout — at baseline too. Running the suite silently regenerates them, which is why the tree then shows two modified files. Pre-existing; not fixed here (touches `netlify/lib/`) |
 
-## K. What `$0 today` is and is not guarded by **[C2]**
+## K. The zero-charge promise — what is guarded, and what is not **[C3]**
 
-The first correction round claimed the manifest covered "`$0`" semantics. That was
-overstated and is withdrawn.
+Two earlier claims are withdrawn. The `[C]` round said the manifest covered "`$0`"
+semantics — it did not. The `[C2]` round pinned only the adjacent label and stated plainly
+that a change to the amount would go undetected. That gap is now closed, without putting a
+price in the fixture.
 
-* The literal string `$0 today` lives at `index.html:1525`, in the hero proof bar — **outside
-  `#bk-ov`**, so it was never inside the authoritative booking contract.
-* It is **not** pinned by the manifest and deliberately never will be. `the manifest stays
-  presentation-only` rejects any canonical string matching `/\$\d/`, and that guard is
-  correct: a commercial amount is the catalog's and the server's authority. Pinning it in a
-  copy fixture would move pricing authority into a test file.
-* **If the amount ever changes, this suite will not catch it.** That is intentional. Stated
-  plainly so no one reads the drift guard as a pricing guard.
+`index.html:1523-1526` renders the promise as three elements. The invariant is asserted on
+the **rendered DOM**, and the fixture stores no amount and no currency symbol:
 
-What *is* guarded is the promise attached to the amount, which carries no digits:
-
-| Assertion | Anchor | Pins |
+| Fixture field | Value | |
 |---|---|---|
-| `hero-zero-charge-promise` **[C2]** | `.hpb-item--accent .hpb-lbl` | `Card saved, not charged` — the hero saved-vs-charged claim, beside the amount |
-| `nothing-collected-today` | `p.bk-charged-copy` | `No payment is collected today.` |
-| `card-saved-not-charged` | `#cof-wrap > div:nth-child(2)` | the full no-charge-today / saved-by-Stripe sentence |
-| `request-only-row` | `#bs6 .oc:has(#c-pay-method) > .or:nth-of-type(2) > span` | `Charged today` → `booking request only`, as an ordered pair, amount excluded |
+| `anchor` | `.hpb-item--accent` | must resolve to exactly one element |
+| `valueSelector` | `.hpb-val` | its digits must parse to **zero** — derived from the DOM, never stated here |
+| `valueMustMatch` | `today` | the promise must keep its timeframe |
+| `labelSelector` / `label` | `.hpb-lbl` / `Card saved, not charged` | the saved-vs-charged claim |
 
-Mutation M13 confirms the hero assertion fires: `Card saved, not charged` →
-`Card charged today` fails.
+**What this proves:** the amount cannot become non-zero, cannot lose its timeframe, and
+cannot be separated from the saved-vs-charged label. Mutations N11 (`$0 today` → `$49 today`),
+N12 (label → `Card charged today`) and N13 (`$0 today` → `$0`) all fail.
+
+**What this does not do, stated so no one reads more into it:** it does not define, approve
+or pin any price. It asserts one property — *zero* — of one presentation element. Every
+commercial amount remains the catalog's and the server's authority. `the manifest stays
+presentation-only` still rejects any canonical string matching `/\$\d/`, and now also any
+decimal money value, so the fixture cannot acquire pricing authority by drift.
+
+The corresponding in-modal statements are pinned separately by the anchored entries
+`nothing-collected-today`, `card-saved-not-charged` and `request-only-row`.
+
+## K1. Limits of this suite — what it does NOT prove **[C3]**
+
+Stated explicitly, because the earlier revisions of this report claimed more than the tests
+supported:
+
+* **Nothing is verified in a browser.** Every assertion runs in jsdom. Computed CSS,
+  layout, paint and real event behaviour are unverified. The Netlify Preview smoke test
+  remains the only evidence for those, and it has not been run.
+* **Visibility is not evaluated.** Anchoring proves an element carries the right copy; it
+  does not prove a customer can see it. The modal is a wizard whose panels are
+  `display:none` until reached, so this is deliberate — but it means "customer-visible" in
+  this suite means "in the customer-visible DOM subtree", not "on screen".
+* **Copy outside the manifest is unguarded.** The suite pins the listed entries and nothing
+  else. Silence is not coverage.
+* **`audit:pre-deploy` is not a gate** and exits 2 here and at baseline (OOS-6). See §F.
+* **The suite guards presentation only.** No pricing, ledger, Stripe, persistence or
+  booking-state property is asserted anywhere in it.
 
 ## L. Verdict
 
-### READY FOR FINAL PRE-MERGE REVIEW **[C2]**
+### READY FOR INDEPENDENT DELTA AUDIT **[C3]**
 
 Not merged. Not deployed. Production database, live Stripe configuration and Netlify
 production settings untouched. A Netlify branch preview and customer-visible smoke

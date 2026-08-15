@@ -22,10 +22,26 @@
   ],
 
   "surfaceRules": {
-    "$note": "Classification is structural, not by literal string, so a new booking page cannot escape coverage.",
-    "bookingRootSelector": "#bk-ov",
-    "fallbackMarker": "assets/hub-booking-bridge.js",
-    "rule": "A page containing bookingRootSelector is a booking surface. If it also loads fallbackMarker it is FALLBACK; otherwise it is AUTHORITATIVE and must be listed below.",
+    "$note": "Classification is DOM-structural, never a raw byte match, so a new booking page cannot escape coverage and a commented-out one cannot invent coverage.",
+    "bookingRootId": "bk-ov",
+    "bridgeScript": "assets/hub-booking-bridge.js",
+    "rule": "A page that renders an ELEMENT with bookingRootId is a booking surface. If it also loads bridgeScript as a real <script src> it is FALLBACK; otherwise it is AUTHORITATIVE and must be listed below.",
+    "$rule": [
+      "Both halves are decided on the parsed document, not on the file's bytes:",
+      "  - quoting style (id='bk-ov' vs id=\"bk-ov\") is resolved by the parser and",
+      "    therefore cannot change the outcome;",
+      "  - a modal inside an HTML comment, inside <script> text or inside <template>",
+      "    is not an element in the document, so it classifies nothing;",
+      "  - the bridge path written in a comment or in a JS string literal is not a",
+      "    script tag, so it cannot make a page look like a fallback surface.",
+      "A cheap byte prefilter narrows the candidate set before parsing. It is a",
+      "superset only — every candidate is confirmed by parsing, so no page is ever",
+      "classified on a raw match."
+    ],
+
+    "stepTabContainer": "bprog",
+    "stepTabSelector": ".bpt",
+    "$stepTabs": "The step tabs are read from this container in physical DOM order. Looking each tabId up individually would impose the manifest's own order on the result, so a physical swap of two tabs would compare equal and pass.",
 
     "publishRoot": ".",
     "$publishRoot": "netlify.toml sets publish = \".\", so every .html under the repo root is served, at any depth. Discovery therefore walks recursively; a root-only readdir let a nested page such as cities/boston-hub.html ship outside the guard.",
@@ -176,7 +192,7 @@
         "anchor": "#bs6 .oc:has(#c-pay-method) > .or:nth-of-type(2) > span",
         "match": "contains",
         "texts": ["Charged today", "booking request only"],
-        "why": "The confirm step labels the charged-today row as a request, not a payment. Label and value are pinned as an ordered pair so the value cannot be relabelled. The amount rendered in that value is deliberately NOT pinned — see zeroChargeSemantics."
+        "why": "The confirm step labels the charged-today row as a request, not a payment. Label and value are pinned as an ordered pair so the value cannot be relabelled. The amount rendered in that value is deliberately NOT pinned here — see zeroChargePromise."
       },
       {
         "id": "submit-label",
@@ -284,25 +300,35 @@
     }
   },
 
-  "zeroChargeSemantics": {
+  "zeroChargePromise": {
     "$note": [
-      "The hero proof bar carries a literal currency string ('$0 today') that sits",
-      "OUTSIDE #bk-ov. That amount is deliberately NOT pinned anywhere in this file:",
-      "the manifest must never become a pricing contract, and 'the manifest stays",
-      "presentation-only' rejects any canonical string matching /\\$\\d/.",
+      "The authoritative customer-facing zero-charge promise, pinned as a PRESENTATION",
+      "invariant. It sits in the hero proof bar, outside #bk-ov.",
       "",
-      "What IS guarded is the PROMISE attached to that amount — that the card is saved",
-      "and not charged. If the amount ever changes, this assertion will not catch it,",
-      "and that is intentional: a commercial amount is the catalog's authority, not a",
-      "copy fixture's. The corresponding in-modal statements are pinned by the",
-      "anchoredText entries nothing-collected-today, card-saved-not-charged and",
+      "This entry holds NO amount and NO currency. It names the elements and states",
+      "the invariant: whatever the value element renders must parse numerically to",
+      "ZERO, must still say when ('today'), and must be accompanied by the",
+      "saved-vs-charged label. The test derives zero from the rendered DOM; the",
+      "fixture never asserts a price.",
+      "",
+      "That is the whole point. Writing '$0 today' here would make this file a source",
+      "of commercial truth, and 'the manifest stays presentation-only' rejects any",
+      "canonical string matching /\\$\\d/ precisely to prevent that. Pricing authority",
+      "stays in the catalog and the server.",
+      "",
+      "What this DOES catch: the promise becoming non-zero, losing its timeframe, or",
+      "the label drifting away from saved-vs-charged. What it does NOT do: approve or",
+      "define any amount. The corresponding in-modal statements are pinned separately",
+      "by the anchoredText entries nothing-collected-today, card-saved-not-charged and",
       "request-only-row."
     ],
     "id": "hero-zero-charge-promise",
-    "anchor": ".hpb-item--accent .hpb-lbl",
-    "match": "exact",
-    "text": "Card saved, not charged",
-    "why": "The hero states a zero charge today. This pins the saved-vs-charged promise next to it without pinning the amount."
+    "anchor": ".hpb-item--accent",
+    "valueSelector": ".hpb-val",
+    "labelSelector": ".hpb-lbl",
+    "valueMustMatch": "today",
+    "label": "Card saved, not charged",
+    "why": "The hero promises that nothing is charged at request time. The amount must render as zero and the saved-vs-charged label must stand beside it."
   },
 
   "fallbackParity": {
