@@ -1,6 +1,13 @@
 # Production-safe reorganization & optimization pass
 
-**Verdict: READY FOR INDEPENDENT REVIEW** — not merged, not deployed.
+**Verdict: READY FOR INDEPENDENT RE-AUDIT** — not merged, not deployed.
+
+> **Correction round.** An independent audit returned NEEDS CORRECTION on candidate
+> `7215e25`. This revision corrects the drift-test architecture, completes the manifest,
+> hardens surface discovery, fixes factual inaccuracies, and cleans the worktree. Every
+> corrected figure below was re-measured against the git blobs at `bb4cbfd` rather than the
+> post-edit working tree, which is what produced the original errors. Corrections are marked
+> **[C]**.
 
 ---
 
@@ -8,183 +15,230 @@
 
 | | |
 |---|---|
-| Production / `master` SHA | `bb4cbfd` (Merge PR #194) |
+| Production / `master` SHA | `bb4cbfd` |
+| Previous candidate | `7215e25` |
 | Branch | `refactor/production-safe-normalization` |
 | Worktree | `C:\Projects\Cardetail1\worktrees\normalization` |
 | Baseline suite | **2633 total · 2523 pass · 29 fail · 75 cancelled · 6 skipped** |
-| Pre-existing failures | 29, all environment: PostgreSQL 16 and Netlify Blobs not configured locally (Twilio PR5 outbox, add-on/package financial mutations, vehicle-change approval, cash settlement, receipt authorization, portal change-request stability, price-decision Release A) |
+
+### Pre-existing failure identities (21 top-level suites, unchanged throughout)
+
+Stage 1 addon financial mutations · Stage 3 Admin add-on controls · vehicle_remove approval
+path (server) · Admin package controls — Postgres-authoritative routing · full-balance cash
+settlement · PR4 customer/Admin optimistic concurrency · PR4 vehicle and package/add-on
+rules · vehicle_remove_request policy + commands · receipt authorization (real middleware,
+two customers) · vehicle_add_request then customer projection · Package Stage 1 financial
+mutations · portal auto-apply + vehicle coerce · portal change request stability · Release A
+— decide applies canonical quote · Release A — cross-store index failure recovery · PR5
+fail-closed runtime policy · PR5 templates and consent · PR5 post-commit outbox · PR5 signed
+webhooks and STOP/HELP · PR5 source containment · `tests/twilio-readiness-pr5.test.js`
+
+All require PostgreSQL 16, Netlify Blobs or a Twilio fixture. **75 cancellations** are
+subtests of those suites. **6 skips** are explicit `DATABASE_URL not configured` /
+`CUSTOMER_IDENTITY_TEST_DATABASE_URL not set` guards.
 
 ## B. Architecture findings
 
-### B1. Duplication (the dominant finding)
+### B1. Surfaces **[C]**
 
-`index.html` is authoritative. Twelve hub/city pages each carry a **complete inline copy**
-of the booking modal.
+Classification is **structural**: a file owning `#bk-ov` is a booking surface; if it also
+loads `assets/hub-booking-bridge.js` it is fallback, otherwise authoritative.
+
+| Class | Count | Note |
+|---|---|---|
+| Authoritative customer-visible booking UI | **1** | `index.html` |
+| Public fallback surfaces | **11** | hidden at runtime by the bridge |
+| Template (not a runtime surface by role) | **1** | `template-city.html` |
+
+**12 runtime/public HTML surfaces + 1 template.** The previous revision said "13 booking
+pages" and "12 hub/city pages", conflating the template with a live surface.
 
 | Metric | Value |
 |---|---|
 | Public HTML on disk | 6,438 KB / 30 files |
-| The 13 booking-modal pages | **5,875 KB** |
-| Inline JS per page | 227–261 KB |
-| Inline CSS per page | 93–174 KB |
-| Inline modal markup per page | ~39 KB / ~486 lines |
-| **Distinct modal variants** | **4** |
+| The 13 booking-root files | 5,875 KB |
+| Inline JS per file | 227–261 KB |
+| Inline CSS per file | 93–174 KB |
 
-Divergence is structural: `bkContinueFromContact()`, `bkResolveOperationalSlot()` and
-`renderStep5Summary()` exist on `index.html` **only**. 19 customer-facing booking strings
-are physically repeated on 13 pages with nothing enforcing agreement.
+### B2. Modal divergence is genuine **[C]**
 
-Full analysis: `LEGACY_BOOKING_FALLBACK.md`. **No runtime change made** — see D.
+The modal block hashes to **4 variants**. Re-measured against git blobs with punctuation
+(`—`/`–`/`-`, `·`/`•`) and whitespace normalised: **all 4 survive normalisation**, so the
+divergence is substantive. Corroborated independently — `bkContinueFromContact()`,
+`bkResolveOperationalSlot()` and `renderStep5Summary()` exist on `index.html` only.
 
-### B2. Copy drift mechanism
+### B3. Dead CSS — corrected measurements **[C]**
 
-Nothing in the repo compared the 13 copies. The `card holds your slot` contradiction fixed
-in PR #193 had to be applied 13 times by hand. That gap is what S1 closes.
+| | Previous (wrong) | Corrected |
+|---|---|---|
+| Bytes per file | 1,852 uniform | **1,805 on 8 files · 1,815 on 5 files** |
+| Aggregate | 24,076 | **23,515 bytes** |
+| Distinct block hashes | "byte-identical" | **2** |
 
-### B3. Dead code
+The two hashes differ **only in comment punctuation** — ASCII hyphen vs em-dash in five
+comment lines, 10 bytes. Normalising punctuation collapses them to one. The original figure
+counted JS string characters after consuming trailing CRLF and reported them as bytes.
 
-`PROVEN DEAD` — the "Trust stats row (#reviews)" CSS block, 55 lines / 1,852 bytes,
-**byte-identical on all 13 pages**. Evidence gathered before removal:
+`PROVEN DEAD` evidence (unchanged, all re-confirmed):
 
 | Check | Result |
 |---|---|
-| Static markup (`class="…trust-ico--*"`) across 30 HTML | **0** |
-| Runtime JS injecting these classes (`assets/*.js`, `netlify/`) | **0** |
-| Generator/template scripts emitting them (`scripts/`) | **0** |
-| Keyframe `animation:` usages outside the block | **0** (1 each, all inside) |
-| Responsive/`prefers-reduced-motion` selectors | all 4 grouped selectors are from the dead set |
-| Tests referencing them | only `doesNotMatch` assertions |
-| Season-icon target `#trust-stat-season-ico` in markup | **0** (JS lookup only — S4) |
-
-The live `.trust-row` / `.trust-item` / `.trust-ico` / `.trust-val` / `.trust-lbl` rules sit
-**above** the block header and were not touched.
+| Static markup `class="…trust-ico--*"` across 30 HTML | 0 |
+| Runtime JS injecting these classes | 0 |
+| Generator/template scripts emitting them | 0 |
+| Keyframe `animation:` usages outside the block | 0 |
+| `prefers-reduced-motion` group | all 4 selectors from the dead set |
+| Elements matching removed selectors at runtime | 0 on both an authoritative and a fallback surface |
 
 ### B4. Performance
 
-`revenue-event` returns **429 reproducibly** on clean production loads. Investigated
-read-only in `REVENUE_EVENT_RATE_LIMIT.md`. **No fix implemented.**
-
-Correction to an earlier claim in this session: there are **no duplicate network calls** on
-a clean load (1 HTML + 30 assets + 3 function calls). The earlier "9 events per load"
-observation came from a doubled navigation in one tab, not from the page.
+`revenue-event` returns 429 on every request. **Root cause corrected** — see
+`REVENUE_EVENT_RATE_LIMIT.md`. No duplicate network calls on a clean load.
 
 ## C. Changes made
 
-| File | Change | Reason | Risk |
-|---|---|---|---|
-| `index.html` + 12 hub/city pages (13 files) | −55 lines each: the dead trust-stats CSS block | Removes 23.5 KB of CSS every visitor downloads and no browser can apply | **LOW** — proven dead by 7 independent checks |
-| `assets/hub-booking-bridge.js` | Header corrected: documented a *four-step* modal, the flow has **six**. Added the fallback contract and a pointer to the design note | The stale count actively misleads anyone touching the bridge | **NONE** — comment only |
-| `tests/fixtures/booking-copy.canonical.json` | **new** — 17 canonical strings, 5 forbidden patterns, surface lists, flow shape | Single place defining what the booking surface says | **NONE** — not runtime |
-| `tests/booking-copy-drift.test.js` | **new** — 5 tests | Fails with the exact page + string id that drifted | **NONE** — test only |
+| File | Change | Risk |
+|---|---|---|
+| `index.html` + 12 others (13 files) | −55 lines each: dead trust-stats CSS | LOW |
+| `assets/hub-booking-bridge.js` | Header: corrected step count; documents both bridge failure modes **[C]** | NONE — comment only |
+| `tests/fixtures/booking-copy.canonical.json` | Rewritten: authoritative/fallback split, 6 step labels + order, entry CTA, card/`$0`/saved-vs-charged/request-vs-confirmed/water-power/availability/success-state semantics **[C]** | NONE — not runtime |
+| `tests/booking-copy-drift.test.js` | Rewritten on jsdom **[C]** | NONE — test only |
 
-### Canonical source (S3 condition)
+### C1. Drift test architecture **[C]**
 
-Authorization required removal at the canonical source if one exists. Investigated:
+The previous raw-source `.includes()` model could be satisfied by a comment, a script
+template or hidden legacy DOM. Corrected:
 
-* `scripts/apply-state-hub-theme.mjs` generates 4 state hubs from `index.html`, but its CSS
-  slices span `index.html` lines 1293–1443. The dead block is at 481–535 — **outside every
-  slice**, so it does not propagate.
-* `scripts/generate-hub-pages.js` builds 6 hubs from `template-city.html`. **Run on an
-  unmodified tree it produces +2,487 / −4,637 lines**, wiping the state-hub theme from
-  `connecticut-hub.html` and `ny-metro-hub.html`. It is a stale historical generator and was
-  reverted immediately. It must not be run. → out-of-scope finding OOS-1.
-* No script anywhere emits the dead selectors.
+* **Authoritative** assertions parse `index.html` with jsdom, take `#bk-ov`, remove
+  `<script>`, `<style>`, `<template>`, `<noscript>` **and comment nodes**, and assert against
+  the resulting DOM and text. Extraction narrows 480,320 raw chars to **8,170 customer-visible
+  chars**.
+* **Fallback** assertions are explicitly compatibility-only and can never satisfy an
+  authoritative assertion.
+* **Discovery** is structural (`#bk-ov` + bridge presence), not the literal `card-gate-title`.
 
-Conclusion: **no usable canonical generating source.** The 13 pages own this CSS
-independently. `template-city.html` — the notional template for `generate-hub-pages.js` —
-was cleaned too, so even an ill-advised future run cannot reintroduce it.
+Negative control — identifiers present in raw source, absent from customer-visible text:
 
-### S4 — not modified, as instructed
+| Probe | In raw source | Customer-visible |
+|---|---|---|
+| `bkEarliestBookable`, `confirmSetupIntent`, `BK_VISIBLE_STEPS`, `draftSaveToken` | yes | **no** |
+| `STEP 6: CONFIRM`, `BK_DETAILS_FORM_START` (comment-only) | yes | **no** |
+| `A card on file is still required to submit the booking request.` | yes | **yes** (positive control) |
 
-`initTrustSeasonIcon()` is now a permanent no-op (its target element no longer exists on any
-page), **but it is the positional marker** `scripts/apply-state-hub-theme.mjs` uses to slice
-`_updateHomeFromPrices` out of `index.html`. Removing or renaming it makes hub regeneration
-throw `marker not found`. Left exactly as-is; coupling documented here and in the design note.
+### C2. Canonical source (S3 condition) — unchanged conclusion
+
+`apply-state-hub-theme.mjs` slices `index.html` 1293–1443; the block is at 481–535, outside
+every slice. `generate-hub-pages.js` on an unmodified tree produces +2,487 / −4,637 lines and
+wipes the state-hub theme from two files. No usable canonical generator; the files own the
+CSS. `template-city.html` was cleaned too.
+
+### C3. S4 — not modified, as instructed
+
+`initTrustSeasonIcon()` is a permanent no-op but is the positional marker
+`apply-state-hub-theme.mjs` slices on. Untouched.
 
 ## D. Explicitly untouched
 
 Stripe authority · Payment Element · `create-setup-intent` · `stripe-webhook` · payment
-ledger · settlement · reconciliation · payment idempotency · receipts and receipt financial
-authority · booking ownership · `bookingVersion` / `quoteVersion` · booking persistence
-(Blob CAS + Postgres mirror) · customer identity and isolation · Prisma schema and every
-migration · package / vehicle / add-on / travel / tax / discount pricing · ZIP and
-service-area logic · the scheduling engine and `MIN_ADVANCE_DAYS` · Customer Portal ·
-Admin · Owner Studio · `netlify.toml` · all environment variables · **the legacy inline
-booking modal and `hub-booking-bridge.js` runtime behaviour**.
+ledger · settlement · reconciliation · idempotency · receipts · booking ownership ·
+`bookingVersion` / `quoteVersion` · booking persistence · customer identity and isolation ·
+Prisma schema and migrations · all pricing · ZIP/service-area · scheduling engine and
+`MIN_ADVANCE_DAYS` · Customer Portal · Admin · Owner Studio · `netlify.toml` · environment
+variables · **`revenue-event`, `revenue-resume-link`, `public-rate-limit`** · **the legacy
+inline modal and bridge runtime behaviour** · `generate-hub-pages.js`.
 
-Files changed under `netlify/`: **0**. Under `prisma/`: **0**. `package.json`: **0**.
+Files changed under `netlify/`: **0**. `prisma/`: **0**. `package.json`: **0**.
 
 ## E. Before vs after
 
-Structurally the site is unchanged. What changed is what *guards* it:
-
-* **Before** — 13 independent copies of the booking copy, nothing comparing them; a fix on
-  one page could silently miss twelve.
-* **After** — one manifest names every canonical string and every forbidden contradiction,
-  and a test fails with the exact page and string id when any surface drifts. It also covers
-  `scripts/apply-state-hub-theme.mjs`, so a regenerated hub cannot reintroduce a contradiction.
-* Every visitor stops downloading 1,852 bytes of inapplicable CSS per page.
-* Anyone opening the bridge now reads the true step count and the real fallback contract.
+Structurally the site is unchanged; what changed is what guards it. Before, 13 independent
+copies with nothing comparing them. After, one manifest defines the authoritative
+customer-visible contract, validated against parsed DOM, with the fallback held to a
+separate compatibility contract — and a new booking surface cannot be added without being
+classified.
 
 ## F. Test evidence
 
 | | Total | Pass | Fail | Cancelled | Skipped |
 |---|---|---|---|---|---|
 | Baseline `bb4cbfd` | 2633 | 2523 | 29 | 75 | 6 |
-| After | **2638** | **2528** | **29** | **75** | 6 |
+| Previous candidate `7215e25` | 2638 | 2528 | 29 | 75 | 6 |
+| **Corrected candidate** | **2643** | **2533** | **29** | **75** | **6** |
 
-Failure sets compared line by line: **124 failure lines before, 124 after, zero new**.
-The +5 are the new drift tests.
+Failure sets compared line by line: **124 failure lines in baseline, 124 in candidate, zero
+new**. Failure identities are listed in §A and are identical.
 
-Focused run (drift · conversion copy · hub public surface · index public surface · hub
-booking conversion · booking flow · PR-65 regression): **144 / 144 pass**.
+* Focused drift suite: **10 / 10 pass**.
+* Focused related suites (drift · conversion copy · hub public surface · index public
+  surface · hub booking conversion · booking flow · PR-65 regression · booking conversion
+  readiness): **206 / 206 pass**.
+* `npm run audit:pre-deploy`: **exit 0**.
 
-Build `node scripts/generate-deploy-runtime-env.js` → exit 0 (regenerated artifact reverted,
-not committed). `npm run audit:pre-deploy` → exit 0, no unbalanced-tag findings.
+### Build **[C]**
+
+**There is no `build` script in `package.json`.** Its scripts are: `test`,
+`test:owner-studio`, `test:owner-studio-staging-guard`, `test:owner-studio-catalog`,
+`test:owner-studio-catalog-e2e`, `owner-studio:import`, `owner-studio:staging:*`,
+`audit:pre-deploy`, `financial:preflight`, `postinstall`, `prisma:*`.
+
+`netlify.toml` sets `command = "node scripts/generate-deploy-runtime-env.js"`, which bakes
+deploy identity into a generated file. It is **not a compile/bundle step**. The previous
+revision called running it "build result: exit 0" — that was a surrogate and is withdrawn.
+No formal build exists to report.
 
 ## G. Production / preview comparison
 
-Production is `bb4cbfd`, which is this branch's base, so `git show HEAD:<file>` **is** the
-deployed content. The complete delta between production and this branch is: the 55-line CSS
-block × 13, the bridge comment, and two new test files. Nothing else — verified by
-`git diff --name-only`.
+`bb4cbfd` is this branch's base, so `git show bb4cbfd:<file>` **is** the deployed content.
+The complete delta is the 55-line CSS block × 13, the bridge header, and two test files.
 
-Runtime verification against a local serve of the branch:
+Runtime verification against a local serve:
 
 | Surface | Result |
 |---|---|
-| `index.html` | 0 elements match any removed selector · live `.trust-row` intact (flex, 16px radius, 5 items, padding preserved) · hero proof bar 5 tiles · `BK_VISIBLE_STEPS = 6` |
-| `bergen-county-hub.html` (compatibility) | 0 orphaned selectors · **bridge delegation active** (`cd1-hub-booking-delegated` set, style injected) · inline modal present and `display:none` · card gate reads "Save Your Card" |
-| Brace balance, all 13 pages | identical before and after (the `-3` on three city pages is pre-existing, from braces inside JS strings) |
+| `index.html` (authoritative) | 0 elements match any removed selector · live `.trust-row` intact (flex, 16px radius, 5 items, padding preserved) · `BK_VISIBLE_STEPS = 6` |
+| `bergen-county-hub.html` (fallback) | 0 orphaned selectors · bridge delegation active · inline modal present and `display:none` · card gate reads "Save Your Card" |
+| Brace balance, all 13 files | identical before and after |
 
-Screenshot capture was unavailable in this session (browser pane not compositing); DOM and
-computed-style assertions were used instead, which for a pure CSS deletion are the decisive
-check. **A Netlify branch preview is still required before merge** — the URL must come from
-the owner, as no Netlify CLI is installed on this machine.
+Screenshot capture was unavailable (browser pane not compositing); DOM and computed-style
+assertions were used. **A Netlify branch preview is still required** — no Netlify CLI is
+installed, so the URL must come from the owner.
 
-## H. Remaining risks
+## H. Adversarial re-review of the corrected implementation **[C]**
 
-| Risk | Level | Note |
+Mutation tests against the corrected guard, each reverted immediately:
+
+| Mutation | Expected | Result |
 |---|---|---|
-| The manifest itself goes stale — a legitimate copy change fails the test and gets "fixed" by editing the manifest without thought | **MEDIUM** | Mitigated by a `why` on every entry. This is a process risk, not a code risk |
-| A page could add the card gate without being added to the manifest | LOW | Guarded: the test enumerates every page rendering `card-gate-title` and fails if one is uncovered |
-| Removed CSS was somehow reachable via a path not checked | LOW | 7 independent checks, plus 0 matching elements at runtime on both an authoritative and a compatibility surface |
-| `generate-hub-pages.js` run by someone unaware | **MEDIUM** | Pre-existing hazard, not introduced here. OOS-1 |
-| Preview not yet built | — | Required before merge |
+| `Save Your Card` → `Add Your Card` in the card gate | fail, naming the element | **FAILED correctly** — reported expected/actual/why |
+| `Card on File Required` moved into an HTML comment | fail — a comment must not satisfy a visible assertion | **FAILED correctly** — `[card-mandatory]` |
+| New page with `#bk-ov` and no bridge | fail — unclassified customer-visible surface | **FAILED correctly** — named `rogue-booking.html` |
 
-## I. Out-of-scope findings
+Also checked: no runtime file imports the manifest; no circular dependency; the test resolves
+paths via `path.resolve(__dirname, '..')` consistent with existing suites; fallback parity
+cannot substitute for authoritative assertions (separate code paths, separate data).
 
-| id | Severity | Location | Evidence | Recommended action |
-|---|---|---|---|---|
-| **OOS-1** | **HIGH** | `scripts/generate-hub-pages.js` | Run on an unmodified tree at `bb4cbfd` → +2,487 / −4,637 lines, wipes the state-hub theme from `connecticut-hub.html` and `ny-metro-hub.html` | Delete it, or add a hard guard/`README` marking it historical. It looks like a live generator and is a loaded gun |
-| **OOS-2** | **P1** | `netlify/functions/revenue-event.js` + `assets/revenue-events.js` | Reproducible 429; client never inspects response status, no retry | See `REVENUE_EVENT_RATE_LIMIT.md`. Not fixed here |
-| **OOS-3** | MEDIUM | 12 hub/city pages | ~5.9 MB of divergent duplicate booking implementations acting as an unplanned fallback | See `LEGACY_BOOKING_FALLBACK.md`. Not changed here |
-| **OOS-4** | LOW | hub/city pages | Mojibake in the sticky call button (`📍ž Call` instead of `📞 Call`) | Pre-existing at `efe2d8d`; present in the generator family |
-| **OOS-5** | LOW | `scripts/` | ~33 one-shot historical patch scripts with no manifest of what has been applied | Archive under `scripts/historical/` with a README |
+## I. Remaining risks
 
-## J. Verdict
+| Risk | Level |
+|---|---|
+| The manifest goes stale — a legitimate copy change is "fixed" by editing the manifest without thought | MEDIUM — process risk; every entry carries a `why` |
+| `generate-hub-pages.js` run by someone unaware | **HIGH** **[C]** — was understated as MEDIUM |
+| jsdom parse cost on a 480 KB page | LOW — drift suite runs in ~5 s |
+| No Netlify preview yet | — required before merge |
 
-### READY FOR INDEPENDENT REVIEW
+## J. Out-of-scope findings
+
+| id | Severity | Location | Action |
+|---|---|---|---|
+| **OOS-1** | **HIGH** | `scripts/generate-hub-pages.js` | Stale generator; +2,487/−4,637 on an unmodified tree. Delete or hard-guard |
+| **OOS-2** | **P1** | `revenue-event.js`, `revenue-resume-link.js` | Obsolete positional caller + `!rate.ok` on a helper returning `allowed/blocked` → unconditional 429. **Both** affected. Not fixed here |
+| **OOS-3** | MEDIUM | 12 fallback files | ~5.9 MB divergent duplication; fallback covers script-delivery failure only |
+| **OOS-4** | LOW | hub/city files | Mojibake in the sticky call button |
+| **OOS-5** | LOW | `scripts/` | ~33 one-shot historical patch scripts with no applied-state manifest |
+
+## K. Verdict
+
+### READY FOR INDEPENDENT RE-AUDIT
 
 Not merged. Not deployed. Production database, live Stripe configuration and Netlify
 production settings untouched.

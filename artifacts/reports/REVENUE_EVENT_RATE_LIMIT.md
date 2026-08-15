@@ -1,15 +1,76 @@
 # `revenue-event` 429 — read-only investigation
 
-**Status: INVESTIGATION ONLY. No code changed. No limit changed. No function touched.**
+**Status: INVESTIGATION ONLY. Nothing fixed. No function, limit or client touched.**
 
-Severity: **P1 observability.** Not customer-facing, not financial — but it silently
-destroys the funnel data the conversion work depends on.
+Severity: **P1.** The endpoint rejects **every** request, so the funnel analytics the
+conversion work depends on has never been recorded.
+
+> **Correction notice.** The first revision of this report named per-IP rate limiting under
+> carrier NAT as the likely cause. That was wrong. It was a hypothesis that fitted the
+> symptom and was published without testing the caller contract. The verified cause is an
+> obsolete caller/helper contract — the request never reaches a rate-limit decision at all.
+> CGNAT is retained below only as a generic future consideration.
 
 ---
 
-## Reproduction
+## FACT — verified root cause: obsolete caller contract
 
-Two clean loads of `https://cardetail1.com`, days apart, from the same origin:
+The helper's current signature takes an **options object** and returns
+`{ blocked, allowed, ... }`. There is no `ok` property.
+
+`netlify/lib/public-rate-limit.js:351`
+```js
+async function enforcePublicRateLimit(event, {
+  endpoint, action = '', cors = false, now = Date.now(), subject = '', ipScoped = true,
+} = {}) {
+  if (isOptionsRequest(event)) return { blocked: false, allowed: true, bypassed: true };
+  const decision = await checkPublicRateLimit(event, { endpoint, action, now, subject, ipScoped });
+  if (decision.allowed) return { blocked: false, ...decision };
+  return { blocked: true, allowed: false, response: ..., retryAfterSec: ... };
+}
+```
+
+`netlify/functions/revenue-event.js:20` still calls the **legacy positional form** and tests
+a property that no longer exists:
+
+```js
+const rate = await enforcePublicRateLimit(event, 'revenue-event', 'track');
+if (!rate.ok) { return { statusCode: 429, ... }; }
+```
+
+Two independent defects compound:
+
+1. The string `'revenue-event'` is destructured as the options object, so `endpoint` is
+   `undefined` and the third argument `'track'` is discarded. The bucket is never the
+   intended `revenue-event:track`.
+2. The return has no `ok`, so `rate.ok` is `undefined` and `!rate.ok` is **always true**.
+
+**Every call takes the 429 path unconditionally, regardless of traffic, IP or window.**
+This explains the observation that made no sense under a 120-per-window budget: the 429
+arrived on the *first* event of a clean page load.
+
+A correct caller for comparison — `netlify/functions/booking-availability.js:65`:
+
+```js
+const rate = await enforcePublicRateLimit(event, { endpoint: 'booking-availability', cors: true });
+if (rate && rate.blocked) return rate.response || safeError(429, 'rate_limited');
+```
+
+### The same defect exists in a second function
+
+`netlify/functions/revenue-resume-link.js:16`
+
+```js
+const rate = await enforcePublicRateLimit(event, 'revenue-resume-link', 'validate');
+```
+
+Same positional form, same `!rate.ok` test. These are the only two occurrences in
+`netlify/functions/`. `revenue-resume-link` is a customer-facing recovery path, so this is
+not analytics-only. **Not fixed here — out of scope for this branch.**
+
+## FACT — reproduction
+
+Two clean loads of `https://cardetail1.com`, days apart:
 
 | Request | Result |
 |---|---|
@@ -17,147 +78,85 @@ Two clean loads of `https://cardetail1.com`, days apart, from the same origin:
 | `GET /.netlify/functions/booking-availability` | 200 |
 | `POST /.netlify/functions/revenue-event` | **429** |
 
-One analytics POST per page load. The 429 is reproducible, and it is the *first*
-event of a fresh load — meaning the bucket was already exhausted by earlier loads
-from the same IP.
+One analytics POST per page load. No duplicate calls: 1 HTML + 30 assets + 3 function calls.
 
-## 1. Current implementation
+## FACT — the configured limits are never consulted
 
-`netlify/lib/public-rate-limit.js`, enforced by 20 public functions. `revenue-event.js`
-calls it as:
+`revenue-event:track` is configured at `{ max: 120, windowMs: DEFAULT_WINDOW_MS }`. Because
+`endpoint` arrives `undefined`, this configuration is not what governs the response. The
+number is irrelevant to the current failure and **must not be tuned in response to it**.
 
-```js
-const rate = await enforcePublicRateLimit(event, 'revenue-event', 'track');
-if (!rate.ok) return { statusCode: 429, ... };
-```
+## FACT — identity keying
 
-## 2. Limit and window
+`deriveRateLimitKey(normalizedIp, endpoint, action, env, subject = '')` composes
+`namespace|ip|endpoint|action` and appends `subject` when supplied. A `subject` parameter
+and a `hashRateLimitSubject()` helper already exist; `revenue-event` supplies neither.
+Relevant to future design, not to the current defect.
 
-`revenue-event:track` → `{ max: 120, windowMs: DEFAULT_WINDOW_MS }`.
+## FACT — Netlify client IP semantics
 
-For comparison, the funnel-critical buckets in the same table:
+`admin-security.clientIp()` prefers `x-nf-client-connection-ip` / `client-ip` over the
+spoofable `X-Forwarded-For`, falling back to the literal `'unknown'`. Correct precedence.
+If the platform header were ever absent, all such traffic would share one bucket keyed
+`'unknown'` — not observed.
 
-| Bucket | max |
-|---|---|
-| `revenue-event:track` | 120 |
-| `submit-booking:draft` | 15 |
-| `lookup-booking` | 20 |
-| `create-setup-intent` | **10** |
-| `submit-booking:finalize` | **8** |
+## FACT — rejected events are not retried, and failure is invisible
 
-## 3. Identity: IP-only for this endpoint
-
-```js
-function deriveRateLimitKey(normalizedIp, endpoint, action, env, subject = '') {
-  const material = sub
-    ? `${namespace}|${normalizedIp}|${ep}|${act}|${sub}`
-    : `${namespace}|${normalizedIp}|${ep}|${act}`;
-  ...
-}
-```
-
-The mechanism **already supports a `subject`**, and a helper `hashRateLimitSubject()`
-exists to hash one without storing the raw identifier. `revenue-event` passes none, so
-its key is purely `namespace|ip|revenue-event|track`. This matters for §11: the fix is
-likely configuration inside an existing mechanism, not new architecture.
-
-## 4–5. Proxy / CDN behaviour and Netlify client IP
-
-`admin-security.clientIp()`:
-
-```js
-const platform = h['x-nf-client-connection-ip'] || h['client-ip'];
-if (platform) return String(platform).trim();
-const fwd = h['x-forwarded-for'];       // only if the platform header is absent
-if (fwd) return String(fwd).split(',').[0].trim();
-return 'unknown';
-```
-
-Correct precedence — the platform-injected header is trusted over the spoofable
-`X-Forwarded-For`. Two consequences:
-
-* Behind Netlify's edge, every request carries `x-nf-client-connection-ip`, so the
-  bucket keys on the **true TCP peer**, not on the end user.
-* If that header were ever missing, all such traffic collapses onto the literal key
-  `'unknown'` — a single shared bucket. Not observed, but it is the failure mode.
-
-## 6. CGNAT impact — the likely explanation for "desktop fine, mobile broken"
-
-Mobile carriers place large subscriber populations behind carrier-grade NAT, so many
-customers egress from **one public IP**. Home broadband typically does not.
-
-Under an IP-only key that means:
-
-* `revenue-event` at 120/window is shared by every customer on that carrier IP.
-* More seriously, `create-setup-intent` at **10** and `submit-booking:finalize` at **8**
-  are shared the same way.
-
-The owner reported the booking funnel advancing normally on desktop and failing on
-mobile. That is precisely the shape an IP-scoped limit produces on CGNAT. **Not yet
-confirmed** — confirming it requires Netlify function logs showing 429 on
-`submit-booking` or `create-setup-intent` at the time of a reported failure.
-
-## 7. Are rejected events retried?
-
-No. `assets/revenue-events.js`:
+`assets/revenue-events.js`:
 
 ```js
 fetch(BACKEND, { ..., keepalive: true }).catch(function () { /* fail safe */ });
 ```
 
-No queue, no backoff, no replay. The event is discarded.
+The response status is never inspected. A 429 resolves normally, so only network-level
+rejection reaches `.catch`. There is no queue, backoff or replay. The client cannot tell
+acceptance from rejection, and the server records nothing it rejected. **This is why a
+total outage went unnoticed.**
 
-## 8. Are failures visible?
+## FACT — what has been lost
 
-**No.** The promise resolves on a 429 — only network-level rejection reaches `.catch`.
-The response status is never inspected, so the client cannot distinguish an accepted
-event from a rejected one. Losses are invisible on both sides: the browser does not
-know, and the server records nothing it rejected.
-
-## 9. Which funnel events can be lost
-
-Everything `Cardetail1Revenue.track` carries, including the checkout funnel from
+Everything routed through `Cardetail1Revenue.track`, including the checkout funnel from
 `assets/checkout-analytics.js`: `checkout_opened`, `checkout_step_viewed`,
 `checkout_step_completed`, `checkout_step_back`, `checkout_validation_error`,
 `checkout_idle_triggered`, `checkout_resumed`.
 
-Because the bucket drains in event order, **losses are biased toward the end of the
-funnel** — the later a step, the likelier its event is dropped. Drop-off between the
-card step and submission is exactly what the conversion work needs to measure, and it
-is the least reliable part of the data. Any funnel numbers taken today should be
-treated as a lower bound of unknown tightness.
+Because the rejection is unconditional, the loss is **total, not partial and not biased**.
+Any funnel drop-off figure derived from this endpoint is not a lower bound — there is no
+data. Client-side GA/`dataLayer` and Clarity paths are separate and unaffected by this
+defect.
 
-## 10. Cost / abuse implications of simply raising the limit
+## HYPOTHESIS — generic future consideration only
 
-`revenue-event` is unauthenticated, `Access-Control-Allow-Origin: *`, and writes to a
-Blob store with retention. Raising the ceiling raises write amplification and storage
-cost, and the endpoint is a plausible junk-write target. Raising it also does not fix
-CGNAT — it moves the threshold without changing the sharing, so a larger carrier
-population still collides. **Raising the number alone is the wrong fix.**
+Once the caller contract is repaired and the configured limits actually apply, per-IP
+buckets will govern behaviour for the first time. At that point it is worth considering that
+mobile carriers place many subscribers behind one public IP, so an IP-only key is shared
+more widely on mobile than on fixed broadband. **This is a design consideration for the
+future, not an explanation of anything observed today,** and no evidence in this
+investigation supports or refutes it.
 
-## 11. Safer alternatives
+The same consideration would apply to the funnel-critical buckets
+(`create-setup-intent` max 10, `submit-booking:finalize` max 8), which use the correct
+calling convention and are therefore live today. Whether those ceilings are right is a
+separate question this pass did not investigate.
 
-Ordered by risk, lowest first. **None implemented.**
+## Abuse and cost, if limits are later raised
 
-1. **Add a `subject` to the analytics key.** Pass a hashed anonymous visitor/session id
-   via the existing `subject` parameter so the key becomes
-   `ip|revenue-event|track|visitor`. CGNAT neighbours stop sharing a bucket; a single
-   abusive client is still capped. Uses `hashRateLimitSubject()`, which already exists
-   and never stores the raw value. Smallest change with the largest effect.
-2. **Client-side batching.** Coalesce events into one periodic POST so a session costs
-   a few requests instead of one per event. Reduces pressure without touching limits.
-3. **Make loss observable before tuning anything.** Inspect `res.status` and emit a
-   local counter, so the true drop rate is known instead of inferred. This should come
-   first — none of the tuning below can be evaluated without it.
-4. **Separate the funnel-critical buckets from the analytics bucket** and review whether
-   `create-setup-intent` at 10 and `submit-booking:finalize` at 8 are defensible per-IP
-   under CGNAT. These protect real money paths, so any change needs its own analysis —
-   flagged, not recommended here.
+`revenue-event` is unauthenticated with `Access-Control-Allow-Origin: *` and writes to a
+retained Blob store. Raising any ceiling raises write amplification, storage cost and junk-
+write exposure. Nothing about the current failure argues for raising a ceiling.
 
-### Recommended sequence
+## Recommended sequence — none implemented
 
-Make loss observable (3) → add the subject key to analytics (1) → measure → decide on
-batching (2). Treat (4) as a separate piece of work with its own risk review, because
-it touches the booking and card paths.
+1. **Repair the caller contract** in `revenue-event.js` and `revenue-resume-link.js`: pass
+   `{ endpoint, action }` and branch on `rate.blocked`. This alone restores both endpoints.
+2. **Make loss observable**: inspect `res.status` client-side and count rejections, so a
+   future outage is not silent again.
+3. **Add a regression test** that fails when a caller passes a string as the options object,
+   or branches on a property the helper does not return. This defect class is invisible in
+   review and would otherwise recur.
+4. **Then, and only then, measure** real limit behaviour before considering keying or
+   ceiling changes.
+5. Treat `create-setup-intent` and `submit-booking:finalize` ceilings as separate work with
+   their own risk review — they guard money paths.
 
-**Nothing above is authorized or implemented by this pass.**
+**None of the above is authorized or implemented in this branch.**

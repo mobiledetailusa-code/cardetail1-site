@@ -1,22 +1,36 @@
 {
-  "$schema": "none — plain data consumed only by tests/booking-copy-drift.test.js",
   "$purpose": [
-    "Canonical PRESENTATION COPY for the booking surface.",
+    "Canonical PRESENTATION SEMANTICS for the booking surface.",
     "",
-    "This file is NOT loaded at runtime and is NOT a source of business authority.",
-    "It carries no price, no total, no fee, no booking state, no payment state and",
-    "no confirmation semantics. Pricing authority stays in the catalog/server,",
-    "payment authority stays in the Postgres ledger, booking state stays in the",
-    "Blob CAS store. Nothing here may be imported by page or function code.",
+    "NOT loaded at runtime. NOT a source of business authority. It carries no",
+    "price, total, fee, ledger reference, Stripe object, persistence detail or",
+    "transaction semantics. Pricing authority stays in the catalog/server, payment",
+    "authority in the Postgres ledger, booking state in the Blob CAS store.",
+    "Nothing here may be imported by page or function code.",
     "",
-    "Its only job is to stop the same customer-facing sentence from drifting into",
-    "13 different versions across the authoritative page and its compatibility",
-    "copies. See artifacts/reports/PRODUCTION_SAFE_NORMALIZATION.md."
+    "Two surface classes, deliberately NOT interchangeable:",
+    "",
+    "  AUTHORITATIVE — the customer-visible booking UI. Exactly one page renders",
+    "  it (index.html). Assertions run against the parsed DOM of #bk-ov with",
+    "  <script>, <style>, <template>, <noscript> and comment nodes removed, so a",
+    "  string can only pass by being real customer-visible booking markup.",
+    "",
+    "  FALLBACK — the legacy inline modal kept on the hub/city pages. It is hidden",
+    "  at runtime by assets/hub-booking-bridge.js and is NOT the customer-visible",
+    "  source. It gets compatibility parity assertions only, and may never be used",
+    "  to satisfy an authoritative assertion."
   ],
+
+  "surfaceRules": {
+    "$note": "Classification is structural, not by literal string, so a new booking page cannot escape coverage.",
+    "bookingRootSelector": "#bk-ov",
+    "fallbackMarker": "assets/hub-booking-bridge.js",
+    "rule": "A page containing bookingRootSelector is a booking surface. If it also loads fallbackMarker it is FALLBACK; otherwise it is AUTHORITATIVE and must be listed below."
+  },
 
   "surfaces": {
     "authoritative": ["index.html"],
-    "compatibility": [
+    "fallbackPublic": [
       "bergen-county-hub.html",
       "connecticut-hub.html",
       "essex-county-hub.html",
@@ -26,100 +40,172 @@
       "ny-metro-hub.html",
       "passaic-county-hub.html",
       "pennsylvania-hub.html",
-      "template-city.html",
       "trenton-mobile-detailing.html",
       "westchester-mobile-detailing.html"
     ],
-    "$note": "compatibility surfaces hide their inline modal behind assets/hub-booking-bridge.js and iframe the authoritative page; the copy must still match because the inline DOM is the degradation path."
+    "fallbackTemplate": ["template-city.html"],
+    "$counts": "1 authoritative + 11 public fallback = 12 runtime/public HTML surfaces, plus 1 non-runtime template."
   },
 
-  "required": [
-    {
-      "id": "card-gate-title",
-      "text": "<div class=\"card-gate-title\">Save Your Card</div>",
-      "why": "Neutral title. The earlier 'Lock Your Slot' promised a reservation the system does not make."
-    },
-    {
-      "id": "card-required-reason",
-      "text": "A card on file is still required to submit the booking request.",
-      "why": "States what the card enables (submitting a request), not what it reserves."
-    },
-    {
-      "id": "card-custody",
-      "text": "No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy.",
-      "why": "Custody + the exhaustive list of what can trigger a charge."
-    },
-    {
-      "id": "card-required-label",
-      "text": "Card on File Required",
-      "why": "The card is mandatory for every payment preference; the label must not imply it is optional."
-    },
-    {
-      "id": "card-policy-preamble",
-      "text": "Before saving your card, please note:",
-      "why": "Opens the pre-consent disclosure block."
-    },
-    {
-      "id": "card-consent",
-      "text": "I have read and agree to the booking, cancellation, no-show, access, and card-on-file policy.",
-      "why": "The consent sentence recorded against the booking. Changing it changes what customers agreed to."
-    },
-    {
-      "id": "request-only-total",
-      "text": "booking request only",
-      "why": "The confirm step must label the charged-today row as a request, not a payment. The amount itself is rendered by the page, never stored here."
-    },
-    {
-      "id": "submit-label",
-      "text": "Submit Booking Request",
-      "why": "Request terminology at the moment of submission."
-    },
-    {
-      "id": "processor-attribution",
-      "text": "Powered by Stripe",
-      "why": "Processor disclosure."
-    },
-    {
-      "id": "pci-note",
-      "text": "PCI-secure · no raw card data stored",
-      "why": "Custody claim; must stay true and identical everywhere."
-    },
-    {
-      "id": "utilities-reassurance",
-      "text": "<strong>We bring our own water and power</strong>",
-      "why": "Resolves the contradiction between the marketing promise and the access questions."
-    },
-    {
-      "id": "water-optional",
-      "text": "<div class=\"fl\">Water access — Optional</div>",
-      "why": "The field is genuinely optional; the label must say so."
-    },
-    {
-      "id": "power-optional",
-      "text": "<div class=\"fl\">Electricity access — Optional</div>",
-      "why": "Same as water-optional."
-    },
-    {
-      "id": "arrival-anytime",
-      "text": "Any time that day",
-      "why": "Arrival-window wording feeds the operational slot resolver."
-    },
-    {
-      "id": "arrival-window",
-      "text": "Choose a 3-hour arrival window",
-      "why": "The window length must match BK_ARRIVAL_BOUNDS."
-    },
-    {
-      "id": "advance-notice",
-      "text": "Next available appointments are typically 3 days out.",
-      "why": "Must equal MIN_ADVANCE_DAYS in netlify/lib/operational-availability.js. tests/conversion-funnel-copy.test.js pins the number to the constant; this entry pins the sentence across surfaces."
-    },
-    {
-      "id": "step5-label",
-      "text": "Secure Your Booking",
-      "why": "Step 5 label. 'Secure' means made safe, not reserved — the surrounding copy carries the request semantics."
+  "authoritative": {
+    "steps": [
+      { "n": 1, "tabId": "bpt1", "label": "Category" },
+      { "n": 2, "tabId": "bpt2", "label": "Package" },
+      { "n": 3, "tabId": "bpt3", "label": "Vehicle" },
+      { "n": 4, "tabId": "bpt4", "label": "Info" },
+      { "n": 5, "tabId": "bpt5", "label": "Secure Your Booking" },
+      { "n": 6, "tabId": "bpt6", "label": "Confirm" }
+    ],
+    "stepsConstant": "BK_VISIBLE_STEPS",
+
+    "elements": [
+      {
+        "id": "card-gate-title",
+        "selector": ".card-gate-title",
+        "text": "Save Your Card",
+        "why": "Neutral title. 'Lock Your Slot' promised a reservation the system does not make."
+      },
+      {
+        "id": "success-title",
+        "selector": "#ok-title",
+        "text": "BOOKING REQUEST RECEIVED",
+        "why": "Final state names a request, never a confirmed appointment."
+      }
+    ],
+
+    "visibleText": [
+      {
+        "id": "card-mandatory",
+        "text": "Card on File Required",
+        "why": "The card is mandatory for every payment preference; the label must not imply it is optional."
+      },
+      {
+        "id": "card-enables-request",
+        "text": "A card on file is still required to submit the booking request.",
+        "why": "States what the card enables (submitting a request), not what it reserves."
+      },
+      {
+        "id": "card-saved-not-charged",
+        "text": "No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy.",
+        "why": "Saved-vs-charged wording plus the exhaustive list of what can trigger a charge."
+      },
+      {
+        "id": "charged-today-label",
+        "text": "Charged today",
+        "why": "The zero-amount row must be labelled; the amount itself is rendered by the page and never stored here."
+      },
+      {
+        "id": "nothing-collected-today",
+        "text": "No payment is collected today.",
+        "why": "Explicit statement that nothing is charged at request time."
+      },
+      {
+        "id": "request-not-appointment",
+        "text": "This sends a booking request",
+        "why": "Booking-request vs confirmed-appointment semantics, stated where the card is asked for."
+      },
+      {
+        "id": "request-only-row",
+        "text": "booking request only",
+        "why": "The confirm step labels the charged-today row as a request, not a payment."
+      },
+      {
+        "id": "submit-label",
+        "text": "Submit Booking Request",
+        "why": "Request terminology at the moment of submission."
+      },
+      {
+        "id": "success-status-under-review",
+        "text": "Under Review",
+        "why": "Post-submit status is explicitly under review, not confirmed."
+      },
+      {
+        "id": "card-policy-preamble",
+        "text": "Before saving your card, please note:",
+        "why": "Opens the pre-consent disclosure block."
+      },
+      {
+        "id": "card-consent",
+        "text": "I have read and agree to the booking, cancellation, no-show, access, and card-on-file policy.",
+        "why": "The consent sentence recorded against the booking. Changing it changes what customers agreed to."
+      },
+      {
+        "id": "utilities-reassurance",
+        "text": "We bring our own water and power",
+        "why": "Resolves the contradiction between the marketing promise and the access questions."
+      },
+      {
+        "id": "water-optional",
+        "text": "Water access — Optional",
+        "why": "The field is genuinely optional; the label must say so."
+      },
+      {
+        "id": "power-optional",
+        "text": "Electricity access — Optional",
+        "why": "Same as water-optional."
+      },
+      {
+        "id": "availability-notice",
+        "text": "Next available appointments are typically 3 days out.",
+        "why": "Availability wording. tests/conversion-funnel-copy.test.js pins the number to MIN_ADVANCE_DAYS; this entry pins the sentence to the authoritative UI."
+      },
+      {
+        "id": "arrival-anytime",
+        "text": "Any time that day",
+        "why": "Arrival-window wording feeds the operational slot resolver."
+      },
+      {
+        "id": "arrival-window",
+        "text": "Choose a 3-hour arrival window",
+        "why": "The window length must match BK_ARRIVAL_BOUNDS."
+      },
+      {
+        "id": "processor-attribution",
+        "text": "Powered by Stripe",
+        "why": "Processor disclosure."
+      },
+      {
+        "id": "pci-note",
+        "text": "PCI-secure · no raw card data stored",
+        "why": "Custody claim; must stay true."
+      }
+    ],
+
+    "entryCta": {
+      "$note": "Booking entry CTA semantics live OUTSIDE #bk-ov, in the page body, so they are asserted separately against the document with scripts/templates/comments removed.",
+      "discovery": [
+        {
+          "id": "hero-cta",
+          "selector": ".hero .btn-primary",
+          "text": "Check Price & Availability",
+          "why": "Cold-traffic entry is discovery-level, not a commitment to book."
+        }
+      ],
+      "forbiddenOnEntry": [
+        {
+          "id": "zip-button-books",
+          "pattern": "class=\"hero-zip-btn\"[^>]*>BOOK NOW<",
+          "why": "The ZIP button only checks coverage; it must not claim to book."
+        }
+      ]
     }
-  ],
+  },
+
+  "fallbackParity": {
+    "$note": "The legacy inline modal is hidden at runtime. These assertions exist so that if the bridge ever fails to execute and the inline DOM becomes visible, it does not contradict the authoritative surface. They are compatibility checks, never the primary contract.",
+    "ids": [
+      "card-gate-title",
+      "card-mandatory",
+      "card-enables-request",
+      "card-saved-not-charged",
+      "submit-label",
+      "card-policy-preamble",
+      "utilities-reassurance",
+      "water-optional",
+      "power-optional",
+      "availability-notice"
+    ]
+  },
 
   "forbidden": [
     {
@@ -141,10 +227,16 @@
       "why": "Implied the card secures the appointment rather than enabling the request."
     },
     {
+      "id": "appointment-preconfirmed",
+      "pattern": "your appointment is confirmed",
+      "flags": "i",
+      "why": "No public surface may state a confirmed appointment; confirmation happens after review."
+    },
+    {
       "id": "fabricated-vehicle-count",
       "pattern": "Vehicles detailed",
       "flags": "",
-      "why": "The figure was BASE 2800 plus the visitor's own localStorage visit count, not a real total."
+      "why": "The figure was a base constant plus the visitor's own localStorage visit count, not a real total."
     },
     {
       "id": "fabricated-counter-impl",
@@ -152,11 +244,5 @@
       "flags": "",
       "why": "The storage key behind the fabricated counter."
     }
-  ],
-
-  "flowShape": {
-    "visibleSteps": 6,
-    "stepsConstant": "BK_VISIBLE_STEPS",
-    "why": "Documentation and copy must not describe a four-step flow; the modal renders six tabs."
-  }
+  ]
 }

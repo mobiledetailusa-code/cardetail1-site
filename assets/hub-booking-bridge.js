@@ -7,10 +7,21 @@
  *
  * Each delegated page still carries its own inline checkout DOM (#bk-ov). When
  * this bridge takes control it hides that DOM via .cd1-hub-booking-delegated and
- * iframes index.html instead, so the inline copy is not customer-visible. It is
- * NOT dead: if this script fails to load, #bk-ov is never hidden and the inline
- * modal remains the degradation path. See
- * artifacts/reports/LEGACY_BOOKING_FALLBACK.md before changing or removing it.
+ * iframes index.html instead, so the inline copy is not customer-visible.
+ *
+ * The inline DOM is NOT dead, but it covers exactly one failure mode:
+ *
+ *   - this script never executes (asset 404, CSP/extension block, an earlier JS
+ *     error, scripts disabled) -> the hiding CSS is never injected, #bk-ov stays
+ *     visible and the inline modal handles booking. This is the fallback.
+ *
+ *   - this script executes but the iframe fails -> #bk-ov was ALREADY hidden by
+ *     ensureStyles() before the frame was attached, so the customer gets
+ *     #hub-booking-error and the phone number, NOT the inline modal. There is no
+ *     booking form in this path.
+ *
+ * Read artifacts/reports/LEGACY_BOOKING_FALLBACK.md before changing or removing
+ * either side of this.
  *
  * Documentation only — no runtime behavior is described here that the code does
  * not already do.
