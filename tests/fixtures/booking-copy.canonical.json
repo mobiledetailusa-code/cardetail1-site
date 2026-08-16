@@ -24,20 +24,50 @@
   "surfaceRules": {
     "$note": "Classification is DOM-structural, never a raw byte match, so a new booking page cannot escape coverage and a commented-out one cannot invent coverage.",
     "bookingRootId": "bk-ov",
-    "bridgeScript": "assets/hub-booking-bridge.js",
-    "rule": "A page that renders an ELEMENT with bookingRootId is a booking surface. If it also loads bridgeScript as a real <script src> it is FALLBACK; otherwise it is AUTHORITATIVE and must be listed below.",
+    "bridgePath": "assets/hub-booking-bridge.js",
+    "rule": "A page that renders an ELEMENT with bookingRootId is a booking surface. If a real <script src> on that page resolves to bridgePath it is FALLBACK; otherwise it is AUTHORITATIVE and must be listed below.",
     "$rule": [
-      "Both halves are decided on the parsed document, not on the file's bytes:",
-      "  - quoting style (id='bk-ov' vs id=\"bk-ov\") is resolved by the parser and",
-      "    therefore cannot change the outcome;",
-      "  - a modal inside an HTML comment, inside <script> text or inside <template>",
-      "    is not an element in the document, so it classifies nothing;",
-      "  - the bridge path written in a comment or in a JS string literal is not a",
-      "    script tag, so it cannot make a page look like a fallback surface.",
-      "A cheap byte prefilter narrows the candidate set before parsing. It is a",
-      "superset only — every candidate is confirmed by parsing, so no page is ever",
-      "classified on a raw match."
+      "Both halves are decided on the parsed document, never on the file's bytes.",
+      "",
+      "SURFACE — EVERY published .html is parsed. There is no byte prefilter: any",
+      "textual shortcut produces false negatives on valid HTML, because",
+      "id=\"bk&#x2d;ov\" and id=\"bk&#45;ov\" are the same element as id=\"bk-ov\" once",
+      "parsed. Quoting style is likewise resolved by the parser. A modal inside an",
+      "HTML comment, inside <script> text or inside <template> is not an element in",
+      "the document, so it classifies nothing.",
+      "",
+      "DELEGATION — path-semantic, not basename matching. Each <script src> is",
+      "resolved the way a browser loading that page would resolve it (relative to the",
+      "page's own directory, query and fragment stripped, root-absolute honoured) and",
+      "must equal bridgePath exactly. Consequences:",
+      "  - 'js/hub-booking-bridge.js' and 'vendor/assets/hub-booking-bridge.js' do",
+      "    NOT delegate, despite the identical basename;",
+      "  - an off-site CDN copy does NOT delegate;",
+      "  - the path in a comment or a JS string literal is not a script element, so",
+      "    it does NOT delegate;",
+      "  - on a nested page, a bare 'assets/...' src resolves under that page's own",
+      "    directory and therefore does NOT delegate."
     ],
+
+    "roleEvidence": {
+      "$why": [
+        "Role membership is proved against live repository evidence, not merely",
+        "declared in the lists below. Disjointness and union say nothing about which",
+        "page belongs to which role — swapping template-city.html with a real public",
+        "hub page would satisfy both and still be wrong.",
+        "",
+        "Two independent signals decide it:",
+        "  sitemap        the file that advertises pages to customers. Every public",
+        "                 surface must appear in it; the template must not.",
+        "  templateConsumer  the generator, read-only. Its template input IS the",
+        "                 template role; no public page may be that input.",
+        "Swapping the two roles fails both signals at once."
+      ],
+      "sitemap": "sitemap.xml",
+      "templateConsumer": "scripts/generate-hub-pages.js",
+      "rootDocument": "index.html",
+      "$rootDocument": "sitemap.xml advertises the authoritative surface as the bare site root, so an empty pathname maps to this file."
+    },
 
     "stepTabContainer": "bprog",
     "stepTabSelector": ".bpt",
@@ -140,6 +170,33 @@
       "match: 'contains' normalised text of the element contains the expected string,",
       "                  used where the element legitimately carries extra copy."
     ],
+    "$visibility": [
+      "STRUCTURAL VISIBILITY — an explicit, deliberately limited contract.",
+      "",
+      "By default every element an anchor resolves to must be free of structural",
+      "hidden markers, on itself or on any ancestor inside #bk-ov:",
+      "    hidden               attribute",
+      "    aria-hidden=\"true\"   attribute",
+      "    display:none         INLINE style",
+      "    visibility:hidden    INLINE style",
+      "Required customer-facing copy therefore cannot be satisfied by markup that is",
+      "hidden in one of those four ways.",
+      "",
+      "WHAT THIS IS NOT. It is not browser computed style. Visibility driven by an",
+      "external stylesheet or by a class — including anything that hides #bk-ov",
+      "itself until the modal opens — is NOT modelled here and remains a",
+      "browser-preview concern. Do not read a pass as proof that a customer can see",
+      "the text; read it as proof that the markup is not hidden in a way the markup",
+      "itself declares.",
+      "",
+      "EXEMPTIONS. Progressive disclosure is legitimate, so an entry may list",
+      "visibility.exemptIndices — the element positions allowed to be hidden — with",
+      "visibility.revealedBy naming the control that reveals them. The revealedBy",
+      "selector must actually render, so an exemption cannot be claimed for markup",
+      "nothing can reveal. The declared exemptions must EXACTLY equal the set of",
+      "elements that are really hidden: a stale exemption fails just as loudly as an",
+      "undeclared hidden element."
+    ],
     "anchoredText": [
       {
         "id": "card-mandatory",
@@ -157,6 +214,11 @@
           "A card on file is still required to submit the booking request.",
           "A card on file is still required to submit the booking request."
         ],
+        "visibility": {
+          "exemptIndices": [0, 1, 2],
+          "revealedBy": "#pc-cash, #pc-onsite, #pc-online",
+          "$why": "All three panels are inline display:none at rest and are revealed when the customer picks a payment preference. The radios that reveal them must exist."
+        },
         "why": "States what the card enables (submitting a request), not what it reserves. All three payment-preference panels must carry it, or one preference would read as card-optional."
       },
       {
@@ -255,6 +317,11 @@
         "anchor": ".bk-arrival-choices > .bk-arrival-choice:nth-child(1) .bk-arrival-choice-label",
         "match": "exact",
         "texts": ["Any time that day", "Any time that day"],
+        "visibility": {
+          "exemptIndices": [1],
+          "revealedBy": "#f-has-alternate",
+          "$why": "Element 1 is the preferred-date block and must be visible. Element 2 sits in #bk-alt-fields, which carries [hidden] until the customer ticks the alternate-date checkbox."
+        },
         "why": "Arrival-window wording feeds the operational slot resolver. Two occurrences: the preferred date block and the alternate date block; both must agree."
       },
       {
@@ -262,6 +329,11 @@
         "anchor": ".bk-arrival-choices > .bk-arrival-choice:nth-child(2) .bk-arrival-choice-label",
         "match": "exact",
         "texts": ["Choose a 3-hour arrival window", "Choose a 3-hour arrival window"],
+        "visibility": {
+          "exemptIndices": [1],
+          "revealedBy": "#f-has-alternate",
+          "$why": "Same as arrival-anytime: element 2 lives in the [hidden] alternate-date block."
+        },
         "why": "The window length must match BK_ARRIVAL_BOUNDS. Preferred and alternate blocks must agree."
       },
       {

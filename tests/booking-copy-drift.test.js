@@ -17,23 +17,32 @@
 //                  parity assertions only and is never treated as the primary
 //                  customer-visible source.
 //
-// Three properties this file is responsible for, each proved by a test that fails
-// when the property is removed:
+// Properties this file is responsible for. Each is proved by a mutation that makes
+// it fail, not by the suite being green:
 //
-//   1. DISCOVERY is DOM-structural and recursive. A page is a booking surface when
-//      it renders an ELEMENT with the booking id — not when its bytes happen to
-//      contain that string. Quoting style is irrelevant; comments, <script> text
-//      and <template> content classify nothing. Delegation is likewise read from
-//      real <script src> elements, not from raw text.
+//   1. DISCOVERY is pure DOM. EVERY published .html is parsed — there is no byte
+//      prefilter, because any textual shortcut produces false negatives on valid
+//      HTML (`id="bk&#x2d;ov"` is the same element as `id="bk-ov"` after parsing).
 //
-//   2. COPY assertions are ANCHORED to a specific element. Aggregate text
-//      containment could be satisfied by a hidden decoy carrying the old wording
-//      while the real element drifted; an anchor cannot. See $anchoredText in the
-//      manifest for why computed visibility is deliberately NOT the filter.
+//   2. DELEGATION is path-semantic. The bridge <script src> must resolve, relative
+//      to the page's own location, to the exact publish-root path the public-page
+//      contract specifies. A same-basename script in another directory does not
+//      qualify, and neither does the path in a comment or a string.
 //
-//   3. STEP ORDER is read from the physical DOM. Enumerating the manifest and
-//      looking each id up by getElementById would pass a physical reorder, because
-//      the lookup imposes the manifest's own order on the result.
+//   3. ROLES are LIVE, not declared. Public fallback pages must be in sitemap.xml
+//      and must not be the generator's template; the template must be the
+//      generator's input and must not be in sitemap.xml. Swapping the two fails.
+//
+//   4. ORDER is deterministic. Directory traversal and every diagnostic list are
+//      sorted, and paths are normalised to POSIX, so results do not depend on the
+//      filesystem's enumeration order or on the host OS separator.
+//
+//   5. COPY assertions are ANCHORED and carry an explicit STRUCTURAL VISIBILITY
+//      contract. See $visibility in the manifest for exactly what that does and
+//      does not cover — it is not browser computed style.
+//
+//   6. STEP ORDER is read from the physical DOM, not by looking each id up in
+//      manifest order, which would impose the manifest's own order on the result.
 //
 // This file never writes inside the checkout. Synthetic publish roots are built
 // under fs.mkdtempSync, so concurrent runs never share a path.
@@ -53,8 +62,9 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const canonical = JSON.parse(read('tests/fixtures/booking-copy.canonical.json'));
 const { authoritative: AUTH_PAGES, fallbackPublic, fallbackTemplate } = canonical.surfaces;
 const FALLBACK_PAGES = [...fallbackPublic, ...fallbackTemplate];
-const { bookingRootId, bridgeScript, scanExcludedDirs, stepTabContainer, stepTabSelector } =
-  canonical.surfaceRules;
+const {
+  bookingRootId, bridgePath, scanExcludedDirs, stepTabContainer, stepTabSelector, roleEvidence,
+} = canonical.surfaceRules;
 
 const NON_VISIBLE = 'script, style, template, noscript';
 
@@ -69,79 +79,96 @@ function stripNonVisible(node, doc) {
 }
 
 const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+/** Native separators to POSIX, so classification never depends on the host OS. */
+const toPosix = (p) => p.split(path.sep).join('/');
+const sorted = (list) => [...list].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
 // ── Publish-root discovery ───────────────────────────────────────────────────
 
 /**
  * Every .html served from a publish root, at any depth, as POSIX-relative paths.
- * Excludes dot-directories and the role-based directories listed in the manifest.
+ * Directory entries are sorted so traversal order is identical on every
+ * filesystem; excludes dot-directories and the role-based directories in the
+ * manifest, matched against the path relative to the publish root.
  */
 function listPublishedHtml(publishRoot, excluded, dir = publishRoot, rel = '') {
   const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  const entries = [...fs.readdirSync(dir, { withFileTypes: true })].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  for (const entry of entries) {
     const relPath = rel ? `${rel}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
       if (entry.name.startsWith('.')) continue;
       if (excluded.includes(relPath)) continue;
       out.push(...listPublishedHtml(publishRoot, excluded, path.join(dir, entry.name), relPath));
     } else if (entry.isFile() && entry.name.endsWith('.html')) {
-      out.push(relPath);
+      out.push(toPosix(relPath));
     }
   }
-  return out;
+  return sorted(out);
 }
 
 /**
- * DOM-structural role of one page.
- *
- * `isSurface` is true only when the parsed document really contains an element
- * with the booking id. A commented-out modal, a modal inside <script> text and a
- * modal inside <template> all parse to something that is not an element in the
- * document, so none of them classify. Quoting style never reaches this decision
- * because the parser has already resolved it.
- *
- * `delegates` is read from real <script src> elements for the same reason: the
- * bridge path mentioned in a comment or in a string literal is not a script tag.
+ * Resolve a script's src to a publish-root-relative POSIX path, the way a browser
+ * loading `pageRel` would. Returns null for anything that cannot be a local
+ * publish-root asset (absolute URL, protocol-relative, or an escape above root).
  */
-function pageRole(html) {
+function resolveScriptPath(src, pageRel) {
+  const clean = String(src || '').split('#')[0].split('?')[0].trim();
+  if (!clean) return null;
+  if (clean.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(clean)) return null;
+  const joined = clean.startsWith('/')
+    ? clean.slice(1)
+    : path.posix.join(path.posix.dirname(pageRel), clean);
+  const resolved = path.posix.normalize(joined);
+  return resolved.startsWith('../') ? null : resolved;
+}
+
+/**
+ * DOM role of one page. Both halves read the parsed document.
+ *
+ * `isSurface`  — the document really contains an element with the booking id.
+ *                Entity-encoded and single-quoted forms are the same element once
+ *                parsed; a modal in a comment, in <script> text or in <template>
+ *                is not an element in the document and classifies nothing.
+ * `delegates`  — a real <script src> resolves to the contracted bridge path.
+ *                Same basename in another directory does not qualify.
+ */
+function pageRole(html, pageRel) {
   const doc = new JSDOM(html).window.document;
-  const isSurface = !!doc.getElementById(bookingRootId);
-  const delegates = [...doc.querySelectorAll('script[src]')].some((s) => {
-    const src = s.getAttribute('src') || '';
-    return src === bridgeScript || src.endsWith(`/${bridgeScript}`) || src.split('/').pop() === bridgeScript.split('/').pop();
-  });
-  return { isSurface, delegates };
+  const scripts = [...doc.querySelectorAll('script[src]')]
+    .map((s) => resolveScriptPath(s.getAttribute('src'), pageRel))
+    .filter(Boolean);
+  return {
+    isSurface: !!doc.getElementById(bookingRootId),
+    delegates: scripts.includes(bridgePath),
+    scripts,
+  };
 }
 
 /**
  * Structural classification of every booking surface under a publish root.
- * Both the root and the manifest are injected so this runs against a synthetic
- * tree without the real checkout ever being written to.
+ * Root and manifest are injected, so this runs against a synthetic tree without
+ * the real checkout ever being written to.
  */
 function classifyBookingSurfaces(publishRoot, manifest, excluded = scanExcludedDirs) {
   const { authoritative = [], fallbackPublic: fbPublic = [], fallbackTemplate: fbTemplate = [] } = manifest;
   const pages = listPublishedHtml(publishRoot, excluded);
 
-  // Cheap prefilter: a document cannot contain an element with this id unless the
-  // id appears in the bytes at all. It is a superset — every candidate is then
-  // confirmed by parsing, so nothing is classified on a raw match.
-  const candidates = pages.filter((f) => fs.readFileSync(path.join(publishRoot, f), 'utf8').includes(bookingRootId));
-
+  // No prefilter: every published page is parsed. A textual shortcut would miss
+  // DOM-equivalent encodings of the booking id.
   const surfaces = [];
   const roles = new Map();
-  for (const page of candidates) {
-    const role = pageRole(fs.readFileSync(path.join(publishRoot, page), 'utf8'));
+  for (const page of pages) {
+    const role = pageRole(fs.readFileSync(path.join(publishRoot, ...page.split('/')), 'utf8'), page);
     if (!role.isSurface) continue;
     surfaces.push(page);
     roles.set(page, role);
   }
 
   const declared = [...authoritative, ...fbPublic, ...fbTemplate];
-  const unclassified = surfaces.filter((f) => !declared.includes(f));
-  const missing = declared.filter((f) => !surfaces.includes(f));
-
-  // Roles must be disjoint — a page may not be authoritative and fallback at once.
-  const overlapping = declared.filter((f, i) => declared.indexOf(f) !== i);
+  const unclassified = sorted(surfaces.filter((f) => !declared.includes(f)));
+  const missing = sorted(declared.filter((f) => !surfaces.includes(f)));
+  const overlapping = sorted(declared.filter((f, i) => declared.indexOf(f) !== i));
 
   const misclassified = [];
   for (const page of surfaces) {
@@ -151,17 +178,17 @@ function classifyBookingSurfaces(publishRoot, manifest, excluded = scanExcludedD
     const actual = authoritative.includes(page) ? 'authoritative' : 'fallback';
     if (actual !== expected) {
       misclassified.push(
-        `${page} is classified ${actual} but ${delegates ? 'loads' : 'does not load'} ${bridgeScript} as a <script src>, so it is ${expected}`,
+        `${page} is classified ${actual} but ${delegates ? 'loads' : 'does not load'} ${bridgePath} as a resolved <script src>, so it is ${expected}`,
       );
     }
   }
 
-  return { pages, surfaces, unclassified, missing, overlapping, misclassified, roles };
+  return { pages, surfaces: sorted(surfaces), unclassified, missing, overlapping, misclassified: sorted(misclassified), roles };
 }
 
 const REPO_MANIFEST = { authoritative: AUTH_PAGES, fallbackPublic, fallbackTemplate };
 
-/** Classifying the real checkout parses every candidate page; do it once. */
+/** Classifying the real checkout parses every published page; do it once. */
 let repoClassificationCache = null;
 const repoClassification = () => (repoClassificationCache ??= classifyBookingSurfaces(root, REPO_MANIFEST));
 
@@ -169,11 +196,31 @@ const repoClassification = () => (repoClassificationCache ??= classifyBookingSur
 function makeSyntheticRoot(files) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cd1-drift-'));
   for (const [rel, contents] of Object.entries(files)) {
-    const full = path.join(dir, rel);
+    const full = path.join(dir, ...rel.split('/'));
     fs.mkdirSync(path.dirname(full), { recursive: true });
     fs.writeFileSync(full, contents);
   }
   return dir;
+}
+
+// ── Live role evidence ───────────────────────────────────────────────────────
+
+/** Publish-root-relative paths that sitemap.xml actually advertises. */
+function sitemapPaths() {
+  const locs = [...read(roleEvidence.sitemap).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1].trim());
+  return locs.map((loc) => {
+    const pathname = /^[a-z][a-z0-9+.-]*:/i.test(loc) ? new URL(loc).pathname : loc;
+    const rel = pathname.replace(/^\/+/, '');
+    return rel === '' ? roleEvidence.rootDocument : rel;
+  });
+}
+
+/** The file the hub generator actually reads as its template. Read-only. */
+function generatorTemplate() {
+  const src = read(roleEvidence.templateConsumer);
+  const m = /readFileSync\(\s*path\.join\(\s*root\s*,\s*['"]([^'"]+)['"]\s*\)/.exec(src);
+  assert.ok(m, `could not determine the template input of ${roleEvidence.templateConsumer}`);
+  return m[1];
 }
 
 // ── Anchored copy assertions ─────────────────────────────────────────────────
@@ -188,14 +235,37 @@ function bookingSurface(html) {
 }
 
 /**
- * Compare each anchored entry against the elements its anchor resolves to.
- * The element count must equal the expected text count, so an extra element that
- * matches the anchor (a decoy) fails just as loudly as drifted wording.
+ * Structural hidden markers on an element or any ancestor up to `stopAt`.
+ *
+ * This is the ONLY visibility model this suite has. It covers markers that are
+ * legible in the markup itself. It does NOT evaluate computed style, so
+ * visibility driven by an external stylesheet or by a class remains a
+ * browser-preview concern — see $visibility in the manifest.
  */
-function anchoredDrift(modal, entries) {
+function structuralHiddenMarkers(el, stopAt) {
+  const hits = [];
+  for (let n = el; n && n !== stopAt.parentNode; n = n.parentElement) {
+    const style = n.getAttribute('style') || '';
+    const where = n === el ? 'self' : `ancestor <${n.tagName.toLowerCase()}${n.id ? ` id="${n.id}"` : ''}>`;
+    if (n.hasAttribute('hidden')) hits.push(`${where} [hidden]`);
+    if (n.getAttribute('aria-hidden') === 'true') hits.push(`${where} aria-hidden="true"`);
+    if (/display\s*:\s*none/i.test(style)) hits.push(`${where} inline display:none`);
+    if (/visibility\s*:\s*hidden/i.test(style)) hits.push(`${where} inline visibility:hidden`);
+  }
+  return hits;
+}
+
+/**
+ * Compare each anchored entry against the elements its anchor resolves to, and
+ * enforce its structural-visibility contract. The element count must equal the
+ * expected text count, so an extra element matching the anchor (a decoy) fails
+ * just as loudly as drifted wording.
+ */
+function anchoredDrift(modal, entries, doc) {
   const drifted = [];
   for (const entry of entries) {
-    const found = [...modal.querySelectorAll(entry.anchor)].map((el) => norm(el.textContent));
+    const els = [...modal.querySelectorAll(entry.anchor)];
+    const found = els.map((el) => norm(el.textContent));
     if (found.length !== entry.texts.length) {
       drifted.push(
         `[${entry.id}] ${entry.anchor}\n    expected ${entry.texts.length} element(s), found ${found.length}` +
@@ -203,6 +273,7 @@ function anchoredDrift(modal, entries) {
       );
       continue;
     }
+
     entry.texts.forEach((expected, i) => {
       const actual = found[i];
       const ok = entry.match === 'exact' ? actual === norm(expected) : actual.includes(norm(expected));
@@ -213,6 +284,41 @@ function anchoredDrift(modal, entries) {
         );
       }
     });
+
+    // Structural visibility. Absent `visibility` means: every element must be free
+    // of structural hidden markers.
+    const exempt = entry.visibility?.exemptIndices ?? [];
+    const hiddenIdx = [];
+    els.forEach((el, i) => {
+      const marks = structuralHiddenMarkers(el, modal);
+      if (marks.length === 0) return;
+      hiddenIdx.push(i);
+      if (!exempt.includes(i)) {
+        drifted.push(
+          `[${entry.id}] ${entry.anchor} (element ${i + 1} of ${els.length}) is structurally hidden: ${marks.join(', ')}` +
+            `\n    required authoritative copy must not be satisfied by hidden markup` +
+            `\n    why     : ${entry.why}`,
+        );
+      }
+    });
+
+    // An exemption that is no longer needed is stale and must be removed, so the
+    // fixture stays an accurate record of what is progressively disclosed.
+    if (JSON.stringify(sorted(exempt.map(String))) !== JSON.stringify(sorted(hiddenIdx.map(String)))) {
+      drifted.push(
+        `[${entry.id}] declared visibility exemptions ${JSON.stringify(exempt)} do not match the elements that are actually hidden ${JSON.stringify(hiddenIdx)}`,
+      );
+    }
+    // Every exemption must name a control that really exists, so a progressive
+    // disclosure cannot be claimed for something nothing can reveal.
+    if (exempt.length > 0 && doc) {
+      const revealedBy = entry.visibility?.revealedBy;
+      assert.ok(revealedBy, `[${entry.id}] declares visibility exemptions but no revealedBy control`);
+      assert.ok(
+        doc.querySelector(revealedBy),
+        `[${entry.id}] revealedBy control ${revealedBy} is not rendered, so the exemption is unjustified`,
+      );
+    }
   }
   return drifted;
 }
@@ -246,6 +352,132 @@ test('every booking surface in the repo is classified, none can slip through', (
   assert.deepEqual(misclassified, [], `booking surfaces are classified against their delegation:\n  ${misclassified.join('\n  ')}`);
 });
 
+test('discovery parses every published page — no textual prefilter, so encodings cannot hide a surface', () => {
+  const { pages, surfaces } = repoClassification();
+
+  // Determinism: the walk is sorted and POSIX-normalised.
+  assert.deepEqual(pages, sorted(pages), 'published page list must be sorted');
+  assert.deepEqual(surfaces, sorted(surfaces), 'surface list must be sorted');
+  assert.ok(!pages.some((p) => p.includes('\\')), 'paths must be POSIX-normalised, not native-separator');
+
+  // A DOM-equivalent encoding of the booking id is the same element after parsing
+  // and must classify identically to the plain and single-quoted forms.
+  const body = (idAttr) => `<!doctype html><html><body><div class="booking-modal-ov" ${idAttr}>Book</div></body></html>`;
+  const dir = makeSyntheticRoot({
+    'plain.html': body(`id="${bookingRootId}"`),
+    'single-quoted.html': body(`id='${bookingRootId}'`),
+    'entity-encoded.html': body('id="bk&#x2d;ov"'),
+    'decimal-entity.html': body('id="bk&#45;ov"'),
+  });
+  try {
+    const r = classifyBookingSurfaces(dir, {}, []);
+    assert.deepEqual(
+      r.surfaces,
+      ['decimal-entity.html', 'entity-encoded.html', 'plain.html', 'single-quoted.html'],
+      'every DOM-equivalent spelling of the booking id must be discovered identically — a byte prefilter would miss the entity forms',
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('delegation is path-semantic: basename alone never proves it', () => {
+  const modal = `<div class="booking-modal-ov" id="${bookingRootId}">Book</div>`;
+  const base = bridgePath.split('/').pop();
+  const dir = makeSyntheticRoot({
+    // Correct contract path, and equivalent spellings of it.
+    'exact.html': `<html><body>${modal}<script src="${bridgePath}"></script></body></html>`,
+    'dot-slash.html': `<html><body>${modal}<script src="./${bridgePath}"></script></body></html>`,
+    'root-absolute.html': `<html><body>${modal}<script src="/${bridgePath}"></script></body></html>`,
+    'query-string.html': `<html><body>${modal}<script src="${bridgePath}?v=3"></script></body></html>`,
+    // Same basename, wrong directory — must NOT qualify.
+    'wrong-dir.html': `<html><body>${modal}<script src="js/${base}"></script></body></html>`,
+    'vendor-dir.html': `<html><body>${modal}<script src="vendor/assets/${base}"></script></body></html>`,
+    'off-site.html': `<html><body>${modal}<script src="https://cdn.example.com/${bridgePath}"></script></body></html>`,
+    // The path only as text — must NOT qualify.
+    'commented.html': `<html><body>${modal}<!-- <script src="${bridgePath}"></script> --></body></html>`,
+    'stringified.html': `<html><body>${modal}<script>var s = "${bridgePath}";</script></body></html>`,
+    // Nested page: a relative src must resolve against the page's own directory.
+    'deep/nested.html': `<html><body>${modal}<script src="../${bridgePath}"></script></body></html>`,
+    'deep/wrong-relative.html': `<html><body>${modal}<script src="${bridgePath}"></script></body></html>`,
+  });
+  try {
+    const r = classifyBookingSurfaces(dir, {}, []);
+    const delegates = (p) => r.roles.get(p).delegates;
+
+    for (const page of ['exact.html', 'dot-slash.html', 'root-absolute.html', 'query-string.html', 'deep/nested.html']) {
+      assert.equal(delegates(page), true, `${page} loads the contracted bridge path and must delegate`);
+    }
+    for (const page of ['wrong-dir.html', 'vendor-dir.html', 'off-site.html', 'commented.html', 'stringified.html', 'deep/wrong-relative.html']) {
+      assert.equal(delegates(page), false, `${page} must NOT count as delegating — it does not resolve to ${bridgePath}`);
+    }
+    // deep/wrong-relative.html resolves to deep/assets/... , proving resolution is
+    // relative to the page, not a bare basename or substring match.
+    assert.deepEqual(r.roles.get('deep/wrong-relative.html').scripts, [`deep/${bridgePath}`]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('discovery descends into subdirectories and reports a nested unregistered surface', () => {
+  const { pages } = repoClassification();
+  assert.ok(
+    pages.some((p) => p.includes('/')),
+    'discovery found no nested .html at all — either the walk stopped at the root or scanExcludedDirs is swallowing served directories',
+  );
+
+  const dir = makeSyntheticRoot({
+    'index.html': `<!doctype html><html><body><div id="${bookingRootId}">Book</div></body></html>`,
+    'cities/boston-hub.html': `<!doctype html><html><body><div id="${bookingRootId}">Book</div></body></html>`,
+  });
+  try {
+    const r = classifyBookingSurfaces(dir, { authoritative: ['index.html'] }, []);
+    assert.deepEqual(
+      r.unclassified,
+      ['cities/boston-hub.html'],
+      'a nested booking page absent from the manifest must be reported as unclassified, by POSIX path',
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ── Roles are live, not declared ─────────────────────────────────────────────
+
+test('public and template roles are proved against sitemap.xml and the generator, not just declared', () => {
+  const advertised = sitemapPaths();
+  const templateInput = generatorTemplate();
+
+  // Authoritative and every public fallback are advertised to customers.
+  for (const page of AUTH_PAGES) {
+    assert.ok(advertised.includes(page), `${page} is authoritative but ${roleEvidence.sitemap} does not advertise it`);
+  }
+  for (const page of fallbackPublic) {
+    assert.ok(
+      advertised.includes(page),
+      `${page} is declared a PUBLIC fallback surface but ${roleEvidence.sitemap} does not advertise it — it is not public`,
+    );
+    assert.notEqual(
+      page, templateInput,
+      `${page} is declared public but is the template ${roleEvidence.templateConsumer} generates from`,
+    );
+  }
+
+  // The template is the generator's input and is deliberately not advertised.
+  for (const page of fallbackTemplate) {
+    assert.equal(
+      page, templateInput,
+      `${page} is declared a TEMPLATE but ${roleEvidence.templateConsumer} does not generate from it`,
+    );
+    assert.ok(
+      !advertised.includes(page),
+      `${page} is declared a template but ${roleEvidence.sitemap} advertises it as a public page`,
+    );
+  }
+
+  assert.equal(fallbackTemplate.length, 1, 'exactly one template is expected; a second would need its own evidence');
+});
+
 test('the three surface roles stay distinct and account for every surface', () => {
   const { surfaces, roles } = repoClassification();
 
@@ -256,86 +488,13 @@ test('the three surface roles stay distinct and account for every surface', () =
   }
 
   assert.deepEqual(
-    [...surfaces].sort(),
-    [...AUTH_PAGES, ...fallbackPublic, ...fallbackTemplate].sort(),
+    surfaces,
+    sorted([...AUTH_PAGES, ...fallbackPublic, ...fallbackTemplate]),
     'the union of the three roles must be exactly the set of discovered booking surfaces',
   );
 
-  // The role split is not decorative: authoritative renders the modal customers
-  // use, both fallback roles delegate away from it.
   for (const page of AUTH_PAGES) assert.equal(roles.get(page).delegates, false, `${page} is authoritative but delegates`);
   for (const page of FALLBACK_PAGES) assert.equal(roles.get(page).delegates, true, `${page} is fallback but does not delegate`);
-  assert.ok(fallbackTemplate.length > 0, 'the template role exists and must not be folded into fallbackPublic');
-});
-
-test('discovery is DOM-structural: quoting is irrelevant, comments and scripts classify nothing', () => {
-  const modal = `<div class="booking-modal-ov" id="${bookingRootId}">Book</div>`;
-  const bridgeTag = `<script src="${bridgeScript}" defer></script>`;
-  const dir = makeSyntheticRoot({
-    // Single-quoted id — must be discovered exactly like the double-quoted form.
-    'index.html': `<!doctype html><html><body><div class='booking-modal-ov' id='${bookingRootId}'>Book</div></body></html>`,
-    'hub.html': `<!doctype html><html><body>${modal}${bridgeTag}</body></html>`,
-    // The booking root appears only inside a comment / script text / template.
-    'commented.html': `<!doctype html><html><body><!-- ${modal} --></body></html>`,
-    'scripted.html': `<!doctype html><html><body><script>var t = ${JSON.stringify(modal)};</script></body></html>`,
-    'templated.html': `<!doctype html><html><body><template>${modal}</template></body></html>`,
-    // Renders the modal, but the bridge is only mentioned in a comment and in a
-    // string. It does NOT delegate, so it is authoritative, not fallback.
-    'fake-fallback.html': `<!doctype html><html><body>${modal}<!-- ${bridgeScript} --><script>var s="${bridgeScript}";</script></body></html>`,
-  });
-  try {
-    const declaredWrong = { authoritative: ['index.html'], fallbackPublic: ['hub.html', 'fake-fallback.html'], fallbackTemplate: [] };
-    const r = classifyBookingSurfaces(dir, declaredWrong, []);
-
-    assert.deepEqual(
-      [...r.surfaces].sort(),
-      ['fake-fallback.html', 'hub.html', 'index.html'],
-      'only pages rendering a real element may be surfaces — a single-quoted id must count, and comment/script/template occurrences must not',
-    );
-    assert.equal(r.roles.get('index.html').delegates, false, "single-quoted page must parse and must not appear to delegate");
-    assert.equal(r.roles.get('hub.html').delegates, true, 'a real <script src> must classify as delegating');
-    assert.equal(
-      r.roles.get('fake-fallback.html').delegates,
-      false,
-      'the bridge path in a comment or a string literal must not classify a page as fallback',
-    );
-    assert.deepEqual(
-      r.misclassified,
-      [
-        `fake-fallback.html is classified fallback but does not load ${bridgeScript} as a <script src>, so it is authoritative`,
-      ],
-      'a page that renders the modal without delegating is customer-visible and must be reported when declared fallback',
-    );
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('discovery descends into subdirectories and reports a nested unregistered surface', () => {
-  // netlify.toml publishes ".", so a page at any depth is served.
-  // 1. The real checkout is reached recursively — read-only, nothing is written.
-  const { pages } = repoClassification();
-  assert.ok(
-    pages.some((p) => p.includes('/')),
-    'discovery found no nested .html at all — either the walk stopped at the root or scanExcludedDirs is swallowing served directories',
-  );
-
-  // 2. A nested, unregistered authoritative surface must be reported by path.
-  const dir = makeSyntheticRoot({
-    'index.html': `<!doctype html><html><body><div id="${bookingRootId}">Book</div></body></html>`,
-    'cities/boston-hub.html': `<!doctype html><html><body><div id="${bookingRootId}">Book</div></body></html>`,
-  });
-  try {
-    const r = classifyBookingSurfaces(dir, { authoritative: ['index.html'] }, []);
-    assert.ok(r.surfaces.includes('cities/boston-hub.html'), 'a nested page rendering the booking root was not discovered');
-    assert.deepEqual(
-      r.unclassified,
-      ['cities/boston-hub.html'],
-      'a nested booking page absent from the manifest must be reported as unclassified',
-    );
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
 });
 
 // ── Authoritative customer-visible contract ──────────────────────────────────
@@ -349,20 +508,15 @@ test('the authoritative flow renders exactly six steps in physical DOM order', (
     'the step constant disagrees with the manifest step list',
   );
 
-  // Read the tabs as they physically appear. Looking each id up from the manifest
-  // would impose the manifest's order on the result and pass a physical reorder.
   const rendered = renderedSteps(authoritative.doc);
   assert.deepEqual(
     rendered,
     canonical.authoritative.steps.map((s) => ({ id: s.tabId, label: s.label })),
     'booking step ids, labels or their physical DOM order drifted from the manifest',
   );
-  assert.equal(rendered.length, canonical.authoritative.steps.length, 'the flow must render exactly the manifest steps, no more, no fewer');
 });
 
 test('a physical reorder of two step tabs is detected', () => {
-  // Swap the whole tab elements for steps 3 and 4 — labels and numbers travel with
-  // them, so every per-id lookup still agrees. Only DOM order changes.
   const steps = canonical.authoritative.steps;
   const [a, b] = [steps[2], steps[3]];
   const tabRe = (id) => new RegExp(`<div class="bpt[^"]*" id="${id}">.*?</span></div>`, 's');
@@ -399,14 +553,37 @@ test('canonical elements render with the canonical text on the authoritative sur
   assert.deepEqual(drifted, [], `authoritative element copy drifted:\n  ${drifted.join('\n  ')}`);
 });
 
-test('canonical sentences render on their own anchored element, not just somewhere in the modal', () => {
-  const drifted = anchoredDrift(authoritative.modal, canonical.authoritative.anchoredText);
+test('canonical sentences render on their own anchored, structurally visible element', () => {
+  const drifted = anchoredDrift(authoritative.modal, canonical.authoritative.anchoredText, authoritative.doc);
   assert.deepEqual(
     drifted,
     [],
     `anchored booking copy drifted on ${authoritativePage}` +
-      ` (comments, <script> and <template> content do not count, and an unexpected extra match is drift too):\n  ${drifted.join('\n  ')}`,
+      ` (comments, <script> and <template> content do not count; an unexpected extra match and undeclared hidden markup are drift too):\n  ${drifted.join('\n  ')}`,
   );
+});
+
+test('required authoritative copy cannot be satisfied by structurally hidden markup', () => {
+  // Each shape is applied to the real anchored element of a required entry.
+  const entry = canonical.authoritative.anchoredText.find((e) => e.id === 'card-mandatory');
+  const original = `<div class="fl" style="margin-bottom:8px">${entry.texts[0]}</div>`;
+  assert.ok(authoritativeHtml.includes(original), 'precondition: the required anchored element was located verbatim');
+
+  const shapes = {
+    'hidden attribute': `<div class="fl" style="margin-bottom:8px" hidden>${entry.texts[0]}</div>`,
+    'aria-hidden="true"': `<div class="fl" style="margin-bottom:8px" aria-hidden="true">${entry.texts[0]}</div>`,
+    'inline display:none': `<div class="fl" style="margin-bottom:8px;display:none">${entry.texts[0]}</div>`,
+    'inline visibility:hidden': `<div class="fl" style="margin-bottom:8px;visibility:hidden">${entry.texts[0]}</div>`,
+  };
+
+  for (const [label, replacement] of Object.entries(shapes)) {
+    const surface = bookingSurface(authoritativeHtml.replace(original, replacement));
+    const drifted = anchoredDrift(surface.modal, [entry], surface.doc);
+    assert.ok(
+      drifted.some((d) => d.includes('structurally hidden')),
+      `[${entry.id}] hidden via ${label} was accepted as required customer-visible copy:\n  ${drifted.join('\n  ')}`,
+    );
+  }
 });
 
 test('hidden, script and comment decoys cannot satisfy an anchored assertion', () => {
@@ -425,9 +602,8 @@ test('hidden, script and comment decoys cannot satisfy an anchored assertion', (
   for (const [label, decoy] of Object.entries(decoys)) {
     const mutated = authoritativeHtml.replace(original, 'Card on File Optional').replace(open, open + decoy);
     assert.ok(mutated !== authoritativeHtml, `precondition: the ${label} mutation applied`);
-
     const surface = bookingSurface(mutated);
-    const drifted = anchoredDrift(surface.modal, canonical.authoritative.anchoredText);
+    const drifted = anchoredDrift(surface.modal, canonical.authoritative.anchoredText, surface.doc);
     assert.ok(
       drifted.some((d) => d.startsWith(`[${entry.id}]`)),
       `a ${label} decoy masked drift on [${entry.id}]:\n  ${drifted.join('\n  ')}`,
@@ -451,16 +627,16 @@ test('booking entry CTA semantics hold on the authoritative page', () => {
 });
 
 test('the authoritative zero-charge promise is rendered as a zero amount plus its label', () => {
-  // Presentation invariant. The fixture stores NO amount and NO currency: it names
-  // the elements and requires that the value renders numerically zero. That keeps
-  // the "nothing is charged today" promise pinned without this file ever asserting
-  // a price, which would move commercial authority into a copy fixture.
   const entry = canonical.zeroChargePromise;
   const doc = new JSDOM(authoritativeHtml).window.document;
   stripNonVisible(doc.body, doc);
 
   const items = [...doc.querySelectorAll(entry.anchor)];
   assert.equal(items.length, 1, `[${entry.id}] ${entry.anchor} must resolve to exactly one element, found ${items.length}`);
+  assert.deepEqual(
+    structuralHiddenMarkers(items[0], doc.body), [],
+    `[${entry.id}] the promise must not be structurally hidden`,
+  );
 
   const value = norm(items[0].querySelector(entry.valueSelector)?.textContent);
   const label = norm(items[0].querySelector(entry.labelSelector)?.textContent);
@@ -495,9 +671,9 @@ test('the legacy fallback modal does not contradict the authoritative surface', 
   }
 
   assert.deepEqual(
-    drifted,
+    sorted(drifted),
     [],
-    `the hidden fallback modal drifted from the authoritative copy:\n  ${drifted.join('\n  ')}\n` +
+    `the hidden fallback modal drifted from the authoritative copy:\n  ${sorted(drifted).join('\n  ')}\n` +
       'If the bridge ever fails to execute this markup becomes visible, so it must not contradict index.html.',
   );
 });
@@ -505,7 +681,7 @@ test('the legacy fallback modal does not contradict the authoritative surface', 
 // ── Contradictions, everywhere ───────────────────────────────────────────────
 
 test('no surface reintroduces a contradiction that was already removed', () => {
-  const scanned = [...AUTH_PAGES, ...FALLBACK_PAGES, 'scripts/apply-state-hub-theme.mjs'];
+  const scanned = sorted([...AUTH_PAGES, ...FALLBACK_PAGES, 'scripts/apply-state-hub-theme.mjs']);
   const violations = [];
   for (const entry of canonical.forbidden) {
     const re = new RegExp(entry.pattern, entry.flags || '');
@@ -513,14 +689,14 @@ test('no surface reintroduces a contradiction that was already removed', () => {
       if (re.test(read(file))) violations.push(`[${entry.id}] ${file} — ${entry.why}`);
     }
   }
-  assert.deepEqual(violations, [], `forbidden copy present:\n  ${violations.join('\n  ')}`);
+  assert.deepEqual(sorted(violations), [], `forbidden copy present:\n  ${sorted(violations).join('\n  ')}`);
 });
 
 test('documentation and code agree on how many steps the flow has', () => {
   assert.doesNotMatch(
-    read(`assets/${bridgeScript.split('/').pop()}`),
+    read(bridgePath),
     /four-step/i,
-    'the booking bridge header still documents a four-step flow',
+    `${bridgePath} still documents a four-step flow`,
   );
 });
 

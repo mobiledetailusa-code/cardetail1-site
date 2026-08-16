@@ -1,10 +1,14 @@
 # Production-safe reorganization & optimization pass
 
-**Verdict: READY FOR INDEPENDENT DELTA AUDIT** — not merged, not deployed. **[C3]**
+**Verdict: READY FOR FINAL INDEPENDENT DELTA AUDIT** — not merged, not deployed. **[C4]**
 
 > The last SHA to carry an *independent* verdict is `d67003b`. Everything after it —
-> `9dee289` and this revision — was written and verified by the same agent. That is
-> implementer self-verification, not an audit, and this report does not claim otherwise.
+> `9dee289`, `9c6501b` and this revision — was written and verified by the same agent. That
+> is implementer self-verification, not an audit, and this report does not claim otherwise.
+> Each subsequent round was driven by an independent review of the preceding delta, and each
+> found real defects that the previous round's green suite had not: a test mutating the
+> checkout, a byte prefilter with false negatives, basename-only bridge matching, role
+> membership that was never actually proved, and a step-order assertion incapable of failing.
 
 > **Correction round.** An independent audit returned NEEDS CORRECTION on candidate
 > `7215e25`. This revision corrects the drift-test architecture, completes the manifest,
@@ -46,9 +50,11 @@ subtests of those suites. **6 skips** are explicit `DATABASE_URL not configured`
 ### B1. Surfaces **[C]**
 
 Classification is **DOM-structural** **[C3]**: a page that renders an *element* with id
-`bk-ov` is a booking surface; if it also loads `assets/hub-booking-bridge.js` as a real
-`<script src>` it is fallback, otherwise authoritative. Neither half is decided on raw bytes
-— see §C1c.
+`bk-ov` is a booking surface; it is fallback when one of its real `<script src>` elements
+**resolves** to `assets/hub-booking-bridge.js`, otherwise authoritative **[C4]**. Neither
+half is decided on raw bytes, and no page is classified by a script's basename — see §C1c.
+Which role a fallback page holds (public vs template) is proved against `sitemap.xml` and
+the generator's template input, not merely declared — see §C1c-3.
 
 | Class | Count | Note |
 |---|---|---|
@@ -108,7 +114,14 @@ counted JS string characters after consuming trailing CRLF and reported them as 
 | `index.html` + 12 others (13 files) | −55 lines each: dead trust-stats CSS | LOW |
 | `assets/hub-booking-bridge.js` | Header: corrected step count; documents both bridge failure modes **[C]** | NONE — comment only |
 | `tests/fixtures/booking-copy.canonical.json` | Rewritten: authoritative/fallback split, 6 step labels + order, entry CTA, card/saved-vs-charged/request-vs-confirmed/water-power/availability/success-state semantics **[C2]** | NONE — not runtime |
-| `tests/booking-copy-drift.test.js` | Rewritten on jsdom; anchored copy assertions; recursive publish-root discovery **[C2]**; DOM-structural classification, physical step order, no writes inside the checkout **[C3]** | NONE — test only |
+| `tests/booking-copy-drift.test.js` | Rewritten on jsdom; anchored copy assertions; recursive publish-root discovery **[C2]**; DOM-structural classification, physical step order, no writes inside the checkout **[C3]**; prefilter removed, path-semantic delegation, live role evidence, deterministic ordering, structural visibility **[C4]** | NONE — test only |
+
+> **[C4] Fourth correction round.** An independent audit of the `9c6501b` delta found six
+> blockers: the byte prefilter produced false negatives on DOM-equivalent encodings, bridge
+> detection matched on basename alone, role membership was declared rather than proved,
+> traversal order was non-deterministic, required copy could sit in self-declared-hidden
+> markup, and this report overclaimed on all four. All six are closed below and the
+> overclaims are withdrawn in place. Statements corrected in that round are marked **[C4]**.
 
 > **[C3] Third correction round.** An independent audit of the `9dee289` delta found four
 > blockers: the suite mutated the checkout, classification was still a raw substring match,
@@ -154,6 +167,25 @@ inactive steps and the three `.pay-choice-desc` panels are `display:none` until 
 reaches them, so they are real customer-visible copy. A visibility filter would delete that
 coverage. Anchoring closes the hole without that cost.
 
+#### C1a-1. Explicit structural visibility **[C4]**
+
+Anchoring alone still allowed required copy to sit in markup that declares itself hidden.
+Every anchored element must now be free of four **structural** markers, on itself or on any
+ancestor inside `#bk-ov`: the `hidden` attribute, `aria-hidden="true"`, inline
+`display:none`, inline `visibility:hidden`. Mutations E, F, G and G2 apply each shape to a
+required anchor and all four fail.
+
+**The boundary, stated honestly.** This is *not* browser computed style. Visibility driven
+by an external stylesheet or by a class — including whatever hides `#bk-ov` itself until the
+modal opens — is **not modelled** and remains a browser-preview concern. A pass means "this
+markup does not declare itself hidden", never "a customer can see this".
+
+Progressive disclosure is handled by declaration rather than exemption-by-silence: an entry
+may list `visibility.exemptIndices` with a `revealedBy` selector that **must actually
+render**. The declared exemptions must equal the set of elements really hidden, so a stale
+exemption fails as loudly as an undeclared hidden element — mutation K, which un-hides
+`#bk-alt-fields`, fails on exactly that.
+
 Where no stable class existed, the anchor is derived from a control the runtime already
 depends on — `.fg:has(> #f-water) > .fl`, `.fg:has(> #f-electric) > .fl`,
 `label.terms-check:has(#terms-ok) > span`, `#bs6 .oc:has(#c-pay-method) > .or:nth-of-type(2) > span`.
@@ -187,12 +219,51 @@ both directions, and an independent audit called it:
 
 Both halves now read the parsed document: `getElementById(bookingRootId)` for the surface,
 and real `script[src]` elements for delegation. Quoting never reaches the decision because
-the parser has already resolved it. A byte prefilter still narrows the candidate set before
-parsing, but it is a **superset only** — every candidate is confirmed by parsing, so no page
-is classified on a raw match.
+the parser has already resolved it.
 
-The three roles — authoritative public, fallback public, template — are asserted mutually
-disjoint, and their union must equal the discovered surface set exactly.
+#### C1c-1. The byte prefilter is gone **[C4]**
+
+The `[C3]` round kept a byte prefilter and this report called it "a superset only". **That
+claim was wrong and is withdrawn.** `read(f).includes('bk-ov')` is not a superset of "renders
+an element with that id": `id="bk&#x2d;ov"` and `id="bk&#45;ov"` are the same element after
+parsing but contain no literal `bk-ov`, so the prefilter produced **false negatives on valid
+HTML** — exactly the class of bug the round was meant to remove.
+
+There is now no prefilter. **Every** published `.html` is parsed. Measured cost: 31 files,
+**1.77 s**, finding exactly the 13 known surfaces. Mutation A proves an entity-encoded
+nested surface is discovered.
+
+#### C1c-2. Delegation is path-semantic **[C4]**
+
+`[C3]` accepted any script whose **basename** was `hub-booking-bridge.js`. That is not
+delegation — it is a filename coincidence. Each `<script src>` is now resolved the way a
+browser loading that page would resolve it (relative to the page's own directory, query and
+fragment stripped, root-absolute honoured) and must equal the contract path
+`assets/hub-booking-bridge.js` exactly.
+
+| src on the page | Delegates? |
+|---|---|
+| `assets/hub-booking-bridge.js`, `./…`, `/…`, `…?v=3` | yes |
+| `js/hub-booking-bridge.js`, `vendor/assets/hub-booking-bridge.js` | **no** — same basename, wrong path |
+| `https://cdn.example.com/assets/hub-booking-bridge.js` | **no** — off-site |
+| the path inside a comment or a JS string | **no** — not a script element |
+| bare `assets/…` on a page in `deep/` | **no** — resolves to `deep/assets/…` |
+
+#### C1c-3. Roles are live, not declared **[C4]**
+
+`[C3]` proved the three roles were disjoint and that their union equalled the discovered
+set. **That proves nothing about which page holds which role** — swapping `template-city.html`
+with a real public hub satisfies both properties and is still wrong. The claim is withdrawn.
+
+Membership is now proved against two independent pieces of live repository evidence:
+
+| Signal | Public fallback | Template |
+|---|---|---|
+| `sitemap.xml` | must advertise it | must **not** advertise it |
+| `scripts/generate-hub-pages.js` template input (read-only) | must not be it | must **be** it |
+
+Mutation D — swapping `template-city.html` and `bergen-county-hub.html` between the roles —
+fails on both signals.
 
 #### C1d. Physical step order **[C3]**
 
@@ -258,7 +329,8 @@ the publish root, at any depth, without being classified. **[C2]**
 | Previous candidate `7215e25` | 2638 | 2528 | 29 | 75 | 6 |
 | Candidate `d67003b` | 2643 | 2533 | 29 | 75 | 6 |
 | B-1/B-2/B-3 corrections `9dee289` **[C2]** | 2646 | 2536 | 29 | 75 | 6 |
-| **Independent-audit blockers** **[C3]** | **2648** | **2538** | **29** | **75** | **6** |
+| Independent-audit blockers `9c6501b` **[C3]** | 2648 | 2538 | 29 | 75 | 6 |
+| **Delta-audit blockers** **[C4]** | **2651** | **2541** | **29** | **75** | **6** |
 
 Failure identities were set-differenced at every step. Between `d67003b` → `9dee289` → this
 revision: **zero added, zero removed**, and skip identities are byte-identical throughout.
@@ -266,9 +338,11 @@ The test-count growth is entirely new guard tests — +3 in `[C2]`, +2 in `[C3]`
 distinctness, physical step reorder); the decoy test was widened from one shape to five
 without adding a case. Failure identities are listed in §A and are unchanged.
 
-* Focused drift suite: **15 / 15 pass** **[C3]** (10 → 13 → 15).
+* Focused drift suite: **18 / 18 pass** **[C4]** (10 → 13 → 15 → 18).
 * Focused related suites (drift · conversion copy · hub public surface · index public
   surface · hub booking conversion): **132 / 132 pass**.
+* Two focused suites run **concurrently**: 18/18 and 87/87, **0** leaked `cd1-drift-*`
+  directories, `git status` empty. **[C4]**
 
 ### `audit:pre-deploy` — corrected **[C2]**
 
@@ -397,6 +471,29 @@ they exercise the same code path the guard uses in CI.
 the same worktree — both 15/15, **0** leaked `cd1-drift-*` temp directories, `git status`
 empty, no `cities/` anywhere in the checkout.
 
+### H3. Fourth adversarial round — the delta-audit blockers **[C4]**
+
+Twelve mutations against a disposable export, tree restored after each. **All 12 caught.**
+A, B, C, D and K did **not** fail before this round.
+
+| # | Mutation | Caught by |
+|---|---|---|
+| **A** | nested surface with entity-encoded `id="bk&#x2d;ov"` | discovery — the prefilter used to miss this entirely |
+| **B** | fallback page's bridge src → `js/hub-booking-bridge.js` (same basename, wrong dir) | delegation — "does not load … as a resolved `<script src>`" |
+| **C** | bridge tag → comment + JS string literal | delegation |
+| **D** | `template-city.html` ⇄ `bergen-county-hub.html` swapped between roles | live role evidence — "sitemap.xml does not advertise it — it is not public" |
+| **E** | required anchor given `hidden` | structural visibility |
+| **F** | required anchor given `aria-hidden="true"` | structural visibility |
+| **G** | required anchor given inline `display:none` | structural visibility |
+| **G2** | required anchor given inline `visibility:hidden` | structural visibility |
+| H | physical swap of step tabs 3 / 4 | physical DOM order |
+| I | `$0 today` → `$49 today` | zero-charge promise |
+| J | nested rogue authoritative surface (plain id) | discovery |
+| **K** | `#bk-alt-fields` un-hidden, making a declared exemption stale | visibility exemption drift |
+
+K is the check on the check: an exemption that is no longer needed is itself drift, so the
+fixture cannot quietly accumulate permissions.
+
 ## I. Remaining risks
 
 | Risk | Level |
@@ -455,10 +552,14 @@ supported:
 * **Nothing is verified in a browser.** Every assertion runs in jsdom. Computed CSS,
   layout, paint and real event behaviour are unverified. The Netlify Preview smoke test
   remains the only evidence for those, and it has not been run.
-* **Visibility is not evaluated.** Anchoring proves an element carries the right copy; it
-  does not prove a customer can see it. The modal is a wizard whose panels are
-  `display:none` until reached, so this is deliberate — but it means "customer-visible" in
-  this suite means "in the customer-visible DOM subtree", not "on screen".
+* **Visibility is structural only** **[C4]**. The suite rejects four markers the markup
+  declares about itself — `hidden`, `aria-hidden="true"`, inline `display:none`, inline
+  `visibility:hidden`. It does **not** evaluate computed style, so anything hidden by an
+  external stylesheet or by a class is invisible to it. "Customer-visible" here means "in
+  the customer-visible DOM subtree and not self-declared hidden", never "on screen".
+* **Role evidence is only as good as its two sources** **[C4]**. Public/template membership
+  is proved against `sitemap.xml` and the generator's template input. A page absent from
+  both — or a stale sitemap — would not be caught by this mechanism.
 * **Copy outside the manifest is unguarded.** The suite pins the listed entries and nothing
   else. Silence is not coverage.
 * **`audit:pre-deploy` is not a gate** and exits 2 here and at baseline (OOS-6). See §F.
@@ -467,7 +568,7 @@ supported:
 
 ## L. Verdict
 
-### READY FOR INDEPENDENT DELTA AUDIT **[C3]**
+### READY FOR FINAL INDEPENDENT DELTA AUDIT **[C4]**
 
 Not merged. Not deployed. Production database, live Stripe configuration and Netlify
 production settings untouched. A Netlify branch preview and customer-visible smoke
