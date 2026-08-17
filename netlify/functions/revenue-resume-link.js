@@ -13,9 +13,17 @@ const cors = {
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: cors, body: '' };
 
-  const rate = await enforcePublicRateLimit(event, 'revenue-resume-link', 'validate');
-  if (!rate.ok) {
-    return { statusCode: 429, headers: cors, body: JSON.stringify({ ok: false, error: 'rate_limited' }) };
+  // Same obsolete positional/`rate.ok` contract as revenue-event: every request
+  // took the 429 path. On this endpoint that is customer-facing — resume.html reads
+  // `data.ok === false` and shows "This resume link is invalid or expired", so a
+  // valid recovery link was reported dead and the booking prefill never resumed.
+  const rate = await enforcePublicRateLimit(event, { endpoint: 'revenue-resume-link', action: 'validate' });
+  if (rate.blocked) {
+    return {
+      statusCode: 429,
+      headers: { ...cors, 'Retry-After': String(Math.max(1, Math.ceil(Number(rate.retryAfterSec) || 60))) },
+      body: JSON.stringify({ ok: false, error: 'rate_limited' }),
+    };
   }
 
   if (event.httpMethod === 'GET') {
