@@ -2,7 +2,14 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const template = fs.readFileSync(path.join(root, 'template-city.html'), 'utf8');
+// Normalised to LF on read. Several substitutions below are multi-line literals
+// written with \n, so on a CRLF checkout they match nothing and String.replace
+// turns them into silent no-ops — the generator would emit a page missing its
+// footer block and its ZIP initialiser while reporting success. That is a
+// platform-dependent wrong page, which is exactly what this script must never
+// produce. Verified: with the template as checked out under core.autocrlf=true,
+// 3 substitutions miss; normalised to LF, only 1 genuinely misses.
+const template = fs.readFileSync(path.join(root, 'template-city.html'), 'utf8').replace(/\r\n/g, '\n');
 
 const hubs = [
   {
@@ -96,20 +103,76 @@ const zipInit = `(function initHubZipFromQuery(){
 const initAnchor = `renderReviews();
 renderLocationCarousel('default');`;
 
-for (const hub of hubs) {
-  let html = template
-    .replace(/\{CITY_NAME\}/g, hub.name)
-    .replace(navOld, navFix)
-    .replace(footContactOld, footQuickLinks)
-    .replace(bookMobileOld, bookMobileFix)
-    .replace(
-      `<link rel="canonical" href="https://cardetail1.com/">`,
-      `<link rel="canonical" href="https://cardetail1.com/${hub.file}">`
-    )
-    .replace(
-      `<meta property="og:url" content="https://cardetail1.com/">`,
-      `<meta property="og:url" content="https://cardetail1.com/${hub.file}">`
-    )
+// ── Safety ───────────────────────────────────────────────────────────────────
+//
+// This generator rebuilds six hub pages from template-city.html. The template
+// and the live pages diverged long ago, so running it on an unmodified checkout
+// silently REWRITES those pages and destroys the difference: measured at
+// bb4cbfd it produced 645–2,281 changed lines per file, ~7,000 in total, and
+// exited 0 while doing it.
+//
+// It is kept because adding a city is a legitimate use. Three guards make the
+// destructive use impossible to trigger by accident:
+//
+//   1. Dry run by default. Writing requires --write.
+//   2. A write that would REMOVE content from an existing page is refused, and
+//      needs --force plus reading what it reports.
+//   3. Every literal substitution must match. They are plain String.replace
+//      calls, so a template that drifted would silently skip them and emit a
+//      half-customised page with no error at all.
+const argv = process.argv.slice(2);
+const WRITE = argv.includes('--write');
+const FORCE = argv.includes('--force');
+const ONLY = (argv.find((a) => a.startsWith('--only=')) || '').slice('--only='.length);
+
+/**
+ * String.replace that records substitutions matching nothing instead of
+ * applying them silently. Collected rather than thrown one at a time so a
+ * drifted template reports every broken substitution in one run.
+ */
+function makeReplacer(misses) {
+  return function must(html, from, to, label) {
+    const next = html.replace(from, to);
+    if (next === html) misses.push(label);
+    return next;
+  };
+}
+
+/** Lines present in `before` that `after` no longer contains, ignoring pure moves. */
+function removedLines(before, after) {
+  const kept = new Set(after.split('\n').map((l) => l.trim()));
+  return before.split('\n').map((l) => l.trim()).filter((l) => l && !kept.has(l));
+}
+
+function buildHub(hub) {
+  const misses = [];
+  const must = makeReplacer(misses);
+
+  let html = template;
+  if (!/\{CITY_NAME\}/.test(html)) misses.push('{CITY_NAME} token');
+  html = html.replace(/\{CITY_NAME\}/g, hub.name);
+  html = must(html, navOld, navFix, 'nav brand link');
+  html = must(html, footContactOld, footQuickLinks, 'footer Quick Links block');
+  html = must(html, bookMobileOld, bookMobileFix, 'book mobile CTA');
+  html = must(html, `<link rel="canonical" href="https://cardetail1.com/">`, `<link rel="canonical" href="https://cardetail1.com/${hub.file}">`, 'canonical URL');
+  html = must(html, `<meta property="og:url" content="https://cardetail1.com/">`, `<meta property="og:url" content="https://cardetail1.com/${hub.file}">`, 'og:url');
+  html = must(html, `<div class="foot-areas">Serving Bergen County · Hudson County · Manhattan · Long Island · Fairfield CT · and surrounding areas</div>`, `<div class="foot-areas">Serving ${hub.footAreas} · and surrounding areas · <a href="index.html" style="color:var(--mu);text-decoration:none">← All service areas</a></div>`, 'footer service areas');
+  html = must(html, initAnchor, zipInit + initAnchor, 'ZIP-from-query initialiser (initHubZipFromQuery)');
+
+  if (misses.length > 0) {
+    throw new Error(
+      `[generate-hub-pages] ${misses.length} substitution(s) matched nothing in template-city.html:\n` +
+        misses.map((m) => `    - ${m}`).join('\n') +
+        '\n\n  template-city.html has drifted from what this generator expects. Emitting the page anyway\n' +
+        '  would produce a half-customised hub — that is what the old version did, silently, exiting 0.\n' +
+        '  Reconcile the template with these substitutions before generating anything.',
+    );
+  }
+
+  // The remaining substitutions are content polish. They are intentionally not
+  // guarded: several depend on {CITY_NAME} having already been interpolated and
+  // are harmless no-ops on a city whose template copy differs.
+  return html
     .replace(
       `<title>Mobile Detailing in ${hub.name} | Cardetail1</title>`,
       `<title>Premium Mobile Detailing in ${hub.name} | Cardetail1</title>`
@@ -127,16 +190,57 @@ for (const hub of hubs) {
       `<p class="hero-sub">${hub.sub}</p>`
     )
     .replace(
-      `<div class="foot-areas">Serving Bergen County · Hudson County · Manhattan · Long Island · Fairfield CT · and surrounding areas</div>`,
-      `<div class="foot-areas">Serving ${hub.footAreas} · and surrounding areas · <a href="index.html" style="color:var(--mu);text-decoration:none">← All service areas</a></div>`
-    )
-    .replace(
       `<!--
   CITY LANDING PAGE TEMPLATE — replace tokens per city:`,
       `<!-- HUB PAGE: ${hub.name} (anchor: ${hub.anchor}) — covers ${hub.areas} -->`
-    )
-    .replace(initAnchor, zipInit + initAnchor);
-
-  fs.writeFileSync(path.join(root, hub.file), html);
-  console.log('Created', hub.file);
+    );
 }
+
+const targets = ONLY ? hubs.filter((h) => h.file === ONLY) : hubs;
+if (ONLY && targets.length === 0) {
+  console.error(`[generate-hub-pages] --only=${ONLY} matches no configured hub`);
+  process.exit(2);
+}
+
+let refused = 0;
+let wrote = 0;
+
+for (const hub of targets) {
+  const dest = path.join(root, hub.file);
+  const html = buildHub(hub);
+  const exists = fs.existsSync(dest);
+
+  if (!exists) {
+    if (WRITE) { fs.writeFileSync(dest, html); wrote += 1; console.log(`[new]     ${hub.file}`); }
+    else console.log(`[new]     ${hub.file} — would be created`);
+    continue;
+  }
+
+  const current = fs.readFileSync(dest, 'utf8');
+  if (current === html) { console.log(`[same]    ${hub.file}`); continue; }
+
+  const lost = removedLines(current, html);
+  if (lost.length > 0) {
+    refused += 1;
+    console.error(
+      `[REFUSED] ${hub.file} — regenerating would remove ${lost.length} line(s) that exist on the live page.\n` +
+        `            first: ${JSON.stringify(lost[0].slice(0, 100))}\n` +
+        `            This page has diverged from template-city.html. Regenerating discards that work.`,
+    );
+    if (!FORCE) continue;
+    console.error(`            --force given; overwriting ${hub.file} anyway.`);
+  }
+
+  if (WRITE) { fs.writeFileSync(dest, html); wrote += 1; console.log(`[written] ${hub.file}`); }
+  else console.log(`[changed] ${hub.file} — ${lost.length} line(s) would be lost; not written (dry run)`);
+}
+
+if (!WRITE) {
+  console.log('\nDry run. Nothing was written. Pass --write to apply.');
+}
+if (refused > 0 && !FORCE) {
+  console.error(`\n${refused} page(s) refused. They have diverged from the template; regenerating destroys content.`);
+  console.error('Re-run with --force ONLY if you have read the report above and intend to discard that content.');
+  process.exit(1);
+}
+if (WRITE) console.log(`\n${wrote} file(s) written.`);
