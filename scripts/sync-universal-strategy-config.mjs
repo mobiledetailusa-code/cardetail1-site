@@ -12,8 +12,18 @@ const logicPath = path.join(root, 'netlify/lib/universal-customer-strategy-logic
 const outPath = path.join(root, 'assets/universal-customer-strategy.generated.js');
 const checkMode = process.argv.includes('--check');
 
-const logicSrc = fs.readFileSync(logicPath, 'utf8');
-const config = JSON.parse(fs.readFileSync(src, 'utf8'));
+/**
+ * The generated bundle is compared to the committed artifact byte for byte, so
+ * it has to be reproducible. Without this, every newline in the output came from
+ * however Git happened to check the inputs out — and the template literal below
+ * contributes the newlines of THIS file. Under core.autocrlf=true that made
+ * --check report STALE on a clean checkout while `diff -w` showed zero lines of
+ * real difference. Normalise on the way in and emit LF on the way out.
+ */
+const toLf = (s) => s.replace(/\r\n/g, '\n');
+
+const logicSrc = toLf(fs.readFileSync(logicPath, 'utf8'));
+const config = JSON.parse(toLf(fs.readFileSync(src, 'utf8')));
 const backendConfigJson = `${JSON.stringify(config, null, 2)}\n`;
 
 const logicBody = logicSrc
@@ -52,7 +62,9 @@ if (checkMode) {
     console.error('[sync] STALE: missing assets/universal-customer-strategy.generated.js');
     stale = true;
   } else {
-    const existing = fs.readFileSync(outPath, 'utf8');
+    // Compare on content, not on line endings. A checkout that rewrote the
+    // artifact to CRLF is not a stale artifact.
+    const existing = toLf(fs.readFileSync(outPath, 'utf8'));
     if (existing !== expected) {
       console.error('[sync] STALE: assets/universal-customer-strategy.generated.js does not match shared config.');
       stale = true;
@@ -62,7 +74,7 @@ if (checkMode) {
     console.error('[sync] STALE: missing netlify/lib/universal-customer-strategy-config.json');
     stale = true;
   } else {
-    const backendExisting = fs.readFileSync(backendConfigPath, 'utf8');
+    const backendExisting = toLf(fs.readFileSync(backendConfigPath, 'utf8'));
     if (backendExisting !== backendConfigJson) {
       console.error('[sync] STALE: netlify/lib/universal-customer-strategy-config.json does not match shared config.');
       stale = true;
