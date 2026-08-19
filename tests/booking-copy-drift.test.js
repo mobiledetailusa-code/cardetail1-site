@@ -44,6 +44,10 @@
 //   6. STEP ORDER is read from the physical DOM, not by looking each id up in
 //      manifest order, which would impose the manifest's own order on the result.
 //
+//   7. SYMLINKS are rejected when encountered in the publish tree. The scanner
+//      never follows them or silently treats their target as a canonical page;
+//      deploy identity must remain an authored, publish-root-relative path.
+//
 // This file never writes inside the checkout. Synthetic publish roots are built
 // under fs.mkdtempSync, so concurrent runs never share a path.
 //
@@ -96,15 +100,27 @@ function listPublishedHtml(publishRoot, excluded, dir = publishRoot, rel = '') {
   const entries = [...fs.readdirSync(dir, { withFileTypes: true })].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   for (const entry of entries) {
     const relPath = rel ? `${rel}/${entry.name}` : entry.name;
+    if (entry.name.startsWith('.') && (entry.isDirectory() || entry.isSymbolicLink())) continue;
+    if (excluded.includes(relPath)) continue;
+    rejectPublishedSymlink(entry, relPath);
     if (entry.isDirectory()) {
-      if (entry.name.startsWith('.')) continue;
-      if (excluded.includes(relPath)) continue;
       out.push(...listPublishedHtml(publishRoot, excluded, path.join(dir, entry.name), relPath));
     } else if (entry.isFile() && entry.name.endsWith('.html')) {
       out.push(toPosix(relPath));
     }
   }
   return sorted(out);
+}
+
+/**
+ * A deployed page must have one canonical authored path. Following a symlink can
+ * escape the publish tree; ignoring one can omit a deployable surface. Rejecting
+ * it makes both the boundary and the diagnostic explicit on every platform.
+ */
+function rejectPublishedSymlink(entry, relPath) {
+  if (entry.isSymbolicLink()) {
+    throw new Error(`published-tree symlink is not allowed: ${toPosix(relPath)}`);
+  }
 }
 
 /**
@@ -440,6 +456,14 @@ test('discovery descends into subdirectories and reports a nested unregistered s
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('published-tree symlinks are rejected rather than followed or silently ignored', () => {
+  const symlinkEntry = { isSymbolicLink: () => true };
+  assert.throws(
+    () => rejectPublishedSymlink(symlinkEntry, path.join('cities', 'linked-booking.html')),
+    /published-tree symlink is not allowed: cities\/linked-booking\.html/,
+  );
 });
 
 // ── Roles are live, not declared ─────────────────────────────────────────────

@@ -101,6 +101,10 @@
       "Entries are matched against the path RELATIVE TO THE PUBLISH ROOT, so only the",
       "top-level directory of that role is skipped — a nested 'cities/tests/' is still",
       "scanned. Dot-directories (.git, .netlify, .claude) are skipped structurally.",
+      "Outside those structural exclusions, any symbolic link encountered in the",
+      "traversed publish tree is rejected. It is",
+      "never followed (which could escape the publish root) or silently ignored (which",
+      "could omit a deployed booking surface). Files must have canonical authored paths.",
       "assets/ is deliberately NOT excluded: it is served, so a booking page placed",
       "there must still be classified."
     ]

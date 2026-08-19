@@ -140,6 +140,10 @@ by `#hub-booking-error` when the iframe fails, closing the gap identified in §3
    observe real rates over a full traffic cycle. Blocked by the `revenue-event` defect —
    see `REVENUE_EVENT_RATE_LIMIT.md`; that must be repaired before any measurement is
    trustworthy.
+
+   **Later resolution:** this blocker was subsequently repaired by separate PR #197. The
+   statement above records the condition found during this audit; it is not the current
+   endpoint state. Frontend delivery/retry reliability remains separate deferred work.
 2. Build the static fallback on **one** page. Verify with the bridge script blocked at the
    network layer, not merely disabled in code.
 3. Rework the drift contract: assert the *fallback* contract on compatibility files and the
@@ -168,3 +172,6 @@ renamed**, or hub regeneration throws `marker not found`. Left intentionally in 
 **unmodified** tree at `bb4cbfd` it produces a +2,487 / −4,637 line diff, wiping the
 state-hub theme from `connecticut-hub.html` and `ny-metro-hub.html`. It is a stale historical
 generator that presents as a live one. **Risk: HIGH.** Recorded as OOS-1.
+
+**Later resolution:** separate PR #196 hard-guarded the generator against destructive
+rewrites. The finding and original severity remain here as audit chronology.

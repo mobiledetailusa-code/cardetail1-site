@@ -1,6 +1,13 @@
 # `revenue-event` 429 — read-only investigation
 
-**Status: INVESTIGATION ONLY. Nothing fixed. No function, limit or client touched.**
+**Historical status of this normalization audit: INVESTIGATION ONLY. No function, limit or
+client was changed by this branch.**
+
+> **Later resolution (2026-08-19).** Separate PR #197 repaired both obsolete callers, added
+> a repository-wide caller-contract regression guard, passed preview/production rate-limit
+> probes, and deployed healthy. The findings below intentionally preserve what was observed
+> when this audit ran. Client response handling, retry, and atomic idempotency remain deferred
+> revenue-delivery work and were not added to this normalization branch.
 
 Severity: **P1.** The endpoint rejects **every** request, so the funnel analytics the
 conversion work depends on has never been recorded.

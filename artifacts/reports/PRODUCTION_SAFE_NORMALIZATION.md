@@ -104,8 +104,10 @@ counted JS string characters after consuming trailing CRLF and reported them as 
 
 ### B4. Performance
 
-`revenue-event` returns 429 on every request. **Root cause corrected** — see
-`REVENUE_EVENT_RATE_LIMIT.md`. No duplicate network calls on a clean load.
+At audit time, `revenue-event` returned 429 on every request. **The root-cause record was
+corrected** — see `REVENUE_EVENT_RATE_LIMIT.md`. No duplicate network calls occurred on a
+clean load. Separate PR #197 later repaired the obsolete caller contract; the historical
+observation is retained here rather than rewritten as though it never occurred.
 
 ## C. Changes made
 
@@ -499,7 +501,7 @@ fixture cannot quietly accumulate permissions.
 | Risk | Level |
 |---|---|
 | The manifest goes stale — a legitimate copy change is "fixed" by editing the manifest without thought | MEDIUM — process risk; every entry carries a `why` |
-| `generate-hub-pages.js` run by someone unaware | **HIGH** **[C]** — was understated as MEDIUM |
+| `generate-hub-pages.js` run by someone unaware | **HIGH** **[C]** when found; later hard-guarded by separate PR #196 |
 | jsdom parse cost on a 480 KB page | LOW — drift suite runs in ~5 s |
 | No Netlify preview yet | — required before merge |
 
@@ -507,8 +509,8 @@ fixture cannot quietly accumulate permissions.
 
 | id | Severity | Location | Action |
 |---|---|---|---|
-| **OOS-1** | **HIGH** | `scripts/generate-hub-pages.js` | Stale generator; +2,487/−4,637 on an unmodified tree. Delete or hard-guard |
-| **OOS-2** | **P1** | `revenue-event.js`, `revenue-resume-link.js` | Obsolete positional caller + `!rate.ok` on a helper returning `allowed/blocked` → unconditional 429. **Both** affected. Not fixed here |
+| **OOS-1** | **HIGH** | `scripts/generate-hub-pages.js` | Found during this audit: stale generator produced +2,487/−4,637 on an unmodified tree. Later resolved by the hard guard in separate PR #196 |
+| **OOS-2** | **P1** | `revenue-event.js`, `revenue-resume-link.js` | Found during this audit: obsolete positional caller + `!rate.ok` caused unconditional 429 in both functions. Later resolved by the bounded server fix and regression guard in separate PR #197 |
 | **OOS-3** | MEDIUM | 12 fallback files | ~5.9 MB divergent duplication; fallback covers script-delivery failure only |
 | **OOS-4** | LOW | hub/city files | Mojibake in the sticky call button |
 | **OOS-5** | LOW | `scripts/` | ~33 one-shot historical patch scripts with no applied-state manifest |
