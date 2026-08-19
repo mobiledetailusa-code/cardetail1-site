@@ -8,6 +8,33 @@ const root = path.resolve(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 const SUBMIT_PATH = require.resolve('../netlify/functions/submit-booking');
 const SETUP_PATH = require.resolve('../netlify/functions/create-setup-intent');
+const {
+  MIN_ADVANCE_DAYS,
+  addLocalDays,
+  findNearbyOpenings,
+  slotsForDate,
+  toIsoLocal,
+  validateBookingSchedule,
+} = require('../netlify/lib/operational-availability');
+
+// Keep downstream handler tests comfortably beyond the live minimum-date gate,
+// then let the canonical scheduling contract choose an actually open day/slot.
+// The extra week prevents a test that crosses midnight from expiring mid-run.
+const FIXTURE_MARGIN_DAYS = 7;
+
+function validDraftSchedule(now = new Date()) {
+  const searchFrom = toIsoLocal(addLocalDays(now, MIN_ADVANCE_DAYS + FIXTURE_MARGIN_DAYS));
+  const [opening] = findNearbyOpenings(searchFrom, null, {
+    now,
+    limit: 1,
+    horizonDays: 21,
+  });
+  assert.ok(opening, `expected an open booking slot on or after ${searchFrom}`);
+  return {
+    preferredDate: opening.preferredDate,
+    preferredTime: opening.preferredTime,
+  };
+}
 
 const BOOKING_PAGES = [
   'index.html',
@@ -67,6 +94,7 @@ function createMemoryStore(seed = {}) {
 }
 
 function validDraftBody(overrides = {}) {
+  const schedule = validDraftSchedule();
   return {
     isDraft: true,
     firstName: 'Schedule',
@@ -77,8 +105,8 @@ function validDraftBody(overrides = {}) {
     address: '100 Test St',
     paymentMethodPreference: 'card_onsite',
     acceptedCardOnFilePolicy: true,
-    preferredDate: '2026-08-20',
-    preferredTime: '2:00 PM',
+    preferredDate: schedule.preferredDate,
+    preferredTime: schedule.preferredTime,
     vehicleCategory: 'cars',
     vehicle: 'Small Car',
     package: 'Premium Full Detail',
@@ -128,6 +156,35 @@ test('submit-booking draft with invalid phone returns invalid_phone', async () =
   });
   assert.equal(res.statusCode, 400);
   assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'invalid_phone' });
+});
+
+test('derived draft schedule remains valid across calendar dates and midnight rollover', () => {
+  for (const now of [
+    new Date(2026, 7, 18, 23, 59, 59),
+    new Date(2031, 11, 30, 23, 59, 59),
+  ]) {
+    const schedule = validDraftSchedule(now);
+    assert.equal(
+      validateBookingSchedule(schedule.preferredDate, schedule.preferredTime, { now }).ok,
+      true,
+    );
+
+    const afterMidnight = new Date(now.getTime() + (36 * 60 * 60 * 1000));
+    assert.equal(
+      validateBookingSchedule(schedule.preferredDate, schedule.preferredTime, { now: afterMidnight }).ok,
+      true,
+    );
+  }
+});
+
+test('schedule validation still rejects an otherwise open date inside the advance window', () => {
+  const now = new Date(2026, 6, 16, 12, 0, 0);
+  const insideAdvanceWindow = toIsoLocal(addLocalDays(now, MIN_ADVANCE_DAYS - 1));
+  assert.ok(slotsForDate(insideAdvanceWindow, null, now).includes('8:00 AM'));
+  assert.deepEqual(
+    validateBookingSchedule(insideAdvanceWindow, '8:00 AM', { now }),
+    { ok: false, error: 'booking_date_unavailable' },
+  );
 });
 
 test('submit-booking draft with empty preferredTime returns booking_time_unavailable', async () => {
