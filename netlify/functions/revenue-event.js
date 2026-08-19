@@ -17,11 +17,17 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: cors, body: JSON.stringify({ ok: false, error: 'method_not_allowed' }) };
   }
 
-  const rate = await enforcePublicRateLimit(event, 'revenue-event', 'track');
-  if (!rate.ok) {
+  // enforcePublicRateLimit takes an OPTIONS OBJECT and returns { blocked, allowed },
+  // never `ok`. The legacy positional call below silently destructured the string
+  // 'revenue-event' as the options object, so `endpoint` was undefined and the
+  // configured revenue-event:track bucket was never consulted; and `rate.ok` was
+  // always undefined, so `!rate.ok` was always true and EVERY request returned 429
+  // — including when the limiter explicitly allowed or failed open.
+  const rate = await enforcePublicRateLimit(event, { endpoint: 'revenue-event', action: 'track' });
+  if (rate.blocked) {
     return {
       statusCode: 429,
-      headers: { ...cors, 'Retry-After': String(Math.ceil((rate.retryAfterMs || 60000) / 1000)) },
+      headers: { ...cors, 'Retry-After': String(Math.max(1, Math.ceil(Number(rate.retryAfterSec) || 60))) },
       body: JSON.stringify({ ok: false, error: 'rate_limited' }),
     };
   }
