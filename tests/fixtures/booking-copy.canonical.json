@@ -1,0 +1,464 @@
+{
+  "$purpose": [
+    "Canonical PRESENTATION SEMANTICS for the booking surface.",
+    "",
+    "NOT loaded at runtime. NOT a source of business authority. It carries no",
+    "price, total, fee, ledger reference, Stripe object, persistence detail or",
+    "transaction semantics. Pricing authority stays in the catalog/server, payment",
+    "authority in the Postgres ledger, booking state in the Blob CAS store.",
+    "Nothing here may be imported by page or function code.",
+    "",
+    "Two surface classes, deliberately NOT interchangeable:",
+    "",
+    "  AUTHORITATIVE — the customer-visible booking UI. Exactly one page renders",
+    "  it (index.html). Assertions run against the parsed DOM of #bk-ov with",
+    "  <script>, <style>, <template>, <noscript> and comment nodes removed, so a",
+    "  string can only pass by being real customer-visible booking markup.",
+    "",
+    "  FALLBACK — the legacy inline modal kept on the hub/city pages. It is hidden",
+    "  at runtime by assets/hub-booking-bridge.js and is NOT the customer-visible",
+    "  source. It gets compatibility parity assertions only, and may never be used",
+    "  to satisfy an authoritative assertion."
+  ],
+
+  "surfaceRules": {
+    "$note": "Classification is DOM-structural, never a raw byte match, so a new booking page cannot escape coverage and a commented-out one cannot invent coverage.",
+    "bookingRootId": "bk-ov",
+    "bridgePath": "assets/hub-booking-bridge.js",
+    "rule": "A page that renders an ELEMENT with bookingRootId is a booking surface. If a real <script src> on that page resolves to bridgePath it is FALLBACK; otherwise it is AUTHORITATIVE and must be listed below.",
+    "$rule": [
+      "Both halves are decided on the parsed document, never on the file's bytes.",
+      "",
+      "SURFACE — EVERY published .html is parsed. There is no byte prefilter: any",
+      "textual shortcut produces false negatives on valid HTML, because",
+      "id=\"bk&#x2d;ov\" and id=\"bk&#45;ov\" are the same element as id=\"bk-ov\" once",
+      "parsed. Quoting style is likewise resolved by the parser. A modal inside an",
+      "HTML comment, inside <script> text or inside <template> is not an element in",
+      "the document, so it classifies nothing.",
+      "",
+      "DELEGATION — path-semantic, not basename matching. Each <script src> is",
+      "resolved the way a browser loading that page would resolve it (relative to the",
+      "page's own directory, query and fragment stripped, root-absolute honoured) and",
+      "must equal bridgePath exactly. Consequences:",
+      "  - 'js/hub-booking-bridge.js' and 'vendor/assets/hub-booking-bridge.js' do",
+      "    NOT delegate, despite the identical basename;",
+      "  - an off-site CDN copy does NOT delegate;",
+      "  - the path in a comment or a JS string literal is not a script element, so",
+      "    it does NOT delegate;",
+      "  - on a nested page, a bare 'assets/...' src resolves under that page's own",
+      "    directory and therefore does NOT delegate."
+    ],
+
+    "roleEvidence": {
+      "$why": [
+        "Role membership is proved against live repository evidence, not merely",
+        "declared in the lists below. Disjointness and union say nothing about which",
+        "page belongs to which role — swapping template-city.html with a real public",
+        "hub page would satisfy both and still be wrong.",
+        "",
+        "Two independent signals decide it:",
+        "  sitemap        the file that advertises pages to customers. Every public",
+        "                 surface must appear in it; the template must not.",
+        "  templateConsumer  the generator, read-only. Its template input IS the",
+        "                 template role; no public page may be that input.",
+        "Swapping the two roles fails both signals at once."
+      ],
+      "sitemap": "sitemap.xml",
+      "templateConsumer": "scripts/generate-hub-pages.js",
+      "rootDocument": "index.html",
+      "$rootDocument": "sitemap.xml advertises the authoritative surface as the bare site root, so an empty pathname maps to this file."
+    },
+
+    "stepTabContainer": "bprog",
+    "stepTabSelector": ".bpt",
+    "$stepTabs": "The step tabs are read from this container in physical DOM order. Looking each tabId up individually would impose the manifest's own order on the result, so a physical swap of two tabs would compare equal and pass.",
+
+    "publishRoot": ".",
+    "$publishRoot": "netlify.toml sets publish = \".\", so every .html under the repo root is served, at any depth. Discovery therefore walks recursively; a root-only readdir let a nested page such as cities/boston-hub.html ship outside the guard.",
+
+    "scanExcludedDirs": [
+      "node_modules",
+      "netlify",
+      "prisma",
+      "scripts",
+      "shared",
+      "tests",
+      "docs",
+      "artifacts",
+      "reports",
+      "archive"
+    ],
+    "$scanExcludedDirs": [
+      "Structural exclusions only — each is a directory that by ROLE cannot hold an",
+      "authored public page, never a list of known page names:",
+      "  node_modules  dependency tree (also gitignored, so never deployed)",
+      "  netlify       server-side root; netlify.toml declares functions = 'netlify/functions'",
+      "  prisma        schema and migrations",
+      "  scripts       build and maintenance tooling",
+      "  shared        shared modules, not a document root",
+      "  tests         the test tree, including this suite's own scratch fixtures",
+      "  docs artifacts reports archive   documentation and audit output",
+      "Entries are matched against the path RELATIVE TO THE PUBLISH ROOT, so only the",
+      "top-level directory of that role is skipped — a nested 'cities/tests/' is still",
+      "scanned. Dot-directories (.git, .netlify, .claude) are skipped structurally.",
+      "Outside those structural exclusions, any symbolic link encountered in the",
+      "traversed publish tree is rejected. It is",
+      "never followed (which could escape the publish root) or silently ignored (which",
+      "could omit a deployed booking surface). Files must have canonical authored paths.",
+      "assets/ is deliberately NOT excluded: it is served, so a booking page placed",
+      "there must still be classified."
+    ]
+  },
+
+  "surfaces": {
+    "authoritative": ["index.html"],
+    "fallbackPublic": [
+      "bergen-county-hub.html",
+      "connecticut-hub.html",
+      "essex-county-hub.html",
+      "hudson-county-hub.html",
+      "new-jersey-hub.html",
+      "newark-mobile-detailing.html",
+      "ny-metro-hub.html",
+      "passaic-county-hub.html",
+      "pennsylvania-hub.html",
+      "trenton-mobile-detailing.html",
+      "westchester-mobile-detailing.html"
+    ],
+    "fallbackTemplate": ["template-city.html"],
+    "$counts": "1 authoritative + 11 public fallback = 12 runtime/public HTML surfaces, plus 1 non-runtime template.",
+    "$paths": "Entries are paths relative to the publish root, POSIX-separated. All current surfaces sit at the root; a nested surface would be listed as e.g. 'cities/boston-hub.html'."
+  },
+
+  "authoritative": {
+    "steps": [
+      { "n": 1, "tabId": "bpt1", "label": "Category" },
+      { "n": 2, "tabId": "bpt2", "label": "Package" },
+      { "n": 3, "tabId": "bpt3", "label": "Vehicle" },
+      { "n": 4, "tabId": "bpt4", "label": "Info" },
+      { "n": 5, "tabId": "bpt5", "label": "Secure Your Booking" },
+      { "n": 6, "tabId": "bpt6", "label": "Confirm" }
+    ],
+    "stepsConstant": "BK_VISIBLE_STEPS",
+
+    "elements": [
+      {
+        "id": "card-gate-title",
+        "selector": ".card-gate-title",
+        "text": "Save Your Card",
+        "why": "Neutral title. 'Lock Your Slot' promised a reservation the system does not make."
+      },
+      {
+        "id": "success-title",
+        "selector": "#ok-title",
+        "text": "BOOKING REQUEST RECEIVED",
+        "why": "Final state names a request, never a confirmed appointment."
+      }
+    ],
+
+    "$anchoredText": [
+      "Every entry is ANCHORED: `anchor` is resolved inside the parsed #bk-ov DOM and",
+      "must match exactly as many elements as `texts` has entries, compared in document",
+      "order. This replaces whole-modal substring containment, under which a decoy such",
+      "as <div style=\"display:none\">Card on File Required</div> could satisfy the",
+      "contract while the real element drifted.",
+      "",
+      "Why anchoring rather than computed visibility: the booking modal is a wizard.",
+      "Inactive steps and the .pay-choice-desc panels are display:none until the",
+      "customer reaches them, so they ARE customer-visible copy. Requiring computed",
+      "visibility would delete real coverage. Anchoring closes the decoy hole without",
+      "that cost: a decoy that does not match the anchor is ignored, and one that does",
+      "match changes the element count and fails.",
+      "",
+      "match: 'exact'    normalised text of the element equals the expected string",
+      "match: 'contains' normalised text of the element contains the expected string,",
+      "                  used where the element legitimately carries extra copy."
+    ],
+    "$visibility": [
+      "STRUCTURAL VISIBILITY — an explicit, deliberately limited contract.",
+      "",
+      "By default every element an anchor resolves to must be free of structural",
+      "hidden markers, on itself or on any ancestor inside #bk-ov:",
+      "    hidden               attribute",
+      "    aria-hidden=\"true\"   attribute",
+      "    display:none         INLINE style",
+      "    visibility:hidden    INLINE style",
+      "Required customer-facing copy therefore cannot be satisfied by markup that is",
+      "hidden in one of those four ways.",
+      "",
+      "WHAT THIS IS NOT. It is not browser computed style. Visibility driven by an",
+      "external stylesheet or by a class — including anything that hides #bk-ov",
+      "itself until the modal opens — is NOT modelled here and remains a",
+      "browser-preview concern. Do not read a pass as proof that a customer can see",
+      "the text; read it as proof that the markup is not hidden in a way the markup",
+      "itself declares.",
+      "",
+      "EXEMPTIONS. Progressive disclosure is legitimate, so an entry may list",
+      "visibility.exemptIndices — the element positions allowed to be hidden — with",
+      "visibility.revealedBy naming the control that reveals them. The revealedBy",
+      "selector must actually render, so an exemption cannot be claimed for markup",
+      "nothing can reveal. The declared exemptions must EXACTLY equal the set of",
+      "elements that are really hidden: a stale exemption fails just as loudly as an",
+      "undeclared hidden element."
+    ],
+    "anchoredText": [
+      {
+        "id": "card-mandatory",
+        "anchor": "#cof-wrap > div.fl",
+        "match": "exact",
+        "texts": ["Card on File Required"],
+        "why": "The card is mandatory for every payment preference; the label must not imply it is optional."
+      },
+      {
+        "id": "card-enables-request",
+        "anchor": ".pay-choice-desc",
+        "match": "contains",
+        "texts": [
+          "A card on file is still required to submit the booking request.",
+          "A card on file is still required to submit the booking request.",
+          "A card on file is still required to submit the booking request."
+        ],
+        "visibility": {
+          "exemptIndices": [0, 1, 2],
+          "revealedBy": "#pc-cash, #pc-onsite, #pc-online",
+          "$why": "All three panels are inline display:none at rest and are revealed when the customer picks a payment preference. The radios that reveal them must exist."
+        },
+        "why": "States what the card enables (submitting a request), not what it reserves. All three payment-preference panels must carry it, or one preference would read as card-optional."
+      },
+      {
+        "id": "card-saved-not-charged",
+        "anchor": "#cof-wrap > div:nth-child(2)",
+        "match": "exact",
+        "texts": ["No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy."],
+        "why": "Saved-vs-charged wording plus the exhaustive list of what can trigger a charge."
+      },
+      {
+        "id": "charged-today-label",
+        "anchor": ".bk-charged-row > span:first-child",
+        "match": "exact",
+        "texts": ["Charged today"],
+        "why": "The zero-amount row on step 5 must be labelled; the amount itself is rendered by the page and never stored here."
+      },
+      {
+        "id": "nothing-collected-today",
+        "anchor": "p.bk-charged-copy",
+        "match": "contains",
+        "texts": ["No payment is collected today."],
+        "why": "Explicit statement that nothing is charged at request time."
+      },
+      {
+        "id": "request-not-appointment",
+        "anchor": "#bs5 > .bdesc",
+        "match": "contains",
+        "texts": ["This sends a booking request"],
+        "why": "Booking-request vs confirmed-appointment semantics, stated where the card is asked for."
+      },
+      {
+        "id": "request-only-row",
+        "anchor": "#bs6 .oc:has(#c-pay-method) > .or:nth-of-type(2) > span",
+        "match": "contains",
+        "texts": ["Charged today", "booking request only"],
+        "why": "The confirm step labels the charged-today row as a request, not a payment. Label and value are pinned as an ordered pair so the value cannot be relabelled. The amount rendered in that value is deliberately NOT pinned here — see zeroChargePromise."
+      },
+      {
+        "id": "submit-label",
+        "anchor": "span.bl",
+        "match": "contains",
+        "texts": ["Submit Booking Request"],
+        "why": "Request terminology at the moment of submission."
+      },
+      {
+        "id": "success-status-under-review",
+        "anchor": "#bs-ok .suc-card > .or:first-child > .ov",
+        "match": "exact",
+        "texts": ["Under Review"],
+        "why": "Post-submit status is explicitly under review, not confirmed."
+      },
+      {
+        "id": "card-policy-preamble",
+        "anchor": "strong.card-save-notice-title",
+        "match": "exact",
+        "texts": ["Before saving your card, please note:"],
+        "why": "Opens the pre-consent disclosure block."
+      },
+      {
+        "id": "card-consent",
+        "anchor": "label.terms-check:has(#terms-ok) > span",
+        "match": "contains",
+        "texts": ["I have read and agree to the booking, cancellation, no-show, access, and card-on-file policy."],
+        "why": "The consent sentence recorded against the booking. Changing it changes what customers agreed to."
+      },
+      {
+        "id": "utilities-reassurance",
+        "anchor": "#f-util-help > strong",
+        "match": "exact",
+        "texts": ["We bring our own water and power"],
+        "why": "Resolves the contradiction between the marketing promise and the access questions."
+      },
+      {
+        "id": "water-optional",
+        "anchor": ".fg:has(> #f-water) > .fl",
+        "match": "exact",
+        "texts": ["Water access — Optional"],
+        "why": "The field is genuinely optional; the label must say so. Anchored to the field group that owns the #f-water control, so the label cannot be satisfied by another field's label."
+      },
+      {
+        "id": "power-optional",
+        "anchor": ".fg:has(> #f-electric) > .fl",
+        "match": "exact",
+        "texts": ["Electricity access — Optional"],
+        "why": "Same as water-optional, anchored to the #f-electric control."
+      },
+      {
+        "id": "availability-notice",
+        "anchor": ".bk-advance-notice > span:not(.bk-advance-notice-ico)",
+        "match": "exact",
+        "texts": ["Next available appointments are typically 3 days out."],
+        "why": "Availability wording. tests/conversion-funnel-copy.test.js pins the number to MIN_ADVANCE_DAYS; this entry pins the sentence to the authoritative UI."
+      },
+      {
+        "id": "arrival-anytime",
+        "anchor": ".bk-arrival-choices > .bk-arrival-choice:nth-child(1) .bk-arrival-choice-label",
+        "match": "exact",
+        "texts": ["Any time that day", "Any time that day"],
+        "visibility": {
+          "exemptIndices": [1],
+          "revealedBy": "#f-has-alternate",
+          "$why": "Element 1 is the preferred-date block and must be visible. Element 2 sits in #bk-alt-fields, which carries [hidden] until the customer ticks the alternate-date checkbox."
+        },
+        "why": "Arrival-window wording feeds the operational slot resolver. Two occurrences: the preferred date block and the alternate date block; both must agree."
+      },
+      {
+        "id": "arrival-window",
+        "anchor": ".bk-arrival-choices > .bk-arrival-choice:nth-child(2) .bk-arrival-choice-label",
+        "match": "exact",
+        "texts": ["Choose a 3-hour arrival window", "Choose a 3-hour arrival window"],
+        "visibility": {
+          "exemptIndices": [1],
+          "revealedBy": "#f-has-alternate",
+          "$why": "Same as arrival-anytime: element 2 lives in the [hidden] alternate-date block."
+        },
+        "why": "The window length must match BK_ARRIVAL_BOUNDS. Preferred and alternate blocks must agree."
+      },
+      {
+        "id": "processor-attribution",
+        "anchor": ".processor-pill-row > .processor-pill:nth-child(1)",
+        "match": "exact",
+        "texts": ["Powered by Stripe"],
+        "why": "Processor disclosure."
+      },
+      {
+        "id": "pci-note",
+        "anchor": ".processor-pill-row > .processor-pill:nth-child(2)",
+        "match": "exact",
+        "texts": ["PCI-secure · no raw card data stored"],
+        "why": "Custody claim; must stay true."
+      }
+    ],
+
+    "entryCta": {
+      "$note": "Booking entry CTA semantics live OUTSIDE #bk-ov, in the page body, so they are asserted separately against the document with scripts/templates/comments removed.",
+      "discovery": [
+        {
+          "id": "hero-cta",
+          "selector": ".hero .btn-primary",
+          "text": "Check Price & Availability",
+          "why": "Cold-traffic entry is discovery-level, not a commitment to book."
+        }
+      ],
+      "forbiddenOnEntry": [
+        {
+          "id": "zip-button-books",
+          "pattern": "class=\"hero-zip-btn\"[^>]*>BOOK NOW<",
+          "why": "The ZIP button only checks coverage; it must not claim to book."
+        }
+      ]
+    }
+  },
+
+  "zeroChargePromise": {
+    "$note": [
+      "The authoritative customer-facing zero-charge promise, pinned as a PRESENTATION",
+      "invariant. It sits in the hero proof bar, outside #bk-ov.",
+      "",
+      "This entry holds NO amount and NO currency. It names the elements and states",
+      "the invariant: whatever the value element renders must parse numerically to",
+      "ZERO, must still say when ('today'), and must be accompanied by the",
+      "saved-vs-charged label. The test derives zero from the rendered DOM; the",
+      "fixture never asserts a price.",
+      "",
+      "That is the whole point. Writing '$0 today' here would make this file a source",
+      "of commercial truth, and 'the manifest stays presentation-only' rejects any",
+      "canonical string matching /\\$\\d/ precisely to prevent that. Pricing authority",
+      "stays in the catalog and the server.",
+      "",
+      "What this DOES catch: the promise becoming non-zero, losing its timeframe, or",
+      "the label drifting away from saved-vs-charged. What it does NOT do: approve or",
+      "define any amount. The corresponding in-modal statements are pinned separately",
+      "by the anchoredText entries nothing-collected-today, card-saved-not-charged and",
+      "request-only-row."
+    ],
+    "id": "hero-zero-charge-promise",
+    "anchor": ".hpb-item--accent",
+    "valueSelector": ".hpb-val",
+    "labelSelector": ".hpb-lbl",
+    "valueMustMatch": "today",
+    "label": "Card saved, not charged",
+    "why": "The hero promises that nothing is charged at request time. The amount must render as zero and the saved-vs-charged label must stand beside it."
+  },
+
+  "fallbackParity": {
+    "$note": "The legacy inline modal is hidden at runtime. These assertions exist so that if the bridge ever fails to execute and the inline DOM becomes visible, it does not contradict the authoritative surface. They are compatibility checks, never the primary contract.",
+    "ids": [
+      "card-gate-title",
+      "card-mandatory",
+      "card-enables-request",
+      "card-saved-not-charged",
+      "submit-label",
+      "card-policy-preamble",
+      "utilities-reassurance",
+      "water-optional",
+      "power-optional",
+      "availability-notice"
+    ]
+  },
+
+  "forbidden": [
+    {
+      "id": "slot-hold-promise",
+      "pattern": "holds? your slot",
+      "flags": "i",
+      "why": "Promised a reservation. Submitting produces a request that Cardetail1 reviews before confirming."
+    },
+    {
+      "id": "slot-lock-promise",
+      "pattern": "Lock Your Slot",
+      "flags": "i",
+      "why": "Same false reservation promise, in the card gate title."
+    },
+    {
+      "id": "card-secures-booking",
+      "pattern": "required to secure the booking\\.",
+      "flags": "i",
+      "why": "Implied the card secures the appointment rather than enabling the request."
+    },
+    {
+      "id": "appointment-preconfirmed",
+      "pattern": "your appointment is confirmed",
+      "flags": "i",
+      "why": "No public surface may state a confirmed appointment; confirmation happens after review."
+    },
+    {
+      "id": "fabricated-vehicle-count",
+      "pattern": "Vehicles detailed",
+      "flags": "",
+      "why": "The figure was a base constant plus the visitor's own localStorage visit count, not a real total."
+    },
+    {
+      "id": "fabricated-counter-impl",
+      "pattern": "cd1_page_visits",
+      "flags": "",
+      "why": "The storage key behind the fabricated counter."
+    }
+  ]
+}
