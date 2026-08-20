@@ -7,8 +7,9 @@
 //        This endpoint never trusts client-submitted payment state.
 //   C-3: Booking ID is always generated server-side. Client-submitted id/bookingId
 //        are ignored. Collision-checked against Blobs before writing.
-//   Draft mode: Step 5 pre-registers a minimal booking so create-setup-intent
-//        can create a SetupIntent tied to a server-owned booking ID.
+//   Draft mode: the booking flow pre-registers a minimal booking to issue a
+//        signed save token and server-owned ID. Saved-card flows may then create
+//        a SetupIntent; initial no-card requests finalize without Stripe.
 //   Finalization: submitBooking() passes draftBookingId to merge full details into
 //        an existing draft, preserving webhook-set payment fields.
 //
@@ -232,7 +233,10 @@ function sanitizeBlobError(err) {
 }
 
 function buildDraftRecord(b, draftId, now, existing = null) {
-  const preference = String(b.paymentMethodPreference || '');
+  const cardOnFileRequired = existing
+    ? existing.cardOnFileRequired !== false
+    : b.cardOnFileRequired !== false;
+  const preference = cardOnFileRequired ? String(b.paymentMethodPreference || '') : '';
   return {
     id: draftId,
     isDraft: true,
@@ -244,20 +248,25 @@ function buildDraftRecord(b, draftId, now, existing = null) {
     totalPrice: Number(b.totalPrice) || 0,
     paymentMethod: preference,
     paymentMethodPreference: preference,
-    cardOnFileRequired: true,
-    cardOnFileStatus: existing ? existing.cardOnFileStatus : 'pending',
+    cardOnFileRequired,
+    cardOnFileStatus: cardOnFileRequired
+      ? (existing ? existing.cardOnFileStatus : 'pending')
+      : 'not_collected',
     paymentStatus: existing ? existing.paymentStatus : 'no_payment_required_yet',
+    paymentWorkflowStatus: existing ? existing.paymentWorkflowStatus : 'no_payment_required_yet',
     appointmentStatus: existing ? existing.appointmentStatus : 'pending_review',
     jobStatus: existing ? existing.jobStatus : 'not_started',
-    acceptedCardOnFilePolicy: true,
+    acceptedCardOnFilePolicy: cardOnFileRequired,
     // Backfill: drafts pre-registered before this field existed carry no consent
     // timestamp. Re-registration re-affirms the policy, so stamp it rather than
     // propagating undefined — create-setup-intent hard-rejects a missing stamp.
-    acceptedCardOnFilePolicyAt: (existing && existing.acceptedCardOnFilePolicyAt) || now,
-    policyVersion: '2026-06-card-on-file',
-    setupIntentId: existing ? existing.setupIntentId : undefined,
-    stripeCustomerId: existing ? existing.stripeCustomerId : undefined,
-    stripePaymentMethodId: existing ? existing.stripePaymentMethodId : undefined,
+    acceptedCardOnFilePolicyAt: cardOnFileRequired
+      ? ((existing && existing.acceptedCardOnFilePolicyAt) || now)
+      : null,
+    policyVersion: cardOnFileRequired ? '2026-06-card-on-file' : '2026-08-booking-request',
+    setupIntentId: cardOnFileRequired && existing ? existing.setupIntentId : undefined,
+    stripeCustomerId: cardOnFileRequired && existing ? existing.stripeCustomerId : undefined,
+    stripePaymentMethodId: cardOnFileRequired && existing ? existing.stripePaymentMethodId : undefined,
     firstName: b.firstName || '',
     lastName: b.lastName || '',
     phone: b.phone || '',
@@ -370,8 +379,8 @@ function bookingText(b) {
     `NEW BOOKING — ${b.id}`,
     `Status: ${b.status || 'Pending Review'}`,
     `Payment: ${payLabel}${authorizedAmt}`,
-    `Payment preference: ${b.paymentMethodPreference || '—'}`,
-    `Card on file: ${b.cardOnFileStatus || 'pending'}`,
+    `Payment plan: ${b.paymentMethodPreference || 'To be selected later'}`,
+    `Card on file: ${b.cardOnFileRequired === false ? 'Not collected (not required)' : (b.cardOnFileStatus || 'pending')}`,
     `Appointment: ${b.appointmentStatus || 'pending_review'}`,
     b.paymentIntentId ? `PaymentIntent: ${b.paymentIntentId}` : '',
     ``,
@@ -606,12 +615,17 @@ exports.handler = async (event) => {
       return json(503, { ok: false, error: 'missing_draft_token_secret' });
     }
 
+    const cardOnFileRequired = b.cardOnFileRequired !== false;
     const preference = String(b.paymentMethodPreference || '');
-    if (!PAYMENT_PREFERENCES.has(preference)) {
-      return json(400, { ok: false, error: 'payment_preference_required' });
-    }
-    if (b.acceptedCardOnFilePolicy !== true) {
-      return json(400, { ok: false, error: 'card_on_file_policy_required' });
+    if (cardOnFileRequired) {
+      if (!PAYMENT_PREFERENCES.has(preference)) {
+        return json(400, { ok: false, error: 'payment_preference_required' });
+      }
+      if (b.acceptedCardOnFilePolicy !== true) {
+        return json(400, { ok: false, error: 'card_on_file_policy_required' });
+      }
+    } else if (preference) {
+      return json(400, { ok: false, error: 'payment_preference_not_expected' });
     }
 
     const now = new Date().toISOString();
@@ -717,34 +731,40 @@ exports.handler = async (event) => {
       });
       return json(401, { ok: false, error: 'draft_token_invalid' });
     }
-    const cofBefore = existing.cardOnFileStatus || 'pending';
-    if (existing.cardOnFileStatus !== 'saved') {
-      existing = await reconcileCardOnFileFromStripe(store, existing);
-    }
-    console.log('[submit-booking] finalize card-on-file gate', {
-      draftBookingId: rawDraftId,
-      setupIntentIdPrefix: siIdPrefix(existing.setupIntentId),
-      cardOnFileStatusBefore: cofBefore,
-      cardOnFileStatusAfter: existing.cardOnFileStatus || null,
-    });
-    if (existing.cardOnFileStatus !== 'saved') {
-      console.log('[submit-booking] finalize rejected card_on_file_not_saved', {
+    const cardOnFileRequired = existing.cardOnFileRequired !== false;
+    if (cardOnFileRequired) {
+      const cofBefore = existing.cardOnFileStatus || 'pending';
+      if (existing.cardOnFileStatus !== 'saved') {
+        existing = await reconcileCardOnFileFromStripe(store, existing);
+      }
+      console.log('[submit-booking] finalize card-on-file gate', {
         draftBookingId: rawDraftId,
         setupIntentIdPrefix: siIdPrefix(existing.setupIntentId),
-        cardOnFileStatus: existing.cardOnFileStatus || null,
-        responseCode: 409,
+        cardOnFileStatusBefore: cofBefore,
+        cardOnFileStatusAfter: existing.cardOnFileStatus || null,
       });
-      return json(409, {
-        ok: false,
-        error: 'card_on_file_not_saved',
-        userMessage: CARD_ON_FILE_VERIFY_MSG,
-      });
+      if (existing.cardOnFileStatus !== 'saved') {
+        console.log('[submit-booking] finalize rejected card_on_file_not_saved', {
+          draftBookingId: rawDraftId,
+          setupIntentIdPrefix: siIdPrefix(existing.setupIntentId),
+          cardOnFileStatus: existing.cardOnFileStatus || null,
+          responseCode: 409,
+        });
+        return json(409, {
+          ok: false,
+          error: 'card_on_file_not_saved',
+          userMessage: CARD_ON_FILE_VERIFY_MSG,
+        });
+      }
     }
     const preference = String(b.paymentMethodPreference || '');
-    if (!PAYMENT_PREFERENCES.has(preference) || preference !== existing.paymentMethodPreference) {
+    if (cardOnFileRequired && (!PAYMENT_PREFERENCES.has(preference) || preference !== existing.paymentMethodPreference)) {
       return json(400, { ok: false, error: 'invalid_payment_preference' });
     }
-    if (b.acceptedCardOnFilePolicy !== true || b.acceptedBookingPolicy !== true) {
+    if (!cardOnFileRequired && preference) {
+      return json(400, { ok: false, error: 'payment_preference_not_expected' });
+    }
+    if (b.acceptedBookingPolicy !== true || (cardOnFileRequired && b.acceptedCardOnFilePolicy !== true)) {
       return json(400, { ok: false, error: 'booking_policy_required' });
     }
     const scheduleFinal = await enforceScheduleFields(b, { checkSlot: true, excludeId: rawDraftId });
@@ -774,24 +794,29 @@ exports.handler = async (event) => {
       draftSaveTokenRevokedAt: finalizedAt,
       paymentMethod: preference,
       paymentMethodPreference: preference,
-      cardOnFileRequired: true,
+      cardOnFileRequired,
       acceptedBookingPolicy: true,
       acceptedBookingPolicyAt: finalizedAt,
-      acceptedCardOnFilePolicy: true,
-      acceptedCardOnFilePolicyAt: existing.acceptedCardOnFilePolicyAt,
-      policyVersion: '2026-06-card-on-file',
+      acceptedCardOnFilePolicy: cardOnFileRequired,
+      acceptedCardOnFilePolicyAt: cardOnFileRequired ? existing.acceptedCardOnFilePolicyAt : null,
+      policyVersion: cardOnFileRequired ? '2026-06-card-on-file' : '2026-08-booking-request',
       // Payment fields: trust Blobs, not the browser
       paymentStatus:        'no_payment_required_yet',
+      paymentWorkflowStatus:'no_payment_required_yet',
       appointmentStatus:    'pending_review',
       // pending_review (not not_started) so Admin + Customer share the same submitted lifecycle
       jobStatus:            'pending_review',
       portalReleasedAt:     finalizedAt,
-      // Card-on-file fields: set by stripe-webhook (setup_intent.succeeded)
-      cardOnFileStatus:     existing.cardOnFileStatus,
-      setupIntentId:        existing.setupIntentId,
-      stripeCustomerId:     existing.stripeCustomerId,
-      stripePaymentMethodId: existing.stripePaymentMethodId,
-      cardOnFileSavedAt:    existing.cardOnFileSavedAt,
+      ...(cardOnFileRequired
+        ? {
+          // Set only by stripe-webhook (setup_intent.succeeded).
+          cardOnFileStatus: existing.cardOnFileStatus,
+          setupIntentId: existing.setupIntentId,
+          stripeCustomerId: existing.stripeCustomerId,
+          stripePaymentMethodId: existing.stripePaymentMethodId,
+          cardOnFileSavedAt: existing.cardOnFileSavedAt,
+        }
+        : { cardOnFileStatus: 'not_collected' }),
     };
 
     let stored = { saved: false };
@@ -895,7 +920,8 @@ exports.handler = async (event) => {
     });
   }
 
-  // ── New booking (cash/on-site or any path that didn't pre-register a draft) ──
+  // Unsigned direct creates remain disabled. Both no-card requests and saved-card
+  // flows must use the signed draft/finalize protocol above.
   return json(409, { ok: false, error: 'card_on_file_required' });
   } finally {
     clearOfferDeployHost();

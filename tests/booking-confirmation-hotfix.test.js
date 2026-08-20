@@ -149,7 +149,8 @@ describe('Booking confirmation hotfix — frontend contracts', () => {
         html.indexOf('async function submitBooking'),
         html.indexOf('function readSiteAccessFields')
       );
-      assert.match(submit, /your card stays saved/);
+      assert.match(submit, /That time slot is no longer available\. Choose another date or time and submit again\. No payment was collected\./);
+      assert.doesNotMatch(submit, /your card stays saved|save your card/i);
       assert.doesNotMatch(submit, /clearDraftRegistrationState\(\)/);
       assert.match(html, /Booking Request Received/);
       assert.doesNotMatch(

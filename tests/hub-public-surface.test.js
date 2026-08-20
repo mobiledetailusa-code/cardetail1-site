@@ -44,7 +44,7 @@ const preservedBookingStrings = [
   'const LENGTH_PRICING',
   'function renderAddons',
   'waitForVerifiedCardSave',
-  'Secure Your Booking',
+  'Step 05 — Review',
 ];
 
 for (const page of hubPages) {

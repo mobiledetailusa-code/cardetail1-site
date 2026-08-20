@@ -360,7 +360,7 @@ function patchFile(filename, cfg) {
     <div class="trust-row">
       <div class="trust-item"><div class="trust-ico">🚐</div><div class="trust-val">Mobile</div><div class="trust-lbl">We come to you</div></div>
       <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">Local</div><div class="trust-lbl">By appointment</div></div>
-      <div class="trust-item"><div class="trust-ico">✓</div><div class="trust-val">No charge today</div><div class="trust-lbl">Card saved, not charged</div></div>
+      <div class="trust-item"><div class="trust-ico">✓</div><div class="trust-val">No charge today</div><div class="trust-lbl">Request first, pay later</div></div>
       <div class="trust-item"><div class="trust-ico">📋</div><div class="trust-val">Clear packages</div><div class="trust-lbl">Interior · Full · Exterior</div></div>
       <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val">Book online</div><div class="trust-lbl">Anytime</div></div>
     </div>

@@ -226,7 +226,7 @@ test('draft re-registration stamps a consent timestamp when the draft lacks one'
   const src = fs.readFileSync(path.join(__dirname, '..', 'netlify', 'functions', 'submit-booking.js'), 'utf8');
   assert.match(
     src,
-    /acceptedCardOnFilePolicyAt:\s*\(existing && existing\.acceptedCardOnFilePolicyAt\) \|\| now,/,
+    /acceptedCardOnFilePolicyAt:\s*cardOnFileRequired\s*\?\s*\(\(existing && existing\.acceptedCardOnFilePolicyAt\) \|\| now\)/,
     'an existing draft without a consent stamp must be backfilled, not propagated as undefined'
   );
   assert.doesNotMatch(

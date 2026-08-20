@@ -1,8 +1,8 @@
 // Conversion-funnel trust copy (P1).
 //
 // The booking flow is a *request*: submitting does not confirm an appointment,
-// and the card is saved (not charged) so the request can be processed. Public
-// copy used to promise the opposite ("card holds your slot" / "Lock Your Slot").
+// and no card or payment method is required for the initial request. Public copy
+// used to promise the opposite ("card holds your slot" / "Lock Your Slot").
 // These tests pin the honest wording so the contradiction cannot come back —
 // including through scripts/apply-state-hub-theme.mjs, which regenerates hubs.
 const test = require('node:test');
@@ -17,7 +17,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const bookingPages = fs
   .readdirSync(root)
   .filter((file) => file.endsWith('.html'))
-  .filter((file) => read(file).includes('Before saving your card, please note:'));
+  .filter((file) => read(file).includes('id="bk-ov"'));
 
 /** Every public HTML page plus the hub generator. */
 const publicSources = [
@@ -44,25 +44,22 @@ test('no public source promises the card holds or locks a slot', () => {
   }
 });
 
-test('the request-only contract stays stated where the card is asked for', () => {
+test('the request-only contract states no payment gate and later payment options', () => {
   for (const page of bookingPages) {
     const html = read(page);
     assert.match(
       html,
-      /A card on file is still required to submit the booking request\./,
-      `${page} lost the request-only payment-preference copy`,
+      /no card or payment method is required to send this request\./i,
+      `${page} lost the no-card request copy`,
     );
     assert.match(
       html,
-      /<div class="card-gate-title">Save Your Card<\/div>/,
-      `${page} lost the neutral card-gate title`,
+      /Pay Online in My Garage or pay at service when available\./,
+      `${page} lost the later-payment copy`,
     );
-    // Two equivalent honest wordings ship across the page families: the state
-    // hubs/index carry the "does not confirm" bullet, the county/city pages
-    // carry the stronger "Booking review" bullet. Either satisfies the contract.
     assert.match(
       html,
-      /It does not confirm the appointment; we text you once it is confirmed\.|Submitting a request does not guarantee an appointment\./,
+      /this request does not confirm an appointment/i,
       `${page} lost the "a request is not a confirmed appointment" policy bullet`,
     );
     // The pre-existing honest statements must survive.
@@ -215,10 +212,10 @@ test('the hero proof bar carries only claims that can be checked', () => {
   assert.match(index, /id="reviews"/, 'the reviews anchor target is missing');
 });
 
-test('the proof bar repeats the same $0-today promise the card step makes', () => {
+test('the proof bar repeats the same request-first promise as the review step', () => {
   const index = read('index.html');
   assert.match(index, /class="hpb-val">\$0 today<\/span>/);
-  assert.match(index, /Card saved, not charged/);
+  assert.match(index, /Request first, pay later/);
   assert.match(index, /Charged today/); // Step 5 financial summary
 });
 

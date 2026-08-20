@@ -23,15 +23,19 @@ test('confirmSetup requires SetupIntent succeeded before marking card saved', ()
   assert.doesNotMatch(beforeGate, /ST\.cardOnFileSaved\s*=\s*true/);
 });
 
-test('saved card gates continue; submit retries when server lags', () => {
-  assert.match(index, /function bkScrollToConfirm|function goToConfirmFromTerms/);
-  assert.match(index, /if\s*\(!ST\.cardOnFileSaved\)/);
+test('initial request has no card gate while saved-card capability remains strict', () => {
+  const continueBlock = index.slice(
+    index.indexOf('function goToConfirmFromTerms'),
+    index.indexOf('function bkScrollToConfirm')
+  );
   const submitBlock = index.slice(
     index.indexOf('async function submitBooking'),
     index.indexOf('function buildBookingPayload')
   );
-  assert.match(submitBlock, /card_on_file_not_saved/);
-  assert.match(submitBlock, /waitForVerifiedCardSave/);
+  assert.doesNotMatch(continueBlock, /cardOnFileSaved|cof-policy-ok|payMethod/);
+  assert.doesNotMatch(submitBlock, /card_on_file_not_saved|waitForVerifiedCardSave|confirmSetupIntent/);
+  assert.match(index, /async function confirmSetupIntent/);
+  assert.match(submit, /existing\.cardOnFileStatus !== 'saved'/);
 });
 
 test('initCardOnFile has race protection and stale-response guards', () => {
@@ -67,8 +71,8 @@ test('Stripe Payment Element unmounts before remount', () => {
   assert.match(initBlock, /destroyStripePaymentUI\(\)/);
 });
 
-test('booking modal progress shows six-step secure and confirm labels', () => {
-  assert.match(index, /id="bpt5"[\s\S]*?Secure Your Booking/);
+test('booking modal progress shows six-step review and confirm labels', () => {
+  assert.match(index, /id="bpt5"[\s\S]*?Review/);
   assert.match(index, /id="bpt6"[\s\S]*?Confirm/);
 });
 

@@ -136,18 +136,12 @@
       { "n": 2, "tabId": "bpt2", "label": "Package" },
       { "n": 3, "tabId": "bpt3", "label": "Vehicle" },
       { "n": 4, "tabId": "bpt4", "label": "Info" },
-      { "n": 5, "tabId": "bpt5", "label": "Secure Your Booking" },
+      { "n": 5, "tabId": "bpt5", "label": "Review" },
       { "n": 6, "tabId": "bpt6", "label": "Confirm" }
     ],
     "stepsConstant": "BK_VISIBLE_STEPS",
 
     "elements": [
-      {
-        "id": "card-gate-title",
-        "selector": ".card-gate-title",
-        "text": "Save Your Card",
-        "why": "Neutral title. 'Lock Your Slot' promised a reservation the system does not make."
-      },
       {
         "id": "success-title",
         "selector": "#ok-title",
@@ -160,12 +154,12 @@
       "Every entry is ANCHORED: `anchor` is resolved inside the parsed #bk-ov DOM and",
       "must match exactly as many elements as `texts` has entries, compared in document",
       "order. This replaces whole-modal substring containment, under which a decoy such",
-      "as <div style=\"display:none\">Card on File Required</div> could satisfy the",
+      "as <div style=\"display:none\">Submit with no payment</div> could satisfy the",
       "contract while the real element drifted.",
       "",
       "Why anchoring rather than computed visibility: the booking modal is a wizard.",
-      "Inactive steps and the .pay-choice-desc panels are display:none until the",
-      "customer reaches them, so they ARE customer-visible copy. Requiring computed",
+      "Inactive steps are display:none until the customer reaches them, so they ARE",
+      "customer-visible copy. Requiring computed",
       "visibility would delete real coverage. Anchoring closes the decoy hole without",
       "that cost: a decoy that does not match the anchor is ignored, and one that does",
       "match changes the element count and fails.",
@@ -203,34 +197,25 @@
     ],
     "anchoredText": [
       {
-        "id": "card-mandatory",
-        "anchor": "#cof-wrap > div.fl",
-        "match": "exact",
-        "texts": ["Card on File Required"],
-        "why": "The card is mandatory for every payment preference; the label must not imply it is optional."
-      },
-      {
-        "id": "card-enables-request",
-        "anchor": ".pay-choice-desc",
+        "id": "no-payment-required",
+        "anchor": "#bs5 .pay-box li:nth-child(1)",
         "match": "contains",
-        "texts": [
-          "A card on file is still required to submit the booking request.",
-          "A card on file is still required to submit the booking request.",
-          "A card on file is still required to submit the booking request."
-        ],
-        "visibility": {
-          "exemptIndices": [0, 1, 2],
-          "revealedBy": "#pc-cash, #pc-onsite, #pc-online",
-          "$why": "All three panels are inline display:none at rest and are revealed when the customer picks a payment preference. The radios that reveal them must exist."
-        },
-        "why": "States what the card enables (submitting a request), not what it reserves. All three payment-preference panels must carry it, or one preference would read as card-optional."
+        "texts": ["no card or payment method is required to send this request."],
+        "why": "The initial request must be explicitly free of card and payment gates."
       },
       {
-        "id": "card-saved-not-charged",
-        "anchor": "#cof-wrap > div:nth-child(2)",
+        "id": "pay-later-options",
+        "anchor": "#bs5 .pay-box li:nth-child(3)",
+        "match": "contains",
+        "texts": ["use Pay Online in My Garage or pay at service when available."],
+        "why": "The review step explains the two later payment options without inventing a payment choice."
+      },
+      {
+        "id": "request-first-badge",
+        "anchor": "#bs5 .pay-badge",
         "match": "exact",
-        "texts": ["No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy."],
-        "why": "Saved-vs-charged wording plus the exhaustive list of what can trigger a charge."
+        "texts": ["✓ Request first · Pay later · No charge today"],
+        "why": "Compact summary of the no-card request contract."
       },
       {
         "id": "charged-today-label",
@@ -251,7 +236,7 @@
         "anchor": "#bs5 > .bdesc",
         "match": "contains",
         "texts": ["This sends a booking request"],
-        "why": "Booking-request vs confirmed-appointment semantics, stated where the card is asked for."
+        "why": "Booking-request vs confirmed-appointment semantics, stated on the review step."
       },
       {
         "id": "request-only-row",
@@ -275,17 +260,10 @@
         "why": "Post-submit status is explicitly under review, not confirmed."
       },
       {
-        "id": "card-policy-preamble",
-        "anchor": "strong.card-save-notice-title",
-        "match": "exact",
-        "texts": ["Before saving your card, please note:"],
-        "why": "Opens the pre-consent disclosure block."
-      },
-      {
-        "id": "card-consent",
+        "id": "booking-consent",
         "anchor": "label.terms-check:has(#terms-ok) > span",
         "match": "contains",
-        "texts": ["I have read and agree to the booking, cancellation, no-show, access, and card-on-file policy."],
+        "texts": ["I have read and agree to the booking, cancellation, no-show, access, pricing, payment, and photo policies."],
         "why": "The consent sentence recorded against the booking. Changing it changes what customers agreed to."
       },
       {
@@ -339,20 +317,6 @@
           "$why": "Same as arrival-anytime: element 2 lives in the [hidden] alternate-date block."
         },
         "why": "The window length must match BK_ARRIVAL_BOUNDS. Preferred and alternate blocks must agree."
-      },
-      {
-        "id": "processor-attribution",
-        "anchor": ".processor-pill-row > .processor-pill:nth-child(1)",
-        "match": "exact",
-        "texts": ["Powered by Stripe"],
-        "why": "Processor disclosure."
-      },
-      {
-        "id": "pci-note",
-        "anchor": ".processor-pill-row > .processor-pill:nth-child(2)",
-        "match": "exact",
-        "texts": ["PCI-secure · no raw card data stored"],
-        "why": "Custody claim; must stay true."
       }
     ],
 
@@ -384,7 +348,7 @@
       "This entry holds NO amount and NO currency. It names the elements and states",
       "the invariant: whatever the value element renders must parse numerically to",
       "ZERO, must still say when ('today'), and must be accompanied by the",
-      "saved-vs-charged label. The test derives zero from the rendered DOM; the",
+      "request-first/pay-later label. The test derives zero from the rendered DOM; the",
       "fixture never asserts a price.",
       "",
       "That is the whole point. Writing '$0 today' here would make this file a source",
@@ -393,9 +357,9 @@
       "stays in the catalog and the server.",
       "",
       "What this DOES catch: the promise becoming non-zero, losing its timeframe, or",
-      "the label drifting away from saved-vs-charged. What it does NOT do: approve or",
+      "the label drifting away from request-first/pay-later. What it does NOT do: approve or",
       "define any amount. The corresponding in-modal statements are pinned separately",
-      "by the anchoredText entries nothing-collected-today, card-saved-not-charged and",
+      "by the anchoredText entries nothing-collected-today, no-payment-required and",
       "request-only-row."
     ],
     "id": "hero-zero-charge-promise",
@@ -403,19 +367,17 @@
     "valueSelector": ".hpb-val",
     "labelSelector": ".hpb-lbl",
     "valueMustMatch": "today",
-    "label": "Card saved, not charged",
-    "why": "The hero promises that nothing is charged at request time. The amount must render as zero and the saved-vs-charged label must stand beside it."
+    "label": "Request first, pay later",
+    "why": "The hero promises that nothing is charged at request time. The amount must render as zero and the request-first/pay-later label must stand beside it."
   },
 
   "fallbackParity": {
     "$note": "The legacy inline modal is hidden at runtime. These assertions exist so that if the bridge ever fails to execute and the inline DOM becomes visible, it does not contradict the authoritative surface. They are compatibility checks, never the primary contract.",
     "ids": [
-      "card-gate-title",
-      "card-mandatory",
-      "card-enables-request",
-      "card-saved-not-charged",
+      "no-payment-required",
+      "pay-later-options",
+      "request-first-badge",
       "submit-label",
-      "card-policy-preamble",
       "utilities-reassurance",
       "water-optional",
       "power-optional",
@@ -424,6 +386,12 @@
   },
 
   "forbidden": [
+    {
+      "id": "mandatory-card-copy",
+      "pattern": "Card on File Required|A card on file is still required|card saved, not charged|Secure Your Booking",
+      "flags": "i",
+      "why": "Initial booking requests must not present a card or payment gate, including in fallback surfaces."
+    },
     {
       "id": "slot-hold-promise",
       "pattern": "holds? your slot",

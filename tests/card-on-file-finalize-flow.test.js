@@ -145,7 +145,7 @@ describe('Card-on-file finalize flow', () => {
     };
   });
 
-  it('frontend payload includes draftSaveToken on finalize', () => {
+  it('frontend preserves draft token and separate saved-card capability', () => {
     const index = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
     assert.match(index, /draftBookingId:ST\.bookingId,draftSaveToken:ST\.draftSaveToken/);
     const confirm = index.slice(
@@ -163,7 +163,10 @@ describe('Card-on-file finalize flow', () => {
     );
     assert.match(submit, /draft_token_invalid/);
     assert.match(submit, /booking_policy_required/);
-    assert.match(submit, /stripe_test_mode_required/);
+    assert.match(submit, /isDraft:true/);
+    assert.match(submit, /captureDraftSaveResponse/);
+    assert.doesNotMatch(submit, /confirmSetupIntent|create-setup-intent/);
+    assert.match(index, /buildBookingPayload\(\{cardFlow:true\}\)/);
   });
 
   it('succeeded SetupIntent + delayed webhook reconciles on finalize', async () => {

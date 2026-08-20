@@ -25,12 +25,13 @@ test('index.html has no internal ops env strings or legacy admin panels', () => 
   assert.doesNotMatch(index, /function openJobsBoard/);
 });
 
-test('index.html keeps public booking, ZIP routing, and card-on-file flow', () => {
+test('index.html keeps public booking, ZIP routing, and separate saved-card capability', () => {
   assert.match(index, /id="bk-ov"/);
   assert.match(index, /NJ_HUB_ZIP3/);
   assert.match(index, /resolveHubPageForHero/);
   assert.match(index, /waitForVerifiedCardSave/);
-  assert.match(index, /Secure Your Booking/);
+  assert.match(index, /Step 05 — Review/);
+  assert.match(index, /no card or payment method is required/i);
 });
 
 test('index.html admin login routes to canonical admin-ops console', () => {
