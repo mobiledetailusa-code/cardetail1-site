@@ -249,32 +249,44 @@ function loadRevenueEventHarness({
   rateDecision = { blocked: false, allowed: true },
   existing = null,
   failWrite = false,
+  failRead = false,
 } = {}) {
   const rl = require(HELPER_PATH);
   const revenueStore = require(REVENUE_STORE_PATH);
   const originalRateLimit = rl.enforcePublicRateLimit;
   const originalStore = {
     getRevenueStore: revenueStore.getRevenueStore,
-    blobGetJson: revenueStore.blobGetJson,
-    blobSetJson: revenueStore.blobSetJson,
+    blobGetJsonStrict: revenueStore.blobGetJsonStrict,
+    blobCreateJson: revenueStore.blobCreateJson,
   };
   const writes = [];
+  const stores = {
+    eventIdempotency: new Map(),
+    events: new Map(),
+  };
+  if (existing) stores.eventIdempotency.set(`evt:${existing.eventId}`, existing);
 
   rl.enforcePublicRateLimit = async () => rateDecision;
   revenueStore.getRevenueStore = async (name) => ({ name });
-  revenueStore.blobGetJson = async () => existing;
-  revenueStore.blobSetJson = async (store, key, value) => {
+  revenueStore.blobGetJsonStrict = async (store, key) => {
+    if (failRead) throw new Error('synthetic_read_failure');
+    return stores[store.name].get(key) || null;
+  };
+  revenueStore.blobCreateJson = async (store, key, value) => {
     if (failWrite) throw new Error('synthetic_storage_failure');
+    if (stores[store.name].has(key)) return { created: false, etag: null };
+    stores[store.name].set(key, value);
     writes.push({ store: store.name, key, value });
+    return { created: true, etag: `etag-${writes.length}` };
   };
 
   const handler = loadHandler('revenue-event');
   rl.enforcePublicRateLimit = originalRateLimit;
   Object.assign(revenueStore, originalStore);
-  return { handler, writes };
+  return { handler, writes, stores };
 }
 
-test('revenue-event allowed request reaches validation and both persistence writes', async () => {
+test('revenue-event allowed request creates one atomic reservation and one event projection', async () => {
   const { handler, writes } = loadRevenueEventHarness();
   const res = await handler({
     httpMethod: 'POST',
@@ -285,10 +297,12 @@ test('revenue-event allowed request reaches validation and both persistence writ
   assert.equal(res.statusCode, 200);
   assert.deepEqual(JSON.parse(res.body), { ok: true });
   assert.equal(writes.length, 2);
-  assert.equal(writes[0].store, 'events');
-  assert.match(writes[0].key, /\/evt_contract_1$/);
-  assert.equal(writes[1].store, 'eventIdempotency');
-  assert.equal(writes[1].key, 'evt:evt_contract_1');
+  assert.equal(writes[0].store, 'eventIdempotency');
+  assert.equal(writes[0].key, 'evt:evt_contract_1');
+  assert.equal(writes[0].value.version, 2);
+  assert.match(writes[0].value.storeKey, /\/evt_contract_1$/);
+  assert.equal(writes[1].store, 'events');
+  assert.equal(writes[1].key, writes[0].value.storeKey);
 });
 
 test('revenue-event preserves malformed, duplicate, and storage-error contracts', async () => {
