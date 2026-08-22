@@ -394,21 +394,21 @@
     },
     {
       "id": "automatic-confirmation-copy",
-      "pattern": "we confirm by text(?: or call first)?|we text you to confirm the appointment",
+      "pattern": "we confirm by text(?: or call first)?|we text you to confirm the appointment|we'll confirm your appointment by text or call|we'll review your details and text you to confirm your appointment",
       "flags": "i",
       "why": "Initial booking copy must say the request is reviewed before confirmation, not imply automatic confirmation."
     },
     {
       "id": "slot-hold-promise",
-      "pattern": "holds? your slot",
+      "pattern": "holds? your slot|secure \\$[0] hold|reserve your spot on our route",
       "flags": "i",
       "why": "Promised a reservation. Submitting produces a request that Cardetail1 reviews before confirming."
     },
     {
       "id": "slot-lock-promise",
-      "pattern": "Lock Your Slot",
+      "pattern": "Lock Your Slot|Your card locks the slot|Lock It In|lock in your driveway service|lock in your appointment",
       "flags": "i",
-      "why": "Same false reservation promise, in the card gate title."
+      "why": "Submitting a request cannot be described as locking a slot, route stop, driveway service, or appointment."
     },
     {
       "id": "card-secures-booking",
