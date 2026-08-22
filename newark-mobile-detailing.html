@@ -5844,7 +5844,7 @@ try{ if(typeof seedDefaultTechs==='function') seedDefaultTechs(); }catch(e){}
         chips:[{label:'📅 Add to my booking',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
 
     { keys:['book','booking','appointment','schedule','reserve','agendar','set up','sign up','how do i'], fn:()=>({
-      reply:"Booking takes a couple minutes: 📍 enter ZIP → 🚗 pick category & package → confirm your vehicle → ✨ add extras → your details → review & submit. No charge today — we confirm by text or call first.",
+      reply:"Booking takes a couple minutes: 📍 enter ZIP → 🚗 pick category & package → confirm your vehicle → ✨ add extras → your details → review & submit. No card or payment method is required — we review your request first, then text or call about confirmation.",
       chips:[{label:'📅 Start booking',act:'book'},{label:'💳 Deposit/payment',q:'Do I pay now?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['pay','payment','deposit','charge now','credit card','card','stripe','money','pay now','upfront'], fn:()=>({
@@ -5991,11 +5991,11 @@ try{ if(typeof seedDefaultTechs==='function') seedDefaultTechs(); }catch(e){}
         chips:[{label:'📅 Add to my booking',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
 
     { keys:['book','booking','appointment','schedule','reserve','agendar','set up','sign up','how do i'], fn:()=>({
-      reply:"Booking takes a couple minutes: 📍 enter ZIP → 🚗 pick category & package → confirm your vehicle → ✨ add extras → your details → review & submit. No charge today — we confirm by text or call first.",
+      reply:"Booking takes a couple minutes: 📍 enter ZIP → 🚗 pick category & package → confirm your vehicle → ✨ add extras → your details → review & submit. No card or payment method is required — we review your request first, then text or call about confirmation.",
       chips:[{label:'📅 Start booking',act:'book'},{label:'💳 Deposit/payment',q:'Do I pay now?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['pay','payment','deposit','charge now','credit card','card','stripe','money','pay now','upfront'], fn:()=>({
-      reply:"You're <b>not charged when you submit</b> — it's a request first. A card on file is required for booking security and is saved securely through Stripe. Choose cash on-site, card on-site, or online after service as your separate payment preference.",
+      reply:"You're <b>not charged when you submit</b> — no card or payment method is required. We review the request first. Payment can be handled later in My Garage or at service when applicable.",
       chips:[{label:'📅 Book now',act:'book'},{label:'❌ Cancellation policy',q:'What is your cancellation policy?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['hour','hours','open','time','when are you','availability','available','today','same day','same-day','weekend'], fn:()=>({

@@ -91,7 +91,7 @@ const howHtml3Step = `<!-- HOW IT WORKS -->
   <div class="section">
     <div class="sec-eye">How it works</div>
     <div class="sec-title">Three simple steps</div>
-    <div class="sec-desc">No charge today — your card is saved on file, not charged. Final payment after service. Long-distance appointments may require quote approval.</div>
+    <div class="sec-desc">No payment is required to submit a booking request. We review it first. Long-distance appointments may require quote approval, and payment is handled later when applicable.</div>
     <div class="how-grid how-grid--three">
       <div class="how-card">
         <div class="how-ico">📍</div>
@@ -250,7 +250,7 @@ function heroHtml(cfg) {
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Mobile Detail</button>
       <a class="btn-outline" href="tel:5513132956">Call / Text</a>
     </div>
-    <p class="hero-trust-line">No charge today — your card is saved on file, not charged. Final payment after service.</p>
+    <p class="hero-trust-line">No card or payment method is required to submit a booking request. We review it first; payment is handled later when applicable.</p>
     <div id="zip-section" aria-label="Check service area by ZIP code">
       <details class="hero-zip-details">
         <summary>Check ZIP for local pricing</summary>

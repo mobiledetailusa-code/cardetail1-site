@@ -388,9 +388,15 @@
   "forbidden": [
     {
       "id": "mandatory-card-copy",
-      "pattern": "Card on File Required|A card on file is still required|card saved, not charged|Secure Your Booking",
+      "pattern": "Card on File Required|A card on file is still required|card on file is required for booking security|your card is securely saved(?: on file| with Stripe)|your card is saved on file|when your card is saved(?: with Stripe)?|card saved, not charged|Secure Your Booking",
       "flags": "i",
       "why": "Initial booking requests must not present a card or payment gate, including in fallback surfaces."
+    },
+    {
+      "id": "automatic-confirmation-copy",
+      "pattern": "we confirm by text(?: or call first)?|we text you to confirm the appointment",
+      "flags": "i",
+      "why": "Initial booking copy must say the request is reviewed before confirmation, not imply automatic confirmation."
     },
     {
       "id": "slot-hold-promise",
