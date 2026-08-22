@@ -27,7 +27,7 @@ describe('six-step checkout', () => {
     assert.match(html, /id="bpt2"[\s\S]*Package/);
     assert.match(html, /id="bpt3"[\s\S]*Vehicle/);
     assert.match(html, /id="bpt4"[\s\S]*Info/);
-    assert.match(html, /id="bpt5"[\s\S]*Secure Your Booking/);
+    assert.match(html, /id="bpt5"[\s\S]*Review/);
     assert.match(html, /id="bpt6"[\s\S]*Confirm/);
   });
 

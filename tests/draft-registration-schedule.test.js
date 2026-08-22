@@ -318,10 +318,10 @@ for (const page of BOOKING_PAGES) {
     assert.match(initBlock, /bkShowScheduleMsg\(sched\.message\)/);
     assert.match(initBlock, /const phone=bkValidateContactPhone\(\)/);
     assert.match(initBlock, /if\(!phone\.ok\)/);
-    assert.match(initBlock, /const draftPayload=buildBookingPayload\(\)/);
+    assert.match(initBlock, /const draftPayload=buildBookingPayload\(\{cardFlow:true\}\)/);
     const schedIdx = initBlock.indexOf('bkValidateScheduleSelection');
     const phoneIdx = initBlock.indexOf('bkValidateContactPhone');
-    const payloadIdx = initBlock.indexOf('buildBookingPayload()');
+    const payloadIdx = initBlock.indexOf('buildBookingPayload({cardFlow:true})');
     assert.ok(schedIdx > 0 && phoneIdx > schedIdx && payloadIdx > phoneIdx);
   });
 

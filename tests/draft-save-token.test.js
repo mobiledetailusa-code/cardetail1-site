@@ -570,7 +570,7 @@ test('finalize requires draftSaveToken and response does not re-issue it', () =>
   // Release A (PDA-14): finalize must verify scoped draftSaveToken; success body must not re-issue one.
   const src = require('fs').readFileSync(SUBMIT_PATH, 'utf8');
   const finalizeStart = src.indexOf('// ── Draft finalization');
-  const newBookingStart = src.indexOf('// ── New booking');
+  const newBookingStart = src.indexOf('// Unsigned direct creates remain disabled');
   assert.ok(finalizeStart >= 0 && newBookingStart > finalizeStart);
   const finalizeBlock = src.slice(finalizeStart, newBookingStart);
   assert.match(finalizeBlock, /verifyDraftSaveToken/);

@@ -589,15 +589,15 @@ test('canonical sentences render on their own anchored, structurally visible ele
 
 test('required authoritative copy cannot be satisfied by structurally hidden markup', () => {
   // Each shape is applied to the real anchored element of a required entry.
-  const entry = canonical.authoritative.anchoredText.find((e) => e.id === 'card-mandatory');
-  const original = `<div class="fl" style="margin-bottom:8px">${entry.texts[0]}</div>`;
+  const entry = canonical.authoritative.anchoredText.find((e) => e.id === 'request-first-badge');
+  const original = `<div class="pay-badge">${entry.texts[0]}</div>`;
   assert.ok(authoritativeHtml.includes(original), 'precondition: the required anchored element was located verbatim');
 
   const shapes = {
-    'hidden attribute': `<div class="fl" style="margin-bottom:8px" hidden>${entry.texts[0]}</div>`,
-    'aria-hidden="true"': `<div class="fl" style="margin-bottom:8px" aria-hidden="true">${entry.texts[0]}</div>`,
-    'inline display:none': `<div class="fl" style="margin-bottom:8px;display:none">${entry.texts[0]}</div>`,
-    'inline visibility:hidden': `<div class="fl" style="margin-bottom:8px;visibility:hidden">${entry.texts[0]}</div>`,
+    'hidden attribute': `<div class="pay-badge" hidden>${entry.texts[0]}</div>`,
+    'aria-hidden="true"': `<div class="pay-badge" aria-hidden="true">${entry.texts[0]}</div>`,
+    'inline display:none': `<div class="pay-badge" style="display:none">${entry.texts[0]}</div>`,
+    'inline visibility:hidden': `<div class="pay-badge" style="visibility:hidden">${entry.texts[0]}</div>`,
   };
 
   for (const [label, replacement] of Object.entries(shapes)) {
@@ -611,7 +611,7 @@ test('required authoritative copy cannot be satisfied by structurally hidden mar
 });
 
 test('hidden, script and comment decoys cannot satisfy an anchored assertion', () => {
-  const entry = canonical.authoritative.anchoredText.find((e) => e.id === 'card-mandatory');
+  const entry = canonical.authoritative.anchoredText.find((e) => e.id === 'request-first-badge');
   const original = entry.texts[0];
   const open = `<div class="booking-modal-ov" id="${bookingRootId}">`;
 
@@ -620,11 +620,11 @@ test('hidden, script and comment decoys cannot satisfy an anchored assertion', (
     'hidden attribute': `<div hidden>${original}</div>`,
     '<script> text': `<script type="text/plain">${original}</script>`,
     'HTML comment': `<!-- ${original} -->`,
-    '<template> content': `<template><div class="fl">${original}</div></template>`,
+    '<template> content': `<template><div class="pay-badge">${original}</div></template>`,
   };
 
   for (const [label, decoy] of Object.entries(decoys)) {
-    const mutated = authoritativeHtml.replace(original, 'Card on File Optional').replace(open, open + decoy);
+    const mutated = authoritativeHtml.replace(original, 'Request now and pay today').replace(open, open + decoy);
     assert.ok(mutated !== authoritativeHtml, `precondition: the ${label} mutation applied`);
     const surface = bookingSurface(mutated);
     const drifted = anchoredDrift(surface.modal, canonical.authoritative.anchoredText, surface.doc);

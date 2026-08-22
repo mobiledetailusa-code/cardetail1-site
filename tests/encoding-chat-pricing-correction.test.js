@@ -61,10 +61,11 @@ test('no public HTML file contains an unexpected UTF-8 BOM', () => {
   }
 });
 
-test('hub/city booking-policy text remains intact', () => {
+test('hub/city booking terms and cancellation text remain intact', () => {
   for (const page of HUB_CITY_PAGES) {
     const html = read(page);
-    assert.match(html, /booking-policy|Booking Policy/i, `${page} missing booking policy section`);
+    assert.match(html, /I have read and agree to the booking, cancellation/i, `${page} missing booking terms consent`);
+    assert.match(html, /Read Full Terms/i, `${page} missing full-terms link`);
     assert.match(html, /cancellation|reschedule/i, `${page} missing cancellation/reschedule policy text`);
   }
 });

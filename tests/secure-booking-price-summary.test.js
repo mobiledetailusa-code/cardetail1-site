@@ -1,6 +1,6 @@
 'use strict';
 
-// Secure Your Booking (Step 5) price-summary protection:
+// Review (Step 5) price-summary protection:
 // one prominent readable Estimated Total, mobile-service adjustment folded into
 // the total with an accessible disclosure, and no inactive welcome-savings copy.
 
@@ -179,7 +179,7 @@ describe('price presentation', () => {
 
   it('charged today stays visible with accurate no-charge copy', () => {
     assert.match(html, /<div class="bk-charged-row"><span>Charged today<\/span><span class="bk-charged-amt">\$0\.00<\/span><\/div>/);
-    assert.match(html, /No payment is collected today\. A card may be securely placed on file to confirm the booking request\./);
+    assert.match(html, /No payment is collected today\. Submit your request first and choose Pay Online in My Garage or pay at service when available\./);
   });
 
   it('step 5 renders a local summary immediately on entry', () => {
@@ -260,11 +260,9 @@ describe('cross-step price consistency', () => {
 });
 
 describe('regression guards', () => {
-  it('six steps, payment preferences, and Stripe flow remain', () => {
+  it('six steps and separate Stripe saved-card capability remain', () => {
     assert.match(html, /BK_VISIBLE_STEPS\s*=\s*6/);
-    assert.match(html, /pc-cash/);
-    assert.match(html, /pc-onsite/);
-    assert.match(html, /pc-online/);
+    assert.doesNotMatch(html, /id="pc-cash"|id="pc-onsite"|id="pc-online"/);
     assert.match(html, /confirmSetupIntent/);
     assert.match(html, /create-setup-intent/);
   });

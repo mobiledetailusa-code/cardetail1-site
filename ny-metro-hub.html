@@ -120,7 +120,7 @@
       "name": "Do I pay today when I book online?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "No charge is made today. Your card is securely saved with Stripe to hold your appointment request. Final payment is collected after service."
+        "text": "No. No card or payment method is required to submit an initial booking request, and no charge is made at submission. Payment is handled later when applicable."
       }
     },
     {
@@ -2289,7 +2289,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Mobile Detail</button>
       <a class="btn-outline" href="tel:5513132956">Call / Text</a>
     </div>
-    <p class="hero-trust-line">No charge today — your card is saved on file, not charged. Final payment after service.</p>
+    <p class="hero-trust-line">No card or payment method is required to submit a booking request. We review it first; payment is handled later when applicable.</p>
     <div id="zip-section" aria-label="Check service area by ZIP code">
       <details class="hero-zip-details">
         <summary>Check ZIP for local pricing</summary>
@@ -2639,7 +2639,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="sdb">✓ No shop visit</div>
         <div class="sdb">✓ We bring everything</div>
         <div class="sdb">✓ We'll text you to confirm</div>
-        <div class="sdb">✓ Your card locks the slot</div>
+        <div class="sdb">✓ No card required to request</div>
       </div>
     </div>
   </div>
@@ -2658,7 +2658,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="visual-checks">
           <span><b>✓</b> We detail at your home, office, marina, or approved spot</span>
           <span><b>✓</b> Pro equipment on every job - no shop drop-off</span>
-          <span><b>✓</b> We'll text you before we lock in your appointment</span>
+          <span><b>✓</b> We'll review your request before confirming an appointment</span>
           <span><b>✓</b> Track your appointment easily via text or your local dashboard</span>
         </div>
       </div>
@@ -2760,7 +2760,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="section">
     <div class="sec-eye">How it works</div>
     <div class="sec-title">Three simple steps</div>
-    <div class="sec-desc">No charge today — your card is saved on file, not charged. Final payment after service. Long-distance appointments may require quote approval.</div>
+    <div class="sec-desc">No payment is required to submit a booking request. We review it first. Long-distance appointments may require quote approval, and payment is handled later when applicable.</div>
     <div class="how-grid how-grid--three">
       <div class="how-card">
         <div class="how-ico">📍</div>
@@ -2852,7 +2852,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="trust-row">
       <div class="trust-item"><div class="trust-ico">🚐</div><div class="trust-val">Mobile</div><div class="trust-lbl">We come to you</div></div>
       <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">Local</div><div class="trust-lbl">By appointment</div></div>
-      <div class="trust-item"><div class="trust-ico">✓</div><div class="trust-val">No charge today</div><div class="trust-lbl">Card saved, not charged</div></div>
+      <div class="trust-item"><div class="trust-ico">✓</div><div class="trust-val">No charge today</div><div class="trust-lbl">Request first, pay later</div></div>
       <div class="trust-item"><div class="trust-ico">📋</div><div class="trust-val">Clear packages</div><div class="trust-lbl">Interior · Full · Exterior</div></div>
       <div class="trust-item"><div class="trust-ico">📅</div><div class="trust-val">Book online</div><div class="trust-lbl">Anytime</div></div>
     </div>
@@ -2912,7 +2912,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       </details>
       <details class="hub-faq-item">
         <summary>Do I pay today when I book online?</summary>
-        <p>No charge is made today. Your card is securely saved with Stripe to hold your appointment request. Final payment is collected after service.</p>
+        <p>No. No card or payment method is required to submit an initial booking request, and no charge is made at submission. Payment is handled later when applicable.</p>
       </details>
       <details class="hub-faq-item">
         <summary>How do I book mobile detailing in the NY Metro area?</summary>
@@ -3161,7 +3161,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="bpt" id="bpt2"><div class="bpn">2</div><span>Package</span></div>
       <div class="bpt" id="bpt3"><div class="bpn">3</div><span>Vehicle</span></div>
       <div class="bpt" id="bpt4"><div class="bpn">4</div><span>Info</span></div>
-      <div class="bpt" id="bpt5"><div class="bpn">5</div><span>Secure Your Booking</span></div>
+      <div class="bpt" id="bpt5"><div class="bpn">5</div><span>Review</span></div>
       <div class="bpt" id="bpt6"><div class="bpn">6</div><span>Confirm</span></div>
     </div>
 
@@ -3352,7 +3352,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="bsec" id="bs4">
         <div class="beye">Step 04</div>
         <div class="btitle">YOUR DETAILS</div>
-        <div class="bdesc">We'll confirm your appointment by text or call within a few hours.</div>
+        <div class="bdesc">We'll review your request and text or call about confirmation.</div>
         <div class="strip show" id="strip5">
           <div class="strip-info"><strong id="s5-pkg">-</strong> · <span id="s5-car">-</span></div>
           <div class="strip-price" id="s5-total">$0</div>
@@ -3504,99 +3504,77 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
       </div>
 
-      <!-- STEP 5: SECURE YOUR BOOKING -->
+      <!-- STEP 5: REVIEW -->
       <div class="bsec" id="bs5">
-        <div class="beye">Step 05</div>
-        <div class="btitle">SECURE YOUR<br>BOOKING</div>
-        <div class="bdesc">This sends a booking request - we'll review your location, vehicle, weather, and access, then text you to confirm. Nothing charged today.</div>
-        <div class="card-gate">
-          <div class="card-gate-title">Save Your Card</div>
-          <div class="stripe-pay" aria-label="Secure checkout">
-            <div class="fl" style="margin-bottom:8px">Payment Preference</div>
-            <div class="pay-choice-row">
-              <button type="button" class="pay-choice" id="pc-cash" onclick="selectPaymentPreference('cash_onsite','pc-cash')">💵 Cash on-site</button>
-              <button type="button" class="pay-choice" id="pc-onsite" onclick="selectPaymentPreference('card_onsite','pc-onsite')">💳 Card on-site</button>
-              <button type="button" class="pay-choice" id="pc-online" onclick="selectPaymentPreference('online_after_service','pc-online')">🔗 Online after service</button>
-            </div>
-            <div id="pc-cash-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Pay cash after the service is completed. A card on file is still required to submit the booking request.</div>
-            <div id="pc-onsite-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Pay by card after the service is completed. A card on file is still required to submit the booking request.</div>
-            <div id="pc-online-desc" class="pay-choice-desc" style="display:none;padding:10px 12px;font-size:13px;color:var(--mu);border-left:2px solid var(--blue);margin:4px 0 8px">Receive a secure online payment request after the service is completed. A card on file is still required to submit the booking request.</div>
-            <div id="cof-wrap" style="margin-top:18px">
-              <div class="fl" style="margin-bottom:8px">Card on File Required</div>
-              <div style="font-size:13px;color:var(--mu);line-height:1.6;margin-bottom:12px">No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy.</div>
-              <div id="card-container"></div>
-              <div class="pay-err" id="pay-err"></div>
-              <div class="card-save-notice">
-                <div class="card-save-notice-copy">
-                  <strong class="card-save-notice-title">Before saving your card, please note:</strong>
-                  <ul style="margin:6px 0 0 16px;padding:0">
-                    <li>No charge is made today for saving your card.</li>
-                    <li>Late cancellation, no-show, inaccessible vehicle, unsafe location, or denied access may result in a fee per the posted policy.</li>
-                    <li>Final service payment is collected on-site by card or cash, or online if approved.</li>
-                  </ul>
-                </div>
-                <label class="terms-check">
-                  <input type="checkbox" id="cof-policy-ok" onchange="cofCheckboxChanged()">
-                  <span>By providing your card information, you authorize Cardetail1 / Detailing Zone LLC to securely save your card with Stripe and charge applicable cancellation, no-show, access, or approved service charges according to the booking policy.</span>
-                </label>
-              </div>
-              <button type="button" class="btn-n" id="stripe-auth-btn" style="margin-top:12px;width:100%;opacity:0.5;cursor:not-allowed" disabled onclick="confirmSetupIntent()">Save my card securely</button>
-            </div>
-            <div id="stripe-status" class="pay-status" style="display:none"></div>
-            <div class="processor-pill-row">
-              <span class="processor-pill">Powered by Stripe</span>
-              <span class="processor-pill">PCI-secure · no raw card data stored</span>
-            </div>
+        <div class="beye">Step 05 — Review</div>
+        <div class="btitle">REVIEW YOUR<br>REQUEST</div>
+        <div id="bk-welcome-offer" class="bk-welcome-offer" hidden role="complementary" aria-label="New customer welcome offer">
+          <div class="bk-offer-title">Still deciding?</div>
+          <p class="bk-offer-copy">Your first eligible booking receives 10% off eligible service subtotal, up to $40 savings.<br>No promo code needed. New customers only — one redemption per household. <a href="/terms-conditions#welcome-offer" target="_blank" rel="noopener noreferrer">Terms apply</a>.</p>
+          <div class="bk-offer-actions">
+            <button type="button" class="btn-n" id="bk-offer-apply">Apply My Savings</button>
+            <button type="button" class="btn-b" id="bk-offer-dismiss">Continue Without Changes</button>
           </div>
         </div>
+        <div class="bk-financial-summary" id="bk-financial-summary" aria-live="polite">
+          <div class="bk-fin-title">Estimated total</div>
+          <div class="bk-total-main"><span class="bk-total-amount" id="bk-total-amount">—</span></div>
+          <p class="bk-total-incl" id="bk-total-incl">Mobile service included.</p>
+          <button type="button" class="bk-details-toggle" id="bk-details-toggle" aria-expanded="false" aria-controls="bk-financial-lines" onclick="toggleBkPriceDetails()">View price details</button>
+          <div id="bk-financial-lines" class="bk-price-details" hidden></div>
+          <div class="bk-charged-row"><span>Charged today</span><span class="bk-charged-amt">$0.00</span></div>
+          <p class="bk-charged-copy">No payment is collected today. Submit your request first and choose Pay Online in My Garage or pay at service when available.</p>
+        </div>
+        <div class="bdesc">This sends a booking request — we'll review your location, vehicle, weather, and access, then text you to confirm. Nothing charged today.</div>
         <div class="pay-box">
-          <div class="pay-t">Booking Policy · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
+          <div class="pay-t">What happens next · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
           <ul style="list-style:none;padding:0;margin:0 0 14px">
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">No charge today</strong> — saving your card lets us process your booking request. It does not confirm the appointment; we text you once it is confirmed.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Card saved by Stripe</strong> — your card details are encrypted and never stored by Cardetail1.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Late cancellation fee</strong> — cancellations within 24 hours, no-shows, or inaccessible vehicles may incur a fee per our posted policy.</li>
-            <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Final payment after service</strong> — collected on-site by card or cash, or online if approved in advance.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Submit with no payment</strong> — no card or payment method is required to send this request.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pending review</strong> — this request does not confirm an appointment; we'll text you after checking schedule, location, weather, and access.</li>
+            <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pay later</strong> — use Pay Online in My Garage or pay at service when available.</li>
           </ul>
-          <div class="pay-badge">✓ No charge today · Card on file is required for every booking request</div>
+          <div class="pay-badge">✓ Request first · Pay later · No charge today</div>
         </div>
         <div class="btn-row">
           <button type="button" class="btn-b" onclick="bkGoTo(4)">← Back</button>
-          <button type="button" class="btn-n" onclick="goToConfirmFromTerms()">Review & Submit →</button>
+          <button type="button" class="btn-n" onclick="goToConfirmFromTerms()">Review &amp; Submit →</button>
         </div>
       </div>
 
       <!-- STEP 6: CONFIRM -->
       <div class="bsec" id="bs6">
-        <div class="beye">Step 06</div>
+        <div class="beye">Step 06 — Confirm</div>
         <div class="btitle">REVIEW &<br>SUBMIT</div>
-        <div class="bdesc">Give it a quick look, then send your request - we'll text you to confirm.</div>
+        <div class="bdesc">Give it a quick look, then send your request — we'll text you to confirm.</div>
         <div class="oc">
           <div class="oc-t" id="c-service-title">Service</div>
           <div class="confirm-vehicle-visual" id="c-visual"></div>
           <div id="c-vehicle-cards"></div>
-          <div class="or"><span class="ol bkli-total-label">Estimated total</span><span class="oc-total" id="c-total">-</span></div>
+          <div id="c-travel-line"></div>
+          <div id="c-offer-line"></div>
+          <div class="or"><span class="ol bkli-total-label">Estimated total</span><span class="oc-total" id="c-total">—</span></div>
           <div class="oc-note">Final price confirmed on-site. Add-ons are starting prices.</div>
         </div>
         <div class="oc">
           <div class="oc-t">Appointment</div>
-          <div class="or"><span class="ol">Name</span><span class="ov" id="c-name">-</span></div>
-          <div class="or"><span class="ol">Phone</span><span class="ov" id="c-phone">-</span></div>
-          <div class="or"><span class="ol">Email</span><span class="ov" id="c-email">-</span></div>
-          <div class="or"><span class="ol">Address</span><span class="ov" id="c-addr">-</span></div>
-          <div class="or"><span class="ol">Date & time</span><span class="ov" id="c-date">-</span></div>
+          <div class="or"><span class="ol">Name</span><span class="ov" id="c-name">—</span></div>
+          <div class="or"><span class="ol">Phone</span><span class="ov" id="c-phone">—</span></div>
+          <div class="or"><span class="ol">Email</span><span class="ov" id="c-email">—</span></div>
+          <div class="or"><span class="ol">Address</span><span class="ov" id="c-addr">—</span></div>
+          <div class="or"><span class="ol">Date & time</span><span class="ov" id="c-date">—</span></div>
         </div>
         <div class="oc">
           <div class="oc-t">Request / Payment</div>
-          <div class="or"><span class="ol">Charged today</span><span class="ov" style="color:var(--gr)">$0.00 - booking request only</span></div>
-          <div class="or"><span class="ol">Payment selection</span><span class="ov" id="c-pay-method">Not selected</span></div>
-          <div class="or"><span class="ol">Final payment</span><span class="ov">Collected on-site by card or cash after service, or online if approved. Cancellation/no-show fees apply per the posted policy.</span></div>
+          <div class="or"><span class="ol">Charged today</span><span class="ov" style="color:var(--gr)">$0.00 — booking request only</span></div>
+          <div class="or"><span class="ol">Payment</span><span class="ov" id="c-pay-method">Choose later</span></div>
+          <div class="or"><span class="ol">Final payment</span><span class="ov">Use Pay Online in My Garage or pay at service when available.</span></div>
         </div>
 
         <div class="oc">
           <div class="oc-t">Terms & Conditions</div>
           <label class="terms-check">
             <input type="checkbox" id="terms-ok">
-            <span>I have read and agree to the booking, cancellation, no-show, access, and card-on-file policy. <a href="/terms-conditions" target="_blank" rel="noopener noreferrer">Read Full Terms</a></span>
+            <span>I have read and agree to the booking, cancellation, no-show, access, pricing, payment, and photo policies. <a href="/terms-conditions" target="_blank" rel="noopener noreferrer">Read Full Terms</a></span>
           </label>
         </div>
         <div class="btn-row">
@@ -3613,7 +3591,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="suc-ico">✓</div>
           <div class="suc-title" id="ok-title">BOOKING REQUEST RECEIVED</div>
           <div style="display:inline-flex;align-items:center;gap:8px;background:var(--grdim);border:1px solid var(--grbr);color:var(--gr);border-radius:999px;padding:6px 16px;font-size:12.5px;font-weight:700;margin-bottom:14px">✓ Your request was submitted</div>
-          <p class="suc-sub" id="ok-sub">You're all set! We'll review your details and text you to confirm your appointment - usually within a few hours.</p>
+          <p class="suc-sub" id="ok-sub">You're all set! We'll review your details and text you about confirmation - usually within a few hours.</p>
           <div class="suc-card">
             <div class="or"><span class="ol">Status</span><span class="ov" style="color:var(--gr);font-weight:700">Under Review</span></div>
             <div id="ok-vehicle-cards"></div>
@@ -5238,7 +5216,7 @@ function depositPctLabel(){ return Math.round(DEPOSIT_PCT*100)+'%'; }
 function ensureBookingId(){ if(!ST.bookingId) ST.bookingId='CD1-'+Date.now().toString(36).toUpperCase(); return ST.bookingId; }
 function stripeMsg(elId,msg,ok){ const el=document.getElementById(elId); if(!el)return; el.innerHTML=msg; el.style.display='block'; if(ok!==undefined)el.style.color=ok?'var(--gr,#34d399)':'var(--mu,#8a9bb0)'; }
 
-// ── Step 5: Secure Your Booking ──────────────────────────────────────────────
+// ── Step 5: Review ────────────────────────────────────────────────────────────
 
 function ensureStep5Defaults(){
   if(!ST.payMethod){
@@ -5373,7 +5351,7 @@ async function initCardOnFile(){
       if(!phone.ok){
         throw new Error(phone.message);
       }
-      const draftPayload=buildBookingPayload();
+      const draftPayload=buildBookingPayload({cardFlow:true});
       draftPayload.isDraft=true;
       draftPayload.acceptedCardOnFilePolicy=true;
       const draftRes=await fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(draftPayload)});
@@ -5509,18 +5487,6 @@ async function recheckCardStatus(){
 }
 
 function goToConfirmFromTerms(){
-  if(!ST.payMethod){
-    alert('Please select a payment preference before continuing.');
-    return;
-  }
-  if(!document.getElementById('cof-policy-ok')?.checked){
-    alert('Please accept the card-on-file policy before continuing.');
-    return;
-  }
-  if(!ST.cardOnFileSaved){
-    alert('Please securely save a card with Stripe before continuing.');
-    return;
-  }
   bkGoTo(6);
 }
 
@@ -5595,77 +5561,67 @@ function fillConfirm(){
   document.getElementById('c-email').textContent=document.getElementById('f-email').value;
   document.getElementById('c-addr').textContent=document.getElementById('f-addr').value;
   document.getElementById('c-date').textContent=document.getElementById('f-date').value+' · '+tsel;
-  const payLabels={'card_onsite':'Card on-site','cash_onsite':'Cash on-site','online_after_service':'Online after service'};
-  const pmEl=document.getElementById('c-pay-method'); if(pmEl) pmEl.textContent=payLabels[ST.payMethod]||'Not selected';
+  const pmEl=document.getElementById('c-pay-method'); if(pmEl) pmEl.textContent='Choose later';
 }
 
 // ── SUBMIT ────────────────────────────────────────────────────────────────────
 async function submitBooking(){
   const termsOk=document.getElementById('terms-ok');
   if(termsOk && !termsOk.checked){alert('Please agree to the Terms & Conditions before submitting your booking request.');return;}
-  if(!ST.payMethod){alert('Please select a payment preference before submitting.');return;}
-  if(!document.getElementById('cof-policy-ok')?.checked){alert('Please accept the card-on-file policy before submitting.');return;}
-  if(!ST.cardOnFileSaved||!ST.draftRegistered){alert('Please securely save a card with Stripe before submitting.');return;}
   const btn=document.getElementById('sub-btn');
   btn.classList.add('loading'); btn.disabled=true;
-  const payload=buildBookingPayload();
-  async function postBooking(){
-    return fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  let payload=buildBookingPayload();
+  async function postBooking(body){
+    return fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   }
   try{
-    let res=await postBooking();
-    let data=await res.json().catch(()=>({}));
-    if((!res.ok||!data.ok) && data.error==='card_on_file_not_saved'){
-      stripeMsg('stripe-status','Confirming your saved card on our server…',true);
-      await waitForVerifiedCardSave(6,2000);
-      res=await postBooking();
-      data=await res.json().catch(()=>({}));
+    if(!ST.draftRegistered){
+      const draftPayload={...payload,isDraft:true};
+      delete draftPayload.draftBookingId;
+      delete draftPayload.draftSaveToken;
+      const draftRes=await postBooking(draftPayload);
+      const draftData=await draftRes.json().catch(()=>({}));
+      if(!draftRes.ok||!draftData.ok){
+        throw new Error(draftData.error||draftData.message||('booking_draft_failed_'+draftRes.status));
+      }
+      captureDraftSaveResponse(draftData);
+      payload=buildBookingPayload();
     }
+    const res=await postBooking(payload);
+    const data=await res.json().catch(()=>({}));
     if(!res.ok||!data.ok||!data.id||data.bookingCreated===false){
-      if(data.error==='card_on_file_not_saved'){
-        alert(data.userMessage||COF_VERIFY_TIMEOUT_MSG);
-        return;
-      }
-      if(data.error==='booking_slot_unavailable'||data.error==='booking_date_unavailable'||data.error==='booking_time_unavailable'){
-        alert(data.userMessage||'That time is unavailable. Choose another slot and submit again — your card stays saved and was not charged.');
-        return;
-      }
       throw new Error(data.error||data.message||('booking_submit_failed_'+res.status));
     }
-    if(data.bookingCreated!==true&&!data.idempotent){
-      throw new Error('booking_not_persisted');
-    }
+    if(data.bookingCreated!==true&&!data.idempotent) throw new Error('booking_not_persisted');
     payload.id=data.id;
     payload.status=data.status||'Pending Review';
     payload.paymentStatus=data.paymentStatus||'no_payment_required_yet';
+    payload.paymentWorkflowStatus='no_payment_required_yet';
     payload.appointmentStatus=data.appointmentStatus||'pending_review';
     payload.jobStatus='pending_review';
-    payload.cardOnFileStatus=data.cardOnFileStatus||'saved';
-    payload.cardOnFileRequired=true;
+    payload.cardOnFileStatus=data.cardOnFileStatus||'not_collected';
+    payload.cardOnFileRequired=false;
     payload.cloudSaved=true;
     payload.bookingCreated=true;
     payload.notificationState=data.customerEmail||data.notificationDelivery?.customerEmail||null;
     saveLocalBooking(payload);
+    if(window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onBookingSubmitted();
     showSuccess(payload);
   }catch(e){
     console.warn('Booking submission failed:',e.message);
     const code=String(e.message||'');
     const map={
-      card_on_file_not_saved:'Your card is still being verified. Wait a few seconds and try again, or tap Retry verification.',
-      draft_token_invalid:'Your booking session expired. Go back to Secure Your Booking, save your card again, then submit.',
-      invalid_payment_preference:'Your payment preference changed. Go back one step, reselect it, and save your card again.',
-      booking_policy_required:'Please accept the Terms and the card-on-file policy before submitting.',
+      draft_token_invalid:'Your booking session expired. Please submit the request again.',
+      booking_policy_required:'Please accept the Terms & Conditions before submitting.',
       booking_store_unavailable:'Booking storage is temporarily unavailable. Please try again in a moment.',
-      stripe_test_mode_required:'Card save is blocked in this preview environment. Use Stripe test keys on the deploy preview.',
-      booking_slot_unavailable:'That time slot is no longer available. Choose another date or time and submit again — your card stays saved and was not charged.',
-      booking_time_unavailable:'That time is unavailable. Choose another slot and submit again — your card stays saved.',
-      booking_date_unavailable:'That date is unavailable. Choose another day and submit again — your card stays saved.',
-      booking_not_persisted:'Your card may be saved, but the booking was not created. Please submit again or choose another time.',
-      'Draft booking not found':'Your booking draft was not found. Go back to Secure Your Booking and save your card again.',
-      card_on_file_required:'Please securely save a card before submitting.',
+      booking_slot_unavailable:'That time slot is no longer available. Choose another date or time and submit again. No payment was collected.',
+      booking_time_unavailable:'That time is unavailable. Choose another slot and submit again.',
+      booking_date_unavailable:'That date is unavailable. Choose another day and submit again.',
+      booking_not_persisted:'Your booking request was not created. Please submit again or choose another time.',
+      'Draft booking not found':'Your booking session expired. Please submit the request again.',
       rate_limited:'Too many attempts. Please wait a few minutes and try again.'
     };
-    alert(map[code]||('Your booking request was not submitted ('+code+'). Your card was not charged. Please verify the card-on-file step and try again.'));
+    alert(map[code]||('Your booking request was not submitted ('+code+'). No payment was collected. Please try again.'));
   }finally{
     btn.classList.remove('loading'); btn.disabled=false;
   }
@@ -5691,7 +5647,8 @@ function formatSiteAccessForText(b){
   return lines.join('\n');
 }
 
-function buildBookingPayload(){
+function buildBookingPayload(options={}){
+  const cardFlow=options.cardFlow===true;
   // Use multi-vehicle cart if available
   const vehicles = ST.vehicles.length ? ST.vehicles : [buildCurrentVehicleItem()].filter(Boolean);
   const cartBase  = vehicles.reduce((s,v)=>s+(v.subtotal||0), 0);
@@ -5711,6 +5668,8 @@ function buildBookingPayload(){
     vehicleCategory: pv.cat || ST.cat,
     vehicleTier: pv.tierLabel || ST.tier?.label || '',
     lengthFt: ST.lengthFt||'',
+    rvType: ST.rvType||'',
+    livingQuarters: ST.rvLiving||'',
     units: ST.units||1,
     package: pv.pkgName || ST.pkg?.name || '',
     packagePrice: pv.basePrice || ST.basePrice,
@@ -5727,19 +5686,23 @@ function buildBookingPayload(){
     email:document.getElementById('f-email').value.trim(),
     address:document.getElementById('f-addr').value.trim(),
     preferredDate:document.getElementById('f-date').value,
+    preferredArrivalWindow:document.getElementById('f-arrival-window')?.value||'',
     preferredTime:document.getElementById('f-time').value,
+    scheduleFlexibility:document.getElementById('f-has-alternate')?.checked?'alternate_date':(document.getElementById('f-flexibility')?.value||'exact'),
+    alternatePreferredDate:document.getElementById('f-has-alternate')?.checked?(document.getElementById('f-alt-date')?.value||null):null,
+    alternateArrivalWindow:document.getElementById('f-has-alternate')?.checked?(document.getElementById('f-alt-arrival-window')?.value||null):null,
         ...readSiteAccessFields(),
     notes:document.getElementById('f-notes').value.trim(),
     termsAccepted:true,
-    paymentMethod: ST.payMethod || 'pending',
-    paymentMethodPreference: ST.payMethod || 'not_selected',
-    cardOnFileRequired: true,
-    cofPolicyAccepted:!!document.getElementById('cof-policy-ok')?.checked,
+    paymentMethod: cardFlow ? (ST.payMethod || '') : '',
+    paymentMethodPreference: cardFlow ? (ST.payMethod || '') : '',
+    cardOnFileRequired: cardFlow,
+    cofPolicyAccepted:cardFlow && !!document.getElementById('cof-policy-ok')?.checked,
     acceptedBookingPolicy: !!document.getElementById('terms-ok')?.checked,
     acceptedBookingPolicyAt: document.getElementById('terms-ok')?.checked ? new Date().toISOString() : null,
-    acceptedCardOnFilePolicy: !!document.getElementById('cof-policy-ok')?.checked,
-    acceptedCardOnFilePolicyAt: document.getElementById('cof-policy-ok')?.checked ? new Date().toISOString() : null,
-    policyVersion: '2026-06-card-on-file',
+    acceptedCardOnFilePolicy: cardFlow && !!document.getElementById('cof-policy-ok')?.checked,
+    acceptedCardOnFilePolicyAt: cardFlow && document.getElementById('cof-policy-ok')?.checked ? new Date().toISOString() : null,
+    policyVersion: cardFlow ? '2026-06-card-on-file' : '2026-08-booking-request',
     source:'Cardetail1 static booking flow',
     zipCode:document.getElementById('bk-zip')?.value.trim()||'',
     zone:activeZone?activeZone.label:'',
@@ -5757,6 +5720,8 @@ function buildBookingPayload(){
     vehicle_label: pv.vehicleLabel || ST.vehicleLabel || '',
     total_price: totalPrice,
     preferred_date: document.getElementById('f-date').value,
+    welcomeOfferAccepted: !!(ST.offerApplied || (ST.offerPreview && ST.offerPreview.eligibility_status === 'eligible')),
+    welcomeOfferSource: ST.welcomeOfferSource || (ST.offerApplied ? 'panel_apply' : null),
   };
   window.__lastBookingPayload=payload;
   return payload;
@@ -5810,7 +5775,7 @@ function showSuccess(payload){
   // leftover single-vehicle selection state.
   const okCards=document.getElementById('ok-vehicle-cards');
   if(okCards) okCards.innerHTML=bkRenderVehicleSummary(bkProjectVehicles(b).items);
-  document.getElementById('ok-total').textContent=(b.totalPrice||0)?'$'+b.totalPrice:'Estimate';
+  document.getElementById('ok-total').textContent=(b.totalPrice||0)?bkMoney(b.totalPrice):'Estimate';
   document.getElementById('ok-date').textContent=b.preferredDate||document.getElementById('f-date').value;
   const titleEl=document.getElementById('ok-title');
   const subEl=document.getElementById('ok-sub');
@@ -5820,7 +5785,7 @@ function showSuccess(payload){
     const notify=b.notificationState&&b.notificationState.status==='failed'
       ? ' We could not send the confirmation email automatically — your booking is still saved and our team can resend your access link.'
       : ' Check your email for your appointment access link.';
-    subEl.textContent='Your booking request was submitted.'+ref+' Your card was saved securely with Stripe and no charge has been made today.'+notify+' Cardetail1 will review your location, schedule, and vehicle details before confirming the appointment.';
+    subEl.textContent='Your booking request was submitted.'+ref+' No payment was collected and no card was required.'+notify+' Cardetail1 will review your location, schedule, and vehicle details before confirming the appointment. Pay Online in My Garage or pay at service when available.';
   }
   const em=document.getElementById('ok-email'); if(em)em.href=mailtoForBooking(b);
   const sm=document.getElementById('ok-sms'); if(sm)sm.href=smsForBooking(b);
@@ -7305,11 +7270,11 @@ initCarPkgDetailModal();
         chips:[{label:'📅 Add to my booking',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
 
     { keys:['book','booking','appointment','schedule','reserve','agendar','set up','sign up','how do i'], fn:()=>({
-      reply:"Booking takes a couple minutes: 📍 enter ZIP → 🚗 pick category & package → confirm your vehicle → ✨ add extras → your details → review & submit. No charge today - we confirm by text or call first.",
+      reply:"Booking takes a couple minutes: 📍 enter ZIP → 🚗 pick category & package → confirm your vehicle → ✨ add extras → your details → review & submit. No card or payment method is required — we review your request first, then text or call about confirmation.",
       chips:[{label:'📅 Start booking',act:'book'},{label:'💳 Deposit/payment',q:'Do I pay now?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['pay','payment','deposit','charge now','credit card','card','stripe','money','pay now','upfront'], fn:()=>({
-      reply:"You're <b>not charged when you submit</b> - it's a request first. A card on file is required for booking security and is saved securely through Stripe. Choose cash on-site, card on-site, or online after service as your separate payment preference.",
+      reply:"You're <b>not charged when you submit</b> — no card or payment method is required. We review the request first. Payment can be handled later in My Garage or at service when applicable.",
       chips:[{label:'📅 Book now',act:'book'},{label:'❌ Cancellation policy',q:'What is your cancellation policy?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['hour','hours','open','time','when are you','availability','available','today','same day','same-day','weekend'], fn:()=>({

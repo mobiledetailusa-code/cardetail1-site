@@ -21,17 +21,22 @@ for (const page of pages) {
       assert.match(html, /hub-booking-bridge\.js/);
       return;
     }
-    assert.match(html, /No charge today<\/strong> — saving your card lets us process your booking request/);
+    assert.match(html, /Submit with no payment<\/strong> — no card or payment method is required/);
+    assert.match(html, /Pay later<\/strong> — use Pay Online in My Garage or pay at service when available/);
     assert.match(html, /Read Full Terms →/);
     assert.doesNotMatch(html, /<details class="checkout-terms-disclosure"/);
     assert.doesNotMatch(html, /Suggested Booking Terms Summary/);
   });
 
-  test(`${page} auto-selects card-on-file and clears draft token on payment preference change`, () => {
+  test(`${page} does not auto-select payment and preserves separate saved-card setup`, () => {
     const html = read(page);
     if (page !== 'index.html') return;
     assert.match(html, /function ensureStep5Defaults/);
     assert.match(html, /if \(n === 4\)[\s\S]*ensureStep5Defaults/);
+    const defaultsBlock = html.match(/function ensureStep5Defaults\(\)\{[\s\S]*?\n\}/)?.[0] || '';
+    assert.ok(defaultsBlock, 'ensureStep5Defaults block missing');
+    assert.doesNotMatch(defaultsBlock, /ST\.payMethod\s*=/);
+    assert.doesNotMatch(defaultsBlock, /selectPaymentPreference\(/);
     assert.match(html, /clearDraftRegistrationState/);
     assert.match(html, /function selectPaymentPreference/);
     const prefBlock = html.slice(

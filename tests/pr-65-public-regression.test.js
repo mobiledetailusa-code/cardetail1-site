@@ -36,18 +36,20 @@ test('reviews cred-row no longer advertises placeholder gallery line', () => {
 });
 
 test('Step 5 uses short booking policy bullets, not collapsible long terms', () => {
-  assert.match(index, /No charge today<\/strong> — saving your card lets us process your booking request/);
+  assert.match(index, /Submit with no payment<\/strong> — no card or payment method is required/);
+  assert.match(index, /Pay later<\/strong> — use Pay Online in My Garage or pay at service when available/);
   assert.match(index, /Read Full Terms →/);
   assert.doesNotMatch(index, /<details class="checkout-terms-disclosure"/);
   assert.doesNotMatch(index, /Suggested Booking Terms Summary/);
 });
 
-test('public header and card-on-file flow unchanged', () => {
+test('public header and saved-card infrastructure remain available', () => {
   assert.match(index, /onclick="openBooking\(null\)"/);
   assert.match(index, /onclick="openPortal\(\)"/);
   assert.match(index, /href="tel:5513132956"/);
   assert.match(index, /waitForVerifiedCardSave/);
-  assert.match(index, /Secure Your Booking/);
+  assert.match(index, /Step 05 — Review/);
+  assert.match(index, /no card or payment method is required/i);
   assert.match(index, /create-setup-intent/);
 });
 

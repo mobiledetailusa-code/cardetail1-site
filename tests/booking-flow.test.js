@@ -17,42 +17,36 @@ const stripeConfig = read('netlify/functions/stripe-config.js');
 const webhook = read('netlify/functions/stripe-webhook.js');
 const lookup = read('netlify/functions/lookup-booking.js');
 
-test('Step 5 has final copy and all payment preferences', () => {
-  assert.match(index, /Secure Your Booking/);
-  assert.match(index, /No charge today\. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy\./);
-  assert.match(index, /Payment Preference/);
-  assert.match(index, /Cash on-site/);
-  assert.match(index, /Card on-site/);
-  assert.match(index, /Online after service/);
-  assert.match(index, /Card on File Required/);
-  assert.match(index, /A card on file is still required to submit the booking request\./);
+test('Step 5 is a no-card review with later payment options', () => {
+  assert.match(index, /Step 05 — Review/);
+  assert.match(index, /Submit with no payment/);
+  assert.match(index, /no card or payment method is required to send this request\./);
+  assert.match(index, /Pay Online in My Garage or pay at service when available\./);
+  assert.match(index, /Request first · Pay later · No charge today/);
+  assert.doesNotMatch(index, />Secure Your Booking</i);
+  assert.doesNotMatch(index, />Card on File Required</i);
+  assert.doesNotMatch(index, /A card on file is still required to submit the booking request\./i);
 });
 
-test('card-save policy notice has an opaque high-contrast treatment on every booking page', () => {
+test('initial booking pages do not render a saved-card notice or consent gate', () => {
   const pages = fs.readdirSync(root)
     .filter(file => file.endsWith('.html'))
-    .filter(file => read(file).includes('Before saving your card, please note:'));
-  const noticeCss = read('assets/booking-summary.css');
+    .filter(file => read(file).includes('id="bk-ov"'));
 
-  assert.equal(pages.length, 13, 'expected the notice on all 13 booking pages');
+  assert.equal(pages.length, 13, 'expected all 13 booking surfaces');
   for (const page of pages) {
     const html = read(page);
-    assert.match(html, /class="card-save-notice"/);
-    assert.match(html, /class="card-save-notice-copy"/);
-    assert.match(html, /class="card-save-notice-title"/);
-    assert.doesNotMatch(html, /background:rgba\(255,255,255,\.04\)/,
-      `${page} still has the transparent policy notice`);
+    assert.doesNotMatch(html, /Before saving your card, please note:/, `${page} still renders card-save notice copy`);
+    assert.doesNotMatch(html, /id="cof-policy-ok"/, `${page} still renders card consent`);
+    assert.doesNotMatch(html, /id="stripe-auth-btn"/, `${page} still renders card save CTA`);
   }
-  assert.match(noticeCss, /\.card-save-notice\s*\{[\s\S]*background:\s*#f8fafc/);
-  assert.match(noticeCss, /\.card-save-notice-copy\s*\{[\s\S]*color:\s*#1e293b/);
-  assert.match(noticeCss, /\.card-save-notice-title\s*\{[\s\S]*color:\s*#0f172a/);
-  assert.match(noticeCss, /\.card-save-notice ::selection\s*\{[\s\S]*background:\s*#bfdbfe/);
 });
 
-test('Step 5 gates preference, consent, saved card, and final terms', () => {
-  assert.match(index, /Please select a payment preference before continuing/);
-  assert.match(index, /Please accept the card-on-file policy before continuing/);
-  assert.match(index, /Please securely save a card with Stripe before continuing/);
+test('initial submission gates final terms but not payment or saved card', () => {
+  const continueBlock = index.slice(index.indexOf('function goToConfirmFromTerms'), index.indexOf('function bkScrollToConfirm'));
+  const submitBlock = index.slice(index.indexOf('async function submitBooking'), index.indexOf('function readSiteAccessFields'));
+  assert.doesNotMatch(continueBlock, /payMethod|cardOnFileSaved|cof-policy-ok/);
+  assert.doesNotMatch(submitBlock, /confirmSetupIntent|create-setup-intent|cardOnFileSaved|cof-policy-ok/);
   assert.match(index, /Please agree to the Terms & Conditions before submitting/);
 });
 
@@ -83,7 +77,7 @@ test('card-on-file uses SetupIntent with off-session usage and bookingId metadat
   assert.doesNotMatch(stripeConfig, /STRIPE_SECRET_KEY/);
 });
 
-test('server requires webhook-saved card and fixes booking statuses', () => {
+test('server keeps strict saved-card flow and permits explicit no-card drafts', () => {
   assert.match(submit, /existing\.cardOnFileStatus !== 'saved'/);
   assert.match(submit, /card_on_file_required/);
   assert.match(submit, /skipMismatchCheck:\s*true/);
@@ -93,7 +87,9 @@ test('server requires webhook-saved card and fixes booking statuses', () => {
   assert.match(submit, /paymentStatus:\s+'no_payment_required_yet'/);
   assert.match(submit, /appointmentStatus:\s+'pending_review'/);
   assert.match(submit, /jobStatus:\s+'pending_review'/);
-  assert.match(submit, /cardOnFileRequired:\s+true/);
+  assert.match(submit, /cardOnFileRequired = existing/);
+  assert.match(submit, /cardOnFileStatus:\s*'not_collected'/);
+  assert.match(submit, /paymentWorkflowStatus:\s*'no_payment_required_yet'/);
   assert.match(submit, /online_after_service/);
 });
 
@@ -148,10 +144,10 @@ test('cancellation is manual and does not charge or delete', () => {
   assert.doesNotMatch(cancellation, /\.delete\(/);
 });
 
-test('terms state universal card requirement and manual review', () => {
-  assert.match(terms, /card on file is required for every booking request/i);
+test('terms state no-card initial request, optional saved cards, and manual review', () => {
+  assert.match(terms, /No card or payment method is required to submit an initial booking request/i);
   assert.match(terms, /does not guarantee an appointment/i);
-  assert.match(terms, /No charge is made when your card is saved/i);
+  assert.match(terms, /Optional saved-card authorization/i);
   assert.match(terms, /handled securely by Stripe/i);
   assert.match(terms, /less than 24 hours/i);
   assert.match(terms, /No cancellation, no-show, or access fee is charged automatically/i);
