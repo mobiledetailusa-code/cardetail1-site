@@ -11,7 +11,22 @@ const {
   assertNoProductionSends,
   providerWritePlan,
   parseArgs,
+  twilioAuthMode,
 } = require('../scripts/twilio-netlify-activate');
+
+test('activation prefers primary Auth Token over a Standard API key', () => {
+  assert.equal(twilioAuthMode({
+    TWILIO_ACCOUNT_SID: 'ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    TWILIO_AUTH_TOKEN: 'primary-token',
+    TWILIO_API_KEY: 'SKaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    TWILIO_API_SECRET: 'stale-secret',
+  }), 'auth_token');
+  assert.equal(twilioAuthMode({
+    TWILIO_ACCOUNT_SID: 'ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    TWILIO_API_KEY: 'SKaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    TWILIO_API_SECRET: 'only-key',
+  }), 'api_key');
+});
 
 test('default argv is inspect-only and never opts into production sends', () => {
   const args = parseArgs(['node', 'scripts/twilio-netlify-activate.js']);

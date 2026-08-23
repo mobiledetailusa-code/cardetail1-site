@@ -193,14 +193,26 @@ async function publicProbe() {
   };
 }
 
+function twilioAuthMode(secrets = {}) {
+  if (secrets.TWILIO_ACCOUNT_SID && secrets.TWILIO_AUTH_TOKEN) return 'auth_token';
+  if (secrets.TWILIO_API_KEY && secrets.TWILIO_API_SECRET && secrets.TWILIO_ACCOUNT_SID) return 'api_key';
+  return 'missing';
+}
+
 function twilioClient(secrets) {
   const twilio = require('twilio');
-  if (secrets.TWILIO_API_KEY && secrets.TWILIO_API_SECRET && secrets.TWILIO_ACCOUNT_SID) {
+  const mode = twilioAuthMode(secrets);
+  // Activation is account management. Prefer the primary Auth Token when present
+  // so stale/invalid Standard API keys cannot block webhook configuration.
+  if (mode === 'auth_token') {
+    return twilio(secrets.TWILIO_ACCOUNT_SID, secrets.TWILIO_AUTH_TOKEN);
+  }
+  if (mode === 'api_key') {
     return twilio(secrets.TWILIO_API_KEY, secrets.TWILIO_API_SECRET, {
       accountSid: secrets.TWILIO_ACCOUNT_SID,
     });
   }
-  return twilio(secrets.TWILIO_ACCOUNT_SID, secrets.TWILIO_AUTH_TOKEN);
+  throw new Error('twilio_credentials_missing');
 }
 
 async function configureMessagingService(client, messagingServiceSid) {
@@ -214,7 +226,10 @@ async function configureMessagingService(client, messagingServiceSid) {
   return {
     sid: service.sid,
     inboundRequestUrl: service.inboundRequestUrl,
+    inboundMethod: service.inboundMethod,
     statusCallback: service.statusCallback,
+    useInboundWebhookOnNumber: service.useInboundWebhookOnNumber,
+    stickySender: service.stickySender,
   };
 }
 
@@ -335,11 +350,21 @@ async function main(argv = process.argv) {
       console.error(JSON.stringify({ ok: false, error: 'twilio_credentials_missing' }));
       return 1;
     }
-    if (!/^MG[a-zA-Z0-9]{8,}$/.test(String(secrets.TWILIO_MESSAGING_SERVICE_SID || ''))) {
-      console.error(JSON.stringify({ ok: false, error: 'messaging_service_missing' }));
-      return 1;
-    }
     const client = twilioClient(secrets);
+    if (!/^MG[a-zA-Z0-9]{8,}$/.test(String(secrets.TWILIO_MESSAGING_SERVICE_SID || ''))) {
+      const services = await client.messaging.v1.services.list({ limit: 20 });
+      if (services.length === 1) {
+        secrets.TWILIO_MESSAGING_SERVICE_SID = services[0].sid;
+        report.actions.push({ resolvedMessagingService: services[0].sid });
+      } else {
+        console.error(JSON.stringify({
+          ok: false,
+          error: 'messaging_service_missing',
+          found: services.map((s) => s.sid),
+        }));
+        return 1;
+      }
+    }
     const updated = await configureMessagingService(client, secrets.TWILIO_MESSAGING_SERVICE_SID);
     report.actions.push({ configureMessagingService: updated });
     if (args.ensureNumber) {
@@ -413,5 +438,6 @@ module.exports = {
   assertNoProductionSends,
   providerWritePlan,
   parseArgs,
+  twilioAuthMode,
   main,
 };
