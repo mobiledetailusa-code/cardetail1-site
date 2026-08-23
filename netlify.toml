@@ -116,6 +116,13 @@
     # frame-src must include 'self' so specialty pages can embed the homepage booking modal.
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.stripe.com https://*.netlify.app https://www.google-analytics.com https://www.clarity.ms blob:; frame-src 'self' https://js.stripe.com https://hooks.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self'"
 
+# Access-token URLs must not leak ?t= via Referer into the garage or third parties.
+[[headers]]
+  for = "/a"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+    Cache-Control = "no-store"
+
 # WELCOME10 QA — branch deploy for operations-core-job-lifecycle only (not production).
 [context."operations-core-job-lifecycle".environment]
   FIRST_BOOKING_OFFER_ENABLED = "true"
