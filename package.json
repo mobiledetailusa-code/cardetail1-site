@@ -15,6 +15,7 @@
     "owner-studio:staging:netlify-env": "node scripts/owner-studio-staging-netlify-env.js",
     "owner-studio:staging:seed-catalog": "node scripts/owner-studio-staging-seed-catalog.js",
     "audit:pre-deploy": "node scripts/pre-deploy-audit.mjs",
+    "twilio:activate": "node scripts/twilio-netlify-activate.js",
     "financial:preflight": "node scripts/financial-preflight.mjs",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",

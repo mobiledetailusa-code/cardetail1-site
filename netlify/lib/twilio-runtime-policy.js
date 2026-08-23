@@ -1,5 +1,7 @@
 'use strict';
 
+const { readDeployEnv } = require('./trusted-site-origin');
+
 function enabled(value) {
   return String(value || '').trim().toLowerCase() === 'true';
 }
@@ -8,12 +10,21 @@ function clean(value) {
   return String(value || '').trim();
 }
 
+function identityValue(env, liveKey, bakedKey = liveKey) {
+  const live = clean(env[liveKey]);
+  if (live) return live;
+  return clean(readDeployEnv(bakedKey));
+}
+
 function runtimeIdentity(env = process.env) {
-  const context = clean(env.CONTEXT || env.DEPLOY_CONTEXT).toLowerCase();
-  const branch = clean(env.BRANCH || env.HEAD).toLowerCase();
+  // Functions on this site do not receive CONTEXT/BRANCH at runtime; the
+  // Netlify build command bakes them via generate-deploy-runtime-env.js.
+  const context = (identityValue(env, 'CONTEXT') || identityValue(env, 'DEPLOY_CONTEXT', 'CONTEXT')).toLowerCase();
+  const branch = (identityValue(env, 'BRANCH') || identityValue(env, 'HEAD', 'BRANCH')).toLowerCase();
   let host = '';
   try {
-    host = new URL(clean(env.URL || env.PUBLIC_SITE_URL)).hostname.toLowerCase();
+    const url = clean(env.URL || env.PUBLIC_SITE_URL) || readDeployEnv('URL');
+    host = new URL(url).hostname.toLowerCase();
   } catch {
     host = '';
   }
