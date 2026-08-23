@@ -5368,7 +5368,7 @@ function showSuccess(payload){
     const notify=b.notificationState&&b.notificationState.status==='failed'
       ? ' We could not send the confirmation email automatically — your booking is still saved and our team can resend your access link.'
       : ' Check your email for your appointment access link.';
-    subEl.textContent='Your booking request was submitted.'+ref+' No payment was collected and no card was required.'+notify+' Cardetail1 will review your location, schedule, and vehicle details before confirming the appointment. We'll contact you with your booking update. If you opted in for SMS, updates may be sent by text. Pay Online in My Garage or pay at service when available.';
+    subEl.textContent='Your booking request was submitted.'+ref+' No payment was collected and no card was required.'+notify+' Cardetail1 will review your location, schedule, and vehicle details before confirming the appointment. We\'ll contact you with your booking update. If you opted in for SMS, updates may be sent by text. Pay Online in My Garage or pay at service when available.';
   }
   const em=document.getElementById('ok-email'); if(em)em.href=mailtoForBooking(b);
   const sm=document.getElementById('ok-sms'); if(sm)sm.href=smsForBooking(b);
