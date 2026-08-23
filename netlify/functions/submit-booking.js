@@ -32,6 +32,11 @@ const CLIENT_BLOCKED_FIELDS = [
   'status', 'appointmentStatus', 'jobStatus', 'adminNotes', 'assignedTech',
   'assignedTechName', 'confirmedDate', 'confirmedTimeWindow',
   'adminReviewed', 'archived',
+  // The browser supplies only a strict boolean choice. Evidence metadata is
+  // authored by the server at finalization and cannot be backdated/spoofed.
+  'transactionalSmsConsent', 'transactionalSmsConsentTextVersion',
+  'acceptedTransactionalSmsConsentAt', 'transactionalSmsConsentSource',
+  'marketingSmsConsentAccepted',
 ];
 
 const PAYMENT_PREFERENCES = new Set([
@@ -77,6 +82,7 @@ function smsOutbox() {
   };
 }
 const { enabled } = require('../lib/twilio-runtime-policy');
+const { canonicalBookingSmsConsent } = require('../lib/sms-program');
 const {
   reconcileCardOnFileFromStripe,
   siIdPrefix,
@@ -778,6 +784,7 @@ exports.handler = async (event) => {
       });
     }
     const finalizedAt = new Date().toISOString();
+    const transactionalSmsConsentAccepted = b.transactionalSmsConsentAccepted === true;
 
     // Preserve fields the webhook may have already set on the draft.
     b = {
@@ -800,6 +807,13 @@ exports.handler = async (event) => {
       acceptedCardOnFilePolicy: cardOnFileRequired,
       acceptedCardOnFilePolicyAt: cardOnFileRequired ? existing.acceptedCardOnFilePolicyAt : null,
       policyVersion: cardOnFileRequired ? '2026-06-card-on-file' : '2026-08-booking-request',
+      transactionalSmsConsentAccepted,
+      transactionalSmsConsent: canonicalBookingSmsConsent(
+        transactionalSmsConsentAccepted,
+        finalizedAt
+      ),
+      // Transactional consent never implies promotional consent.
+      marketingSmsConsentAccepted: false,
       // Payment fields: trust Blobs, not the browser
       paymentStatus:        'no_payment_required_yet',
       paymentWorkflowStatus:'no_payment_required_yet',

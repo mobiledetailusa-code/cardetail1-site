@@ -9,6 +9,11 @@ const {
   assertCustomerPortalAccountActive,
 } = require('./customer-account-service');
 const { projectCustomerIdentity, assertSafeCustomerProjection } = require('./customer-identity-projection');
+const {
+  BOOKING_CONSENT_TEXT_VERSION,
+  BOOKING_CONSENT_SOURCE,
+  bookingSmsConsentGranted,
+} = require('./sms-program');
 
 const CHANNEL = 'sms_transactional';
 const CONSENT_TEXT_VERSION = 'sms-transactional-v1-2026-08-05';
@@ -124,6 +129,94 @@ async function updateSmsConsent(input = {}, opts = {}) {
   }
 }
 
+/**
+ * Convert one server-recorded public booking checkbox into the existing
+ * account-level current-state consent row. A STOP/portal revocation recorded
+ * at or after this booking consent always wins, so replaying an old booking can
+ * never opt the customer back in.
+ */
+async function grantBookingSmsConsent({ customerAccountId, toE164, booking } = {}, opts = {}) {
+  const prisma = prismaClient(opts.prisma);
+  if (!prisma || typeof prisma.$transaction !== 'function') {
+    return { ok: false, error: 'unavailable' };
+  }
+  if (!customerAccountId || !bookingSmsConsentGranted(booking)) {
+    return { ok: true, granted: false, reason: 'booking_sms_consent_required' };
+  }
+  const consentAt = new Date(booking.transactionalSmsConsent.recordedAt);
+  if (!Number.isFinite(consentAt.getTime())) {
+    return { ok: true, granted: false, reason: 'booking_sms_consent_invalid' };
+  }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const account = await tx.customerAccount.findUnique({
+        where: { id: customerAccountId },
+        include: { profile: true, consents: true },
+      });
+      const gate = assertCustomerPortalAccountActive(account);
+      if (!gate.ok) return { ok: false, error: 'customer_not_active' };
+      const verifiedPhone = normalizeUsPhoneE164(account.profile?.normalizedPhone || account.profile?.phone || '');
+      if (!verifiedPhone || verifiedPhone !== normalizeUsPhoneE164(toE164)) {
+        return { ok: false, error: 'verified_phone_mismatch' };
+      }
+      const current = (account.consents || []).find((row) => row.channel === CHANNEL);
+      const revokedAtMs = current?.revokedAt ? new Date(current.revokedAt).getTime() : Number.NaN;
+      if (current?.status === 'revoked' && Number.isFinite(revokedAtMs) && revokedAtMs >= consentAt.getTime()) {
+        return { ok: true, granted: false, reason: 'newer_revocation' };
+      }
+      const grantedAtMs = current?.grantedAt ? new Date(current.grantedAt).getTime() : Number.NaN;
+      if (
+        current?.status === 'granted'
+        && current.consentTextVersion === BOOKING_CONSENT_TEXT_VERSION
+        && Number.isFinite(grantedAtMs)
+        && grantedAtMs >= consentAt.getTime()
+      ) {
+        return { ok: true, granted: true, unchanged: true, accountVersion: account.version };
+      }
+      const nextVersion = account.version + 1;
+      const bumped = await tx.customerAccount.updateMany({
+        where: { id: customerAccountId, version: account.version },
+        data: { version: nextVersion, updatedAt: new Date() },
+      });
+      if (!bumped || bumped.count !== 1) return { ok: false, error: 'version_conflict' };
+      await tx.customerConsent.upsert({
+        where: { customerAccountId_channel: { customerAccountId, channel: CHANNEL } },
+        create: {
+          customerAccountId,
+          channel: CHANNEL,
+          status: 'granted',
+          grantedAt: consentAt,
+          revokedAt: null,
+          source: BOOKING_CONSENT_SOURCE,
+          consentTextVersion: BOOKING_CONSENT_TEXT_VERSION,
+        },
+        update: {
+          status: 'granted',
+          grantedAt: consentAt,
+          revokedAt: null,
+          source: BOOKING_CONSENT_SOURCE,
+          consentTextVersion: BOOKING_CONSENT_TEXT_VERSION,
+        },
+      });
+      await emitIdentityAudit(tx, {
+        actor: 'customer:booking',
+        action: 'sms_consent_granted',
+        detail: {
+          customerAccountId,
+          bookingId: String(booking.id || booking.bookingId || '').slice(0, 80) || null,
+          consentTextVersion: BOOKING_CONSENT_TEXT_VERSION,
+          source: BOOKING_CONSENT_SOURCE,
+          fromVersion: account.version,
+          toVersion: nextVersion,
+        },
+      });
+      return { ok: true, granted: true, accountVersion: nextVersion };
+    });
+  } catch {
+    return { ok: false, error: 'unavailable' };
+  }
+}
+
 async function revokeSmsConsentByPhone(rawPhone, opts = {}) {
   const prisma = prismaClient(opts.prisma);
   const phone = normalizeUsPhoneE164(rawPhone);
@@ -195,5 +288,6 @@ module.exports = {
   CONSENT_TEXT_VERSION,
   assertCustomerSmsConsent,
   updateSmsConsent,
+  grantBookingSmsConsent,
   revokeSmsConsentByPhone,
 };

@@ -22,9 +22,18 @@ Click IDs (`gclid`, `gbraid`, `wbraid`, `msclkid`, `fbclid`) stored first-party 
 - Address dedup via HMAC (`HOUSEHOLD_DEDUP_SECRET`) — hash never public
 - Rate limiting uses pseudonymous identifiers (existing `public-rate-limit.js` pattern)
 
-## Booking consent (unchanged)
+## Booking and SMS consent
 
 Card-on-file policy and terms checkboxes remain separate from marketing consent. Accepting service terms ≠ marketing opt-in.
+
+The public booking flow also has a separate, unchecked-by-default transactional SMS checkbox. Declining it does not block step navigation or booking submission. The browser sends only a strict boolean choice; finalization writes the server timestamp, text version, source/method, program name, and true/false choice into the authoritative booking aggregate. A checked choice may also update the existing `CustomerConsent` current-state row. A later STOP or portal revocation wins over replay of an older booking.
+
+Program scope: booking request receipt, booking/appointment status, confirmation, reminders, service/technician updates, rescheduling/cancellation status, and applicable payment/receipt notices. It does not include promotional SMS.
+
+Public policies:
+
+- `https://cardetail1.com/privacy-policy`
+- `https://cardetail1.com/terms-conditions`
 
 ## Deletion / retention
 
@@ -37,3 +46,5 @@ Recommend legal review before enabling promotional SMS/email automation.
 ## Withdrawal
 
 Re-open banner by clearing `cd1_consent_v1` from localStorage (future: dedicated preference link in footer).
+
+Transactional SMS consent is withdrawn by replying STOP or through the existing authenticated SMS preference control. HELP is handled by the Twilio Messaging Service's Advanced Opt-Out response when configured; the signed inbound webhook intentionally returns empty TwiML to avoid duplicate replies.
