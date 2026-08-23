@@ -237,3 +237,51 @@ test('openLogin always opens on the customer role', () => {
   const index = read('index.html');
   assert.match(index, /function openLogin\(\)\{[\s\S]*?setLoginRole\('customer'\);[\s\S]*?\}/);
 });
+
+// ── F. Optional SMS: no unconditional "we'll text you" on booking surfaces ────
+
+test('booking surfaces do not unconditionally promise SMS booking updates', () => {
+  const forbidden = /we(?:['’]ll| will)? text you(?! if you opted in)|then text you|then text or call|Appointment updates by text|Booking confirmed by text|confirming by text|confirmed by text|via text or your local dashboard|>Text confirmation</i;
+  for (const page of bookingPages) {
+    assert.doesNotMatch(read(page), forbidden, `${page} still promises SMS regardless of consent`);
+  }
+  assert.doesNotMatch(
+    read('scripts/apply-state-hub-theme.mjs'),
+    forbidden,
+    'hub theme generator still promises SMS regardless of consent',
+  );
+  assert.doesNotMatch(
+    read('scripts/patch-hub-seo-audit.mjs'),
+    /confirming by text|we'll text you|Appointment updates by text/i,
+    'hub SEO patch still promises SMS regardless of consent',
+  );
+});
+
+test('review, confirm, and success copy keep SMS opt-in-only', () => {
+  for (const page of bookingPages) {
+    const html = read(page);
+    assert.match(
+      html,
+      /we'll contact you with your booking update\. If you opted in for SMS, updates may be sent by text\./i,
+      `${page} lost the Confirm-step SMS qualifier`,
+    );
+    assert.match(
+      html,
+      /If you opted in for SMS, updates may be sent by text\./,
+      `${page} lost the opt-in SMS qualifier`,
+    );
+    assert.match(
+      html,
+      /Reply STOP to opt out or HELP for help/,
+      `${page} lost legitimate STOP/HELP disclosure`,
+    );
+  }
+});
+
+test('homepage contact copy does not promise SMS to every visitor', () => {
+  const index = read('index.html');
+  assert.match(index, /We'll contact you with updates — SMS only if you opted in/);
+  assert.match(index, /Booking reviewed before confirmation/);
+  assert.doesNotMatch(index, /Appointment updates by text/);
+  assert.doesNotMatch(index, /Booking confirmed by text/);
+});
