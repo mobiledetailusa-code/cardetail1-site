@@ -2,6 +2,8 @@
 (function (global) {
   'use strict';
 
+  var pageViewSent = false;
+
   function detectPageType() {
     var p = global.location.pathname || '/';
     if (p.indexOf('-hub.html') >= 0 || p.indexOf('-county-hub') >= 0) return 'hub';
@@ -15,7 +17,15 @@
     if (global.Cardetail1Consent) global.Cardetail1Consent.renderBanner();
     if (global.Cardetail1Revenue) {
       global.Cardetail1Revenue.initAdapters();
-      global.Cardetail1Revenue.initPageView(detectPageType());
+      var delegatedEmbed = false;
+      try {
+        delegatedEmbed = global.parent !== global
+          && new URLSearchParams(global.location.search || '').get('embed') === '1';
+      } catch (e) { /* treat inaccessible parent/query as standalone */ }
+      if (!delegatedEmbed && !pageViewSent) {
+        pageViewSent = true;
+        global.Cardetail1Revenue.initPageView(detectPageType());
+      }
     }
     document.querySelectorAll('[data-cd1-garage-cta]').forEach(function (el) {
       el.addEventListener('click', function (e) {

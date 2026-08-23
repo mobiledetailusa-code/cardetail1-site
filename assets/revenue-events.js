@@ -54,6 +54,7 @@
     utm_content: 1, referrer_domain: 1, lead_temperature: 1, household_segment: 1,
     error_code: 1, offer_id: 1, multi_vehicle_band: 1, flexibility_mode: 1,
     weekend_selected: 1, funnel_step: 1, failure_code: 1, service_category: 1,
+    booking_id: 1,
   };
 
   var GA4_MAP = {
@@ -69,8 +70,24 @@
     return 'evt_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
 
+  function delegatedSessionId() {
+    try {
+      if (global.parent === global) return '';
+      var q = parseQuery();
+      var candidate = q.embed === '1' ? String(q.cd1_session || '') : '';
+      return /^sess_[A-Za-z0-9_-]{8,120}$/.test(candidate) ? candidate : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
   function getSessionId() {
     try {
+      var delegated = delegatedSessionId();
+      if (delegated) {
+        if (sessionStorage.getItem(SESSION_KEY) !== delegated) sessionStorage.setItem(SESSION_KEY, delegated);
+        return delegated;
+      }
       var s = sessionStorage.getItem(SESSION_KEY);
       if (s) return s;
       s = 'sess_' + uuid();
@@ -139,7 +156,10 @@
       if (!APPROVED_PROPS[k]) return;
       var v = props[k];
       if (v == null) return;
-      if (typeof v === 'string') out[k] = v.slice(0, 256);
+      if (k === 'booking_id') {
+        var bookingId = String(v || '').trim();
+        if (/^CD1-[A-Z0-9][A-Z0-9-]{2,123}$/.test(bookingId)) out[k] = bookingId;
+      } else if (typeof v === 'string') out[k] = v.slice(0, 256);
       else if (typeof v === 'number' && isFinite(v)) out[k] = v;
       else if (typeof v === 'boolean') out[k] = v;
     });

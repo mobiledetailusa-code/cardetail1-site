@@ -174,6 +174,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/create-setup-intent.js',
     'netlify/lib/public-rate-limit.js',
     'netlify/lib/revenue-event-schema.js',
+    'netlify/lib/booking-funnel-report.js',
     'netlify/lib/revenue-store.js',
     'netlify/lib/revenue-segments.js',
     'netlify/lib/revenue-scoring.js',

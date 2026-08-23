@@ -31,7 +31,7 @@ const APPROVED_PROPERTIES = Object.freeze([
   'utm_content', 'referrer_domain', 'lead_temperature', 'household_segment',
   'error_code', 'offer_id', 'multi_vehicle_band',
   'flexibility_mode', 'weekend_selected', 'funnel_step', 'failure_code',
-  'service_category',
+  'service_category', 'booking_id',
 ]);
 
 const PII_PROPERTY_KEYS = Object.freeze([
@@ -67,6 +67,10 @@ const MAX_PROPERTY_VALUE_LEN = 256;
 
 function sanitizePropertyValue(key, value) {
   if (value == null) return undefined;
+  if (key === 'booking_id') {
+    const bookingId = String(value).trim();
+    return /^CD1-[A-Z0-9][A-Z0-9-]{2,123}$/.test(bookingId) ? bookingId : undefined;
+  }
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) return undefined;
     return value;
