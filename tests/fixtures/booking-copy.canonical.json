@@ -317,6 +317,34 @@
           "$why": "Same as arrival-anytime: element 2 lives in the [hidden] alternate-date block."
         },
         "why": "The window length must match BK_ARRIVAL_BOUNDS. Preferred and alternate blocks must agree."
+      },
+      {
+        "id": "sms-opt-in-review-desc",
+        "anchor": "#bs5 > .bdesc",
+        "match": "contains",
+        "texts": ["then contact you about confirmation. If you opted in for SMS, updates may be sent by text."],
+        "why": "Review copy must qualify SMS as opt-in only; it must not promise a text to every customer."
+      },
+      {
+        "id": "sms-opt-in-pending-review",
+        "anchor": "#bs5 .pay-box li:nth-child(2)",
+        "match": "contains",
+        "texts": ["we'll contact you after checking schedule, location, weather, and access. If you opted in for SMS, updates may be sent by text."],
+        "why": "The pending-review bullet must not treat SMS as the confirmation channel."
+      },
+      {
+        "id": "sms-opt-in-confirm-desc",
+        "anchor": "#bs6 > .bdesc",
+        "match": "contains",
+        "texts": ["we'll contact you with your booking update. If you opted in for SMS, updates may be sent by text."],
+        "why": "Confirm-step copy must not promise SMS to customers who declined consent."
+      },
+      {
+        "id": "sms-opt-in-success",
+        "anchor": "#ok-sub",
+        "match": "contains",
+        "texts": ["We'll review your details and contact you about confirmation — usually within a few hours. If you opted in for SMS, updates may be sent by text."],
+        "why": "Success-state copy must keep SMS optional after submit."
       }
     ],
 
@@ -381,7 +409,11 @@
       "utilities-reassurance",
       "water-optional",
       "power-optional",
-      "availability-notice"
+      "availability-notice",
+      "sms-opt-in-review-desc",
+      "sms-opt-in-pending-review",
+      "sms-opt-in-confirm-desc",
+      "sms-opt-in-success"
     ]
   },
 
@@ -397,6 +429,12 @@
       "pattern": "we confirm by text(?: or call first)?|we text you to confirm the appointment|we'll confirm your appointment by text or call|we'll review your details and text you to confirm your appointment",
       "flags": "i",
       "why": "Initial booking copy must say the request is reviewed before confirmation, not imply automatic confirmation."
+    },
+    {
+      "id": "unconditional-sms-update-promise",
+      "pattern": "we(?:['’]ll| will)? text you(?! if you opted in)|then text you|then text or call|and text you about confirmation|via text or your local dashboard|>Text confirmation<|Appointment updates by text|Booking confirmed by text|confirming by text|confirmed by text|we(?:['’]ll| will) send you a text|we will send SMS",
+      "flags": "i",
+      "why": "SMS is optional. Initial booking surfaces must not promise that booking updates WILL be sent by text to customers who declined consent. Legitimate opt-in, STOP/HELP, and 'receive text messages if you opt in' copy is not covered by this pattern."
     },
     {
       "id": "slot-hold-promise",

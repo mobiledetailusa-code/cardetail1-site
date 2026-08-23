@@ -106,6 +106,16 @@ describe('public transactional SMS consent surface', () => {
     assert.match(terms, /Mobile carriers are not liable for delayed or undelivered messages/);
     assert.match(terms, /No card or payment method is required to submit an initial booking request/);
   });
+
+  it('Terms §12 acceptance is not SMS consent', () => {
+    const heading = terms.indexOf('12. Customer Consent');
+    assert.ok(heading >= 0, 'missing Terms §12 heading');
+    const section = terms.slice(heading, terms.indexOf('class="foot"', heading));
+    assert.doesNotMatch(section, /all terms above/i);
+    assert.match(section, /Submitting a booking or accepting these Terms does not enroll you in SMS/);
+    assert.match(section, /collected only through the separate booking checkbox/);
+    assert.match(section, /not a condition of booking, purchase, or service/);
+  });
 });
 
 function createMemoryStore() {

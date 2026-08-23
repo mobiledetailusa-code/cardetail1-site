@@ -76,7 +76,7 @@ const HUBS = {
       },
       {
         q: 'How do I book mobile detailing in the NY Metro area?',
-        a: 'Tap Book Mobile Detail, enter your ZIP, choose your package and vehicle, then submit your request. We review location, access, and availability before confirming by text.',
+        a: 'Tap Book Mobile Detail, enter your ZIP, choose your package and vehicle, then submit your request. We review location, access, and availability, then contact you about confirmation. If you opted in for SMS, that update may be sent by text.',
       },
     ],
   },
