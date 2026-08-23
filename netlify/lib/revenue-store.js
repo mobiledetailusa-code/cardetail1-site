@@ -22,9 +22,18 @@ const RETENTION_DAYS = {
   recovery: 180,
   offerRedemptions: 730,
   resumeTokens: 90,
-  eventIdempotency: 30,
+  // Event-ID reservations must live at least as long as the event record or a
+  // very-late replay could be treated as new. These values are policy targets,
+  // not enforced TTLs: this repository has no Blob expiry/cleanup job.
+  eventIdempotency: 400,
   adminAudit: 365,
 };
+
+const RETENTION_ENFORCEMENT = Object.freeze({
+  mechanism: 'none',
+  automaticTtl: false,
+  note: 'RETENTION_DAYS are policy targets only; Netlify Blob writes here do not set a TTL.',
+});
 
 function runningInNetlifyFunction() {
   return !!(process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
@@ -68,8 +77,28 @@ async function blobGetJson(store, key) {
   }
 }
 
+/** Strict read for correctness-critical paths. Storage/parse failures propagate. */
+async function blobGetJsonStrict(store, key) {
+  const raw = await store.get(key, { type: 'text', consistency: 'strong' });
+  if (!raw) return null;
+  return JSON.parse(raw);
+}
+
 async function blobSetJson(store, key, value) {
-  await store.set(key, JSON.stringify(value));
+  return store.set(key, JSON.stringify(value));
+}
+
+/**
+ * Atomic create-only write backed by @netlify/blobs `onlyIfNew`.
+ * The client maps this to `If-None-Match: *`; an existing key returns
+ * `{ modified: false }` instead of being overwritten.
+ */
+async function blobCreateJson(store, key, value) {
+  const result = await store.set(key, JSON.stringify(value), { onlyIfNew: true });
+  return {
+    created: !!(result && result.modified),
+    etag: result && result.etag ? result.etag : null,
+  };
 }
 
 /** List blob keys — compatible with Netlify Blobs paginated and legacy list APIs. */
@@ -125,9 +154,12 @@ function generateOpaqueId(prefix) {
 module.exports = {
   REVENUE_STORES,
   RETENTION_DAYS,
+  RETENTION_ENFORCEMENT,
   getRevenueStore,
   blobGetJson,
+  blobGetJsonStrict,
   blobSetJson,
+  blobCreateJson,
   blobListKeys,
   retentionExpiresAt,
   generateOpaqueId,

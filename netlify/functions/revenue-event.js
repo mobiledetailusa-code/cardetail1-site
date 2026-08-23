@@ -1,8 +1,13 @@
 // POST /.netlify/functions/revenue-event — first-party analytics ingestion.
 
+const crypto = require('crypto');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 const { validateEventPayload } = require('../lib/revenue-event-schema');
-const { getRevenueStore, blobGetJson, blobSetJson, retentionExpiresAt } = require('../lib/revenue-store');
+const {
+  getRevenueStore,
+  blobGetJsonStrict,
+  blobCreateJson,
+} = require('../lib/revenue-store');
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -10,6 +15,46 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Content-Type': 'application/json',
 };
+
+function fingerprintEvent(validated) {
+  const properties = { ...validated.properties };
+  // The ID already names the reservation. Timestamp is deliberately excluded:
+  // legacy/direct callers may omit it, causing validation to supply a new value
+  // on a later retry. Same ID + same semantic payload must still replay safely.
+  delete properties.event_id;
+  delete properties.timestamp;
+  delete properties.anonymous_session_id;
+  const stableProperties = {};
+  Object.keys(properties).sort().forEach((key) => { stableProperties[key] = properties[key]; });
+  return crypto.createHash('sha256').update(JSON.stringify({
+    event: validated.event,
+    sessionId: validated.sessionId,
+    properties: stableProperties,
+  })).digest('hex');
+}
+
+function isLegacyReservation(value, eventId) {
+  return !!(
+    value
+    && value.eventId === eventId
+    && !value.fingerprint
+    && !value.storeKey
+    && !value.record
+  );
+}
+
+function reservationIsUsable(value, eventId) {
+  return !!(
+    value
+    && value.version === 2
+    && value.eventId === eventId
+    && typeof value.fingerprint === 'string'
+    && typeof value.storeKey === 'string'
+    && value.storeKey.endsWith(`/${eventId}`)
+    && value.record
+    && typeof value.record === 'object'
+  );
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: cors, body: '' };
@@ -44,25 +89,62 @@ exports.handler = async (event) => {
   try {
     const idemStore = await getRevenueStore('eventIdempotency');
     const idemKey = `evt:${validated.eventId}`;
-    const existing = await blobGetJson(idemStore, idemKey);
-    if (existing) {
-      return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: true, duplicate: true }) };
-    }
-
-    const record = {
-      event: validated.event,
-      properties: validated.properties,
-      receivedAt: new Date().toISOString(),
-      expiresAt: retentionExpiresAt('eventIdempotency'),
+    const receivedAt = new Date().toISOString();
+    const fingerprint = fingerprintEvent(validated);
+    const storeKey = `${receivedAt.slice(0, 10)}/${validated.eventId}`;
+    const reservation = {
+      version: 2,
+      eventId: validated.eventId,
+      fingerprint,
+      storeKey,
+      reservedAt: receivedAt,
+      record: {
+        event: validated.event,
+        properties: validated.properties,
+        receivedAt,
+      },
     };
 
-    const eventStore = await getRevenueStore('events');
-    const day = new Date().toISOString().slice(0, 10);
-    const storeKey = `${day}/${validated.eventId}`;
-    await blobSetJson(eventStore, storeKey, record);
-    await blobSetJson(idemStore, idemKey, { eventId: validated.eventId, storedAt: record.receivedAt });
+    // The reservation is the single event-ID authority. `onlyIfNew` is an
+    // atomic create-only Blob write (If-None-Match:*). Exactly one concurrent
+    // caller can create it; every other caller must read and replay its key.
+    const reservationWrite = await blobCreateJson(idemStore, idemKey, reservation);
+    let canonical = reservation;
+    let duplicate = !reservationWrite.created;
 
-    return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: true }) };
+    if (!reservationWrite.created) {
+      canonical = await blobGetJsonStrict(idemStore, idemKey);
+      if (!canonical) throw new Error('idempotency_reservation_unreadable');
+
+      // Markers written by the pre-v2 event-first implementation prove the
+      // corresponding event write already succeeded, because the marker was
+      // written second. Never recreate them under a new UTC-day key.
+      if (isLegacyReservation(canonical, validated.eventId)) {
+        return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: true, duplicate: true }) };
+      }
+      if (!reservationIsUsable(canonical, validated.eventId)) {
+        throw new Error('idempotency_reservation_invalid');
+      }
+      if (canonical.fingerprint !== fingerprint) {
+        return {
+          statusCode: 409,
+          headers: cors,
+          body: JSON.stringify({ ok: false, error: 'event_id_conflict' }),
+        };
+      }
+    }
+
+    const eventStore = await getRevenueStore('events');
+    // Projection is also create-only. A retry after a lost response, a partial
+    // reservation-only failure, or a concurrent call targets this exact key.
+    const eventWrite = await blobCreateJson(eventStore, canonical.storeKey, canonical.record);
+    duplicate = duplicate || !eventWrite.created;
+
+    return {
+      statusCode: 200,
+      headers: cors,
+      body: JSON.stringify(duplicate ? { ok: true, duplicate: true } : { ok: true }),
+    };
   } catch (err) {
     console.error('[revenue-event] storage error:', err.message);
     return { statusCode: 503, headers: cors, body: JSON.stringify({ ok: false, error: 'storage_unavailable' }) };

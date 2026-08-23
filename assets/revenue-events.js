@@ -4,8 +4,47 @@
 
   var SESSION_KEY = 'cd1_rev_session';
   var ATTR_KEY = 'cd1_rev_attr';
-  var SENT_KEY = 'cd1_rev_sent';
+  var DELIVERY_KEY = 'cd1_rev_delivery_v2';
   var BACKEND = '/.netlify/functions/revenue-event';
+
+  var DELIVERY_STATES = {
+    PENDING: 'PENDING',
+    SENT: 'SENT',
+    TERMINAL_FAILURE: 'TERMINAL_FAILURE',
+    RETRYABLE_FAILURE: 'RETRYABLE_FAILURE',
+  };
+  var MAX_ATTEMPTS = 4;
+  var MAX_ACTIVE_EVENTS = 50;
+  var MAX_STATE_EVENTS = 200;
+  var MAX_RETRY_AFTER_MS = 120000;
+  var RETRY_DELAYS_MS = [1000, 5000, 15000];
+  var scheduled = {};
+  var memoryState = { events: {} };
+
+  // This list mirrors netlify/lib/revenue-event-schema.js. A parity test fails if
+  // either side changes independently. Keeping unknown names client-terminal
+  // prevents the browser from treating a guaranteed server rejection as sent.
+  var APPROVED_EVENTS = {
+    page_view: 1, service_page_view: 1, city_page_view: 1, hub_page_view: 1,
+    offer_viewed: 1, promotion_selected: 1, package_view: 1, package_selected: 1,
+    zip_check_started: 1, zip_check_valid: 1, zip_check_rejected: 1,
+    booking_started: 1, booking_step_viewed: 1, booking_step_completed: 1,
+    contact_captured: 1, vehicle_added: 1, multi_vehicle_detected: 1,
+    garage_plan_started: 1, garage_plan_completed: 1,
+    schedule_selected: 1, payment_step_viewed: 1, payment_method_saved: 1,
+    booking_submitted: 1, booking_confirmed: 1, booking_error: 1, booking_closed: 1,
+    booking_resumed: 1, quote_requested: 1, fleet_quote_requested: 1,
+    click_call: 1, click_text: 1, chat_opened: 1, chat_pricing_question: 1,
+    lead_created: 1, lead_qualified: 1, lead_contacted: 1, lead_lost: 1,
+    service_completed: 1, maintenance_interest: 1, rebooking_started: 1,
+    rebooking_completed: 1, referral_interest: 1, gift_card_interest: 1,
+    flexible_payment_interest: 1,
+    utilities_completed: 1, date_selected: 1, flexibility_selected: 1,
+    weekend_date_selected: 1, selected_slot_unavailable: 1, nearby_slots_opened: 1,
+    booking_review_reached: 1, setup_intent_started: 1,
+    booking_submit_attempted: 1, booking_submit_succeeded: 1, booking_submit_failed: 1,
+    arrival_window_selected: 1,
+  };
 
   var APPROVED_PROPS = {
     event_id: 1, anonymous_session_id: 1, timestamp: 1, source_page: 1, landing_page: 1,
@@ -13,7 +52,8 @@
     vehicle_count_band: 1, asset_category_count: 1, zip_zone: 1, booking_step: 1,
     vehicle_type: 1, device_type: 1, utm_source: 1, utm_medium: 1, utm_campaign: 1,
     utm_content: 1, referrer_domain: 1, lead_temperature: 1, household_segment: 1,
-    error_code: 1, offer_id: 1, multi_vehicle_band: 1,
+    error_code: 1, offer_id: 1, multi_vehicle_band: 1, flexibility_mode: 1,
+    weekend_selected: 1, funnel_step: 1, failure_code: 1, service_category: 1,
   };
 
   var GA4_MAP = {
@@ -106,19 +146,88 @@
     return out;
   }
 
-  function alreadySent(eventId) {
-    try {
-      var sent = JSON.parse(sessionStorage.getItem(SENT_KEY) || '{}');
-      return !!sent[eventId];
-    } catch (e) { return false; }
+  function nowMs() {
+    return Date.now ? Date.now() : new Date().getTime();
   }
 
-  function markSent(eventId) {
+  function loadDeliveryState() {
     try {
-      var sent = JSON.parse(sessionStorage.getItem(SENT_KEY) || '{}');
-      sent[eventId] = 1;
-      sessionStorage.setItem(SENT_KEY, JSON.stringify(sent));
-    } catch (e) { /* ignore */ }
+      var raw = sessionStorage.getItem(DELIVERY_KEY);
+      if (!raw) return memoryState;
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || !parsed.events || typeof parsed.events !== 'object') {
+        return memoryState;
+      }
+      memoryState = parsed;
+      return parsed;
+    } catch (e) {
+      return memoryState;
+    }
+  }
+
+  function isActive(entry) {
+    return !!entry && (entry.state === DELIVERY_STATES.PENDING || entry.state === DELIVERY_STATES.RETRYABLE_FAILURE);
+  }
+
+  function pruneDeliveryState(state) {
+    var ids = Object.keys(state.events || {});
+    if (ids.length <= MAX_STATE_EVENTS) return;
+    ids.sort(function (a, b) {
+      return Number(state.events[a].updatedAt || state.events[a].createdAt || 0)
+        - Number(state.events[b].updatedAt || state.events[b].createdAt || 0);
+    });
+    ids.forEach(function (id) {
+      if (Object.keys(state.events).length <= MAX_STATE_EVENTS) return;
+      if (!isActive(state.events[id])) delete state.events[id];
+    });
+  }
+
+  function saveDeliveryState(state) {
+    memoryState = state;
+    pruneDeliveryState(state);
+    try {
+      sessionStorage.setItem(DELIVERY_KEY, JSON.stringify(state));
+    } catch (e) { /* fail safe: memory fallback keeps checkout non-blocking */ }
+  }
+
+  function deliveryStatus(eventId) {
+    var entry = loadDeliveryState().events[eventId];
+    if (!entry) return null;
+    return {
+      event_id: entry.eventId,
+      event: entry.eventName,
+      state: entry.state,
+      attempts: entry.attempts || 0,
+      next_attempt_at: entry.nextAttemptAt || null,
+      failure: entry.lastFailure || null,
+    };
+  }
+
+  function deliverySnapshot() {
+    var counts = {};
+    counts[DELIVERY_STATES.PENDING] = 0;
+    counts[DELIVERY_STATES.SENT] = 0;
+    counts[DELIVERY_STATES.TERMINAL_FAILURE] = 0;
+    counts[DELIVERY_STATES.RETRYABLE_FAILURE] = 0;
+    var state = loadDeliveryState();
+    Object.keys(state.events).forEach(function (id) {
+      var status = state.events[id] && state.events[id].state;
+      if (counts[status] != null) counts[status] += 1;
+    });
+    return counts;
+  }
+
+  function safeLog(level, message, entry) {
+    try {
+      var logger = global.console && global.console[level];
+      if (typeof logger !== 'function') return;
+      logger.call(global.console, message, {
+        event: entry && entry.eventName,
+        event_id: entry && entry.eventId,
+        attempts: entry && entry.attempts,
+        failure: entry && entry.lastFailure,
+      });
+    } catch (e) { /* no customer-facing failure */ }
   }
 
   function pushDataLayer(eventName, props) {
@@ -140,21 +249,192 @@
     });
   }
 
-  function sendFirstParty(eventName, eventId, props) {
-    var payload = {
-      event: eventName,
-      event_id: eventId,
-      anonymous_session_id: getSessionId(),
-      properties: props,
-    };
+  function parseRetryAfter(value) {
+    if (value == null || value === '') return null;
+    var seconds = Number(value);
+    var delay;
+    if (isFinite(seconds) && seconds >= 0) {
+      delay = seconds * 1000;
+    } else {
+      var at = Date.parse(String(value));
+      if (!isFinite(at)) return null;
+      delay = Math.max(0, at - nowMs());
+    }
+    return Math.max(1000, Math.min(MAX_RETRY_AFTER_MS, Math.round(delay)));
+  }
+
+  function retryDelay(entry, response) {
+    if (response && response.status === 429 && response.headers && typeof response.headers.get === 'function') {
+      var retryAfter = parseRetryAfter(response.headers.get('Retry-After'));
+      if (retryAfter != null) return retryAfter;
+    }
+    var index = Math.max(0, Math.min(RETRY_DELAYS_MS.length - 1, Number(entry.attempts || 1) - 1));
+    return RETRY_DELAYS_MS[index];
+  }
+
+  function scheduleDelivery(eventId, delayMs) {
+    if (scheduled[eventId]) return;
+    var delay = Math.max(0, Math.min(MAX_RETRY_AFTER_MS, Number(delayMs) || 0));
+    if (typeof global.setTimeout !== 'function') return;
+    scheduled[eventId] = global.setTimeout(function () {
+      delete scheduled[eventId];
+      return attemptDelivery(eventId);
+    }, delay);
+  }
+
+  function finishSent(eventId) {
+    var state = loadDeliveryState();
+    var entry = state.events[eventId];
+    if (!entry || entry.state === DELIVERY_STATES.SENT) return;
+    entry.state = DELIVERY_STATES.SENT;
+    entry.updatedAt = nowMs();
+    entry.nextAttemptAt = null;
+    entry.lastFailure = null;
+    delete entry.payload;
+    saveDeliveryState(state);
+  }
+
+  function finishTerminal(eventId, reason) {
+    var state = loadDeliveryState();
+    var entry = state.events[eventId];
+    if (!entry) return;
+    entry.state = DELIVERY_STATES.TERMINAL_FAILURE;
+    entry.updatedAt = nowMs();
+    entry.nextAttemptAt = null;
+    entry.lastFailure = reason || 'terminal_failure';
+    delete entry.payload;
+    saveDeliveryState(state);
+    safeLog('warn', '[revenue-events] terminal delivery failure', entry);
+  }
+
+  function finishRetryable(eventId, reason, response) {
+    var state = loadDeliveryState();
+    var entry = state.events[eventId];
+    if (!entry) return;
+    if (Number(entry.attempts || 0) >= MAX_ATTEMPTS) {
+      finishTerminal(eventId, 'retry_exhausted:' + reason);
+      return;
+    }
+    var delay = retryDelay(entry, response);
+    entry.state = DELIVERY_STATES.RETRYABLE_FAILURE;
+    entry.updatedAt = nowMs();
+    entry.nextAttemptAt = nowMs() + delay;
+    entry.lastFailure = reason;
+    saveDeliveryState(state);
+    safeLog('debug', '[revenue-events] retryable delivery failure', entry);
+    scheduleDelivery(eventId, delay);
+  }
+
+  function classifyResponse(response) {
+    var status = Number(response && response.status) || 0;
+    if (status >= 200 && status < 300) return 'success';
+    if (status === 408 || status === 429 || status >= 500) return 'retryable';
+    return 'terminal';
+  }
+
+  function attemptDelivery(eventId) {
+    var state = loadDeliveryState();
+    var entry = state.events[eventId];
+    if (!entry || entry.state === DELIVERY_STATES.SENT || entry.state === DELIVERY_STATES.TERMINAL_FAILURE) {
+      return Promise.resolve(deliveryStatus(eventId));
+    }
+    if (entry.nextAttemptAt && entry.nextAttemptAt > nowMs()) {
+      scheduleDelivery(eventId, entry.nextAttemptAt - nowMs());
+      return Promise.resolve(deliveryStatus(eventId));
+    }
+
+    entry.state = DELIVERY_STATES.PENDING;
+    entry.attempts = Number(entry.attempts || 0) + 1;
+    entry.updatedAt = nowMs();
+    entry.nextAttemptAt = null;
+    saveDeliveryState(state);
+
+    var request;
     try {
-      fetch(BACKEND, {
+      if (typeof global.fetch !== 'function') throw new Error('fetch_unavailable');
+      request = global.fetch(BACKEND, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(entry.payload),
         keepalive: true,
-      }).catch(function () { /* fail safe */ });
-    } catch (e) { /* ignore */ }
+      });
+    } catch (e) {
+      finishRetryable(eventId, 'network_rejection', null);
+      return Promise.resolve(deliveryStatus(eventId));
+    }
+
+    return Promise.resolve(request).then(function (response) {
+      var outcome = classifyResponse(response);
+      if (outcome === 'success') finishSent(eventId);
+      else if (outcome === 'retryable') finishRetryable(eventId, 'http_' + response.status, response);
+      else finishTerminal(eventId, 'http_' + response.status);
+      return deliveryStatus(eventId);
+    }).catch(function () {
+      finishRetryable(eventId, 'network_rejection', null);
+      return deliveryStatus(eventId);
+    });
+  }
+
+  function activeDeliveryCount(state) {
+    return Object.keys(state.events).reduce(function (count, id) {
+      return count + (isActive(state.events[id]) ? 1 : 0);
+    }, 0);
+  }
+
+  function recordClientTerminal(eventName, eventId, reason) {
+    var state = loadDeliveryState();
+    state.events[eventId] = {
+      eventId: eventId,
+      eventName: eventName,
+      state: DELIVERY_STATES.TERMINAL_FAILURE,
+      attempts: 0,
+      createdAt: nowMs(),
+      updatedAt: nowMs(),
+      nextAttemptAt: null,
+      lastFailure: reason,
+    };
+    saveDeliveryState(state);
+    safeLog('warn', '[revenue-events] client-terminal analytics event', state.events[eventId]);
+  }
+
+  function enqueueFirstParty(eventName, eventId, props) {
+    var state = loadDeliveryState();
+    if (state.events[eventId]) return eventId;
+    if (activeDeliveryCount(state) >= MAX_ACTIVE_EVENTS) {
+      recordClientTerminal(eventName, eventId, 'queue_full');
+      return eventId;
+    }
+    state.events[eventId] = {
+      eventId: eventId,
+      eventName: eventName,
+      state: DELIVERY_STATES.PENDING,
+      attempts: 0,
+      createdAt: nowMs(),
+      updatedAt: nowMs(),
+      nextAttemptAt: nowMs(),
+      lastFailure: null,
+      payload: {
+        event: eventName,
+        event_id: eventId,
+        anonymous_session_id: getSessionId(),
+        properties: props,
+      },
+    };
+    saveDeliveryState(state);
+    // Start the keepalive request in this task so an immediate navigation or
+    // tab close cannot happen before delivery is initiated. The Promise is
+    // deliberately not awaited, so product interactions stay non-blocking.
+    attemptDelivery(eventId);
+    return eventId;
+  }
+
+  function resumePendingDeliveries() {
+    var state = loadDeliveryState();
+    Object.keys(state.events).forEach(function (eventId) {
+      var entry = state.events[eventId];
+      if (!isActive(entry)) return;
+      scheduleDelivery(eventId, Math.max(0, Number(entry.nextAttemptAt || 0) - nowMs()));
+    });
   }
 
   function initAdapters() {
@@ -192,9 +472,15 @@
 
   function track(eventName, properties) {
     try {
-      if (!eventName) return;
+      eventName = String(eventName || '').trim().slice(0, 128);
+      if (!eventName) return null;
       var eventId = (properties && properties.event_id) || uuid();
-      if (alreadySent(eventId)) return;
+      var existing = loadDeliveryState().events[eventId];
+      if (existing) return eventId;
+      if (!APPROVED_EVENTS[eventName]) {
+        recordClientTerminal(eventName, eventId, 'unknown_event');
+        return eventId;
+      }
 
       var attr = captureAttribution();
       var props = sanitizeProps(Object.assign({}, properties || {}, {
@@ -211,16 +497,17 @@
         device_type: global.innerWidth <= 768 ? 'mobile' : 'desktop',
       }));
 
-      markSent(eventId);
-      sendFirstParty(eventName, eventId, props);
+      enqueueFirstParty(eventName, eventId, props);
 
       var consent = global.Cardetail1Consent ? global.Cardetail1Consent.getConsent() : { analytics: false, marketing: false };
       if (consent.analytics) {
         pushDataLayer(eventName, props);
         pushClarity(eventName, props);
       }
+      return eventId;
     } catch (e) {
       /* never break booking */
+      return null;
     }
   }
 
@@ -239,5 +526,21 @@
     initPageView: initPageView,
     captureAttribution: captureAttribution,
     getSessionId: getSessionId,
+    getDeliveryStatus: deliveryStatus,
+    getDeliverySnapshot: deliverySnapshot,
+    getContract: function () {
+      return {
+        events: Object.keys(APPROVED_EVENTS).sort(),
+        properties: Object.keys(APPROVED_PROPS).sort(),
+      };
+    },
+    _deliveryTest: {
+      states: DELIVERY_STATES,
+      attempt: attemptDelivery,
+      resume: resumePendingDeliveries,
+      parseRetryAfter: parseRetryAfter,
+      maxAttempts: MAX_ATTEMPTS,
+    },
   };
+  resumePendingDeliveries();
 })(typeof window !== 'undefined' ? window : globalThis);
