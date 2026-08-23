@@ -476,10 +476,14 @@ describe('shipped Catalog Manager page wires the hardened behaviours', () => {
     // Typing must never trigger a network save.
     assert.doesNotMatch(catalogHtml, /addEventListener\('input',\s*\(\)\s*=>\s*\{[^}]*saveDraft/);
   });
-  it('package Apply / save auto-flush behaviour remains unchanged', () => {
+  it('package Apply auto-commits on save, and the save is blocked when it cannot', () => {
     assert.match(catalogHtml, /id="btn-apply-pkg"/);
     assert.match(catalogHtml, /function applyPackageEdits\(\)/);
-    assert.match(catalogHtml, /if \(state\.selectedId && !el\('editor'\)\.hidden\) applyPackageEdits\(\);/);
+    // The auto-commit is now GUARDED. The previous fire-and-forget call persisted a
+    // draft WITHOUT the operator's edit and reported "Saved" whenever a price field
+    // was invalid — see owner-studio-package-edit-persistence.test.js.
+    assert.match(catalogHtml, /!applyPackageEdits\(\)/);
+    assert.doesNotMatch(catalogHtml, /hidden\) applyPackageEdits\(\);/);
   });
   it('package search shows a count, a clear action and an empty-results state', () => {
     assert.match(catalogHtml, /id="pkg-count"/);
@@ -696,7 +700,8 @@ describe('add-on edit buffer (Apply/Cancel gate)', () => {
     assert.match(catalogHtml, /function applyPackageEdits\(\)/);
     assert.match(catalogHtml, /id="btn-apply-pkg"/);
     assert.match(catalogHtml, /input\.addEventListener\('input', \(\) => validatePriceInput\(input, errEl, key, \{ allowEmpty: true \}\)\)/);
-    assert.match(catalogHtml, /if \(state\.selectedId && !el\('editor'\)\.hidden\) applyPackageEdits\(\);/);
+    // Guarded auto-commit — see owner-studio-package-edit-persistence.test.js.
+    assert.match(catalogHtml, /!applyPackageEdits\(\)/);
   });
 
   it('malformed / negative price is rejected and draft is untouched', () => {
