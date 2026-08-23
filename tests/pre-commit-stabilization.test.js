@@ -378,6 +378,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/recovery-communications.js',
     'netlify/lib/sms-consent-service.js',
     'netlify/lib/sms-outbox.js',
+    'netlify/lib/sms-program.js',
     'netlify/lib/sms-templates.js',
     'netlify/lib/twilio-provider.js',
     'netlify/lib/twilio-runtime-policy.js',
