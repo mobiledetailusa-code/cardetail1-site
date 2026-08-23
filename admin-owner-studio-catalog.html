@@ -27,6 +27,9 @@
       <a class="rail-link is-ready" href="/admin/owner-studio/catalog" aria-current="page">
         <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Catalog</span>
       </a>
+      <a class="rail-link is-ready" href="/admin/owner-studio/publishing">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Publishing</span>
+      </a>
 
       <span class="rail-heading">On this page</span>
       <a class="rail-link" href="#addons"><span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Add-ons</span></a>
@@ -218,9 +221,11 @@
         <code>PUBLIC_CONTENT_SOURCE=owner-studio</code>. Transactional release integration is not
         built yet, so both controls below are inert by design rather than by permission.
       </p>
+      <!-- Publish and rollback live in the Publishing module, not here. Keeping the
+           only write path that can change the live catalog on its own screen means an
+           operator cannot reach it by mis-clicking while editing a draft. -->
       <div class="row">
-        <button type="button" disabled title="Publishing will be available after transactional release integration.">Publish (unavailable)</button>
-        <button type="button" disabled title="Rollback is not available in Stage 2.">Rollback (unavailable)</button>
+        <a class="back" href="/admin/owner-studio/publishing">Open Publishing →</a>
         <span class="badge">Serving: legacy</span>
       </div>
     </section>

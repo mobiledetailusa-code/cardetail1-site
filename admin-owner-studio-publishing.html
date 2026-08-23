@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Publishing — Owner Studio</title>
+  <link rel="stylesheet" href="/assets/owner-studio/studio.css">
+</head>
+<body>
+<div class="studio">
+
+  <aside class="studio-rail">
+    <div class="rail-brand">
+      <span class="rail-mark" aria-hidden="true">CD</span>
+      <span><b>Owner Studio</b><span>Control plane</span></span>
+    </div>
+
+    <nav class="rail-nav" aria-label="Owner Studio modules">
+      <span class="rail-heading">Workspace</span>
+      <a class="rail-link is-ready" href="/admin/owner-studio">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Overview</span>
+      </a>
+      <a class="rail-link is-ready" href="/admin/owner-studio/catalog">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Catalog</span>
+      </a>
+      <a class="rail-link is-ready" href="/admin/owner-studio/publishing" aria-current="page">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Publishing</span>
+      </a>
+
+      <span class="rail-heading">Planned</span>
+      <span class="rail-link is-planned" aria-disabled="true">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Pricing &amp; Travel</span>
+      </span>
+      <span class="rail-link is-planned" aria-disabled="true">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Content &amp; Media</span>
+      </span>
+      <span class="rail-link is-planned" aria-disabled="true">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Service Areas</span>
+      </span>
+    </nav>
+
+    <div class="rail-foot">
+      <div class="rail-state">
+        Runtime
+        <dl>
+          <dt>Site</dt><dd>detailing-zone</dd>
+          <dt>Serving</dt><dd id="rail-source">—</dd>
+          <dt>Release</dt><dd id="rail-release">—</dd>
+        </dl>
+      </div>
+      <a class="rail-back" href="/admin">← Admin portal</a>
+    </div>
+  </aside>
+
+  <div class="studio-main">
+    <div class="topbar">
+      <div>
+        <h1>Publishing</h1>
+        <div class="sub">Turn a saved draft into an immutable release — and back again</div>
+      </div>
+      <div class="topbar-meta">
+        <span class="env-pill" id="publish-pill">Checking…</span>
+      </div>
+    </div>
+
+    <main class="page">
+      <div id="auth-note" class="banner" hidden>Sign in via Admin first. Owner Studio reuses the Admin session.</div>
+      <div id="status-banner" class="banner" role="status" aria-live="polite"></div>
+
+      <section class="grid" aria-label="Release state">
+        <div class="stat">Current release<b id="stat-current">—</b></div>
+        <div class="stat">Published<b id="stat-published">—</b></div>
+        <div class="stat">Releases<b id="stat-count">—</b></div>
+        <div class="stat">Public content<b id="stat-source">—</b></div>
+      </section>
+
+      <section class="panel" aria-labelledby="publish-title">
+        <h2 id="publish-title">Publish the current draft</h2>
+        <p class="muted" style="margin-top:0">
+          Publishing snapshots the saved draft into an immutable release and points the site at it.
+          It does not change what visitors see until <code>PUBLIC_CONTENT_SOURCE=owner-studio</code>
+          is also set — the two are separate switches on purpose.
+        </p>
+        <div class="row" style="margin-top:12px">
+          <div style="max-width:220px">
+            <label for="expected-version">Draft version to publish</label>
+            <input id="expected-version" type="number" step="1" min="1" placeholder="e.g. 31">
+          </div>
+          <div style="align-self:end">
+            <button type="button" id="btn-publish" disabled>Publish release</button>
+          </div>
+          <span id="publish-msg" class="muted" aria-live="polite"></span>
+        </div>
+        <p class="muted" style="margin-top:10px;font-size:.82rem">
+          The version guard is deliberate: if the draft moved since you loaded this page, the publish
+          is refused rather than releasing something you did not review.
+        </p>
+      </section>
+
+      <section class="panel" id="history" aria-labelledby="history-title">
+        <h2 id="history-title">Release history</h2>
+        <p class="muted" style="margin-top:0">
+          Rolling back moves the pointer only. Nothing is deleted, and a release you roll away from
+          can be rolled forward to again.
+        </p>
+        <div id="history-body" class="muted">Loading…</div>
+      </section>
+    </main>
+  </div>
+
+</div>
+
+<script src="/netlify/lib/admin-session-client.js"></script>
+<script src="/assets/owner-studio/session-gate.js"></script>
+<script>
+(function () {
+  'use strict';
+  const API = '/.netlify/functions/owner-studio-release';
+  const CSRF_API = '/.netlify/functions/owner-studio-catalog?action=csrf';
+  const el = (id) => document.getElementById(id);
+  const state = { csrf: '', publishEnabled: false, busy: false };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
+  function authHeaders(extra) {
+    const h = Object.assign({ Accept: 'application/json' }, extra || {});
+    try {
+      const t = (window.CD1AdminSession && CD1AdminSession.getToken && CD1AdminSession.getToken()) || '';
+      if (t) h['x-admin-key'] = t;
+    } catch (_) { /* cookie-authenticated tab */ }
+    return h;
+  }
+
+  function banner(text, cls) {
+    const b = el('status-banner');
+    b.textContent = text || '';
+    b.className = 'banner' + (cls ? ' ' + cls : '');
+  }
+
+  // Errors from the release API are codes, not prose — map them to something an
+  // operator can act on rather than printing the identifier.
+  function explain(code) {
+    switch (code) {
+      case 'publication_not_enabled':
+        return 'Publishing is switched off in this environment. Set OWNER_STUDIO_PUBLISH_ENABLED=true to allow it.';
+      case 'owner_studio_publish_denied':
+        return 'This account may edit drafts but not publish.';
+      case 'owner_studio_disabled':
+        return 'Owner Studio is disabled in this environment.';
+      case 'stale_catalog_draft_version':
+        return 'The draft changed since this page loaded. Reload the Catalog Manager, re-check the version, and try again.';
+      case 'release_validation_failed':
+        return 'The draft is not a valid release candidate. Fix the reported problems in the Catalog Manager first.';
+      case 'release_already_current':
+        return 'That release is already the current one.';
+      case 'draft_not_found':
+        return 'No catalog draft exists yet to publish.';
+      case 'postgresql_required':
+        return 'The database is unavailable to this environment.';
+      case 'unauthorized':
+        return 'Sign in via Admin first.';
+      default:
+        return 'Request failed (' + code + ').';
+    }
+  }
+
+  async function call(path, options) {
+    const res = await fetch(path, options);
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401 || res.status === 403) {
+      if (res.status === 401) el('auth-note').hidden = false;
+    }
+    return { res, data };
+  }
+
+  function setPublishPill() {
+    const pill = el('publish-pill');
+    pill.textContent = state.publishEnabled ? 'Publishing enabled' : 'Publishing disabled';
+    pill.className = 'env-pill ' + (state.publishEnabled ? 'is-staging' : 'is-off');
+    const btn = el('btn-publish');
+    btn.disabled = !state.publishEnabled || state.busy;
+    btn.title = state.publishEnabled
+      ? 'Publish the saved draft as an immutable release'
+      : 'OWNER_STUDIO_PUBLISH_ENABLED is not set in this environment.';
+  }
+
+  function renderHistory(releases) {
+    const box = el('history-body');
+    if (!releases.length) {
+      box.className = 'muted';
+      box.textContent = 'Nothing published yet. The site is serving the legacy catalog.';
+      return;
+    }
+    box.className = '';
+    const rows = releases.map((r) => {
+      const when = r.publishedAt ? new Date(r.publishedAt).toLocaleString() : '—';
+      const sha = (r.manifest && r.manifest.catalog && r.manifest.catalog.sha256) || '';
+      return '<tr>'
+        + '<td>' + (r.current ? '<span class="badge ok">current</span> ' : '')
+        + '<code>' + esc(r.releaseId) + '</code></td>'
+        + '<td>' + esc(when) + '</td>'
+        + '<td>' + esc(r.publishedBy || '—') + '</td>'
+        + '<td><code>' + esc(String(sha).slice(0, 12)) + '</code></td>'
+        + '<td>' + (r.current || !state.publishEnabled
+          ? ''
+          : '<button type="button" class="secondary" data-rollback="' + esc(r.releaseId) + '">Roll back to this</button>')
+        + '</td></tr>';
+    }).join('');
+    box.innerHTML = '<table><thead><tr><th>Release</th><th>Published</th><th>By</th>'
+      + '<th>Catalog digest</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+    box.querySelectorAll('[data-rollback]').forEach((btn) => {
+      btn.addEventListener('click', () => rollback(btn.getAttribute('data-rollback')));
+    });
+  }
+
+  async function refresh() {
+    const { res, data } = await call(API + '?action=history', {
+      credentials: 'same-origin', headers: authHeaders(),
+    });
+    if (!res.ok) {
+      banner(explain(data.error || 'request_failed'), 'readonly');
+      el('history-body').textContent = '—';
+      return;
+    }
+    state.publishEnabled = !!data.publishEnabled;
+    setPublishPill();
+    const releases = data.releases || [];
+    renderHistory(releases);
+    const current = releases.find((r) => r.current) || null;
+    el('stat-count').textContent = String(releases.length);
+    el('stat-current').textContent = current ? current.releaseId.slice(0, 12) : 'none';
+    el('stat-published').textContent = current && current.publishedAt
+      ? new Date(current.publishedAt).toLocaleDateString()
+      : '—';
+    el('rail-release').textContent = current ? current.releaseId.slice(0, 12) : 'none';
+
+    const cur = await call(API + '?action=current', { credentials: 'same-origin', headers: authHeaders() });
+    const source = (cur.data && cur.data.publicContentSource) || 'legacy';
+    el('stat-source').textContent = source;
+    el('rail-source').textContent = source;
+    if (!state.publishEnabled) {
+      banner('Publishing is switched off here. History is read-only until OWNER_STUDIO_PUBLISH_ENABLED is set.', 'readonly');
+    } else {
+      banner('');
+    }
+  }
+
+  async function ensureCsrf() {
+    if (state.csrf) return state.csrf;
+    const { res, data } = await call(CSRF_API, { credentials: 'same-origin', headers: authHeaders() });
+    if (!res.ok || !data.csrfToken) throw new Error(data.error || 'csrf_unavailable');
+    state.csrf = data.csrfToken;
+    return state.csrf;
+  }
+
+  async function mutate(body, okMessage) {
+    if (state.busy) return;
+    state.busy = true;
+    setPublishPill();
+    try {
+      const csrf = await ensureCsrf();
+      const { res, data } = await call(API, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: authHeaders({ 'Content-Type': 'application/json', 'x-csrf-token': csrf }),
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const extra = data.actualVersion != null ? ' (current version: ' + data.actualVersion + ')' : '';
+        banner(explain(data.error || 'request_failed') + extra, 'readonly');
+        return;
+      }
+      banner(okMessage(data));
+      await refresh();
+    } catch (e) {
+      banner('Could not reach the release API. Retry shortly.', 'readonly');
+    } finally {
+      state.busy = false;
+      setPublishPill();
+    }
+  }
+
+  function publish() {
+    const version = parseInt(el('expected-version').value, 10);
+    if (!Number.isInteger(version) || version < 1) {
+      el('publish-msg').textContent = 'Enter the draft version shown in the Catalog Manager.';
+      el('publish-msg').className = 'err';
+      return;
+    }
+    el('publish-msg').textContent = '';
+    el('publish-msg').className = 'muted';
+    // No confirm() on publish: it is reversible by rollback, gated by a switch, and
+    // guarded by the version field the operator had to type deliberately.
+    mutate({ action: 'publish', expectedDraftVersion: version },
+      (d) => 'Published ' + d.releaseId + '. The public site is unchanged until PUBLIC_CONTENT_SOURCE=owner-studio.');
+  }
+
+  function rollback(releaseId) {
+    // Rollback IS confirmed: it changes which release the site would serve, and the
+    // operator did not type anything to reach it — one stray click would be enough.
+    if (!window.confirm('Point the site at ' + releaseId + '? Nothing is deleted; this moves the pointer.')) return;
+    mutate({ action: 'rollback', releaseId },
+      () => 'Rolled back to ' + releaseId + '.');
+  }
+
+  el('btn-publish').addEventListener('click', publish);
+  refresh().catch(() => banner('Could not load release history.', 'readonly'));
+})();
+</script>
+</body>
+</html>

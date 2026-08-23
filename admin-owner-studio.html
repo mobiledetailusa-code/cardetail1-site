@@ -27,6 +27,9 @@
       <a class="rail-link is-ready" href="/admin/owner-studio/catalog">
         <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Catalog</span>
       </a>
+      <a class="rail-link is-ready" href="/admin/owner-studio/publishing">
+        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Publishing</span>
+      </a>
 
       <span class="rail-heading">Planned</span>
       <span class="rail-link is-planned" aria-disabled="true">
@@ -37,9 +40,6 @@
       </span>
       <span class="rail-link is-planned" aria-disabled="true">
         <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Service Areas</span>
-      </span>
-      <span class="rail-link is-planned" aria-disabled="true">
-        <span class="rail-dot" aria-hidden="true"></span><span class="rl-name">Publishing</span>
       </span>
     </nav>
 
@@ -112,10 +112,10 @@
             <p>State, city and ZIP availability. Schema exists; editor not yet built.</p>
             <div class="m-foot"><span class="disabled" aria-disabled="true">Not yet available</span></div>
           </li>
-          <li class="module planned">
-            <div class="m-head"><h3>Publishing</h3><span class="status">Planned</span></div>
-            <p>Transactional publish of an immutable catalog release to the public site. Publish/rollback remain disabled.</p>
-            <div class="m-foot"><span class="disabled" aria-disabled="true">Not yet available</span></div>
+          <li class="module available">
+            <div class="m-head"><h3>Publishing</h3><span class="status">Available</span></div>
+            <p>Transactional publish of an immutable catalog release, release history and rollback. Gated by <code>OWNER_STUDIO_PUBLISH_ENABLED</code>, off by default.</p>
+            <div class="m-foot"><a class="open" href="/admin/owner-studio/publishing">Open Publishing →</a></div>
           </li>
         </ul>
       </div>
@@ -133,7 +133,7 @@
           <li class="stage"><span class="s-num">3</span><span class="s-name">Media Library — uploads, alt text, references</span><span class="badge">Schema only</span></li>
           <li class="stage active"><span class="s-num">4</span><span class="s-name">Global content editor — draft storefront preview</span><span class="badge warn">Preview only</span></li>
           <li class="stage"><span class="s-num">5</span><span class="s-name">Page sections and gallery editor</span><span class="badge">Not started</span></li>
-          <li class="stage"><span class="s-num">6</span><span class="s-name">Publish, release history and rollback</span><span class="badge">Not started</span></li>
+          <li class="stage active"><span class="s-num">6</span><span class="s-name">Publish, release history and rollback</span><span class="badge warn">Switch off</span></li>
         </ul>
       </div>
     </main>
