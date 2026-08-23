@@ -1,8 +1,10 @@
 'use strict';
 
-const BRAND = 'Detailing Zone';
+const { PROGRAM_NAME } = require('./sms-program');
+
+const BRAND = PROGRAM_NAME;
 const TEMPLATE_VERSION = 'sms-v1-2026-08-05';
-const COMPLIANCE = 'Reply STOP to opt out; HELP for help.';
+const COMPLIANCE = 'Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for help.';
 
 const TEMPLATE_KEYS = Object.freeze({
   REQUEST_RECEIVED: 'booking.request_received',
@@ -32,7 +34,7 @@ function renderSmsTemplate(templateKey, data = {}) {
   let body = '';
   switch (templateKey) {
     case TEMPLATE_KEYS.REQUEST_RECEIVED:
-      body = `${BRAND}: We received your booking request and it is under review.`
+      body = `${BRAND}: You are opted in for transactional booking and appointment texts. We received your booking request and it is under review.`
         + (url ? ` View status: ${url}` : '');
       break;
     case TEMPLATE_KEYS.CONFIRMED:

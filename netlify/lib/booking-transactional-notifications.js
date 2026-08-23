@@ -21,6 +21,7 @@ const {
 const { normalizeUsPhoneDigits, normalizeUsPhoneE164 } = require('./phone-auth');
 const { smsOutboxPolicy, enabled } = require('./twilio-runtime-policy');
 const { enqueueSms } = require('./sms-outbox');
+const { bookingSmsConsentGranted } = require('./sms-program');
 const { renderSmsTemplate, bookingTemplateData } = require('./sms-templates');
 
 const EVENT_REQUEST_RECEIVED = 'booking.request_received';
@@ -584,6 +585,9 @@ async function sendCustomerSms(toE164, _body, metadata = {}) {
     return { sent: false, skipped: true, reason: 'customer_sms_not_enabled' };
   }
   if (!toE164) return { sent: false, skipped: true, reason: 'no_customer_phone' };
+  if (!bookingSmsConsentGranted(metadata.booking)) {
+    return { sent: false, skipped: true, reason: 'booking_sms_consent_required' };
+  }
   const queued = await enqueueSms({
     idempotencyKey: metadata.idempotencyKey,
     audience: 'customer',
@@ -682,6 +686,18 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
     const account = await resolveCustomerAccountForBooking(working, opts);
     if (account.customerAccountId) {
       working = { ...working, customerAccountId: account.customerAccountId };
+    }
+    if (
+      eventType === EVENT_REQUEST_RECEIVED
+      && account.customerAccountId
+      && bookingSmsConsentGranted(working)
+    ) {
+      const { grantBookingSmsConsent } = require('./sms-consent-service');
+      await grantBookingSmsConsent({
+        customerAccountId: account.customerAccountId,
+        toE164: working.phone || working.customerPhone,
+        booking: working,
+      }, opts);
     }
 
     const resendGeneration = normalizeResendGeneration(opts.resendGeneration);
