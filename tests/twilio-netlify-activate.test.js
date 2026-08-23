@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
@@ -100,4 +102,12 @@ test('provider write plan can enable customer SMS flag without enabling sends', 
   assert.equal(plan.ok, true);
   assert.equal(plan.vars.CUSTOMER_TRANSACTIONAL_SMS_ENABLED, 'true');
   assert.equal(plan.vars.TWILIO_PRODUCTION_SENDS_ENABLED, 'false');
+});
+
+test('Netlify pins the outbox worker schedule in netlify.toml', () => {
+  const toml = fs.readFileSync(path.join(__dirname, '..', 'netlify.toml'), 'utf8');
+  assert.match(toml, /\[functions\."twilio-outbox-worker"\]/);
+  assert.match(toml, /schedule\s*=\s*"\*\/2 \* \* \* \*"/);
+  const worker = fs.readFileSync(path.join(__dirname, '..', 'netlify/functions/twilio-outbox-worker.js'), 'utf8');
+  assert.match(worker, /exports\.config\s*=\s*\{\s*schedule:\s*'\*\/2 \* \* \* \*'/);
 });
