@@ -4338,6 +4338,8 @@ function buildBookingPayload(options={}){
     cofPolicyAccepted:cardFlow && !!document.getElementById('cof-policy-ok')?.checked,
     acceptedBookingPolicy: !!document.getElementById('terms-ok')?.checked,
     acceptedBookingPolicyAt: document.getElementById('terms-ok')?.checked ? new Date().toISOString() : null,
+    transactionalSmsConsentAccepted: !!document.getElementById('sms-consent-ok')?.checked,
+    marketingSmsConsentAccepted: false,
     acceptedCardOnFilePolicy: cardFlow && !!document.getElementById('cof-policy-ok')?.checked,
     acceptedCardOnFilePolicyAt: cardFlow && document.getElementById('cof-policy-ok')?.checked ? new Date().toISOString() : null,
     policyVersion: cardFlow ? '2026-06-card-on-file' : '2026-08-booking-request',
@@ -4510,7 +4512,7 @@ function restartBooking(){
   ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0,travelFee:0,travelFeeMiles:0,payMethod:'',bookingId:'',draftRegistered:false,draftSaveToken:null,draftSaveTokenExp:null,cardSetupConfirmed:false,cardOnFileSaved:false};
   destroyStripePaymentUI(); stripePI=null;
   ['f-first','f-last','f-phone','f-email','f-addr','f-date','f-notes'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
-  ['terms-ok','cof-policy-ok'].forEach(id=>{const el=document.getElementById(id); if(el)el.checked=false;});
+  ['sms-consent-ok','terms-ok','cof-policy-ok'].forEach(id=>{const el=document.getElementById(id); if(el)el.checked=false;});
   document.getElementById('f-time').selectedIndex=0;
   bkGoTo(1);
 }

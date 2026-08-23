@@ -18,6 +18,21 @@ const { grantBookingSmsConsent } = require('../netlify/lib/sms-consent-service')
 
 const ROOT = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
+const BOOKING_SURFACES = [
+  'index.html',
+  'bergen-county-hub.html',
+  'hudson-county-hub.html',
+  'essex-county-hub.html',
+  'passaic-county-hub.html',
+  'ny-metro-hub.html',
+  'connecticut-hub.html',
+  'pennsylvania-hub.html',
+  'new-jersey-hub.html',
+  'newark-mobile-detailing.html',
+  'trenton-mobile-detailing.html',
+  'westchester-mobile-detailing.html',
+  'template-city.html',
+];
 
 function checkboxTag(html, id) {
   const match = html.match(new RegExp(`<input\\b[^>]*\\bid="${id}"[^>]*>`, 'i'));
@@ -31,23 +46,32 @@ describe('public transactional SMS consent surface', () => {
   const privacy = read('privacy-policy.html');
 
   it('1/16. checkbox exists once, is SMS-specific, and defaults unchecked', () => {
-    assert.equal((index.match(/id="sms-consent-ok"/g) || []).length, 1);
-    const tag = checkboxTag(index, 'sms-consent-ok');
-    assert.match(tag, /type="checkbox"/i);
-    assert.doesNotMatch(tag, /\bchecked\b/i);
-    assert.match(index, new RegExp(BOOKING_CONSENT_TEXT_VERSION));
+    for (const file of BOOKING_SURFACES) {
+      const html = read(file);
+      assert.equal((html.match(/id="sms-consent-ok"/g) || []).length, 1, file);
+      const tag = checkboxTag(html, 'sms-consent-ok');
+      assert.match(tag, /type="checkbox"/i, file);
+      assert.doesNotMatch(tag, /\bchecked\b/i, file);
+      assert.match(html, new RegExp(BOOKING_CONSENT_TEXT_VERSION), file);
+      assert.match(html, /\['sms-consent-ok','terms-ok','cof-policy-ok'\]/, `${file}: reset must restore unchecked default`);
+    }
   });
 
   it('4/5. Terms acceptance and SMS consent are separate controls and state', () => {
-    assert.notEqual(checkboxTag(index, 'terms-ok'), checkboxTag(index, 'sms-consent-ok'));
-    assert.match(index, /acceptedBookingPolicy:\s*!!document\.getElementById\('terms-ok'\)\?\.checked/);
-    assert.match(index, /transactionalSmsConsentAccepted:\s*!!document\.getElementById\('sms-consent-ok'\)\?\.checked/);
-    assert.doesNotMatch(index, /transactionalSmsConsentAccepted:\s*!!document\.getElementById\('terms-ok'\)/);
+    for (const file of BOOKING_SURFACES) {
+      const html = read(file);
+      assert.notEqual(checkboxTag(html, 'terms-ok'), checkboxTag(html, 'sms-consent-ok'), file);
+      assert.match(html, /acceptedBookingPolicy:\s*!!document\.getElementById\('terms-ok'\)\?\.checked/, file);
+      assert.match(html, /transactionalSmsConsentAccepted:\s*!!document\.getElementById\('sms-consent-ok'\)\?\.checked/, file);
+      assert.doesNotMatch(html, /transactionalSmsConsentAccepted:\s*!!document\.getElementById\('terms-ok'\)/, file);
+    }
   });
 
   it('7-13. exact sender, scope, frequency, rates, STOP, HELP and optionality are disclosed', () => {
     assert.equal(PROGRAM_NAME, 'Detailing Zone');
-    assert.match(index, new RegExp(BOOKING_CONSENT_COPY.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    for (const file of BOOKING_SURFACES) {
+      assert.match(read(file), new RegExp(BOOKING_CONSENT_COPY.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), file);
+    }
     assert.match(BOOKING_CONSENT_COPY, /booking request, appointment updates, reminders, and service-related notifications/);
     assert.match(BOOKING_CONSENT_COPY, /Message frequency varies/);
     assert.match(BOOKING_CONSENT_COPY, /Message and data rates may apply/);
@@ -56,11 +80,14 @@ describe('public transactional SMS consent surface', () => {
   });
 
   it('14/15/17. Privacy and Terms links are visible and marketing is not bundled', () => {
-    const block = index.slice(index.indexOf('id="booking-sms-consent"'), index.indexOf('id="booking-sms-consent"') + 1500);
-    assert.match(block, /href="\/privacy-policy"[^>]*>Privacy Policy</);
-    assert.match(block, /href="\/terms-conditions"[^>]*>Terms &amp; Conditions</);
-    assert.match(block, /Transactional messages only; no marketing consent/);
-    assert.match(index, /marketingSmsConsentAccepted:\s*false/);
+    for (const file of BOOKING_SURFACES) {
+      const html = read(file);
+      const block = html.slice(html.indexOf('id="booking-sms-consent"'), html.indexOf('id="booking-sms-consent"') + 1500);
+      assert.match(block, /href="\/privacy-policy"[^>]*>Privacy Policy</, file);
+      assert.match(block, /href="\/terms-conditions"[^>]*>Terms &amp; Conditions</, file);
+      assert.match(block, /Transactional messages only; no marketing consent/, file);
+      assert.match(html, /marketingSmsConsentAccepted:\s*false/, file);
+    }
   });
 
   it('Privacy Policy distinguishes service-provider processing from marketing sharing', () => {
