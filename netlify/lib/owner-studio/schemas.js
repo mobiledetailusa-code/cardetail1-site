@@ -335,19 +335,51 @@ function validateGallery(input) {
   return { siteId: input.siteId, galleryId: assertPlainText(String(input.galleryId || ''), 'galleryId', 80), items };
 }
 
+// A media path is EITHER a site-relative assets/ path OR an https URL — never a
+// mixture, and never anything that can climb out of assets/.
+//
+// The previous check tested for '..' and then re-validated against
+// /^assets\/[A-Za-z0-9._\/-]+$/, whose character class contains both '.' and '/'.
+// So "assets/../../etc/passwd" matched the inner allowlist and was accepted despite
+// the outer test having spotted the traversal. Stage 3 gives operators a media
+// library that writes these paths, which is what makes it worth closing now.
+const MEDIA_SEGMENT_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+// Checked by code point rather than a regex class: writing a control-character
+// range inline is what embedded raw bytes here before.
+function hasControlChar(s) {
+  for (let i = 0; i < s.length; i += 1) if (s.charCodeAt(i) < 32) return true;
+  return false;
+}
+
+function assertSafeMediaPath(raw) {
+  const invalid = () => {
+    const err = new Error('invalid_media_path');
+    err.code = 'invalid_media_path';
+    throw err;
+  };
+  const path = String(raw || '');
+  if (!path) invalid();
+  if (SAFE_HTTP_URL_RE.test(path)) return path;          // absolute https, already constrained
+  if (/^[a-z][a-z0-9+.-]*:/i.test(path)) invalid();       // any other scheme, incl. javascript:/data:
+  if (path.startsWith('//') || path.startsWith('/')) invalid();
+  if (path.includes('\\') || path.includes('%') || hasControlChar(path)) invalid();
+
+  const segments = path.split('/');
+  if (segments[0] !== 'assets' || segments.length < 2) invalid();
+  for (const segment of segments) {
+    // Rejects '', '.', '..' and anything with a character outside the allowlist,
+    // so no segment can traverse and no empty segment can collapse the path.
+    if (!MEDIA_SEGMENT_RE.test(segment)) invalid();
+  }
+  return path;
+}
+
 function validateMediaMetadata(input) {
   rejectUnknown(input, new Set([
     'siteId', 'mediaId', 'path', 'alt', 'caption', 'contentType', 'published',
   ]));
-  const path = assertPlainText(input.path, 'path', MAX.url);
-  if (path.includes('..') || path.includes('\\') || /^(https?:)?\/\//i.test(path) === false && !path.startsWith('assets/')) {
-    // allow assets/ relative or https URLs
-    if (!SAFE_HTTP_URL_RE.test(path) && !/^assets\/[A-Za-z0-9._/-]+$/.test(path)) {
-      const err = new Error('invalid_media_path');
-      err.code = 'invalid_media_path';
-      throw err;
-    }
-  }
+  const path = assertSafeMediaPath(assertPlainText(input.path, 'path', MAX.url));
   return {
     siteId: input.siteId,
     mediaId: assertStable(input.mediaId, 'mediaId'),
