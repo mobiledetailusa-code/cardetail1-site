@@ -43,6 +43,11 @@
   to = "/.netlify/functions/customer-appointment-access"
   status = 200
 [[redirects]]
+  from = "/a"
+  to = "/.netlify/functions/customer-appointment-access"
+  status = 200
+  force = true
+[[redirects]]
   from = "/technician"
   to = "/technician.html"
   status = 200

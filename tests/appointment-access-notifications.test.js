@@ -529,7 +529,7 @@ test('wiring: submit emits request_received; confirm emits confirmed; no garage 
   assert.ok(persistIdx >= 0 && notifyIdx > persistIdx && catchIdx > notifyIdx);
 });
 
-test('access URL uses function exchange path — not raw PII query params', () => {
+test('access URL uses short /a?t= path — not raw PII query params', () => {
   const {
     buildAccessUrl,
     buildPortalFocusUrl,
@@ -538,12 +538,29 @@ test('access URL uses function exchange path — not raw PII query params', () =
   process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
   delete process.env.URL;
   const access = buildAccessUrl('aat_testtokenvalue');
-  assert.match(access, /^https:\/\/cardetail1\.com\/\.netlify\/functions\/customer-appointment-access\?token=/);
+  assert.match(access, /^https:\/\/cardetail1\.com\/a\?t=/);
   assert.doesNotMatch(access, /phone=|email=|bookingId=|customerAccountId=/i);
   assert.doesNotMatch(access, /branch-deploy|CONTEXT|envBinding|DEPLOY_/i);
+  assert.doesNotMatch(access, /\.netlify\/functions/);
   const focus = buildPortalFocusUrl('aptr_abc');
   assert.match(focus, /\/my-garage\?appointment=aptr_/);
   assert.doesNotMatch(focus, /token=/);
+});
+
+test('request-received SMS stays within one GSM segment with a typical short access URL', () => {
+  const { renderSmsTemplate, TEMPLATE_KEYS } = require('../netlify/lib/sms-templates');
+  const { buildAccessUrl } = require('../netlify/lib/appointment-access-token');
+  process.env.CONTEXT = 'production';
+  process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
+  delete process.env.URL;
+  const typicalToken = 'aat_' + 'A'.repeat(43);
+  const url = buildAccessUrl(typicalToken);
+  const rendered = renderSmsTemplate(TEMPLATE_KEYS.REQUEST_RECEIVED, { url });
+  assert.equal(rendered.ok, true);
+  assert.ok(rendered.body.length <= 160, `SMS length ${rendered.body.length}: ${rendered.body}`);
+  assert.match(rendered.body, /STOP/i);
+  assert.match(rendered.body, /HELP/i);
+  assert.match(rendered.body, /\/a\?t=/);
 });
 
 test('branch-deploy request-received email uses branch-deploy origin', async () => {
@@ -579,8 +596,8 @@ test('branch-deploy request-received email uses branch-deploy origin', async () 
     const booking = baseBooking({ id: 'CD1-BRANCH-ORIGIN' });
     const result = await emitRequestReceived(booking, {});
     assert.equal(result.ok, true);
-    assert.match(captured, /https:\/\/appointment-access-final--cardetail1\.netlify\.app\/\.netlify\/functions\/customer-appointment-access\?token=/);
-    assert.doesNotMatch(captured, /https:\/\/cardetail1\.com\/\.netlify\/functions\/customer-appointment-access/);
+    assert.match(captured, /https:\/\/appointment-access-final--cardetail1\.netlify\.app\/a\?t=/);
+    assert.doesNotMatch(captured, /https:\/\/cardetail1\.com\/a\?t=/);
     const minted = await createAppointmentAccessToken({
       bookingId: booking.id,
       email: booking.email,

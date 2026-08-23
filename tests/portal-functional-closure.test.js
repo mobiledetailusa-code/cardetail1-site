@@ -154,6 +154,12 @@ function openLink(h, token, cookie) {
   return h.accessFn.handler({ httpMethod: 'GET', headers, queryStringParameters: { token } });
 }
 
+function openShortLink(h, token, cookie) {
+  const headers = { 'x-nf-client-connection-ip': '203.0.113.10' };
+  if (cookie) headers.cookie = `cd1_customer_session=${cookie}`;
+  return h.accessFn.handler({ httpMethod: 'GET', headers, queryStringParameters: { t: token } });
+}
+
 function exchange(h, token, cookie) {
   const headers = {
     'x-nf-client-connection-ip': '203.0.113.10',
@@ -197,6 +203,9 @@ test('1. first click on a secure link creates exactly one session', async (t) =>
   assert.equal(preview.statusCode, 200);
   assert.match(preview.body, /View my appointment/i);
   assert.match(preview.body, /action" value="exchange"/);
+  const previewShort = await openShortLink(h, minted.token);
+  assert.equal(previewShort.statusCode, 200);
+  assert.match(previewShort.body, /View my appointment/i);
   const previewRecord = await h.accessToken.loadTokenRecord(minted.token, {
     allowExpired: true,
     allowConsumed: true,
@@ -274,7 +283,7 @@ test('3. re-clicking a consumed link on the same device opens the appointment', 
   assert.equal(sessions.length, 1);
 });
 
-test('4. re-clicking a consumed link without a session asks for a new link', async (t) => {
+test('4. re-clicking a consumed link without a session still opens the appointment', async (t) => {
   const h = harness({ bookings: { 'CD1-SESS00004': baseBooking({ id: 'CD1-SESS00004' }) } });
   t.after(() => h.restore());
 
@@ -282,15 +291,13 @@ test('4. re-clicking a consumed link without a session asks for a new link', asy
   await exchange(h, minted.token);
 
   const second = await exchange(h, minted.token);
-  assert.equal(second.statusCode, 410);
-  assert.match(second.body, /already used/i);
-  assert.match(second.body, /Send me a new link/i);
-  assert.doesNotMatch(second.body, /has expired/i);
-  assert.equal(second.headers['Set-Cookie'], undefined);
+  assert.equal(second.statusCode, 302);
+  assert.match(second.headers.Location, /^\/my-garage\?appointment=aptr_/);
+  assert.ok(sessionTokenFrom(second), 'unexpired spent SMS mints a session when none is present');
 
   const viaGet = await openLink(h, minted.token);
-  assert.equal(viaGet.statusCode, 410);
-  assert.match(viaGet.body, /already used/i);
+  assert.equal(viaGet.statusCode, 302);
+  assert.ok(sessionTokenFrom(viaGet), 'GET of a spent unexpired link also resumes');
 });
 
 test('5. a different account session cannot ride a consumed link', async (t) => {
@@ -323,7 +330,7 @@ test('5. a different account session cannot ride a consumed link', async (t) => 
   assert.equal(attempt.headers['Set-Cookie'], undefined);
 });
 
-test('6. an expired session cannot re-enter through a consumed link', async (t) => {
+test('6. an expired session is replaced by tapping the still-valid SMS link', async (t) => {
   const h = harness({ bookings: { 'CD1-SESS00006': baseBooking({ id: 'CD1-SESS00006' }) } });
   t.after(() => h.restore());
 
@@ -336,10 +343,11 @@ test('6. an expired session cannot re-enter through a consumed link', async (t) 
   await h.sessionStore.setJSON(sid, { ...record, exp: Date.now() - 1000 });
 
   const attempt = await exchange(h, minted.token, cookie);
-  assert.equal(attempt.statusCode, 410);
+  assert.equal(attempt.statusCode, 302, 'expired session is replaced via the still-valid SMS link');
+  assert.ok(sessionTokenFrom(attempt), 'new session cookie issued');
 });
 
-test('7. logout revokes the session and prevents re-entry', async (t) => {
+test('7. logout revokes the session; the SMS link still opens the appointment', async (t) => {
   const h = harness({ bookings: { 'CD1-SESS00007': baseBooking({ id: 'CD1-SESS00007' }) } });
   t.after(() => h.restore());
 
@@ -355,10 +363,11 @@ test('7. logout revokes the session and prevents re-entry', async (t) => {
   assert.match(String(out.headers['Set-Cookie']), /Max-Age=0/);
 
   const attempt = await exchange(h, minted.token, cookie);
-  assert.equal(attempt.statusCode, 410, 'revoked cookie cannot reuse the spent token');
+  assert.equal(attempt.statusCode, 302, 'revoked cookie is ignored; unexpired SMS mints a new session');
+  assert.ok(sessionTokenFrom(attempt), 'new session cookie issued after logout');
 });
 
-test('8. the raw appointment token stays single-use', async (t) => {
+test('8. the raw appointment token stays consumed after reuse', async (t) => {
   const h = harness({ bookings: { 'CD1-SESS00008': baseBooking({ id: 'CD1-SESS00008' }) } });
   t.after(() => h.restore());
 
@@ -366,9 +375,10 @@ test('8. the raw appointment token stays single-use', async (t) => {
   const first = await exchange(h, minted.token);
   assert.ok(sessionTokenFrom(first));
 
-  // Second exchange without a session must not mint a session, whatever it renders.
+  // Later taps mint a portal session, but they do not consume the token again.
   const second = await exchange(h, minted.token);
-  assert.equal(sessionTokenFrom(second), null);
+  assert.ok(sessionTokenFrom(second), 'spent unexpired link mints a session');
+  assert.equal(second.statusCode, 302);
 
   const record = await h.accessToken.loadTokenRecord(minted.token, {
     allowExpired: true,

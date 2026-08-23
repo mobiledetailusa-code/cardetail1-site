@@ -104,7 +104,7 @@ function envBindingMatches(record) {
 
 function buildAccessUrl(token, _event) {
   const base = siteBaseFromEnv();
-  return `${base}/.netlify/functions/customer-appointment-access?token=${encodeURIComponent(token)}`;
+  return `${base}/a?t=${encodeURIComponent(token)}`;
 }
 
 /** Relative portal focus path — avoids open redirects / Host poisoning on exchange. */
