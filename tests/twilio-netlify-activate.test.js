@@ -110,4 +110,6 @@ test('Netlify pins the outbox worker schedule in netlify.toml', () => {
   assert.match(toml, /schedule\s*=\s*"\*\/2 \* \* \* \*"/);
   const worker = fs.readFileSync(path.join(__dirname, '..', 'netlify/functions/twilio-outbox-worker.js'), 'utf8');
   assert.match(worker, /exports\.config\s*=\s*\{\s*schedule:\s*'\*\/2 \* \* \* \*'/);
+  assert.match(worker, /decodeEventBody/);
+  assert.match(worker, /\[twilio-outbox-worker\]/);
 });
