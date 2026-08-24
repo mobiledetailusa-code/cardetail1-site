@@ -220,6 +220,41 @@ test('1. first click on a secure link creates exactly one session', async (t) =>
   assert.ok(sessionTokenFrom(res), 'session cookie issued');
 });
 
+test('1b. missing, malformed, and tampered tokens are rejected without consuming a live token', async (t) => {
+  const h = harness({ bookings: { 'CD1-SESS0001B': baseBooking({ id: 'CD1-SESS0001B' }) } });
+  t.after(() => h.restore());
+
+  const minted = await mint(h, 'CD1-SESS0001B');
+  const missing = await h.accessFn.handler({
+    httpMethod: 'GET',
+    headers: { 'x-nf-client-connection-ip': '203.0.113.10' },
+    queryStringParameters: {},
+  });
+  assert.equal(missing.statusCode, 400);
+  assert.match(missing.body, /secure link is invalid/i);
+
+  const malformed = await openShortLink(h, 'not-a-token');
+  assert.equal(malformed.statusCode, 400);
+  assert.match(malformed.body, /secure link is invalid/i);
+
+  const flipped = minted.token.endsWith('A')
+    ? `${minted.token.slice(0, -1)}B`
+    : `${minted.token.slice(0, -1)}A`;
+  const tampered = await openShortLink(h, flipped);
+  assert.equal(tampered.statusCode, 400);
+  assert.match(tampered.body, /secure link is invalid/i);
+  assert.equal(tampered.headers['Set-Cookie'], undefined);
+
+  const stillLive = await h.accessToken.loadTokenRecord(minted.token, {
+    allowExpired: true,
+    allowConsumed: true,
+  });
+  assert.equal(stillLive.record.consumedAt, null, 'rejection paths must not consume the real token');
+
+  const preview = await openShortLink(h, minted.token);
+  assert.equal(preview.statusCode, 200);
+});
+
 test('2. the device session outlives a browser restart (30-day server TTL and cookie)', async (t) => {
   const h = harness({ bookings: { 'CD1-SESS00002': baseBooking({ id: 'CD1-SESS00002' }) } });
   t.after(() => h.restore());
