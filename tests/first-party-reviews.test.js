@@ -94,6 +94,10 @@ test('featured quotes are a short homepage set and the rest stay in the carousel
   assert.ok(featured.some((r) => r.id === 'pablo-sanchez'));
 });
 
+test('reviews section reserves enough height for the featured grid and clears the sticky nav', () => {
+  assert.match(index, /#reviews\{content-visibility:auto;contain-intrinsic-size:2400px;scroll-margin-top:76px\}/);
+});
+
 test('homepage and reviews module do not add paid Places API or review schema', () => {
   const sources = [index, reviewsJs];
   for (const src of sources) {
