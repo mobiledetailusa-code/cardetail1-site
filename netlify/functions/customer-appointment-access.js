@@ -1,7 +1,9 @@
 // Exchange opaque appointment access tokens for a normal Customer Portal session.
-// GET  ?token=...  → validate only (prefetch-safe confirm page, or same-device re-entry)
+// GET  ?token=... or ?t=... → validate only (prefetch-safe confirm page, or re-entry)
 // POST { action:'exchange', token } → consume + session cookie + redirect
 // POST { action:'resend', token } → supersede token + re-send notification (anti-enumeration)
+// Spent unexpired SMS links mint a new session when the visitor has none, so a
+// second tap (in-app browser / no cookie) still opens the appointment.
 
 'use strict';
 
@@ -59,6 +61,7 @@ function htmlPage({ title, bodyHtml, statusCode = 200 }) {
 <html lang="en"><head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="referrer" content="no-referrer"/>
 <title>${title}</title>
 <style>
 body{font-family:Georgia,serif;background:#f6f3ee;color:#14201c;margin:0;padding:32px 18px}
@@ -272,6 +275,143 @@ async function redirectSpentWithSession(event, booking, tokenRecord, cid, rawTok
 }
 
 /**
+ * Mint a portal session for this booking. Used after the first consume, and
+ * again for later taps of the same unexpired SMS link (iMessage previews and
+ * in-app browsers otherwise show "already used").
+ */
+async function issueAppointmentSession(booking, tokenRecord, cid, rawToken) {
+  const phoneDigits = normalizeUsPhoneDigits(booking.phone || booking.customerPhone || '')
+    || tokenRecord.phoneDigits
+    || null;
+  const email = String(booking.email || '').trim().toLowerCase() || null;
+  const bookingId = booking.id || booking.bookingId;
+  const existingBookingAccountId = String(booking.customerAccountId || '').trim() || null;
+
+  if (
+    tokenRecord.customerAccountId
+    && existingBookingAccountId
+    && tokenRecord.customerAccountId !== existingBookingAccountId
+  ) {
+    return invalidLinkPage(cid);
+  }
+
+  let customerAccountId = tokenRecord.customerAccountId || existingBookingAccountId;
+  try {
+    const resolution = await resolveOrCreateCustomerAccount({
+      verifiedEmail: email,
+      email,
+      verifiedPhone: phoneDigits,
+      phone: phoneDigits,
+      bookingIds: [bookingId],
+      stripeCustomerId: booking.stripeCustomerId || null,
+    }, {
+      allowPhoneOnly: !email && !!phoneDigits,
+      createIfMissing: true,
+      trustSessionAccountId: false,
+      acceptBrowserAccountId: false,
+    });
+    if (resolution.ok && resolution.customerAccountId) {
+      if (
+        tokenRecord.customerAccountId
+        && tokenRecord.customerAccountId !== resolution.customerAccountId
+      ) {
+        return invalidLinkPage(cid);
+      }
+      customerAccountId = resolution.customerAccountId;
+      try {
+        const { tryGetPrisma } = require('../lib/prisma');
+        const prisma = tryGetPrisma();
+        if (prisma) {
+          await linkBookingToAccount(prisma, {
+            bookingId,
+            customerAccountId,
+          }).catch(() => null);
+        }
+      } catch { /* ignore */ }
+      await backfillBookingsOnLogin({
+        customerAccountId,
+        verifiedEmail: email,
+        verifiedPhone: phoneDigits,
+        bookingIds: [bookingId],
+        blobBookings: [booking],
+      }).catch(() => null);
+    }
+  } catch {
+    // Session can still be created from booking contact when Prisma is unavailable.
+  }
+
+  if (customerAccountId) {
+    const linkage = await linkBookingToAccountDurably({
+      bookingId,
+      customerAccountId,
+    });
+    if (!linkage.ok && linkage.result === LINK_RESULT.OWNED_BY_OTHER_ACCOUNT) {
+      console.warn('[customer-appointment-access] link refused', {
+        correlationId: cid,
+        bookingIdPrefix: String(bookingId).slice(0, 12),
+        reason: linkage.result,
+      });
+      return invalidLinkPage(cid);
+    }
+  }
+
+  let bookingIds = [bookingId].filter(Boolean);
+  if (customerAccountId) {
+    try {
+      const linked = await listBookingIdsForAccount(customerAccountId);
+      if (Array.isArray(linked) && linked.length) {
+        bookingIds = [...new Set([...bookingIds, ...linked])].slice(0, 50);
+      }
+    } catch { /* ignore */ }
+  }
+
+  let sessionToken;
+  try {
+    ({ token: sessionToken } = await createAccountSession({
+      phoneDigits,
+      email,
+      bookingIds,
+      customerAccountId,
+    }));
+  } catch (e) {
+    console.warn('[customer-appointment-access] session create failed', {
+      correlationId: cid,
+      error: String(e && e.message || e).slice(0, 160),
+    });
+    return sessionFailedPage(rawToken, cid);
+  }
+
+  const refResult = await ensureAppointmentPublicRef(await loadBooking(bookingId) || booking);
+  if (refResult.created) {
+    await patchBookingFields(bookingId, {
+      appointmentPublicRef: refResult.booking.appointmentPublicRef,
+      appointmentPublicRefAt: refResult.booking.appointmentPublicRefAt,
+    });
+  }
+
+  return redirectWithSession(buildPortalFocusPath(refResult.focusRef), sessionToken);
+}
+
+/**
+ * Spent unexpired SMS links stay usable until TTL. A live session for a
+ * different account still cannot ride the token.
+ */
+async function resumeSpentAppointmentLink(event, booking, tokenRecord, cid, rawToken, { reason }) {
+  const spent = await redirectSpentWithSession(
+    event,
+    booking,
+    tokenRecord,
+    cid,
+    rawToken,
+    { reason }
+  );
+  if (spent.statusCode === 302 || reason === 'expired') return spent;
+  const session = await validateCustomerSession(event);
+  if (session.ok) return spent;
+  return issueAppointmentSession(booking, tokenRecord, cid, rawToken);
+}
+
+/**
  * GET entry: never consume. Live tokens get a confirm form; spent/expired
  * tokens may still re-enter on the same device session.
  */
@@ -303,7 +443,7 @@ async function beginAccess(rawToken, event) {
   }
 
   if (loaded.consumed || loaded.classification === CONSUME_RESULT.ALREADY_CONSUMED) {
-    return redirectSpentWithSession(
+    return resumeSpentAppointmentLink(
       event,
       booking,
       loaded.record,
@@ -350,9 +490,9 @@ async function exchangeToken(rawToken, event) {
     return invalidLinkPage(cid);
   }
 
-  // Already consumed before this request — never mint another session.
+  // Already consumed — reuse until TTL when the visitor is not on another account.
   if (loaded.consumed || loaded.classification === CONSUME_RESULT.ALREADY_CONSUMED) {
-    return redirectSpentWithSession(
+    return resumeSpentAppointmentLink(
       event,
       booking,
       loaded.record,
@@ -460,7 +600,7 @@ async function exchangeToken(rawToken, event) {
     return expiredLinkPage(rawToken, cid);
   }
   if (consumed.classification === CONSUME_RESULT.ALREADY_CONSUMED) {
-    return redirectSpentWithSession(
+    return resumeSpentAppointmentLink(
       event,
       booking,
       consumed.record || loaded.record,
@@ -684,6 +824,28 @@ function parseBody(event) {
   catch { return {}; }
 }
 
+function firstNonEmpty(...values) {
+  for (const value of values) {
+    const s = String(value == null ? '' : value).trim();
+    if (s) return s;
+  }
+  return '';
+}
+
+/** Accept ?token= (legacy SMS) and ?t= (short /a?t= SMS). */
+function accessTokenFromEvent(event, body = null) {
+  const qs = event.queryStringParameters || {};
+  const rawQuery = new URLSearchParams(event.rawQuery || '');
+  return firstNonEmpty(
+    body && body.token,
+    body && body.t,
+    qs.token,
+    qs.t,
+    rawQuery.get('token'),
+    rawQuery.get('t')
+  );
+}
+
 exports.handler = async (event) => {
   const cid = correlationId();
   try {
@@ -696,8 +858,7 @@ exports.handler = async (event) => {
     if (rateLimit.blocked) return rateLimit.response;
 
     if (event.httpMethod === 'GET') {
-      const token = event.queryStringParameters?.token
-        || new URLSearchParams(event.rawQuery || '').get('token');
+      const token = accessTokenFromEvent(event);
       if (!token) return invalidLinkPage(cid);
       return beginAccess(token, event);
     }
@@ -705,11 +866,12 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'POST') {
       const body = parseBody(event);
       const action = String(body.action || 'exchange').toLowerCase();
+      const token = accessTokenFromEvent(event, body);
       if (action === 'resend') {
-        return resendFromToken(body.token, event);
+        return resendFromToken(token, event);
       }
-      if (action === 'exchange' && body.token) {
-        return exchangeToken(body.token, event);
+      if (action === 'exchange' && token) {
+        return exchangeToken(token, event);
       }
       return jsonCors(400, { ok: false, error: 'validation_error', correlationId: cid });
     }

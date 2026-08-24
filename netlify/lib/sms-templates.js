@@ -3,8 +3,8 @@
 const { PROGRAM_NAME } = require('./sms-program');
 
 const BRAND = PROGRAM_NAME;
-const TEMPLATE_VERSION = 'sms-v1-2026-08-05';
-const COMPLIANCE = 'Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for help.';
+const TEMPLATE_VERSION = 'sms-v2-2026-08-23';
+const COMPLIANCE = 'Reply STOP or HELP';
 
 const TEMPLATE_KEYS = Object.freeze({
   REQUEST_RECEIVED: 'booking.request_received',
@@ -34,16 +34,16 @@ function renderSmsTemplate(templateKey, data = {}) {
   let body = '';
   switch (templateKey) {
     case TEMPLATE_KEYS.REQUEST_RECEIVED:
-      body = `${BRAND}: You are opted in for transactional booking and appointment texts. We received your booking request and it is under review.`
-        + (url ? ` View status: ${url}` : '');
+      body = `${BRAND}: Booking request received.`
+        + (url ? ` ${url}` : '');
       break;
     case TEMPLATE_KEYS.CONFIRMED:
-      body = `${BRAND}: Your appointment is confirmed${data.when ? ` for ${text(data.when, 120)}` : ''}.`
-        + (url ? ` View appointment: ${url}` : '');
+      body = `${BRAND}: Appointment confirmed${data.when ? ` ${text(data.when, 80)}` : ''}.`
+        + (url ? ` ${url}` : '');
       break;
     case TEMPLATE_KEYS.ACTION_REQUIRED:
-      body = `${BRAND}: Action is needed for your appointment.`
-        + (url ? ` Review: ${url}` : '');
+      body = `${BRAND}: Action needed on your appointment.`
+        + (url ? ` ${url}` : '');
       break;
     case TEMPLATE_KEYS.TECH_AUCTION:
       body = `${BRAND}: Job ${text(data.service, 100)} - ${text(data.date, 40)} - ${text(data.area, 40)}.`

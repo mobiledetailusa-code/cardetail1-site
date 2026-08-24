@@ -322,8 +322,8 @@ process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
         },
       },
     });
-    assert.match(capturedText, /https:\/\/cardetail1\.com\/\.netlify\/functions\/customer-appointment-access/);
-    assert.doesNotMatch(capturedText, /evil\.example|phish\.example/);
+  assert.match(capturedText, /https:\/\/cardetail1\.com\/a\?t=/);
+  assert.doesNotMatch(capturedText, /evil\.example|phish\.example/);
   } finally {
     global.fetch = originalFetch;
   }
