@@ -392,8 +392,16 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .rv-btn{width:38px;height:38px;border-radius:50%;border:1px solid var(--bbr);background:var(--bg1);color:var(--blue);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
 .rv-btn:hover{background:var(--blue);color:var(--white)}
 .rv-dots{display:flex;gap:6px;align-items:center}
-.rv-dot{width:7px;height:7px;border-radius:50%;background:rgba(15,23,42,.15);cursor:pointer;transition:.25s}
+.rv-dot{width:7px;height:7px;border-radius:50%;background:rgba(15,23,42,.15);cursor:pointer;transition:.25s;padding:0;border:0}
 .rv-dot.active{background:var(--blue);width:20px;border-radius:4px}
+#reviews .rv-featured{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:0 0 32px}
+#reviews .rv-card--featured{min-height:100%;background:var(--bg1);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+#reviews .rv-card--featured:hover{border-color:var(--bbr);transform:translateY(-2px)}
+#reviews .rv-card .rv-name{color:var(--ink)}
+#reviews .rv-card .rv-text{color:var(--tx);margin:0;font-family:var(--fb)}
+#reviews .rv-more-label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);text-align:center;margin:0 0 10px}
+#reviews .rv-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:24px}
+#reviews .rv-actions .btn-outline{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 /* ── CUSTOMER PORTAL ── */
 .cp-ov{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:1100;display:none;align-items:center;justify-content:center;padding:20px}
 .cp-ov.open{display:flex}
@@ -1189,6 +1197,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   /* ── REVIEWS ── */
   .rv-slide{padding:0 2px}
   .rv-card{padding:16px 14px}
+  #reviews .rv-featured{grid-template-columns:1fr;gap:12px;margin-bottom:24px}
+  #reviews .rv-actions{flex-direction:column;align-items:stretch}
+  #reviews .rv-actions .btn-primary,
+  #reviews .rv-actions .btn-outline{width:100%;min-height:48px}
 
   /* ── CUSTOMER PORTAL ── */
   .cp-ov{padding:0;align-items:flex-end}
@@ -2099,19 +2111,26 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="section">
     <div class="sec-eye">Customer reviews</div>
     <div class="sec-title">What local customers say</div>
-    <div class="sec-desc">Real feedback from mobile car detailing jobs in Bergen County and nearby NJ/NY.</div>
+    <p class="sec-desc">Real feedback from Cardetail1 mobile detailing jobs in Bergen County and nearby NJ/NY. These are first-party customer quotes we publish on this page — not a live Google feed.</p>
 
-    <div id="rv-counter" style="text-align:right;font-size:13px;color:var(--mu);letter-spacing:.06em;margin-bottom:8px">1 / 14</div>
-    <div class="rv-carousel">
-      <div class="rv-track" id="rv-track"></div>
+    <div class="rv-featured" id="rv-featured"></div>
+
+    <div id="rv-more">
+      <div class="rv-more-label">More customer feedback</div>
+      <div id="rv-counter" style="text-align:right;font-size:13px;color:var(--mu);letter-spacing:.06em;margin-bottom:8px"></div>
+      <div class="rv-carousel">
+        <div class="rv-track" id="rv-track"></div>
+      </div>
+      <div class="rv-nav" style="margin-top:14px">
+        <button type="button" class="rv-btn" aria-label="Previous review" onclick="rvMove(-1)">&#8592;</button>
+        <div class="rv-dots" id="rv-dots"></div>
+        <button type="button" class="rv-btn" aria-label="Next review" onclick="rvMove(1)">&#8594;</button>
+      </div>
     </div>
-    <div class="rv-nav" style="margin-top:14px">
-      <button class="rv-btn" onclick="rvMove(-1)">&#8592;</button>
-      <div class="rv-dots" id="rv-dots"></div>
-      <button class="rv-btn" onclick="rvMove(1)">&#8594;</button>
-    </div>
-    <div style="text-align:center;margin-top:20px">
-      <a class="btn-n" style="font-size:13px;padding:11px 24px;text-decoration:none;display:inline-flex;align-items:center;gap:6px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">&#11088; Leave a Google Review</a>
+
+    <div class="rv-actions">
+      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
+      <a class="btn-outline" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">Leave a Google Review</a>
     </div>
     <div class="cred-row" style="margin-top:20px">
       <div class="cred-item"><span>🚐</span><span>Mobile car detailing</span></div>
@@ -2873,6 +2892,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script src="/netlify/lib/admin-session-client.js"></script>
 <script src="assets/car-pkg-detail-modal.js"></script>
 <script src="/netlify/lib/owner-studio/storefront-preview-adapter.js"></script>
+<script src="assets/customer-reviews.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════
@@ -6045,124 +6065,8 @@ function updateBkFromPrices(){
 
 
 // ═══════════════════════════════════════════════════════
-// REVIEWS
+// REVIEWS — first-party curated list lives in assets/customer-reviews.js
 // ═══════════════════════════════════════════════════════
-const REVIEWS = [
-  {
-    name: 'Pablo Sanchez',
-    rating: 5,
-    text: "The detailer did an amazing job, very thorough and I'm impressed with the high level of quality service he provided. The car looks brand new.",
-    location: 'NJ Area',
-    date: 'May 2025',
-    service: 'Subaru Crosstrek · Exterior Detail'
-  },
-  {
-    name: 'Craig Bitman',
-    rating: 5,
-    text: 'Incredible work on my BMW. Magno was professional, punctual, and the results speak for themselves. Highly recommend Cardetail1 to anyone who takes pride in their car.',
-    location: 'Craryville, NY',
-    date: 'May 2025',
-    service: 'BMW 4 Series · Exterior Detail'
-  },
-  {
-    name: 'Paul Berliner',
-    rating: 5,
-    text: 'Fantastic detailing by Magno! Super intelligent, efficient and a pleasure to deal with. My Land Rover Defender now looks brand new! Thank you Magno! My life is now better!',
-    location: 'Brooklyn, NY',
-    date: 'Jun 2025',
-    service: 'Land Rover Defender 130 · Exterior Detail'
-  },
-  {
-    name: 'David Johnson',
-    rating: 5,
-    text: 'Excellent work! Arrived timely and was a pleasure to work with. I was thinking this would be a one time thing but it\'s been a good experience so we\'re considering getting the other car done.',
-    location: 'Amityville, NY',
-    date: 'Jun 2025',
-    service: 'Grand Design 320G 5th Wheel · Full Detail'
-  },
-  {
-    name: 'Patrice Zaborski',
-    rating: 5,
-    text: 'Magno, our detailer did a wonderful job. Our RV looks like new. He was professional, pleasant and detail oriented. He took his time to make sure all was perfect. We look forward to Magno working on our vehicle in the future. Thank you!',
-    location: 'East Hampton, NY',
-    date: 'Jun 2025',
-    service: 'Renegade Vienna Motorhome · Full Detail'
-  },
-  {
-    name: 'MaryJane Raymond',
-    rating: 5,
-    text: 'Magno was excellent and efficient!!!',
-    location: 'Far Hills, NJ',
-    date: 'Jun 2025',
-    service: 'Volvo XC60 · Full Detail'
-  },
-  {
-    name: 'Andy Rudin',
-    rating: 5,
-    text: 'Service was timely and the car is gorgeous.',
-    location: 'Bronx, NY',
-    date: 'Jun 2025',
-    service: 'Honda CR-V · Full Detail'
-  },
-  {
-    name: 'Jeanne Anderson',
-    rating: 5,
-    text: "Excellent work! Arrived timely and was a pleasure to work with. I was thinking this would be a one time thing but it's been a good experience so we're considering getting the other car done.",
-    location: 'West Islip, NY',
-    date: 'Jun 2025',
-    service: 'Subaru Impreza · Interior Detail'
-  },
-  {
-    name: 'Brian Baker',
-    rating: 5,
-    text: '',
-    location: 'NJ / NY Area',
-    date: 'Jun 2025',
-    service: 'Land Rover Defender · Exterior Detail'
-  },
-  {
-    name: 'Dani Sames',
-    rating: 5,
-    text: 'My car was horrible. Now it\'s brand new, great job.',
-    location: '',
-    date: 'Aug 2025',
-    service: 'Mobile Auto Detailing'
-  },
-  {
-    name: 'Rose Alves',
-    rating: 5,
-    text: 'Good job. My car was terrible, now it\'s brand new.',
-    location: '',
-    date: 'Aug 2025',
-    service: 'Mobile Auto Detailing'
-  },
-  {
-    name: 'Adilsom Pedro',
-    rating: 5,
-    text: 'Excellent work, 100% guaranteed.',
-    location: '',
-    date: 'May 2026',
-    service: 'Mobile Auto Detailing'
-  },
-  {
-    name: 'Magno Junior',
-    rating: 5,
-    text: 'My cars looked like new! Guy did a great job. Very satisfied, would recommend.',
-    location: '',
-    date: 'May 2026',
-    service: 'Mobile Auto Detailing'
-  },
-  {
-    name: 'Claudio Campos',
-    rating: 5,
-    text: 'Great job!! Highly recommended! My car looks like it just came out of the dealership.',
-    location: '',
-    date: 'May 2026',
-    service: 'Mobile Auto Detailing'
-  }
-];
-
-let rvIdx = 0;
 
 // ── HOMEPAGE RECENT WORK CAROUSEL ──
 (function initRecentWorkCarousel(){
@@ -6252,45 +6156,22 @@ let rvIdx = 0;
 })();
 
 function renderReviews(){
-  const track = document.getElementById('rv-track');
-  const dots  = document.getElementById('rv-dots');
-  if(!track) return;
-  track.innerHTML = REVIEWS.map(r=>{
-    const initials = r.name.split(' ').map(w=>w[0]).join('');
-    const stars    = '★'.repeat(r.rating)+'☆'.repeat(5-r.rating);
-    return `<div class="rv-slide">
-      <div class="rv-card">
-        <div class="rv-stars">${stars}</div>
-        ${r.text ? `<div class="rv-text">"${r.text}"</div>` : ''}
-        <div class="rv-author">
-          <div class="rv-avatar">${initials}</div>
-          <div>
-            <div class="rv-name">${r.name}</div>
-            <div class="rv-meta">${r.location} · ${r.date}</div>
-            <div class="rv-badge">${r.service}</div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-  if(dots){
-    dots.innerHTML = REVIEWS.map((_,i)=>`<div class="rv-dot${i===0?' active':''}" onclick="rvGoTo(${i})"></div>`).join('');
+  if (window.CD1CustomerReviews && typeof CD1CustomerReviews.mount === 'function') {
+    CD1CustomerReviews.mount();
   }
-  rvGoTo(0);
-  // Auto-advance every 5s
-  setInterval(()=>rvMove(1), 5000);
 }
 
 function rvGoTo(i){
-  rvIdx = (i + REVIEWS.length) % REVIEWS.length;
-  const track = document.getElementById('rv-track');
-  if(track) track.style.transform = `translateX(-${rvIdx*100}%)`;
-  document.querySelectorAll('.rv-dot').forEach((d,j)=>d.classList.toggle('active',j===rvIdx));
-  const ctr = document.getElementById('rv-counter');
-  if(ctr) ctr.textContent = `${rvIdx+1} / ${REVIEWS.length}`;
+  if (window.CD1CustomerReviews && typeof CD1CustomerReviews.goTo === 'function') {
+    CD1CustomerReviews.goTo(i);
+  }
 }
 
-function rvMove(dir){ rvGoTo(rvIdx + dir); }
+function rvMove(dir){
+  if (window.CD1CustomerReviews && typeof CD1CustomerReviews.move === 'function') {
+    CD1CustomerReviews.move(dir);
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 // AUTH / LOGIN
