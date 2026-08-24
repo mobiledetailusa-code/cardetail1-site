@@ -38,22 +38,26 @@ test('homepage loads the first-party reviews module and keeps the reviews anchor
 test('homepage reviews copy is first-party and does not claim a live Google widget', () => {
   assert.match(section, /Customer reviews/);
   assert.match(section, /What local customers say/);
-  assert.match(section, /first-party customer quotes/);
+  assert.match(section, /our own review channel/);
   assert.match(section, /not a live Google feed/);
+  assert.match(section, /My Garage/);
   assert.doesNotMatch(section, /live Google reviews/i);
   assert.doesNotMatch(section, /powered by Google/i);
 });
 
-test('homepage reviews keep a booking CTA and an outbound Google review link', () => {
+test('homepage reviews keep booking, Cardetail1, and optional Google CTAs', () => {
   assert.match(section, /onclick="openBooking\(null\)"/);
   assert.match(section, /booking-popup-trigger/);
   assert.match(section, /Book Your Detail/);
+  assert.match(section, /href="my-garage.html#lookup"/);
+  assert.match(section, /Leave a Cardetail1 review/);
   assert.match(
     section,
     /href="https:\/\/g\.page\/r\/CTJwfJerrQeCEAI\/review"/,
   );
   assert.match(section, /Leave a Google Review/);
   assert.equal(reviews.GOOGLE_REVIEW_URL, 'https://g.page/r/CTJwfJerrQeCEAI/review');
+  assert.equal(reviews.PORTAL_REVIEWS_URL, '/.netlify/functions/public-reviews');
 });
 
 test('curated reviews have names, ratings, and non-empty text', () => {
@@ -99,7 +103,13 @@ test('reviews section reserves enough height for the featured grid and clears th
 });
 
 test('homepage and reviews module do not add paid Places API or review schema', () => {
-  const sources = [index, reviewsJs];
+  const sources = [
+    index,
+    reviewsJs,
+    read('netlify/functions/public-reviews.js'),
+    read('netlify/functions/admin-reviews.js'),
+    read('netlify/lib/first-party-reviews.js'),
+  ];
   for (const src of sources) {
     assert.doesNotMatch(src, /GOOGLE_PLACES/);
     assert.doesNotMatch(src, /places\.googleapis\.com/);
@@ -144,5 +154,21 @@ if (JSDOM) {
       reviews.featured()[0].id,
     );
     assert.match(dom.window.document.getElementById('rv-counter').textContent, /1 \/ \d+/);
+
+    const beforeCarousel = reviews.carousel().length;
+    reviews.applyPortalItems([{
+      id: 'REV-PORTAL',
+      name: 'Ada L.',
+      rating: 5,
+      text: 'The mobile detail left my SUV looking brand new again.',
+      location: 'Palisades Park, NJ',
+      date: 'Aug 2026',
+      service: 'Interior Detail',
+    }]);
+    const carouselCardsAfter = [...dom.window.document.querySelectorAll('#rv-track .rv-card')];
+    assert.equal(reviews.featured().length, featuredCards.length, 'portal reviews must not replace featured cards');
+    assert.ok(carouselCardsAfter.length > beforeCarousel);
+    assert.ok(carouselCardsAfter.some((card) => card.getAttribute('data-review-id') === 'REV-PORTAL'));
+    reviews.applyPortalItems([]);
   });
 }

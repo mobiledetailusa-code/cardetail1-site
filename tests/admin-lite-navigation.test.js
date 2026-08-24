@@ -83,7 +83,7 @@ test('every legacy Admin capability survives under More', () => {
   const secondary = [...doc.querySelectorAll('#tabsMore .tab')].map((b) => b.dataset.tab);
   assert.deepEqual(secondary, [
     'overview', 'techs', 'assign', 'completed', 'issues',
-    'auctions', 'subscriptions', 'maintenance', 'events', 'revops',
+    'auctions', 'subscriptions', 'maintenance', 'reviews', 'events', 'revops',
   ]);
   for (const id of secondary) {
     assert.ok(doc.querySelector(`#p-${id}`), `panel p-${id} was deleted`);

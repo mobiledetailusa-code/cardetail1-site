@@ -1,13 +1,9 @@
 /**
  * First-party Cardetail1 customer reviews for the homepage.
  *
- * This is a curated list we publish ourselves. It is not a live Google Places
- * widget, not a Maps scrape, and not an AggregateRating feed.
- *
- * Intentionally omitted from the public list:
- * - Empty quotes (no text to show)
- * - Duplicate bodies attributed to two different names
- * - The operator's own listing comment (not customer social proof)
+ * Curated quotes plus the Cardetail1 review channel (completed-job comments
+ * from My Garage). This is not a live Google Places widget, not a Maps scrape,
+ * and not an AggregateRating feed. Google remains an optional outbound link.
  */
 (function (root) {
   'use strict';
@@ -131,6 +127,7 @@
   var rvTimer = null;
   var carouselReviews = [];
   var mountedDoc = null;
+  var portalReviews = [];
 
   function publicList() {
     return REVIEWS.filter(function (r) {
@@ -138,12 +135,45 @@
     });
   }
 
+  function normalizeBody(text) {
+    return String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  function portalCard(item) {
+    if (!item) return null;
+    var text = String(item.text || item.comment || '').trim();
+    var name = String(item.name || '').trim();
+    var rating = Math.round(Number(item.rating != null ? item.rating : item.stars) || 0);
+    if (!name || text.length < 12 || rating < 1 || rating > 5) return null;
+    return {
+      id: String(item.id || ''),
+      name: name,
+      rating: rating,
+      text: text,
+      location: String(item.location || '').trim() || 'NJ / NY area',
+      date: String(item.date || '').trim(),
+      service: String(item.service || '').trim() || 'Mobile Auto Detailing',
+      featured: false,
+      source: 'cardetail1'
+    };
+  }
+
   function featured() {
     return publicList().filter(function (r) { return !!r.featured; });
   }
 
   function carousel() {
-    return publicList().filter(function (r) { return !r.featured; });
+    var curated = publicList().filter(function (r) { return !r.featured; });
+    var seen = {};
+    curated.forEach(function (r) { seen[normalizeBody(r.text)] = true; });
+    publicList().forEach(function (r) { seen[normalizeBody(r.text)] = true; });
+    var extra = portalReviews.filter(function (r) {
+      var body = normalizeBody(r.text);
+      if (!body || seen[body]) return false;
+      seen[body] = true;
+      return true;
+    });
+    return curated.concat(extra);
   }
 
   function escapeHtml(value) {
@@ -242,10 +272,9 @@
     rvTimer = view.setInterval(function () { move(1); }, 5000);
   }
 
-  function mount(doc) {
-    var documentRef = doc || (root.document);
+  function paint() {
+    var documentRef = mountedDoc;
     if (!documentRef) return;
-    mountedDoc = documentRef;
     var featuredRoot = documentRef.getElementById('rv-featured');
     var track = documentRef.getElementById('rv-track');
     var dots = documentRef.getElementById('rv-dots');
@@ -282,6 +311,34 @@
     startAutoAdvance();
   }
 
+  function applyPortalItems(items) {
+    portalReviews = (Array.isArray(items) ? items : []).map(portalCard).filter(Boolean);
+    paint();
+    return portalReviews.slice();
+  }
+
+  function fetchPortalReviews() {
+    var view = mountedDoc && mountedDoc.defaultView;
+    if (!view || typeof view.fetch !== 'function') return;
+    if (view.navigator && /jsdom/i.test(view.navigator.userAgent || '')) return;
+    view.fetch('/.netlify/functions/public-reviews')
+      .then(function (res) { return res && res.ok ? res.json() : null; })
+      .then(function (data) {
+        if (data && data.ok && Array.isArray(data.items) && data.items.length) {
+          applyPortalItems(data.items);
+        }
+      })
+      .catch(function () {});
+  }
+
+  function mount(doc, opts) {
+    var documentRef = doc || (root.document);
+    if (!documentRef) return;
+    mountedDoc = documentRef;
+    paint();
+    if (!opts || opts.fetch !== false) fetchPortalReviews();
+  }
+
   var api = {
     GOOGLE_REVIEW_URL: GOOGLE_REVIEW_URL,
     all: publicList,
@@ -291,7 +348,9 @@
     goTo: goTo,
     move: move,
     stop: stop,
-    cardHtml: cardHtml
+    cardHtml: cardHtml,
+    applyPortalItems: applyPortalItems,
+    PORTAL_REVIEWS_URL: '/.netlify/functions/public-reviews'
   };
 
   root.CD1CustomerReviews = api;

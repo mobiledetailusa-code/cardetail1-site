@@ -321,6 +321,8 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/customer-receipt.js',
     'netlify/functions/ops-settings.js',
     'netlify/functions/submit-review.js',
+    'netlify/functions/public-reviews.js',
+    'netlify/functions/admin-reviews.js',
     'netlify/functions/tech-accounts.js',
     // PR5 Twilio readiness: all provider traffic is isolated behind the outbox.
     'netlify/functions/submit-inquiry.js',

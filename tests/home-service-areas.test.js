@@ -169,6 +169,8 @@ test('no Netlify Function files changed in this scope', () => {
     'netlify/functions/customer-portal-action.js',
     // Release B — post-service review / 48h service-issue window
     'netlify/functions/submit-review.js',
+    'netlify/functions/public-reviews.js',
+    'netlify/functions/admin-reviews.js',
     'netlify/functions/evaluate-booking-offer.js',
     'netlify/functions/admin-ops-jobs.js',
     'netlify/functions/qa-opscore-lifecycle.js',

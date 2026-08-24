@@ -20,8 +20,9 @@ const { auditEntry, appendAudit } = require('../lib/operations-audit');
 const { setBookingStoreOverride, getBookingRecord, commitBooking } = require('../lib/booking-repository');
 const { buildNextAggregate } = require('../lib/booking-aggregate');
 const { evaluateReviewSubmission, postServiceState } = require('../lib/post-service-experience');
+const firstPartyReviews = require('../lib/first-party-reviews');
 
-const REVIEWS_STORE = 'cd1-reviews';
+const REVIEWS_STORE = firstPartyReviews.REVIEWS_STORE;
 
 function reviewId() {
   return 'REV-' + Date.now().toString(36).toUpperCase();
@@ -76,16 +77,21 @@ exports.handler = async (event) => {
   }
 
   const now = new Date().toISOString();
+  const comment = sanitizeText(gate.comment, 2000);
+  const status = firstPartyReviews.publishStatus({ stars: gate.stars, comment });
   const review = {
     id: reviewId(),
     bookingId,
     stars: gate.stars,
-    comment: sanitizeText(gate.comment, 2000),
+    comment,
     customerName: [booking.firstName, booking.lastName].filter(Boolean).join(' '),
+    displayName: firstPartyReviews.displayName(booking.firstName, booking.lastName, ''),
+    location: firstPartyReviews.locationLabel(booking),
+    service: firstPartyReviews.serviceLabel(booking),
     techId: booking.assignedTechId || booking.assignedTech || '',
     techName: booking.assignedTechName || '',
-    // Owner may respond, but never edits the customer's rating or words.
-    status: 'pending_moderation',
+    // Owner may hide a published card, but never edits the customer's rating or words.
+    status,
     ownerResponse: null,
     source: 'customer_portal',
     createdAt: now,
@@ -142,6 +148,12 @@ exports.handler = async (event) => {
   try {
     const revStore = await blobsStore(REVIEWS_STORE);
     await revStore.setJSON(review.id, review);
+    if (review.status === 'approved') {
+      const card = firstPartyReviews.cardFromBookingReview(review, booking);
+      if (card) await firstPartyReviews.publishToHomepage(revStore, card);
+    } else {
+      await firstPartyReviews.enqueueModeration(revStore, review.id);
+    }
   } catch (e) {
     console.warn('[submit-review] review store write failed:', e.message);
   }
@@ -180,6 +192,7 @@ exports.handler = async (event) => {
     ok: true,
     reviewId: review.id,
     status: review.status,
+    published: review.status === 'approved',
     bookingVersion: committed.bookingVersion,
     postService: postServiceState(committed.booking),
   });
