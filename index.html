@@ -384,24 +384,58 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .zip-gate-msg{display:flex;align-items:center;gap:10px;padding:14px 16px;border:1.5px dashed rgba(77,163,255,.35);border-radius:var(--rs);background:rgba(77,163,255,.05);color:var(--blue);font-size:13px;font-weight:500;margin-bottom:14px;transition:.3s}
 .zip-gate-msg.unlocked{border-color:var(--grbr);background:rgba(34,197,94,.06);color:var(--gr)}
 /* ── REVIEWS CAROUSEL ── */
-.rv-carousel{position:relative;overflow:hidden}
-.rv-track{display:flex;transition:transform .4s cubic-bezier(.4,0,.2,1)}
-.rv-slide{min-width:100%;padding:0 4px}
-.rv-card{background:var(--bg1);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-sm)}
+.rv-vh{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.rv-header-rating{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 8px}
+.rv-google-stat{text-align:center;font-size:13px;color:var(--ink);margin:0 0 6px}
+.rv-google-stat-note{display:block;font-size:11px;color:var(--mu);font-weight:400;margin-top:2px}
+.rv-carousel{position:relative;max-width:100%}
+.rv-viewport{display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;padding:4px 2px 8px;scrollbar-width:none}
+.rv-viewport::-webkit-scrollbar{display:none}
+.rv-viewport:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:8px}
+.rv-track{display:contents}
+.rv-slide{flex:0 0 calc((100% - 28px) / 3);scroll-snap-align:start;min-width:0}
+.rv-card{background:var(--bg1);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-sm);height:100%;min-height:0}
 .rv-nav{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px}
 .rv-btn{width:38px;height:38px;border-radius:50%;border:1px solid var(--bbr);background:var(--bg1);color:var(--blue);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
-.rv-btn:hover{background:var(--blue);color:var(--white)}
-.rv-dots{display:flex;gap:6px;align-items:center}
+.rv-btn:hover:not(:disabled){background:var(--blue);color:var(--white)}
+.rv-btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.rv-btn:disabled{opacity:.35;cursor:default}
+.rv-dots{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:60%}
 .rv-dot{width:7px;height:7px;border-radius:50%;background:rgba(15,23,42,.15);cursor:pointer;transition:.25s;padding:0;border:0}
+.rv-dot:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .rv-dot.active{background:var(--blue);width:20px;border-radius:4px}
-#reviews .rv-featured{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:0 0 32px}
-#reviews .rv-card--featured{min-height:100%;background:var(--bg1);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
-#reviews .rv-card--featured:hover{border-color:var(--bbr);transform:translateY(-2px)}
 #reviews .rv-card .rv-name{color:var(--ink)}
 #reviews .rv-card .rv-text{color:var(--tx);margin:0;font-family:var(--fb)}
-#reviews .rv-more-label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);text-align:center;margin:0 0 10px}
+#reviews .rv-quote[data-clamp="5"]{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden;line-height:1.55;max-height:calc(1.55em * 5)}
+#reviews .rv-card--full .rv-quote{display:block;-webkit-line-clamp:unset;max-height:none;overflow:visible}
+#reviews .rv-read-more{align-self:flex-start;background:none;border:0;padding:0;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline}
+#reviews .rv-read-more:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+#reviews .rv-source{font-size:11px;color:var(--mu);margin-top:4px}
+#reviews .rv-source--google,#reviews .rv-source--cardetail1{color:var(--blue)}
+#reviews .rv-card:hover{transform:none}
 #reviews .rv-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:24px}
 #reviews .rv-actions .btn-outline{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.rv-overlay{position:fixed;inset:0;z-index:1200;display:none;align-items:flex-end;justify-content:center;padding:16px}
+.rv-overlay.is-open{display:flex}
+.rv-overlay-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.62)}
+.rv-overlay-panel{position:relative;background:var(--bg1);border:1px solid var(--line);border-radius:var(--r);width:min(720px,100%);max-height:min(86vh,860px);display:flex;flex-direction:column;box-shadow:var(--shadow-md)}
+.rv-overlay-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.rv-overlay-title{font-size:16px;margin:0;color:var(--ink)}
+.rv-overlay-close{background:var(--bg2);border:1px solid var(--bbr);color:var(--ink);border-radius:999px;padding:8px 12px;cursor:pointer;font-size:13px}
+.rv-overlay-close:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.rv-overlay-body{overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch}
+body.rv-overlay-lock{overflow:hidden}
+@media(min-width:641px){
+  .rv-overlay{align-items:center}
+  .rv-overlay-panel{border-radius:var(--r)}
+}
+@media(max-width:900px){
+  .rv-slide{flex-basis:calc((100% - 14px) / 2)}
+}
+@media(max-width:640px){
+  .rv-viewport{gap:12px}
+  .rv-slide{flex-basis:100%}
+}
 /* ── CUSTOMER PORTAL ── */
 .cp-ov{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:1100;display:none;align-items:center;justify-content:center;padding:20px}
 .cp-ov.open{display:flex}
@@ -1195,12 +1229,12 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .foot-links{flex-wrap:wrap;justify-content:center;gap:12px}
 
   /* ── REVIEWS ── */
-  .rv-slide{padding:0 2px}
   .rv-card{padding:16px 14px}
-  #reviews .rv-featured{grid-template-columns:1fr;gap:12px;margin-bottom:24px}
   #reviews .rv-actions{flex-direction:column;align-items:stretch}
   #reviews .rv-actions .btn-primary,
   #reviews .rv-actions .btn-outline{width:100%;min-height:48px}
+  .rv-overlay{padding:0}
+  .rv-overlay-panel{max-height:92svh;border-radius:var(--rx) var(--rx) 0 0;width:100%}
 
   /* ── CUSTOMER PORTAL ── */
   .cp-ov{padding:0;align-items:flex-end}
@@ -1354,7 +1388,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 #services{content-visibility:auto;contain-intrinsic-size:900px;scroll-margin-top:76px}
 @media(max-width:640px){#services{scroll-margin-top:68px}}
 .section-full,.results-section,.ba-section,#how{content-visibility:auto;contain-intrinsic-size:900px}
-#reviews{content-visibility:auto;contain-intrinsic-size:2400px;scroll-margin-top:76px}
+#reviews{content-visibility:auto;contain-intrinsic-size:880px;scroll-margin-top:76px}
 .rw-img{background:linear-gradient(110deg,var(--bg2) 25%,var(--bg3) 42%,var(--bg2) 58%);background-size:200% 100%;animation:imgShimmer 1.4s linear infinite}
 .rw-img.rw-loaded{animation:none;background:none}
 @keyframes imgShimmer{to{background-position:-200% 0}}
@@ -2110,26 +2144,28 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <!-- REVIEWS -->
 <div id="reviews" style="background:var(--bg0)">
   <div class="section">
-    <div class="sec-eye">Customer reviews</div>
-    <div class="sec-title">What local customers say</div>
-    <p class="sec-desc">Real feedback from Cardetail1 customers in Bergen County and nearby NJ/NY. After your appointment you can leave a review in My Garage — we publish it here. This is our own review channel, not a live Google feed.</p>
+    <div class="sec-eye">Customer Reviews</div>
+    <div class="rv-header-rating">
+      <span class="rv-stars" aria-hidden="true">★★★★★</span>
+      <span class="rv-vh">5 out of 5 stars</span>
+    </div>
+    <div class="sec-title">Customer experiences with Detailing Zone</div>
+    <p class="rv-google-stat">5.0 on Google · 9 Google reviews<span class="rv-google-stat-note">Google listing snapshot from August 2026 — not a live Google feed</span></p>
+    <p class="sec-desc">Google comments below are copied from the current Cardetail1 Google listing. New Cardetail1 reviews come from My Garage after a completed job and appear here when published.</p>
 
-    <div class="rv-featured" id="rv-featured"></div>
-
-    <div id="rv-more">
-      <div class="rv-more-label">More customer feedback</div>
-      <div id="rv-counter" style="text-align:right;font-size:13px;color:var(--mu);letter-spacing:.06em;margin-bottom:8px"></div>
-      <div class="rv-carousel">
+    <div class="rv-carousel" id="rv-carousel" aria-roledescription="carousel" aria-label="Customer reviews">
+      <div class="rv-viewport" id="rv-viewport" tabindex="0">
         <div class="rv-track" id="rv-track"></div>
       </div>
-      <div class="rv-nav" style="margin-top:14px">
-        <button type="button" class="rv-btn" aria-label="Previous review" onclick="rvMove(-1)">&#8592;</button>
+      <div class="rv-nav">
+        <button type="button" class="rv-btn" id="rv-prev" aria-label="Previous reviews" onclick="rvMove(-1)">&#8592;</button>
         <div class="rv-dots" id="rv-dots"></div>
-        <button type="button" class="rv-btn" aria-label="Next review" onclick="rvMove(1)">&#8594;</button>
+        <button type="button" class="rv-btn" id="rv-next" aria-label="Next reviews" onclick="rvMove(1)">&#8594;</button>
       </div>
     </div>
 
     <div class="rv-actions">
+      <button type="button" class="btn-outline" id="rv-view-all" onclick="rvViewAll()">View all reviews</button>
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
       <a class="btn-outline" href="my-garage.html#lookup">Leave a Cardetail1 review</a>
       <a class="btn-outline" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">Leave a Google Review</a>
@@ -6172,6 +6208,12 @@ function rvGoTo(i){
 function rvMove(dir){
   if (window.CD1CustomerReviews && typeof CD1CustomerReviews.move === 'function') {
     CD1CustomerReviews.move(dir);
+  }
+}
+
+function rvViewAll(){
+  if (window.CD1CustomerReviews && typeof CD1CustomerReviews.viewAll === 'function') {
+    CD1CustomerReviews.viewAll();
   }
 }
 

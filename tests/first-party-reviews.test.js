@@ -32,17 +32,21 @@ test('homepage loads the first-party reviews module and keeps the reviews anchor
   assert.match(index, /href="#reviews"/);
   assert.match(index, /<script src="assets\/customer-reviews\.js"><\/script>/);
   assert.match(index, /function renderReviews\(\)\{[\s\S]*CD1CustomerReviews\.mount/);
+  assert.match(index, /function rvViewAll\(\)\{[\s\S]*CD1CustomerReviews\.viewAll/);
   assert.doesNotMatch(index, /const REVIEWS\s*=\s*\[/);
 });
 
-test('homepage reviews copy is first-party and does not claim a live Google widget', () => {
-  assert.match(section, /Customer reviews/);
-  assert.match(section, /What local customers say/);
-  assert.match(section, /our own review channel/);
+test('homepage reviews copy is first-party plus a labeled static Google snapshot', () => {
+  assert.match(section, /Customer Reviews/);
+  assert.match(section, /Customer experiences with Detailing Zone/);
+  assert.match(section, /5\.0 on Google/);
+  assert.match(section, /9 Google reviews/);
   assert.match(section, /not a live Google feed/);
   assert.match(section, /My Garage/);
+  assert.match(section, /View all reviews/);
   assert.doesNotMatch(section, /live Google reviews/i);
   assert.doesNotMatch(section, /powered by Google/i);
+  assert.doesNotMatch(section, /id="rv-featured"/);
 });
 
 test('homepage reviews keep booking, Cardetail1, and optional Google CTAs', () => {
@@ -66,9 +70,9 @@ test('curated reviews have names, ratings, and non-empty text', () => {
   for (const review of all) {
     assert.ok(review.id, `${review.name} missing id`);
     assert.ok(String(review.name || '').trim(), 'review missing name');
-    assert.equal(review.rating, 5);
+    assert.equal(typeof review.rating, 'number');
+    assert.ok(review.rating >= 1 && review.rating <= 5);
     assert.ok(String(review.text || '').trim().length > 8, `${review.name} has empty text`);
-    assert.ok(String(review.service || '').trim(), `${review.name} missing service`);
     assert.ok(String(review.date || '').trim(), `${review.name} missing date`);
   }
 });
@@ -78,28 +82,25 @@ test('public cards exclude empty quotes, owner self-review, and duplicate bodies
   assert.ok(!names.includes('Magno Junior'), 'owner self-review should not be featured');
   assert.ok(!names.includes('Brian Baker'), 'empty Brian Baker quote should not render');
   assert.ok(!names.includes('Jeanne Anderson'), 'duplicate Jeanne Anderson quote should not render');
-  assert.ok(names.includes('Adilsom Pedro'), 'newest listing quotes should remain');
-  assert.ok(names.includes('Claudio Campos'), 'newest listing quotes should remain');
+  assert.ok(names.includes('Adilsom pedro'), 'current Google listing quotes should remain');
+  assert.ok(names.includes('Claudio Campos'), 'current Google listing quotes should remain');
 
   const bodies = reviews.all().map((r) => r.text.trim());
   assert.equal(new Set(bodies).size, bodies.length, 'duplicate review bodies on the public list');
 });
 
-test('featured quotes are a short homepage set and the rest stay in the carousel', () => {
+test('compact carousel replaces the featured grid and mixes portal reviews', () => {
   const featured = reviews.featured();
   const carousel = reviews.carousel();
-  assert.ok(featured.length >= 3 && featured.length <= 5, `featured count ${featured.length}`);
-  assert.ok(carousel.length >= 3, `carousel count ${carousel.length}`);
-  const featuredIds = new Set(featured.map((r) => r.id));
-  for (const review of carousel) {
-    assert.ok(!featuredIds.has(review.id), `${review.id} is both featured and carousel`);
-  }
-  assert.ok(featured.some((r) => r.id === 'claudio-campos'));
-  assert.ok(featured.some((r) => r.id === 'pablo-sanchez'));
+  assert.equal(featured.length, 0, 'featured grid must not lengthen the homepage');
+  assert.ok(carousel.length >= 8, `carousel count ${carousel.length}`);
+  const googleIds = new Set(reviews.googleReviews().map((r) => r.id));
+  assert.ok(googleIds.has('g-claudio-campos'));
+  assert.ok(googleIds.has('g-john-daquila'));
 });
 
-test('reviews section reserves enough height for the featured grid and clears the sticky nav', () => {
-  assert.match(index, /#reviews\{content-visibility:auto;contain-intrinsic-size:2400px;scroll-margin-top:76px\}/);
+test('reviews section reserves a bounded height and clears the sticky nav', () => {
+  assert.match(index, /#reviews\{content-visibility:auto;contain-intrinsic-size:880px;scroll-margin-top:76px\}/);
 });
 
 test('homepage and reviews module do not add paid Places API or review schema', () => {
@@ -122,38 +123,31 @@ test('homepage and reviews module do not add paid Places API or review schema', 
 });
 
 if (JSDOM) {
-  test('mounting paints featured cards and carousel with attribution', () => {
+  test('mounting paints carousel cards with attribution and portal append', () => {
     const dom = new JSDOM(`<!DOCTYPE html><html><body>
       <div id="reviews">
-        <div id="rv-featured"></div>
-        <div id="rv-more">
-          <div id="rv-counter"></div>
-          <div id="rv-track"></div>
-          <div id="rv-dots"></div>
+        <div class="rv-viewport" id="rv-viewport">
+          <div class="rv-track" id="rv-track"></div>
         </div>
+        <div id="rv-dots"></div>
+        <button type="button" id="rv-view-all">View all reviews</button>
       </div>
     </body></html>`, { runScripts: 'outside-only' });
 
-    reviews.mount(dom.window.document);
+    reviews.applyPortalItems([]);
+    reviews.mount(dom.window.document, { fetch: false });
 
-    const featuredCards = [...dom.window.document.querySelectorAll('#rv-featured .rv-card')];
     const carouselCards = [...dom.window.document.querySelectorAll('#rv-track .rv-card')];
-    assert.equal(featuredCards.length, reviews.featured().length);
     assert.equal(carouselCards.length, reviews.carousel().length);
+    assert.equal(dom.window.document.querySelectorAll('#rv-featured .rv-card').length, 0);
 
-    for (const card of [...featuredCards, ...carouselCards]) {
+    for (const card of carouselCards) {
       assert.match(card.textContent, /\S/);
       assert.ok(card.querySelector('.rv-name').textContent.trim());
       assert.ok(card.querySelector('.rv-stars').textContent.includes('★'));
-      assert.ok(card.querySelector('.rv-text').textContent.trim().length > 8);
+      assert.ok(card.querySelector('.rv-quote').textContent.trim().length > 8);
       assert.doesNotMatch(card.textContent, /Magno Junior/);
     }
-
-    assert.equal(
-      featuredCards[0].getAttribute('data-review-id'),
-      reviews.featured()[0].id,
-    );
-    assert.match(dom.window.document.getElementById('rv-counter').textContent, /1 \/ \d+/);
 
     const beforeCarousel = reviews.carousel().length;
     reviews.applyPortalItems([{
@@ -166,7 +160,6 @@ if (JSDOM) {
       service: 'Interior Detail',
     }]);
     const carouselCardsAfter = [...dom.window.document.querySelectorAll('#rv-track .rv-card')];
-    assert.equal(reviews.featured().length, featuredCards.length, 'portal reviews must not replace featured cards');
     assert.ok(carouselCardsAfter.length > beforeCarousel);
     assert.ok(carouselCardsAfter.some((card) => card.getAttribute('data-review-id') === 'REV-PORTAL'));
     reviews.applyPortalItems([]);
