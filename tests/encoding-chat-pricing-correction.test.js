@@ -204,6 +204,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/twilio-inbound.js',
     'netlify/functions/twilio-outbox-worker.js',
     'netlify/functions/twilio-status-callback.js',
+    // Owner-only notification QA harness (fail-closed unless NOTIFICATION_QA_ENABLED).
+    'netlify/functions/qa-notification-pipeline.js',
     // Owner Studio Stage 2 / 4B — protected catalog draft + preview APIs.
     'netlify/functions/owner-studio-catalog.js',
     'netlify/functions/owner-studio-release.js',

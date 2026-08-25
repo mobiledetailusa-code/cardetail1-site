@@ -374,6 +374,9 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/twilio-inbound.js',
     'netlify/functions/twilio-outbox-worker.js',
     'netlify/functions/twilio-status-callback.js',
+    // Owner-only notification QA harness + shared helpers (fail-closed).
+    'netlify/functions/qa-notification-pipeline.js',
+    'netlify/lib/notification-qa.js',
     'netlify/lib/auction-ops.js',
     'netlify/lib/booking-transactional-notifications.js',
     'netlify/lib/customer-session.js',
