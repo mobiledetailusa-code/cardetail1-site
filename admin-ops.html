@@ -217,6 +217,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       <button type="button" class="tab" data-tab="auctions" role="tab" aria-selected="false">Auctions</button>
       <button type="button" class="tab" data-tab="subscriptions" role="tab" aria-selected="false">Subscriptions</button>
       <button type="button" class="tab" data-tab="maintenance" role="tab" aria-selected="false">Maintenance</button>
+      <button type="button" class="tab" data-tab="reviews" role="tab" aria-selected="false">Homepage reviews</button>
       <button type="button" class="tab" data-tab="events" role="tab" aria-selected="false">Event Log</button>
       <button type="button" class="tab" data-tab="revops" role="tab" aria-selected="false">Revenue Ops</button>
     </div>
@@ -434,6 +435,21 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     <div class="card">
       <h3 style="margin-bottom:8px">Quick tips</h3>
       <p class="hint">Open any job from Jobs Board to confirm, reschedule, change address, cancel, or archive a single test booking. Assign technicians from the row or job drawer.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-reviews">
+    <p class="hint">Cardetail1’s own review channel. 4–5 star comments from completed jobs can appear on the homepage automatically. Hide any card here — customer words are never edited. Google is not required.</p>
+    <div class="toolbar">
+      <button type="button" class="btn ghost sm" id="reviewsRefresh">Reload</button>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <h3>Pending</h3>
+      <div id="reviewsPending"><div class="empty">Loading…</div></div>
+    </div>
+    <div class="card">
+      <h3>On the homepage</h3>
+      <div id="reviewsPublished"><div class="empty">Loading…</div></div>
     </div>
   </section>
 
@@ -3873,6 +3889,50 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   function closeDrawer() { collapseJobDetail(); }
 
+  function reviewRowHtml(row, kind) {
+    const name = esc(row.displayName || row.name || 'Customer');
+    const stars = '★'.repeat(Math.max(0, Math.min(5, Number(row.stars || row.rating) || 0)));
+    const comment = esc(row.comment || row.text || '');
+    const meta = esc([row.service, row.location, (row.createdAt || '').slice(0, 10)].filter(Boolean).join(' · '));
+    const action = kind === 'pending'
+      ? '<button type="button" class="btn sm" data-review-act="publish" data-review-id="' + esc(row.id) + '">Publish</button>'
+      : '<button type="button" class="btn ghost sm" data-review-act="hide" data-review-id="' + esc(row.id) + '">Hide</button>';
+    return '<div class="req-box"><div class="req-pill ' + (kind === 'pending' ? 'warn' : 'ok') + '">' + stars + '</div>' +
+      '<h5>' + name + '</h5><p class="hint" style="margin:0 0 8px">' + meta + '</p>' +
+      '<p style="margin:0 0 10px">' + comment + '</p>' + action + '</div>';
+  }
+
+  async function refreshHomepageReviews() {
+    const pendingEl = $('#reviewsPending');
+    const publishedEl = $('#reviewsPublished');
+    if (pendingEl) pendingEl.innerHTML = '<div class="empty">Loading…</div>';
+    if (publishedEl) publishedEl.innerHTML = '<div class="empty">Loading…</div>';
+    try {
+      const data = await api('/.netlify/functions/admin-reviews', 'GET');
+      const pending = (data && data.pending) || [];
+      const published = (data && data.published) || [];
+      if (pendingEl) pendingEl.innerHTML = pending.length
+        ? pending.map((row) => reviewRowHtml(row, 'pending')).join('')
+        : '<div class="empty">No pending reviews.</div>';
+      if (publishedEl) publishedEl.innerHTML = published.length
+        ? published.map((row) => reviewRowHtml(row, 'published')).join('')
+        : '<div class="empty">No Cardetail1 reviews on the homepage yet.</div>';
+    } catch (e) {
+      if (pendingEl) pendingEl.innerHTML = '<div class="empty">Could not load reviews.</div>';
+      if (publishedEl) publishedEl.innerHTML = '<div class="empty">Could not load reviews.</div>';
+    }
+  }
+
+  async function actOnHomepageReview(action, id) {
+    try {
+      await api('/.netlify/functions/admin-reviews', 'POST', { action, id });
+      toast(action === 'hide' ? 'Removed from homepage.' : 'Published to homepage.');
+      await refreshHomepageReviews();
+    } catch (e) {
+      toast((e && e.message) || 'Review update failed');
+    }
+  }
+
   // Admin Lite: secondary navigation stays collapsed until opened. Opening the
   // disclosure only reveals the buttons; each secondary tab still loads its own
   // data lazily on click, so More costs nothing until it is actually used.
@@ -3926,6 +3986,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (b.dataset.tab === 'settings') loadSettings().then(renderSettingsForm).catch(()=>{});
     if (b.dataset.tab === 'requests') refreshRequestsTab();
     if (b.dataset.tab === 'revops') refreshRevopsTab();
+    if (b.dataset.tab === 'reviews') refreshHomepageReviews();
     if (b.dataset.tab === 'techs') {
       ensureTechsForManagement()
         .then(() => { renderTechs(); renderOverview(); })
@@ -3937,6 +3998,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         .catch(() => { renderAssign(); });
     }
   };
+  if ($('#reviewsRefresh')) $('#reviewsRefresh').onclick = () => refreshHomepageReviews();
+  ['reviewsPending', 'reviewsPublished'].forEach((id) => {
+    const el = $('#' + id);
+    if (!el) return;
+    el.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-review-act]');
+      if (!btn) return;
+      actOnHomepageReview(btn.getAttribute('data-review-act'), btn.getAttribute('data-review-id'));
+    });
+  });
   document.querySelectorAll('#requestsFilters [data-req-filter]').forEach((btn) => {
     btn.onclick = async () => {
       requestsStatusFilter = btn.dataset.reqFilter || 'pending';

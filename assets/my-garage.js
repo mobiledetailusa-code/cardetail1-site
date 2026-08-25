@@ -2541,7 +2541,9 @@
       comment: payload.comment || '',
     });
     if (r.data && r.data.ok) {
-      showToast('Thanks for your review.');
+      showToast(r.data.published
+        ? 'Thanks — your review may appear on our homepage.'
+        : 'Thanks for your review.');
       if (state.scope === 'account') await loadAccount();
       else await loadLimited();
       return true;
@@ -3432,9 +3434,9 @@
         { name: 'reason', label: 'Cancellation reason', type: 'textarea', required: true },
       ]},
       approve_completion: { title: 'Approve completed service', fields: [], confirmOnly: true },
-      leave_review: { title: 'Leave a review', fields: [
+      leave_review: { title: 'Leave a Cardetail1 review', fields: [
         { name: 'stars', label: 'Rating (1–5)', type: 'text', required: true },
-        { name: 'comment', label: 'What stood out? (optional)', type: 'textarea' },
+        { name: 'comment', label: 'What stood out? (published on our site when it qualifies)', type: 'textarea' },
       ]},
       report_issue: { title: 'Report a service issue', fields: [
         { name: 'category', label: 'What is the issue about? (quality, damage, missed_area, timeliness, billing, conduct, other)', type: 'text', required: true },
