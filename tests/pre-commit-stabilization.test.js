@@ -110,7 +110,7 @@ test('booking bridge never redirects to homepage on failure', () => {
   assert.doesNotMatch(js, /location\.assign\s*\(\s*['"]index\.html/);
   assert.doesNotMatch(js, /window\.location\s*=\s*['"]\/?['"]/);
   assert.match(js, /We could not load this booking option/);
-  assert.match(js, /551-313-2956/);
+  assert.match(js, /551-373-5668/);
   assert.match(js, /categoryId === 'cars'/);
   assert.doesNotMatch(js, /fallback.*cars|default.*cars/i);
 });

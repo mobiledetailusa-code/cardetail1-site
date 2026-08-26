@@ -73,7 +73,7 @@ async function autoApplySubmittedRequest(bookingId, cmd) {
       message: decided.message
         || (decided.error === 'invalid_pricing'
           ? 'Could not price this change. For trailer → SUV, select a car package and size, then try again.'
-          : 'Change saved as a request but could not auto-apply. Call/text 551-313-2956.'),
+          : 'Change saved as a request but could not auto-apply. Call/text 551-373-5668.'),
       changeRequest: cmd.changeRequest,
       booking: cmd.booking,
     };
