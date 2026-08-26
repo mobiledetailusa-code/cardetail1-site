@@ -7,7 +7,7 @@
  *
  * Listing snapshot (2026-08-25):
  *   Name: Cardetail1
- *   Phone: (551) 373-5668
+ *   Phone: (551) 313-2956
  *   Site: cardetail1.com
  *   Maps: https://maps.google.com/maps/place/cardetail1/data=!4m2!3m1!1s0x4f36d27550a90189:0x8207adab977c7032
  *   CID:  0x8207adab977c7032
@@ -34,7 +34,7 @@
 
   var GOOGLE_LISTING = {
     name: 'Cardetail1',
-    phone: '(551) 373-5668',
+    phone: '(551) 313-2956',
     website: 'https://cardetail1.com',
     mapsPlaceUrl: 'https://maps.google.com/maps/place/cardetail1/data=!4m2!3m1!1s0x4f36d27550a90189:0x8207adab977c7032',
     reviewUrl: GOOGLE_REVIEW_URL,

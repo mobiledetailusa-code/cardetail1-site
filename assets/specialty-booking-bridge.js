@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  var BOOKING_FAIL_MSG = 'We could not load this booking option. Please try again or call/text 551-373-5668.';
+  var BOOKING_FAIL_MSG = 'We could not load this booking option. Please try again or call/text 551-313-2956.';
   var overlay = null;
   var frame = null;
   var styleInjected = false;
@@ -128,7 +128,7 @@
       document.body.appendChild(el);
     }
     el.innerHTML = (msg || BOOKING_FAIL_MSG) +
-      ' <a href="tel:5513735668" style="color:#4da3ff;font-weight:600;text-decoration:none">Call / Text</a>';
+      ' <a href="tel:5513132956" style="color:#4da3ff;font-weight:600;text-decoration:none">Call / Text</a>';
     el.hidden = false;
     try { el.focus(); } catch (e2) {}
   }

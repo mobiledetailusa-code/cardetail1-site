@@ -38,7 +38,7 @@
     || /template-city\.html$/i.test(path);
   if (!isDelegatedHub) return;
 
-  var BOOKING_FAIL_MSG = 'We could not load booking. Please try again or call/text 551-373-5668.';
+  var BOOKING_FAIL_MSG = 'We could not load booking. Please try again or call/text 551-313-2956.';
   var overlay = null;
   var frame = null;
   var styleInjected = false;

@@ -163,7 +163,7 @@ async function sendConfirmationEmail(b) {
     `  with you directly.`,
     ``,
     `Need to make changes?`,
-    `  Call or text: 551-373-5668`,
+    `  Call or text: 551-313-2956`,
     `  Or reply to this email.`,
     ``,
     `You can check your booking status at any time:`,
@@ -171,7 +171,7 @@ async function sendConfirmationEmail(b) {
     ``,
     `See you soon!`,
     `Cardetail1 Mobile Detailing`,
-    `551-373-5668`,
+    `551-313-2956`,
   );
 
   try {

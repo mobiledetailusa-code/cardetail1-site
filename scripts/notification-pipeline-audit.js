@@ -22,7 +22,7 @@ const {
   maskEmail,
   maskPhone,
   LEGACY_GMAIL,
-} = require('../netlify/lib/notification-qa');
+} = require('./lib/notification-qa');
 
 function argFlag(name) {
   return process.argv.includes(name);

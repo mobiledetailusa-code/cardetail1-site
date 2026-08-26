@@ -202,8 +202,6 @@ test('no Netlify Function files changed in this scope', () => {
     'netlify/functions/twilio-inbound.js',
     'netlify/functions/twilio-outbox-worker.js',
     'netlify/functions/twilio-status-callback.js',
-    // Owner-only notification QA harness (fail-closed unless NOTIFICATION_QA_ENABLED).
-    'netlify/functions/qa-notification-pipeline.js',
     // Owner Studio — protected status + catalog draft APIs (flags off by default).
     'netlify/functions/owner-studio-status.js',
     'netlify/functions/owner-studio-catalog.js',

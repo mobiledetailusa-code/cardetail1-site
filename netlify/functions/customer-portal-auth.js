@@ -210,7 +210,7 @@ exports.handler = async (event) => {
     return jsonCors(503, {
       ok: false,
       error: 'service_unavailable',
-      message: 'Full account access is temporarily unavailable. Use booking lookup or call/text 551-373-5668.',
+      message: 'Full account access is temporarily unavailable. Use booking lookup or call/text 551-313-2956.',
       fallback: 'call_text',
     });
   }
@@ -243,7 +243,7 @@ exports.handler = async (event) => {
     return jsonCors(503, {
       ok: false,
       error: 'service_unavailable',
-      message: 'Could not send sign-in email. Please call/text 551-373-5668.',
+      message: 'Could not send sign-in email. Please call/text 551-313-2956.',
       fallback: 'call_text',
     });
   }

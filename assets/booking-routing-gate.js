@@ -89,7 +89,7 @@
       '<div style="display:flex;flex-wrap:wrap;gap:8px">',
       '<button type="button" id="cd1-routing-cta" style="padding:10px 14px;border-radius:999px;border:0;background:#4da3ff;color:#02040a;font-weight:700;cursor:pointer">',
       ctaLabel, '</button>',
-      '<a href="tel:5513735668" style="padding:10px 14px;border-radius:999px;border:1px solid rgba(77,163,255,.45);color:#4da3ff;text-decoration:none;font-weight:600">Call / Text</a>',
+      '<a href="tel:5513132956" style="padding:10px 14px;border-radius:999px;border:1px solid rgba(77,163,255,.45);color:#4da3ff;text-decoration:none;font-weight:600">Call / Text</a>',
       '</div>',
     ].join('');
     panel.style.display = 'block';

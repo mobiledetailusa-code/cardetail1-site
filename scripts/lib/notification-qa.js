@@ -6,9 +6,9 @@
  * Never accepts arbitrary public recipients.
  */
 
-const { enabled, smsOutboxPolicy, outboundTwilioPolicy, runtimeIdentity } = require('./twilio-runtime-policy');
-const { renderSmsTemplate, TEMPLATE_KEYS } = require('./sms-templates');
-const { normalizeUsPhoneE164 } = require('./phone-auth');
+const { enabled, smsOutboxPolicy, outboundTwilioPolicy, runtimeIdentity } = require('../../netlify/lib/twilio-runtime-policy');
+const { renderSmsTemplate, TEMPLATE_KEYS } = require('../../netlify/lib/sms-templates');
+const { normalizeUsPhoneE164 } = require('../../netlify/lib/phone-auth');
 
 const QA_EVENT_PREFIX = 'qa.notification';
 const LEGACY_GMAIL = 'mobiledetailusa@gmail.com';

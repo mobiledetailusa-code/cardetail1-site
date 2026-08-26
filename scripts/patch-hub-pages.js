@@ -62,7 +62,7 @@ const oldOnBkZip = `function onBkZipInput(val){
     badge.style.display    = 'none';
     if(surBadge) surBadge.style.display = 'none';
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.add('locked'));
-    if(gateMsg){ gateMsg.classList.remove('unlocked'); gateMsg.innerHTML='<span class="zg-ico">⚠️</span><span>Outside our '+TRAVEL_MAX_MILES+'-mile area — call 551-373-5668</span>'; }
+    if(gateMsg){ gateMsg.classList.remove('unlocked'); gateMsg.innerHTML='<span class="zg-ico">⚠️</span><span>Outside our '+TRAVEL_MAX_MILES+'-mile area — call 551-313-2956</span>'; }
   }
   updateTotal();
 }`;

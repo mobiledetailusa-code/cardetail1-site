@@ -493,7 +493,7 @@ describe('local booking CTAs (no homepage redirect)', () => {
     assert.match(js, /powersports:\s*\{[^}]*wash/);
     assert.match(js, /INVALID_CATEGORY|INVALID_PACKAGE/);
     assert.match(js, /We could not load this booking option/);
-    assert.match(js, /551-373-5668/);
+    assert.match(js, /551-313-2956/);
     assert.doesNotMatch(js, /fallback.*cars|default.*cars/i);
   });
 

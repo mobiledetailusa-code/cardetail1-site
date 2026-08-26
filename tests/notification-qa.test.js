@@ -14,7 +14,7 @@ const {
   prepareControlledOwnerSms,
   maskEmail,
   LEGACY_GMAIL,
-} = require('../netlify/lib/notification-qa');
+} = require('../scripts/lib/notification-qa');
 
 test('legacy gmail role classification distinguishes sender vs recipient', () => {
   assert.equal(
@@ -91,17 +91,18 @@ test('env presence reports boolean gates without leaking secrets', () => {
   assert.equal(JSON.stringify(snap).includes('secret-value'), false);
 });
 
-test('qa notification function is admin-gated and mode-limited', () => {
-  const src = fs.readFileSync(
-    path.join(__dirname, '../netlify/functions/qa-notification-pipeline.js'),
-    'utf8'
-  );
-  assert.match(src, /verifyAdminKey/);
-  assert.match(src, /NOTIFICATION_QA_ENABLED|notification_qa_disabled/);
-  assert.match(src, /email_send/);
-  assert.match(src, /sms_prepare/);
-  assert.doesNotMatch(src, /to:\s*\[body\./);
-  assert.doesNotMatch(src, /createBooking|submit-booking|PaymentIntent/);
+test('qa-notification-pipeline Netlify Function is not shipped (no public relay surface)', () => {
+  const fn = path.join(__dirname, '../netlify/functions/qa-notification-pipeline.js');
+  assert.equal(fs.existsSync(fn), false);
+});
+
+test('synthetic admin email builder rejects missing ADMIN_EMAIL and never reads body recipients', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../scripts/lib/notification-qa.js'), 'utf8');
+  assert.doesNotMatch(src, /body\.to|body\.email|body\.phone|query\.to/);
+  assert.match(src, /ADMIN_EMAIL/);
+  assert.match(src, /ADMIN_SMS/);
+  const bad = buildSyntheticAdminEmail({ env: { RESEND_API_KEY: 'x' } });
+  assert.equal(bad.ok, false);
 });
 
 test('submit-booking implements both admin and customer SMS paths separately', () => {

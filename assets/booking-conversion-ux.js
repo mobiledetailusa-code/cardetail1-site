@@ -660,7 +660,7 @@
       if (!list) return;
       if (!openings.length) {
         list.hidden = false;
-        list.innerHTML = '<p class="bk-field-help">No nearby openings found in the next few weeks. Call or text 551-373-5668 and we will help.</p>';
+        list.innerHTML = '<p class="bk-field-help">No nearby openings found in the next few weeks. Call or text 551-313-2956 and we will help.</p>';
         return;
       }
       list.hidden = false;

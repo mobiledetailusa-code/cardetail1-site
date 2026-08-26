@@ -110,7 +110,7 @@ test('booking bridge never redirects to homepage on failure', () => {
   assert.doesNotMatch(js, /location\.assign\s*\(\s*['"]index\.html/);
   assert.doesNotMatch(js, /window\.location\s*=\s*['"]\/?['"]/);
   assert.match(js, /We could not load this booking option/);
-  assert.match(js, /551-373-5668/);
+  assert.match(js, /551-313-2956/);
   assert.match(js, /categoryId === 'cars'/);
   assert.doesNotMatch(js, /fallback.*cars|default.*cars/i);
 });
@@ -374,9 +374,6 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/twilio-inbound.js',
     'netlify/functions/twilio-outbox-worker.js',
     'netlify/functions/twilio-status-callback.js',
-    // Owner-only notification QA harness + shared helpers (fail-closed).
-    'netlify/functions/qa-notification-pipeline.js',
-    'netlify/lib/notification-qa.js',
     'netlify/lib/auction-ops.js',
     'netlify/lib/booking-transactional-notifications.js',
     'netlify/lib/customer-session.js',

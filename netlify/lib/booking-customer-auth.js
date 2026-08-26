@@ -7,7 +7,7 @@ const { validateCustomerSession } = require('./customer-session');
 const AUTH_FAIL = Object.freeze({
   ok: false,
   error: 'authentication_failed',
-  message: 'Phone does not match this booking. Use the same mobile number from checkout, or call/text 551-373-5668.',
+  message: 'Phone does not match this booking. Use the same mobile number from checkout, or call/text 551-313-2956.',
 });
 
 const NOT_FOUND = Object.freeze({
@@ -57,7 +57,7 @@ async function authorizeBookingAccess(event, { bookingId, phone, requireSessionF
     return {
       ok: false,
       error: 'phone_not_on_file',
-      message: 'This booking has no phone on file. Ask Admin to save your mobile number, or call/text 551-373-5668.',
+      message: 'This booking has no phone on file. Ask Admin to save your mobile number, or call/text 551-313-2956.',
       statusCode: 200,
     };
   }

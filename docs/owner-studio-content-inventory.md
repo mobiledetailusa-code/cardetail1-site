@@ -28,7 +28,7 @@
 | Header navigation | `index.html` `.nav-links`; specialty pages have local nav | HTML anchors | Public pages | Yes | No | Yes | No | `Navigation.headerItems[]` | P1 |
 | Announcement bar | Not a dedicated global bar; hero badges / year-round chip in `index.html` | HTML | Homepage | Homepage-local | No | Yes | No | `SiteSettings.announcement` (nullable) | P2 |
 | Booking CTA | Hero buttons + sticky booking entry in `index.html`; specialty bridges `assets/specialty-booking-bridge.js`, `hub-booking-bridge.js` | HTML + JS | Public booking entry | Labels duplicated | Indirect (entry only) | Mostly | No | `PageContent.ctaPrimary`, `ctaSecondary` | P1 |
-| Phone | `+1-551-373-5668` / `5513735668` in JSON-LD, footer, CTAs | String | Public HTML, AI chat prompts | Yes | No (contact) | Yes | No | `SiteSettings.phoneE164` | P1 |
+| Phone | `+1-551-313-2956` / `5513132956` in JSON-LD, footer, CTAs | String | Public HTML, AI chat prompts | Yes | No (contact) | Yes | No | `SiteSettings.phoneE164` | P1 |
 | Email | Sparse on public surface; more in ops/admin | String | Limited public | Low | No | Yes | No | `SiteSettings.publicEmail` | P2 |
 | Social links | Instagram `https://www.instagram.com/cardetail1com` in footer | URL | Footer | Footer + copies | No | Yes | No | `SiteSettings.socialLinks[]` | P1 |
 | Footer groups | `assets/partials/specialty-public-footer.html` (+ synced into pages via `scripts/sync-public-surface.mjs`) | HTML | Specialty + homepage footer | Yes if sync lag | No | Yes | No | `Footer.groups[]` | P1 |
