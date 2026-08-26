@@ -27,8 +27,17 @@ function payloadHash(value) {
   return crypto.createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
 }
 
+function smsSafeIdempotencyKey(value) {
+  const key = String(value || '')
+    .trim()
+    .replace(/[^A-Za-z0-9_.:-]+/g, '-')
+    .replace(/-+/g, '-');
+  if (key.length < 8) return '';
+  return key.slice(0, 120);
+}
+
 function normalizeIdempotencyKey(value) {
-  const key = String(value || '').trim();
+  const key = smsSafeIdempotencyKey(value);
   return /^[A-Za-z0-9_.:-]{8,120}$/.test(key) ? key : '';
 }
 
@@ -188,6 +197,25 @@ async function processClaimedSms(row, opts = {}) {
     });
     safeOutboxLog('failed', failed, { errorCode: rendered.error });
     return { ok: false, failed: true, outbox: failed };
+  }
+  try {
+    const { shouldSuppressStaleLifecycleSms } = require('./appointment-lifecycle-state');
+    if (await shouldSuppressStaleLifecycleSms(row)) {
+      const superseded = await prisma.smsOutbox.update({
+        where: { id: row.id },
+        data: {
+          status: 'failed',
+          lastErrorCode: 'superseded',
+          failedAt: new Date(),
+          leaseToken: null,
+          leaseExpiresAt: null,
+        },
+      });
+      safeOutboxLog('failed', superseded, { errorCode: 'superseded' });
+      return { ok: true, skipped: true, reason: 'superseded', outbox: superseded };
+    }
+  } catch {
+    // Lookup failure must not block a timely send.
   }
   const provider = opts.provider || createTwilioProvider(opts.env || process.env, opts.providerOptions);
   if (!provider.ok) return { ok: false, disabled: true, reason: provider.reason };
@@ -354,6 +382,7 @@ async function applyStatusCallback({ providerMessageSid, providerStatus, errorCo
 module.exports = {
   STATUS_RANK,
   payloadHash,
+  smsSafeIdempotencyKey,
   normalizeIdempotencyKey,
   retryDelayMs,
   retryableProviderError,

@@ -499,7 +499,9 @@ test('wiring: submit emits request_received; confirm emits confirmed; no garage 
   const schema = read('prisma/schema.prisma');
 
   assert.match(submit, /emitRequestReceived/);
-  assert.match(admin, /emitConfirmed/);
+  assert.match(admin, /notifyConfirmed|emitConfirmed/);
+  assert.match(admin, /notifyCancelled/);
+  assert.match(admin, /notifyRescheduled/);
   assert.match(admin, /emitCustomerActionRequired/);
   assert.match(access, /consumeAppointmentAccessToken/);
   assert.match(access, /createAccountSession/);

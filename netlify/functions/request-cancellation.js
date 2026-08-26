@@ -115,8 +115,9 @@ exports.handler = async (event) => {
     eventLog,
   };
 
+  let store;
   try {
-    const store = await bookingStore();
+    store = await bookingStore();
     await store.setJSON(bookingId, { ...booking, ...updated });
   } catch {
     return json(503, { ok: false, error: 'service_unavailable', message: 'Failed to save request. Please try again.' });
@@ -126,6 +127,17 @@ exports.handler = async (event) => {
     `Cardetail1 — Cancellation Request · ${bookingId}`,
     `Customer requested cancellation for booking ${bookingId}.\nReason: ${reason}\nNo charge has been applied. Admin review required.`
   );
+
+  try {
+    const { notifyCancellationRequested } = require('../lib/appointment-lifecycle-notifications');
+    await notifyCancellationRequested({ ...booking, ...updated }, {
+      event,
+      store,
+      source: 'lifecycle_mutation',
+    });
+  } catch (e) {
+    console.warn('[request-cancellation] lifecycle notify failed:', e.message);
+  }
 
   return json(200, { ok: true, changeRequestId: changeRecord.id });
 };

@@ -11,11 +11,17 @@ const TEMPLATE_KEYS = Object.freeze({
   REQUEST_RECEIVED: 'booking.request_received',
   CONFIRMED: 'booking.confirmed',
   ACTION_REQUIRED: 'booking.customer_action_required',
+  CHANGE_REQUESTED: 'booking.change_requested',
+  CANCELLATION_REQUESTED: 'booking.cancellation_requested',
+  RESCHEDULED: 'booking.rescheduled',
+  CANCELLED: 'booking.cancelled',
   // CUSTOMER_BOOKING_SMS_SAFE_CONFIRMATION — consent true, phone mismatch: no private link
   SAFE_CONFIRMATION: 'booking.safe_confirmation',
   TECH_AUCTION: 'auction.tech_invite',
   ADMIN_BOOKING: 'ops.booking_alert',
   ADMIN_INQUIRY: 'ops.inquiry_alert',
+  ADMIN_CHANGE_REQUEST: 'ops.change_request_alert',
+  ADMIN_CUSTOMER_CANCEL: 'ops.customer_cancel_alert',
   RECOVERY: 'recovery.followup',
 });
 
@@ -46,8 +52,30 @@ function renderSmsTemplate(templateKey, data = {}) {
         + ` We'll send service and appointment updates to this number.`;
       break;
     case TEMPLATE_KEYS.CONFIRMED:
-      body = `${BRAND}: Appointment confirmed${data.when ? ` ${text(data.when, 80)}` : ''}.`
+      body = `${BRAND}: Your appointment is confirmed`
+        + (data.date || data.when ? ` for ${text(data.date || data.when, 80)}` : '')
+        + (data.window ? `, arrival window ${text(data.window, 40)}` : '')
+        + '.'
         + (url ? ` ${url}` : '');
+      break;
+    case TEMPLATE_KEYS.CHANGE_REQUESTED:
+      body = `${BRAND}: We received your appointment change request.`
+        + ` Your current appointment remains unchanged until the new time is confirmed.`;
+      break;
+    case TEMPLATE_KEYS.CANCELLATION_REQUESTED:
+      body = `${BRAND}: We received your cancellation request.`
+        + ` Your appointment remains scheduled until it is confirmed canceled.`;
+      break;
+    case TEMPLATE_KEYS.RESCHEDULED:
+      body = `${BRAND}: Your appointment has been rescheduled`
+        + (data.date || data.when ? ` to ${text(data.date || data.when, 80)}` : '')
+        + (data.window ? `, arrival window ${text(data.window, 40)}` : '')
+        + '.';
+      break;
+    case TEMPLATE_KEYS.CANCELLED:
+      body = `${BRAND}: Your appointment`
+        + (data.date || data.when ? ` for ${text(data.date || data.when, 80)}` : '')
+        + ` has been canceled.`;
       break;
     case TEMPLATE_KEYS.ACTION_REQUIRED:
       body = `${BRAND}: Action needed on your appointment.`
@@ -66,6 +94,19 @@ function renderSmsTemplate(templateKey, data = {}) {
         + (data.customerPhone ? ` (${text(data.customerPhone, 30)})` : '')
         + (data.message ? `: ${text(data.message, 220)}` : '');
       break;
+    case TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST:
+      body = `${BRAND}: Customer requested an appointment change`
+        + (data.date ? ` for ${text(data.date, 40)}` : '')
+        + (data.bookingRef ? ` (${text(data.bookingRef, 24)})` : '')
+        + '.';
+      break;
+    case TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL:
+      body = `${BRAND}: Customer canceled appointment`
+        + (data.bookingRef ? ` ${text(data.bookingRef, 24)}` : '')
+        + (data.date ? ` for ${text(data.date, 40)}` : '')
+        + (data.window ? `, ${text(data.window, 40)}` : '')
+        + '.';
+      break;
     case TEMPLATE_KEYS.RECOVERY:
       body = `${BRAND}: ${text(data.message, 360)}` + (url ? ` ${url}` : '');
       break;
@@ -80,13 +121,42 @@ function renderSmsTemplate(templateKey, data = {}) {
   };
 }
 
+function scheduleFingerprint(booking = {}) {
+  const date = String(booking.confirmedDate || booking.preferredDate || '').trim();
+  const window = String(
+    booking.confirmedTimeWindow
+    || booking.confirmedWindow
+    || booking.confirmedTime
+    || booking.preferredTime
+    || ''
+  ).trim();
+  return `${date}|${window}`;
+}
+
 function bookingTemplateData(eventType, booking = {}, accessUrl = '') {
-  if (eventType === TEMPLATE_KEYS.CONFIRMED) {
-    const when = [
-      booking.confirmedDate || booking.preferredDate,
-      booking.confirmedTime || booking.preferredTime || booking.confirmedTimeWindow,
-    ].filter(Boolean).join(' ');
-    return { when, url: accessUrl };
+  const date = booking.confirmedDate || booking.preferredDate || '';
+  const window = booking.confirmedTimeWindow
+    || booking.confirmedWindow
+    || booking.confirmedTime
+    || booking.preferredTime
+    || '';
+  const when = [date, window].filter(Boolean).join(' ');
+  const fingerprint = scheduleFingerprint(booking);
+  if (
+    eventType === TEMPLATE_KEYS.CONFIRMED
+    || eventType === TEMPLATE_KEYS.RESCHEDULED
+    || eventType === TEMPLATE_KEYS.CANCELLED
+    || eventType === TEMPLATE_KEYS.CHANGE_REQUESTED
+    || eventType === TEMPLATE_KEYS.CANCELLATION_REQUESTED
+  ) {
+    return {
+      date,
+      window,
+      when,
+      scheduleFingerprint: fingerprint,
+      previousDate: booking.previousConfirmedDate || booking.previousPreferredDate || '',
+      url: accessUrl,
+    };
   }
   return { url: accessUrl };
 }
@@ -98,4 +168,5 @@ module.exports = {
   TEMPLATE_KEYS,
   renderSmsTemplate,
   bookingTemplateData,
+  scheduleFingerprint,
 };

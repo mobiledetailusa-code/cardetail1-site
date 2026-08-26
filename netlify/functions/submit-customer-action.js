@@ -881,6 +881,34 @@ exports.handler = async (event) => {
         (adminSubject || '').replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
         `${adminText}${appliedCmd.booking?.approvedFinalAmount != null ? `\nTotal: $${Number(appliedCmd.booking.approvedFinalAmount).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
       ).catch(() => {});
+      try {
+        const lifecycle = require('../lib/appointment-lifecycle-notifications');
+        const store = await bookingStore();
+        const row = appliedCmd.booking || booking;
+        if (action === 'reschedule_request' && !appliedCmd.applied) {
+          await lifecycle.notifyChangeRequested(row, {
+            event,
+            store,
+            requestedDate: requestedState.preferredDate,
+            requestedTime: requestedState.preferredTime,
+            changeRequestId: appliedCmd.changeRequest?.requestId,
+            source: 'lifecycle_mutation',
+          });
+        } else if (action === 'reschedule_request' && appliedCmd.applied) {
+          await lifecycle.notifyRescheduled(row, { event, store, source: 'lifecycle_mutation' });
+        } else if (action === 'cancellation_request' && appliedCmd.applied) {
+          await lifecycle.notifyCancelled(row, {
+            actor: 'customer',
+            event,
+            store,
+            source: 'lifecycle_mutation',
+          });
+        } else if (action === 'cancellation_request' && !appliedCmd.applied) {
+          await lifecycle.notifyCancellationRequested(row, { event, store, source: 'lifecycle_mutation' });
+        }
+      } catch (e) {
+        console.warn('[submit-customer-action] lifecycle notify failed:', e.message);
+      }
     }
     return json(200, {
       ok: true,

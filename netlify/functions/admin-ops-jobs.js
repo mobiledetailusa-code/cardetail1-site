@@ -29,6 +29,7 @@ const {
 } = require('../lib/payment-service');
 const { dollarsToCents, centsToDollars } = require('../lib/historical-adapter');
 const { normalizeIdempotencyKey } = require('../lib/operation-idempotency');
+const { buildRescheduleEventId } = require('../lib/appointment-lifecycle-state');
 const {
   createAdminAppointment,
   updateCustomerContact,
@@ -1705,12 +1706,8 @@ async function handleAdminAction(body) {
     // not roll back the confirmed booking — delivery is tracked for retry.
     // Idempotent: already-confirmed retries share the same confirmationEventId.
     try {
-      const { emitConfirmed } = require('../lib/booking-transactional-notifications');
-      const txn = await emitConfirmed(patched, { event });
-      if (txn && txn.booking) {
-        patched = txn.booking;
-        await store.setJSON(bookingId, patched).catch(() => {});
-      }
+      const { notifyConfirmed } = require('../lib/appointment-lifecycle-notifications');
+      patched = await notifyConfirmed(patched, { event, store, source: 'lifecycle_mutation' }) || patched;
     } catch (e) {
       console.warn('[admin-ops-jobs] confirm notify failed:', e.message);
     }
@@ -2208,6 +2205,7 @@ async function handleAdminAction(body) {
     const confirmedTime = sanitizeText(body.confirmedTime || body.time, 32);
     const confirmedTimeWindow = sanitizeText(body.confirmedTimeWindow || body.timeWindow, 64);
     if (!confirmedDate) return jsonCors(400, { ok: false, error: 'date_required' });
+    const previousConfirmedDate = booking.confirmedDate || booking.preferredDate || '';
     const patched = {
       ...booking,
       confirmedDate,
@@ -2220,12 +2218,24 @@ async function handleAdminAction(body) {
       rescheduledByAdmin: true,
       rescheduledByAdminAt: now,
       rescheduledByClient: false,
+      previousConfirmedDate,
+      rescheduleEventId: buildRescheduleEventId(
+        bookingId,
+        confirmedDate,
+        confirmedTimeWindow || confirmedTime
+      ),
       updatedAt: now,
       eventLog: appendEventLog(booking, {
         action: 'admin_reschedule', by: 'admin', confirmedDate, confirmedTime, confirmedTimeWindow,
       }),
     };
     await store.setJSON(bookingId, patched);
+    try {
+      const { notifyRescheduled } = require('../lib/appointment-lifecycle-notifications');
+      await notifyRescheduled(patched, { event, store, source: 'lifecycle_mutation' });
+    } catch (e) {
+      console.warn('[admin-ops-jobs] reschedule notify failed:', e.message);
+    }
     return jsonCors(200, { ok: true, bookingId, confirmedDate });
   }
 
@@ -2254,15 +2264,23 @@ async function handleAdminAction(body) {
       jobStatus: 'cancelled',
       appointmentStatus: 'canceled',
       status: 'Cancelled',
-      canceledAt: now,
+      canceledAt: booking.canceledAt || now,
       cancellationReason: reason || booking.cancellationReason || 'admin_cancelled',
       cancellationRequestStatus: booking.cancellationRequestStatus === 'requested' ? 'resolved_approved' : booking.cancellationRequestStatus,
       cancellationResolvedAt: now,
       cancellationResolvedNote: reason || 'Cancelled by admin',
+      cancellationActor: 'admin',
+      cancellationEventId: booking.cancellationEventId || `cancelled:${bookingId}:${booking.canceledAt || now}`,
       updatedAt: now,
       eventLog: appendEventLog(booking, { action: 'booking_cancelled', by: 'admin', reason }),
     };
     await store.setJSON(bookingId, patched);
+    try {
+      const { notifyCancelled } = require('../lib/appointment-lifecycle-notifications');
+      await notifyCancelled(patched, { actor: 'admin', event, store, source: 'lifecycle_mutation' });
+    } catch (e) {
+      console.warn('[admin-ops-jobs] cancel notify failed:', e.message);
+    }
     return jsonCors(200, { ok: true, bookingId, jobStatus: 'cancelled' });
   }
 
@@ -2278,14 +2296,27 @@ async function handleAdminAction(body) {
         jobStatus: 'cancelled',
         appointmentStatus: 'canceled',
         status: 'Cancelled',
-        canceledAt: now,
+        canceledAt: booking.canceledAt || now,
         cancellationRequestStatus: 'resolved_approved',
         cancellationResolvedAt: now,
         cancellationResolvedNote: note,
+        cancellationActor: booking.cancellationActor || 'customer',
+        cancellationEventId: booking.cancellationEventId || `cancelled:${bookingId}:${booking.canceledAt || now}`,
         updatedAt: now,
         eventLog: appendEventLog(booking, { action: 'cancellation_approved', by: 'admin', note }),
       };
       await store.setJSON(bookingId, patched);
+      try {
+        const { notifyCancelled } = require('../lib/appointment-lifecycle-notifications');
+        await notifyCancelled(patched, {
+          actor: 'customer',
+          event,
+          store,
+          source: 'lifecycle_mutation',
+        });
+      } catch (e) {
+        console.warn('[admin-ops-jobs] cancellation-approve notify failed:', e.message);
+      }
       return jsonCors(200, { ok: true, bookingId, jobStatus: 'cancelled' });
     }
     await store.setJSON(bookingId, {
@@ -2305,6 +2336,7 @@ async function handleAdminAction(body) {
       const confirmedDate = sanitizeText(booking.rescheduleRequestedDate || body.confirmedDate, 32);
       const confirmedTime = sanitizeText(booking.rescheduleRequestedTime || body.confirmedTime, 32);
       if (!confirmedDate) return jsonCors(400, { ok: false, error: 'no_reschedule_request' });
+      const previousConfirmedDate = booking.confirmedDate || booking.preferredDate || '';
       const patched = {
         ...booking,
         confirmedDate,
@@ -2315,10 +2347,18 @@ async function handleAdminAction(body) {
         status: 'Rescheduled',
         rescheduledByClient: false,
         rescheduleRequestAppliedAt: now,
+        previousConfirmedDate,
+        rescheduleEventId: buildRescheduleEventId(bookingId, confirmedDate, confirmedTime),
         updatedAt: now,
         eventLog: appendEventLog(booking, { action: 'customer_reschedule_applied', by: 'admin' }),
       };
       await store.setJSON(bookingId, patched);
+      try {
+        const { notifyRescheduled } = require('../lib/appointment-lifecycle-notifications');
+        await notifyRescheduled(patched, { event, store, source: 'lifecycle_mutation' });
+      } catch (e) {
+        console.warn('[admin-ops-jobs] apply-reschedule notify failed:', e.message);
+      }
       return jsonCors(200, { ok: true, bookingId });
     }
     if (requestType === 'address' && (booking.addressChangedByClient || booking.requestedAddress)) {

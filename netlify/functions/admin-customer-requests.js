@@ -3,7 +3,7 @@
 const { jsonCors } = require('../lib/tech-security');
 const { verifyAdminRequest } = require('../lib/admin-security');
 const { blobsStore, listAllBlobs, fetchBlobRecords } = require('../lib/tech-security');
-const { getBooking, getBookingsByIds, normalizeBookingKey } = require('../lib/ops-db');
+const { getBooking, getBookingsByIds, normalizeBookingKey, bookingStore } = require('../lib/ops-db');
 const { decideChangeRequestCommand, materialProjection } = require('../lib/booking-commands');
 const { getBookingRecord } = require('../lib/booking-repository');
 const { buildSyncEnvelope, syncHeaders } = require('../lib/sync-response');
@@ -251,6 +251,30 @@ exports.handler = async (event) => {
         'package_change_request', 'addon_request', 'vehicle_add_request', 'vehicle_replace_request',
         'vehicle_remove_request']
         .includes(record.requestType);
+
+    if (decision === 'approve' && result.ok && result.booking && result.noop !== true) {
+      try {
+        const lifecycle = require('../lib/appointment-lifecycle-notifications');
+        const bookings = await bookingStore();
+        const rt = record.requestType;
+        if (rt === 'reschedule_request') {
+          await lifecycle.notifyRescheduled(result.booking, {
+            event,
+            store: bookings,
+            source: 'lifecycle_mutation',
+          });
+        } else if (rt === 'cancellation' || rt === 'cancellation_request') {
+          await lifecycle.notifyCancelled(result.booking, {
+            actor: 'customer',
+            event,
+            store: bookings,
+            source: 'lifecycle_mutation',
+          });
+        }
+      } catch (e) {
+        console.warn('[admin-customer-requests] lifecycle notify failed:', e.message);
+      }
+    }
 
     return jsonCors(200, {
       ok: true,
