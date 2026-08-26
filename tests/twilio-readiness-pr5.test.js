@@ -248,10 +248,10 @@ describe('PR5 post-commit outbox, deduplication and retries', () => {
   });
 
   it('retries explicit provider rejection but never retries an ambiguous network result', async () => {
-    const { enqueueSms, processSmsOutbox } = require('../netlify/lib/sms-outbox');
+    const { enqueueSms, claimSmsById, processClaimedSms } = require('../netlify/lib/sms-outbox');
     const { TEMPLATE_KEYS } = require('../netlify/lib/sms-templates');
     const retryKey = `${RUN_ID}.admin.retry.1`;
-    await enqueueSms({
+    const queued = await enqueueSms({
       idempotencyKey: retryKey,
       audience: 'admin',
       consentGranted: true,
@@ -260,9 +260,12 @@ describe('PR5 post-commit outbox, deduplication and retries', () => {
       templateData: { bookingRef: 'CD1-RETRY', customerName: 'Customer' },
       maxAttempts: 3,
     }, { prisma, env: BASE_ENV });
+    assert.equal(queued.ok, true, queued.error);
     const rejected = { ok: true, async send() { const err = new Error('rate_limited'); err.status = 429; throw err; } };
-    const first = await processSmsOutbox({ prisma, env: SEND_ENV, provider: rejected, limit: 1 });
-    assert.equal(first.results[0].retryable, true);
+    const claimed = await claimSmsById(prisma, queued.outbox.id);
+    assert.ok(claimed, 'retry row must be claimable');
+    const first = await processClaimedSms(claimed, { prisma, env: SEND_ENV, provider: rejected });
+    assert.equal(first.retryable, true);
     let retryRow = await prisma.smsOutbox.findUnique({ where: { idempotencyKey: retryKey } });
     assert.equal(retryRow.status, 'accepted');
     assert.ok(retryRow.availableAt > retryRow.createdAt);
@@ -271,13 +274,15 @@ describe('PR5 post-commit outbox, deduplication and retries', () => {
       ok: true,
       async send() { return { sid: 'SM00000000000000000000000000000002', status: 'sent' }; },
     };
-    await processSmsOutbox({ prisma, env: SEND_ENV, provider: accepted, limit: 1 });
+    const claimedRetry = await claimSmsById(prisma, retryRow.id);
+    assert.ok(claimedRetry, 'backoff row must be claimable after availableAt reset');
+    await processClaimedSms(claimedRetry, { prisma, env: SEND_ENV, provider: accepted });
     retryRow = await prisma.smsOutbox.findUnique({ where: { idempotencyKey: retryKey } });
     assert.equal(retryRow.status, 'sent');
     assert.equal(retryRow.attemptCount, 2);
 
     const ambiguousKey = `${RUN_ID}.admin.ambiguous.1`;
-    await enqueueSms({
+    const ambiguousQueued = await enqueueSms({
       idempotencyKey: ambiguousKey,
       audience: 'admin',
       consentGranted: true,
@@ -286,8 +291,9 @@ describe('PR5 post-commit outbox, deduplication and retries', () => {
       templateData: { bookingRef: 'CD1-AMBIGUOUS', customerName: 'Customer' },
     }, { prisma, env: BASE_ENV });
     const ambiguous = { ok: true, async send() { throw new Error('socket_closed_after_write'); } };
-    const result = await processSmsOutbox({ prisma, env: SEND_ENV, provider: ambiguous, limit: 1 });
-    assert.equal(result.results[0].retryable, false);
+    const claimedAmbiguous = await claimSmsById(prisma, ambiguousQueued.outbox.id);
+    const result = await processClaimedSms(claimedAmbiguous, { prisma, env: SEND_ENV, provider: ambiguous });
+    assert.equal(result.retryable, false);
     const ambiguousRow = await prisma.smsOutbox.findUnique({ where: { idempotencyKey: ambiguousKey } });
     assert.equal(ambiguousRow.status, 'failed');
     assert.equal(ambiguousRow.attemptCount, 1);

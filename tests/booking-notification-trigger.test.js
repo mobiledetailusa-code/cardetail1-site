@@ -235,7 +235,9 @@ after(() => {
 });
 
 beforeEach(() => {
-  Object.assign(process.env, SMS_ENV);
+  // Do not stamp production Twilio policy onto process.env. That would let
+  // HTTP-handler tests enqueue into the shared CI Postgres outbox and steal
+  // PR5 processSmsOutbox(limit:1) claims. Unit tests pass SMS_ENV explicitly.
   process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
   process.env.RESEND_API_KEY = '';
   delete process.env.RESEND_API_KEY;
@@ -245,6 +247,10 @@ beforeEach(() => {
 afterEach(() => {
   resetNotificationClaimStoreFactory();
   resetAppointmentAccessStoreFactories();
+  for (const key of ENV_KEYS) {
+    if (priorEnv[key] == null) delete process.env[key];
+    else process.env[key] = priorEnv[key];
+  }
 });
 
 describe('portal and /a?t= are not booking-created notification authorities', () => {
@@ -281,6 +287,15 @@ describe('portal and /a?t= are not booking-created notification authorities', ()
 });
 
 describe('booking-time SMS decision does not wait for account hydration', () => {
+  it('customer SMS enablement follows the passed env, not leaked process.env policy', () => {
+    const { customerTransactionalSmsEnabled } = require('../netlify/lib/booking-transactional-notifications');
+    assert.equal(customerTransactionalSmsEnabled(SMS_ENV), true);
+    assert.equal(customerTransactionalSmsEnabled({
+      ...SMS_ENV,
+      TWILIO_OUTBOX_ENABLED: 'false',
+    }), false);
+    assert.notEqual(String(process.env.TWILIO_OUTBOX_ENABLED || ''), 'true');
+  });
   it('2. booking checkbox consent allows customer SMS without customerAccountId', async () => {
     const result = await assertCustomerSmsConsent({
       customerAccountId: null,
@@ -685,6 +700,13 @@ describe('booking persist regression: version, stripe, incomplete repair', () =>
     };
 
     try {
+      // Keep CI fail-closed Twilio flags. This test proves persist/version/Stripe
+      // isolation, not live outbox writes against shared Postgres.
+      process.env.TWILIO_OUTBOX_ENABLED = 'false';
+      process.env.TWILIO_ENABLED = 'false';
+      process.env.TWILIO_PRODUCTION_SENDS_ENABLED = 'false';
+      process.env.CUSTOMER_TRANSACTIONAL_SMS_ENABLED = 'false';
+      process.env.ADMIN_SMS_CONSENT_GRANTED = 'false';
       const draftRes = await submitBooking.handler({
         httpMethod: 'POST',
         headers: { 'x-nf-client-connection-ip': '203.0.113.80' },

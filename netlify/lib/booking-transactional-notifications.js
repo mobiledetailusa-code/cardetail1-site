@@ -335,9 +335,9 @@ function markChannelResult(ledger, key, result) {
   return next;
 }
 
-function customerTransactionalSmsEnabled() {
-  return enabled(process.env.CUSTOMER_TRANSACTIONAL_SMS_ENABLED)
-    && smsOutboxPolicy(process.env).ok;
+function customerTransactionalSmsEnabled(env = process.env) {
+  return enabled(env.CUSTOMER_TRANSACTIONAL_SMS_ENABLED)
+    && smsOutboxPolicy(env).ok;
 }
 
 function resendEmailConfigured() {
@@ -631,7 +631,7 @@ function resolveCustomerBookingSmsPlan({
 }
 
 async function sendCustomerSms(toE164, _body, metadata = {}) {
-  if (!customerTransactionalSmsEnabled()) {
+  if (!customerTransactionalSmsEnabled(metadata.env || process.env)) {
     return { sent: false, skipped: true, reason: 'customer_sms_not_enabled' };
   }
   if (!toE164) return { sent: false, skipped: true, reason: 'no_customer_phone' };
