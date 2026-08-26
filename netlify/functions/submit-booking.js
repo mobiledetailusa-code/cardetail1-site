@@ -810,7 +810,8 @@ exports.handler = async (event) => {
       transactionalSmsConsentAccepted,
       transactionalSmsConsent: canonicalBookingSmsConsent(
         transactionalSmsConsentAccepted,
-        finalizedAt
+        finalizedAt,
+        transactionalSmsConsentAccepted ? (b.phone || b.customerPhone) : null
       ),
       // Transactional consent never implies promotional consent.
       marketingSmsConsentAccepted: false,

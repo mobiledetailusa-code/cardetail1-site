@@ -64,6 +64,7 @@ async function enqueueSms(input = {}, opts = {}) {
     const consent = await assertCustomerSmsConsent({
       customerAccountId: input.customerAccountId,
       toE164,
+      booking: input.booking || null,
     }, { prisma });
     if (!consent.ok) {
       return { ok: true, queued: false, skipped: true, reason: consent.reason };

@@ -7,9 +7,12 @@ const TEMPLATE_VERSION = 'sms-v2-2026-08-23';
 const COMPLIANCE = 'Reply STOP or HELP';
 
 const TEMPLATE_KEYS = Object.freeze({
+  // CUSTOMER_BOOKING_SMS_WITH_ACCESS — only when verified phone authorizes /a?t=
   REQUEST_RECEIVED: 'booking.request_received',
   CONFIRMED: 'booking.confirmed',
   ACTION_REQUIRED: 'booking.customer_action_required',
+  // CUSTOMER_BOOKING_SMS_SAFE_CONFIRMATION — consent true, phone mismatch: no private link
+  SAFE_CONFIRMATION: 'booking.safe_confirmation',
   TECH_AUCTION: 'auction.tech_invite',
   ADMIN_BOOKING: 'ops.booking_alert',
   ADMIN_INQUIRY: 'ops.inquiry_alert',
@@ -36,6 +39,11 @@ function renderSmsTemplate(templateKey, data = {}) {
     case TEMPLATE_KEYS.REQUEST_RECEIVED:
       body = `${BRAND}: Booking request received.`
         + (url ? ` ${url}` : '');
+      break;
+    case TEMPLATE_KEYS.SAFE_CONFIRMATION:
+      // No url/token — SMS consent alone must not deliver private account access.
+      body = `${BRAND}: We received your booking request.`
+        + ` We'll send service and appointment updates to this number.`;
       break;
     case TEMPLATE_KEYS.CONFIRMED:
       body = `${BRAND}: Appointment confirmed${data.when ? ` ${text(data.when, 80)}` : ''}.`
