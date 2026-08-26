@@ -654,13 +654,13 @@ async function sendCustomerSms(toE164, _body, metadata = {}) {
   const queued = await enqueueSms({
     idempotencyKey: metadata.idempotencyKey,
     audience: 'customer',
-    customerAccountId: metadata.customerAccountId,
+    customerAccountId: metadata.customerAccountId || null,
     bookingId: metadata.bookingId,
     booking: metadata.booking || null,
     toE164: plan.toE164,
     templateKey: plan.templateKey,
     templateData: plan.templateData,
-  });
+  }, { prisma: metadata.prisma, env: metadata.env });
   if (!queued.ok) return { sent: false, reason: queued.error || 'sms_outbox_failed' };
   if (!queued.queued) return { sent: false, skipped: true, reason: queued.reason || 'sms_not_queued' };
   return {
@@ -732,6 +732,18 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
       return { ok: false, error: 'unknown_event', correlationId };
     }
 
+    const resendGenerationEarly = normalizeResendGeneration(opts.resendGeneration);
+    const portalSources = new Set(['portal_access', 'appointment_access', 'my_garage']);
+    if (portalSources.has(String(opts.source || '')) && !resendGenerationEarly) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: 'portal_access_not_a_trigger',
+        correlationId,
+        booking,
+      };
+    }
+
     if (eventType === EVENT_ACTION_REQUIRED && !isActionRequiredState(booking)) {
       return { ok: true, skipped: true, reason: 'not_actionable', correlationId, booking };
     }
@@ -799,18 +811,29 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
     const phoneDigits = normalizeUsPhoneDigits(working.phone || working.customerPhone || '');
     // Do not revoke an already-emailed link when only retrying a failed SMS channel.
     const supersede = !(emailDone || smsDone);
-    const access = await createAppointmentAccessToken({
-      bookingId,
-      customerAccountId: working.customerAccountId || null,
-      email: working.email,
-      phoneDigits: phoneDigits || null,
-      eventType,
-      ttlMs: ACCESS_TOKEN_TTL_MS,
-      supersede,
-      event: opts.event || null,
-    });
+    let access = { token: null, accessUrl: '', expiresAt: null };
+    try {
+      access = await createAppointmentAccessToken({
+        bookingId,
+        customerAccountId: working.customerAccountId || null,
+        email: working.email,
+        phoneDigits: phoneDigits || null,
+        eventType,
+        ttlMs: ACCESS_TOKEN_TTL_MS,
+        supersede,
+        event: opts.event || null,
+      });
+    } catch (tokenErr) {
+      // Access-link minting must not delay or suppress the booking-time SMS
+      // decision. Email/SMS continue with an empty URL (safe confirmation
+      // template when the plan does not authorize /a?t=).
+      console.warn('[txn-notify] access_token_unavailable', {
+        correlationId,
+        error: String(tokenErr && tokenErr.message || tokenErr).slice(0, 80),
+      });
+    }
 
-    const accessUrl = access.accessUrl || buildAccessUrl(access.token, opts.event);
+    const accessUrl = access.accessUrl || (access.token ? buildAccessUrl(access.token, opts.event) : '');
     const emailContent = buildEmailContent(eventType, working, accessUrl);
     const smsBody = buildSmsBody(eventType, working, accessUrl);
 
@@ -861,6 +884,9 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
         eventType,
         booking: working,
         accessUrl,
+        prisma: opts.prisma,
+        env: opts.env,
+        verifiedPhoneE164: opts.verifiedPhoneE164,
       });
       ledger = markChannelResult(ledger, smsKey, delivery.sms);
     } else {

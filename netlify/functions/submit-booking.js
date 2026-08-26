@@ -71,13 +71,18 @@ const {
   CLIENT_OFFER_BLOCKED_FIELDS,
 } = require('../lib/booking-offers');
 const { setOfferDeployHost, clearOfferDeployHost } = require('../lib/revenue-offers');
-const { sendNotificationsDecoupled, attachDeliveryToBooking } = require('../lib/notification-delivery');
+const {
+  sendNotificationsDecoupled,
+  attachDeliveryToBooking,
+  bookingCreatedNotificationsIncomplete,
+} = require('../lib/notification-delivery');
 // Loaded lazily at the call site: the SMS outbox pulls Prisma and the Twilio
 // dependency graph, and a cold-start failure there returns a non-JSON 500 that
 // the checkout cannot parse. Notifications must never gate the booking itself.
 function smsOutbox() {
   return {
     enqueueSms: require('../lib/sms-outbox').enqueueSms,
+    kickSmsOutboxByIds: require('../lib/sms-outbox').kickSmsOutboxByIds,
     TEMPLATE_KEYS: require('../lib/sms-templates').TEMPLATE_KEYS,
   };
 }
@@ -517,6 +522,8 @@ async function sendCustomerEmail(b) {
 }
 
 async function sendSms(b) {
+  // Admin SMS is independent of customer consent, portal access, verified phone,
+  // and /a?t=. The booking id/name/phone here are alert copy only — not gates.
   const { enqueueSms, TEMPLATE_KEYS } = smsOutbox();
   const queued = await enqueueSms({
     idempotencyKey: `admin.booking:${b.id}`,
@@ -534,6 +541,106 @@ async function sendSms(b) {
   if (!queued.ok) return { sent: false, reason: queued.error || 'sms_outbox_failed' };
   if (!queued.queued) return { sent: false, skipped: true, reason: queued.reason || 'sms_not_queued' };
   return { sent: false, accepted: true, queued: true, outboxId: queued.outbox?.id || null };
+}
+
+function applyCustomerTxnDelivery(booking, delivery, txn) {
+  const now = new Date().toISOString();
+  const custEmailStatus = txn.delivery?.email?.sent
+    ? { status: 'sent', at: now, reason: null }
+    : {
+      status: txn.delivery?.email?.skipped ? 'suppressed' : 'failed',
+      at: now,
+      reason: txn.delivery?.email?.reason || null,
+    };
+  const custSmsStatus = txn.delivery?.sms?.accepted || txn.delivery?.sms?.queued
+    ? {
+      status: 'accepted',
+      at: now,
+      reason: null,
+      outboxId: txn.delivery?.sms?.outboxId || null,
+    }
+    : txn.delivery?.sms?.sent
+      ? { status: 'sent', at: now, reason: null }
+      : {
+        status: txn.delivery?.sms?.skipped ? 'suppressed' : 'failed',
+        at: now,
+        reason: txn.delivery?.sms?.reason || 'customer_sms_not_enabled',
+      };
+  return {
+    ...booking,
+    notificationDelivery: {
+      ...(booking.notificationDelivery || delivery),
+      customerEmail: custEmailStatus,
+      customerSms: custSmsStatus,
+      updatedAt: now,
+    },
+  };
+}
+
+/**
+ * Booking-authority notification orchestration. Runs AFTER persist. Never
+ * throws into the checkout response. Portal / My Garage / /a?t= are not
+ * callers of this function.
+ */
+async function deliverBookingCreatedNotifications(booking, event) {
+  const delivery = await sendNotificationsDecoupled(booking, {
+    adminEmail: (row) => sendEmail(row).catch((e) => ({ sent: false, reason: e.message })),
+    adminSms: (row) => sendSms(row).catch((e) => ({ sent: false, reason: e.message })),
+  });
+  let withDelivery = attachDeliveryToBooking(booking, delivery);
+  try {
+    const { emitRequestReceived } = require('../lib/booking-transactional-notifications');
+    const txn = await emitRequestReceived(withDelivery, { event, source: 'booking_persist' });
+    if (txn && txn.booking) {
+      withDelivery = applyCustomerTxnDelivery(txn.booking, delivery, txn);
+    }
+  } catch (e) {
+    console.warn('[submit-booking] transactional notify failed:', e.message);
+  }
+
+  const outboxIds = [
+    withDelivery.notificationDelivery?.adminSms?.outboxId,
+    withDelivery.notificationDelivery?.customerSms?.outboxId,
+  ].filter(Boolean);
+  if (outboxIds.length) {
+    try {
+      const { kickSmsOutboxByIds } = smsOutbox();
+      await kickSmsOutboxByIds(outboxIds);
+    } catch (e) {
+      console.warn('[submit-booking] sms outbox kick failed:', e.message);
+    }
+  }
+  return withDelivery;
+}
+
+function mergeNotificationFields(latest, notified) {
+  if (!notified) return latest;
+  if (!latest) return notified;
+  return {
+    ...latest,
+    notificationDelivery: notified.notificationDelivery || latest.notificationDelivery,
+    transactionalNotifications: notified.transactionalNotifications || latest.transactionalNotifications,
+    lastTransactionalNotificationAt:
+      notified.lastTransactionalNotificationAt || latest.lastTransactionalNotificationAt,
+    lastTransactionalNotificationEvent:
+      notified.lastTransactionalNotificationEvent || latest.lastTransactionalNotificationEvent,
+    customerAccountId: latest.customerAccountId || notified.customerAccountId || null,
+    appointmentPublicRef: latest.appointmentPublicRef || notified.appointmentPublicRef,
+    appointmentPublicRefAt: latest.appointmentPublicRefAt || notified.appointmentPublicRefAt,
+    bookingVersion: latest.bookingVersion,
+    quoteVersion: latest.quoteVersion,
+  };
+}
+
+async function persistNotificationFields(store, bookingId, notified) {
+  const latest = await store.get(bookingId, { type: 'json' }).catch(() => null);
+  const merged = mergeNotificationFields(latest, notified);
+  await store.setJSON(bookingId, merged);
+  try {
+    const { scheduleBookingMirror } = require('../lib/booking-prisma-mirror');
+    scheduleBookingMirror(merged);
+  } catch { /* ignore */ }
+  return merged;
 }
 
 exports.handler = async (event) => {
@@ -705,17 +812,37 @@ exports.handler = async (event) => {
     let existing = await store.get(rawDraftId, { type: 'json' }).catch(() => null);
     if (!existing) return json(404, { ok: false, error: 'Draft booking not found' });
     if (!existing.isDraft) {
-      // Idempotent finalize: already submitted booking returns same id/version
+      // Idempotent finalize: already submitted booking returns same id/version.
+      // If the first attempt persisted then died before notify, repair now —
+      // still booking-authority (signed draft token), never a portal trigger.
       if (existing.finalizedAt || existing.bookingVersion >= 1) {
+        let booking = existing;
+        const tokenCheck = verifyDraftSaveToken({
+          token: b.draftSaveToken,
+          bookingId: rawDraftId,
+          phone: existing.phone || b.phone,
+        });
+        if (tokenCheck.ok && bookingCreatedNotificationsIncomplete(existing)) {
+          try {
+            const notified = await deliverBookingCreatedNotifications(existing, event);
+            booking = await persistNotificationFields(store, rawDraftId, notified);
+          } catch (e) {
+            console.warn('[submit-booking] notification repair failed:', e.message);
+          }
+        }
         return json(200, {
           ok: true,
           bookingCreated: true,
-          id: existing.id,
-          status: existing.status || 'Pending Review',
+          id: booking.id || existing.id,
+          status: booking.status || existing.status || 'Pending Review',
           bookingVersion: existing.bookingVersion || 1,
+          quoteVersion: existing.quoteVersion || 1,
           idempotent: true,
-          cardOnFileStatus: existing.cardOnFileStatus || null,
-          customerEmail: existing.notificationDelivery?.customerEmail || { status: 'pending' },
+          cardOnFileStatus: booking.cardOnFileStatus || existing.cardOnFileStatus || null,
+          customerEmail: booking.notificationDelivery?.customerEmail
+            || existing.notificationDelivery?.customerEmail
+            || { status: 'pending' },
+          notificationDelivery: booking.notificationDelivery || existing.notificationDelivery,
         });
       }
       return json(409, { ok: false, error: 'Booking already finalized' });
@@ -850,61 +977,16 @@ exports.handler = async (event) => {
       scheduleBookingMirror(b);
     } catch { /* ignore */ }
 
-    // Admin channels stay on the legacy decoupled helper. Customer
-    // request-received email/SMS go through transactional events so they include
-    // a secure appointment-access link and stay idempotent by event+channel.
-    const delivery = await sendNotificationsDecoupled(b, {
-      adminEmail: (booking) => sendEmail(booking).catch((e) => ({ sent: false, reason: e.message })),
-      adminSms: (booking) => sendSms(booking).catch((e) => ({ sent: false, reason: e.message })),
-    });
-    let withDelivery = attachDeliveryToBooking(b, delivery);
-
+    // Booking-authority notify: AFTER persist, fail-open. Never a portal trigger.
+    let withDelivery = b;
     try {
-      const { emitRequestReceived } = require('../lib/booking-transactional-notifications');
-      const txn = await emitRequestReceived(withDelivery, { event });
-      if (txn && txn.booking) {
-        withDelivery = txn.booking;
-        const custEmailStatus = txn.delivery?.email?.sent
-          ? { status: 'sent', at: new Date().toISOString(), reason: null }
-          : {
-            status: txn.delivery?.email?.skipped ? 'suppressed' : 'failed',
-            at: new Date().toISOString(),
-            reason: txn.delivery?.email?.reason || null,
-          };
-        const custSmsStatus = txn.delivery?.sms?.accepted || txn.delivery?.sms?.queued
-          ? {
-            status: 'accepted',
-            at: new Date().toISOString(),
-            reason: null,
-            outboxId: txn.delivery?.sms?.outboxId || null,
-          }
-          : txn.delivery?.sms?.sent
-            ? { status: 'sent', at: new Date().toISOString(), reason: null }
-            : {
-              status: txn.delivery?.sms?.skipped ? 'suppressed' : 'failed',
-              at: new Date().toISOString(),
-              reason: txn.delivery?.sms?.reason || 'customer_sms_not_enabled',
-            };
-        withDelivery = {
-          ...withDelivery,
-          notificationDelivery: {
-            ...(withDelivery.notificationDelivery || delivery),
-            customerEmail: custEmailStatus,
-            customerSms: custSmsStatus,
-            updatedAt: new Date().toISOString(),
-          },
-        };
-      }
+      withDelivery = await deliverBookingCreatedNotifications(b, event);
     } catch (e) {
       console.warn('[submit-booking] transactional notify failed:', e.message);
     }
 
     try {
-      await store.setJSON(rawDraftId, withDelivery);
-      try {
-        const { scheduleBookingMirror } = require('../lib/booking-prisma-mirror');
-        scheduleBookingMirror(withDelivery);
-      } catch { /* ignore */ }
+      withDelivery = await persistNotificationFields(store, rawDraftId, withDelivery);
     } catch (e) {
       console.warn('[submit-booking] notification delivery persist failed:', e.message);
     }
@@ -953,4 +1035,6 @@ exports.__test = {
   buildDraftRecord,
   issueDraftSaveResponse,
   reconcileCardOnFileFromStripe,
+  deliverBookingCreatedNotifications,
+  bookingCreatedNotificationsIncomplete,
 };

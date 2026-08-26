@@ -27,46 +27,67 @@ function phoneHash(phone) {
 }
 
 async function assertCustomerSmsConsent({ customerAccountId, toE164, booking } = {}, opts = {}) {
-  const prisma = prismaClient(opts.prisma);
-  if (!prisma) return { ok: false, reason: 'consent_store_unavailable' };
-  if (!customerAccountId) return { ok: false, reason: 'customer_account_required' };
-  const account = await prisma.customerAccount.findUnique({
-    where: { id: customerAccountId },
-    include: { profile: true, consents: true },
-  });
-  const gate = assertCustomerPortalAccountActive(account);
-  if (!gate.ok) return { ok: false, reason: 'customer_not_active' };
   const dest = normalizeUsPhoneE164(toE164);
   if (!dest) return { ok: false, reason: 'invalid_sms_recipient' };
-  const consent = (account.consents || []).find((row) => row.channel === CHANNEL);
-  const verifiedPhone = normalizeUsPhoneE164(account.profile?.normalizedPhone || account.profile?.phone || '');
+
+  const bookingPhone = normalizeUsPhoneE164(booking?.phone || booking?.customerPhone || '');
+  const bookingConsentApplies = bookingSmsConsentGranted(booking) && !!bookingPhone && bookingPhone === dest;
+
+  const prisma = prismaClient(opts.prisma);
+  let account = null;
+  let consent = null;
+  let verifiedPhone = '';
+
+  // Account hydration is observational for the booking-checkbox path. A missing
+  // CustomerAccount must not delay the booking-time SMS decision until My Garage
+  // or /a?t= creates the row.
+  if (prisma && customerAccountId) {
+    try {
+      account = await prisma.customerAccount.findUnique({
+        where: { id: customerAccountId },
+        include: { profile: true, consents: true },
+      });
+    } catch {
+      account = null;
+    }
+    if (account) {
+      const gate = assertCustomerPortalAccountActive(account);
+      if (gate.ok) {
+        consent = (account.consents || []).find((row) => row.channel === CHANNEL);
+        verifiedPhone = normalizeUsPhoneE164(account.profile?.normalizedPhone || account.profile?.phone || '');
+      } else if (!bookingConsentApplies) {
+        return { ok: false, reason: 'customer_not_active' };
+      }
+    }
+  }
 
   // Public booking checkbox: allow transactional SMS to the booking phone even when
   // the account profile verified phone differs (email-linked account reuse). Keep
   // STOP/revocation newer than this booking consent as the winner. Do not use this
   // path to rewrite account-level consent for a mismatched portal phone.
   // accessAuthorized is separate: only verified-phone match may include /a?t=.
-  if (bookingSmsConsentGranted(booking)) {
-    const bookingPhone = normalizeUsPhoneE164(booking.phone || booking.customerPhone || '');
-    if (bookingPhone && bookingPhone === dest) {
-      const revokedAtMs = consent?.revokedAt ? new Date(consent.revokedAt).getTime() : Number.NaN;
-      const consentAtMs = Date.parse(booking.transactionalSmsConsent?.recordedAt || '');
-      if (
-        consent?.status === 'revoked'
-        && Number.isFinite(revokedAtMs)
-        && Number.isFinite(consentAtMs)
-        && revokedAtMs >= consentAtMs
-      ) {
-        return { ok: false, reason: 'sms_consent_required' };
-      }
-      return {
-        ok: true,
-        consentTextVersion: BOOKING_CONSENT_TEXT_VERSION,
-        source: BOOKING_CONSENT_SOURCE,
-        accessAuthorized: !!(verifiedPhone && verifiedPhone === dest),
-      };
+  if (bookingConsentApplies) {
+    const revokedAtMs = consent?.revokedAt ? new Date(consent.revokedAt).getTime() : Number.NaN;
+    const consentAtMs = Date.parse(booking.transactionalSmsConsent?.recordedAt || '');
+    if (
+      consent?.status === 'revoked'
+      && Number.isFinite(revokedAtMs)
+      && Number.isFinite(consentAtMs)
+      && revokedAtMs >= consentAtMs
+    ) {
+      return { ok: false, reason: 'sms_consent_required' };
     }
+    return {
+      ok: true,
+      consentTextVersion: BOOKING_CONSENT_TEXT_VERSION,
+      source: BOOKING_CONSENT_SOURCE,
+      accessAuthorized: !!(verifiedPhone && verifiedPhone === dest),
+    };
   }
+
+  if (!prisma) return { ok: false, reason: 'consent_store_unavailable' };
+  if (!customerAccountId) return { ok: false, reason: 'customer_account_required' };
+  if (!account) return { ok: false, reason: 'customer_not_active' };
 
   if (!verifiedPhone || verifiedPhone !== dest) {
     return { ok: false, reason: 'verified_phone_mismatch' };

@@ -521,11 +521,12 @@ test('wiring: submit emits request_received; confirm emits confirmed; no garage 
   const finalizeIdx = submit.indexOf('// ── Draft finalization');
   const finalizeBlock = finalizeIdx >= 0 ? submit.slice(finalizeIdx) : submit;
   assert.match(finalizeBlock, /await store\.setJSON\(rawDraftId, b\)/);
-  assert.match(finalizeBlock, /emitRequestReceived/);
+  assert.match(submit, /emitRequestReceived/);
+  assert.match(finalizeBlock, /deliverBookingCreatedNotifications/);
   assert.match(finalizeBlock, /transactional notify failed/);
   const persistIdx = finalizeBlock.indexOf('await store.setJSON(rawDraftId, b)');
-  const notifyIdx = finalizeBlock.indexOf('emitRequestReceived');
-  const catchIdx = finalizeBlock.indexOf("transactional notify failed");
+  const notifyIdx = finalizeBlock.indexOf('deliverBookingCreatedNotifications', persistIdx);
+  const catchIdx = finalizeBlock.indexOf("transactional notify failed", notifyIdx);
   assert.ok(persistIdx >= 0 && notifyIdx > persistIdx && catchIdx > notifyIdx);
 });
 
