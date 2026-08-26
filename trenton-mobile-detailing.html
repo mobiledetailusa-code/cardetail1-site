@@ -5828,7 +5828,9 @@ try{ if(typeof seedDefaultTechs==='function') seedDefaultTechs(); }catch(e){}
     { keys:['hi','hello','hey','hallo','ola','olá','good morning','good afternoon'], fn:()=>({
       reply:"Hey! 👋 How can I help? I can talk pricing, areas we serve, packages or booking.", chips:DEFAULT_CHIPS }) },
 
-    { keys:['price','pricing','cost','how much','quote','expensive','rate','charge','dollar','[{label:'📅 Get my exact price',act:'book'},{label:'📍 Travel fees?',q:'Is there a travel fee?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
+    { keys:['price','pricing','cost','how much','quote','expensive','rate','charge','dollar','$'], fn:()=>({
+      reply:chatStartingPricesReply(),
+      chips:[{label:'📅 Get my exact price',act:'book'},{label:'📍 Travel fees?',q:'Is there a travel fee?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['area','areas','serve','service area','location','where','city','town','county','zip','near me','come to','pa','pennsylvania','new jersey','new york','connecticut',' nj',' ny',' ct'], fn:()=>({
       reply:"We're <b>mobile</b> — we come to you! 🚐 We serve <b>"+AREAS+"</b>.\n\nEnter your ZIP when booking to confirm coverage and see local pricing (some areas have a small travel fee). Not sure if we reach you? Just ask or call "+telLink()+".",
@@ -5972,137 +5974,5 @@ try{ if(typeof seedDefaultTechs==='function') seedDefaultTechs(); }catch(e){}
 <script src="assets/booking-availability-client.js"></script>
   <script src="assets/back-to-top.js" defer></script>
   <script src="assets/hub-booking-bridge.js" defer></script>
-</body>
-</html>], fn:()=>({
-      reply:chatStartingPricesReply(),
-      chips:[{label:'📅 Get my exact price',act:'book'},{label:'📍 Travel fees?',q:'Is there a travel fee?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
-
-    { keys:['area','areas','serve','service area','location','where','city','town','county','zip','near me','come to','pa','pennsylvania','new jersey','new york','connecticut',' nj',' ny',' ct'], fn:()=>({
-      reply:"We're <b>mobile</b> — we come to you! 🚐 We serve <b>"+AREAS+"</b>.\n\nEnter your ZIP when booking to confirm coverage and see local pricing (some areas have a small travel fee). Not sure if we reach you? Just ask or call "+telLink()+".",
-      chips:[{label:'📅 Check my ZIP',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
-
-    { keys:['travel fee','surcharge','extra fee','area fee','distance','toll'], fn:()=>({
-      reply:"Most core areas have <b>no travel fee</b>. Farther zones (e.g. NYC, Long Island, PA Philly/Pocono) may include a small distance-based fee — typically <b>$15–$35</b> — already included in the package total shown when you book.",
-      chips:[{label:'📅 See my area fee',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
-
-    { keys:['package','packages','plan','plans','tier','what do you offer','full detail','interior','exterior'], fn:()=>{
-      const names=pkgNames('cars'); const list=names.length?names.map(n=>'• '+n).join('\n'):'• Maintenance Detail\n• Premium Detail';
-      return { reply:"For cars we offer:\n\n"+list+"\n\nBoats, RVs and trailers are priced by exact length, and fleet has volume pricing. Each package lists exactly what's included in the booking flow.",
-        chips:[{label:'✨ Add-ons',q:'What add-ons do you have?'},{label:'📅 See packages',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
-
-    { keys:['add-on','add on','addon','extra','upgrade','pet hair','odor','ceramic','wax','shampoo','stain'], fn:()=>{
-      const popularIds=['pethair','odor','rainx'];
-      const all=(PRICING.cars?.addons||[]);
-      const popular=all.filter(a=>popularIds.includes(a.id)).map(a=>'• '+a.name+' (+$'+a.price+')');
-      const others=all.filter(a=>!popularIds.includes(a.id)).slice(0,4).map(a=>'• '+a.name+' (+$'+a.price+')');
-      const list=[...popular,...others].join('\n')||'• Pet Hair Removal (+$95)\n• Odor Treatment (+$149)\n• Rain-X Glass Treatment (+$25)';
-      return { reply:"Popular add-ons you can pick during booking:\n\n"+list+"\n\nThey appear right after you choose your package & vehicle, and the total updates live.",
-        chips:[{label:'📅 Add to my booking',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
-
-    { keys:['book','booking','appointment','schedule','reserve','agendar','set up','sign up','how do i'], fn:()=>({
-      reply:"Booking takes a couple minutes: 📍 enter ZIP → 🚗 pick category & package → confirm your vehicle → ✨ add extras → your details → review & submit. No card or payment method is required — we review your request first, then contact you about confirmation. If you opted in for SMS, updates may be sent by text.",
-      chips:[{label:'📅 Start booking',act:'book'},{label:'💳 Deposit/payment',q:'Do I pay now?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
-
-    { keys:['pay','payment','deposit','charge now','credit card','card','stripe','money','pay now','upfront'], fn:()=>({
-      reply:"You're <b>not charged when you submit</b> — no card or payment method is required. We review the request first. Payment can be handled later in My Garage or at service when applicable.",
-      chips:[{label:'📅 Book now',act:'book'},{label:'❌ Cancellation policy',q:'What is your cancellation policy?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
-
-    { keys:['hour','hours','open','time','when are you','availability','available','today','same day','same-day','weekend'], fn:()=>({
-      reply:"We operate <b>Mon–Fri, 8AM–5PM</b>. Request your preferred date during booking — we confirm availability based on route, weather, and service type before scheduling.",
-      chips:[{label:'📅 Check availability',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
-
-    { keys:['cancel','cancellation','reschedule','refund','no-show','policy','weather','rain'], fn:()=>({
-      reply:"Easy & fair: 🔄 reschedule or cancel at least <b>24h</b> before (rescheduling preferred). Weather, emergencies or schedule conflicts → free reschedule. Late cancellations / no-shows / denied access may incur a fee or deposit loss. Full terms are on the Terms page.",
-      chips:[{label:'📅 Book now',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
-
-    { keys:['what do you detail','vehicle','vehicles','cars','boat','rv','trailer','motorcycle','atv','jet ski','truck','suv'], fn:()=>({
-      reply:"We detail 🚗 cars & trucks, 🚥️️️️ boats, 🏕️ RVs & travel trailers, 🏍️ powersports (motorcycle/ATV/UTV/jet ski) and 🚚 fleets — all <b>mobile</b>, at your home or workplace.",
-      chips:[{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] }) },
-
-    { keys:['mobile','come to me','at home','my place','do you travel','my location','my house','my driveway'], fn:()=>({
-      reply:"Yes — we're <b>100% mobile</b>. We bring professional equipment; water/power access may depend on location and service type. No shop visit needed — just safe access to your vehicle. 🚐",
-      chips:[{label:'📍 Service area',q:'What areas do you serve?'},{label:'📅 Book now',act:'book'}] }) },
-
-    { keys:['how long','duration','take','hours to','time to finish','minutes'], fn:()=>({
-      reply:"It depends on the package and vehicle — each package shows its estimated time in the booking flow (a wash is quick; a full detail takes longer). Pick a package to see the duration.",
-      chips:[{label:'📅 See times',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }) },
-
-    { keys:['human','agent','person','representative','call','phone','contact','speak','talk to','someone','manager','owner','real person'], fn:()=>({
-      reply:"Happy to connect you! 📍ž Call or text us at "+telLink()+" (Mon–Fri 8AM–5PM), or leave your question here and our team will get back to you.",
-      chips:[{label:'📍¨ Send my question',act:'human'},{label:'📅 Book now',act:'book'}] }) },
-
-    { keys:['thank','thanks','obrigado','appreciate','great','awesome','perfect'], fn:()=>({
-      reply:"You're welcome! 🙌 Anything else I can help with?", chips:DEFAULT_CHIPS }) }
-  ];
-
-  function cdLocalAnswer(text){
-    const t=' '+text.toLowerCase()+' ';
-    let best=null, bestScore=0;
-    INTENTS.forEach(intent=>{
-      let score=0;
-      intent.keys.forEach(k=>{ if(t.indexOf(k.toLowerCase())>-1) score += k.length>3?2:1; });
-      if(score>bestScore){ bestScore=score; best=intent; }
-    });
-    if(best && bestScore>0) return best.fn();
-    return { reply:"I want to get this right 🤔 — I'm not 100% sure about that one. I can connect you with our team, or you can call "+telLink()+". Want me to pass your question along?",
-      chips:[{label:'📍¨ Send my question',act:'human'},{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] };
-  }
-
-  // ── HUMAN HANDOFF (last resort → owner / admin portal) ──
-  function openHandoff(){
-    $('cd-handoff').style.display='flex'; $('cd-input-row').style.display='none'; $('cd-chips').style.display='none';
-    $('cd-h-out').style.display='none';
-    push("No problem — leave your details and question and our team will reply by text, call or email. 📍¨",'bot');
-    setTimeout(()=>$('cd-h-name')&&$('cd-h-name').focus(),100);
-  }
-  function cdCancelHandoff(){
-    const f=$('cd-handoff'); if(!f) return; f.style.display='none';
-    $('cd-input-row').style.display='flex'; $('cd-chips').style.display='flex';
-  }
-  window.cdCancelHandoff=cdCancelHandoff;
-  window.cdOpenHandoff=openHandoff;
-
-  function getInquiries(){ try{ return JSON.parse(localStorage.getItem('cd1_inquiries')||'[]'); }catch(e){ return []; } }
-  function setInquiries(l){ try{ localStorage.setItem('cd1_inquiries',JSON.stringify(l)); }catch(e){} }
-
-  function cdSubmitHandoff(e){
-    e.preventDefault();
-    const name=$('cd-h-name').value.trim(), phone=$('cd-h-phone').value.trim(),
-          email=$('cd-h-email').value.trim(), message=$('cd-h-msg').value.trim();
-    const out=$('cd-h-out');
-    if(!name || !phone){ out.style.display='block'; out.style.color='var(--rd)'; out.innerHTML='Please add your name and a phone number so we can reach you.'; return; }
-    const inquiry={ id:'INQ-'+Date.now().toString(36).toUpperCase(), name, phone, email, message,
-      createdAt:new Date().toISOString(), status:'New', source:'Chat widget' };
-    // 1) always save locally so it shows in the Admin portal
-    const list=getInquiries(); list.push(inquiry); setInquiries(list);
-    // 2) best-effort send to the backend (degrades silently if not configured)
-    try{
-      if(typeof INQUIRY_URL==='string' && INQUIRY_URL){
-        fetch(INQUIRY_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(inquiry)}).catch(()=>{});
-      }
-      if(typeof BACKEND_URL==='string' && BACKEND_URL){
-        fetch(BACKEND_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({type:'inquiry'},inquiry))}).catch(()=>{});
-      }
-    }catch(e){}
-    // 3) guaranteed fallback: prefilled email + SMS links to the owner
-    const subject=encodeURIComponent('Website question from '+name);
-    const body=encodeURIComponent('Name: '+name+'\nPhone: '+phone+(email?'\nEmail: '+email:'')+'\n\nQuestion:\n'+(message||'(none)'));
-    const adminEmail=(typeof ADMIN_EMAIL==='string'&&ADMIN_EMAIL)?ADMIN_EMAIL:'';
-    const adminSms=(typeof ADMIN_SMS==='string'&&ADMIN_SMS)?ADMIN_SMS:PHONE_TEL;
-    const mailto=adminEmail?('mailto:'+adminEmail+'?subject='+subject+'&body='+body):'';
-    cdCancelHandoff();
-    push("✅ Thanks, <b>"+esc(name)+"</b>! Your question is on its way to our team — we'll reply to <b>"+esc(phone)+"</b> soon.",'bot');
-    let extra="Want it instantly? "+(mailto?'<a href="'+mailto+'">email us</a> or ':'')+'<a href="sms:'+adminSms+'?&body='+body+'">text us</a> — or call '+telLink()+'.';
-    push(extra,'bot');
-    setChips([{label:'📅 Book now',act:'book'},{label:'💬 Ask something else',q:'hi'}]);
-    $('cd-h-name').value=$('cd-h-phone').value=$('cd-h-email').value=$('cd-h-msg').value='';
-  }
-  window.cdSubmitHandoff=cdSubmitHandoff;
-
-  // ── init ──
-  // gentle attention nudge after a moment if the user hasn't opened the chat
-  setTimeout(()=>{ if(!started){ const b=$('cd-badge'); if(b) b.style.display='flex'; } }, 6000);
-})();
-</script>
 </body>
 </html>

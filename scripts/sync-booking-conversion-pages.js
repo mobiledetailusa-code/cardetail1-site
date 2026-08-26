@@ -75,7 +75,9 @@ function extractFormBlock(html) {
 function replaceOrInsertForm(html, canonicalBlock) {
   const existing = extractFormBlock(html);
   if (existing) {
-    return html.replace(existing, canonicalBlock);
+    // Function replacement avoids $' / $& interpolation if the form ever
+    // contains a dollar figure next to a quote (the city-page footer leak).
+    return html.replace(existing, () => canonicalBlock);
   }
 
   // Legacy pages: replace from first fgrid inside #bs4 through Access/Notes textareas.
@@ -95,15 +97,15 @@ function ensureScripts(html) {
     if (next.includes('<script src="assets/revops-init.js"></script>')) {
       next = next.replace(
         '<script src="assets/revops-init.js"></script>',
-        `<script src="assets/revops-init.js"></script>\n${s}`
+        () => `<script src="assets/revops-init.js"></script>\n${s}`
       );
     } else if (next.includes('assets/back-to-top.js')) {
       next = next.replace(
         /<script src="assets\/back-to-top\.js"[^>]*><\/script>/,
-        `${s}\n$&`
+        (matched) => `${s}\n${matched}`
       );
     } else {
-      next = next.replace('</body>', `${s}\n</body>`);
+      next = next.replace('</body>', () => `${s}\n</body>`);
     }
   }
   return next;

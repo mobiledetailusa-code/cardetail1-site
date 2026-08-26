@@ -132,7 +132,11 @@ const ONLY = (argv.find((a) => a.startsWith('--only=')) || '').slice('--only='.l
  */
 function makeReplacer(misses) {
   return function must(html, from, to, label) {
-    const next = html.replace(from, to);
+    // Function replacement: a string replacement treats $' / $& / $` / $n as
+    // special patterns. Chat INTENTS contain dollar','$'] — using that block as
+    // a replacement string previously spliced </html> into the script and dumped
+    // the rest of the JS as visible page text.
+    const next = html.replace(from, () => to);
     if (next === html) misses.push(label);
     return next;
   };
@@ -150,7 +154,7 @@ function buildHub(hub) {
 
   let html = template;
   if (!/\{CITY_NAME\}/.test(html)) misses.push('{CITY_NAME} token');
-  html = html.replace(/\{CITY_NAME\}/g, hub.name);
+  html = html.replace(/\{CITY_NAME\}/g, () => hub.name);
   html = must(html, navOld, navFix, 'nav brand link');
   html = must(html, footContactOld, footQuickLinks, 'footer Quick Links block');
   html = must(html, bookMobileOld, bookMobileFix, 'book mobile CTA');
@@ -175,24 +179,24 @@ function buildHub(hub) {
   return html
     .replace(
       `<title>Mobile Detailing in ${hub.name} | Cardetail1</title>`,
-      `<title>Premium Mobile Detailing in ${hub.name} | Cardetail1</title>`
+      () => `<title>Premium Mobile Detailing in ${hub.name} | Cardetail1</title>`
     )
     .replace(
       `content="Cardetail1 — premium mobile auto, marine, RV &amp; fleet detailing in ${hub.name}.`,
-      `content="Cardetail1 — premium mobile auto, marine, RV &amp; fleet detailing in ${hub.name} (${hub.anchor} hub).`
+      () => `content="Cardetail1 — premium mobile auto, marine, RV &amp; fleet detailing in ${hub.name} (${hub.anchor} hub).`
     )
     .replace(
       `<div class="hero-badge">📍 Serving ${hub.name} &amp; Surrounding Areas | Fully Mobile Service</div>`,
-      `<div class="hero-badge">📍 ${hub.badge} | Fully Mobile Service</div>`
+      () => `<div class="hero-badge">📍 ${hub.badge} | Fully Mobile Service</div>`
     )
     .replace(
       `<p class="hero-sub">Professional mobile detailing in ${hub.name} — we bring the water, the power, and the expertise directly to your driveway. No waiting rooms, no hassle—just a showroom finish at your doorstep.</p>`,
-      `<p class="hero-sub">${hub.sub}</p>`
+      () => `<p class="hero-sub">${hub.sub}</p>`
     )
     .replace(
       `<!--
   CITY LANDING PAGE TEMPLATE — replace tokens per city:`,
-      `<!-- HUB PAGE: ${hub.name} (anchor: ${hub.anchor}) — covers ${hub.areas} -->`
+      () => `<!-- HUB PAGE: ${hub.name} (anchor: ${hub.anchor}) — covers ${hub.areas} -->`
     );
 }
 
