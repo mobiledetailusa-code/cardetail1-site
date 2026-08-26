@@ -6,11 +6,12 @@ Keep this stage cheap: **read this + run the status script**. Do not re-audit Pr
 
 | Role | What it is | Buy new Twilio DID? |
 |---|---|---|
+| Public Call/Text on site | Same DID shown as `551-373-5668` / `tel:5513735668` | **No** |
 | Outbound SMS sender | Messaging Service SID → single DID `+1…5668` | **No** |
-| Owner SMS recipient | `ADMIN_SMS` (existing cell, e.g. business `…2956`) | **No** — not a Twilio number |
+| Owner SMS recipient | Netlify `ADMIN_SMS` (owner cell, e.g. `…2956`) | **No** — not a Twilio number |
 | Customer SMS recipient | phone on the booking | No |
 
-Customer + admin alerts both leave from the **same** Messaging Service number. `TWILIO_FROM` stays unset when Messaging Service is used.
+Customer + admin alerts both leave from the **same** Messaging Service number. `TWILIO_FROM` stays unset when Messaging Service is used. Public HTML `ADMIN_SMS` constants are **display/sms: handoff only**; they do not override Netlify `ADMIN_SMS`.
 
 ## Email roles (cardetail1.com)
 
