@@ -18,7 +18,7 @@ const { normalizeBookingId } = require('./booking-customer-auth');
 
 const BUSINESS = Object.freeze({
   name: 'Detailing Zone L.L.C.',
-  phone: '551-313-2956',
+  phone: '551-373-5668',
   site: 'cardetail1.com',
 });
 

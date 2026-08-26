@@ -169,7 +169,7 @@ Sem `STRIPE_PRICE_SUB_*`, o checkout usa **preço dinâmico** (`price_data` + `r
 Lista completa de **15 variáveis**, valores em centavos e passo a passo no Stripe Dashboard: **[STRIPE-SUBSCRIPTION-PRICE-IDS.md](STRIPE-SUBSCRIPTION-PRICE-IDS.md)**.
 
 ### Cancelamento
-- Cliente: email ou **551-313-2956** (sem botão self-service no portal).
+- Cliente: email ou **551-373-5668** (sem botão self-service no portal).
 - Admin: tab **Subscriptions** em `admin-ops.html`.
 - Stripe Dashboard: cancelar subscription → webhook `customer.subscription.deleted` sync status.
 
