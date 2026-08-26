@@ -270,6 +270,7 @@ describe('booking consent evidence and no-card separation', () => {
     assert.equal(saved.transactionalSmsConsent.textVersion, BOOKING_CONSENT_TEXT_VERSION);
     assert.equal(saved.transactionalSmsConsent.source, BOOKING_CONSENT_SOURCE);
     assert.equal(saved.transactionalSmsConsent.method, 'booking_checkbox');
+    assert.equal(saved.transactionalSmsConsent.phoneE164, '+12015550143');
     assert.equal(bookingSmsConsentGranted(saved), true);
     assert.equal(saved.marketingSmsConsentAccepted, false);
     assert.equal(saved.cardOnFileRequired, false);

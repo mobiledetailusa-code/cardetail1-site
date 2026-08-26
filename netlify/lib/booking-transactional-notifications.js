@@ -22,7 +22,8 @@ const { normalizeUsPhoneDigits, normalizeUsPhoneE164 } = require('./phone-auth')
 const { smsOutboxPolicy, enabled } = require('./twilio-runtime-policy');
 const { enqueueSms } = require('./sms-outbox');
 const { bookingSmsConsentGranted } = require('./sms-program');
-const { renderSmsTemplate, bookingTemplateData } = require('./sms-templates');
+const { renderSmsTemplate, bookingTemplateData, TEMPLATE_KEYS } = require('./sms-templates');
+const { loadAccountVerifiedPhoneE164 } = require('./sms-consent-service');
 
 const EVENT_REQUEST_RECEIVED = 'booking.request_received';
 const EVENT_CONFIRMED = 'booking.confirmed';
@@ -580,6 +581,55 @@ async function sendResendEmail({ to, subject, text, html }) {
   }
 }
 
+/**
+ * Separate SMS consent authority from private /a?t= access authority.
+ * - consent false → no customer SMS
+ * - consent true + dest matches account verified phone → access SMS (with /a?t=)
+ * - consent true + dest mismatch → safe confirmation SMS (no private link)
+ * Never mutates account verified phone.
+ */
+function resolveCustomerBookingSmsPlan({
+  booking,
+  toE164,
+  verifiedPhoneE164,
+  eventType,
+  accessUrl = '',
+} = {}) {
+  if (!bookingSmsConsentGranted(booking)) {
+    return { send: false, reason: 'booking_sms_consent_required' };
+  }
+  const dest = normalizeUsPhoneE164(toE164 || booking.phone || booking.customerPhone || '');
+  if (!dest) {
+    return { send: false, reason: 'invalid_sms_recipient' };
+  }
+  const bookingPhone = normalizeUsPhoneE164(booking.phone || booking.customerPhone || '');
+  if (!bookingPhone || bookingPhone !== dest) {
+    return { send: false, reason: 'consent_phone_mismatch' };
+  }
+  const verified = normalizeUsPhoneE164(verifiedPhoneE164 || '');
+  const accessAuthorized = !!(verified && verified === dest);
+  if (accessAuthorized) {
+    return {
+      send: true,
+      mode: 'with_access',
+      includeAccessUrl: true,
+      accessAuthorized: true,
+      templateKey: eventType,
+      templateData: bookingTemplateData(eventType, booking, accessUrl || ''),
+      toE164: dest,
+    };
+  }
+  return {
+    send: true,
+    mode: 'safe_confirmation',
+    includeAccessUrl: false,
+    accessAuthorized: false,
+    templateKey: TEMPLATE_KEYS.SAFE_CONFIRMATION,
+    templateData: {},
+    toE164: dest,
+  };
+}
+
 async function sendCustomerSms(toE164, _body, metadata = {}) {
   if (!customerTransactionalSmsEnabled()) {
     return { sent: false, skipped: true, reason: 'customer_sms_not_enabled' };
@@ -588,14 +638,28 @@ async function sendCustomerSms(toE164, _body, metadata = {}) {
   if (!bookingSmsConsentGranted(metadata.booking)) {
     return { sent: false, skipped: true, reason: 'booking_sms_consent_required' };
   }
+  const verifiedPhoneE164 = metadata.verifiedPhoneE164 !== undefined
+    ? metadata.verifiedPhoneE164
+    : await loadAccountVerifiedPhoneE164(metadata.customerAccountId, { prisma: metadata.prisma });
+  const plan = resolveCustomerBookingSmsPlan({
+    booking: metadata.booking,
+    toE164,
+    verifiedPhoneE164,
+    eventType: metadata.eventType,
+    accessUrl: metadata.accessUrl || '',
+  });
+  if (!plan.send) {
+    return { sent: false, skipped: true, reason: plan.reason };
+  }
   const queued = await enqueueSms({
     idempotencyKey: metadata.idempotencyKey,
     audience: 'customer',
     customerAccountId: metadata.customerAccountId,
     bookingId: metadata.bookingId,
-    toE164,
-    templateKey: metadata.eventType,
-    templateData: bookingTemplateData(metadata.eventType, metadata.booking, metadata.accessUrl),
+    booking: metadata.booking || null,
+    toE164: plan.toE164,
+    templateKey: plan.templateKey,
+    templateData: plan.templateData,
   });
   if (!queued.ok) return { sent: false, reason: queued.error || 'sms_outbox_failed' };
   if (!queued.queued) return { sent: false, skipped: true, reason: queued.reason || 'sms_not_queued' };
@@ -605,6 +669,9 @@ async function sendCustomerSms(toE164, _body, metadata = {}) {
     queued: true,
     idempotent: !!queued.idempotent,
     outboxId: queued.outbox?.id || null,
+    smsMode: plan.mode,
+    accessLinkIncluded: plan.includeAccessUrl === true,
+    templateKey: plan.templateKey,
   };
 }
 
@@ -897,6 +964,8 @@ module.exports = {
   buildPaymentReceivedEmail,
   buildSmsBody,
   customerTransactionalSmsEnabled,
+  resolveCustomerBookingSmsPlan,
+  sendCustomerSms,
   emitBookingNotification,
   emitRequestReceived,
   emitConfirmed,
