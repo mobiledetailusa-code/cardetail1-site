@@ -13,25 +13,26 @@ Keep this stage cheap: **read this + run the status script**. Do not re-audit Pr
 
 Customer + admin alerts both leave from the **same** Messaging Service number. `TWILIO_FROM` stays unset when Messaging Service is used. Public HTML `ADMIN_SMS` constants are **display/sms: handoff only**; they do not override Netlify `ADMIN_SMS`.
 
-## Email roles (cardetail1.com)
+## Email roles (cardetail1.com) — live Workspace aliases
 
 | Address | Role | Where configured |
 |---|---|---|
-| `admin@cardetail1.com` | **TO** for owner alerts (`ADMIN_EMAIL`) | Netlify Production + **Google Workspace mailbox/alias** |
-| `bookings@cardetail1.com` | **FROM** (`RESEND_FROM`) | Resend (domain verified) + Workspace mailbox/alias |
-| `support@cardetail1.com` | Optional public/support inbox | Google Workspace only (not required by Functions today) |
+| `support@cardetail1.com` | **TO** for owner alerts (`ADMIN_EMAIL`) | Netlify Production + Google alias |
+| `booking@cardetail1.com` | **FROM** (`RESEND_FROM`) | Resend + Google alias |
+| `billing@cardetail1.com` | Billing / receipts contact (reserved) | Google alias only for now |
+| Optional `admin@` | Not required while `support@` is ADMIN_EMAIL | — |
 | Legacy Gmail | Preview/dev/branch `ADMIN_EMAIL` only | Netlify non-production contexts |
 
-Resend domain `cardetail1.com` is **verified**. MX → `smtp.google.com`. Creating mailboxes is **Google Admin only** (agent cannot create Workspace users).
+Resend domain `cardetail1.com` is **verified**. MX → `smtp.google.com`.
 
 ## Netlify Production (agent can set)
 
 Required presence:
 
-- `ADMIN_EMAIL=admin@cardetail1.com`
+- `ADMIN_EMAIL=support@cardetail1.com`
 - `ADMIN_SMS=+1…` (owner E.164)
 - `ADMIN_SMS_CONSENT_GRANTED=true`
-- `RESEND_FROM=Cardetail1 <bookings@cardetail1.com>`
+- `RESEND_FROM=Cardetail1 <booking@cardetail1.com>`
 - Twilio gates: `TWILIO_ENABLED`, `TWILIO_OUTBOX_ENABLED`, `TWILIO_PRODUCTION_SENDS_ENABLED`, `CUSTOMER_TRANSACTIONAL_SMS_ENABLED`
 - Provider: `TWILIO_ACCOUNT_SID`, auth, `TWILIO_MESSAGING_SERVICE_SID` (no second DID)
 
@@ -46,10 +47,10 @@ node scripts/notification-ops-status.js
 
 Prints masked presence only. Exit `0` when Production notification gates look ready.
 
-## Human checklist (do once)
+## Human checklist
 
-1. Google Admin → create/ensure `admin@`, `bookings@`, optional `support@` (or aliases + forward to Gmail).
-2. Until `admin@` exists: forwarding `admin@` → Gmail is mandatory (Production already points TO there).
+1. ~~Google aliases~~ — `support@`, `booking@`, `billing@` created.
+2. Confirm mail arrives in the primary Workspace inbox when you email those aliases (or when a booking fires).
 3. Do **not** purchase another Twilio number for admin alerts.
 4. Optional controlled owner SMS test: only with explicit owner auth; never customer SMS from agents.
 
