@@ -14,6 +14,9 @@
 
   function sessionId() {
     try {
+      if (global.Cardetail1Revenue && typeof global.Cardetail1Revenue.getSessionId === 'function') {
+        return global.Cardetail1Revenue.getSessionId();
+      }
       var s = sessionStorage.getItem(SESSION_KEY);
       if (s) return s;
       s = 'chk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -62,14 +65,12 @@
       if (global.Cardetail1Checkout && global.Cardetail1Checkout._silent) return;
       var payload = baseProps(props || {});
       payload.checkout_event = name;
-      if (global.Cardetail1Revenue) {
-        global.Cardetail1Revenue.track(name, payload);
-        var ga4 = GA4_MAP[name];
-        if (ga4 && global.Cardetail1Revenue.trackGa4) {
-          global.Cardetail1Revenue.trackGa4(ga4, payload);
-        } else if (ga4 && global.gtag) {
-          global.gtag('event', ga4, payload);
-        }
+      // These legacy checkout diagnostics are intentionally adapter-only. They
+      // are not part of the approved first-party event dictionary; canonical
+      // booking stages are emitted by CD1CanonicalFunnel instead.
+      var ga4 = GA4_MAP[name];
+      if (ga4 && global.gtag) {
+        global.gtag('event', ga4, payload);
       }
       if (global.dataLayer) {
         global.dataLayer.push(Object.assign({ event: name }, payload));
@@ -168,8 +169,13 @@
     });
   }
 
-  function onBookingSubmitted() {
-    emit('booking_submitted', { estimated_value: estimatedValue() });
+  function onBookingSubmitted(response) {
+    // Forward only the untouched server acknowledgement. The canonical layer
+    // requires bookingCreated:true plus a safe opaque server identifier.
+    if (global.CD1CanonicalFunnel && typeof global.CD1CanonicalFunnel.bookingSubmitted === 'function') {
+      return global.CD1CanonicalFunnel.bookingSubmitted(response);
+    }
+    return null;
   }
 
   function onPaymentInfoSaved() {

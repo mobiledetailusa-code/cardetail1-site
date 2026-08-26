@@ -42,6 +42,7 @@
   var overlay = null;
   var frame = null;
   var styleInjected = false;
+  var pendingCategory = null;
 
   function ensureStyles() {
     if (styleInjected) return;
@@ -116,6 +117,10 @@
     if (pkgId) params.set('pkg', pkgId);
     var zip = resolveZip();
     if (zip) params.set('zip', zip);
+    try {
+      var sid = global.Cardetail1Revenue && global.Cardetail1Revenue.getSessionId();
+      if (/^sess_[A-Za-z0-9_-]{8,120}$/.test(String(sid || ''))) params.set('cd1_session', sid);
+    } catch (e) { /* booking still opens without analytics */ }
     return params;
   }
 
@@ -124,7 +129,13 @@
     try {
       var doc = frame.contentDocument;
       if (!doc) return false;
-      return !!(doc.getElementById('bk-ov') || (doc.body && doc.body.classList.contains('cd1-booking-embed')));
+      var booking = doc.getElementById('bk-ov');
+      var active = doc.querySelector('.bsec.on');
+      if (!booking || !active || !doc.body || !doc.body.classList.contains('cd1-booking-embed')) return false;
+      var style = frame.contentWindow && frame.contentWindow.getComputedStyle
+        ? frame.contentWindow.getComputedStyle(booking)
+        : null;
+      return !(style && (style.display === 'none' || style.visibility === 'hidden'));
     } catch (e) {
       return false;
     }
@@ -137,12 +148,16 @@
     }
     try {
       ensureOverlay();
+      pendingCategory = cat || 'general';
       var params = buildParams(cat, pkgId);
       frame.onload = function () {
         setTimeout(function () {
           if (!iframeReady()) {
             showError();
             return;
+          }
+          if (global.CD1CanonicalFunnel && typeof global.CD1CanonicalFunnel.delegatedBookingReady === 'function') {
+            global.CD1CanonicalFunnel.delegatedBookingReady(pendingCategory);
           }
         }, 300);
       };

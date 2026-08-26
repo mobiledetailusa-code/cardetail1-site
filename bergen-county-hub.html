@@ -4265,7 +4265,7 @@ async function submitBooking(){
     payload.bookingCreated=true;
     payload.notificationState=data.customerEmail||data.notificationDelivery?.customerEmail||null;
     saveLocalBooking(payload);
-    if(window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onBookingSubmitted();
+    if(window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onBookingSubmitted(data);
     showSuccess(payload);
   }catch(e){
     console.warn('Booking submission failed:',e.message);

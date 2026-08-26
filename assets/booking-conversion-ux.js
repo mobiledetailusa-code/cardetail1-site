@@ -933,12 +933,6 @@
     if (typeof origFill === 'function') {
       window.fillConfirm = function () {
         origFill.apply(this, arguments);
-        track('booking_review_reached', {
-          funnel_step: 'confirm',
-          device_type: deviceType(),
-          flexibility_mode: document.getElementById('f-flexibility')?.value || 'exact',
-        });
-
         const win = document.getElementById('f-arrival-window')?.value || '';
         const dateIso = document.getElementById('f-date')?.value || '';
         const summary = customerArrivalSummary(win);
