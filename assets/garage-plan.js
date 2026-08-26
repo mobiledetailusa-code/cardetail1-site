@@ -3,8 +3,8 @@
   'use strict';
 
   var STYLE_ID = 'cd1-garage-plan-styles';
-  var PHONE_TEL = '5513132956';
-  var PHONE_DISPLAY = '551-313-2956';
+  var PHONE_TEL = '5513735668';
+  var PHONE_DISPLAY = '551-373-5668';
 
   var ERROR_COPY = {
     validation_error: 'Please complete all required fields.',

@@ -228,7 +228,7 @@ test('all 13 pages enforce 3-day advance notice UX', () => {
     assert.match(html, /typically 3 days out/);
     assert.match(html, /bk-rush-note/);
     assert.match(html, /Call or Text Us/);
-    assert.match(html, /tel:5513132956/);
+    assert.match(html, /tel:5513735668/);
     assert.match(html, /dateEl\.min=bkEarliestBookable/);
     assert.doesNotMatch(html, /f-date'\)\.min=new Date\(\)\.toISOString/);
   }

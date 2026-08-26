@@ -355,7 +355,7 @@ test('20. Google unavailable has zero runtime impact', () => {
 
 test('Google listing snapshot is Cardetail1, not a lookalike shop', () => {
   assert.equal(reviews.GOOGLE_LISTING.name, 'Cardetail1');
-  assert.equal(reviews.GOOGLE_LISTING.phone, '(551) 313-2956');
+  assert.equal(reviews.GOOGLE_LISTING.phone, '(551) 373-5668');
   assert.equal(reviews.GOOGLE_LISTING.reviewCount, 9);
   assert.equal(reviews.GOOGLE_LISTING.ratingLabel, '5.0');
   assert.match(reviews.GOOGLE_LISTING.cid, /0x8207adab977c7032/);

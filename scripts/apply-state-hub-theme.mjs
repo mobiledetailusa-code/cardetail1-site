@@ -192,7 +192,7 @@ const STATES = {
     facts: ['🚐 We come to you', '📍 Bergen County &amp; nearby NJ', '📅 Book online'],
     heroSub: 'Interior detail, full detail, and exterior paint enhancement for sedans, SUVs, and trucks — at your home or office across New Jersey.',
     serviceArea: 'Based in Palisades Park, NJ. Serving Bergen County and nearby NJ areas. Extended service areas available by quote.',
-    specialtyNote: 'Boats, RVs, powersports, and fleets available by quote for larger vehicles and approved appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome(\'cars\');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.',
+    specialtyNote: 'Boats, RVs, powersports, and fleets available by quote for larger vehicles and approved appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome(\'cars\');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513735668" style="color:var(--blue);text-decoration:none">551-373-5668</a>.',
     locTitle: 'SERVICES IN',
     heroClass: ' hero--nj hub-nj',
   },
@@ -204,7 +204,7 @@ const STATES = {
     facts: ['🚐 We come to you', '📍 NY Metro by appointment', '📅 Book online'],
     heroSub: 'Interior detail, full detail, and exterior paint enhancement for sedans, SUVs, and trucks — we travel to your NY location by appointment.',
     serviceArea: 'Serving nearby NY areas by appointment from our Palisades Park, NJ base. Longer-distance jobs available by quote.',
-    specialtyNote: 'Available by quote for larger vehicles, fleets, RVs, boats, and long-distance appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome(\'cars\');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.',
+    specialtyNote: 'Available by quote for larger vehicles, fleets, RVs, boats, and long-distance appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome(\'cars\');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513735668" style="color:var(--blue);text-decoration:none">551-373-5668</a>.',
     locTitle: 'NY METRO SERVICES IN',
     heroClass: ' hero--ny hub-ny',
   },
@@ -216,7 +216,7 @@ const STATES = {
     facts: ['🚐 We come to you', '📍 CT by quote', '📅 Request appointment'],
     heroSub: 'Interior detail, full detail, and exterior paint enhancement for sedans, SUVs, and trucks — Connecticut service by quote for approved appointments.',
     serviceArea: 'Connecticut service is available by quote for larger details, RVs, fleets, and approved long-distance appointments.',
-    specialtyNote: 'Available by quote for larger vehicles, fleets, RVs, boats, and long-distance appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome(\'cars\');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.',
+    specialtyNote: 'Available by quote for larger vehicles, fleets, RVs, boats, and long-distance appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome(\'cars\');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513735668" style="color:var(--blue);text-decoration:none">551-373-5668</a>.',
     locTitle: 'CONNECTICUT SERVICES IN',
     heroClass: ' hero--ct hub-ct',
   },
@@ -228,7 +228,7 @@ const STATES = {
     facts: ['🚐 We come to you', '📍 PA by quote', '📅 Request appointment'],
     heroSub: 'Interior detail, full detail, and exterior paint enhancement for sedans, SUVs, and trucks — Pennsylvania service by quote for approved appointments.',
     serviceArea: 'Pennsylvania service is available by quote for larger details, RVs, fleets, and approved long-distance appointments.',
-    specialtyNote: 'Available by quote for larger vehicles, fleets, RVs, boats, and long-distance appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome(\'cars\');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513132956" style="color:var(--blue);text-decoration:none">551-313-2956</a>.',
+    specialtyNote: 'Available by quote for larger vehicles, fleets, RVs, boats, and long-distance appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome(\'cars\');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513735668" style="color:var(--blue);text-decoration:none">551-373-5668</a>.',
     locTitle: 'PENNSYLVANIA SERVICES IN',
     heroClass: ' hero--pa hub-pa',
   },
@@ -248,7 +248,7 @@ function heroHtml(cfg) {
     <p class="hero-sub">${cfg.heroSub}</p>
     <div class="hero-btns">
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Mobile Detail</button>
-      <a class="btn-outline" href="tel:5513132956">Call / Text</a>
+      <a class="btn-outline" href="tel:5513735668">Call / Text</a>
     </div>
     <p class="hero-trust-line">No card or payment method is required to submit a booking request. We review it first; payment is handled later when applicable.</p>
     <div id="zip-section" aria-label="Check service area by ZIP code">
@@ -267,7 +267,7 @@ function heroHtml(cfg) {
       </details>
     </div>
     <p class="hub-service-area-note">${cfg.serviceArea}</p>
-    <a class="hero-tel-mobile" href="tel:5513132956">📞 Call 551-313-2956</a>
+    <a class="hero-tel-mobile" href="tel:5513735668">📞 Call 551-373-5668</a>
   </div>
 </section>`;
 }
