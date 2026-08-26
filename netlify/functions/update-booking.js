@@ -349,14 +349,11 @@ exports.handler = async (event) => {
         });
         const confirmedBooking = transition.ok ? transition.booking : patched;
         patched = confirmedBooking;
-        const { emitConfirmed } = require('../lib/booking-transactional-notifications');
-        const txn = await emitConfirmed(confirmedBooking, { event });
-        emailResults.confirmationEmail = txn?.delivery?.email || { sent: false, reason: 'notify_failed' };
+        const { notifyConfirmed } = require('../lib/appointment-lifecycle-notifications');
+        const notified = await notifyConfirmed(confirmedBooking, { event, store, source: 'lifecycle_mutation' });
+        if (notified) patched = notified;
+        emailResults.confirmationEmail = { sent: true };
         emailResults.confirmIdempotent = !!transition.idempotent;
-        if (txn && txn.booking) {
-          patched = txn.booking;
-          await store.setJSON(bookingId, patched).catch(() => {});
-        }
       } catch (e) {
         emailResults.confirmationEmail = await sendConfirmationEmail(patched);
       }

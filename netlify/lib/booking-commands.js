@@ -22,6 +22,7 @@ const {
   mutationFingerprint,
   requestIdFromKey,
 } = require('./operation-idempotency');
+const { buildRescheduleEventId } = require('./appointment-lifecycle-state');
 
 function requestId() {
   return `cr_${crypto.randomBytes(10).toString('base64url')}`;
@@ -908,7 +909,20 @@ async function decideChangeRequestCommand({
   if (rt === 'reschedule_request') {
     fieldPatches.preferredDate = cr.delta?.requestedDate || cr.delta?.preferredDate || aggregate.preferredDate;
     fieldPatches.preferredTime = cr.delta?.requestedTime || cr.delta?.preferredTime || aggregate.preferredTime;
+    fieldPatches.confirmedDate = fieldPatches.preferredDate;
+    fieldPatches.confirmedTime = fieldPatches.preferredTime;
+    fieldPatches.status = 'Rescheduled';
+    fieldPatches.appointmentStatus = 'confirmed';
+    if (!['cancelled', 'archived_test', 'completed_paid'].includes(String(aggregate.jobStatus || ''))) {
+      fieldPatches.jobStatus = 'confirmed';
+    }
     fieldPatches.rescheduledByClient = false;
+    fieldPatches.previousConfirmedDate = aggregate.confirmedDate || aggregate.preferredDate || '';
+    fieldPatches.rescheduleEventId = buildRescheduleEventId(
+      aggregate.id || aggregate.bookingId,
+      fieldPatches.confirmedDate,
+      fieldPatches.confirmedTime
+    );
   }
   if (rt === 'address_update') {
     const newAddr = String(cr.delta?.serviceAddress || cr.delta?.address || aggregate.address || '').trim();
@@ -925,10 +939,15 @@ async function decideChangeRequestCommand({
     };
   }
   if (rt === 'cancellation' || rt === 'cancellation_request') {
+    const canceledAt = aggregate.canceledAt || new Date().toISOString();
     fieldPatches.status = 'Cancelled';
     fieldPatches.jobStatus = 'cancelled';
     fieldPatches.appointmentStatus = 'canceled';
     fieldPatches.cancellationRequestStatus = 'approved';
+    fieldPatches.canceledAt = canceledAt;
+    fieldPatches.cancellationActor = aggregate.cancellationActor || 'customer';
+    fieldPatches.cancellationEventId = aggregate.cancellationEventId
+      || `cancelled:${aggregate.id || aggregate.bookingId}:${canceledAt}`;
   }
   if (vehicleTypes.has(rt)) {
     fieldPatches.vehicleChangeRequested = false;

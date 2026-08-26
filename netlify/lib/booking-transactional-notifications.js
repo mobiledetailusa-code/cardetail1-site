@@ -20,7 +20,8 @@ const {
 } = require('./booking-customer-status');
 const { normalizeUsPhoneDigits, normalizeUsPhoneE164 } = require('./phone-auth');
 const { smsOutboxPolicy, enabled } = require('./twilio-runtime-policy');
-const { enqueueSms } = require('./sms-outbox');
+const { enqueueSms, smsSafeIdempotencyKey } = require('./sms-outbox');
+const { smsSafeEventPart } = require('./appointment-lifecycle-state');
 const { bookingSmsConsentGranted } = require('./sms-program');
 const { renderSmsTemplate, bookingTemplateData, TEMPLATE_KEYS } = require('./sms-templates');
 const { loadAccountVerifiedPhoneE164 } = require('./sms-consent-service');
@@ -29,6 +30,25 @@ const EVENT_REQUEST_RECEIVED = 'booking.request_received';
 const EVENT_CONFIRMED = 'booking.confirmed';
 const EVENT_ACTION_REQUIRED = 'booking.customer_action_required';
 const EVENT_PAYMENT_RECEIVED = 'booking.payment_received';
+const EVENT_CHANGE_REQUESTED = 'booking.change_requested';
+const EVENT_CANCELLATION_REQUESTED = 'booking.cancellation_requested';
+const EVENT_RESCHEDULED = 'booking.rescheduled';
+const EVENT_CANCELLED = 'booking.cancelled';
+const EVENT_CANCELLED_CUSTOMER = 'booking.cancelled.customer';
+const EVENT_CANCELLED_ADMIN = 'booking.cancelled.admin';
+
+const LIFECYCLE_EVENTS = new Set([
+  EVENT_REQUEST_RECEIVED,
+  EVENT_CONFIRMED,
+  EVENT_ACTION_REQUIRED,
+  EVENT_PAYMENT_RECEIVED,
+  EVENT_CHANGE_REQUESTED,
+  EVENT_CANCELLATION_REQUESTED,
+  EVENT_RESCHEDULED,
+  EVENT_CANCELLED,
+  EVENT_CANCELLED_CUSTOMER,
+  EVENT_CANCELLED_ADMIN,
+]);
 
 const CHANNELS = ['email', 'sms'];
 const CLAIM_STORE = 'cd1-notification-claims';
@@ -142,6 +162,10 @@ function escapeHtml(value) {
 
 function brandName() {
   return 'Detailing Zone';
+}
+
+function customerFacingBrand() {
+  return 'Cardetail1';
 }
 
 function siteUrl(_event) {
@@ -271,6 +295,29 @@ function eventStateKey(eventType, booking) {
     const settlementRef = String(p.settlementId || p.entryId || p.providerEventId || '').trim();
     if (settlementRef) return `payment:${settlementRef}`;
     return `payment:${p.method || 'unknown'}:${p.amountCents || 0}:${p.settledCentsAfter || 0}`;
+  }
+  if (eventType === EVENT_CHANGE_REQUESTED) {
+    const requestId = String(booking.changeRequestId || booking.__changeRequestId || '').trim();
+    if (requestId) return `change:${requestId}`;
+    return `change:${booking.rescheduleRequestedAt || booking.updatedAt || booking.bookingVersion || 1}`;
+  }
+  if (eventType === EVENT_CANCELLATION_REQUESTED) {
+    return `cancel_req:${booking.cancellationRequestedAt || booking.updatedAt || 1}`;
+  }
+  if (eventType === EVENT_RESCHEDULED) {
+    const raw = booking.rescheduleEventId
+      ? String(booking.rescheduleEventId)
+      : `rescheduled:${booking.id || booking.bookingId}:${booking.confirmedDate || ''}:${arrivalWindow(booking)}`;
+    // Outbox keys are [A-Za-z0-9_.:-] only. Arrival windows use an en-dash.
+    return smsSafeEventPart(raw) || 'rescheduled:missing';
+  }
+  if (
+    eventType === EVENT_CANCELLED
+    || eventType === EVENT_CANCELLED_CUSTOMER
+    || eventType === EVENT_CANCELLED_ADMIN
+  ) {
+    if (booking.cancellationEventId) return String(booking.cancellationEventId);
+    return `cancelled:${booking.id || booking.bookingId}:${booking.canceledAt || booking.cancelledAt || 'missing'}`;
   }
   return `v${booking.bookingVersion || 1}`;
 }
@@ -436,6 +483,124 @@ ${itemization ? itemization.html : ''}
     return { subject, text, html, cta };
   }
 
+  if (eventType === EVENT_CHANGE_REQUESTED) {
+    const requestedDate = escapeHtml(booking.rescheduleRequestedDate || booking.preferredDate || '—');
+    const requestedTime = escapeHtml(booking.rescheduleRequestedTime || booking.preferredTime || '');
+    const subject = 'We received your appointment change request';
+    const cta = 'View Appointment';
+    const text = [
+      `Hi ${name.split(/\s+/)[0] || 'there'},`,
+      '',
+      'We received your request to change your appointment.',
+      'Your current appointment remains unchanged until the new time is confirmed.',
+      '',
+      `Current date: ${booking.confirmedDate || booking.preferredDate || '—'}`,
+      `Current arrival window: ${arrivalWindow(booking) || '—'}`,
+      `Requested date: ${booking.rescheduleRequestedDate || '—'}`,
+      booking.rescheduleRequestedTime ? `Requested time: ${booking.rescheduleRequestedTime}` : '',
+      '',
+      customerFacingBrand(),
+      siteUrl(),
+    ].filter((line, idx, arr) => line !== '' || arr[idx - 1] !== '').join('\n');
+    const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
+<p>Hi ${first},</p>
+<p>We received your request to change your appointment.</p>
+<p><strong>Your current appointment remains unchanged until the new time is confirmed.</strong></p>
+<ul>
+<li>Current date: ${date}</li>
+<li>Current arrival window: ${window}</li>
+<li>Requested date: ${requestedDate}</li>
+${requestedTime ? `<li>Requested time: ${requestedTime}</li>` : ''}
+</ul>
+${link ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>` : ''}
+<p>${escapeHtml(customerFacingBrand())}</p>
+</body></html>`;
+    return { subject, text, html, cta };
+  }
+
+  if (eventType === EVENT_CANCELLATION_REQUESTED) {
+    const subject = 'We received your cancellation request';
+    const cta = 'View Appointment';
+    const text = [
+      `Hi ${name.split(/\s+/)[0] || 'there'},`,
+      '',
+      'We received your cancellation request.',
+      'Your appointment remains scheduled until it is confirmed canceled.',
+      '',
+      `Current date: ${booking.confirmedDate || booking.preferredDate || '—'}`,
+      `Arrival window: ${arrivalWindow(booking) || '—'}`,
+      '',
+      customerFacingBrand(),
+      siteUrl(),
+    ].join('\n');
+    const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
+<p>Hi ${first},</p>
+<p>We received your cancellation request.</p>
+<p><strong>Your appointment remains scheduled until it is confirmed canceled.</strong></p>
+<ul>
+<li>Current date: ${date}</li>
+<li>Arrival window: ${window}</li>
+</ul>
+${link ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>` : ''}
+<p>${escapeHtml(customerFacingBrand())}</p>
+</body></html>`;
+    return { subject, text, html, cta };
+  }
+
+  if (eventType === EVENT_RESCHEDULED) {
+    const previous = escapeHtml(booking.previousConfirmedDate || '');
+    const subject = 'Your appointment has been rescheduled';
+    const cta = 'View Appointment';
+    const textLines = [
+      `Hi ${name.split(/\s+/)[0] || 'there'},`,
+      '',
+      'Your appointment has been rescheduled.',
+      '',
+      `New date: ${booking.confirmedDate || booking.preferredDate || '—'}`,
+      `New arrival window: ${arrivalWindow(booking) || '—'}`,
+    ];
+    if (booking.previousConfirmedDate) {
+      textLines.push(`Previous date: ${booking.previousConfirmedDate}`);
+    }
+    textLines.push('', customerFacingBrand(), siteUrl());
+    const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
+<p>Hi ${first},</p>
+<p><strong>Your appointment has been rescheduled.</strong></p>
+<ul>
+<li>New date: ${date}</li>
+<li>New arrival window: ${window}</li>
+${previous ? `<li>Previous date: ${previous}</li>` : ''}
+</ul>
+${link ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>` : ''}
+<p>${escapeHtml(customerFacingBrand())}</p>
+</body></html>`;
+    return { subject, text: textLines.join('\n'), html, cta };
+  }
+
+  if (
+    eventType === EVENT_CANCELLED
+    || eventType === EVENT_CANCELLED_CUSTOMER
+    || eventType === EVENT_CANCELLED_ADMIN
+  ) {
+    const subject = 'Your appointment has been canceled';
+    const cta = 'View Appointment';
+    const text = [
+      `Hi ${name.split(/\s+/)[0] || 'there'},`,
+      '',
+      `Your appointment for ${booking.confirmedDate || booking.preferredDate || 'the scheduled date'} has been canceled.`,
+      '',
+      customerFacingBrand(),
+      siteUrl(),
+    ].join('\n');
+    const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
+<p>Hi ${first},</p>
+<p><strong>Your appointment for ${date} has been canceled.</strong></p>
+${link ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>` : ''}
+<p>${escapeHtml(customerFacingBrand())}</p>
+</body></html>`;
+    return { subject, text, html, cta };
+  }
+
   if (eventType === EVENT_PAYMENT_RECEIVED) {
     return buildPaymentReceivedEmail(booking, accessUrl);
   }
@@ -546,7 +711,12 @@ ${accessUrl ? `<p><a href="${link}" style="display:inline-block;background:#0b3d
 }
 
 function buildSmsBody(eventType, booking, accessUrl) {
-  const rendered = renderSmsTemplate(eventType, bookingTemplateData(eventType, booking, accessUrl));
+  const key = (
+    eventType === 'booking.cancelled.customer'
+    || eventType === 'booking.cancelled.admin'
+    || eventType === 'booking.cancelled'
+  ) ? 'booking.cancelled' : eventType;
+  const rendered = renderSmsTemplate(key, bookingTemplateData(key, booking, accessUrl));
   return rendered.ok ? rendered.body : '';
 }
 
@@ -608,26 +778,43 @@ function resolveCustomerBookingSmsPlan({
   }
   const verified = normalizeUsPhoneE164(verifiedPhoneE164 || '');
   const accessAuthorized = !!(verified && verified === dest);
-  if (accessAuthorized) {
+  const templateKey = smsTemplateKeyForEvent(eventType);
+  const includeAccessUrl = accessAuthorized && eventType !== EVENT_CANCELLED
+    && eventType !== EVENT_CANCELLED_CUSTOMER
+    && eventType !== EVENT_CANCELLED_ADMIN;
+  // Safe-confirmation (no private link, generic request copy) is only for the
+  // initial booking-created event when /a?t= is not authorized.
+  if (!accessAuthorized && eventType === EVENT_REQUEST_RECEIVED) {
     return {
       send: true,
-      mode: 'with_access',
-      includeAccessUrl: true,
-      accessAuthorized: true,
-      templateKey: eventType,
-      templateData: bookingTemplateData(eventType, booking, accessUrl || ''),
+      mode: 'safe_confirmation',
+      includeAccessUrl: false,
+      accessAuthorized: false,
+      templateKey: TEMPLATE_KEYS.SAFE_CONFIRMATION,
+      templateData: {},
       toE164: dest,
     };
   }
   return {
     send: true,
-    mode: 'safe_confirmation',
-    includeAccessUrl: false,
-    accessAuthorized: false,
-    templateKey: TEMPLATE_KEYS.SAFE_CONFIRMATION,
-    templateData: {},
+    mode: includeAccessUrl ? 'with_access' : 'lifecycle_no_link',
+    includeAccessUrl,
+    accessAuthorized,
+    templateKey,
+    templateData: bookingTemplateData(templateKey, booking, includeAccessUrl ? (accessUrl || '') : ''),
     toE164: dest,
   };
+}
+
+function smsTemplateKeyForEvent(eventType) {
+  if (
+    eventType === EVENT_CANCELLED
+    || eventType === EVENT_CANCELLED_CUSTOMER
+    || eventType === EVENT_CANCELLED_ADMIN
+  ) {
+    return TEMPLATE_KEYS.CANCELLED;
+  }
+  return eventType;
 }
 
 async function sendCustomerSms(toE164, _body, metadata = {}) {
@@ -652,7 +839,7 @@ async function sendCustomerSms(toE164, _body, metadata = {}) {
     return { sent: false, skipped: true, reason: plan.reason };
   }
   const queued = await enqueueSms({
-    idempotencyKey: metadata.idempotencyKey,
+    idempotencyKey: smsSafeIdempotencyKey(metadata.idempotencyKey),
     audience: 'customer',
     customerAccountId: metadata.customerAccountId || null,
     bookingId: metadata.bookingId,
@@ -723,12 +910,7 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
     if (!booking || !(booking.id || booking.bookingId)) {
       return { ok: false, error: 'booking_required', correlationId };
     }
-    if (
-      eventType !== EVENT_REQUEST_RECEIVED
-      && eventType !== EVENT_CONFIRMED
-      && eventType !== EVENT_ACTION_REQUIRED
-      && eventType !== EVENT_PAYMENT_RECEIVED
-    ) {
+    if (!LIFECYCLE_EVENTS.has(eventType)) {
       return { ok: false, error: 'unknown_event', correlationId };
     }
 
@@ -755,6 +937,22 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
       const st = String(booking.status || '').toLowerCase();
       if (!(appt === 'confirmed' || js === 'confirmed' || st === 'confirmed')) {
         return { ok: false, error: 'not_confirmed', correlationId, booking };
+      }
+    }
+    if (eventType === EVENT_RESCHEDULED) {
+      const { isAppointmentCancelled } = require('./appointment-lifecycle-state');
+      if (isAppointmentCancelled(booking)) {
+        return { ok: true, skipped: true, reason: 'appointment_cancelled', correlationId, booking };
+      }
+    }
+    if (
+      eventType === EVENT_CANCELLED
+      || eventType === EVENT_CANCELLED_CUSTOMER
+      || eventType === EVENT_CANCELLED_ADMIN
+    ) {
+      const { isAppointmentCancelled } = require('./appointment-lifecycle-state');
+      if (!isAppointmentCancelled(booking)) {
+        return { ok: false, error: 'not_cancelled', correlationId, booking };
       }
     }
 
@@ -789,9 +987,11 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
     const emailKey = resendGeneration
       ? resendIdempotencyKey(bookingId, resendGeneration, 'email')
       : idempotencyKey(bookingId, eventType, stateKey, 'email');
-    const smsKey = resendGeneration
-      ? resendIdempotencyKey(bookingId, resendGeneration, 'sms')
-      : idempotencyKey(bookingId, eventType, stateKey, 'sms');
+    const smsKey = smsSafeIdempotencyKey(
+      resendGeneration
+        ? resendIdempotencyKey(bookingId, resendGeneration, 'sms')
+        : idempotencyKey(bookingId, eventType, stateKey, 'sms')
+    );
     const emailDone = channelAlreadySent(ledger, emailKey);
     const smsDone = channelAlreadySent(ledger, smsKey);
     const emailTerminal = channelTerminal(ledger, emailKey);
@@ -913,6 +1113,7 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
     };
     // Per-emit context is an argument, not booking state — never persist it.
     delete nextBooking.__paymentEvent;
+    delete nextBooking.__changeRequestId;
 
     return {
       ok: true,
@@ -938,6 +1139,24 @@ async function emitRequestReceived(booking, opts) {
 
 async function emitConfirmed(booking, opts) {
   return emitBookingNotification(booking, EVENT_CONFIRMED, opts);
+}
+
+async function emitChangeRequested(booking, opts) {
+  return emitBookingNotification(booking, EVENT_CHANGE_REQUESTED, opts);
+}
+
+async function emitCancellationRequested(booking, opts) {
+  return emitBookingNotification(booking, EVENT_CANCELLATION_REQUESTED, opts);
+}
+
+async function emitRescheduled(booking, opts) {
+  return emitBookingNotification(booking, EVENT_RESCHEDULED, opts);
+}
+
+async function emitCancelled(booking, opts = {}) {
+  const actor = String(opts.actor || booking.cancellationActor || 'admin').toLowerCase();
+  const eventType = actor === 'customer' ? EVENT_CANCELLED_CUSTOMER : EVENT_CANCELLED_ADMIN;
+  return emitBookingNotification(booking, eventType, opts);
 }
 
 async function emitCustomerActionRequired(booking, opts) {
@@ -972,10 +1191,17 @@ module.exports = {
   EVENT_CONFIRMED,
   EVENT_ACTION_REQUIRED,
   EVENT_PAYMENT_RECEIVED,
+  EVENT_CHANGE_REQUESTED,
+  EVENT_CANCELLATION_REQUESTED,
+  EVENT_RESCHEDULED,
+  EVENT_CANCELLED,
+  EVENT_CANCELLED_CUSTOMER,
+  EVENT_CANCELLED_ADMIN,
   CHANNELS,
   CLAIM_STORE,
   escapeHtml,
   brandName,
+  customerFacingBrand,
   vehicleDescription,
   serviceDescription,
   serviceItemization,
@@ -995,6 +1221,10 @@ module.exports = {
   emitBookingNotification,
   emitRequestReceived,
   emitConfirmed,
+  emitChangeRequested,
+  emitCancellationRequested,
+  emitRescheduled,
+  emitCancelled,
   emitCustomerActionRequired,
   emitPaymentReceived,
   resolveCustomerAccountForBooking,
