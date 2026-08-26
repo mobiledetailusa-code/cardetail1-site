@@ -242,6 +242,59 @@ async function processClaimedSms(row, opts = {}) {
   }
 }
 
+async function claimSmsById(prisma, id, now = new Date()) {
+  const outboxId = String(id || '').trim();
+  if (!outboxId || !prisma?.smsOutbox) return null;
+  const leaseToken = crypto.randomUUID();
+  const leaseExpiresAt = new Date(now.getTime() + 60_000);
+  const claimed = await prisma.smsOutbox.updateMany({
+    where: {
+      id: outboxId,
+      status: 'accepted',
+      providerMessageSid: null,
+      availableAt: { lte: now },
+      OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lt: now } }],
+    },
+    data: {
+      leaseToken,
+      leaseExpiresAt,
+      attemptCount: { increment: 1 },
+    },
+  });
+  if (!claimed || claimed.count !== 1) return null;
+  return prisma.smsOutbox.findUnique({ where: { id: outboxId } });
+}
+
+/**
+ * Best-effort drain of specific outbox rows in the same request that enqueued
+ * them. Fail-open: booking success never depends on Twilio. The scheduled
+ * worker remains the retry authority if this kick is skipped or fails.
+ */
+async function kickSmsOutboxByIds(ids, opts = {}) {
+  const env = opts.env || process.env;
+  const policy = outboundTwilioPolicy(env);
+  if (!policy.ok) return { ok: true, skipped: true, reason: policy.reason, processed: 0 };
+  const prisma = prismaClient(opts.prisma);
+  if (!prisma?.smsOutbox) {
+    return { ok: true, skipped: true, reason: 'sms_outbox_unavailable', processed: 0 };
+  }
+  const unique = [...new Set((ids || []).map((id) => String(id || '').trim()).filter(Boolean))];
+  let processed = 0;
+  const results = [];
+  const now = opts.now ? new Date(opts.now) : new Date();
+  for (const id of unique) {
+    try {
+      const row = await claimSmsById(prisma, id, now);
+      if (!row) continue;
+      results.push(await processClaimedSms(row, { ...opts, prisma, env }));
+      processed += 1;
+    } catch (err) {
+      results.push({ ok: false, error: 'kick_failed', detail: String(err && err.message || err).slice(0, 80) });
+    }
+  }
+  return { ok: true, processed, results };
+}
+
 async function processSmsOutbox(opts = {}) {
   const env = opts.env || process.env;
   const policy = outboundTwilioPolicy(env);
@@ -308,7 +361,9 @@ module.exports = {
   normalizeProviderStatus,
   enqueueSms,
   claimNextSms,
+  claimSmsById,
   processClaimedSms,
   processSmsOutbox,
+  kickSmsOutboxByIds,
   applyStatusCallback,
 };

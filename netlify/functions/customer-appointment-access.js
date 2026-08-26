@@ -414,6 +414,9 @@ async function resumeSpentAppointmentLink(event, booking, tokenRecord, cid, rawT
 /**
  * GET entry: never consume. Live tokens get a confirm form; spent/expired
  * tokens may still re-enter on the same device session.
+ *
+ * Observational only: must not create, enqueue, or repair booking-created
+ * admin/customer notifications. Those fire from submit-booking persist.
  */
 async function beginAccess(rawToken, event) {
   const cid = correlationId();
@@ -459,6 +462,9 @@ async function beginAccess(rawToken, event) {
 /**
  * POST exchange: ownership checks first, then atomic consume, then session.
  * Consume stays the concurrency gate so two POSTs cannot mint two sessions.
+ *
+ * Observational only: token consumption and session minting must not emit
+ * booking.request_received / admin booking-alert notifications.
  */
 async function exchangeToken(rawToken, event) {
   const cid = correlationId();
@@ -783,6 +789,7 @@ async function resendFromToken(rawToken, event) {
   const eventType = resendEventTypeFor(working);
   const result = await emitBookingNotification(working, eventType, {
     event,
+    source: 'appointment_access_resend',
     resendGeneration: allocation.generation,
   });
 

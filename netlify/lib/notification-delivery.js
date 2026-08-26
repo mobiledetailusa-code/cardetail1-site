@@ -36,13 +36,38 @@ function attachDeliveryToBooking(booking, delivery) {
   return { ...booking, notificationDelivery: delivery };
 }
 
+function deliveryChannelRetryable(channel) {
+  const status = channel && channel.status;
+  return !status || status === 'pending' || status === 'failed';
+}
+
+/**
+ * True when booking-created admin/customer channels have not reached a terminal
+ * decision. Failed remains retryable; suppressed (e.g. consent=false) does not.
+ */
+function bookingCreatedNotificationsIncomplete(booking) {
+  const delivery = initNotificationDelivery(booking);
+  const ledger = booking && booking.transactionalNotifications;
+  const ledgerEmpty = !ledger || typeof ledger !== 'object' || !Object.keys(ledger).length;
+  if (!delivery.updatedAt && ledgerEmpty) return true;
+  return deliveryChannelRetryable(delivery.adminEmail)
+    || deliveryChannelRetryable(delivery.adminSms)
+    || deliveryChannelRetryable(delivery.customerEmail)
+    || deliveryChannelRetryable(delivery.customerSms);
+}
+
 async function sendNotificationsDecoupled(booking, senders) {
   const delivery = initNotificationDelivery(booking);
   const tasks = [];
 
   function alreadySent(channel) {
     const cur = delivery[channel];
-    return cur && (cur.status === 'accepted' || cur.status === 'sent' || cur.status === 'delivered');
+    return cur && (
+      cur.status === 'accepted'
+      || cur.status === 'sent'
+      || cur.status === 'delivered'
+      || cur.status === 'suppressed'
+    );
   }
 
   if (senders.adminEmail && !alreadySent('adminEmail')) {
@@ -78,4 +103,6 @@ module.exports = {
   applyDeliveryUpdate,
   attachDeliveryToBooking,
   sendNotificationsDecoupled,
+  deliveryChannelRetryable,
+  bookingCreatedNotificationsIncomplete,
 };
