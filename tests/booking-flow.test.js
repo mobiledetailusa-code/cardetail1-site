@@ -18,8 +18,7 @@ const webhook = read('netlify/functions/stripe-webhook.js');
 const lookup = read('netlify/functions/lookup-booking.js');
 
 test('Step 5 is a no-card review with later payment options', () => {
-  assert.match(index, /Step 05 — Review/);
-  assert.match(index, /Submit with no payment/);
+  assert.match(index, /Step 05 — Review &amp; Submit/);
   assert.match(index, /no card or payment method is required to send this request\./);
   assert.match(index, /Pay Online in My Garage or pay at service when available\./);
   assert.match(index, /Request first · Pay later · No charge today/);

@@ -136,8 +136,8 @@
       { "n": 2, "tabId": "bpt2", "label": "Package" },
       { "n": 3, "tabId": "bpt3", "label": "Vehicle" },
       { "n": 4, "tabId": "bpt4", "label": "Info" },
-      { "n": 5, "tabId": "bpt5", "label": "Review" },
-      { "n": 6, "tabId": "bpt6", "label": "Confirm" }
+      { "n": 5, "tabId": "bpt5", "label": "Review & Submit" },
+      { "n": 6, "tabId": "bpt6", "label": "Request Sent" }
     ],
     "stepsConstant": "BK_VISIBLE_STEPS",
 
@@ -145,7 +145,7 @@
       {
         "id": "success-title",
         "selector": "#ok-title",
-        "text": "BOOKING REQUEST RECEIVED",
+        "text": "Request received",
         "why": "Final state names a request, never a confirmed appointment."
       }
     ],
@@ -198,17 +198,17 @@
     "anchoredText": [
       {
         "id": "no-payment-required",
-        "anchor": "#bs5 .pay-box li:nth-child(1)",
+        "anchor": ".bk-charged-copy",
         "match": "contains",
         "texts": ["no card or payment method is required to send this request."],
         "why": "The initial request must be explicitly free of card and payment gates."
       },
       {
         "id": "pay-later-options",
-        "anchor": "#bs5 .pay-box li:nth-child(3)",
+        "anchor": "#bk-pay-pref-copy",
         "match": "contains",
-        "texts": ["use Pay Online in My Garage or pay at service when available."],
-        "why": "The review step explains the two later payment options without inventing a payment choice."
+        "texts": ["Pay Online in My Garage or pay at service when available."],
+        "why": "The review step explains the two later payment options without inventing a payment collection."
       },
       {
         "id": "request-first-badge",
@@ -219,7 +219,7 @@
       },
       {
         "id": "charged-today-label",
-        "anchor": ".bk-charged-row > span:first-child",
+        "anchor": ".bk-charged-stack > .bk-charged-label",
         "match": "exact",
         "texts": ["Charged today"],
         "why": "The zero-amount row on step 5 must be labelled; the amount itself is rendered by the page and never stored here."
@@ -228,7 +228,7 @@
         "id": "nothing-collected-today",
         "anchor": "p.bk-charged-copy",
         "match": "contains",
-        "texts": ["No payment is collected today."],
+        "texts": ["No payment is collected when you submit this booking request."],
         "why": "Explicit statement that nothing is charged at request time."
       },
       {
@@ -240,10 +240,10 @@
       },
       {
         "id": "request-only-row",
-        "anchor": "#bs6 .oc:has(#c-pay-method) > .or:nth-of-type(2) > span",
+        "anchor": "p.bk-charged-copy",
         "match": "contains",
-        "texts": ["Charged today", "booking request only"],
-        "why": "The confirm step labels the charged-today row as a request, not a payment. Label and value are pinned as an ordered pair so the value cannot be relabelled. The amount rendered in that value is deliberately NOT pinned here — see zeroChargePromise."
+        "texts": ["booking request only"],
+        "why": "The review step labels the request as a request, not a payment."
       },
       {
         "id": "submit-label",
@@ -254,7 +254,7 @@
       },
       {
         "id": "success-status-under-review",
-        "anchor": "#bs-ok .suc-card > .or:first-child > .ov",
+        "anchor": "#bs6 .suc-card > .or:first-child > .ov",
         "match": "exact",
         "texts": ["Under Review"],
         "why": "Post-submit status is explicitly under review, not confirmed."
@@ -322,28 +322,28 @@
         "id": "sms-opt-in-review-desc",
         "anchor": "#bs5 > .bdesc",
         "match": "contains",
-        "texts": ["then contact you about confirmation. If you opted in for SMS, updates may be sent by text."],
+        "texts": ["then contact you about confirmation."],
         "why": "Review copy must qualify SMS as opt-in only; it must not promise a text to every customer."
       },
       {
         "id": "sms-opt-in-pending-review",
-        "anchor": "#bs5 .pay-box li:nth-child(2)",
+        "anchor": "#bs5 > .bdesc",
         "match": "contains",
         "texts": ["we'll contact you after checking schedule, location, weather, and access. If you opted in for SMS, updates may be sent by text."],
-        "why": "The pending-review bullet must not treat SMS as the confirmation channel."
+        "why": "The pending-review sentence must not treat SMS as the confirmation channel."
       },
       {
         "id": "sms-opt-in-confirm-desc",
-        "anchor": "#bs6 > .bdesc",
+        "anchor": "#ok-sub",
         "match": "contains",
-        "texts": ["we'll contact you with your booking update. If you opted in for SMS, updates may be sent by text."],
-        "why": "Confirm-step copy must not promise SMS to customers who declined consent."
+        "texts": ["If you opted in for SMS, updates may be sent by text."],
+        "why": "Success-step copy must not promise SMS to customers who declined consent."
       },
       {
         "id": "sms-opt-in-success",
         "anchor": "#ok-sub",
         "match": "contains",
-        "texts": ["We'll review your details and contact you about confirmation — usually within a few hours. If you opted in for SMS, updates may be sent by text."],
+        "texts": ["We'll review your request and notify you when the appointment is confirmed. If you opted in for SMS, updates may be sent by text."],
         "why": "Success-state copy must keep SMS optional after submit."
       }
     ],

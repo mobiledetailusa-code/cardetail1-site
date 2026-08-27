@@ -262,8 +262,8 @@ test('review, confirm, and success copy keep SMS opt-in-only', () => {
     const html = read(page);
     assert.match(
       html,
-      /we'll contact you with your booking update\. If you opted in for SMS, updates may be sent by text\./i,
-      `${page} lost the Confirm-step SMS qualifier`,
+      /We'll review your request and notify you when the appointment is confirmed\. If you opted in for SMS, updates may be sent by text\./,
+      `${page} lost the success-step SMS qualifier`,
     );
     assert.match(
       html,

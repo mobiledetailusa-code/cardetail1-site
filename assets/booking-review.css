@@ -1,0 +1,79 @@
+/* Canonical Review & Submit / Request Sent presentation.
+   Loaded on every booking surface so hub/city fallbacks match index.html. */
+
+.bk-charged-stack{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+.bk-charged-stack .bk-charged-label,
+.bk-fin-title{
+  font-size:11px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--mu,#8a9bb0);
+}
+.bk-charged-stack .bk-charged-amt{
+  font-size:22px;
+  font-weight:700;
+  color:var(--gr,#34d399);
+  letter-spacing:-.02em;
+  line-height:1.2;
+}
+.bk-charged-copy{
+  font-size:12.5px;
+  color:var(--mu,#8a9bb0);
+  line-height:1.5;
+  margin:6px 0 0;
+}
+.bk-charged-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:12px;
+  font-size:13px;
+  color:var(--tx,#ece8e1);
+  padding:8px 0 2px;
+  border-top:1px solid rgba(255,255,255,.08);
+  margin-top:6px;
+}
+.bk-pay-pref{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin:0 0 14px;
+}
+.bk-pay-pref-row{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+@media(max-width:640px){
+  .bk-pay-pref-row{grid-template-columns:1fr}
+}
+.bk-pay-pref .pay-choice{
+  min-width:0;
+  text-align:left;
+  padding:12px 14px;
+}
+.bk-pay-pref-help{
+  font-size:12px;
+  color:var(--mu,#8a9bb0);
+  line-height:1.5;
+  margin:0;
+}
+.bk-review-compact{margin-bottom:12px}
+.bk-review-compact .oc{margin-bottom:10px;padding:14px 16px}
+.bk-success-ref{
+  font-size:13px;
+  font-weight:700;
+  color:var(--white,#fff);
+  letter-spacing:.04em;
+}
+#bs6.bsec.bk-success-step .btn-sub,
+#bs6.bsec.bk-success-step #sub-btn{display:none!important}
+#bs6.bsec.bk-success-step .suc-wrap{padding:24px 8px 12px}

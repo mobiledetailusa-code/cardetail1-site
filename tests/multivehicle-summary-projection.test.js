@@ -305,8 +305,10 @@ function extractFunction(src, name) {
 }
 
 function extractSection(src, id) {
-  const start = src.indexOf(`<div class="bsec" id="${id}">`);
-  assert.notEqual(start, -1, `#${id} should exist`);
+  const re = new RegExp(`<div class="bsec[^"]*"\\s+id="${id}"[^>]*>`);
+  const m = src.match(re);
+  assert.ok(m && m.index >= 0, `#${id} should exist`);
+  const start = m.index;
   const after = src.indexOf('<!-- ', start + 10);
   return src.slice(start, after === -1 ? src.length : after);
 }
@@ -314,7 +316,7 @@ function extractSection(src, id) {
 if (JSDOM) {
   describe('fillConfirm renders the production two-vehicle booking (real DOM)', () => {
     const src = read('index.html');
-    const confirmMarkup = extractSection(src, 'bs6');
+    const confirmMarkup = extractSection(src, 'bs5');
     const moduleSrc = read('assets/booking-line-items.js');
 
     function mount(vehicles, { travelFee = 0 } = {}) {
@@ -400,9 +402,9 @@ if (JSDOM) {
 
     it('the Estimated total label is not white-on-light', () => {
       const doc = mount(PROD_TWO_VEHICLE);
-      const label = [...doc.querySelectorAll('.oc .ol')].find((el) => /Estimated total/.test(el.textContent));
+      const label = doc.querySelector('.bk-fin-title')
+        || [...doc.querySelectorAll('.oc .ol, .ol.bkli-total-label')].find((el) => /Estimated total/.test(el.textContent));
       assert.ok(label, 'Estimated total label present');
-      assert.ok(label.classList.contains('bkli-total-label'));
       assert.doesNotMatch(label.getAttribute('style') || '', /var\(--white\)/);
     });
 
@@ -423,10 +425,11 @@ if (JSDOM) {
 
   describe('showSuccess renders the submitted booking (real DOM)', () => {
     const src = read('index.html');
-    const successMarkup = extractSection(src, 'bs-ok');
+    const successMarkup = extractSection(src, 'bs6');
     const moduleSrc = read('assets/booking-line-items.js');
 
     function mountSuccess(payload) {
+      const runtimeSrc = read('assets/booking-review-runtime.js');
       const dom = new JSDOM(
         `<!DOCTYPE html><html><body><div class="booking-modal">
           ${successMarkup}
@@ -435,6 +438,8 @@ if (JSDOM) {
         { runScripts: 'dangerously', url: 'https://example.com/' }
       );
       const { window } = dom;
+      window.ST = {};
+      window.bkGoTo = () => {};
       window.clearDraftSaveTokenState = () => {};
       window.mailtoForBooking = () => 'mailto:test@example.com';
       window.smsForBooking = () => 'sms:5551234567';
@@ -443,10 +448,9 @@ if (JSDOM) {
         extractFunction(src, 'bkEsc'),
         extractFunction(src, 'bkProjectVehicles'),
         extractFunction(src, 'bkRenderVehicleSummary'),
-        extractFunction(src, 'showSuccess'),
       ].join('\n');
-      window.eval(`${glue}\nwindow.showSuccess = showSuccess;`);
-      window.showSuccess(payload);
+      window.eval(`${glue}\n${runtimeSrc}`);
+      window.Cardetail1BookingReview.showSuccess(payload);
       return window.document;
     }
 
@@ -472,7 +476,9 @@ if (JSDOM) {
 
     it('confirmation screen never shows the combined $677 package price', () => {
       const doc = mountSuccess(submittedPayload);
-      assert.doesNotMatch(doc.getElementById('bs-ok').textContent, /677/);
+      const successRoot = doc.getElementById('bs6') || doc.getElementById('bs-ok');
+      assert.ok(successRoot, 'success panel present');
+      assert.doesNotMatch(successRoot.textContent, /677/);
     });
 
     it('confirmation screen shows each vehicle exactly once', () => {

@@ -1,7 +1,7 @@
 /**
  * Hub/city pages delegate booking to the authoritative index.html modal, which
  * has SIX customer-visible steps: 1 Category · 2 Package · 3 Vehicle · 4 Info ·
- * 5 Review · 6 Confirm. This header previously documented a
+ * 5 Review & Submit · 6 Request Sent. This header previously documented a
  * different step count; 6 is the value verified against BK_VISIBLE_STEPS in
  * index.html, and tests/booking-copy-drift.test.js keeps the two in sync.
  *
