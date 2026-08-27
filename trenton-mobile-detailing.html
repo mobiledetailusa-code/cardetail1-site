@@ -2238,7 +2238,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </div>
         </div>
         <p class="bdesc">This sends a booking request — we'll review your location, vehicle, weather, and access, then contact you about confirmation. This request does not confirm an appointment; we'll contact you after checking schedule, location, weather, and access. If you opted in for SMS, updates may be sent by text.</p>
-        <div class="pay-badge">✓ Request first · Pay later · No charge today</div>
+        <div class="pay-box">
+          <div class="pay-t">What happens next · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
+          <ul style="list-style:none;padding:0;margin:0 0 10px">
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Submit with no payment</strong> — no card or payment method is required to send this request.</li>
+            <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pay later</strong> — use Pay Online in My Garage or pay at service when available.</li>
+          </ul>
+          <div class="pay-badge">✓ Request first · Pay later · No charge today</div>
+        </div>
         <div class="btn-row">
           <button type="button" class="btn-b" onclick="bkGoTo(4)">← Back</button>
           <button type="button" class="btn-sub" id="sub-btn" onclick="submitBooking()">

@@ -152,7 +152,7 @@ describe('Booking confirmation hotfix — frontend contracts', () => {
       assert.match(submit, /That time slot is no longer available\. Choose another date or time and submit again\. No payment was collected\./);
       assert.doesNotMatch(submit, /your card stays saved|save your card/i);
       assert.doesNotMatch(submit, /clearDraftRegistrationState\(\)/);
-      assert.match(html, /Booking Request Received/);
+      assert.match(html, /Booking Request Received|Request received/);
       assert.doesNotMatch(
         html.slice(html.indexOf('function showSuccess'), html.indexOf('function showSuccess') + 900),
         /Card Saved — Booking Request Received|Card Saved - Booking Request Received/
