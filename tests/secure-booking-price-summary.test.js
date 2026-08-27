@@ -164,7 +164,7 @@ describe('price presentation', () => {
   });
 
   it('no competing prominent Travel row in the collapsed summary', () => {
-    const summary = html.match(/<div class="bk-financial-summary"[\s\S]*?<\/div>\s*<div class="bdesc"/)[0];
+    const summary = html.match(/<div class="bk-financial-summary"[\s\S]*?<p class="bk-charged-copy">[\s\S]*?<\/p>/)[0];
     assert.doesNotMatch(summary, />Travel</);
     assert.doesNotMatch(summary, /Service subtotal/);
   });
@@ -178,12 +178,13 @@ describe('price presentation', () => {
   });
 
   it('charged today stays visible with accurate no-charge copy', () => {
-    assert.match(html, /<div class="bk-charged-row"><span>Charged today<\/span><span class="bk-charged-amt">\$0\.00<\/span><\/div>/);
-    assert.match(html, /No payment is collected today\. Submit your request first and choose Pay Online in My Garage or pay at service when available\./);
+    assert.match(html, /<span class="bk-charged-label">Charged today<\/span>/);
+    assert.match(html, /<span class="bk-charged-amt">\$0\.00<\/span>/);
+    assert.match(html, /No payment is collected when you submit this booking request\./);
   });
 
   it('step 5 renders a local summary immediately on entry', () => {
-    assert.match(html, /if \(n === 5\) \{\s*ensureStep5Defaults\(\);\s*renderStep5Summary\(\);/);
+    assert.match(html, /if \(n === 5\) \{\s*ensureStep5Defaults\(\);\s*renderStep5Summary\(\);\s*fillConfirm\(\);/);
   });
 });
 
@@ -219,10 +220,11 @@ describe('inactive welcome savings removed', () => {
 
 describe('cross-step price consistency', () => {
   it('steps 4, 5, 6, success, and text summary use $X.00 formatting', () => {
+    const runtime = read('assets/booking-review-runtime.js');
     assert.match(html, /totalEl\.textContent = cartBase \? bkMoney\(cartBase\+fee\) : 'Estimate';/);
     assert.match(html, /el\.textContent = total \? bkMoney\(total\) : 'Estimate';/);
-    assert.match(html, /getElementById\('c-total'\)\.textContent=total \? bkMoney\(total\) : 'Estimate';/);
-    assert.match(html, /getElementById\('ok-total'\)\.textContent=\(b\.totalPrice\|\|0\)\?bkMoney\(b\.totalPrice\):'Estimate';/);
+    assert.match(html, /function bkMoney\(n\)/);
+    assert.match(runtime, /okTotalEl\.textContent = displayTotal \? money\(displayTotal\) : 'Estimate'/);
     assert.match(html, /Estimated total: \$\$\{\(Number\(b\.totalPrice\)\|\|0\)\.toFixed\(2\)\}/);
   });
 
@@ -244,7 +246,8 @@ describe('cross-step price consistency', () => {
 
   it('step 6 explains the adjustment instead of hiding it in Pkg price', () => {
     assert.match(html, /<div id="c-travel-line"><\/div>/);
-    assert.match(html, /Mobile service adjustment<\/span><span class="ov">\+'\+bkMoney\(fee\)/);
+    assert.match(html, /Mobile service adjustment<\/span><span class="ov">\+'/);
+    assert.match(read('assets/booking-review-runtime.js'), /Mobile service adjustment<\/span><span class="ov">\+' \+ money\(totals\.fee\)/);
     assert.doesNotMatch(html, /c-pprice'\)\.textContent=ST\.basePrice \? '\$'\+\(ST\.basePrice\+fee\)/);
   });
 
@@ -262,7 +265,8 @@ describe('cross-step price consistency', () => {
 describe('regression guards', () => {
   it('six steps and separate Stripe saved-card capability remain', () => {
     assert.match(html, /BK_VISIBLE_STEPS\s*=\s*6/);
-    assert.doesNotMatch(html, /id="pc-cash"|id="pc-onsite"|id="pc-online"/);
+    assert.match(html, /id="pc-cash"|id="pc-onsite"|id="pc-online"/);
+    assert.match(html, /selectRequestPaymentPreference/);
     assert.match(html, /confirmSetupIntent/);
     assert.match(html, /create-setup-intent/);
   });

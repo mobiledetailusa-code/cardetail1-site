@@ -207,9 +207,9 @@ describe('initial booking request without card collection', () => {
     const paymentField = await post(requestPayload({
       isDraft: true,
       phone: '2015550199',
-      paymentMethodPreference: 'card_onsite',
+      paymentMethodPreference: 'not_a_real_method',
     }));
     assert.equal(paymentField.response.statusCode, 400);
-    assert.equal(paymentField.body.error, 'payment_preference_not_expected');
+    assert.equal(paymentField.body.error, 'invalid_payment_preference');
   });
 });

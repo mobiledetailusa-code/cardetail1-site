@@ -784,9 +784,9 @@ body.rv-overlay-lock{overflow:hidden}
 .bk-fin-row:last-child{border-bottom:none}
 .bk-fin-discount span:last-child{color:var(--gr)}
 .bk-fin-total span{font-weight:700;color:#0f172a}
-.bk-charged-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--tx);padding:8px 0 2px;border-top:1px solid rgba(255,255,255,.08);margin-top:6px}
+.bk-charged-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:13px;color:var(--tx);padding:8px 0 2px;border-top:1px solid rgba(255,255,255,.08);margin-top:6px}
 .bk-charged-amt{font-weight:700;color:var(--gr)}
-.bk-charged-copy{font-size:11.5px;color:var(--mu);line-height:1.5;margin:4px 0 0}
+.bk-charged-copy{font-size:12.5px;color:var(--mu);line-height:1.5;margin:6px 0 0}
 @media(max-width:640px){
   .bsec .btn-row{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,var(--bg1) 24%);padding-top:12px;margin-top:20px;z-index:2}
   .bk-sticky-subtotal{position:sticky;top:0;z-index:3;background:var(--bg1);padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
@@ -1496,7 +1496,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </style>
 <link rel="stylesheet" href="assets/booking-modal-light.css">
 <link rel="stylesheet" href="assets/booking-summary.css">
+<link rel="stylesheet" href="assets/booking-review.css">
 <script src="assets/booking-line-items.js" defer></script>
+<script src="assets/booking-review-runtime.js" defer></script>
 <script src="assets/travel-fee-client.js"></script>
 <link rel="stylesheet" href="assets/public-surface-contrast.css">
 <link rel="stylesheet" href="assets/luxury-theme.css">
@@ -2339,8 +2341,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="bpt" id="bpt2"><div class="bpn">2</div><span>Package</span></div>
       <div class="bpt" id="bpt3"><div class="bpn">3</div><span>Vehicle</span></div>
       <div class="bpt" id="bpt4"><div class="bpn">4</div><span>Info</span></div>
-      <div class="bpt" id="bpt5"><div class="bpn">5</div><span>Review</span></div>
-      <div class="bpt" id="bpt6"><div class="bpn">6</div><span>Confirm</span></div>
+      <div class="bpt" id="bpt5"><div class="bpn">5</div><span>Review &amp; Submit</span></div>
+      <div class="bpt" id="bpt6"><div class="bpn">6</div><span>Request Sent</span></div>
     </div>
 
     <div class="bcontent">
@@ -2720,10 +2722,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
       </div>
 
-      <!-- STEP 5: REVIEW -->
+      <!-- BK_REVIEW_SUBMIT_START -->
+      <!-- STEP 5: REVIEW & SUBMIT (only submission surface) -->
       <div class="bsec" id="bs5">
-        <div class="beye">Step 05 — Review</div>
-        <div class="btitle">REVIEW YOUR<br>REQUEST</div>
+        <div class="beye">Step 05 — Review &amp; Submit</div>
+        <div class="btitle">REVIEW &amp;<br>SUBMIT</div>
         <div id="bk-welcome-offer" class="bk-welcome-offer" hidden role="complementary" aria-label="New customer welcome offer">
           <div class="bk-offer-title">Still deciding?</div>
           <p class="bk-offer-copy">Your first eligible booking receives 10% off eligible service subtotal, up to $40 savings.<br>No promo code needed. New customers only — one redemption per household. <a href="/terms-conditions#welcome-offer" target="_blank" rel="noopener noreferrer">Terms apply</a>.</p>
@@ -2732,99 +2735,99 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <button type="button" class="btn-b" id="bk-offer-dismiss">Continue Without Changes</button>
           </div>
         </div>
-        <div class="bk-financial-summary" id="bk-financial-summary" aria-live="polite">
-          <div class="bk-fin-title">Estimated total</div>
-          <div class="bk-total-main"><span class="bk-total-amount" id="bk-total-amount">—</span></div>
-          <p class="bk-total-incl" id="bk-total-incl">Mobile service included.</p>
-          <button type="button" class="bk-details-toggle" id="bk-details-toggle" aria-expanded="false" aria-controls="bk-financial-lines" onclick="toggleBkPriceDetails()">View price details</button>
-          <div id="bk-financial-lines" class="bk-price-details" hidden></div>
-          <div class="bk-charged-row"><span>Charged today</span><span class="bk-charged-amt">$0.00</span></div>
-          <p class="bk-charged-copy">No payment is collected today. Submit your request first and choose Pay Online in My Garage or pay at service when available.</p>
+        <div class="bk-review-compact">
+          <div class="oc">
+            <div class="oc-t" id="c-service-title">Service</div>
+            <div class="confirm-vehicle-visual" id="c-visual"></div>
+            <div id="c-vehicle-cards"></div>
+            <div id="c-travel-line"></div>
+            <div id="c-offer-line"></div>
+            <div class="oc-note">Final price confirmed on-site. Add-ons are starting prices.</div>
+          </div>
+          <div class="bk-financial-summary" id="bk-financial-summary" aria-live="polite">
+            <div class="bk-fin-title">Estimated total</div>
+            <div class="bk-total-main"><span class="bk-total-amount" id="bk-total-amount">—</span></div>
+            <span class="oc-total" id="c-total" hidden>—</span>
+            <p class="bk-total-incl" id="bk-total-incl">Mobile service included.</p>
+            <button type="button" class="bk-details-toggle" id="bk-details-toggle" aria-expanded="false" aria-controls="bk-financial-lines" onclick="toggleBkPriceDetails()">View price details</button>
+            <div id="bk-financial-lines" class="bk-price-details" hidden></div>
+            <div class="bk-charged-stack">
+              <span class="bk-charged-label">Charged today</span>
+              <span class="bk-charged-amt">$0.00</span>
+            </div>
+            <p class="bk-charged-copy">No payment is collected when you submit this booking request. This is a booking request only — no card or payment method is required to send this request.</p>
+          </div>
+          <div class="oc">
+            <div class="oc-t">Appointment</div>
+            <div class="or"><span class="ol">Requested date</span><span class="ov" id="c-date">—</span></div>
+            <div class="or"><span class="ol">Address</span><span class="ov" id="c-addr">—</span></div>
+          </div>
+          <div class="oc">
+            <div class="oc-t">Customer</div>
+            <div class="or"><span class="ol">Name</span><span class="ov" id="c-name">—</span></div>
+            <div class="or"><span class="ol">Phone</span><span class="ov" id="c-phone">—</span></div>
+            <div class="or"><span class="ol">Email</span><span class="ov" id="c-email">—</span></div>
+          </div>
+          <div class="oc">
+            <div class="oc-t">Preferred payment method</div>
+            <div class="bk-pay-pref" role="group" aria-label="Preferred payment method">
+              <div class="bk-pay-pref-row">
+                <button type="button" class="pay-choice" id="pc-online" aria-pressed="false" onclick="selectRequestPaymentPreference('online_after_service')">Pay online later</button>
+                <button type="button" class="pay-choice" id="pc-onsite" aria-pressed="false" onclick="selectRequestPaymentPreference('card_onsite')">Card at service</button>
+                <button type="button" class="pay-choice" id="pc-cash" aria-pressed="false" onclick="selectRequestPaymentPreference('cash_onsite')">Cash at service</button>
+              </div>
+              <p class="bk-pay-pref-help" id="bk-pay-pref-copy">Preference only — nothing is charged or authorized when you submit. Final payment is handled later according to available payment options. Pay Online in My Garage or pay at service when available.</p>
+              <p class="bk-pay-pref-help" id="bk-pay-pref-err" hidden role="alert"></p>
+              <div class="or" hidden><span class="ol">Preferred payment</span><span class="ov" id="c-pay-method">Select a preference</span></div>
+            </div>
+          </div>
+          <div class="oc">
+            <div class="oc-t">Terms &amp; Conditions</div>
+            <label class="terms-check">
+              <input type="checkbox" id="terms-ok">
+              <span>I have read and agree to the booking, cancellation, no-show, access, pricing, payment, and photo policies. <a href="/terms-conditions" target="_blank" rel="noopener noreferrer">Read Full Terms</a></span>
+            </label>
+          </div>
         </div>
-        <div class="bdesc">This sends a booking request — we'll review your location, vehicle, weather, and access, then contact you about confirmation. If you opted in for SMS, updates may be sent by text. Nothing charged today.</div>
-        <div class="pay-box">
-          <div class="pay-t">What happens next · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
-          <ul style="list-style:none;padding:0;margin:0 0 14px">
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Submit with no payment</strong> — no card or payment method is required to send this request.</li>
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pending review</strong> — this request does not confirm an appointment; we'll contact you after checking schedule, location, weather, and access. If you opted in for SMS, updates may be sent by text.</li>
-            <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pay later</strong> — use Pay Online in My Garage or pay at service when available.</li>
-          </ul>
-          <div class="pay-badge">✓ Request first · Pay later · No charge today</div>
-        </div>
+        <p class="bdesc">This sends a booking request — we'll review your location, vehicle, weather, and access, then contact you about confirmation. This request does not confirm an appointment; we'll contact you after checking schedule, location, weather, and access. If you opted in for SMS, updates may be sent by text.</p>
+        <div class="pay-badge">✓ Request first · Pay later · No charge today</div>
         <div class="btn-row">
           <button type="button" class="btn-b" onclick="bkGoTo(4)">← Back</button>
-          <button type="button" class="btn-n" onclick="goToConfirmFromTerms()">Review &amp; Submit →</button>
-        </div>
-      </div>
-
-      <!-- STEP 6: CONFIRM -->
-      <div class="bsec" id="bs6">
-        <div class="beye">Step 06 — Confirm</div>
-        <div class="btitle">REVIEW &<br>SUBMIT</div>
-        <div class="bdesc">Give it a quick look, then send your request — we'll contact you with your booking update. If you opted in for SMS, updates may be sent by text.</div>
-        <div class="oc">
-          <div class="oc-t" id="c-service-title">Service</div>
-          <div class="confirm-vehicle-visual" id="c-visual"></div>
-          <div id="c-vehicle-cards"></div>
-          <div id="c-travel-line"></div>
-          <div id="c-offer-line"></div>
-          <div class="or"><span class="ol bkli-total-label">Estimated total</span><span class="oc-total" id="c-total">—</span></div>
-          <div class="oc-note">Final price confirmed on-site. Add-ons are starting prices.</div>
-        </div>
-        <div class="oc">
-          <div class="oc-t">Appointment</div>
-          <div class="or"><span class="ol">Name</span><span class="ov" id="c-name">—</span></div>
-          <div class="or"><span class="ol">Phone</span><span class="ov" id="c-phone">—</span></div>
-          <div class="or"><span class="ol">Email</span><span class="ov" id="c-email">—</span></div>
-          <div class="or"><span class="ol">Address</span><span class="ov" id="c-addr">—</span></div>
-          <div class="or"><span class="ol">Date & time</span><span class="ov" id="c-date">—</span></div>
-        </div>
-        <div class="oc">
-          <div class="oc-t">Request / Payment</div>
-          <div class="or"><span class="ol">Charged today</span><span class="ov" style="color:var(--gr)">$0.00 — booking request only</span></div>
-          <div class="or"><span class="ol">Payment</span><span class="ov" id="c-pay-method">Choose later</span></div>
-          <div class="or"><span class="ol">Final payment</span><span class="ov">Use Pay Online in My Garage or pay at service when available.</span></div>
-        </div>
-
-        <div class="oc">
-          <div class="oc-t">Terms & Conditions</div>
-          <label class="terms-check">
-            <input type="checkbox" id="terms-ok">
-            <span>I have read and agree to the booking, cancellation, no-show, access, pricing, payment, and photo policies. <a href="/terms-conditions" target="_blank" rel="noopener noreferrer">Read Full Terms</a></span>
-          </label>
-        </div>
-        <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(5)">← Back</button>
           <button type="button" class="btn-sub" id="sub-btn" onclick="submitBooking()">
-            <div class="spin"></div><span class="bl">Submit Booking Request ✓</span>
+            <div class="spin"></div><span class="bl">Submit Booking Request</span>
           </button>
         </div>
       </div>
+      <!-- BK_REVIEW_SUBMIT_END -->
 
-      <!-- SUCCESS -->
-      <div class="bsec" id="bs-ok">
+      <!-- BK_SUCCESS_START -->
+      <!-- STEP 6: REQUEST SENT (success only — no submit) -->
+      <div class="bsec bk-success-step" id="bs6">
         <div class="suc-wrap">
           <div class="suc-ico">✓</div>
-          <div class="suc-title" id="ok-title">BOOKING REQUEST RECEIVED</div>
-          <div style="display:inline-flex;align-items:center;gap:8px;background:var(--grdim);border:1px solid var(--grbr);color:var(--gr);border-radius:999px;padding:6px 16px;font-size:12.5px;font-weight:700;margin-bottom:14px">✓ Your request was submitted</div>
-          <p class="suc-sub" id="ok-sub">You're all set! We'll review your details and contact you about confirmation — usually within a few hours. If you opted in for SMS, updates may be sent by text.</p>
+          <div class="suc-title" id="ok-title">Request received</div>
+          <div style="display:inline-flex;align-items:center;gap:8px;background:var(--grdim);border:1px solid var(--grbr);color:var(--gr);border-radius:999px;padding:6px 16px;font-size:12.5px;font-weight:700;margin-bottom:14px">✓ Your request was received</div>
+          <p class="suc-sub" id="ok-sub">We'll review your request and notify you when the appointment is confirmed. If you opted in for SMS, updates may be sent by text.</p>
           <div class="suc-card">
             <div class="or"><span class="ol">Status</span><span class="ov" style="color:var(--gr);font-weight:700">Under Review</span></div>
+            <div class="or"><span class="ol">Booking reference</span><span class="ov bk-success-ref" id="ok-ref">—</span></div>
             <div id="ok-vehicle-cards"></div>
-            <div class="or"><span class="ol bkli-total-label">Total</span><span class="ov" id="ok-total" style="color:var(--blue);font-weight:700">—</span></div>
-            <div class="or" style="border:none"><span class="ol">Date</span><span class="ov" id="ok-date">—</span></div>
+            <div class="or"><span class="ol bkli-total-label">Estimated total</span><span class="ov" id="ok-total" style="color:var(--blue);font-weight:700">—</span></div>
+            <div class="or"><span class="ol">Requested appointment</span><span class="ov" id="ok-date">—</span></div>
+            <div class="or"><span class="ol">Preferred payment</span><span class="ov" id="ok-pay">—</span></div>
+            <div class="or" style="border:none"><span class="ol">Charged today</span><span class="ov" style="color:var(--gr)">$0.00</span></div>
           </div>
-          <p style="font-size:12.5px;color:var(--mu);margin-bottom:10px">Questions? Call / text <strong style="color:var(--white)">551-373-5668</strong> · Mon–Fri 8AM–5PM</p>
-          <div style="background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--rs);padding:12px 14px;margin-bottom:16px">
-            <p style="font-size:12px;color:var(--mu);margin-bottom:10px">After your service is completed, we'd appreciate your honest review.</p>
-            <div style="display:flex;flex-wrap:wrap;gap:8px">
-              <button type="button" class="btn-n" style="font-size:12px;padding:8px 18px" onclick="forceCloseBooking();openPortal()">View your booking →</button>
-              <a style="font-size:12px;padding:8px 18px;text-decoration:none;border:1px solid rgba(255,255,255,.18);border-radius:var(--rs);color:var(--white);background:transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">⭐ Leave a Google Review</a>
-            </div>
+          <p style="font-size:12.5px;color:var(--mu);margin-bottom:10px">No payment was collected today. Questions? Call / text <strong style="color:var(--white)">551-373-5668</strong> · Mon–Fri 8AM–5PM</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px">
+            <button type="button" class="btn-n" style="font-size:12px;padding:8px 18px" onclick="forceCloseBooking();openPortal()">View in My Garage</button>
+            <button type="button" class="btn-b" style="font-size:12px;padding:8px 18px" onclick="forceCloseBooking()">Done / Return Home</button>
           </div>
-          <button type="button" class="btn-restart" onclick="restartBooking()">Book Another Service</button>
         </div>
       </div>
+      <div class="bsec" id="bs-ok" hidden>
+        <div class="suc-title">Request received</div>
+      </div>
+      <!-- BK_SUCCESS_END -->
 
     </div><!-- /bcontent -->
   </div>
@@ -4001,9 +4004,12 @@ function bkGoTo(n, opts = {}) {
   if (n === 5) {
     ensureStep5Defaults();
     renderStep5Summary();
+    fillConfirm();
     if (window.Cardetail1WelcomeOffer) Cardetail1WelcomeOffer.fetchPreview('step5');
   }
-  if (n === 6) fillConfirm();
+  if (n === 6) {
+    /* Request Sent is success-only; showSuccess paints this panel. */
+  }
   if (!opts.noScroll) {
     ['.bcontent', '.booking-modal', '.booking-modal-ov'].forEach(s => {
       const el = document.querySelector(s);
@@ -4061,10 +4067,10 @@ function goToPayment() { bkContinueFromContact(); }
 
 function goToConfirmFromTerms() {
   if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(5);
-  bkGoTo(6);
+  /* Step 5 is the only submit surface. Do not advance to a second review. */
 }
 
-function bkScrollToConfirm() { goToConfirmFromTerms(); }
+function bkScrollToConfirm() { /* success is post-submit only */ }
 function bkScrollToPayment() { bkGoTo(5); }
 
 // ── STEP 1: CATEGORY ──────────────────────────────────────────────────────────
@@ -4766,7 +4772,12 @@ function stripeMsg(elId,msg,ok){ const el=document.getElementById(elId); if(!el)
 
 // ── Step 5: Review ────────────────────────────────────────────────────────────
 
-function bkMoney(n){ return '$' + (Number(n) || 0).toFixed(2); }
+function bkMoney(n){
+  var runtime=(typeof globalThis!=='undefined'&&globalThis.Cardetail1BookingReview)
+    ||(typeof window!=='undefined'&&window.Cardetail1BookingReview);
+  if(runtime&&typeof runtime.money==='function') return runtime.money(n);
+  return '$' + (Number(n) || 0).toFixed(2);
+}
 
 function bkFinRow(label, val, cls){
   return '<div class="bk-fin-row' + (cls ? ' bk-fin-' + cls : '') + '"><span>' + label + '</span><span>' + val + '</span></div>';
@@ -5189,23 +5200,31 @@ function fillConfirm(){
   document.getElementById('c-email').textContent=document.getElementById('f-email').value;
   document.getElementById('c-addr').textContent=document.getElementById('f-addr').value;
   document.getElementById('c-date').textContent=document.getElementById('f-date').value+' · '+tsel;
-  const pmEl=document.getElementById('c-pay-method'); if(pmEl) pmEl.textContent='Choose later';
+  const pmEl=document.getElementById('c-pay-method');
+  if(pmEl) pmEl.textContent = (window.Cardetail1BookingReview && ST.payMethod)
+    ? (Cardetail1BookingReview.preferenceLabel(ST.payMethod) || 'Select a preference')
+    : (ST.payMethod ? ST.payMethod : 'Select a preference');
 }
 
 // ── SUBMIT ────────────────────────────────────────────────────────────────────
 async function submitBooking(){
+  if(window.Cardetail1BookingReview && typeof Cardetail1BookingReview.submit==='function'){
+    return Cardetail1BookingReview.submit(window);
+  }
   if(OS_PREVIEW_ACTIVE){ alert('Preview mode — bookings and payments are disabled.'); return; }
+  if(ST.bookingPersisted && ST.lastPersistedBooking){ showSuccess(ST.lastPersistedBooking); return; }
+  if(ST.submitInFlight) return;
   const termsOk=document.getElementById('terms-ok');
   if(termsOk && !termsOk.checked){alert('Please agree to the Terms & Conditions before submitting your booking request.');return;}
   const btn=document.getElementById('sub-btn');
-  btn.classList.add('loading'); btn.disabled=true;
+  ST.submitInFlight=true;
+  if(btn){ btn.classList.add('loading'); btn.disabled=true; }
   let payload=buildBookingPayload();
+  let persisted=false;
   async function postBooking(body){
     return fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:bookingRequestHeaders(),body:JSON.stringify(body)});
   }
   try{
-    // Keep the existing server-generated ID + signed draft-token protocol for
-    // idempotency, but do not create a SetupIntent or collect payment details.
     if(!ST.draftRegistered){
       const draftPayload={...payload,isDraft:true};
       delete draftPayload.draftBookingId;
@@ -5231,6 +5250,8 @@ async function submitBooking(){
     if(data.bookingCreated!==true&&!data.idempotent){
       throw new Error('booking_not_persisted');
     }
+    persisted=true;
+    ST.bookingPersisted=true;
     payload.id=data.id;
     payload.status=data.status||'Pending Review';
     payload.paymentStatus=data.paymentStatus||'no_payment_required_yet';
@@ -5242,10 +5263,24 @@ async function submitBooking(){
     payload.cloudSaved=true;
     payload.bookingCreated=true;
     payload.notificationState=data.customerEmail||data.notificationDelivery?.customerEmail||null;
+    ST.lastPersistedBooking=payload;
     saveLocalBooking(payload);
     if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onBookingSubmitted();
-    showSuccess(payload);
+    try{ showSuccess(payload); }
+    catch(renderErr){
+      console.warn('Booking success render failed:',renderErr&&renderErr.message);
+      if(window.Cardetail1BookingReview) Cardetail1BookingReview.showFallbackSuccess(payload);
+      else {
+        alert('Your booking request was received'+(payload.id?(' (reference '+payload.id+').'):'.')+' No payment was collected.');
+      }
+    }
   }catch(e){
+    if(persisted||ST.bookingPersisted){
+      const received=ST.lastPersistedBooking||payload;
+      if(window.Cardetail1BookingReview) Cardetail1BookingReview.showFallbackSuccess(received);
+      else alert('Your booking request was received'+(received&&received.id?(' (reference '+received.id+').'):'.')+' No payment was collected.');
+      return;
+    }
     console.warn('Booking submission failed:',e.message);
     const code=String(e.message||'');
     const map={
@@ -5259,9 +5294,11 @@ async function submitBooking(){
       'Draft booking not found':'Your booking session expired. Please submit the request again.',
       rate_limited:'Too many attempts. Please wait a few minutes and try again.'
     };
-    alert(map[code]||('Your booking request was not submitted ('+code+'). No payment was collected. Please try again.'));
+    if(map[code]){ alert(map[code]); return; }
+    alert('Your booking request was not submitted. No payment was collected. Please try again.');
   }finally{
-    btn.classList.remove('loading'); btn.disabled=false;
+    ST.submitInFlight=false;
+    if(btn && !ST.bookingPersisted){ btn.classList.remove('loading'); btn.disabled=false; }
   }
 }
 
@@ -5333,8 +5370,8 @@ function buildBookingPayload(options={}){
         ...readSiteAccessFields(),
     notes:document.getElementById('f-notes').value.trim(),
     termsAccepted:true,
-    paymentMethod: cardFlow ? (ST.payMethod || '') : '',
-    paymentMethodPreference: cardFlow ? (ST.payMethod || '') : '',
+    paymentMethod: ST.payMethod || '',
+    paymentMethodPreference: ST.payMethod || '',
     cardOnFileRequired: cardFlow,
     cofPolicyAccepted:cardFlow && !!document.getElementById('cof-policy-ok')?.checked,
     acceptedBookingPolicy: !!document.getElementById('terms-ok')?.checked,
@@ -5407,29 +5444,37 @@ function smsForBooking(b){
 }
 
 function showSuccess(payload){
+  if(window.Cardetail1BookingReview && typeof Cardetail1BookingReview.showSuccess==='function'){
+    return Cardetail1BookingReview.showSuccess(payload);
+  }
   clearDraftSaveTokenState();
-  const b=payload||window.__lastBookingPayload||buildBookingPayload();
+  const b=payload||window.__lastBookingPayload||{};
+  ST.bookingPersisted=true;
+  ST.lastPersistedBooking=b;
   document.querySelectorAll('.bsec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.bpt').forEach(t=>t.classList.add('done'));
-  document.getElementById('bs-ok').classList.add('on');
-  // Itemize from the submitted payload's authoritative vehicles[], not from the
-  // leftover single-vehicle selection state.
-  const okCards=document.getElementById('ok-vehicle-cards');
-  if(okCards) okCards.innerHTML=bkRenderVehicleSummary(bkProjectVehicles(b).items);
-  document.getElementById('ok-total').textContent=(b.totalPrice||0)?bkMoney(b.totalPrice):'Estimate';
-  document.getElementById('ok-date').textContent=b.preferredDate||document.getElementById('f-date').value;
-  const titleEl=document.getElementById('ok-title');
-  const subEl=document.getElementById('ok-sub');
-  if(titleEl) titleEl.textContent='Booking Request Received';
-  if(subEl){
-    const ref=b.id?(' Reference: '+b.id+'.'):'';
-    const notify=b.notificationState&&b.notificationState.status==='failed'
-      ? ' We could not send the confirmation email automatically — your booking is still saved and our team can resend your access link.'
-      : ' Check your email for your appointment access link.';
-    subEl.textContent='Your booking request was submitted.'+ref+' No payment was collected and no card was required.'+notify+' Cardetail1 will review your location, schedule, and vehicle details before confirming the appointment. We\'ll contact you with your booking update. If you opted in for SMS, updates may be sent by text. Pay Online in My Garage or pay at service when available.';
+  const ok=document.getElementById('bs6')||document.getElementById('bs-ok');
+  if(ok) ok.classList.add('on');
+  try{
+    const okCards=document.getElementById('ok-vehicle-cards');
+    if(okCards) okCards.innerHTML=bkRenderVehicleSummary(bkProjectVehicles(b).items);
+    const totalEl=document.getElementById('ok-total');
+    if(totalEl) totalEl.textContent=(b.totalPrice||0)?bkMoney(b.totalPrice):'Estimate';
+    const dateEl=document.getElementById('ok-date');
+    if(dateEl) dateEl.textContent=b.preferredDate||document.getElementById('f-date')?.value||'—';
+    const refEl=document.getElementById('ok-ref');
+    if(refEl) refEl.textContent=b.id||'—';
+    const titleEl=document.getElementById('ok-title');
+    const subEl=document.getElementById('ok-sub');
+    if(titleEl) titleEl.textContent='Request received';
+    if(subEl){
+      const ref=b.id?(' Booking reference: '+b.id+'.'):'';
+      subEl.textContent='Your booking request was received.'+ref+' No payment was collected today. We\'ll review your request and notify you when the appointment is confirmed. If you opted in for SMS, updates may be sent by text.';
+    }
+  }catch(e){
+    const subEl=document.getElementById('ok-sub');
+    if(subEl) subEl.textContent='Your booking request was received.'+(b.id?(' Reference: '+b.id+'.'):'')+' No payment was collected today.';
   }
-  const em=document.getElementById('ok-email'); if(em)em.href=mailtoForBooking(b);
-  const sm=document.getElementById('ok-sms'); if(sm)sm.href=smsForBooking(b);
 }
 
 // ── MULTI-VEHICLE CART ─────────────────────────────────────────────────────────
@@ -5515,7 +5560,7 @@ function renderVehicleCart(){
 function restartBooking(){
   cardInitNonce++;
   cardInitInProgress=false;
-  ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0,travelFee:0,travelFeeMiles:0,payMethod:'',bookingId:'',draftRegistered:false,draftSaveToken:null,draftSaveTokenExp:null,cardSetupConfirmed:false,cardOnFileSaved:false};
+  ST={cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,units:1,cardToken:'',cardBrand:'',cardLast4:'',vehicles:[],zoneSurcharge:0,travelFee:0,travelFeeMiles:0,payMethod:'',bookingId:'',draftRegistered:false,draftSaveToken:null,draftSaveTokenExp:null,cardSetupConfirmed:false,cardOnFileSaved:false,bookingPersisted:false,submitInFlight:false,lastPersistedBooking:null};
   destroyStripePaymentUI(); stripePI=null;
   ['f-first','f-last','f-phone','f-email','f-addr','f-date','f-notes'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
   ['sms-consent-ok','terms-ok','cof-policy-ok'].forEach(id=>{const el=document.getElementById(id); if(el)el.checked=false;});

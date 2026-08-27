@@ -71,9 +71,9 @@ test('Stripe Payment Element unmounts before remount', () => {
   assert.match(initBlock, /destroyStripePaymentUI\(\)/);
 });
 
-test('booking modal progress shows six-step review and confirm labels', () => {
-  assert.match(index, /id="bpt5"[\s\S]*?Review/);
-  assert.match(index, /id="bpt6"[\s\S]*?Confirm/);
+test('booking modal progress shows six-step review-submit and request-sent labels', () => {
+  assert.match(index, /id="bpt5"[\s\S]*?Review &amp; Submit/);
+  assert.match(index, /id="bpt6"[\s\S]*?Request Sent/);
 });
 
 test('booking modal action buttons use type="button"', () => {
@@ -82,7 +82,7 @@ test('booking modal action buttons use type="button"', () => {
     index.indexOf('<!-- ADMIN PANEL')
   );
   assert.match(modal, /<button type="button" class="btn-sub" id="sub-btn"/);
-  assert.match(modal, /<button type="button" class="btn-n" onclick="goToConfirmFromTerms\(\)"/);
+  assert.doesNotMatch(modal, /onclick="goToConfirmFromTerms\(\)"/);
   assert.doesNotMatch(modal, /<button class="btn-sub" id="sub-btn"/);
 });
 
@@ -90,6 +90,7 @@ test('submit-booking keeps strict saved check with Stripe reconcile fallback', (
   assert.match(submit, /reconcileCardOnFileFromStripe/);
   assert.match(submit, /existing\.cardOnFileStatus !== 'saved'/);
   assert.match(submit, /card_on_file_not_saved/);
+  assert.match(submit, /CARD_ON_FILE_VERIFY_MSG/);
   assert.match(submit, /cardOnFileStatus:\s+existing\.cardOnFileStatus/);
   assert.match(read('netlify/lib/card-on-file.js'), /setup_intents/);
 });

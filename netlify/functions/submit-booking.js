@@ -48,6 +48,12 @@ const PAYMENT_PREFERENCES = new Set([
 const CARD_ON_FILE_VERIFY_MSG =
   'Your card is still being verified. Please wait a few seconds and try again.';
 
+function normalizeRequestPreference(value) {
+  const preference = String(value || '').trim();
+  if (!preference) return '';
+  return PAYMENT_PREFERENCES.has(preference) ? preference : null;
+}
+
 const { applyServerTravelAndTotal } = require('../lib/travel-fee');
 const {
   enforcePublicRateLimit,
@@ -247,7 +253,10 @@ function buildDraftRecord(b, draftId, now, existing = null) {
   const cardOnFileRequired = existing
     ? existing.cardOnFileRequired !== false
     : b.cardOnFileRequired !== false;
-  const preference = cardOnFileRequired ? String(b.paymentMethodPreference || '') : '';
+  const incomingPref = normalizeRequestPreference(b.paymentMethodPreference);
+  const preference = cardOnFileRequired
+    ? String(b.paymentMethodPreference || '')
+    : (incomingPref || '');
   return {
     id: draftId,
     isDraft: true,
@@ -737,8 +746,8 @@ exports.handler = async (event) => {
       if (b.acceptedCardOnFilePolicy !== true) {
         return json(400, { ok: false, error: 'card_on_file_policy_required' });
       }
-    } else if (preference) {
-      return json(400, { ok: false, error: 'payment_preference_not_expected' });
+    } else if (preference && !PAYMENT_PREFERENCES.has(preference)) {
+      return json(400, { ok: false, error: 'invalid_payment_preference' });
     }
 
     const now = new Date().toISOString();
@@ -894,8 +903,8 @@ exports.handler = async (event) => {
     if (cardOnFileRequired && (!PAYMENT_PREFERENCES.has(preference) || preference !== existing.paymentMethodPreference)) {
       return json(400, { ok: false, error: 'invalid_payment_preference' });
     }
-    if (!cardOnFileRequired && preference) {
-      return json(400, { ok: false, error: 'payment_preference_not_expected' });
+    if (!cardOnFileRequired && preference && !PAYMENT_PREFERENCES.has(preference)) {
+      return json(400, { ok: false, error: 'invalid_payment_preference' });
     }
     if (b.acceptedBookingPolicy !== true || (cardOnFileRequired && b.acceptedCardOnFilePolicy !== true)) {
       return json(400, { ok: false, error: 'booking_policy_required' });
