@@ -782,7 +782,7 @@ function resolveCustomerBookingSmsPlan({
   const includeAccessUrl = accessAuthorized && eventType !== EVENT_CANCELLED
     && eventType !== EVENT_CANCELLED_CUSTOMER
     && eventType !== EVENT_CANCELLED_ADMIN;
-  // Safe-confirmation (no private link, generic request copy) is only for the
+  // Safe-confirmation (useful summary, no private link) is only for the
   // initial booking-created event when /a?t= is not authorized.
   if (!accessAuthorized && eventType === EVENT_REQUEST_RECEIVED) {
     return {
@@ -791,7 +791,7 @@ function resolveCustomerBookingSmsPlan({
       includeAccessUrl: false,
       accessAuthorized: false,
       templateKey: TEMPLATE_KEYS.SAFE_CONFIRMATION,
-      templateData: {},
+      templateData: bookingTemplateData(TEMPLATE_KEYS.SAFE_CONFIRMATION, booking, ''),
       toE164: dest,
     };
   }

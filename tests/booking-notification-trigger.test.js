@@ -471,6 +471,7 @@ describe('booking persisted → notification events without portal or /a?t=', ()
     const stateKey = eventStateKey(EVENT_REQUEST_RECEIVED, booking);
     const key = idempotencyKey(booking.id, EVENT_REQUEST_RECEIVED, stateKey, 'sms');
     const first = await emitRequestReceived(booking, { prisma, env: SMS_ENV });
+    const queued = [...prisma._rows.values()][0];
     const duplicate = await enqueueSms({
       idempotencyKey: key,
       audience: 'customer',
@@ -478,7 +479,7 @@ describe('booking persisted → notification events without portal or /a?t=', ()
       booking,
       toE164: VERIFIED,
       templateKey: first.delivery.sms.templateKey,
-      templateData: {},
+      templateData: queued.templateData,
     }, { prisma, env: SMS_ENV });
     assert.equal(duplicate.idempotent, true);
     assert.equal(duplicate.outbox.id, first.delivery.sms.outboxId);
