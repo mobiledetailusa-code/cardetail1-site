@@ -31,9 +31,10 @@ describe('six-step checkout', () => {
     assert.match(html, /id="bpt6"[\s\S]*Confirm/);
   });
 
-  it('public copy says Book in six steps', () => {
+  it('public copy says Book in five steps', () => {
     const html = read('index.html');
-    assert.match(html, /Book in six steps/i);
+    assert.match(html, /Book in five steps/i);
+    assert.doesNotMatch(html, /Book in six steps/i);
   });
 
   it('bkGoTo maps one panel per step', () => {

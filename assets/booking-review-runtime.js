@@ -85,6 +85,22 @@
     return Math.max(0, Math.round(num(n) * 100) / 100);
   }
 
+  function getST(win) {
+    win = win || root;
+    var state = null;
+    try {
+      if (typeof ST !== 'undefined' && ST) state = ST;
+    } catch (e0) { /* no page-scoped ST */ }
+    if (!state && win && win.ST) state = win.ST;
+    if (!state) {
+      state = {};
+      if (win) win.ST = state;
+    } else if (win && win.ST !== state) {
+      win.ST = state;
+    }
+    return state;
+  }
+
   function text(id, value) {
     var el = root.document && root.document.getElementById(id);
     if (el) el.textContent = value == null ? '' : String(value);
@@ -98,9 +114,9 @@
   }
 
   function cartVehicles() {
-    var ST = root.ST || {};
-    var list = (ST.vehicles && ST.vehicles.length)
-      ? ST.vehicles
+    var state = getST();
+    var list = (state.vehicles && state.vehicles.length)
+      ? state.vehicles
       : [(typeof root.buildCurrentVehicleItem === 'function' ? root.buildCurrentVehicleItem() : null)].filter(Boolean);
     return list;
   }
@@ -110,7 +126,7 @@
    * Does not invent catalog prices.
    */
   function presentationTotals(source) {
-    var ST = root.ST || {};
+    var state = getST();
     var vehicles = Array.isArray(source && source.vehicles)
       ? source.vehicles
       : (source && source.payload && Array.isArray(source.payload.vehicles) ? source.payload.vehicles : cartVehicles());
@@ -131,6 +147,8 @@
     var fee = 0;
     if (source && (source.travelFeeAmount != null || source.zoneSurcharge != null || source.travelFee != null)) {
       fee = num(source.travelFeeAmount != null ? source.travelFeeAmount : (source.zoneSurcharge != null ? source.zoneSurcharge : source.travelFee));
+    } else if (state.travelFee != null || state.travelFeeAmount != null || state.zoneSurcharge != null) {
+      fee = num(state.travelFeeAmount != null ? state.travelFeeAmount : (state.travelFee != null ? state.travelFee : state.zoneSurcharge));
     } else if (typeof root.getTravelFeeAmount === 'function') {
       fee = num(root.getTravelFeeAmount());
     }
@@ -139,8 +157,8 @@
     if (source && source.discount != null) {
       discount = num(source.discount);
       if (source.discountLabel) discountLabel = source.discountLabel;
-    } else if (ST.offerPreview && ST.offerPreview.eligibility_status === 'eligible') {
-      discount = num(ST.offerPreview.discount_amount) / 100;
+    } else if (state.offerPreview && state.offerPreview.eligibility_status === 'eligible') {
+      discount = num(state.offerPreview.discount_amount) / 100;
     }
     var payloadTotal = roundMoney(source && source.totalPrice != null && source.vehicles ? source.totalPrice : (cartBase + fee));
     var estimatedTotal = roundMoney(cartBase + fee - discount);
@@ -242,7 +260,7 @@
   }
 
   function fillReviewSubmit() {
-    var ST = root.ST || {};
+    var ST = getST();
     var totals = presentationTotals();
     renderBkFinancialSummary({
       servicePrice: totals.service,
@@ -316,7 +334,7 @@
 
   function selectRequestPaymentPreference(preference) {
     if (!isKnownPreference(preference)) return;
-    var ST = root.ST || (root.ST = {});
+    var ST = getST();
     ST.payMethod = preference;
     syncPreferenceButtons(preference);
     var pmEl = root.document && root.document.getElementById('c-pay-method');
@@ -327,7 +345,7 @@
 
   function showFallbackSuccess(payload) {
     var b = payload || {};
-    var id = b.id || (root.ST && root.ST.bookingId) || '';
+    var id = b.id || getST().bookingId || '';
     try {
       if (typeof root.bkGoTo === 'function') root.bkGoTo(6, { noScroll: false, success: true });
     } catch (e1) { /* still paint fallback */ }
@@ -354,7 +372,7 @@
   }
 
   function showSuccess(payload) {
-    var ST = root.ST || {};
+    var ST = getST();
     var b = payload || root.__lastBookingPayload || {};
     ST.bookingPersisted = true;
     ST.bookingCreated = true;
@@ -446,7 +464,7 @@
   }
 
   function attachPreference(payload) {
-    var ST = root.ST || {};
+    var ST = getST();
     var pref = String(ST.payMethod || payload.paymentMethodPreference || '').trim();
     if (isKnownPreference(pref)) {
       payload.paymentMethodPreference = pref;
@@ -486,7 +504,7 @@
 
   async function submit(win) {
     win = win || root;
-    var ST = win.ST || (win.ST = {});
+    var ST = getST(win);
     if (win.OS_PREVIEW_ACTIVE) {
       alert('Preview mode — bookings and payments are disabled.');
       return { ok: false, kind: 'preview' };
@@ -600,7 +618,7 @@
     if (typeof orig !== 'function' || orig._reviewRuntime) return;
     var wrapped = function (n, opts) {
       opts = opts || {};
-      var ST = win.ST || {};
+      var ST = getST(win);
       n = Number(n) || 1;
       if (n === 6 && !opts.success && !ST.bookingPersisted) n = 5;
       if (ST.bookingPersisted && n < 6 && !opts.force) n = 6;
@@ -636,6 +654,7 @@
   }
 
   var api = {
+    getST: getST,
     money: money,
     bkMoney: money,
     REQUEST_PREFERENCES: REQUEST_PREFERENCES,

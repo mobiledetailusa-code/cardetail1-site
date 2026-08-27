@@ -125,6 +125,24 @@ describe('estimated total presentation', () => {
     assert.equal(els['c-total'].textContent, '$396.00');
   });
 
+  it('reads page-scoped let ST even when window.ST is empty', () => {
+    const ctx = {
+      console,
+      document: { readyState: 'complete', addEventListener() {}, getElementById() { return null; } },
+    };
+    vm.createContext(ctx);
+    vm.runInContext(
+      'let ST = { vehicles: [{ basePrice: 371, addonTotal: 0, subtotal: 371 }], travelFee: 25, payMethod: "online_after_service" };',
+      ctx
+    );
+    vm.runInContext(runtimeSrc, ctx);
+    const totals = vm.runInContext('Cardetail1BookingReview.presentationTotals()', ctx);
+    assert.equal(totals.service, 371);
+    assert.equal(totals.fee, 25);
+    assert.equal(totals.estimatedTotal, 396);
+    assert.equal(totals.payloadTotal, 396);
+  });
+
   it('review and success use the same money formatter and payload total', () => {
     assert.equal(Review.money(396), '$396.00');
     const persisted = { totalPrice: 396, preferredDate: '2026-08-31', preferredArrivalWindow: 'anytime', id: 'CD1-TEST' };
