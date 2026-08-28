@@ -9,11 +9,12 @@
   --r:14px;--r-sm:10px;--shadow:0 8px 32px rgba(0,0,0,.35);
   --fd:'DM Mono',ui-monospace,monospace;
 }
-html,body{max-width:100%;overflow-x:hidden}
+html,body{max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%}
 body{
   font-family:"DM Sans",system-ui,sans-serif;
   background:radial-gradient(1200px 600px at 50% -10%,#13202f,var(--bg) 60%);
   color:var(--fg);min-height:100vh;line-height:1.5;
+  padding-bottom:env(safe-area-inset-bottom,0);
 }
 a{color:var(--ac);text-decoration:none}
 a:hover{text-decoration:underline}
@@ -21,7 +22,9 @@ a:hover{text-decoration:underline}
 
 .proto-banner{
   background:rgba(245,158,11,.12);border-bottom:1px solid rgba(245,158,11,.35);
-  color:#fcd34d;font-size:12px;font-weight:700;text-align:center;padding:8px 12px;letter-spacing:.04em;
+  color:#fcd34d;font-size:11px;font-weight:700;text-align:center;
+  padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top));
+  letter-spacing:.04em;line-height:1.4;
 }
 
 /* Header */
@@ -43,7 +46,11 @@ a:hover{text-decoration:underline}
 .icon-btn.ac{background:var(--grad);border:none;color:#041018}
 
 /* Nav pills */
-.nav-pills{display:flex;gap:8px;padding:12px 18px;flex-wrap:wrap;align-items:center}
+.nav-pills{
+  display:flex;gap:8px;padding:12px 18px;flex-wrap:nowrap;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+}
+.nav-pills::-webkit-scrollbar{display:none}
 .pill{
   min-height:40px;padding:8px 18px;border-radius:999px;border:1px solid var(--line);
   background:var(--bg2);color:var(--mu);font:inherit;font-size:13px;font-weight:700;
@@ -54,7 +61,7 @@ a:hover{text-decoration:underline}
 .pill.outline-red{border-color:rgba(239,68,68,.45);color:#fca5a5;background:transparent}
 .pill.outline-red:hover{background:rgba(239,68,68,.1)}
 
-.main{max-width:920px;margin:0 auto;padding:0 16px 80px}
+.main{max-width:920px;margin:0 auto;padding:0 16px calc(80px + env(safe-area-inset-bottom,0px))}
 .sec-title{font-size:13px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px}
 
 /* Calendar strip */
@@ -219,7 +226,8 @@ a:hover{text-decoration:underline}
 
 /* FAB */
 .fab{
-  position:fixed;bottom:24px;right:20px;width:52px;height:52px;border-radius:50%;
+  position:fixed;bottom:max(24px,env(safe-area-inset-bottom,24px));right:max(20px,env(safe-area-inset-right,20px));
+  width:52px;height:52px;border-radius:50%;
   background:var(--grad);border:none;color:#041018;font-size:22px;cursor:pointer;
   box-shadow:0 6px 24px rgba(45,212,191,.35);z-index:50;
 }
@@ -245,4 +253,26 @@ a:hover{text-decoration:underline}
   .job-hero-top{flex-direction:column}
   .job-price{text-align:left}
   .form-row{grid-template-columns:1fr}
+  .hdr{padding:12px 14px}
+  .hdr-title{font-size:14px}
+  .nav-pills{padding:10px 14px}
+  .pill{flex-shrink:0;font-size:12px;padding:8px 14px}
+  .cal-day{flex:0 0 64px;padding:10px 6px}
+  .cal-day .dd{font-size:20px}
+  .job-name{font-size:18px}
+  .job-price{font-size:24px}
+  .drawer{width:100vw}
+  .map-card{height:140px}
+  .hub{padding:28px 16px 40px}
+  .hub h1{font-size:1.5rem}
+}
+
+/* Phone-frame on desktop — keeps preview feeling like a mobile app */
+@media(min-width:521px){
+  body.proto-mobile-frame{background:#05080d}
+  body.proto-mobile-frame .proto-shell{
+    max-width:430px;margin:0 auto;min-height:100vh;
+    border-left:1px solid var(--line);border-right:1px solid var(--line);
+    box-shadow:0 0 60px rgba(0,0,0,.5);
+  }
 }

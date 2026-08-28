@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex,nofollow">
+<title>Cardetail1 — Prévia Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+.mobile-hub{padding:20px 16px 32px}
+.mobile-hub h1{font-size:1.35rem;font-weight:800;margin-bottom:4px}
+.mobile-hub .sub{font-size:13px;color:var(--mu);margin-bottom:20px;line-height:1.5}
+.mobile-links{display:flex;flex-direction:column;gap:10px}
+.mobile-link{
+  display:flex;align-items:center;gap:14px;padding:16px 18px;
+  background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);
+  text-decoration:none;color:inherit;min-height:72px;transition:.18s;
+  -webkit-tap-highlight-color:transparent;
+}
+.mobile-link:active{transform:scale(.98);border-color:rgba(77,163,255,.4)}
+.mobile-link .ico{font-size:28px;width:40px;text-align:center;flex-shrink:0}
+.mobile-link .txt h2{font-size:15px;font-weight:800;margin-bottom:2px;color:var(--fg)}
+.mobile-link .txt p{font-size:12px;color:var(--mu);line-height:1.35}
+.mobile-link .arrow{margin-left:auto;color:var(--teal);font-size:18px;font-weight:700}
+.badge-live{
+  display:inline-block;font-size:10px;font-weight:800;padding:4px 10px;border-radius:999px;
+  background:rgba(34,197,94,.15);color:var(--green);margin-bottom:14px;letter-spacing:.06em;
+}
+</style>
+</head>
+<body class="proto-mobile-frame">
+<div class="proto-shell">
+<div class="proto-banner">📱 PRÉVIA MOBILE — protótipo · dados fictícios · sem produção</div>
+<div class="mobile-hub">
+  <span class="badge-live">● ONLINE PREVIEW</span>
+  <h1>Cardetail1 Portal UI</h1>
+  <p class="sub">Toque para abrir cada portal. Layout otimizado para celular.</p>
+  <div class="mobile-links">
+    <a class="mobile-link" href="customer.html">
+      <span class="ico">🚗</span>
+      <span class="txt"><h2>Customer — My Garage</h2><p>Valor total do serviço · timeline · mapa</p></span>
+      <span class="arrow">›</span>
+    </a>
+    <a class="mobile-link" href="technician.html">
+      <span class="ico">🔧</span>
+      <span class="txt"><h2>Technician Portal</h2><p>Agenda do dia · jobs · en route</p></span>
+      <span class="arrow">›</span>
+    </a>
+    <a class="mobile-link" href="admin.html">
+      <span class="ico">⚙️</span>
+      <span class="txt"><h2>Admin — Day View</h2><p>Calendário · confirmar · pagamentos · packs</p></span>
+      <span class="arrow">›</span>
+    </a>
+  </div>
+  <p style="margin-top:24px;font-size:11px;color:var(--mu2);text-align:center">
+    PR #222 deploy preview · mock data only
+  </p>
+</div>
+</div>
+</body>
+</html>

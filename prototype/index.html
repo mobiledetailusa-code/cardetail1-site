@@ -2,9 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f16">
 <meta name="robots" content="noindex,nofollow">
 <title>Cardetail1 — Portal UI Prototype</title>
+<script>
+if(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)&&location.pathname.endsWith('/prototype/')||location.pathname.endsWith('/prototype/index.html')){
+  location.replace('preview.html');
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared.css">
@@ -18,6 +24,11 @@
     existing admin functions are simulated in drawers; customer portal shows <strong>service total only</strong> (no fee breakdown).
   </p>
   <div class="hub-grid">
+    <a class="hub-card" href="preview.html" style="border-color:rgba(45,212,191,.4)">
+      <h2>📱 Mobile Preview Hub</h2>
+      <p>Entry point optimized for phone — large tap targets, safe areas, full-screen layout.</p>
+      <span class="tag" style="background:rgba(45,212,191,.12);color:var(--teal)">Start here on mobile</span>
+    </a>
     <a class="hub-card" href="admin.html">
       <h2>Admin Ops — Day View</h2>
       <p>Calendar strip, job cards, map, and drawer with confirm/decline, reschedule, package change, assign tech, and payment actions.</p>
