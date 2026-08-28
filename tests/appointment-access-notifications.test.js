@@ -550,20 +550,33 @@ test('access URL uses short /a?t= path — not raw PII query params', () => {
   assert.doesNotMatch(focus, /token=/);
 });
 
-test('request-received SMS stays within one GSM segment with a typical short access URL', () => {
-  const { renderSmsTemplate, TEMPLATE_KEYS } = require('../netlify/lib/sms-templates');
+test('request-received SMS stays GSM-7 with details and a typical short access URL', () => {
+  const { renderSmsTemplate, TEMPLATE_KEYS, measureSms } = require('../netlify/lib/sms-templates');
   const { buildAccessUrl } = require('../netlify/lib/appointment-access-token');
   process.env.CONTEXT = 'production';
   process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
   delete process.env.URL;
   const typicalToken = 'aat_' + 'A'.repeat(43);
   const url = buildAccessUrl(typicalToken);
-  const rendered = renderSmsTemplate(TEMPLATE_KEYS.REQUEST_RECEIVED, { url });
+  const rendered = renderSmsTemplate(TEMPLATE_KEYS.REQUEST_RECEIVED, {
+    url,
+    date: '2026-08-28',
+    service: 'Interior Detail',
+    window: 'anytime',
+  });
   assert.equal(rendered.ok, true);
-  assert.ok(rendered.body.length <= 160, `SMS length ${rendered.body.length}: ${rendered.body}`);
+  const measure = measureSms(rendered.body);
+  assert.equal(measure.encoding, 'GSM-7');
+  assert.ok(
+    measure.segmentCount <= 2,
+    `SMS segments ${measure.segmentCount} (${measure.characterCount} chars): ${rendered.body}`
+  );
   assert.match(rendered.body, /STOP/i);
   assert.match(rendered.body, /HELP/i);
   assert.match(rendered.body, /\/a\?t=/);
+  assert.match(rendered.body, /Interior Detail/);
+  assert.match(rendered.body, /Any time that day/);
+  assert.doesNotMatch(rendered.body, /Your appointment is confirmed/i);
 });
 
 test('branch-deploy request-received email uses branch-deploy origin', async () => {

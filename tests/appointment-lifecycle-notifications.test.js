@@ -244,7 +244,7 @@ describe('wiring: lifecycle emits from authoritative mutations', () => {
 describe('customer-facing copy', () => {
   it('change-request SMS says REQUEST, not RESCHEDULED', () => {
     const rendered = renderSmsTemplate(TEMPLATE_KEYS.CHANGE_REQUESTED, {});
-    assert.match(rendered.body, /change request/i);
+    assert.match(rendered.body, /request to change/i);
     assert.doesNotMatch(rendered.body, /rescheduled/i);
     assert.match(rendered.body, /STOP/i);
   });
@@ -256,13 +256,14 @@ describe('customer-facing copy', () => {
     });
     assert.match(confirmed.body, /confirmed/);
     assert.match(confirmed.body, /Aug 28/);
-    assert.match(confirmed.body, /8:00–9:00 AM/);
+    assert.match(confirmed.body, /8:00-9:00 AM/);
     const rescheduled = renderSmsTemplate(TEMPLATE_KEYS.RESCHEDULED, {
       date: 'Aug 29',
       window: '10:00–11:00 AM',
     });
     assert.match(rescheduled.body, /rescheduled/);
     assert.match(rescheduled.body, /Aug 29/);
+    assert.match(rescheduled.body, /10:00-11:00 AM/);
     assert.doesNotMatch(rescheduled.body, /Aug 28/);
   });
 
@@ -339,6 +340,7 @@ describe('confirm / change-request / reschedule / cancel emits', () => {
     assert.ok(bodies.includes(TEMPLATE_KEYS.CHANGE_REQUESTED));
     assert.ok(bodies.includes(TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST));
     const customer = renderSmsTemplate(TEMPLATE_KEYS.CHANGE_REQUESTED, {});
+    assert.match(customer.body, /request to change/i);
     assert.doesNotMatch(customer.body, /rescheduled/i);
   });
 
