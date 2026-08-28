@@ -111,7 +111,8 @@ describe('PR5 fail-closed runtime policy', () => {
 describe('PR5 templates and consent', () => {
   it('uses one brand and includes STOP/HELP disclosure in every template', () => {
     const { BRAND, TEMPLATE_KEYS, renderSmsTemplate } = require('../netlify/lib/sms-templates');
-    assert.equal(BRAND, 'Detailing Zone');
+    assert.equal(BRAND, 'Cardetail1');
+    const { ADMIN_TEMPLATE_KEYS } = require('../netlify/lib/sms-templates');
     for (const key of Object.values(TEMPLATE_KEYS)) {
       const rendered = renderSmsTemplate(key, {
         when: 'August 10',
@@ -125,7 +126,11 @@ describe('PR5 templates and consent', () => {
         message: 'Your requested follow-up is ready.',
       });
       assert.equal(rendered.ok, true, key);
-      assert.match(rendered.body, /^Detailing Zone:/, key);
+      if (ADMIN_TEMPLATE_KEYS.has(key)) {
+        assert.match(rendered.body, /^Cardetail1 Admin:/, key);
+      } else {
+        assert.match(rendered.body, /^Cardetail1:/, key);
+      }
       assert.match(rendered.body, /STOP/i, key);
       assert.match(rendered.body, /HELP/i, key);
       assert.ok(rendered.body.length <= 600, key);
@@ -452,7 +457,7 @@ describe('PR5 source containment and sanitized logs', () => {
     const root = path.join(__dirname, '..');
     const html = fs.readFileSync(path.join(root, 'my-garage.html'), 'utf8');
     const js = fs.readFileSync(path.join(root, 'assets/my-garage.js'), 'utf8');
-    assert.match(html, /transactional SMS from Detailing Zone/);
+    assert.match(html, /transactional SMS from Cardetail1/);
     assert.match(html, /Reply STOP to opt out or HELP for help/);
     assert.match(js, /update_sms_consent/);
     const adminHtml = fs.readFileSync(path.join(root, 'admin-ops.html'), 'utf8');

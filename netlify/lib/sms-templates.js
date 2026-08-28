@@ -1,12 +1,16 @@
 'use strict';
 
-const { PROGRAM_NAME } = require('./sms-program');
+const {
+  CUSTOMER_SMS_BRAND,
+  ADMIN_SMS_BRAND,
+} = require('./sms-program');
 
-// A2P 10DLC program identity is locked to PROGRAM_NAME ("Detailing Zone").
-// Do not silently switch the SMS prefix to Cardetail1 without a separate
-// campaign-alignment change.
-const BRAND = PROGRAM_NAME;
-const TEMPLATE_VERSION = 'sms-v3-2026-08-27';
+// Customer-facing SMS sender identity is the registered DBA (Cardetail1).
+// Legal EIN-backed A2P Brand remains Detailing Zone L.L.C. in sms-program.js.
+// Admin operational alerts use a distinct prefix so they are not confused
+// with customer traffic.
+const BRAND = CUSTOMER_SMS_BRAND;
+const TEMPLATE_VERSION = 'sms-v4-2026-08-28';
 const COMPLIANCE = 'Reply STOP or HELP';
 
 const TEMPLATE_KEYS = Object.freeze({
@@ -27,6 +31,21 @@ const TEMPLATE_KEYS = Object.freeze({
   ADMIN_CUSTOMER_CANCEL: 'ops.customer_cancel_alert',
   RECOVERY: 'recovery.followup',
 });
+
+const ADMIN_TEMPLATE_KEYS = new Set([
+  TEMPLATE_KEYS.ADMIN_BOOKING,
+  TEMPLATE_KEYS.ADMIN_INQUIRY,
+  TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST,
+  TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL,
+]);
+
+function smsBrandForTemplate(templateKey) {
+  return ADMIN_TEMPLATE_KEYS.has(templateKey) ? ADMIN_SMS_BRAND : CUSTOMER_SMS_BRAND;
+}
+
+function smsPrefix(templateKey) {
+  return `${smsBrandForTemplate(templateKey)}:`;
+}
 
 const MONTHS = Object.freeze([
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -172,7 +191,7 @@ function requestSummary(data) {
   const date = smsDateLabel(data.date || data.when);
   const service = asciiSms(data.service).slice(0, 40);
   const window = smsWindowLabel(data.window || data.arrivalPreference);
-  let body = `${BRAND}: Booking request received`;
+  let body = `${smsPrefix(TEMPLATE_KEYS.REQUEST_RECEIVED)} Booking request received`;
   if (date && service) body += ` for ${date} - ${service}`;
   else if (date) body += ` for ${date}`;
   else if (service) body += ` for ${service}`;
@@ -197,7 +216,7 @@ function renderSmsTemplate(templateKey, data = {}) {
       const date = smsDateLabel(data.date || data.when);
       const window = smsWindowLabel(data.window);
       const service = asciiSms(data.service).slice(0, 40);
-      body = `${BRAND}: Your appointment is confirmed`
+      body = `${smsPrefix(templateKey)} Your appointment is confirmed`
         + (date ? ` for ${date}` : '')
         + (window ? `, arrival window ${window}` : '')
         + '.'
@@ -206,19 +225,19 @@ function renderSmsTemplate(templateKey, data = {}) {
       break;
     }
     case TEMPLATE_KEYS.CHANGE_REQUESTED:
-      body = `${BRAND}: We received your request to change your appointment.`
+      body = `${smsPrefix(templateKey)} We received your request to change your appointment.`
         + ` Your current appointment remains unchanged until the new time is confirmed.`
         + viewLink('View request', url);
       break;
     case TEMPLATE_KEYS.CANCELLATION_REQUESTED:
-      body = `${BRAND}: We received your cancellation request.`
+      body = `${smsPrefix(templateKey)} We received your cancellation request.`
         + ` Your appointment remains scheduled until cancellation is confirmed.`
         + viewLink('View appointment', url);
       break;
     case TEMPLATE_KEYS.RESCHEDULED: {
       const date = smsDateLabel(data.date || data.when);
       const window = smsWindowLabel(data.window);
-      body = `${BRAND}: Your appointment has been rescheduled`
+      body = `${smsPrefix(templateKey)} Your appointment has been rescheduled`
         + (date ? ` to ${date}` : '')
         + (window ? `, arrival window ${window}` : '')
         + '.'
@@ -227,43 +246,43 @@ function renderSmsTemplate(templateKey, data = {}) {
     }
     case TEMPLATE_KEYS.CANCELLED: {
       const date = smsDateLabel(data.date || data.when);
-      body = `${BRAND}: Your appointment`
+      body = `${smsPrefix(templateKey)} Your appointment`
         + (date ? ` for ${date}` : '')
         + ` has been canceled.`;
       break;
     }
     case TEMPLATE_KEYS.ACTION_REQUIRED:
-      body = `${BRAND}: Action needed on your appointment.`
+      body = `${smsPrefix(templateKey)} Action needed on your appointment.`
         + (url ? ` ${url}` : '');
       break;
     case TEMPLATE_KEYS.TECH_AUCTION:
-      body = `${BRAND}: Job ${text(data.service, 100)} - ${text(data.date, 40)} - ${text(data.area, 40)}.`
+      body = `${smsPrefix(templateKey)} Job ${text(data.service, 100)} - ${text(data.date, 40)} - ${text(data.area, 40)}.`
         + (url ? ` Bid: ${url}` : '');
       break;
     case TEMPLATE_KEYS.ADMIN_BOOKING:
-      body = `${BRAND}: Booking alert ${text(data.bookingRef, 50)} - ${text(data.customerName, 80)}`
+      body = `${smsPrefix(templateKey)} Booking alert ${text(data.bookingRef, 50)} - ${text(data.customerName, 80)}`
         + (data.customerPhone ? ` - ${text(data.customerPhone, 30)}` : '');
       break;
     case TEMPLATE_KEYS.ADMIN_INQUIRY:
-      body = `${BRAND}: Customer question from ${text(data.customerName, 80)}`
+      body = `${smsPrefix(templateKey)} Customer question from ${text(data.customerName, 80)}`
         + (data.customerPhone ? ` (${text(data.customerPhone, 30)})` : '')
         + (data.message ? `: ${text(data.message, 220)}` : '');
       break;
     case TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST:
-      body = `${BRAND}: Customer requested an appointment change`
+      body = `${smsPrefix(templateKey)} Customer requested an appointment change`
         + (data.date ? ` for ${text(data.date, 40)}` : '')
         + (data.bookingRef ? ` (${text(data.bookingRef, 24)})` : '')
         + '.';
       break;
     case TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL:
-      body = `${BRAND}: Customer canceled appointment`
+      body = `${smsPrefix(templateKey)} Customer canceled appointment`
         + (data.bookingRef ? ` ${text(data.bookingRef, 24)}` : '')
         + (data.date ? ` for ${text(data.date, 40)}` : '')
         + (data.window ? `, ${text(data.window, 40)}` : '')
         + '.';
       break;
     case TEMPLATE_KEYS.RECOVERY:
-      body = `${BRAND}: ${text(data.message, 360)}` + (url ? ` ${url}` : '');
+      body = `${smsPrefix(templateKey)} ${text(data.message, 360)}` + (url ? ` ${url}` : '');
       break;
     default:
       return { ok: false, error: 'unknown_sms_template' };
@@ -371,6 +390,9 @@ module.exports = {
   TEMPLATE_VERSION,
   COMPLIANCE,
   TEMPLATE_KEYS,
+  ADMIN_TEMPLATE_KEYS,
+  smsBrandForTemplate,
+  smsPrefix,
   renderSmsTemplate,
   bookingTemplateData,
   scheduleFingerprint,

@@ -289,10 +289,10 @@ describe('customer-facing copy', () => {
     assert.doesNotMatch(rendered.body, /Main St/);
   });
 
-  it('customer-facing email brand is Cardetail1; SMS program stays Detailing Zone', () => {
+  it('customer-facing email brand is Cardetail1; SMS program is Cardetail1', () => {
     assert.equal(customerFacingBrand(), 'Cardetail1');
     const sms = renderSmsTemplate(TEMPLATE_KEYS.CANCELLED, { date: 'Aug 28' });
-    assert.match(sms.body, /^Detailing Zone:/);
+    assert.match(sms.body, /^Cardetail1:/);
   });
 });
 

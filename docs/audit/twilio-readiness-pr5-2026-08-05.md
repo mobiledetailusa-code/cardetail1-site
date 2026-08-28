@@ -49,7 +49,7 @@ No value is committed to the repository. GitHub/Netlify secrets must be supplied
 - Messaging Service SID is mandatory; raw `from` numbers are not accepted by the provider adapter.
 - Customer and technician transactional SMS consent is explicit, off by default, versioned and audited. A stale consent write returns 409.
 - STOP revokes matching consent idempotently. HELP is recognized. Messaging Service Advanced Opt-Out is expected to send the configured compliant response, so the webhook returns empty TwiML and does not duplicate it.
-- Every outbound template starts with the single brand `Detailing Zone:` and contains STOP/HELP guidance.
+- Every outbound customer template starts with `Cardetail1:` and contains STOP/HELP guidance. Admin operational templates start with `Cardetail1 Admin:`. Legal A2P Brand remains Detailing Zone L.L.C.; Cardetail1 is the registered DBA / customer-facing sender identity.
 - Same idempotency key plus same payload replays the existing row; payload drift returns 409.
 - Explicit 429 and retryable 5xx responses are retried with a bounded backoff. An ambiguous network failure is terminal to prevent duplicate delivery.
 - Status callbacks use an atomic compare-and-set transition so concurrent or late callbacks cannot regress `delivered` to an earlier state.

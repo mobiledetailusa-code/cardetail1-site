@@ -454,7 +454,7 @@ describe('19-20. admin SMS and Stripe/payment behavior unchanged', () => {
     });
     assert.equal(
       booking.body,
-      'Detailing Zone: Booking alert CD1-ADMIN - Owner - +15513132956 Reply STOP or HELP'
+      'Cardetail1 Admin: Booking alert CD1-ADMIN - Owner - +15513132956 Reply STOP or HELP'
     );
     const change = renderSmsTemplate(TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST, {
       date: 'Aug 28',
@@ -462,7 +462,7 @@ describe('19-20. admin SMS and Stripe/payment behavior unchanged', () => {
     });
     assert.equal(
       change.body,
-      'Detailing Zone: Customer requested an appointment change for Aug 28 (CD1-LIFE-01). Reply STOP or HELP'
+      'Cardetail1 Admin: Customer requested an appointment change for Aug 28 (CD1-LIFE-01). Reply STOP or HELP'
     );
     const cancel = renderSmsTemplate(TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL, {
       bookingRef: 'CD1-LIFE-01',
@@ -471,7 +471,7 @@ describe('19-20. admin SMS and Stripe/payment behavior unchanged', () => {
     });
     assert.equal(
       cancel.body,
-      'Detailing Zone: Customer canceled appointment CD1-LIFE-01 for Aug 28, 8:00–9:00 AM. Reply STOP or HELP'
+      'Cardetail1 Admin: Customer canceled appointment CD1-LIFE-01 for Aug 28, 8:00–9:00 AM. Reply STOP or HELP'
     );
   });
 
@@ -482,7 +482,7 @@ describe('19-20. admin SMS and Stripe/payment behavior unchanged', () => {
     });
     assert.doesNotMatch(diff, /stripe/i);
     assert.doesNotMatch(diff, /payment-authority|refund-adjustment|canonical-quote/);
-    assert.doesNotMatch(diff, /twilio-outbox-worker|twilio-provider|sms-outbox\.js|sms-consent/);
+    assert.doesNotMatch(diff, /twilio-outbox-worker|twilio-provider|sms-outbox\.js/);
     assert.doesNotMatch(diff, /submit-booking\.js/);
     assert.match(diff, /sms-templates\.js/);
   });
@@ -583,7 +583,7 @@ describe('encoding, segments, and synthetic QA fixtures', () => {
       assert.equal(rendered.ok, true, rendered.error);
       assert.equal(measure.encoding, 'GSM-7', rendered.body);
       assert.ok(measure.segmentCount <= 2, `${fixture.name} ${measure.segmentCount} segments: ${rendered.body}`);
-      assert.match(rendered.body, /^Detailing Zone:/);
+      assert.match(rendered.body, /^Cardetail1:/);
       assert.match(rendered.body, /STOP/);
       assert.match(rendered.body, /HELP/);
       assertNoPrivateLeak(rendered.body);
@@ -592,11 +592,21 @@ describe('encoding, segments, and synthetic QA fixtures', () => {
     });
   }
 
-  it('A2P program prefix remains Detailing Zone, not a silent Cardetail1 swap', () => {
-    const { PROGRAM_NAME } = require('../netlify/lib/sms-program');
+  it('customer SMS prefix is Cardetail1; legal A2P brand stays Detailing Zone L.L.C.', () => {
+    const {
+      PROGRAM_NAME,
+      CUSTOMER_SMS_BRAND,
+      ADMIN_SMS_BRAND,
+      A2P_LEGAL_BRAND,
+      LEGAL_BUSINESS_NAME_FORMAL,
+    } = require('../netlify/lib/sms-program');
     const { BRAND } = require('../netlify/lib/sms-templates');
-    assert.equal(PROGRAM_NAME, 'Detailing Zone');
-    assert.equal(BRAND, 'Detailing Zone');
+    assert.equal(PROGRAM_NAME, 'Cardetail1');
+    assert.equal(CUSTOMER_SMS_BRAND, 'Cardetail1');
+    assert.equal(ADMIN_SMS_BRAND, 'Cardetail1 Admin');
+    assert.equal(BRAND, 'Cardetail1');
+    assert.equal(A2P_LEGAL_BRAND, 'Detailing Zone L.L.C.');
+    assert.equal(LEGAL_BUSINESS_NAME_FORMAL, 'Detailing Zone L.L.C.');
   });
 });
 
