@@ -38,12 +38,15 @@ test('homepage loads the first-party reviews module and keeps the reviews anchor
 
 test('homepage reviews copy is first-party plus a labeled static Google snapshot', () => {
   assert.match(section, /Customer Reviews/);
-  assert.match(section, /Customer experiences with Detailing Zone/);
+  assert.match(section, /Customer experiences with Cardetail1/);
+  assert.doesNotMatch(section, /Customer experiences with Detailing Zone/);
   assert.match(section, /5\.0 on Google/);
-  assert.match(section, /9 Google reviews/);
-  assert.match(section, /not a live Google feed/);
+  assert.match(section, /9 reviews/);
+  assert.match(section, /Google review snapshot · August 2026/);
   assert.match(section, /My Garage/);
   assert.match(section, /View all reviews/);
+  assert.doesNotMatch(section, /copied from the current/);
+  assert.doesNotMatch(section, /not a live Google feed/);
   assert.doesNotMatch(section, /live Google reviews/i);
   assert.doesNotMatch(section, /powered by Google/i);
   assert.doesNotMatch(section, /id="rv-featured"/);
@@ -100,7 +103,7 @@ test('compact carousel replaces the featured grid and mixes portal reviews', () 
 });
 
 test('reviews section reserves a bounded height and clears the sticky nav', () => {
-  assert.match(index, /#reviews\{content-visibility:auto;contain-intrinsic-size:880px;scroll-margin-top:76px\}/);
+  assert.match(index, /#reviews\{content-visibility:auto;contain-intrinsic-size:760px;scroll-margin-top:76px\}/);
 });
 
 test('homepage and reviews module do not add paid Places API or review schema', () => {
