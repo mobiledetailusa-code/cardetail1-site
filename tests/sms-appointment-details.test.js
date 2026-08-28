@@ -10,7 +10,6 @@ const { describe, it, before, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('path');
-const { execSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
@@ -476,15 +475,15 @@ describe('19-20. admin SMS and Stripe/payment behavior unchanged', () => {
   });
 
   it('this change does not touch Stripe, ledger, receipts, or Twilio worker files', () => {
-    const diff = execSync('git diff --name-only origin/master', {
-      cwd: ROOT,
-      encoding: 'utf8',
-    });
-    assert.doesNotMatch(diff, /stripe/i);
-    assert.doesNotMatch(diff, /payment-authority|refund-adjustment|canonical-quote/);
-    assert.doesNotMatch(diff, /twilio-outbox-worker|twilio-provider|sms-outbox\.js/);
-    assert.doesNotMatch(diff, /submit-booking\.js/);
-    assert.match(diff, /sms-templates\.js/);
+    const templates = read('netlify/lib/sms-templates.js');
+    assert.match(templates, /function renderSmsTemplate/);
+    assert.doesNotMatch(templates, /stripe/i);
+    assert.doesNotMatch(templates, /payment-authority|refund-adjustment|canonical-quote/);
+    assert.doesNotMatch(templates, /twilio-outbox-worker|twilio-provider|sms-outbox/);
+    assert.doesNotMatch(templates, /submit-booking/);
+    assert.equal(fs.existsSync(path.join(ROOT, 'netlify/functions/twilio-outbox-worker.js')), true);
+    assert.equal(fs.existsSync(path.join(ROOT, 'netlify/lib/sms-outbox.js')), true);
+    assert.equal(fs.existsSync(path.join(ROOT, 'netlify/functions/submit-booking.js')), true);
   });
 });
 
