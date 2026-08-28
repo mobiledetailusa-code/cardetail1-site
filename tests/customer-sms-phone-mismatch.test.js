@@ -171,7 +171,7 @@ describe('resolveCustomerBookingSmsPlan CASE A/B/C', () => {
   it('8. safe confirmation retains STOP/HELP and brand', () => {
     const rendered = renderSmsTemplate(TEMPLATE_KEYS.SAFE_CONFIRMATION, {});
     assert.equal(rendered.ok, true);
-    assert.match(rendered.body, /Detailing Zone/);
+    assert.match(rendered.body, /Cardetail1/);
     assert.match(rendered.body, /STOP/i);
     assert.match(rendered.body, /HELP/i);
     assert.match(rendered.body, /booking request/i);

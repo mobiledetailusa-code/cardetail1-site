@@ -68,7 +68,7 @@ describe('public transactional SMS consent surface', () => {
   });
 
   it('7-13. exact sender, scope, frequency, rates, STOP, HELP and optionality are disclosed', () => {
-    assert.equal(PROGRAM_NAME, 'Detailing Zone');
+    assert.equal(PROGRAM_NAME, 'Cardetail1');
     for (const file of BOOKING_SURFACES) {
       assert.match(read(file), new RegExp(BOOKING_CONSENT_COPY.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), file);
     }
@@ -98,7 +98,8 @@ describe('public transactional SMS consent surface', () => {
   });
 
   it('Terms contain bounded messaging terms without changing no-card booking terms', () => {
-    assert.match(terms, /Detailing Zone Transactional SMS Program/);
+    assert.match(terms, /Cardetail1 Transactional SMS Program/);
+    assert.match(terms, /Cardetail1 is a registered DBA of Detailing Zone L\.L\.C\./);
     assert.match(terms, /Message frequency varies\. Message and data rates may apply/);
     assert.match(terms, /Reply <strong>STOP<\/strong>/);
     assert.match(terms, /Reply <strong>HELP<\/strong>/);

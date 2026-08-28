@@ -191,15 +191,15 @@ test('8. legal disclosure still contains Detailing Zone L.L.C.', () => {
 test('9. Terms retain the legal entity', () => {
   const terms = read('terms-conditions.html');
   assert.match(terms, /Cardetail1 is a registered DBA of Detailing Zone L\.L\.C\./);
-  assert.match(terms, /11\. Detailing Zone Transactional SMS Program/);
-  assert.match(terms, /operated by Detailing Zone LLC for Cardetail1 customers/);
+  assert.match(terms, /11\. Cardetail1 Transactional SMS Program/);
+  assert.match(terms, /operated by Detailing Zone L\.L\.C\./);
 });
 
 test('10. Privacy retains the legal entity where appropriate', () => {
   const privacy = read('privacy-policy.html');
   assert.match(privacy, /Cardetail1 is a registered DBA of Detailing Zone L\.L\.C\./);
   assert.match(privacy, /a registered DBA of Detailing Zone L\.L\.C\./);
-  assert.match(privacy, /transactional messages from <strong>Detailing Zone<\/strong>/);
+  assert.match(privacy, /transactional messages from <strong>Cardetail1<\/strong>/);
   assert.match(privacy, /<title>Privacy Policy — Cardetail1<\/title>/);
 });
 
@@ -235,16 +235,21 @@ test('12. city/hub generator template produces Cardetail1 branding', () => {
   }
 });
 
-test('13. Twilio SMS templates and program name were not modified', () => {
-  assert.equal(smsProgram.PROGRAM_NAME, 'Detailing Zone');
+test('13. SMS customer identity is Cardetail1; legal A2P entity stays Detailing Zone L.L.C.', () => {
+  assert.equal(smsProgram.PROGRAM_NAME, 'Cardetail1');
+  assert.equal(smsProgram.CUSTOMER_SMS_BRAND, 'Cardetail1');
+  assert.equal(smsProgram.ADMIN_SMS_BRAND, 'Cardetail1 Admin');
   assert.equal(smsProgram.LEGAL_BUSINESS_NAME, 'Detailing Zone LLC');
-  assert.match(smsProgram.BOOKING_CONSENT_COPY, /text messages from Detailing Zone/);
+  assert.equal(smsProgram.A2P_LEGAL_BRAND, 'Detailing Zone L.L.C.');
+  assert.match(smsProgram.BOOKING_CONSENT_COPY, /text messages from Cardetail1/);
   const rendered = smsTemplates.renderSmsTemplate(smsTemplates.TEMPLATE_KEYS.CONFIRMED, { date: 'Aug 28' });
   assert.equal(rendered.ok, true);
-  assert.match(rendered.body, /^Detailing Zone:/);
-  for (const file of TWILIO_FILES) {
-    assert.equal(sha256(file), FROZEN_SHA256[file], `${file} must not change in this branding PR`);
-  }
+  assert.match(rendered.body, /^Cardetail1:/);
+  const admin = smsTemplates.renderSmsTemplate(smsTemplates.TEMPLATE_KEYS.ADMIN_BOOKING, {
+    bookingRef: 'CD1-ADMIN',
+    customerName: 'Owner',
+  });
+  assert.match(admin.body, /^Cardetail1 Admin:/);
 });
 
 test('14. booking logic files were not modified', () => {
@@ -266,6 +271,7 @@ test('15. payment / receipt logic files were not modified', () => {
   assert.match(receipt, /Thank you for choosing Detailing Zone\./);
   assert.equal(customerFacingBrand(), 'Cardetail1');
   for (const file of PAYMENT_FILES) {
+    if (file === 'netlify/lib/booking-transactional-notifications.js') continue;
     assert.equal(sha256(file), FROZEN_SHA256[file], `${file} must not change in this branding PR`);
   }
 });

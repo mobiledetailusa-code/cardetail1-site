@@ -13,6 +13,7 @@ const {
   BOOKING_CONSENT_TEXT_VERSION,
   BOOKING_CONSENT_SOURCE,
   bookingSmsConsentGranted,
+  bookingConsentTextVersionRecognized,
 } = require('./sms-program');
 
 const CHANNEL = 'sms_transactional';
@@ -238,7 +239,7 @@ async function grantBookingSmsConsent({ customerAccountId, toE164, booking } = {
       const grantedAtMs = current?.grantedAt ? new Date(current.grantedAt).getTime() : Number.NaN;
       if (
         current?.status === 'granted'
-        && current.consentTextVersion === BOOKING_CONSENT_TEXT_VERSION
+        && bookingConsentTextVersionRecognized(current.consentTextVersion)
         && Number.isFinite(grantedAtMs)
         && grantedAtMs >= consentAt.getTime()
       ) {
