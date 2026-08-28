@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Cardetail1 — Portal UI Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<div class="proto-banner">⚠ DESIGN PROTOTYPE ONLY — mock data, no API calls, not for production</div>
+<div class="hub">
+  <h1>Cardetail1 Portal UI Prototype</h1>
+  <p class="lead">
+    Visual upgrade concept based on the employee dashboard reference. Three standalone screens with mock data —
+    existing admin functions are simulated in drawers; customer portal shows <strong>service total only</strong> (no fee breakdown).
+  </p>
+  <div class="hub-grid">
+    <a class="hub-card" href="admin.html">
+      <h2>Admin Ops — Day View</h2>
+      <p>Calendar strip, job cards, map, and drawer with confirm/decline, reschedule, package change, assign tech, and payment actions.</p>
+      <span class="tag">admin-ops.html functions preserved</span>
+    </a>
+    <a class="hub-card" href="technician.html">
+      <h2>Technician Portal</h2>
+      <p>Mobile-first schedule dashboard for field techs — today's jobs, map, en route / complete actions.</p>
+      <span class="tag">technician.html upgrade concept</span>
+    </a>
+    <a class="hub-card" href="customer.html">
+      <h2>Customer Portal — My Garage</h2>
+      <p>Next appointment hero, status timeline, calendar — displays contracted service total only (no travel/fee split).</p>
+      <span class="tag">my-garage.html upgrade concept</span>
+    </a>
+  </div>
+  <p style="margin-top:32px;font-size:12px;color:var(--mu)">
+  Open any page directly. To preview locally: <code style="color:var(--teal)">npx serve prototype</code> or open HTML files in browser.
+  </p>
+</div>
+</body>
+</html>

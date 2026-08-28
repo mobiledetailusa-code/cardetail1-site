@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Cardetail1 — Technician Portal (Prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<div class="proto-banner">⚠ PROTOTYPE — Technician View · mock data only · <a href="index.html" style="color:#fcd34d">← Hub</a></div>
+
+<header class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-title">Cardetail<span style="color:var(--ac)">1</span></div>
+    <div class="hdr-sub">Magno Oliveira · Technician View</div>
+  </div>
+  <div class="hdr-actions">
+    <button type="button" class="icon-btn" title="Notifications">🔔</button>
+    <button type="button" class="icon-btn" title="Theme">☀️</button>
+    <button type="button" class="icon-btn ac" title="Calendar">📅</button>
+  </div>
+</header>
+
+<nav class="nav-pills">
+  <button type="button" class="pill on">Dashboard</button>
+  <button type="button" class="pill" id="tab-jobs">My Jobs</button>
+  <button type="button" class="pill outline-red" id="btn-signout">Sign Out</button>
+</nav>
+
+<main class="main" id="view-dash">
+  <div class="sec-title">Your Schedule</div>
+  <div class="cal-strip" id="cal-strip"></div>
+  <div class="cal-banner" id="cal-banner"></div>
+  <div id="hero-job"></div>
+  <div id="map-wrap"></div>
+  <div class="sec-title">Today's Schedule</div>
+  <div class="sched-list" id="sched-list"></div>
+  <div class="sec-title">Upcoming Jobs</div>
+  <div id="upcoming"></div>
+</main>
+
+<main class="main" id="view-jobs" style="display:none">
+  <div class="sec-title">All My Assigned Jobs</div>
+  <div id="all-jobs"></div>
+</main>
+
+<button type="button" class="fab" title="Support chat" aria-label="Support">💬</button>
+
+<script src="mock-data.js"></script>
+<script src="calendar.js"></script>
+<script src="ui.js"></script>
+<script src="technician.js"></script>
+</body>
+</html>
