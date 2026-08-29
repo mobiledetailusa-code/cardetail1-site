@@ -294,6 +294,47 @@ model SmsOutbox {
   @@index([bookingId])
 }
 
+/// Privacy-preserving SMS bridge: customer <-> Cardetail1 Twilio number <-> owner.
+/// The owner replies to the Twilio number; customers never see ADMIN_SMS.
+model SmsBridgeThread {
+  id            String   @id @default(cuid())
+  customerE164  String   @unique
+  last4         String
+  lastInboundAt DateTime
+  lastOwnerAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  messages      SmsBridgeMessage[]
+
+  @@index([lastInboundAt])
+  @@index([last4, lastInboundAt])
+}
+
+model SmsBridgeMessage {
+  id          String          @id @default(cuid())
+  threadId    String
+  direction   String
+  providerSid String?         @unique
+  bodyPreview String          @default("")
+  createdAt   DateTime        @default(now())
+  thread      SmsBridgeThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}
+
+/// Dial-result records so missed-call admin alerts stay idempotent.
+model VoiceBridgeCall {
+  id         String   @id @default(cuid())
+  callSid    String   @unique
+  fromLast4  String
+  dialStatus String
+  notified   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
 /// Booking aggregate row. customerAccountId is an identity-linkage field only:
 /// backfill-on-login / linkBookingToAccount may set it when null so the account
 /// owns the booking. Financial authority (quotes, ledger, payments) is unchanged.

@@ -150,6 +150,7 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/twilio-inbound.js',
   'netlify/functions/twilio-outbox-worker.js',
   'netlify/functions/twilio-status-callback.js',
+  'netlify/functions/twilio-voice.js',
   // Owner Studio Stage 2 — protected catalog draft API (flags off by default).
   'netlify/functions/owner-studio-catalog.js',
     'netlify/functions/owner-studio-release.js',
