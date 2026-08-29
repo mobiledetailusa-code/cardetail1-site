@@ -1,14 +1,17 @@
 /**
- * Technician dashboard prototype.
+ * Technician dashboard — mock or live (tech session on Preview).
  */
 (function () {
   const P = CD1Proto;
   const UI = CD1UI;
+  const API = () => window.CD1PreviewApi;
   const TECH_ID = 'tech-magno';
   let selectedDate = P.fmtDate(P.TODAY);
-  let jobs = P.JOBS.map((j) => ({ ...j }));
+  let jobs = [];
+  let runtime = { mode: 'mock' };
 
   function myJobs() {
+    if (runtime.mode === 'live') return jobs.filter((j) => j.status !== 'cancelled');
     return jobs.filter((j) => j.assignedTechId === TECH_ID && j.status !== 'cancelled');
   }
 
@@ -22,7 +25,7 @@
       document.getElementById('map-wrap').innerHTML = '';
       return;
     }
-    const total = job.serviceTotal + job.travelFee;
+    const total = job.serviceTotal + (job.travelFee || 0);
     document.getElementById('hero-job').innerHTML = `
       <article class="job-hero">
         <div class="job-hero-top">
@@ -33,25 +36,25 @@
               ${UI.statusBadge(job.status)}
             </div>
           </div>
-          <div class="job-price">${P.money(total)}<span class="sub">fee ${P.money(job.travelFee)}</span></div>
+          <div class="job-price">${P.money(total)}${job.travelFee ? '<span class="sub">fee ' + P.money(job.travelFee) + '</span>' : ''}</div>
         </div>
         <div class="job-meta">
           <div class="meta-item"><span class="ico">🕐</span><div><div class="lbl">ETA</div><div class="val">${job.eta}</div></div></div>
-          <div class="meta-item"><span class="ico">🚗</span><div><div class="lbl">Vehicle</div><div class="val">${job.vehicle}</div></div></div>
-          <div class="meta-item"><span class="ico">📍</span><div><div class="lbl">Location</div><div class="val">${job.address}</div></div></div>
+          <div class="meta-item"><span class="ico">🚗</span><div><div class="lbl">Vehicle</div><div class="val">${job.vehicle || '—'}</div></div></div>
+          <div class="meta-item"><span class="ico">📍</span><div><div class="lbl">Location</div><div class="val">${job.address || '—'}</div></div></div>
         </div>
         <div class="actions">
-          ${job.status === 'confirmed' || job.status === 'assigned' ? `<button type="button" class="btn btn-p" data-action="enroute" data-id="${job.id}">Start En Route</button>` : ''}
+          ${['confirmed', 'assigned', 'accepted'].includes(job.status) ? `<button type="button" class="btn btn-p" data-action="enroute" data-id="${job.id}">Start En Route</button>` : ''}
           ${job.status === 'en_route' ? `<button type="button" class="btn btn-gr" data-action="arrive" data-id="${job.id}">Mark Arrived</button>` : ''}
-          ${job.status === 'arrived' || job.status === 'in_progress' ? `<button type="button" class="btn btn-gr" data-action="complete" data-id="${job.id}">Complete Job</button>` : ''}
-          <a class="btn btn-g" href="https://maps.google.com/?q=${encodeURIComponent(job.address)}" target="_blank" rel="noopener">Open Maps</a>
+          ${['arrived', 'in_progress'].includes(job.status) ? `<button type="button" class="btn btn-gr" data-action="complete" data-id="${job.id}">Complete Job</button>` : ''}
+          ${job.address ? `<a class="btn btn-g" href="https://maps.google.com/?q=${encodeURIComponent(job.address)}" target="_blank" rel="noopener">Open Maps</a>` : ''}
         </div>
       </article>`;
-    document.getElementById('map-wrap').innerHTML = `
+    document.getElementById('map-wrap').innerHTML = job.address ? `
       <div class="map-card">
         <iframe src="${CD1Calendar.mapEmbed(job)}" loading="lazy" title="Job location"></iframe>
         <div class="map-pin mono">${job.id}</div>
-      </div>`;
+      </div>` : '';
   }
 
   function renderList(date) {
@@ -66,7 +69,7 @@
         <div class="si-time">${j.timeStart}<br>– ${j.timeEnd}</div>
         <div class="si-body">
           <div class="si-name">${j.customerFirst} ${j.customerLast}</div>
-          <div class="si-loc">${j.address}</div>
+          <div class="si-loc">${j.address || ''}</div>
         </div>
         <div class="si-price">${P.money(j.serviceTotal)}</div>
       </div>`).join('');
@@ -89,14 +92,14 @@
         <div class="si-time">${new Date(j.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
         <div class="si-body">
           <div class="si-name">${j.customerFirst} ${j.customerLast}</div>
-          <div class="si-loc">${j.timeStart} · ${j.address}</div>
+          <div class="si-loc">${j.timeStart} · ${j.address || ''}</div>
         </div>
         ${UI.statusBadge(j.status)}
       </div>`).join('') + '</div>';
   }
 
   function renderAllJobs() {
-    const active = myJobs().filter((j) => !['completed_paid'].includes(j.status));
+    const active = myJobs().filter((j) => !['completed_paid', 'completed_pending_admin_review'].includes(j.status));
     document.getElementById('all-jobs').innerHTML = active.length
       ? active.map((j) => `
         <div class="job-hero" style="margin-bottom:10px">
@@ -104,19 +107,37 @@
           <div class="job-badges" style="margin:8px 0"><span class="badge badge-id mono">${j.id}</span>${UI.statusBadge(j.status)}</div>
           <div class="kv" style="font-size:12px">
             <div>${j.date} · ${j.timeStart} – ${j.timeEnd}</div>
-            <div>${j.vehicle}</div>
-            <div>${j.address}</div>
+            <div>${j.vehicle || ''}</div>
+            <div>${j.address || ''}</div>
           </div>
         </div>`).join('')
       : '<div class="empty"><p>No active assignments</p></div>';
   }
 
-  function refresh() {
-    CD1Calendar.renderCalendar(document.getElementById('cal-strip'), {
-      selectedDate,
-      anchorDate: P.TODAY,
-      onSelect: (d) => { selectedDate = d; refresh(); },
+  function jobCountByDate(dateStr) {
+    return dayJobs(dateStr).length;
+  }
+
+  function renderCalendar() {
+    const days = P.weekDays(P.TODAY).map((d) => ({ ...d, jobCount: jobCountByDate(d.date) }));
+    const container = document.getElementById('cal-strip');
+    const sel = selectedDate;
+    container.innerHTML = days.map((d) => {
+      const classes = ['cal-day'];
+      if (d.isToday) classes.push('today');
+      if (d.date === sel) classes.push('sel');
+      const label = d.jobCount === 1 ? '1 job' : d.jobCount + ' jobs';
+      return `<button type="button" class="${classes.join(' ')}" data-date="${d.date}">
+        <div class="dn">${d.dayName}</div><div class="dd">${d.dayNum}</div><div class="dm">${d.month}</div>
+        <div class="jc">${label}</div></button>`;
+    }).join('');
+    container.querySelectorAll('.cal-day').forEach((btn) => {
+      btn.addEventListener('click', () => { selectedDate = btn.dataset.date; refresh(); });
     });
+  }
+
+  function refresh() {
+    renderCalendar();
     CD1Calendar.renderBanner(document.getElementById('cal-banner'), selectedDate);
     const list = dayJobs(selectedDate);
     renderHero(list[0] || null);
@@ -125,16 +146,34 @@
     renderAllJobs();
   }
 
-  document.addEventListener('click', (e) => {
+  async function reloadJobs() {
+    if (runtime.mode === 'live') {
+      jobs = await API().techFetchJobs();
+    } else {
+      jobs = P.JOBS.map((j) => ({ ...j }));
+    }
+    refresh();
+  }
+
+  document.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const job = jobs.find((j) => j.id === btn.dataset.id);
     if (!job) return;
     const map = { enroute: 'en_route', arrive: 'arrived', complete: 'completed_pending_admin_review' };
-    if (map[btn.dataset.action]) {
-      job.status = map[btn.dataset.action];
-      UI.toast('Status → ' + P.STATUS_LABELS[job.status], 'ok');
-      refresh();
+    const status = map[btn.dataset.action];
+    if (!status) return;
+    try {
+      if (runtime.mode === 'live') {
+        await API().techUpdateStatus(job.id, status);
+        await reloadJobs();
+      } else {
+        job.status = status;
+        refresh();
+      }
+      UI.toast('Status → ' + (P.STATUS_LABELS[status] || status), 'ok');
+    } catch (err) {
+      UI.toast('Error: ' + err.message);
     }
   });
 
@@ -150,7 +189,20 @@
     document.querySelectorAll('.nav-pills .pill').forEach((p) => p.classList.remove('on'));
     document.querySelector('.nav-pills .pill').classList.add('on');
   });
-  document.getElementById('btn-signout').addEventListener('click', () => UI.toast('Sign out (prototype)'));
-  document.querySelector('.fab').addEventListener('click', () => UI.toast('Support chat (prototype)'));
-  refresh();
+  document.getElementById('btn-signout').addEventListener('click', () => {
+    if (runtime.mode === 'live') {
+      sessionStorage.removeItem('cd1_tech_token');
+      location.href = runtime.loginUrl || '/technician';
+      return;
+    }
+    UI.toast('Sign out (mock)');
+  });
+  document.querySelector('.fab').addEventListener('click', () => UI.toast('Support chat'));
+
+  (async function init() {
+    runtime = await API().initPortal('technician');
+    API().renderModeBanner(document.querySelector('.proto-banner'), runtime);
+    await reloadJobs();
+    if (runtime.error) UI.toast('Live load failed — mock: ' + runtime.error);
+  })();
 })();

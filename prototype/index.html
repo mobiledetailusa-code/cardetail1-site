@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex,nofollow">
 <title>Cardetail1 — Portal UI Prototype</title>
 <script>
-if(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)&&location.pathname.endsWith('/prototype/')||location.pathname.endsWith('/prototype/index.html')){
+if(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && (/\/prototype\/?$/.test(location.pathname) || /\/prototype\/index\.html$/.test(location.pathname))){
   location.replace('preview.html');
 }
 </script>

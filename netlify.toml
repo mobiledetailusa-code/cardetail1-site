@@ -76,6 +76,10 @@
   to = "/admin-owner-studio-catalog.html"
   status = 200
 [[redirects]]
+  from = "/portal-prototype"
+  to = "/prototype/preview.html"
+  status = 200
+[[redirects]]
   from = "/terms-conditions"
   to = "/terms-conditions.html"
   status = 200
