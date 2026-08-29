@@ -2,9 +2,15 @@
 
 const { validateTwilioWebhook } = require('../lib/twilio-webhook');
 const { revokeSmsConsentByPhone } = require('../lib/sms-consent-service');
+const { inboundSmsTwiml } = require('../lib/twilio-forwarding');
 
 const STOP_WORDS = new Set(['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']);
 const HELP_WORDS = new Set(['HELP', 'INFO']);
+
+// Advanced Opt-Out sends the configured STOP/HELP response, so the app must
+// not add a duplicate reply for control keywords (or when relay is
+// unconfigured): return empty TwiML in those cases.
+const EMPTY_TWIML = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
 
 function keyword(params = {}) {
   const advanced = String(params.OptOutType || '').trim().toUpperCase();
@@ -24,12 +30,14 @@ exports.handler = async (event = {}) => {
     const result = await revokeSmsConsentByPhone(verified.params.From);
     if (!result.ok) return { statusCode: 503, body: '' };
   }
-  // Advanced Opt-Out sends the configured STOP/HELP response. Returning empty
-  // TwiML prevents a duplicate application-generated message.
+  // Control keywords (STOP/HELP/…) get the empty opt-out reply. Any other
+  // inbound message is relayed to the configured personal number when
+  // forwarding is set up; otherwise the response is also empty.
+  const relay = inboundSmsTwiml(verified.params);
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'text/xml; charset=utf-8', 'Cache-Control': 'no-store' },
-    body: '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
+    body: relay.forwarded ? relay.body : EMPTY_TWIML,
   };
 };
 
