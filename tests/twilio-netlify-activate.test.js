@@ -8,6 +8,7 @@ const {
   PRODUCTION_SITE_ID,
   INBOUND_URL,
   STATUS_URL,
+  VOICE_URL,
   publicCopyBlocksCustomerSms,
   netlifyProductionOnlyPayload,
   assertNoProductionSends,
@@ -86,6 +87,7 @@ test('provider write plan forces send switches off and pins Production webhook U
   assert.equal(plan.vars.CUSTOMER_TRANSACTIONAL_SMS_ENABLED, 'false');
   assert.equal(plan.vars.TWILIO_INBOUND_WEBHOOK_URL, INBOUND_URL);
   assert.equal(plan.vars.TWILIO_STATUS_CALLBACK_URL, STATUS_URL);
+  assert.equal(plan.vars.TWILIO_VOICE_WEBHOOK_URL, VOICE_URL);
   assert.equal(plan.vars.TWILIO_FROM, undefined);
   assert.equal(PRODUCTION_SITE_ID.startsWith('d7e5'), true);
 });

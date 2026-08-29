@@ -29,6 +29,9 @@ const TEMPLATE_KEYS = Object.freeze({
   ADMIN_INQUIRY: 'ops.inquiry_alert',
   ADMIN_CHANGE_REQUEST: 'ops.change_request_alert',
   ADMIN_CUSTOMER_CANCEL: 'ops.customer_cancel_alert',
+  ADMIN_INBOUND_SMS: 'ops.inbound_sms_alert',
+  ADMIN_MISSED_CALL: 'ops.missed_call_alert',
+  CUSTOMER_BRIDGE_REPLY: 'bridge.customer_reply',
   RECOVERY: 'recovery.followup',
 });
 
@@ -37,6 +40,8 @@ const ADMIN_TEMPLATE_KEYS = new Set([
   TEMPLATE_KEYS.ADMIN_INQUIRY,
   TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST,
   TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL,
+  TEMPLATE_KEYS.ADMIN_INBOUND_SMS,
+  TEMPLATE_KEYS.ADMIN_MISSED_CALL,
 ]);
 
 function smsBrandForTemplate(templateKey) {
@@ -280,6 +285,18 @@ function renderSmsTemplate(templateKey, data = {}) {
         + (data.date ? ` for ${text(data.date, 40)}` : '')
         + (data.window ? `, ${text(data.window, 40)}` : '')
         + '.';
+      break;
+    case TEMPLATE_KEYS.ADMIN_INBOUND_SMS:
+      body = `${smsPrefix(templateKey)} SMS ***-${text(data.last4 || '0000', 4)}:`
+        + ` ${asciiSms(data.body || data.message).slice(0, 240)}.`
+        + ' Reply to this Cardetail1 number to answer. Add last 4 if several chats.';
+      break;
+    case TEMPLATE_KEYS.ADMIN_MISSED_CALL:
+      body = `${smsPrefix(templateKey)} Missed call ***-${text(data.last4 || '0000', 4)}.`
+        + ' Call back through Cardetail1, not personal recents.';
+      break;
+    case TEMPLATE_KEYS.CUSTOMER_BRIDGE_REPLY:
+      body = `${smsPrefix(templateKey)} ${asciiSms(data.body || data.message).slice(0, 320)}`;
       break;
     case TEMPLATE_KEYS.RECOVERY:
       body = `${smsPrefix(templateKey)} ${text(data.message, 360)}` + (url ? ` ${url}` : '');

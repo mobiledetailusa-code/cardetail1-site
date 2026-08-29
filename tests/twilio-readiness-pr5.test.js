@@ -470,6 +470,8 @@ describe('PR5 source containment and sanitized logs', () => {
       'netlify/lib/sms-outbox.js',
       'netlify/functions/twilio-inbound.js',
       'netlify/functions/twilio-status-callback.js',
+      'netlify/functions/twilio-voice.js',
+      'netlify/lib/sms-bridge.js',
     ].map((file) => fs.readFileSync(path.join(root, file), 'utf8')).join('\n');
     assert.doesNotMatch(changedSources, /AC[a-f0-9]{32}|SK[a-f0-9]{32}|MG[a-f0-9]{32}/i);
   });

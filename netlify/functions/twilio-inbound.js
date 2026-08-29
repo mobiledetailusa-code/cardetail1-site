@@ -2,6 +2,7 @@
 
 const { validateTwilioWebhook } = require('../lib/twilio-webhook');
 const { revokeSmsConsentByPhone } = require('../lib/sms-consent-service');
+const { handleInboundSms } = require('../lib/sms-bridge');
 
 const STOP_WORDS = new Set(['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']);
 const HELP_WORDS = new Set(['HELP', 'INFO']);
@@ -15,6 +16,14 @@ function keyword(params = {}) {
   return '';
 }
 
+function emptyTwiml(statusCode = 200) {
+  return {
+    statusCode,
+    headers: { 'Content-Type': 'text/xml; charset=utf-8', 'Cache-Control': 'no-store' },
+    body: '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
+  };
+}
+
 exports.handler = async (event = {}) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: '' };
   const verified = validateTwilioWebhook(event, 'inbound');
@@ -23,14 +32,16 @@ exports.handler = async (event = {}) => {
   if (type === 'STOP') {
     const result = await revokeSmsConsentByPhone(verified.params.From);
     if (!result.ok) return { statusCode: 503, body: '' };
+    return emptyTwiml();
   }
-  // Advanced Opt-Out sends the configured STOP/HELP response. Returning empty
-  // TwiML prevents a duplicate application-generated message.
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'text/xml; charset=utf-8', 'Cache-Control': 'no-store' },
-    body: '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
-  };
+  if (type === 'HELP' || type === 'START') {
+    // Advanced Opt-Out sends the configured STOP/HELP response. Returning empty
+    // TwiML prevents a duplicate application-generated message.
+    return emptyTwiml();
+  }
+  const bridge = await handleInboundSms(verified.params);
+  if (!bridge.ok && bridge.statusCode) return { statusCode: bridge.statusCode, body: '' };
+  return emptyTwiml();
 };
 
 exports.keyword = keyword;

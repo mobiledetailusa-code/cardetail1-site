@@ -12,6 +12,7 @@ const WEBHOOK_SECRETS = {
   TWILIO_AUTH_TOKEN: 'test-auth-token-for-signatures',
   TWILIO_INBOUND_WEBHOOK_URL: 'https://cardetail1.com/.netlify/functions/twilio-inbound',
   TWILIO_STATUS_CALLBACK_URL: 'https://cardetail1.com/.netlify/functions/twilio-status-callback',
+  TWILIO_VOICE_WEBHOOK_URL: 'https://cardetail1.com/.netlify/functions/twilio-voice',
 };
 
 const IDENTITY_KEYS = ['CONTEXT', 'DEPLOY_CONTEXT', 'BRANCH', 'HEAD', 'URL', 'PUBLIC_SITE_URL'];
@@ -50,6 +51,9 @@ test('webhook policy uses baked production identity when Functions omit CONTEXT/
   const policy = webhookPolicy('inbound', { ...WEBHOOK_SECRETS });
   assert.equal(policy.ok, true);
   assert.equal(policy.url, WEBHOOK_SECRETS.TWILIO_INBOUND_WEBHOOK_URL);
+  const voice = webhookPolicy('voice', { ...WEBHOOK_SECRETS });
+  assert.equal(voice.ok, true);
+  assert.equal(voice.url, WEBHOOK_SECRETS.TWILIO_VOICE_WEBHOOK_URL);
 });
 
 test('live deploy-preview CONTEXT still wins over a production bake', () => {

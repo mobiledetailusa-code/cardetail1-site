@@ -204,6 +204,7 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/twilio-inbound.js',
     'netlify/functions/twilio-outbox-worker.js',
     'netlify/functions/twilio-status-callback.js',
+    'netlify/functions/twilio-voice.js',
     // Owner Studio Stage 2 / 4B — protected catalog draft + preview APIs.
     'netlify/functions/owner-studio-catalog.js',
     'netlify/functions/owner-studio-release.js',

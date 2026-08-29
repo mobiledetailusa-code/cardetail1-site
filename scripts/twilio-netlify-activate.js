@@ -24,6 +24,7 @@ const NETLIFY_ACCOUNT = '6a2802ed5070702e9f45913b';
 const PUBLIC_SITE = 'https://cardetail1.com';
 const INBOUND_URL = `${PUBLIC_SITE}/.netlify/functions/twilio-inbound`;
 const STATUS_URL = `${PUBLIC_SITE}/.netlify/functions/twilio-status-callback`;
+const VOICE_URL = `${PUBLIC_SITE}/.netlify/functions/twilio-voice`;
 const WORKER_URL = `${PUBLIC_SITE}/.netlify/functions/twilio-outbox-worker`;
 const STAGING_SITE_ID = '982e6338-4a4a-432e-855b-db532b994391';
 
@@ -145,6 +146,7 @@ function providerWritePlan(input, { enableCustomerSms = false } = {}) {
       TWILIO_WORKER_SECRET: workerSecret,
       TWILIO_STATUS_CALLBACK_URL: STATUS_URL,
       TWILIO_INBOUND_WEBHOOK_URL: INBOUND_URL,
+      TWILIO_VOICE_WEBHOOK_URL: VOICE_URL,
       TWILIO_ALLOWED_BRANCH: 'master',
       TWILIO_ALLOWED_HOST: 'cardetail1.com',
       TWILIO_OUTBOX_ENABLED: 'false',
@@ -165,6 +167,7 @@ async function publicProbe() {
   const homepage = await fetchText(PUBLIC_SITE + '/');
   const inbound = await fetchText(INBOUND_URL);
   const status = await fetchText(STATUS_URL);
+  const voice = await fetchText(VOICE_URL);
   const worker = await fetchText(WORKER_URL);
   let workerJson = null;
   try { workerJson = JSON.parse(worker.body); } catch { workerJson = null; }
@@ -176,6 +179,7 @@ async function publicProbe() {
     functions: {
       inbound: { status: inbound.status, expect: 405 },
       statusCallback: { status: status.status, expect: 405 },
+      voice: { status: voice.status, expect: 405 },
       worker: {
         status: worker.status,
         disabled: !!(workerJson && workerJson.disabled),
@@ -231,6 +235,24 @@ async function configureMessagingService(client, messagingServiceSid) {
     useInboundWebhookOnNumber: service.useInboundWebhookOnNumber,
     stickySender: service.stickySender,
   };
+}
+
+async function configureVoiceOnServiceNumbers(client, messagingServiceSid) {
+  const pool = await client.messaging.v1.services(messagingServiceSid).phoneNumbers.list({ limit: 100 });
+  const updated = [];
+  for (const item of pool) {
+    const pnSid = item.phoneNumberSid || item.sid;
+    const row = await client.incomingPhoneNumbers(pnSid).update({
+      voiceUrl: VOICE_URL,
+      voiceMethod: 'POST',
+    });
+    updated.push({
+      sid: row.sid,
+      voiceUrl: row.voiceUrl,
+      voiceMethod: row.voiceMethod,
+    });
+  }
+  return updated;
 }
 
 async function ensureNumberOnService(client, messagingServiceSid, e164) {
@@ -371,6 +393,8 @@ async function main(argv = process.argv) {
       const added = await ensureNumberOnService(client, secrets.TWILIO_MESSAGING_SERVICE_SID, args.ensureNumber);
       report.actions.push({ ensureNumber: { ...added, phoneFingerprint: sha12(added.phoneNumber) } });
     }
+    const voice = await configureVoiceOnServiceNumbers(client, secrets.TWILIO_MESSAGING_SERVICE_SID);
+    report.actions.push({ configureVoice: { count: voice.length, voiceUrl: VOICE_URL } });
   }
 
   if (args.writeNetlify) {
@@ -432,6 +456,7 @@ module.exports = {
   PRODUCTION_SITE_ID,
   INBOUND_URL,
   STATUS_URL,
+  VOICE_URL,
   UNCONDITIONAL_SMS_COPY,
   publicCopyBlocksCustomerSms,
   netlifyProductionOnlyPayload,
@@ -439,5 +464,6 @@ module.exports = {
   providerWritePlan,
   parseArgs,
   twilioAuthMode,
+  configureVoiceOnServiceNumbers,
   main,
 };

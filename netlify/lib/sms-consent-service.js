@@ -355,6 +355,32 @@ async function revokeSmsConsentByPhone(rawPhone, opts = {}) {
   }
 }
 
+async function isSmsRevokedByPhone(rawPhone, opts = {}) {
+  const prisma = prismaClient(opts.prisma);
+  const phone = normalizeUsPhoneE164(rawPhone);
+  if (!phone) return { ok: false, error: 'invalid_phone', revoked: true };
+  if (!prisma) return { ok: false, error: 'unavailable', revoked: true };
+  const digits = phone.replace(/^\+1/, '');
+  try {
+    const profiles = await prisma.customerProfile.findMany({
+      where: { OR: [{ normalizedPhone: digits }, { normalizedPhone: phone }, { phone }] },
+      select: { customerAccountId: true },
+    });
+    if (!profiles.length) return { ok: true, revoked: false };
+    const revoked = await prisma.customerConsent.findFirst({
+      where: {
+        customerAccountId: { in: profiles.map((row) => row.customerAccountId) },
+        channel: CHANNEL,
+        status: 'revoked',
+      },
+      select: { id: true },
+    });
+    return { ok: true, revoked: !!revoked };
+  } catch {
+    return { ok: false, error: 'unavailable', revoked: true };
+  }
+}
+
 module.exports = {
   CHANNEL,
   CONSENT_TEXT_VERSION,
@@ -363,4 +389,5 @@ module.exports = {
   updateSmsConsent,
   grantBookingSmsConsent,
   revokeSmsConsentByPhone,
+  isSmsRevokedByPhone,
 };
