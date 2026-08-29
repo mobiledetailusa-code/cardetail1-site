@@ -54,6 +54,13 @@ test('webhook policy uses baked production identity when Functions omit CONTEXT/
   const voice = webhookPolicy('voice', { ...WEBHOOK_SECRETS });
   assert.equal(voice.ok, true);
   assert.equal(voice.url, WEBHOOK_SECRETS.TWILIO_VOICE_WEBHOOK_URL);
+  const derived = webhookPolicy('voice', {
+    TWILIO_AUTH_TOKEN: WEBHOOK_SECRETS.TWILIO_AUTH_TOKEN,
+    TWILIO_INBOUND_WEBHOOK_URL: WEBHOOK_SECRETS.TWILIO_INBOUND_WEBHOOK_URL,
+    TWILIO_STATUS_CALLBACK_URL: WEBHOOK_SECRETS.TWILIO_STATUS_CALLBACK_URL,
+  });
+  assert.equal(derived.ok, true);
+  assert.equal(derived.url, WEBHOOK_SECRETS.TWILIO_VOICE_WEBHOOK_URL);
 });
 
 test('live deploy-preview CONTEXT still wins over a production bake', () => {

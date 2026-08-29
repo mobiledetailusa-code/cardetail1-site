@@ -146,7 +146,6 @@ function providerWritePlan(input, { enableCustomerSms = false } = {}) {
       TWILIO_WORKER_SECRET: workerSecret,
       TWILIO_STATUS_CALLBACK_URL: STATUS_URL,
       TWILIO_INBOUND_WEBHOOK_URL: INBOUND_URL,
-      TWILIO_VOICE_WEBHOOK_URL: VOICE_URL,
       TWILIO_ALLOWED_BRANCH: 'master',
       TWILIO_ALLOWED_HOST: 'cardetail1.com',
       TWILIO_OUTBOX_ENABLED: 'false',

@@ -282,7 +282,7 @@ describe('signed voice webhook rejects unsigned requests', () => {
       BRANCH: 'master',
       URL: 'https://cardetail1.com',
       TWILIO_AUTH_TOKEN: 'test-auth-token-for-signatures',
-      TWILIO_VOICE_WEBHOOK_URL: VOICE_URL,
+      TWILIO_INBOUND_WEBHOOK_URL: 'https://cardetail1.com/.netlify/functions/twilio-inbound',
       ADMIN_SMS: OWNER,
       ADMIN_SMS_CONSENT_GRANTED: 'true',
     };
