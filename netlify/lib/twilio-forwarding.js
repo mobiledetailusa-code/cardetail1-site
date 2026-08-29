@@ -63,9 +63,18 @@ const EMPTY_TWIML = twimlResponse('');
 // relay. Twilio concatenates up to 1600 chars; keep the relay well under.
 const MAX_FORWARD_BODY = 1200;
 
+// Strip anything that looks like a booking appointment-access token so an
+// access-granting link a customer quotes back is never relayed onward. Covers
+// the opaque token (aat_…) and the ?t=/&t= access-URL query parameter.
+function redactAccessTokens(text) {
+  return String(text == null ? '' : text)
+    .replace(/aat_[A-Za-z0-9_-]+/g, '[redacted-token]')
+    .replace(/([?&]t=)[^\s&]+/g, '$1[redacted]');
+}
+
 function buildForwardedSmsBody({ from, body } = {}) {
   const sender = normalizeE164(from) || 'unknown number';
-  const text = clean(body);
+  const text = redactAccessTokens(clean(body));
   const trimmed = text.length > MAX_FORWARD_BODY
     ? `${text.slice(0, MAX_FORWARD_BODY)}…`
     : text;
@@ -77,6 +86,10 @@ function buildForwardedSmsBody({ from, body } = {}) {
  * TwiML for an inbound SMS webhook. Relays the message to the configured
  * personal number via <Message to="…"> when a destination is set and the body
  * is not a control keyword; otherwise returns an empty <Response/>.
+ *
+ * Relay-loop guard: never relay a message whose sender is the destination
+ * itself (e.g. the owner replying to a forwarded text, which arrives back at
+ * the business number). That would ping-pong business ↔ owner indefinitely.
  */
 function inboundSmsTwiml(params = {}, env = process.env) {
   const target = smsForwardTarget(env);
@@ -84,31 +97,41 @@ function inboundSmsTwiml(params = {}, env = process.env) {
   if (isControlKeyword(params.Body)) {
     return { forwarded: false, reason: 'control_keyword', body: EMPTY_TWIML };
   }
+  if (normalizeE164(params.From) === target) {
+    return { forwarded: false, reason: 'loop_guard', body: EMPTY_TWIML };
+  }
   const message = buildForwardedSmsBody({ from: params.From, body: params.Body });
   const inner = `<Message to="${escapeXml(target)}">${escapeXml(message)}</Message>`;
   return { forwarded: true, target, body: twimlResponse(inner) };
 }
 
+function unavailableCallTwiml(reason) {
+  const inner = '<Say voice="alice">Thank you for calling Cardetail1. '
+    + 'We are unable to take your call right now. Please try again later or leave a text message.</Say>'
+    + '<Hangup/>';
+  return { forwarded: false, reason, body: twimlResponse(inner) };
+}
+
 /**
  * TwiML for an inbound voice webhook. Bridges the caller to the configured
  * personal number via <Dial> when set; otherwise plays a short unavailable
- * message and hangs up.
+ * message and hangs up (bounded fallback — no dial).
+ *
+ * Caller ID is ALWAYS the dialed business number (params.To). Twilio only
+ * allows an owned/verified number as callerId, so we never spoof the customer
+ * and never fall back to the personal number as callerId. If the business
+ * number is not a valid E.164 the call fails closed to the unavailable
+ * message. Relay-loop guard: never dial when the caller is the destination.
  */
 function inboundCallTwiml(params = {}, env = process.env) {
   const target = callForwardTarget(env);
-  if (!target) {
-    const inner = '<Say voice="alice">Thank you for calling Cardetail1. '
-      + 'We are unable to take your call right now. Please try again later or leave a text message.</Say>'
-      + '<Hangup/>';
-    return { forwarded: false, reason: 'no_target', body: twimlResponse(inner) };
-  }
-  // callerId must be a number owned by (or verified on) the Twilio account, so
-  // use the dialed business number rather than spoofing the caller. The owner
-  // still recognizes the business line and can call back through it.
-  const callerId = normalizeE164(params.To) || target;
-  const dialAttrs = `callerId="${escapeXml(callerId)}" answerOnBridge="true" timeout="20"`;
+  if (!target) return unavailableCallTwiml('no_target');
+  if (normalizeE164(params.From) === target) return unavailableCallTwiml('loop_guard');
+  const businessCallerId = normalizeE164(params.To);
+  if (!businessCallerId) return unavailableCallTwiml('no_business_caller_id');
+  const dialAttrs = `callerId="${escapeXml(businessCallerId)}" answerOnBridge="true" timeout="20"`;
   const inner = `<Dial ${dialAttrs}><Number>${escapeXml(target)}</Number></Dial>`;
-  return { forwarded: true, target, callerId, body: twimlResponse(inner) };
+  return { forwarded: true, target, callerId: businessCallerId, body: twimlResponse(inner) };
 }
 
 module.exports = {
@@ -120,6 +143,7 @@ module.exports = {
   smsForwardTarget,
   callForwardTarget,
   escapeXml,
+  redactAccessTokens,
   twimlResponse,
   EMPTY_TWIML,
   buildForwardedSmsBody,

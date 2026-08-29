@@ -105,10 +105,66 @@ describe('inbound call bridge TwiML', () => {
     assert.match(relay.body, /answerOnBridge="true"/);
   });
 
-  it('falls back to the target as caller ID when To is not E.164', () => {
+  it('fails closed (no dial) when the business caller ID is not valid E.164', () => {
     const env = { TWILIO_PERSONAL_NUMBER: PERSONAL };
     const relay = inboundCallTwiml({ From: CUSTOMER, To: 'sip:foo@bar' }, env);
-    assert.equal(relay.callerId, PERSONAL);
+    assert.equal(relay.forwarded, false);
+    assert.equal(relay.reason, 'no_business_caller_id');
+    assert.doesNotMatch(relay.body, /<Dial/);
+    assert.match(relay.body, /<Hangup\/>/);
+    // Never use the personal number as caller ID.
+    assert.doesNotMatch(relay.body, new RegExp(`callerId="\\${PERSONAL}"`));
+  });
+});
+
+describe('adversarial: relay-loop protection', () => {
+  it('does not relay an SMS whose sender is the forwarding destination', () => {
+    const env = { TWILIO_FORWARD_SMS_TO: PERSONAL };
+    const relay = inboundSmsTwiml({ From: PERSONAL, To: BUSINESS, Body: 'owner replying' }, env);
+    assert.equal(relay.forwarded, false);
+    assert.equal(relay.reason, 'loop_guard');
+    assert.match(relay.body, /<Response><\/Response>/);
+  });
+
+  it('does not dial when the caller is the forwarding destination', () => {
+    const env = { TWILIO_FORWARD_CALLS_TO: PERSONAL };
+    const relay = inboundCallTwiml({ From: PERSONAL, To: BUSINESS }, env);
+    assert.equal(relay.forwarded, false);
+    assert.equal(relay.reason, 'loop_guard');
+    assert.doesNotMatch(relay.body, /<Dial/);
+  });
+});
+
+describe('adversarial: booking access-token containment', () => {
+  it('redacts appointment-access tokens and access URLs before relaying', () => {
+    const env = { TWILIO_FORWARD_SMS_TO: PERSONAL };
+    const body = 'my link https://cardetail1.com/a?t=aat_SUPERSECRETTOKEN123 and token aat_ANOTHERONE456';
+    const relay = inboundSmsTwiml({ From: CUSTOMER, To: BUSINESS, Body: body }, env);
+    assert.equal(relay.forwarded, true);
+    assert.doesNotMatch(relay.body, /aat_SUPERSECRETTOKEN123/);
+    assert.doesNotMatch(relay.body, /aat_ANOTHERONE456/);
+    assert.match(relay.body, /\[redacted-token\]/);
+    assert.match(relay.body, /t=\[redacted\]/);
+  });
+});
+
+describe('adversarial: destination cannot be injected from request params', () => {
+  it('ignores attacker-controlled destination fields and uses only env', () => {
+    const attacker = '+19995550000';
+    // No env target configured; attacker tries to smuggle a destination.
+    const relay = inboundSmsTwiml(
+      { From: CUSTOMER, To: BUSINESS, Body: 'hi', ForwardTo: attacker, to: attacker },
+      {},
+    );
+    assert.equal(relay.forwarded, false);
+    assert.doesNotMatch(relay.body, new RegExp(attacker.replace('+', '\\+')));
+    // With env configured, the destination is the env value, not the request.
+    const relay2 = inboundSmsTwiml(
+      { From: CUSTOMER, To: BUSINESS, Body: 'hi', ForwardTo: attacker },
+      { TWILIO_FORWARD_SMS_TO: PERSONAL },
+    );
+    assert.equal(relay2.target, PERSONAL);
+    assert.doesNotMatch(relay2.body, new RegExp(attacker.replace('+', '\\+')));
   });
 });
 
@@ -235,6 +291,57 @@ describe('inbound + voice handlers end-to-end (signed)', () => {
         body: new URLSearchParams({ From: CUSTOMER, To: BUSINESS }).toString(),
       });
       assert.equal(bad.statusCode, 403);
+    });
+  });
+});
+
+describe('adversarial: Production-only containment (preview cannot forward)', () => {
+  const authToken = 'e2e-auth-token-for-signatures';
+  const inboundUrl = 'https://cardetail1.com/.netlify/functions/twilio-inbound';
+  const voiceUrl = 'https://cardetail1.com/.netlify/functions/twilio-voice';
+
+  function run(extra, fn) {
+    const base = {
+      TWILIO_AUTH_TOKEN: authToken,
+      TWILIO_INBOUND_WEBHOOK_URL: inboundUrl,
+      TWILIO_VOICE_WEBHOOK_URL: voiceUrl,
+      TWILIO_FORWARD_SMS_TO: PERSONAL,
+      TWILIO_FORWARD_CALLS_TO: PERSONAL,
+      ...extra,
+    };
+    const prior = {};
+    for (const [k, v] of Object.entries(base)) { prior[k] = process.env[k]; process.env[k] = v; }
+    // Ensure any ambient production identity does not leak in.
+    for (const k of ['CONTEXT', 'BRANCH', 'URL', 'DEPLOY_CONTEXT', 'HEAD', 'PUBLIC_SITE_URL']) {
+      if (!(k in base)) { prior[k] = process.env[k]; delete process.env[k]; }
+    }
+    return Promise.resolve(fn()).finally(() => {
+      for (const k of Object.keys(prior)) {
+        if (prior[k] == null) delete process.env[k];
+        else process.env[k] = prior[k];
+      }
+    });
+  }
+
+  function signed(url, params) {
+    const signature = twilio.getExpectedTwilioSignature(authToken, url, params);
+    return { httpMethod: 'POST', headers: { 'x-twilio-signature': signature }, body: new URLSearchParams(params).toString() };
+  }
+
+  it('a validly-signed inbound SMS in a deploy-preview context is rejected 503', async () => {
+    await run({ CONTEXT: 'deploy-preview', BRANCH: 'cursor/twilio-sms-call-forwarding-f5c4', URL: 'https://cardetail1.com' }, async () => {
+      const inbound = require('../netlify/functions/twilio-inbound');
+      const res = await inbound.handler(signed(inboundUrl, { From: CUSTOMER, To: BUSINESS, Body: 'forward me' }));
+      assert.equal(res.statusCode, 503);
+      assert.equal(res.body, '');
+    });
+  });
+
+  it('a validly-signed inbound call on a non-master branch is rejected 503', async () => {
+    await run({ CONTEXT: 'production', BRANCH: 'feature/x', URL: 'https://cardetail1.com' }, async () => {
+      const voice = require('../netlify/functions/twilio-voice');
+      const res = await voice.handler(signed(voiceUrl, { From: CUSTOMER, To: BUSINESS }));
+      assert.equal(res.statusCode, 503);
     });
   });
 });
