@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="proto-booting">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -9,12 +9,13 @@
 <meta name="robots" content="noindex,nofollow">
 <title>Cardetail1 — Admin Day View (Prototype)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared.css">
 </head>
-<body class="proto-mobile-frame">
+<body>
 <div class="proto-shell">
-<div class="proto-banner">⚠ PROTOTYPE — Admin Day View · mock data only · <a href="index.html" style="color:#fcd34d">← Hub</a></div>
+<div class="proto-banner">⚠ PROTOTYPE — Admin Day View · <a href="preview.html" style="color:#fcd34d">← Hub</a></div>
 
 <header class="hdr">
   <div class="hdr-brand">
@@ -34,6 +35,7 @@
 </nav>
 
 <main class="main">
+  <div class="skel" aria-hidden="true"><div class="skel-bar w60"></div><div class="skel-bar tall"></div><div class="skel-bar w40"></div></div>
   <div class="sec-title">Your Schedule</div>
   <div class="cal-strip" id="cal-strip" role="tablist" aria-label="Week calendar"></div>
   <div class="cal-banner" id="cal-banner"></div>
@@ -63,13 +65,14 @@
   </aside>
 </div>
 
-<script src="preview-config.js"></script>
-<script src="preview-api.js"></script>
-<script src="/netlify/lib/admin-session-client.js"></script>
+<script src="proto-boot.js"></script>
 <script src="mock-data.js"></script>
 <script src="calendar.js"></script>
 <script src="ui.js"></script>
-<script src="admin.js"></script>
+<script src="preview-config.js" defer></script>
+<script src="preview-api.js" defer></script>
+<script src="/netlify/lib/admin-session-client.js" defer></script>
+<script src="admin.js" defer></script>
 </div>
 </body>
 </html>

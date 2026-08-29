@@ -1,0 +1,18 @@
+/*
+  Cache-Control for static prototype assets.
+  HTML stays fresh; CSS/JS can be cached briefly on CDN.
+*/
+/shared.css
+  Cache-Control: public, max-age=3600
+/mock-data.js
+  Cache-Control: public, max-age=3600
+/calendar.js
+  Cache-Control: public, max-age=3600
+/ui.js
+  Cache-Control: public, max-age=3600
+/preview-config.js
+  Cache-Control: public, max-age=3600
+/preview-api.js
+  Cache-Control: public, max-age=3600
+/proto-boot.js
+  Cache-Control: public, max-age=3600

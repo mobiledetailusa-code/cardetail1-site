@@ -78,11 +78,7 @@
           ${job.amountDue > 0 ? `<button type="button" class="btn btn-warn" data-action="settle" data-id="${job.id}">Settle ${P.money(job.amountDue)}</button>` : ''}
         </div>
       </article>`;
-    document.getElementById('map-wrap').innerHTML = job.address ? `
-      <div class="map-card">
-        <iframe src="${CD1Calendar.mapEmbed({ address: mapAddr })}" loading="lazy" title="Job location map"></iframe>
-        <div class="map-pin mono">${job.id}</div>
-      </div>` : '';
+    document.getElementById('map-wrap').innerHTML = job.address ? CD1Calendar.mapHtml(job, job.id) : '';
   }
 
   function renderList(date) {
@@ -397,10 +393,16 @@
   UI.bindDrawerClose();
 
   (async function init() {
+    jobs = P.JOBS.map((j) => ({ ...j }));
+    refresh();
     runtime = await API().initPortal('admin');
     API().renderModeBanner(document.querySelector('.proto-banner'), runtime);
-    if (runtime.techs && runtime.techs.length) techList = runtime.techs;
-    await reloadJobs();
-    if (runtime.error) UI.toast('Live load failed — using mock: ' + runtime.error);
+    if (runtime.mode === 'live') {
+      if (runtime.techs && runtime.techs.length) techList = runtime.techs;
+      jobs = runtime.jobs;
+      refresh();
+    } else if (runtime.error) {
+      UI.toast('Live indisponível — usando mock');
+    }
   })();
 })();

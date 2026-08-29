@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="proto-booting">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -7,13 +7,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="robots" content="noindex,nofollow">
-<title>Cardetail1 — Prévia Mobile</title>
+<title>Cardetail1 — Portal Preview</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared.css">
 <style>
-.mobile-hub{padding:20px 16px 32px}
-.mobile-hub h1{font-size:1.35rem;font-weight:800;margin-bottom:4px}
+.mobile-hub{padding:20px 16px 32px;max-width:1100px;margin:0 auto}
+.mobile-hub h1{font-size:clamp(1.25rem,3vw,1.75rem);font-weight:800;margin-bottom:4px}
 .mobile-hub .sub{font-size:13px;color:var(--mu);margin-bottom:20px;line-height:1.5}
 .mobile-links{display:flex;flex-direction:column;gap:10px}
 .mobile-link{
@@ -22,7 +23,8 @@
   text-decoration:none;color:inherit;min-height:72px;transition:.18s;
   -webkit-tap-highlight-color:transparent;
 }
-.mobile-link:active{transform:scale(.98);border-color:rgba(77,163,255,.4)}
+.mobile-link:hover{border-color:rgba(77,163,255,.4)}
+.mobile-link:active{transform:scale(.98)}
 .mobile-link .ico{font-size:28px;width:40px;text-align:center;flex-shrink:0}
 .mobile-link .txt h2{font-size:15px;font-weight:800;margin-bottom:2px;color:var(--fg)}
 .mobile-link .txt p{font-size:12px;color:var(--mu);line-height:1.35}
@@ -31,40 +33,49 @@
   display:inline-block;font-size:10px;font-weight:800;padding:4px 10px;border-radius:999px;
   background:rgba(34,197,94,.15);color:var(--green);margin-bottom:14px;letter-spacing:.06em;
 }
+.perf-note{font-size:11px;color:var(--mu2);text-align:center;line-height:1.6;margin-top:20px;padding:0 8px}
 </style>
 </head>
-<body class="proto-mobile-frame">
+<body>
 <div class="proto-shell">
-<div class="proto-banner">📱 PRÉVIA MOBILE — protótipo · dados fictícios · sem produção</div>
+<div class="proto-banner" id="mode-banner">📱 Portal Preview — carregando…</div>
 <div class="mobile-hub">
   <span class="badge-live">● ONLINE PREVIEW</span>
   <h1>Cardetail1 Portal UI</h1>
-  <p class="sub">Toque para abrir cada portal. Layout otimizado para celular.</p>
+  <p class="sub">Otimizado para celular e desktop. Mock instantâneo — live só se logado.</p>
   <div class="mobile-links">
     <a class="mobile-link" href="customer.html">
       <span class="ico">🚗</span>
-      <span class="txt"><h2>Customer — My Garage</h2><p>Valor total do serviço · timeline · mapa</p></span>
+      <span class="txt"><h2>Customer — My Garage</h2><p>Valor total · timeline · mapa</p></span>
       <span class="arrow">›</span>
     </a>
     <a class="mobile-link" href="technician.html">
       <span class="ico">🔧</span>
-      <span class="txt"><h2>Technician Portal</h2><p>Agenda do dia · jobs · en route</p></span>
+      <span class="txt"><h2>Technician Portal</h2><p>Agenda · jobs · en route</p></span>
       <span class="arrow">›</span>
     </a>
     <a class="mobile-link" href="admin.html">
       <span class="ico">⚙️</span>
-      <span class="txt"><h2>Admin — Day View</h2><p>Calendário · confirmar · pagamentos · packs</p></span>
+      <span class="txt"><h2>Admin — Day View</h2><p>Calendário · pagamentos · assign</p></span>
       <span class="arrow">›</span>
     </a>
   </div>
-  <p style="margin-top:24px;font-size:11px;color:var(--mu2);text-align:center;line-height:1.6">
-    <strong>Live data on Preview:</strong> faça login no portal correspondente e recarregue.<br>
-    Admin → <a href="/admin" style="color:var(--teal)">/admin</a> ·
-    Tech → <a href="/technician" style="color:var(--teal)">/technician</a> ·
-    Customer → <a href="/my-garage" style="color:var(--teal)">/my-garage</a>
+  <p class="perf-note">
+    <strong>Performance:</strong> mock = 0 API calls · mapa = link leve (sem iframe) · live = mesma API do admin atual.<br>
+    Live: login em <a href="/admin">/admin</a>, <a href="/technician">/technician</a> ou <a href="/my-garage">/my-garage</a> e recarregue.
   </p>
 </div>
 </div>
-<script src="preview-config.js"></script>
+<script src="proto-boot.js"></script>
+<script src="preview-config.js" defer></script>
+<script defer>
+document.addEventListener('DOMContentLoaded',function(){
+  var b=document.getElementById('mode-banner');
+  if(b&&window.CD1PreviewConfig){
+    if(CD1PreviewConfig.canUseLive()) b.innerHTML='📱 Preview — mock instantâneo · live se logado · <a href="index.html" style="color:#fcd34d">Hub EN</a>';
+    else b.textContent='📱 Preview local — mock data';
+  }
+});
+</script>
 </body>
 </html>

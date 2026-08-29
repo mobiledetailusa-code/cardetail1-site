@@ -10,11 +10,19 @@
   --fd:'DM Mono',ui-monospace,monospace;
 }
 html,body{max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%}
+html{scroll-behavior:smooth}
+html.proto-booting .main{opacity:.4;pointer-events:none}
+html.proto-booting .skel{display:block}
+html.proto-ready .main{opacity:1;transition:opacity .2s ease}
+html.proto-ready .skel{display:none}
 body{
-  font-family:"DM Sans",system-ui,sans-serif;
-  background:radial-gradient(1200px 600px at 50% -10%,#13202f,var(--bg) 60%);
+  font-family:"DM Sans",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg);
   color:var(--fg);min-height:100vh;line-height:1.5;
   padding-bottom:env(safe-area-inset-bottom,0);
+}
+@media(min-width:768px){
+  body{background:radial-gradient(1200px 600px at 50% -10%,#13202f,var(--bg) 60%)}
 }
 a{color:var(--ac);text-decoration:none}
 a:hover{text-decoration:underline}
@@ -116,16 +124,25 @@ a:hover{text-decoration:underline}
 .meta-item .lbl{color:var(--mu);font-size:10px;text-transform:uppercase;letter-spacing:.05em}
 .meta-item .val{font-weight:600;margin-top:1px}
 
-/* Map */
+/* Map — link card only (no iframe, CSP-safe, instant load) */
 .map-card{
   border-radius:var(--r);overflow:hidden;border:1px solid var(--line);
-  background:var(--bg3);height:160px;position:relative;margin-bottom:16px;
+  background:var(--bg3);height:120px;position:relative;margin-bottom:16px;
 }
-.map-card iframe,.map-card .map-placeholder{width:100%;height:100%;border:0;display:block}
+.map-link{display:block;width:100%;height:100%;text-decoration:none;color:inherit}
+.map-placeholder{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;padding:16px;text-align:center;gap:6px;
+  background:linear-gradient(135deg,rgba(45,212,191,.08),rgba(77,163,255,.08));
+}
+.map-pin-icon{font-size:28px;line-height:1}
+.map-addr{font-size:12px;font-weight:600;color:var(--fg);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px}
+.map-cta{font-size:11px;color:var(--teal);font-weight:700}
+.map-link:hover .map-cta{text-decoration:underline}
 .map-pin{
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);
+  position:absolute;top:12px;right:12px;
   background:var(--teal);color:#041018;font-size:10px;font-weight:800;
-  padding:4px 8px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.4);
+  padding:4px 8px;border-radius:6px;
 }
 
 /* Schedule list */
@@ -267,12 +284,25 @@ a:hover{text-decoration:underline}
   .hub h1{font-size:1.5rem}
 }
 
-/* Phone-frame on desktop — keeps preview feeling like a mobile app */
-@media(min-width:521px){
-  body.proto-mobile-frame{background:#05080d}
-  body.proto-mobile-frame .proto-shell{
-    max-width:430px;margin:0 auto;min-height:100vh;
-    border-left:1px solid var(--line);border-right:1px solid var(--line);
-    box-shadow:0 0 60px rgba(0,0,0,.5);
-  }
+/* Skeleton loading */
+.skel{padding:16px}
+.skel-bar{height:14px;border-radius:6px;background:linear-gradient(90deg,var(--bg2),var(--bg3),var(--bg2));background-size:200% 100%;animation:skel 1.2s ease infinite;margin-bottom:10px}
+.skel-bar.w60{width:60%}.skel-bar.w40{width:40%}.skel-bar.tall{height:80px;border-radius:var(--r)}
+@keyframes skel{0%{background-position:100% 0}100%{background-position:-100% 0}}
+
+/* Shell — full width mobile, comfortable desktop */
+.proto-shell{width:100%;margin:0 auto;min-height:100vh}
+@media(min-width:768px){
+  .proto-shell{max-width:960px}
+  .main{padding:0 24px calc(80px + env(safe-area-inset-bottom,0px))}
+  .job-meta{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .sched-item{padding:16px 20px}
+  .drawer{width:min(520px,100vw)}
+  .hub-grid{grid-template-columns:repeat(2,1fr)}
+  .mobile-links{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .mobile-link{flex-direction:column;text-align:center;min-height:140px}
+  .mobile-link .arrow{display:none}
+}
+@media(min-width:1100px){
+  .hub-grid{grid-template-columns:repeat(3,1fr)}
 }

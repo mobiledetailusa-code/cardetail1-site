@@ -277,28 +277,30 @@
     const logins = cfg.loginUrls();
     const result = { mode: 'mock', portal, jobs: [], techs: [], authOk: false, loginUrl: logins[portal] || '/' };
 
-    if (!liveAllowed) return result;
+    if (!liveAllowed || cfg.isMockForced()) return result;
+
+    const timeout = (ms) => new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms));
 
     try {
       if (portal === 'admin') {
-        result.authOk = await adminSessionOk();
+        result.authOk = await Promise.race([adminSessionOk(), timeout(4000)]);
         if (!result.authOk) return result;
-        result.jobs = await adminFetchJobs();
-        result.techs = await adminFetchTechs();
+        result.jobs = await Promise.race([adminFetchJobs(), timeout(8000)]);
+        result.techs = await Promise.race([adminFetchTechs(), timeout(4000)]).catch(() => []);
         result.mode = 'live';
         return result;
       }
       if (portal === 'technician') {
         result.authOk = !!techToken();
         if (!result.authOk) return result;
-        result.jobs = await techFetchJobs();
+        result.jobs = await Promise.race([techFetchJobs(), timeout(6000)]);
         result.mode = 'live';
         return result;
       }
       if (portal === 'customer') {
-        result.authOk = await customerSessionOk();
+        result.authOk = await Promise.race([customerSessionOk(), timeout(4000)]);
         if (!result.authOk) return result;
-        result.jobs = await customerFetchBookings();
+        result.jobs = await Promise.race([customerFetchBookings(), timeout(6000)]);
         result.mode = 'live';
         return result;
       }

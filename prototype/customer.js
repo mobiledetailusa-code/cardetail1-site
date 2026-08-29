@@ -65,8 +65,7 @@
     document.getElementById('timeline-wrap').innerHTML = `
       <div class="sec-title" style="margin-top:8px">Service Status</div>
       <div class="timeline">${UI.renderTimeline(step)}</div>`;
-    document.getElementById('map-wrap').innerHTML = job.address ? `
-      <div class="map-card"><iframe src="${CD1Calendar.mapEmbed(job)}" loading="lazy" title="Service location"></iframe></div>` : '';
+    document.getElementById('map-wrap').innerHTML = job.address ? CD1Calendar.mapHtml(job) : '';
   }
 
   function renderUpcomingList() {
@@ -164,10 +163,14 @@
   document.querySelector('.fab').addEventListener('click', () => UI.toast('Contact support'));
 
   (async function init() {
+    refresh();
     runtime = await API().initPortal('customer');
     API().renderModeBanner(document.querySelector('.proto-banner'), runtime);
-    if (runtime.mode === 'live') bookings = runtime.jobs;
-    await reload();
-    if (runtime.error) UI.toast('Live load failed — mock: ' + runtime.error);
+    if (runtime.mode === 'live') {
+      bookings = runtime.jobs;
+      refresh();
+    } else if (runtime.error) {
+      UI.toast('Live indisponível — usando mock');
+    }
   })();
 })();

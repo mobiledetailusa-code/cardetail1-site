@@ -1,8 +1,13 @@
 /**
- * Reusable horizontal calendar strip for prototype portals.
+ * Reusable horizontal calendar strip + lightweight map (no iframe — CSP-safe, fast).
  */
 (function (global) {
+  function esc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  }
+
   function renderCalendar(container, opts) {
+    if (!container) return;
     const { selectedDate, onSelect, anchorDate } = opts;
     const days = global.CD1Proto.weekDays(anchorDate || global.CD1Proto.TODAY);
     const sel = selectedDate || global.CD1Proto.fmtDate(global.CD1Proto.TODAY);
@@ -21,23 +26,40 @@
     }).join('');
 
     container.querySelectorAll('.cal-day').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (onSelect) onSelect(btn.dataset.date);
-      });
+      btn.addEventListener('click', () => { if (onSelect) onSelect(btn.dataset.date); });
     });
   }
 
   function renderBanner(container, dateStr) {
+    if (!container) return;
     const d = new Date(dateStr + 'T12:00:00');
     const isToday = dateStr === global.CD1Proto.fmtDate(global.CD1Proto.TODAY);
     const label = isToday ? 'TODAY' : d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
     container.innerHTML = `Schedule for <strong>${label}</strong> ${d.toLocaleDateString('en-US', { weekday: 'long', month: 'numeric', day: 'numeric', year: '2-digit' })}`;
   }
 
-  function mapEmbed(job) {
-    const q = encodeURIComponent(job.address);
-    return `https://maps.google.com/maps?q=${q}&z=13&output=embed`;
+  /** Lightweight map card — link only, no iframe (fast + works with site CSP). */
+  function mapHtml(job, pinLabel) {
+    const addr = (job && job.address) ? String(job.address).trim() : '';
+    if (!addr) return '';
+    const q = encodeURIComponent(addr);
+    const pin = esc(pinLabel || (job.id || ''));
+    return `<div class="map-card">
+      <a class="map-link" href="https://maps.google.com/?q=${q}" target="_blank" rel="noopener noreferrer" aria-label="Open ${esc(addr)} in Maps">
+        <div class="map-placeholder" aria-hidden="true">
+          <span class="map-pin-icon">📍</span>
+          <span class="map-addr">${esc(addr)}</span>
+          <span class="map-cta">Open in Maps →</span>
+        </div>
+        ${pin ? `<span class="map-pin mono">${pin}</span>` : ''}
+      </a>
+    </div>`;
   }
 
-  global.CD1Calendar = { renderCalendar, renderBanner, mapEmbed };
+  /** @deprecated use mapHtml — kept for compat */
+  function mapEmbed(job) {
+    return mapHtml(job);
+  }
+
+  global.CD1Calendar = { renderCalendar, renderBanner, mapHtml, mapEmbed };
 })(window);

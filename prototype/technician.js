@@ -50,11 +50,7 @@
           ${job.address ? `<a class="btn btn-g" href="https://maps.google.com/?q=${encodeURIComponent(job.address)}" target="_blank" rel="noopener">Open Maps</a>` : ''}
         </div>
       </article>`;
-    document.getElementById('map-wrap').innerHTML = job.address ? `
-      <div class="map-card">
-        <iframe src="${CD1Calendar.mapEmbed(job)}" loading="lazy" title="Job location"></iframe>
-        <div class="map-pin mono">${job.id}</div>
-      </div>` : '';
+    document.getElementById('map-wrap').innerHTML = job.address ? CD1Calendar.mapHtml(job, job.id) : '';
   }
 
   function renderList(date) {
@@ -200,9 +196,15 @@
   document.querySelector('.fab').addEventListener('click', () => UI.toast('Support chat'));
 
   (async function init() {
+    jobs = P.JOBS.map((j) => ({ ...j }));
+    refresh();
     runtime = await API().initPortal('technician');
     API().renderModeBanner(document.querySelector('.proto-banner'), runtime);
-    await reloadJobs();
-    if (runtime.error) UI.toast('Live load failed — mock: ' + runtime.error);
+    if (runtime.mode === 'live') {
+      jobs = runtime.jobs;
+      refresh();
+    } else if (runtime.error) {
+      UI.toast('Live indisponível — usando mock');
+    }
   })();
 })();
