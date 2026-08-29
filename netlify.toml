@@ -78,7 +78,11 @@
 [[redirects]]
   from = "/portal-prototype"
   to = "/prototype/preview.html"
-  status = 200
+  status = 302
+[[redirects]]
+  from = "/portal-prototype/*"
+  to = "/prototype/:splat"
+  status = 302
 [[redirects]]
   from = "/terms-conditions"
   to = "/terms-conditions.html"
@@ -102,6 +106,10 @@
     Cache-Control = "no-store, no-cache, must-revalidate"
 [[headers]]
   for = "/admin.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate"
+[[headers]]
+  for = "/prototype/*"
   [headers.values]
     Cache-Control = "no-store, no-cache, must-revalidate"
 [[headers]]
