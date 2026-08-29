@@ -8,9 +8,12 @@ const {
   PRODUCTION_SITE_ID,
   INBOUND_URL,
   STATUS_URL,
+  TWILIO_ENV_KEYS,
   publicCopyBlocksCustomerSms,
   netlifyProductionOnlyPayload,
   assertNoProductionSends,
+  classifyProductionEnvValue,
+  productionContextValue,
   providerWritePlan,
   parseArgs,
   twilioAuthMode,
@@ -102,6 +105,17 @@ test('provider write plan can enable customer SMS flag without enabling sends', 
   assert.equal(plan.ok, true);
   assert.equal(plan.vars.CUSTOMER_TRANSACTIONAL_SMS_ENABLED, 'true');
   assert.equal(plan.vars.TWILIO_PRODUCTION_SENDS_ENABLED, 'false');
+});
+
+test('production env classification never exposes secret values', () => {
+  assert.equal(productionContextValue({
+    values: [{ context: 'deploy-preview', value: 'preview' }, { context: 'production', value: 'live' }],
+  }), 'live');
+  assert.equal(classifyProductionEnvValue('TWILIO_ACCOUNT_SID', 'ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'), 'present');
+  assert.equal(classifyProductionEnvValue('TWILIO_WORKER_SECRET', 'short'), 'invalid');
+  assert.equal(classifyProductionEnvValue('TWILIO_INBOUND_WEBHOOK_URL', INBOUND_URL), 'pinned');
+  assert.equal(classifyProductionEnvValue('TWILIO_PRODUCTION_SENDS_ENABLED', 'true'), 'true');
+  assert.equal(TWILIO_ENV_KEYS.includes('TWILIO_OUTBOX_ENABLED'), true);
 });
 
 test('Netlify pins the outbox worker schedule in netlify.toml', () => {
