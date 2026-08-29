@@ -388,6 +388,9 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/twilio-provider.js',
     'netlify/lib/twilio-runtime-policy.js',
     'netlify/lib/twilio-webhook.js',
+    // Twilio inbound SMS + voice forwarding to a personal number (PR #225).
+    'netlify/functions/twilio-voice.js',
+    'netlify/lib/twilio-forwarding.js',
     // Booking-store scan removal: indexed lookups on the request paths that
     // outgrew a full cd1-bookings hydration (offer history, slot occupancy,
     // customer portal, booking resolution by id).

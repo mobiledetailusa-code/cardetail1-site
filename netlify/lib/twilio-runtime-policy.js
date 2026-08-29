@@ -85,13 +85,17 @@ function outboundTwilioPolicy(env = process.env) {
   };
 }
 
+function webhookUrlForKind(kind, env) {
+  if (kind === 'inbound') return clean(env.TWILIO_INBOUND_WEBHOOK_URL);
+  if (kind === 'voice') return clean(env.TWILIO_VOICE_WEBHOOK_URL);
+  return clean(env.TWILIO_STATUS_CALLBACK_URL);
+}
+
 function webhookPolicy(kind, env = process.env) {
   const runtime = productionRuntimeAllowed(env);
   if (!runtime.ok) return runtime;
   const authToken = clean(env.TWILIO_AUTH_TOKEN || env.TWILIO_TOKEN);
-  const url = clean(kind === 'inbound'
-    ? env.TWILIO_INBOUND_WEBHOOK_URL
-    : env.TWILIO_STATUS_CALLBACK_URL);
+  const url = webhookUrlForKind(kind, env);
   if (!authToken) return { ok: false, reason: 'auth_token_missing' };
   try {
     const parsed = new URL(url);
@@ -108,5 +112,6 @@ module.exports = {
   productionRuntimeAllowed,
   smsOutboxPolicy,
   outboundTwilioPolicy,
+  webhookUrlForKind,
   webhookPolicy,
 };

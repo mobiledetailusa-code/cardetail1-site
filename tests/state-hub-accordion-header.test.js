@@ -329,6 +329,8 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/twilio-inbound.js',
     'netlify/functions/twilio-outbox-worker.js',
     'netlify/functions/twilio-status-callback.js',
+    // Twilio inbound SMS + voice forwarding to a personal number (PR #225).
+    'netlify/functions/twilio-voice.js',
     // Owner Studio Stage 2 / 4B — protected catalog draft + preview APIs.
     'netlify/functions/owner-studio-catalog.js',
     'netlify/functions/owner-studio-release.js',
