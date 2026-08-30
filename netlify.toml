@@ -89,6 +89,22 @@
   from = "/resume"
   to = "/resume.html"
   status = 200
+[[redirects]]
+  from = "/blog"
+  to = "/blog.html"
+  status = 200
+[[redirects]]
+  from = "/detailing-vs-car-wash"
+  to = "/detailing-vs-car-wash.html"
+  status = 200
+[[redirects]]
+  from = "/how-often-to-detail"
+  to = "/how-often-to-detail.html"
+  status = 200
+[[redirects]]
+  from = "/mobile-detailing-what-to-expect"
+  to = "/mobile-detailing-what-to-expect.html"
+  status = 200
 
 [[headers]]
   for = "/customer.html"

@@ -31,6 +31,10 @@ const PUBLIC_HTML = [
   'westchester-mobile-detailing.html',
   'terms-conditions.html',
   'template-city.html',
+  'blog.html',
+  'detailing-vs-car-wash.html',
+  'how-often-to-detail.html',
+  'mobile-detailing-what-to-expect.html',
 ];
 
 const HUB_PAGES = PUBLIC_HTML.filter((f) =>

@@ -25,6 +25,10 @@ const PUBLIC_PAGES = [
   'trenton-mobile-detailing.html',
   'westchester-mobile-detailing.html',
   'terms-conditions.html',
+  'blog.html',
+  'detailing-vs-car-wash.html',
+  'how-often-to-detail.html',
+  'mobile-detailing-what-to-expect.html',
 ];
 
 const canonicalFooter = read('assets/partials/specialty-public-footer.html')
