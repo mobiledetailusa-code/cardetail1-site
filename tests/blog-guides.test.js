@@ -91,6 +91,8 @@ test('guides hub is a crawlable search destination', () => {
   assert.match(html, /<form[^>]*id="guide-search-form"[^>]*method="get"/);
   assert.match(html, /name="q"/);
   assert.match(html, /action="blog\.html"/);
+  assert.match(html, /What are you trying to figure out\?/);
+  assert.match(html, /placeholder="Search car care questions\.\.\."/);
   assert.match(html, /Car Wash vs\. Car Detailing/);
   assert.match(html, /mobile car detailing/i);
   const types = typeList(html);
@@ -130,8 +132,8 @@ test('visible FAQ questions match FAQPage JSON-LD and stay bounded', () => {
     assert.ok(names.length >= 5 && names.length <= 8, `${page} should have 5–8 FAQs, got ${names.length}`);
   }
   const hubNames = faqBlock(read('blog.html')).mainEntity.map((q) => q.name);
-  assert.ok(hubNames.includes('What is the difference between a car wash and detailing?'));
-  assert.ok(hubNames.includes('Does mobile detailing require water or electricity?'));
+  assert.ok(hubNames.includes("What's the difference between a car wash and detailing?"));
+  assert.ok(hubNames.includes('Do you need my water or electricity?'));
 });
 
 test('detailing vs car wash page has comparison, Article schema, and contextual links', () => {
