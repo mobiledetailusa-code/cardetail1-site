@@ -299,7 +299,7 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
     const inbound = read('netlify/functions/twilio-inbound.js');
     const handler = read('netlify/lib/twilio-inbound-handler.js');
     assert.match(handler, /Advanced Opt-Out sends the configured STOP\/HELP response/);
-    assert.match(handler, /<Response><\/Response>/);
+    assert.match(handler, /emptyTwiml\(\)/);
     assert.doesNotMatch(handler, /Detailing Zone/);
     assert.doesNotMatch(handler, /Cardetail1: For help/);
     assert.doesNotMatch(handler, /You have been unsubscribed/);
