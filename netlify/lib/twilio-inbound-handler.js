@@ -103,6 +103,8 @@ async function handleInboundSms(params = {}, opts = {}) {
     if (!result.ok) return { statusCode: 503, body: '' };
     return { statusCode: 200, twiml: emptyTwiml(), action: 'stop' };
   }
+  // Advanced Opt-Out sends the configured STOP/HELP response. Returning empty
+  // TwiML prevents a duplicate application-generated message.
   if (type === 'HELP' || type === 'START') {
     return { statusCode: 200, twiml: emptyTwiml(), action: type.toLowerCase() };
   }

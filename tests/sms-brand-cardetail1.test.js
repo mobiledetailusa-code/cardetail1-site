@@ -297,11 +297,13 @@ describe('consent copy and legacy grants', () => {
 describe('STOP/HELP, secure links, consent, outbox, payments', () => {
   it('9. STOP/HELP remain Twilio Advanced Opt-Out; app does not send a reply', () => {
     const inbound = read('netlify/functions/twilio-inbound.js');
-    assert.match(inbound, /Advanced Opt-Out sends the configured STOP\/HELP response/);
-    assert.match(inbound, /<Response><\/Response>/);
-    assert.doesNotMatch(inbound, /Detailing Zone/);
+    const handler = read('netlify/lib/twilio-inbound-handler.js');
+    assert.match(handler, /Advanced Opt-Out sends the configured STOP\/HELP response/);
+    assert.match(handler, /<Response><\/Response>/);
+    assert.doesNotMatch(handler, /Detailing Zone/);
+    assert.doesNotMatch(handler, /Cardetail1: For help/);
+    assert.doesNotMatch(handler, /You have been unsubscribed/);
     assert.doesNotMatch(inbound, /Cardetail1: For help/);
-    assert.doesNotMatch(inbound, /You have been unsubscribed/);
   });
 
   it('10. secure-link rules unchanged: authorized link vs safe confirmation', () => {
