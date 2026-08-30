@@ -89,4 +89,6 @@ test('guide search script is wired to cards, FAQ, and filter chips', () => {
   assert.match(js, /\[data-guide-faq\] details/);
   assert.match(js, /data-guide-filter/);
   assert.match(js, /\.hidden/);
+  assert.match(js, /URLSearchParams/);
+  assert.match(js, /params\.get\('q'\)/);
 });

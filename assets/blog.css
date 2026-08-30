@@ -10,6 +10,7 @@
   white-space: nowrap;
   border: 0;
 }
+[hidden] { display: none !important; }
 .blog-topic-nav {
   position: relative;
   z-index: 850;

@@ -51,6 +51,13 @@
     });
   });
 
+  const params = new URLSearchParams(window.location.search);
+  const qParam = params.get('q');
+  if (search && qParam) {
+    search.value = qParam;
+    applyFilter(qParam, currentChip());
+  }
+
   const hash = window.location.hash.replace('#', '');
   if (hash) {
     const target = document.getElementById(hash);
