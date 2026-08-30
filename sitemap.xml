@@ -24,11 +24,31 @@
   <url><loc>https://cardetail1.com/newark-mobile-detailing.html</loc></url>
   <url><loc>https://cardetail1.com/trenton-mobile-detailing.html</loc></url>
   <url><loc>https://cardetail1.com/westchester-mobile-detailing.html</loc></url>
-  <!-- Guides / FAQ -->
-  <url><loc>https://cardetail1.com/blog.html</loc></url>
-  <url><loc>https://cardetail1.com/detailing-vs-car-wash.html</loc></url>
-  <url><loc>https://cardetail1.com/how-often-to-detail.html</loc></url>
-  <url><loc>https://cardetail1.com/mobile-detailing-what-to-expect.html</loc></url>
+  <!-- Guides / FAQ (search hub + articles Google should crawl) -->
+  <url>
+    <loc>https://cardetail1.com/blog.html</loc>
+    <lastmod>2026-08-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardetail1.com/detailing-vs-car-wash.html</loc>
+    <lastmod>2026-08-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardetail1.com/how-often-to-detail.html</loc>
+    <lastmod>2026-08-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://cardetail1.com/mobile-detailing-what-to-expect.html</loc>
+    <lastmod>2026-08-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
   <!-- Legal -->
   <url><loc>https://cardetail1.com/terms-conditions.html</loc></url>
   <url><loc>https://cardetail1.com/privacy-policy.html</loc></url>
