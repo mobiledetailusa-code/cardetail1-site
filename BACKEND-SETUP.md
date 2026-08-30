@@ -197,7 +197,7 @@ Encaminha **SMS de entrada** e **ligações de entrada** do número Twilio do ne
 ### Variáveis de ambiente (Netlify — contexto Production)
 | Variável | Para quê |
 |---|---|
-| `TWILIO_VOICE_WEBHOOK_URL` | `https://cardetail1.com/.netlify/functions/twilio-voice` (valida a assinatura do webhook de voz) |
+| `TWILIO_VOICE_WEBHOOK_URL` | HTTPS da function `twilio-voice` no host de Production (valida a assinatura). Path: `/.netlify/functions/twilio-voice` |
 | `TWILIO_FORWARD_SMS_TO` | Número pessoal (E.164) que recebe os SMS encaminhados |
 | `TWILIO_FORWARD_CALLS_TO` | Número pessoal (E.164) que recebe as ligações |
 | `TWILIO_PERSONAL_NUMBER` | Fallback único para SMS **e** ligações quando as duas acima não estão setadas |

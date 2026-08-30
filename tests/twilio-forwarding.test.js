@@ -180,7 +180,7 @@ describe('voice webhook policy', () => {
     const env = {
       TWILIO_INBOUND_WEBHOOK_URL: 'https://cardetail1.com/.netlify/functions/twilio-inbound',
       TWILIO_STATUS_CALLBACK_URL: 'https://cardetail1.com/.netlify/functions/twilio-status-callback',
-      TWILIO_VOICE_WEBHOOK_URL: 'https://cardetail1.com/.netlify/functions/twilio-voice',
+      TWILIO_VOICE_WEBHOOK_URL: VOICE_URL,
     };
     assert.equal(webhookUrlForKind('voice', env), env.TWILIO_VOICE_WEBHOOK_URL);
     assert.equal(webhookUrlForKind('inbound', env), env.TWILIO_INBOUND_WEBHOOK_URL);
@@ -190,10 +190,10 @@ describe('voice webhook policy', () => {
   it('accepts a valid voice URL and fails closed when it is missing', () => {
     const ok = webhookPolicy('voice', {
       ...PROD,
-      TWILIO_VOICE_WEBHOOK_URL: 'https://cardetail1.com/.netlify/functions/twilio-voice',
+      TWILIO_VOICE_WEBHOOK_URL: VOICE_URL,
     });
     assert.equal(ok.ok, true);
-    assert.equal(ok.url, 'https://cardetail1.com/.netlify/functions/twilio-voice');
+    assert.equal(ok.url, VOICE_URL);
     const missing = webhookPolicy('voice', { ...PROD });
     assert.equal(missing.ok, false);
     assert.equal(missing.reason, 'webhook_url_invalid');
@@ -203,7 +203,7 @@ describe('voice webhook policy', () => {
 describe('inbound + voice handlers end-to-end (signed)', () => {
   const authToken = 'e2e-auth-token-for-signatures';
   const inboundUrl = 'https://cardetail1.com/.netlify/functions/twilio-inbound';
-  const voiceUrl = 'https://cardetail1.com/.netlify/functions/twilio-voice';
+  const voiceUrl = VOICE_URL;
 
   function withEnv(extra, fn) {
     const base = {
@@ -298,7 +298,7 @@ describe('inbound + voice handlers end-to-end (signed)', () => {
 describe('adversarial: Production-only containment (preview cannot forward)', () => {
   const authToken = 'e2e-auth-token-for-signatures';
   const inboundUrl = 'https://cardetail1.com/.netlify/functions/twilio-inbound';
-  const voiceUrl = 'https://cardetail1.com/.netlify/functions/twilio-voice';
+  const voiceUrl = VOICE_URL;
 
   function run(extra, fn) {
     const base = {
