@@ -182,6 +182,38 @@ Lista completa de **15 variáveis**, valores em centavos e passo a passo no Stri
 ### Opções de pagamento no checkout
 No fim do agendamento o cliente escolhe: **depósito no cartão agora** (Stripe), **link de pagamento**, **pagar com cartão no local** ou **dinheiro (cash)**. As duas últimas não exigem cartão e seguem como *request* até sua confirmação. O método aparece no admin e no e-mail/SMS.
 
+## 3f. Redirecionar SMS e ligações para um número pessoal (NOVO)
+
+Encaminha **SMS de entrada** e **ligações de entrada** do número Twilio do negócio para o número pessoal do dono. É feito 100% por **TwiML** (resposta ao webhook), sem chamada REST de saída — então nada de novo aparece no caminho `messages.create`.
+
+**Fail-closed:** o encaminhamento só acontece quando (1) o contexto é Produção, (2) a assinatura do Twilio é válida e (3) um número de destino está configurado. Palavras de opt-out (`STOP`, `HELP`, `START`, etc.) **nunca** são encaminhadas — continuam tratadas pelo fluxo de consentimento.
+
+### Funções
+| Função | Papel |
+|---|---|
+| `twilio-inbound.js` | SMS de entrada → `<Message to="pessoal">` quando configurado |
+| `twilio-voice.js` | Ligação de entrada → `<Dial><Number>pessoal</Number></Dial>` |
+
+### Variáveis de ambiente (Netlify — contexto Production)
+| Variável | Para quê |
+|---|---|
+| `TWILIO_VOICE_WEBHOOK_URL` | HTTPS da function `twilio-voice` no host de Production (valida a assinatura). Path: `/.netlify/functions/twilio-voice` |
+| `TWILIO_FORWARD_SMS_TO` | Número pessoal (E.164) que recebe os SMS encaminhados |
+| `TWILIO_FORWARD_CALLS_TO` | Número pessoal (E.164) que recebe as ligações |
+| `TWILIO_PERSONAL_NUMBER` | Fallback único para SMS **e** ligações quando as duas acima não estão setadas |
+
+O `caller ID` das ligações encaminhadas é o próprio número Twilio do negócio (evita rejeição por spoofing nas operadoras) — o dono vê que a chamada veio pela linha do negócio.
+
+### Configurar os webhooks no Twilio
+- **SMS:** já apontado para `twilio-inbound` pelo Messaging Service (`scripts/twilio-netlify-activate.js --configure-twilio`).
+- **Voz:** no número Twilio → *Voice & Fax → A CALL COMES IN → Webhook* → `TWILIO_VOICE_WEBHOOK_URL` (POST). O script também seta isso com `--configure-twilio --ensure-number +1XXXXXXXXXX`.
+
+### Testar
+1. Configure `TWILIO_FORWARD_SMS_TO` / `TWILIO_FORWARD_CALLS_TO` no Netlify (Production).
+2. Mande um SMS para o número do negócio → chega no número pessoal como `Cardetail1 fwd from +1…: <texto>`.
+3. Ligue para o número do negócio → toca no número pessoal.
+4. Mande `STOP` → **não** é encaminhado (apenas opt-out).
+
 ## 4. Testar
 
 1. Abra o site publicado, faça um booking de teste.

@@ -83,18 +83,18 @@ if (JSDOM) {
     const LONG_EMAIL = 'jamie.rivera.extremely.long.address.for.testing@subdomain.example-company.com';
 
     it('every profile cell is independently readable, none nested', () => {
-      const doc = mountProfile(LONG_EMAIL, '(551) 313-2956', 390);
+      const doc = mountProfile(LONG_EMAIL, '(201) 555-0177', 390);
       const cells = doc.querySelectorAll('.meta-grid > div');
       assert.equal(cells.length, 3);
       const emailCell = cells[1];
       const phoneCell = cells[2];
       assert.ok(!emailCell.contains(phoneCell), 'phone must not be nested inside the email cell');
       assert.equal(emailCell.querySelector('dd').textContent, LONG_EMAIL);
-      assert.equal(phoneCell.querySelector('dd').textContent, '(551) 313-2956');
+      assert.equal(phoneCell.querySelector('dd').textContent, '(201) 555-0177');
     });
 
     it('phone stays its own labelled field beside a long email', () => {
-      const doc = mountProfile(LONG_EMAIL, '(551) 313-2956', 1440);
+      const doc = mountProfile(LONG_EMAIL, '(201) 555-0177', 1440);
       const labels = [...doc.querySelectorAll('.meta-grid dt')].map((d) => d.textContent);
       assert.deepEqual(labels, ['Name', 'Email (verified)', 'Phone (verified)']);
     });

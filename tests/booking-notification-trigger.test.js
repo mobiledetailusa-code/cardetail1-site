@@ -41,7 +41,7 @@ const {
   resetAppointmentAccessStoreFactories,
 } = require('../netlify/lib/appointment-access-token');
 
-const VERIFIED = '+15513132956';
+const VERIFIED = '+12015550177';
 const BOOKING_OTHER = '+15513983986';
 const ADMIN_TO = '+15515551212';
 
@@ -180,7 +180,7 @@ function createMemoryOutboxPrisma() {
 
 function consentedBooking(overrides = {}) {
   const recordedAt = overrides.finalizedAt || '2026-08-26T12:00:00.000Z';
-  const phone = overrides.phone || '5513132956';
+  const phone = overrides.phone || '2015550177';
   return {
     id: overrides.id || 'CD1-TRIGGER-01',
     firstName: 'Pat',
@@ -664,7 +664,7 @@ describe('booking persist regression: version, stripe, incomplete repair', () =>
     const payload = {
       firstName: 'Pat',
       lastName: 'Trigger',
-      phone: '5513132956',
+      phone: '2015550177',
       email: 'pat.trigger@example.test',
       address: '1 Main St, Newark, NJ',
       zipCode: '07102',

@@ -34,7 +34,7 @@ function fixtureBooking(overrides) {
     completedAt: '2026-09-15T18:00:00.000Z',
     confirmedDate: '2026-09-14',
     firstName: 'Alice', lastName: 'Anders',
-    phone: '5513132956',
+    phone: '2015550177',
     address: '1 Test Way, Newark NJ',
     paymentWorkflowStatus: 'payment_succeeded',
     approvedFinalAmount: 887,

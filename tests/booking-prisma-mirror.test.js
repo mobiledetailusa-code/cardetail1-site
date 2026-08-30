@@ -88,7 +88,7 @@ describe('booking Prisma mirror (safe dual-write)', () => {
       bookingVersion: 3,
       quote: { quoteVersion: 2 },
       paymentWorkflowStatus: 'payment_succeeded',
-      phone: '5513132956',
+      phone: '2015550177',
     });
     assert.equal(row.id, 'CD1-ROW');
     assert.equal(row.bookingVersion, 3);

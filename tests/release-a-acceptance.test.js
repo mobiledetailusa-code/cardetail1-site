@@ -126,7 +126,7 @@ describe('Release A — visibility & drafts (PDA-13, PDA-14)', () => {
     const draft = {
       id: 'CD1-DRAFT-HIDE',
       isDraft: true,
-      phone: '5513132956',
+      phone: '2015550177',
       status: 'saved',
       totalPrice: 100,
     };
@@ -140,7 +140,7 @@ describe('Release A — visibility & drafts (PDA-13, PDA-14)', () => {
       delete require.cache[require.resolve('../netlify/functions/customer-bookings')];
       const lookup = require('../netlify/functions/lookup-booking');
       const bookings = require('../netlify/functions/customer-bookings');
-      const body = JSON.stringify({ bookingId: 'CD1-DRAFT-HIDE', phone: '5513132956' });
+      const body = JSON.stringify({ bookingId: 'CD1-DRAFT-HIDE', phone: '2015550177' });
       const lookupRes = await lookup.handler({ httpMethod: 'POST', body, headers: {} });
       const bookingsRes = await bookings.handler({ httpMethod: 'POST', body, headers: {} });
       const lookupBody = JSON.parse(lookupRes.body);
@@ -174,7 +174,7 @@ describe('Release A — visibility & drafts (PDA-13, PDA-14)', () => {
     const draft = {
       id: 'CD1-TOK',
       isDraft: true,
-      phone: '5513132956',
+      phone: '2015550177',
       firstName: 'Tok',
       email: 'tok@example.com',
       paymentMethodPreference: 'card_onsite',
@@ -191,7 +191,7 @@ describe('Release A — visibility & drafts (PDA-13, PDA-14)', () => {
     const base = {
       isDraft: true,
       draftBookingId: 'CD1-TOK',
-      phone: '5513132956',
+      phone: '2015550177',
       firstName: 'Tok',
       email: 'tok@example.com',
       paymentMethodPreference: 'card_onsite',
@@ -229,7 +229,7 @@ describe('Release A — visibility & drafts (PDA-13, PDA-14)', () => {
       });
       assert.equal(wrong.statusCode, 401);
 
-      const issued = issueDraftSaveToken({ bookingId: 'CD1-TOK', phone: '5513132956', now: Date.now() });
+      const issued = issueDraftSaveToken({ bookingId: 'CD1-TOK', phone: '2015550177', now: Date.now() });
       const ok = await handler({
         httpMethod: 'POST',
         body: JSON.stringify({ ...base, draftSaveToken: issued.token }),
@@ -248,13 +248,13 @@ describe('Release A — visibility & drafts (PDA-13, PDA-14)', () => {
         finalizedAt: new Date().toISOString(),
         id: 'CD1-TOK',
       });
-      const finalizeIssued = issueDraftSaveToken({ bookingId: 'CD1-TOK', phone: '5513132956', now: Date.now() });
+      const finalizeIssued = issueDraftSaveToken({ bookingId: 'CD1-TOK', phone: '2015550177', now: Date.now() });
       const idem = await handler({
         httpMethod: 'POST',
         body: JSON.stringify({
           draftBookingId: 'CD1-TOK',
           draftSaveToken: finalizeIssued.token,
-          phone: '5513132956',
+          phone: '2015550177',
           firstName: 'Tok',
           zipCode: '07102',
           address: '1 Main St Newark NJ',
@@ -451,7 +451,7 @@ describe('Release A — list pagination & historical multi-page (PDA-16)', () =>
       totalPrice: 150, addons: 'not-an-array', vehicles: 'bad',
     };
     seed['CD1-DRAFT'] = {
-      id: 'CD1-DRAFT', isDraft: true, status: 'saved', phone: '5513132956', totalPrice: 99,
+      id: 'CD1-DRAFT', isDraft: true, status: 'saved', phone: '2015550177', totalPrice: 99,
     };
     seed['CD1-BAD'] = null; // skipped by fetch
     seed['CD1-PAID'] = {
@@ -1205,7 +1205,7 @@ describe('Release A — cross-store index failure recovery', () => {
         appointmentStatus: 'confirmed',
         jobStatus: 'confirmed',
         zipCode: '07102',
-        phone: '5513132956',
+        phone: '2015550177',
         service: {
           vehicles: [{
             vehicleId: 'veh_1',

@@ -43,7 +43,7 @@ test('submit-booking draft blob persist failure returns controlled error', async
         isDraft: true,
         firstName: 'Blob',
         lastName: 'Fail',
-        phone: '5513132956',
+        phone: '2015550177',
         email: 'blobfail@example.com',
         zipCode: '07650',
         address: '1 Test',

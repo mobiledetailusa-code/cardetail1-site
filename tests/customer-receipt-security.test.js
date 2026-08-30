@@ -72,7 +72,7 @@ function bookingA() {
     completedAt: '2026-09-15T18:00:00.000Z',
     confirmedDate: '2026-09-14',
     firstName: 'Alice', lastName: 'Anders',
-    phone: '5513132956',
+    phone: '2015550177',
     email: 'alice@example.com',
     customerAccountId: 'acct-A',
     address: '1 Test Way, Newark NJ',
@@ -209,7 +209,7 @@ describe('receipt authorization (real middleware, two customers)', () => {
 
   function handler() { return require('../netlify/functions/customer-receipt').handler; }
 
-  const A = { phoneDigits: '5513132956', email: 'alice@example.com', bookingIds: ['CD1-AAAA1111'], customerAccountId: 'acct-A' };
+  const A = { phoneDigits: '2015550177', email: 'alice@example.com', bookingIds: ['CD1-AAAA1111'], customerAccountId: 'acct-A' };
   const B = { phoneDigits: '2125550147', email: 'bob@example.com', bookingIds: ['CD1-BBBB2222'], customerAccountId: 'acct-B' };
 
   it('1. Customer A can access Booking A payment receipt', async () => {

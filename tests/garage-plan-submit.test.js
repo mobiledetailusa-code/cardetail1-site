@@ -22,7 +22,7 @@ function validPayload(overrides = {}) {
     sameServiceLocation: true,
     maintenanceFrequency: 'one-time',
     name: 'Garage Test',
-    phone: '5513132956',
+    phone: '2015550177',
     email: 'garage-test@example.com',
     zip: '07010',
     transactionalConsent: true,
@@ -90,16 +90,16 @@ async function invokeHandler(body, overrides = {}) {
 // ── Phone normalization ───────────────────────────────────────────────────────
 
 test('10-digit US phone normalizes to E.164', () => {
-  assert.equal(normalizeUsPhoneE164('5513132956'), '+15513132956');
+  assert.equal(normalizeUsPhoneE164('2015550177'), '+12015550177');
 });
 
 test('11-digit US phone beginning with 1 normalizes to E.164', () => {
-  assert.equal(normalizeUsPhoneE164('15513132956'), '+15513132956');
+  assert.equal(normalizeUsPhoneE164('12015550177'), '+12015550177');
 });
 
 test('formatted US phone normalizes to E.164', () => {
-  assert.equal(normalizeUsPhoneE164('(551) 313-2956'), '+15513132956');
-  assert.equal(normalizeUsPhoneE164('+15513132956'), '+15513132956');
+  assert.equal(normalizeUsPhoneE164('(201) 555-0177'), '+12015550177');
+  assert.equal(normalizeUsPhoneE164('+12015550177'), '+12015550177');
 });
 
 test('invalid phone returns invalid_phone validation error', () => {
@@ -233,7 +233,7 @@ test('no PII is sent to GA4 or Clarity from garage plan events', () => {
     vehicle_count_band: '2',
     household_segment: 'MULTI_VEHICLE_HOUSEHOLD',
     name: 'Secret',
-    phone: '5513132956',
+    phone: '2015550177',
     email: 'secret@example.com',
   });
   assert.equal(props.name, undefined);

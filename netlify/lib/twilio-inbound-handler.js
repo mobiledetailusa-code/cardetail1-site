@@ -7,18 +7,15 @@ const { normalizeUsPhoneE164 } = require('./phone-auth');
 const { enabled } = require('./twilio-runtime-policy');
 const { enqueueSms } = require('./sms-outbox');
 const { TEMPLATE_KEYS } = require('./sms-templates');
+const {
+  inboundSmsTwiml,
+  twimlResponse,
+  escapeXml,
+  EMPTY_TWIML,
+} = require('./twilio-forwarding');
 
 const STOP_WORDS = new Set(['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']);
 const HELP_WORDS = new Set(['HELP', 'INFO']);
-
-function escapeXml(value) {
-  return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
 
 function complianceKeyword(params = {}) {
   const advanced = String(params.OptOutType || '').trim().toUpperCase();
@@ -51,11 +48,19 @@ function buildInboundAutoReply(env = process.env) {
 }
 
 function emptyTwiml() {
-  return '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+  return EMPTY_TWIML;
 }
 
 function twimlMessage(body) {
-  return `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${escapeXml(body)}</Message></Response>`;
+  return twimlResponse(`<Message>${escapeXml(body)}</Message>`);
+}
+
+function combineForwardAndReply(relayBody, autoReply) {
+  const inner = String(relayBody || '')
+    .replace(/^<\?xml[^>]*>\s*/i, '')
+    .replace(/^<Response>/i, '')
+    .replace(/<\/Response>\s*$/i, '');
+  return twimlResponse(`${inner}<Message>${escapeXml(autoReply)}</Message>`);
 }
 
 function inboundAdminIdempotencyKey(params = {}) {
@@ -89,6 +94,7 @@ async function notifyAdminInboundSms(params = {}, opts = {}) {
 }
 
 async function handleInboundSms(params = {}, opts = {}) {
+  const env = opts.env || process.env;
   const type = complianceKeyword(params);
   if (type === 'STOP') {
     const revoke = opts.revokeConsent
@@ -101,22 +107,32 @@ async function handleInboundSms(params = {}, opts = {}) {
     return { statusCode: 200, twiml: emptyTwiml(), action: type.toLowerCase() };
   }
 
-  const adminNotify = notifyAdminInboundSms(params, opts).catch((err) => {
-    console.info('[twilio-inbound]', {
-      action: 'admin_notify_failed',
-      error: String(err?.message || err).slice(0, 48),
-    });
-    return { ok: false, reason: 'admin_notify_failed' };
-  });
+  const relay = inboundSmsTwiml(params, env);
+  const autoReply = buildInboundAutoReply(env);
+  let adminNotify = null;
 
-  if (opts.awaitAdminNotify === true) {
-    await adminNotify;
+  if (!relay.forwarded) {
+    adminNotify = notifyAdminInboundSms(params, opts).catch((err) => {
+      console.info('[twilio-inbound]', {
+        action: 'admin_notify_failed',
+        error: String(err?.message || err).slice(0, 48),
+      });
+      return { ok: false, reason: 'admin_notify_failed' };
+    });
+    if (opts.awaitAdminNotify === true) {
+      await adminNotify;
+    }
   }
+
+  const twiml = relay.forwarded
+    ? combineForwardAndReply(relay.body, autoReply)
+    : twimlMessage(autoReply);
 
   return {
     statusCode: 200,
-    twiml: twimlMessage(buildInboundAutoReply(opts.env)),
-    action: 'auto_reply',
+    twiml,
+    action: relay.forwarded ? 'forward_and_reply' : 'auto_reply',
+    forwarded: !!relay.forwarded,
     adminNotify,
   };
 }
@@ -128,6 +144,7 @@ module.exports = {
   buildInboundAutoReply,
   emptyTwiml,
   twimlMessage,
+  combineForwardAndReply,
   inboundAdminIdempotencyKey,
   notifyAdminInboundSms,
   handleInboundSms,

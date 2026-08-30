@@ -37,6 +37,26 @@ test('inbound admin idempotency prefers Twilio MessageSid', () => {
   );
 });
 
+test('general inbound forwards and auto-replies when TWILIO_FORWARD_SMS_TO is set', async () => {
+  const result = await handleInboundSms({
+    From: '+12015550100',
+    Body: 'Do you service Westchester?',
+    MessageSid: 'SMcccccccccccccccccccccccccccccccc',
+  }, {
+    env: {
+      PUBLIC_SITE_URL: 'https://cardetail1.com',
+      TWILIO_FORWARD_SMS_TO: '+12015550999',
+    },
+    revokeConsent: async () => ({ ok: true }),
+  });
+
+  assert.equal(result.action, 'forward_and_reply');
+  assert.equal(result.forwarded, true);
+  assert.match(result.twiml, /to="\+12015550999"/);
+  assert.match(result.twiml, /Book mobile detailing/);
+  assert.equal(result.adminNotify, null);
+});
+
 test('general inbound replies to customer and notifies admin', async () => {
   const calls = [];
   const result = await handleInboundSms({

@@ -24,7 +24,9 @@ const NETLIFY_ACCOUNT = '6a2802ed5070702e9f45913b';
 const PUBLIC_SITE = 'https://cardetail1.com';
 const INBOUND_URL = `${PUBLIC_SITE}/.netlify/functions/twilio-inbound`;
 const STATUS_URL = `${PUBLIC_SITE}/.netlify/functions/twilio-status-callback`;
+const VOICE_URL = `${PUBLIC_SITE}/.netlify/functions/twilio-voice`;
 const WORKER_URL = `${PUBLIC_SITE}/.netlify/functions/twilio-outbox-worker`;
+const E164_RE = /^\+[1-9]\d{7,14}$/;
 const STAGING_SITE_ID = '982e6338-4a4a-432e-855b-db532b994391';
 
 const UNCONDITIONAL_SMS_COPY = /we(?:['’]ll| will)? text you(?! if you opted in)|then text you|then text or call|Appointment updates by text|Booking confirmed by text|confirming by text|confirmed by text/i;
@@ -130,6 +132,7 @@ function mergedSecrets(fileEnv = {}, processEnv = process.env) {
     'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_API_KEY', 'TWILIO_API_SECRET',
     'TWILIO_MESSAGING_SERVICE_SID', 'TWILIO_WORKER_SECRET', 'NETLIFY_AUTH_TOKEN',
     'TWILIO_SID', 'TWILIO_TOKEN',
+    'TWILIO_FORWARD_SMS_TO', 'TWILIO_FORWARD_CALLS_TO', 'TWILIO_PERSONAL_NUMBER',
   ];
   const out = { ...fileEnv };
   for (const key of keys) {
@@ -154,25 +157,37 @@ function providerWritePlan(input, { enableCustomerSms = false } = {}) {
   if (!/^MG[a-zA-Z0-9]{8,}$/.test(messagingServiceSid)) return { ok: false, error: 'messaging_service_missing' };
   if (!authToken) return { ok: false, error: 'auth_token_missing' };
   if (workerSecret.length < 32) return { ok: false, error: 'worker_secret_too_short' };
-  return {
-    ok: true,
-    vars: {
-      TWILIO_ACCOUNT_SID: accountSid,
-      TWILIO_API_KEY: apiKey,
-      TWILIO_API_SECRET: apiSecret,
-      TWILIO_MESSAGING_SERVICE_SID: messagingServiceSid,
-      TWILIO_AUTH_TOKEN: authToken,
-      TWILIO_WORKER_SECRET: workerSecret,
-      TWILIO_STATUS_CALLBACK_URL: STATUS_URL,
-      TWILIO_INBOUND_WEBHOOK_URL: INBOUND_URL,
-      TWILIO_ALLOWED_BRANCH: 'master',
-      TWILIO_ALLOWED_HOST: 'cardetail1.com',
-      TWILIO_OUTBOX_ENABLED: 'false',
-      TWILIO_ENABLED: 'false',
-      TWILIO_PRODUCTION_SENDS_ENABLED: 'false',
-      CUSTOMER_TRANSACTIONAL_SMS_ENABLED: enableCustomerSms ? 'true' : 'false',
-    },
+  const forwardSmsTo = String(input.TWILIO_FORWARD_SMS_TO || '').trim();
+  const forwardCallsTo = String(input.TWILIO_FORWARD_CALLS_TO || '').trim();
+  const personalNumber = String(input.TWILIO_PERSONAL_NUMBER || '').trim();
+  for (const [key, value] of Object.entries({
+    TWILIO_FORWARD_SMS_TO: forwardSmsTo,
+    TWILIO_FORWARD_CALLS_TO: forwardCallsTo,
+    TWILIO_PERSONAL_NUMBER: personalNumber,
+  })) {
+    if (value && !E164_RE.test(value)) return { ok: false, error: 'forward_number_invalid', key };
+  }
+  const vars = {
+    TWILIO_ACCOUNT_SID: accountSid,
+    TWILIO_API_KEY: apiKey,
+    TWILIO_API_SECRET: apiSecret,
+    TWILIO_MESSAGING_SERVICE_SID: messagingServiceSid,
+    TWILIO_AUTH_TOKEN: authToken,
+    TWILIO_WORKER_SECRET: workerSecret,
+    TWILIO_STATUS_CALLBACK_URL: STATUS_URL,
+    TWILIO_INBOUND_WEBHOOK_URL: INBOUND_URL,
+    TWILIO_VOICE_WEBHOOK_URL: VOICE_URL,
+    TWILIO_ALLOWED_BRANCH: 'master',
+    TWILIO_ALLOWED_HOST: 'cardetail1.com',
+    TWILIO_OUTBOX_ENABLED: 'false',
+    TWILIO_ENABLED: 'false',
+    TWILIO_PRODUCTION_SENDS_ENABLED: 'false',
+    CUSTOMER_TRANSACTIONAL_SMS_ENABLED: enableCustomerSms ? 'true' : 'false',
   };
+  if (forwardSmsTo) vars.TWILIO_FORWARD_SMS_TO = forwardSmsTo;
+  if (forwardCallsTo) vars.TWILIO_FORWARD_CALLS_TO = forwardCallsTo;
+  if (personalNumber) vars.TWILIO_PERSONAL_NUMBER = personalNumber;
+  return { ok: true, vars };
 }
 
 async function fetchText(url, options = {}) {
@@ -269,6 +284,23 @@ async function ensureNumberOnService(client, messagingServiceSid, e164) {
     phoneNumberSid: match.sid,
   });
   return { sid: added.sid, phoneNumber: want, alreadyInPool: false };
+}
+
+async function configureVoiceOnNumber(client, e164) {
+  const want = String(e164 || '').trim();
+  if (!E164_RE.test(want)) throw new Error('invalid_e164');
+  const owned = await client.incomingPhoneNumbers.list({ limit: 100 });
+  const match = owned.find((n) => n.phoneNumber === want);
+  if (!match) throw new Error('number_not_in_account');
+  const updated = await client.incomingPhoneNumbers(match.sid).update({
+    voiceUrl: VOICE_URL,
+    voiceMethod: 'POST',
+  });
+  return {
+    sid: updated.sid,
+    voiceUrl: updated.voiceUrl,
+    voiceMethod: updated.voiceMethod,
+  };
 }
 
 function readNetlifyToken(secrets) {
@@ -491,6 +523,8 @@ async function main(argv = process.argv) {
     if (args.ensureNumber) {
       const added = await ensureNumberOnService(client, secrets.TWILIO_MESSAGING_SERVICE_SID, args.ensureNumber);
       report.actions.push({ ensureNumber: { ...added, phoneFingerprint: sha12(added.phoneNumber) } });
+      const voice = await configureVoiceOnNumber(client, args.ensureNumber);
+      report.actions.push({ configureVoiceWebhook: { sid: voice.sid, voiceUrl: voice.voiceUrl, voiceMethod: voice.voiceMethod } });
     }
   }
 
@@ -553,6 +587,7 @@ module.exports = {
   PRODUCTION_SITE_ID,
   INBOUND_URL,
   STATUS_URL,
+  VOICE_URL,
   TWILIO_ENV_KEYS,
   UNCONDITIONAL_SMS_COPY,
   publicCopyBlocksCustomerSms,

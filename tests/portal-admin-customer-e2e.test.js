@@ -40,7 +40,7 @@ function baseBooking(overrides = {}) {
     addons: [],
     payLink: 'https://checkout.stripe.com/old-stale',
     payLinkAmount: 310,
-    phone: '5513132956',
+    phone: '2015550177',
     ...overrides,
   };
 }

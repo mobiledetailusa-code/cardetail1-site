@@ -381,7 +381,7 @@ test('submit-booking handler rejects fleet draft with fleet_quote_required', asy
     body: JSON.stringify({
       isDraft: true,
       firstName: 'Fleet',
-      phone: '5513132956',
+      phone: '2015550177',
       email: 'fleet@example.com',
       zipCode: '07650',
       address: '100 Test St',

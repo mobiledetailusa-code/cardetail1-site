@@ -15,29 +15,29 @@ process.env.DRAFT_TOKEN_SECRET = 'test-draft-token-secret-32chars-minimum';
 process.env.CUSTOMER_SESSION_SECRET = 'test-customer-session-secret-32chars';
 
 test('phonesMatch: valid 10-digit match', () => {
-  assert.equal(phoneAuth.phonesMatch('5513132956', '5513132956'), true);
+  assert.equal(phoneAuth.phonesMatch('2015550177', '2015550177'), true);
 });
 
 test('phonesMatch: valid country-code match', () => {
-  assert.equal(phoneAuth.phonesMatch('+15513132956', '5513132956'), true);
-  assert.equal(phoneAuth.phonesMatch('15513132956', '(551) 313-2956'), true);
+  assert.equal(phoneAuth.phonesMatch('+12015550177', '2015550177'), true);
+  assert.equal(phoneAuth.phonesMatch('12015550177', '(201) 555-0177'), true);
 });
 
 test('phonesMatch: formatted-number match', () => {
-  assert.equal(phoneAuth.phonesMatch('(551) 313-2956', '5513132956'), true);
+  assert.equal(phoneAuth.phonesMatch('(201) 555-0177', '2015550177'), true);
 });
 
 test('phonesMatch: short suffix rejection', () => {
-  assert.equal(phoneAuth.phonesMatch('132956', '5513132956'), false);
-  assert.equal(phoneAuth.phonesMatch('3132956', '5513132956'), false);
+  assert.equal(phoneAuth.phonesMatch('132956', '2015550177'), false);
+  assert.equal(phoneAuth.phonesMatch('3132956', '2015550177'), false);
 });
 
 test('phonesMatch: different customer rejection', () => {
-  assert.equal(phoneAuth.phonesMatch('5513132956', '5519999999'), false);
+  assert.equal(phoneAuth.phonesMatch('2015550177', '5519999999'), false);
 });
 
 test('normalizeUsPhoneE164', () => {
-  assert.equal(phoneAuth.normalizeUsPhoneE164('(551) 313-2956'), '+15513132956');
+  assert.equal(phoneAuth.normalizeUsPhoneE164('(201) 555-0177'), '+12015550177');
 });
 
 test('mutation endpoints have rate limit buckets', () => {
@@ -102,7 +102,7 @@ test('my-garage metadata and privacy', () => {
   assert.match(page, /noindex,nofollow/);
   assert.match(page, /My Detailing Portal \| Manage Your Cardetail1 Booking/);
   assert.match(page, /clarity.*mask/i);
-  assert.doesNotMatch(page, /5513132956.*booking/i);
+  assert.doesNotMatch(page, /2015550177.*booking/i);
 });
 
 test('my-garage absent from sitemap', () => {
@@ -161,11 +161,11 @@ test('confirmed pack/address/cancel auto-apply without admin approval', () => {
 });
 
 test('auth token verify rejects replay', async () => {
-  const issued = issueDraftSaveToken({ bookingId: 'CD1-TEST', phone: '5513132956' });
+  const issued = issueDraftSaveToken({ bookingId: 'CD1-TEST', phone: '2015550177' });
   assert.equal(issued.ok, true);
-  const first = verifyDraftSaveToken({ token: issued.token, bookingId: 'CD1-TEST', phone: '5513132956' });
+  const first = verifyDraftSaveToken({ token: issued.token, bookingId: 'CD1-TEST', phone: '2015550177' });
   assert.equal(first.ok, true);
-  const replay = verifyDraftSaveToken({ token: issued.token, bookingId: 'CD1-TEST', phone: '5513132956', now: Date.now() + 1000 });
+  const replay = verifyDraftSaveToken({ token: issued.token, bookingId: 'CD1-TEST', phone: '2015550177', now: Date.now() + 1000 });
   assert.equal(replay.ok, true);
 });
 

@@ -264,7 +264,7 @@ describe('submit-booking preference persistence without Stripe', () => {
     return {
       firstName: 'Pref',
       lastName: 'Customer',
-      phone: '5513132956',
+      phone: '2015550177',
       email: 'pref@example.com',
       address: '1 Main St, Newark, NJ',
       zipCode: '07102',
