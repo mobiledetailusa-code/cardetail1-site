@@ -88,7 +88,7 @@ describe('customer identity foundation', () => {
     const svc = require('../netlify/lib/customer-account-service');
     const r = await svc.resolveOrCreateCustomerAccount({
       verifiedEmail: 'alice@example.com',
-      verifiedPhone: '5513132956',
+      verifiedPhone: '2015550177',
       firstName: 'Alice',
       lastName: 'One',
     }, { prisma });

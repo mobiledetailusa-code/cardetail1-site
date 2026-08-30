@@ -156,7 +156,7 @@ describe('customer identity security prerequisites', () => {
     const cs = reloadSession();
     cs.setCustomerSessionStoreFactory(() => sessionStore);
     const { token, session } = await cs.createAccountSession({
-      phoneDigits: '5513132956',
+      phoneDigits: '2015550177',
       email: 'owner@example.com',
       bookingIds: ['CD1-OK'],
     });
@@ -172,7 +172,7 @@ describe('customer identity security prerequisites', () => {
     const cs = reloadSession();
     cs.setCustomerSessionStoreFactory(() => sessionStore);
     const { token, session } = await cs.createAccountSession({
-      phoneDigits: '5513132956',
+      phoneDigits: '2015550177',
       email: 'owner@example.com',
     });
     const revoked = await cs.revokeCustomerSession(cookieEvent(token));
@@ -187,7 +187,7 @@ describe('customer identity security prerequisites', () => {
     const cs = reloadSession();
     cs.setCustomerSessionStoreFactory(() => sessionStore);
     const { token } = await cs.createAccountSession({
-      phoneDigits: '5513132956',
+      phoneDigits: '2015550177',
       email: 'owner@example.com',
     });
     await cs.revokeCustomerSession(cookieEvent(token));
@@ -200,7 +200,7 @@ describe('customer identity security prerequisites', () => {
     const cs = reloadSession();
     cs.setCustomerSessionStoreFactory(() => sessionStore);
     const { token, session } = await cs.createAccountSession({
-      phoneDigits: '5513132956',
+      phoneDigits: '2015550177',
       email: 'owner@example.com',
     });
     await sessionStore.delete(session.sid);
@@ -216,7 +216,7 @@ describe('customer identity security prerequisites', () => {
     const payload = {
       sid,
       scope: 'account',
-      phoneDigits: '5513132956',
+      phoneDigits: '2015550177',
       emailHash: null,
       bookingIds: [],
       exp,
@@ -231,7 +231,7 @@ describe('customer identity security prerequisites', () => {
     const cs = reloadSession();
     cs.setCustomerSessionStoreFactory(() => sessionStore);
     const { token, session } = await cs.createAccountSession({
-      phoneDigits: '5513132956',
+      phoneDigits: '2015550177',
       email: 'owner@example.com',
     });
     const record = await sessionStore.get(session.sid, { type: 'json' });
@@ -248,7 +248,7 @@ describe('customer identity security prerequisites', () => {
     const cs = reloadSession();
     cs.setCustomerSessionStoreFactory(() => sessionStore);
     const { token } = await cs.createAccountSession({
-      phoneDigits: '5513132956',
+      phoneDigits: '2015550177',
       email: 'owner@example.com',
     });
     const [body] = token.split('.');
@@ -264,7 +264,7 @@ describe('customer identity security prerequisites', () => {
       isDraft: false,
       status: 'Confirmed',
       jobStatus: 'confirmed',
-      phone: '5513132956',
+      phone: '2015550177',
       firstName: 'Legacy',
       email: 'legacy@example.com',
       totalPrice: 199,
@@ -279,7 +279,7 @@ describe('customer identity security prerequisites', () => {
     const res = await handler({
       httpMethod: 'POST',
       headers: { 'x-nf-client-connection-ip': '203.0.113.10' },
-      body: JSON.stringify({ bookingId: 'CD1-LEGACY-1', phone: '(551) 313-2956' }),
+      body: JSON.stringify({ bookingId: 'CD1-LEGACY-1', phone: '(201) 555-0177' }),
     });
     const body = JSON.parse(res.body);
     assert.equal(res.statusCode, 200);
@@ -304,7 +304,7 @@ describe('customer identity security prerequisites', () => {
     const makeReq = () => handler({
       httpMethod: 'POST',
       headers: { 'x-nf-client-connection-ip': '203.0.113.44' },
-      body: JSON.stringify({ bookingId: 'CD1-RL', phone: '5513132956' }),
+      body: JSON.stringify({ bookingId: 'CD1-RL', phone: '2015550177' }),
     });
 
     for (let i = 0; i < 3; i += 1) {
@@ -322,16 +322,16 @@ describe('customer identity security prerequisites', () => {
 
   it('10. identifier normalization cannot bypass the limit', async () => {
     const rl = reloadRateLimit();
-    const a = rl.hashRateLimitSubject('CD1-ABC', '5513132956');
-    const b = rl.hashRateLimitSubject('cd1-abc', '5513132956');
-    const c = rl.hashRateLimitSubject('CD1-ABC', '5513132956');
+    const a = rl.hashRateLimitSubject('CD1-ABC', '2015550177');
+    const b = rl.hashRateLimitSubject('cd1-abc', '2015550177');
+    const c = rl.hashRateLimitSubject('CD1-ABC', '2015550177');
     assert.equal(a, b);
     assert.equal(a, c);
 
     const keyPlain = rl.deriveRateLimitKey('203.0.113.55', 'customer-bookings', '', process.env, a);
     const keyAlias = rl.deriveRateLimitKey('203.0.113.55', 'customer-bookings', '', process.env, b);
     assert.equal(keyPlain, keyAlias);
-    assert.doesNotMatch(keyPlain, /CD1|5513132956|203\.0\.113/);
+    assert.doesNotMatch(keyPlain, /CD1|2015550177|203\.0\.113/);
   });
 
   it('11. lookup errors do not enumerate booking/customer existence', async () => {
@@ -342,7 +342,7 @@ describe('customer identity security prerequisites', () => {
         isDraft: false,
         status: 'Confirmed',
         jobStatus: 'confirmed',
-        phone: '5513132956',
+        phone: '2015550177',
       },
     }));
 
@@ -354,7 +354,7 @@ describe('customer identity security prerequisites', () => {
     const miss = await handler({
       httpMethod: 'POST',
       headers: { 'x-nf-client-connection-ip': '203.0.113.70' },
-      body: JSON.stringify({ bookingId: 'CD1-MISSING', phone: '5513132956' }),
+      body: JSON.stringify({ bookingId: 'CD1-MISSING', phone: '2015550177' }),
     });
     const wrongPhone = await handler({
       httpMethod: 'POST',
@@ -383,7 +383,7 @@ describe('customer identity security prerequisites', () => {
       body: JSON.stringify({
         action: 'customer_signup',
         email: 'public@example.com',
-        phone: '5513132956',
+        phone: '2015550177',
         planId: 'maint-monthly',
         customerName: 'Public',
       }),
@@ -401,7 +401,7 @@ describe('customer identity security prerequisites', () => {
       body: JSON.stringify({
         action: 'customer_list',
         email: 'public@example.com',
-        phone: '5513132956',
+        phone: '2015550177',
       }),
     });
     assert.equal(res.statusCode, 403);

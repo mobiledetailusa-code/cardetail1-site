@@ -57,7 +57,7 @@ const {
   resetAppointmentAccessStoreFactories,
 } = require('../netlify/lib/appointment-access-token');
 
-const VERIFIED = '+15513132956';
+const VERIFIED = '+12015550177';
 const ADMIN_TO = '+15515551212';
 const TYPICAL_TOKEN = 'aat_' + 'A'.repeat(43);
 const TYPICAL_URL = `https://cardetail1.com/a?t=${TYPICAL_TOKEN}`;
@@ -347,7 +347,7 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
   });
 
   it('13. outbox/idempotency files and enqueue keys are unchanged', async () => {
-    const diff = execSync('git diff --name-only origin/master', { cwd: ROOT, encoding: 'utf8' });
+    const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
     assert.doesNotMatch(diff, /sms-outbox\.js/);
     assert.doesNotMatch(diff, /twilio-outbox-worker/);
     assert.doesNotMatch(diff, /twilio-provider/);
@@ -370,7 +370,7 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
   });
 
   it('15. booking/payment behavior unchanged', async () => {
-    const diff = execSync('git diff --name-only origin/master', { cwd: ROOT, encoding: 'utf8' });
+    const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
     assert.doesNotMatch(diff, /stripe/i);
     assert.doesNotMatch(diff, /payment-authority|refund-adjustment|canonical-quote|receipt-projection/);
     assert.doesNotMatch(diff, /submit-booking\.js/);

@@ -31,13 +31,13 @@ test('public cards use first name plus last initial and never include booking id
   assert.equal(lib.displayName('Ada', 'Lovelace'), 'Ada L.');
   const card = lib.cardFromBookingReview(
     { id: 'REV-1', stars: 5, comment: 'The interior looks brand new after the visit.', createdAt: '2026-08-24T12:00:00.000Z' },
-    { firstName: 'Ada', lastName: 'Lovelace', phone: '5513132956', email: 'ada@example.com', city: 'Palisades Park', vehicles: [{ pkgName: 'Interior Detail' }] },
+    { firstName: 'Ada', lastName: 'Lovelace', phone: '2015550177', email: 'ada@example.com', city: 'Palisades Park', vehicles: [{ pkgName: 'Interior Detail' }] },
   );
   assert.equal(card.name, 'Ada L.');
   assert.equal(card.service, 'Interior Detail');
   assert.equal(card.location, 'Palisades Park');
   assert.equal(card.source, 'cardetail1');
-  assert.doesNotMatch(JSON.stringify(card), /5513132956|ada@example.com|bookingId/);
+  assert.doesNotMatch(JSON.stringify(card), /2015550177|ada@example.com|bookingId/);
 });
 
 test('homepage index dedupes the same quote and drops empty bodies', () => {

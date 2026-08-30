@@ -58,7 +58,7 @@ function baseDraft(overrides = {}) {
     acceptedCardOnFilePolicyAt: '2026-07-26T12:00:00.000Z',
     firstName: 'Test',
     lastName: 'Owner',
-    phone: '5513132956',
+    phone: '2015550177',
     email: 'owner@example.com',
     address: '1 Main St Newark NJ',
     zipCode: '07102',

@@ -21,7 +21,7 @@ describe('portal access for pending submitted bookings', () => {
       isDraft: true,
       kind: 'draft',
       status: 'submitted',
-      phone: '5513132956',
+      phone: '2015550177',
     };
     assert.equal(hasSubmissionMarkers(submitted), true);
     assert.equal(isDraftRecord(submitted), false);
@@ -34,7 +34,7 @@ describe('portal access for pending submitted bookings', () => {
       isDraft: true,
       appointmentStatus: 'pending_review',
       jobStatus: 'not_started',
-      phone: '5513132956',
+      phone: '2015550177',
     };
     assert.equal(hasSubmissionMarkers(draft), false);
     assert.equal(isDraftRecord(draft), true);
@@ -51,7 +51,7 @@ describe('portal access for pending submitted bookings', () => {
       jobStatus: 'pending_review',
       bookingVersion: 1,
       finalizedAt: '2026-07-18T12:00:00.000Z',
-      phone: '5513132956',
+      phone: '2015550177',
     };
     assert.equal(hasSubmissionMarkers(sticky), true);
     assert.equal(isDraftRecord(sticky), false);
@@ -67,7 +67,7 @@ describe('portal access for pending submitted bookings', () => {
       jobStatus: 'pending_review',
       adminCreated: true,
       bookingVersion: 1,
-      phone: '5513132956',
+      phone: '2015550177',
     };
     assert.equal(isVisibleSubmittedBooking(adminJob), true);
   });
