@@ -27,6 +27,7 @@ const TEMPLATE_KEYS = Object.freeze({
   TECH_AUCTION: 'auction.tech_invite',
   ADMIN_BOOKING: 'ops.booking_alert',
   ADMIN_INQUIRY: 'ops.inquiry_alert',
+  ADMIN_INBOUND_SMS: 'ops.inbound_sms_alert',
   ADMIN_CHANGE_REQUEST: 'ops.change_request_alert',
   ADMIN_CUSTOMER_CANCEL: 'ops.customer_cancel_alert',
   RECOVERY: 'recovery.followup',
@@ -35,6 +36,7 @@ const TEMPLATE_KEYS = Object.freeze({
 const ADMIN_TEMPLATE_KEYS = new Set([
   TEMPLATE_KEYS.ADMIN_BOOKING,
   TEMPLATE_KEYS.ADMIN_INQUIRY,
+  TEMPLATE_KEYS.ADMIN_INBOUND_SMS,
   TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST,
   TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL,
 ]);
@@ -266,6 +268,10 @@ function renderSmsTemplate(templateKey, data = {}) {
     case TEMPLATE_KEYS.ADMIN_INQUIRY:
       body = `${smsPrefix(templateKey)} Customer question from ${text(data.customerName, 80)}`
         + (data.customerPhone ? ` (${text(data.customerPhone, 30)})` : '')
+        + (data.message ? `: ${text(data.message, 220)}` : '');
+      break;
+    case TEMPLATE_KEYS.ADMIN_INBOUND_SMS:
+      body = `${smsPrefix(templateKey)} Inbound text from ${text(data.customerPhone, 30)}`
         + (data.message ? `: ${text(data.message, 220)}` : '');
       break;
     case TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST:
