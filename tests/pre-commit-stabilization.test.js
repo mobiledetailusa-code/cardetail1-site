@@ -374,6 +374,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/submit-booking.js',
     'netlify/functions/submit-inquiry.js',
     'netlify/functions/twilio-inbound.js',
+    'netlify/lib/twilio-inbound-handler.js',
     'netlify/functions/twilio-outbox-worker.js',
     'netlify/functions/twilio-status-callback.js',
     'netlify/lib/auction-ops.js',

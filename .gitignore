@@ -43,5 +43,6 @@ Thumbs.db
 
 # allow committed env template
 !.env.example
+!.env.twilio-activate.example
 /generated/prisma/
 

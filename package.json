@@ -16,6 +16,8 @@
     "owner-studio:staging:seed-catalog": "node scripts/owner-studio-staging-seed-catalog.js",
     "audit:pre-deploy": "node scripts/pre-deploy-audit.mjs",
     "twilio:activate": "node scripts/twilio-netlify-activate.js",
+    "twilio:activate:inspect": "node scripts/twilio-netlify-activate.js --inspect-netlify-env",
+    "twilio:activate:setup": "bash scripts/twilio-netlify-local-setup.sh",
     "financial:preflight": "node scripts/financial-preflight.mjs",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",

@@ -37,6 +37,24 @@ const SEND_SWITCH_KEYS = [
   'TWILIO_PRODUCTION_SENDS_ENABLED',
 ];
 
+const TWILIO_ENV_KEYS = [
+  'TWILIO_ACCOUNT_SID',
+  'TWILIO_API_KEY',
+  'TWILIO_API_SECRET',
+  'TWILIO_MESSAGING_SERVICE_SID',
+  'TWILIO_AUTH_TOKEN',
+  'TWILIO_WORKER_SECRET',
+  'TWILIO_STATUS_CALLBACK_URL',
+  'TWILIO_INBOUND_WEBHOOK_URL',
+  'TWILIO_ALLOWED_BRANCH',
+  'TWILIO_ALLOWED_HOST',
+  'TWILIO_OUTBOX_ENABLED',
+  'TWILIO_ENABLED',
+  'TWILIO_PRODUCTION_SENDS_ENABLED',
+  'CUSTOMER_TRANSACTIONAL_SMS_ENABLED',
+  'ADMIN_SMS_CONSENT_GRANTED',
+];
+
 function sha12(v) {
   return crypto.createHash('sha256').update(String(v || '')).digest('hex').slice(0, 12);
 }
@@ -44,6 +62,7 @@ function sha12(v) {
 function parseArgs(argv = process.argv) {
   const out = {
     inspect: true,
+    inspectNetlifyEnv: false,
     configureTwilio: false,
     confirmTwilio: false,
     ensureNumber: '',
@@ -57,6 +76,7 @@ function parseArgs(argv = process.argv) {
   for (let i = 2; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--help' || a === '-h') out.help = true;
+    else if (a === '--inspect-netlify-env') out.inspectNetlifyEnv = true;
     else if (a === '--configure-twilio') out.configureTwilio = true;
     else if (a === '--confirm-twilio-webhooks') out.confirmTwilio = true;
     else if (a === '--ensure-number') out.ensureNumber = String(argv[++i] || '').trim();
@@ -302,6 +322,79 @@ function readNetlifyToken(secrets) {
   throw new Error('netlify_token_missing');
 }
 
+function productionContextValue(entry) {
+  const values = Array.isArray(entry?.values) ? entry.values : [];
+  const production = values.find((row) => String(row?.context || '').toLowerCase() === 'production');
+  if (production) return production.value;
+  const all = values.find((row) => String(row?.context || '').toLowerCase() === 'all');
+  return all ? all.value : '';
+}
+
+function classifyProductionEnvValue(key, value) {
+  const raw = String(value || '').trim();
+  if (!raw) return 'absent';
+  if (SEND_SWITCH_KEYS.includes(key) || key === 'CUSTOMER_TRANSACTIONAL_SMS_ENABLED' || key === 'ADMIN_SMS_CONSENT_GRANTED') {
+    return raw.toLowerCase() === 'true' ? 'true' : 'false';
+  }
+  if (key === 'TWILIO_STATUS_CALLBACK_URL') {
+    return raw === STATUS_URL ? 'pinned' : 'custom';
+  }
+  if (key === 'TWILIO_INBOUND_WEBHOOK_URL') {
+    return raw === INBOUND_URL ? 'pinned' : 'custom';
+  }
+  if (key === 'TWILIO_ALLOWED_BRANCH') {
+    return raw === 'master' ? 'pinned' : 'custom';
+  }
+  if (key === 'TWILIO_ALLOWED_HOST') {
+    return raw === 'cardetail1.com' ? 'pinned' : 'custom';
+  }
+  if (key === 'TWILIO_ACCOUNT_SID') return /^AC[a-zA-Z0-9]{8,}$/.test(raw) ? 'present' : 'invalid';
+  if (key === 'TWILIO_API_KEY') return /^SK[a-zA-Z0-9]{8,}$/.test(raw) ? 'present' : 'invalid';
+  if (key === 'TWILIO_MESSAGING_SERVICE_SID') return /^MG[a-zA-Z0-9]{8,}$/.test(raw) ? 'present' : 'invalid';
+  if (key === 'TWILIO_WORKER_SECRET') return raw.length >= 32 ? 'present' : 'invalid';
+  return 'present';
+}
+
+async function fetchProductionEnv(token, siteId) {
+  const res = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/env`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    return { ok: false, status: res.status };
+  }
+  const rows = await res.json();
+  const byKey = Object.fromEntries((rows || []).map((row) => [row.key, row]));
+  const vars = {};
+  for (const key of TWILIO_ENV_KEYS) {
+    vars[key] = classifyProductionEnvValue(key, productionContextValue(byKey[key]));
+  }
+  const sendSwitchesOn = SEND_SWITCH_KEYS.filter((key) => vars[key] === 'true');
+  const providerReady = [
+    'TWILIO_ACCOUNT_SID',
+    'TWILIO_API_KEY',
+    'TWILIO_API_SECRET',
+    'TWILIO_MESSAGING_SERVICE_SID',
+    'TWILIO_AUTH_TOKEN',
+    'TWILIO_WORKER_SECRET',
+    'TWILIO_STATUS_CALLBACK_URL',
+    'TWILIO_INBOUND_WEBHOOK_URL',
+  ].every((key) => vars[key] && vars[key] !== 'absent' && vars[key] !== 'invalid');
+  const webhooksPinned = vars.TWILIO_STATUS_CALLBACK_URL === 'pinned'
+    && vars.TWILIO_INBOUND_WEBHOOK_URL === 'pinned';
+  return {
+    ok: true,
+    siteIdFingerprint: sha12(siteId),
+    vars,
+    summary: {
+      providerReady,
+      webhooksPinned,
+      sendSwitchesOn,
+      customerSmsEnabled: vars.CUSTOMER_TRANSACTIONAL_SMS_ENABLED === 'true',
+      adminSmsConsentGranted: vars.ADMIN_SMS_CONSENT_GRANTED === 'true',
+    },
+  };
+}
+
 async function putProductionVar(token, siteId, key, value) {
   const payload = netlifyProductionOnlyPayload(key, value);
   const res = await fetch(
@@ -356,6 +449,34 @@ async function main(argv = process.argv) {
 
   const probe = await publicProbe();
   const secrets = mergedSecrets(readEnvFile(args.envFile));
+
+  if (args.inspectNetlifyEnv) {
+    try {
+      const token = readNetlifyToken(secrets);
+      const envReport = await fetchProductionEnv(token, PRODUCTION_SITE_ID);
+      if (!envReport.ok) {
+        console.error(JSON.stringify({ ok: false, error: 'netlify_env_lookup_failed', status: envReport.status }));
+        return 1;
+      }
+      console.log(JSON.stringify({
+        ok: true,
+        mode: 'inspect-netlify-env',
+        probe,
+        netlifyProduction: envReport,
+        next: envReport.summary.providerReady
+          ? 'Provider vars are present. Configure Twilio webhooks if needed, then enable send switches manually.'
+          : 'Run with --write-netlify-provider --confirm-production-provider-write after filling .env.twilio-activate.',
+      }, null, 2));
+      return 0;
+    } catch (err) {
+      console.error(JSON.stringify({
+        ok: false,
+        error: err.message || String(err),
+        hint: 'Add NETLIFY_AUTH_TOKEN to .env.twilio-activate or log in with the Netlify CLI.',
+      }));
+      return 1;
+    }
+  }
 
   if (!args.configureTwilio && !args.writeNetlify) {
     console.log(JSON.stringify({
@@ -467,10 +588,13 @@ module.exports = {
   INBOUND_URL,
   STATUS_URL,
   VOICE_URL,
+  TWILIO_ENV_KEYS,
   UNCONDITIONAL_SMS_COPY,
   publicCopyBlocksCustomerSms,
   netlifyProductionOnlyPayload,
   assertNoProductionSends,
+  classifyProductionEnvValue,
+  productionContextValue,
   providerWritePlan,
   parseArgs,
   twilioAuthMode,
