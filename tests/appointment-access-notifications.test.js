@@ -43,7 +43,7 @@ function baseBooking(overrides = {}) {
     firstName: 'Alex',
     lastName: 'Tester',
     email: 'alex.tester@example.com',
-    phone: '5513132956',
+    phone: '2015550177',
     package: 'Interior Detail',
     vehicle: '2020 Honda Civic',
     preferredDate: '2026-08-01',
@@ -165,12 +165,12 @@ test('access token is opaque, hashed at rest, and tied to one booking', async ()
       bookingId: 'CD1-A',
       customerAccountId: 'acct_1',
       email: 'a@example.com',
-      phoneDigits: '5513132956',
+      phoneDigits: '2015550177',
       eventType: 'booking.request_received',
     });
     assert.ok(created.token.startsWith(TOKEN_PREFIX));
     assert.doesNotMatch(created.token, /CD1-A/);
-    assert.doesNotMatch(created.accessUrl, /5513132956|acct_1|a@example\.com/i);
+    assert.doesNotMatch(created.accessUrl, /2015550177|acct_1|a@example\.com/i);
 
     const loaded = await loadTokenRecord(created.token);
     assert.equal(loaded.ok, true);
@@ -617,7 +617,7 @@ test('branch-deploy request-received email uses branch-deploy origin', async () 
     const minted = await createAppointmentAccessToken({
       bookingId: booking.id,
       email: booking.email,
-      phoneDigits: '5513132956',
+      phoneDigits: '2015550177',
     });
     assert.match(minted.accessUrl, /^https:\/\/appointment-access-final--cardetail1\.netlify\.app\//);
     assert.doesNotMatch(minted.accessUrl, /envBinding|branch-deploy:|CONTEXT=/);
@@ -649,7 +649,7 @@ test('draft token works on draft env and fails safely on production env', async 
     const minted = await createAppointmentAccessToken({
       bookingId: 'CD1-ENV-ISO-1',
       email: 'iso@example.com',
-      phoneDigits: '5513132956',
+      phoneDigits: '2015550177',
     });
     assert.equal(minted.envBinding, 'branch-deploy:appointment-access-final');
     const onDraft = await loadTokenRecord(minted.token);
@@ -662,7 +662,7 @@ test('draft token works on draft env and fails safely on production env', async 
     const minted2 = await createAppointmentAccessToken({
       bookingId: 'CD1-ENV-ISO-2',
       email: 'iso2@example.com',
-      phoneDigits: '5513132956',
+      phoneDigits: '2015550177',
     });
     process.env.CONTEXT = 'production';
     process.env.PUBLIC_SITE_URL = 'https://cardetail1.com';
@@ -698,7 +698,7 @@ test('production token fails safely when evaluated in branch-deploy context', as
     const minted = await createAppointmentAccessToken({
       bookingId: 'CD1-ENV-ISO-PROD',
       email: 'prod@example.com',
-      phoneDigits: '5513132956',
+      phoneDigits: '2015550177',
     });
     process.env.CONTEXT = 'branch-deploy';
     process.env.BRANCH = 'appointment-access-final';

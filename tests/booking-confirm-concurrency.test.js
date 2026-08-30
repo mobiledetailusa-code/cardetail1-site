@@ -37,7 +37,7 @@ function pendingBooking(id = 'CD1-CONFIRM-1') {
     firstName: 'Sam',
     lastName: 'Customer',
     email: 'sam@example.com',
-    phone: '5513132956',
+    phone: '2015550177',
     package: 'Interior',
     vehicle: '2021 Toyota Camry',
     status: 'Pending Review',

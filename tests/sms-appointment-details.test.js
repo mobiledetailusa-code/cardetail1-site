@@ -41,7 +41,7 @@ const {
   buildAccessUrl,
 } = require('../netlify/lib/appointment-access-token');
 
-const VERIFIED = '+15513132956';
+const VERIFIED = '+12015550177';
 const OTHER = '+15513983986';
 const ADMIN_TO = '+15515551212';
 const TYPICAL_TOKEN = 'aat_' + 'A'.repeat(43);
@@ -453,7 +453,7 @@ describe('19-20. admin SMS and Stripe/payment behavior unchanged', () => {
     });
     assert.equal(
       booking.body,
-      'Cardetail1 Admin: Booking alert CD1-ADMIN - Owner - +15513132956 Reply STOP or HELP'
+      'Cardetail1 Admin: Booking alert CD1-ADMIN - Owner - +12015550177 Reply STOP or HELP'
     );
     const change = renderSmsTemplate(TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST, {
       date: 'Aug 28',

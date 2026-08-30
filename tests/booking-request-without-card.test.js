@@ -29,7 +29,7 @@ function requestPayload(overrides = {}) {
   return {
     firstName: 'No Card',
     lastName: 'Customer',
-    phone: '5513132956',
+    phone: '2015550177',
     email: 'no-card@example.com',
     address: '1 Main St, Newark, NJ',
     zipCode: '07102',

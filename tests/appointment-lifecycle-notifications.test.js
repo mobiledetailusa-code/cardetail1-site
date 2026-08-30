@@ -47,7 +47,7 @@ const {
 } = require('../netlify/lib/appointment-access-token');
 const { setBookingStoreOverride } = require('../netlify/lib/booking-repository');
 
-const VERIFIED = '+15513132956';
+const VERIFIED = '+12015550177';
 const ADMIN_TO = '+15515551212';
 const SMS_ENV = Object.freeze({
   CONTEXT: 'production',
