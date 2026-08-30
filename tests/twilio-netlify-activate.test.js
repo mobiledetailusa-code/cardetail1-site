@@ -106,10 +106,18 @@ test('provider write plan can enable customer SMS flag without enabling sends', 
 
 test('Netlify pins the outbox worker schedule in netlify.toml', () => {
   const toml = fs.readFileSync(path.join(__dirname, '..', 'netlify.toml'), 'utf8');
+  assert.match(toml, /SECRETS_SCAN_OMIT_KEYS\s*=\s*"TWILIO_VOICE_WEBHOOK_URL,TWILIO_INBOUND_WEBHOOK_URL,TWILIO_STATUS_CALLBACK_URL"/);
   assert.match(toml, /\[functions\."twilio-outbox-worker"\]/);
   assert.match(toml, /schedule\s*=\s*"\*\/2 \* \* \* \*"/);
   const worker = fs.readFileSync(path.join(__dirname, '..', 'netlify/functions/twilio-outbox-worker.js'), 'utf8');
   assert.match(worker, /exports\.config\s*=\s*\{\s*schedule:\s*'\*\/2 \* \* \* \*'/);
   assert.match(worker, /decodeEventBody/);
   assert.match(worker, /\[twilio-outbox-worker\]/);
+});
+
+test('deploy-runtime bake list is identity-only (no session/Twilio secrets)', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'scripts/generate-deploy-runtime-env.js'), 'utf8');
+  const keysBlock = src.match(/const KEYS = \[([\s\S]*?)\];/)[1];
+  assert.ok(keysBlock, 'KEYS array missing');
+  assert.doesNotMatch(keysBlock, /ADMIN_|TWILIO_|SESSION|SECRET|TOKEN|SMS/);
 });
