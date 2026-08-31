@@ -55,6 +55,8 @@ test('homepage declares a square crawlable Google search favicon and Organizatio
     'assets/favicon-96.png',
     'assets/apple-touch-icon.png',
     'assets/cardetail1-logo-square.png',
+    'assets/google-business-logo.jpg',
+    'assets/google-business-logo.png',
   ];
   for (const rel of files) {
     const file = path.join(root, rel);
@@ -68,6 +70,7 @@ test('homepage declares a square crawlable Google search favicon and Organizatio
   while ((match = re.exec(index))) blocks.push(JSON.parse(match[1]));
   const local = blocks.find((b) => [].concat(b['@type'] || []).includes('LocalBusiness'));
   assert.equal(local.logo.url, 'https://cardetail1.com/assets/cardetail1-logo-square.png');
-  assert.equal(local.logo.width, 512);
-  assert.equal(local.logo.height, 512);
+  assert.equal(local.logo.width, 720);
+  assert.equal(local.logo.height, 720);
+  assert.ok(fs.statSync(path.join(root, 'assets/google-business-logo.jpg')).size > 10000);
 });
