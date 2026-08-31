@@ -3345,7 +3345,8 @@ function selectPkg(id){
   ST.pkg=(PRICING[ST.cat]&&PRICING[ST.cat].packages)?PRICING[ST.cat].packages.find(p=>p.id===id):null;
   document.getElementById('next2').disabled=!ST.pkg;
   if(changed){ ST._addonKey=''; ST.addons=[]; ST.addonTotal=0; }
-  tryGenericConfirm();
+  if((ST.cat==='boats'||ST.cat==='rvs'||ST.cat==='fleet') && (ST.lengthFt||ST.units)){tryGenericConfirm();}
+  else if(ST.cat==='cars' && ST.tierKey){ setBasePrice(); if(ST.vehicleLabel) renderAddons(); }
   // Auto-advance to vehicle step
   if(ST.pkg) setTimeout(()=>bkGoTo(3), 180);
 }

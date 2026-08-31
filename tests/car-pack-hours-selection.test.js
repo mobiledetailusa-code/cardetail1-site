@@ -65,7 +65,7 @@ test('Maintenance Detail hides shampoo/steam add-ons', () => {
 
 test('package reselect after Back updates selection, price, and add-ons', () => {
   assert.match(html, /function selectPkg\(id\)\{[\s\S]*?pkg-grid[\s\S]*?ST\._addonKey=''/);
-  assert.match(html, /function selectPkg\(id\)\{[\s\S]*?tryGenericConfirm\(\)/);
+  assert.match(html, /function selectPkg\(id\)\{[\s\S]*?ST\.cat==='cars' && ST\.tierKey/);
   assert.match(html, /function selectPkg\(id\)\{[\s\S]*?currentBkStep < 3/);
   assert.doesNotMatch(html, /function selectPkg\(id\)\{[\s\S]*?renderPkgDetailPanel\(\)/);
   assert.match(html, /if \(n === 2\) \{[\s\S]*?pk-' \+ ST\.pkgId/);

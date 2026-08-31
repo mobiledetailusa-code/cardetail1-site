@@ -4241,7 +4241,12 @@ function selectPkg(id){
     ST.addons=[];
     ST.addonTotal=0;
   }
-  tryGenericConfirm();
+  if((ST.cat==='boats'&&ST.lengthFt)||(ST.cat==='rvs'&&(ST.lengthFt&&ST.rvType))||(ST.cat==='fleet'&&ST.units)){
+    tryGenericConfirm();
+  } else if(ST.cat==='cars' && ST.tierKey){
+    setBasePrice();
+    if(ST.vehicleLabel) renderAddons();
+  }
   if(ST.cat==='rvs') updateRvServiceSubtotal();
   // Auto-advance to vehicle step after package selection
   if(ST.pkg && currentBkStep < 3) setTimeout(()=>bkContinueFromPackage(), 180);
