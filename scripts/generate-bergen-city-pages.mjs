@@ -608,7 +608,7 @@ ${schema(city)}
 </header>
 <section class="sp-section" aria-label="Why this town">
   <div class="sp-trust">
-    <div class="sp-trust-item"><strong>Based in Palisades Park</strong><span>Core Bergen route · ZIP ${city.zip}</span></div>
+    <div class="sp-trust-item"><strong>Based in Palisades Park</strong><span>${city.zip === '07650' ? 'Home base · ZIP 07650' : `Serving ZIP ${city.zip}`}</span></div>
     <div class="sp-trust-item"><strong>We bring water &amp; power</strong><span>No hose hookup required</span></div>
     <div class="sp-trust-item"><strong>5.0 on Google</strong><span>9 reviews · snapshot August 2026</span></div>
     <div class="sp-trust-item"><strong>$0 at request</strong><span>Pay after service</span></div>
