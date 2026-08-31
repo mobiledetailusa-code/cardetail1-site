@@ -38,12 +38,14 @@ test('interior service list is shared on interior, full, and signature packs', (
   assert.match(html, /Door jambs cleaned/);
   assert.match(html, /truck bed where applicable/);
   const cars = carPackagesBlock();
+  const maint = cars.split("id:'interior'")[0];
+  const refresh = cars.split("id:'refresh'")[1].split("id:'premium'")[0];
   assert.match(cars, /id:'interior'[\s\S]*?int:CAR_INTERIOR_SERVICE_ITEMS/);
   assert.match(cars, /id:'full'[\s\S]*?int:CAR_INTERIOR_SERVICE_ITEMS/);
   assert.match(cars, /id:'premium'[\s\S]*?int:CAR_INTERIOR_SERVICE_ITEMS/);
-  assert.doesNotMatch(cars, /id:'maint'[\s\S]*?int:CAR_INTERIOR_SERVICE_ITEMS/);
-  assert.doesNotMatch(cars, /id:'refresh'[\s\S]*?int:CAR_INTERIOR_SERVICE_ITEMS/);
-  assert.match(cars, /id:'maint'[\s\S]*?miss:\[[\s\S]*Roof\/headliner/);
+  assert.doesNotMatch(maint, /int:CAR_INTERIOR_SERVICE_ITEMS/);
+  assert.doesNotMatch(refresh, /int:CAR_INTERIOR_SERVICE_ITEMS/);
+  assert.match(maint, /Roof\/headliner/);
 });
 
 test('signature pack drops ceramic protection and includes wheels, tire shine, and plastic restoration', () => {
