@@ -65,11 +65,13 @@ const buttonStatesCss = read('assets/button-states.css');
 
 test('shared package detail data includes required content for all three car packages', () => {
   assert.match(pkgModalJs, /const CAR_PKG_DETAILS\s*=\s*\{/);
-  assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Vacuum"[\s\S]*"Steam touch points"[\s\S]*"Floor mats"[\s\S]*\]/);
+  assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Headliner cleaning"[\s\S]*\]/);
+  assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Door jambs cleaned"[\s\S]*\]/);
+  assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*truck bed where applicable[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*bestFor:\s*\[[\s\S]*"Daily drivers"[\s\S]*"Family cars"[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"Heavy pet hair"[\s\S]*"Biohazard"[\s\S]*\]/);
 
-  assert.match(pkgModalJs, /full:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Interior detail"[\s\S]*"Exterior hand wash"[\s\S]*"Exterior protection"[\s\S]*\]/);
+  assert.match(pkgModalJs, /full:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Headliner cleaning"[\s\S]*"Exterior hand wash"[\s\S]*"Exterior protection"[\s\S]*\]/);
   assert.match(pkgModalJs, /full:\s*\{[\s\S]*bestFor:\s*\[[\s\S]*"Full refresh inside and out"[\s\S]*"Resale prep"[\s\S]*\]/);
   assert.match(pkgModalJs, /full:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"Clay\/polish upgrade"[\s\S]*"Headlights"[\s\S]*\]/);
 

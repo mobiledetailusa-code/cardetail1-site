@@ -614,7 +614,6 @@ body.rv-overlay-lock{overflow:hidden}
 .pkg-feats li.grp::before{content:'';margin:0}
 .pkg-btn{margin-top:12px;width:100%;padding:10px;border-radius:999px;border:1px solid rgba(77,163,255,.4);background:transparent;color:var(--blue);font-family:var(--fb);font-size:11.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s}
 .pkg-btn:hover,.pkg.sel .pkg-btn{background:var(--blue);color:#000;border-color:var(--blue)}
-.pkg.pop .pkg-btn{background:var(--blue);color:#000;border-color:var(--blue)}
 
 /* VEHICLE SEARCH */
 .srch-wrap{position:relative;margin-bottom:11px}
@@ -1451,7 +1450,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .cp-title,.cg-val,.cg-vname,.cg-hpkg,.cg-plan-name,.cg-pref-lbl,.cg-back:hover,.cp-close:hover{color:var(--ink)}
 .cp-fi,.cg-section,.cg-vehicle,.cp-result{background:var(--bg0);border-color:var(--line);color:var(--ink)}
 .cp-tabs,.cp-tab,.cg-nav-btn{border-color:var(--line-strong)}
-.cp-tab.active,.cp-btn,.cg-nav-book,.cg-cta-p,.cg-pref-save,.pop-b,.btn-n,.btn-sub,.pkg-btn:hover,.pkg.sel .pkg-btn,.pkg.pop .pkg-btn,.loc-zip-btn{color:var(--white)!important}
+.cp-tab.active,.cp-btn,.cg-nav-book,.cg-cta-p,.cg-pref-save,.pop-b,.btn-n,.btn-sub,.pkg-btn:hover,.pkg.sel .pkg-btn,.loc-zip-btn{color:var(--white)!important}
 .btn-restart:hover,.success-actions a:hover,.success-actions button:hover,.rv-nav-btn:hover:not(:disabled){color:var(--white)!important}
 .rph-desc{font-size:13px;color:var(--mu)}
 .pc-ico{font-size:40px;margin-bottom:12px}
@@ -1679,10 +1678,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="car-pkg-top">
           <span class="car-pkg-scope">Interior only</span>
           <h3 class="car-pkg-name">Interior Detail</h3>
-          <p class="car-pkg-desc">Vacuum, shampoo, steam, and wipe-down for seats, carpets, and dash.</p>
+          <p class="car-pkg-desc">Vacuum, shampoo, steam, headliner, door jambs, trunk and truck bed where applicable — plus dash, glass, and UV protectant.</p>
           <div class="car-pkg-meta">
             <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
-            <span class="car-pkg-chip">⏱ ~2.5–3.5 hrs</span>
+            <span class="car-pkg-chip">⏱ ~1.5–2 hrs</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('interior', event)">See what's included</button>
         </div>
@@ -1705,7 +1704,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <p class="car-pkg-desc">Our premium inside-and-out package — interior detail plus exterior wash, protection, and light paint cleaning.</p>
           <div class="car-pkg-meta">
             <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
-            <span class="car-pkg-chip">⏱ ~3–5 hrs</span>
+            <span class="car-pkg-chip">⏱ ~2.5–3 hrs</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('full', event)">See what's included</button>
         </div>
@@ -1725,7 +1724,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <p class="car-pkg-desc">Advanced exterior-only package — clay bar, polish, sealant, wheels, glass, and gloss restoration. Premium paint enhancement, not a basic wash.</p>
           <div class="car-pkg-meta">
             <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
-            <span class="car-pkg-chip">⏱ ~2.5–3 hrs</span>
+            <span class="car-pkg-chip">⏱ ~3.5–4 hrs</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('refresh', event)">See what's included</button>
         </div>
@@ -3238,6 +3237,16 @@ function renderPkgDetailPanel(){
 // (before any pricing-dependent init) with the authenticated draft, and booking/payment
 // submission is blocked. Declared early so authoritative entry points can guard on it.
 let OS_PREVIEW_ACTIVE = false;
+const CAR_INTERIOR_SERVICE_ITEMS = [
+  'Deep vacuum — seats, floors, trunk, and truck bed where applicable',
+  'Fabric seats & carpet shampoo',
+  'Leather surfaces conditioned',
+  'Steam clean — vents, panels, crevices',
+  'Dashboard, doors & trim detail with UV protectant on plastics',
+  'Interior glass cleaned',
+  'Door jambs cleaned',
+  'Headliner cleaning',
+];
 let PRICING = {
   cars: {
     tiers: {
@@ -3252,25 +3261,25 @@ let PRICING = {
         int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
         feats:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
         miss:['Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
-      {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles — add-ons available for pet hair, odor & stains', dur:'~2.5–3.5h',            popular:false, scope:'int',
+      {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles — add-ons available for pet hair, odor & stains', dur:'~1.5–2h',            popular:false, scope:'int',
         ext:[],
-        int:['Deep vacuum — seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior glass cleaned'],
-        feats:['Deep vacuum — seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior glass cleaned'],
+        int:CAR_INTERIOR_SERVICE_ITEMS,
+        feats:CAR_INTERIOR_SERVICE_ITEMS,
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
-      {id:'full',     name:'Premium Full Detail', icon:'🧽', tag:'Best for a full inside/out refresh — most popular', dur:'~3–5h depending on condition', popular:true,  scope:'both',
+      {id:'full',     name:'Premium Full Detail', icon:'🧽', tag:'Best for a full inside/out refresh — most popular', dur:'~2.5–3h', popular:true,  scope:'both',
         ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'],
-        int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','UV protectant'],
-        feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','Spray sealant/protection','Tire dressing','UV protectant'],
+        int:CAR_INTERIOR_SERVICE_ITEMS,
+        feats:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'].concat(CAR_INTERIOR_SERVICE_ITEMS),
         miss:['Machine polish','Signature Restoration','Premium long-term sealant']},
-      {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~2.5–3h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
+      {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~3.5–4h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
         ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'],
         int:[],
         feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X glass treatment','Tire dressing','Final quality inspection'],
         miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
-      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — single-pass correction, ceramic protection, clay bar, Rain-X & deep interior care', dur:'~6–8h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting ceramic paint protection','Deep wheel & lug detailing','Exterior trim restoration','Rain-X windshield treatment'],
-        int:['Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Detailed dash & console cleaning','Interior glass & vents detailed','Trunk & cargo area detail'],
-        feats:['Clay bar decontamination','Single-pass paint correction','Ceramic paint protection','Deep wheel & lug detailing','Rain-X windshield treatment','Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Dash & console detail','Final quality inspection'],
+      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — single-pass correction, clay bar, Rain-X, wheel & tire shine, plastic restoration & deep interior care', dur:'~3.5–4h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Wheel cleaning & tire shine','Exterior plastic restoration','Rain-X windshield treatment'],
+        int:CAR_INTERIOR_SERVICE_ITEMS,
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Wheel cleaning & tire shine','Exterior plastic restoration','Rain-X windshield treatment'].concat(CAR_INTERIOR_SERVICE_ITEMS),
         miss:[]}
     ],
     addons:[
@@ -4039,6 +4048,16 @@ function bkGoTo(n, opts = {}) {
   });
   const activeTab = document.getElementById('bpt' + n);
   if (activeTab && activeTab.scrollIntoView) activeTab.scrollIntoView({ inline: 'center', block: 'nearest' });
+  if (n === 2) {
+    const n2 = document.getElementById('next2');
+    if (n2) n2.disabled = !ST.pkg;
+    const grid = document.getElementById('pkg-grid');
+    if (grid && ST.pkgId) {
+      grid.querySelectorAll('.pkg').forEach(c => c.classList.remove('sel'));
+      const card = document.getElementById('pk-' + ST.pkgId);
+      if (card) card.classList.add('sel');
+    }
+  }
   if (n === 3) renderVehicleCart();
   if (n === 4) fillStrip5();
   if (n === 5) {
@@ -4206,13 +4225,23 @@ function renderPackages(cat){
 }
 
 function selectPkg(id){
-  document.querySelectorAll('.pkg').forEach(c=>c.classList.remove('sel'));
-  const el=document.getElementById('pk-'+id);
-  if(el)el.classList.add('sel');
+  const grid=document.getElementById('pkg-grid');
+  if(grid){
+    grid.querySelectorAll('.pkg').forEach(c=>c.classList.remove('sel'));
+    const el=document.getElementById('pk-'+id);
+    if(el) el.classList.add('sel');
+  }
+  const changed=ST.pkgId!==id;
   ST.pkgId=id;
   ST.pkg=(PRICING[ST.cat]&&PRICING[ST.cat].packages)?PRICING[ST.cat].packages.find(p=>p.id===id):null;
-  document.getElementById('next2').disabled=!ST.pkg;
-  if((ST.cat==='boats'&&ST.lengthFt)||(ST.cat==='rvs'&&(ST.lengthFt&&ST.rvType))||(ST.cat==='fleet'&&ST.units)){tryGenericConfirm();}
+  const n2=document.getElementById('next2');
+  if(n2) n2.disabled=!ST.pkg;
+  if(changed){
+    ST._addonKey='';
+    ST.addons=[];
+    ST.addonTotal=0;
+  }
+  tryGenericConfirm();
   if(ST.cat==='rvs') updateRvServiceSubtotal();
   // Auto-advance to vehicle step after package selection
   if(ST.pkg && currentBkStep < 3) setTimeout(()=>bkContinueFromPackage(), 180);
@@ -4555,6 +4584,13 @@ document.getElementById('year-sel').addEventListener('change',function(){
 });
 
 // ── STEP 4: ADD-ONS ───────────────────────────────────────────────────────────
+function addonRequiresShampooOrSteam(a){
+  if(!a) return false;
+  if(a.id==='superint'||a.id==='floormats') return true;
+  const blob=((a.desc||'')+' '+(a.name||'')).toLowerCase();
+  return /shampoo|steam/.test(blob);
+}
+
 function renderAddons(){
   if(!ST.pkg) return;
   document.getElementById('ah-pkg').textContent=(ST.pkg?.name||'')+' Package';
@@ -4578,6 +4614,7 @@ function renderAddons(){
   const addons=(PRICING[ST.cat]?.addons||[]).filter(a=>{
     const s=a.scope||'any';
     if(_pkgIncludesAddon[a.id]) return false;
+    if(ST.cat==='cars' && ST.pkgId==='maint' && addonRequiresShampooOrSteam(a)) return false;
     return pkgScope==='both' || s==='any' || s===pkgScope;
   });
   const POPULAR_IDS=ST.cat==='rvs'?['superint','sanitize','rainx','pethair','odor']:['rainx','pethair','odor'];

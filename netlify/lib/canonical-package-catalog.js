@@ -19,10 +19,10 @@ const { LENGTH_PRICING } = require('./booking-price-catalog');
 const PACKAGE_DESCRIPTIONS = {
   cars: {
     maint: 'Exterior hand wash, wheels dressed, interior vacuum, dash wipe, UV protectant. Ideal for monthly upkeep.',
-    interior: 'Deep vacuum, fabric shampoo, leather conditioning, steam clean, UV protectant on plastics.',
-    full: 'Complete exterior and interior detail with clay bar, shampoo, steam, and sealant protection.',
+    interior: 'Deep vacuum including trunk and truck bed where applicable, fabric shampoo, leather conditioning, steam clean, door jambs, headliner, UV protectant on plastics.',
+    full: 'Complete exterior and interior detail with clay bar, shampoo, steam, door jambs, headliner, trunk and truck bed where applicable, and sealant protection.',
     refresh: 'Clay bar, chemical decontamination, single-pass paint correction, sealant, deep wheel detail, and Rain-X included.',
-    premium: 'Clay bar, single-pass correction, ceramic protection, Rain-X, deep wheels, carpet shampoo, leather and plastics with UV protection.',
+    premium: 'Clay bar, single-pass correction, Rain-X, wheel cleaning and tire shine, exterior plastic restoration, door jambs, headliner, trunk and truck bed where applicable.',
   },
   boats: {
     maint: 'Exterior marine wash and rinse for regularly maintained boats.',
