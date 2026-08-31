@@ -27,6 +27,10 @@ test('sitemap.xml lists homepage and public hub URLs', () => {
   assert.match(sitemap, /multi-vehicle-detailing\.html/);
   assert.match(sitemap, /fleet-services\.html/);
   assert.match(sitemap, /newark-mobile-detailing\.html/);
+  assert.match(sitemap, /palisades-park-mobile-detailing\.html/);
+  assert.match(sitemap, /fort-lee-mobile-detailing\.html/);
+  assert.match(sitemap, /paramus-mobile-detailing\.html/);
+  assert.match(sitemap, /hackensack-mobile-detailing\.html/);
   assert.match(sitemap, /blog\.html/);
   assert.match(sitemap, /detailing-vs-car-wash\.html/);
   assert.match(sitemap, /how-often-to-detail\.html/);

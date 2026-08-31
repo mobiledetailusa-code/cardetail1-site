@@ -2,5 +2,25 @@ User-agent: *
 Disallow: /customer/
 Disallow: /admin/
 Disallow: /tech/
+Disallow: /admin.html
+Disallow: /admin-ops.html
+Disallow: /admin-owner-studio.html
+Disallow: /admin-owner-studio-catalog.html
+Disallow: /technician.html
+Disallow: /template-city.html
+Disallow: /authorize.html
+Disallow: /receipt.html
+Disallow: /bid.html
+Disallow: /resume.html
+Disallow: /customer.html
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
 
 Sitemap: https://cardetail1.com/sitemap.xml

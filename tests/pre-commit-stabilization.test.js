@@ -56,9 +56,9 @@ function resolveHref(href) {
   return file;
 }
 
-test('sitemap reported count equals actual URL entries (23)', () => {
+test('sitemap reported count equals actual URL entries', () => {
   const urls = sitemapUrls();
-  assert.equal(urls.length, 23);
+  assert.equal(urls.length, 31);
 });
 
 test('every sitemap route file exists on disk', () => {

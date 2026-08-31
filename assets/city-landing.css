@@ -1,0 +1,85 @@
+/* Bergen County city landings — extends specialty-category.css */
+.city-crumb {
+  max-width: 860px;
+  margin: 18px auto 0;
+  padding: 0 20px;
+  font-size: 13px;
+  color: var(--sp-muted);
+}
+.city-crumb a { color: var(--sp-blue); text-decoration: none; }
+.city-crumb a:hover { text-decoration: underline; }
+.city-zip {
+  max-width: 440px;
+  margin: 0 auto 22px;
+  background: rgba(19, 32, 51, 0.55);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-r);
+  padding: 16px 18px;
+  text-align: left;
+}
+.city-zip label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sp-muted);
+  margin-bottom: 8px;
+}
+.city-zip-row { display: flex; gap: 10px; }
+.city-zip input {
+  flex: 1;
+  min-width: 0;
+  background: #0a1018;
+  border: 1px solid var(--sp-line-strong);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #fff;
+  font: 600 18px/1.2 var(--sp-fb);
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+.city-copy {
+  max-width: 760px;
+  margin: 0 auto;
+  color: #d5deea;
+  font-size: 16px;
+  line-height: 1.75;
+}
+.city-copy p { margin-bottom: 16px; }
+.city-copy p:last-child { margin-bottom: 0; }
+.city-nearby {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.city-nearby a {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--sp-line-strong);
+  background: var(--sp-blue-dim);
+  color: #d7e8ff;
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.city-nearby a:hover { background: var(--sp-blue); color: #06121f; }
+.city-reviews {
+  display: grid;
+  gap: 14px;
+}
+.city-review {
+  border: 1px solid var(--sp-line);
+  background: rgba(19, 32, 51, 0.55);
+  border-radius: var(--sp-r);
+  padding: 18px;
+}
+.city-review p { color: #d5deea; margin: 8px 0 0; }
+.city-review-meta { font-size: 12px; color: var(--sp-muted); }
+.city-stars { color: #f5c842; letter-spacing: 0.04em; }
+.sp-pkg-price { font-size: 22px; font-weight: 700; color: #fff; margin: 8px 0 4px; }
+.sp-pkg-basis { font-size: 12px; color: var(--sp-muted); margin-bottom: 10px; }
+@media (max-width: 640px) {
+  .city-zip-row { flex-direction: column; }
+}

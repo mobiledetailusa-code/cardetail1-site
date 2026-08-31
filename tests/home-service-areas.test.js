@@ -50,15 +50,15 @@ const cityLinks = extractCityLinks(section);
 const hubLinks = extractHubLinks(section);
 
 const expectedCityHrefs = [
+  '/palisades-park-mobile-detailing.html',
+  '/fort-lee-mobile-detailing.html',
+  '/paramus-mobile-detailing.html',
+  '/hackensack-mobile-detailing.html',
+  '/englewood-mobile-detailing.html',
+  '/teaneck-mobile-detailing.html',
+  '/ridgewood-mobile-detailing.html',
+  '/edgewater-mobile-detailing.html',
   '/bergen-county-hub.html',
-  '/hudson-county-hub.html',
-  '/essex-county-hub.html',
-  '/passaic-county-hub.html',
-  '/newark-mobile-detailing.html',
-  '/westchester-mobile-detailing.html',
-  '/trenton-mobile-detailing.html',
-  '/ny-metro-hub.html#rockland-county',
-  '/connecticut-hub.html#fairfield-county',
 ];
 
 test('homepage contains the Mobile Detailing Near You section', () => {
@@ -78,7 +78,7 @@ test('section is placed after reviews and before final CTA', () => {
 
 test('section contains 8 to 12 city links', () => {
   assert.ok(cityLinks.length >= 8 && cityLinks.length <= 12, `got ${cityLinks.length}`);
-  assert.equal(cityLinks.length, 9);
+  assert.equal(cityLinks.length, expectedCityHrefs.length);
 });
 
 test('every city link is an anchor with a valid href in raw HTML', () => {

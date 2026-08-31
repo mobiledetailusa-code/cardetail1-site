@@ -38,6 +38,7 @@ Thumbs.db
 *.log
 *.txt
 !robots.txt
+!llms.txt
 
 /generated/prisma
 
