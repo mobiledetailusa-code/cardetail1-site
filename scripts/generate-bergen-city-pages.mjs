@@ -19,7 +19,7 @@ const PACKAGES = [
     tag: 'Vacuum, shampoo, steam, and wipe-down for seats, carpets, and dash.',
     price: 190,
     note: 'Sedans from $190 · SUVs from $215 · trucks from $235',
-    time: '~2.5–3.5 hrs',
+    time: '~1.5–2 hrs',
   },
   {
     id: 'full',
@@ -27,7 +27,7 @@ const PACKAGES = [
     tag: 'Most booked — interior detail plus exterior wash, protection, and light paint cleaning.',
     price: 240,
     note: 'Sedans from $240 · SUVs from $260 · 3-row from $270',
-    time: '~3–5 hrs',
+    time: '~2.5–3 hrs',
     popular: true,
   },
   {
@@ -36,7 +36,7 @@ const PACKAGES = [
     tag: 'Clay bar, polish, sealant, wheels, glass, and gloss restoration — not a basic wash.',
     price: 320,
     note: 'Premium exterior · sized by vehicle',
-    time: '~2.5–3 hrs',
+    time: '~3.5–4 hrs',
   },
 ];
 
@@ -88,7 +88,7 @@ const CITIES = [
       'Cardetail1 is based in Palisades Park, ZIP 07650 — not a shop you drop the car at. We load water, power, and professional chemicals in the van and detail in your driveway, parking pad, or an approved lot. Palisades Park is the shortest hop on our Bergen County route, so standard interior, full, and exterior packages here use the same core NJ pricing you see on the homepage: Interior Detail from $190, Premium Full Detail from $240 for sedans, and Exterior Detail & Paint Enhancement from $320.',
       'Broad Avenue and the residential blocks off it mix tight driveways, street parking, and small commercial lots. That is normal for this town, and it is why we ask for access notes when you book: where the vehicle will sit, whether we can stage next to it, and whether a HOA or landlord has vendor rules. We do not need your outdoor faucet. Same-week requests are easiest here because we are already in town.',
       'Most Palisades Park jobs we price are daily drivers — sedans, two-row SUVs, and family crossovers that pick up GWB-adjacent film, winter salt, and interior wear from kids or pets. Interior Detail is the right call when the cabin is the problem. Premium Full Detail is the package most customers book when they want inside and out in one visit. Heavy pet hair, odor, or stained carpets are add-ons at booking, not surprises on the invoice.',
-      'Interior Detail in the live catalog is deep vacuum (seats, floors, trunk), fabric shampoo, leather conditioning, steam on vents and panels, dash and door trim with UV protectant, and interior glass. It does not include an exterior wash. Premium Full Detail stacks that cabin work with a hand wash, clay decontamination, spray sealant, wheels, and exterior glass — that is why it is marked most booked. Exterior Detail is clay, chemical decon, a single-pass enhancement polish, sealant, wheel and lug detail, Rain-X, and tire dressing, with no interior. Signature Restoration (from $385 sedan) is the longer 6–8 hour inside-and-out path if you want ceramic protection and a deeper sanitization in one day.',
+      'Interior Detail in the live catalog is deep vacuum (seats, floors, trunk), fabric shampoo, leather conditioning, steam on vents and panels, dash and door trim with UV protectant, and interior glass. It does not include an exterior wash. Premium Full Detail stacks that cabin work with a hand wash, clay decontamination, spray sealant, wheels, and exterior glass — that is why it is marked most booked. Exterior Detail is clay, chemical decon, a single-pass enhancement polish, sealant, wheel and lug detail, Rain-X, and tire dressing, with no interior. Signature Restoration (from $385 sedan) is the ~3.5–4 hour inside-and-out path with single-pass correction, wheel and tire shine, plastic restoration, and the full interior list — not a ceramic-coating package.',
       'Booking uses the same homepage form: ZIP 07650 unlocks car packages, then vehicle size. Add-ons such as pet hair ($95), odor treatment ($90), engine-bay top clean ($45), and headlight restoration ($90) only apply if you select them. No charge is collected when you submit. We review access and contact you about the day (Monday–Friday, 8AM–5PM). Call 551-373-5668. Neighboring towns from this base include Fort Lee, Edgewater, Englewood, Teaneck, and Hackensack — use those pages if the car sits there instead. Google listing snapshot August 2026: 5.0 from 9 written reviews.',
     ],
   },
@@ -126,7 +126,7 @@ const CITIES = [
       'Fort Lee (ZIP 07024) sits next to our Palisades Park base, on the New Jersey side of the George Washington Bridge. Cardetail1 comes to houses, townhome lots, and approved garage or visitor spots — we bring water and power, so we are not asking the building for a hose. Core Bergen pricing applies: Interior Detail from $190, Premium Full Detail from $240 for sedans, Exterior Detail & Paint Enhancement from $320.',
       'Bridge and Route 9W commuting leaves a specific kind of mess: brake dust on wheels, film on white and silver paint, and interiors that get used hard on the NYC trip. Exterior-only work is the Exterior Detail package, not a $20 wash. If the cabin needs shampoo and steam as well, book Premium Full Detail. Pet hair and odor are listed add-ons so the quote stays honest.',
       'High-rise and garage jobs need a clear access plan. We cannot work in a stall that has no staging room or that forbids vendor equipment. Put the building name, floor or lot, and any COI request in the notes. Driveway jobs in the residential blocks toward Palisades Park and Leonia are simpler — same process as the home-base town, a few minutes on local roads.',
-      'What you actually get is the homepage spec, not a lighter “Fort Lee special.” Interior Detail: vacuum, shampoo, steam, UV on plastics, interior glass. Premium Full Detail: that interior plus hand wash, clay, sealant, and wheels (SUVs from $260, 3-row from $270). Exterior Detail from $320 is the paint-enhancement path. Time on site is typically 2.5–5 hours depending on package and condition; garage jobs run longer if we have to work around pillars and low clearance.',
+      'What you actually get is the homepage spec, not a lighter “Fort Lee special.” Interior Detail: vacuum, shampoo, steam, UV on plastics, interior glass (~1.5–2 hrs). Premium Full Detail: that interior plus hand wash, clay, sealant, and wheels (SUVs from $260, 3-row from $270, ~2.5–3 hrs). Exterior Detail from $320 is the paint-enhancement path (~3.5–4 hrs). Garage jobs run longer if we have to work around pillars and low clearance.',
       'Enter ZIP 07024 to load pricing, submit the request, and wait for confirmation — no charge at request. Hours Monday–Friday 8AM–5PM. Call 551-373-5668 if the building needs a certificate of insurance before we are allowed in. Nearby pages: Palisades Park, Edgewater, Englewood, Teaneck. The Google listing (5.0 from 9 reviews, August 2026 snapshot) is the same profile linked from every page.',
     ],
   },
@@ -239,7 +239,7 @@ const CITIES = [
     paragraphs: [
       'Englewood (07631) is a short run north of Palisades Park. Cardetail1 details in residential driveways along the tree-lined streets and in approved lots — we bring water and power, and we price from the same Bergen County catalog: Interior Detail from $190, Premium Full Detail from $240 for sedans (SUVs from $260), Exterior Detail & Paint Enhancement from $320.',
       'Pollen, shade-tree sap, and water spots show up on paint here more than beach salt. That is an exterior decontamination job, not a rinse. Interior work is still the Interior Detail package: vacuum, shampoo, steam, glass. Englewood Cliffs (07632) uses the same process; enter that ZIP if the car sits there so the quote is tied to the right block.',
-      'Larger properties usually make staging easier than Fort Lee high-rises. If a HOA or gated driveway needs a vendor code, put it in the notes so we are not stuck at the curb. Luxury SUVs and sedans take the same packages; size and condition set the number, not a separate Englewood surcharge. Signature Restoration remains the 6–8 hour option when you want single-pass correction and ceramic protection on the paint plus a full interior.',
+      'Larger properties usually make staging easier than Fort Lee high-rises. If a HOA or gated driveway needs a vendor code, put it in the notes so we are not stuck at the curb. Luxury SUVs and sedans take the same packages; size and condition set the number, not a separate Englewood surcharge. Signature Restoration is the ~3.5–4 hour option when you want single-pass correction, wheel and tire shine, and plastic restoration on the paint plus a full interior.',
       'What Interior Detail includes in Englewood is identical to Palisades Park: seats, carpets, trunk, steam, UV on plastics. Premium Full Detail adds the exterior wash and clay. Exterior Detail from $320 is clay, polish, sealant, Rain-X, and wheels. Wet weather pauses exterior work; we do not pretend a detail can be finished in a downpour. Hours Monday–Friday 8AM–5PM. Request with ZIP 07631; no payment at submission.',
       'Call 551-373-5668 for gates and HOA questions. Nearby: Palisades Park, Fort Lee, Teaneck, Hackensack. Tenafly and Alpine remain on the Bergen County hub list until they have their own pages — enter those ZIPs on the homepage if that is where the car is.',
     ],
@@ -277,7 +277,7 @@ const CITIES = [
     paragraphs: [
       'Teaneck (07666) sits between Englewood and Hackensack, still on the Palisades Park core route. We detail in suburban driveways with our own water and power. Prices are the live catalog: Interior Detail from $190 sedan / $215 two-row SUV, Premium Full Detail from $240 / $260 / $270, Exterior Detail from $320.',
       'Family vehicles are the usual request: car seats, crumbs, and pet hair in the second row. Interior Detail is built for that cabin work. The pet-hair add-on exists because a household vacuum does not lift coat from honeycomb fabric — the before/after slider on the homepage is that job. Do not skip the add-on and expect packed-in coat to disappear inside the base interior price. Baby-seat cleaning is $20 per seat if you add it.',
-      'Street-parked cars are possible when we can occupy the space legally for the duration (often 2.5–5 hours). If the township or a HOA limits that, use a driveway. We confirm access when we confirm the day. Someone 18+ needs to authorize the visit if you will not be home. Hours Monday–Friday 8AM–5PM.',
+      'Street-parked cars are possible when we can occupy the space legally for the duration (often 1.5–4 hours by package). If the township or a HOA limits that, use a driveway. We confirm access when we confirm the day. Someone 18+ needs to authorize the visit if you will not be home. Hours Monday–Friday 8AM–5PM.',
       'Package scope matches the rest of Bergen County. Interior Detail: vacuum, shampoo, steam, interior glass, UV on plastics. Premium Full Detail adds exterior wash, clay, and sealant. Exterior Detail is the paint-enhancement package. Odor treatment ($90) and Super Interior Upgrade ($125) are opt-in when the cabin is beyond a standard shampoo. ZIP 07666 loads core NJ pricing with no separate travel fee on the standard quote.',
       'Book on this page or the homepage with ZIP 07666. Call 551-373-5668. Nearby: Hackensack, Englewood, Palisades Park, Paramus, Fort Lee. Bergenfield and New Milford are on the county hub accordion until they have dedicated URLs — use the real ZIP so routing stays honest. Same Google 5.0 / 9 snapshot as the homepage listing. We bring water and power to every Teaneck driveway job.',
     ],
@@ -352,7 +352,7 @@ const CITIES = [
     ],
     paragraphs: [
       'Edgewater (07020) is the Hudson waterfront town just south of Fort Lee, still a Palisades Park core ZIP (mapped in the Bergen hub ZIP5 list). Cardetail1 details cars at driveways and in approved garages; we bring water and power. Car package “from” prices: Interior Detail $190, Premium Full Detail $240 sedan, Exterior Detail $320. Boat work is a different catalog on boats-detailing.html, priced by vessel length, not by this car list.',
-      'River Road high-rises have the same constraint as Fort Lee: stall size, discharge rules, and COI requests. If the garage forbids our setup, we cannot do the job there. Townhome and house driveways off the waterfront streets are the straightforward path. Street parking only works if we can legally occupy the space for the full 2.5–5 hour window.',
+      'River Road high-rises have the same constraint as Fort Lee: stall size, discharge rules, and COI requests. If the garage forbids our setup, we cannot do the job there. Townhome and house driveways off the waterfront streets are the straightforward path. Street parking only works if we can legally occupy the space for the full 1.5–4 hour window.',
       'Winter salt, garage dust, and commuter film are the usual exterior complaints. Use Exterior Detail or Premium Full Detail, not a wash. Interiors follow Interior Detail plus add-ons. Above-waterline marine jobs at marinas or storage lots use Marine Wash / Full Marine / Premium Marine and need marina rules in the notes — we do not clean underwater hulls.',
       'Car package contents are the Palisades Park catalog. Interior: vacuum, shampoo, steam, interior glass. Premium Full: interior plus wash, clay, sealant. Exterior Detail: clay, polish, sealant, Rain-X, wheels. 07020 does not add a special waterfront surcharge on standard core NJ car pricing; enter the ZIP so the form shows the live number. Hours Monday–Friday 8AM–5PM. No charge at request.',
       'Book with ZIP 07020 or call 551-373-5668 for garage questions. Nearby: Fort Lee, Palisades Park, Englewood, Hackensack, Teaneck. Cliffside Park and Fairview remain on the county hub city list; use those ZIPs on the homepage if that is where the vehicle will sit. Google listing snapshot August 2026 remains 5.0 from 9 reviews.',
