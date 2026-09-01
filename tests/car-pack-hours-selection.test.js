@@ -28,7 +28,6 @@ test('car package durations match the published hour ranges', () => {
 });
 
 test('homepage car chips use the same hour ranges', () => {
-  assert.match(html, /data-pkg="wash"[\s\S]*?~45–75 min/);
   assert.match(html, /data-pkg="interior"[\s\S]*?~1\.5–2 hrs/);
   assert.match(html, /data-pkg="full"[\s\S]*?~2\.5–3 hrs/);
   assert.match(html, /data-pkg="refresh"[\s\S]*?~3\.5–4 hrs/);

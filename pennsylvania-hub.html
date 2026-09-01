@@ -1419,7 +1419,7 @@ body{background:var(--bg0)!important;color:var(--tx)!important;-webkit-font-smoo
 .car-pkg-intro{margin-bottom:28px;max-width:680px}
 .car-pkg-intro .sec-title{margin-bottom:10px;text-align:left;font-size:clamp(24px,3.5vw,34px)}
 .car-pkg-intro .sec-desc{margin:0;text-align:left;max-width:none;line-height:1.65;color:var(--ink-soft);font-size:15px}
-.car-pkg-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:28px;align-items:stretch}
+.car-pkg-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:28px;align-items:stretch}
 .car-pkg-card{display:flex;flex-direction:column;background:var(--bg0);border:1px solid var(--line);border-radius:var(--r);transition:.22s;text-align:left;box-shadow:var(--shadow-sm);overflow:hidden}
 .car-pkg-card:hover{border-color:var(--bbr);box-shadow:var(--shadow-md)}
 .car-pkg-card--open{border-color:var(--bbr);box-shadow:var(--shadow-md)}
@@ -2199,7 +2199,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .car-pkg-intro{margin-bottom:28px;max-width:680px}
 .car-pkg-intro .sec-title{margin-bottom:10px;text-align:left;font-size:clamp(24px,3.5vw,34px)}
 .car-pkg-intro .sec-desc{margin:0;text-align:left;max-width:none;line-height:1.65;color:var(--ink-soft);font-size:15px}
-.car-pkg-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:28px;align-items:stretch}
+.car-pkg-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:28px;align-items:stretch}
 .car-pkg-card{display:flex;flex-direction:column;background:var(--bg0);border:1px solid var(--line);border-radius:var(--r);transition:.22s;text-align:left;box-shadow:var(--shadow-sm);overflow:hidden}
 .car-pkg-card:hover{border-color:var(--bbr);box-shadow:var(--shadow-md)}
 .car-pkg-card--open{border-color:var(--bbr);box-shadow:var(--shadow-md)}
@@ -2745,42 +2745,18 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="section">
     <div class="car-pkg-intro">
       <div class="sec-title">Choose Your Mobile Detailing Package</div>
-      <p class="sec-desc">Mobile detailing for sedans, SUVs, and trucks. Select the package that fits your vehicle condition. Final pricing adjusts by vehicle size, condition, location, and add-ons.</p>
+      <p class="sec-desc">Mobile detailing for cars, boats, RVs, and powersports. Pick a package — you choose the vehicle type when you book. Final pricing adjusts by vehicle, condition, location, and add-ons.</p>
     </div>
 
     <div class="car-pkg-grid">
-      <article class="car-pkg-card" data-pkg="wash">
-        <div class="car-pkg-top">
-          <img class="car-pkg-3d" src="assets/icons/3d/pack-cars-family.webp" alt="" width="256" height="256" decoding="async">
-          <span class="car-pkg-scope">Exterior wash</span>
-          <h3 class="car-pkg-name">Exterior Hand Wash</h3>
-          <p class="car-pkg-desc">Hand wash, wheels, glass, and tire dressing. Add wax, clay bar, or engine bay detailing when you book.</p>
-          <div class="car-pkg-meta">
-            <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
-            <span class="car-pkg-chip">⏱ ~45–75 min</span>
-          </div>
-          <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('wash', event)">See what's included</button>
-        </div>
-        <div class="car-pkg-foot">
-          <div class="car-pkg-price-row">
-            <div class="car-pkg-price">
-              <span class="car-pkg-price-label">From</span>
-              <span class="car-pkg-price-amt" id="home-from-wash">$110</span>
-              <span class="car-pkg-price-note" id="home-from-wash-note">sedan to truck · sized by vehicle</span>
-            </div>
-          </div>
-          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('wash')">Book this package</button>
-        </div>
-      </article>
       <article class="car-pkg-card" data-pkg="interior">
         <div class="car-pkg-top">
-          <img class="car-pkg-3d" src="assets/icons/3d/pack-cars-family.webp" alt="" width="256" height="256" decoding="async">
           <span class="car-pkg-scope">Interior only</span>
           <h3 class="car-pkg-name">Interior Detail</h3>
-          <p class="car-pkg-desc">Vacuum, shampoo, steam, and wipe-down for seats, carpets, and dash.</p>
+          <p class="car-pkg-desc">Vacuum, shampoo, steam, headliner, door jambs, trunk and truck bed where applicable — plus dash, glass, and UV protectant.</p>
           <div class="car-pkg-meta">
-            <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
-            <span class="car-pkg-chip">⏱ ~2.5–3.5 hrs</span>
+            <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
+            <span class="car-pkg-chip">⏱ ~1.5–2 hrs</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('interior', event)">See what's included</button>
         </div>
@@ -2789,43 +2765,41 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="car-pkg-price">
               <span class="car-pkg-price-label">From</span>
               <span class="car-pkg-price-amt" id="home-from-interior">$190</span>
-              <span class="car-pkg-price-note" id="home-from-interior-note">sedan to truck · sized by vehicle</span>
+              <span class="car-pkg-price-note" id="home-from-interior-note">priced by vehicle type</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('interior')">Book this package</button>
+          <button type="button" class="car-pkg-cta" onclick="openBooking(null)">Book this package</button>
         </div>
       </article>
       <article class="car-pkg-card car-pkg-card--popular" data-pkg="full">
         <div class="car-pkg-top">
-          <img class="car-pkg-3d" src="assets/icons/3d/pack-cars-family.webp" alt="" width="256" height="256" decoding="async">
           <span class="car-pkg-popular">Most booked</span>
           <span class="car-pkg-scope">Inside &amp; out</span>
           <h3 class="car-pkg-name">Premium Full Detail</h3>
           <p class="car-pkg-desc">Our premium inside-and-out package — interior detail plus exterior wash, protection, and light paint cleaning.</p>
           <div class="car-pkg-meta">
-            <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
-            <span class="car-pkg-chip">⏱ ~3–5 hrs</span>
+            <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
+            <span class="car-pkg-chip">⏱ ~2.5–3 hrs</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('full', event)">See what's included</button>
         </div>
         <div class="car-pkg-foot">
           <div class="car-pkg-price-row">
             <div class="car-pkg-price car-pkg-price--tiered">
-              <span class="car-pkg-price-note car-pkg-price-note--primary" id="home-from-full-note">Sedans from $240 · SUVs from $260 · 3-row SUVs from $270</span>
+              <span class="car-pkg-price-note car-pkg-price-note--primary" id="home-from-full-note">From $240 · priced by vehicle type</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('full')">Book this package</button>
+          <button type="button" class="car-pkg-cta" onclick="openBooking(null)">Book this package</button>
         </div>
       </article>
       <article class="car-pkg-card" data-pkg="refresh">
         <div class="car-pkg-top">
-          <img class="car-pkg-3d" src="assets/icons/3d/pack-cars-family.webp" alt="" width="256" height="256" decoding="async">
           <span class="car-pkg-scope">Premium exterior</span>
           <h3 class="car-pkg-name">Exterior Detail &amp; Paint Enhancement</h3>
           <p class="car-pkg-desc">Advanced exterior-only package — clay bar, polish, sealant, wheels, glass, and gloss restoration. Premium paint enhancement, not a basic wash.</p>
           <div class="car-pkg-meta">
-            <span class="car-pkg-chip">🚗 Cars &amp; SUVs</span>
-            <span class="car-pkg-chip">⏱ ~2.5–3 hrs</span>
+            <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
+            <span class="car-pkg-chip">⏱ ~3.5–4 hrs</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('refresh', event)">See what's included</button>
         </div>
@@ -2834,10 +2808,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="car-pkg-price">
               <span class="car-pkg-price-label">From</span>
               <span class="car-pkg-price-amt" id="home-from-refresh">$320</span>
-              <span class="car-pkg-price-note" id="home-from-refresh-note">premium exterior · sized by vehicle</span>
+              <span class="car-pkg-price-note" id="home-from-refresh-note">priced by vehicle type</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('refresh')">Book this package</button>
+          <button type="button" class="car-pkg-cta" onclick="openBooking(null)">Book this package</button>
         </div>
       </article>
     </div>
@@ -2849,7 +2823,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </div>
 
     <div class="car-services-cta">
-      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBookingFromHome('cars')">Book Your Detail</button>
+      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
       <button type="button" class="btn-outline" onclick="document.getElementById('specialty-services').scrollIntoView({behavior:'smooth'})">Boats, RVs &amp; fleet</button>
     </div>
   </div>
@@ -2942,7 +2916,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <a href="tel:5513735668" class="specialty-action" style="margin-left:10px;text-decoration:none" onclick="event.stopPropagation()">Call/Text 551-373-5668</a>
         </div>
       </div>
-    <p class="specialty-note">Available by quote for larger vehicles, fleets, RVs, boats, and long-distance appointments. Most bookings are car detailing — <a href="#" onclick="openBookingFromHome('cars');return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513735668" style="color:var(--blue);text-decoration:none">551-373-5668</a>.</p>
+    <p class="specialty-note">Available by quote for larger vehicles, fleets, RVs, boats, and long-distance appointments. Most bookings are car detailing — <a href="#" onclick="openBooking(null);return false;" style="color:var(--blue);font-weight:600;text-decoration:none">start with packages above</a> or call <a href="tel:5513735668" style="color:var(--blue);text-decoration:none">551-373-5668</a>.</p>
   </div>
 </section>
 
@@ -6406,9 +6380,9 @@ function renderLocationCarousel(zoneKey){
   if(!scroll) return;
   scroll.innerHTML = cats.map(cat=>{
     const d = LOC_DISPLAY[cat];
-    const visual = CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
+    const visual = (typeof icon3dPack==='function' && icon3dPack(null, cat)) || CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
     const inner = `
-      <div class="loc-visual"><img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
+      <div class="loc-visual loc-visual--3d"><img src="${visual.img}" alt="${visual.alt}" width="512" height="512" loading="lazy" decoding="async"></div>
       <div class="loc-name">${d.name}</div>
       <div class="loc-req">${d.desc}</div>
       <div class="loc-from">${formatLocFrom(cat)}</div>`;
@@ -7085,7 +7059,6 @@ function _updateHomeFromPrices(){
     const el=document.getElementById(id);
     if(el) el.textContent='$'+(applyRichPrice(minTier(field))+fee);
   };
-  setPkgAmt('home-from-wash','wash');
   setPkgAmt('home-from-interior','interior');
   setPkgAmt('home-from-refresh','refresh');
   const tiers=PRICING.cars.tiers;
@@ -7119,7 +7092,7 @@ function renderHomeAddons(){
   const wrap=document.getElementById('home-addon-chips');
   if(!wrap) return;
   const addons=(PRICING.cars.addons||[]).filter(a=>HOME_ADDON_IDS.includes(a.id));
-  wrap.innerHTML=addons.map(a=>`<button type="button" class="car-addon-chip" onclick="openBookingCarPkg('full')">${a.name} <b>+$${a.price}</b></button>`).join('');
+  wrap.innerHTML=addons.map(a=>`<button type="button" class="car-addon-chip" onclick="openBooking(null)">${a.name} <b>+$${a.price}</b></button>`).join('');
 }
 
 (function initTrustSeasonIcon(){

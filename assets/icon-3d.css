@@ -41,6 +41,17 @@
   display: none;
 }
 
+.loc-visual--3d {
+  height: 96px;
+  background: transparent;
+}
+.loc-visual--3d img {
+  width: 86%;
+  height: 86%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 14px rgba(8, 12, 20, 0.4));
+}
+
 .tchip-ico--3d img {
   width: 64px;
   height: 64px;

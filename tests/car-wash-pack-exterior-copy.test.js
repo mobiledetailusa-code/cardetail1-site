@@ -114,19 +114,31 @@ test('Exterior Hand Wash starts at $110 and keeps wax/clay/engine as paid add-on
   assert.equal(coerced.packageId, 'wash');
 });
 
-test('homepage and state hubs sell the wash pack from $110', () => {
-  for (const file of ['index.html', 'new-jersey-hub.html', 'ny-metro-hub.html', 'connecticut-hub.html', 'pennsylvania-hub.html']) {
+test('booking catalog still sells Exterior Hand Wash from $110', () => {
+  for (const file of BOOKING_PAGES) {
     const html = read(file);
-    assert.match(html, /data-pkg="wash"/);
-    assert.match(html, /id="home-from-wash">\$110/);
-    assert.match(html, /openBookingCarPkg\('wash'\)/);
-    assert.match(html, /openHomePkgDetailModal\('wash'/);
+    assert.match(html, /id:'wash'[\s\S]*?name:'Exterior Hand Wash'/);
+    assert.match(html, /wash:110/);
   }
   const modal = read('assets/car-pkg-detail-modal.js');
   assert.match(modal, /wash:\s*\{[\s\S]*title:\s*"Exterior Hand Wash"/);
   assert.match(modal, /"1-Year Carnauba Wax"/);
   assert.match(modal, /"Clay bar"/);
   assert.match(modal, /"Engine bay detailing"/);
+});
+
+test('homepage shows 3 main packs that open all categories, without pack icons', () => {
+  for (const file of ['index.html', 'new-jersey-hub.html', 'ny-metro-hub.html', 'connecticut-hub.html', 'pennsylvania-hub.html']) {
+    const html = read(file);
+    assert.match(html, /data-pkg="interior"/);
+    assert.match(html, /data-pkg="full"/);
+    assert.match(html, /data-pkg="refresh"/);
+    assert.doesNotMatch(html, /data-pkg="wash"/);
+    assert.doesNotMatch(html, /car-pkg-3d/);
+    assert.match(html, /class="car-pkg-cta" onclick="openBooking\(null\)"/);
+    assert.equal((html.match(/class="car-pkg-cta" onclick="openBooking\(null\)"/g) || []).length, 3);
+    assert.match(html, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  }
 });
 
 const ICON3D_FILES = [
@@ -182,10 +194,14 @@ test('3D preview icons exist and are wired into booking + homepage cards', () =>
     assert.match(html, /icon3dAddon\(a\.id\)/);
   }
 
+  for (const file of BOOKING_PAGES) {
+    const html = read(file);
+    assert.match(html, /icon3dPack\(null, cat\)/);
+    assert.match(html, /loc-visual loc-visual--3d/);
+  }
+
   for (const file of ['index.html', 'new-jersey-hub.html', 'ny-metro-hub.html', 'connecticut-hub.html', 'pennsylvania-hub.html']) {
     const html = read(file);
-    assert.match(html, /car-pkg-3d" src="assets\/icons\/3d\/pack-cars-family\.webp"/);
-    assert.equal((html.match(/car-pkg-3d" src="assets\/icons\/3d\/pack-cars-family\.webp"/g) || []).length, 4);
     assert.match(html, /id="car-pkg-detail-ico"/);
   }
 
