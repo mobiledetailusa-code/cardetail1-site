@@ -335,7 +335,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     assert.equal(result.error, 'unknown_package_id');
     assert.deepEqual(
       [...result.validPackageIds].sort(),
-      ['full', 'interior', 'maint', 'premium', 'refresh'],
+      ['full', 'interior', 'maint', 'premium', 'refresh', 'wash'],
       'cars catalog ids expected'
     );
     const after = await store.get(id);

@@ -66,6 +66,16 @@
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   flex-shrink: 0;
 }
+.car-pkg-detail-ico {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin: 0 0 10px;
+}
+.car-pkg-detail-ico[hidden] {
+  display: none !important;
+}
 .car-pkg-detail-title {
   font-size: 22px;
   font-weight: 700;

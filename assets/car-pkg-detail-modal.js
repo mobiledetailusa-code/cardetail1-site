@@ -150,9 +150,21 @@ function openHomePkgDetailModal(pkgId, e) {
   const priceEl = document.getElementById("car-pkg-detail-price");
   const bodyEl = document.getElementById("car-pkg-detail-body");
   const bookBtn = document.getElementById("car-pkg-detail-book");
+  const icoEl = document.getElementById("car-pkg-detail-ico");
   if (!titleEl || !priceEl || !bodyEl || !bookBtn) return;
   titleEl.textContent = d.title;
   priceEl.textContent = getHomePkgPriceNote(pkgId);
+  if (icoEl) {
+    const vis = typeof icon3dPack === "function" ? icon3dPack(pkgId) : null;
+    if (vis) {
+      icoEl.src = vis.img;
+      icoEl.alt = vis.alt || "";
+      icoEl.hidden = false;
+    } else {
+      icoEl.removeAttribute("src");
+      icoEl.hidden = true;
+    }
+  }
   bodyEl.innerHTML = buildCarPkgDetailSectionsHtml(d);
   bookBtn.onclick = function () {
     closeHomePkgDetailModal();
