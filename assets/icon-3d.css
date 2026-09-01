@@ -2,20 +2,22 @@
 
 .car-pkg-3d {
   display: block;
-  width: 72px;
-  height: 72px;
-  object-fit: contain;
-  margin: 0 0 12px;
-}
-
-.pkg-visual--3d {
-  height: 104px;
-  background: #12181f;
-}
-.pkg-visual--3d img {
   width: 88px;
   height: 88px;
   object-fit: contain;
+  margin: 0 0 12px;
+  filter: drop-shadow(0 8px 16px rgba(15, 23, 42, 0.18));
+}
+
+.pkg-visual--3d {
+  height: 120px;
+  background: transparent;
+}
+.pkg-visual--3d img {
+  width: 108px;
+  height: 108px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 16px rgba(15, 23, 42, 0.14));
 }
 
 .svc-ico-photo--3d {
@@ -53,10 +55,11 @@
 
 .car-pkg-detail-ico {
   display: block;
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   object-fit: contain;
   margin: 0 0 10px;
+  filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.12));
 }
 .car-pkg-detail-ico[hidden] {
   display: none !important;
@@ -64,18 +67,18 @@
 
 @media (max-width: 640px) {
   .car-pkg-3d {
-    width: 56px;
-    height: 56px;
+    width: 68px;
+    height: 68px;
   }
   .svc-ico-photo--3d img {
     width: 72px;
     height: 72px;
   }
   .pkg-visual--3d {
-    height: 88px;
+    height: 96px;
   }
   .pkg-visual--3d img {
-    width: 72px;
-    height: 72px;
+    width: 84px;
+    height: 84px;
   }
 }
