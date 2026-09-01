@@ -5,10 +5,10 @@ const { asArray } = require('./historical-adapter');
 const PRICING = {
   cars: {
     tiers: {
-      small: { label: 'Small Car', maint: 150, interior: 190, full: 240, refresh: 320, premium: 385 },
-      suv2: { label: 'SUV 2-Row', maint: 185, interior: 215, full: 260, refresh: 360, premium: 470 },
-      suv3: { label: 'SUV 3-Row', maint: 215, interior: 235, full: 270, refresh: 405, premium: 540 },
-      truck: { label: 'Truck', maint: 215, interior: 235, full: 275, refresh: 395, premium: 525 },
+      small: { label: 'Small Car', wash: 110, maint: 150, interior: 190, full: 240, refresh: 320, premium: 385 },
+      suv2: { label: 'SUV 2-Row', wash: 135, maint: 185, interior: 215, full: 260, refresh: 360, premium: 470 },
+      suv3: { label: 'SUV 3-Row', wash: 155, maint: 215, interior: 235, full: 270, refresh: 405, premium: 540 },
+      truck: { label: 'Truck', wash: 155, maint: 215, interior: 235, full: 275, refresh: 395, premium: 525 },
     },
     addons: [
       { id: 'pethair', price: 95 }, { id: 'superint', price: 125 }, { id: 'odor', price: 90 },
@@ -169,6 +169,10 @@ const PKG_ID_ALIASES = {
   'interior detail': 'interior',
   'premium detail': 'full',
   'premium full detail': 'full',
+  'exterior hand wash': 'wash',
+  'hand wash': 'wash',
+  'car wash': 'wash',
+  'express wash': 'wash',
   // Exterior Refresh & Protect (cars) — pkgId 'refresh'. Exact-name aliases are
   // required because inferPkgId's includes() fallback would otherwise match the
   // substring 'exterior' and mis-resolve this to the RV 'exterior' package.
@@ -491,11 +495,10 @@ function coerceVehicleForCategory(vehicle, category, opts = {}) {
       full_basic: 'full',
       maint_light: 'maint',
       essential: 'full',
-      wash: 'maint',
       exterior: 'refresh',
     };
     if (carPkgMap[pkgId]) pkgId = carPkgMap[pkgId];
-    const carPkgs = ['maint', 'interior', 'full', 'refresh', 'premium'];
+    const carPkgs = ['wash', 'maint', 'interior', 'full', 'refresh', 'premium'];
     if (!carPkgs.includes(pkgId)) pkgId = 'full';
     const tiers = PRICING.cars.tiers || {};
     if (!tierKey || !tiers[tierKey]) {

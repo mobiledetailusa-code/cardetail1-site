@@ -16,6 +16,7 @@ function carPackagesBlock() {
 
 test('car package durations match the published hour ranges', () => {
   const cars = carPackagesBlock();
+  assert.match(cars, /id:'wash'[\s\S]*?dur:'~45–75 min'/);
   assert.match(cars, /id:'maint'[\s\S]*?dur:'~1\.5–2h'/);
   assert.match(cars, /id:'interior'[\s\S]*?dur:'~1\.5–2h'/);
   assert.match(cars, /id:'full'[\s\S]*?dur:'~2\.5–3h'/);
@@ -27,6 +28,7 @@ test('car package durations match the published hour ranges', () => {
 });
 
 test('homepage car chips use the same hour ranges', () => {
+  assert.match(html, /data-pkg="wash"[\s\S]*?~45–75 min/);
   assert.match(html, /data-pkg="interior"[\s\S]*?~1\.5–2 hrs/);
   assert.match(html, /data-pkg="full"[\s\S]*?~2\.5–3 hrs/);
   assert.match(html, /data-pkg="refresh"[\s\S]*?~3\.5–4 hrs/);
@@ -48,13 +50,17 @@ test('interior service list is shared on interior, full, and signature packs', (
   assert.match(maint, /Roof\/headliner/);
 });
 
-test('signature pack drops ceramic protection and includes wheels, tire shine, and plastic restoration', () => {
+test('signature pack copies refresh exterior and keeps interior restoration', () => {
   const cars = carPackagesBlock();
   const premium = cars.match(/id:'premium'[\s\S]*?miss:\[\]/)[0];
+  const refresh = cars.split("id:'refresh'")[1].split("id:'premium'")[0];
+  const refreshExt = refresh.match(/ext:(\[[\s\S]*?\])/);
+  const premiumExt = premium.match(/ext:(\[[\s\S]*?\])/);
+  assert.ok(refreshExt && premiumExt, 'refresh/premium ext arrays missing');
+  assert.equal(premiumExt[1], refreshExt[1]);
   assert.doesNotMatch(premium, /ceramic protection/i);
   assert.doesNotMatch(premium, /Long-lasting ceramic/);
-  assert.match(premium, /Wheel cleaning & tire shine/);
-  assert.match(premium, /Exterior plastic restoration/);
+  assert.match(premium, /int:CAR_INTERIOR_SERVICE_ITEMS/);
 });
 
 test('Maintenance Detail hides shampoo/steam add-ons', () => {

@@ -151,7 +151,7 @@ const stateHubPages = [
 ];
 
 for (const page of stateHubPages) {
-  test(`${page} uses shared package details modal for all three cards`, () => {
+  test(`${page} uses shared package details modal for homepage car cards`, () => {
     const html = read(page);
     assert.match(html, /id="car-pkg-detail-ov"/);
     assert.match(html, /\.car-pkg-detail-ov\[hidden\]\{display:none!important\}/);
@@ -162,7 +162,7 @@ for (const page of stateHubPages) {
     assert.match(html, /initCarPkgDetailModal\(\);/);
     assert.doesNotMatch(html, /function toggleHomePkgDetail/);
     assert.doesNotMatch(html, /id="home-pkg-detail-interior"/);
-    for (const pkgId of ['interior', 'full', 'refresh']) {
+    for (const pkgId of ['wash', 'interior', 'full', 'refresh']) {
       assert.match(html, new RegExp(`openHomePkgDetailModal\\('${pkgId}'`));
       assert.match(html, new RegExp(`openBookingCarPkg\\('${pkgId}'\\)`));
     }

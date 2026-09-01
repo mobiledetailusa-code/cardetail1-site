@@ -63,8 +63,10 @@ test('canonical portal HTML files are present and unchanged by this guard', () =
 const pkgModalJs = read('assets/car-pkg-detail-modal.js');
 const buttonStatesCss = read('assets/button-states.css');
 
-test('shared package detail data includes required content for all three car packages', () => {
+test('shared package detail data includes required content for homepage car packages', () => {
   assert.match(pkgModalJs, /const CAR_PKG_DETAILS\s*=\s*\{/);
+  assert.match(pkgModalJs, /wash:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Exterior hand wash and rinse"[\s\S]*"Tire dressing"[\s\S]*\]/);
+  assert.match(pkgModalJs, /wash:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"1-Year Carnauba Wax"[\s\S]*"Clay bar"[\s\S]*"Engine bay detailing"[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Headliner cleaning"[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Door jambs cleaned"[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*truck bed where applicable[\s\S]*\]/);
@@ -93,7 +95,7 @@ test('homepage opens package details in modal panel instead of inline card expan
   const bodyCloseIdx = index.lastIndexOf('</body>');
   assert.ok(modalIdx > addonsIdx, 'modal should not sit inside package cards');
   assert.ok(modalIdx > bodyCloseIdx - 2800 && modalIdx < bodyCloseIdx, 'modal should live near end of body');
-  for (const pkgId of ['interior', 'full', 'refresh']) {
+  for (const pkgId of ['wash', 'interior', 'full', 'refresh']) {
     assert.match(index, new RegExp(`openHomePkgDetailModal\\('${pkgId}'`));
     assert.match(index, new RegExp(`openBookingCarPkg\\('${pkgId}'\\)`));
   }
