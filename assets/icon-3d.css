@@ -24,16 +24,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #12181f;
+  height: 112px;
+  background: transparent;
 }
 .svc-ico-photo--3d img {
-  width: 96px;
-  height: 96px;
+  width: 100px;
+  height: 100px;
   object-fit: contain;
-  filter: none !important;
+  padding: 2px;
+  filter: drop-shadow(0 8px 16px rgba(8, 12, 20, 0.45)) !important;
 }
 .svc-card:hover .svc-ico-photo--3d img {
-  filter: none !important;
+  filter: drop-shadow(0 10px 18px rgba(15, 23, 42, 0.24)) !important;
 }
 .svc-ico-photo--3d::after {
   display: none;
