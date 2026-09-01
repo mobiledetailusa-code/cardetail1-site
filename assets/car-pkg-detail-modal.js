@@ -155,7 +155,7 @@ function openHomePkgDetailModal(pkgId, e) {
   titleEl.textContent = d.title;
   priceEl.textContent = getHomePkgPriceNote(pkgId);
   if (icoEl) {
-    const vis = typeof icon3dPack === "function" ? icon3dPack(pkgId) : null;
+    const vis = typeof icon3dPack === "function" ? icon3dPack(pkgId, "cars") : null;
     if (vis) {
       icoEl.src = vis.img;
       icoEl.alt = vis.alt || "";

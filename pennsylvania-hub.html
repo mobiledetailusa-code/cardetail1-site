@@ -2751,7 +2751,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="car-pkg-grid">
       <article class="car-pkg-card" data-pkg="wash">
         <div class="car-pkg-top">
-          <img class="car-pkg-3d" src="assets/icons/3d/pack-wash.webp" alt="" width="256" height="256" decoding="async">
+          <img class="car-pkg-3d" src="assets/icons/3d/pack-cars-family.webp" alt="" width="256" height="256" decoding="async">
           <span class="car-pkg-scope">Exterior wash</span>
           <h3 class="car-pkg-name">Exterior Hand Wash</h3>
           <p class="car-pkg-desc">Hand wash, wheels, glass, and tire dressing. Add wax, clay bar, or engine bay detailing when you book.</p>
@@ -2774,7 +2774,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       </article>
       <article class="car-pkg-card" data-pkg="interior">
         <div class="car-pkg-top">
-          <img class="car-pkg-3d" src="assets/icons/3d/pack-interior.webp" alt="" width="256" height="256" decoding="async">
+          <img class="car-pkg-3d" src="assets/icons/3d/pack-cars-family.webp" alt="" width="256" height="256" decoding="async">
           <span class="car-pkg-scope">Interior only</span>
           <h3 class="car-pkg-name">Interior Detail</h3>
           <p class="car-pkg-desc">Vacuum, shampoo, steam, and wipe-down for seats, carpets, and dash.</p>
@@ -2797,7 +2797,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       </article>
       <article class="car-pkg-card car-pkg-card--popular" data-pkg="full">
         <div class="car-pkg-top">
-          <img class="car-pkg-3d" src="assets/icons/3d/pack-full.webp" alt="" width="256" height="256" decoding="async">
+          <img class="car-pkg-3d" src="assets/icons/3d/pack-cars-family.webp" alt="" width="256" height="256" decoding="async">
           <span class="car-pkg-popular">Most booked</span>
           <span class="car-pkg-scope">Inside &amp; out</span>
           <h3 class="car-pkg-name">Premium Full Detail</h3>
@@ -2819,7 +2819,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       </article>
       <article class="car-pkg-card" data-pkg="refresh">
         <div class="car-pkg-top">
-          <img class="car-pkg-3d" src="assets/icons/3d/pack-refresh.webp" alt="" width="256" height="256" decoding="async">
+          <img class="car-pkg-3d" src="assets/icons/3d/pack-cars-family.webp" alt="" width="256" height="256" decoding="async">
           <span class="car-pkg-scope">Premium exterior</span>
           <h3 class="car-pkg-name">Exterior Detail &amp; Paint Enhancement</h3>
           <p class="car-pkg-desc">Advanced exterior-only package — clay bar, polish, sealant, wheels, glass, and gloss restoration. Premium paint enhancement, not a basic wash.</p>
@@ -4668,7 +4668,7 @@ function renderPackages(cat){
       startPrice=applyRichPrice(sampleTier[p.id]||sampleTier.maint||sampleTier.wash||sampleTier.exterior);
     }
     if(p.id!=='custom') startPrice += getTravelFeeAmount();
-    const packVisual=(typeof icon3dPack==='function'&&icon3dPack(p.id))||categoryVisual;
+    const packVisual=(typeof icon3dPack==='function'&&icon3dPack(p.id, cat))||categoryVisual;
     return `<div class="pkg${p.popular?' pop':''}" id="pk-${p.id}" onclick="selectPkg('${p.id}')">
       ${p.popular?'<div class="pop-b">Most Popular</div>':''}
       <div class="pkg-visual pkg-visual--3d"><img src="${packVisual.img}" alt="${packVisual.alt}" width="256" height="256" loading="lazy" decoding="async"></div>

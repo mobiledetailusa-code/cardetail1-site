@@ -2,6 +2,14 @@
 (function (global) {
   const BASE = 'assets/icons/3d/';
 
+  const FAMILY = {
+    cars: { file: 'pack-cars-family.webp', alt: 'Sedans, SUVs, and trucks' },
+    boats: { file: 'pack-boats-family.webp', alt: 'Boats, sailboats, and cruisers' },
+    rvs: { file: 'pack-rvs-family.webp', alt: 'RVs and travel trailers' },
+    powersports: { file: 'pack-powersports-family.webp', alt: 'Motorcycles, ATVs, and jet skis' },
+    fleet: { file: 'pack-cars-family.webp', alt: 'Fleet vehicles' },
+  };
+
   const PACK = {
     wash: { file: 'pack-wash.webp', alt: 'Exterior hand wash' },
     maint: { file: 'pack-maint.webp', alt: 'Maintenance wash' },
@@ -46,8 +54,10 @@
     return { img: BASE + entry.file, alt: entry.alt };
   }
 
-  global.icon3dPack = function (id) {
-    return visual(PACK[id] || null);
+  global.icon3dPack = function (id, cat) {
+    const family = FAMILY[cat || 'cars'];
+    if (family) return visual(family);
+    return visual(PACK[id] || FAMILY.cars);
   };
   global.icon3dCategory = function (cat) {
     return visual(CAT[cat] || null);

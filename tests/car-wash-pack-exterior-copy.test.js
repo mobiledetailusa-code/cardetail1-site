@@ -130,6 +130,10 @@ test('homepage and state hubs sell the wash pack from $110', () => {
 });
 
 const ICON3D_FILES = [
+  'pack-cars-family.webp',
+  'pack-boats-family.webp',
+  'pack-rvs-family.webp',
+  'pack-powersports-family.webp',
   'pack-wash.webp',
   'pack-maint.webp',
   'pack-interior.webp',
@@ -159,9 +163,11 @@ test('3D preview icons exist and are wired into booking + homepage cards', () =>
     assert.ok(fs.statSync(p).size > 1000, `${file} too small`);
   }
   const helper = read('assets/icon-3d.js');
-  assert.match(helper, /function \(id\) \{\s*return visual\(PACK\[id\]/);
-  assert.match(helper, /wash:\s*\{\s*file:\s*'pack-wash\.webp'/);
-  assert.match(helper, /premium:\s*\{\s*file:\s*'pack-premium\.webp'/);
+  assert.match(helper, /function \(id, cat\) \{/);
+  assert.match(helper, /pack-cars-family\.webp/);
+  assert.match(helper, /pack-boats-family\.webp/);
+  assert.match(helper, /pack-rvs-family\.webp/);
+  assert.match(helper, /pack-powersports-family\.webp/);
 
   for (const file of BOOKING_PAGES) {
     const html = read(file);
@@ -170,7 +176,7 @@ test('3D preview icons exist and are wired into booking + homepage cards', () =>
     assert.match(html, /svc-ico-photo svc-ico-photo--3d/);
     assert.match(html, /assets\/icons\/3d\/cat-cars\.webp/);
     assert.match(html, /assets\/icons\/3d\/cat-boats\.webp/);
-    assert.match(html, /icon3dPack\(p\.id\)/);
+    assert.match(html, /icon3dPack\(p\.id, cat\)/);
     assert.match(html, /pkg-visual pkg-visual--3d/);
     assert.match(html, /icon3dTier\(k\)/);
     assert.match(html, /icon3dAddon\(a\.id\)/);
@@ -178,13 +184,11 @@ test('3D preview icons exist and are wired into booking + homepage cards', () =>
 
   for (const file of ['index.html', 'new-jersey-hub.html', 'ny-metro-hub.html', 'connecticut-hub.html', 'pennsylvania-hub.html']) {
     const html = read(file);
-    assert.match(html, /car-pkg-3d" src="assets\/icons\/3d\/pack-wash\.webp"/);
-    assert.match(html, /car-pkg-3d" src="assets\/icons\/3d\/pack-interior\.webp"/);
-    assert.match(html, /car-pkg-3d" src="assets\/icons\/3d\/pack-full\.webp"/);
-    assert.match(html, /car-pkg-3d" src="assets\/icons\/3d\/pack-refresh\.webp"/);
+    assert.match(html, /car-pkg-3d" src="assets\/icons\/3d\/pack-cars-family\.webp"/);
+    assert.equal((html.match(/car-pkg-3d" src="assets\/icons\/3d\/pack-cars-family\.webp"/g) || []).length, 4);
     assert.match(html, /id="car-pkg-detail-ico"/);
   }
 
   const modal = read('assets/car-pkg-detail-modal.js');
-  assert.match(modal, /icon3dPack\(pkgId\)/);
+  assert.match(modal, /icon3dPack\(pkgId, "cars"\)/);
 });
