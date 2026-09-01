@@ -1,4 +1,4 @@
-/* 3D studio icons — packs, booking categories, size chips, add-ons */
+/* 3D studio icons — packs, booking categories, size chips */
 
 .car-pkg-3d {
   display: block;
@@ -58,12 +58,53 @@
   object-fit: contain;
 }
 
-.addon-ico {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  display: block;
-  margin: 0 auto 8px;
+/* How-it-works photo cards — text sits on a dark gradient so copy stays the closer */
+.how-card.how-card--photo {
+  min-height: 268px;
+  padding: 0 !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background-color: #0b1220 !important;
+  background-size: cover !important;
+  background-position: center 28% !important;
+  background-repeat: no-repeat !important;
+  isolation: isolate;
+}
+.how-card.how-card--book { background-image: url("how/how-book.webp") !important; }
+.how-card.how-card--request { background-image: url("how/how-request.webp") !important; }
+.how-card.how-card--arrive { background-image: url("how/how-arrive.webp") !important; }
+.how-card.how-card--inspect { background-image: url("how/how-inspect.webp") !important; }
+.how-card-copy {
+  position: relative;
+  z-index: 1;
+  padding: 72px 18px 18px;
+  background: linear-gradient(180deg, transparent 0%, rgba(8, 12, 20, 0.55) 28%, rgba(8, 12, 20, 0.94) 72%);
+}
+.how-card--photo .how-title { color: #fff !important; }
+.how-card--photo .how-desc { color: rgba(255, 255, 255, 0.84) !important; }
+.how-card--photo::before {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #fff !important;
+  opacity: 1 !important;
+  width: 26px !important;
+  height: 26px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 99, 235, 0.95) !important;
+  border-radius: 50% !important;
+  z-index: 2;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  top: 12px !important;
+  right: 12px !important;
+}
+@media (max-width: 640px) {
+  .how-card--photo { min-height: 240px; }
+  .how-card-copy { padding: 64px 16px 16px; }
 }
 
 .car-pkg-detail-ico {

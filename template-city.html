@@ -1701,25 +1701,29 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="sec-title">FOUR STEPS.<br>ZERO HASSLE.</div>
     <div class="sec-desc">No shop drop-off, no waiting room, no phone tag. Submit your driveway-service request online — we'll review it from there.</div>
     <div class="how-grid">
-      <div class="how-card">
-        <div class="how-ico">📱</div>
+      <div class="how-card how-card--photo how-card--book">
+        <div class="how-card-copy">
         <div class="how-title">Grab Your Spot</div>
         <div class="how-desc">Submit your driveway-service request online.</div>
+        </div>
       </div>
-      <div class="how-card">
-        <div class="how-ico">🔒</div>
+      <div class="how-card how-card--photo how-card--request">
+        <div class="how-card-copy">
         <div class="how-title">Request First</div>
         <div class="how-desc">Book with confidence. No card or payment is required to submit. We review the request first, and payment is handled later when applicable.</div>
+        </div>
       </div>
-      <div class="how-card">
-        <div class="how-ico">🚐</div>
+      <div class="how-card how-card--photo how-card--arrive">
+        <div class="how-card-copy">
         <div class="how-title">We Come To You</div>
         <div class="how-desc">Our tech rolls up to your driveway, office, or marina with pro gear. You stay put — we handle the rest.</div>
+        </div>
       </div>
-      <div class="how-card">
-        <div class="how-ico">✨</div>
+      <div class="how-card how-card--photo how-card--inspect">
+        <div class="how-card-copy">
         <div class="how-title">Inspect & Pay</div>
         <div class="how-desc">Walk around with your tech when the job's done. Final payment happens after you've seen the results.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -3815,9 +3819,7 @@ function renderAddons(){
   const otherAddons=addons.filter(a=>!POPULAR_IDS.includes(a.id));
   function addonCardHtml(a){
     const isQty=!!a.qty;
-    const ico=(typeof icon3dAddon==='function'&&icon3dAddon(a.id));
-    const icoHtml=ico?`<img class="addon-ico" src="${ico.img}" alt="" width="128" height="128" loading="lazy" decoding="async">`:'';
-    return `<div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)"><div class="addon-check">✓</div>${icoHtml}<div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">+$${a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
+    return `<div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)"><div class="addon-check">✓</div><div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">+$${a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
   }
   document.getElementById('addon-grid').innerHTML=
     '<div class="addon-popular-label">Popular Add-ons</div>'+

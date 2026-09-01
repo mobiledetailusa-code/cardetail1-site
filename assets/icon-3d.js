@@ -1,4 +1,4 @@
-/* Shared 3D studio icons for packs, categories, size chips, and add-ons. */
+/* Shared 3D studio icons for packs, categories, and size chips. */
 (function (global) {
   const BASE = 'assets/icons/3d/';
 
@@ -39,16 +39,6 @@
     truck: { file: 'tier-truck.webp', alt: 'Pickup truck' },
   };
 
-  const ADDON = {
-    wax1yr: { file: 'addon-wax.webp', alt: 'Carnauba wax' },
-    polymer: { file: 'addon-wax.webp', alt: 'Polymer sealant' },
-    claybar: { file: 'addon-claybar.webp', alt: 'Clay bar treatment' },
-    engine: { file: 'addon-engine.webp', alt: 'Engine bay detailing' },
-    rainx: { file: 'addon-rainx.webp', alt: 'Rain-X glass treatment' },
-    headlight: { file: 'addon-headlight.webp', alt: 'Headlight restoration' },
-    pethair: { file: 'addon-pethair.webp', alt: 'Pet hair removal' },
-  };
-
   function visual(entry) {
     if (!entry) return null;
     return { img: BASE + entry.file, alt: entry.alt };
@@ -64,8 +54,5 @@
   };
   global.icon3dTier = function (key) {
     return visual(TIER[key] || null);
-  };
-  global.icon3dAddon = function (id) {
-    return visual(ADDON[id] || null);
   };
 })(typeof window !== 'undefined' ? window : globalThis);

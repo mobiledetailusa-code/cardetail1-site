@@ -160,12 +160,6 @@ const ICON3D_FILES = [
   'tier-suv.webp',
   'tier-suv3.webp',
   'tier-truck.webp',
-  'addon-wax.webp',
-  'addon-claybar.webp',
-  'addon-engine.webp',
-  'addon-rainx.webp',
-  'addon-headlight.webp',
-  'addon-pethair.webp',
 ];
 
 test('3D preview icons exist and are wired into booking + homepage cards', () => {
@@ -191,7 +185,7 @@ test('3D preview icons exist and are wired into booking + homepage cards', () =>
     assert.match(html, /icon3dPack\(p\.id, cat\)/);
     assert.match(html, /pkg-visual pkg-visual--3d/);
     assert.match(html, /icon3dTier\(k\)/);
-    assert.match(html, /icon3dAddon\(a\.id\)/);
+    assert.doesNotMatch(html, /icon3dAddon\(a\.id\)/);
   }
 
   for (const file of BOOKING_PAGES) {
@@ -207,4 +201,42 @@ test('3D preview icons exist and are wired into booking + homepage cards', () =>
 
   const modal = read('assets/car-pkg-detail-modal.js');
   assert.match(modal, /icon3dPack\(pkgId, "cars"\)/);
+});
+
+test('how-it-works cards use photo backgrounds instead of emoji icons', () => {
+  const photos = ['how-book.webp', 'how-request.webp', 'how-arrive.webp', 'how-inspect.webp'];
+  for (const file of photos) {
+    const p = path.join(root, 'assets/how', file);
+    assert.ok(fs.existsSync(p), `missing ${file}`);
+    assert.ok(fs.statSync(p).size > 8000, `${file} too small`);
+  }
+  const css = read('assets/icon-3d.css');
+  assert.match(css, /how-card--photo/);
+  assert.match(css, /how\/how-arrive\.webp/);
+
+  const fourStep = [
+    'index.html',
+    'bergen-county-hub.html',
+    'hudson-county-hub.html',
+    'essex-county-hub.html',
+    'passaic-county-hub.html',
+    'newark-mobile-detailing.html',
+    'trenton-mobile-detailing.html',
+    'westchester-mobile-detailing.html',
+    'template-city.html',
+  ];
+  for (const file of fourStep) {
+    const html = read(file);
+    assert.match(html, /how-card--book/, file);
+    assert.match(html, /how-card--request/, file);
+    assert.match(html, /how-card--arrive/, file);
+    assert.match(html, /how-card--inspect/, file);
+    assert.doesNotMatch(html, /class="how-ico"/, file);
+  }
+
+  for (const file of ['new-jersey-hub.html', 'ny-metro-hub.html', 'connecticut-hub.html', 'pennsylvania-hub.html']) {
+    const html = read(file);
+    assert.match(html, /how-card--arrive/, file);
+    assert.doesNotMatch(html, /class="how-ico"/, file);
+  }
 });

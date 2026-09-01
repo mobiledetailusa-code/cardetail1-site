@@ -46,12 +46,12 @@ test('add-on catalog entries do not define icon fields', () => {
   }
 });
 
-test('booking add-on UI uses 3D icons, not catalog emoji fields', () => {
+test('booking add-on UI is name and price only — no icons', () => {
   for (const f of BOOKING_PAGES) {
     const s = read(f);
     assert.ok(!s.includes('${a.icon}'), `${f} still interpolates add-on catalog emoji icons`);
-    assert.match(s, /icon3dAddon\(a\.id\)/, `${f} missing 3D add-on icon helper`);
-    assert.match(s, /class="addon-ico"/, `${f} missing 3D add-on icon markup`);
+    assert.doesNotMatch(s, /icon3dAddon\(a\.id\)/, `${f} still wires add-on icons`);
+    assert.doesNotMatch(s, /class="addon-ico"/, `${f} still renders add-on icon markup`);
   }
 });
 
