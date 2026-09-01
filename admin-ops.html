@@ -746,6 +746,25 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
   function cust(j) { return ((j.firstName||'')+' '+(j.lastName||'')).trim()||j.email||j.id; }
   function dt(s) { if(!s) return '—'; try { return new Date(s).toLocaleString(); } catch { return s; } }
+  function channelDeliveryLabel(channel) {
+    if (!channel || !channel.status || channel.status === 'pending') return 'not sent';
+    if (channel.status === 'accepted') return 'queued';
+    if (channel.status === 'suppressed') {
+      const reason = String(channel.reason || '');
+      if (/consent/i.test(reason)) return 'consent required';
+      if (/not_enabled|not_configured/i.test(reason)) return 'not enabled';
+      return 'not sent';
+    }
+    if (channel.status === 'failed') return 'failed';
+    if (channel.status === 'sent' || channel.status === 'delivered') return channel.status;
+    return String(channel.status);
+  }
+  function notificationDeliveryHint(nd) {
+    if (!nd) return '';
+    return '<p class="hint">Notifications — Customer — email: '+esc(channelDeliveryLabel(nd.customerEmail))+
+      ' · SMS: '+esc(channelDeliveryLabel(nd.customerSms))+
+      '<br>Admin — email: '+esc(channelDeliveryLabel(nd.adminEmail))+'</p>';
+  }
 
   async function loadChangeRequests(fetchOpts) {
     const started = SS ? SS.beginSourceLoad(changeRequestsMeta) : { meta: changeRequestsMeta, generation: (changeRequestsMeta.generation||0)+1 };
@@ -3240,8 +3259,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       '<button type="button" class="btn ghost sm" id="dCopyCustomerLink" style="min-height:44px">Copy last link</button></div>'+
       (j.completionLinkUrl?'<p class="hint">Completion: '+esc(j.completionLinkUrl)+'</p>':'')+
       (j.myGarageLinkUrl?'<p class="hint">My Garage: '+esc(j.myGarageLinkUrl)+'</p>':'')+
-      (j.notificationDelivery?'<p class="hint">Notifications — admin: '+esc((j.notificationDelivery.adminEmail&&j.notificationDelivery.adminEmail.status)||'—')+
-        ' · customer: '+esc((j.notificationDelivery.customerEmail&&j.notificationDelivery.customerEmail.status)||'—')+'</p>':'')+
+      (j.notificationDelivery?notificationDeliveryHint(j.notificationDelivery):'')+
       '</div>';
     html += '<div class="sec" style="margin:0 0 12px"><h4>Customer requests</h4>'+
       '<p class="hint" style="margin:0 0 8px">Approve or decline change requests for this appointment.</p>'+
