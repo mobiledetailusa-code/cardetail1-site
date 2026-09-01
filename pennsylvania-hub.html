@@ -7066,7 +7066,7 @@ function _updateHomeFromPrices(){
   const fullAmt=document.getElementById('home-from-full');
   const fullNote=document.getElementById('home-from-full-note');
   if(fullAmt) fullAmt.textContent=fmtFull(tiers.small.full);
-  if(fullNote) fullNote.textContent=`Sedans from ${fmtFull(tiers.small.full)} · SUVs from ${fmtFull(tiers.suv2.full)} · 3-row SUVs from ${fmtFull(tiers.suv3.full)}`;
+  if(fullNote) fullNote.textContent=`From ${fmtFull(tiers.small.full)} · priced by vehicle type`;
   const BASE = {
     boats:       { price: LENGTH_PRICING.boats.packages.maint.min,     note:'by vessel length', amtId:'hfrom-boats-amt' },
     rvs:         { price: getLengthPrice('rvs','maint',LENGTH_PRICING.rvs.min,'travel'),    note:'by RV length', amtId:'hfrom-rvs-amt' },
