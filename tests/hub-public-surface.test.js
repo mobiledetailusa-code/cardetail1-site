@@ -162,9 +162,12 @@ for (const page of stateHubPages) {
     assert.match(html, /initCarPkgDetailModal\(\);/);
     assert.doesNotMatch(html, /function toggleHomePkgDetail/);
     assert.doesNotMatch(html, /id="home-pkg-detail-interior"/);
-    for (const pkgId of ['wash', 'interior', 'full', 'refresh']) {
+    for (const pkgId of ['interior', 'full', 'refresh']) {
       assert.match(html, new RegExp(`openHomePkgDetailModal\\('${pkgId}'`));
-      assert.match(html, new RegExp(`openBookingCarPkg\\('${pkgId}'\\)`));
     }
+    assert.doesNotMatch(html, /openHomePkgDetailModal\('wash'/);
+    assert.equal((html.match(/class="car-pkg-cta" onclick="openBooking\(null\)"/g) || []).length, 3);
+    assert.doesNotMatch(html, /openBookingCarPkg\('wash'\)/);
+    assert.doesNotMatch(html, /openBookingCarPkg\('interior'\)/);
   });
 }
