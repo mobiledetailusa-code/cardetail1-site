@@ -252,11 +252,28 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
     <section class="section" aria-labelledby="upcoming-h">
       <h3 id="upcoming-h">Current appointment</h3>
       <div id="mg-dashboard" class="mg-dashboard" hidden>
-        <div class="mg-cal-wrap">
-          <div class="mg-sec-label">Your week</div>
-          <div class="mg-cal-strip" id="mgCalStrip" role="tablist" aria-label="Week calendar"></div>
-          <div class="mg-day-banner" id="mgDayBanner"></div>
+        <div class="mg-cal-panel" aria-label="Appointment calendar">
+          <div class="mg-cal-head">
+            <div>
+              <h2>Your schedule</h2>
+              <div class="mg-sub" id="mgMonthLabel"></div>
+            </div>
+            <div class="mg-cal-nav">
+              <button type="button" data-mg-cal-nav="prev" aria-label="Previous month">‹</button>
+              <button type="button" class="mg-today" data-mg-cal-nav="today">Today</button>
+              <button type="button" data-mg-cal-nav="next" aria-label="Next month">›</button>
+            </div>
+          </div>
+          <div class="mg-stats" id="mgMonthStats"></div>
+          <div class="mg-legend" aria-hidden="true">
+            <span><i class="lg lg-appt"></i> Appointment</span>
+            <span><i class="lg lg-today"></i> Today</span>
+          </div>
+          <div class="mg-month" id="mgMonthGrid" role="grid" aria-label="Calendar month"></div>
+          <div class="mg-sec-label">Selected week</div>
+          <div class="mg-cal-strip" id="mgCalStrip" role="tablist" aria-label="Week around selected day"></div>
         </div>
+        <div class="mg-day-banner" id="mgDayBanner"></div>
         <div class="mg-timeline-wrap" id="mgTimelineWrap">
           <div class="mg-sec-label">Service status</div>
           <div class="mg-timeline" id="mgTimeline" aria-label="Service progress"></div>

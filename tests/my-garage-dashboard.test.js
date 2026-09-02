@@ -21,13 +21,23 @@ describe('customer portal dashboard layer (Phase 3)', () => {
     assert.ok(dashIdx > -1 && mainIdx > dashIdx, 'dashboard script loads before my-garage.js');
   });
 
-  it('exposes calendar, timeline, map shell above upcoming panel', () => {
+  it('exposes month calendar, week strip, timeline, and map above upcoming panel', () => {
     const panelIdx = html.indexOf('id="upcoming-panel"');
     const dashIdx = html.indexOf('id="mg-dashboard"');
     assert.ok(dashIdx > -1 && panelIdx > dashIdx, 'dashboard sits above appointment card');
-    for (const id of ['mgCalStrip', 'mgTimeline', 'mgMap']) {
+    for (const id of ['mgMonthGrid', 'mgMonthLabel', 'mgMonthStats', 'mgCalStrip', 'mgTimeline', 'mgMap']) {
       assert.ok(html.includes('id="' + id + '"'), 'missing #' + id);
     }
+    assert.match(html, /data-mg-cal-nav="prev"/);
+    assert.match(html, /data-mg-cal-nav="today"/);
+    assert.match(html, /data-mg-cal-nav="next"/);
+  });
+
+  it('dashboard builds a full month grid like admin schedule', () => {
+    assert.match(dashJs, /function monthGrid/);
+    assert.match(dashJs, /for \(var i = 0; i < 42; i/);
+    assert.match(dashJs, /renderMonthGrid/);
+    assert.match(dashJs, /data-mg-cal-nav/);
   });
 
   it('keeps customer action buttons immediately after the card', () => {
