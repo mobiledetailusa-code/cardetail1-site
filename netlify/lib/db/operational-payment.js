@@ -475,6 +475,8 @@ async function settleAdminOnSiteFullBalance({
   const bookingId = ensured.bookingId;
   const beforeBlobRec = await getBookingRecord(bookingId);
   const needsSyncBefore = blobNeedsOnSitePaymentSync(beforeBlobRec.booking, method);
+  const needsJobClose = String(beforeBlobRec.booking?.jobStatus || '').toLowerCase()
+    === 'completed_pending_payment';
 
   const settled = await authority.recordFullBalanceOnSiteSettlement({
     bookingId,
@@ -482,12 +484,13 @@ async function settleAdminOnSiteFullBalance({
     body,
   });
 
-  // Postgres already settled (e.g. customer paid online) but Blob still shows due —
-  // repair compatibility instead of failing Admin with already_paid while badges lag.
+  // Postgres already settled (e.g. customer paid online) but Admin Blob / job
+  // status still lag — repair compatibility and close instead of failing with
+  // already_paid while the operator is trying to finish the booking.
   if (
     !settled.ok
     && (settled.error === 'already_paid' || settled.error === 'not_due')
-    && needsSyncBefore
+    && (needsSyncBefore || needsJobClose)
     && settled.projection
     && Math.max(0, Math.round(Number(settled.projection.remainingCents) || 0)) === 0
   ) {
