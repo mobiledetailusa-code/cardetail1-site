@@ -36,6 +36,7 @@ const {
   emitCustomerActionRequired,
   EVENT_REQUEST_RECEIVED,
   EVENT_CONFIRMED,
+  EVENT_PAYMENT_RECEIVED,
 } = require('../netlify/lib/booking-transactional-notifications');
 const {
   setAppointmentAccessStoreFactories,
@@ -43,6 +44,7 @@ const {
   generateOpaqueToken,
   buildAccessUrl,
 } = require('../netlify/lib/appointment-access-token');
+const { SUPERSEDED_TEMPLATE_KEYS } = require('../netlify/lib/appointment-lifecycle-state');
 
 const VERIFIED = '+12015550177';
 const OTHER = '+12015550188';
@@ -883,5 +885,29 @@ describe('operational SMS: paid / due / details updated', () => {
     assert.match(rendered.body, /has been canceled/);
     assert.doesNotMatch(rendered.body, /\/a\?t=/);
     assert.doesNotMatch(rendered.body, /View:/);
+  });
+
+  it('payment-received on a cancelled appointment never includes /a?t=', () => {
+    const cancelled = piiBooking({
+      confirmedDate: '2026-08-29',
+      status: 'Cancelled',
+      appointmentStatus: 'canceled',
+      jobStatus: 'cancelled',
+      __paymentEvent: { remainingCents: 0 },
+    });
+    const plan = resolveCustomerBookingSmsPlan({
+      booking: cancelled,
+      toE164: VERIFIED,
+      verifiedPhoneE164: VERIFIED,
+      eventType: EVENT_PAYMENT_RECEIVED,
+      accessUrl: TYPICAL_URL,
+    });
+    assert.equal(plan.send, true);
+    assert.equal(plan.includeAccessUrl, false);
+    const body = renderSmsTemplate(plan.templateKey, plan.templateData).body;
+    assert.match(body, /Payment received/);
+    assert.doesNotMatch(body, /\/a\?t=/);
+    assert.doesNotMatch(body, /View:/);
+    assert.equal(SUPERSEDED_TEMPLATE_KEYS.has('booking.payment_received'), true);
   });
 });

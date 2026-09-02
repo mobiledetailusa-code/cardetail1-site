@@ -21,7 +21,7 @@ const {
 const { normalizeUsPhoneDigits, normalizeUsPhoneE164 } = require('./phone-auth');
 const { smsOutboxPolicy, enabled } = require('./twilio-runtime-policy');
 const { enqueueSms, smsSafeIdempotencyKey } = require('./sms-outbox');
-const { smsSafeEventPart } = require('./appointment-lifecycle-state');
+const { smsSafeEventPart, isAppointmentCancelled } = require('./appointment-lifecycle-state');
 const { bookingSmsConsentGranted } = require('./sms-program');
 const { renderSmsTemplate, bookingTemplateData, TEMPLATE_KEYS } = require('./sms-templates');
 const { loadAccountVerifiedPhoneE164 } = require('./sms-consent-service');
@@ -815,7 +815,9 @@ function resolveCustomerBookingSmsPlan({
   const verified = normalizeUsPhoneE164(verifiedPhoneE164 || '');
   const accessAuthorized = !!(verified && verified === dest);
   const templateKey = smsTemplateKeyForEvent(eventType);
-  const includeAccessUrl = accessAuthorized && eventType !== EVENT_CANCELLED
+  const includeAccessUrl = accessAuthorized
+    && !isAppointmentCancelled(booking)
+    && eventType !== EVENT_CANCELLED
     && eventType !== EVENT_CANCELLED_CUSTOMER
     && eventType !== EVENT_CANCELLED_ADMIN;
   // Safe-confirmation (useful summary, no private link) is only for the
