@@ -1,0 +1,96 @@
+/* Customer portal — Schedule hero layer (#mg-dashboard) */
+#mg-dashboard{
+  --mg-glow:rgba(77,163,255,.12);
+  --mg-teal:#2dd4bf;
+  margin-bottom:16px;
+}
+#mg-dashboard .mg-sec-label{
+  font-size:11px;font-weight:800;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.08em;margin:0 0 8px;
+}
+#mg-dashboard .mg-cal-strip{
+  display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+}
+#mg-dashboard .mg-cal-strip::-webkit-scrollbar{display:none}
+#mg-dashboard .mg-cal-day{
+  flex:0 0 72px;scroll-snap-align:start;padding:10px 6px;border-radius:12px;
+  border:1px solid var(--border);background:#0e0e14;cursor:pointer;text-align:center;
+  color:inherit;font:inherit;transition:.15s;
+}
+#mg-dashboard .mg-cal-day:hover{border-color:rgba(77,163,255,.35)}
+#mg-dashboard .mg-cal-day.today{border-color:var(--mg-teal)}
+#mg-dashboard .mg-cal-day.sel{
+  background:linear-gradient(160deg,rgba(77,163,255,.18),rgba(45,212,191,.08));
+  border-color:rgba(77,163,255,.45);box-shadow:0 0 0 1px var(--mg-glow);
+}
+#mg-dashboard .mg-cal-day.has-appt .dd{font-weight:800;color:var(--blue)}
+#mg-dashboard .mg-cal-day .dn{font-size:9px;font-weight:700;color:var(--muted)}
+#mg-dashboard .mg-cal-day .dd{font-size:18px;font-weight:800;margin:2px 0}
+#mg-dashboard .mg-cal-day .dm{font-size:9px;color:var(--muted)}
+#mg-dashboard .mg-cal-day .jc{font-size:9px;color:var(--muted);margin-top:2px}
+#mg-dashboard .mg-day-banner{
+  padding:12px 14px;border-radius:12px;margin-bottom:14px;
+  background:linear-gradient(90deg,rgba(77,163,255,.08),rgba(14,14,20,.6));
+  border:1px solid var(--border);font-size:13px;font-weight:600;color:var(--muted);
+}
+#mg-dashboard .mg-day-banner strong{color:var(--blue);font-weight:800}
+#upcoming-panel .mg-contracted-total,#mg-dashboard .mg-contracted-total{
+  text-align:center;padding:16px 14px 10px;margin-bottom:12px;border-radius:14px;
+  background:linear-gradient(165deg,rgba(34,197,94,.08),rgba(14,14,20,.85));
+  border:1px solid rgba(34,197,94,.25);
+}
+#upcoming-panel .mg-total-val,#mg-dashboard .mg-total-val{
+  font-size:clamp(1.6rem,5vw,2rem);font-weight:800;color:#22c55e;line-height:1.1;
+}
+#upcoming-panel .mg-total-lbl,#mg-dashboard .mg-total-lbl{
+  font-size:12px;color:var(--muted);margin-top:4px;font-weight:600;
+}
+#mg-dashboard .mg-timeline-wrap{margin-bottom:14px}
+#mg-dashboard .mg-timeline{
+  display:flex;gap:0;align-items:flex-start;overflow-x:auto;padding:4px 0 8px;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+}
+#mg-dashboard .mg-tl-step{
+  flex:1 0 88px;min-width:72px;text-align:center;position:relative;scroll-snap-align:start;
+}
+#mg-dashboard .mg-tl-step:not(:last-child)::after{
+  content:'';position:absolute;top:14px;left:calc(50% + 16px);right:calc(-50% + 16px);
+  height:2px;background:rgba(255,255,255,.12);z-index:0;
+}
+#mg-dashboard .mg-tl-step.done:not(:last-child)::after{background:rgba(34,197,94,.45)}
+#mg-dashboard .mg-tl-dot{
+  width:28px;height:28px;border-radius:999px;margin:0 auto 6px;
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;
+  border:2px solid rgba(255,255,255,.15);background:#0e0e14;color:var(--muted);
+  position:relative;z-index:1;
+}
+#mg-dashboard .mg-tl-step.done .mg-tl-dot{
+  border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.15);color:#22c55e;
+}
+#mg-dashboard .mg-tl-step.active .mg-tl-dot{
+  border-color:var(--blue);background:rgba(77,163,255,.2);color:var(--blue);
+  box-shadow:0 0 12px var(--mg-glow);
+}
+#mg-dashboard .mg-tl-label{font-size:10px;font-weight:700;color:var(--muted);line-height:1.25;padding:0 2px}
+#mg-dashboard .mg-tl-step.active .mg-tl-label{color:var(--blue)}
+#mg-dashboard .mg-tl-step.done .mg-tl-label{color:var(--text)}
+#mg-dashboard .mg-map{
+  border-radius:12px;overflow:hidden;border:1px solid var(--border);
+  background:#0e0e14;height:96px;position:relative;margin-bottom:4px;
+}
+#mg-dashboard .mg-map a{display:block;width:100%;height:100%;text-decoration:none;color:inherit}
+#mg-dashboard .mg-map-inner{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;padding:12px;text-align:center;gap:4px;
+  background:linear-gradient(135deg,rgba(77,163,255,.1),rgba(45,212,191,.06));
+}
+#mg-dashboard .mg-map-addr{
+  font-size:12px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;padding:0 8px;
+}
+#mg-dashboard .mg-map-cta{font-size:11px;color:var(--blue);font-weight:700}
+@media(max-width:480px){
+  #mg-dashboard .mg-cal-day{flex-basis:64px;padding:8px 4px}
+  #mg-dashboard .mg-tl-step{flex-basis:76px;min-width:64px}
+}
