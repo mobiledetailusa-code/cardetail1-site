@@ -148,34 +148,88 @@
       '</article>';
   }
 
-  async function load() {
+  var printBtn = document.getElementById('btn-print');
+  if (printBtn) printBtn.addEventListener('click', function () { window.print(); });
+
+  var verifiedPhone = '';
+
+  function setPrintVisible(on) {
+    if (printBtn) printBtn.hidden = !on;
+  }
+
+  function needsPhonePrompt(data) {
+    if (!data) return false;
+    if (data.error === 'phone_required') return true;
+    return data.error === 'validation_error'
+      && /mobile number is required/i.test(String(data.message || ''));
+  }
+
+  function showPhoneForm(errorText) {
+    setPrintVisible(false);
+    root.innerHTML =
+      '<form class="msg phone-form" id="receipt-phone-form">' +
+      '<p>To view this receipt, enter the US mobile number used on this booking.</p>' +
+      (errorText ? '<p class="form-err" role="alert">' + esc(errorText) + '</p>' : '') +
+      '<label for="receipt-phone">Mobile number</label>' +
+      '<input id="receipt-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" required>' +
+      '<button type="submit" class="btn primary">View receipt</button>' +
+      '</form>';
+    var form = document.getElementById('receipt-phone-form');
+    var input = document.getElementById('receipt-phone');
+    if (verifiedPhone && input) input.value = verifiedPhone;
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var phone = input ? String(input.value || '').trim() : '';
+        loadReceipt({ phone: phone });
+      });
+    }
+    if (input) input.focus();
+  }
+
+  async function loadReceipt(opts) {
+    opts = opts || {};
     var bookingId = param('bookingId');
     var type = param('type') === 'final' ? 'final' : 'payment';
     if (!bookingId) {
+      setPrintVisible(false);
       message('No booking was specified. Open your receipt from My Garage.');
       return;
     }
+    var phone = String(opts.phone || verifiedPhone || '').trim();
     try {
+      var payload = { bookingId: bookingId, receiptType: type };
+      if (phone) payload.phone = phone;
       var res = await fetch('/.netlify/functions/customer-receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ bookingId: bookingId, receiptType: type }),
+        body: JSON.stringify(payload),
       });
       var data = await res.json().catch(function () { return null; });
-      if (!data || !data.ok || !data.receipt) {
-        message((data && data.message)
-          || 'This receipt is not available. Open it from My Garage while signed in.');
+      if (needsPhonePrompt(data)) {
+        showPhoneForm(phone ? (data.message || '') : '');
         return;
       }
+      if (!data || !data.ok || !data.receipt) {
+        var err = (data && data.message)
+          || 'This receipt is not available. Open it from My Garage while signed in.';
+        if (phone || document.getElementById('receipt-phone-form')) {
+          showPhoneForm(err);
+          return;
+        }
+        setPrintVisible(false);
+        message(err);
+        return;
+      }
+      if (phone) verifiedPhone = phone;
       render(data.receipt);
+      setPrintVisible(true);
     } catch (e) {
+      setPrintVisible(false);
       message('This receipt could not be loaded. Please try again from My Garage.');
     }
   }
 
-  var printBtn = document.getElementById('btn-print');
-  if (printBtn) printBtn.addEventListener('click', function () { window.print(); });
-
-  load();
+  loadReceipt();
 }());
