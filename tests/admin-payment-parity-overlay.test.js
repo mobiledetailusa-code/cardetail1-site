@@ -114,3 +114,4 @@ describe('admin payment parity — Postgres overlay', () => {
     assert.match(slice, /Payment already recorded/);
     assert.match(slice, /openDrawer\(bookingId\)/);
   });
+});
