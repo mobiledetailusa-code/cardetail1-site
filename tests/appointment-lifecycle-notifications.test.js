@@ -228,6 +228,22 @@ describe('wiring: lifecycle emits from authoritative mutations', () => {
     assert.match(cancelBlock, /actor: 'admin'/);
     assert.match(cancelBlock, /persistMutation/);
     assert.doesNotMatch(cancelBlock, /store\.setJSON/);
+    const addonBlock = admin.slice(
+      admin.indexOf("if (action === 'addon_mutation')"),
+      admin.indexOf("if (action === 'change_package')")
+    );
+    assert.match(addonBlock, /notifyOpts:\s*testOpts/);
+    const packageBlock = admin.slice(
+      admin.indexOf("if (action === 'change_package')"),
+      admin.indexOf("if (action === 'reconcile_with_stripe')")
+    );
+    assert.match(packageBlock, /notifyOpts:\s*testOpts/);
+    const vehicleBlock = admin.slice(
+      admin.indexOf("if (action === 'vehicle_mutation')"),
+      admin.indexOf("if (action === 'mark_refunded')")
+    );
+    assert.match(vehicleBlock, /notifyOpts:\s*testOpts/);
+    assert.match(admin, /notifyDetailsUpdatedQuietly/);
   });
 
   it('customer change-request and cancel notify from submit-customer-action', () => {
@@ -259,6 +275,7 @@ describe('customer-facing copy', () => {
   it('change-request SMS says REQUEST, not RESCHEDULED', () => {
     const rendered = renderSmsTemplate(TEMPLATE_KEYS.CHANGE_REQUESTED, {});
     assert.match(rendered.body, /request to change/i);
+    assert.match(rendered.body, /Current appointment is unchanged/);
     assert.doesNotMatch(rendered.body, /rescheduled/i);
     assert.match(rendered.body, /STOP/i);
   });

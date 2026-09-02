@@ -30,6 +30,7 @@ const EVENT_REQUEST_RECEIVED = 'booking.request_received';
 const EVENT_CONFIRMED = 'booking.confirmed';
 const EVENT_ACTION_REQUIRED = 'booking.customer_action_required';
 const EVENT_PAYMENT_RECEIVED = 'booking.payment_received';
+const EVENT_DETAILS_UPDATED = 'booking.details_updated';
 const EVENT_CHANGE_REQUESTED = 'booking.change_requested';
 const EVENT_CANCELLATION_REQUESTED = 'booking.cancellation_requested';
 const EVENT_RESCHEDULED = 'booking.rescheduled';
@@ -42,6 +43,7 @@ const LIFECYCLE_EVENTS = new Set([
   EVENT_CONFIRMED,
   EVENT_ACTION_REQUIRED,
   EVENT_PAYMENT_RECEIVED,
+  EVENT_DETAILS_UPDATED,
   EVENT_CHANGE_REQUESTED,
   EVENT_CANCELLATION_REQUESTED,
   EVENT_RESCHEDULED,
@@ -295,6 +297,9 @@ function eventStateKey(eventType, booking) {
     const settlementRef = String(p.settlementId || p.entryId || p.providerEventId || '').trim();
     if (settlementRef) return `payment:${settlementRef}`;
     return `payment:${p.method || 'unknown'}:${p.amountCents || 0}:${p.settledCentsAfter || 0}`;
+  }
+  if (eventType === EVENT_DETAILS_UPDATED) {
+    return `details:q${booking.quoteVersion || 0}:v${booking.bookingVersion || 0}`;
   }
   if (eventType === EVENT_CHANGE_REQUESTED) {
     const requestId = String(booking.changeRequestId || booking.__changeRequestId || '').trim();
@@ -603,6 +608,37 @@ ${link ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;co
 
   if (eventType === EVENT_PAYMENT_RECEIVED) {
     return buildPaymentReceivedEmail(booking, accessUrl);
+  }
+
+  if (eventType === EVENT_DETAILS_UPDATED) {
+    const subject = 'Your appointment details were updated';
+    const cta = 'View Appointment';
+    const text = [
+      `Hi ${name.split(/\s+/)[0] || 'there'},`,
+      '',
+      'Your appointment details were updated (package, vehicle, or add-ons).',
+      `Date: ${booking.confirmedDate || booking.preferredDate || '—'}`,
+      `Arrival window: ${arrivalWindow(booking) || '—'}`,
+      '',
+      `${cta}:`,
+      accessUrl,
+      '',
+      brandName(),
+      siteUrl(),
+    ].join('\n');
+    const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
+<p>Hi ${first},</p>
+<p><strong>Your appointment details were updated.</strong></p>
+<p>Package, vehicle, or add-on changes are on your appointment. Open the link for the current services.</p>
+<ul>
+<li>Date: ${date}</li>
+<li>Arrival window: ${window}</li>
+</ul>
+${link ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>
+<p style="font-size:13px;color:#555">If the button does not work, open:<br>${link}</p>` : ''}
+<p>${brand}</p>
+</body></html>`;
+    return { subject, text, html, cta };
   }
 
   // customer_action_required
@@ -1070,12 +1106,7 @@ async function emitBookingNotification(booking, eventType, opts = {}) {
         : { sent: false, skipped: true, reason: ledger[emailKey]?.reason || 'suppressed' };
     }
 
-    if (eventType === EVENT_PAYMENT_RECEIVED) {
-      // Payment confirmation is email-only: an SMS here would spend Twilio credit
-      // on a message the receipt already carries in full.
-      delivery.sms = { sent: false, skipped: true, reason: 'sms_not_enabled_for_event' };
-      ledger = markChannelResult(ledger, smsKey, delivery.sms);
-    } else if (!smsTerminal) {
+    if (!smsTerminal) {
       const e164 = normalizeUsPhoneE164(working.phone || working.customerPhone || '');
       delivery.sms = await sendCustomerSms(e164, smsBody, {
         idempotencyKey: smsKey,
@@ -1186,11 +1217,16 @@ async function emitPaymentReceived(booking, payment = {}, opts = {}) {
   return result;
 }
 
+async function emitDetailsUpdated(booking, opts) {
+  return emitBookingNotification(booking, EVENT_DETAILS_UPDATED, opts);
+}
+
 module.exports = {
   EVENT_REQUEST_RECEIVED,
   EVENT_CONFIRMED,
   EVENT_ACTION_REQUIRED,
   EVENT_PAYMENT_RECEIVED,
+  EVENT_DETAILS_UPDATED,
   EVENT_CHANGE_REQUESTED,
   EVENT_CANCELLATION_REQUESTED,
   EVENT_RESCHEDULED,
@@ -1227,6 +1263,7 @@ module.exports = {
   emitCancelled,
   emitCustomerActionRequired,
   emitPaymentReceived,
+  emitDetailsUpdated,
   resolveCustomerAccountForBooking,
   setNotificationClaimStoreFactory,
   resetNotificationClaimStoreFactory,

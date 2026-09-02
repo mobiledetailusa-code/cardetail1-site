@@ -18,6 +18,7 @@ const {
   emitRescheduled,
   emitCancelled,
   emitConfirmed,
+  emitDetailsUpdated,
   arrivalWindow,
   eventStateKey,
   EVENT_CHANGE_REQUESTED,
@@ -326,6 +327,27 @@ async function notifyCancelled(booking, opts = {}) {
   return { ok: true, booking: next, customer: txn, adminSms: admin, actor };
 }
 
+async function notifyDetailsUpdated(booking, opts = {}) {
+  const txn = await emitDetailsUpdated(booking, {
+    event: opts.event,
+    source: opts.source || 'lifecycle_mutation',
+    prisma: opts.prisma,
+    env: opts.env,
+  });
+  await kickLifecycleOutbox([outboxIdFrom(txn)], opts);
+  const bookingId = booking.id || booking.bookingId;
+  let next = txn?.booking || booking;
+  if (opts.store) {
+    next = await persistLifecycleNotify(
+      opts.store,
+      bookingId,
+      next,
+      txn.skipped ? null : txn.delivery
+    );
+  }
+  return { ok: true, booking: next, customer: txn };
+}
+
 module.exports = {
   safeBookingRef,
   enqueueAdminOpsSms,
@@ -336,6 +358,7 @@ module.exports = {
   notifyCancellationRequested,
   notifyRescheduled,
   notifyCancelled,
+  notifyDetailsUpdated,
   isAppointmentCancelled,
   isAppointmentCompleted,
   appointmentReminderEligible,

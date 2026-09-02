@@ -239,7 +239,8 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
     assert.ok(idx >= 0);
     const block = src.slice(idx, idx + 1200);
     assert.match(block, /bodyHasPackageMutation\(body\)/);
-    assert.match(block, /adminChangePackage\(\{ bookingId, body, previousBooking: booking \}\)/);
+    assert.match(block, /adminChangePackage\(\{/);
+    assert.match(block, /notifyOpts:\s*testOpts/);
     // Package branch returns before the legacy non-package path.
     const pkgIf = block.indexOf('if (bodyHasPackageMutation(body))');
     const legacyCall = block.indexOf('updateServicePackage(booking, body)');

@@ -31,6 +31,9 @@ const {
   emitChangeRequested,
   emitCancellationRequested,
   emitRescheduled,
+  emitPaymentReceived,
+  emitDetailsUpdated,
+  emitCustomerActionRequired,
   EVENT_REQUEST_RECEIVED,
   EVENT_CONFIRMED,
 } = require('../netlify/lib/booking-transactional-notifications');
@@ -224,7 +227,7 @@ afterEach(() => {
 });
 
 describe('1-4. booking request SMS', () => {
-  it('includes requested date, arrival preference, and service without claiming confirmation', () => {
+  it('includes requested date, arrival preference, and View link without claiming confirmation', () => {
     const data = bookingTemplateData(
       TEMPLATE_KEYS.REQUEST_RECEIVED,
       piiBooking(),
@@ -234,10 +237,19 @@ describe('1-4. booking request SMS', () => {
     assert.match(rendered.body, /Booking request received/);
     assert.match(rendered.body, /Aug 28, 2026/);
     assert.match(rendered.body, /Any time that day/);
-    assert.match(rendered.body, /Interior Detail/);
+    // Service lives in the portal when /a?t= is present — saves Twilio segments.
+    assert.doesNotMatch(rendered.body, /Interior Detail/);
+    assert.match(rendered.body, /View: https:\/\/cardetail1\.com\/a\?t=/);
     assert.doesNotMatch(rendered.body, /Your appointment is confirmed/i);
     assert.doesNotMatch(rendered.body, /confirmed for/);
     assertNoPrivateLeak(rendered.body);
+  });
+
+  it('keeps the short service label when there is no appointment link', () => {
+    const data = bookingTemplateData(TEMPLATE_KEYS.REQUEST_RECEIVED, piiBooking(), '');
+    const rendered = renderSmsTemplate(TEMPLATE_KEYS.REQUEST_RECEIVED, data);
+    assert.match(rendered.body, /Interior Detail/);
+    assert.doesNotMatch(rendered.body, /View:/);
   });
 });
 
@@ -261,8 +273,9 @@ describe('5-6. confirmed SMS', () => {
     assert.match(rendered.body, /Aug 29, 2026/);
     assert.doesNotMatch(rendered.body, /Aug 28, 2026/);
     assert.match(rendered.body, /9:00 AM - 12:00 PM/);
-    assert.match(rendered.body, /Essential Marine/);
-    assert.match(rendered.body, /View appointment:/);
+    assert.doesNotMatch(rendered.body, /Essential Marine/);
+    assert.match(rendered.body, /View: https:\/\/cardetail1\.com\/a\?t=/);
+    assert.doesNotMatch(rendered.body, /View appointment:/);
     assertNoPrivateLeak(rendered.body);
   });
 });
@@ -286,7 +299,8 @@ describe('7-8. reschedule SMS', () => {
     assert.match(rendered.body, /10:00 AM - 1:00 PM/);
     assert.doesNotMatch(rendered.body, /Aug 29, 2026/);
     assert.doesNotMatch(rendered.body, /Aug 28, 2026/);
-    assert.match(rendered.body, /View updated appointment:/);
+    assert.match(rendered.body, /View: https:\/\/cardetail1\.com\/a\?t=/);
+    assert.doesNotMatch(rendered.body, /View updated appointment:/);
   });
 });
 
@@ -297,9 +311,10 @@ describe('9-12. change-request and cancellation copy', () => {
       bookingTemplateData(TEMPLATE_KEYS.CHANGE_REQUESTED, piiBooking(), TYPICAL_URL)
     );
     assert.match(rendered.body, /We received your request to change your appointment/);
-    assert.match(rendered.body, /remains unchanged until the new time is confirmed/);
+    assert.match(rendered.body, /Current appointment is unchanged/);
     assert.doesNotMatch(rendered.body, /rescheduled/i);
-    assert.match(rendered.body, /View request:/);
+    assert.match(rendered.body, /View: https:\/\/cardetail1\.com\/a\?t=/);
+    assert.doesNotMatch(rendered.body, /View request:/);
   });
 
   it('cancellation-request does not say canceled; authoritative cancel does', () => {
@@ -572,6 +587,35 @@ describe('encoding, segments, and synthetic QA fixtures', () => {
       }),
       url: '',
     },
+    {
+      name: 'payment received',
+      key: TEMPLATE_KEYS.PAYMENT_RECEIVED,
+      booking: piiBooking({
+        confirmedDate: '2026-08-29',
+        __paymentEvent: { remainingCents: 0 },
+      }),
+      url: TYPICAL_URL,
+    },
+    {
+      name: 'details updated',
+      key: TEMPLATE_KEYS.DETAILS_UPDATED,
+      booking: piiBooking({
+        confirmedDate: '2026-08-29',
+        confirmedTimeWindow: '8:00 AM – 11:00 AM',
+        package: 'Interior Detail',
+      }),
+      url: TYPICAL_URL,
+    },
+    {
+      name: 'action required',
+      key: TEMPLATE_KEYS.ACTION_REQUIRED,
+      booking: piiBooking({
+        confirmedDate: '2026-08-29',
+        jobStatus: 'completed_pending_payment',
+        remainingCents: 5000,
+      }),
+      url: TYPICAL_URL,
+    },
   ];
 
   for (const fixture of fixtures) {
@@ -585,6 +629,7 @@ describe('encoding, segments, and synthetic QA fixtures', () => {
       assert.match(rendered.body, /^Cardetail1:/);
       assert.match(rendered.body, /STOP/);
       assert.match(rendered.body, /HELP/);
+      assert.doesNotMatch(rendered.body, /bit\.ly|tinyurl|t\.co\b/i);
       assertNoPrivateLeak(rendered.body);
       assert.equal(rendered.encoding, 'GSM-7');
       assert.equal(rendered.segmentCount, measure.segmentCount);
@@ -628,6 +673,8 @@ describe('lifecycle emit uses the new projection', () => {
     assert.match(row.templateData.url, /\/a\?t=/);
     const body = renderSmsTemplate(row.templateKey, row.templateData).body;
     assert.match(body, /Any time that day/);
+    assert.match(body, /View:/);
+    assert.doesNotMatch(body, /Interior Detail/);
   });
 
   it('confirmed and rescheduled emits keep authoritative windows', async () => {
@@ -651,7 +698,9 @@ describe('lifecycle emit uses the new projection', () => {
     const confirmedRow = customerRow(prisma);
     assert.equal(confirmedRow.templateData.date, '2026-08-29');
     assert.equal(confirmedRow.templateData.service, 'Maintenance Detail');
-    assert.match(renderSmsTemplate(confirmedRow.templateKey, confirmedRow.templateData).body, /Maintenance Detail/);
+    const confirmedBody = renderSmsTemplate(confirmedRow.templateKey, confirmedRow.templateData).body;
+    assert.match(confirmedBody, /View:/);
+    assert.doesNotMatch(confirmedBody, /Maintenance Detail/);
 
     const reschedulePrisma = createMemoryOutboxPrisma();
     const rescheduled = await emitRescheduled(piiBooking({
@@ -699,5 +748,140 @@ describe('lifecycle emit uses the new projection', () => {
     const cancelBody = renderSmsTemplate(cancelRow.templateKey, cancelRow.templateData).body;
     assert.match(cancelBody, /cancellation request/);
     assert.doesNotMatch(cancelBody, /\bcanceled\b/i);
+  });
+});
+
+describe('operational SMS: paid / due / details updated', () => {
+  it('payment received SMS includes View link, no dollar amounts, and Balance remains when due', () => {
+    const paid = renderSmsTemplate(
+      TEMPLATE_KEYS.PAYMENT_RECEIVED,
+      bookingTemplateData(
+        TEMPLATE_KEYS.PAYMENT_RECEIVED,
+        piiBooking({ confirmedDate: '2026-08-29', __paymentEvent: { remainingCents: 0 } }),
+        TYPICAL_URL
+      )
+    );
+    assert.match(paid.body, /Payment received for Aug 29, 2026/);
+    assert.match(paid.body, /View: https:\/\/cardetail1\.com\/a\?t=/);
+    assert.doesNotMatch(paid.body, /Balance remains/);
+    assert.doesNotMatch(paid.body, /\$/);
+    assert.doesNotMatch(paid.body, /\d+\.\d{2}/);
+    assertNoPrivateLeak(paid.body);
+
+    const due = renderSmsTemplate(
+      TEMPLATE_KEYS.PAYMENT_RECEIVED,
+      bookingTemplateData(
+        TEMPLATE_KEYS.PAYMENT_RECEIVED,
+        piiBooking({ confirmedDate: '2026-08-29', __paymentEvent: { remainingCents: 8500 } }),
+        TYPICAL_URL
+      )
+    );
+    assert.match(due.body, /Balance remains/);
+    assert.doesNotMatch(due.body, /\$85|85\.00/);
+  });
+
+  it('action-required (due) SMS is a short View link, not an itemized bill', () => {
+    const rendered = renderSmsTemplate(
+      TEMPLATE_KEYS.ACTION_REQUIRED,
+      bookingTemplateData(
+        TEMPLATE_KEYS.ACTION_REQUIRED,
+        piiBooking({
+          confirmedDate: '2026-08-29',
+          jobStatus: 'completed_pending_payment',
+        }),
+        TYPICAL_URL
+      )
+    );
+    assert.match(rendered.body, /Action needed on your appointment for Aug 29, 2026/);
+    assert.match(rendered.body, /View: https:\/\/cardetail1\.com\/a\?t=/);
+    assert.doesNotMatch(rendered.body, /Interior Detail/);
+    assert.doesNotMatch(rendered.body, /\$/);
+  });
+
+  it('details-updated SMS covers pack/car/add-on changes without itemizing', () => {
+    const rendered = renderSmsTemplate(
+      TEMPLATE_KEYS.DETAILS_UPDATED,
+      bookingTemplateData(
+        TEMPLATE_KEYS.DETAILS_UPDATED,
+        piiBooking({
+          confirmedDate: '2026-08-29',
+          package: 'Interior Detail',
+          vehicles: [{ year: 2022, make: 'Tesla', model: 'Model 3', packageName: 'Interior Detail' }],
+        }),
+        TYPICAL_URL
+      )
+    );
+    assert.match(rendered.body, /Your appointment was updated for Aug 29, 2026/);
+    assert.match(rendered.body, /View: https:\/\/cardetail1\.com\/a\?t=/);
+    assert.doesNotMatch(rendered.body, /Interior Detail/);
+    assert.doesNotMatch(rendered.body, /Tesla|Model 3|addon|add-on/i);
+    assert.doesNotMatch(rendered.body, /\$/);
+  });
+
+  it('authorized payment and details-updated emits queue SMS with /a?t=', async () => {
+    const payPrisma = createMemoryOutboxPrisma();
+    const paid = await emitPaymentReceived(
+      piiBooking({
+        id: 'CD1-SMS-PAID',
+        confirmedDate: '2026-08-29',
+        status: 'Confirmed',
+        appointmentStatus: 'confirmed',
+        jobStatus: 'confirmed',
+      }),
+      { method: 'cash', amountCents: 19900, remainingCents: 0, settlementId: 'CD1-SMS-PAID:19900:cash' },
+      { prisma: payPrisma, env: SMS_ENV, verifiedPhoneE164: VERIFIED }
+    );
+    assert.equal(paid.ok, true, paid.error);
+    assert.equal(paid.delivery.sms.queued, true);
+    assert.equal(paid.booking.__paymentEvent, undefined);
+    const payRow = customerRow(payPrisma);
+    assert.equal(payRow.templateKey, TEMPLATE_KEYS.PAYMENT_RECEIVED);
+    const payBody = renderSmsTemplate(payRow.templateKey, payRow.templateData).body;
+    assert.match(payBody, /View: https:\/\/cardetail1\.com\/a\?t=/);
+    assert.doesNotMatch(payBody, /\$/);
+
+    const detailsPrisma = createMemoryOutboxPrisma();
+    const details = await emitDetailsUpdated(piiBooking({
+      id: 'CD1-SMS-DETAILS',
+      quoteVersion: 4,
+      bookingVersion: 6,
+      confirmedDate: '2026-08-29',
+    }), { prisma: detailsPrisma, env: SMS_ENV, verifiedPhoneE164: VERIFIED });
+    assert.equal(details.ok, true, details.error);
+    assert.equal(details.delivery.sms.queued, true);
+    const detailsRow = customerRow(detailsPrisma);
+    assert.equal(detailsRow.templateKey, TEMPLATE_KEYS.DETAILS_UPDATED);
+    assert.match(renderSmsTemplate(detailsRow.templateKey, detailsRow.templateData).body, /View:/);
+
+    const duePrisma = createMemoryOutboxPrisma();
+    const due = await emitCustomerActionRequired(piiBooking({
+      id: 'CD1-SMS-DUE',
+      confirmedDate: '2026-08-29',
+      jobStatus: 'completed_pending_payment',
+      remainingCents: 5000,
+    }), { prisma: duePrisma, env: SMS_ENV, verifiedPhoneE164: VERIFIED });
+    assert.equal(due.ok, true, due.error);
+    assert.equal(due.skipped, undefined);
+    assert.equal(due.delivery.sms.queued, true);
+    const dueBody = renderSmsTemplate(
+      customerRow(duePrisma).templateKey,
+      customerRow(duePrisma).templateData
+    ).body;
+    assert.match(dueBody, /Action needed/);
+    assert.match(dueBody, /View:/);
+  });
+
+  it('cancelled SMS still never includes the private appointment link', () => {
+    const rendered = renderSmsTemplate(
+      TEMPLATE_KEYS.CANCELLED,
+      bookingTemplateData(
+        TEMPLATE_KEYS.CANCELLED,
+        piiBooking({ confirmedDate: '2026-08-29', status: 'Cancelled', appointmentStatus: 'canceled' }),
+        TYPICAL_URL
+      )
+    );
+    assert.match(rendered.body, /has been canceled/);
+    assert.doesNotMatch(rendered.body, /\/a\?t=/);
+    assert.doesNotMatch(rendered.body, /View:/);
   });
 });

@@ -308,7 +308,7 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
 
   it('10. secure-link rules unchanged: authorized link vs safe confirmation', () => {
     const withLink = renderLifecycle(TEMPLATE_KEYS.REQUEST_RECEIVED);
-    assert.match(withLink.body, /View request: https:\/\/cardetail1\.com\/a\?t=/);
+    assert.match(withLink.body, /View: https:\/\/cardetail1\.com\/a\?t=/);
     const safe = renderSmsTemplate(TEMPLATE_KEYS.SAFE_CONFIRMATION, {
       ...bookingTemplateData(TEMPLATE_KEYS.SAFE_CONFIRMATION, booking()),
       url: TYPICAL_URL,

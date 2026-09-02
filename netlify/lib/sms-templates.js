@@ -10,7 +10,7 @@ const {
 // Admin operational alerts use a distinct prefix so they are not confused
 // with customer traffic.
 const BRAND = CUSTOMER_SMS_BRAND;
-const TEMPLATE_VERSION = 'sms-v4-2026-08-28';
+const TEMPLATE_VERSION = 'sms-v5-2026-09-02';
 const COMPLIANCE = 'Reply STOP or HELP';
 
 const TEMPLATE_KEYS = Object.freeze({
@@ -22,6 +22,8 @@ const TEMPLATE_KEYS = Object.freeze({
   CANCELLATION_REQUESTED: 'booking.cancellation_requested',
   RESCHEDULED: 'booking.rescheduled',
   CANCELLED: 'booking.cancelled',
+  PAYMENT_RECEIVED: 'booking.payment_received',
+  DETAILS_UPDATED: 'booking.details_updated',
   // CUSTOMER_BOOKING_SMS_SAFE_CONFIRMATION — consent true, phone mismatch: no private link
   SAFE_CONFIRMATION: 'booking.safe_confirmation',
   TECH_AUCTION: 'auction.tech_invite',
@@ -185,13 +187,19 @@ function smsServiceLabel(bookingOrRaw) {
   return '';
 }
 
-function viewLink(label, url) {
-  return url ? ` ${label}: ${url}` : '';
+function viewLink(url) {
+  return url ? ` View: ${url}` : '';
 }
 
-function requestSummary(data) {
-  const date = smsDateLabel(data.date || data.when);
+function serviceClause(data, url) {
+  if (url) return '';
   const service = asciiSms(data.service).slice(0, 40);
+  return service ? ` ${service}.` : '';
+}
+
+function requestSummary(data, { includeService = true } = {}) {
+  const date = smsDateLabel(data.date || data.when);
+  const service = includeService ? asciiSms(data.service).slice(0, 40) : '';
   const window = smsWindowLabel(data.window || data.arrivalPreference);
   let body = `${smsPrefix(TEMPLATE_KEYS.REQUEST_RECEIVED)} Booking request received`;
   if (date && service) body += ` for ${date} - ${service}`;
@@ -208,42 +216,41 @@ function renderSmsTemplate(templateKey, data = {}) {
   let body = '';
   switch (templateKey) {
     case TEMPLATE_KEYS.REQUEST_RECEIVED:
-      body = requestSummary(data) + viewLink('View request', url);
+      body = requestSummary(data, { includeService: !url }) + viewLink(url);
       break;
     case TEMPLATE_KEYS.SAFE_CONFIRMATION:
       // No url/token — SMS consent alone must not deliver private account access.
-      body = requestSummary(data);
+      body = requestSummary(data, { includeService: true });
       break;
     case TEMPLATE_KEYS.CONFIRMED: {
       const date = smsDateLabel(data.date || data.when);
       const window = smsWindowLabel(data.window);
-      const service = asciiSms(data.service).slice(0, 40);
       body = `${smsPrefix(templateKey)} Your appointment is confirmed`
         + (date ? ` for ${date}` : '')
-        + (window ? `, arrival window ${window}` : '')
+        + (window ? `, ${window}` : '')
         + '.'
-        + (service ? ` ${service}.` : '')
-        + viewLink('View appointment', url);
+        + serviceClause(data, url)
+        + viewLink(url);
       break;
     }
     case TEMPLATE_KEYS.CHANGE_REQUESTED:
       body = `${smsPrefix(templateKey)} We received your request to change your appointment.`
-        + ` Your current appointment remains unchanged until the new time is confirmed.`
-        + viewLink('View request', url);
+        + ` Current appointment is unchanged.`
+        + viewLink(url);
       break;
     case TEMPLATE_KEYS.CANCELLATION_REQUESTED:
       body = `${smsPrefix(templateKey)} We received your cancellation request.`
-        + ` Your appointment remains scheduled until cancellation is confirmed.`
-        + viewLink('View appointment', url);
+        + ` Your appointment remains scheduled.`
+        + viewLink(url);
       break;
     case TEMPLATE_KEYS.RESCHEDULED: {
       const date = smsDateLabel(data.date || data.when);
       const window = smsWindowLabel(data.window);
       body = `${smsPrefix(templateKey)} Your appointment has been rescheduled`
         + (date ? ` to ${date}` : '')
-        + (window ? `, arrival window ${window}` : '')
+        + (window ? `, ${window}` : '')
         + '.'
-        + viewLink('View updated appointment', url);
+        + viewLink(url);
       break;
     }
     case TEMPLATE_KEYS.CANCELLED: {
@@ -253,10 +260,32 @@ function renderSmsTemplate(templateKey, data = {}) {
         + ` has been canceled.`;
       break;
     }
-    case TEMPLATE_KEYS.ACTION_REQUIRED:
-      body = `${smsPrefix(templateKey)} Action needed on your appointment.`
-        + (url ? ` ${url}` : '');
+    case TEMPLATE_KEYS.ACTION_REQUIRED: {
+      const date = smsDateLabel(data.date || data.when);
+      body = `${smsPrefix(templateKey)} Action needed on your appointment`
+        + (date ? ` for ${date}` : '')
+        + '.'
+        + viewLink(url);
       break;
+    }
+    case TEMPLATE_KEYS.PAYMENT_RECEIVED: {
+      const date = smsDateLabel(data.date || data.when);
+      const remaining = Math.max(0, Math.round(Number(data.remainingCents) || 0));
+      body = `${smsPrefix(templateKey)} Payment received`
+        + (date ? ` for ${date}` : '')
+        + '.'
+        + (remaining > 0 ? ' Balance remains.' : '')
+        + viewLink(url);
+      break;
+    }
+    case TEMPLATE_KEYS.DETAILS_UPDATED: {
+      const date = smsDateLabel(data.date || data.when);
+      body = `${smsPrefix(templateKey)} Your appointment was updated`
+        + (date ? ` for ${date}` : '')
+        + '.'
+        + viewLink(url);
+      break;
+    }
     case TEMPLATE_KEYS.TECH_AUCTION:
       body = `${smsPrefix(templateKey)} Job ${text(data.service, 100)} - ${text(data.date, 40)} - ${text(data.area, 40)}.`
         + (url ? ` Bid: ${url}` : '');
@@ -378,6 +407,9 @@ function bookingTemplateData(eventType, booking = {}, accessUrl = '') {
     || eventType === TEMPLATE_KEYS.CANCELLATION_REQUESTED
     || eventType === TEMPLATE_KEYS.REQUEST_RECEIVED
     || eventType === TEMPLATE_KEYS.SAFE_CONFIRMATION
+    || eventType === TEMPLATE_KEYS.ACTION_REQUIRED
+    || eventType === TEMPLATE_KEYS.PAYMENT_RECEIVED
+    || eventType === TEMPLATE_KEYS.DETAILS_UPDATED
   ) {
     data.date = date;
     data.window = window;
@@ -385,6 +417,10 @@ function bookingTemplateData(eventType, booking = {}, accessUrl = '') {
     data.scheduleFingerprint = fingerprint;
     data.previousDate = booking.previousConfirmedDate || booking.previousPreferredDate || '';
     if (service) data.service = service;
+  }
+  if (eventType === TEMPLATE_KEYS.PAYMENT_RECEIVED) {
+    const payment = booking.__paymentEvent || {};
+    if (payment.remainingCents != null) data.remainingCents = payment.remainingCents;
   }
   const url = String(accessUrl || '').trim();
   if (url) data.url = url;
