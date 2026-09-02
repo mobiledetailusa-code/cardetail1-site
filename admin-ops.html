@@ -2658,7 +2658,18 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   async function jobAction(bookingId, action, extra) {
     try {
       const data = await api('/.netlify/functions/admin-ops-jobs','POST',{action,bookingId,...extra});
-      toast('Saved');
+      if (data && data.repaired) {
+        toast(data.jobStatus === 'completed_paid'
+          ? 'Payment already recorded — booking closed as paid'
+          : 'Payment already recorded — Admin status synced');
+      } else if (
+        (action === 'mark_cash_received' || action === 'mark_card_on_site')
+        && data && data.jobStatus === 'completed_paid'
+      ) {
+        toast('Payment recorded — booking completed');
+      } else {
+        toast('Saved');
+      }
       await refreshAll();
       if (action === 'archive_test' && expandedJobId === bookingId) {
         collapseJobDetail();
@@ -2669,7 +2680,25 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         await openDrawer(bookingId);
       }
       return data;
-    } catch(e) { toast('Action failed: '+e.message); throw e; }
+    } catch (e) {
+      const msg = String(e && e.message || '');
+      // Customer already paid online: reopen the job so get_job can repair Blob
+      // badges / close completed_pending_payment instead of leaving Admin stuck.
+      if (
+        (action === 'mark_cash_received' || action === 'mark_card_on_site')
+        && (msg === 'already_paid' || msg === 'not_due')
+      ) {
+        toast('Payment already recorded — refreshing Admin status…');
+        try {
+          await refreshAll();
+          expandedJobId = bookingId;
+          await openDrawer(bookingId);
+        } catch (_) { /* ignore secondary refresh errors */ }
+        return { ok: true, repairedClient: true, error: msg };
+      }
+      toast('Action failed: ' + msg);
+      throw e;
+    }
   }
 
   function fmtServerDollars(n) {

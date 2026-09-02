@@ -323,6 +323,46 @@ function projectJobForAdmin(b) {
   return safe;
 }
 
+/**
+ * Overlay Postgres financial projection onto an Admin job row so badges and
+ * balances match Customer/receipt when Blob compatibility lags.
+ */
+function overlayAdminJobMoneyFromProjection(job, projection) {
+  if (!job || !projection) return job;
+  const approved = Math.max(0, Math.round(Number(projection.approvedCents) || 0));
+  const settled = Math.max(0, Math.round(Number(projection.settledCents) || 0));
+  const remaining = Math.max(0, Math.round(Number(projection.remainingCents) || 0));
+  const paid = String(projection.paymentStatus || '').toLowerCase() === 'paid' || remaining === 0 && settled > 0;
+  const out = { ...job };
+  out.approvedCents = approved;
+  out.settledCents = settled;
+  out.remainingCents = remaining;
+  out.amountDueApproved = remaining / 100;
+  out.balanceDue = remaining / 100;
+  out.amountPaid = settled / 100;
+  out.paidAmount = settled / 100;
+  if (approved > 0) out.approvedFinalAmount = approved / 100;
+  out.financialPaymentStatus = projection.paymentStatus || out.financialPaymentStatus;
+  out.invoicePaid = paid;
+  if (paid) {
+    const pwf = String(out.paymentWorkflowStatus || '').toLowerCase();
+    if (pwf !== 'cash_paid') out.paymentWorkflowStatus = 'payment_succeeded';
+    if (!['paid', 'paid_cash', 'paid_card_on_site'].includes(String(out.paymentStatus || '').toLowerCase())) {
+      out.paymentStatus = 'paid';
+    }
+    if (String(out.jobStatus || '').toLowerCase() === 'completed_pending_payment') {
+      out.jobStatus = 'completed_paid';
+    }
+  } else if (String(projection.paymentStatus || '').toLowerCase() === 'due') {
+    out.paymentWorkflowStatus = out.paymentWorkflowStatus === 'payment_action_required'
+      ? 'payment_action_required'
+      : 'awaiting_customer_payment';
+    out.invoicePaid = false;
+  }
+  out._moneyAuthority = projection.authority || 'postgres';
+  return out;
+}
+
 function projectJobForTech(b) {
   const first = b.firstName || '';
   const last = b.lastName || '';
@@ -432,6 +472,7 @@ module.exports = {
   listMoneySummary,
   projectJobForAdminList,
   projectJobForAdmin,
+  overlayAdminJobMoneyFromProjection,
   projectJobForTech,
   projectTechAccountForAdmin,
   projectTechAssignOption,
