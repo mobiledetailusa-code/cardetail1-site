@@ -328,7 +328,7 @@ test('the rendered receipt shows authoritative quote rows, safe references, refu
 
 test('44. print CSS hides controls and prints readable black text', () => {
   const print = receiptHtml.slice(receiptHtml.indexOf('@media print'));
-  assert.match(print, /\.actions,\.no-print\{display:none!important\}/);
+  assert.match(print, /\.actions,\.no-print,#receipt-phone-form\{display:none!important\}/);
   assert.match(print, /body\{background:#fff;color:#000\}/);
   assert.match(print, /@page\{margin:0\.5in\}/);
   assert.match(print, /\.veh\{border:1px solid #999\}/);
@@ -344,6 +344,18 @@ test('45-47. the receipt is readable on mobile and never overflows sideways', ()
 
 test('48. Back to My Garage is present', () => {
   assert.match(receiptHtml, /id="btn-back"[^>]*href="my-garage\.html"|href="my-garage\.html"[^>]*id="btn-back"/);
+});
+
+test('email receipt links prompt for the booking phone instead of dumping auth copy', () => {
+  assert.match(receiptJs, /receipt-phone-form/);
+  assert.match(receiptJs, /phone_required/);
+  assert.match(receiptJs, /payload\.phone = phone/);
+  assert.doesNotMatch(receiptJs, /location\.search.*phone|URLSearchParams.*phone/);
+  assert.match(receiptHtml, /id="btn-print"[^>]*\bhidden\b/);
+  assert.match(receiptJs, /enter the US mobile number used on this booking/i);
+  const src = read('netlify/functions/customer-receipt.js');
+  assert.match(src, /phone_required/);
+  assert.match(src, /body\.phone \|\| body\.customerPhone/);
 });
 
 test('18. the static receipt page embeds no private data', () => {
@@ -362,7 +374,7 @@ test('accessibility: semantic structure and keyboard-reachable actions', () => {
   assert.match(receiptJs, /document\.title =/);
   assert.match(receiptJs, /<th scope="col">/);
   // Buttons and links, not click-handlers on divs.
-  assert.match(receiptHtml, /<button type="button" class="btn primary" id="btn-print">/);
+  assert.match(receiptHtml, /<button type="button" class="btn primary" id="btn-print"/);
 });
 
 test('the browser performs no authoritative money arithmetic', () => {

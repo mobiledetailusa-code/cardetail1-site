@@ -256,6 +256,42 @@ describe('receipt authorization (real middleware, two customers)', () => {
     const body = JSON.parse(res.body);
     assert.equal(body.ok, false);
     assert.ok(!body.receipt);
+    assert.equal(body.error, 'phone_required');
+    assert.match(String(body.message || ''), /mobile number used on this booking/i);
+  });
+
+  it('5b. booking id plus the phone on file is accepted as ownership', async () => {
+    const res = await handler()(cookieEvent(null, {
+      bookingId: 'CD1-AAAA1111',
+      receiptType: 'payment',
+      phone: '2015550177',
+    }));
+    const body = JSON.parse(res.body);
+    assert.notEqual(body.error, 'phone_required');
+    assert.notEqual(body.error, 'authentication_failed');
+    assert.notEqual(body.error, 'validation_error');
+    assert.ok(!JSON.stringify(body).includes('A valid US mobile number'));
+    if (body.ok) {
+      assert.equal(res.statusCode, 200);
+      assert.equal(body.receipt.bookingReference, 'CD1-AAAA1111');
+      assert.equal(body.receipt.financialSummary.amountPaid.display, '$887.00');
+    } else {
+      // Local suite has no Prisma; authorization still reached projection.
+      assert.ok(['receipt_unavailable', 'financial_authority_unavailable'].includes(body.error), body.error);
+    }
+  });
+
+  it('5c. booking id plus the wrong phone is denied without leaking the receipt', async () => {
+    const res = await handler()(cookieEvent(null, {
+      bookingId: 'CD1-AAAA1111',
+      receiptType: 'payment',
+      phone: '2125550147',
+    }));
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+    assert.ok(!body.receipt);
+    assert.ok(!JSON.stringify(body).includes('Alice'));
+    assert.ok(!JSON.stringify(body).includes('887'));
   });
 
   it('6. a revoked session is denied', async () => {
