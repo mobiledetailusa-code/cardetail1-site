@@ -364,7 +364,13 @@
     }
     const dateBtn = e.target.closest('[data-dv-date]');
     if (dateBtn) {
-      selectDate(dateBtn.getAttribute('data-dv-date'), { syncView: false });
+      const d = dateBtn.getAttribute('data-dv-date');
+      const parsed = parseDate(d);
+      if (parsed.getFullYear() !== viewYear || parsed.getMonth() !== viewMonth) {
+        viewYear = parsed.getFullYear();
+        viewMonth = parsed.getMonth();
+      }
+      selectDate(d, { syncView: false });
       return;
     }
     const openBtn = e.target.closest('[data-dv-open]');
