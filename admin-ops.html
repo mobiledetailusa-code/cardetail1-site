@@ -204,8 +204,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 </header>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist">
-    <button type="button" class="tab on" data-tab="jobs" role="tab" aria-selected="true">Jobs</button>
-    <button type="button" class="tab" data-tab="dayview" role="tab" aria-selected="false">Day View</button>
+    <button type="button" class="tab on" data-tab="dayview" role="tab" aria-selected="true">Schedule</button>
+    <button type="button" class="tab" data-tab="jobs" role="tab" aria-selected="false">Jobs Board</button>
     <button type="button" class="tab" data-tab="requests" role="tab" aria-selected="false">Requests</button>
     <button type="button" class="tab" data-tab="payments" role="tab" aria-selected="false">Payments</button>
     <button type="button" class="tab" data-tab="settings" role="tab" aria-selected="false">Settings</button>
@@ -245,7 +245,38 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     <p class="hint" id="paymentsHint" style="margin:8px 0 0">Derived from the Jobs list already in memory — no additional backend load.</p>
   </section>
 
-  <section class="panel on" id="p-jobs">
+  <section class="panel on" id="p-dayview">
+    <div class="dv-shell">
+      <aside class="dv-cal-panel" aria-label="Month calendar">
+        <div class="dv-cal-head">
+          <div>
+            <h2>Schedule</h2>
+            <div class="dv-sub" id="dvMonthLabel"></div>
+          </div>
+          <div class="dv-cal-nav">
+            <button type="button" data-dv-cal-nav="prev" aria-label="Previous month">‹</button>
+            <button type="button" class="dv-today" data-dv-cal-nav="today">Today</button>
+            <button type="button" data-dv-cal-nav="next" aria-label="Next month">›</button>
+          </div>
+        </div>
+        <div class="dv-stats" id="dvCalStats"></div>
+        <div class="dv-month" id="dvMonthGrid" role="grid" aria-label="Calendar month"></div>
+        <div class="dv-week-label">Selected week</div>
+        <div class="dv-week-strip" id="dvWeekStrip" role="tablist" aria-label="Week around selected day"></div>
+        <p class="hint" style="margin:14px 0 0;font-size:11px">Dots = appointments · amber = needs attention. Same Jobs data — no extra API calls.</p>
+      </aside>
+      <main class="dv-detail-panel">
+        <div class="dv-day-banner" id="dvCalBanner"></div>
+        <div id="dvHero"></div>
+        <div id="dvMap"></div>
+        <div class="dv-sec-title">Appointments this day</div>
+        <div id="dvSchedList"></div>
+        <p class="dv-board-link">Need filters or bulk actions? <button type="button" class="btn ghost sm" data-dv-goto-jobs>Open Jobs Board →</button></p>
+      </main>
+    </div>
+  </section>
+
+  <section class="panel" id="p-jobs">
     <div class="queue-filters" id="jobsQueueFilters" role="group" aria-label="Review queue filters"></div>
     <div class="toolbar">
       <input class="srch" id="jobsSearch" type="search" placeholder="Search ID, customer, phone, email…">
@@ -281,21 +312,6 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           </td>
         </tr>
       </tbody></table>
-    </div>
-  </section>
-
-  <section class="panel" id="p-dayview">
-    <div class="dv-wrap">
-      <p class="hint" style="margin-bottom:4px">Calendar-first view of scheduled jobs. Uses the same Jobs data already in memory — no extra API calls. Double-click a row or use Manage to open the full appointment panel on the Jobs tab.</p>
-      <div class="dv-sec-title">Your Schedule</div>
-      <div class="dv-cal-strip" id="dvCalStrip" role="tablist" aria-label="Week calendar"></div>
-      <div class="dv-cal-banner" id="dvCalBanner"></div>
-      <div id="dvHero"></div>
-      <div id="dvMap"></div>
-      <div class="dv-sec-title">Today's Schedule</div>
-      <div id="dvSchedList"></div>
-      <div class="dv-sec-title">Upcoming (next 7 days)</div>
-      <div id="dvUpcoming"></div>
     </div>
   </section>
 
