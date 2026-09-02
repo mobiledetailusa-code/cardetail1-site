@@ -244,6 +244,11 @@ describe('wiring: lifecycle emits from authoritative mutations', () => {
     );
     assert.match(vehicleBlock, /notifyOpts:\s*testOpts/);
     assert.match(admin, /notifyDetailsUpdatedQuietly/);
+    const helperStart = admin.indexOf('async function notifyDetailsUpdatedQuietly');
+    const helperEnd = admin.indexOf('async function adminChangePackage', helperStart);
+    const helper = admin.slice(helperStart, helperEnd);
+    assert.doesNotMatch(helper, /getStore\(/);
+    assert.doesNotMatch(helper, /\bstore,/);
   });
 
   it('customer change-request and cancel notify from submit-customer-action', () => {
