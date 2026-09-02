@@ -260,17 +260,39 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           </div>
         </div>
         <div class="dv-stats" id="dvCalStats"></div>
+        <div class="dv-legend" id="dvLegend" aria-hidden="true">
+          <span><i class="lg lg-jobs"></i> Jobs</span>
+          <span><i class="lg lg-warn"></i> Needs action</span>
+          <span><i class="lg lg-unassigned"></i> Unassigned</span>
+          <span><i class="lg lg-rev"></i> Day revenue</span>
+        </div>
         <div class="dv-month" id="dvMonthGrid" role="grid" aria-label="Calendar month"></div>
         <div class="dv-week-label">Selected week</div>
         <div class="dv-week-strip" id="dvWeekStrip" role="tablist" aria-label="Week around selected day"></div>
-        <p class="hint" style="margin:14px 0 0;font-size:11px">Dots = appointments · amber = needs attention. Same Jobs data — no extra API calls.</p>
+        <div class="dv-sec-title" style="margin-top:16px">Month ops radar</div>
+        <div id="dvOpsAlerts"></div>
       </aside>
       <main class="dv-detail-panel">
+        <div class="dv-ops-pulse" id="dvOpsPulse"></div>
         <div class="dv-day-banner" id="dvCalBanner"></div>
+        <div class="dv-day-ops" id="dvDayOps"></div>
+        <div class="dv-intel" id="dvDayIntel" aria-label="Day operational intelligence"></div>
+        <div class="dv-day-search-wrap">
+          <input type="search" class="dv-day-search" id="dvDaySearch" placeholder="Filter day by name, phone, ID…" autocomplete="off" aria-label="Filter appointments on selected day">
+        </div>
+        <div class="dv-filters" id="dvFilters" role="group" aria-label="Day filters"></div>
+        <div class="dv-timeline-wrap">
+          <div class="dv-sec-title" style="margin-top:0">Day timeline</div>
+          <div class="dv-timeline" id="dvTimeline"></div>
+        </div>
         <div id="dvHero"></div>
         <div id="dvMap"></div>
-        <div class="dv-sec-title">Appointments this day</div>
+        <div class="dv-sec-title">Technician load</div>
+        <div id="dvTechLoad"></div>
+        <div class="dv-sec-title">Appointments</div>
         <div id="dvSchedList"></div>
+        <div class="dv-sec-title">Pipeline (next 14 days)</div>
+        <div id="dvPipeline"></div>
         <p class="dv-board-link">Need filters or bulk actions? <button type="button" class="btn ghost sm" data-dv-goto-jobs>Open Jobs Board →</button></p>
       </main>
     </div>
@@ -4303,6 +4325,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       customerName: cust,
       vehicleSummary: jobsVehicleSummary,
       jobBadge: jobBadge,
+      payBadge: payBadge,
+      balanceLabel: jobsBalanceLabel,
+      dateTimeLabel: jobsDateTimeLabel,
+      jobNeedsAttention: jobNeedsAttention,
+      pendingRequestCount: pendingRequestCountOf,
       today: () => {
         const d = new Date();
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
