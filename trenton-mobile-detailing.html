@@ -1254,6 +1254,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script src="assets/travel-fee-client.js"></script>
 <link rel="stylesheet" href="assets/public-surface-contrast.css">
   <link rel="stylesheet" href="assets/public-surface.css">
+<link rel="stylesheet" href="assets/icon-3d.css">
 </head>
 <body>
 
@@ -1700,25 +1701,29 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="sec-title">FOUR STEPS.<br>ZERO HASSLE.</div>
     <div class="sec-desc">No shop drop-off, no waiting room, no phone tag. Submit your driveway-service request online — we'll review it from there.</div>
     <div class="how-grid">
-      <div class="how-card">
-        <div class="how-ico">📱</div>
+      <div class="how-card how-card--photo how-card--book">
+        <div class="how-card-copy">
         <div class="how-title">Grab Your Spot</div>
         <div class="how-desc">Submit your driveway-service request online.</div>
+        </div>
       </div>
-      <div class="how-card">
-        <div class="how-ico">🔒</div>
+      <div class="how-card how-card--photo how-card--request">
+        <div class="how-card-copy">
         <div class="how-title">Request First</div>
         <div class="how-desc">Book with confidence. No card or payment is required to submit. We review the request first, and payment is handled later when applicable.</div>
+        </div>
       </div>
-      <div class="how-card">
-        <div class="how-ico">🚐</div>
+      <div class="how-card how-card--photo how-card--arrive">
+        <div class="how-card-copy">
         <div class="how-title">We Come To You</div>
         <div class="how-desc">Our tech rolls up to your driveway, office, or marina with pro gear. You stay put — we handle the rest.</div>
+        </div>
       </div>
-      <div class="how-card">
-        <div class="how-ico">✨</div>
+      <div class="how-card how-card--photo how-card--inspect">
+        <div class="how-card-copy">
         <div class="how-title">Inspect & Pay</div>
         <div class="how-desc">Walk around with your tech when the job's done. Final payment happens after you've seen the results.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1924,25 +1929,25 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
         <div class="service-grid" id="bk-cat-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
-            <span class="svc-ico-photo"><img src="assets/vehicles/premium/cars-suvs.webp" alt="Cars and trucks receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
+            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-cars.webp" alt="Cars and trucks receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
             <div class="svc-from" id="bkfrom-cars" style="font-size:12px">Packages shown after ZIP check</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
-            <span class="svc-ico-photo"><img src="assets/vehicles/premium/marine.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
+            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-boats.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Boats</div>
             <div class="svc-desc" style="font-size:12px">All vessels · Priced by length</div>
             <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $170</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
-            <span class="svc-ico-photo"><img src="assets/vehicles/premium/rv-trailer.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
+            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-rvs.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
             <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">Price calculated from your vehicle details.</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
-            <span class="svc-ico-photo"><img src="assets/vehicles/premium/powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
+            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
             <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
             <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $100</div>
@@ -2462,6 +2467,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 <script src="https://js.stripe.com/v3/"></script>
 <script src="/netlify/lib/admin-session-client.js"></script>
+<script src="assets/icon-3d.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════
@@ -2691,12 +2697,17 @@ async function makeWebhookSend(payload){
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:150, interior:190, full:240, refresh:320, premium:385},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:185, interior:215, full:260, refresh:360, premium:470},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:215, interior:235, full:270, refresh:405, premium:540},
-      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:215, interior:235, full:275, refresh:395, premium:525},
+      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     wash:110, maint:150, interior:190, full:240, refresh:320, premium:385},
+      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        wash:135, maint:185, interior:215, full:260, refresh:360, premium:470},
+      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', wash:155, maint:215, interior:235, full:270, refresh:405, premium:540},
+      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       wash:155, maint:215, interior:235, full:275, refresh:395, premium:525},
     },
     packages:[
+      {id:'wash',     name:'Exterior Hand Wash', icon:'🚿', tag:'Exterior wash only — add wax, clay bar, or engine bay if you want more', dur:'~45–75 min', popular:false, scope:'ext', note:'Exterior wash only — protection, clay bar, and engine bay are add-ons.',
+        ext:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
+        int:[],
+        feats:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
+        miss:['Clay bar decontamination','Paint correction','Wax or sealant','Interior vacuum','Engine bay detailing']},
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
         ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
         int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
@@ -2717,10 +2728,10 @@ const PRICING = {
         int:[],
         feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X glass treatment','Tire dressing','Final quality inspection'],
         miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
-      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — single-pass correction, ceramic protection, clay bar, Rain-X & deep interior care', dur:'~6–8h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting ceramic paint protection','Deep wheel & lug detailing','Exterior trim restoration','Rain-X windshield treatment'],
+      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — clay bar, single-pass correction, sealant, Rain-X & deep interior care', dur:'~6–8h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'],
         int:['Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Detailed dash & console cleaning','Interior glass & vents detailed','Trunk & cargo area detail'],
-        feats:['Clay bar decontamination','Single-pass paint correction','Ceramic paint protection','Deep wheel & lug detailing','Rain-X windshield treatment','Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Dash & console detail','Final quality inspection'],
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing','Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Dash & console detail','Final quality inspection'],
         miss:[]}
     ],
     addons:[
@@ -3367,9 +3378,10 @@ function renderPackages(cat){
       startPrice=applyRichPrice(sampleTier[p.id]||sampleTier.maint||sampleTier.wash||sampleTier.exterior);
     }
     if(p.id!=='custom') startPrice += getTravelFeeAmount();
+    const packVisual=(typeof icon3dPack==='function'&&icon3dPack(p.id, cat))||categoryVisual;
     return `<div class="pkg${p.popular?' pop':''}" id="pk-${p.id}" onclick="selectPkg('${p.id}')">
       ${p.popular?'<div class="pop-b">Most Popular</div>':''}
-      <div class="pkg-visual"><img src="${categoryVisual.img}" alt="${categoryVisual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
+      <div class="pkg-visual pkg-visual--3d"><img src="${packVisual.img}" alt="${packVisual.alt}" width="256" height="256" loading="lazy" decoding="async"></div>
       <div class="pkg-name">${p.name}</div>
       <div class="pkg-tag">${p.tag}</div>
       <div class="pkg-price">${p.id==='custom'?'Estimate':'from $'+startPrice}</div>
@@ -3418,8 +3430,10 @@ function renderTierChips(cat){
       const minP=applyRichPrice(Math.min(...prices));
       const fee=getTravelFeeAmount();
       const visual=VEHICLE_VISUALS[TIER_VISUAL_KEYS[k]||getVehicleVisualKey()]||VEHICLE_VISUALS.sedan;
+      const ico3d=typeof icon3dTier==='function'?icon3dTier(k):null;
+      const chipVisual=ico3d||visual;
       return `<div class="tchip" data-tier="${k}" onclick="selectTier('${k}')">
-        <div class="tchip-ico"><img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
+        <div class="tchip-ico${ico3d?' tchip-ico--3d':''}"><img src="${chipVisual.img}" alt="${chipVisual.alt}" width="256" height="256" loading="lazy" decoding="async"></div>
         <div class="tchip-name">${t.label}</div>
         <div class="tchip-desc">${t.desc}</div>
         <div class="tchip-from">from $${minP+fee}</div>
@@ -5092,9 +5106,9 @@ function renderLocationCarousel(zoneKey){
   if(!scroll) return;
   scroll.innerHTML = cats.map(cat=>{
     const d = LOC_DISPLAY[cat];
-    const visual = CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
+    const visual = (typeof icon3dPack==='function' && icon3dPack(null, cat)) || CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
     const inner = `
-      <div class="loc-visual"><img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
+      <div class="loc-visual loc-visual--3d"><img src="${visual.img}" alt="${visual.alt}" width="512" height="512" loading="lazy" decoding="async"></div>
       <div class="loc-name">${d.name}</div>
       <div class="loc-req">${d.desc}</div>
       <div class="loc-from">${formatLocFrom(cat)}</div>`;

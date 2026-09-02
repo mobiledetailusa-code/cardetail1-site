@@ -6,6 +6,15 @@ const MAX_DETAILS_PER_MONTH = 1;
 
 const CAR_PACKAGES = [
   {
+    id: 'wash',
+    name: 'Exterior Hand Wash',
+    basePrice: 125,
+    tag: 'Exterior wash only — add wax, clay bar, or engine bay if you want more',
+    duration: '~45–75 min',
+    description: 'Hand wash, wheels, glass, and tire dressing. Wax, clay bar, and engine bay are add-ons.',
+    feats: ['Exterior hand wash & rinse', 'Wheels & tires cleaned', 'Exterior glass cleaned', 'Door jambs wiped down', 'Tire dressing'],
+  },
+  {
     id: 'maint',
     name: 'Maintenance Detail',
     basePrice: 175,
@@ -45,10 +54,10 @@ const CAR_PACKAGES = [
     id: 'premium',
     name: 'Signature Interior & Exterior Restoration',
     basePrice: 450,
-    tag: 'Single-pass correction, clay bar, Rain-X, wheel & tire shine, plastic restoration & deep interior',
+    tag: 'Clay bar, single-pass correction, sealant, Rain-X & deep interior',
     duration: '~3.5–4h',
-    description: 'Clay bar, single-pass correction, Rain-X, wheel cleaning and tire shine, exterior plastic restoration, door jambs, headliner, trunk and truck bed where applicable.',
-    feats: ['Clay bar decontamination', 'Single-pass paint correction', 'Wheel cleaning & tire shine', 'Exterior plastic restoration', 'Rain-X windshield', 'Door jambs cleaned', 'Headliner cleaning', 'Carpet & seat shampoo', 'Leather & plastics with UV protection'],
+    description: 'Same exterior as Exterior Refresh & Protect — clay bar, chemical decontamination, single-pass correction, sealant, Rain-X, wheels and tire dressing — plus deep interior care.',
+    feats: ['Clay bar decontamination', 'Chemical paint decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X glass treatment', 'Tire dressing', 'Door jambs cleaned', 'Headliner cleaning', 'Carpet & seat shampoo', 'Leather & plastics with UV protection'],
   },
 ];
 
@@ -121,13 +130,18 @@ function matchPackFromBooking(booking) {
     booking.package, booking.service, booking.packageName, booking.pkgName,
   ].join(' ').toLowerCase();
   for (const p of CAR_PACKAGES) {
+    if (p.id === 'wash') {
+      if (hay.includes(p.name.toLowerCase()) || /\bexterior hand wash\b|\bhand wash\b/.test(hay)) return p;
+      continue;
+    }
     if (hay.includes(p.id) || hay.includes(p.name.toLowerCase())) return p;
   }
-  if (/maint/i.test(hay)) return CAR_PACKAGES[0];
-  if (/interior/i.test(hay)) return CAR_PACKAGES[1];
-  if (/premium detail|full detail/i.test(hay) && !/paint|correction|signature|refresh/i.test(hay)) return CAR_PACKAGES[2];
-  if (/refresh|exterior refresh/i.test(hay)) return CAR_PACKAGES[3];
-  if (/signature|restoration|paint|correction/i.test(hay)) return CAR_PACKAGES[4];
+  if (/\bexterior hand wash\b|\bhand wash\b/.test(hay)) return CAR_PACKAGES.find((p) => p.id === 'wash') || null;
+  if (/maint/i.test(hay)) return CAR_PACKAGES.find((p) => p.id === 'maint') || null;
+  if (/interior/i.test(hay)) return CAR_PACKAGES.find((p) => p.id === 'interior') || null;
+  if (/premium detail|full detail/i.test(hay) && !/paint|correction|signature|refresh/i.test(hay)) return CAR_PACKAGES.find((p) => p.id === 'full') || null;
+  if (/refresh|exterior refresh/i.test(hay)) return CAR_PACKAGES.find((p) => p.id === 'refresh') || null;
+  if (/signature|restoration|paint|correction/i.test(hay)) return CAR_PACKAGES.find((p) => p.id === 'premium') || null;
   return null;
 }
 

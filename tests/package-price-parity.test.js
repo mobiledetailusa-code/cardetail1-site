@@ -132,7 +132,7 @@ function catalogPriceEntries() {
   return entries;
 }
 
-test('13 booking pages match all 144 authoritative package values (1,872 comparisons)', () => {
+test('13 booking pages match all 148 authoritative package values (1,924 comparisons)', () => {
   const discovered = fs.readdirSync(ROOT)
     .filter((file) => file.endsWith('.html'))
     .filter((file) => /(?:const|let)\s+PRICING\s*=/.test(read(file)))
@@ -140,7 +140,7 @@ test('13 booking pages match all 144 authoritative package values (1,872 compari
   assert.deepEqual(discovered, BOOKING_PAGES.slice().sort());
 
   const entries = catalogPriceEntries();
-  assert.equal(entries.length, 144);
+  assert.equal(entries.length, 148);
   let comparisons = 0;
   for (const file of BOOKING_PAGES) {
     const html = read(file);
@@ -154,7 +154,7 @@ test('13 booking pages match all 144 authoritative package values (1,872 compari
       comparisons += 1;
     }
   }
-  assert.equal(comparisons, 1872);
+  assert.equal(comparisons, 1924);
 });
 
 test('server length helpers and RV calculator derive from the authoritative catalog', () => {
@@ -235,7 +235,7 @@ test('static starting-price surfaces are verified against the catalog', () => {
     const html = read(file);
     assert.match(html, new RegExp(`id="home-from-interior">\\$${carInterior}<`), file);
     assert.match(html, new RegExp(`id="home-from-refresh">\\$${carRefresh}<`), file);
-    assert.match(html, new RegExp(`Sedans from \\$${PRICING.cars.tiers.small.full} · SUVs from \\$${PRICING.cars.tiers.suv2.full} · 3-row SUVs from \\$${PRICING.cars.tiers.suv3.full}`), file);
+    assert.match(html, new RegExp(`From \\$${PRICING.cars.tiers.small.full} · priced by vehicle type`), file);
   }
 
   for (const file of ['new-jersey-hub.html', 'connecticut-hub.html', 'ny-metro-hub.html', 'pennsylvania-hub.html']) {
@@ -258,6 +258,7 @@ test('AI chat starting prices are derived from the same catalog', () => {
   assert.deepEqual(CHAT_STARTING_PRICES, {
     cars: 190,
     carMaintenance: 150,
+    carWash: 110,
     boats: 170,
     rvs: 238,
     powersports: 100,
