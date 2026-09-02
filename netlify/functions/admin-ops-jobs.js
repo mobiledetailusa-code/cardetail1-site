@@ -2237,7 +2237,7 @@ async function handleAdminAction(body, testOpts = {}) {
     try {
       const { notifyRescheduled } = require('../lib/appointment-lifecycle-notifications');
       await notifyRescheduled(persisted.booking, {
-        event,
+        event: testOpts.event,
         store,
         source: 'lifecycle_mutation',
         prisma: testOpts.prisma,
@@ -2292,7 +2292,7 @@ async function handleAdminAction(body, testOpts = {}) {
       const { notifyCancelled } = require('../lib/appointment-lifecycle-notifications');
       await notifyCancelled(persisted.booking, {
         actor: 'admin',
-        event,
+        event: testOpts.event,
         store,
         source: 'lifecycle_mutation',
         prisma: testOpts.prisma,
@@ -2340,7 +2340,7 @@ async function handleAdminAction(body, testOpts = {}) {
         const { notifyCancelled } = require('../lib/appointment-lifecycle-notifications');
         await notifyCancelled(persisted.booking, {
           actor: 'customer',
-          event,
+          event: testOpts.event,
           store,
           source: 'lifecycle_mutation',
           prisma: testOpts.prisma,
@@ -2409,7 +2409,7 @@ async function handleAdminAction(body, testOpts = {}) {
       try {
         const { notifyRescheduled } = require('../lib/appointment-lifecycle-notifications');
         await notifyRescheduled(persisted.booking, {
-          event,
+          event: testOpts.event,
           store,
           source: 'lifecycle_mutation',
           prisma: testOpts.prisma,
@@ -3206,7 +3206,7 @@ exports.handler = async (event) => {
           return jsonCors(500, { ok: false, error: 'preview_failed' });
         }
       }
-      return handleAdminAction(body);
+      return handleAdminAction(body, { event });
     }
     try {
       const jobs = await listJobs(body);
