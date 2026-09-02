@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en" class="proto-booting">
+<head>
+<base href="/prototype/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex,nofollow">
+<title>Cardetail1 — My Garage (Prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/prototype/shared.css">
+<style>
+.customer-total{font-size:clamp(1.5rem,5vw,2rem);font-weight:800;color:var(--green);margin:8px 0 4px}
+.customer-total-note{font-size:12px;color:var(--mu)}
+.past-card{
+  padding:14px 16px;background:var(--bg2);border:1px solid var(--line);
+  border-radius:var(--r-sm);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;
+}
+.past-card .pc-name{font-weight:700;font-size:14px}
+.past-card .pc-meta{font-size:11px;color:var(--mu);margin-top:2px}
+</style>
+</head>
+<body>
+<div class="proto-shell">
+<div class="proto-banner">⚠ PROTOTYPE — Customer · valor total apenas · <a href="/prototype/preview.html" style="color:#fcd34d">← Hub</a></div>
+
+<header class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-title">My Garage</div>
+    <div class="hdr-sub">Brody F. · Customer Portal</div>
+  </div>
+  <div class="hdr-actions">
+    <button type="button" class="icon-btn" title="Notifications">🔔</button>
+  </div>
+</header>
+
+<nav class="nav-pills">
+  <button type="button" class="pill on">Dashboard</button>
+  <a href="../my-garage.html" class="pill">Production Portal →</a>
+  <button type="button" class="pill outline-red" id="btn-signout">Sign Out</button>
+</nav>
+
+<main class="main">
+  <div class="skel" aria-hidden="true"><div class="skel-bar w60"></div><div class="skel-bar tall"></div></div>
+  <div class="sec-title">Your Appointments</div>
+  <div class="cal-strip" id="cal-strip"></div>
+  <div class="cal-banner" id="cal-banner"></div>
+  <div id="hero-appt"></div>
+  <div id="timeline-wrap"></div>
+  <div id="map-wrap"></div>
+  <div class="sec-title">Upcoming</div>
+  <div class="sched-list" id="upcoming-list"></div>
+  <div class="sec-title">Past Services</div>
+  <div id="past-list"></div>
+</main>
+
+<button type="button" class="fab" title="Contact support" aria-label="Support">💬</button>
+
+<script src="/prototype/proto-boot.js"></script>
+<script src="/prototype/mock-data.js"></script>
+<script src="/prototype/calendar.js"></script>
+<script src="/prototype/ui.js"></script>
+<script src="/prototype/preview-config.js" defer></script>
+<script src="/prototype/preview-api.js" defer></script>
+<script src="/prototype/customer.js" defer></script>
+</div>
+</body>
+</html>

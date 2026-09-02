@@ -36,7 +36,7 @@ const {
 } = require('../netlify/functions/request-cancellation');
 
 const VERIFIED = '+12015550177';
-const ADMIN_TO = '+15515551212';
+const ADMIN_TO = '+12015550199';
 const SMS_ENV = Object.freeze({
   CONTEXT: 'production',
   BRANCH: 'master',

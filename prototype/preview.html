@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="proto-booting">
+<head>
+<base href="/prototype/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex,nofollow">
+<title>Cardetail1 — Portal Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/prototype/shared.css">
+<style>
+.mobile-hub{padding:20px 16px 32px;max-width:1100px;margin:0 auto}
+.mobile-hub h1{font-size:clamp(1.25rem,3vw,1.75rem);font-weight:800;margin-bottom:4px}
+.mobile-hub .sub{font-size:13px;color:var(--mu);margin-bottom:20px;line-height:1.5}
+.mobile-links{display:flex;flex-direction:column;gap:10px}
+.mobile-link{
+  display:flex;align-items:center;gap:14px;padding:16px 18px;
+  background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);
+  text-decoration:none;color:inherit;min-height:72px;transition:.18s;
+  -webkit-tap-highlight-color:transparent;
+}
+.mobile-link:hover{border-color:rgba(77,163,255,.4)}
+.mobile-link:active{transform:scale(.98)}
+.mobile-link .ico{font-size:28px;width:40px;text-align:center;flex-shrink:0}
+.mobile-link .txt h2{font-size:15px;font-weight:800;margin-bottom:2px;color:var(--fg)}
+.mobile-link .txt p{font-size:12px;color:var(--mu);line-height:1.35}
+.mobile-link .arrow{margin-left:auto;color:var(--teal);font-size:18px;font-weight:700}
+.badge-live{
+  display:inline-block;font-size:10px;font-weight:800;padding:4px 10px;border-radius:999px;
+  background:rgba(34,197,94,.15);color:var(--green);margin-bottom:14px;letter-spacing:.06em;
+}
+.perf-note{font-size:11px;color:var(--mu2);text-align:center;line-height:1.6;margin-top:20px;padding:0 8px}
+</style>
+</head>
+<body>
+<div class="proto-shell">
+<div class="proto-banner" id="mode-banner">📱 Portal Preview — carregando…</div>
+<div class="mobile-hub">
+  <span class="badge-live">● ONLINE PREVIEW</span>
+  <h1>Cardetail1 Portal UI</h1>
+  <p class="sub">Otimizado para celular e desktop. Mock instantâneo — live só se logado.</p>
+  <div class="mobile-links">
+    <a class="mobile-link" href="/prototype/customer.html">
+      <span class="ico">🚗</span>
+      <span class="txt"><h2>Customer — My Garage</h2><p>Valor total · timeline · mapa</p></span>
+      <span class="arrow">›</span>
+    </a>
+    <a class="mobile-link" href="/prototype/technician.html">
+      <span class="ico">🔧</span>
+      <span class="txt"><h2>Technician Portal</h2><p>Agenda · jobs · en route</p></span>
+      <span class="arrow">›</span>
+    </a>
+    <a class="mobile-link" href="/prototype/admin.html">
+      <span class="ico">⚙️</span>
+      <span class="txt"><h2>Admin — Day View</h2><p>Calendário · pagamentos · assign</p></span>
+      <span class="arrow">›</span>
+    </a>
+  </div>
+  <p class="perf-note">
+    <strong>Performance:</strong> mock = 0 API calls · mapa = link leve (sem iframe) · live = mesma API do admin atual.<br>
+    Live: login em <a href="/admin">/admin</a>, <a href="/technician">/technician</a> ou <a href="/my-garage">/my-garage</a> e recarregue.
+  </p>
+</div>
+</div>
+<script src="/prototype/proto-boot.js"></script>
+<script src="/prototype/preview-config.js" defer></script>
+<script defer>
+document.addEventListener('DOMContentLoaded',function(){
+  var b=document.getElementById('mode-banner');
+  if(b&&window.CD1PreviewConfig){
+    if(CD1PreviewConfig.canUseLive()) b.innerHTML='📱 Preview — mock instantâneo · live se logado · <a href="index.html" style="color:#fcd34d">Hub EN</a>';
+    else b.textContent='📱 Preview local — mock data';
+  }
+});
+</script>
+</body>
+</html>

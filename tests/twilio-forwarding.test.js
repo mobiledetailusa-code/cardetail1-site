@@ -16,15 +16,16 @@ const {
 const { webhookPolicy, webhookUrlForKind } = require('../netlify/lib/twilio-runtime-policy');
 const { providerWritePlan, VOICE_URL } = require('../scripts/twilio-netlify-activate');
 
-const PERSONAL = '+12015551234';
-const BUSINESS = '+13015559999';
-const CUSTOMER = '+14045550000';
+// Fictional 201-555-02xx fixtures — must not match Netlify env secrets (TWILIO_FORWARD_*).
+const PERSONAL = '+12015550201';
+const BUSINESS = '+12015550202';
+const CUSTOMER = '+12015550203';
 
 describe('twilio-forwarding targets', () => {
   it('validates and resolves E.164 destinations with a shared fallback', () => {
-    assert.equal(normalizeE164('+12015551234'), '+12015551234');
-    assert.equal(normalizeE164('2015551234'), '');
-    assert.equal(normalizeE164('+1 201 555 1234'), '');
+    assert.equal(normalizeE164('+12015550201'), '+12015550201');
+    assert.equal(normalizeE164('2015550201'), '');
+    assert.equal(normalizeE164('+1 201 555 0201'), '');
     assert.equal(smsForwardTarget({ TWILIO_FORWARD_SMS_TO: PERSONAL }), PERSONAL);
     assert.equal(callForwardTarget({ TWILIO_FORWARD_CALLS_TO: PERSONAL }), PERSONAL);
     assert.equal(smsForwardTarget({ TWILIO_PERSONAL_NUMBER: PERSONAL }), PERSONAL);
@@ -62,7 +63,7 @@ describe('inbound SMS relay TwiML', () => {
     assert.equal(relay.forwarded, true);
     assert.equal(relay.target, PERSONAL);
     assert.match(relay.body, new RegExp(`<Message to="\\${PERSONAL}">`));
-    assert.match(relay.body, /Cardetail1 fwd from \+14045550000: Can you detail my truck Saturday\?/);
+    assert.match(relay.body, /Cardetail1 fwd from \+12015550203: Can you detail my truck Saturday\?/);
   });
 
   it('escapes XML metacharacters in the forwarded body', () => {

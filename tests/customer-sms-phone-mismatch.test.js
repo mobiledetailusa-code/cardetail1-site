@@ -35,7 +35,7 @@ const { normalizeUsPhoneE164, phonesMatch } = require('../netlify/lib/phone-auth
 const { generateOpaqueToken, buildAccessUrl } = require('../netlify/lib/appointment-access-token');
 
 const VERIFIED = '+12015550177';
-const BOOKING_OTHER = '+15513983986';
+const BOOKING_OTHER = '+12015550188';
 const ACCESS_URL = 'https://cardetail1.com/a?t=aat_TEST_OPAQUE_TOKEN_VALUE_NOT_REAL';
 
 function consentedBooking(phone, overrides = {}) {
@@ -89,7 +89,7 @@ describe('phone normalization is not a false mismatch source', () => {
     const normalized = forms.map((f) => normalizeUsPhoneE164(f));
     assert.ok(normalized.every((n) => n === VERIFIED));
     assert.equal(phonesMatch('(201) 555-0177', '+12015550177'), true);
-    assert.equal(phonesMatch('5513983986', VERIFIED), false);
+    assert.equal(phonesMatch('2015550188', VERIFIED), false);
   });
 });
 
@@ -363,7 +363,7 @@ describe('admin SMS and email paths remain independent (static contract)', () =>
 
 describe('consent evidence binds submitted phone', () => {
   it('persists phoneE164 on grant and rejects mismatched consent phone', () => {
-    const ok = consentedBooking('(551) 398-3986');
+    const ok = consentedBooking('(201) 555-0188');
     assert.equal(ok.transactionalSmsConsent.phoneE164, BOOKING_OTHER);
     assert.equal(bookingSmsConsentGranted(ok), true);
 

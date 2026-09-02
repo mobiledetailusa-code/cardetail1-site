@@ -41,15 +41,15 @@ test('every tab button maps to exactly one existing panel', () => {
 });
 
 test('initial active tab and panel are aligned', () => {
-  assert.match(adminOps, /class="tab on"[^>]*data-tab="jobs"/);
-  assert.match(adminOps, /class="panel on" id="p-jobs"/);
+  assert.match(adminOps, /class="tab on"[^>]*data-tab="dayview"/);
+  assert.match(adminOps, /class="panel on" id="p-dayview"/);
 });
 
-test('Admin Lite exposes exactly four primary tabs', () => {
+test('Admin Lite exposes Schedule as first primary tab plus four legacy tabs', () => {
   const nav = adminOps.slice(adminOps.indexOf('<nav class="tabs"'), adminOps.indexOf('</nav>'));
   const primary = nav.slice(0, nav.indexOf('<div class="tabs-more"'));
   const ids = [...primary.matchAll(/data-tab="([a-z]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(ids, ['jobs', 'requests', 'payments', 'settings']);
+  assert.deepEqual(ids, ['dayview', 'jobs', 'requests', 'payments', 'settings']);
 });
 
 test('secondary Admin tabs are preserved under a collapsed More disclosure', () => {

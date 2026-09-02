@@ -58,7 +58,7 @@ const {
 } = require('../netlify/lib/appointment-access-token');
 
 const VERIFIED = '+12015550177';
-const ADMIN_TO = '+15515551212';
+const ADMIN_TO = '+12015550199';
 const TYPICAL_TOKEN = 'aat_' + 'A'.repeat(43);
 const TYPICAL_URL = `https://cardetail1.com/a?t=${TYPICAL_TOKEN}`;
 

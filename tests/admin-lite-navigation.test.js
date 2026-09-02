@@ -44,20 +44,20 @@ test('navigation controls meet the 44px touch target rule', () => {
 });
 
 if (JSDOM) {
-test('primary navigation is exactly Jobs, Requests, Payments, Settings', () => {
+test('primary navigation starts with Schedule then Jobs, Requests, Payments, Settings', () => {
   const { doc } = boot();
   const primary = [...doc.querySelectorAll('#tabs > .tab')].map((b) => b.dataset.tab);
-  assert.deepEqual(primary, ['jobs', 'requests', 'payments', 'settings']);
+  assert.deepEqual(primary, ['dayview', 'jobs', 'requests', 'payments', 'settings']);
 });
 
-test('Jobs is the initially selected tab and the only visible panel', () => {
+test('Schedule is the initially selected tab and the only visible panel', () => {
   const { doc } = boot();
   const on = [...doc.querySelectorAll('.panel.on')];
   assert.equal(on.length, 1, 'exactly one panel may be visible');
-  assert.equal(on[0].id, 'p-jobs');
+  assert.equal(on[0].id, 'p-dayview');
   const selected = [...doc.querySelectorAll('#tabs .tab[aria-selected="true"]')];
   assert.equal(selected.length, 1);
-  assert.equal(selected[0].dataset.tab, 'jobs');
+  assert.equal(selected[0].dataset.tab, 'dayview');
 });
 
 test('More is collapsed on load and reveals secondary tabs when opened', () => {

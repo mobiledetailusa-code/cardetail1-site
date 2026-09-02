@@ -42,8 +42,8 @@ const {
 } = require('../netlify/lib/appointment-access-token');
 
 const VERIFIED = '+12015550177';
-const BOOKING_OTHER = '+15513983986';
-const ADMIN_TO = '+15515551212';
+const BOOKING_OTHER = '+12015550188';
+const ADMIN_TO = '+12015550199';
 
 const SMS_ENV = Object.freeze({
   CONTEXT: 'production',
