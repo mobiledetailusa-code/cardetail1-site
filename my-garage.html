@@ -12,6 +12,7 @@ document.documentElement.classList.add('cd1-portal-booting');
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/public-surface.css">
+<link rel="stylesheet" href="assets/my-garage-dashboard.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#0a0a0f;--bg2:#14141c;--border:rgba(255,255,255,.1);--text:#f1f1f3;--muted:rgba(255,255,255,.5);--blue:#4da3ff;--r:14px}
@@ -250,6 +251,35 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 
     <section class="section" aria-labelledby="upcoming-h">
       <h3 id="upcoming-h">Current appointment</h3>
+      <div id="mg-dashboard" class="mg-dashboard" hidden>
+        <div class="mg-cal-panel" aria-label="Appointment calendar">
+          <div class="mg-cal-head">
+            <div>
+              <h2>Your schedule</h2>
+              <div class="mg-sub" id="mgMonthLabel"></div>
+            </div>
+            <div class="mg-cal-nav">
+              <button type="button" data-mg-cal-nav="prev" aria-label="Previous month">‹</button>
+              <button type="button" class="mg-today" data-mg-cal-nav="today">Today</button>
+              <button type="button" data-mg-cal-nav="next" aria-label="Next month">›</button>
+            </div>
+          </div>
+          <div class="mg-stats" id="mgMonthStats"></div>
+          <div class="mg-legend" aria-hidden="true">
+            <span><i class="lg lg-appt"></i> Appointment</span>
+            <span><i class="lg lg-today"></i> Today</span>
+          </div>
+          <div class="mg-month" id="mgMonthGrid" role="grid" aria-label="Calendar month"></div>
+          <div class="mg-sec-label">Selected week</div>
+          <div class="mg-cal-strip" id="mgCalStrip" role="tablist" aria-label="Week around selected day"></div>
+        </div>
+        <div class="mg-day-banner" id="mgDayBanner"></div>
+        <div class="mg-timeline-wrap" id="mgTimelineWrap">
+          <div class="mg-sec-label">Service status</div>
+          <div class="mg-timeline" id="mgTimeline" aria-label="Service progress"></div>
+        </div>
+        <div id="mgMap"></div>
+      </div>
       <div id="upcoming-panel"></div>
       <div class="actions is-secondary" id="customer-actions">
         <button type="button" class="btn ghost" data-action="reschedule_request">Request New Date</button>
@@ -420,6 +450,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 <script src="https://js.stripe.com/v3/"></script>
 <script src="assets/portal-analytics.js" defer></script>
 <script src="assets/operational-refresh.js?v=20260805-sync-pr3" defer></script>
+<script src="assets/my-garage-dashboard.js" defer></script>
 <script src="assets/my-garage.js?v=20260805-sync-pr3" defer></script>
 <script src="assets/back-to-top.js" defer></script>
 </body>

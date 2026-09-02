@@ -1868,6 +1868,7 @@
 
     if (!hero || !b) {
       if (hero) hero.innerHTML = '<p class="empty">No upcoming appointment. <a href="index.html">Book a service</a>.</p>';
+      if (global.CD1GarageDashboard) CD1GarageDashboard.render();
       syncPayBalanceButton({});
       renderPaymentsPanel({});
       renderPendingRequests([]);
@@ -2049,6 +2050,7 @@
     var approveBtn = $('btn-approve-completion');
     if (approveBtn) show(approveBtn, b.customerApprovalStatus === 'pending' || b.jobStatus === 'completed_pending_payment');
     renderPostServiceActions(b);
+    if (global.CD1GarageDashboard) CD1GarageDashboard.render();
   }
 
   /**
@@ -4083,6 +4085,25 @@
     primaryActionLabel: primaryActionLabel,
     selectAppointmentByRef: selectAppointmentByRef,
   };
+
+  if (global.CD1GarageDashboard) {
+    CD1GarageDashboard.attach({
+      getBooking: function () { return state.booking; },
+      getBookings: function () { return state.bookings; },
+      fmtMoney: fmtMoney,
+      contractedTotal: bookingBaseTotal,
+      todayIso: todayIso,
+      selectBookingOnDate: function (date, appt) {
+        if (!appt) return;
+        if (state.scope === 'account' && appt.appointmentPublicRef) {
+          selectAppointmentByRef(appt.appointmentPublicRef);
+          return;
+        }
+        state.booking = appt;
+        renderDashboard({ payment: state.payment || {} });
+      },
+    });
+  }
 
   if (global.CD1OperationalRefresh) {
     portalRefresh = global.CD1OperationalRefresh.createRefreshController({
