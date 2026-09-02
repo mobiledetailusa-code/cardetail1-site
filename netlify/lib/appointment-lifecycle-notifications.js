@@ -29,6 +29,10 @@ const {
   isAppointmentCompleted,
   appointmentReminderEligible,
 } = require('./appointment-lifecycle-state');
+const { getBookingRecord, commitBooking } = require('./booking-repository');
+const { initNotificationDelivery, applyDeliveryUpdate } = require('./notification-delivery');
+
+const MAX_NOTIFY_CAS_ATTEMPTS = 4;
 
 function safeBookingRef(bookingId) {
   return String(bookingId || '').replace(/[^A-Za-z0-9._-]/g, '').slice(0, 24);
@@ -80,31 +84,87 @@ async function kickLifecycleOutbox(ids, opts = {}) {
   }
 }
 
-async function persistLifecycleNotify(store, bookingId, notified) {
+function isEmitChannelResult(result) {
+  if (!result || typeof result !== 'object') return false;
+  return result.accepted === true
+    || result.queued === true
+    || result.sent === true
+    || result.skipped === true
+    || result.sent === false;
+}
+
+function applyEventNotificationDelivery(latest, delivery) {
+  if (!delivery || typeof delivery !== 'object') {
+    return latest.notificationDelivery || null;
+  }
+  let next = initNotificationDelivery(latest);
+  if (isEmitChannelResult(delivery.email)) {
+    next = applyDeliveryUpdate(next, 'customerEmail', delivery.email);
+  }
+  if (isEmitChannelResult(delivery.sms)) {
+    next = applyDeliveryUpdate(next, 'customerSms', delivery.sms);
+  }
+  return next;
+}
+
+function mergeLifecycleNotifyFields(latest, notified, delivery) {
+  const merged = {
+    ...latest,
+    transactionalNotifications: notified.transactionalNotifications || latest.transactionalNotifications,
+    lastTransactionalNotificationAt:
+      notified.lastTransactionalNotificationAt || latest.lastTransactionalNotificationAt,
+    lastTransactionalNotificationEvent:
+      notified.lastTransactionalNotificationEvent || latest.lastTransactionalNotificationEvent,
+    customerAccountId: latest.customerAccountId || notified.customerAccountId || null,
+    appointmentPublicRef: latest.appointmentPublicRef || notified.appointmentPublicRef,
+    appointmentPublicRefAt: latest.appointmentPublicRefAt || notified.appointmentPublicRefAt,
+    quoteVersion: latest.quoteVersion,
+  };
+  // Restore consent evidence from the in-memory emit copy if the stored
+  // aggregate lost it. Never overwrite a present stored consent record.
+  if (!latest.transactionalSmsConsent && notified.transactionalSmsConsent) {
+    merged.transactionalSmsConsent = notified.transactionalSmsConsent;
+  }
+  if (
+    latest.transactionalSmsConsentAccepted == null
+    && notified.transactionalSmsConsentAccepted != null
+  ) {
+    merged.transactionalSmsConsentAccepted = notified.transactionalSmsConsentAccepted;
+  }
+  const nextDelivery = applyEventNotificationDelivery(merged, delivery);
+  if (nextDelivery) merged.notificationDelivery = nextDelivery;
+  delete merged.__paymentEvent;
+  delete merged.__changeRequestId;
+  return merged;
+}
+
+/**
+ * Persist lifecycle notification fields via the canonical booking CAS path.
+ * Spreads the strong-read aggregate so unrelated fields (consent, money,
+ * schedule, event history) are never reconstructed from a partial projection.
+ */
+async function persistLifecycleNotify(store, bookingId, notified, delivery = null) {
   if (!store || !bookingId || !notified) return notified;
-  try {
-    const latest = await store.get(bookingId, { type: 'json' }).catch(() => null);
-    if (!latest) {
-      await store.setJSON(bookingId, notified);
+  for (let attempt = 0; attempt < MAX_NOTIFY_CAS_ATTEMPTS; attempt += 1) {
+    try {
+      const current = await getBookingRecord(bookingId, { storeOverride: store });
+      if (!current.exists || !current.booking) return notified;
+      const latest = current.booking;
+      const merged = mergeLifecycleNotifyFields(latest, notified, delivery);
+      const committed = await commitBooking({
+        bookingId,
+        expectedBookingVersion: latest.bookingVersion,
+        nextAggregate: merged,
+        storeOverride: store,
+      });
+      if (committed.ok) return committed.booking;
+      if (committed.error === 'version_conflict') continue;
+      return notified;
+    } catch {
       return notified;
     }
-    const merged = {
-      ...latest,
-      transactionalNotifications: notified.transactionalNotifications || latest.transactionalNotifications,
-      lastTransactionalNotificationAt:
-        notified.lastTransactionalNotificationAt || latest.lastTransactionalNotificationAt,
-      lastTransactionalNotificationEvent:
-        notified.lastTransactionalNotificationEvent || latest.lastTransactionalNotificationEvent,
-      customerAccountId: latest.customerAccountId || notified.customerAccountId || null,
-      appointmentPublicRef: latest.appointmentPublicRef || notified.appointmentPublicRef,
-      bookingVersion: latest.bookingVersion,
-      quoteVersion: latest.quoteVersion,
-    };
-    await store.setJSON(bookingId, merged);
-    return merged;
-  } catch {
-    return notified;
   }
+  return notified;
 }
 
 function outboxIdFrom(result) {
@@ -120,7 +180,13 @@ async function notifyConfirmed(booking, opts = {}) {
   });
   await kickLifecycleOutbox([outboxIdFrom(txn)], opts);
   if (opts.store && txn?.booking) {
-    return persistLifecycleNotify(opts.store, booking.id || booking.bookingId, txn.booking);
+    const delivery = txn.skipped ? null : txn.delivery;
+    return persistLifecycleNotify(
+      opts.store,
+      booking.id || booking.bookingId,
+      txn.booking,
+      delivery
+    );
   }
   return txn?.booking || booking;
 }
@@ -152,7 +218,14 @@ async function notifyChangeRequested(booking, opts = {}) {
   }, opts);
   await kickLifecycleOutbox([outboxIdFrom(txn), admin.outbox?.id], opts);
   let next = txn?.booking || booking;
-  if (opts.store) next = await persistLifecycleNotify(opts.store, bookingId, next);
+  if (opts.store) {
+    next = await persistLifecycleNotify(
+      opts.store,
+      bookingId,
+      next,
+      txn.skipped ? null : txn.delivery
+    );
+  }
   return {
     ok: true,
     booking: next,
@@ -182,7 +255,14 @@ async function notifyCancellationRequested(booking, opts = {}) {
   }, opts);
   await kickLifecycleOutbox([outboxIdFrom(txn), admin.outbox?.id], opts);
   let next = txn?.booking || booking;
-  if (opts.store) next = await persistLifecycleNotify(opts.store, bookingId, next);
+  if (opts.store) {
+    next = await persistLifecycleNotify(
+      opts.store,
+      bookingId,
+      next,
+      txn.skipped ? null : txn.delivery
+    );
+  }
   return { ok: true, booking: next, customer: txn, adminSms: admin };
 }
 
@@ -196,7 +276,14 @@ async function notifyRescheduled(booking, opts = {}) {
   await kickLifecycleOutbox([outboxIdFrom(txn)], opts);
   const bookingId = booking.id || booking.bookingId;
   let next = txn?.booking || booking;
-  if (opts.store) next = await persistLifecycleNotify(opts.store, bookingId, next);
+  if (opts.store) {
+    next = await persistLifecycleNotify(
+      opts.store,
+      bookingId,
+      next,
+      txn.skipped ? null : txn.delivery
+    );
+  }
   return { ok: true, booking: next, customer: txn };
 }
 
@@ -228,7 +315,14 @@ async function notifyCancelled(booking, opts = {}) {
   }
   await kickLifecycleOutbox([outboxIdFrom(txn), admin.outbox?.id], opts);
   let next = txn?.booking || booking;
-  if (opts.store) next = await persistLifecycleNotify(opts.store, bookingId, next);
+  if (opts.store) {
+    next = await persistLifecycleNotify(
+      opts.store,
+      bookingId,
+      next,
+      txn.skipped ? null : txn.delivery
+    );
+  }
   return { ok: true, booking: next, customer: txn, adminSms: admin, actor };
 }
 

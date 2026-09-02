@@ -15,11 +15,12 @@ const ROOT = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 
 const { createCasMemoryStore } = require('./helpers/cas-memory-store');
-const { canonicalBookingSmsConsent } = require('../netlify/lib/sms-program');
+const { canonicalBookingSmsConsent, bookingSmsConsentGranted } = require('../netlify/lib/sms-program');
 const { TEMPLATE_KEYS, renderSmsTemplate } = require('../netlify/lib/sms-templates');
 const {
   setNotificationClaimStoreFactory,
   resetNotificationClaimStoreFactory,
+  emitRequestReceived,
   emitConfirmed,
   emitChangeRequested,
   emitRescheduled,
@@ -31,6 +32,7 @@ const {
   customerFacingBrand,
 } = require('../netlify/lib/booking-transactional-notifications');
 const {
+  notifyConfirmed,
   notifyChangeRequested,
   notifyRescheduled,
   notifyCancelled,
@@ -45,7 +47,8 @@ const {
   setAppointmentAccessStoreFactories,
   resetAppointmentAccessStoreFactories,
 } = require('../netlify/lib/appointment-access-token');
-const { setBookingStoreOverride } = require('../netlify/lib/booking-repository');
+const { setBookingStoreOverride, getBookingRecord } = require('../netlify/lib/booking-repository');
+const { confirmBookingTransition } = require('../netlify/lib/booking-confirm');
 
 const VERIFIED = '+12015550177';
 const ADMIN_TO = '+15515551212';
@@ -509,5 +512,175 @@ describe('invariants: reminders, portal, channel independence, versions', () => 
     });
     assert.equal(processed.reason, 'superseded');
     assert.equal(prisma._rows.get(outboxId).lastErrorCode, 'superseded');
+  });
+});
+
+describe('confirm persist preserves SMS consent and channel-aware delivery', () => {
+  async function persistSubmitNotificationFields(store, bookingId, notified) {
+    const latest = await store.get(bookingId, { type: 'json' }).catch(() => null);
+    if (!notified) return latest;
+    if (!latest) {
+      await store.setJSON(bookingId, notified);
+      return notified;
+    }
+    const merged = {
+      ...latest,
+      notificationDelivery: notified.notificationDelivery || latest.notificationDelivery,
+      transactionalNotifications: notified.transactionalNotifications || latest.transactionalNotifications,
+      lastTransactionalNotificationAt:
+        notified.lastTransactionalNotificationAt || latest.lastTransactionalNotificationAt,
+      lastTransactionalNotificationEvent:
+        notified.lastTransactionalNotificationEvent || latest.lastTransactionalNotificationEvent,
+      customerAccountId: latest.customerAccountId || notified.customerAccountId || null,
+      appointmentPublicRef: latest.appointmentPublicRef || notified.appointmentPublicRef,
+      appointmentPublicRefAt: latest.appointmentPublicRefAt || notified.appointmentPublicRefAt,
+      bookingVersion: latest.bookingVersion,
+      quoteVersion: latest.quoteVersion,
+    };
+    await store.setJSON(bookingId, merged);
+    return merged;
+  }
+
+  it('submit persist then admin confirm keeps consent and queues booking.confirmed SMS', async () => {
+    const prisma = createMemoryOutboxPrisma();
+    const recordedAt = '2026-08-26T12:00:00.000Z';
+    const pending = {
+      id: 'CD1-LIFE-CONSENT-01',
+      firstName: 'Pat',
+      lastName: 'Customer',
+      email: 'pat.customer@example.test',
+      phone: VERIFIED,
+      package: 'Interior Detail',
+      preferredDate: '2026-08-28',
+      preferredTime: '8:00–9:00 AM',
+      status: 'Pending Review',
+      appointmentStatus: 'pending_review',
+      jobStatus: 'pending_review',
+      bookingVersion: 1,
+      quoteVersion: 1,
+      finalizedAt: recordedAt,
+      createdAt: recordedAt,
+      approvedFinalAmount: 220,
+      totalPrice: 220,
+      ledger: {
+        currency: 'usd',
+        approvedCents: 22000,
+        settledCents: 0,
+        creditedCents: 0,
+        pendingCents: 0,
+        entries: [],
+      },
+      transactionalSmsConsentAccepted: true,
+      transactionalSmsConsent: canonicalBookingSmsConsent(true, recordedAt, VERIFIED),
+    };
+    const store = createCasMemoryStore({ [pending.id]: pending });
+    setBookingStoreOverride(store);
+
+    process.env.RESEND_API_KEY = 're_test';
+    process.env.RESEND_FROM = 'test@example.com';
+    const originalFetch = global.fetch;
+    global.fetch = async (url) => {
+      if (String(url).includes('api.resend.com')) {
+        return { ok: true, json: async () => ({ id: 'em_test' }), text: async () => '' };
+      }
+      return { ok: false, status: 500, text: async () => '', json: async () => ({}) };
+    };
+
+    try {
+      const received = await emitRequestReceived(pending, { prisma, env: SMS_ENV });
+      assert.equal(received.ok, true, received.error);
+      assert.equal(received.delivery.sms.queued, true, received.delivery.sms.reason);
+      const now = '2026-08-26T12:05:00.000Z';
+      const withSubmitDelivery = {
+        ...received.booking,
+        notificationDelivery: {
+          adminEmail: { status: 'sent', at: now, reason: null },
+          customerEmail: { status: 'sent', at: now, reason: null },
+          adminSms: { status: 'accepted', at: now, reason: null },
+          customerSms: {
+            status: 'accepted',
+            at: now,
+            reason: null,
+            outboxId: received.delivery.sms.outboxId || null,
+          },
+          updatedAt: now,
+        },
+      };
+      await persistSubmitNotificationFields(store, pending.id, withSubmitDelivery);
+
+      const transition = await confirmBookingTransition({
+        bookingId: pending.id,
+        now: '2026-08-26T13:00:00.000Z',
+        by: 'admin',
+      });
+      assert.equal(transition.ok, true, transition.error);
+      assert.equal(transition.transitioned, true);
+
+      const confirmed = await notifyConfirmed(transition.booking, {
+        store,
+        prisma,
+        env: SMS_ENV,
+        source: 'lifecycle_mutation',
+      });
+      assert.ok(confirmed);
+
+      const reread = await getBookingRecord(pending.id, { storeOverride: store });
+      assert.equal(reread.exists, true);
+      const stored = reread.booking;
+      assert.equal(bookingSmsConsentGranted(stored), true);
+      assert.equal(stored.transactionalSmsConsentAccepted, true);
+      assert.ok(stored.transactionalSmsConsent && stored.transactionalSmsConsent.granted === true);
+      assert.equal(stored.approvedFinalAmount, 220);
+      assert.equal(stored.quoteVersion, 1);
+      assert.equal(stored.appointmentStatus, 'confirmed');
+
+      const rows = [...prisma._rows.values()];
+      const requestRows = rows.filter((row) => (
+        row.templateKey === TEMPLATE_KEYS.REQUEST_RECEIVED
+        || row.templateKey === TEMPLATE_KEYS.SAFE_CONFIRMATION
+      ));
+      const confirmedRows = rows.filter((row) => row.templateKey === TEMPLATE_KEYS.CONFIRMED);
+      assert.equal(requestRows.length, 1);
+      assert.equal(confirmedRows.length, 1);
+      assert.notEqual(confirmedRows[0].id, requestRows[0].id);
+      assert.equal(confirmedRows[0].status, 'accepted');
+
+      const custEmail = stored.notificationDelivery && stored.notificationDelivery.customerEmail;
+      const custSms = stored.notificationDelivery && stored.notificationDelivery.customerSms;
+      assert.ok(custEmail);
+      assert.ok(custSms);
+      assert.equal(custSms.status, 'accepted');
+      assert.notEqual(custEmail.status, custSms.status);
+
+      const again = await notifyConfirmed(stored, {
+        store,
+        prisma,
+        env: SMS_ENV,
+        source: 'lifecycle_mutation',
+      });
+      assert.ok(again);
+      const confirmedAfterRetry = [...prisma._rows.values()].filter(
+        (row) => row.templateKey === TEMPLATE_KEYS.CONFIRMED
+      );
+      assert.equal(confirmedAfterRetry.length, 1);
+
+      const adminUi = read('admin-ops.html');
+      assert.match(adminUi, /notificationDeliveryHint/);
+      assert.match(adminUi, /channelDeliveryLabel/);
+      assert.match(adminUi, /Customer — email:/);
+      assert.match(adminUi, /SMS:/);
+      assert.doesNotMatch(
+        adminUi,
+        /Notifications — admin: '\+esc\(\(j\.notificationDelivery\.adminEmail/
+      );
+      assert.doesNotMatch(
+        adminUi,
+        / · customer: '\+esc\(\(j\.notificationDelivery\.customerEmail/
+      );
+    } finally {
+      global.fetch = originalFetch;
+      delete process.env.RESEND_API_KEY;
+      delete process.env.RESEND_FROM;
+    }
   });
 });
