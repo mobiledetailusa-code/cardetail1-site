@@ -1644,7 +1644,11 @@ async function handleAdminAction(body, testOpts = {}) {
     // same state key does not send a second completion email.
     try {
       const { emitCustomerActionRequired } = require('../lib/booking-transactional-notifications');
-      const txn = await emitCustomerActionRequired(patched, { event });
+      const txn = await emitCustomerActionRequired(patched, {
+        event: testOpts.event,
+        prisma: testOpts.prisma,
+        env: testOpts.env,
+      });
       if (txn && txn.booking) {
         const after = await persistMutation(
           store, bookingId, txn.booking, patched, 'completion_notification', 'completion_notify'
@@ -1708,12 +1712,25 @@ async function handleAdminAction(body, testOpts = {}) {
     // Idempotent: already-confirmed retries share the same confirmationEventId.
     try {
       const { notifyConfirmed } = require('../lib/appointment-lifecycle-notifications');
-      patched = await notifyConfirmed(patched, { event, store, source: 'lifecycle_mutation' }) || patched;
+      patched = await notifyConfirmed(patched, {
+        event: testOpts.event,
+        store,
+        source: 'lifecycle_mutation',
+        prisma: testOpts.prisma,
+        env: testOpts.env,
+      }) || patched;
     } catch (e) {
       console.warn('[admin-ops-jobs] confirm notify failed:', e.message);
     }
 
-    const settings = await getOpsSettings();
+    // Settings blob must not fail the confirm HTTP response after the
+    // booking is already committed and notify has run (or been skipped).
+    let settings = { autoPostToAuctionOnConfirm: false, dispatchMode: 'manual' };
+    try {
+      settings = await getOpsSettings();
+    } catch (e) {
+      console.warn('[admin-ops-jobs] confirm ops settings unavailable:', e.message);
+    }
     let auctionResult = null;
     // Only auto-dispatch auction on the authoritative first transition.
     if (

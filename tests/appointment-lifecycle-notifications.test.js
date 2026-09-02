@@ -213,6 +213,12 @@ describe('wiring: lifecycle emits from authoritative mutations', () => {
     const admin = read('netlify/functions/admin-ops-jobs.js');
     const confirmBlock = admin.slice(admin.indexOf("action === 'confirm_booking'"), admin.indexOf("action === 'post_to_auction'"));
     assert.match(confirmBlock, /notifyConfirmed/);
+    // handleAdminAction is top-level: a bare `{ event }` is a ReferenceError
+    // and the try/catch swallows it, so confirm succeeds with no email/SMS.
+    assert.match(confirmBlock, /event:\s*testOpts\.event/);
+    assert.match(confirmBlock, /prisma:\s*testOpts\.prisma/);
+    assert.match(confirmBlock, /env:\s*testOpts\.env/);
+    assert.doesNotMatch(confirmBlock, /\{\s*event,/);
     const rescheduleBlock = admin.slice(admin.indexOf("action === 'reschedule'"), admin.indexOf("action === 'update_address'"));
     assert.match(rescheduleBlock, /notifyRescheduled/);
     assert.match(rescheduleBlock, /persistMutation/);
