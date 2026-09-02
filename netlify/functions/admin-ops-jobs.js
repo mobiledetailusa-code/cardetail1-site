@@ -626,10 +626,11 @@ async function notifyDetailsUpdatedQuietly(booking, notifyOpts = {}) {
   if (!booking || !(booking.id || booking.bookingId)) return;
   try {
     const { notifyDetailsUpdated } = require('../lib/appointment-lifecycle-notifications');
-    const store = await getStore();
+    // Do not pass store. persistLifecycleNotify CAS-commits a second
+    // bookingVersion after the financial mutation, so Admin would see
+    // version N in the HTTP response while the blob is already N+1.
     await notifyDetailsUpdated(booking, {
       event: notifyOpts.event,
-      store,
       prisma: notifyOpts.prisma,
       env: notifyOpts.env,
       source: 'lifecycle_mutation',
