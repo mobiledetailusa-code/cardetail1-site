@@ -57,8 +57,9 @@ const {
   resetAppointmentAccessStoreFactories,
 } = require('../netlify/lib/appointment-access-token');
 
-const VERIFIED = '+15513132956';
-const ADMIN_TO = '+15515551212';
+// NANP 555-01xx reserved for fiction — must not match production ADMIN_SMS / env secrets.
+const VERIFIED = '+15555550101';
+const ADMIN_TO = '+15555550199';
 const TYPICAL_TOKEN = 'aat_' + 'A'.repeat(43);
 const TYPICAL_URL = `https://cardetail1.com/a?t=${TYPICAL_TOKEN}`;
 
