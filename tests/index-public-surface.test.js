@@ -63,13 +63,17 @@ test('canonical portal HTML files are present and unchanged by this guard', () =
 const pkgModalJs = read('assets/car-pkg-detail-modal.js');
 const buttonStatesCss = read('assets/button-states.css');
 
-test('shared package detail data includes required content for all three car packages', () => {
+test('shared package detail data includes required content for homepage car packages', () => {
   assert.match(pkgModalJs, /const CAR_PKG_DETAILS\s*=\s*\{/);
-  assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Vacuum"[\s\S]*"Steam touch points"[\s\S]*"Floor mats"[\s\S]*\]/);
+  assert.match(pkgModalJs, /wash:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Exterior hand wash and rinse"[\s\S]*"Tire dressing"[\s\S]*\]/);
+  assert.match(pkgModalJs, /wash:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"1-Year Carnauba Wax"[\s\S]*"Clay bar"[\s\S]*"Engine bay detailing"[\s\S]*\]/);
+  assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Headliner cleaning"[\s\S]*\]/);
+  assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Door jambs cleaned"[\s\S]*\]/);
+  assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*truck bed where applicable[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*bestFor:\s*\[[\s\S]*"Daily drivers"[\s\S]*"Family cars"[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"Heavy pet hair"[\s\S]*"Biohazard"[\s\S]*\]/);
 
-  assert.match(pkgModalJs, /full:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Interior detail"[\s\S]*"Exterior hand wash"[\s\S]*"Exterior protection"[\s\S]*\]/);
+  assert.match(pkgModalJs, /full:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Headliner cleaning"[\s\S]*"Exterior hand wash"[\s\S]*"Exterior protection"[\s\S]*\]/);
   assert.match(pkgModalJs, /full:\s*\{[\s\S]*bestFor:\s*\[[\s\S]*"Full refresh inside and out"[\s\S]*"Resale prep"[\s\S]*\]/);
   assert.match(pkgModalJs, /full:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"Clay\/polish upgrade"[\s\S]*"Headlights"[\s\S]*\]/);
 
@@ -93,8 +97,11 @@ test('homepage opens package details in modal panel instead of inline card expan
   assert.ok(modalIdx > bodyCloseIdx - 2800 && modalIdx < bodyCloseIdx, 'modal should live near end of body');
   for (const pkgId of ['interior', 'full', 'refresh']) {
     assert.match(index, new RegExp(`openHomePkgDetailModal\\('${pkgId}'`));
-    assert.match(index, new RegExp(`openBookingCarPkg\\('${pkgId}'\\)`));
   }
+  assert.doesNotMatch(index, /openHomePkgDetailModal\('wash'/);
+  assert.equal((index.match(/class="car-pkg-cta" onclick="openBooking\(null\)"/g) || []).length, 3);
+  assert.doesNotMatch(index, /openBookingCarPkg\('wash'\)/);
+  assert.doesNotMatch(index, /openBookingCarPkg\('interior'\)/);
   assert.match(pkgModalJs, /function openHomePkgDetailModal\(pkgId/);
   assert.match(pkgModalJs, /<h4>Includes<\/h4>/);
   assert.match(pkgModalJs, /<h4>Best for<\/h4>/);

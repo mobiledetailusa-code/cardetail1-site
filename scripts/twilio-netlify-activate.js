@@ -24,7 +24,9 @@ const NETLIFY_ACCOUNT = '6a2802ed5070702e9f45913b';
 const PUBLIC_SITE = 'https://cardetail1.com';
 const INBOUND_URL = `${PUBLIC_SITE}/.netlify/functions/twilio-inbound`;
 const STATUS_URL = `${PUBLIC_SITE}/.netlify/functions/twilio-status-callback`;
+const VOICE_URL = `${PUBLIC_SITE}/.netlify/functions/twilio-voice`;
 const WORKER_URL = `${PUBLIC_SITE}/.netlify/functions/twilio-outbox-worker`;
+const E164_RE = /^\+[1-9]\d{7,14}$/;
 const STAGING_SITE_ID = '982e6338-4a4a-432e-855b-db532b994391';
 
 const UNCONDITIONAL_SMS_COPY = /we(?:['’]ll| will)? text you(?! if you opted in)|then text you|then text or call|Appointment updates by text|Booking confirmed by text|confirming by text|confirmed by text/i;
@@ -35,6 +37,24 @@ const SEND_SWITCH_KEYS = [
   'TWILIO_PRODUCTION_SENDS_ENABLED',
 ];
 
+const TWILIO_ENV_KEYS = [
+  'TWILIO_ACCOUNT_SID',
+  'TWILIO_API_KEY',
+  'TWILIO_API_SECRET',
+  'TWILIO_MESSAGING_SERVICE_SID',
+  'TWILIO_AUTH_TOKEN',
+  'TWILIO_WORKER_SECRET',
+  'TWILIO_STATUS_CALLBACK_URL',
+  'TWILIO_INBOUND_WEBHOOK_URL',
+  'TWILIO_ALLOWED_BRANCH',
+  'TWILIO_ALLOWED_HOST',
+  'TWILIO_OUTBOX_ENABLED',
+  'TWILIO_ENABLED',
+  'TWILIO_PRODUCTION_SENDS_ENABLED',
+  'CUSTOMER_TRANSACTIONAL_SMS_ENABLED',
+  'ADMIN_SMS_CONSENT_GRANTED',
+];
+
 function sha12(v) {
   return crypto.createHash('sha256').update(String(v || '')).digest('hex').slice(0, 12);
 }
@@ -42,6 +62,7 @@ function sha12(v) {
 function parseArgs(argv = process.argv) {
   const out = {
     inspect: true,
+    inspectNetlifyEnv: false,
     configureTwilio: false,
     confirmTwilio: false,
     ensureNumber: '',
@@ -55,6 +76,7 @@ function parseArgs(argv = process.argv) {
   for (let i = 2; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--help' || a === '-h') out.help = true;
+    else if (a === '--inspect-netlify-env') out.inspectNetlifyEnv = true;
     else if (a === '--configure-twilio') out.configureTwilio = true;
     else if (a === '--confirm-twilio-webhooks') out.confirmTwilio = true;
     else if (a === '--ensure-number') out.ensureNumber = String(argv[++i] || '').trim();
@@ -110,6 +132,7 @@ function mergedSecrets(fileEnv = {}, processEnv = process.env) {
     'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_API_KEY', 'TWILIO_API_SECRET',
     'TWILIO_MESSAGING_SERVICE_SID', 'TWILIO_WORKER_SECRET', 'NETLIFY_AUTH_TOKEN',
     'TWILIO_SID', 'TWILIO_TOKEN',
+    'TWILIO_FORWARD_SMS_TO', 'TWILIO_FORWARD_CALLS_TO', 'TWILIO_PERSONAL_NUMBER',
   ];
   const out = { ...fileEnv };
   for (const key of keys) {
@@ -134,25 +157,37 @@ function providerWritePlan(input, { enableCustomerSms = false } = {}) {
   if (!/^MG[a-zA-Z0-9]{8,}$/.test(messagingServiceSid)) return { ok: false, error: 'messaging_service_missing' };
   if (!authToken) return { ok: false, error: 'auth_token_missing' };
   if (workerSecret.length < 32) return { ok: false, error: 'worker_secret_too_short' };
-  return {
-    ok: true,
-    vars: {
-      TWILIO_ACCOUNT_SID: accountSid,
-      TWILIO_API_KEY: apiKey,
-      TWILIO_API_SECRET: apiSecret,
-      TWILIO_MESSAGING_SERVICE_SID: messagingServiceSid,
-      TWILIO_AUTH_TOKEN: authToken,
-      TWILIO_WORKER_SECRET: workerSecret,
-      TWILIO_STATUS_CALLBACK_URL: STATUS_URL,
-      TWILIO_INBOUND_WEBHOOK_URL: INBOUND_URL,
-      TWILIO_ALLOWED_BRANCH: 'master',
-      TWILIO_ALLOWED_HOST: 'cardetail1.com',
-      TWILIO_OUTBOX_ENABLED: 'false',
-      TWILIO_ENABLED: 'false',
-      TWILIO_PRODUCTION_SENDS_ENABLED: 'false',
-      CUSTOMER_TRANSACTIONAL_SMS_ENABLED: enableCustomerSms ? 'true' : 'false',
-    },
+  const forwardSmsTo = String(input.TWILIO_FORWARD_SMS_TO || '').trim();
+  const forwardCallsTo = String(input.TWILIO_FORWARD_CALLS_TO || '').trim();
+  const personalNumber = String(input.TWILIO_PERSONAL_NUMBER || '').trim();
+  for (const [key, value] of Object.entries({
+    TWILIO_FORWARD_SMS_TO: forwardSmsTo,
+    TWILIO_FORWARD_CALLS_TO: forwardCallsTo,
+    TWILIO_PERSONAL_NUMBER: personalNumber,
+  })) {
+    if (value && !E164_RE.test(value)) return { ok: false, error: 'forward_number_invalid', key };
+  }
+  const vars = {
+    TWILIO_ACCOUNT_SID: accountSid,
+    TWILIO_API_KEY: apiKey,
+    TWILIO_API_SECRET: apiSecret,
+    TWILIO_MESSAGING_SERVICE_SID: messagingServiceSid,
+    TWILIO_AUTH_TOKEN: authToken,
+    TWILIO_WORKER_SECRET: workerSecret,
+    TWILIO_STATUS_CALLBACK_URL: STATUS_URL,
+    TWILIO_INBOUND_WEBHOOK_URL: INBOUND_URL,
+    TWILIO_VOICE_WEBHOOK_URL: VOICE_URL,
+    TWILIO_ALLOWED_BRANCH: 'master',
+    TWILIO_ALLOWED_HOST: 'cardetail1.com',
+    TWILIO_OUTBOX_ENABLED: 'false',
+    TWILIO_ENABLED: 'false',
+    TWILIO_PRODUCTION_SENDS_ENABLED: 'false',
+    CUSTOMER_TRANSACTIONAL_SMS_ENABLED: enableCustomerSms ? 'true' : 'false',
   };
+  if (forwardSmsTo) vars.TWILIO_FORWARD_SMS_TO = forwardSmsTo;
+  if (forwardCallsTo) vars.TWILIO_FORWARD_CALLS_TO = forwardCallsTo;
+  if (personalNumber) vars.TWILIO_PERSONAL_NUMBER = personalNumber;
+  return { ok: true, vars };
 }
 
 async function fetchText(url, options = {}) {
@@ -251,6 +286,23 @@ async function ensureNumberOnService(client, messagingServiceSid, e164) {
   return { sid: added.sid, phoneNumber: want, alreadyInPool: false };
 }
 
+async function configureVoiceOnNumber(client, e164) {
+  const want = String(e164 || '').trim();
+  if (!E164_RE.test(want)) throw new Error('invalid_e164');
+  const owned = await client.incomingPhoneNumbers.list({ limit: 100 });
+  const match = owned.find((n) => n.phoneNumber === want);
+  if (!match) throw new Error('number_not_in_account');
+  const updated = await client.incomingPhoneNumbers(match.sid).update({
+    voiceUrl: VOICE_URL,
+    voiceMethod: 'POST',
+  });
+  return {
+    sid: updated.sid,
+    voiceUrl: updated.voiceUrl,
+    voiceMethod: updated.voiceMethod,
+  };
+}
+
 function readNetlifyToken(secrets) {
   if (secrets.NETLIFY_AUTH_TOKEN) return secrets.NETLIFY_AUTH_TOKEN;
   const candidates = [
@@ -268,6 +320,79 @@ function readNetlifyToken(secrets) {
     }
   }
   throw new Error('netlify_token_missing');
+}
+
+function productionContextValue(entry) {
+  const values = Array.isArray(entry?.values) ? entry.values : [];
+  const production = values.find((row) => String(row?.context || '').toLowerCase() === 'production');
+  if (production) return production.value;
+  const all = values.find((row) => String(row?.context || '').toLowerCase() === 'all');
+  return all ? all.value : '';
+}
+
+function classifyProductionEnvValue(key, value) {
+  const raw = String(value || '').trim();
+  if (!raw) return 'absent';
+  if (SEND_SWITCH_KEYS.includes(key) || key === 'CUSTOMER_TRANSACTIONAL_SMS_ENABLED' || key === 'ADMIN_SMS_CONSENT_GRANTED') {
+    return raw.toLowerCase() === 'true' ? 'true' : 'false';
+  }
+  if (key === 'TWILIO_STATUS_CALLBACK_URL') {
+    return raw === STATUS_URL ? 'pinned' : 'custom';
+  }
+  if (key === 'TWILIO_INBOUND_WEBHOOK_URL') {
+    return raw === INBOUND_URL ? 'pinned' : 'custom';
+  }
+  if (key === 'TWILIO_ALLOWED_BRANCH') {
+    return raw === 'master' ? 'pinned' : 'custom';
+  }
+  if (key === 'TWILIO_ALLOWED_HOST') {
+    return raw === 'cardetail1.com' ? 'pinned' : 'custom';
+  }
+  if (key === 'TWILIO_ACCOUNT_SID') return /^AC[a-zA-Z0-9]{8,}$/.test(raw) ? 'present' : 'invalid';
+  if (key === 'TWILIO_API_KEY') return /^SK[a-zA-Z0-9]{8,}$/.test(raw) ? 'present' : 'invalid';
+  if (key === 'TWILIO_MESSAGING_SERVICE_SID') return /^MG[a-zA-Z0-9]{8,}$/.test(raw) ? 'present' : 'invalid';
+  if (key === 'TWILIO_WORKER_SECRET') return raw.length >= 32 ? 'present' : 'invalid';
+  return 'present';
+}
+
+async function fetchProductionEnv(token, siteId) {
+  const res = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/env`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    return { ok: false, status: res.status };
+  }
+  const rows = await res.json();
+  const byKey = Object.fromEntries((rows || []).map((row) => [row.key, row]));
+  const vars = {};
+  for (const key of TWILIO_ENV_KEYS) {
+    vars[key] = classifyProductionEnvValue(key, productionContextValue(byKey[key]));
+  }
+  const sendSwitchesOn = SEND_SWITCH_KEYS.filter((key) => vars[key] === 'true');
+  const providerReady = [
+    'TWILIO_ACCOUNT_SID',
+    'TWILIO_API_KEY',
+    'TWILIO_API_SECRET',
+    'TWILIO_MESSAGING_SERVICE_SID',
+    'TWILIO_AUTH_TOKEN',
+    'TWILIO_WORKER_SECRET',
+    'TWILIO_STATUS_CALLBACK_URL',
+    'TWILIO_INBOUND_WEBHOOK_URL',
+  ].every((key) => vars[key] && vars[key] !== 'absent' && vars[key] !== 'invalid');
+  const webhooksPinned = vars.TWILIO_STATUS_CALLBACK_URL === 'pinned'
+    && vars.TWILIO_INBOUND_WEBHOOK_URL === 'pinned';
+  return {
+    ok: true,
+    siteIdFingerprint: sha12(siteId),
+    vars,
+    summary: {
+      providerReady,
+      webhooksPinned,
+      sendSwitchesOn,
+      customerSmsEnabled: vars.CUSTOMER_TRANSACTIONAL_SMS_ENABLED === 'true',
+      adminSmsConsentGranted: vars.ADMIN_SMS_CONSENT_GRANTED === 'true',
+    },
+  };
 }
 
 async function putProductionVar(token, siteId, key, value) {
@@ -325,6 +450,34 @@ async function main(argv = process.argv) {
   const probe = await publicProbe();
   const secrets = mergedSecrets(readEnvFile(args.envFile));
 
+  if (args.inspectNetlifyEnv) {
+    try {
+      const token = readNetlifyToken(secrets);
+      const envReport = await fetchProductionEnv(token, PRODUCTION_SITE_ID);
+      if (!envReport.ok) {
+        console.error(JSON.stringify({ ok: false, error: 'netlify_env_lookup_failed', status: envReport.status }));
+        return 1;
+      }
+      console.log(JSON.stringify({
+        ok: true,
+        mode: 'inspect-netlify-env',
+        probe,
+        netlifyProduction: envReport,
+        next: envReport.summary.providerReady
+          ? 'Provider vars are present. Configure Twilio webhooks if needed, then enable send switches manually.'
+          : 'Run with --write-netlify-provider --confirm-production-provider-write after filling .env.twilio-activate.',
+      }, null, 2));
+      return 0;
+    } catch (err) {
+      console.error(JSON.stringify({
+        ok: false,
+        error: err.message || String(err),
+        hint: 'Add NETLIFY_AUTH_TOKEN to .env.twilio-activate or log in with the Netlify CLI.',
+      }));
+      return 1;
+    }
+  }
+
   if (!args.configureTwilio && !args.writeNetlify) {
     console.log(JSON.stringify({
       ...probe,
@@ -370,6 +523,8 @@ async function main(argv = process.argv) {
     if (args.ensureNumber) {
       const added = await ensureNumberOnService(client, secrets.TWILIO_MESSAGING_SERVICE_SID, args.ensureNumber);
       report.actions.push({ ensureNumber: { ...added, phoneFingerprint: sha12(added.phoneNumber) } });
+      const voice = await configureVoiceOnNumber(client, args.ensureNumber);
+      report.actions.push({ configureVoiceWebhook: { sid: voice.sid, voiceUrl: voice.voiceUrl, voiceMethod: voice.voiceMethod } });
     }
   }
 
@@ -432,10 +587,14 @@ module.exports = {
   PRODUCTION_SITE_ID,
   INBOUND_URL,
   STATUS_URL,
+  VOICE_URL,
+  TWILIO_ENV_KEYS,
   UNCONDITIONAL_SMS_COPY,
   publicCopyBlocksCustomerSms,
   netlifyProductionOnlyPayload,
   assertNoProductionSends,
+  classifyProductionEnvValue,
+  productionContextValue,
   providerWritePlan,
   parseArgs,
   twilioAuthMode,

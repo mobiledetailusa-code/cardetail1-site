@@ -5,6 +5,9 @@
  * On this site, Functions do not receive automatic CONTEXT / BRANCH / DEPLOY_URL
  * (only URL/SITE_URL → production). Those vars ARE available at build time, so
  * we snapshot them here before the Functions bundle is packaged.
+ *
+ * Never add secret env vars here (auth tokens, session secrets, API keys,
+ * personal phone numbers). The baked file is part of the Functions bundle.
  */
 'use strict';
 

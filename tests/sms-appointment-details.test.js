@@ -41,10 +41,9 @@ const {
   buildAccessUrl,
 } = require('../netlify/lib/appointment-access-token');
 
-// NANP 555-01xx reserved for fiction — must not match production ADMIN_SMS / env secrets.
-const VERIFIED = '+15555550101';
-const OTHER = '+15555550102';
-const ADMIN_TO = '+15555550199';
+const VERIFIED = '+12015550177';
+const OTHER = '+12015550188';
+const ADMIN_TO = '+12015550199';
 const TYPICAL_TOKEN = 'aat_' + 'A'.repeat(43);
 const TYPICAL_URL = `https://cardetail1.com/a?t=${TYPICAL_TOKEN}`;
 

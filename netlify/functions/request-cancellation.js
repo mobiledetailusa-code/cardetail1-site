@@ -6,6 +6,71 @@ const { canRequestChange } = require('../lib/appointment-status-policy');
 const { createChangeRequest, sanitizeSnapshot } = require('../lib/customer-change-requests');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 const { phonesMatch, normalizeUsPhoneDigits } = require('../lib/phone-auth');
+const { getBookingRecord, commitBooking, setBookingStoreOverride } = require('../lib/booking-repository');
+
+const MAX_CAS_ATTEMPTS = 4;
+
+async function persistCancellationRequest({
+  bookingId,
+  booking,
+  reason,
+  changeRequestId,
+  now,
+  store,
+} = {}) {
+  if (store) setBookingStoreOverride(store);
+
+  let last = { ok: false, error: 'version_conflict', statusCode: 409 };
+  for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt += 1) {
+    const rec = await getBookingRecord(bookingId, store ? { storeOverride: store } : {});
+    const current = rec.exists && rec.booking ? rec.booking : booking;
+    if (!current) {
+      return { ok: false, error: 'not_found', statusCode: 404 };
+    }
+    if (current.cancellationRequestStatus === 'requested') {
+      return { ok: true, alreadyRequested: true, booking: current };
+    }
+
+    const eventLog = Array.isArray(current.eventLog) ? current.eventLog.slice() : [];
+    const alreadyLogged = eventLog.some((e) => e && e.action === 'cancellation_requested');
+    if (!alreadyLogged) {
+      eventLog.push({
+        action: 'cancellation_requested',
+        at: now,
+        by: 'customer',
+        reason,
+        changeRequestId,
+      });
+    }
+
+    const next = {
+      ...current,
+      status: 'Cancellation Requested',
+      previousStatus: current.previousStatus || current.status || 'Pending Review',
+      cancellationRequestStatus: 'requested',
+      cancellationRequestedAt: current.cancellationRequestedAt || now,
+      cancellationReason: reason,
+      cancellationAcknowledgedPolicy: true,
+      updatedAt: now,
+      eventLog,
+    };
+
+    const expected = Math.max(0, Math.round(Number(current.bookingVersion) || 0));
+    const committed = await commitBooking({
+      bookingId,
+      expectedBookingVersion: expected,
+      nextAggregate: next,
+      createIfMissing: !rec.exists,
+      storeOverride: store || null,
+    });
+    if (committed.ok) {
+      return { ok: true, booking: committed.booking, bookingVersion: committed.bookingVersion };
+    }
+    last = committed;
+    if (committed.error !== 'version_conflict') return committed;
+  }
+  return last;
+}
 
 async function notifyAdmin(subject, text) {
   const { ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM } = process.env;
@@ -101,26 +166,31 @@ exports.handler = async (event) => {
     status: 'pending_approval',
   });
 
-  const eventLog = Array.isArray(booking.eventLog) ? [...booking.eventLog] : [];
-  eventLog.push({ action: 'cancellation_requested', at: now, by: 'customer', reason, changeRequestId: changeRecord.id });
-
-  const updated = {
-    status: 'Cancellation Requested',
-    previousStatus: booking.status || 'Pending Review',
-    cancellationRequestStatus: 'requested',
-    cancellationRequestedAt: now,
-    cancellationReason: reason,
-    cancellationAcknowledgedPolicy: true,
-    updatedAt: now,
-    eventLog,
-  };
-
   let store;
   try {
     store = await bookingStore();
-    await store.setJSON(bookingId, { ...booking, ...updated });
   } catch {
     return json(503, { ok: false, error: 'service_unavailable', message: 'Failed to save request. Please try again.' });
+  }
+
+  const persisted = await persistCancellationRequest({
+    bookingId,
+    booking,
+    reason,
+    changeRequestId: changeRecord.id,
+    now,
+    store,
+  });
+  if (!persisted.ok) {
+    const conflict = persisted.error === 'version_conflict';
+    return json(conflict ? 409 : (persisted.statusCode || 503), {
+      ok: false,
+      error: persisted.error || 'service_unavailable',
+      message: 'Failed to save request. Please try again.',
+    });
+  }
+  if (persisted.alreadyRequested) {
+    return json(200, { ok: true, alreadyRequested: true, changeRequestId: changeRecord.id });
   }
 
   await notifyAdmin(
@@ -130,7 +200,7 @@ exports.handler = async (event) => {
 
   try {
     const { notifyCancellationRequested } = require('../lib/appointment-lifecycle-notifications');
-    await notifyCancellationRequested({ ...booking, ...updated }, {
+    await notifyCancellationRequested(persisted.booking, {
       event,
       store,
       source: 'lifecycle_mutation',
@@ -141,3 +211,5 @@ exports.handler = async (event) => {
 
   return json(200, { ok: true, changeRequestId: changeRecord.id });
 };
+
+exports.persistCancellationRequest = persistCancellationRequest;

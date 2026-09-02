@@ -62,12 +62,12 @@ afterEach(() => {
 test('valid token verifies', () => {
   const lib = loadTokenLib();
   const now = 1_700_000_000_000;
-  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '(551) 313-2956', now });
+  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '(201) 555-0177', now });
   assert.equal(issued.ok, true);
   const verified = lib.verifyDraftSaveToken({
     token: issued.token,
     bookingId: 'CD1-ABC',
-    phone: '5513132956',
+    phone: '2015550177',
     now,
   });
   assert.equal(verified.ok, true);
@@ -76,11 +76,11 @@ test('valid token verifies', () => {
 test('wrong bookingId fails', () => {
   const lib = loadTokenLib();
   const now = 1_700_000_000_000;
-  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '5513132956', now });
+  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '2015550177', now });
   const verified = lib.verifyDraftSaveToken({
     token: issued.token,
     bookingId: 'CD1-OTHER',
-    phone: '5513132956',
+    phone: '2015550177',
     now,
   });
   assert.equal(verified.ok, false);
@@ -90,7 +90,7 @@ test('wrong bookingId fails', () => {
 test('wrong phone fails', () => {
   const lib = loadTokenLib();
   const now = 1_700_000_000_000;
-  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '5513132956', now });
+  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '2015550177', now });
   const verified = lib.verifyDraftSaveToken({
     token: issued.token,
     bookingId: 'CD1-ABC',
@@ -103,13 +103,13 @@ test('wrong phone fails', () => {
 test('tampered signature fails', () => {
   const lib = loadTokenLib();
   const now = 1_700_000_000_000;
-  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '5513132956', now });
+  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '2015550177', now });
   const parts = issued.token.split('.');
   const tampered = `${parts[0]}.${parts[1]}.AAAA${parts[2].slice(4)}`;
   const verified = lib.verifyDraftSaveToken({
     token: tampered,
     bookingId: 'CD1-ABC',
-    phone: '5513132956',
+    phone: '2015550177',
     now,
   });
   assert.equal(verified.ok, false);
@@ -118,11 +118,11 @@ test('tampered signature fails', () => {
 test('expired token fails', () => {
   const lib = loadTokenLib();
   const now = 1_700_000_000_000;
-  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '5513132956', now });
+  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '2015550177', now });
   const verified = lib.verifyDraftSaveToken({
     token: issued.token,
     bookingId: 'CD1-ABC',
-    phone: '5513132956',
+    phone: '2015550177',
     now: now + lib.TOKEN_TTL_MS + 1000,
   });
   assert.equal(verified.ok, false);
@@ -130,8 +130,8 @@ test('expired token fails', () => {
 
 test('malformed token fails', () => {
   const lib = loadTokenLib();
-  assert.equal(lib.verifyDraftSaveToken({ token: 'bad', bookingId: 'CD1', phone: '5513132956' }).ok, false);
-  assert.equal(lib.verifyDraftSaveToken({ token: 'v1.onlysig', bookingId: 'CD1', phone: '5513132956' }).ok, false);
+  assert.equal(lib.verifyDraftSaveToken({ token: 'bad', bookingId: 'CD1', phone: '2015550177' }).ok, false);
+  assert.equal(lib.verifyDraftSaveToken({ token: 'v1.onlysig', bookingId: 'CD1', phone: '2015550177' }).ok, false);
 });
 
 test('unsupported version fails', () => {
@@ -139,7 +139,7 @@ test('unsupported version fails', () => {
   const verified = lib.verifyDraftSaveToken({
     token: 'v2.9999999.fake',
     bookingId: 'CD1-ABC',
-    phone: '5513132956',
+    phone: '2015550177',
     now: Date.now(),
   });
   assert.equal(verified.ok, false);
@@ -149,13 +149,13 @@ test('future expiry outside allowed TTL fails', () => {
   const lib = loadTokenLib();
   const now = 1_700_000_000_000;
   const farFuture = Math.floor((now + lib.TOKEN_TTL_MS + 120_000) / 1000);
-  const payload = lib.signingPayload({ bookingId: 'CD1-ABC', phone: '5513132956', expiryUnixSeconds: farFuture });
+  const payload = lib.signingPayload({ bookingId: 'CD1-ABC', phone: '2015550177', expiryUnixSeconds: farFuture });
   const sig = require('crypto').createHmac('sha256', TEST_SECRET).update(payload).digest('base64url');
   const token = `v1.${farFuture}.${sig}`;
   const verified = lib.verifyDraftSaveToken({
     token,
     bookingId: 'CD1-ABC',
-    phone: '5513132956',
+    phone: '2015550177',
     now,
   });
   assert.equal(verified.ok, false);
@@ -167,7 +167,7 @@ test('secret missing in production fails safely', () => {
   const status = lib.getDraftTokenSecretStatus();
   assert.equal(status.ok, false);
   assert.equal(status.error, 'missing_draft_token_secret');
-  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '5513132956' });
+  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '2015550177' });
   assert.equal(issued.ok, false);
 });
 
@@ -180,10 +180,10 @@ test('timing-safe comparison path is used', () => {
 
 test('token does not expose raw phone', () => {
   const lib = loadTokenLib();
-  const phone = '5513132956';
+  const phone = '2015550177';
   const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone, now: 1_700_000_000_000 });
-  assert.doesNotMatch(issued.token, /5513132956/);
-  assert.doesNotMatch(issued.token, /3132956/);
+  assert.doesNotMatch(issued.token, /2015550177/);
+  assert.doesNotMatch(issued.token, /5550177/);
   const parts = issued.token.split('.');
   assert.equal(parts.length, 3);
   assert.match(parts[2], /^[A-Za-z0-9_-]+$/);
@@ -193,7 +193,7 @@ test('token TTL is approximately 2 hours', () => {
   const lib = loadTokenLib();
   assert.equal(lib.TOKEN_TTL_MS, 2 * 60 * 60 * 1000);
   const now = 1_700_000_000_000;
-  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '5513132956', now });
+  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-ABC', phone: '2015550177', now });
   const delta = issued.draftSaveTokenExp - Math.floor(now / 1000);
   assert.ok(delta >= 7199 && delta <= 7200);
 });
@@ -201,14 +201,14 @@ test('token TTL is approximately 2 hours', () => {
 test('phone signing reuses ops-db normalizePhone last 10 digits', () => {
   const lib = loadTokenLib();
   const { normalizePhone } = require('../netlify/lib/ops-db');
-  assert.equal(lib.phoneSigningKey('+1 (551) 313-2956'), normalizePhone('+1 (551) 313-2956').slice(-10));
+  assert.equal(lib.phoneSigningKey('+1 (201) 555-0177'), normalizePhone('+1 (201) 555-0177').slice(-10));
 });
 
 test('create-setup-intent without token returns 403 invalid_draft_token', async () => {
   delete require.cache[SETUP_PATH];
   const { handler, __test } = require('../netlify/functions/create-setup-intent');
   __test.setBlobsStoreOverride(() => createMemoryStore({
-    'CD1-1': { id: 'CD1-1', isDraft: true, phone: '5513132956', cardOnFileRequired: true, cardOnFileStatus: 'pending' },
+    'CD1-1': { id: 'CD1-1', isDraft: true, phone: '2015550177', cardOnFileRequired: true, cardOnFileStatus: 'pending' },
   }));
   const res = await handler({
     httpMethod: 'POST',
@@ -223,7 +223,7 @@ test('create-setup-intent wrong token returns 403', async () => {
   delete require.cache[SETUP_PATH];
   const { handler, __test } = require('../netlify/functions/create-setup-intent');
   __test.setBlobsStoreOverride(() => createMemoryStore({
-    'CD1-2': { id: 'CD1-2', isDraft: true, phone: '5513132956', cardOnFileRequired: true, cardOnFileStatus: 'pending' },
+    'CD1-2': { id: 'CD1-2', isDraft: true, phone: '2015550177', cardOnFileRequired: true, cardOnFileStatus: 'pending' },
   }));
   const res = await handler({
     httpMethod: 'POST',
@@ -237,13 +237,13 @@ test('create-setup-intent expired token returns 403', async () => {
   const lib = loadTokenLib();
   const issued = lib.issueDraftSaveToken({
     bookingId: 'CD1-3',
-    phone: '5513132956',
+    phone: '2015550177',
     now: Date.now() - (3 * 60 * 60 * 1000),
   });
   delete require.cache[SETUP_PATH];
   const { handler, __test } = require('../netlify/functions/create-setup-intent');
   __test.setBlobsStoreOverride(() => createMemoryStore({
-    'CD1-3': { id: 'CD1-3', isDraft: true, phone: '5513132956', cardOnFileRequired: true, cardOnFileStatus: 'pending' },
+    'CD1-3': { id: 'CD1-3', isDraft: true, phone: '2015550177', cardOnFileRequired: true, cardOnFileStatus: 'pending' },
   }));
   const res = await handler({
     httpMethod: 'POST',
@@ -255,11 +255,11 @@ test('create-setup-intent expired token returns 403', async () => {
 
 test('create-setup-intent token for another booking returns 403', async () => {
   const lib = loadTokenLib();
-  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-A', phone: '5513132956', now: Date.now() });
+  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-A', phone: '2015550177', now: Date.now() });
   delete require.cache[SETUP_PATH];
   const { handler, __test } = require('../netlify/functions/create-setup-intent');
   __test.setBlobsStoreOverride(() => createMemoryStore({
-    'CD1-B': { id: 'CD1-B', isDraft: true, phone: '5513132956', cardOnFileRequired: true, cardOnFileStatus: 'pending' },
+    'CD1-B': { id: 'CD1-B', isDraft: true, phone: '2015550177', cardOnFileRequired: true, cardOnFileStatus: 'pending' },
   }));
   const res = await handler({
     httpMethod: 'POST',
@@ -300,11 +300,11 @@ test('create-setup-intent preserves Stripe SetupIntent parameters', () => {
 
 test('create-setup-intent valid token + eligible draft reaches Stripe SetupIntent path', async () => {
   const lib = loadTokenLib();
-  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-OK', phone: '5513132956', now: Date.now() });
+  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-OK', phone: '2015550177', now: Date.now() });
   const draft = {
     id: 'CD1-OK',
     isDraft: true,
-    phone: '5513132956',
+    phone: '2015550177',
     cardOnFileRequired: true,
     cardOnFileStatus: 'pending',
     bookingVersion: 0,
@@ -388,11 +388,11 @@ test('create-setup-intent valid token + eligible draft reaches Stripe SetupInten
 test('create-setup-intent valid token + ineligible draft returns 409 after auth', async () => {
   const lib = loadTokenLib();
   const now = Date.now();
-  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-5', phone: '5513132956', now });
+  const issued = lib.issueDraftSaveToken({ bookingId: 'CD1-5', phone: '2015550177', now });
   delete require.cache[SETUP_PATH];
   const { handler, __test } = require('../netlify/functions/create-setup-intent');
   __test.setBlobsStoreOverride(() => createMemoryStore({
-    'CD1-5': { id: 'CD1-5', isDraft: false, phone: '5513132956', cardOnFileRequired: true, cardOnFileStatus: 'saved' },
+    'CD1-5': { id: 'CD1-5', isDraft: false, phone: '2015550177', cardOnFileRequired: true, cardOnFileStatus: 'saved' },
   }));
   process.env.STRIPE_SECRET_KEY = 'sk_test_fake';
   const res = await handler({
@@ -493,7 +493,7 @@ test('submit-booking draft response includes token fields via issue helper', () 
   const { __test } = require('../netlify/functions/submit-booking');
   const draft = __test.buildDraftRecord({
     firstName: 'A',
-    phone: '5513132956',
+    phone: '2015550177',
     paymentMethodPreference: 'card_onsite',
     totalPrice: 100,
   }, 'CD1-D', new Date().toISOString());
@@ -525,7 +525,7 @@ test('submit-booking missing production secret blocks draft issuance', () => {
   const { __test } = require('../netlify/functions/submit-booking');
   const draft = __test.buildDraftRecord({
     firstName: 'A',
-    phone: '5513132956',
+    phone: '2015550177',
     paymentMethodPreference: 'card_onsite',
   }, 'CD1-E', new Date().toISOString());
   const issued = __test.issueDraftSaveResponse(draft);
@@ -547,7 +547,7 @@ test('draft update issues a fresh valid token', () => {
   const lib = loadTokenLib();
   const draft = __test.buildDraftRecord({
     firstName: 'A',
-    phone: '5513132956',
+    phone: '2015550177',
     paymentMethodPreference: 'card_onsite',
   }, 'CD1-U', new Date().toISOString());
   const first = __test.issueDraftSaveResponse(draft);
@@ -609,7 +609,7 @@ test('token and bookingId from same draft response verify together', () => {
   const { __test } = require('../netlify/functions/submit-booking');
   const draft = __test.buildDraftRecord({
     firstName: 'A',
-    phone: '5513132956',
+    phone: '2015550177',
     paymentMethodPreference: 'card_onsite',
   }, 'CD1-PAIR', new Date().toISOString());
   const issued = __test.issueDraftSaveResponse(draft);
@@ -632,7 +632,7 @@ test('token and bookingId from same draft response verify together', () => {
 test('old token fails after draft phone changes and new token verifies', () => {
   const lib = loadTokenLib();
   const now = Date.now();
-  const oldPhone = '5513132956';
+  const oldPhone = '2015550177';
   const newPhone = '2015550100';
   const bookingId = 'CD1-PHONE';
   const oldIssued = lib.issueDraftSaveToken({ bookingId, phone: oldPhone, now });

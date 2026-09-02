@@ -72,6 +72,7 @@ test('client chat and server AI prompt agree on public category starting prices'
   assert.deepEqual(CHAT_STARTING_PRICES, {
     cars: 190,
     carMaintenance: 150,
+    carWash: 110,
     boats: 170,
     rvs: 238,
     powersports: 100,
@@ -150,6 +151,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/twilio-inbound.js',
   'netlify/functions/twilio-outbox-worker.js',
   'netlify/functions/twilio-status-callback.js',
+  // Twilio inbound SMS + voice forwarding to a personal number (PR #225).
+  'netlify/functions/twilio-voice.js',
   // Owner Studio Stage 2 — protected catalog draft API (flags off by default).
   'netlify/functions/owner-studio-catalog.js',
     'netlify/functions/owner-studio-release.js',

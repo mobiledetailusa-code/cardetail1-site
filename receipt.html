@@ -42,13 +42,18 @@ td.amt,th.amt{text-align:right;white-space:nowrap;font-variant-numeric:tabular-n
 .totals .grand td{font-size:17px;font-weight:800;border-top:1px solid var(--border);padding-top:10px}
 .foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
 .msg{padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--bg2)}
+.phone-form label{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em;margin:12px 0 6px}
+.phone-form input{width:100%;min-height:44px;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0e0e14;color:var(--text);font:inherit}
+.phone-form input:focus{outline:2px solid var(--blue);border-color:transparent}
+.phone-form .form-err{color:#f87171;margin:8px 0 0}
+.phone-form .btn{width:100%;justify-content:center;margin-top:14px;border:none}
 .tblwrap{overflow-x:auto}
 @media(max-width:520px){.wrap{padding:16px 12px 40px}.doc{padding:18px}.brand .num{text-align:left}.actions .btn{flex:1 1 100%;justify-content:center}}
 @media print{
   @page{margin:0.5in}
   body{background:#fff;color:#000}
   .wrap{max-width:none;padding:0}
-  .actions,.no-print{display:none!important}
+  .actions,.no-print,#receipt-phone-form{display:none!important}
   .doc{background:#fff;border:none;border-radius:0;padding:0}
   .brand,.veh,.totals,.foot,th,td{border-color:#999}
   .veh{border:1px solid #999}
@@ -62,7 +67,7 @@ td.amt,th.amt{text-align:right;white-space:nowrap;font-variant-numeric:tabular-n
 <body>
 <div class="wrap">
   <div class="actions no-print">
-    <button type="button" class="btn primary" id="btn-print">Print / Save as PDF</button>
+    <button type="button" class="btn primary" id="btn-print" hidden>Print / Save as PDF</button>
     <a class="btn" href="my-garage.html" id="btn-back">Back to My Garage</a>
   </div>
   <main id="receipt-root" aria-live="polite">

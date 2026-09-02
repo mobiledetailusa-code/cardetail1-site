@@ -6,6 +6,15 @@ const MAX_DETAILS_PER_MONTH = 1;
 
 const CAR_PACKAGES = [
   {
+    id: 'wash',
+    name: 'Exterior Hand Wash',
+    basePrice: 125,
+    tag: 'Exterior wash only — add wax, clay bar, or engine bay if you want more',
+    duration: '~45–75 min',
+    description: 'Hand wash, wheels, glass, and tire dressing. Wax, clay bar, and engine bay are add-ons.',
+    feats: ['Exterior hand wash & rinse', 'Wheels & tires cleaned', 'Exterior glass cleaned', 'Door jambs wiped down', 'Tire dressing'],
+  },
+  {
     id: 'maint',
     name: 'Maintenance Detail',
     basePrice: 175,
@@ -19,25 +28,25 @@ const CAR_PACKAGES = [
     name: 'Interior Detail',
     basePrice: 225,
     tag: 'Deep interior refresh',
-    duration: '~2.5–3.5h',
-    description: 'Deep vacuum, fabric shampoo, leather conditioning, steam clean, UV protectant on plastics. Odor treatment available as add-on.',
-    feats: ['Deep vacuum — seats, floors, trunk', 'Fabric seats & carpet shampoo', 'Leather surfaces conditioned', 'Steam clean vents & panels', 'UV protectant on plastics', 'Interior glass'],
+    duration: '~1.5–2h',
+    description: 'Deep vacuum including trunk and truck bed where applicable, fabric shampoo, leather conditioning, steam clean, door jambs, headliner, UV protectant on plastics. Odor treatment available as add-on.',
+    feats: ['Deep vacuum — seats, floors, trunk, and truck bed where applicable', 'Fabric seats & carpet shampoo', 'Leather surfaces conditioned', 'Steam clean vents & panels', 'Door jambs cleaned', 'Headliner cleaning', 'UV protectant on plastics', 'Interior glass'],
   },
   {
     id: 'full',
     name: 'Premium Detail',
     basePrice: 300,
     tag: 'Full inside/out refresh — most popular',
-    duration: '~3–5h',
-    description: 'Complete exterior and interior detail with clay bar, shampoo, steam, and sealant protection.',
-    feats: ['Clay bar decontamination', 'Carpet & seat shampoo', 'Interior steam clean', 'Spray sealant', 'Tire dressing'],
+    duration: '~2.5–3h',
+    description: 'Complete exterior and interior detail with clay bar, shampoo, steam, door jambs, headliner, trunk and truck bed where applicable, and sealant protection.',
+    feats: ['Clay bar decontamination', 'Carpet & seat shampoo', 'Interior steam clean', 'Door jambs cleaned', 'Headliner cleaning', 'Spray sealant', 'Tire dressing'],
   },
   {
     id: 'refresh',
     name: 'Exterior Refresh & Protect',
     basePrice: 375,
     tag: 'Clay bar, single-pass correction, sealant, Rain-X & wheels',
-    duration: '~2.5–3h',
+    duration: '~3.5–4h',
     description: 'Clay bar, chemical decontamination, single-pass paint correction, sealant, deep wheel detail, and Rain-X included.',
     feats: ['Clay bar decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X glass treatment', 'Tire dressing'],
   },
@@ -45,10 +54,10 @@ const CAR_PACKAGES = [
     id: 'premium',
     name: 'Signature Interior & Exterior Restoration',
     basePrice: 450,
-    tag: 'Single-pass correction, ceramic, clay bar, Rain-X & deep interior',
-    duration: '~6–8h',
-    description: 'Clay bar, single-pass correction, ceramic protection, Rain-X, deep wheels, carpet shampoo, leather and plastics with UV protection.',
-    feats: ['Clay bar decontamination', 'Single-pass paint correction', 'Ceramic protection', 'Deep wheel detailing', 'Rain-X windshield', 'Carpet & seat shampoo', 'Leather & plastics with UV protection'],
+    tag: 'Clay bar, single-pass correction, sealant, Rain-X & deep interior',
+    duration: '~3.5–4h',
+    description: 'Same exterior as Exterior Refresh & Protect — clay bar, chemical decontamination, single-pass correction, sealant, Rain-X, wheels and tire dressing — plus deep interior care.',
+    feats: ['Clay bar decontamination', 'Chemical paint decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X glass treatment', 'Tire dressing', 'Door jambs cleaned', 'Headliner cleaning', 'Carpet & seat shampoo', 'Leather & plastics with UV protection'],
   },
 ];
 
@@ -121,13 +130,18 @@ function matchPackFromBooking(booking) {
     booking.package, booking.service, booking.packageName, booking.pkgName,
   ].join(' ').toLowerCase();
   for (const p of CAR_PACKAGES) {
+    if (p.id === 'wash') {
+      if (hay.includes(p.name.toLowerCase()) || /\bexterior hand wash\b|\bhand wash\b/.test(hay)) return p;
+      continue;
+    }
     if (hay.includes(p.id) || hay.includes(p.name.toLowerCase())) return p;
   }
-  if (/maint/i.test(hay)) return CAR_PACKAGES[0];
-  if (/interior/i.test(hay)) return CAR_PACKAGES[1];
-  if (/premium detail|full detail/i.test(hay) && !/paint|correction|signature|refresh/i.test(hay)) return CAR_PACKAGES[2];
-  if (/refresh|exterior refresh/i.test(hay)) return CAR_PACKAGES[3];
-  if (/signature|restoration|paint|correction/i.test(hay)) return CAR_PACKAGES[4];
+  if (/\bexterior hand wash\b|\bhand wash\b/.test(hay)) return CAR_PACKAGES.find((p) => p.id === 'wash') || null;
+  if (/maint/i.test(hay)) return CAR_PACKAGES.find((p) => p.id === 'maint') || null;
+  if (/interior/i.test(hay)) return CAR_PACKAGES.find((p) => p.id === 'interior') || null;
+  if (/premium detail|full detail/i.test(hay) && !/paint|correction|signature|refresh/i.test(hay)) return CAR_PACKAGES.find((p) => p.id === 'full') || null;
+  if (/refresh|exterior refresh/i.test(hay)) return CAR_PACKAGES.find((p) => p.id === 'refresh') || null;
+  if (/signature|restoration|paint|correction/i.test(hay)) return CAR_PACKAGES.find((p) => p.id === 'premium') || null;
   return null;
 }
 

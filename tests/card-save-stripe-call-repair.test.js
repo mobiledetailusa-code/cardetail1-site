@@ -54,7 +54,7 @@ function baseDraft(overrides = {}) {
   return {
     id: 'CD1-REPAIR',
     isDraft: true,
-    phone: '5513132956',
+    phone: '2015550177',
     cardOnFileRequired: true,
     cardOnFileStatus: 'pending',
     bookingVersion: 0,
@@ -108,7 +108,7 @@ function post(bookingId, token, expectedBookingVersion) {
 }
 
 test('draft with explicit consent but no timestamp still reaches Stripe', withCardSaveEnv(async () => {
-  const issued = issueToken('CD1-REPAIR', '5513132956');
+  const issued = issueToken('CD1-REPAIR', '2015550177');
   // acceptedCardOnFilePolicyAt deliberately absent — the shape every draft
   // pre-registered before the timestamp existed still carries.
   const store = createMemoryStore({ 'CD1-REPAIR': baseDraft() });
@@ -131,7 +131,7 @@ test('draft with explicit consent but no timestamp still reaches Stripe', withCa
 }));
 
 test('withheld consent is still rejected', withCardSaveEnv(async () => {
-  const issued = issueToken('CD1-REPAIR', '5513132956');
+  const issued = issueToken('CD1-REPAIR', '2015550177');
   const store = createMemoryStore({
     'CD1-REPAIR': baseDraft({ acceptedCardOnFilePolicy: false }),
   });
@@ -147,7 +147,7 @@ test('withheld consent is still rejected', withCardSaveEnv(async () => {
 }));
 
 test('a later attempt uses a fresh idempotency key instead of replaying', withCardSaveEnv(async () => {
-  const issued = issueToken('CD1-REPAIR', '5513132956');
+  const issued = issueToken('CD1-REPAIR', '2015550177');
   const store = createMemoryStore({
     'CD1-REPAIR': baseDraft({ acceptedCardOnFilePolicyAt: '2026-08-01T10:00:00.000Z' }),
   });
@@ -173,7 +173,7 @@ test('a later attempt uses a fresh idempotency key instead of replaying', withCa
 }));
 
 test('an idempotent retry re-keys to the prior attempt and reuses its SetupIntent', withCardSaveEnv(async () => {
-  const issued = issueToken('CD1-REPAIR', '5513132956');
+  const issued = issueToken('CD1-REPAIR', '2015550177');
   const store = createMemoryStore({
     'CD1-REPAIR': baseDraft({ acceptedCardOnFilePolicyAt: '2026-08-01T10:00:00.000Z' }),
   });
@@ -200,7 +200,7 @@ test('an idempotent retry re-keys to the prior attempt and reuses its SetupInten
 }));
 
 test('a genuinely stale version still reports actualBookingVersion for resync', withCardSaveEnv(async () => {
-  const issued = issueToken('CD1-REPAIR', '5513132956');
+  const issued = issueToken('CD1-REPAIR', '2015550177');
   const store = createMemoryStore({
     'CD1-REPAIR': baseDraft({
       bookingVersion: 4,

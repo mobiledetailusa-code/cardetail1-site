@@ -14,35 +14,30 @@ const { verifyDraftSaveToken, issueDraftSaveToken } = require('../netlify/lib/dr
 process.env.DRAFT_TOKEN_SECRET = 'test-draft-token-secret-32chars-minimum';
 process.env.CUSTOMER_SESSION_SECRET = 'test-customer-session-secret-32chars';
 
-// NANP 555-01xx reserved for fiction — must not match production ADMIN_SMS / env secrets.
-const TEST_PHONE_DIGITS = '5555550101';
-const TEST_PHONE_E164 = '+1' + TEST_PHONE_DIGITS;
-const TEST_PHONE_FORMATTED = '(555) 555-0101';
-
 test('phonesMatch: valid 10-digit match', () => {
-  assert.equal(phoneAuth.phonesMatch(TEST_PHONE_DIGITS, TEST_PHONE_DIGITS), true);
+  assert.equal(phoneAuth.phonesMatch('2015550177', '2015550177'), true);
 });
 
 test('phonesMatch: valid country-code match', () => {
-  assert.equal(phoneAuth.phonesMatch(TEST_PHONE_E164, TEST_PHONE_DIGITS), true);
-  assert.equal(phoneAuth.phonesMatch('1' + TEST_PHONE_DIGITS, TEST_PHONE_FORMATTED), true);
+  assert.equal(phoneAuth.phonesMatch('+12015550177', '2015550177'), true);
+  assert.equal(phoneAuth.phonesMatch('12015550177', '(201) 555-0177'), true);
 });
 
 test('phonesMatch: formatted-number match', () => {
-  assert.equal(phoneAuth.phonesMatch(TEST_PHONE_FORMATTED, TEST_PHONE_DIGITS), true);
+  assert.equal(phoneAuth.phonesMatch('(201) 555-0177', '2015550177'), true);
 });
 
 test('phonesMatch: short suffix rejection', () => {
-  assert.equal(phoneAuth.phonesMatch('550101', TEST_PHONE_DIGITS), false);
-  assert.equal(phoneAuth.phonesMatch('5550101', TEST_PHONE_DIGITS), false);
+  assert.equal(phoneAuth.phonesMatch('132956', '2015550177'), false);
+  assert.equal(phoneAuth.phonesMatch('3132956', '2015550177'), false);
 });
 
 test('phonesMatch: different customer rejection', () => {
-  assert.equal(phoneAuth.phonesMatch(TEST_PHONE_DIGITS, '5555550199'), false);
+  assert.equal(phoneAuth.phonesMatch('2015550177', '5519999999'), false);
 });
 
 test('normalizeUsPhoneE164', () => {
-  assert.equal(phoneAuth.normalizeUsPhoneE164(TEST_PHONE_FORMATTED), TEST_PHONE_E164);
+  assert.equal(phoneAuth.normalizeUsPhoneE164('(201) 555-0177'), '+12015550177');
 });
 
 test('mutation endpoints have rate limit buckets', () => {
@@ -107,7 +102,7 @@ test('my-garage metadata and privacy', () => {
   assert.match(page, /noindex,nofollow/);
   assert.match(page, /My Detailing Portal \| Manage Your Cardetail1 Booking/);
   assert.match(page, /clarity.*mask/i);
-  assert.doesNotMatch(page, /5555550101.*booking/i);
+  assert.doesNotMatch(page, /2015550177.*booking/i);
 });
 
 test('my-garage absent from sitemap', () => {
@@ -166,11 +161,11 @@ test('confirmed pack/address/cancel auto-apply without admin approval', () => {
 });
 
 test('auth token verify rejects replay', async () => {
-  const issued = issueDraftSaveToken({ bookingId: 'CD1-TEST', phone: TEST_PHONE_DIGITS });
+  const issued = issueDraftSaveToken({ bookingId: 'CD1-TEST', phone: '2015550177' });
   assert.equal(issued.ok, true);
-  const first = verifyDraftSaveToken({ token: issued.token, bookingId: 'CD1-TEST', phone: TEST_PHONE_DIGITS });
+  const first = verifyDraftSaveToken({ token: issued.token, bookingId: 'CD1-TEST', phone: '2015550177' });
   assert.equal(first.ok, true);
-  const replay = verifyDraftSaveToken({ token: issued.token, bookingId: 'CD1-TEST', phone: TEST_PHONE_DIGITS, now: Date.now() + 1000 });
+  const replay = verifyDraftSaveToken({ token: issued.token, bookingId: 'CD1-TEST', phone: '2015550177', now: Date.now() + 1000 });
   assert.equal(replay.ok, true);
 });
 

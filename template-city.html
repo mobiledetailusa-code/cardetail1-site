@@ -7,8 +7,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<link rel="canonical" href="https://cardetail1.com/">
+<link rel="canonical" href="https://cardetail1.com/template-city.html">
 <meta name="description" content="Cardetail1 — premium mobile auto, marine, RV &amp; fleet detailing in {CITY_NAME}. We come to your driveway with water, power, and expert care — serving the Tri-State up to 120 miles. Book online, no shop visit.">
 <meta name="geo.region" content="US-NJ">
 <meta name="geo.placename" content="Palisades Park, Bergen County, New Jersey">
@@ -17,7 +18,7 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:site_name" content="Cardetail1">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://cardetail1.com/">
+<meta property="og:url" content="https://cardetail1.com/template-city.html">
 <meta property="og:title" content="Cardetail1 — Mobile Detailing | Palisades Park &amp; Bergen County, NJ">
 <meta property="og:description" content="Mobile detailing for cars, boats, RVs &amp; fleets — based in Palisades Park, NJ. We come to you across Bergen County, NYC, CT &amp; PA (up to 120 mi). Book online.">
 <meta name="twitter:card" content="summary_large_image">
@@ -27,7 +28,11 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": ["LocalBusiness", "AutoDetailing"],
+  "@type": [
+    "LocalBusiness",
+    "AutomotiveBusiness",
+    "AutoDetailing"
+  ],
   "@id": "https://cardetail1.com/#business",
   "name": "Cardetail1",
   "legalName": "Detailing Zone L.L.C.",
@@ -36,7 +41,12 @@
   "description": "Mobile auto, marine, RV, fleet, and specialty detailing based in Palisades Park, Bergen County, NJ. We come to your home, office, marina, or approved location with professional equipment — no shop visit required.",
   "image": "https://cardetail1.com/assets/cardetail1-logo.webp",
   "priceRange": "$$",
-  "serviceType": ["Mobile Car Detailing", "Marine Detailing", "RV Detailing", "Powersports Detailing"],
+  "serviceType": [
+    "Mobile Car Detailing",
+    "Marine Detailing",
+    "RV Detailing",
+    "Powersports Detailing"
+  ],
   "address": {
     "@type": "PostalAddress",
     "addressLocality": "Palisades Park",
@@ -60,25 +70,91 @@
       },
       "geoRadius": 241401
     },
-    { "@type": "AdministrativeArea", "name": "Bergen County, NJ" },
-    { "@type": "AdministrativeArea", "name": "Palisades Park, NJ" },
-    { "@type": "City", "name": "New York City, NY" },
-    { "@type": "State", "name": "New Jersey" },
-    { "@type": "State", "name": "New York" },
-    { "@type": "State", "name": "Connecticut" },
-    { "@type": "State", "name": "Pennsylvania" }
+    {
+      "@type": "AdministrativeArea",
+      "name": "Bergen County, NJ"
+    },
+    {
+      "@type": "AdministrativeArea",
+      "name": "Palisades Park, NJ"
+    },
+    {
+      "@type": "City",
+      "name": "New York City, NY"
+    },
+    {
+      "@type": "State",
+      "name": "New Jersey"
+    },
+    {
+      "@type": "State",
+      "name": "New York"
+    },
+    {
+      "@type": "State",
+      "name": "Connecticut"
+    },
+    {
+      "@type": "State",
+      "name": "Pennsylvania"
+    }
   ],
   "openingHoursSpecification": [
     {
       "@type": "OpeningHoursSpecification",
-      "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+      "dayOfWeek": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday"
+      ],
       "opens": "08:00",
       "closes": "17:00"
     }
   ],
   "sameAs": [
     "https://www.instagram.com/cardetail1com"
-  ]
+  ],
+  "hasOfferCatalog": {
+    "@type": "OfferCatalog",
+    "name": "Mobile detailing packages",
+    "itemListElement": [
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Interior Detail"
+        },
+        "price": "190",
+        "priceCurrency": "USD"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Premium Full Detail"
+        },
+        "price": "240",
+        "priceCurrency": "USD"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Exterior Detail & Paint Enhancement"
+        },
+        "price": "320",
+        "priceCurrency": "USD"
+      }
+    ]
+  },
+  "logo": {
+    "@type": "ImageObject",
+    "url": "https://cardetail1.com/assets/cardetail1-logo-square.png",
+    "width": 720,
+    "height": 720
+  }
 }
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -518,7 +594,6 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .pkg-feats li.grp::before{content:'';margin:0}
 .pkg-btn{margin-top:12px;width:100%;padding:10px;border-radius:999px;border:1px solid rgba(77,163,255,.4);background:transparent;color:var(--blue);font-family:var(--fb);font-size:11.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s}
 .pkg-btn:hover,.pkg.sel .pkg-btn{background:var(--blue);color:#000;border-color:var(--blue)}
-.pkg.pop .pkg-btn{background:var(--blue);color:#000;border-color:var(--blue)}
 
 /* VEHICLE SEARCH */
 .srch-wrap{position:relative;margin-bottom:11px}
@@ -1179,6 +1254,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script src="assets/travel-fee-client.js"></script>
 <link rel="stylesheet" href="assets/public-surface-contrast.css">
   <link rel="stylesheet" href="assets/public-surface.css">
+<link rel="stylesheet" href="assets/icon-3d.css">
 </head>
 <body>
 
@@ -1280,9 +1356,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/subaru-exterior-after.jpg" alt="Subaru Crosstrek exterior after mobile detailing — clean paint, dressed trim, and fresh tires" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/subaru-exterior-after.webp" alt="After mobile car detailing Subaru Crosstrek Palisades Park NJ — clean paint, dressed trim, and fresh tires" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/subaru-exterior-before.jpg" alt="Subaru Crosstrek exterior before mobile detailing — road film on paint and dusty wheels" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/subaru-exterior-before.webp" alt="Before mobile car detailing Subaru Crosstrek Palisades Park NJ — road film on paint and dusty wheels" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1298,9 +1374,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/gator-interior-after.jpg" alt="John Deere Gator interior after deep cleaning — spotless dash, floor mats, and seats" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/gator-interior-after.webp" alt="After mobile interior detailing John Deere Gator Palisades Park NJ — spotless dash, floor mats, and seats" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/gator-interior-before.jpg" alt="John Deere Gator interior before deep cleaning — dusty dash, floor mats, and controls" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/gator-interior-before.webp" alt="Before mobile interior detailing John Deere Gator Palisades Park NJ — dusty dash, floor mats, and controls" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1316,9 +1392,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/gmc-exterior-after.jpg" alt="GMC Terrain exterior after mobile detailing — glossy white paint and deep black trim" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/gmc-exterior-after.webp" alt="After mobile car detailing GMC Terrain Bergen County NJ — glossy white paint and deep black trim" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/gmc-exterior-before.jpg" alt="GMC Terrain exterior before mobile detailing — road film on white paint and dusty grille" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/gmc-exterior-before.webp" alt="Before mobile car detailing GMC Terrain Bergen County NJ — road film on white paint and dusty grille" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1334,9 +1410,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/pet-hair-interior-after.jpg" alt="Rear bench interior after pet hair removal — clean fabric seats and rubber floor mats" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/pet-hair-interior-after.webp" alt="After pet hair interior detailing Bergen County NJ — clean fabric seats and rubber floor mats" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/pet-hair-interior-before.jpg" alt="Rear bench interior before pet hair removal — heavy dog hair on fabric seats" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/pet-hair-interior-before.webp" alt="Before pet hair interior detailing Bergen County NJ — heavy dog hair on fabric seats" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1352,9 +1428,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/mini-front-after.jpg" alt="Mini Cooper S front after exterior detail — mirror-gloss black paint" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/mini-front-after.webp" alt="After exterior mobile detailing Mini Cooper S Palisades Park NJ — mirror-gloss black paint" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/mini-front-before.jpg" alt="Mini Cooper S front before exterior detail — dusty hood and dull black paint" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/mini-front-before.webp" alt="Before exterior mobile detailing Mini Cooper S Palisades Park NJ — dusty hood and dull black paint" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1370,9 +1446,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/mini-side-after.jpg" alt="Mini Cooper Clubman side after exterior detail — deep gloss on dark blue paint" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/mini-side-after.webp" alt="After exterior mobile detailing Mini Cooper Clubman Bergen County NJ — deep gloss on dark blue paint" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/mini-side-before.jpg" alt="Mini Cooper Clubman side before exterior detail — road dust on lower doors and wheels" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/mini-side-before.webp" alt="Before exterior mobile detailing Mini Cooper Clubman Bergen County NJ — road dust on lower doors and wheels" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1388,9 +1464,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/mini-rear-after.jpg" alt="Mini Cooper Clubman rear after exterior detail — clean split doors and glossy paint" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/mini-rear-after.webp" alt="After exterior mobile detailing Mini Cooper Clubman Bergen County NJ — clean split doors and glossy paint" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/mini-rear-before.jpg" alt="Mini Cooper Clubman rear before exterior detail — thick dust on barn doors and bumper" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/mini-rear-before.webp" alt="Before exterior mobile detailing Mini Cooper Clubman Bergen County NJ — thick dust on barn doors and bumper" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1406,9 +1482,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/vienna-rv-front-after.jpg" alt="Renegade Vienna RV front after exterior detail — glossy black cap and clean windshield" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/vienna-rv-front-after.webp" alt="After mobile RV detailing Renegade Vienna Palisades Park NJ — glossy black cap and clean windshield" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/vienna-rv-front-before.jpg" alt="Renegade Vienna RV front before exterior detail — mud streaks on black front cap" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/vienna-rv-front-before.webp" alt="Before mobile RV detailing Renegade Vienna Palisades Park NJ — mud streaks on black front cap" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1424,9 +1500,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/vienna-rv-roof-after.jpg" alt="Renegade Vienna RV roof after cleaning — clean solar panels and white roof surface" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/vienna-rv-roof-after.webp" alt="After mobile RV roof cleaning Renegade Vienna NJ — clean solar panels and white roof surface" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/vienna-rv-roof-before.jpg" alt="Renegade Vienna RV roof before cleaning — grime and debris on solar panels and roof" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/vienna-rv-roof-before.webp" alt="Before mobile RV roof cleaning Renegade Vienna NJ — grime and debris on solar panels and roof" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1442,9 +1518,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/defender-exterior-after.jpg" alt="Land Rover Defender exterior after mobile detail — glossy white paint and clean wheels" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/defender-exterior-after.webp" alt="After mobile car detailing Land Rover Defender Bergen County NJ — glossy white paint and clean wheels" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/defender-exterior-before.jpg" alt="Land Rover Defender exterior before mobile detail — road film and dusty wheels" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/defender-exterior-before.webp" alt="Before mobile car detailing Land Rover Defender Bergen County NJ — road film and dusty wheels" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1460,9 +1536,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/defender-interior-after.jpg" alt="Land Rover Defender interior after deep clean — spotless dash and console" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/defender-interior-after.webp" alt="After interior mobile detailing Land Rover Defender Bergen County NJ — spotless dash and console" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/defender-interior-before.jpg" alt="Land Rover Defender interior before deep clean — muddy floor mat and dusty dash" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/defender-interior-before.webp" alt="Before interior mobile detailing Land Rover Defender Bergen County NJ — muddy floor mat and dusty dash" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1478,9 +1554,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card">
         <div class="ba-compare" style="--ba-pos:50%">
-          <img class="ba-after" src="assets/before-after/volvo-exterior-after.jpg" alt="Volvo XC90 exterior after mobile detail — mirror-gloss black paint" width="1400" height="1050" loading="lazy" decoding="async">
+          <img class="ba-after" src="assets/before-after/volvo-exterior-after.webp" alt="After mobile car detailing Volvo XC90 Palisades Park NJ — mirror-gloss black paint" width="1400" height="1050" loading="lazy" decoding="async">
           <div class="ba-before-wrap">
-            <img class="ba-before" src="assets/before-after/volvo-exterior-before.jpg" alt="Volvo XC90 exterior before mobile detail — pollen and dust on black hood" width="1400" height="1050" loading="lazy" decoding="async">
+            <img class="ba-before" src="assets/before-after/volvo-exterior-before.webp" alt="Before mobile car detailing Volvo XC90 Palisades Park NJ — pollen and dust on black hood" width="1400" height="1050" loading="lazy" decoding="async">
           </div>
           <span class="ba-tag ba-tag--before">Before</span>
           <span class="ba-tag ba-tag--after">After</span>
@@ -1509,15 +1585,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-showcase ba-showcase--collage">
           <div class="ba-collage" role="img" aria-label="Lamborghini Urus and two Porsches after luxury exterior detailing">
             <div class="ba-collage-cell">
-              <img src="assets/showcase/luxury-urus.jpg" alt="Lamborghini Urus after exterior detail — deep gloss on grey paint and clean wheels" width="1400" height="1050" loading="lazy" decoding="async">
+              <img src="assets/showcase/luxury-urus.webp" alt="Lamborghini Urus after mobile exterior detailing Bergen County NJ — deep gloss on grey paint and clean wheels" width="1400" height="1050" loading="lazy" decoding="async">
               <span class="ba-collage-label">Lamborghini Urus</span>
             </div>
             <div class="ba-collage-cell">
-              <img src="assets/showcase/luxury-porsche-1.jpg" alt="Porsche after exterior detail — mirror-gloss paint and dressed trim" width="1400" height="1050" loading="lazy" decoding="async">
+              <img src="assets/showcase/luxury-porsche-1.webp" alt="Porsche after mobile exterior detailing Palisades Park NJ — mirror-gloss paint and dressed trim" width="1400" height="1050" loading="lazy" decoding="async">
               <span class="ba-collage-label">Porsche</span>
             </div>
             <div class="ba-collage-cell">
-              <img src="assets/showcase/luxury-porsche-2.jpg" alt="Porsche after exterior detail — clean body lines and glossy finish" width="1400" height="1050" loading="lazy" decoding="async">
+              <img src="assets/showcase/luxury-porsche-2.webp" alt="Porsche after mobile exterior detailing Bergen County NJ — clean body lines and glossy finish" width="1400" height="1050" loading="lazy" decoding="async">
               <span class="ba-collage-label">Porsche</span>
             </div>
           </div>
@@ -1531,7 +1607,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card ba-card--showcase">
         <div class="ba-showcase">
-          <img src="assets/showcase/luxury-fleet-lineup.jpg" alt="Two Porsches and Range Rover after multi-vehicle premium detail — three luxury SUVs lined up in a driveway with deep gloss finish" width="1400" height="1867" loading="lazy" decoding="async">
+          <img src="assets/showcase/luxury-fleet-lineup.webp" alt="Two Porsches and Range Rover after multi-vehicle mobile detailing Palisades Park NJ" width="1400" height="1867" loading="lazy" decoding="async">
         </div>
         <div class="ba-meta">
           <div class="ba-vehicle">Two Porsches &amp; Range Rover</div>
@@ -1542,7 +1618,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card ba-card--showcase">
         <div class="ba-showcase">
-          <img src="assets/showcase/jayco-dolly-front.jpg" alt="Jayco Eagle Series fifth-wheel front cap with custom Dolly decal after exterior detail — glossy white fiberglass reflecting sky and trees" width="1400" height="1050" loading="lazy" decoding="async">
+          <img src="assets/showcase/jayco-dolly-front.webp" alt="Jayco Eagle fifth-wheel after mobile RV exterior detailing NJ — glossy white fiberglass front cap" width="1400" height="1050" loading="lazy" decoding="async">
         </div>
         <div class="ba-meta">
           <div class="ba-vehicle">Jayco Eagle &ldquo;Dolly&rdquo;</div>
@@ -1553,7 +1629,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <article class="ba-card ba-card--showcase">
         <div class="ba-showcase">
-          <img src="assets/showcase/gator-exterior-hero.jpg" alt="John Deere Gator XUV835M side profile after full exterior detail — polished green panels and dressed off-road tires" width="1400" height="1050" loading="lazy" decoding="async">
+          <img src="assets/showcase/gator-exterior-hero.webp" alt="John Deere Gator XUV835M after mobile UTV detailing Bergen County NJ — polished green panels and dressed tires" width="1400" height="1050" loading="lazy" decoding="async">
         </div>
         <div class="ba-meta">
           <div class="ba-vehicle">John Deere Gator XUV835M</div>
@@ -1625,25 +1701,29 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="sec-title">FOUR STEPS.<br>ZERO HASSLE.</div>
     <div class="sec-desc">No shop drop-off, no waiting room, no phone tag. Submit your driveway-service request online — we'll review it from there.</div>
     <div class="how-grid">
-      <div class="how-card">
-        <div class="how-ico">📱</div>
+      <div class="how-card how-card--photo how-card--book">
+        <div class="how-card-copy">
         <div class="how-title">Grab Your Spot</div>
         <div class="how-desc">Submit your driveway-service request online.</div>
+        </div>
       </div>
-      <div class="how-card">
-        <div class="how-ico">🔒</div>
+      <div class="how-card how-card--photo how-card--request">
+        <div class="how-card-copy">
         <div class="how-title">Request First</div>
         <div class="how-desc">Book with confidence. No card or payment is required to submit. We review the request first, and payment is handled later when applicable.</div>
+        </div>
       </div>
-      <div class="how-card">
-        <div class="how-ico">🚐</div>
+      <div class="how-card how-card--photo how-card--arrive">
+        <div class="how-card-copy">
         <div class="how-title">We Come To You</div>
         <div class="how-desc">Our tech rolls up to your driveway, office, or marina with pro gear. You stay put — we handle the rest.</div>
+        </div>
       </div>
-      <div class="how-card">
-        <div class="how-ico">✨</div>
+      <div class="how-card how-card--photo how-card--inspect">
+        <div class="how-card-copy">
         <div class="how-title">Inspect & Pay</div>
         <div class="how-desc">Walk around with your tech when the job's done. Final payment happens after you've seen the results.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1755,6 +1835,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <a href="my-garage.html#lookup">View or Manage Booking</a>
         <a href="my-garage.html#payments">Pay a Balance</a>
         <a href="index.html">Book Another Service</a>
+        <a href="blog.html">Guides &amp; FAQ</a>
         <a href="terms-conditions.html">Terms &amp; Policies</a>
       </div>
       <div class="foot-col">
@@ -1848,25 +1929,25 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
         <div class="service-grid" id="bk-cat-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
-            <span class="svc-ico-photo"><img src="assets/vehicles/premium/cars-suvs.webp" alt="Cars and trucks receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
+            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-cars.webp" alt="Cars and trucks receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
             <div class="svc-from" id="bkfrom-cars" style="font-size:12px">Packages shown after ZIP check</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
-            <span class="svc-ico-photo"><img src="assets/vehicles/premium/marine.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
+            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-boats.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Boats</div>
             <div class="svc-desc" style="font-size:12px">All vessels · Priced by length</div>
             <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $170</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
-            <span class="svc-ico-photo"><img src="assets/vehicles/premium/rv-trailer.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
+            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-rvs.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
             <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">Price calculated from your vehicle details.</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
-            <span class="svc-ico-photo"><img src="assets/vehicles/premium/powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
+            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
             <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
             <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $100</div>
@@ -2386,6 +2467,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 <script src="https://js.stripe.com/v3/"></script>
 <script src="/netlify/lib/admin-session-client.js"></script>
+<script src="assets/icon-3d.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════
@@ -2612,39 +2694,54 @@ async function makeWebhookSend(payload){
 }
 
 // ── PRICING DATA ──────────────────────────────────────────────────────────────
+const CAR_INTERIOR_SERVICE_ITEMS = [
+  'Deep vacuum — seats, floors, trunk, and truck bed where applicable',
+  'Fabric seats & carpet shampoo',
+  'Leather surfaces conditioned',
+  'Steam clean — vents, panels, crevices',
+  'Dashboard, doors & trim detail with UV protectant on plastics',
+  'Interior glass cleaned',
+  'Door jambs cleaned',
+  'Headliner cleaning',
+];
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     maint:150, interior:190, full:240, refresh:320, premium:385},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        maint:185, interior:215, full:260, refresh:360, premium:470},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', maint:215, interior:235, full:270, refresh:405, premium:540},
-      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       maint:215, interior:235, full:275, refresh:395, premium:525},
+      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     wash:110, maint:150, interior:190, full:240, refresh:320, premium:385},
+      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        wash:135, maint:185, interior:215, full:260, refresh:360, premium:470},
+      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', wash:155, maint:215, interior:235, full:270, refresh:405, premium:540},
+      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       wash:155, maint:215, interior:235, full:275, refresh:395, premium:525},
     },
     packages:[
+      {id:'wash',     name:'Exterior Hand Wash', icon:'🚿', tag:'Exterior wash only — add wax, clay bar, or engine bay if you want more', dur:'~45–75 min', popular:false, scope:'ext', note:'Exterior wash only — protection, clay bar, and engine bay are add-ons.',
+        ext:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
+        int:[],
+        feats:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
+        miss:['Clay bar decontamination','Paint correction','Wax or sealant','Interior vacuum','Engine bay detailing']},
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
         ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
         int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
         feats:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
         miss:['Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
-      {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles — add-ons available for pet hair, odor & stains', dur:'~2.5–3.5h',            popular:false, scope:'int',
+      {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles — add-ons available for pet hair, odor & stains', dur:'~1.5–2h',            popular:false, scope:'int',
         ext:[],
-        int:['Deep vacuum — seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior glass cleaned'],
-        feats:['Deep vacuum — seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean — vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior glass cleaned'],
+        int:CAR_INTERIOR_SERVICE_ITEMS,
+        feats:CAR_INTERIOR_SERVICE_ITEMS,
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
-      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh — most popular',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
+      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh — most popular',                                                dur:'~2.5–3h', popular:true,  scope:'both',
         ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'],
-        int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','UV protectant'],
-        feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','Spray sealant/protection','Tire dressing','UV protectant'],
+        int:CAR_INTERIOR_SERVICE_ITEMS,
+        feats:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'].concat(CAR_INTERIOR_SERVICE_ITEMS),
         miss:['Machine polish','Paint correction','Premium long-term sealant']},
-      {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~2.5–3h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
+      {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~3.5–4h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
         ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'],
         int:[],
         feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X glass treatment','Tire dressing','Final quality inspection'],
         miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
-      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — single-pass correction, ceramic protection, clay bar, Rain-X & deep interior care', dur:'~6–8h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting ceramic paint protection','Deep wheel & lug detailing','Exterior trim restoration','Rain-X windshield treatment'],
-        int:['Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Detailed dash & console cleaning','Interior glass & vents detailed','Trunk & cargo area detail'],
-        feats:['Clay bar decontamination','Single-pass paint correction','Ceramic paint protection','Deep wheel & lug detailing','Rain-X windshield treatment','Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Dash & console detail','Final quality inspection'],
+      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — clay bar, single-pass correction, sealant, Rain-X & deep interior care', dur:'~3.5–4h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'],
+        int:CAR_INTERIOR_SERVICE_ITEMS,
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'].concat(CAR_INTERIOR_SERVICE_ITEMS),
         miss:[]}
     ],
     addons:[
@@ -3248,6 +3345,16 @@ function bkGoTo(n){
   const activeTab=document.getElementById('bpt'+n);
   if(activeTab&&activeTab.scrollIntoView) activeTab.scrollIntoView({inline:'center',block:'nearest'});
   document.getElementById('bs'+n).classList.add('on');
+  if(n===2){
+    const n2=document.getElementById('next2');
+    if(n2) n2.disabled=!ST.pkg;
+    const grid=document.getElementById('pkg-grid');
+    if(grid&&ST.pkgId){
+      grid.querySelectorAll('.pkg').forEach(c=>c.classList.remove('sel'));
+      const card=document.getElementById('pk-'+ST.pkgId);
+      if(card) card.classList.add('sel');
+    }
+  }
   if(n===3) renderVehicleCart();
   if(n===4)fillStrip5();
   if(n===6)fillConfirm();
@@ -3291,9 +3398,10 @@ function renderPackages(cat){
       startPrice=applyRichPrice(sampleTier[p.id]||sampleTier.maint||sampleTier.wash||sampleTier.exterior);
     }
     if(p.id!=='custom') startPrice += getTravelFeeAmount();
+    const packVisual=(typeof icon3dPack==='function'&&icon3dPack(p.id, cat))||categoryVisual;
     return `<div class="pkg${p.popular?' pop':''}" id="pk-${p.id}" onclick="selectPkg('${p.id}')">
       ${p.popular?'<div class="pop-b">Most Popular</div>':''}
-      <div class="pkg-visual"><img src="${categoryVisual.img}" alt="${categoryVisual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
+      <div class="pkg-visual pkg-visual--3d"><img src="${packVisual.img}" alt="${packVisual.alt}" width="256" height="256" loading="lazy" decoding="async"></div>
       <div class="pkg-name">${p.name}</div>
       <div class="pkg-tag">${p.tag}</div>
       <div class="pkg-price">${p.id==='custom'?'Estimate':'from $'+startPrice}</div>
@@ -3314,13 +3422,19 @@ function renderPackages(cat){
 }
 
 function selectPkg(id){
-  document.querySelectorAll('.pkg').forEach(c=>c.classList.remove('sel'));
-  const el=document.getElementById('pk-'+id);
-  if(el)el.classList.add('sel');
+  const grid=document.getElementById('pkg-grid');
+  if(grid){
+    grid.querySelectorAll('.pkg').forEach(c=>c.classList.remove('sel'));
+    const el=document.getElementById('pk-'+id);
+    if(el) el.classList.add('sel');
+  }
+  const changed=ST.pkgId!==id;
   ST.pkgId=id;
   ST.pkg=(PRICING[ST.cat]&&PRICING[ST.cat].packages)?PRICING[ST.cat].packages.find(p=>p.id===id):null;
   document.getElementById('next2').disabled=!ST.pkg;
+  if(changed){ ST._addonKey=''; ST.addons=[]; ST.addonTotal=0; }
   if((ST.cat==='boats'||ST.cat==='rvs'||ST.cat==='fleet') && (ST.lengthFt||ST.units)){tryGenericConfirm();}
+  else if(ST.cat==='cars' && ST.tierKey){ setBasePrice(); if(ST.vehicleLabel) renderAddons(); }
   // Auto-advance to vehicle step
   if(ST.pkg) setTimeout(()=>bkGoTo(3), 180);
 }
@@ -3342,8 +3456,10 @@ function renderTierChips(cat){
       const minP=applyRichPrice(Math.min(...prices));
       const fee=getTravelFeeAmount();
       const visual=VEHICLE_VISUALS[TIER_VISUAL_KEYS[k]||getVehicleVisualKey()]||VEHICLE_VISUALS.sedan;
+      const ico3d=typeof icon3dTier==='function'?icon3dTier(k):null;
+      const chipVisual=ico3d||visual;
       return `<div class="tchip" data-tier="${k}" onclick="selectTier('${k}')">
-        <div class="tchip-ico"><img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
+        <div class="tchip-ico${ico3d?' tchip-ico--3d':''}"><img src="${chipVisual.img}" alt="${chipVisual.alt}" width="256" height="256" loading="lazy" decoding="async"></div>
         <div class="tchip-name">${t.label}</div>
         <div class="tchip-desc">${t.desc}</div>
         <div class="tchip-from">from $${minP+fee}</div>
@@ -3665,6 +3781,13 @@ document.getElementById('year-sel').addEventListener('change',function(){
 });
 
 // ── STEP 4: ADD-ONS ───────────────────────────────────────────────────────────
+function addonRequiresShampooOrSteam(a){
+  if(!a) return false;
+  if(a.id==='superint'||a.id==='floormats') return true;
+  const blob=((a.desc||'')+' '+(a.name||'')).toLowerCase();
+  return /shampoo|steam/.test(blob);
+}
+
 function renderAddons(){
   if(!ST.pkg) return;
   document.getElementById('ah-pkg').textContent=(ST.pkg?.name||'')+' Package';
@@ -3688,6 +3811,7 @@ function renderAddons(){
   const addons=(PRICING[ST.cat]?.addons||[]).filter(a=>{
     const s=a.scope||'any';
     if(_pkgIncludesAddon[a.id]) return false;
+    if(ST.cat==='cars' && ST.pkgId==='maint' && addonRequiresShampooOrSteam(a)) return false;
     return pkgScope==='both' || s==='any' || s===pkgScope;
   });
   const POPULAR_IDS=ST.cat==='rvs'?['superint','sanitize','rainx','pethair','odor']:['rainx','pethair','odor'];
@@ -5016,9 +5140,9 @@ function renderLocationCarousel(zoneKey){
   if(!scroll) return;
   scroll.innerHTML = cats.map(cat=>{
     const d = LOC_DISPLAY[cat];
-    const visual = CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
+    const visual = (typeof icon3dPack==='function' && icon3dPack(null, cat)) || CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
     const inner = `
-      <div class="loc-visual"><img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
+      <div class="loc-visual loc-visual--3d"><img src="${visual.img}" alt="${visual.alt}" width="512" height="512" loading="lazy" decoding="async"></div>
       <div class="loc-name">${d.name}</div>
       <div class="loc-req">${d.desc}</div>
       <div class="loc-from">${formatLocFrom(cat)}</div>`;

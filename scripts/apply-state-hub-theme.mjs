@@ -94,19 +94,18 @@ const howHtml3Step = `<!-- HOW IT WORKS -->
     <div class="sec-desc">No payment is required to submit a booking request. We review it first. Long-distance appointments may require quote approval, and payment is handled later when applicable.</div>
     <div class="how-grid how-grid--three">
       <div class="how-card">
-        <div class="how-ico">📍</div>
         <div class="how-title">Enter ZIP &amp; request</div>
         <div class="how-desc">Check your area and start your appointment online — we confirm coverage before you book.</div>
       </div>
       <div class="how-card">
-        <div class="how-ico">📋</div>
         <div class="how-title">Choose package &amp; add-ons</div>
         <div class="how-desc">Pick interior, full, or exterior detail. Add pet hair, odor, engine bay, and more when you book.</div>
       </div>
-      <div class="how-card">
-        <div class="how-ico">🚐</div>
+      <div class="how-card how-card--photo how-card--arrive">
+        <div class="how-card-copy">
         <div class="how-title">We come to you</div>
         <div class="how-desc">Our tech arrives at your driveway or office. Walk the vehicle when done — pay after the detail.</div>
+        </div>
       </div>
     </div>
   </div>

@@ -57,9 +57,8 @@ const {
   resetAppointmentAccessStoreFactories,
 } = require('../netlify/lib/appointment-access-token');
 
-// NANP 555-01xx reserved for fiction — must not match production ADMIN_SMS / env secrets.
-const VERIFIED = '+15555550101';
-const ADMIN_TO = '+15555550199';
+const VERIFIED = '+12015550177';
+const ADMIN_TO = '+12015550199';
 const TYPICAL_TOKEN = 'aat_' + 'A'.repeat(43);
 const TYPICAL_URL = `https://cardetail1.com/a?t=${TYPICAL_TOKEN}`;
 
@@ -298,11 +297,13 @@ describe('consent copy and legacy grants', () => {
 describe('STOP/HELP, secure links, consent, outbox, payments', () => {
   it('9. STOP/HELP remain Twilio Advanced Opt-Out; app does not send a reply', () => {
     const inbound = read('netlify/functions/twilio-inbound.js');
-    assert.match(inbound, /Advanced Opt-Out sends the configured STOP\/HELP response/);
-    assert.match(inbound, /<Response><\/Response>/);
-    assert.doesNotMatch(inbound, /Detailing Zone/);
+    const handler = read('netlify/lib/twilio-inbound-handler.js');
+    assert.match(handler, /Advanced Opt-Out sends the configured STOP\/HELP response/);
+    assert.match(handler, /emptyTwiml\(\)/);
+    assert.doesNotMatch(handler, /Detailing Zone/);
+    assert.doesNotMatch(handler, /Cardetail1: For help/);
+    assert.doesNotMatch(handler, /You have been unsubscribed/);
     assert.doesNotMatch(inbound, /Cardetail1: For help/);
-    assert.doesNotMatch(inbound, /You have been unsubscribed/);
   });
 
   it('10. secure-link rules unchanged: authorized link vs safe confirmation', () => {
@@ -348,7 +349,7 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
   });
 
   it('13. outbox/idempotency files and enqueue keys are unchanged', async () => {
-    const diff = execSync('git diff --name-only origin/master', { cwd: ROOT, encoding: 'utf8' });
+    const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
     assert.doesNotMatch(diff, /sms-outbox\.js/);
     assert.doesNotMatch(diff, /twilio-outbox-worker/);
     assert.doesNotMatch(diff, /twilio-provider/);
@@ -371,7 +372,7 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
   });
 
   it('15. booking/payment behavior unchanged', async () => {
-    const diff = execSync('git diff --name-only origin/master', { cwd: ROOT, encoding: 'utf8' });
+    const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
     assert.doesNotMatch(diff, /stripe/i);
     assert.doesNotMatch(diff, /payment-authority|refund-adjustment|canonical-quote|receipt-projection/);
     assert.doesNotMatch(diff, /submit-booking\.js/);

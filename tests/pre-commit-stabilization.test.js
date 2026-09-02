@@ -56,9 +56,9 @@ function resolveHref(href) {
   return file;
 }
 
-test('sitemap reported count equals actual URL entries (19)', () => {
+test('sitemap reported count equals actual URL entries', () => {
   const urls = sitemapUrls();
-  assert.equal(urls.length, 19);
+  assert.equal(urls.length, 31);
 });
 
 test('every sitemap route file exists on disk', () => {
@@ -374,6 +374,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/submit-booking.js',
     'netlify/functions/submit-inquiry.js',
     'netlify/functions/twilio-inbound.js',
+    'netlify/lib/twilio-inbound-handler.js',
     'netlify/functions/twilio-outbox-worker.js',
     'netlify/functions/twilio-status-callback.js',
     'netlify/lib/auction-ops.js',
@@ -388,6 +389,9 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/twilio-provider.js',
     'netlify/lib/twilio-runtime-policy.js',
     'netlify/lib/twilio-webhook.js',
+    // Twilio inbound SMS + voice forwarding to a personal number (PR #225).
+    'netlify/functions/twilio-voice.js',
+    'netlify/lib/twilio-forwarding.js',
     // Booking-store scan removal: indexed lookups on the request paths that
     // outgrew a full cd1-bookings hydration (offer history, slot occupancy,
     // customer portal, booking resolution by id).

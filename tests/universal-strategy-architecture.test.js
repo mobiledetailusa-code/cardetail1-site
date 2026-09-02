@@ -181,7 +181,7 @@ test('anonymous prospect cannot create lead without contact', () => {
 test('identified contact can validate for lead creation', () => {
   const v = validateLeadCreation({
     name: 'Test User',
-    phone: '5513132956',
+    phone: '2015550177',
     email: 'test@example.com',
     transactionalConsent: true,
   });
@@ -198,7 +198,7 @@ test('identified lead with consent can enter recovery queue', () => {
   const r = canEnterRecoveryQueue({
     leadId: 'lead_1',
     name: 'Test',
-    phone: '5513132956',
+    phone: '2015550177',
     transactionalConsent: true,
     contactCaptured: true,
   });
@@ -220,7 +220,7 @@ test('anonymous prospect is not synced to CRM', () => {
 test('identified lead can sync to CRM when contact present', () => {
   const r = canSyncCrm({
     leadId: 'lead_1',
-    _private: { email: 'a@b.com', phone: '5513132956', name: 'A B' },
+    _private: { email: 'a@b.com', phone: '2015550177', name: 'A B' },
   });
   assert.equal(r.ok, true);
 });

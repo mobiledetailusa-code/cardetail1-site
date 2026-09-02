@@ -1,14 +1,39 @@
 /* Shared package detail data + in-page modal (homepage + state hubs) */
 const CAR_PKG_DETAILS = {
+  wash: {
+    title: "Exterior Hand Wash",
+    includes: [
+      "Exterior hand wash and rinse",
+      "Wheels and tires cleaned",
+      "Exterior glass",
+      "Door jambs wiped",
+      "Tire dressing",
+    ],
+    bestFor: [
+      "Regular upkeep",
+      "A quick exterior reset",
+      "Between full details",
+    ],
+    addonsMayApply: [
+      "1-Year Carnauba Wax",
+      "Polymer paint sealant",
+      "Clay bar",
+      "Engine bay detailing",
+      "Rain-X",
+      "Headlight restoration",
+    ],
+  },
   interior: {
     title: "Interior Detail",
     includes: [
-      "Vacuum",
-      "Shampoo/extraction as needed",
-      "Steam touch points",
-      "Dash, console, doors, cupholders",
-      "Interior glass",
-      "Floor mats",
+      "Deep vacuum — seats, floors, trunk, and truck bed where applicable",
+      "Fabric seats & carpet shampoo",
+      "Leather surfaces conditioned",
+      "Steam clean — vents, panels, crevices",
+      "Dashboard, doors & trim detail with UV protectant on plastics",
+      "Interior glass cleaned",
+      "Door jambs cleaned",
+      "Headliner cleaning",
     ],
     bestFor: [
       "Daily drivers",
@@ -26,11 +51,17 @@ const CAR_PKG_DETAILS = {
   full: {
     title: "Premium Full Detail",
     includes: [
-      "Interior detail",
+      "Deep vacuum — seats, floors, trunk, and truck bed where applicable",
+      "Fabric seats & carpet shampoo",
+      "Leather surfaces conditioned",
+      "Steam clean — vents, panels, crevices",
+      "Dashboard, doors & trim detail with UV protectant on plastics",
+      "Interior glass cleaned",
+      "Door jambs cleaned",
+      "Headliner cleaning",
       "Exterior hand wash",
       "Wheels and tires",
       "Exterior glass",
-      "Door jambs",
       "Light paint cleaning",
       "Exterior protection",
     ],
@@ -119,9 +150,21 @@ function openHomePkgDetailModal(pkgId, e) {
   const priceEl = document.getElementById("car-pkg-detail-price");
   const bodyEl = document.getElementById("car-pkg-detail-body");
   const bookBtn = document.getElementById("car-pkg-detail-book");
+  const icoEl = document.getElementById("car-pkg-detail-ico");
   if (!titleEl || !priceEl || !bodyEl || !bookBtn) return;
   titleEl.textContent = d.title;
   priceEl.textContent = getHomePkgPriceNote(pkgId);
+  if (icoEl) {
+    const vis = typeof icon3dPack === "function" ? icon3dPack(pkgId, "cars") : null;
+    if (vis) {
+      icoEl.src = vis.img;
+      icoEl.alt = vis.alt || "";
+      icoEl.hidden = false;
+    } else {
+      icoEl.removeAttribute("src");
+      icoEl.hidden = true;
+    }
+  }
   bodyEl.innerHTML = buildCarPkgDetailSectionsHtml(d);
   bookBtn.onclick = function () {
     closeHomePkgDetailModal();

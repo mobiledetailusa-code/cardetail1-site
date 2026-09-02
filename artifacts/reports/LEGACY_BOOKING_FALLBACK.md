@@ -84,7 +84,7 @@ modal divergence is not.)
 1. adds `cd1-hub-booking-delegated` to `<html>`;
 2. injects `html.cd1-hub-booking-delegated #bk-ov{display:none!important;visibility:hidden!important;pointer-events:none!important}`;
 3. builds `#hub-booking-overlay` containing an `<iframe>` of `index.html` with `allow="payment"`;
-4. shows `"We could not load booking. Please try again or call/text 551-313-2956."` in `#hub-booking-error` if the frame fails.
+4. shows `"We could not load booking. Please try again or call/text 201-555-0177."` in `#hub-booking-error` if the frame fails.
 
 It deliberately bails out — leaving the inline modal visible — when `document.body` carries
 `cd1-booking-embed`, when the path is `/` or `index.html`, or when the path is not

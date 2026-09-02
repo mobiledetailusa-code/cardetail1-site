@@ -99,7 +99,7 @@ function validDraftBody(overrides = {}) {
     isDraft: true,
     firstName: 'Schedule',
     lastName: 'Test',
-    phone: '5513132956',
+    phone: '2015550177',
     email: 'schedule@example.com',
     zipCode: '07650',
     address: '100 Test St',

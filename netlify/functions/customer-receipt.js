@@ -38,12 +38,18 @@ exports.handler = async (event) => {
     phone: body.phone || body.customerPhone,
   });
   if (!auth.ok) {
-    // Mirrors the portal's established denial shapes: 400 validation, 401 session
-    // required, 403 cross-account, safe 200 for not-found / phone mismatch.
+    // Email receipt links carry bookingId only. A booking id is never enough;
+    // the page then collects the phone on file. Map the generic auth
+    // validation into a receipt-specific prompt instead of leaking the
+    // portal lookup copy onto a blank receipt.
+    const phoneRequired = auth.error === 'validation_error'
+      && /mobile number is required/i.test(String(auth.message || ''));
     return jsonCors(auth.statusCode || 200, {
       ok: false,
-      error: auth.error || 'authentication_failed',
-      message: auth.message,
+      error: phoneRequired ? 'phone_required' : (auth.error || 'authentication_failed'),
+      message: phoneRequired
+        ? 'Enter the US mobile number used on this booking to view your receipt.'
+        : auth.message,
     });
   }
 

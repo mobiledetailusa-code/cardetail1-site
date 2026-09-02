@@ -39,6 +39,37 @@ function read(file) {
   return fs.readFileSync(path.join(ROOT, file), 'utf8');
 }
 
+function extractArrayConst(source, name) {
+  const marker = `const ${name} = [`;
+  const start = source.indexOf(marker);
+  if (start === -1) return undefined;
+  const open = start + marker.length - 1;
+  let depth = 0;
+  let quote = '';
+  let escaped = false;
+  for (let i = open; i < source.length; i += 1) {
+    const ch = source[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === quote) quote = '';
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') {
+      quote = ch;
+      continue;
+    }
+    if (ch === '[') depth += 1;
+    else if (ch === ']') {
+      depth -= 1;
+      if (depth === 0) {
+        return vm.runInNewContext(`(${source.slice(open, i + 1)})`);
+      }
+    }
+  }
+  return undefined;
+}
+
 function extractAssignedObject(source, name) {
   // `let` is used on index.html for PRICING / LENGTH_PRICING because the Owner Studio
   // saved-draft preview replaces them at runtime; both declaration forms are valid here.
@@ -68,7 +99,10 @@ function extractAssignedObject(source, name) {
     else if (ch === '}') {
       depth -= 1;
       if (depth === 0) {
-        return vm.runInNewContext(`(${source.slice(start, i + 1)})`);
+        const sandbox = {};
+        const interiorItems = extractArrayConst(source, 'CAR_INTERIOR_SERVICE_ITEMS');
+        if (interiorItems) sandbox.CAR_INTERIOR_SERVICE_ITEMS = interiorItems;
+        return vm.runInNewContext(`(${source.slice(start, i + 1)})`, sandbox);
       }
     }
   }
@@ -98,7 +132,7 @@ function catalogPriceEntries() {
   return entries;
 }
 
-test('13 booking pages match all 144 authoritative package values (1,872 comparisons)', () => {
+test('13 booking pages match all 148 authoritative package values (1,924 comparisons)', () => {
   const discovered = fs.readdirSync(ROOT)
     .filter((file) => file.endsWith('.html'))
     .filter((file) => /(?:const|let)\s+PRICING\s*=/.test(read(file)))
@@ -106,7 +140,7 @@ test('13 booking pages match all 144 authoritative package values (1,872 compari
   assert.deepEqual(discovered, BOOKING_PAGES.slice().sort());
 
   const entries = catalogPriceEntries();
-  assert.equal(entries.length, 144);
+  assert.equal(entries.length, 148);
   let comparisons = 0;
   for (const file of BOOKING_PAGES) {
     const html = read(file);
@@ -120,7 +154,7 @@ test('13 booking pages match all 144 authoritative package values (1,872 compari
       comparisons += 1;
     }
   }
-  assert.equal(comparisons, 1872);
+  assert.equal(comparisons, 1924);
 });
 
 test('server length helpers and RV calculator derive from the authoritative catalog', () => {
@@ -201,7 +235,7 @@ test('static starting-price surfaces are verified against the catalog', () => {
     const html = read(file);
     assert.match(html, new RegExp(`id="home-from-interior">\\$${carInterior}<`), file);
     assert.match(html, new RegExp(`id="home-from-refresh">\\$${carRefresh}<`), file);
-    assert.match(html, new RegExp(`Sedans from \\$${PRICING.cars.tiers.small.full} · SUVs from \\$${PRICING.cars.tiers.suv2.full} · 3-row SUVs from \\$${PRICING.cars.tiers.suv3.full}`), file);
+    assert.match(html, new RegExp(`From \\$${PRICING.cars.tiers.small.full} · priced by vehicle type`), file);
   }
 
   for (const file of ['new-jersey-hub.html', 'connecticut-hub.html', 'ny-metro-hub.html', 'pennsylvania-hub.html']) {
@@ -224,6 +258,7 @@ test('AI chat starting prices are derived from the same catalog', () => {
   assert.deepEqual(CHAT_STARTING_PRICES, {
     cars: 190,
     carMaintenance: 150,
+    carWash: 110,
     boats: 170,
     rvs: 238,
     powersports: 100,

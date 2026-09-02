@@ -18,8 +18,8 @@ describe('subscription-checkout', () => {
   });
 
   it('verifyCustomer requires email and phone', () => {
-    assert.equal(verifyCustomer({ email: 'a@b.com', phone: '5513132956' }).ok, true);
-    assert.equal(verifyCustomer({ email: 'bad', phone: '5513132956' }).error, 'valid_email_required');
+    assert.equal(verifyCustomer({ email: 'a@b.com', phone: '2015550177' }).ok, true);
+    assert.equal(verifyCustomer({ email: 'bad', phone: '2015550177' }).error, 'valid_email_required');
     assert.equal(verifyCustomer({ email: 'a@b.com', phone: '123' }).error, 'phone_required');
   });
 

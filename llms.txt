@@ -1,0 +1,35 @@
+# Cardetail1
+
+> Mobile car, boat, RV, and powersports detailing based in Palisades Park, Bergen County, New Jersey. We come to the driveway with water and power. Cardetail1 is a registered DBA of Detailing Zone L.L.C.
+
+## Primary pages
+- [Home](https://cardetail1.com/): Mobile car detailing in Bergen County — packages, ZIP check, booking
+- [Bergen County](https://cardetail1.com/bergen-county-hub.html)
+- [Palisades Park](https://cardetail1.com/palisades-park-mobile-detailing.html)
+- [Fort Lee](https://cardetail1.com/fort-lee-mobile-detailing.html)
+- [Paramus](https://cardetail1.com/paramus-mobile-detailing.html)
+- [Hackensack](https://cardetail1.com/hackensack-mobile-detailing.html)
+- [Englewood](https://cardetail1.com/englewood-mobile-detailing.html)
+- [Teaneck](https://cardetail1.com/teaneck-mobile-detailing.html)
+- [Ridgewood](https://cardetail1.com/ridgewood-mobile-detailing.html)
+- [Edgewater](https://cardetail1.com/edgewater-mobile-detailing.html)
+- [Boats](https://cardetail1.com/boats-detailing.html)
+- [RVs](https://cardetail1.com/rv-detailing.html)
+- [Powersports](https://cardetail1.com/powersports-detailing.html)
+- [Fleet](https://cardetail1.com/fleet-services.html)
+
+## Car packages (from prices, sedan unless noted)
+- Interior Detail from $190
+- Premium Full Detail from $240 (SUVs from $260, 3-row from $270)
+- Exterior Detail & Paint Enhancement from $320
+
+## Facts
+- Address locality: Palisades Park, NJ 07650
+- Phone: +1-551-373-5668
+- Hours: Monday–Friday 8:00–17:00, by appointment
+- Google listing: 5.0 from 9 reviews (snapshot August 2026)
+- Booking: request online, no charge at submission
+- Coverage: Bergen County core (no travel fee on standard NJ core ZIPs); Hudson, Essex, Passaic; NY Metro, CT, PA by quote
+
+## Optional
+- [llms.txt](https://cardetail1.com/llms.txt)

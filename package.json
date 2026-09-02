@@ -18,6 +18,8 @@
     "preview:prototype": "npx --yes serve prototype -p 3456",
     "preview:prototype:live": "npx --yes netlify-cli dev --port 8888",
     "twilio:activate": "node scripts/twilio-netlify-activate.js",
+    "twilio:activate:inspect": "node scripts/twilio-netlify-activate.js --inspect-netlify-env",
+    "twilio:activate:setup": "bash scripts/twilio-netlify-local-setup.sh",
     "financial:preflight": "node scripts/financial-preflight.mjs",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",

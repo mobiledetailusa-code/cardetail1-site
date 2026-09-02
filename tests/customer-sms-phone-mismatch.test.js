@@ -34,8 +34,8 @@ const {
 const { normalizeUsPhoneE164, phonesMatch } = require('../netlify/lib/phone-auth');
 const { generateOpaqueToken, buildAccessUrl } = require('../netlify/lib/appointment-access-token');
 
-const VERIFIED = '+15513132956';
-const BOOKING_OTHER = '+15513983986';
+const VERIFIED = '+12015550177';
+const BOOKING_OTHER = '+12015550188';
 const ACCESS_URL = 'https://cardetail1.com/a?t=aat_TEST_OPAQUE_TOKEN_VALUE_NOT_REAL';
 
 function consentedBooking(phone, overrides = {}) {
@@ -50,7 +50,7 @@ function consentedBooking(phone, overrides = {}) {
   };
 }
 
-function accountPrisma({ verifiedPhone = '5513132956', consentStatus = 'granted', revokedAt = null } = {}) {
+function accountPrisma({ verifiedPhone = '2015550177', consentStatus = 'granted', revokedAt = null } = {}) {
   const profile = {
     phone: verifiedPhone,
     normalizedPhone: String(verifiedPhone || '').replace(/\D/g, '').replace(/^1/, '').slice(-10) || null,
@@ -85,11 +85,11 @@ function accountPrisma({ verifiedPhone = '5513132956', consentStatus = 'granted'
 
 describe('phone normalization is not a false mismatch source', () => {
   it('formats of the same US number compare equal after E.164 normalize', () => {
-    const forms = ['+15513132956', '(551) 313-2956', '5513132956', '1-551-313-2956'];
+    const forms = ['+12015550177', '(201) 555-0177', '2015550177', '1-201-555-0177'];
     const normalized = forms.map((f) => normalizeUsPhoneE164(f));
     assert.ok(normalized.every((n) => n === VERIFIED));
-    assert.equal(phonesMatch('(551) 313-2956', '+15513132956'), true);
-    assert.equal(phonesMatch('5513983986', VERIFIED), false);
+    assert.equal(phonesMatch('(201) 555-0177', '+12015550177'), true);
+    assert.equal(phonesMatch('2015550188', VERIFIED), false);
   });
 });
 
@@ -127,9 +127,9 @@ describe('resolveCustomerBookingSmsPlan CASE A/B/C', () => {
 
   it('3. consent=true + same phone different formatting → access SMS allowed', () => {
     const plan = resolveCustomerBookingSmsPlan({
-      booking: consentedBooking('(551) 313-2956'),
-      toE164: '551-313-2956',
-      verifiedPhoneE164: '+1 (551) 313-2956',
+      booking: consentedBooking('(201) 555-0177'),
+      toE164: '201-555-0177',
+      verifiedPhoneE164: '+1 (201) 555-0177',
       eventType: EVENT_REQUEST_RECEIVED,
       accessUrl: ACCESS_URL,
     });
@@ -219,7 +219,7 @@ describe('resolveCustomerBookingSmsPlan CASE A/B/C', () => {
 
 describe('assertCustomerSmsConsent booking path vs account path', () => {
   it('14. booking consent + mismatch destination is allowed for enqueue (not verified_phone_mismatch)', async () => {
-    const prisma = accountPrisma({ verifiedPhone: '5513132956', consentStatus: null });
+    const prisma = accountPrisma({ verifiedPhone: '2015550177', consentStatus: null });
     const result = await assertCustomerSmsConsent({
       customerAccountId: 'account-sms-mismatch',
       toE164: BOOKING_OTHER,
@@ -231,7 +231,7 @@ describe('assertCustomerSmsConsent booking path vs account path', () => {
   });
 
   it('matching verified phone remains accessAuthorized', async () => {
-    const prisma = accountPrisma({ verifiedPhone: '5513132956', consentStatus: 'granted' });
+    const prisma = accountPrisma({ verifiedPhone: '2015550177', consentStatus: 'granted' });
     const result = await assertCustomerSmsConsent({
       customerAccountId: 'account-sms-mismatch',
       toE164: VERIFIED,
@@ -242,7 +242,7 @@ describe('assertCustomerSmsConsent booking path vs account path', () => {
   });
 
   it('without booking consent, destination mismatch still suppresses as verified_phone_mismatch', async () => {
-    const prisma = accountPrisma({ verifiedPhone: '5513132956', consentStatus: 'granted' });
+    const prisma = accountPrisma({ verifiedPhone: '2015550177', consentStatus: 'granted' });
     const result = await assertCustomerSmsConsent({
       customerAccountId: 'account-sms-mismatch',
       toE164: BOOKING_OTHER,
@@ -257,7 +257,7 @@ describe('7/15. verified phone and account isolation preserved', () => {
   it('7. grantBookingSmsConsent does not rewrite verified phone on mismatch', async () => {
     const state = {
       version: 2,
-      profilePhone: '5513132956',
+      profilePhone: '2015550177',
       consent: null,
       writes: 0,
       profileWrites: 0,
@@ -306,13 +306,13 @@ describe('7/15. verified phone and account isolation preserved', () => {
     }, { prisma });
     assert.equal(result.ok, false);
     assert.equal(result.error, 'verified_phone_mismatch');
-    assert.equal(state.profilePhone, '5513132956');
+    assert.equal(state.profilePhone, '2015550177');
     assert.equal(state.profileWrites, 0);
     assert.equal(state.writes, 0);
   });
 
   it('15. loadAccountVerifiedPhoneE164 is read-only and returns E.164', async () => {
-    const prisma = accountPrisma({ verifiedPhone: '5513132956' });
+    const prisma = accountPrisma({ verifiedPhone: '2015550177' });
     const phone = await loadAccountVerifiedPhoneE164('account-sms-mismatch', { prisma });
     assert.equal(phone, VERIFIED);
   });

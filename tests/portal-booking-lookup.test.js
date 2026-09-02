@@ -48,7 +48,7 @@ describe('portal booking lookup vs admin list', () => {
         status: 'Pending Review',
         jobStatus: 'pending_review',
         bookingVersion: 1,
-        phone: '5513132956',
+        phone: '2015550177',
         firstName: 'Ada',
       },
     });
@@ -57,7 +57,7 @@ describe('portal booking lookup vs admin list', () => {
     const found = await getBooking('CD1-REAL');
     assert.ok(found);
     assert.equal(found.id, 'CD1-REAL');
-    assert.equal(found.phone, '5513132956');
+    assert.equal(found.phone, '2015550177');
   });
 
   it('authorizeBookingAccess opens mismatched-key booking with matching phone', async () => {
@@ -68,7 +68,7 @@ describe('portal booking lookup vs admin list', () => {
         status: 'Pending Review',
         jobStatus: 'pending_review',
         bookingVersion: 1,
-        phone: '(551) 313-2956',
+        phone: '(201) 555-0177',
       },
     });
     setOpsStoreOverride(store);
@@ -79,7 +79,7 @@ describe('portal booking lookup vs admin list', () => {
     const { authorizeBookingAccess } = require('../netlify/lib/booking-customer-auth');
     const auth = await authorizeBookingAccess(
       { headers: {} },
-      { bookingId: 'CD1-ODD', phone: '5513132956' }
+      { bookingId: 'CD1-ODD', phone: '2015550177' }
     );
     assert.equal(auth.ok, true);
     assert.equal(auth.booking.id, 'CD1-ODD');
@@ -87,8 +87,8 @@ describe('portal booking lookup vs admin list', () => {
 
   it('phonesMatchForPortal accepts last-10 when formatting differs', () => {
     const { phonesMatchForPortal } = require('../netlify/lib/phone-auth');
-    assert.equal(phonesMatchForPortal('5513132956', '+1 (551) 313-2956'), true);
-    assert.equal(phonesMatchForPortal('15513132956', '5513132956'), true);
-    assert.equal(phonesMatchForPortal('5513132956', '2015550100'), false);
+    assert.equal(phonesMatchForPortal('2015550177', '+1 (201) 555-0177'), true);
+    assert.equal(phonesMatchForPortal('12015550177', '2015550177'), true);
+    assert.equal(phonesMatchForPortal('2015550177', '2015550100'), false);
   });
 });

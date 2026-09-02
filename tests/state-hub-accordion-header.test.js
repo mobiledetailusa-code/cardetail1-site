@@ -131,10 +131,21 @@ test('fleet-branch city URLs preserved on NJ/NY/CT state hubs', (t) => {
       t.skip(`reference branch ${fleetBranch} is unavailable in this checkout`);
       return;
     }
+    const dedicatedCityPages = {
+      'Palisades Park': '/palisades-park-mobile-detailing.html',
+      'Fort Lee': '/fort-lee-mobile-detailing.html',
+      'Edgewater': '/edgewater-mobile-detailing.html',
+      'Englewood': '/englewood-mobile-detailing.html',
+      'Teaneck': '/teaneck-mobile-detailing.html',
+      'Hackensack': '/hackensack-mobile-detailing.html',
+      'Paramus': '/paramus-mobile-detailing.html',
+      'Ridgewood': '/ridgewood-mobile-detailing.html',
+    };
     const currentLinks = extractAccordionCityLinks(read(page));
     assert.equal(currentLinks.length, fleetLinks.length, `${page} link count`);
     for (let i = 0; i < fleetLinks.length; i++) {
-      assert.equal(currentLinks[i].href, fleetLinks[i].href, `${page} href[${i}]`);
+      const expectedHref = dedicatedCityPages[fleetLinks[i].text] || fleetLinks[i].href;
+      assert.equal(currentLinks[i].href, expectedHref, `${page} href[${i}]`);
       assert.equal(currentLinks[i].text, fleetLinks[i].text, `${page} text[${i}]`);
     }
   }
@@ -329,6 +340,8 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/twilio-inbound.js',
     'netlify/functions/twilio-outbox-worker.js',
     'netlify/functions/twilio-status-callback.js',
+    // Twilio inbound SMS + voice forwarding to a personal number (PR #225).
+    'netlify/functions/twilio-voice.js',
     // Owner Studio Stage 2 / 4B — protected catalog draft + preview APIs.
     'netlify/functions/owner-studio-catalog.js',
     'netlify/functions/owner-studio-release.js',
