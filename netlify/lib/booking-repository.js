@@ -217,6 +217,7 @@ async function listSubmittedBookings({ includeArchivedTest = false } = {}) {
 
 module.exports = {
   setBookingStoreOverride,
+  getStore,
   getBookingRecord,
   commitBooking,
   listSubmittedBookings,

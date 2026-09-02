@@ -215,10 +215,13 @@ describe('wiring: lifecycle emits from authoritative mutations', () => {
     assert.match(confirmBlock, /notifyConfirmed/);
     const rescheduleBlock = admin.slice(admin.indexOf("action === 'reschedule'"), admin.indexOf("action === 'update_address'"));
     assert.match(rescheduleBlock, /notifyRescheduled/);
-    assert.match(rescheduleBlock, /store\.setJSON/);
+    assert.match(rescheduleBlock, /persistMutation/);
+    assert.doesNotMatch(rescheduleBlock, /store\.setJSON/);
     const cancelBlock = admin.slice(admin.indexOf("action === 'cancel_booking'"), admin.indexOf("action === 'resolve_cancellation'"));
     assert.match(cancelBlock, /notifyCancelled/);
     assert.match(cancelBlock, /actor: 'admin'/);
+    assert.match(cancelBlock, /persistMutation/);
+    assert.doesNotMatch(cancelBlock, /store\.setJSON/);
   });
 
   it('customer change-request and cancel notify from submit-customer-action', () => {
@@ -241,6 +244,8 @@ describe('wiring: lifecycle emits from authoritative mutations', () => {
     const src = read('netlify/functions/request-cancellation.js');
     assert.match(src, /notifyCancellationRequested/);
     assert.doesNotMatch(src, /notifyCancelled\(/);
+    assert.match(src, /commitBooking/);
+    assert.doesNotMatch(src, /store\.setJSON/);
   });
 });
 

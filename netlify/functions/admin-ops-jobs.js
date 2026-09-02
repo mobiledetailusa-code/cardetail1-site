@@ -17,6 +17,7 @@ const {
   setBookingStoreOverride,
   commitBooking,
   getBookingRecord,
+  getStore,
 } = require('../lib/booking-repository');
 const {
   buildNextAggregate,
@@ -1317,7 +1318,7 @@ function adminOperationalControls(booking, projection = null) {
   };
 }
 
-async function handleAdminAction(body) {
+async function handleAdminAction(body, testOpts = {}) {
   const action = sanitizeText(body.action, 40);
 
   if (action === 'create_appointment') {
@@ -1347,7 +1348,7 @@ async function handleAdminAction(body) {
   const bookingId = sanitizeText(body.bookingId, 48);
   if (!bookingId) return jsonCors(400, { ok: false, error: 'bookingId_required' });
 
-  const store = await blobsStore('cd1-bookings');
+  const store = await getStore();
   setBookingStoreOverride(store);
   const bookingRec = await getBookingRecord(bookingId);
   let booking = bookingRec.booking || await store.get(bookingId, { type: 'json' }).catch(() => null);
@@ -2229,10 +2230,19 @@ async function handleAdminAction(body) {
         action: 'admin_reschedule', by: 'admin', confirmedDate, confirmedTime, confirmedTimeWindow,
       }),
     };
-    await store.setJSON(bookingId, patched);
+    const persisted = await persistMutation(store, bookingId, patched, booking, 'reschedule', 'Reschedule');
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
     try {
       const { notifyRescheduled } = require('../lib/appointment-lifecycle-notifications');
-      await notifyRescheduled(patched, { event, store, source: 'lifecycle_mutation' });
+      await notifyRescheduled(persisted.booking, {
+        event: testOpts.event,
+        store,
+        source: 'lifecycle_mutation',
+        prisma: testOpts.prisma,
+        env: testOpts.env,
+      });
     } catch (e) {
       console.warn('[admin-ops-jobs] reschedule notify failed:', e.message);
     }
@@ -2274,10 +2284,20 @@ async function handleAdminAction(body) {
       updatedAt: now,
       eventLog: appendEventLog(booking, { action: 'booking_cancelled', by: 'admin', reason }),
     };
-    await store.setJSON(bookingId, patched);
+    const persisted = await persistMutation(store, bookingId, patched, booking, 'cancel_booking', 'Cancelled by admin');
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
     try {
       const { notifyCancelled } = require('../lib/appointment-lifecycle-notifications');
-      await notifyCancelled(patched, { actor: 'admin', event, store, source: 'lifecycle_mutation' });
+      await notifyCancelled(persisted.booking, {
+        actor: 'admin',
+        event: testOpts.event,
+        store,
+        source: 'lifecycle_mutation',
+        prisma: testOpts.prisma,
+        env: testOpts.env,
+      });
     } catch (e) {
       console.warn('[admin-ops-jobs] cancel notify failed:', e.message);
     }
@@ -2305,28 +2325,51 @@ async function handleAdminAction(body) {
         updatedAt: now,
         eventLog: appendEventLog(booking, { action: 'cancellation_approved', by: 'admin', note }),
       };
-      await store.setJSON(bookingId, patched);
+      const persisted = await persistMutation(
+        store,
+        bookingId,
+        patched,
+        booking,
+        'resolve_cancellation',
+        note || 'cancellation_approved'
+      );
+      if (!persisted.ok) {
+        return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+      }
       try {
         const { notifyCancelled } = require('../lib/appointment-lifecycle-notifications');
-        await notifyCancelled(patched, {
+        await notifyCancelled(persisted.booking, {
           actor: 'customer',
-          event,
+          event: testOpts.event,
           store,
           source: 'lifecycle_mutation',
+          prisma: testOpts.prisma,
+          env: testOpts.env,
         });
       } catch (e) {
         console.warn('[admin-ops-jobs] cancellation-approve notify failed:', e.message);
       }
       return jsonCors(200, { ok: true, bookingId, jobStatus: 'cancelled' });
     }
-    await store.setJSON(bookingId, {
+    const denied = {
       ...booking,
       cancellationRequestStatus: 'resolved_denied',
       cancellationResolvedAt: now,
       cancellationResolvedNote: note,
       updatedAt: now,
       eventLog: appendEventLog(booking, { action: 'cancellation_denied', by: 'admin', note }),
-    });
+    };
+    const persisted = await persistMutation(
+      store,
+      bookingId,
+      denied,
+      booking,
+      'resolve_cancellation',
+      note || 'cancellation_denied'
+    );
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
     return jsonCors(200, { ok: true, bookingId });
   }
 
@@ -2352,10 +2395,26 @@ async function handleAdminAction(body) {
         updatedAt: now,
         eventLog: appendEventLog(booking, { action: 'customer_reschedule_applied', by: 'admin' }),
       };
-      await store.setJSON(bookingId, patched);
+      const persisted = await persistMutation(
+        store,
+        bookingId,
+        patched,
+        booking,
+        'customer_reschedule_applied',
+        'admin_apply'
+      );
+      if (!persisted.ok) {
+        return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+      }
       try {
         const { notifyRescheduled } = require('../lib/appointment-lifecycle-notifications');
-        await notifyRescheduled(patched, { event, store, source: 'lifecycle_mutation' });
+        await notifyRescheduled(persisted.booking, {
+          event: testOpts.event,
+          store,
+          source: 'lifecycle_mutation',
+          prisma: testOpts.prisma,
+          env: testOpts.env,
+        });
       } catch (e) {
         console.warn('[admin-ops-jobs] apply-reschedule notify failed:', e.message);
       }
@@ -3100,6 +3159,8 @@ exports.adminOperationalControls = adminOperationalControls;
 exports.reconcileRecoveryCapability = reconcileRecoveryCapability;
 exports.notifyPaymentReceived = notifyPaymentReceived;
 exports.jobsSyncResponse = jobsSyncResponse;
+exports.handleAdminAction = handleAdminAction;
+exports.persistMutation = persistMutation;
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
@@ -3145,7 +3206,7 @@ exports.handler = async (event) => {
           return jsonCors(500, { ok: false, error: 'preview_failed' });
         }
       }
-      return handleAdminAction(body);
+      return handleAdminAction(body, { event });
     }
     try {
       const jobs = await listJobs(body);
