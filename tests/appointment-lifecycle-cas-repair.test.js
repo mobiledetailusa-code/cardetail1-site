@@ -426,3 +426,74 @@ describe('Repair A — adversarial CAS stale write', () => {
     assert.deepEqual(afterRetry.booking.transactionalSmsConsent, booking.transactionalSmsConsent);
   });
 });
+
+describe('Admin confirm_booking notify through handleAdminAction', () => {
+  it('pending consented booking queues confirmation email and SMS', async () => {
+    const recordedAt = '2026-08-26T12:00:00.000Z';
+    const booking = {
+      id: 'CD1-CAS-CF-01',
+      firstName: 'Pat',
+      lastName: 'Customer',
+      email: 'pat.customer@example.test',
+      phone: VERIFIED,
+      package: 'Interior Detail',
+      preferredDate: '2026-08-28',
+      preferredTime: '8:00–9:00 AM',
+      status: 'Pending Review',
+      appointmentStatus: 'pending_review',
+      jobStatus: 'pending_review',
+      bookingVersion: 1,
+      quoteVersion: 1,
+      finalizedAt: recordedAt,
+      paymentPreference: 'cash',
+      transactionalSmsConsentAccepted: true,
+      transactionalSmsConsent: canonicalBookingSmsConsent(true, recordedAt, VERIFIED),
+    };
+    installStores(booking);
+    const prisma = createMemoryOutboxPrisma();
+
+    process.env.RESEND_API_KEY = 're_test';
+    process.env.RESEND_FROM = 'test@example.com';
+    const originalFetch = global.fetch;
+    const resendCalls = [];
+    global.fetch = async (url, init) => {
+      if (String(url).includes('api.resend.com')) {
+        resendCalls.push({ url: String(url), body: init && init.body });
+        return { ok: true, json: async () => ({ id: 'em_confirm_test' }), text: async () => '' };
+      }
+      return { ok: false, status: 500, text: async () => '', json: async () => ({}) };
+    };
+
+    try {
+      const first = await handleAdminAction({
+        action: 'confirm_booking',
+        bookingId: booking.id,
+      }, { prisma, env: SMS_ENV });
+      assert.equal(first.statusCode, 200, first.body);
+      assert.equal(parseBody(first).ok, true);
+      assert.equal(parseBody(first).jobStatus, 'confirmed');
+
+      const rec = await getBookingRecord(booking.id);
+      assert.equal(rec.booking.appointmentStatus, 'confirmed');
+      assert.equal(rec.booking.transactionalSmsConsentAccepted, true);
+      assert.deepEqual(rec.booking.transactionalSmsConsent, booking.transactionalSmsConsent);
+      assert.ok(rec.booking.confirmationEventId);
+
+      const sms = customerSmsRows(prisma, TEMPLATE_KEYS.CONFIRMED);
+      assert.equal(sms.length, 1, 'confirm SMS must be queued when consent is present');
+      assert.equal(resendCalls.length, 1, 'confirm email must be sent when consent is present');
+
+      const retry = await handleAdminAction({
+        action: 'confirm_booking',
+        bookingId: booking.id,
+      }, { prisma, env: SMS_ENV });
+      assert.equal(retry.statusCode, 200, retry.body);
+      assert.equal(customerSmsRows(prisma, TEMPLATE_KEYS.CONFIRMED).length, 1);
+      assert.equal(resendCalls.length, 1);
+    } finally {
+      global.fetch = originalFetch;
+      delete process.env.RESEND_API_KEY;
+      delete process.env.RESEND_FROM;
+    }
+  });
+});
