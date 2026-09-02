@@ -363,7 +363,7 @@ describe('admin SMS and email paths remain independent (static contract)', () =>
 
 describe('consent evidence binds submitted phone', () => {
   it('persists phoneE164 on grant and rejects mismatched consent phone', () => {
-    const ok = consentedBooking('(551) 398-3986');
+    const ok = consentedBooking('(201) 555-0188');
     assert.equal(ok.transactionalSmsConsent.phoneE164, BOOKING_OTHER);
     assert.equal(bookingSmsConsentGranted(ok), true);
 
