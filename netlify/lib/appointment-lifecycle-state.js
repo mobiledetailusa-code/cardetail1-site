@@ -68,6 +68,8 @@ const SUPERSEDED_TEMPLATE_KEYS = new Set([
   'booking.safe_confirmation',
   'booking.change_requested',
   'booking.customer_action_required',
+  'booking.details_updated',
+  'booking.payment_received',
 ]);
 
 async function shouldSuppressStaleLifecycleSms(row) {
@@ -99,4 +101,5 @@ module.exports = {
   appointmentReminderEligible,
   currentScheduleFingerprint,
   shouldSuppressStaleLifecycleSms,
+  SUPERSEDED_TEMPLATE_KEYS,
 };

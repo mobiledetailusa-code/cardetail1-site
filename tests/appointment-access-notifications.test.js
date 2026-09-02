@@ -502,6 +502,7 @@ test('wiring: submit emits request_received; confirm emits confirmed; no garage 
   assert.match(admin, /notifyConfirmed|emitConfirmed/);
   assert.match(admin, /notifyCancelled/);
   assert.match(admin, /notifyRescheduled/);
+  assert.match(admin, /notifyDetailsUpdatedQuietly/);
   assert.match(admin, /emitCustomerActionRequired/);
   assert.match(access, /consumeAppointmentAccessToken/);
   assert.match(access, /createAccountSession/);
@@ -574,7 +575,9 @@ test('request-received SMS stays GSM-7 with details and a typical short access U
   assert.match(rendered.body, /STOP/i);
   assert.match(rendered.body, /HELP/i);
   assert.match(rendered.body, /\/a\?t=/);
-  assert.match(rendered.body, /Interior Detail/);
+  assert.match(rendered.body, /View:/);
+  // Service copy is omitted when the appointment link is present.
+  assert.doesNotMatch(rendered.body, /Interior Detail/);
   assert.match(rendered.body, /Any time that day/);
   assert.doesNotMatch(rendered.body, /Your appointment is confirmed/i);
 });

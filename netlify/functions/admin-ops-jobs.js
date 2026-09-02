@@ -619,6 +619,28 @@ function adminVehicleMutationCatalog() {
 }
 
 /**
+ * Package / vehicle / add-on SMS: one short "details updated" text with the
+ * appointment link. Itemization lives in the portal, not in Twilio segments.
+ */
+async function notifyDetailsUpdatedQuietly(booking, notifyOpts = {}) {
+  if (!booking || !(booking.id || booking.bookingId)) return;
+  try {
+    const { notifyDetailsUpdated } = require('../lib/appointment-lifecycle-notifications');
+    // Do not pass store. persistLifecycleNotify CAS-commits a second
+    // bookingVersion after the financial mutation, so Admin would see
+    // version N in the HTTP response while the blob is already N+1.
+    await notifyDetailsUpdated(booking, {
+      event: notifyOpts.event,
+      prisma: notifyOpts.prisma,
+      env: notifyOpts.env,
+      source: 'lifecycle_mutation',
+    });
+  } catch (e) {
+    console.warn('[admin-ops-jobs] details-updated notify failed:', e.message);
+  }
+}
+
+/**
  * Package Stage 1 — Admin package mutation adapter.
  *
  * Canonical package IDs only. Money authority is always:
@@ -634,6 +656,7 @@ async function adminChangePackage({
   previousBooking = null,
   env = process.env,
   auditFn = null,
+  notifyOpts = {},
 }) {
   const { applyPackageFinancialMutation } = require('../lib/package-financial-mutation');
   const { financialProjection } = require('../lib/payment-service');
@@ -828,6 +851,10 @@ async function adminChangePackage({
     });
   }
 
+  if (result.ok && result.booking && !result.noop && !result.idempotent) {
+    await notifyDetailsUpdatedQuietly(result.booking, notifyOpts);
+  }
+
   return {
     ok: true,
     statusCode: 200,
@@ -865,6 +892,7 @@ async function adminAddonMutation({
   previousBooking = null,
   env = process.env,
   auditFn = null,
+  notifyOpts = {},
 }) {
   const { parseAddonIdList } = require('../lib/canonical-addon-catalog');
   const {
@@ -1089,6 +1117,10 @@ async function adminAddonMutation({
     });
   }
 
+  if (result.ok && result.booking && !result.noop && !result.idempotent) {
+    await notifyDetailsUpdatedQuietly(result.booking, notifyOpts);
+  }
+
   return {
     ok: true,
     statusCode: 200,
@@ -1116,6 +1148,7 @@ async function adminVehicleMutation({
   previousBooking = null,
   env = process.env,
   auditFn = null,
+  notifyOpts = {},
 }) {
   const { applyVehicleFinancialMutation } = require('../lib/vehicle-financial-mutation');
   const { financialProjection } = require('../lib/payment-service');
@@ -1194,6 +1227,11 @@ async function adminVehicleMutation({
       financialProjection: result.financialProjection || null,
     };
   }
+
+  if (result.booking && !result.noop && !result.idempotent) {
+    await notifyDetailsUpdatedQuietly(result.booking, notifyOpts);
+  }
+
   return {
     ok: true,
     statusCode: 200,
@@ -1433,13 +1471,17 @@ async function handleAdminAction(body, testOpts = {}) {
   }
 
   if (action === 'addon_mutation') {
-    const result = await adminAddonMutation({ bookingId, body, previousBooking: booking });
+    const result = await adminAddonMutation({
+      bookingId, body, previousBooking: booking, notifyOpts: testOpts,
+    });
     const { statusCode, ...payload } = result;
     return jsonCors(statusCode || (result.ok ? 200 : 400), payload);
   }
 
   if (action === 'change_package') {
-    const result = await adminChangePackage({ bookingId, body, previousBooking: booking });
+    const result = await adminChangePackage({
+      bookingId, body, previousBooking: booking, notifyOpts: testOpts,
+    });
     const { statusCode, ...payload } = result;
     return jsonCors(statusCode || (result.ok ? 200 : 400), payload);
   }
@@ -2230,7 +2272,9 @@ async function handleAdminAction(body, testOpts = {}) {
   }
 
   if (action === 'vehicle_mutation') {
-    const result = await adminVehicleMutation({ bookingId, body, previousBooking: booking });
+    const result = await adminVehicleMutation({
+      bookingId, body, previousBooking: booking, notifyOpts: testOpts,
+    });
     const { statusCode, ...payload } = result;
     return jsonCors(statusCode || (result.ok ? 200 : 400), payload);
   }
@@ -2581,7 +2625,9 @@ async function handleAdminAction(body, testOpts = {}) {
     // adapter as change_package — never the legacy service-edit mutator or
     // Blob persist as package money authority.
     if (bodyHasPackageMutation(body)) {
-      const result = await adminChangePackage({ bookingId, body, previousBooking: booking });
+      const result = await adminChangePackage({
+        bookingId, body, previousBooking: booking, notifyOpts: testOpts,
+      });
       const { statusCode, ...payload } = result;
       return jsonCors(statusCode || (result.ok ? 200 : 400), payload);
     }

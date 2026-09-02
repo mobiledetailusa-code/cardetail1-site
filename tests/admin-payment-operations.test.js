@@ -123,15 +123,26 @@ test('payment email idempotency key follows the settlement, not the clock', () =
   assert.notEqual(a, c, 'a different settlement must get its own key');
 });
 
-test('payment_received is email-only — no SMS spend on a receipt', async () => {
+test('payment_received SMS is skipped without booking consent', async () => {
   const result = await notifications.emitPaymentReceived(
     { id: 'CD1-NO-SMS', firstName: 'Ada', phone: '2015550123' },
-    { method: 'cash', amountCents: 1000, approvedCents: 1000, remainingCents: 0 }
+    { method: 'cash', amountCents: 1000, approvedCents: 1000, remainingCents: 0 },
+    {
+      env: {
+        CONTEXT: 'production',
+        BRANCH: 'master',
+        URL: 'https://cardetail1.com',
+        TWILIO_OUTBOX_ENABLED: 'true',
+        TWILIO_ENABLED: 'true',
+        CUSTOMER_TRANSACTIONAL_SMS_ENABLED: 'true',
+      },
+    }
   );
   assert.ok(result.ok || result.error, 'emit must resolve rather than throw');
   if (result.delivery) {
     assert.equal(result.delivery.sms.sent, false);
-    assert.equal(result.delivery.sms.reason, 'sms_not_enabled_for_event');
+    assert.equal(result.delivery.sms.skipped, true);
+    assert.equal(result.delivery.sms.reason, 'booking_sms_consent_required');
   }
 });
 
