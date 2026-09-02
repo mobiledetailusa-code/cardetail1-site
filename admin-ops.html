@@ -7,6 +7,7 @@
 <title>Cardetail1 — Admin Ops</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/admin-dayview.css">
 <style>
 :root{--bg:#0a0f16;--card:#0e1622;--card2:#0c1520;--line:rgba(255,255,255,.08);--fg:#d6dce5;--mu:#8a9bb0;--ac:#4da3ff;--err:#ef4444;--ok:#22c55e;--warn:#f59e0b;--r:12px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -204,6 +205,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist">
     <button type="button" class="tab on" data-tab="jobs" role="tab" aria-selected="true">Jobs</button>
+    <button type="button" class="tab" data-tab="dayview" role="tab" aria-selected="false">Day View</button>
     <button type="button" class="tab" data-tab="requests" role="tab" aria-selected="false">Requests</button>
     <button type="button" class="tab" data-tab="payments" role="tab" aria-selected="false">Payments</button>
     <button type="button" class="tab" data-tab="settings" role="tab" aria-selected="false">Settings</button>
@@ -279,6 +281,21 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           </td>
         </tr>
       </tbody></table>
+    </div>
+  </section>
+
+  <section class="panel" id="p-dayview">
+    <div class="dv-wrap">
+      <p class="hint" style="margin-bottom:4px">Calendar-first view of scheduled jobs. Uses the same Jobs data already in memory — no extra API calls. Double-click a row or use Manage to open the full appointment panel on the Jobs tab.</p>
+      <div class="dv-sec-title">Your Schedule</div>
+      <div class="dv-cal-strip" id="dvCalStrip" role="tablist" aria-label="Week calendar"></div>
+      <div class="dv-cal-banner" id="dvCalBanner"></div>
+      <div id="dvHero"></div>
+      <div id="dvMap"></div>
+      <div class="dv-sec-title">Today's Schedule</div>
+      <div id="dvSchedList"></div>
+      <div class="dv-sec-title">Upcoming (next 7 days)</div>
+      <div id="dvUpcoming"></div>
     </div>
   </section>
 
@@ -544,6 +561,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 <script src="/netlify/lib/site-access-client.js"></script>
 <script src="assets/operational-refresh.js?v=20260805-sync-pr3"></script>
 <script src="assets/admin-source-state.js"></script>
+<script src="assets/admin-dayview.js"></script>
 <script>
 (function(){
   // No synchronous sign-in check here. The token lives in sessionStorage, which is
@@ -1990,6 +2008,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       btn.onclick = (e) => { e.stopPropagation(); retrySource('jobs'); };
     });
     if (stillVisible) placeActiveDetailRow(expandedJobId);
+    if (window.CD1AdminDayView) CD1AdminDayView.render();
   }
 
   function renderAssign() {
@@ -3981,6 +4000,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     b.setAttribute('aria-selected', 'true');
     $('#p-'+b.dataset.tab).classList.add('on');
     if (b.dataset.tab === 'payments') renderPayments();
+    if (b.dataset.tab === 'dayview' && window.CD1AdminDayView) CD1AdminDayView.render();
     if (b.dataset.tab === 'auctions') refreshAuctionsTab();
     if (b.dataset.tab === 'subscriptions') refreshSubsTab();
     if (b.dataset.tab === 'settings') loadSettings().then(renderSettingsForm).catch(()=>{});
@@ -4241,6 +4261,20 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       shouldPoll: () => document.visibilityState !== 'hidden',
     });
     opsRefresh.bindLifecycle();
+  }
+
+  if (window.CD1AdminDayView) {
+    CD1AdminDayView.attach({
+      getJobs: () => jobs,
+      customerName: cust,
+      vehicleSummary: jobsVehicleSummary,
+      jobBadge: jobBadge,
+      today: () => {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      },
+      openJob: (id) => { openDrawer(id).catch(() => {}); },
+    });
   }
 
   ensureAdminSession().then(ok => {

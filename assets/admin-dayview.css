@@ -1,0 +1,94 @@
+/* Admin Ops — Day View tab (scoped to #p-dayview) */
+#p-dayview .dv-wrap{max-width:960px}
+#p-dayview .dv-sec-title{
+  font-size:13px;font-weight:700;color:var(--mu);text-transform:uppercase;
+  letter-spacing:.08em;margin:20px 0 10px;
+}
+#p-dayview .dv-cal-strip{
+  display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+}
+#p-dayview .dv-cal-strip::-webkit-scrollbar{display:none}
+#p-dayview .dv-cal-day{
+  flex:0 0 72px;scroll-snap-align:start;text-align:center;
+  padding:12px 8px;border-radius:12px;border:1px solid var(--line);
+  background:var(--card2);cursor:pointer;transition:.18s;color:inherit;font:inherit;
+}
+#p-dayview .dv-cal-day:hover{border-color:rgba(77,163,255,.35)}
+#p-dayview .dv-cal-day .dn{font-size:10px;font-weight:700;color:var(--mu);letter-spacing:.06em}
+#p-dayview .dv-cal-day .dd{font-size:22px;font-weight:800;margin:2px 0}
+#p-dayview .dv-cal-day .dm{font-size:9px;color:var(--mu);text-transform:uppercase}
+#p-dayview .dv-cal-day .jc{font-size:10px;color:var(--mu);margin-top:6px}
+#p-dayview .dv-cal-day.today{border-color:rgba(45,212,191,.4)}
+#p-dayview .dv-cal-day.sel{background:rgba(77,163,255,.18);border-color:rgba(77,163,255,.45);color:var(--fg)}
+#p-dayview .dv-cal-day.sel .dn,#p-dayview .dv-cal-day.sel .dm,#p-dayview .dv-cal-day.sel .jc{color:var(--mu)}
+#p-dayview .dv-cal-banner{
+  text-align:center;padding:10px;border-radius:10px;
+  background:var(--card2);border:1px solid var(--line);
+  font-size:12px;font-weight:700;color:var(--mu);margin-bottom:16px;
+}
+#p-dayview .dv-cal-banner strong{color:var(--ac)}
+#p-dayview .dv-hero{
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:18px;margin-bottom:12px;
+}
+#p-dayview .dv-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px}
+#p-dayview .dv-hero-name{font-size:20px;font-weight:800}
+#p-dayview .dv-hero-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center}
+#p-dayview .dv-hero-id{
+  display:inline-flex;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:800;
+  background:rgba(77,163,255,.12);color:var(--ac);border:1px solid rgba(77,163,255,.25);
+}
+#p-dayview .dv-hero-price{font-size:28px;font-weight:800;color:var(--ok);text-align:right;flex-shrink:0}
+#p-dayview .dv-hero-price .sub{font-size:11px;color:var(--mu);font-weight:600;display:block;margin-top:2px}
+#p-dayview .dv-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+#p-dayview .dv-meta-item{display:flex;align-items:flex-start;gap:8px;font-size:12px}
+#p-dayview .dv-meta-item .ico{font-size:14px;flex-shrink:0;margin-top:1px}
+#p-dayview .dv-meta-item .lbl{color:var(--mu);font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+#p-dayview .dv-meta-item .val{font-weight:600;margin-top:1px;word-break:break-word}
+#p-dayview .dv-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+#p-dayview .dv-map{
+  border-radius:12px;overflow:hidden;border:1px solid var(--line);
+  background:var(--card2);height:120px;position:relative;margin-bottom:16px;
+}
+#p-dayview .dv-map a{display:block;width:100%;height:100%;text-decoration:none;color:inherit}
+#p-dayview .dv-map-inner{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;padding:16px;text-align:center;gap:6px;
+  background:linear-gradient(135deg,rgba(77,163,255,.08),rgba(45,212,191,.08));
+}
+#p-dayview .dv-map-addr{font-size:12px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px}
+#p-dayview .dv-map-cta{font-size:11px;color:var(--ac);font-weight:700}
+#p-dayview .dv-map a:hover .dv-map-cta{text-decoration:underline}
+#p-dayview .dv-map-pin{
+  position:absolute;top:12px;right:12px;
+  background:var(--ac);color:#06121f;font-size:10px;font-weight:800;
+  padding:4px 8px;border-radius:6px;
+}
+#p-dayview .dv-sched{display:flex;flex-direction:column;gap:8px}
+#p-dayview .dv-sched-item{
+  display:flex;align-items:center;gap:12px;padding:14px 16px;
+  background:var(--card2);border:1px solid var(--line);border-radius:10px;
+  cursor:pointer;transition:.18s;
+}
+#p-dayview .dv-sched-item:hover{border-color:rgba(77,163,255,.35)}
+#p-dayview .dv-sched-item.is-active{border-color:rgba(77,163,255,.5);background:rgba(77,163,255,.08)}
+#p-dayview .dv-sched-item .si-time{font-size:11px;color:var(--mu);min-width:90px;line-height:1.35}
+#p-dayview .dv-sched-item .si-body{flex:1;min-width:0}
+#p-dayview .dv-sched-item .si-name{font-size:14px;font-weight:700}
+#p-dayview .dv-sched-item .si-loc{font-size:11px;color:var(--mu);margin-top:2px}
+#p-dayview .dv-sched-item .si-price{font-size:14px;font-weight:700;color:var(--ok);flex-shrink:0}
+#p-dayview .dv-empty{
+  text-align:center;padding:40px 20px;color:var(--mu);
+  background:var(--card2);border:1px dashed var(--line);border-radius:12px;
+}
+#p-dayview .dv-empty .ei{font-size:40px;opacity:.35;margin-bottom:10px}
+#p-dayview .dv-empty p{font-size:13px}
+@media(max-width:520px){
+  #p-dayview .dv-hero-top{flex-direction:column}
+  #p-dayview .dv-hero-price{text-align:left}
+  #p-dayview .dv-cal-day{flex:0 0 64px;padding:10px 6px}
+  #p-dayview .dv-cal-day .dd{font-size:20px}
+  #p-dayview .dv-sched-item{padding:16px 14px;flex-wrap:wrap}
+  #p-dayview .dv-sched-item .si-time{min-width:72px}
+}
