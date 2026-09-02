@@ -44,8 +44,9 @@ function mapProjectionForPortals(projection) {
 
 /**
  * Build the compatibility-only financial patch applied to the Blob aggregate.
- * Operational lifecycle fields are intentionally absent: reopening a balance
- * does not reopen an appointment, service, or completed job.
+ * Reopening a balance does not reopen an appointment or service. The only
+ * lifecycle write is advancing completed_pending_payment → completed_paid once
+ * the invoice is fully settled (Admin and Customer both expect that close).
  */
 function buildPaymentCompatibilityPatch(base, projection) {
   const ledger = { ...(base.ledger || {}) };
@@ -98,6 +99,14 @@ function buildPaymentCompatibilityPatch(base, projection) {
     patch.capturedAt = typeof projection.paidAt === 'string'
       ? projection.paidAt
       : new Date(projection.paidAt).toISOString();
+  }
+  // Close the payment-waiting completion state once money is actually settled.
+  if (
+    projection.paymentStatus === 'paid'
+    && Math.max(0, Math.round(Number(projection.remainingCents) || 0)) === 0
+    && String(base.jobStatus || '').toLowerCase() === 'completed_pending_payment'
+  ) {
+    patch.jobStatus = 'completed_paid';
   }
   return patch;
 }
@@ -365,6 +374,9 @@ async function applyOnSitePaymentCompatibility({
   const next = buildNextAggregate(base, {
     ...paymentPatch,
     ...(isDraftRecord(base) ? portalReleasePatch(now) : {}),
+    ...(String(base.jobStatus || '').toLowerCase() === 'completed_pending_payment'
+      ? { jobStatus: 'completed_paid' }
+      : {}),
     updatedAt: now,
   });
 
@@ -394,6 +406,9 @@ async function applyOnSitePaymentCompatibility({
     const next2 = buildNextAggregate(again.booking, {
       ...retryPatch,
       ...(isDraftRecord(again.booking) ? portalReleasePatch(now) : {}),
+      ...(String(again.booking.jobStatus || '').toLowerCase() === 'completed_pending_payment'
+        ? { jobStatus: 'completed_paid' }
+        : {}),
       updatedAt: now,
     });
     return commitBooking({
@@ -466,6 +481,69 @@ async function settleAdminOnSiteFullBalance({
     method,
     body,
   });
+
+  // Postgres already settled (e.g. customer paid online) but Blob still shows due —
+  // repair compatibility instead of failing Admin with already_paid while badges lag.
+  if (
+    !settled.ok
+    && (settled.error === 'already_paid' || settled.error === 'not_due')
+    && needsSyncBefore
+    && settled.projection
+    && Math.max(0, Math.round(Number(settled.projection.remainingCents) || 0)) === 0
+  ) {
+    const pgMappedPaid = mapProjectionForPortals(settled.projection);
+    const syncRepair = await syncBlob(bookingId, settled.projection);
+    if (!syncRepair || syncRepair.ok === false) {
+      return {
+        ok: false,
+        error: 'blob_sync_failed',
+        statusCode: 503,
+        authority: 'postgres',
+        postgresProjection: pgMappedPaid,
+        projection: pgMappedPaid,
+        settlementRecorded: true,
+        syncError: syncRepair?.error || 'blob_sync_failed',
+        quoteVersion: settled.projection.quoteVersion,
+      };
+    }
+    const closedRepair = await applyOnSitePaymentCompatibility({
+      bookingId,
+      amountCents: Math.max(0, Math.round(Number(settled.projection.settledCents) || 0)),
+      method,
+      reference: body.reference,
+    });
+    if (!closedRepair.ok) {
+      return {
+        ok: false,
+        error: 'blob_status_close_failed',
+        statusCode: 503,
+        authority: 'postgres',
+        postgresProjection: pgMappedPaid,
+        projection: pgMappedPaid,
+        settlementRecorded: true,
+        syncOk: true,
+        statusError: closedRepair.error || 'blob_status_close_failed',
+        quoteVersion: settled.projection.quoteVersion,
+      };
+    }
+    return {
+      ok: true,
+      authority: 'postgres',
+      bookingId,
+      postgresProjection: pgMappedPaid,
+      projection: pgMappedPaid,
+      settledAmountCents: Math.max(0, Math.round(Number(settled.projection.settledCents) || 0)),
+      created: false,
+      noop: true,
+      repaired: true,
+      paymentStatus: closedRepair.booking.paymentStatus,
+      jobStatus: closedRepair.booking.jobStatus,
+      serviceStatus: closedRepair.booking.serviceStatus,
+      bookingVersion: closedRepair.bookingVersion,
+      quoteVersion: settled.projection.quoteVersion,
+      booking: closedRepair.booking,
+    };
+  }
 
   if (!settled.ok) {
     return {

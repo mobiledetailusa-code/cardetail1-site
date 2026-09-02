@@ -1,7 +1,8 @@
 // Admin-only jobs feed + admin ops actions for Admin Ops dashboard.
 const { blobsStore, listAllBlobs, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const {
-  projectJobForAdmin, projectJobForAdminList, normalizeJobStatus, appendEventLog,
+  projectJobForAdmin, projectJobForAdminList, overlayAdminJobMoneyFromProjection,
+  normalizeJobStatus, appendEventLog,
 } = require('../lib/ops-workflow');
 const { getOpsSettings } = require('../lib/ops-config');
 const { createAuctionForBooking, assignAuctionWinnerToBooking } = require('../lib/auction-ops');
@@ -1364,12 +1365,14 @@ async function handleAdminAction(body, testOpts = {}) {
     const {
       postgresPaymentEnabled,
       getSharedFinancialProjection,
+      syncBlobCompatibilityFromProjection,
       adminReconcileWithStripe,
     } = require('../lib/db/operational-payment');
 
     let reconciled = { ok: true, skipped: true, reason: 'not_run' };
     let projection = null;
     let authority = 'blob';
+    let moneyRepaired = false;
 
     if (postgresPaymentEnabled()) {
       const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: false });
@@ -1381,6 +1384,23 @@ async function handleAdminAction(body, testOpts = {}) {
           skipped: true,
           reason: 'webhook_authority_normal_flow',
         };
+        // When Postgres is settled but Blob still shows a balance due, repair
+        // compatibility so list/Schedule catch up after the next refresh.
+        const blobMoney = financialProjection(booking);
+        const pgRemaining = Math.max(0, Math.round(Number(projection.remainingCents) || 0));
+        const blobRemaining = Math.max(0, Math.round(Number(blobMoney.remainingCents) || 0));
+        const pgPaid = String(projection.paymentStatus || '').toLowerCase() === 'paid' || pgRemaining === 0;
+        const needsMoneyRepair = pgPaid && blobRemaining > 0;
+        const needsJobClose = pgPaid
+          && String(booking.jobStatus || '').toLowerCase() === 'completed_pending_payment';
+        if (needsMoneyRepair || needsJobClose) {
+          const sync = await syncBlobCompatibilityFromProjection(bookingId, projection).catch(() => null);
+          if (sync && sync.ok) {
+            moneyRepaired = true;
+            const refreshed = await getBookingRecord(bookingId);
+            if (refreshed.exists && refreshed.booking) booking = refreshed.booking;
+          }
+        }
       }
     }
 
@@ -1390,12 +1410,16 @@ async function handleAdminAction(body, testOpts = {}) {
       authority = 'unavailable';
     }
 
-    const job = projectJobForAdmin(booking);
+    let job = projectJobForAdmin(booking);
+    if (authority === 'postgres' && projection) {
+      job = overlayAdminJobMoneyFromProjection(job, projection);
+    }
     return jsonCors(200, {
       ok: true,
       job,
       projection,
       authority,
+      moneyRepaired,
       reconciled: !reconciled.skipped && !!reconciled.ok,
       reconcileSkipped: !!reconciled.skipped,
       reconcileReason: reconciled.reason || reconciled.error || null,
@@ -1622,18 +1646,41 @@ async function handleAdminAction(body, testOpts = {}) {
       return jsonCors(409, { ok: false, error: 'not_pending_admin_review' });
     }
     const { postServiceState } = require('../lib/post-service-experience');
+    const { financialProjection } = require('../lib/payment-service');
+    let money = null;
+    try {
+      const {
+        postgresPaymentEnabled,
+        getSharedFinancialProjection,
+      } = require('../lib/db/operational-payment');
+      if (postgresPaymentEnabled()) {
+        const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: false });
+        if (shared.ok && shared.projection) money = shared.projection;
+      }
+    } catch (_) { /* fall through to blob */ }
+    if (!money) money = financialProjection(booking);
+    const alreadyPaid = String(money.paymentStatus || '').toLowerCase() === 'paid'
+      || Math.max(0, Math.round(Number(money.remainingCents) || 0)) === 0;
     let patched = {
       ...booking,
       adminReviewRequired: false,
       adminReviewedAt: now,
       adminReviewed: true,
-      jobStatus: 'completed_pending_payment',
-      paymentWorkflowStatus: 'payment_action_required',
+      jobStatus: alreadyPaid ? 'completed_paid' : 'completed_pending_payment',
+      paymentWorkflowStatus: alreadyPaid
+        ? (String(booking.paymentWorkflowStatus || '').toLowerCase() === 'cash_paid'
+          ? 'cash_paid'
+          : 'payment_succeeded')
+        : 'payment_action_required',
       // Write-once. This is the anchor for the review action and the 48-hour
       // service-issue window, so re-approving a completion cannot restart it.
       completedAt: booking.completedAt || booking.techCompletedAt || now,
       updatedAt: now,
-      eventLog: appendEventLog(booking, { action: 'completion_approved', by: 'admin' }),
+      eventLog: appendEventLog(booking, {
+        action: 'completion_approved',
+        by: 'admin',
+        alreadyPaid: !!alreadyPaid,
+      }),
     };
     let persisted = await persistMutation(store, bookingId, patched, booking, 'approve_completion', 'admin_review');
     if (!persisted.ok) {
@@ -1642,21 +1689,24 @@ async function handleAdminAction(body, testOpts = {}) {
     patched = persisted.booking;
     // Idempotent by the notification ledger: a second approve_completion for the
     // same state key does not send a second completion email.
-    try {
-      const { emitCustomerActionRequired } = require('../lib/booking-transactional-notifications');
-      const txn = await emitCustomerActionRequired(patched, {
-        event: testOpts.event,
-        prisma: testOpts.prisma,
-        env: testOpts.env,
-      });
-      if (txn && txn.booking) {
-        const after = await persistMutation(
-          store, bookingId, txn.booking, patched, 'completion_notification', 'completion_notify'
-        ).catch(() => null);
-        if (after && after.ok) patched = after.booking;
+    // Skip pay-required notify when the invoice is already settled.
+    if (!alreadyPaid) {
+      try {
+        const { emitCustomerActionRequired } = require('../lib/booking-transactional-notifications');
+        const txn = await emitCustomerActionRequired(patched, {
+          event: testOpts.event,
+          prisma: testOpts.prisma,
+          env: testOpts.env,
+        });
+        if (txn && txn.booking) {
+          const after = await persistMutation(
+            store, bookingId, txn.booking, patched, 'completion_notification', 'completion_notify'
+          ).catch(() => null);
+          if (after && after.ok) patched = after.booking;
+        }
+      } catch (e) {
+        console.warn('[admin-ops-jobs] action-required notify failed:', e.message);
       }
-    } catch (e) {
-      console.warn('[admin-ops-jobs] action-required notify failed:', e.message);
     }
     return jsonCors(200, {
       ok: true,
