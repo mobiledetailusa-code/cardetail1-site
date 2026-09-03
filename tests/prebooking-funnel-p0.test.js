@@ -40,6 +40,7 @@ function loadProgress(overrides) {
       removeItem() {},
     },
     location: { search: '', pathname: '/' },
+    URLSearchParams,
     ST: { cat: '', pkgId: '', vehicles: [], addons: [] },
     currentBkStep: 1,
     activeZone: { key: 'nj_a' },
