@@ -2595,7 +2595,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-boats.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Boats</div>
-            <div class="svc-desc" style="font-size:12px">All vessels · Priced by length</div>
+            <div class="svc-desc" style="font-size:12px">Pontoon · Center console · Jet Ski / PWC</div>
             <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $170</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
@@ -2607,7 +2607,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
-            <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
+            <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV</div>
             <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $100</div>
           </div>
 
@@ -2635,6 +2635,25 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="beye">Step 03 — Vehicle</div>
         <div class="btitle">YOUR VEHICLE</div>
         <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length.</div>
+
+        <!-- Boat vessel type (boats only) — same pattern as RV / trailer type -->
+        <div id="boat-type-wrap" style="display:none;margin-bottom:14px">
+          <div class="sel-g" style="margin-bottom:10px">
+            <div class="sel-l">Vessel Type *</div>
+            <select class="sel-s" id="boat-type-sel">
+              <option value="">— select vessel type —</option>
+              <option value="runabout">Runabout / Jon</option>
+              <option value="bowrider">Bowrider / Deck</option>
+              <option value="center">Center Console</option>
+              <option value="pontoon">Pontoon</option>
+              <option value="cuddy">Cuddy / Cabin</option>
+              <option value="cruiser">Cruiser / Yacht</option>
+              <option value="jetski">Jet Ski / PWC</option>
+              <option value="other">Other vessel</option>
+            </select>
+          </div>
+          <p id="boat-jetski-note" style="display:none;font-size:11.5px;color:var(--blue);line-height:1.45;margin:0 0 10px;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Jet Ski / PWC is a watercraft. It uses personal-watercraft pricing (same as before), not hull-length marine pricing.</p>
+        </div>
 
         <!-- RV type + living quarters (rvs only) -->
         <div id="rv-type-wrap" style="display:none;margin-bottom:14px">
@@ -3681,6 +3700,44 @@ let LENGTH_PRICING = {
 };
 
 const RV_TYPE_MULTIPLIERS = { travel:1, fifthwheel:1, classA:1, classB:1, classC:1, classBC:1, airstream:1, cargo:1, horse:1, other:1, specialty:1 };
+const BOAT_TYPE_MULTIPLIERS = { runabout:1, bowrider:1, center:1, pontoon:1, cuddy:1, cruiser:1, jetski:1, other:1 };
+const BOAT_TYPE_LABELS = {
+  runabout:'Runabout / Jon',
+  bowrider:'Bowrider / Deck',
+  center:'Center Console',
+  pontoon:'Pontoon',
+  cuddy:'Cuddy / Cabin',
+  cruiser:'Cruiser / Yacht',
+  jetski:'Jet Ski / PWC',
+  other:'Other vessel'
+};
+const JETSKI_PKG_PRICE_KEY = { maint:'wash', essential:'essential', full:'full', premium:'premium' };
+function isJetSkiBoat(){
+  return ST.cat==='boats' && ST.boatType==='jetski';
+}
+function getJetSkiPackagePrice(pkgId){
+  const key = JETSKI_PKG_PRICE_KEY[pkgId] || pkgId;
+  const tier = PRICING.powersports && PRICING.powersports.tiers && PRICING.powersports.tiers.jetski;
+  const n = Number(tier && tier[key]);
+  return n > 0 ? n : null;
+}
+function getBoatQuotePrice(pkgId, ft, typeKey){
+  const type = typeKey || (typeof ST!=='undefined' && ST.boatType) || '';
+  if(type==='jetski') return getJetSkiPackagePrice(pkgId);
+  return getLengthPrice('boats', pkgId, ft, type);
+}
+function specialtyModelsFor(cat){
+  const all = window.SPECIALTY_MODELS || {};
+  if(cat==='boats' && typeof ST!=='undefined' && ST.boatType==='jetski'){
+    const src = all.powersports || {};
+    const out = {};
+    if(src['Sea-Doo']) out['Sea-Doo'] = src['Sea-Doo'];
+    if(src['Yamaha']) out['Yamaha'] = src['Yamaha'].filter(function(m){ return /wave|jet/i.test(m); });
+    if(src['Kawasaki']) out['Kawasaki'] = src['Kawasaki'].filter(function(m){ return /jet ski/i.test(m); });
+    return out;
+  }
+  return all[cat] || null;
+}
 function getLengthPrice(cat, pkgId, ft, typeKey){
   const cfg = LENGTH_PRICING[cat];
   if(!cfg) return null;
@@ -3714,9 +3771,10 @@ function setupLengthSelector(cat){
   const subEl = document.getElementById('rv-service-subtotal');
   if(!box || !range || !val) return;
   const usesFleetLength = cat === 'fleet' && ST.tierKey === 'marine_rv';
-  if(cat !== 'boats' && cat !== 'rvs' && !usesFleetLength){
+  if(isJetSkiBoat() || (cat !== 'boats' && cat !== 'rvs' && !usesFleetLength)){
     box.classList.remove('show');
-    ST.lengthFt = 0;
+    if(isJetSkiBoat()) ST.lengthFt = 0;
+    if(cat !== 'boats' && cat !== 'rvs' && !usesFleetLength) ST.lengthFt = 0;
     if(subEl) subEl.hidden = true;
     return;
   }
@@ -3777,6 +3835,40 @@ function setupLengthSelector(cat){
   updateRvServiceSubtotal();
 }
 
+function setupBoatTypeControls(cat){
+  const wrap = document.getElementById('boat-type-wrap');
+  const typeSel = document.getElementById('boat-type-sel');
+  const jetNote = document.getElementById('boat-jetski-note');
+  if(!wrap || !typeSel) return;
+  if(cat !== 'boats'){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  const allowed = BOAT_TYPE_LABELS || {};
+  if(ST._prefillBoatType && allowed[ST._prefillBoatType]){
+    typeSel.value = ST._prefillBoatType;
+    ST.boatType = ST._prefillBoatType;
+    ST._prefillBoatType = '';
+  }else if(ST.boatType && allowed[ST.boatType]){
+    typeSel.value = ST.boatType;
+  }else{
+    typeSel.value = '';
+    ST.boatType = '';
+  }
+  typeSel.onchange = function(){
+    ST.boatType = this.value;
+    try{ sessionStorage.setItem('cd1_boat_type', ST.boatType); }catch(e){}
+    if(ST.boatType === 'jetski') ST.lengthFt = 0;
+    if(jetNote) jetNote.style.display = ST.boatType === 'jetski' ? 'block' : 'none';
+    setupLengthSelector('boats');
+    if(typeof initSpecialtySearch === 'function') initSpecialtySearch('boats');
+    updateRvServiceSubtotal();
+    tryGenericConfirm();
+  };
+  if(jetNote) jetNote.style.display = typeSel.value === 'jetski' ? 'block' : 'none';
+}
+
 function setupRvTypeControls(cat){
   const wrap = document.getElementById('rv-type-wrap');
   const livingWrap = document.getElementById('rv-living-wrap');
@@ -3827,7 +3919,27 @@ function setupRvTypeControls(cat){
 function updateRvServiceSubtotal(){
   const subEl = document.getElementById('rv-service-subtotal');
   const amtEl = document.getElementById('rv-subtotal-amt');
-  if(!subEl || !amtEl || ST.cat !== 'rvs'){ if(subEl) subEl.hidden = true; return; }
+  if(!subEl || !amtEl){ return; }
+  if(ST.cat === 'boats'){
+    if(isJetSkiBoat() && ST.pkgId){
+      const price = getBoatQuotePrice(ST.pkgId);
+      if(!price){ subEl.hidden = true; return; }
+      amtEl.textContent = '$' + (price + (ST.addonTotal || 0));
+      subEl.hidden = false;
+      return;
+    }
+    const boatFt = Number(ST.lengthFt || 0);
+    if(!boatFt || !ST.boatType || !ST.pkgId){
+      subEl.hidden = true;
+      return;
+    }
+    const boatPrice = getBoatQuotePrice(ST.pkgId, boatFt, ST.boatType);
+    if(!boatPrice){ subEl.hidden = true; return; }
+    amtEl.textContent = '$' + (boatPrice + (ST.addonTotal || 0));
+    subEl.hidden = false;
+    return;
+  }
+  if(ST.cat !== 'rvs'){ subEl.hidden = true; return; }
   const ft = Number(ST.lengthFt || 0);
   const type = ST.rvType || '';
   if(!ft || !type || !ST.pkgId){
@@ -3939,7 +4051,7 @@ const MODEL_MAP = [
 ];
 function getVehicleVisualKey(){
   const cat=ST.cat;
-  if(cat==='boats') return 'boat';
+  if(cat==='boats') return (ST.boatType==='jetski' || ST.tierKey==='jetski') ? 'jetski' : 'boat';
   if(cat==='rvs'){
     const lbl=(ST.vehicleLabel||'').toLowerCase();
     return (lbl.indexOf('trailer')>-1||lbl.indexOf('fifth wheel')>-1||lbl.indexOf('airstream')>-1)?'trailer':'rv';
@@ -4108,7 +4220,7 @@ window.SPECIALTY_MODELS = {
 };
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
-let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,rvType:'',rvLiving:'',units:1,cardToken:'',cardBrand:'',cardLast4:'',
+let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,rvType:'',rvLiving:'',boatType:'',units:1,cardToken:'',cardBrand:'',cardLast4:'',
   // multi-vehicle cart
   vehicles:[],  // [{cat, pkgId, pkgName, vehicleLabel, basePrice, addons, addonTotal, subtotal}]
   zoneSurcharge:0,
@@ -4350,7 +4462,7 @@ function selectCategory(cat){
   ST._pendingCat='';
   document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('pending-cat'));
   if(window.CD1BookingProgress) CD1BookingProgress.hidePendingIntent();
-  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
+  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.boatType=cat==='boats'?ST.boatType:''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
   const rvPkgNote = document.getElementById('bs2-rv-note');
   if(rvPkgNote) rvPkgNote.style.display = cat==='rvs' ? 'block' : 'none';
   renderPackages(cat);
@@ -4439,7 +4551,7 @@ function selectPkg(id){
     ST.addons=[];
     ST.addonTotal=0;
   }
-  if((ST.cat==='boats'&&ST.lengthFt)||(ST.cat==='rvs'&&(ST.lengthFt&&ST.rvType))||(ST.cat==='fleet'&&ST.units)){
+  if((ST.cat==='boats'&&ST.boatType&&(ST.boatType==='jetski'||ST.lengthFt))||(ST.cat==='rvs'&&(ST.lengthFt&&ST.rvType))||(ST.cat==='fleet'&&ST.units)){
     tryGenericConfirm();
   } else if(ST.cat==='cars' && ST.tierKey){
     setBasePrice();
@@ -4463,7 +4575,7 @@ function renderTierChips(cat){
   }else{
     document.getElementById('tier-chips-wrap').style.display='block';
     const tiers=PRICING[cat].tiers;
-    wrap.innerHTML=Object.entries(tiers).map(([k,t])=>{
+    wrap.innerHTML=Object.entries(tiers).filter(([k])=>!(cat==='powersports' && k==='jetski')).map(([k,t])=>{
       const prices=Object.values(t).filter(v=>typeof v==='number');
       const minP=applyRichPrice(Math.min(...prices));
       const fee=getTravelFeeAmount();
@@ -4480,6 +4592,7 @@ function renderTierChips(cat){
 
   document.getElementById('make-search-wrap').style.display=isCar?'block':'none';
   document.getElementById('generic-search-wrap').style.display=isCar?'none':'block';
+  setupBoatTypeControls(cat);
   setupRvTypeControls(cat);
   setupLengthSelector(cat);
   setupUnitSelector(cat);
@@ -4506,7 +4619,7 @@ function renderTierChips(cat){
 
 // ── SPECIALTY VEHICLE AUTOCOMPLETE ───────────────────────────────────────────
 function initSpecialtySearch(cat){
-  const catData = (window.SPECIALTY_MODELS||{})[cat] || null;
+  const catData = specialtyModelsFor(cat);
   const makeIn  = document.getElementById('g-make');
   const makeDd  = document.getElementById('g-make-dd');
   const modelIn = document.getElementById('g-model');
@@ -4632,7 +4745,7 @@ function tryGenericConfirm(){
   const year=document.getElementById('g-year').value;
   if(!make||!model||!year||!ST.pkgId)return;
 
-  if(ST.cat==='boats'||ST.cat==='rvs'){
+  if(cat==='boats'||cat==='rvs'){
     if(ST.cat==='rvs'){
       if(!ST.rvType) return;
       if((ST.rvType==='cargo'||ST.rvType==='horse'||ST.rvType==='other') && !ST.rvLiving) return;
@@ -4646,13 +4759,27 @@ function tryGenericConfirm(){
       ST.tier={label:`${ft} ft`, icon:'🏕️', desc:'RV priced by exact length and type'};
       updateRvServiceSubtotal();
     }else{
-      const ft = ST.lengthFt || LENGTH_PRICING[ST.cat].defaultFt;
-      const price = getLengthPrice(ST.cat, ST.pkgId, ft, null);
-      if(!price)return;
-      ST.basePrice = price;
-      ST.vehicleLabel = `${year} ${make} ${model} · ${ft} ft`;
-      ST.tierKey = 'length';
-      ST.tier={label:`${ft} ft`, icon:'🛥️', desc:'Marine vessel priced by exact length'};
+      if(!ST.boatType) return;
+      if(ST.boatType==='jetski'){
+        const price = getBoatQuotePrice(ST.pkgId, 0, 'jetski');
+        if(!price) return;
+        ST.basePrice = price;
+        ST.vehicleLabel = `${year} ${make} ${model} · Jet Ski / PWC`;
+        ST.tierKey = 'jetski';
+        ST.tier={label:'Jet Ski / PWC', icon:'🌊', desc:'Personal watercraft priced by machine type'};
+        ST.lengthFt = 0;
+      }else{
+        const ft = Number(ST.lengthFt || 0);
+        if(!ft) return;
+        const price = getBoatQuotePrice(ST.pkgId, ft, ST.boatType);
+        if(!price)return;
+        const typeLabel = BOAT_TYPE_LABELS[ST.boatType] || ST.boatType;
+        ST.basePrice = price;
+        ST.vehicleLabel = `${year} ${make} ${model} · ${typeLabel} · ${ft} ft`;
+        ST.tierKey = ST.boatType;
+        ST.tier={label:`${typeLabel} · ${ft} ft`, icon:'🛥️', desc:'Marine vessel priced by type and exact length'};
+      }
+      updateRvServiceSubtotal();
     }
     setVehicleVisual();
     setVcName(ST.vehicleLabel);
@@ -5628,6 +5755,7 @@ function buildBookingPayload(options={}){
     vehicleTier: pv.tierLabel || ST.tier?.label || '',
     lengthFt: ST.lengthFt||'',
     rvType: ST.rvType||'',
+    boatType: ST.boatType||'',
     livingQuarters: ST.rvLiving||'',
     units: ST.units||1,
     package: pv.pkgName || ST.pkg?.name || '',
@@ -5775,6 +5903,7 @@ function buildCurrentVehicleItem(){
     tierKey: ST.tierKey || '',
     lengthFt: ST.lengthFt || '',
     rvType: ST.rvType || '',
+    boatType: ST.boatType || '',
     livingQuarters: ST.rvLiving || '',
     basePrice: ST.basePrice,
     addons: [...ST.addons],
@@ -6293,7 +6422,7 @@ const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & SUVs',      desc:'Mobile car detailing at your location', from:'From $190' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine wash & detail on-site',    from:'From $170' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'Price by exact length' },
-  powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs, jet skis',       from:'From $100' },
+  powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs',       from:'From $100' },
 
 };
 
@@ -7155,11 +7284,18 @@ if(osPreviewRequested()){ osBootstrapPreview(); } else { osRunBookingPricingInit
   try{
     const params=new URLSearchParams(window.location.search||'');
     const bookRaw=String(params.get('book')||params.get('category')||'').toLowerCase();
-    const book = bookRaw === '1' ? String(params.get('category')||params.get('cat')||'').toLowerCase() : bookRaw;
+    let book = bookRaw === '1' ? String(params.get('category')||params.get('cat')||'').toLowerCase() : bookRaw;
     const pkg=String(params.get('pkg')||params.get('package')||'');
     const zipQ=String(params.get('zip')||'').replace(/\D/g,'');
     const lengthQ=Number(params.get('length')||params.get('ft')||'');
-    const rvTypeQ=String(params.get('rvType')||params.get('type')||'');
+    const boatTypeQ=String(params.get('boatType')||'').toLowerCase();
+    const typeQ=String(params.get('type')||'').toLowerCase();
+    let rvTypeQ=String(params.get('rvType')||'');
+    if(!rvTypeQ && book==='rvs' && typeQ) rvTypeQ = typeQ;
+    const resolvedBoatType = boatTypeQ || (book==='boats' && typeQ) || '';
+    if((book==='powersports' && (resolvedBoatType==='jetski' || typeQ==='jetski' || params.get('tier')==='jetski')) || resolvedBoatType==='jetski' && book!=='boats' && book!=='rvs' && book!=='cars'){
+      book='boats';
+    }
     const livingQ=String(params.get('living')||'');
     const embed=params.get('embed')==='1';
     const multi=params.get('multi')==='1';
@@ -7204,6 +7340,14 @@ if(osPreviewRequested()){ osBootstrapPreview(); } else { osRunBookingPricingInit
       ST.rvType=rvTypeQ;
       ST._prefillRvType=rvTypeQ;
       try{ sessionStorage.setItem('cd1_rv_type', rvTypeQ); }catch(e){}
+    }
+    if(book==='boats'){
+      const boatPrefill = resolvedBoatType || (typeQ==='jetski' ? 'jetski' : '') || (String(params.get('tier')||'')==='jetski' ? 'jetski' : '');
+      if(BOAT_TYPE_LABELS[boatPrefill]){
+        ST.boatType=boatPrefill;
+        ST._prefillBoatType=boatPrefill;
+        try{ sessionStorage.setItem('cd1_boat_type', boatPrefill); }catch(e){}
+      }
     }
     if(livingQ){
       ST.rvLiving=livingQ;
@@ -7381,7 +7525,7 @@ body.cd1-booking-embed #cd-chat{display:none!important}
       chips:[{label:'📅 Book now',act:'book'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['what do you detail','vehicle','vehicles','cars','boat','rv','trailer','motorcycle','atv','jet ski','truck','suv'], fn:()=>({
-      reply:"We detail 🚗 cars & trucks, 🛥️ boats, 🏕️ RVs & travel trailers, 🏍️ powersports (motorcycle/ATV/UTV/jet ski) and 🚚 fleets — all <b>mobile</b>, at your home or workplace.",
+      reply:"We detail 🚗 cars & trucks, 🛥️ boats (including jet ski / PWC), 🏕️ RVs & travel trailers, 🏍️ powersports (motorcycle/ATV/UTV) and 🚚 fleets — all <b>mobile</b>, at your home or workplace.",
       chips:[{label:'💵 Pricing',q:'How much does it cost?'},{label:'📅 Book now',act:'book'}] }) },
 
     { keys:['mobile','come to me','at home','my place','do you travel','my location','my house','my driveway'], fn:()=>({

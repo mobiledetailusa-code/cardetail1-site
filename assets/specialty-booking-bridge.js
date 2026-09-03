@@ -144,6 +144,13 @@
 
   function buildBookingParams(categoryId, packageId, embed, multiVehicle, lengthFt, opts) {
     opts = opts || {};
+    var boatType = String(opts.boatType || '');
+    if (!boatType) {
+      try { boatType = sessionStorage.getItem('cd1_boat_type') || ''; } catch (eBoat) { boatType = ''; }
+    }
+    if (boatType === 'jetski' && categoryId === 'powersports') {
+      categoryId = 'boats';
+    }
     var params = new URLSearchParams();
     params.set('book', categoryId);
     if (embed) params.set('embed', '1');
@@ -163,6 +170,7 @@
       try { rvType = sessionStorage.getItem('cd1_rv_type') || ''; } catch (e2) { rvType = ''; }
     }
     if (categoryId === 'rvs' && rvType) params.set('rvType', rvType);
+    if (categoryId === 'boats' && boatType) params.set('boatType', boatType);
     var living = String(opts.living || '');
     if (!living) {
       try { living = sessionStorage.getItem('cd1_rv_living') || ''; } catch (e3) { living = ''; }
@@ -223,6 +231,9 @@
     if (opts.rvType) {
       try { sessionStorage.setItem('cd1_rv_type', String(opts.rvType)); } catch (eType) {}
     }
+    if (opts.boatType) {
+      try { sessionStorage.setItem('cd1_boat_type', String(opts.boatType)); } catch (eBoatType) {}
+    }
     if (opts.living) {
       try { sessionStorage.setItem('cd1_rv_living', String(opts.living)); } catch (eLiv) {}
     }
@@ -261,6 +272,7 @@
       var params = buildBookingParams(categoryId, packageId, true, multiVehicle, lengthFt, {
         zip: opts.zip,
         rvType: opts.rvType,
+        boatType: opts.boatType,
         living: opts.living,
       });
       var settled = false;
@@ -377,6 +389,7 @@
         packageId: btn.getAttribute('data-booking-package') || null,
         multiVehicle: btn.getAttribute('data-booking-multi') === '1',
         lengthFt: btn.getAttribute('data-booking-length') || null,
+        boatType: btn.getAttribute('data-booking-boat-type') || null,
         sourcePath: String(window.location.pathname || '')
       });
     });
