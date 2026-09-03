@@ -85,12 +85,11 @@ describe('boat vessel types in booking', () => {
     assert.match(bridge, /params\.set\('boatType'/);
   });
 
-  it('powersports package cards use square pack icons, not gallery photos', () => {
+  it('powersports package cards have no pack photos or car icons', () => {
     const cards = psPage.slice(psPage.indexOf('sp-pkg-grid'), psPage.indexOf('sp-pkg-note'));
-    assert.match(cards, /assets\/icons\/3d\/pack-wash\.webp/);
-    assert.match(cards, /assets\/icons\/3d\/pack-full\.webp/);
-    assert.match(cards, /assets\/icons\/3d\/pack-premium\.webp/);
-    assert.match(cards, /sp-pkg-visual--icon/);
+    assert.doesNotMatch(cards, /<img\b/);
+    assert.doesNotMatch(cards, /sp-pkg-visual/);
+    assert.doesNotMatch(cards, /assets\/icons\/3d\//);
     assert.doesNotMatch(cards, /assets\/media\/powersports\/gallery\//);
   });
 
