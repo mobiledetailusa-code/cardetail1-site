@@ -79,6 +79,7 @@
         addons: Array.isArray(ST.addons) ? ST.addons : [],
         lengthFt: Number(ST.lengthFt) || 0,
         rvType: ST.rvType || '',
+        boatType: ST.boatType || '',
         rvLiving: ST.rvLiving || '',
         units: Number(ST.units) || 1,
         vehicleLabel: ST.vehicleLabel || '',
@@ -207,6 +208,7 @@
       var st = snap.ST || {};
       if (st.lengthFt) ST.lengthFt = st.lengthFt;
       if (st.rvType) ST.rvType = st.rvType;
+      if (st.boatType) ST.boatType = st.boatType;
       if (st.rvLiving) ST.rvLiving = st.rvLiving;
       if (st.units) ST.units = st.units;
       if (st.vehicleLabel) ST.vehicleLabel = st.vehicleLabel;
