@@ -93,7 +93,7 @@ test('six-step booking progress and panel sequence restored', () => {
   const html = read('index.html');
   assert.match(html, /Booking progress — 6 steps/);
   assert.match(html, /BK_VISIBLE_STEPS = 6/);
-  assert.match(html, /Book in five steps/i);
+  assert.match(html, /Book in a few quick steps/i);
   assert.match(html, /id="bpt1"[\s\S]*Category/);
   assert.match(html, /id="bpt2"[\s\S]*Package/);
   assert.match(html, /id="bpt3"[\s\S]*Vehicle/);

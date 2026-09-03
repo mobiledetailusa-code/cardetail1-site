@@ -568,6 +568,8 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .svc-card.locked{opacity:.38;pointer-events:none;filter:grayscale(.7)}
 .zip-gate-msg{display:flex;align-items:center;gap:10px;padding:14px 16px;border:1.5px dashed rgba(77,163,255,.35);border-radius:var(--rs);background:rgba(77,163,255,.05);color:var(--blue);font-size:13px;font-weight:500;margin-bottom:14px;transition:.3s}
 .zip-gate-msg.unlocked{border-color:var(--grbr);background:rgba(34,197,94,.06);color:var(--gr)}
+#bk-intent-banner{display:none;margin:0 0 12px;padding:10px 14px;border-radius:var(--rs);background:rgba(77,163,255,.12);border:1px solid rgba(77,163,255,.4);color:var(--ink);font-size:14px;font-weight:700}
+#bk-intent-banner:not([hidden]){display:block}
 /* ── REVIEWS CAROUSEL ── */
 .rv-vh{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .rv-header-rating{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 8px}
@@ -1823,8 +1825,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <div id="services" style="background:var(--bg1)">
   <div class="section">
     <div class="car-pkg-intro">
-      <h2 class="sec-title">Choose Your Mobile Detailing Package</h2>
-      <p class="sec-desc">Mobile detailing for cars, boats, RVs, and powersports. Pick a package — you choose the vehicle type when you book. Final pricing adjusts by vehicle, condition, location, and add-ons.</p>
+      <div class="sec-eye">Featured packages</div>
+      <h2 class="sec-title">Popular services</h2>
+      <p class="sec-desc">Three of our most booked car packages. More options — including Exterior Hand Wash, Maintenance Detail, and Signature Restoration — appear when you book. Final pricing adjusts by vehicle, condition, location, and add-ons.</p>
     </div>
 
     <div class="cd1-multi-cta" data-cd1-multi-vehicle-section style="text-align:center;margin:18px auto 8px;max-width:640px;padding:18px 16px;border:1px solid rgba(77,163,255,.28);border-radius:18px;background:rgba(18,32,52,.45)">
@@ -1856,7 +1859,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <span class="car-pkg-price-note" id="home-from-interior-note">priced by vehicle type</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openBooking(null)">Book this package</button>
+          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('interior')">Book this package</button>
         </div>
       </article>
       <article class="car-pkg-card car-pkg-card--popular" data-pkg="full">
@@ -1877,13 +1880,13 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <span class="car-pkg-price-note car-pkg-price-note--primary" id="home-from-full-note">From $240 · priced by vehicle type</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openBooking(null)">Book this package</button>
+          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('full')">Book this package</button>
         </div>
       </article>
       <article class="car-pkg-card" data-pkg="refresh">
         <div class="car-pkg-top">
           <span class="car-pkg-scope">Premium exterior</span>
-          <h3 class="car-pkg-name">Exterior Detail &amp; Paint Enhancement</h3>
+          <h3 class="car-pkg-name">Exterior Refresh &amp; Protect</h3>
           <p class="car-pkg-desc">Advanced exterior-only package — clay bar, polish, sealant, wheels, glass, and gloss restoration. Premium paint enhancement, not a basic wash.</p>
           <div class="car-pkg-meta">
             <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
@@ -1899,7 +1902,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <span class="car-pkg-price-note" id="home-from-refresh-note">priced by vehicle type</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openBooking(null)">Book this package</button>
+          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('refresh')">Book this package</button>
         </div>
       </article>
     </div>
@@ -1911,7 +1914,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </div>
 
     <div class="car-services-cta">
-      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
+      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">View all packages</button>
       <a class="btn-outline" href="boats-detailing.html">Boats, RVs &amp; powersports</a>
     </div>
   </div>
@@ -2260,8 +2263,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <div id="how" style="background:var(--bg0)">
   <div class="section">
     <div class="sec-eye">How it works</div>
-    <div class="sec-title">Book in five steps</div>
-    <div class="sec-desc">Request your appointment in five clear steps — Category, Package, Vehicle, Info, then Review &amp; Submit. We review it first, then contact you about confirmation. If you opted in for SMS, updates may be sent by text. No card or payment method is required to submit.</div>
+    <div class="sec-title">Book in a few quick steps</div>
+    <div class="sec-desc">Request your appointment in a few quick steps — Category, Package, Vehicle, Info, then Review &amp; Submit. After we receive it, you will see Request Sent. We review it first, then contact you about confirmation. If you opted in for SMS, updates may be sent by text. No card or payment method is required to submit.</div>
     <div class="how-grid">
       <div class="how-card how-card--photo how-card--book">
         <div class="how-card-copy">
@@ -2321,7 +2324,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </div>
     <div class="results-cta">
       <button class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
-      <button class="btn-outline" onclick="openBooking(null)">See all packages</button>
+      <button class="btn-outline" onclick="openBooking(null)">View all packages</button>
     </div>
   </div>
 </div>
@@ -2389,7 +2392,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <h2 id="home-faq-title" class="sec-title">Mobile detailing questions — Bergen County</h2>
     <div class="home-faq">
       <details><summary>Do you come to my home for mobile car detailing in Bergen County?</summary><p>Yes. Cardetail1 is based in Palisades Park, NJ. We bring water, power, and professional equipment to your driveway, office lot, or other approved location in Bergen County and nearby NJ/NY areas.</p></details>
-      <details><summary>How much does mobile car detailing cost in Palisades Park?</summary><p>Interior Detail starts at $190 for sedans. Premium Full Detail starts at $240 for sedans, $260 for SUVs, and $270 for 3-row SUVs. Exterior Detail & Paint Enhancement starts at $320. Enter your ZIP for the price on your vehicle size.</p></details>
+      <details><summary>How much does mobile car detailing cost in Palisades Park?</summary><p>Interior Detail starts at $190 for sedans. Premium Full Detail starts at $240 for sedans, $260 for SUVs, and $270 for 3-row SUVs. Exterior Refresh &amp; Protect starts at $320. Enter your ZIP for the price on your vehicle size.</p></details>
       <details><summary>Is there a travel fee for Bergen County?</summary><p>Most Bergen County and nearby core NJ ZIP codes have no travel fee. Enter your ZIP on the homepage to see your zone and any distance-based fee before you book.</p></details>
       <details><summary>Do I pay today when I request an appointment?</summary><p>No. No charge is collected when you submit the request. Payment is handled after service.</p></details>
       <details><summary>Do you bring your own water and power?</summary><p>Yes. The mobile setup is self-contained. You do not need a hose hookup for a standard driveway job.</p></details>
@@ -2448,7 +2451,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <!-- MOBILE STICKY CTA -->
 <div class="mobile-sticky-cta" id="mobile-sticky-cta">
   <button class="msc-book booking-popup-trigger" onclick="openBooking(null)">Check price</button>
-  <button class="msc-portal" onclick="openPortal()">Your booking</button>
+  <button class="msc-portal" onclick="openPortal()">My Garage</button>
   <a class="msc-call" href="tel:5513735668">📞 Call</a>
 </div>
 
@@ -2511,7 +2514,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="login-desc" id="login-desc">Look up your booking by phone number or booking ID.</div>
     <div class="login-tabs">
       <button class="login-tab" id="ltab-admin" onclick="setLoginRole('admin')" style="display:none">🔐 Admin</button>
-      <button class="login-tab active" id="ltab-customer" onclick="setLoginRole('customer')">👤 My Booking</button>
+      <button class="login-tab active" id="ltab-customer" onclick="setLoginRole('customer')">👤 My Garage</button>
     </div>
 
     <!-- Admin — username + password sign-in. Hidden by default: the customer
@@ -2567,6 +2570,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="beye">Step 01 — Category</div>
         <div class="btitle">WHAT ARE WE<br>DETAILING?</div>
         <div class="bdesc">Enter your ZIP code first — we'll detect your area and show accurate pricing for your location.</div>
+        <div id="bk-intent-banner" hidden></div>
         <!-- ZIP GATE -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
           <input class="fi" id="bk-zip" type="text" maxlength="5" placeholder="Enter ZIP code" inputmode="numeric" style="width:min(150px,100%);padding:11px 14px;font-size:15px;font-weight:600" oninput="onBkZipInput(this.value)" autocomplete="postal-code">
@@ -4208,7 +4212,7 @@ function bookingHasProgress(){
   if(ST.cat||ST.pkgId||(ST.vehicles&&ST.vehicles.length)) return true;
   const on=document.querySelector('.bsec.on');
   if(on&&on.id&&on.id!=='bs1') return true;
-  return ['f-name','f-email','f-phone','f-address'].some(id=>{
+  return ['f-first','f-last','f-email','f-phone','f-addr'].some(id=>{
     const el=document.getElementById(id); return el&&String(el.value||'').trim();
   });
 }
@@ -4271,6 +4275,7 @@ function bkGoTo(n, opts = {}) {
   if (window.Cardetail1CheckoutAnalytics && _bkPrevStep > n) {
     Cardetail1CheckoutAnalytics.onStepBack(_bkPrevStep, n);
   }
+  if (window.CD1BookingProgress && !ST._restoring) CD1BookingProgress.persist();
 }
 
 function bkContinueFromPackage() {
@@ -4334,6 +4339,8 @@ function selectCategory(cat){
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('pending-cat'));
     const pendingCard=document.getElementById('bkcat-'+cat);
     if(pendingCard) pendingCard.classList.add('pending-cat');
+    if(window.CD1BookingProgress) CD1BookingProgress.showPendingIntent(cat);
+    if(window.CD1BookingProgress) CD1BookingProgress.persist();
     // Focus the ZIP input with a shake animation
     if(zipEl){ zipEl.focus(); zipEl.style.outline='2px solid var(--rd)'; setTimeout(()=>zipEl.style.outline='',1800); }
     const gateMsg = document.getElementById('bk-gate-msg');
@@ -4342,6 +4349,7 @@ function selectCategory(cat){
   }
   ST._pendingCat='';
   document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('pending-cat'));
+  if(window.CD1BookingProgress) CD1BookingProgress.hidePendingIntent();
   ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
   const rvPkgNote = document.getElementById('bs2-rv-note');
   if(rvPkgNote) rvPkgNote.style.display = cat==='rvs' ? 'block' : 'none';
@@ -4439,7 +4447,8 @@ function selectPkg(id){
   }
   if(ST.cat==='rvs') updateRvServiceSubtotal();
   // Auto-advance to vehicle step after package selection
-  if(ST.pkg && currentBkStep < 3) setTimeout(()=>bkContinueFromPackage(), 180);
+  if(ST.pkg && currentBkStep < 3 && !ST._restoring) setTimeout(()=>bkContinueFromPackage(), 180);
+  if(window.CD1BookingProgress && !ST._restoring) CD1BookingProgress.persist();
 }
 
 // ── STEP 3: VEHICLE ───────────────────────────────────────────────────────────
@@ -5718,6 +5727,7 @@ function smsForBooking(b){
 }
 
 function showSuccess(payload){
+  if(window.CD1BookingProgress) CD1BookingProgress.clear();
   if(window.Cardetail1BookingReview && typeof Cardetail1BookingReview.showSuccess==='function'){
     return Cardetail1BookingReview.showSuccess(payload);
   }
@@ -6391,6 +6401,7 @@ function onBkZipInput(val){
       ST._pendingCat='';
       selectCategory(pending);
     }
+    if(window.CD1BookingProgress && !ST._restoring) CD1BookingProgress.persist();
   } else {
     badge.style.display    = 'none';
     updateBkTravelDisplay(null);
@@ -7476,6 +7487,7 @@ body.cd1-booking-embed #cd-chat{display:none!important}
 
 <script src="assets/customer-segments.js"></script>
 <script src="assets/universal-customer-strategy.generated.js"></script>
+<script src="assets/booking-progress.js"></script>
 <script src="assets/booking-routing-gate.js"></script>
 <script src="assets/lead-score.js"></script>
 <script src="assets/next-best-action.js"></script>

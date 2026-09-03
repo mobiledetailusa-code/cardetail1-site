@@ -166,8 +166,10 @@ for (const page of stateHubPages) {
       assert.match(html, new RegExp(`openHomePkgDetailModal\\('${pkgId}'`));
     }
     assert.doesNotMatch(html, /openHomePkgDetailModal\('wash'/);
-    assert.equal((html.match(/class="car-pkg-cta" onclick="openBooking\(null\)"/g) || []).length, 3);
+    assert.equal((html.match(/class="car-pkg-cta" onclick="openBookingCarPkg\('interior'\)"/g) || []).length, 1);
+    assert.equal((html.match(/class="car-pkg-cta" onclick="openBookingCarPkg\('full'\)"/g) || []).length, 1);
+    assert.equal((html.match(/class="car-pkg-cta" onclick="openBookingCarPkg\('refresh'\)"/g) || []).length, 1);
+    assert.doesNotMatch(html, /class="car-pkg-cta" onclick="openBooking\(null\)"/);
     assert.doesNotMatch(html, /openBookingCarPkg\('wash'\)/);
-    assert.doesNotMatch(html, /openBookingCarPkg\('interior'\)/);
   });
 }

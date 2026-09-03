@@ -99,9 +99,12 @@ test('homepage opens package details in modal panel instead of inline card expan
     assert.match(index, new RegExp(`openHomePkgDetailModal\\('${pkgId}'`));
   }
   assert.doesNotMatch(index, /openHomePkgDetailModal\('wash'/);
-  assert.equal((index.match(/class="car-pkg-cta" onclick="openBooking\(null\)"/g) || []).length, 3);
+  assert.equal((index.match(/class="car-pkg-cta" onclick="openBookingCarPkg\('interior'\)"/g) || []).length, 1);
+  assert.equal((index.match(/class="car-pkg-cta" onclick="openBookingCarPkg\('full'\)"/g) || []).length, 1);
+  assert.equal((index.match(/class="car-pkg-cta" onclick="openBookingCarPkg\('refresh'\)"/g) || []).length, 1);
+  assert.doesNotMatch(index, /class="car-pkg-cta" onclick="openBooking\(null\)"/);
   assert.doesNotMatch(index, /openBookingCarPkg\('wash'\)/);
-  assert.doesNotMatch(index, /openBookingCarPkg\('interior'\)/);
+  assert.match(index, /openBookingCarPkg\('interior'\)/);
   assert.match(pkgModalJs, /function openHomePkgDetailModal\(pkgId/);
   assert.match(pkgModalJs, /<h4>Includes<\/h4>/);
   assert.match(pkgModalJs, /<h4>Best for<\/h4>/);
