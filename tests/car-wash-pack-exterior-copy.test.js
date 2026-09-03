@@ -135,8 +135,10 @@ test('homepage shows 3 main packs that open all categories, without pack icons',
     assert.match(html, /data-pkg="refresh"/);
     assert.doesNotMatch(html, /data-pkg="wash"/);
     assert.doesNotMatch(html, /car-pkg-3d/);
-    assert.match(html, /class="car-pkg-cta" onclick="openBooking\(null\)"/);
-    assert.equal((html.match(/class="car-pkg-cta" onclick="openBooking\(null\)"/g) || []).length, 3);
+    assert.match(html, /class="car-pkg-cta" onclick="openBookingCarPkg\('interior'\)"/);
+    assert.match(html, /class="car-pkg-cta" onclick="openBookingCarPkg\('full'\)"/);
+    assert.match(html, /class="car-pkg-cta" onclick="openBookingCarPkg\('refresh'\)"/);
+    assert.equal((html.match(/class="car-pkg-cta" onclick="openBookingCarPkg\('/g) || []).length, 3);
     assert.match(html, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   }
 });

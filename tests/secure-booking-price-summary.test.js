@@ -159,7 +159,7 @@ describe('price presentation', () => {
   });
 
   it('selecting a package auto-advances to the vehicle step', () => {
-    assert.match(html, /if\(ST\.pkg && currentBkStep < 3\) setTimeout\(\(\)=>bkContinueFromPackage\(\), 180\);/);
+    assert.match(html, /if\(ST\.pkg && currentBkStep < 3 && !ST\._restoring\) setTimeout\(\(\)=>bkContinueFromPackage\(\), 180\);/);
     assert.doesNotMatch(html, /stay on package step until Continue/);
   });
 

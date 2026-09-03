@@ -273,6 +273,16 @@
       var result = evaluateAndMaybeBlock(ctx);
       if (result.blocked) {
         try { global.history.replaceState({}, '', 'index.html'); } catch (e) { /* ignore */ }
+        return;
+      }
+      if (global.CD1BookingProgress && typeof global.CD1BookingProgress.resumeFromQuery === 'function') {
+        global.CD1BookingProgress.resumeFromQuery();
+        return;
+      }
+      if (typeof global.openBooking === 'function') {
+        global.__cd1SkipRoutingGate = true;
+        try { global.openBooking(null); }
+        finally { global.__cd1SkipRoutingGate = false; }
       }
     } catch (e2) { /* ignore */ }
   }

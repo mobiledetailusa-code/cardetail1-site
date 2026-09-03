@@ -81,7 +81,7 @@ const CAR_PKG_DETAILS = {
     ],
   },
   refresh: {
-    title: "Exterior Detail & Paint Enhancement",
+    title: "Exterior Refresh & Protect",
     includes: [
       "Hand wash",
       "Wheels and tires",

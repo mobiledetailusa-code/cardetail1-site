@@ -39,10 +39,11 @@ function h1Count(html) {
   return (html.match(/<h1[\s>]/gi) || []).length;
 }
 
-test('homepage How it works markets five booking steps', () => {
+test('homepage How it works markets a few quick booking steps', () => {
   const html = read('index.html');
-  assert.match(html, /Book in five steps/i);
-  assert.match(html, /five clear steps/);
+  assert.match(html, /Book in a few quick steps/i);
+  assert.doesNotMatch(html, /Book in five steps/i);
+  assert.doesNotMatch(html, /five clear steps/);
   assert.doesNotMatch(html, /Book in six steps/i);
   assert.match(html, /BK_VISIBLE_STEPS\s*=\s*6/);
   assert.match(html, /id="bpt6"/);
