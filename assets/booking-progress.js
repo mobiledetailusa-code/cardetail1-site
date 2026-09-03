@@ -15,6 +15,14 @@
     rvs: 'RV Detailing',
     powersports: 'Powersports',
   };
+  var PACKAGE_INTENT_LABELS = {
+    interior: 'Interior Detail',
+    full: 'Premium Full Detail',
+    refresh: 'Exterior Refresh & Protect',
+    wash: 'Exterior Hand Wash',
+    maint: 'Maintenance Detail',
+    premium: 'Premium Detail',
+  };
 
   function storageGet() {
     try {
@@ -71,6 +79,7 @@
       step: Number(global.currentBkStep) || 1,
       zip: zip,
       pendingCat: ST._pendingCat || '',
+      packageIntent: ST._packageIntent || '',
       forceMulti: ST._forceMultiVehicle === true,
       ST: {
         cat: ST.cat || '',
@@ -156,16 +165,26 @@
     return CAT_LABELS[cat] || '';
   }
 
-  function showPendingIntent(cat) {
+  function packageIntentLabel(id) {
+    return PACKAGE_INTENT_LABELS[id] || '';
+  }
+
+  function showPendingIntent(cat, packageIntent) {
     var doc = global.document;
     if (!doc) return;
     var banner = doc.getElementById('bk-intent-banner');
     var gate = doc.getElementById('bk-gate-msg');
-    var label = categoryLabel(cat);
+    var catLabel = categoryLabel(cat);
+    var pkgLabel = packageIntentLabel(packageIntent);
+    var label = pkgLabel || catLabel;
+    var bannerText = '';
+    if (pkgLabel && catLabel) bannerText = 'You selected ' + pkgLabel + ' for ' + catLabel;
+    else if (pkgLabel) bannerText = 'You selected ' + pkgLabel;
+    else if (catLabel) bannerText = 'You selected ' + catLabel;
     if (banner) {
-      if (label) {
+      if (bannerText) {
         banner.hidden = false;
-        banner.textContent = 'You selected ' + label;
+        banner.textContent = bannerText;
       } else {
         banner.hidden = true;
         banner.textContent = '';
@@ -206,6 +225,8 @@
         if (typeof global.onBkZipInput === 'function') global.onBkZipInput(snap.zip);
       }
       var st = snap.ST || {};
+      if (snap.packageIntent) ST._packageIntent = snap.packageIntent;
+      else if (st.pkgId && !st.cat && !snap.pendingCat) ST._packageIntent = st.pkgId;
       if (st.lengthFt) ST.lengthFt = st.lengthFt;
       if (st.rvType) ST.rvType = st.rvType;
       if (st.boatType) ST.boatType = st.boatType;
@@ -218,8 +239,11 @@
       var cat = st.cat || snap.pendingCat || '';
       if (cat && typeof global.selectCategory === 'function') {
         if (st.pkgId) ST._prefillPkgId = st.pkgId;
+        else if (ST._packageIntent) ST._prefillPkgId = ST._packageIntent;
         ST._startStep = null;
         global.selectCategory(cat);
+      } else if (ST._packageIntent) {
+        ST._prefillPkgId = ST._packageIntent;
       }
       if (st.pkgId && ST.cat && typeof global.selectPkg === 'function') {
         global.selectPkg(st.pkgId);
@@ -257,7 +281,11 @@
     applySnapshot(snap);
     var zipOk = !!global.activeZone;
     var safe = highestSafeStep(snap, requested, zipOk);
-    if (!zipOk && snap.ST && snap.ST.cat) showPendingIntent(snap.ST.cat);
+    if (!zipOk) {
+      var pendingCat = (snap.ST && snap.ST.cat) || snap.pendingCat || '';
+      var pendingPkg = snap.packageIntent || (snap.ST && snap.ST.pkgId) || '';
+      if (pendingCat || pendingPkg) showPendingIntent(pendingCat, pendingPkg);
+    }
     if (typeof global.bkGoTo === 'function') global.bkGoTo(safe);
     return { opened: true, restored: true, step: safe };
   }
@@ -288,6 +316,8 @@
     showPendingIntent: showPendingIntent,
     hidePendingIntent: hidePendingIntent,
     categoryLabel: categoryLabel,
+    packageIntentLabel: packageIntentLabel,
+    PACKAGE_INTENT_LABELS: PACKAGE_INTENT_LABELS,
     bindFieldPersistence: bindFieldPersistence,
   };
 

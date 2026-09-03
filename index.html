@@ -4326,7 +4326,10 @@ function launchBooking(opts){
     var map = { category:1, package:2, vehicle:3, '1':1, '2':2, '3':3 };
     ST._startStep = map[String(start)] != null ? map[String(start)] : start;
   }
-  if(pkg) ST._prefillPkgId = pkg;
+  if(pkg){
+    ST._prefillPkgId = pkg;
+    ST._packageIntent = pkg;
+  }
   return openBooking(cat);
 }
 window.launchBooking = launchBooking;
@@ -4461,6 +4464,20 @@ function goToConfirmFromTerms() {
 function bkScrollToConfirm() { /* success is post-submit only */ }
 function bkScrollToPayment() { bkGoTo(5); }
 
+// Map homepage marketing package intent onto a real catalog id for the chosen
+// category. Exact id wins. Closest valid existing ids only — never invent products.
+function resolvePackageIntentForCategory(cat, intentId){
+  if(!cat || !intentId) return '';
+  const pkgs=(PRICING[cat] && PRICING[cat].packages) || [];
+  if(pkgs.some(function(p){ return p.id===intentId; })) return intentId;
+  const CLOSEST={
+    refresh:{ rvs:'premium', boats:'premium', powersports:'premium' }
+  };
+  const mapped=CLOSEST[intentId] && CLOSEST[intentId][cat];
+  if(mapped && pkgs.some(function(p){ return p.id===mapped; })) return mapped;
+  return '';
+}
+
 // ── STEP 1: CATEGORY ──────────────────────────────────────────────────────────
 function selectCategory(cat){
   if(cat==='fleet'){ openCommercialInquiry(); return; }
@@ -4474,7 +4491,7 @@ function selectCategory(cat){
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('pending-cat'));
     const pendingCard=document.getElementById('bkcat-'+cat);
     if(pendingCard) pendingCard.classList.add('pending-cat');
-    if(window.CD1BookingProgress) CD1BookingProgress.showPendingIntent(cat);
+    if(window.CD1BookingProgress) CD1BookingProgress.showPendingIntent(cat, ST._packageIntent);
     if(window.CD1BookingProgress) CD1BookingProgress.persist();
     // Focus the ZIP input with a shake animation
     if(zipEl){ zipEl.focus(); zipEl.style.outline='2px solid var(--rd)'; setTimeout(()=>zipEl.style.outline='',1800); }
@@ -4491,17 +4508,26 @@ function selectCategory(cat){
   renderPackages(cat);
   renderTierChips(cat);
   bkGoTo(2);
-  if(ST._prefillPkgId){
-    const pid=ST._prefillPkgId; ST._prefillPkgId='';
-    const goVehicle = ST._startStep === 3 || ST._startStep === 'vehicle';
+  const intentId=ST._prefillPkgId || ST._packageIntent || '';
+  const pid=resolvePackageIntentForCategory(cat, intentId);
+  ST._prefillPkgId='';
+  const goVehicle = ST._startStep === 3 || ST._startStep === 'vehicle';
+  if(pid){
     ST._startStep = null;
     requestAnimationFrame(()=>{
-      if(document.getElementById('pk-'+pid)) selectPkg(pid);
+      ST._holdPackageStep = !goVehicle;
+      try{
+        if(document.getElementById('pk-'+pid) || pid) selectPkg(pid);
+      }finally{
+        ST._holdPackageStep = false;
+      }
       if(goVehicle && ST.pkg) bkGoTo(3);
     });
   } else if(ST._startStep === 2 || ST._startStep === 'package'){
     ST._startStep = null;
     bkGoTo(2);
+  } else {
+    ST._startStep = null;
   }
 }
 
@@ -4582,7 +4608,7 @@ function selectPkg(id){
   }
   if(ST.cat==='rvs') updateRvServiceSubtotal();
   // Auto-advance to vehicle step after package selection
-  if(ST.pkg && currentBkStep < 3 && !ST._restoring) setTimeout(()=>bkContinueFromPackage(), 180);
+  if(ST.pkg && currentBkStep < 3 && !ST._restoring && !ST._holdPackageStep) setTimeout(()=>bkContinueFromPackage(), 180);
   if(window.CD1BookingProgress && !ST._restoring) CD1BookingProgress.persist();
 }
 
@@ -7184,9 +7210,18 @@ function renderHomeAddons(){
 })();
 
 function openBookingCarPkg(pkgId){
+  ST.cat='';
+  ST.pkgId='';
+  ST.pkg=null;
+  ST._pendingCat='';
+  ST._packageIntent=pkgId||'';
   ST._prefillPkgId=pkgId||'';
-  ST._startStep=3;
-  openBookingFromHome('cars');
+  ST._startStep=null;
+  openBookingFromHome(null);
+  if(window.CD1BookingProgress){
+    CD1BookingProgress.showPendingIntent('', ST._packageIntent);
+    CD1BookingProgress.persist();
+  }
 }
 
 function openBookingPkg(cat, pkgId){
@@ -7356,8 +7391,16 @@ if(osPreviewRequested()){ osBootstrapPreview(); } else { osRunBookingPricingInit
       const startMap={vehicle:3,package:2,category:1,'3':3,'2':2,'1':1};
       ST._startStep=startMap[startQ]!=null?startMap[startQ]:startQ;
     }
-    if(!allowed[book]) return;
-    if(pkg) ST._prefillPkgId=pkg;
+    if(pkg){
+      ST._prefillPkgId=pkg;
+      ST._packageIntent=pkg;
+    }
+    if(!allowed[book]){
+      if(pkg){
+        window.__cd1PendingBookQuery={book:'',pkg:pkg,zipQ:zipQ,length:lengthQ||null,embed:embed,multi:multi,allowed:allowed};
+      }
+      return;
+    }
     if(lengthQ >= 12 && lengthQ <= 60) ST._prefillLengthFt=lengthQ;
     if(rvTypeQ){
       ST.rvType=rvTypeQ;
