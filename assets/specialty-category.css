@@ -284,6 +284,24 @@ button { font-family: inherit; }
   object-fit: cover;
   object-position: center;
 }
+.sp-pkg-visual--icon {
+  aspect-ratio: 1 / 1;
+  max-height: 168px;
+  max-width: 168px;
+  margin: 0 auto 16px;
+  border-radius: 22px;
+  background: rgba(77, 163, 255, 0.08);
+  border: 1px solid rgba(77, 163, 255, 0.18);
+  display: grid;
+  place-items: center;
+  padding: 14px;
+}
+.sp-pkg-visual--icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
 .sp-pkg-name {
   font-family: var(--sp-fd);
   font-size: 26px;

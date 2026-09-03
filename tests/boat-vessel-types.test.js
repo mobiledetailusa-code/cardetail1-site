@@ -31,9 +31,12 @@ function extractFunction(src, name) {
 describe('boat vessel types in booking', () => {
   it('homepage booking lists vessel types like RV types, including Jet Ski / PWC', () => {
     assert.match(index, /id="boat-type-sel"/);
-    for (const value of ['runabout', 'bowrider', 'center', 'pontoon', 'cuddy', 'cruiser', 'jetski', 'other']) {
+    for (const value of ['runabout', 'bowrider', 'center', 'pontoon', 'bass', 'skiwake', 'cuddy', 'walkaround', 'sportcruiser', 'cabincruiser', 'yacht', 'jetski', 'other']) {
       assert.match(index, new RegExp(`<option value="${value}">`));
     }
+    assert.match(index, /Cabin Cruiser/);
+    assert.match(index, /Cuddy Cabin/);
+    assert.match(index, /<option value="yacht">Yacht</);
     assert.match(index, /id="rv-type-sel"/);
     assert.match(index, /function setupBoatTypeControls/);
   });
@@ -80,6 +83,15 @@ describe('boat vessel types in booking', () => {
     assert.match(progress, /boatType: ST\.boatType/);
     assert.match(bridge, /data-booking-boat-type/);
     assert.match(bridge, /params\.set\('boatType'/);
+  });
+
+  it('powersports package cards use square pack icons, not gallery photos', () => {
+    const cards = psPage.slice(psPage.indexOf('sp-pkg-grid'), psPage.indexOf('sp-pkg-note'));
+    assert.match(cards, /assets\/icons\/3d\/pack-wash\.webp/);
+    assert.match(cards, /assets\/icons\/3d\/pack-full\.webp/);
+    assert.match(cards, /assets\/icons\/3d\/pack-premium\.webp/);
+    assert.match(cards, /sp-pkg-visual--icon/);
+    assert.doesNotMatch(cards, /assets\/media\/powersports\/gallery\//);
   });
 
   it('boats specialty page books jet ski into boats, not powersports', () => {
