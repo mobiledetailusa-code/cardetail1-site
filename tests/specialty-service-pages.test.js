@@ -72,9 +72,6 @@ const POWERSPORTS_MEDIA = [
   'assets/vehicles/premium/atv.webp',
   'assets/vehicles/premium/utv.webp',
   'assets/vehicles/premium/powersports.webp',
-  'assets/icons/3d/pack-wash.webp',
-  'assets/icons/3d/pack-full.webp',
-  'assets/icons/3d/pack-premium.webp',
 ];
 
 const BOATS_MEDIA = [
