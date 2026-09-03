@@ -185,7 +185,7 @@
         return openDelegatedBooking(args[0] || null, null);
       }
       if (name === 'openBookingCarPkg') {
-        return openDelegatedBooking('cars', args[0] || null);
+        return openDelegatedBooking(null, args[0] || null);
       }
       return openDelegatedBooking(args[0] || null, null);
     };
