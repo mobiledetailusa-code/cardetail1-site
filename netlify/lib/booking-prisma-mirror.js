@@ -169,6 +169,7 @@ async function listBookingMirrors() {
     const rows = await prisma.bookingRecord.findMany({
       where: { NOT: { kind: 'draft' } },
       orderBy: { updatedAt: 'desc' },
+      select: { id: true, payload: true },
     });
     for (const row of rows || []) {
       const payload = row && row.payload;

@@ -1387,32 +1387,33 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       // Preserve any session-cached techs across jobs/requests refresh.
       lastJobsNotModified = false;
       lastRequestsNotModified = false;
-      // Jobs and Change requests each have a 25s source timeout. Sharing the
-      // poll abort signal (also 25s) aborted both together on mobile. Load
-      // them sequentially with independent timers so Schedule can render even
-      // when Requests is still hydrating.
+      // Independent source timers — never share the poll AbortSignal.
+      // Start Jobs and Change requests together, then paint Schedule as soon as
+      // Jobs land instead of waiting on the requests hydrate.
       const settle = (p) => Promise.resolve(p)
         .then((value) => ({ status: 'fulfilled', value }))
         .catch((reason) => ({ status: 'rejected', reason }));
-      // Do not pass the poll AbortSignal into these loads — a shared 25s abort
-      // previously killed Jobs and Requests together on cellular. Each loader
-      // keeps its own 25s SOURCE_FETCH_TIMEOUT_MS. If this refresh was
-      // superseded, skip remaining sources so a replacement can start clean.
       const aborted = () => !!(requestSignal && requestSignal.aborted);
-      const jobsR = await settle(loadJobs());
+      const jobsP = settle(loadJobs());
+      const settingsP = syncOnly
+        ? Promise.resolve({ status: 'fulfilled', value: platformSettings })
+        : settle(loadSettings());
+      const changeP = settle(loadChangeRequests());
+      const jobsR = await jobsP;
+      if (!aborted() && !(syncOnly && lastJobsNotModified && jobsR.status === 'fulfilled')) {
+        renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderEvents(); renderTechs();
+      }
       const settingsR = aborted()
         ? { status: 'fulfilled', value: platformSettings }
-        : (syncOnly
-          ? { status: 'fulfilled', value: platformSettings }
-          : await settle(loadSettings()));
+        : await settingsP;
       const changeR = aborted()
         ? { status: 'fulfilled', value: changeRequests }
-        : await settle(loadChangeRequests());
+        : await changeP;
       // Intentionally do NOT assign jobs=[], techs=[], or changeRequests=[] on rejection.
       // Intentionally do NOT call loadTechs() here.
       const bothUnchanged = syncOnly && lastJobsNotModified && lastRequestsNotModified
         && jobsR.status === 'fulfilled' && changeR.status === 'fulfilled';
-      if (!bothUnchanged) {
+      if (!aborted() && !bothUnchanged) {
         renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
         updateRequestsTabBadge();
         renderSettingsForm();

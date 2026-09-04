@@ -41,9 +41,18 @@ function createCountingStore(seed = {}, counters) {
         ? { data: JSON.parse(JSON.stringify(data.get(key))), etag: `etag-${key}` }
         : null;
     },
-    async setJSON(key, value) {
+    async setJSON(key, value, opts) {
+      if (opts && opts.onlyIfMatch) {
+        const expected = `etag-${key}`;
+        if (data.has(key) && opts.onlyIfMatch !== expected) {
+          return { modified: false };
+        }
+      }
       data.set(key, JSON.parse(JSON.stringify(value)));
       return { modified: true };
+    },
+    async delete(key) {
+      data.delete(key);
     },
     async list() {
       if (counters) {
@@ -344,6 +353,93 @@ describe('admin customer-requests list — query order and N+1', () => {
       const src = fs.readFileSync(path.join(root, rel), 'utf8');
       assert.equal(forbidden.test(src), false, `${rel} must not import Stripe/ledger/pricing`);
     }
+  });
+
+  it('16. pending list with an open catalog GETs only catalog ids, not closed history', async () => {
+    bookingCounters = newCounters();
+    opsDb.setOpsStoreOverride(createCountingStore(buildBookings(), bookingCounters));
+    handler = loadHandler();
+    const requests = buildRequests(1000);
+    const openIds = Object.values(requests)
+      .filter((r) => ['pending', 'pending_approval', 'needs_clarification'].includes(r.status))
+      .slice(0, 8)
+      .map((r) => r.id);
+    requests._open_catalog = { v: 1, ids: openIds, updatedAt: '2026-01-01T00:00:00.000Z' };
+    const requestCounters = newCounters();
+    handler.setRequestStoreOverride(createCountingStore(requests, requestCounters));
+
+    const { statusCode, body } = await list(handler, { status: 'pending' });
+    assert.equal(statusCode, 200);
+    assert.equal(body.ok, true);
+    assert.equal(requestCounters.lists, 0, 'catalog hit must not list the request store');
+    const got = new Set(requestCounters.keys);
+    assert.ok(got.has('_open_catalog'), 'must read the catalog key');
+    for (const id of openIds) {
+      assert.ok(got.has(id), `must GET catalog id ${id}`);
+    }
+    const extra = [...got].filter((k) => k !== '_open_catalog' && !openIds.includes(k));
+    assert.deepEqual(extra, [], `must not GET closed/history keys: ${extra.join(',')}`);
+    assert.equal(body.requests.length, 8);
+    assert.ok(body.requests.every((r) => openIds.includes(r.id)));
+    assert.equal(body.totalPending, 8);
+  });
+
+  it('17. status=all still scans the store so closed history remains visible', async () => {
+    bookingCounters = newCounters();
+    opsDb.setOpsStoreOverride(createCountingStore(buildBookings(), bookingCounters));
+    handler = loadHandler();
+    const requests = buildRequests(200);
+    const openIds = Object.values(requests)
+      .filter((r) => r.status === 'pending')
+      .slice(0, 3)
+      .map((r) => r.id);
+    requests._open_catalog = { v: 1, ids: openIds, updatedAt: '2026-01-01T00:00:00.000Z' };
+    const requestCounters = newCounters();
+    handler.setRequestStoreOverride(createCountingStore(requests, requestCounters));
+
+    const { body } = await list(handler, { status: 'all' });
+    assert.equal(body.totalFiltered, 200);
+    assert.ok(requestCounters.lists >= 1, 'closed/all must still list blobs');
+    assert.ok(body.requests.some((r) => r.status === 'applied' || r.status === 'rejected'));
+  });
+});
+
+describe('open-request catalog helpers', () => {
+  const {
+    hydrateRequestRecords,
+    syncOpenCatalog,
+    OPEN_CATALOG_KEY,
+  } = require('../netlify/lib/customer-change-requests');
+
+  it('hydrateRequestRecords skips underscore catalog keys', async () => {
+    const counters = newCounters();
+    const store = createCountingStore({
+      [OPEN_CATALOG_KEY]: { v: 1, ids: ['cr_open'] },
+      _other: { id: '_other', status: 'pending' },
+      cr_open: { id: 'cr_open', status: 'pending' },
+      cr_closed: { id: 'cr_closed', status: 'applied' },
+    }, counters);
+    const rows = await hydrateRequestRecords(store, [
+      OPEN_CATALOG_KEY,
+      '_other',
+      'cr_open',
+      'cr_closed',
+    ]);
+    assert.deepEqual(rows.map((r) => r.id).sort(), ['cr_closed', 'cr_open']);
+    assert.ok(!counters.keys.includes(OPEN_CATALOG_KEY));
+    assert.ok(!counters.keys.includes('_other'));
+  });
+
+  it('syncOpenCatalog adds open ids and removes closed ids', async () => {
+    const store = createCountingStore({
+      [OPEN_CATALOG_KEY]: { v: 1, ids: ['cr_keep', 'cr_done'], updatedAt: '2026-01-01T00:00:00.000Z' },
+    });
+    await syncOpenCatalog(store, { id: 'cr_new', status: 'pending' });
+    await syncOpenCatalog(store, { id: 'cr_done', status: 'applied' });
+    const catalog = await store.get(OPEN_CATALOG_KEY);
+    assert.ok(catalog.ids.includes('cr_keep'));
+    assert.ok(catalog.ids.includes('cr_new'));
+    assert.ok(!catalog.ids.includes('cr_done'));
   });
 });
 
