@@ -2,7 +2,7 @@
 
 const { jsonCors } = require('../lib/tech-security');
 const { verifyAdminRequest } = require('../lib/admin-security');
-const { blobsStore, listAllBlobs, fetchBlobRecords } = require('../lib/tech-security');
+const { blobsStore, listAllBlobs } = require('../lib/tech-security');
 const { getBooking, getBookingsByIds, normalizeBookingKey, bookingStore } = require('../lib/ops-db');
 const { decideChangeRequestCommand, materialProjection } = require('../lib/booking-commands');
 const { getBookingRecord } = require('../lib/booking-repository');
@@ -42,6 +42,23 @@ async function getRequestStore() {
   return blobsStore(REQUEST_STORE);
 }
 
+/**
+ * Admin list reads — one eventual GET per key. Strong consistency is reserved
+ * for decide/mutate. Doubling every historical request blob with a metadata
+ * fallback is what pushed this source past the 25s client timeout.
+ */
+async function hydrateRequestRecords(store, blobs) {
+  const records = [];
+  for (let i = 0; i < blobs.length; i += 20) {
+    const chunk = blobs.slice(i, i + 20);
+    const rows = await Promise.all(
+      chunk.map((b) => store.get(b.key, { type: 'json' }).catch(() => null))
+    );
+    for (const row of rows) if (row) records.push(row);
+  }
+  return records;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   const admin = await verifyAdminRequest(event.headers || {});
@@ -61,7 +78,7 @@ exports.handler = async (event) => {
     const store = await getRequestStore();
     // Paginate ALL pages before filtering — never cap keys at 200 pre-filter (PDA-12)
     const blobs = await listAllBlobs(store, REQUEST_STORE);
-    const items = await fetchBlobRecords(store, blobs);
+    const items = await hydrateRequestRecords(store, blobs);
     const statusFilter = String(
       body.status || event.queryStringParameters?.status || 'pending'
     ).toLowerCase();

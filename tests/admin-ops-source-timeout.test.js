@@ -36,9 +36,11 @@ describe('Admin Ops source timeout contract', () => {
     assert.match(html, /SOURCE_FETCH_TIMEOUT_MS = 25000/);
   });
 
-  it('poll controller budget covers two sequential 25s source timers', () => {
-    assert.match(html, /requestTimeoutMs:\s*60000/);
+  it('poll controller budget covers Jobs 25s then Change requests 40s', () => {
+    assert.match(html, /requestTimeoutMs:\s*90000/);
     assert.match(html, /SOURCE_FETCH_TIMEOUT_MS = 25000/);
+    assert.match(html, /CHANGE_REQUESTS_FETCH_TIMEOUT_MS = 40000/);
+    assert.match(html, /timeoutMs:\s*CHANGE_REQUESTS_FETCH_TIMEOUT_MS/);
   });
 
   it('per-source api timeout still reports timeout not aborted', () => {
@@ -65,5 +67,21 @@ describe('Admin Ops source timeout contract', () => {
 
   it('does not pass poll abort into loadJobs or loadChangeRequests', () => {
     assert.doesNotMatch(refresh, /signal:\s*requestSignal/);
+  });
+
+  it('Change requests list hydrates blobs with one eventual GET per key', () => {
+    const src = read('netlify/functions/admin-customer-requests.js');
+    const listStart = src.indexOf("if (action === 'list')");
+    const listEnd = src.indexOf("if (action === 'decide')");
+    const listFn = src.slice(listStart, listEnd > 0 ? listEnd : listStart + 8000);
+    assert.match(listFn, /hydrateRequestRecords\(/);
+    assert.match(listFn, /listAllBlobs/);
+    assert.doesNotMatch(listFn, /fetchBlobRecords/);
+    assert.doesNotMatch(listFn, /getWithMetadata\s*\(/);
+    assert.doesNotMatch(listFn, /consistency:\s*'strong'/);
+    const hydrateStart = src.indexOf('async function hydrateRequestRecords');
+    const hydrateFn = src.slice(hydrateStart, listStart);
+    assert.match(hydrateFn, /store\.get\(b\.key/);
+    assert.doesNotMatch(hydrateFn, /getWithMetadata\s*\(/);
   });
 });

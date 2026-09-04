@@ -122,5 +122,9 @@ describe('admin change-request enrichment', () => {
     const call = src.slice(src.indexOf('getBookingsByIds('));
     assert.match(call.slice(0, 200), /\{\s*allowScan:\s*false\s*\}/);
     assert.match(src, /bookingUnavailable/, 'a missing booking degrades the row, not the page');
+    const listStart = src.indexOf("if (action === 'list')");
+    const listFn = src.slice(listStart, src.indexOf("if (action === 'decide')"));
+    assert.match(listFn, /hydrateRequestRecords/);
+    assert.doesNotMatch(listFn, /fetchBlobRecords/);
   });
 });
