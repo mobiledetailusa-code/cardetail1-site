@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" class="proto-booting">
+<head>
+<base href="/prototype/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070b12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex,nofollow">
+<title>Cardetail1 — Ops Command (Mobile Prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/prototype/ops-command.css">
+</head>
+<body>
+<div class="oc-shell">
+  <div class="proto-banner">PROTOTYPE — Ops Command · mobile-first · mock only · <a href="/prototype/preview.html">← Hub</a></div>
+
+  <header class="oc-top">
+    <div>
+      <div class="oc-brand">Cardetail1 Ops</div>
+      <div class="oc-greet" id="ocGreet">Friday morning</div>
+    </div>
+    <div class="oc-top-actions">
+      <span class="oc-live-pill" id="ocLivePill"><i></i> 1 live</span>
+      <button type="button" class="oc-icon" aria-label="Alerts">●</button>
+    </div>
+  </header>
+
+  <main class="oc-main" id="ocMain">
+    <!-- Mobile first viewport: one job — what's happening now -->
+    <section class="oc-block oc-live" aria-labelledby="ocLiveTitle">
+      <div class="oc-sec-head">
+        <h2 id="ocLiveTitle">Live now</h2>
+        <span class="oc-sec-meta" id="ocLiveMeta"></span>
+      </div>
+      <div id="ocLiveList"></div>
+    </section>
+
+    <section class="oc-block oc-next" aria-labelledby="ocNextTitle">
+      <div class="oc-sec-head">
+        <h2 id="ocNextTitle">Up next</h2>
+      </div>
+      <div class="oc-countdown" id="ocCountdown">
+        <div class="oc-count-val" id="ocCountVal">--:--</div>
+        <div class="oc-count-lbl">until next arrival window</div>
+      </div>
+      <div id="ocNextCard"></div>
+    </section>
+
+    <section class="oc-block" aria-labelledby="ocLaterTitle">
+      <div class="oc-sec-head">
+        <h2 id="ocLaterTitle">Later today</h2>
+      </div>
+      <div id="ocLaterList"></div>
+    </section>
+
+    <!-- Secondary: snapshot — below the fold on phones -->
+    <section class="oc-block oc-snap" aria-label="Day snapshot">
+      <div class="oc-sec-head"><h2>Today snapshot</h2></div>
+      <div class="oc-snap-grid" id="ocSnap"></div>
+    </section>
+
+    <section class="oc-block" aria-labelledby="ocTechTitle">
+      <div class="oc-sec-head"><h2 id="ocTechTitle">Technician load</h2></div>
+      <div id="ocTechLoad"></div>
+    </section>
+
+    <section class="oc-block oc-desktop-only" aria-label="Week charts">
+      <div class="oc-charts">
+        <div class="oc-chart-card">
+          <div class="oc-chart-title">Availability · hours free</div>
+          <div class="oc-bars" id="ocAvailBars"></div>
+        </div>
+        <div class="oc-chart-card">
+          <div class="oc-chart-title">Jobs · this week</div>
+          <div class="oc-bars" id="ocJobsBars"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="oc-tabbar" aria-label="Primary">
+    <button type="button" class="on" data-tab="today"><span>◎</span>Today</button>
+    <a href="/prototype/admin.html"><span>▦</span>Schedule</a>
+    <button type="button" data-tab="money"><span>$</span>Money</button>
+    <a href="/admin-ops.html"><span>→</span>Prod Admin</a>
+  </nav>
+</div>
+
+<script src="/prototype/ops-command.js" defer></script>
+</body>
+</html>
