@@ -171,12 +171,12 @@ function mapArcGisCandidate(c) {
   const line1 = String(a.StAddr || a.ShortLabel || '').trim();
   const addNum = String(a.AddNum || '').trim();
   const addrType = String(a.Addr_type || '');
-  if (!addNum && !/^\d/.test(line1)) return null;
+  const street = line1 || `${addNum} ${a.StName || ''}`.trim();
+  if (!isUsableStreetQuery(street)) return null;
   if (addrType === 'Postal' || addrType === 'Locality' || addrType === 'POI') return null;
   const city = String(a.City || '').trim();
   const state = String(a.RegionAbbr || '').trim();
   const zip = normalizeZip5(a.Postal);
-  const street = line1 || `${addNum} ${a.StName || ''}`.trim();
   const structured = formatLabel({ line1: street, city, state, zip });
   const label = (structured && /^\d/.test(structured))
     ? structured
@@ -195,7 +195,7 @@ function mapArcGisCandidate(c) {
 
 function mapArcGisSuggestion(s) {
   const text = fromLongLabel(s && s.text);
-  if (!text || !/^\d/.test(text)) return null;
+  if (!text || !isUsableStreetQuery(text.split(',')[0] || text)) return null;
   const zip = normalizeZip5((text.match(/\b(\d{5})\b/) || [])[1] || '');
   const parts = text.split(',').map((p) => p.trim()).filter(Boolean);
   const line1 = parts[0] || text;
@@ -240,6 +240,7 @@ function dedupeRank(rows, zip, city) {
   const out = [];
   const sorted = rows
     .filter(Boolean)
+    .filter((row) => isUsableStreetQuery(row.line1 || row.label))
     .sort((a, b) => rankBoost(b, zip, city) - rankBoost(a, zip, city));
   for (const row of sorted) {
     const key = normalizeKey(row.label);

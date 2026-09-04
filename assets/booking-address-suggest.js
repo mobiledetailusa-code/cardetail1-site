@@ -138,6 +138,7 @@
       hint.innerHTML = '';
       return;
     }
+    hideDropdown();
     const place = cityLabel + (zip ? ' ' + zip : '');
     if (conflict.type === 'zip') {
       hint.innerHTML = 'That street is in ZIP ' + escapeHtml(conflict.foundZip) +
@@ -244,6 +245,10 @@
     const q = String(($('f-addr') && $('f-addr').value) || '').trim();
     clearTimeout(debounceTimer);
     if (!MIN_STREET.test(q)) {
+      hideDropdown();
+      return;
+    }
+    if (/,\s*[A-Za-z].+\b[A-Z]{2}\b/.test(q) || /\b\d{5}(?:-\d{4})?\b/.test(q)) {
       hideDropdown();
       return;
     }

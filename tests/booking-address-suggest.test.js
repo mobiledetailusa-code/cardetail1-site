@@ -135,6 +135,8 @@ describe('suggestAddresses', () => {
                   score: 91,
                   attributes: {
                     Addr_type: 'Postal',
+                    AddNum: '',
+                    StAddr: '07650',
                     City: 'Palisades Park',
                     RegionAbbr: 'NJ',
                     Postal: '07650',
@@ -185,6 +187,7 @@ describe('suggestAddresses', () => {
     assert.equal(result.suggestions[0].zip, '07650');
     assert.equal(result.suggestions[0].label, '168 Oakwood Ln, Palisades Park, NJ 07650');
     assert.ok(result.suggestions.every((row) => /^\d/.test(row.label)));
+    assert.ok(result.suggestions.every((row) => !/^07650\b/.test(row.label)));
   });
 
   it('fails open to an empty list when the geocoder is down', async () => {
@@ -224,5 +227,6 @@ describe('booking Step 4 wiring', () => {
     const src = read('assets/booking-address-suggest.js');
     assert.match(src, /bk-addr-zip-change/);
     assert.match(src, /function applyExpectedPlace/);
+    assert.match(src, /hideDropdown\(\)/);
   });
 });
