@@ -154,6 +154,37 @@ async function readBookingMirrors(bookingIds) {
   }
 }
 
+/**
+ * Admin list path: one Postgres query instead of hydrating every cd1-bookings
+ * blob. Fail-open to [] so callers keep the Blob list as authority.
+ *
+ * @returns {Promise<object[]>}
+ */
+async function listBookingMirrors() {
+  const out = [];
+  try {
+    if (!readFallbackEnabled()) return out;
+    const prisma = tryGetPrisma();
+    if (!prisma) return out;
+    const rows = await prisma.bookingRecord.findMany({
+      where: { NOT: { kind: 'draft' } },
+      orderBy: { updatedAt: 'desc' },
+    });
+    for (const row of rows || []) {
+      const payload = row && row.payload;
+      if (!payload || typeof payload !== 'object') continue;
+      if (isDraftBooking(payload)) continue;
+      if (!payload.id && !payload.bookingId) payload.id = row.id;
+      out.push(payload);
+    }
+    return out;
+  } catch (err) {
+    const message = err && err.message ? err.message : String(err);
+    console.warn('[booking-prisma-mirror] list_failed', message);
+    return [];
+  }
+}
+
 module.exports = {
   mirrorEnabled,
   readFallbackEnabled,
@@ -163,4 +194,5 @@ module.exports = {
   scheduleBookingMirror,
   readBookingMirror,
   readBookingMirrors,
+  listBookingMirrors,
 };
