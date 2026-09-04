@@ -195,8 +195,15 @@ describe('Admin Jobs lean projection', () => {
     const listEnd = src.indexOf('async function persistMutation', listStart);
     const listFn = src.slice(listStart, listEnd > 0 ? listEnd : listStart + 8000);
     assert.match(listFn, /projectJobForAdminList/);
+    assert.match(listFn, /listBookingMirrors/);
+    assert.match(listFn, /hydrateJobsFromBlobs/);
     assert.doesNotMatch(listFn, /projectJobForAdmin\(/);
     assert.doesNotMatch(listFn, /buildAdminCustomerAccountSummary/);
+    const hydrateStart = src.indexOf('async function hydrateJobsFromBlobs');
+    const hydrateFn = src.slice(hydrateStart, listStart);
+    assert.match(hydrateFn, /store\.get\(blob\.key/);
+    assert.doesNotMatch(hydrateFn, /getWithMetadata\s*\(/);
+    assert.doesNotMatch(hydrateFn, /consistency:\s*'strong'/);
     assert.match(src, /action === 'get_job'/);
     const getJobSlice = src.slice(src.indexOf("action === 'get_job'"), src.indexOf("action === 'get_job'") + 2500);
     assert.match(getJobSlice, /projectJobForAdmin\(/);
@@ -213,7 +220,6 @@ describe('Admin Jobs lean projection', () => {
   });
 
   it('payload shrinks materially vs full projection (10 and 100 bookings)', () => {
-    const sizes = {};
     for (const n of [10, 100]) {
       const bookings = buildSyntheticBookings(n);
       const full = bookings.map((b) => projectJobForAdmin(b));
@@ -221,7 +227,6 @@ describe('Admin Jobs lean projection', () => {
       const fullBytes = Buffer.byteLength(JSON.stringify(full));
       const leanBytes = Buffer.byteLength(JSON.stringify(lean));
       const reduction = 1 - (leanBytes / fullBytes);
-      sizes[n] = { fullBytes, leanBytes, reduction, fullProjectors: n, leanProjectors: n };
       assert.equal(lean.every((r) => r._projection === 'admin_list'), true);
       assert.equal(full.every((r) => r._projection === 'admin_full'), true);
       assert.ok(leanBytes < fullBytes * 0.45, 'expected >55% payload reduction, got ' + (reduction * 100).toFixed(1) + '%');
@@ -230,10 +235,6 @@ describe('Admin Jobs lean projection', () => {
       assert.ok(!JSON.stringify(lean).includes('"changeRequests"'));
       assert.ok(!JSON.stringify(lean).includes('"ledger"'));
     }
-    fs.writeFileSync(
-      path.join('C:/Projects/Cardetail1/artifacts/temp/admin-jobs-lean-perf.json'),
-      JSON.stringify({ measuredAt: new Date().toISOString(), sizes }, null, 2)
-    );
   });
 
   it('vehicle-removal pending count remains visible without embedding request bodies', () => {

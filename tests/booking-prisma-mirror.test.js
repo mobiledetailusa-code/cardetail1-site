@@ -146,6 +146,23 @@ describe('booking Prisma mirror (safe dual-write)', () => {
     assert.match(src, /Prisma dual-write AFTER Blob/);
   });
 
+  it('listBookingMirrors fails open to [] without DATABASE_URL', async () => {
+    const { listBookingMirrors, readFallbackEnabled } = require('../netlify/lib/booking-prisma-mirror');
+    assert.equal(readFallbackEnabled(), false);
+    const rows = await listBookingMirrors();
+    assert.deepEqual(rows, []);
+  });
+
+  it('listBookingMirrors fails open to [] when PRISMA_BOOKING_READ=0', async () => {
+    process.env.DATABASE_URL = 'postgres://example.invalid:5432/db';
+    process.env.PRISMA_BOOKING_READ = '0';
+    const { _resetPrismaForTests } = require('../netlify/lib/prisma');
+    _resetPrismaForTests();
+    const { listBookingMirrors, readFallbackEnabled } = require('../netlify/lib/booking-prisma-mirror');
+    assert.equal(readFallbackEnabled(), false);
+    assert.deepEqual(await listBookingMirrors(), []);
+  });
+
   it('ops-db getBooking uses Prisma only after Blob miss', () => {
     const src = fs.readFileSync(path.join(ROOT, 'netlify/lib/ops-db.js'), 'utf8');
     assert.match(src, /readBookingMirror/);

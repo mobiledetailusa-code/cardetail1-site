@@ -1,5 +1,6 @@
 // Admin-only jobs feed + admin ops actions for Admin Ops dashboard.
 const { blobsStore, listAllBlobs, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
+const { listBookingMirrors } = require('../lib/booking-prisma-mirror');
 const {
   projectJobForAdmin, projectJobForAdminList, overlayAdminJobMoneyFromProjection,
   normalizeJobStatus, appendEventLog,
@@ -96,10 +97,7 @@ function archiveBookingRecord(booking, reason) {
   };
 }
 
-async function listJobs(q) {
-  const showTest = String(q.showTest || '') === '1';
-  const statusFilter = sanitizeText(q.jobStatus || q.status, 64);
-  const search = sanitizeText(q.search, 120).toLowerCase();
+async function hydrateJobsFromBlobs() {
   let store;
   try {
     store = await blobsStore('cd1-bookings');
@@ -108,22 +106,14 @@ async function listJobs(q) {
     return [];
   }
   const blobs = await listAllBlobs(store, 'cd1-bookings');
-  const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
-  const { normalizeBookingKey } = require('../lib/ops-db');
-  // Keep Blob key on each record so Customer lookup can resolve when key ≠ payload.id
   const keyed = [];
-  for (let i = 0; i < blobs.length; i += 30) {
-    const chunk = blobs.slice(i, i + 30);
+  // Eventual list reads — strong consistency is reserved for get_job / mutations.
+  // One GET per key (no metadata+fallback double read) so the 25s Admin Ops client
+  // timeout is not spent on doubled Blob round-trips.
+  for (let i = 0; i < blobs.length; i += 20) {
+    const chunk = blobs.slice(i, i + 20);
     const rows = await Promise.all(chunk.map(async (blob) => {
-      let raw = null;
-      if (typeof store.getWithMetadata === 'function') {
-        const result = await store.getWithMetadata(blob.key, {
-          type: 'json',
-          consistency: 'strong',
-        }).catch(() => null);
-        raw = result && result.data;
-      }
-      if (!raw) raw = await store.get(blob.key, { type: 'json' }).catch(() => null);
+      const raw = await store.get(blob.key, { type: 'json' }).catch(() => null);
       if (!raw) return null;
       if (!raw.id && !raw.bookingId) raw.id = blob.key;
       raw.__blobKey = blob.key;
@@ -131,6 +121,26 @@ async function listJobs(q) {
     }));
     for (const row of rows) if (row) keyed.push(row);
   }
+  return keyed;
+}
+
+async function listJobs(q) {
+  const showTest = String(q.showTest || '') === '1';
+  const statusFilter = sanitizeText(q.jobStatus || q.status, 64);
+  const search = sanitizeText(q.search, 120).toLowerCase();
+  const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
+  const { normalizeBookingKey } = require('../lib/ops-db');
+  // Keep Blob key on each record so Customer lookup can resolve when key ≠ payload.id
+  const mirrored = await listBookingMirrors();
+  // Empty Prisma (disabled, miss, or fail-open) must hydrate Blobs — never hide jobs.
+  const keyed = mirrored.length
+    ? mirrored.map((raw) => {
+      const row = raw && typeof raw === 'object' ? raw : {};
+      row.__blobKey = row.__blobKey || row.id || row.bookingId;
+      if (!row.id && !row.bookingId) row.id = row.__blobKey;
+      return row;
+    })
+    : await hydrateJobsFromBlobs();
   let jobs = keyed.filter((b) =>
     b && isVisibleSubmittedBooking(b, { includeArchivedTest: !!showTest })
   );
@@ -3274,6 +3284,7 @@ exports.notifyPaymentReceived = notifyPaymentReceived;
 exports.jobsSyncResponse = jobsSyncResponse;
 exports.handleAdminAction = handleAdminAction;
 exports.persistMutation = persistMutation;
+exports.listJobs = listJobs;
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});

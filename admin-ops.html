@@ -1383,11 +1383,27 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       // Preserve any session-cached techs across jobs/requests refresh.
       lastJobsNotModified = false;
       lastRequestsNotModified = false;
-      const [jobsR, settingsR, changeR] = await Promise.allSettled([
-        loadJobs(null, { signal: requestSignal }),
-        syncOnly ? Promise.resolve(platformSettings) : loadSettings(),
-        loadChangeRequests({ signal: requestSignal }),
-      ]);
+      // Jobs and Change requests each have a 25s source timeout. Sharing the
+      // poll abort signal (also 25s) aborted both together on mobile. Load
+      // them sequentially with independent timers so Schedule can render even
+      // when Requests is still hydrating.
+      const settle = (p) => Promise.resolve(p)
+        .then((value) => ({ status: 'fulfilled', value }))
+        .catch((reason) => ({ status: 'rejected', reason }));
+      // Do not pass the poll AbortSignal into these loads — a shared 25s abort
+      // previously killed Jobs and Requests together on cellular. Each loader
+      // keeps its own 25s SOURCE_FETCH_TIMEOUT_MS. If this refresh was
+      // superseded, skip remaining sources so a replacement can start clean.
+      const aborted = () => !!(requestSignal && requestSignal.aborted);
+      const jobsR = await settle(loadJobs());
+      const settingsR = aborted()
+        ? { status: 'fulfilled', value: platformSettings }
+        : (syncOnly
+          ? { status: 'fulfilled', value: platformSettings }
+          : await settle(loadSettings()));
+      const changeR = aborted()
+        ? { status: 'fulfilled', value: changeRequests }
+        : await settle(loadChangeRequests());
       // Intentionally do NOT assign jobs=[], techs=[], or changeRequests=[] on rejection.
       // Intentionally do NOT call loadTechs() here.
       const bothUnchanged = syncOnly && lastJobsNotModified && lastRequestsNotModified
@@ -4340,6 +4356,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       activePollMs: 2500,
       stablePollMs: 15000,
       maxBackoffMs: 60000,
+      requestTimeoutMs: 60000,
       onRefresh: refreshAll,
       onStateChange: renderAdminSyncState,
       isPending: adminSyncPending,

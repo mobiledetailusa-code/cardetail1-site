@@ -24,9 +24,11 @@ const src = extractScript(adminOps);
 test('1-3. initial refreshAll / polling path does not call loadTechs or tech-accounts list', () => {
   const refreshBlock = src.match(/async function refreshAll\([^)]*\)[\s\S]*?^  \}/m);
   assert.ok(refreshBlock);
-  assert.match(refreshBlock[0], /const \[jobsR, settingsR, changeR\] = await Promise\.allSettled\(\[/);
-  assert.match(refreshBlock[0], /loadJobs\(/);
+  assert.doesNotMatch(refreshBlock[0], /Promise\.allSettled/);
+  assert.match(refreshBlock[0], /const jobsR = await settle\(loadJobs\(\)\)/);
   assert.match(refreshBlock[0], /loadChangeRequests\(/);
+  assert.doesNotMatch(refreshBlock[0], /loadJobs\(null,\s*\{\s*signal:\s*requestSignal\s*\}\)/);
+  assert.doesNotMatch(refreshBlock[0], /loadChangeRequests\(\{\s*signal:\s*requestSignal\s*\}\)/);
   assert.doesNotMatch(refreshBlock[0], /loadJobs\(\),\s*loadTechs\(/);
   assert.match(refreshBlock[0], /Intentionally do NOT call loadTechs\(\) here/);
   assert.match(adminOps, /onRefresh:\s*refreshAll/);
