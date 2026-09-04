@@ -182,6 +182,32 @@
     }).join('');
   }
 
+  function wireAi() {
+    var input = document.getElementById('ocAiInput');
+    var go = document.getElementById('ocAiGo');
+    var hint = document.getElementById('ocAiHint');
+    if (!input || !go) return;
+    function run() {
+      var q = (input.value || '').trim();
+      if (!q) {
+        hint.textContent = 'Try a prompt — mock only, no backend.';
+        hint.classList.add('flash');
+        return;
+      }
+      hint.textContent = 'Mock: would run “‘ + q + ’” against ops CRM (not wired).';
+      hint.classList.add('flash');
+      input.value = '';
+      setTimeout(function () {
+        hint.classList.remove('flash');
+        hint.textContent = 'Try: “Show today’s expected cash” · “Email Mike his quote”';
+      }, 3200);
+    }
+    go.addEventListener('click', run);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') run();
+    });
+  }
+
   document.getElementById('ocGreet').textContent = greet(NOW);
   renderLive();
   renderNext();
@@ -189,6 +215,7 @@
   renderSnap();
   renderTech();
   renderCharts();
+  wireAi();
   tickCountdown();
   setInterval(tickCountdown, 1000);
 })();

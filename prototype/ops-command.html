@@ -81,6 +81,16 @@
     </section>
   </main>
 
+  <div class="oc-ai" role="search">
+    <label class="oc-ai-lbl" for="ocAiInput">Ask Ops</label>
+    <div class="oc-ai-row">
+      <input id="ocAiInput" type="search" enterkeyhint="go" autocomplete="off"
+        placeholder="Which customers are due for a rebook?" />
+      <button type="button" id="ocAiGo" aria-label="Run">→</button>
+    </div>
+    <p class="oc-ai-hint" id="ocAiHint">Try: “Show today’s expected cash” · “Email Mike his quote”</p>
+  </div>
+
   <nav class="oc-tabbar" aria-label="Primary">
     <button type="button" class="on" data-tab="today"><span>◎</span>Today</button>
     <a href="/prototype/admin.html"><span>▦</span>Schedule</a>

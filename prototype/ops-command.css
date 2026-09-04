@@ -30,7 +30,7 @@ body{
   padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top));
 }
 .proto-banner a{color:#fcd34d}
-.oc-shell{max-width:1100px;margin:0 auto;padding-bottom:calc(78px + var(--safe-b))}
+.oc-shell{max-width:1100px;margin:0 auto;padding-bottom:calc(148px + var(--safe-b))}
 
 /* Top */
 .oc-top{
@@ -171,6 +171,30 @@ body{
 }
 .oc-bar-col em{font-style:normal;font-size:9px;color:var(--mu);font-weight:700}
 
+/* AI command — sticky above tab bar (Fieldd-style prompt, mock only) */
+.oc-ai{
+  position:fixed;left:0;right:0;bottom:calc(56px + var(--safe-b));z-index:39;
+  padding:8px 12px 10px;
+  background:linear-gradient(180deg,transparent,rgba(7,11,18,.92) 28%,rgba(7,11,18,.97));
+}
+.oc-ai-lbl{
+  display:block;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--teal);margin:0 0 6px 4px;
+}
+.oc-ai-row{display:flex;gap:8px;align-items:center}
+.oc-ai-row input{
+  flex:1;min-width:0;height:44px;border-radius:12px;border:1px solid rgba(45,212,191,.28);
+  background:var(--bg2);color:var(--fg);padding:0 14px;font:inherit;font-size:14px;font-weight:500;
+}
+.oc-ai-row input::placeholder{color:var(--mu)}
+.oc-ai-row button{
+  width:44px;height:44px;border-radius:12px;border:0;flex-shrink:0;
+  background:linear-gradient(135deg,var(--ac),var(--teal));color:#041018;
+  font-size:18px;font-weight:800;cursor:pointer;
+}
+.oc-ai-hint{font-size:10px;color:var(--mu);margin:6px 4px 0;font-weight:600}
+.oc-ai-hint.flash{color:var(--teal)}
+
 /* Tab bar — phone primary nav */
 .oc-tabbar{
   position:fixed;left:0;right:0;bottom:0;z-index:40;
@@ -191,8 +215,14 @@ body{
 
 /* Tablet+: Fieldd-like multi-column without crushing phone */
 @media(min-width:780px){
-  .oc-shell{padding:0 20px calc(40px + var(--safe-b))}
+  .oc-shell{padding:0 20px calc(88px + var(--safe-b))}
   .oc-tabbar{display:none}
+  .oc-ai{
+    left:50%;transform:translateX(-50%);width:min(720px,calc(100% - 40px));
+    bottom:16px;padding:10px 12px;border-radius:16px;
+    background:rgba(14,21,32,.94);border:1px solid rgba(45,212,191,.2);
+    box-shadow:0 12px 40px rgba(0,0,0,.45);
+  }
   .oc-main{
     display:grid;
     grid-template-columns:1.15fr .95fr .85fr;
