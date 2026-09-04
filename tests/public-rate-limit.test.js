@@ -328,6 +328,7 @@ test('each tracked in-scope function invokes the shared helper', () => {
     'netlify/functions/submit-inquiry.js',
     'netlify/functions/create-setup-intent.js',
     'netlify/functions/ai-chat.js',
+    'netlify/functions/address-suggest.js',
   ];
   for (const file of targets) {
     const src = read(file);

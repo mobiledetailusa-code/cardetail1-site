@@ -208,6 +208,8 @@ test('no Netlify Function files changed in this scope', () => {
     'netlify/functions/owner-studio-release.js',
     'netlify/functions/owner-studio-catalog-preview.js',
     'netlify/functions/admin-auth.js',
+    // Booking Step 4 ZIP-biased street suggestions (no payment imports).
+    'netlify/functions/address-suggest.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);
