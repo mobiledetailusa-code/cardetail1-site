@@ -39,6 +39,7 @@ const SUCCESS_END = '<!-- BK_SUCCESS_END -->';
 const scripts = [
   '<script src="assets/booking-availability-client.js"></script>',
   '<script src="assets/booking-conversion-ux.js"></script>',
+  '<script src="assets/booking-address-suggest.js"></script>',
 ];
 
 const requiredMarkers = [
@@ -63,6 +64,9 @@ const requiredMarkers = [
   'standard outlet nearby',
   'assets/booking-availability-client.js',
   'assets/booking-conversion-ux.js',
+  'assets/booking-address-suggest.js',
+  'id="bk-addr-dd"',
+  'id="bk-addr-zip-chip"',
   'assets/booking-review-runtime.js',
   'assets/booking-review.css',
   'bkValidateScheduleSelection',

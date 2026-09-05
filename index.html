@@ -2830,7 +2830,18 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             </label>
             <p class="sms-consent-links">Transactional messages only; no marketing consent. <a href="/terms-conditions" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a> · <a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></p>
           </div>
-          <div class="fg full"><div class="fl">Service Address *</div><input class="fi" id="f-addr" type="text" placeholder="123 Main St, Hoboken, NJ 07030" autocomplete="street-address" required></div>
+          <div class="fg full bk-addr-wrap">
+            <div class="fl">Service Address *</div>
+            <div class="bk-addr-zip-chip" id="bk-addr-zip-chip" hidden>
+              <span>Using ZIP <strong id="bk-addr-zip-val"></strong> · <span id="bk-addr-zip-city"></span></span>
+              <button type="button" class="bk-addr-zip-change" id="bk-addr-zip-change">Change ZIP</button>
+            </div>
+            <div class="bk-addr-field">
+              <input class="fi" id="f-addr" type="text" placeholder="Start with house number — e.g. 168 Oak" autocomplete="street-address" required aria-autocomplete="list" aria-controls="bk-addr-dd" aria-expanded="false">
+              <div class="bk-addr-dd" id="bk-addr-dd" hidden role="listbox"></div>
+            </div>
+            <p class="bk-addr-hint" id="bk-addr-hint" hidden></p>
+          </div>
           <div class="fg full bk-advance-notice" role="note">
             <span class="bk-advance-notice-ico" aria-hidden="true">📅</span>
             <span>Next available appointments are typically 3 days out.</span>
@@ -7666,6 +7677,7 @@ body.cd1-booking-embed #cd-chat{display:none!important}
 <script src="assets/revops-booking-hooks.js"></script>
 <script src="assets/revops-init.js"></script>
 <script src="assets/booking-conversion-ux.js"></script>
+<script src="assets/booking-address-suggest.js"></script>
 <script src="assets/booking-availability-client.js"></script>
 
   <script src="assets/back-to-top.js" defer></script>

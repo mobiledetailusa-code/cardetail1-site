@@ -211,6 +211,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/owner-studio-release.js',
     'netlify/functions/owner-studio-catalog-preview.js',
     'netlify/functions/admin-auth.js',
+    // Booking Step 4 ZIP-biased street suggestions (no payment imports).
+    'netlify/functions/address-suggest.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);

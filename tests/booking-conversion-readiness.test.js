@@ -137,6 +137,8 @@ test('all booking pages keep compact utilities + arrival window + single notes',
     assert.match(html, /standard outlet nearby/);
     assert.match(html, /booking-conversion-ux\.js/);
     assert.match(html, /booking-availability-client\.js/);
+    assert.match(html, /booking-address-suggest\.js/);
+    assert.match(html, /id="bk-addr-dd"/);
   }
 });
 
