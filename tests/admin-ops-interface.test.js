@@ -85,9 +85,11 @@ test('Payments view derives from in-memory lean jobs without a new fetch', () =>
 });
 
 test('refreshAll tracks settings and change requests independently', () => {
-  // Sequential settle() keeps each source independent without a shared AbortSignal.
-  assert.match(adminOps, /const jobsR = await settle\(loadJobs\(\)\)/);
-  assert.match(adminOps, /await settle\(loadChangeRequests\(\)\)/);
+  // Parallel start, independent timers, no shared AbortSignal. Paint Jobs first.
+  assert.match(adminOps, /const jobsP = settle\(loadJobs\(\)\)/);
+  assert.match(adminOps, /const changeP = settle\(loadChangeRequests\(\)\)/);
+  assert.match(adminOps, /const jobsR = await jobsP/);
+  assert.match(adminOps, /await changeP/);
   assert.doesNotMatch(adminOps, /loadJobs\(\),\s*loadTechs\(\)/);
   assert.match(adminOps, /Intentionally do NOT call loadTechs\(\) here/);
   // Last-good preservation: rejected feeds must NOT wipe arrays.

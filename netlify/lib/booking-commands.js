@@ -15,7 +15,7 @@ const {
 const { quoteService, applyServiceDelta } = require('./canonical-quote');
 const { dollarsToCents, asArray } = require('./historical-adapter');
 const { blobsStore } = require('./tech-security');
-const { REQUEST_STORE } = require('./customer-change-requests');
+const { REQUEST_STORE, syncOpenCatalog } = require('./customer-change-requests');
 const { supersedeOpenAttempts, expireSupersededAttempts } = require('./payment-service');
 const {
   normalizeIdempotencyKey,
@@ -31,12 +31,14 @@ function requestId() {
 async function rebuildRequestIndex(changeRequest) {
   try {
     const store = await blobsStore(REQUEST_STORE);
-    await store.setJSON(changeRequest.id || changeRequest.requestId, {
+    const row = {
       ...changeRequest,
       id: changeRequest.id || changeRequest.requestId,
       rebuildable: true,
       updatedAt: new Date().toISOString(),
-    });
+    };
+    await store.setJSON(row.id, row);
+    await syncOpenCatalog(store, row);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err.message || 'index_write_failed' };

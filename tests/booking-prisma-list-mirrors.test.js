@@ -66,9 +66,10 @@ describe('listBookingMirrors (Admin Jobs list)', () => {
   });
 
   it('returns payloads, skips drafts, and fills missing id from the row key', async () => {
-    findManyImpl = async ({ where, orderBy }) => {
+    findManyImpl = async ({ where, orderBy, select }) => {
       assert.deepEqual(where, { NOT: { kind: 'draft' } });
       assert.deepEqual(orderBy, { updatedAt: 'desc' });
+      assert.deepEqual(select, { id: true, payload: true });
       return [
         { id: 'CD1-A', payload: { id: 'CD1-A', kind: 'booking', firstName: 'Ada' } },
         { id: 'CD1-DRAFT', payload: { id: 'CD1-DRAFT', kind: 'draft', isDraft: true } },

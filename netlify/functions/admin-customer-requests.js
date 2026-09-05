@@ -8,8 +8,13 @@ const { decideChangeRequestCommand, materialProjection } = require('../lib/booki
 const { getBookingRecord } = require('../lib/booking-repository');
 const { buildSyncEnvelope, syncHeaders } = require('../lib/sync-response');
 const { normalizeIdempotencyKey } = require('../lib/operation-idempotency');
-
-const REQUEST_STORE = 'cd1-customer-change-requests';
+const {
+  REQUEST_STORE,
+  OPEN_CATALOG_KEY,
+  hydrateRequestRecords,
+  readOpenCatalog,
+  writeOpenCatalog,
+} = require('../lib/customer-change-requests');
 const MAX_LIST = 50;
 
 /** @type {null | object} */
@@ -42,23 +47,6 @@ async function getRequestStore() {
   return blobsStore(REQUEST_STORE);
 }
 
-/**
- * Admin list reads — one eventual GET per key. Strong consistency is reserved
- * for decide/mutate. Doubling every historical request blob with a metadata
- * fallback is what pushed this source past the 25s client timeout.
- */
-async function hydrateRequestRecords(store, blobs) {
-  const records = [];
-  for (let i = 0; i < blobs.length; i += 20) {
-    const chunk = blobs.slice(i, i + 20);
-    const rows = await Promise.all(
-      chunk.map((b) => store.get(b.key, { type: 'json' }).catch(() => null))
-    );
-    for (const row of rows) if (row) records.push(row);
-  }
-  return records;
-}
-
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   const admin = await verifyAdminRequest(event.headers || {});
@@ -76,9 +64,6 @@ exports.handler = async (event) => {
 
   if (action === 'list') {
     const store = await getRequestStore();
-    // Paginate ALL pages before filtering — never cap keys at 200 pre-filter (PDA-12)
-    const blobs = await listAllBlobs(store, REQUEST_STORE);
-    const items = await hydrateRequestRecords(store, blobs);
     const statusFilter = String(
       body.status || event.queryStringParameters?.status || 'pending'
     ).toLowerCase();
@@ -87,18 +72,48 @@ exports.handler = async (event) => {
       isOpenStatus,
     } = require('../lib/admin-change-request-projection');
 
+    const wantsOpenOnly = statusFilter === 'pending'
+      || statusFilter === 'needs_payment_adjustment'
+      || statusFilter === 'payment_adjustment';
+
+    let items;
+    let usedOpenCatalog = false;
+    const catalog = wantsOpenOnly ? await readOpenCatalog(store) : null;
+    if (catalog) {
+      // Default Admin tab is pending — GET only open ids, not the closed history.
+      items = await hydrateRequestRecords(store, catalog.ids);
+      usedOpenCatalog = true;
+      // Stale catalog of deleted keys must not hide live pending rows.
+      if (catalog.ids.length > 0 && items.length === 0) {
+        const blobs = await listAllBlobs(store, REQUEST_STORE);
+        items = await hydrateRequestRecords(store, blobs);
+        usedOpenCatalog = false;
+      }
+    } else {
+      // Paginate ALL pages before filtering — never cap keys at 200 pre-filter (PDA-12)
+      const blobs = await listAllBlobs(store, REQUEST_STORE);
+      items = await hydrateRequestRecords(store, blobs);
+    }
+
     // Booking enrichment is the expensive step, so it runs LAST and only for the
     // rows actually returned. Everything above it is request-native.
     const records = [];
     for (const r of items) {
       if (!r) continue;
       const id = r.id || r.requestId;
-      if (!id) continue;
+      if (!id || id === OPEN_CATALOG_KEY) continue;
       records.push({ ...r, id, requestId: r.requestId || r.id, bookingId: r.bookingId });
     }
 
     // Request-native — never needs a booking read.
-    const pendingCount = records.filter((r) => isOpenStatus(r.status)).length;
+    const openIds = records.filter((r) => isOpenStatus(r.status)).map((r) => r.id);
+    const pendingCount = openIds.length;
+    if (!usedOpenCatalog) {
+      writeOpenCatalog(store, openIds).catch(() => {});
+    } else if (catalog && (catalog.ids.length !== openIds.length
+      || catalog.ids.some((id) => !openIds.includes(id)))) {
+      writeOpenCatalog(store, openIds).catch(() => {});
+    }
 
     const wantsPaymentAdjustment = statusFilter === 'needs_payment_adjustment'
       || statusFilter === 'payment_adjustment';

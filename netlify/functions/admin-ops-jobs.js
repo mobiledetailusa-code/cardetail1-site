@@ -110,8 +110,8 @@ async function hydrateJobsFromBlobs() {
   // Eventual list reads — strong consistency is reserved for get_job / mutations.
   // One GET per key (no metadata+fallback double read) so the 25s Admin Ops client
   // timeout is not spent on doubled Blob round-trips.
-  for (let i = 0; i < blobs.length; i += 20) {
-    const chunk = blobs.slice(i, i + 20);
+  for (let i = 0; i < blobs.length; i += 40) {
+    const chunk = blobs.slice(i, i + 40);
     const rows = await Promise.all(chunk.map(async (blob) => {
       const raw = await store.get(blob.key, { type: 'json' }).catch(() => null);
       if (!raw) return null;
