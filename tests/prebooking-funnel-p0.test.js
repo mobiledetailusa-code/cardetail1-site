@@ -44,6 +44,7 @@ function loadProgress(overrides) {
     ST: { cat: '', pkgId: '', vehicles: [], addons: [] },
     currentBkStep: 1,
     activeZone: { key: 'nj_a' },
+    setTimeout(fn) { if (typeof fn === 'function') fn(); return 0; },
     console,
   };
   Object.assign(ctx, overrides);
@@ -64,6 +65,9 @@ describe('P0-1 package CTA identity', () => {
     assert.equal((index.match(/class="car-pkg-cta" onclick="openBookingCarPkg\('full'\)"/g) || []).length, 1);
     assert.equal((index.match(/class="car-pkg-cta" onclick="openBookingCarPkg\('refresh'\)"/g) || []).length, 1);
     assert.doesNotMatch(index, /class="car-pkg-cta" onclick="openBooking\(null\)"/);
+    const carPkgFn = index.slice(index.indexOf('function openBookingCarPkg'), index.indexOf('function openBookingPkg'));
+    assert.match(carPkgFn, /openBookingFromHome\(null\)/);
+    assert.doesNotMatch(carPkgFn, /openBookingFromHome\('cars'\)/);
   });
 
   it('See what\'s included and Book this package share the same package ids', () => {
@@ -170,7 +174,7 @@ describe('P0-4 ZIP gate / deep-link', () => {
     assert.ok(zip);
     assert.ok(gate);
     assert.match(index, /ST\._pendingCat=cat/);
-    assert.match(index, /CD1BookingProgress\.showPendingIntent\(cat\)/);
+    assert.match(index, /CD1BookingProgress\.showPendingIntent\(cat/);
     assert.match(index, /if\(zip\.length < 5 \|\| !activeZone\)/);
   });
 

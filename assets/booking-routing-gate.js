@@ -219,7 +219,7 @@
       return gatherContext({ category: cat, source: 'openBookingFromHome' });
     });
     wrapFn('openBookingCarPkg', function () {
-      return gatherContext({ category: 'cars', source: 'openBookingCarPkg' });
+      return gatherContext({ category: '', source: 'openBookingCarPkg' });
     });
     wrapFn('openBookingPkg', function (cat) {
       return gatherContext({ category: cat, source: 'openBookingPkg' });
@@ -231,10 +231,10 @@
 
   function processPendingBookQuery() {
     var pending = global.__cd1PendingBookQuery;
-    if (!pending || !pending.book) return;
+    if (!pending || (!pending.book && !pending.pkg)) return;
     global.__cd1PendingBookQuery = null;
     var allowed = pending.allowed || { cars: 1, boats: 1, rvs: 1, powersports: 1 };
-    if (!allowed[pending.book]) {
+    if (pending.book && !allowed[pending.book]) {
       try {
         if (global.parent && global.parent !== global) {
           global.parent.postMessage({
@@ -248,19 +248,22 @@
       return;
     }
     var ctx = gatherContext({
-      category: pending.book,
+      category: pending.book || '',
       source: 'url_query',
       zip: pending.zipQ || getZip5(),
     });
     var result = evaluateAndMaybeBlock(ctx);
     if (result.blocked) return;
     if (global.ST) {
-      if (pending.pkg) global.ST._prefillPkgId = pending.pkg;
-      global.ST._pendingCat = pending.book;
+      if (pending.pkg) {
+        global.ST._prefillPkgId = pending.pkg;
+        global.ST._packageIntent = pending.pkg;
+      }
+      if (pending.book) global.ST._pendingCat = pending.book;
     }
     if (typeof global.openBookingFromHome === 'function') {
       global.__cd1SkipRoutingGate = true;
-      try { global.openBookingFromHome(pending.book); }
+      try { global.openBookingFromHome(pending.book || null); }
       finally { global.__cd1SkipRoutingGate = false; }
     }
   }
@@ -269,7 +272,14 @@
     try {
       var params = new URLSearchParams(global.location.search || '');
       if (params.get('resume') !== '1') return;
-      var ctx = gatherContext({ category: 'cars', source: 'resume_link' });
+      var snapCat = '';
+      try {
+        if (global.CD1BookingProgress && typeof global.CD1BookingProgress.load === 'function') {
+          var snap = global.CD1BookingProgress.load();
+          snapCat = (snap && snap.ST && snap.ST.cat) || (snap && snap.pendingCat) || '';
+        }
+      } catch (eSnap) { /* ignore */ }
+      var ctx = gatherContext({ category: snapCat || '', source: 'resume_link' });
       var result = evaluateAndMaybeBlock(ctx);
       if (result.blocked) {
         try { global.history.replaceState({}, '', 'index.html'); } catch (e) { /* ignore */ }
