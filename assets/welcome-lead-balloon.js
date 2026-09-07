@@ -90,7 +90,7 @@
     var s = document.createElement('style');
     s.id = STYLE_ID;
     s.textContent =
-      '#cd1-wlb{position:fixed;right:20px;bottom:96px;z-index:970;font-family:var(--fb,"DM Sans",system-ui,sans-serif);width:64px;pointer-events:none}' +
+      '#cd1-wlb{position:fixed;right:20px;bottom:calc(96px + var(--cd1-wlb-consent,0px));z-index:970;font-family:var(--fb,"DM Sans",system-ui,sans-serif);width:64px;pointer-events:none}' +
       '#cd1-wlb.cd1-wlb-on{pointer-events:auto}' +
       '#cd1-wlb.cd1-wlb-open{width:min(332px,calc(100vw - 28px))}' +
       '#cd1-wlb[hidden],body.cd1-booking-embed #cd1-wlb,#cd1-wlb.cd1-wlb-hide{display:none!important}' +
@@ -122,7 +122,7 @@
       '.cd1-wlb-hp{position:absolute;left:-9999px;height:0;width:0;opacity:0}' +
       '.cd1-wlb-success .cd1-wlb-title{color:#b7e3c0}' +
       '.cd1-wlb-book{display:inline-flex;margin-top:10px;min-height:44px;align-items:center;padding:0 16px;border:0;border-radius:999px;background:#4da3ff;color:#041018;font-weight:700;cursor:pointer}' +
-      '@media(max-width:640px){#cd1-wlb,#cd1-wlb:not(.cd1-wlb-open){right:14px;bottom:132px}}' +
+      '@media(max-width:640px){#cd1-wlb,#cd1-wlb:not(.cd1-wlb-open){right:14px;bottom:calc(132px + var(--cd1-wlb-consent,0px))}}' +
       '@media(prefers-reduced-motion:reduce){.cd1-wlb-pulse{display:none}}';
     document.head.appendChild(s);
   }
@@ -186,6 +186,18 @@
     root.hidden = false;
     root.classList.add('cd1-wlb-on');
     bind();
+    layoutBalloon();
+  }
+
+  function layoutBalloon() {
+    var root = document.getElementById(ROOT_ID);
+    if (!root) return;
+    var banner = document.getElementById('cd1-consent-banner');
+    var extra = 0;
+    if (banner && banner.offsetHeight && global.getComputedStyle(banner).display !== 'none') {
+      extra = Math.round(banner.offsetHeight) + 10;
+    }
+    root.style.setProperty('--cd1-wlb-consent', extra + 'px');
   }
 
   function hideForOverlays() {
@@ -193,6 +205,7 @@
     if (!root) return;
     var block = bookingOpen() || chatOpen();
     root.classList.toggle('cd1-wlb-hide', !!block);
+    layoutBalloon();
   }
 
   function dismiss() {
@@ -335,6 +348,7 @@
     }, { passive: true });
 
     global.setInterval(hideForOverlays, 400);
+    document.addEventListener('cd1:consent-changed', layoutBalloon);
     document.addEventListener('click', function (e) {
       var t = e.target;
       if (t && t.closest && t.closest('.booking-popup-trigger')) {
