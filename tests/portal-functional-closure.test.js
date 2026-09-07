@@ -201,11 +201,13 @@ test('1. first click on a secure link creates exactly one session', async (t) =>
 
   const preview = await openLink(h, minted.token);
   assert.equal(preview.statusCode, 200);
-  assert.match(preview.body, /View my appointment/i);
+  assert.match(preview.body, /Open my portal/i);
+  assert.match(preview.body, /Open your detailing portal/i);
   assert.match(preview.body, /action" value="exchange"/);
+  assert.doesNotMatch(preview.body, /appointment code/i);
   const previewShort = await openShortLink(h, minted.token);
   assert.equal(previewShort.statusCode, 200);
-  assert.match(previewShort.body, /View my appointment/i);
+  assert.match(previewShort.body, /Open my portal/i);
   const previewRecord = await h.accessToken.loadTokenRecord(minted.token, {
     allowExpired: true,
     allowConsumed: true,

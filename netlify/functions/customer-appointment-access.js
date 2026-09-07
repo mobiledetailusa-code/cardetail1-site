@@ -94,17 +94,32 @@ function resendForm(token) {
 </form>`;
 }
 
+/** Email magic-link is the customer login. Appointment-code lookup is support-only. */
+function emailSignInLink({ primary = false } = {}) {
+  const cls = primary ? 'btn' : 'btn ghost';
+  return `<a class="${cls}" href="/my-garage#account-access">Email me a sign-in link</a>`;
+}
+
+function returnToPortalLink({ primary = false } = {}) {
+  const cls = primary ? 'btn' : 'btn ghost';
+  return `<a class="${cls}" href="/my-garage#account-access">Return to portal sign in</a>`;
+}
+
+function lookupSupportLink() {
+  return `<a class="btn ghost" href="/my-garage#lookup">Have an appointment code from support?</a>`;
+}
+
 function invalidLinkPage(cid) {
   return htmlPage({
     title: 'Invalid link',
     statusCode: 400,
     bodyHtml: `
 <h1>This secure link is invalid</h1>
-<p>The appointment link could not be used. It may be incorrect or no longer valid.</p>
+<p>The appointment link could not be used. It may be incorrect or no longer valid. Sign in with the email on your booking — you do not need an appointment code.</p>
 <p class="sub">Ref: ${cid}</p>
 <div class="actions">
-  <a class="btn" href="/my-garage">Return to portal sign in</a>
-  <a class="btn ghost" href="/my-garage#lookup">Find appointment using code and phone</a>
+  ${emailSignInLink({ primary: true })}
+  ${lookupSupportLink()}
 </div>`,
   });
 }
@@ -115,12 +130,12 @@ function expiredLinkPage(token, cid) {
     statusCode: 410,
     bodyHtml: `
 <h1>This secure link has expired</h1>
-<p>For your security, appointment links expire after a limited time.</p>
+<p>For your security, appointment links expire after a limited time. Request a new link below, or sign in with the email on your booking.</p>
 <p class="sub">Ref: ${cid}</p>
 <div class="actions">
   ${resendForm(token)}
-  <a class="btn ghost" href="/my-garage#lookup">Find appointment using code and phone</a>
-  <a class="btn ghost" href="/my-garage">Return to portal sign in</a>
+  ${emailSignInLink()}
+  ${lookupSupportLink()}
 </div>`,
   });
 }
@@ -135,12 +150,12 @@ function usedLinkPage(token, cid) {
     statusCode: 410,
     bodyHtml: `
 <h1>This secure link was already used</h1>
-<p>For your security, each appointment link opens once. After the first successful open, return via My Garage on this device — or request a new link below.</p>
+<p>For your security, each appointment link opens once. After the first successful open, return via My Garage on this device, email yourself a sign-in link, or request a new appointment link below.</p>
 <p class="sub">Ref: ${cid}</p>
 <div class="actions">
   ${resendForm(token)}
-  <a class="btn ghost" href="/my-garage">Return to portal sign in</a>
-  <a class="btn ghost" href="/my-garage#lookup">Find appointment using code and phone</a>
+  ${emailSignInLink()}
+  ${lookupSupportLink()}
 </div>`,
   });
 }
@@ -148,22 +163,23 @@ function usedLinkPage(token, cid) {
 /**
  * Prefetch-safe gate: GET never consumes. Real humans POST from this form.
  * Email scanners that only fetch the URL leave the token usable.
+ * Exchange then lands on /my-garage?appointment= (portal home, signed in).
  */
 function confirmOpenPage(token, cid) {
   return htmlPage({
-    title: 'Open appointment',
+    title: 'Open your portal',
     statusCode: 200,
     bodyHtml: `
-<h1>Open your appointment</h1>
-<p>Confirm below to continue to your booking. This extra step protects your link from automatic email scanners.</p>
+<h1>Open your detailing portal</h1>
+<p>Confirm below to sign in. You will land on your portal with this appointment in focus — next service, balance, and rebook. This extra step protects your link from automatic email scanners.</p>
 <p class="sub">Ref: ${cid}</p>
 <div class="actions">
   <form method="POST" action="/.netlify/functions/customer-appointment-access" style="display:inline">
     <input type="hidden" name="action" value="exchange"/>
     <input type="hidden" name="token" value="${htmlAttr(token)}"/>
-    <button class="btn" type="submit">View my appointment</button>
+    <button class="btn" type="submit">Open my portal</button>
   </form>
-  <a class="btn ghost" href="/my-garage">Return to portal sign in</a>
+  ${returnToPortalLink()}
 </div>`,
   });
 }
@@ -174,25 +190,25 @@ function temporaryUnavailablePage(cid) {
     statusCode: 503,
     bodyHtml: `
 <h1>Please try again</h1>
-<p>We could not open this appointment link right now. Your link was not used up — try again in a moment.</p>
+<p>We could not open this appointment link right now. Your link was not used up — try again in a moment, or sign in with the email on your booking.</p>
 <p class="sub">Ref: ${cid}</p>
 <div class="actions">
-  <a class="btn" href="/my-garage">Return to portal sign in</a>
-</div>`,
+  ${returnToPortalLink({ primary: true })}
+</div>`
   });
 }
 
 function sessionFailedPage(token, cid) {
   return htmlPage({
-    title: 'Could not open appointment',
+    title: 'Could not open portal',
     statusCode: 503,
     bodyHtml: `
-<h1>Could not open your appointment</h1>
-<p>Something went wrong while signing you in. Request a new secure link below.</p>
+<h1>Could not open your portal</h1>
+<p>Something went wrong while signing you in. Request a new secure link below, or email yourself a sign-in link.</p>
 <p class="sub">Ref: ${cid}</p>
 <div class="actions">
   ${resendForm(token)}
-  <a class="btn ghost" href="/my-garage">Return to portal sign in</a>
+  ${emailSignInLink()}
 </div>`,
   });
 }
@@ -661,10 +677,10 @@ function resendGenericResponse(event, cid) {
       title: 'New link sent',
       bodyHtml: `
 <h1>Check your messages</h1>
-<p>If this appointment link was valid, a new secure link has been sent when contact details are on file.</p>
+<p>If this appointment link was valid, a new secure link has been sent when contact details are on file. You can also sign in with the email on your booking.</p>
 <div class="actions">
-  <a class="btn" href="/my-garage">Return to portal sign in</a>
-  <a class="btn ghost" href="/my-garage#lookup">Find appointment using code and phone</a>
+  ${returnToPortalLink({ primary: true })}
+  ${lookupSupportLink()}
 </div>
 <p class="sub">Ref: ${cid}</p>`,
     });
@@ -891,10 +907,10 @@ exports.handler = async (event) => {
       statusCode: 500,
       bodyHtml: `
 <h1>Something went wrong</h1>
-<p>Please try again or find your appointment using your code and phone.</p>
+<p>Please try again, or sign in with the email on your booking. You do not need an appointment code.</p>
 <p class="sub">Ref: ${cid}</p>
 <div class="actions">
-  <a class="btn" href="/my-garage">Return to portal sign in</a>
+  ${returnToPortalLink({ primary: true })}
 </div>`,
     });
   }
@@ -909,4 +925,6 @@ exports.__test = {
   expiredLinkPage,
   usedLinkPage,
   confirmOpenPage,
+  temporaryUnavailablePage,
+  sessionFailedPage,
 };

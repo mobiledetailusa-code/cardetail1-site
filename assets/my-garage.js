@@ -165,6 +165,7 @@
       try { document.documentElement.classList.add('cd1-portal-booting'); } catch (e) { /* ignore */ }
     } else {
       try { document.documentElement.classList.remove('cd1-portal-booting'); } catch (e) { /* ignore */ }
+      if (!showLoading) syncPortalHome(state.payment);
     }
   }
 
@@ -320,6 +321,147 @@
     // never be offered a receipt action that resolves to nothing.
     if (/complete/i.test(status)) return 'View Details';
     return 'View Details';
+  }
+
+  function greetingPartOfDay(now) {
+    var d = now && typeof now.getHours === 'function' ? now : new Date();
+    var h = d.getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  function customerFirstName() {
+    var p = (state.customer && state.customer.profile) || {};
+    var n = String(p.firstName || '').trim();
+    if (!n) n = String(p.displayName || '').trim();
+    if (!n && state.booking) n = String(state.booking.firstName || '').trim();
+    if (!n) return '';
+    return n.split(/\s+/)[0];
+  }
+
+  function greetingLine(now) {
+    var greet = greetingPartOfDay(now);
+    var name = customerFirstName();
+    return name ? greet + ', ' + name : greet;
+  }
+
+  function scrollPortalTarget(id) {
+    var el = $(id);
+    if (!el || typeof el.scrollIntoView !== 'function') return;
+    try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {
+      try { el.scrollIntoView(true); } catch (e2) { /* ignore */ }
+    }
+  }
+
+  /**
+   * Phase 1 home: greeting + clickable cards. Pay card only scrolls to the
+   * existing Payments section — it must not become a third "Pay securely" CTA.
+   */
+  function syncPortalHome(pay) {
+    pay = pay || state.payment || {};
+    var signedIn = portalHydration.phase === PORTAL_PHASE.READY
+      || !!state.session
+      || !!state.booking
+      || !!state.customer;
+    var welcome = $('portal-welcome');
+    var statusEl = $('portal-welcome-status');
+    var lede = $('portal-hero-lede');
+    var cards = $('portal-home-cards');
+    if (!signedIn) {
+      if (welcome) { welcome.hidden = true; welcome.textContent = ''; }
+      if (statusEl) { statusEl.hidden = true; statusEl.textContent = ''; }
+      if (lede) lede.hidden = false;
+      if (cards) cards.hidden = true;
+      return;
+    }
+    if (lede) lede.hidden = true;
+    if (welcome) {
+      welcome.hidden = false;
+      welcome.textContent = greetingLine();
+    }
+    var b = state.booking;
+    var due = Number(pay.amountDueApproved || 0);
+    var canPay = !!(pay.canPay || pay.canCreatePayLink) && due > 0;
+    if (statusEl) {
+      statusEl.hidden = false;
+      statusEl.textContent = b
+        ? [b.service || b.package || 'Appointment', b.confirmedDate || b.preferredDate || ''].filter(Boolean).join(' · ')
+        : 'No upcoming appointment — 10% off your first eligible service, up to $40.';
+    }
+    if (cards) cards.hidden = false;
+
+    var apptTitle = $('home-card-appt-title');
+    var apptSub = $('home-card-appt-sub');
+    if (apptTitle) apptTitle.textContent = b ? (b.service || b.package || 'Your appointment') : 'No upcoming appointment';
+    if (apptSub) {
+      apptSub.textContent = b
+        ? String(b.confirmedDate || b.preferredDate || 'Date pending')
+        : 'Book below to apply 10% on the first eligible service';
+    }
+
+    var payCard = $('home-card-pay');
+    var payTitle = $('home-card-pay-title');
+    if (payCard) payCard.hidden = !canPay;
+    if (payTitle && canPay) payTitle.textContent = 'Due ' + fmtMoney(due);
+
+    var bookKicker = $('home-card-book-kicker');
+    var bookTitle = $('home-card-book-title');
+    var bookSub = $('home-card-book-sub');
+    var bookCard = $('home-card-book');
+    if (b) {
+      if (bookKicker) bookKicker.textContent = 'Rebook';
+      if (bookTitle) bookTitle.textContent = 'Book another service';
+      if (bookSub) bookSub.textContent = 'Same public booking flow — ZIP first, then package.';
+      if (bookCard) bookCard.classList.remove('is-primary');
+    } else {
+      if (bookKicker) bookKicker.textContent = 'Welcome offer';
+      if (bookTitle) bookTitle.textContent = 'Book with 10% off';
+      if (bookSub) bookSub.textContent = '10% off your first eligible service, up to $40. No code needed.';
+      if (bookCard) bookCard.classList.add('is-primary');
+    }
+
+    var resched = $('home-card-reschedule');
+    if (resched) resched.hidden = !b;
+  }
+
+  /**
+   * Deep links into the signed-out shell. #account-access is the customer login;
+   * #lookup stays for support / legacy public "View or Manage Booking" links.
+   */
+  function applyPortalEntryHash() {
+    var hash = '';
+    try { hash = String(global.location.hash || '').replace(/^#/, '').toLowerCase(); } catch (e) { return; }
+    if (!hash) return;
+    if (hash === 'lookup') {
+      var lookup = $('lookup');
+      if (lookup) {
+        try { lookup.open = true; } catch (e2) { /* ignore */ }
+      }
+      scrollPortalTarget('lookup');
+      return;
+    }
+    if (hash === 'account-access') {
+      scrollPortalTarget('account-access');
+      var email = $('acct-email');
+      if (email && typeof email.focus === 'function') {
+        try { email.focus(); } catch (e3) { /* ignore */ }
+      }
+    }
+  }
+
+  function onPortalHomeCard(ev) {
+    var card = ev.target && ev.target.closest ? ev.target.closest('[data-home-card]') : null;
+    if (!card) return;
+    var kind = card.getAttribute('data-home-card');
+    if (kind === 'appointment') {
+      scrollPortalTarget(state.booking ? 'focused-appointment-card' : 'upcoming-panel');
+    } else if (kind === 'pay') {
+      scrollPortalTarget('payments');
+    } else if (kind === 'reschedule') {
+      ev.preventDefault();
+      openActionModal('reschedule_request', card);
+    }
   }
 
   function applyAppointmentFocus(data) {
@@ -1476,13 +1618,14 @@
     clearPortalHydrationTimers();
     stripMagicLinkParamsFromUrl();
     setPortalPhase(PORTAL_PHASE.IDLE);
+    applyPortalEntryHash();
   }
 
   async function startAccountAuth() {
     var email = ($('acct-email') && $('acct-email').value.trim().toLowerCase()) || '';
     var phone = normalizePhoneInput($('acct-phone') && $('acct-phone').value);
     if (!email) {
-      setMsg($('acct-error'), 'Enter the email on your booking.', true);
+      setMsg($('acct-error'), 'Enter your email to receive a sign-in link.', true);
       return;
     }
     if (global.cd1PortalAnalytics) global.cd1PortalAnalytics.authStarted();
@@ -1490,7 +1633,7 @@
     if (r.data && r.data.ok) {
       setMsg($('acct-error'), 'Check your email for a secure sign-in link (expires in 15 minutes).', false);
     } else {
-      setMsg($('acct-error'), (r.data && r.data.message) || 'Sign-in unavailable. Use booking lookup or call/text us.', true);
+      setMsg($('acct-error'), (r.data && r.data.message) || 'Sign-in unavailable. Use the appointment code form below or call/text us.', true);
     }
   }
 
@@ -1867,10 +2010,19 @@
     renderProfileAndAddresses();
 
     if (!hero || !b) {
-      if (hero) hero.innerHTML = '<p class="empty">No upcoming appointment. <a href="index.html">Book a service</a>.</p>';
+      if (hero) {
+        hero.innerHTML =
+          '<div class="card portal-empty-book" id="portal-empty-book">' +
+          '<div class="card-kicker">Welcome offer</div>' +
+          '<h2 class="card-title">No upcoming appointment</h2>' +
+          '<p class="pack-desc">New customers get 10% off the eligible service subtotal, up to $40. No promo code. One redemption per household. <a href="terms-conditions.html#welcome-offer">Terms apply</a>.</p>' +
+          '<a class="btn primary" href="index.html">Book with 10% off</a>' +
+          '<p class="hint"><a href="index.html">Book a service</a> without the offer copy if you already redeemed.</p>' +
+          '</div>';
+      }
       if (global.CD1GarageDashboard) CD1GarageDashboard.render();
-      syncPayBalanceButton({});
-      renderPaymentsPanel({});
+      syncPayBalanceButton(pay);
+      renderPaymentsPanel(pay);
       renderPendingRequests([]);
       if (state.scope === 'account') {
         renderList('appointments-list', state.bookings || [], function (item) {
@@ -1879,6 +2031,7 @@
             ' · ' + esc(item.service || item.package || '') + '</li>';
         });
       }
+      syncPortalHome(pay);
       return;
     }
 
@@ -2051,6 +2204,7 @@
     if (approveBtn) show(approveBtn, b.customerApprovalStatus === 'pending' || b.jobStatus === 'completed_pending_payment');
     renderPostServiceActions(b);
     if (global.CD1GarageDashboard) CD1GarageDashboard.render();
+    syncPortalHome(pay);
   }
 
   /**
@@ -3777,6 +3931,9 @@
       });
     }
 
+    var homeCards = $('portal-home-cards');
+    if (homeCards) homeCards.addEventListener('click', onPortalHomeCard);
+
     var actions = $('customer-actions');
     if (actions) {
       actions.addEventListener('click', function (e) {
@@ -3986,6 +4143,7 @@
     }
 
     setPortalPhase(PORTAL_PHASE.IDLE);
+    applyPortalEntryHash();
   }
 
   async function pollPaymentSettlement() {
@@ -4083,6 +4241,10 @@
     renderDashboard: renderDashboard,
     syncPayBalanceButton: syncPayBalanceButton,
     primaryActionLabel: primaryActionLabel,
+    greetingPartOfDay: greetingPartOfDay,
+    greetingLine: greetingLine,
+    syncPortalHome: syncPortalHome,
+    applyPortalEntryHash: applyPortalEntryHash,
     selectAppointmentByRef: selectAppointmentByRef,
   };
 
