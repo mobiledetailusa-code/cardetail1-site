@@ -10,6 +10,8 @@
   var SCROLL_RATIO = 0.28;
   var DISMISS_DAYS = 30;
   var shownTracked = false;
+  var revealTimer = 0;
+  var overlayTimer = 0;
 
   function backend() {
     return (global.BACKEND_BASE || '/.netlify/functions');
@@ -181,12 +183,29 @@
     }
   }
 
+  function stopTimers() {
+    if (revealTimer) {
+      global.clearTimeout(revealTimer);
+      revealTimer = 0;
+    }
+    if (overlayTimer) {
+      global.clearInterval(overlayTimer);
+      overlayTimer = 0;
+    }
+  }
+
+  function startOverlayWatch() {
+    if (overlayTimer) return;
+    overlayTimer = global.setInterval(hideForOverlays, 400);
+  }
+
   function reveal() {
     var root = ensureRoot();
     root.hidden = false;
     root.classList.add('cd1-wlb-on');
     bind();
     layoutBalloon();
+    startOverlayWatch();
   }
 
   function layoutBalloon() {
@@ -210,6 +229,12 @@
 
   function dismiss() {
     writeJson(DISMISS_KEY, { at: new Date().toISOString() });
+    destroy();
+  }
+
+  function destroy() {
+    stopTimers();
+    global.__CD1_WLB_INIT__ = false;
     var root = document.getElementById(ROOT_ID);
     if (root) root.remove();
   }
@@ -230,6 +255,7 @@
       }
       if (t.id === 'cd1-wlb-close' || (t.closest && t.closest('#cd1-wlb-close'))) {
         if (existingClaim()) {
+          stopTimers();
           var n = document.getElementById(ROOT_ID);
           if (n) n.remove();
           return;
@@ -237,6 +263,7 @@
         setOpen(false);
       }
       if (t && t.id === 'cd1-wlb-book') {
+        stopTimers();
         var n2 = document.getElementById(ROOT_ID);
         if (n2) n2.remove();
         if (typeof global.openBooking === 'function') global.openBooking(null);
@@ -340,14 +367,13 @@
       maybeReveal();
     }
 
-    global.setTimeout(onceReveal, SHOW_DELAY_MS);
+    revealTimer = global.setTimeout(onceReveal, SHOW_DELAY_MS);
     global.addEventListener('scroll', function () {
       var root = document.scrollingElement || document.documentElement;
       var max = Math.max(1, (root.scrollHeight || 1) - (global.innerHeight || 0));
       if ((root.scrollTop || global.scrollY || 0) / max >= SCROLL_RATIO) onceReveal();
     }, { passive: true });
 
-    global.setInterval(hideForOverlays, 400);
     document.addEventListener('cd1:consent-changed', layoutBalloon);
     document.addEventListener('click', function (e) {
       var t = e.target;
@@ -361,6 +387,7 @@
     init: init,
     persistClaim: persistClaim,
     revealForTest: maybeReveal,
+    destroy: destroy,
     CLAIM_KEY: CLAIM_KEY,
     DISMISS_KEY: DISMISS_KEY,
     SHOW_DELAY_MS: SHOW_DELAY_MS,

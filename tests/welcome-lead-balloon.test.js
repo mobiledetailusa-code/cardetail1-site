@@ -125,6 +125,9 @@ test('balloon copy is first-visit 10% email capture with terms', () => {
   assert.match(js, /terms-conditions#welcome-offer/);
   assert.match(js, /up to \$40/);
   assert.match(js, /__CD1_WLB_INIT__/);
+  assert.match(js, /startOverlayWatch/);
+  assert.match(js, /function destroy\(/);
+  assert.match(js, /clearInterval\(overlayTimer\)/);
 });
 
 test('checkout restores balloon claim onto the welcome offer', () => {
@@ -262,19 +265,27 @@ if (JSDOM) {
       runScripts: 'dangerously',
       pretendToBeVisual: true,
     });
-    const script = dom.window.document.createElement('script');
-    script.textContent = src;
-    dom.window.document.body.appendChild(script);
-    const api = dom.window.Cardetail1WelcomeBalloon;
-    assert.ok(api);
-    api.revealForTest();
-    const root = dom.window.document.getElementById('cd1-wlb');
-    assert.ok(root);
-    assert.equal(root.hidden, false);
-    const close = dom.window.document.getElementById('cd1-wlb-close');
-    close.click();
-    assert.equal(dom.window.document.getElementById('cd1-wlb'), null);
-    const dismissed = JSON.parse(dom.window.localStorage.getItem(api.DISMISS_KEY));
-    assert.ok(dismissed && dismissed.at);
+    try {
+      const script = dom.window.document.createElement('script');
+      script.textContent = src;
+      dom.window.document.body.appendChild(script);
+      const api = dom.window.Cardetail1WelcomeBalloon;
+      assert.ok(api);
+      api.revealForTest();
+      const root = dom.window.document.getElementById('cd1-wlb');
+      assert.ok(root);
+      assert.equal(root.hidden, false);
+      const dismiss = dom.window.document.getElementById('cd1-wlb-fab-dismiss');
+      assert.ok(dismiss);
+      dismiss.click();
+      assert.equal(dom.window.document.getElementById('cd1-wlb'), null);
+      const dismissed = JSON.parse(dom.window.localStorage.getItem(api.DISMISS_KEY));
+      assert.ok(dismissed && dismissed.at);
+    } finally {
+      if (dom.window.Cardetail1WelcomeBalloon && typeof dom.window.Cardetail1WelcomeBalloon.destroy === 'function') {
+        dom.window.Cardetail1WelcomeBalloon.destroy();
+      }
+      dom.window.close();
+    }
   });
 }
