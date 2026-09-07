@@ -10,8 +10,10 @@ const {
   blobCreateJson,
   generateOpaqueId,
   retentionExpiresAt,
+  runningInNetlifyFunction,
 } = require('./revenue-store');
 
+const nativeGetRevenueStore = revenueStore.getRevenueStore;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function normalizeEmail(email) {
@@ -26,6 +28,18 @@ function emailKey(email) {
   return 'wl-' + crypto.createHash('sha256').update(n).digest('hex').slice(0, 40);
 }
 
+function usingTestStoreDouble() {
+  return revenueStore.getRevenueStore !== nativeGetRevenueStore;
+}
+
+function welcomeLeadBlobsAvailable() {
+  if (usingTestStoreDouble()) return true;
+  if (runningInNetlifyFunction()) return true;
+  const siteID = String(process.env.NETLIFY_SITE_ID || process.env.SITE_ID || '').trim();
+  const token = String(process.env.NETLIFY_AUTH_TOKEN || '').trim();
+  return Boolean(siteID && token);
+}
+
 async function welcomeLeadStore() {
   return revenueStore.getRevenueStore('welcomeLeads');
 }
@@ -33,6 +47,7 @@ async function welcomeLeadStore() {
 async function findWelcomeLeadCapture(email) {
   const key = emailKey(email);
   if (!key) return null;
+  if (!welcomeLeadBlobsAvailable()) return null;
   try {
     const store = await welcomeLeadStore();
     const rec = await blobGetJson(store, key);
@@ -59,6 +74,11 @@ async function saveWelcomeLeadCapture(input) {
   const existing = await findWelcomeLeadCapture(email);
   if (existing) {
     return { record: existing, created: false, idempotent: true };
+  }
+  if (!welcomeLeadBlobsAvailable()) {
+    const err = new Error('welcome_lead_store_unavailable');
+    err.code = 'welcome_lead_store_unavailable';
+    throw err;
   }
 
   const now = new Date().toISOString();

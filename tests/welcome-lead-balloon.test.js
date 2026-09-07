@@ -135,7 +135,39 @@ test('checkout restores balloon claim onto the welcome offer', () => {
   assert.match(js, /ST\.offerApplied = true/);
 });
 
-test('normalizeEmail rejects junk', () => {
+test('welcome lead lookup skips blobs outside Netlify without a store double', async () => {
+  const start = Date.now();
+  assert.equal(await hasWelcomeLeadCapture('ci-hang@example.com'), false);
+  assert.ok(Date.now() - start < 1000);
+});
+
+test('offer preview with flag off does not hang without blobs', async () => {
+  const prev = process.env.FIRST_BOOKING_OFFER_ENABLED;
+  delete process.env.FIRST_BOOKING_OFFER_ENABLED;
+  const start = Date.now();
+  const preview = await evaluateBookingOfferPreview({
+    zipCode: '07030',
+    phone: '2015550100',
+    email: 'ci-hang-preview@example.com',
+    vehicleCategory: 'cars',
+    packageId: 'interior',
+    vehicles: [{ cat: 'cars', pkgId: 'interior', subtotal: 225 }],
+  });
+  assert.ok(Date.now() - start < 2000);
+  assert.equal(preview.offer.eligibility_status, 'ineligible');
+  assert.equal(preview.offer.eligibility_reason, 'offer_disabled');
+  if (prev === undefined) delete process.env.FIRST_BOOKING_OFFER_ENABLED;
+  else process.env.FIRST_BOOKING_OFFER_ENABLED = prev;
+});
+
+test('saveWelcomeLeadCapture fails closed when blobs are unavailable', async () => {
+  await assert.rejects(
+    () => saveWelcomeLeadCapture({ email: 'offline@example.com' }),
+    (err) => err && err.code === 'welcome_lead_store_unavailable'
+  );
+});
+
+test('normalizeEmail and emailKey', () => {
   assert.equal(normalizeEmail('  Pat@Example.COM '), 'pat@example.com');
   assert.equal(normalizeEmail('not-an-email'), '');
   assert.equal(emailKey('pat@example.com').startsWith('wl-'), true);
