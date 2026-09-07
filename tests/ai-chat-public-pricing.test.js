@@ -162,7 +162,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   // so a second/new tab authenticates (multi-tab catalog loading fix).
   'netlify/functions/admin-auth.js',
   // Booking Step 4 ZIP-biased street suggestions (no payment imports).
-  'netlify/functions/address-suggest.js',
+    'netlify/functions/address-suggest.js',
+    'netlify/functions/welcome-lead-capture.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {

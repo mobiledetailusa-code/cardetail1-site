@@ -249,8 +249,24 @@
     }
   }
 
+  function restoreBalloonClaim() {
+    try {
+      var raw = global.localStorage.getItem('cd1_welcome10');
+      if (!raw) return;
+      var claim = JSON.parse(raw);
+      if (!claim || !claim.email) return;
+      ensureState();
+      global.ST.offerApplied = true;
+      global.ST.welcomeOfferSource = 'first_visit_balloon';
+      global.ST.welcomeLeadEmail = claim.email;
+      var emailEl = document.getElementById('f-email');
+      if (emailEl && !emailEl.value) emailEl.value = claim.email;
+    } catch (e) { /* ignore */ }
+  }
+
   function init() {
     ensureState();
+    restoreBalloonClaim();
     hookOpenBooking();
     hookBkGoTo();
     hookSelectPkg();

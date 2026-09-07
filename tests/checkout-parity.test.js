@@ -30,6 +30,7 @@ test('index.html is authoritative six-step checkout', () => {
   assert.match(html, /id="bpt6"/);
   assert.match(html, /checkout-analytics\.js/);
   assert.match(html, /checkout-offer\.js/);
+  assert.match(html, /welcome-lead-balloon\.js/);
 });
 
 for (const page of HUB_PAGES) {

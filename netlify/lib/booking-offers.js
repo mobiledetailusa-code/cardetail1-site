@@ -1,6 +1,7 @@
 // Server-authoritative booking offer application — WELCOME10 / first_booking_welcome.
 
 const { evaluateOffers, getOfferConfig, isEligiblePackage } = require('./revenue-offers');
+const { hasWelcomeLeadCapture } = require('./welcome-lead-store');
 const { normalizePhone } = require('./ops-db');
 const { listBookingHistoryForBooking } = require('./booking-history');
 
@@ -206,8 +207,14 @@ function formatSelectedOffer(selected, ctx, sourceTrigger) {
 async function evaluateBookingOfferPreview(booking, { sourceTrigger = null } = {}) {
   const cfg = getOfferConfig();
   const ctx = await buildOfferEvaluationContext(booking);
+  const balloonClaimed = !cfg.firstBooking.enabled
+    ? await hasWelcomeLeadCapture(booking.email)
+    : false;
+  const offerCfg = balloonClaimed
+    ? { ...cfg, firstBooking: { ...cfg.firstBooking, enabled: true } }
+    : cfg;
 
-  if (!cfg.firstBooking.enabled) {
+  if (!offerCfg.firstBooking.enabled) {
     return { ok: true, offer: ineligibleResult('offer_disabled', ctx, cfg), travelExcluded: true };
   }
   if (ctx.isCustomQuote) {
@@ -223,7 +230,7 @@ async function evaluateBookingOfferPreview(booking, { sourceTrigger = null } = {
     return { ok: true, offer: ineligibleResult('no_eligible_subtotal', ctx, cfg) };
   }
 
-  const result = evaluateOffers(ctx);
+  const result = evaluateOffers(ctx, offerCfg);
   if (!result.selected || result.selected.offer_id !== WELCOME_OFFER_ID) {
     const reason = ctx.priorCompletedServices > 0 ? 'returning_customer' : 'not_eligible';
     return { ok: true, offer: ineligibleResult(reason, ctx, cfg) };
