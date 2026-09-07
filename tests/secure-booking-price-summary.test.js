@@ -108,9 +108,9 @@ describe('price calculation invariant', () => {
   it('adjustment presence controls the supporting sentence', () => {
     const ctx = buildSandbox();
     render(ctx, { servicePrice: 467, addonTotal: 0, travelFee: 25, discount: 0 });
-    assert.equal(ctx.els['bk-total-incl'].textContent, 'Includes the mobile service adjustment for your location.');
+    assert.equal(ctx.els['bk-total-incl'].textContent, 'Estimate only · includes mobile adjustment for your location · final after review.');
     render(ctx, { servicePrice: 225, addonTotal: 0, travelFee: 0, discount: 0 });
-    assert.equal(ctx.els['bk-total-incl'].textContent, 'Mobile service included.');
+    assert.equal(ctx.els['bk-total-incl'].textContent, 'Estimate only · mobile service included · final after review.');
   });
 
   it('server travel fee and RV pricing formulas remain canonical', () => {
@@ -235,8 +235,8 @@ describe('cross-step price consistency', () => {
     const updateFn = html.slice(updateStart, updateStart + 1600);
     assert.match(updateFn, /const fee = getTravelFeeAmount\(\);/);
     assert.match(updateFn, /Estimated total/);
-    assert.match(updateFn, /Includes mobile adjustment/);
-    assert.match(updateFn, /Mobile service included/);
+    assert.match(updateFn, /Estimate only · includes mobile adjustment/);
+    assert.match(updateFn, /Estimate only · mobile service included/);
   });
 
   it('ZIP gate copy no longer claims prices silently include travel', () => {

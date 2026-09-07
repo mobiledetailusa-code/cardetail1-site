@@ -108,6 +108,7 @@ test('homepage opens package details in modal panel instead of inline card expan
   assert.match(pkgModalJs, /function openHomePkgDetailModal\(pkgId/);
   assert.match(pkgModalJs, /<h4>Includes<\/h4>/);
   assert.match(pkgModalJs, /<h4>Best for<\/h4>/);
+  assert.match(pkgModalJs, /<h4>Limitations<\/h4>/);
   assert.match(pkgModalJs, /<h4>Add-ons may apply<\/h4>/);
   assert.match(pkgModalJs, /openBookingCarPkg\(pkgId\)/);
   assert.match(pkgModalJs, /ov\.hidden = true/);
