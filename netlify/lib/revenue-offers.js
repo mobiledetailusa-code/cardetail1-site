@@ -120,8 +120,8 @@ function computeMultiVehicleCredit(cfg, ctx) {
   };
 }
 
-function evaluateOffers(ctx) {
-  const config = getOfferConfig();
+function evaluateOffers(ctx, configOverride) {
+  const config = configOverride || getOfferConfig();
   const offers = [];
   const first = computeFirstBookingDiscount(ctx.eligibleSubtotalCents, config.firstBooking, ctx);
   if (first) offers.push(first);

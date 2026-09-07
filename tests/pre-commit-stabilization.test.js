@@ -408,6 +408,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     // Booking Step 4 ZIP-biased street suggestions (no payment imports).
     'netlify/functions/address-suggest.js',
     'netlify/lib/address-suggest.js',
+    'netlify/functions/welcome-lead-capture.js',
+    'netlify/lib/welcome-lead-store.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

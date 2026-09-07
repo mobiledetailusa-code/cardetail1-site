@@ -12,6 +12,7 @@ const REVENUE_STORES = Object.freeze({
   resumeTokens: 'revenue-resume-tokens',
   eventIdempotency: 'revenue-event-idempotency',
   adminAudit: 'revenue-admin-audit',
+  welcomeLeads: 'revenue-welcome-leads',
 });
 
 const RETENTION_DAYS = {
@@ -27,6 +28,7 @@ const RETENTION_DAYS = {
   // not enforced TTLs: this repository has no Blob expiry/cleanup job.
   eventIdempotency: 400,
   adminAudit: 365,
+  welcomeLeads: 730,
 };
 
 const RETENTION_ENFORCEMENT = Object.freeze({
