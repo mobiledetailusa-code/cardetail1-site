@@ -271,6 +271,29 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
       <button type="button" class="btn ghost" id="btn-logout">Sign out / switch booking</button>
     </div>
 
+    <div class="portal-home-cards" id="portal-home-cards" hidden>
+      <button type="button" class="portal-home-card" id="home-card-appt" data-home-card="appointment">
+        <span class="portal-home-card-kicker">Next service</span>
+        <strong id="home-card-appt-title">Your appointment</strong>
+        <span id="home-card-appt-sub" class="portal-home-card-sub">Open the current booking</span>
+      </button>
+      <button type="button" class="portal-home-card" id="home-card-pay" data-home-card="pay" hidden>
+        <span class="portal-home-card-kicker">Balance</span>
+        <strong id="home-card-pay-title">Amount due</strong>
+        <span class="portal-home-card-sub">Jump to Payments &amp; Receipts — Pay securely stays there</span>
+      </button>
+      <a class="portal-home-card is-primary" id="home-card-book" href="index.html">
+        <span class="portal-home-card-kicker" id="home-card-book-kicker">Book</span>
+        <strong id="home-card-book-title">Schedule a detail</strong>
+        <span id="home-card-book-sub" class="portal-home-card-sub">10% off your first eligible service, up to $40. No code needed.</span>
+      </a>
+      <button type="button" class="portal-home-card" id="home-card-reschedule" data-home-card="reschedule" hidden>
+        <span class="portal-home-card-kicker">Change date</span>
+        <strong>Request a new date</strong>
+        <span class="portal-home-card-sub">Same request as before — reviewed if needed</span>
+      </button>
+    </div>
+
     <section class="section" aria-labelledby="upcoming-h">
       <h3 id="upcoming-h">Current appointment</h3>
       <div id="mg-dashboard" class="mg-dashboard" hidden>
@@ -303,28 +326,6 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
         <div id="mgMap"></div>
       </div>
       <div id="upcoming-panel"></div>
-      <div class="portal-home-cards" id="portal-home-cards" hidden>
-        <button type="button" class="portal-home-card" id="home-card-appt" data-home-card="appointment">
-          <span class="portal-home-card-kicker">Next service</span>
-          <strong id="home-card-appt-title">Your appointment</strong>
-          <span id="home-card-appt-sub" class="portal-home-card-sub">Open the current booking</span>
-        </button>
-        <button type="button" class="portal-home-card" id="home-card-pay" data-home-card="pay" hidden>
-          <span class="portal-home-card-kicker">Balance</span>
-          <strong id="home-card-pay-title">Amount due</strong>
-          <span class="portal-home-card-sub">Jump to Payments &amp; Receipts — Pay securely stays there</span>
-        </button>
-        <a class="portal-home-card is-primary" id="home-card-book" href="index.html">
-          <span class="portal-home-card-kicker" id="home-card-book-kicker">Book</span>
-          <strong id="home-card-book-title">Schedule a detail</strong>
-          <span id="home-card-book-sub" class="portal-home-card-sub">10% off your first eligible service, up to $40. No code needed.</span>
-        </a>
-        <button type="button" class="portal-home-card" id="home-card-reschedule" data-home-card="reschedule" hidden>
-          <span class="portal-home-card-kicker">Change date</span>
-          <strong>Request a new date</strong>
-          <span class="portal-home-card-sub">Same request as before — reviewed if needed</span>
-        </button>
-      </div>
       <details class="portal-more-actions" id="portal-more-actions">
       <summary>More actions</summary>
       <div class="actions is-secondary" id="customer-actions">

@@ -54,10 +54,11 @@ describe('Phase 1 portal shell', () => {
     assert.match(html, /id="pay-sticky-btn">Pay securely/);
     assert.match(html, /More actions/);
     assert.match(html, /id="customer-actions"/);
-    const panel = html.indexOf('id="upcoming-panel"');
+    const post = html.indexOf('id="post-auth"');
     const cards = html.indexOf('id="portal-home-cards"');
+    const panel = html.indexOf('id="upcoming-panel"');
     const actions = html.indexOf('id="customer-actions"');
-    assert.ok(panel > -1 && cards > panel && actions > cards);
+    assert.ok(post > -1 && cards > post && cards < panel && panel < actions, 'cards sit above the appointment, actions stay after it');
   });
 
   it('does not add maintenance_request to the primary HTML', () => {
