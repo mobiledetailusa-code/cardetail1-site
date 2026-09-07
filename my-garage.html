@@ -27,6 +27,26 @@ a:hover{text-decoration:underline}
 .hero{text-align:center;padding:32px 0 24px}
 .hero h1{font-size:clamp(1.75rem,4vw,2.25rem);font-weight:800;margin-bottom:8px}
 .hero p{color:var(--muted);font-size:15px;max-width:520px;margin:0 auto}
+.portal-welcome{font-size:clamp(1.15rem,3vw,1.45rem);font-weight:700;color:var(--text);margin:10px auto 4px;max-width:520px}
+.portal-welcome[hidden]{display:none!important}
+.portal-welcome-status{font-size:14px;color:var(--muted);max-width:520px;margin:0 auto 8px;line-height:1.45}
+.portal-home-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0 8px}
+.portal-home-card{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;min-height:88px;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:var(--bg2);color:var(--text);cursor:pointer;font-family:inherit;text-decoration:none;width:100%}
+.portal-home-card:hover{border-color:var(--blue);text-decoration:none}
+.portal-home-card[hidden]{display:none!important}
+.portal-home-card-kicker{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue)}
+.portal-home-card strong{font-size:15px;font-weight:800;line-height:1.3}
+.portal-home-card-sub{font-size:13px;color:var(--muted);line-height:1.4}
+.portal-home-card.is-primary{border-color:rgba(77,163,255,.45);background:rgba(77,163,255,.08)}
+.portal-more-actions{margin-top:8px;border:1px solid var(--border);border-radius:12px;padding:4px 12px 10px;background:var(--bg2)}
+.portal-more-actions>summary{cursor:pointer;list-style:none;min-height:44px;display:flex;align-items:center;font-size:13px;font-weight:600;color:var(--muted)}
+.portal-more-actions>summary::-webkit-details-marker{display:none}
+.portal-more-actions>summary::after{content:'▾';margin-left:auto;font-size:11px}
+.portal-empty-book .btn.primary{margin-top:8px}
+.lookup-fallback{margin-top:8px}
+.lookup-fallback>summary{cursor:pointer;list-style:none;min-height:44px;display:flex;align-items:center;font-size:14px;font-weight:600;color:var(--muted)}
+.lookup-fallback>summary::-webkit-details-marker{display:none}
+@media(max-width:640px){.portal-home-cards{grid-template-columns:1fr}}
 .top-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:20px 0 28px}
 .top-nav a,.top-nav button{min-height:44px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);cursor:pointer;font-family:inherit}
 .top-nav a:hover,.top-nav button:hover{border-color:var(--blue)}
@@ -190,7 +210,9 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 <div class="wrap" data-clarity-mask="true">
   <header class="hero">
     <h1>My Detailing Portal</h1>
-    <p>Manage your appointments, payments and service history.</p>
+    <p id="portal-welcome" class="portal-welcome" hidden></p>
+    <p id="portal-hero-lede">Sign in to manage appointments, pay, and book — new customers get 10% off the first eligible service, up to $40.</p>
+    <p id="portal-welcome-status" class="portal-welcome-status" hidden></p>
     <nav class="top-nav" aria-label="Portal shortcuts">
       <a href="index.html">Back to Cardetail1</a>
       <a href="index.html">Book Another Service</a>
@@ -212,8 +234,22 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
   </div>
 
   <div id="pre-auth" hidden style="display:none">
-    <section class="panel" id="lookup">
-      <h2>Already have an appointment code?</h2>
+    <section class="panel" id="account-access">
+      <h2>Open your portal</h2>
+      <p class="sub">Enter your email. We send a secure sign-in link — no password. Use the same email as your booking when you have one.</p>
+      <form id="acct-form">
+        <label for="acct-email" class="sub">Email</label>
+        <input class="inp" id="acct-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+        <label for="acct-phone" class="sub">Phone (optional, helps match your account)</label>
+        <input class="inp" id="acct-phone" name="phone" type="tel" autocomplete="tel" placeholder="Optional">
+        <button type="submit" class="btn primary">Email me a secure sign-in link</button>
+      </form>
+      <p id="acct-error" class="msg" hidden></p>
+      <p class="sub" style="margin-top:14px">Prefer not to use email? Open the appointment lookup below, or <a href="tel:5513735668">call/text 551-373-5668</a>.</p>
+    </section>
+
+    <details class="panel lookup-fallback" id="lookup">
+      <summary>Already have an appointment code?</summary>
       <p class="sub">Find your appointment — fallback access with appointment code + phone. Customers arriving from a secure email/SMS link do not need this form.</p>
       <form id="lk-form" autocomplete="off">
         <label for="lk-booking-id" class="sub">Appointment code</label>
@@ -226,21 +262,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
         </div>
       </form>
       <p id="lk-error" class="msg err" hidden></p>
-    </section>
-
-    <section class="panel" id="account-access">
-      <h2>Full portal access</h2>
-      <p class="sub">Sign in with the email on your booking to see all appointments and account details.</p>
-      <form id="acct-form">
-        <label for="acct-email" class="sub">Email</label>
-        <input class="inp" id="acct-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
-        <label for="acct-phone" class="sub">Phone (optional, helps match your account)</label>
-        <input class="inp" id="acct-phone" name="phone" type="tel" autocomplete="tel" placeholder="Optional">
-        <button type="submit" class="btn primary">Email me a secure sign-in link</button>
-      </form>
-      <p id="acct-error" class="msg" hidden></p>
-      <p class="sub" style="margin-top:14px">If email sign-in is unavailable, use booking lookup above or <a href="tel:5513735668">call/text 551-373-5668</a>.</p>
-    </section>
+    </details>
   </div>
 
   <div id="post-auth" hidden style="display:none" aria-busy="false">
@@ -281,6 +303,30 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
         <div id="mgMap"></div>
       </div>
       <div id="upcoming-panel"></div>
+      <div class="portal-home-cards" id="portal-home-cards" hidden>
+        <button type="button" class="portal-home-card" id="home-card-appt" data-home-card="appointment">
+          <span class="portal-home-card-kicker">Next service</span>
+          <strong id="home-card-appt-title">Your appointment</strong>
+          <span id="home-card-appt-sub" class="portal-home-card-sub">Open the current booking</span>
+        </button>
+        <button type="button" class="portal-home-card" id="home-card-pay" data-home-card="pay" hidden>
+          <span class="portal-home-card-kicker">Balance</span>
+          <strong id="home-card-pay-title">Amount due</strong>
+          <span class="portal-home-card-sub">Jump to Payments &amp; Receipts — Pay securely stays there</span>
+        </button>
+        <a class="portal-home-card is-primary" id="home-card-book" href="index.html">
+          <span class="portal-home-card-kicker" id="home-card-book-kicker">Book</span>
+          <strong id="home-card-book-title">Schedule a detail</strong>
+          <span id="home-card-book-sub" class="portal-home-card-sub">10% off your first eligible service, up to $40. No code needed.</span>
+        </a>
+        <button type="button" class="portal-home-card" id="home-card-reschedule" data-home-card="reschedule" hidden>
+          <span class="portal-home-card-kicker">Change date</span>
+          <strong>Request a new date</strong>
+          <span class="portal-home-card-sub">Same request as before — reviewed if needed</span>
+        </button>
+      </div>
+      <details class="portal-more-actions" id="portal-more-actions">
+      <summary>More actions</summary>
       <div class="actions is-secondary" id="customer-actions">
         <button type="button" class="btn ghost" data-action="reschedule_request">Request New Date</button>
         <button type="button" class="btn ghost" data-action="addon_request">Modify Service / Add-ons</button>
@@ -295,6 +341,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
         <a class="btn ghost" href="index.html">Rebook Service</a>
         <a class="btn ghost" href="tel:5513735668">Contact Cardetail1</a>
       </div>
+      </details>
       <p class="hint" id="post-service-note" hidden></p>
     </section>
 
