@@ -425,6 +425,31 @@
     if (resched) resched.hidden = !b;
   }
 
+  /**
+   * Deep links into the signed-out shell. #account-access is the customer login;
+   * #lookup stays for support / legacy public "View or Manage Booking" links.
+   */
+  function applyPortalEntryHash() {
+    var hash = '';
+    try { hash = String(global.location.hash || '').replace(/^#/, '').toLowerCase(); } catch (e) { return; }
+    if (!hash) return;
+    if (hash === 'lookup') {
+      var lookup = $('lookup');
+      if (lookup) {
+        try { lookup.open = true; } catch (e2) { /* ignore */ }
+      }
+      scrollPortalTarget('lookup');
+      return;
+    }
+    if (hash === 'account-access') {
+      scrollPortalTarget('account-access');
+      var email = $('acct-email');
+      if (email && typeof email.focus === 'function') {
+        try { email.focus(); } catch (e3) { /* ignore */ }
+      }
+    }
+  }
+
   function onPortalHomeCard(ev) {
     var card = ev.target && ev.target.closest ? ev.target.closest('[data-home-card]') : null;
     if (!card) return;
@@ -1593,6 +1618,7 @@
     clearPortalHydrationTimers();
     stripMagicLinkParamsFromUrl();
     setPortalPhase(PORTAL_PHASE.IDLE);
+    applyPortalEntryHash();
   }
 
   async function startAccountAuth() {
@@ -1607,7 +1633,7 @@
     if (r.data && r.data.ok) {
       setMsg($('acct-error'), 'Check your email for a secure sign-in link (expires in 15 minutes).', false);
     } else {
-      setMsg($('acct-error'), (r.data && r.data.message) || 'Sign-in unavailable. Use booking lookup or call/text us.', true);
+      setMsg($('acct-error'), (r.data && r.data.message) || 'Sign-in unavailable. Use the appointment code form below or call/text us.', true);
     }
   }
 
@@ -4117,6 +4143,7 @@
     }
 
     setPortalPhase(PORTAL_PHASE.IDLE);
+    applyPortalEntryHash();
   }
 
   async function pollPaymentSettlement() {
@@ -4217,6 +4244,7 @@
     greetingPartOfDay: greetingPartOfDay,
     greetingLine: greetingLine,
     syncPortalHome: syncPortalHome,
+    applyPortalEntryHash: applyPortalEntryHash,
     selectAppointmentByRef: selectAppointmentByRef,
   };
 
