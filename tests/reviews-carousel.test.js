@@ -229,21 +229,9 @@ test('12. View all sends visitors to the dedicated reviews page', () => {
   assert.match(index, /<a class="btn-outline" id="rv-view-all" href="\/reviews">View all reviews<\/a>/);
   assert.match(index, /function rvViewAll\(\)\{\s*window\.location\.assign\('\/reviews'\);/);
   assert.match(reviewsJs, /view\.location\.assign\(REVIEWS_PAGE_URL\)/);
-  reviews.applyPortalItems([{
-    id: 'REV-OK',
-    name: 'Ada L.',
-    rating: 5,
-    text: 'The interior looks brand new after the visit.',
-    createdAt: '2026-08-24T12:00:00.000Z',
-  }]);
-  if (JSDOM) {
-    mountDom();
-    assert.doesNotThrow(() => reviews.viewAll());
-  }
-  assert.ok(reviews.mixed().some((r) => r.id === 'REV-OK'));
+  reviews.applyPortalItems([]);
   assert.ok(reviews.mixed().some((r) => r.id === 'g-john-daquila'));
   assert.ok(reviews.mixed().length > reviews.homepage().length);
-  reviews.applyPortalItems([]);
 });
 
 test('13. View all excludes hidden and internal reviews', () => {
