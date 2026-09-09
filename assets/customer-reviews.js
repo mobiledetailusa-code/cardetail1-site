@@ -567,14 +567,18 @@
     var documentRef = mountedDoc || root.document;
     if (documentRef && documentRef.getElementById('rv-grid')) return;
     var view = documentRef && documentRef.defaultView;
-    if (view && view.location && typeof view.location.assign === 'function') {
-      view.location.assign(REVIEWS_PAGE_URL);
-      return;
+    if (view && view.location) {
+      try {
+        if (typeof view.location.assign === 'function') {
+          view.location.assign(REVIEWS_PAGE_URL);
+          return;
+        }
+        view.location.href = REVIEWS_PAGE_URL;
+        return;
+      } catch (_) {
+        // jsdom and similar hosts throw on navigation. Production browsers navigate.
+      }
     }
-    var html = mixed().map(function (review) {
-      return cardHtml(review, { full: true });
-    }).join('');
-    openOverlay('All reviews', html || '<p class="rv-empty">No published reviews yet.</p>', 'all');
   }
 
   function paint() {

@@ -227,6 +227,8 @@ test('11. carousel bounded card count / viewport semantics', () => {
 test('12. View all sends visitors to the dedicated reviews page', () => {
   if (!JSDOM) return;
   const dom = mountDom();
+  const assigned = [];
+  dom.window.location.assign = (url) => { assigned.push(String(url)); };
   reviews.applyPortalItems([{
     id: 'REV-OK',
     name: 'Ada L.',
@@ -235,7 +237,7 @@ test('12. View all sends visitors to the dedicated reviews page', () => {
     createdAt: '2026-08-24T12:00:00.000Z',
   }]);
   reviews.viewAll();
-  assert.match(String(dom.window.location.href || ''), /\/reviews$/);
+  assert.deepEqual(assigned, ['/reviews']);
   assert.ok(reviews.mixed().some((r) => r.id === 'REV-OK'));
   assert.ok(reviews.mixed().some((r) => r.id === 'g-john-daquila'));
   assert.ok(reviews.mixed().length > reviews.homepage().length);
@@ -365,8 +367,16 @@ test('legacy testimonials are not labeled Google or Verified Cardetail1', () => 
   assert.ok(pablo);
   assert.equal(reviews.sourceLabel(pablo), 'Customer');
   if (!JSDOM) return;
-  const dom = mountDom();
+  reviews.applyPortalItems([]);
+  const dom = new JSDOM(`<!DOCTYPE html><html><body>
+    <div id="reviews"><div id="rv-grid"></div></div>
+  </body></html>`, {
+    runScripts: 'outside-only',
+    url: 'https://cardetail1.com/reviews',
+  });
+  reviews.mount(dom.window.document, { fetch: false });
   const card = dom.window.document.querySelector('[data-review-id="legacy-pablo-sanchez"]');
+  assert.ok(card);
   assert.equal(card.querySelector('.rv-source').textContent, 'Customer');
   assert.doesNotMatch(card.textContent, /Google review/);
   assert.doesNotMatch(card.textContent, /Verified Cardetail1 customer/);
