@@ -24,6 +24,7 @@ const TEMPLATE_KEYS = Object.freeze({
   CANCELLED: 'booking.cancelled',
   PAYMENT_RECEIVED: 'booking.payment_received',
   DETAILS_UPDATED: 'booking.details_updated',
+  REVIEW_REQUESTED: 'booking.review_requested',
   // CUSTOMER_BOOKING_SMS_SAFE_CONFIRMATION — consent true, phone mismatch: no private link
   SAFE_CONFIRMATION: 'booking.safe_confirmation',
   TECH_AUCTION: 'auction.tech_invite',
@@ -286,6 +287,10 @@ function renderSmsTemplate(templateKey, data = {}) {
         + viewLink(url);
       break;
     }
+    case TEMPLATE_KEYS.REVIEW_REQUESTED:
+      body = `${smsPrefix(templateKey)} How was your detail? Leave a review.`
+        + viewLink(url);
+      break;
     case TEMPLATE_KEYS.TECH_AUCTION:
       body = `${smsPrefix(templateKey)} Job ${text(data.service, 100)} - ${text(data.date, 40)} - ${text(data.area, 40)}.`
         + (url ? ` Bid: ${url}` : '');

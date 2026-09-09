@@ -98,6 +98,10 @@
   to = "/resume.html"
   status = 200
 [[redirects]]
+  from = "/reviews"
+  to = "/reviews.html"
+  status = 200
+[[redirects]]
   from = "/blog"
   to = "/blog.html"
   status = 200
@@ -156,6 +160,14 @@
   [headers.values]
     Referrer-Policy = "no-referrer"
     Cache-Control = "no-store"
+[[headers]]
+  for = "/reviews"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+[[headers]]
+  for = "/reviews.html"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
 
 # WELCOME10 QA — branch deploy for operations-core-job-lifecycle only (not production).
 [context."operations-core-job-lifecycle".environment]

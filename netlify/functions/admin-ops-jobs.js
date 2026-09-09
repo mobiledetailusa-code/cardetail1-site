@@ -1356,6 +1356,7 @@ function adminOperationalControls(booking, projection = null) {
       consequences: [
         'Sets the completion time, which starts the customer’s 48-hour service issue window.',
         'Makes the review action available to the customer.',
+        'Sends one review-request SMS when the customer opted in to booking texts.',
         'Sends the completion email once.',
       ],
     },
@@ -1759,6 +1760,16 @@ async function handleAdminAction(body, testOpts = {}) {
       } catch (e) {
         console.warn('[admin-ops-jobs] action-required notify failed:', e.message);
       }
+    }
+    try {
+      const { notifyReviewRequestedQuietly } = require('../lib/review-request-notifications');
+      await notifyReviewRequestedQuietly(patched, {
+        event: testOpts.event,
+        prisma: testOpts.prisma,
+        env: testOpts.env,
+      });
+    } catch (e) {
+      console.warn('[admin-ops-jobs] review-request notify failed:', e.message);
     }
     return jsonCors(200, {
       ok: true,

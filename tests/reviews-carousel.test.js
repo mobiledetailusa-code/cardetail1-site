@@ -89,10 +89,14 @@ test('3. Google text preserved exactly', () => {
   );
   if (!JSDOM) return;
   const dom = mountDom();
-  assert.equal(
-    dom.window.document.querySelector('[data-review-id="g-rose-alves"] .rv-quote').textContent,
-    rose.text,
-  );
+  const homeIds = new Set(reviews.homepage().map((r) => r.id));
+  if (homeIds.has('g-rose-alves')) {
+    assert.equal(
+      dom.window.document.querySelector('[data-review-id="g-rose-alves"] .rv-quote').textContent,
+      rose.text,
+    );
+  }
+  assert.equal(reviews.googleReviews().find((r) => r.id === 'g-rose-alves').text, rose.text);
 });
 
 test('4. Google rating preserved exactly', () => {
@@ -101,7 +105,8 @@ test('4. Google rating preserved exactly', () => {
   }
   if (!JSDOM) return;
   const dom = mountDom();
-  const card = dom.window.document.querySelector('[data-review-id="g-dani-sames"]');
+  const card = dom.window.document.querySelector('[data-review-id="g-john-daquila"]');
+  assert.ok(card);
   assert.equal(card.getAttribute('data-rating'), '5');
   assert.match(card.querySelector('.rv-stars').getAttribute('aria-label'), /5 out of 5 stars/);
 });
@@ -219,30 +224,17 @@ test('11. carousel bounded card count / viewport semantics', () => {
   assert.doesNotMatch(index, /id="rv-featured"/);
 });
 
-test('12. View all contains all published reviews', () => {
-  if (!JSDOM) return;
-  const dom = mountDom();
-  reviews.applyPortalItems([{
-    id: 'REV-OK',
-    name: 'Ada L.',
-    rating: 5,
-    text: 'The interior looks brand new after the visit.',
-    createdAt: '2026-08-24T12:00:00.000Z',
-  }]);
-  reviews.viewAll();
-  const overlay = dom.window.document.getElementById('rv-overlay');
-  assert.equal(overlay.hidden, false);
-  const cards = [...overlay.querySelectorAll('.rv-card')];
-  assert.equal(cards.length, reviews.mixed().length);
-  assert.ok(cards.some((card) => card.getAttribute('data-review-id') === 'REV-OK'));
-  assert.ok(cards.some((card) => card.getAttribute('data-review-id') === 'g-john-daquila'));
-  reviews.closeOverlay();
+test('12. View all sends visitors to the dedicated reviews page', () => {
+  assert.equal(reviews.REVIEWS_PAGE_URL, '/reviews');
+  assert.match(index, /<a class="btn-outline" id="rv-view-all" href="\/reviews">View all reviews<\/a>/);
+  assert.match(index, /function rvViewAll\(\)\{\s*window\.location\.assign\('\/reviews'\);/);
+  assert.match(reviewsJs, /view\.location\.assign\(REVIEWS_PAGE_URL\)/);
   reviews.applyPortalItems([]);
+  assert.ok(reviews.mixed().some((r) => r.id === 'g-john-daquila'));
+  assert.ok(reviews.mixed().length > reviews.homepage().length);
 });
 
 test('13. View all excludes hidden and internal reviews', () => {
-  if (!JSDOM) return;
-  const dom = mountDom();
   reviews.applyPortalItems([
     {
       id: 'REV-HIDE',
@@ -259,11 +251,8 @@ test('13. View all excludes hidden and internal reviews', () => {
       internal: true,
     },
   ]);
-  reviews.viewAll();
-  const overlay = dom.window.document.getElementById('rv-overlay');
-  assert.equal(overlay.querySelector('[data-review-id="REV-HIDE"]'), null);
-  assert.equal(overlay.querySelector('[data-review-id="REV-INT"]'), null);
-  reviews.closeOverlay();
+  assert.equal(reviews.mixed().some((r) => r.id === 'REV-HIDE'), false);
+  assert.equal(reviews.mixed().some((r) => r.id === 'REV-INT'), false);
   reviews.applyPortalItems([]);
 });
 
@@ -311,6 +300,7 @@ test('16. mobile structure is valid', () => {
   assert.match(index, /aria-label="Previous reviews"/);
   assert.match(index, /aria-label="Next reviews"/);
   assert.match(index, /id="rv-view-all"/);
+  assert.match(index, /href="\/reviews"/);
   assert.match(index, /@media\(max-width:640px\)\{[\s\S]*\.rv-slide\{flex-basis:100%\}/);
   assert.match(index, /scroll-snap-type:x mandatory/);
 });
@@ -367,8 +357,16 @@ test('legacy testimonials are not labeled Google or Verified Cardetail1', () => 
   assert.ok(pablo);
   assert.equal(reviews.sourceLabel(pablo), 'Customer');
   if (!JSDOM) return;
-  const dom = mountDom();
+  reviews.applyPortalItems([]);
+  const dom = new JSDOM(`<!DOCTYPE html><html><body>
+    <div id="reviews"><div id="rv-grid"></div></div>
+  </body></html>`, {
+    runScripts: 'outside-only',
+    url: 'https://cardetail1.com/reviews',
+  });
+  reviews.mount(dom.window.document, { fetch: false });
   const card = dom.window.document.querySelector('[data-review-id="legacy-pablo-sanchez"]');
+  assert.ok(card);
   assert.equal(card.querySelector('.rv-source').textContent, 'Customer');
   assert.doesNotMatch(card.textContent, /Google review/);
   assert.doesNotMatch(card.textContent, /Verified Cardetail1 customer/);

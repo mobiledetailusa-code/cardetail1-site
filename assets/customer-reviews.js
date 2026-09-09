@@ -31,6 +31,8 @@
   var GOOGLE_REVIEW_URL = 'https://g.page/r/CTJwfJerrQeCEAI/review';
   var PORTAL_REVIEWS_URL = '/.netlify/functions/public-reviews';
   var READ_MORE_LINES = 5;
+  var HOME_LIMIT = 6;
+  var REVIEWS_PAGE_URL = '/reviews';
 
   var GOOGLE_LISTING = {
     name: 'Cardetail1',
@@ -303,6 +305,10 @@
     return out;
   }
 
+  function homepage() {
+    return mixed().slice(0, HOME_LIMIT);
+  }
+
   function featured() {
     return [];
   }
@@ -558,23 +564,43 @@
   }
 
   function viewAll() {
-    var html = mixed().map(function (review) {
-      return cardHtml(review, { full: true });
-    }).join('');
-    openOverlay('All reviews', html || '<p class="rv-empty">No published reviews yet.</p>', 'all');
+    var documentRef = mountedDoc || root.document;
+    if (documentRef && documentRef.getElementById('rv-grid')) return;
+    var view = documentRef && documentRef.defaultView;
+    if (view && view.location) {
+      try {
+        if (typeof view.location.assign === 'function') {
+          view.location.assign(REVIEWS_PAGE_URL);
+          return;
+        }
+        view.location.href = REVIEWS_PAGE_URL;
+        return;
+      } catch (_) {
+        // jsdom and similar hosts throw on navigation. Production browsers navigate.
+      }
+    }
   }
 
   function paint() {
     var documentRef = mountedDoc;
     if (!documentRef) return;
     var track = documentRef.getElementById('rv-track');
+    var grid = documentRef.getElementById('rv-grid');
     var dots = documentRef.getElementById('rv-dots');
-    carouselReviews = carousel();
+    var list = mixed();
+    if (track && !grid) list = list.slice(0, HOME_LIMIT);
+    carouselReviews = list;
 
     if (track) {
       track.innerHTML = carouselReviews.map(function (review) {
         return '<div class="rv-slide">' + cardHtml(review, { full: false }) + '</div>';
       }).join('');
+    }
+
+    if (grid) {
+      grid.innerHTML = carouselReviews.map(function (review) {
+        return cardHtml(review, { full: true });
+      }).join('') || '<p class="rv-empty">No published reviews yet.</p>';
     }
 
     if (dots) {
@@ -722,12 +748,15 @@
     GOOGLE_LISTING: GOOGLE_LISTING,
     PORTAL_REVIEWS_URL: PORTAL_REVIEWS_URL,
     READ_MORE_LINES: READ_MORE_LINES,
+    HOME_LIMIT: HOME_LIMIT,
+    REVIEWS_PAGE_URL: REVIEWS_PAGE_URL,
     all: publicList,
     googleReviews: googleReviews,
     legacyReviews: legacyReviews,
     featured: featured,
     carousel: carousel,
     mixed: mixed,
+    homepage: homepage,
     mount: mount,
     goTo: goTo,
     move: move,

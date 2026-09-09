@@ -32,7 +32,8 @@ test('homepage loads the first-party reviews module and keeps the reviews anchor
   assert.match(index, /href="#reviews"/);
   assert.match(index, /<script src="assets\/customer-reviews\.js"><\/script>/);
   assert.match(index, /function renderReviews\(\)\{[\s\S]*CD1CustomerReviews\.mount/);
-  assert.match(index, /function rvViewAll\(\)\{[\s\S]*CD1CustomerReviews\.viewAll/);
+  assert.match(index, /function rvViewAll\(\)\{[\s\S]*\/reviews/);
+  assert.match(index, /href="\/reviews"/);
   assert.doesNotMatch(index, /const REVIEWS\s*=\s*\[/);
 });
 
@@ -43,8 +44,9 @@ test('homepage reviews copy is first-party plus a labeled static Google snapshot
   assert.match(section, /5\.0 on Google/);
   assert.match(section, /9 reviews/);
   assert.match(section, /Google review snapshot · August 2026/);
-  assert.match(section, /My Garage/);
+  assert.match(section, /my-garage\.html#lookup/);
   assert.match(section, /View all reviews/);
+  assert.match(section, /href="\/reviews"/);
   assert.doesNotMatch(section, /copied from the current/);
   assert.doesNotMatch(section, /not a live Google feed/);
   assert.doesNotMatch(section, /live Google reviews/i);
@@ -94,9 +96,10 @@ test('public cards exclude empty quotes, owner self-review, and duplicate bodies
 
 test('compact carousel replaces the featured grid and mixes portal reviews', () => {
   const featured = reviews.featured();
-  const carousel = reviews.carousel();
+  const all = reviews.mixed();
   assert.equal(featured.length, 0, 'featured grid must not lengthen the homepage');
-  assert.ok(carousel.length >= 8, `carousel count ${carousel.length}`);
+  assert.ok(all.length >= 8, `published count ${all.length}`);
+  assert.equal(reviews.homepage().length, Math.min(reviews.HOME_LIMIT, all.length));
   const googleIds = new Set(reviews.googleReviews().map((r) => r.id));
   assert.ok(googleIds.has('g-claudio-campos'));
   assert.ok(googleIds.has('g-john-daquila'));
@@ -141,7 +144,8 @@ if (JSDOM) {
     reviews.mount(dom.window.document, { fetch: false });
 
     const carouselCards = [...dom.window.document.querySelectorAll('#rv-track .rv-card')];
-    assert.equal(carouselCards.length, reviews.carousel().length);
+    assert.equal(carouselCards.length, reviews.homepage().length);
+    assert.ok(carouselCards.length <= reviews.HOME_LIMIT);
     assert.equal(dom.window.document.querySelectorAll('#rv-featured .rv-card').length, 0);
 
     for (const card of carouselCards) {
@@ -152,7 +156,7 @@ if (JSDOM) {
       assert.doesNotMatch(card.textContent, /Magno Junior/);
     }
 
-    const beforeCarousel = reviews.carousel().length;
+    const beforeCount = reviews.homepage().length;
     reviews.applyPortalItems([{
       id: 'REV-PORTAL',
       name: 'Ada L.',
@@ -163,7 +167,7 @@ if (JSDOM) {
       service: 'Interior Detail',
     }]);
     const carouselCardsAfter = [...dom.window.document.querySelectorAll('#rv-track .rv-card')];
-    assert.ok(carouselCardsAfter.length > beforeCarousel);
+    assert.equal(carouselCardsAfter.length, Math.min(reviews.HOME_LIMIT, beforeCount + 1));
     assert.ok(carouselCardsAfter.some((card) => card.getAttribute('data-review-id') === 'REV-PORTAL'));
     reviews.applyPortalItems([]);
   });

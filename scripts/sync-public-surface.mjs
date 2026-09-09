@@ -35,6 +35,7 @@ const PUBLIC_HTML = [
   'detailing-vs-car-wash.html',
   'how-often-to-detail.html',
   'mobile-detailing-what-to-expect.html',
+  'reviews.html',
 ];
 
 const HUB_PAGES = PUBLIC_HTML.filter((f) =>
