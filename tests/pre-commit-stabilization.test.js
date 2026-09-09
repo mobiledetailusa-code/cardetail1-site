@@ -58,7 +58,7 @@ function resolveHref(href) {
 
 test('sitemap reported count equals actual URL entries', () => {
   const urls = sitemapUrls();
-  assert.equal(urls.length, 31);
+  assert.equal(urls.length, 32);
 });
 
 test('every sitemap route file exists on disk', () => {
@@ -410,6 +410,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/address-suggest.js',
     'netlify/functions/welcome-lead-capture.js',
     'netlify/lib/welcome-lead-store.js',
+    'netlify/functions/review-invite.js',
+    'netlify/lib/review-request-notifications.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

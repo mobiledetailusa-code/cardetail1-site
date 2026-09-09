@@ -21,6 +21,10 @@ const { setBookingStoreOverride, getBookingRecord, commitBooking } = require('..
 const { buildNextAggregate } = require('../lib/booking-aggregate');
 const { evaluateReviewSubmission, postServiceState } = require('../lib/post-service-experience');
 const firstPartyReviews = require('../lib/first-party-reviews');
+const {
+  authorizeReviewInviteToken,
+  consumeReviewInviteToken,
+} = require('../lib/review-request-notifications');
 
 const REVIEWS_STORE = firstPartyReviews.REVIEWS_STORE;
 
@@ -48,10 +52,17 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); }
   catch { return jsonCors(400, { ok: false, error: 'invalid_json' }); }
 
-  const auth = await authorizeBookingAccess(event, {
-    bookingId: body.bookingId,
-    phone: body.phone || body.customerPhone,
-  });
+  const token = String(body.token || '').trim();
+  let auth;
+  if (token) {
+    auth = await authorizeReviewInviteToken(token, { allowConsumed: false });
+    if (auth.ok) auth.scope = 'review_invite';
+  } else {
+    auth = await authorizeBookingAccess(event, {
+      bookingId: body.bookingId,
+      phone: body.phone || body.customerPhone,
+    });
+  }
   if (!auth.ok) {
     return jsonCors(auth.statusCode || 403, {
       ok: false,
@@ -93,7 +104,7 @@ exports.handler = async (event) => {
     // Owner may hide a published card, but never edits the customer's rating or words.
     status,
     ownerResponse: null,
-    source: 'customer_portal',
+    source: token ? 'review_invite' : 'customer_portal',
     createdAt: now,
   };
 
@@ -142,6 +153,12 @@ exports.handler = async (event) => {
     });
   }
 
+  if (token) {
+    await consumeReviewInviteToken(token).catch((e) => {
+      console.warn('[submit-review] review invite consume failed:', e && e.message);
+    });
+  }
+
   // The booking is the authority for "a review exists". The reviews store and
   // the technician rating are downstream projections — a failure there must not
   // let the customer submit a second review.
@@ -180,7 +197,9 @@ exports.handler = async (event) => {
   await appendAudit(auditEntry({
     bookingId,
     actorType: 'customer',
-    actorId: auth.scope === 'session' ? 'session' : 'booking_lookup',
+    actorId: auth.scope === 'session'
+      ? 'session'
+      : (auth.scope === 'review_invite' ? 'review_invite' : 'booking_lookup'),
     action: 'review_submitted',
     previousState: current,
     resultingState: committed.booking,

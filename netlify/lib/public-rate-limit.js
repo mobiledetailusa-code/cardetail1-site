@@ -48,6 +48,7 @@ const DEFAULT_LIMITS = {
   'booking-availability': { max: 90, windowMs: DEFAULT_WINDOW_MS },
   'address-suggest': { max: 180, windowMs: DEFAULT_WINDOW_MS },
   'public-reviews': { max: 240, windowMs: DEFAULT_WINDOW_MS },
+  'review-invite': { max: 40, windowMs: DEFAULT_WINDOW_MS },
   'welcome-lead-capture': { max: 8, windowMs: DEFAULT_WINDOW_MS },
 };
 

@@ -419,6 +419,7 @@ describe('GSM-7 length after Cardetail1 prefix', () => {
     ['canceled', TEMPLATE_KEYS.CANCELLED, {
       status: 'Cancelled', appointmentStatus: 'canceled',
     }, ''],
+    ['review_requested', TEMPLATE_KEYS.REVIEW_REQUESTED, {}, 'https://cardetail1.com/reviews?t=' + TYPICAL_TOKEN],
   ];
 
   for (const [name, key, extra, url] of fixtures) {

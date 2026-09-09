@@ -109,7 +109,7 @@ test('fleet-services.html is quote-only (no public unit pricing or fleet booking
 
 test('sitemap lists canonical public routes and excludes admin/customer portals', () => {
   const urls = extractSitemapUrls();
-  assert.equal(urls.length, 31);
+  assert.equal(urls.length, 32);
   assert.ok(urls.includes('https://cardetail1.com/'));
   for (const slug of [
     'boats-detailing.html',

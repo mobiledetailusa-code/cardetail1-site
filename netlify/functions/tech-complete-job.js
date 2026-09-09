@@ -299,6 +299,13 @@ exports.handler = async (event) => {
     }
   }
 
+  try {
+    const { notifyReviewRequestedQuietly } = require('../lib/review-request-notifications');
+    await notifyReviewRequestedQuietly(patched, { event });
+  } catch (e) {
+    console.warn('[tech-complete-job] review-request notify failed:', e.message);
+  }
+
   return jsonCors(200, {
     ok: true,
     bookingId,

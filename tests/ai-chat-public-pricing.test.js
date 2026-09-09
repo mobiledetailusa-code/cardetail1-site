@@ -145,6 +145,7 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/submit-review.js',
   'netlify/functions/public-reviews.js',
   'netlify/functions/admin-reviews.js',
+  'netlify/functions/review-invite.js',
   'netlify/functions/tech-accounts.js',
   // PR5 Twilio readiness: all provider traffic is isolated behind the outbox.
   'netlify/functions/submit-inquiry.js',

@@ -13,6 +13,8 @@ const FOCUS_PREFIX = 'aptr_';
 const ACCESS_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const FOCUS_REF_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const PURPOSE_APPOINTMENT_ACCESS = 'appointment_access';
+const PURPOSE_REVIEW_REQUEST = 'review_request';
+const REVIEW_TOKEN_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 let tokenStoreFactoryOverride = null;
 let focusStoreFactoryOverride = null;
@@ -105,6 +107,11 @@ function envBindingMatches(record) {
 function buildAccessUrl(token, _event) {
   const base = siteBaseFromEnv();
   return `${base}/a?t=${encodeURIComponent(token)}`;
+}
+
+function buildReviewUrl(token, _event) {
+  const base = siteBaseFromEnv();
+  return `${base}/reviews?t=${encodeURIComponent(token)}`;
 }
 
 /** Relative portal focus path — avoids open redirects / Host poisoning on exchange. */
@@ -216,7 +223,7 @@ async function createAppointmentAccessToken({
 
   const store = await resolveTokenStore();
   if (supersede) {
-    await revokeActiveTokensForBooking(bid, { store, reason: 'superseded' });
+    await revokeActiveTokensForBooking(bid, { store, reason: 'superseded', purpose });
   }
 
   const token = generateOpaqueToken();
@@ -266,7 +273,11 @@ async function createAppointmentAccessToken({
   };
 }
 
-async function loadTokenRecord(rawToken, { allowExpired = false, allowConsumed = false } = {}) {
+async function loadTokenRecord(rawToken, {
+  allowExpired = false,
+  allowConsumed = false,
+  expectedPurpose = PURPOSE_APPOINTMENT_ACCESS,
+} = {}) {
   const t = String(rawToken || '').trim();
   if (!t.startsWith(TOKEN_PREFIX) || t.length < 24) {
     return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
@@ -308,7 +319,7 @@ async function loadTokenRecord(rawToken, { allowExpired = false, allowConsumed =
       classification: CONSUME_RESULT.ALREADY_CONSUMED,
     };
   }
-  if (record.purpose !== PURPOSE_APPOINTMENT_ACCESS) {
+  if (record.purpose !== expectedPurpose) {
     return { ok: false, error: 'invalid_token', record, classification: CONSUME_RESULT.INVALID };
   }
   return {
@@ -324,10 +335,10 @@ async function loadTokenRecord(rawToken, { allowExpired = false, allowConsumed =
 }
 
 /**
- * Atomically consume an appointment access token using Blob CAS (onlyIfMatch).
+ * Atomically consume a stored token using Blob CAS (onlyIfMatch).
  * At most one concurrent unauthenticated exchange may succeed.
  */
-async function consumeAppointmentAccessToken(rawToken) {
+async function consumeStoredToken(rawToken, expectedPurpose) {
   const t = String(rawToken || '').trim();
   if (!t.startsWith(TOKEN_PREFIX) || t.length < 24) {
     return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
@@ -372,7 +383,7 @@ async function consumeAppointmentAccessToken(rawToken) {
     if (!envBindingMatches(record)) {
       return { ok: false, error: 'invalid_token', classification: CONSUME_RESULT.INVALID };
     }
-    if (record.revokedAt || record.purpose !== PURPOSE_APPOINTMENT_ACCESS) {
+    if (record.revokedAt || record.purpose !== expectedPurpose) {
       return {
         ok: false,
         error: 'invalid_token',
@@ -461,21 +472,37 @@ async function consumeAppointmentAccessToken(rawToken) {
   };
 }
 
-async function revokeActiveTokensForBooking(bookingId, { store: storeArg = null, reason = 'revoked' } = {}) {
+async function consumeAppointmentAccessToken(rawToken) {
+  return consumeStoredToken(rawToken, PURPOSE_APPOINTMENT_ACCESS);
+}
+
+async function consumeReviewInviteToken(rawToken) {
+  return consumeStoredToken(rawToken, PURPOSE_REVIEW_REQUEST);
+}
+
+async function revokeActiveTokensForBooking(bookingId, {
+  store: storeArg = null,
+  reason = 'revoked',
+  purpose = PURPOSE_APPOINTMENT_ACCESS,
+} = {}) {
   const store = storeArg || await resolveTokenStore();
   const index = await store.get(bookingIndexKey(bookingId), { type: 'json' }).catch(() => null);
   const hashes = Array.isArray(index?.tokenHashes) ? index.tokenHashes : [];
   const now = new Date().toISOString();
+  let revoked = 0;
   for (const h of hashes) {
     const rec = await store.get(tokenKey(h), { type: 'json' }).catch(() => null);
     if (!rec || rec.revokedAt || rec.consumedAt) continue;
+    const recPurpose = rec.purpose || PURPOSE_APPOINTMENT_ACCESS;
+    if (recPurpose !== purpose) continue;
     await store.setJSON(tokenKey(h), {
       ...rec,
       revokedAt: now,
       revokeReason: reason,
     }).catch(() => {});
+    revoked += 1;
   }
-  return { ok: true, revoked: hashes.length };
+  return { ok: true, revoked };
 }
 
 /**
@@ -504,6 +531,8 @@ module.exports = {
   ACCESS_TOKEN_TTL_MS,
   FOCUS_REF_TTL_MS,
   PURPOSE_APPOINTMENT_ACCESS,
+  PURPOSE_REVIEW_REQUEST,
+  REVIEW_TOKEN_TTL_MS,
   CONSUME_RESULT,
   currentEnvBinding,
   envBindingMatches,
@@ -511,6 +540,7 @@ module.exports = {
   generateOpaqueToken,
   generateFocusRef,
   buildAccessUrl,
+  buildReviewUrl,
   buildPortalFocusPath,
   buildPortalFocusUrl,
   ensureAppointmentPublicRef,
@@ -518,6 +548,7 @@ module.exports = {
   createAppointmentAccessToken,
   loadTokenRecord,
   consumeAppointmentAccessToken,
+  consumeReviewInviteToken,
   revokeActiveTokensForBooking,
   resendAppointmentAccessToken,
   setAppointmentAccessStoreFactories,

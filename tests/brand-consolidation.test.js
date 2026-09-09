@@ -88,7 +88,7 @@ const FROZEN_SHA256 = {
   'netlify/lib/first-party-reviews.js': 'c9d36c5212eb193b7fb26beedb3ba470f301ab96211f57e42fc19416ff5458f6',
   'netlify/functions/public-reviews.js': '2f79b256236a00f5ba7b1ff6752aebd9566a543a3a0189b26c0d75905b7847c5',
   'netlify/functions/admin-reviews.js': '8fedcd09f08c145aabfab7b98f7298759be1d14ea95d738b3cd466f726da5f60',
-  'netlify/functions/submit-review.js': 'd810b8240975f9372f7ce14a1998eaf69512f1715505b29724cb2d153295f376',
+  'netlify/functions/submit-review.js': 'd6093ff342d0e088d9df003ba868876a9649161214c1351f551b4fbf530268ce',
 };
 
 function reviewsSection(html) {
@@ -132,7 +132,9 @@ test('3. Google Business review copy uses Cardetail1', () => {
   const section = reviewsSection(read('index.html'));
   assert.match(section, /5\.0 on Google · 9 reviews/);
   assert.match(section, /Google review snapshot · August 2026/);
-  assert.match(section, /New verified Cardetail1 reviews are submitted through My Garage after[\s\S]*completed services/);
+  assert.match(section, /A selection of recent reviews/);
+  assert.match(section, /full reviews page/);
+  assert.match(section, /href="\/reviews"/);
   assert.doesNotMatch(section, /Customer experiences with Detailing Zone/);
   assert.doesNotMatch(section, /copied from the current Cardetail1 Google listing/);
   assert.doesNotMatch(section, /current Cardetail1 Google listing/);

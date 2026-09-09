@@ -2353,7 +2353,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <h2 class="sec-title">Customer experiences with Cardetail1</h2>
     <p class="rv-google-stat">5.0 on Google · 9 reviews</p>
     <p class="rv-google-stat-note">Google review snapshot · August 2026</p>
-    <p class="sec-desc">New verified Cardetail1 reviews are submitted through My Garage after completed services.</p>
+    <p class="sec-desc">A selection of recent reviews. Open the full reviews page to read every Cardetail1 and Google review. New verified reviews are submitted after completed services.</p>
 
     <div class="rv-carousel" id="rv-carousel" aria-roledescription="carousel" aria-label="Customer reviews">
       <div class="rv-viewport" id="rv-viewport" tabindex="0">
@@ -2367,7 +2367,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </div>
 
     <div class="rv-actions">
-      <button type="button" class="btn-outline" id="rv-view-all" onclick="rvViewAll()">View all reviews</button>
+      <a class="btn-outline" id="rv-view-all" href="/reviews">View all reviews</a>
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
       <a class="btn-outline" href="my-garage.html#lookup">Leave a Cardetail1 review</a>
       <a class="btn-outline" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">Leave a Google Review</a>
@@ -2484,6 +2484,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="foot-col">
         <h4>Customer</h4>
         <a href="my-garage.html">My Garage</a>
+        <a href="reviews.html">Reviews</a>
         <a href="my-garage.html#lookup">View or Manage Booking</a>
         <a href="my-garage.html#payments">Pay a Balance</a>
         <a href="index.html">Book Another Service</a>
@@ -6731,9 +6732,7 @@ function rvMove(dir){
 }
 
 function rvViewAll(){
-  if (window.CD1CustomerReviews && typeof CD1CustomerReviews.viewAll === 'function') {
-    CD1CustomerReviews.viewAll();
-  }
+  window.location.assign('/reviews');
 }
 
 // ═══════════════════════════════════════════════════════
