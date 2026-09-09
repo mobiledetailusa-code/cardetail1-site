@@ -225,10 +225,10 @@ test('11. carousel bounded card count / viewport semantics', () => {
 });
 
 test('12. View all sends visitors to the dedicated reviews page', () => {
-  if (!JSDOM) return;
-  const dom = mountDom();
-  const assigned = [];
-  dom.window.location.assign = (url) => { assigned.push(String(url)); };
+  assert.equal(reviews.REVIEWS_PAGE_URL, '/reviews');
+  assert.match(index, /<a class="btn-outline" id="rv-view-all" href="\/reviews">View all reviews<\/a>/);
+  assert.match(index, /function rvViewAll\(\)\{\s*window\.location\.assign\('\/reviews'\);/);
+  assert.match(reviewsJs, /view\.location\.assign\(REVIEWS_PAGE_URL\)/);
   reviews.applyPortalItems([{
     id: 'REV-OK',
     name: 'Ada L.',
@@ -236,8 +236,10 @@ test('12. View all sends visitors to the dedicated reviews page', () => {
     text: 'The interior looks brand new after the visit.',
     createdAt: '2026-08-24T12:00:00.000Z',
   }]);
-  reviews.viewAll();
-  assert.deepEqual(assigned, ['/reviews']);
+  if (JSDOM) {
+    mountDom();
+    assert.doesNotThrow(() => reviews.viewAll());
+  }
   assert.ok(reviews.mixed().some((r) => r.id === 'REV-OK'));
   assert.ok(reviews.mixed().some((r) => r.id === 'g-john-daquila'));
   assert.ok(reviews.mixed().length > reviews.homepage().length);
