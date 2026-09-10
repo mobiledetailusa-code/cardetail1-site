@@ -226,15 +226,31 @@ async function findDuplicateBooking({
     });
   }
 
+  async function confirmOnPersistStore(candidate) {
+    if (!candidate || !store || typeof store.get !== 'function') return candidate;
+    const live = await store.get(candidate.id, { type: 'json' });
+    if (!live) return null;
+    if (live.isDraft === true && !live.finalizedAt && !(Number(live.bookingVersion) >= 1)) {
+      return null;
+    }
+    return live;
+  }
+
   if (!fastLookupDisabled()) {
     try {
       const rows = await mirrorHistory(identity);
       if (rows) {
-        return {
-          ok: true,
-          booking: matchRecentSlotDuplicate(sameCustomer(rows), matchOpts),
-          source: 'mirror',
-        };
+        const mirrored = matchRecentSlotDuplicate(sameCustomer(rows), matchOpts);
+        if (!mirrored) {
+          return { ok: true, booking: null, source: 'mirror' };
+        }
+        const confirmed = await confirmOnPersistStore(mirrored);
+        if (confirmed) {
+          return { ok: true, booking: confirmed, source: 'mirror' };
+        }
+        if (!store) {
+          return { ok: true, booking: mirrored, source: 'mirror' };
+        }
       }
     } catch (err) {
       console.warn('[booking-history] duplicate_mirror_failed', err && err.message ? err.message : err);

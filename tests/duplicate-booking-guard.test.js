@@ -280,6 +280,16 @@ describe('findDuplicateBooking', () => {
     assert.equal(firstPhone.booking && firstPhone.booking.id, 'CD1-FIRST');
   });
 
+  it('ignores a Prisma hit that is not on the persist store', async () => {
+    fakePrisma = mirrorReturning([EXISTING]);
+    const store = createMemoryStore({});
+    const result = await findDuplicateBooking({
+      phone: PHONE, preferredDate: DATE, preferredTime: TIME, excludeId: 'CD1-SECOND', store,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.booking, null);
+  });
+
   it('TEST 4 — store scan timeout is not converted to an empty list', async () => {
     process.env.PRISMA_BOOKING_READ = '0';
     const store = createMemoryStore({ [EXISTING.id]: EXISTING });
