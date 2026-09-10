@@ -70,6 +70,8 @@ const {
 const { validateBookingSchedule, hasSlotConflict } = require('../lib/booking-schedule');
 const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
 const { indexedSlotConflict, syncSlotIndex } = require('../lib/slot-index');
+const { findDuplicateBooking } = require('../lib/booking-history');
+const { bookingRef } = require('../lib/tech-security');
 const { validateBookingRouting } = require('../lib/booking-routing-validation');
 const {
   applyServerOffersToBooking,
@@ -969,6 +971,55 @@ exports.handler = async (event) => {
         }
         : { cardOnFileStatus: 'not_collected' }),
     };
+
+    // Last gate before persist. Slot lock still fails open on a timed-out
+    // store scan (listBookingsForSlotLock().catch(() => [])), so a hung
+    // finalize plus a new draft can otherwise write a second Admin booking.
+    // Lookup failure is recoverable — never treated as "no duplicate".
+    let duplicateCheck;
+    try {
+      duplicateCheck = await findDuplicateBooking({
+        phone: b.phone || existing.phone,
+        email: b.email || existing.email,
+        preferredDate: b.preferredDate,
+        preferredTime: b.preferredTime,
+        excludeId: rawDraftId,
+        store,
+      });
+    } catch (e) {
+      duplicateCheck = { ok: false, error: 'duplicate_lookup_unavailable', booking: null };
+    }
+    if (!duplicateCheck || duplicateCheck.ok === false) {
+      console.warn('[submit-booking] finalize duplicate lookup unavailable', {
+        preferredDate: b.preferredDate,
+      });
+      return json(503, {
+        ok: false,
+        bookingCreated: false,
+        error: 'duplicate_lookup_unavailable',
+        userMessage: 'We could not confirm your appointment just now. Nothing was booked. Please try again in a moment — you do not need to re-save your card if it already shows as saved.',
+      });
+    }
+    if (duplicateCheck.booking) {
+      const duplicate = duplicateCheck.booking;
+      console.log('[submit-booking] finalize duplicate suppressed', {
+        bookingRef: bookingRef(duplicate.id),
+        preferredDate: b.preferredDate,
+      });
+      return json(200, {
+        ok: true,
+        bookingCreated: true,
+        id: duplicate.id,
+        status: duplicate.status || 'Pending Review',
+        bookingVersion: duplicate.bookingVersion || 1,
+        quoteVersion: duplicate.quoteVersion || 1,
+        idempotent: true,
+        duplicateSuppressed: true,
+        cardOnFileStatus: duplicate.cardOnFileStatus || null,
+        customerEmail: duplicate.notificationDelivery?.customerEmail || { status: 'pending' },
+        notificationDelivery: duplicate.notificationDelivery || null,
+      });
+    }
 
     let stored = { saved: false };
     try {

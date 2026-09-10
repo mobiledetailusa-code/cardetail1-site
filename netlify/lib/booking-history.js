@@ -131,8 +131,140 @@ async function listBookingHistoryForBooking(booking) {
   return listBookingsForIdentity(identityKeys(booking));
 }
 
+/** How long after a booking a repeat submission still counts as the same one. */
+const DUPLICATE_WINDOW_MS = 60 * 60 * 1000;
+
+/**
+ * List submitted bookings from a store without converting list/get failures
+ * into an empty array. listAllBlobs() swallows errors; this path must not.
+ */
+async function listSubmittedBookingsStrict(store) {
+  if (!store || typeof store.list !== 'function') {
+    throw new Error('duplicate_lookup_store_unavailable');
+  }
+  const blobs = [];
+  const paged = store.list({ paginate: true });
+  if (paged && typeof paged[Symbol.asyncIterator] === 'function') {
+    for await (const page of paged) {
+      blobs.push(...((page && page.blobs) || []));
+    }
+  } else {
+    const listing = await Promise.resolve(paged);
+    blobs.push(...((listing && listing.blobs) || []));
+  }
+  const rawRecords = [];
+  for (const blob of blobs) {
+    const key = blob && blob.key;
+    if (!key) continue;
+    const raw = await store.get(key, { type: 'json' });
+    if (raw) rawRecords.push(raw);
+  }
+  return shapeHistoryRecords(rawRecords);
+}
+
+function matchRecentSlotDuplicate(bookings, {
+  preferredDate, preferredTime, excludeId, nowMs,
+}) {
+  const { normalizePreferredTime, isActiveBookingForSlotLock } = require('./booking-schedule');
+  const { isoDateParts } = require('./operational-availability');
+  const parts = isoDateParts(preferredDate);
+  const time = normalizePreferredTime(preferredTime);
+  if (!parts || !time) return null;
+  const skip = String(excludeId || '').trim().toUpperCase();
+  for (const booking of bookings || []) {
+    if (!booking) continue;
+    if (skip && String(booking.id || '').trim().toUpperCase() === skip) continue;
+    if (!isActiveBookingForSlotLock(booking, nowMs)) continue;
+    const at = Date.parse(booking.finalizedAt || booking.createdAt || booking.updatedAt || '');
+    if (!Number.isFinite(at)) continue;
+    if (nowMs - at < 0 || nowMs - at > DUPLICATE_WINDOW_MS) continue;
+    const bookingParts = isoDateParts(booking.confirmedDate || booking.preferredDate);
+    const bookingTime = normalizePreferredTime(booking.confirmedTime || booking.preferredTime);
+    if (!bookingParts || !bookingTime) continue;
+    if (bookingParts.iso === parts.iso && bookingTime === time) return booking;
+  }
+  return null;
+}
+
+/**
+ * Recent active booking this customer already holds for the same slot.
+ *
+ * Slot lock still fails open on a timed-out store scan. This check is the last
+ * gate before finalize persist. Lookup failure is NOT treated as "no duplicate".
+ *
+ * @returns {Promise<{ ok: true, booking: object|null, source: string } | { ok: false, error: string, booking: null }>}
+ */
+async function findDuplicateBooking({
+  phone,
+  email,
+  preferredDate,
+  preferredTime,
+  excludeId,
+  store = null,
+  nowMs = Date.now(),
+} = {}) {
+  const { normalizePreferredTime } = require('./booking-schedule');
+  const { isoDateParts } = require('./operational-availability');
+  const parts = isoDateParts(preferredDate);
+  const time = normalizePreferredTime(preferredTime);
+  if (!parts || !time) {
+    return { ok: true, booking: null, source: 'skipped_unusable_slot' };
+  }
+
+  const identity = normalizeIdentity({ phone, email });
+  if (!identity.phone && !identity.email) {
+    return { ok: true, booking: null, source: 'skipped_no_identity' };
+  }
+
+  const matchOpts = { preferredDate, preferredTime, excludeId, nowMs };
+
+  function sameCustomer(bookings) {
+    return (bookings || []).filter((booking) => {
+      const keys = identityKeys(booking);
+      if (identity.phone) return keys.phone === identity.phone;
+      return identity.email && keys.email === identity.email;
+    });
+  }
+
+  if (!fastLookupDisabled()) {
+    try {
+      const rows = await mirrorHistory(identity);
+      if (rows) {
+        return {
+          ok: true,
+          booking: matchRecentSlotDuplicate(sameCustomer(rows), matchOpts),
+          source: 'mirror',
+        };
+      }
+    } catch (err) {
+      console.warn('[booking-history] duplicate_mirror_failed', err && err.message ? err.message : err);
+    }
+  }
+
+  try {
+    let bookings;
+    if (store) {
+      bookings = await listSubmittedBookingsStrict(store);
+    } else {
+      const { bookingStore } = require('./ops-db');
+      bookings = await listSubmittedBookingsStrict(await bookingStore());
+    }
+    return {
+      ok: true,
+      booking: matchRecentSlotDuplicate(sameCustomer(bookings), matchOpts),
+      source: 'store',
+    };
+  } catch (err) {
+    console.warn('[booking-history] duplicate_store_failed', err && err.message ? err.message : err);
+    return { ok: false, error: 'duplicate_lookup_unavailable', booking: null };
+  }
+}
+
 module.exports = {
   HISTORY_LOOKUP_LIMIT,
+  DUPLICATE_WINDOW_MS,
+  findDuplicateBooking,
+  listSubmittedBookingsStrict,
   fastLookupDisabled,
   normalizeIdentity,
   identityKeys,
