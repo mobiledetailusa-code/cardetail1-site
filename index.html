@@ -4821,7 +4821,7 @@ function tryGenericConfirm(){
   const year=document.getElementById('g-year').value;
   if(!make||!model||!year||!ST.pkgId)return;
 
-  if(cat==='boats'||cat==='rvs'){
+  if(ST.cat==='boats'||ST.cat==='rvs'){
     if(ST.cat==='rvs'){
       if(!ST.rvType) return;
       if((ST.rvType==='cargo'||ST.rvType==='horse'||ST.rvType==='other') && !ST.rvLiving) return;
