@@ -53,6 +53,10 @@
     const onError = options.onError || function () {};
     const shouldPoll = options.shouldPoll || function () { return true; };
     const isPending = options.isPending || function () { return false; };
+    // When false, focus/visibility/online/poll must not abort the in-flight refresh.
+    const isPrimaryReady = typeof options.isPrimaryReady === 'function'
+      ? options.isPrimaryReady
+      : function () { return true; };
     const activePollMs = positiveMs(options.activePollMs, DEFAULT_ACTIVE_POLL_MS);
     const stablePollMs = positiveMs(options.stablePollMs || options.pollMs, DEFAULT_POLL_MS);
     const maxBackoffMs = positiveMs(options.maxBackoffMs, DEFAULT_MAX_BACKOFF_MS);
@@ -71,6 +75,8 @@
     let boostUntil = 0;
     let state = 'idle';
     let lastResult = null;
+    let coalesceRequested = false;
+    let coalesceReason = '';
     const listeners = [];
 
     function online() {
@@ -84,6 +90,20 @@
     function pending() {
       try { return now() < boostUntil || isPending() === true; }
       catch (_) { return now() < boostUntil; }
+    }
+
+    function primaryReady() {
+      try { return isPrimaryReady() !== false; }
+      catch (_) { return true; }
+    }
+
+    function maybeRunCoalescedFollowUp() {
+      if (!coalesceRequested || destroyed) return;
+      if (!online() || !visible()) return;
+      const why = coalesceReason || 'coalesced';
+      coalesceRequested = false;
+      coalesceReason = '';
+      refresh(why, { supersede: false });
     }
 
     function notify(next, detail) {
@@ -152,6 +172,13 @@
 
       if (inflight && !supersede) return inflight;
       if (inflight) {
+        const lifecycleReasons = why === 'focus' || why === 'visibility' || why === 'online' || why === 'poll';
+        // Protect the first primary load: coalesce lifecycle/poll instead of aborting.
+        if (!primaryReady() && lifecycleReasons) {
+          coalesceRequested = true;
+          coalesceReason = why;
+          return inflight;
+        }
         if (abortController) {
           try { abortController.abort(); } catch (_) { /* ignore */ }
         }
@@ -226,6 +253,7 @@
             inflight = null;
             abortController = null;
           }
+          maybeRunCoalescedFollowUp();
         }
       })();
       inflight = run;
@@ -257,8 +285,12 @@
       addListener(doc, 'visibilitychange', function () {
         if (!visible()) {
           stopTimer();
-          if (abortController) {
+          // Never abort an unfinished first primary load on backgrounding.
+          if (abortController && primaryReady()) {
             try { abortController.abort(); } catch (_) { /* ignore */ }
+          } else if (inflight && !primaryReady()) {
+            coalesceRequested = true;
+            coalesceReason = 'visibility';
           }
           notify('paused', { reason: 'hidden' });
           return;
@@ -270,7 +302,7 @@
       });
       addListener(win, 'offline', function () {
         stopTimer();
-        if (abortController) {
+        if (abortController && primaryReady()) {
           try { abortController.abort(); } catch (_) { /* ignore */ }
         }
         notify('offline', { reason: 'offline' });
@@ -312,7 +344,15 @@
       destroy,
       getLastUpdated: function () { return lastUpdated; },
       getState: function () {
-        return { state, failures, lastUpdated, lastResult, pending: pending(), pollDueAt };
+        return {
+          state,
+          failures,
+          lastUpdated,
+          lastResult,
+          pending: pending(),
+          pollDueAt,
+          coalesceRequested,
+        };
       },
     };
     controllers.set(controllerKey, controller);

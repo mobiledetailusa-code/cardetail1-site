@@ -644,6 +644,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let lastRequestsNotModified = false;
   let opsRefresh = null;
   let sourceAbort = { jobs: null, techs: null, changeRequests: null };
+  let jobsInflight = null;
+  let jobsFromSnapshot = false;
+  let jobsSnapshotSavedAt = null;
+  let jobsSnapshotRefreshing = false;
+  let jobsFreshLoaded = false;
+
   let pendingOpenBookingId = null;
   try {
     const u = new URL(location.href);
@@ -692,6 +698,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     }
     CD1AdminSession.clearToken();
     localStorage.removeItem('cd1_session');
+    try { if (SS && SS.clearJobsSnapshot) SS.clearJobsSnapshot(); } catch (_) {}
     location.replace('admin.html');
   }
 
@@ -1087,77 +1094,163 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     }
   }
 
-  async function loadJobs(extra, fetchOpts) {
-    const started = SS ? SS.beginSourceLoad(jobsMeta) : { meta: jobsMeta, generation: (jobsMeta.generation||0)+1 };
-    jobsMeta = started.meta;
-    const generation = started.generation;
-    if (sourceAbort.jobs) { try { sourceAbort.jobs.abort(); } catch (_) {} }
-    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    sourceAbort.jobs = ctrl;
+  
+  function hydrateJobsSnapshotIfAvailable() {
+    if (!SS || !SS.loadJobsSnapshot) return false;
     try {
-      const q = new URLSearchParams(extra||{});
-      if (showTest) q.set('showTest', '1');
-      if (jobsSyncVersion) q.set('ifSyncVersion', jobsSyncVersion);
-      const data = await api('/.netlify/functions/admin-ops-jobs?'+q, 'GET', null, Object.assign({ signal: ctrl && ctrl.signal }, fetchOpts || {}));
-      if (SS && !SS.shouldApplyGeneration(jobsMeta, generation)) return jobs;
-      if (data.syncVersion) jobsSyncVersion = data.syncVersion;
-      if (data.notModified === true) {
-        lastJobsNotModified = true;
-        if (SS) jobsMeta = SS.applySourceSuccess(jobsMeta, generation).meta;
-        else { jobsMeta.hasLoaded = true; jobsMeta.isLoading = false; jobsMeta.error = null; jobsMeta.lastSuccessAt = Date.now(); }
-        return jobs;
-      }
-      lastJobsNotModified = false;
-      const incoming = Array.isArray(data.jobs) ? data.jobs : [];
-      // Poll/list returns lean rows. Preserve in-memory full detail for the open job.
-      if (expandedJobId && activeJob && activeJob.id === expandedJobId && activeJob._projection === 'admin_full') {
-        const i = incoming.findIndex((j) => j && j.id === expandedJobId);
-        if (i >= 0) {
-          const lean = incoming[i];
-          incoming[i] = Object.assign({}, activeJob, {
-            jobStatus: lean.jobStatus,
-            paymentWorkflowStatus: lean.paymentWorkflowStatus,
-            financialPaymentStatus: lean.financialPaymentStatus,
-            remainingCents: lean.remainingCents,
-            amountDueApproved: lean.amountDueApproved,
-            amountPaid: lean.amountPaid,
-            approvedCents: lean.approvedCents,
-            settledCents: lean.settledCents,
-            approvedFinalAmount: lean.approvedFinalAmount,
-            invoicePaid: lean.invoicePaid,
-            assignedTechId: lean.assignedTechId,
-            assignedTech: lean.assignedTech,
-            assignedTechName: lean.assignedTechName,
-            pendingChangeRequestCount: lean.pendingChangeRequestCount,
-            customerChangePending: lean.customerChangePending,
-            hasPendingVehicleRemoval: lean.hasPendingVehicleRemoval,
-            cancellationRequestStatus: lean.cancellationRequestStatus,
-            rescheduledByClient: lean.rescheduledByClient,
-            addressChangedByClient: lean.addressChangedByClient,
-            vehicleCount: lean.vehicleCount,
-            vehicleLabel: lean.vehicleLabel,
-            vehicle: lean.vehicle,
-            package: lean.package,
-            updatedAt: lean.updatedAt,
-            _projection: 'admin_full',
-          });
-          activeJob = incoming[i];
-        }
-      }
-      jobs = incoming;
-      if (SS) jobsMeta = SS.applySourceSuccess(jobsMeta, generation).meta;
-      else { jobsMeta.hasLoaded = true; jobsMeta.isLoading = false; jobsMeta.error = null; jobsMeta.lastSuccessAt = Date.now(); }
-      return jobs;
-    } catch (e) {
-      if (String(e && e.message) === 'aborted') return jobs;
-      if (SS && !SS.shouldApplyGeneration(jobsMeta, generation)) return jobs;
-      if (SS) jobsMeta = SS.applySourceFailure(jobsMeta, generation, e && e.message).meta;
-      else { jobsMeta.isLoading = false; jobsMeta.error = e && e.message; }
-      throw e;
+      const snap = SS.loadJobsSnapshot();
+      if (!snap || !Array.isArray(snap.jobs) || !snap.jobs.length) return false;
+      jobs = snap.jobs.slice();
+      jobsFromSnapshot = true;
+      jobsSnapshotSavedAt = snap.savedAt;
+      jobsSnapshotRefreshing = true;
+      jobsMeta = Object.assign({}, jobsMeta, {
+        hasLoaded: true,
+        isLoading: true,
+        error: null,
+        lastSuccessAt: snap.savedAt,
+      });
+      try {
+        renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderEvents();
+      } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
-  async function loadTechs(fetchOpts, loadOpts) {
+async function loadJobs(extra, fetchOpts) {
+    // First-load coalesce: do not abort the only in-flight jobs request for a restart.
+    if (jobsInflight && !jobsFreshLoaded) {
+      return jobsInflight;
+    }
+    const run = (async () => {
+      const maxAttempts = jobsFreshLoaded ? 1 : 2;
+      let lastError = null;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const started = SS ? SS.beginSourceLoad(jobsMeta) : { meta: jobsMeta, generation: (jobsMeta.generation||0)+1 };
+        jobsMeta = started.meta;
+        const generation = started.generation;
+        // After first success, a newer load may replace an older one. Before first
+        // success, never abort a sibling in-flight request (coalesced above).
+        if (sourceAbort.jobs && jobsFreshLoaded) {
+          try { sourceAbort.jobs.abort(); } catch (_) {}
+        }
+        const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        sourceAbort.jobs = ctrl;
+        try {
+          const q = new URLSearchParams(extra||{});
+          if (showTest) q.set('showTest', '1');
+          if (jobsSyncVersion) q.set('ifSyncVersion', jobsSyncVersion);
+          const data = await api('/.netlify/functions/admin-ops-jobs?'+q, 'GET', null, Object.assign({ signal: ctrl && ctrl.signal }, fetchOpts || {}));
+          if (SS && !SS.shouldApplyGeneration(jobsMeta, generation)) return jobs;
+          if (data.syncVersion) jobsSyncVersion = data.syncVersion;
+          if (data.notModified === true) {
+            lastJobsNotModified = true;
+            if (SS) jobsMeta = SS.applySourceSuccess(jobsMeta, generation).meta;
+            else { jobsMeta.hasLoaded = true; jobsMeta.isLoading = false; jobsMeta.error = null; jobsMeta.lastSuccessAt = Date.now(); }
+            jobsFromSnapshot = false;
+            jobsSnapshotRefreshing = false;
+            jobsFreshLoaded = true;
+            return jobs;
+          }
+          lastJobsNotModified = false;
+          const incoming = Array.isArray(data.jobs) ? data.jobs : [];
+          // Poll/list returns lean rows. Preserve in-memory full detail for the open job.
+          if (expandedJobId && activeJob && activeJob.id === expandedJobId && activeJob._projection === 'admin_full') {
+            const i = incoming.findIndex((j) => j && j.id === expandedJobId);
+            if (i >= 0) {
+              const lean = incoming[i];
+              incoming[i] = Object.assign({}, activeJob, {
+                jobStatus: lean.jobStatus,
+                paymentWorkflowStatus: lean.paymentWorkflowStatus,
+                financialPaymentStatus: lean.financialPaymentStatus,
+                remainingCents: lean.remainingCents,
+                amountDueApproved: lean.amountDueApproved,
+                amountPaid: lean.amountPaid,
+                approvedCents: lean.approvedCents,
+                settledCents: lean.settledCents,
+                approvedFinalAmount: lean.approvedFinalAmount,
+                invoicePaid: lean.invoicePaid,
+                assignedTechId: lean.assignedTechId,
+                assignedTech: lean.assignedTech,
+                assignedTechName: lean.assignedTechName,
+                pendingChangeRequestCount: lean.pendingChangeRequestCount,
+                customerChangePending: lean.customerChangePending,
+                hasPendingVehicleRemoval: lean.hasPendingVehicleRemoval,
+                cancellationRequestStatus: lean.cancellationRequestStatus,
+                rescheduledByClient: lean.rescheduledByClient,
+                addressChangedByClient: lean.addressChangedByClient,
+                vehicleCount: lean.vehicleCount,
+                vehicleLabel: lean.vehicleLabel,
+                vehicle: lean.vehicle,
+                package: lean.package,
+                updatedAt: lean.updatedAt,
+                _projection: 'admin_full',
+              });
+              activeJob = incoming[i];
+            }
+          }
+          jobs = incoming;
+          if (SS) jobsMeta = SS.applySourceSuccess(jobsMeta, generation).meta;
+          else { jobsMeta.hasLoaded = true; jobsMeta.isLoading = false; jobsMeta.error = null; jobsMeta.lastSuccessAt = Date.now(); }
+          jobsFromSnapshot = false;
+          jobsSnapshotRefreshing = false;
+          jobsFreshLoaded = true;
+          try {
+            if (SS && SS.saveJobsSnapshot) {
+              SS.saveJobsSnapshot(jobs, jobsMeta.lastSuccessAt || Date.now());
+              jobsSnapshotSavedAt = jobsMeta.lastSuccessAt || Date.now();
+            }
+          } catch (_) {}
+          return jobs;
+        } catch (e) {
+          if (String(e && e.message) === 'aborted') {
+            // Superseded after first success — keep current jobs.
+            if (jobsMeta.hasLoaded) return jobs;
+            lastError = e;
+          } else {
+            lastError = e;
+          }
+          const status = Number(e && (e.status || e.statusCode)) || 0;
+          const msg = String((e && e.message) || '');
+          const authFail = status === 401 || status === 403 || /session expired|unauthorized/i.test(msg);
+          const permanent = authFail || status === 400 || status === 404 || status === 422;
+          const transient = !permanent && (
+            status >= 500 || status === 408 || status === 429 ||
+            msg === 'timeout' || msg === 'aborted' || /network|fetch|failed to fetch/i.test(msg)
+          );
+          const canRetry = !jobsFreshLoaded && attempt < maxAttempts && transient;
+          if (canRetry) {
+            // Roll generation failure softly; next loop begins a new generation.
+            if (SS && SS.shouldApplyGeneration(jobsMeta, generation)) {
+              // Keep isLoading true visually by not applying terminal failure yet.
+              jobsMeta = Object.assign({}, jobsMeta, { isLoading: true, error: null });
+            }
+            await new Promise((r) => setTimeout(r, 1500));
+            continue;
+          }
+          if (SS && !SS.shouldApplyGeneration(jobsMeta, generation)) return jobs;
+          if (SS) jobsMeta = SS.applySourceFailure(jobsMeta, generation, e && e.message).meta;
+          else { jobsMeta.isLoading = false; jobsMeta.error = e && e.message; }
+          // Snapshot already hydrated counts as hasLoaded — stay degraded, not fatal empty.
+          if (jobsFromSnapshot && jobs.length) {
+            jobsMeta = Object.assign({}, jobsMeta, { hasLoaded: true });
+          }
+          throw e;
+        }
+      }
+      throw lastError || new Error('jobs_load_failed');
+    })();
+    jobsInflight = run;
+    try {
+      return await run;
+    } finally {
+      if (jobsInflight === run) jobsInflight = null;
+    }
+  }
+
+async function loadTechs(fetchOpts, loadOpts) {
     const opts = loadOpts || {};
     const mode = opts.mode === 'management' ? 'management' : 'assign_options';
     const includeAssignedCounts = opts.includeAssignedCounts === true || mode === 'management';
@@ -1449,8 +1542,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (expandedJobId && jobs.some((j) => j && j.id === expandedJobId) && activeJob) {
         /* leave drawer as-is — renderJobs preserves expansion when the job remains in memory */
       }
-      const syncFailure = jobsR.status === 'rejected' ? jobsR.reason
-        : (changeR.status === 'rejected' ? changeR.reason : null);
+      // Primary operational source is Jobs. Secondary change-request failures
+      // must not mark the whole Admin refresh as failed when appointments loaded.
+      const syncFailure = jobsR.status === 'rejected' ? jobsR.reason : null;
       return {
         ok: !syncFailure,
         error: syncFailure && (syncFailure.message || String(syncFailure)),
@@ -2007,7 +2101,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     renderQueueFilters();
     parkActiveDetailRow();
     const jobsStale = !!(jobsMeta && jobsMeta.error && jobsMeta.hasLoaded);
-    const jobsInitialFail = !!(jobsMeta && jobsMeta.error && !jobsMeta.hasLoaded);
+    const jobsInitialFail = !!(jobsMeta && jobsMeta.error && !jobsMeta.hasLoaded && !jobs.length);
     if (!list.length) {
       let emptyMsg = 'No jobs found';
       if (jobsInitialFail) {
@@ -2031,9 +2125,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (expandedJobId && !stillVisible && !jobs.some((j) => j && j.id === expandedJobId)) collapseJobDetail();
     // If filters hide the selected job but it still exists, keep it open (do not wipe).
     let staleBanner = '';
-    if (jobsStale) {
+    const showSnapshotBanner = !!(jobsFromSnapshot || (jobsStale && jobs.length));
+    if (showSnapshotBanner) {
+      const snapMsg = SS && SS.staleRefreshMessage
+        ? SS.staleRefreshMessage(jobsSnapshotSavedAt || (jobsMeta && jobsMeta.lastSuccessAt), !!(jobsSnapshotRefreshing && !jobsMeta.error))
+        : (jobsStale
+          ? (SS ? SS.refreshFailureMessage('Jobs', true) : 'Jobs could not be refreshed. Showing the last loaded data.')
+          : 'Refreshing appointments… Showing previously loaded data.');
       staleBanner = '<tr class="job-stale-banner"><td colspan="'+JOBS_COLSPAN+'" style="background:rgba(245,158,11,.1);color:var(--warn);font-size:12px;padding:8px 12px">'+
-        esc(SS ? SS.refreshFailureMessage('Jobs', true) : 'Jobs could not be refreshed. Showing the last loaded data.')+
+        esc(snapMsg)+
         ' <button type="button" class="btn ghost sm jobsRetryBtn" style="min-height:44px;margin-left:8px">Retry jobs</button></td></tr>';
     }
     tb.innerHTML = staleBanner + list.map(j => {
@@ -4364,6 +4464,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       onRefresh: refreshAll,
       onStateChange: renderAdminSyncState,
       isPending: adminSyncPending,
+      isPrimaryReady: () => !!jobsFreshLoaded,
       shouldPoll: () => document.visibilityState !== 'hidden',
     });
     opsRefresh.bindLifecycle();
@@ -4390,6 +4491,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   ensureAdminSession().then(ok => {
     if (!ok) return;
+    hydrateJobsSnapshotIfAvailable();
     if (opsRefresh) opsRefresh.refresh('initial').catch(e => toast('Load error: '+e.message));
     else refreshAll('initial').catch(e => toast('Load error: '+e.message));
   });
