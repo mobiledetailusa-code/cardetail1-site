@@ -3650,7 +3650,11 @@ function selectTier(key){
     if(resolved && resolved.ok && resolved.tierKey===key && resolved.displayLabel) ST.displayLabel=resolved.displayLabel;
     else if(window.CD1VehicleClass&&CD1VehicleClass.displayLabelForTierKey) ST.displayLabel=CD1VehicleClass.displayLabelForTierKey(key)||(ST.tier&&ST.tier.label)||'';
     else ST.displayLabel=(ST.tier&&ST.tier.label)||'';
-    if(ST.vehicleLabel) setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
+    if(ST.vehicleLabel){
+      const nm=document.getElementById('vc-name'); if(nm) nm.textContent=ST.vehicleLabel;
+      const badge=document.getElementById('vc-badge'); if(badge) badge.textContent=ST.displayLabel||ST.tier.label;
+      const lbl=document.getElementById('vc-tier-lbl'); if(lbl && ST.tier) lbl.textContent=ST.tier.desc;
+    }
   }else{
     ST.displayLabel=(ST.tier&&ST.tier.label)||'';
   }
