@@ -26,6 +26,9 @@ const { normalizePhone } = require('./phone-auth');
 /** One customer's lifetime bookings never approach this; it only caps a bug. */
 const HISTORY_LOOKUP_LIMIT = 200;
 
+/** How long after a booking a repeat submission still counts as the same one. */
+const DUPLICATE_WINDOW_MS = 60 * 60 * 1000;
+
 /** Escape hatch: OFFER_HISTORY_FAST_LOOKUP=0 forces the Blobs scan. */
 function fastLookupDisabled(env = process.env) {
   const flag = String(env.OFFER_HISTORY_FAST_LOOKUP || '').toLowerCase();
@@ -131,8 +134,64 @@ async function listBookingHistoryForBooking(booking) {
   return listBookingsForIdentity(identityKeys(booking));
 }
 
+/**
+ * An active booking this customer already holds for the same slot.
+ *
+ * The slot lock is supposed to prevent this, but it fails open by design: when
+ * the booking-store scan errors or times out it yields an empty list, every
+ * slot reads as free, and a repeat submission goes straight through. That is
+ * how a finalize that wrote the booking and then died — telling the customer it
+ * failed — turns into two identical appointments when they try again.
+ *
+ * This check does not share that failure mode: it asks the indexed mirror for
+ * one customer's bookings, and a booking created minutes ago is exactly what
+ * the mirror has. Returns null when it cannot answer, so it can only ever
+ * suppress a duplicate, never block a legitimate booking.
+ *
+ * @returns {Promise<object|null>} the existing booking, or null
+ */
+async function findDuplicateBooking({
+  phone, email, preferredDate, preferredTime, excludeId, nowMs = Date.now(),
+} = {}) {
+  const { normalizePreferredTime, isActiveBookingForSlotLock } = require('./booking-schedule');
+  const { isoDateParts } = require('./operational-availability');
+
+  const parts = isoDateParts(preferredDate);
+  const time = normalizePreferredTime(preferredTime);
+  if (!parts || !time) return null;
+
+  // Only a booking made moments ago is the one the customer is re-sending. An
+  // older booking sharing the slot is a scheduling situation for Admin to
+  // resolve, and silently swallowing a submission over it would be its own bug.
+  const isRecent = (booking) => {
+    const at = Date.parse(booking.finalizedAt || booking.createdAt || booking.updatedAt || '');
+    if (!Number.isFinite(at)) return false;
+    return nowMs - at >= 0 && nowMs - at <= DUPLICATE_WINDOW_MS;
+  };
+
+  const identity = normalizeIdentity({ phone, email });
+  if (!identity.phone && !identity.email) return null;
+
+  const { bookings } = await listBookingsForIdentity(identity);
+  const skip = String(excludeId || '').trim().toUpperCase();
+
+  for (const booking of bookings || []) {
+    if (!booking) continue;
+    if (skip && String(booking.id || '').trim().toUpperCase() === skip) continue;
+    if (!isActiveBookingForSlotLock(booking)) continue;
+    if (!isRecent(booking)) continue;
+    const bookingParts = isoDateParts(booking.confirmedDate || booking.preferredDate);
+    const bookingTime = normalizePreferredTime(booking.confirmedTime || booking.preferredTime);
+    if (!bookingParts || !bookingTime) continue;
+    if (bookingParts.iso === parts.iso && bookingTime === time) return booking;
+  }
+  return null;
+}
+
 module.exports = {
   HISTORY_LOOKUP_LIMIT,
+  DUPLICATE_WINDOW_MS,
+  findDuplicateBooking,
   fastLookupDisabled,
   normalizeIdentity,
   identityKeys,
