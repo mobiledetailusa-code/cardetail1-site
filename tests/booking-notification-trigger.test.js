@@ -646,6 +646,9 @@ describe('booking persist regression: version, stripe, incomplete repair', () =>
         data.set(key, structuredClone(value));
         return { modified: true };
       },
+      async list() {
+        return { blobs: [...data.keys()].map((key) => ({ key })) };
+      },
     };
     const prior = {
       DRAFT_TOKEN_SECRET: process.env.DRAFT_TOKEN_SECRET,

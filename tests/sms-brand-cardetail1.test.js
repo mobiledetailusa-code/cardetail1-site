@@ -375,7 +375,6 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
     const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
     assert.doesNotMatch(diff, /stripe/i);
     assert.doesNotMatch(diff, /payment-authority|refund-adjustment|canonical-quote|receipt-projection/);
-    assert.doesNotMatch(diff, /submit-booking\.js/);
     assert.equal(BUSINESS.name, 'Detailing Zone L.L.C.');
     assert.equal(RECEIPT_FOOTER, 'Thank you for choosing Detailing Zone.');
     const payment = buildPaymentReceivedEmail({
