@@ -2316,6 +2316,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <link rel="stylesheet" href="assets/booking-modal-light.css">
 <link rel="stylesheet" href="assets/booking-summary.css">
 <link rel="stylesheet" href="assets/booking-review.css">
+<script src="assets/vehicle-class-resolver.js"></script>
 <script src="assets/booking-line-items.js" defer></script>
 <script src="assets/booking-review-runtime.js" defer></script>
 <script src="assets/travel-fee-client.js"></script>
@@ -4947,10 +4948,24 @@ function selectTier(key){
   document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
   document.querySelector(`.tchip[data-tier="${key}"]`)?.classList.add('sel');
   ST.tierKey=key; ST.tier=PRICING[ST.cat].tiers[key];
+  ST.classNeedsConfirm=false;
+  if(ST.cat==='cars'){
+    const catalogTierKey=MODELS[ST.make]?.t[ST.model];
+    const resolved=(window.CD1VehicleClass&&CD1VehicleClass.resolveVehicleClassification&&ST.make&&ST.model)
+      ? CD1VehicleClass.resolveVehicleClassification({make:ST.make,model:ST.model,year:ST.year,catalogTierKey:catalogTierKey||key})
+      : null;
+    // Manual chip wins for tierKey; keep body-aware label when model is known.
+    if(resolved && resolved.ok && resolved.tierKey===key && resolved.displayLabel) ST.displayLabel=resolved.displayLabel;
+    else if(window.CD1VehicleClass&&CD1VehicleClass.displayLabelForTierKey) ST.displayLabel=CD1VehicleClass.displayLabelForTierKey(key)||(ST.tier&&ST.tier.label)||'';
+    else ST.displayLabel=(ST.tier&&ST.tier.label)||'';
+    if(ST.vehicleLabel) setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
+  }else{
+    ST.displayLabel=(ST.tier&&ST.tier.label)||'';
+  }
   setupLengthSelector(ST.cat);
   setupUnitSelector(ST.cat);
   // refresh price/card if vehicle already entered (no auto-advance)
-  if(ST.vehicleLabel){ setBasePrice(); }
+  if(ST.vehicleLabel){ setBasePrice(); if(ST.cat==='cars'){ document.getElementById('next3').disabled=false; renderAddons(); } }
   tryGenericConfirm();
 }
 
@@ -5104,19 +5119,37 @@ document.getElementById('model-sel').addEventListener('change',function(){
 
 document.getElementById('year-sel').addEventListener('change',function(){
   ST.year=this.value; if(!ST.year)return;
-  const tierKey=MODELS[ST.make]?.t[ST.model]||'small';
-  document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
-  document.querySelector(`.tchip[data-tier="${tierKey}"]`)?.classList.add('sel');
-  ST.tierKey=tierKey; ST.tier=PRICING.cars.tiers[tierKey];
+  const catalogTierKey=MODELS[ST.make]?.t[ST.model];
+  const resolved=(window.CD1VehicleClass&&CD1VehicleClass.resolveVehicleClassification)
+    ? CD1VehicleClass.resolveVehicleClassification({make:ST.make,model:ST.model,year:ST.year,catalogTierKey})
+    : {ok:!!catalogTierKey,needsConfirmation:!catalogTierKey,tierKey:catalogTierKey||null,displayLabel:null,body:null,rows:null};
   ST.vehicleLabel=`${ST.year} ${ST.make} ${ST.model}`;
-  setBasePrice();
-  setVehicleVisual();
-  document.getElementById('vc-name').textContent=ST.vehicleLabel;
-  document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
-  document.getElementById('vc-badge').textContent=ST.tier.label;
-  updateVcPriceDisplay();
-  document.getElementById('vc').classList.add('show');
-  document.getElementById('next3').disabled=false; renderAddons();
+  document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
+  if(resolved.ok && resolved.tierKey && PRICING.cars.tiers[resolved.tierKey]){
+    ST.tierKey=resolved.tierKey;
+    ST.tier=PRICING.cars.tiers[resolved.tierKey];
+    ST.displayLabel=resolved.displayLabel||ST.tier.label;
+    ST.classNeedsConfirm=false;
+    document.querySelector(`.tchip[data-tier="${resolved.tierKey}"]`)?.classList.add('sel');
+    setBasePrice();
+    setVehicleVisual();
+    document.getElementById('vc-name').textContent=ST.vehicleLabel;
+    document.getElementById('vc-tier-lbl').textContent=ST.tier.desc;
+    document.getElementById('vc-badge').textContent=ST.displayLabel||ST.tier.label;
+    updateVcPriceDisplay();
+    document.getElementById('vc').classList.add('show');
+    document.getElementById('next3').disabled=false;
+    renderAddons();
+  }else{
+    ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.classNeedsConfirm=true; ST.basePrice=0;
+    document.getElementById('vc-name').textContent=ST.vehicleLabel;
+    const lbl=document.getElementById('vc-tier-lbl'); if(lbl) lbl.textContent='Select vehicle size below to continue';
+    const badge=document.getElementById('vc-badge'); if(badge) badge.textContent='Needs confirmation';
+    updateVcPriceDisplay();
+    document.getElementById('vc').classList.add('show');
+    document.getElementById('next3').disabled=true;
+    renderAddons();
+  }
   // No auto-advance: user clicks "Choose Add-Ons →" after reviewing the vehicle.
 });
 
@@ -5124,7 +5157,7 @@ document.getElementById('year-sel').addEventListener('change',function(){
 function renderAddons(){
   if(!ST.pkg) return;
   document.getElementById('ah-pkg').textContent=(ST.pkg?.name||'')+' Package';
-  document.getElementById('ah-car').textContent=(ST.vehicleLabel||'')+(ST.tier?.label?' · '+ST.tier.label:'');
+  document.getElementById('ah-car').textContent=(ST.vehicleLabel||'')+((ST.displayLabel||ST.tier?.label)?' · '+(ST.displayLabel||ST.tier.label):'');
   // Called on every vehicle confirm (keystroke/blur). Only rebuild the grid - and reset
   // selections - when the package scope actually changes, so add-ons picked inline survive
   // small vehicle edits. Otherwise just refresh the live running total.
@@ -5919,7 +5952,7 @@ function buildCurrentVehicleItem(){
     pkgIcon: ST.pkg.icon||'🚗',
     visualKey: getVehicleVisualKey(),
     vehicleLabel: ST.vehicleLabel,
-    tierLabel: ST.tier ? ST.tier.label : '',
+    tierLabel: ST.displayLabel || (ST.tier ? ST.tier.label : ''),
     basePrice: ST.basePrice,
     addons: [...ST.addons],
     addonTotal: ST.addonTotal,
