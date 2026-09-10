@@ -14,6 +14,10 @@ const CAR_PKG_DETAILS = {
       "A quick exterior reset",
       "Between full details",
     ],
+    notIncluded: [
+      "Interior cleaning",
+      "Clay, polish, or paint correction",
+    ],
     addonsMayApply: [
       "1-Year Carnauba Wax",
       "Polymer paint sealant",
@@ -39,6 +43,10 @@ const CAR_PKG_DETAILS = {
       "Daily drivers",
       "Family cars",
       "Dust, spills, and normal interior buildup",
+    ],
+    notIncluded: [
+      "Exterior wash or paint work",
+      "Heavy pet hair, severe odor, mold, or biohazard (add-ons or estimate)",
     ],
     addonsMayApply: [
       "Heavy pet hair",
@@ -71,6 +79,10 @@ const CAR_PKG_DETAILS = {
       "Resale prep",
       "Neglected daily drivers",
     ],
+    notIncluded: [
+      "Full paint correction or ceramic coating",
+      "Heavy pet hair, odor, or deep stains (add-ons or estimate)",
+    ],
     addonsMayApply: [
       "Heavy pet hair",
       "Odor",
@@ -97,6 +109,10 @@ const CAR_PKG_DETAILS = {
       "Loss of gloss",
       "Exterior restoration",
     ],
+    notIncluded: [
+      "Interior cleaning",
+      "Heavy oxidation, deep scratches, or ceramic coating (estimate)",
+    ],
     addonsMayApply: [
       "Heavy oxidation",
       "Severe scratches",
@@ -120,6 +136,9 @@ function buildCarPkgDetailSectionsHtml(d) {
       html += `<div class="car-pkg-detail-section"><h4>Best for</h4><p>${d.bestFor}</p></div>`;
     }
   }
+  if (d.notIncluded && d.notIncluded.length) {
+    html += `<div class="car-pkg-detail-section"><h4>Limitations</h4><ul class="car-pkg-detail-list car-pkg-detail-list--not">${d.notIncluded.map((i) => `<li>${i}</li>`).join("")}</ul></div>`;
+  }
   if (d.addonsMayApply && d.addonsMayApply.length) {
     html += `<div class="car-pkg-detail-section"><h4>Add-ons may apply</h4><ul class="car-pkg-detail-list car-pkg-detail-list--addons">${d.addonsMayApply.map((i) => `<li>${i}</li>`).join("")}</ul></div>`;
   }
@@ -127,14 +146,11 @@ function buildCarPkgDetailSectionsHtml(d) {
 }
 
 function getHomePkgPriceNote(pkgId) {
-  if (pkgId === "full") {
-    const note = document.getElementById("home-from-full-note");
-    return note ? note.textContent.trim() : "";
-  }
   const amt = document.getElementById("home-from-" + pkgId);
   const note = document.getElementById("home-from-" + pkgId + "-note");
   if (amt && note) return "From " + amt.textContent.trim() + " · " + note.textContent.trim();
   if (amt) return "From " + amt.textContent.trim();
+  if (note) return note.textContent.trim();
   return "";
 }
 

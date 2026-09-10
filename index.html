@@ -317,8 +317,10 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .msc-portal{opacity:1;font-size:11px;font-weight:500;border-color:rgba(255,255,255,.45)!important}
 /* Mobile-only phone link in hero */
 .hero-tel-mobile{display:none}
+.hero-sms-mobile{display:none}
 @media(max-width:760px){
   .hero-tel-mobile{display:inline-flex;align-items:center;gap:8px;color:var(--blue);font-size:14px;font-weight:600;text-decoration:none;border:1px solid var(--bbr);border-radius:999px;padding:10px 20px;margin-top:16px;background:var(--bg1);-webkit-tap-highlight-color:transparent}
+  .hero-sms-mobile{display:inline-flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;font-weight:600;text-decoration:none;margin:10px 0 0 12px;-webkit-tap-highlight-color:transparent}
 }
 .hero{min-height:auto;background:var(--bg1);display:flex;align-items:center;justify-content:center;text-align:center;padding:40px 20px 48px;position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
 .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 70% 40%,rgba(37,99,235,.04),transparent);pointer-events:none}
@@ -719,6 +721,7 @@ body.rv-overlay-lock{overflow:hidden}
 .msc-book{flex:2;background:var(--blue);color:var(--white);border:none;border-radius:12px;padding:13px 10px;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.01em;box-shadow:0 2px 8px rgba(37,99,235,.25);min-height:48px}
 .msc-portal{flex:1;background:transparent;color:var(--white);border:1px solid rgba(255,255,255,.45);border-radius:var(--rs);padding:13px 8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;min-height:48px}
 .msc-call{display:flex;align-items:center;justify-content:center;padding:13px 14px;background:transparent;color:var(--gr);border:1px solid rgba(255,255,255,.22);border-radius:var(--rs);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;min-height:48px;min-width:48px}
+.msc-text{display:flex;align-items:center;justify-content:center;padding:13px 12px;background:transparent;color:var(--blue);border:1px solid rgba(77,163,255,.35);border-radius:var(--rs);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;min-height:48px;min-width:48px}
 @media(max-width:640px){body{padding-bottom:calc(68px + env(safe-area-inset-bottom,0px))}}
 
 /* ── BOOKING FLOW ── */
@@ -1509,6 +1512,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .car-pkg-scope{display:block;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#1d4ed8;margin-bottom:6px}
 .car-pkg-name{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px;line-height:1.25}
 .car-pkg-desc{font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin-bottom:12px}
+.car-pkg-best{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.45;margin:0 0 8px}
 .car-pkg-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}
 .car-pkg-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:var(--ink-soft);background:var(--bg1);border:1px solid var(--line);border-radius:999px;padding:5px 10px;line-height:1.2}
 .car-pkg-foot{margin-top:auto;padding:14px 18px 16px;border-top:1px solid var(--line);background:var(--bg1)}
@@ -1652,7 +1656,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .hero-btns{flex-direction:column;width:100%;gap:8px;margin-bottom:10px}
   .hero-btns .btn-primary,.hero-btns .btn-outline{width:100%;min-height:48px;padding:14px 18px;font-size:16px;justify-content:center}
   .hero-btns .btn-primary{box-shadow:0 3px 12px rgba(37,99,235,.28)}
-  .hero-tel-mobile{display:none!important}
+  .hero-tel-mobile{display:inline-flex!important;align-self:flex-start}
+  .hero-sms-mobile{display:inline-flex!important;align-self:flex-start;margin:8px 0 0}
   #zip-section{width:100%;min-width:0;margin-top:2px}
   .hero-zip-wrap{padding:12px;margin-bottom:0;max-width:100%}
   .hero-zip-label{display:none}
@@ -1712,7 +1717,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <a class="nav-link" onclick="openBooking(null);document.getElementById('nav-links').classList.remove('open')">Services</a>
     <a class="nav-link" href="blog.html">Guides</a>
     <a class="nav-link" href="my-garage.html">My Garage</a>
-    <a class="nav-link" href="tel:5513735668">Call / Text</a>
+    <a class="nav-link" href="tel:5513735668">Call</a>
+    <a class="nav-link" href="sms:5513735668">Text</a>
     <a class="nav-cta booking-popup-trigger" onclick="openBooking(null)">Check Price</a>
   </div>
   <a class="nav-book-mobile" href="my-garage.html">My Garage</a>
@@ -1741,7 +1747,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <li>📅 Book online</li>
     </ul>
     <p class="hero-sub hero-sub--long">Interior, exterior and full detailing for cars, SUVs, trucks, vans, boats, RVs and powersports across Bergen County and nearby NJ/NY/CT.</p>
-    <p class="hero-sub hero-sub--short">Interior, exterior and full detailing for cars, SUVs, trucks, vans, boats, RVs and powersports across Bergen County and nearby NJ/NY/CT.</p>
+    <p class="hero-sub hero-sub--short">Mobile detailing for cars, boats, RVs and powersports — Bergen County &amp; nearby NJ/NY/CT.</p>
 
     <div class="hero-btns">
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Check Price &amp; Availability</button>
@@ -1801,6 +1807,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </div>
 
     <a class="hero-tel-mobile" href="tel:5513735668">📞 Call 551-373-5668</a>
+    <a class="hero-sms-mobile" href="sms:5513735668">Text us</a>
   </div>
 </section>
 
@@ -1827,17 +1834,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="section">
     <div class="car-pkg-intro">
       <div class="sec-eye">Featured packages</div>
-      <h2 class="sec-title">Popular services</h2>
-      <p class="sec-desc">Three of our most booked car packages. More options — including Exterior Hand Wash, Maintenance Detail, and Signature Restoration — appear when you book. Final pricing adjusts by vehicle, condition, location, and add-ons.</p>
-    </div>
-
-    <div class="cd1-multi-cta" data-cd1-multi-vehicle-section style="text-align:center;margin:18px auto 8px;max-width:640px;padding:18px 16px;border:1px solid rgba(77,163,255,.28);border-radius:18px;background:rgba(18,32,52,.45)">
-      <p style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.02em;margin:0 0 6px">Detail 2 or more vehicles in one visit</p>
-      <p style="font-size:13px;color:#8a9bb0;margin:0 0 14px">Book multiple vehicles now — use Add Another Vehicle in checkout.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">
-        <button type="button" class="btn-primary booking-popup-trigger" data-booking-multi-home="1" onclick="(function(){ try{ if(window.ST){ ST._forceMultiVehicle=true; } }catch(e){} openBooking(null); setTimeout(function(){ var b=document.querySelector('.btn-add-veh'); if(b){ b.style.outline='2px solid #4da3ff'; b.scrollIntoView({block:'nearest',behavior:'smooth'}); } }, 500); })()">Book Multiple Vehicles</button>
-      </div>
-      <p style="font-size:12px;color:#8a9bb0;margin-top:12px">One vehicle? Book any package above — same service quality for every customer.</p>
+      <h2 class="sec-title">Popular car packages</h2>
+      <p class="sec-desc">Three of our most booked packages for cars, trucks, SUVs and vans. Prices shown are starting estimates for cars — boat, RV and powersports packages have their own scopes and pricing. Exterior Hand Wash, Maintenance Detail, and Signature Restoration appear when you book. Final pricing adjusts by vehicle, condition, location, and add-ons.</p>
     </div>
 
     <div class="car-pkg-grid">
@@ -1845,9 +1843,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="car-pkg-top">
           <span class="car-pkg-scope">Interior only</span>
           <h3 class="car-pkg-name">Interior Detail</h3>
+          <p class="car-pkg-best">Best for dusty cabins, family cars, and everyday interior reset.</p>
           <p class="car-pkg-desc">Vacuum, shampoo, steam, headliner, door jambs, trunk and truck bed where applicable — plus dash, glass, and UV protectant.</p>
           <div class="car-pkg-meta">
-            <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
+            <span class="car-pkg-chip">Cars · trucks · SUVs · vans</span>
             <span class="car-pkg-chip">⏱ ~1.5–2 hrs</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('interior', event)">See what's included</button>
@@ -1857,10 +1856,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="car-pkg-price">
               <span class="car-pkg-price-label">From</span>
               <span class="car-pkg-price-amt" id="home-from-interior">$190</span>
-              <span class="car-pkg-price-note" id="home-from-interior-note">priced by vehicle type</span>
+              <span class="car-pkg-price-note" id="home-from-interior-note">starting estimate · by vehicle type</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('interior')">Book this package</button>
+          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('interior')">Continue with Interior</button>
         </div>
       </article>
       <article class="car-pkg-card car-pkg-card--popular" data-pkg="full">
@@ -1868,29 +1867,33 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <span class="car-pkg-popular">Most booked</span>
           <span class="car-pkg-scope">Inside &amp; out</span>
           <h3 class="car-pkg-name">Premium Full Detail</h3>
+          <p class="car-pkg-best">Best for a complete refresh before a season, sale, or long stretch without a detail.</p>
           <p class="car-pkg-desc">Our premium inside-and-out package — interior detail plus exterior wash, protection, and light paint cleaning.</p>
           <div class="car-pkg-meta">
-            <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
+            <span class="car-pkg-chip">Cars · trucks · SUVs · vans</span>
             <span class="car-pkg-chip">⏱ ~2.5–3 hrs</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('full', event)">See what's included</button>
         </div>
         <div class="car-pkg-foot">
           <div class="car-pkg-price-row">
-            <div class="car-pkg-price car-pkg-price--tiered">
-              <span class="car-pkg-price-note car-pkg-price-note--primary" id="home-from-full-note">From $240 · priced by vehicle type</span>
+            <div class="car-pkg-price">
+              <span class="car-pkg-price-label">From</span>
+              <span class="car-pkg-price-amt" id="home-from-full">$240</span>
+              <span class="car-pkg-price-note" id="home-from-full-note">starting estimate · by vehicle type</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('full')">Book this package</button>
+          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('full')">Continue with Full Detail</button>
         </div>
       </article>
       <article class="car-pkg-card" data-pkg="refresh">
         <div class="car-pkg-top">
           <span class="car-pkg-scope">Premium exterior</span>
           <h3 class="car-pkg-name">Exterior Refresh &amp; Protect</h3>
+          <p class="car-pkg-best">Best for dull paint, road film, and gloss restoration — exterior only.</p>
           <p class="car-pkg-desc">Advanced exterior-only package — clay bar, polish, sealant, wheels, glass, and gloss restoration. Premium paint enhancement, not a basic wash.</p>
           <div class="car-pkg-meta">
-            <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
+            <span class="car-pkg-chip">Cars · trucks · SUVs · vans</span>
             <span class="car-pkg-chip">⏱ ~3.5–4 hrs</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('refresh', event)">See what's included</button>
@@ -1900,10 +1903,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="car-pkg-price">
               <span class="car-pkg-price-label">From</span>
               <span class="car-pkg-price-amt" id="home-from-refresh">$320</span>
-              <span class="car-pkg-price-note" id="home-from-refresh-note">priced by vehicle type</span>
+              <span class="car-pkg-price-note" id="home-from-refresh-note">starting estimate · by vehicle type</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('refresh')">Book this package</button>
+          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('refresh')">Continue with Exterior Refresh</button>
         </div>
       </article>
     </div>
@@ -1914,9 +1917,20 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="car-addon-chips" id="home-addon-chips"></div>
     </div>
 
+    <div class="cd1-multi-cta" data-cd1-multi-vehicle-section style="text-align:center;margin:18px auto 8px;max-width:640px;padding:18px 16px;border:1px solid rgba(77,163,255,.28);border-radius:18px;background:rgba(18,32,52,.45)">
+      <p style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.02em;margin:0 0 6px">Detail 2 or more vehicles in one visit</p>
+      <p style="font-size:13px;color:#8a9bb0;margin:0 0 14px">Book multiple vehicles now — use Add Another Vehicle in checkout.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">
+        <button type="button" class="btn-primary booking-popup-trigger" data-booking-multi-home="1" onclick="(function(){ try{ if(window.ST){ ST._forceMultiVehicle=true; } }catch(e){} openBooking(null); setTimeout(function(){ var b=document.querySelector('.btn-add-veh'); if(b){ b.style.outline='2px solid #4da3ff'; b.scrollIntoView({block:'nearest',behavior:'smooth'}); } }, 500); })()">Book Multiple Vehicles</button>
+      </div>
+      <p style="font-size:12px;color:#8a9bb0;margin-top:12px">One vehicle? Choose a package above — same service quality for every customer.</p>
+    </div>
+
     <div class="car-services-cta">
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">View all packages</button>
-      <a class="btn-outline" href="boats-detailing.html">Boats, RVs &amp; powersports</a>
+      <a class="btn-outline" href="rv-detailing.html">RV &amp; Trailers</a>
+      <a class="btn-outline" href="boats-detailing.html">Boats</a>
+      <a class="btn-outline" href="powersports-detailing.html">Powersports</a>
     </div>
   </div>
 </div>
@@ -2454,6 +2468,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <button class="msc-book booking-popup-trigger" onclick="openBooking(null)">Check price</button>
   <button class="msc-portal" onclick="openPortal()">My Garage</button>
   <a class="msc-call" href="tel:5513735668">📞 Call</a>
+  <a class="msc-text" href="sms:5513735668">Text</a>
 </div>
 
 <!-- FOOTER -->
@@ -3004,13 +3019,13 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div id="c-vehicle-cards"></div>
             <div id="c-travel-line"></div>
             <div id="c-offer-line"></div>
-            <div class="oc-note">Final price confirmed on-site. Add-ons are starting prices.</div>
+            <div class="oc-note">Estimate only — not a final guaranteed price. Final price confirmed on-site. Add-ons are starting prices.</div>
           </div>
           <div class="bk-financial-summary" id="bk-financial-summary" aria-live="polite">
             <div class="bk-fin-title">Estimated total</div>
             <div class="bk-total-main"><span class="bk-total-amount" id="bk-total-amount">—</span></div>
             <span class="oc-total" id="c-total" hidden>—</span>
-            <p class="bk-total-incl" id="bk-total-incl">Mobile service included.</p>
+            <p class="bk-total-incl" id="bk-total-incl">Estimate only · mobile service included · final after review.</p>
             <button type="button" class="bk-details-toggle" id="bk-details-toggle" aria-expanded="false" aria-controls="bk-financial-lines" onclick="toggleBkPriceDetails()">View price details</button>
             <div id="bk-financial-lines" class="bk-price-details" hidden></div>
             <div class="bk-charged-stack">
@@ -3076,7 +3091,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="suc-ico">✓</div>
           <div class="suc-title" id="ok-title">Request received</div>
           <div style="display:inline-flex;align-items:center;gap:8px;background:var(--grdim);border:1px solid var(--grbr);color:var(--gr);border-radius:999px;padding:6px 16px;font-size:12.5px;font-weight:700;margin-bottom:14px">✓ Your request was received</div>
-          <p class="suc-sub" id="ok-sub">We'll review your request and notify you when the appointment is confirmed. If you opted in for SMS, updates may be sent by text.</p>
+          <p class="suc-sub" id="ok-sub">We'll review your request and notify you when the appointment is confirmed. If you opted in for SMS, updates may be sent by text. Next step: we check location, vehicle, weather, and access first — this is not a confirmed appointment yet.</p>
           <div class="suc-card">
             <div class="or"><span class="ol">Status</span><span class="ov" style="color:var(--gr);font-weight:700">Under Review</span></div>
             <div class="or"><span class="ol">Booking reference</span><span class="ov bk-success-ref" id="ok-ref">—</span></div>
@@ -3086,7 +3101,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="or"><span class="ol">Preferred payment</span><span class="ov" id="ok-pay">—</span></div>
             <div class="or" style="border:none"><span class="ol">Charged today</span><span class="ov" style="color:var(--gr)">$0.00</span></div>
           </div>
-          <p style="font-size:12.5px;color:var(--mu);margin-bottom:10px">No payment was collected today. Questions? Call / text <strong style="color:var(--white)">551-373-5668</strong> · Mon–Fri 8AM–5PM</p>
+          <p style="font-size:12.5px;color:var(--mu);margin-bottom:10px">No payment was collected today. Questions? <a href="tel:5513735668" style="color:var(--blue);font-weight:700">Call 551-373-5668</a> · <a href="sms:5513735668" style="color:var(--blue);font-weight:700">Text us</a> · Mon–Fri 8AM–5PM</p>
           <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px">
             <button type="button" class="btn-n" style="font-size:12px;padding:8px 18px" onclick="forceCloseBooking();openPortal()">View in My Garage</button>
             <button type="button" class="btn-b" style="font-size:12px;padding:8px 18px" onclick="forceCloseBooking()">Done / Return Home</button>
@@ -5167,10 +5182,10 @@ function updateTotal(){
   }
   if(estEl){
     if(total > 0 && fee > 0){
-      estEl.textContent = 'Includes mobile adjustment '+bkMoney(fee);
+      estEl.textContent = 'Estimate only · includes mobile adjustment '+bkMoney(fee)+' · final after review';
       estEl.style.display = 'block';
     }else if(total > 0){
-      estEl.textContent = 'Mobile service included';
+      estEl.textContent = 'Estimate only · mobile service included · final after review';
       estEl.style.display = 'block';
     }else{
       estEl.textContent = '';
@@ -5298,8 +5313,8 @@ function renderBkFinancialSummary(o){
   if(amtEl) amtEl.textContent = total > 0 ? bkMoney(total) : 'Estimate';
   const inclEl = document.getElementById('bk-total-incl');
   if(inclEl) inclEl.textContent = fee > 0
-    ? 'Includes the mobile service adjustment for your location.'
-    : 'Mobile service included.';
+    ? 'Estimate only · includes mobile adjustment for your location · final after review.'
+    : 'Estimate only · mobile service included · final after review.';
   const lines = document.getElementById('bk-financial-lines');
   if(lines){
     let html = bkFinRow('Service price', bkMoney(service));
@@ -5973,11 +5988,11 @@ function showSuccess(payload){
     if(titleEl) titleEl.textContent='Request received';
     if(subEl){
       const ref=b.id?(' Booking reference: '+b.id+'.'):'';
-      subEl.textContent='Your booking request was received.'+ref+' No payment was collected today. We\'ll review your request and notify you when the appointment is confirmed. If you opted in for SMS, updates may be sent by text.';
+      subEl.textContent='Your booking request was received.'+ref+' No payment was collected today. We\'ll review your request and notify you when the appointment is confirmed. If you opted in for SMS, updates may be sent by text. Next step: we check location, vehicle, weather, and access first — this is not a confirmed appointment yet.';
     }
   }catch(e){
     const subEl=document.getElementById('ok-sub');
-    if(subEl) subEl.textContent='Your booking request was received.'+(b.id?(' Reference: '+b.id+'.'):'')+' No payment was collected today.';
+    if(subEl) subEl.textContent='Your booking request was received.'+(b.id?(' Reference: '+b.id+'.'):'')+' No payment was collected today. We\'ll review your request and notify you when the appointment is confirmed. If you opted in for SMS, updates may be sent by text.';
   }
 }
 
@@ -7217,12 +7232,14 @@ function _updateHomeFromPrices(){
   };
   setPkgAmt('home-from-interior','interior');
   setPkgAmt('home-from-refresh','refresh');
-  const tiers=PRICING.cars.tiers;
-  const fmtFull=(base)=>'$'+(applyRichPrice(base)+fee);
-  const fullAmt=document.getElementById('home-from-full');
-  const fullNote=document.getElementById('home-from-full-note');
-  if(fullAmt) fullAmt.textContent=fmtFull(tiers.small.full);
-  if(fullNote) fullNote.textContent=`From ${fmtFull(tiers.small.full)} · priced by vehicle type`;
+  setPkgAmt('home-from-full','full');
+  const setPkgNote=(id)=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent='starting estimate · by vehicle type';
+  };
+  setPkgNote('home-from-interior-note');
+  setPkgNote('home-from-full-note');
+  setPkgNote('home-from-refresh-note');
 }
 
 const HOME_ADDON_IDS=['pethair','odor','engine','headlight','claybar','rainx','wax1yr'];
