@@ -4815,6 +4815,15 @@ function selectTier(key){
   tryGenericConfirm();
 }
 
+function inferPowersportsTier(make, model){
+  const name=String(model||'').trim();
+  if(!name) return '';
+  const blob=(String(make||'')+' '+name).toLowerCase();
+  if(/pioneer|talon|ranger|rzr|general|defender|commander|maverick|mule|teryx|wolverine|viking|uforce|zforce|prowler|wildcat|slingshot/.test(blob)) return 'utv';
+  if(/fourtrax|trx|outlander|renegade|sportsman|scrambler 850|grizzly|kodiak|alterra|cforce|kingquad|brute force|raptor|rincon|foreman|rancher/.test(blob)) return 'atv';
+  return 'motorcycle';
+}
+
 function tryGenericConfirm(){
   const make=document.getElementById('g-make').value.trim();
   const model=document.getElementById('g-model').value.trim();
@@ -4884,6 +4893,19 @@ function tryGenericConfirm(){
     document.getElementById('next3').disabled=false; renderAddons();
     // No auto-advance: user clicks "Choose Add-Ons →" (lets boats/RVs/trailers pick length first).
     return;
+  }
+
+  if(ST.cat==='powersports' && !ST.tierKey){
+    const inferred=inferPowersportsTier(make, model);
+    if(!inferred || !PRICING.powersports || !PRICING.powersports.tiers[inferred]) return;
+    ST.tierKey=inferred;
+    ST.tier=PRICING.powersports.tiers[inferred];
+    ST.displayLabel=ST.tier.label;
+    const chip=document.querySelector('.tchip[data-tier="'+inferred+'"]');
+    if(chip){
+      document.querySelectorAll('.tchip').forEach(function(c){ c.classList.remove('sel'); });
+      chip.classList.add('sel');
+    }
   }
 
   if(!ST.tierKey)return;
