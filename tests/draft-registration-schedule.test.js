@@ -90,6 +90,9 @@ function createMemoryStore(seed = {}) {
     async setJSON(key, value) {
       data.set(key, JSON.stringify(value));
     },
+    async list() {
+      return { blobs: [...data.keys()].map((key) => ({ key })) };
+    },
   };
 }
 
@@ -226,6 +229,7 @@ test('submit-booking draft blob persist failure returns Failed to pre-register b
   const { handler, __test } = require('../netlify/functions/submit-booking');
   const failingStore = {
     async get() { return null; },
+    async list() { return { blobs: [] }; },
     async setJSON() {
       const err = new Error('Netlify Blobs has generated an internal error (401 status code)');
       err.name = 'BlobsInternalError';

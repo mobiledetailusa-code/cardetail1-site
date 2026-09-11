@@ -67,9 +67,10 @@ const {
 const {
   formatSiteAccessLines,
 } = require('../lib/site-access');
-const { validateBookingSchedule, hasSlotConflict } = require('../lib/booking-schedule');
+const { validateBookingSchedule, hasSlotConflict, isActiveBookingForSlotLock } = require('../lib/booking-schedule');
 const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
 const { indexedSlotConflict, syncSlotIndex } = require('../lib/slot-index');
+const { findDuplicateBooking } = require('../lib/booking-history');
 const { validateBookingRouting } = require('../lib/booking-routing-validation');
 const {
   applyServerOffersToBooking,
@@ -99,6 +100,90 @@ const {
   siIdPrefix,
 } = require('../lib/card-on-file');
 
+const BOOKING_VERIFICATION_UNAVAILABLE = 'booking_verification_unavailable';
+let slotScanTimeoutMs = 0;
+
+function verificationUnavailable(cause) {
+  const err = new Error(BOOKING_VERIFICATION_UNAVAILABLE);
+  err.code = BOOKING_VERIFICATION_UNAVAILABLE;
+  if (cause) err.cause = cause;
+  return err;
+}
+
+function isVerificationUnavailable(err) {
+  return !!(err && (
+    err.code === BOOKING_VERIFICATION_UNAVAILABLE
+    || err.message === BOOKING_VERIFICATION_UNAVAILABLE
+  ));
+}
+
+function withSlotScanTimeout(promise) {
+  if (!slotScanTimeoutMs || slotScanTimeoutMs <= 0) return promise;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      const timer = setTimeout(() => {
+        reject(verificationUnavailable(new Error('timeout')));
+      }, slotScanTimeoutMs);
+      if (typeof timer.unref === 'function') timer.unref();
+    }),
+  ]);
+}
+
+async function listRequestStoreBlobs(store) {
+  if (!store || typeof store.list !== 'function') {
+    throw verificationUnavailable();
+  }
+  try {
+    const paged = await store.list({ paginate: true });
+    if (paged && typeof paged[Symbol.asyncIterator] === 'function') {
+      const blobs = [];
+      for await (const page of paged) {
+        blobs.push(...((page && page.blobs) || []));
+      }
+      return blobs;
+    }
+    if (paged && Array.isArray(paged.blobs)) return paged.blobs;
+  } catch (err) {
+    // Non-paginated list is the fallback only when paginate is unsupported.
+    // A rejected list() is still a failed verification, not an empty store.
+  }
+  try {
+    const listing = await store.list();
+    return (listing && listing.blobs) || [];
+  } catch (err) {
+    throw verificationUnavailable(err);
+  }
+}
+
+function toSlotLockBookings(records) {
+  const { adaptHistoricalBooking } = require('../lib/historical-adapter');
+  const out = [];
+  for (const raw of records || []) {
+    if (!raw) continue;
+    const adapted = adaptHistoricalBooking(raw);
+    if (!adapted.ok || !adapted.booking) continue;
+    if (!isActiveBookingForSlotLock(adapted.booking)) continue;
+    out.push(adapted.booking);
+  }
+  return out;
+}
+
+async function loadSlotLockBookings() {
+  const store = await blobsStore('cd1-bookings');
+  if (store && typeof store.list === 'function') {
+    const { fetchBlobRecords } = require('../lib/tech-security');
+    const blobs = await withSlotScanTimeout(listRequestStoreBlobs(store));
+    const records = await withSlotScanTimeout(fetchBlobRecords(store, blobs));
+    return toSlotLockBookings(records);
+  }
+  // Keep `.catch` on the named scan so checkout wiring still sees the fallback,
+  // but never convert failure into "no bookings".
+  return withSlotScanTimeout(listBookingsForSlotLock().catch((err) => {
+    throw verificationUnavailable(err);
+  }));
+}
+
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const { getOperationalAvailability } = require('../lib/ops-config');
   const { slotsForDate } = require('../lib/booking-schedule');
@@ -115,12 +200,16 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
 
   // Prefer the slot index; the full-store scan stays as the fallback authority
   // whenever the index cannot answer. See netlify/lib/slot-index.js.
+  // A failed/timed-out scan must NOT become [] — that used to make every slot
+  // look free and let a second draft finalize.
   async function slotTaken(dateIso, slot) {
     const nowMs = Date.now();
     const indexed = await indexedSlotConflict(dateIso, slot, { excludeId, nowMs, config });
     if (indexed.ok) return indexed.conflict;
     if (!bookingsForLock) {
-      bookingsForLock = await listBookingsForSlotLock().catch(() => []);
+      bookingsForLock = await loadSlotLockBookings().catch((err) => {
+        throw verificationUnavailable(err);
+      });
     }
     return hasSlotConflict(bookingsForLock, dateIso, slot, excludeId, nowMs, config);
   }
@@ -133,6 +222,7 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
     return null;
   }
 
+  try {
   // Customer arrival window is preference; internal preferredTime is one operational slot.
   const rawWindow = b.preferredArrivalWindow;
   if (rawWindow != null && String(rawWindow).trim() !== '') {
@@ -191,12 +281,31 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
   if (checkSlot && await slotTaken(v.preferredDate, v.preferredTime)) {
     return { ok: false, error: 'booking_slot_unavailable' };
   }
-  return { ok: true, weekendMode: v.weekendMode || null, isWeekend: !!v.isWeekend };
+  return {
+    ok: true,
+    weekendMode: v.weekendMode || null,
+    isWeekend: !!v.isWeekend,
+    slotBookings: bookingsForLock,
+  };
+  } catch (err) {
+    if (isVerificationUnavailable(err)) {
+      return { ok: false, error: 'booking_verification_unavailable' };
+    }
+    throw err;
+  }
+}
+
+function scheduleStatus(error) {
+  if (error === 'booking_slot_unavailable') return 409;
+  if (error === BOOKING_VERIFICATION_UNAVAILABLE) return 503;
+  return 400;
 }
 
 function scheduleRejectResponse(status, error, meta = {}) {
   const userMessage = error === 'booking_slot_unavailable'
     ? 'That time slot is no longer available. Your card was not charged. Choose another date or time, then submit again — you do not need to re-save your card if it already shows as saved.'
+    : error === BOOKING_VERIFICATION_UNAVAILABLE
+      ? 'We could not verify whether this time is still available. Nothing was booked. Please wait a moment and try again.'
     : error === 'booking_date_unavailable'
       ? 'That date is unavailable. Choose another day, then continue.'
       : error === 'booking_time_unavailable'
@@ -761,7 +870,7 @@ exports.handler = async (event) => {
       excludeId: rawUpdateId || null,
     });
     if (!scheduleDraft.ok) {
-      const status = scheduleDraft.error === 'booking_slot_unavailable' ? 409 : 400;
+      const status = scheduleStatus(scheduleDraft.error);
       return scheduleRejectResponse(status, scheduleDraft.error, {
         draftBookingId: rawUpdateId || null,
         preferredDate: b.preferredDate || null,
@@ -911,7 +1020,7 @@ exports.handler = async (event) => {
     }
     const scheduleFinal = await enforceScheduleFields(b, { checkSlot: true, excludeId: rawDraftId });
     if (!scheduleFinal.ok) {
-      const status = scheduleFinal.error === 'booking_slot_unavailable' ? 409 : 400;
+      const status = scheduleStatus(scheduleFinal.error);
       return scheduleRejectResponse(status, scheduleFinal.error, {
         draftBookingId: rawDraftId,
         preferredDate: b.preferredDate || null,
@@ -969,6 +1078,41 @@ exports.handler = async (event) => {
         }
         : { cardOnFileStatus: 'not_collected' }),
     };
+
+    // Duplicate matching uses the occupancy scan already performed. If that
+    // scan never completed, do not ask a second lookup to invent a clear slot.
+    if (!Array.isArray(scheduleFinal.slotBookings)) {
+      return scheduleRejectResponse(503, BOOKING_VERIFICATION_UNAVAILABLE, {
+        draftBookingId: rawDraftId,
+        preferredDate: b.preferredDate || null,
+        preferredTime: b.preferredTime || null,
+        phase: 'finalize',
+      });
+    }
+    const duplicateCheck = await findDuplicateBooking({
+      phone: b.phone || existing.phone,
+      email: b.email || existing.email,
+      preferredDate: b.preferredDate,
+      preferredTime: b.preferredTime,
+      excludeId: rawDraftId,
+      bookings: scheduleFinal.slotBookings,
+    });
+    if (!duplicateCheck.ok) {
+      return scheduleRejectResponse(503, BOOKING_VERIFICATION_UNAVAILABLE, {
+        draftBookingId: rawDraftId,
+        preferredDate: b.preferredDate || null,
+        preferredTime: b.preferredTime || null,
+        phase: 'finalize',
+      });
+    }
+    if (duplicateCheck.duplicate) {
+      return scheduleRejectResponse(409, 'booking_slot_unavailable', {
+        draftBookingId: rawDraftId,
+        preferredDate: b.preferredDate || null,
+        preferredTime: b.preferredTime || null,
+        phase: 'finalize',
+      });
+    }
 
     let stored = { saved: false };
     try {
@@ -1040,6 +1184,9 @@ exports.__test = {
   },
   setBlobsStoreOverride(fn) {
     blobsStoreOverride = typeof fn === 'function' ? fn : null;
+  },
+  setSlotScanTimeoutMs(ms) {
+    slotScanTimeoutMs = Math.max(0, Math.round(Number(ms) || 0));
   },
   buildDraftRecord,
   issueDraftSaveResponse,

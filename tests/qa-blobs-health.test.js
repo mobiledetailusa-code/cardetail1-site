@@ -29,6 +29,7 @@ test('submit-booking draft blob persist failure returns controlled error', async
   const { handler, __test } = require('../netlify/functions/submit-booking');
   __test.setBlobsStoreOverride(() => ({
     async get() { return null; },
+    async list() { return { blobs: [] }; },
     async setJSON() {
       const err = new Error('Netlify Blobs has generated an internal error (401 status code)');
       err.name = 'BlobsInternalError';

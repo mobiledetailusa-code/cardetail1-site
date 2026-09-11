@@ -26,10 +26,127 @@ const { normalizePhone } = require('./phone-auth');
 /** One customer's lifetime bookings never approach this; it only caps a bug. */
 const HISTORY_LOOKUP_LIMIT = 200;
 
+/** How long after a booking a repeat submission still counts as the same one. */
+const DUPLICATE_WINDOW_MS = 60 * 60 * 1000;
+
 /** Escape hatch: OFFER_HISTORY_FAST_LOOKUP=0 forces the Blobs scan. */
 function fastLookupDisabled(env = process.env) {
   const flag = String(env.OFFER_HISTORY_FAST_LOOKUP || '').toLowerCase();
   return flag === '0' || flag === 'false';
+}
+
+function isRecentDuplicate(booking, nowMs = Date.now()) {
+  const at = Date.parse(booking?.finalizedAt || booking?.createdAt || booking?.updatedAt || '');
+  if (!Number.isFinite(at)) return false;
+  return nowMs - at >= 0 && nowMs - at <= DUPLICATE_WINDOW_MS;
+}
+
+/**
+ * Same-customer active booking occupying the requested slot.
+ * Matching only — callers must fail closed if they could not load `bookings`.
+ */
+function matchDuplicateBooking(bookings, {
+  phone,
+  email,
+  preferredDate,
+  preferredTime,
+  excludeId,
+  nowMs = Date.now(),
+} = {}) {
+  const { normalizePreferredTime, isActiveBookingForSlotLock } = require('./booking-schedule');
+  const { isoDateParts } = require('./operational-availability');
+
+  const parts = isoDateParts(preferredDate);
+  const time = normalizePreferredTime(preferredTime);
+  if (!parts || !time) return null;
+
+  const identity = normalizeIdentity({ phone, email });
+  if (!identity.phone && !identity.email) return null;
+
+  const skip = String(excludeId || '').trim().toUpperCase();
+
+  for (const booking of bookings || []) {
+    if (!booking) continue;
+    if (skip && String(booking.id || '').trim().toUpperCase() === skip) continue;
+    if (!isActiveBookingForSlotLock(booking, nowMs)) continue;
+    if (!isRecentDuplicate(booking, nowMs)) continue;
+    const other = identityKeys(booking);
+    const sameCustomer = (
+      (identity.phone && other.phone && identity.phone === other.phone)
+      || (identity.email && other.email && identity.email === other.email)
+    );
+    if (!sameCustomer) continue;
+    const bookingParts = isoDateParts(booking.confirmedDate || booking.preferredDate);
+    const bookingTime = normalizePreferredTime(booking.confirmedTime || booking.preferredTime);
+    if (!bookingParts || !bookingTime) continue;
+    if (bookingParts.iso === parts.iso && bookingTime === time) return booking;
+  }
+  return null;
+}
+
+/**
+ * Lookup used by finalize. Never converts a failed scan into "no duplicate".
+ *
+ * @returns {Promise<{ ok: true, duplicate: object|null } | { ok: false, error: string }>}
+ */
+async function findDuplicateBooking({
+  phone,
+  email,
+  preferredDate,
+  preferredTime,
+  excludeId,
+  nowMs = Date.now(),
+  bookings,
+} = {}) {
+  if (Array.isArray(bookings)) {
+    return {
+      ok: true,
+      duplicate: matchDuplicateBooking(bookings, {
+        phone, email, preferredDate, preferredTime, excludeId, nowMs,
+      }),
+    };
+  }
+
+  const identity = normalizeIdentity({ phone, email });
+  if (!identity.phone && !identity.email) {
+    return { ok: true, duplicate: null };
+  }
+
+  const { normalizePreferredTime } = require('./booking-schedule');
+  const { isoDateParts } = require('./operational-availability');
+  if (!isoDateParts(preferredDate) || !normalizePreferredTime(preferredTime)) {
+    return { ok: true, duplicate: null };
+  }
+
+  if (!fastLookupDisabled()) {
+    try {
+      const rows = await mirrorHistory(identity);
+      if (rows) {
+        return {
+          ok: true,
+          duplicate: matchDuplicateBooking(rows, {
+            phone, email, preferredDate, preferredTime, excludeId, nowMs,
+          }),
+        };
+      }
+    } catch (err) {
+      console.warn('[booking-history] duplicate_mirror_failed', err && err.message ? err.message : err);
+    }
+  }
+
+  const { listRawBookings } = require('./ops-db');
+  try {
+    const rows = await listRawBookings();
+    return {
+      ok: true,
+      duplicate: matchDuplicateBooking(rows, {
+        phone, email, preferredDate, preferredTime, excludeId, nowMs,
+      }),
+    };
+  } catch (err) {
+    console.warn('[booking-history] duplicate_scan_failed', err && err.message ? err.message : err);
+    return { ok: false, error: 'booking_verification_unavailable' };
+  }
 }
 
 /**
@@ -133,6 +250,7 @@ async function listBookingHistoryForBooking(booking) {
 
 module.exports = {
   HISTORY_LOOKUP_LIMIT,
+  DUPLICATE_WINDOW_MS,
   fastLookupDisabled,
   normalizeIdentity,
   identityKeys,
@@ -140,4 +258,7 @@ module.exports = {
   mirrorHistory,
   listBookingsForIdentity,
   listBookingHistoryForBooking,
+  isRecentDuplicate,
+  matchDuplicateBooking,
+  findDuplicateBooking,
 };
