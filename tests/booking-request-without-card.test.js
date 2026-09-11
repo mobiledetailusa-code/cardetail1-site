@@ -195,9 +195,14 @@ describe('initial booking request without card collection', () => {
     assert.equal(replay.body.idempotent, true);
     assert.equal(replay.body.id, saved.id);
 
-    const fresh = await post(requestPayload({ isDraft: true, phone: '2015550100' }));
+    const fresh = await post(requestPayload({
+      isDraft: true,
+      phone: '2015550100',
+      preferredTime: '12:00 PM',
+    }));
     const badToken = await post(requestPayload({
       phone: '2015550100',
+      preferredTime: '12:00 PM',
       draftBookingId: fresh.body.id,
       draftSaveToken: 'v1.9999999999.invalid',
     }));
@@ -207,6 +212,7 @@ describe('initial booking request without card collection', () => {
     const paymentField = await post(requestPayload({
       isDraft: true,
       phone: '2015550199',
+      preferredTime: '2:00 PM',
       paymentMethodPreference: 'not_a_real_method',
     }));
     assert.equal(paymentField.response.statusCode, 400);

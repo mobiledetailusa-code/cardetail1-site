@@ -42,6 +42,9 @@ function createMemoryStore(seed = {}) {
     async setJSON(key, value) {
       data.set(key, JSON.stringify(value));
     },
+    async list() {
+      return { blobs: [...data.keys()].map((key) => ({ key })) };
+    },
   };
 }
 
