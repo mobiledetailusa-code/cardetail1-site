@@ -128,6 +128,12 @@ test('balloon copy is first-visit 10% email capture with terms', () => {
   assert.match(js, /startOverlayWatch/);
   assert.match(js, /function destroy\(/);
   assert.match(js, /clearInterval\(overlayTimer\)/);
+  assert.match(js, /hookDesktopExitIntent/);
+  assert.match(js, /DESKTOP_MIN_WIDTH = 1024/);
+  assert.match(js, /addEventListener\('mouseout'/);
+  assert.match(js, /addEventListener\('mouseleave'/);
+  assert.doesNotMatch(js, /userAgent/);
+  assert.doesNotMatch(js, /navigator\.userAgent/);
 });
 
 test('checkout restores balloon claim onto the welcome offer', () => {
@@ -257,6 +263,44 @@ test('terms and privacy mention first-visit email offer', () => {
   assert.match(read('privacy-policy.html'), /first-visit welcome offer/);
 });
 
+function applyViewport(window, { width, coarse }) {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+  window.matchMedia = (query) => {
+    const q = String(query || '');
+    const matches = coarse
+      ? /pointer:\s*coarse/.test(q) || /hover:\s*none/.test(q)
+      : /pointer:\s*fine/.test(q) || /hover:\s*hover/.test(q);
+    return {
+      matches,
+      media: q,
+      addListener() {},
+      removeListener() {},
+      addEventListener() {},
+      removeEventListener() {},
+    };
+  };
+}
+
+function loadBalloonDom({ width = 1440, coarse = false } = {}) {
+  const src = read('assets/welcome-lead-balloon.js');
+  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+    url: 'https://cardetail1.com/',
+    runScripts: 'dangerously',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      applyViewport(window, { width, coarse });
+    },
+  });
+  applyViewport(dom.window, { width, coarse });
+  const script = dom.window.document.createElement('script');
+  script.textContent = src;
+  dom.window.document.body.appendChild(script);
+  if (dom.window.document.readyState === 'loading') {
+    dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
+  }
+  return dom;
+}
+
 if (JSDOM) {
   test('balloon reveals on demand and persists dismiss', () => {
     const src = read('assets/welcome-lead-balloon.js');
@@ -285,6 +329,109 @@ if (JSDOM) {
       if (dom.window.Cardetail1WelcomeBalloon && typeof dom.window.Cardetail1WelcomeBalloon.destroy === 'function') {
         dom.window.Cardetail1WelcomeBalloon.destroy();
       }
+      dom.window.close();
+    }
+  });
+
+  test('desktop exit-intent reveals balloon after pointer leaves through the top', () => {
+    const dom = loadBalloonDom({ width: 1440 });
+    try {
+      const api = dom.window.Cardetail1WelcomeBalloon;
+      assert.equal(api.isDesktopExitCapable(), true);
+      assert.equal(api.exitIntentHooked(), true);
+      assert.equal(dom.window.document.getElementById('cd1-wlb'), null);
+      assert.equal(dom.window.document.getElementById('cd1-wlb'), null);
+      api.armDesktopExitFromPointer({ clientY: 220 });
+      api.considerDesktopExit({ type: 'mouseleave', clientY: 2, relatedTarget: null });
+      const root = dom.window.document.getElementById('cd1-wlb');
+      assert.ok(root);
+      assert.equal(root.hidden, false);
+      assert.equal(root.classList.contains('cd1-wlb-on'), true);
+    } finally {
+      if (dom.window.Cardetail1WelcomeBalloon) dom.window.Cardetail1WelcomeBalloon.destroy();
+      dom.window.close();
+    }
+  });
+
+  test('desktop exit-intent does not fire on unarmed mouseout or in-page mouseout', () => {
+    const dom = loadBalloonDom({ width: 1440 });
+    try {
+      const api = dom.window.Cardetail1WelcomeBalloon;
+      api.considerDesktopExit({ type: 'mouseleave', clientY: 2, relatedTarget: null });
+      assert.equal(dom.window.document.getElementById('cd1-wlb'), null);
+      api.armDesktopExitFromPointer({ clientY: 220 });
+      api.considerDesktopExit({
+        type: 'mouseout',
+        clientY: 2,
+        relatedTarget: dom.window.document.body,
+      });
+      assert.equal(dom.window.document.getElementById('cd1-wlb'), null);
+      api.considerDesktopExit({ type: 'mouseleave', clientY: 80, relatedTarget: null });
+      assert.equal(dom.window.document.getElementById('cd1-wlb'), null);
+    } finally {
+      if (dom.window.Cardetail1WelcomeBalloon) dom.window.Cardetail1WelcomeBalloon.destroy();
+      dom.window.close();
+    }
+  });
+
+  test('mobile viewport does not register desktop mouse exit-intent', () => {
+    const dom = loadBalloonDom({ width: 390, coarse: true });
+    try {
+      const api = dom.window.Cardetail1WelcomeBalloon;
+      assert.equal(api.isDesktopExitCapable(), false);
+      api.armDesktopExitFromPointer({ clientY: 220 });
+      api.considerDesktopExit({ type: 'mouseleave', clientY: 2, relatedTarget: null });
+      assert.equal(dom.window.document.getElementById('cd1-wlb'), null);
+    } finally {
+      if (dom.window.Cardetail1WelcomeBalloon) dom.window.Cardetail1WelcomeBalloon.destroy();
+      dom.window.close();
+    }
+  });
+
+  test('claimed visitor does not reveal balloon on desktop exit-intent', () => {
+    const dom = loadBalloonDom({ width: 1440 });
+    try {
+      const api = dom.window.Cardetail1WelcomeBalloon;
+      api.persistClaim('claimed@example.com');
+      api.armDesktopExitFromPointer({ clientY: 220 });
+      api.considerDesktopExit({ type: 'mouseleave', clientY: 2, relatedTarget: null });
+      assert.equal(dom.window.document.getElementById('cd1-wlb'), null);
+    } finally {
+      if (dom.window.Cardetail1WelcomeBalloon) dom.window.Cardetail1WelcomeBalloon.destroy();
+      dom.window.close();
+    }
+  });
+
+  test('dwell timer still reveals balloon on desktop without exit-intent', async () => {
+    const dom = loadBalloonDom({ width: 1440 });
+    try {
+      assert.equal(dom.window.document.getElementById('cd1-wlb'), null);
+      await new Promise((resolve) => {
+        dom.window.setTimeout(resolve, dom.window.Cardetail1WelcomeBalloon.SHOW_DELAY_MS + 20);
+      });
+      const root = dom.window.document.getElementById('cd1-wlb');
+      assert.ok(root);
+      assert.equal(root.hidden, false);
+    } finally {
+      if (dom.window.Cardetail1WelcomeBalloon) dom.window.Cardetail1WelcomeBalloon.destroy();
+      dom.window.close();
+    }
+  });
+
+  test('dismiss cooldown suppresses a later desktop exit-intent reveal', () => {
+    const dom = loadBalloonDom({ width: 1440 });
+    try {
+      const api = dom.window.Cardetail1WelcomeBalloon;
+      api.revealForTest();
+      const dismiss = dom.window.document.getElementById('cd1-wlb-fab-dismiss');
+      dismiss.click();
+      assert.equal(dom.window.document.getElementById('cd1-wlb'), null);
+      api.init();
+      api.armDesktopExitFromPointer({ clientY: 220 });
+      api.considerDesktopExit({ type: 'mouseleave', clientY: 2, relatedTarget: null });
+      assert.equal(dom.window.document.getElementById('cd1-wlb'), null);
+    } finally {
+      if (dom.window.Cardetail1WelcomeBalloon) dom.window.Cardetail1WelcomeBalloon.destroy();
       dom.window.close();
     }
   });

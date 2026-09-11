@@ -9,9 +9,17 @@
   var SHOW_DELAY_MS = 8000;
   var SCROLL_RATIO = 0.28;
   var DISMISS_DAYS = 30;
+  var DESKTOP_MIN_WIDTH = 1024;
+  var EXIT_INTENT_Y = 10;
+  var EXIT_ARM_Y = 24;
   var shownTracked = false;
   var revealTimer = 0;
   var overlayTimer = 0;
+  var exitMoveHandler = null;
+  var exitOutHandler = null;
+  var exitLeaveHandler = null;
+  var desktopExitArmed = false;
+  var desktopExitReveal = null;
 
   function backend() {
     return (global.BACKEND_BASE || '/.netlify/functions');
@@ -191,6 +199,66 @@
     if (overlayTimer) {
       global.clearInterval(overlayTimer);
       overlayTimer = 0;
+    }
+    stopDesktopExitIntent();
+  }
+
+  function isDesktopExitCapable() {
+    if ((global.innerWidth || 0) < DESKTOP_MIN_WIDTH) return false;
+    try {
+      if (typeof global.matchMedia === 'function' && global.matchMedia('(pointer: coarse)').matches) {
+        return false;
+      }
+    } catch (e) { /* ignore */ }
+    return true;
+  }
+
+  function stopDesktopExitIntent() {
+    desktopExitReveal = null;
+    desktopExitArmed = false;
+    if (exitMoveHandler) {
+      document.removeEventListener('mousemove', exitMoveHandler);
+      exitMoveHandler = null;
+    }
+    if (exitOutHandler) {
+      document.removeEventListener('mouseout', exitOutHandler);
+      exitOutHandler = null;
+    }
+    if (exitLeaveHandler && document.documentElement) {
+      document.documentElement.removeEventListener('mouseleave', exitLeaveHandler);
+      exitLeaveHandler = null;
+    }
+  }
+
+  function armDesktopExitFromPointer(e) {
+    if (e && typeof e.clientY === 'number' && e.clientY <= EXIT_ARM_Y) return;
+    desktopExitArmed = true;
+  }
+
+  function considerDesktopExit(e) {
+    if (!desktopExitReveal) return;
+    if (!isDesktopExitCapable()) return;
+    if (!desktopExitArmed) return;
+    if (bookingOpen()) return;
+    if (e && e.type === 'mouseout' && e.relatedTarget) return;
+    if (e && typeof e.clientY === 'number' && e.clientY > EXIT_INTENT_Y) return;
+    desktopExitReveal();
+  }
+
+  function hookDesktopExitIntent(onceReveal) {
+    if (exitOutHandler) return;
+    desktopExitArmed = false;
+    desktopExitReveal = onceReveal;
+    exitMoveHandler = function (e) {
+      if (!isDesktopExitCapable()) return;
+      armDesktopExitFromPointer(e);
+    };
+    exitOutHandler = considerDesktopExit;
+    exitLeaveHandler = considerDesktopExit;
+    document.addEventListener('mousemove', exitMoveHandler);
+    document.addEventListener('mouseout', exitOutHandler);
+    if (document.documentElement) {
+      document.documentElement.addEventListener('mouseleave', exitLeaveHandler);
     }
   }
 
@@ -373,6 +441,7 @@
       var max = Math.max(1, (root.scrollHeight || 1) - (global.innerHeight || 0));
       if ((root.scrollTop || global.scrollY || 0) / max >= SCROLL_RATIO) onceReveal();
     }, { passive: true });
+    hookDesktopExitIntent(onceReveal);
 
     document.addEventListener('cd1:consent-changed', layoutBalloon);
     document.addEventListener('click', function (e) {
@@ -391,6 +460,11 @@
     CLAIM_KEY: CLAIM_KEY,
     DISMISS_KEY: DISMISS_KEY,
     SHOW_DELAY_MS: SHOW_DELAY_MS,
+    DESKTOP_MIN_WIDTH: DESKTOP_MIN_WIDTH,
+    isDesktopExitCapable: isDesktopExitCapable,
+    armDesktopExitFromPointer: armDesktopExitFromPointer,
+    considerDesktopExit: considerDesktopExit,
+    exitIntentHooked: function () { return typeof desktopExitReveal === 'function'; },
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
