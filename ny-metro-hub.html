@@ -5964,11 +5964,29 @@ function buildCurrentVehicleItem(){
   };
 }
 
-function addCurrentVehicleToCart(){
+function commitCurrentVehicleToCart(){
   const item = buildCurrentVehicleItem();
+  if(!item) return null;
+  const editIdx = Number.isInteger(ST._editingVehicleIndex) ? ST._editingVehicleIndex : -1;
+  if(editIdx >= 0 && editIdx < ST.vehicles.length){
+    ST.vehicles[editIdx] = item;
+  } else if(ST.vehicles.length && !ST._startingAdditionalVehicle){
+    ST.vehicles[ST.vehicles.length - 1] = item;
+    ST._editingVehicleIndex = ST.vehicles.length - 1;
+  } else {
+    ST.vehicles.push(item);
+    ST._editingVehicleIndex = ST.vehicles.length - 1;
+  }
+  ST._startingAdditionalVehicle = false;
+  return item;
+}
+
+function addCurrentVehicleToCart(){
+  const item = commitCurrentVehicleToCart();
   if(!item){ alert('Please select a package and vehicle first.'); return; }
-  ST.vehicles.push(item);
   renderVehicleCart();
+  ST._editingVehicleIndex = null;
+  ST._startingAdditionalVehicle = true;
   // Reset single-vehicle state and go back to step 1 (category)
   ST.cat=''; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null;
   ST.vehicleLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.units=1; ST._addonKey='';
@@ -5976,9 +5994,8 @@ function addCurrentVehicleToCart(){
 }
 
 function addCurrentVehicleAndContinue(){
-  const item = buildCurrentVehicleItem();
-  if(item) ST.vehicles.push(item);
-  if(!ST.vehicles.length){ alert('Please configure at least one vehicle.'); return; }
+  const item = commitCurrentVehicleToCart();
+  if(!item && !ST.vehicles.length){ alert('Please configure at least one vehicle.'); return; }
   renderVehicleCart();
   bkGoTo(4);
 }
