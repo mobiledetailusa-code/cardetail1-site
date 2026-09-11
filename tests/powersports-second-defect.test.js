@@ -154,7 +154,9 @@ function reachReview(pkgId, machine) {
   sandbox.renderVehicleCart = () => { sandbox.cartRendered = true; };
   sandbox.Cardetail1CheckoutAnalytics = { onStepCompleted() {} };
   vm.runInContext(
-    extractFunction(index, 'buildCurrentVehicleItem') + '\n' + extractFunction(index, 'addCurrentVehicleAndContinue'),
+    extractFunction(index, 'buildCurrentVehicleItem') + '\n' +
+    extractFunction(index, 'commitCurrentVehicleToCart') + '\n' +
+    extractFunction(index, 'addCurrentVehicleAndContinue'),
     sandbox
   );
   sandbox.addCurrentVehicleAndContinue();
