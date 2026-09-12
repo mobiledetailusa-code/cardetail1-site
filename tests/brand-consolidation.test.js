@@ -82,7 +82,8 @@ const REVIEW_AUTHORITY_FILES = [
 const FROZEN_SHA256 = {
   'netlify/lib/sms-program.js': '70f2b9307e09b673998423792ee5e9a56859b7fd1aed8f8084197343754d0950',
   'netlify/lib/sms-templates.js': 'ab527c1618187c89d16c52b72e8fc8ca82564ef381b70950fda3d5e9155acdc6',
-  'assets/booking-review-runtime.js': '73878c27d63b265ec3df04bed56e03a25fe7ce834a73900deabd2d1bbf025f39',
+  // Updated by cart/price resolution repair (Estimate fallback removed for published packages).
+  'assets/booking-review-runtime.js': '9bc5df26067eeb92018d9991b02c23e05d680cb1efb5604389230e037cb2a709',
   'netlify/lib/receipt-projection.js': 'ebb8b34f6e9b880f87a056d2b885862f916ac3c753ed080eafb4e24c5b73865f',
   'netlify/lib/booking-transactional-notifications.js': 'a7537beda9a8b5d88d2c998103a6ef317d1b3807ba77d38b179b883ce3ba6367',
   'netlify/lib/first-party-reviews.js': 'c9d36c5212eb193b7fb26beedb3ba470f301ab96211f57e42fc19416ff5458f6',

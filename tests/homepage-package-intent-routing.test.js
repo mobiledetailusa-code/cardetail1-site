@@ -132,6 +132,8 @@ function loadSelectCategory() {
     openCommercialInquiry() {},
     renderPackages() {},
     renderTierChips() {},
+    renderVehicleCart() {},
+    updateTotal() {},
     bkGoTo(n) { sandbox.steps.push(n); sandbox.currentBkStep = n; },
     requestAnimationFrame(fn) { fn(); },
     bkContinueFromPackage() { sandbox.advanced = true; },
@@ -143,8 +145,15 @@ function loadSelectCategory() {
     },
   };
   sandbox.window = sandbox;
+  sandbox.ST.vehicles = [];
+  sandbox.ST._startingAdditionalVehicle = false;
+  sandbox.ST._editingVehicleIndex = null;
+  sandbox.CD1BookingVehicleSummary = {
+    clearCategoryExclusiveFields() {},
+  };
   vm.createContext(sandbox);
   vm.runInContext(
+    extractFunction(index, 'resetVehicleEntryFields') + '\n' +
     extractFunction(index, 'resolvePackageIntentForCategory') + '\n' +
     extractFunction(index, 'selectCategory') + '\n' +
     'function selectPkg(id){ ST.pkgId=id; ST.pkg=(PRICING[ST.cat].packages||[]).find(function(p){return p.id===id;})||{id:id}; selected.push(id); if(ST.pkg && currentBkStep < 3 && !ST._restoring && !ST._holdPackageStep) bkContinueFromPackage(); }',

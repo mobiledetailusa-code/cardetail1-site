@@ -291,7 +291,8 @@ describe('shared first broken boundary: tryGenericConfirm uses ST.cat', () => {
   it('Cars control path does not depend on tryGenericConfirm generic search', () => {
     const fn = extractFunction(index, 'selectMake');
     assert.match(fn, /function selectMake/);
-    assert.doesNotMatch(extractFunction(index, 'tryGenericConfirm'), /ST\.cat==='cars'/);
+    // Cars must early-return from tryGenericConfirm so leftover g-make never prices cars.
+    assert.match(extractFunction(index, 'tryGenericConfirm'), /if\(ST\.cat==='cars'\) return/);
     assert.match(index, /id="make-search-wrap"/);
     assert.match(extractFunction(index, 'renderTierChips'), /const isCar=cat==='cars'/);
   });
