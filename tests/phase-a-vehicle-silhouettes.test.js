@@ -234,11 +234,40 @@ test('John Deere Gator is in specialty catalog and maps to UTV', () => {
   assert.equal(api.getVehicleVisualKey(), 'utv');
   // Pricing tier inference
   const inferStart = index.indexOf('function inferPowersportsTier');
-  const inferChunk = index.slice(inferStart, inferStart + 900);
+  const inferChunk = index.slice(inferStart, inferStart + 1800);
   assert.match(inferChunk, /gator\|xuv\|rsx\|john deere\|deere/);
+});
+
+test('Kubota, golf carts, and equipment expand powersports catalog', () => {
+  assert.match(index, /"Kubota"\s*:\s*\[/);
+  assert.match(index, /RTV-X900/);
+  assert.match(index, /"Club Car"\s*:\s*\[/);
+  assert.match(index, /"E-Z-GO"\s*:\s*\[/);
+  assert.match(index, /"Bobcat"\s*:\s*\[/);
+  assert.match(index, /golfcart:\s*\{label:'Golf Cart'/);
+  assert.match(index, /equipment:\s*\{label:'Tractor \/ Equipment'/);
+
+  const { api, ST } = loadVisualRuntime();
+  ST.cat = 'powersports';
+  ST.tierKey = 'motorcycle';
+
+  ST.vehicleLabel = '2024 Kubota RTV-X900';
+  assert.equal(api.getVehicleVisualKey(), 'utv');
+
+  ST.vehicleLabel = '2023 Club Car Onward';
+  assert.equal(api.getVehicleVisualKey(), 'golfcart');
+
+  ST.vehicleLabel = '2022 Bobcat S70 Skid Steer';
+  assert.equal(api.getVehicleVisualKey(), 'equipment');
+
+  const inferStart = index.indexOf('function inferPowersportsTier');
+  const inferChunk = index.slice(inferStart, inferStart + 1800);
+  assert.match(inferChunk, /return 'golfcart'/);
+  assert.match(inferChunk, /return 'equipment'/);
+  assert.match(inferChunk, /rtv\|kubota/);
 });
 
 test('powersports confirm still lets UTV/ATV override stale Motorcycle', () => {
   assert.match(index, /if\(ST\.cat==='powersports'\)\{\s*const inferred=inferPowersportsTier/);
-  assert.match(index, /inferred==='utv' \|\| inferred==='atv'/);
+  assert.match(index, /inferred==='utv' \|\| inferred==='atv' \|\| inferred==='golfcart' \|\| inferred==='equipment'/);
 });
