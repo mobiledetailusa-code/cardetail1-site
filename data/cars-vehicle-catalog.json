@@ -75,6 +75,22 @@
     },
     {
       "make": "Acura",
+      "model": "NSX",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Acura",
       "model": "RDX",
       "aliases": [],
       "years": [
@@ -123,22 +139,6 @@
     },
     {
       "make": "Acura",
-      "model": "NSX",
-      "aliases": [],
-      "years": [
-        {
-          "from": 1990,
-          "to": 2027,
-          "class": "small",
-          "rows": null
-        }
-      ],
-      "pricingClass": "small",
-      "displayClass": "small",
-      "public": true
-    },
-    {
-      "make": "Acura",
       "model": "ZDX",
       "aliases": [],
       "years": [
@@ -151,6 +151,22 @@
       ],
       "pricingClass": "suv2",
       "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Alfa Romeo",
+      "model": "4C Spider",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
       "public": true
     },
     {
@@ -202,8 +218,8 @@
       "public": true
     },
     {
-      "make": "Alfa Romeo",
-      "model": "4C Spider",
+      "make": "Aston Martin",
+      "model": "DB11",
       "aliases": [],
       "years": [
         {
@@ -219,7 +235,7 @@
     },
     {
       "make": "Aston Martin",
-      "model": "DB11",
+      "model": "DBS",
       "aliases": [],
       "years": [
         {
@@ -247,22 +263,6 @@
       ],
       "pricingClass": "suv2",
       "displayClass": "suv2",
-      "public": true
-    },
-    {
-      "make": "Aston Martin",
-      "model": "DBS",
-      "aliases": [],
-      "years": [
-        {
-          "from": 1990,
-          "to": 2027,
-          "class": "small",
-          "rows": null
-        }
-      ],
-      "pricingClass": "small",
-      "displayClass": "small",
       "public": true
     },
     {
@@ -379,7 +379,39 @@
     },
     {
       "make": "Audi",
+      "model": "e-tron",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Audi",
       "model": "Q3",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Audi",
+      "model": "Q4 e-tron",
       "aliases": [],
       "years": [
         {
@@ -439,22 +471,6 @@
       ],
       "pricingClass": "suv3",
       "displayClass": "suv3",
-      "public": true
-    },
-    {
-      "make": "Audi",
-      "model": "e-tron",
-      "aliases": [],
-      "years": [
-        {
-          "from": 1990,
-          "to": 2027,
-          "class": "suv2",
-          "rows": 2
-        }
-      ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
       "public": true
     },
     {
@@ -715,6 +731,86 @@
     },
     {
       "make": "BMW",
+      "model": "i3",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "BMW",
+      "model": "i4",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "BMW",
+      "model": "i5",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "BMW",
+      "model": "i7",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "BMW",
+      "model": "iX",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "BMW",
       "model": "M2",
       "aliases": [],
       "years": [
@@ -938,70 +1034,6 @@
       "public": true
     },
     {
-      "make": "BMW",
-      "model": "iX",
-      "aliases": [],
-      "years": [
-        {
-          "from": 1990,
-          "to": 2027,
-          "class": "suv2",
-          "rows": 2
-        }
-      ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
-      "public": true
-    },
-    {
-      "make": "BMW",
-      "model": "i4",
-      "aliases": [],
-      "years": [
-        {
-          "from": 1990,
-          "to": 2027,
-          "class": "small",
-          "rows": null
-        }
-      ],
-      "pricingClass": "small",
-      "displayClass": "small",
-      "public": true
-    },
-    {
-      "make": "BMW",
-      "model": "i5",
-      "aliases": [],
-      "years": [
-        {
-          "from": 1990,
-          "to": 2027,
-          "class": "small",
-          "rows": null
-        }
-      ],
-      "pricingClass": "small",
-      "displayClass": "small",
-      "public": true
-    },
-    {
-      "make": "BMW",
-      "model": "i7",
-      "aliases": [],
-      "years": [
-        {
-          "from": 1990,
-          "to": 2027,
-          "class": "small",
-          "rows": null
-        }
-      ],
-      "pricingClass": "small",
-      "displayClass": "small",
-      "public": true
-    },
-    {
       "make": "Buick",
       "model": "Enclave",
       "aliases": [],
@@ -1068,6 +1100,22 @@
     {
       "make": "Buick",
       "model": "LaCrosse",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Buick",
+      "model": "Regal",
       "aliases": [],
       "years": [
         {
@@ -1163,6 +1211,22 @@
     },
     {
       "make": "Cadillac",
+      "model": "SRX",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Cadillac",
       "model": "XT4",
       "aliases": [],
       "years": [
@@ -1227,6 +1291,54 @@
     },
     {
       "make": "Chevrolet",
+      "model": "Blazer EV",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Chevrolet",
+      "model": "Bolt EUV",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Chevrolet",
+      "model": "Bolt EV",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Chevrolet",
       "model": "Camaro",
       "aliases": [],
       "years": [
@@ -1275,7 +1387,39 @@
     },
     {
       "make": "Chevrolet",
+      "model": "Cruze",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Chevrolet",
       "model": "Equinox",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Chevrolet",
+      "model": "Equinox EV",
       "aliases": [],
       "years": [
         {
@@ -1297,12 +1441,28 @@
         {
           "from": 1990,
           "to": 2027,
-          "class": "truck",
+          "class": "full_size_van",
           "rows": null
         }
       ],
-      "pricingClass": "truck",
-      "displayClass": "truck",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
+      "public": true
+    },
+    {
+      "make": "Chevrolet",
+      "model": "Impala",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
       "public": true
     },
     {
@@ -1367,6 +1527,38 @@
       ],
       "pricingClass": "truck",
       "displayClass": "truck",
+      "public": true
+    },
+    {
+      "make": "Chevrolet",
+      "model": "Silverado EV",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "truck",
+          "rows": null
+        }
+      ],
+      "pricingClass": "truck",
+      "displayClass": "truck",
+      "public": true
+    },
+    {
+      "make": "Chevrolet",
+      "model": "Spark",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
       "public": true
     },
     {
@@ -1483,6 +1675,22 @@
     },
     {
       "make": "Chrysler",
+      "model": "Town & Country",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "minivan",
+      "public": true
+    },
+    {
+      "make": "Chrysler",
       "model": "Voyager",
       "aliases": [],
       "years": [
@@ -1575,6 +1783,38 @@
       ],
       "pricingClass": "suv2",
       "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Dodge",
+      "model": "Journey",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
+      "public": true
+    },
+    {
+      "make": "Dodge",
+      "model": "Sprinter",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null
+        }
+      ],
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
       "public": true
     },
     {
@@ -1707,7 +1947,7 @@
     },
     {
       "make": "FIAT",
-      "model": "500X",
+      "model": "500L",
       "aliases": [],
       "years": [
         {
@@ -1723,7 +1963,7 @@
     },
     {
       "make": "FIAT",
-      "model": "500L",
+      "model": "500X",
       "aliases": [],
       "years": [
         {
@@ -1736,6 +1976,26 @@
       "pricingClass": "suv2",
       "displayClass": "suv2",
       "public": true
+    },
+    {
+      "make": "Fixture",
+      "model": "Full-Size Van Example",
+      "aliases": [
+        "Full Size Van Example"
+      ],
+      "years": [
+        {
+          "from": 2015,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null,
+          "subtype": "cargo"
+        }
+      ],
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
+      "public": false,
+      "notes": "Schema proof only — not customer-visible until Phase 2/3 van coverage."
     },
     {
       "make": "Ford",
@@ -1767,6 +2027,22 @@
       ],
       "pricingClass": "suv2",
       "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Ford",
+      "model": "E-Series",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null
+        }
+      ],
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
       "public": true
     },
     {
@@ -1886,6 +2162,70 @@
     },
     {
       "make": "Ford",
+      "model": "Fiesta",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ford",
+      "model": "Flex",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
+      "public": true
+    },
+    {
+      "make": "Ford",
+      "model": "Focus",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ford",
+      "model": "Fusion",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ford",
       "model": "Maverick",
       "aliases": [],
       "years": [
@@ -1924,12 +2264,12 @@
         {
           "from": 1990,
           "to": 2027,
-          "class": "small",
-          "rows": null
+          "class": "suv2",
+          "rows": 2
         }
       ],
-      "pricingClass": "small",
-      "displayClass": "small",
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
       "public": true
     },
     {
@@ -1950,18 +2290,34 @@
     },
     {
       "make": "Ford",
+      "model": "Taurus",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ford",
       "model": "Transit",
       "aliases": [],
       "years": [
         {
           "from": 1990,
           "to": 2027,
-          "class": "truck",
+          "class": "full_size_van",
           "rows": null
         }
       ],
-      "pricingClass": "truck",
-      "displayClass": "truck",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
       "public": true
     },
     {
@@ -1972,12 +2328,12 @@
         {
           "from": 1990,
           "to": 2027,
-          "class": "truck",
-          "rows": null
+          "class": "suv2",
+          "rows": 2
         }
       ],
-      "pricingClass": "truck",
-      "displayClass": "truck",
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
       "public": true
     },
     {
@@ -2030,6 +2386,22 @@
     },
     {
       "make": "Genesis",
+      "model": "GV60",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Genesis",
       "model": "GV70",
       "aliases": [],
       "years": [
@@ -2058,22 +2430,6 @@
       ],
       "pricingClass": "suv3",
       "displayClass": "suv3",
-      "public": true
-    },
-    {
-      "make": "Genesis",
-      "model": "GV60",
-      "aliases": [],
-      "years": [
-        {
-          "from": 1990,
-          "to": 2027,
-          "class": "suv2",
-          "rows": 2
-        }
-      ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
       "public": true
     },
     {
@@ -2106,6 +2462,38 @@
       ],
       "pricingClass": "truck",
       "displayClass": "truck",
+      "public": true
+    },
+    {
+      "make": "GMC",
+      "model": "Hummer EV",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
+      "public": true
+    },
+    {
+      "make": "GMC",
+      "model": "Savana",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null
+        }
+      ],
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
       "public": true
     },
     {
@@ -2270,6 +2658,38 @@
     },
     {
       "make": "Honda",
+      "model": "Element",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Honda",
+      "model": "Fit",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Honda",
       "model": "HR-V",
       "aliases": [],
       "years": [
@@ -2383,6 +2803,22 @@
     {
       "make": "Hyundai",
       "model": "Elantra",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Hyundai",
+      "model": "Ioniq",
       "aliases": [],
       "years": [
         {
@@ -2980,6 +3416,38 @@
     },
     {
       "make": "Kia",
+      "model": "Optima",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Kia",
+      "model": "Sedona",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "minivan",
+      "public": true
+    },
+    {
+      "make": "Kia",
       "model": "Seltos",
       "aliases": [],
       "years": [
@@ -3092,22 +3560,6 @@
     },
     {
       "make": "Lamborghini",
-      "model": "Urus",
-      "aliases": [],
-      "years": [
-        {
-          "from": 1990,
-          "to": 2027,
-          "class": "suv2",
-          "rows": 2
-        }
-      ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
-      "public": true
-    },
-    {
-      "make": "Lamborghini",
       "model": "Revuelto",
       "aliases": [],
       "years": [
@@ -3120,6 +3572,22 @@
       ],
       "pricingClass": "small",
       "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Lamborghini",
+      "model": "Urus",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
       "public": true
     },
     {
@@ -3412,6 +3880,22 @@
     },
     {
       "make": "Lexus",
+      "model": "TX",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
+      "public": true
+    },
+    {
+      "make": "Lexus",
       "model": "UX",
       "aliases": [],
       "years": [
@@ -3460,6 +3944,38 @@
     },
     {
       "make": "Lincoln",
+      "model": "MKX",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Lincoln",
+      "model": "MKZ",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Lincoln",
       "model": "Nautilus",
       "aliases": [],
       "years": [
@@ -3493,6 +4009,38 @@
     {
       "make": "Lincoln",
       "model": "Navigator L",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
+      "public": true
+    },
+    {
+      "make": "Lucid",
+      "model": "Air",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Lucid",
+      "model": "Gravity",
       "aliases": [],
       "years": [
         {
@@ -3684,6 +4232,22 @@
     },
     {
       "make": "Mazda",
+      "model": "CX-9",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
+      "public": true
+    },
+    {
+      "make": "Mazda",
       "model": "CX-90",
       "aliases": [],
       "years": [
@@ -3732,22 +4296,6 @@
     },
     {
       "make": "Mazda",
-      "model": "MX-5 Miata",
-      "aliases": [],
-      "years": [
-        {
-          "from": 1990,
-          "to": 2027,
-          "class": "small",
-          "rows": null
-        }
-      ],
-      "pricingClass": "small",
-      "displayClass": "small",
-      "public": true
-    },
-    {
-      "make": "Mazda",
       "model": "MX-30",
       "aliases": [],
       "years": [
@@ -3760,6 +4308,22 @@
       ],
       "pricingClass": "suv2",
       "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Mazda",
+      "model": "MX-5 Miata",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
       "public": true
     },
     {
@@ -3861,6 +4425,22 @@
     {
       "make": "Mercedes-Benz",
       "model": "A-Class",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Mercedes-Benz",
+      "model": "AMG GT",
       "aliases": [],
       "years": [
         {
@@ -4100,6 +4680,22 @@
     },
     {
       "make": "Mercedes-Benz",
+      "model": "Metris",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Mercedes-Benz",
       "model": "S-Class",
       "aliases": [],
       "years": [
@@ -4132,18 +4728,18 @@
     },
     {
       "make": "Mercedes-Benz",
-      "model": "AMG GT",
+      "model": "Sprinter",
       "aliases": [],
       "years": [
         {
           "from": 1990,
           "to": 2027,
-          "class": "small",
+          "class": "full_size_van",
           "rows": null
         }
       ],
-      "pricingClass": "small",
-      "displayClass": "small",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
       "public": true
     },
     {
@@ -4266,12 +4862,12 @@
         {
           "from": 1990,
           "to": 2027,
-          "class": "suv2",
-          "rows": 2
+          "class": "suv3",
+          "rows": 3
         }
       ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
       "public": true
     },
     {
@@ -4320,6 +4916,22 @@
       ],
       "pricingClass": "small",
       "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Nissan",
+      "model": "Ariya",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
       "public": true
     },
     {
@@ -4404,7 +5016,55 @@
     },
     {
       "make": "Nissan",
+      "model": "Maxima",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Nissan",
       "model": "Murano",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Nissan",
+      "model": "NV",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null
+        }
+      ],
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
+      "public": true
+    },
+    {
+      "make": "Nissan",
+      "model": "NV200",
       "aliases": [],
       "years": [
         {
@@ -4432,6 +5092,22 @@
       ],
       "pricingClass": "suv3",
       "displayClass": "suv3",
+      "public": true
+    },
+    {
+      "make": "Nissan",
+      "model": "Quest",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "minivan",
       "public": true
     },
     {
@@ -4528,6 +5204,54 @@
       ],
       "pricingClass": "small",
       "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Polestar",
+      "model": "2",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Polestar",
+      "model": "3",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Polestar",
+      "model": "4",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
       "public": true
     },
     {
@@ -4698,17 +5422,49 @@
         {
           "from": 1990,
           "to": 2027,
-          "class": "truck",
+          "class": "full_size_van",
           "rows": null
         }
       ],
-      "pricingClass": "truck",
-      "displayClass": "truck",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
       "public": true
     },
     {
       "make": "Ram",
       "model": "ProMaster City",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Rivian",
+      "model": "R1S",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
+      "public": true
+    },
+    {
+      "make": "Rivian",
+      "model": "R1T",
       "aliases": [],
       "years": [
         {
@@ -4964,6 +5720,22 @@
     },
     {
       "make": "Tesla",
+      "model": "Cybertruck",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "truck",
+          "rows": null
+        }
+      ],
+      "pricingClass": "truck",
+      "displayClass": "truck",
+      "public": true
+    },
+    {
+      "make": "Tesla",
       "model": "Model 3",
       "aliases": [],
       "years": [
@@ -5027,22 +5799,6 @@
       "public": true
     },
     {
-      "make": "Tesla",
-      "model": "Cybertruck",
-      "aliases": [],
-      "years": [
-        {
-          "from": 1990,
-          "to": 2027,
-          "class": "truck",
-          "rows": null
-        }
-      ],
-      "pricingClass": "truck",
-      "displayClass": "truck",
-      "public": true
-    },
-    {
       "make": "Toyota",
       "model": "4Runner",
       "aliases": [],
@@ -5050,12 +5806,12 @@
         {
           "from": 1990,
           "to": 2027,
-          "class": "suv3",
-          "rows": 3
+          "class": "suv2",
+          "rows": 2
         }
       ],
-      "pricingClass": "suv3",
-      "displayClass": "suv3",
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
       "public": true
     },
     {
@@ -5156,6 +5912,22 @@
     },
     {
       "make": "Toyota",
+      "model": "Corolla Cross",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Toyota",
       "model": "Crown",
       "aliases": [],
       "years": [
@@ -5172,18 +5944,18 @@
     },
     {
       "make": "Toyota",
-      "model": "GR86",
+      "model": "Crown Signia",
       "aliases": [],
       "years": [
         {
           "from": 1990,
           "to": 2027,
-          "class": "small",
-          "rows": null
+          "class": "suv2",
+          "rows": 2
         }
       ],
-      "pricingClass": "small",
-      "displayClass": "small",
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
       "public": true
     },
     {
@@ -5216,6 +5988,38 @@
       ],
       "pricingClass": "small",
       "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Toyota",
+      "model": "GR86",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Toyota",
+      "model": "Grand Highlander",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
       "public": true
     },
     {
@@ -5466,17 +6270,33 @@
         {
           "from": 1990,
           "to": 2027,
-          "class": "suv2",
-          "rows": 2
+          "class": "suv3",
+          "rows": 3
         }
       ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
+      "pricingClass": "suv3",
+      "displayClass": "minivan",
       "public": true
     },
     {
       "make": "Volkswagen",
       "model": "Jetta",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Volkswagen",
+      "model": "Passat",
       "aliases": [],
       "years": [
         {
@@ -5536,6 +6356,38 @@
       ],
       "pricingClass": "suv2",
       "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Volvo",
+      "model": "EX30",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Volvo",
+      "model": "EX90",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
       "public": true
     },
     {
@@ -5649,26 +6501,6 @@
       "pricingClass": "suv3",
       "displayClass": "suv3",
       "public": true
-    },
-    {
-      "make": "Fixture",
-      "model": "Full-Size Van Example",
-      "aliases": [
-        "Full Size Van Example"
-      ],
-      "years": [
-        {
-          "from": 2015,
-          "to": 2027,
-          "class": "full_size_van",
-          "rows": null,
-          "subtype": "cargo"
-        }
-      ],
-      "pricingClass": "full_size_van",
-      "displayClass": "full_size_van",
-      "public": false,
-      "notes": "Schema proof only — not customer-visible until Phase 2/3 van coverage."
     }
   ]
 }

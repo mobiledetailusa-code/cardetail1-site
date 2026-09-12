@@ -188,6 +188,7 @@ function catalogForClient() {
       { id: 'small', label: 'Small Car' },
       { id: 'suv2', label: 'SUV 2-Row' },
       { id: 'suv3', label: 'SUV 3-Row' },
+      { id: 'full_size_van', label: 'Full-Size Van' },
       { id: 'truck', label: 'Truck' },
     ],
     fleetPlans: FLEET_PLANS.map(f => ({
