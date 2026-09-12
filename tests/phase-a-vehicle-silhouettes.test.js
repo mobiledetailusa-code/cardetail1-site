@@ -15,10 +15,11 @@ const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const icon3d = fs.readFileSync(path.join(root, 'assets/icon-3d.js'), 'utf8');
 
 const REQUIRED = [
-  'sedan.webp','coupe.webp','convertible.webp','wagon.webp','offroad-suv.webp',
+  'sedan.webp','coupe.webp','supercar.webp','convertible.webp','wagon.webp','offroad-suv.webp',
+  'luxury-suv.webp','luxury-sedan.webp',
   'suv-crossover.webp','suv-3row.webp','minivan.webp',
   'compact-van.webp','midsize-van.webp','cargo-van.webp','passenger-van.webp','truck.webp',
-  'motorcycle.webp','cruiser.webp','sportbike.webp','dirtbike.webp','scooter.webp',
+  'motorcycle.webp','cruiser.webp','sportbike.webp','adventure-bike.webp','dirtbike.webp','scooter.webp',
   'atv.webp','utv.webp','golf-cart.webp','jetski.webp',
   'runabout.webp','pontoon.webp','bass-boat.webp','cabin-cruiser.webp','sailboat.webp',
   'rv-class-a.webp','rv-class-b.webp','travel-trailer.webp','fifth-wheel.webp','airstream.webp',
@@ -45,7 +46,7 @@ function loadVisualRuntime() {
   assert.ok(start > 0 && end > start);
   const chunk =
     index.slice(start, end) +
-    '\n;({VEHICLE_VISUALS,TIER_VISUAL_KEYS,MODEL_MAP,PRECISION_VISUAL_KEYS,modelMapVisual,getVehicleVisualKey});';
+    '\n;({VEHICLE_VISUALS,TIER_VISUAL_KEYS,MODEL_MAP,PRECISION_VISUAL_KEYS,modelMapVisual,makeVisualHint,getVehicleVisualKey});';
   const sandbox = {
     ST: { cat: 'cars', tierKey: '', vehicleLabel: '', body: null, boatType: '', rvType: '' },
   };
@@ -168,6 +169,61 @@ test('precision across categories: cars, powersports, boats, rvs', () => {
   ST.rvType = 'classb';
   ST.vehicleLabel = '2022 Winnebago Travato';
   assert.equal(getVehicleVisualKey(), 'classb');
+});
+
+test('premium brands map to supercar / luxury SUV / luxury sedan', () => {
+  const { api, ST } = loadVisualRuntime();
+  const { getVehicleVisualKey } = api;
+  ST.cat = 'cars';
+  ST.body = null;
+
+  ST.tierKey = 'small';
+  ST.vehicleLabel = '2023 Ferrari Roma';
+  assert.equal(getVehicleVisualKey(), 'supercar');
+
+  ST.vehicleLabel = '2024 Lamborghini Huracan';
+  assert.equal(getVehicleVisualKey(), 'supercar');
+
+  ST.vehicleLabel = '2022 McLaren 720S';
+  assert.equal(getVehicleVisualKey(), 'supercar');
+
+  ST.vehicleLabel = '2021 Porsche 911';
+  assert.equal(getVehicleVisualKey(), 'supercar');
+
+  ST.vehicleLabel = '2020 Aston Martin Vantage';
+  assert.equal(getVehicleVisualKey(), 'supercar');
+
+  ST.tierKey = 'suv2';
+  ST.vehicleLabel = '2023 Lamborghini Urus';
+  assert.equal(getVehicleVisualKey(), 'luxurysuv');
+
+  ST.vehicleLabel = '2022 Porsche Cayenne';
+  assert.equal(getVehicleVisualKey(), 'luxurysuv');
+
+  ST.vehicleLabel = '2021 Aston Martin DBX';
+  assert.equal(getVehicleVisualKey(), 'luxurysuv');
+
+  ST.tierKey = 'small';
+  ST.vehicleLabel = '2020 Porsche Panamera';
+  assert.equal(getVehicleVisualKey(), 'luxurysedan');
+
+  ST.vehicleLabel = '2019 Rolls-Royce Ghost';
+  assert.equal(getVehicleVisualKey(), 'luxurysedan');
+});
+
+test('John Deere Gator is in specialty catalog and maps to UTV', () => {
+  assert.match(index, /"John Deere"\s*:\s*\[/);
+  assert.match(index, /Gator XUV835M/);
+  assert.match(index, /john deere\|deere/);
+  const { api, ST } = loadVisualRuntime();
+  ST.cat = 'powersports';
+  ST.tierKey = 'motorcycle';
+  ST.vehicleLabel = '2024 John Deere Gator XUV835M';
+  assert.equal(api.getVehicleVisualKey(), 'utv');
+  // Pricing tier inference
+  const inferStart = index.indexOf('function inferPowersportsTier');
+  const inferChunk = index.slice(inferStart, inferStart + 900);
+  assert.match(inferChunk, /gator\|xuv\|rsx\|john deere\|deere/);
 });
 
 test('powersports confirm still lets UTV/ATV override stale Motorcycle', () => {

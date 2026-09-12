@@ -4033,11 +4033,14 @@ const VEHICLE_VISUALS = {
   sedan:         { img:'assets/vehicles/studio/sedan.webp',          alt:'Sedan' },
   midsize:       { img:'assets/vehicles/studio/sedan.webp',          alt:'Midsize car' },
   coupe:         { img:'assets/vehicles/studio/coupe.webp',          alt:'Sports coupe' },
+  supercar:      { img:'assets/vehicles/studio/supercar.webp',       alt:'Exotic supercar' },
   convertible:   { img:'assets/vehicles/studio/convertible.webp',    alt:'Convertible' },
   wagon:         { img:'assets/vehicles/studio/wagon.webp',          alt:'Wagon / crossover wagon' },
   suv:           { img:'assets/vehicles/studio/suv-crossover.webp',  alt:'Two-row SUV' },
   suv2:          { img:'assets/vehicles/studio/suv-crossover.webp',  alt:'Two-row SUV' },
   offroad:       { img:'assets/vehicles/studio/offroad-suv.webp',    alt:'Off-road SUV' },
+  luxurysuv:     { img:'assets/vehicles/studio/luxury-suv.webp',     alt:'Luxury performance SUV' },
+  luxurysedan:   { img:'assets/vehicles/studio/luxury-sedan.webp',   alt:'Luxury sedan' },
   'suv-3row':    { img:'assets/vehicles/studio/suv-3row.webp',       alt:'Three-row SUV' },
   suv3:          { img:'assets/vehicles/studio/suv-3row.webp',       alt:'Three-row SUV' },
   compact_van:   { img:'assets/vehicles/studio/compact-van.webp',    alt:'Compact van' },
@@ -4051,6 +4054,7 @@ const VEHICLE_VISUALS = {
   motorcycle:    { img:'assets/vehicles/studio/motorcycle.webp',     alt:'Motorcycle' },
   cruiser:       { img:'assets/vehicles/studio/cruiser.webp',        alt:'Cruiser motorcycle' },
   sportbike:     { img:'assets/vehicles/studio/sportbike.webp',      alt:'Sport motorcycle' },
+  adventure:     { img:'assets/vehicles/studio/adventure-bike.webp', alt:'Adventure motorcycle' },
   dirtbike:      { img:'assets/vehicles/studio/dirtbike.webp',       alt:'Dirt bike' },
   scooter:       { img:'assets/vehicles/studio/scooter.webp',        alt:'Scooter' },
   atv:           { img:'assets/vehicles/studio/atv.webp',            alt:'ATV' },
@@ -4098,12 +4102,45 @@ const TIER_VISUAL_KEYS = {
 // Body/style keys that should beat a generic pricing tier (e.g. Odyssey prices as suv3 but looks like a minivan).
 const PRECISION_VISUAL_KEYS = {
   minivan:1, compact:1, midsize:1, sedan:1, coupe:1, convertible:1, wagon:1, offroad:1, pickup:1,
-  cruiser:1, sportbike:1, dirtbike:1, scooter:1, utv:1, atv:1, jetski:1, motorcycle:1, golfcart:1,
+  supercar:1, luxurysuv:1, luxurysedan:1,
+  cruiser:1, sportbike:1, adventure:1, dirtbike:1, scooter:1, utv:1, atv:1, jetski:1, motorcycle:1, golfcart:1,
   pontoon:1, runabout:1, bassboat:1, cabincruiser:1, sailboat:1, yacht:1,
   classa:1, classb:1, classc:1, traveltrailer:1, fifthwheel:1, airstream:1, trailer:1
 };
 // [lowercase substring, visual key] — checked in order; first match wins
 const MODEL_MAP = [
+  // ── Premium / exotic highlights (before generic sedan/SUV matches) ──
+  // Ferrari
+  ['sf90','supercar'],['296 gtb','supercar'],['296 gts','convertible'],['f8','supercar'],
+  ['roma','supercar'],['portofino','convertible'],['gtc4lusso','luxurysuv'],['ferrari','supercar'],
+  // Lamborghini
+  ['huracán','supercar'],['huracan','supercar'],['revuelto','supercar'],['aventador','supercar'],
+  ['urus','luxurysuv'],['lamborghini','supercar'],
+  // McLaren
+  ['720s','supercar'],['765lt','supercar'],['600lt','supercar'],['570s','supercar'],
+  ['artura','supercar'],['mclaren gt','supercar'],['mclaren','supercar'],
+  // Porsche — SUVs before generic 911/sedan
+  ['cayenne','luxurysuv'],['macan','luxurysuv'],['panamera','luxurysedan'],['taycan cross','luxurysuv'],
+  ['taycan','luxurysedan'],['911','supercar'],['718 boxster','convertible'],['718 cayman','coupe'],
+  ['boxster','convertible'],['cayman','coupe'],['porsche','supercar'],
+  // Aston Martin
+  ['dbx','luxurysuv'],['db11','supercar'],['dbs','supercar'],['vantage','supercar'],['aston martin','supercar'],
+  // Bentley / Rolls-Royce / Maserati
+  ['bentayga','luxurysuv'],['continental gt','coupe'],['flying spur','luxurysedan'],['mulsanne','luxurysedan'],['bentley','luxurysedan'],
+  ['cullinan','luxurysuv'],['dawn','convertible'],['ghost','luxurysedan'],['phantom','luxurysedan'],
+  ['spectre','coupe'],['wraith','coupe'],['rolls-royce','luxurysedan'],['rolls royce','luxurysedan'],
+  ['grecale','luxurysuv'],['levante','luxurysuv'],['mc20','supercar'],['granturismo','coupe'],
+  ['ghibli','luxurysedan'],['quattroporte','luxurysedan'],['maserati','luxurysedan'],
+  // Other exotics / halo
+  ['corvette','supercar'],['gt-r','supercar'],['gtr','supercar'],['nsx','supercar'],['viper','supercar'],
+  ['amg gt','supercar'],['lfa','supercar'],['i8','supercar'],
+  // Adventure motorcycles
+  ['africa twin','adventure'],['multistrada','adventure'],['pan america','adventure'],
+  ['r 1250 gs','adventure'],['r 1300 gs','adventure'],['f 850 gs','adventure'],['f 900 gs','adventure'],
+  ['tiger 900','adventure'],['tiger 1200','adventure'],['tenere','adventure'],['super adventure','adventure'],
+  ['desertx','adventure'],['norden','adventure'],
+  // John Deere Gator / utility
+  ['gator','utv'],['xuv','utv'],['rsx','utv'],['john deere','utv'],['deere','utv'],
   // Coupes / sports cars (before sedan generics)
   ['mustang','coupe'],['camaro','coupe'],['challenger','coupe'],['corvette','coupe'],
   ['911','coupe'],['cayman','coupe'],['supra','coupe'],['brz','coupe'],['gr86','coupe'],
@@ -4224,6 +4261,25 @@ function modelMapVisual(lbl, allowSet){
   }
   return '';
 }
+
+// Premium make fallback when model substring did not already resolve a precise silhouette.
+function makeVisualHint(lbl){
+  const s=String(lbl||'').toLowerCase();
+  if(/ferrari|lamborghini|mclaren|bugatti|pagani|koenigsegg/.test(s)) return 'supercar';
+  if(/porsche/.test(s) && /cayenne|macan/.test(s)) return 'luxurysuv';
+  if(/porsche/.test(s)) return 'supercar';
+  if(/aston martin/.test(s) && /dbx/.test(s)) return 'luxurysuv';
+  if(/aston martin/.test(s)) return 'supercar';
+  if(/bentley/.test(s) && /bentayga/.test(s)) return 'luxurysuv';
+  if(/bentley/.test(s)) return 'luxurysedan';
+  if(/rolls-?royce/.test(s) && /cullinan/.test(s)) return 'luxurysuv';
+  if(/rolls-?royce/.test(s)) return 'luxurysedan';
+  if(/maserati/.test(s) && /levante|grecale/.test(s)) return 'luxurysuv';
+  if(/maserati/.test(s) && /mc20/.test(s)) return 'supercar';
+  if(/maserati/.test(s)) return 'luxurysedan';
+  if(/john deere|deere/.test(s)) return 'utv';
+  return '';
+}
 function getVehicleVisualKey(){
   const cat=ST.cat;
   if(cat==='boats'){
@@ -4258,8 +4314,10 @@ function getVehicleVisualKey(){
   }
   if(cat==='powersports'){
     const lbl=(ST.vehicleLabel||'').toLowerCase();
-    const fromModel=modelMapVisual(lbl, {cruiser:1,sportbike:1,dirtbike:1,scooter:1,utv:1,atv:1,jetski:1,golfcart:1,motorcycle:1});
+    const fromModel=modelMapVisual(lbl, {cruiser:1,sportbike:1,adventure:1,dirtbike:1,scooter:1,utv:1,atv:1,jetski:1,golfcart:1,motorcycle:1});
     if(fromModel) return fromModel;
+    const makeHint=makeVisualHint(lbl);
+    if(makeHint && VEHICLE_VISUALS[makeHint]) return makeHint;
     if(ST.tierKey==='jetski') return 'jetski';
     if(ST.tierKey==='utv') return 'utv';
     if(ST.tierKey==='atv') return 'atv';
@@ -4272,6 +4330,8 @@ function getVehicleVisualKey(){
   // Model-specific silhouette when more precise than the pricing tier.
   const precise=modelMapVisual(lbl, PRECISION_VISUAL_KEYS);
   if(precise) return precise;
+  const makeHint=makeVisualHint(lbl);
+  if(makeHint && VEHICLE_VISUALS[makeHint]) return makeHint;
   // Prefer the resolved pricing tier so cargo vs passenger vans (and SUV rows)
   // keep distinct silhouettes even when MODEL_MAP only knows a generic "van".
   if(ST.tierKey && TIER_VISUAL_KEYS[ST.tierKey]) return TIER_VISUAL_KEYS[ST.tierKey];
@@ -4342,6 +4402,7 @@ window.SPECIALTY_MODELS = {
     "Harley-Davidson":["Breakout","Fat Bob","Fat Boy","Heritage Classic","Iron 883","Low Rider S","Nightster","Pan America","Road Glide","Road King","Softail Standard","Sport Glide","Street Bob","Street Glide","Ultra Limited"],
     "Honda":["Africa Twin","CB500F","CB650R","CBR500R","CBR600RR","CBR1000RR","CRF110F","CRF250F","CRF300L","CRF450R","FourTrax Foreman","FourTrax Rancher","Gold Wing","Pioneer 500","Pioneer 700","Pioneer 1000","Rebel 300","Rebel 500","Rebel 1100","Rincon","Talon 1000","TRX250X"],
     "Husqvarna":["701 Enduro","701 Supermoto","FC 250","FC 450","FE 350","FE 501","Norden 901","Svartpilen","Vitpilen"],
+    "John Deere":["Gator HPX","Gator TH","Gator TS","Gator TX","Gator XUV560","Gator XUV590","Gator XUV835","Gator XUV835M","Gator XUV865","Gator RSX860"],
     "Indian Motorcycle":["Challenger","Chief","Chieftain","FTR","Pursuit","Roadmaster","Scout","Springfield"],
     "Kawasaki":["Brute Force 300","Brute Force 750","Concours 14","Jet Ski STX 160","Jet Ski SX-R","Jet Ski Ultra 160","Jet Ski Ultra 310","KLR650","KX250","KX450","Mule Pro-DXT","Mule Pro-FXT","Ninja 400","Ninja 500","Ninja 650","Ninja ZX-6R","Ninja ZX-10R","Teryx","Teryx KRX 1000","Versys 650","Vulcan S","Z650","Z900"],
     "KTM":["250 SX-F","300 XC-W","350 EXC-F","450 SX-F","690 Enduro R","790 Adventure","890 Adventure","1290 Super Adventure","Duke 390","Duke 790","Duke 890","RC 390"],
@@ -5084,7 +5145,8 @@ function inferPowersportsTier(make, model){
   const name=String(model||'').trim();
   if(!name) return '';
   const blob=(String(make||'')+' '+name).toLowerCase();
-  if(/pioneer|talon|ranger|rzr|general|defender|commander|maverick|mule|teryx|wolverine|viking|uforce|zforce|prowler|wildcat|slingshot/.test(blob)) return 'utv';
+  // UTV / side-by-side (incl. John Deere Gator utility)
+  if(/pioneer|talon|ranger|rzr|general|defender|commander|maverick|mule|teryx|wolverine|viking|uforce|zforce|prowler|wildcat|slingshot|gator|xuv|rsx|john deere|deere/.test(blob)) return 'utv';
   if(/fourtrax|trx|outlander|renegade|sportsman|scrambler 850|grizzly|kodiak|alterra|cforce|kingquad|brute force|raptor|rincon|foreman|rancher/.test(blob)) return 'atv';
   return 'motorcycle';
 }
