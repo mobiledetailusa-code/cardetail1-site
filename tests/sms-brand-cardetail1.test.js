@@ -374,7 +374,10 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
   it('15. booking/payment behavior unchanged', async () => {
     const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
     assert.doesNotMatch(diff, /stripe/i);
-    assert.doesNotMatch(diff, /payment-authority|refund-adjustment|canonical-quote|receipt-projection/);
+    // Brand/SMS work must not rewrite refund, quote, or receipt projection authority.
+    // payment-authority-service.js may gain non-brand reconcile helpers on other
+    // lifecycle PRs; those are covered by stale-payment-attempt tests.
+    assert.doesNotMatch(diff, /refund-adjustment|canonical-quote|receipt-projection/);
     assert.equal(BUSINESS.name, 'Detailing Zone L.L.C.');
     assert.equal(RECEIPT_FOOTER, 'Thank you for choosing Detailing Zone.');
     const payment = buildPaymentReceivedEmail({
