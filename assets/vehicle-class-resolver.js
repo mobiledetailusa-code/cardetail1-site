@@ -6,9 +6,9 @@
  * Falls back to legacy MODELS.t + local minivan/year maps only if catalog is absent.
  *
  * One resolution feeds both customer-facing display and pricing tierKey.
- * Pricing catalog keys remain: small | suv2 | suv3 | truck
+ * Pricing catalog keys remain: small | suv2 | suv3 | full_size_van | truck
  * (there is no separate minivan price key — minivans price as suv3).
- * full_size_van is reserved in the catalog schema for Phase 2/3.
+ * full_size_van is an active pricing class (minivan/suv3 +10%, $5 round).
  *
  * Catalog base map historically lived in page MODELS[make].t[model].
  * Phase 1 pages still receive generated MODELS for UI lists, but classification
@@ -34,9 +34,13 @@
     'Dodge|Grand Caravan',
     'Chrysler|Pacifica',
     'Chrysler|Voyager',
+    'Chrysler|Town & Country',
     'Honda|Odyssey',
     'Toyota|Sienna',
     'Kia|Carnival',
+    'Kia|Sedona',
+    'Nissan|Quest',
+    'Volkswagen|ID.Buzz',
   ]);
 
   const YEAR_OVERRIDES = {
