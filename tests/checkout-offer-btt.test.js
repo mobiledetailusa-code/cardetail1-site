@@ -18,6 +18,14 @@ const {
   WELCOME_OFFER_ID,
 } = require('../netlify/lib/booking-offers');
 const { getOfferConfig, evaluateOffers } = require('../netlify/lib/revenue-offers');
+const { setOpsStoreOverride } = require('../netlify/lib/ops-db');
+
+function emptyOpsStore() {
+  return {
+    async list() { return { blobs: [] }; },
+    async get() { return null; },
+  };
+}
 
 describe('six-step checkout', () => {
   it('index exposes exactly six progress steps', () => {
@@ -68,6 +76,10 @@ describe('WELCOME10 server offer', () => {
     vehicles: [{ cat: 'cars', pkgId: 'interior', subtotal: 225 }],
   };
 
+  const { beforeEach, afterEach } = require('node:test');
+  beforeEach(() => setOpsStoreOverride(emptyOpsStore()));
+  afterEach(() => setOpsStoreOverride(null));
+
   it('is disabled by default', () => {
     delete process.env.FIRST_BOOKING_OFFER_ENABLED;
     assert.equal(getOfferConfig().firstBooking.enabled, false);
@@ -76,6 +88,7 @@ describe('WELCOME10 server offer', () => {
   it('eligible new customer receives 10% up to $40 cap', async () => {
     process.env.FIRST_BOOKING_OFFER_ENABLED = 'true';
     const preview = await evaluateBookingOfferPreview(baseBooking);
+    assert.equal(preview.ok, true);
     assert.equal(preview.offer.eligibility_status, 'eligible');
     assert.equal(preview.offer.discount_amount, 2250);
     assert.equal(preview.offer.percent, 10);

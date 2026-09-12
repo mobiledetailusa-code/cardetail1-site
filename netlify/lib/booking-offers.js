@@ -2,8 +2,12 @@
 
 const { evaluateOffers, getOfferConfig, isEligiblePackage } = require('./revenue-offers');
 const { hasWelcomeLeadCapture } = require('./welcome-lead-store');
+const {
+  findWelcomeOfferRedemption,
+  claimWelcomeOfferRedemption,
+} = require('./welcome-offer-redemption');
 const { normalizePhone } = require('./ops-db');
-const { listBookingHistoryForBooking } = require('./booking-history');
+const bookingHistory = require('./booking-history');
 
 const OFFER_VERSION = 'WELCOME10-v1';
 const WELCOME_OFFER_ID = 'first_booking_welcome';
@@ -141,7 +145,43 @@ function stripClientOfferFields(booking) {
 async function buildOfferEvaluationContext(booking) {
   // Customer-scoped: hydrating the whole booking store here used to push
   // submit-booking past the Netlify function timeout. See booking-history.js.
-  const history = await listBookingHistoryForBooking(booking).catch(() => ({ bookings: [] }));
+  // Fail-closed: never treat a failed history/redemption lookup as "no prior use".
+  const history = await bookingHistory.listBookingHistoryForOfferEligibility(booking);
+  if (!history.ok) {
+    return {
+      eligibleSubtotalCents: computeEligibleServiceSubtotalCents(booking),
+      vehicleCount: 1,
+      sameLocationSameVisit: false,
+      priorCompletedServices: 0,
+      priorOfferRedeemed: false,
+      packageId: '',
+      category: '',
+      isCommercial: false,
+      isCustomQuote: false,
+      alreadyDiscounted: false,
+      historyUnavailable: true,
+      redemptionLookupUnavailable: false,
+    };
+  }
+
+  const redemption = await findWelcomeOfferRedemption(booking.email);
+  if (!redemption.ok) {
+    return {
+      eligibleSubtotalCents: computeEligibleServiceSubtotalCents(booking),
+      vehicleCount: 1,
+      sameLocationSameVisit: false,
+      priorCompletedServices: 0,
+      priorOfferRedeemed: false,
+      packageId: '',
+      category: '',
+      isCommercial: false,
+      isCustomQuote: false,
+      alreadyDiscounted: false,
+      historyUnavailable: false,
+      redemptionLookupUnavailable: true,
+    };
+  }
+
   const bookings = history.bookings || [];
   const eligibleSubtotalCents = computeEligibleServiceSubtotalCents(booking);
   const pv = primaryVehicle(booking);
@@ -149,7 +189,8 @@ async function buildOfferEvaluationContext(booking) {
     ? booking.vehicles.length
     : 1;
   const priorCompletedServices = countPriorCompletedServices(bookings, booking);
-  const priorRedeemed = hasPriorWelcomeRedemption(bookings, booking);
+  const priorRedeemed = !!(redemption.record)
+    || hasPriorWelcomeRedemption(bookings, booking);
 
   return {
     eligibleSubtotalCents,
@@ -162,6 +203,8 @@ async function buildOfferEvaluationContext(booking) {
     isCommercial: ['fleet', 'commercial'].includes(String(booking.vehicleCategory || '').toLowerCase()),
     isCustomQuote: isCustomQuoteBooking(booking),
     alreadyDiscounted: false,
+    historyUnavailable: false,
+    redemptionLookupUnavailable: false,
   };
 }
 
@@ -206,7 +249,8 @@ function formatSelectedOffer(selected, ctx, sourceTrigger) {
 
 async function evaluateBookingOfferPreview(booking, { sourceTrigger = null } = {}) {
   const cfg = getOfferConfig();
-  const ctx = await buildOfferEvaluationContext(booking);
+
+  // No entitlement path → no history required (offer stays disabled).
   const balloonClaimed = !cfg.firstBooking.enabled
     ? await hasWelcomeLeadCapture(booking.email)
     : false;
@@ -215,8 +259,28 @@ async function evaluateBookingOfferPreview(booking, { sourceTrigger = null } = {
     : cfg;
 
   if (!offerCfg.firstBooking.enabled) {
-    return { ok: true, offer: ineligibleResult('offer_disabled', ctx, cfg), travelExcluded: true };
+    const emptyCtx = {
+      eligibleSubtotalCents: computeEligibleServiceSubtotalCents(booking),
+      priorCompletedServices: 0,
+    };
+    return {
+      ok: true,
+      offer: ineligibleResult('offer_disabled', emptyCtx, cfg),
+      travelExcluded: true,
+    };
   }
+
+  // Entitlement may apply — redemption history must be readable (fail closed).
+  const ctx = await buildOfferEvaluationContext(booking);
+  if (ctx.historyUnavailable || ctx.redemptionLookupUnavailable) {
+    return {
+      ok: false,
+      error: 'offer_redemption_lookup_unavailable',
+      offer: ineligibleResult('redemption_lookup_unavailable', ctx, cfg),
+      travelExcluded: true,
+    };
+  }
+
   if (ctx.isCustomQuote) {
     return { ok: true, offer: ineligibleResult('custom_quote_excluded', ctx, cfg) };
   }
@@ -243,16 +307,32 @@ async function evaluateBookingOfferPreview(booking, { sourceTrigger = null } = {
   };
 }
 
+function offerApplyError(code, message) {
+  const err = new Error(message || code);
+  err.code = code;
+  return err;
+}
+
 /**
  * Apply server offer after travel/pricing validation.
  * @param {object} booking — mutated in place
- * @param {object} opts — { serviceSubtotal, travelFee, sourceTrigger }
+ * @param {object} opts — {
+ *   serviceSubtotal, travelFee, sourceTrigger,
+ *   claimRedemption?: boolean,
+ *   redemptionBookingId?: string|null,
+ * }
  */
 async function applyServerOffersToBooking(booking, opts = {}) {
   stripClientOfferFields(booking);
   const preview = await evaluateBookingOfferPreview(booking, {
     sourceTrigger: booking.welcomeOfferSource || opts.sourceTrigger || null,
   });
+  if (!preview.ok) {
+    throw offerApplyError(
+      preview.error || 'offer_evaluation_failed',
+      'Welcome offer could not be verified. Please try again.'
+    );
+  }
   const offer = preview.offer;
   booking.offer = offer;
   booking.welcomeOffer = offer;
@@ -269,6 +349,26 @@ async function applyServerOffersToBooking(booking, opts = {}) {
   const discountDollars = offer.eligibility_status === 'eligible'
     ? centsToDollars(offer.discount_amount)
     : 0;
+
+  if (discountDollars > 0 && opts.claimRedemption) {
+    const bookingId = String(opts.redemptionBookingId || booking.id || booking.bookingId || '').trim();
+    const claim = await claimWelcomeOfferRedemption({
+      email: booking.email,
+      bookingId,
+    });
+    if (!claim.ok) {
+      throw offerApplyError(
+        claim.error || 'offer_redemption_claim_unavailable',
+        claim.error === 'offer_already_redeemed'
+          ? 'This welcome offer was already used. Refresh pricing and try again.'
+          : 'Welcome offer could not be reserved. Please try again.'
+      );
+    }
+    offer.redemption_status = 'applied';
+    offer.household_redemption_ref = claim.key || null;
+    booking.offer = offer;
+    booking.welcomeOffer = offer;
+  }
 
   booking.discountAmount = discountDollars;
   booking.approvedDiscount = discountDollars;

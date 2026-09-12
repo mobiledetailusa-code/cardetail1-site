@@ -828,14 +828,33 @@ exports.handler = async (event) => {
   delete b.offerSource;
   delete b.welcomeOfferAccepted;
 
-  const offerApplied = await applyServerOffersToBooking(b, {
-    serviceSubtotal: travelApplied.serviceSubtotal,
-    travelFee: b.travelFeeAmount || 0,
-    sourceTrigger: welcomeSource,
-  }).catch((e) => {
-    console.warn('[submit-booking] offer apply failed:', e.message);
-    return null;
-  });
+  // Finalize (non-draft) claims one-time WELCOME10 redemption. Drafts price the
+  // offer for display but must not consume redemption.
+  const claimRedemption = !b.isDraft;
+  const redemptionBookingId = String(b.draftBookingId || b.id || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
+
+  try {
+    await applyServerOffersToBooking(b, {
+      serviceSubtotal: travelApplied.serviceSubtotal,
+      travelFee: b.travelFeeAmount || 0,
+      sourceTrigger: welcomeSource,
+      claimRedemption,
+      redemptionBookingId: claimRedemption ? redemptionBookingId : null,
+    });
+  } catch (e) {
+    const code = (e && e.code) || 'offer_application_unavailable';
+    console.warn('[submit-booking] offer apply failed:', e && e.message ? e.message : e);
+    const retryable = code !== 'offer_already_redeemed';
+    const status = code === 'offer_already_redeemed' ? 409 : 503;
+    return json(status, {
+      ok: false,
+      error: code === 'offer_evaluation_failed' ? 'offer_application_unavailable' : code,
+      retryable,
+      userMessage: retryable
+        ? 'We could not verify your welcome offer. Please try again in a moment. Your booking was not submitted.'
+        : 'This welcome offer was already used. Refresh the review total and submit again. Your booking was not submitted.',
+    });
+  }
 
   const store = await blobsStore('cd1-bookings');
 

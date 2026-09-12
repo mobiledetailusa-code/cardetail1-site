@@ -17,6 +17,7 @@ const {
 const { evaluateBookingOfferPreview } = require('../netlify/lib/booking-offers');
 const revenueStore = require('../netlify/lib/revenue-store');
 const publicRateLimit = require('../netlify/lib/public-rate-limit');
+const { setOpsStoreOverride } = require('../netlify/lib/ops-db');
 
 const CAPTURE_PATH = require.resolve('../netlify/functions/welcome-lead-capture');
 const { JSDOM } = (() => {
@@ -72,14 +73,23 @@ function createMemoryStores() {
   };
 }
 
+function emptyOpsStore() {
+  return {
+    async list() { return { blobs: [] }; },
+    async get() { return null; },
+  };
+}
+
 function withStore(fn) {
   return async () => {
     const prev = revenueStore.getRevenueStore;
     revenueStore.getRevenueStore = createMemoryStores();
+    setOpsStoreOverride(emptyOpsStore());
     try {
       await fn();
     } finally {
       revenueStore.getRevenueStore = prev;
+      setOpsStoreOverride(null);
     }
   };
 }
@@ -153,20 +163,25 @@ test('welcome lead lookup skips blobs outside Netlify without a store double', a
 test('offer preview with flag off does not hang without blobs', async () => {
   const prev = process.env.FIRST_BOOKING_OFFER_ENABLED;
   delete process.env.FIRST_BOOKING_OFFER_ENABLED;
+  setOpsStoreOverride(emptyOpsStore());
   const start = Date.now();
-  const preview = await evaluateBookingOfferPreview({
-    zipCode: '07030',
-    phone: '2015550100',
-    email: 'ci-hang-preview@example.com',
-    vehicleCategory: 'cars',
-    packageId: 'interior',
-    vehicles: [{ cat: 'cars', pkgId: 'interior', subtotal: 225 }],
-  });
-  assert.ok(Date.now() - start < 2000);
-  assert.equal(preview.offer.eligibility_status, 'ineligible');
-  assert.equal(preview.offer.eligibility_reason, 'offer_disabled');
-  if (prev === undefined) delete process.env.FIRST_BOOKING_OFFER_ENABLED;
-  else process.env.FIRST_BOOKING_OFFER_ENABLED = prev;
+  try {
+    const preview = await evaluateBookingOfferPreview({
+      zipCode: '07030',
+      phone: '2015550100',
+      email: 'ci-hang-preview@example.com',
+      vehicleCategory: 'cars',
+      packageId: 'interior',
+      vehicles: [{ cat: 'cars', pkgId: 'interior', subtotal: 225 }],
+    });
+    assert.ok(Date.now() - start < 2000);
+    assert.equal(preview.offer.eligibility_status, 'ineligible');
+    assert.equal(preview.offer.eligibility_reason, 'offer_disabled');
+  } finally {
+    setOpsStoreOverride(null);
+    if (prev === undefined) delete process.env.FIRST_BOOKING_OFFER_ENABLED;
+    else process.env.FIRST_BOOKING_OFFER_ENABLED = prev;
+  }
 });
 
 test('saveWelcomeLeadCapture fails closed when blobs are unavailable', async () => {

@@ -37,6 +37,15 @@ exports.handler = async (event) => {
     sourceTrigger: body.sourceTrigger || body.offerSource || null,
   });
 
+  if (!preview.ok) {
+    return json(503, {
+      ok: false,
+      error: preview.error || 'offer_redemption_lookup_unavailable',
+      retryable: true,
+      offer: preview.offer || null,
+    });
+  }
+
   return json(200, {
     ok: true,
     offer: preview.offer,
