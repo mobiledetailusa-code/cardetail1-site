@@ -190,9 +190,17 @@ test('display class === pricing-resolved class (same resolution object)', () => 
   const html = read('index.html');
   assert.match(html, /ST\.displayLabel=resolved\.displayLabel/);
   assert.match(html, /ST\.tierKey=resolved\.tierKey/);
-  assert.match(
-    html,
-    /tierLabel:\s*ST\.displayLabel \|\| \(ST\.tier \? ST\.tier\.label : ''\)/
+  // Cars still surface displayLabel via the shared category-aware helper
+  // (specialty cats must not inherit a stale cars/powersports displayLabel).
+  assert.match(html, /CD1BookingVehicleSummary\.categoryTierLabel\(ST\)/);
+  const summary = require('../assets/booking-vehicle-summary.js');
+  assert.equal(
+    summary.categoryTierLabel({
+      cat: 'cars',
+      displayLabel: '3-Row SUV',
+      tier: { label: 'SUV 3-Row' },
+    }),
+    '3-Row SUV'
   );
 });
 
