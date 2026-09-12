@@ -223,6 +223,33 @@ test('premium brands map to supercar / luxury SUV / luxury sedan', () => {
   assert.equal(getVehicleVisualKey(), 'luxurysedan');
 });
 
+test('Ram ProMaster is a van, not Ferrari Roma supercar', () => {
+  const { api, ST } = loadVisualRuntime();
+  ST.cat = 'cars';
+  ST.tierKey = 'small';
+  ST.vehicleLabel = '2022 Ram ProMaster City';
+  assert.equal(api.getVehicleVisualKey(), 'compact_van');
+  ST.vehicleLabel = '2021 Ram ProMaster';
+  assert.equal(api.getVehicleVisualKey(), 'van');
+  ST.vehicleLabel = '2023 Ferrari Roma';
+  assert.equal(api.getVehicleVisualKey(), 'supercar');
+});
+
+test('Dodge Dart is in the catalog and maps to compact', () => {
+  assert.match(index, /"Dodge":\{m:\[[^\]]*Dart/);
+  const { api, ST } = loadVisualRuntime();
+  ST.cat = 'cars';
+  ST.tierKey = 'small';
+  ST.vehicleLabel = '2015 Dodge Dart';
+  assert.equal(api.getVehicleVisualKey(), 'compact');
+});
+
+test('short MODEL_MAP keys use word boundaries to avoid substring collisions', () => {
+  assert.match(index, /function modelMapKeyHit/);
+  assert.match(index, /key\.length >= 5/);
+  assert.doesNotMatch(index, /\['star','suv-3row'\]/);
+});
+
 test('John Deere Gator is in specialty catalog and maps to UTV', () => {
   assert.match(index, /"John Deere"\s*:\s*\[/);
   assert.match(index, /Gator XUV835M/);
