@@ -5769,6 +5769,14 @@ async function submitBooking(){
         alert(data.userMessage||'That time is unavailable. Choose another slot and submit again. No payment was collected.');
         return;
       }
+      if(data.error==='offer_application_unavailable'||data.error==='offer_redemption_lookup_unavailable'||data.error==='offer_redemption_claim_unavailable'){
+        alert(data.userMessage||'We could not verify your welcome offer. Please try again in a moment. Your booking was not submitted.');
+        return;
+      }
+      if(data.error==='offer_already_redeemed'){
+        alert(data.userMessage||'This welcome offer was already used. Refresh the review total and submit again. Your booking was not submitted.');
+        return;
+      }
       throw new Error(data.error||data.message||('booking_submit_failed_'+res.status));
     }
     if(data.bookingCreated!==true&&!data.idempotent){

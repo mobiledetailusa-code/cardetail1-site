@@ -1588,6 +1588,14 @@ async function handleAdminAction(body, testOpts = {}) {
     const travel = applyServerTravelAndTotal({ ...booking }, { skipMismatchCheck: true });
     if (!travel.ok) return jsonCors(400, { ok: false, error: travel.error || 'invalid_booking' });
     const preview = await evaluateBookingOfferPreview(booking, { sourceTrigger: 'admin_apply' });
+    if (!preview.ok) {
+      return jsonCors(503, {
+        ok: false,
+        error: preview.error || 'offer_redemption_lookup_unavailable',
+        retryable: true,
+        offer: preview.offer || null,
+      });
+    }
     if (preview.offer.eligibility_status !== 'eligible' && !forceEligible) {
       return jsonCors(409, {
         ok: false,
@@ -1600,11 +1608,22 @@ async function handleAdminAction(body, testOpts = {}) {
     if (forceEligible && preview.offer.eligibility_status !== 'eligible') {
       working.welcomeOfferSource = 'admin_override';
     }
-    const applied = await applyServerOffersToBooking(working, {
-      serviceSubtotal: travel.serviceSubtotal,
-      travelFee: working.travelFeeAmount || 0,
-      sourceTrigger: forceEligible ? 'admin_override' : 'admin_apply',
-    });
+    let applied;
+    try {
+      applied = await applyServerOffersToBooking(working, {
+        serviceSubtotal: travel.serviceSubtotal,
+        travelFee: working.travelFeeAmount || 0,
+        sourceTrigger: forceEligible ? 'admin_override' : 'admin_apply',
+        claimRedemption: true,
+        redemptionBookingId: booking.id,
+      });
+    } catch (e) {
+      return jsonCors(e && e.code === 'offer_already_redeemed' ? 409 : 503, {
+        ok: false,
+        error: (e && e.code) || 'offer_application_unavailable',
+        retryable: !(e && e.code === 'offer_already_redeemed'),
+      });
+    }
     const updated = {
       ...working,
       offerAudit: [

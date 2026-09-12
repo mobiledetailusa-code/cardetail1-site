@@ -247,13 +247,13 @@ describe('welcome offer eligibility over the mirror', () => {
 });
 
 describe('submit-booking no longer scans the store for offers', () => {
-  it('booking-offers asks for customer-scoped history', () => {
+  it('booking-offers asks for fail-closed offer history', () => {
     const fs = require('node:fs');
     const src = fs.readFileSync(
       path.join(__dirname, '..', 'netlify', 'lib', 'booking-offers.js'),
       'utf8'
     );
-    assert.match(src, /listBookingHistoryForBooking/);
+    assert.match(src, /listBookingHistoryForOfferEligibility/);
     assert.doesNotMatch(src, /listRawBookings/);
   });
 });

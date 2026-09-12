@@ -410,6 +410,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/address-suggest.js',
     'netlify/functions/welcome-lead-capture.js',
     'netlify/lib/welcome-lead-store.js',
+    'netlify/lib/welcome-offer-redemption.js',
     'netlify/functions/review-invite.js',
     'netlify/lib/review-request-notifications.js',
   ]);

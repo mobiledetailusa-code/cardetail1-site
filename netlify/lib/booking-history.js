@@ -248,6 +248,47 @@ async function listBookingHistoryForBooking(booking) {
   return listBookingsForIdentity(identityKeys(booking));
 }
 
+/**
+ * Offer-eligibility history lookup. Fail-closed on store failure so a
+ * first-visit discount is never granted merely because history was unreadable.
+ *
+ * Mirror miss/unavailable still falls back to Blobs (same as duplicate guard).
+ * Only a failed Blobs scan returns ok:false.
+ *
+ * @returns {Promise<{ ok: true, bookings: object[], source: string }
+ *   | { ok: false, error: string }>}
+ */
+async function listBookingHistoryForOfferEligibility(booking) {
+  const identity = identityKeys(booking);
+  if (!identity.phone && !identity.email && !identity.emailHash) {
+    return { ok: true, bookings: [], source: 'no_identity' };
+  }
+
+  if (!fastLookupDisabled()) {
+    try {
+      const rows = await mirrorHistory(identity);
+      if (rows) return { ok: true, bookings: rows, source: 'mirror' };
+    } catch (err) {
+      console.warn(
+        '[booking-history] offer_history_mirror_failed',
+        err && err.message ? err.message : err
+      );
+    }
+  }
+
+  const { listRawBookings } = require('./ops-db');
+  try {
+    const bookings = await listRawBookings();
+    return { ok: true, bookings, source: 'blobs' };
+  } catch (err) {
+    console.warn(
+      '[booking-history] offer_history_scan_failed',
+      err && err.message ? err.message : err
+    );
+    return { ok: false, error: 'offer_history_unavailable' };
+  }
+}
+
 module.exports = {
   HISTORY_LOOKUP_LIMIT,
   DUPLICATE_WINDOW_MS,
@@ -258,6 +299,7 @@ module.exports = {
   mirrorHistory,
   listBookingsForIdentity,
   listBookingHistoryForBooking,
+  listBookingHistoryForOfferEligibility,
   isRecentDuplicate,
   matchDuplicateBooking,
   findDuplicateBooking,
