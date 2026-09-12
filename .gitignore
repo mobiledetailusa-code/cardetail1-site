@@ -9,6 +9,7 @@ squarespace_backup_codes_*.txt
 node_modules/
 .tools/
 .netlify/
+.cache/
 reports/*.md
 reports/revops-auth-qa-*.json
 
