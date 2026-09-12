@@ -118,7 +118,12 @@ test('Santa Fe 2025 → 3-Row SUV + suv3 pricing (year override)', () => {
   assert.equal(neu.body, 'suv3');
   assert.equal(neu.displayLabel, '3-Row SUV');
   assert.equal(neu.rows, 3);
-  assert.equal(neu.source, 'year_override');
+  // Phase 1: year bands live in the canonical catalog (catalog_year).
+  // Legacy YEAR_OVERRIDES remains only as offline fallback.
+  assert.ok(
+    neu.source === 'catalog_year' || neu.source === 'year_override',
+    `expected catalog_year|year_override, got ${neu.source}`
+  );
   assert.equal(interiorTotal(neu.tierKey), 235);
 });
 

@@ -5,6 +5,8 @@
   "description": "Cardetail1 — mobile detailing site (static) + Netlify functions",
   "scripts": {
     "test": "node --test tests/*.test.js",
+    "sync:vehicle-catalog": "node scripts/sync-vehicle-catalog.cjs",
+    "check:vehicle-catalog": "node scripts/sync-vehicle-catalog.cjs --check",
     "test:owner-studio": "node --test tests/owner-studio-foundation.test.js",
     "test:owner-studio-staging-guard": "node --test tests/owner-studio-staging-guard.test.js",
     "test:owner-studio-catalog": "node --test tests/owner-studio-catalog-manager.test.js tests/owner-studio-catalog-staging.integration.test.js",

@@ -2,27 +2,34 @@
 /**
  * Cardetail1 canonical vehicle classification resolver.
  *
+ * Phase 1: delegates to CD1VehicleCatalog (single Cars SoT) when available.
+ * Falls back to legacy MODELS.t + local minivan/year maps only if catalog is absent.
+ *
  * One resolution feeds both customer-facing display and pricing tierKey.
  * Pricing catalog keys remain: small | suv2 | suv3 | truck
  * (there is no separate minivan price key — minivans price as suv3).
+ * full_size_van is reserved in the catalog schema for Phase 2/3.
  *
- * Catalog base map lives in page MODELS[make].t[model].
- * This module adds: body display class, year-sensitive overrides, safe fallback.
+ * Catalog base map historically lived in page MODELS[make].t[model].
+ * Phase 1 pages still receive generated MODELS for UI lists, but classification
+ * authority is data/cars-vehicle-catalog.json via assets/vehicle-catalog.js.
  */
 (function (root, factory) {
-  const api = factory();
+  const api = factory(root);
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.CD1VehicleClass = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
   const DISPLAY = {
     small: { label: 'Small Car', rows: null },
     suv2: { label: '2-Row SUV', rows: 2 },
     suv3: { label: '3-Row SUV', rows: 3 },
     truck: { label: 'Truck', rows: null },
     minivan: { label: 'Minivan', rows: 3 },
+    full_size_van: { label: 'Full-Size Van', rows: null },
   };
 
-  // Models that share suv3 pricing but must display as Minivan.
+  // Legacy fallback maps — kept for offline/no-catalog boot only.
+  // Authoritative copies live in data/cars-vehicle-catalog.json.
   const MINIVAN_KEYS = new Set([
     'Dodge|Grand Caravan',
     'Chrysler|Pacifica',
@@ -32,15 +39,8 @@
     'Kia|Carnival',
   ]);
 
-  /**
-   * Year-sensitive tier/body overrides (inclusive from-year).
-   * Only models where generation changes row count — not a full vehicle DB.
-   * Santa Fe: 2024+ redesign is a standard 3-row SUV; earlier gens stay catalog default.
-   */
   const YEAR_OVERRIDES = {
-    'Hyundai|Santa Fe': [
-      { from: 2024, tierKey: 'suv3', body: 'suv3' },
-    ],
+    'Hyundai|Santa Fe': [{ from: 2024, tierKey: 'suv3', body: 'suv3' }],
   };
 
   function modelKey(make, model) {
@@ -50,7 +50,13 @@
   function bodyFor(make, model, tierKey) {
     const key = modelKey(make, model);
     if (MINIVAN_KEYS.has(key)) return 'minivan';
-    if (tierKey === 'suv2' || tierKey === 'suv3' || tierKey === 'small' || tierKey === 'truck') {
+    if (
+      tierKey === 'suv2' ||
+      tierKey === 'suv3' ||
+      tierKey === 'small' ||
+      tierKey === 'truck' ||
+      tierKey === 'full_size_van'
+    ) {
       return tierKey;
     }
     return null;
@@ -61,12 +67,24 @@
     if (!Number.isFinite(y) || y <= 0) return null;
     const rows = YEAR_OVERRIDES[modelKey(make, model)];
     if (!rows || !rows.length) return null;
-    // Highest matching from-year wins.
     let hit = null;
     for (const row of rows) {
       if (y >= row.from) hit = row;
     }
     return hit;
+  }
+
+  function getCatalogApi() {
+    if (root && root.CD1VehicleCatalog) return root.CD1VehicleCatalog;
+    if (typeof require === 'function') {
+      try {
+        // eslint-disable-next-line global-require
+        return require('./vehicle-catalog.js');
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
   }
 
   /**
@@ -75,17 +93,15 @@
    * @param {string} input.model
    * @param {string|number} [input.year]
    * @param {string|null|undefined} input.catalogTierKey  from MODELS[make].t[model]
-   * @returns {{
-   *   ok: boolean,
-   *   needsConfirmation: boolean,
-   *   tierKey: string|null,
-   *   body: string|null,
-   *   displayLabel: string|null,
-   *   rows: number|null,
-   *   source: string
-   * }}
    */
   function resolveVehicleClassification(input) {
+    const catalogApi = getCatalogApi();
+    if (catalogApi && typeof catalogApi.resolveVehicleClassification === 'function') {
+      const viaCatalog = catalogApi.resolveVehicleClassification(input || {});
+      if (viaCatalog && viaCatalog.ok) return viaCatalog;
+      // If catalog cannot resolve but page still has a legacy tier, fall through.
+    }
+
     const make = input && input.make;
     const model = input && input.model;
     const year = input && input.year;
@@ -104,7 +120,6 @@
     }
 
     if (!tierKey) {
-      // Unsafe to silently underprice as small/suv2 — require manual size chip.
       return {
         ok: false,
         needsConfirmation: true,
