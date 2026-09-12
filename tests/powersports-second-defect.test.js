@@ -272,7 +272,8 @@ describe('second defect: empty tierKey is the Continue gate', () => {
     const fn = extractFunction(index, 'tryGenericConfirm');
     assert.match(fn, /if\(ST\.cat==='boats'\|\|ST\.cat==='rvs'\)/);
     assert.doesNotMatch(fn, /ST\.cat==='powersports' && \(ST\.cat==='boats'|ST\.cat==='boats'\|\|ST\.cat==='rvs'\|\|ST\.cat==='powersports'/);
-    assert.match(fn, /if\(ST\.cat==='powersports' && !ST\.tierKey\)/);
+    assert.match(fn, /if\(ST\.cat==='powersports'\)\{\s*const inferred=inferPowersportsTier/);
+    assert.match(fn, /inferred==='utv' \|\| inferred==='atv'/);
     assert.match(fn, /inferPowersportsTier/);
   });
 
@@ -286,15 +287,24 @@ describe('second defect: empty tierKey is the Continue gate', () => {
     assert.equal(els.next3.disabled, false);
   });
 
-  it('chip click still wins over model inference', () => {
+  it('UTV/ATV model cues override a stale Motorcycle chip (Pioneer / RZR)', () => {
     const { sandbox } = loadDispatcher({
       cat: 'powersports', pkgId: 'wash',
       tierKey: 'motorcycle',
       tier: PS_TIERS.motorcycle,
     }, { make: 'Honda', model: 'Pioneer 1000', year: '2024' });
     sandbox.tryGenericConfirm();
-    assert.equal(sandbox.ST.tierKey, 'motorcycle');
-    assert.equal(sandbox.ST.basePrice, 100);
+    assert.equal(sandbox.ST.tierKey, 'utv');
+  });
+
+  it('ambiguous motorcycle inference does not override an explicit ATV chip', () => {
+    const { sandbox } = loadDispatcher({
+      cat: 'powersports', pkgId: 'wash',
+      tierKey: 'atv',
+      tier: PS_TIERS.atv,
+    }, { make: 'Honda', model: 'Rebel 500', year: '2023' });
+    sandbox.tryGenericConfirm();
+    assert.equal(sandbox.ST.tierKey, 'atv');
   });
 });
 

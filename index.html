@@ -4026,12 +4026,12 @@ function setupUnitSelector(cat){
 // ── VEHICLE VISUAL LIBRARY ────────────────────────────────────────────────────
 const VEHICLE_VISUALS = {
   /* Phase A studio renders — photorealistic class thumbnails */
-  small:         { img:'assets/vehicles/studio/small-car.webp',      alt:'Small car' },
-  compact:       { img:'assets/vehicles/studio/small-car.webp',      alt:'Compact car' },
-  sedan:         { img:'assets/vehicles/studio/small-car.webp',      alt:'Sedan' },
-  midsize:       { img:'assets/vehicles/studio/small-car.webp',      alt:'Midsize car' },
-  suv:           { img:'assets/vehicles/studio/suv-2row.webp',       alt:'Two-row SUV' },
-  suv2:          { img:'assets/vehicles/studio/suv-2row.webp',       alt:'Two-row SUV' },
+  small:         { img:'assets/vehicles/studio/sedan.webp',          alt:'Small car' },
+  compact:       { img:'assets/vehicles/studio/sedan.webp',          alt:'Compact car' },
+  sedan:         { img:'assets/vehicles/studio/sedan.webp',          alt:'Sedan' },
+  midsize:       { img:'assets/vehicles/studio/sedan.webp',          alt:'Midsize car' },
+  suv:           { img:'assets/vehicles/studio/suv-crossover.webp',  alt:'Two-row SUV' },
+  suv2:          { img:'assets/vehicles/studio/suv-crossover.webp',  alt:'Two-row SUV' },
   'suv-3row':    { img:'assets/vehicles/studio/suv-3row.webp',       alt:'Three-row SUV' },
   suv3:          { img:'assets/vehicles/studio/suv-3row.webp',       alt:'Three-row SUV' },
   compact_van:   { img:'assets/vehicles/studio/compact-van.webp',    alt:'Compact van' },
@@ -4039,10 +4039,12 @@ const VEHICLE_VISUALS = {
   cargo_van:     { img:'assets/vehicles/studio/cargo-van.webp',      alt:'Full-size cargo van' },
   passenger_van: { img:'assets/vehicles/studio/passenger-van.webp',  alt:'Full-size passenger van' },
   van:           { img:'assets/vehicles/studio/cargo-van.webp',      alt:'Full-size van' },
-  minivan:       { img:'assets/vehicles/studio/midsize-van.webp',    alt:'Minivan' },
+  minivan:       { img:'assets/vehicles/studio/minivan.webp',        alt:'Minivan' },
   pickup:        { img:'assets/vehicles/studio/truck.webp',          alt:'Pickup truck' },
   truck:         { img:'assets/vehicles/studio/truck.webp',          alt:'Pickup truck' },
   motorcycle:    { img:'assets/vehicles/studio/motorcycle.webp',     alt:'Motorcycle' },
+  cruiser:       { img:'assets/vehicles/studio/cruiser.webp',        alt:'Cruiser motorcycle' },
+  sportbike:     { img:'assets/vehicles/studio/sportbike.webp',      alt:'Sport motorcycle' },
   atv:           { img:'assets/vehicles/studio/atv.webp',            alt:'ATV' },
   utv:           { img:'assets/vehicles/studio/utv.webp',            alt:'UTV side-by-side' },
   jetski:        { img:'assets/vehicles/studio/jetski.webp',         alt:'Jet ski' },
@@ -4070,6 +4072,11 @@ const TIER_VISUAL_KEYS = {
   cargo:'workvan', workvan:'workvan', van:'cargo_van', boxtruck:'boxtruck',
   vehicle:'sedan', commercial:'workvan', powersports:'atv', marine_rv:'rv'
 };
+// Body/style keys that should beat a generic pricing tier (e.g. Odyssey prices as suv3 but looks like a minivan).
+const PRECISION_VISUAL_KEYS = {
+  minivan:1, compact:1, midsize:1, sedan:1, pickup:1,
+  cruiser:1, sportbike:1, utv:1, atv:1, jetski:1, motorcycle:1
+};
 // [lowercase substring, visual key] — checked in order; first match wins
 const MODEL_MAP = [
   // compact and midsize sedans
@@ -4079,6 +4086,7 @@ const MODEL_MAP = [
   // minivans (before suv/sedan to avoid false positive on "odyssey" etc.)
   ['odyssey','minivan'],['sienna','minivan'],['caravan','minivan'],['pacifica','minivan'],
   ['sedona','minivan'],['carnival','minivan'],['quest','minivan'],['town & country','minivan'],
+  ['voyager','minivan'],['id.buzz','minivan'],
   // full-size vans
   ['transit','van'],['express','van'],['savana','van'],['promaster','van'],['sprinter','van'],
   // pickups (before suv to catch tundra/ridgeline)
@@ -4100,14 +4108,36 @@ const MODEL_MAP = [
   ['atlas','suv-3row'],['ascent','suv-3row'],['star','suv-3row'],
   ['mdx','suv-3row'],['infiniti qx','suv-3row'],
   ['model x','suv-3row'],['model y','suv'],['model 3','sedan'],['model s','sedan'],
-  // motorcycle / powersports
-  ['street glide','motorcycle'],['road king','motorcycle'],['sportster','motorcycle'],
-  ['cbr','motorcycle'],['gsxr','motorcycle'],['ninja','motorcycle'],
+  // Cruiser motorcycles (Harley / touring bagger look)
+  ['street glide','cruiser'],['road glide','cruiser'],['road king','cruiser'],
+  ['electra glide','cruiser'],['sportster','cruiser'],['softail','cruiser'],
+  ['fat boy','cruiser'],['fatboy','cruiser'],['heritage classic','cruiser'],
+  ['low rider','cruiser'],['street bob','cruiser'],['breakout','cruiser'],
+  ['harley','cruiser'],['indian scout','cruiser'],['chieftain','cruiser'],
+  ['roadmaster','cruiser'],
+  // Sportbikes (Hayabusa / GSX-R / CBR look)
+  ['hayabusa','sportbike'],['gsx-r','sportbike'],['gsxr','sportbike'],['gsx r','sportbike'],
+  ['cbr','sportbike'],['ninja','sportbike'],['yzf-r','sportbike'],['yamaha r1','sportbike'],
+  ['yamaha r6','sportbike'],['panigale','sportbike'],['zx-6','sportbike'],['zx-10','sportbike'],
+  ['zx6','sportbike'],['zx10','sportbike'],['fireblade','sportbike'],
   // jet ski
   ['waverunner','jetski'],['sea-doo','jetski'],['seadoo','jetski'],['aquatrax','jetski'],
-  // atv/utv
-  ['rzr','atv'],['can-am','atv'],['commander','atv'],['rancher','atv'],['grizzly','atv'],
+  // UTV / side-by-side (before ATV)
+  ['rzr','utv'],['pro r','utv'],['turbo r','utv'],['general','utv'],['commander','utv'],
+  ['maverick','utv'],['talon','utv'],['pioneer','utv'],['teryx','utv'],['wolverine','utv'],
+  ['uforce','utv'],['zforce','utv'],['wildcat','utv'],['slingshot','utv'],
+  // ATV
+  ['rancher','atv'],['grizzly','atv'],['sportsman','atv'],['fourtrax','atv'],
+  ['outlander','atv'],['can-am','atv'],
 ];
+function modelMapVisual(lbl, allowSet){
+  for(const [k,t] of MODEL_MAP){
+    if(lbl.indexOf(k)===-1) continue;
+    if(allowSet && !allowSet[t]) continue;
+    return t;
+  }
+  return '';
+}
 function getVehicleVisualKey(){
   const cat=ST.cat;
   if(cat==='boats') return (ST.boatType==='jetski' || ST.tierKey==='jetski') ? 'jetski' : 'boat';
@@ -4117,19 +4147,25 @@ function getVehicleVisualKey(){
   }
   if(cat==='powersports'){
     const lbl=(ST.vehicleLabel||'').toLowerCase();
-    for(const [k,t] of MODEL_MAP){ if((t==='motorcycle'||t==='jetski'||t==='atv')&&lbl.indexOf(k)>-1) return t; }
+    const fromModel=modelMapVisual(lbl, {cruiser:1,sportbike:1,utv:1,atv:1,jetski:1,motorcycle:1});
+    if(fromModel) return fromModel;
     if(ST.tierKey==='jetski') return 'jetski';
     if(ST.tierKey==='utv') return 'utv';
     if(ST.tierKey==='atv') return 'atv';
     return 'motorcycle';
   }
   if(cat==='fleet') return TIER_VISUAL_KEYS[ST.tierKey]||'workvan';
+  const lbl=(ST.vehicleLabel||'').toLowerCase();
+  // Classifier body (minivan priced as suv3) beats generic pricing-tier silhouette.
+  if(ST.body && VEHICLE_VISUALS[ST.body] && PRECISION_VISUAL_KEYS[ST.body]) return ST.body;
+  // Model-specific silhouette when more precise than the pricing tier.
+  const precise=modelMapVisual(lbl, PRECISION_VISUAL_KEYS);
+  if(precise) return precise;
   // Prefer the resolved pricing tier so cargo vs passenger vans (and SUV rows)
   // keep distinct silhouettes even when MODEL_MAP only knows a generic "van".
   if(ST.tierKey && TIER_VISUAL_KEYS[ST.tierKey]) return TIER_VISUAL_KEYS[ST.tierKey];
-  const lbl=(ST.vehicleLabel||'').toLowerCase();
-  for(const [k,t] of MODEL_MAP){ if(lbl.indexOf(k)>-1) return t; }
-  return 'sedan';
+  const mapped=modelMapVisual(lbl);
+  return mapped || 'sedan';
 }
 function setVehicleVisual(){
   const v=VEHICLE_VISUALS[getVehicleVisualKey()]||VEHICLE_VISUALS.sedan;
@@ -4548,7 +4584,7 @@ function selectCategory(cat){
   }else{
     ST._editingVehicleIndex=null;
   }
-  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.displayLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.boatType=cat==='boats'?ST.boatType:''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
+  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.displayLabel=''; ST.body=null; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.boatType=cat==='boats'?ST.boatType:''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
   ST.make=''; ST.model=''; ST.year=''; ST.classNeedsConfirm=false; ST._priceResolveFailed=false;
   if(window.CD1BookingVehicleSummary) CD1BookingVehicleSummary.clearCategoryExclusiveFields(ST, cat);
   resetVehicleEntryFields(cat);
@@ -4920,6 +4956,7 @@ function selectTier(key){
     if(resolved && resolved.ok && resolved.tierKey===key && resolved.displayLabel) ST.displayLabel=resolved.displayLabel;
     else if(window.CD1VehicleClass&&CD1VehicleClass.displayLabelForTierKey) ST.displayLabel=CD1VehicleClass.displayLabelForTierKey(key)||(ST.tier&&ST.tier.label)||'';
     else ST.displayLabel=(ST.tier&&ST.tier.label)||'';
+    ST.body=(resolved && resolved.ok && resolved.tierKey===key && resolved.body) ? resolved.body : null;
     if(ST.vehicleLabel) setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
   }else{
     ST.displayLabel=(ST.tier&&ST.tier.label)||'';
@@ -5015,16 +5052,20 @@ function tryGenericConfirm(){
   // Cars confirm only via make-in / model-sel / year-sel — never g-make leftovers.
   if(ST.cat==='cars') return;
 
-  if(ST.cat==='powersports' && !ST.tierKey){
+  if(ST.cat==='powersports'){
     const inferred=inferPowersportsTier(make, model);
+    // UTV/ATV model cues always win (e.g. RZR must not stay Motorcycle).
+    // Motorcycle inference only fills an empty tier so an explicit chip still wins.
     if(inferred && PRICING.powersports && PRICING.powersports.tiers[inferred]){
-      ST.tierKey=inferred;
-      ST.tier=PRICING.powersports.tiers[inferred];
-      ST.displayLabel=ST.tier.label;
-      const chip=document.querySelector('.tchip[data-tier="'+inferred+'"]');
-      if(chip){
-        document.querySelectorAll('.tchip').forEach(function(c){ c.classList.remove('sel'); });
-        chip.classList.add('sel');
+      if(!ST.tierKey || inferred==='utv' || inferred==='atv'){
+        ST.tierKey=inferred;
+        ST.tier=PRICING.powersports.tiers[inferred];
+        ST.displayLabel=ST.tier.label;
+        const chip=document.querySelector('.tchip[data-tier="'+inferred+'"]');
+        if(chip){
+          document.querySelectorAll('.tchip').forEach(function(c){ c.classList.remove('sel'); });
+          chip.classList.add('sel');
+        }
       }
     }
     typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
@@ -5036,7 +5077,7 @@ function tryGenericConfirm(){
   ST.vehicleLabel=`${year} ${make} ${model}`;
   setBasePrice();
   setVehicleVisual();
-  setVcName(ST.vehicleLabel);
+  setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
   document.getElementById('vc').classList.add('show');
   // Powersports/boats/RVs already validated a numeric price above / via setBasePrice.
   document.getElementById('next3').disabled=!(ST.basePrice>0);
@@ -5157,7 +5198,7 @@ function selectMake(make){
   ms.innerHTML='<option value="">— select model —</option>';
   if(data)data.m.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;ms.appendChild(o);});
   ms.disabled=false; ys.innerHTML='<option value="">— select model —</option>'; ys.disabled=true;
-  ST.model=''; ST.year=''; ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.classNeedsConfirm=false; ST.vehicleLabel='';
+  ST.model=''; ST.year=''; ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.body=null; ST.classNeedsConfirm=false; ST.vehicleLabel='';
   document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
   typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
 }
@@ -5169,7 +5210,7 @@ document.getElementById('model-sel').addEventListener('change',function(){
   const cur=new Date().getFullYear();
   ys.innerHTML='<option value="">— select year —</option>';
   for(let y=cur;y>=1990;y--){const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o);}
-  ys.disabled=false; ST.year=''; ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.classNeedsConfirm=false; ST.vehicleLabel='';
+  ys.disabled=false; ST.year=''; ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.body=null; ST.classNeedsConfirm=false; ST.vehicleLabel='';
   document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
   typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
 });
@@ -5195,6 +5236,7 @@ document.getElementById('year-sel').addEventListener('change',function(){
     ST.tierKey=resolved.tierKey;
     ST.tier=PRICING.cars.tiers[resolved.tierKey];
     ST.displayLabel=resolved.displayLabel||ST.tier.label;
+    ST.body=resolved.body||null;
     ST.classNeedsConfirm=false;
     document.querySelector(`.tchip[data-tier="${resolved.tierKey}"]`)?.classList.add('sel');
     setBasePrice();
@@ -5206,7 +5248,7 @@ document.getElementById('year-sel').addEventListener('change',function(){
     renderAddons();
   }else{
     // Unknown / unmapped model: do not silently default to small/suv2 (underprice risk).
-    ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.classNeedsConfirm=true; ST.basePrice=0; ST._priceResolveFailed=false;
+    ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.body=null; ST.classNeedsConfirm=true; ST.basePrice=0; ST._priceResolveFailed=false;
     setVcName(ST.vehicleLabel+' · Vehicle size needs confirmation');
     document.getElementById('vc').classList.add('show');
     typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();

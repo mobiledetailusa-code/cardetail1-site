@@ -34,9 +34,9 @@
   /* Phase A: size chips / confirmation use photorealistic studio renders. */
   const STUDIO_BASE = 'assets/vehicles/studio/';
   const TIER = {
-    small: { file: 'small-car.webp', alt: 'Small car', studio: true },
-    sedan: { file: 'small-car.webp', alt: 'Sedan', studio: true },
-    suv2: { file: 'suv-2row.webp', alt: 'Two-row SUV', studio: true },
+    small: { file: 'sedan.webp', alt: 'Small car', studio: true },
+    sedan: { file: 'sedan.webp', alt: 'Sedan', studio: true },
+    suv2: { file: 'suv-crossover.webp', alt: 'Two-row SUV', studio: true },
     suv3: { file: 'suv-3row.webp', alt: 'Three-row SUV', studio: true },
     compact_van: { file: 'compact-van.webp', alt: 'Compact van', studio: true },
     midsize_van: { file: 'midsize-van.webp', alt: 'Midsize van', studio: true },
