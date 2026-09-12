@@ -347,21 +347,35 @@
     };
   }
 
+  function pricingClassForVanProjection(vehicle, use) {
+    return pricingClassForVanUse(vehicle, use) || vehicle.pricingClass;
+  }
+
   function toLegacyModelsMap() {
     const out = {};
+    function add(make, model, pricingClass) {
+      if (!out[make]) out[make] = { m: [], t: {} };
+      if (!out[make].m.includes(model)) out[make].m.push(model);
+      out[make].t[model] = pricingClass;
+    }
     for (const v of publicVehicles()) {
-      if (!out[v.make]) out[v.make] = { m: [], t: {} };
-      if (!out[v.make].m.includes(v.model)) out[v.make].m.push(v.model);
-      // Legacy MODELS.t uses the default/catalog tier (first year band / vehicle pricingClass).
-      // For Santa Fe this remains suv2 (pre-2024 default), matching prior Production.
+      const isVan = v.vehicleFamily === 'van' || !!v.vanSize;
       const defaultBand = (v.years && v.years[0]) || null;
       const legacyTier =
         v.displayClass === 'minivan'
           ? 'suv3'
           : v.pricingClass || (defaultBand && defaultBand.class) || 'small';
-      // Prefer explicit vehicle.pricingClass when set; for year-split models use earliest band class
-      // only when pricingClass equals earliest (migration sets pricingClass = MODELS.t default).
-      out[v.make].t[v.model] = v.pricingClass || legacyTier;
+      const baseTier = isVan
+        ? pricingClassForVanProjection(v, v.defaultVanUse)
+        : v.pricingClass || legacyTier;
+      add(v.make, v.model, baseTier);
+      const uses = Array.isArray(v.vanUseOptions) ? v.vanUseOptions : null;
+      if (isVan && uses && uses.length > 1) {
+        for (const use of uses) {
+          const suffix = use === 'passenger' ? 'Passenger' : 'Cargo';
+          add(v.make, `${v.model} ${suffix}`, pricingClassForVanProjection(v, use));
+        }
+      }
     }
     for (const make of Object.keys(out)) {
       out[make].m.sort((a, b) => a.localeCompare(b));
