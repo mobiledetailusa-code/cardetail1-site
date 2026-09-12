@@ -1793,6 +1793,22 @@
     },
     {
       "make": "Dodge",
+      "model": "Dart",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Dodge",
       "model": "Durango",
       "aliases": [],
       "years": [
@@ -1939,12 +1955,12 @@
         {
           "from": 1990,
           "to": 2027,
-          "class": "suv2",
+          "class": "small",
           "rows": 2
         }
       ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
+      "pricingClass": "small",
+      "displayClass": "small",
       "public": true
     },
     {
@@ -1982,6 +1998,198 @@
     {
       "make": "Ferrari",
       "model": "SF90 Stradale",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ferrari",
+      "model": "12Cilindri",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ferrari",
+      "model": "12Cilindri Spider",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ferrari",
+      "model": "296 Speciale",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ferrari",
+      "model": "849 Testarossa",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ferrari",
+      "model": "849 Testarossa Spider",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ferrari",
+      "model": "Amalfi",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ferrari",
+      "model": "Amalfi Spider",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ferrari",
+      "model": "F8 Spider",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ferrari",
+      "model": "F80",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ferrari",
+      "model": "Purosangue",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": null
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Ferrari",
+      "model": "Roma Spider",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Ferrari",
+      "model": "SF90 Spider",
       "aliases": [],
       "years": [
         {
@@ -3742,6 +3950,38 @@
       ],
       "pricingClass": "suv2",
       "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Lamborghini",
+      "model": "Aventador",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Lamborghini",
+      "model": "Temerario",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
       "public": true
     },
     {
@@ -5588,6 +5828,54 @@
       ],
       "pricingClass": "small",
       "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Porsche",
+      "model": "Cayenne Electric",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": null
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Porsche",
+      "model": "Macan Electric",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": null
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Porsche",
+      "model": "Taycan Cross Turismo",
+      "aliases": [],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": null
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
       "public": true
     },
     {

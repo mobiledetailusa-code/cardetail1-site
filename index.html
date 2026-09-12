@@ -4182,8 +4182,8 @@ const MODEL_MAP = [
   ['f250','pickup'],['f350','pickup'],['silverado','pickup'],['sierra','pickup'],
   ['ram 1500','pickup'],['ram 2500','pickup'],['ram 3500','pickup'],
   ['tacoma','pickup'],['tundra','pickup'],['colorado','pickup'],['canyon','pickup'],
-  ['frontier','pickup'],['titan','pickup'],['maverick','pickup'],['gladiator','pickup'],
-  ['ridgeline','pickup'],['ranger','pickup'],['cybertruck','pickup'],['santa cruz','pickup'],
+  ['frontier','pickup'],['titan','pickup'],['ford maverick','pickup'],['gladiator','pickup'],
+  ['ridgeline','pickup'],['ford ranger','pickup'],['cybertruck','pickup'],['santa cruz','pickup'],
   // Off-road boxy SUVs (before generic crossover)
   ['wrangler','offroad'],['bronco','offroad'],['bronco sport','offroad'],['defender','offroad'],
   ['g-class','offroad'],['g wagon','offroad'],['g-wagen','offroad'],['hummer','offroad'],
@@ -4207,7 +4207,7 @@ const MODEL_MAP = [
   ['escape','suv'],['equinox','suv'],['forester','suv'],['cx-5','suv'],['cx-50','suv'],
   ['tucson','suv'],['santa fe','suv'],['sorento','suv'],['highlander hybrid','suv-3row'],
   ['model y','suv'],['mach-e','suv'],['ioniq 5','suv'],['ev6','suv'],['id.4','suv'],
-  ['rdx','suv'],['nx','suv'],['rx','suv'],['glc','suv'],['x3','suv'],['x5','suv-3row'],
+  ['rdx','suv'],['nx','suv'],['rx','suv'],['glc','suv'],['bmw x3','suv'],['bmw x5','suv-3row'],
   // Cruiser motorcycles
   ['street glide','cruiser'],['road glide','cruiser'],['road king','cruiser'],
   ['electra glide','cruiser'],['sportster','cruiser'],['softail','cruiser'],
@@ -4251,7 +4251,7 @@ const MODEL_MAP = [
   ['rzr','utv'],['pro r','utv'],['turbo r','utv'],['general','utv'],['commander','utv'],
   ['maverick','utv'],['talon','utv'],['pioneer','utv'],['teryx','utv'],['wolverine','utv'],
   ['uforce','utv'],['zforce','utv'],['wildcat','utv'],['slingshot','utv'],['defender','utv'],
-  ['ranger crew','utv'],['can-am maverick','utv'],['rtv','utv'],['kubota','utv'],['sidekick','utv'],
+  ['polaris ranger','utv'],['ranger xp','utv'],['ranger crew','utv'],['can-am maverick','utv'],['rtv','utv'],['kubota','utv'],['sidekick','utv'],
   ['gator','utv'],['xuv','utv'],['rsx','utv'],['john deere','utv'],['deere','utv'],
   ['uw56','utv'],['uw53','utv'],['uv34','utv'],['bobcat 3400','utv'],['bobcat 3600','utv'],
   ['mpact','utv'],['fugleman','utv'],['villain','utv'],['t-boss','utv'],['intimidator','utv'],
@@ -5287,7 +5287,7 @@ function tryGenericConfirm(){
     const inferred=inferPowersportsTier(make, model);
     // UTV/ATV model cues always win (e.g. RZR must not stay Motorcycle).
     // Motorcycle inference only fills an empty tier so an explicit chip still wins.
-    if(inferred && PRICING.powersports && PRICING.powersports.tiers[inferred]){
+    if(inferred && typeof PRICING!=='undefined' && PRICING.powersports && PRICING.powersports.tiers[inferred]){
       if(!ST.tierKey || inferred==='utv' || inferred==='atv' || inferred==='golfcart' || inferred==='equipment'){
         ST.tierKey=inferred;
         ST.tier=PRICING.powersports.tiers[inferred];

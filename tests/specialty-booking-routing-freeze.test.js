@@ -95,7 +95,15 @@ function loadTryGenericConfirm(stOverrides, fields) {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
-  vm.runInContext(extractFunction(index, 'tryGenericConfirm'), sandbox);
+  // Production tryGenericConfirm always calls inferPowersportsTier for powersports
+  // (UTV/ATV/golfcart/equipment cues must override a pre-selected Motorcycle chip).
+  // Load it into the sandbox like powersports-second-defect — otherwise Continue
+  // throws ReferenceError even when tierKey is already set.
+  vm.runInContext(
+    extractFunction(index, 'inferPowersportsTier') + '\n' +
+    extractFunction(index, 'tryGenericConfirm'),
+    sandbox
+  );
   return { sandbox, els };
 }
 
