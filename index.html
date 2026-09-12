@@ -4761,7 +4761,7 @@ function renderTierChips(cat){
   document.getElementById('vc').classList.remove('show');
   document.getElementById('next3').disabled=true;
   ST.classNeedsConfirm=false;
-  syncTierChipsVisibility();
+  typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
 
   if(!isCar){
     const ys=document.getElementById('g-year');
@@ -4914,7 +4914,7 @@ function selectTier(key){
   setupUnitSelector(ST.cat);
   // refresh price/card if vehicle already entered (no auto-advance)
   if(ST.vehicleLabel){ setBasePrice(); if(ST.cat==='cars'){ syncContinueGate(); renderAddons(); } }
-  syncTierChipsVisibility();
+  typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
   tryGenericConfirm();
 }
 
@@ -5013,7 +5013,7 @@ function tryGenericConfirm(){
         chip.classList.add('sel');
       }
     }
-    syncTierChipsVisibility();
+    typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
     if(!ST.tierKey) return;
   }
 
@@ -5145,7 +5145,7 @@ function selectMake(make){
   ms.disabled=false; ys.innerHTML='<option value="">— select model —</option>'; ys.disabled=true;
   ST.model=''; ST.year=''; ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.classNeedsConfirm=false; ST.vehicleLabel='';
   document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
-  syncTierChipsVisibility();
+  typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
 }
 
 document.getElementById('model-sel').addEventListener('change',function(){
@@ -5157,7 +5157,7 @@ document.getElementById('model-sel').addEventListener('change',function(){
   for(let y=cur;y>=1990;y--){const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o);}
   ys.disabled=false; ST.year=''; ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.classNeedsConfirm=false; ST.vehicleLabel='';
   document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
-  syncTierChipsVisibility();
+  typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
 });
 
 document.getElementById('year-sel').addEventListener('change',function(){
@@ -5187,7 +5187,7 @@ document.getElementById('year-sel').addEventListener('change',function(){
     setVehicleVisual();
     setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
     document.getElementById('vc').classList.add('show');
-    syncTierChipsVisibility();
+    typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
     syncContinueGate();
     renderAddons();
   }else{
@@ -5195,7 +5195,7 @@ document.getElementById('year-sel').addEventListener('change',function(){
     ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.classNeedsConfirm=true; ST.basePrice=0; ST._priceResolveFailed=false;
     setVcName(ST.vehicleLabel+' · Vehicle size needs confirmation');
     document.getElementById('vc').classList.add('show');
-    syncTierChipsVisibility();
+    typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
     syncContinueGate();
     renderAddons();
   }

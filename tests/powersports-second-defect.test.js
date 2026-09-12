@@ -74,6 +74,8 @@ function loadDispatcher(stOverrides, fields) {
     'g-year': { value: fields.year || '' },
     vc: { classList: { add() { els.vc.shown = true; }, contains() { return !!els.vc.shown; } }, shown: false },
     next3: { disabled: true },
+    'tier-chips-wrap': { style: { display: 'none' } },
+    'tier-chips-note': { hidden: true, textContent: '' },
   };
   const sandbox = {
     ST: Object.assign({
@@ -122,8 +124,12 @@ function loadDispatcher(stOverrides, fields) {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
+  // Visibility helper is optional in page runtime; include it so sandboxed
+  // tryGenericConfirm matches production wiring after make/model-first chips.
   vm.runInContext(
-    extractFunction(index, 'inferPowersportsTier') + '\n' + extractFunction(index, 'tryGenericConfirm'),
+    extractFunction(index, 'syncTierChipsVisibility') + '\n' +
+    extractFunction(index, 'inferPowersportsTier') + '\n' +
+    extractFunction(index, 'tryGenericConfirm'),
     sandbox
   );
   return { sandbox, els, chips };

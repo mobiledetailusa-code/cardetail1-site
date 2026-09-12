@@ -53,7 +53,7 @@ test('renderTierChips does not force-show chips for cars', () => {
 test('year selection shows chips only on classification failure', () => {
   const start = index.indexOf("getElementById('year-sel').addEventListener");
   assert.ok(start > 0);
-  const chunk = index.slice(start, start + 2200);
+  const chunk = index.slice(start, start + 3200);
   assert.match(chunk, /ST\.classNeedsConfirm=false/);
   assert.match(chunk, /ST\.classNeedsConfirm=true/);
   assert.equal((chunk.match(/syncTierChipsVisibility\(\)/g) || []).length >= 2, true);
