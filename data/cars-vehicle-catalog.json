@@ -14,7 +14,10 @@
     "suv2",
     "suv3",
     "truck",
-    "full_size_van"
+    "full_size_van",
+    "compact_van",
+    "midsize_van",
+    "full_size_van_passenger"
   ],
   "displayClasses": [
     "small",
@@ -22,7 +25,10 @@
     "suv3",
     "truck",
     "minivan",
-    "full_size_van"
+    "full_size_van",
+    "compact_van",
+    "midsize_van",
+    "full_size_van_passenger"
   ],
   "vehicles": [
     {
@@ -1355,6 +1361,33 @@
     },
     {
       "make": "Chevrolet",
+      "model": "City Express",
+      "aliases": [
+        "CityExpress",
+        "Chevy City Express"
+      ],
+      "series": [],
+      "vehicleFamily": "van",
+      "vanSize": "compact",
+      "vanUseOptions": [
+        "cargo"
+      ],
+      "defaultVanUse": "cargo",
+      "years": [
+        {
+          "from": 2015,
+          "to": 2018,
+          "class": "compact_van",
+          "displayClass": "compact_van",
+          "rows": null
+        }
+      ],
+      "pricingClass": "compact_van",
+      "displayClass": "compact_van",
+      "public": true
+    },
+    {
+      "make": "Chevrolet",
       "model": "Colorado",
       "aliases": [],
       "years": [
@@ -1436,18 +1469,39 @@
     {
       "make": "Chevrolet",
       "model": "Express",
-      "aliases": [],
+      "aliases": [
+        "Express 1500",
+        "Express 2500",
+        "Express 3500",
+        "Express Cargo",
+        "Express Passenger",
+        "Express Cargo Van",
+        "Express Passenger Van"
+      ],
       "years": [
         {
-          "from": 1990,
+          "from": 1996,
           "to": 2027,
           "class": "full_size_van",
+          "displayClass": "full_size_van",
           "rows": null
         }
       ],
       "pricingClass": "full_size_van",
       "displayClass": "full_size_van",
-      "public": true
+      "public": true,
+      "series": [
+        "1500",
+        "2500",
+        "3500"
+      ],
+      "vehicleFamily": "van",
+      "vanSize": "full_size",
+      "vanUseOptions": [
+        "cargo",
+        "passenger"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "Chevrolet",
@@ -1804,18 +1858,30 @@
     {
       "make": "Dodge",
       "model": "Sprinter",
-      "aliases": [],
+      "aliases": [
+        "Dodge Sprinter Cargo",
+        "Dodge Sprinter Passenger"
+      ],
       "years": [
         {
-          "from": 1990,
-          "to": 2027,
+          "from": 2003,
+          "to": 2009,
           "class": "full_size_van",
+          "displayClass": "full_size_van",
           "rows": null
         }
       ],
       "pricingClass": "full_size_van",
       "displayClass": "full_size_van",
-      "public": true
+      "public": true,
+      "series": [],
+      "vehicleFamily": "van",
+      "vanSize": "full_size",
+      "vanUseOptions": [
+        "cargo",
+        "passenger"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "Ferrari",
@@ -1995,7 +2061,13 @@
       "pricingClass": "full_size_van",
       "displayClass": "full_size_van",
       "public": false,
-      "notes": "Schema proof only — not customer-visible until Phase 2/3 van coverage."
+      "notes": "Schema proof only — not customer-visible until Phase 2/3 van coverage.",
+      "vehicleFamily": "van",
+      "vanSize": "full_size",
+      "vanUseOptions": [
+        "cargo"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "Ford",
@@ -2032,18 +2104,41 @@
     {
       "make": "Ford",
       "model": "E-Series",
-      "aliases": [],
+      "aliases": [
+        "Econoline",
+        "E-150",
+        "E-250",
+        "E-350",
+        "E150",
+        "E250",
+        "E350",
+        "E-Series Cargo",
+        "E-Series Passenger"
+      ],
       "years": [
         {
           "from": 1990,
-          "to": 2027,
+          "to": 2014,
           "class": "full_size_van",
+          "displayClass": "full_size_van",
           "rows": null
         }
       ],
       "pricingClass": "full_size_van",
       "displayClass": "full_size_van",
-      "public": true
+      "public": true,
+      "series": [
+        "150",
+        "250",
+        "350"
+      ],
+      "vehicleFamily": "van",
+      "vanSize": "full_size",
+      "vanUseOptions": [
+        "cargo",
+        "passenger"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "Ford",
@@ -2307,34 +2402,74 @@
     {
       "make": "Ford",
       "model": "Transit",
-      "aliases": [],
+      "aliases": [
+        "Transit 150",
+        "Transit 250",
+        "Transit 350",
+        "Transit 350HD",
+        "T-150",
+        "T-250",
+        "T-350",
+        "T-350HD",
+        "Transit Cargo",
+        "Transit Passenger",
+        "Transit Van"
+      ],
       "years": [
         {
-          "from": 1990,
+          "from": 2014,
           "to": 2027,
           "class": "full_size_van",
+          "displayClass": "full_size_van",
           "rows": null
         }
       ],
       "pricingClass": "full_size_van",
       "displayClass": "full_size_van",
-      "public": true
+      "public": true,
+      "series": [
+        "150",
+        "250",
+        "350",
+        "350HD"
+      ],
+      "vehicleFamily": "van",
+      "vanSize": "full_size",
+      "vanUseOptions": [
+        "cargo",
+        "passenger"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "Ford",
       "model": "Transit Connect",
-      "aliases": [],
+      "aliases": [
+        "Transit Connect Cargo",
+        "Transit Connect Passenger",
+        "Transit Connect Wagon",
+        "TransitConnect"
+      ],
       "years": [
         {
-          "from": 1990,
-          "to": 2027,
-          "class": "suv2",
-          "rows": 2
+          "from": 2010,
+          "to": 2023,
+          "class": "compact_van",
+          "displayClass": "compact_van",
+          "rows": null
         }
       ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
-      "public": true
+      "pricingClass": "compact_van",
+      "displayClass": "compact_van",
+      "public": true,
+      "series": [],
+      "vehicleFamily": "van",
+      "vanSize": "compact",
+      "vanUseOptions": [
+        "cargo",
+        "passenger"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "Genesis",
@@ -2483,18 +2618,37 @@
     {
       "make": "GMC",
       "model": "Savana",
-      "aliases": [],
+      "aliases": [
+        "Savana 1500",
+        "Savana 2500",
+        "Savana 3500",
+        "Savana Cargo",
+        "Savana Passenger"
+      ],
       "years": [
         {
-          "from": 1990,
+          "from": 1996,
           "to": 2027,
           "class": "full_size_van",
+          "displayClass": "full_size_van",
           "rows": null
         }
       ],
       "pricingClass": "full_size_van",
       "displayClass": "full_size_van",
-      "public": true
+      "public": true,
+      "series": [
+        "1500",
+        "2500",
+        "3500"
+      ],
+      "vehicleFamily": "van",
+      "vanSize": "full_size",
+      "vanUseOptions": [
+        "cargo",
+        "passenger"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "GMC",
@@ -4681,18 +4835,31 @@
     {
       "make": "Mercedes-Benz",
       "model": "Metris",
-      "aliases": [],
+      "aliases": [
+        "Metris Cargo",
+        "Metris Passenger",
+        "Mercedes Metris"
+      ],
       "years": [
         {
-          "from": 1990,
-          "to": 2027,
-          "class": "suv2",
-          "rows": 2
+          "from": 2016,
+          "to": 2023,
+          "class": "midsize_van",
+          "displayClass": "midsize_van",
+          "rows": null
         }
       ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
-      "public": true
+      "pricingClass": "midsize_van",
+      "displayClass": "midsize_van",
+      "public": true,
+      "series": [],
+      "vehicleFamily": "van",
+      "vanSize": "midsize",
+      "vanUseOptions": [
+        "cargo",
+        "passenger"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "Mercedes-Benz",
@@ -4729,18 +4896,40 @@
     {
       "make": "Mercedes-Benz",
       "model": "Sprinter",
-      "aliases": [],
+      "aliases": [
+        "Sprinter 1500",
+        "Sprinter 2500",
+        "Sprinter 3500",
+        "Sprinter 3500XD",
+        "Sprinter Cargo",
+        "Sprinter Passenger",
+        "Mercedes Sprinter"
+      ],
       "years": [
         {
-          "from": 1990,
+          "from": 2010,
           "to": 2027,
           "class": "full_size_van",
+          "displayClass": "full_size_van",
           "rows": null
         }
       ],
       "pricingClass": "full_size_van",
       "displayClass": "full_size_van",
-      "public": true
+      "public": true,
+      "series": [
+        "1500",
+        "2500",
+        "3500",
+        "3500XD"
+      ],
+      "vehicleFamily": "van",
+      "vanSize": "full_size",
+      "vanUseOptions": [
+        "cargo",
+        "passenger"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "MINI",
@@ -5049,34 +5238,69 @@
     {
       "make": "Nissan",
       "model": "NV",
-      "aliases": [],
+      "aliases": [
+        "NV1500",
+        "NV2500",
+        "NV3500",
+        "NV 1500",
+        "NV 2500",
+        "NV 3500",
+        "NV Cargo",
+        "NV Passenger",
+        "NV Cargo Van",
+        "NV Passenger Van"
+      ],
       "years": [
         {
-          "from": 1990,
-          "to": 2027,
+          "from": 2011,
+          "to": 2021,
           "class": "full_size_van",
+          "displayClass": "full_size_van",
           "rows": null
         }
       ],
       "pricingClass": "full_size_van",
       "displayClass": "full_size_van",
-      "public": true
+      "public": true,
+      "series": [
+        "1500",
+        "2500",
+        "3500"
+      ],
+      "vehicleFamily": "van",
+      "vanSize": "full_size",
+      "vanUseOptions": [
+        "cargo",
+        "passenger"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "Nissan",
       "model": "NV200",
-      "aliases": [],
+      "aliases": [
+        "NV 200",
+        "Nissan NV200 Compact Cargo"
+      ],
       "years": [
         {
-          "from": 1990,
-          "to": 2027,
-          "class": "suv2",
-          "rows": 2
+          "from": 2013,
+          "to": 2021,
+          "class": "compact_van",
+          "displayClass": "compact_van",
+          "rows": null
         }
       ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
-      "public": true
+      "pricingClass": "compact_van",
+      "displayClass": "compact_van",
+      "public": true,
+      "series": [],
+      "vehicleFamily": "van",
+      "vanSize": "compact",
+      "vanUseOptions": [
+        "cargo"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "Nissan",
@@ -5417,34 +5641,66 @@
     {
       "make": "Ram",
       "model": "ProMaster",
-      "aliases": [],
+      "aliases": [
+        "ProMaster 1500",
+        "ProMaster 2500",
+        "ProMaster 3500",
+        "Promaster",
+        "Ram ProMaster",
+        "ProMaster Cargo"
+      ],
       "years": [
         {
-          "from": 1990,
+          "from": 2014,
           "to": 2027,
           "class": "full_size_van",
+          "displayClass": "full_size_van",
           "rows": null
         }
       ],
       "pricingClass": "full_size_van",
       "displayClass": "full_size_van",
-      "public": true
+      "public": true,
+      "series": [
+        "1500",
+        "2500",
+        "3500"
+      ],
+      "vehicleFamily": "van",
+      "vanSize": "full_size",
+      "vanUseOptions": [
+        "cargo"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "Ram",
       "model": "ProMaster City",
-      "aliases": [],
+      "aliases": [
+        "Promaster City",
+        "ProMaster City Cargo",
+        "ProMaster City Passenger"
+      ],
       "years": [
         {
-          "from": 1990,
-          "to": 2027,
-          "class": "suv2",
-          "rows": 2
+          "from": 2015,
+          "to": 2022,
+          "class": "compact_van",
+          "displayClass": "compact_van",
+          "rows": null
         }
       ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
-      "public": true
+      "pricingClass": "compact_van",
+      "displayClass": "compact_van",
+      "public": true,
+      "series": [],
+      "vehicleFamily": "van",
+      "vanSize": "compact",
+      "vanUseOptions": [
+        "cargo",
+        "passenger"
+      ],
+      "defaultVanUse": "cargo"
     },
     {
       "make": "Rivian",
@@ -6502,5 +6758,65 @@
       "displayClass": "suv3",
       "public": true
     }
-  ]
+  ],
+  "vanTaxonomy": {
+    "sizes": [
+      "compact",
+      "midsize",
+      "full_size"
+    ],
+    "uses": [
+      "cargo",
+      "passenger"
+    ],
+    "pricing": {
+      "compact_van": "minivan base (suv3)",
+      "midsize_van": "minivan base (suv3)",
+      "full_size_van": "minivan +10% ($5 round) — cargo",
+      "full_size_van_passenger": "minivan +15% ($5 round) — passenger"
+    },
+    "priceProof": {
+      "minivan": {
+        "wash": 155,
+        "maint": 215,
+        "interior": 235,
+        "full": 270,
+        "refresh": 405,
+        "premium": 540
+      },
+      "compact_van": {
+        "wash": 155,
+        "maint": 215,
+        "interior": 235,
+        "full": 270,
+        "refresh": 405,
+        "premium": 540
+      },
+      "midsize_van": {
+        "wash": 155,
+        "maint": 215,
+        "interior": 235,
+        "full": 270,
+        "refresh": 405,
+        "premium": 540
+      },
+      "full_size_van": {
+        "wash": 170,
+        "maint": 235,
+        "interior": 260,
+        "full": 295,
+        "refresh": 445,
+        "premium": 595
+      },
+      "full_size_van_passenger": {
+        "wash": 180,
+        "maint": 245,
+        "interior": 270,
+        "full": 310,
+        "refresh": 465,
+        "premium": 620
+      }
+    },
+    "notes": "Strict year validation remains OFF globally. Van year bands are populated for future enforcement."
+  }
 }
