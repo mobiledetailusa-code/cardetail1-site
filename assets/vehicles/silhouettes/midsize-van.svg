@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" role="img" aria-label="Midsize van silhouette">
+<defs>
+  <linearGradient id="bgmidsizevan" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#F7FAFC"/>
+    <stop offset="100%" stop-color="#E8EEF5"/>
+  </linearGradient>
+  <linearGradient id="bdmidsizevan" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#475569"/>
+    <stop offset="100%" stop-color="#1E293B"/>
+  </linearGradient>
+  <linearGradient id="glmidsizevan" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#BFDBFE" stop-opacity=".95"/>
+    <stop offset="100%" stop-color="#64748B" stop-opacity=".55"/>
+  </linearGradient>
+  <radialGradient id="shmidsizevan" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#0F172A" stop-opacity=".18"/>
+    <stop offset="100%" stop-color="#0F172A" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+<rect width="400" height="200" rx="18" fill="url(#bgmidsizevan)"/>
+<ellipse cx="200" cy="168" rx="132" ry="10" fill="url(#shmidsizevan)"/>
+
+<path d="M70 142 L84 110 L108 98 L130 70 L292 70 L312 98 L340 110 L350 142 Z" fill="url(#bdmidsizevan)"/>
+<path d="M136 72 L150 98 L280 98 L294 72 Z" fill="url(#glmidsizevan)"/>
+<path d="M170 98 L170 142" stroke="#0F172A" stroke-width="2" opacity=".25"/>
+<path d="M230 98 L230 142" stroke="#0F172A" stroke-width="2" opacity=".18"/>
+<circle cx="128" cy="142" r="22" fill="#0F172A"/>
+<circle cx="128" cy="142" r="15" fill="#334155"/>
+<circle cx="128" cy="142" r="4" fill="#94A3B8"/>
+<circle cx="308" cy="142" r="22" fill="#0F172A"/>
+<circle cx="308" cy="142" r="15" fill="#334155"/>
+<circle cx="308" cy="142" r="4" fill="#94A3B8"/>
+
+
+</svg>

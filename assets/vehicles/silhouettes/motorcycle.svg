@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" role="img" aria-label="Motorcycle silhouette">
+<defs>
+  <linearGradient id="bgmotorcycle" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#F7FAFC"/>
+    <stop offset="100%" stop-color="#E8EEF5"/>
+  </linearGradient>
+  <linearGradient id="bdmotorcycle" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#475569"/>
+    <stop offset="100%" stop-color="#1E293B"/>
+  </linearGradient>
+  <linearGradient id="glmotorcycle" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#BFDBFE" stop-opacity=".95"/>
+    <stop offset="100%" stop-color="#64748B" stop-opacity=".55"/>
+  </linearGradient>
+  <radialGradient id="shmotorcycle" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#0F172A" stop-opacity=".18"/>
+    <stop offset="100%" stop-color="#0F172A" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+<rect width="400" height="200" rx="18" fill="url(#bgmotorcycle)"/>
+<ellipse cx="200" cy="168" rx="132" ry="10" fill="url(#shmotorcycle)"/>
+
+<!-- wheels -->
+<circle cx="120" cy="140" r="28" fill="#0F172A"/>
+<circle cx="120" cy="140" r="21" fill="#334155"/>
+<circle cx="120" cy="140" r="4" fill="#94A3B8"/>
+<circle cx="290" cy="140" r="28" fill="#0F172A"/>
+<circle cx="290" cy="140" r="21" fill="#334155"/>
+<circle cx="290" cy="140" r="4" fill="#94A3B8"/>
+<!-- frame / tank / seat -->
+<path d="M150 128 L170 100 L220 92 L250 102 L270 120 L240 128 L180 132 Z" fill="url(#bdmotorcycle)"/>
+<path d="M176 102 L210 96 L230 104 L210 112 Z" fill="url(#glmotorcycle)"/>
+<!-- handlebar -->
+<path d="M250 102 L278 84 L292 88" fill="none" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/>
+<!-- fork -->
+<path d="M260 110 L286 130" stroke="#334155" stroke-width="4" stroke-linecap="round"/>
+
+
+</svg>

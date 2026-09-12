@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" role="img" aria-label="Pickup truck silhouette">
+<defs>
+  <linearGradient id="bgtruck" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#F7FAFC"/>
+    <stop offset="100%" stop-color="#E8EEF5"/>
+  </linearGradient>
+  <linearGradient id="bdtruck" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#475569"/>
+    <stop offset="100%" stop-color="#1E293B"/>
+  </linearGradient>
+  <linearGradient id="gltruck" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#BFDBFE" stop-opacity=".95"/>
+    <stop offset="100%" stop-color="#64748B" stop-opacity=".55"/>
+  </linearGradient>
+  <radialGradient id="shtruck" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#0F172A" stop-opacity=".18"/>
+    <stop offset="100%" stop-color="#0F172A" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+<rect width="400" height="200" rx="18" fill="url(#bgtruck)"/>
+<ellipse cx="200" cy="168" rx="132" ry="10" fill="url(#shtruck)"/>
+
+<path d="M58 142 L72 118 L102 108 L128 82 L210 82 L228 108 L238 108 L348 112 L360 142 Z" fill="url(#bdtruck)"/>
+<path d="M134 84 L150 108 L204 108 L210 84 Z" fill="url(#gltruck)"/>
+<!-- bed rail -->
+<path d="M238 108 L348 112 L348 132 L238 132 Z" fill="none" stroke="#94A3B8" stroke-width="2.5" opacity=".7"/>
+<path d="M238 108 L238 142" stroke="#0F172A" stroke-width="2.5" opacity=".35"/>
+<circle cx="118" cy="142" r="23" fill="#0F172A"/>
+<circle cx="118" cy="142" r="16" fill="#334155"/>
+<circle cx="118" cy="142" r="4" fill="#94A3B8"/>
+<circle cx="300" cy="142" r="23" fill="#0F172A"/>
+<circle cx="300" cy="142" r="16" fill="#334155"/>
+<circle cx="300" cy="142" r="4" fill="#94A3B8"/>
+
+
+</svg>

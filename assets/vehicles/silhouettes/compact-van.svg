@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" role="img" aria-label="Compact van silhouette">
+<defs>
+  <linearGradient id="bgcompactvan" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#F7FAFC"/>
+    <stop offset="100%" stop-color="#E8EEF5"/>
+  </linearGradient>
+  <linearGradient id="bdcompactvan" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#475569"/>
+    <stop offset="100%" stop-color="#1E293B"/>
+  </linearGradient>
+  <linearGradient id="glcompactvan" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#BFDBFE" stop-opacity=".95"/>
+    <stop offset="100%" stop-color="#64748B" stop-opacity=".55"/>
+  </linearGradient>
+  <radialGradient id="shcompactvan" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#0F172A" stop-opacity=".18"/>
+    <stop offset="100%" stop-color="#0F172A" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+<rect width="400" height="200" rx="18" fill="url(#bgcompactvan)"/>
+<ellipse cx="200" cy="168" rx="132" ry="10" fill="url(#shcompactvan)"/>
+
+<path d="M96 140 L108 108 L128 96 L148 72 L262 72 L278 96 L310 108 L318 140 Z" fill="url(#bdcompactvan)"/>
+<path d="M152 74 L164 96 L252 96 L262 74 Z" fill="url(#glcompactvan)"/>
+<path d="M168 96 L168 140" stroke="#0F172A" stroke-width="2" opacity=".25"/>
+<circle cx="142" cy="140" r="20" fill="#0F172A"/>
+<circle cx="142" cy="140" r="13" fill="#334155"/>
+<circle cx="142" cy="140" r="4" fill="#94A3B8"/>
+<circle cx="278" cy="140" r="20" fill="#0F172A"/>
+<circle cx="278" cy="140" r="13" fill="#334155"/>
+<circle cx="278" cy="140" r="4" fill="#94A3B8"/>
+
+
+</svg>

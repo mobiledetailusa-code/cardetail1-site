@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" role="img" aria-label="Two-row SUV silhouette">
+<defs>
+  <linearGradient id="bgsuv2row" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#F7FAFC"/>
+    <stop offset="100%" stop-color="#E8EEF5"/>
+  </linearGradient>
+  <linearGradient id="bdsuv2row" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#475569"/>
+    <stop offset="100%" stop-color="#1E293B"/>
+  </linearGradient>
+  <linearGradient id="glsuv2row" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#BFDBFE" stop-opacity=".95"/>
+    <stop offset="100%" stop-color="#64748B" stop-opacity=".55"/>
+  </linearGradient>
+  <radialGradient id="shsuv2row" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#0F172A" stop-opacity=".18"/>
+    <stop offset="100%" stop-color="#0F172A" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+<rect width="400" height="200" rx="18" fill="url(#bgsuv2row)"/>
+<ellipse cx="200" cy="168" rx="132" ry="10" fill="url(#shsuv2row)"/>
+
+<path d="M62 140 L78 116 L110 104 L140 78 L268 78 L300 104 L330 112 L344 140 Z" fill="url(#bdsuv2row)"/>
+<path d="M146 80 L166 104 L258 104 L276 80 Z" fill="url(#glsuv2row)"/>
+<rect x="200" y="80" width="3" height="24" fill="#0F172A" opacity=".45"/>
+<circle cx="122" cy="140" r="23" fill="#0F172A"/>
+<circle cx="122" cy="140" r="16" fill="#334155"/>
+<circle cx="122" cy="140" r="4" fill="#94A3B8"/>
+<circle cx="298" cy="140" r="23" fill="#0F172A"/>
+<circle cx="298" cy="140" r="16" fill="#334155"/>
+<circle cx="298" cy="140" r="4" fill="#94A3B8"/>
+
+
+</svg>

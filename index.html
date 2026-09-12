@@ -4025,24 +4025,35 @@ function setupUnitSelector(cat){
 
 // ── VEHICLE VISUAL LIBRARY ────────────────────────────────────────────────────
 const VEHICLE_VISUALS = {
-  sedan:       { img:'assets/vehicles/premium/sedan.webp',          alt:'Sedan receiving mobile detailing' },
-  compact:     { img:'assets/vehicles/premium/compact-sedan.webp',  alt:'Compact sedan receiving mobile detailing' },
-  midsize:     { img:'assets/vehicles/premium/midsize-sedan.webp',  alt:'Midsize sedan receiving mobile detailing' },
-  suv:         { img:'assets/vehicles/premium/suv-2-row.webp',      alt:'Two-row SUV receiving mobile detailing' },
-  'suv-3row':  { img:'assets/vehicles/premium/suv-3-row.webp',      alt:'Three-row SUV receiving mobile detailing' },
-  pickup:      { img:'assets/vehicles/premium/pickup.webp',         alt:'Pickup truck receiving mobile detailing' },
-  van:         { img:'assets/vehicles/premium/van.webp',            alt:'Full-size van receiving mobile detailing' },
-  minivan:     { img:'assets/vehicles/premium/minivan.webp',        alt:'Minivan receiving mobile detailing' },
-  workvan:     { img:'assets/vehicles/premium/work-van.webp',       alt:'Commercial work van fleet receiving mobile detailing' },
-  boxtruck:    { img:'assets/vehicles/premium/box-truck.webp',      alt:'Commercial box truck fleet receiving mobile detailing' },
-  rv:          { img:'assets/vehicles/premium/rv-motorhome.webp',   alt:'RV motorhome receiving mobile detailing' },
-  trailer:     { img:'assets/vehicles/premium/travel-trailer.webp', alt:'Travel trailer receiving mobile detailing' },
-  boat:        { img:'assets/vehicles/premium/boat.webp',           alt:'Boat receiving mobile marine detailing' },
-  jetski:      { img:'assets/vehicles/premium/jet-ski.webp',        alt:'Jet ski receiving mobile marine detailing' },
-  motorcycle:  { img:'assets/vehicles/premium/motorcycle.webp',     alt:'Motorcycle receiving mobile detailing' },
-  atv:         { img:'assets/vehicles/premium/atv.webp',            alt:'ATV receiving mobile detailing' },
-  utv:         { img:'assets/vehicles/premium/utv.webp',            alt:'UTV receiving mobile detailing' },
+  /* Phase A silhouettes — distinct per pricing class (cars + powersports) */
+  small:         { img:'assets/vehicles/silhouettes/small-car.svg',      alt:'Small car' },
+  compact:       { img:'assets/vehicles/silhouettes/small-car.svg',      alt:'Compact car' },
+  sedan:         { img:'assets/vehicles/silhouettes/small-car.svg',      alt:'Sedan' },
+  midsize:       { img:'assets/vehicles/silhouettes/small-car.svg',      alt:'Midsize car' },
+  suv:           { img:'assets/vehicles/silhouettes/suv-2row.svg',       alt:'Two-row SUV' },
+  suv2:          { img:'assets/vehicles/silhouettes/suv-2row.svg',       alt:'Two-row SUV' },
+  'suv-3row':    { img:'assets/vehicles/silhouettes/suv-3row.svg',       alt:'Three-row SUV' },
+  suv3:          { img:'assets/vehicles/silhouettes/suv-3row.svg',       alt:'Three-row SUV' },
+  compact_van:   { img:'assets/vehicles/silhouettes/compact-van.svg',    alt:'Compact van' },
+  midsize_van:   { img:'assets/vehicles/silhouettes/midsize-van.svg',    alt:'Midsize van' },
+  cargo_van:     { img:'assets/vehicles/silhouettes/cargo-van.svg',      alt:'Full-size cargo van' },
+  passenger_van: { img:'assets/vehicles/silhouettes/passenger-van.svg',  alt:'Full-size passenger van' },
+  van:           { img:'assets/vehicles/silhouettes/cargo-van.svg',      alt:'Full-size van' },
+  minivan:       { img:'assets/vehicles/silhouettes/midsize-van.svg',    alt:'Minivan' },
+  pickup:        { img:'assets/vehicles/silhouettes/truck.svg',          alt:'Pickup truck' },
+  truck:         { img:'assets/vehicles/silhouettes/truck.svg',          alt:'Pickup truck' },
+  motorcycle:    { img:'assets/vehicles/silhouettes/motorcycle.svg',     alt:'Motorcycle' },
+  atv:           { img:'assets/vehicles/silhouettes/atv.svg',            alt:'ATV' },
+  utv:           { img:'assets/vehicles/silhouettes/utv.svg',            alt:'UTV side-by-side' },
+  jetski:        { img:'assets/vehicles/silhouettes/jetski.svg',         alt:'Jet ski' },
+  /* Keep legacy specialty keys on existing premium assets */
+  workvan:       { img:'assets/vehicles/premium/work-van.webp',          alt:'Commercial work van fleet receiving mobile detailing' },
+  boxtruck:      { img:'assets/vehicles/premium/box-truck.webp',         alt:'Commercial box truck fleet receiving mobile detailing' },
+  rv:            { img:'assets/vehicles/premium/rv-motorhome.webp',      alt:'RV motorhome receiving mobile detailing' },
+  trailer:       { img:'assets/vehicles/premium/travel-trailer.webp',    alt:'Travel trailer receiving mobile detailing' },
+  boat:          { img:'assets/vehicles/premium/boat.webp',              alt:'Boat receiving mobile marine detailing' },
 };
+
 const CATEGORY_VISUALS = {
   cars:        { img:'assets/vehicles/premium/cars-suvs.webp',       alt:'Cars SUVs and trucks mobile detailing' },
   boats:       { img:'assets/vehicles/premium/marine.webp',          alt:'Boat and marine mobile detailing' },
@@ -4051,9 +4062,12 @@ const CATEGORY_VISUALS = {
   fleet:       { img:'assets/vehicles/premium/fleet-commercial.webp',alt:'Commercial fleet and work van mobile detailing' },
 };
 const TIER_VISUAL_KEYS = {
-  small:'compact', sedan:'sedan', suv2:'suv', suv3:'suv-3row', compact_van:'van', midsize_van:'van', full_size_van:'van', full_size_van_passenger:'van', truck:'pickup',
+  small:'small', sedan:'sedan', suv2:'suv2', suv3:'suv-3row',
+  compact_van:'compact_van', midsize_van:'midsize_van',
+  full_size_van:'cargo_van', full_size_van_passenger:'passenger_van',
+  truck:'truck',
   motorcycle:'motorcycle', atv:'atv', utv:'utv', jetski:'jetski',
-  cargo:'workvan', workvan:'workvan', van:'van', boxtruck:'boxtruck',
+  cargo:'workvan', workvan:'workvan', van:'cargo_van', boxtruck:'boxtruck',
   vehicle:'sedan', commercial:'workvan', powersports:'atv', marine_rv:'rv'
 };
 // [lowercase substring, visual key] — checked in order; first match wins
@@ -4105,16 +4119,16 @@ function getVehicleVisualKey(){
     const lbl=(ST.vehicleLabel||'').toLowerCase();
     for(const [k,t] of MODEL_MAP){ if((t==='motorcycle'||t==='jetski'||t==='atv')&&lbl.indexOf(k)>-1) return t; }
     if(ST.tierKey==='jetski') return 'jetski';
-    if(ST.tierKey==='atv'||ST.tierKey==='utv') return 'atv';
+    if(ST.tierKey==='utv') return 'utv';
+    if(ST.tierKey==='atv') return 'atv';
     return 'motorcycle';
   }
   if(cat==='fleet') return TIER_VISUAL_KEYS[ST.tierKey]||'workvan';
+  // Prefer the resolved pricing tier so cargo vs passenger vans (and SUV rows)
+  // keep distinct silhouettes even when MODEL_MAP only knows a generic "van".
+  if(ST.tierKey && TIER_VISUAL_KEYS[ST.tierKey]) return TIER_VISUAL_KEYS[ST.tierKey];
   const lbl=(ST.vehicleLabel||'').toLowerCase();
   for(const [k,t] of MODEL_MAP){ if(lbl.indexOf(k)>-1) return t; }
-  if(ST.tierKey==='truck') return 'pickup';
-  if(ST.tierKey==='suv3') return 'suv-3row';
-  if(ST.tierKey==='suv2') return 'suv';
-  if(ST.tierKey==='small') return 'compact';
   return 'sedan';
 }
 function setVehicleVisual(){
