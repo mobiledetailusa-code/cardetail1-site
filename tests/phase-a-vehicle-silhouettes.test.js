@@ -181,7 +181,13 @@ test('premium brands map to supercar / luxury SUV / luxury sedan', () => {
   ST.vehicleLabel = '2023 Ferrari Roma';
   assert.equal(getVehicleVisualKey(), 'supercar');
 
+  ST.vehicleLabel = '2025 Ferrari Amalfi';
+  assert.equal(getVehicleVisualKey(), 'supercar');
+
   ST.vehicleLabel = '2024 Lamborghini Huracan';
+  assert.equal(getVehicleVisualKey(), 'supercar');
+
+  ST.vehicleLabel = '2025 Lamborghini Temerario';
   assert.equal(getVehicleVisualKey(), 'supercar');
 
   ST.vehicleLabel = '2022 McLaren 720S';
@@ -194,10 +200,16 @@ test('premium brands map to supercar / luxury SUV / luxury sedan', () => {
   assert.equal(getVehicleVisualKey(), 'supercar');
 
   ST.tierKey = 'suv2';
+  ST.vehicleLabel = '2024 Ferrari Purosangue';
+  assert.equal(getVehicleVisualKey(), 'luxurysuv');
+
   ST.vehicleLabel = '2023 Lamborghini Urus';
   assert.equal(getVehicleVisualKey(), 'luxurysuv');
 
   ST.vehicleLabel = '2022 Porsche Cayenne';
+  assert.equal(getVehicleVisualKey(), 'luxurysuv');
+
+  ST.vehicleLabel = '2025 Porsche Macan Electric';
   assert.equal(getVehicleVisualKey(), 'luxurysuv');
 
   ST.vehicleLabel = '2021 Aston Martin DBX';
