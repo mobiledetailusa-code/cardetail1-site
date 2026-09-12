@@ -5035,6 +5035,9 @@ function tryGenericConfirm(){
     return;
   }
 
+  // Cars confirm only via make-in / model-sel / year-sel — never g-make leftovers.
+  if(ST.cat==='cars') return;
+
   if(!ST.tierKey)return;
   const t=ST.tier;
   ST.vehicleLabel=`${year} ${make} ${model}`;
@@ -5045,7 +5048,9 @@ function tryGenericConfirm(){
   document.getElementById('vc-badge').textContent=t.label;
   updateVcPriceDisplay();
   document.getElementById('vc').classList.add('show');
-  document.getElementById('next3').disabled=false; renderAddons();
+  // Powersports/boats/RVs already validated a numeric price above / via setBasePrice.
+  document.getElementById('next3').disabled=!(ST.basePrice>0);
+  renderAddons();
   // No auto-advance: user reviews the vehicle card, then clicks "Choose Add-Ons →".
 }
 
@@ -5315,7 +5320,16 @@ function fillStrip5(){
     document.getElementById('s5-pkg').textContent=(ST.pkg?.name||'-')+' Package';
     document.getElementById('s5-car').textContent=ST.vehicleLabel||'-';
   }
-  document.getElementById('s5-total').textContent=cartBase?'$'+(cartBase+fee):'Estimate';
+  const totalEl = document.getElementById('s5-total');
+  if(totalEl){
+    if(cartBase > 0){
+      totalEl.textContent = '$'+(cartBase+fee);
+    }else if(vehicles.some(v => v && v.pkgId && v.pkgId !== 'custom' && !(Number(v.basePrice) > 0))){
+      totalEl.textContent = "We couldn't load this package price. Please retry.";
+    }else{
+      totalEl.textContent = '—';
+    }
+  }
 }
 
 function goToPayment(){
@@ -5688,7 +5702,7 @@ function bkRenderVehicleSummary(items){
   const list = Array.isArray(items)?items:[];
   const multi = list.length>1;
   return list.map((it,idx)=>{
-    let rows='<div class="or"><span class="ol">'+bkliEsc(it.packageName)+'</span><span class="ov">'+(it.packagePrice==null?'Estimate':bkliMoney(it.packagePrice))+'</span></div>';
+    let rows='<div class="or"><span class="ol">'+bkliEsc(it.packageName)+'</span><span class="ov">'+(it.packagePrice==null?"We couldn't load this package price. Please retry.":bkliMoney(it.packagePrice))+'</span></div>';
     rows += it.addons.length
       ? it.addons.map(a=>'<div class="or"><span class="ol">+ '+bkliEsc(a.name)+(a.qty>1?' × '+a.qty:'')+'</span><span class="ov">+'+bkliMoney(a.lineTotal)+'</span></div>').join('')
       : '<div class="or"><span class="ol">Add-ons</span><span class="ov bkli-none">None</span></div>';
@@ -5719,7 +5733,7 @@ function fillConfirm(){
   if(serviceTitleEl) serviceTitleEl.textContent=vehicles.length>1?('Service · '+vehicles.length+' vehicles'):'Service';
   const cardsEl=document.getElementById('c-vehicle-cards');
   if(cardsEl) cardsEl.innerHTML=bkRenderVehicleSummary(projection.items);
-  document.getElementById('c-total').textContent=total ? '$'+total : 'Estimate';
+  document.getElementById('c-total').textContent=total ? '$'+total : (vehicles.some(function(v){ return v && v.pkgId && v.pkgId!=='custom' && !(Number(v.basePrice)>0); }) ? "We couldn't load this package price. Please retry." : '—');
   document.getElementById('c-name').textContent=document.getElementById('f-first').value+' '+document.getElementById('f-last').value;
   document.getElementById('c-phone').textContent=document.getElementById('f-phone').value;
   document.getElementById('c-email').textContent=document.getElementById('f-email').value;
@@ -5941,7 +5955,7 @@ function showSuccess(payload){
   // leftover single-vehicle selection state.
   const okCards=document.getElementById('ok-vehicle-cards');
   if(okCards) okCards.innerHTML=bkRenderVehicleSummary(bkProjectVehicles(b).items);
-  document.getElementById('ok-total').textContent=(b.totalPrice||0)?bkMoney(b.totalPrice):'Estimate';
+  document.getElementById('ok-total').textContent=(b.totalPrice||0)?bkMoney(b.totalPrice):'—';
   document.getElementById('ok-date').textContent=b.preferredDate||document.getElementById('f-date').value;
   const titleEl=document.getElementById('ok-title');
   const subEl=document.getElementById('ok-sub');
