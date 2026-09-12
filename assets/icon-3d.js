@@ -31,27 +31,27 @@
     fleet: { file: 'cat-cars.webp', alt: 'Fleet vehicles' },
   };
 
-  /* Phase A: size chips use light silhouettes (distinct per class). */
-  const SILHOUETTE_BASE = 'assets/vehicles/silhouettes/';
+  /* Phase A: size chips / confirmation use photorealistic studio renders. */
+  const STUDIO_BASE = 'assets/vehicles/studio/';
   const TIER = {
-    small: { file: 'small-car.svg', alt: 'Small car', silhouette: true },
-    sedan: { file: 'small-car.svg', alt: 'Sedan', silhouette: true },
-    suv2: { file: 'suv-2row.svg', alt: 'Two-row SUV', silhouette: true },
-    suv3: { file: 'suv-3row.svg', alt: 'Three-row SUV', silhouette: true },
-    compact_van: { file: 'compact-van.svg', alt: 'Compact van', silhouette: true },
-    midsize_van: { file: 'midsize-van.svg', alt: 'Midsize van', silhouette: true },
-    full_size_van: { file: 'cargo-van.svg', alt: 'Full-size cargo van', silhouette: true },
-    full_size_van_passenger: { file: 'passenger-van.svg', alt: 'Full-size passenger van', silhouette: true },
-    truck: { file: 'truck.svg', alt: 'Pickup truck', silhouette: true },
-    motorcycle: { file: 'motorcycle.svg', alt: 'Motorcycle', silhouette: true },
-    atv: { file: 'atv.svg', alt: 'ATV', silhouette: true },
-    utv: { file: 'utv.svg', alt: 'UTV side-by-side', silhouette: true },
-    jetski: { file: 'jetski.svg', alt: 'Jet ski', silhouette: true },
+    small: { file: 'small-car.webp', alt: 'Small car', studio: true },
+    sedan: { file: 'small-car.webp', alt: 'Sedan', studio: true },
+    suv2: { file: 'suv-2row.webp', alt: 'Two-row SUV', studio: true },
+    suv3: { file: 'suv-3row.webp', alt: 'Three-row SUV', studio: true },
+    compact_van: { file: 'compact-van.webp', alt: 'Compact van', studio: true },
+    midsize_van: { file: 'midsize-van.webp', alt: 'Midsize van', studio: true },
+    full_size_van: { file: 'cargo-van.webp', alt: 'Full-size cargo van', studio: true },
+    full_size_van_passenger: { file: 'passenger-van.webp', alt: 'Full-size passenger van', studio: true },
+    truck: { file: 'truck.webp', alt: 'Pickup truck', studio: true },
+    motorcycle: { file: 'motorcycle.webp', alt: 'Motorcycle', studio: true },
+    atv: { file: 'atv.webp', alt: 'ATV', studio: true },
+    utv: { file: 'utv.webp', alt: 'UTV side-by-side', studio: true },
+    jetski: { file: 'jetski.webp', alt: 'Jet ski', studio: true },
   };
 
   function visual(entry) {
     if (!entry) return null;
-    const base = entry.silhouette ? SILHOUETTE_BASE : BASE;
+    const base = entry.studio ? STUDIO_BASE : BASE;
     return { img: base + entry.file, alt: entry.alt };
   }
 
