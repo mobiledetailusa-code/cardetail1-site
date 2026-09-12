@@ -800,6 +800,7 @@ body.rv-overlay-lock{overflow:hidden}
 
 /* TIER CHIPS */
 .tier-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px;margin-bottom:18px}
+.tier-chips-note{font-size:12.5px;color:var(--mu);line-height:1.45;margin:0 0 10px;padding:8px 10px;background:rgba(77,163,255,.06);border:1px solid rgba(77,163,255,.15);border-radius:7px}
 .tchip{background:var(--bg3);border:1px solid rgba(255,255,255,.07);border-radius:var(--rs);padding:13px 12px;cursor:pointer;text-align:center;transition:.2s}
 .tchip:hover{border-color:var(--bbr)}
 .tchip.sel{border-color:var(--blue);background:rgba(77,163,255,.07)}
@@ -2612,7 +2613,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
-            <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV</div>
+            <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Golf · Equipment</div>
             <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $100</div>
           </div>
 
@@ -2699,12 +2700,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <p id="rv-airstream-note" style="display:none;font-size:11.5px;color:var(--blue);line-height:1.45;margin:0 0 10px;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Airstream units use surface-aware polish scope — tell us about aluminum condition in notes if needed.</p>
         </div>
 
-        <!-- Tier chips (shown for cars, boats, rvs, powersports differently) -->
-        <div id="tier-chips-wrap">
-          <div class="tier-chips" id="tier-chips"></div>
-        </div>
-
-        <!-- Make search (cars only) -->
+        <!-- Make / model / year first — size class is auto-detected from the catalog -->
         <div id="make-search-wrap" style="display:none">
           <div class="srch-wrap">
             <span class="srch-ico">🔍</span>
@@ -2715,6 +2711,12 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="sel-g"><div class="sel-l">Model</div><select class="sel-s" id="model-sel" disabled><option value="">— select make first —</option></select></div>
             <div class="sel-g"><div class="sel-l">Year</div><select class="sel-s" id="year-sel" disabled><option value="">— select model —</option></select></div>
           </div>
+        </div>
+
+        <!-- Size chips only when auto-class needs confirmation (cars / powersports) -->
+        <div id="tier-chips-wrap" style="display:none">
+          <p id="tier-chips-note" class="tier-chips-note" hidden>Select your vehicle size to continue — we couldn't match this model automatically.</p>
+          <div class="tier-chips" id="tier-chips"></div>
         </div>
 
         <!-- Generic size+year (boats, rvs, powersports) — catalog-powered -->
@@ -3625,10 +3627,12 @@ let PRICING = {
   },
   powersports: {
     tiers: {
-      motorcycle: {label:'Motorcycle',         icon:'🏍️', desc:'Street · Cruiser · Sport · Touring',  wash:100,  essential:160, full:225, premium:315},
-      atv:        {label:'ATV',                icon:'🏎️', desc:'All-Terrain Vehicle · Quad',           wash:100,  essential:160, full:225, premium:315},
-      utv:        {label:'UTV / Side-by-Side', icon:'🚜', desc:'Side-by-side · Sport UTV · Crew cab',  wash:125, essential:190, full:280, premium:395},
-      jetski:     {label:'Jet Ski / PWC',      icon:'🌊', desc:'PWC · Sea-Doo · Yamaha · Kawasaki',   wash:100,  essential:160, full:225, premium:310},
+      motorcycle: {label:'Motorcycle',              icon:'🏍️', desc:'Street · Cruiser · Sport · Touring',                 wash:100, essential:160, full:225, premium:315},
+      atv:        {label:'ATV',                     icon:'🏎️', desc:'All-Terrain Vehicle · Quad',                        wash:100, essential:160, full:225, premium:315},
+      utv:        {label:'UTV / Side-by-Side',      icon:'🚜', desc:'Side-by-side · Sport UTV · Crew cab · RTV',         wash:125, essential:190, full:280, premium:395},
+      golfcart:   {label:'Golf Cart',               icon:'⛳', desc:'Golf cart · Neighborhood EV · Personal transport',  wash:90,  essential:145, full:210, premium:295},
+      equipment:  {label:'Tractor / Equipment',     icon:'🛠️', desc:'Compact tractor · Skid steer · Bobcat · Utility',   wash:150, essential:230, full:340, premium:475},
+      jetski:     {label:'Jet Ski / PWC',           icon:'🌊', desc:'PWC · Sea-Doo · Yamaha · Kawasaki',                wash:100, essential:160, full:225, premium:310},
     },
     packages:[
       {id:'wash',     name:'Wash & Shine',     icon:'🪣', tag:'Quick refresh + UV protection',               dur:'~45–75 min', popular:false,
@@ -3904,6 +3908,7 @@ function setupBoatTypeControls(cat){
     try{ sessionStorage.setItem('cd1_boat_type', ST.boatType); }catch(e){}
     if(ST.boatType === 'jetski') ST.lengthFt = 0;
     if(jetNote) jetNote.style.display = ST.boatType === 'jetski' ? 'block' : 'none';
+    if(typeof setVehicleVisual==='function') setVehicleVisual();
     setupLengthSelector('boats');
     if(typeof initSpecialtySearch === 'function') initSpecialtySearch('boats');
     updateRvServiceSubtotal();
@@ -3944,6 +3949,7 @@ function setupRvTypeControls(cat){
   }
   typeSel.onchange = function(){
     ST.rvType = this.value;
+    if(typeof setVehicleVisual==='function') setVehicleVisual();
     try{ sessionStorage.setItem('cd1_rv_type', ST.rvType); }catch(e){}
     syncLivingVisibility();
     updateRvServiceSubtotal();
@@ -4023,24 +4029,63 @@ function setupUnitSelector(cat){
 
 // ── VEHICLE VISUAL LIBRARY ────────────────────────────────────────────────────
 const VEHICLE_VISUALS = {
-  sedan:       { img:'assets/vehicles/premium/sedan.webp',          alt:'Sedan receiving mobile detailing' },
-  compact:     { img:'assets/vehicles/premium/compact-sedan.webp',  alt:'Compact sedan receiving mobile detailing' },
-  midsize:     { img:'assets/vehicles/premium/midsize-sedan.webp',  alt:'Midsize sedan receiving mobile detailing' },
-  suv:         { img:'assets/vehicles/premium/suv-2-row.webp',      alt:'Two-row SUV receiving mobile detailing' },
-  'suv-3row':  { img:'assets/vehicles/premium/suv-3-row.webp',      alt:'Three-row SUV receiving mobile detailing' },
-  pickup:      { img:'assets/vehicles/premium/pickup.webp',         alt:'Pickup truck receiving mobile detailing' },
-  van:         { img:'assets/vehicles/premium/van.webp',            alt:'Full-size van receiving mobile detailing' },
-  minivan:     { img:'assets/vehicles/premium/minivan.webp',        alt:'Minivan receiving mobile detailing' },
-  workvan:     { img:'assets/vehicles/premium/work-van.webp',       alt:'Commercial work van fleet receiving mobile detailing' },
-  boxtruck:    { img:'assets/vehicles/premium/box-truck.webp',      alt:'Commercial box truck fleet receiving mobile detailing' },
-  rv:          { img:'assets/vehicles/premium/rv-motorhome.webp',   alt:'RV motorhome receiving mobile detailing' },
-  trailer:     { img:'assets/vehicles/premium/travel-trailer.webp', alt:'Travel trailer receiving mobile detailing' },
-  boat:        { img:'assets/vehicles/premium/boat.webp',           alt:'Boat receiving mobile marine detailing' },
-  jetski:      { img:'assets/vehicles/premium/jet-ski.webp',        alt:'Jet ski receiving mobile marine detailing' },
-  motorcycle:  { img:'assets/vehicles/premium/motorcycle.webp',     alt:'Motorcycle receiving mobile detailing' },
-  atv:         { img:'assets/vehicles/premium/atv.webp',            alt:'ATV receiving mobile detailing' },
-  utv:         { img:'assets/vehicles/premium/utv.webp',            alt:'UTV receiving mobile detailing' },
+  /* Studio renders — photorealistic class thumbnails (precision by body style) */
+  small:         { img:'assets/vehicles/studio/sedan.webp',          alt:'Small car' },
+  compact:       { img:'assets/vehicles/studio/sedan.webp',          alt:'Compact car' },
+  sedan:         { img:'assets/vehicles/studio/sedan.webp',          alt:'Sedan' },
+  midsize:       { img:'assets/vehicles/studio/sedan.webp',          alt:'Midsize car' },
+  coupe:         { img:'assets/vehicles/studio/coupe.webp',          alt:'Sports coupe' },
+  supercar:      { img:'assets/vehicles/studio/supercar.webp',       alt:'Exotic supercar' },
+  convertible:   { img:'assets/vehicles/studio/convertible.webp',    alt:'Convertible' },
+  wagon:         { img:'assets/vehicles/studio/wagon.webp',          alt:'Wagon / crossover wagon' },
+  suv:           { img:'assets/vehicles/studio/suv-crossover.webp',  alt:'Two-row SUV' },
+  suv2:          { img:'assets/vehicles/studio/suv-crossover.webp',  alt:'Two-row SUV' },
+  offroad:       { img:'assets/vehicles/studio/offroad-suv.webp',    alt:'Off-road SUV' },
+  luxurysuv:     { img:'assets/vehicles/studio/luxury-suv.webp',     alt:'Luxury performance SUV' },
+  luxurysedan:   { img:'assets/vehicles/studio/luxury-sedan.webp',   alt:'Luxury sedan' },
+  'suv-3row':    { img:'assets/vehicles/studio/suv-3row.webp',       alt:'Three-row SUV' },
+  suv3:          { img:'assets/vehicles/studio/suv-3row.webp',       alt:'Three-row SUV' },
+  compact_van:   { img:'assets/vehicles/studio/compact-van.webp',    alt:'Compact van' },
+  midsize_van:   { img:'assets/vehicles/studio/midsize-van.webp',    alt:'Midsize van' },
+  cargo_van:     { img:'assets/vehicles/studio/cargo-van.webp',      alt:'Full-size cargo van' },
+  passenger_van: { img:'assets/vehicles/studio/passenger-van.webp',  alt:'Full-size passenger van' },
+  van:           { img:'assets/vehicles/studio/cargo-van.webp',      alt:'Full-size van' },
+  minivan:       { img:'assets/vehicles/studio/minivan.webp',        alt:'Minivan' },
+  pickup:        { img:'assets/vehicles/studio/truck.webp',          alt:'Pickup truck' },
+  truck:         { img:'assets/vehicles/studio/truck.webp',          alt:'Pickup truck' },
+  motorcycle:    { img:'assets/vehicles/studio/motorcycle.webp',     alt:'Motorcycle' },
+  cruiser:       { img:'assets/vehicles/studio/cruiser.webp',        alt:'Cruiser motorcycle' },
+  sportbike:     { img:'assets/vehicles/studio/sportbike.webp',      alt:'Sport motorcycle' },
+  adventure:     { img:'assets/vehicles/studio/adventure-bike.webp', alt:'Adventure motorcycle' },
+  dirtbike:      { img:'assets/vehicles/studio/dirtbike.webp',       alt:'Dirt bike' },
+  scooter:       { img:'assets/vehicles/studio/scooter.webp',        alt:'Scooter' },
+  atv:           { img:'assets/vehicles/studio/atv.webp',            alt:'ATV' },
+  utv:           { img:'assets/vehicles/studio/utv.webp',            alt:'UTV side-by-side' },
+  golfcart:      { img:'assets/vehicles/studio/golf-cart.webp',      alt:'Golf cart' },
+  equipment:     { img:'assets/vehicles/studio/truck.webp',          alt:'Compact tractor / skid steer' },
+  jetski:        { img:'assets/vehicles/studio/jetski.webp',         alt:'Jet ski' },
+  /* Marine */
+  boat:          { img:'assets/vehicles/studio/runabout.webp',       alt:'Powerboat' },
+  runabout:      { img:'assets/vehicles/studio/runabout.webp',       alt:'Runabout / bowrider' },
+  pontoon:       { img:'assets/vehicles/studio/pontoon.webp',        alt:'Pontoon boat' },
+  bassboat:      { img:'assets/vehicles/studio/bass-boat.webp',      alt:'Bass boat' },
+  cabincruiser:  { img:'assets/vehicles/studio/cabin-cruiser.webp',  alt:'Cabin cruiser' },
+  sailboat:      { img:'assets/vehicles/studio/sailboat.webp',       alt:'Sailboat' },
+  yacht:         { img:'assets/vehicles/studio/cabin-cruiser.webp',  alt:'Yacht' },
+  /* RV / trailer */
+  rv:            { img:'assets/vehicles/studio/rv-class-a.webp',     alt:'RV motorhome' },
+  classa:        { img:'assets/vehicles/studio/rv-class-a.webp',     alt:'Class A motorhome' },
+  classb:        { img:'assets/vehicles/studio/rv-class-b.webp',     alt:'Class B camper van' },
+  classc:        { img:'assets/vehicles/studio/rv-class-b.webp',     alt:'Class C motorhome' },
+  trailer:       { img:'assets/vehicles/studio/travel-trailer.webp', alt:'Travel trailer' },
+  traveltrailer: { img:'assets/vehicles/studio/travel-trailer.webp', alt:'Travel trailer' },
+  fifthwheel:    { img:'assets/vehicles/studio/fifth-wheel.webp',    alt:'Fifth-wheel trailer' },
+  airstream:     { img:'assets/vehicles/studio/airstream.webp',      alt:'Airstream trailer' },
+  /* Fleet specialty */
+  workvan:       { img:'assets/vehicles/premium/work-van.webp',      alt:'Commercial work van fleet receiving mobile detailing' },
+  boxtruck:      { img:'assets/vehicles/premium/box-truck.webp',     alt:'Commercial box truck fleet receiving mobile detailing' },
 };
+
 const CATEGORY_VISUALS = {
   cars:        { img:'assets/vehicles/premium/cars-suvs.webp',       alt:'Cars SUVs and trucks mobile detailing' },
   boats:       { img:'assets/vehicles/premium/marine.webp',          alt:'Boat and marine mobile detailing' },
@@ -4049,30 +4094,101 @@ const CATEGORY_VISUALS = {
   fleet:       { img:'assets/vehicles/premium/fleet-commercial.webp',alt:'Commercial fleet and work van mobile detailing' },
 };
 const TIER_VISUAL_KEYS = {
-  small:'compact', sedan:'sedan', suv2:'suv', suv3:'suv-3row', compact_van:'van', midsize_van:'van', full_size_van:'van', full_size_van_passenger:'van', truck:'pickup',
-  motorcycle:'motorcycle', atv:'atv', utv:'utv', jetski:'jetski',
-  cargo:'workvan', workvan:'workvan', van:'van', boxtruck:'boxtruck',
+  small:'small', sedan:'sedan', suv2:'suv2', suv3:'suv-3row',
+  compact_van:'compact_van', midsize_van:'midsize_van',
+  full_size_van:'cargo_van', full_size_van_passenger:'passenger_van',
+  truck:'truck',
+  motorcycle:'motorcycle', atv:'atv', utv:'utv', golfcart:'golfcart', equipment:'equipment', jetski:'jetski',
+  cargo:'workvan', workvan:'workvan', van:'cargo_van', boxtruck:'boxtruck',
   vehicle:'sedan', commercial:'workvan', powersports:'atv', marine_rv:'rv'
 };
-// [lowercase substring, visual key] — checked in order; first match wins
+// Body/style keys that should beat a generic pricing tier (e.g. Odyssey prices as suv3 but looks like a minivan).
+const PRECISION_VISUAL_KEYS = {
+  minivan:1, compact:1, midsize:1, sedan:1, coupe:1, convertible:1, wagon:1, offroad:1, pickup:1,
+  van:1, compact_van:1, cargo_van:1, passenger_van:1, suv:1, 'suv-3row':1, truck:1,
+  supercar:1, luxurysuv:1, luxurysedan:1,
+  cruiser:1, sportbike:1, adventure:1, dirtbike:1, scooter:1, utv:1, atv:1, jetski:1, motorcycle:1, golfcart:1, equipment:1,
+  pontoon:1, runabout:1, bassboat:1, cabincruiser:1, sailboat:1, yacht:1,
+  classa:1, classb:1, classc:1, traveltrailer:1, fifthwheel:1, airstream:1, trailer:1
+};
+// [lowercase token/substring, visual key] — checked in order; first match wins.
+// Short keys (≤4 chars) use word-boundary matching so "roma" does not hit "ProMaster".
 const MODEL_MAP = [
+  // Vans before premium tokens that can substring-collide (e.g. ProMaster vs Ferrari Roma)
+  ['promaster city','compact_van'],['promaster','van'],['city express','van'],
+  ['transit connect','compact_van'],['transit','van'],['express','van'],['savana','van'],
+  ['sprinter','van'],['metris','van'],['nv200','van'],
+  // ── Premium / exotic highlights (before generic sedan/SUV matches) ──
+  // Ferrari
+  ['purosangue','luxurysuv'],['sf90','supercar'],['849 testarossa','supercar'],['f80','supercar'],
+  ['12cilindri','supercar'],['296 speciale','supercar'],['296 gtb','supercar'],['296 gts','convertible'],
+  ['amalfi spider','convertible'],['amalfi','supercar'],['roma spider','convertible'],['roma','supercar'],
+  ['portofino','convertible'],['f8 spider','convertible'],['f8','supercar'],
+  ['gtc4lusso','luxurysedan'],['ferrari','supercar'],
+  // Lamborghini
+  ['temerario','supercar'],['huracán','supercar'],['huracan','supercar'],['revuelto','supercar'],
+  ['aventador','supercar'],['urus','luxurysuv'],['lamborghini','supercar'],
+  // McLaren
+  ['720s','supercar'],['765lt','supercar'],['600lt','supercar'],['570s','supercar'],
+  ['artura','supercar'],['mclaren gt','supercar'],['mclaren','supercar'],
+  // Porsche — SUVs before generic 911/sedan
+  ['cayenne electric','luxurysuv'],['cayenne','luxurysuv'],['macan electric','luxurysuv'],['macan','luxurysuv'],
+  ['panamera','luxurysedan'],['taycan cross','luxurysuv'],['taycan','luxurysedan'],
+  ['911','supercar'],['718 boxster','convertible'],['718 cayman','coupe'],
+  ['boxster','convertible'],['cayman','coupe'],['porsche','supercar'],
+  // Aston Martin
+  ['dbx','luxurysuv'],['db11','supercar'],['dbs','supercar'],['vantage','supercar'],['aston martin','supercar'],
+  // Bentley / Rolls-Royce / Maserati
+  ['bentayga','luxurysuv'],['continental gt','coupe'],['flying spur','luxurysedan'],['mulsanne','luxurysedan'],['bentley','luxurysedan'],
+  ['cullinan','luxurysuv'],['dawn','convertible'],['ghost','luxurysedan'],['phantom','luxurysedan'],
+  ['spectre','coupe'],['wraith','coupe'],['rolls-royce','luxurysedan'],['rolls royce','luxurysedan'],
+  ['grecale','luxurysuv'],['levante','luxurysuv'],['mc20','supercar'],['granturismo','coupe'],
+  ['ghibli','luxurysedan'],['quattroporte','luxurysedan'],['maserati','luxurysedan'],
+  // Other exotics / halo
+  ['corvette','supercar'],['gt-r','supercar'],['gtr','supercar'],['nsx','supercar'],['viper','supercar'],
+  ['amg gt','supercar'],['lfa','supercar'],['i8','supercar'],
+  // Adventure motorcycles
+  ['africa twin','adventure'],['multistrada','adventure'],['pan america','adventure'],
+  ['r 1250 gs','adventure'],['r 1300 gs','adventure'],['f 850 gs','adventure'],['f 900 gs','adventure'],
+  ['tiger 900','adventure'],['tiger 1200','adventure'],['tenere','adventure'],['super adventure','adventure'],
+  ['desertx','adventure'],['norden','adventure'],
+  // John Deere Gator / utility
+  ['gator','utv'],['xuv','utv'],['rsx','utv'],['john deere','utv'],['deere','utv'],
+  // Coupes / sports cars (before sedan generics)
+  ['mustang','coupe'],['camaro','coupe'],['challenger','coupe'],['corvette','coupe'],
+  ['911','coupe'],['cayman','coupe'],['supra','coupe'],['brz','coupe'],['gr86','coupe'],
+  ['rc f','coupe'],['m2','coupe'],['m4','coupe'],['amg gt','coupe'],
+  ['gt-r','coupe'],['gtr','coupe'],['nsx','coupe'],['viper','coupe'],
+  // Convertibles
+  ['convertible','convertible'],['cabriolet','convertible'],['roadster','convertible'],
+  ['miata','convertible'],['mx-5','convertible'],['z4','convertible'],['sl-class','convertible'],
+  ['boxster','convertible'],['spyder','convertible'],['spider','convertible'],
+  // Wagons / lifted wagons
+  ['outback','wagon'],['allroad','wagon'],['v60','wagon'],['v90','wagon'],['e-class wagon','wagon'],
+  ['panamera sport turismo','wagon'],['crosstrek','wagon'],
   // compact and midsize sedans
   ['civic','compact'],['corolla','compact'],['elantra','compact'],['sentra','compact'],
   ['forte','compact'],['jetta','compact'],['impreza','compact'],['mazda3','compact'],
+  ['golf','compact'],['gti','compact'],['fit','compact'],['rio','compact'],['versa','compact'],
   ['camry','midsize'],['accord','midsize'],['taycan','midsize'],['model 3','midsize'],
-  // minivans (before suv/sedan to avoid false positive on "odyssey" etc.)
+  ['altima','midsize'],['sonata','midsize'],['k5','midsize'],['passat','midsize'],['legacy','midsize'],
+  ['model s','sedan'],['lucid air','sedan'],
+  // minivans (before suv/sedan)
   ['odyssey','minivan'],['sienna','minivan'],['caravan','minivan'],['pacifica','minivan'],
   ['sedona','minivan'],['carnival','minivan'],['quest','minivan'],['town & country','minivan'],
-  // full-size vans
-  ['transit','van'],['express','van'],['savana','van'],['promaster','van'],['sprinter','van'],
-  // pickups (before suv to catch tundra/ridgeline)
+  ['voyager','minivan'],['id.buzz','minivan'],
+  // pickups (before suv)
   ['f-150','pickup'],['f150','pickup'],['f-250','pickup'],['f-350','pickup'],
   ['f250','pickup'],['f350','pickup'],['silverado','pickup'],['sierra','pickup'],
   ['ram 1500','pickup'],['ram 2500','pickup'],['ram 3500','pickup'],
   ['tacoma','pickup'],['tundra','pickup'],['colorado','pickup'],['canyon','pickup'],
-  ['frontier','pickup'],['titan','pickup'],['maverick','pickup'],['gladiator','pickup'],
-  ['ridgeline','pickup'],['ranger','pickup'],
-  // 3-row full-size SUVs (before generic suv2 models)
+  ['frontier','pickup'],['titan','pickup'],['ford maverick','pickup'],['gladiator','pickup'],
+  ['ridgeline','pickup'],['ford ranger','pickup'],['cybertruck','pickup'],['santa cruz','pickup'],
+  // Off-road boxy SUVs (before generic crossover)
+  ['wrangler','offroad'],['bronco','offroad'],['bronco sport','offroad'],['defender','offroad'],
+  ['g-class','offroad'],['g wagon','offroad'],['g-wagen','offroad'],['hummer','offroad'],
+  ['jimny','offroad'],['fj cruiser','offroad'],
+  // 3-row full-size SUVs
   ['tahoe','suv-3row'],['suburban','suv-3row'],['escalade','suv-3row'],
   ['expedition','suv-3row'],['navigator','suv-3row'],['sequoia','suv-3row'],
   ['armada','suv-3row'],['qx80','suv-3row'],['qx60','suv-3row'],
@@ -4080,40 +4196,186 @@ const MODEL_MAP = [
   ['4runner','suv-3row'],['pathfinder','suv-3row'],
   ['traverse','suv-3row'],['enclave','suv-3row'],['acadia','suv-3row'],
   ['pilot','suv-3row'],['palisade','suv-3row'],['telluride','suv-3row'],
-  ['highlander','suv-3row'],['cx-9','suv-3row'],['cx-90','suv-3row'],
-  ['atlas','suv-3row'],['ascent','suv-3row'],['star','suv-3row'],
-  ['mdx','suv-3row'],['infiniti qx','suv-3row'],
-  ['model x','suv-3row'],['model y','suv'],['model 3','sedan'],['model s','sedan'],
-  // motorcycle / powersports
-  ['street glide','motorcycle'],['road king','motorcycle'],['sportster','motorcycle'],
-  ['cbr','motorcycle'],['gsxr','motorcycle'],['ninja','motorcycle'],
+  ['highlander','suv-3row'],['grand highlander','suv-3row'],['cx-9','suv-3row'],['cx-90','suv-3row'],
+  ['atlas','suv-3row'],['ascent','suv-3row'],['staria','minivan'],
+  // compact / classic sedans
+  ['dart','compact'],
+  ['mdx','suv-3row'],['infiniti qx','suv-3row'],['model x','suv-3row'],
+  ['wagoneer','suv-3row'],['grand wagoneer','suv-3row'],['durango','suv-3row'],
+  // 2-row crossovers
+  ['cr-v','suv'],['rav4','suv'],['rogue','suv'],['tucson','suv'],['sportage','suv'],
+  ['escape','suv'],['equinox','suv'],['forester','suv'],['cx-5','suv'],['cx-50','suv'],
+  ['tucson','suv'],['santa fe','suv'],['sorento','suv'],['highlander hybrid','suv-3row'],
+  ['model y','suv'],['mach-e','suv'],['ioniq 5','suv'],['ev6','suv'],['id.4','suv'],
+  ['rdx','suv'],['nx','suv'],['rx','suv'],['glc','suv'],['bmw x3','suv'],['bmw x5','suv-3row'],
+  // Cruiser motorcycles
+  ['street glide','cruiser'],['road glide','cruiser'],['road king','cruiser'],
+  ['electra glide','cruiser'],['sportster','cruiser'],['softail','cruiser'],
+  ['fat boy','cruiser'],['fatboy','cruiser'],['heritage classic','cruiser'],
+  ['low rider','cruiser'],['street bob','cruiser'],['breakout','cruiser'],
+  ['harley','cruiser'],['indian scout','cruiser'],['chieftain','cruiser'],
+  ['roadmaster','cruiser'],['boulevard','cruiser'],['shadow','cruiser'],['v-star','cruiser'],
+  ['vulcan','cruiser'],['rebel 1100','cruiser'],['scout bobber','cruiser'],
+  // Sportbikes
+  ['hayabusa','sportbike'],['gsx-r','sportbike'],['gsxr','sportbike'],['gsx r','sportbike'],
+  ['cbr','sportbike'],['ninja','sportbike'],['yzf-r','sportbike'],['yamaha r1','sportbike'],
+  ['yamaha r6','sportbike'],['panigale','sportbike'],['zx-6','sportbike'],['zx-10','sportbike'],
+  ['zx6','sportbike'],['zx10','sportbike'],['fireblade','sportbike'],['ducati','sportbike'],
+  ['aprilia rsv','sportbike'],['s1000rr','sportbike'],
+  // Dirt / dual-sport
+  ['dirt bike','dirtbike'],['dirtbike','dirtbike'],['motocross','dirtbike'],['mx bike','dirtbike'],
+  ['crf','dirtbike'],['yz250','dirtbike'],['yz450','dirtbike'],['kx250','dirtbike'],['kx450','dirtbike'],
+  ['rm-z','dirtbike'],['rmz','dirtbike'],['ktm 300','dirtbike'],['ktm 450','dirtbike'],
+  ['wr250','dirtbike'],['wr450','dirtbike'],['dr-z','dirtbike'],['drz','dirtbike'],
+  ['husqvarna','dirtbike'],['gasgas','dirtbike'],['enduro','dirtbike'],
+  // Scooters
+  ['vespa','scooter'],['pcx','scooter'],['nmax','scooter'],['xmax','scooter'],['burgman','scooter'],
+  ['metropolis','scooter'],['primavera','scooter'],['gts 300','scooter'],['scooter','scooter'],
+  ['adv150','scooter'],['forza 300','scooter'],['mp3 ','scooter'],
+  // Golf carts
+  ['golf cart','golfcart'],['golfcart','golfcart'],['club car','golfcart'],['ezgo','golfcart'],
+  ['ez-go','golfcart'],['e-z-go','golfcart'],['yamaha drive','golfcart'],['drive2','golfcart'],
+  ['cushman','golfcart'],['neighborhood ev','golfcart'],['icon i40','golfcart'],['icon i60','golfcart'],
+  ['icon ev','golfcart'],['evolution d5','golfcart'],['onward','golfcart'],['precedent','golfcart'],
+  ['carryall','golfcart'],['freedom rxv','golfcart'],['freedom txt','golfcart'],
+  // Compact tractor / skid steer / heavy utility
+  ['skid steer','equipment'],['compact track','equipment'],['compact tractor','equipment'],
+  ['mini excavator','equipment'],['excavator','equipment'],['backhoe','equipment'],
+  ['bobcat s','equipment'],['bobcat t','equipment'],['mt100','equipment'],['ct2025','equipment'],
+  ['ct2035','equipment'],['bx1880','equipment'],['bx2380','equipment'],['lx2610','equipment'],
+  ['l2501','equipment'],['l3301','equipment'],
   // jet ski
   ['waverunner','jetski'],['sea-doo','jetski'],['seadoo','jetski'],['aquatrax','jetski'],
-  // atv/utv
-  ['rzr','atv'],['can-am','atv'],['commander','atv'],['rancher','atv'],['grizzly','atv'],
+  ['jet ski','jetski'],['jetski','jetski'],['pwc','jetski'],['spark trixx','jetski'],
+  // UTV / side-by-side (incl. Kubota RTV, Bobcat utility, John Deere Gator)
+  ['rzr','utv'],['pro r','utv'],['turbo r','utv'],['general','utv'],['commander','utv'],
+  ['maverick','utv'],['talon','utv'],['pioneer','utv'],['teryx','utv'],['wolverine','utv'],
+  ['uforce','utv'],['zforce','utv'],['wildcat','utv'],['slingshot','utv'],['defender','utv'],
+  ['polaris ranger','utv'],['ranger xp','utv'],['ranger crew','utv'],['can-am maverick','utv'],['rtv','utv'],['kubota','utv'],['sidekick','utv'],
+  ['gator','utv'],['xuv','utv'],['rsx','utv'],['john deere','utv'],['deere','utv'],
+  ['uw56','utv'],['uw53','utv'],['uv34','utv'],['bobcat 3400','utv'],['bobcat 3600','utv'],
+  ['mpact','utv'],['fugleman','utv'],['villain','utv'],['t-boss','utv'],['intimidator','utv'],
+  ['sector 750','utv'],['sector 1000','utv'],['challenger 400','utv'],['challenger 750','utv'],
+  // ATV
+  ['rancher','atv'],['grizzly','atv'],['sportsman','atv'],['fourtrax','atv'],
+  ['outlander','atv'],['can-am outlander','atv'],['rubicon','atv'],['foreman','atv'],
+  ['kingquad','atv'],['brute force','atv'],['snarler','atv'],['cforce','atv'],['alterra','atv'],
+  // Marine model cues
+  ['pontoon','pontoon'],['tritoon','pontoon'],['bennington','pontoon'],['harris pontoon','pontoon'],
+  ['bass tracker','bassboat'],['bass boat','bassboat'],['nitro z','bassboat'],['skeeter','bassboat'],
+  ['sailboat','sailboat'],['catalina ','sailboat'],['beneteau','sailboat'],['jeanneau','sailboat'],
+  ['hunter sail','sailboat'],['laser sail','sailboat'],
+  ['sea ray sundancer','cabincruiser'],['cabin cruiser','cabincruiser'],['formula 310','cabincruiser'],
+  ['yacht','yacht'],['azimut','yacht'],['princess yacht','yacht'],
+  ['boston whaler','runabout'],['bowrider','runabout'],['bayliner','runabout'],
+  // RV model cues
+  ['airstream','airstream'],['flying cloud','airstream'],['basecamp','airstream'],
+  ['fifth wheel','fifthwheel'],['5th wheel','fifthwheel'],['montana fifth','fifthwheel'],
+  ['jayco eagle ht','fifthwheel'],['keystone cougar','fifthwheel'],
+  ['travel trailer','traveltrailer'],['jay feather','traveltrailer'],['rockwood','traveltrailer'],
+  ['winnebago micro','classb'],['travato','classb'],['revel ','classb'],['pleasure-way','classb'],
+  ['class b','classb'],['camper van','classb'],
+  ['class c','classc'],['thor four winds','classc'],['freelander','classc'],
+  ['class a','classa'],['bounder','classa'],['pace arrow','classa'],['dutch star','classa'],
 ];
+function modelMapKeyHit(lbl, key){
+  if(!key) return false;
+  // Longer keys keep simple substring match; short keys need token boundaries
+  // so "roma" does not hit "ProMaster", while "crf" still hits "CRF450R".
+  if(key.length >= 5) return lbl.indexOf(key) !== -1;
+  const esc=key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return new RegExp('(?:^|[^a-z])'+esc+'(?![a-z])').test(lbl);
+}
+function modelMapVisual(lbl, allowSet){
+  for(const [k,t] of MODEL_MAP){
+    if(!modelMapKeyHit(lbl, k)) continue;
+    if(allowSet && !allowSet[t]) continue;
+    return t;
+  }
+  return '';
+}
+
+// Premium make fallback when model substring did not already resolve a precise silhouette.
+function makeVisualHint(lbl){
+  const s=String(lbl||'').toLowerCase();
+  if(/ferrari/.test(s) && /purosangue/.test(s)) return 'luxurysuv';
+  if(/ferrari|lamborghini|mclaren|bugatti|pagani|koenigsegg/.test(s)) return 'supercar';
+  if(/porsche/.test(s) && /cayenne|macan|cross turismo/.test(s)) return 'luxurysuv';
+  if(/porsche/.test(s)) return 'supercar';
+  if(/aston martin/.test(s) && /dbx/.test(s)) return 'luxurysuv';
+  if(/aston martin/.test(s)) return 'supercar';
+  if(/bentley/.test(s) && /bentayga/.test(s)) return 'luxurysuv';
+  if(/bentley/.test(s)) return 'luxurysedan';
+  if(/rolls-?royce/.test(s) && /cullinan/.test(s)) return 'luxurysuv';
+  if(/rolls-?royce/.test(s)) return 'luxurysedan';
+  if(/maserati/.test(s) && /levante|grecale/.test(s)) return 'luxurysuv';
+  if(/maserati/.test(s) && /mc20/.test(s)) return 'supercar';
+  if(/maserati/.test(s)) return 'luxurysedan';
+  if(/john deere|deere/.test(s)) return 'utv';
+  if(/kubota|hisun|segway|intimidator|massimo|mahindra|bobcat/.test(s) && /skid|track|tractor|excavator|bx\d|lx\d|l2501|l3301|ct20|s70|s590|t66/.test(s)) return 'equipment';
+  if(/kubota|hisun|segway|intimidator|massimo|mahindra|bobcat|cub cadet|tracker off/.test(s)) return 'utv';
+  if(/club car|e-?z-?go|ezgo|cushman|yamaha golf|icon ev|evolution/.test(s)) return 'golfcart';
+  return '';
+}
 function getVehicleVisualKey(){
   const cat=ST.cat;
-  if(cat==='boats') return (ST.boatType==='jetski' || ST.tierKey==='jetski') ? 'jetski' : 'boat';
-  if(cat==='rvs'){
+  if(cat==='boats'){
+    const t=String(ST.boatType||ST.tierKey||'').toLowerCase();
     const lbl=(ST.vehicleLabel||'').toLowerCase();
-    return (lbl.indexOf('trailer')>-1||lbl.indexOf('fifth wheel')>-1||lbl.indexOf('airstream')>-1)?'trailer':'rv';
+    const fromModel=modelMapVisual(lbl, {pontoon:1,bassboat:1,sailboat:1,cabincruiser:1,yacht:1,runabout:1,jetski:1});
+    if(fromModel) return fromModel;
+    if(t==='jetski') return 'jetski';
+    if(t==='pontoon') return 'pontoon';
+    if(t==='bass') return 'bassboat';
+    if(t==='skiwake' || t==='runabout' || t==='bowrider' || t==='center') return 'runabout';
+    if(t==='cuddy' || t==='walkaround' || t==='sportcruiser' || t==='cabincruiser') return 'cabincruiser';
+    if(t==='yacht') return 'yacht';
+    if(lbl.indexOf('sail')>-1) return 'sailboat';
+    return 'boat';
+  }
+  if(cat==='rvs'){
+    const t=String(ST.rvType||ST.tierKey||'').toLowerCase();
+    const lbl=(ST.vehicleLabel||'').toLowerCase();
+    const fromModel=modelMapVisual(lbl, {airstream:1,fifthwheel:1,traveltrailer:1,classa:1,classb:1,classc:1,trailer:1});
+    if(fromModel) return fromModel;
+    if(t==='airstream') return 'airstream';
+    if(t==='fifthwheel') return 'fifthwheel';
+    if(t==='travel' || t==='cargo' || t==='horse' || t==='other') return 'traveltrailer';
+    if(t==='classa') return 'classa';
+    if(t==='classb' || t==='classbc') return 'classb';
+    if(t==='classc') return 'classc';
+    if(lbl.indexOf('airstream')>-1) return 'airstream';
+    if(lbl.indexOf('fifth')>-1) return 'fifthwheel';
+    if(lbl.indexOf('trailer')>-1) return 'traveltrailer';
+    return 'rv';
   }
   if(cat==='powersports'){
     const lbl=(ST.vehicleLabel||'').toLowerCase();
-    for(const [k,t] of MODEL_MAP){ if((t==='motorcycle'||t==='jetski'||t==='atv')&&lbl.indexOf(k)>-1) return t; }
+    const fromModel=modelMapVisual(lbl, {cruiser:1,sportbike:1,adventure:1,dirtbike:1,scooter:1,utv:1,atv:1,jetski:1,golfcart:1,equipment:1,motorcycle:1});
+    if(fromModel) return fromModel;
+    const makeHint=makeVisualHint(lbl);
+    if(makeHint && VEHICLE_VISUALS[makeHint]) return makeHint;
     if(ST.tierKey==='jetski') return 'jetski';
-    if(ST.tierKey==='atv'||ST.tierKey==='utv') return 'atv';
+    if(ST.tierKey==='utv') return 'utv';
+    if(ST.tierKey==='atv') return 'atv';
+    if(ST.tierKey==='golfcart') return 'golfcart';
+    if(ST.tierKey==='equipment') return 'equipment';
     return 'motorcycle';
   }
   if(cat==='fleet') return TIER_VISUAL_KEYS[ST.tierKey]||'workvan';
   const lbl=(ST.vehicleLabel||'').toLowerCase();
-  for(const [k,t] of MODEL_MAP){ if(lbl.indexOf(k)>-1) return t; }
-  if(ST.tierKey==='truck') return 'pickup';
-  if(ST.tierKey==='suv3') return 'suv-3row';
-  if(ST.tierKey==='suv2') return 'suv';
-  if(ST.tierKey==='small') return 'compact';
-  return 'sedan';
+  // Classifier body (minivan priced as suv3) beats generic pricing-tier silhouette.
+  if(ST.body && VEHICLE_VISUALS[ST.body] && PRECISION_VISUAL_KEYS[ST.body]) return ST.body;
+  // Model-specific silhouette when more precise than the pricing tier.
+  const precise=modelMapVisual(lbl, PRECISION_VISUAL_KEYS);
+  if(precise) return precise;
+  const makeHint=makeVisualHint(lbl);
+  if(makeHint && VEHICLE_VISUALS[makeHint]) return makeHint;
+  // Prefer the resolved pricing tier so cargo vs passenger vans (and SUV rows)
+  // keep distinct silhouettes even when MODEL_MAP only knows a generic "van".
+  if(ST.tierKey && TIER_VISUAL_KEYS[ST.tierKey]) return TIER_VISUAL_KEYS[ST.tierKey];
+  const mapped=modelMapVisual(lbl);
+  return mapped || 'sedan';
 }
 function setVehicleVisual(){
   const v=VEHICLE_VISUALS[getVehicleVisualKey()]||VEHICLE_VISUALS.sedan;
@@ -4132,8 +4394,8 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","NSX","RDX","RLX","TLX","ZDX"]
 "Cadillac":{m:["CT4","CT5","Escalade","Escalade ESV","Lyriq","SRX","XT4","XT5","XT6"],t:{"CT4":"small","CT5":"small","Escalade":"suv3","Escalade ESV":"suv3","Lyriq":"suv2","SRX":"suv2","XT4":"suv2","XT5":"suv2","XT6":"suv3"}},
 "Chevrolet":{m:["Blazer","Blazer EV","Bolt EUV","Bolt EV","Camaro","City Express","Colorado","Corvette","Cruze","Equinox","Equinox EV","Express","Express Cargo","Express Passenger","Impala","Malibu","Silverado 1500","Silverado 2500HD","Silverado 3500HD","Silverado EV","Spark","Suburban","Tahoe","Trailblazer","Traverse","Trax"],t:{"Blazer":"suv2","Blazer EV":"suv2","Bolt EUV":"suv2","Bolt EV":"small","Camaro":"small","City Express":"compact_van","Colorado":"truck","Corvette":"small","Cruze":"small","Equinox":"suv2","Equinox EV":"suv2","Express":"full_size_van","Express Cargo":"full_size_van","Express Passenger":"full_size_van_passenger","Impala":"small","Malibu":"small","Silverado 1500":"truck","Silverado 2500HD":"truck","Silverado 3500HD":"truck","Silverado EV":"truck","Spark":"small","Suburban":"suv3","Tahoe":"suv3","Trailblazer":"suv2","Traverse":"suv3","Trax":"suv2"}},
 "Chrysler":{m:["300","Pacifica","Town & Country","Voyager"],t:{"300":"small","Pacifica":"suv3","Town & Country":"suv3","Voyager":"suv3"}},
-"Dodge":{m:["Challenger","Charger","Durango","Grand Caravan","Hornet","Journey","Sprinter","Sprinter Cargo","Sprinter Passenger"],t:{"Challenger":"small","Charger":"small","Durango":"suv3","Grand Caravan":"suv3","Hornet":"suv2","Journey":"suv3","Sprinter":"full_size_van","Sprinter Cargo":"full_size_van","Sprinter Passenger":"full_size_van_passenger"}},
-"Ferrari":{m:["296 GTB","296 GTS","F8 Tributo","GTC4Lusso","Portofino M","Roma","SF90 Stradale"],t:{"296 GTB":"small","296 GTS":"small","F8 Tributo":"small","GTC4Lusso":"suv2","Portofino M":"small","Roma":"small","SF90 Stradale":"small"}},
+"Dodge":{m:["Challenger","Charger","Dart","Durango","Grand Caravan","Hornet","Journey","Sprinter","Sprinter Cargo","Sprinter Passenger"],t:{"Challenger":"small","Charger":"small","Dart":"small","Durango":"suv3","Grand Caravan":"suv3","Hornet":"suv2","Journey":"suv3","Sprinter":"full_size_van","Sprinter Cargo":"full_size_van","Sprinter Passenger":"full_size_van_passenger"}},
+"Ferrari":{m:["12Cilindri","12Cilindri Spider","296 GTB","296 GTS","296 Speciale","849 Testarossa","849 Testarossa Spider","Amalfi","Amalfi Spider","F8 Spider","F8 Tributo","F80","GTC4Lusso","Portofino M","Purosangue","Roma","Roma Spider","SF90 Spider","SF90 Stradale"],t:{"12Cilindri":"small","12Cilindri Spider":"small","296 GTB":"small","296 GTS":"small","296 Speciale":"small","849 Testarossa":"small","849 Testarossa Spider":"small","Amalfi":"small","Amalfi Spider":"small","F8 Spider":"small","F8 Tributo":"small","F80":"small","GTC4Lusso":"small","Portofino M":"small","Purosangue":"suv2","Roma":"small","Roma Spider":"small","SF90 Spider":"small","SF90 Stradale":"small"}},
 "FIAT":{m:["500","500L","500X"],t:{"500":"small","500L":"suv2","500X":"suv2"}},
 "Ford":{m:["Bronco","Bronco Sport","E-Series","E-Series Cargo","E-Series Passenger","Edge","Escape","Expedition","Explorer","F-150","F-250 Super Duty","F-350 Super Duty","Fiesta","Flex","Focus","Fusion","Maverick","Mustang","Mustang Mach-E","Ranger","Taurus","Transit","Transit Cargo","Transit Connect","Transit Connect Cargo","Transit Connect Passenger","Transit Passenger"],t:{"Bronco":"suv2","Bronco Sport":"suv2","E-Series":"full_size_van","E-Series Cargo":"full_size_van","E-Series Passenger":"full_size_van_passenger","Edge":"suv2","Escape":"suv2","Expedition":"suv3","Explorer":"suv3","F-150":"truck","F-250 Super Duty":"truck","F-350 Super Duty":"truck","Fiesta":"small","Flex":"suv3","Focus":"small","Fusion":"small","Maverick":"truck","Mustang":"small","Mustang Mach-E":"suv2","Ranger":"truck","Taurus":"small","Transit":"full_size_van","Transit Cargo":"full_size_van","Transit Connect":"compact_van","Transit Connect Cargo":"compact_van","Transit Connect Passenger":"compact_van","Transit Passenger":"full_size_van_passenger"}},
 "Genesis":{m:["G70","G80","G90","GV60","GV70","GV80"],t:{"G70":"small","G80":"small","G90":"small","GV60":"suv2","GV70":"suv2","GV80":"suv3"}},
@@ -4144,7 +4406,7 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","NSX","RDX","RLX","TLX","ZDX"]
 "Jaguar":{m:["E-PACE","F-PACE","F-TYPE","I-PACE","XE","XF"],t:{"E-PACE":"suv2","F-PACE":"suv2","F-TYPE":"small","I-PACE":"suv2","XE":"small","XF":"small"}},
 "Jeep":{m:["Cherokee","Compass","Gladiator","Grand Cherokee","Grand Cherokee L","Grand Wagoneer","Renegade","Wagoneer","Wrangler"],t:{"Cherokee":"suv2","Compass":"suv2","Gladiator":"truck","Grand Cherokee":"suv3","Grand Cherokee L":"suv3","Grand Wagoneer":"suv3","Renegade":"suv2","Wagoneer":"suv3","Wrangler":"suv2"}},
 "Kia":{m:["Carnival","EV6","EV9","Forte","K5","Niro","Optima","Sedona","Seltos","Sorento","Soul","Sportage","Stinger","Telluride"],t:{"Carnival":"suv3","EV6":"small","EV9":"suv3","Forte":"small","K5":"small","Niro":"suv2","Optima":"small","Sedona":"suv3","Seltos":"suv2","Sorento":"suv3","Soul":"suv2","Sportage":"suv2","Stinger":"small","Telluride":"suv3"}},
-"Lamborghini":{m:["Huracán","Revuelto","Urus"],t:{"Huracán":"small","Revuelto":"small","Urus":"suv2"}},
+"Lamborghini":{m:["Aventador","Huracán","Revuelto","Temerario","Urus"],t:{"Aventador":"small","Huracán":"small","Revuelto":"small","Temerario":"small","Urus":"suv2"}},
 "Land Rover":{m:["Defender","Discovery","Discovery Sport","Freelander","Range Rover","Range Rover Evoque","Range Rover Sport","Range Rover Velar"],t:{"Defender":"suv3","Discovery":"suv3","Discovery Sport":"suv2","Freelander":"suv2","Range Rover":"suv3","Range Rover Evoque":"suv2","Range Rover Sport":"suv3","Range Rover Velar":"suv2"}},
 "Lexus":{m:["ES","GS","GX","IS","LC","LS","LX","NX","RX","RZ","TX","UX"],t:{"ES":"small","GS":"small","GX":"suv3","IS":"small","LC":"small","LS":"small","LX":"suv3","NX":"suv2","RX":"suv2","RZ":"suv2","TX":"suv3","UX":"suv2"}},
 "Lincoln":{m:["Aviator","Corsair","MKX","MKZ","Nautilus","Navigator","Navigator L"],t:{"Aviator":"suv3","Corsair":"suv2","MKX":"suv2","MKZ":"small","Nautilus":"suv2","Navigator":"suv3","Navigator L":"suv3"}},
@@ -4157,7 +4419,7 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","NSX","RDX","RLX","TLX","ZDX"]
 "Mitsubishi":{m:["Eclipse Cross","Mirage","Outlander","Outlander PHEV","Outlander Sport"],t:{"Eclipse Cross":"suv2","Mirage":"small","Outlander":"suv3","Outlander PHEV":"suv2","Outlander Sport":"suv2"}},
 "Nissan":{m:["Altima","Ariya","Armada","Frontier","GT-R","Kicks","Leaf","Maxima","Murano","NV","NV Cargo","NV Passenger","NV200","Pathfinder","Quest","Rogue","Rogue Sport","Sentra","Titan","Versa","Z"],t:{"Altima":"small","Ariya":"suv2","Armada":"suv3","Frontier":"truck","GT-R":"small","Kicks":"suv2","Leaf":"small","Maxima":"small","Murano":"suv2","NV":"full_size_van","NV Cargo":"full_size_van","NV Passenger":"full_size_van_passenger","NV200":"compact_van","Pathfinder":"suv3","Quest":"suv3","Rogue":"suv2","Rogue Sport":"suv2","Sentra":"small","Titan":"truck","Versa":"small","Z":"small"}},
 "Polestar":{m:["2","3","4"],t:{"2":"small","3":"suv2","4":"suv2"}},
-"Porsche":{m:["718 Boxster","718 Cayman","911","Cayenne","Macan","Panamera","Taycan"],t:{"911":"small","718 Boxster":"small","718 Cayman":"small","Cayenne":"suv2","Macan":"suv2","Panamera":"small","Taycan":"small"}},
+"Porsche":{m:["718 Boxster","718 Cayman","911","Cayenne","Cayenne Electric","Macan","Macan Electric","Panamera","Taycan","Taycan Cross Turismo"],t:{"911":"small","718 Boxster":"small","718 Cayman":"small","Cayenne":"suv2","Cayenne Electric":"suv2","Macan":"suv2","Macan Electric":"suv2","Panamera":"small","Taycan":"small","Taycan Cross Turismo":"suv2"}},
 "Ram":{m:["1500","2500","3500","ProMaster","ProMaster City","ProMaster City Cargo","ProMaster City Passenger"],t:{"1500":"truck","2500":"truck","3500":"truck","ProMaster":"full_size_van","ProMaster City":"compact_van","ProMaster City Cargo":"compact_van","ProMaster City Passenger":"compact_van"}},
 "Rivian":{m:["R1S","R1T"],t:{"R1S":"suv3","R1T":"truck"}},
 "Rolls-Royce":{m:["Cullinan","Dawn","Ghost","Phantom","Spectre","Wraith"],t:{"Cullinan":"suv3","Dawn":"small","Ghost":"small","Phantom":"small","Spectre":"small","Wraith":"small"}},
@@ -4173,21 +4435,37 @@ window.SPECIALTY_MODELS = {
     "Aprilia":["RS 660","RSV4","Tuono 660","Tuono V4"],
     "Arctic Cat":["Alterra 300","Alterra 600","Alterra 700","Prowler Pro","Wildcat XX"],
     "BMW Motorrad":["C 400 GT","F 750 GS","F 850 GS","F 900 R","G 310 GS","K 1600","R 1250 GS","R 1300 GS","S 1000 R","S 1000 RR"],
+    "Bobcat":["UW56","UW53","3400","3450","3600","3650","UV34","S70 Skid Steer","S590 Skid Steer","T66 Compact Track","CT2025 Compact Tractor","CT2035 Compact Tractor"],
     "Can-Am":["Commander","Commander MAX","Defender","Defender MAX","Maverick R","Maverick X3","Outlander","Outlander MAX","Renegade","Ryker","Spyder F3","Spyder RT"],
     "CFMOTO":["300NK","450SS","650NK","800MT","CForce 400","CForce 600","CForce 800","UForce 600","UForce 1000","ZForce 800","ZForce 950"],
+    "Club Car":["Onward","Precedent","Tempo","Carryall 500","Carryall 700","Villager 2","Villager 4","Villager 6"],
+    "Cub Cadet":["Challenger 400","Challenger 500","Challenger 750","Challenger 1000"],
+    "Cushman":["Hauler 800","Hauler 1200","Hauler PRO","Shuttle 2","Shuttle 6"],
     "Ducati":["Diavel","DesertX","Monster","Multistrada V2","Multistrada V4","Panigale V2","Panigale V4","Scrambler","Streetfighter V2","Streetfighter V4"],
+    "E-Z-GO":["Freedom RXV","Freedom TXT","Express S4","Express L6","Valor","Liberty"],
+    "Evolution":["D5 Maverick","D5 Ranger","Classic 4","Turfman 200"],
     "Harley-Davidson":["Breakout","Fat Bob","Fat Boy","Heritage Classic","Iron 883","Low Rider S","Nightster","Pan America","Road Glide","Road King","Softail Standard","Sport Glide","Street Bob","Street Glide","Ultra Limited"],
+    "Hisun":["Sector 750","Sector 1000","Strike 1000","Tactic 750","HS 500","HS 700"],
     "Honda":["Africa Twin","CB500F","CB650R","CBR500R","CBR600RR","CBR1000RR","CRF110F","CRF250F","CRF300L","CRF450R","FourTrax Foreman","FourTrax Rancher","Gold Wing","Pioneer 500","Pioneer 700","Pioneer 1000","Rebel 300","Rebel 500","Rebel 1100","Rincon","Talon 1000","TRX250X"],
     "Husqvarna":["701 Enduro","701 Supermoto","FC 250","FC 450","FE 350","FE 501","Norden 901","Svartpilen","Vitpilen"],
+    "Icon EV":["i40","i40L","i60","i60L","i80"],
+    "Intimidator":["GC1K","GC1K Crew","750","1000"],
+    "John Deere":["Gator HPX","Gator TH","Gator TS","Gator TX","Gator XUV560","Gator XUV590","Gator XUV835","Gator XUV835M","Gator XUV865","Gator RSX860"],
     "Indian Motorcycle":["Challenger","Chief","Chieftain","FTR","Pursuit","Roadmaster","Scout","Springfield"],
     "Kawasaki":["Brute Force 300","Brute Force 750","Concours 14","Jet Ski STX 160","Jet Ski SX-R","Jet Ski Ultra 160","Jet Ski Ultra 310","KLR650","KX250","KX450","Mule Pro-DXT","Mule Pro-FXT","Ninja 400","Ninja 500","Ninja 650","Ninja ZX-6R","Ninja ZX-10R","Teryx","Teryx KRX 1000","Versys 650","Vulcan S","Z650","Z900"],
     "KTM":["250 SX-F","300 XC-W","350 EXC-F","450 SX-F","690 Enduro R","790 Adventure","890 Adventure","1290 Super Adventure","Duke 390","Duke 790","Duke 890","RC 390"],
+    "Kubota":["RTV-X900","RTV-X1100C","RTV-X1140","RTV520","Sidekick","BX1880","BX2380","LX2610","L2501","L3301"],
+    "Mahindra":["mPact XTV 750S","mPact XTV 750S-4","Retriever 1000"],
+    "Massimo":["T-Boss 550","T-Boss 750","T-Boss 1000","MSA 550","MSA 750"],
     "Polaris":["ACE","General 1000","General XP 4","Ranger 500","Ranger 570","Ranger 1000","Ranger Crew","RZR 200","RZR Trail","RZR XP","RZR Pro R","RZR Turbo R","Scrambler 850","Slingshot","Sportsman 450","Sportsman 570","Sportsman 850","Sportsman XP 1000"],
     "Sea-Doo":["Explorer Pro","FishPro Scout","FishPro Sport","FishPro Trophy","GTR","GTR-X","GTI","GTI SE","GTX","GTX Limited","RXP-X","RXT-X","Spark","Spark Trixx","Switch","Switch Cruise","Wake","Wake Pro"],
+    "Segway":["Villain SX10","Villain SX8","Fugleman UT10","Fugleman UT10 X","Snarler AT6"],
     "Suzuki":["Boulevard C50","Boulevard M109R","DR-Z400","GSX-8R","GSX-R600","GSX-R750","GSX-R1000","Hayabusa","KingQuad 400","KingQuad 500","KingQuad 750","V-Strom 650","V-Strom 800","V-Strom 1050"],
+    "Tracker Off Road":["300","500","800SX","800SX Crew"],
     "Triumph":["Bonneville","Daytona 660","Rocket 3","Scrambler 1200","Speed Triple","Street Triple","Tiger 660","Tiger 900","Tiger 1200","Trident 660"],
     "Vespa":["GTS","GTV","Primavera","Sprint"],
     "Yamaha":["Bolt","FJR1300","Grizzly 90","Grizzly EPS","Kodiak 450","Kodiak 700","MT-03","MT-07","MT-09","MT-10","Raptor 700R","Star Venture","Tenere 700","Viking","WaveRunner EX","WaveRunner FX","WaveRunner GP HO","WaveRunner GP SVHO","WaveRunner JetBlaster","WaveRunner VX","Wolverine","Wolverine RMAX","WR250F","YZ250F","YZ450F","YZF-R3","YZF-R6","YZF-R7","YZF-R1"],
+    "Yamaha Golf":["Drive2","Drive2 PTV","Adventurer Sport","The Drive"],
     "Zero Motorcycles":["DS","DSR/X","FX","FXE","S","SR/F","SR/S"]
   },
   boats: {
@@ -4532,7 +4810,7 @@ function selectCategory(cat){
   }else{
     ST._editingVehicleIndex=null;
   }
-  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.displayLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.boatType=cat==='boats'?ST.boatType:''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
+  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.displayLabel=''; ST.body=null; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.boatType=cat==='boats'?ST.boatType:''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
   ST.make=''; ST.model=''; ST.year=''; ST.classNeedsConfirm=false; ST._priceResolveFailed=false;
   if(window.CD1BookingVehicleSummary) CD1BookingVehicleSummary.clearCategoryExclusiveFields(ST, cat);
   resetVehicleEntryFields(cat);
@@ -4687,6 +4965,44 @@ function resetVehicleEntryFields(cat){
   if(ahCar) ahCar.textContent='';
 }
 
+
+// Size chips stay hidden while make/model can classify the vehicle.
+// Shown only when confirmation is required (unknown car model / unresolved powersports).
+function syncTierChipsVisibility(){
+  const wrap=document.getElementById('tier-chips-wrap');
+  const note=document.getElementById('tier-chips-note');
+  if(!wrap) return;
+  if(ST.cat==='boats'||ST.cat==='rvs'||ST.cat==='fleet'){
+    wrap.style.display='none';
+    if(note) note.hidden=true;
+    return;
+  }
+  if(ST.cat==='cars'){
+    const show=!!ST.classNeedsConfirm;
+    wrap.style.display=show?'block':'none';
+    if(note){
+      note.textContent="Select your vehicle size to continue — we couldn't match this model automatically.";
+      note.hidden=!show;
+    }
+    return;
+  }
+  if(ST.cat==='powersports'){
+    const make=(document.getElementById('g-make')?.value||'').trim();
+    const model=(document.getElementById('g-model')?.value||'').trim();
+    const year=(document.getElementById('g-year')?.value||'');
+    const attempted=!!(make&&model&&year);
+    const show=attempted && !ST.tierKey;
+    wrap.style.display=show?'block':'none';
+    if(note){
+      note.textContent='Select motorcycle, ATV, UTV, golf cart, or equipment to continue.';
+      note.hidden=!show;
+    }
+    return;
+  }
+  wrap.style.display='none';
+  if(note) note.hidden=true;
+}
+
 function renderTierChips(cat){
   const wrap=document.getElementById('tier-chips');
   const isCar=cat==='cars';
@@ -4694,9 +5010,8 @@ function renderTierChips(cat){
 
   if(usesLength){
     wrap.innerHTML='';
-    document.getElementById('tier-chips-wrap').style.display='none';
   }else{
-    document.getElementById('tier-chips-wrap').style.display='block';
+    // Keep chips in the DOM for fallback confirmation, but hide until needed.
     const tiers=PRICING[cat].tiers;
     wrap.innerHTML=Object.entries(tiers).filter(([k])=>!(cat==='powersports' && k==='jetski')).map(([k,t])=>{
       const prices=Object.values(t).filter(v=>typeof v==='number');
@@ -4721,6 +5036,8 @@ function renderTierChips(cat){
   setupUnitSelector(cat);
   document.getElementById('vc').classList.remove('show');
   document.getElementById('next3').disabled=true;
+  ST.classNeedsConfirm=false;
+  typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
 
   if(!isCar){
     const ys=document.getElementById('g-year');
@@ -4865,6 +5182,7 @@ function selectTier(key){
     if(resolved && resolved.ok && resolved.tierKey===key && resolved.displayLabel) ST.displayLabel=resolved.displayLabel;
     else if(window.CD1VehicleClass&&CD1VehicleClass.displayLabelForTierKey) ST.displayLabel=CD1VehicleClass.displayLabelForTierKey(key)||(ST.tier&&ST.tier.label)||'';
     else ST.displayLabel=(ST.tier&&ST.tier.label)||'';
+    ST.body=(resolved && resolved.ok && resolved.tierKey===key && resolved.body) ? resolved.body : null;
     if(ST.vehicleLabel) setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
   }else{
     ST.displayLabel=(ST.tier&&ST.tier.label)||'';
@@ -4873,6 +5191,7 @@ function selectTier(key){
   setupUnitSelector(ST.cat);
   // refresh price/card if vehicle already entered (no auto-advance)
   if(ST.vehicleLabel){ setBasePrice(); if(ST.cat==='cars'){ syncContinueGate(); renderAddons(); } }
+  typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
   tryGenericConfirm();
 }
 
@@ -4880,8 +5199,13 @@ function inferPowersportsTier(make, model){
   const name=String(model||'').trim();
   if(!name) return '';
   const blob=(String(make||'')+' '+name).toLowerCase();
-  if(/pioneer|talon|ranger|rzr|general|defender|commander|maverick|mule|teryx|wolverine|viking|uforce|zforce|prowler|wildcat|slingshot/.test(blob)) return 'utv';
-  if(/fourtrax|trx|outlander|renegade|sportsman|scrambler 850|grizzly|kodiak|alterra|cforce|kingquad|brute force|raptor|rincon|foreman|rancher/.test(blob)) return 'atv';
+  // Compact tractor / skid steer / excavator (before UTV — Bobcat S/T series, Kubota BX/LX/L)
+  if(/skid steer|compact track|compact tractor|mini excavator|excavator|backhoe|bobcat s\d|bobcat t\d|ct2025|ct2035|bx1880|bx2380|lx2610|l2501|l3301/.test(blob)) return 'equipment';
+  // Golf cart / neighborhood EV
+  if(/golf cart|golfcart|club car|e-?z-?go|ezgo|cushman|onward|precedent|tempo|carryall|villager|freedom rxv|freedom txt|express s4|express l6|drive2|yamaha golf|icon i\d|evolution d5|neighborhood/.test(blob)) return 'golfcart';
+  // UTV / side-by-side (incl. Kubota RTV, John Deere Gator, Bobcat utility)
+  if(/pioneer|talon|ranger|rzr|general|defender|commander|maverick|mule|teryx|wolverine|viking|uforce|zforce|prowler|wildcat|slingshot|gator|xuv|rsx|john deere|deere|rtv|kubota|sidekick|uw56|uw53|uv34|bobcat 34|bobcat 36|mpact|fugleman|villain|t-boss|intimidator|sector|challenger|hisun|segway|massimo|mahindra/.test(blob)) return 'utv';
+  if(/fourtrax|trx|outlander|renegade|sportsman|scrambler 850|grizzly|kodiak|alterra|cforce|kingquad|brute force|raptor|rincon|foreman|rancher|snarler/.test(blob)) return 'atv';
   return 'motorcycle';
 }
 
@@ -4959,17 +5283,24 @@ function tryGenericConfirm(){
   // Cars confirm only via make-in / model-sel / year-sel — never g-make leftovers.
   if(ST.cat==='cars') return;
 
-  if(ST.cat==='powersports' && !ST.tierKey){
+  if(ST.cat==='powersports'){
     const inferred=inferPowersportsTier(make, model);
-    if(!inferred || !PRICING.powersports || !PRICING.powersports.tiers[inferred]) return;
-    ST.tierKey=inferred;
-    ST.tier=PRICING.powersports.tiers[inferred];
-    ST.displayLabel=ST.tier.label;
-    const chip=document.querySelector('.tchip[data-tier="'+inferred+'"]');
-    if(chip){
-      document.querySelectorAll('.tchip').forEach(function(c){ c.classList.remove('sel'); });
-      chip.classList.add('sel');
+    // UTV/ATV model cues always win (e.g. RZR must not stay Motorcycle).
+    // Motorcycle inference only fills an empty tier so an explicit chip still wins.
+    if(inferred && typeof PRICING!=='undefined' && PRICING.powersports && PRICING.powersports.tiers[inferred]){
+      if(!ST.tierKey || inferred==='utv' || inferred==='atv' || inferred==='golfcart' || inferred==='equipment'){
+        ST.tierKey=inferred;
+        ST.tier=PRICING.powersports.tiers[inferred];
+        ST.displayLabel=ST.tier.label;
+        const chip=document.querySelector('.tchip[data-tier="'+inferred+'"]');
+        if(chip){
+          document.querySelectorAll('.tchip').forEach(function(c){ c.classList.remove('sel'); });
+          chip.classList.add('sel');
+        }
+      }
     }
+    typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
+    if(!ST.tierKey) return;
   }
 
   if(!ST.tierKey)return;
@@ -4977,7 +5308,7 @@ function tryGenericConfirm(){
   ST.vehicleLabel=`${year} ${make} ${model}`;
   setBasePrice();
   setVehicleVisual();
-  setVcName(ST.vehicleLabel);
+  setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
   document.getElementById('vc').classList.add('show');
   // Powersports/boats/RVs already validated a numeric price above / via setBasePrice.
   document.getElementById('next3').disabled=!(ST.basePrice>0);
@@ -5098,7 +5429,9 @@ function selectMake(make){
   ms.innerHTML='<option value="">— select model —</option>';
   if(data)data.m.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;ms.appendChild(o);});
   ms.disabled=false; ys.innerHTML='<option value="">— select model —</option>'; ys.disabled=true;
-  ST.model=''; ST.year=''; document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
+  ST.model=''; ST.year=''; ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.body=null; ST.classNeedsConfirm=false; ST.vehicleLabel='';
+  document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
+  typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
 }
 
 document.getElementById('model-sel').addEventListener('change',function(){
@@ -5108,7 +5441,9 @@ document.getElementById('model-sel').addEventListener('change',function(){
   const cur=new Date().getFullYear();
   ys.innerHTML='<option value="">— select year —</option>';
   for(let y=cur;y>=1990;y--){const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o);}
-  ys.disabled=false; ST.year=''; document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
+  ys.disabled=false; ST.year=''; ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.body=null; ST.classNeedsConfirm=false; ST.vehicleLabel='';
+  document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
+  typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
 });
 
 document.getElementById('year-sel').addEventListener('change',function(){
@@ -5132,19 +5467,22 @@ document.getElementById('year-sel').addEventListener('change',function(){
     ST.tierKey=resolved.tierKey;
     ST.tier=PRICING.cars.tiers[resolved.tierKey];
     ST.displayLabel=resolved.displayLabel||ST.tier.label;
+    ST.body=resolved.body||null;
     ST.classNeedsConfirm=false;
     document.querySelector(`.tchip[data-tier="${resolved.tierKey}"]`)?.classList.add('sel');
     setBasePrice();
     setVehicleVisual();
     setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
     document.getElementById('vc').classList.add('show');
+    typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
     syncContinueGate();
     renderAddons();
   }else{
     // Unknown / unmapped model: do not silently default to small/suv2 (underprice risk).
-    ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.classNeedsConfirm=true; ST.basePrice=0; ST._priceResolveFailed=false;
+    ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.body=null; ST.classNeedsConfirm=true; ST.basePrice=0; ST._priceResolveFailed=false;
     setVcName(ST.vehicleLabel+' · Vehicle size needs confirmation');
     document.getElementById('vc').classList.add('show');
+    typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
     syncContinueGate();
     renderAddons();
   }
@@ -6701,7 +7039,7 @@ const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & SUVs',      desc:'Mobile car detailing at your location', from:'From $190' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine wash & detail on-site',    from:'From $170' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'Price by exact length' },
-  powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs',       from:'From $100' },
+  powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs, golf carts',       from:'From $100' },
 
 };
 

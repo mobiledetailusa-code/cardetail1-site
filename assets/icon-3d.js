@@ -31,17 +31,28 @@
     fleet: { file: 'cat-cars.webp', alt: 'Fleet vehicles' },
   };
 
+  /* Phase A: size chips / confirmation use photorealistic studio renders. */
+  const STUDIO_BASE = 'assets/vehicles/studio/';
   const TIER = {
-    small: { file: 'tier-sedan.webp', alt: 'Sedan or compact' },
-    sedan: { file: 'tier-sedan.webp', alt: 'Sedan' },
-    suv2: { file: 'tier-suv.webp', alt: 'Two-row SUV' },
-    suv3: { file: 'tier-suv3.webp', alt: 'Three-row SUV' },
-    truck: { file: 'tier-truck.webp', alt: 'Pickup truck' },
+    small: { file: 'sedan.webp', alt: 'Small car', studio: true },
+    sedan: { file: 'sedan.webp', alt: 'Sedan', studio: true },
+    suv2: { file: 'suv-crossover.webp', alt: 'Two-row SUV', studio: true },
+    suv3: { file: 'suv-3row.webp', alt: 'Three-row SUV', studio: true },
+    compact_van: { file: 'compact-van.webp', alt: 'Compact van', studio: true },
+    midsize_van: { file: 'midsize-van.webp', alt: 'Midsize van', studio: true },
+    full_size_van: { file: 'cargo-van.webp', alt: 'Full-size cargo van', studio: true },
+    full_size_van_passenger: { file: 'passenger-van.webp', alt: 'Full-size passenger van', studio: true },
+    truck: { file: 'truck.webp', alt: 'Pickup truck', studio: true },
+    motorcycle: { file: 'motorcycle.webp', alt: 'Motorcycle', studio: true },
+    atv: { file: 'atv.webp', alt: 'ATV', studio: true },
+    utv: { file: 'utv.webp', alt: 'UTV side-by-side', studio: true },
+    jetski: { file: 'jetski.webp', alt: 'Jet ski', studio: true },
   };
 
   function visual(entry) {
     if (!entry) return null;
-    return { img: BASE + entry.file, alt: entry.alt };
+    const base = entry.studio ? STUDIO_BASE : BASE;
+    return { img: base + entry.file, alt: entry.alt };
   }
 
   global.icon3dPack = function (id, cat) {
