@@ -1,0 +1,91 @@
+{
+  "generatedAt": "2026-09-12T16:40:31.936Z",
+  "before": {
+    "Ford": [
+      "Transit",
+      "Transit Connect",
+      "E-Series"
+    ],
+    "Chevrolet": [
+      "Express"
+    ],
+    "GMC": [
+      "Savana"
+    ],
+    "Mercedes-Benz": [
+      "Sprinter",
+      "Metris(as suv2)"
+    ],
+    "Ram": [
+      "ProMaster",
+      "ProMaster City"
+    ],
+    "Nissan": [
+      "NV",
+      "NV200"
+    ]
+  },
+  "after": {
+    "Chevrolet": [
+      "City Express [compact/compact_van/cargo]",
+      "Express [full_size/full_size_van/cargo|passenger]"
+    ],
+    "Dodge": [
+      "Sprinter [full_size/full_size_van/cargo|passenger]"
+    ],
+    "Ford": [
+      "E-Series [full_size/full_size_van/cargo|passenger]",
+      "Transit [full_size/full_size_van/cargo|passenger]",
+      "Transit Connect [compact/compact_van/cargo|passenger]"
+    ],
+    "GMC": [
+      "Savana [full_size/full_size_van/cargo|passenger]"
+    ],
+    "Mercedes-Benz": [
+      "Metris [midsize/midsize_van/cargo|passenger]",
+      "Sprinter [full_size/full_size_van/cargo|passenger]"
+    ],
+    "Nissan": [
+      "NV [full_size/full_size_van/cargo|passenger]",
+      "NV200 [compact/compact_van/cargo]"
+    ],
+    "Ram": [
+      "ProMaster [full_size/full_size_van/cargo]",
+      "ProMaster City [compact/compact_van/cargo|passenger]"
+    ]
+  },
+  "remainingGaps": [
+    {
+      "id": "eSprinter",
+      "priority": "P2",
+      "note": "Mercedes-Benz eSprinter US EV cargo — low volume"
+    },
+    {
+      "id": "Freightliner Sprinter",
+      "priority": "P2",
+      "note": "Legacy Freightliner-badged Sprinter years; covered operationally via Mercedes/Dodge Sprinter aliases later if needed"
+    },
+    {
+      "id": "cutaway chassis",
+      "priority": "CUSTOM/ESTIMATE",
+      "note": "Express/Savana/E-Series/ProMaster cutaway + box/upfit — not ordinary detailing vans"
+    },
+    {
+      "id": "Transit Custom",
+      "priority": "P2",
+      "note": "Not US-market retail"
+    },
+    {
+      "id": "Ram ProMaster window passenger factory",
+      "priority": "P1",
+      "note": "US factory passenger ProMaster is uncommon; cargo-first with conversion handled as passenger only when selected via family Passenger where offered"
+    }
+  ],
+  "pricingProof": {
+    "minivan_interior": 235,
+    "compact_van_interior": 235,
+    "midsize_van_interior": 235,
+    "full_size_cargo_interior": 260,
+    "full_size_passenger_interior": 270
+  }
+}
