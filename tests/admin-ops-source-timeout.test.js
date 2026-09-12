@@ -26,10 +26,12 @@ describe('Admin Ops source timeout contract', () => {
   const jobsSrc = read('netlify/functions/admin-ops-jobs.js');
   const refresh = extractRefreshAll(html);
 
-  it('loads Jobs then Change requests sequentially without a shared poll signal', () => {
+  it('starts Jobs and Change requests together and paints Jobs first', () => {
     assert.doesNotMatch(refresh, /Promise\.allSettled/);
-    assert.match(refresh, /const jobsR = await settle\(loadJobs\(\)\)/);
-    assert.match(refresh, /await settle\(loadChangeRequests\(\)\)/);
+    assert.match(refresh, /const jobsP = settle\(loadJobs\(\)\)/);
+    assert.match(refresh, /const changeP = settle\(loadChangeRequests\(\)\)/);
+    assert.match(refresh, /const jobsR = await jobsP/);
+    assert.match(refresh, /await changeP/);
     assert.doesNotMatch(refresh, /loadJobs\(null,\s*\{\s*signal:\s*requestSignal/);
     assert.doesNotMatch(refresh, /loadChangeRequests\(\{\s*signal:\s*requestSignal/);
     assert.match(refresh, /aborted\(\)/);
@@ -69,19 +71,20 @@ describe('Admin Ops source timeout contract', () => {
     assert.doesNotMatch(refresh, /signal:\s*requestSignal/);
   });
 
-  it('Change requests list hydrates blobs with one eventual GET per key', () => {
+  it('Change requests pending list prefers the open catalog over a full-store hydrate', () => {
     const src = read('netlify/functions/admin-customer-requests.js');
     const listStart = src.indexOf("if (action === 'list')");
     const listEnd = src.indexOf("if (action === 'decide')");
-    const listFn = src.slice(listStart, listEnd > 0 ? listEnd : listStart + 8000);
+    const listFn = src.slice(listStart, listEnd > 0 ? listEnd : src.length);
+    assert.match(listFn, /readOpenCatalog/);
     assert.match(listFn, /hydrateRequestRecords\(/);
     assert.match(listFn, /listAllBlobs/);
     assert.doesNotMatch(listFn, /fetchBlobRecords/);
     assert.doesNotMatch(listFn, /getWithMetadata\s*\(/);
-    assert.doesNotMatch(listFn, /consistency:\s*'strong'/);
-    const hydrateStart = src.indexOf('async function hydrateRequestRecords');
-    const hydrateFn = src.slice(hydrateStart, listStart);
-    assert.match(hydrateFn, /store\.get\(b\.key/);
-    assert.doesNotMatch(hydrateFn, /getWithMetadata\s*\(/);
+    const lib = read('netlify/lib/customer-change-requests.js');
+    assert.match(lib, /OPEN_CATALOG_KEY = '_open_catalog'/);
+    assert.match(lib, /async function hydrateRequestRecords/);
+    assert.match(lib, /store\.get\(key/);
+    assert.doesNotMatch(lib.slice(lib.indexOf('async function hydrateRequestRecords')), /getWithMetadata\s*\(/);
   });
 });

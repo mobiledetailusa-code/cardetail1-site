@@ -25,8 +25,9 @@ test('1-3. initial refreshAll / polling path does not call loadTechs or tech-acc
   const refreshBlock = src.match(/async function refreshAll\([^)]*\)[\s\S]*?^  \}/m);
   assert.ok(refreshBlock);
   assert.doesNotMatch(refreshBlock[0], /Promise\.allSettled/);
-  assert.match(refreshBlock[0], /const jobsR = await settle\(loadJobs\(\)\)/);
-  assert.match(refreshBlock[0], /loadChangeRequests\(/);
+  assert.match(refreshBlock[0], /const jobsP = settle\(loadJobs\(\)\)/);
+  assert.match(refreshBlock[0], /const changeP = settle\(loadChangeRequests\(\)\)/);
+  assert.match(refreshBlock[0], /const jobsR = await jobsP/);
   assert.doesNotMatch(refreshBlock[0], /loadJobs\(null,\s*\{\s*signal:\s*requestSignal\s*\}\)/);
   assert.doesNotMatch(refreshBlock[0], /loadChangeRequests\(\{\s*signal:\s*requestSignal\s*\}\)/);
   assert.doesNotMatch(refreshBlock[0], /loadJobs\(\),\s*loadTechs\(/);
