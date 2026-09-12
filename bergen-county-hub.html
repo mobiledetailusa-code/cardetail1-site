@@ -3432,6 +3432,10 @@ function selectCategory(cat){
     if(gateMsg){ gateMsg.style.animation='none'; void gateMsg.offsetWidth; gateMsg.style.animation=''; }
     return;
   }
+  // Cart intent: normal category switch REPLACES; Add Another Vehicle appends.
+  if(!ST._startingAdditionalVehicle){ ST.vehicles=[]; ST._editingVehicleIndex=null; }
+  else { ST._editingVehicleIndex=null; }
+  ST.make=''; ST.model=''; ST.year=''; ST.displayLabel=''; ST.classNeedsConfirm=false; ST._priceResolveFailed=false;
   ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
   renderPackages(cat);
   renderTierChips(cat);
@@ -3766,7 +3770,10 @@ function setBasePrice(){
       raw=(ST.pkgId==='custom'||!unitPrice)?0:unitPrice*units;
     }
   }else{
-    raw=ST.tier[ST.pkgId]||ST.tier['wash']||ST.tier['maint']||ST.tier['exterior']||0;
+    if(ST.tierKey && PRICING[ST.cat] && PRICING[ST.cat].tiers && PRICING[ST.cat].tiers[ST.tierKey]){ ST.tier=PRICING[ST.cat].tiers[ST.tierKey]; }
+    var _rp=ST.tier && ST.pkgId ? Number(ST.tier[ST.pkgId]) : 0;
+    raw=(_rp>0)?_rp:0;
+    if(!(raw>0) && ST.pkgId && ST.pkgId!=='custom' && ST.vehicleLabel){ ST._priceResolveFailed=true; } else { ST._priceResolveFailed=false; }
   }
   ST.basePrice = applyRichPrice(raw);
   updateVcPriceDisplay();
@@ -3978,7 +3985,9 @@ function updateTotal(){
   if(isSignature && ST.basePrice>0){
     el.textContent='$'+(ST.basePrice+fee+(ST.addonTotal||0));
   }else{
-    el.textContent=total?'$'+total:'Estimate';
+    if(total){ el.textContent='$'+total; }
+  else if(ST._priceResolveFailed || (ST.pkgId && ST.pkgId!=='custom' && ST.vehicleLabel && !(ST.basePrice>0))){ el.textContent="We couldn't load this package price. Please retry."; }
+  else { el.textContent='—'; }
   }
   updateVcPriceDisplay();
 }

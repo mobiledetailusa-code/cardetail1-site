@@ -221,11 +221,15 @@ describe('inactive welcome savings removed', () => {
 describe('cross-step price consistency', () => {
   it('steps 4, 5, 6, success, and text summary use $X.00 formatting', () => {
     const runtime = read('assets/booking-review-runtime.js');
-    assert.match(html, /totalEl\.textContent = cartBase \? bkMoney\(cartBase\+fee\) : 'Estimate';/);
-    assert.match(html, /el\.textContent = total \? bkMoney\(total\) : 'Estimate';/);
+    assert.match(html, /cartBase > 0/);
+    assert.match(html, /couldn't load this package price/);
     assert.match(html, /function bkMoney\(n\)/);
-    assert.match(runtime, /okTotalEl\.textContent = displayTotal \? money\(displayTotal\) : 'Estimate'/);
+    assert.match(runtime, /okTotalEl\.textContent = displayTotal \? money\(displayTotal\) : '—'/);
     assert.match(html, /Estimated total: \$\$\{\(Number\(b\.totalPrice\)\|\|0\)\.toFixed\(2\)\}/);
+    // Published packages must not fall back to the word Estimate on price miss.
+    const updateStart = html.indexOf('function updateTotal()');
+    const updateFn = html.slice(updateStart, updateStart + 2200);
+    assert.doesNotMatch(updateFn, /: 'Estimate'/);
   });
 
   it('sticky updateTotal always includes travel fee (never gated by step)', () => {
