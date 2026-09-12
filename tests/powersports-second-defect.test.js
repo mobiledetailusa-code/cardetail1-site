@@ -353,9 +353,19 @@ describe('each machine reaches Review from the real cart handoff', () => {
 });
 
 describe('Cars / RV / Boat dispatcher regression', () => {
-  it('Cars still does not route through tryGenericConfirm', () => {
-    assert.doesNotMatch(extractFunction(index, 'tryGenericConfirm'), /ST\.cat==='cars'/);
+  it('Cars early-returns from tryGenericConfirm (year-sel is the car path)', () => {
+    const fn = extractFunction(index, 'tryGenericConfirm');
+    assert.match(fn, /if\(ST\.cat==='cars'\) return;/);
     assert.match(extractFunction(index, 'selectMake'), /function selectMake/);
+    // Behavioral: cars must not be priced from leftover g-make specialty fields.
+    const { sandbox, els } = loadDispatcher({
+      cat: 'cars', pkgId: 'refresh', tierKey: 'suv3',
+      tier: { label: 'SUV 3-Row', refresh: 405 },
+      vehicleLabel: '',
+    }, { make: 'Dutchmen', model: 'Astoria', year: '2022' });
+    sandbox.tryGenericConfirm();
+    assert.equal(sandbox.ST.vehicleLabel, '', 'cars must ignore g-make leftovers');
+    assert.equal(els.next3.disabled, true);
   });
 
   it('RV length branch still enables Continue and is unchanged', () => {

@@ -4516,12 +4516,24 @@ function selectCategory(cat){
   ST._pendingCat='';
   document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('pending-cat'));
   if(window.CD1BookingProgress) CD1BookingProgress.hidePendingIntent();
-  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.boatType=cat==='boats'?ST.boatType:''; ST.units=(cat==='fleet'?2:1); ST.displayLabel=''; ST.classNeedsConfirm=false; ST._addonKey='';
+  // Cart intent: normal category switch REPLACES the active vehicle.
+  // Explicit "Add Another Vehicle" sets _startingAdditionalVehicle and APPENDs.
+  if(!ST._startingAdditionalVehicle){
+    ST.vehicles=[];
+    ST._editingVehicleIndex=null;
+  }else{
+    ST._editingVehicleIndex=null;
+  }
+  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.displayLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.boatType=cat==='boats'?ST.boatType:''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
+  ST.make=''; ST.model=''; ST.year=''; ST.classNeedsConfirm=false; ST._priceResolveFailed=false;
   if(window.CD1BookingVehicleSummary) CD1BookingVehicleSummary.clearCategoryExclusiveFields(ST, cat);
+  resetVehicleEntryFields(cat);
   const rvPkgNote = document.getElementById('bs2-rv-note');
   if(rvPkgNote) rvPkgNote.style.display = cat==='rvs' ? 'block' : 'none';
   renderPackages(cat);
   renderTierChips(cat);
+  renderVehicleCart();
+  updateTotal();
   bkGoTo(2);
   const intentId=ST._prefillPkgId || ST._packageIntent || '';
   const pid=resolvePackageIntentForCategory(cat, intentId);
@@ -4628,6 +4640,45 @@ function selectPkg(id){
 }
 
 // ── STEP 3: VEHICLE ───────────────────────────────────────────────────────────
+function resetVehicleEntryFields(cat){
+  const makeIn=document.getElementById('make-in');
+  const makeDd=document.getElementById('make-dd');
+  const modelSel=document.getElementById('model-sel');
+  const yearSel=document.getElementById('year-sel');
+  if(makeIn) makeIn.value='';
+  if(makeDd) makeDd.classList.remove('open');
+  if(modelSel){
+    modelSel.innerHTML='<option value="">— select make first —</option>';
+    modelSel.disabled=true;
+  }
+  if(yearSel){
+    yearSel.innerHTML='<option value="">— select model —</option>';
+    yearSel.disabled=true;
+  }
+  const gMake=document.getElementById('g-make');
+  const gModel=document.getElementById('g-model');
+  const gYear=document.getElementById('g-year');
+  const gMakeDd=document.getElementById('g-make-dd');
+  const gModelDd=document.getElementById('g-model-dd');
+  const gNote=document.getElementById('g-custom-note');
+  if(gMake){ gMake.value=''; gMake.disabled=false; }
+  if(gModel){ gModel.value=''; gModel.disabled=true; }
+  if(gMakeDd) gMakeDd.classList.remove('open');
+  if(gModelDd) gModelDd.classList.remove('open');
+  if(gNote) gNote.style.display='none';
+  if(gYear){
+    gYear.innerHTML='<option value="">— year —</option>';
+    if(cat && cat!=='cars'){
+      const cur=new Date().getFullYear();
+      for(let y=cur;y>=1980;y--){const o=document.createElement('option');o.value=y;o.textContent=y;gYear.appendChild(o);}
+    }
+  }
+  const ahPkg=document.getElementById('ah-pkg');
+  const ahCar=document.getElementById('ah-car');
+  if(ahPkg) ahPkg.textContent='';
+  if(ahCar) ahCar.textContent='';
+}
+
 function renderTierChips(cat){
   const wrap=document.getElementById('tier-chips');
   const isCar=cat==='cars';
@@ -4813,7 +4864,7 @@ function selectTier(key){
   setupLengthSelector(ST.cat);
   setupUnitSelector(ST.cat);
   // refresh price/card if vehicle already entered (no auto-advance)
-  if(ST.vehicleLabel){ setBasePrice(); if(ST.cat==='cars'){ document.getElementById('next3').disabled=false; renderAddons(); } }
+  if(ST.vehicleLabel){ setBasePrice(); if(ST.cat==='cars'){ syncContinueGate(); renderAddons(); } }
   tryGenericConfirm();
 }
 
@@ -4897,6 +4948,9 @@ function tryGenericConfirm(){
     return;
   }
 
+  // Cars confirm only via make-in / model-sel / year-sel — never g-make leftovers.
+  if(ST.cat==='cars') return;
+
   if(ST.cat==='powersports' && !ST.tierKey){
     const inferred=inferPowersportsTier(make, model);
     if(!inferred || !PRICING.powersports || !PRICING.powersports.tiers[inferred]) return;
@@ -4917,25 +4971,73 @@ function tryGenericConfirm(){
   setVehicleVisual();
   setVcName(ST.vehicleLabel);
   document.getElementById('vc').classList.add('show');
-  document.getElementById('next3').disabled=false; renderAddons();
+  // Powersports/boats/RVs already validated a numeric price above / via setBasePrice.
+  document.getElementById('next3').disabled=!(ST.basePrice>0);
+  renderAddons();
   // No auto-advance: user reviews the vehicle card, then clicks "Choose Add-Ons →".
 }
 
+/** Canonical matrix lookup for tiered categories (cars / powersports). No wash/maint fallback. */
+function resolveTierPackagePrice(cat, tierKey, pkgId){
+  if(!cat || !tierKey || !pkgId || pkgId==='custom') return null;
+  if(cat==='boats' || cat==='rvs' || cat==='fleet') return null;
+  const tier=PRICING[cat] && PRICING[cat].tiers && PRICING[cat].tiers[tierKey];
+  if(!tier) return null;
+  const raw=Number(tier[pkgId]);
+  return raw > 0 ? raw : null;
+}
+
+function isPublishedPricedPackage(){
+  return !!(ST.pkgId && ST.pkgId!=='custom' && ST.cat && ST.cat!=='fleet');
+}
+
+function syncContinueGate(){
+  const btn=document.getElementById('next3');
+  if(!btn) return;
+  const published=isPublishedPricedPackage();
+  const hasVehicle=!!(ST.vehicleLabel && ST.pkg);
+  const priced=ST.basePrice > 0 && !ST._priceResolveFailed;
+  const needsClass=ST.cat==='cars' && ST.classNeedsConfirm;
+  btn.disabled = !(hasVehicle && (!published || priced) && !needsClass);
+}
+
 function setBasePrice(){
-  if(!ST.tier||!ST.pkgId){ST.basePrice=0;return;}
-  let raw=0;
+  ST._priceResolveFailed=false;
+  if(!ST.pkgId){ ST.basePrice=0; updateVcPriceDisplay(); updateTotal(); return; }
   if(ST.cat==='fleet'){
-    const units=ST.units||2;
-    if(ST.tierKey==='marine_rv'){
-      const ft=ST.lengthFt||LENGTH_PRICING.fleet.defaultFt;
-      raw=0;
-    }else{
-      raw=0;
-    }
-  }else{
-    raw=ST.tier[ST.pkgId]||ST.tier['wash']||ST.tier['maint']||ST.tier['exterior']||0;
+    ST.basePrice=0;
+    updateVcPriceDisplay();
+    updateTotal();
+    return;
   }
-  ST.basePrice = applyRichPrice(raw);
+  // Re-bind tier from the active category matrix so stale cross-category
+  // ST.tier objects cannot poison pricing after an RV→Cars (etc.) switch.
+  if(ST.tierKey && PRICING[ST.cat] && PRICING[ST.cat].tiers && PRICING[ST.cat].tiers[ST.tierKey]){
+    ST.tier=PRICING[ST.cat].tiers[ST.tierKey];
+  }
+  if(ST.cat==='boats' || ST.cat==='rvs'){
+    // Length / type paths set ST.basePrice directly in tryGenericConfirm.
+    if(!(ST.basePrice > 0) && isPublishedPricedPackage() && ST.vehicleLabel){
+      ST._priceResolveFailed=true;
+    }
+    updateVcPriceDisplay();
+    updateTotal();
+    return;
+  }
+  if(!ST.tierKey || !ST.tier){
+    ST.basePrice=0;
+    if(isPublishedPricedPackage() && ST.vehicleLabel) ST._priceResolveFailed=true;
+    updateVcPriceDisplay();
+    updateTotal();
+    return;
+  }
+  const raw=resolveTierPackagePrice(ST.cat, ST.tierKey, ST.pkgId);
+  if(raw == null){
+    ST.basePrice=0;
+    if(isPublishedPricedPackage()) ST._priceResolveFailed=true;
+  }else{
+    ST.basePrice=applyRichPrice(raw);
+  }
   updateVcPriceDisplay();
   updateTotal();
 }
@@ -5003,11 +5105,20 @@ document.getElementById('model-sel').addEventListener('change',function(){
 
 document.getElementById('year-sel').addEventListener('change',function(){
   ST.year=this.value; if(!ST.year)return;
+  // Heal ST.make/model from the live car form when dropdown clicks were skipped
+  // (typed make / autofill) so published packages still resolve a numeric price.
+  const makeInVal=(document.getElementById('make-in')?.value || '').trim();
+  const modelVal=(document.getElementById('model-sel')?.value || '').trim();
+  if(!ST.make && makeInVal){
+    const hit=MAKES.find(m=>m.toLowerCase()===makeInVal.toLowerCase());
+    ST.make=hit || makeInVal;
+  }
+  if(!ST.model && modelVal) ST.model=modelVal;
   const catalogTierKey=MODELS[ST.make]?.t[ST.model];
   const resolved=(window.CD1VehicleClass&&CD1VehicleClass.resolveVehicleClassification)
     ? CD1VehicleClass.resolveVehicleClassification({make:ST.make,model:ST.model,year:ST.year,catalogTierKey})
     : {ok:!!catalogTierKey,needsConfirmation:!catalogTierKey,tierKey:catalogTierKey||null,displayLabel:null,body:null,rows:null};
-  ST.vehicleLabel=`${ST.year} ${ST.make} ${ST.model}`;
+  ST.vehicleLabel=`${ST.year} ${ST.make} ${ST.model}`.replace(/\s+/g,' ').trim();
   document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
   if(resolved.ok && resolved.tierKey && PRICING.cars.tiers[resolved.tierKey]){
     ST.tierKey=resolved.tierKey;
@@ -5019,14 +5130,14 @@ document.getElementById('year-sel').addEventListener('change',function(){
     setVehicleVisual();
     setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
     document.getElementById('vc').classList.add('show');
-    document.getElementById('next3').disabled=false;
+    syncContinueGate();
     renderAddons();
   }else{
     // Unknown / unmapped model: do not silently default to small/suv2 (underprice risk).
-    ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.classNeedsConfirm=true; ST.basePrice=0;
+    ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.classNeedsConfirm=true; ST.basePrice=0; ST._priceResolveFailed=false;
     setVcName(ST.vehicleLabel+' · Vehicle size needs confirmation');
     document.getElementById('vc').classList.add('show');
-    document.getElementById('next3').disabled=true;
+    syncContinueGate();
     renderAddons();
   }
   // No auto-advance: user clicks "Choose Add-Ons →" after reviewing the vehicle.
@@ -5186,8 +5297,13 @@ function updateTotal(){
   if(lbl) lbl.textContent = 'Estimated total';
   if(isSignature && ST.basePrice>0){
     el.textContent = bkMoney(ST.basePrice+fee+(ST.addonTotal||0));
+  }else if(total > 0){
+    el.textContent = bkMoney(total);
+  }else if(ST._priceResolveFailed || (isPublishedPricedPackage() && ST.vehicleLabel && !(ST.basePrice > 0))){
+    // Published packages always have catalog prices — never silence a miss as "Estimate".
+    el.textContent = "We couldn't load this package price. Please retry.";
   }else{
-    el.textContent = total ? bkMoney(total) : 'Estimate';
+    el.textContent = '—';
   }
   if(estEl){
     if(total > 0 && fee > 0){
@@ -5196,12 +5312,16 @@ function updateTotal(){
     }else if(total > 0){
       estEl.textContent = 'Mobile service included';
       estEl.style.display = 'block';
+    }else if(ST._priceResolveFailed || (isPublishedPricedPackage() && ST.vehicleLabel && !(ST.basePrice > 0))){
+      estEl.textContent = 'Package pricing failed to resolve. Go back and reselect your vehicle.';
+      estEl.style.display = 'block';
     }else{
       estEl.textContent = '';
       estEl.style.display = 'none';
     }
   }
   updateVcPriceDisplay();
+  syncContinueGate();
 }
 
 // ── BOOKING SCHEDULE (Step 4) ───────────────────────────────────────────────
@@ -5241,7 +5361,13 @@ function fillStrip5(){
   }
   const totalEl = document.getElementById('s5-total');
   if(totalEl){
-    totalEl.textContent = cartBase ? bkMoney(cartBase+fee) : 'Estimate';
+    if(cartBase > 0){
+      totalEl.textContent = bkMoney(cartBase+fee);
+    }else if(vehicles.some(v => v && v.pkgId && v.pkgId !== 'custom' && !(Number(v.basePrice) > 0))){
+      totalEl.textContent = "We couldn't load this package price. Please retry.";
+    }else{
+      totalEl.textContent = '—';
+    }
   }
 }
 
@@ -5319,7 +5445,7 @@ function renderBkFinancialSummary(o){
   const discount = Math.max(0, Number(o.discount) || 0);
   const total    = Math.max(0, Math.round((service + addons + fee - discount) * 100) / 100);
   const amtEl = document.getElementById('bk-total-amount');
-  if(amtEl) amtEl.textContent = total > 0 ? bkMoney(total) : 'Estimate';
+  if(amtEl) amtEl.textContent = total > 0 ? bkMoney(total) : '—';
   const inclEl = document.getElementById('bk-total-incl');
   if(inclEl) inclEl.textContent = fee > 0
     ? 'Includes the mobile service adjustment for your location.'
@@ -5368,7 +5494,7 @@ function bkRenderVehicleSummary(items){
   const list = Array.isArray(items)?items:[];
   const multi = list.length>1;
   return list.map((it,idx)=>{
-    let rows='<div class="or"><span class="ol">'+bkEsc(it.packageName)+'</span><span class="ov">'+(it.packagePrice==null?'Estimate':bkMoney(it.packagePrice))+'</span></div>';
+    let rows='<div class="or"><span class="ol">'+bkEsc(it.packageName)+'</span><span class="ov">'+(it.packagePrice==null?"We couldn't load this package price. Please retry.":bkMoney(it.packagePrice))+'</span></div>';
     rows += it.addons.length
       ? it.addons.map(a=>'<div class="or"><span class="ol">+ '+bkEsc(a.name)+(a.qty>1?' × '+a.qty:'')+'</span><span class="ov">+'+bkMoney(a.lineTotal)+'</span></div>').join('')
       : '<div class="or"><span class="ol">Add-ons</span><span class="ov bkli-none">None</span></div>';
@@ -5712,7 +5838,7 @@ function fillConfirm(){
       ? '<div class="or"><span class="ol">Mobile service adjustment</span><span class="ov">+'+bkMoney(fee)+'</span></div>'
       : '';
   }
-  document.getElementById('c-total').textContent=total ? bkMoney(total) : 'Estimate';
+  document.getElementById('c-total').textContent=total ? bkMoney(total) : (vehicles.some(function(v){ return v && v.pkgId && v.pkgId!=='custom' && !(Number(v.basePrice)>0); }) ? "We couldn't load this package price. Please retry." : '—');
   const offerLine = document.getElementById('c-offer-line');
   if (offerLine) {
     offerLine.style.display = discount > 0 ? '' : 'none';
@@ -5995,7 +6121,7 @@ function showSuccess(payload){
     const okCards=document.getElementById('ok-vehicle-cards');
     if(okCards) okCards.innerHTML=bkRenderVehicleSummary(bkProjectVehicles(b).items);
     const totalEl=document.getElementById('ok-total');
-    if(totalEl) totalEl.textContent=(b.totalPrice||0)?bkMoney(b.totalPrice):'Estimate';
+    if(totalEl) totalEl.textContent=(b.totalPrice||0)?bkMoney(b.totalPrice):'—';
     const dateEl=document.getElementById('ok-date');
     if(dateEl) dateEl.textContent=b.preferredDate||document.getElementById('f-date')?.value||'—';
     const refEl=document.getElementById('ok-ref');

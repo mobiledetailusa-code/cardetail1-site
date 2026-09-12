@@ -200,13 +200,13 @@
       totals.payloadTotal = roundMoney(totals.service + totals.addons + totals.fee);
     }
     var amtEl = root.document && root.document.getElementById('bk-total-amount');
-    if (amtEl) amtEl.textContent = totals.estimatedTotal > 0 ? money(totals.estimatedTotal) : 'Estimate';
+    if (amtEl) amtEl.textContent = totals.estimatedTotal > 0 ? money(totals.estimatedTotal) : '—';
     var okTotal = root.document && root.document.getElementById('ok-total');
     if (okTotal && okTotal.getAttribute('data-locked') !== '1') {
       /* review live total only; success lock is set after persist */
     }
     var cTotal = root.document && root.document.getElementById('c-total');
-    if (cTotal) cTotal.textContent = totals.estimatedTotal > 0 ? money(totals.estimatedTotal) : 'Estimate';
+    if (cTotal) cTotal.textContent = totals.estimatedTotal > 0 ? money(totals.estimatedTotal) : '—';
     var inclEl = root.document && root.document.getElementById('bk-total-incl');
     if (inclEl) {
       inclEl.textContent = totals.fee > 0
@@ -363,7 +363,7 @@
     sub += ' No payment was collected today.';
     text('ok-sub', sub);
     try {
-      text('ok-total', (b.totalPrice || 0) ? money(b.totalPrice) : 'Estimate');
+      text('ok-total', (b.totalPrice || 0) ? money(b.totalPrice) : '—');
       text('ok-date', formatDateLabel(b.preferredDate) + (b.preferredArrivalWindow || b.preferredTime ? ' · ' + formatArrival(b.preferredArrivalWindow, b.preferredTime) : ''));
       text('ok-ref', id || '—');
       text('ok-pay', preferenceLabel(b.paymentMethodPreference || b.paymentMethod) || '—');
@@ -405,7 +405,7 @@
       var okTotalEl = root.document && root.document.getElementById('ok-total');
       if (okTotalEl) {
         okTotalEl.setAttribute('data-locked', '1');
-        okTotalEl.textContent = displayTotal ? money(displayTotal) : 'Estimate';
+        okTotalEl.textContent = displayTotal ? money(displayTotal) : '—';
       }
       text('ok-date', formatDateLabel(b.preferredDate || val('f-date')) + ' · ' + formatArrival(b.preferredArrivalWindow || val('f-arrival-window'), b.preferredTime || val('f-time')));
       text('ok-ref', b.id || '—');

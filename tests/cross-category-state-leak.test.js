@@ -39,12 +39,28 @@ function makeDom() {
     'bs2-rv-note': { style: { display: 'none' } },
     'bk-zip': { value: '07650', focus() {}, style: {} },
     'bk-gate-msg': { style: {} },
+    'make-in': { value: '' },
+    'make-dd': { classList: { remove() {}, add() {} } },
+    'model-sel': { value: '', disabled: true, innerHTML: '' },
+    'year-sel': { value: '', disabled: true, innerHTML: '', appendChild() {} },
+    'g-make': { value: '', disabled: false },
+    'g-model': { value: '', disabled: true },
+    'g-year': { value: '', innerHTML: '', onchange: null, appendChild() {} },
+    'g-make-dd': { classList: { remove() {} } },
+    'g-model-dd': { classList: { remove() {} } },
+    'g-custom-note': { style: { display: 'none' } },
   };
   return {
     els,
     document: {
-      getElementById(id) { return els[id] || null; },
+      getElementById(id) {
+        return els[id] || {
+          style: {}, classList: { add() {}, remove() {} }, value: '', innerHTML: '',
+          disabled: false, textContent: '', focus() {}, appendChild() {},
+        };
+      },
       querySelectorAll() { return []; },
+      createElement() { return { value: '', textContent: '' }; },
     },
   };
 }
@@ -93,6 +109,7 @@ function loadBookingFns() {
     },
     renderPackages() {},
     renderTierChips() {},
+    renderVehicleCart() {},
     bkGoTo() {},
     resolvePackageIntentForCategory() { return ''; },
     selectPkg() {},
@@ -101,12 +118,16 @@ function loadBookingFns() {
     syncRvSuperintAddonDedup() {},
     console,
   };
+  sandbox.ST._startingAdditionalVehicle = false;
+  sandbox.ST._editingVehicleIndex = null;
   sandbox.window = sandbox;
   sandbox.window.CD1BookingVehicleSummary = Summary;
   sandbox.window.CD1BookingProgress = sandbox.CD1BookingProgress;
   vm.createContext(sandbox);
   vm.runInContext(
-    extractFunction(index, 'selectCategory') + '\n' + extractFunction(index, 'renderAddons'),
+    extractFunction(index, 'resetVehicleEntryFields') + '\n' +
+    extractFunction(index, 'selectCategory') + '\n' +
+    extractFunction(index, 'renderAddons'),
     sandbox
   );
   return { sandbox, els: dom.els };

@@ -165,7 +165,7 @@
     return list.map(function (item, idx) {
       var rows = '';
       rows += '<div class="or"><span class="ol">' + esc(item.packageName) + '</span>' +
-        '<span class="ov">' + (item.packagePrice === null ? 'Estimate' : esc(money(item.packagePrice))) + '</span></div>';
+        '<span class="ov">' + (item.packagePrice === null ? "We couldn't load this package price. Please retry." : esc(money(item.packagePrice))) + '</span></div>';
       if (item.addons.length) {
         rows += item.addons.map(function (a) {
           return '<div class="or"><span class="ol">+ ' + esc(addonLabel(a)) + '</span>' +
@@ -194,7 +194,7 @@
     list.forEach(function (item, idx) {
       if (idx > 0) lines.push('');
       lines.push(item.label);
-      lines.push('  ' + item.packageName + ': ' + (item.packagePrice === null ? 'Estimate' : money(item.packagePrice)));
+      lines.push('  ' + item.packageName + ': ' + (item.packagePrice === null ? "We couldn't load this package price. Please retry." : money(item.packagePrice)));
       item.addons.forEach(function (a) {
         lines.push('  ' + addonLabel(a) + ': ' + (a.lineTotal === null ? '—' : money(a.lineTotal)));
       });
@@ -209,7 +209,7 @@
     if (!list.length) return '';
     return list.map(function (item) {
       var rows = '<li>' + esc(item.packageName) + ': ' +
-        esc(item.packagePrice === null ? 'Estimate' : money(item.packagePrice)) + '</li>';
+        esc(item.packagePrice === null ? "We couldn't load this package price. Please retry." : money(item.packagePrice)) + '</li>';
       rows += item.addons.map(function (a) {
         return '<li>' + esc(addonLabel(a)) + ': ' + esc(a.lineTotal === null ? '—' : money(a.lineTotal)) + '</li>';
       }).join('');
