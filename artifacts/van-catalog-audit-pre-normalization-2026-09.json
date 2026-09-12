@@ -1,0 +1,378 @@
+{
+  "auditedAt": "2026-09-12T16:32:11.296Z",
+  "pricingClasses": [
+    "small",
+    "suv2",
+    "suv3",
+    "truck",
+    "full_size_van"
+  ],
+  "displayClasses": [
+    "small",
+    "suv2",
+    "suv3",
+    "truck",
+    "minivan",
+    "full_size_van"
+  ],
+  "commercialVanCandidates": [
+    {
+      "make": "Chevrolet",
+      "model": "Express",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null
+        }
+      ],
+      "aliases": [],
+      "public": true
+    },
+    {
+      "make": "Dodge",
+      "model": "Sprinter",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null
+        }
+      ],
+      "aliases": [],
+      "public": true
+    },
+    {
+      "make": "Fixture",
+      "model": "Full-Size Van Example",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
+      "years": [
+        {
+          "from": 2015,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null,
+          "subtype": "cargo"
+        }
+      ],
+      "aliases": [
+        "Full Size Van Example"
+      ],
+      "public": false
+    },
+    {
+      "make": "Ford",
+      "model": "E-Series",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null
+        }
+      ],
+      "aliases": [],
+      "public": true
+    },
+    {
+      "make": "Ford",
+      "model": "Transit",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null
+        }
+      ],
+      "aliases": [],
+      "public": true
+    },
+    {
+      "make": "Ford",
+      "model": "Transit Connect",
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "aliases": [],
+      "public": true
+    },
+    {
+      "make": "GMC",
+      "model": "Savana",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null
+        }
+      ],
+      "aliases": [],
+      "public": true
+    },
+    {
+      "make": "Mercedes-Benz",
+      "model": "Metris",
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "aliases": [],
+      "public": true
+    },
+    {
+      "make": "Mercedes-Benz",
+      "model": "Sprinter",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null
+        }
+      ],
+      "aliases": [],
+      "public": true
+    },
+    {
+      "make": "Nissan",
+      "model": "NV",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null
+        }
+      ],
+      "aliases": [],
+      "public": true
+    },
+    {
+      "make": "Nissan",
+      "model": "NV200",
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "aliases": [],
+      "public": true
+    },
+    {
+      "make": "Ram",
+      "model": "ProMaster",
+      "pricingClass": "full_size_van",
+      "displayClass": "full_size_van",
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "full_size_van",
+          "rows": null
+        }
+      ],
+      "aliases": [],
+      "public": true
+    },
+    {
+      "make": "Ram",
+      "model": "ProMaster City",
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "aliases": [],
+      "public": true
+    }
+  ],
+  "misclassifiedAsSuvOrMinivan": [
+    {
+      "make": "Ford",
+      "model": "Transit Connect",
+      "pricingClass": "suv2",
+      "displayClass": "suv2"
+    },
+    {
+      "make": "Mercedes-Benz",
+      "model": "Metris",
+      "pricingClass": "suv2",
+      "displayClass": "suv2"
+    },
+    {
+      "make": "Nissan",
+      "model": "NV200",
+      "pricingClass": "suv2",
+      "displayClass": "suv2"
+    },
+    {
+      "make": "Ram",
+      "model": "ProMaster City",
+      "pricingClass": "suv2",
+      "displayClass": "suv2"
+    }
+  ],
+  "focusMakeModels": {
+    "Ford": [
+      "Bronco",
+      "Bronco Sport",
+      "E-Series",
+      "Edge",
+      "Escape",
+      "Expedition",
+      "Explorer",
+      "F-150",
+      "F-250 Super Duty",
+      "F-350 Super Duty",
+      "Fiesta",
+      "Flex",
+      "Focus",
+      "Fusion",
+      "Maverick",
+      "Mustang",
+      "Mustang Mach-E",
+      "Ranger",
+      "Taurus",
+      "Transit",
+      "Transit Connect"
+    ],
+    "Chevrolet": [
+      "Blazer",
+      "Blazer EV",
+      "Bolt EUV",
+      "Bolt EV",
+      "Camaro",
+      "Colorado",
+      "Corvette",
+      "Cruze",
+      "Equinox",
+      "Equinox EV",
+      "Express",
+      "Impala",
+      "Malibu",
+      "Silverado 1500",
+      "Silverado 2500HD",
+      "Silverado 3500HD",
+      "Silverado EV",
+      "Spark",
+      "Suburban",
+      "Tahoe",
+      "Trailblazer",
+      "Traverse",
+      "Trax"
+    ],
+    "GMC": [
+      "Acadia",
+      "Canyon",
+      "Hummer EV",
+      "Savana",
+      "Sierra 1500",
+      "Sierra 2500HD",
+      "Sierra 3500HD",
+      "Terrain",
+      "Yukon",
+      "Yukon XL"
+    ],
+    "Mercedes-Benz": [
+      "A-Class",
+      "AMG GT",
+      "B-Class",
+      "C-Class",
+      "CLA",
+      "CLS",
+      "E-Class",
+      "EQB",
+      "EQE",
+      "EQS",
+      "G-Class",
+      "GLA",
+      "GLB",
+      "GLC",
+      "GLE",
+      "GLS",
+      "Metris",
+      "S-Class",
+      "SL",
+      "Sprinter"
+    ],
+    "Ram": [
+      "1500",
+      "2500",
+      "3500",
+      "ProMaster",
+      "ProMaster City"
+    ],
+    "Nissan": [
+      "Altima",
+      "Ariya",
+      "Armada",
+      "Frontier",
+      "GT-R",
+      "Kicks",
+      "Leaf",
+      "Maxima",
+      "Murano",
+      "NV",
+      "NV200",
+      "Pathfinder",
+      "Quest",
+      "Rogue",
+      "Rogue Sport",
+      "Sentra",
+      "Titan",
+      "Versa",
+      "Z"
+    ],
+    "Dodge": [
+      "Challenger",
+      "Charger",
+      "Durango",
+      "Grand Caravan",
+      "Hornet",
+      "Journey",
+      "Sprinter"
+    ]
+  }
+}

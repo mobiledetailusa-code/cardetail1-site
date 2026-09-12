@@ -92,7 +92,7 @@ test('full_size_van is a published numeric cars tier (server)', () => {
 });
 
 test('DISPLAY includes full_size_van', () => {
-  assert.equal(DISPLAY.full_size_van.label, 'Full-Size Van');
+  assert.equal(DISPLAY.full_size_van.label, 'Full-Size Cargo Van');
 });
 
 test('P0 van reclass: Transit/Express/ProMaster/Sprinter/Savana/NV → full_size_van', () => {
@@ -109,24 +109,26 @@ test('P0 van reclass: Transit/Express/ProMaster/Sprinter/Savana/NV → full_size
     assert.equal(r.ok, true, `${make} ${model}`);
     assert.equal(r.tierKey, 'full_size_van', `${make} ${model}`);
     assert.equal(r.body, 'full_size_van', `${make} ${model}`);
-    assert.equal(r.displayLabel, 'Full-Size Van', `${make} ${model}`);
+    assert.equal(r.displayLabel, 'Full-Size Cargo Van', `${make} ${model}`);
     assert.equal(interiorPrice(r.tierKey), PRICING.cars.tiers.full_size_van.interior);
   }
 });
 
-test('P0 compact vans stay out of full_size_van and truck', () => {
+test('P0 compact/midsize vans are not SUVs and not full_size_van', () => {
   const models = extractModels(read('index.html'));
-  for (const [make, model] of [
-    ['Ford', 'Transit Connect'],
-    ['Ram', 'ProMaster City'],
-    ['Nissan', 'NV200'],
-    ['Mercedes-Benz', 'Metris'],
+  for (const [make, model, tier] of [
+    ['Ford', 'Transit Connect', 'compact_van'],
+    ['Ram', 'ProMaster City', 'compact_van'],
+    ['Nissan', 'NV200', 'compact_van'],
+    ['Mercedes-Benz', 'Metris', 'midsize_van'],
   ]) {
     const r = resolve(models, make, model, 2019);
     assert.equal(r.ok, true, `${make} ${model}`);
-    assert.equal(r.tierKey, 'suv2', `${make} ${model}`);
+    assert.equal(r.tierKey, tier, `${make} ${model}`);
     assert.notEqual(r.tierKey, 'full_size_van', `${make} ${model}`);
+    assert.notEqual(r.tierKey, 'suv2', `${make} ${model}`);
     assert.notEqual(r.tierKey, 'truck', `${make} ${model}`);
+    assert.equal(interiorPrice(r.tierKey), PRICING.cars.tiers.suv3.interior);
   }
 });
 
@@ -174,9 +176,13 @@ test('all booking pages share P0 van classifications + full_size_van pricing', (
     const html = read(page);
     const models = extractModels(html);
     assert.equal(catalogTier(models, 'Ford', 'Transit'), 'full_size_van', page);
-    assert.equal(catalogTier(models, 'Ford', 'Transit Connect'), 'suv2', page);
+    assert.equal(catalogTier(models, 'Ford', 'Transit Connect'), 'compact_van', page);
     assert.equal(catalogTier(models, 'Mercedes-Benz', 'Sprinter'), 'full_size_van', page);
+    assert.equal(catalogTier(models, 'Mercedes-Benz', 'Metris'), 'midsize_van', page);
     assert.match(html, /full_size_van\s*:\s*\{/);
+    assert.match(html, /compact_van\s*:\s*\{/);
+    assert.match(html, /midsize_van\s*:\s*\{/);
+    assert.match(html, /full_size_van_passenger\s*:\s*\{/);
     const start = html.indexOf('full_size_van:');
     assert.ok(start > 0, page);
     const slice = html.slice(start, start + 260);
@@ -196,8 +202,10 @@ test('canonical SoT owns P0/P1 additions (not HTML-only)', () => {
     ['Chevrolet', 'Express', 'full_size_van'],
     ['GMC', 'Savana', 'full_size_van'],
     ['Nissan', 'NV', 'full_size_van'],
-    ['Ford', 'Transit Connect', 'suv2'],
-    ['Nissan', 'NV200', 'suv2'],
+    ['Ford', 'Transit Connect', 'compact_van'],
+    ['Nissan', 'NV200', 'compact_van'],
+    ['Mercedes-Benz', 'Metris', 'midsize_van'],
+    ['Chevrolet', 'City Express', 'compact_van'],
     ['Rivian', 'R1S', 'suv3'],
     ['Toyota', 'Grand Highlander', 'suv3'],
   ]) {

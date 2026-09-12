@@ -8,7 +8,10 @@ const PRICING = {
       small: { label: 'Small Car', wash: 110, maint: 150, interior: 190, full: 240, refresh: 320, premium: 385 },
       suv2: { label: 'SUV 2-Row', wash: 135, maint: 185, interior: 215, full: 260, refresh: 360, premium: 470 },
       suv3: { label: 'SUV 3-Row', wash: 155, maint: 215, interior: 235, full: 270, refresh: 405, premium: 540 },
-      full_size_van: { label: 'Full-Size Van', wash: 170, maint: 235, interior: 260, full: 295, refresh: 445, premium: 595 },
+      compact_van: { label: 'Compact Van', wash: 155, maint: 215, interior: 235, full: 270, refresh: 405, premium: 540 },
+      midsize_van: { label: 'Midsize Van', wash: 155, maint: 215, interior: 235, full: 270, refresh: 405, premium: 540 },
+      full_size_van: { label: 'Full-Size Cargo Van', wash: 170, maint: 235, interior: 260, full: 295, refresh: 445, premium: 595 },
+      full_size_van_passenger: { label: 'Full-Size Passenger Van', wash: 180, maint: 245, interior: 270, full: 310, refresh: 465, premium: 620 },
       truck: { label: 'Truck', wash: 155, maint: 215, interior: 235, full: 275, refresh: 395, premium: 525 },
     },
     addons: [
@@ -505,6 +508,9 @@ function coerceVehicleForCategory(vehicle, category, opts = {}) {
     if (!tierKey || !tiers[tierKey]) {
       const label = String(opts.tierLabel || next.tierLabel || opts.vehicleLabel || next.vehicleLabel || '').toLowerCase();
       if (/3[\s-]?row|suburban|tahoe|expedition|sequoia|pilot|pathfinder/.test(label)) tierKey = 'suv3';
+      else if (/full.?size.?van.?passenger|passenger van/.test(label)) tierKey = 'full_size_van_passenger';
+      else if (/midsize.?van|metris/.test(label)) tierKey = 'midsize_van';
+      else if (/compact.?van|transit connect|promaster city|nv200|city express/.test(label)) tierKey = 'compact_van';
       else if (/full.?size.?van|sprinter|transit(?! connect)|promaster(?! city)|express van|savana|\bnv\b/.test(label)) tierKey = 'full_size_van';
       else if (/truck|pickup|f-?150|silverado|ram|tundra|sierra/.test(label)) tierKey = 'truck';
       else if (/suv|crossover|cx-|rav4|cr-v|highlander|explorer|4runner/.test(label)) tierKey = 'suv2';

@@ -6,7 +6,7 @@
  * Falls back to legacy MODELS.t + local minivan/year maps only if catalog is absent.
  *
  * One resolution feeds both customer-facing display and pricing tierKey.
- * Pricing catalog keys remain: small | suv2 | suv3 | full_size_van | truck
+ * Pricing catalog keys remain: small | suv2 | suv3 | compact_van | midsize_van | full_size_van | full_size_van_passenger | truck
  * (there is no separate minivan price key — minivans price as suv3).
  * full_size_van is an active pricing class (minivan/suv3 +10%, $5 round).
  *
@@ -25,7 +25,10 @@
     suv3: { label: '3-Row SUV', rows: 3 },
     truck: { label: 'Truck', rows: null },
     minivan: { label: 'Minivan', rows: 3 },
-    full_size_van: { label: 'Full-Size Van', rows: null },
+    compact_van: { label: 'Compact Van', rows: null },
+    midsize_van: { label: 'Midsize Van', rows: null },
+    full_size_van: { label: 'Full-Size Cargo Van', rows: null },
+    full_size_van_passenger: { label: 'Full-Size Passenger Van', rows: null },
   };
 
   // Legacy fallback maps — kept for offline/no-catalog boot only.
@@ -59,7 +62,10 @@
       tierKey === 'suv3' ||
       tierKey === 'small' ||
       tierKey === 'truck' ||
-      tierKey === 'full_size_van'
+      tierKey === 'full_size_van' ||
+      tierKey === 'full_size_van_passenger' ||
+      tierKey === 'compact_van' ||
+      tierKey === 'midsize_van'
     ) {
       return tierKey;
     }

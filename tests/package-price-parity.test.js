@@ -132,7 +132,7 @@ function catalogPriceEntries() {
   return entries;
 }
 
-test('13 booking pages match all 154 authoritative package values (2,002 comparisons)', () => {
+test('13 booking pages match all 172 authoritative package values (2,236 comparisons)', () => {
   const discovered = fs.readdirSync(ROOT)
     .filter((file) => file.endsWith('.html'))
     .filter((file) => /(?:const|let)\s+PRICING\s*=/.test(read(file)))
@@ -140,9 +140,12 @@ test('13 booking pages match all 154 authoritative package values (2,002 compari
   assert.deepEqual(discovered, BOOKING_PAGES.slice().sort());
 
   const entries = catalogPriceEntries();
-  // 148 baseline + 6 numeric packages on new cars.full_size_van tier
-  assert.equal(entries.length, 154);
+  // 154 after full_size_van + 18 from compact_van/midsize_van/full_size_van_passenger
+  assert.equal(entries.length, 172);
   assert.equal(PRICING.cars.tiers.full_size_van.interior, 260);
+  assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 270);
+  assert.equal(PRICING.cars.tiers.compact_van.interior, 235);
+  assert.equal(PRICING.cars.tiers.midsize_van.interior, 235);
   let comparisons = 0;
   for (const file of BOOKING_PAGES) {
     const html = read(file);
@@ -156,7 +159,7 @@ test('13 booking pages match all 154 authoritative package values (2,002 compari
       comparisons += 1;
     }
   }
-  assert.equal(comparisons, 2002);
+  assert.equal(comparisons, 2236);
 });
 
 test('server length helpers and RV calculator derive from the authoritative catalog', () => {

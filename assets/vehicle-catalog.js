@@ -24,8 +24,44 @@
     suv3: { label: '3-Row SUV', rows: 3 },
     truck: { label: 'Truck', rows: null },
     minivan: { label: 'Minivan', rows: 3 },
-    full_size_van: { label: 'Full-Size Van', rows: null },
+    // Van taxonomy (not SUVs). full_size_van = cargo pricing key.
+    compact_van: { label: 'Compact Van', rows: null },
+    midsize_van: { label: 'Midsize Van', rows: null },
+    full_size_van: { label: 'Full-Size Cargo Van', rows: null },
+    full_size_van_passenger: { label: 'Full-Size Passenger Van', rows: null },
   };
+
+  function parseVanUseSuffix(model) {
+    const raw = String(model || '').trim();
+    const m = raw.match(/^(.*)\s+(Cargo|Passenger)$/i);
+    if (!m) return { baseModel: raw, vanUse: null };
+    return { baseModel: m[1].trim(), vanUse: m[2].toLowerCase() === 'passenger' ? 'passenger' : 'cargo' };
+  }
+
+  function vanDisplayLabel(vanSize, vanUse) {
+    const size =
+      vanSize === 'compact' ? 'Compact' : vanSize === 'midsize' ? 'Midsize' : vanSize === 'full_size' ? 'Full-Size' : null;
+    if (!size) return null;
+    if (vanUse === 'passenger') return size + ' Passenger Van';
+    if (vanUse === 'cargo') return size + ' Cargo Van';
+    return size + ' Van';
+  }
+
+  function pricingClassForVanUse(vehicle, use) {
+    const size = vehicle && vehicle.vanSize;
+    const u = use || (vehicle && vehicle.defaultVanUse) || null;
+    const pc = vehicle ? vehicle.pricingClass : null;
+    if (size === 'compact' || pc === 'compact_van') return 'compact_van';
+    if (size === 'midsize' || pc === 'midsize_van') return 'midsize_van';
+    if (
+      size === 'full_size' ||
+      pc === 'full_size_van' ||
+      pc === 'full_size_van_passenger'
+    ) {
+      return u === 'passenger' ? 'full_size_van_passenger' : 'full_size_van';
+    }
+    return pc;
+  }
 
   function loadCatalogData() {
     const g = typeof globalThis !== 'undefined' ? globalThis : null;
@@ -92,21 +128,34 @@
 
   function findVehicleRecord(make, model) {
     const mk = String(make || '').trim();
-    const md = String(model || '').trim();
+    const parsed = parseVanUseSuffix(model);
+    const md = parsed.baseModel;
     const mdNorm = normKey(md);
     const pool = allVehicles().filter((v) => v.make === mk || normKey(v.make) === normKey(mk));
-    // Exact canonical model
-    let hit = pool.find((v) => v.model === md);
-    if (hit) return { vehicle: hit, matchedAlias: null };
-    // Case-insensitive / normalized model (treat non-canonical spelling as alias)
-    hit = pool.find((v) => normKey(v.model) === mdNorm);
-    if (hit) return { vehicle: hit, matchedAlias: md === hit.model ? null : md };
-    // Explicit aliases[]
-    hit = pool.find((v) => (v.aliases || []).some((a) => normKey(a) === mdNorm || a === md));
-    if (hit) {
-      const alias = (hit.aliases || []).find((a) => normKey(a) === mdNorm || a === md) || md;
-      return { vehicle: hit, matchedAlias: alias };
+    // Prefer longer/exact model names first so NV200 never collapses to NV, etc.
+    const byLen = [...pool].sort((a, b) => b.model.length - a.model.length);
+    // Exact canonical model (including full "NV200" before any NV alias)
+    let hit = byLen.find((v) => v.model === md || normKey(v.model) === mdNorm);
+    if (hit && (hit.model === md || normKey(hit.model) === mdNorm)) {
+      return { vehicle: hit, matchedAlias: hit.model === String(model || '').trim() ? null : String(model || '').trim(), vanUse: parsed.vanUse };
     }
+    // Exact canonical against original string (e.g. rare models ending in Cargo)
+    hit = byLen.find((v) => v.model === String(model || '').trim());
+    if (hit) return { vehicle: hit, matchedAlias: null, vanUse: parsed.vanUse };
+    // Explicit aliases[] — longest alias wins (Transit Connect before Transit)
+    let best = null;
+    let bestAlias = null;
+    for (const v of byLen) {
+      for (const a of v.aliases || []) {
+        if (normKey(a) === mdNorm || a === md || normKey(a) === normKey(model) || a === model) {
+          if (!bestAlias || String(a).length > String(bestAlias).length) {
+            best = v;
+            bestAlias = a;
+          }
+        }
+      }
+    }
+    if (best) return { vehicle: best, matchedAlias: bestAlias, vanUse: parsed.vanUse };
     return null;
   }
 
@@ -174,7 +223,7 @@
       };
     }
 
-    const { vehicle, matchedAlias } = found;
+    const { vehicle, matchedAlias, vanUse: parsedUse } = found;
     const { band, yearValid } = yearBand(vehicle, year);
 
     // Phase 1: year-aware data is present, but Production keeps over-acceptance for public models
@@ -200,13 +249,28 @@
       };
     }
 
-    const pricingClass = (band && band.class) || vehicle.pricingClass;
-    const displayClass =
+    const vanUse =
+      (input && input.vanUse) ||
+      parsedUse ||
+      vehicle.defaultVanUse ||
+      (Array.isArray(vehicle.vanUseOptions) ? vehicle.vanUseOptions[0] : null) ||
+      null;
+
+    let pricingClass = (band && band.class) || vehicle.pricingClass;
+    if (vehicle.vehicleFamily === 'van' || vehicle.vanSize) {
+      pricingClass = pricingClassForVanUse(vehicle, vanUse) || pricingClass;
+    }
+
+    let displayClass =
       vehicle.displayClass === 'minivan'
         ? 'minivan'
         : (band && (band.displayClass || band.class)) || vehicle.displayClass || pricingClass;
+    if (vehicle.vehicleFamily === 'van' || vehicle.vanSize) {
+      displayClass = pricingClass; // van display tracks pricing/use class
+    }
     const meta = displayMeta(displayClass, pricingClass);
     const rows = band && band.rows != null ? band.rows : meta.rows;
+    const vanLabel = vanDisplayLabel(vehicle.vanSize, vanUse);
 
     return {
       ok: true,
@@ -221,11 +285,15 @@
       pricingClass,
       body: displayClass,
       displayClass,
-      displayLabel: meta.label,
+      displayLabel: vanLabel || meta.label,
       rows,
       source: matchedAlias ? 'alias' : band ? 'catalog_year' : 'catalog',
       public: vehicle.public !== false,
       subtype: band && band.subtype ? band.subtype : null,
+      vehicleFamily: vehicle.vehicleFamily || null,
+      vanSize: vehicle.vanSize || null,
+      vanUse,
+      series: Array.isArray(vehicle.series) ? vehicle.series : [],
     };
   }
 
@@ -279,21 +347,35 @@
     };
   }
 
+  function pricingClassForVanProjection(vehicle, use) {
+    return pricingClassForVanUse(vehicle, use) || vehicle.pricingClass;
+  }
+
   function toLegacyModelsMap() {
     const out = {};
+    function add(make, model, pricingClass) {
+      if (!out[make]) out[make] = { m: [], t: {} };
+      if (!out[make].m.includes(model)) out[make].m.push(model);
+      out[make].t[model] = pricingClass;
+    }
     for (const v of publicVehicles()) {
-      if (!out[v.make]) out[v.make] = { m: [], t: {} };
-      if (!out[v.make].m.includes(v.model)) out[v.make].m.push(v.model);
-      // Legacy MODELS.t uses the default/catalog tier (first year band / vehicle pricingClass).
-      // For Santa Fe this remains suv2 (pre-2024 default), matching prior Production.
+      const isVan = v.vehicleFamily === 'van' || !!v.vanSize;
       const defaultBand = (v.years && v.years[0]) || null;
       const legacyTier =
         v.displayClass === 'minivan'
           ? 'suv3'
           : v.pricingClass || (defaultBand && defaultBand.class) || 'small';
-      // Prefer explicit vehicle.pricingClass when set; for year-split models use earliest band class
-      // only when pricingClass equals earliest (migration sets pricingClass = MODELS.t default).
-      out[v.make].t[v.model] = v.pricingClass || legacyTier;
+      const baseTier = isVan
+        ? pricingClassForVanProjection(v, v.defaultVanUse)
+        : v.pricingClass || legacyTier;
+      add(v.make, v.model, baseTier);
+      const uses = Array.isArray(v.vanUseOptions) ? v.vanUseOptions : null;
+      if (isVan && uses && uses.length > 1) {
+        for (const use of uses) {
+          const suffix = use === 'passenger' ? 'Passenger' : 'Cargo';
+          add(v.make, `${v.model} ${suffix}`, pricingClassForVanProjection(v, use));
+        }
+      }
     }
     for (const make of Object.keys(out)) {
       out[make].m.sort((a, b) => a.localeCompare(b));

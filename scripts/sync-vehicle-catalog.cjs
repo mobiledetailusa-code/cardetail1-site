@@ -43,13 +43,37 @@ function publicVehicles(catalog) {
   return (catalog.vehicles || []).filter((v) => v.public !== false);
 }
 
+function pricingClassForVanUse(vehicle, use) {
+  const size = vehicle.vanSize || null;
+  const u = use || vehicle.defaultVanUse || (vehicle.vanUseOptions || [])[0] || null;
+  if (vehicle.vehicleFamily !== 'van' && !size) return vehicle.pricingClass;
+  if (size === 'compact') return 'compact_van';
+  if (size === 'midsize') return 'midsize_van';
+  if (size === 'full_size') {
+    return u === 'passenger' ? 'full_size_van_passenger' : 'full_size_van';
+  }
+  return vehicle.pricingClass;
+}
+
 function toLegacy(catalog) {
   const models = {};
+  function add(make, model, pricingClass) {
+    if (!models[make]) models[make] = { m: [], t: {} };
+    if (!models[make].m.includes(model)) models[make].m.push(model);
+    models[make].t[model] = pricingClass;
+  }
   for (const v of publicVehicles(catalog)) {
-    if (!models[v.make]) models[v.make] = { m: [], t: {} };
-    if (!models[v.make].m.includes(v.model)) models[v.make].m.push(v.model);
-    // Legacy page map stores the default pricing tier (MODELS.t), not display class.
-    models[v.make].t[v.model] = v.pricingClass;
+    const uses = Array.isArray(v.vanUseOptions) ? v.vanUseOptions : null;
+    const isVan = v.vehicleFamily === 'van' || !!v.vanSize;
+    // Canonical family name (default use / legacy pricingClass).
+    add(v.make, v.model, isVan ? pricingClassForVanUse(v, v.defaultVanUse) : v.pricingClass);
+    // Expand Cargo/Passenger selectables for dual-use vans (no HTML hand-edits).
+    if (isVan && uses && uses.length > 1) {
+      for (const use of uses) {
+        const suffix = use === 'passenger' ? 'Passenger' : 'Cargo';
+        add(v.make, `${v.model} ${suffix}`, pricingClassForVanUse(v, use));
+      }
+    }
   }
   for (const make of Object.keys(models)) {
     models[make].m.sort((a, b) => a.localeCompare(b));
