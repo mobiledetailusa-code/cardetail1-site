@@ -242,7 +242,16 @@ async function applyAddonFinancialMutation({
     approvedBy: changeRequest ? 'customer_request_approved' : 'admin',
   });
   if (!adjustment.ok) {
-    return { ok: false, error: adjustment.error || 'adjustment_failed', statusCode: 500 };
+    // Carry the authority's own status and explanation. Flattening every
+    // refusal to a bare 500 turned an actionable 409 — which attempt is open,
+    // how old, what Stripe reports — into "adjustment failed" on the Admin
+    // screen, with nothing to act on.
+    return {
+      ...adjustment,
+      ok: false,
+      error: adjustment.error || 'adjustment_failed',
+      statusCode: adjustment.statusCode || 500,
+    };
   }
 
   const pgProjection = adjustment.after || await authority.getFinancialProjection(bookingId);

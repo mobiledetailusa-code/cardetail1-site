@@ -73,9 +73,14 @@ async function autoApplySubmittedRequest(bookingId, cmd) {
       message: decided.message
         || (decided.error === 'invalid_pricing'
           ? 'Could not price this change. For trailer → SUV, select a car package and size, then try again.'
+          : decided.error === 'payment_attempt_in_progress'
+            ? 'A payment attempt on this booking is still open, so the amount cannot change yet.'
           : 'Change saved as a request but could not auto-apply. Call/text 551-373-5668.'),
       changeRequest: cmd.changeRequest,
       booking: cmd.booking,
+      attemptId: decided.attemptId,
+      attemptAgeMinutes: decided.attemptAgeMinutes,
+      stripeStatus: decided.stripeStatus,
     };
   }
   return {
@@ -145,6 +150,61 @@ function addonMutationResponse(appliedCmd, {
       ?? 0,
     booking: safeBooking(appliedCmd.booking),
   });
+}
+
+/**
+ * Admin SMS for pending package/add-on requests; customer approval notify when
+ * the request auto-applies. Never rolls back the already-persisted mutation.
+ */
+async function notifyMoneyChangeLifecycle({
+  event,
+  appliedCmd,
+  policy,
+  changeRequestId = null,
+  custName = '',
+  bookingFallback = null,
+  requestType = '',
+  changeSummary = '',
+}) {
+  if (!appliedCmd || appliedCmd.idempotent) return;
+  try {
+    const lifecycle = require('../lib/appointment-lifecycle-notifications');
+    const store = await bookingStore();
+    const row = appliedCmd.booking || bookingFallback;
+    if (!row) return;
+    const crId = changeRequestId || appliedCmd.changeRequest?.requestId || null;
+    const pending = !!policy.pendingApproval && !appliedCmd.applied;
+    const typeLabel = requestType === 'package_change_request'
+      ? 'Package change'
+      : requestType === 'addon_request'
+        ? 'Add-on addition'
+        : requestType === 'addon_remove_request'
+          ? 'Add-on removal'
+          : 'Change request';
+    if (pending) {
+      await lifecycle.notifyChangeRequested(row, {
+        event,
+        store,
+        changeRequestId: crId,
+        customerName: custName,
+        changeSummary,
+        requestTypeLabel: typeLabel,
+        skipCustomer: true,
+        source: 'lifecycle_mutation',
+      });
+    } else if (appliedCmd.applied && !appliedCmd.noop) {
+      await lifecycle.notifyChangeApproved(row, {
+        event,
+        store,
+        changeRequestId: crId,
+        requestType,
+        requestRecord: appliedCmd.changeRequest || {},
+        source: 'lifecycle_mutation',
+      });
+    }
+  } catch (e) {
+    console.warn('[submit-customer-action] money change lifecycle notify failed:', e.message);
+  }
 }
 
 const ALLOWED_ACTIONS = new Set(Object.keys(ACTION_MAP));
@@ -333,6 +393,18 @@ exports.handler = async (event) => {
     if (!policy.pendingApproval) {
       appliedCmd = await autoApplySubmittedRequest(bookingId, cmd);
       if (!appliedCmd.ok) {
+        // Request persisted; auto-apply failed (often stale payment attempt).
+        // Alert Admin so the pending request is actionable.
+        await notifyMoneyChangeLifecycle({
+          event,
+          appliedCmd: { ...cmd, applied: false, idempotent: !!cmd.idempotent },
+          policy: { ...policy, pendingApproval: true },
+          changeRequestId: cmd.changeRequest?.requestId || null,
+          custName,
+          bookingFallback: booking,
+          requestType: 'addon_remove_request',
+          changeSummary: addonIds.length ? `Remove add-on: ${addonIds.slice(0, 2).join(', ')}` : 'Add-on removal',
+        });
         return json(appliedCmd.statusCode || 400, {
           ok: false,
           error: appliedCmd.error || 'apply_failed',
@@ -341,6 +413,16 @@ exports.handler = async (event) => {
         });
       }
     }
+    await notifyMoneyChangeLifecycle({
+      event,
+      appliedCmd,
+      policy,
+      changeRequestId: appliedCmd.changeRequest?.requestId,
+      custName,
+      bookingFallback: booking,
+      requestType: 'addon_remove_request',
+      changeSummary: addonIds.length ? `Remove add-on: ${addonIds.slice(0, 2).join(', ')}` : 'Add-on removal',
+    });
     return addonMutationResponse(appliedCmd, {
       policy,
       changeRequestId: appliedCmd.changeRequest?.requestId,
@@ -400,6 +482,16 @@ exports.handler = async (event) => {
     if (!policy.pendingApproval) {
       appliedCmd = await autoApplySubmittedRequest(bookingId, cmd);
       if (!appliedCmd.ok) {
+        await notifyMoneyChangeLifecycle({
+          event,
+          appliedCmd: { ...cmd, applied: false, idempotent: !!cmd.idempotent },
+          policy: { ...policy, pendingApproval: true },
+          changeRequestId: cmd.changeRequest?.requestId || null,
+          custName,
+          bookingFallback: booking,
+          requestType: 'addon_request',
+          changeSummary: addonIds.length ? `Add-on: ${addonIds.slice(0, 2).join(', ')}` : 'Add-on request',
+        });
         return json(appliedCmd.statusCode || 400, {
           ok: false,
           error: appliedCmd.error || 'apply_failed',
@@ -408,6 +500,16 @@ exports.handler = async (event) => {
         });
       }
     }
+    await notifyMoneyChangeLifecycle({
+      event,
+      appliedCmd,
+      policy,
+      changeRequestId: appliedCmd.changeRequest?.requestId,
+      custName,
+      bookingFallback: booking,
+      requestType: 'addon_request',
+      changeSummary: addonIds.length ? `Add-on: ${addonIds.slice(0, 2).join(', ')}` : 'Add-on request',
+    });
     return addonMutationResponse(appliedCmd, {
       policy,
       changeRequestId: appliedCmd.changeRequest?.requestId,
@@ -592,6 +694,21 @@ exports.handler = async (event) => {
         } else if (err === 'package_unchanged') {
           message = 'That package is already on your booking — no change needed.';
         }
+        const prevPkgFail = String(
+          booking.package || booking.packageName || booking.service || ''
+        ).trim();
+        await notifyMoneyChangeLifecycle({
+          event,
+          appliedCmd: { ...cmd, applied: false, idempotent: !!cmd.idempotent },
+          policy: { ...policy, pendingApproval: true },
+          changeRequestId: cmd.changeRequest?.requestId || null,
+          custName,
+          bookingFallback: booking,
+          requestType: 'package_change_request',
+          changeSummary: prevPkgFail && newPackName
+            ? `${prevPkgFail} -> ${newPackName}`
+            : (newPackName ? `Package -> ${newPackName}` : 'Package change'),
+        });
         return json(appliedCmd.statusCode || 400, {
           ok: false,
           error: err,
@@ -615,6 +732,21 @@ exports.handler = async (event) => {
       });
     }
 
+    const prevPkg = String(
+      booking.package || booking.packageName || booking.service || ''
+    ).trim();
+    await notifyMoneyChangeLifecycle({
+      event,
+      appliedCmd,
+      policy,
+      changeRequestId: appliedCmd.changeRequest?.requestId,
+      custName,
+      bookingFallback: booking,
+      requestType: 'package_change_request',
+      changeSummary: prevPkg && newPackName
+        ? `${prevPkg} -> ${newPackName}`
+        : (newPackName ? `Package -> ${newPackName}` : 'Package change'),
+    });
     return addonMutationResponse(appliedCmd, {
       policy,
       changeRequestId: appliedCmd.changeRequest?.requestId,

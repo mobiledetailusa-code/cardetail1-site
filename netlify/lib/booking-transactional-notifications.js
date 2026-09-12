@@ -32,6 +32,8 @@ const EVENT_ACTION_REQUIRED = 'booking.customer_action_required';
 const EVENT_PAYMENT_RECEIVED = 'booking.payment_received';
 const EVENT_DETAILS_UPDATED = 'booking.details_updated';
 const EVENT_CHANGE_REQUESTED = 'booking.change_requested';
+const EVENT_CHANGE_APPROVED = 'booking.change_approved';
+const EVENT_CHANGE_REJECTED = 'booking.change_rejected';
 const EVENT_CANCELLATION_REQUESTED = 'booking.cancellation_requested';
 const EVENT_RESCHEDULED = 'booking.rescheduled';
 const EVENT_CANCELLED = 'booking.cancelled';
@@ -45,6 +47,8 @@ const LIFECYCLE_EVENTS = new Set([
   EVENT_PAYMENT_RECEIVED,
   EVENT_DETAILS_UPDATED,
   EVENT_CHANGE_REQUESTED,
+  EVENT_CHANGE_APPROVED,
+  EVENT_CHANGE_REJECTED,
   EVENT_CANCELLATION_REQUESTED,
   EVENT_RESCHEDULED,
   EVENT_CANCELLED,
@@ -300,6 +304,13 @@ function eventStateKey(eventType, booking) {
   }
   if (eventType === EVENT_DETAILS_UPDATED) {
     return `details:q${booking.quoteVersion || 0}:v${booking.bookingVersion || 0}`;
+  }
+  if (eventType === EVENT_CHANGE_APPROVED || eventType === EVENT_CHANGE_REJECTED) {
+    // One logical decision notification per customer request id.
+    const requestId = String(booking.changeRequestId || booking.__changeRequestId || '').trim();
+    const decision = eventType === EVENT_CHANGE_APPROVED ? 'approved' : 'rejected';
+    if (requestId) return `crdec:${requestId}:${decision}`;
+    return `crdec:q${booking.quoteVersion || 0}:v${booking.bookingVersion || 0}:${decision}`;
   }
   if (eventType === EVENT_CHANGE_REQUESTED) {
     const requestId = String(booking.changeRequestId || booking.__changeRequestId || '').trim();
@@ -619,13 +630,14 @@ ${link ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;co
       'Your appointment details were updated (package, vehicle, or add-ons).',
       `Date: ${booking.confirmedDate || booking.preferredDate || '—'}`,
       `Arrival window: ${arrivalWindow(booking) || '—'}`,
+      total ? `Updated total: ${total}` : '',
       '',
       `${cta}:`,
       accessUrl,
       '',
       brandName(),
       siteUrl(),
-    ].join('\n');
+    ].filter((line, idx, arr) => line !== '' || arr[idx - 1] !== '').join('\n');
     const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
 <p>Hi ${first},</p>
 <p><strong>Your appointment details were updated.</strong></p>
@@ -633,12 +645,94 @@ ${link ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;co
 <ul>
 <li>Date: ${date}</li>
 <li>Arrival window: ${window}</li>
+${total ? `<li>Updated total: ${escapeHtml(total)}</li>` : ''}
 </ul>
 ${link ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>
 <p style="font-size:13px;color:#555">If the button does not work, open:<br>${link}</p>` : ''}
 <p>${brand}</p>
 </body></html>`;
     return { subject, text, html, cta };
+  }
+
+  if (eventType === EVENT_CHANGE_APPROVED) {
+    const pkg = String(
+      booking.__approvedPackageName
+      || booking.package
+      || booking.service
+      || serviceDescription(booking)
+      || ''
+    ).trim();
+    const addon = String(booking.__approvedAddOnLabel || '').trim();
+    const subject = 'Your Cardetail1 change was approved';
+    const cta = 'Open My Garage';
+    const textLines = [
+      `Hi ${name.split(/\s+/)[0] || 'there'},`,
+      '',
+      'Your Cardetail1 change was approved.',
+      '',
+    ];
+    if (addon) textLines.push(`Add-on: ${addon}`);
+    if (pkg) textLines.push(`Package: ${pkg}`);
+    if (total) textLines.push(`Updated total: ${total}`);
+    textLines.push(
+      '',
+      'Your appointment remains scheduled as planned.',
+      '',
+      `${cta}:`,
+      accessUrl,
+      '',
+      brandName(),
+      siteUrl(),
+    );
+    const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
+<p>Hi ${first},</p>
+<p><strong>Your Cardetail1 change was approved.</strong></p>
+<ul>
+${addon ? `<li>Add-on: ${escapeHtml(addon)}</li>` : ''}
+${pkg ? `<li>Package: ${escapeHtml(pkg)}</li>` : ''}
+${total ? `<li>Updated total: ${escapeHtml(total)}</li>` : ''}
+</ul>
+<p>Your appointment remains scheduled as planned.</p>
+${link ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>
+<p style="font-size:13px;color:#555">If the button does not work, open:<br>${link}</p>` : ''}
+<p>${brand}</p>
+</body></html>`;
+    return { subject, text: textLines.join('\n'), html, cta };
+  }
+
+  if (eventType === EVENT_CHANGE_REJECTED) {
+    const pkg = String(
+      booking.__currentPackageName
+      || booking.package
+      || booking.service
+      || serviceDescription(booking)
+      || ''
+    ).trim();
+    const subject = 'Your requested change was not approved';
+    const cta = 'Open My Garage';
+    const textLines = [
+      `Hi ${name.split(/\s+/)[0] || 'there'},`,
+      '',
+      "Your requested change wasn't approved.",
+      'Your current booking remains unchanged.',
+      '',
+    ];
+    if (pkg) textLines.push(`Current package: ${pkg}`);
+    if (total) textLines.push(`Current total: ${total}`);
+    textLines.push('', `${cta}:`, accessUrl, '', brandName(), siteUrl());
+    const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
+<p>Hi ${first},</p>
+<p><strong>Your requested change wasn't approved.</strong></p>
+<p>Your current booking remains unchanged.</p>
+<ul>
+${pkg ? `<li>Current package: ${escapeHtml(pkg)}</li>` : ''}
+${total ? `<li>Current total: ${escapeHtml(total)}</li>` : ''}
+</ul>
+${link ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>
+<p style="font-size:13px;color:#555">If the button does not work, open:<br>${link}</p>` : ''}
+<p>${brand}</p>
+</body></html>`;
+    return { subject, text: textLines.join('\n'), html, cta };
   }
 
   // customer_action_required
@@ -1223,6 +1317,14 @@ async function emitDetailsUpdated(booking, opts) {
   return emitBookingNotification(booking, EVENT_DETAILS_UPDATED, opts);
 }
 
+async function emitChangeApproved(booking, opts) {
+  return emitBookingNotification(booking, EVENT_CHANGE_APPROVED, opts);
+}
+
+async function emitChangeRejected(booking, opts) {
+  return emitBookingNotification(booking, EVENT_CHANGE_REJECTED, opts);
+}
+
 module.exports = {
   EVENT_REQUEST_RECEIVED,
   EVENT_CONFIRMED,
@@ -1230,6 +1332,8 @@ module.exports = {
   EVENT_PAYMENT_RECEIVED,
   EVENT_DETAILS_UPDATED,
   EVENT_CHANGE_REQUESTED,
+  EVENT_CHANGE_APPROVED,
+  EVENT_CHANGE_REJECTED,
   EVENT_CANCELLATION_REQUESTED,
   EVENT_RESCHEDULED,
   EVENT_CANCELLED,
@@ -1260,6 +1364,8 @@ module.exports = {
   emitRequestReceived,
   emitConfirmed,
   emitChangeRequested,
+  emitChangeApproved,
+  emitChangeRejected,
   emitCancellationRequested,
   emitRescheduled,
   emitCancelled,

@@ -260,6 +260,12 @@ exports.handler = async (event) => {
         requoteRequired: result.requoteRequired || false,
         quote: result.quote || null,
         actualBookingVersion: result.actualBookingVersion,
+        attemptId: result.attemptId || undefined,
+        attemptStatus: result.attemptStatus || undefined,
+        attemptAgeMinutes: result.attemptAgeMinutes != null ? result.attemptAgeMinutes : undefined,
+        stripeStatus: result.stripeStatus || undefined,
+        stripeError: result.stripeError || undefined,
+        stripeMode: result.stripeMode || undefined,
       });
     }
 
@@ -269,23 +275,51 @@ exports.handler = async (event) => {
         'vehicle_remove_request']
         .includes(record.requestType);
 
-    if (decision === 'approve' && result.ok && result.booking && result.noop !== true) {
+    if (result.ok && result.booking) {
       try {
         const lifecycle = require('../lib/appointment-lifecycle-notifications');
         const bookings = await bookingStore();
         const rt = record.requestType;
-        if (rt === 'reschedule_request') {
-          await lifecycle.notifyRescheduled(result.booking, {
+        const moneyTypes = new Set([
+          'package_change_request',
+          'addon_request',
+          'addon_remove_request',
+        ]);
+        if (decision === 'approve' && result.noop !== true) {
+          if (rt === 'reschedule_request') {
+            await lifecycle.notifyRescheduled(result.booking, {
+              event,
+              store: bookings,
+              source: 'lifecycle_mutation',
+            });
+          } else if (rt === 'cancellation' || rt === 'cancellation_request') {
+            await lifecycle.notifyCancelled(result.booking, {
+              actor: 'customer',
+              event,
+              store: bookings,
+              source: 'lifecycle_mutation',
+            });
+          } else if (moneyTypes.has(rt)) {
+            // Post-commit only — mutation already succeeded above.
+            // Idempotent decide replays still call emit so failed delivery can retry;
+            // outbox/event keys prevent duplicate customer messages.
+            await lifecycle.notifyChangeApproved(result.booking, {
+              event,
+              store: bookings,
+              source: 'lifecycle_mutation',
+              changeRequestId: requestId,
+              requestType: rt,
+              requestRecord: record,
+            });
+          }
+        } else if (decision === 'reject' && moneyTypes.has(rt)) {
+          await lifecycle.notifyChangeRejected(result.booking, {
             event,
             store: bookings,
             source: 'lifecycle_mutation',
-          });
-        } else if (rt === 'cancellation' || rt === 'cancellation_request') {
-          await lifecycle.notifyCancelled(result.booking, {
-            actor: 'customer',
-            event,
-            store: bookings,
-            source: 'lifecycle_mutation',
+            changeRequestId: requestId,
+            requestType: rt,
+            requestRecord: record,
           });
         }
       } catch (e) {

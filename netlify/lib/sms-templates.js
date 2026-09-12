@@ -24,6 +24,8 @@ const TEMPLATE_KEYS = Object.freeze({
   CANCELLED: 'booking.cancelled',
   PAYMENT_RECEIVED: 'booking.payment_received',
   DETAILS_UPDATED: 'booking.details_updated',
+  CHANGE_APPROVED: 'booking.change_approved',
+  CHANGE_REJECTED: 'booking.change_rejected',
   REVIEW_REQUESTED: 'booking.review_requested',
   // CUSTOMER_BOOKING_SMS_SAFE_CONFIRMATION — consent true, phone mismatch: no private link
   SAFE_CONFIRMATION: 'booking.safe_confirmation',
@@ -280,10 +282,33 @@ function renderSmsTemplate(templateKey, data = {}) {
       break;
     }
     case TEMPLATE_KEYS.DETAILS_UPDATED: {
+      // Keep concise: package/add-on itemization belongs on CHANGE_APPROVED.
       const date = smsDateLabel(data.date || data.when);
       body = `${smsPrefix(templateKey)} Your appointment was updated`
         + (date ? ` for ${date}` : '')
         + '.'
+        + viewLink(url);
+      break;
+    }
+    case TEMPLATE_KEYS.CHANGE_APPROVED: {
+      const service = asciiSms(data.service || data.packageName || '').slice(0, 40);
+      const addon = asciiSms(data.addOnLabel || '').slice(0, 40);
+      const total = asciiSms(data.total || '').slice(0, 20);
+      body = `${smsPrefix(templateKey)} Your change was approved.`
+        + (addon ? ` Add-on: ${addon}.` : '')
+        + (service ? ` Package: ${service}.` : '')
+        + (total ? ` Updated total: ${total}.` : '')
+        + ' Appointment remains as planned.'
+        + viewLink(url);
+      break;
+    }
+    case TEMPLATE_KEYS.CHANGE_REJECTED: {
+      const service = asciiSms(data.service || data.packageName || '').slice(0, 40);
+      const total = asciiSms(data.total || '').slice(0, 20);
+      body = `${smsPrefix(templateKey)} Your requested change was not approved.`
+        + ' Current booking remains unchanged.'
+        + (service ? ` Package: ${service}.` : '')
+        + (total ? ` Total: ${total}.` : '')
         + viewLink(url);
       break;
     }
@@ -308,12 +333,32 @@ function renderSmsTemplate(templateKey, data = {}) {
       body = `${smsPrefix(templateKey)} Inbound text from ${text(data.customerPhone, 30)}`
         + (data.message ? `: ${text(data.message, 220)}` : '');
       break;
-    case TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST:
-      body = `${smsPrefix(templateKey)} Customer requested an appointment change`
-        + (data.date ? ` for ${text(data.date, 40)}` : '')
-        + (data.bookingRef ? ` (${text(data.bookingRef, 24)})` : '')
-        + '.';
+    case TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST: {
+      const name = asciiSms(data.customerName).slice(0, 40);
+      const change = asciiSms(String(data.changeSummary || '').replace(/→/g, '->'))
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 90);
+      const type = asciiSms(data.requestTypeLabel).slice(0, 40);
+      const bookingRef = asciiSms(data.bookingRef).slice(0, 24);
+      const date = text(data.date, 40);
+      // Legacy reschedule/admin alert (date + bookingRef only) stays byte-stable.
+      // Package/add-on alerts pass customerName / changeSummary for richer copy.
+      if (!name && !change && !type) {
+        body = `${smsPrefix(templateKey)} Customer requested an appointment change`
+          + (date ? ` for ${date}` : '')
+          + (bookingRef ? ` (${bookingRef})` : '')
+          + '.';
+      } else {
+        body = `${smsPrefix(templateKey)} Change request`
+          + (name ? ` from ${name}` : '')
+          + (bookingRef ? ` - ${bookingRef}` : '')
+          + '.'
+          + (change ? ` ${change}.` : (type ? ` ${type}.` : ' Customer requested an appointment change.'))
+          + ' Review in Admin.';
+      }
       break;
+    }
     case TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL:
       body = `${smsPrefix(templateKey)} Customer canceled appointment`
         + (data.bookingRef ? ` ${text(data.bookingRef, 24)}` : '')
@@ -409,6 +454,8 @@ function bookingTemplateData(eventType, booking = {}, accessUrl = '') {
     || eventType === TEMPLATE_KEYS.RESCHEDULED
     || eventType === TEMPLATE_KEYS.CANCELLED
     || eventType === TEMPLATE_KEYS.CHANGE_REQUESTED
+    || eventType === TEMPLATE_KEYS.CHANGE_APPROVED
+    || eventType === TEMPLATE_KEYS.CHANGE_REJECTED
     || eventType === TEMPLATE_KEYS.CANCELLATION_REQUESTED
     || eventType === TEMPLATE_KEYS.REQUEST_RECEIVED
     || eventType === TEMPLATE_KEYS.SAFE_CONFIRMATION
@@ -422,6 +469,34 @@ function bookingTemplateData(eventType, booking = {}, accessUrl = '') {
     data.scheduleFingerprint = fingerprint;
     data.previousDate = booking.previousConfirmedDate || booking.previousPreferredDate || '';
     if (service) data.service = service;
+  }
+  if (
+    eventType === TEMPLATE_KEYS.CHANGE_APPROVED
+    || eventType === TEMPLATE_KEYS.CHANGE_REJECTED
+  ) {
+    const pkg = asciiSms(
+      booking.__approvedPackageName
+      || booking.__currentPackageName
+      || booking.package
+      || booking.service
+      || service
+      || ''
+    ).slice(0, 40);
+    if (pkg) {
+      data.service = pkg;
+      data.packageName = pkg;
+    }
+    const addon = asciiSms(booking.__approvedAddOnLabel || '').slice(0, 40);
+    if (addon) data.addOnLabel = addon;
+    // Authoritative post-commit total only — never recompute in notification code.
+    const cents = booking.approvedCents != null
+      ? Number(booking.approvedCents)
+      : Math.round(Number(booking.approvedFinalAmount != null
+        ? booking.approvedFinalAmount
+        : 0) * 100);
+    if (Number.isFinite(cents) && cents > 0) {
+      data.total = `$${(cents / 100).toFixed(2)}`;
+    }
   }
   if (eventType === TEMPLATE_KEYS.PAYMENT_RECEIVED) {
     const payment = booking.__paymentEvent || {};

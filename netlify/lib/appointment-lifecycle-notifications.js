@@ -19,6 +19,8 @@ const {
   emitCancelled,
   emitConfirmed,
   emitDetailsUpdated,
+  emitChangeApproved,
+  emitChangeRejected,
   arrivalWindow,
   eventStateKey,
   EVENT_CHANGE_REQUESTED,
@@ -136,6 +138,10 @@ function mergeLifecycleNotifyFields(latest, notified, delivery) {
   if (nextDelivery) merged.notificationDelivery = nextDelivery;
   delete merged.__paymentEvent;
   delete merged.__changeRequestId;
+  delete merged.__approvedPackageName;
+  delete merged.__approvedAddOnLabel;
+  delete merged.__currentPackageName;
+  delete merged.__changeDecision;
   return merged;
 }
 
@@ -201,13 +207,22 @@ async function notifyChangeRequested(booking, opts = {}) {
     rescheduleRequestedDate: opts.requestedDate || booking.rescheduleRequestedDate,
     rescheduleRequestedTime: opts.requestedTime || booking.rescheduleRequestedTime,
   };
-  const txn = await emitChangeRequested(working, {
-    event: opts.event,
-    source: opts.source || 'lifecycle_mutation',
-    prisma: opts.prisma,
-    env: opts.env,
-  });
+  let txn = { skipped: true, reason: 'customer_notify_skipped' };
+  if (opts.skipCustomer !== true) {
+    txn = await emitChangeRequested(working, {
+      event: opts.event,
+      source: opts.source || 'lifecycle_mutation',
+      prisma: opts.prisma,
+      env: opts.env,
+    });
+  }
   const stateKey = eventStateKey(EVENT_CHANGE_REQUESTED, working);
+  const customerName = String(opts.customerName
+    || [booking.firstName, booking.lastName].filter(Boolean).join(' ').trim()
+    || booking.customerName
+    || '').slice(0, 80);
+  const changeSummary = String(opts.changeSummary || '').slice(0, 120);
+  const requestTypeLabel = String(opts.requestTypeLabel || '').slice(0, 40);
   const admin = await enqueueAdminOpsSms({
     idempotencyKey: smsSafeIdempotencyKey(`admin.change_requested:${bookingId}:${stateKey}`),
     bookingId,
@@ -215,9 +230,116 @@ async function notifyChangeRequested(booking, opts = {}) {
     templateData: {
       bookingRef: safeBookingRef(bookingId),
       date: String(opts.requestedDate || scheduleDate(booking) || '').slice(0, 40),
+      customerName,
+      changeSummary,
+      requestTypeLabel,
     },
   }, opts);
   await kickLifecycleOutbox([outboxIdFrom(txn), admin.outbox?.id], opts);
+  let next = txn?.booking || booking;
+  if (opts.store && txn && !txn.skipped) {
+    next = await persistLifecycleNotify(
+      opts.store,
+      bookingId,
+      next,
+      txn.delivery || null
+    );
+  }
+  return {
+    ok: true,
+    booking: next,
+    customer: txn,
+    adminSms: admin,
+  };
+}
+
+function packageLabelFromBooking(booking) {
+  const vehicles = Array.isArray(booking?.vehicles) ? booking.vehicles
+    : Array.isArray(booking?.service?.vehicles) ? booking.service.vehicles
+      : [];
+  const first = vehicles[0] || {};
+  return String(
+    booking?.package
+    || booking?.packageName
+    || booking?.service
+    || first.packageName
+    || first.pkgName
+    || first.package
+    || ''
+  ).trim();
+}
+
+function changeSummaryFromRequest(requestType, requestRecord = {}, booking = {}) {
+  const delta = requestRecord.delta || requestRecord.requestedState || {};
+  const prev = requestRecord.previousState || {};
+  if (requestType === 'package_change_request') {
+    const from = String(
+      prev.package
+      || prev.packageName
+      || packageLabelFromBooking(booking)
+      || ''
+    ).trim();
+    const to = String(
+      delta.packageName
+      || delta.newPackName
+      || delta.packageId
+      || delta.newPackId
+      || ''
+    ).trim();
+    if (from && to) return `${from} -> ${to}`;
+    if (to) return `Package -> ${to}`;
+    return 'Package change';
+  }
+  if (requestType === 'addon_request') {
+    const names = []
+      .concat(delta.addOnNames || [])
+      .concat(delta.addonNames || [])
+      .concat(Array.isArray(delta.addons) ? delta.addons.map((a) => a.name || a.label || a.id) : [])
+      .concat(delta.addOnIdsToAdd || delta.addonIds || [])
+      .map((v) => String(v || '').trim())
+      .filter(Boolean);
+    if (names.length) return `Add-on: ${names.slice(0, 2).join(', ')}`;
+    return 'Add-on request';
+  }
+  if (requestType === 'addon_remove_request') {
+    return 'Add-on removal';
+  }
+  return requestType ? String(requestType).replace(/_/g, ' ') : 'Change request';
+}
+
+function approvedAddOnLabel(requestRecord = {}) {
+  const delta = requestRecord.delta || requestRecord.requestedState || {};
+  const names = []
+    .concat(delta.addOnNames || [])
+    .concat(delta.addonNames || [])
+    .concat(Array.isArray(delta.addons) ? delta.addons.map((a) => a.name || a.label || a.id) : [])
+    .map((v) => String(v || '').trim())
+    .filter(Boolean);
+  return names[0] || '';
+}
+
+async function notifyChangeApproved(booking, opts = {}) {
+  const bookingId = booking.id || booking.bookingId;
+  const changeRequestId = opts.changeRequestId || booking.changeRequestId || '';
+  const requestRecord = opts.requestRecord || {};
+  const requestType = opts.requestType || requestRecord.requestType || requestRecord.type || '';
+  const working = {
+    ...booking,
+    __changeRequestId: changeRequestId,
+    __changeDecision: 'approved',
+    __approvedPackageName: packageLabelFromBooking(booking),
+    __approvedAddOnLabel: requestType === 'addon_request' || requestType === 'addon_remove_request'
+      ? approvedAddOnLabel(requestRecord)
+      : '',
+  };
+  // Customer channels only — Admin approval must not SMS Admin again.
+  const txn = await emitChangeApproved(working, {
+    event: opts.event,
+    source: opts.source || 'lifecycle_mutation',
+    prisma: opts.prisma,
+    env: opts.env,
+  });
+  await kickLifecycleOutbox([outboxIdFrom(txn)], opts);
   let next = txn?.booking || booking;
   if (opts.store) {
     next = await persistLifecycleNotify(
@@ -227,12 +349,41 @@ async function notifyChangeRequested(booking, opts = {}) {
       txn.skipped ? null : txn.delivery
     );
   }
-  return {
-    ok: true,
-    booking: next,
-    customer: txn,
-    adminSms: admin,
+  return { ok: true, booking: next, customer: txn, adminSms: { queued: false, skipped: true, reason: 'admin_self_action' } };
+}
+
+async function notifyChangeRejected(booking, opts = {}) {
+  const bookingId = booking.id || booking.bookingId;
+  const changeRequestId = opts.changeRequestId || booking.changeRequestId || '';
+  const requestRecord = opts.requestRecord || {};
+  const working = {
+    ...booking,
+    __changeRequestId: changeRequestId,
+    __changeDecision: 'rejected',
+    __currentPackageName: String(
+      requestRecord.previousState?.package
+      || requestRecord.previousState?.packageName
+      || packageLabelFromBooking(booking)
+      || ''
+    ).trim(),
   };
+  const txn = await emitChangeRejected(working, {
+    event: opts.event,
+    source: opts.source || 'lifecycle_mutation',
+    prisma: opts.prisma,
+    env: opts.env,
+  });
+  await kickLifecycleOutbox([outboxIdFrom(txn)], opts);
+  let next = txn?.booking || booking;
+  if (opts.store) {
+    next = await persistLifecycleNotify(
+      opts.store,
+      bookingId,
+      next,
+      txn.skipped ? null : txn.delivery
+    );
+  }
+  return { ok: true, booking: next, customer: txn, adminSms: { queued: false, skipped: true, reason: 'admin_self_action' } };
 }
 
 async function notifyCancellationRequested(booking, opts = {}) {
@@ -355,10 +506,13 @@ module.exports = {
   persistLifecycleNotify,
   notifyConfirmed,
   notifyChangeRequested,
+  notifyChangeApproved,
+  notifyChangeRejected,
   notifyCancellationRequested,
   notifyRescheduled,
   notifyCancelled,
   notifyDetailsUpdated,
+  changeSummaryFromRequest,
   isAppointmentCancelled,
   isAppointmentCompleted,
   appointmentReminderEligible,
