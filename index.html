@@ -1684,6 +1684,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <link rel="stylesheet" href="assets/booking-summary.css">
 <link rel="stylesheet" href="assets/booking-review.css">
 <script src="assets/vehicle-class-resolver.js"></script>
+<script src="assets/booking-vehicle-summary.js"></script>
 <script src="assets/booking-line-items.js" defer></script>
 <script src="assets/booking-review-runtime.js" defer></script>
 <script src="assets/travel-fee-client.js"></script>
@@ -4525,6 +4526,7 @@ function selectCategory(cat){
   }
   ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.displayLabel=''; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.boatType=cat==='boats'?ST.boatType:''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
   ST.make=''; ST.model=''; ST.year=''; ST.classNeedsConfirm=false; ST._priceResolveFailed=false;
+  if(window.CD1BookingVehicleSummary) CD1BookingVehicleSummary.clearCategoryExclusiveFields(ST, cat);
   resetVehicleEntryFields(cat);
   const rvPkgNote = document.getElementById('bs2-rv-note');
   if(rvPkgNote) rvPkgNote.style.display = cat==='rvs' ? 'block' : 'none';
@@ -5152,7 +5154,7 @@ function addonRequiresShampooOrSteam(a){
 function renderAddons(){
   if(!ST.pkg) return;
   document.getElementById('ah-pkg').textContent=(ST.pkg?.name||'')+' Package';
-  document.getElementById('ah-car').textContent=(ST.vehicleLabel||'')+((ST.displayLabel||ST.tier?.label)?' · '+(ST.displayLabel||ST.tier.label):'');
+  document.getElementById('ah-car').textContent=(window.CD1BookingVehicleSummary?CD1BookingVehicleSummary.formatAddonHeaderSummary(ST):(ST.vehicleLabel||''));
   // Called on every vehicle confirm (keystroke/blur). Only rebuild the grid — and reset
   // selections — when the package scope actually changes, so add-ons picked inline survive
   // small vehicle edits. Otherwise just refresh the live running total.
@@ -6147,7 +6149,7 @@ function buildCurrentVehicleItem(){
     pkgIcon: ST.pkg.icon||'🚗',
     visualKey: getVehicleVisualKey(),
     vehicleLabel: ST.vehicleLabel,
-    tierLabel: ST.displayLabel || (ST.tier ? ST.tier.label : ''),
+    tierLabel: (window.CD1BookingVehicleSummary?CD1BookingVehicleSummary.categoryTierLabel(ST):(ST.tier ? ST.tier.label : '')),
     tierKey: ST.tierKey || '',
     lengthFt: ST.lengthFt || '',
     rvType: ST.rvType || '',
