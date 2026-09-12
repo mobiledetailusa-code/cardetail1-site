@@ -282,14 +282,11 @@ function renderSmsTemplate(templateKey, data = {}) {
       break;
     }
     case TEMPLATE_KEYS.DETAILS_UPDATED: {
+      // Keep concise: package/add-on itemization belongs on CHANGE_APPROVED.
       const date = smsDateLabel(data.date || data.when);
-      const total = asciiSms(data.total || '').slice(0, 20);
-      const service = asciiSms(data.service || '').slice(0, 40);
       body = `${smsPrefix(templateKey)} Your appointment was updated`
         + (date ? ` for ${date}` : '')
         + '.'
-        + (service ? ` ${service}.` : '')
-        + (total ? ` Updated total: ${total}.` : '')
         + viewLink(url);
       break;
     }
@@ -344,12 +341,22 @@ function renderSmsTemplate(templateKey, data = {}) {
         .slice(0, 90);
       const type = asciiSms(data.requestTypeLabel).slice(0, 40);
       const bookingRef = asciiSms(data.bookingRef).slice(0, 24);
-      body = `${smsPrefix(templateKey)} Change request`
-        + (name ? ` from ${name}` : '')
-        + (bookingRef ? ` - ${bookingRef}` : '')
-        + '.'
-        + (change ? ` ${change}.` : (type ? ` ${type}.` : ' Customer requested an appointment change.'))
-        + ' Review in Admin.';
+      const date = text(data.date, 40);
+      // Legacy reschedule/admin alert (date + bookingRef only) stays byte-stable.
+      // Package/add-on alerts pass customerName / changeSummary for richer copy.
+      if (!name && !change && !type) {
+        body = `${smsPrefix(templateKey)} Customer requested an appointment change`
+          + (date ? ` for ${date}` : '')
+          + (bookingRef ? ` (${bookingRef})` : '')
+          + '.';
+      } else {
+        body = `${smsPrefix(templateKey)} Change request`
+          + (name ? ` from ${name}` : '')
+          + (bookingRef ? ` - ${bookingRef}` : '')
+          + '.'
+          + (change ? ` ${change}.` : (type ? ` ${type}.` : ' Customer requested an appointment change.'))
+          + ' Review in Admin.';
+      }
       break;
     }
     case TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL:
@@ -466,7 +473,6 @@ function bookingTemplateData(eventType, booking = {}, accessUrl = '') {
   if (
     eventType === TEMPLATE_KEYS.CHANGE_APPROVED
     || eventType === TEMPLATE_KEYS.CHANGE_REJECTED
-    || eventType === TEMPLATE_KEYS.DETAILS_UPDATED
   ) {
     const pkg = asciiSms(
       booking.__approvedPackageName
