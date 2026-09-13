@@ -23,8 +23,19 @@ function recommendNextAction(ctx) {
     messaging: { headline: path.headline, subline: path.subline },
   };
 
-  if (segment === SEGMENTS.COMMERCIAL_FLEET || vehicleCount >= 7) {
+  if (segment === SEGMENTS.COMMERCIAL_FLEET) {
     return { ...base, action: 'route_fleet_quote', reason: 'commercial_or_fleet_scale', offer_id: null };
+  }
+  // Optional Fleet Pricing opportunity — does not block standard multi-vehicle booking.
+  if (vehicleCount >= 6) {
+    return {
+      ...base,
+      action: 'recommend_optional_fleet_pricing',
+      reason: 'multi_vehicle_fleet_threshold',
+      offer_id: null,
+      optional: true,
+      continueBookingAllowed: true,
+    };
   }
 
   if (segment === SEGMENTS.MANUAL_REVIEW_OR_ALTERNATIVE_PATH) {
