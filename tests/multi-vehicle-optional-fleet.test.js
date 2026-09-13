@@ -160,17 +160,41 @@ function cartSnapshot(win, label) {
 
 describe('multi-vehicle optional fleet — classification + backend', () => {
   it('does not force commercial fleet from personal vehicle count alone', () => {
-    for (const n of [5, 6, 7, 8, 10]) {
+    for (const n of [5, 6, 7, 8, 10, 50, 100]) {
       const seg = classifySegment({ vehicleCount: n, ownership: 'personal', assetCategories: ['cars'] });
       assert.equal(seg.segment, SEGMENTS.MULTI_VEHICLE_HOUSEHOLD, 'n=' + n);
       const route = strategy.routeServiceIntent({
         category: 'cars',
         vehicleCount: n,
-        vehicles: Array.from({ length: n }, () => ({ cat: 'cars' })),
+        vehicles: Array.from({ length: Math.min(n, 12) }, () => ({ cat: 'cars' })),
       });
       assert.equal(route.allowed, true, 'n=' + n);
       assert.equal(route.routing.standardBookingAllowed, true, 'n=' + n);
       assert.notEqual(route.route, 'fleet_quote', 'n=' + n);
+    }
+  });
+
+  it('backend accepts large personal carts (50 and 100) at full-price standard booking', () => {
+    for (const n of [50, 100]) {
+      const booking = {
+        zipCode: '07650',
+        vehicleCategory: 'cars',
+        vehicles: Array.from({ length: n }, (_, i) => ({
+          cat: 'cars',
+          pkgId: 'full',
+          vehicleLabel: '2020 Honda Civic #' + (i + 1),
+          basePrice: 240,
+          addonTotal: 0,
+          subtotal: 240,
+        })),
+      };
+      const r = validateBookingRouting(booking);
+      assert.equal(r.ok, true, 'n=' + n + ' ' + JSON.stringify(r));
+      assert.equal(r.route, 'standard_booking');
+      const nba = recommendNextAction({ vehicleCount: n });
+      assert.equal(nba.action, 'recommend_optional_fleet_pricing');
+      assert.equal(nba.optional, true);
+      assert.equal(nba.continueBookingAllowed, true);
     }
   });
 

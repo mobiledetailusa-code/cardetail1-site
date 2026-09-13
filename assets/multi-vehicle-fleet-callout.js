@@ -2,6 +2,7 @@
  * Optional Fleet Pricing callout for multi-vehicle residential booking.
  * Threshold is a suggestion only — never disables Continue / Add Another Vehicle,
  * never clears cart, never applies discounts, never forces estimate/inquiry submit.
+ * Personal carts may include many vehicles (e.g. 100) at full retail pricing without Fleet.
  */
 (function (global) {
   'use strict';
@@ -17,15 +18,15 @@
     style.id = STYLE_ID;
     style.textContent = [
       '#' + CALLOUT_ID + '{display:none;margin:0 0 12px;padding:14px 14px 12px;border-radius:12px;',
-      'border:1px solid rgba(77,163,255,.35);background:rgba(18,32,52,.72);color:#e8eef5;',
+      'border:1px solid rgba(37,99,235,.28);background:#eff6ff;color:#0f172a;',
       'font:13px/1.45 DM Sans,system-ui,sans-serif}',
       '#' + CALLOUT_ID + '.show{display:block}',
-      '#' + CALLOUT_ID + ' .cd1-fleet-callout-title{font-weight:700;margin:0 0 6px;font-size:14px}',
-      '#' + CALLOUT_ID + ' .cd1-fleet-callout-copy{color:#8a9bb0;margin:0 0 12px}',
+      '#' + CALLOUT_ID + ' .cd1-fleet-callout-title{font-weight:700;margin:0 0 6px;font-size:14px;color:#0f172a}',
+      '#' + CALLOUT_ID + ' .cd1-fleet-callout-copy{color:#475569;margin:0 0 12px}',
       '#' + CALLOUT_ID + ' .cd1-fleet-callout-actions{display:flex;flex-wrap:wrap;gap:8px}',
       '#' + CALLOUT_ID + ' .cd1-fleet-btn{padding:10px 14px;border-radius:999px;font-weight:700;cursor:pointer;font:inherit}',
-      '#' + CALLOUT_ID + ' .cd1-fleet-primary{border:0;background:#4da3ff;color:#02040a}',
-      '#' + CALLOUT_ID + ' .cd1-fleet-secondary{border:1px solid rgba(77,163,255,.45);background:transparent;color:#4da3ff}',
+      '#' + CALLOUT_ID + ' .cd1-fleet-primary{border:0;background:#2563eb;color:#ffffff}',
+      '#' + CALLOUT_ID + ' .cd1-fleet-secondary{border:1px solid rgba(37,99,235,.4);background:#ffffff;color:#2563eb}',
       '@media (max-width:560px){#' + CALLOUT_ID + ' .cd1-fleet-callout-actions{flex-direction:column}',
       '#' + CALLOUT_ID + ' .cd1-fleet-btn{width:100%;text-align:center}}',
     ].join('');
@@ -55,7 +56,7 @@
     el.setAttribute('aria-label', 'Optional fleet pricing');
     el.innerHTML = [
       '<div class="cd1-fleet-callout-title">Booking multiple vehicles?</div>',
-      '<p class="cd1-fleet-callout-copy">You can continue with current pricing or ask us about custom Fleet Pricing.</p>',
+      '<p class="cd1-fleet-callout-copy">Continue at current full pricing for every vehicle — Fleet Pricing is optional if you want a custom quote.</p>',
       '<div class="cd1-fleet-callout-actions">',
       '<button type="button" class="cd1-fleet-btn cd1-fleet-primary" id="cd1-fleet-continue">Continue Booking</button>',
       '<button type="button" class="cd1-fleet-btn cd1-fleet-secondary" id="cd1-fleet-ask">Ask About Fleet Pricing</button>',

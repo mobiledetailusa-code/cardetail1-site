@@ -16,7 +16,10 @@
   --blue-hover: #1d4ed8;
   --bdim: rgba(37, 99, 235, 0.08);
   --bbr: rgba(37, 99, 235, 0.22);
-  --white: #ffffff;
+  /* Site historically uses --white as primary body text. Never map it to #fff on
+     light modal surfaces — that made cart/vehicle labels invisible. */
+  --white: #0f172a;
+  --on-accent: #ffffff;
   color: var(--tx);
 }
 
@@ -35,7 +38,7 @@
 }
 .booking-modal #bk-cat-grid .svc-btn:hover {
   background: var(--blue);
-  color: var(--white);
+  color: var(--on-accent, #ffffff);
   border-color: var(--blue);
 }
 .booking-modal #bk-cat-grid .svc-card.locked {
@@ -71,7 +74,7 @@
   border-color: var(--line-strong, rgba(15, 23, 42, 0.14));
 }
 .booking-modal .addon.sel .addon-check {
-  color: var(--white, #ffffff);
+  color: var(--on-accent, #ffffff);
 }
 .booking-modal .addon-header {
   background: var(--bg0, #f4f6f9);
@@ -107,7 +110,7 @@
 }
 .booking-modal .aq-btn:hover {
   background: var(--blue, #2563eb);
-  color: var(--white, #ffffff);
+  color: var(--on-accent, #ffffff);
 }
 
 /* Packages */
@@ -142,7 +145,7 @@
 .booking-modal .pkg.sel .pkg-btn,
 .booking-modal .pkg.pop .pkg-btn {
   background: var(--blue, #2563eb) !important;
-  color: var(--white, #ffffff) !important;
+  color: var(--on-accent, #ffffff) !important;
 }
 
 /* Keep pricing/value labels high-contrast in the light booking modal */
@@ -422,4 +425,106 @@
 }
 .booking-modal .bk-rush-note a:hover {
   text-decoration: underline;
+}
+
+/* ── Multi-vehicle cart (step 3) — high-contrast labels on light surfaces ──
+   Cart titles/totals must stay on --ink. Accent buttons use --on-accent. */
+.booking-modal .vcart {
+  background: var(--bg0, #f4f6f9);
+  border-color: var(--bbr, rgba(37, 99, 235, 0.22));
+}
+.booking-modal .vcart-title {
+  color: var(--blue, #2563eb);
+}
+.booking-modal .vcart-item {
+  background: var(--bg1, #ffffff);
+  border-color: var(--line, rgba(15, 23, 42, 0.08));
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .vcart-item-name,
+.booking-modal .vcart-item-info strong,
+.booking-modal .vcart-total,
+.booking-modal .vcart-total span {
+  color: var(--ink, #0f172a) !important;
+}
+.booking-modal .vcart-item-price {
+  color: var(--blue, #2563eb) !important;
+}
+.booking-modal .vcart-empty,
+.booking-modal .vcart-rm {
+  color: var(--mu, #64748b) !important;
+}
+.booking-modal .vcart-rm:hover {
+  color: #b91c1c !important;
+}
+.booking-modal .btn-add-veh {
+  color: var(--blue, #2563eb);
+  border-color: var(--bbr, rgba(37, 99, 235, 0.35));
+  background: transparent;
+}
+.booking-modal .btn-add-veh:hover {
+  background: var(--bdim, rgba(37, 99, 235, 0.08));
+  border-color: var(--blue, #2563eb);
+}
+
+/* Vehicle step search / confirmed card leftovers that still used --white text */
+.booking-modal .btitle,
+.booking-modal .bdesc,
+.booking-modal .ah-pkg,
+.booking-modal .ah-car,
+.booking-modal .addon-name,
+.booking-modal .vc-info strong,
+.booking-modal .strip-info strong,
+.booking-modal .tchip-name {
+  color: var(--ink, #0f172a) !important;
+}
+.booking-modal .ah-car,
+.booking-modal .addon-desc,
+.booking-modal .vc-info span,
+.booking-modal .vc-urgency,
+.booking-modal .strip-info,
+.booking-modal .tchip-desc,
+.booking-modal .tchip-from,
+.booking-modal .bdesc {
+  color: var(--ink-soft, #475569) !important;
+}
+.booking-modal .srch-in,
+.booking-modal .sel-s {
+  color: var(--ink, #0f172a) !important;
+  background: var(--bg0, #f4f6f9) !important;
+  border-color: var(--line-strong, rgba(15, 23, 42, 0.14)) !important;
+}
+.booking-modal .srch-item {
+  color: var(--ink, #0f172a) !important;
+}
+.booking-modal .srch-item:hover {
+  background: var(--bg2, #eef2f7) !important;
+  color: var(--ink, #0f172a) !important;
+}
+.booking-modal .srch-dd {
+  background: var(--bg1, #ffffff) !important;
+  border-color: var(--line-strong, rgba(15, 23, 42, 0.14)) !important;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Optional fleet callout — readable on light booking surface */
+.booking-modal #cd1-optional-fleet-callout {
+  background: #eff6ff !important;
+  border-color: rgba(37, 99, 235, 0.28) !important;
+  color: #0f172a !important;
+}
+.booking-modal #cd1-optional-fleet-callout .cd1-fleet-callout-title {
+  color: #0f172a !important;
+}
+.booking-modal #cd1-optional-fleet-callout .cd1-fleet-callout-copy {
+  color: #475569 !important;
+}
+.booking-modal #cd1-optional-fleet-callout .cd1-fleet-primary {
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+.booking-modal #cd1-optional-fleet-callout .cd1-fleet-secondary {
+  color: #2563eb !important;
+  border-color: rgba(37, 99, 235, 0.4) !important;
+  background: #ffffff !important;
 }
