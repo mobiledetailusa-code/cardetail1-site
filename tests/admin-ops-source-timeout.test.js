@@ -1,9 +1,8 @@
 'use strict';
 
 /**
- * Admin Ops first-load timeouts: Jobs + Change requests both died at 25s
- * because refreshAll passed a shared poll AbortSignal into both loaders and
- * listJobs double-fetched every booking blob with strong consistency.
+ * Admin Ops operational readiness: Jobs settle the global refresh while slow
+ * secondary sources continue behind scoped status.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
@@ -26,21 +25,21 @@ describe('Admin Ops source timeout contract', () => {
   const jobsSrc = read('netlify/functions/admin-ops-jobs.js');
   const refresh = extractRefreshAll(html);
 
-  it('loads Jobs then Change requests sequentially without a shared poll signal', () => {
-    assert.doesNotMatch(refresh, /Promise\.allSettled/);
+  it('renders Jobs and resolves primary readiness before starting secondary sources', () => {
     assert.match(refresh, /const jobsR = await settle\(loadJobs\(\)\)/);
-    assert.match(refresh, /await settle\(loadChangeRequests\(\)\)/);
+    assert.match(refresh, /loadJobs\(\)[\s\S]*renderPrimaryJobsSurfaces\(\)[\s\S]*refreshSecondarySources/);
+    assert.doesNotMatch(refresh, /await refreshSecondarySources/);
     assert.doesNotMatch(refresh, /loadJobs\(null,\s*\{\s*signal:\s*requestSignal/);
     assert.doesNotMatch(refresh, /loadChangeRequests\(\{\s*signal:\s*requestSignal/);
-    assert.match(refresh, /aborted\(\)/);
     assert.match(html, /SOURCE_FETCH_TIMEOUT_MS = 25000/);
   });
 
-  it('poll controller budget covers Jobs 25s then Change requests 40s', () => {
-    assert.match(html, /requestTimeoutMs:\s*90000/);
+  it('global controller budget covers only the bounded Jobs retry', () => {
+    assert.match(html, /requestTimeoutMs:\s*60000/);
     assert.match(html, /SOURCE_FETCH_TIMEOUT_MS = 25000/);
     assert.match(html, /CHANGE_REQUESTS_FETCH_TIMEOUT_MS = 40000/);
     assert.match(html, /timeoutMs:\s*CHANGE_REQUESTS_FETCH_TIMEOUT_MS/);
+    assert.match(html, /if \(secondaryRefreshInflight\) return secondaryRefreshInflight/);
   });
 
   it('per-source api timeout still reports timeout not aborted', () => {
@@ -56,17 +55,48 @@ describe('Admin Ops source timeout contract', () => {
     const listFn = jobsSrc.slice(listStart, listEnd > 0 ? listEnd : listStart + 4000);
     assert.match(listFn, /listBookingMirrors\(\)/);
     assert.match(listFn, /mirrored\.length/);
-    assert.match(listFn, /hydrateJobsFromBlobs\(\)/);
+    assert.match(listFn, /hydrateJobsFromBlobs\(timing\)/);
     assert.match(listFn, /Empty Prisma[\s\S]*hydrate Blobs/);
     const hydrateStart = jobsSrc.indexOf('async function hydrateJobsFromBlobs');
     const hydrateFn = jobsSrc.slice(hydrateStart, listStart);
     assert.match(hydrateFn, /store\.get\(blob\.key/);
     assert.doesNotMatch(hydrateFn, /getWithMetadata\s*\(/);
     assert.doesNotMatch(hydrateFn, /consistency:\s*'strong'/);
+    assert.match(hydrateFn, /listAllBlobsStrict/);
+    assert.match(hydrateFn, /failed request, never an authoritative successful zero Jobs response/);
   });
 
   it('does not pass poll abort into loadJobs or loadChangeRequests', () => {
     assert.doesNotMatch(refresh, /signal:\s*requestSignal/);
+  });
+
+  it('exposes safe Server-Timing phases for the primary endpoint', () => {
+    assert.match(jobsSrc, /Server-Timing/);
+    for (const phase of ['cd1-auth', 'cd1-prisma', 'cd1-blob-store', 'cd1-blob-list', 'cd1-blob-read', 'cd1-project', 'cd1-serialize', 'cd1-handler']) {
+      assert.match(jobsSrc, new RegExp(phase));
+    }
+    assert.doesNotMatch(jobsSrc, /Server-Timing[^\n]*(bookingId|email|phone)/i);
+  });
+
+  it('emits parseable endpoint timing headers without record identifiers', () => {
+    const endpoint = require('../netlify/functions/admin-ops-jobs');
+    const response = endpoint.jobsSyncResponse([{ id: 'timing-fixture' }], '', {
+      authMs: 1.2,
+      prismaMs: 2.3,
+      blobStoreMs: 0,
+      blobListMs: 0,
+      blobReadMs: 0,
+      projectionMs: 3.4,
+      listJobsMs: 7.5,
+      readSource: 'prisma',
+    });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.headers['Server-Timing'], /cd1-auth;dur=1\.2/);
+    assert.match(response.headers['Server-Timing'], /cd1-prisma;dur=2\.3/);
+    assert.match(response.headers['Server-Timing'], /cd1-project;dur=3\.4/);
+    assert.equal(response.headers['Timing-Allow-Origin'], '*');
+    assert.equal(response.headers['X-CD1-Jobs-Read-Source'], 'prisma');
+    assert.doesNotMatch(response.headers['Server-Timing'], /timing-fixture/);
   });
 
   it('Change requests list hydrates blobs with one eventual GET per key', () => {

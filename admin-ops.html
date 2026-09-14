@@ -197,7 +197,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     <a href="technician.html?portal=tech">Technician portal</a>
     <a href="/admin/owner-studio" class="os-link" id="ownerStudioLink" title="Owner Studio — catalog, pricing &amp; content control plane">Owner Studio</a>
     <a href="/admin/owner-studio/catalog" class="os-link" id="catalogManagerLink" title="Catalog Manager — Owner Studio draft catalog editor">Catalog Manager</a>
-    <span class="hint" id="lastUpdated" style="margin:0"></span>
+    <span class="hint" id="lastUpdated" style="margin:0">Loading Jobs…</span>
     <button type="button" class="btn ghost sm" id="btnRefresh">Refresh</button>
     <button type="button" class="btn ghost sm" id="btnLogout">Sign Out</button>
   </div>
@@ -380,6 +380,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   <section class="panel" id="p-requests">
     <h3 style="font-size:14px;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--ac)">Customer Change Requests <span class="tab-badge" id="requestsPendingBadge" hidden>0</span></h3>
     <p class="hint">Pending requests from My Garage. Click a request to open the appointment on the Requests panel. Approve applies when safe; paid vehicle removals return payment adjustment required.</p>
+    <p class="hint" id="requestsSourceStatus" role="status" style="margin:8px 0"></p>
     <div class="req-filter-bar" id="requestsFilters" role="group" aria-label="Request status filters">
       <button type="button" class="req-filter-btn" data-req-filter="pending" aria-pressed="true">Pending</button>
       <button type="button" class="req-filter-btn" data-req-filter="needs_payment_adjustment" aria-pressed="false">Needs payment adjustment</button>
@@ -409,6 +410,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   </section>
 
   <section class="panel" id="p-settings">
+    <p class="hint" id="settingsSourceStatus" role="status"></p>
     <div class="card">
       <h3 style="margin-bottom:12px">Dispatch &amp; auction rules</h3>
       <p class="hint"><strong>Auto-confirm appointments:</strong> Recommended OFF until your zone rules, card-on-file checks, and fraud filters are stable. Turn ON only when bookings meet your criteria automatically.</p>
@@ -638,6 +640,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let techsInflight = null;
   let refreshAllInflight = null;
   let refreshAllSignal = null;
+  let secondaryRefreshInflight = null;
   let jobsSyncVersion = '';
   let requestsSyncVersion = '';
   let lastJobsNotModified = false;
@@ -649,6 +652,24 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let jobsSnapshotSavedAt = null;
   let jobsSnapshotRefreshing = false;
   let jobsFreshLoaded = false;
+  let settingsLoading = false;
+  let settingsError = null;
+  const jobMutationGuards = new Map();
+  const ADMIN_TIMING = window.__CD1AdminOpsTiming = {
+    navigationStart: 0,
+    shellVisible: Math.round(performance.now()),
+    jobsRequestStart: null,
+    jobsResponse: null,
+    firstJobsRendered: null,
+    secondarySettled: null,
+    updatingCleared: null,
+  };
+
+  function timingMark(name) {
+    if (Object.prototype.hasOwnProperty.call(ADMIN_TIMING, name) && ADMIN_TIMING[name] == null) {
+      ADMIN_TIMING[name] = Math.round(performance.now());
+    }
+  }
 
   let pendingOpenBookingId = null;
   try {
@@ -1121,12 +1142,60 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         lastSuccessAt: snap.savedAt,
       });
       try {
-        renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderEvents();
+        renderPrimaryJobsSurfaces();
       } catch (_) {}
       return true;
     } catch (_) {
       return false;
     }
+  }
+
+  const MUTATION_PROTECTED_JOB_FIELDS = [
+    'bookingVersion','quoteVersion','paymentWorkflowStatus','financialPaymentStatus',
+    'approvedCents','settledCents','remainingCents','approvedFinalAmount',
+    'amountPaid','amountDueApproved','invoicePaid',
+  ];
+
+  function mergeMutationGuard(incoming, current) {
+    if (!incoming || !incoming.id) return incoming;
+    const guard = jobMutationGuards.get(String(incoming.id));
+    if (!guard) return incoming;
+    const incomingVersion = Number(incoming.bookingVersion);
+    const requiredVersion = Number(guard.bookingVersion);
+    if ((Number.isFinite(incomingVersion) && incomingVersion >= requiredVersion)
+      || Date.now() >= guard.expiresAt) {
+      jobMutationGuards.delete(String(incoming.id));
+      return incoming;
+    }
+    const protectedJob = guard.job || current || {};
+    const merged = Object.assign({}, incoming);
+    MUTATION_PROTECTED_JOB_FIELDS.forEach((field) => {
+      if (protectedJob[field] !== undefined) merged[field] = protectedJob[field];
+    });
+    return merged;
+  }
+
+  function applyAuthoritativePaymentMutation(bookingId, result, method) {
+    if (!SS || !SS.applyAuthoritativePaymentResult || !result || result.ok === false) return false;
+    const id = String(bookingId || result.bookingId || '');
+    const index = jobs.findIndex((job) => job && String(job.id) === id);
+    if (index < 0) return false;
+    const patched = SS.applyAuthoritativePaymentResult(jobs[index], result, method);
+    if (patched === jobs[index]) return false;
+    jobs[index] = patched;
+    if (activeJob && String(activeJob.id) === id) {
+      activeJob = SS.applyAuthoritativePaymentResult(activeJob, result, method);
+    }
+    const bookingVersion = Number(result.bookingVersion);
+    if (Number.isFinite(bookingVersion)) {
+      jobMutationGuards.set(id, {
+        bookingVersion,
+        job: patched,
+        expiresAt: Date.now() + 30000,
+      });
+    }
+    renderPrimaryJobsSurfaces();
+    return true;
   }
 
 async function loadJobs(extra, fetchOpts) {
@@ -1152,7 +1221,9 @@ async function loadJobs(extra, fetchOpts) {
           const q = new URLSearchParams(extra||{});
           if (showTest) q.set('showTest', '1');
           if (jobsSyncVersion) q.set('ifSyncVersion', jobsSyncVersion);
+          timingMark('jobsRequestStart');
           const data = await api('/.netlify/functions/admin-ops-jobs?'+q, 'GET', null, Object.assign({ signal: ctrl && ctrl.signal }, fetchOpts || {}));
+          timingMark('jobsResponse');
           if (SS && !SS.shouldApplyGeneration(jobsMeta, generation)) return jobs;
           if (data.syncVersion) jobsSyncVersion = data.syncVersion;
           if (data.notModified === true) {
@@ -1200,6 +1271,10 @@ async function loadJobs(extra, fetchOpts) {
               });
               activeJob = incoming[i];
             }
+          }
+          for (let i = 0; i < incoming.length; i++) {
+            const current = jobs.find((job) => job && incoming[i] && job.id === incoming[i].id);
+            incoming[i] = mergeMutationGuard(incoming[i], current);
           }
           jobs = incoming;
           if (SS) jobsMeta = SS.applySourceSuccess(jobsMeta, generation).meta;
@@ -1347,10 +1422,21 @@ async function loadTechs(fetchOpts, loadOpts) {
   }
 
   async function loadSettings() {
-    const data = await api('/.netlify/functions/ops-settings');
-    platformSettings = data.settings || {};
-    platformAvailability = data.availability || null;
-    return platformSettings;
+    settingsLoading = true;
+    renderSettingsSourceStatus();
+    try {
+      const data = await api('/.netlify/functions/ops-settings');
+      platformSettings = data.settings || {};
+      platformAvailability = data.availability || null;
+      settingsError = null;
+      return platformSettings;
+    } catch (error) {
+      settingsError = (error && error.message) || 'load_failed';
+      throw error;
+    } finally {
+      settingsLoading = false;
+      renderSettingsSourceStatus();
+    }
   }
 
   async function loadAuctions() {
@@ -1406,12 +1492,62 @@ async function loadTechs(fetchOpts, loadOpts) {
     return { source: source, message: message + ' (' + meta.error + ')', hasLoaded: hasLoaded };
   }
 
+  function jobsSourceState() {
+    return SS && SS.classifySourceState
+      ? SS.classifySourceState(jobsMeta, jobs, { stale: jobsFromSnapshot })
+      : (jobs.length ? (jobsMeta.isLoading ? 'REFRESHING_WITH_DATA' : 'LOADED_DATA')
+        : (jobsMeta.hasLoaded ? 'LOADED_EMPTY' : (jobsMeta.isLoading ? 'LOADING_NO_DATA' : 'NOT_LOADED')));
+  }
+
+  function renderPrimaryJobsSurfaces() {
+    renderOverview();
+    renderJobs();
+    renderAssign();
+    renderCompleted();
+    renderIssues();
+    renderPayments();
+    renderEvents();
+    updateRequestsTabBadge();
+    if (jobs.length && ADMIN_TIMING.firstJobsRendered == null) timingMark('firstJobsRendered');
+  }
+
+  function renderRequestsSourceStatus() {
+    const el = $('#requestsSourceStatus');
+    if (!el) return;
+    const state = SS && SS.classifySourceState
+      ? SS.classifySourceState(changeRequestsMeta, changeRequests)
+      : '';
+    el.style.color = '';
+    if (state === 'LOADING_NO_DATA') el.textContent = 'Loading requests…';
+    else if (state === 'REFRESHING_WITH_DATA') el.textContent = 'Updating requests… Showing current data.';
+    else if (state === 'ERROR_WITH_DATA') {
+      el.textContent = 'Requests unavailable — showing the last loaded data. (' + changeRequestsMeta.error + ')';
+      el.style.color = 'var(--warn)';
+    } else if (state === 'ERROR_NO_DATA') {
+      el.textContent = 'Requests unavailable. Retry from this tab. (' + changeRequestsMeta.error + ')';
+      el.style.color = 'var(--warn)';
+    } else if (changeRequestsMeta.lastSuccessAt) {
+      el.textContent = 'Requests updated ' + new Date(changeRequestsMeta.lastSuccessAt).toLocaleTimeString();
+    } else el.textContent = '';
+  }
+
+  function renderSettingsSourceStatus() {
+    const el = $('#settingsSourceStatus');
+    if (!el) return;
+    el.style.color = '';
+    if (settingsLoading) el.textContent = 'Updating settings…';
+    else if (settingsError) {
+      el.textContent = 'Settings unavailable. Retry from this tab. (' + settingsError + ')';
+      el.style.color = 'var(--warn)';
+    } else el.textContent = '';
+  }
+
   async function retrySource(source) {
     const key = String(source || '');
     try {
       if (key === 'jobs' || key === 'bookings') {
         await loadJobs();
-        renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderEvents();
+        renderPrimaryJobsSurfaces();
         maybeOpenPendingDirectLink();
       } else if (key === 'technicians' || key === 'techs') {
         await ensureTechsForAssign();
@@ -1421,6 +1557,7 @@ async function loadTechs(fetchOpts, loadOpts) {
         await loadChangeRequests();
         renderRequests();
         updateRequestsTabBadge();
+        renderRequestsSourceStatus();
       } else {
         await refreshAll();
         return;
@@ -1435,12 +1572,9 @@ async function loadTechs(fetchOpts, loadOpts) {
   function renderSourceBannersOnly() {
     const failures = [];
     const j = sourceFailureEntry('jobs', jobsMeta, 'Jobs');
-    const t = sourceFailureEntry('technicians', techsMeta, 'Technicians');
-    const c = sourceFailureEntry('requests', changeRequestsMeta, 'Change requests');
     if (j) failures.push(j);
-    if (t) failures.push(t);
-    if (c) failures.push(c);
     showLoadBanner(failures);
+    renderRequestsSourceStatus();
   }
 
   function maybeOpenPendingDirectLink() {
@@ -1473,6 +1607,38 @@ async function loadTechs(fetchOpts, loadOpts) {
     return pendingJob || mergeRequestsWithJobs(changeRequests).some(isOpenChangeRequest);
   }
 
+  async function refreshSecondarySources(options) {
+    const includeSettings = !!(options && options.includeSettings);
+    if (secondaryRefreshInflight) return secondaryRefreshInflight;
+    const settle = (p) => Promise.resolve(p)
+      .then((value) => ({ status: 'fulfilled', value }))
+      .catch((reason) => ({ status: 'rejected', reason }));
+    const run = (async () => {
+      lastRequestsNotModified = false;
+      const requestsPromise = settle(loadChangeRequests());
+      renderRequestsSourceStatus();
+      const settingsPromise = includeSettings
+        ? settle(loadSettings())
+        : Promise.resolve({ status: 'fulfilled', value: platformSettings });
+      const [changeR, settingsR] = await Promise.all([requestsPromise, settingsPromise]);
+      if (!lastRequestsNotModified || changeR.status === 'rejected') {
+        renderRequests();
+        updateRequestsTabBadge();
+      }
+      if (settingsR.status === 'fulfilled' && includeSettings) renderSettingsForm();
+      renderRequestsSourceStatus();
+      renderSourceBannersOnly();
+      timingMark('secondarySettled');
+      return { requests: changeR, settings: settingsR };
+    })();
+    secondaryRefreshInflight = run;
+    try {
+      return await run;
+    } finally {
+      if (secondaryRefreshInflight === run) secondaryRefreshInflight = null;
+    }
+  }
+
   async function refreshAll(refreshContext) {
     const reason = typeof refreshContext === 'string'
       ? refreshContext
@@ -1489,64 +1655,16 @@ async function loadTechs(fetchOpts, loadOpts) {
       // Jobs refresh must NOT pull the full technician roster (lazy-loaded on Assign / Techs tab).
       // Preserve any session-cached techs across jobs/requests refresh.
       lastJobsNotModified = false;
-      lastRequestsNotModified = false;
-      // Jobs and Change requests each have a 25s source timeout. Sharing the
-      // poll abort signal (also 25s) aborted both together on mobile. Load
-      // them sequentially with independent timers so Schedule can render even
-      // when Requests is still hydrating.
       const settle = (p) => Promise.resolve(p)
         .then((value) => ({ status: 'fulfilled', value }))
         .catch((reason) => ({ status: 'rejected', reason }));
-      // Do not pass the poll AbortSignal into these loads — a shared 25s abort
-      // previously killed Jobs and Requests together on cellular. Each loader
-      // keeps its own 25s SOURCE_FETCH_TIMEOUT_MS. If this refresh was
-      // superseded, skip remaining sources so a replacement can start clean.
-      const aborted = () => !!(requestSignal && requestSignal.aborted);
       const jobsR = await settle(loadJobs());
-      const settingsR = aborted()
-        ? { status: 'fulfilled', value: platformSettings }
-        : (syncOnly
-          ? { status: 'fulfilled', value: platformSettings }
-          : await settle(loadSettings()));
-      const changeR = aborted()
-        ? { status: 'fulfilled', value: changeRequests }
-        : await settle(loadChangeRequests());
       // Intentionally do NOT assign jobs=[], techs=[], or changeRequests=[] on rejection.
       // Intentionally do NOT call loadTechs() here.
-      const bothUnchanged = syncOnly && lastJobsNotModified && lastRequestsNotModified
-        && jobsR.status === 'fulfilled' && changeR.status === 'fulfilled';
-      if (!bothUnchanged) {
-        renderOverview(); renderJobs(); renderAssign(); renderCompleted(); renderIssues(); renderRequests(); renderEvents(); renderTechs();
-        updateRequestsTabBadge();
-        renderSettingsForm();
-      }
-      const failures = [];
-      if (jobsR.status === 'rejected') {
-        failures.push(sourceFailureEntry('jobs', jobsMeta, 'Jobs') || {
-          source: 'jobs',
-          message: 'Jobs could not be refreshed. Showing the last loaded data. (' + ((jobsR.reason && jobsR.reason.message) || jobsR.reason) + ')',
-        });
-      }
-      if (settingsR.status === 'rejected') {
-        failures.push({ source: '', message: 'settings (' + ((settingsR.reason && settingsR.reason.message) || settingsR.reason) + ')' });
-      }
-      if (changeR.status === 'rejected') {
-        failures.push(sourceFailureEntry('requests', changeRequestsMeta, 'Change requests') || {
-          source: 'requests',
-          message: 'Change requests could not be refreshed. Showing the last loaded data. (' + ((changeR.reason && changeR.reason.message) || changeR.reason) + ')',
-        });
-      }
-      // Successful sources clear their own error inside loaders; rebuild banner from current meta + settings.
-      // Technicians errors only appear after an explicit tech load attempt (Assign / Techs tab / Retry).
-      const fromMeta = [];
-      const j = sourceFailureEntry('jobs', jobsMeta, 'Jobs');
-      const t = sourceFailureEntry('technicians', techsMeta, 'Technicians');
-      const c = sourceFailureEntry('requests', changeRequestsMeta, 'Change requests');
-      if (j) fromMeta.push(j);
-      if (t && techsMeta.hasLoaded) fromMeta.push(t);
-      if (c) fromMeta.push(c);
-      failures.filter((f) => f && !f.source).forEach((f) => fromMeta.push(f));
-      showLoadBanner(fromMeta.length ? fromMeta : failures.filter(Boolean));
+      // Jobs are the operational readiness boundary. Render them before any
+      // Settings/Requests promise is allowed to affect usability or status.
+      renderPrimaryJobsSurfaces();
+      renderSourceBannersOnly();
       maybeOpenPendingDirectLink();
       // Keep selected job open when it still exists locally after a partial failure.
       if (expandedJobId && jobs.some((j) => j && j.id === expandedJobId) && activeJob) {
@@ -1555,14 +1673,18 @@ async function loadTechs(fetchOpts, loadOpts) {
       // Primary operational source is Jobs. Secondary change-request failures
       // must not mark the whole Admin refresh as failed when appointments loaded.
       const syncFailure = jobsR.status === 'rejected' ? jobsR.reason : null;
+      // Secondary sources own their own coalesced lifecycle and scoped status.
+      // Do not await them here: a 40s Requests timeout cannot delay Jobs render
+      // or keep the global Jobs status in Updating.
+      refreshSecondarySources({ includeSettings: !syncOnly }).catch(() => {});
       return {
         ok: !syncFailure,
         error: syncFailure && (syncFailure.message || String(syncFailure)),
         status: syncFailure && (syncFailure.status || syncFailure.statusCode || 0),
         retryAfterMs: syncFailure && syncFailure.retryAfterMs,
         pending: adminSyncPending(),
-        notModified: bothUnchanged,
-        changed: !bothUnchanged,
+        notModified: syncOnly && lastJobsNotModified && jobsR.status === 'fulfilled',
+        changed: !(syncOnly && lastJobsNotModified && jobsR.status === 'fulfilled'),
       };
     })();
     refreshAllInflight = run;
@@ -2079,7 +2201,14 @@ async function loadTechs(fetchOpts, loadOpts) {
       return true;
     });
     if (!list.length) {
-      tb.innerHTML = '<tr><td colspan="8" class="empty">No payments found</td></tr>';
+      const sourceState = jobsSourceState();
+      let emptyMsg = jobs.length ? 'No payments match the active filters' : 'No payments found';
+      if (sourceState === 'NOT_LOADED' || sourceState === 'LOADING_NO_DATA') {
+        emptyMsg = 'Loading payments from Jobs…';
+      } else if (sourceState === 'ERROR_NO_DATA') {
+        emptyMsg = 'Payments are unavailable because Jobs could not be loaded.';
+      }
+      tb.innerHTML = '<tr><td colspan="8" class="empty">'+esc(emptyMsg)+'</td></tr>';
       return;
     }
     const banner = stale
@@ -2112,9 +2241,12 @@ async function loadTechs(fetchOpts, loadOpts) {
     parkActiveDetailRow();
     const jobsStale = !!(jobsMeta && jobsMeta.error && jobsMeta.hasLoaded);
     const jobsInitialFail = !!(jobsMeta && jobsMeta.error && !jobsMeta.hasLoaded && !jobs.length);
+    const sourceState = jobsSourceState();
     if (!list.length) {
-      let emptyMsg = 'No jobs found';
-      if (jobsInitialFail) {
+      let emptyMsg = jobs.length ? 'No jobs match the active filters' : 'No jobs found';
+      if (sourceState === 'NOT_LOADED' || sourceState === 'LOADING_NO_DATA') {
+        emptyMsg = 'Loading appointments…';
+      } else if (jobsInitialFail || sourceState === 'ERROR_NO_DATA') {
         emptyMsg = 'Jobs could not be loaded. Use Retry to try again.';
       } else if (jobsStale && !jobs.length) {
         emptyMsg = 'Jobs could not be refreshed and no local data is available.';
@@ -2129,6 +2261,7 @@ async function loadTechs(fetchOpts, loadOpts) {
       // Only collapse when the selected job is truly gone from memory — not on a failed refresh
       // that still holds last-good rows filtered out of the current view.
       if (expandedJobId && !jobs.some((j) => j && j.id === expandedJobId)) collapseJobDetail();
+      if (window.CD1AdminDayView) CD1AdminDayView.render();
       return;
     }
     const stillVisible = expandedJobId && list.some(j => j.id === expandedJobId);
@@ -2401,7 +2534,16 @@ async function loadTechs(fetchOpts, loadOpts) {
     const list = mergeRequestsWithJobs(changeRequests || []);
     updateRequestsTabBadge();
     if (!list.length) {
-      el.innerHTML = '<div class="empty">No pending customer change requests</div>';
+      const state = SS && SS.classifySourceState
+        ? SS.classifySourceState(changeRequestsMeta, changeRequests)
+        : '';
+      if (state === 'NOT_LOADED' || state === 'LOADING_NO_DATA') {
+        el.innerHTML = '<div class="empty">Loading customer requests…</div>';
+      } else if (state === 'ERROR_NO_DATA') {
+        el.innerHTML = '<div class="empty">Customer requests are unavailable. Use Retry to try again.</div>';
+      } else {
+        el.innerHTML = '<div class="empty">No pending customer change requests</div>';
+      }
       return;
     }
     const autoApply = new Set([
@@ -2788,17 +2930,39 @@ async function loadTechs(fetchOpts, loadOpts) {
   async function jobAction(bookingId, action, extra) {
     try {
       const data = await api('/.netlify/functions/admin-ops-jobs','POST',{action,bookingId,...extra});
+      const paymentMutation = action === 'mark_cash_received' || action === 'mark_card_on_site';
+      const paymentPatched = paymentMutation && applyAuthoritativePaymentMutation(
+        bookingId,
+        data,
+        action === 'mark_cash_received' ? 'cash' : 'card'
+      );
       if (data && data.repaired) {
         toast(data.jobStatus === 'completed_paid'
           ? 'Payment already recorded — booking closed as paid'
           : 'Payment already recorded — Admin status synced');
       } else if (
-        (action === 'mark_cash_received' || action === 'mark_card_on_site')
-        && data && data.jobStatus === 'completed_paid'
+        paymentMutation && paymentPatched
       ) {
-        toast('Payment recorded — booking completed');
+        toast(action === 'mark_cash_received'
+          ? 'Cash recorded — balance $0'
+          : 'Payment recorded — balance $0');
       } else {
         toast('Saved');
+      }
+      if (paymentPatched) {
+        // The mutation response is already authoritative for these payment
+        // fields. Reconcile in the background; do not make the owner wait for
+        // a full Admin refresh or let an older in-flight list overwrite it.
+        const reconcile = opsRefresh
+          ? opsRefresh.refresh('payment_settlement', { supersede: true })
+          : refreshAll('payment_settlement');
+        Promise.resolve(reconcile).then(() => {
+          if (expandedJobId === bookingId || (activeJob && activeJob.id === bookingId)) {
+            expandedJobId = bookingId;
+            openDrawer(bookingId).catch(() => {});
+          }
+        }).catch(() => {});
+        return data;
       }
       await refreshAll();
       if (action === 'archive_test' && expandedJobId === bookingId) {
@@ -4454,12 +4618,14 @@ async function loadTechs(fetchOpts, loadOpts) {
   function renderAdminSyncState(info) {
     const el = $('#lastUpdated');
     if (!el || !info) return;
-    if (info.state === 'updating') el.textContent = 'Updating…';
+    if (info.state === 'updating') el.textContent = 'Updating Jobs…';
     else if (info.state === 'current') {
-      el.textContent = info.lastUpdated ? 'Last updated '+info.lastUpdated.toLocaleTimeString() : 'Up to date';
+      el.textContent = info.lastUpdated ? 'Jobs updated '+info.lastUpdated.toLocaleTimeString() : 'Jobs up to date';
+      timingMark('updatingCleared');
     } else if (info.state === 'retrying') {
-      el.textContent = info.status === 429 ? 'Rate limited · retrying…' : 'Refresh delayed · retrying…';
-    } else if (info.state === 'offline') el.textContent = 'Offline · showing last update';
+      el.textContent = info.status === 429 ? 'Jobs rate limited · retrying…' : 'Jobs refresh delayed · retrying…';
+      timingMark('updatingCleared');
+    } else if (info.state === 'offline') el.textContent = 'Offline · showing last Jobs update';
     else if (info.state === 'unauthorized') el.textContent = 'Session expired';
     else if (info.state === 'paused') el.textContent = 'Updates paused';
   }
@@ -4470,7 +4636,7 @@ async function loadTechs(fetchOpts, loadOpts) {
       activePollMs: 2500,
       stablePollMs: 15000,
       maxBackoffMs: 60000,
-      requestTimeoutMs: 90000,
+      requestTimeoutMs: 60000,
       onRefresh: refreshAll,
       onStateChange: renderAdminSyncState,
       isPending: adminSyncPending,
@@ -4483,6 +4649,7 @@ async function loadTechs(fetchOpts, loadOpts) {
   if (window.CD1AdminDayView) {
     CD1AdminDayView.attach({
       getJobs: () => jobs,
+      getJobsState: jobsSourceState,
       customerName: cust,
       vehicleSummary: jobsVehicleSummary,
       jobBadge: jobBadge,
@@ -4498,6 +4665,13 @@ async function loadTechs(fetchOpts, loadOpts) {
       openJob: (id) => { openDrawer(id).catch(() => {}); },
     });
   }
+
+  // Establish explicit first-load states for primary-derived tabs before auth
+  // and network work begin. These renders never manufacture an empty success.
+  renderJobs();
+  renderPayments();
+  renderRequestsSourceStatus();
+  renderSettingsSourceStatus();
 
   ensureAdminSession().then(ok => {
     if (!ok) return;

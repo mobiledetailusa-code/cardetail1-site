@@ -84,10 +84,12 @@ test('Payments view derives from in-memory lean jobs without a new fetch', () =>
   assert.match(body, /jobs\.filter\(/);
 });
 
-test('refreshAll tracks settings and change requests independently', () => {
-  // Sequential settle() keeps each source independent without a shared AbortSignal.
+test('refreshAll renders Jobs before independently coalesced secondary sources', () => {
   assert.match(adminOps, /const jobsR = await settle\(loadJobs\(\)\)/);
-  assert.match(adminOps, /await settle\(loadChangeRequests\(\)\)/);
+  assert.match(adminOps, /renderPrimaryJobsSurfaces\(\)[\s\S]*refreshSecondarySources/);
+  assert.match(adminOps, /async function refreshSecondarySources/);
+  assert.match(adminOps, /Promise\.all\(\[requestsPromise, settingsPromise\]\)/);
+  assert.match(adminOps, /if \(secondaryRefreshInflight\) return secondaryRefreshInflight/);
   assert.doesNotMatch(adminOps, /loadJobs\(\),\s*loadTechs\(\)/);
   assert.match(adminOps, /Intentionally do NOT call loadTechs\(\) here/);
   // Last-good preservation: rejected feeds must NOT wipe arrays.
@@ -95,8 +97,8 @@ test('refreshAll tracks settings and change requests independently', () => {
   assert.doesNotMatch(adminOps, /if \(jobsR\.status === 'rejected'\) jobs = \[\]/);
   assert.doesNotMatch(adminOps, /if \(techsR\.status === 'rejected'\) techs = \[\]/);
   assert.match(adminOps, /Intentionally do NOT assign jobs=\[\], techs=\[\], or changeRequests=\[\] on rejection/);
-  assert.match(adminOps, /settingsR\.status === 'rejected'/);
-  assert.match(adminOps, /changeR\.status === 'rejected'/);
+  assert.match(adminOps, /renderRequestsSourceStatus/);
+  assert.match(adminOps, /renderSettingsSourceStatus/);
 });
 
 test('customer requests tab has isolated refresh handler', () => {
@@ -140,8 +142,10 @@ test('manual-review request types are labeled in UI', () => {
 
 test('one failed feed does not block unrelated tab handlers', () => {
   assert.match(adminOps, /jobsR\.status === 'rejected'/);
-  assert.match(adminOps, /changeR\.status === 'rejected'/);
-  assert.match(adminOps, /renderJobs\(\); renderAssign\(\)/);
+  assert.match(adminOps, /refreshSecondarySources\([\s\S]*\.catch\(\(\) => \{\}\)/);
+  assert.match(adminOps, /function renderPrimaryJobsSurfaces\(\)/);
+  assert.match(adminOps, /renderJobs\(\);[\s\S]*renderAssign\(\);/);
+  assert.match(adminOps, /Requests unavailable/);
   assert.match(adminOps, /refreshAuctionsTab/);
   assert.match(adminOps, /refreshRequestsTab/);
 });

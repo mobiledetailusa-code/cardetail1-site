@@ -109,7 +109,7 @@ describe('admin payment parity — Postgres overlay', () => {
 
   it('Admin UI treats already_paid as sync/refresh instead of a hard failure', () => {
     const html = fs.readFileSync(path.join(ROOT, 'admin-ops.html'), 'utf8');
-    const slice = html.slice(html.indexOf('async function jobAction'), html.indexOf('async function jobAction') + 2200);
+    const slice = html.slice(html.indexOf('async function jobAction'), html.indexOf('async function jobAction') + 4500);
     assert.match(slice, /already_paid/);
     assert.match(slice, /Payment already recorded/);
     assert.match(slice, /openDrawer\(bookingId\)/);

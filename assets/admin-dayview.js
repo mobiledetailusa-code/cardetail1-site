@@ -193,6 +193,26 @@
     return api && typeof api.getJobs === 'function' ? api.getJobs() : [];
   }
 
+  function jobsState() {
+    if (api && typeof api.getJobsState === 'function') return api.getJobsState();
+    return getJobs().length ? 'LOADED_DATA' : 'LOADED_EMPTY';
+  }
+
+  function jobsAwaitingFirstLoad() {
+    const state = jobsState();
+    return state === 'NOT_LOADED' || state === 'LOADING_NO_DATA';
+  }
+
+  function jobsInitialError() {
+    return jobsState() === 'ERROR_NO_DATA';
+  }
+
+  function emptyJobsMessage(emptyMessage) {
+    if (jobsAwaitingFirstLoad()) return 'Loading appointments…';
+    if (jobsInitialError()) return 'Appointments could not be loaded. Retry from the Admin header.';
+    return emptyMessage;
+  }
+
   function emptyDayOps() {
     return {
       count: 0, revenue: 0, balanceDue: 0, unassigned: 0, attention: 0,
@@ -380,6 +400,11 @@
   function renderStats() {
     const el = document.getElementById('dvCalStats');
     if (!el || !opsCache) return;
+    if (jobsAwaitingFirstLoad() || jobsInitialError()) {
+      const value = jobsAwaitingFirstLoad() ? '…' : 'Unavailable';
+      el.innerHTML = '<div class="dv-stat accent"><div class="lbl">Appointments</div><div class="val">' + value + '</div></div>';
+      return;
+    }
     const m = opsCache.monthRollup;
     el.innerHTML =
       '<div class="dv-stat accent"><div class="lbl">Jobs (month)</div><div class="val">' + m.count + '</div></div>' +
@@ -393,6 +418,11 @@
   function renderOpsPulse() {
     const el = document.getElementById('dvOpsPulse');
     if (!el) return;
+    if (jobsAwaitingFirstLoad() || jobsInitialError()) {
+      el.innerHTML = '<span class="dv-pulse-dot"></span><span class="dv-pulse-text">' +
+        esc(emptyJobsMessage('Appointments unavailable')) + '</span>';
+      return;
+    }
     const n = getJobs().length;
     el.innerHTML =
       '<span class="dv-pulse-dot"></span>' +
@@ -432,7 +462,10 @@
       const heat = heatLevel(c.jobCount);
       if (heat) classes.push(heat);
       const rev = c.revenue > 0 ? '<div class="dv-cell-rev">' + esc(moneyShort(c.revenue)) + '</div>' : '';
-      return '<button type="button" class="' + classes.join(' ') + '" data-dv-date="' + esc(c.date) + '" aria-pressed="' + (c.date === selectedDate) + '" title="' + esc(c.jobCount + ' jobs' + (c.revenue ? ' · ' + money(c.revenue) : '')) + '">' +
+      const title = jobsAwaitingFirstLoad()
+        ? 'Appointments loading'
+        : (c.jobCount + ' jobs' + (c.revenue ? ' · ' + money(c.revenue) : ''));
+      return '<button type="button" class="' + classes.join(' ') + '" data-dv-date="' + esc(c.date) + '" aria-pressed="' + (c.date === selectedDate) + '" title="' + esc(title) + '">' +
         '<span class="num">' + c.dayNum + '</span>' +
         (c.jobCount ? '<div class="dots">' + dotsHtml(c.jobCount, c.attention, c.unassigned) + '</div>' : '') +
         rev + '</button>';
@@ -447,7 +480,7 @@
       const classes = ['dv-week-day'];
       if (d.isToday) classes.push('today');
       if (d.date === selectedDate) classes.push('sel');
-      const jc = d.jobCount === 1 ? '1 job' : (d.jobCount ? d.jobCount + ' jobs' : '—');
+      const jc = jobsAwaitingFirstLoad() ? '…' : (d.jobCount === 1 ? '1 job' : (d.jobCount ? d.jobCount + ' jobs' : '—'));
       const rev = d.revenue > 0 ? moneyShort(d.revenue) : '';
       return '<button type="button" class="' + classes.join(' ') + '" data-dv-date="' + esc(d.date) + '" aria-pressed="' + (d.date === selectedDate) + '">' +
         '<div class="dn">' + esc(d.dayName) + '</div>' +
@@ -464,7 +497,7 @@
       return p.getFullYear() === viewYear && p.getMonth() === viewMonth;
     }).slice(0, 8);
     if (!alerts.length) {
-      el.innerHTML = '<div class="dv-alert-empty">No unassigned or attention flags this month</div>';
+      el.innerHTML = '<div class="dv-alert-empty">' + esc(emptyJobsMessage('No unassigned or attention flags this month')) + '</div>';
       return;
     }
     el.innerHTML = alerts.map((a) => {
@@ -488,7 +521,9 @@
     const ops = dayOps(dateStr);
     container.innerHTML = '<strong>' + esc(label) + '</strong> — ' +
       esc(d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })) +
-      (ops.count ? ' · ' + ops.count + ' appt' + (ops.count === 1 ? '' : 's') + ' · ' + money(ops.revenue) + ' booked' : '');
+      (jobsAwaitingFirstLoad() ? ' · Updating appointments…' :
+        (jobsInitialError() ? ' · Appointments unavailable' :
+          (ops.count ? ' · ' + ops.count + ' appt' + (ops.count === 1 ? '' : 's') + ' · ' + money(ops.revenue) + ' booked' : '')));
   }
 
   function renderDayIntel() {
@@ -533,7 +568,7 @@
     if (!el) return;
     const ops = dayOps(selectedDate);
     if (!ops.count) {
-      el.innerHTML = '<div class="dv-chip muted">No operational load this day</div>';
+      el.innerHTML = '<div class="dv-chip muted">' + esc(emptyJobsMessage('No operational load this day')) + '</div>';
       return;
     }
     const chips = [
@@ -559,7 +594,7 @@
       else if (f.id === 'pending_review') count = ops.pendingReview;
       const on = dayFilter === f.id;
       return '<button type="button" class="dv-filter' + (on ? ' on' : '') + '" data-dv-filter="' + f.id + '" aria-pressed="' + on + '">' +
-        esc(f.label) + '<span class="dv-fc">' + count + '</span></button>';
+        esc(f.label) + '<span class="dv-fc">' + (jobsAwaitingFirstLoad() ? '…' : count) + '</span></button>';
     }).join('');
   }
 
@@ -569,7 +604,7 @@
     const list = dayOps(selectedDate).jobs.slice().sort((a, b) =>
       String(parseTimeWindow(a).start).localeCompare(String(parseTimeWindow(b).start)));
     if (!list.length) {
-      el.innerHTML = '<div class="dv-timeline-empty">No time blocks scheduled</div>';
+      el.innerHTML = '<div class="dv-timeline-empty">' + esc(emptyJobsMessage('No time blocks scheduled')) + '</div>';
       return;
     }
     el.innerHTML = '<div class="dv-timeline-track">' + list.map((j) => {
@@ -602,7 +637,7 @@
       return b.jobs.length - a.jobs.length;
     });
     if (!rows.length) {
-      el.innerHTML = '<div class="dv-empty"><p>No technician assignments</p></div>';
+      el.innerHTML = '<div class="dv-empty"><p>' + esc(emptyJobsMessage('No technician assignments')) + '</p></div>';
       return;
     }
     el.innerHTML = '<div class="dv-tech-grid">' + rows.map((r) => {
@@ -635,7 +670,7 @@
     const mapEl = document.getElementById('dvMap');
     if (!heroEl || !mapEl) return;
     if (!job) {
-      heroEl.innerHTML = '<div class="dv-empty"><div class="ei">📅</div><p>Select a job or pick a day with appointments</p></div>';
+      heroEl.innerHTML = '<div class="dv-empty"><div class="ei">📅</div><p>' + esc(emptyJobsMessage('Select a job or pick a day with appointments')) + '</p></div>';
       mapEl.innerHTML = '';
       return;
     }
@@ -706,7 +741,7 @@
     if (!el) return;
     const list = dayJobs(date);
     if (!list.length) {
-      el.innerHTML = '<div class="dv-empty"><p>No appointments match this filter</p></div>';
+      el.innerHTML = '<div class="dv-empty"><p>' + esc(emptyJobsMessage('No appointments match this filter')) + '</p></div>';
       return;
     }
     el.innerHTML = '<div class="dv-sched">' + list.map((j) => {
@@ -733,7 +768,7 @@
     if (!el) return;
     const up = pipelineJobs(selectedDate);
     if (!up.length) {
-      el.innerHTML = '<div class="dv-empty"><p>Nothing scheduled in the next ' + PIPELINE_DAYS + ' days</p></div>';
+      el.innerHTML = '<div class="dv-empty"><p>' + esc(emptyJobsMessage('Nothing scheduled in the next ' + PIPELINE_DAYS + ' days')) + '</p></div>';
       return;
     }
     el.innerHTML = '<div class="dv-pipeline">' + up.map((j) => {
