@@ -1663,7 +1663,9 @@ async function loadTechs(fetchOpts, loadOpts) {
       // Intentionally do NOT call loadTechs() here.
       // Jobs are the operational readiness boundary. Render them before any
       // Settings/Requests promise is allowed to affect usability or status.
-      renderPrimaryJobsSurfaces();
+      if (!lastJobsNotModified || jobsR.status === 'rejected') {
+        renderPrimaryJobsSurfaces();
+      }
       renderSourceBannersOnly();
       maybeOpenPendingDirectLink();
       // Keep selected job open when it still exists locally after a partial failure.

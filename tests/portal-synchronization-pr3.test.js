@@ -301,10 +301,9 @@ describe('PR3 portal integration contracts', () => {
     assert.ok(p95 >= 14200 && p95 <= 14800);
   });
 
-  it('skips Admin DOM rewrite when jobs and requests are notModified', () => {
+  it('skips independent Admin DOM rewrites for notModified jobs and requests', () => {
     const admin = read('admin-ops.html');
-    assert.match(admin, /bothUnchanged/);
-    assert.match(admin, /lastJobsNotModified/);
-    assert.match(admin, /lastRequestsNotModified/);
+    assert.match(admin, /if \(!lastJobsNotModified \|\| jobsR\.status === 'rejected'\) \{\s*renderPrimaryJobsSurfaces\(\)/);
+    assert.match(admin, /if \(!lastRequestsNotModified \|\| changeR\.status === 'rejected'\) \{\s*renderRequests\(\)/);
   });
 });
