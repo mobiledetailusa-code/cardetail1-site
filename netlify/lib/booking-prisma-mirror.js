@@ -163,11 +163,20 @@ async function readBookingMirrors(bookingIds) {
 async function listBookingMirrors(metrics) {
   const out = [];
   try {
-    if (metrics && typeof metrics === 'object') metrics.queryCount = 0;
+    if (metrics && typeof metrics === 'object') {
+      metrics.queryCount = 0;
+      metrics.outcome = 'disabled';
+    }
     if (!readFallbackEnabled()) return out;
     const prisma = tryGetPrisma();
-    if (!prisma) return out;
-    if (metrics && typeof metrics === 'object') metrics.queryCount = 1;
+    if (!prisma) {
+      if (metrics && typeof metrics === 'object') metrics.outcome = 'no_client';
+      return out;
+    }
+    if (metrics && typeof metrics === 'object') {
+      metrics.queryCount = 1;
+      metrics.outcome = 'pending';
+    }
     const rows = await prisma.bookingRecord.findMany({
       where: { NOT: { kind: 'draft' } },
       orderBy: { updatedAt: 'desc' },
@@ -179,8 +188,10 @@ async function listBookingMirrors(metrics) {
       if (!payload.id && !payload.bookingId) payload.id = row.id;
       out.push(payload);
     }
+    if (metrics && typeof metrics === 'object') metrics.outcome = out.length ? 'hit' : 'empty';
     return out;
   } catch (err) {
+    if (metrics && typeof metrics === 'object') metrics.outcome = 'error';
     const message = err && err.message ? err.message : String(err);
     console.warn('[booking-prisma-mirror] list_failed', message);
     return [];

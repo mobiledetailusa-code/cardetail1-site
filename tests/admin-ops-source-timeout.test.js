@@ -54,6 +54,8 @@ describe('Admin Ops source timeout contract', () => {
     const listEnd = jobsSrc.indexOf('async function persistMutation', listStart);
     const listFn = jobsSrc.slice(listStart, listEnd > 0 ? listEnd : listStart + 4000);
     assert.match(listFn, /listBookingMirrors\(prismaMetrics\)/);
+    assert.match(listFn, /Promise\.race/);
+    assert.match(jobsSrc, /ADMIN_LIST_PRISMA_BUDGET_MS = 750/);
     assert.match(listFn, /timing\.prismaQueries = Number\(prismaMetrics\.queryCount\) \|\| 0/);
     assert.match(listFn, /mirrored\.length/);
     assert.match(listFn, /hydrateJobsFromBlobs\(timing\)/);
@@ -64,6 +66,8 @@ describe('Admin Ops source timeout contract', () => {
     assert.doesNotMatch(hydrateFn, /getWithMetadata\s*\(/);
     assert.doesNotMatch(hydrateFn, /consistency:\s*'strong'/);
     assert.match(hydrateFn, /listAllBlobsStrict/);
+    assert.match(hydrateFn, /ADMIN_LIST_BLOB_READ_CONCURRENCY/);
+    assert.match(jobsSrc, /ADMIN_LIST_BLOB_READ_CONCURRENCY = 64/);
     assert.match(hydrateFn, /failed request, never an authoritative successful zero Jobs response/);
   });
 
