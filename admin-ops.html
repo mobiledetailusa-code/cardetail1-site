@@ -597,6 +597,8 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   </div>
 </aside>
 
+<output id="adminOpsDiagnostics" hidden aria-hidden="true"></output>
+
 <script src="/netlify/lib/admin-session-client.js"></script>
 <script src="/netlify/lib/site-access-client.js"></script>
 <script src="assets/operational-refresh.js?v=20260805-sync-pr3"></script>
@@ -655,6 +657,20 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let settingsLoading = false;
   let settingsError = null;
   const jobMutationGuards = new Map();
+  const JOBS_READ_LEASE_KEY = 'cardetail1.admin.jobs.readLease.v1';
+  const JOBS_READ_LEASE_MAX_MS = 8 * 60 * 60 * 1000;
+  let adminSessionExpiresAt = 0;
+  let jobsSnapshotHydrated = false;
+  const ADMIN_DIAGNOSTICS_ENABLED = (() => {
+    try { return new URL(location.href).searchParams.get('diagnostics') === '1'; }
+    catch (_) { return false; }
+  })();
+  const ADMIN_DIAGNOSTICS = window.__CD1AdminOpsDiagnostics = {
+    schemaVersion: 1,
+    enabled: ADMIN_DIAGNOSTICS_ENABLED,
+    events: [],
+    jobsRequests: [],
+  };
   const ADMIN_TIMING = window.__CD1AdminOpsTiming = {
     navigationStart: 0,
     shellVisible: Math.round(performance.now()),
@@ -669,6 +685,66 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (Object.prototype.hasOwnProperty.call(ADMIN_TIMING, name) && ADMIN_TIMING[name] == null) {
       ADMIN_TIMING[name] = Math.round(performance.now());
     }
+  }
+
+  function diagnosticEvent(type, detail) {
+    if (!ADMIN_DIAGNOSTICS_ENABLED) return;
+    const entry = Object.assign({ type: String(type || 'event'), atMs: Math.round(performance.now()) }, detail || {});
+    ADMIN_DIAGNOSTICS.events.push(entry);
+    if (entry.type === 'jobs_request_end') ADMIN_DIAGNOSTICS.jobsRequests.push(entry);
+    if (ADMIN_DIAGNOSTICS.events.length > 100) ADMIN_DIAGNOSTICS.events.shift();
+    if (ADMIN_DIAGNOSTICS.jobsRequests.length > 20) ADMIN_DIAGNOSTICS.jobsRequests.shift();
+    const output = document.getElementById('adminOpsDiagnostics');
+    if (output) output.textContent = JSON.stringify(ADMIN_DIAGNOSTICS);
+  }
+
+  function serverTimingValues(raw) {
+    const out = {};
+    String(raw || '').split(',').forEach((part) => {
+      const match = part.trim().match(/^([a-z0-9-]+)(?:;dur=([0-9.]+))?/i);
+      if (match) out[match[1]] = match[2] == null ? null : Number(match[2]);
+    });
+    return out;
+  }
+
+  function grantJobsReadLease(expiresAt) {
+    const serverExpiry = Number(expiresAt || adminSessionExpiresAt);
+    const localCeiling = Date.now() + JOBS_READ_LEASE_MAX_MS;
+    const leaseExpiry = Number.isFinite(serverExpiry) && serverExpiry > Date.now()
+      ? Math.min(serverExpiry, localCeiling)
+      : localCeiling;
+    try {
+      sessionStorage.setItem(JOBS_READ_LEASE_KEY, JSON.stringify({ expiresAt: leaseExpiry }));
+      diagnosticEvent('lkg_read_lease_granted', { expiresAt: leaseExpiry });
+      return true;
+    } catch (_) {
+      diagnosticEvent('lkg_read_lease_failed');
+      return false;
+    }
+  }
+
+  function hasJobsReadLease() {
+    try {
+      const raw = sessionStorage.getItem(JOBS_READ_LEASE_KEY);
+      if (!raw) return false;
+      const lease = JSON.parse(raw);
+      if (lease && Number(lease.expiresAt) > Date.now()) return true;
+      sessionStorage.removeItem(JOBS_READ_LEASE_KEY);
+    } catch (_) {}
+    return false;
+  }
+
+  function clearJobsReadAvailability() {
+    try { sessionStorage.removeItem(JOBS_READ_LEASE_KEY); } catch (_) {}
+    try { if (SS && SS.clearJobsSnapshot) SS.clearJobsSnapshot(); } catch (_) {}
+  }
+
+  if (window.CD1AdminSession && typeof CD1AdminSession.onSessionEvent === 'function') {
+    CD1AdminSession.onSessionEvent((event) => {
+      if (!event || event.type !== 'logout') return;
+      clearJobsReadAvailability();
+      location.replace('admin.html');
+    });
   }
 
   let pendingOpenBookingId = null;
@@ -717,9 +793,9 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         body: JSON.stringify({ action: 'logout', token: t }),
       }).catch(()=>{});
     }
+    clearJobsReadAvailability();
     CD1AdminSession.clearToken();
     localStorage.removeItem('cd1_session');
-    try { if (SS && SS.clearJobsSnapshot) SS.clearJobsSnapshot(); } catch (_) {}
     location.replace('admin.html');
   }
 
@@ -732,6 +808,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (t) headers['x-admin-key'] = t;
     const payload = { action: 'validate' };
     if (t) payload.token = t;
+    diagnosticEvent('auth_validate_start', { localTokenPresent: !!t });
     try {
       const res = await fetch('/.netlify/functions/admin-auth', {
         method: 'POST',
@@ -740,10 +817,19 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!data.ok) { CD1AdminSession.clearToken(); location.replace('admin.html'); return false; }
+      if (!data.ok) {
+        diagnosticEvent('auth_validate_end', { ok: false, status: res.status });
+        clearJobsReadAvailability();
+        CD1AdminSession.clearToken();
+        location.replace('admin.html');
+        return false;
+      }
+      adminSessionExpiresAt = Number(data.expiresAt) || 0;
+      diagnosticEvent('auth_validate_end', { ok: true, status: res.status });
       CD1AdminSession.syncWindowKey();
       return true;
     } catch {
+      diagnosticEvent('auth_validate_end', { ok: false, status: 0, error: 'network' });
       return true;
     }
   }
@@ -773,6 +859,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     if (body) { opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
     let timeoutId = null;
     let timedOut = false;
+    const isPrimaryJobsRead = (method || 'GET') === 'GET'
+      && /^\/\.netlify\/functions\/admin-ops-jobs(?:\?|$)/.test(String(url || ''));
+    const requestStartedAt = performance.now();
+    let requestDiagnosticWritten = false;
+    if (isPrimaryJobsRead) diagnosticEvent('jobs_request_start');
     const outerSignal = opts.signal || null;
     if (timeoutMs > 0 && typeof AbortController !== 'undefined') {
       const ctrl = new AbortController();
@@ -788,10 +879,40 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     }
     try {
       const res = await fetch(url, opts);
-      const data = await res.json().catch(()=>({}));
+      const headersAt = performance.now();
+      let data;
+      let payloadBytes = null;
+      if (isPrimaryJobsRead) {
+        const rawBody = await res.text();
+        try { payloadBytes = new TextEncoder().encode(rawBody).length; }
+        catch (_) { payloadBytes = rawBody.length; }
+        try { data = JSON.parse(rawBody); } catch (_) { data = {}; }
+        const finishedAt = performance.now();
+        requestDiagnosticWritten = true;
+        diagnosticEvent('jobs_request_end', {
+          outcome: res.ok && data.ok !== false ? 'response' : 'http_error',
+          status: res.status,
+          ttfbMs: Math.round(headersAt - requestStartedAt),
+          totalMs: Math.round(finishedAt - requestStartedAt),
+          payloadBytes,
+          serverTiming: serverTimingValues(res.headers.get('Server-Timing')),
+          readSource: res.headers.get('X-CD1-Jobs-Read-Source') || 'unknown',
+          coldStart: res.headers.get('X-CD1-Function-Cold') === '1',
+          blobCount: Number(res.headers.get('X-CD1-Jobs-Blob-Count')) || 0,
+          blobListOperations: Number(res.headers.get('X-CD1-Jobs-Blob-List-Operations')) || 0,
+          blobListPages: Number(res.headers.get('X-CD1-Jobs-Blob-List-Pages')) || 0,
+          blobReadOperations: Number(res.headers.get('X-CD1-Jobs-Blob-Read-Operations')) || 0,
+          blobReadBatches: Number(res.headers.get('X-CD1-Jobs-Blob-Read-Batches')) || 0,
+          prismaQueries: Number(res.headers.get('X-CD1-Jobs-Prisma-Queries')) || 0,
+          requestId: res.headers.get('X-Nf-Request-Id') || '',
+        });
+      } else {
+        data = await res.json().catch(()=>({}));
+      }
       if (!res.ok || data.ok === false) {
         const err = data.error || ('HTTP '+res.status);
         if (err === 'unauthorized' || res.status === 401) {
+          clearJobsReadAvailability();
           CD1AdminSession.clearToken();
           throw new Error('Session expired — log in again at admin.html');
         }
@@ -819,6 +940,16 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       if (e && e.name === 'AbortError') throw new Error('aborted');
       throw e;
     } finally {
+      if (isPrimaryJobsRead && !requestDiagnosticWritten) {
+        diagnosticEvent('jobs_request_end', {
+          outcome: timedOut ? 'timeout' : (outerSignal && outerSignal.aborted ? 'aborted' : 'network_error'),
+          status: timedOut ? 408 : 0,
+          ttfbMs: null,
+          totalMs: Math.round(performance.now() - requestStartedAt),
+          payloadBytes: null,
+          serverTiming: {},
+        });
+      }
       if (timeoutId) clearTimeout(timeoutId);
     }
   }
@@ -1127,11 +1258,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   
   function hydrateJobsSnapshotIfAvailable() {
-    if (!SS || !SS.loadJobsSnapshot) return false;
+    if (jobsSnapshotHydrated || !SS || !SS.loadJobsSnapshot) return false;
     try {
       const snap = SS.loadJobsSnapshot();
-      if (!snap || !Array.isArray(snap.jobs) || !snap.jobs.length) return false;
+      if (!snap || !Array.isArray(snap.jobs) || !snap.jobs.length) {
+        diagnosticEvent('lkg_read', { result: 'miss', rows: 0 });
+        return false;
+      }
       jobs = snap.jobs.slice();
+      jobsSnapshotHydrated = true;
       jobsFromSnapshot = true;
       jobsSnapshotSavedAt = snap.savedAt;
       jobsSnapshotRefreshing = true;
@@ -1144,8 +1279,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       try {
         renderPrimaryJobsSurfaces();
       } catch (_) {}
+      diagnosticEvent('lkg_read', {
+        result: 'hit',
+        rows: snap.jobs.length,
+        savedAt: snap.savedAt,
+        firstRowAtMs: ADMIN_TIMING.firstJobsRendered,
+      });
       return true;
     } catch (_) {
+      diagnosticEvent('lkg_read', { result: 'error', rows: 0 });
       return false;
     }
   }
@@ -1233,6 +1375,7 @@ async function loadJobs(extra, fetchOpts) {
             jobsFromSnapshot = false;
             jobsSnapshotRefreshing = false;
             jobsFreshLoaded = true;
+            grantJobsReadLease();
             return jobs;
           }
           lastJobsNotModified = false;
@@ -1284,8 +1427,15 @@ async function loadJobs(extra, fetchOpts) {
           jobsFreshLoaded = true;
           try {
             if (SS && SS.saveJobsSnapshot) {
-              SS.saveJobsSnapshot(jobs, jobsMeta.lastSuccessAt || Date.now());
+              const saved = SS.saveJobsSnapshot(jobs, jobsMeta.lastSuccessAt || Date.now());
               jobsSnapshotSavedAt = jobsMeta.lastSuccessAt || Date.now();
+              let storedBytes = null;
+              try {
+                const stored = localStorage.getItem(SS.JOBS_SNAPSHOT_KEY);
+                storedBytes = stored ? new TextEncoder().encode(stored).length : 0;
+              } catch (_) {}
+              diagnosticEvent('lkg_write', { ok: !!saved, rows: jobs.length, storedBytes });
+              if (saved) grantJobsReadLease();
             }
           } catch (_) {}
           return jobs;
@@ -4669,7 +4819,12 @@ async function loadTechs(fetchOpts, loadOpts) {
   }
 
   // Establish explicit first-load states for primary-derived tabs before auth
-  // and network work begin. These renders never manufacture an empty success.
+  // and network work begin. A same-tab read lease was granted only after a prior
+  // authenticated Jobs success, so its approved projection can paint synchronously.
+  const hadJobsReadLease = hasJobsReadLease();
+  diagnosticEvent('bootstrap', { jobsReadLease: hadJobsReadLease });
+  if (hadJobsReadLease) hydrateJobsSnapshotIfAvailable();
+  // These renders never manufacture an empty success.
   renderJobs();
   renderPayments();
   renderRequestsSourceStatus();
@@ -4677,7 +4832,9 @@ async function loadTechs(fetchOpts, loadOpts) {
 
   ensureAdminSession().then(ok => {
     if (!ok) return;
-    hydrateJobsSnapshotIfAvailable();
+    // Cookie-only tabs cannot prove local read access before validation. Once the
+    // server validates, they may use the existing LKG while the fresh read runs.
+    if (!jobsSnapshotHydrated) hydrateJobsSnapshotIfAvailable();
     if (opsRefresh) opsRefresh.refresh('initial').catch(e => toast('Load error: '+e.message));
     else refreshAll('initial').catch(e => toast('Load error: '+e.message));
   });

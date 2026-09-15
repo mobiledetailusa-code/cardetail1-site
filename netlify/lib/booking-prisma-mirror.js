@@ -160,12 +160,14 @@ async function readBookingMirrors(bookingIds) {
  *
  * @returns {Promise<object[]>}
  */
-async function listBookingMirrors() {
+async function listBookingMirrors(metrics) {
   const out = [];
   try {
+    if (metrics && typeof metrics === 'object') metrics.queryCount = 0;
     if (!readFallbackEnabled()) return out;
     const prisma = tryGetPrisma();
     if (!prisma) return out;
+    if (metrics && typeof metrics === 'object') metrics.queryCount = 1;
     const rows = await prisma.bookingRecord.findMany({
       where: { NOT: { kind: 'draft' } },
       orderBy: { updatedAt: 'desc' },

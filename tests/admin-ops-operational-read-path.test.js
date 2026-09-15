@@ -172,4 +172,17 @@ describe('Admin Ops operational read path', () => {
     assert.match(source.slice(hydrateStart, hydrateEnd), /throw new Error\('booking_blob_incomplete'\)/);
     assert.doesNotMatch(source.slice(hydrateStart, hydrateEnd), /store\.get\([\s\S]*\.catch\(\(\) => null\)/);
   });
+
+  it('real-preview diagnostics report aggregate timing and scan counts without response data', () => {
+    const source = read('netlify/functions/admin-ops-jobs.js');
+    assert.match(source, /response\.headers\['Server-Timing'\] = jobsServerTiming\(timing\)/);
+    assert.match(source, /X-CD1-Jobs-Blob-List-Operations/);
+    assert.match(source, /X-CD1-Jobs-Blob-Read-Operations/);
+    assert.match(source, /X-CD1-Jobs-Prisma-Queries/);
+    assert.match(source, /X-CD1-Jobs-Payload-Bytes/);
+    const diagStart = adminOps.indexOf('function diagnosticEvent');
+    const apiStart = adminOps.indexOf('async function api');
+    const diagSource = adminOps.slice(diagStart, apiStart);
+    assert.doesNotMatch(diagSource, /firstName|lastName|phone|email|address|paymentIntent|stripe/i);
+  });
 });
