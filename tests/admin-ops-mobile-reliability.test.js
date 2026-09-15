@@ -265,8 +265,12 @@ describe('Admin Ops mobile reliability', () => {
     assert.equal(row.eventLog, undefined);
     assert.equal(row.bookingVersion, undefined, 'stale LKG must never supply write concurrency authority');
     assert.equal(row.quoteVersion, undefined, 'stale LKG must never supply quote authority');
+    assert.equal(row.paymentWorkflowStatus, undefined,
+      'the approved projection must not be broadened with payment state');
     assert.equal(row.firstName, 'Ada');
     assert.equal(row.serviceAddress, '12 Main St, Jersey City NJ');
+    assert.match(adminOps, /text == null \|\| text === '' \? '—'/,
+      'missing non-authoritative payment state must render safely, not abort LKG paint');
     assert.match(adminOps, /current\.bookingVersion != null/,
       'mutations may attach a version only when one exists in fresh memory');
   });

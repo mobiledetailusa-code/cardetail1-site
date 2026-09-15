@@ -954,7 +954,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     }
   }
 
-  function badge(text, cls) { return '<span class="badge '+cls+'">'+esc(text.replace(/_/g,' '))+'</span>'; }
+  function badge(text, cls) {
+    const label = text == null || text === '' ? '—' : String(text).replace(/_/g,' ');
+    return '<span class="badge '+cls+'">'+esc(label)+'</span>';
+  }
   function jobBadge(st) {
     const m = {completed_paid:'b-ok',completed_pending_admin_review:'b-warn',completed_pending_payment:'b-warn',issue_reported:'b-err',in_progress:'b-ac',assigned:'b-ac',cancelled:'b-st'};
     return badge(st, m[st]||'b-st');
