@@ -70,6 +70,8 @@ describe('Admin Ops source timeout contract', () => {
     assert.match(hydrateFn, /listAllBlobsStrict/);
     assert.match(hydrateFn, /ADMIN_LIST_BLOB_READ_CONCURRENCY/);
     assert.match(jobsSrc, /ADMIN_LIST_BLOB_READ_CONCURRENCY = 96/);
+    assert.match(hydrateFn, /Array\.from\(\{ length: workerCount \}, \(\) => readNextBlob\(\)\)/);
+    assert.doesNotMatch(hydrateFn, /blobs\.slice\(i, i \+ ADMIN_LIST_BLOB_READ_CONCURRENCY\)/);
     assert.match(hydrateFn, /failed request, never an authoritative successful zero Jobs response/);
   });
 

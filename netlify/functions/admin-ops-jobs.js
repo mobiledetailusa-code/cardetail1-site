@@ -131,24 +131,27 @@ async function hydrateJobsFromBlobs(timing = {}) {
   // failed request, never an authoritative successful zero Jobs response.
   const blobs = await listAllBlobsStrict(store, timing);
   timing.blobListMs = performance.now() - listStarted;
-  const keyed = [];
+  const keyed = new Array(blobs.length);
   // Eventual list reads — strong consistency is reserved for get_job / mutations.
   // One GET per key (no metadata+fallback double read) so the 25s Admin Ops client
   // timeout is not spent on doubled Blob round-trips.
   const readsStarted = performance.now();
-  for (let i = 0; i < blobs.length; i += ADMIN_LIST_BLOB_READ_CONCURRENCY) {
-    const chunk = blobs.slice(i, i + ADMIN_LIST_BLOB_READ_CONCURRENCY);
-    timing.blobReadBatches = (Number(timing.blobReadBatches) || 0) + 1;
-    timing.blobReadOperations = (Number(timing.blobReadOperations) || 0) + chunk.length;
-    const rows = await Promise.all(chunk.map(async (blob) => {
+  let nextBlobIndex = 0;
+  const workerCount = Math.min(ADMIN_LIST_BLOB_READ_CONCURRENCY, blobs.length);
+  timing.blobReadWorkers = workerCount;
+  async function readNextBlob() {
+    while (nextBlobIndex < blobs.length) {
+      const index = nextBlobIndex++;
+      const blob = blobs[index];
+      timing.blobReadOperations = (Number(timing.blobReadOperations) || 0) + 1;
       const raw = await store.get(blob.key, { type: 'json' });
       if (!raw) throw new Error('booking_blob_incomplete');
       if (!raw.id && !raw.bookingId) raw.id = blob.key;
       raw.__blobKey = blob.key;
-      return raw;
-    }));
-    for (const row of rows) keyed.push(row);
+      keyed[index] = raw;
+    }
   }
+  await Promise.all(Array.from({ length: workerCount }, () => readNextBlob()));
   timing.blobReadMs = performance.now() - readsStarted;
   timing.blobCount = blobs.length;
   return keyed;
@@ -1373,6 +1376,7 @@ function finalizeJobsResponse(response, timing = {}) {
   response.headers['X-CD1-Jobs-Blob-List-Pages'] = String(Number(timing.blobListPages) || 0);
   response.headers['X-CD1-Jobs-Blob-Read-Operations'] = String(Number(timing.blobReadOperations) || 0);
   response.headers['X-CD1-Jobs-Blob-Read-Batches'] = String(Number(timing.blobReadBatches) || 0);
+  response.headers['X-CD1-Jobs-Blob-Read-Workers'] = String(Number(timing.blobReadWorkers) || 0);
   response.headers['X-CD1-Jobs-Prisma-Queries'] = String(Number(timing.prismaQueries) || 0);
   response.headers['X-CD1-Jobs-Prisma-Outcome'] = timing.prismaOutcome || 'unknown';
   response.headers['X-CD1-Jobs-Payload-Bytes'] = String(Buffer.byteLength(response.body || '', 'utf8'));

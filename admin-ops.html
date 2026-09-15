@@ -903,6 +903,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           blobListPages: Number(res.headers.get('X-CD1-Jobs-Blob-List-Pages')) || 0,
           blobReadOperations: Number(res.headers.get('X-CD1-Jobs-Blob-Read-Operations')) || 0,
           blobReadBatches: Number(res.headers.get('X-CD1-Jobs-Blob-Read-Batches')) || 0,
+          blobReadWorkers: Number(res.headers.get('X-CD1-Jobs-Blob-Read-Workers')) || 0,
           prismaQueries: Number(res.headers.get('X-CD1-Jobs-Prisma-Queries')) || 0,
           prismaOutcome: res.headers.get('X-CD1-Jobs-Prisma-Outcome') || 'unknown',
           requestId: res.headers.get('X-Nf-Request-Id') || '',
