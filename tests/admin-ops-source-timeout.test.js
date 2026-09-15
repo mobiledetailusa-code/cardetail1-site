@@ -66,7 +66,7 @@ describe('Admin Ops source timeout contract', () => {
     assert.doesNotMatch(hydrateFn, /consistency:\s*'strong'/);
     assert.match(hydrateFn, /listAllBlobsStrict/);
     assert.match(hydrateFn, /ADMIN_LIST_BLOB_READ_CONCURRENCY/);
-    assert.match(jobsSrc, /ADMIN_LIST_BLOB_READ_CONCURRENCY = 64/);
+    assert.match(jobsSrc, /ADMIN_LIST_BLOB_READ_CONCURRENCY = 20/);
     assert.match(hydrateFn, /blobs\.slice\(i, i \+ ADMIN_LIST_BLOB_READ_CONCURRENCY\)/);
     assert.match(hydrateFn, /failed request, never an authoritative successful zero Jobs response/);
   });

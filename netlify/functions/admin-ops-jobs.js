@@ -2,7 +2,7 @@
 const { performance } = require('node:perf_hooks');
 const MODULE_STARTED_AT = performance.now();
 let handlerInvocationCount = 0;
-const ADMIN_LIST_BLOB_READ_CONCURRENCY = 64;
+const ADMIN_LIST_BLOB_READ_CONCURRENCY = 20;
 const { blobsStore, listAllBlobs, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const {
   projectJobForAdmin, projectJobForAdminList, overlayAdminJobMoneyFromProjection,
