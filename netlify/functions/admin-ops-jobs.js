@@ -110,98 +110,12 @@ async function listAllBlobsStrict(store, timing = {}) {
       timing.blobListPages = (Number(timing.blobListPages) || 0) + 1;
       blobs.push(...((page && page.blobs) || []));
     }
-    timing.blobListFields = Array.from(new Set(blobs.flatMap((blob) => Object.keys(blob || {})))).sort();
-    timing.blobKeyShapes = classifyBlobKeyShapes(blobs);
     return blobs;
   }
   const listing = await paged;
   if (!listing || !Array.isArray(listing.blobs)) throw new Error('booking_list_incomplete');
   timing.blobListPages = (Number(timing.blobListPages) || 0) + 1;
-  timing.blobListFields = Array.from(new Set(listing.blobs.flatMap((blob) => Object.keys(blob || {})))).sort();
-  timing.blobKeyShapes = classifyBlobKeyShapes(listing.blobs);
   return listing.blobs;
-}
-
-function classifyBlobKeyShapes(blobs) {
-  const counts = { bookingId: 0, cd1Other: 0, uuid: 0, path: 0, opaque: 0 };
-  for (const blob of blobs || []) {
-    const key = String(blob && blob.key || '');
-    if (/^CD1-[0-9A-Z]+-[0-9A-Z]+$/i.test(key)) counts.bookingId += 1;
-    else if (key.includes('/')) counts.path += 1;
-    else if (/^CD1-/i.test(key)) counts.cd1Other += 1;
-    else if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key)) counts.uuid += 1;
-    else counts.opaque += 1;
-  }
-  return counts;
-}
-
-function firstRecordDate(booking, fields) {
-  for (const field of fields) {
-    const raw = booking && booking[field];
-    if (!raw) continue;
-    const dateOnly = String(raw).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    const value = dateOnly
-      ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
-      : new Date(raw);
-    if (Number.isFinite(value.getTime())) return value;
-  }
-  return null;
-}
-
-/**
- * Mutually-exclusive, aggregate-only inventory for Preview diagnostics. The
- * order is deliberate: a record carrying multiple exclusion flags is counted
- * once, at the first applicable lifecycle boundary.
- */
-function classifyBookingInventory(bookings, now = new Date()) {
-  const { hasSubmissionMarkers, isDraftRecord } = require('../lib/booking-visibility');
-  const counts = {
-    activeOperational: 0,
-    futureAppointments: 0,
-    recentCompleted: 0,
-    oldCompleted: 0,
-    cancelled: 0,
-    archived: 0,
-    test: 0,
-    draft: 0,
-    nonJobBookingRecords: 0,
-    other: 0,
-  };
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const recentCutoff = now.getTime() - (30 * 24 * 60 * 60 * 1000);
-  const activeStatuses = new Set([
-    'pending_review', 'confirmed', 'scheduled', 'assigned', 'accepted',
-    'en_route', 'arrived', 'in_progress', 'reopened',
-    'completed_pending_admin_review', 'completed_pending_payment',
-  ]);
-
-  for (const booking of bookings || []) {
-    const status = normalizeJobStatus(booking);
-    if (isDraftRecord(booking)) {
-      counts.draft += 1;
-    } else if (booking && booking.archived === true) {
-      counts.archived += 1;
-    } else if (booking && (booking.isTest === true || status === 'archived_test')) {
-      counts.test += 1;
-    } else if (/cancel/.test(status) || /cancel/i.test(String(booking && booking.status || ''))) {
-      counts.cancelled += 1;
-    } else if (/^completed/.test(status) || /^(closed|completed)$/.test(String(booking && booking.serviceStatus || '').toLowerCase())) {
-      const completedAt = firstRecordDate(booking, ['completedAt', 'closedAt', 'updatedAt', 'createdAt']);
-      if (completedAt && completedAt.getTime() >= recentCutoff) counts.recentCompleted += 1;
-      else counts.oldCompleted += 1;
-    } else if (!hasSubmissionMarkers(booking)) {
-      counts.nonJobBookingRecords += 1;
-    } else {
-      const appointment = firstRecordDate(booking, ['confirmedDate', 'preferredDate', 'appointmentDate', 'scheduledAt']);
-      const appointmentDay = appointment
-        ? new Date(appointment.getFullYear(), appointment.getMonth(), appointment.getDate()).getTime()
-        : null;
-      if (appointmentDay != null && appointmentDay > today) counts.futureAppointments += 1;
-      else if (activeStatuses.has(status)) counts.activeOperational += 1;
-      else counts.other += 1;
-    }
-  }
-  return counts;
 }
 
 async function hydrateJobsFromBlobs(timing = {}) {
@@ -252,15 +166,12 @@ async function listJobs(q, timing = {}) {
   timing.readSource = 'blobs';
   // Keep Blob key on each record so Customer lookup can resolve when key != payload.id.
   const keyed = await hydrateJobsFromBlobs(timing);
-  timing.classificationCounts = classifyBookingInventory(keyed);
   const projectionStarted = performance.now();
   let jobs = keyed.filter((b) =>
     b && isVisibleSubmittedBooking(b, { includeArchivedTest: !!showTest })
   );
 
   if (!showTest) jobs = jobs.filter(b => !b.isTest && !b.archived && b.jobStatus !== 'archived_test');
-  timing.candidateCount = jobs.length;
-  timing.candidateSource = 'post_hydration_only';
   if (statusFilter) jobs = jobs.filter(b => normalizeJobStatus(b) === statusFilter);
   if (search) {
     jobs = jobs.filter(b => {
@@ -1434,11 +1345,6 @@ function finalizeJobsResponse(response, timing = {}) {
   response.headers['X-CD1-Jobs-Blob-Read-Batches'] = String(Number(timing.blobReadBatches) || 0);
   response.headers['X-CD1-Jobs-Prisma-Queries'] = String(Number(timing.prismaQueries) || 0);
   response.headers['X-CD1-Jobs-Prisma-Outcome'] = timing.prismaOutcome || 'unknown';
-  response.headers['X-CD1-Jobs-Candidate-Count'] = String(Number(timing.candidateCount) || 0);
-  response.headers['X-CD1-Jobs-Candidate-Source'] = timing.candidateSource || 'unknown';
-  response.headers['X-CD1-Jobs-List-Fields'] = (timing.blobListFields || []).join(',');
-  response.headers['X-CD1-Jobs-Key-Shapes'] = JSON.stringify(timing.blobKeyShapes || {});
-  response.headers['X-CD1-Jobs-Classification'] = JSON.stringify(timing.classificationCounts || {});
   response.headers['X-CD1-Jobs-Payload-Bytes'] = String(Buffer.byteLength(response.body || '', 'utf8'));
   return response;
 }
@@ -3483,8 +3389,6 @@ exports.jobsSyncResponse = jobsSyncResponse;
 exports.handleAdminAction = handleAdminAction;
 exports.persistMutation = persistMutation;
 exports.listJobs = listJobs;
-exports.classifyBlobKeyShapes = classifyBlobKeyShapes;
-exports.classifyBookingInventory = classifyBookingInventory;
 
 exports.handler = async (event) => {
   const handlerStartedAt = performance.now();

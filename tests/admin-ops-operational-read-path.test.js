@@ -52,44 +52,6 @@ function controller(options) {
 }
 
 describe('Admin Ops operational read path', () => {
-  it('classifies every hydrated Blob exactly once without exposing record data', () => {
-    const endpoint = require('../netlify/functions/admin-ops-jobs');
-    const now = new Date(2026, 8, 14, 12, 0, 0);
-    const rows = [
-      { isDraft: true, kind: 'draft' },
-      { archived: true, bookingVersion: 1 },
-      { isTest: true, bookingVersion: 1 },
-      { jobStatus: 'cancelled', bookingVersion: 1 },
-      { jobStatus: 'completed_paid', completedAt: '2026-09-10T12:00:00Z', bookingVersion: 1 },
-      { jobStatus: 'completed_paid', completedAt: '2025-01-01T12:00:00Z', bookingVersion: 1 },
-      { jobStatus: 'confirmed', confirmedDate: '2026-09-20', bookingVersion: 1 },
-      { jobStatus: 'in_progress', confirmedDate: '2026-09-14', bookingVersion: 1 },
-      { kind: 'lead' },
-      { status: 'Submitted', jobStatus: 'issue_reported' },
-    ];
-    const counts = endpoint.classifyBookingInventory(rows, now);
-    assert.deepEqual(counts, {
-      activeOperational: 1,
-      futureAppointments: 1,
-      recentCompleted: 1,
-      oldCompleted: 1,
-      cancelled: 1,
-      archived: 1,
-      test: 1,
-      draft: 1,
-      nonJobBookingRecords: 1,
-      other: 1,
-    });
-    assert.equal(Object.values(counts).reduce((sum, count) => sum + count, 0), rows.length);
-    assert.deepEqual(endpoint.classifyBlobKeyShapes([
-      { key: 'CD1-ABC123-X9Z8' },
-      { key: 'CD1-legacy' },
-      { key: '88fe1460-bb76-437f-8161-3b221ae1d25b' },
-      { key: 'archive/record' },
-      { key: 'legacy-record' },
-    ]), { bookingId: 1, cd1Other: 1, uuid: 1, path: 1, opaque: 1 });
-  });
-
   it('A/B. existing Jobs remain a data-bearing state during refresh and timeout', () => {
     const jobs = [{ id: 'J1' }, { id: 'J2' }, { id: 'J3' }, { id: 'J4' }];
     let meta = loadedMeta();
@@ -217,13 +179,18 @@ describe('Admin Ops operational read path', () => {
     assert.match(source, /X-CD1-Jobs-Blob-List-Operations/);
     assert.match(source, /X-CD1-Jobs-Blob-Read-Operations/);
     assert.match(source, /X-CD1-Jobs-Prisma-Queries/);
-    assert.match(source, /X-CD1-Jobs-Candidate-Count/);
-    assert.match(source, /X-CD1-Jobs-Classification/);
-    assert.match(source, /X-CD1-Jobs-List-Fields/);
     assert.match(source, /X-CD1-Jobs-Payload-Bytes/);
+    assert.doesNotMatch(source, /X-CD1-Jobs-(Candidate|Classification|List-Fields|Key-Shapes)/);
     const diagStart = adminOps.indexOf('function diagnosticEvent');
     const apiStart = adminOps.indexOf('async function api');
     const diagSource = adminOps.slice(diagStart, apiStart);
     assert.doesNotMatch(diagSource, /firstName|lastName|phone|email|address|paymentIntent|stripe/i);
+  });
+
+  it('does not hydrate shared LKG storage after an unvalidated auth request', () => {
+    assert.match(adminOps, /let adminSessionValidated = false/);
+    assert.match(adminOps, /adminSessionValidated = true/);
+    assert.match(adminOps, /catch \{\s*adminSessionValidated = false/);
+    assert.match(adminOps, /if \(adminSessionValidated && !jobsSnapshotHydrated\) hydrateJobsSnapshotIfAvailable\(\)/);
   });
 });

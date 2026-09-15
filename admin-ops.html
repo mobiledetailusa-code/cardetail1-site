@@ -660,6 +660,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   const JOBS_READ_LEASE_KEY = 'cardetail1.admin.jobs.readLease.v1';
   const JOBS_READ_LEASE_MAX_MS = 8 * 60 * 60 * 1000;
   let adminSessionExpiresAt = 0;
+  let adminSessionValidated = false;
   let jobsSnapshotHydrated = false;
   const ADMIN_DIAGNOSTICS_ENABLED = (() => {
     try { return new URL(location.href).searchParams.get('diagnostics') === '1'; }
@@ -818,6 +819,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       });
       const data = await res.json();
       if (!data.ok) {
+        adminSessionValidated = false;
         diagnosticEvent('auth_validate_end', { ok: false, status: res.status });
         clearJobsReadAvailability();
         CD1AdminSession.clearToken();
@@ -825,10 +827,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         return false;
       }
       adminSessionExpiresAt = Number(data.expiresAt) || 0;
+      adminSessionValidated = true;
       diagnosticEvent('auth_validate_end', { ok: true, status: res.status });
       CD1AdminSession.syncWindowKey();
       return true;
     } catch {
+      adminSessionValidated = false;
       diagnosticEvent('auth_validate_end', { ok: false, status: 0, error: 'network' });
       return true;
     }
@@ -905,11 +909,6 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           blobReadBatches: Number(res.headers.get('X-CD1-Jobs-Blob-Read-Batches')) || 0,
           prismaQueries: Number(res.headers.get('X-CD1-Jobs-Prisma-Queries')) || 0,
           prismaOutcome: res.headers.get('X-CD1-Jobs-Prisma-Outcome') || 'unknown',
-          candidateCount: Number(res.headers.get('X-CD1-Jobs-Candidate-Count')) || 0,
-          candidateSource: res.headers.get('X-CD1-Jobs-Candidate-Source') || 'unknown',
-          listFields: res.headers.get('X-CD1-Jobs-List-Fields') || '',
-          keyShapes: res.headers.get('X-CD1-Jobs-Key-Shapes') || '{}',
-          classification: res.headers.get('X-CD1-Jobs-Classification') || '{}',
           requestId: res.headers.get('X-Nf-Request-Id') || '',
         });
       } else {
@@ -4844,7 +4843,7 @@ async function loadTechs(fetchOpts, loadOpts) {
     if (!ok) return;
     // Cookie-only tabs cannot prove local read access before validation. Once the
     // server validates, they may use the existing LKG while the fresh read runs.
-    if (!jobsSnapshotHydrated) hydrateJobsSnapshotIfAvailable();
+    if (adminSessionValidated && !jobsSnapshotHydrated) hydrateJobsSnapshotIfAvailable();
     if (opsRefresh) opsRefresh.refresh('initial').catch(e => toast('Load error: '+e.message));
     else refreshAll('initial').catch(e => toast('Load error: '+e.message));
   });
