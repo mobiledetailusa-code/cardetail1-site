@@ -905,6 +905,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
           blobReadBatches: Number(res.headers.get('X-CD1-Jobs-Blob-Read-Batches')) || 0,
           prismaQueries: Number(res.headers.get('X-CD1-Jobs-Prisma-Queries')) || 0,
           prismaOutcome: res.headers.get('X-CD1-Jobs-Prisma-Outcome') || 'unknown',
+          candidateCount: Number(res.headers.get('X-CD1-Jobs-Candidate-Count')) || 0,
+          candidateSource: res.headers.get('X-CD1-Jobs-Candidate-Source') || 'unknown',
+          listFields: res.headers.get('X-CD1-Jobs-List-Fields') || '',
+          keyShapes: res.headers.get('X-CD1-Jobs-Key-Shapes') || '{}',
+          classification: res.headers.get('X-CD1-Jobs-Classification') || '{}',
           requestId: res.headers.get('X-Nf-Request-Id') || '',
         });
       } else {

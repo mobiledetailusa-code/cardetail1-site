@@ -50,18 +50,15 @@ describe('Admin Ops source timeout contract', () => {
     assert.match(html, /Retry all/);
   });
 
-  it('listJobs prefers Prisma rows and hydrates Blobs only when that list is empty', () => {
+  it('listJobs keeps Blob payloads authoritative when Prisma mirror completeness is unproven', () => {
     const listStart = jobsSrc.indexOf('async function listJobs');
     const listEnd = jobsSrc.indexOf('async function persistMutation', listStart);
     const listFn = jobsSrc.slice(listStart, listEnd > 0 ? listEnd : listStart + 4000);
-    assert.match(listFn, /listBookingMirrors\(prismaMetrics\)/);
-    assert.match(listFn, /Promise\.race/);
-    assert.match(jobsSrc, /ADMIN_LIST_PRISMA_BUDGET_MS = 250/);
-    assert.match(jobsSrc, /ADMIN_LIST_PRISMA_BACKOFF_MS = 60 \* 1000/);
-    assert.match(listFn, /timing\.prismaQueries = Number\(prismaMetrics\.queryCount\) \|\| 0/);
-    assert.match(listFn, /mirrored\.length/);
+    assert.doesNotMatch(listFn, /listBookingMirrors/);
+    assert.doesNotMatch(listFn, /mirrored\.length/);
+    assert.match(listFn, /not_used_incomplete_mirror/);
     assert.match(listFn, /hydrateJobsFromBlobs\(timing\)/);
-    assert.match(listFn, /Empty Prisma[\s\S]*hydrate Blobs/);
+    assert.match(listFn, /mirror miss must never hide a valid operational Job/);
     const hydrateStart = jobsSrc.indexOf('async function hydrateJobsFromBlobs');
     const hydrateFn = jobsSrc.slice(hydrateStart, listStart);
     assert.match(hydrateFn, /store\.get\(blob\.key/);
@@ -96,14 +93,14 @@ describe('Admin Ops source timeout contract', () => {
       blobReadMs: 0,
       projectionMs: 3.4,
       listJobsMs: 7.5,
-      readSource: 'prisma',
+      readSource: 'blobs',
     });
     assert.equal(response.statusCode, 200);
     assert.match(response.headers['Server-Timing'], /cd1-auth;dur=1\.2/);
     assert.match(response.headers['Server-Timing'], /cd1-prisma;dur=2\.3/);
     assert.match(response.headers['Server-Timing'], /cd1-project;dur=3\.4/);
     assert.equal(response.headers['Timing-Allow-Origin'], '*');
-    assert.equal(response.headers['X-CD1-Jobs-Read-Source'], 'prisma');
+    assert.equal(response.headers['X-CD1-Jobs-Read-Source'], 'blobs');
     assert.doesNotMatch(response.headers['Server-Timing'], /timing-fixture/);
   });
 
