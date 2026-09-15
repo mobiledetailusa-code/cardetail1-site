@@ -123,10 +123,14 @@ async function listAllBlobsStrict(store, timing = {}) {
 }
 
 function classifyBlobKeyShapes(blobs) {
-  const counts = { bookingId: 0, other: 0 };
+  const counts = { bookingId: 0, cd1Other: 0, uuid: 0, path: 0, opaque: 0 };
   for (const blob of blobs || []) {
-    if (/^CD1-[0-9A-Z]+-[0-9A-Z]+$/i.test(String(blob && blob.key || ''))) counts.bookingId += 1;
-    else counts.other += 1;
+    const key = String(blob && blob.key || '');
+    if (/^CD1-[0-9A-Z]+-[0-9A-Z]+$/i.test(key)) counts.bookingId += 1;
+    else if (key.includes('/')) counts.path += 1;
+    else if (/^CD1-/i.test(key)) counts.cd1Other += 1;
+    else if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key)) counts.uuid += 1;
+    else counts.opaque += 1;
   }
   return counts;
 }

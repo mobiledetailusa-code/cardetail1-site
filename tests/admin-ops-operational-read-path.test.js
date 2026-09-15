@@ -83,8 +83,11 @@ describe('Admin Ops operational read path', () => {
     assert.equal(Object.values(counts).reduce((sum, count) => sum + count, 0), rows.length);
     assert.deepEqual(endpoint.classifyBlobKeyShapes([
       { key: 'CD1-ABC123-X9Z8' },
+      { key: 'CD1-legacy' },
+      { key: '88fe1460-bb76-437f-8161-3b221ae1d25b' },
+      { key: 'archive/record' },
       { key: 'legacy-record' },
-    ]), { bookingId: 1, other: 1 });
+    ]), { bookingId: 1, cd1Other: 1, uuid: 1, path: 1, opaque: 1 });
   });
 
   it('A/B. existing Jobs remain a data-bearing state during refresh and timeout', () => {
