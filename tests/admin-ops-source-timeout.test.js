@@ -31,12 +31,13 @@ describe('Admin Ops source timeout contract', () => {
     assert.doesNotMatch(refresh, /await refreshSecondarySources/);
     assert.doesNotMatch(refresh, /loadJobs\(null,\s*\{\s*signal:\s*requestSignal/);
     assert.doesNotMatch(refresh, /loadChangeRequests\(\{\s*signal:\s*requestSignal/);
-    assert.match(html, /SOURCE_FETCH_TIMEOUT_MS = 25000/);
+    assert.match(html, /SOURCE_FETCH_TIMEOUT_MS = 10000/);
   });
 
-  it('global controller budget covers only the bounded Jobs retry', () => {
-    assert.match(html, /requestTimeoutMs:\s*60000/);
-    assert.match(html, /SOURCE_FETCH_TIMEOUT_MS = 25000/);
+  it('primary timeout budgets do not serialize an inner retry', () => {
+    assert.match(html, /requestTimeoutMs:\s*12000/);
+    assert.match(html, /SOURCE_FETCH_TIMEOUT_MS = 10000/);
+    assert.match(html, /const maxAttempts = 1/);
     assert.match(html, /CHANGE_REQUESTS_FETCH_TIMEOUT_MS = 40000/);
     assert.match(html, /timeoutMs:\s*CHANGE_REQUESTS_FETCH_TIMEOUT_MS/);
     assert.match(html, /if \(secondaryRefreshInflight\) return secondaryRefreshInflight/);
@@ -55,7 +56,8 @@ describe('Admin Ops source timeout contract', () => {
     const listFn = jobsSrc.slice(listStart, listEnd > 0 ? listEnd : listStart + 4000);
     assert.match(listFn, /listBookingMirrors\(prismaMetrics\)/);
     assert.match(listFn, /Promise\.race/);
-    assert.match(jobsSrc, /ADMIN_LIST_PRISMA_BUDGET_MS = 750/);
+    assert.match(jobsSrc, /ADMIN_LIST_PRISMA_BUDGET_MS = 250/);
+    assert.match(jobsSrc, /ADMIN_LIST_PRISMA_BACKOFF_MS = 60 \* 1000/);
     assert.match(listFn, /timing\.prismaQueries = Number\(prismaMetrics\.queryCount\) \|\| 0/);
     assert.match(listFn, /mirrored\.length/);
     assert.match(listFn, /hydrateJobsFromBlobs\(timing\)/);
@@ -67,7 +69,7 @@ describe('Admin Ops source timeout contract', () => {
     assert.doesNotMatch(hydrateFn, /consistency:\s*'strong'/);
     assert.match(hydrateFn, /listAllBlobsStrict/);
     assert.match(hydrateFn, /ADMIN_LIST_BLOB_READ_CONCURRENCY/);
-    assert.match(jobsSrc, /ADMIN_LIST_BLOB_READ_CONCURRENCY = 64/);
+    assert.match(jobsSrc, /ADMIN_LIST_BLOB_READ_CONCURRENCY = 96/);
     assert.match(hydrateFn, /failed request, never an authoritative successful zero Jobs response/);
   });
 

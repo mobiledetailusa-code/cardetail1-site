@@ -2,8 +2,10 @@
 const { performance } = require('node:perf_hooks');
 const MODULE_STARTED_AT = performance.now();
 let handlerInvocationCount = 0;
-const ADMIN_LIST_PRISMA_BUDGET_MS = 750;
-const ADMIN_LIST_BLOB_READ_CONCURRENCY = 64;
+const ADMIN_LIST_PRISMA_BUDGET_MS = 250;
+const ADMIN_LIST_PRISMA_BACKOFF_MS = 60 * 1000;
+const ADMIN_LIST_BLOB_READ_CONCURRENCY = 96;
+let prismaListSuppressedUntil = 0;
 const { blobsStore, listAllBlobs, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const { listBookingMirrors } = require('../lib/booking-prisma-mirror');
 const {
@@ -162,22 +164,28 @@ async function listJobs(q, timing = {}) {
   // Keep Blob key on each record so Customer lookup can resolve when key ≠ payload.id
   const prismaStarted = performance.now();
   const prismaMetrics = {};
-  let prismaBudgetTimer = null;
-  const prismaAttempt = listBookingMirrors(prismaMetrics).then((rows) => ({ rows, timedOut: false }));
-  const prismaResult = await Promise.race([
-    prismaAttempt,
-    new Promise((resolve) => {
-      prismaBudgetTimer = setTimeout(
-        () => resolve({ rows: [], timedOut: true }),
-        ADMIN_LIST_PRISMA_BUDGET_MS
-      );
-    }),
-  ]);
-  if (prismaBudgetTimer) clearTimeout(prismaBudgetTimer);
+  let prismaResult = { rows: [], timedOut: false, suppressed: true };
+  if (Date.now() >= prismaListSuppressedUntil) {
+    let prismaBudgetTimer = null;
+    const prismaAttempt = listBookingMirrors(prismaMetrics).then((rows) => ({ rows, timedOut: false, suppressed: false }));
+    prismaResult = await Promise.race([
+      prismaAttempt,
+      new Promise((resolve) => {
+        prismaBudgetTimer = setTimeout(
+          () => resolve({ rows: [], timedOut: true, suppressed: false }),
+          ADMIN_LIST_PRISMA_BUDGET_MS
+        );
+      }),
+    ]);
+    if (prismaBudgetTimer) clearTimeout(prismaBudgetTimer);
+    if (prismaResult.timedOut) prismaListSuppressedUntil = Date.now() + ADMIN_LIST_PRISMA_BACKOFF_MS;
+  }
   const mirrored = prismaResult.rows;
   timing.prismaMs = performance.now() - prismaStarted;
   timing.prismaQueries = Number(prismaMetrics.queryCount) || 0;
-  timing.prismaOutcome = prismaResult.timedOut ? 'timeout' : (prismaMetrics.outcome || 'unknown');
+  timing.prismaOutcome = prismaResult.suppressed
+    ? 'backoff'
+    : (prismaResult.timedOut ? 'timeout' : (prismaMetrics.outcome || 'unknown'));
   timing.readSource = mirrored.length ? 'prisma' : 'blobs';
   // Empty Prisma (disabled, miss, or fail-open) must hydrate Blobs — never hide jobs.
   const keyed = mirrored.length

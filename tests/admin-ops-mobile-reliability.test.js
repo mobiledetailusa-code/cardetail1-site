@@ -185,10 +185,10 @@ describe('Admin Ops mobile reliability', () => {
     c.destroy();
   });
 
-  it('5. first-load transient failure allows one bounded retry', () => {
-    assert.match(adminOps, /const maxAttempts = jobsFreshLoaded \? 1 : 2/);
-    assert.match(adminOps, /const canRetry = !jobsFreshLoaded && attempt < maxAttempts && transient/);
-    assert.match(adminOps, /setTimeout\(r,\s*1500\)/);
+  it('5. primary read has one bounded attempt; controller owns retry/backoff', () => {
+    assert.match(adminOps, /const maxAttempts = 1/);
+    assert.match(adminOps, /The refresh controller owns retries\/backoff/);
+    assert.match(adminOps, /if \(jobsInflight\) return jobsInflight/);
     assert.match(adminOps, /msg === 'timeout'/);
   });
 
@@ -196,7 +196,7 @@ describe('Admin Ops mobile reliability', () => {
     assert.match(adminOps, /status === 401 \|\| status === 403/);
     assert.match(adminOps, /session expired|unauthorized/i);
     assert.match(adminOps, /const permanent = authFail/);
-    assert.match(adminOps, /canRetry = !jobsFreshLoaded && attempt < maxAttempts && transient/);
+    assert.match(adminOps, /const maxAttempts = 1/);
   });
 
   it('7. jobs success + change-requests failure remains usable', () => {

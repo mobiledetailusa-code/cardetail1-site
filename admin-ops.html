@@ -755,7 +755,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     const raw = fromQuery || (fromHash ? decodeURIComponent(fromHash) : '');
     if (raw && String(raw).trim()) pendingOpenBookingId = String(raw).trim();
   } catch (_) {}
-  const SOURCE_FETCH_TIMEOUT_MS = 25000;
+  const SOURCE_FETCH_TIMEOUT_MS = 10000;
   const CHANGE_REQUESTS_FETCH_TIMEOUT_MS = 40000;
 
   const $ = s => document.querySelector(s);
@@ -1345,12 +1345,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   }
 
 async function loadJobs(extra, fetchOpts) {
-    // First-load coalesce: do not abort the only in-flight jobs request for a restart.
-    if (jobsInflight && !jobsFreshLoaded) {
-      return jobsInflight;
-    }
+    // One primary read at a time. Aborting the browser fetch does not cancel the
+    // already-running Netlify function, so focus/manual/poll overlap must coalesce.
+    if (jobsInflight) return jobsInflight;
     const run = (async () => {
-      const maxAttempts = jobsFreshLoaded ? 1 : 2;
+      // The refresh controller owns retries/backoff. A second inner 10s attempt
+      // would serialize timeout budgets and recreate the long empty-board incident.
+      const maxAttempts = 1;
       let lastError = null;
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         const started = SS ? SS.beginSourceLoad(jobsMeta) : { meta: jobsMeta, generation: (jobsMeta.generation||0)+1 };
@@ -4792,7 +4793,7 @@ async function loadTechs(fetchOpts, loadOpts) {
       activePollMs: 2500,
       stablePollMs: 15000,
       maxBackoffMs: 60000,
-      requestTimeoutMs: 60000,
+      requestTimeoutMs: 12000,
       onRefresh: refreshAll,
       onStateChange: renderAdminSyncState,
       isPending: adminSyncPending,
