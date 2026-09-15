@@ -12,6 +12,7 @@ const boatsPage = fs.readFileSync(path.join(ROOT, 'boats-detailing.html'), 'utf8
 const psPage = fs.readFileSync(path.join(ROOT, 'powersports-detailing.html'), 'utf8');
 const progress = fs.readFileSync(path.join(ROOT, 'assets/booking-progress.js'), 'utf8');
 const bridge = fs.readFileSync(path.join(ROOT, 'assets/specialty-booking-bridge.js'), 'utf8');
+const PowersportsCatalog = require('../assets/powersports-model-catalog');
 
 function extractFunction(src, name) {
   const start = src.indexOf('function ' + name + '(');
@@ -77,7 +78,12 @@ describe('boat vessel types in booking', () => {
   });
 
   it('powersports chips hide jet ski; deep-link boatType is wired', () => {
-    assert.match(index, /filter\(\(\[k\]\)=>!\(cat==='powersports' && k==='jetski'\)\)/);
+    assert.equal(PowersportsCatalog.resolve('Sea-Doo', 'Spark').publicStatus, 'route_boats');
+    assert.equal(PowersportsCatalog.resolve('Sea-Doo', 'Spark').physicalFamily, 'pwc');
+    assert.equal(PowersportsCatalog.powersportsModelsByMake()['Sea-Doo'], undefined);
+    assert.equal(PowersportsCatalog.pwcModelsByMake()['Sea-Doo'].includes('Spark'), true);
+    assert.equal(PowersportsCatalog.pwcModelsByMake()['Sea-Doo'].includes('Spark Trixx'), true);
+    assert.match(index, /pwcModelsByMake\(\)/);
     assert.match(index, /params\.get\('boatType'\)/);
     assert.match(index, /book==='powersports' && \(resolvedBoatType==='jetski'/);
     assert.match(progress, /boatType: ST\.boatType/);

@@ -31,7 +31,9 @@
   function classifySegment(input) {
     input = input || {};
     var vehicleCount = Math.max(0, Number(input.vehicleCount || input.personalVehicleCount || 0));
-    var isCommercial = input.isCommercial === true || input.ownership === 'business' || vehicleCount >= 7;
+    // Fleet Pricing is optional for large personal carts — never classify by count alone.
+    // Commercial / fleet requires explicit commercial intent or business ownership.
+    var isCommercial = input.isCommercial === true || input.ownership === 'business';
     var completed = Math.max(0, Number(input.completedServices || 0));
     var categories = (input.assetCategories || input.categories || []).map(normCat);
     var maint = String(input.maintenanceFrequency || input.maintenanceInterest || '').toLowerCase();

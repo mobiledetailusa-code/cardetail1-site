@@ -71,7 +71,7 @@
 .bk-success-ref{
   font-size:13px;
   font-weight:700;
-  color:var(--white,#fff);
+  color:var(--ink,#0f172a);
   letter-spacing:.04em;
 }
 #bs6.bsec.bk-success-step .btn-sub,

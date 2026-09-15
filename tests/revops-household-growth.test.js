@@ -183,8 +183,13 @@ test('Garage Plan requires 2+ vehicles at API validation layer', () => {
   assert.notEqual(r.segment, SEGMENTS.MULTI_VEHICLE_HOUSEHOLD);
 });
 
-test('7+ vehicles route to fleet segment', () => {
+test('7+ personal vehicles stay on multi-vehicle household (not forced fleet)', () => {
   const r = classifySegment({ vehicleCount: 7, ownership: 'personal' });
+  assert.equal(r.segment, SEGMENTS.MULTI_VEHICLE_HOUSEHOLD);
+});
+
+test('explicit commercial ownership still classifies as fleet', () => {
+  const r = classifySegment({ vehicleCount: 2, ownership: 'business' });
   assert.equal(r.segment, SEGMENTS.COMMERCIAL_FLEET);
 });
 
@@ -193,8 +198,15 @@ test('next-best-action recommends garage plan for 3+ vehicles', () => {
   assert.equal(n.action, 'recommend_full_garage_plan');
 });
 
-test('next-best-action routes fleet at 7+ vehicles', () => {
+test('next-best-action suggests optional fleet pricing at 6+ without blocking', () => {
   const n = recommendNextAction({ vehicleCount: 8 });
+  assert.equal(n.action, 'recommend_optional_fleet_pricing');
+  assert.equal(n.optional, true);
+  assert.equal(n.continueBookingAllowed, true);
+});
+
+test('next-best-action still routes explicit commercial fleet to quote', () => {
+  const n = recommendNextAction({ segment: SEGMENTS.COMMERCIAL_FLEET, vehicleCount: 8 });
   assert.equal(n.action, 'route_fleet_quote');
 });
 

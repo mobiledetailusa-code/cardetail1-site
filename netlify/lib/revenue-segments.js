@@ -33,7 +33,9 @@ function isEnthusiastVehicle(vehicle) {
 function classifySegment(input) {
   const ctx = input || {};
   const vehicleCount = Math.max(0, Number(ctx.vehicleCount || ctx.personalVehicleCount || 0));
-  const isCommercial = ctx.isCommercial === true || ctx.ownership === 'business' || vehicleCount >= 7;
+  // Fleet Pricing is optional for large personal carts — never classify by count alone.
+  // Commercial / fleet requires explicit commercial intent or business ownership.
+  const isCommercial = ctx.isCommercial === true || ctx.ownership === 'business';
   const completedServices = Math.max(0, Number(ctx.completedServices || 0));
   const unsupportedZip = ctx.unsupportedZip === true;
   const unsupportedService = ctx.unsupportedService === true;

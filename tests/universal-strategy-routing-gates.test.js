@@ -140,6 +140,23 @@ test('residential multi-vehicle flow remains allowed', () => {
   assert.equal(r.altRoute, 'garage_plan');
 });
 
+test('residential 6+ and 7+ personal vehicles remain standard booking', () => {
+  for (const n of [6, 7, 8]) {
+    const r = backend.routeServiceIntent({ category: 'cars', vehicleCount: n });
+    assert.equal(r.route, 'standard_booking', 'n=' + n);
+    assert.equal(r.allowed, true, 'n=' + n);
+    assert.equal(r.routing.standardBookingAllowed, true, 'n=' + n);
+  }
+  const accepted = validateBookingRouting({
+    zipCode: '07650',
+    vehicleCategory: 'cars',
+    vehicles: Array.from({ length: 7 }, (_, i) => ({
+      cat: 'cars', pkgId: 'full', vehicleLabel: 'Civic ' + i, basePrice: 240, subtotal: 240,
+    })),
+  });
+  assert.equal(accepted.ok, true);
+});
+
 test('fleet cannot enter residential checkout', () => {
   const r = backend.routeServiceIntent({ category: 'fleet', vehicleCount: 4 });
   assert.equal(r.route, 'fleet_quote');
