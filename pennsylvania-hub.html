@@ -2315,6 +2315,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script src="assets/generated/cars-vehicle-catalog.generated.js"></script>
 <script src="assets/vehicle-catalog.js"></script>
 <script src="assets/vehicle-class-resolver.js"></script>
+<script src="assets/powersports-model-catalog.js"></script>
+<script src="assets/powersports-booking-safety.js"></script>
 <script src="assets/booking-vehicle-summary.js"></script>
 <script src="assets/booking-line-items.js" defer></script>
 <script src="assets/booking-review-runtime.js" defer></script>
@@ -4416,27 +4418,7 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","NSX","RDX","RLX","TLX","ZDX"]
 
 // ── SPECIALTY VEHICLE CATALOG ───────────────────────────────────────────────
 window.SPECIALTY_MODELS = {
-  powersports: {
-    "Aprilia":["RS 660","RSV4","Tuono 660","Tuono V4"],
-    "Arctic Cat":["Alterra 300","Alterra 600","Alterra 700","Prowler Pro","Wildcat XX"],
-    "BMW Motorrad":["C 400 GT","F 750 GS","F 850 GS","F 900 R","G 310 GS","K 1600","R 1250 GS","R 1300 GS","S 1000 R","S 1000 RR"],
-    "Can-Am":["Commander","Commander MAX","Defender","Defender MAX","Maverick R","Maverick X3","Outlander","Outlander MAX","Renegade","Ryker","Spyder F3","Spyder RT"],
-    "CFMOTO":["300NK","450SS","650NK","800MT","CForce 400","CForce 600","CForce 800","UForce 600","UForce 1000","ZForce 800","ZForce 950"],
-    "Ducati":["Diavel","DesertX","Monster","Multistrada V2","Multistrada V4","Panigale V2","Panigale V4","Scrambler","Streetfighter V2","Streetfighter V4"],
-    "Harley-Davidson":["Breakout","Fat Bob","Fat Boy","Heritage Classic","Iron 883","Low Rider S","Nightster","Pan America","Road Glide","Road King","Softail Standard","Sport Glide","Street Bob","Street Glide","Ultra Limited"],
-    "Honda":["Africa Twin","CB500F","CB650R","CBR500R","CBR600RR","CBR1000RR","CRF110F","CRF250F","CRF300L","CRF450R","FourTrax Foreman","FourTrax Rancher","Gold Wing","Pioneer 500","Pioneer 700","Pioneer 1000","Rebel 300","Rebel 500","Rebel 1100","Rincon","Talon 1000","TRX250X"],
-    "Husqvarna":["701 Enduro","701 Supermoto","FC 250","FC 450","FE 350","FE 501","Norden 901","Svartpilen","Vitpilen"],
-    "Indian Motorcycle":["Challenger","Chief","Chieftain","FTR","Pursuit","Roadmaster","Scout","Springfield"],
-    "Kawasaki":["Brute Force 300","Brute Force 750","Concours 14","Jet Ski STX 160","Jet Ski SX-R","Jet Ski Ultra 160","Jet Ski Ultra 310","KLR650","KX250","KX450","Mule Pro-DXT","Mule Pro-FXT","Ninja 400","Ninja 500","Ninja 650","Ninja ZX-6R","Ninja ZX-10R","Teryx","Teryx KRX 1000","Versys 650","Vulcan S","Z650","Z900"],
-    "KTM":["250 SX-F","300 XC-W","350 EXC-F","450 SX-F","690 Enduro R","790 Adventure","890 Adventure","1290 Super Adventure","Duke 390","Duke 790","Duke 890","RC 390"],
-    "Polaris":["ACE","General 1000","General XP 4","Ranger 500","Ranger 570","Ranger 1000","Ranger Crew","RZR 200","RZR Trail","RZR XP","RZR Pro R","RZR Turbo R","Scrambler 850","Slingshot","Sportsman 450","Sportsman 570","Sportsman 850","Sportsman XP 1000"],
-    "Sea-Doo":["Explorer Pro","FishPro Scout","FishPro Sport","FishPro Trophy","GTR","GTR-X","GTI","GTI SE","GTX","GTX Limited","RXP-X","RXT-X","Spark","Spark Trixx","Switch","Switch Cruise","Wake","Wake Pro"],
-    "Suzuki":["Boulevard C50","Boulevard M109R","DR-Z400","GSX-8R","GSX-R600","GSX-R750","GSX-R1000","Hayabusa","KingQuad 400","KingQuad 500","KingQuad 750","V-Strom 650","V-Strom 800","V-Strom 1050"],
-    "Triumph":["Bonneville","Daytona 660","Rocket 3","Scrambler 1200","Speed Triple","Street Triple","Tiger 660","Tiger 900","Tiger 1200","Trident 660"],
-    "Vespa":["GTS","GTV","Primavera","Sprint"],
-    "Yamaha":["Bolt","FJR1300","Grizzly 90","Grizzly EPS","Kodiak 450","Kodiak 700","MT-03","MT-07","MT-09","MT-10","Raptor 700R","Star Venture","Tenere 700","Viking","WaveRunner EX","WaveRunner FX","WaveRunner GP HO","WaveRunner GP SVHO","WaveRunner JetBlaster","WaveRunner VX","Wolverine","Wolverine RMAX","WR250F","YZ250F","YZ450F","YZF-R3","YZF-R6","YZF-R7","YZF-R1"],
-    "Zero Motorcycles":["DS","DSR/X","FX","FXE","S","SR/F","SR/S"]
-  },
+  powersports: window.CD1PowersportsCatalog.powersportsModelsByMake(),
   boats: {
     "Alumacraft":["Classic","Competitor","Escape","Voyageur"],
     "Axopar":["22 Spyder","25 Cross Top","28 Cabin","29 XC Cross Cabin","37 XC Cross Cabin","45 XC Cross Cabin"],
@@ -4868,7 +4850,13 @@ function selectSpecialtyMake(make, catData, makeIn, makeDd, modelIn, modelDd, no
 function selectTier(key){
   document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
   document.querySelector(`.tchip[data-tier="${key}"]`)?.classList.add('sel');
-  ST.tierKey=key; ST.tier=PRICING[ST.cat].tiers[key];
+  if(ST.cat==='powersports'){
+    if(!CD1PowersportsBookingSafety.chooseManualClass(ST,key)) return;
+    ST.tierKey=key;
+    ST.tier=CD1PowersportsBookingSafety.fallbackTiers(PRICING.powersports)[key]||null;
+  }else{
+    ST.tierKey=key; ST.tier=PRICING[ST.cat].tiers[key];
+  }
   ST.classNeedsConfirm=false;
   if(ST.cat==='cars'){
     const catalogTierKey=MODELS[ST.make]?.t[ST.model];
@@ -4898,6 +4886,7 @@ function tryGenericConfirm(){
   const make=document.getElementById('g-make').value.trim();
   const model=document.getElementById('g-model').value.trim();
   const year=document.getElementById('g-year').value;
+  if(ST.cat==='powersports') CD1PowersportsBookingSafety.resetForIdentityChange(ST,make,model);
   if(!make||!model||!year||!ST.pkgId)return;
 
   if(ST.cat==='boats'||ST.cat==='rvs'){
@@ -4952,6 +4941,13 @@ function tryGenericConfirm(){
 
   // Cars confirm only via make-in / model-sel / year-sel — never g-make leftovers.
   if(ST.cat==='cars') return;
+
+  if(ST.cat==='powersports'){
+    const resolution=CD1PowersportsBookingSafety.resolveAndApply(ST,PRICING.powersports,make,model);
+    const canContinue=CD1PowersportsBookingSafety.presentResolution(ST,resolution,make,model,year,document);
+    typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
+    if(!canContinue) return;
+  }
 
   if(!ST.tierKey)return;
   const t=ST.tier;

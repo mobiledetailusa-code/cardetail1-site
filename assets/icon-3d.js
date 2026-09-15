@@ -44,8 +44,12 @@
     full_size_van_passenger: { file: 'passenger-van.webp', alt: 'Full-size passenger van', studio: true },
     truck: { file: 'truck.webp', alt: 'Pickup truck', studio: true },
     motorcycle: { file: 'motorcycle.webp', alt: 'Motorcycle', studio: true },
+    motorcycle_large: { file: 'cruiser.webp', alt: 'Large motorcycle', studio: true },
+    motorcycle_trike: { file: 'motorcycle.webp', alt: 'Trike or three-wheel motorcycle', studio: true },
     atv: { file: 'atv.webp', alt: 'ATV', studio: true },
     utv: { file: 'utv.webp', alt: 'UTV side-by-side', studio: true },
+    utv_standard: { file: 'utv.webp', alt: 'Standard UTV side-by-side', studio: true },
+    utv_large: { file: 'utv.webp', alt: 'Large or crew UTV side-by-side', studio: true },
     jetski: { file: 'jetski.webp', alt: 'Jet ski', studio: true },
   };
 

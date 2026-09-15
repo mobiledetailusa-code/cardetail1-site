@@ -27,6 +27,8 @@ const bridge = read('assets/specialty-booking-bridge.js');
 const gateSrc = read('assets/booking-routing-gate.js');
 const progressSrc = read('assets/booking-progress.js');
 const Review = require('../assets/booking-review-runtime');
+const PowersportsCatalog = require('../assets/powersports-model-catalog');
+const PowersportsSafety = require('../assets/powersports-booking-safety');
 const { computeVehicleSubtotal } = require('../netlify/lib/booking-price-catalog');
 const { applyServerTravelAndTotal } = require('../netlify/lib/travel-fee');
 const submitBooking = require('../netlify/functions/submit-booking');
@@ -73,6 +75,13 @@ function loadTryGenericConfirm(stOverrides, fields) {
       basePrice: 0, addons: [], addonTotal: 0, lengthFt: 0, rvType: '', rvLiving: '',
       boatType: '', units: 1,
     }, stOverrides),
+    PRICING: { powersports: { tiers: {
+      motorcycle: { label: 'Motorcycle', wash: 100, full: 225, premium: 315 },
+      atv: { label: 'ATV', wash: 100, full: 225, premium: 315 },
+      utv: { label: 'UTV / Side-by-Side', wash: 125, full: 280, premium: 395 },
+    } } },
+    CD1PowersportsCatalog: PowersportsCatalog,
+    CD1PowersportsBookingSafety: PowersportsSafety,
     document: {
       getElementById(id) { return els[id] || null; },
     },
@@ -95,10 +104,7 @@ function loadTryGenericConfirm(stOverrides, fields) {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
-  // Production tryGenericConfirm always calls inferPowersportsTier for powersports
-  // (UTV/ATV/golfcart/equipment cues must override a pre-selected Motorcycle chip).
-  // Load it into the sandbox like powersports-second-defect — otherwise Continue
-  // throws ReferenceError even when tierKey is already set.
+  // Load the same canonical exact-catalog resolver used by the browser.
   vm.runInContext(
     extractFunction(index, 'inferPowersportsTier') + '\n' +
     extractFunction(index, 'tryGenericConfirm'),
@@ -280,17 +286,18 @@ describe('shared first broken boundary: tryGenericConfirm uses ST.cat', () => {
   });
 
   it('Powersports Motorcycle / ATV / UTV each enable Continue with a tier price', () => {
-    for (const [tierKey, label, price] of [
-      ['motorcycle', 'Motorcycle', 100],
-      ['atv', 'ATV', 100],
-      ['utv', 'UTV / Side-by-Side', 125],
+    for (const [make, model, tierKey, label, price] of [
+      ['Honda', 'Rebel 500', 'motorcycle', 'Motorcycle', 100],
+      ['Honda', 'FourTrax Rancher', 'atv', 'ATV / Quad', 100],
+      ['Honda', 'Pioneer 1000', 'utv_standard', 'Side-by-Side / UTV', 125],
     ]) {
       const { sandbox, els } = loadTryGenericConfirm({
         cat: 'powersports', pkgId: 'wash', tierKey,
         tier: { label, wash: price, full: 225, premium: 315 },
-      }, { make: 'Honda', model: 'Pioneer 1000', year: '2023' });
+      }, { make, model, year: '2023' });
       assert.doesNotThrow(() => sandbox.tryGenericConfirm());
-      assert.equal(sandbox.ST.vehicleLabel, '2023 Honda Pioneer 1000');
+      assert.equal(sandbox.ST.vehicleLabel, `2023 ${make} ${model}`);
+      assert.equal(sandbox.ST.tierKey, tierKey);
       assert.equal(sandbox.ST.basePrice, price);
       assert.equal(els.next3.disabled, false);
     }
@@ -474,7 +481,9 @@ describe('pricing + Review render for one fixture per category', () => {
 
 describe('Jet Ski stays on Boats, not Powersports', () => {
   it('powersports chips hide jetski; FAQ and boats page route PWC to boats', () => {
-    assert.match(index, /filter\(\(\[k\]\)=>!\(cat==='powersports' && k==='jetski'\)\)/);
+    assert.equal(PowersportsCatalog.resolve('Sea-Doo', 'Spark').publicStatus, 'route_boats');
+    assert.equal(PowersportsCatalog.powersportsModelsByMake()['Sea-Doo'], undefined);
+    assert.match(index, /pwcModelsByMake\(\)/);
     assert.match(psPage, /book=boats&amp;boatType=jetski/);
     assert.match(boatsPage, /data-booking-boat-type="jetski"/);
     assert.match(bridge, /if \(boatType === 'jetski' && categoryId === 'powersports'\)/);

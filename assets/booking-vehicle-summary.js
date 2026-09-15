@@ -27,9 +27,16 @@
     if (!st) return st;
     st.displayLabel = '';
     st.classNeedsConfirm = false;
+    st.tierKey = '';
+    st.tier = null;
+    st.vehicleLabel = '';
+    st.basePrice = 0;
     st.make = '';
     st.model = '';
     st.year = '';
+    st._powersportsIdentity = '';
+    st._powersportsManualClass = '';
+    st._powersportsResolutionStatus = '';
     if (nextCat !== 'rvs') {
       st.rvType = '';
       st.rvLiving = '';

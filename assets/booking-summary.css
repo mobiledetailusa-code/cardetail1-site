@@ -25,6 +25,14 @@
   color: #f1f5f9;
 }
 
+.bkli-vehicle-class {
+  margin: -4px 0 10px;
+  color: var(--mu, #64748b);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
 .bkli-vehicle-index {
   flex: 0 0 auto;
   display: inline-flex;
