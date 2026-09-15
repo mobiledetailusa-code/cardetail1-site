@@ -1,6 +1,14 @@
 // Server-side booking price catalog — mirrors index.html PRICING / LENGTH_PRICING / RICH_ZIPS.
 
 const { asArray } = require('./historical-adapter');
+const PowersportsCatalog = require('../../assets/powersports-model-catalog');
+
+const POWERSPORTS_PUBLIC_TIER_KEYS = Object.freeze(
+  Object.keys(PowersportsCatalog.serviceClasses).filter((key) =>
+    PowersportsCatalog.isPublicBookableServiceClass(key)
+  )
+);
+const POWERSPORTS_LEGACY_TIER_KEYS = new Set(['motorcycle', 'atv', 'utv', 'jetski']);
 
 const PRICING = {
   cars: {
@@ -324,6 +332,17 @@ function resolveTierKey(vehicle) {
   const tiers = PRICING[cat]?.tiers;
   // Only accept known tier keys — stale/unknown keys (e.g. leftover suv2) must not win.
   const rawKey = String(vehicle.tierKey || vehicle.tier || '').trim();
+  if (cat === 'powersports') {
+    if (PowersportsCatalog.isPublicBookableServiceClass(rawKey)) return rawKey;
+    // Historical bookings retain their original internal price-tier key. These
+    // aliases are not exposed as new browser choices.
+    if (POWERSPORTS_LEGACY_TIER_KEYS.has(rawKey) && tiers?.[rawKey]) return rawKey;
+    const label = String(vehicle.tierLabel || '').trim();
+    for (const serviceClass of POWERSPORTS_PUBLIC_TIER_KEYS) {
+      if (PowersportsCatalog.classDefinition(serviceClass)?.label === label) return serviceClass;
+    }
+    return null;
+  }
   if (rawKey && tiers && tiers[rawKey]) return rawKey;
   const tierLabel = String(vehicle.tierLabel || '').trim();
   if (tiers && tierLabel) {
@@ -404,7 +423,11 @@ function computeVehicleBasePrice(vehicle, zip, booking) {
     return { ok: true, basePrice: unitPrice * units, cat, pkgId, tierKey };
   }
 
-  const tier = tierKey ? tiers[tierKey] : null;
+  const powersportsPriceTier = cat === 'powersports'
+    ? (PowersportsCatalog.priceTierForServiceClass(tierKey)
+      || (POWERSPORTS_LEGACY_TIER_KEYS.has(tierKey) ? tierKey : null))
+    : null;
+  const tier = tierKey ? tiers[cat === 'powersports' ? powersportsPriceTier : tierKey] : null;
   if (!tier) return { ok: false, error: 'invalid_pricing' };
   const raw = tier[pkgId] ?? tier.wash ?? tier.maint ?? tier.exterior ?? 0;
   if (!raw) return { ok: false, error: 'invalid_pricing' };
@@ -563,6 +586,7 @@ function coerceVehicleForCategory(vehicle, category, opts = {}) {
 
 module.exports = {
   PRICING,
+  POWERSPORTS_PUBLIC_TIER_KEYS,
   PACKAGE_INCLUDED_ADDONS,
   includedAddonIds,
   LENGTH_PRICING,
