@@ -118,7 +118,7 @@ describe('Owner Studio session gate', () => {
     assert.ok(fn, 'ensureAdminSession not found');
     assert.match(fn[0], /credentials: 'same-origin'/, 'the cookie must be sent');
     // Still redirects — but only once the server has rejected the session.
-    assert.match(fn[0], /if \(!data\.ok\) \{ CD1AdminSession\.clearToken\(\); location\.replace/);
+    assert.match(fn[0], /if \(!data\.ok\) \{[\s\S]*clearJobsReadAvailability\(\);[\s\S]*CD1AdminSession\.clearToken\(\);[\s\S]*location\.replace/);
   });
 
   it('never hides the document, which would blank the page if the script failed', () => {

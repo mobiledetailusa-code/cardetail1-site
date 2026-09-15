@@ -84,6 +84,68 @@
     return Number(generation) === Number(meta.generation);
   }
 
+  /**
+   * Make empty/loading/error semantics explicit. An empty array is authoritative
+   * only after a successful load has settled.
+   */
+  function classifySourceState(meta, data, options) {
+    var source = meta || createSourceMeta();
+    var rows = Array.isArray(data) ? data : [];
+    var hasData = rows.length > 0;
+    var stale = !!(options && options.stale);
+    if (hasData) {
+      if (source.error) return 'ERROR_WITH_DATA';
+      if (stale) return 'STALE_WITH_DATA';
+      if (source.isLoading) return 'REFRESHING_WITH_DATA';
+      return 'LOADED_DATA';
+    }
+    if (source.error) return 'ERROR_NO_DATA';
+    if (source.isLoading) return 'LOADING_NO_DATA';
+    if (source.hasLoaded) return 'LOADED_EMPTY';
+    return 'NOT_LOADED';
+  }
+
+  function sourceStateHasAuthoritativeEmpty(state) {
+    return state === 'LOADED_EMPTY';
+  }
+
+  /**
+   * Apply only payment facts that a successful Admin mutation returned from the
+   * server. This never invents ledger or Stripe state in the browser.
+   */
+  function applyAuthoritativePaymentResult(job, result, method) {
+    if (!job || !result || result.ok === false) return job;
+    var projection = result.postgresProjection || result.projection;
+    if (!projection || typeof projection !== 'object') return job;
+    var approvedRaw = Number(projection.approvedCents);
+    var settledRaw = Number(projection.settledCents);
+    var remainingRaw = Number(projection.remainingCents);
+    // The endpoint currently returns this complete authoritative projection.
+    // Refuse a partial payload instead of manufacturing omitted money fields.
+    if (!Number.isFinite(approvedRaw) || !Number.isFinite(settledRaw) || !Number.isFinite(remainingRaw)) return job;
+    var approvedCents = Math.max(0, Math.round(approvedRaw));
+    var settledCents = Math.max(0, Math.round(settledRaw));
+    var remainingCents = Math.max(0, Math.round(remainingRaw));
+    var paid = String(projection.paymentStatus || result.paymentStatus || '').toLowerCase() === 'paid'
+      || remainingCents === 0;
+    var workflow = method === 'cash'
+      ? 'cash_paid'
+      : (paid ? 'payment_succeeded' : (job.paymentWorkflowStatus || ''));
+    return Object.assign({}, job, {
+      bookingVersion: result.bookingVersion != null ? result.bookingVersion : job.bookingVersion,
+      quoteVersion: projection.quoteVersion != null ? projection.quoteVersion : job.quoteVersion,
+      paymentWorkflowStatus: workflow,
+      financialPaymentStatus: projection.paymentStatus || job.financialPaymentStatus,
+      approvedCents: approvedCents,
+      settledCents: settledCents,
+      remainingCents: remainingCents,
+      approvedFinalAmount: approvedCents / 100,
+      amountPaid: settledCents / 100,
+      amountDueApproved: remainingCents / 100,
+      invoicePaid: paid,
+    });
+  }
+
   function clearedJobFilters() {
     return { search: '', status: '', queueFilter: 'all' };
   }
@@ -235,6 +297,9 @@
     applySourceFailure: applySourceFailure,
     refreshFailureMessage: refreshFailureMessage,
     shouldApplyGeneration: shouldApplyGeneration,
+    classifySourceState: classifySourceState,
+    sourceStateHasAuthoritativeEmpty: sourceStateHasAuthoritativeEmpty,
+    applyAuthoritativePaymentResult: applyAuthoritativePaymentResult,
     clearedJobFilters: clearedJobFilters,
     resolveDirectLink: resolveDirectLink,
     editShouldTriggerRefreshAll: editShouldTriggerRefreshAll,

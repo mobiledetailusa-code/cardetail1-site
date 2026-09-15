@@ -143,6 +143,20 @@ async function bootAccountPortal(initial) {
     pretendToBeVisual: true,
   });
   const { window } = dom;
+  // Keep the fixture's "current" appointment current in every timezone and on
+  // every future CI date. Production code should still receive a real Date
+  // implementation for parsing/formatting; only the no-argument clock is fixed.
+  const NativeDate = window.Date;
+  const fixedNow = new NativeDate(2026, 8, 14, 12, 0, 0).getTime();
+  window.Date = class FixedDate extends NativeDate {
+    constructor(...args) {
+      super(...(args.length ? args : [fixedNow]));
+    }
+
+    static now() {
+      return fixedNow;
+    }
+  };
   window.scrollTo = () => {};
   window.alert = () => {};
   if (!window.Element.prototype.scrollIntoView) window.Element.prototype.scrollIntoView = () => {};

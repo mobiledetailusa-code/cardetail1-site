@@ -91,7 +91,7 @@ describe('Admin Ops mobile reliability', () => {
     assert.match(adminOps, /jobsFreshLoaded\s*=\s*true/);
   });
 
-  it('2. cold open with cache + network failure keeps snapshot visible (no fatal empty)', () => {
+  it('2. reload restores LKG before auth/network settles and a timeout keeps it visible', () => {
     SS.saveJobsSnapshot(sampleJobs(), Date.now() - 5 * 60 * 1000);
     const snap = SS.loadJobsSnapshot();
     assert.ok(snap && snap.jobs.length);
@@ -112,6 +112,30 @@ describe('Admin Ops mobile reliability', () => {
     assert.match(adminOps, /jobsInitialFail = !!\(jobsMeta && jobsMeta\.error && !jobsMeta\.hasLoaded && !jobs\.length\)/);
     assert.match(adminOps, /showSnapshotBanner/);
     assert.match(adminOps, /hydrateJobsSnapshotIfAvailable/);
+    const bootstrap = adminOps.indexOf('const hadJobsReadLease = hasJobsReadLease()');
+    const earlyHydrate = adminOps.indexOf('if (hadJobsReadLease) hydrateJobsSnapshotIfAvailable()', bootstrap);
+    const firstNetwork = adminOps.indexOf('ensureAdminSession().then', bootstrap);
+    assert.ok(bootstrap > 0 && earlyHydrate > bootstrap && firstNetwork > earlyHydrate,
+      'approved LKG must hydrate synchronously before auth starts');
+    assert.match(adminOps, /jobsSnapshotRefreshing = true/);
+  });
+
+  it('fresh success replaces LKG and successful authoritative empty replaces it with zero', () => {
+    SS.saveJobsSnapshot(sampleJobs(), Date.now() - 5000);
+    const newer = [{ ...sampleJobs()[0], id: 'CD1-200', bookingId: 'CD1-200', firstName: 'Grace' }];
+    assert.equal(SS.saveJobsSnapshot(newer, Date.now()), true);
+    let snap = SS.loadJobsSnapshot();
+    assert.deepEqual(snap.jobs.map((job) => job.id), ['CD1-200']);
+
+    assert.equal(SS.saveJobsSnapshot([], Date.now()), true);
+    snap = SS.loadJobsSnapshot();
+    assert.ok(snap);
+    assert.deepEqual(snap.jobs, []);
+    const started = SS.beginSourceLoad(SS.createSourceMeta());
+    const success = SS.applySourceSuccess(started.meta, started.generation).meta;
+    assert.equal(SS.classifySourceState(success, []), 'LOADED_EMPTY');
+    assert.match(adminOps, /jobs = incoming/);
+    assert.match(adminOps, /jobsFromSnapshot = false/);
   });
 
   it('3. expired / malformed cache is ignored safely', () => {
@@ -161,10 +185,10 @@ describe('Admin Ops mobile reliability', () => {
     c.destroy();
   });
 
-  it('5. first-load transient failure allows one bounded retry', () => {
-    assert.match(adminOps, /const maxAttempts = jobsFreshLoaded \? 1 : 2/);
-    assert.match(adminOps, /const canRetry = !jobsFreshLoaded && attempt < maxAttempts && transient/);
-    assert.match(adminOps, /setTimeout\(r,\s*1500\)/);
+  it('5. primary read has one bounded attempt; controller owns retry/backoff', () => {
+    assert.match(adminOps, /const maxAttempts = 1/);
+    assert.match(adminOps, /The refresh controller owns retries\/backoff/);
+    assert.match(adminOps, /if \(jobsInflight\) return jobsInflight/);
     assert.match(adminOps, /msg === 'timeout'/);
   });
 
@@ -172,7 +196,7 @@ describe('Admin Ops mobile reliability', () => {
     assert.match(adminOps, /status === 401 \|\| status === 403/);
     assert.match(adminOps, /session expired|unauthorized/i);
     assert.match(adminOps, /const permanent = authFail/);
-    assert.match(adminOps, /canRetry = !jobsFreshLoaded && attempt < maxAttempts && transient/);
+    assert.match(adminOps, /const maxAttempts = 1/);
   });
 
   it('7. jobs success + change-requests failure remains usable', () => {
@@ -239,8 +263,16 @@ describe('Admin Ops mobile reliability', () => {
     assert.equal(row.paymentIntentId, undefined);
     assert.equal(row.adminToken, undefined);
     assert.equal(row.eventLog, undefined);
+    assert.equal(row.bookingVersion, undefined, 'stale LKG must never supply write concurrency authority');
+    assert.equal(row.quoteVersion, undefined, 'stale LKG must never supply quote authority');
+    assert.equal(row.paymentWorkflowStatus, undefined,
+      'the approved projection must not be broadened with payment state');
     assert.equal(row.firstName, 'Ada');
     assert.equal(row.serviceAddress, '12 Main St, Jersey City NJ');
+    assert.match(adminOps, /text == null \|\| text === '' \? '—'/,
+      'missing non-authoritative payment state must render safely, not abort LKG paint');
+    assert.match(adminOps, /current\.bookingVersion != null/,
+      'mutations may attach a version only when one exists in fresh memory');
   });
 
   it('wiring: first-load protect + jobs-primary + snapshot hydrate present', () => {
@@ -250,5 +282,8 @@ describe('Admin Ops mobile reliability', () => {
     assert.match(refreshSrc, /isPrimaryReady/);
     assert.match(refreshSrc, /coalesceRequested/);
     assert.match(refreshSrc, /Protect the first primary load/);
+    assert.match(adminOps, /diagnosticEvent\('lkg_write'/);
+    assert.match(adminOps, /diagnosticEvent\('lkg_read'/);
+    assert.match(adminOps, /serverTimingValues/);
   });
 });

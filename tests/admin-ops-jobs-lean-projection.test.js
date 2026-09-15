@@ -195,7 +195,8 @@ describe('Admin Jobs lean projection', () => {
     const listEnd = src.indexOf('async function persistMutation', listStart);
     const listFn = src.slice(listStart, listEnd > 0 ? listEnd : listStart + 8000);
     assert.match(listFn, /projectJobForAdminList/);
-    assert.match(listFn, /listBookingMirrors/);
+    assert.doesNotMatch(listFn, /listBookingMirrors/);
+    assert.match(listFn, /not_used_incomplete_mirror/);
     assert.match(listFn, /hydrateJobsFromBlobs/);
     assert.doesNotMatch(listFn, /projectJobForAdmin\(/);
     assert.doesNotMatch(listFn, /buildAdminCustomerAccountSummary/);

@@ -1,6 +1,9 @@
 // Admin-only jobs feed + admin ops actions for Admin Ops dashboard.
+const { performance } = require('node:perf_hooks');
+const MODULE_STARTED_AT = performance.now();
+let handlerInvocationCount = 0;
+const ADMIN_LIST_BLOB_READ_CONCURRENCY = 20;
 const { blobsStore, listAllBlobs, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
-const { listBookingMirrors } = require('../lib/booking-prisma-mirror');
 const {
   projectJobForAdmin, projectJobForAdminList, overlayAdminJobMoneyFromProjection,
   normalizeJobStatus, appendEventLog,
@@ -97,50 +100,73 @@ function archiveBookingRecord(booking, reason) {
   };
 }
 
-async function hydrateJobsFromBlobs() {
-  let store;
-  try {
-    store = await blobsStore('cd1-bookings');
-  } catch (e) {
-    console.error('[admin-ops-jobs] blobsStore(cd1-bookings) failed:', e.message);
-    return [];
+async function listAllBlobsStrict(store, timing = {}) {
+  if (!store || typeof store.list !== 'function') throw new Error('booking_store_unavailable');
+  timing.blobListOperations = (Number(timing.blobListOperations) || 0) + 1;
+  const paged = store.list({ paginate: true });
+  if (paged && typeof paged[Symbol.asyncIterator] === 'function') {
+    const blobs = [];
+    for await (const page of paged) {
+      timing.blobListPages = (Number(timing.blobListPages) || 0) + 1;
+      blobs.push(...((page && page.blobs) || []));
+    }
+    return blobs;
   }
-  const blobs = await listAllBlobs(store, 'cd1-bookings');
+  const listing = await paged;
+  if (!listing || !Array.isArray(listing.blobs)) throw new Error('booking_list_incomplete');
+  timing.blobListPages = (Number(timing.blobListPages) || 0) + 1;
+  return listing.blobs;
+}
+
+async function hydrateJobsFromBlobs(timing = {}) {
+  const storeStarted = performance.now();
+  const store = await blobsStore('cd1-bookings');
+  timing.blobStoreMs = performance.now() - storeStarted;
+  const listStarted = performance.now();
+  // Strict on the primary operational path: an unavailable Blob listing is a
+  // failed request, never an authoritative successful zero Jobs response.
+  const blobs = await listAllBlobsStrict(store, timing);
+  timing.blobListMs = performance.now() - listStarted;
   const keyed = [];
   // Eventual list reads — strong consistency is reserved for get_job / mutations.
   // One GET per key (no metadata+fallback double read) so the 25s Admin Ops client
   // timeout is not spent on doubled Blob round-trips.
-  for (let i = 0; i < blobs.length; i += 20) {
-    const chunk = blobs.slice(i, i + 20);
+  const readsStarted = performance.now();
+  for (let i = 0; i < blobs.length; i += ADMIN_LIST_BLOB_READ_CONCURRENCY) {
+    const chunk = blobs.slice(i, i + ADMIN_LIST_BLOB_READ_CONCURRENCY);
+    timing.blobReadBatches = (Number(timing.blobReadBatches) || 0) + 1;
+    timing.blobReadOperations = (Number(timing.blobReadOperations) || 0) + chunk.length;
     const rows = await Promise.all(chunk.map(async (blob) => {
-      const raw = await store.get(blob.key, { type: 'json' }).catch(() => null);
-      if (!raw) return null;
+      const raw = await store.get(blob.key, { type: 'json' });
+      if (!raw) throw new Error('booking_blob_incomplete');
       if (!raw.id && !raw.bookingId) raw.id = blob.key;
       raw.__blobKey = blob.key;
       return raw;
     }));
-    for (const row of rows) if (row) keyed.push(row);
+    for (const row of rows) keyed.push(row);
   }
+  timing.blobReadMs = performance.now() - readsStarted;
+  timing.blobCount = blobs.length;
   return keyed;
 }
 
-async function listJobs(q) {
+async function listJobs(q, timing = {}) {
+  const listStarted = performance.now();
   const showTest = String(q.showTest || '') === '1';
   const statusFilter = sanitizeText(q.jobStatus || q.status, 64);
   const search = sanitizeText(q.search, 120).toLowerCase();
   const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
   const { normalizeBookingKey } = require('../lib/ops-db');
-  // Keep Blob key on each record so Customer lookup can resolve when key ≠ payload.id
-  const mirrored = await listBookingMirrors();
-  // Empty Prisma (disabled, miss, or fail-open) must hydrate Blobs — never hide jobs.
-  const keyed = mirrored.length
-    ? mirrored.map((raw) => {
-      const row = raw && typeof raw === 'object' ? raw : {};
-      row.__blobKey = row.__blobKey || row.id || row.bookingId;
-      if (!row.id && !row.bookingId) row.id = row.__blobKey;
-      return row;
-    })
-    : await hydrateJobsFromBlobs();
+  // BookingRecord has no completeness/version proof for this Blob store. It
+  // therefore cannot be used as either list authority or a negative candidate
+  // filter: a mirror miss must never hide a valid operational Job.
+  timing.prismaMs = 0;
+  timing.prismaQueries = 0;
+  timing.prismaOutcome = 'not_used_incomplete_mirror';
+  timing.readSource = 'blobs';
+  // Keep Blob key on each record so Customer lookup can resolve when key != payload.id.
+  const keyed = await hydrateJobsFromBlobs(timing);
+  const projectionStarted = performance.now();
   let jobs = keyed.filter((b) =>
     b && isVisibleSubmittedBooking(b, { includeArchivedTest: !!showTest })
   );
@@ -161,7 +187,7 @@ async function listJobs(q) {
   // Lean list path: skip Prisma customer-account graph enrichment (no Jobs-table consumer).
   // Full identity remains available through get_job / customer portal authorities.
 
-  return jobs.map(b => {
+  const projected = jobs.map(b => {
     try {
       const j = projectJobForAdminList(b);
       // Prefer payload id; if missing, use Blob key so Admin copy/paste matches Customer lookup.
@@ -186,6 +212,10 @@ async function listJobs(q) {
       };
     }
   });
+  timing.projectionMs = performance.now() - projectionStarted;
+  timing.listJobsMs = performance.now() - listStarted;
+  timing.jobCount = projected.length;
+  return projected;
 }
 
 /**
@@ -1280,10 +1310,54 @@ function reconcileRecoveryCapability(projection, nowMs = Date.now()) {
   };
 }
 
-function jobsSyncResponse(jobs, cursor) {
+function timingMs(value) {
+  return Math.max(0, Number(value) || 0).toFixed(1);
+}
+
+function jobsServerTiming(timing) {
+  const t = timing || {};
+  return [
+    ['cd1-init', t.coldStartMs],
+    ['cd1-auth', t.authMs],
+    ['cd1-prisma', t.prismaMs],
+    ['cd1-blob-store', t.blobStoreMs],
+    ['cd1-blob-list', t.blobListMs],
+    ['cd1-blob-read', t.blobReadMs],
+    ['cd1-project', t.projectionMs],
+    ['cd1-sync', t.syncMs],
+    ['cd1-serialize', t.serializeMs],
+    ['cd1-handler', t.totalMs],
+  ].map(([name, value]) => `${name};dur=${timingMs(value)}`).join(', ');
+}
+
+function finalizeJobsResponse(response, timing = {}) {
+  timing.totalMs = timing.handlerStartedAt != null
+    ? performance.now() - timing.handlerStartedAt
+    : timing.listJobsMs;
+  response.headers['Server-Timing'] = jobsServerTiming(timing);
+  response.headers['Timing-Allow-Origin'] = '*';
+  response.headers['X-CD1-Function-Cold'] = timing.coldStart ? '1' : '0';
+  response.headers['X-CD1-Jobs-Read-Source'] = timing.readSource || 'unknown';
+  response.headers['X-CD1-Jobs-Blob-Count'] = String(Number(timing.blobCount) || 0);
+  response.headers['X-CD1-Jobs-Blob-List-Operations'] = String(Number(timing.blobListOperations) || 0);
+  response.headers['X-CD1-Jobs-Blob-List-Pages'] = String(Number(timing.blobListPages) || 0);
+  response.headers['X-CD1-Jobs-Blob-Read-Operations'] = String(Number(timing.blobReadOperations) || 0);
+  response.headers['X-CD1-Jobs-Blob-Read-Batches'] = String(Number(timing.blobReadBatches) || 0);
+  response.headers['X-CD1-Jobs-Prisma-Queries'] = String(Number(timing.prismaQueries) || 0);
+  response.headers['X-CD1-Jobs-Prisma-Outcome'] = timing.prismaOutcome || 'unknown';
+  response.headers['X-CD1-Jobs-Payload-Bytes'] = String(Buffer.byteLength(response.body || '', 'utf8'));
+  return response;
+}
+
+function jobsSyncResponse(jobs, cursor, timing = {}) {
+  const syncStarted = performance.now();
   const payload = { ok: true, count: jobs.length, jobs };
   const envelope = buildSyncEnvelope(payload, { ifSyncVersion: cursor });
-  return jsonCors(200, envelope.body, syncHeaders(envelope.syncVersion));
+  timing.syncMs = performance.now() - syncStarted;
+  const serializeStarted = performance.now();
+  const response = jsonCors(200, envelope.body, syncHeaders(envelope.syncVersion));
+  timing.serializeMs = performance.now() - serializeStarted;
+  return finalizeJobsResponse(response, timing);
 }
 
 function adminOperationalControls(booking, projection = null) {
@@ -3317,13 +3391,26 @@ exports.persistMutation = persistMutation;
 exports.listJobs = listJobs;
 
 exports.handler = async (event) => {
+  const handlerStartedAt = performance.now();
+  const coldStart = handlerInvocationCount === 0;
+  handlerInvocationCount += 1;
+  const timing = {
+    handlerStartedAt,
+    coldStart,
+    coldStartMs: coldStart ? handlerStartedAt - MODULE_STARTED_AT : 0,
+  };
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   if (event.httpMethod !== 'GET' && event.httpMethod !== 'POST') {
     return jsonCors(405, { ok: false, error: 'method_not_allowed' });
   }
 
+  const authStarted = performance.now();
   const auth = await verifyAdminKey(event.headers || {});
-  if (!auth.ok) return jsonCors(auth.error === 'missing_admin_password_config' ? 503 : 401, { ok: false, error: auth.error });
+  timing.authMs = performance.now() - authStarted;
+  if (!auth.ok) return finalizeJobsResponse(
+    jsonCors(auth.error === 'missing_admin_password_config' ? 503 : 401, { ok: false, error: auth.error }),
+    timing
+  );
 
   if (event.httpMethod === 'POST') {
     let body = {};
@@ -3363,20 +3450,20 @@ exports.handler = async (event) => {
       return handleAdminAction(body, { event });
     }
     try {
-      const jobs = await listJobs(body);
-      return jobsSyncResponse(jobs, body.ifSyncVersion || body.cursor);
+      const jobs = await listJobs(body, timing);
+      return jobsSyncResponse(jobs, body.ifSyncVersion || body.cursor, timing);
     } catch (e) {
       console.error('[admin-ops-jobs] failed_to_load_jobs (POST):', e.message, e.stack);
-      return jsonCors(500, { ok: false, error: 'failed_to_load_jobs' });
+      return finalizeJobsResponse(jsonCors(500, { ok: false, error: 'failed_to_load_jobs' }), timing);
     }
   }
 
   try {
-    const jobs = await listJobs(event.queryStringParameters || {});
+    const jobs = await listJobs(event.queryStringParameters || {}, timing);
     const query = event.queryStringParameters || {};
-    return jobsSyncResponse(jobs, query.ifSyncVersion || query.cursor);
+    return jobsSyncResponse(jobs, query.ifSyncVersion || query.cursor, timing);
   } catch (e) {
     console.error('[admin-ops-jobs] failed_to_load_jobs (GET):', e.message, e.stack);
-    return jsonCors(500, { ok: false, error: 'failed_to_load_jobs' });
+    return finalizeJobsResponse(jsonCors(500, { ok: false, error: 'failed_to_load_jobs' }), timing);
   }
 };
