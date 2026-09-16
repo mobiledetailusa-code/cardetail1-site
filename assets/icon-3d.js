@@ -4,7 +4,7 @@
 
   const FAMILY = {
     cars: { file: 'pack-cars-family.webp', alt: 'Sedans, SUVs, and pickups' },
-    trucks: { file: 'pack-trucks-family.webp', alt: 'Day cab semi and sleeper tractor with trailer' },
+    trucks: { file: 'pack-trucks-family.webp', alt: 'Day cab semi and tractor-trailer cutout' },
     boats: { file: 'pack-boats-family.webp', alt: 'Boats, sailboats, and cruisers' },
     rvs: { file: 'pack-rvs-family.webp', alt: 'RVs and travel trailers' },
     powersports: { file: 'pack-powersports-family.webp', alt: 'Motorcycles, ATVs, and jet skis' },
@@ -28,7 +28,7 @@
 
   const CAT = {
     cars: { file: 'cat-cars.webp', alt: 'Cars, SUVs, and pickups' },
-    trucks: { file: 'cat-trucks.webp', alt: 'Commercial day cab and tractor-trailer semis' },
+    trucks: { file: 'cat-trucks.webp', alt: 'Day cab and tractor-trailer semis cutout' },
     boats: { file: 'cat-boats.webp', alt: 'Boats' },
     rvs: { file: 'cat-rvs.webp', alt: 'RVs and trailers' },
     powersports: { file: 'cat-powersports.webp', alt: 'Powersports' },
