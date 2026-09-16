@@ -384,7 +384,8 @@ function nearbyLinks(city) {
     );
   }
   items.push('<a href="bergen-county-hub.html">Bergen County hub</a>');
-  items.push('<a href="index.html">Cars, SUVs &amp; Trucks</a>');
+  items.push('<a href="index.html">Cars &amp; SUVs</a>');
+  items.push('<a href="trucks-detailing.html">Trucks / Semis</a>');
   return items.join('\n      ');
 }
 
@@ -578,8 +579,9 @@ ${schema(city)}
 </nav>
 <nav class="specialty-service-nav" aria-label="Specialty detailing services">
   <div class="specialty-service-nav-inner">
-    <div class="specialty-service-links">
+        <div class="specialty-service-links">
       <a class="specialty-service-link" href="index.html#services">Cars &amp; SUVs</a>
+      <a class="specialty-service-link" href="trucks-detailing.html">Trucks</a>
       <a class="specialty-service-link" href="rv-detailing.html">RV &amp; Trailers</a>
       <a class="specialty-service-link" href="boats-detailing.html">Boats</a>
       <a class="specialty-service-link" href="powersports-detailing.html">Powersports</a>
@@ -678,7 +680,8 @@ ${schema(city)}
       </div>
       <div class="foot-col">
         <h4>Services</h4>
-        <a href="index.html">Cars, SUVs &amp; Trucks</a>
+        <a href="index.html">Cars &amp; SUVs</a>
+        <a href="trucks-detailing.html">Trucks / Semis</a>
         <a href="boats-detailing.html">Boats &amp; Marine</a>
         <a href="rv-detailing.html">RVs &amp; Trailers</a>
         <a href="powersports-detailing.html">Motorcycles &amp; Powersports</a>

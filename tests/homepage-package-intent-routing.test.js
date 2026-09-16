@@ -297,7 +297,7 @@ describe('4–5 customer chooses category after homepage intent', () => {
 describe('6–7 explicit category deep links stay preselected', () => {
   it('RV deep-link still pending-selects rvs', () => {
     assert.match(index, /ST\._pendingCat=book/);
-    assert.match(index, /allowed=\{cars:1,boats:1,rvs:1,powersports:1\}/);
+    assert.match(index, /allowed=\{cars:1,trucks:1,boats:1,rvs:1,powersports:1\}/);
     const q = index.slice(index.indexOf('function openBookingFromQuery'), index.indexOf('__cd1PendingBookQuery={book:book'));
     assert.match(q, /if\(pkg\)/);
     assert.doesNotMatch(index, /ST\._pendingCat\s*=\s*'cars'/);

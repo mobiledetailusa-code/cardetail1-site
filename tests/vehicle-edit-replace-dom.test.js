@@ -119,7 +119,7 @@ function mountBooking() {
     <div class="bsec on" id="bs1">
       <div class="svc-card" id="bkcat-cars">Cars &amp; SUVs</div>
       <div class="bk-cat-specialty">
-        <div class="bk-cat-specialty-label">Boats, RVs &amp; powersports</div>
+        <div class="bk-cat-specialty-label">Trucks, boats, RVs &amp; powersports</div>
         <div class="svc-card" id="bkcat-boats">Boats</div>
         <div class="svc-card" id="bkcat-rvs">RVs &amp; Trailers</div>
         <div class="svc-card" id="bkcat-powersports">Powersports</div>
@@ -379,7 +379,7 @@ describe('BB-02 homepage specialty CTA is not Boats-only', () => {
     assert.match(ctaBlock, /id="home-specialty-cta"/);
     assert.match(ctaBlock, /onclick="openBooking\(null\)"/);
     assert.doesNotMatch(ctaBlock, /href="boats-detailing\.html"/);
-    assert.match(ctaBlock, /Boats, RVs &amp; powersports/);
+    assert.match(ctaBlock, /Trucks, boats, RVs &amp; powersports/);
   });
 
   it('clicking the CTA opens category chooser with RV, Boat, and Powersports', () => {
@@ -396,14 +396,16 @@ describe('BB-02 homepage specialty CTA is not Boats-only', () => {
     assert.ok(win.document.getElementById('bkcat-powersports'));
   });
 
-  it('dedicated specialty nav links keep RV / Boat / Powersports destinations', () => {
+  it('dedicated specialty nav links keep Trucks / RV / Boat / Powersports destinations', () => {
     const nav = index.match(/<nav class="specialty-service-nav"[\s\S]*?<\/nav>/)[0];
+    assert.match(nav, /href="trucks-detailing\.html"/);
     assert.match(nav, /href="rv-detailing\.html"/);
     assert.match(nav, /href="boats-detailing\.html"/);
     assert.match(nav, /href="powersports-detailing\.html"/);
     const win = mountBooking();
     const hrefs = [...win.document.querySelectorAll('.specialty-service-link')].map((a) => a.getAttribute('href'));
     assert.deepEqual(hrefs, [
+      'trucks-detailing.html',
       'rv-detailing.html',
       'boats-detailing.html',
       'powersports-detailing.html',

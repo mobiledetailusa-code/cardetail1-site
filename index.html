@@ -809,6 +809,16 @@ body.rv-overlay-lock{overflow:hidden}
 .tchip-name{font-size:12.5px;font-weight:600;color:var(--white);margin-bottom:2px}
 .tchip-desc{font-size:10.5px;color:var(--mu)}
 .tchip-from{font-size:11px;color:var(--blue);font-weight:600;margin-top:5px}
+.truck-cab-chips{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.truck-cab-chip{width:100%;font:inherit;color:inherit;appearance:none;-webkit-appearance:none;text-align:center}
+.truck-cab-chip .tchip-ico{height:96px}
+.truck-cab-chip .tchip-ico img{object-fit:contain;object-position:center}
+.booking-modal .truck-cab-chip{background:var(--bg0);border-color:var(--line-strong);color:var(--ink)}
+.booking-modal .truck-cab-chip.sel{border-color:var(--blue);background:rgba(77,163,255,.07)}
+@media(max-width:520px){
+  .truck-cab-chips{grid-template-columns:1fr}
+  .truck-cab-chip .tchip-ico{height:110px}
+}
 /* Hide pre-selection price hints — single price shown after vehicle + package */
 #bk-cat-grid .svc-from,.tchip-from,.pkg-price{display:none!important}
 .ah-total-est{display:none;font-size:10px;color:var(--mu);text-align:right;margin-top:2px;max-width:180px;line-height:1.35}
@@ -1535,6 +1545,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 #bk-cat-grid .bk-cat-specialty{margin-top:8px;padding-top:16px;border-top:1px dashed var(--line);display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 #bk-cat-grid .bk-cat-specialty .svc-card{opacity:.92}
 #bk-cat-grid .bk-cat-specialty-label{grid-column:1/-1;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin-bottom:4px}
+#bk-cat-grid #bkcat-trucks{grid-column:1/-1}
 @media(max-width:760px){
   .car-pkg-grid{grid-template-columns:1fr;gap:14px}
   .car-pkg-card--popular{order:-1}
@@ -1731,6 +1742,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <nav class="specialty-service-nav" aria-label="Specialty detailing services">
   <div class="specialty-service-nav-inner">
     <div class="specialty-service-links">
+      <a class="specialty-service-link" href="trucks-detailing.html">Trucks</a>
       <a class="specialty-service-link" href="rv-detailing.html">RV &amp; Trailers</a>
       <a class="specialty-service-link" href="boats-detailing.html">Boats</a>
       <a class="specialty-service-link" href="powersports-detailing.html">Powersports</a>
@@ -1925,7 +1937,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
     <div class="car-services-cta">
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">View all packages</button>
-      <button type="button" class="btn-outline" id="home-specialty-cta" onclick="openBooking(null)">Boats, RVs &amp; powersports</button>
+      <button type="button" class="btn-outline" id="home-specialty-cta" onclick="openBooking(null)">Trucks, boats, RVs &amp; powersports</button>
     </div>
   </div>
 </div>
@@ -2471,11 +2483,12 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="foot-top">
       <div>
         <img class="foot-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" loading="lazy" decoding="async">
-        <p class="foot-tagline">Based in Palisades Park, NJ. Mobile cars, boats, RVs, and powersports — we come to you.</p>
+        <p class="foot-tagline">Based in Palisades Park, NJ. Mobile cars, semis, boats, RVs, and powersports — we come to you.</p>
       </div>
       <div class="foot-col">
         <h4>Services</h4>
-        <a href="index.html">Cars, SUVs &amp; Trucks</a>
+        <a href="index.html">Cars &amp; SUVs</a>
+        <a href="trucks-detailing.html">Trucks / Semis</a>
         <a href="boats-detailing.html">Boats &amp; Marine</a>
         <a href="rv-detailing.html">RVs &amp; Trailers</a>
         <a href="powersports-detailing.html">Motorcycles &amp; Powersports</a>
@@ -2596,13 +2609,19 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="bk-travel-line" id="bk-travel-line"></div>
         <div class="service-grid" id="bk-cat-grid" style="grid-template-columns:1fr">
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
-            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-cars.webp" alt="Cars and trucks receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
+            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-cars.webp" alt="Cars, SUVs and pickups receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Cars &amp; SUVs</div>
-            <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
+            <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Pickups · Vans</div>
             <div class="svc-cat-note" id="bkfrom-cars">Packages shown after ZIP check</div>
           </div>
           <div class="bk-cat-specialty">
-            <div class="bk-cat-specialty-label">Boats, RVs &amp; powersports</div>
+            <div class="bk-cat-specialty-label">Trucks, boats, RVs &amp; powersports</div>
+          <div class="svc-card locked" id="bkcat-trucks" onclick="selectCategory('trucks')">
+            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-trucks.webp" alt="Commercial day cab and tractor-trailer semis receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
+            <div class="svc-name" style="font-size:22px">Trucks</div>
+            <div class="svc-desc" style="font-size:12px">Semi-trucks · Day cab · Sleeper cab</div>
+            <div class="svc-cat-note" id="bkfrom-trucks">From $325 · semis only (not pickups)</div>
+          </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-boats.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Boats</div>
@@ -2645,7 +2664,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="bsec" id="bs3">
         <div class="beye">Step 03 — Vehicle</div>
         <div class="btitle">YOUR VEHICLE</div>
-        <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length.</div>
+        <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Trucks (semis) need cab type first.</div>
 
         <!-- Boat vessel type (boats only) — same pattern as RV / trailer type -->
         <div id="boat-type-wrap" style="display:none;margin-bottom:14px">
@@ -2703,6 +2722,31 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             </select>
           </div>
           <p id="rv-airstream-note" style="display:none;font-size:11.5px;color:var(--blue);line-height:1.45;margin:0 0 10px;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Airstream units use surface-aware polish scope — tell us about aluminum condition in notes if needed.</p>
+        </div>
+
+        <!-- Truck cab type (trucks / semis only) — same pattern as boat / RV type -->
+        <div id="truck-cab-wrap" style="display:none;margin-bottom:14px">
+          <div class="sel-g" style="margin-bottom:10px">
+            <div class="sel-l">Cab Type *</div>
+            <select class="sel-s" id="truck-cab-sel">
+              <option value="">— select cab type —</option>
+              <option value="day_cab">Day Cab / Single Cab</option>
+              <option value="sleeper_cab">Sleep / Sleeper Cab</option>
+            </select>
+          </div>
+          <div class="truck-cab-chips" id="truck-cab-chips" aria-label="Cab type">
+            <button type="button" class="tchip truck-cab-chip" data-cab="day_cab" id="truck-cab-day">
+              <div class="tchip-ico tchip-ico--3d"><img src="assets/icons/3d/tier-day-cab.webp" alt="Day cab semi-truck" width="256" height="256" loading="lazy" decoding="async"></div>
+              <div class="tchip-name">Day Cab / Single Cab</div>
+              <div class="tchip-desc">Highway tractor without sleeper bunk</div>
+            </button>
+            <button type="button" class="tchip truck-cab-chip" data-cab="sleeper_cab" id="truck-cab-sleeper">
+              <div class="tchip-ico tchip-ico--3d"><img src="assets/icons/3d/tier-sleeper-cab.webp" alt="Sleeper cab semi-truck" width="256" height="256" loading="lazy" decoding="async"></div>
+              <div class="tchip-name">Sleep / Sleeper Cab</div>
+              <div class="tchip-desc">Sleeper tractor — bunk &amp; living space</div>
+            </button>
+          </div>
+          <p id="truck-cab-note" style="font-size:11.5px;color:var(--blue);line-height:1.45;margin:10px 0 0;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Pickups book under Cars &amp; SUVs. Trucks here are commercial semis only.</p>
         </div>
 
         <!-- Make / model / year first — size class is auto-detected from the catalog -->
@@ -3488,6 +3532,16 @@ const CAR_INTERIOR_SERVICE_ITEMS = [
   'Door jambs cleaned',
   'Headliner cleaning',
 ];
+const TRUCK_INTERIOR_SERVICE_ITEMS = [
+  'Deep vacuum — seats, floors, bunk, and storage compartments',
+  'Fabric seats & carpet shampoo',
+  'Leather / vinyl surfaces conditioned',
+  'Steam clean — vents, panels, crevices',
+  'Dash, doors & trim detail with UV protectant on plastics',
+  'Interior glass cleaned',
+  'Door jambs cleaned',
+  'Sleeper living area cleaned when present (bunk, cabinets, appliance exteriors)',
+];
 let PRICING = {
   cars: {
     tiers: {
@@ -3549,6 +3603,45 @@ let PRICING = {
       {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  desc:'Clean child car seat straps, padding, and buckle. $20 each', price:20, qty:true},
       {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    desc:'Wash stroller fabric, frame, and wheels. $20 each', price:20, qty:true},
       {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'Residential trash can cleaning at the service location. $25 each', price:25, qty:true},
+    ],
+  },
+  trucks: {
+    tiers: {
+      day_cab:     {label:'Day Cab / Single Cab', icon:'🚛', desc:'Highway tractor without sleeper bunk', interior:325, int_wash:400, int_wash_wax:500},
+      sleeper_cab: {label:'Sleep / Sleeper Cab',   icon:'🛏️', desc:'Sleeper tractor — bunk & living space', interior:325, int_wash:400, int_wash_wax:500},
+    },
+    packages:[
+      {id:'interior', name:'Interior Detail', icon:'💺', tag:'Cab interior for day cab or sleeper — living appliances may need Super Interior', dur:'~2–3h', popular:false, scope:'int',
+        ext:[],
+        int:TRUCK_INTERIOR_SERVICE_ITEMS,
+        feats:TRUCK_INTERIOR_SERVICE_ITEMS,
+        miss:['Exterior wash','Wax or sealant','Trailer body wash']},
+      {id:'int_wash', name:'Interior + Wash', icon:'🧽', tag:'Cab interior plus tractor exterior hand wash', dur:'~3–4h', popular:true, scope:'both',
+        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down'],
+        int:TRUCK_INTERIOR_SERVICE_ITEMS,
+        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down'].concat(TRUCK_INTERIOR_SERVICE_ITEMS),
+        miss:['Machine wax / sealant','Trailer body wash','Paint correction']},
+      {id:'int_wash_wax', name:'Interior + Wash & Wax', icon:'✨', tag:'Cab interior, exterior wash, and wax/sealant protect', dur:'~4–5h', popular:false, scope:'both',
+        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down','Wax or sealant on accessible painted panels'],
+        int:TRUCK_INTERIOR_SERVICE_ITEMS,
+        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down','Wax or sealant on accessible painted panels'].concat(TRUCK_INTERIOR_SERVICE_ITEMS),
+        miss:['Full trailer wash','Multi-stage paint correction']},
+    ],
+    addons:[
+      {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Deep pet hair removal from seats, carpets, and sleeper areas. Heavy buildup may need an estimate', price:95},
+      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    desc:'Extra passes for sleeper living space — fridge/microwave exteriors, cabinets, and compartments', price:125},
+      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, and cab odors. Severe odor or biohazard may require estimate confirmation', price:90},
+      {id:'mold',       scope:'int', name:'Mold Treatment',            desc:'Targeted mold treatment for affected cab areas. Inspection required; estimate may be needed. Starting at $149 based on severity', price:149},
+      {id:'sanitize',   scope:'int', name:'Interior Sanitizing',       desc:'High-touch cab wipe-down after cleaning — wheel, controls, handles, and bunk surfaces', price:65},
+      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids or severe contamination. Estimate confirmation required', price:115},
+      {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      desc:'Top-view cleaning of visible engine bay surfaces and covers. Detailing only — not mechanical service', price:45},
+      {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each', price:20, qty:true},
+      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    desc:'Water-repellent Rain-X on windshield and front glass', price:25},
+      {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     desc:'Hand-applied polymer sealant for paint protection and gloss. Lasts 3–6 months', price:25},
+      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax with enhanced gloss and up to 12 months of protection', price:75},
+      {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        desc:'Removes embedded contaminants, fallout, and rail dust for smooth paint', price:45},
+      {id:'headlight',  scope:'ext', name:'Headlight Restoration',     desc:'Clean, polish, and seal foggy headlights (per pair). Cosmetic detailing only', price:90},
+      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'Trash can cleaning at the service location. $25 each', price:25, qty:true},
     ],
   },
   boats: {
@@ -3890,6 +3983,48 @@ function setupLengthSelector(cat){
   updateRvServiceSubtotal();
 }
 
+function setupTruckCabControls(cat){
+  const wrap = document.getElementById('truck-cab-wrap');
+  const sel = document.getElementById('truck-cab-sel');
+  const chips = document.getElementById('truck-cab-chips');
+  if(!wrap || !sel) return;
+  if(cat !== 'trucks'){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  const allowed = { day_cab:1, sleeper_cab:1 };
+  function applyCab(key, fromUi){
+    const cab = allowed[key] ? key : '';
+    ST.tierKey = cab;
+    ST.tier = cab && PRICING.trucks && PRICING.trucks.tiers[cab] ? PRICING.trucks.tiers[cab] : null;
+    ST.displayLabel = ST.tier ? ST.tier.label : '';
+    ST.truckCab = cab;
+    if(!fromUi) sel.value = cab;
+    else sel.value = cab;
+    if(chips){
+      chips.querySelectorAll('.truck-cab-chip').forEach(function(btn){
+        btn.classList.toggle('sel', btn.getAttribute('data-cab') === cab);
+      });
+    }
+    if(typeof setVehicleVisual === 'function') setVehicleVisual();
+    tryGenericConfirm();
+    if(typeof syncContinueGate === 'function') syncContinueGate();
+  }
+  const incoming = allowed[ST.truckCab] ? ST.truckCab : (allowed[ST.tierKey] ? ST.tierKey : '');
+  applyCab(incoming, false);
+  sel.onchange = function(){ applyCab(this.value, true); };
+  if(chips && !chips._truckCabBound){
+    chips._truckCabBound = true;
+    chips.addEventListener('click', function(e){
+      const btn = e.target.closest('.truck-cab-chip');
+      if(!btn) return;
+      e.preventDefault();
+      applyCab(btn.getAttribute('data-cab') || '', true);
+    });
+  }
+}
+
 function setupBoatTypeControls(cat){
   const wrap = document.getElementById('boat-type-wrap');
   const typeSel = document.getElementById('boat-type-sel');
@@ -4112,10 +4247,13 @@ const VEHICLE_VISUALS = {
   /* Fleet specialty */
   workvan:       { img:'assets/vehicles/premium/work-van.webp',      alt:'Commercial work van fleet receiving mobile detailing' },
   boxtruck:      { img:'assets/vehicles/premium/box-truck.webp',     alt:'Commercial box truck fleet receiving mobile detailing' },
+  day_cab_semi:  { img:'assets/icons/3d/tier-day-cab.webp',         alt:'Day cab commercial semi-truck' },
+  sleeper_cab_semi: { img:'assets/icons/3d/tier-sleeper-cab.webp',  alt:'Sleeper cab commercial semi-truck' },
 };
 
 const CATEGORY_VISUALS = {
-  cars:        { img:'assets/vehicles/premium/cars-suvs.webp',       alt:'Cars SUVs and trucks mobile detailing' },
+  cars:        { img:'assets/vehicles/premium/cars-suvs.webp',       alt:'Cars SUVs and pickups mobile detailing' },
+  trucks:      { img:'assets/icons/3d/cat-trucks.webp',              alt:'Commercial day cab and tractor-trailer semis mobile detailing' },
   boats:       { img:'assets/vehicles/premium/marine.webp',          alt:'Boat and marine mobile detailing' },
   rvs:         { img:'assets/vehicles/premium/rv-trailer.webp',      alt:'RV motorhome and travel trailer mobile detailing' },
   powersports: { img:'assets/vehicles/premium/powersports.webp',     alt:'Motorcycle ATV and jet ski mobile detailing' },
@@ -4126,6 +4264,7 @@ const TIER_VISUAL_KEYS = {
   compact_van:'compact_van', midsize_van:'midsize_van',
   full_size_van:'cargo_van', full_size_van_passenger:'passenger_van',
   truck:'pickup',
+  day_cab:'day_cab_semi', sleeper_cab:'sleeper_cab_semi',
   motorcycle:'motorcycle', motorcycle_large:'touring_bagger', motorcycle_trike:'trike',
   atv:'atv', utv:'utv', utv_standard:'utv', utv_large:'utv_crew', golfcart:'golfcart', equipment:'equipment', jetski:'jetski',
   cargo:'workvan', workvan:'workvan', van:'cargo_van', boxtruck:'boxtruck',
@@ -4418,6 +4557,7 @@ function getVehicleVisualKey(){
     return 'motorcycle';
   }
   if(cat==='fleet') return TIER_VISUAL_KEYS[ST.tierKey]||'workvan';
+  if(cat==='trucks') return TIER_VISUAL_KEYS[ST.tierKey]||'day_cab_semi';
   const lbl=(ST.vehicleLabel||'').toLowerCase();
   // Exact make+model catalog hit beats body/tier generics (Jeep Wrangler vs Renegade, Acura MDX vs ILX, …).
   const brandExact=(typeof CD1_VehicleBrandVisuals!=='undefined' && CD1_VehicleBrandVisuals.resolveBrandModelVisual)
@@ -4492,6 +4632,17 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","NSX","RDX","RLX","TLX","ZDX"]
 // ── SPECIALTY VEHICLE CATALOG ───────────────────────────────────────────────
 window.SPECIALTY_MODELS = {
   powersports: window.CD1PowersportsCatalog.powersportsModelsByMake(),
+  trucks: {
+    "Freightliner":["Cascadia","Columbia","Coronado","M2","112SD","114SD"],
+    "Peterbilt":["379","389","567","579","567 Day Cab","579 Sleeper"],
+    "Kenworth":["T680","T880","W900","W990","T180","T280"],
+    "Volvo":["VNL","VNR","VHD","VN"],
+    "Volvo Trucks":["VNL","VNR","VHD","VN"],
+    "International":["LT","RH","HV","HX","MV"],
+    "Mack":["Anthem","Pinnacle","Granite"],
+    "Western Star":["49X","57X","47X"],
+    "Other":["Day Cab","Sleeper Cab","Custom Tractor"]
+  },
   boats: {
     "Alumacraft":["Classic","Competitor","Escape","Voyageur"],
     "Axopar":["22 Spyder","25 Cross Top","28 Cabin","29 XC Cross Cabin","37 XC Cross Cabin","45 XC Cross Cabin"],
@@ -4567,7 +4718,7 @@ window.SPECIALTY_MODELS = {
 };
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
-let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,rvType:'',rvLiving:'',boatType:'',units:1,cardToken:'',cardBrand:'',cardLast4:'',
+let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,rvType:'',rvLiving:'',boatType:'',truckCab:'',units:1,cardToken:'',cardBrand:'',cardLast4:'',
   // multi-vehicle cart
   vehicles:[],  // [{cat, pkgId, pkgName, vehicleLabel, basePrice, addons, addonTotal, subtotal}]
   zoneSurcharge:0,
@@ -4834,7 +4985,8 @@ function selectCategory(cat){
   }else{
     ST._editingVehicleIndex=null;
   }
-  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.displayLabel=''; ST.body=null; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.boatType=cat==='boats'?ST.boatType:''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
+  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.displayLabel=''; ST.body=null; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.boatType=cat==='boats'?ST.boatType:''; ST.truckCab=''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
+  if(cat!=='trucks'){ /* truckCab already cleared */ }
   ST.make=''; ST.model=''; ST.year=''; ST.classNeedsConfirm=false; ST._priceResolveFailed=false;
   ST._powersportsIdentity=''; ST._powersportsManualClass=''; ST._powersportsResolutionStatus='';
   if(window.CD1BookingVehicleSummary) CD1BookingVehicleSummary.clearCategoryExclusiveFields(ST, cat);
@@ -4977,6 +5129,9 @@ function selectPkg(id){
   } else if(ST.cat==='cars' && ST.tierKey){
     setBasePrice();
     if(ST.vehicleLabel) renderAddons();
+  } else if(ST.cat==='trucks' && ST.tierKey){
+    setBasePrice();
+    if(ST.vehicleLabel) renderAddons();
   }
   if(ST.cat==='rvs') updateRvServiceSubtotal();
   // Auto-advance to vehicle step after package selection
@@ -5031,7 +5186,7 @@ function syncTierChipsVisibility(){
   const wrap=document.getElementById('tier-chips-wrap');
   const note=document.getElementById('tier-chips-note');
   if(!wrap) return;
-  if(ST.cat==='boats'||ST.cat==='rvs'||ST.cat==='fleet'){
+  if(ST.cat==='boats'||ST.cat==='rvs'||ST.cat==='fleet'||ST.cat==='trucks'){
     wrap.style.display='none';
     if(note) note.hidden=true;
     return;
@@ -5093,6 +5248,7 @@ function renderTierChips(cat){
   document.getElementById('generic-search-wrap').style.display=isCar?'none':'block';
   setupBoatTypeControls(cat);
   setupRvTypeControls(cat);
+  setupTruckCabControls(cat);
   setupLengthSelector(cat);
   setupUnitSelector(cat);
   document.getElementById('vc').classList.remove('show');
@@ -5108,6 +5264,7 @@ function renderTierChips(cat){
     // Reset fields and reinitialize specialty autocomplete for new category
     document.getElementById('g-make').value='';
     document.getElementById('g-make').disabled=false;
+    document.getElementById('g-make').placeholder=cat==='trucks'?'e.g. Freightliner, Peterbilt, Kenworth…':'e.g. Sea Ray, Yamaha…';
     document.getElementById('g-model').value='';
     document.getElementById('g-model').disabled=true;
     document.getElementById('g-make-dd').classList.remove('open');
@@ -5257,7 +5414,7 @@ function selectTier(key){
   setupLengthSelector(ST.cat);
   setupUnitSelector(ST.cat);
   // refresh price/card if vehicle already entered (no auto-advance)
-  if(ST.vehicleLabel){ setBasePrice(); if(ST.cat==='cars'){ syncContinueGate(); renderAddons(); } }
+  if(ST.vehicleLabel){ setBasePrice(); if(ST.cat==='cars'||ST.cat==='trucks'){ syncContinueGate(); renderAddons(); } }
   typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
   tryGenericConfirm();
 }
@@ -5341,6 +5498,21 @@ function tryGenericConfirm(){
 
   // Cars confirm only via make-in / model-sel / year-sel — never g-make leftovers.
   if(ST.cat==='cars') return;
+
+  if(ST.cat==='trucks'){
+    if(!ST.tierKey || !(PRICING.trucks && PRICING.trucks.tiers[ST.tierKey])) return;
+    ST.tier = PRICING.trucks.tiers[ST.tierKey];
+    ST.displayLabel = ST.tier.label;
+    ST.vehicleLabel = `${year} ${make} ${model}`;
+    setBasePrice();
+    setVehicleVisual();
+    setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
+    document.getElementById('vc').classList.add('show');
+    if(typeof syncContinueGate==='function') syncContinueGate();
+    else document.getElementById('next3').disabled=!(ST.basePrice>0);
+    renderAddons();
+    return;
+  }
 
   if(ST.cat==='powersports'){
     const resolution=CD1PowersportsBookingSafety.resolveAndApply(ST,PRICING.powersports,make,model);
@@ -7039,6 +7211,7 @@ function syncTravelFromKnownZip(){
 function getCategoryFromBases(){
   return {
     cars:Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.interior)),
+    trucks:Math.min(...Object.values(PRICING.trucks.tiers).map(t=>t.interior)),
     boats:LENGTH_PRICING.boats.packages.maint.min,
     rvs:getLengthPrice('rvs','maint',LENGTH_PRICING.rvs.min,'travel'),
     powersports:powersportsPublicFromPrice(),
@@ -7053,7 +7226,8 @@ function formatLocFrom(cat){
 function chatStartingPricesReply(){
   const b=getCategoryFromBases();
   return "Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n"
-    +"🚗 Cars & Trucks — from <b>$"+applyRichPrice(b.cars)+"</b> (Interior Detail)\n"
+    +"🚗 Cars & Pickups — from <b>$"+applyRichPrice(b.cars)+"</b> (Interior Detail)\n"
+    +"🚛 Trucks (semis) — from <b>$"+applyRichPrice(b.trucks)+"</b>\n"
     +"🏍️ Powersports — from <b>$"+applyRichPrice(b.powersports)+"</b>\n"
     +"🛥️ Boats — from <b>$"+applyRichPrice(b.boats)+"</b>\n"
     +"🏕️ RVs & Trailers — <b>price calculated from your exact length &amp; package</b>\n\n"
@@ -7074,20 +7248,21 @@ const ZIP_ZONES = {
 };
 
 const ZONE_POPULAR = {
-  nj_a:   ['cars','boats'],
-  nj_b:   ['cars','rvs','powersports'],
-  nyc:    ['cars','boats'],
-  ny_s:   ['cars','boats','rvs'],
-  ct:     ['cars','boats','rvs'],
-  pa_e:   ['cars','rvs','powersports'],
-  pa_p:   ['rvs','boats','cars'],
-  pa_ph:  ['cars','boats'],
-  pa_b:   ['cars','boats','rvs'],
-  default:['cars','boats','rvs','powersports'],
+  nj_a: ['cars','boats','trucks'],
+  nj_b: ['cars','rvs','powersports','trucks'],
+  nyc: ['cars','boats','trucks'],
+  ny_s: ['cars','boats','rvs','trucks'],
+  ct: ['cars','boats','rvs','trucks'],
+  pa_e: ['cars','rvs','powersports','trucks'],
+  pa_p: ['cars','rvs','boats','trucks'],
+  pa_ph: ['cars','boats','trucks'],
+  pa_b: ['cars','boats','rvs','trucks'],
+  default: ['cars','boats','rvs','powersports','trucks'],
 };
 
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & SUVs',      desc:'Mobile car detailing at your location', from:'From $190' },
+  trucks:     { ico:'🚛', name:'Trucks',           desc:'Day cab & tractor-trailer', from:'From $325' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine wash & detail on-site',    from:'From $170' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'Price by exact length' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs, golf carts',       from:'From $175' },
@@ -7144,7 +7319,7 @@ function applyZip(){
 
 function renderLocationCarousel(zoneKey){
   let cats   = ZONE_POPULAR[zoneKey] || ZONE_POPULAR.default;
-  cats = ['cars', ...cats.filter(c=>c!=='cars')];
+  cats = ['cars', ...cats.filter(c=>c!=='cars'&&c!=='trucks'), 'trucks'];
   const scroll = document.getElementById('loc-scroll');
   if(!scroll) return;
   scroll.innerHTML = cats.map(cat=>{
@@ -7155,7 +7330,11 @@ function renderLocationCarousel(zoneKey){
       <div class="loc-name">${d.name}</div>
       <div class="loc-req">${d.desc}</div>
       <div class="loc-from">${formatLocFrom(cat)}</div>`;
-    const seoHref = cat === 'rvs' ? 'rv-detailing.html' : null;
+    const seoHref = cat === 'rvs' ? 'rv-detailing.html'
+      : cat === 'trucks' ? 'trucks-detailing.html'
+      : cat === 'boats' ? 'boats-detailing.html'
+      : cat === 'powersports' ? 'powersports-detailing.html'
+      : null;
     if(seoHref){
       return `<a href="${seoHref}" class="loc-card loc-card-link">${inner}</a>`;
     }
@@ -7210,6 +7389,7 @@ function onBkZipInput(val){
 
 function updateBkFromPrices(){
   const BASE = {
+    trucks:     { price: 325 },
     boats:      { price: LENGTH_PRICING.boats.packages.maint.min },
     rvs:        { copy: 'Price calculated from your vehicle details.' },
     powersports:{ price: powersportsPublicFromPrice() },
@@ -7914,7 +8094,7 @@ function osDisableBookingButtons(){
 // and ordering come ONLY from the adapted draft (never mixed with legacy prices);
 // these are neutral placeholders so renderers never read undefined fields.
 function osApplyPreviewShell(pricing){
-  ['cars','boats','rvs','powersports'].forEach(function(cat){
+  ['cars','trucks','boats','rvs','powersports'].forEach(function(cat){
     if(!pricing[cat]) pricing[cat]={tiers:{},packages:[],addons:[]};
     var c=pricing[cat];
     Object.keys(c.tiers||{}).forEach(function(k){ var t=c.tiers[k]; if(t.icon==null)t.icon=''; if(t.desc==null)t.desc=''; });
@@ -7974,7 +8154,7 @@ if(osPreviewRequested()){ osBootstrapPreview(); } else { osRunBookingPricingInit
     const livingQ=String(params.get('living')||'');
     const embed=params.get('embed')==='1';
     const multi=params.get('multi')==='1';
-    const allowed={cars:1,boats:1,rvs:1,powersports:1};
+    const allowed={cars:1,trucks:1,boats:1,rvs:1,powersports:1};
     if(embed){
       document.documentElement.classList.add('cd1-booking-embed');
       document.body.classList.add('cd1-booking-embed');
