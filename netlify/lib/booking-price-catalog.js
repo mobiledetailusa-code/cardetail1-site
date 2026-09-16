@@ -105,7 +105,6 @@ const PRICING = {
       { id: 'heavymud', price: 55 }, { id: 'seatdeep', price: 45 }, { id: 'storage', price: 35 },
       { id: 'wheeldet', price: 35 }, { id: 'waterspot', price: 35 }, { id: 'saltwash', price: 35 },
       { id: 'trimprot', price: 35 }, { id: 'lightdeg', price: 45 },
-      { id: 'chrome_restore', price: 75 },
     ],
   },
   fleet: {
