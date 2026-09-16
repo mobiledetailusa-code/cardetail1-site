@@ -23,6 +23,7 @@ pics/
 tmp/
 temp/
 .tmp/
+.cache/
 test-output/
 *.HEIC
 *.MOV
