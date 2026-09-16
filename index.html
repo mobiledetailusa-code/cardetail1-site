@@ -5508,7 +5508,8 @@ function tryGenericConfirm(){
     setVehicleVisual();
     setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
     document.getElementById('vc').classList.add('show');
-    syncContinueGate();
+    if(typeof syncContinueGate==='function') syncContinueGate();
+    else document.getElementById('next3').disabled=!(ST.basePrice>0);
     renderAddons();
     return;
   }

@@ -4088,6 +4088,16 @@ async function makeWebhookSend(payload){
 }
 
 // ── PRICING DATA ──────────────────────────────────────────────────────────────
+const TRUCK_INTERIOR_SERVICE_ITEMS = [
+  'Deep vacuum — seats, floors, bunk, and storage compartments',
+  'Fabric seats & carpet shampoo',
+  'Leather / vinyl surfaces conditioned',
+  'Steam clean — vents, panels, crevices',
+  'Dash, doors & trim detail with UV protectant on plastics',
+  'Interior glass cleaned',
+  'Door jambs cleaned',
+  'Sleeper living area cleaned when present (bunk, cabinets, appliance exteriors)',
+];
 const PRICING = {
   cars: {
     tiers: {
@@ -4150,48 +4160,47 @@ const PRICING = {
       {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    desc:'Wash stroller fabric, frame, and wheels. $20 each', price:20, qty:true},
       {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'Residential trash can cleaning at the service location. $25 each', price:25, qty:true},
     ],
+  },
   trucks: {
     tiers: {
       day_cab:     {label:'Day Cab / Single Cab', icon:'🚛', desc:'Highway tractor without sleeper bunk', interior:325, int_wash:400, int_wash_wax:500},
       sleeper_cab: {label:'Sleep / Sleeper Cab',   icon:'🛏️', desc:'Sleeper tractor — bunk & living space', interior:325, int_wash:400, int_wash_wax:500},
     },
     packages:[
-      {id:'interior', name:'Interior Detail', icon:'💺', tag:'Cab interior for day cab or sleeper', dur:'~2–3h', popular:false, scope:'int',
-        ext:[], int:['Deep vacuum — seats, floors, bunk, and storage compartments','Fabric seats & carpet shampoo','Leather / vinyl surfaces conditioned','Steam clean — vents, panels, crevices','Dash, doors & trim detail with UV protectant','Interior glass cleaned','Door jambs cleaned','Sleeper living area cleaned when present'],
-        feats:['Deep vacuum — seats, floors, bunk, and storage compartments','Fabric seats & carpet shampoo','Leather / vinyl surfaces conditioned','Steam clean — vents, panels, crevices','Dash, doors & trim detail with UV protectant','Interior glass cleaned','Door jambs cleaned','Sleeper living area cleaned when present'],
+      {id:'interior', name:'Interior Detail', icon:'💺', tag:'Cab interior for day cab or sleeper — living appliances may need Super Interior', dur:'~2–3h', popular:false, scope:'int',
+        ext:[],
+        int:TRUCK_INTERIOR_SERVICE_ITEMS,
+        feats:TRUCK_INTERIOR_SERVICE_ITEMS,
         miss:['Exterior wash','Wax or sealant','Trailer body wash']},
       {id:'int_wash', name:'Interior + Wash', icon:'🧽', tag:'Cab interior plus tractor exterior hand wash', dur:'~3–4h', popular:true, scope:'both',
-        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned'],
-        int:['Deep vacuum — seats, floors, bunk, and storage compartments','Fabric seats & carpet shampoo','Sleeper living area cleaned when present'],
-        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Deep vacuum — seats, floors, bunk, and storage compartments','Fabric seats & carpet shampoo','Sleeper living area cleaned when present'],
-        miss:['Machine wax / sealant','Trailer body wash']},
+        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down'],
+        int:TRUCK_INTERIOR_SERVICE_ITEMS,
+        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down'].concat(TRUCK_INTERIOR_SERVICE_ITEMS),
+        miss:['Machine wax / sealant','Trailer body wash','Paint correction']},
       {id:'int_wash_wax', name:'Interior + Wash & Wax', icon:'✨', tag:'Cab interior, exterior wash, and wax/sealant protect', dur:'~4–5h', popular:false, scope:'both',
-        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Wax or sealant on accessible painted panels'],
-        int:['Deep vacuum — seats, floors, bunk, and storage compartments','Fabric seats & carpet shampoo','Sleeper living area cleaned when present'],
-        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Wax or sealant on accessible painted panels','Deep vacuum — seats, floors, bunk, and storage compartments','Fabric seats & carpet shampoo','Sleeper living area cleaned when present'],
-        miss:['Full trailer wash']},
+        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down','Wax or sealant on accessible painted panels'],
+        int:TRUCK_INTERIOR_SERVICE_ITEMS,
+        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down','Wax or sealant on accessible painted panels'].concat(TRUCK_INTERIOR_SERVICE_ITEMS),
+        miss:['Full trailer wash','Multi-stage paint correction']},
     ],
     addons:[
-      {id:'pethair', scope:'int', name:'Pet Hair Removal', desc:'Deep pet hair removal from seats and sleeper areas', price:95},
-      {id:'superint', scope:'int', name:'Super Interior Upgrade', desc:'Extra passes for sleeper living space and compartments', price:125},
-      {id:'odor', scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, and cab odors', price:90},
-      {id:'mold', scope:'int', name:'Mold Treatment', desc:'Targeted mold treatment. Starting at 
-  },
-  boats: {49', price:149},
-      {id:'sanitize', scope:'int', name:'Interior Sanitizing', desc:'High-touch cab wipe-down after cleaning', price:65},
-      {id:'biohazard', scope:'int', name:'Biohazard Cleaning', desc:'Estimate confirmation required', price:115},
-      {id:'engine', scope:'ext', name:'Engine Bay Top Clean', desc:'Top-view engine bay cleaning', price:45},
-      {id:'floormats', scope:'int', name:'Floor Mat Deep Clean', desc:'$20 each', price:20, qty:true},
-      {id:'rainx', scope:'ext', name:'Rain-X Glass Treatment', desc:'Rain-X on windshield and front glass', price:25},
-      {id:'polymer', scope:'ext', name:'Polymer Paint Sealant', desc:'Hand-applied polymer sealant', price:25},
-      {id:'wax1yr', scope:'ext', name:'1-Year Carnauba Wax', desc:'Premium carnauba wax', price:75},
-      {id:'claybar', scope:'ext', name:'Clay Bar Treatment', desc:'Removes embedded contaminants', price:45},
-      {id:'headlight', scope:'ext', name:'Headlight Restoration', desc:'Per pair', price:90},
-      {id:'trashcans', scope:'any', name:'Trash Can Cleaning', desc:'$25 each', price:25, qty:true},
+      {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Deep pet hair removal from seats, carpets, and sleeper areas. Heavy buildup may need an estimate', price:95},
+      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    desc:'Extra passes for sleeper living space — fridge/microwave exteriors, cabinets, and compartments', price:125},
+      {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, and cab odors. Severe odor or biohazard may require estimate confirmation', price:90},
+      {id:'mold',       scope:'int', name:'Mold Treatment',            desc:'Targeted mold treatment for affected cab areas. Inspection required; estimate may be needed. Starting at $149 based on severity', price:149},
+      {id:'sanitize',   scope:'int', name:'Interior Sanitizing',       desc:'High-touch cab wipe-down after cleaning — wheel, controls, handles, and bunk surfaces', price:65},
+      {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids or severe contamination. Estimate confirmation required', price:115},
+      {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      desc:'Top-view cleaning of visible engine bay surfaces and covers. Detailing only — not mechanical service', price:45},
+      {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each', price:20, qty:true},
+      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    desc:'Water-repellent Rain-X on windshield and front glass', price:25},
+      {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     desc:'Hand-applied polymer sealant for paint protection and gloss. Lasts 3–6 months', price:25},
+      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax with enhanced gloss and up to 12 months of protection', price:75},
+      {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        desc:'Removes embedded contaminants, fallout, and rail dust for smooth paint', price:45},
+      {id:'headlight',  scope:'ext', name:'Headlight Restoration',     desc:'Clean, polish, and seal foggy headlights (per pair). Cosmetic detailing only', price:90},
+      {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'Trash can cleaning at the service location. $25 each', price:25, qty:true},
     ],
   },
 
-  },
   boats: {
     tiers: {
       under20:  {label:'Under 20 ft', icon:'⛵', desc:'Runabout · Jon · Small PWC trailer',    maint:225, essential:340, full:510, premium:795},
@@ -4606,13 +4615,14 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","NSX","RDX","RLX","TLX","ZDX"]
 window.SPECIALTY_MODELS = {
   powersports: window.CD1PowersportsCatalog.powersportsModelsByMake(),
   trucks: {
-    "Freightliner":["Cascadia","Columbia","Coronado","M2"],
-    "Peterbilt":["379","389","567","579"],
-    "Kenworth":["T680","T880","W900","W990"],
-    "Volvo Trucks":["VNL","VNR","VHD"],
-    "International":["LT","RH","HV","HX"],
+    "Freightliner":["Cascadia","Columbia","Coronado","M2","112SD","114SD"],
+    "Peterbilt":["379","389","567","579","567 Day Cab","579 Sleeper"],
+    "Kenworth":["T680","T880","W900","W990","T180","T280"],
+    "Volvo":["VNL","VNR","VHD","VN"],
+    "Volvo Trucks":["VNL","VNR","VHD","VN"],
+    "International":["LT","RH","HV","HX","MV"],
     "Mack":["Anthem","Pinnacle","Granite"],
-    "Western Star":["49X","57X"],
+    "Western Star":["49X","57X","47X"],
     "Other":["Day Cab","Sleeper Cab","Custom Tractor"]
   },
   boats: {

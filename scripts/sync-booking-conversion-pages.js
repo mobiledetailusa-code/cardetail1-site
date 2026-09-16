@@ -54,8 +54,37 @@ const powersportsAssets = [
 const powersportsCatalogProjection =
   '  powersports: window.CD1PowersportsCatalog.powersportsModelsByMake(),\n';
 
+// Commercial semis catalog sits between powersports and boats in SPECIALTY_MODELS.
+const trucksSpecialtyCatalogBlock = `  trucks: {
+    "Freightliner":["Cascadia","Columbia","Coronado","M2","112SD","114SD"],
+    "Peterbilt":["379","389","567","579","567 Day Cab","579 Sleeper"],
+    "Kenworth":["T680","T880","W900","W990","T180","T280"],
+    "Volvo":["VNL","VNR","VHD","VN"],
+    "Volvo Trucks":["VNL","VNR","VHD","VN"],
+    "International":["LT","RH","HV","HX","MV"],
+    "Mack":["Anthem","Pinnacle","Granite"],
+    "Western Star":["49X","57X","47X"],
+    "Other":["Day Cab","Sleeper Cab","Custom Tractor"]
+  },
+`;
+
 const powersportsConfirmBlock = `  // Cars confirm only via make-in / model-sel / year-sel — never g-make leftovers.
   if(ST.cat==='cars') return;
+
+  if(ST.cat==='trucks'){
+    if(!ST.tierKey || !(PRICING.trucks && PRICING.trucks.tiers[ST.tierKey])) return;
+    ST.tier = PRICING.trucks.tiers[ST.tierKey];
+    ST.displayLabel = ST.tier.label;
+    ST.vehicleLabel = \`\${year} \${make} \${model}\`;
+    setBasePrice();
+    setVehicleVisual();
+    setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
+    document.getElementById('vc').classList.add('show');
+    if(typeof syncContinueGate==='function') syncContinueGate();
+    else document.getElementById('next3').disabled=!(ST.basePrice>0);
+    renderAddons();
+    return;
+  }
 
   if(ST.cat==='powersports'){
     const resolution=CD1PowersportsBookingSafety.resolveAndApply(ST,PRICING.powersports,make,model);
@@ -235,7 +264,11 @@ function syncPowersportsCatalog(html) {
   const powersports = html.indexOf('  powersports:', root);
   const boats = html.indexOf('  boats:', powersports);
   if (powersports < 0 || boats < 0) return html;
-  return html.slice(0, powersports) + powersportsCatalogProjection + html.slice(boats);
+  // Preserve commercial trucks make/model catalog between powersports and boats.
+  return html.slice(0, powersports)
+    + powersportsCatalogProjection
+    + trucksSpecialtyCatalogBlock
+    + html.slice(boats);
 }
 
 function syncPowersportsBookingLogic(html) {

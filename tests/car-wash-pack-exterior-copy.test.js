@@ -25,6 +25,37 @@ const BOOKING_PAGES = [
   'template-city.html',
 ];
 
+function extractArrayConst(source, name) {
+  const marker = `const ${name} = [`;
+  const start = source.indexOf(marker);
+  if (start === -1) return undefined;
+  const open = start + marker.length - 1;
+  let depth = 0;
+  let quote = '';
+  let escaped = false;
+  for (let i = open; i < source.length; i += 1) {
+    const ch = source[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === quote) quote = '';
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') {
+      quote = ch;
+      continue;
+    }
+    if (ch === '[') depth += 1;
+    else if (ch === ']') {
+      depth -= 1;
+      if (depth === 0) {
+        return vm.runInNewContext(`(${source.slice(open, i + 1)})`);
+      }
+    }
+  }
+  return undefined;
+}
+
 function extractAssignedObject(source, name) {
   const declaration = new RegExp(`(?:const|let)\\s+${name}\\s*=`);
   const declarationMatch = declaration.exec(source);
@@ -51,8 +82,10 @@ function extractAssignedObject(source, name) {
       depth -= 1;
       if (depth === 0) {
         const sandbox = {};
-        const items = source.match(/const CAR_INTERIOR_SERVICE_ITEMS = (\[[\s\S]*?\]);/);
-        if (items) sandbox.CAR_INTERIOR_SERVICE_ITEMS = vm.runInNewContext(items[1]);
+        const items = extractArrayConst(source, 'CAR_INTERIOR_SERVICE_ITEMS');
+        if (items) sandbox.CAR_INTERIOR_SERVICE_ITEMS = items;
+        const truckItems = extractArrayConst(source, 'TRUCK_INTERIOR_SERVICE_ITEMS');
+        if (truckItems) sandbox.TRUCK_INTERIOR_SERVICE_ITEMS = truckItems;
         return vm.runInNewContext(`(${source.slice(start, i + 1)})`, sandbox);
       }
     }

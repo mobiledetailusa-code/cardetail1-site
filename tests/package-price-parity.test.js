@@ -29,6 +29,7 @@ const BOOKING_PAGES = [
 
 const OUT_OF_SCOPE_ADDON_PRICES = {
   cars: { pethair: 95, superint: 125, odor: 90, mold: 149, sanitize: 65, biohazard: 115, engine: 45, floormats: 20, rainx: 25, polymer: 25, wax1yr: 75, claybar: 45, headlight: 90, babyseat: 20, stroller: 20, trashcans: 25, ozone: 40 },
+  trucks: { pethair: 95, superint: 125, odor: 90, mold: 149, sanitize: 65, biohazard: 115, engine: 45, floormats: 20, rainx: 25, polymer: 25, wax1yr: 75, claybar: 45, headlight: 90, trashcans: 25, ozone: 40 },
   boats: { rainx: 25, polymer: 25, wax1yr: 75, chrome: 85, odor: 90, mold: 149, sanitize: 65, biohazard: 115, trashcans: 25 },
   rvs: { polymer: 25, wax1yr: 75, rainx: 25, biohazard: 115, sanitize: 75, superint: 135, awning: 50, roof: 50, capfront: 149, pethair: 95, odor: 90, trashcans: 25 },
   powersports: { polymer: 25, wax1yr: 75, rainx: 25, heavymud: 55, seatdeep: 45, storage: 35, wheeldet: 35, waterspot: 35, saltwash: 35, trimprot: 35, lightdeg: 45 },
@@ -102,6 +103,8 @@ function extractAssignedObject(source, name) {
         const sandbox = {};
         const interiorItems = extractArrayConst(source, 'CAR_INTERIOR_SERVICE_ITEMS');
         if (interiorItems) sandbox.CAR_INTERIOR_SERVICE_ITEMS = interiorItems;
+        const truckItems = extractArrayConst(source, 'TRUCK_INTERIOR_SERVICE_ITEMS');
+        if (truckItems) sandbox.TRUCK_INTERIOR_SERVICE_ITEMS = truckItems;
         return vm.runInNewContext(`(${source.slice(start, i + 1)})`, sandbox);
       }
     }
@@ -132,7 +135,7 @@ function catalogPriceEntries() {
   return entries;
 }
 
-test('13 booking pages match all 200 authoritative package values (2,600 comparisons)', () => {
+test('13 booking pages match all 206 authoritative package values (2,678 comparisons)', () => {
   const discovered = fs.readdirSync(ROOT)
     .filter((file) => file.endsWith('.html'))
     .filter((file) => /(?:const|let)\s+PRICING\s*=/.test(read(file)))
@@ -140,12 +143,14 @@ test('13 booking pages match all 200 authoritative package values (2,600 compari
   assert.deepEqual(discovered, BOOKING_PAGES.slice().sort());
 
   const entries = catalogPriceEntries();
-  // 172 prior catalog + 24 new Powersports family/public amounts + 4 historical Trike aliases
-  assert.equal(entries.length, 200);
+  // 200 prior catalog + 6 commercial trucks tier package amounts (day_cab/sleeper × 3 pkgs)
+  assert.equal(entries.length, 206);
   assert.equal(PRICING.cars.tiers.full_size_van.interior, 260);
   assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 270);
   assert.equal(PRICING.cars.tiers.compact_van.interior, 235);
   assert.equal(PRICING.cars.tiers.midsize_van.interior, 235);
+  assert.equal(PRICING.trucks.tiers.day_cab.interior, 325);
+  assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 500);
   let comparisons = 0;
   for (const file of BOOKING_PAGES) {
     const html = read(file);
@@ -159,7 +164,7 @@ test('13 booking pages match all 200 authoritative package values (2,600 compari
       comparisons += 1;
     }
   }
-  assert.equal(comparisons, 2600);
+  assert.equal(comparisons, 2678);
 });
 
 test('server length helpers and RV calculator derive from the authoritative catalog', () => {
@@ -191,7 +196,8 @@ test('add-ons remain at their pre-repricing amounts on server and browser', () =
     const pagePricing = extractAssignedObject(read(file), 'PRICING');
     for (const [category, expected] of Object.entries(OUT_OF_SCOPE_ADDON_PRICES)) {
       const browser = Object.fromEntries(pagePricing[category].addons.map((addon) => [addon.id, addon.price]));
-      const browserExpected = category === 'cars'
+      // Browser pages omit the Stage-1 ozone financial-mutation fixture; server catalog keeps it.
+      const browserExpected = (category === 'cars' || category === 'trucks')
         ? Object.fromEntries(Object.entries(expected).filter(([id]) => id !== 'ozone'))
         : expected;
       assert.deepEqual(browser, browserExpected, `${file}: ${category} browser add-ons changed`);
