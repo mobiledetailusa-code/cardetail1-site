@@ -3,8 +3,8 @@
   const BASE = 'assets/icons/3d/';
 
   const FAMILY = {
-    cars: { file: 'pack-cars-family.webp', alt: 'Sedans and SUVs' },
-    trucks: { file: 'pack-trucks-family.webp', alt: 'Pickups, crew cabs, and sleeper cabs' },
+    cars: { file: 'pack-cars-family.webp', alt: 'Sedans, SUVs, and pickups' },
+    trucks: { file: 'pack-trucks-family.webp', alt: 'Semi-trucks, day cabs, and sleeper cabs' },
     boats: { file: 'pack-boats-family.webp', alt: 'Boats, sailboats, and cruisers' },
     rvs: { file: 'pack-rvs-family.webp', alt: 'RVs and travel trailers' },
     powersports: { file: 'pack-powersports-family.webp', alt: 'Motorcycles, ATVs, and jet skis' },
@@ -27,8 +27,8 @@
   };
 
   const CAT = {
-    cars: { file: 'cat-cars.webp', alt: 'Cars and SUVs' },
-    trucks: { file: 'cat-trucks.webp', alt: 'Trucks and pickups' },
+    cars: { file: 'cat-cars.webp', alt: 'Cars, SUVs, and pickups' },
+    trucks: { file: 'cat-trucks.webp', alt: 'Commercial semi-trucks and sleeper cabs' },
     boats: { file: 'cat-boats.webp', alt: 'Boats' },
     rvs: { file: 'cat-rvs.webp', alt: 'RVs and trailers' },
     powersports: { file: 'cat-powersports.webp', alt: 'Powersports' },
@@ -47,11 +47,9 @@
     full_size_van: { file: 'cargo-van.webp', alt: 'Full-size cargo van', studio: true },
     full_size_van_passenger: { file: 'passenger-van.webp', alt: 'Full-size passenger van', studio: true },
     truck: { file: 'midsize-pickup.webp', alt: 'Pickup truck', studio: true },
-    // Trucks category cab chips (studio assets reused until cab-specific shoots exist)
-    single_cab: { file: 'midsize-pickup.webp', alt: 'Single / regular cab pickup', studio: true },
-    extended_cab: { file: 'midsize-pickup.webp', alt: 'Extended / super cab pickup', studio: true },
-    crew_cab: { file: 'truck.webp', alt: 'Crew / double cab pickup', studio: true },
-    sleeper_cab: { file: 'truck.webp', alt: 'Sleep / sleeper cab truck', studio: true },
+    // Commercial Trucks category (carretas) — day vs sleeper; pickups stay on cars.truck
+    day_cab: { file: 'truck.webp', alt: 'Day cab / single cab semi-truck', studio: true },
+    sleeper_cab: { file: 'truck.webp', alt: 'Sleep / sleeper cab semi-truck', studio: true },
     motorcycle: { file: 'motorcycle.webp', alt: 'Motorcycle', studio: true },
     motorcycle_large: { file: 'touring-bagger.webp', alt: 'Large cruiser, touring or bagger motorcycle', studio: true },
     motorcycle_trike: { file: 'motorcycle-trike.webp', alt: 'Factory three-wheel motorcycle / trike', studio: true },
