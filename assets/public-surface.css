@@ -18,7 +18,7 @@
 body:has(#bk-ov.open) #cd1-btt,
 body:has(.booking-modal-ov.open) #cd1-btt{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
 
-/* Trucks / carretas cab picker (booking step 3) */
+/* Trucks / semis cab picker (booking step 3) */
 .truck-cab-chips{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
 .truck-cab-chip{width:100%;font:inherit;color:inherit;appearance:none;-webkit-appearance:none;text-align:center}
 .truck-cab-chip .tchip-ico{height:96px;display:flex;align-items:center;justify-content:center}

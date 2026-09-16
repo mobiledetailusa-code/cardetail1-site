@@ -27,25 +27,36 @@ const PUBLIC_PAGES = [
   'boats-detailing.html',
   'powersports-detailing.html',
   'rv-detailing.html',
+  'trucks-detailing.html',
 ];
 
 const SPECIALTY_PAGES = [
   'boats-detailing.html',
   'powersports-detailing.html',
   'rv-detailing.html',
+  'trucks-detailing.html',
 ];
 
 const CATEGORY_BY_PAGE = {
   'boats-detailing.html': 'boats',
   'rv-detailing.html': 'rvs',
   'powersports-detailing.html': 'powersports',
+  'trucks-detailing.html': 'trucks',
 };
 
 const PACKAGE_BY_PAGE = {
   'boats-detailing.html': ['maint', 'full', 'premium'],
   'rv-detailing.html': ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
   'powersports-detailing.html': ['maintenance', 'restore'],
+  'trucks-detailing.html': ['interior', 'int_wash', 'int_wash_wax'],
 };
+
+const SPECIALTY_NAV_HREFS = [
+  'trucks-detailing.html',
+  'rv-detailing.html',
+  'boats-detailing.html',
+  'powersports-detailing.html',
+];
 
 /** Approved real-work / category media (no car filler). */
 const POWERSPORTS_MEDIA = [
@@ -158,6 +169,9 @@ describe('specialty dedicated pages exist', () => {
   it('RV/Trailer dedicated page exists', () => {
     assert.ok(exists('rv-detailing.html'));
   });
+  it('Trucks dedicated page exists', () => {
+    assert.ok(exists('trucks-detailing.html'));
+  });
 });
 
 describe('specialty-service-nav shared component', () => {
@@ -173,23 +187,20 @@ describe('specialty-service-nav shared component', () => {
       assert.match(html, /assets\/specialty-service-nav\.css/);
     });
 
-    it(`${page} specialty nav has exactly three service links`, () => {
+    it(`${page} specialty nav has exactly four service links`, () => {
       const html = read(page);
       const block = html.match(/<nav class="specialty-service-nav"[\s\S]*?<\/nav>/);
       assert.ok(block, 'nav block missing');
       const hrefs = [...block[0].matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
-      assert.equal(hrefs.length, 3);
-      assert.deepEqual(hrefs, [
-        'rv-detailing.html',
-        'boats-detailing.html',
-        'powersports-detailing.html',
-      ]);
+      assert.equal(hrefs.length, 4);
+      assert.deepEqual(hrefs, SPECIALTY_NAV_HREFS);
     });
 
     it(`${page} specialty links are real anchors (not onclick-only)`, () => {
       const html = read(page);
       const block = html.match(/<nav class="specialty-service-nav"[\s\S]*?<\/nav>/)[0];
       assert.doesNotMatch(block, /onclick=/);
+      assert.match(block, /<a class="specialty-service-link" href="trucks-detailing\.html"/);
       assert.match(block, /<a class="specialty-service-link" href="rv-detailing\.html"/);
       assert.match(block, /<a class="specialty-service-link" href="boats-detailing\.html"/);
       assert.match(block, /<a class="specialty-service-link" href="powersports-detailing\.html"/);
@@ -227,15 +238,11 @@ describe('homepage specialty switcher placement and state', () => {
     assert.ok(mainNav >= 0 && specialty > mainNav && hero > specialty);
   });
 
-  it('homepage switcher has exactly three links in RV / Boats / Powersports order', () => {
+  it('homepage switcher has exactly four links in Trucks / RV / Boats / Powersports order', () => {
     const html = read('index.html');
     const block = html.match(/<nav class="specialty-service-nav"[\s\S]*?<\/nav>/)[0];
     const hrefs = [...block.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
-    assert.deepEqual(hrefs, [
-      'rv-detailing.html',
-      'boats-detailing.html',
-      'powersports-detailing.html',
-    ]);
+    assert.deepEqual(hrefs, SPECIALTY_NAV_HREFS);
   });
 
   it('homepage switcher hrefs match dedicated-page switcher hrefs', () => {
@@ -294,6 +301,7 @@ describe('aria-current on dedicated pages', () => {
     assert.match(html, /href="boats-detailing\.html" aria-current="page"/);
     assert.doesNotMatch(html, /href="rv-detailing\.html" aria-current="page"/);
     assert.doesNotMatch(html, /href="powersports-detailing\.html" aria-current="page"/);
+    assert.doesNotMatch(html, /href="trucks-detailing\.html" aria-current="page"/);
   });
   it('powersports page marks Powersports as current', () => {
     const html = read('powersports-detailing.html');
@@ -302,6 +310,11 @@ describe('aria-current on dedicated pages', () => {
   it('rv page marks RV & Trailers as current', () => {
     const html = read('rv-detailing.html');
     assert.match(html, /href="rv-detailing\.html" aria-current="page"/);
+  });
+  it('trucks page marks Trucks as current', () => {
+    const html = read('trucks-detailing.html');
+    assert.match(html, /href="trucks-detailing\.html" aria-current="page"/);
+    assert.doesNotMatch(html, /href="boats-detailing\.html" aria-current="page"/);
   });
   it('generic hubs do not set aria-current', () => {
     const html = read('new-jersey-hub.html');
@@ -331,6 +344,9 @@ describe('package sections near top', () => {
   });
   it('powersports H2 uses required package heading', () => {
     assert.match(read('powersports-detailing.html'), /Choose Your Powersports Detailing Package/);
+  });
+  it('trucks H2 uses required package heading', () => {
+    assert.match(read('trucks-detailing.html'), /Choose Your Mobile Truck Detailing Package/);
   });
 
   it('boats page package section appears before video gallery', () => {
@@ -491,6 +507,7 @@ describe('local booking CTAs (no homepage redirect)', () => {
     assert.match(js, /boats:\s*\{[^}]*maint/);
     assert.match(js, /rvs:\s*\{[^}]*maint_light/);
     assert.match(js, /powersports:\s*\{[^}]*wash/);
+    assert.match(js, /trucks:\s*\{[^}]*interior/);
     assert.match(js, /INVALID_CATEGORY|INVALID_PACKAGE/);
     assert.match(js, /We could not load this booking option/);
     assert.match(js, /551-373-5668/);
@@ -541,6 +558,7 @@ describe('local booking CTAs (no homepage redirect)', () => {
     const boatsIds = extractIds('boats');
     const rvsIds = extractIds('rvs');
     const psIds = extractIds('powersports');
+    const truckIds = extractIds('trucks');
     for (const pkg of PACKAGE_BY_PAGE['boats-detailing.html']) {
       assert.ok(boatsIds.includes(pkg), `boats missing ${pkg}`);
     }
@@ -549,6 +567,9 @@ describe('local booking CTAs (no homepage redirect)', () => {
     }
     for (const pkg of PACKAGE_BY_PAGE['powersports-detailing.html']) {
       assert.ok(psIds.includes(pkg), `powersports missing ${pkg}`);
+    }
+    for (const pkg of PACKAGE_BY_PAGE['trucks-detailing.html']) {
+      assert.ok(truckIds.includes(pkg), `trucks missing ${pkg}`);
     }
   });
 
@@ -604,6 +625,7 @@ describe('specialty page UI (back-to-top + gallery lightbox)', () => {
     'boats-detailing.html',
     'powersports-detailing.html',
     'rv-detailing.html',
+    'trucks-detailing.html',
     'fleet-services.html',
     'multi-vehicle-detailing.html',
   ];

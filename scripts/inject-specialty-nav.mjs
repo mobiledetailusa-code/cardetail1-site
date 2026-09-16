@@ -15,7 +15,8 @@ const NAV_BLOCK = `
 <nav class="specialty-service-nav" aria-label="Specialty detailing services">
   <div class="specialty-service-nav-inner">
     <span class="specialty-service-nav-label">Specialty Services</span>
-    <div class="specialty-service-links">
+        <div class="specialty-service-links">
+      <a class="specialty-service-link" href="trucks-detailing.html">Trucks</a>
       <a class="specialty-service-link" href="rv-detailing.html">RV &amp; Trailers</a>
       <a class="specialty-service-link" href="boats-detailing.html">Boats</a>
       <a class="specialty-service-link" href="powersports-detailing.html">Powersports</a>
@@ -38,6 +39,10 @@ const PAGES = [
   'trenton-mobile-detailing.html',
   'westchester-mobile-detailing.html',
   'template-city.html',
+  'boats-detailing.html',
+  'rv-detailing.html',
+  'powersports-detailing.html',
+  'trucks-detailing.html',
 ];
 
 function ensureCssLink(html) {
@@ -61,10 +66,19 @@ function ensureCssLink(html) {
   return html;
 }
 
-function ensureNav(html) {
+function ensureNav(html, file) {
+  const linksBlock = `    <div class="specialty-service-links">
+      <a class="specialty-service-link" href="trucks-detailing.html"${file === 'trucks-detailing.html' ? ' aria-current="page"' : ''}>Trucks</a>
+      <a class="specialty-service-link" href="rv-detailing.html"${file === 'rv-detailing.html' ? ' aria-current="page"' : ''}>RV &amp; Trailers</a>
+      <a class="specialty-service-link" href="boats-detailing.html"${file === 'boats-detailing.html' ? ' aria-current="page"' : ''}>Boats</a>
+      <a class="specialty-service-link" href="powersports-detailing.html"${file === 'powersports-detailing.html' ? ' aria-current="page"' : ''}>Powersports</a>
+    </div>`;
+
   if (html.includes('class="specialty-service-nav"')) {
-    // Already present — leave as-is (dedicated pages may have aria-current)
-    return html;
+    return html.replace(
+      /<div class="specialty-service-links">[\s\S]*?<\/div>/,
+      linksBlock
+    );
   }
   // Insert immediately after </nav> that closes #main-nav / first site nav
   const re = /(<nav class="nav"[^>]*>[\s\S]*?<\/nav>)/;
@@ -86,7 +100,7 @@ for (const file of PAGES) {
   let html = fs.readFileSync(fp, 'utf8');
   const before = html;
   html = ensureCssLink(html);
-  html = ensureNav(html);
+  html = ensureNav(html, file);
   if (html !== before) {
     fs.writeFileSync(fp, html);
     changed++;

@@ -16,6 +16,7 @@ const PUBLIC_HTML = [
   'boats-detailing.html',
   'rv-detailing.html',
   'powersports-detailing.html',
+  'trucks-detailing.html',
   'fleet-services.html',
   'multi-vehicle-detailing.html',
   'new-jersey-hub.html',

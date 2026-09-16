@@ -1,12 +1,12 @@
-# Trucks category plan (commercial / carretas)
+# Trucks category plan (commercial semis)
 
 **Status:** Live in booking preview — solo Trucks category card + packages; hubs mirrored  
 **Branch:** `cursor/trucks-category-plan-9a4f`  
-**Scope clarification (2026-09-16):** This category is **only commercial semi-trucks / carretas** (Class 7–8 highway tractors). **Consumer pickups stay under Cars** (`tierKey: truck`).
+**Scope clarification (2026-09-16):** This category is **only commercial semi-trucks** (Class 7–8 highway tractors). **Consumer pickups stay under Cars** (`tierKey: truck`).
 
 ## Why a new category
 
-Pickups already price under Cars. Over-the-road **carretas** are a different product:
+Pickups already price under Cars. Over-the-road **semis** are a different product:
 
 - Day cab vs **sleeper / sleep cab** living space
 - Sleeper interiors often include bunk, fridge, microwave, cabinets, storage compartments
@@ -17,7 +17,7 @@ Pickups already price under Cars. Over-the-road **carretas** are a different pro
 
 | In **Trucks** (this category) | Stay in **Cars** | Stay in **Fleet** (quote) |
 |-------------------------------|------------------|---------------------------|
-| Semi tractor / carreta (day cab) | Pickup (F-150, Silverado, Tacoma, etc.) | Multi-unit fleets |
+| Semi tractor (day cab) | Pickup (F-150, Silverado, Tacoma, etc.) | Multi-unit fleets |
 | Semi tractor with sleeper cab | Mid-size / full-size pickup tiers | Box trucks booked as fleet jobs |
 | Cab detail with or without trailer attached\* | | Buses / coach fleets |
 
@@ -41,8 +41,8 @@ Wire in `assets/icon-3d.js`:
 
 | Tier key | Customer label | PT-friendly cue | Interior notes |
 |----------|----------------|-----------------|----------------|
-| `day_cab` | Day Cab / Single Cab | Cabine simples (sem beliche) | Driver area only; no bunk living space |
-| `sleeper_cab` | Sleep Cab / Sleeper Cab | Cabine leito | Bunk + often fridge, microwave, cabinets, compartments |
+| `day_cab` | Day Cab / Single Cab | Day cab — no bunk | Driver area only; no bunk living space |
+| `sleeper_cab` | Sleep Cab / Sleeper Cab | Sleeper bunk / living | Bunk + often fridge, microwave, cabinets, compartments |
 | `other` | Other commercial cab | Outro | Custom note; price as day cab + review, or quote |
 
 **Loaded sleeper (booking question):**  
@@ -113,7 +113,7 @@ Until phase 2, heavy sleeper work → **`superint` (+$125)** + notes.
 ## Copy notes (EN)
 
 - Category title: **Trucks**  
-- Subtitle: **Semi-trucks & sleeper cabs** (carretas)  
+- Subtitle: **Semi-trucks & sleeper cabs**   
 - Explicit: *Pickups book under Cars*  
 - Sleeper disclaimer: *Living appliances and storage compartments may require Super Interior — final price confirmed on arrival if condition is heavier than booked.*
 
@@ -129,7 +129,9 @@ Until phase 2, heavy sleeper work → **`superint` (+$125)** + notes.
 | Date | Decision |
 |------|----------|
 | 2026-09-16 | New category `trucks`; packages $325 / $400 / $500; car add-ons reused |
-| 2026-09-16 | **Clarified: commercial semis / carretas only — not pickups** |
+| 2026-09-16 | **Clarified: commercial semis only — not pickups** |
 | 2026-09-16 | Icons regenerated as semi tractors (day + sleeper); pickups remain Cars |
 | 2026-09-16 | Solo `bkcat-trucks` card + `PRICING.trucks` live in booking preview |
 | 2026-09-16 | Cab Type section (day/sleeper) + semi icons; Trucks labeled specialty section |
+
+| 2026-09-16 | Home specialty nav + `trucks-detailing.html`; EN-only copy; footer Cars & SUVs separate from Trucks / Semis; checkout coerce hardened |

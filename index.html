@@ -1742,6 +1742,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <nav class="specialty-service-nav" aria-label="Specialty detailing services">
   <div class="specialty-service-nav-inner">
     <div class="specialty-service-links">
+      <a class="specialty-service-link" href="trucks-detailing.html">Trucks</a>
       <a class="specialty-service-link" href="rv-detailing.html">RV &amp; Trailers</a>
       <a class="specialty-service-link" href="boats-detailing.html">Boats</a>
       <a class="specialty-service-link" href="powersports-detailing.html">Powersports</a>
@@ -1936,7 +1937,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
     <div class="car-services-cta">
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">View all packages</button>
-      <button type="button" class="btn-outline" id="home-specialty-cta" onclick="openBooking(null)">Boats, RVs &amp; powersports</button>
+      <button type="button" class="btn-outline" id="home-specialty-cta" onclick="openBooking(null)">Trucks, boats, RVs &amp; powersports</button>
     </div>
   </div>
 </div>
@@ -2482,11 +2483,12 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="foot-top">
       <div>
         <img class="foot-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" loading="lazy" decoding="async">
-        <p class="foot-tagline">Based in Palisades Park, NJ. Mobile cars, boats, RVs, and powersports — we come to you.</p>
+        <p class="foot-tagline">Based in Palisades Park, NJ. Mobile cars, semis, boats, RVs, and powersports — we come to you.</p>
       </div>
       <div class="foot-col">
         <h4>Services</h4>
-        <a href="index.html">Cars, SUVs &amp; Trucks</a>
+        <a href="index.html">Cars &amp; SUVs</a>
+        <a href="trucks-detailing.html">Trucks / Semis</a>
         <a href="boats-detailing.html">Boats &amp; Marine</a>
         <a href="rv-detailing.html">RVs &amp; Trailers</a>
         <a href="powersports-detailing.html">Motorcycles &amp; Powersports</a>
@@ -2613,14 +2615,13 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="svc-cat-note" id="bkfrom-cars">Packages shown after ZIP check</div>
           </div>
           <div class="bk-cat-specialty">
-            <div class="bk-cat-specialty-label">Trucks</div>
+            <div class="bk-cat-specialty-label">Trucks, boats, RVs &amp; powersports</div>
           <div class="svc-card locked" id="bkcat-trucks" onclick="selectCategory('trucks')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-trucks.webp" alt="Commercial semi-trucks and sleeper cabs receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Trucks</div>
             <div class="svc-desc" style="font-size:12px">Semi-trucks · Day cab · Sleeper cab</div>
-            <div class="svc-cat-note" id="bkfrom-trucks">From $325 · carretas only (not pickups)</div>
+            <div class="svc-cat-note" id="bkfrom-trucks">From $325 · semis only (not pickups)</div>
           </div>
-            <div class="bk-cat-specialty-label">Boats, RVs &amp; powersports</div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-boats.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Boats</div>
@@ -2723,7 +2724,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <p id="rv-airstream-note" style="display:none;font-size:11.5px;color:var(--blue);line-height:1.45;margin:0 0 10px;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Airstream units use surface-aware polish scope — tell us about aluminum condition in notes if needed.</p>
         </div>
 
-        <!-- Truck cab type (trucks / carretas only) — same pattern as boat / RV type -->
+        <!-- Truck cab type (trucks / semis only) — same pattern as boat / RV type -->
         <div id="truck-cab-wrap" style="display:none;margin-bottom:14px">
           <div class="sel-g" style="margin-bottom:10px">
             <div class="sel-l">Cab Type *</div>
@@ -2745,7 +2746,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <div class="tchip-desc">Sleeper tractor — bunk &amp; living space</div>
             </button>
           </div>
-          <p id="truck-cab-note" style="font-size:11.5px;color:var(--blue);line-height:1.45;margin:10px 0 0;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Pickups book under Cars &amp; SUVs. Trucks here are semis / carretas only.</p>
+          <p id="truck-cab-note" style="font-size:11.5px;color:var(--blue);line-height:1.45;margin:10px 0 0;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Pickups book under Cars &amp; SUVs. Trucks here are commercial semis only.</p>
         </div>
 
         <!-- Make / model / year first — size class is auto-detected from the catalog -->
@@ -7225,7 +7226,7 @@ function chatStartingPricesReply(){
   const b=getCategoryFromBases();
   return "Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n"
     +"🚗 Cars & Pickups — from <b>$"+applyRichPrice(b.cars)+"</b> (Interior Detail)\n"
-    +"🚛 Trucks (semis / carretas) — from <b>$"+applyRichPrice(b.trucks)+"</b>\n"
+    +"🚛 Trucks (semis) — from <b>$"+applyRichPrice(b.trucks)+"</b>\n"
     +"🏍️ Powersports — from <b>$"+applyRichPrice(b.powersports)+"</b>\n"
     +"🛥️ Boats — from <b>$"+applyRichPrice(b.boats)+"</b>\n"
     +"🏕️ RVs & Trailers — <b>price calculated from your exact length &amp; package</b>\n\n"
@@ -7260,7 +7261,7 @@ const ZONE_POPULAR = {
 
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & SUVs',      desc:'Mobile car detailing at your location', from:'From $190' },
-  trucks:     { ico:'🚛', name:'Trucks',           desc:'Semi-trucks & sleeper cabs (carretas)', from:'From $325' },
+  trucks:     { ico:'🚛', name:'Trucks',           desc:'Semi-trucks & sleeper cabs', from:'From $325' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine wash & detail on-site',    from:'From $170' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'Price by exact length' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs, golf carts',       from:'From $175' },

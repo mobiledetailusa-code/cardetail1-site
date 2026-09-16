@@ -250,6 +250,12 @@ const PKG_ID_ALIASES = {
   'correction/restoration detail': 'restore',
   'deep detail & restore': 'restore',
   'deep detail and restore': 'restore',
+  'interior + wash': 'int_wash',
+  'interior + wash & wax': 'int_wash_wax',
+  'interior + wash and wax': 'int_wash_wax',
+  'int wash': 'int_wash',
+  'int_wash': 'int_wash',
+  'int_wash_wax': 'int_wash_wax',
   'fleet maintenance wash': 'maint',
   'fleet essential detail': 'essential',
   'fleet full detail': 'full',
@@ -566,13 +572,17 @@ function coerceVehicleForCategory(vehicle, category, opts = {}) {
       else if (/midsize.?van|metris/.test(label)) tierKey = 'midsize_van';
       else if (/compact.?van|transit connect|promaster city|nv200|city express/.test(label)) tierKey = 'compact_van';
       else if (/full.?size.?van|sprinter|transit(?! connect)|promaster(?! city)|express van|savana|\bnv\b/.test(label)) tierKey = 'full_size_van';
-      else if (/truck|pickup|f-?150|silverado|ram|tundra|sierra/.test(label)) tierKey = 'truck';
+      else if (
+        !/semi|sleeper|day\s*cab|highway\s*tractor|freightliner|peterbilt|kenworth|cascadia|\bmack\b/.test(label) &&
+        /truck|pickup|f-?150|silverado|ram|tundra|sierra/.test(label)
+      ) tierKey = 'truck';
       else if (/suv|crossover|cx-|rav4|cr-v|highlander|explorer|4runner/.test(label)) tierKey = 'suv2';
       else if (/sedan|coupe|small|civic|corolla|camry|accord/.test(label)) tierKey = 'small';
       else tierKey = 'suv2';
     }
     next.rvType = '';
     next.typeKey = '';
+    next.truckCab = '';
     const carAddonIds = new Set((PRICING.cars.addons || []).map((a) => a.id));
     const ids = asArray(opts.addOnIds || next.addOnIds).length
       ? asArray(opts.addOnIds || next.addOnIds)
@@ -590,7 +600,7 @@ function coerceVehicleForCategory(vehicle, category, opts = {}) {
     const tiers = PRICING.trucks.tiers || {};
     if (!tierKey || !tiers[tierKey]) {
       const label = String(opts.tierLabel || next.tierLabel || opts.vehicleLabel || next.vehicleLabel || '').toLowerCase();
-      if (/sleeper|sleep\s*cab|leito|bunk/.test(label)) tierKey = 'sleeper_cab';
+      if (/sleeper|sleep\s*cab|bunk/.test(label)) tierKey = 'sleeper_cab';
       else tierKey = 'day_cab';
     }
     next.rvType = '';
