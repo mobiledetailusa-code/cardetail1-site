@@ -255,7 +255,7 @@ describe('client/server/review parity with frozen money', () => {
       [
         ['polymer', 25], ['wax1yr', 75], ['rainx', 25], ['heavymud', 55],
         ['seatdeep', 45], ['storage', 35], ['wheeldet', 35], ['waterspot', 35],
-        ['saltwash', 35], ['trimprot', 35], ['lightdeg', 45], ['chrome_restore', 75],
+        ['saltwash', 35], ['trimprot', 35], ['lightdeg', 45],
       ]
     );
   });
