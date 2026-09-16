@@ -76,9 +76,13 @@ function loadTryGenericConfirm(stOverrides, fields) {
       boatType: '', units: 1,
     }, stOverrides),
     PRICING: { powersports: { tiers: {
-      motorcycle: { label: 'Motorcycle', wash: 100, full: 225, premium: 315 },
-      atv: { label: 'ATV', wash: 100, full: 225, premium: 315 },
+      motorcycle: { label: 'Motorcycle', wash: 100, full: 225, premium: 315, maintenance: 175, restore: 225 },
+      motorcycle_large: { label: 'Large Motorcycle', wash: 100, full: 225, premium: 315, maintenance: 190, restore: 250 },
+      motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', maintenance: 200, restore: 275 },
+      atv: { label: 'ATV', wash: 100, full: 225, premium: 315, maintenance: 175, restore: 215 },
       utv: { label: 'UTV / Side-by-Side', wash: 125, full: 280, premium: 395 },
+      utv_standard: { label: 'Side-by-Side / UTV', wash: 125, full: 280, premium: 395, maintenance: 190, restore: 240 },
+      utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash: 125, full: 280, premium: 395, maintenance: 200, restore: 275 },
     } } },
     CD1PowersportsCatalog: PowersportsCatalog,
     CD1PowersportsBookingSafety: PowersportsSafety,
@@ -341,9 +345,8 @@ describe('package compatibility per specialty category', () => {
     assert.match(boatsPage, /data-booking-package="maint"/);
     assert.match(boatsPage, /data-booking-package="full"/);
     assert.match(boatsPage, /data-booking-package="premium"/);
-    assert.match(psPage, /data-booking-package="wash"/);
-    assert.match(psPage, /data-booking-package="full"/);
-    assert.match(psPage, /data-booking-package="premium"/);
+    assert.match(psPage, /data-booking-package="maintenance"/);
+    assert.match(psPage, /data-booking-package="restore"/);
   });
 
   it('resolvePackageIntentForCategory keeps specialty IDs and does not invent Cars packages', () => {

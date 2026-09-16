@@ -20,7 +20,7 @@ const HUB_PAGES = [
 const PACKAGE_MAP = {
   'boats-detailing.html': { cat: 'boats', pkgs: ['maint', 'full', 'premium'] },
   'rv-detailing.html': { cat: 'rvs', pkgs: ['maint_light', 'interior', 'full', 'premium'] },
-  'powersports-detailing.html': { cat: 'powersports', pkgs: ['wash', 'full', 'premium'] },
+  'powersports-detailing.html': { cat: 'powersports', pkgs: ['maintenance', 'restore'] },
 };
 
 function sitemapUrls() {

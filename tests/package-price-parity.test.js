@@ -31,7 +31,7 @@ const OUT_OF_SCOPE_ADDON_PRICES = {
   cars: { pethair: 95, superint: 125, odor: 90, mold: 149, sanitize: 65, biohazard: 115, engine: 45, floormats: 20, rainx: 25, polymer: 25, wax1yr: 75, claybar: 45, headlight: 90, babyseat: 20, stroller: 20, trashcans: 25, ozone: 40 },
   boats: { rainx: 25, polymer: 25, wax1yr: 75, chrome: 85, odor: 90, mold: 149, sanitize: 65, biohazard: 115, trashcans: 25 },
   rvs: { polymer: 25, wax1yr: 75, rainx: 25, biohazard: 115, sanitize: 75, superint: 135, awning: 50, roof: 50, capfront: 149, pethair: 95, odor: 90, trashcans: 25 },
-  powersports: { polymer: 25, wax1yr: 75, rainx: 25, heavymud: 55, seatdeep: 45, storage: 35, wheeldet: 35, waterspot: 35, saltwash: 35, trimprot: 35, lightdeg: 45 },
+  powersports: { polymer: 25, wax1yr: 75, rainx: 25, heavymud: 55, seatdeep: 45, storage: 35, wheeldet: 35, waterspot: 35, saltwash: 35, trimprot: 35, lightdeg: 45, chrome_restore: 75 },
   fleet: { polymer: 25, trashcans: 25, disinfect: 20, biohazard: 115, odor: 99, heavymud: 65 },
 };
 
@@ -223,7 +223,11 @@ test('static starting-price surfaces are verified against the catalog', () => {
   const carRefresh = Math.min(...Object.values(PRICING.cars.tiers).map((tier) => tier.refresh));
   const boat = LENGTH_PRICING.boats.packages.maint.min;
   const rv = getLengthPrice('rvs', 'maint', LENGTH_PRICING.rvs.min, 'travel');
-  const powersports = Math.min(...Object.values(PRICING.powersports.tiers).map((tier) => tier.wash));
+  const powersports = Math.min(
+    ...Object.values(PRICING.powersports.tiers)
+      .map((tier) => Number(tier.maintenance))
+      .filter((price) => price > 0)
+  );
 
   for (const file of BOOKING_PAGES) {
     const html = read(file);
@@ -251,7 +255,7 @@ test('static starting-price surfaces are verified against the catalog', () => {
   }
 
   assert.match(read('boats-detailing.html'), new RegExp(`Marine Wash[\\s\\S]*?From \\$${boat}<`));
-  assert.match(read('powersports-detailing.html'), new RegExp(`Wash &amp; Shine[\\s\\S]*?From \\$${powersports}<`));
+  assert.match(read('powersports-detailing.html'), new RegExp(`Maintenance Detail[\\s\\S]*?From \\$${powersports}<`));
   for (const [packageId, rule] of Object.entries(LENGTH_PRICING.rvs.packages)) {
     const minimum = rule.base + rule.ratePerFoot * LENGTH_PRICING.rvs.min;
     assert.match(read('rv-detailing.html'), new RegExp(`data-rv-tier="${packageId}"[\\s\\S]*?min \\$${minimum}<`));
@@ -266,7 +270,7 @@ test('AI chat starting prices are derived from the same catalog', () => {
     carWash: 110,
     boats: 170,
     rvs: 238,
-    powersports: 100,
+    powersports: 175,
   });
   for (const price of Object.values(CHAT_STARTING_PRICES)) {
     assert.match(BUSINESS_SYSTEM, new RegExp(`\\$${price}\\b`));

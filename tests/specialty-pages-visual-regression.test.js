@@ -22,7 +22,7 @@ const PAGES = [
 const PRICES = {
   'boats-detailing.html': ['From $170', 'From $380', 'From $595'],
   'rv-detailing.html': ['Select This RV Package', 'Full RV Detail', 'MOST POPULAR', 'BEST FINISH'],
-  'powersports-detailing.html': ['From $100', 'From $225', 'From $310'],
+  'powersports-detailing.html': ['From $175', 'From $215'],
 };
 
 test('specialty pages exist with unique SEO essentials', () => {
@@ -84,7 +84,7 @@ test('package IDs and listed prices match the canonical catalog', () => {
   assert.match(read('boats-detailing.html'), /data-booking-package="premium"/);
   assert.match(read('rv-detailing.html'), /data-booking-package="maint_light"/);
   assert.match(read('rv-detailing.html'), /data-booking-package="full"/);
-  assert.match(read('powersports-detailing.html'), /data-booking-package="wash"/);
+  assert.match(read('powersports-detailing.html'), /data-booking-package="maintenance"/);
   for (const page of PAGES) {
     const html = read(page);
     for (const price of PRICES[page]) assert.match(html, new RegExp(price.replace('$', '\\$')));

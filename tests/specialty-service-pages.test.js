@@ -44,7 +44,7 @@ const CATEGORY_BY_PAGE = {
 const PACKAGE_BY_PAGE = {
   'boats-detailing.html': ['maint', 'full', 'premium'],
   'rv-detailing.html': ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
-  'powersports-detailing.html': ['wash', 'full', 'premium'],
+  'powersports-detailing.html': ['maintenance', 'restore'],
 };
 
 /** Approved real-work / category media (no car filler). */
@@ -501,7 +501,8 @@ describe('local booking CTAs (no homepage redirect)', () => {
     for (const page of SPECIALTY_PAGES) {
       const html = read(page);
       const ctaBlocks = html.match(/<button[^>]*package-booking-cta[\s\S]*?<\/button>/g) || [];
-      assert.ok(ctaBlocks.length >= 3, `${page} expected package CTAs`);
+      const minCtas = page === 'powersports-detailing.html' ? 2 : 3;
+      assert.ok(ctaBlocks.length >= minCtas, `${page} expected package CTAs`);
       for (const block of ctaBlocks) {
         assert.doesNotMatch(block, /href=/);
         assert.match(block, /type="button"/);

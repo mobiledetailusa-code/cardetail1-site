@@ -26,15 +26,14 @@
     motorcycle_large: Object.freeze({
       label: 'Large Motorcycle',
       description: 'Large cruiser, touring or bagger motorcycle',
-      priceTier: 'motorcycle',
+      priceTier: 'motorcycle_large',
       bookable: true,
     }),
     motorcycle_trike: Object.freeze({
       label: 'Trike / 3-Wheel Motorcycle',
       description: 'Factory three-wheel motorcycle',
-      priceTier: null,
-      bookable: false,
-      contactReason: 'Online Trike pricing is awaiting owner approval.',
+      priceTier: 'motorcycle_trike',
+      bookable: true,
     }),
     atv: Object.freeze({
       label: 'ATV / Quad',
@@ -45,13 +44,13 @@
     utv_standard: Object.freeze({
       label: 'Side-by-Side / UTV',
       description: 'Standard or non-crew side-by-side / utility vehicle',
-      priceTier: 'utv',
+      priceTier: 'utv_standard',
       bookable: true,
     }),
     utv_large: Object.freeze({
       label: 'Large / Crew Side-by-Side / UTV',
       description: 'Explicit Crew, MAX, 4-seat or extended configuration',
-      priceTier: 'utv',
+      priceTier: 'utv_large',
       bookable: true,
     }),
   });
@@ -73,7 +72,7 @@
     ['Can-Am', 'utv', 'utv_standard', 'Side-by-Side / UTV', null, 'bookable', ['Commander', 'Defender', 'Maverick R', 'Maverick X3']],
     ['Can-Am', 'utv', 'utv_large', 'Large / Crew Side-by-Side / UTV', null, 'bookable', [['Commander MAX', 'MAX'], ['Defender MAX', 'MAX']]],
     ['Can-Am', 'atv', 'atv', 'ATV / Quad', null, 'bookable', ['Outlander', 'Outlander MAX', 'Renegade']],
-    ['Can-Am', 'motorcycle_trike', 'motorcycle_trike', 'Trike / 3-Wheel Motorcycle', '3-wheel', 'price_review', ['Ryker', 'Spyder F3', 'Spyder RT']],
+    ['Can-Am', 'motorcycle_trike', 'motorcycle_trike', 'Trike / 3-Wheel Motorcycle', '3-wheel', 'bookable', ['Ryker', 'Spyder F3', 'Spyder RT']],
 
     ['CFMOTO', 'motorcycle', 'motorcycle', 'Motorcycle', null, 'bookable', ['300NK', '450SS', '650NK', '800MT']],
     ['CFMOTO', 'atv', 'atv', 'ATV / Quad', null, 'bookable', ['CForce 400', 'CForce 600', 'CForce 800']],
@@ -137,7 +136,7 @@
     ['Polaris', 'atv', 'atv', 'ATV / Quad', null, 'bookable', [['ACE', 'single-seat'], 'Scrambler 850', 'Sportsman 450', 'Sportsman 570', 'Sportsman 850', 'Sportsman XP 1000']],
     ['Polaris', 'utv', 'utv_standard', 'Side-by-Side / UTV', null, 'bookable', ['General 1000', 'Ranger 500', 'Ranger 570', 'Ranger 1000', 'RZR 200', 'RZR Trail', 'RZR XP', 'RZR Pro R', 'RZR Turbo R']],
     ['Polaris', 'utv', 'utv_large', 'Large / Crew Side-by-Side / UTV', null, 'bookable', [['General XP 4', '4-seat'], ['Ranger Crew', 'Crew']]],
-    ['Polaris', 'motorcycle_trike', 'motorcycle_trike', 'Trike / 3-Wheel Motorcycle', '3-wheel', 'price_review', ['Slingshot']],
+    ['Polaris', 'motorcycle_trike', 'motorcycle_trike', 'Trike / 3-Wheel Motorcycle', '3-wheel', 'bookable', ['Slingshot']],
 
     ['Sea-Doo', 'pwc', null, 'Jet Ski / PWC', null, 'route_boats', ['Explorer Pro', 'FishPro Scout', 'FishPro Sport', 'FishPro Trophy', 'GTR', 'GTR-X', 'GTI', 'GTI SE', 'GTX', 'GTX Limited', 'RXP-X', 'RXT-X', 'Spark', 'Spark Trixx', 'Wake', 'Wake Pro']],
     ['Sea-Doo', 'boat', null, 'Pontoon boat', 'pontoon', 'route_boats', ['Switch', 'Switch Cruise']],

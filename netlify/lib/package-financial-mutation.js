@@ -81,6 +81,8 @@ const PACKAGE_DISPLAY = {
     essential: 'Essential Detail',
     full: 'Full Detail',
     premium: 'Premium Detail',
+    maintenance: 'Maintenance Detail',
+    restore: 'Correction / Restoration Detail',
   },
   fleet: {
     maint: 'Fleet Maintenance Wash',

@@ -135,44 +135,37 @@ function expectSafeStop(row, status, messagePattern) {
     await replaceText(page, '#bk-zip', '07650');
     await page.waitForSelector('#bkcat-powersports:not(.locked)', { timeout: 5000 });
     await page.click('#bkcat-powersports');
-    await page.waitForSelector('#pk-wash', { visible: true, timeout: 5000 });
-    await page.click('#pk-wash');
+    await page.waitForSelector('#pk-maintenance', { visible: true, timeout: 5000 });
+    await page.click('#pk-maintenance');
     await page.waitForSelector('#g-make', { visible: true, timeout: 5000 });
 
     const rows = [];
 
     await selectKnown(page, 'Polaris', 'RZR Trail');
     rows.push(await snapshot(page, 'A1 RZR Trail'));
-    expectBookable(rows.at(-1), 'utv_standard', 'Side-by-Side / UTV', 125, 'utv');
+    expectBookable(rows.at(-1), 'utv_standard', 'Side-by-Side / UTV', 190, 'utv_standard');
 
     await selectKnown(page, 'Harley-Davidson', 'Road Glide');
     rows.push(await snapshot(page, 'A2 RZR → Road Glide'));
-    expectBookable(rows.at(-1), 'motorcycle_large', 'Large Motorcycle', 100, 'motorcycle');
+    expectBookable(rows.at(-1), 'motorcycle_large', 'Large Motorcycle', 190, 'motorcycle_large');
     assert.doesNotMatch(`${rows.at(-1).tierLabel} ${rows.at(-1).vehicleLabel}`, /UTV|Side-by-Side/i);
 
     await selectKnown(page, 'Polaris', 'RZR Trail');
     rows.push(await snapshot(page, 'B Road Glide → RZR'));
-    expectBookable(rows.at(-1), 'utv_standard', 'Side-by-Side / UTV', 125, 'utv');
+    expectBookable(rows.at(-1), 'utv_standard', 'Side-by-Side / UTV', 190, 'utv_standard');
 
     for (const fixture of [
-      ['C Indian Challenger', 'Indian Motorcycle', 'Challenger', 'motorcycle_large', 'Large Motorcycle', 100, 'motorcycle'],
-      ['F Honda FourTrax Rancher', 'Honda', 'FourTrax Rancher', 'atv', 'ATV / Quad', 100, 'atv'],
-      ['G Massimo MSA 550', 'Massimo', 'MSA 550', 'atv', 'ATV / Quad', 100, 'atv'],
-      ['H Polaris General XP 4', 'Polaris', 'General XP 4', 'utv_large', 'Large / Crew Side-by-Side / UTV', 125, 'utv'],
-      ['I Polaris RZR Trail', 'Polaris', 'RZR Trail', 'utv_standard', 'Side-by-Side / UTV', 125, 'utv'],
+      ['C Indian Challenger', 'Indian Motorcycle', 'Challenger', 'motorcycle_large', 'Large Motorcycle', 190, 'motorcycle_large'],
+      ['D Can-Am Spyder RT', 'Can-Am', 'Spyder RT', 'motorcycle_trike', 'Trike / 3-Wheel Motorcycle', 200, 'motorcycle_trike'],
+      ['E Polaris Slingshot', 'Polaris', 'Slingshot', 'motorcycle_trike', 'Trike / 3-Wheel Motorcycle', 200, 'motorcycle_trike'],
+      ['F Honda FourTrax Rancher', 'Honda', 'FourTrax Rancher', 'atv', 'ATV / Quad', 175, 'atv'],
+      ['G Massimo MSA 550', 'Massimo', 'MSA 550', 'atv', 'ATV / Quad', 175, 'atv'],
+      ['H Polaris General XP 4', 'Polaris', 'General XP 4', 'utv_large', 'Large / Crew Side-by-Side / UTV', 200, 'utv_large'],
+      ['I Polaris RZR Trail', 'Polaris', 'RZR Trail', 'utv_standard', 'Side-by-Side / UTV', 190, 'utv_standard'],
     ]) {
       await selectKnown(page, fixture[1], fixture[2]);
       rows.push(await snapshot(page, fixture[0]));
       expectBookable(rows.at(-1), fixture[3], fixture[4], fixture[5], fixture[6]);
-    }
-
-    for (const fixture of [
-      ['D Can-Am Spyder RT', 'Can-Am', 'Spyder RT'],
-      ['E Polaris Slingshot', 'Polaris', 'Slingshot'],
-    ]) {
-      await selectKnown(page, fixture[1], fixture[2]);
-      rows.push(await snapshot(page, fixture[0]));
-      expectSafeStop(rows.at(-1), 'price_review', /Trike pricing is not yet approved/i);
     }
 
     for (const fixture of [

@@ -2021,7 +2021,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Powersports</div>
             <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Jet Ski</div>
-            <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $100</div>
+            <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $175</div>
           </div>
 
         </div>
@@ -2919,30 +2919,43 @@ const PRICING = {
   },
   powersports: {
     tiers: {
-      motorcycle: {label:'Motorcycle',         icon:'🏍️', desc:'Street · Cruiser · Sport · Touring',  wash:100,  essential:160, full:225, premium:315},
-      atv:        {label:'ATV',                icon:'🏎️', desc:'All-Terrain Vehicle · Quad',           wash:100,  essential:160, full:225, premium:315},
-      utv:        {label:'UTV / Side-by-Side', icon:'🚜', desc:'Side-by-side · Sport UTV · Crew cab',  wash:125, essential:190, full:280, premium:395},
-      jetski:     {label:'Jet Ski / PWC',      icon:'🌊', desc:'PWC · Sea-Doo · Yamaha · Kawasaki',   wash:100,  essential:160, full:225, premium:310},
+      motorcycle: {label:'Motorcycle', icon:'🏍️', desc:'Street · Sport · Standard', wash:100, essential:160, full:225, premium:315, maintenance:175, restore:225},
+      motorcycle_large: {label:'Large Motorcycle', icon:'🏍️', desc:'Cruiser · Touring · Bagger', wash:100, essential:160, full:225, premium:315, maintenance:190, restore:250},
+      motorcycle_trike: {label:'Trike / 3-Wheel Motorcycle', icon:'🏍️', desc:'Factory three-wheel motorcycle', maintenance:200, restore:275},
+      atv:        {label:'ATV',                     icon:'🏎️', desc:'All-Terrain Vehicle · Quad',                        wash:100, essential:160, full:225, premium:315, maintenance:175, restore:215},
+      utv:        {label:'UTV / Side-by-Side',      icon:'🚜', desc:'Legacy price-tier key for historical bookings',     wash:125, essential:190, full:280, premium:395},
+      utv_standard: {label:'Side-by-Side / UTV',    icon:'🚜', desc:'Standard or non-crew side-by-side',                 wash:125, essential:190, full:280, premium:395, maintenance:190, restore:240},
+      utv_large: {label:'Large / Crew Side-by-Side / UTV', icon:'🚜', desc:'Crew, MAX, 4-seat or extended',            wash:125, essential:190, full:280, premium:395, maintenance:200, restore:275},
+      golfcart:   {label:'Golf Cart',               icon:'⛳', desc:'Golf cart · Neighborhood EV · Personal transport',  wash:90,  essential:145, full:210, premium:295},
+      equipment:  {label:'Tractor / Equipment',     icon:'🛠️', desc:'Compact tractor · Skid steer · Bobcat · Utility',   wash:150, essential:230, full:340, premium:475},
+      jetski:     {label:'Jet Ski / PWC',           icon:'🌊', desc:'PWC · Sea-Doo · Yamaha · Kawasaki',                wash:100, essential:160, full:225, premium:310},
     },
     packages:[
-      {id:'wash',     name:'Wash & Shine',     icon:'🪣', tag:'Quick refresh + UV protection',               dur:'~45–75 min', popular:false,
+      {id:'maintenance', name:'Maintenance Detail', icon:'🧽', tag:'Best for routine cleaning, upkeep and protection.', dur:'Service duration depends on machine type and condition.', popular:false,
+        feats:['Detailed hand wash','Bug and road-grime removal','Wheels and tires cleaned','Accessible frame and suspension-area cleaning','Seat cleaning','Plastics and body panels cleaned','Plastic / trim protection','Accessible chrome and metal cleaning','Light chrome polish where appropriate','Hand-applied wax or sealant where appropriate','Final detailing and finishing'],
+        miss:['Compound or machine polish','Paint correction','Deep oxidation restoration','Deep chrome restoration']},
+      {id:'restore', name:'Correction / Restoration Detail', icon:'🏅', tag:'For paint enhancement, oxidation, deeper polishing and corrective work.', dur:'Service duration depends on machine type and condition.', popular:false,
+        feats:['Everything in Maintenance Detail','Compound / machine polishing where applicable','Paint enhancement','Light swirl correction','Water-spot correction','Deeper chrome and metal polishing','Light oxidation treatment','More intensive finishing'],
+        miss:['Severe oxidation or unsafe contamination — inspected before a final price']},
+      {id:'wash',     name:'Wash & Shine',     icon:'🪣', tag:'Quick refresh + UV protection',               dur:'~45–75 min', popular:false, legacy:true,
         feats:['Full exterior wash & rinse','Wheels & tires cleaned','Seat wipe-down','Plastics & body panels cleaned','UV protectant applied','Trailer rinse when accessible'],
         miss:['Deep degreasing','Machine polish','Wax/sealant']},
-      {id:'essential',name:'Essential Detail', icon:'🧽', tag:'Complete clean + conditioning + protection',  dur:'~1.5–2.5h',  popular:false,
+      {id:'essential',name:'Essential Detail', icon:'🧽', tag:'Complete clean + conditioning + protection',  dur:'~1.5–2.5h',  popular:false, legacy:true,
         feats:['Wash & Shine included','Deep frame & underbody cleaning','Engine area light clean','Seat cleaned & conditioned','UV protectant on all plastics','Accessible chrome/metal polished'],
         miss:['Machine polish','Machine wax','Paint enhancement']},
-      {id:'full',     name:'Full Detail',      icon:'🧼', tag:'Complete detail - most requested',            dur:'~2.5–3.5h',  popular:true,
+      {id:'full',     name:'Full Detail',      icon:'🧼', tag:'Complete detail — most requested',            dur:'~2.5–3.5h',  popular:false, legacy:true,
         feats:['Essential Detail included','Machine wax/sealant applied','Water spot removal','Full frame & chassis detail','Exhaust polish','Final quality inspection'],
         miss:[]},
-      {id:'premium',  name:'Premium Detail',   icon:'🏅', tag:'Showroom finish + max protection',            dur:'~3–4.5h',    popular:false,
+      {id:'premium',  name:'Premium Detail',   icon:'🏅', tag:'Showroom finish + max protection',            dur:'~3–4.5h',    popular:false, legacy:true,
         feats:['Full Detail included','Paint & plastic enhancement polish','Light oxidation removal','Premium polymer sealant','Chrome deep polish','Engine bay detailing','Show-quality inspection'],
         miss:[]}
     ],
     addons:[
+      {id:'heavymud',   name:'Heavy Mud / Off-Road Buildup', desc:'Extra cleaning for packed mud, clay, and excessive off-road buildup. Normal trail dirt is included in the package.', price:55, publicNew:true},
+      {id:'chrome_restore', name:'Deep Chrome / Metal Restoration', desc:'Labor-changing deep chrome or metal restoration beyond light maintenance polish.', price:75, publicNew:true},
       {id:'polymer',    name:'Polymer Sealant',              desc:'Polymer paint and plastic sealant for protection and gloss', price:25},
       {id:'wax1yr',     name:'1-Year Carnauba Wax',          desc:'Premium carnauba wax for enhanced gloss and paint protection', price:75},
       {id:'rainx',      name:'Rain-X Windshield / Visor',    desc:'Water-repellent treatment on windshields, visors, and exterior glass', price:25},
-      {id:'heavymud',   name:'Heavy Mud / Trail Buildup',    desc:'Extra cleaning for heavy mud, clay, and trail grime on exterior surfaces', price:55},
       {id:'seatdeep',   name:'Seat Deep Clean',              desc:'Deep cleaning for seats and riding surfaces', price:45},
       {id:'storage',    name:'Storage Compartment Cleaning', desc:'Vacuum and wipe saddlebags, boxes, and accessible compartments', price:35},
       {id:'wheeldet',   name:'Wheel Detail',                 desc:'Deep wheel and rim cleaning on accessible surfaces', price:35},
@@ -3434,6 +3447,37 @@ function selectCategory(cat){
   bkGoTo(2);
 }
 
+function powersportsPublicFromPriceForPackage(pkgId){
+  const keys=['motorcycle','motorcycle_large','motorcycle_trike','atv','utv_standard','utv_large'];
+  let min=Infinity;
+  for(const key of keys){
+    const n=Number(PRICING.powersports.tiers[key] && PRICING.powersports.tiers[key][pkgId]);
+    if(n>0 && n<min) min=n;
+  }
+  return min;
+}
+function powersportsPublicFromPrice(){
+  return powersportsPublicFromPriceForPackage('maintenance');
+}
+function powersportsIsOffroadClass(serviceClass){
+  return serviceClass==='atv' || serviceClass==='utv_standard' || serviceClass==='utv_large';
+}
+function presentPowersportsPackage(pkg, serviceClass){
+  if(!pkg) return pkg;
+  if(pkg.id!=='restore') return pkg;
+  if(!powersportsIsOffroadClass(serviceClass)) return pkg;
+  return Object.assign({}, pkg, {
+    name:'Deep Detail & Restore',
+    tag:'Deeper cleaning and restoration for ATVs and side-by-sides.',
+  });
+}
+function bindPowersportsPackageCopy(){
+  if(ST.cat!=='powersports' || !ST.pkgId) return;
+  const base=(PRICING.powersports.packages||[]).find(p=>p.id===ST.pkgId);
+  if(!base) return;
+  ST.pkg=presentPowersportsPackage(base, ST.tierKey);
+}
+
 // ── STEP 2: PACKAGES ──────────────────────────────────────────────────────────
 function renderPackages(cat){
   const d=PRICING[cat];
@@ -3748,6 +3792,7 @@ function tryGenericConfirm(){
 
   if(ST.cat==='powersports'){
     const resolution=CD1PowersportsBookingSafety.resolveAndApply(ST,PRICING.powersports,make,model);
+    typeof bindPowersportsPackageCopy==='function'&&bindPowersportsPackageCopy();
     const canContinue=CD1PowersportsBookingSafety.presentResolution(ST,resolution,make,model,year,document);
     typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
     if(!canContinue) return;
@@ -5171,7 +5216,7 @@ function getCategoryFromBases(){
     cars:Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.interior)),
     boats:LENGTH_PRICING.boats.packages.maint.min,
     rvs:LENGTH_PRICING.rvs.packages.maint.min,
-    powersports:Math.min(...Object.values(PRICING.powersports.tiers).map(t=>Object.values(t).filter(v=>typeof v==='number')[0]||99)),
+    powersports:powersportsPublicFromPrice(),
   };
 }
 function formatLocFrom(cat){
@@ -5220,7 +5265,7 @@ const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & Trucks',    desc:'Most requested in your area', from:'From $190' },
   boats:      { ico:'🚥️️️️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $170' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $8/ft' },
-  powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $100' },
+  powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $175' },
 
 };
 
@@ -5323,7 +5368,7 @@ function updateBkFromPrices(){
   const BASE = {
     boats:      { price: LENGTH_PRICING.boats.packages.maint.min },
     rvs:        { price: LENGTH_PRICING.rvs.packages.maint.min },
-    powersports:{ price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=>Object.values(t).filter(v=>typeof v==='number')[0]||99)) },
+    powersports:{ price: powersportsPublicFromPrice() },
   };
   syncTravelFromKnownZip();
   const fee=getKnownZip5()&&activeZone?getTravelFeeAmount():0;
@@ -5938,7 +5983,7 @@ function _updateHomeFromPrices(){
     cars:        { price: Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.maint)), suffix:' · by vehicle size' },
     boats:       { price: LENGTH_PRICING.boats.packages.maint.min,     suffix:' · by vessel length' },
     rvs:         { price: getLengthPrice('rvs','maint',LENGTH_PRICING.rvs.min,'travel'),    suffix:' · by RV length' },
-    powersports: { price: Math.min(...Object.values(PRICING.powersports.tiers).map(t=> Object.values(t).filter(v=>typeof v==='number')[0]||89)), suffix:' · by vehicle type' },
+    powersports: { price: powersportsPublicFromPrice(), suffix:' · by vehicle type' },
 
   };
   Object.entries(BASE).forEach(([cat, info])=>{

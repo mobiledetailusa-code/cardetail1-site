@@ -55,12 +55,46 @@ const powersportsConfirmBlock = `  // Cars confirm only via make-in / model-sel 
 
   if(ST.cat==='powersports'){
     const resolution=CD1PowersportsBookingSafety.resolveAndApply(ST,PRICING.powersports,make,model);
+    typeof bindPowersportsPackageCopy==='function'&&bindPowersportsPackageCopy();
     const canContinue=CD1PowersportsBookingSafety.presentResolution(ST,resolution,make,model,year,document);
     typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
     if(!canContinue) return;
   }
 
   if(!ST.tierKey)return;`;
+
+const powersportsHelperBlock = `function powersportsPublicFromPriceForPackage(pkgId){
+  const keys=['motorcycle','motorcycle_large','motorcycle_trike','atv','utv_standard','utv_large'];
+  let min=Infinity;
+  for(const key of keys){
+    const n=Number(PRICING.powersports.tiers[key] && PRICING.powersports.tiers[key][pkgId]);
+    if(n>0 && n<min) min=n;
+  }
+  return min;
+}
+function powersportsPublicFromPrice(){
+  return powersportsPublicFromPriceForPackage('maintenance');
+}
+function powersportsIsOffroadClass(serviceClass){
+  return serviceClass==='atv' || serviceClass==='utv_standard' || serviceClass==='utv_large';
+}
+function presentPowersportsPackage(pkg, serviceClass){
+  if(!pkg) return pkg;
+  if(pkg.id!=='restore') return pkg;
+  if(!powersportsIsOffroadClass(serviceClass)) return pkg;
+  return Object.assign({}, pkg, {
+    name:'Deep Detail & Restore',
+    tag:'Deeper cleaning and restoration for ATVs and side-by-sides.',
+  });
+}
+function bindPowersportsPackageCopy(){
+  if(ST.cat!=='powersports' || !ST.pkgId) return;
+  const base=(PRICING.powersports.packages||[]).find(p=>p.id===ST.pkgId);
+  if(!base) return;
+  ST.pkg=presentPowersportsPackage(base, ST.tierKey);
+}
+
+`;
 
 const requiredMarkers = [
   'id="f-water"',
@@ -162,6 +196,35 @@ function ensurePowersportsAssets(html) {
   return next.replace('</head>', () => `${missing.join('\n')}\n</head>`);
 }
 
+function extractBraceBlock(html, start) {
+  const open = html.indexOf('{', start);
+  if (open < 0) return null;
+  let depth = 0;
+  for (let i = open; i < html.length; i += 1) {
+    if (html[i] === '{') depth += 1;
+    else if (html[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return html.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function extractPricingPowersports(html) {
+  const pricing = html.search(/(?:let|const) PRICING = \{/);
+  if (pricing < 0) return null;
+  const start = html.indexOf('\n  powersports: {', pricing);
+  if (start < 0) return null;
+  return extractBraceBlock(html, start + 1);
+}
+
+function syncPricingPowersports(html, canonical) {
+  if (!canonical) return html;
+  const current = extractPricingPowersports(html);
+  if (!current) return html;
+  return html.replace(current, () => canonical);
+}
+
 function syncPowersportsCatalog(html) {
   const root = html.indexOf('window.SPECIALTY_MODELS = {');
   if (root < 0) return html;
@@ -213,6 +276,47 @@ function syncPowersportsBookingLogic(html) {
   next = next.replace(
     "  motorcycle:'motorcycle', atv:'atv', utv:'utv', golfcart:'golfcart', equipment:'equipment', jetski:'jetski',",
     "  motorcycle:'motorcycle', motorcycle_large:'cruiser', motorcycle_trike:'motorcycle',\n  atv:'atv', utv:'utv', utv_standard:'utv', utv_large:'utv', golfcart:'golfcart', equipment:'equipment', jetski:'jetski',"
+  );
+
+  if (!next.includes('function powersportsPublicFromPrice(')) {
+    next = next.replace('// ── STEP 2: PACKAGES', () => `${powersportsHelperBlock}// ── STEP 2: PACKAGES`);
+  }
+
+  next = next.replace(
+    '  const pkgKey = cat===\'fleet\'?\'essential\':\'full\';\n  const categoryVisual=CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;\n  grid.innerHTML=d.packages.map(p=>{',
+    "  const pkgKey = cat==='fleet'?'essential':'full';\n  const categoryVisual=CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;\n  const packages=cat==='powersports' ? d.packages.filter(p=>!p.legacy) : d.packages;\n  grid.innerHTML=packages.map(p=>{"
+  );
+
+  if (!next.includes("ST.cat==='powersports' && !a.publicNew")) {
+    next = next.replace(
+      /    if\(ST\.cat==='cars' && ST\.pkgId==='maint' && addonRequiresShampooOrSteam\(a\)\) return false;/,
+      "    if(ST.cat==='powersports' && !a.publicNew) return false;\n    if(ST.cat==='cars' && ST.pkgId==='maint' && addonRequiresShampooOrSteam(a)) return false;"
+    );
+  }
+
+  next = next.replace(
+    /powersports:Math\.min\(\.\.\.Object\.values\(PRICING\.powersports\.tiers\)\.map\(t=>Object\.values\(t\)\.filter\(v=>typeof v==='number'\)\[0\]\|\|99\)\)/,
+    'powersports:powersportsPublicFromPrice()'
+  );
+  next = next.replace(
+    /powersports:\{\s*price: Math\.min\(\.\.\.Object\.values\(PRICING\.powersports\.tiers\)\.map\(t=>Object\.values\(t\)\.filter\(v=>typeof v==='number'\)\[0\]\|\|99\)\)\s*\}/,
+    'powersports:{ price: powersportsPublicFromPrice() }'
+  );
+  next = next.replace(
+    /powersports: \{ price: Math\.min\(\.\.\.Object\.values\(PRICING\.powersports\.tiers\)\.map\(t=> Object\.values\(t\)\.filter\(v=>typeof v==='number'\)\[0\]\|\|89\)\)/,
+    'powersports: { price: powersportsPublicFromPrice()'
+  );
+  next = next.replace(
+    /id="bkfrom-powersports" style="font-size:12px">From \$100</g,
+    'id="bkfrom-powersports" style="font-size:12px">From $175<'
+  );
+  next = next.replace(
+    /powersports:\{ ico:'🏍️', name:'Powersports',      desc:'[^']*',\s+from:'From \$100' \}/g,
+    (matched) => matched.replace("from:'From $100'", "from:'From $175'")
+  );
+  next = next.replace(
+    /id="hfrom-powersports-amt">\$100</g,
+    'id="hfrom-powersports-amt">$175<'
   );
 
   return next;
@@ -274,6 +378,7 @@ function applyTransforms(html, canonicalForm, canonicalReview) {
   next = ensureReviewAssets(next);
   next = ensureScripts(next);
   next = ensurePowersportsAssets(next);
+  next = syncPricingPowersports(next, canonicalPowersportsPricing);
   next = syncPowersportsCatalog(next);
   next = syncPowersportsBookingLogic(next);
   next = next.replace(
@@ -286,6 +391,7 @@ function applyTransforms(html, canonicalForm, canonicalReview) {
 const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const canonicalForm = extractFormBlock(indexHtml);
 const canonicalReview = extractMarked(indexHtml, REVIEW_START, SUCCESS_END);
+const canonicalPowersportsPricing = extractPricingPowersports(indexHtml);
 if (!canonicalForm) {
   console.error('Canonical BK_DETAILS_FORM block missing from index.html');
   process.exit(1);

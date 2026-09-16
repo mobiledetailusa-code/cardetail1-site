@@ -89,9 +89,15 @@ const PRICING = {
   },
   powersports: {
     tiers: {
-      motorcycle: { label: 'Motorcycle', wash: 100, essential: 160, full: 225, premium: 315 },
-      atv: { label: 'ATV', wash: 100, essential: 160, full: 225, premium: 315 },
+      // New public packages: maintenance / restore. wash/essential/full/premium
+      // remain so historical bookings keep their original dollar meaning.
+      motorcycle: { label: 'Motorcycle', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 175, restore: 225 },
+      motorcycle_large: { label: 'Large Motorcycle', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 190, restore: 250 },
+      motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', maintenance: 200, restore: 275 },
+      atv: { label: 'ATV', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 175, restore: 215 },
       utv: { label: 'UTV / Side-by-Side', wash: 125, essential: 190, full: 280, premium: 395 },
+      utv_standard: { label: 'Side-by-Side / UTV', wash: 125, essential: 190, full: 280, premium: 395, maintenance: 190, restore: 240 },
+      utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash: 125, essential: 190, full: 280, premium: 395, maintenance: 200, restore: 275 },
       jetski: { label: 'Jet Ski / PWC', wash: 100, essential: 160, full: 225, premium: 310 },
     },
     addons: [
@@ -99,6 +105,7 @@ const PRICING = {
       { id: 'heavymud', price: 55 }, { id: 'seatdeep', price: 45 }, { id: 'storage', price: 35 },
       { id: 'wheeldet', price: 35 }, { id: 'waterspot', price: 35 }, { id: 'saltwash', price: 35 },
       { id: 'trimprot', price: 35 }, { id: 'lightdeg', price: 45 },
+      { id: 'chrome_restore', price: 75 },
     ],
   },
   fleet: {
@@ -225,6 +232,10 @@ const PKG_ID_ALIASES = {
   'wash & shine': 'wash',
   'essential detail': 'essential',
   'full detail': 'full',
+  'correction / restoration detail': 'restore',
+  'correction/restoration detail': 'restore',
+  'deep detail & restore': 'restore',
+  'deep detail and restore': 'restore',
   'fleet maintenance wash': 'maint',
   'fleet essential detail': 'essential',
   'fleet full detail': 'full',
@@ -304,6 +315,12 @@ function inferPkgId(vehicle, booking) {
     return vehicle.pkgId;
   }
   const name = String(vehicle.pkgName || booking.package || '').trim().toLowerCase();
+  const catEarly = vehicle.cat || booking?.vehicleCategory;
+  // Powersports "Maintenance Detail" must not collapse onto cars/fleet `maint`.
+  if (catEarly === 'powersports') {
+    if (name === 'maintenance detail' || name === 'maintenance') return 'maintenance';
+    if (name === 'premium detail') return 'premium';
+  }
   if (PKG_ID_ALIASES[name]) return PKG_ID_ALIASES[name];
   const cat = vehicle.cat || booking.vehicleCategory;
   const pkgs = PRICING[cat];
