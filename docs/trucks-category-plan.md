@@ -27,8 +27,8 @@ Pickups already price under Cars. Over-the-road **semis** are a different produc
 
 | Asset | Path | Role |
 |-------|------|------|
-| Category card | `assets/icons/3d/cat-trucks.webp` | Booking grid `bkcat-trucks` — **semi tractor**, not pickup |
-| Package family | `assets/icons/3d/pack-trucks-family.webp` | Day cab + sleeper cab tractors |
+| Category card | `assets/icons/3d/cat-trucks.webp` | Home + booking — **day cab + tractor-trailer**, not pickup |
+| Package family | `assets/icons/3d/pack-trucks-family.webp` | Day cab + sleeper with trailer |
 | Cars pickup tier (unchanged) | studio `midsize-pickup.webp` / `tier-truck.webp` | Remains under **Cars** |
 
 Wire in `assets/icon-3d.js`:
@@ -135,3 +135,4 @@ Until phase 2, heavy sleeper work → **`superint` (+$125)** + notes.
 | 2026-09-16 | Cab Type section (day/sleeper) + semi icons; Trucks labeled specialty section |
 
 | 2026-09-16 | Home specialty nav + `trucks-detailing.html`; EN-only copy; footer Cars & SUVs separate from Trucks / Semis; checkout coerce hardened |
+| 2026-09-16 | Home loc carousel shows Trucks card; cat icon = day cab + tractor-trailer |

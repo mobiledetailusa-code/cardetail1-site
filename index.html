@@ -2617,7 +2617,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="bk-cat-specialty">
             <div class="bk-cat-specialty-label">Trucks, boats, RVs &amp; powersports</div>
           <div class="svc-card locked" id="bkcat-trucks" onclick="selectCategory('trucks')">
-            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-trucks.webp" alt="Commercial semi-trucks and sleeper cabs receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
+            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-trucks.webp" alt="Commercial day cab and tractor-trailer semis receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Trucks</div>
             <div class="svc-desc" style="font-size:12px">Semi-trucks · Day cab · Sleeper cab</div>
             <div class="svc-cat-note" id="bkfrom-trucks">From $325 · semis only (not pickups)</div>
@@ -4253,7 +4253,7 @@ const VEHICLE_VISUALS = {
 
 const CATEGORY_VISUALS = {
   cars:        { img:'assets/vehicles/premium/cars-suvs.webp',       alt:'Cars SUVs and pickups mobile detailing' },
-  trucks:      { img:'assets/icons/3d/cat-trucks.webp',              alt:'Commercial semi-trucks and sleeper cabs mobile detailing' },
+  trucks:      { img:'assets/icons/3d/cat-trucks.webp',              alt:'Commercial day cab and tractor-trailer semis mobile detailing' },
   boats:       { img:'assets/vehicles/premium/marine.webp',          alt:'Boat and marine mobile detailing' },
   rvs:         { img:'assets/vehicles/premium/rv-trailer.webp',      alt:'RV motorhome and travel trailer mobile detailing' },
   powersports: { img:'assets/vehicles/premium/powersports.webp',     alt:'Motorcycle ATV and jet ski mobile detailing' },
@@ -7247,21 +7247,21 @@ const ZIP_ZONES = {
 };
 
 const ZONE_POPULAR = {
-  nj_a:   ['cars','boats'],
-  nj_b:   ['cars','rvs','powersports'],
-  nyc:    ['cars','boats'],
-  ny_s:   ['cars','boats','rvs'],
-  ct:     ['cars','boats','rvs'],
-  pa_e:   ['cars','rvs','powersports'],
-  pa_p:   ['rvs','boats','cars'],
-  pa_ph:  ['cars','boats'],
-  pa_b:   ['cars','boats','rvs'],
-  default:['cars','boats','rvs','powersports'],
+  nj_a: ['cars','trucks','boats'],
+  nj_b: ['cars','trucks','rvs','powersports'],
+  nyc: ['cars','trucks','boats'],
+  ny_s: ['cars','trucks','boats','rvs'],
+  ct: ['cars','trucks','boats','rvs'],
+  pa_e: ['cars','trucks','rvs','powersports'],
+  pa_p: ['rvs','boats','cars','trucks'],
+  pa_ph: ['cars','trucks','boats'],
+  pa_b: ['cars','trucks','boats','rvs'],
+  default: ['cars','trucks','boats','rvs','powersports'],
 };
 
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & SUVs',      desc:'Mobile car detailing at your location', from:'From $190' },
-  trucks:     { ico:'🚛', name:'Trucks',           desc:'Semi-trucks & sleeper cabs', from:'From $325' },
+  trucks:     { ico:'🚛', name:'Trucks',           desc:'Day cab & tractor-trailer semis', from:'From $325' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine wash & detail on-site',    from:'From $170' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'Price by exact length' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs, golf carts',       from:'From $175' },
@@ -7318,7 +7318,7 @@ function applyZip(){
 
 function renderLocationCarousel(zoneKey){
   let cats   = ZONE_POPULAR[zoneKey] || ZONE_POPULAR.default;
-  cats = ['cars', ...cats.filter(c=>c!=='cars')];
+  cats = ['cars','trucks', ...cats.filter(c=>c!=='cars'&&c!=='trucks')];
   const scroll = document.getElementById('loc-scroll');
   if(!scroll) return;
   scroll.innerHTML = cats.map(cat=>{
@@ -7329,7 +7329,11 @@ function renderLocationCarousel(zoneKey){
       <div class="loc-name">${d.name}</div>
       <div class="loc-req">${d.desc}</div>
       <div class="loc-from">${formatLocFrom(cat)}</div>`;
-    const seoHref = cat === 'rvs' ? 'rv-detailing.html' : null;
+    const seoHref = cat === 'rvs' ? 'rv-detailing.html'
+      : cat === 'trucks' ? 'trucks-detailing.html'
+      : cat === 'boats' ? 'boats-detailing.html'
+      : cat === 'powersports' ? 'powersports-detailing.html'
+      : null;
     if(seoHref){
       return `<a href="${seoHref}" class="loc-card loc-card-link">${inner}</a>`;
     }

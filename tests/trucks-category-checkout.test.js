@@ -115,6 +115,17 @@ describe('trucks public surface english-only + home option', () => {
     assert.doesNotMatch(index, /Cars, SUVs &amp; Trucks/);
   });
 
+  it('home location carousel includes trucks after cars with refined icon assets', () => {
+    const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+    assert.match(index, /ZONE_POPULAR[\s\S]*nj_a:\s*\['cars','trucks'/);
+    assert.match(index, /cats = \['cars','trucks'/);
+    assert.match(index, /cat === 'trucks' \? 'trucks-detailing\.html'/);
+    assert.ok(fs.existsSync(path.join(root, 'assets/icons/3d/cat-trucks.webp')));
+    assert.ok(fs.existsSync(path.join(root, 'assets/icons/3d/pack-trucks-family.webp')));
+    const icon3d = fs.readFileSync(path.join(root, 'assets/icon-3d.js'), 'utf8');
+    assert.match(icon3d, /tractor-trailer|Day cab semi and sleeper tractor with trailer/);
+  });
+
   it('trucks specialty page bridges to book=trucks packages', () => {
     const html = fs.readFileSync(path.join(root, 'trucks-detailing.html'), 'utf8');
     assert.match(html, /data-booking-category="trucks"/);
