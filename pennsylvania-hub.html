@@ -4695,7 +4695,9 @@ function renderTierChips(cat){
     document.getElementById('tier-chips-wrap').style.display='none';
   }else{
     document.getElementById('tier-chips-wrap').style.display='block';
-    const tiers=PRICING[cat].tiers;
+    const tiers=cat==='powersports'
+      ? CD1PowersportsBookingSafety.fallbackTiers(PRICING.powersports)
+      : PRICING[cat].tiers;
     wrap.innerHTML=Object.entries(tiers).map(([k,t])=>{
       const prices=Object.values(t).filter(v=>typeof v==='number');
       const minP=applyRichPrice(Math.min(...prices));

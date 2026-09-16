@@ -191,7 +191,7 @@ function syncPowersportsBookingLogic(html) {
   // Unknown/free-form models get explicit service-family choices, not raw
   // internal price tiers (and never browser-only golf/equipment prices).
   next = next.replace(
-    /    const tiers=PRICING\[cat\]\.tiers;\n    wrap\.innerHTML=Object\.entries\(tiers\)(?:\.filter\([^\n]+\))?\.map/,
+    /    const tiers=PRICING\[cat\]\.tiers;\r?\n    wrap\.innerHTML=Object\.entries\(tiers\)(?:\.filter\([^\r\n]+\))?\.map/,
     () => `    const tiers=cat==='powersports'\n      ? CD1PowersportsBookingSafety.fallbackTiers(PRICING.powersports)\n      : PRICING[cat].tiers;\n    wrap.innerHTML=Object.entries(tiers).map`
   );
 
