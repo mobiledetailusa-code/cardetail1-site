@@ -123,7 +123,7 @@ function powersportsVisual(record) {
     }
     return 'utv';
   }
-  if (fam === 'motorcycle_trike' || /trike|3-wheel/.test(sub)) return 'motorcycle';
+  if (fam === 'motorcycle_trike' || /trike|3-wheel/.test(sub)) return 'trike';
   if (fam === 'boat' || /pontoon/.test(sub)) return 'pontoon';
 
   // Explicit motorcycle subtypes from catalog groups

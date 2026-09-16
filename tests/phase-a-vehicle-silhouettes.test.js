@@ -23,7 +23,7 @@ const REQUIRED = [
   'premium-wagon.webp','jeep-wrangler.webp','compact-crossover.webp','midsize-crossover.webp',
   'luxury-crossover.webp','family-suv-3row.webp','family-minivan.webp','midsize-pickup.webp',
   'compact-van.webp','midsize-van.webp','cargo-van.webp','passenger-van.webp','truck.webp',
-  'motorcycle.webp','cruiser.webp','touring-bagger.webp','sportbike.webp','adventure-bike.webp','dirtbike.webp','scooter.webp',
+  'motorcycle.webp','cruiser.webp','touring-bagger.webp','motorcycle-trike.webp','sportbike.webp','adventure-bike.webp','dirtbike.webp','scooter.webp',
   'atv.webp','utv.webp','utv-crew.webp','golf-cart.webp','compact-tractor.webp','jetski.webp',
   'runabout.webp','center-console.webp','pontoon.webp','bass-boat.webp','cabin-cruiser.webp','sailboat.webp',
   'rv-class-a.webp','rv-class-b.webp','rv-class-c.webp','travel-trailer.webp','fifth-wheel.webp','airstream.webp',
@@ -39,8 +39,12 @@ const TIER_TO_FILE = {
   full_size_van_passenger: 'passenger-van.webp',
   truck: 'midsize-pickup.webp',
   motorcycle: 'motorcycle.webp',
+  motorcycle_large: 'touring-bagger.webp',
+  motorcycle_trike: 'motorcycle-trike.webp',
   atv: 'atv.webp',
   utv: 'utv.webp',
+  utv_standard: 'utv.webp',
+  utv_large: 'utv-crew.webp',
   jetski: 'jetski.webp',
 };
 
@@ -90,6 +94,24 @@ test('icon3dTier maps pricing tiers to refined studio renders', () => {
   assert.match(icon3d, /STUDIO_BASE/);
   for (const [tier, file] of Object.entries(TIER_TO_FILE)) {
     assert.match(icon3d, new RegExp(`${tier}:\\s*\\{[^}]*${file.replace('.', '\\.')}`));
+  }
+});
+
+test('powersports type chips pair distinct studio icons with descriptions', () => {
+  // Trike and Large/Crew UTV must not reuse the standard motorcycle / 2-seat UTV assets.
+  assert.match(icon3d, /motorcycle_trike:\s*\{\s*file:\s*'motorcycle-trike\.webp'/);
+  assert.match(icon3d, /utv_large:\s*\{\s*file:\s*'utv-crew\.webp'/);
+  assert.match(icon3d, /motorcycle_large:\s*\{\s*file:\s*'touring-bagger\.webp'/);
+  assert.match(icon3d, /utv_standard:\s*\{\s*file:\s*'utv\.webp'/);
+  assert.doesNotMatch(icon3d, /motorcycle_trike:\s*\{\s*file:\s*'motorcycle\.webp'/);
+  assert.doesNotMatch(icon3d, /utv_large:\s*\{\s*file:\s*'utv\.webp'/);
+
+  const hashes = new Map();
+  for (const file of ['motorcycle.webp', 'motorcycle-trike.webp', 'utv.webp', 'utv-crew.webp', 'touring-bagger.webp']) {
+    const buf = fs.readFileSync(path.join(root, 'assets/vehicles/studio', file));
+    const h = crypto.createHash('md5').update(buf).digest('hex');
+    assert.equal(hashes.has(h), false, `${file} duplicates ${hashes.get(h)}`);
+    hashes.set(h, file);
   }
 });
 
@@ -390,6 +412,8 @@ test('exact specialty make+model icons: powersports, boats, RVs', () => {
     ['powersports', 'Honda', 'Africa Twin', 'adventure'],
     ['powersports', 'Honda', 'Pioneer 1000', 'utv'],
     ['powersports', 'Can-Am', 'Defender MAX', 'utv_crew'],
+    ['powersports', 'Can-Am', 'Spyder RT', 'trike'],
+    ['powersports', 'Polaris', 'Slingshot', 'trike'],
     ['powersports', 'Honda', 'FourTrax Rancher', 'atv'],
     ['powersports', 'Club Car', 'Onward', 'golfcart'],
     ['powersports', 'Bobcat', 'S70 Skid Steer', 'equipment'],
