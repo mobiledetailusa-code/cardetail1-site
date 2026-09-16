@@ -3185,8 +3185,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-cars.webp" alt="Cars and trucks receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Cars & Trucks</div>
-            <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Trucks · Vans</div>
+            <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Pickups · Vans</div>
             <div class="svc-cat-note" id="bkfrom-cars">Packages shown after ZIP check</div>
+          </div>
+          <div class="svc-card locked" id="bkcat-trucks" onclick="selectCategory('trucks')">
+            <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-trucks.webp" alt="Commercial semi-trucks and sleeper cabs receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
+            <div class="svc-name" style="font-size:22px">Trucks</div>
+            <div class="svc-desc" style="font-size:12px">Semi-trucks · Day cab · Sleeper cab</div>
+            <div class="svc-cat-note" id="bkfrom-trucks">From $325 · carretas only (not pickups)</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-boats.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
@@ -4023,6 +4029,47 @@ const PRICING = {
       {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    desc:'Wash stroller fabric, frame, and wheels. $20 each', price:20, qty:true},
       {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'Residential trash can cleaning at the service location. $25 each', price:25, qty:true},
     ],
+  trucks: {
+    tiers: {
+      day_cab:     {label:'Day Cab / Single Cab', icon:'🚛', desc:'Highway tractor without sleeper bunk', interior:325, int_wash:400, int_wash_wax:500},
+      sleeper_cab: {label:'Sleep / Sleeper Cab',   icon:'🛏️', desc:'Sleeper tractor — bunk & living space', interior:325, int_wash:400, int_wash_wax:500},
+    },
+    packages:[
+      {id:'interior', name:'Interior Detail', icon:'💺', tag:'Cab interior for day cab or sleeper', dur:'~2–3h', popular:false, scope:'int',
+        ext:[], int:['Deep vacuum — seats, floors, bunk, and storage compartments','Fabric seats & carpet shampoo','Leather / vinyl surfaces conditioned','Steam clean — vents, panels, crevices','Dash, doors & trim detail with UV protectant','Interior glass cleaned','Door jambs cleaned','Sleeper living area cleaned when present'],
+        feats:['Deep vacuum — seats, floors, bunk, and storage compartments','Fabric seats & carpet shampoo','Leather / vinyl surfaces conditioned','Steam clean — vents, panels, crevices','Dash, doors & trim detail with UV protectant','Interior glass cleaned','Door jambs cleaned','Sleeper living area cleaned when present'],
+        miss:['Exterior wash','Wax or sealant','Trailer body wash']},
+      {id:'int_wash', name:'Interior + Wash', icon:'🧽', tag:'Cab interior plus tractor exterior hand wash', dur:'~3–4h', popular:true, scope:'both',
+        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned'],
+        int:['Deep vacuum — seats, floors, bunk, and storage compartments','Fabric seats & carpet shampoo','Sleeper living area cleaned when present'],
+        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Deep vacuum — seats, floors, bunk, and storage compartments','Fabric seats & carpet shampoo','Sleeper living area cleaned when present'],
+        miss:['Machine wax / sealant','Trailer body wash']},
+      {id:'int_wash_wax', name:'Interior + Wash & Wax', icon:'✨', tag:'Cab interior, exterior wash, and wax/sealant protect', dur:'~4–5h', popular:false, scope:'both',
+        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Wax or sealant on accessible painted panels'],
+        int:['Deep vacuum — seats, floors, bunk, and storage compartments','Fabric seats & carpet shampoo','Sleeper living area cleaned when present'],
+        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Wax or sealant on accessible painted panels','Deep vacuum — seats, floors, bunk, and storage compartments','Fabric seats & carpet shampoo','Sleeper living area cleaned when present'],
+        miss:['Full trailer wash']},
+    ],
+    addons:[
+      {id:'pethair', scope:'int', name:'Pet Hair Removal', desc:'Deep pet hair removal from seats and sleeper areas', price:95},
+      {id:'superint', scope:'int', name:'Super Interior Upgrade', desc:'Extra passes for sleeper living space and compartments', price:125},
+      {id:'odor', scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, and cab odors', price:90},
+      {id:'mold', scope:'int', name:'Mold Treatment', desc:'Targeted mold treatment. Starting at 
+  },
+  boats: {49', price:149},
+      {id:'sanitize', scope:'int', name:'Interior Sanitizing', desc:'High-touch cab wipe-down after cleaning', price:65},
+      {id:'biohazard', scope:'int', name:'Biohazard Cleaning', desc:'Estimate confirmation required', price:115},
+      {id:'engine', scope:'ext', name:'Engine Bay Top Clean', desc:'Top-view engine bay cleaning', price:45},
+      {id:'floormats', scope:'int', name:'Floor Mat Deep Clean', desc:'$20 each', price:20, qty:true},
+      {id:'rainx', scope:'ext', name:'Rain-X Glass Treatment', desc:'Rain-X on windshield and front glass', price:25},
+      {id:'polymer', scope:'ext', name:'Polymer Paint Sealant', desc:'Hand-applied polymer sealant', price:25},
+      {id:'wax1yr', scope:'ext', name:'1-Year Carnauba Wax', desc:'Premium carnauba wax', price:75},
+      {id:'claybar', scope:'ext', name:'Clay Bar Treatment', desc:'Removes embedded contaminants', price:45},
+      {id:'headlight', scope:'ext', name:'Headlight Restoration', desc:'Per pair', price:90},
+      {id:'trashcans', scope:'any', name:'Trash Can Cleaning', desc:'$25 each', price:25, qty:true},
+    ],
+  },
+
   },
   boats: {
     tiers: {
@@ -4314,6 +4361,7 @@ const CATEGORY_VISUALS = {
 };
 const TIER_VISUAL_KEYS = {
   small:'compact', sedan:'sedan', suv2:'suv', suv3:'suv-3row', compact_van:'van', midsize_van:'van', full_size_van:'van', full_size_van_passenger:'van', truck:'pickup',
+  day_cab:'boxtruck', sleeper_cab:'boxtruck',
   motorcycle:'motorcycle', atv:'atv', utv:'utv', jetski:'jetski',
   cargo:'workvan', workvan:'workvan', van:'van', boxtruck:'boxtruck',
   vehicle:'sedan', commercial:'workvan', powersports:'atv', marine_rv:'rv'
@@ -4434,6 +4482,16 @@ const MODELS = {"Acura":{m:["ILX","Integra","MDX","NSX","RDX","RLX","TLX","ZDX"]
 // ── SPECIALTY VEHICLE CATALOG ───────────────────────────────────────────────
 window.SPECIALTY_MODELS = {
   powersports: window.CD1PowersportsCatalog.powersportsModelsByMake(),
+  trucks: {
+    "Freightliner":["Cascadia","Columbia","Coronado","M2"],
+    "Peterbilt":["379","389","567","579"],
+    "Kenworth":["T680","T880","W900","W990"],
+    "Volvo Trucks":["VNL","VNR","VHD"],
+    "International":["LT","RH","HV","HX"],
+    "Mack":["Anthem","Pinnacle","Granite"],
+    "Western Star":["49X","57X"],
+    "Other":["Day Cab","Sleeper Cab","Custom Tractor"]
+  },
   boats: {
     "Alumacraft":["Classic","Competitor","Escape","Voyageur"],
     "Axopar":["22 Spyder","25 Cross Top","28 Cabin","29 XC Cross Cabin","37 XC Cross Cabin","45 XC Cross Cabin"],
@@ -4775,6 +4833,7 @@ function renderTierChips(cat){
     // Reset fields and reinitialize specialty autocomplete for new category
     document.getElementById('g-make').value='';
     document.getElementById('g-make').disabled=false;
+    document.getElementById('g-make').placeholder=cat==='trucks'?'e.g. Freightliner, Peterbilt, Kenworth…':'e.g. Sea Ray, Yamaha…';
     document.getElementById('g-model').value='';
     document.getElementById('g-model').disabled=true;
     document.getElementById('g-make-dd').classList.remove('open');
@@ -4927,7 +4986,7 @@ function selectTier(key){
   setupLengthSelector(ST.cat);
   setupUnitSelector(ST.cat);
   // refresh price/card if vehicle already entered (no auto-advance)
-  if(ST.vehicleLabel){ setBasePrice(); if(ST.cat==='cars'){ document.getElementById('next3').disabled=false; renderAddons(); } }
+  if(ST.vehicleLabel){ setBasePrice(); if(ST.cat==='cars'||ST.cat==='trucks'){ document.getElementById('next3').disabled=false; renderAddons(); } }
   tryGenericConfirm();
 }
 
@@ -6425,6 +6484,7 @@ function syncTravelFromKnownZip(){
 function getCategoryFromBases(){
   return {
     cars:Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.interior)),
+    trucks:Math.min(...Object.values(PRICING.trucks.tiers).map(t=>t.interior)),
     boats:LENGTH_PRICING.boats.packages.maint.min,
     rvs:LENGTH_PRICING.rvs.packages.maint.min,
     powersports:powersportsPublicFromPrice(),
@@ -6474,6 +6534,7 @@ const ZONE_POPULAR = {
 
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & Trucks',    desc:'Most requested in your area', from:'From $190' },
+  trucks:     { ico:'🚛', name:'Trucks',           desc:'Semi-trucks & sleeper cabs (carretas)', from:'From $325' },
   boats:      { ico:'🚥️️️️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $170' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $8/ft' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $175' },
@@ -6577,6 +6638,7 @@ function onBkZipInput(val){
 
 function updateBkFromPrices(){
   const BASE = {
+    trucks:     { price: 325 },
     boats:      { price: LENGTH_PRICING.boats.packages.maint.min },
     rvs:        { price: LENGTH_PRICING.rvs.packages.maint.min },
     powersports:{ price: powersportsPublicFromPrice() },

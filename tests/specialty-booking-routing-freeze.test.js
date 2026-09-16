@@ -219,7 +219,7 @@ const CANONICAL = {
 
 describe('canonical category IDs (not rv/boat aliases)', () => {
   it('authoritative booking state machine accepts cars, rvs, boats, powersports', () => {
-    assert.match(index, /allowed=\{cars:1,boats:1,rvs:1,powersports:1\}/);
+    assert.match(index, /allowed=\{cars:1,trucks:1,boats:1,rvs:1,powersports:1\}/);
     assert.match(index, /id="bkcat-cars"/);
     assert.match(index, /id="bkcat-rvs"/);
     assert.match(index, /id="bkcat-boats"/);
@@ -398,7 +398,7 @@ describe('ZIP gate and resume preserve specialty category', () => {
   it('deep-link pending query keeps rvs / boats / powersports', () => {
     assert.match(index, /ST\._pendingCat=book/);
     assert.match(gateSrc, /ST\._pendingCat = pending\.book/);
-    assert.match(gateSrc, /allowed \|\| \{ cars: 1, boats: 1, rvs: 1, powersports: 1 \}/);
+    assert.match(gateSrc, /allowed \|\| \{ cars: 1, trucks: 1, boats: 1, rvs: 1, powersports: 1 \}/);
   });
 
   it('resume restores RV / Boat / Powersports snapshots without converting to Cars', () => {

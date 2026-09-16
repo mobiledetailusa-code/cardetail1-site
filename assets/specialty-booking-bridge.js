@@ -24,7 +24,8 @@
   var VALID_PACKAGES = {
     boats: { maint: 1, essential: 1, full: 1, premium: 1 },
     rvs: { maint: 1, maint_light: 1, interior: 1, full_basic: 1, premium: 1, full: 1 },
-    powersports: { wash: 1, essential: 1, full: 1, premium: 1 }
+    powersports: { wash: 1, essential: 1, full: 1, premium: 1 },
+    trucks: { interior: 1, int_wash: 1, int_wash_wax: 1 }
   };
 
   function ensureFocusStyles() {

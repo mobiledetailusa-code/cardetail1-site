@@ -33,6 +33,21 @@ const PRICING = {
       { id: 'ozone', price: 40 },
     ],
   },
+  trucks: {
+    tiers: {
+      day_cab: { label: 'Day Cab / Single Cab', interior: 325, int_wash: 400, int_wash_wax: 500 },
+      sleeper_cab: { label: 'Sleep / Sleeper Cab', interior: 325, int_wash: 400, int_wash_wax: 500 },
+    },
+    addons: [
+      { id: 'pethair', price: 95 }, { id: 'superint', price: 125 }, { id: 'odor', price: 90 },
+      { id: 'mold', price: 149 }, { id: 'sanitize', price: 65 },
+      { id: 'biohazard', price: 115 }, { id: 'engine', price: 45 }, { id: 'floormats', price: 20, qty: true },
+      { id: 'rainx', price: 25 }, { id: 'polymer', price: 25 }, { id: 'wax1yr', price: 75 },
+      { id: 'claybar', price: 45 }, { id: 'headlight', price: 90 },
+      { id: 'trashcans', price: 25, qty: true },
+      { id: 'ozone', price: 40 },
+    ],
+  },
   boats: {
     tiers: {
       under20: { label: 'Under 20 ft', maint: 225, essential: 340, full: 510, premium: 795 },
@@ -568,6 +583,28 @@ function coerceVehicleForCategory(vehicle, category, opts = {}) {
       const prev = asArray(next.addons).find((a) => a && a.id === id);
       return prev || { id };
     });
+  } else if (cat === 'trucks') {
+    lengthFt = 0;
+    const truckPkgs = ['interior', 'int_wash', 'int_wash_wax'];
+    if (!truckPkgs.includes(pkgId)) pkgId = 'interior';
+    const tiers = PRICING.trucks.tiers || {};
+    if (!tierKey || !tiers[tierKey]) {
+      const label = String(opts.tierLabel || next.tierLabel || opts.vehicleLabel || next.vehicleLabel || '').toLowerCase();
+      if (/sleeper|sleep\s*cab|leito|bunk/.test(label)) tierKey = 'sleeper_cab';
+      else tierKey = 'day_cab';
+    }
+    next.rvType = '';
+    next.typeKey = '';
+    const truckAddonIds = new Set((PRICING.trucks.addons || []).map((a) => a.id));
+    const ids = asArray(opts.addOnIds || next.addOnIds).length
+      ? asArray(opts.addOnIds || next.addOnIds)
+      : asArray(next.addons).map((a) => a && a.id).filter(Boolean);
+    const kept = ids.filter((id) => truckAddonIds.has(id));
+    next.addOnIds = kept;
+    next.addons = kept.map((id) => {
+      const prev = asArray(next.addons).find((a) => a && a.id === id);
+      return prev || { id };
+    });
   } else if (cat === 'boats' || cat === 'rvs') {
     if (!(lengthFt > 0)) lengthFt = LENGTH_PRICING[cat]?.defaultFt || 20;
     const lengthPkgs = Object.keys((LENGTH_PRICING[cat] && LENGTH_PRICING[cat].packages) || {});
@@ -595,6 +632,8 @@ function coerceVehicleForCategory(vehicle, category, opts = {}) {
   if (opts.tierLabel) next.tierLabel = opts.tierLabel;
   else if (cat === 'cars' && PRICING.cars.tiers[tierKey]) {
     next.tierLabel = PRICING.cars.tiers[tierKey].label;
+  } else if (cat === 'trucks' && PRICING.trucks.tiers[tierKey]) {
+    next.tierLabel = PRICING.trucks.tiers[tierKey].label;
   }
   next.lengthFt = lengthFt;
   return next;

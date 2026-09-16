@@ -1,6 +1,6 @@
 # Trucks category plan (commercial / carretas)
 
-**Status:** Planning — icons aligned first; pricing catalog not yet live  
+**Status:** Live in booking preview — solo Trucks category card + packages; hubs mirrored  
 **Branch:** `cursor/trucks-category-plan-9a4f`  
 **Scope clarification (2026-09-16):** This category is **only commercial semi-trucks / carretas** (Class 7–8 highway tractors). **Consumer pickups stay under Cars** (`tierKey: truck`).
 
@@ -131,3 +131,4 @@ Until phase 2, heavy sleeper work → **`superint` (+$125)** + notes.
 | 2026-09-16 | New category `trucks`; packages $325 / $400 / $500; car add-ons reused |
 | 2026-09-16 | **Clarified: commercial semis / carretas only — not pickups** |
 | 2026-09-16 | Icons regenerated as semi tractors (day + sleeper); pickups remain Cars |
+| 2026-09-16 | Solo `bkcat-trucks` card + `PRICING.trucks` live in booking preview |

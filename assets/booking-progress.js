@@ -11,12 +11,15 @@
   var CONTACT_IDS = ['f-first', 'f-last', 'f-phone', 'f-email', 'f-addr', 'f-date', 'f-notes', 'f-location', 'f-arrival-window', 'f-water', 'f-electric'];
   var CAT_LABELS = {
     cars: 'Cars & SUVs',
+    trucks: 'Trucks',
     boats: 'Boat Detailing',
     rvs: 'RV Detailing',
     powersports: 'Powersports',
   };
   var PACKAGE_INTENT_LABELS = {
     interior: 'Interior Detail',
+    int_wash: 'Interior + Wash',
+    int_wash_wax: 'Interior + Wash & Wax',
     full: 'Premium Full Detail',
     refresh: 'Exterior Refresh & Protect',
     wash: 'Exterior Hand Wash',

@@ -22,7 +22,7 @@
   if (typeof window !== 'undefined') window.StorefrontPreviewAdapter = api;
 }(typeof self !== 'undefined' ? self : this, function () {
   // Homepage booking categories, in render order.
-  const HOMEPAGE_CATEGORIES = ['cars', 'boats', 'rvs', 'powersports'];
+  const HOMEPAGE_CATEGORIES = ['cars', 'trucks', 'boats', 'rvs', 'powersports'];
   const LENGTH_MODELS = ['per_foot', 'base_plus_per_foot'];
 
   function adapterError(code, message) {

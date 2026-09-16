@@ -233,7 +233,7 @@
     var pending = global.__cd1PendingBookQuery;
     if (!pending || (!pending.book && !pending.pkg)) return;
     global.__cd1PendingBookQuery = null;
-    var allowed = pending.allowed || { cars: 1, boats: 1, rvs: 1, powersports: 1 };
+    var allowed = pending.allowed || { cars: 1, trucks: 1, boats: 1, rvs: 1, powersports: 1 };
     if (pending.book && !allowed[pending.book]) {
       try {
         if (global.parent && global.parent !== global) {
