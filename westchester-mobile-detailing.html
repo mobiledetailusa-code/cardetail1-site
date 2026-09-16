@@ -5292,21 +5292,21 @@ const ZIP_ZONES = {
 };
 
 const ZONE_POPULAR = {
-  nj_a: ['cars','trucks','boats'],
-  nj_b: ['cars','trucks','rvs','powersports'],
-  nyc: ['cars','trucks','boats'],
-  ny_s: ['cars','trucks','boats','rvs'],
-  ct: ['boats','rvs','cars','trucks'],
-  pa_e: ['cars','trucks','rvs','powersports'],
-  pa_p: ['rvs','boats','cars','trucks'],
-  pa_ph: ['cars','trucks','boats'],
-  pa_b: ['cars','trucks','boats','rvs'],
-  default: ['cars','trucks','boats','rvs','powersports'],
+  nj_a: ['cars','boats','trucks'],
+  nj_b: ['cars','rvs','powersports','trucks'],
+  nyc: ['cars','boats','trucks'],
+  ny_s: ['cars','boats','rvs','trucks'],
+  ct: ['cars','boats','rvs','trucks'],
+  pa_e: ['cars','rvs','powersports','trucks'],
+  pa_p: ['cars','rvs','boats','trucks'],
+  pa_ph: ['cars','boats','trucks'],
+  pa_b: ['cars','boats','rvs','trucks'],
+  default: ['cars','boats','rvs','powersports','trucks'],
 };
 
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & SUVs',    desc:'Most requested in your area', from:'From $190' },
-  trucks:     { ico:'🚛', name:'Trucks',           desc:'Day cab & tractor-trailer semis', from:'From $325' },
+  trucks:     { ico:'🚛', name:'Trucks',           desc:'Day cab & tractor-trailer', from:'From $325' },
   boats:      { ico:'🚥️️️️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $170' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $8/ft' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $175' },

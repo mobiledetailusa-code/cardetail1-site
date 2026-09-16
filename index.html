@@ -7247,21 +7247,21 @@ const ZIP_ZONES = {
 };
 
 const ZONE_POPULAR = {
-  nj_a: ['cars','trucks','boats'],
-  nj_b: ['cars','trucks','rvs','powersports'],
-  nyc: ['cars','trucks','boats'],
-  ny_s: ['cars','trucks','boats','rvs'],
-  ct: ['cars','trucks','boats','rvs'],
-  pa_e: ['cars','trucks','rvs','powersports'],
-  pa_p: ['rvs','boats','cars','trucks'],
-  pa_ph: ['cars','trucks','boats'],
-  pa_b: ['cars','trucks','boats','rvs'],
-  default: ['cars','trucks','boats','rvs','powersports'],
+  nj_a: ['cars','boats','trucks'],
+  nj_b: ['cars','rvs','powersports','trucks'],
+  nyc: ['cars','boats','trucks'],
+  ny_s: ['cars','boats','rvs','trucks'],
+  ct: ['cars','boats','rvs','trucks'],
+  pa_e: ['cars','rvs','powersports','trucks'],
+  pa_p: ['cars','rvs','boats','trucks'],
+  pa_ph: ['cars','boats','trucks'],
+  pa_b: ['cars','boats','rvs','trucks'],
+  default: ['cars','boats','rvs','powersports','trucks'],
 };
 
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & SUVs',      desc:'Mobile car detailing at your location', from:'From $190' },
-  trucks:     { ico:'🚛', name:'Trucks',           desc:'Day cab & tractor-trailer semis', from:'From $325' },
+  trucks:     { ico:'🚛', name:'Trucks',           desc:'Day cab & tractor-trailer', from:'From $325' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine wash & detail on-site',    from:'From $170' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'Price by exact length' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs, golf carts',       from:'From $175' },
@@ -7318,7 +7318,7 @@ function applyZip(){
 
 function renderLocationCarousel(zoneKey){
   let cats   = ZONE_POPULAR[zoneKey] || ZONE_POPULAR.default;
-  cats = ['cars','trucks', ...cats.filter(c=>c!=='cars'&&c!=='trucks')];
+  cats = ['cars', ...cats.filter(c=>c!=='cars'&&c!=='trucks'), 'trucks'];
   const scroll = document.getElementById('loc-scroll');
   if(!scroll) return;
   scroll.innerHTML = cats.map(cat=>{

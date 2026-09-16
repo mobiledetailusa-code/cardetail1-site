@@ -115,10 +115,11 @@ describe('trucks public surface english-only + home option', () => {
     assert.doesNotMatch(index, /Cars, SUVs &amp; Trucks/);
   });
 
-  it('home location carousel includes trucks after cars with refined icon assets', () => {
+  it('home location carousel includes trucks last with refined icon assets', () => {
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    assert.match(index, /ZONE_POPULAR[\s\S]*nj_a:\s*\['cars','trucks'/);
-    assert.match(index, /cats = \['cars','trucks'/);
+    assert.match(index, /ZONE_POPULAR[\s\S]*nj_a:\s*\['cars','boats','trucks'\]/);
+    assert.match(index, /default:\s*\['cars','boats','rvs','powersports','trucks'\]/);
+    assert.match(index, /cats = \['cars', \.\.\.cats\.filter\(c=>c!=='cars'&&c!=='trucks'\), 'trucks'\]/);
     assert.match(index, /cat === 'trucks' \? 'trucks-detailing\.html'/);
     assert.ok(fs.existsSync(path.join(root, 'assets/icons/3d/cat-trucks.webp')));
     assert.ok(fs.existsSync(path.join(root, 'assets/icons/3d/pack-trucks-family.webp')));
