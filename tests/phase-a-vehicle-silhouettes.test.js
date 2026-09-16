@@ -15,6 +15,7 @@ const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const icon3d = fs.readFileSync(path.join(root, 'assets/icon-3d.js'), 'utf8');
 const PowersportsCatalog = require('../assets/powersports-model-catalog');
 const BrandVisualsData = require('../assets/generated/brand-model-visuals.generated.js');
+const SpecialtyVisualsData = require('../assets/generated/specialty-brand-model-visuals.generated.js');
 const BrandVisuals = require('../assets/vehicle-brand-visuals.js');
 
 const REQUIRED = [
@@ -22,10 +23,10 @@ const REQUIRED = [
   'premium-wagon.webp','jeep-wrangler.webp','compact-crossover.webp','midsize-crossover.webp',
   'luxury-crossover.webp','family-suv-3row.webp','family-minivan.webp','midsize-pickup.webp',
   'compact-van.webp','midsize-van.webp','cargo-van.webp','passenger-van.webp','truck.webp',
-  'motorcycle.webp','cruiser.webp','sportbike.webp','adventure-bike.webp','dirtbike.webp','scooter.webp',
-  'atv.webp','utv.webp','golf-cart.webp','jetski.webp',
-  'runabout.webp','pontoon.webp','bass-boat.webp','cabin-cruiser.webp','sailboat.webp',
-  'rv-class-a.webp','rv-class-b.webp','travel-trailer.webp','fifth-wheel.webp','airstream.webp',
+  'motorcycle.webp','cruiser.webp','touring-bagger.webp','sportbike.webp','adventure-bike.webp','dirtbike.webp','scooter.webp',
+  'atv.webp','utv.webp','utv-crew.webp','golf-cart.webp','compact-tractor.webp','jetski.webp',
+  'runabout.webp','center-console.webp','pontoon.webp','bass-boat.webp','cabin-cruiser.webp','sailboat.webp',
+  'rv-class-a.webp','rv-class-b.webp','rv-class-c.webp','travel-trailer.webp','fifth-wheel.webp','airstream.webp',
 ];
 
 const TIER_TO_FILE = {
@@ -53,10 +54,12 @@ function loadVisualRuntime() {
   const sandbox = {
     ST: { cat: 'cars', tierKey: '', vehicleLabel: '', body: null, boatType: '', rvType: '', make: '', model: '' },
     CD1_BRAND_MODEL_VISUALS: BrandVisualsData,
+    CD1_SPECIALTY_BRAND_MODEL_VISUALS: SpecialtyVisualsData,
     CD1_VehicleBrandVisuals: BrandVisuals,
   };
   // Bind data onto BrandVisuals root expectation
   globalThis.CD1_BRAND_MODEL_VISUALS = BrandVisualsData;
+  globalThis.CD1_SPECIALTY_BRAND_MODEL_VISUALS = SpecialtyVisualsData;
   return { api: vm.runInNewContext(chunk, sandbox), ST: sandbox.ST, sandbox };
 }
 
@@ -140,9 +143,13 @@ test('precision across categories: cars, powersports, boats, rvs', () => {
   assert.equal(getVehicleVisualKey(), 'utv');
 
   ST.vehicleLabel = '2023 Harley-Davidson Street Glide';
-  assert.equal(getVehicleVisualKey(), 'cruiser');
+  ST.make = 'Harley-Davidson';
+  ST.model = 'Street Glide';
+  assert.equal(getVehicleVisualKey(), 'touring_bagger');
 
   ST.vehicleLabel = '2022 Suzuki Hayabusa';
+  ST.make = '';
+  ST.model = '';
   assert.equal(getVehicleVisualKey(), 'sportbike');
 
   ST.vehicleLabel = '2021 Honda CRF450R';
@@ -372,12 +379,62 @@ test('powersports confirm clears stale state and resolves exact catalog metadata
   assert.doesNotMatch(inferChunk, /\.test\(/);
 });
 
+test('exact specialty make+model icons: powersports, boats, RVs', () => {
+  const { api, ST } = loadVisualRuntime();
+  const { getVehicleVisualKey } = api;
+
+  const cases = [
+    ['powersports', 'Harley-Davidson', 'Street Glide', 'touring_bagger'],
+    ['powersports', 'Honda', 'CRF450R', 'dirtbike'],
+    ['powersports', 'Honda', 'CBR600RR', 'sportbike'],
+    ['powersports', 'Honda', 'Africa Twin', 'adventure'],
+    ['powersports', 'Honda', 'Pioneer 1000', 'utv'],
+    ['powersports', 'Can-Am', 'Defender MAX', 'utv_crew'],
+    ['powersports', 'Honda', 'FourTrax Rancher', 'atv'],
+    ['powersports', 'Club Car', 'Onward', 'golfcart'],
+    ['powersports', 'Bobcat', 'S70 Skid Steer', 'equipment'],
+    ['powersports', 'Kawasaki', 'Jet Ski Ultra 310', 'jetski'],
+    ['boats', 'Bennington', 'L Series', 'pontoon'],
+    ['boats', 'Boston Whaler', '230 Outrage', 'center_console'],
+    ['boats', 'Bass Cat', 'Jaguar', 'bassboat'],
+    ['boats', 'Sea Ray', 'Sundancer 320', 'cabincruiser'],
+    ['rvs', 'Airstream', 'Flying Cloud', 'airstream'],
+    ['rvs', 'Winnebago', 'Travato', 'classb'],
+    ['rvs', 'Fleetwood RV', 'Bounder', 'classa'],
+    ['rvs', 'Coachmen', 'Freelander', 'classc'],
+    ['rvs', 'Grand Design', 'Solitude', 'fifthwheel'],
+  ];
+
+  for (const [cat, make, model, visual] of cases) {
+    ST.cat = cat;
+    ST.make = make;
+    ST.model = model;
+    ST.tierKey = '';
+    ST.boatType = '';
+    ST.rvType = '';
+    ST.vehicleLabel = `2024 ${make} ${model}`;
+    assert.equal(getVehicleVisualKey(), visual, `${cat} ${make} ${model}`);
+    assert.ok(api.VEHICLE_VISUALS[visual], `missing VEHICLE_VISUALS.${visual}`);
+  }
+});
+
+test('specialty brand-model catalog covers powersports + boats + rvs', () => {
+  assert.ok(SpecialtyVisualsData.count >= 800);
+  assert.equal(Object.keys(SpecialtyVisualsData.flat).length, SpecialtyVisualsData.count);
+  for (const r of PowersportsCatalog.records) {
+    const key = BrandVisuals.resolveSpecialtyVisual('powersports', r.make, r.model, '');
+    assert.ok(key, `missing powersports visual for ${r.make} ${r.model}`);
+  }
+});
+
 test('booking pages include brand-model visual scripts', () => {
   assert.match(index, /assets\/generated\/brand-model-visuals\.generated\.js/);
+  assert.match(index, /assets\/generated\/specialty-brand-model-visuals\.generated\.js/);
   assert.match(index, /assets\/vehicle-brand-visuals\.js/);
   for (const page of ['bergen-county-hub.html', 'new-jersey-hub.html', 'template-city.html']) {
     const html = fs.readFileSync(path.join(root, page), 'utf8');
     assert.match(html, /brand-model-visuals\.generated\.js/);
+    assert.match(html, /specialty-brand-model-visuals\.generated\.js/);
     assert.match(html, /vehicle-brand-visuals\.js/);
   }
 });
