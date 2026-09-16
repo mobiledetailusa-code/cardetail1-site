@@ -132,3 +132,4 @@ Until phase 2, heavy sleeper work → **`superint` (+$125)** + notes.
 | 2026-09-16 | **Clarified: commercial semis / carretas only — not pickups** |
 | 2026-09-16 | Icons regenerated as semi tractors (day + sleeper); pickups remain Cars |
 | 2026-09-16 | Solo `bkcat-trucks` card + `PRICING.trucks` live in booking preview |
+| 2026-09-16 | Cab Type section (day/sleeper) + semi icons; Trucks labeled specialty section |

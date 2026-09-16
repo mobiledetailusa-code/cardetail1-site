@@ -809,6 +809,16 @@ body.rv-overlay-lock{overflow:hidden}
 .tchip-name{font-size:12.5px;font-weight:600;color:var(--white);margin-bottom:2px}
 .tchip-desc{font-size:10.5px;color:var(--mu)}
 .tchip-from{font-size:11px;color:var(--blue);font-weight:600;margin-top:5px}
+.truck-cab-chips{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.truck-cab-chip{width:100%;font:inherit;color:inherit;appearance:none;-webkit-appearance:none;text-align:center}
+.truck-cab-chip .tchip-ico{height:96px}
+.truck-cab-chip .tchip-ico img{object-fit:contain;object-position:center}
+.booking-modal .truck-cab-chip{background:var(--bg0);border-color:var(--line-strong);color:var(--ink)}
+.booking-modal .truck-cab-chip.sel{border-color:var(--blue);background:rgba(77,163,255,.07)}
+@media(max-width:520px){
+  .truck-cab-chips{grid-template-columns:1fr}
+  .truck-cab-chip .tchip-ico{height:110px}
+}
 /* Hide pre-selection price hints — single price shown after vehicle + package */
 #bk-cat-grid .svc-from,.tchip-from,.pkg-price{display:none!important}
 .ah-total-est{display:none;font-size:10px;color:var(--mu);text-align:right;margin-top:2px;max-width:180px;line-height:1.35}
@@ -1535,6 +1545,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 #bk-cat-grid .bk-cat-specialty{margin-top:8px;padding-top:16px;border-top:1px dashed var(--line);display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 #bk-cat-grid .bk-cat-specialty .svc-card{opacity:.92}
 #bk-cat-grid .bk-cat-specialty-label{grid-column:1/-1;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin-bottom:4px}
+#bk-cat-grid #bkcat-trucks{grid-column:1/-1}
 @media(max-width:760px){
   .car-pkg-grid{grid-template-columns:1fr;gap:14px}
   .car-pkg-card--popular{order:-1}
@@ -2601,13 +2612,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Pickups · Vans</div>
             <div class="svc-cat-note" id="bkfrom-cars">Packages shown after ZIP check</div>
           </div>
+          <div class="bk-cat-specialty">
+            <div class="bk-cat-specialty-label">Trucks</div>
           <div class="svc-card locked" id="bkcat-trucks" onclick="selectCategory('trucks')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-trucks.webp" alt="Commercial semi-trucks and sleeper cabs receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Trucks</div>
             <div class="svc-desc" style="font-size:12px">Semi-trucks · Day cab · Sleeper cab</div>
             <div class="svc-cat-note" id="bkfrom-trucks">From $325 · carretas only (not pickups)</div>
           </div>
-          <div class="bk-cat-specialty">
             <div class="bk-cat-specialty-label">Boats, RVs &amp; powersports</div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-boats.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
@@ -2651,7 +2663,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="bsec" id="bs3">
         <div class="beye">Step 03 — Vehicle</div>
         <div class="btitle">YOUR VEHICLE</div>
-        <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length.</div>
+        <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Trucks (semis) need cab type first.</div>
 
         <!-- Boat vessel type (boats only) — same pattern as RV / trailer type -->
         <div id="boat-type-wrap" style="display:none;margin-bottom:14px">
@@ -2709,6 +2721,31 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             </select>
           </div>
           <p id="rv-airstream-note" style="display:none;font-size:11.5px;color:var(--blue);line-height:1.45;margin:0 0 10px;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Airstream units use surface-aware polish scope — tell us about aluminum condition in notes if needed.</p>
+        </div>
+
+        <!-- Truck cab type (trucks / carretas only) — same pattern as boat / RV type -->
+        <div id="truck-cab-wrap" style="display:none;margin-bottom:14px">
+          <div class="sel-g" style="margin-bottom:10px">
+            <div class="sel-l">Cab Type *</div>
+            <select class="sel-s" id="truck-cab-sel">
+              <option value="">— select cab type —</option>
+              <option value="day_cab">Day Cab / Single Cab</option>
+              <option value="sleeper_cab">Sleep / Sleeper Cab</option>
+            </select>
+          </div>
+          <div class="truck-cab-chips" id="truck-cab-chips" aria-label="Cab type">
+            <button type="button" class="tchip truck-cab-chip" data-cab="day_cab" id="truck-cab-day">
+              <div class="tchip-ico tchip-ico--3d"><img src="assets/icons/3d/tier-day-cab.webp" alt="Day cab semi-truck" width="256" height="256" loading="lazy" decoding="async"></div>
+              <div class="tchip-name">Day Cab / Single Cab</div>
+              <div class="tchip-desc">Highway tractor without sleeper bunk</div>
+            </button>
+            <button type="button" class="tchip truck-cab-chip" data-cab="sleeper_cab" id="truck-cab-sleeper">
+              <div class="tchip-ico tchip-ico--3d"><img src="assets/icons/3d/tier-sleeper-cab.webp" alt="Sleeper cab semi-truck" width="256" height="256" loading="lazy" decoding="async"></div>
+              <div class="tchip-name">Sleep / Sleeper Cab</div>
+              <div class="tchip-desc">Sleeper tractor — bunk &amp; living space</div>
+            </button>
+          </div>
+          <p id="truck-cab-note" style="font-size:11.5px;color:var(--blue);line-height:1.45;margin:10px 0 0;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Pickups book under Cars &amp; SUVs. Trucks here are semis / carretas only.</p>
         </div>
 
         <!-- Make / model / year first — size class is auto-detected from the catalog -->
@@ -3945,6 +3982,48 @@ function setupLengthSelector(cat){
   updateRvServiceSubtotal();
 }
 
+function setupTruckCabControls(cat){
+  const wrap = document.getElementById('truck-cab-wrap');
+  const sel = document.getElementById('truck-cab-sel');
+  const chips = document.getElementById('truck-cab-chips');
+  if(!wrap || !sel) return;
+  if(cat !== 'trucks'){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  const allowed = { day_cab:1, sleeper_cab:1 };
+  function applyCab(key, fromUi){
+    const cab = allowed[key] ? key : '';
+    ST.tierKey = cab;
+    ST.tier = cab && PRICING.trucks && PRICING.trucks.tiers[cab] ? PRICING.trucks.tiers[cab] : null;
+    ST.displayLabel = ST.tier ? ST.tier.label : '';
+    ST.truckCab = cab;
+    if(!fromUi) sel.value = cab;
+    else sel.value = cab;
+    if(chips){
+      chips.querySelectorAll('.truck-cab-chip').forEach(function(btn){
+        btn.classList.toggle('sel', btn.getAttribute('data-cab') === cab);
+      });
+    }
+    if(typeof setVehicleVisual === 'function') setVehicleVisual();
+    tryGenericConfirm();
+    if(typeof syncContinueGate === 'function') syncContinueGate();
+  }
+  const incoming = allowed[ST.truckCab] ? ST.truckCab : (allowed[ST.tierKey] ? ST.tierKey : '');
+  applyCab(incoming, false);
+  sel.onchange = function(){ applyCab(this.value, true); };
+  if(chips && !chips._truckCabBound){
+    chips._truckCabBound = true;
+    chips.addEventListener('click', function(e){
+      const btn = e.target.closest('.truck-cab-chip');
+      if(!btn) return;
+      e.preventDefault();
+      applyCab(btn.getAttribute('data-cab') || '', true);
+    });
+  }
+}
+
 function setupBoatTypeControls(cat){
   const wrap = document.getElementById('boat-type-wrap');
   const typeSel = document.getElementById('boat-type-sel');
@@ -4167,6 +4246,8 @@ const VEHICLE_VISUALS = {
   /* Fleet specialty */
   workvan:       { img:'assets/vehicles/premium/work-van.webp',      alt:'Commercial work van fleet receiving mobile detailing' },
   boxtruck:      { img:'assets/vehicles/premium/box-truck.webp',     alt:'Commercial box truck fleet receiving mobile detailing' },
+  day_cab_semi:  { img:'assets/icons/3d/tier-day-cab.webp',         alt:'Day cab commercial semi-truck' },
+  sleeper_cab_semi: { img:'assets/icons/3d/tier-sleeper-cab.webp',  alt:'Sleeper cab commercial semi-truck' },
 };
 
 const CATEGORY_VISUALS = {
@@ -4182,7 +4263,7 @@ const TIER_VISUAL_KEYS = {
   compact_van:'compact_van', midsize_van:'midsize_van',
   full_size_van:'cargo_van', full_size_van_passenger:'passenger_van',
   truck:'pickup',
-  day_cab:'boxtruck', sleeper_cab:'boxtruck',
+  day_cab:'day_cab_semi', sleeper_cab:'sleeper_cab_semi',
   motorcycle:'motorcycle', motorcycle_large:'touring_bagger', motorcycle_trike:'trike',
   atv:'atv', utv:'utv', utv_standard:'utv', utv_large:'utv_crew', golfcart:'golfcart', equipment:'equipment', jetski:'jetski',
   cargo:'workvan', workvan:'workvan', van:'cargo_van', boxtruck:'boxtruck',
@@ -4475,6 +4556,7 @@ function getVehicleVisualKey(){
     return 'motorcycle';
   }
   if(cat==='fleet') return TIER_VISUAL_KEYS[ST.tierKey]||'workvan';
+  if(cat==='trucks') return TIER_VISUAL_KEYS[ST.tierKey]||'day_cab_semi';
   const lbl=(ST.vehicleLabel||'').toLowerCase();
   // Exact make+model catalog hit beats body/tier generics (Jeep Wrangler vs Renegade, Acura MDX vs ILX, …).
   const brandExact=(typeof CD1_VehicleBrandVisuals!=='undefined' && CD1_VehicleBrandVisuals.resolveBrandModelVisual)
@@ -4553,6 +4635,7 @@ window.SPECIALTY_MODELS = {
     "Freightliner":["Cascadia","Columbia","Coronado","M2","112SD","114SD"],
     "Peterbilt":["379","389","567","579","567 Day Cab","579 Sleeper"],
     "Kenworth":["T680","T880","W900","W990","T180","T280"],
+    "Volvo":["VNL","VNR","VHD","VN"],
     "Volvo Trucks":["VNL","VNR","VHD","VN"],
     "International":["LT","RH","HV","HX","MV"],
     "Mack":["Anthem","Pinnacle","Granite"],
@@ -4634,7 +4717,7 @@ window.SPECIALTY_MODELS = {
 };
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
-let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,rvType:'',rvLiving:'',boatType:'',units:1,cardToken:'',cardBrand:'',cardLast4:'',
+let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePrice:0,addons:[],addonTotal:0,lengthFt:0,rvType:'',rvLiving:'',boatType:'',truckCab:'',units:1,cardToken:'',cardBrand:'',cardLast4:'',
   // multi-vehicle cart
   vehicles:[],  // [{cat, pkgId, pkgName, vehicleLabel, basePrice, addons, addonTotal, subtotal}]
   zoneSurcharge:0,
@@ -4901,7 +4984,8 @@ function selectCategory(cat){
   }else{
     ST._editingVehicleIndex=null;
   }
-  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.displayLabel=''; ST.body=null; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.boatType=cat==='boats'?ST.boatType:''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
+  ST.cat=cat; ST.pkgId=''; ST.pkg=null; ST.tierKey=''; ST.tier=null; ST.vehicleLabel=''; ST.displayLabel=''; ST.body=null; ST.basePrice=0; ST.addons=[]; ST.addonTotal=0; ST.lengthFt=0; ST.rvType=cat==='rvs'?ST.rvType:''; ST.rvLiving=cat==='rvs'?ST.rvLiving:''; ST.boatType=cat==='boats'?ST.boatType:''; ST.truckCab=''; ST.units=(cat==='fleet'?2:1); ST._addonKey='';
+  if(cat!=='trucks'){ /* truckCab already cleared */ }
   ST.make=''; ST.model=''; ST.year=''; ST.classNeedsConfirm=false; ST._priceResolveFailed=false;
   ST._powersportsIdentity=''; ST._powersportsManualClass=''; ST._powersportsResolutionStatus='';
   if(window.CD1BookingVehicleSummary) CD1BookingVehicleSummary.clearCategoryExclusiveFields(ST, cat);
@@ -5101,17 +5185,9 @@ function syncTierChipsVisibility(){
   const wrap=document.getElementById('tier-chips-wrap');
   const note=document.getElementById('tier-chips-note');
   if(!wrap) return;
-  if(ST.cat==='boats'||ST.cat==='rvs'||ST.cat==='fleet'){
+  if(ST.cat==='boats'||ST.cat==='rvs'||ST.cat==='fleet'||ST.cat==='trucks'){
     wrap.style.display='none';
     if(note) note.hidden=true;
-    return;
-  }
-  if(ST.cat==='trucks'){
-    wrap.style.display='block';
-    if(note){
-      note.textContent='Select day cab or sleeper cab — pickups book under Cars & SUVs.';
-      note.hidden=false;
-    }
     return;
   }
   if(ST.cat==='cars'){
@@ -5171,6 +5247,7 @@ function renderTierChips(cat){
   document.getElementById('generic-search-wrap').style.display=isCar?'none':'block';
   setupBoatTypeControls(cat);
   setupRvTypeControls(cat);
+  setupTruckCabControls(cat);
   setupLengthSelector(cat);
   setupUnitSelector(cat);
   document.getElementById('vc').classList.remove('show');
@@ -5420,6 +5497,20 @@ function tryGenericConfirm(){
 
   // Cars confirm only via make-in / model-sel / year-sel — never g-make leftovers.
   if(ST.cat==='cars') return;
+
+  if(ST.cat==='trucks'){
+    if(!ST.tierKey || !(PRICING.trucks && PRICING.trucks.tiers[ST.tierKey])) return;
+    ST.tier = PRICING.trucks.tiers[ST.tierKey];
+    ST.displayLabel = ST.tier.label;
+    ST.vehicleLabel = `${year} ${make} ${model}`;
+    setBasePrice();
+    setVehicleVisual();
+    setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
+    document.getElementById('vc').classList.add('show');
+    syncContinueGate();
+    renderAddons();
+    return;
+  }
 
   if(ST.cat==='powersports'){
     const resolution=CD1PowersportsBookingSafety.resolveAndApply(ST,PRICING.powersports,make,model);

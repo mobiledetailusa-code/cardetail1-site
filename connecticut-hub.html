@@ -3257,7 +3257,33 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
 
         <!-- Make search (cars only) -->
-        <div id="make-search-wrap" style="display:none">
+        <div 
+        <!-- Truck cab type (trucks / carretas only) — same pattern as boat / RV type -->
+        <div id="truck-cab-wrap" style="display:none;margin-bottom:14px">
+          <div class="sel-g" style="margin-bottom:10px">
+            <div class="sel-l">Cab Type *</div>
+            <select class="sel-s" id="truck-cab-sel">
+              <option value="">— select cab type —</option>
+              <option value="day_cab">Day Cab / Single Cab</option>
+              <option value="sleeper_cab">Sleep / Sleeper Cab</option>
+            </select>
+          </div>
+          <div class="truck-cab-chips" id="truck-cab-chips" aria-label="Cab type">
+            <button type="button" class="tchip truck-cab-chip" data-cab="day_cab" id="truck-cab-day">
+              <div class="tchip-ico tchip-ico--3d"><img src="assets/icons/3d/tier-day-cab.webp" alt="Day cab semi-truck" width="256" height="256" loading="lazy" decoding="async"></div>
+              <div class="tchip-name">Day Cab / Single Cab</div>
+              <div class="tchip-desc">Highway tractor without sleeper bunk</div>
+            </button>
+            <button type="button" class="tchip truck-cab-chip" data-cab="sleeper_cab" id="truck-cab-sleeper">
+              <div class="tchip-ico tchip-ico--3d"><img src="assets/icons/3d/tier-sleeper-cab.webp" alt="Sleeper cab semi-truck" width="256" height="256" loading="lazy" decoding="async"></div>
+              <div class="tchip-name">Sleep / Sleeper Cab</div>
+              <div class="tchip-desc">Sleeper tractor — bunk &amp; living space</div>
+            </button>
+          </div>
+          <p id="truck-cab-note" style="font-size:11.5px;color:var(--blue);line-height:1.45;margin:10px 0 0;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Pickups book under Cars &amp; SUVs. Trucks here are semis / carretas only.</p>
+        </div>
+
+        id="make-search-wrap" style="display:none">
           <div class="srch-wrap">
             <span class="srch-ico">🔍</span>
             <input class="srch-in" id="make-in" type="text" placeholder="Search make - Toyota, BMW, Ford…" autocomplete="off">
@@ -4359,6 +4385,8 @@ const VEHICLE_VISUALS = {
   minivan:     { img:'assets/vehicles/premium/minivan.webp',        alt:'Minivan receiving mobile detailing' },
   workvan:     { img:'assets/vehicles/premium/work-van.webp',       alt:'Commercial work van fleet receiving mobile detailing' },
   boxtruck:    { img:'assets/vehicles/premium/box-truck.webp',      alt:'Commercial box truck fleet receiving mobile detailing' },
+  day_cab_semi:  { img:'assets/icons/3d/tier-day-cab.webp',         alt:'Day cab commercial semi-truck' },
+  sleeper_cab_semi: { img:'assets/icons/3d/tier-sleeper-cab.webp',  alt:'Sleeper cab commercial semi-truck' },
   rv:          { img:'assets/vehicles/premium/rv-motorhome.webp',   alt:'RV motorhome receiving mobile detailing' },
   trailer:     { img:'assets/vehicles/premium/travel-trailer.webp', alt:'Travel trailer receiving mobile detailing' },
   boat:        { img:'assets/vehicles/premium/boat.webp',           alt:'Boat receiving mobile marine detailing' },
@@ -4376,7 +4404,7 @@ const CATEGORY_VISUALS = {
 };
 const TIER_VISUAL_KEYS = {
   small:'compact', sedan:'sedan', suv2:'suv', suv3:'suv-3row', compact_van:'van', midsize_van:'van', full_size_van:'van', full_size_van_passenger:'van', truck:'pickup',
-  day_cab:'boxtruck', sleeper_cab:'boxtruck',
+  day_cab:'day_cab_semi', sleeper_cab:'sleeper_cab_semi',
   motorcycle:'motorcycle', atv:'atv', utv:'utv', jetski:'jetski',
   cargo:'workvan', workvan:'workvan', van:'van', boxtruck:'boxtruck',
   vehicle:'sedan', commercial:'workvan', powersports:'atv', marine_rv:'rv'
@@ -5064,6 +5092,21 @@ function tryGenericConfirm(){
 
   // Cars confirm only via make-in / model-sel / year-sel — never g-make leftovers.
   if(ST.cat==='cars') return;
+
+  if(ST.cat==='trucks'){
+    if(!ST.tierKey || !(PRICING.trucks && PRICING.trucks.tiers[ST.tierKey])) return;
+    ST.tier = PRICING.trucks.tiers[ST.tierKey];
+    ST.displayLabel = ST.tier.label;
+    ST.vehicleLabel = `${year} ${make} ${model}`;
+    setBasePrice();
+    setVehicleVisual();
+    setVcName(ST.vehicleLabel+(ST.displayLabel?' · '+ST.displayLabel:''));
+    document.getElementById('vc').classList.add('show');
+    if(typeof syncContinueGate==='function') syncContinueGate();
+    else document.getElementById('next3').disabled=!(ST.basePrice>0);
+    renderAddons();
+    return;
+  }
 
   if(ST.cat==='powersports'){
     const resolution=CD1PowersportsBookingSafety.resolveAndApply(ST,PRICING.powersports,make,model);

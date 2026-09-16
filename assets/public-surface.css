@@ -14,6 +14,23 @@
 #cd1-btt{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(96px,calc(80px + env(safe-area-inset-bottom)));width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(12,18,32,.92);color:#fff;font-size:20px;line-height:1;cursor:pointer;z-index:10050;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(8px);transition:opacity .2s,visibility .2s,transform .2s;box-shadow:0 4px 20px rgba(0,0,0,.35)}
 #cd1-btt.cd1-btt-on{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0)}
 #cd1-btt:hover,#cd1-btt:focus-visible{background:#1a2840;border-color:rgba(77,163,255,.5);outline:2px solid #4da3ff;outline-offset:2px}
+/* Never cover booking modal CTAs */
+body:has(#bk-ov.open) #cd1-btt,
+body:has(.booking-modal-ov.open) #cd1-btt{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+
+/* Trucks / carretas cab picker (booking step 3) */
+.truck-cab-chips{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.truck-cab-chip{width:100%;font:inherit;color:inherit;appearance:none;-webkit-appearance:none;text-align:center}
+.truck-cab-chip .tchip-ico{height:96px;display:flex;align-items:center;justify-content:center}
+.truck-cab-chip .tchip-ico img{width:100%;height:100%;object-fit:contain;object-position:center;display:block}
+.booking-modal .truck-cab-chip,
+#bk-ov .truck-cab-chip{background:var(--bg0,#fff);border:1px solid var(--line-strong,#d8dee8);color:var(--ink,#0b1220);border-radius:12px;padding:12px;cursor:pointer}
+.booking-modal .truck-cab-chip.sel,
+#bk-ov .truck-cab-chip.sel{border-color:var(--blue,#4da3ff);background:rgba(77,163,255,.07)}
+@media(max-width:520px){
+  .truck-cab-chips{grid-template-columns:1fr}
+  .truck-cab-chip .tchip-ico{height:110px}
+}
 @media(max-width:900px){.specialty-public-footer .foot-top{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.specialty-public-footer .foot-top{grid-template-columns:1fr}}
 @media (prefers-reduced-motion: reduce){#cd1-btt{transition:none}}

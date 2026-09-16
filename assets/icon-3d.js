@@ -48,8 +48,8 @@
     full_size_van_passenger: { file: 'passenger-van.webp', alt: 'Full-size passenger van', studio: true },
     truck: { file: 'midsize-pickup.webp', alt: 'Pickup truck', studio: true },
     // Commercial Trucks category (carretas) — day vs sleeper; pickups stay on cars.truck
-    day_cab: { file: 'truck.webp', alt: 'Day cab / single cab semi-truck', studio: true },
-    sleeper_cab: { file: 'truck.webp', alt: 'Sleep / sleeper cab semi-truck', studio: true },
+    day_cab: { file: 'tier-day-cab.webp', alt: 'Day cab / single cab semi-truck' },
+    sleeper_cab: { file: 'tier-sleeper-cab.webp', alt: 'Sleep / sleeper cab semi-truck' },
     motorcycle: { file: 'motorcycle.webp', alt: 'Motorcycle', studio: true },
     motorcycle_large: { file: 'touring-bagger.webp', alt: 'Large cruiser, touring or bagger motorcycle', studio: true },
     motorcycle_trike: { file: 'motorcycle-trike.webp', alt: 'Factory three-wheel motorcycle / trike', studio: true },
