@@ -13,6 +13,7 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const icon3d = fs.readFileSync(path.join(root, 'assets/icon-3d.js'), 'utf8');
+const PowersportsCatalog = require('../assets/powersports-model-catalog');
 
 const REQUIRED = [
   'sedan.webp','coupe.webp','supercar.webp','convertible.webp','wagon.webp','offroad-suv.webp',
@@ -251,28 +252,21 @@ test('short MODEL_MAP keys use word boundaries to avoid substring collisions', (
 });
 
 test('John Deere Gator is in specialty catalog and maps to UTV', () => {
-  assert.match(index, /"John Deere"\s*:\s*\[/);
-  assert.match(index, /Gator XUV835M/);
-  assert.match(index, /john deere\|deere/);
+  const record = PowersportsCatalog.resolve('John Deere', 'Gator XUV835M');
+  assert.equal(record.serviceClass, 'utv_standard');
+  assert.equal(record.physicalFamily, 'utv');
   const { api, ST } = loadVisualRuntime();
   ST.cat = 'powersports';
   ST.tierKey = 'motorcycle';
   ST.vehicleLabel = '2024 John Deere Gator XUV835M';
   assert.equal(api.getVehicleVisualKey(), 'utv');
-  // Pricing tier inference
-  const inferStart = index.indexOf('function inferPowersportsTier');
-  const inferChunk = index.slice(inferStart, inferStart + 1800);
-  assert.match(inferChunk, /gator\|xuv\|rsx\|john deere\|deere/);
 });
 
 test('Kubota, golf carts, and equipment expand powersports catalog', () => {
-  assert.match(index, /"Kubota"\s*:\s*\[/);
-  assert.match(index, /RTV-X900/);
-  assert.match(index, /"Club Car"\s*:\s*\[/);
-  assert.match(index, /"E-Z-GO"\s*:\s*\[/);
-  assert.match(index, /"Bobcat"\s*:\s*\[/);
-  assert.match(index, /golfcart:\s*\{label:'Golf Cart'/);
-  assert.match(index, /equipment:\s*\{label:'Tractor \/ Equipment'/);
+  assert.equal(PowersportsCatalog.resolve('Kubota', 'RTV-X900').serviceClass, 'utv_standard');
+  assert.equal(PowersportsCatalog.resolve('Club Car', 'Onward').publicStatus, 'contact');
+  assert.equal(PowersportsCatalog.resolve('E-Z-GO', 'Liberty').physicalFamily, 'golfcart');
+  assert.equal(PowersportsCatalog.resolve('Bobcat', 'S70 Skid Steer').physicalFamily, 'equipment');
 
   const { api, ST } = loadVisualRuntime();
   ST.cat = 'powersports';
@@ -287,14 +281,13 @@ test('Kubota, golf carts, and equipment expand powersports catalog', () => {
   ST.vehicleLabel = '2022 Bobcat S70 Skid Steer';
   assert.equal(api.getVehicleVisualKey(), 'equipment');
 
-  const inferStart = index.indexOf('function inferPowersportsTier');
-  const inferChunk = index.slice(inferStart, inferStart + 1800);
-  assert.match(inferChunk, /return 'golfcart'/);
-  assert.match(inferChunk, /return 'equipment'/);
-  assert.match(inferChunk, /rtv\|kubota/);
 });
 
-test('powersports confirm still lets UTV/ATV override stale Motorcycle', () => {
-  assert.match(index, /if\(ST\.cat==='powersports'\)\{\s*const inferred=inferPowersportsTier/);
-  assert.match(index, /inferred==='utv' \|\| inferred==='atv' \|\| inferred==='golfcart' \|\| inferred==='equipment'/);
+test('powersports confirm clears stale state and resolves exact catalog metadata', () => {
+  assert.match(index, /CD1PowersportsBookingSafety\.resetForIdentityChange\(ST,make,model\)/);
+  assert.match(index, /CD1PowersportsBookingSafety\.resolveAndApply\(ST,PRICING\.powersports,make,model\)/);
+  const inferStart = index.indexOf('function inferPowersportsTier');
+  const inferChunk = index.slice(inferStart, inferStart + 500);
+  assert.match(inferChunk, /CD1PowersportsCatalog\.resolve\(make,model\)/);
+  assert.doesNotMatch(inferChunk, /\.test\(/);
 });

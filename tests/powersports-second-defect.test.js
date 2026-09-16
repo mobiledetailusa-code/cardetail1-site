@@ -25,6 +25,8 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const index = read('index.html');
 const psPage = read('powersports-detailing.html');
 const Review = require('../assets/booking-review-runtime');
+const PowersportsCatalog = require('../assets/powersports-model-catalog');
+const PowersportsSafety = require('../assets/powersports-booking-safety');
 const { computeVehicleSubtotal } = require('../netlify/lib/booking-price-catalog');
 const { applyServerTravelAndTotal } = require('../netlify/lib/travel-fee');
 const submitBooking = require('../netlify/functions/submit-booking');
@@ -53,7 +55,7 @@ const PS_TIERS = {
 const MACHINES = {
   motorcycle: { make: 'Honda', model: 'Rebel 500', year: '2023', tierKey: 'motorcycle', price: { wash: 100, full: 225, premium: 315 } },
   atv: { make: 'Honda', model: 'FourTrax Rancher', year: '2022', tierKey: 'atv', price: { wash: 100, full: 225, premium: 315 } },
-  utv: { make: 'Honda', model: 'Pioneer 1000', year: '2024', tierKey: 'utv', price: { wash: 125, full: 280, premium: 395 } },
+  utv: { make: 'Honda', model: 'Pioneer 1000', year: '2024', tierKey: 'utv_standard', price: { wash: 125, full: 280, premium: 395 } },
 };
 
 function loadDispatcher(stOverrides, fields) {
@@ -97,6 +99,8 @@ function loadDispatcher(stOverrides, fields) {
       vehicles: [],
     }, stOverrides),
     PRICING: { powersports: { tiers: structuredClone(PS_TIERS) } },
+    CD1PowersportsCatalog: PowersportsCatalog,
+    CD1PowersportsBookingSafety: PowersportsSafety,
     document: {
       getElementById(id) { return els[id] || null; },
       querySelector(sel) {
@@ -272,9 +276,8 @@ describe('second defect: empty tierKey is the Continue gate', () => {
     const fn = extractFunction(index, 'tryGenericConfirm');
     assert.match(fn, /if\(ST\.cat==='boats'\|\|ST\.cat==='rvs'\)/);
     assert.doesNotMatch(fn, /ST\.cat==='powersports' && \(ST\.cat==='boats'|ST\.cat==='boats'\|\|ST\.cat==='rvs'\|\|ST\.cat==='powersports'/);
-    assert.match(fn, /if\(ST\.cat==='powersports'\)\{\s*const inferred=inferPowersportsTier/);
-    assert.match(fn, /inferred==='utv' \|\| inferred==='atv'/);
-    assert.match(fn, /inferPowersportsTier/);
+    assert.match(fn, /CD1PowersportsBookingSafety\.resetForIdentityChange\(ST,make,model\)/);
+    assert.match(fn, /CD1PowersportsBookingSafety\.resolveAndApply\(ST,PRICING\.powersports,make,model\)/);
   });
 
   it('ymm + package with no chip selected used to die on !ST.tierKey; now infers machine', () => {
@@ -294,17 +297,17 @@ describe('second defect: empty tierKey is the Continue gate', () => {
       tier: PS_TIERS.motorcycle,
     }, { make: 'Honda', model: 'Pioneer 1000', year: '2024' });
     sandbox.tryGenericConfirm();
-    assert.equal(sandbox.ST.tierKey, 'utv');
+    assert.equal(sandbox.ST.tierKey, 'utv_standard');
   });
 
-  it('ambiguous motorcycle inference does not override an explicit ATV chip', () => {
+  it('known catalog metadata overrides a stale explicit ATV chip', () => {
     const { sandbox } = loadDispatcher({
       cat: 'powersports', pkgId: 'wash',
       tierKey: 'atv',
       tier: PS_TIERS.atv,
     }, { make: 'Honda', model: 'Rebel 500', year: '2023' });
     sandbox.tryGenericConfirm();
-    assert.equal(sandbox.ST.tierKey, 'atv');
+    assert.equal(sandbox.ST.tierKey, 'motorcycle');
   });
 });
 
@@ -346,7 +349,7 @@ describe('Motorcycle / ATV / UTV Continue transition without injected tierKey', 
 
   it('UTV Pioneer 1000 Continue transition', () => {
     const { sandbox, els } = confirmPackagePath('wash', MACHINES.utv);
-    assert.equal(sandbox.ST.tierKey, 'utv');
+    assert.equal(sandbox.ST.tierKey, 'utv_standard');
     assert.equal(els.next3.disabled, false);
   });
 });

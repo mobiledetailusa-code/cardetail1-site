@@ -105,7 +105,9 @@
     return {
       key: String(v.vehicleId || v.id || ('vehicle-' + index)),
       index: index,
+      category: String(v.cat || v.category || ''),
       label: vehicleLabel(v),
+      tierLabel: String(v.tierLabel || v.vehicleTier || '').trim(),
       packageName: String(v.pkgName || v.packageName || v.package || 'Package'),
       packagePrice: packagePrice,
       addons: addons,
@@ -121,6 +123,8 @@
     if (!hasAny) return null;
     return {
       vehicleLabel: b.vehicleLabel || b.vehicle || '',
+      cat: b.vehicleCategory || '',
+      tierLabel: b.vehicleTier || '',
       lengthFt: b.lengthFt,
       pkgName: b.package || '',
       basePrice: b.packagePrice,
@@ -182,7 +186,10 @@
         '<h4 class="bkli-vehicle-title">' +
         (multi ? '<span class="bkli-vehicle-index">' + (idx + 1) + '</span>' : '') +
         '<span class="bkli-vehicle-name">' + esc(item.label) + '</span>' +
-        '</h4>' + rows +
+        '</h4>' +
+        (item.category === 'powersports' && item.tierLabel
+          ? '<div class="bkli-vehicle-class">' + esc(item.tierLabel) + '</div>'
+          : '') + rows +
         '</section>';
     }).join('');
   }

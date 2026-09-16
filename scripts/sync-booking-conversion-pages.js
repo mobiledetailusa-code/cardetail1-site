@@ -42,6 +42,26 @@ const scripts = [
   '<script src="assets/booking-address-suggest.js"></script>',
 ];
 
+const powersportsAssets = [
+  '<script src="assets/powersports-model-catalog.js"></script>',
+  '<script src="assets/powersports-booking-safety.js"></script>',
+];
+
+const powersportsCatalogProjection =
+  '  powersports: window.CD1PowersportsCatalog.powersportsModelsByMake(),\n';
+
+const powersportsConfirmBlock = `  // Cars confirm only via make-in / model-sel / year-sel — never g-make leftovers.
+  if(ST.cat==='cars') return;
+
+  if(ST.cat==='powersports'){
+    const resolution=CD1PowersportsBookingSafety.resolveAndApply(ST,PRICING.powersports,make,model);
+    const canContinue=CD1PowersportsBookingSafety.presentResolution(ST,resolution,make,model,year,document);
+    typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
+    if(!canContinue) return;
+  }
+
+  if(!ST.tierKey)return;`;
+
 const requiredMarkers = [
   'id="f-water"',
   'id="f-electric"',
@@ -73,6 +93,10 @@ const requiredMarkers = [
   'bkEarliestBookable',
   'BK_REVIEW_SUBMIT_START',
   'BK_SUCCESS_END',
+  'assets/powersports-model-catalog.js',
+  'assets/powersports-booking-safety.js',
+  'CD1PowersportsCatalog.powersportsModelsByMake()',
+  'CD1PowersportsBookingSafety.resolveAndApply',
   'selectRequestPaymentPreference',
   'Submit Booking Request',
   'Request received',
@@ -124,6 +148,73 @@ function ensureScripts(html) {
       next = next.replace('</body>', () => `${s}\n</body>`);
     }
   }
+  return next;
+}
+
+function ensurePowersportsAssets(html) {
+  let next = html;
+  const missing = powersportsAssets.filter((asset) => !next.includes(asset));
+  if (!missing.length) return next;
+  const marker = '<script src="assets/booking-vehicle-summary.js"></script>';
+  if (next.includes(marker)) {
+    return next.replace(marker, () => `${missing.join('\n')}\n${marker}`);
+  }
+  return next.replace('</head>', () => `${missing.join('\n')}\n</head>`);
+}
+
+function syncPowersportsCatalog(html) {
+  const root = html.indexOf('window.SPECIALTY_MODELS = {');
+  if (root < 0) return html;
+  const powersports = html.indexOf('  powersports:', root);
+  const boats = html.indexOf('  boats:', powersports);
+  if (powersports < 0 || boats < 0) return html;
+  return html.slice(0, powersports) + powersportsCatalogProjection + html.slice(boats);
+}
+
+function syncPowersportsBookingLogic(html) {
+  let next = html;
+
+  // Clear a prior vehicle class before the ordinary completeness guard, while
+  // the customer is still editing make/model fields.
+  next = next.replace(
+    /(function tryGenericConfirm\(\)\{[\s\S]*?const year=document\.getElementById\('g-year'\)\.value;\r?\n)(?!\s*if\(ST\.cat==='powersports'\) CD1PowersportsBookingSafety\.resetForIdentityChange)/,
+    `$1  if(ST.cat==='powersports') CD1PowersportsBookingSafety.resetForIdentityChange(ST,make,model);\n`
+  );
+
+  // All pages call the shared exact-metadata resolver. This replaces both the
+  // old regex branch and legacy pages that required a preselected price chip.
+  next = next.replace(
+    /  \/\/ Cars confirm only via make-in \/ model-sel \/ year-sel[^\n]*\n  if\(ST\.cat==='cars'\) return;[\s\S]*?\n  if\(!ST\.tierKey\)return;/,
+    () => powersportsConfirmBlock
+  );
+
+  // Unknown/free-form models get explicit service-family choices, not raw
+  // internal price tiers (and never browser-only golf/equipment prices).
+  next = next.replace(
+    /    const tiers=PRICING\[cat\]\.tiers;\r?\n    wrap\.innerHTML=Object\.entries\(tiers\)(?:\.filter\([^\r\n]+\))?\.map/,
+    () => `    const tiers=cat==='powersports'\n      ? CD1PowersportsBookingSafety.fallbackTiers(PRICING.powersports)\n      : PRICING[cat].tiers;\n    wrap.innerHTML=Object.entries(tiers).map`
+  );
+
+  next = next.replace(
+    /function selectTier\(key\)\{[\s\S]*?  ST\.classNeedsConfirm=false;/,
+    () => `function selectTier(key){
+  document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
+  document.querySelector(\`.tchip[data-tier="\${key}"]\`)?.classList.add('sel');
+  if(ST.cat==='powersports'){
+    if(!CD1PowersportsBookingSafety.chooseManualClass(ST,key)) return;
+    ST.tierKey=key;
+    ST.tier=CD1PowersportsBookingSafety.fallbackTiers(PRICING.powersports)[key]||null;
+  }else{
+    ST.tierKey=key; ST.tier=PRICING[ST.cat].tiers[key];
+  }
+  ST.classNeedsConfirm=false;`
+  );
+
+  next = next.replace(
+    "  motorcycle:'motorcycle', atv:'atv', utv:'utv', golfcart:'golfcart', equipment:'equipment', jetski:'jetski',",
+    "  motorcycle:'motorcycle', motorcycle_large:'cruiser', motorcycle_trike:'motorcycle',\n  atv:'atv', utv:'utv', utv_standard:'utv', utv_large:'utv', golfcart:'golfcart', equipment:'equipment', jetski:'jetski',"
+  );
+
   return next;
 }
 
@@ -182,6 +273,9 @@ function applyTransforms(html, canonicalForm, canonicalReview) {
   next = syncProgressTabs(next);
   next = ensureReviewAssets(next);
   next = ensureScripts(next);
+  next = ensurePowersportsAssets(next);
+  next = syncPowersportsCatalog(next);
+  next = syncPowersportsBookingLogic(next);
   next = next.replace(
     /<div class="fg full"><div class="fl">Access notes \(optional\)<\/div><textarea class="fta" id="f-access-notes"[^<]*<\/textarea><\/div>\s*/g,
     ''
