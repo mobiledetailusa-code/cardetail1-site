@@ -43,6 +43,8 @@ const PACKAGE_DESCRIPTIONS = {
     essential: 'Essential detail for exterior and riding surfaces.',
     full: 'Full powersports detail.',
     premium: 'Premium powersports protection detail.',
+    maintenance: 'Routine professional Powersports cleaning, upkeep and protection.',
+    restore: 'Corrective Powersports detailing for paint enhancement, oxidation and deeper polishing.',
   },
   fleet: {
     maint: 'Fleet maintenance wash.',

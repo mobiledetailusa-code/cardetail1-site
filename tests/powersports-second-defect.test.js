@@ -47,9 +47,13 @@ function extractFunction(src, name) {
 }
 
 const PS_TIERS = {
-  motorcycle: { label: 'Motorcycle', wash: 100, essential: 160, full: 225, premium: 315 },
-  atv: { label: 'ATV', wash: 100, essential: 160, full: 225, premium: 315 },
+  motorcycle: { label: 'Motorcycle', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 175, restore: 225 },
+  motorcycle_large: { label: 'Large Motorcycle', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 190, restore: 250 },
+  motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', maintenance: 200, restore: 275 },
+  atv: { label: 'ATV', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 175, restore: 215 },
   utv: { label: 'UTV / Side-by-Side', wash: 125, essential: 190, full: 280, premium: 395 },
+  utv_standard: { label: 'Side-by-Side / UTV', wash: 125, essential: 190, full: 280, premium: 395, maintenance: 190, restore: 240 },
+  utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash: 125, essential: 190, full: 280, premium: 395, maintenance: 200, restore: 275 },
 };
 
 const MACHINES = {
@@ -261,10 +265,11 @@ describe('Powersports public entry + package IDs', () => {
     );
   });
 
-  it('Wash / Full / Premium public CTAs use canonical catalog IDs', () => {
-    assert.match(psPage, /data-booking-package="wash"/);
-    assert.match(psPage, /data-booking-package="full"/);
-    assert.match(psPage, /data-booking-package="premium"/);
+  it('public CTAs use the two new catalog IDs and keep historical IDs in the catalog', () => {
+    assert.match(psPage, /data-booking-package="maintenance"/);
+    assert.match(psPage, /data-booking-package="restore"/);
+    assert.match(index, /id:'maintenance',\s+name:'Maintenance Detail'/);
+    assert.match(index, /id:'restore',\s+name:'Correction \/ Restoration Detail'/);
     assert.match(index, /id:'wash',\s+name:'Wash & Shine'/);
     assert.match(index, /id:'full',\s+name:'Full Detail'/);
     assert.match(index, /id:'premium',\s+name:'Premium Detail'/);

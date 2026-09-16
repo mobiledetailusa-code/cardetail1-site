@@ -28,7 +28,7 @@ const CHAT_STARTING_PRICES = Object.freeze({
   carWash: minTierPrice('cars', 'wash'),
   boats: LENGTH_PRICING.boats.packages.maint.min,
   rvs: getLengthPrice('rvs', 'maint', LENGTH_PRICING.rvs.min, 'travel'),
-  powersports: minTierPrice('powersports', 'wash'),
+  powersports: minTierPrice('powersports', 'maintenance'),
 });
 
 const BUSINESS_SYSTEM = `You are the Booking Assistant for Cardetail1 Team. Your ONLY goal is to provide quick answers and guide the customer to book an appointment.

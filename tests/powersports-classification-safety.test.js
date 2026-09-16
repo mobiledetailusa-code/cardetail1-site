@@ -13,12 +13,7 @@ const VehicleSummary = require('../assets/booking-vehicle-summary');
 const ServerPricing = require('../netlify/lib/booking-price-catalog');
 
 const CLIENT_PRICING = {
-  tiers: {
-    motorcycle: { label: 'Motorcycle', wash: 100, essential: 160, full: 225, premium: 315 },
-    atv: { label: 'ATV', wash: 100, essential: 160, full: 225, premium: 315 },
-    utv: { label: 'UTV / Side-by-Side', wash: 125, essential: 190, full: 280, premium: 395 },
-    jetski: { label: 'Jet Ski / PWC', wash: 100, essential: 160, full: 225, premium: 310 },
-  },
+  tiers: ServerPricing.PRICING.powersports.tiers,
 };
 
 const SIX_FAMILIES = new Set([
@@ -143,13 +138,13 @@ describe('identity reset and deterministic recomputation', () => {
     assert.equal(result.status, 'bookable');
     assert.equal(st.tierKey, 'motorcycle_large');
     assert.equal(st.displayLabel, 'Large Motorcycle');
-    assert.equal(st.tier.priceTierKey, 'motorcycle');
+    assert.equal(st.tier.priceTierKey, 'motorcycle_large');
 
     result = resolveInto(st, 'Polaris', 'RZR Trail');
     assert.equal(result.status, 'bookable');
     assert.equal(st.tierKey, 'utv_standard');
     assert.equal(st.displayLabel, 'Side-by-Side / UTV');
-    assert.equal(st.tier.priceTierKey, 'utv');
+    assert.equal(st.tier.priceTierKey, 'utv_standard');
   });
 
   it('recomputes ATV → Motorcycle → UTV → Trike → ATV with a safe Trike stop', () => {
@@ -158,7 +153,7 @@ describe('identity reset and deterministic recomputation', () => {
       ['Honda', 'FourTrax Rancher', 'atv', 'bookable'],
       ['Honda', 'Rebel 500', 'motorcycle', 'bookable'],
       ['Polaris', 'General XP 4', 'utv_large', 'bookable'],
-      ['Can-Am', 'Spyder RT', '', 'price_review'],
+      ['Can-Am', 'Spyder RT', 'motorcycle_trike', 'bookable'],
       ['Massimo', 'MSA 550', 'atv', 'bookable'],
     ]) {
       const result = resolveInto(st, make, model);
@@ -186,13 +181,12 @@ describe('safe fallback and explicit quarantine', () => {
     assert.equal(st.tierKey, 'atv');
   });
 
-  it('routes PWC/pontoon to Boats and stops Golf, Equipment and Trike before numeric pricing', () => {
+  it('routes PWC/pontoon to Boats and stops Golf and Equipment before numeric pricing', () => {
     for (const [make, model, status] of [
       ['Sea-Doo', 'Spark', 'route_boats'],
       ['Sea-Doo', 'Switch', 'route_boats'],
       ['Club Car', 'Onward', 'contact'],
       ['Bobcat', 'S70 Skid Steer', 'contact'],
-      ['Can-Am', 'Spyder RT', 'price_review'],
     ]) {
       const st = { basePrice: 999, tierKey: 'utv_large', tier: { label: 'stale' } };
       const result = resolveInto(st, make, model);
@@ -217,8 +211,8 @@ describe('safe fallback and explicit quarantine', () => {
     };
     const doc = { getElementById(id) { return elements[id] || null; } };
     const st = { basePrice: 395 };
-    const result = Safety.classify(st, CLIENT_PRICING, 'Can-Am', 'Spyder RT');
-    assert.equal(Safety.presentResolution(st, result, 'Can-Am', 'Spyder RT', '2025', doc), false);
+    const result = Safety.classify(st, CLIENT_PRICING, 'Club Car', 'Onward');
+    assert.equal(Safety.presentResolution(st, result, 'Club Car', 'Onward', '2025', doc), false);
     assert.equal(elements.next3.disabled, true);
     assert.equal(elements['vc-price'].style.display, 'none');
     assert.equal(elements['vc-price'].textContent, '');
@@ -230,22 +224,24 @@ describe('client/server/review parity with frozen money', () => {
   it('aligns every publicly bookable service key and maps only to frozen price tiers', () => {
     assert.deepEqual([...Safety.publicServiceClassKeys].sort(), [...ServerPricing.POWERSPORTS_PUBLIC_TIER_KEYS].sort());
     assert.deepEqual([...Safety.publicServiceClassKeys].sort(), [
-      'atv', 'motorcycle', 'motorcycle_large', 'utv_large', 'utv_standard',
+      'atv', 'motorcycle', 'motorcycle_large', 'motorcycle_trike', 'utv_large', 'utv_standard',
     ]);
     const expectedPriceTier = {
-      motorcycle: 'motorcycle', motorcycle_large: 'motorcycle',
-      atv: 'atv', utv_standard: 'utv', utv_large: 'utv',
+      motorcycle: 'motorcycle', motorcycle_large: 'motorcycle_large',
+      motorcycle_trike: 'motorcycle_trike',
+      atv: 'atv', utv_standard: 'utv_standard', utv_large: 'utv_large',
     };
     for (const [serviceClass, priceTier] of Object.entries(expectedPriceTier)) {
       assert.equal(Catalog.priceTierForServiceClass(serviceClass), priceTier);
+      const pkgId = serviceClass === 'motorcycle_trike' ? 'maintenance' : 'premium';
       const result = ServerPricing.computeVehicleSubtotal({
-        cat: 'powersports', pkgId: 'premium', tierKey: serviceClass, addons: [],
+        cat: 'powersports', pkgId, tierKey: serviceClass, addons: [],
       }, '07102');
       assert.equal(result.ok, true, serviceClass);
-      assert.equal(result.basePrice, CLIENT_PRICING.tiers[priceTier].premium);
+      assert.equal(result.basePrice, CLIENT_PRICING.tiers[priceTier][pkgId]);
       assert.equal(result.tierKey, serviceClass);
     }
-    for (const unsafeKey of ['motorcycle_trike', 'golfcart', 'equipment', 'pwc', 'boat']) {
+    for (const unsafeKey of ['golfcart', 'equipment', 'pwc', 'boat']) {
       assert.equal(ServerPricing.computeVehicleSubtotal({
         cat: 'powersports', pkgId: 'wash', tierKey: unsafeKey, addons: [],
       }, '07102').ok, false, unsafeKey);
@@ -259,7 +255,7 @@ describe('client/server/review parity with frozen money', () => {
       [
         ['polymer', 25], ['wax1yr', 75], ['rainx', 25], ['heavymud', 55],
         ['seatdeep', 45], ['storage', 35], ['wheeldet', 35], ['waterspot', 35],
-        ['saltwash', 35], ['trimprot', 35], ['lightdeg', 45],
+        ['saltwash', 35], ['trimprot', 35], ['lightdeg', 45], ['chrome_restore', 75],
       ]
     );
   });

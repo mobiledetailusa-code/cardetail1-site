@@ -129,7 +129,7 @@ test('specialty public prices unchanged', () => {
   const html = read('index.html');
   assert.match(html, /id="bkfrom-boats"[\s\S]*?From \$170/);
   assert.match(html, /id="bkfrom-rvs"[\s\S]*?Price calculated from your vehicle details/);
-  assert.match(html, /id="bkfrom-powersports"[\s\S]*?From \$100/);
+  assert.match(html, /id="bkfrom-powersports"[\s\S]*?From \$175/);
   assert.ok(fs.existsSync(path.join(root, 'fleet-services.html')));
 });
 
