@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Expanded studio visual map: body-style precision across cars, powersports, boats, RVs.
+ * Refined studio visuals: exact make+model archetypes across cars + specialty.
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -14,11 +14,13 @@ const root = path.resolve(__dirname, '..');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const icon3d = fs.readFileSync(path.join(root, 'assets/icon-3d.js'), 'utf8');
 const PowersportsCatalog = require('../assets/powersports-model-catalog');
+const BrandVisualsData = require('../assets/generated/brand-model-visuals.generated.js');
+const BrandVisuals = require('../assets/vehicle-brand-visuals.js');
 
 const REQUIRED = [
-  'sedan.webp','coupe.webp','supercar.webp','convertible.webp','wagon.webp','offroad-suv.webp',
-  'luxury-suv.webp','luxury-sedan.webp',
-  'suv-crossover.webp','suv-3row.webp','minivan.webp',
+  'compact-sedan.webp','executive-sedan.webp','sport-coupe.webp','supercar.webp','convertible.webp',
+  'premium-wagon.webp','jeep-wrangler.webp','compact-crossover.webp','midsize-crossover.webp',
+  'luxury-crossover.webp','family-suv-3row.webp','family-minivan.webp','midsize-pickup.webp',
   'compact-van.webp','midsize-van.webp','cargo-van.webp','passenger-van.webp','truck.webp',
   'motorcycle.webp','cruiser.webp','sportbike.webp','adventure-bike.webp','dirtbike.webp','scooter.webp',
   'atv.webp','utv.webp','golf-cart.webp','jetski.webp',
@@ -27,14 +29,14 @@ const REQUIRED = [
 ];
 
 const TIER_TO_FILE = {
-  small: 'sedan.webp',
-  suv2: 'suv-crossover.webp',
-  suv3: 'suv-3row.webp',
+  small: 'compact-sedan.webp',
+  suv2: 'midsize-crossover.webp',
+  suv3: 'family-suv-3row.webp',
   compact_van: 'compact-van.webp',
   midsize_van: 'midsize-van.webp',
   full_size_van: 'cargo-van.webp',
   full_size_van_passenger: 'passenger-van.webp',
-  truck: 'truck.webp',
+  truck: 'midsize-pickup.webp',
   motorcycle: 'motorcycle.webp',
   atv: 'atv.webp',
   utv: 'utv.webp',
@@ -49,12 +51,16 @@ function loadVisualRuntime() {
     index.slice(start, end) +
     '\n;({VEHICLE_VISUALS,TIER_VISUAL_KEYS,MODEL_MAP,PRECISION_VISUAL_KEYS,modelMapVisual,makeVisualHint,getVehicleVisualKey});';
   const sandbox = {
-    ST: { cat: 'cars', tierKey: '', vehicleLabel: '', body: null, boatType: '', rvType: '' },
+    ST: { cat: 'cars', tierKey: '', vehicleLabel: '', body: null, boatType: '', rvType: '', make: '', model: '' },
+    CD1_BRAND_MODEL_VISUALS: BrandVisualsData,
+    CD1_VehicleBrandVisuals: BrandVisuals,
   };
-  return { api: vm.runInNewContext(chunk, sandbox), ST: sandbox.ST };
+  // Bind data onto BrandVisuals root expectation
+  globalThis.CD1_BRAND_MODEL_VISUALS = BrandVisualsData;
+  return { api: vm.runInNewContext(chunk, sandbox), ST: sandbox.ST, sandbox };
 }
 
-test('expanded studio assets exist and are pairwise distinct', () => {
+test('refined studio assets exist and are pairwise distinct', () => {
   const hashes = new Map();
   for (const file of REQUIRED) {
     const p = path.join(root, 'assets/vehicles/studio', file);
@@ -67,33 +73,34 @@ test('expanded studio assets exist and are pairwise distinct', () => {
   }
 });
 
-test('VEHICLE_VISUALS references every expanded studio asset', () => {
-  for (const file of REQUIRED) {
+test('VEHICLE_VISUALS references refined studio assets', () => {
+  for (const file of [
+    'compact-sedan.webp','executive-sedan.webp','sport-coupe.webp','jeep-wrangler.webp',
+    'compact-crossover.webp','midsize-crossover.webp','luxury-crossover.webp',
+    'family-suv-3row.webp','family-minivan.webp','midsize-pickup.webp','premium-wagon.webp',
+  ]) {
     assert.match(index, new RegExp(`assets/vehicles/studio/${file.replace('.', '\\.')}`));
   }
 });
 
-test('icon3dTier still maps pricing tiers to studio renders', () => {
+test('icon3dTier maps pricing tiers to refined studio renders', () => {
   assert.match(icon3d, /STUDIO_BASE/);
   for (const [tier, file] of Object.entries(TIER_TO_FILE)) {
     assert.match(icon3d, new RegExp(`${tier}:\\s*\\{[^}]*${file.replace('.', '\\.')}`));
   }
 });
 
-test('getVehicleVisualKey prefers body-style precision before pricing tier', () => {
+test('getVehicleVisualKey prefers exact brand+model before pricing tier', () => {
   const start = index.indexOf('function getVehicleVisualKey');
-  const chunk = index.slice(start, start + 3200);
+  const chunk = index.slice(start, start + 4200);
+  assert.match(chunk, /resolveBrandModelVisual/);
   assert.match(chunk, /if\(cat==='boats'\)/);
   assert.match(chunk, /if\(cat==='rvs'\)/);
   const fleet = chunk.indexOf("if(cat==='fleet')");
   assert.ok(fleet > 0);
   const carsTail = chunk.slice(fleet);
-  assert.ok(carsTail.indexOf('PRECISION_VISUAL_KEYS[ST.body]') > 0);
-  assert.ok(carsTail.indexOf('modelMapVisual(lbl, PRECISION_VISUAL_KEYS)') > 0);
-  assert.ok(
-    carsTail.indexOf('if(ST.tierKey && TIER_VISUAL_KEYS[ST.tierKey]) return TIER_VISUAL_KEYS[ST.tierKey]') >
-      carsTail.indexOf('modelMapVisual(lbl, PRECISION_VISUAL_KEYS)')
-  );
+  assert.ok(carsTail.indexOf('resolveBrandModelVisual') > 0);
+  assert.ok(carsTail.indexOf('PRECISION_VISUAL_KEYS[ST.body]') > carsTail.indexOf('resolveBrandModelVisual'));
 });
 
 test('precision across categories: cars, powersports, boats, rvs', () => {
@@ -103,21 +110,31 @@ test('precision across categories: cars, powersports, boats, rvs', () => {
   ST.cat = 'cars';
   ST.tierKey = 'suv3';
   ST.vehicleLabel = '2021 Honda Odyssey';
+  ST.make = 'Honda';
+  ST.model = 'Odyssey';
   ST.body = null;
-  assert.equal(getVehicleVisualKey(), 'minivan');
+  assert.equal(getVehicleVisualKey(), 'family_minivan');
 
   ST.vehicleLabel = '2020 Ford Mustang';
+  ST.make = 'Ford';
+  ST.model = 'Mustang';
   ST.tierKey = 'small';
-  assert.equal(getVehicleVisualKey(), 'coupe');
+  assert.equal(getVehicleVisualKey(), 'sport_coupe');
 
   ST.vehicleLabel = '2022 Jeep Wrangler';
+  ST.make = 'Jeep';
+  ST.model = 'Wrangler';
   ST.tierKey = 'suv2';
-  assert.equal(getVehicleVisualKey(), 'offroad');
+  assert.equal(getVehicleVisualKey(), 'jeep_wrangler');
 
   ST.vehicleLabel = '2021 Subaru Outback';
-  assert.equal(getVehicleVisualKey(), 'wagon');
+  ST.make = 'Subaru';
+  ST.model = 'Outback';
+  assert.equal(getVehicleVisualKey(), 'premium_wagon');
 
   ST.cat = 'powersports';
+  ST.make = '';
+  ST.model = '';
   ST.tierKey = 'motorcycle';
   ST.vehicleLabel = '2024 Polaris RZR Turbo R';
   assert.equal(getVehicleVisualKey(), 'utv');
@@ -172,77 +189,141 @@ test('precision across categories: cars, powersports, boats, rvs', () => {
   assert.equal(getVehicleVisualKey(), 'classb');
 });
 
-test('premium brands map to supercar / luxury SUV / luxury sedan', () => {
+test('exact brand+model icons: Jeep, Acura, Volvo, Toyota, Honda, Lexus', () => {
+  const { api, ST } = loadVisualRuntime();
+  const { getVehicleVisualKey } = api;
+  ST.cat = 'cars';
+  ST.body = null;
+
+  const cases = [
+    ['Jeep', 'Wrangler', 'jeep_wrangler'],
+    ['Jeep', 'Renegade', 'compact_crossover'],
+    ['Jeep', 'Cherokee', 'midsize_crossover'],
+    ['Jeep', 'Grand Cherokee', 'luxury_crossover'],
+    ['Jeep', 'Gladiator', 'midsize_pickup'],
+    ['Acura', 'ILX', 'compact_sedan'],
+    ['Acura', 'MDX', 'family_suv3'],
+    ['Acura', 'RDX', 'luxury_crossover'],
+    ['Acura', 'TLX', 'executive_sedan'],
+    ['Acura', 'NSX', 'supercar'],
+    ['Volvo', 'V60', 'premium_wagon'],
+    ['Volvo', 'S60', 'executive_sedan'],
+    ['Volvo', 'XC60', 'luxury_crossover'],
+    ['Volvo', 'XC90', 'family_suv3'],
+    ['Toyota', 'Corolla', 'compact_sedan'],
+    ['Toyota', 'RAV4', 'midsize_crossover'],
+    ['Toyota', '4Runner', 'offroad'],
+    ['Toyota', 'Sienna', 'family_minivan'],
+    ['Honda', 'Civic', 'compact_sedan'],
+    ['Honda', 'CR-V', 'midsize_crossover'],
+    ['Honda', 'Pilot', 'family_suv3'],
+    ['Honda', 'Odyssey', 'family_minivan'],
+    ['Lexus', 'ES', 'executive_sedan'],
+    ['Lexus', 'RX', 'luxury_crossover'],
+    ['Lexus', 'GX', 'offroad'],
+    ['Lexus', 'LX', 'family_suv3'],
+  ];
+
+  for (const [make, model, visual] of cases) {
+    ST.make = make;
+    ST.model = model;
+    ST.tierKey = 'suv2';
+    ST.vehicleLabel = `2024 ${make} ${model}`;
+    assert.equal(getVehicleVisualKey(), visual, `${make} ${model}`);
+    assert.ok(api.VEHICLE_VISUALS[visual], `missing VEHICLE_VISUALS.${visual}`);
+  }
+});
+
+test('brand-model generated catalog covers every public SoT vehicle', () => {
+  assert.ok(BrandVisualsData.count >= 400);
+  assert.equal(Object.keys(BrandVisualsData.flat).length, BrandVisualsData.count);
+  const sot = JSON.parse(fs.readFileSync(path.join(root, 'data/cars-vehicle-catalog.json'), 'utf8'));
+  for (const v of sot.vehicles.filter((x) => x.public !== false)) {
+    const key = BrandVisuals.resolveBrandModelVisual(v.make, v.model, '');
+    assert.ok(key, `missing visual for ${v.make} ${v.model}`);
+  }
+});
+
+test('premium brands map to supercar / luxury crossover / executive sedan', () => {
   const { api, ST } = loadVisualRuntime();
   const { getVehicleVisualKey } = api;
   ST.cat = 'cars';
   ST.body = null;
 
   ST.tierKey = 'small';
+  ST.make = 'Ferrari';
+  ST.model = 'Roma';
   ST.vehicleLabel = '2023 Ferrari Roma';
   assert.equal(getVehicleVisualKey(), 'supercar');
 
+  ST.model = 'Amalfi';
   ST.vehicleLabel = '2025 Ferrari Amalfi';
   assert.equal(getVehicleVisualKey(), 'supercar');
 
+  ST.make = 'Lamborghini';
+  ST.model = 'Huracán';
   ST.vehicleLabel = '2024 Lamborghini Huracan';
   assert.equal(getVehicleVisualKey(), 'supercar');
 
-  ST.vehicleLabel = '2025 Lamborghini Temerario';
-  assert.equal(getVehicleVisualKey(), 'supercar');
-
-  ST.vehicleLabel = '2022 McLaren 720S';
-  assert.equal(getVehicleVisualKey(), 'supercar');
-
+  ST.make = 'Porsche';
+  ST.model = '911';
   ST.vehicleLabel = '2021 Porsche 911';
   assert.equal(getVehicleVisualKey(), 'supercar');
 
-  ST.vehicleLabel = '2020 Aston Martin Vantage';
-  assert.equal(getVehicleVisualKey(), 'supercar');
-
   ST.tierKey = 'suv2';
+  ST.make = 'Ferrari';
+  ST.model = 'Purosangue';
   ST.vehicleLabel = '2024 Ferrari Purosangue';
-  assert.equal(getVehicleVisualKey(), 'luxurysuv');
+  assert.equal(getVehicleVisualKey(), 'luxury_crossover');
 
+  ST.make = 'Lamborghini';
+  ST.model = 'Urus';
   ST.vehicleLabel = '2023 Lamborghini Urus';
-  assert.equal(getVehicleVisualKey(), 'luxurysuv');
+  assert.equal(getVehicleVisualKey(), 'luxury_crossover');
 
+  ST.make = 'Porsche';
+  ST.model = 'Cayenne';
   ST.vehicleLabel = '2022 Porsche Cayenne';
-  assert.equal(getVehicleVisualKey(), 'luxurysuv');
+  assert.equal(getVehicleVisualKey(), 'luxury_crossover');
 
-  ST.vehicleLabel = '2025 Porsche Macan Electric';
-  assert.equal(getVehicleVisualKey(), 'luxurysuv');
-
+  ST.make = 'Aston Martin';
+  ST.model = 'DBX';
   ST.vehicleLabel = '2021 Aston Martin DBX';
-  assert.equal(getVehicleVisualKey(), 'luxurysuv');
+  assert.equal(getVehicleVisualKey(), 'luxury_crossover');
 
   ST.tierKey = 'small';
+  ST.make = 'Porsche';
+  ST.model = 'Panamera';
   ST.vehicleLabel = '2020 Porsche Panamera';
-  assert.equal(getVehicleVisualKey(), 'luxurysedan');
-
-  ST.vehicleLabel = '2019 Rolls-Royce Ghost';
-  assert.equal(getVehicleVisualKey(), 'luxurysedan');
+  assert.equal(getVehicleVisualKey(), 'executive_sedan');
 });
 
 test('Ram ProMaster is a van, not Ferrari Roma supercar', () => {
   const { api, ST } = loadVisualRuntime();
   ST.cat = 'cars';
   ST.tierKey = 'small';
+  ST.make = 'Ram';
+  ST.model = 'ProMaster City';
   ST.vehicleLabel = '2022 Ram ProMaster City';
   assert.equal(api.getVehicleVisualKey(), 'compact_van');
+  ST.model = 'ProMaster';
   ST.vehicleLabel = '2021 Ram ProMaster';
-  assert.equal(api.getVehicleVisualKey(), 'van');
+  assert.equal(api.getVehicleVisualKey(), 'cargo_van');
+  ST.make = 'Ferrari';
+  ST.model = 'Roma';
   ST.vehicleLabel = '2023 Ferrari Roma';
   assert.equal(api.getVehicleVisualKey(), 'supercar');
 });
 
-test('Dodge Dart is in the catalog and maps to compact', () => {
+test('Dodge Dart is in the catalog and maps to compact sedan', () => {
   assert.match(index, /"Dodge":\{m:\[[^\]]*Dart/);
   const { api, ST } = loadVisualRuntime();
   ST.cat = 'cars';
   ST.tierKey = 'small';
+  ST.make = 'Dodge';
+  ST.model = 'Dart';
   ST.vehicleLabel = '2015 Dodge Dart';
-  assert.equal(api.getVehicleVisualKey(), 'compact');
+  assert.equal(api.getVehicleVisualKey(), 'compact_sedan');
 });
 
 test('short MODEL_MAP keys use word boundaries to avoid substring collisions', () => {
@@ -280,7 +361,6 @@ test('Kubota, golf carts, and equipment expand powersports catalog', () => {
 
   ST.vehicleLabel = '2022 Bobcat S70 Skid Steer';
   assert.equal(api.getVehicleVisualKey(), 'equipment');
-
 });
 
 test('powersports confirm clears stale state and resolves exact catalog metadata', () => {
@@ -290,4 +370,14 @@ test('powersports confirm clears stale state and resolves exact catalog metadata
   const inferChunk = index.slice(inferStart, inferStart + 500);
   assert.match(inferChunk, /CD1PowersportsCatalog\.resolve\(make,model\)/);
   assert.doesNotMatch(inferChunk, /\.test\(/);
+});
+
+test('booking pages include brand-model visual scripts', () => {
+  assert.match(index, /assets\/generated\/brand-model-visuals\.generated\.js/);
+  assert.match(index, /assets\/vehicle-brand-visuals\.js/);
+  for (const page of ['bergen-county-hub.html', 'new-jersey-hub.html', 'template-city.html']) {
+    const html = fs.readFileSync(path.join(root, page), 'utf8');
+    assert.match(html, /brand-model-visuals\.generated\.js/);
+    assert.match(html, /vehicle-brand-visuals\.js/);
+  }
 });
