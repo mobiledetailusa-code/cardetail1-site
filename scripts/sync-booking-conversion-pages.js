@@ -279,7 +279,7 @@ function syncPowersportsBookingLogic(html) {
 
   next = next.replace(
     "  motorcycle:'motorcycle', atv:'atv', utv:'utv', golfcart:'golfcart', equipment:'equipment', jetski:'jetski',",
-    "  motorcycle:'motorcycle', motorcycle_large:'cruiser', motorcycle_trike:'motorcycle',\n  atv:'atv', utv:'utv', utv_standard:'utv', utv_large:'utv', golfcart:'golfcart', equipment:'equipment', jetski:'jetski',"
+    "  motorcycle:'motorcycle', motorcycle_large:'touring_bagger', motorcycle_trike:'trike',\n  atv:'atv', utv:'utv', utv_standard:'utv', utv_large:'utv_crew', golfcart:'golfcart', equipment:'equipment', jetski:'jetski',"
   );
 
   if (!next.includes('function powersportsPublicFromPrice(')) {
