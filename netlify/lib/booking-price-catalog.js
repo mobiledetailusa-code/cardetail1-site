@@ -93,7 +93,7 @@ const PRICING = {
       // remain so historical bookings keep their original dollar meaning.
       motorcycle: { label: 'Motorcycle', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 175, restore: 225 },
       motorcycle_large: { label: 'Large Motorcycle', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 190, restore: 250 },
-      motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', maintenance: 200, restore: 275 },
+      motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 200, restore: 275 },
       atv: { label: 'ATV', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 175, restore: 215 },
       utv: { label: 'UTV / Side-by-Side', wash: 125, essential: 190, full: 280, premium: 395 },
       utv_standard: { label: 'Side-by-Side / UTV', wash: 125, essential: 190, full: 280, premium: 395, maintenance: 190, restore: 240 },

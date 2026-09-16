@@ -15,6 +15,10 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const checkOnly = process.argv.includes('--check');
 
+function normalizeEol(text) {
+  return String(text).replace(/\r\n/g, '\n');
+}
+
 const pages = [
   'index.html',
   'bergen-county-hub.html',
@@ -213,7 +217,7 @@ function extractBraceBlock(html, start) {
 function extractPricingPowersports(html) {
   const pricing = html.search(/(?:let|const) PRICING = \{/);
   if (pricing < 0) return null;
-  const start = html.indexOf('\n  powersports: {', pricing);
+  const start = html.search(/\r?\n  powersports: \{/);
   if (start < 0) return null;
   return extractBraceBlock(html, start + 1);
 }
@@ -388,7 +392,7 @@ function applyTransforms(html, canonicalForm, canonicalReview) {
   return next;
 }
 
-const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const indexHtml = normalizeEol(fs.readFileSync(path.join(root, 'index.html'), 'utf8'));
 const canonicalForm = extractFormBlock(indexHtml);
 const canonicalReview = extractMarked(indexHtml, REVIEW_START, SUCCESS_END);
 const canonicalPowersportsPricing = extractPricingPowersports(indexHtml);
@@ -404,7 +408,7 @@ if (!canonicalReview) {
 let drift = 0;
 for (const page of pages) {
   const file = path.join(root, page);
-  const before = fs.readFileSync(file, 'utf8');
+  const before = normalizeEol(fs.readFileSync(file, 'utf8'));
   const after = applyTransforms(before, canonicalForm, canonicalReview);
 
   if (checkOnly) {

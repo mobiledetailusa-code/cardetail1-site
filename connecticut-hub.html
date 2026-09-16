@@ -4118,7 +4118,7 @@ const PRICING = {
     tiers: {
       motorcycle: {label:'Motorcycle', icon:'🏍️', desc:'Street · Sport · Standard', wash:100, essential:160, full:225, premium:315, maintenance:175, restore:225},
       motorcycle_large: {label:'Large Motorcycle', icon:'🏍️', desc:'Cruiser · Touring · Bagger', wash:100, essential:160, full:225, premium:315, maintenance:190, restore:250},
-      motorcycle_trike: {label:'Trike / 3-Wheel Motorcycle', icon:'🏍️', desc:'Factory three-wheel motorcycle', maintenance:200, restore:275},
+      motorcycle_trike: {label:'Trike / 3-Wheel Motorcycle', icon:'🏍️', desc:'Factory three-wheel motorcycle', wash:100, essential:160, full:225, premium:315, maintenance:200, restore:275},
       atv:        {label:'ATV',                     icon:'🏎️', desc:'All-Terrain Vehicle · Quad',                        wash:100, essential:160, full:225, premium:315, maintenance:175, restore:215},
       utv:        {label:'UTV / Side-by-Side',      icon:'🚜', desc:'Legacy price-tier key for historical bookings',     wash:125, essential:190, full:280, premium:395},
       utv_standard: {label:'Side-by-Side / UTV',    icon:'🚜', desc:'Standard or non-crew side-by-side',                 wash:125, essential:190, full:280, premium:395, maintenance:190, restore:240},
@@ -4698,7 +4698,8 @@ function renderPackages(cat){
   const grid=document.getElementById('pkg-grid');
   const pkgKey = cat==='fleet'?'essential':'full';
   const categoryVisual=CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
-  grid.innerHTML=d.packages.map(p=>{
+  const packages=cat==='powersports' ? d.packages.filter(p=>!p.legacy) : d.packages;
+  grid.innerHTML=packages.map(p=>{
     let startPrice;
     if(cat==='fleet' && p.id==='custom'){
       startPrice = 0;

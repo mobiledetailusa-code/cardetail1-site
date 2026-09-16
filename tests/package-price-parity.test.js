@@ -132,7 +132,7 @@ function catalogPriceEntries() {
   return entries;
 }
 
-test('13 booking pages match all 196 authoritative package values (2,548 comparisons)', () => {
+test('13 booking pages match all 200 authoritative package values (2,600 comparisons)', () => {
   const discovered = fs.readdirSync(ROOT)
     .filter((file) => file.endsWith('.html'))
     .filter((file) => /(?:const|let)\s+PRICING\s*=/.test(read(file)))
@@ -140,8 +140,8 @@ test('13 booking pages match all 196 authoritative package values (2,548 compari
   assert.deepEqual(discovered, BOOKING_PAGES.slice().sort());
 
   const entries = catalogPriceEntries();
-  // 172 prior catalog + 24 new Powersports family/public package amounts
-  assert.equal(entries.length, 196);
+  // 172 prior catalog + 24 new Powersports family/public amounts + 4 historical Trike aliases
+  assert.equal(entries.length, 200);
   assert.equal(PRICING.cars.tiers.full_size_van.interior, 260);
   assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 270);
   assert.equal(PRICING.cars.tiers.compact_van.interior, 235);
@@ -159,7 +159,7 @@ test('13 booking pages match all 196 authoritative package values (2,548 compari
       comparisons += 1;
     }
   }
-  assert.equal(comparisons, 2548);
+  assert.equal(comparisons, 2600);
 });
 
 test('server length helpers and RV calculator derive from the authoritative catalog', () => {
