@@ -29,7 +29,9 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "generate:brand-visuals": "node scripts/generate-brand-model-visuals.cjs",
-    "check:brand-visuals": "node scripts/generate-brand-model-visuals.cjs --check"
+    "check:brand-visuals": "node scripts/generate-brand-model-visuals.cjs --check",
+    "generate:specialty-visuals": "node scripts/generate-specialty-brand-visuals.cjs",
+    "check:specialty-visuals": "node scripts/generate-specialty-brand-visuals.cjs --check"
   },
   "dependencies": {
     "@netlify/blobs": "10.7.9",

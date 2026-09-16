@@ -1688,6 +1688,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script src="assets/vehicle-catalog.js"></script>
 <script src="assets/vehicle-class-resolver.js"></script>
 <script src="assets/generated/brand-model-visuals.generated.js"></script>
+<script src="assets/generated/specialty-brand-model-visuals.generated.js"></script>
 <script src="assets/vehicle-brand-visuals.js"></script>
 <script src="assets/powersports-model-catalog.js"></script>
 <script src="assets/powersports-booking-safety.js"></script>
@@ -4068,18 +4069,21 @@ const VEHICLE_VISUALS = {
   truck:         { img:'assets/vehicles/studio/truck.webp',          alt:'Full-size pickup truck' },
   motorcycle:    { img:'assets/vehicles/studio/motorcycle.webp',     alt:'Motorcycle' },
   cruiser:       { img:'assets/vehicles/studio/cruiser.webp',        alt:'Cruiser motorcycle' },
+  touring_bagger:{ img:'assets/vehicles/studio/touring-bagger.webp', alt:'Touring bagger motorcycle' },
   sportbike:     { img:'assets/vehicles/studio/sportbike.webp',      alt:'Sport motorcycle' },
   adventure:     { img:'assets/vehicles/studio/adventure-bike.webp', alt:'Adventure motorcycle' },
   dirtbike:      { img:'assets/vehicles/studio/dirtbike.webp',       alt:'Dirt bike' },
   scooter:       { img:'assets/vehicles/studio/scooter.webp',        alt:'Scooter' },
   atv:           { img:'assets/vehicles/studio/atv.webp',            alt:'ATV' },
   utv:           { img:'assets/vehicles/studio/utv.webp',            alt:'UTV side-by-side' },
+  utv_crew:      { img:'assets/vehicles/studio/utv-crew.webp',       alt:'Crew / large UTV side-by-side' },
   golfcart:      { img:'assets/vehicles/studio/golf-cart.webp',      alt:'Golf cart' },
-  equipment:     { img:'assets/vehicles/studio/truck.webp',          alt:'Compact tractor / skid steer' },
+  equipment:     { img:'assets/vehicles/studio/compact-tractor.webp',alt:'Compact tractor / equipment' },
   jetski:        { img:'assets/vehicles/studio/jetski.webp',         alt:'Jet ski' },
   /* Marine */
   boat:          { img:'assets/vehicles/studio/runabout.webp',       alt:'Powerboat' },
   runabout:      { img:'assets/vehicles/studio/runabout.webp',       alt:'Runabout / bowrider' },
+  center_console:{ img:'assets/vehicles/studio/center-console.webp', alt:'Center-console boat' },
   pontoon:       { img:'assets/vehicles/studio/pontoon.webp',        alt:'Pontoon boat' },
   bassboat:      { img:'assets/vehicles/studio/bass-boat.webp',      alt:'Bass boat' },
   cabincruiser:  { img:'assets/vehicles/studio/cabin-cruiser.webp',  alt:'Cabin cruiser' },
@@ -4089,7 +4093,7 @@ const VEHICLE_VISUALS = {
   rv:            { img:'assets/vehicles/studio/rv-class-a.webp',     alt:'RV motorhome' },
   classa:        { img:'assets/vehicles/studio/rv-class-a.webp',     alt:'Class A motorhome' },
   classb:        { img:'assets/vehicles/studio/rv-class-b.webp',     alt:'Class B camper van' },
-  classc:        { img:'assets/vehicles/studio/rv-class-b.webp',     alt:'Class C motorhome' },
+  classc:        { img:'assets/vehicles/studio/rv-class-c.webp',     alt:'Class C motorhome' },
   trailer:       { img:'assets/vehicles/studio/travel-trailer.webp', alt:'Travel trailer' },
   traveltrailer: { img:'assets/vehicles/studio/travel-trailer.webp', alt:'Travel trailer' },
   fifthwheel:    { img:'assets/vehicles/studio/fifth-wheel.webp',    alt:'Fifth-wheel trailer' },
@@ -4123,8 +4127,8 @@ const PRECISION_VISUAL_KEYS = {
   van:1, compact_van:1, cargo_van:1, passenger_van:1, suv:1, 'suv-3row':1, family_suv3:1, truck:1,
   compact_crossover:1, midsize_crossover:1, luxury_crossover:1,
   supercar:1, luxurysuv:1, luxurysedan:1,
-  cruiser:1, sportbike:1, adventure:1, dirtbike:1, scooter:1, utv:1, atv:1, jetski:1, motorcycle:1, golfcart:1, equipment:1,
-  pontoon:1, runabout:1, bassboat:1, cabincruiser:1, sailboat:1, yacht:1,
+  cruiser:1, touring_bagger:1, sportbike:1, adventure:1, dirtbike:1, scooter:1, utv:1, utv_crew:1, atv:1, jetski:1, motorcycle:1, golfcart:1, equipment:1,
+  pontoon:1, runabout:1, center_console:1, bassboat:1, cabincruiser:1, sailboat:1, yacht:1,
   classa:1, classb:1, classc:1, traveltrailer:1, fifthwheel:1, airstream:1, trailer:1
 };
 // [lowercase token/substring, visual key] — checked in order; first match wins.
@@ -4350,21 +4354,26 @@ function makeVisualHint(lbl){
 }
 function getVehicleVisualKey(){
   const cat=ST.cat;
+  const specialtyExact=(typeof CD1_VehicleBrandVisuals!=='undefined' && CD1_VehicleBrandVisuals.resolveSpecialtyVisual)
+    ? CD1_VehicleBrandVisuals.resolveSpecialtyVisual(cat, ST.make, ST.model, ST.vehicleLabel)
+    : '';
   if(cat==='boats'){
+    if(specialtyExact && VEHICLE_VISUALS[specialtyExact]) return specialtyExact;
     const t=String(ST.boatType||ST.tierKey||'').toLowerCase();
     const lbl=(ST.vehicleLabel||'').toLowerCase();
-    const fromModel=modelMapVisual(lbl, {pontoon:1,bassboat:1,sailboat:1,cabincruiser:1,yacht:1,runabout:1,jetski:1});
+    const fromModel=modelMapVisual(lbl, {pontoon:1,bassboat:1,sailboat:1,cabincruiser:1,yacht:1,runabout:1,center_console:1,jetski:1});
     if(fromModel) return fromModel;
     if(t==='jetski') return 'jetski';
     if(t==='pontoon') return 'pontoon';
     if(t==='bass') return 'bassboat';
-    if(t==='skiwake' || t==='runabout' || t==='bowrider' || t==='center') return 'runabout';
+    if(t==='skiwake' || t==='runabout' || t==='bowrider' || t==='center') return t==='center'?'center_console':'runabout';
     if(t==='cuddy' || t==='walkaround' || t==='sportcruiser' || t==='cabincruiser') return 'cabincruiser';
     if(t==='yacht') return 'yacht';
     if(lbl.indexOf('sail')>-1) return 'sailboat';
     return 'boat';
   }
   if(cat==='rvs'){
+    if(specialtyExact && VEHICLE_VISUALS[specialtyExact]) return specialtyExact;
     const t=String(ST.rvType||ST.tierKey||'').toLowerCase();
     const lbl=(ST.vehicleLabel||'').toLowerCase();
     const fromModel=modelMapVisual(lbl, {airstream:1,fifthwheel:1,traveltrailer:1,classa:1,classb:1,classc:1,trailer:1});
@@ -4381,16 +4390,19 @@ function getVehicleVisualKey(){
     return 'rv';
   }
   if(cat==='powersports'){
+    if(specialtyExact && VEHICLE_VISUALS[specialtyExact]) return specialtyExact;
     const lbl=(ST.vehicleLabel||'').toLowerCase();
-    const fromModel=modelMapVisual(lbl, {cruiser:1,sportbike:1,adventure:1,dirtbike:1,scooter:1,utv:1,atv:1,jetski:1,golfcart:1,equipment:1,motorcycle:1});
+    const fromModel=modelMapVisual(lbl, {cruiser:1,touring_bagger:1,sportbike:1,adventure:1,dirtbike:1,scooter:1,utv:1,utv_crew:1,atv:1,jetski:1,golfcart:1,equipment:1,motorcycle:1});
     if(fromModel) return fromModel;
     const makeHint=makeVisualHint(lbl);
     if(makeHint && VEHICLE_VISUALS[makeHint]) return makeHint;
     if(ST.tierKey==='jetski') return 'jetski';
-    if(ST.tierKey==='utv') return 'utv';
+    if(ST.tierKey==='utv' || ST.tierKey==='utv_standard') return 'utv';
+    if(ST.tierKey==='utv_large') return 'utv_crew';
     if(ST.tierKey==='atv') return 'atv';
     if(ST.tierKey==='golfcart') return 'golfcart';
     if(ST.tierKey==='equipment') return 'equipment';
+    if(ST.tierKey==='motorcycle_large') return 'touring_bagger';
     return 'motorcycle';
   }
   if(cat==='fleet') return TIER_VISUAL_KEYS[ST.tierKey]||'workvan';
