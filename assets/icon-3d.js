@@ -34,15 +34,15 @@
   /* Phase A: size chips / confirmation use photorealistic studio renders. */
   const STUDIO_BASE = 'assets/vehicles/studio/';
   const TIER = {
-    small: { file: 'sedan.webp', alt: 'Small car', studio: true },
-    sedan: { file: 'sedan.webp', alt: 'Sedan', studio: true },
-    suv2: { file: 'suv-crossover.webp', alt: 'Two-row SUV', studio: true },
-    suv3: { file: 'suv-3row.webp', alt: 'Three-row SUV', studio: true },
+    small: { file: 'compact-sedan.webp', alt: 'Small car', studio: true },
+    sedan: { file: 'executive-sedan.webp', alt: 'Sedan', studio: true },
+    suv2: { file: 'midsize-crossover.webp', alt: 'Two-row SUV', studio: true },
+    suv3: { file: 'family-suv-3row.webp', alt: 'Three-row SUV', studio: true },
     compact_van: { file: 'compact-van.webp', alt: 'Compact van', studio: true },
     midsize_van: { file: 'midsize-van.webp', alt: 'Midsize van', studio: true },
     full_size_van: { file: 'cargo-van.webp', alt: 'Full-size cargo van', studio: true },
     full_size_van_passenger: { file: 'passenger-van.webp', alt: 'Full-size passenger van', studio: true },
-    truck: { file: 'truck.webp', alt: 'Pickup truck', studio: true },
+    truck: { file: 'midsize-pickup.webp', alt: 'Pickup truck', studio: true },
     motorcycle: { file: 'motorcycle.webp', alt: 'Motorcycle', studio: true },
     motorcycle_large: { file: 'cruiser.webp', alt: 'Large motorcycle', studio: true },
     motorcycle_trike: { file: 'motorcycle.webp', alt: 'Trike or three-wheel motorcycle', studio: true },
