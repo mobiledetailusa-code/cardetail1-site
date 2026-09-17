@@ -43,11 +43,13 @@ function pathFrom(event) {
 function tokenFromEvent(event) {
   const path = pathFrom(event);
   const parts = path.split('/').filter(Boolean);
+  const qIdx = parts.lastIndexOf('q');
+  if (qIdx >= 0 && parts[qIdx + 1]) return parts[qIdx + 1];
   const last = parts[parts.length - 1] || '';
   if (looksLikeToken(last)) return last;
   const query = event.queryStringParameters || {};
   const raw = String(query.t || query.token || '').trim();
-  return looksLikeToken(raw) ? raw : '';
+  return raw || '';
 }
 
 function parseBody(event) {

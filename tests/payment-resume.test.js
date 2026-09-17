@@ -67,6 +67,7 @@ before(() => {
   process.env.CONTEXT = 'production';
   process.env.PAYMENT_RESUME_SECRET = SECRET;
   process.env.ADMIN_QUICK_OPS_SECRET = QO_SECRET;
+  process.env.CD1_POSTGRES_PAYMENT = 'false';
 });
 
 beforeEach(() => {

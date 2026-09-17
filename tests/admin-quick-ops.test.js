@@ -220,6 +220,7 @@ before(() => {
   process.env.CONTEXT = 'production';
   process.env.ADMIN_QUICK_OPS_SECRET = SECRET;
   process.env.PAYMENT_RESUME_SECRET = PAY_SECRET;
+  process.env.CD1_POSTGRES_PAYMENT = 'false';
 });
 
 beforeEach(() => {
@@ -340,13 +341,23 @@ describe('token + GET never mutates', () => {
     assert.match(html.body, /Link expired or invalid/);
     assert.doesNotMatch(html.body, /CD1-QO|Alex|Rivera|Harbor/);
 
+    const { event } = await sessionEventFor(booking.id);
+    const stalePath = await qoHandler.handler({
+      ...event,
+      path: '/ops/q/qot_invalid',
+      rawUrl: 'https://cardetail1.com/ops/q/qot_invalid',
+      headers: { ...event.headers, accept: 'text/html', host: 'cardetail1.com' },
+    });
+    assert.match(stalePath.body, /Link expired or invalid/);
+    assert.doesNotMatch(stalePath.body, /Alex Rivera/);
+
     const appointmentToken = `${AAT_PREFIX}${'A'.repeat(43)}`;
     const wrong = await qoHandler.handler({
       httpMethod: 'GET',
       path: `/ops/q/${appointmentToken}`,
       headers: { accept: 'application/json', host: 'cardetail1.com' },
     });
-    assert.equal(wrong.statusCode, 401);
+    assert.equal(wrong.statusCode, 400);
     assert.doesNotMatch(wrong.body, /CD1-QO|Alex/);
   });
 
