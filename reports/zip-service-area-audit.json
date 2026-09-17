@@ -1,0 +1,130 @@
+{
+  "generatedAt": "2026-09-17T22:09:55.313Z",
+  "tableSize": 3462,
+  "missingCensusInRoadRange": [],
+  "missingCensusInStraight135": [],
+  "zipCitiesMissingCoords": [],
+  "zipCitiesBeyondMax": [
+    {
+      "zip": "06415",
+      "label": "Colchester, CT",
+      "miles": 121
+    },
+    {
+      "zip": "06420",
+      "label": "Salem, CT",
+      "miles": 124
+    },
+    {
+      "zip": "06474",
+      "label": "North Madison, CT",
+      "miles": 131
+    },
+    {
+      "zip": "19008",
+      "label": "Broomall, PA",
+      "miles": 121
+    },
+    {
+      "zip": "19010",
+      "label": "Bryn Mawr, PA",
+      "miles": 121
+    },
+    {
+      "zip": "19013",
+      "label": "Chester, PA",
+      "miles": 130
+    },
+    {
+      "zip": "19014",
+      "label": "Aston, PA",
+      "miles": 129
+    },
+    {
+      "zip": "19018",
+      "label": "Drexel Hill, PA",
+      "miles": 121
+    },
+    {
+      "zip": "19036",
+      "label": "Glenolden, PA",
+      "miles": 122
+    },
+    {
+      "zip": "19050",
+      "label": "Lansdowne, PA",
+      "miles": 121
+    },
+    {
+      "zip": "19060",
+      "label": "Garnet Valley, PA",
+      "miles": 129
+    },
+    {
+      "zip": "19061",
+      "label": "Marcus Hook, PA",
+      "miles": 131
+    },
+    {
+      "zip": "19063",
+      "label": "Media, PA",
+      "miles": 126
+    },
+    {
+      "zip": "19064",
+      "label": "Springfield, PA",
+      "miles": 122
+    },
+    {
+      "zip": "19073",
+      "label": "Newtown Square, PA",
+      "miles": 124
+    },
+    {
+      "zip": "19074",
+      "label": "Norwood, PA",
+      "miles": 123
+    },
+    {
+      "zip": "19078",
+      "label": "Ridley Park, PA",
+      "miles": 125
+    },
+    {
+      "zip": "19081",
+      "label": "Swarthmore, PA",
+      "miles": 124
+    },
+    {
+      "zip": "19086",
+      "label": "Wallingford, PA",
+      "miles": 126
+    }
+  ],
+  "spotCheck": {
+    "10021": {
+      "miles": 13,
+      "fee": 0
+    },
+    "10065": {
+      "miles": 13,
+      "fee": 0
+    },
+    "10075": {
+      "miles": 12,
+      "fee": 0
+    },
+    "11201": {
+      "miles": 19,
+      "fee": 0
+    },
+    "07601": {
+      "miles": 0,
+      "fee": 0
+    },
+    "06455": {
+      "miles": 99,
+      "fee": 50
+    }
+  }
+}

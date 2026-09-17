@@ -96,6 +96,33 @@ test('Manhattan 10065 / 10075 (UES) are in range even though the free ZIP CSV om
   }
 });
 
+test('ZIP_CITIES labels never point at ZIPs missing from the coord table', () => {
+  // Same failure mode as 10065: a city label makes the ZIP look supported, then the
+  // travel gate returns out_of_service_area because there are no coordinates.
+  // Labels beyond TRAVEL_MAX_MILES are allowed (marketing lookup); missing coords are not.
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const start = html.indexOf('const ZIP_CITIES');
+  assert.ok(start >= 0, 'ZIP_CITIES missing from index.html');
+  const brace = html.indexOf('{', start);
+  let depth = 0;
+  let end = brace;
+  for (let i = brace; i < html.length; i++) {
+    if (html[i] === '{') depth += 1;
+    else if (html[i] === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  const ghosts = [];
+  for (const m of html.slice(brace, end + 1).matchAll(/'(\d{5})':'([^']+)'/g)) {
+    if (estimateMilesForZip(m[1]) == null) ghosts.push(`${m[1]} (${m[2]})`);
+  }
+  assert.deepEqual(ghosts, [], `ZIP_CITIES entries missing coordinates: ${ghosts.join(', ')}`);
+});
+
 test('unknown or malformed ZIP resolves to null rather than a guess', () => {
   assert.equal(resolveTravelForZip('90210'), null);
   assert.equal(resolveTravelForZip('123'), null);
