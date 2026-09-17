@@ -177,6 +177,7 @@
       "Escape": "compact_crossover",
       "Expedition": "family_suv3",
       "Explorer": "family_suv3",
+      "Explorer Interceptor": "family_suv3",
       "F-150": "pickup",
       "F-250 Super Duty": "pickup",
       "F-350 Super Duty": "pickup",
@@ -662,6 +663,7 @@
     "ford|escape": "compact_crossover",
     "ford|expedition": "family_suv3",
     "ford|explorer": "family_suv3",
+    "ford|explorer interceptor": "family_suv3",
     "ford|f-150": "pickup",
     "ford|f-250 super duty": "pickup",
     "ford|f-350 super duty": "pickup",
@@ -942,6 +944,6 @@
     "volvo|xc60": "luxury_crossover",
     "volvo|xc90": "family_suv3"
   },
-  "count": 422
+  "count": 423
 };
 });
