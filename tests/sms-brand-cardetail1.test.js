@@ -193,7 +193,7 @@ describe('customer and admin SMS prefixes', () => {
   it('1. booking customer SMS starts with Cardetail1', () => {
     const rendered = renderLifecycle(TEMPLATE_KEYS.REQUEST_RECEIVED);
     assert.match(rendered.body, /^Cardetail1:/);
-    assert.match(rendered.body, /Booking request received/);
+    assert.match(rendered.body, /Request received/);
     assert.doesNotMatch(rendered.body, /Detailing Zone:/);
   });
 
@@ -203,7 +203,7 @@ describe('customer and admin SMS prefixes', () => {
       appointmentStatus: 'confirmed',
     });
     assert.match(rendered.body, /^Cardetail1:/);
-    assert.match(rendered.body, /Your appointment is confirmed/);
+    assert.match(rendered.body, /Confirmed -/);
   });
 
   it('3. change-request SMS starts with Cardetail1', () => {

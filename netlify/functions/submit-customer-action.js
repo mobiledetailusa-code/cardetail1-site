@@ -188,6 +188,7 @@ async function notifyMoneyChangeLifecycle({
         changeRequestId: crId,
         customerName: custName,
         changeSummary,
+        requestType,
         requestTypeLabel: typeLabel,
         skipCustomer: true,
         source: 'lifecycle_mutation',
@@ -1024,6 +1025,8 @@ exports.handler = async (event) => {
             requestedDate: requestedState.preferredDate,
             requestedTime: requestedState.preferredTime,
             changeRequestId: appliedCmd.changeRequest?.requestId,
+            requestType: 'reschedule_request',
+            requestTypeLabel: 'Reschedule',
             source: 'lifecycle_mutation',
           });
         } else if (action === 'reschedule_request' && appliedCmd.applied) {

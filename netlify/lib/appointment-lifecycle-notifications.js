@@ -10,7 +10,7 @@
 
 const { enabled } = require('./twilio-runtime-policy');
 const { enqueueSms, kickSmsOutboxByIds, smsSafeIdempotencyKey } = require('./sms-outbox');
-const { TEMPLATE_KEYS } = require('./sms-templates');
+const { TEMPLATE_KEYS, smsVehicleLabel, formatSmsWhen } = require('./sms-templates');
 const { normalizeUsPhoneE164 } = require('./phone-auth');
 const {
   emitChangeRequested,
@@ -142,6 +142,7 @@ function mergeLifecycleNotifyFields(latest, notified, delivery) {
   delete merged.__approvedAddOnLabel;
   delete merged.__currentPackageName;
   delete merged.__changeDecision;
+  delete merged.__changeKind;
   return merged;
 }
 
@@ -185,25 +186,56 @@ async function notifyConfirmed(booking, opts = {}) {
     prisma: opts.prisma,
     env: opts.env,
   });
-  await kickLifecycleOutbox([outboxIdFrom(txn)], opts);
+  // Admin-performed confirmation must not self-SMS. Reserved hook:
+  // opts.notifyAdmin === true is for a future automatic-confirm path only.
+  let admin = { queued: false, skipped: true, reason: 'admin_self_action' };
+  if (opts.notifyAdmin === true) {
+    const bookingId = booking.id || booking.bookingId;
+    admin = await enqueueAdminOpsSms({
+      idempotencyKey: smsSafeIdempotencyKey(`admin.confirmed:${bookingId}:${eventStateKey('booking.confirmed', booking)}`),
+      bookingId,
+      templateKey: TEMPLATE_KEYS.ADMIN_BOOKING,
+      templateData: {
+        bookingRef: safeBookingRef(bookingId),
+        customerName: String(opts.customerName
+          || [booking.firstName, booking.lastName].filter(Boolean).join(' ').trim()
+          || booking.customerName
+          || '').slice(0, 80),
+        vehicle: smsVehicleLabel(booking),
+        service: packageLabelFromBooking(booking),
+        date: scheduleDate(booking),
+        window: scheduleWindow(booking),
+      },
+    }, opts);
+  }
+  await kickLifecycleOutbox([outboxIdFrom(txn), admin.outbox?.id], opts);
   if (opts.store && txn?.booking) {
     const delivery = txn.skipped ? null : txn.delivery;
-    return persistLifecycleNotify(
+    const persisted = await persistLifecycleNotify(
       opts.store,
       booking.id || booking.bookingId,
       txn.booking,
       delivery
     );
+    return persisted;
   }
   return txn?.booking || booking;
+}
+
+function isRescheduleChangeRequest(opts = {}) {
+  const type = String(opts.requestType || opts.requestTypeLabel || '').toLowerCase();
+  if (type.includes('reschedule')) return true;
+  return !!(opts.requestedDate || opts.requestedTime);
 }
 
 async function notifyChangeRequested(booking, opts = {}) {
   const bookingId = booking.id || booking.bookingId;
   const changeRequestId = opts.changeRequestId || booking.changeRequestId || '';
+  const changeKind = isRescheduleChangeRequest(opts) ? 'reschedule' : 'change';
   const working = {
     ...booking,
     __changeRequestId: changeRequestId,
+    __changeKind: changeKind,
     rescheduleRequestedDate: opts.requestedDate || booking.rescheduleRequestedDate,
     rescheduleRequestedTime: opts.requestedTime || booking.rescheduleRequestedTime,
   };
@@ -233,6 +265,11 @@ async function notifyChangeRequested(booking, opts = {}) {
       customerName,
       changeSummary,
       requestTypeLabel,
+      requestType: String(opts.requestType || '').slice(0, 40),
+      changeKind,
+      vehicle: smsVehicleLabel(booking),
+      currentWhen: formatSmsWhen(scheduleDate(booking), scheduleWindow(booking)),
+      requestedWhen: formatSmsWhen(opts.requestedDate, opts.requestedTime),
     },
   }, opts);
   await kickLifecycleOutbox([outboxIdFrom(txn), admin.outbox?.id], opts);
@@ -395,14 +432,20 @@ async function notifyCancellationRequested(booking, opts = {}) {
     env: opts.env,
   });
   const stateKey = eventStateKey(EVENT_CANCELLATION_REQUESTED, booking);
+  const customerName = String(opts.customerName
+    || [booking.firstName, booking.lastName].filter(Boolean).join(' ').trim()
+    || booking.customerName
+    || '').slice(0, 80);
   const admin = await enqueueAdminOpsSms({
     idempotencyKey: smsSafeIdempotencyKey(`admin.cancellation_requested:${bookingId}:${stateKey}`),
     bookingId,
-    templateKey: TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL,
+    templateKey: TEMPLATE_KEYS.ADMIN_CANCELLATION_REQUESTED,
     templateData: {
       bookingRef: safeBookingRef(bookingId),
       date: scheduleDate(booking),
       window: scheduleWindow(booking),
+      customerName,
+      vehicle: smsVehicleLabel(booking),
     },
   }, opts);
   await kickLifecycleOutbox([outboxIdFrom(txn), admin.outbox?.id], opts);

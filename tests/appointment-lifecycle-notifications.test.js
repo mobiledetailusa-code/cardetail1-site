@@ -34,6 +34,7 @@ const {
 const {
   notifyConfirmed,
   notifyChangeRequested,
+  notifyCancellationRequested,
   notifyRescheduled,
   notifyCancelled,
   appointmentReminderEligible,
@@ -290,7 +291,7 @@ describe('customer-facing copy', () => {
       date: 'Aug 28',
       window: '8:00–9:00 AM',
     });
-    assert.match(confirmed.body, /confirmed/);
+    assert.match(confirmed.body, /Confirmed/);
     assert.match(confirmed.body, /Aug 28/);
     assert.match(confirmed.body, /8:00-9:00 AM/);
     const rescheduled = renderSmsTemplate(TEMPLATE_KEYS.RESCHEDULED, {
@@ -449,6 +450,33 @@ describe('confirm / change-request / reschedule / cancel emits', () => {
     assert.equal(declinedResult.customer.delivery.sms.skipped, true);
     assert.equal(declinedResult.adminSms.queued, true);
     assert.equal([...noConsentPrisma._rows.values()].every((row) => row.audience === 'admin'), true);
+  });
+
+  it('admin confirmation does not enqueue Admin self-SMS', async () => {
+    const prisma = createMemoryOutboxPrisma();
+    const booking = consentedBooking();
+    const persisted = await notifyConfirmed(booking, { prisma, env: SMS_ENV });
+    assert.ok(persisted);
+    const rows = [...prisma._rows.values()];
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].audience, 'customer');
+    assert.equal(rows[0].templateKey, TEMPLATE_KEYS.CONFIRMED);
+  });
+
+  it('cancellation request Admin SMS does not claim the appointment is canceled', async () => {
+    const prisma = createMemoryOutboxPrisma();
+    const booking = consentedBooking({
+      cancellationRequestedAt: '2026-08-26T12:30:00.000Z',
+    });
+    const result = await notifyCancellationRequested(booking, { prisma, env: SMS_ENV });
+    assert.equal(result.adminSms.queued, true);
+    const admin = [...prisma._rows.values()].find((row) => row.audience === 'admin');
+    assert.equal(admin.templateKey, TEMPLATE_KEYS.ADMIN_CANCELLATION_REQUESTED);
+    const body = renderSmsTemplate(admin.templateKey, admin.templateData).body;
+    assert.match(body, /Cancel request/);
+    assert.match(body, /Still scheduled/);
+    assert.doesNotMatch(body, /Customer canceled/i);
+    assert.doesNotMatch(body, /has been canceled/i);
   });
 
   it('27-29. admin cancel notifies customer and does not enqueue admin self-alert', async () => {

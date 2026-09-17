@@ -201,7 +201,6 @@ function assertNoPrivateLeak(body) {
   assert.doesNotMatch(body, /CD1-SMS-DETAIL-01/);
   assert.doesNotMatch(body, /cus_/);
   assert.doesNotMatch(body, /pi_/);
-  assert.doesNotMatch(body, /\$199/);
 }
 
 function customerRow(prisma) {
@@ -236,14 +235,14 @@ describe('1-4. booking request SMS', () => {
       TYPICAL_URL
     );
     const rendered = renderSmsTemplate(TEMPLATE_KEYS.REQUEST_RECEIVED, data);
-    assert.match(rendered.body, /Booking request received/);
+    assert.match(rendered.body, /Request received/);
+    assert.match(rendered.body, /Under review/);
     assert.match(rendered.body, /Aug 28, 2026/);
     assert.match(rendered.body, /Any time that day/);
-    // Service lives in the portal when /a?t= is present — saves Twilio segments.
-    assert.doesNotMatch(rendered.body, /Interior Detail/);
+    assert.match(rendered.body, /Interior Detail/);
     assert.match(rendered.body, /View: https:\/\/cardetail1\.com\/a\?t=/);
     assert.doesNotMatch(rendered.body, /Your appointment is confirmed/i);
-    assert.doesNotMatch(rendered.body, /confirmed for/);
+    assert.doesNotMatch(rendered.body, /Confirmed -/);
     assertNoPrivateLeak(rendered.body);
   });
 
@@ -271,11 +270,12 @@ describe('5-6. confirmed SMS', () => {
     assert.equal(data.date, '2026-08-29');
     assert.notEqual(data.date, booking.preferredDate);
     const rendered = renderSmsTemplate(TEMPLATE_KEYS.CONFIRMED, data);
-    assert.match(rendered.body, /Your appointment is confirmed/);
+    assert.match(rendered.body, /Confirmed -/);
     assert.match(rendered.body, /Aug 29, 2026/);
     assert.doesNotMatch(rendered.body, /Aug 28, 2026/);
     assert.match(rendered.body, /9:00 AM - 12:00 PM/);
-    assert.doesNotMatch(rendered.body, /Essential Marine/);
+    assert.match(rendered.body, /Essential Marine/);
+    assert.match(rendered.body, /\$199/);
     assert.match(rendered.body, /View: https:\/\/cardetail1\.com\/a\?t=/);
     assert.doesNotMatch(rendered.body, /View appointment:/);
     assertNoPrivateLeak(rendered.body);
@@ -372,7 +372,7 @@ describe('13-15. access-link policy', () => {
     const renderedSafe = renderSmsTemplate(mismatched.templateKey, mismatched.templateData);
     assert.doesNotMatch(renderedSafe.body, /\/a\?t=/);
     assert.doesNotMatch(renderedSafe.body, /aat_/);
-    assert.match(renderedSafe.body, /Booking request received/);
+    assert.match(renderedSafe.body, /Request received/);
     assert.match(renderedSafe.body, /Interior Detail/);
   });
 
@@ -397,7 +397,7 @@ describe('13-15. access-link policy', () => {
     assert.equal(result.accessUrl, '');
     const row = customerRow(prisma);
     const rendered = renderSmsTemplate(row.templateKey, row.templateData);
-    assert.match(rendered.body, /Booking request received/);
+    assert.match(rendered.body, /Request received/);
     assert.match(rendered.body, /Aug 28, 2026/);
     assert.doesNotMatch(rendered.body, /\/a\?t=/);
   });
@@ -462,16 +462,14 @@ describe('16-18. link is not a notification trigger; consent still suppresses', 
 });
 
 describe('19-20. admin SMS and Stripe/payment behavior unchanged', () => {
-  it('admin booking / change-request / cancel templates are unchanged', () => {
+  it('admin booking / change-request / cancel-request / cancel-final templates stay truthful', () => {
     const booking = renderSmsTemplate(TEMPLATE_KEYS.ADMIN_BOOKING, {
       bookingRef: 'CD1-ADMIN',
       customerName: 'Owner',
       customerPhone: VERIFIED,
     });
-    assert.equal(
-      booking.body,
-      'Cardetail1 Admin: Booking alert CD1-ADMIN - Owner - ' + VERIFIED + ' Reply STOP or HELP'
-    );
+    assert.match(booking.body, /^Cardetail1 Admin: New request Owner/);
+    assert.match(booking.body, /STOP/);
     const change = renderSmsTemplate(TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST, {
       date: 'Aug 28',
       bookingRef: 'CD1-LIFE-01',
@@ -480,6 +478,15 @@ describe('19-20. admin SMS and Stripe/payment behavior unchanged', () => {
       change.body,
       'Cardetail1 Admin: Customer requested an appointment change for Aug 28 (CD1-LIFE-01). Reply STOP or HELP'
     );
+    const cancelReq = renderSmsTemplate(TEMPLATE_KEYS.ADMIN_CANCELLATION_REQUESTED, {
+      bookingRef: 'CD1-LIFE-01',
+      date: 'Aug 28',
+      window: '8:00–9:00 AM',
+      customerName: 'Pat',
+    });
+    assert.match(cancelReq.body, /Cancel request/);
+    assert.match(cancelReq.body, /Still scheduled/);
+    assert.doesNotMatch(cancelReq.body, /Customer canceled/i);
     const cancel = renderSmsTemplate(TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL, {
       bookingRef: 'CD1-LIFE-01',
       date: 'Aug 28',
@@ -676,7 +683,8 @@ describe('lifecycle emit uses the new projection', () => {
     const body = renderSmsTemplate(row.templateKey, row.templateData).body;
     assert.match(body, /Any time that day/);
     assert.match(body, /View:/);
-    assert.doesNotMatch(body, /Interior Detail/);
+    assert.match(body, /Interior Detail/);
+    assert.match(body, /Under review/);
   });
 
   it('confirmed and rescheduled emits keep authoritative windows', async () => {
@@ -702,7 +710,8 @@ describe('lifecycle emit uses the new projection', () => {
     assert.equal(confirmedRow.templateData.service, 'Maintenance Detail');
     const confirmedBody = renderSmsTemplate(confirmedRow.templateKey, confirmedRow.templateData).body;
     assert.match(confirmedBody, /View:/);
-    assert.doesNotMatch(confirmedBody, /Maintenance Detail/);
+    assert.match(confirmedBody, /Maintenance Detail/);
+    assert.match(confirmedBody, /Confirmed -/);
 
     const reschedulePrisma = createMemoryOutboxPrisma();
     const rescheduled = await emitRescheduled(piiBooking({
