@@ -371,3 +371,64 @@ test('legacy testimonials are not labeled Google or Verified Cardetail1', () => 
   assert.doesNotMatch(card.textContent, /Google review/);
   assert.doesNotMatch(card.textContent, /Verified Cardetail1 customer/);
 });
+
+test('static Thumbtack reviews render with Thumbtack labels, not Cardetail1 verified', () => {
+  const thumbtack = reviews.thumbtackReviews();
+  assert.equal(thumbtack.length, 2);
+  assert.equal(reviews.sourceLabel({ source: 'thumbtack' }), 'Thumbtack review');
+
+  const cynthia = thumbtack.find((r) => r.id === 'tt-cynthia-c');
+  const kasey = thumbtack.find((r) => r.id === 'tt-kasey-w');
+  assert.ok(cynthia);
+  assert.ok(kasey);
+  assert.equal(cynthia.name, 'Cynthia C.');
+  assert.equal(cynthia.rating, 5);
+  assert.equal(cynthia.date, 'Sep 8, 2026');
+  assert.match(cynthia.text, /detailed two vehicles in one visit/);
+  assert.match(cynthia.text, /will definitely be using his services again!/);
+  assert.equal(kasey.name, 'Kasey W.');
+  assert.equal(kasey.rating, 5);
+  assert.equal(kasey.date, 'Aug 30, 2026');
+  assert.equal(kasey.text, 'Amazing car detail, looks brand new');
+  assert.doesNotMatch(reviews.sourceLabel(cynthia), /Verified Cardetail1/);
+  assert.doesNotMatch(reviews.sourceLabel(cynthia), /Google review/);
+
+  const mixed = reviews.mixed();
+  const cynthiaIdx = mixed.findIndex((r) => r.id === 'tt-cynthia-c');
+  const johnIdx = mixed.findIndex((r) => r.id === 'g-john-daquila');
+  assert.ok(cynthiaIdx > -1 && johnIdx > -1);
+  assert.ok(cynthiaIdx < johnIdx, 'newer Thumbtack snapshot should precede Google snapshot');
+
+  if (!JSDOM) return;
+  const home = mountDom();
+  const homeCard = home.window.document.querySelector('[data-review-id="tt-cynthia-c"]');
+  assert.ok(homeCard);
+  assert.equal(homeCard.getAttribute('data-source'), 'thumbtack');
+  assert.match(homeCard.textContent, /Thumbtack review/);
+  assert.doesNotMatch(homeCard.textContent, /Verified Cardetail1 customer/);
+  assert.equal(
+    home.window.document.querySelector('[data-review-id="tt-cynthia-c"] .rv-quote').textContent,
+    cynthia.text,
+  );
+
+  reviews.applyPortalItems([]);
+  const page = new JSDOM(`<!DOCTYPE html><html><body>
+    <div id="reviews"><div id="rv-grid"></div></div>
+  </body></html>`, {
+    runScripts: 'outside-only',
+    url: 'https://cardetail1.com/reviews',
+  });
+  reviews.mount(page.window.document, { fetch: false });
+  const pageCard = page.window.document.querySelector('[data-review-id="tt-kasey-w"]');
+  assert.ok(pageCard);
+  assert.equal(pageCard.getAttribute('data-source'), 'thumbtack');
+  assert.match(pageCard.textContent, /Thumbtack review/);
+});
+
+test('Thumbtack import does not add a live Thumbtack API or change Google snapshot', () => {
+  assert.doesNotMatch(reviewsJs, /thumbtack\.com\/api/i);
+  assert.doesNotMatch(reviewsJs, /THUMBTACK_API/);
+  assert.equal(reviews.googleReviews().length, 9);
+  assert.match(index, /5\.0 on Google · 9 reviews/);
+});
+
