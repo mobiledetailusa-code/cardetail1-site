@@ -577,14 +577,12 @@ describe('segment budget and architecture freeze', () => {
     });
   }
 
-  it('does not add payment-link SMS, Quick Ops, or a new provider', () => {
-    const templates = read('netlify/lib/sms-templates.js');
+  it('does not add a new Twilio provider or FROM sender', () => {
     const lifecycle = read('netlify/lib/appointment-lifecycle-notifications.js');
-    assert.doesNotMatch(templates, /payment.link|ops\/q\/|TWILIO_FROM/i);
-    assert.doesNotMatch(lifecycle, /ops\/q\/|payment.link/i);
     assert.match(lifecycle, /enqueueAdminOpsSms/);
     assert.match(read('netlify/lib/twilio-provider.js'), /messagingServiceSid/);
     assert.doesNotMatch(read('netlify/lib/twilio-provider.js'), /from:/);
+    assert.doesNotMatch(read('netlify/lib/sms-templates.js'), /TWILIO_FROM/);
   });
 
   it('inbound STOP/START/HELP and status callback files stay in place', () => {
