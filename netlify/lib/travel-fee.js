@@ -30,6 +30,22 @@ const RATE_PER_MILE = 1.0;
 /** Fees round to this increment so a quote never reads $17.43. */
 const FEE_ROUNDING = 5;
 
+/**
+ * Flat add-on for ZIPs across the Hudson / NY bridges from the NJ base
+ * (Manhattan, Bronx, Brooklyn, Queens, Staten Island, Rockaways). Covers
+ * state tolls without a separate line item — folded into travelFeeAmount /
+ * totalPrice only.
+ */
+const CROSS_HUDSON_SURCHARGE = 35;
+
+/** ZIP3 prefixes on the far side of the bridges. */
+const CROSS_HUDSON_PREFIXES = new Set([
+  '100', '101', '102', // Manhattan
+  '103',               // Staten Island
+  '104',               // Bronx
+  '111', '112', '113', '114', '116', // Queens / Brooklyn / Rockaways
+]);
+
 const EARTH_RADIUS_MI = 3958.8;
 
 let coordIndex = null;
@@ -97,6 +113,13 @@ function travelFeeFromMiles(mi) {
   return Math.round(billable / FEE_ROUNDING) * FEE_ROUNDING;
 }
 
+/** Dollars added for cross-Hudson ZIPs; 0 otherwise. Never a separate checkout line. */
+function crossHudsonSurchargeForZip(zip) {
+  const z = normalizeZip(zip);
+  if (!z) return 0;
+  return CROSS_HUDSON_PREFIXES.has(z.slice(0, 3)) ? CROSS_HUDSON_SURCHARGE : 0;
+}
+
 /** Human-readable band, for display only — never an input to the fee. */
 function zoneLabelForMiles(miles) {
   if (miles <= FREE_RADIUS_MI) return 'Included — no travel fee';
@@ -110,11 +133,15 @@ function resolveTravelForZip(zip) {
   if (!z) return null;
   const miles = estimateMilesForZip(z);
   if (miles == null || miles > TRAVEL_MAX_MILES) return null;
-  const fee = travelFeeFromMiles(miles);
-  if (fee == null) return null;
+  const mileageFee = travelFeeFromMiles(miles);
+  if (mileageFee == null) return null;
+  const bridge = crossHudsonSurchargeForZip(z);
+  const fee = mileageFee + bridge;
   return {
     miles,
     fee,
+    mileageFee,
+    bridgeSurcharge: bridge,
     zoneKey: fee === 0 ? 'included' : 'extended',
     zoneLabel: zoneLabelForMiles(miles),
     inRange: true,
@@ -174,7 +201,9 @@ module.exports = {
   FREE_RADIUS_MI,
   RATE_PER_MILE,
   ROAD_FACTOR,
+  CROSS_HUDSON_SURCHARGE,
   travelFeeFromMiles,
+  crossHudsonSurchargeForZip,
   estimateMilesForZip,
   resolveTravelForZip,
   normalizeTravelFields,

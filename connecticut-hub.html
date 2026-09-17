@@ -6520,11 +6520,14 @@ function getCityByZip(zip){
 const TRAVEL_MAX_MILES = CD1Travel.TRAVEL_MAX_MILES;
 function travelFeeFromMiles(mi){ return CD1Travel.travelFeeFromMiles(mi); }
 function estimateMilesForZip(zip){ return CD1Travel.estimateMilesForZip(zip); }
+function crossHudsonSurchargeForZip(zip){ return CD1Travel.crossHudsonSurchargeForZip(zip); }
 function resolveZipService(zip){
   const miles=estimateMilesForZip(zip);
   if(miles==null||miles>TRAVEL_MAX_MILES) return null;
-  const fee=travelFeeFromMiles(miles);
-  if(fee==null) return null;
+  const mileageFee=travelFeeFromMiles(miles);
+  if(mileageFee==null) return null;
+  // Cross-Hudson toll add-on is folded into fee/total — no separate checkout line.
+  const fee=mileageFee+crossHudsonSurchargeForZip(zip);
   const zone=getZoneByZip(zip)||{key:'extended',label:'Extended Service Area',short:'Extended',emoji:'📍',surcharge:fee};
   return {zone,miles,fee};
 }
@@ -6580,8 +6583,8 @@ function chatStartingPricesReply(){
 const ZIP_ZONES = {
   nj_a:{ label:'NJ - Bergen / Hudson / Essex', short:'NJ Core',    surcharge:0,  emoji:'📍', prefixes:['070','071','072','073','074','075','076','077'] },
   nj_b:{ label:'NJ - Other Areas',             short:'NJ Other',   surcharge:15, emoji:'📍', prefixes:['078','079','080','081','082','083','084','085','086','087','088','089'] },
-  nyc: { label:'New York City',                 short:'NYC',        surcharge:35, emoji:'🗽', prefixes:['100','101','102','103','104','111','112','113','114'] },
-  ny_s:{ label:'NY - Suburbs / Long Island',    short:'NY Suburbs', surcharge:25, emoji:'📍', prefixes:['105','106','107','108','109','115','116','117','118','119','120','121','122','123'] },
+  nyc: { label:'New York City',                 short:'NYC',        surcharge:35, emoji:'🗽', prefixes:['100','101','102','103','104','111','112','113','114','116'] },
+  ny_s:{ label:'NY - Suburbs / Long Island',    short:'NY Suburbs', surcharge:25, emoji:'📍', prefixes:['105','106','107','108','109','115','117','118','119','120','121','122','123'] },
   ct:  { label:'Connecticut',                   short:'CT',         surcharge:20, emoji:'📍', prefixes:['060','061','062','063','064','065','066','067','068','069'] },
   pa_e:{ label:'PA - Eastern / Lehigh Valley',  short:'PA Lehigh',  surcharge:25, emoji:'🏔️', prefixes:['180','181'] },
   pa_p:{ label:'PA - Pocono / Stroudsburg',     short:'PA Pocono',  surcharge:30, emoji:'🏔️', prefixes:['183'] },

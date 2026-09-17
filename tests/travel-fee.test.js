@@ -7,9 +7,11 @@ const {
   estimateMilesForZip,
   resolveTravelForZip,
   applyServerTravelAndTotal,
+  crossHudsonSurchargeForZip,
   TRAVEL_MAX_MILES,
   FREE_RADIUS_MI,
   RATE_PER_MILE,
+  CROSS_HUDSON_SURCHARGE,
 } = require('../netlify/lib/travel-fee');
 
 test('fee is free inside the radius and linear beyond it', () => {
@@ -75,11 +77,19 @@ test('genuinely distant locations are priced, and the far edge is refused', () =
   assert.equal(resolveTravelForZip('08401'), null);
 });
 
-test('base and immediate metro are free', () => {
-  for (const zip of ['07601', '07030', '07102', '10001', '11215']) {
+test('base and NJ metro are free; NYC boroughs carry the bridge surcharge', () => {
+  for (const zip of ['07601', '07030', '07102']) {
     const r = resolveTravelForZip(zip);
     assert.ok(r, `${zip} must resolve`);
     assert.equal(r.fee, 0);
+    assert.equal(r.bridgeSurcharge, 0);
+  }
+  for (const zip of ['10001', '11215', '10451', '11101', '10301', '11691']) {
+    const r = resolveTravelForZip(zip);
+    assert.ok(r, `${zip} must resolve`);
+    assert.equal(r.bridgeSurcharge, CROSS_HUDSON_SURCHARGE);
+    assert.equal(r.fee, r.mileageFee + CROSS_HUDSON_SURCHARGE);
+    assert.ok(r.fee >= CROSS_HUDSON_SURCHARGE);
   }
 });
 
@@ -91,9 +101,25 @@ test('Manhattan 10065 / 10075 (UES) are in range even though the free ZIP CSV om
     const r = resolveTravelForZip(zip);
     assert.ok(r, `${zip} must resolve`);
     assert.ok(r.miles >= 8 && r.miles <= 20, `${zip} should be ~10–15 road mi, got ${r.miles}`);
-    assert.equal(r.fee, 0);
+    assert.equal(r.mileageFee, 0);
+    assert.equal(r.bridgeSurcharge, CROSS_HUDSON_SURCHARGE);
+    assert.equal(r.fee, CROSS_HUDSON_SURCHARGE);
     assert.equal(r.inRange, true);
   }
+});
+
+test('cross-Hudson surcharge covers NYC boroughs only — not Westchester or NJ', () => {
+  assert.equal(crossHudsonSurchargeForZip('10001'), CROSS_HUDSON_SURCHARGE);
+  assert.equal(crossHudsonSurchargeForZip('11201'), CROSS_HUDSON_SURCHARGE);
+  assert.equal(crossHudsonSurchargeForZip('10463'), CROSS_HUDSON_SURCHARGE);
+  assert.equal(crossHudsonSurchargeForZip('11375'), CROSS_HUDSON_SURCHARGE);
+  assert.equal(crossHudsonSurchargeForZip('11694'), CROSS_HUDSON_SURCHARGE);
+  assert.equal(crossHudsonSurchargeForZip('10314'), CROSS_HUDSON_SURCHARGE);
+  // NJ / Westchester / Nassau stay at mileage-only pricing.
+  assert.equal(crossHudsonSurchargeForZip('07601'), 0);
+  assert.equal(crossHudsonSurchargeForZip('07030'), 0);
+  assert.equal(crossHudsonSurchargeForZip('10583'), 0);
+  assert.equal(crossHudsonSurchargeForZip('11530'), 0);
 });
 
 test('ZIP_CITIES labels never point at ZIPs missing from the coord table', () => {
@@ -159,6 +185,27 @@ test('applyServerTravelAndTotal ignores inflated client travel fee', () => {
   assert.equal(b.totalPrice, 150);
 });
 
+test('applyServerTravelAndTotal folds NYC bridge surcharge into totalPrice only', () => {
+  const b = {
+    zipCode: '10065',
+    totalPrice: 185, // 150 service + 35 bridge — client already matched
+    vehicles: [{
+      cat: 'cars',
+      pkgId: 'maint',
+      tierKey: 'small',
+      tierLabel: 'Small Car',
+      vehicleLabel: '2022 Honda Civic',
+      subtotal: 150,
+      addons: [],
+    }],
+  };
+  const r = applyServerTravelAndTotal(b);
+  assert.equal(r.ok, true);
+  assert.equal(b.travelFeeAmount, CROSS_HUDSON_SURCHARGE);
+  assert.equal(b.zoneSurcharge, CROSS_HUDSON_SURCHARGE);
+  assert.equal(b.totalPrice, 150 + CROSS_HUDSON_SURCHARGE);
+});
+
 /* ── Browser and server must quote the same number ───────────────────────── */
 
 test('the shared client module agrees with the server on every served ZIP', () => {
@@ -175,6 +222,7 @@ test('the shared client module agrees with the server on every served ZIP', () =
   assert.equal(client.TRAVEL_MAX_MILES, TRAVEL_MAX_MILES);
   assert.equal(client.FREE_RADIUS_MI, FREE_RADIUS_MI);
   assert.equal(client.RATE_PER_MILE, RATE_PER_MILE);
+  assert.equal(client.CROSS_HUDSON_SURCHARGE, CROSS_HUDSON_SURCHARGE);
 
   // A divergence here is what produces a price_mismatch rejection at submit,
   // so this walks the whole served table rather than sampling it.
@@ -184,7 +232,12 @@ test('the shared client module agrees with the server on every served ZIP', () =
     const cm = client.estimateMilesForZip(zip);
     const sm = estimateMilesForZip(zip);
     assert.equal(cm, sm, `miles differ for ${zip}`);
-    assert.equal(client.travelFeeFromMiles(cm), travelFeeFromMiles(sm), `fee differs for ${zip}`);
+    assert.equal(client.travelFeeFromMiles(cm), travelFeeFromMiles(sm), `mileage fee differs for ${zip}`);
+    assert.equal(
+      client.crossHudsonSurchargeForZip(zip),
+      crossHudsonSurchargeForZip(zip),
+      `bridge surcharge differs for ${zip}`
+    );
     checked += 1;
   }
   assert.ok(checked > 3000, `expected the full served table, checked ${checked}`);
