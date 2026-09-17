@@ -29,6 +29,7 @@ const {
   setQuickOpsStoreFactories,
   resetQuickOpsStoreFactories,
   mintQuickOpsUrl,
+  appendAdminOpsEmailLink,
 } = require('../netlify/lib/admin-quick-ops-token');
 const { PURPOSE_CUSTOMER_BALANCE, TOKEN_PREFIX: PAY_PREFIX } = require('../netlify/lib/payment-resume-token');
 const { PURPOSE_APPOINTMENT_ACCESS, TOKEN_PREFIX: AAT_PREFIX } = require('../netlify/lib/appointment-access-token');
@@ -661,5 +662,30 @@ describe('architecture freeze', () => {
     const url = await mintQuickOpsUrl('CD1-QO-01');
     assert.match(url, /^https:\/\/cardetail1\.com\/ops\/q\/qot_/);
     assert.doesNotMatch(url, /Alex|Rivera|5550177|Harbor/);
+  });
+
+  it('admin emails append Quick Ops and customer emails stay on /a?t=', async () => {
+    const body = await appendAdminOpsEmailLink('NEW BOOKING — CD1-QO-01\nCustomer: Alex Rivera', 'CD1-QO-01');
+    assert.match(body, /Quick Ops \(admin only\)/);
+    assert.match(body, /https:\/\/cardetail1\.com\/ops\/q\/qot_/);
+    assert.doesNotMatch(body, /\/a\?t=/);
+    const again = await appendAdminOpsEmailLink(body, 'CD1-QO-01');
+    assert.equal((again.match(/\/ops\/q\//g) || []).length, 1);
+
+    const submit = read('netlify/functions/submit-booking.js');
+    assert.match(submit, /appendAdminOpsEmailLink/);
+    assert.match(submit, /sendEmail/);
+    assert.doesNotMatch(submit, /appendAdminOpsEmailLink\(text,\s*b\.email/);
+    const customerSend = submit.slice(submit.indexOf('async function sendCustomerEmail'), submit.indexOf('async function sendSms'));
+    assert.doesNotMatch(customerSend, /appendAdminOpsEmailLink|\/ops\/q\//);
+
+    const customerTpl = read('netlify/lib/booking-transactional-notifications.js');
+    assert.match(customerTpl, /This secure link opens your Customer Portal appointment/);
+    assert.doesNotMatch(customerTpl, /appendAdminOpsEmailLink|Quick Ops \(admin only\)/);
+
+    const change = read('netlify/functions/submit-customer-action.js');
+    assert.match(change, /appendAdminOpsEmailLink\(body, bookingId\)/);
+    const cancel = read('netlify/functions/request-cancellation.js');
+    assert.match(cancel, /appendAdminOpsEmailLink\(body, bookingId\)/);
   });
 });

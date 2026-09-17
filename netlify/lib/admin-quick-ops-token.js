@@ -300,6 +300,20 @@ async function mintQuickOpsUrl(bookingId) {
   }
 }
 
+/**
+ * Admin-email footer only. Never attach this to customer mail — customer
+ * messages keep /a?t=. Fail-open: a mint miss still sends the original body.
+ */
+async function appendAdminOpsEmailLink(text, bookingId) {
+  const body = String(text || '');
+  const id = String(bookingId || '').trim();
+  if (!id) return body;
+  if (/\/ops\/q\//i.test(body)) return body;
+  const url = await mintQuickOpsUrl(id);
+  if (!url) return body;
+  return `${body.replace(/\s+$/, '')}\n\nQuick Ops (admin only):\n${url}\n`;
+}
+
 module.exports = {
   TOKEN_PREFIX,
   SESSION_PREFIX,
@@ -318,6 +332,7 @@ module.exports = {
   isLocalDev,
   verifyQuickOpsCsrf,
   mintQuickOpsUrl,
+  appendAdminOpsEmailLink,
   setQuickOpsStoreFactories,
   resetQuickOpsStoreFactories,
 };

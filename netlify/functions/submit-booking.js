@@ -559,6 +559,11 @@ function bookingText(b) {
 async function sendEmail(b) {
   const { ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM } = process.env;
   if (!ADMIN_EMAIL || !RESEND_API_KEY) return { sent: false, reason: 'email not configured' };
+  let text = bookingText(b);
+  try {
+    const { appendAdminOpsEmailLink } = require('../lib/admin-quick-ops-token');
+    text = await appendAdminOpsEmailLink(text, b.id);
+  } catch { /* admin email still sends without the ops link */ }
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
@@ -567,7 +572,7 @@ async function sendEmail(b) {
       to: [ADMIN_EMAIL],
       reply_to: b.email || undefined,
       subject: `New Cardetail1 Booking ${b.id} — ${b.firstName || ''} ${b.lastName || ''} ($${b.totalPrice || 0}) · ${b.paymentStatus || 'pending'}`,
-      text: bookingText(b),
+      text,
     }),
   });
   if (!res.ok) {

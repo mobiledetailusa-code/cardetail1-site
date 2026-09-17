@@ -72,9 +72,14 @@ async function persistCancellationRequest({
   return last;
 }
 
-async function notifyAdmin(subject, text) {
+async function notifyAdmin(subject, text, bookingId) {
   const { ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM } = process.env;
   if (!ADMIN_EMAIL || !RESEND_API_KEY) return;
+  let body = String(text || '');
+  try {
+    const { appendAdminOpsEmailLink } = require('../lib/admin-quick-ops-token');
+    body = await appendAdminOpsEmailLink(body, bookingId);
+  } catch { /* admin email still sends without the ops link */ }
   try {
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -83,7 +88,7 @@ async function notifyAdmin(subject, text) {
         from: RESEND_FROM || 'Cardetail1 <onboarding@resend.dev>',
         to: [ADMIN_EMAIL],
         subject,
-        text,
+        text: body,
       }),
     });
   } catch (e) { console.warn('[request-cancellation] email error:', e.message); }
@@ -195,7 +200,8 @@ exports.handler = async (event) => {
 
   await notifyAdmin(
     `Cardetail1 — Cancellation Request · ${bookingId}`,
-    `Customer requested cancellation for booking ${bookingId}.\nReason: ${reason}\nNo charge has been applied. Admin review required.`
+    `Customer requested cancellation for booking ${bookingId}.\nReason: ${reason}\nNo charge has been applied. Admin review required.`,
+    bookingId
   );
 
   try {
