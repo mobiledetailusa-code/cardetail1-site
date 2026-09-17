@@ -2414,6 +2414,26 @@
     },
     {
       "make": "Ford",
+      "model": "Explorer Interceptor",
+      "aliases": [
+        "Police Interceptor Utility",
+        "Explorer Police Interceptor",
+        "Interceptor Utility"
+      ],
+      "years": [
+        {
+          "from": 1990,
+          "to": 2027,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
+      "public": true
+    },
+    {
+      "make": "Ford",
       "model": "F-150",
       "aliases": [
         "F150",

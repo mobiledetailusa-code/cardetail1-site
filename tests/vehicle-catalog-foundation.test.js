@@ -135,6 +135,31 @@ test('alias F150 resolves same model/tier as F-150', () => {
   assert.equal(a.source, 'alias');
 });
 
+test('Ford Explorer Interceptor is listed and prices as suv3', () => {
+  const direct = Catalog.resolveVehicle({
+    make: 'Ford',
+    model: 'Explorer Interceptor',
+    year: 2022,
+  });
+  assert.equal(direct.ok, true);
+  assert.equal(direct.canonicalModel, 'Explorer Interceptor');
+  assert.equal(direct.pricingClass, 'suv3');
+  assert.equal(direct.displayClass, 'suv3');
+
+  const alias = Catalog.resolveVehicle({
+    make: 'Ford',
+    model: 'Police Interceptor Utility',
+    year: 2018,
+  });
+  assert.equal(alias.ok, true);
+  assert.equal(alias.canonicalModel, 'Explorer Interceptor');
+  assert.equal(alias.pricingClass, 'suv3');
+
+  const projected = Catalog.toLegacyModelsMap();
+  assert.ok(projected.Ford.m.includes('Explorer Interceptor'));
+  assert.equal(projected.Ford.t['Explorer Interceptor'], 'suv3');
+});
+
 test('valid year resolves; invalid year detectable (strict optional)', () => {
   assert.equal(Catalog.isYearValid('Ford', 'F-150', 2020), true);
   assert.equal(Catalog.isYearValid('Ford', 'F-150', 1980), false);
