@@ -62,6 +62,14 @@ async function enqueueAdminOpsSms({
   if (!toE164) {
     return { ok: true, queued: false, skipped: true, reason: 'admin_sms_destination_missing' };
   }
+  const data = { ...(templateData || {}) };
+  if (bookingId && !data.opsUrl) {
+    try {
+      const { mintQuickOpsUrl } = require('./admin-quick-ops-token');
+      const opsUrl = await mintQuickOpsUrl(bookingId);
+      if (opsUrl) data.opsUrl = opsUrl;
+    } catch { /* SMS still sends without the ops link */ }
+  }
   return enqueueSms({
     idempotencyKey,
     audience: 'admin',
@@ -69,7 +77,7 @@ async function enqueueAdminOpsSms({
     toE164,
     bookingId: bookingId || null,
     templateKey,
-    templateData: templateData || {},
+    templateData: data,
   }, { prisma: opts.prisma, env: opts.env });
 }
 

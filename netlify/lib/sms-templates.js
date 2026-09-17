@@ -27,6 +27,8 @@ const TEMPLATE_KEYS = Object.freeze({
   CHANGE_APPROVED: 'booking.change_approved',
   CHANGE_REJECTED: 'booking.change_rejected',
   REVIEW_REQUESTED: 'booking.review_requested',
+  PAYMENT_RESUME: 'booking.payment_resume',
+  OWNER_FOLLOWUP: 'booking.owner_followup',
   // CUSTOMER_BOOKING_SMS_SAFE_CONFIRMATION — consent true, phone mismatch: no private link
   SAFE_CONFIRMATION: 'booking.safe_confirmation',
   TECH_AUCTION: 'auction.tech_invite',
@@ -390,6 +392,13 @@ function renderSmsTemplate(templateKey, data = {}) {
       body = `${smsPrefix(templateKey)} How was your detail? Leave a review.`
         + viewLink(url);
       break;
+    case TEMPLATE_KEYS.PAYMENT_RESUME:
+      body = `${smsPrefix(templateKey)} Your secure payment link:`
+        + (url ? ` ${url}` : '');
+      break;
+    case TEMPLATE_KEYS.OWNER_FOLLOWUP:
+      body = `${smsPrefix(templateKey)} We will follow up on your appointment shortly.`;
+      break;
     case TEMPLATE_KEYS.TECH_AUCTION:
       body = `${smsPrefix(templateKey)} Job ${text(data.service, 100)} - ${text(data.date, 40)} - ${text(data.area, 40)}.`
         + (url ? ` Bid: ${url}` : '');
@@ -485,6 +494,10 @@ function renderSmsTemplate(templateKey, data = {}) {
       break;
     default:
       return { ok: false, error: 'unknown_sms_template' };
+  }
+  if (ADMIN_TEMPLATE_KEYS.has(templateKey) && data.opsUrl) {
+    const ops = asciiSms(data.opsUrl).slice(0, 180);
+    if (ops && !body.includes(ops)) body += ` ${ops}`;
   }
   const rendered = withCompliance(body);
   const measure = measureSms(rendered);

@@ -650,13 +650,19 @@ async function sendSms(b) {
     toE164: process.env.ADMIN_SMS,
     bookingId: b.id,
     templateKey: TEMPLATE_KEYS.ADMIN_BOOKING,
-    templateData: (() => {
+    templateData: await (async () => {
       const { adminBookingTemplateData } = require('../lib/sms-templates');
-      return adminBookingTemplateData(b, {
+      const data = adminBookingTemplateData(b, {
         bookingRef: b.id,
         customerName: [b.firstName, b.lastName].filter(Boolean).join(' '),
         customerPhone: b.phone || '',
       });
+      try {
+        const { mintQuickOpsUrl } = require('../lib/admin-quick-ops-token');
+        const opsUrl = await mintQuickOpsUrl(b.id);
+        if (opsUrl) data.opsUrl = opsUrl;
+      } catch { /* alert still sends without the ops link */ }
+      return data;
     })(),
   });
   if (!queued.ok) return { sent: false, reason: queued.error || 'sms_outbox_failed' };
