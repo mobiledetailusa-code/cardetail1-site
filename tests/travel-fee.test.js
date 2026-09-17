@@ -83,6 +83,19 @@ test('base and immediate metro are free', () => {
   }
 });
 
+test('Manhattan 10065 / 10075 (UES) are in range even though the free ZIP CSV omits them', () => {
+  // These ZCTAs exist in Census but not in midwire/free_zipcode_data. Without the
+  // gazetteer gap-fill they resolved to null and the booking gate treated ~10–13 mi
+  // Upper East Side addresses as out of the service area.
+  for (const zip of ['10065', '10075']) {
+    const r = resolveTravelForZip(zip);
+    assert.ok(r, `${zip} must resolve`);
+    assert.ok(r.miles >= 8 && r.miles <= 20, `${zip} should be ~10–15 road mi, got ${r.miles}`);
+    assert.equal(r.fee, 0);
+    assert.equal(r.inRange, true);
+  }
+});
+
 test('unknown or malformed ZIP resolves to null rather than a guess', () => {
   assert.equal(resolveTravelForZip('90210'), null);
   assert.equal(resolveTravelForZip('123'), null);
