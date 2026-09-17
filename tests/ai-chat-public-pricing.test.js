@@ -165,6 +165,9 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   // Booking Step 4 ZIP-biased street suggestions (no payment imports).
     'netlify/functions/address-suggest.js',
     'netlify/functions/welcome-lead-capture.js',
+  // PR B — booking-scoped Quick Ops + payment resume
+  'netlify/functions/admin-quick-ops.js',
+  'netlify/functions/payment-resume.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {

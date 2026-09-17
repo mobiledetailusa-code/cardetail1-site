@@ -13,9 +13,14 @@ function safeBooking(booking) {
   return booking ? projectBookingForCustomer(booking) : null;
 }
 
-async function notifyAdmin(subject, text) {
+async function notifyAdmin(subject, text, bookingId) {
   const { ADMIN_EMAIL, RESEND_API_KEY, RESEND_FROM } = process.env;
   if (!ADMIN_EMAIL || !RESEND_API_KEY) return;
+  let body = String(text || '');
+  try {
+    const { appendAdminOpsEmailLink } = require('../lib/admin-quick-ops-token');
+    body = await appendAdminOpsEmailLink(body, bookingId);
+  } catch { /* admin email still sends without the ops link */ }
   try {
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -24,7 +29,7 @@ async function notifyAdmin(subject, text) {
         from: RESEND_FROM || 'Cardetail1 <onboarding@resend.dev>',
         to: [ADMIN_EMAIL],
         subject,
-        text,
+        text: body,
       }),
     });
   } catch (e) {
@@ -123,7 +128,8 @@ function addonMutationResponse(appliedCmd, {
   if (adminSubjectLocal && !appliedCmd.idempotent) {
     notifyAdmin(
       adminSubjectLocal.replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
-      `${adminTextLocal}${appliedTotal != null ? `\nTotal: $${Number(appliedTotal).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
+      `${adminTextLocal}${appliedTotal != null ? `\nTotal: $${Number(appliedTotal).toFixed(2)}` : ''}\n\nCustomer: ${custName}`,
+      appliedCmd.booking?.id || appliedCmd.booking?.bookingId
     ).catch(() => {});
   }
   return json(200, {
@@ -815,7 +821,8 @@ exports.handler = async (event) => {
     if (!cmd.idempotent) {
       await notifyAdmin(
         `Cardetail1 — Vehicle removal request · ${bookingId}`,
-        `Customer requested removal of ${vehicleLabel} (${vehicleId}) from booking ${bookingId}.`
+        `Customer requested removal of ${vehicleLabel} (${vehicleId}) from booking ${bookingId}.`,
+        bookingId
       );
     }
 
@@ -1012,7 +1019,8 @@ exports.handler = async (event) => {
     if (!appliedCmd.idempotent) {
       notifyAdmin(
         (adminSubject || '').replace('Request', appliedCmd.applied ? 'Updated' : 'Request'),
-        `${adminText}${appliedCmd.booking?.approvedFinalAmount != null ? `\nTotal: $${Number(appliedCmd.booking.approvedFinalAmount).toFixed(2)}` : ''}\n\nCustomer: ${custName}`
+        `${adminText}${appliedCmd.booking?.approvedFinalAmount != null ? `\nTotal: $${Number(appliedCmd.booking.approvedFinalAmount).toFixed(2)}` : ''}\n\nCustomer: ${custName}`,
+        bookingId
       ).catch(() => {});
       try {
         const lifecycle = require('../lib/appointment-lifecycle-notifications');
@@ -1098,7 +1106,7 @@ exports.handler = async (event) => {
     return json(503, { ok: false, error: 'service_unavailable', message: 'Failed to save request. Please try again.' });
   }
 
-  notifyAdmin(adminSubject, `${adminText}\n\nCustomer: ${custName}`).catch(() => {});
+  notifyAdmin(adminSubject, `${adminText}\n\nCustomer: ${custName}`, bookingId).catch(() => {});
 
   return json(200, {
     ok: true,

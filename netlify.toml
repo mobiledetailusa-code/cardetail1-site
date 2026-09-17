@@ -74,6 +74,26 @@
   to = "/admin-ops.html"
   status = 200
 [[redirects]]
+  from = "/ops/q"
+  to = "/.netlify/functions/admin-quick-ops"
+  status = 200
+  force = true
+[[redirects]]
+  from = "/ops/q/*"
+  to = "/.netlify/functions/admin-quick-ops"
+  status = 200
+  force = true
+[[redirects]]
+  from = "/pay"
+  to = "/.netlify/functions/payment-resume"
+  status = 200
+  force = true
+[[redirects]]
+  from = "/pay/*"
+  to = "/.netlify/functions/payment-resume"
+  status = 200
+  force = true
+[[redirects]]
   from = "/admin-owner-studio"
   to = "/admin-owner-studio.html"
   status = 200
@@ -160,6 +180,30 @@
   [headers.values]
     Referrer-Policy = "no-referrer"
     Cache-Control = "no-store"
+[[headers]]
+  for = "/ops/q"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+    Cache-Control = "no-store"
+    X-Robots-Tag = "noindex"
+[[headers]]
+  for = "/ops/q/*"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+    Cache-Control = "no-store"
+    X-Robots-Tag = "noindex"
+[[headers]]
+  for = "/pay"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+    Cache-Control = "no-store"
+    X-Robots-Tag = "noindex"
+[[headers]]
+  for = "/pay/*"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+    Cache-Control = "no-store"
+    X-Robots-Tag = "noindex"
 [[headers]]
   for = "/reviews"
   [headers.values]

@@ -413,6 +413,15 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/welcome-offer-redemption.js',
     'netlify/functions/review-invite.js',
     'netlify/lib/review-request-notifications.js',
+    // PR B — booking-scoped Quick Ops + payment resume
+    'netlify/functions/admin-quick-ops.js',
+    'netlify/functions/payment-resume.js',
+    'netlify/lib/admin-quick-ops-token.js',
+    'netlify/lib/admin-quick-ops-actions.js',
+    'netlify/lib/admin-quick-ops-view.js',
+    'netlify/lib/booking-cancel.js',
+    'netlify/lib/payment-resume-token.js',
+    'netlify/lib/quick-ops-html.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);
