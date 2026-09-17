@@ -174,7 +174,7 @@ describe('resolveCustomerBookingSmsPlan CASE A/B/C', () => {
     assert.match(rendered.body, /Cardetail1/);
     assert.match(rendered.body, /STOP/i);
     assert.match(rendered.body, /HELP/i);
-    assert.match(rendered.body, /booking request/i);
+    assert.match(rendered.body, /Request received/);
   });
 
   it('9. no consent → safe confirmation NOT planned', () => {
@@ -348,7 +348,7 @@ describe('admin SMS and email paths remain independent (static contract)', () =>
       customerPhone: VERIFIED,
     });
     assert.equal(rendered.ok, true);
-    assert.match(rendered.body, /Booking alert/);
+    assert.match(rendered.body, /New request/);
   });
 
   it('11. customer email builder still accepts access URLs (email unchanged by this fix)', () => {

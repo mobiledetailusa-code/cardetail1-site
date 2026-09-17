@@ -10,7 +10,7 @@ const {
 // Admin operational alerts use a distinct prefix so they are not confused
 // with customer traffic.
 const BRAND = CUSTOMER_SMS_BRAND;
-const TEMPLATE_VERSION = 'sms-v5-2026-09-02';
+const TEMPLATE_VERSION = 'sms-v6-2026-09-16';
 const COMPLIANCE = 'Reply STOP or HELP';
 
 const TEMPLATE_KEYS = Object.freeze({
@@ -34,6 +34,7 @@ const TEMPLATE_KEYS = Object.freeze({
   ADMIN_INQUIRY: 'ops.inquiry_alert',
   ADMIN_INBOUND_SMS: 'ops.inbound_sms_alert',
   ADMIN_CHANGE_REQUEST: 'ops.change_request_alert',
+  ADMIN_CANCELLATION_REQUESTED: 'ops.cancellation_request_alert',
   ADMIN_CUSTOMER_CANCEL: 'ops.customer_cancel_alert',
   RECOVERY: 'recovery.followup',
 });
@@ -43,6 +44,7 @@ const ADMIN_TEMPLATE_KEYS = new Set([
   TEMPLATE_KEYS.ADMIN_INQUIRY,
   TEMPLATE_KEYS.ADMIN_INBOUND_SMS,
   TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST,
+  TEMPLATE_KEYS.ADMIN_CANCELLATION_REQUESTED,
   TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL,
 ]);
 
@@ -190,27 +192,90 @@ function smsServiceLabel(bookingOrRaw) {
   return '';
 }
 
+function smsFirstName(booking = {}) {
+  return asciiSms(booking.firstName || booking.customerFirstName || '').slice(0, 20);
+}
+
+function smsVehicleLabel(bookingOrRaw) {
+  if (bookingOrRaw == null) return '';
+  if (typeof bookingOrRaw !== 'object') {
+    const direct = asciiSms(bookingOrRaw);
+    return looksLikeInternalId(direct) ? '' : direct.slice(0, 36);
+  }
+  const vehicles = Array.isArray(bookingOrRaw.vehicles) ? bookingOrRaw.vehicles : [];
+  const first = vehicles[0] && typeof vehicles[0] === 'object' ? vehicles[0] : {};
+  const labeled = asciiSms(
+    bookingOrRaw.vehicleLabel
+    || first.vehicleLabel
+    || ''
+  );
+  if (labeled && !looksLikeInternalId(labeled)) return labeled.slice(0, 36);
+  const parts = [
+    first.year || bookingOrRaw.year,
+    first.make || bookingOrRaw.make,
+    first.model || bookingOrRaw.model,
+  ].filter(Boolean);
+  const joined = asciiSms(parts.join(' '));
+  if (joined) return joined.slice(0, 36);
+  const raw = bookingOrRaw.vehicle;
+  if (raw && typeof raw !== 'object') {
+    const s = asciiSms(raw);
+    if (s && !looksLikeInternalId(s)) return s.slice(0, 36);
+  }
+  return '';
+}
+
+function smsPriceLabel(booking = {}) {
+  const ledgerCents = booking.ledger && booking.ledger.approvedCents != null
+    ? Number(booking.ledger.approvedCents)
+    : null;
+  const amount = booking.approvedFinalAmount != null
+    ? booking.approvedFinalAmount
+    : booking.totalPrice;
+  const cents = ledgerCents != null && Number.isFinite(ledgerCents)
+    ? Math.round(ledgerCents)
+    : Math.round(Number(amount || 0) * 100);
+  if (!Number.isFinite(cents) || cents <= 0) return '';
+  if (cents % 100 === 0) return `$${cents / 100}`;
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+function smsCityLabel(booking = {}) {
+  const direct = asciiSms(booking.city || booking.serviceCity || booking.town || '');
+  if (direct && !/\d/.test(direct) && !looksLikeInternalId(direct)) {
+    return direct.slice(0, 22);
+  }
+  const address = asciiSms(booking.address || booking.serviceAddress || '');
+  if (!address) return '';
+  const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
+  if (parts.length < 2) return '';
+  const last = parts[parts.length - 1];
+  if (/^[A-Z]{2}(\s+\d{5}(-\d{4})?)?$/i.test(last) || /^\d{5}(-\d{4})?$/.test(last)) {
+    const city = asciiSms(parts[parts.length - 2]);
+    if (city && !/\d/.test(city)) return city.slice(0, 22);
+  }
+  return '';
+}
+
 function viewLink(url) {
   return url ? ` View: ${url}` : '';
 }
 
-function serviceClause(data, url) {
-  if (url) return '';
-  const service = asciiSms(data.service).slice(0, 40);
-  return service ? ` ${service}.` : '';
+function joinSmsBits(parts) {
+  return parts.map((part) => asciiSms(part)).filter(Boolean).join(', ');
 }
 
-function requestSummary(data, { includeService = true } = {}) {
+function requestSummary(data) {
+  const firstName = asciiSms(data.firstName).slice(0, 20);
+  const vehicle = asciiSms(data.vehicle).slice(0, 36);
+  const service = asciiSms(data.service).slice(0, 40);
   const date = smsDateLabel(data.date || data.when);
-  const service = includeService ? asciiSms(data.service).slice(0, 40) : '';
   const window = smsWindowLabel(data.window || data.arrivalPreference);
-  let body = `${smsPrefix(TEMPLATE_KEYS.REQUEST_RECEIVED)} Booking request received`;
-  if (date && service) body += ` for ${date} - ${service}`;
-  else if (date) body += ` for ${date}`;
-  else if (service) body += ` for ${service}`;
-  body += '.';
-  if (window) body += ` Arrival preference: ${window}.`;
-  body += " We'll notify you when it's confirmed.";
+  const when = [date, window].filter(Boolean).join(' ');
+  const bits = joinSmsBits([firstName, vehicle, service, when]);
+  let body = `${smsPrefix(TEMPLATE_KEYS.REQUEST_RECEIVED)} Request received`;
+  if (bits) body += ` - ${bits}`;
+  body += '. Under review.';
   return body;
 }
 
@@ -219,27 +284,36 @@ function renderSmsTemplate(templateKey, data = {}) {
   let body = '';
   switch (templateKey) {
     case TEMPLATE_KEYS.REQUEST_RECEIVED:
-      body = requestSummary(data, { includeService: !url }) + viewLink(url);
+      // Customer appointment link is included when authorized (/a?t=).
+      body = requestSummary(data) + viewLink(url);
       break;
     case TEMPLATE_KEYS.SAFE_CONFIRMATION:
       // No url/token — SMS consent alone must not deliver private account access.
-      body = requestSummary(data, { includeService: true });
+      body = requestSummary(data);
       break;
     case TEMPLATE_KEYS.CONFIRMED: {
       const date = smsDateLabel(data.date || data.when);
       const window = smsWindowLabel(data.window);
-      body = `${smsPrefix(templateKey)} Your appointment is confirmed`
-        + (date ? ` for ${date}` : '')
-        + (window ? `, ${window}` : '')
+      const when = [date, window].filter(Boolean).join(', ');
+      const service = asciiSms(data.service).slice(0, 40);
+      const price = asciiSms(data.price || data.total).slice(0, 12);
+      const bits = joinSmsBits([when, service, price]);
+      body = `${smsPrefix(templateKey)} Confirmed`
+        + (bits ? ` - ${bits}` : '')
         + '.'
-        + serviceClause(data, url)
         + viewLink(url);
       break;
     }
     case TEMPLATE_KEYS.CHANGE_REQUESTED:
-      body = `${smsPrefix(templateKey)} We received your request to change your appointment.`
-        + ` Current appointment is unchanged.`
-        + viewLink(url);
+      if (String(data.changeKind || '').toLowerCase() === 'reschedule') {
+        body = `${smsPrefix(templateKey)} We received your reschedule request.`
+          + ` Your current appointment remains unchanged while we review it.`
+          + viewLink(url);
+      } else {
+        body = `${smsPrefix(templateKey)} We received your request to change your appointment.`
+          + ` Current appointment is unchanged.`
+          + viewLink(url);
+      }
       break;
     case TEMPLATE_KEYS.CANCELLATION_REQUESTED:
       body = `${smsPrefix(templateKey)} We received your cancellation request.`
@@ -320,10 +394,23 @@ function renderSmsTemplate(templateKey, data = {}) {
       body = `${smsPrefix(templateKey)} Job ${text(data.service, 100)} - ${text(data.date, 40)} - ${text(data.area, 40)}.`
         + (url ? ` Bid: ${url}` : '');
       break;
-    case TEMPLATE_KEYS.ADMIN_BOOKING:
-      body = `${smsPrefix(templateKey)} Booking alert ${text(data.bookingRef, 50)} - ${text(data.customerName, 80)}`
-        + (data.customerPhone ? ` - ${text(data.customerPhone, 30)}` : '');
+    case TEMPLATE_KEYS.ADMIN_BOOKING: {
+      const name = asciiSms(data.customerName).slice(0, 32);
+      const vehicle = asciiSms(data.vehicle).slice(0, 28);
+      const service = asciiSms(data.service || data.packageName).slice(0, 28);
+      const price = asciiSms(data.price || data.total).slice(0, 12);
+      const when = [smsDateLabel(data.date), smsWindowLabel(data.window)].filter(Boolean).join(' ');
+      const city = asciiSms(data.city).slice(0, 20);
+      const details = joinSmsBits([name, vehicle, service, price, when, city]);
+      if (details) {
+        body = `${smsPrefix(templateKey)} New request ${details}`;
+      } else {
+        body = `${smsPrefix(templateKey)} New request`
+          + (data.bookingRef ? ` ${text(data.bookingRef, 24)}` : '')
+          + (data.customerPhone ? ` - ${text(data.customerPhone, 30)}` : '');
+      }
       break;
+    }
     case TEMPLATE_KEYS.ADMIN_INQUIRY:
       body = `${smsPrefix(templateKey)} Customer question from ${text(data.customerName, 80)}`
         + (data.customerPhone ? ` (${text(data.customerPhone, 30)})` : '')
@@ -334,17 +421,31 @@ function renderSmsTemplate(templateKey, data = {}) {
         + (data.message ? `: ${text(data.message, 220)}` : '');
       break;
     case TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST: {
-      const name = asciiSms(data.customerName).slice(0, 40);
+      const name = asciiSms(data.customerName).slice(0, 32);
       const change = asciiSms(String(data.changeSummary || '').replace(/→/g, '->'))
         .replace(/\s+/g, ' ')
         .trim()
-        .slice(0, 90);
-      const type = asciiSms(data.requestTypeLabel).slice(0, 40);
+        .slice(0, 70);
+      const type = asciiSms(data.requestTypeLabel).slice(0, 32);
       const bookingRef = asciiSms(data.bookingRef).slice(0, 24);
       const date = text(data.date, 40);
-      // Legacy reschedule/admin alert (date + bookingRef only) stays byte-stable.
-      // Package/add-on alerts pass customerName / changeSummary for richer copy.
-      if (!name && !change && !type) {
+      const vehicle = asciiSms(data.vehicle).slice(0, 24);
+      const currentWhen = asciiSms(data.currentWhen).slice(0, 36);
+      const requestedWhen = asciiSms(data.requestedWhen).slice(0, 36);
+      const requestType = asciiSms(data.requestType || data.requestTypeLabel).toLowerCase();
+      const isReschedule = String(data.changeKind || '').toLowerCase() === 'reschedule'
+        || requestType.includes('reschedule')
+        || !!(currentWhen && requestedWhen);
+      if (isReschedule && (name || currentWhen || requestedWhen || vehicle)) {
+        const shift = currentWhen && requestedWhen
+          ? `${currentWhen} -> ${requestedWhen}`
+          : (requestedWhen || currentWhen);
+        body = `${smsPrefix(templateKey)} Reschedule request`
+          + (name ? ` ${name}` : '')
+          + (shift ? `, ${shift}` : '')
+          + (vehicle ? `, ${vehicle}` : '')
+          + '.';
+      } else if (!name && !change && !type) {
         body = `${smsPrefix(templateKey)} Customer requested an appointment change`
           + (date ? ` for ${date}` : '')
           + (bookingRef ? ` (${bookingRef})` : '')
@@ -357,6 +458,19 @@ function renderSmsTemplate(templateKey, data = {}) {
           + (change ? ` ${change}.` : (type ? ` ${type}.` : ' Customer requested an appointment change.'))
           + ' Review in Admin.';
       }
+      break;
+    }
+    case TEMPLATE_KEYS.ADMIN_CANCELLATION_REQUESTED: {
+      const name = asciiSms(data.customerName).slice(0, 32);
+      const vehicle = asciiSms(data.vehicle).slice(0, 24);
+      const when = [smsDateLabel(data.date), smsWindowLabel(data.window)].filter(Boolean).join(' ');
+      const bookingRef = asciiSms(data.bookingRef).slice(0, 24);
+      body = `${smsPrefix(templateKey)} Cancel request`
+        + (name ? ` ${name}` : '')
+        + (vehicle ? `, ${vehicle}` : '')
+        + (when ? `, ${when}` : '')
+        + (bookingRef ? ` (${bookingRef})` : '')
+        + '. Still scheduled.';
       break;
     }
     case TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL:
@@ -469,6 +583,17 @@ function bookingTemplateData(eventType, booking = {}, accessUrl = '') {
     data.scheduleFingerprint = fingerprint;
     data.previousDate = booking.previousConfirmedDate || booking.previousPreferredDate || '';
     if (service) data.service = service;
+    const firstName = smsFirstName(booking);
+    if (firstName) data.firstName = firstName;
+    const vehicle = smsVehicleLabel(booking);
+    if (vehicle) data.vehicle = vehicle;
+  }
+  if (eventType === TEMPLATE_KEYS.CONFIRMED) {
+    const price = smsPriceLabel(booking);
+    if (price) data.price = price;
+  }
+  if (eventType === TEMPLATE_KEYS.CHANGE_REQUESTED && booking.__changeKind) {
+    data.changeKind = String(booking.__changeKind);
   }
   if (
     eventType === TEMPLATE_KEYS.CHANGE_APPROVED
@@ -507,6 +632,41 @@ function bookingTemplateData(eventType, booking = {}, accessUrl = '') {
   return data;
 }
 
+function formatSmsWhen(dateRaw, windowRaw) {
+  return [smsDateLabel(dateRaw), smsWindowLabel(windowRaw)].filter(Boolean).join(' ');
+}
+
+function adminBookingTemplateData(booking = {}, extras = {}) {
+  const name = asciiSms(
+    extras.customerName
+    || [booking.firstName, booking.lastName].filter(Boolean).join(' ')
+    || booking.customerName
+    || ''
+  ).slice(0, 32);
+  const data = {
+    bookingRef: asciiSms(extras.bookingRef || booking.id || booking.bookingId || '').slice(0, 24),
+  };
+  if (name) data.customerName = name;
+  const vehicle = smsVehicleLabel(booking);
+  if (vehicle) data.vehicle = vehicle;
+  const service = smsServiceLabel(booking);
+  if (service) data.service = service;
+  const price = smsPriceLabel(booking);
+  if (price) data.price = price;
+  const date = extras.date || booking.preferredDate || booking.confirmedDate || '';
+  const window = extras.window
+    || booking.preferredArrivalWindow
+    || booking.preferredTime
+    || booking.confirmedTimeWindow
+    || '';
+  if (date) data.date = date;
+  if (window) data.window = window;
+  const city = smsCityLabel(booking);
+  if (city) data.city = city;
+  if (extras.customerPhone) data.customerPhone = asciiSms(extras.customerPhone).slice(0, 20);
+  return data;
+}
+
 module.exports = {
   BRAND,
   TEMPLATE_VERSION,
@@ -517,10 +677,16 @@ module.exports = {
   smsPrefix,
   renderSmsTemplate,
   bookingTemplateData,
+  adminBookingTemplateData,
   scheduleFingerprint,
   measureSms,
   smsDateLabel,
   smsWindowLabel,
   smsServiceLabel,
+  smsVehicleLabel,
+  smsPriceLabel,
+  smsCityLabel,
+  smsFirstName,
+  formatSmsWhen,
   asciiSms,
 };
