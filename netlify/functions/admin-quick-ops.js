@@ -17,6 +17,7 @@ const {
   decideQuickOps,
   mintPaymentLink,
   textCustomer,
+  recordOnSitePayment,
 } = require('../lib/admin-quick-ops-actions');
 const { neutralExpiredPage, quickOpsPage } = require('../lib/quick-ops-html');
 
@@ -128,8 +129,13 @@ async function handlePost(event) {
   const loaded = await loadProjectedBooking(session.bookingId);
   if (!loaded.ok) return json(400, { ok: false, error: 'invalid' });
   const booking = loaded.booking;
+  const view = loaded.view || {};
+  const actions = view.actions || {};
 
   if (action === 'confirm') {
+    if (view.paid || view.completed || view.locked) {
+      return json(409, { ok: false, error: 'locked', message: 'Paid / completed — locked' });
+    }
     const result = await confirmQuickOps(session.bookingId, { event });
     return json(result.ok ? 200 : (result.statusCode || 409), {
       ok: !!result.ok,
@@ -139,6 +145,9 @@ async function handlePost(event) {
     });
   }
   if (action === 'cancel') {
+    if (view.paid || view.completed || view.locked) {
+      return json(409, { ok: false, error: 'locked', message: 'Paid / completed — locked' });
+    }
     const result = await cancelQuickOps(session.bookingId, { event });
     return json(result.ok ? 200 : (result.statusCode || 409), {
       ok: !!result.ok,
@@ -148,12 +157,49 @@ async function handlePost(event) {
     });
   }
   if (action === 'approve' || action === 'reject') {
+    if (view.paid || view.completed || view.locked) {
+      return json(409, { ok: false, error: 'locked', message: 'Paid / completed — locked' });
+    }
     const result = await decideQuickOps(booking, action, { event });
     return json(result.ok ? 200 : (result.statusCode || 409), {
       ok: !!result.ok,
       idempotent: !!result.idempotent,
       reload: true,
       message: result.ok ? (result.idempotent ? 'Already decided' : `Request ${action}d`) : (result.error || 'decide_failed'),
+    });
+  }
+  if (action === 'record_cash' || action === 'record_card') {
+    const allowed = action === 'record_cash' ? actions.cash : actions.card;
+    if (!allowed) {
+      return json(409, {
+        ok: false,
+        error: view.paid || view.locked ? 'zero_balance' : 'locked',
+        message: 'Paid / No balance due',
+      });
+    }
+    const result = await recordOnSitePayment(booking, {
+      method: action === 'record_cash' ? 'cash' : 'card_on_site',
+      expectedBookingVersion: body.bookingVersion != null ? body.bookingVersion : booking.bookingVersion,
+    });
+    if (!result.ok) {
+      const message = result.error === 'postgres_payment_disabled'
+        ? 'On-site payment recording is unavailable'
+        : result.error === 'zero_balance' || result.error === 'already_paid'
+          ? 'Paid / No balance due'
+          : result.error === 'version_conflict'
+            ? 'Booking changed — reload and try again'
+            : 'Could not record payment';
+      return json(result.statusCode || 409, {
+        ok: false,
+        error: result.error,
+        message,
+      });
+    }
+    return json(200, {
+      ok: true,
+      reload: true,
+      method: action === 'record_cash' ? 'cash' : 'card',
+      message: action === 'record_cash' ? 'Cash recorded' : 'Card recorded',
     });
   }
   if (action === 'copy_pay') {

@@ -78,6 +78,10 @@ function quickOpsPage(view, csrfToken) {
   const paidLine = money.remainingCents > 0
     ? field('Remaining', money.remainingLabel)
     : `<div class="row"><span class="k">Balance</span><span class="v">Paid / No balance due</span></div>`;
+  const methodLine = money.methodLabel ? field('Method', money.methodLabel) : '';
+  const lockedNote = view.locked
+    ? '<p class="sub">Paid / completed — details are locked</p>'
+    : '';
   const request = view.request
     ? `<section class="card"><h2>Request</h2><p>${escapeHtml(view.request.summary)}</p></section>`
     : (view.cancelRequested
@@ -93,7 +97,10 @@ function quickOpsPage(view, csrfToken) {
     a.map ? `<a class="btn ghost" href="${escapeHtml(view.mapUrl)}" target="_blank" rel="noopener noreferrer">Open map</a>` : '',
     a.payment ? '<button type="button" class="secondary" data-action="copy_pay">Copy payment link</button>' : '',
     a.payment ? '<button type="button" class="secondary" data-action="text_pay">Text payment link</button>' : '',
-    !a.payment ? '<p class="sub">Paid / No balance due</p>' : '',
+    a.cash ? '<button type="button" class="secondary" data-action="record_cash" data-confirm="Record the remaining balance as cash? This uses the same Admin payment ledger.">Record cash</button>' : '',
+    a.card ? '<button type="button" class="secondary" data-action="record_card" data-confirm="Record the remaining balance as card on site? This uses the same Admin payment ledger.">Record card</button>' : '',
+    !a.payment && !a.cash && !a.card ? '<p class="sub">Paid / No balance due</p>' : '',
+    lockedNote,
   ].filter(Boolean).join('');
   return chrome({
     title: 'Quick Ops',
@@ -114,6 +121,7 @@ function quickOpsPage(view, csrfToken) {
   ${field('Package', view.service.package)}
   ${field('Approved', money.approvedLabel)}
   ${field('Paid', money.paidLabel)}
+  ${methodLine}
   ${paidLine}
   ${field('Date', view.service.date)}
   ${field('Window', view.service.window)}
@@ -129,6 +137,7 @@ ${request}
 <script>
 (function(){
   var csrf = ${JSON.stringify(csrfToken)};
+  var bookingVersion = ${JSON.stringify(view.bookingVersion || 0)};
   var msg = document.getElementById('qo-msg');
   function setMsg(text, ok){ msg.textContent = text || ''; msg.className = 'msg' + (ok ? ' ok' : ''); }
   document.addEventListener('click', async function(ev){
@@ -143,7 +152,7 @@ ${request}
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json', 'x-qo-csrf': csrf },
-        body: JSON.stringify({ action: action })
+        body: JSON.stringify({ action: action, bookingVersion: bookingVersion })
       });
       var data = await res.json().catch(function(){ return {}; });
       if (action === 'copy_pay' && data.payUrl) {

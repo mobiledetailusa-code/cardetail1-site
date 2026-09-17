@@ -40,6 +40,7 @@ const {
   decideQuickOps,
   mintPaymentLink,
   textCustomer,
+  recordOnSitePayment,
 } = require('../netlify/lib/admin-quick-ops-actions');
 const { projectQuickOpsBooking } = require('../netlify/lib/admin-quick-ops-view');
 const { setPaymentResumeStoreFactory, resetPaymentResumeStoreFactory } = require('../netlify/lib/payment-resume-token');
@@ -402,8 +403,10 @@ describe('token + GET never mutates', () => {
     assert.doesNotMatch(src, /listSubmittedBookings/);
     assert.doesNotMatch(src, /listAllBlobs/);
     assert.doesNotMatch(src, /admin-ops-jobs/);
+    assert.doesNotMatch(src, /adminMarkCashReceived|adminMarkCardOnSite/);
     assert.doesNotMatch(src, /getBooking\(/);
     assert.match(src, /getBookingRecord/);
+    assert.match(src, /settleAdminCashFullBalance|settleAdminOnSiteFullBalance/);
   });
 });
 
@@ -419,6 +422,9 @@ describe('quick ops page + actions', () => {
     assert.equal(view.actions.cancel, true);
     assert.equal(view.actions.approve, false);
     assert.equal(view.actions.payment, true);
+    assert.equal(view.actions.cash, true);
+    assert.equal(view.actions.card, true);
+    assert.equal(view.money.methodLabel, '');
     assert.equal(view.telUrl, `tel:${VERIFIED}`);
     assert.match(view.mapUrl, /maps\.google\.com/);
     assert.match(view.mapUrl, /Harbor/);
@@ -427,11 +433,46 @@ describe('quick ops page + actions', () => {
       status: 'Confirmed',
       appointmentStatus: 'confirmed',
       jobStatus: 'confirmed',
+      paymentStatus: 'paid_cash',
+      paymentWorkflowStatus: 'cash_paid',
+      cashReceivedAmount: 190,
+      cashReceivedAt: '2026-09-17T16:00:00.000Z',
       ledger: { approvedCents: 19000, settledCents: 19000, creditedCents: 0 },
     }));
     assert.equal(paid.actions.confirm, false);
+    assert.equal(paid.actions.cancel, false);
     assert.equal(paid.actions.payment, false);
+    assert.equal(paid.actions.cash, false);
+    assert.equal(paid.actions.card, false);
     assert.equal(paid.money.remainingCents, 0);
+    assert.equal(paid.money.methodLabel, 'Cash');
+    assert.equal(paid.locked, true);
+    assert.equal(paid.actions.call, true);
+
+    const cardPaid = projectQuickOpsBooking(pendingBooking({
+      status: 'Confirmed',
+      appointmentStatus: 'confirmed',
+      jobStatus: 'confirmed',
+      paymentStatus: 'paid_card_on_site',
+      paymentWorkflowStatus: 'payment_succeeded',
+      cardOnSiteAmount: 190,
+      cardOnSiteAt: '2026-09-17T16:00:00.000Z',
+      ledger: { approvedCents: 19000, settledCents: 19000, creditedCents: 0 },
+    }));
+    assert.equal(cardPaid.money.methodLabel, 'Card');
+    assert.equal(cardPaid.locked, true);
+
+    const completedDue = projectQuickOpsBooking(pendingBooking({
+      status: 'Confirmed',
+      appointmentStatus: 'confirmed',
+      jobStatus: 'completed_pending_payment',
+      completedAt: '2026-09-17T16:00:00.000Z',
+    }));
+    assert.equal(completedDue.actions.confirm, false);
+    assert.equal(completedDue.actions.cancel, false);
+    assert.equal(completedDue.actions.cash, true);
+    assert.equal(completedDue.actions.card, true);
+    assert.equal(completedDue.locked, false);
   });
 
   it('confirm is CAS-idempotent and does not enqueue Admin self-SMS', async () => {
@@ -601,6 +642,137 @@ describe('quick ops page + actions', () => {
     assert.equal(zero.ok, false);
     assert.equal(zero.error, 'zero_balance');
   });
+
+  it('records cash vs card through Admin on-site settlement and fails closed without Postgres', async () => {
+    const booking = pendingBooking();
+    setBookingStoreOverride(createCasMemoryStore({ [booking.id]: booking }));
+    const disabled = await recordOnSitePayment(booking, {
+      method: 'cash',
+      env: { ...process.env, CD1_POSTGRES_PAYMENT: 'false' },
+      skipNotify: true,
+    });
+    assert.equal(disabled.ok, false);
+    assert.equal(disabled.error, 'postgres_payment_disabled');
+
+    let settleBody = null;
+    const settled = await recordOnSitePayment(booking, {
+      method: 'cash',
+      env: { ...process.env, CD1_POSTGRES_PAYMENT: '1' },
+      skipNotify: true,
+      settle: async (args) => {
+        settleBody = args.body;
+        assert.equal(args.method, 'cash');
+        assert.equal(args.body.reason, 'quick_ops_cash');
+        return {
+          ok: true,
+          authority: 'postgres',
+          settledAmountCents: 19000,
+          paymentStatus: 'paid_cash',
+          bookingVersion: 2,
+          projection: { remainingCents: 0, settledCents: 19000, approvedCents: 19000 },
+          booking: { ...booking, paymentStatus: 'paid_cash', paymentWorkflowStatus: 'cash_paid' },
+        };
+      },
+    });
+    assert.equal(settled.ok, true);
+    assert.equal(settleBody.expectedBookingVersion, 1);
+
+    const card = await recordOnSitePayment(booking, {
+      method: 'card_on_site',
+      env: { ...process.env, CD1_POSTGRES_PAYMENT: '1' },
+      skipNotify: true,
+      settle: async (args) => {
+        assert.equal(args.method, 'card_on_site');
+        assert.equal(args.body.reason, 'quick_ops_card');
+        assert.equal(args.body.reference, 'onsite');
+        return { ok: true, authority: 'postgres', settledAmountCents: 19000, paymentStatus: 'paid_card_on_site' };
+      },
+    });
+    assert.equal(card.ok, true);
+
+    const stale = await recordOnSitePayment(booking, {
+      method: 'cash',
+      expectedBookingVersion: 9,
+      env: { ...process.env, CD1_POSTGRES_PAYMENT: '1' },
+      skipNotify: true,
+      settle: async () => ({ ok: true }),
+    });
+    assert.equal(stale.ok, false);
+    assert.equal(stale.error, 'version_conflict');
+
+    const alreadyPaid = await recordOnSitePayment(pendingBooking({
+      paymentStatus: 'paid_cash',
+      paymentWorkflowStatus: 'cash_paid',
+      ledger: { approvedCents: 19000, settledCents: 19000, creditedCents: 0 },
+    }), {
+      method: 'card_on_site',
+      skipNotify: true,
+      settle: async () => ({ ok: true }),
+    });
+    assert.equal(alreadyPaid.ok, false);
+    assert.equal(alreadyPaid.error, 'zero_balance');
+  });
+
+  it('POST record_cash / record_card use the scoped session and lock after paid', async () => {
+    const booking = pendingBooking();
+    setBookingStoreOverride(createCasMemoryStore({ [booking.id]: booking }));
+    const { session, event } = await sessionEventFor(booking.id);
+    const html = await qoHandler.handler({
+      ...event,
+      headers: { ...event.headers, accept: 'text/html' },
+    });
+    assert.match(html.body, /Record cash/);
+    assert.match(html.body, /Record card/);
+    assert.match(html.body, /bookingVersion/);
+
+    const denied = await qoHandler.handler({
+      ...event,
+      httpMethod: 'POST',
+      headers: { ...event.headers, 'x-qo-csrf': session.csrfToken },
+      body: JSON.stringify({ action: 'record_cash', bookingVersion: 1 }),
+    });
+    const deniedBody = JSON.parse(denied.body);
+    assert.equal(denied.statusCode, 503);
+    assert.equal(deniedBody.error, 'postgres_payment_disabled');
+
+    const paidBooking = pendingBooking({
+      id: 'CD1-QO-PAID',
+      status: 'Confirmed',
+      appointmentStatus: 'confirmed',
+      jobStatus: 'completed_paid',
+      paymentStatus: 'paid_cash',
+      paymentWorkflowStatus: 'cash_paid',
+      cashReceivedAmount: 190,
+      cashReceivedAt: '2026-09-17T16:00:00.000Z',
+      completedAt: '2026-09-17T16:00:00.000Z',
+      ledger: { approvedCents: 19000, settledCents: 19000, creditedCents: 0 },
+    });
+    setBookingStoreOverride(createCasMemoryStore({ [paidBooking.id]: paidBooking }));
+    const paidSession = await sessionEventFor(paidBooking.id);
+    const lockedCash = await qoHandler.handler({
+      ...paidSession.event,
+      httpMethod: 'POST',
+      headers: { ...paidSession.event.headers, 'x-qo-csrf': paidSession.session.csrfToken },
+      body: JSON.stringify({ action: 'record_cash', bookingVersion: 1 }),
+    });
+    assert.equal(lockedCash.statusCode, 409);
+    const lockedCancel = await qoHandler.handler({
+      ...paidSession.event,
+      httpMethod: 'POST',
+      headers: { ...paidSession.event.headers, 'x-qo-csrf': paidSession.session.csrfToken },
+      body: JSON.stringify({ action: 'cancel' }),
+    });
+    assert.equal(lockedCancel.statusCode, 409);
+    const paidHtml = await qoHandler.handler({
+      ...paidSession.event,
+      headers: { ...paidSession.event.headers, accept: 'text/html' },
+    });
+    assert.match(paidHtml.body, /Method/);
+    assert.match(paidHtml.body, />Cash</);
+    assert.match(paidHtml.body, /Paid \/ completed — details are locked/);
+    assert.doesNotMatch(paidHtml.body, /Record cash/);
+    assert.doesNotMatch(paidHtml.body, /Cancel appointment/);
+  });
 });
 
 describe('architecture freeze', () => {
@@ -625,7 +797,7 @@ describe('architecture freeze', () => {
       handlerSrc.indexOf('async function handlePost')
     );
     assert.match(handlerSrc, /if \(event\.httpMethod === 'GET'\) return handleGet/);
-    assert.doesNotMatch(getFn, /confirmQuickOps|cancelQuickOps|decideQuickOps|textCustomer|mintPaymentLink|enqueueSms/);
+    assert.doesNotMatch(getFn, /confirmQuickOps|cancelQuickOps|decideQuickOps|textCustomer|mintPaymentLink|enqueueSms|recordOnSitePayment/);
   });
 
   it('cookie session is not a full Admin session', () => {

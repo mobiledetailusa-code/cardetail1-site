@@ -4,7 +4,12 @@ const { getBookingRecord } = require('./booking-repository');
 const { confirmBookingTransition } = require('./booking-confirm');
 const { cancelBookingTransition } = require('./booking-cancel');
 const { decideChangeRequestCommand } = require('./booking-commands');
-const { projectQuickOpsBooking, moneyFromBooking } = require('./admin-quick-ops-view');
+const {
+  projectQuickOpsBooking,
+  moneyFromBooking,
+  bookingStatus,
+  paidInFull,
+} = require('./admin-quick-ops-view');
 const { createPaymentResumeToken } = require('./payment-resume-token');
 const { enqueueSms, smsSafeIdempotencyKey } = require('./sms-outbox');
 const { TEMPLATE_KEYS } = require('./sms-templates');
@@ -119,6 +124,106 @@ async function decideQuickOps(booking, decision, opts = {}) {
   return result;
 }
 
+async function notifyQuickOpsPaymentReceived(booking, result, method) {
+  try {
+    const { emitPaymentReceived } = require('./booking-transactional-notifications');
+    const projection = result.postgresProjection || result.projection || {};
+    await emitPaymentReceived(result.booking || booking, {
+      method: method === 'cash' ? 'cash' : 'card',
+      amountCents: Math.max(0, Math.round(Number(result.settledAmountCents) || 0)),
+      approvedCents: Math.max(0, Math.round(Number(projection.approvedCents) || 0)),
+      remainingCents: Math.max(0, Math.round(Number(projection.remainingCents) || 0)),
+      settledCentsAfter: Math.max(0, Math.round(Number(projection.settledCents) || 0)),
+      recordedAt: new Date().toISOString(),
+      settlementId: `${booking.id || booking.bookingId}:${projection.settledCents || 0}:${method}`,
+    });
+  } catch (err) {
+    console.warn('[quick-ops] payment notify failed', String(err && err.message || err).slice(0, 80));
+  }
+}
+
+/**
+ * Record full remaining balance as cash or card on site using the same Admin
+ * Postgres payment authority. Blob stays compatibility-only. Fails closed when
+ * Postgres payment is disabled.
+ */
+async function recordOnSitePayment(booking, opts = {}) {
+  const method = opts.method === 'card_on_site' || opts.method === 'card' ? 'card_on_site' : 'cash';
+  const env = opts.env || process.env;
+  const bookingId = String(booking && (booking.id || booking.bookingId) || '').trim();
+  if (!bookingId) return { ok: false, error: 'bookingId_required', statusCode: 400 };
+
+  const status = bookingStatus(booking);
+  if (status === 'cancelled') {
+    return { ok: false, error: 'cancelled', statusCode: 409 };
+  }
+
+  let shared = null;
+  try {
+    const { getSharedFinancialProjection } = require('./db/operational-payment');
+    shared = await getSharedFinancialProjection(booking, { env });
+  } catch {
+    shared = null;
+  }
+  const money = moneyFromBooking(booking, shared);
+  if (paidInFull(booking, money) || !(money.remainingCents > 0)) {
+    return { ok: false, error: 'zero_balance', statusCode: 409, remainingCents: 0 };
+  }
+
+  const expectedRaw = opts.expectedBookingVersion != null
+    ? opts.expectedBookingVersion
+    : booking.bookingVersion;
+  const expected = Math.round(Number(expectedRaw));
+  const actual = Math.round(Number(booking.bookingVersion) || 0);
+  if (expectedRaw == null || expectedRaw === '' || !Number.isFinite(expected) || expected !== actual) {
+    return {
+      ok: false,
+      error: 'version_conflict',
+      statusCode: 409,
+      expectedBookingVersion: Number.isFinite(expected) ? expected : null,
+      actualBookingVersion: actual,
+    };
+  }
+
+  const injectedSettle = typeof opts.settle === 'function';
+  const {
+    postgresPaymentEnabled,
+    settleAdminCashFullBalance,
+    settleAdminOnSiteFullBalance,
+  } = require('./db/operational-payment');
+  if (!injectedSettle && !postgresPaymentEnabled(env)) {
+    return { ok: false, error: 'postgres_payment_disabled', statusCode: 503, authority: 'unavailable' };
+  }
+
+  const body = method === 'cash'
+    ? {
+        reason: String(opts.reason || 'quick_ops_cash').trim().slice(0, 500),
+        expectedBookingVersion: expected,
+      }
+    : {
+        reason: String(opts.reason || 'quick_ops_card').trim().slice(0, 500),
+        reference: String(opts.reference || 'onsite').trim().slice(0, 120),
+        expectedBookingVersion: expected,
+      };
+
+  const settle = injectedSettle
+    ? opts.settle
+    : (method === 'cash' ? settleAdminCashFullBalance : settleAdminOnSiteFullBalance);
+  const result = await settle({
+    booking,
+    body,
+    method,
+    env,
+  });
+  if (!result || !result.ok) {
+    return result || { ok: false, error: 'settlement_failed', statusCode: 500 };
+  }
+  if (!opts.skipNotify) {
+    await notifyQuickOpsPaymentReceived(booking, result, method);
+  }
+  return result;
+}
+
 async function mintPaymentLink(booking, opts = {}) {
   let shared = null;
   try {
@@ -198,4 +303,5 @@ module.exports = {
   decideQuickOps,
   mintPaymentLink,
   textCustomer,
+  recordOnSitePayment,
 };

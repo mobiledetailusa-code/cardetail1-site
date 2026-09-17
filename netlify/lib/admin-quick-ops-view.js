@@ -24,6 +24,37 @@ function bookingStatus(booking) {
   return 'pending_review';
 }
 
+function jobCompleted(booking) {
+  if (!booking) return false;
+  if (booking.completedAt || booking.jobCompletedAt || booking.techCompletedAt) return true;
+  const js = String(booking.jobStatus || '').toLowerCase();
+  const st = String(booking.status || '').toLowerCase();
+  return js === 'completed' || js === 'completed_paid' || js === 'closed'
+    || st === 'completed' || st === 'completed_paid';
+}
+
+function paidInFull(booking, money) {
+  if (!money || !(money.remainingCents <= 0)) return false;
+  const pay = String(booking && booking.paymentStatus || '').toLowerCase();
+  if (['paid', 'paid_cash', 'paid_card_on_site'].includes(pay)) return true;
+  return Math.max(0, Math.round(Number(money.settledCents) || 0)) > 0;
+}
+
+function onSiteMethodLabel(booking) {
+  const pay = String(booking && booking.paymentStatus || '').toLowerCase();
+  const pwf = String(booking && booking.paymentWorkflowStatus || '').toLowerCase();
+  const cashAmount = Number(booking && booking.cashReceivedAmount);
+  const cardAmount = Number(booking && booking.cardOnSiteAmount);
+  if (pay === 'paid_cash' || pwf === 'cash_paid' || cashAmount > 0 || booking && booking.cashReceivedAt) {
+    return 'Cash';
+  }
+  if (pay === 'paid_card_on_site' || cardAmount > 0 || booking && booking.cardOnSiteAt) {
+    return 'Card';
+  }
+  if (pay === 'paid') return 'Card';
+  return '';
+}
+
 function pendingChangeRequest(booking) {
   const list = Array.isArray(booking.changeRequests) ? booking.changeRequests : [];
   return list.find((row) => PENDING_REQUEST.has(String(row.status || row.requestStatus || '').toLowerCase())) || null;
@@ -102,7 +133,9 @@ function projectQuickOpsBooking(booking, shared = null) {
       paidLabel: dollarsFromCents(money.settledCents),
       remainingLabel: dollarsFromCents(money.remainingCents),
       remainingCents: money.remainingCents,
+      settledCents: money.settledCents,
       authority: money.authority,
+      methodLabel: onSiteMethodLabel(booking),
     },
     request: pending ? {
       requestId: pending.requestId || pending.id || '',
@@ -112,16 +145,27 @@ function projectQuickOpsBooking(booking, shared = null) {
         .slice(0, 120),
     } : null,
     cancelRequested: booking.cancellationRequestStatus === 'requested',
-    actions: {
-      confirm: status === 'pending_review',
-      cancel: status !== 'cancelled',
-      approve: !!(pending && status !== 'cancelled'),
-      reject: !!(pending && status !== 'cancelled'),
-      call: !!phone,
-      text: !!phone,
-      map: !!address,
-      payment: money.remainingCents > 0 && status !== 'cancelled',
-    },
+    paid: paidInFull(booking, money),
+    completed: jobCompleted(booking),
+    locked: paidInFull(booking, money) || (jobCompleted(booking) && money.remainingCents <= 0),
+    actions: (() => {
+      const paid = paidInFull(booking, money);
+      const done = jobCompleted(booking);
+      const appointmentLocked = paid || done || status === 'cancelled';
+      const due = money.remainingCents > 0 && status !== 'cancelled' && !paid;
+      return {
+        confirm: status === 'pending_review' && !appointmentLocked,
+        cancel: status !== 'cancelled' && !appointmentLocked,
+        approve: !!(pending && !appointmentLocked),
+        reject: !!(pending && !appointmentLocked),
+        call: !!phone,
+        text: !!phone,
+        map: !!address,
+        payment: due,
+        cash: due,
+        card: due,
+      };
+    })(),
     mapUrl: address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : '',
     telUrl: phone ? `tel:${phone}` : '',
   };
@@ -133,4 +177,7 @@ module.exports = {
   moneyFromBooking,
   projectQuickOpsBooking,
   dollarsFromCents,
+  jobCompleted,
+  paidInFull,
+  onSiteMethodLabel,
 };
