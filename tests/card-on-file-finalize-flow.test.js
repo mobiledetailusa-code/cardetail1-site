@@ -34,8 +34,8 @@ function baseDraft(overrides = {}) {
     isDraft: true,
     cardOnFileRequired: true,
     cardOnFileStatus: 'pending',
-    paymentMethodPreference: 'card_onsite',
-    paymentMethod: 'card_onsite',
+    paymentMethodPreference: 'online_after_service',
+    paymentMethod: 'online_after_service',
     acceptedCardOnFilePolicy: true,
     acceptedCardOnFilePolicyAt: '2026-07-17T12:00:00.000Z',
     firstName: 'Test',
@@ -288,11 +288,13 @@ describe('Card-on-file finalize flow', () => {
     });
     const next = submitBooking.__test.buildDraftRecord(
       {
-        paymentMethodPreference: 'card_onsite',
+        paymentMethodPreference: 'online_after_service',
         firstName: 'Updated',
         lastName: 'Name',
         phone: '2015550177',
         totalPrice: 210,
+        cardOnFileRequired: true,
+        acceptedCardOnFilePolicy: true,
       },
       existing.id,
       new Date().toISOString(),

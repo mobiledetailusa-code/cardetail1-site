@@ -200,22 +200,29 @@
         "id": "no-payment-required",
         "anchor": ".bk-charged-copy",
         "match": "contains",
-        "texts": ["no card or payment method is required to send this request."],
-        "why": "The initial request must be explicitly free of card and payment gates."
+        "texts": ["No payment is collected when you submit this booking request."],
+        "why": "Nothing is charged at request time, even when Pay online later requires a saved card."
+      },
+      {
+        "id": "pay-online-recommended",
+        "anchor": "#pc-online .bk-pay-rec-badge",
+        "match": "exact",
+        "texts": ["Recommended"],
+        "why": "Pay online later is marked as the recommended payment method."
       },
       {
         "id": "pay-later-options",
         "anchor": "#bk-pay-pref-copy",
         "match": "contains",
-        "texts": ["Pay Online in My Garage or pay at service when available."],
-        "why": "The review step explains the two later payment options without inventing a payment collection."
+        "texts": ["Pay online later is our recommended payment method."],
+        "why": "The review step states that Pay online later is recommended and explains card vs onsite options."
       },
       {
         "id": "request-first-badge",
         "anchor": "#bs5 .pay-badge",
         "match": "exact",
-        "texts": ["✓ Request first · Pay later · No charge today"],
-        "why": "Compact summary of the no-card request contract."
+        "texts": ["✓ Request first · Recommended: Pay online · No charge today"],
+        "why": "Compact summary of request-first flow with recommended online payment."
       },
       {
         "id": "charged-today-label",
@@ -242,8 +249,8 @@
         "id": "request-only-row",
         "anchor": "p.bk-charged-copy",
         "match": "contains",
-        "texts": ["booking request only"],
-        "why": "The review step labels the request as a request, not a payment."
+        "texts": ["still nothing charged today"],
+        "why": "Even with card save for Pay online later, the review step states nothing is charged today."
       },
       {
         "id": "submit-label",

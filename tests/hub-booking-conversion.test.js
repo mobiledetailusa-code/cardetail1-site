@@ -21,8 +21,8 @@ for (const page of pages) {
       assert.match(html, /hub-booking-bridge\.js/);
       return;
     }
-    assert.match(html, /Submit with no payment|no card or payment method is required/);
-    assert.match(html, /Pay later|Pay Online in My Garage or pay at service when available/);
+    assert.match(html, /Pay online later \(recommended\)|Pay online later is our recommended payment method/);
+    assert.match(html, /Card or cash at service|no card needed to submit/);
     assert.match(html, /Read Full Terms/);
     assert.doesNotMatch(html, /<details class="checkout-terms-disclosure"/);
     assert.doesNotMatch(html, /Suggested Booking Terms Summary/);
