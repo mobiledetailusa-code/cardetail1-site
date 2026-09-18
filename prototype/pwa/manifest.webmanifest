@@ -1,0 +1,47 @@
+{
+  "name": "Cardetail1 — My Garage",
+  "short_name": "My Garage",
+  "description": "Customer PWA prototype — appointments, vehicles, and booking status. Design-only; not production.",
+  "start_url": "/prototype/pwa/",
+  "scope": "/prototype/pwa/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0f16",
+  "theme_color": "#0a0f16",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/assets/favicon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/cardetail1-logo-square.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "business"],
+  "shortcuts": [
+    {
+      "name": "Next appointment",
+      "short_name": "Next",
+      "url": "/prototype/pwa/?tab=home",
+      "description": "Open home with next service"
+    },
+    {
+      "name": "Vehicles",
+      "short_name": "Garage",
+      "url": "/prototype/pwa/?tab=garage",
+      "description": "Saved vehicles"
+    }
+  ]
+}

@@ -2,16 +2,30 @@
 
 **Design prototype** with optional **live data on Netlify Preview** when authenticated.
 
-## Quick links (Deploy Preview PR #222)
+## Recommended path: Customer PWA
+
+Instead of a native App Store rewrite, the **installable web app** wraps My Garage:
+
+| | |
+|--|--|
+| **URL** | `/portal-app` → `/prototype/pwa/` |
+| **What it is** | App shell (tabs + install + offline chrome) over the same customer flows |
+| **What it is not** | Native iOS/Android rewrite, monthly store reviews, new Stripe/Twilio stack |
+| **Data** | Mock only (same `mock-data.js`) — production APIs stay on My Garage |
+
+Files: `prototype/pwa/` (`index.html`, `app.css`, `app.js`, `manifest.webmanifest`, `sw.js`).
+
+## Quick links (Deploy Preview)
 
 | Portal | URL |
 |--------|-----|
-| **📱 Mobile hub** | https://deploy-preview-222--cardetail1.netlify.app/portal-prototype |
-| Customer | https://deploy-preview-222--cardetail1.netlify.app/prototype/customer.html |
-| Technician | https://deploy-preview-222--cardetail1.netlify.app/prototype/technician.html |
-| Admin | https://deploy-preview-222--cardetail1.netlify.app/prototype/admin.html |
+| **📲 Customer PWA** | `/portal-app` or `/prototype/pwa/` |
+| **📱 Mobile hub** | `/portal-prototype` |
+| Customer UI | `/prototype/customer.html` |
+| Technician | `/prototype/technician.html` |
+| Admin | `/prototype/admin.html` |
 
-Short URL: `/portal-prototype` → mobile hub (after merge/deploy).
+Short URL: `/portal-prototype` → mobile hub · `/portal-app` → PWA prototype.
 
 ## Mock vs Live mode
 
@@ -80,6 +94,14 @@ npm run preview:prototype:live
 - [ ] Push notifications
 - [ ] In-app chat FAB
 
+### Phase 5 — Customer PWA (this folder)
+- [x] Installable shell (`manifest` + service worker)
+- [x] Bottom tabs: Home / Bookings / Garage / Account
+- [x] Install / Add to Home Screen prompt (Chrome + iOS hint)
+- [x] Offline chrome (shell cache only — no API caching)
+- [ ] Wire live customer session (same as `customer.html` live mode)
+- [ ] Optional Web Push after SMS consent path is stable
+
 ## Files
 
 ```
@@ -90,6 +112,11 @@ prototype/
 ├── admin.html + admin.js
 ├── technician.html + technician.js
 ├── customer.html + customer.js
+├── pwa/                  # Installable customer app prototype
+│   ├── index.html
+│   ├── app.css + app.js
+│   ├── manifest.webmanifest
+│   └── sw.js
 ├── shared.css, calendar.js, ui.js, mock-data.js
 └── _redirects            # /prototype root → preview.html
 ```

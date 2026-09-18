@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f16">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Garage">
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="Cardetail1 customer PWA prototype — installable My Garage shell (mock data).">
+<title>Cardetail1 — My Garage App (PWA Prototype)</title>
+<link rel="manifest" href="/prototype/pwa/manifest.webmanifest">
+<link rel="icon" href="/assets/favicon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/prototype/pwa/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <div class="proto-ribbon">
+    PWA PROTOTYPE · mock only · same backend later ·
+    <a href="/prototype/preview.html" style="color:#fcd34d">← Portal hub</a>
+  </div>
+
+  <div class="install-bar" id="install-bar" role="region" aria-label="Install app">
+    <div class="copy">
+      <strong>Install My Garage</strong>
+      <span>Add to Home Screen — opens like an app, no App Store.</span>
+    </div>
+    <button type="button" class="btn-install" id="btn-install">Install</button>
+    <button type="button" class="btn-dismiss" id="btn-dismiss-install" aria-label="Dismiss">×</button>
+  </div>
+
+  <div class="offline-chip" id="offline-chip">Offline shell — last cached appointments</div>
+
+  <header class="topbar">
+    <div class="brand-mark" aria-hidden="true">
+      <img src="/assets/cardetail1-logo-square.png" alt="" width="40" height="40">
+    </div>
+    <div class="brand-text">
+      <div class="name">Cardetail1</div>
+      <div class="sub" id="hdr-sub">My Garage · Brody F.</div>
+    </div>
+    <div class="status-dot" id="net-dot" title="Online" aria-hidden="true"></div>
+  </header>
+
+  <main class="screens">
+    <!-- HOME -->
+    <section class="screen on" id="screen-home" data-screen="home" aria-label="Home">
+      <div class="hello">
+        <h1>Hi, Brody</h1>
+        <p>Your next mobile detail at a glance.</p>
+      </div>
+      <article class="hero" id="next-hero"></article>
+      <div class="timeline" id="home-timeline" aria-label="Service progress"></div>
+      <div class="quick">
+        <button type="button" data-go="bookings">
+          <span class="qk">Schedule</span>
+          <strong>Appointments</strong>
+          <span>Upcoming &amp; past</span>
+        </button>
+        <button type="button" data-go="garage">
+          <span class="qk">Fleet</span>
+          <strong>Vehicles</strong>
+          <span>Saved garage</span>
+        </button>
+        <a href="/#book">
+          <span class="qk">New</span>
+          <strong>Book again</strong>
+          <span>Opens site funnel</span>
+        </a>
+        <button type="button" id="btn-support">
+          <span class="qk">Help</span>
+          <strong>Support</span>
+          <span>SMS / chat (mock)</span>
+        </button>
+      </div>
+      <div class="how">
+        <h3>What this prototype shows</h3>
+        <ol>
+          <li><strong>PWA shell</strong> — installable, bottom tabs, offline chrome.</li>
+          <li><strong>Same product</strong> — My Garage flows, not a native rewrite.</li>
+          <li><strong>Site stays</strong> — booking &amp; SEO hubs remain on the web.</li>
+          <li><a href="/prototype/customer.html">UI prototype</a> · <a href="/my-garage.html">Production portal</a></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- BOOKINGS -->
+    <section class="screen" id="screen-bookings" data-screen="bookings" aria-label="Appointments">
+      <div class="hello">
+        <h1>Appointments</h1>
+        <p>Contracted service total only — no fee breakdown.</p>
+      </div>
+      <div class="sec">Upcoming</div>
+      <div id="list-upcoming"></div>
+      <div class="sec">Past</div>
+      <div id="list-past"></div>
+    </section>
+
+    <!-- GARAGE -->
+    <section class="screen" id="screen-garage" data-screen="garage" aria-label="Vehicles">
+      <div class="hello">
+        <h1>Your garage</h1>
+        <p>Vehicles from mock bookings — production uses My Garage API.</p>
+      </div>
+      <div id="list-vehicles"></div>
+      <button type="button" class="btn ghost" id="btn-add-vehicle" style="width:100%;margin-top:4px">+ Add vehicle (mock)</button>
+    </section>
+
+    <!-- ACCOUNT -->
+    <section class="screen" id="screen-account" data-screen="account" aria-label="Account">
+      <div class="hello">
+        <h1>Account</h1>
+        <p>Install state, notifications, and links back to the site.</p>
+      </div>
+      <ul class="account-list">
+        <li><span style="color:var(--fg);font-weight:700">Brody F.</span><span id="acct-phone">(914) 555-0182</span></li>
+        <li>Display mode<span id="acct-display">Browser</span></li>
+        <li>Service worker<span id="acct-sw">…</span></li>
+        <li>Push (later)<span>Not wired</span></li>
+        <li><a href="/my-garage.html">Open production My Garage <span>→</span></a></li>
+        <li><a href="/prototype/preview.html">Portal UI hub <span>→</span></a></li>
+        <li><a href="/">Book on website <span>→</span></a></li>
+      </ul>
+      <p class="empty" style="padding-top:8px">No App Store reviews for updates — ship via Netlify like today.</p>
+    </section>
+  </main>
+
+  <nav class="tabbar" aria-label="App tabs">
+    <button type="button" class="tab on" data-tab="home"><span class="ti" aria-hidden="true">⌂</span>Home</button>
+    <button type="button" class="tab" data-tab="bookings"><span class="ti" aria-hidden="true">☰</span>Bookings</button>
+    <button type="button" class="tab" data-tab="garage"><span class="ti" aria-hidden="true">▣</span>Garage</button>
+    <button type="button" class="tab" data-tab="account"><span class="ti" aria-hidden="true">●</span>Account</button>
+  </nav>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/prototype/mock-data.js"></script>
+<script src="/prototype/pwa/app.js"></script>
+</body>
+</html>
