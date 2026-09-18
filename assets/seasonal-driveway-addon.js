@@ -87,9 +87,12 @@
   });
 
   var POPULAR_LIMIT = 4;
+  // Presentation order only. Visible cap is POPULAR_LIMIT. Extra IDs are
+  // fallbacks when an earlier SKU is filtered (scope/inclusion/eligibility).
+  // Prefer deterministic catalog prices; skip Estimate/TBD copy (pethair/odor).
   var POPULAR_IDS_BY_CATEGORY = Object.freeze({
-    cars: Object.freeze(['rainx', PARENT_ID, 'polymer', 'pethair']),
-    rvs: Object.freeze(['rainx', PARENT_ID, 'superint', 'pethair']),
+    cars: Object.freeze(['rainx', PARENT_ID, 'polymer', 'engine', 'sanitize']),
+    rvs: Object.freeze(['rainx', PARENT_ID, 'superint', 'sanitize']),
     powersports: Object.freeze(['heavymud', PARENT_ID, 'rainx', 'polymer']),
   });
 
@@ -449,7 +452,7 @@
     return null;
   }
 
-  function rowHtml(row, selected, extraNote) {
+  function rowHtml(row, selected, extraNote, nameOnly) {
     if (!row) return '';
     var meta = displayFor(row.id);
     var name = meta.name || row.name;
@@ -460,7 +463,10 @@
       '" data-id="' + esc(row.id) + '" onclick="event.stopPropagation();CD1SeasonalDriveway.onCardClick(\'' +
       esc(row.id) + '\')"><span class="onsite-conv-check" aria-hidden="true">' +
       (selected ? '✓' : '') + '</span><span class="onsite-conv-copy"><span class="onsite-conv-name">' +
-      esc(name) + '</span><span class="onsite-conv-desc">' + esc(desc) + '</span>';
+      esc(name) + '</span>';
+    if (!nameOnly && desc) {
+      html += '<span class="onsite-conv-desc">' + esc(desc) + '</span>';
+    }
     if (extraNote) {
       html += '<span class="onsite-conv-note">' + esc(extraNote) + '</span>';
     }
@@ -476,7 +482,7 @@
     var html = '<div class="onsite-conv-children open" id="onsite-conv-children">' +
       '<div class="onsite-conv-opt">Optional upgrades</div>';
     PUBLIC_CHILD_IDS.forEach(function (id) {
-      html += rowHtml(catalogRow(pricing, cat, id), selected.indexOf(id) >= 0);
+      html += rowHtml(catalogRow(pricing, cat, id), selected.indexOf(id) >= 0, '', true);
     });
     html += '<div class="onsite-conv-note">Debris stays on the property. Off-property removal is not included.</div>';
     html += '</div>';

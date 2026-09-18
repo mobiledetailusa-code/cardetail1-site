@@ -547,20 +547,20 @@ describe('history immutability', () => {
 });
 
 describe('Review presentation', () => {
-  it('groups new public family once under Seasonal Cleanup', () => {
+  it('lists the public family once as normal add-on lines', () => {
     const html = lineItems.renderSummaryHtml(lineItems.projectBooking({
       vehicles: [
         {
           vehicleLabel: '2022 Honda Civic',
-          pkgName: 'Premium Detail',
-          basePrice: 240,
+          pkgName: 'Exterior Hand Wash Package',
+          basePrice: 205,
           addons: [
             { id: PARENT, name: 'Driveway & Entry Cleanup', price: 95 },
             { id: 'heavy_wet_leaf', name: 'Heavy / Wet Leaf Buildup', price: 50 },
             { id: 'rainx', name: 'Rain-X Glass Treatment', price: 25 },
           ],
           addonTotal: 170,
-          subtotal: 410,
+          subtotal: 375,
         },
         {
           vehicleLabel: '2019 Toyota RAV4',
@@ -572,10 +572,12 @@ describe('Review presentation', () => {
         },
       ],
     }).items);
-    assert.match(html, /Seasonal Cleanup/);
+    assert.doesNotMatch(html, /Seasonal Cleanup/);
+    assert.doesNotMatch(html, /Seasonal add-ons subtotal/);
     assert.equal((html.match(/Driveway &amp; Entry Cleanup/g) || []).length, 1);
     assert.match(html, /Heavy \/ Wet Leaf Buildup/);
-    assert.match(html, /Seasonal add-ons subtotal/);
+    assert.match(html, /\+\$95\.00/);
+    assert.match(html, /\+\$50\.00/);
     assert.doesNotMatch(html, /Front Walkway/);
     assert.doesNotMatch(html, /Bag &amp; Place On Property/);
     assert.doesNotMatch(html, /On-Site Convenience/);
@@ -600,7 +602,9 @@ describe('Review presentation', () => {
     assert.match(html, /Seasonal Driveway Cleanup/);
     assert.match(html, /Front Walkway \+ Steps/);
     assert.match(html, /Bag &amp; Place On Property/);
-    assert.match(html, /\$165/);
+    assert.match(html, /\+\$95\.00/);
+    assert.match(html, /\+\$35\.00/);
+    assert.doesNotMatch(html, /Seasonal Cleanup/);
   });
 });
 
@@ -628,6 +632,7 @@ describe('booking page wiring', () => {
       assert.match(html, /id:'seasonal_driveway_cleanup'/);
       assert.match(html, /CD1SeasonalDriveway\.isChildId/);
       assert.match(html, /CD1SeasonalDriveway\.popularIdsFor/);
+      assert.match(html, /popularAddons\.some/);
       assert.match(html, /CD1SeasonalDriveway\.mountAddonGrid/);
       assert.match(html, /CD1SeasonalDriveway\.syncSeasonalOntoCart/);
       assert.match(html, /Driveway & Entry Cleanup/);
@@ -643,16 +648,16 @@ describe('booking page wiring', () => {
 });
 
 describe('Popular Add-ons merchandising', () => {
-  it('cars popular set is Rain-X, Driveway, Polymer, Pet Hair — max 4 existing SKUs', () => {
+  it('cars popular set is Rain-X, Driveway, Polymer, Engine — max 4 existing SKUs', () => {
     assert.equal(Seasonal.POPULAR_LIMIT, 4);
     assert.deepEqual(Seasonal.popularIdsFor('cars'), [
-      'rainx', PARENT, 'polymer', 'pethair',
+      'rainx', PARENT, 'polymer', 'engine', 'sanitize',
     ]);
     const eligible = PRICING.cars.addons.filter((a) => !Seasonal.isChildId(a.id));
     const popular = Seasonal.pickPopularAddons(eligible, 'cars');
     assert.equal(popular.length, 4);
-    assert.deepEqual(popular.map((a) => a.id), ['rainx', PARENT, 'polymer', 'pethair']);
-    assert.deepEqual(popular.map((a) => a.price), [25, 95, 25, 95]);
+    assert.deepEqual(popular.map((a) => a.id), ['rainx', PARENT, 'polymer', 'engine']);
+    assert.deepEqual(popular.map((a) => a.price), [25, 95, 25, 45]);
   });
 
   it('wash/ext packages still fill popular without inventing SKUs', () => {
@@ -661,15 +666,25 @@ describe('Popular Add-ons merchandising', () => {
     const popular = Seasonal.pickPopularAddons(wash, 'cars');
     assert.ok(popular.length >= 2);
     assert.ok(popular.length <= 4);
-    assert.deepEqual(popular.map((a) => a.id), ['rainx', PARENT, 'polymer']);
+    assert.deepEqual(popular.map((a) => a.id), ['rainx', PARENT, 'polymer', 'engine']);
+  });
+
+  it('interior packages still reach the two-card minimum from existing catalog SKUs', () => {
+    const extOnly = new Set(['rainx', 'polymer', 'engine', 'wax1yr', 'claybar', 'headlight']);
+    const interior = PRICING.cars.addons.filter((a) => !Seasonal.isChildId(a.id) && !extOnly.has(a.id));
+    const popular = Seasonal.pickPopularAddons(interior, 'cars');
+    assert.ok(popular.length >= 2);
+    assert.ok(popular.length <= 4);
+    assert.deepEqual(popular.map((a) => a.id), [PARENT, 'sanitize']);
   });
 
   it('Show All keeps remaining eligible catalog entries including children hidden', () => {
     const eligible = PRICING.cars.addons.filter((a) => !Seasonal.isChildId(a.id));
     const popularIds = Seasonal.pickPopularAddons(eligible, 'cars').map((a) => a.id);
     const rest = eligible.filter((a) => !popularIds.includes(a.id)).map((a) => a.id);
-    assert.equal(rest.includes('engine'), true);
     assert.equal(rest.includes('headlight'), true);
+    assert.equal(rest.includes('wax1yr'), true);
+    assert.equal(rest.includes('engine'), false);
     assert.equal(rest.includes(PARENT), false);
     assert.equal(rest.includes('heavy_wet_leaf'), false);
     assert.equal(rest.includes('walkway_steps'), false);

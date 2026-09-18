@@ -971,12 +971,10 @@
       var vehicleId = String(v.vehicleId || ('idx-' + idx));
       var panelId = 'pkg-details-' + String(b.id || 'booking').replace(/[^\w-]/g, '') + '-' +
         vehicleId.replace(/[^\w-]/g, '');
-      var convenience = [];
       var restAddons = addons;
       if (globalThis.CD1SeasonalDriveway) {
         var split = CD1SeasonalDriveway.splitAppointmentAddons(addons);
-        convenience = split.family;
-        restAddons = split.rest;
+        restAddons = split.rest.concat(split.family);
       }
       var addonBlock;
       if (!restAddons.length) {
@@ -990,16 +988,6 @@
             var qtyBit = qty > 1 ? ' × ' + qty : '';
             var priceBit = price != null ? ' · ' + fmtMoney(price) : '';
             return '<li>' + esc(name) + qtyBit + priceBit + '</li>';
-          }).join('') +
-          '</ul></dd></div>';
-      }
-      if (convenience.length) {
-        addonBlock += '<div><dt>Seasonal Cleanup</dt><dd><ul class="vehicle-addon-list">' +
-          convenience.map(function (a) {
-            var name = a.name || a.id || 'Add-on';
-            var price = safeMoneyOrNull(a.price);
-            var priceBit = price != null ? ' · ' + fmtMoney(price) : '';
-            return '<li>' + esc(name) + priceBit + '</li>';
           }).join('') +
           '</ul></dd></div>';
       }

@@ -82,6 +82,10 @@
   display: flex;
   flex-direction: column;
 }
+.addon-seasonal-wrap > .addon {
+  width: 100%;
+  box-sizing: border-box;
+}
 
 .addon-seasonal-wrap .onsite-conv-children {
   display: none;

@@ -5322,7 +5322,7 @@ function renderAddons(){
   });
   const POPULAR_IDS=(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.popularIdsFor(ST.cat))||['rainx','pethair','odor'];
   const popularAddons=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.pickPopularAddons?CD1SeasonalDriveway.pickPopularAddons(addons,ST.cat):addons.filter(a=>POPULAR_IDS.includes(a.id)).slice(0,4);
-  const otherAddons=addons.filter(a=>POPULAR_IDS.indexOf(a.id)<0);
+  const otherAddons=addons.filter(a=>!popularAddons.some(p=>p.id===a.id));
   function addonCardHtml(a){
     const isQty=!!a.qty;
     const isSeasonalParent=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.isParentId(a.id);
@@ -5354,7 +5354,7 @@ function updateAddonSummary(){
   const sum=document.getElementById('addon-selected-summary');
   if(!inner||!sum) return;
   const open=inner.classList.contains('open');
-  const selected=ST.addons.filter(a=>!['rainx','pethair','odor'].includes(a.id));
+  const selected=ST.addons.filter(a=>!(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.popularIdsFor(ST.cat)||['rainx','pethair','odor']).includes(a.id));
   if(!open&&selected.length>0){
     sum.innerHTML='<strong>'+selected.length+' extra add-on'+(selected.length>1?'s':'')+' selected:</strong> '+selected.map(a=>a.name).join(', ');
     sum.style.display='block';
