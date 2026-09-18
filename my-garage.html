@@ -462,18 +462,12 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
       <p id="address-msg" class="msg" hidden></p>
     </section>
 
-    <!-- Portal Lite: Maintenance Plans and Communication Preferences are hidden from the
-         primary customer UI until they are operational. The markup and their backends are
-         retained so no stored data or capability is lost. -->
+    <!-- Portal Lite: Maintenance Plans stay hidden until operational. SMS text preference
+         is live under Profile (#sms-consent-card); no separate “coming soon” prefs section. -->
     <section class="section" aria-labelledby="maint-h" id="maintenance-section" hidden>
       <h3 id="maint-h">Maintenance Plans</h3>
       <p id="maintenance-empty" class="empty">No active maintenance plan on file. Choose frequency + package to request a plan.</p>
       <ul class="clean" id="maintenance-list"></ul>
-    </section>
-
-    <section class="section" aria-labelledby="comm-h" id="comm-section" hidden>
-      <h3 id="comm-h">Communication Preferences</h3>
-      <p id="comm-empty" class="empty">Preference management is coming soon. Call or text us to update how we reach you.</p>
     </section>
   </div>
   </div><!-- /#portal-shell -->

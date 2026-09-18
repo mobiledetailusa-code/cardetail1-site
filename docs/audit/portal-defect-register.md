@@ -19,8 +19,8 @@ Severity is an operational prioritization. Classification uses only the requeste
 | PDA-07 | High | payment risk; confirmed defect | Existing add-on can be charged twice while stored once | Yes |
 | PDA-08 | High | confirmed defect; payment risk | Admin Stripe-link generation crashes and accepts a non-authoritative amount | Yes |
 | PDA-09 | High | payment risk; data-integrity defect | Approved total, paid amount, due, and old links diverge | Yes |
-| PDA-10 | High | incomplete implementation; authorization design concern | Technician feed/actions do not require confirmed eligible work | No |
-| PDA-11 | High | data-integrity defect | Customer lifecycle ignores Technician in-progress status | No |
+| PDA-10 | High | incomplete implementation; authorization design concern | Technician feed/actions do not require confirmed eligible work | Yes |
+| PDA-11 | High | data-integrity defect | Customer lifecycle ignores Technician in-progress status | Yes |
 | PDA-12 | High | incomplete implementation | Admin can omit submitted requests after the first 200 keys | Yes |
 | PDA-13 | Medium | confirmed defect | Retained customer endpoints expose caller-owned drafts | Yes |
 | PDA-14 | High | authorization design concern | Draft overwrite/finalization does not verify the save token | Yes |
@@ -28,7 +28,7 @@ Severity is an operational prioritization. Classification uses only the requeste
 | PDA-16 | Medium | incomplete implementation; data-integrity defect | Historical projections and lists are not compatibility-safe | Yes |
 | PDA-17 | High | payment risk | Local/preview charge endpoints do not fail closed to Stripe test mode | Yes |
 | PDA-18 | Medium | incomplete implementation; payment risk | No current Pay in Full workflow; dormant route is non-authoritative | Yes |
-| PDA-19 | Medium | incomplete implementation; UX defect | Visible controls include placeholder or note-only workflows | No |
+| PDA-19 | Medium | incomplete implementation; UX defect | Visible controls include placeholder or note-only workflows | Partial |
 
 ---
 
@@ -345,7 +345,7 @@ Severity is an operational prioritization. Classification uses only the requeste
 | Severity / classification | **Medium — incomplete implementation; UX defect** |
 | Exact reproduction steps | 1. Inspect the authorized Customer/Admin controls for communication preferences, maintenance/manual-review requests, auto-confirm future jobs, refunds, and manual pay link. 2. Trace each click/save to a handler and resulting external action. |
 | Expected result | Each control either performs the named operation with verifiable state or is visibly labeled as a request/note/manual follow-up. |
-| Actual result | Communication preferences display “coming soon”; several request types only create follow-up notes; auto-confirm configuration lacks a complete booking consumer; refund action logs/manual-instructs rather than refunding Stripe; manual pay link accepts a URL without amount binding. |
+| Actual result | ~~Communication preferences display “coming soon”~~ (resolved: Profile `#sms-consent-card` is the live transactional SMS preference; dead `#comm-section` removed). Residual: several request types only create follow-up notes; auto-confirm configuration lacks a complete booking consumer; refund action logs/manual-instructs rather than refunding Stripe; manual pay link accepts a URL without amount binding. |
 | Affected file | `my-garage.html:188-190`; `netlify/functions/customer-portal-data.js:124-130`; `admin-ops.html:190,208,217`; `netlify/functions/admin-ops-jobs.js:379-390,498-510`; request auto-apply policy |
 | Affected function | Customer section rendering; Admin settings; refund/manual-link actions; request decision workflow |
 | Affected store | `cd1-bookings`; request store; Admin settings/logs; external Stripe state where applicable |

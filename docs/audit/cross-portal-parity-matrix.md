@@ -47,7 +47,7 @@
 
 | Visible control | What it actually does | Classification | Release A disposition |
 |---|---|---|---|
-| Customer communication preferences | Displays “coming soon” / section unavailable | UX defect; incomplete implementation | Excluded; label remains explicitly nonfunctional |
+| Customer communication preferences | Profile SMS consent toggle saves via portal profile API (transactional SMS only) | Resolved for customer SMS | Full multi-channel preference matrix still out of scope; maintenance section remains hidden |
 | Customer maintenance/manual-review request | Creates a request for manual follow-up rather than a fully automated service change | Incomplete implementation | Excluded; do not expand in Release A |
 | Admin auto-confirm future jobs | Persists configuration, but the audited booking path does not show complete enforcement | Incomplete implementation | Excluded |
 | Admin refund | Records/logs manual Stripe follow-up; does not prove external refund | UX defect; incomplete implementation | Excluded |

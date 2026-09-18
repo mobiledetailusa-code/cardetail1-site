@@ -51,9 +51,9 @@ Net effect: a customer can submit and have auto-applied a package/add-on/vehicle
 
 Verdict: **PDA-11 confirmed still open, severity unchanged (High), operational impact modestly increased by the newer auto-apply behavior.**
 
-## D. PDA-19 — Placeholder/note-only controls — **STILL OPEN (spot-checked, not re-audited in full)**
+## D. PDA-19 — Placeholder/note-only controls — **PARTIAL (customer coming-soon closed)**
 
-Spot check only (full re-audit deferred to Phase 4 button-contract-audit): `my-garage.html:193` still reads `"Preference management is coming soon. Call or text us to update how we reach you."` — the communication-preferences placeholder cited in the original PDA-19 is still present verbatim. Refund and manual pay-link behavior were not re-checked this session; treat PDA-19 as open pending the full Phase 4 pass.
+Spot check (2026-09-18 follow-up): `my-garage.html` no longer contains `Preference management is coming soon`. Transactional SMS preference is the live Profile `#sms-consent-card` / `saveSmsConsent` path. Maintenance Plans remain intentionally hidden. Residual PDA-19 items are Admin-side note-only refund / manual pay-link / auto-confirm — unchanged by this cleanup.
 
 ## E. Test baseline (reconfirms Phase 0 §3)
 

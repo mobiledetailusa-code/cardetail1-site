@@ -63,7 +63,7 @@ No credentials, env values, customer data, or accidental feature work included.
 
 ## 5. Audit defect IDs reviewed
 
-PDA-01 through PDA-19 (Release A scope: PDA-01–09, PDA-12–18; deferred: PDA-10, PDA-11, PDA-19).
+PDA-01 through PDA-19 (Release A scope: PDA-01–09, PDA-12–18; originally deferred: PDA-10, PDA-11, PDA-19 — later closed or partially closed in the stability / portal cleanup packages).
 
 ## 6. Defects resolved
 
@@ -97,9 +97,9 @@ PDA-01 through PDA-19 (Release A scope: PDA-01–09, PDA-12–18; deferred: PDA-
 
 | ID | Status | Note |
 |---|---|---|
-| PDA-10 | NOT RESOLVED (deferred) | Technician feed still assignment-gated, not confirmed-eligible |
-| PDA-11 | NOT RESOLVED (deferred) | Customer lifecycle still prefers `appointmentStatus` over `jobStatus` |
-| PDA-19 | NOT RESOLVED (deferred) | Placeholder/note-only controls remain labeled incomplete |
+| PDA-10 | RESOLVED (post–Release A) | Tech feed/actions gated by confirmed-eligible transition matrix + CAS (`tech-jobs` / `tech-complete-job`) |
+| PDA-11 | RESOLVED (post–Release A) | `appointment-status-policy` derives lifecycle from active `jobStatus` over stale `appointmentStatus` |
+| PDA-19 | PARTIAL | Customer “coming soon” prefs removed; Profile SMS consent is live. Residual: Admin note-only refund / manual pay-link / auto-confirm / maintenance automation |
 
 ## 9. Architecture verdict
 
@@ -170,14 +170,14 @@ PASS. No secrets in remediation diff. Stripe secrets stay server-side. Action to
 | C Version conflict | PASS (automated) | Concurrent CAS 409 test |
 | D Payment | PASS (automated intercepted) | Reconcile once + overpayment reject + mode guard |
 | E Historical | PASS (automated) | Paid/Closed fixtures |
-| F Technician eligibility | DEFERRED | PDA-10 out of Release A |
+| F Technician eligibility | PASS (post–Release A) | Confirmed-eligible matrix + CAS on tech paths |
 | Live Branch Deploy Stripe Checkout | EXTERNAL GAP | Requires Netlify preview `sk_test` + webhook |
 
 No secrets or real customer data were used.
 
 ## 25. Responsive/accessibility results
 
-No production-blocking hierarchy/affordance defects found in Release A payment/status remediation. Admin Generate Stripe control now confirms without amount prompt (prevents accidental override UX). PDA-19 placeholders remain deferred, not redesigned.
+No production-blocking hierarchy/affordance defects found in Release A payment/status remediation. Admin Generate Stripe control now confirms without amount prompt (prevents accidental override UX). Customer PDA-19 “coming soon” prefs were later removed; residual Admin note-only controls remain labeled.
 
 ## 26. Targeted test result
 
@@ -203,7 +203,7 @@ None.
 
 1. Secondary change-request index can lag if Blob write fails after aggregate commit (`indexOk: false`).
 2. Manual pay-link field is explicitly non-authoritative.
-3. PDA-10/11/19 deferred per Release A boundary.
+3. PDA-10/11 resolved post–Release A; PDA-19 customer coming-soon cleaned up (Admin note-only residuals remain).
 4. Live Stripe Checkout on Branch Deploy not executed in this session (intercepted fixtures used).
 5. Some non-money Admin actions (notes, confirm, cancel) still use direct `setJSON`; they do not alter ledger authority. Future hardening can route all Admin writes through CAS.
 
@@ -211,7 +211,7 @@ None.
 
 None unresolved for Release A scope after remediation.
 
-Deferred High items (PDA-10, PDA-11) are explicit Release A exclusions, not merge blockers for this release boundary.
+Deferred High items (PDA-10, PDA-11) were later closed in the stability package; they are not merge blockers.
 
 ## 31. Rollback procedure
 
@@ -231,7 +231,7 @@ Deferred High items (PDA-10, PDA-11) are explicit Release A exclusions, not merg
 - [ ] Load synthetic Paid/Closed fixture → no Pay Balance
 - [ ] Confirm draft never appears in My Garage appointments or Admin jobs
 - [ ] Confirm preview env cannot accept `sk_live_`
-- [ ] Review deferred PDA-10/11/19 for a later release
+- [ ] Confirm residual PDA-19 Admin note-only controls (refund / auto-confirm / maintenance) stay explicitly labeled
 
 ## 33. Exact merge recommendation
 
@@ -267,8 +267,8 @@ Confirmed: no merge to `master`, no Production deploy, no live Stripe keys used,
 | PDA-07 | RESOLVED |
 | PDA-08 | RESOLVED |
 | PDA-09 | RESOLVED (manual link residual P2 labeled) |
-| PDA-10 | DEFERRED |
-| PDA-11 | DEFERRED |
+| PDA-10 | RESOLVED |
+| PDA-11 | RESOLVED |
 | PDA-12 | RESOLVED |
 | PDA-13 | RESOLVED |
 | PDA-14 | RESOLVED |
@@ -276,7 +276,7 @@ Confirmed: no merge to `master`, no Production deploy, no live Stripe keys used,
 | PDA-16 | RESOLVED |
 | PDA-17 | RESOLVED |
 | PDA-18 | RESOLVED |
-| PDA-19 | DEFERRED |
+| PDA-19 | PARTIAL (customer coming-soon removed; Admin note-only residuals) |
 
 ---
 

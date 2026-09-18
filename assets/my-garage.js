@@ -2204,7 +2204,6 @@
     $('history-empty') && show($('history-empty'), false);
     $('appointments-section') && show($('appointments-section'), !!upcoming.length);
     $('history-section') && show($('history-section'), !!hist.length);
-    $('comm-empty') && show($('comm-empty'), true);
     var approveBtn = $('btn-approve-completion');
     if (approveBtn) show(approveBtn, b.customerApprovalStatus === 'pending' || b.jobStatus === 'completed_pending_payment');
     renderPostServiceActions(b);
