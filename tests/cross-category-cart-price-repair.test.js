@@ -171,6 +171,7 @@ describe('cart intent + price resolution (function sandbox)', () => {
       'make-dd': { classList: { remove() {}, add() {} } },
       'model-sel': { value: '', disabled: true, innerHTML: '' },
       'year-sel': { value: '', disabled: true, innerHTML: '' },
+      'trim-in': { value: '', disabled: true },
       'g-make': { value: '', disabled: false },
       'g-model': { value: '', disabled: true },
       'g-year': { value: '', innerHTML: '', onchange: null, appendChild() {} },
