@@ -69,6 +69,56 @@
   opacity: 0.75;
 }
 
+.bkli-onsite {
+  margin-top: 8px;
+}
+
+.onsite-conv {
+  grid-column: 1 / -1;
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid rgba(77, 163, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(77, 163, 255, 0.04);
+}
+.onsite-conv-h {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--blue, #4da3ff);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+.onsite-conv-note {
+  font-size: 11px;
+  color: var(--mu, #8a9bb0);
+  line-height: 1.4;
+  margin: 0 0 10px;
+}
+.onsite-conv-sub {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--mu, #8a9bb0);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 12px 0 8px;
+}
+.onsite-conv-children {
+  display: none;
+}
+.onsite-conv-children.open {
+  display: block;
+}
+.onsite-conv .addon {
+  margin-bottom: 8px;
+  min-width: 0;
+}
+.onsite-conv .addon-name,
+.onsite-conv .addon-desc {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 /* Grand total row — the label must never inherit var(--white). */
 .bkli-total-label {
   color: #f1f5f9;
@@ -92,6 +142,17 @@
 }
 .booking-modal .bkli-total-label {
   color: #0f172a;
+}
+.booking-modal .onsite-conv {
+  background: rgba(37, 99, 235, 0.04);
+  border-color: rgba(37, 99, 235, 0.18);
+}
+.booking-modal .onsite-conv-h {
+  color: #1d4ed8;
+}
+.booking-modal .onsite-conv-note,
+.booking-modal .onsite-conv-sub {
+  color: #64748b;
 }
 
 /* Card-on-file policy must read as a deliberate notice, not a transparent

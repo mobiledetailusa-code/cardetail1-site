@@ -154,6 +154,58 @@
     return a.name + (a.qty > 1 ? ' × ' + a.qty : '');
   }
 
+  function seasonalApi() {
+    if (typeof require === 'function') {
+      try { return require('./seasonal-driveway-addon.js'); } catch (err) { /* browser bundle */ }
+    }
+    if (typeof globalThis !== 'undefined' && globalThis.CD1SeasonalDriveway) {
+      return globalThis.CD1SeasonalDriveway;
+    }
+    return null;
+  }
+
+  function peelAppointmentAddons(items) {
+    var api = seasonalApi();
+    var list = Array.isArray(items) ? items : [];
+    if (!api) return { items: list, appointmentAddons: [], appointmentTotal: 0 };
+    var family = [];
+    var seen = {};
+    var next = list.map(function (item) {
+      var split = api.splitAppointmentAddons(item.addons);
+      if (!split.family.length) return item;
+      var familyTotal = 0;
+      split.family.forEach(function (a) {
+        familyTotal += Number(a.lineTotal) || 0;
+        if (a && a.id && !seen[a.id]) {
+          seen[a.id] = true;
+          family.push(a);
+        }
+      });
+      return Object.assign({}, item, {
+        addons: split.rest,
+        addonTotal: Math.max(0, (Number(item.addonTotal) || 0) - familyTotal),
+        subtotal: Math.max(0, (Number(item.subtotal) || 0) - familyTotal),
+      });
+    });
+    var appointmentTotal = family.reduce(function (s, a) {
+      return s + (Number(a.lineTotal) || 0);
+    }, 0);
+    return { items: next, appointmentAddons: family, appointmentTotal: appointmentTotal };
+  }
+
+  function renderAppointmentHtml(family, appointmentTotal) {
+    if (!family.length) return '';
+    var rows = family.map(function (a) {
+      return '<div class="or"><span class="ol">' + esc(addonLabel(a)) + '</span>' +
+        '<span class="ov">' + (a.lineTotal === null ? '—' : esc(money(a.lineTotal))) + '</span></div>';
+    }).join('');
+    rows += '<div class="or bkli-subtotal"><span class="ol">On-Site Convenience subtotal</span>' +
+      '<span class="ov">' + esc(money(appointmentTotal)) + '</span></div>';
+    return '<section class="bkli-vehicle bkli-onsite" aria-label="On-Site Convenience">' +
+      '<h4 class="bkli-vehicle-title"><span class="bkli-vehicle-name">On-Site Convenience</span></h4>' +
+      rows + '</section>';
+  }
+
   /**
    * Booking-modal markup for Review & Submit / confirmation-success.
    * Uses the existing .or/.ol/.ov row primitives so it inherits the light-theme
@@ -161,12 +213,13 @@
    */
   function renderSummaryHtml(items, options) {
     var opts = options || {};
-    var list = Array.isArray(items) ? items : [];
+    var peeled = peelAppointmentAddons(Array.isArray(items) ? items : []);
+    var list = peeled.items;
     if (!list.length) {
       return '<div class="or"><span class="ol">Service</span><span class="ov">—</span></div>';
     }
     var multi = list.length > 1;
-    return list.map(function (item, idx) {
+    var html = list.map(function (item, idx) {
       var rows = '';
       rows += '<div class="or"><span class="ol">' + esc(item.packageName) + '</span>' +
         '<span class="ov">' + (item.packagePrice === null ? "We couldn't load this package price. Please retry." : esc(money(item.packagePrice))) + '</span></div>';
@@ -192,11 +245,13 @@
           : '') + rows +
         '</section>';
     }).join('');
+    return html + renderAppointmentHtml(peeled.appointmentAddons, peeled.appointmentTotal);
   }
 
   /** Plain-text itemization for the transactional email and admin text. */
   function summaryTextLines(items) {
-    var list = Array.isArray(items) ? items : [];
+    var peeled = peelAppointmentAddons(Array.isArray(items) ? items : []);
+    var list = peeled.items;
     var lines = [];
     list.forEach(function (item, idx) {
       if (idx > 0) lines.push('');
@@ -207,14 +262,23 @@
       });
       lines.push('  Vehicle subtotal: ' + money(item.subtotal));
     });
+    if (peeled.appointmentAddons.length) {
+      if (lines.length) lines.push('');
+      lines.push('On-Site Convenience');
+      peeled.appointmentAddons.forEach(function (a) {
+        lines.push('  ' + addonLabel(a) + ': ' + (a.lineTotal === null ? '—' : money(a.lineTotal)));
+      });
+      lines.push('  On-Site Convenience subtotal: ' + money(peeled.appointmentTotal));
+    }
     return lines;
   }
 
   /** Table-free, client-safe HTML itemization for the transactional email. */
   function summaryEmailHtml(items) {
-    var list = Array.isArray(items) ? items : [];
+    var peeled = peelAppointmentAddons(Array.isArray(items) ? items : []);
+    var list = peeled.items;
     if (!list.length) return '';
-    return list.map(function (item) {
+    var html = list.map(function (item) {
       var rows = '<li>' + esc(item.packageName) + ': ' +
         esc(item.packagePrice === null ? "We couldn't load this package price. Please retry." : money(item.packagePrice)) + '</li>';
       rows += item.addons.map(function (a) {
@@ -226,6 +290,15 @@
         '<p style="margin:0">Vehicle subtotal: <strong>' + esc(money(item.subtotal)) + '</strong></p>' +
         '</div>';
     }).join('');
+    if (peeled.appointmentAddons.length) {
+      html += '<div style="margin:0 0 14px"><p style="margin:0 0 4px"><strong>On-Site Convenience</strong></p><ul style="margin:0 0 4px;padding-left:20px">';
+      html += peeled.appointmentAddons.map(function (a) {
+        return '<li>' + esc(addonLabel(a)) + ': ' + esc(a.lineTotal === null ? '—' : money(a.lineTotal)) + '</li>';
+      }).join('');
+      html += '</ul><p style="margin:0">On-Site Convenience subtotal: <strong>' +
+        esc(money(peeled.appointmentTotal)) + '</strong></p></div>';
+    }
+    return html;
   }
 
   return {

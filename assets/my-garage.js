@@ -971,18 +971,35 @@
       var vehicleId = String(v.vehicleId || ('idx-' + idx));
       var panelId = 'pkg-details-' + String(b.id || 'booking').replace(/[^\w-]/g, '') + '-' +
         vehicleId.replace(/[^\w-]/g, '');
+      var convenience = [];
+      var restAddons = addons;
+      if (window.CD1SeasonalDriveway) {
+        var split = CD1SeasonalDriveway.splitAppointmentAddons(addons);
+        convenience = split.family;
+        restAddons = split.rest;
+      }
       var addonBlock;
-      if (!addons.length) {
+      if (!restAddons.length) {
         addonBlock = '<div><dt>Add-ons</dt><dd>None</dd></div>';
       } else {
         addonBlock = '<div><dt>Add-ons</dt><dd><ul class="vehicle-addon-list">' +
-          addons.map(function (a) {
+          restAddons.map(function (a) {
             var name = a.name || a.id || 'Add-on';
             var qty = Number(a.qty) > 0 ? Number(a.qty) : 1;
             var price = safeMoneyOrNull(a.price);
             var qtyBit = qty > 1 ? ' × ' + qty : '';
             var priceBit = price != null ? ' · ' + fmtMoney(price) : '';
             return '<li>' + esc(name) + qtyBit + priceBit + '</li>';
+          }).join('') +
+          '</ul></dd></div>';
+      }
+      if (convenience.length) {
+        addonBlock += '<div><dt>On-Site Convenience</dt><dd><ul class="vehicle-addon-list">' +
+          convenience.map(function (a) {
+            var name = a.name || a.id || 'Add-on';
+            var price = safeMoneyOrNull(a.price);
+            var priceBit = price != null ? ' · ' + fmtMoney(price) : '';
+            return '<li>' + esc(name) + priceBit + '</li>';
           }).join('') +
           '</ul></dd></div>';
       }

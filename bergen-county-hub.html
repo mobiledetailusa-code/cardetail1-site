@@ -1294,6 +1294,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script src="assets/powersports-model-catalog.js"></script>
 <script src="assets/powersports-booking-safety.js"></script>
 <script src="assets/booking-vehicle-summary.js"></script>
+<script src="assets/seasonal-driveway-addon.js"></script>
 <script src="assets/booking-line-items.js" defer></script>
 <script src="assets/booking-review-runtime.js" defer></script>
 <script src="assets/travel-fee-client.js"></script>
@@ -2909,6 +2910,13 @@ const PRICING = {
       {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  desc:'Clean child car seat straps, padding, and buckle. $20 each', price:20, qty:true},
       {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    desc:'Wash stroller fabric, frame, and wheels. $20 each', price:20, qty:true},
       {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'Residential trash can cleaning at the service location. $25 each', price:25, qty:true},
+      {id:'seasonal_driveway_cleanup', scope:'any', name:'Seasonal Driveway Cleanup', desc:'Add a quick seasonal cleanup while we\'re already on-site. Loose leaves and light debris are cleared from your driveway using professional blowing equipment. Available only with an eligible detailing appointment.', price:95},
+      {id:'walkway_steps', scope:'any', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35},
+      {id:'porch_entry', scope:'any', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45},
+      {id:'small_patio', scope:'any', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50},
+      {id:'heavy_wet_leaf', scope:'any', name:'Heavy / Wet Leaf Buildup', desc:'Extra time for unusually heavy, wet, or matted leaf accumulation.', price:50},
+      {id:'bag_place_property', scope:'any', name:'Bag & Place On Property', desc:'Leaves are bagged and placed at a customer-designated location on the property. Off-property disposal is not included.', price:35},
+      {id:'pressure_surface_wash', scope:'any', name:'Pressure Surface Wash', desc:'Optional water-based surface cleaning. Weather permitting.', price:125},
     ],
   },
   trucks: {
@@ -3027,6 +3035,13 @@ const PRICING = {
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Pet hair removal from RV seats, rugs, cushions, and living areas', price:95},
       {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, pet, and interior odors. Severe cases may require estimate confirmation', price:90},
       {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:' per can at RV park, campground, storage, or home', price:25, qty:true},
+      {id:'seasonal_driveway_cleanup', scope:'any', name:'Seasonal Driveway Cleanup', desc:'Add a quick seasonal cleanup while we\'re already on-site. Loose leaves and light debris are cleared from your driveway using professional blowing equipment. Available only with an eligible detailing appointment.', price:95},
+      {id:'walkway_steps', scope:'any', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35},
+      {id:'porch_entry', scope:'any', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45},
+      {id:'small_patio', scope:'any', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50},
+      {id:'heavy_wet_leaf', scope:'any', name:'Heavy / Wet Leaf Buildup', desc:'Extra time for unusually heavy, wet, or matted leaf accumulation.', price:50},
+      {id:'bag_place_property', scope:'any', name:'Bag & Place On Property', desc:'Leaves are bagged and placed at a customer-designated location on the property. Off-property disposal is not included.', price:35},
+      {id:'pressure_surface_wash', scope:'any', name:'Pressure Surface Wash', desc:'Optional water-based surface cleaning. Weather permitting.', price:125},
     ],
   },
   powersports: {
@@ -3074,6 +3089,13 @@ const PRICING = {
       {id:'saltwash',   name:'Salt Rinse / Marine Rinse',    desc:'Salt and mineral rinse for jet ski and marine-exposed exterior surfaces', price:35},
       {id:'trimprot',   name:'Plastic Trim Protection',      desc:'Clean and protect plastic trim, panels, and exterior plastics', price:35},
       {id:'lightdeg',   name:'Light Exterior Degreasing',    desc:'Light degrease of visible exterior surfaces. Detailing only — not engine service', price:45},
+      {id:'seasonal_driveway_cleanup', name:'Seasonal Driveway Cleanup', desc:'Add a quick seasonal cleanup while we\'re already on-site. Loose leaves and light debris are cleared from your driveway using professional blowing equipment. Available only with an eligible detailing appointment.', price:95, publicNew:true},
+      {id:'walkway_steps', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35, publicNew:true},
+      {id:'porch_entry', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45, publicNew:true},
+      {id:'small_patio', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50, publicNew:true},
+      {id:'heavy_wet_leaf', name:'Heavy / Wet Leaf Buildup', desc:'Extra time for unusually heavy, wet, or matted leaf accumulation.', price:50, publicNew:true},
+      {id:'bag_place_property', name:'Bag & Place On Property', desc:'Leaves are bagged and placed at a customer-designated location on the property. Off-property disposal is not included.', price:35, publicNew:true},
+      {id:'pressure_surface_wash', name:'Pressure Surface Wash', desc:'Optional water-based surface cleaning. Weather permitting.', price:125, publicNew:true},
     ],
   },
   fleet: {
@@ -4097,6 +4119,7 @@ function renderAddons(){
   const addons=(PRICING[ST.cat]?.addons||[]).filter(a=>{
     const s=a.scope||'any';
     if(_pkgIncludesAddon[a.id]) return false;
+    if(window.CD1SeasonalDriveway && CD1SeasonalDriveway.isFamilyId(a.id)) return false;
     return pkgScope==='both' || s==='any' || s===pkgScope;
   });
   const POPULAR_IDS=ST.cat==='rvs'?['superint','sanitize','rainx','pethair','odor']:['rainx','pethair','odor'];
@@ -4112,6 +4135,8 @@ function renderAddons(){
     '<div class="addon-all-wrap"><div class="addon-all-inner" id="addon-all-inner">'+otherAddons.map(addonCardHtml).join('')+'</div>'+
     '<div id="addon-selected-summary" class="addon-selected-summary" style="display:none"></div>'+
     '<button type="button" class="addon-toggle-btn" id="addon-toggle-btn" onclick="toggleAllAddons()">Show All Add-ons ▾</button></div>';
+  if(window.CD1SeasonalDriveway) CD1SeasonalDriveway.mountAddonGrid(ST, PRICING);
+  recalcAddonTotal();
   updateTotal();
 }
 function toggleAllAddons(){
@@ -4138,7 +4163,7 @@ function updateAddonSummary(){
 }
 
 // Sum of every selected add-on, multiplying per-unit items by their quantity.
-function recalcAddonTotal(){ ST.addonTotal = ST.addons.reduce((s,a)=>s + a.price*(a.qty||1), 0); }
+function recalcAddonTotal(){ const _veh=(ST.addons||[]).filter(a=>!(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.isFamilyId(a.id))).reduce((s,a)=>s+a.price*(a.qty||1),0); const _sea=(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.currentVehicleSeasonalTotal(ST,PRICING))||0; ST.addonTotal=_veh+_sea; }
 function setQtyDisplay(id,n){ const el=document.getElementById('aq-'+id); if(el) el.textContent=n; }
 
 function toggleAddon(card){
@@ -4867,7 +4892,7 @@ function showSuccess(payload){
 function buildCurrentVehicleItem(){
   if(!ST.pkg || !ST.vehicleLabel) return null;
   const subtotal = ST.basePrice + ST.addonTotal;
-  return {
+  const item = {
     cat:ST.cat, pkgId:ST.pkgId,
     pkgName: ST.pkg.name,
     pkgIcon: ST.pkg.icon||'🚗',
@@ -4879,6 +4904,8 @@ function buildCurrentVehicleItem(){
     addonTotal: ST.addonTotal,
     subtotal,
   };
+  if(window.CD1SeasonalDriveway) return CD1SeasonalDriveway.decorateVehicleItem(item, ST, PRICING);
+  return item;
 }
 
 function commitCurrentVehicleToCart(){
@@ -4923,6 +4950,7 @@ function removeVehicleFromCart(idx){
 }
 
 function renderVehicleCart(){
+  if(window.CD1SeasonalDriveway) CD1SeasonalDriveway.syncSeasonalOntoCart(ST, PRICING);
   const wrap = document.getElementById('vcart-items');
   const totalEl = document.getElementById('vcart-total');
   const sumEl = document.getElementById('vcart-sum');

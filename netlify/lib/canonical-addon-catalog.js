@@ -8,6 +8,7 @@
 
 const { PRICING, PACKAGE_INCLUDED_ADDONS } = require('./booking-price-catalog');
 const { asArray } = require('./historical-adapter');
+const SeasonalDriveway = require('../../assets/seasonal-driveway-addon');
 
 /** Display-only labels (no prices). Keys must exist in PRICING[*].addons. */
 const ADDON_DISPLAY = {
@@ -132,6 +133,7 @@ const ADDON_DISPLAY = {
     name: 'Ozone Odor Treatment',
     description: 'Ozone treatment for stubborn interior odors.',
   },
+  ...SeasonalDriveway.DISPLAY,
 };
 
 function titleFromId(id) {
