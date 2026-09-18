@@ -282,8 +282,12 @@ function patchIndex(html) {
     '<h2 class="sec-title" id="ba-heading">Before &amp; after mobile detailing in Bergen County</h2>'
   );
   html = html.replace(
-    '<div class="sec-title">Customer experiences with Cardetail1</div>',
-    '<h2 class="sec-title">Customer experiences with Cardetail1</h2>'
+    '<div class="sec-title">What people say about us</div>',
+    '<h2 class="sec-title">What people say about us</h2>'
+  );
+  html = html.replace(
+    '<h2 class="sec-title">Customer experiences with Cardetail1</h2>',
+    '<h2 class="sec-title">What people say about us</h2>'
   );
 
   if (!html.includes('id="faq"')) {

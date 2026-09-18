@@ -21,11 +21,8 @@
  *   4. Legacy curated job testimonials (not labeled Google, Thumbtack, or Verified)
  *   Dedup by id and normalized review body.
  *
- * Source labels:
- *   google     → "Google review"
- *   thumbtack  → "Thumbtack review"
- *   cardetail1 → "Verified Cardetail1 customer"
- *   legacy     → "Customer" (known job quote, not independently marketplace-verified)
+ * Public cards do not name Google vs Thumbtack. First-party portal
+ * reviews still show as a verified Cardetail1 customer.
  */
 (function (root) {
   'use strict';
@@ -373,10 +370,8 @@
 
   function sourceLabel(review) {
     var source = String(review && review.source || '');
-    if (source === 'google') return 'Google review';
-    if (source === 'thumbtack') return 'Thumbtack review';
     if (source === 'cardetail1') return 'Verified Cardetail1 customer';
-    return 'Customer';
+    return '';
   }
 
   function metaLine(review) {
@@ -420,9 +415,11 @@
             (review.service && source !== 'google' && source !== 'thumbtack'
               ? '<div class="rv-badge">' + escapeHtml(review.service) + '</div>'
               : '') +
-            '<div class="rv-source' + (source === 'google' || source === 'thumbtack' || source === 'cardetail1' ? ' rv-source--' + source : '') + '">' +
-              escapeHtml(label) +
-            '</div>' +
+            (label
+              ? '<div class="rv-source' + (source === 'cardetail1' ? ' rv-source--cardetail1' : '') + '">' +
+                  escapeHtml(label) +
+                '</div>'
+              : '') +
           '</div>' +
         '</div>' +
       '</article>'

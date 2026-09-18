@@ -34,7 +34,7 @@ test('dedicated reviews page exists and is linked from the homepage', () => {
   const index = read('index.html');
   const toml = read('netlify.toml');
   const sitemap = read('sitemap.xml');
-  assert.match(page, /<h1>Customer experiences with Cardetail1<\/h1>/);
+  assert.match(page, /<h1>What people say about us<\/h1>/);
   assert.match(page, /id="rv-grid"/);
   assert.match(page, /id="rv-invite"/);
   assert.match(page, /assets\/customer-reviews\.js/);

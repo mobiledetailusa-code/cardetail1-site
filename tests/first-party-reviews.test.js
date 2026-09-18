@@ -37,13 +37,12 @@ test('homepage loads the first-party reviews module and keeps the reviews anchor
   assert.doesNotMatch(index, /const REVIEWS\s*=\s*\[/);
 });
 
-test('homepage reviews copy is first-party plus a labeled static Google snapshot', () => {
-  assert.match(section, /Customer Reviews/);
-  assert.match(section, /Customer experiences with Cardetail1/);
+test('homepage reviews copy is first-party plus unlabeled marketplace snapshots', () => {
+  assert.match(section, />Reviews</);
+  assert.match(section, /What people say about us/);
   assert.doesNotMatch(section, /Customer experiences with Detailing Zone/);
-  assert.match(section, /5\.0 on Google/);
-  assert.match(section, /9 reviews/);
-  assert.match(section, /Google review snapshot · August 2026/);
+  assert.doesNotMatch(section, /5\.0 on Google/);
+  assert.doesNotMatch(section, /Google review snapshot/);
   assert.match(section, /my-garage\.html#lookup/);
   assert.match(section, /View all reviews/);
   assert.match(section, /href="\/reviews"/);

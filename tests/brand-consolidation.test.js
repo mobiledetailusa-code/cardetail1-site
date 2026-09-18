@@ -124,34 +124,38 @@ test('1. homepage primary brand is Cardetail1', () => {
   assert.doesNotMatch(index, /Detailing Zone by Cardetail1/);
 });
 
-test('2. review heading uses Cardetail1', () => {
+test('2. review heading uses customer-facing copy without a competing brand', () => {
   const section = reviewsSection(read('index.html'));
-  assert.match(section, /Customer experiences with Cardetail1/);
+  assert.match(section, /What people say about us/);
+  assert.doesNotMatch(section, /Customer experiences with Detailing Zone/);
 });
 
 test('3. Google Business review copy uses Cardetail1', () => {
   const section = reviewsSection(read('index.html'));
-  assert.match(section, /5\.0 on Google · 9 reviews/);
-  assert.match(section, /Google review snapshot · August 2026/);
-  assert.match(section, /A selection of recent reviews/);
+  assert.match(section, /What people say about us/);
+  assert.match(section, /Recent comments from customers/);
   assert.match(section, /full reviews page/);
   assert.match(section, /href="\/reviews"/);
   assert.doesNotMatch(section, /Customer experiences with Detailing Zone/);
   assert.doesNotMatch(section, /copied from the current Cardetail1 Google listing/);
   assert.doesNotMatch(section, /current Cardetail1 Google listing/);
+  assert.doesNotMatch(section, /Google review snapshot/);
+  assert.doesNotMatch(section, /5\.0 on Google/);
 });
 
-test('4. Google review source labels are preserved', () => {
-  assert.equal(reviews.sourceLabel({ source: 'google' }), 'Google review');
+test('4. Google and Thumbtack cards are not labeled by marketplace source', () => {
+  assert.equal(reviews.sourceLabel({ source: 'google' }), '');
   for (const review of reviews.googleReviews()) {
-    assert.equal(reviews.sourceLabel(review), 'Google review');
+    assert.equal(reviews.sourceLabel(review), '');
     assert.doesNotMatch(reviews.sourceLabel(review), /Verified Cardetail1/);
+    assert.doesNotMatch(reviews.sourceLabel(review), /Google review/);
+    assert.doesNotMatch(reviews.sourceLabel(review), /Thumbtack review/);
   }
 });
 
 test('5. My Garage first-party source labels are preserved', () => {
   assert.equal(reviews.sourceLabel({ source: 'cardetail1' }), 'Verified Cardetail1 customer');
-  assert.equal(reviews.sourceLabel({ source: 'legacy' }), 'Customer');
+  assert.equal(reviews.sourceLabel({ source: 'legacy' }), '');
 });
 
 test('6. public commercial headlines do not say Detailing Zone', () => {
@@ -289,7 +293,7 @@ test('16. review authority and imported Google review bodies were not modified',
   assert.ok(john);
   assert.equal(john.rating, 5);
   assert.match(john.text, /\S/);
-  assert.equal(reviews.sourceLabel(john), 'Google review');
+  assert.equal(reviews.sourceLabel(john), '');
 });
 
 test('authorize page uses DBA legal formulation, not a competing brand', () => {
