@@ -297,6 +297,43 @@
   color: var(--mu, #64748b);
 }
 
+/* Pay online later — card-on-file panel (must stay readable on light surfaces) */
+.booking-modal .bk-pay-pref-help {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .bk-pay-pref-help[role="alert"]:not([hidden]) {
+  color: #b91c1c;
+}
+.booking-modal .bk-online-card-wrap {
+  background: #eff6ff;
+  border-color: rgba(37, 99, 235, 0.28);
+  color: var(--ink, #0f172a);
+}
+.booking-modal .bk-online-rec-msg,
+.booking-modal .bk-online-card-body,
+.booking-modal .bk-cof-policy-copy {
+  color: var(--ink, #0f172a) !important;
+}
+.booking-modal .bk-online-card-title,
+.booking-modal .bk-online-card-wrap .fl {
+  color: var(--ink-soft, #475569) !important;
+}
+.booking-modal .bk-cof-policy-box {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.12);
+}
+.booking-modal .bk-cof-policy-copy strong {
+  color: var(--ink, #0f172a) !important;
+}
+.booking-modal .bk-online-card-wrap .terms-check {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .bk-pay-rec-badge {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--blue, #2563eb);
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
 /* Confirm / checkout */
 .booking-modal .oc {
   background: var(--bg0, #f4f6f9);
