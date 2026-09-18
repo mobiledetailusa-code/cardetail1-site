@@ -38,6 +38,7 @@ const TEMPLATE_KEYS = Object.freeze({
   ADMIN_CHANGE_REQUEST: 'ops.change_request_alert',
   ADMIN_CANCELLATION_REQUESTED: 'ops.cancellation_request_alert',
   ADMIN_CUSTOMER_CANCEL: 'ops.customer_cancel_alert',
+  ADMIN_STABILITY: 'ops.stability_alert',
   RECOVERY: 'recovery.followup',
 });
 
@@ -48,6 +49,7 @@ const ADMIN_TEMPLATE_KEYS = new Set([
   TEMPLATE_KEYS.ADMIN_CHANGE_REQUEST,
   TEMPLATE_KEYS.ADMIN_CANCELLATION_REQUESTED,
   TEMPLATE_KEYS.ADMIN_CUSTOMER_CANCEL,
+  TEMPLATE_KEYS.ADMIN_STABILITY,
 ]);
 
 function smsBrandForTemplate(templateKey) {
@@ -489,6 +491,15 @@ function renderSmsTemplate(templateKey, data = {}) {
         + (data.window ? `, ${text(data.window, 40)}` : '')
         + '.';
       break;
+    case TEMPLATE_KEYS.ADMIN_STABILITY: {
+      const kind = asciiSms(data.alertKind).slice(0, 40) || 'stability';
+      const bookingRef = asciiSms(data.bookingRef).slice(0, 24);
+      const detail = asciiSms(data.detail).slice(0, 80);
+      body = `${smsPrefix(templateKey)} ${kind}`
+        + (bookingRef ? ` ${bookingRef}` : '')
+        + (detail ? `: ${detail}` : '');
+      break;
+    }
     case TEMPLATE_KEYS.RECOVERY:
       body = `${smsPrefix(templateKey)} ${text(data.message, 360)}` + (url ? ` ${url}` : '');
       break;

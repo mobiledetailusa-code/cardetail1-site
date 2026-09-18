@@ -471,6 +471,33 @@ async function applyCustomerBalanceReconciliation({
       return { ok: true, duplicate: true, booking: current.booking, attempts: i + 1, projection: localAfter };
     }
     if (!reconciled.ok) {
+      if (reconciled.quarantined) {
+        try {
+          const { reportOpsStabilityAlert, ALERT_KINDS } = require('./ops-stability-alerts');
+          await reportOpsStabilityAlert({
+            kind: ALERT_KINDS.PAYMENT_RECONCILE_QUARANTINED,
+            bookingId,
+            detail: reconciled.error || 'quarantined',
+            meta: {
+              stripeEventId: stripeEventId || null,
+              sessionId: session && session.id,
+            },
+          });
+        } catch { /* never block webhook path */ }
+      } else if (!reconciled.ignored) {
+        try {
+          const { reportOpsStabilityAlert, ALERT_KINDS } = require('./ops-stability-alerts');
+          await reportOpsStabilityAlert({
+            kind: ALERT_KINDS.PAYMENT_RECONCILE_FAILED,
+            bookingId,
+            detail: reconciled.error || 'reconcile_failed',
+            meta: {
+              stripeEventId: stripeEventId || null,
+              sessionId: session && session.id,
+            },
+          });
+        } catch { /* never block webhook path */ }
+      }
       return {
         ...reconciled,
         attempts: i + 1,
@@ -526,8 +553,26 @@ async function applyCustomerBalanceReconciliation({
       lastConflict = committed;
       continue;
     }
+    try {
+      const { reportOpsStabilityAlert, ALERT_KINDS } = require('./ops-stability-alerts');
+      await reportOpsStabilityAlert({
+        kind: ALERT_KINDS.PAYMENT_RECONCILE_FAILED,
+        bookingId,
+        detail: committed.error || 'commit_failed',
+        meta: { stripeEventId: stripeEventId || null },
+      });
+    } catch { /* never block webhook path */ }
     return { ...committed, attempts: i + 1, retryable: false };
   }
+  try {
+    const { reportOpsStabilityAlert, ALERT_KINDS } = require('./ops-stability-alerts');
+    await reportOpsStabilityAlert({
+      kind: ALERT_KINDS.PAYMENT_RECONCILE_FAILED,
+      bookingId,
+      detail: 'version_conflict_exhausted',
+      meta: { stripeEventId: stripeEventId || null, attempts: maxAttempts },
+    });
+  } catch { /* never block webhook path */ }
   return {
     ok: false,
     error: 'version_conflict',
