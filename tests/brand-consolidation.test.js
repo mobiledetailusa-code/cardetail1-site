@@ -82,8 +82,8 @@ const REVIEW_AUTHORITY_FILES = [
 const FROZEN_SHA256 = {
   'netlify/lib/sms-program.js': '70f2b9307e09b673998423792ee5e9a56859b7fd1aed8f8084197343754d0950',
   'netlify/lib/sms-templates.js': 'ab527c1618187c89d16c52b72e8fc8ca82564ef381b70950fda3d5e9155acdc6',
-  // Updated by cart/price resolution repair (Estimate fallback removed for published packages).
-  'assets/booking-review-runtime.js': '9bc5df26067eeb92018d9991b02c23e05d680cb1efb5604389230e037cb2a709',
+  // Updated when Pay online later began requiring a gated card-on-file SetupIntent.
+  'assets/booking-review-runtime.js': '4f1a97bfd8ec7ef148233356ca0a3d6198a405482ea7b31066bb83c762e345b4',
   'netlify/lib/receipt-projection.js': 'ebb8b34f6e9b880f87a056d2b885862f916ac3c753ed080eafb4e24c5b73865f',
   'netlify/lib/booking-transactional-notifications.js': 'a7537beda9a8b5d88d2c998103a6ef317d1b3807ba77d38b179b883ce3ba6367',
   'netlify/lib/first-party-reviews.js': 'c9d36c5212eb193b7fb26beedb3ba470f301ab96211f57e42fc19416ff5458f6',

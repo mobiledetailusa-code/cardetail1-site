@@ -401,7 +401,8 @@ describe('10 pricing / payment behavior unchanged', () => {
     assert.match(index, /maint:\s*\{perFt:\s*10,\s*min:\s*170\}/);
     const bs5 = index.slice(index.indexOf('id="bs5"'), index.indexOf('id="bs6"'));
     assert.match(bs5, /onclick="submitBooking\(\)"/);
-    assert.doesNotMatch(bs5, /id="stripe-auth-btn"/);
-    assert.doesNotMatch(bs5, /create-setup-intent/);
+    assert.match(bs5, /id="bk-online-card-wrap"[^>]*hidden/);
+    assert.match(bs5, /id="stripe-auth-btn"[^>]*disabled/);
+    assert.doesNotMatch(bs5, /\/v1\/payment_intents/);
   });
 });

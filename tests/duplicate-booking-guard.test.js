@@ -81,7 +81,7 @@ function requestPayload(overrides = {}) {
     travelFeeAmount: 0,
     zoneSurcharge: 0,
     paymentMethod: '',
-    paymentMethodPreference: 'online_after_service',
+    paymentMethodPreference: 'card_onsite',
     cardOnFileRequired: false,
     acceptedCardOnFilePolicy: false,
     acceptedBookingPolicy: true,

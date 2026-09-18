@@ -494,12 +494,14 @@ describe('Jet Ski stays on Boats, not Powersports', () => {
 });
 
 describe('no card / payment added by this repair', () => {
-  it('review submit remains no-card and does not add Stripe', () => {
+  it('review submit keeps card-save gated behind Pay online later', () => {
     const fn = extractFunction(index, 'tryGenericConfirm');
     assert.doesNotMatch(fn, /stripe|create-setup-intent|PaymentIntent/i);
     const bs5 = index.slice(index.indexOf('id="bs5"'), index.indexOf('id="bs6"'));
     assert.match(bs5, /onclick="submitBooking\(\)"/);
-    assert.doesNotMatch(bs5, /id="stripe-auth-btn"/);
+    assert.match(bs5, /id="bk-online-card-wrap"[^>]*hidden/);
+    assert.match(bs5, /id="stripe-auth-btn"[^>]*disabled/);
+    assert.doesNotMatch(bs5, /\/v1\/payment_intents|PaymentIntent/i);
   });
 });
 

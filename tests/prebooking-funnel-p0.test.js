@@ -225,8 +225,9 @@ describe('P0-8 / P0-9 / P0-10 booking surface contract', () => {
     const bs6 = index.slice(index.indexOf('id="bs6"'), index.indexOf('id="bs6"') + 2500);
     assert.match(bs5, /onclick="submitBooking\(\)"/);
     assert.doesNotMatch(bs6, /onclick="submitBooking\(\)"/);
-    assert.doesNotMatch(bs5, /id="stripe-auth-btn"/);
-    assert.doesNotMatch(bs5, /create-setup-intent/);
+    assert.match(bs5, /id="bk-online-card-wrap"[^>]*hidden/);
+    assert.match(bs5, /id="stripe-auth-btn"[^>]*disabled/);
+    assert.doesNotMatch(bs5, /\/v1\/payment_intents/);
     assert.match(index, /Request Sent is success-only/);
   });
 
