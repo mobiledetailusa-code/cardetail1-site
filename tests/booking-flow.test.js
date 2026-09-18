@@ -30,6 +30,19 @@ test('Step 5 recommends Pay online later and requires a card only for that optio
   assert.doesNotMatch(index, /A card on file is still required to submit the booking request\./i);
 });
 
+test('Pay online later card panel stays readable in the light booking modal', () => {
+  const light = read('assets/booking-modal-light.css');
+  const review = read('assets/booking-review.css');
+  assert.match(review, /\.bk-cof-policy-box\s*\{/);
+  assert.match(review, /\.bk-online-card-body\s*\{/);
+  assert.match(light, /\.booking-modal \.bk-online-rec-msg[\s\S]*?color:\s*var\(--ink,\s*#0f172a\)\s*!important/s);
+  assert.match(light, /\.booking-modal \.bk-cof-policy-copy strong[\s\S]*?color:\s*var\(--ink,\s*#0f172a\)\s*!important/s);
+  assert.match(light, /\.booking-modal \.bk-cof-policy-box\s*\{[^}]*background:\s*#ffffff/s);
+  // No dark-theme white-ink leftovers on the light card-save notice.
+  assert.doesNotMatch(index, /id="bk-online-card-wrap"[\s\S]*?color:var\(--white\)/);
+  assert.doesNotMatch(index, /id="bk-online-card-wrap"[\s\S]*?rgba\(255,255,255,\.04\)/);
+});
+
 test('initial booking pages keep card-save UI gated behind Pay online later', () => {
   const pages = fs.readdirSync(root)
     .filter(file => file.endsWith('.html'))

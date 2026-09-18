@@ -85,6 +85,7 @@
   border:1px solid rgba(77,163,255,.28);
   border-radius:12px;
   background:rgba(77,163,255,.06);
+  color:var(--tx,#d6dce5);
 }
 .bk-online-card-wrap[hidden]{display:none!important}
 .bk-pay-pref-help{
@@ -93,11 +94,49 @@
   line-height:1.5;
   margin:0;
 }
+.bk-pay-pref-help[role="alert"]:not([hidden]){
+  color:#f87171;
+}
 .bk-online-rec-msg{
   font-size:13px;
-  color:var(--tx,#ece8e1);
+  color:var(--tx,#d6dce5);
   line-height:1.5;
   margin:0;
+}
+.bk-online-card-title{
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--mu,#8a9bb0);
+  margin-bottom:8px;
+}
+.bk-online-card-body{
+  font-size:13px;
+  color:var(--tx,#d6dce5);
+  line-height:1.6;
+  margin-bottom:12px;
+}
+.bk-cof-policy-box{
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:8px;
+  padding:14px;
+  margin-top:12px;
+}
+.bk-cof-policy-copy{
+  font-size:12px;
+  color:var(--tx,#d6dce5);
+  margin-bottom:10px;
+  line-height:1.6;
+}
+.bk-cof-policy-copy strong{
+  color:var(--white,#fff);
+  font-weight:700;
+}
+.bk-cof-policy-copy ul{
+  margin:6px 0 0 16px;
+  padding:0;
 }
 .bk-review-compact{margin-bottom:12px}
 .bk-review-compact .oc{margin-bottom:10px;padding:14px 16px}
