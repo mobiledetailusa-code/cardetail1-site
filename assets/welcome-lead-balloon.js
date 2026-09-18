@@ -132,7 +132,12 @@
       '.cd1-wlb-hp{position:absolute;left:-9999px;height:0;width:0;opacity:0}' +
       '.cd1-wlb-success .cd1-wlb-title{color:#b7e3c0}' +
       '.cd1-wlb-book{display:inline-flex;margin-top:10px;min-height:44px;align-items:center;padding:0 16px;border:0;border-radius:999px;background:#4da3ff;color:#041018;font-weight:700;cursor:pointer}' +
-      '@media(max-width:640px){#cd1-wlb,#cd1-wlb:not(.cd1-wlb-open){right:14px;bottom:calc(132px + var(--cd1-wlb-consent,0px))}}' +
+      '@media(max-width:640px){' +
+      '#cd1-wlb,#cd1-wlb:not(.cd1-wlb-open){right:10px;bottom:calc(132px + var(--cd1-wlb-consent,0px))}' +
+      /* Keep the 10% FAB from covering FAQ / body copy on narrow screens */
+      'body:has(#cd1-wlb.cd1-wlb-on) .home-faq,' +
+      'body:has(#cd1-wlb.cd1-wlb-on) .hub-faq-list{padding-right:76px}' +
+      '}' +
       '@media(prefers-reduced-motion:reduce){.cd1-wlb-pulse{display:none}}';
     document.head.appendChild(s);
   }

@@ -21,7 +21,8 @@ body.luxury-surface > .hero:not(.hero--hub-brand) h1 {
 body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub,
 body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--long,
 body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--short {
-  color: var(--ink-soft) !important;
+  /* Brighter than --ink-soft so copy does not camouflage into the photo hero */
+  color: #c5d0dc !important;
 }
 
 body.luxury-surface > .hero:not(.hero--hub-brand) .hero-badge {
@@ -130,7 +131,17 @@ body.luxury-surface .nav-menu-btn {
 }
 
 .luxury-surface .sec-desc {
-  color: var(--ink-soft) !important;
+  color: #b8c4d0 !important;
+}
+
+/* Proof-bar / trust secondary lines — avoid #8b97a8 camouflage on #1a222c */
+.luxury-surface .hpb-lbl,
+.luxury-surface .trust-lbl {
+  color: #a8b6c6 !important;
+}
+
+.luxury-surface .hpb-item--accent .hpb-lbl {
+  color: #c5d0dc !important;
 }
 
 /* ── Cards & surfaces ── */
