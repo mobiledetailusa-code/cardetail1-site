@@ -38,9 +38,15 @@ test('Pay online later card panel stays readable in the light booking modal', ()
   assert.match(light, /\.booking-modal \.bk-online-rec-msg[\s\S]*?color:\s*var\(--ink,\s*#0f172a\)\s*!important/s);
   assert.match(light, /\.booking-modal \.bk-cof-policy-copy strong[\s\S]*?color:\s*var\(--ink,\s*#0f172a\)\s*!important/s);
   assert.match(light, /\.booking-modal \.bk-cof-policy-box\s*\{[^}]*background:\s*#ffffff/s);
-  // No dark-theme white-ink leftovers on the light card-save notice.
-  assert.doesNotMatch(index, /id="bk-online-card-wrap"[\s\S]*?color:var\(--white\)/);
-  assert.doesNotMatch(index, /id="bk-online-card-wrap"[\s\S]*?rgba\(255,255,255,\.04\)/);
+  // Scope to the card-save panel only — later success copy still uses theme tokens.
+  const start = index.indexOf('id="bk-online-card-wrap"');
+  const end = index.indexOf('id="stripe-status"', start);
+  assert.ok(start > -1 && end > start, 'online card wrap block missing');
+  const block = index.slice(start, end);
+  assert.doesNotMatch(block, /color:var\(--white\)/);
+  assert.doesNotMatch(block, /rgba\(255,255,255,\.04\)/);
+  assert.match(block, /class="bk-cof-policy-box"/);
+  assert.match(block, /class="bk-online-card-body"/);
 });
 
 test('initial booking pages keep card-save UI gated behind Pay online later', () => {
