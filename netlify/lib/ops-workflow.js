@@ -9,6 +9,75 @@ const TECH_STATUS_UPDATES = new Set([
   'accepted', 'en_route', 'arrived', 'in_progress', 'paused', 'issue_reported',
 ]);
 
+/** Job statuses a technician may list / act on (PDA-10 confirmed-eligible gate). */
+const TECH_ELIGIBLE_JOB_STATUSES = new Set([
+  'confirmed', 'assigned', 'accepted', 'en_route', 'arrived',
+  'in_progress', 'paused', 'issue_reported', 'reopened',
+]);
+
+const TECH_TERMINAL_JOB_STATUSES = new Set([
+  'pending_review', 'cancelled', 'archived_test',
+  'completed_pending_admin_review', 'completed_pending_payment', 'completed_paid',
+]);
+
+/**
+ * Allowed technician status transitions (from → to).
+ * Keys use normalized jobStatus; empty/"pending" sources use confirmed/assigned entry points.
+ */
+const TECH_STATUS_TRANSITIONS = Object.freeze({
+  confirmed: new Set(['accepted', 'en_route']),
+  assigned: new Set(['accepted', 'en_route']),
+  accepted: new Set(['en_route', 'paused', 'issue_reported']),
+  en_route: new Set(['arrived', 'paused', 'issue_reported']),
+  arrived: new Set(['in_progress', 'paused', 'issue_reported']),
+  in_progress: new Set(['paused', 'issue_reported']),
+  paused: new Set(['in_progress', 'en_route', 'arrived', 'issue_reported']),
+  issue_reported: new Set(['in_progress', 'paused', 'arrived']),
+  reopened: new Set(['accepted', 'en_route', 'in_progress']),
+});
+
+function normalizeTechJobStatus(booking) {
+  const raw = String(
+    booking?.jobStatus || booking?.appointmentStatus || booking?.status || ''
+  ).trim().toLowerCase();
+  if (!raw) return '';
+  if (raw === 'scheduled') return 'assigned';
+  if (raw === 'confirmed') return 'confirmed';
+  return raw.replace(/\s+/g, '_');
+}
+
+/**
+ * PDA-10: technician feed/actions require confirmed-eligible lifecycle work.
+ * Assignment alone is not enough when the booking is still pending review.
+ */
+function isTechEligibleBooking(booking) {
+  if (!booking || booking.isDraft || booking.isTest || booking.archived) return false;
+  const job = normalizeTechJobStatus(booking);
+  if (TECH_TERMINAL_JOB_STATUSES.has(job)) return false;
+  if (TECH_ELIGIBLE_JOB_STATUSES.has(job)) return true;
+  // Legacy display labels that map to confirmed/assigned after confirm.
+  const appt = String(booking.appointmentStatus || '').trim().toLowerCase();
+  const status = String(booking.status || '').trim().toLowerCase();
+  if (appt === 'confirmed' || status === 'confirmed' || status === 'rescheduled') {
+    return !TECH_TERMINAL_JOB_STATUSES.has(job);
+  }
+  return false;
+}
+
+function canTechTransition(fromStatus, toStatus) {
+  const to = String(toStatus || '').trim().toLowerCase();
+  if (!TECH_STATUS_UPDATES.has(to)) return false;
+  const from = String(fromStatus || '').trim().toLowerCase().replace(/\s+/g, '_');
+  const normalizedFrom = from === 'scheduled' ? 'assigned' : from;
+  const allowed = TECH_STATUS_TRANSITIONS[normalizedFrom];
+  if (allowed) return allowed.has(to);
+  // First field update after confirm/assign with an unrecognized but eligible label.
+  if (normalizedFrom === 'confirmed' || normalizedFrom === 'assigned' || !normalizedFrom) {
+    return to === 'accepted' || to === 'en_route';
+  }
+  return false;
+}
+
 const STRIPE_SENSITIVE = new Set([
   'stripeCustomerId', 'stripePaymentMethodId', 'setupIntentId', 'paymentIntentId',
   'amountAuthorizedCents', 'amountCapturedCents', 'cardOnFileStatus', 'cardOnFileSavedAt',
@@ -460,10 +529,16 @@ module.exports = {
   JOB_STATUSES,
   PAYMENT_WORKFLOW_STATUSES,
   TECH_STATUS_UPDATES,
+  TECH_ELIGIBLE_JOB_STATUSES,
+  TECH_TERMINAL_JOB_STATUSES,
+  TECH_STATUS_TRANSITIONS,
   STRIPE_SENSITIVE,
   appendEventLog,
   normalizeJobStatus,
   normalizePaymentWorkflowStatus,
+  normalizeTechJobStatus,
+  isTechEligibleBooking,
+  canTechTransition,
   suggestEquipmentForJob,
   projectVehicleForAdmin,
   projectVehiclesForAdmin,
