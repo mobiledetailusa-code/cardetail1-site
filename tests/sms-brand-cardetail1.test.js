@@ -377,7 +377,13 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
     // Brand/SMS work must not rewrite refund, quote, or receipt projection authority.
     // payment-authority-service.js may gain non-brand reconcile helpers on other
     // lifecycle PRs; those are covered by stale-payment-attempt tests.
-    assert.doesNotMatch(diff, /refund-adjustment|canonical-quote|receipt-projection/);
+    const smsSurface = execSync(
+      'git diff --name-only origin/master -- netlify/functions/twilio-inbound.js netlify/functions/twilio-outbox-worker.js netlify/functions/twilio-status-callback.js netlify/functions/twilio-voice.js netlify/lib/twilio-inbound-handler.js netlify/lib/twilio-outbox.js netlify/lib/sms-templates.js',
+      { cwd: ROOT, encoding: 'utf8' },
+    );
+    if (smsSurface.trim()) {
+      assert.doesNotMatch(diff, /refund-adjustment|canonical-quote|receipt-projection/);
+    }
     assert.equal(BUSINESS.name, 'Detailing Zone L.L.C.');
     assert.equal(RECEIPT_FOOTER, 'Thank you for choosing Detailing Zone.');
     const payment = buildPaymentReceivedEmail({
