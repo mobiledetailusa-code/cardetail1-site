@@ -34,6 +34,7 @@
     st.make = '';
     st.model = '';
     st.year = '';
+    st.trim = '';
     st._powersportsIdentity = '';
     st._powersportsManualClass = '';
     st._powersportsResolutionStatus = '';
@@ -45,6 +46,22 @@
       st.boatType = '';
     }
     return st;
+  }
+
+  /**
+   * Cars display label: Year Make Model, with optional trim/edition appended.
+   * Trim never affects pricing — catalog class does.
+   */
+  function formatCarsVehicleLabel(year, make, model, trim) {
+    var base = [year, make, model]
+      .map(function (p) { return String(p == null ? '' : p).trim(); })
+      .filter(Boolean)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    var t = String(trim == null ? '' : trim).replace(/\s+/g, ' ').trim();
+    if (!t) return base;
+    return base ? base + ' · ' + t : t;
   }
 
   /** Cars / powersports may show classification; RV / boat / fleet must not. */
@@ -84,5 +101,6 @@
     categoryClassSuffix: categoryClassSuffix,
     formatAddonHeaderSummary: formatAddonHeaderSummary,
     categoryTierLabel: categoryTierLabel,
+    formatCarsVehicleLabel: formatCarsVehicleLabel,
   };
 });
