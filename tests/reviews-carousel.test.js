@@ -55,14 +55,37 @@ function mountDom() {
   return dom;
 }
 
+function mountReviewsPage() {
+  assert.ok(JSDOM, 'jsdom is required for reviews page DOM tests');
+  reviews.applyPortalItems([]);
+  const dom = new JSDOM(`<!DOCTYPE html><html><body>
+    <div id="reviews"><div id="rv-grid"></div></div>
+  </body></html>`, {
+    runScripts: 'outside-only',
+    url: 'https://cardetail1.com/reviews',
+  });
+  reviews.mount(dom.window.document, { fetch: false });
+  return dom;
+}
+
 test('1. static Google review renders', () => {
   const google = reviews.googleReviews();
   assert.equal(google.length, 9);
   const claudio = google.find((r) => r.id === 'g-claudio-campos');
   assert.ok(claudio);
+  assert.equal(claudio.name, 'Claudio Campos');
   if (!JSDOM) return;
-  const dom = mountDom();
-  const card = dom.window.document.querySelector('[data-review-id="g-claudio-campos"]');
+  const home = mountDom();
+  const homeCard = home.window.document.querySelector('[data-review-id="g-john-daquila"]');
+  assert.ok(homeCard);
+  assert.match(homeCard.textContent, /John Daquila/);
+  assert.equal(
+    home.window.document.querySelector('[data-review-id="g-claudio-campos"]'),
+    null,
+    'Claudio is past the homepage HOME_LIMIT once Thumbtack cards lead the mix',
+  );
+  const page = mountReviewsPage();
+  const card = page.window.document.querySelector('[data-review-id="g-claudio-campos"]');
   assert.ok(card);
   assert.match(card.textContent, /Claudio Campos/);
 });
@@ -357,14 +380,7 @@ test('legacy testimonials are not labeled Google or Verified Cardetail1', () => 
   assert.ok(pablo);
   assert.equal(reviews.sourceLabel(pablo), 'Customer');
   if (!JSDOM) return;
-  reviews.applyPortalItems([]);
-  const dom = new JSDOM(`<!DOCTYPE html><html><body>
-    <div id="reviews"><div id="rv-grid"></div></div>
-  </body></html>`, {
-    runScripts: 'outside-only',
-    url: 'https://cardetail1.com/reviews',
-  });
-  reviews.mount(dom.window.document, { fetch: false });
+  const dom = mountReviewsPage();
   const card = dom.window.document.querySelector('[data-review-id="legacy-pablo-sanchez"]');
   assert.ok(card);
   assert.equal(card.querySelector('.rv-source').textContent, 'Customer');
@@ -411,14 +427,7 @@ test('static Thumbtack reviews render with Thumbtack labels, not Cardetail1 veri
     cynthia.text,
   );
 
-  reviews.applyPortalItems([]);
-  const page = new JSDOM(`<!DOCTYPE html><html><body>
-    <div id="reviews"><div id="rv-grid"></div></div>
-  </body></html>`, {
-    runScripts: 'outside-only',
-    url: 'https://cardetail1.com/reviews',
-  });
-  reviews.mount(page.window.document, { fetch: false });
+  const page = mountReviewsPage();
   const pageCard = page.window.document.querySelector('[data-review-id="tt-kasey-w"]');
   assert.ok(pageCard);
   assert.equal(pageCard.getAttribute('data-source'), 'thumbtack');
