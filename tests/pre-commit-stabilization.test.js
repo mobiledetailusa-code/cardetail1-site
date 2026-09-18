@@ -368,6 +368,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/price-adjustments.js',
     'netlify/lib/receipt-projection.js',
     'netlify/lib/service-issue-notifications.js',
+    'netlify/lib/ops-stability-alerts.js',
     // PR5 Twilio readiness — post-commit outbox and signed webhooks.
     'netlify/functions/customer-portal-profile.js',
     'netlify/functions/stripe-webhook.js',
