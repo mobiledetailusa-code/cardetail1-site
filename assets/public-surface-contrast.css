@@ -173,3 +173,61 @@
 .booking-modal .bpt.done .bpn {
   color: #ffffff;
 }
+
+/* ── Public contrast pass: stop camouflaged / near-invisible copy ── */
+
+/* ZIP placeholders on hubs still used rgba(255,255,255,.2) — too faint on dark inputs */
+.hero-zip-input::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1;
+}
+
+/* Hero body copy over photo backgrounds */
+.hero .hero-sub,
+.hero .hero-sub--long,
+.hero .hero-sub--short {
+  color: #c5d0dc;
+}
+
+/* Proof / trust secondary labels on dark cards */
+.hpb-lbl,
+.trust-lbl,
+.rstat-lbl,
+.rpstat-lbl,
+.ticker-time,
+.ticker-detail,
+.rpanel-sub,
+.rpill-sub {
+  color: #a8b6c6;
+}
+
+/* Accent pay strip: keep label readable next to strong value */
+.hpb-item--accent .hpb-val {
+  color: #ece8e1;
+}
+.hpb-item--accent .hpb-lbl {
+  color: #c5d0dc;
+}
+
+/* Ghost / secondary CTAs stay visible without competing with primary */
+.btn-outline,
+.hero .btn-outline {
+  color: #ece8e1;
+  border-color: rgba(236, 232, 225, 0.45);
+}
+
+/* Specialty / hub secondary nav chips */
+.cat-nav a,
+.specialty-cat-nav a {
+  color: #c5d0dc;
+}
+
+/* FAQ + long-form sections: keep room for first-visit 10% FAB on mobile */
+@media (max-width: 640px) {
+  body:has(#cd1-wlb.cd1-wlb-on) .home-faq,
+  body:has(#cd1-wlb.cd1-wlb-on) .hub-faq-list,
+  body:has(#cd1-wlb.cd1-wlb-on) .hub-faq-section .section,
+  body:has(#cd1-wlb.cd1-wlb-on) .service-area-section .section {
+    padding-right: 76px;
+  }
+}
