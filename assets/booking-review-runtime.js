@@ -5,7 +5,10 @@
  *   - bkMoney is never missing
  *   - estimated totals use the same cart + travel-fee total that the payload sends
  *   - a persisted booking never renders as "not submitted"
- *   - payment preference is metadata only (no Stripe)
+ *   - payment preference selects how the customer wants to pay later
+ *   - Pay online later (recommended) requires a saved card on file; other
+ *     preferences stay no-card at request time
+ *   - this module never talks to Stripe directly (page JS owns SetupIntent)
  *
  * This module NEVER prices a package and NEVER creates Stripe/ledger/receipt objects.
  *
@@ -32,22 +35,31 @@
       value: 'online_after_service',
       label: 'Pay online later',
       button: 'Pay online later',
+      recommended: true,
+      requiresCard: true,
     },
     card_onsite: {
       id: 'pc-onsite',
       value: 'card_onsite',
       label: 'Card at service',
       button: 'Card at service',
+      recommended: false,
+      requiresCard: false,
     },
     cash_onsite: {
       id: 'pc-cash',
       value: 'cash_onsite',
       label: 'Cash at service',
       button: 'Cash at service',
+      recommended: false,
+      requiresCard: false,
     },
   });
 
   var PREFERENCE_VALUES = Object.keys(REQUEST_PREFERENCES);
+  var ONLINE_HELP = 'Pay online later is our recommended payment method. Save a card securely (nothing charged today). Final payment is requested online after service when approved.';
+  var ONSITE_HELP = 'Card or cash at service — no card needed to submit. Nothing is charged or authorized when you send this request.';
+  var DEFAULT_HELP = 'Pay online later is our recommended payment method. Choose it to save a card securely (nothing charged today). Or pay by card or cash at service — no card needed to submit those options.';
   var NETWORK_RE = /failed to fetch|networkerror|load failed|network request failed|abort|timeout/i;
   var SUBMIT_FAILURE_CODES = {
     draft_token_invalid: 'Your booking session expired. Please submit the request again.',
@@ -61,6 +73,9 @@
     rate_limited: 'Too many attempts. Please wait a few minutes and try again.',
     payment_preference_required: 'Please choose a preferred payment method.',
     invalid_payment_preference: 'Please choose a preferred payment method.',
+    card_on_file_required: 'Pay online later requires a saved card. Save your card securely above, then submit.',
+    card_on_file_policy_required: 'Accept the card-on-file authorization to continue with Pay online later.',
+    card_on_file_not_saved: 'Your card is still being verified. Please wait a few seconds and try again.',
   };
 
   function money(n) {
@@ -319,6 +334,25 @@
     return totals;
   }
 
+  function preferenceRequiresCard(value) {
+    var meta = REQUEST_PREFERENCES[String(value || '').trim()];
+    return !!(meta && meta.requiresCard);
+  }
+
+  function syncOnlineCardPanel(preference) {
+    var doc = root.document;
+    if (!doc) return;
+    var wrap = doc.getElementById('bk-online-card-wrap');
+    var copy = doc.getElementById('bk-pay-pref-copy');
+    var online = preference === 'online_after_service';
+    if (wrap) wrap.hidden = !online;
+    if (copy) {
+      if (online) copy.textContent = ONLINE_HELP;
+      else if (preference === 'card_onsite' || preference === 'cash_onsite') copy.textContent = ONSITE_HELP;
+      else copy.textContent = DEFAULT_HELP;
+    }
+  }
+
   function syncPreferenceButtons(value) {
     var selected = String(value || '');
     PREFERENCE_VALUES.forEach(function (key) {
@@ -330,12 +364,26 @@
         el.setAttribute('aria-pressed', on ? 'true' : 'false');
       }
     });
+    syncOnlineCardPanel(selected);
   }
 
   function selectRequestPaymentPreference(preference) {
     if (!isKnownPreference(preference)) return;
     var ST = getST();
-    ST.payMethod = preference;
+    var prev = String(ST.payMethod || '');
+    var meta = REQUEST_PREFERENCES[preference];
+    if (typeof root.selectPaymentPreference === 'function') {
+      root.selectPaymentPreference(preference, meta.id);
+    } else {
+      if (prev && prev !== preference && typeof root.clearDraftRegistrationState === 'function') {
+        root.clearDraftRegistrationState();
+        var cb = root.document && root.document.getElementById('cof-policy-ok');
+        if (cb) cb.checked = false;
+      }
+      ST.payMethod = preference;
+      if (typeof root.selectPayChoice === 'function') root.selectPayChoice(meta.id);
+      if (typeof root.cofCheckboxChanged === 'function') root.cofCheckboxChanged();
+    }
     syncPreferenceButtons(preference);
     var pmEl = root.document && root.document.getElementById('c-pay-method');
     if (pmEl) pmEl.textContent = preferenceLabel(preference);
@@ -455,8 +503,8 @@
     payload.appointmentStatus = data.appointmentStatus || 'pending_review';
     payload.jobStatus = 'pending_review';
     payload.paymentWorkflowStatus = 'no_payment_required_yet';
-    payload.cardOnFileStatus = data.cardOnFileStatus || 'not_collected';
-    payload.cardOnFileRequired = false;
+    payload.cardOnFileStatus = data.cardOnFileStatus || (preferenceRequiresCard(payload.paymentMethodPreference) ? 'saved' : 'not_collected');
+    payload.cardOnFileRequired = preferenceRequiresCard(payload.paymentMethodPreference || payload.paymentMethod);
     payload.cloudSaved = true;
     payload.bookingCreated = true;
     payload.notificationState = data.customerEmail || (data.notificationDelivery && data.notificationDelivery.customerEmail) || null;
@@ -473,7 +521,21 @@
       payload.paymentMethodPreference = '';
       payload.paymentMethod = '';
     }
-    payload.cardOnFileRequired = false;
+    var requiresCard = preferenceRequiresCard(pref);
+    payload.cardOnFileRequired = requiresCard;
+    if (requiresCard) {
+      var cof = root.document && root.document.getElementById('cof-policy-ok');
+      var accepted = !!(cof && cof.checked);
+      payload.acceptedCardOnFilePolicy = accepted;
+      payload.acceptedCardOnFilePolicyAt = accepted ? new Date().toISOString() : null;
+      payload.cofPolicyAccepted = accepted;
+      payload.policyVersion = '2026-06-card-on-file';
+    } else {
+      payload.acceptedCardOnFilePolicy = false;
+      payload.acceptedCardOnFilePolicyAt = null;
+      payload.cofPolicyAccepted = false;
+      payload.policyVersion = payload.policyVersion || '2026-08-booking-request';
+    }
     return payload;
   }
 
@@ -529,6 +591,34 @@
         alert('Please choose a preferred payment method.');
       }
       return { ok: false, kind: 'rejected', code: 'payment_preference_required' };
+    }
+
+    if (preferenceRequiresCard(ST.payMethod)) {
+      syncOnlineCardPanel(ST.payMethod);
+      var cofOk = win.document.getElementById('cof-policy-ok');
+      if (!cofOk || !cofOk.checked) {
+        var policyErr = win.document.getElementById('bk-pay-pref-err');
+        if (policyErr) {
+          policyErr.hidden = false;
+          policyErr.textContent = SUBMIT_FAILURE_CODES.card_on_file_policy_required;
+        } else {
+          alert(SUBMIT_FAILURE_CODES.card_on_file_policy_required);
+        }
+        if (cofOk) cofOk.focus();
+        return { ok: false, kind: 'rejected', code: 'card_on_file_policy_required' };
+      }
+      if (!ST.cardOnFileSaved) {
+        var cardErr = win.document.getElementById('bk-pay-pref-err');
+        if (cardErr) {
+          cardErr.hidden = false;
+          cardErr.textContent = SUBMIT_FAILURE_CODES.card_on_file_required;
+        } else {
+          alert(SUBMIT_FAILURE_CODES.card_on_file_required);
+        }
+        var saveBtn = win.document.getElementById('stripe-auth-btn');
+        if (saveBtn) saveBtn.scrollIntoView({ block: 'center' });
+        return { ok: false, kind: 'rejected', code: 'card_on_file_required' };
+      }
     }
 
     var btn = win.document.getElementById('sub-btn');
@@ -660,11 +750,13 @@
     REQUEST_PREFERENCES: REQUEST_PREFERENCES,
     PREFERENCE_VALUES: PREFERENCE_VALUES,
     preferenceLabel: preferenceLabel,
+    preferenceRequiresCard: preferenceRequiresCard,
     isKnownPreference: isKnownPreference,
     presentationTotals: presentationTotals,
     renderBkFinancialSummary: renderBkFinancialSummary,
     fillReviewSubmit: fillReviewSubmit,
     selectRequestPaymentPreference: selectRequestPaymentPreference,
+    syncOnlineCardPanel: syncOnlineCardPanel,
     showSuccess: showSuccess,
     showFallbackSuccess: showFallbackSuccess,
     classifyError: classifyError,

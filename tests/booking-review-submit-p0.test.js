@@ -232,6 +232,13 @@ describe('payment preference metadata', () => {
     assert.equal(Review.preferenceLabel('cash_onsite'), 'Cash at service');
   });
 
+  it('marks Pay online later as recommended and card-required', () => {
+    assert.equal(Review.preferenceRequiresCard('online_after_service'), true);
+    assert.equal(Review.preferenceRequiresCard('card_onsite'), false);
+    assert.equal(Review.preferenceRequiresCard('cash_onsite'), false);
+    assert.equal(Review.REQUEST_PREFERENCES.online_after_service.recommended, true);
+  });
+
   it('runtime never creates Stripe, ledger, or receipt objects', () => {
     assert.doesNotMatch(runtimeSrc, /create-setup-intent|\/v1\/(payment|setup)_intents|js\.stripe\.com/);
     assert.doesNotMatch(runtimeSrc, /confirmSetupIntent/);
@@ -347,16 +354,16 @@ describe('submit-booking preference persistence without Stripe', () => {
     }
   });
 
-  for (const pref of ['online_after_service', 'card_onsite', 'cash_onsite']) {
+  for (const pref of ['card_onsite', 'cash_onsite']) {
     it(`persists ${pref} without Stripe, ledger, or a charge`, async () => {
       const draft = await post(requestPayload({
         isDraft: true,
-        phone: pref === 'card_onsite' ? '2015550101' : pref === 'cash_onsite' ? '2015550102' : '2015550103',
+        phone: pref === 'card_onsite' ? '2015550101' : '2015550102',
         paymentMethodPreference: pref,
       }));
       assert.equal(draft.response.statusCode, 200, draft.body.error);
       const final = await post(requestPayload({
-        phone: pref === 'card_onsite' ? '2015550101' : pref === 'cash_onsite' ? '2015550102' : '2015550103',
+        phone: pref === 'card_onsite' ? '2015550101' : '2015550102',
         draftBookingId: draft.body.id,
         draftSaveToken: draft.body.draftSaveToken,
         paymentMethodPreference: pref,
@@ -378,6 +385,30 @@ describe('submit-booking preference persistence without Stripe', () => {
       assert.equal(projectBookingForCustomer(saved).paymentMethodPreference, pref);
     });
   }
+
+  it('rejects online_after_service drafts that try to skip card-on-file', async () => {
+    const draft = await post(requestPayload({
+      isDraft: true,
+      phone: '2015550103',
+      paymentMethodPreference: 'online_after_service',
+      cardOnFileRequired: false,
+      acceptedCardOnFilePolicy: false,
+    }));
+    assert.equal(draft.response.statusCode, 400);
+    assert.equal(draft.body.error, 'card_on_file_required');
+  });
+
+  it('requires card-on-file policy when online_after_service is selected', async () => {
+    const draft = await post(requestPayload({
+      isDraft: true,
+      phone: '2015550104',
+      paymentMethodPreference: 'online_after_service',
+      cardOnFileRequired: true,
+      acceptedCardOnFilePolicy: false,
+    }));
+    assert.equal(draft.response.statusCode, 400);
+    assert.equal(draft.body.error, 'card_on_file_policy_required');
+  });
 
   it('double finalize of the same draft is idempotent (no duplicate booking)', async () => {
     const [saved] = [...store.data.values()].filter((b) => b.isDraft === false);

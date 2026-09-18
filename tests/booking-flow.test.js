@@ -17,17 +17,20 @@ const stripeConfig = read('netlify/functions/stripe-config.js');
 const webhook = read('netlify/functions/stripe-webhook.js');
 const lookup = read('netlify/functions/lookup-booking.js');
 
-test('Step 5 is a no-card review with later payment options', () => {
+test('Step 5 recommends Pay online later and requires a card only for that option', () => {
   assert.match(index, /Step 05 — Review &amp; Submit/);
-  assert.match(index, /no card or payment method is required to send this request\./);
-  assert.match(index, /Pay Online in My Garage or pay at service when available\./);
-  assert.match(index, /Request first · Pay later · No charge today/);
+  assert.match(index, /No payment is collected when you submit this booking request\./);
+  assert.match(index, /Pay online later is our recommended payment method\./);
+  assert.match(index, /bk-pay-rec-badge">Recommended</);
+  assert.match(index, /Request first · Recommended: Pay online · No charge today/);
+  assert.match(index, /id="bk-online-card-wrap"[^>]*hidden/);
+  assert.match(index, /id="cof-policy-ok"/);
+  assert.match(index, /id="stripe-auth-btn"/);
   assert.doesNotMatch(index, />Secure Your Booking</i);
-  assert.doesNotMatch(index, />Card on File Required</i);
   assert.doesNotMatch(index, /A card on file is still required to submit the booking request\./i);
 });
 
-test('initial booking pages do not render a saved-card notice or consent gate', () => {
+test('initial booking pages keep card-save UI gated behind Pay online later', () => {
   const pages = fs.readdirSync(root)
     .filter(file => file.endsWith('.html'))
     .filter(file => read(file).includes('id="bk-ov"'));
@@ -35,9 +38,10 @@ test('initial booking pages do not render a saved-card notice or consent gate', 
   assert.equal(pages.length, 13, 'expected all 13 booking surfaces');
   for (const page of pages) {
     const html = read(page);
-    assert.doesNotMatch(html, /Before saving your card, please note:/, `${page} still renders card-save notice copy`);
-    assert.doesNotMatch(html, /id="cof-policy-ok"/, `${page} still renders card consent`);
-    assert.doesNotMatch(html, /id="stripe-auth-btn"/, `${page} still renders card save CTA`);
+    assert.match(html, /id="bk-online-card-wrap"/, `${page} missing online card wrap`);
+    assert.match(html, /id="cof-policy-ok"/, `${page} missing card consent`);
+    assert.match(html, /id="stripe-auth-btn"/, `${page} missing card save CTA`);
+    assert.match(html, /Before saving your card, please note:/, `${page} missing card-save notice`);
   }
 });
 
@@ -86,7 +90,7 @@ test('server keeps strict saved-card flow and permits explicit no-card drafts', 
   assert.match(submit, /paymentStatus:\s+'no_payment_required_yet'/);
   assert.match(submit, /appointmentStatus:\s+'pending_review'/);
   assert.match(submit, /jobStatus:\s+'pending_review'/);
-  assert.match(submit, /cardOnFileRequired = existing/);
+  assert.match(submit, /resolveCardOnFileRequired/);
   assert.match(submit, /cardOnFileStatus:\s*'not_collected'/);
   assert.match(submit, /paymentWorkflowStatus:\s*'no_payment_required_yet'/);
   assert.match(submit, /online_after_service/);

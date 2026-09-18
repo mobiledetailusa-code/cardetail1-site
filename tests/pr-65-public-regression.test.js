@@ -36,8 +36,8 @@ test('reviews cred-row no longer advertises placeholder gallery line', () => {
 });
 
 test('Step 5 uses short booking policy bullets, not collapsible long terms', () => {
-  assert.match(index, /Submit with no payment<\/strong> — no card or payment method is required/);
-  assert.match(index, /Pay later<\/strong> — use Pay Online in My Garage or pay at service when available/);
+  assert.match(index, /Pay online later \(recommended\)<\/strong> — save a card securely first/);
+  assert.match(index, /Card or cash at service<\/strong> — no card needed to submit/);
   assert.match(index, /Read Full Terms →/);
   assert.doesNotMatch(index, /<details class="checkout-terms-disclosure"/);
   assert.doesNotMatch(index, /Suggested Booking Terms Summary/);
@@ -49,7 +49,7 @@ test('public header and saved-card infrastructure remain available', () => {
   assert.match(index, /href="tel:5513735668"/);
   assert.match(index, /waitForVerifiedCardSave/);
   assert.match(index, /Step 05 — Review/);
-  assert.match(index, /no card or payment method is required/i);
+  assert.match(index, /No payment is collected when you submit this booking request/i);
   assert.match(index, /create-setup-intent/);
 });
 

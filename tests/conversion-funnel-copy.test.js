@@ -1,8 +1,9 @@
 // Conversion-funnel trust copy (P1).
 //
 // The booking flow is a *request*: submitting does not confirm an appointment,
-// and no card or payment method is required for the initial request. Public copy
-// used to promise the opposite ("card holds your slot" / "Lock Your Slot").
+// and nothing is charged today. Pay online later (recommended) requires saving a
+// card; card/cash at service do not. Public copy used to promise the opposite
+// ("card holds your slot" / "Lock Your Slot").
 // These tests pin the honest wording so the contradiction cannot come back —
 // including through scripts/apply-state-hub-theme.mjs, which regenerates hubs.
 const test = require('node:test');
@@ -44,18 +45,23 @@ test('no public source promises the card holds or locks a slot', () => {
   }
 });
 
-test('the request-only contract states no payment gate and later payment options', () => {
+test('the request-only contract keeps $0 today and recommends Pay online later', () => {
   for (const page of bookingPages) {
     const html = read(page);
     assert.match(
       html,
-      /no card or payment method is required to send this request\./i,
-      `${page} lost the no-card request copy`,
+      /No payment is collected when you submit this booking request\./i,
+      `${page} lost the no-charge-today request copy`,
     );
     assert.match(
       html,
-      /Pay Online in My Garage or pay at service when available\./,
-      `${page} lost the later-payment copy`,
+      /Pay online later is our recommended payment method\./,
+      `${page} lost the recommended online payment copy`,
+    );
+    assert.match(
+      html,
+      /bk-pay-rec-badge">Recommended</,
+      `${page} lost the Recommended badge on Pay online later`,
     );
     assert.match(
       html,
@@ -64,7 +70,7 @@ test('the request-only contract states no payment gate and later payment options
     );
     // The pre-existing honest statements must survive.
     assert.match(html, /Charged today/, `${page} lost the charged-today row`);
-    assert.match(html, /booking request only/, `${page} lost the request-only confirm row`);
+    assert.match(html, /still nothing charged today/, `${page} lost the nothing-charged-today confirm row`);
   }
 });
 

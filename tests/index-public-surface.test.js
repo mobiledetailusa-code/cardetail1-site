@@ -31,7 +31,8 @@ test('index.html keeps public booking, ZIP routing, and separate saved-card capa
   assert.match(index, /resolveHubPageForHero/);
   assert.match(index, /waitForVerifiedCardSave/);
   assert.match(index, /Step 05 — Review/);
-  assert.match(index, /no card or payment method is required/i);
+  assert.match(index, /No payment is collected when you submit this booking request/i);
+  assert.match(index, /Pay online later is our recommended payment method/i);
 });
 
 test('index.html admin login routes to canonical admin-ops console', () => {

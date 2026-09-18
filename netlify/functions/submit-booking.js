@@ -54,6 +54,16 @@ function normalizeRequestPreference(value) {
   return PAYMENT_PREFERENCES.has(preference) ? preference : null;
 }
 
+/** Pay online later always requires card-on-file; onsite preferences never do. */
+function resolveCardOnFileRequired(preference, requestedFlag) {
+  const pref = normalizeRequestPreference(preference) || String(preference || '').trim();
+  if (pref === 'online_after_service') return true;
+  if (pref === 'cash_onsite' || pref === 'card_onsite') return false;
+  if (requestedFlag === true) return true;
+  if (requestedFlag === false) return false;
+  return false;
+}
+
 const { applyServerTravelAndTotal } = require('../lib/travel-fee');
 const {
   enforcePublicRateLimit,
@@ -359,12 +369,14 @@ function sanitizeBlobError(err) {
 }
 
 function buildDraftRecord(b, draftId, now, existing = null) {
-  const cardOnFileRequired = existing
-    ? existing.cardOnFileRequired !== false
-    : b.cardOnFileRequired !== false;
   const incomingPref = normalizeRequestPreference(b.paymentMethodPreference);
-  const preference = cardOnFileRequired
-    ? String(b.paymentMethodPreference || '')
+  const preference = incomingPref || String(b.paymentMethodPreference || '');
+  const cardOnFileRequired = resolveCardOnFileRequired(
+    preference,
+    existing ? existing.cardOnFileRequired : b.cardOnFileRequired
+  );
+  const resolvedPreference = cardOnFileRequired
+    ? String(preference || '')
     : (incomingPref || '');
   return {
     id: draftId,
@@ -375,8 +387,8 @@ function buildDraftRecord(b, draftId, now, existing = null) {
     createdAt: existing ? existing.createdAt : now,
     updatedAt: now,
     totalPrice: Number(b.totalPrice) || 0,
-    paymentMethod: preference,
-    paymentMethodPreference: preference,
+    paymentMethod: resolvedPreference,
+    paymentMethodPreference: resolvedPreference,
     cardOnFileRequired,
     cardOnFileStatus: cardOnFileRequired
       ? (existing ? existing.cardOnFileStatus : 'pending')
@@ -879,8 +891,11 @@ exports.handler = async (event) => {
       return json(503, { ok: false, error: 'missing_draft_token_secret' });
     }
 
-    const cardOnFileRequired = b.cardOnFileRequired !== false;
     const preference = String(b.paymentMethodPreference || '');
+    const cardOnFileRequired = resolveCardOnFileRequired(preference, b.cardOnFileRequired);
+    if (preference === 'online_after_service' && b.cardOnFileRequired === false) {
+      return json(400, { ok: false, error: 'card_on_file_required' });
+    }
     if (cardOnFileRequired) {
       if (!PAYMENT_PREFERENCES.has(preference)) {
         return json(400, { ok: false, error: 'payment_preference_required' });
@@ -1015,7 +1030,14 @@ exports.handler = async (event) => {
       });
       return json(401, { ok: false, error: 'draft_token_invalid' });
     }
-    const cardOnFileRequired = existing.cardOnFileRequired !== false;
+    const preference = String(b.paymentMethodPreference || existing.paymentMethodPreference || '');
+    const cardOnFileRequired = resolveCardOnFileRequired(
+      preference,
+      existing.cardOnFileRequired
+    );
+    if (preference === 'online_after_service' && existing.cardOnFileRequired === false) {
+      return json(400, { ok: false, error: 'card_on_file_required' });
+    }
     if (cardOnFileRequired) {
       const cofBefore = existing.cardOnFileStatus || 'pending';
       if (existing.cardOnFileStatus !== 'saved') {
@@ -1041,7 +1063,6 @@ exports.handler = async (event) => {
         });
       }
     }
-    const preference = String(b.paymentMethodPreference || '');
     if (cardOnFileRequired && (!PAYMENT_PREFERENCES.has(preference) || preference !== existing.paymentMethodPreference)) {
       return json(400, { ok: false, error: 'invalid_payment_preference' });
     }
