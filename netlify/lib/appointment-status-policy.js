@@ -1,22 +1,44 @@
 // Server-authoritative appointment lifecycle rules for customer mutations.
 
-const ONLINE_BLOCKED = new Set(['in progress', 'in_progress', 'in-progress', 'started', 'on site', 'on-site']);
+// Field-active technician statuses block structural online changes (PDA-11).
+const ONLINE_BLOCKED = new Set([
+  'in progress', 'in_progress', 'in-progress', 'started', 'on site', 'on-site',
+  'en_route', 'en route', 'arrived', 'paused', 'issue_reported',
+]);
 
-const PENDING_APPROVAL = new Set(['confirmed', 'scheduled', 'appointment confirmed']);
+const PENDING_APPROVAL = new Set(['confirmed', 'scheduled', 'appointment confirmed', 'assigned', 'accepted', 'reopened']);
 
-const PAYMENT_ALLOWED = new Set(['completed', 'payment due', 'payment_due', 'awaiting payment', 'awaiting_payment']);
+const PAYMENT_ALLOWED = new Set([
+  'completed', 'payment due', 'payment_due', 'awaiting payment', 'awaiting_payment',
+  'completed_pending_payment', 'completed_pending_admin_review',
+]);
 
-const PAID = new Set(['paid', 'closed', 'complete']);
+const PAID = new Set(['paid', 'closed', 'complete', 'completed_paid']);
 
 const CANCELLED = new Set(['cancelled', 'canceled', 'cancellation requested']);
 
-const DRAFT_LIKE = new Set(['draft', 'under review', 'pending review', 'pending', 'new', 'submitted']);
+const DRAFT_LIKE = new Set(['draft', 'under review', 'pending review', 'pending', 'new', 'submitted', 'pending_review']);
 
+/**
+ * Derive a single lifecycle label for policy checks.
+ * Active technician jobStatus overrides a stale appointmentStatus (PDA-11).
+ */
 function normalizeStatus(booking) {
-  const raw = String(
-    booking?.appointmentStatus || booking?.status || booking?.jobStatus || ''
-  ).trim().toLowerCase();
-  return raw;
+  const job = String(booking?.jobStatus || '').trim().toLowerCase();
+  const appt = String(booking?.appointmentStatus || '').trim().toLowerCase();
+  const status = String(booking?.status || '').trim().toLowerCase();
+
+  if (ONLINE_BLOCKED.has(job)) return job;
+  if (CANCELLED.has(job)) return job;
+  if (PAID.has(job)) return job === 'completed_paid' ? 'paid' : job;
+  if (PAYMENT_ALLOWED.has(job)) {
+    if (job === 'completed_pending_admin_review') return 'completed';
+    if (job === 'completed_pending_payment') return 'payment_due';
+    return job;
+  }
+
+  // Non-active field work: appointment / legacy status may still describe the phase.
+  return String(appt || status || job || '').trim().toLowerCase();
 }
 
 function isInvoicePaid(booking) {

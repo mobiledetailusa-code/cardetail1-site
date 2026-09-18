@@ -39,7 +39,20 @@ async function rebuildRequestIndex(changeRequest) {
     });
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: err.message || 'index_write_failed' };
+    const result = { ok: false, error: err.message || 'index_write_failed' };
+    try {
+      const { reportOpsStabilityAlert, ALERT_KINDS } = require('./ops-stability-alerts');
+      await reportOpsStabilityAlert({
+        kind: ALERT_KINDS.CHANGE_REQUEST_INDEX_LAG,
+        bookingId: changeRequest && (changeRequest.bookingId || changeRequest.booking_id),
+        detail: result.error,
+        meta: {
+          requestId: changeRequest && (changeRequest.id || changeRequest.requestId),
+          status: changeRequest && changeRequest.status,
+        },
+      });
+    } catch { /* never block command path */ }
+    return result;
   }
 }
 

@@ -1780,13 +1780,17 @@ async function handleAdminAction(body, testOpts = {}) {
   if (action === 'admin_note') {
     const note = sanitizeText(body.note, 1000);
     if (!note) return jsonCors(400, { ok: false, error: 'note_required' });
-    await store.setJSON(bookingId, {
+    const patched = {
       ...booking,
       adminNotes: ((booking.adminNotes || '') + '\n[' + now.slice(0, 16) + '] ' + note).trim(),
       updatedAt: now,
       eventLog: appendEventLog(booking, { action: 'admin_note', by: 'admin', note }),
-    });
-    return jsonCors(200, { ok: true, bookingId });
+    };
+    const persisted = await persistMutation(store, bookingId, patched, booking, 'admin_note', 'admin_note');
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'approve_completion') {
@@ -1886,7 +1890,7 @@ async function handleAdminAction(body, testOpts = {}) {
 
   if (action === 'request_correction') {
     const msg = sanitizeText(body.message, 500);
-    await store.setJSON(bookingId, {
+    const patched = {
       ...booking,
       jobStatus: 'in_progress',
       adminReviewRequired: true,
@@ -1895,8 +1899,12 @@ async function handleAdminAction(body, testOpts = {}) {
       completionSubmitted: false,
       updatedAt: now,
       eventLog: appendEventLog(booking, { action: 'correction_requested', by: 'admin', message: msg }),
-    });
-    return jsonCors(200, { ok: true, bookingId });
+    };
+    const persisted = await persistMutation(store, bookingId, patched, booking, 'request_correction', msg || 'correction');
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'confirm_booking') {
@@ -1962,13 +1970,24 @@ async function handleAdminAction(body, testOpts = {}) {
   if (action === 'post_to_auction') {
     const result = await createAuctionForBooking(booking, { notifySms: body.notifySms !== false, notifyEmail: body.notifyEmail !== false });
     if (!result.ok) return jsonCors(503, { ok: false, error: result.error || 'auction_failed' });
-    await store.setJSON(bookingId, {
+    const patched = {
       ...booking,
       auctionPostedAt: now,
       updatedAt: now,
       eventLog: appendEventLog(booking, { action: 'posted_to_auction', by: 'admin', bidMax: result.bidMax }),
+    };
+    const persisted = await persistMutation(store, bookingId, patched, booking, 'post_to_auction', 'auction');
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      bidMax: result.bidMax,
+      closesAt: result.closesAt,
+      notifiedSms: result.notifiedSms,
+      bookingVersion: persisted.bookingVersion,
     });
-    return jsonCors(200, { ok: true, bookingId, bidMax: result.bidMax, closesAt: result.closesAt, notifiedSms: result.notifiedSms });
   }
 
   if (action === 'assign_auction_winner') {
@@ -2313,7 +2332,7 @@ async function handleAdminAction(body, testOpts = {}) {
       return jsonCors(res.status, { ok: false, error: (pi.error && pi.error.message) || 'stripe_charge_failed' });
     }
     const succeeded = pi.status === 'succeeded';
-    await store.setJSON(bookingId, {
+    const patched = {
       ...booking,
       policyChargeStatus: succeeded ? 'charged' : pi.status,
       policyChargeAmount: amountDollars,
@@ -2324,8 +2343,26 @@ async function handleAdminAction(body, testOpts = {}) {
       eventLog: appendEventLog(booking, {
         action: 'policy_fee_charged', by: 'admin', feeType, amount: amountDollars, status: pi.status,
       }),
+    };
+    const persisted = await persistMutation(store, bookingId, patched, booking, 'charge_policy_fee', feeType || 'policy');
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, {
+        ok: false,
+        error: persisted.error || 'version_conflict',
+        paymentIntentId: pi.id,
+        status: pi.status,
+        amount: amountDollars,
+        warning: 'stripe_charged_but_booking_cas_conflict',
+      });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      paymentIntentId: pi.id,
+      status: pi.status,
+      amount: amountDollars,
+      bookingVersion: persisted.bookingVersion,
     });
-    return jsonCors(200, { ok: true, bookingId, paymentIntentId: pi.id, status: pi.status, amount: amountDollars });
   }
 
   if (action === 'record_refund_request') {
@@ -2490,8 +2527,11 @@ async function handleAdminAction(body, testOpts = {}) {
       updatedAt: now,
       eventLog: appendEventLog(booking, { action: 'admin_address_update', by: 'admin', address, zipCode }),
     };
-    await store.setJSON(bookingId, patched);
-    return jsonCors(200, { ok: true, bookingId });
+    const persisted = await persistMutation(store, bookingId, patched, booking, 'update_address', 'admin_address');
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'cancel_booking') {
@@ -2707,8 +2747,12 @@ async function handleAdminAction(body, testOpts = {}) {
 
   if (action === 'archive_test') {
     const reason = sanitizeText(body.reason, 200) || 'admin_archive_test';
-    await store.setJSON(bookingId, archiveBookingRecord(booking, reason));
-    return jsonCors(200, { ok: true, bookingId, archived: true });
+    const patched = archiveBookingRecord(booking, reason);
+    const persisted = await persistMutation(store, bookingId, patched, booking, 'archive_test', reason);
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, archived: true, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'update_customer') {
