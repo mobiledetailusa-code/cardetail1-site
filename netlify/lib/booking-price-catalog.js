@@ -5,13 +5,13 @@ const PowersportsCatalog = require('../../assets/powersports-model-catalog');
 const SeasonalDriveway = require('../../assets/seasonal-driveway-addon');
 
 const SEASONAL_DRIVEWAY_ADDONS = Object.freeze([
-  { id: 'seasonal_driveway_cleanup', price: 95, name: 'Seasonal Driveway Cleanup' },
+  { id: 'seasonal_driveway_cleanup', price: 95, name: 'Driveway & Entry Cleanup' },
   { id: 'walkway_steps', price: 35, name: 'Front Walkway + Steps' },
   { id: 'porch_entry', price: 45, name: 'Porch / Entry Area' },
   { id: 'small_patio', price: 50, name: 'Small Patio' },
   { id: 'heavy_wet_leaf', price: 50, name: 'Heavy / Wet Leaf Buildup' },
   { id: 'bag_place_property', price: 35, name: 'Bag & Place On Property' },
-  { id: 'pressure_surface_wash', price: 125, name: 'Pressure Surface Wash' },
+  { id: 'pressure_surface_wash', price: 125, name: 'Pressure Wash Upgrade' },
 ]);
 
 const POWERSPORTS_PUBLIC_TIER_KEYS = Object.freeze(
@@ -441,7 +441,7 @@ function computeAddonTotal(vehicle) {
       total += def.price;
       normalized.push({
         id: a.id,
-        name: meta.name || a.name || def.name || a.id,
+        name: a.name || meta.name || def.name || a.id,
         price: def.price,
         qty: 1,
       });

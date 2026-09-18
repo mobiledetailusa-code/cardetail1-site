@@ -1,8 +1,11 @@
 /*!
- * Cardetail1 — Seasonal Driveway Cleanup (appointment-once convenience add-on).
+ * Cardetail1 — Seasonal Cleanup (appointment-once compact add-on).
  *
  * Prices live in booking-price-catalog / page PRICING. This module owns IDs,
  * parent/child rules, appointment-once normalization, and compact booking UI.
+ *
+ * Public set is 1 base + 2 optional upgrades. Legacy child IDs stay in the
+ * family for historical bookings and must not appear as new-booking choices.
  *
  * UMD: browser booking pages and Netlify quote authority share the same rules.
  */
@@ -15,14 +18,20 @@
 
   var PARENT_ID = 'seasonal_driveway_cleanup';
 
-  var CHILD_IDS = Object.freeze([
+  var PUBLIC_CHILD_IDS = Object.freeze([
+    'heavy_wet_leaf',
+    'pressure_surface_wash',
+  ]);
+
+  var LEGACY_CHILD_IDS = Object.freeze([
     'walkway_steps',
     'porch_entry',
     'small_patio',
-    'heavy_wet_leaf',
     'bag_place_property',
-    'pressure_surface_wash',
   ]);
+
+  var CHILD_IDS = Object.freeze(PUBLIC_CHILD_IDS.concat(LEGACY_CHILD_IDS));
+  var PUBLIC_IDS = Object.freeze([PARENT_ID].concat(PUBLIC_CHILD_IDS));
 
   var FAMILY_IDS = Object.freeze([PARENT_ID].concat(CHILD_IDS));
   var FAMILY_SET = {};
@@ -31,13 +40,19 @@
   var CHILD_SET = {};
   CHILD_IDS.forEach(function (id) { CHILD_SET[id] = true; });
 
+  var PUBLIC_SET = {};
+  PUBLIC_IDS.forEach(function (id) { PUBLIC_SET[id] = true; });
+
+  var PUBLIC_CHILD_SET = {};
+  PUBLIC_CHILD_IDS.forEach(function (id) { PUBLIC_CHILD_SET[id] = true; });
+
   var ELIGIBLE_CATEGORIES = Object.freeze(['cars', 'rvs', 'powersports']);
   var ELIGIBLE_SET = { cars: true, rvs: true, powersports: true };
 
   var DISPLAY = Object.freeze({
     seasonal_driveway_cleanup: Object.freeze({
-      name: 'Seasonal Driveway Cleanup',
-      description: 'Add a quick seasonal cleanup while we\'re already on-site. Loose leaves and light debris are cleared from your driveway using professional blowing equipment. Available only with an eligible detailing appointment.',
+      name: 'Driveway & Entry Cleanup',
+      description: 'Driveway, front walkway/steps and immediate entry area. Light leaves and loose debris cleared with professional blowing equipment.',
     }),
     walkway_steps: Object.freeze({
       name: 'Front Walkway + Steps',
@@ -53,36 +68,23 @@
     }),
     heavy_wet_leaf: Object.freeze({
       name: 'Heavy / Wet Leaf Buildup',
-      description: 'Extra time for unusually heavy, wet, or matted leaf accumulation.',
+      description: 'For unusually heavy, wet or matted leaf buildup requiring additional time.',
     }),
     bag_place_property: Object.freeze({
       name: 'Bag & Place On Property',
       description: 'Leaves are bagged and placed at a customer-designated location on the property. Off-property disposal is not included.',
     }),
     pressure_surface_wash: Object.freeze({
-      name: 'Pressure Surface Wash',
-      description: 'Optional water-based surface cleaning. Weather permitting.',
+      name: 'Pressure Wash Upgrade',
+      description: 'Optional water-based cleaning of the driveway and immediate entry hard surfaces. Weather and site conditions permitting.',
     }),
   });
 
-  var CHILD_GROUPS = Object.freeze([
-    Object.freeze({
-      label: 'Additional Areas',
-      ids: Object.freeze(['walkway_steps', 'porch_entry', 'small_patio']),
-    }),
-    Object.freeze({
-      label: 'Condition',
-      ids: Object.freeze(['heavy_wet_leaf']),
-    }),
-    Object.freeze({
-      label: 'Leaf Handling',
-      ids: Object.freeze(['bag_place_property']),
-    }),
-    Object.freeze({
-      label: 'Optional Surface Cleaning',
-      ids: Object.freeze(['pressure_surface_wash']),
-    }),
-  ]);
+  var COMPACT_DESC = Object.freeze({
+    seasonal_driveway_cleanup: 'Driveway + walkway/steps + immediate entry.',
+    heavy_wet_leaf: 'For unusually heavy, wet or matted leaf buildup requiring additional time.',
+    pressure_surface_wash: 'Optional water-based cleaning of the driveway and immediate entry hard surfaces. Weather and site conditions permitting.',
+  });
 
   function asArray(v) {
     return Array.isArray(v) ? v : [];
@@ -106,6 +108,14 @@
 
   function isChildId(id) {
     return !!CHILD_SET[String(id || '').trim()];
+  }
+
+  function isPublicId(id) {
+    return !!PUBLIC_SET[String(id || '').trim()];
+  }
+
+  function isPublicChildId(id) {
+    return !!PUBLIC_CHILD_SET[String(id || '').trim()];
   }
 
   function displayFor(id) {
@@ -388,6 +398,7 @@
       if (has) return setSelectedIds(st, []);
       return setSelectedIds(st, [PARENT_ID]);
     }
+    if (!isPublicChildId(target)) return current;
     if (current.indexOf(PARENT_ID) < 0) return current;
     if (has) {
       return setSelectedIds(st, current.filter(function (x) { return x !== target; }));
@@ -412,17 +423,23 @@
     return null;
   }
 
-  function cardHtml(row, selected) {
+  function rowHtml(row, selected, extraNote) {
     if (!row) return '';
     var meta = displayFor(row.id);
-    var name = row.name || meta.name;
-    var desc = row.desc || meta.description;
+    var name = meta.name || row.name;
+    var desc = COMPACT_DESC[row.id] || row.desc || meta.description;
     var sel = selected ? ' sel' : '';
-    return '<div class="addon' + sel + '" data-price="' + esc(row.price) + '" data-id="' + esc(row.id) +
-      '" data-unit="0" onclick="event.stopPropagation();CD1SeasonalDriveway.onCardClick(\'' +
-      esc(row.id) + '\')"><div class="addon-check">✓</div><div class="addon-name">' + esc(name) +
-      '</div><div class="addon-desc">' + esc(desc) + '</div><div class="addon-price">+$' +
-      esc(row.price) + '</div></div>';
+    var html = '<div class="onsite-conv-row' + sel + '" role="checkbox" aria-checked="' +
+      (selected ? 'true' : 'false') + '" tabindex="0" data-price="' + esc(row.price) +
+      '" data-id="' + esc(row.id) + '" onclick="event.stopPropagation();CD1SeasonalDriveway.onCardClick(\'' +
+      esc(row.id) + '\')"><span class="onsite-conv-check" aria-hidden="true">' +
+      (selected ? '✓' : '') + '</span><span class="onsite-conv-copy"><span class="onsite-conv-name">' +
+      esc(name) + '</span><span class="onsite-conv-desc">' + esc(desc) + '</span>';
+    if (extraNote) {
+      html += '<span class="onsite-conv-note">' + esc(extraNote) + '</span>';
+    }
+    html += '</span><span class="onsite-conv-price">+$' + esc(row.price) + '</span></div>';
+    return html;
   }
 
   function blockHtml(st, pricing) {
@@ -433,15 +450,16 @@
     var selected = selectedIds(st);
     var parentOn = selected.indexOf(PARENT_ID) >= 0;
     var html = '<div class="onsite-conv" id="onsite-conv">' +
-      '<div class="onsite-conv-h">On-Site Convenience</div>' +
-      '<p class="onsite-conv-note">Available only with an eligible detailing appointment. Debris haul-away or off-property disposal is not included.</p>' +
-      cardHtml(parentRow, parentOn) +
-      '<div class="onsite-conv-children' + (parentOn ? ' open' : '') + '" id="onsite-conv-children">';
-    CHILD_GROUPS.forEach(function (group) {
-      html += '<div class="onsite-conv-sub">' + esc(group.label) + '</div>';
-      group.ids.forEach(function (id) {
-        html += cardHtml(catalogRow(pricing, cat, id), selected.indexOf(id) >= 0);
-      });
+      '<div class="onsite-conv-h">Seasonal Cleanup</div>' +
+      rowHtml(
+        parentRow,
+        parentOn,
+        'Debris is consolidated at a designated area on the property. Off-property removal is not included.'
+      ) +
+      '<div class="onsite-conv-children' + (parentOn ? ' open' : '') + '" id="onsite-conv-children">' +
+      '<div class="onsite-conv-opt">Optional</div>';
+    PUBLIC_CHILD_IDS.forEach(function (id) {
+      html += rowHtml(catalogRow(pricing, cat, id), selected.indexOf(id) >= 0);
     });
     html += '</div></div>';
     return html;
@@ -473,13 +491,17 @@
   return {
     PARENT_ID: PARENT_ID,
     CHILD_IDS: CHILD_IDS,
+    PUBLIC_CHILD_IDS: PUBLIC_CHILD_IDS,
+    LEGACY_CHILD_IDS: LEGACY_CHILD_IDS,
+    PUBLIC_IDS: PUBLIC_IDS,
     FAMILY_IDS: FAMILY_IDS,
     ELIGIBLE_CATEGORIES: ELIGIBLE_CATEGORIES,
     DISPLAY: DISPLAY,
-    CHILD_GROUPS: CHILD_GROUPS,
     isFamilyId: isFamilyId,
     isParentId: isParentId,
     isChildId: isChildId,
+    isPublicId: isPublicId,
+    isPublicChildId: isPublicChildId,
     isEligibleCategory: isEligibleCategory,
     displayFor: displayFor,
     addonIdsFromVehicle: addonIdsFromVehicle,

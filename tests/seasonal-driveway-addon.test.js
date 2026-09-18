@@ -1,7 +1,8 @@
 'use strict';
 
 /**
- * Seasonal Driveway Cleanup — appointment-once convenience add-on.
+ * Seasonal Cleanup — compact public add-on (1 base + 2 upgrades).
+ * Legacy child IDs remain priced for historical bookings only.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
@@ -22,7 +23,17 @@ const lineItems = require('../assets/booking-line-items');
 
 const PARENT = Seasonal.PARENT_ID;
 const CHILDREN = Seasonal.CHILD_IDS;
-const FAMILY_TOTAL = 95 + 35 + 45 + 50 + 50 + 35 + 125; // 435
+const PUBLIC_CHILDREN = Seasonal.PUBLIC_CHILD_IDS;
+const LEGACY_CHILDREN = Seasonal.LEGACY_CHILD_IDS;
+const PUBLIC_TOTAL = 95 + 50 + 125; // 270
+const LEGACY_FAMILY_TOTAL = 95 + 35 + 45 + 50 + 50 + 35 + 125; // 435
+
+const HIDDEN_PUBLIC_NAMES = [
+  'Front Walkway + Steps',
+  'Porch / Entry Area',
+  'Small Patio',
+  'Bag & Place On Property',
+];
 
 const BOOKING_PAGES = [
   'index.html',
@@ -65,7 +76,7 @@ function priced(vehicles) {
   return computeBookingServiceSubtotal({ zipCode: '07601', vehicles });
 }
 
-describe('Seasonal Driveway Cleanup catalog', () => {
+describe('Seasonal Cleanup catalog', () => {
   it('exposes parent + children at fixed prices on eligible categories only', () => {
     for (const cat of ['cars', 'rvs', 'powersports']) {
       const byId = Object.fromEntries(PRICING[cat].addons.map((a) => [a.id, a.price]));
@@ -86,6 +97,21 @@ describe('Seasonal Driveway Cleanup catalog', () => {
     }
   });
 
+  it('public selectable set is exactly three options', () => {
+    assert.deepEqual(Seasonal.PUBLIC_IDS, [PARENT, 'heavy_wet_leaf', 'pressure_surface_wash']);
+    assert.equal(Seasonal.PUBLIC_IDS.length, 3);
+    assert.deepEqual(PUBLIC_CHILDREN, ['heavy_wet_leaf', 'pressure_surface_wash']);
+    assert.deepEqual(LEGACY_CHILDREN, [
+      'walkway_steps',
+      'porch_entry',
+      'small_patio',
+      'bag_place_property',
+    ]);
+    assert.equal(Seasonal.DISPLAY[PARENT].name, 'Driveway & Entry Cleanup');
+    assert.equal(Seasonal.DISPLAY.heavy_wet_leaf.name, 'Heavy / Wet Leaf Buildup');
+    assert.equal(Seasonal.DISPLAY.pressure_surface_wash.name, 'Pressure Wash Upgrade');
+  });
+
   it('does not promise haul-away or off-property disposal', () => {
     const { serializeCanonicalAddonCatalog } = require('../netlify/lib/canonical-addon-catalog');
     const sources = [
@@ -98,8 +124,7 @@ describe('Seasonal Driveway Cleanup catalog', () => {
       assert.doesNotMatch(src, /Bag & Remove/);
       assert.doesNotMatch(src, /waste disposal/i);
       assert.doesNotMatch(src, /leaf disposal/i);
-      assert.match(src, /Bag & Place On Property/);
-      assert.match(src, /Off-property disposal is not included|Debris haul-away or off-property disposal is not included/);
+      assert.match(src, /Off-property (disposal|removal) is not included/);
     }
   });
 });
@@ -107,13 +132,14 @@ describe('Seasonal Driveway Cleanup catalog', () => {
 describe('single-vehicle server prices', () => {
   const cases = [
     { addons: [PARENT], extra: 95 },
+    { addons: [PARENT, 'heavy_wet_leaf'], extra: 145 },
+    { addons: [PARENT, 'pressure_surface_wash'], extra: 220 },
+    { addons: [PARENT, ...PUBLIC_CHILDREN], extra: PUBLIC_TOTAL },
     { addons: [PARENT, 'walkway_steps'], extra: 130 },
     { addons: [PARENT, 'porch_entry'], extra: 140 },
     { addons: [PARENT, 'small_patio'], extra: 145 },
-    { addons: [PARENT, 'heavy_wet_leaf'], extra: 145 },
     { addons: [PARENT, 'bag_place_property'], extra: 130 },
-    { addons: [PARENT, 'pressure_surface_wash'], extra: 220 },
-    { addons: [PARENT, ...CHILDREN], extra: FAMILY_TOTAL },
+    { addons: [PARENT, ...CHILDREN], extra: LEGACY_FAMILY_TOTAL },
   ];
   for (const c of cases) {
     it(`${c.addons.join('+')} adds $${c.extra}`, () => {
@@ -124,7 +150,13 @@ describe('single-vehicle server prices', () => {
     });
   }
 
-  it('all options expected $435 actual matches', () => {
+  it('public three-option family is $270', () => {
+    const r = priced([car({ addons: [PARENT, ...PUBLIC_CHILDREN].map((id) => ({ id })) })]);
+    assert.equal(r.ok, true);
+    assert.equal(r.vehicles[0].addonTotal, 270);
+  });
+
+  it('legacy full family still prices at $435 for historical payloads', () => {
     const r = priced([car({ addons: [PARENT, ...CHILDREN].map((id) => ({ id })) })]);
     assert.equal(r.ok, true);
     assert.equal(r.vehicles[0].addonTotal, 435);
@@ -144,7 +176,7 @@ describe('orphan children', () => {
     const delta = applyServiceDelta(
       { vehicles: [car()] },
       { vehicleId: 'veh_a' },
-      { addOnIdsToAdd: ['porch_entry'] },
+      { addOnIdsToAdd: ['heavy_wet_leaf'] },
     );
     assert.equal(delta.ok, false);
     assert.equal(delta.error, 'addon_parent_required');
@@ -228,15 +260,15 @@ describe('multi-vehicle appointment-once', () => {
     const quoted = quoteService({
       zip: '07601',
       vehicles: [
-        car({ addons: [{ id: PARENT }, { id: 'walkway_steps' }] }),
+        car({ addons: [{ id: PARENT }, { id: 'heavy_wet_leaf' }] }),
         car({ vehicleId: 'veh_b', pkgId: 'maint', packageId: 'maint', tierKey: 'suv2', addons: [{ id: PARENT }] }),
       ],
     });
     assert.equal(quoted.ok, true, quoted.error);
     const familyLines = quoted.quote.lineItems.filter((l) => l.kind === 'addon' && Seasonal.isFamilyId(l.addonId));
     assert.equal(familyLines.length, 2);
-    assert.equal(familyLines.reduce((s, l) => s + l.amountCents, 0), 13000);
-    assert.equal(quoted.quote.serviceSubtotalCents, (240 + 185 + 130) * 100);
+    assert.equal(familyLines.reduce((s, l) => s + l.amountCents, 0), 14500);
+    assert.equal(quoted.quote.serviceSubtotalCents, (240 + 185 + 145) * 100);
   });
 });
 
@@ -319,8 +351,8 @@ describe('parent uncheck / remove clears children', () => {
     const delta = applyServiceDelta(
       {
         vehicles: [car({
-          addOnIds: [PARENT, 'walkway_steps', 'porch_entry'],
-          addons: [{ id: PARENT }, { id: 'walkway_steps' }, { id: 'porch_entry' }],
+          addOnIds: [PARENT, 'heavy_wet_leaf', 'pressure_surface_wash'],
+          addons: [{ id: PARENT }, { id: 'heavy_wet_leaf' }, { id: 'pressure_surface_wash' }],
         })],
       },
       { vehicleId: 'veh_a' },
@@ -329,12 +361,18 @@ describe('parent uncheck / remove clears children', () => {
     assert.equal(delta.ok, true, delta.error);
     const ids = delta.service.vehicles[0].addOnIds;
     assert.equal(ids.includes(PARENT), false);
-    assert.equal(ids.includes('walkway_steps'), false);
-    assert.equal(ids.includes('porch_entry'), false);
+    assert.equal(ids.includes('heavy_wet_leaf'), false);
+    assert.equal(ids.includes('pressure_surface_wash'), false);
   });
 
-  it('UI toggle parent off clears children', () => {
-    const st = { seasonalAddonIds: [PARENT, 'walkway_steps', 'small_patio'], vehicles: [] };
+  it('UI toggle parent off clears heavy', () => {
+    const st = { seasonalAddonIds: [PARENT, 'heavy_wet_leaf'], vehicles: [] };
+    Seasonal.toggle(PARENT, st, PRICING);
+    assert.deepEqual(st.seasonalAddonIds, []);
+  });
+
+  it('UI toggle parent off clears pressure', () => {
+    const st = { seasonalAddonIds: [PARENT, 'pressure_surface_wash'], vehicles: [] };
     Seasonal.toggle(PARENT, st, PRICING);
     assert.deepEqual(st.seasonalAddonIds, []);
   });
@@ -419,9 +457,9 @@ describe('multi-vehicle mutation keeps one appointment-level set', () => {
 
   it('cart sync after removing the primary vehicle keeps one charge', () => {
     const st = {
-      seasonalAddonIds: [PARENT, 'walkway_steps'],
+      seasonalAddonIds: [PARENT, 'heavy_wet_leaf'],
       vehicles: [
-        car({ addons: [{ id: PARENT, price: 95 }, { id: 'walkway_steps', price: 35 }, { id: 'rainx', price: 35 }] }),
+        car({ addons: [{ id: PARENT, price: 95 }, { id: 'heavy_wet_leaf', price: 50 }, { id: 'rainx', price: 35 }] }),
         car({
           vehicleId: 'veh_b',
           pkgId: 'maint',
@@ -437,9 +475,9 @@ describe('multi-vehicle mutation keeps one appointment-level set', () => {
     st.vehicles.splice(0, 1);
     Seasonal.syncSeasonalOntoCart(st, PRICING);
     const family = (st.vehicles[0].addons || []).filter((a) => Seasonal.isFamilyId(a.id)).map((a) => a.id);
-    assert.deepEqual(family, [PARENT, 'walkway_steps']);
-    assert.equal(st.vehicles[0].addonTotal, 130);
-    assert.equal(st.vehicles[0].subtotal, 185 + 130);
+    assert.deepEqual(family, [PARENT, 'heavy_wet_leaf']);
+    assert.equal(st.vehicles[0].addonTotal, 145);
+    assert.equal(st.vehicles[0].subtotal, 185 + 145);
   });
 });
 
@@ -491,10 +529,25 @@ describe('history immutability', () => {
       walkDef.price = prevWalk;
     }
   });
+
+  it('repricing a historical payload prefers stored names', () => {
+    const r = computeAddonTotal({
+      cat: 'cars',
+      pkgId: 'full',
+      addons: [
+        { id: PARENT, name: 'Seasonal Driveway Cleanup', price: 95 },
+        { id: 'bag_place_property', name: 'Bag & Place On Property', price: 35 },
+      ],
+    });
+    assert.equal(r.ok, true);
+    assert.equal(r.total, 130);
+    assert.equal(r.addons[0].name, 'Seasonal Driveway Cleanup');
+    assert.equal(r.addons[1].name, 'Bag & Place On Property');
+  });
 });
 
 describe('Review presentation', () => {
-  it('groups driveway family once under On-Site Convenience', () => {
+  it('groups new public family once under Seasonal Cleanup', () => {
     const html = lineItems.renderSummaryHtml(lineItems.projectBooking({
       vehicles: [
         {
@@ -502,30 +555,52 @@ describe('Review presentation', () => {
           pkgName: 'Premium Detail',
           basePrice: 240,
           addons: [
-            { id: PARENT, name: 'Seasonal Driveway Cleanup', price: 95 },
-            { id: 'walkway_steps', name: 'Front Walkway + Steps', price: 35 },
-            { id: 'bag_place_property', name: 'Bag & Place On Property', price: 35 },
+            { id: PARENT, name: 'Driveway & Entry Cleanup', price: 95 },
+            { id: 'heavy_wet_leaf', name: 'Heavy / Wet Leaf Buildup', price: 50 },
             { id: 'rainx', name: 'Rain-X Glass Treatment', price: 25 },
           ],
-          addonTotal: 190,
-          subtotal: 430,
+          addonTotal: 170,
+          subtotal: 410,
         },
         {
           vehicleLabel: '2019 Toyota RAV4',
           pkgName: 'Maintenance Detail',
           basePrice: 185,
-          addons: [{ id: PARENT, name: 'Seasonal Driveway Cleanup', price: 95 }],
+          addons: [{ id: PARENT, name: 'Driveway & Entry Cleanup', price: 95 }],
           addonTotal: 95,
           subtotal: 280,
         },
       ],
     }).items);
-    assert.match(html, /On-Site Convenience/);
-    assert.equal((html.match(/Seasonal Driveway Cleanup/g) || []).length, 1);
+    assert.match(html, /Seasonal Cleanup/);
+    assert.equal((html.match(/Driveway &amp; Entry Cleanup/g) || []).length, 1);
+    assert.match(html, /Heavy \/ Wet Leaf Buildup/);
+    assert.match(html, /Seasonal add-ons subtotal/);
+    assert.doesNotMatch(html, /Front Walkway/);
+    assert.doesNotMatch(html, /Bag &amp; Place On Property/);
+    assert.doesNotMatch(html, /On-Site Convenience/);
+    assert.doesNotMatch(html, /haul away/i);
+  });
+
+  it('historical micro-addons remain readable on review', () => {
+    const html = lineItems.renderSummaryHtml(lineItems.projectBooking({
+      vehicles: [{
+        vehicleLabel: '2022 Honda Civic',
+        pkgName: 'Premium Detail',
+        basePrice: 240,
+        addons: [
+          { id: PARENT, name: 'Seasonal Driveway Cleanup', price: 95 },
+          { id: 'walkway_steps', name: 'Front Walkway + Steps', price: 35 },
+          { id: 'bag_place_property', name: 'Bag & Place On Property', price: 35 },
+        ],
+        addonTotal: 165,
+        subtotal: 405,
+      }],
+    }).items);
+    assert.match(html, /Seasonal Driveway Cleanup/);
     assert.match(html, /Front Walkway \+ Steps/);
     assert.match(html, /Bag &amp; Place On Property/);
-    assert.match(html, /On-Site Convenience subtotal/);
-    assert.doesNotMatch(html, /haul away/i);
+    assert.match(html, /\$165/);
   });
 });
 
@@ -554,25 +629,51 @@ describe('booking page wiring', () => {
       assert.match(html, /CD1SeasonalDriveway\.isFamilyId/);
       assert.match(html, /CD1SeasonalDriveway\.mountAddonGrid/);
       assert.match(html, /CD1SeasonalDriveway\.syncSeasonalOntoCart/);
+      assert.match(html, /Driveway & Entry Cleanup/);
+      assert.match(html, /Pressure Wash Upgrade/);
       assert.doesNotMatch(html, /haul away/i);
-      assert.match(html, /Weather permitting/);
+      assert.match(html, /Weather and site conditions permitting/);
     });
   }
 });
 
 describe('UI parent/child visibility', () => {
-  it('hides children until parent is selected and clears them on uncheck', () => {
+  it('public blockHtml exposes exactly three compact options', () => {
+    const st = { cat: 'cars', seasonalAddonIds: [PARENT], vehicles: [] };
+    const html = Seasonal.blockHtml(st, PRICING);
+    assert.match(html, /Seasonal Cleanup/);
+    assert.match(html, /Driveway &amp; Entry Cleanup/);
+    assert.match(html, /\+\$95/);
+    assert.match(html, /Heavy \/ Wet Leaf Buildup/);
+    assert.match(html, /\+\$50/);
+    assert.match(html, /Pressure Wash Upgrade/);
+    assert.match(html, /\+\$125/);
+    assert.match(html, /Driveway \+ walkway\/steps \+ immediate entry/);
+    assert.match(html, /Off-property removal is not included/);
+    assert.match(html, /onsite-conv-opt">Optional/);
+    for (const name of HIDDEN_PUBLIC_NAMES) {
+      assert.equal(html.includes(name), false, `must not show ${name}`);
+    }
+    assert.doesNotMatch(html, /Additional Areas/);
+    assert.doesNotMatch(html, /Leaf Handling/);
+    assert.doesNotMatch(html, /Optional Surface Cleaning/);
+    assert.doesNotMatch(html, /class="onsite-conv-sub"/);
+    assert.doesNotMatch(html, /class="addon /);
+    assert.equal((html.match(/onsite-conv-row/g) || []).length, 3);
+  });
+
+  it('hides upgrades until parent is selected and clears them on uncheck', () => {
     const st = { cat: 'cars', seasonalAddonIds: [], vehicles: [] };
     const closed = Seasonal.blockHtml(st, PRICING);
-    assert.match(closed, /Seasonal Driveway Cleanup/);
+    assert.match(closed, /Driveway &amp; Entry Cleanup/);
     assert.match(closed, /onsite-conv-children"/);
     assert.doesNotMatch(closed, /onsite-conv-children open/);
 
     Seasonal.toggle(PARENT, st, PRICING);
-    Seasonal.toggle('walkway_steps', st, PRICING);
+    Seasonal.toggle('heavy_wet_leaf', st, PRICING);
     const open = Seasonal.blockHtml(st, PRICING);
     assert.match(open, /onsite-conv-children open/);
-    assert.deepEqual(st.seasonalAddonIds, [PARENT, 'walkway_steps']);
+    assert.deepEqual(st.seasonalAddonIds, [PARENT, 'heavy_wet_leaf']);
 
     Seasonal.toggle(PARENT, st, PRICING);
     assert.deepEqual(st.seasonalAddonIds, []);
@@ -580,10 +681,20 @@ describe('UI parent/child visibility', () => {
     assert.doesNotMatch(again, /onsite-conv-children open/);
   });
 
-  it('does not allow a child toggle without the parent', () => {
+  it('does not allow a public child toggle without the parent', () => {
     const st = { cat: 'cars', seasonalAddonIds: [], vehicles: [] };
-    Seasonal.toggle('porch_entry', st, PRICING);
+    Seasonal.toggle('heavy_wet_leaf', st, PRICING);
+    Seasonal.toggle('pressure_surface_wash', st, PRICING);
     assert.deepEqual(st.seasonalAddonIds, []);
+  });
+
+  it('does not allow selecting hidden legacy micro-addons from the new booking UI', () => {
+    const st = { cat: 'cars', seasonalAddonIds: [PARENT], vehicles: [] };
+    Seasonal.toggle('walkway_steps', st, PRICING);
+    Seasonal.toggle('porch_entry', st, PRICING);
+    Seasonal.toggle('small_patio', st, PRICING);
+    Seasonal.toggle('bag_place_property', st, PRICING);
+    assert.deepEqual(st.seasonalAddonIds, [PARENT]);
   });
 });
 

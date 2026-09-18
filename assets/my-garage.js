@@ -994,7 +994,7 @@
           '</ul></dd></div>';
       }
       if (convenience.length) {
-        addonBlock += '<div><dt>On-Site Convenience</dt><dd><ul class="vehicle-addon-list">' +
+        addonBlock += '<div><dt>Seasonal Cleanup</dt><dd><ul class="vehicle-addon-list">' +
           convenience.map(function (a) {
             var name = a.name || a.id || 'Add-on';
             var price = safeMoneyOrNull(a.price);

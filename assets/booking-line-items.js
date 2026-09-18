@@ -199,10 +199,10 @@
       return '<div class="or"><span class="ol">' + esc(addonLabel(a)) + '</span>' +
         '<span class="ov">' + (a.lineTotal === null ? '—' : esc(money(a.lineTotal))) + '</span></div>';
     }).join('');
-    rows += '<div class="or bkli-subtotal"><span class="ol">On-Site Convenience subtotal</span>' +
+    rows += '<div class="or bkli-subtotal"><span class="ol">Seasonal add-ons subtotal</span>' +
       '<span class="ov">' + esc(money(appointmentTotal)) + '</span></div>';
-    return '<section class="bkli-vehicle bkli-onsite" aria-label="On-Site Convenience">' +
-      '<h4 class="bkli-vehicle-title"><span class="bkli-vehicle-name">On-Site Convenience</span></h4>' +
+    return '<section class="bkli-vehicle bkli-onsite" aria-label="Seasonal Cleanup">' +
+      '<h4 class="bkli-vehicle-title"><span class="bkli-vehicle-name">Seasonal Cleanup</span></h4>' +
       rows + '</section>';
   }
 
@@ -264,11 +264,11 @@
     });
     if (peeled.appointmentAddons.length) {
       if (lines.length) lines.push('');
-      lines.push('On-Site Convenience');
+      lines.push('Seasonal Cleanup');
       peeled.appointmentAddons.forEach(function (a) {
         lines.push('  ' + addonLabel(a) + ': ' + (a.lineTotal === null ? '—' : money(a.lineTotal)));
       });
-      lines.push('  On-Site Convenience subtotal: ' + money(peeled.appointmentTotal));
+      lines.push('  Seasonal add-ons subtotal: ' + money(peeled.appointmentTotal));
     }
     return lines;
   }
@@ -291,11 +291,11 @@
         '</div>';
     }).join('');
     if (peeled.appointmentAddons.length) {
-      html += '<div style="margin:0 0 14px"><p style="margin:0 0 4px"><strong>On-Site Convenience</strong></p><ul style="margin:0 0 4px;padding-left:20px">';
+      html += '<div style="margin:0 0 14px"><p style="margin:0 0 4px"><strong>Seasonal Cleanup</strong></p><ul style="margin:0 0 4px;padding-left:20px">';
       html += peeled.appointmentAddons.map(function (a) {
         return '<li>' + esc(addonLabel(a)) + ': ' + esc(a.lineTotal === null ? '—' : money(a.lineTotal)) + '</li>';
       }).join('');
-      html += '</ul><p style="margin:0">On-Site Convenience subtotal: <strong>' +
+      html += '</ul><p style="margin:0">Seasonal add-ons subtotal: <strong>' +
         esc(money(peeled.appointmentTotal)) + '</strong></p></div>';
     }
     return html;
